@@ -22,9 +22,15 @@ def verify_twitch_jwt(request: Request) -> dict:
     В production режим 'unsigned' ОТКЛЮЧЕН — любая неверная подпись = отказ.
     Не кидает исключений.
     """
-    # DEV_MODE: пропускаем JWT верификацию для локального тестирования
+    # DEV_MODE: пропускаем JWT верификацию для локального тестирования.
+    # Защита от случайного DEV_MODE=True в проде: bypass работает только если
+    # запрос пришёл с localhost. Внешний трафик в любом случае пойдёт через
+    # обычную JWT-проверку.
     if DEV_MODE:
-        return {"status": "valid", "username": DEV_USERNAME}
+        client_ip = (request.client.host if request.client else "")
+        if client_ip in ("127.0.0.1", "::1", "localhost"):
+            return {"status": "valid", "username": DEV_USERNAME}
+        # DEV_MODE + не-localhost → не выдаём bypass, идём по обычному JWT-пути
 
     token = request.headers.get("X-Twitch-JWT", "").strip()
     if not token:

@@ -15,6 +15,8 @@ from typing import Optional
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
+from config import LOGIN_ATTEMPT_TTL
+
 # ── Shared state ──────────────────────────────────────────────────────────────
 _db  = None
 _bot = None
@@ -152,29 +154,48 @@ if not _raw_admin_password:
     )
 _ADMIN_PASSWORD = _raw_admin_password
 
+# Брутфорс-защита: блокируем IP после LOGIN_ATTEMPT_MAX неудач в окне LOGIN_ATTEMPT_TTL.
+# При успешном входе счётчик IP сбрасывается. Без этого 8-значный пароль подбирается
+# простым curl-скриптом за минуты.
+LOGIN_ATTEMPT_MAX = 10
+
 
 def require_admin(credentials: HTTPBasicCredentials = Depends(_security), request: Request = None):
     """Защита всех /admin и /api/admin роутов через HTTP Basic Auth."""
     global _failed_login_attempts
+    now = _time.time()
+    ip  = (request.client.host if request and request.client else None) or credentials.username
+
+    _failed_login_attempts = {k: v for k, v in _failed_login_attempts.items()
+                               if now - v["first"] < LOGIN_ATTEMPT_TTL}
+
+    bucket = _failed_login_attempts.get(ip)
+    if bucket and bucket["count"] >= LOGIN_ATTEMPT_MAX:
+        retry_minutes = max(1, int((LOGIN_ATTEMPT_TTL - (now - bucket["first"])) / 60) + 1)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Слишком много неудачных попыток. Попробуй через {retry_minutes} мин.",
+        )
+
     ok_user = secrets.compare_digest(credentials.username.encode(), _ADMIN_USERNAME.encode())
     ok_pass = secrets.compare_digest(credentials.password.encode(), _ADMIN_PASSWORD.encode())
-    if not (ok_user and ok_pass):
-        now = _time.time()
-        ip  = (request.client.host if request and request.client else None) or credentials.username
-        if ip not in _failed_login_attempts:
-            _failed_login_attempts[ip] = {"count": 0, "first": now}
-        _failed_login_attempts[ip]["count"] += 1
-        _failed_login_attempts[ip]["last"]   = now
-        count = _failed_login_attempts[ip]["count"]
-        print(f"🚨 Failed login attempt #{count} for user '{credentials.username}'")
-        from config import LOGIN_ATTEMPT_TTL
-        _failed_login_attempts = {k: v for k, v in _failed_login_attempts.items()
-                                   if now - v["first"] < LOGIN_ATTEMPT_TTL}
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Неверный логин или пароль",
-            headers={"WWW-Authenticate": "Basic"},
-        )
+
+    if ok_user and ok_pass:
+        _failed_login_attempts.pop(ip, None)
+        return
+
+    if ip not in _failed_login_attempts:
+        _failed_login_attempts[ip] = {"count": 0, "first": now}
+    _failed_login_attempts[ip]["count"] += 1
+    _failed_login_attempts[ip]["last"]   = now
+    count = _failed_login_attempts[ip]["count"]
+    print(f"🚨 Failed login #{count}/{LOGIN_ATTEMPT_MAX} for '{credentials.username}' from {ip}")
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Неверный логин или пароль",
+        headers={"WWW-Authenticate": "Basic"},
+    )
 
 
 # ── Stream check ──────────────────────────────────────────────────────────────

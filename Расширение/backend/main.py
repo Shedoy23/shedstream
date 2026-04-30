@@ -665,6 +665,19 @@ async def eventsub_channel_points(request: Request):
         print(f"EventSub: неверная подпись! expected={expected_sig[:30]} got={msg_signature[:30]}")
         return JSONResponse({"error": "invalid signature"}, status_code=403)
 
+    # Replay-protection: Twitch шлёт ISO-таймстамп, отказываем сообщениям старше 10 мин.
+    # Дедуп по redemption_id защищает только пока БД жива; timestamp-window нужен
+    # для случая «БД пересоздана, старая валидная подпись переиграна».
+    try:
+        msg_dt = datetime.fromisoformat(msg_timestamp.replace('Z', '+00:00'))
+        age_sec = abs(_time.time() - msg_dt.timestamp())
+        if age_sec > 600:
+            print(f"EventSub: timestamp out of window ({int(age_sec)}s)")
+            return JSONResponse({"error": "timestamp out of window"}, status_code=403)
+    except (ValueError, TypeError) as e:
+        print(f"EventSub: bad timestamp '{msg_timestamp}': {e}")
+        return JSONResponse({"error": "bad timestamp"}, status_code=400)
+
     # Парсим тело из body_bytes (request.json() повторно не читает стрим)
     data = _json.loads(body_bytes)
 

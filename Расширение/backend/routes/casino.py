@@ -3,11 +3,15 @@ routes/casino.py — казино: ставки, слоты, джекпот, nea
 """
 
 import asyncio
-import random
 import time
 from datetime import datetime, date
+from secrets import SystemRandom
 
 from fastapi import APIRouter
+
+# CSPRNG вместо random.* — Mersenne Twister предсказуем после ~624 наблюдений.
+# Для денежной экономики это критично; разница в производительности нерелевантна.
+_rng = SystemRandom()
 
 from config import sanitize_username, validate_username
 from dependencies import (
@@ -73,7 +77,7 @@ async def _reset_jackpot(db):
 
 def _pick():
     total = sum(s["weight"] for s in SLOT_SYMBOLS)
-    r = random.randint(1, total)
+    r = _rng.randint(1, total)
     cum = 0
     for s in SLOT_SYMBOLS:
         cum += s["weight"]
@@ -271,7 +275,7 @@ async def risk_double(username: str, choice: str):
     amount = pending["amount"]
     _pending_doubles.pop(uname, None)
 
-    actual = random.choice(("red", "black"))
+    actual = _rng.choice(("red", "black"))
     won    = actual == choice
 
     if won:

@@ -1,6 +1,6 @@
 # Module API Specification
 
-**Status:** Draft v0.1 (2026-04-30)
+**Status:** Draft v0.2 (2026-04-30)
 **Owner:** Edward
 **Цель документа:** зафиксировать контракт между **ядром** (game-agnostic SaaS-бэк) и **модулями интеграции с играми** (RimWorld, Minecraft, Terraria, …) ДО того как начнётся multi-tenant рефакторинг и вынос RimWorld в `modules/rimworld/`. Спецификация не описывает реализацию — только контракт.
 
@@ -18,15 +18,17 @@
 | **Channel** | Twitch-канал стримера. Tenant-разделитель. Все данные сегрегируются по `channel_id`. |
 | **Player** | Зритель, привязавший Twitch-аккаунт к in-game персонажу через connector. Идентификатор — `viewer_id` (Twitch user id) + `character_ref` (специфичная для игры ссылка). |
 | **Event** | Сообщение, которое connector шлёт в core (направление IN). |
-| **Action** | Команда, которую core инициирует в connector (направление OUT). |
-| **Catalog** | Список сущностей, которые модуль публикует в core (shop items, triggerable events). Динамический. |
+| **Module action** | Команда, которую core инициирует в connector (направление OUT). Исполняется в игре. |
+| **Core action** | Команда, которая исполняется внутри платформы (overlay, chat, alert) и **не уходит** в connector. Работает даже без активного модуля. |
+| **Module catalog** | Список сущностей, которые модуль публикует в core (shop items, triggerable events). Динамический, появляется при handshake модуля. |
+| **Core shop** | Магазин ядра — товары не зависят от игры (overlay-эффекты, alerts стримеру, chat-косметика). Доступен всегда, в т.ч. на Free-tier без активного модуля. |
 
 ---
 
 ## 2. Цели / не-цели
 
 ### Цели
-1. **Один модуль = одна игра.** Стример выбирает в админке какой модуль активен (за раз — один).
+1. **Один модуль = одна игра, активна за раз ровно одна.** Стример выбирает в админке какой модуль активен. Переключение между модулями — административное действие, не runtime: после переключения зрителям нужно перезайти в новый сейв (link `viewer_id ↔ character_ref` пересоздаётся). Так избегаем рассинхронизации инвентаря/прогресса между играми.
 2. **Стабильный контракт.** Старый connector работает с новой версией core (semver, см. §11).
 3. **Минимум обязательных событий.** Модуль может быть «бедным» (только heartbeat + spawn) — этого достаточно чтобы ядро начисляло viewer points.
 4. **Расширяемость без правки core.** Кастомные события и actions кладутся в `extensions.<module_id>.*` и не требуют merge в ядро.
@@ -41,19 +43,31 @@
 
 ## 3. Транспорт
 
-### 3.1 WebSocket (целевой)
-- Endpoint: `wss://api.example.com/v1/module/<module_id>/socket`
-- Persistent. Двусторонний. Идеален для polling-free actions.
-- Сообщение — JSON-объект, по одному на frame.
-- Heartbeat: connector шлёт `module.heartbeat` каждые 30 секунд. Core закрывает сокет если 90 с тишины.
+Эволюция в три шага. Каждый следующий не ломает предыдущий — connector с REST-логикой v1.0 продолжит работать когда сервер уже умеет SSE и WebSocket.
 
-### 3.2 REST fallback (для совместимости / простых connector'ов)
+### 3.1 v1.0 — REST long-polling (стартовый, ОБЯЗАТЕЛЬНЫЙ)
+Самый простой connector работает **только** через эти три эндпоинта:
 - `POST /v1/module/<module_id>/events` — connector → core, batch событий.
-- `GET  /v1/module/<module_id>/actions?since=<cursor>` — connector → core, polling actions. Long-poll до 25 с.
-- `POST /v1/module/<module_id>/actions/ack` — connector → core, подтверждение выполнения.
-- Кэдра не теряет actions: они хранятся в БД с TTL до ACK.
+- `GET  /v1/module/<module_id>/actions?since=<cursor>` — connector → core, long-poll до 25 с (или сразу 200 с массивом ожидающих actions).
+- `POST /v1/module/<module_id>/actions/ack` — connector → core, подтверждение выполнения по `id`.
 
-### 3.3 Конверт сообщения (одинаковый для WS и REST)
+Core **не теряет** actions: хранит в БД до ACK с TTL. Это переживает рестарт сервера и потерю соединения.
+
+Пригодно для C# RimWorld-мода, плагинов на любом ЯП, всего что умеет HTTP-клиент.
+
+### 3.2 v1.1 — SSE + POST (рекомендуется когда нагрузка вырастет)
+- `GET /v1/module/<module_id>/stream` — Server-Sent Events. Long-lived HTTP-соединение, core пушит actions без polling-задержек.
+- POST-эндпоинты те же что в v1.0 (events, ack).
+- Connector которому хватает v1.0, ничего менять не должен — оба режима работают параллельно.
+
+Преимущество перед WS: HTTP-only (проксируется любым reverse proxy без танцев), нет двух библиотек у connector'а, авто-reconnect из коробки.
+
+### 3.3 v1.2+ — WebSocket (опционально, по нагрузке)
+- Endpoint: `wss://api.example.com/v1/module/<module_id>/socket`
+- Имеет смысл когда сервер обслуживает >1000 одновременных каналов и хочется уйти от per-connection HTTP-overhead.
+- До этой стадии **не приоритет.**
+
+### 3.4 Конверт сообщения (одинаковый для всех транспортов)
 ```json
 {
   "v": 1,
@@ -190,7 +204,7 @@ Core отбрасывает action, тип которого не указан в
 | `module.catalog_update` | при изменении каталога | `{catalog: "shop"\|"events", entries: [...]}` (см. §9) |
 | `player.linked` | зритель привязал свой Twitch к in-game персонажу | `{viewer_id, character_ref, display_name}` |
 | `player.unlinked` | разлинковка | `{viewer_id, character_ref}` |
-| `player.state_update` | периодически или по дельте, общее состояние | `{viewer_id, character_ref, alive: bool, health_pct: 0..1, level?: int, inventory?: [{item_id, qty}], stats?: {key: number}}` |
+| `player.state_update` | при значимом изменении состояния (delta-based) И не реже 1 раза в 30 с (heartbeat-pulse как страховка от пропущенных дельт) | `{viewer_id, character_ref, alive: bool, health_pct: 0..1, level?: int, inventory?: [{item_id, qty}], stats?: {key: number}}` |
 | `player.died` | смерть | `{viewer_id, character_ref, cause?}` |
 | `player.respawned` | возрождение | `{viewer_id, character_ref}` |
 | `world.event_occurred` | произошло событие игрового мира (рейд, погода и т.п.), в т.ч. инициированное actions | `{event_id, params, triggered_by_action_id?}` |
@@ -230,7 +244,7 @@ Core отбрасывает action, тип которого не указан в
 | `resurrect_pawn` | `player.respawn` |
 | `equip_item(def_name)` | `player.equip_item {item_id: def_name}` |
 | `install_implant(def_name, part)` | `player.apply_effect {effect_id: def_name, params: {part}}` |
-| `train_skill(def_name)` | `player.apply_effect {effect_id: "neurotrainer", params: {skill: def_name}}` |
+| `train_skill(def_name)` | `player.modify_attribute {key: "skill."+def_name+".level", mode: "add", value: 1}` |
 | `add_trait / remove_trait` | extension `pawn.add_trait` / `pawn.remove_trait` |
 | `add_gene / remove_gene / add_xenotype` | extension `pawn.add_gene` / ... |
 | `set_passion` | `player.modify_attribute {key: "skill.passion."+def, value: passion, mode: "set"}` |
@@ -239,13 +253,60 @@ Core отбрасывает action, тип которого не указан в
 
 → Вывод: 90% RimWorld-команд укладываются в стандартные actions без потерь. Действительно специфичны только `add_trait/remove_trait/add_gene/add_xenotype` (нет аналога во многих играх).
 
+### 8.1 Core actions (исполняются ядром, не модулем)
+
+Эти actions **не уходят** в connector — они исполняются внутри платформы (overlay-страницей, chat-ботом, бэк-эндом ядра) и работают независимо от того, активен ли модуль. Они нужны для **Free-tier** и для общения «зритель ↔ стрим» поверх любой игры.
+
+| Тип | Назначение | `data` |
+|---|---|---|
+| `overlay.alert` | показать уведомление на оверлее (имя, сумма, текст) | `{viewer_id?, text, sound_id?, duration_sec?, style?}` |
+| `overlay.show_image` | показать картинку/гифку на оверлее | `{url, duration_sec, position?}` |
+| `overlay.play_sound` | сыграть звук в OBS | `{sound_id, volume?: 0..1}` |
+| `chat.send_message` | отправить сообщение в Twitch-чат от имени бота | `{text, reply_to?: viewer_id}` |
+| `streamer.notify` | приватное уведомление стримеру (например в его dashboard) | `{text, level: "info"\|"warn"\|"alert"}` |
+
+Эти actions потребляются ядром без участия модуля. Модуль может их **порождать** (например при покупке item-а с `delivery_action: "overlay.alert"`), но не **исполнять**.
+
 ---
 
 ## 9. Каталоги
 
-Модуль декларирует свои покупаемые сущности через `module.catalog_update`. Это решает проблему: ядро не знает что продаётся в игре — модуль сам публикует прайс.
+Платформа поддерживает **два независимых каталога товаров**, и это сознательное архитектурное решение:
 
-### 9.1 Shop catalog
+| | Core shop | Module shop |
+|---|---|---|
+| **Кто публикует** | Стример через админку ядра | Активный модуль через `module.catalog_update` |
+| **Когда работает** | Всегда (Free-tier тоже) | Только пока модуль подключён |
+| **Куда уходит покупка** | В core actions (`overlay.*`, `chat.*`, `streamer.*`) | В module actions (`player.*`, `world.*`) |
+| **Зависит от игры** | Нет | Да |
+| **Пример товаров** | Розовый alert на оверлее, шаутаут в чате, гифка | Пешка-зритель, рейд, имплант |
+
+UI стримера показывает оба каталога — либо двумя табами «Общий / Игровой», либо одним списком с фильтром (детали — в `MODULE_UI.md`, отдельно).
+
+### 9.1 Core shop (ядро, game-agnostic)
+
+Хранится в БД ядра, привязан к `channel_id`. Стример редактирует через админку — это часть платформы, а не Module API. Работает даже если модуль не активен.
+
+Схема записи (для справки, полное описание — в админ-документации ядра):
+```json
+{
+  "item_id": "alert_pink",
+  "display_name": "Розовый алерт",
+  "category": "overlay",
+  "cost": 50,
+  "currency": "points",
+  "delivery_action": "overlay.alert",
+  "params": { "style": "pink", "sound_id": "pop", "duration_sec": 3 }
+}
+```
+
+При покупке core порождает action из колонки `delivery_action` (Core action из §8.1) и сам же его исполняет.
+
+**Module API про core shop ничего не должен знать** — он упоминается здесь только чтобы ясно отделить две зоны ответственности.
+
+### 9.2 Module shop (динамический, от модуля)
+
+Модуль декларирует свои покупаемые сущности через event `module.catalog_update`:
 ```json
 {
   "catalog": "shop",
@@ -263,9 +324,14 @@ Core отбрасывает action, тип которого не указан в
   ]
 }
 ```
-Когда зритель покупает товар, core порождает action `delivery_action` с merge `{viewer_id, item_id, ...extra, quantity: 1}`. Модуль не пишет своих эндпоинтов — просто реагирует на стандартный action.
 
-### 9.2 Events catalog
+При покупке core порождает action `delivery_action` с merge `{viewer_id, item_id, ...extra, quantity: 1}` и шлёт его connector'у. Модуль не пишет своих эндпоинтов — просто реагирует на стандартный action.
+
+**Важно:** `delivery_action` обязан быть из списка `actions` манифеста модуля (§5). Core валидирует — нельзя зарядить товар с `delivery_action: overlay.alert` в module shop, для этого есть core shop.
+
+### 9.3 Events catalog (от модуля)
+
+Модуль публикует список «триггерных событий мира» которые стример/зрители могут запустить:
 ```json
 {
   "catalog": "events",
@@ -285,8 +351,9 @@ Core отбрасывает action, тип которого не указан в
 ```
 Параметры схемы → core рендерит форму на фронте → assembled `params` уезжают в action.
 
-### 9.3 Инвалидация
-Модуль может слать каталог целиком (replace) или дельту (`{op: "upsert"|"remove", entries: [...]}`) — управляется полем `mode`. Core кэширует и инвалидирует фронт-подписки.
+### 9.4 Инвалидация (применимо к module-каталогам)
+
+Модуль может слать каталог целиком (replace) или дельту (`{op: "upsert"|"remove", entries: [...]}`) — управляется полем `mode`. Core кэширует и инвалидирует фронт-подписки. Core shop инвалидируется ядром при правке через админку.
 
 ---
 
@@ -357,13 +424,14 @@ Changelog API ведётся в `docs/MODULE_API_CHANGELOG.md` (создать �
 
 ## 14. Что осталось решить (open questions)
 
-1. **WS vs SSE+POST.** WebSocket требует реверс-прокси правильной конфигурации. Альтернатива — SSE для core→connector + POST для обратного направления. SSE проще для C# мода. **Решение к следующей итерации.**
+1. ~~**WS vs SSE+POST.**~~ **Решено в v0.2:** транспорт развивается в три шага — REST polling (v1.0) → SSE+POST (v1.1) → WebSocket (v1.2+, опционально по нагрузке). См. §3.
 2. **Auth: один токен на модуль или раздельные.** Сейчас предлагается один на канал+модуль. Если стример хочет давать доступ только UI-чанку (не connector'у) — нужны scope'ы. **Отложено: не нужно для MVP.**
 3. **Player-level quotas.** Должен ли модуль уметь просить core «не пускай этого зрителя в действия N минут»? — кандидат в стандартные actions, но переусложнение. **Отложено.**
 4. **Frontend slots контракт.** Нужен отдельный документ `MODULE_UI.md`.
 5. **Catalog ограничения per tier.** Pro-стримеры видят все entries, Free — только базовые? Это политика биллинга, не Module API. **Решается на уровне ядра.**
-6. **Idempotency для events** (не только actions). Если connector пере-шлёт `player.died` после рестарта — core должен дедупить по `id`? **Да, добавить в §3.3 как обязанность core.**
+6. **Idempotency для events** (не только actions). Если connector пере-шлёт `player.died` после рестарта — core должен дедупить по `id`. **Да** — обязанность core, дедуп окном по `id` за последние N минут. Добавить в реализацию §3.4 при кодинге.
 7. **Бинарные данные** (иконки в каталоге, превью). Сейчас — `icon_url`. Альтернатива — base64 в catalog_update. **Оставляем URL; модуль раздаёт статику сам.**
+8. **Cross-game inventory portability.** Если зритель копит очки во время RimWorld → стример переключается на Minecraft → переносятся ли его item'ы из module-инвентаря? **Решено в v0.2:** нет, module-инвентарь обнуляется при смене модуля; core-инвентарь (очки, чат-косметика) сохраняется. Это следствие правила «один модуль активен за раз».
 
 ---
 
@@ -382,3 +450,4 @@ Changelog API ведётся в `docs/MODULE_API_CHANGELOG.md` (создать �
 | Дата | Версия | Изменения |
 |---|---|---|
 | 2026-04-30 | 0.1 | Первая редакция: транспорт, авторизация, manifest, стандартные events/actions, маппинг RimWorld, open questions. |
+| 2026-04-30 | 0.2 | Зафиксированы решения по открытым вопросам: (1) транспорт-roadmap REST→SSE→WS, (2) частота `player.state_update` = delta + 30s heartbeat, (3) `train_skill` маппится в `modify_attribute` а не `apply_effect`, (4) переключение модулей требует перезахода в сейв (явное ограничение в §2), (5) **разделение Core shop / Module shop**: core shop game-agnostic и работает на Free-tier, добавлены Core actions (§8.1) для overlay/chat/streamer-уведомлений. Глоссарий расширен. |

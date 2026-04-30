@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+  <packageId>shedoy23.rimlink</packageId>
+  <name>RimLink — Twitch Integration</name>
+  <author>shedoy23</author>
+  <supportedVersions>
+    <li>1.5</li>
+    <li>1.6</li>
+  </supportedVersions>
+  <description>Интеграция Twitch-чата с RimWorld. Зрители управляют пешками, покупают предметы и запускают ивенты.</description>
+</ModMetaData>

@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RimLink Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Unbounded:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --surface: #111118;
+            --surface2: #1a1a25;
+            --border: #2a2a3a;
+            --accent: #7c3aed;
+            --accent2: #06d6a0;
+            --accent3: #f72585;
+            --text: #e8e8f0;
+            --muted: #6b6b80;
+            --success: #06d6a0;
+            --warning: #ffd60a;
+            --danger: #f72585;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Grid background */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(124,58,237,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(124,58,237,0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 220px 1fr;
+            min-height: 100vh;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            padding: 24px 0;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logo {
+            padding: 0 20px 24px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+
+        .logo-title {
+            font-family: 'Unbounded', sans-serif;
+            font-size: 14px;
+            font-weight: 900;
+            color: var(--accent);
+            letter-spacing: 2px;
+        }
+
+        .logo-sub {
+            font-size: 10px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 12px;
+            color: var(--muted);
+            transition: all 0.15s;
+            border-left: 2px solid transparent;
+        }
+
+        .nav-item:hover { color: var(--text); background: var(--surface2); }
+        .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(124,58,237,0.08); }
+        .nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 16px 20px;
+            border-top: 1px solid var(--border);
+            font-size: 10px;
+            color: var(--muted);
+        }
+
+        /* MAIN */
+        .main {
+            padding: 32px;
+            overflow-y: auto;
+        }
+
+        .page { display: none; }
+        .page.active { display: block; }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 28px;
+        }
+
+        .page-title {
+            font-family: 'Unbounded', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .page-title span { color: var(--accent); }
+
+        /* STATS */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+        }
+
+        .stat-card.purple::before { background: var(--accent); }
+        .stat-card.green::before { background: var(--accent2); }
+        .stat-card.pink::before { background: var(--accent3); }
+        .stat-card.yellow::before { background: var(--warning); }
+
+        .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+        .stat-value { font-family: 'Unbounded', sans-serif; font-size: 28px; font-weight: 700; }
+        .stat-card.purple .stat-value { color: var(--accent); }
+        .stat-card.green .stat-value { color: var(--accent2); }
+        .stat-card.pink .stat-value { color: var(--accent3); }
+        .stat-card.yellow .stat-value { color: var(--warning); }
+
+        /* CARDS */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            color: var(--muted);
+            text-transform: uppercase;
+        }
+
+        .card-body { padding: 20px; }
+
+        /* TABLE */
+        .table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .table th {
+            text-align: left;
+            padding: 10px 12px;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--muted);
+            border-bottom: 1px solid var(--border);
+        }
+        .table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(42,42,58,0.5);
+        }
+        .table tr:last-child td { border-bottom: none; }
+        .table tr:hover td { background: var(--surface2); }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .badge-online { background: rgba(6,214,160,0.15); color: var(--success); }
+        .badge-offline { background: rgba(107,107,128,0.15); color: var(--muted); }
+        .badge-common { background: rgba(107,107,128,0.2); color: #aaa; }
+        .badge-rare { background: rgba(6,100,214,0.2); color: #60a5fa; }
+        .badge-epic { background: rgba(124,58,237,0.2); color: #a78bfa; }
+        .badge-legendary { background: rgba(255,214,10,0.2); color: var(--warning); }
+
+        /* INPUTS */
+        .input {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 9px 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: var(--text);
+            outline: none;
+            width: 100%;
+            transition: border-color 0.15s;
+        }
+        .input:focus { border-color: var(--accent); }
+        .input::placeholder { color: var(--muted); }
+
+        select.input { cursor: pointer; }
+
+        /* BUTTONS */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { background: #6d28d9; }
+        .btn-success { background: rgba(6,214,160,0.15); color: var(--success); border: 1px solid rgba(6,214,160,0.3); }
+        .btn-success:hover { background: rgba(6,214,160,0.25); }
+        .btn-danger { background: rgba(247,37,133,0.15); color: var(--danger); border: 1px solid rgba(247,37,133,0.3); }
+        .btn-danger:hover { background: rgba(247,37,133,0.25); }
+        .btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+        .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-sm { padding: 5px 10px; font-size: 11px; }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* FORM ROW */
+        .form-row {
+            display: grid;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .form-row.cols-2 { grid-template-columns: 1fr 1fr; }
+        .form-row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+        .form-row.cols-4 { grid-template-columns: 1fr 1fr 1fr auto; }
+
+        .form-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--muted);
+            margin-bottom: 5px;
+        }
+
+        .form-group { display: flex; flex-direction: column; }
+
+        /* USER DETAIL PANEL */
+        .user-detail {
+            display: none;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 16px;
+        }
+        .user-detail.open { display: block; }
+
+        .user-detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .username-big {
+            font-family: 'Unbounded', sans-serif;
+            font-size: 18px;
+            color: var(--accent);
+        }
+
+        .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+        /* TOAST */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 9999;
+        }
+
+        .toast {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 18px;
+            font-size: 13px;
+            animation: toastIn 0.3s ease;
+            max-width: 320px;
+        }
+
+        .toast.success { border-left: 3px solid var(--success); }
+        .toast.error { border-left: 3px solid var(--danger); }
+        .toast.info { border-left: 3px solid var(--accent); }
+
+        @keyframes toastIn {
+            from { transform: translateX(120%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* LOG */
+        .log-box {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            height: 240px;
+            overflow-y: auto;
+            font-size: 12px;
+            line-height: 1.8;
+        }
+
+        .log-line { border-bottom: 1px solid rgba(42,42,58,0.4); padding-bottom: 3px; margin-bottom: 3px; }
+        .log-time { color: var(--accent2); margin-right: 8px; }
+        .log-success { color: var(--success); }
+        .log-error { color: var(--danger); }
+        .log-info { color: var(--accent); }
+
+        /* SEARCH BAR */
+        .search-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        /* PAGINATION */
+        .pagination {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: flex-end;
+            margin-top: 12px;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        /* QUICK ACTIONS */
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    </style>
+</head>
+<body>
+
+<!-- LOGIN OVERLAY -->
+<div id="login-overlay" style="
+    display:flex; position:fixed; inset:0; z-index:10000;
+    background:#0a0a0f; align-items:center; justify-content:center;
+">
+    <div style="
+        background:#111118; border:1px solid #2a2a3a; border-radius:16px;
+        padding:40px; width:100%; max-width:380px; text-align:center;
+    ">
+        <div style="font-family:'Unbounded',sans-serif; font-size:20px; font-weight:900; color:#7c3aed; letter-spacing:2px; margin-bottom:4px;">RIMLINK</div>
+        <div style="font-size:11px; color:#6b6b80; margin-bottom:32px;">ADMIN PANEL</div>
+        <div style="text-align:left; margin-bottom:12px;">
+            <div style="font-size:10px; text-transform:uppercase; letter-spacing:1px; color:#6b6b80; margin-bottom:5px;">Логин</div>
+            <input id="login-user" type="text" autocomplete="username"
+                style="width:100%; background:#1a1a25; border:1px solid #2a2a3a; border-radius:8px;
+                       padding:10px 12px; font-family:'JetBrains Mono',monospace; font-size:13px;
+                       color:#e8e8f0; outline:none;" placeholder="admin">
+        </div>
+        <div style="text-align:left; margin-bottom:20px;">
+            <div style="font-size:10px; text-transform:uppercase; letter-spacing:1px; color:#6b6b80; margin-bottom:5px;">Пароль</div>
+            <input id="login-pass" type="password" autocomplete="current-password"
+                style="width:100%; background:#1a1a25; border:1px solid #2a2a3a; border-radius:8px;
+                       padding:10px 12px; font-family:'JetBrains Mono',monospace; font-size:13px;
+                       color:#e8e8f0; outline:none;" placeholder="••••••••">
+        </div>
+        <div id="login-error" style="color:#f72585; font-size:12px; min-height:18px; margin-bottom:12px;"></div>
+        <button id="login-btn" onclick="submitLogin()" style="
+            width:100%; background:#7c3aed; color:white; border:none; border-radius:8px;
+            padding:12px; font-family:'JetBrains Mono',monospace; font-size:13px;
+            font-weight:600; cursor:pointer; transition:background 0.15s;
+        " onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'">
+            Войти
+        </button>
+    </div>
+</div>
+
+<div id="app" style="display:none;">
+<div class="layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="logo">
+            <div class="logo-title">RIMLINK</div>
+            <div class="logo-sub">ADMIN PANEL v2.0</div>
+        </div>
+
+        <nav>
+            <div class="nav-item active" onclick="showPage('dashboard')">
+                <span class="icon">📊</span> Дашборд
+            </div>
+            <div class="nav-item" onclick="showPage('users')">
+                <span class="icon">👥</span> Пользователи
+            </div>
+            <div class="nav-item" onclick="showPage('points')">
+                <span class="icon">💎</span> Очки
+            </div>
+            <div class="nav-item" onclick="showPage('items')">
+                <span class="icon">🎒</span> Предметы
+            </div>
+            <div class="nav-item" onclick="showPage('promo')">
+                <span class="icon">🎁</span><span>Промокоды</span>
+            </div>
+            <div class="nav-item" onclick="showPage('rimworld')">
+                <span class="icon">🌍</span> RimWorld
+            </div>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div id="server-status">⚡ Подключение...</div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main">
+
+        <!-- DASHBOARD -->
+        <div id="page-dashboard" class="page active">
+            <div class="page-header">
+                <div>
+                    <div class="page-title">Дашборд <span>//</span></div>
+                    <div style="font-size:12px;color:var(--muted);margin-top:4px;">Обновляется каждые 10 сек</div>
+                </div>
+                <button class="btn btn-ghost" onclick="loadStats()">🔄 Обновить</button>
+            </div>
+
+            <div class="stats-row">
+                <div class="stat-card purple">
+                    <div class="stat-label">Онлайн зрителей</div>
+                    <div class="stat-value" id="stat-active">—</div>
+                </div>
+                <div class="stat-card green">
+                    <div class="stat-label">Всего очков</div>
+                    <div class="stat-value" id="stat-points">—</div>
+                </div>
+                <div class="stat-card yellow">
+                    <div class="stat-label">Дропов сегодня</div>
+                    <div class="stat-value" id="stat-drops">—</div>
+                </div>
+                <div class="stat-card pink">
+                    <div class="stat-label">Актив сегодня</div>
+                    <div class="stat-value" id="stat-today">—</div>
+                </div>
+            </div>
+
+            <div class="quick-actions">
+                <button class="btn btn-primary" onclick="forceDrop()">🎁 Принудительный дроп</button>
+                <!-- Ивенты удалены из админки -->
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span>📋 Лог действий</span>
+                    <button class="btn btn-ghost btn-sm" onclick="clearLog()">Очистить</button>
+                </div>
+                <div class="card-body" style="padding:16px;">
+                    <div class="log-box" id="log-box">
+                        <div class="log-line"><span class="log-time">[init]</span> <span class="log-info">Панель загружена</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- USERS -->
+        <div id="page-users" class="page">
+            <div class="page-header">
+                <div class="page-title">Пользователи <span>//</span></div>
+            </div>
+
+            <div class="search-bar">
+                <input type="text" class="input" id="user-search" placeholder="Поиск по нику..." oninput="searchUsers(this.value)" style="max-width:300px;">
+                <button class="btn btn-ghost" onclick="loadUsers()">🔄</button>
+                <span style="margin-left:auto;font-size:12px;color:var(--muted);">Всего: <b id="users-total">—</b></span>
+            </div>
+
+            <div class="card">
+                <div class="card-body" style="padding:0;">
+                    <table class="table" id="users-table">
+                        <thead>
+                            <tr>
+                                <th>Ник</th>
+                                <th>Очки</th>
+                                <th>Статус</th>
+                                <th>Последний визит</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-tbody">
+                            <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px;">Загрузка...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="pagination">
+                <button class="btn btn-ghost btn-sm" id="btn-prev" onclick="usersPage(-1)" disabled>← Назад</button>
+                <span id="page-info">стр. 1</span>
+                <button class="btn btn-ghost btn-sm" id="btn-next" onclick="usersPage(1)">Вперёд →</button>
+            </div>
+
+            <!-- USER DETAIL -->
+            <div class="user-detail" id="user-detail">
+                <div class="user-detail-header">
+                    <div class="username-big" id="detail-username">—</div>
+                    <button class="btn btn-ghost btn-sm" onclick="closeUserDetail()">✕ Закрыть</button>
+                </div>
+                <div class="detail-grid">
+                    <div>
+                        <div class="form-label" style="margin-bottom:8px;">Инвентарь</div>
+                        <div id="detail-inventory" style="font-size:12px;color:var(--muted);">Загрузка...</div>
+                    </div>
+                    <div>
+                        <div class="form-label" style="margin-bottom:8px;">Пешка RimWorld</div>
+                        <div id="detail-pawn" style="font-size:12px;color:var(--muted);">—</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- POINTS -->
+        <div id="page-points" class="page">
+            <div class="page-header">
+                <div class="page-title">Управление очками <span>//</span></div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+
+                <!-- Выдать/забрать -->
+                <div class="card">
+                    <div class="card-header">💎 Выдать / Забрать очки</div>
+                    <div class="card-body">
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <div class="form-label">Ник пользователя</div>
+                            <input type="text" class="input" id="pts-username" placeholder="username">
+                        </div>
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <div class="form-label">Количество</div>
+                            <input type="number" class="input" id="pts-amount" placeholder="100" min="1">
+                        </div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                            <button class="btn btn-success" onclick="adjustPoints('add')">+ Выдать</button>
+                            <button class="btn btn-danger" onclick="adjustPoints('remove')">− Забрать</button>
+                            <button class="btn btn-ghost" onclick="adjustPoints('set')">= Установить</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Перевод  -->
+                <div class="card">
+                    <div class="card-header">💸 Перевод очков (!донат)</div>
+                    <div class="card-body">
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <div class="form-label">От кого</div>
+                            <input type="text" class="input" id="transfer-from" placeholder="username">
+                        </div>
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <div class="form-label">Кому</div>
+                            <input type="text" class="input" id="transfer-to" placeholder="username">
+                        </div>
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <div class="form-label">Количество</div>
+                            <input type="number" class="input" id="transfer-amount" placeholder="100" min="1">
+                        </div>
+                        <button class="btn btn-primary" onclick="transferPoints()">💸 Перевести</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+
+                <!-- Вкладка POINTS - добавить после блока с переводом -->
+        <div class="card" style="margin-top:20px;">
+            <div class="card-header">💰 Донат (1₽ = 50💎 + предмет за 50+₽)</div>
+            <div class="card-body">
+                <div class="form-row cols-2">
+                    <div class="form-group">
+                        <div class="form-label">Ник зрителя</div>
+                        <input type="text" class="input" id="donate-username" placeholder="username">
+                    </div>
+                    <div class="form-group">
+                        <div class="form-label">Сумма в рублях</div>
+                        <input type="number" class="input" id="donate-amount" placeholder="100" min="1" step="any">
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px; margin-top:8px;">
+                    <button class="btn btn-success" onclick="processDonation()">💸 Зачислить донат</button>
+                    <span style="color:var(--muted); font-size:12px; align-self:center;">
+                        Предмет выпадает при ≥50₽: 🪵(70%) 🪨(20%) 🔮(8%) 👑(2%)
+                    </span>
+                </div>
+            </div>
+        </div>  
+
+        <!-- ITEMS -->
+        <div id="page-items" class="page">
+            <div class="page-header">
+                <div class="page-title">Предметы <span>//</span></div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+                <!-- Выдать предмет -->
+                <div class="card">
+                    <div class="card-header">🎁 Выдать предмет</div>
+                    <div class="card-body">
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <div class="form-label">Пользователь</div>
+                            <input type="text" class="input" id="item-give-user" placeholder="username">
+                        </div>
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <div class="form-label">Предмет</div>
+                            <select class="input" id="item-give-select">
+                                <option value="">Загрузка...</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <div class="form-label">Количество</div>
+                            <input type="number" class="input" id="item-give-qty" value="1" min="1">
+                        </div>
+                        <button class="btn btn-success" onclick="giveItem()">🎁 Выдать</button>
+                    </div>
+                </div>
+
+                <!-- Забрать предмет -->
+                <div class="card">
+                    <div class="card-header">🗑 Забрать предмет</div>
+                    <div class="card-body">
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <div class="form-label">Пользователь</div>
+                            <input type="text" class="input" id="item-remove-user" placeholder="username">
+                        </div>
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <div class="form-label">Предмет</div>
+                            <select class="input" id="item-remove-select">
+                                <option value="">Загрузка...</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <div class="form-label">Количество</div>
+                            <input type="number" class="input" id="item-remove-qty" value="1" min="1">
+                        </div>
+                        <button class="btn btn-danger" onclick="removeItem()">🗑 Забрать</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Список предметов -->
+            <div class="card" style="margin-top:0;">
+                <div class="card-header">📦 Все предметы в БД</div>
+                <div class="card-body" style="padding:0;">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Предмет</th>
+                                <th>Название</th>
+                                <th>Редкость</th>
+                                <th>Стоимость</th>
+                            </tr>
+                        </thead>
+                        <tbody id="items-tbody">
+                            <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px;">Загрузка...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ПРОМОКОДЫ -->
+        <div id="page-promo" class="page">
+            <div class="page-header">
+                <div class="page-title">Промокоды <span>//</span></div>
+            </div>
+
+            <!-- Создание промокода -->
+            <div class="card" style="margin-bottom:16px;">
+                <div class="card-header"><h3>➕ Создать промокод</h3></div>
+                <div class="card-body">
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;">
+                        <div>
+                            <div class="form-label">Код</div>
+                            <input class="input" id="new-promo-code" placeholder="SUMMER2025" style="text-transform:uppercase;">
+                        </div>
+                        <div>
+                            <div class="form-label">Очки 💎</div>
+                            <input class="input" type="number" id="new-promo-points" placeholder="1000" min="0">
+                        </div>
+                        <div>
+                            <div class="form-label">Макс. использований (0=∞)</div>
+                            <input class="input" type="number" id="new-promo-maxuses" placeholder="1" min="0" value="1">
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+                        <div>
+                            <div class="form-label">Предмет (def_name, необяз.)</div>
+                            <input class="input" id="new-promo-itemdef" placeholder="Wood">
+                        </div>
+                        <div>
+                            <div class="form-label">Название предмета</div>
+                            <input class="input" id="new-promo-itemname" placeholder="🪵 Дерево">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="createPromo()">✅ Создать</button>
+                </div>
+            </div>
+
+            <!-- Список промокодов -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>📋 Список промокодов</h3>
+                    <button class="btn btn-ghost btn-sm" onclick="loadPromos()">🔄</button>
+                </div>
+                <div class="card-body" style="padding:0;">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Код</th>
+                                <th>Очки</th>
+                                <th>Предмет</th>
+                                <th>Использований</th>
+                                <th>Создан</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="promos-tbody">
+                            <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px;">Загрузка...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        
+
+        <!-- RIMWORLD -->
+        <div id="page-rimworld" class="page">
+            <div class="page-header">
+                <div class="page-title">RimWorld <span>//</span></div>
+            </div>
+
+            <div class="stats-row" style="grid-template-columns:repeat(3,1fr);">
+                <div class="stat-card green">
+                    <div class="stat-label">Статус сервера</div>
+                    <div class="stat-value" id="rw-status" style="font-size:18px;">—</div>
+                </div>
+                <div class="stat-card purple">
+                    <div class="stat-label">Активных пешек</div>
+                    <div class="stat-value" id="rw-pawns">—</div>
+                </div>
+                <div class="stat-card yellow">
+                    <div class="stat-label">Команд в очереди</div>
+                    <div class="stat-value" id="rw-cmds">—</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">⚡ Ивенты RimWorld</div>
+                <div class="card-body">
+                    <div id="rw-events-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;">
+                        Загрузка...
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">🧑‍🚀 Активные пешки</div>
+                <div class="card-body" style="padding:0;">
+                    <table class="table" id="pawns-table">
+                        <thead>
+                            <tr>
+                                <th>Пользователь</th>
+                                <th>Пешка</th>
+                                <th>Здоровье</th>
+                                <th>Мир</th>
+                                <th>Статус</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pawns-tbody">
+                            <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px;">Загрузка...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+</div><!-- #app -->
+
+<div class="toast-container" id="toasts"></div>
+
+<script>
+const API = '';
+
+// ═══════════════════════════════════════
+// AUTH — токен хранится в памяти сессии
+// ═══════════════════════════════════════
+let _authHeader = null; // Base64(user:pass) — заполняется после логина
+
+function makeAuthHeader(user, pass) {
+    return 'Basic ' + btoa(user + ':' + pass);
+}
+
+async function tryLogin(user, pass) {
+    const header = makeAuthHeader(user, pass);
+    try {
+        const r = await fetch(API + '/api/admin/stats', {
+            headers: { 'Authorization': header }
+        });
+        if (r.status === 401) return false;
+        if (r.ok) { _authHeader = header; return true; }
+        return false;
+    } catch(e) { return false; }
+}
+
+function showLoginScreen() {
+    document.getElementById('login-overlay').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+    setTimeout(() => document.getElementById('login-pass').focus(), 100);
+}
+
+function hideLoginScreen() {
+    document.getElementById('login-overlay').style.display = 'none';
+    document.getElementById('app').style.display = 'grid';
+}
+
+async function submitLogin() {
+    const user = document.getElementById('login-user').value.trim();
+    const pass = document.getElementById('login-pass').value;
+    const btn  = document.getElementById('login-btn');
+    const err  = document.getElementById('login-error');
+
+    if (!user || !pass) { err.textContent = 'Введи логин и пароль'; return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Проверка...';
+    err.textContent = '';
+
+    const ok = await tryLogin(user, pass);
+    if (ok) {
+        hideLoginScreen();
+        initApp();
+    } else {
+        err.textContent = '❌ Неверный логин или пароль';
+        btn.disabled = false;
+        btn.textContent = 'Войти';
+        document.getElementById('login-pass').value = '';
+        document.getElementById('login-pass').focus();
+    }
+}
+
+// Enter в полях логина
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('login-pass').addEventListener('keydown', e => {
+        if (e.key === 'Enter') submitLogin();
+    });
+    document.getElementById('login-user').addEventListener('keydown', e => {
+        if (e.key === 'Enter') document.getElementById('login-pass').focus();
+    });
+    showLoginScreen();
+});
+
+// ═══════════════════════════════════════
+// API HELPERS — всегда с токеном
+// ═══════════════════════════════════════
+async function apiGet(url) {
+    const r = await fetch(API + url, {
+        headers: { 'Authorization': _authHeader }
+    });
+    if (r.status === 401) { showLoginScreen(); throw new Error('Unauthorized'); }
+    return r.json();
+}
+
+async function apiPost(url, body, successMsg) {
+    try {
+        const r = await fetch(API + url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': _authHeader
+            },
+            body: JSON.stringify(body)
+        });
+        if (r.status === 401) { showLoginScreen(); return null; }
+        const data = await r.json();
+        if (data.success || data.status === 'ok') {
+            toast(successMsg || data.message || '✅ Готово', 'success');
+            addLog(successMsg || data.message || 'Действие выполнено', 'success');
+        } else {
+            toast('❌ ' + (data.message || data.error || 'Ошибка'), 'error');
+        }
+        return data;
+    } catch(e) {
+        if (e.message !== 'Unauthorized') toast('❌ Ошибка соединения', 'error');
+    }
+}
+
+async function apiDelete(url) {
+    const r = await fetch(API + url, {
+        method: 'DELETE',
+        headers: { 'Authorization': _authHeader }
+    });
+    if (r.status === 401) { showLoginScreen(); return null; }
+    return r.json();
+}
+
+// ═══════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════
+function showPage(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('page-' + name).classList.add('active');
+    document.querySelector(`[onclick="showPage('${name}')"]`).classList.add('active');
+
+    if (name === 'users') loadUsers();
+    if (name === 'items') loadItems();
+    if (name === 'rimworld') loadRimworld();
+    if (name === 'promo') loadPromos();
+}
+
+// ═══════════════════════════════════════
+// TOASTS & LOG
+// ═══════════════════════════════════════
+function toast(msg, type = 'info') {
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.textContent = msg;
+    document.getElementById('toasts').appendChild(el);
+    setTimeout(() => el.remove(), 3500);
+}
+
+function addLog(msg, type = 'info') {
+    const box = document.getElementById('log-box');
+    const t = new Date().toLocaleTimeString();
+    const line = document.createElement('div');
+    line.className = 'log-line';
+    line.innerHTML = `<span class="log-time">[${t}]</span> <span class="log-${type}">${msg}</span>`;
+    box.insertBefore(line, box.firstChild);
+    if (box.children.length > 80) box.removeChild(box.lastChild);
+}
+
+function clearLog() {
+    document.getElementById('log-box').innerHTML = '';
+}
+
+// ═══════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════
+async function loadStats() {
+    if (!_authHeader) return;
+    try {
+        const data = await apiGet('/api/admin/stats');
+        document.getElementById('stat-active').textContent = data.active_viewers ?? '—';
+        document.getElementById('stat-points').textContent = (data.total_points ?? 0).toLocaleString();
+        document.getElementById('stat-drops').textContent = data.today_drops ?? '—';
+        document.getElementById('stat-today').textContent = data.active_users_today ?? '—';
+        document.getElementById('server-status').textContent = '🟢 Сервер онлайн';
+    } catch(e) {
+        if (e.message !== 'Unauthorized')
+            document.getElementById('server-status').textContent = '🔴 Нет связи';
+    }
+}
+
+async function forceDrop() {
+    await apiPost('/api/admin/drop', {}, '🎁 Дроп выполнен!');
+    loadStats();
+}
+
+// ═══════════════════════════════════════
+// USERS
+// ═══════════════════════════════════════
+let usersOffset = 0;
+let usersSearch = '';
+let usersTotal = 0;
+const USERS_LIMIT = 20;
+
+let searchTimer = null;
+function searchUsers(val) {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+        usersSearch = val;
+        usersOffset = 0;
+        loadUsers();
+    }, 300);
+}
+
+function usersPage(dir) {
+    usersOffset = Math.max(0, usersOffset + dir * USERS_LIMIT);
+    loadUsers();
+}
+
+async function loadUsers() {
+    const params = new URLSearchParams({ limit: USERS_LIMIT, offset: usersOffset });
+    if (usersSearch) params.set('search', usersSearch);
+    const data = await apiGet('/api/admin/users?' + params);
+    usersTotal = data.total;
+
+    document.getElementById('users-total').textContent = usersTotal;
+    document.getElementById('page-info').textContent = `стр. ${Math.floor(usersOffset / USERS_LIMIT) + 1} / ${Math.ceil(usersTotal / USERS_LIMIT) || 1}`;
+    document.getElementById('btn-prev').disabled = usersOffset === 0;
+    document.getElementById('btn-next').disabled = usersOffset + USERS_LIMIT >= usersTotal;
+
+    const tbody = document.getElementById('users-tbody');
+    if (!data.users.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px;">Ничего не найдено</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = data.users.map(u => {
+        const online = !u.is_afk;
+        const lastSeen = u.last_seen ? new Date(u.last_seen).toLocaleString('ru') : '—';
+        return `<tr>
+            <td style="font-weight:600;">${escapeHtml(u.username)}</td>
+            <td style="color:var(--warning);">💎 ${u.points.toLocaleString()}</td>
+            <td><span class="badge ${online ? 'badge-online' : 'badge-offline'}">${online ? 'онлайн' : 'офлайн'}</span></td>
+            <td style="color:var(--muted);font-size:11px;">${lastSeen}</td>
+            <td>
+                <button class="btn btn-ghost btn-sm" onclick="openUserDetail('${escapeHtml(u.username)}')">Детали</button>
+                <button class="btn btn-success btn-sm" onclick="quickPoints('${escapeHtml(u.username)}', 'add')">+💎</button>
+                <button class="btn btn-danger btn-sm" onclick="quickPoints('${escapeHtml(u.username)}', 'remove')">-💎</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteUser('${escapeHtml(u.username)}')" title="Удалить пользователя">🗑️</button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function quickPoints(username, action) {
+    const amount = prompt(`${action === 'add' ? 'Выдать' : 'Забрать'} сколько очков у ${username}?`, '100');
+    if (!amount || isNaN(amount)) return;
+    adjustPointsFor(username, parseInt(amount), action);
+}
+
+async function openUserDetail(username) {
+    const detail = document.getElementById('user-detail');
+    document.getElementById('detail-username').textContent = username;
+    detail.classList.add('open');
+    detail.scrollIntoView({ behavior: 'smooth' });
+
+    const data = await apiGet('/api/admin/user/' + username);
+
+    const invEl = document.getElementById('detail-inventory');
+    if (!data.inventory.length) {
+        invEl.innerHTML = '<span style="color:var(--muted);">Пусто</span>';
+    } else {
+        invEl.innerHTML = data.inventory.map(i =>
+            `<div style="margin-bottom:4px;">${i.emoji || '📦'} ${i.display_name} <span style="color:var(--muted);">x${i.quantity}</span></div>`
+        ).join('');
+    }
+
+    const pawnEl = document.getElementById('detail-pawn');
+    if (!data.pawn) {
+        pawnEl.innerHTML = '<span style="color:var(--muted);">Нет пешки</span>';
+    } else {
+        const p = data.pawn;
+        pawnEl.innerHTML = `
+            <div>👤 <b>${p.pawn_name}</b></div>
+            <div style="margin-top:4px;">${p.is_alive ? '❤️ Жив' : '💀 Мёртв'} — ${Math.round(p.health * 100)}%</div>
+            ${p.world_name ? `<div style="color:var(--muted);font-size:11px;margin-top:2px;">🌍 ${p.world_name}</div>` : ''}
+        `;
+    }
+}
+
+function closeUserDetail() {
+    document.getElementById('user-detail').classList.remove('open');
+}
+
+// ═══════════════════════════════════════
+// POINTS
+// ═══════════════════════════════════════
+async function adjustPoints(action) {
+    const username = document.getElementById('pts-username').value.trim();
+    const amount = parseInt(document.getElementById('pts-amount').value);
+    if (!username || !amount) { toast('Заполни все поля', 'error'); return; }
+    await adjustPointsFor(username, amount, action);
+}
+
+async function adjustPointsFor(username, amount, action) {
+    await apiPost('/api/admin/points', { username, amount, action },
+        `${action === 'add' ? '+' : action === 'remove' ? '-' : '='} ${amount}💎 → ${username}`);
+    if (document.getElementById('page-users').classList.contains('active')) loadUsers();
+}
+
+async function transferPoints() {
+    const from = document.getElementById('transfer-from').value.trim();
+    const to = document.getElementById('transfer-to').value.trim();
+    const amount = parseInt(document.getElementById('transfer-amount').value);
+    if (!from || !to || !amount) { toast('Заполни все поля', 'error'); return; }
+    await apiPost('/api/admin/transfer', { from_user: from, to_user: to, amount },
+        `💸 ${from} → ${to}: ${amount}💎`);
+}
+
+// ═══════════════════════════════════════
+// ITEMS
+// ═══════════════════════════════════════
+let allItems = [];
+
+async function loadItems() {
+    const data = await apiGet('/api/admin/items');
+    allItems = data.items || [];
+
+    const rarityBadge = r => {
+        const map = { common: 'badge-common', rare: 'badge-rare', epic: 'badge-epic', legendary: 'badge-legendary' };
+        return `<span class="badge ${map[r] || 'badge-common'}">${r || 'common'}</span>`;
+    };
+
+    document.getElementById('items-tbody').innerHTML = allItems.map(i =>
+        `<tr>
+            <td style="color:var(--muted);">${i.id}</td>
+            <td>${i.emoji || '📦'} ${i.name}</td>
+            <td>${i.display_name}</td>
+            <td>${rarityBadge(i.rarity)}</td>
+            <td style="color:var(--warning);">💎 ${i.value}</td>
+        </tr>`
+    ).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px;">Предметов нет</td></tr>';
+
+    const options = allItems.map(i => `<option value="${i.id}">${i.emoji || '📦'} ${i.display_name}</option>`).join('');
+    document.getElementById('item-give-select').innerHTML = options;
+    document.getElementById('item-remove-select').innerHTML = options;
+}
+
+async function giveItem() {
+    const username = document.getElementById('item-give-user').value.trim();
+    const item_id = document.getElementById('item-give-select').value;
+    const quantity = parseInt(document.getElementById('item-give-qty').value);
+    if (!username || !item_id) { toast('Заполни все поля', 'error'); return; }
+    await apiPost('/api/admin/item/give', { username, item_id: parseInt(item_id), quantity }, `🎁 Предмет выдан → ${username}`);
+}
+
+async function removeItem() {
+    const username = document.getElementById('item-remove-user').value.trim();
+    const item_id = document.getElementById('item-remove-select').value;
+    const quantity = parseInt(document.getElementById('item-remove-qty').value);
+    if (!username || !item_id) { toast('Заполни все поля', 'error'); return; }
+    await apiPost('/api/admin/item/remove', { username, item_id: parseInt(item_id), quantity }, `🗑 Предмет забран у ${username}`);
+}
+
+// ═══════════════════════════════════════
+// RIMWORLD
+// ═══════════════════════════════════════
+async function loadRimworld() {
+    try {
+        const st = await apiGet('/api/rimworld/status');
+        document.getElementById('rw-status').textContent = st.online ? '🟢 Онлайн' : '🔴 Оффлайн';
+        document.getElementById('rw-status').style.color = st.online ? 'var(--success)' : 'var(--danger)';
+    } catch(e) {}
+
+    try {
+        const data = await apiGet('/api/rimworld/all-pawns');
+        const pawns = data.pawns || [];
+        document.getElementById('rw-pawns').textContent = pawns.length;
+        document.getElementById('pawns-tbody').innerHTML = pawns.map(p => `
+            <tr>
+                <td style="font-weight:600;">${p.username}</td>
+                <td>${p.pawn_name}</td>
+                <td>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <div style="flex:1;height:4px;background:var(--border);border-radius:2px;">
+                            <div style="height:100%;width:${Math.round((p.health||0)*100)}%;background:${p.health>0.6?'var(--success)':p.health>0.3?'var(--warning)':'var(--danger)'};border-radius:2px;"></div>
+                        </div>
+                        <span style="font-size:11px;">${Math.round((p.health||0)*100)}%</span>
+                    </div>
+                </td>
+                <td style="color:var(--muted);font-size:11px;">${p.world_name || '—'}</td>
+                <td><span class="badge ${p.is_alive ? 'badge-online' : 'badge-offline'}">${p.is_alive ? 'жив' : 'мёртв'}</span></td>
+            </tr>
+        `).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px;">Нет пешек</td></tr>';
+    } catch(e) {}
+
+    try {
+        const ev = await apiGet('/api/rimworld/events');
+        document.getElementById('rw-events-grid').innerHTML = (ev.events || []).map(e =>
+            `<button class="btn btn-ghost" style="justify-content:space-between;opacity:.5;cursor:not-allowed;" disabled title="Вызов ивентов отключён в админке">
+                <span>${e.name}</span>
+                <span style="color:var(--warning);">${e.cost}💎</span>
+            </button>`
+        ).join('');
+        document.getElementById('rw-cmds').textContent = '—';
+    } catch(e) {}
+}
+
+// ═══════════════════════════════════════
+// PROMOS
+// ═══════════════════════════════════════
+async function loadPromos() {
+    const data = await apiGet('/api/admin/promocodes');
+    const tbody = document.getElementById('promos-tbody');
+    if (!data.promocodes || !data.promocodes.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px;">Нет промокодов</td></tr>';
+        return;
+    }
+    tbody.innerHTML = data.promocodes.map(p => `
+        <tr>
+            <td style="font-weight:700;letter-spacing:1px;color:var(--accent2);">${p.code}</td>
+            <td style="color:var(--warning);">${p.points > 0 ? '💎 ' + p.points.toLocaleString() : '—'}</td>
+            <td>${p.item_name || '—'}</td>
+            <td>${p.uses} / ${p.max_uses === 0 ? '∞' : p.max_uses}</td>
+            <td style="color:var(--muted);font-size:11px;">${new Date(p.created_at).toLocaleDateString('ru')}</td>
+            <td><button class="btn btn-danger btn-sm" onclick="deletePromo(${p.id}, '${p.code}')">🗑️</button></td>
+        </tr>`).join('');
+}
+
+async function createPromo() {
+    const code = document.getElementById('new-promo-code').value.trim().toUpperCase();
+    const points = parseInt(document.getElementById('new-promo-points').value) || 0;
+    const max_uses = parseInt(document.getElementById('new-promo-maxuses').value) || 1;
+    const item_def = document.getElementById('new-promo-itemdef').value.trim() || null;
+    const item_name = document.getElementById('new-promo-itemname').value.trim() || null;
+    if (!code) { alert('Введи код'); return; }
+    const data = await apiPost('/api/admin/promocodes/create', { code, points, max_uses, item_def, item_name });
+    if (data && data.success) {
+        document.getElementById('new-promo-code').value = '';
+        document.getElementById('new-promo-points').value = '';
+        loadPromos();
+    }
+}
+
+async function deletePromo(id, code) {
+    if (!confirm(`Удалить промокод ${code}?`)) return;
+    const data = await apiDelete('/api/admin/promocodes/' + id);
+    if (data) toast(data.message || '🗑 Удалён', data.success ? 'success' : 'error');
+    loadPromos();
+}
+
+async function deleteUser(username) {
+    if (!confirm(`Удалить пользователя ${username} из БД? Это необратимо!`)) return;
+    const data = await apiPost('/api/admin/user/delete', { username });
+    if (data) toast(data.message || '🗑 Удалён', data.success ? 'success' : 'error');
+    loadUsers();
+}
+
+// ═══════════════════════════════════════
+// DONATE
+// ═══════════════════════════════════════
+async function processDonation() {
+    const username = document.getElementById('donate-username').value.trim();
+    const amount = parseFloat(document.getElementById('donate-amount').value);
+
+    if (!username || !amount || amount <= 0) {
+        toast('❌ Заполни ник и сумму', 'error');
+        return;
+    }
+
+    const data = await apiPost('/api/donate', { username, amount_rub: amount },
+        `💰 Донат ${amount}₽ зачислен @${username}`);
+
+    if (data && data.success) {
+        addLog(`💸 ${username} задонатил ${amount}₽ → +${data.points}💎 ${data.gift ? ' + ' + data.gift : ''}`, 'success');
+        document.getElementById('donate-username').value = '';
+        document.getElementById('donate-amount').value = '';
+        if (document.getElementById('page-dashboard').classList.contains('active')) loadStats();
+    }
+}
+
+// ═══════════════════════════════════════
+// INIT — вызывается ПОСЛЕ успешного логина
+// ═══════════════════════════════════════
+let _statsInterval = null;
+function initApp() {
+    loadStats();
+    if (_statsInterval) clearInterval(_statsInterval);
+    _statsInterval = setInterval(loadStats, 10000);
+    addLog('Авторизация успешна', 'success');
+}
+
+
+    function escapeHtml(s) {
+        if (!s) return '';
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+</script>
+</body>
+</html>

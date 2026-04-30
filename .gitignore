@@ -1,0 +1,50 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Databases (live data со зрителями и токенами)
+*.db
+*.db-shm
+*.db-wal
+*.db.bak*
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C# / .NET
+bin/
+obj/
+*.pdb
+*.user
+*.suo
+
+# Runtime caches
+tooltip_cache.json
+
+# Backups & temp
+*.bak
+*.tmp
+*.old
+*.log
+
+# Node (на будущее)
+node_modules/
+
+# Editors
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Claude Code служебка
+.agents/
+.claude/
+memory/
+skills-lock.json

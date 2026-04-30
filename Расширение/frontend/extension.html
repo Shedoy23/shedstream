@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://extension-files.twitch.tv; connect-src 'self' https://api.twitch.tv https://shedoy23.ru http://localhost:* http://127.0.0.1:*; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:;">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <style>html,body{width:100%;height:100%;margin:0;padding:0;overflow:hidden;}</style>
+    <script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script>
+    <title>Twitch Bot Extension</title>
+    <link rel="stylesheet" href="viewer.css">
+</head>
+<body>
+
+<div id="overlay-panel" class="open">
+    <div id="panel-close">
+        <span class="panel-title">⚔️ RimLink</span>
+        <button id="panel-hide-btn" title="Скрыть панель">✕</button>
+    </div>
+    <div id="panel-content">
+
+    <!-- Шапка с балансом -->
+    <div class="header">
+        <div class="user-info">
+            <div class="avatar">👤</div>
+            <div>
+                <div class="username" id="username">Загрузка...</div>
+                <div class="badge">Зритель</div>
+            </div>
+        </div>
+        <div class="balance-info">
+            <div class="balance-item">
+                <div class="balance-label">Баланс</div>
+                <div class="balance-value" id="points">0</div>
+            </div>
+            <div class="balance-item">
+                <div class="balance-label">Доход/мин</div>
+                <div class="balance-value income" id="income">+0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Полоска уровня -->
+    <div id="level-bar-container" style="padding:10px 16px;background:rgba(145,71,255,0.08);border-bottom:1px solid #2d2d2f;"></div>
+
+    <!-- Вкладки -->
+    <div class="tabs">
+        <button class="tab active" data-tab="bot"><span class="tab-icon">🎮</span><span class="tab-text">Бот</span></button>
+        <button class="tab" data-tab="rimworld"><span class="tab-icon">🌌</span><span class="tab-text">RimWorld</span></button>
+        <button class="tab" data-tab="shop"><span class="tab-icon">🏪</span><span class="tab-text">Магазин</span></button>
+        <button class="tab" data-tab="market"><span class="tab-icon">🏷️</span><span class="tab-text">Рынок</span></button>
+        <button class="tab" data-tab="stats"><span class="tab-icon">📊</span><span class="tab-text">Стата</span></button>
+    </div>
+
+    <!-- ===== БОТ ===== -->
+    <div id="bot-tab" class="tab-content active">
+        <div class="actions-grid">
+            <div class="action-card" data-action="casino">
+                <div class="action-icon">🎰</div>
+                <div class="action-title">Казино</div>
+                <div class="action-desc">Испытай удачу</div>
+                <div class="action-min">от 50💎</div>
+            </div>
+            <div class="action-card" data-action="slots">
+                <div class="action-icon">🎲</div>
+                <div class="action-title">Слоты</div>
+                <div class="action-desc">Крути барабаны</div>
+                <div class="action-min">от 50💎</div>
+            </div>
+            <div class="action-card" data-action="duels">
+                <div class="action-icon">⚔️</div>
+                <div class="action-title">Дуэли</div>
+                <div class="action-desc">Сразись с другим</div>
+                <div class="action-min" id="duel-count">0 активных</div>
+            </div>
+            <div class="action-card" data-action="advertisement">
+                <div class="action-icon">📢</div>
+                <div class="action-title">Реклама</div>
+                <div class="action-desc">Ваша реклама здесь</div>
+            </div>
+            <div class="action-card" data-action="transfer">
+                <div class="action-icon">💸</div>
+                <div class="action-title">Передать</div>
+                <div class="action-desc">Зрителю зрителю</div>
+                <div class="action-min">мин. 10💎</div>
+            </div>
+            <div class="action-card" data-action="family">
+                <div class="action-icon">💍</div>
+                <div class="action-title">Семья</div>
+                <div class="action-desc" id="family-status-desc">Вступить в брак</div>
+                <div class="action-min">+5💎/мин вместе</div>
+            </div>
+        </div>
+
+        <div class="split-view">
+            <div class="card">
+                <div class="card-header">
+                    <h3>🎒 Инвентарь</h3>
+                    <span class="card-badge" id="inventory-count">0</span>
+                </div>
+                <div class="inventory-list" id="inventory-list">
+                    <div class="loading">Загрузка...</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h3>📜 Квесты</h3>
+                    <span class="card-badge" id="quest-count">0</span>
+                </div>
+                <div class="quests-list" id="quests-list">
+                    <div class="loading">Загрузка...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Рулекцион -->
+        <div class="card" id="rulection-card">
+            <div class="card-header">
+                <h3>🎡 Рулекцион</h3>
+                <span class="card-badge" id="rulection-pool-badge">0💎</span>
+            </div>
+
+            <div id="rulection-pool-section">
+                <div class="rulection-hint">Накидайте очки или задоньте — запустится ивент!</div>
+
+                <div class="rulection-progress">
+                    <div class="rulection-progress-header">
+                        <span>💎 Очки</span><span id="rulection-pts-pct">0%</span>
+                    </div>
+                    <div class="rulection-bar-bg">
+                        <div id="rulection-pts-bar" class="rulection-bar-fill rulection-bar-pts"></div>
+                    </div>
+                    <div class="rulection-sub"><span id="rulection-pts-val">0</span> / 100,000💎</div>
+                </div>
+
+                <div class="rulection-progress">
+                    <div class="rulection-progress-header">
+                        <span>💳 Донаты</span><span id="rulection-don-pct">0%</span>
+                    </div>
+                    <div class="rulection-bar-bg">
+                        <div id="rulection-don-bar" class="rulection-bar-fill rulection-bar-don"></div>
+                    </div>
+                    <div class="rulection-sub"><span id="rulection-don-val">0</span> / 500₽</div>
+                </div>
+
+                <div class="rulection-top" id="rulection-top-contributors"></div>
+
+                <div class="rulection-input-row">
+                    <input type="number" id="rulection-contribute-amt" class="rulection-input" placeholder="Сумма" min="100">
+                    <button id="rulection-contribute-btn" class="rulection-btn">💎 В копилку</button>
+                </div>
+            </div>
+
+            <div id="rulection-active-section" style="display:none;">
+                <div class="rulection-event-header">
+                    <div class="rulection-event-type" id="rulection-event-type-name">🎲 Рулетка</div>
+                    <div class="rulection-event-desc" id="rulection-event-type-desc"></div>
+                    <div class="rulection-prize-row">Приз: <span class="rulection-prize-name" id="rulection-prize-name">🪵 Деревяшка</span></div>
+                </div>
+                <div class="rulection-timer-wrap">
+                    <div class="rulection-timer" id="rulection-timer">5:00</div>
+                    <div class="rulection-timer-label">до конца ивента</div>
+                </div>
+                <div class="rulection-bids-label">Ставки (<span id="rulection-participants">0</span> участников):</div>
+                <div id="rulection-bids-list" class="rulection-bids-list"></div>
+                <div class="rulection-input-row">
+                    <input type="number" id="rulection-bid-amt" class="rulection-input" placeholder="Ставка (мин. 100)" min="100">
+                    <button id="rulection-bid-btn" class="rulection-btn">⚔️ Ставка</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Промокод -->
+        <div class="card">
+            <div class="card-header"><h3>🎁 Промокод</h3></div>
+            <div class="rulection-input-row">
+                <input type="text" id="promo-input" class="rulection-input"
+                    placeholder="Введи промокод..."
+                    style="text-transform:uppercase;letter-spacing:1px;margin-bottom:0;">
+                <button id="promo-activate-btn" class="rulection-btn">✅ Активировать</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== RIMWORLD ===== -->
+    <div id="rimworld-tab" class="tab-content">
+        <div class="rimworld-status-row">
+            <span class="rimworld-status-label">RimWorld</span>
+            <span id="rimworld-status-badge" style="font-size:11px;font-weight:700;color:#f87171;">🔴 Оффлайн</span>
+        </div>
+
+        <div class="card" id="my-pawn-card">
+            <div class="card-header">
+                <h3>👤 Моя пешка</h3>
+                <button class="small-btn" id="refresh-pawn-btn">🔄</button>
+            </div>
+            <div class="loading">Загрузка...</div>
+        </div>
+
+        <button class="modal-btn" id="create-pawn-btn" style="display:none;margin-top:10px;">
+            ✨ Создать пешку (200💎)
+        </button>
+
+        <div id="pawn-actions" style="gap:6px;margin-top:10px;display:none;">
+            <button class="extra-btn" id="heal-pawn-btn"><span>💊</span> Лечить (150💎)</button>
+            <button class="extra-btn" id="btn-resurrect" style="display:none;"><span>✨</span> Воскресить (500💎)</button>
+        </div>
+
+        <div class="card" id="shop-card" style="margin-top:10px;">
+            <div class="card-header">
+                <h3>🏪 Магазин</h3>
+                <span class="card-badge" id="shop-count">0</span>
+            </div>
+            <div class="shop-filters" id="shop-filters">
+                <button class="filter-btn active" data-cat="all">Все</button>
+                <button class="filter-btn" data-cat="apparel">👕</button>
+                <button class="filter-btn" data-cat="weapon">⚔️</button>
+                <button class="filter-btn" data-cat="implant">🔧</button>
+                <button class="filter-btn" data-cat="trait">🎭</button>
+                <button class="filter-btn" data-cat="gene">🔬</button>
+            </div>
+            <div style="padding-bottom:8px;">
+                <input type="text" id="shop-search" placeholder="🔍 Поиск..."
+                    style="width:100%;background:#2d2d2f;border:1px solid #3d3d3f;border-radius:7px;padding:7px 10px;color:#efeff1;font-size:12px;outline:none;font-family:inherit;">
+            </div>
+            <div class="shop-list" id="shop-list">
+                <div class="loading">Загрузка каталога...</div>
+            </div>
+        </div>
+
+        <div class="card" id="events-card" style="margin-top:10px;">
+            <div class="card-header">
+                <h3>⚡ Ивенты</h3>
+                <span class="card-badge">RimWorld</span>
+            </div>
+            <div style="padding:8px 12px 4px;">
+                <input type="text" id="events-search" placeholder="🔍 Поиск ивента..."
+                    style="width:100%;background:#2d2d2f;border:1px solid #3d3d3f;border-radius:7px;padding:7px 10px;color:#efeff1;font-size:12px;outline:none;">
+            </div>
+            <div class="shop-list" id="events-list">
+                <div class="loading">Загрузка...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== МАГАЗИН (заглушка) ===== -->
+    <div id="shop-tab" class="tab-content">
+        <div class="card">
+            <h3>🏪 Магазин предметов</h3>
+            <p class="coming-soon">Скоро здесь будут предметы за очки!</p>
+        </div>
+    </div>
+
+    <!-- ===== РЫНОК ===== -->
+    <div id="market-tab" class="tab-content">
+        <div class="card">
+            <div class="card-header">
+                <h3>🏷️ Рынок зрителей</h3>
+                <button id="market-refresh-btn" class="small-btn">⟳ Обновить</button>
+            </div>
+            <div style="border-bottom:1px solid #2d2d2f;padding-bottom:10px;margin-bottom:10px;">
+                <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#444;margin-bottom:6px;">Выставить предмет</div>
+                <div id="market-sell-panel">
+                    <div style="color:#444;font-size:11px;">Сначала нажми «Рынок» ↑</div>
+                </div>
+            </div>
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#444;margin-bottom:6px;">Активные лоты</div>
+            <div id="market-list">
+                <div class="loading">Нажми «Рынок» чтобы загрузить</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== СТАТИСТИКА ===== -->
+    <div id="stats-tab" class="tab-content">
+        <div class="card">
+            <div class="card-header"><h3>📊 Твоя статистика</h3></div>
+
+            <div class="stats-block">
+                <div class="stats-row-item">
+                    <span class="stats-row-label">⏱️ Время на стриме:</span>
+                    <span class="stats-row-value purple" id="watch-time-today">0 мин</span>
+                </div>
+                <div class="stats-row-item">
+                    <span class="stats-row-label">📅 За всё время:</span>
+                    <span class="stats-row-value" id="watch-time-total">0 мин</span>
+                </div>
+            </div>
+
+            <div class="stats-block">
+                <div class="stats-row-item">
+                    <span class="stats-row-label">💬 Сообщений сегодня:</span>
+                    <span class="stats-row-value green" id="chat-today">0</span>
+                </div>
+                <div class="stats-row-item">
+                    <span class="stats-row-label">📨 Сообщений за всё время:</span>
+                    <span class="stats-row-value" id="chat-total">0</span>
+                </div>
+                <div class="stats-row-item">
+                    <span class="stats-row-label">📝 Символов сегодня:</span>
+                    <span class="stats-row-value" id="chat-length">0</span>
+                </div>
+            </div>
+
+            <button class="modal-btn" id="stats-refresh-btn">🔄 Обновить статистику</button>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><h3>🔥 Стрик</h3></div>
+            <div id="streak-block" style="padding:4px 0;">
+                <div class="loading">Загрузка...</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><h3>🏆 Достижения</h3></div>
+            <div id="achievements-list">
+                <div class="loading">Загрузка...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== МОДАЛКИ ===== -->
+    <div id="casino-modal" class="modal">
+        <div class="modal-content">
+            <h2>🎰 Казино</h2>
+            <div id="casino-result" style="display:none;margin-bottom:10px;background:#1a1a1c;border-radius:8px;"></div>
+            <div style="background:#2d2d2f;border-radius:8px;padding:10px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
+                <span style="color:#adadb8;font-size:12px;">Твой баланс:</span>
+                <span style="font-size:18px;font-weight:800;color:#9147ff;" id="casino-balance">0</span>
+            </div>
+            <input type="number" id="bet-amount" class="modal-input" placeholder="Сумма ставки" min="50">
+            <div class="quick-bets">
+                <button class="quick-bet" data-bet="50">50💎</button>
+                <button class="quick-bet" data-bet="100">100💎</button>
+                <button class="quick-bet" data-bet="250">250💎</button>
+                <button class="quick-bet" data-bet="500">500💎</button>
+            </div>
+            <div id="bet-warning" style="color:#f87171;font-size:11px;margin-bottom:6px;display:none;">⚠️ Сумма превышает твой баланс!</div>
+            <button class="modal-btn" id="casino-bet-btn">Сделать ставку</button>
+            <button class="modal-btn cancel" data-close-modal>Отмена</button>
+        </div>
+    </div>
+
+    <div id="colonist-modal" class="modal">
+        <div class="modal-content">
+            <h2>✨ Создание пешки</h2>
+            <input type="text" id="colonist-name" class="modal-input" placeholder="Имя колониста">
+            <button class="modal-btn" id="create-colonist-btn">Создать (100💎)</button>
+            <button class="modal-btn cancel" data-close-modal>Отмена</button>
+        </div>
+    </div>
+
+    <div id="confirm-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="confirm-title">Подтверждение</h2>
+            <p id="confirm-message" style="margin-bottom:14px;color:#adadb8;font-size:12px;"></p>
+            <div style="display:flex;gap:8px;">
+                <button class="modal-btn" id="confirm-yes" style="flex:1;">Да</button>
+                <button class="modal-btn cancel" id="confirm-no" style="flex:1;">Нет</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- cache-bust v: обновить при любой правке JS, чтобы Twitch-CDN и браузер
+         перечитали файлы (расширения агрессивно кешируют .js). -->
+    <script src="market.js?v=20260418"></script>
+    <script src="pawn.js?v=20260418"></script>
+    <script src="shop.js?v=20260418"></script>
+    <script src="casino.js?v=20260418"></script>
+    <script src="family.js?v=20260418"></script>
+    <script src="duels.js?v=20260418"></script>
+    <script src="xenotype.js?v=20260418"></script>
+    <script src="viewer.js?v=20260418"></script>
+    </div><!-- /panel-content -->
+</div><!-- /overlay-panel -->
+
+
+    <!-- ===== СЛОТ-МАШИНА ===== -->
+    <div id="slots-modal" class="modal">
+        <div class="modal-content" style="max-width:320px;">
+            <h2 style="display:flex;align-items:center;justify-content:center;gap:8px;">
+                🎲 Слоты
+                <button id="slots-help-btn" type="button"
+                        style="background:#2d2d2f;border:1px solid #3a3a3e;border-radius:50%;width:24px;height:24px;color:#adadb8;font-size:13px;font-weight:700;cursor:pointer;line-height:1;"
+                        title="Таблица выплат">?</button>
+            </h2>
+
+            <!-- Текущий джекпот (растёт на 2% с каждой ставки) -->
+            <div id="slots-jackpot-display"
+                 style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:linear-gradient(90deg,#3a2c08,#1a1a1c);border:1px solid #fbbf2466;border-radius:8px;padding:8px 12px;margin-bottom:10px;">
+                <span style="font-size:12px;color:#adadb8;">🎰 Джекпот сейчас:</span>
+                <span id="slots-jackpot-value"
+                      style="font-size:18px;font-weight:800;color:#fbbf24;text-shadow:0 0 6px rgba(251,191,36,0.4);">—</span>
+            </div>
+
+            <!-- Таблица выплат (скрыта по умолчанию) -->
+            <div id="slots-help-panel" style="display:none;background:#1a1a1c;border-radius:8px;padding:10px;margin-bottom:10px;font-size:11px;color:#d4d4d8;">
+                <div style="font-weight:700;color:#9147ff;margin-bottom:6px;">💎 Выплаты (RTP ≈ 92%)</div>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:3px 10px;">
+                    <span>👑👑👑 три короны</span>                   <span style="color:#fbbf24;font-weight:700;">ДЖЕКПОТ</span>
+                    <span>🔮🔮🔮 три амулета</span>                   <span style="color:#4ade80;">×75</span>
+                    <span>🪨🪨🪨 три камня</span>                     <span style="color:#4ade80;">×25</span>
+                    <span>🪵🪵🪵 три деревяшки</span>                 <span style="color:#f87171;">×0</span>
+                    <span>👑👑 + другое</span>                       <span style="color:#4ade80;">×4</span>
+                    <span>🔮🔮 + другое</span>                       <span style="color:#4ade80;">×3</span>
+                    <span>🪨🪨 / 🪵🪵 + другое</span>                 <span style="color:#fbbf24;">возврат 10%</span>
+                    <span>всё разное</span>                          <span style="color:#f87171;">-ставка</span>
+                </div>
+                <div style="margin-top:8px;padding-top:6px;border-top:1px solid #2d2d2f;color:#8b8b94;font-size:10px;line-height:1.4;">
+                    Шансы на барабан: 🪵 55% · 🪨 25% · 🔮 15% · 👑 5%.<br>
+                    2% каждой ставки уходит в джекпот.
+                </div>
+            </div>
+
+            <!-- Барабаны -->
+            <div id="slots-machine" style="display:flex;gap:8px;justify-content:center;margin-bottom:16px;">
+                <div class="slot-reel-wrap">
+                    <div class="slot-reel" id="reel-0">
+                        <div class="slot-cell">🪵</div>
+                    </div>
+                </div>
+                <div class="slot-reel-wrap">
+                    <div class="slot-reel" id="reel-1">
+                        <div class="slot-cell">🪵</div>
+                    </div>
+                </div>
+                <div class="slot-reel-wrap">
+                    <div class="slot-reel" id="reel-2">
+                        <div class="slot-cell">🪵</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Результат -->
+            <div id="slots-result" style="visibility:hidden; opacity:0; min-height:50px; padding:12px; background:#1a1a1c; border-radius:8px; margin-bottom:12px; transition: opacity 0.2s ease;"></div>
+
+            <!-- Баланс -->
+            <div style="background:#2d2d2f;border-radius:8px;padding:10px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
+                <span style="color:#adadb8;font-size:12px;">Твой баланс:</span>
+                <span style="font-size:18px;font-weight:800;color:#9147ff;" id="slots-balance">0</span>
+            </div>
+
+            <input type="number" id="slots-bet-amount" class="modal-input" placeholder="Сумма ставки" min="50">
+            <div class="quick-bets">
+                <button class="quick-bet" data-slots-bet="50">50💎</button>
+                <button class="quick-bet" data-slots-bet="100">100💎</button>
+                <button class="quick-bet" data-slots-bet="250">250💎</button>
+                <button class="quick-bet" data-slots-bet="500">500💎</button>
+            </div>
+            <div id="slots-bet-warning" style="color:#f87171;font-size:11px;margin-bottom:6px;display:none;">⚠️ Сумма превышает твой баланс!</div>
+
+            <button class="modal-btn" id="slots-spin-btn">🎲 Крутить!</button>
+            <button class="modal-btn cancel" data-close-modal>Отмена</button>
+        </div>
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,54 @@
+"""
+auth.py — верификация JWT токенов Twitch Extension.
+
+Вынесено из main.py чтобы rimworld.py мог импортировать без циклической зависимости.
+"""
+
+import base64 as _base64
+
+import jwt
+from fastapi import Request
+
+from config import DEV_MODE, DEV_USERNAME, TWITCH_EXTENSION_SECRET
+
+
+def verify_twitch_jwt(request: Request) -> dict:
+    """
+    Проверяет JWT от Twitch Extension (заголовок X-Twitch-JWT).
+    Возвращает dict с:
+      - status: 'valid' | 'invalid' | 'none'
+      - username: имя пользователя из токена (payload['sub'])
+
+    В production режим 'unsigned' ОТКЛЮЧЕН — любая неверная подпись = отказ.
+    Не кидает исключений.
+    """
+    # DEV_MODE: пропускаем JWT верификацию для локального тестирования
+    if DEV_MODE:
+        return {"status": "valid", "username": DEV_USERNAME}
+
+    token = request.headers.get("X-Twitch-JWT", "").strip()
+    if not token:
+        return {"status": "none"}
+
+    if not TWITCH_EXTENSION_SECRET:
+        return {"status": "invalid", "error": "TWITCH_EXTENSION_SECRET не настроен"}
+
+    try:
+        # Twitch использует base64url — заменяем символы и добавляем правильный паддинг
+        secret_b64 = TWITCH_EXTENSION_SECRET.replace('-', '+').replace('_', '/')
+        padding = 4 - len(secret_b64) % 4
+        if padding != 4:
+            secret_b64 += '=' * padding
+        secret_bytes = _base64.b64decode(secret_b64)
+        payload = jwt.decode(
+            token,
+            secret_bytes,
+            algorithms=["HS256"],
+            options={"verify_exp": True, "leeway": 60},
+        )
+        username = payload.get("sub", "") or payload.get("opaque_user_id", "")
+        user_id  = str(payload.get("user_id", ""))
+        return {"status": "valid", "username": username, "user_id": user_id}
+    except Exception as e:
+        print(f"[auth] JWT verify failed: {type(e).__name__}: {e}")
+        return {"status": "invalid"}

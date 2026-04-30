@@ -1,0 +1,2874 @@
+<!DOCTYPE html>
+
+<html lang="ru">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<meta name="theme-color" content="#0a0a0f">
+
+<title>RimLink Mobile</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script>
+
+<style>
+
+:root{--bg:#0a0a0f;--bg2:#111118;--bg3:#18181f;--border:rgba(255,255,255,0.07);--accent:#7c4dff;--accent2:#b47cff;--green:#39d98a;--red:#ff5370;--gold:#ffd060;--text:#f0eeff;--muted:#7070a0;--nav-h:64px;--safe-b:env(safe-area-inset-bottom,0px)}
+
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+
+html,body{width:100%;height:100%;height:-webkit-fill-available;background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;overflow:hidden}
+
+#topbar{position:fixed;top:0;left:0;right:0;z-index:100;background:linear-gradient(180deg,rgba(10,10,15,.98),rgba(10,10,15,.92));-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;height:58px}
+
+.topbar-user{display:flex;align-items:center;gap:10px;min-width:0}
+
+.avatar{width:36px;height:36px;background:var(--bg3);border-radius:50%;border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;position:relative}
+
+.avatar-online{position:absolute;bottom:-1px;right:-1px;width:10px;height:10px;background:var(--green);border-radius:50%;border:2px solid var(--bg)}
+
+.topbar-name{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.topbar-balance{display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0}
+
+.balance-num{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:var(--accent2);line-height:1}
+
+.balance-income{font-size:10px;color:var(--green);margin-top:2px}
+
+#main{position:fixed;top:58px;bottom:calc(var(--nav-h) + var(--safe-b));left:0;right:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+
+#main::-webkit-scrollbar{display:none}
+
+.page{display:none;padding:16px;padding-bottom:24px;min-height:100%;animation:pageIn .25s ease}
+
+.page.active{display:block}
+
+@keyframes pageIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+#nav{position:fixed;bottom:0;left:0;right:0;z-index:100;background:rgba(10,10,15,.97);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-top:1px solid var(--border);height:calc(var(--nav-h) + var(--safe-b));padding-bottom:var(--safe-b);display:flex;align-items:stretch}
+
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;color:var(--muted);cursor:pointer;transition:color .2s;padding:8px 0;position:relative}
+
+.nav-btn.active{color:var(--accent2)}
+
+.nav-btn.active::before{content:'';position:absolute;top:0;left:20%;right:20%;height:2px;background:var(--accent);border-radius:0 0 3px 3px}
+
+.nav-icon{font-size:22px;line-height:1}
+
+.nav-label{font-size:9px;font-family:'Syne',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+
+.badge-count{background:var(--accent);color:white;font-family:'Syne',sans-serif;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px}
+
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:16px;margin-bottom:12px}
+
+.card-title{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
+
+.card-title span{color:var(--text)}
+
+.level-bar{background:rgba(145,71,255,0.08);border-radius:12px;padding:10px 14px;margin-bottom:12px;border:1px solid rgba(145,71,255,0.15)}
+
+.level-top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+
+.level-badge{background:linear-gradient(135deg,#7c4dff,#b47cff);border-radius:8px;padding:3px 10px;font-size:12px;font-weight:800;color:white;font-family:'Syne',sans-serif;white-space:nowrap}
+
+.level-title{font-size:11px;color:var(--muted)}
+
+.level-track{height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;margin-bottom:4px}
+
+.level-fill{height:100%;background:linear-gradient(90deg,#7c4dff,#b47cff);border-radius:3px;transition:width .5s}
+
+.level-sub{font-size:10px;color:var(--muted);text-align:right}
+
+.hero-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+
+.stat-tile{background:var(--bg2);border:1px solid var(--border);border-radius:18px;padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+
+.stat-tile.accent{border-color:rgba(124,77,255,.4);background:rgba(124,77,255,.08)}
+
+.stat-tile.green{border-color:rgba(57,217,138,.3);background:rgba(57,217,138,.06)}
+
+.stat-tile.gold{border-color:rgba(255,208,96,.3);background:rgba(255,208,96,.06)}
+
+.stat-tile.red{border-color:rgba(255,83,112,.3);background:rgba(255,83,112,.06)}
+
+.stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px}
+
+.stat-val{font-family:'Syne',sans-serif;font-size:22px;font-weight:800}
+
+.stat-tile.accent .stat-val{color:var(--accent2)}
+
+.stat-tile.green .stat-val{color:var(--green)}
+
+.stat-tile.gold .stat-val{color:var(--gold)}
+
+.stat-tile.red .stat-val{color:var(--red)}
+
+.quest-item{background:var(--bg3);border-radius:14px;padding:12px 14px;margin-bottom:8px}
+
+.quest-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+
+.quest-name{font-size:13px;font-weight:500}
+
+.quest-reward{font-size:12px;color:var(--green)}
+
+.quest-bar{height:5px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden}
+
+.quest-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:3px;transition:width .6s cubic-bezier(.34,1.56,.64,1)}
+
+.quest-sub{font-size:11px;color:var(--muted);margin-top:5px;display:flex;justify-content:space-between}
+
+.inv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+
+.inv-item{background:var(--bg3);border-radius:14px;padding:10px 8px;text-align:center;border:1px solid var(--border);position:relative}
+
+.inv-icon{font-size:26px;display:block;margin-bottom:4px}
+
+.inv-name{font-size:10px;color:var(--muted);line-height:1.2}
+
+.inv-qty{position:absolute;top:6px;right:8px;font-size:11px;font-weight:700;color:var(--accent2)}
+
+.inv-craft{display:block;width:100%;margin-top:7px;padding:5px 0;font-size:11px;font-weight:600;border:none;border-radius:8px;cursor:pointer;background:rgba(124,77,255,.18);color:var(--accent2);transition:background .15s}
+
+.inv-craft:active{background:rgba(124,77,255,.32)}
+
+.inv-craft:disabled{opacity:.35;cursor:not-allowed;background:rgba(255,255,255,.06);color:var(--muted)}
+
+.casino-hero{background:linear-gradient(135deg,rgba(124,77,255,.15),rgba(180,124,255,.08));border:1px solid rgba(124,77,255,.3);border-radius:24px;padding:24px 20px;text-align:center;margin-bottom:14px;position:relative;overflow:hidden}
+
+.casino-hero::before{content:'🎰';font-size:80px;position:absolute;right:-10px;top:-10px;opacity:.12;transform:rotate(15deg)}
+
+.casino-title{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;margin-bottom:4px}
+
+.casino-sub{font-size:12px;color:var(--muted);margin-bottom:20px}
+
+.casino-result-box{background:var(--bg);border-radius:16px;padding:14px;margin-bottom:16px;display:none;border:1px solid var(--border)}
+
+.casino-result-box.win{border-color:rgba(57,217,138,.4);background:rgba(57,217,138,.06)}
+
+.casino-result-box.jackpot{border-color:rgba(255,208,96,.5);background:rgba(255,208,96,.08)}
+
+.casino-result-box.loss{border-color:rgba(255,83,112,.3);background:rgba(255,83,112,.05)}
+
+.result-emoji{font-size:40px;margin-bottom:6px}
+
+.result-text{font-family:'Syne',sans-serif;font-size:16px;font-weight:700}
+
+.result-sub{font-size:12px;color:var(--muted);margin-top:4px}
+
+.bet-input-wrap{display:flex;background:var(--bg3);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:10px;transition:border-color .2s}
+
+.bet-input-wrap:focus-within{border-color:var(--accent)}
+
+.bet-input{flex:1;background:none;border:none;padding:14px 16px;color:var(--text);font-family:'Syne',sans-serif;font-size:20px;font-weight:700;outline:none;width:0}
+
+.bet-input::placeholder{color:var(--muted);font-size:16px;font-weight:400}
+
+.bet-currency{padding:14px 16px 14px 0;color:var(--accent2);font-family:'Syne',sans-serif;font-weight:700;font-size:18px}
+
+.quick-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+
+.quick-chip{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:10px 0;color:var(--text);font-family:'Syne',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;text-align:center}
+
+.quick-chip:active{background:var(--accent);border-color:var(--accent);transform:scale(.95)}
+
+.pool-hero{background:linear-gradient(135deg,rgba(255,83,112,.12),rgba(124,77,255,.08));border:1px solid rgba(255,83,112,.25);border-radius:24px;padding:20px;margin-bottom:14px;text-align:center}
+
+.pool-amount{font-family:'Syne',sans-serif;font-size:42px;font-weight:800;color:var(--gold);line-height:1;margin-bottom:2px}
+
+.pool-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+
+.progress-section{margin-bottom:10px}
+
+.progress-label{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:6px}
+
+.progress-track{height:8px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden}
+
+.progress-fill{height:100%;border-radius:4px;transition:width .6s cubic-bezier(.34,1.56,.64,1)}
+
+.progress-fill.pts{background:linear-gradient(90deg,var(--accent),var(--accent2))}
+
+.progress-fill.don{background:linear-gradient(90deg,#f72585,#ff6b6b)}
+
+.event-active-card{background:linear-gradient(135deg,rgba(57,217,138,.1),rgba(0,184,255,.06));border:1px solid rgba(57,217,138,.3);border-radius:24px;padding:20px;margin-bottom:14px;display:none}
+
+.event-timer{font-family:'Syne',sans-serif;font-size:52px;font-weight:800;color:var(--red);text-align:center;line-height:1;font-variant-numeric:tabular-nums;margin:8px 0}
+
+.event-prize{text-align:center;font-size:13px;color:var(--muted);margin-bottom:16px}
+
+.event-prize b{color:var(--gold);font-size:16px}
+
+.bids-table{width:100%}
+
+.bid-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)}
+
+.bid-row:last-child{border-bottom:none}
+
+.bid-rank{font-size:11px;color:var(--muted);width:18px;flex-shrink:0;text-align:center}
+
+.bid-name{flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.bid-bar-wrap{width:50px;height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden}
+
+.bid-bar{height:100%;background:linear-gradient(90deg,var(--green),#00b8ff);border-radius:2px}
+
+.bid-amount{font-size:11px;color:var(--accent2);width:54px;text-align:right;flex-shrink:0}
+
+.bid-pct{font-size:10px;color:var(--green);width:34px;text-align:right;flex-shrink:0}
+
+.contrib-list{display:flex;flex-direction:column;gap:6px}
+
+.contrib-row{display:flex;align-items:center;gap:10px;background:var(--bg3);border-radius:12px;padding:10px 12px}
+
+.contrib-medal{font-size:16px;width:24px;text-align:center;flex-shrink:0}
+
+.contrib-name{flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.contrib-amt{font-size:13px;color:var(--gold);font-family:'Syne',sans-serif;font-weight:700}
+
+.pawn-card{background:linear-gradient(135deg,rgba(124,77,255,.12),rgba(57,217,138,.06));border:1px solid rgba(124,77,255,.3);border-radius:24px;padding:18px;margin-bottom:14px;position:relative;overflow:hidden}
+
+.pawn-card::after{content:'🌌';font-size:80px;position:absolute;right:-12px;bottom:-12px;opacity:.1}
+
+.pawn-name{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;margin-bottom:4px}
+
+.pawn-health-bar{height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;margin:10px 0 6px}
+
+.pawn-health-fill{height:100%;border-radius:3px;transition:width .5s}
+
+.pawn-stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+
+.pawn-stat{background:rgba(0,0,0,.25);border-radius:12px;padding:8px 10px;text-align:center}
+
+.pawn-stat-val{font-family:'Syne',sans-serif;font-size:16px;font-weight:700}
+
+.pawn-stat-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+
+.filters-scroll{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;margin-bottom:12px;scrollbar-width:none}
+
+.filters-scroll::-webkit-scrollbar{display:none}
+
+.filter-pill{flex-shrink:0;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap;font-family:'DM Mono',monospace}
+
+.filter-pill.active{background:var(--accent);border-color:var(--accent);color:white}
+
+.filter-pill:active{transform:scale(.95)}
+
+.shop-item{background:var(--bg3);border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px;border:1px solid var(--border)}
+
+.shop-item-icon{width:40px;height:40px;background:var(--bg2);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+
+.shop-item-info{flex:1;min-width:0}
+
+.shop-item-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.shop-item-cat{font-size:10px;color:var(--muted);margin-top:2px}
+
+.shop-buy-btn{background:var(--accent);border:none;border-radius:10px;padding:8px 12px;color:white;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;transition:all .15s}
+
+.shop-buy-btn:active{background:#5e35cc;transform:scale(.95)}
+
+.shop-buy-btn:disabled{background:#333;color:var(--muted)}
+
+.btn-primary{width:100%;padding:16px;background:var(--accent);border:none;border-radius:16px;color:white;font-family:'Syne',sans-serif;font-size:15px;font-weight:700;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px}
+
+.btn-primary:active{background:#5e35cc;transform:scale(.98)}
+
+.btn-primary.danger{background:var(--red)}
+
+.btn-primary.green{background:var(--green);color:#000}
+
+.btn-primary.ghost{background:transparent;border:1px solid var(--border);color:var(--muted)}
+
+.btn-primary.ghost:active{background:var(--bg3)}
+
+.m-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:14px;padding:14px 16px;color:var(--text);font-family:'DM Mono',monospace;font-size:15px;outline:none;transition:border-color .2s;margin-bottom:10px}
+
+.m-input:focus{border-color:var(--accent)}
+
+.m-input::placeholder{color:var(--muted)}
+
+.search-bar{display:flex;align-items:center;gap:10px;background:var(--bg3);border:1px solid var(--border);border-radius:14px;padding:10px 14px;margin-bottom:12px;transition:border-color .2s}
+
+.search-bar:focus-within{border-color:var(--accent)}
+
+.search-bar input{flex:1;background:none;border:none;color:var(--text);font-family:'DM Mono',monospace;font-size:14px;outline:none}
+
+.search-bar input::placeholder{color:var(--muted)}
+
+#toast{position:fixed;top:68px;left:16px;right:16px;z-index:999;pointer-events:none}
+
+.toast-item{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:12px 16px;font-size:13px;display:flex;align-items:center;gap:10px;margin-bottom:8px;animation:toastIn .3s cubic-bezier(.34,1.56,.64,1);box-shadow:0 8px 32px rgba(0,0,0,.4);transition:opacity .4s}
+
+.toast-item.success{border-left:3px solid var(--green)}
+
+.toast-item.error{border-left:3px solid var(--red)}
+
+.toast-item.info{border-left:3px solid var(--accent)}
+
+@keyframes toastIn{from{transform:translateY(-20px) scale(.9);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+
+.empty{text-align:center;padding:32px 16px;color:var(--muted);font-size:13px}
+
+.empty-icon{font-size:40px;display:block;margin-bottom:12px;opacity:.5}
+
+.skeleton{background:linear-gradient(90deg,var(--bg3) 25%,rgba(255,255,255,.04) 50%,var(--bg3) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:12px;height:60px;margin-bottom:8px}
+
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+
+.no-pawn-wrap{text-align:center;padding:24px 0}
+
+.no-pawn-icon{font-size:56px;display:block;margin-bottom:12px}
+
+.no-pawn-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:6px}
+
+.no-pawn-sub{font-size:12px;color:var(--muted);margin-bottom:20px}
+
+.live-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(255,83,112,.12);border:1px solid rgba(255,83,112,.3);border-radius:20px;padding:3px 10px;font-size:10px;color:var(--red);font-family:'Syne',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+
+.live-dot{width:6px;height:6px;background:var(--red);border-radius:50%;animation:livePulse 1.2s ease-out infinite}
+
+@keyframes livePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
+
+.status-pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:3px 8px;border-radius:20px}
+
+.status-pill.online{background:rgba(57,217,138,.12);color:var(--green)}
+
+.status-pill.offline{background:rgba(255,83,112,.12);color:var(--red)}
+
+.ach-item{display:flex;align-items:center;gap:12px;background:var(--bg3);border-radius:14px;padding:12px;margin-bottom:8px;border:1px solid var(--border)}
+
+.ach-item.done{border-color:rgba(57,217,138,.3)}
+
+.ach-icon{width:40px;height:40px;background:var(--bg2);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+
+.ach-info{flex:1}
+
+.ach-name{font-size:13px;font-weight:600}
+
+.ach-desc{font-size:11px;color:var(--muted);margin-top:2px}
+
+.promo-wrap{display:flex;gap:8px}
+
+.promo-wrap .m-input{flex:1;margin-bottom:0;text-transform:uppercase;letter-spacing:2px}
+
+.promo-btn{background:var(--accent);border:none;border-radius:14px;padding:0 18px;color:white;font-family:'Syne',sans-serif;font-weight:700;font-size:13px;cursor:pointer;flex-shrink:0;transition:all .15s}
+
+.promo-btn:active{background:#5e35cc;transform:scale(.95)}
+
+.market-listing{display:flex;align-items:center;gap:12px;background:var(--bg3);border-radius:14px;padding:12px;margin-bottom:8px;border:1px solid var(--border)}
+
+.market-listing-info{flex:1;min-width:0}
+
+.market-listing-name{font-size:13px;font-weight:500}
+
+.market-listing-meta{font-size:11px;color:var(--muted);margin-top:2px}
+
+.slot-machine{display:flex;gap:10px;justify-content:center;margin:14px 0}
+
+.slot-reel{width:64px;height:64px;background:var(--bg);border-radius:14px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:32px;overflow:hidden;position:relative}
+
+.slot-reel-inner{display:flex;flex-direction:column;transition:transform .9s cubic-bezier(.17,.67,.12,1.0);will-change:transform}
+
+.slot-cell{width:64px;height:64px;display:flex;align-items:center;justify-content:center;font-size:32px;flex-shrink:0}
+
+</style>
+
+</head>
+
+<body>
+
+<div id="boot-screen" style="position:fixed;inset:0;background:#0a0a0f;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;gap:16px;">
+
+  <div style="font-size:48px;">🌍</div>
+
+  <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:#f0eeff;">RimLink</div>
+
+  <div style="font-size:12px;color:#7070a0;">Подключение...</div>
+
+  <div style="width:48px;height:3px;background:#18181f;border-radius:2px;overflow:hidden;margin-top:4px;">
+
+    <div style="width:40%;height:100%;background:#7c4dff;border-radius:2px;animation:bootBar 1.2s ease-in-out infinite alternate;"></div>
+
+  </div>
+
+</div>
+
+<style>@keyframes bootBar{from{transform:translateX(-100%)}to{transform:translateX(250%)}}</style>
+
+<div id="toast"></div>
+
+<div id="topbar">
+
+  <div class="topbar-user">
+
+    <!-- CRITICAL FIX #4: ARIA landmarks for accessibility -->
+
+    <div role="img" aria-label="Пользователь аватар" class="avatar">👤<div class="avatar-online"></div></div>
+
+    <div>
+
+      <div class="topbar-name" id="t-username">Загрузка...</div>
+
+      <div style="font-size:10px;color:var(--muted)">Зритель</div>
+
+    </div>
+
+  </div>
+
+  <div class="topbar-balance">
+
+    <div class="balance-num" id="t-points">0 💎</div>
+
+    <div class="balance-income" id="t-income">+0/мин</div>
+
+  </div>
+
+</div>
+
+
+
+<div role="main" aria-label="Основной контент" id="main">
+
+  <!-- ═══ ГЛАВНАЯ ═══ -->
+
+  <div class="page active" id="page-home">
+
+    <div id="level-bar" style="display:none"></div>
+
+    <div class="hero-stats">
+
+      <div class="stat-tile accent"><div class="stat-label">Баланс</div><div class="stat-val" id="h-points">0</div></div>
+
+      <div class="stat-tile green"><div class="stat-label">Доход/мин</div><div class="stat-val" id="h-income">+0</div></div>
+
+      <div class="stat-tile gold"><div class="stat-label">Время сегодня</div><div class="stat-val" id="h-watch">0 мин</div></div>
+
+      <div class="stat-tile red"><div class="stat-label">Сообщений</div><div class="stat-val" id="h-msgs">0</div></div>
+
+    </div>
+
+    <div class="card">
+
+      <div class="card-title">📜 Квесты <span id="quest-badge" class="badge-count">0</span></div>
+
+      <div id="quests-list"><div class="skeleton"></div><div class="skeleton" style="height:48px;opacity:.5"></div></div>
+
+    </div>
+
+    <div class="card">
+
+      <div class="card-title">🎒 Инвентарь <span id="inv-badge" class="badge-count">0</span></div>
+
+      <div class="inv-grid" id="inv-grid">
+
+        <div class="skeleton" style="height:80px;border-radius:14px"></div>
+
+        <div class="skeleton" style="height:80px;border-radius:14px;opacity:.6"></div>
+
+        <div class="skeleton" style="height:80px;border-radius:14px;opacity:.3"></div>
+
+      </div>
+
+    </div>
+
+    <div class="card">
+
+      <div class="card-title">🎁 Промокод</div>
+
+      <div class="promo-wrap">
+
+        <input class="m-input" id="promo-inp" placeholder="ВВЕДИ КОД">
+        <button class="promo-btn" data-action="use-promo">✅ ОК</button>
+      </div>
+
+    </div>
+
+    <div class="card">
+
+      <div class="card-title">🏆 Достижения</div>
+
+      <div id="ach-list"><div class="skeleton"></div></div>
+
+    </div>
+
+    <div class="card">
+
+      <div class="card-title">🔥 Стрик</div>
+
+      <div id="streak-block"><div class="skeleton"></div></div>
+
+    </div>
+
+  </div>
+
+
+
+  <!-- ═══ КАЗИНО ═══ -->
+
+  <div class="page" id="page-casino">
+
+    <div class="casino-hero">
+
+      <div class="casino-title">🎰 Казино</div>
+
+      <div class="casino-sub">Проверь удачу — ×2 или ДЖЕКПОТ ×5</div>
+
+      <div class="casino-result-box" id="casino-result">
+
+        <div class="result-emoji" id="r-emoji">🎰</div>
+
+        <div class="result-text" id="r-text">—</div>
+
+        <div class="result-sub" id="r-sub">—</div>
+
+      </div>
+
+      <div class="bet-input-wrap">
+
+        <input class="bet-input" id="bet-inp" type="number" placeholder="Ставка" min="50">
+
+        <div class="bet-currency">💎</div>
+
+      </div>
+
+      <div class="quick-row">
+
+        <div class="quick-chip" data-action="set-bet" data-value="50">50</div>
+        <div class="quick-chip" data-action="set-bet" data-value="100">100</div>
+        <div class="quick-chip" data-action="set-bet" data-value="500">500</div>
+        <div class="quick-chip" data-action="set-bet" data-value="0">MAX</div>
+      </div>
+
+      <button class="btn-primary" data-action="place-bet" id="bet-btn">🎲 Сделать ставку</button>
+    </div>
+
+
+
+    <!-- Слоты -->
+
+    <div class="card">
+
+      <div class="card-title">🎲 Слоты</div>
+
+      <div class="slot-machine" id="slot-machine">
+
+        <div class="slot-reel"><div class="slot-cell">🪵</div></div>
+
+        <div class="slot-reel"><div class="slot-cell">🪵</div></div>
+
+        <div class="slot-reel"><div class="slot-cell">🪵</div></div>
+
+      </div>
+
+      <div class="casino-result-box" id="slots-result">
+
+        <div class="result-emoji" id="sr-emoji">🎲</div>
+
+        <div class="result-text" id="sr-text">—</div>
+
+        <div class="result-sub" id="sr-sub">—</div>
+
+      </div>
+
+      <div class="bet-input-wrap">
+
+        <input class="bet-input" id="slots-bet" type="number" placeholder="Ставка" min="50">
+
+        <div class="bet-currency">💎</div>
+
+      </div>
+
+      <div class="quick-row">
+
+        <div class="quick-chip" data-action="set-slots-bet" data-value="50">50</div>
+        <div class="quick-chip" data-action="set-slots-bet" data-value="100">100</div>
+        <div class="quick-chip" data-action="set-slots-bet" data-value="250">250</div>
+        <div class="quick-chip" data-action="set-slots-bet" data-value="0">MAX</div>
+      </div>
+
+      <button class="btn-primary" data-action="spin-slots" id="slots-btn">🎲 Крутить!</button>
+    </div>
+
+
+
+    <!-- Перевод -->
+
+    <div class="card">
+
+      <div class="card-title">💸 Передать очки</div>
+
+      <input class="m-input" id="tf-user" placeholder="Никнейм получателя">
+
+      <input class="m-input" id="tf-amt" type="number" placeholder="Сумма (мин. 10)">
+
+      <button class="btn-primary ghost" data-action="transfer-points">💸 Отправить</button>
+    </div>
+
+    <!-- Дуэли -->
+
+    <div class="card">
+
+      <div class="card-title">⚔️ Дуэли</div>
+
+      <div id="duels-list"><div class="empty"><span class="empty-icon">⚔️</span>Нет активных дуэлей</div></div>
+
+      <input class="m-input" id="duel-target" placeholder="Никнейм соперника" style="margin-top:10px">
+
+      <input class="m-input" id="duel-amount" type="number" placeholder="Ставка (мин. 50)">
+
+      <button class="btn-primary" data-action="create-duel">⚔️ Вызвать на дуэль</button>
+    </div>
+
+    <!-- Семья -->
+
+    <div class="card">
+
+      <div class="card-title">💍 Семья</div>
+
+      <div id="family-status-card"><div class="empty"><span class="empty-icon">💍</span>Загрузка...</div></div>
+
+    </div>
+
+  </div>
+
+
+
+  <!-- ═══ РУЛЕКЦИОН ═══ -->
+
+  <div class="page" id="page-rulection">
+
+    <div class="pool-hero">
+
+      <div class="pool-label">В копилке</div>
+
+      <div class="pool-amount" id="pool-amount">0 💎</div>
+
+    </div>
+
+    <div class="event-active-card" id="event-card">
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+
+        <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800" id="ev-type-name">🎲 Рулетка</div>
+
+        <div class="live-badge"><div class="live-dot"></div> LIVE</div>
+
+      </div>
+
+      <div class="event-prize">Приз: <b id="ev-prize">—</b></div>
+
+      <div class="event-timer" id="ev-timer">0:00</div>
+
+      <div style="font-size:11px;color:var(--muted);text-align:center;margin-bottom:14px" id="ev-desc"></div>
+
+      <div class="bids-table" id="ev-bids"></div>
+
+      <div style="display:flex;gap:8px;margin-top:14px">
+
+        <input class="m-input" id="bid-inp" type="number" placeholder="Ставка (мин. 100)" min="100" style="flex:1;margin-bottom:0">
+
+        <button class="btn-primary" data-action="place-bid" style="width:auto;padding:0 20px;margin-bottom:0">⚔️</button>
+      </div>
+
+    </div>
+
+    <div class="card" id="pool-progress-card">
+
+      <div class="card-title">📊 Прогресс запуска</div>
+
+      <div class="progress-section">
+
+        <div class="progress-label"><span>💎 Очки</span><span id="pts-pct">0%</span></div>
+
+        <div class="progress-track"><div class="progress-fill pts" id="pts-bar" style="width:0%"></div></div>
+
+        <div style="font-size:11px;color:var(--muted);margin-top:4px"><span id="pts-val">0</span> / 100,000 💎</div>
+
+      </div>
+
+      <div class="progress-section" style="margin-top:12px">
+
+        <div class="progress-label"><span>💳 Донаты</span><span id="don-pct">0%</span></div>
+
+        <div class="progress-track"><div class="progress-fill don" id="don-bar" style="width:0%"></div></div>
+
+        <div style="font-size:11px;color:var(--muted);margin-top:4px"><span id="don-val">0</span> / 500 ₽</div>
+
+      </div>
+
+    </div>
+
+    <div class="card">
+
+      <div class="card-title">🥇 Топ участников</div>
+
+      <div class="contrib-list" id="contrib-list"><div class="empty"><span class="empty-icon">👥</span>Пока никого нет</div></div>
+
+    </div>
+
+    <div class="card" id="contrib-form">
+
+      <div class="card-title">💎 Добавить в копилку</div>
+
+      <input class="m-input" id="contrib-inp" type="number" placeholder="Сумма (мин. 100)" min="100">
+
+      <button class="btn-primary" data-action="contribute-pool">💎 Закинуть в копилку</button>
+    </div>
+
+  </div>
+
+
+
+  <!-- ═══ RIMWORLD ═══ -->
+
+  <div class="page" id="page-rimworld">
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+
+      <div style="font-family:'Syne',sans-serif;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">RimWorld</div>
+
+      <div id="rw-status" class="status-pill offline">🔴 Оффлайн</div>
+
+    </div>
+
+    <div id="pawn-wrap">
+
+      <div class="pawn-card" id="pawn-card"><div class="skeleton" style="height:100px"></div></div>
+
+      <div id="pawn-btns" style="display:none">
+
+        <button class="btn-primary green" id="btn-heal" data-action="heal-pawn">💊 Лечить (150 💎)</button>
+        <button class="btn-primary danger" id="btn-resurrect" data-action="resurrect-pawn" style="display:none">✨ Воскресить (500 💎)</button>
+        <button class="btn-primary ghost" data-action="open-passion">🔥 Огоньки навыков</button>
+        <button class="btn-primary ghost" data-action="open-genes">🧬 Гены пешки</button>
+        <button class="btn-primary ghost" data-action="open-xenotype">🔄 Сменить ксенотип</button>
+      </div>
+
+    </div>
+
+    <div class="card" style="margin-top:14px">
+
+      <div class="card-title">🏪 Магазин <span class="badge-count" id="shop-cnt">0</span></div>
+
+      <div class="filters-scroll" id="shop-filters">
+
+        <div class="filter-pill active" data-action="filter-shop" data-cat="all">Все</div>
+        <div class="filter-pill" data-action="filter-shop" data-cat="apparel">👕 Одежда</div>
+        <div class="filter-pill" data-action="filter-shop" data-cat="weapon">⚔️ Оружие</div>
+        <div class="filter-pill" data-action="filter-shop" data-cat="implant">🔧 Импланты</div>
+        <div class="filter-pill" data-action="filter-shop" data-cat="neurotrainer">🧠 Навыки</div>
+        <div class="filter-pill" data-action="filter-shop" data-cat="trait">🎭 Черты</div>
+        <div class="filter-pill" data-action="filter-shop" data-cat="gene">🔬 Гены</div>
+        <div class="filter-pill" data-action="filter-shop" data-cat="xenotype">🧬 Ксенотипы</div>
+      </div>
+
+      <div class="search-bar">
+
+        <span style="font-size:16px">🔍</span>
+
+        <input id="shop-search" placeholder="Поиск...">
+      </div>
+
+      <div id="shop-list"><div class="skeleton"></div><div class="skeleton" style="opacity:.6"></div><div class="skeleton" style="opacity:.3"></div></div>
+
+    </div>
+
+    <div class="card">
+
+      <div class="card-title">⚡ Ивенты RimWorld</div>
+
+      <div id="rw-events"><div class="skeleton"></div></div>
+
+    </div>
+
+  </div>
+
+
+
+  <!-- ═══ РЫНОК ═══ -->
+
+  <div class="page" id="page-market">
+
+    <div class="card">
+
+      <div class="card-title">🏷️ Рынок зрителей <button data-action="load-market" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px">⟳</button></div>
+      <div id="market-sell" style="margin-bottom:12px"></div>
+
+      <div id="market-list"><div class="empty"><span class="empty-icon">🏷️</span>Нажми ⟳ для загрузки</div></div>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+
+<!-- НАВИГАЦИЯ: добавлена 5-я вкладка "Рынок", исправлены иконки -->
+
+<nav id="nav">
+
+  <button class="nav-btn active" data-nav="home" id="nav-home"><div class="nav-icon">🏠</div><div class="nav-label">Главная</div></button>
+  <button class="nav-btn" data-nav="casino" id="nav-casino"><div class="nav-icon">🎰</div><div class="nav-label">Казино</div></button>
+  <button class="nav-btn" data-nav="rulection" id="nav-rulection"><div class="nav-icon">🎡</div><div class="nav-label">Рулекцион</div></button>
+  <button class="nav-btn" data-nav="rimworld" id="nav-rimworld"><div class="nav-icon">🌍</div><div class="nav-label">RimWorld</div></button>
+  <button class="nav-btn" data-nav="market" id="nav-market"><div class="nav-icon">🏷️</div><div class="nav-label">Рынок</div></button>
+</nav>
+
+
+
+<script>
+
+// ========== РУССКИЕ НАЗВАНИЯ НАВЫКОВ RIMWORLD ==========
+
+const SKILL_LABELS_RU = {
+
+  'Shooting': 'Стрельба',
+
+  'Melee': 'Ближний бой',
+
+  'Construction': 'Строительство',
+
+  'Mining': 'Добыча',
+
+  'Cooking': 'Кулинария',
+
+  'Plants': 'Растениеводство',
+
+  'Animals': 'Животноводство',
+
+  'Crafting': 'Ремесло',
+
+  'Artistic': 'Искусство',
+
+  'Medicine': 'Медицина',
+
+  'Social': 'Социальность',
+
+  'Intellectual': 'Интеллект'
+
+};
+
+
+
+function localizeSkill(skill) {
+
+  if (!skill) return '???';
+
+  const defName = skill.def_name || skill.name || '';
+
+  return SKILL_LABELS_RU[defName] || skill.label || defName;
+
+}
+
+
+
+const API = 'https://shedoy23.ru';
+
+let userLogin = null, userPoints = 0, shopAllItems = [], currentShopCat = 'all', searchQuery = '';
+
+let rulectionTimer = null, cooldowns = {};
+const RW_EVENT_COOLDOWN_MS = 5 * 60 * 1000;
+let _viewerStatsCache = null, _viewerStatsInFlight = null;
+let _authUserId = '', _authToken = '', _authClientId = '', _permRequested = false;
+let _mobileActionHandlersBound = false;
+
+
+// ===== НАВИГАЦИЯ =====
+
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+
+  const pg = document.getElementById('page-' + page);
+
+  const nav = document.getElementById('nav-' + page);
+
+  if (pg) pg.classList.add('active');
+
+  if (nav) nav.classList.add('active');
+
+  if (page === 'rulection') loadRulection();
+
+  if (page === 'market') loadMarket();
+
+  if (page === 'rimworld') { if (!shopAllItems.length) { loadPawn(); loadShop(); loadRwEvents(); } else { renderShop(); } }
+
+  if (page === 'casino') { loadDuels(); loadFamily(); }
+
+}
+
+function bindMobileActionHandlers() {
+  if (_mobileActionHandlersBound) return;
+  _mobileActionHandlersBound = true;
+
+  document.addEventListener('click', function(event) {
+    const navBtn = event.target.closest('[data-nav]');
+    if (navBtn) {
+      navigate(navBtn.dataset.nav);
+      return;
+    }
+
+    const actionEl = event.target.closest('[data-action]');
+    if (!actionEl) return;
+    const action = actionEl.dataset.action;
+
+    if (action === 'use-promo') usePromo();
+    else if (action === 'set-bet') setBet(parseInt(actionEl.dataset.value || '0', 10));
+    else if (action === 'place-bet') placeBet();
+    else if (action === 'set-slots-bet') setSlotsBet(parseInt(actionEl.dataset.value || '0', 10));
+    else if (action === 'spin-slots') spinSlots();
+    else if (action === 'transfer-points') transferPoints();
+    else if (action === 'create-duel') createDuel();
+    else if (action === 'place-bid') placeBid();
+    else if (action === 'contribute-pool') contributePool();
+    else if (action === 'heal-pawn') healPawn();
+    else if (action === 'resurrect-pawn') resurrectPawn();
+    else if (action === 'open-passion') openPassionModal();
+    else if (action === 'open-genes') openGenesModal();
+    else if (action === 'open-xenotype') openXenotypeModal();
+    else if (action === 'filter-shop') filterShop(actionEl.dataset.cat || 'all');
+    else if (action === 'load-market') loadMarket();
+    else if (action === 'craft-item') craftItem(actionEl.dataset.itemName || '');
+    else if (action === 'create-pawn') createPawn();
+    else if (action === 'remove-trait') removeTrait(actionEl.dataset.traitDef || '', parseInt(actionEl.dataset.degree || '0', 10), actionEl.dataset.label || '');
+    else if (action === 'buy-item') buyItem(actionEl.dataset.defName || '', parseInt(actionEl.dataset.price || '0', 10), actionEl.dataset.category || '');
+    else if (action === 'remove-gene') removeGene(actionEl.dataset.defName || '', actionEl.dataset.label || '');
+    else if (action === 'close-overlay') actionEl.closest('div')?.parentElement?.remove();
+    else if (action === 'buy-passion') buyPassion(actionEl.dataset.defName || '', parseInt(actionEl.dataset.targetPassion || '0', 10), parseInt(actionEl.dataset.price || '0', 10));
+    else if (action === 'reset-passion') resetPassion(actionEl.dataset.defName || '', parseInt(actionEl.dataset.price || '0', 10));
+    else if (action === 'buy-event') buyEvent(actionEl.dataset.eventId || '', parseInt(actionEl.dataset.cost || '0', 10));
+    else if (action === 'accept-duel') acceptDuel(actionEl.dataset.duelId || '');
+    else if (action === 'withdraw-family') withdrawFamily();
+    else if (action === 'divorce-family') divorceFamily();
+    else if (action === 'accept-marriage') acceptMarriage();
+    else if (action === 'propose-marriage') proposeMarriage();
+    else if (action === 'list-item') listItem(actionEl.dataset.itemName || '');
+    else if (action === 'cancel-listing') cancelListing(parseInt(actionEl.dataset.listingId || '0', 10));
+    else if (action === 'buy-listing') buyListing(parseInt(actionEl.dataset.listingId || '0', 10), parseInt(actionEl.dataset.price || '0', 10), actionEl.dataset.itemName || '');
+  });
+
+  document.addEventListener('input', function(event) {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (target.id === 'shop-search') searchShop(target.value || '');
+  });
+
+  document.addEventListener('keydown', function(event) {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (target.id === 'promo-inp' && event.key === 'Enter') {
+      usePromo();
+    }
+  });
+}
+
+
+// ===== УВЕДОМЛЕНИЯ =====
+
+function toast(msg, type = 'info') {
+
+  const el = document.createElement('div');
+
+  el.className = 'toast-item ' + type;
+
+  el.textContent = msg;
+
+  document.getElementById('toast').appendChild(el);
+
+  setTimeout(() => el.style.opacity = '0', 3000);
+
+  setTimeout(() => el.remove(), 3400);
+
+}
+
+
+
+// ===== УТИЛИТЫ =====
+
+function setEl(id, html) { const el = document.getElementById(id); if (el) el.innerHTML = html; }
+
+function fmtNum(n) { return Number(n || 0).toLocaleString('ru-RU'); }
+
+function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+function checkCooldown(key, ms) { const now = Date.now(); if (cooldowns[key] && now - cooldowns[key] < ms) return false; cooldowns[key] = now; return true; }
+
+async function apiFetch(path) { const r = await fetch(API + path); if (!r.ok) throw new Error(r.status); return r.json(); }
+
+async function apiPost(path, body) {
+
+  const headers = { 'Content-Type': 'application/json' };
+
+  if (_authToken) headers['X-Twitch-JWT'] = _authToken;
+
+  const r = await fetch(API + path, { method: 'POST', headers, body: JSON.stringify(body) });
+
+  return r.json();
+
+}
+
+
+
+// ===== TWITCH АВТОРИЗАЦИЯ =====
+
+var _twitchExt = (window.Twitch && window.Twitch.ext) ? window.Twitch.ext : null;
+
+var _authDone = false;
+
+
+
+if (_twitchExt && _twitchExt.onAuthorized) {
+
+  _twitchExt.onAuthorized(function(auth) {
+
+    _authToken = auth.token || '';
+
+    _authClientId = auth.clientId || '';
+
+    _authUserId = auth.userId || '';
+
+
+
+    let jwtUserId = null;
+
+    try {
+
+      const parts = auth.token.split('.');
+
+      let b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+
+      const pad = b64.length % 4;
+
+      if (pad) b64 += Array(5 - pad).join('=');
+
+      const json = decodeURIComponent(Array.prototype.map.call(atob(b64), function(c) {
+
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+
+      }).join(''));
+
+      const payload = JSON.parse(json);
+
+      jwtUserId = payload.user_id || null;
+
+    } catch(e) {}
+
+
+
+    if (jwtUserId) {
+
+      resolveLogin(jwtUserId, auth.token, auth.clientId).then(login => {
+
+        if (login) {
+
+          userLogin = login;
+
+          _authDone = true;
+
+          _permRequested = false;
+
+          if (window._permOverlay) { window._permOverlay.remove(); window._permOverlay = null; }
+
+          const permEl = document.getElementById('perm-overlay');
+
+          if (permEl) permEl.remove();
+
+          if (!_initDone) init();
+
+        } else {
+
+          if (!_authDone) showPermissionScreen();
+
+        }
+
+      });
+
+    } else {
+
+      if (!_authDone) showPermissionScreen();
+
+    }
+
+  });
+
+}
+
+
+
+setTimeout(function() {
+
+  if (_authDone) return;
+
+  if (!window.Twitch || !window.Twitch.ext) {
+
+    const p = new URLSearchParams(location.search);
+
+    userLogin = p.get('user') || 'test_user';
+
+    _authDone = true;
+
+    setTimeout(init, 100);
+
+    return;
+
+  }
+
+  showPermissionScreen();
+
+}, 3000);
+
+
+
+if (!window.Twitch || !window.Twitch.ext) {
+
+  const _p = new URLSearchParams(location.search);
+
+  userLogin = _p.get('user') || 'test_user';
+
+  _authDone = true;
+
+  setTimeout(init, 300);
+
+}
+
+
+
+async function resolveLogin(twitchId, token, clientId) {
+
+  try {
+
+    const r = await fetch(`${API}/api/user/resolve-twitch-token`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, opaque_id: _authUserId }) });
+
+    const d = await r.json();
+
+    if (d.login) return d.login;
+
+    if (d.username) return d.username;
+
+  } catch(e) {}
+
+  try {
+
+    const uid = String(twitchId).replace(/^U/, '');
+
+    const r2 = await fetch(`https://api.twitch.tv/helix/users?id=${uid}`, { headers: { 'Client-ID': clientId, 'Authorization': 'Extension ' + token } });
+
+    const d2 = await r2.json();
+
+    if (d2.data && d2.data[0] && d2.data[0].login) return d2.data[0].login;
+
+  } catch(e) {}
+
+  return null;
+
+}
+
+
+
+function showPermissionScreen() {
+
+  if (_permRequested) return;
+
+  _permRequested = true;
+
+  const boot = document.getElementById('boot-screen');
+
+  if (boot) boot.remove();
+
+  setEl('t-username', 'Войти');
+
+
+
+  const overlay = document.createElement('div');
+
+  overlay.id = 'perm-overlay';
+
+  overlay.style.cssText = 'position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;z-index:9999;text-align:center;';
+
+  overlay.innerHTML = `
+
+    <div style="font-size:52px;margin-bottom:16px;">🔐</div>
+
+    <div style="font-size:20px;font-weight:700;font-family:'Syne',sans-serif;margin-bottom:10px;">Нужен доступ</div>
+
+    <div style="font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:28px;max-width:280px;">Разреши доступ к профилю Twitch, чтобы видеть свои очки, инвентарь и пешку в RimWorld</div>
+
+    <button id="perm-btn" style="background:var(--accent);color:#fff;border:none;border-radius:16px;padding:14px 36px;font-size:16px;font-weight:700;cursor:pointer;width:100%;max-width:280px;margin-bottom:12px;">✅ Разрешить доступ</button>
+
+    <button id="perm-skip" style="background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:16px;padding:12px 36px;font-size:14px;cursor:pointer;width:100%;max-width:280px;">Продолжить без входа</button>
+
+  `;
+
+  document.body.appendChild(overlay);
+
+
+
+  document.getElementById('perm-btn').onclick = function() {
+
+    document.getElementById('perm-btn').textContent = '⏳ Запрашиваем...';
+
+    document.getElementById('perm-btn').disabled = true;
+
+    if (window.Twitch && window.Twitch.ext && window.Twitch.ext.actions) {
+
+      _authDone = false;
+
+      window._permOverlay = overlay;
+
+      window.Twitch.ext.actions.requestIdShare();
+
+    }
+
+    setTimeout(function() {
+
+      if (userLogin) return;
+
+      _permRequested = false;
+
+      const btn = document.getElementById('perm-btn');
+
+      if (btn) { btn.textContent = '✅ Разрешить доступ'; btn.disabled = false; }
+
+      toast('Не удалось получить доступ — попробуй ещё раз', 'error');
+
+    }, 6000);
+
+  };
+
+
+
+  document.getElementById('perm-skip').onclick = () => {
+
+    overlay.remove();
+
+    setEl('t-username', 'Гость');
+
+  };
+
+}
+
+
+
+var _initDone = false;
+
+async function init() {
+  if (_initDone) return;
+  _initDone = true;
+  bindMobileActionHandlers();
+  const boot = document.getElementById('boot-screen');
+  if (boot) boot.remove();
+
+  setEl('t-username', userLogin);
+
+  await loadUserData(true);
+
+  loadDuels(); loadFamily();
+
+  reportActivity();
+
+  setInterval(loadUserData, 30000);
+
+  setInterval(reportActivity, 60000);
+
+}
+
+
+
+// ===== ДАННЫЕ ПОЛЬЗОВАТЕЛЯ =====
+
+async function fetchViewerStats(force = false) {
+
+  if (!userLogin) return null;
+
+  if (force) { _viewerStatsCache = null; _viewerStatsInFlight = null; }
+
+  if (_viewerStatsInFlight) return _viewerStatsInFlight;
+
+  _viewerStatsInFlight = (async () => {
+
+    const d = await apiFetch(`/api/viewer/stats/${userLogin}`);
+
+    _viewerStatsCache = d;
+
+    return d;
+
+  })();
+
+  try { return await _viewerStatsInFlight; } finally { _viewerStatsInFlight = null; }
+
+}
+
+
+
+async function loadUserData(force = false) {
+
+  if (!userLogin) return;
+
+  try {
+
+    const d = await fetchViewerStats(force);
+
+    if (!d) return;
+
+    userPoints = d.points || 0;
+
+    const itemBonus = (d.inventory || []).reduce((s, i) => s + ((i.bonus || i.value || 0) * (i.quantity || 1)), 0);
+
+    const income = d.income_per_min || itemBonus || 0;
+
+    setEl('t-username', userLogin);
+
+    setEl('t-points', fmtNum(userPoints) + ' 💎');
+
+    setEl('t-income', '+' + income + '/мин');
+
+    setEl('h-points', fmtNum(userPoints));
+
+    setEl('h-income', '+' + income);
+
+    if (d.stats) {
+
+      setEl('h-watch', Math.round((d.stats.watch_time_today || 0) / 60) + ' мин');
+
+      setEl('h-msgs', d.stats.chat_messages_today || d.stats.messages_today || 0);
+
+    }
+
+    // Полоска уровня
+
+    loadUserLevel(d);
+
+    loadQuests(d);
+
+    loadInventory(d);
+
+    loadAchievements(d);
+
+    loadStreak(d);
+
+  } catch(e) {}
+
+}
+
+
+
+// Полоска уровня (синхронизировано с PC версией)
+
+async function loadUserLevel(statsData) {
+
+  if (!userLogin) return;
+
+  try {
+
+    const container = document.getElementById('level-bar');
+
+    if (!container) return;
+
+    const r = await fetch(`${API}/api/user/level/${userLogin}`);
+
+    const d = await r.json();
+
+    const { level, exp, exp_needed, title, bonus_pct } = d;
+
+    const pct = Math.min(100, Math.round((exp / exp_needed) * 100));
+
+    container.style.display = 'block';
+
+    container.innerHTML = `
+
+      <div class="level-bar">
+
+        <div class="level-top">
+
+          <div class="level-badge">LVL ${level}</div>
+
+          <div class="level-title">${title}${bonus_pct > 0 ? ' (+' + bonus_pct + '% доход)' : ''}</div>
+
+        </div>
+
+        <div class="level-track"><div class="level-fill" style="width:${pct}%"></div></div>
+
+        <div class="level-sub">${exp} / ${exp_needed} EXP (${pct}%)</div>
+
+      </div>`;
+
+  } catch(e) {}
+
+}
+
+
+
+// Стрик (синхронизировано с PC версией)
+
+function loadStreak(d) {
+
+  try {
+
+    const container = document.getElementById('streak-block');
+
+    if (!container || !d) return;
+
+    const cur = d.current_streak || 0;
+
+    const max = d.max_streak || 0;
+
+    const reward = (cur + 1) * 1000;
+
+    const pct = Math.min(100, (cur / 10) * 100);
+
+    const fires = cur > 0 ? '🔥'.repeat(Math.min(cur, 10)) : '—';
+
+    container.innerHTML = `
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+
+        <span style="font-weight:700;font-size:13px;">🔥 Стрик стримов</span>
+
+        <span style="font-size:11px;color:var(--muted);">Рекорд: <b style="color:var(--gold);">${max}</b></span>
+
+      </div>
+
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+
+        <div style="flex:1;background:rgba(255,255,255,.06);border-radius:4px;height:8px;overflow:hidden;">
+
+          <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,#f97316,#fbbf24);border-radius:4px;transition:width .4s;"></div>
+
+        </div>
+
+        <span style="font-size:13px;font-weight:800;color:var(--gold);min-width:20px;text-align:right;">${cur}</span>
+
+      </div>
+
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);">
+
+        <span>${fires}</span>
+
+        <span>Следующий бонус: <b style="color:var(--green);">+${reward}💎</b></span>
+
+      </div>`;
+
+  } catch(e) {}
+
+}
+
+
+
+// ===== КВЕСТЫ =====
+
+async function loadQuests(d = null) {
+
+  if (!userLogin) return;
+
+  try {
+
+    d = d || _viewerStatsCache || await fetchViewerStats();
+
+    if (!d) return;
+
+    const active = (d.quests || []).filter(q => !q.completed);
+
+    setEl('quest-badge', active.length);
+
+    if (!active.length) { setEl('quests-list', `<div class="empty"><span class="empty-icon">📜</span>Нет активных квестов</div>`); return; }
+
+    setEl('quests-list', active.slice(0, 4).map(q => {
+
+      const pct = Math.min(100, Math.round(q.progress / q.target * 100));
+
+      return `<div class="quest-item"><div class="quest-top"><div class="quest-name">${esc(q.name || q.quest_type)}</div><div class="quest-reward">+${fmtNum(q.reward)} 💎</div></div><div class="quest-bar"><div class="quest-fill" style="width:${pct}%"></div></div><div class="quest-sub"><span>${q.progress} / ${q.target}</span><span>${pct}%</span></div></div>`;
+
+    }).join(''));
+
+  } catch(e) { setEl('quests-list', `<div class="empty">—</div>`); }
+
+}
+
+
+
+// ===== ИНВЕНТАРЬ =====
+
+const ITEM_ICONS = { "деревяшка": "🪵", "камень": "🪨", "амулет": "🔮", "корона": "👑" };
+
+const CRAFT_RECIPES = {
+
+  'деревяшка': { cost: 5, result: 'камень', resultEmoji: '🪨' },
+
+  'камень': { cost: 5, result: 'амулет', resultEmoji: '🔮' },
+
+  'амулет': { cost: 5, result: 'корона', resultEmoji: '👑' },
+
+};
+
+
+
+async function craftItem(srcKey) {
+
+  if (!checkCooldown('craft_' + srcKey, 2000)) return;
+
+  try {
+
+    const r = await fetch(API + '/api/craft', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: userLogin, item_name: srcKey }) });
+
+    const d = await r.json();
+
+    toast(d.message, d.success ? 'success' : 'error');
+
+    if (d.success) { loadUserData(); loadInventory(); }
+
+  } catch(e) { toast('❌ Ошибка', 'error'); }
+
+}
+
+
+
+async function loadInventory(d = null) {
+
+  if (!userLogin) return;
+
+  try {
+
+    d = d || _viewerStatsCache || await fetchViewerStats();
+
+    if (!d) return;
+
+    const inv = (d.inventory || []).filter(i => i.quantity > 0);
+
+    setEl('inv-badge', inv.length);
+
+    if (!inv.length) { setEl('inv-grid', `<div class="empty" style="grid-column:1/-1"><span class="empty-icon">🎒</span>Инвентарь пуст</div>`); return; }
+
+    setEl('inv-grid', inv.map(i => {
+
+      const key = i.item_name;
+
+      const recipe = CRAFT_RECIPES[key];
+
+      const qty = i.quantity || 0;
+
+      const canCraft = recipe && qty >= recipe.cost;
+
+      const craftBtn = recipe
+        ? `<button class="inv-craft" data-action="craft-item" data-item-name="${key}" ${canCraft ? '' : 'disabled'} title="${canCraft ? `Скрафтить ${recipe.resultEmoji} (нужно ${recipe.cost}×)` : `Нужно ${recipe.cost}× (у тебя ${qty})`}">⚒️ ${recipe.cost}→${recipe.resultEmoji}</button>`
+        : '';
+      return `<div class="inv-item"><span class="inv-icon">${ITEM_ICONS[key] || '📦'}</span><div class="inv-name">${esc(i.display_name || key)}</div><div class="inv-qty">×${qty}</div>${craftBtn}</div>`;
+
+    }).join(''));
+
+  } catch(e) {}
+
+}
+
+
+
+// ===== ДОСТИЖЕНИЯ =====
+
+async function loadAchievements(d = null) {
+
+  if (!userLogin) return;
+
+  try {
+
+    d = d || _viewerStatsCache || await fetchViewerStats();
+
+    if (!d) return;
+
+    const achs = d.achievements || [];
+
+    if (!achs.length) { setEl('ach-list', `<div class="empty"><span class="empty-icon">🏆</span>Достижений пока нет</div>`); return; }
+
+    setEl('ach-list', achs.slice(0, 5).map(a => `<div class="ach-item ${a.completed ? 'done' : ''}"><div class="ach-icon">${a.icon || '🏅'}</div><div class="ach-info"><div class="ach-name">${esc(a.name)}</div><div class="ach-desc">${esc(a.description || '')}</div></div>${a.completed ? '<span style="color:var(--green);font-size:18px;">✓</span>' : ''}</div>`).join(''));
+
+  } catch(e) { setEl('ach-list', `<div class="empty">—</div>`); }
+
+}
+
+
+
+// ===== ПРОМОКОД =====
+
+async function usePromo() {
+
+  const code = ((document.getElementById('promo-inp') || {}).value || '').trim();
+
+  if (!code) { toast('Введи промокод', 'error'); return; }
+
+  if (!checkCooldown('promo', 3000)) return;
+
+  try { const d = await apiPost('/api/promo/use', { username: userLogin, code }); toast(d.message, d.success ? 'success' : 'error'); if (d.success) { loadUserData(); document.getElementById('promo-inp').value = ''; } }
+
+  catch(e) { toast('Ошибка', 'error'); }
+
+}
+
+
+
+// ===== КАЗИНО (стандартное) =====
+
+function setBet(val) {
+
+  const inp = document.getElementById('bet-inp');
+
+  inp.value = val === 0 ? userPoints : val;
+
+}
+
+
+
+async function placeBet() {
+
+  if (!userLogin) { toast('Не авторизован', 'error'); return; }
+
+  if (!checkCooldown('bet', 4000)) { toast('Подожди', 'error'); return; }
+
+  const amount = parseInt(document.getElementById('bet-inp').value);
+
+  if (!amount || amount < 50) { toast('Минимум 50 💎', 'error'); return; }
+
+  if (amount > userPoints) { toast('Недостаточно очков', 'error'); return; }
+
+  const btn = document.getElementById('bet-btn');
+
+  btn.textContent = '⏳ Крутим...'; btn.disabled = true;
+
+  try {
+
+    const d = await apiPost('/api/casino/bet', { username: userLogin, amount });
+
+    const box = document.getElementById('casino-result');
+
+    box.style.display = 'block'; box.className = 'casino-result-box ' + (d.result || 'loss');
+
+    if (d.result === 'jackpot') { setEl('r-emoji', '🎰'); setEl('r-text', 'ДЖЕКПОТ! ×5'); setEl('r-sub', '+' + fmtNum(d.win) + ' 💎'); }
+
+    else if (d.result === 'win') { setEl('r-emoji', '🍀'); setEl('r-text', 'Победа! ×2'); setEl('r-sub', '+' + fmtNum(d.win) + ' 💎'); }
+
+    else { setEl('r-emoji', '😢'); setEl('r-text', 'Проигрыш'); setEl('r-sub', '-' + fmtNum(amount) + ' 💎'); }
+
+    toast(d.result === 'jackpot' ? '🎰 ДЖЕКПОТ!' : d.result === 'win' ? '🍀 Победа!' : '😢 Проигрыш', d.result === 'loss' ? 'error' : 'success');
+
+    loadUserData();
+
+  } catch(e) { toast('Ошибка', 'error'); }
+
+  finally { btn.textContent = '🎲 Сделать ставку'; btn.disabled = false; }
+
+}
+
+
+
+// ===== СЛОТЫ =====
+
+const SLOT_SYMBOLS = [
+
+  { id: 'wood',   emoji: '🪵', mult: 0,   weight: 50, color: '#8B5E3C' },
+
+  { id: 'stone',  emoji: '🪨', mult: 0.5, weight: 30, color: '#9ca3af' },
+
+  { id: 'amulet', emoji: '🔮', mult: 1,   weight: 15, color: '#9147ff' },
+
+  { id: 'crown',  emoji: '👑', mult: 5,   weight: 5,  color: '#fbbf24' },
+
+];
+
+
+
+function _slotsPick() {
+
+  const total = SLOT_SYMBOLS.reduce((s, i) => s + i.weight, 0);
+
+  let r = Math.random() * total;
+
+  for (const s of SLOT_SYMBOLS) { r -= s.weight; if (r <= 0) return s; }
+
+  return SLOT_SYMBOLS[0];
+
+}
+
+
+
+function setSlotsBet(val) {
+
+  const inp = document.getElementById('slots-bet');
+
+  inp.value = val === 0 ? userPoints : val;
+
+}
+
+
+
+let _slotsSpinning = false;
+
+
+
+async function spinSlots() {
+
+  if (_slotsSpinning) return;
+
+  if (!checkCooldown('spinSlots', 3000)) return;
+
+  const bet = parseInt(document.getElementById('slots-bet').value);
+
+  if (!bet || bet < 50) { toast('Минимум 50 💎', 'error'); return; }
+
+  if (bet > userPoints) { toast('Недостаточно 💎', 'error'); return; }
+
+
+
+  _slotsSpinning = true;
+
+  const btn = document.getElementById('slots-btn');
+
+  btn.textContent = '⏳ Крутится...'; btn.disabled = true;
+
+  const resultBox = document.getElementById('slots-result');
+
+  resultBox.style.display = 'none';
+
+
+
+  // Генерируем результат
+
+  const results = [_slotsPick(), _slotsPick(), _slotsPick()];
+
+  const mult = results[0].mult * results[1].mult * results[2].mult;
+
+  const win = Math.floor(bet * mult);
+
+
+
+  // Анимация барабанов
+
+  const reels = document.querySelectorAll('.slot-reel');
+
+  const durations = [800, 1100, 1400];
+
+  await Promise.all(results.map((sym, i) => _animateSlotReel(reels[i], sym, durations[i])));
+
+
+
+  // Отправляем на сервер
+
+  try {
+
+    await apiPost('/api/casino/slots', { username: userLogin, bet, symbols: results.map(s => s.id), multiplier: mult, win });
+
+  } catch(e) { toast('Ошибка соединения', 'error'); _slotsSpinning = false; btn.textContent = '🎲 Крутить!'; btn.disabled = false; return; }
+
+
+
+  // Показываем результат
+
+  const icons = { jackpot: '🎰💥', win: '✨', loss: '💀' };
+
+  const colors = { jackpot: 'var(--gold)', win: 'var(--green)', loss: 'var(--red)' };
+
+  const isJackpot = results.every(s => s.id === 'crown');
+
+  const isWin = mult > 1;
+
+
+
+  resultBox.style.display = 'block';
+
+  resultBox.className = 'casino-result-box ' + (isJackpot ? 'jackpot' : isWin ? 'win' : 'loss');
+
+  setEl('sr-emoji', icons[isJackpot ? 'jackpot' : isWin ? 'win' : 'loss'] || '🎲');
+
+  setEl('sr-text', isJackpot ? `ДЖЕКПОТ! ×${mult}` : isWin ? `Выигрыш! ×${mult}` : 'Нет совпадений');
+
+  setEl('sr-sub', win > 0 ? '+' + win + ' 💎' : '-' + bet + ' 💎');
+
+
+
+  loadUserData();
+
+  _slotsSpinning = false;
+
+  btn.textContent = '🎲 Крутить ещё!'; btn.disabled = false;
+
+}
+
+
+
+async function _animateSlotReel(reelEl, finalSym, durMs) {
+
+  const cellH = 64;
+
+  const spinCount = 12 + Math.floor(Math.random() * 6);
+
+  const strip = [];
+
+  for (let i = 0; i < spinCount; i++) strip.push(_slotsPick());
+
+  strip.push(finalSym);
+
+
+
+  const inner = document.createElement('div');
+
+  inner.className = 'slot-reel-inner';
+
+  reelEl.innerHTML = '';
+
+  reelEl.appendChild(inner);
+
+  reelEl.style.overflow = 'hidden';
+
+
+
+  strip.forEach(s => {
+
+    const cell = document.createElement('div');
+
+    cell.className = 'slot-cell';
+
+    cell.style.color = s.color;
+
+    cell.textContent = s.emoji;
+
+    inner.appendChild(cell);
+
+  });
+
+
+
+  inner.style.transition = 'none';
+
+  inner.style.transform = 'translateY(0)';
+
+  await new Promise(r => requestAnimationFrame(r));
+
+
+
+  const targetOffset = -(strip.length - 1) * cellH;
+
+  inner.style.transition = `transform ${durMs}ms cubic-bezier(.17,.67,.12,1.0)`;
+
+  inner.style.transform = `translateY(${targetOffset}px)`;
+
+
+
+  await new Promise(r => setTimeout(r, durMs + 50));
+
+  inner.style.transition = 'none';
+
+  inner.style.transform = '';
+
+  inner.innerHTML = `<div class="slot-cell" style="color:${finalSym.color};font-size:32px;">${finalSym.emoji}</div>`;
+
+}
+
+
+
+// ===== ПЕРЕВОД ОЧКОВ =====
+
+async function transferPoints() {
+
+  const target = ((document.getElementById('tf-user') || {}).value || '').trim();
+
+  const amount = parseInt((document.getElementById('tf-amt') || {}).value);
+
+  if (!target) { toast('Укажи получателя', 'error'); return; }
+
+  if (!amount || amount < 10) { toast('Минимум 10 💎', 'error'); return; }
+
+  if (!checkCooldown('transfer', 5000)) return;
+
+  const token = _authToken || '';
+
+  if (!token) { toast('Нет авторизации — обнови страницу', 'error'); return; }
+
+  try {
+
+    const d = await fetch(API + '/api/points/transfer', {
+
+      method: 'POST',
+
+      headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': token },
+
+      body: JSON.stringify({ from: userLogin, sender: userLogin, to: target, receiver: target, amount })
+
+    }).then(r => r.json());
+
+    toast(d.message, d.success ? 'success' : 'error');
+
+    if (d.success) { loadUserData(); document.getElementById('tf-user').value = ''; document.getElementById('tf-amt').value = ''; }
+
+  } catch(e) { toast('Ошибка', 'error'); }
+
+}
+
+
+
+// ===== РУЛЕКЦИОН =====
+
+async function loadRulection() {
+
+  try {
+
+    const d = await apiFetch('/api/event/status');
+
+    setEl('pool-amount', fmtNum(d.pool || 0) + ' 💎');
+
+    const ptsPct = Math.min(100, d.pool_pct_points || 0);
+
+    const donPct = Math.min(100, d.pool_pct_donations || 0);
+
+    document.getElementById('pts-bar').style.width = ptsPct + '%';
+
+    setEl('pts-pct', ptsPct + '%'); setEl('pts-val', fmtNum(d.pool || 0));
+
+    document.getElementById('don-bar').style.width = donPct + '%';
+
+    setEl('don-pct', donPct + '%'); setEl('don-val', d.donation_total || 0);
+
+    const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+
+    const contribs = d.top_contributors || [];
+
+    if (contribs.length) setEl('contrib-list', contribs.map((c, i) => `<div class="contrib-row"><div class="contrib-medal">${medals[i] || '·'}</div><div class="contrib-name">${esc(Array.isArray(c) ? c[0] : c.username)}</div><div class="contrib-amt">${fmtNum(Array.isArray(c) ? c[1] : c.amount)} 💎</div></div>`).join(''));
+
+    const evCard = document.getElementById('event-card');
+
+    const poolCard = document.getElementById('pool-progress-card');
+
+    const contribForm = document.getElementById('contrib-form');
+
+    if (d.active_event) {
+
+      const ae = d.active_event;
+
+      evCard.style.display = 'block'; poolCard.style.display = 'none'; contribForm.style.display = 'none';
+
+      setEl('ev-type-name', ae.type_name); setEl('ev-prize', (ae.prize && ae.prize.name) || '?'); setEl('ev-desc', ae.type_desc || '');
+
+      if (ae.bids && ae.bids.length) setEl('ev-bids', ae.bids.slice(0, 6).map((b, i) => `<div class="bid-row"><div class="bid-rank">${i + 1}</div><div class="bid-name">${esc(b.username)}</div><div class="bid-bar-wrap"><div class="bid-bar" style="width:${b.chance}%"></div></div><div class="bid-amount">${fmtNum(b.amount)}💎</div><div class="bid-pct">${b.chance}%</div></div>`).join(''));
+
+      if (rulectionTimer) clearInterval(rulectionTimer);
+
+      let left = ae.time_left;
+
+      const timerEl = document.getElementById('ev-timer');
+
+      const tick = () => { if (left <= 0) { timerEl.textContent = '0:00'; clearInterval(rulectionTimer); return; } timerEl.textContent = Math.floor(left / 60) + ':' + String(Math.floor(left % 60)).padStart(2, '0'); left--; };
+
+      tick(); rulectionTimer = setInterval(tick, 1000);
+
+    } else {
+
+      evCard.style.display = 'none'; poolCard.style.display = 'block'; contribForm.style.display = 'block';
+
+      if (rulectionTimer) { clearInterval(rulectionTimer); rulectionTimer = null; }
+
+    }
+
+    if (d.last_winner && d.last_winner.has_winner) toast('🏆 ' + d.last_winner.winner + ' победил!', 'success');
+
+  } catch(e) {}
+
+}
+
+
+
+async function contributePool() {
+
+  const amount = parseInt((document.getElementById('contrib-inp') || {}).value);
+
+  if (!amount || amount < 100) { toast('Минимум 100 💎', 'error'); return; }
+
+  if (!checkCooldown('contribute', 3000)) return;
+
+  try { const d = await apiPost('/api/event/contribute', { username: userLogin, amount }); toast(d.message, d.success ? 'success' : 'error'); if (d.success) { loadUserData(); loadRulection(); document.getElementById('contrib-inp').value = ''; } }
+
+  catch(e) { toast('Ошибка', 'error'); }
+
+}
+
+
+
+async function placeBid() {
+
+  const amount = parseInt((document.getElementById('bid-inp') || {}).value);
+
+  if (!amount || amount < 100) { toast('Минимум 100 💎', 'error'); return; }
+
+  if (!checkCooldown('bid', 3000)) return;
+
+  try { const d = await apiPost('/api/event/bid', { username: userLogin, amount }); toast(d.message, d.success ? 'success' : 'error'); if (d.success) { loadUserData(); loadRulection(); document.getElementById('bid-inp').value = ''; } }
+
+  catch(e) { toast('Ошибка', 'error'); }
+
+}
+
+
+
+// ===== ПЕШКА RIMWORLD =====
+
+async function loadPawn() {
+
+  if (!userLogin) return;
+
+  try {
+
+    const r = await fetch(`${API}/api/rimworld/my-pawn/${userLogin}`);
+
+    const d = await r.json();
+
+    const status = document.getElementById('rw-status');
+
+    if (!d || !d.exists) {
+
+      document.getElementById('pawn-btns').style.display = 'none';
+
+      setEl('pawn-card', `<div class="no-pawn-wrap"><span class="no-pawn-icon">👤</span><div class="no-pawn-title">Нет пешки</div><div class="no-pawn-sub">Создай своего колониста!</div><button class="btn-primary" data-action="create-pawn">✨ Создать пешку (200 💎)</button></div>`);
+      return;
+
+    }
+
+    if (d.world_name) { status.className = 'status-pill online'; status.innerHTML = '🟢 ' + esc(d.world_name); }
+
+    const hp = d.health > 1 ? Math.round(d.health) : Math.round((d.health || 0) * 100);
+
+    const hpColor = hp > 60 ? 'var(--green)' : hp > 30 ? 'var(--gold)' : 'var(--red)';
+
+    const isDead = !d.is_alive;
+
+    window._lastPawnData = d;
+
+    const topSkills = (d.skills || []).filter(s => !s.is_disabled && !s.disabled).sort((a, b) => b.level - a.level).slice(0, 3);
+
+    const skillHtml = topSkills.map(s => { const lbl = localizeSkill(s); const p = s.passion || 0; const pi = p === 2 ? '🔥' : p === 1 ? '⭐' : ''; return `<div style="font-size:11px;color:var(--muted)">${esc(lbl)}${pi} <b style="color:var(--text)">${s.level}</b></div>`; }).join('');
+
+    setEl('pawn-card', `
+
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+
+        <div><div class="pawn-name">${esc(d.pawn_name || userLogin)}</div></div>
+
+        ${isDead ? '<span style="background:rgba(255,83,112,.15);color:var(--red);border:1px solid rgba(255,83,112,.3);border-radius:8px;padding:3px 10px;font-size:11px">💀 Мёртв</span>' : '<span style="background:rgba(57,217,138,.1);color:var(--green);border:1px solid rgba(57,217,138,.3);border-radius:8px;padding:3px 10px;font-size:11px">❤️ Жив</span>'}
+
+      </div>
+
+      <div style="font-size:11px;color:var(--muted);margin-bottom:3px">Здоровье ${hp}%</div>
+
+      <div class="pawn-health-bar"><div class="pawn-health-fill" style="width:${hp}%;background:${hpColor}"></div></div>
+
+      <div class="pawn-stats-row">
+
+        <div class="pawn-stat"><div class="pawn-stat-val" style="color:${hpColor}">${hp}%</div><div class="pawn-stat-lbl">Здоровье</div></div>
+
+        <div class="pawn-stat"><div class="pawn-stat-val" style="color:var(--accent2)">${(d.equipment || []).length}</div><div class="pawn-stat-lbl">Снаряжение</div></div>
+
+        <div class="pawn-stat"><div class="pawn-stat-val">${(d.traits || []).length}</div><div class="pawn-stat-lbl">Черты</div></div>
+
+      </div>
+
+      ${skillHtml ? `<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px">${skillHtml}</div>` : ''}
+
+      ${(d.traits || []).length ? `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:12px">${d.traits.map(t => `<div style="display:flex;align-items:center;gap:4px;background:rgba(124,77,255,.12);border:1px solid rgba(124,77,255,.25);border-radius:8px;padding:2px 8px"><span style="font-size:10px;color:var(--accent2)">${esc(t.label || t.trait)}</span><button data-action="remove-trait" data-trait-def="${esc(t.def_name)}" data-degree="${t.degree || 0}" data-label="${esc((t.label || t.trait || '').replace(/'/g, ''))}" style="background:none;border:none;color:var(--red);font-size:11px;cursor:pointer;padding:0;line-height:1">×</button></div>`).join('')}</div>` : ''}
+    `);
+
+    const btns = document.getElementById('pawn-btns');
+
+    btns.style.display = 'flex'; btns.style.flexDirection = 'column'; btns.style.gap = '8px';
+
+    document.getElementById('btn-heal').style.display = isDead ? 'none' : 'flex';
+
+    document.getElementById('btn-resurrect').style.display = isDead ? 'flex' : 'none';
+
+  } catch(e) { setEl('pawn-card', `<div class="empty"><span class="empty-icon">⚠️</span>Ошибка загрузки</div>`); }
+
+}
+
+
+
+async function createPawn() {
+
+  if (userPoints < 200) { toast('Нужно 200 💎', 'error'); return; }
+
+  if (!confirm(`Создать пешку «${userLogin}» за 200 💎?`)) return;
+
+  try { const d = await apiPost('/api/rimworld/create-pawn', { username: userLogin, pawn_name: userLogin }); toast(d.message || (d.success ? 'Пешка создаётся!' : 'Ошибка'), d.success ? 'success' : 'error'); if (d.success) { loadUserData(); setTimeout(loadPawn, 10000); } }
+
+  catch(e) { toast('Ошибка', 'error'); }
+
+}
+
+
+
+async function removeTrait(traitDef, degree, label) {
+
+  if (!confirm('Удалить черту «' + label + '» за 2000 💎?')) return;
+
+  if (!checkCooldown('remove_trait', 3000)) return;
+
+  try { const d = await apiPost('/api/rimworld/remove-trait', { username: userLogin, trait_def: traitDef, degree }); toast(d.message, d.success ? 'success' : 'error'); if (d.success) { loadUserData(); setTimeout(loadPawn, 3000); } }
+
+  catch(e) { toast('Ошибка', 'error'); }
+
+}
+
+
+
+async function healPawn() {
+
+  if (userPoints < 150) { toast('Нужно 150 💎', 'error'); return; }
+
+  if (!checkCooldown('heal', 5000)) return;
+
+  try { const d = await apiPost('/api/rimworld/heal-pawn', { username: userLogin }); toast(d.message, d.success ? 'success' : 'error'); if (d.success) { loadUserData(); setTimeout(loadPawn, 5000); } }
+
+  catch(e) { toast('Ошибка', 'error'); }
+
+}
+
+
+
+async function resurrectPawn() {
+
+  if (userPoints < 500) { toast('Нужно 500 💎', 'error'); return; }
+
+  if (!checkCooldown('resurrect', 5000)) return;
+
+  try { const d = await apiPost('/api/rimworld/resurrect-pawn', { username: userLogin }); toast(d.message, d.success ? 'success' : 'error'); if (d.success) { loadUserData(); setTimeout(loadPawn, 8000); } }
+
+  catch(e) { toast('Ошибка', 'error'); }
+
+}
+
+
+
+// ===== МАГАЗИН =====
+
+const CAT_ICONS = { apparel: '👕', weapon: '⚔️', implant: '🔧', neurotrainer: '🧠', trait: '🎭', gene: '🔬', resource: '📦', xenotype: '🧬' };
+
+
+
+async function loadShop() {
+
+  try {
+
+    const param = userLogin ? `?username=${encodeURIComponent(userLogin)}` : '';
+
+    const d = await apiFetch('/api/rimworld/catalog' + param);
+
+    shopAllItems = d.items || d || [];
+
+    setEl('shop-cnt', shopAllItems.length);
+
+    renderShop();
+
+  } catch(e) { setEl('shop-list', `<div class="empty"><span class="empty-icon">⚠️</span>Ошибка загрузки</div>`); }
+
+}
+
+
+
+function filterShop(cat) {
+
+  currentShopCat = cat;
+
+  document.querySelectorAll('.filter-pill').forEach(p => p.classList.toggle('active', p.dataset.cat === cat));
+
+  renderShop();
+
+}
+
+
+
+function searchShop(q) { searchQuery = q.toLowerCase(); renderShop(); }
+
+
+
+function renderShop() {
+
+  let items = shopAllItems.filter(i => i.research_unlocked !== false);
+
+  if (currentShopCat !== 'all') items = items.filter(i => i.category === currentShopCat);
+
+  if (searchQuery) items = items.filter(i => (i.label || i.name || '').toLowerCase().includes(searchQuery));
+
+  if (!items.length) { setEl('shop-list', `<div class="empty"><span class="empty-icon">🔍</span>Ничего не найдено</div>`); return; }
+
+  setEl('shop-list', items.slice(0, 50).map(item => {
+
+    const icon = CAT_ICONS[item.category] || '📦';
+
+    const displayName = item.label || item.name || item.def_name || '???';
+
+    const canBuy = userPoints >= item.price;
+
+    return `<div class="shop-item"><div class="shop-item-icon">${icon}</div><div class="shop-item-info"><div class="shop-item-name">${esc(displayName)}</div><div class="shop-item-cat">${fmtNum(item.price)} 💎</div></div><button class="shop-buy-btn" ${canBuy ? '' : 'disabled'} data-action="buy-item" data-def-name="${esc(item.def_name || item.name)}" data-price="${item.price}" data-category="${item.category}">${canBuy ? 'Купить' : '🔒'}</button></div>`;
+  }).join(''));
+
+}
+
+
+
+async function buyItem(defName, price, category) {
+
+  if (userPoints < price) { toast('Недостаточно 💎', 'error'); return; }
+
+  if (!checkCooldown('buy_' + defName, 3000)) return;
+
+  let url, body;
+
+  if (category === 'implant') {
+
+    url = '/api/rimworld/buy-implant';
+
+    body = { username: userLogin, def_name: defName, item: defName };
+
+  } else if (category === 'gene') {
+
+    url = '/api/rimworld/buy-gene';
+
+    body = { username: userLogin, def_name: defName };
+
+  } else if (category === 'neurotrainer') {
+
+    url = '/api/rimworld/train-skill';
+
+    body = { username: userLogin, def_name: defName, item_def: defName };
+
+  } else if (category === 'trait') {
+
+    url = '/api/rimworld/buy-trait';
+
+    const parts = defName.split(':');
+
+    body = { username: userLogin, trait_def: parts[0], degree: parseInt(parts[1] || 0) };
+
+  } else if (category === 'xenotype') {
+
+    url = '/api/rimworld/buy-xenotype';
+
+    body = { username: userLogin, def_name: defName };
+
+  } else {
+
+    url = '/api/rimworld/buy-item';
+
+    body = { username: userLogin, item_def: defName, def_name: defName };
+
+  }
+
+  try {
+
+    const d = await apiPost(url, body);
+
+    toast(d.message, d.success ? 'success' : 'error');
+
+    if (d.success) { loadUserData(); if (category === 'trait' || category === 'gene') loadShop(); }
+
+  } catch(e) { toast('Ошибка', 'error'); }
+
+}
+
+
+
+// ===== ГЕНЫ ПЕШКИ =====
+
+async function openGenesModal() {
+
+  if (!userLogin) return;
+
+  try {
+
+    const d = await apiFetch('/api/rimworld/my-pawn/' + encodeURIComponent(userLogin));
+
+    const genes = d.genes || [];
+
+    const ov = document.createElement('div');
+
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9000;display:flex;align-items:flex-end;';
+
+    ov.innerHTML = `<div style="background:var(--bg2);width:100%;border-radius:24px 24px 0 0;padding:20px;max-height:80vh;overflow-y:auto">
+
+      <div style="font-family:Syne,sans-serif;font-size:16px;font-weight:700;margin-bottom:16px">🧬 Гены пешки</div>
+
+      ${!genes.length ? '<div class="empty"><span class="empty-icon">🧬</span>Нет генов</div>' :
+
+        genes.map(g => `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+
+          <div style="font-size:18px">🧬</div>
+
+          <div style="flex:1"><div style="font-size:13px">${esc(g.label || g.def_name)}</div><div style="font-size:11px;color:var(--muted)">${g.xenogene ? 'Ксеноген' : 'Эндоген'}</div></div>
+
+          ${g.xenogene ? `<button class="shop-buy-btn" style="background:#3a1a1a;font-size:10px" data-action="remove-gene" data-def-name="${esc(g.def_name)}" data-label="${esc(g.label || g.def_name)}">🗑️ 3000💎</button>` : ''}
+        </div>`).join('')}
+      <button class="btn-primary ghost" data-action="close-overlay" style="margin-top:14px">Закрыть</button>
+    </div>`;
+    document.body.appendChild(ov);
+
+    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+
+  } catch(e) { toast('Ошибка загрузки генов', 'error'); }
+
+}
+
+
+
+async function removeGene(defName, label) {
+
+  if (!confirm(`Удалить ген «${label}» за 3000 💎?`)) return;
+
+  if (!checkCooldown('remove_gene', 3000)) return;
+
+  try {
+
+    const d = await apiPost('/api/rimworld/remove-gene', { username: userLogin, def_name: defName, label });
+
+    toast(d.message, d.success ? 'success' : 'error');
+
+    if (d.success) { loadUserData(); const ov = document.getElementById('genes-overlay'); if (ov) ov.remove(); }
+
+  } catch(e) { toast('Ошибка', 'error'); }
+
+}
+
+
+
+// ===== ОГОНЬКИ НАВЫКОВ =====
+
+async function openPassionModal() {
+
+  if (!userLogin) return;
+
+  try {
+
+    const d = await apiFetch('/api/rimworld/pawn-skills/' + encodeURIComponent(userLogin));
+
+    const skills = d.skills || [];
+
+    const ov = document.createElement('div');
+
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9000;display:flex;align-items:flex-end;';
+
+    ov.innerHTML = `<div style="background:var(--bg2);width:100%;border-radius:24px 24px 0 0;padding:20px;max-height:80vh;overflow-y:auto">
+
+      <div style="font-family:Syne,sans-serif;font-size:16px;font-weight:700;margin-bottom:16px">🔥 Огоньки навыков</div>
+
+      ${skills.filter(s => !s.is_disabled).map(s => {
+
+        const icon = s.passion === 2 ? '🔥' : s.passion === 1 ? '⭐' : '—';
+
+        const nextIcon = s.passion === 0 ? '⭐' : s.passion === 1 ? '🔥' : null;
+
+        const price = s.upgrade_price;
+
+        return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+
+          <div style="font-size:20px;width:28px;text-align:center">${icon}</div>
+
+          <div style="flex:1"><div style="font-size:13px">${esc(localizeSkill(s))}</div><div style="font-size:11px;color:var(--muted)">Ур. ${s.level}</div></div>
+
+          ${nextIcon && price ? `<button class="shop-buy-btn" data-action="buy-passion" data-def-name="${s.def_name}" data-target-passion="${s.passion + 1}" data-price="${price}">${nextIcon} ${fmtNum(price)}💎</button>` : ''}
+          ${s.passion > 0 && s.reset_price ? `<button class="shop-buy-btn" style="background:#3a1a1a;font-size:10px" data-action="reset-passion" data-def-name="${s.def_name}" data-price="${s.reset_price}">↩${fmtNum(s.reset_price)}</button>` : ''}
+        </div>`;
+      }).join('')}
+      <button class="btn-primary ghost" data-action="close-overlay" style="margin-top:14px">Закрыть</button>
+    </div>`;
+    document.body.appendChild(ov);
+
+    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+
+  } catch(e) { toast('Ошибка загрузки навыков', 'error'); }
+
+}
+
+
+
+async function buyPassion(defName, targetPassion, price) {
+
+  if (userPoints < price) { toast('Недостаточно 💎', 'error'); return; }
+
+  if (!checkCooldown('passion', 3000)) return;
+
+  try {
+
+    const d = await apiPost('/api/rimworld/buy-passion', { username: userLogin, skill_def: defName, passion: targetPassion });
+
+    toast(d.message, d.success ? 'success' : 'error');
+
+    if (d.success) { loadUserData(); document.getElementById('passion-overlay')?.remove(); openPassionModal(); }
+
+  } catch(e) { toast('Ошибка', 'error'); }
+
+}
+
+
+
+async function resetPassion(defName, price) {
+
+  if (userPoints < price) { toast('Недостаточно 💎', 'error'); return; }
+
+  if (!checkCooldown('passion_reset', 3000)) return;
+
+  try {
+
+    const d = await apiPost('/api/rimworld/reset-passion', { username: userLogin, skill_def: defName });
+
+    toast(d.message, d.success ? 'success' : 'error');
+
+    if (d.success) { loadUserData(); document.getElementById('passion-overlay')?.remove(); openPassionModal(); }
+
+  } catch(e) { toast('Ошибка', 'error'); }
+
+}
+
+
+
+// ===== КСЕНОТИПЫ =====
+
+async function openXenotypeModal() {
+
+  if (!userLogin) return;
+
+  if (!shopAllItems.length) await loadShop();
+
+  const xenotypes = shopAllItems.filter(i => i.category === 'xenotype' && i.research_unlocked !== false);
+
+  if (!xenotypes.length) { toast('Ксенотипы в магазине пока недоступны', 'info'); return; }
+
+  // Переключаем вкладку магазина на ксенотипы и скроллим
+
+  currentShopCat = 'xenotype';
+
+  document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+
+  document.querySelectorAll('.filter-pill').forEach(p => { if (p.dataset.cat === 'xenotype') p.classList.add('active'); });
+
+  renderShop();
+
+  document.getElementById('shop-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  toast('Показаны ксенотипы в магазине', 'success');
+
+}
+
+
+
+// ===== ИВЕНТЫ RIMWORLD =====
+
+async function loadRwEvents() {
+
+    try {
+
+        const d = await apiFetch('/api/rimworld/events');
+
+        const events = d.events || d || [];
+
+        if (!events.length) { setEl('rw-events', `<div class="empty"><span class="empty-icon">⚡</span>Нет ивентов</div>`); return; }
+
+        // Убираем ограничение на 10 ивентов — показываем все (как в PC версии)
+
+        setEl('rw-events', events.map(ev => {
+
+      const evCost = ev.cost ?? ev.price ?? 0;
+
+      const evName = ev.name || ev.label || '???';
+
+      const evId = ev.id || ev.def_name || ev.name || '';
+
+      const canBuy = userPoints >= evCost;
+
+      return `<div class="shop-item"><div class="shop-item-icon">${ev.icon || '⚡'}</div><div class="shop-item-info"><div class="shop-item-name">${esc(evName)}</div><div class="shop-item-cat">${fmtNum(evCost)} 💎</div></div><button class="shop-buy-btn" ${canBuy ? '' : 'disabled'} data-action="buy-event" data-event-id="${esc(evId)}" data-cost="${evCost}">${canBuy ? '⚡' : '🔒'}</button></div>`;
+    }).join(''));
+
+  } catch(e) { setEl('rw-events', `<div class="empty">—</div>`); }
+
+}
+
+
+
+async function buyEvent(eventId, cost) {
+
+  if (userPoints < cost) { toast('Недостаточно 💎', 'error'); return; }
+
+  if (!checkCooldown('event_all', RW_EVENT_COOLDOWN_MS)) return;
+
+  try { const d = await apiPost('/api/rimworld/trigger-event', { username: userLogin, event_id: eventId }); toast(d.message, d.success ? 'success' : 'error'); if (d.success) { loadUserData(); loadRwEvents(); } }
+
+  catch(e) { toast('Ошибка', 'error'); }
+
+}
+
+
+
+// ===== ДУЭЛИ =====
+
+async function loadDuels() {
+
+  if (!userLogin) return;
+
+  try {
+
+    const d = await apiFetch('/api/duel/list?username=' + encodeURIComponent(userLogin));
+
+    const duels = d.duels || [];
+
+    if (!duels.length) { setEl('duels-list', '<div class="empty"><span class="empty-icon">⚔️</span>Нет активных дуэлей</div>'); return; }
+
+    setEl('duels-list', duels.map(duel => {
+
+      const isChallenger = duel.challenger === userLogin;
+
+      const opponent = isChallenger ? duel.opponent : duel.challenger;
+
+      const canAccept = !isChallenger && duel.status === 'pending';
+
+      return `<div class="shop-item"><div class="shop-item-icon">⚔️</div><div class="shop-item-info"><div class="shop-item-name">${esc(opponent)}</div><div class="shop-item-cat">${fmtNum(duel.amount)} 💎 · ${duel.status === 'pending' ? 'ожидает' : 'активна'}</div></div>${canAccept ? `<button class="shop-buy-btn" data-action="accept-duel" data-duel-id="${duel.id}">✅</button>` : ''}</div>`;
+    }).join(''));
+
+  } catch(e) {}
+
+}
+
+
+
+async function createDuel() {
+
+  const target = (document.getElementById('duel-target') || {}).value?.trim();
+
+  const amount = parseInt((document.getElementById('duel-amount') || {}).value);
+
+  if (!target) { toast('Укажи соперника', 'error'); return; }
+
+  if (!amount || amount < 50) { toast('Минимум 50 💎', 'error'); return; }
+
+  if (!checkCooldown('duel_create', 5000)) return;
+
+  try {
+
+    const d = await apiPost('/api/duel/create', { challenger: userLogin, opponent: target, amount });
+
+    toast(d.message, d.success ? 'success' : 'error');
+
+    if (d.success) { loadUserData(); loadDuels(); document.getElementById('duel-target').value = ''; document.getElementById('duel-amount').value = ''; }
+
+  } catch(e) { toast('Ошибка', 'error'); }
+
+}
+
+
+
+async function acceptDuel(duelId) {
+
+  if (!duelId) return;
+
+  if (!checkCooldown('duel_accept', 3000)) return;
+
+  // RPS-пикер: выбираем ход перед отправкой — backend требует поле `move`
+  const ov = document.createElement('div');
+
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9000;display:flex;align-items:flex-end;';
+
+  ov.innerHTML = `<div style="background:var(--bg2);width:100%;border-radius:24px 24px 0 0;padding:20px">
+    <div style="font-family:Syne,sans-serif;font-size:16px;font-weight:700;margin-bottom:16px">⚔️ Принять дуэль</div>
+    <div style="display:flex;gap:10px;justify-content:center;margin-bottom:16px">
+      <button class="modal-btn" data-rps="rock"     style="font-size:28px;padding:16px 18px">🪨</button>
+      <button class="modal-btn" data-rps="scissors" style="font-size:28px;padding:16px 18px">✂️</button>
+      <button class="modal-btn" data-rps="paper"    style="font-size:28px;padding:16px 18px">📄</button>
+    </div>
+    <button class="btn-primary ghost" data-action="close-overlay" style="width:100%">Отмена</button>
+  </div>`;
+
+  document.body.appendChild(ov);
+
+  ov.addEventListener('click', async (e) => {
+
+    const btn = e.target.closest('[data-rps]');
+
+    if (!btn) { if (e.target === ov) ov.remove(); return; }
+
+    const move = btn.dataset.rps;
+
+    ov.remove();
+
+    try {
+
+      const d = await apiPost('/api/duel/accept', { duel_id: duelId, username: userLogin, move });
+
+      toast(d.message, d.success ? 'success' : 'error');
+
+      if (d.success) { loadUserData(); loadDuels(); }
+
+    } catch(e) { toast('Ошибка', 'error'); }
+
+  });
+
+}
+
+
+
+// ===== СЕМЬЯ =====
+
+async function loadFamily() {
+
+  if (!userLogin) return;
+
+  try {
+
+    const d = await apiFetch('/api/marriage/status/' + encodeURIComponent(userLogin));
+
+    const el = document.getElementById('family-status-card');
+
+    if (!el) return;
+
+    if (d.married) {
+
+      el.innerHTML = `
+
+        <div style="text-align:center;padding:8px 0">
+
+          <div style="font-size:32px;margin-bottom:6px">💑</div>
+
+          <div style="font-weight:700;margin-bottom:2px">В браке с <span style="color:var(--accent2)">${esc(d.partner)}</span></div>
+
+          <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Семейный счёт: <b style="color:var(--gold)">${fmtNum(d.balance)} 💎</b></div>
+
+          <button class="btn-primary" data-action="withdraw-family" style="margin-bottom:8px">💸 Вывести на счёт</button>
+          <button class="btn-primary danger" data-action="divorce-family">💔 Развод (500 💎)</button>
+        </div>`;
+
+    } else {
+
+      let proposalHtml = '';
+
+      try {
+
+        const p = await apiFetch('/api/marriage/proposals/' + encodeURIComponent(userLogin));
+
+        if (p.proposals && p.proposals.length) {
+
+          proposalHtml = `<div style="background:rgba(124,77,255,.1);border:1px solid rgba(124,77,255,.3);border-radius:12px;padding:10px;margin-bottom:10px">
+
+            <div style="font-size:12px;margin-bottom:8px">💍 Предложение от <b>${esc(p.proposals[0])}</b></div>
+
+            <button class="btn-primary green" data-action="accept-marriage" style="margin-bottom:0">✅ Принять</button>
+          </div>`;
+
+        }
+
+      } catch(e) {}
+
+      el.innerHTML = `${proposalHtml}
+
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px">+5💎/мин когда оба онлайн</div>
+
+        <input class="m-input" id="marry-target" placeholder="Никнейм партнёра">
+
+        <button class="btn-primary" data-action="propose-marriage">💍 Сделать предложение</button>`;
+    }
+
+  } catch(e) {}
+
+}
+
+
+
+async function proposeMarriage() {
+
+  const target = (document.getElementById('marry-target') || {}).value?.trim();
+
+  if (!target) { toast('Укажи партнёра', 'error'); return; }
+
+  if (!checkCooldown('marry', 5000)) return;
+
+  try {
+
+    const d = await apiPost('/api/marriage/propose', { username: userLogin, target }, { headers: { 'X-Twitch-JWT': _authToken } });
+
+    toast(d.message, d.success ? 'success' : 'error');
+
+    if (d.success) loadFamily();
+
+  } catch(e) { toast('Ошибка', 'error'); }
+
+}
+
+
+
+async function acceptMarriage() {
+
+  if (!checkCooldown('marry_accept', 3000)) return;
+
+  try {
+
+    const d = await apiPost('/api/marriage/accept', { username: userLogin }, { headers: { 'X-Twitch-JWT': _authToken } });
+
+    toast(d.message, d.success ? 'success' : 'error');
+
+    if (d.success) { loadUserData(); loadFamily(); }
+
+  } catch(e) { toast('Ошибка', 'error'); }
+
+}
+
+
+
+async function withdrawFamily() {
+
+  if (!checkCooldown('family_withdraw', 3000)) return;
+
+  try {
+
+    const d = await apiPost('/api/marriage/withdraw', { username: userLogin }, { headers: { 'X-Twitch-JWT': _authToken } });
+
+    toast(d.message, d.success ? 'success' : 'error');
+
+    if (d.success) { loadUserData(); loadFamily(); }
+
+  } catch(e) { toast('Ошибка', 'error'); }
+
+}
+
+
+
+async function divorceFamily() {
+
+  if (!confirm('Развод стоит 500 💎. Уверен?')) return;
+
+  try {
+
+    const d = await apiPost('/api/marriage/divorce', { username: userLogin }, { headers: { 'X-Twitch-JWT': _authToken } });
+
+    toast(d.message, d.success ? 'success' : 'error');
+
+    if (d.success) { loadUserData(); loadFamily(); }
+
+  } catch(e) { toast('Ошибка', 'error'); }
+
+}
+
+
+
+// ===== РЫНОК =====
+
+async function loadMarket() {
+
+  try {
+
+    const d = await apiFetch('/api/market/list');
+
+    const listings = d.listings || [];
+
+    const myItems = await apiFetch('/api/viewer/stats/' + encodeURIComponent(userLogin)).then(r => (r.inventory || []).filter(i => i.quantity > 0)).catch(() => []);
+
+    const sellHtml = myItems.length ? myItems.map(i => `
+
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+
+        <span style="font-size:20px">${ITEM_ICONS[i.item_name] || '📦'}</span>
+
+        <span style="flex:1;font-size:13px">${esc(i.display_name || i.item_name)} ×${i.quantity}</span>
+
+        <input type="number" id="sell-price-${esc(i.item_name)}" placeholder="Цена" style="width:80px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px;color:var(--text);font-size:12px">
+
+        <button class="shop-buy-btn" data-action="list-item" data-item-name="${esc(i.item_name)}">📤</button>
+      </div>`).join('') : '<div style="font-size:12px;color:var(--muted)">Инвентарь пуст</div>';
+
+    setEl('market-sell', '<div style="margin-bottom:6px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Выставить предмет</div>' + sellHtml);
+
+    if (!listings.length) { setEl('market-list', '<div class="empty"><span class="empty-icon">🏷️</span>Нет активных лотов</div>'); return; }
+
+    setEl('market-list', listings.map(l => {
+
+      const isMine = l.seller === userLogin;
+
+      const canBuy = !isMine && userPoints >= l.price;
+
+      return `<div class="market-listing"><div class="inv-icon" style="font-size:28px">${ITEM_ICONS[l.item_name] || '📦'}</div><div class="market-listing-info"><div class="market-listing-name">${esc(l.item_display_name || l.item_name)}</div><div class="market-listing-meta">${esc(l.seller)} · ${fmtNum(l.price)} 💎</div></div>${isMine ? `<button class="shop-buy-btn" style="background:#3a1a1a" data-action="cancel-listing" data-listing-id="${l.id}">❌</button>` : canBuy ? `<button class="shop-buy-btn" data-action="buy-listing" data-listing-id="${l.id}" data-price="${l.price}" data-item-name="${esc(l.item_display_name || l.item_name)}">Купить</button>` : '<button class="shop-buy-btn" disabled>🔒</button>'}</div>`;
+    }).join(''));
+
+  } catch(e) { setEl('market-list', '<div class="empty">Рынок недоступен</div>'); }
+
+}
+
+
+
+async function listItem(itemName) {
+
+  const price = parseInt((document.getElementById('sell-price-' + itemName) || {}).value);
+
+  if (!price || price < 1) { toast('Укажи цену', 'error'); return; }
+
+  if (!checkCooldown('list_' + itemName, 3000)) return;
+
+  try {
+
+    const d = await apiPost('/api/market/list', { username: userLogin, item_name: itemName, price });
+
+    toast(d.message, d.success ? 'success' : 'error');
+
+    if (d.success) loadMarket();
+
+  } catch(e) { toast('Ошибка', 'error'); }
+
+}
+
+
+
+async function buyListing(listingId, price, name) {
+
+  if (userPoints < price) { toast('Недостаточно 💎', 'error'); return; }
+
+  if (!checkCooldown('buy_listing', 3000)) return;
+
+  try {
+
+    const d = await apiPost('/api/market/buy', { username: userLogin, listing_id: listingId });
+
+    toast(d.message, d.success ? 'success' : 'error');
+
+    if (d.success) { loadUserData(); loadMarket(); }
+
+  } catch(e) { toast('Ошибка', 'error'); }
+
+}
+
+
+
+async function cancelListing(listingId) {
+
+  if (!checkCooldown('cancel_listing', 3000)) return;
+
+  try {
+
+    const d = await apiPost('/api/market/cancel', { username: userLogin, listing_id: listingId });
+
+    toast(d.message, d.success ? 'success' : 'error');
+
+    if (d.success) loadMarket();
+
+  } catch(e) { toast('Ошибка', 'error'); }
+
+}
+
+
+
+// ===== АКТИВНОСТЬ =====
+
+async function reportActivity() {
+
+  if (!userLogin) return;
+
+  try { await apiPost('/api/viewer/activity', { username: userLogin, watch_time: 60 }); } catch(e) {}
+
+}
+
+</script>
+
+</body>
+
+</html>
+

@@ -1,0 +1,113 @@
+"""
+routes/promo.py — промокоды (активация и управление через админку).
+"""
+import aiosqlite
+from fastapi import APIRouter, Depends, Request
+
+from config import sanitize_username
+from dependencies import get_bot, get_db, require_admin, require_stream_live
+
+router = APIRouter()
+
+
+@router.post("/api/promo/use")
+async def use_promo(request: Request):
+    """Активировать промокод"""
+    if err := await require_stream_live():
+        return err
+    data     = await request.json()
+    username = sanitize_username(data.get("username", ""))
+    code     = str(data.get("code", "")).strip().upper()
+    if not username or not code:
+        return {"success": False, "message": "Неверные параметры"}
+
+    await get_bot().touch_viewer(username)
+
+    db = get_db()
+    async with aiosqlite.connect(db.db_path) as conn:
+        try:
+            await conn.execute("BEGIN IMMEDIATE")
+
+            c = await conn.execute(
+                "SELECT id, points, item_def, item_name, max_uses, uses FROM promocodes WHERE code = ?",
+                (code,))
+            row = await c.fetchone()
+            if not row:
+                await conn.execute("ROLLBACK")
+                return {"success": False, "message": "❌ Промокод не существует"}
+
+            pid, points, item_def, item_name, max_uses, uses = row
+            if max_uses > 0 and uses >= max_uses:
+                await conn.execute("ROLLBACK")
+                return {"success": False, "message": "❌ Промокод уже исчерпан"}
+
+            c2 = await conn.execute(
+                "SELECT id FROM promo_uses WHERE code = ? AND username = ?", (code, username))
+            if await c2.fetchone():
+                await conn.execute("ROLLBACK")
+                return {"success": False, "message": "❌ Ты уже использовал этот промокод"}
+
+            await conn.execute("UPDATE promocodes SET uses = uses + 1 WHERE id = ?", (pid,))
+            await conn.execute("INSERT INTO promo_uses (code, username) VALUES (?,?)", (code, username))
+            await conn.commit()
+        except Exception:
+            await conn.execute("ROLLBACK")
+            return {"success": False, "message": "Ошибка активации, попробуй ещё раз"}
+
+    reward_parts = []
+    if points > 0:
+        await db.add_points(username, points)
+        reward_parts.append(f"{points}💎")
+    if item_def:
+        await db.give_item(username, item_def, item_name or item_def)
+        reward_parts.append(f"предмет «{item_name or item_def}»")
+
+    reward_str = " и ".join(reward_parts) if reward_parts else "бонус"
+    return {"success": True, "message": f"✅ Промокод активирован! Ты получил: {reward_str}"}
+
+
+@router.get("/api/admin/promocodes")
+async def admin_get_promos(_admin: str = Depends(require_admin)):
+    db = get_db()
+    async with aiosqlite.connect(db.db_path) as conn:
+        c = await conn.execute(
+            "SELECT id, code, points, item_name, max_uses, uses, created_at "
+            "FROM promocodes ORDER BY id DESC")
+        rows = await c.fetchall()
+    return {"promocodes": [
+        {"id": r[0], "code": r[1], "points": r[2], "item_name": r[3],
+         "max_uses": r[4], "uses": r[5], "created_at": r[6]}
+        for r in rows
+    ]}
+
+
+@router.post("/api/admin/promocodes/create")
+async def admin_create_promo(request: Request, _admin: str = Depends(require_admin)):
+    data      = await request.json()
+    code      = str(data.get("code", "")).strip().upper()
+    points    = int(data.get("points", 0))
+    item_def  = data.get("item_def", "") or None
+    item_name = data.get("item_name", "") or None
+    max_uses  = int(data.get("max_uses", 1))
+    if not code:
+        return {"success": False, "message": "Укажи код"}
+
+    db = get_db()
+    async with aiosqlite.connect(db.db_path) as conn:
+        try:
+            await conn.execute(
+                "INSERT INTO promocodes (code, points, item_def, item_name, max_uses) VALUES (?,?,?,?,?)",
+                (code, points, item_def, item_name, max_uses))
+            await conn.commit()
+        except Exception:
+            return {"success": False, "message": "Такой промокод уже существует"}
+    return {"success": True, "message": f"✅ Промокод {code} создан"}
+
+
+@router.delete("/api/admin/promocodes/{promo_id}")
+async def admin_delete_promo(promo_id: int, _admin: str = Depends(require_admin)):
+    db = get_db()
+    async with aiosqlite.connect(db.db_path) as conn:
+        await conn.execute("DELETE FROM promocodes WHERE id = ?", (promo_id,))
+        await conn.commit()
+    return {"success": True}

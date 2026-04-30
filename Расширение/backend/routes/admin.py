@@ -1,0 +1,216 @@
+"""
+routes/admin.py — администрирование: пользователи, предметы, очки.
+"""
+import aiosqlite
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import HTMLResponse
+
+from config import sanitize_username
+from dependencies import get_bot, get_db, require_admin
+
+router = APIRouter()
+
+
+@router.get("/admin", response_class=HTMLResponse)
+async def admin_panel(_admin: str = Depends(require_admin)):
+    """Админ-панель"""
+    try:
+        with open("../admin/admin.html", "r", encoding="utf-8") as f:
+            return f.read()
+    except Exception:
+        return "Создайте admin/admin.html"
+
+
+@router.post("/api/admin/drop")
+async def admin_force_drop(_admin: str = Depends(require_admin)):
+    """Принудительный дроп"""
+    return await get_bot().force_drop()
+
+
+@router.get("/api/admin/stats")
+async def admin_stats(_admin: str = Depends(require_admin)):
+    """Статистика для админки"""
+    return await get_db().get_stats()
+
+
+@router.get("/api/admin/users")
+async def admin_get_users(
+    search: str = "",
+    limit: int = 50,
+    offset: int = 0,
+    _admin: str = Depends(require_admin),
+):
+    """Список всех пользователей с поиском"""
+    db          = get_db()
+    safe_search = sanitize_username(search) if search else ""
+    async with aiosqlite.connect(db.db_path) as conn:
+        conn.row_factory = aiosqlite.Row
+        if safe_search:
+            cursor = await conn.execute("""
+                SELECT username, points, is_afk, last_seen, join_time
+                FROM viewers WHERE username LIKE ?
+                ORDER BY points DESC LIMIT ? OFFSET ?
+            """, (f"%{safe_search}%", limit, offset))
+        else:
+            cursor = await conn.execute("""
+                SELECT username, points, is_afk, last_seen, join_time
+                FROM viewers ORDER BY points DESC LIMIT ? OFFSET ?
+            """, (limit, offset))
+        rows    = await cursor.fetchall()
+        cursor2 = await conn.execute("SELECT COUNT(*) FROM viewers")
+        total   = (await cursor2.fetchone())[0]
+    return {"users": [dict(r) for r in rows], "total": total}
+
+
+@router.get("/api/admin/user/{username}")
+async def admin_get_user(username: str, _admin: str = Depends(require_admin)):
+    """Детали пользователя"""
+    db = get_db()
+    async with aiosqlite.connect(db.db_path) as conn:
+        conn.row_factory = aiosqlite.Row
+        cursor = await conn.execute("SELECT * FROM viewers WHERE username = ?", (username,))
+        user   = await cursor.fetchone()
+        if not user:
+            return {"error": "Пользователь не найден"}
+
+        cursor = await conn.execute("""
+            SELECT i.display_name, i.emoji, i.rarity, inv.quantity
+            FROM inventory inv JOIN items i ON inv.item_id = i.id
+            WHERE inv.username = ?
+        """, (username,))
+        inventory = [dict(r) for r in await cursor.fetchall()]
+
+        cursor = await conn.execute(
+            "SELECT pawn_name, is_alive, health, world_name FROM rimworld_pawns WHERE username = ?",
+            (username,))
+        pawn = await cursor.fetchone()
+
+    return {
+        "user":      dict(user),
+        "inventory": inventory,
+        "pawn":      dict(pawn) if pawn else None,
+    }
+
+
+@router.post("/api/admin/points")
+async def admin_adjust_points(request: Request, _admin: str = Depends(require_admin)):
+    """Выдать/забрать очки"""
+    data     = await request.json()
+    username = data.get("username")
+    amount   = int(data.get("amount", 0))
+    action   = data.get("action", "add")  # add / remove / set
+
+    db = get_db()
+    async with aiosqlite.connect(db.db_path) as conn:
+        cursor = await conn.execute("SELECT points FROM viewers WHERE username = ?", (username,))
+        row    = await cursor.fetchone()
+        if not row:
+            return {"success": False, "message": "Пользователь не найден"}
+        current = row[0]
+
+    if action == "add":
+        await db.add_points(username, amount)
+        msg = f"+{amount}💎 → {current + amount}💎"
+    elif action == "remove":
+        await db.remove_points(username, amount)
+        msg = f"-{amount}💎 → {max(0, current - amount)}💎"
+    elif action == "set":
+        async with aiosqlite.connect(db.db_path) as conn:
+            await conn.execute("UPDATE viewers SET points = ? WHERE username = ?", (amount, username))
+            await conn.commit()
+        msg = f"Установлено {amount}💎"
+    else:
+        return {"success": False, "message": "Неверный action"}
+
+    return {"success": True, "message": msg}
+
+
+@router.post("/api/admin/transfer")
+async def admin_transfer_points(request: Request, _admin: str = Depends(require_admin)):
+    """Перевод очков между пользователями"""
+    data      = await request.json()
+    from_user = data.get("from_user")
+    to_user   = data.get("to_user")
+    amount    = int(data.get("amount", 0))
+    if amount <= 0:
+        return {"success": False, "message": "Сумма должна быть больше 0"}
+
+    db          = get_db()
+    from_points = await db.get_points(from_user)
+    if from_points is None:
+        return {"success": False, "message": f"{from_user} не найден"}
+    to_points = await db.get_points(to_user)
+    if to_points is None:
+        return {"success": False, "message": f"{to_user} не найден"}
+    if from_points < amount:
+        return {"success": False, "message": f"У {from_user} только {from_points}💎"}
+
+    if not await db.remove_points(from_user, amount):
+        return {"success": False, "message": f"У {from_user} недостаточно очков"}
+    await db.add_points(to_user, amount)
+    return {"success": True, "message": f"💸 {from_user} → {to_user}: {amount}💎"}
+
+
+@router.get("/api/admin/items")
+async def admin_get_items(_admin: str = Depends(require_admin)):
+    """Список всех предметов"""
+    db = get_db()
+    async with aiosqlite.connect(db.db_path) as conn:
+        conn.row_factory = aiosqlite.Row
+        cursor = await conn.execute(
+            "SELECT id, name, display_name, emoji, rarity, value FROM items ORDER BY rarity, name")
+        rows = await cursor.fetchall()
+    return {"items": [dict(r) for r in rows]}
+
+
+@router.post("/api/admin/item/give")
+async def admin_give_item(request: Request, _admin: str = Depends(require_admin)):
+    """Выдать предмет пользователю"""
+    data     = await request.json()
+    username = data.get("username")
+    item_id  = int(data.get("item_id"))
+    quantity = int(data.get("quantity", 1))
+
+    db = get_db()
+    async with aiosqlite.connect(db.db_path) as conn:
+        cursor = await conn.execute("SELECT display_name FROM items WHERE id = ?", (item_id,))
+        item   = await cursor.fetchone()
+        if not item:
+            return {"success": False, "message": "Предмет не найден"}
+        await conn.execute("""
+            INSERT INTO inventory (username, item_id, quantity)
+            VALUES (?, ?, ?)
+            ON CONFLICT(username, item_id) DO UPDATE SET quantity = quantity + ?
+        """, (username, item_id, quantity, quantity))
+        await conn.commit()
+    return {"success": True, "message": f"Выдано {item[0]} x{quantity} → {username}"}
+
+
+@router.post("/api/admin/item/remove")
+async def admin_remove_item(request: Request, _admin: str = Depends(require_admin)):
+    """Забрать предмет у пользователя"""
+    data     = await request.json()
+    username = data.get("username")
+    item_id  = int(data.get("item_id"))
+    quantity = int(data.get("quantity", 1))
+
+    db = get_db()
+    async with aiosqlite.connect(db.db_path) as conn:
+        cursor = await conn.execute(
+            "SELECT quantity, display_name FROM inventory inv "
+            "JOIN items i ON inv.item_id = i.id "
+            "WHERE inv.username = ? AND inv.item_id = ?",
+            (username, item_id))
+        row = await cursor.fetchone()
+        if not row:
+            return {"success": False, "message": "Предмет не найден в инвентаре"}
+        cur_qty, name = row
+        if cur_qty <= quantity:
+            await conn.execute(
+                "DELETE FROM inventory WHERE username = ? AND item_id = ?", (username, item_id))
+        else:
+            await conn.execute(
+                "UPDATE inventory SET quantity = quantity - ? WHERE username = ? AND item_id = ?",
+                (quantity, username, item_id))
+        await conn.commit()
+    return {"success": True, "message": f"Забрано {name} x{quantity} у {username}"}

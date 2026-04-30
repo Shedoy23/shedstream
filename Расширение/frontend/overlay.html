@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RimLink Overlay</title>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    background: transparent;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    font-family: 'JetBrains Mono', monospace;
+    position: relative;
+}
+
+/* ══════════════════════════════════════════
+   ОБЩИЕ СТИЛИ КАРТОЧЕК
+══════════════════════════════════════════ */
+.notification {
+    position: absolute;
+    bottom: 40px;
+    right: 40px;
+    width: 480px;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-end;
+}
+
+.card {
+    width: 100%;
+    border-radius: 16px;
+    padding: 20px 24px;
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(12px);
+    transform: translateX(540px);
+    opacity: 0;
+    transition: none;
+}
+
+.card.show {
+    animation: slideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.card.hide {
+    animation: slideOut 0.4s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(540px); opacity: 0; }
+    to   { transform: translateX(0);     opacity: 1; }
+}
+
+@keyframes slideOut {
+    from { transform: translateX(0);     opacity: 1; }
+    to   { transform: translateX(540px); opacity: 0; }
+}
+
+/* прогресс-бар внизу карточки — сколько осталось показывать */
+.card-timer {
+    position: absolute;
+    bottom: 0; left: 0;
+    height: 3px;
+    width: 100%;
+    transform-origin: left;
+}
+
+.card-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    opacity: 0.7;
+}
+
+.card-title {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1.2;
+    margin-bottom: 4px;
+}
+
+.card-sub {
+    font-size: 12px;
+    opacity: 0.75;
+    line-height: 1.5;
+}
+
+.card-icon {
+    font-size: 36px;
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    filter: drop-shadow(0 0 12px currentColor);
+    opacity: 0.9;
+}
+
+/* ══════════════════════════════════════════
+   ДЖЕКПОТ — золото + частицы
+══════════════════════════════════════════ */
+.card-jackpot {
+    background: linear-gradient(135deg, rgba(15,10,0,0.92) 0%, rgba(40,25,0,0.92) 100%);
+    border: 1px solid rgba(255, 185, 0, 0.5);
+    box-shadow:
+        0 0 0 1px rgba(255,185,0,0.15),
+        0 8px 40px rgba(255,130,0,0.3),
+        inset 0 1px 0 rgba(255,200,50,0.2);
+}
+.card-jackpot .card-label { color: #ffd700; }
+.card-jackpot .card-title { color: #fff7d6; }
+.card-jackpot .card-sub   { color: #ffc060; }
+.card-jackpot .card-timer { background: linear-gradient(90deg, #ffd700, #ff8800); }
+.card-jackpot .card-icon  { color: #ffd700; }
+
+/* блеск на джекпоте */
+.card-jackpot::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg,
+        transparent 30%,
+        rgba(255,215,0,0.06) 50%,
+        transparent 70%
+    );
+    animation: sheen 3s ease-in-out infinite;
+}
+@keyframes sheen {
+    0%,100% { transform: translateX(-100%); }
+    50%      { transform: translateX(100%); }
+}
+
+/* частицы джекпота */
+.particles {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    border-radius: 16px;
+}
+.particle {
+    position: absolute;
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: #ffd700;
+    animation: particleFly var(--d,1.5s) var(--delay,0s) ease-out infinite;
+    left: var(--x, 50%);
+    bottom: 0;
+    opacity: 0;
+}
+@keyframes particleFly {
+    0%   { transform: translate(0,0) scale(1);          opacity: 1; }
+    100% { transform: translate(var(--dx,20px),-80px) scale(0); opacity: 0; }
+}
+
+/* сумма джекпота — большая */
+.jackpot-amount {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 32px;
+    font-weight: 900;
+    color: #ffd700;
+    text-shadow: 0 0 20px rgba(255,215,0,0.6), 0 0 40px rgba(255,140,0,0.4);
+    margin: 4px 0;
+    animation: pulseGlow 1s ease-in-out infinite alternate;
+}
+@keyframes pulseGlow {
+    from { text-shadow: 0 0 20px rgba(255,215,0,0.6), 0 0 40px rgba(255,140,0,0.4); }
+    to   { text-shadow: 0 0 30px rgba(255,215,0,0.9), 0 0 60px rgba(255,140,0,0.6); }
+}
+
+/* ══════════════════════════════════════════
+   ИВЕНТ — СТАРТ (фиолетовый)
+══════════════════════════════════════════ */
+.card-event-start {
+    background: linear-gradient(135deg, rgba(8,5,20,0.93) 0%, rgba(20,8,45,0.93) 100%);
+    border: 1px solid rgba(140, 80, 255, 0.5);
+    box-shadow:
+        0 0 0 1px rgba(140,80,255,0.1),
+        0 8px 40px rgba(100,40,200,0.35),
+        inset 0 1px 0 rgba(180,120,255,0.15);
+}
+.card-event-start .card-label { color: #b06aff; }
+.card-event-start .card-title { color: #f0e8ff; }
+.card-event-start .card-sub   { color: #c8a8ff; }
+.card-event-start .card-timer { background: linear-gradient(90deg, #9747ff, #e040fb); }
+
+/* анимированная рамка */
+.card-event-start::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: 17px;
+    background: linear-gradient(90deg, #9747ff, #e040fb, #9747ff);
+    background-size: 200%;
+    animation: borderFlow 2s linear infinite;
+    z-index: -1;
+    opacity: 0.6;
+}
+@keyframes borderFlow {
+    0%   { background-position: 0%; }
+    100% { background-position: 200%; }
+}
+
+/* ══════════════════════════════════════════
+   ИВЕНТ — ТАЙМЕР (идёт ивент)
+══════════════════════════════════════════ */
+.card-event-live {
+    background: linear-gradient(135deg, rgba(5,15,20,0.93) 0%, rgba(5,25,35,0.93) 100%);
+    border: 1px solid rgba(0,200,160,0.4);
+    box-shadow:
+        0 0 0 1px rgba(0,200,160,0.1),
+        0 8px 40px rgba(0,160,130,0.25),
+        inset 0 1px 0 rgba(0,255,200,0.1);
+}
+.card-event-live .card-label { color: #00e8b8; }
+.card-event-live .card-title { color: #e0fff8; }
+.card-event-live .card-sub   { color: #80f0d8; }
+.card-event-live .card-timer { background: linear-gradient(90deg, #00e8b8, #00b8ff); }
+.card-event-live .card-icon  { color: #00e8b8; }
+
+/* пульс онлайн-точка */
+.live-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    background: #00e8b8;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+    box-shadow: 0 0 0 0 rgba(0,232,184,0.5);
+    animation: livePulse 1.5s ease-out infinite;
+}
+@keyframes livePulse {
+    0%   { box-shadow: 0 0 0 0   rgba(0,232,184,0.5); }
+    70%  { box-shadow: 0 0 0 8px rgba(0,232,184,0); }
+    100% { box-shadow: 0 0 0 0   rgba(0,232,184,0); }
+}
+
+/* ставки */
+.bids-list {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.bid-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+}
+.bid-bar-wrap {
+    flex: 1;
+    height: 4px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.bid-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #00e8b8, #00b8ff);
+    border-radius: 2px;
+    transition: width 0.5s ease;
+}
+.bid-name { color: #e0fff8; min-width: 80px; }
+.bid-amount { color: #80f0d8; min-width: 60px; text-align: right; }
+.bid-chance { color: #00e8b8; min-width: 40px; text-align: right; }
+
+/* ══════════════════════════════════════════
+   ИВЕНТ — ФИНАЛ (победитель)
+══════════════════════════════════════════ */
+.card-event-end {
+    background: linear-gradient(135deg, rgba(5,15,5,0.93) 0%, rgba(10,30,10,0.93) 100%);
+    border: 1px solid rgba(50,200,100,0.45);
+    box-shadow:
+        0 0 0 1px rgba(50,200,100,0.1),
+        0 8px 40px rgba(30,160,70,0.3),
+        inset 0 1px 0 rgba(80,255,120,0.12);
+}
+.card-event-end .card-label { color: #50e880; }
+.card-event-end .card-title { color: #e8ffe0; }
+.card-event-end .card-sub   { color: #90e8a8; }
+.card-event-end .card-timer { background: linear-gradient(90deg, #50e880, #00ff88); }
+
+.winner-name {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 22px;
+    font-weight: 900;
+    color: #50e880;
+    text-shadow: 0 0 20px rgba(80,232,128,0.5);
+}
+.prize-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(80,232,128,0.12);
+    border: 1px solid rgba(80,232,128,0.3);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: #50e880;
+    margin-top: 6px;
+}
+
+/* конфетти на победу */
+.confetti-wrap {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    border-radius: 16px;
+    pointer-events: none;
+}
+.confetti-piece {
+    position: absolute;
+    width: 6px;
+    height: 10px;
+    border-radius: 2px;
+    top: -10px;
+    animation: confettiFall var(--d, 1.2s) var(--delay, 0s) ease-in forwards;
+    left: var(--x, 50%);
+    background: var(--c, #50e880);
+    transform: rotate(var(--r, 0deg));
+}
+@keyframes confettiFall {
+    0%   { transform: rotate(var(--r)) translateY(0)   scaleX(1); opacity: 1; }
+    80%  { opacity: 1; }
+    100% { transform: rotate(calc(var(--r) + 360deg)) translateY(120px) scaleX(0.5); opacity: 0; }
+}
+
+/* ══════════════════════════════════════════
+   ДОНАТ
+══════════════════════════════════════════ */
+.card-donate {
+    background: linear-gradient(135deg, rgba(5,5,20,0.93) 0%, rgba(8,8,30,0.93) 100%);
+    border: 1px solid rgba(80,140,255,0.4);
+    box-shadow:
+        0 0 0 1px rgba(80,140,255,0.1),
+        0 8px 40px rgba(40,80,220,0.25),
+        inset 0 1px 0 rgba(120,160,255,0.12);
+}
+.card-donate .card-label { color: #7090ff; }
+.card-donate .card-title { color: #e8eeff; }
+.card-donate .card-sub   { color: #9ab0ff; }
+.card-donate .card-timer { background: linear-gradient(90deg, #7090ff, #b060ff); }
+
+.donate-amount {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 28px;
+    font-weight: 900;
+    color: #7090ff;
+    text-shadow: 0 0 20px rgba(112,144,255,0.5);
+}
+.donate-points {
+    font-size: 12px;
+    color: #9ab0ff;
+    margin-top: 2px;
+}
+.donate-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(112,144,255,0.12);
+    border: 1px solid rgba(112,144,255,0.3);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: #c8d4ff;
+    margin-top: 6px;
+}
+
+/* ══════════════════════════════════════════
+   ДРОП — янтарно-оранжевый
+══════════════════════════════════════════ */
+.card-drop {
+    background: linear-gradient(135deg, rgba(18,10,0,0.93) 0%, rgba(35,18,0,0.93) 100%);
+    border: 1px solid rgba(255,160,40,0.45);
+    box-shadow:
+        0 0 0 1px rgba(255,160,40,0.12),
+        0 8px 40px rgba(200,100,0,0.28),
+        inset 0 1px 0 rgba(255,200,80,0.14);
+}
+.card-drop .card-label { color: #ffaa30; }
+.card-drop .card-title { color: #fff4e0; }
+.card-drop .card-sub   { color: #ffd080; }
+.card-drop .card-timer { background: linear-gradient(90deg, #ffaa30, #ff6600); }
+.card-drop .card-icon  { color: #ffaa30; }
+
+.drop-item {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 22px;
+    font-weight: 900;
+    color: #ffaa30;
+    text-shadow: 0 0 18px rgba(255,170,48,0.55);
+    margin: 3px 0;
+}
+
+.drop-rarity {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: 8px;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-top: 5px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+.drop-rarity.common   { background: rgba(180,180,180,0.12); border: 1px solid rgba(180,180,180,0.3); color: #d0d0d0; }
+.drop-rarity.uncommon { background: rgba(80,200,80,0.12);   border: 1px solid rgba(80,200,80,0.35);  color: #60e060; }
+.drop-rarity.rare     { background: rgba(80,140,255,0.12);  border: 1px solid rgba(80,140,255,0.35); color: #80aaff; }
+.drop-rarity.epic     { background: rgba(180,60,255,0.14);  border: 1px solid rgba(180,60,255,0.4);  color: #cc80ff; }
+
+
+#jackpot-mega {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 100;
+}
+
+#jackpot-mega.show {
+    animation: megaIn 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards,
+               megaOut 0.5s ease-in 4.5s forwards;
+}
+
+@keyframes megaIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+@keyframes megaOut {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+}
+
+.mega-bg {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center,
+        rgba(255,180,0,0.18) 0%,
+        rgba(255,100,0,0.08) 40%,
+        transparent 70%
+    );
+    animation: megaBgPulse 0.8s ease-in-out infinite alternate;
+}
+@keyframes megaBgPulse {
+    from { opacity: 0.7; transform: scale(1); }
+    to   { opacity: 1;   transform: scale(1.05); }
+}
+
+.mega-content {
+    text-align: center;
+    position: relative;
+    z-index: 1;
+}
+
+.mega-label {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 14px;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    color: #ff9900;
+    opacity: 0.9;
+    margin-bottom: 8px;
+    animation: megaLabelIn 0.4s 0.1s both;
+}
+@keyframes megaLabelIn {
+    from { transform: translateY(-20px); opacity: 0; }
+    to   { transform: translateY(0);     opacity: 0.9; }
+}
+
+.mega-jackpot-text {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 96px;
+    font-weight: 900;
+    line-height: 1;
+    background: linear-gradient(180deg, #fff7a0 0%, #ffd700 40%, #ff8800 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: none;
+    filter: drop-shadow(0 0 30px rgba(255,200,0,0.6));
+    animation: megaTextIn 0.5s 0.2s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+@keyframes megaTextIn {
+    from { transform: scale(0.3); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+}
+
+.mega-username {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff7d6;
+    margin-top: 4px;
+    animation: megaNameIn 0.4s 0.4s both;
+    text-shadow: 0 2px 20px rgba(255,200,0,0.4);
+}
+@keyframes megaNameIn {
+    from { transform: translateY(20px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+}
+
+.mega-amount {
+    font-size: 18px;
+    color: #ffd060;
+    margin-top: 8px;
+    animation: megaNameIn 0.4s 0.5s both;
+    letter-spacing: 1px;
+}
+
+/* искры вокруг мега-джекпота */
+.sparks {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+.spark {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: #ffd700;
+    left: var(--sx); top: var(--sy);
+    animation: sparkFly var(--sd, 1s) var(--sdelay, 0s) ease-out infinite;
+}
+@keyframes sparkFly {
+    0%   { transform: translate(0,0) scale(1); opacity: 1; }
+    100% { transform: translate(var(--sdx,30px), var(--sdy,-60px)) scale(0); opacity: 0; }
+}
+
+/* ══════════════════════════════════════
+   ПОСТОЯННАЯ ПАНЕЛЬ ИВЕНТА (справа)
+══════════════════════════════════════ */
+#event-panel {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%) translateX(100%);
+    width: 320px;
+    pointer-events: none;
+    transition: transform 0.6s cubic-bezier(0.34, 1.2, 0.64, 1),
+                opacity   0.6s ease;
+    opacity: 0;
+}
+
+#event-panel.visible {
+    transform: translateY(-50%) translateX(0);
+    opacity: 1;
+}
+
+.ep-wrap {
+    background: linear-gradient(160deg,
+        rgba(8, 5, 22, 0.94) 0%,
+        rgba(16, 6, 40, 0.94) 100%
+    );
+    border: 1px solid rgba(130, 60, 255, 0.35);
+    border-right: none;
+    border-radius: 20px 0 0 20px;
+    padding: 18px 20px 16px;
+    position: relative;
+    overflow: hidden;
+    box-shadow:
+        -8px 0 40px rgba(100, 30, 200, 0.25),
+        inset 1px 0 0 rgba(160, 100, 255, 0.12);
+}
+
+/* фоновое свечение */
+.ep-wrap::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 180px; height: 180px;
+    background: radial-gradient(circle, rgba(130,60,255,0.18) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+/* анимированная левая полоска */
+.ep-accent {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, #9747ff, #e040fb, #00e8b8);
+    background-size: 100% 200%;
+    animation: accentFlow 3s linear infinite;
+    border-radius: 0 2px 2px 0;
+}
+@keyframes accentFlow {
+    0%   { background-position: 0% 0%; }
+    100% { background-position: 0% 200%; }
+}
+
+/* шапка */
+.ep-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.ep-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(130,60,255,0.18);
+    border: 1px solid rgba(130,60,255,0.3);
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    color: #c090ff;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.ep-live-dot {
+    width: 6px; height: 6px;
+    background: #e040fb;
+    border-radius: 50%;
+    box-shadow: 0 0 0 0 rgba(224,64,251,0.4);
+    animation: livePing 1.5s ease-out infinite;
+}
+@keyframes livePing {
+    0%   { box-shadow: 0 0 0 0   rgba(224,64,251,0.4); }
+    70%  { box-shadow: 0 0 0 8px rgba(224,64,251,0);   }
+    100% { box-shadow: 0 0 0 0   rgba(224,64,251,0);   }
+}
+
+/* тип ивента */
+.ep-type {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    color: #a060ff;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+/* приз */
+.ep-prize {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 18px;
+    font-weight: 900;
+    color: #ffd700;
+    text-shadow: 0 0 20px rgba(255,215,0,0.35);
+    line-height: 1.2;
+    margin-bottom: 14px;
+    padding-right: 8px;
+}
+
+/* таймер */
+.ep-timer-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.ep-timer {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 32px;
+    font-weight: 700;
+    color: #ff4da6;
+    letter-spacing: -1px;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    text-shadow: 0 0 20px rgba(255,77,166,0.4);
+}
+
+.ep-timer.warning { color: #ff6020; text-shadow: 0 0 20px rgba(255,96,32,0.5); }
+
+.ep-timer-label {
+    font-size: 11px;
+    color: rgba(255,255,255,0.35);
+    letter-spacing: 0.5px;
+}
+
+/* прогресс-бар таймера */
+.ep-timer-bar {
+    height: 2px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 1px;
+    overflow: hidden;
+    margin-bottom: 14px;
+}
+.ep-timer-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #ff4da6, #9747ff);
+    border-radius: 1px;
+    transition: width 1s linear;
+}
+
+/* разделитель */
+.ep-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.06);
+    margin-bottom: 10px;
+}
+
+/* участники */
+.ep-stats-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.4);
+    margin-bottom: 10px;
+    font-family: 'JetBrains Mono', monospace;
+}
+.ep-stats-row b { color: rgba(255,255,255,0.75); }
+
+/* ставки */
+.ep-bids {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.ep-bid {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    position: relative;
+}
+
+/* фоновый бар-заливка строки */
+.ep-bid-bg {
+    position: absolute;
+    inset: 0;
+    border-radius: 6px;
+    background: rgba(130,60,255,0.08);
+    transform-origin: left;
+    transition: transform 0.6s ease;
+}
+
+.ep-bid-rank {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: rgba(255,255,255,0.25);
+    width: 14px;
+    text-align: center;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.ep-bid-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.85);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    position: relative;
+    padding: 3px 0;
+}
+
+.ep-bid-bar-wrap {
+    width: 50px;
+    height: 3px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 2px;
+    overflow: hidden;
+    flex-shrink: 0;
+    position: relative;
+}
+.ep-bid-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #9747ff, #e040fb);
+    border-radius: 2px;
+    transition: width 0.6s ease;
+}
+
+.ep-bid-pct {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #c090ff;
+    width: 34px;
+    text-align: right;
+    flex-shrink: 0;
+    position: relative;
+}
+
+/* анонс ивента — появляется поверх панели при старте */
+#ep-announce {
+    position: absolute;
+    top: -64px;
+    left: 0; right: 0;
+    background: linear-gradient(135deg,
+        rgba(130,60,255,0.9) 0%,
+        rgba(224,64,251,0.9) 100%
+    );
+    border-radius: 14px 0 0 14px;
+    padding: 12px 16px;
+    text-align: center;
+    font-family: 'Unbounded', sans-serif;
+    font-size: 13px;
+    font-weight: 900;
+    color: white;
+    letter-spacing: 0.5px;
+    transform: translateY(-20px);
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.34,1.2,0.64,1);
+    border-right: none;
+    box-shadow: -4px 4px 20px rgba(130,60,255,0.4);
+}
+#ep-announce.show {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+</style>
+</head>
+<body>
+
+<!-- ══════ МЕГА ДЖЕКПОТ (центр экрана) ══════ -->
+<div id="jackpot-mega">
+    <div class="mega-bg"></div>
+    <div class="sparks" id="mega-sparks"></div>
+    <div class="mega-content">
+        <div class="mega-label">🎰 СОРВАЛ ДЖЕКПОТ</div>
+        <div class="mega-jackpot-text">JACKPOT</div>
+        <div class="mega-username" id="mega-username">username</div>
+        <div class="mega-amount" id="mega-amount">+0 💎</div>
+    </div>
+</div>
+
+<!-- ══════ ПОСТОЯННАЯ ПАНЕЛЬ ИВЕНТА (справа по центру) ══════ -->
+<div id="event-panel">
+    <div id="ep-announce"></div>
+    <div class="ep-wrap">
+        <div class="ep-accent"></div>
+        <div class="ep-header">
+            <div class="ep-badge">
+                <div class="ep-live-dot"></div>
+                <span id="ep-badge-text">ИВЕНТ</span>
+            </div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.3);font-family:'JetBrains Mono',monospace;" id="ep-participants">0 участников</div>
+        </div>
+        <div class="ep-type" id="ep-type-name">🎲 Рулетка</div>
+        <div class="ep-prize" id="ep-prize">—</div>
+        <div class="ep-timer-row">
+            <div class="ep-timer" id="ep-timer">5:00</div>
+            <div class="ep-timer-label">осталось</div>
+        </div>
+        <div class="ep-timer-bar">
+            <div class="ep-timer-fill" id="ep-timer-fill" style="width:100%"></div>
+        </div>
+        <div class="ep-divider"></div>
+        <div class="ep-stats-row">
+            <b id="ep-pool">0</b> 💎 в банке
+        </div>
+        <div class="ep-bids" id="ep-bids"></div>
+    </div>
+</div>
+
+<!-- ══════ КАРТОЧКИ (правый нижний угол) ══════ -->
+<div class="notification" id="notif-stack"></div>
+
+<script>
+const SERVER = 'https://shedoy23.ru';
+const POLL_INTERVAL = 2000;  // опрос каждые 2 сек
+
+// ✅ Фильтр джекпотов для оверлея
+// Показывать на оверлее только джекпоты больше этой суммы
+// В чате всё равно будут показываться все джекпоты как было
+const MIN_JACKPOT_AMOUNT = 25000;
+
+// ══════════════════════════════════════════
+// ОЧЕРЕДЬ УВЕДОМЛЕНИЙ
+// ══════════════════════════════════════════
+let notifQueue = [];
+let isShowing = false;
+let currentCard = null;
+let currentTimer = null;
+
+function queueNotif(config) {
+    notifQueue.push(config);
+    if (!isShowing) processQueue();
+}
+
+function processQueue() {
+    if (notifQueue.length === 0) { isShowing = false; return; }
+    isShowing = true;
+    showCard(notifQueue.shift());
+}
+
+function showCard(config) {
+    const stack = document.getElementById('notif-stack');
+
+    // Создаём карточку
+    const card = document.createElement('div');
+    card.className = `card card-${config.type}`;
+    card.innerHTML = buildCardHTML(config);
+    stack.appendChild(card);
+    currentCard = card;
+
+    // Trigger animation
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            card.classList.add('show');
+        });
+    });
+
+    // Анимируем timer-bar
+    const timerBar = card.querySelector('.card-timer');
+    const duration = config.duration || 6000;
+    if (timerBar) {
+        timerBar.style.transition = `transform ${duration}ms linear`;
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                timerBar.style.transform = 'scaleX(0)';
+            });
+        });
+    }
+
+    // Убираем через duration
+    currentTimer = setTimeout(() => {
+        card.classList.remove('show');
+        card.classList.add('hide');
+        setTimeout(() => {
+            card.remove();
+            processQueue();
+        }, 450);
+    }, duration);
+}
+
+function buildCardHTML(cfg) {
+    switch (cfg.type) {
+        case 'jackpot':
+            return buildJackpotCard(cfg);
+        case 'event-start':
+            return buildEventStartCard(cfg);
+        case 'event-live':
+            return buildEventLiveCard(cfg);
+        case 'event-end':
+            return buildEventEndCard(cfg);
+        case 'donate':
+            return buildDonateCard(cfg);
+        case 'drop':
+            return buildDropCard(cfg);
+        default:
+            return '';
+    }
+}
+
+// ══════════════════════════════════════════
+// ШАБЛОНЫ КАРТОЧЕК
+// ══════════════════════════════════════════
+function buildJackpotCard(cfg) {
+    const particles = Array.from({length: 12}, (_, i) => {
+        const x = 10 + Math.random() * 80;
+        const dx = (Math.random() - 0.5) * 60;
+        const d = 0.8 + Math.random() * 1.2;
+        const delay = Math.random() * 0.8;
+        return `<div class="particle" style="--x:${x}%;--dx:${dx}px;--d:${d}s;--delay:${delay}s;opacity:0"></div>`;
+    }).join('');
+
+    return `
+        <div class="particles">${particles}</div>
+        <div class="card-label">🎰 ДЖЕКПОТ</div>
+        <div class="card-title">${esc(cfg.username)}</div>
+        <div class="jackpot-amount">+${formatNum(cfg.amount)} 💎</div>
+        <div class="card-sub">ставка ${formatNum(cfg.bet)} → ×5</div>
+        <div class="card-timer"></div>
+    `;
+}
+
+function buildEventStartCard(cfg) {
+    return `
+        <div class="card-label">✨ ИВЕНТ НАЧАЛСЯ</div>
+        <div class="card-title">${esc(cfg.type_name)}</div>
+        <div class="card-sub">${esc(cfg.prize_name)} • ${esc(cfg.type_desc)}</div>
+        <div class="card-icon">${cfg.type === 'roulette' ? '🎲' : '⚖️'}</div>
+        <div class="card-timer"></div>
+    `;
+}
+
+function buildEventLiveCard(cfg) {
+    const bidsHTML = (cfg.bids || []).slice(0, 5).map((b, i) => `
+        <div class="bid-row">
+            <span class="bid-name">${i + 1}. ${esc(b.username)}</span>
+            <div class="bid-bar-wrap"><div class="bid-bar" style="width:${b.chance}%"></div></div>
+            <span class="bid-amount">${formatNum(b.amount)}💎</span>
+            <span class="bid-chance">${b.chance}%</span>
+        </div>
+    `).join('');
+
+    return `
+        <div class="card-label"><span class="live-dot"></span>ИВЕНТ ИДЁТ</div>
+        <div class="card-title">${esc(cfg.type_name)} — 🏆 ${esc(cfg.prize_name)}</div>
+        <div class="card-sub">Осталось: <b>${cfg.time_left_fmt}</b> · ${cfg.participants} участников · ${formatNum(cfg.total_pool)}💎</div>
+        ${bidsHTML ? `<div class="bids-list">${bidsHTML}</div>` : ''}
+        <div class="card-timer"></div>
+    `;
+}
+
+function buildEventEndCard(cfg) {
+    const confetti = Array.from({length: 16}, (_, i) => {
+        const colors = ['#50e880','#00ff88','#ffd700','#ff6eb4','#60a5fa'];
+        const c = colors[i % colors.length];
+        const x = Math.random() * 100;
+        const d = 0.6 + Math.random() * 0.8;
+        const delay = Math.random() * 0.5;
+        const r = Math.random() * 360;
+        return `<div class="confetti-piece" style="--x:${x}%;--d:${d}s;--delay:${delay}s;--c:${c};--r:${r}deg"></div>`;
+    }).join('');
+
+    return `
+        <div class="confetti-wrap">${confetti}</div>
+        <div class="card-label">🏆 ПОБЕДИТЕЛЬ</div>
+        <div class="winner-name">${esc(cfg.winner)}</div>
+        <div class="prize-badge">🎁 ${esc(cfg.prize_name)}</div>
+        <div class="card-sub" style="margin-top:6px;">${esc(cfg.message)}</div>
+        <div class="card-timer"></div>
+    `;
+}
+
+function buildDropCard(cfg) {
+    const rarityLabels = { common: '⚪ Обычный', uncommon: '🟢 Необычный', rare: '🔵 Редкий', epic: '🟣 Эпический' };
+    const rarityLabel = rarityLabels[cfg.rarity] || rarityLabels.common;
+    return `
+        <div class="card-label">🎁 СЛУЧАЙНЫЙ ДРОП</div>
+        <div class="card-title">${esc(cfg.username)}</div>
+        <div class="drop-item">${esc(cfg.item_name)}</div>
+        <div class="drop-rarity ${esc(cfg.rarity)}">${rarityLabel}</div>
+        <div class="card-icon">🎁</div>
+        <div class="card-timer"></div>
+    `;
+}
+
+function buildDonateCard(cfg) {
+    const itemHTML = cfg.gift ? `<div class="donate-item">🎁 Выпало: ${esc(cfg.gift)}</div>` : '';
+    return `
+        <div class="card-label">💙 ДОНАТ</div>
+        <div class="card-title">${esc(cfg.username)}</div>
+        <div class="donate-amount">${cfg.amount_rub}₽</div>
+        <div class="donate-points">+${formatNum(cfg.points)} 💎 в копилку</div>
+        ${itemHTML}
+        <div class="card-icon">💙</div>
+        <div class="card-timer"></div>
+    `;
+}
+
+// ══════════════════════════════════════════
+// МЕГА ДЖЕКПОТ (центральный)
+// ══════════════════════════════════════════
+function showMegaJackpot(username, amount) {
+    const el = document.getElementById('jackpot-mega');
+    document.getElementById('mega-username').textContent = '@' + username;
+    document.getElementById('mega-amount').textContent = '+' + formatNum(amount) + ' 💎';
+
+    // Генерируем искры
+    const sparks = document.getElementById('mega-sparks');
+    sparks.innerHTML = Array.from({length: 30}, () => {
+        const sx = 20 + Math.random() * 60 + 'vw';
+        const sy = 20 + Math.random() * 60 + 'vh';
+        const sdx = (Math.random() - 0.5) * 120 + 'px';
+        const sdy = -(30 + Math.random() * 100) + 'px';
+        const sd = 0.8 + Math.random() * 1.2 + 's';
+        const sdelay = Math.random() * 1 + 's';
+        return `<div class="spark" style="--sx:${sx};--sy:${sy};--sdx:${sdx};--sdy:${sdy};--sd:${sd};--sdelay:${sdelay}"></div>`;
+    }).join('');
+
+    el.className = 'show';
+    setTimeout(() => { el.className = ''; }, 5100);
+}
+
+// ══════════════════════════════════════════
+// ВСПОМОГАТЕЛЬНЫЕ
+// ══════════════════════════════════════════
+function esc(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function formatNum(n) {
+    return Number(n).toLocaleString('ru-RU');
+}
+
+// ══════════════════════════════════════════
+// ПОЛЛИНГ СЕРВЕРА
+// ══════════════════════════════════════════
+// ══════════════════════════════════════
+// ПОСТОЯННАЯ ПАНЕЛЬ ИВЕНТА
+// ══════════════════════════════════════
+let epTimerInterval = null;
+let epTotalSeconds  = 0;
+let epStartSeconds  = 0;
+
+function showEventPanel(ae) {
+    const panel = document.getElementById('event-panel');
+    panel.classList.add('visible');
+
+    document.getElementById('ep-type-name').textContent   = ae.type_name || '🎲 Рулетка';
+    document.getElementById('ep-prize').textContent       = '🏆 ' + (ae.prize?.name || '?');
+    document.getElementById('ep-badge-text').textContent  = ae.type === 'roulette' ? 'РУЛЕТКА' : 'АУКЦИОН';
+    document.getElementById('ep-participants').textContent = ae.participants + ' участников';
+    document.getElementById('ep-pool').textContent        = formatNum(ae.total_pool || 0);
+
+    updateEpBids(ae.bids || []);
+    startEpTimer(ae.time_left, ae.time_left);
+}
+
+function updateEventPanel(ae) {
+    if (!ae) return;
+    document.getElementById('ep-participants').textContent = ae.participants + ' участников';
+    document.getElementById('ep-pool').textContent        = formatNum(ae.total_pool || 0);
+    updateEpBids(ae.bids || []);
+    // таймер обновляется сам, только корректируем если сильно расошлось
+    const remaining = parseInt(document.getElementById('ep-timer').dataset.remaining || 0);
+    if (Math.abs(remaining - ae.time_left) > 5) {
+        startEpTimer(ae.time_left, epStartSeconds || ae.time_left);
+    }
+}
+
+function hideEventPanel(showWinner) {
+    const panel = document.getElementById('event-panel');
+    panel.classList.remove('visible');
+    stopEpTimer();
+}
+
+function announceEvent(typeName, prizeName) {
+    const el = document.getElementById('ep-announce');
+    el.textContent = '✨ ' + typeName + ' — ' + prizeName;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 4000);
+}
+
+function updateEpBids(bids) {
+    const el = document.getElementById('ep-bids');
+    if (!bids.length) {
+        el.innerHTML = '<div style="font-size:11px;color:rgba(255,255,255,0.25);text-align:center;padding:4px 0;">Ставок пока нет</div>';
+        return;
+    }
+    el.innerHTML = bids.slice(0, 6).map((b, i) => {
+        const medals = ['🥇','🥈','🥉'];
+        const rank = medals[i] || (i + 1) + '.';
+        return `
+        <div class="ep-bid">
+            <div class="ep-bid-bg" style="transform:scaleX(${b.chance / 100})"></div>
+            <div class="ep-bid-rank">${rank}</div>
+            <div class="ep-bid-name">${esc(b.username)}</div>
+            <div class="ep-bid-bar-wrap"><div class="ep-bid-bar-fill" style="width:${b.chance}%"></div></div>
+            <div class="ep-bid-pct">${b.chance}%</div>
+        </div>`;
+    }).join('');
+}
+
+function startEpTimer(seconds, totalSeconds) {
+    stopEpTimer();
+    epTotalSeconds = totalSeconds || seconds;
+    epStartSeconds = totalSeconds || seconds;
+    let s = seconds;
+    const timerEl = document.getElementById('ep-timer');
+    const fillEl  = document.getElementById('ep-timer-fill');
+    timerEl.dataset.remaining = s;
+
+    function tick() {
+        timerEl.textContent = fmtEpTime(Math.max(0, s));
+        timerEl.dataset.remaining = s;
+        const pct = Math.max(0, (s / epStartSeconds) * 100);
+        fillEl.style.width = pct + '%';
+        // красный когда меньше 60 сек
+        if (s <= 60) {
+            timerEl.classList.add('warning');
+            fillEl.style.background = 'linear-gradient(90deg, #ff6020, #ff2060)';
+        } else {
+            timerEl.classList.remove('warning');
+            fillEl.style.background = 'linear-gradient(90deg, #ff4da6, #9747ff)';
+        }
+        if (s <= 0) { stopEpTimer(); return; }
+        s--;
+    }
+    tick();
+    epTimerInterval = setInterval(tick, 1000);
+}
+
+function stopEpTimer() {
+    if (epTimerInterval) { clearInterval(epTimerInterval); epTimerInterval = null; }
+}
+
+function fmtEpTime(s) {
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return m + ':' + String(sec).padStart(2, '0');
+}
+
+let lastEventId = null;
+let lastEventState = null; // 'none' | 'active' | 'ended'
+let lastWinnerId = null;
+let lastDonateTs = null;
+let lastDropId = null;
+let seenJackpots = new Set();
+
+async function poll() {
+    try {
+        // 1. Событие рулекциона
+        const ev = await fetch(SERVER + '/api/event/status').then(r => r.json());
+
+        if (ev.active_event) {
+            const ae = ev.active_event;
+
+            if (lastEventId !== ae.id) {
+                // Новый ивент — анонс + показываем панель
+                lastEventId = ae.id;
+                lastEventState = 'active';
+                // Уведомление в углу
+                queueNotif({
+                    type: 'event-start',
+                    type_name: ae.type_name,
+                    prize_name: ae.prize?.name || '?',
+                    type_desc: ae.type_desc,
+                    event_type: ae.type,
+                    duration: 7000
+                });
+                // Показываем постоянную панель
+                showEventPanel(ae);
+                announceEvent(ae.type_name, ae.prize?.name || '?');
+            } else {
+                // Ивент идёт — обновляем панель
+                updateEventPanel(ae);
+            }
+
+            // live-карточка в углу раз в 45 сек с текущими ставками
+            if (ae.participants > 0) {
+                const liveKey = `live-${ae.id}-${Math.floor(ae.time_left / 45)}`;
+                if (!seenJackpots.has(liveKey)) {
+                    seenJackpots.add(liveKey);
+                    queueNotif({
+                        type: 'event-live',
+                        type_name: ae.type_name,
+                        prize_name: ae.prize?.name || '?',
+                        time_left_fmt: ae.time_left_fmt,
+                        participants: ae.participants,
+                        total_pool: ae.total_pool,
+                        bids: ae.bids || [],
+                        duration: 10000
+                    });
+                }
+            }
+
+        } else if (lastEventState === 'active') {
+            // Ивент закончился — скрываем панель
+            lastEventState = 'ended';
+            hideEventPanel();
+        }
+
+        // Победитель
+        if (ev.last_winner && ev.last_winner.has_winner) {
+            const wid = ev.last_winner.ended_at;
+            if (wid !== lastWinnerId) {
+                lastWinnerId = wid;
+                lastEventState = 'none';
+                lastEventId = null;
+
+                queueNotif({
+                    type: 'event-end',
+                    winner: ev.last_winner.winner,
+                    prize_name: ev.last_winner.prize?.name || '?',
+                    message: ev.last_winner.message || '',
+                    duration: 9000
+                });
+
+                fetch(SERVER + '/api/event/ack-winner', { method: 'POST' }).catch(() => {});
+            }
+        }
+
+    } catch(e) {}
+
+    try {
+        // 2. Джекпоты — опрашиваем отдельный эндпоинт
+        const jp = await fetch(SERVER + '/api/overlay/latest').then(r => r.json());
+
+        if (jp.jackpot && !seenJackpots.has(jp.jackpot.id)) {
+            seenJackpots.add(jp.jackpot.id);
+            if (seenJackpots.size > 100) {
+                const first = seenJackpots.values().next().value;
+                seenJackpots.delete(first);
+            }
+
+            // ✅ ФИЛЬТР ДЖЕКПОТОВ
+            // Показываем на оверлее ТОЛЬКО джекпоты больше порога
+            // В чате ТВИЧА все джекпоты всё равно будут как было раньше
+            if (jp.jackpot.win >= MIN_JACKPOT_AMOUNT) {
+                showMegaJackpot(jp.jackpot.username, jp.jackpot.win);
+                queueNotif({
+                    type: 'jackpot',
+                    username: jp.jackpot.username,
+                    amount: jp.jackpot.win,
+                    bet: jp.jackpot.bet,
+                    duration: 8000
+                });
+            }
+        }
+
+        if (jp.donate && jp.donate.ts !== lastDonateTs) {
+            lastDonateTs = jp.donate.ts;
+            queueNotif({
+                type: 'donate',
+                username: jp.donate.username,
+                amount_rub: jp.donate.amount_rub,
+                points: jp.donate.points,
+                gift: jp.donate.gift || null,
+                duration: 7000
+            });
+        }
+
+        if (jp.drop && jp.drop.id !== lastDropId) {
+            lastDropId = jp.drop.id;
+            queueNotif({
+                type: 'drop',
+                username: jp.drop.username,
+                item_name: jp.drop.item_name,
+                rarity: jp.drop.rarity || 'common',
+                duration: 6000
+            });
+        }
+
+    } catch(e) {}
+}
+
+// ══════════════════════════════════════════
+// ПРЕВЬЮ РЕЖИМ (для тестирования в браузере)
+// добавь ?preview=1 к URL чтобы увидеть все анимации
+// ══════════════════════════════════════════
+function runPreview() {
+    setTimeout(() => {
+        showMegaJackpot('shedoy23', 125000);
+        queueNotif({ type: 'jackpot', username: 'shedoy23', amount: 125000, bet: 25000, duration: 8000 });
+    }, 500);
+
+    setTimeout(() => {
+        queueNotif({ type: 'donate', username: 'klut12', amount_rub: 500, points: 25000, gift: 'Корона 👑', duration: 7000 });
+    }, 4000);
+
+    setTimeout(() => {
+        const mockEvent = {
+            id: 'preview-1',
+            type: 'roulette',
+            type_name: '🎲 Рулетка',
+            prize: { name: 'Корона 👑' },
+            time_left: 300,
+            time_left_fmt: '5:00',
+            type_desc: 'Чем больше вкинул — тем выше шанс!',
+            participants: 4,
+            total_pool: 48500,
+            bids: [
+                { username: 'slopkom',   amount: 20000, chance: 41.2 },
+                { username: 'klut12',    amount: 15000, chance: 30.9 },
+                { username: 'eliya',     amount: 8500,  chance: 17.5 },
+                { username: 'antitail1', amount: 5000,  chance: 10.3 },
+            ]
+        };
+        showEventPanel(mockEvent);
+        announceEvent('🎲 Рулетка', 'Корона 👑');
+        queueNotif({ type: 'event-start', type_name: '🎲 Рулетка', prize_name: 'Корона 👑', type_desc: 'Чем больше вкинул — тем выше шанс!', event_type: 'roulette', duration: 7000 });
+    }, 8000);
+
+    setTimeout(() => {
+        queueNotif({
+            type: 'event-live',
+            type_name: '🎲 Рулетка',
+            prize_name: 'Корона 👑',
+            time_left_fmt: '2:30',
+            participants: 4,
+            total_pool: 48500,
+            bids: [
+                { username: 'slopkom',  amount: 20000, chance: 41.2 },
+                { username: 'klut12',   amount: 15000, chance: 30.9 },
+                { username: 'eliya',    amount: 8500,  chance: 17.5 },
+                { username: 'antitail1',amount: 5000,  chance: 10.3 },
+            ],
+            duration: 10000
+        });
+    }, 13000);
+
+    setTimeout(() => {
+        hideEventPanel();
+        queueNotif({ type: 'event-end', winner: 'klut12', prize_name: 'Корона 👑', message: '🎲 В рулетке победил @klut12!', duration: 9000 });
+    }, 21000);
+
+    setTimeout(() => {
+        queueNotif({ type: 'drop', username: 'antitail1', item_name: '🔮 Амулет', rarity: 'rare', duration: 6000 });
+    }, 26000);
+
+    setTimeout(() => {
+        queueNotif({ type: 'drop', username: 'eliya', item_name: '👑 Корона', rarity: 'epic', duration: 6000 });
+    }, 30000);
+}
+
+// ══════════════════════════════════════════
+// СТАРТ
+// ══════════════════════════════════════════
+if (new URLSearchParams(location.search).get('preview') === '1') {
+    runPreview();
+} else {
+    poll();
+    setInterval(poll, POLL_INTERVAL);
+}
+</script>
+</body>
+</html>

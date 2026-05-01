@@ -363,8 +363,8 @@ document.addEventListener('DOMContentLoaded', function() {
             window.Twitch.ext.chat.onMessage((channel, user, message, msgId) => {
                 fetch(`${API_URL}/api/viewer/chat-message`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
+                    headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || '' },
+                    body: JSON.stringify({
                         username: userLogin,
                         message_length: message ? message.length : 0,
                         message_text: message || ''
@@ -406,7 +406,7 @@ function updateUIAfterAuth() {
     // Сообщаем серверу об онлайне
     fetch(`${API_URL}/api/viewer/online`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || '' },
         body: JSON.stringify({ username: userLogin, channel_id: clientId || 'unknown' })
     }).catch(e => dbg('online error:', e));
     
@@ -840,7 +840,7 @@ function reportActivity(isFinal = false) {
         
         fetch(`${API_URL}/api/viewer/activity`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || '' },
             body: JSON.stringify(activityData)
         })
         .then(response => {
@@ -1272,7 +1272,7 @@ function _startAttendanceTracking() {
         try {
             const r = await fetch(`${API_URL}/api/viewer/attendance`, {
                 method: 'POST',
-                headers: {'Content-Type':'application/json'},
+                headers: {'Content-Type':'application/json', 'X-Twitch-JWT': authToken || ''},
                 body: JSON.stringify({ username: userLogin, minutes: _attendanceMinutes })
             });
             const data = await r.json();

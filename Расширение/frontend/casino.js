@@ -74,7 +74,7 @@ async function placeBet() {
     try {
         const response = await fetch(`${API_URL}/api/casino/bet`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || '' },
             body: JSON.stringify({ username: userLogin, amount: parseInt(amount) })
         });
         const data = await response.json();
@@ -325,7 +325,7 @@ async function spinSlots() {
     try {
         const resp = await fetch(`${API_URL}/api/casino/slots`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || '' },
             body: JSON.stringify({ username: userLogin, bet: bet })
         });
         const data = await resp.json();

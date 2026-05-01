@@ -351,7 +351,7 @@ async function contributeToPool() {
     try {
         const r = await fetch(`${API_URL}/api/event/contribute`, {
             method: 'POST',
-            headers: {'Content-Type':'application/json'},
+            headers: {'Content-Type':'application/json', 'X-Twitch-JWT': authToken || ''},
             body: JSON.stringify({username: userLogin, amount})
         });
         const d = await r.json();
@@ -378,7 +378,7 @@ async function placeBidEvent() {
     try {
         const r = await fetch(`${API_URL}/api/event/bid`, {
             method: 'POST',
-            headers: {'Content-Type':'application/json'},
+            headers: {'Content-Type':'application/json', 'X-Twitch-JWT': authToken || ''},
             body: JSON.stringify({username: userLogin, amount})
         });
         const d = await r.json();

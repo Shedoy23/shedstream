@@ -49,7 +49,7 @@ async function confirmSell(itemKey, minPrice) {
     try {
         const res = await fetch(`${API_URL}/api/market/list`, {
             method: 'POST',
-            headers: {'Content-Type':'application/json'},
+            headers: {'Content-Type':'application/json', 'X-Twitch-JWT': authToken || ''},
             body: JSON.stringify({ username: userLogin, item_name: itemKey, price })
         });
         const data = await res.json();
@@ -113,7 +113,7 @@ async function doListItem() {
     try {
         const payload = { username: userLogin, item_name: key, price };
         const res  = await fetch(`${API_URL}/api/market/list`, {
-            method: 'POST', headers: {'Content-Type':'application/json'},
+            method: 'POST', headers: {'Content-Type':'application/json', 'X-Twitch-JWT': authToken || ''},
             body: JSON.stringify(payload)
         });
         const data = await res.json();
@@ -189,7 +189,7 @@ async function buyListing(listingId, itemName, price) {
             try {
                 const res = await fetch(`${API_URL}/api/market/buy`, {
                     method: 'POST',
-                    headers: {'Content-Type':'application/json'},
+                    headers: {'Content-Type':'application/json', 'X-Twitch-JWT': authToken || ''},
                     body: JSON.stringify({ username: userLogin, listing_id: listingId })
                 });
                 const data = await res.json();
@@ -204,7 +204,7 @@ async function cancelListing(listingId) {
     try {
         const res = await fetch(`${API_URL}/api/market/cancel`, {
             method: 'POST',
-            headers: {'Content-Type':'application/json'},
+            headers: {'Content-Type':'application/json', 'X-Twitch-JWT': authToken || ''},
             body: JSON.stringify({ username: userLogin, listing_id: listingId })
         });
         const data = await res.json();

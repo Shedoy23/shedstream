@@ -165,7 +165,7 @@ async function createDuel() {
     try {
         const res  = await fetch(`${API_URL}/api/duel/create`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || '' },
             body: JSON.stringify({ creator: userLogin, target: '', amount, move: _selectedDuelMove }),
         });
         const data = await res.json();
@@ -180,7 +180,7 @@ async function _doAcceptDuel(duelId, move) {
     try {
         const res  = await fetch(`${API_URL}/api/duel/accept`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || '' },
             body: JSON.stringify({ duel_id: duelId, username: userLogin, move }),
         });
         const data = await res.json();

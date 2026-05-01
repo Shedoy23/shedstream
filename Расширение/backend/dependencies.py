@@ -15,7 +15,8 @@ from typing import Optional
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
-from config import LOGIN_ATTEMPT_TTL
+from auth import verify_twitch_jwt
+from config import LOGIN_ATTEMPT_TTL, sanitize_username, validate_username
 
 # ── Shared state ──────────────────────────────────────────────────────────────
 _db  = None
@@ -45,6 +46,29 @@ def resolve_jwt_login(jwt_result: dict) -> str:
         or _twitch_login_cache.get(clean)
         or ""
     )
+
+
+def require_jwt_user(request: Request) -> Optional[str]:
+    """
+    Возвращает sanitized JWT-резолвенный логин или None.
+
+    None означает что endpoint должен вернуть {"success": False, "message": ...}.
+    Используется как замена `username` из request body — JWT-резолв
+    единственный достоверный источник имени зрителя.
+
+    Возвращает None если:
+      - JWT-токена нет в заголовке X-Twitch-JWT
+      - JWT невалиден или просрочен
+      - JWT валиден но логин не резолвится (зритель должен открыть
+        расширение и нажать «Login with Twitch» чтобы заполнить кэш)
+    """
+    jwt_result = verify_twitch_jwt(request)
+    if jwt_result.get("status") != "valid":
+        return None
+    login = sanitize_username(resolve_jwt_login(jwt_result))
+    if not login or not validate_username(login):
+        return None
+    return login
 
 # ── Rate limiting ─────────────────────────────────────────────────────────────
 _rate_buckets: dict = defaultdict(lambda: {"count": 0, "reset": 0.0})

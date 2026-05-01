@@ -189,21 +189,23 @@ async def overlay_latest():
 
 @router.post("/api/user/resolve-twitch-token")
 async def resolve_twitch_token(request: Request):
-    """Декодируем JWT → числовой user_id → логин через Helix API."""
+    """Декодируем JWT → числовой user_id → логин через Helix API.
+
+    user_id берётся ТОЛЬКО из проверенного JWT (или из opaque_id fallback).
+    Параметр explicit user_id из body больше не принимается — раньше это позволяло
+    кому угодно резолвить логин любого Twitch ID для разведки целей.
+    """
     try:
-        data             = await request.json()
-        token_str        = data.get("token", "")
-        opaque_id        = data.get("opaque_id", "")
-        explicit_user_id = str(data.get("user_id", "")).strip()
+        data       = await request.json()
+        token_str  = data.get("token", "")
+        opaque_id  = data.get("opaque_id", "")
 
         if opaque_id and opaque_id in _twitch_id_cache:
             return {"login": _twitch_id_cache[opaque_id], "cached": True}
 
         user_id = None
-        if explicit_user_id and explicit_user_id.isdigit():
-            user_id = explicit_user_id
 
-        if token_str and not user_id:
+        if token_str:
             try:
                 secret_b64 = os.getenv("TWITCH_EXTENSION_SECRET", "")
                 if secret_b64:

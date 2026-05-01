@@ -11,9 +11,12 @@ from dependencies import (
     get_db,
     get_last_event_winner,
     require_admin,
+    require_jwt_user,
     require_stream_live,
     set_last_event_winner,
 )
+
+_AUTH_FAIL = {"success": False, "message": "❌ Требуется авторизация Twitch — открой расширение и войди"}
 
 router = APIRouter()
 
@@ -119,12 +122,12 @@ async def event_contribute(request: Request):
     """Закинуть очки в копилку рулекциона"""
     if err := await require_stream_live():
         return err
-    data     = await request.json()
-    username = sanitize_username(data.get("username", ""))
-    amount   = int(data.get("amount", 0))
-
+    username = require_jwt_user(request)
     if not username:
-        return {"success": False, "message": "Не авторизован"}
+        return _AUTH_FAIL
+    data   = await request.json()
+    amount = int(data.get("amount", 0))
+
     if amount < ECONOMY_CONFIG["min_event_contribute"]:
         return {"success": False, "message": f"Минимум {ECONOMY_CONFIG['min_event_contribute']}💎"}
 
@@ -168,11 +171,11 @@ async def event_bid(request: Request):
     """Сделать ставку в активном рулекционе"""
     if err := await require_stream_live():
         return err
-    data     = await request.json()
-    username = sanitize_username(data.get("username", ""))
-    amount   = int(data.get("amount", 0))
+    username = require_jwt_user(request)
     if not username:
-        return {"success": False, "message": "Не авторизован"}
+        return _AUTH_FAIL
+    data   = await request.json()
+    amount = int(data.get("amount", 0))
     bot = get_bot()
     await bot.touch_viewer(username)
     success, message = await bot.event_manager.place_bid(username, amount)

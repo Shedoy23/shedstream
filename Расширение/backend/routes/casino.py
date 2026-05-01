@@ -7,7 +7,7 @@ import time
 from datetime import datetime, date
 from secrets import SystemRandom
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 # CSPRNG вместо random.* — Mersenne Twister предсказуем после ~624 наблюдений.
 # Для денежной экономики это критично; разница в производительности нерелевантна.
@@ -18,10 +18,13 @@ from dependencies import (
     check_rate_limit,
     get_bot,
     get_db,
+    require_jwt_user,
     require_stream_live,
     set_overlay_jackpot,
 )
 from models import BetRequest, SpinSlotsRequest
+
+_AUTH_FAIL = {"success": False, "message": "❌ Требуется авторизация Twitch — открой расширение и войди"}
 
 router = APIRouter()
 
@@ -136,36 +139,38 @@ def _calc_spin(bet: int, jackpot: int) -> dict:
 # ─── Эндпоинты ───────────────────────────────────────────────────────────────
 
 @router.post("/api/casino/bet")
-async def casino_bet(request: BetRequest):
+async def casino_bet(body: BetRequest, request: Request):
     """Ставка в казино (старый эндпоинт)."""
     if err := await require_stream_live():
         return err
+    username = require_jwt_user(request)
+    if not username:
+        return _AUTH_FAIL
     db  = get_db()
     bot = get_bot()
-    username = sanitize_username(str(request.username))
-    if not username or not validate_username(username):
-        return {"success": False, "message": "❌ Неверный username"}
     if not check_rate_limit(username, 60):
         return {"success": False, "message": "⏱ Слишком много запросов"}
     balance = await db.get_points(username)
-    result = await bot.casino_bet(username, request.amount)
+    result = await bot.casino_bet(username, body.amount)
     if result.get("result") == "jackpot":
         set_overlay_jackpot({
-            "id":       f"{request.username}-{time.time():.0f}",
-            "username": request.username,
+            "id":       f"{username}-{time.time():.0f}",
+            "username": username,
             "win":      result["win"],
-            "bet":      request.amount,
+            "bet":      body.amount,
             "ts":       datetime.now().isoformat(),
         })
-    asyncio.create_task(bot.check_and_unlock_achievements(request.username, "casino"))
+    asyncio.create_task(bot.check_and_unlock_achievements(username, "casino"))
     return result
 
 
 @router.post("/api/casino/slots")
-async def play_slots(req: SpinSlotsRequest):
+async def play_slots(req: SpinSlotsRequest, request: Request):
     """Слоты с джекпотом, near-miss и риск-игрой."""
+    uname = require_jwt_user(request)
+    if not uname:
+        return _AUTH_FAIL
     db    = get_db()
-    uname = req.username.lower()
 
     if not check_rate_limit(uname, 20):
         return {"success": False, "message": "⏱ Подожди немного перед следующим спином"}
@@ -255,25 +260,28 @@ async def get_jackpot_amount():
 
 
 @router.post("/api/casino/slots/double")
-async def risk_double(username: str, choice: str):
+async def risk_double(request: Request, choice: str):
     """Риск-игра: удвоить или потерять последний выигрыш. choice: red | black"""
-    uname = sanitize_username(username)
-    if not uname or not validate_username(uname):
-        return {"success": False, "message": "❌ Неверный username"}
+    uname = require_jwt_user(request)
+    if not uname:
+        return _AUTH_FAIL
     await get_bot().touch_viewer(uname)
-    pending = _pending_doubles.get(uname)
+
+    # Атомарный pop вместо get+pop — иначе два конкурентных запроса
+    # успевают пройти проверку до удаления, оба получают награду.
+    pending = _pending_doubles.pop(uname, None)
 
     if not pending:
         return {"success": False, "message": "Нет активного выигрыша для удвоения"}
     if time.time() > pending["expires"]:
-        _pending_doubles.pop(uname, None)
         return {"success": False, "message": "Время вышло — выигрыш уже твой, рисковать нельзя"}
     if choice not in ("red", "black"):
+        # Возвращаем pending обратно — игрок не сделал валидный выбор
+        _pending_doubles[uname] = pending
         return {"success": False, "message": "Выбери red или black"}
 
     db     = get_db()
     amount = pending["amount"]
-    _pending_doubles.pop(uname, None)
 
     actual = _rng.choice(("red", "black"))
     won    = actual == choice
@@ -291,11 +299,11 @@ async def risk_double(username: str, choice: str):
 
 
 @router.post("/api/casino/slots/freespin")
-async def use_free_spin(username: str):
+async def use_free_spin(request: Request):
     """Использовать одно бесплатное вращение (5 в день)."""
-    uname = sanitize_username(username)
-    if not uname or not validate_username(uname):
-        return {"success": False, "message": "❌ Неверный username"}
+    uname = require_jwt_user(request)
+    if not uname:
+        return _AUTH_FAIL
     if not check_rate_limit(uname, 5):
         return {"success": False, "message": "⏱ Подожди немного"}
     await get_bot().touch_viewer(uname)
@@ -364,10 +372,12 @@ async def use_free_spin(username: str):
 
 
 @router.get("/api/casino/slots/freespin/status")
-async def freespin_status(username: str):
+async def freespin_status(request: Request):
     """Сколько фриспинов осталось сегодня."""
+    uname = require_jwt_user(request)
+    if not uname:
+        return {"remaining": 0, "total": FREE_SPINS_COUNT, "error": "auth_required"}
     db    = get_db()
-    uname = username.lower()
     today = date.today().isoformat()
 
     async with db._connect() as conn:

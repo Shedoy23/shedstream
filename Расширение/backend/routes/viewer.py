@@ -18,19 +18,21 @@ from config import (
     WATCH_TIME_CAP,
     sanitize_username,
 )
-from dependencies import check_rate_limit, get_bot, get_db, require_stream_live
+from dependencies import check_rate_limit, get_bot, get_db, require_jwt_user, require_stream_live
 from models import ActivityRequest, ChatMessageRequest, UserAction
+
+_AUTH_FAIL = {"status": "unauthorized", "message": "❌ Требуется авторизация Twitch — открой расширение и войди"}
 
 router = APIRouter()
 logger = logging.getLogger("rimlink")
 
 
 @router.post("/api/viewer/online")
-async def viewer_online(action: UserAction):
+async def viewer_online(action: UserAction, request: Request):
     """Зритель открыл расширение"""
-    username = sanitize_username(action.username)
+    username = require_jwt_user(request)
     if not username:
-        return {"status": "error", "message": "invalid username"}
+        return _AUTH_FAIL
     if not check_rate_limit(username, 20):
         return {"status": "rate_limited"}
     logger.info("ONLINE: %s", username)
@@ -117,17 +119,15 @@ async def viewer_stats(username: str):
 
 
 @router.post("/api/viewer/activity")
-async def track_activity(request: ActivityRequest):
+async def track_activity(body: ActivityRequest, request: Request):
     """Отслеживание активности зрителя"""
-    username = sanitize_username(str(request.username))
-    if not username or len(username) < 2:
-        return {"status": "error", "message": "invalid username"}
+    username = require_jwt_user(request)
+    if not username:
+        return _AUTH_FAIL
     if not check_rate_limit(username, 60):
         return {"status": "rate_limited"}
-    if not _re.match(r"^[a-zA-Zа-яёА-ЯЁ0-9_\-]{2,64}$", username):
-        return {"status": "error", "message": "invalid username format"}
 
-    watch_time = max(0, min(int(request.watch_time), WATCH_TIME_CAP))
+    watch_time = max(0, min(int(body.watch_time), WATCH_TIME_CAP))
     db  = get_db()
     bot = get_bot()
 
@@ -187,22 +187,31 @@ async def track_activity(request: ActivityRequest):
 
 
 @router.post("/api/viewer/chat-message")
-async def track_chat_message(request: ChatMessageRequest):
-    """Отслеживание сообщений в чате"""
+async def track_chat_message(body: ChatMessageRequest, request: Request):
+    """Отслеживание сообщений в чате (со стороны фронта).
+
+    Внимание: настоящий учёт чата уже идёт через IRC-бот в main.py
+    (TwitchChatBot.event_message). Этот эндпоинт остаётся для legacy-вызовов
+    с фронта — но username берётся из JWT (а не из body), поэтому подделка
+    «пишу длинное сообщение за чужой ник» больше не работает.
+    """
     if err := await require_stream_live():
         return {"status": "offline", "message": err["message"]}
+    username = require_jwt_user(request)
+    if not username:
+        return _AUTH_FAIL
 
     db  = get_db()
     bot = get_bot()
-    bot.update_viewer_chat(request.username)
+    bot.update_viewer_chat(username)
 
-    safe_text = (request.message_text or "")[:1000] if request.message_text else ""
+    safe_text = (body.message_text or "")[:1000] if body.message_text else ""
 
     async with aiosqlite.connect(db.db_path) as conn:
         await conn.execute("""
             INSERT INTO chat_stats (username, message_length, message_text)
             VALUES (?, ?, ?)
-        """, (request.username, request.message_length, safe_text))
+        """, (username, body.message_length, safe_text))
         await conn.commit()
 
     if ACTIVITY_CONFIG.get("chat_bonus_enabled", True):
@@ -211,31 +220,31 @@ async def track_chat_message(request: ChatMessageRequest):
             cursor = await conn.execute("""
                 SELECT SUM(message_length) FROM chat_stats
                 WHERE username = ? AND date(created_at) = ?
-            """, (request.username, today))
+            """, (username, today))
             total_today = await cursor.fetchone() or (0,)
         daily_limit = ACTIVITY_CONFIG.get("max_daily_chat_bonus", 500)
         if total_today[0] < daily_limit:
-            bonus = min(request.message_length // 10, 10)
+            bonus = min(body.message_length // 10, 10)
             if bonus > 0:
-                await db.add_points(request.username, bonus)
+                await db.add_points(username, bonus)
 
     try:
         for quest in QUEST_ORDER:
             quest_config = QUESTS_CONFIG.get(quest)
             if quest_config and quest_config.get("type") == "chat":
-                await bot._update_quest_progress(request.username, quest, 1)
+                await bot._update_quest_progress(username, quest, 1)
     except Exception as e:
-        print(f"Ошибка обновления чат-квестов для {request.username}: {e}")
+        print(f"Ошибка обновления чат-квестов для {username}: {e}")
 
     return {"status": "ok"}
 
 
 @router.post("/api/viewer/click")
-async def track_click(username: str):
+async def track_click(request: Request):
     """Отслеживание кликов"""
-    safe_username = sanitize_username(username)
+    safe_username = require_jwt_user(request)
     if not safe_username:
-        return {"status": "error", "message": "invalid username"}
+        return _AUTH_FAIL
     if not check_rate_limit(safe_username, 10):
         return {"status": "rate_limited"}
     db = get_db()
@@ -281,13 +290,13 @@ async def get_user_level(username: str):
 @router.post("/api/viewer/attendance")
 async def viewer_attendance(request: Request):
     """Стрик-бонус за 15 мин просмотра."""
-    data     = await request.json()
-    username = sanitize_username(str(data.get("username", "")))
-    minutes  = int(data.get("minutes", 0))
+    username = require_jwt_user(request)
     if not username:
-        return {"success": False}
-    bot    = get_bot()
-    result = await bot.record_viewer_attendance(username, minutes)
+        return {"success": False, "message": "❌ Требуется авторизация Twitch"}
+    data    = await request.json()
+    minutes = int(data.get("minutes", 0))
+    bot     = get_bot()
+    result  = await bot.record_viewer_attendance(username, minutes)
     return {"success": True, **result}
 
 

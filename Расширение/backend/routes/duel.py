@@ -7,11 +7,13 @@ import random
 import time
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from config import sanitize_username
-from dependencies import get_bot, get_db, require_stream_live
+from dependencies import get_bot, get_db, require_jwt_user, require_stream_live
 from models import AcceptDuelRequest, DuelRequest
+
+_AUTH_FAIL = {"success": False, "message": "❌ Требуется авторизация Twitch — открой расширение и войди"}
 
 router = APIRouter()
 
@@ -212,35 +214,38 @@ async def check_season_end():
 # ─── Endpoints ──────────────────────────────────────────────────────────────
 
 @router.post("/api/duel/create")
-async def create_duel(request: DuelRequest):
+async def create_duel(body: DuelRequest, request: Request):
     """Создать дуэль и выбрать ход (ход скрыт от соперника)."""
     if err := await require_stream_live():
         return err
+    creator = require_jwt_user(request)
+    if not creator:
+        return _AUTH_FAIL
     db = get_db()
 
-    if request.amount < 50:
+    if body.amount < 50:
         return {"success": False, "message": "Минимальная ставка 50💎"}
 
-    move = request.move.lower() if request.move else ""
+    move = body.move.lower() if body.move else ""
     if move not in _VALID_MOVES:
         return {"success": False, "message": "Выбери ход: 🪨 камень, ✂️ ножницы или 📄 бумага"}
 
-    await get_bot().touch_viewer(request.creator)
+    await get_bot().touch_viewer(creator)
 
-    creator_points = await db.get_points(request.creator)
-    if creator_points < request.amount:
+    creator_points = await db.get_points(creator)
+    if creator_points < body.amount:
         return {"success": False, "message": f"У тебя только {creator_points}💎"}
 
     for d in _duels.values():
-        if d["creator"] == request.creator and d["status"] == "pending":
+        if d["creator"] == creator and d["status"] == "pending":
             return {"success": False, "message": "У тебя уже есть активная дуэль"}
 
     await check_season_end()
 
     duel_id = f"duel_{int(time.time())}_{random.randint(1000, 9999)}"
     _duels[duel_id] = {
-        "creator":    request.creator,
-        "amount":     request.amount,
+        "creator":    creator,
+        "amount":     body.amount,
         "move":       move,
         "status":     "pending",
         "created_ts": time.time(),
@@ -249,23 +254,23 @@ async def create_duel(request: DuelRequest):
     return {
         "success":  True,
         "duel_id":  duel_id,
-        "message":  f"⚔️ Дуэль на {request.amount}💎 создана! Ход сделан тайно. Ждём соперника...",
+        "message":  f"⚔️ Дуэль на {body.amount}💎 создана! Ход сделан тайно. Ждём соперника...",
     }
 
 
 @router.post("/api/duel/accept")
-async def accept_duel(req: AcceptDuelRequest):
+async def accept_duel(req: AcceptDuelRequest, request: Request):
     """Принять дуэль, выбрать ход и определить победителя."""
     if err := await require_stream_live():
         return err
+    username = require_jwt_user(request)
+    if not username:
+        return _AUTH_FAIL
     db  = get_db()
     bot = get_bot()
 
     duel_id  = req.duel_id
     move     = req.move.lower()
-    username = sanitize_username(req.username)
-    if not username:
-        return {"success": False, "message": "Неверный username"}
     if move not in _VALID_MOVES:
         return {"success": False, "message": "Выбери ход: 🪨 камень, ✂️ ножницы или 📄 бумага"}
 
@@ -277,8 +282,11 @@ async def accept_duel(req: AcceptDuelRequest):
     duel = _duels[duel_id]
     if duel["creator"] == username:
         return {"success": False, "message": "Нельзя принять свою дуэль!"}
+    # Атомарный захват дуэли: меняем status pending→accepting, если кто-то другой
+    # уже это сделал — accept провалится. Защищает от двойного accept'а.
     if duel["status"] != "pending":
         return {"success": False, "message": "Дуэль уже завершена"}
+    duel["status"] = "accepting"
     if time.time() - duel["created_ts"] > 300:
         duel["status"] = "expired"
         await _db_remove_duel(duel_id)

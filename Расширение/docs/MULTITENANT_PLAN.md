@@ -52,10 +52,12 @@ shop_catalog           — каталог магазина (если униве�
 |---|---|---|
 | `user_achievements` | TENANT (per-channel) | Достижения per-канал. Watching 10h на канале А ≠ 10h глобально. |
 | `promo_uses` | TENANT | Один промокод (`SPRING2026`) можно ввести на разных каналах независимо. |
-| `promocodes` | TENANT в новой модели | Каждый стример сам создаёт промокоды для своих зрителей. Раньше было одно поле для всех — теперь стрсимеры независимы. |
+| `promocodes` | TENANT в новой модели | Каждый стример сам создаёт промокоды для своих зрителей. |
 | `rimworld_catalog` | GLOBAL | Это статика мода, не кастомизируется. |
-| `shop_catalog` | TENANT в Module API | По §9 спеки `module_shop` публикуется per-channel модулем. Сейчас TODO. |
+| `shop_catalog` | TENANT + **session-scoped** | Очищается на каждом `session-start` от мода. См. §H. |
+| `rimworld_event_catalog` | TENANT + **session-scoped** | То же — кэш активной игровой сессии, не accumulating. |
 | `achievements` | GLOBAL для MVP | Кастомные ачивки per-channel — будущая фича. |
+| ~~`purchase_counters`~~ → `rimworld_purchase_counters` | **pawn-scoped** через FK CASCADE | Привязан к `rimworld_pawns.id`. Пешка умерла → счётчик обнулился. Это RimWorld-specific. |
 
 ---
 
@@ -183,19 +185,64 @@ def require_jwt_user(request: Request) -> Optional[Tuple[str, int]]:
 
 ---
 
-## Этапы M1-M6 — оценка времени
+## §H — Lifecycle каталогов и пешек (session-scoped)
+
+`shop_catalog` и `rimworld_event_catalog` — это **scratch-кэш** активной сессии стримера, не persistence.
+
+**При `POST /api/rimworld/session-start` (мод стартанул новую игру):**
+```sql
+DELETE FROM shop_catalog          WHERE channel_id = ?;
+DELETE FROM rimworld_event_catalog WHERE channel_id = ?;
+DELETE FROM rimworld_pawns        WHERE channel_id = ?;
+-- pawn-зависимые таблицы (skills, hediffs, traits, genes, equipment, purchase_counters)
+-- удаляются каскадом через FK или явным DELETE WHERE pawn_id IN (...).
+```
+
+**При `POST /api/rimworld/offline` (мод отключился):** ничего не делаем — пешки/каталог остаются на диске чтобы пережить рестарт мода. Сжигаются только при следующем session-start (новая сейв-игра).
+
+**При смене активного модуля стримера** (admin-UI action): тот же session-start clear но для всех таблиц данного модуля.
+
+**Размер:** на 50 одновременно активных RimWorld-стримеров — ~125 000 строк каталогов. Когда мод офлайн — данные есть, но не растут. На 100 стримеров играют тоже примерно одновременно ~30-40 — не масштабная проблема.
+
+---
+
+## §I — Eager registration + admin-UI lite (M4 расширен)
+
+В отличие от lazy-варианта, **новый стример обязан зарегистрироваться** до того как его зрители смогут пользоваться extension'ом.
+
+**Когда JWT с `channel_id` приходит, а в `channels` нет записи:**
+- Бэк возвращает 403 + `{status: "channel_not_registered"}`
+- Frontend показывает: «Стример пока не подключил расширение. Попроси его зайти на shedoy23.ru/streamer и активировать»
+
+**Регистрация стримера:** на отдельной странице (не extension):
+- `shedoy23.ru/streamer` — кнопка «Sign in with Twitch»
+- Twitch OAuth → callback → создание записи в `channels` (Free tier по умолчанию)
+- После регистрации — admin-UI lite с базовыми возможностями
+
+**Admin-UI lite в MVP содержит:**
+- Текущий тариф (Free / Pro / VIP)
+- Кнопка «Connect Channel Points» (OAuth flow для EventSub auto-registration)
+- Выбор активного модуля (когда модулей будет несколько)
+- Настройка цен/наличия предметов в shop (после Module API внедрения)
+- Простая статистика (балансы топ-10 зрителей, число активных дней)
+
+**Полный SaaS-дашборд** (графики, billing, ретеншн-метрики, маркет-аналитика) — отдельный этап M7+.
+
+---
+
+## Этапы M1-M6 — оценка времени (с учётом обсуждённых решений)
 
 | Этап | Описание | Часы |
 |---|---|---:|
 | **M1** | Schema migration (DDL + backfill + индексы) | 4-6 |
 | **M2** | JWT/dependencies (`require_jwt_user` возвращает `channel_id`) | 2-3 |
 | **M3** | Query scoping (`database.py`, `bot_core.py`, все routes) | 12-18 |
-| **M4** | Channel registry (`channels` таблица, регистрация, активация модулей) | 5-7 |
+| **M4** | **Расширен:** `channels` registry + Twitch OAuth для стримера + admin-UI lite + EventSub auto-register | **15-20** |
 | **M5** | Per-channel rate limits + tier-based квоты | 1-2 |
 | **M6** | Testing (2 канала, проверка изоляции) + deploy | 3-5 |
-| | **Итого** | **27-41 ч** |
+| | **Итого** | **37-54 ч** |
 
-**Реалистичный график:** 4-5 рабочих сессий по 6-8 часов = 4-5 недель календарного времени с учётом ревью и тестирования.
+**Реалистичный график:** 5-7 рабочих сессий по 6-8 часов = 5-7 недель календарного времени с учётом ревью и тестирования.
 
 ---
 
@@ -217,3 +264,4 @@ def require_jwt_user(request: Request) -> Optional[Tuple[str, int]]:
 | Дата | Этап | Изменения |
 |---|---|---|
 | 2026-05-01 | M0 | WAL подтверждён, бэкапы настроены, discovery audit completed. План M1-M6 утверждён. |
+| 2026-05-02 | M0+ | После обсуждения: каталоги стали session-scoped (§H), eager registration + admin-UI lite встроены в M4 (§I), `purchase_counters` → pawn-scoped FK CASCADE. Время: 27-41 ч → 37-54 ч. |

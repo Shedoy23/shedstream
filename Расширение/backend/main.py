@@ -173,17 +173,34 @@ app.add_middleware(
         "https://www.twitch.tv",
         "https://dashboard.twitch.tv",
         "https://shedoy23.ru",
-        "https://*.ext-twitch.tv",
         "https://supervisor.ext-twitch.tv",
         # OBS Browser Source открывает файлы локально — null origin
         "null",
     ],
-    # Убран allow_origin_regex=r"file://.*" — разрешать ВСЕ локальные файлы небезопасно
-    # Если нужен доступ из локальных файлов, добавьте конкретные origins в allow_origins
+    # Twitch Extension хостится на <id>.ext-twitch.tv — wildcard в allow_origins
+    # игнорируется Starlette (там точное сравнение строк), нужен regex.
+    allow_origin_regex=r"^https://[a-z0-9-]+\.ext-twitch\.tv$",
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
+
+
+# Security headers на каждый ответ. Не выставляем X-Frame-Options — Twitch
+# Extension iframe-ит фронт, нам нужен CSP frame-ancestors вместо запрета.
+@app.middleware("http")
+async def security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    # HSTS включает HTTPS на 2 года. На HTTP браузер игнорирует — безопасно.
+    response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
+    # Кто может iframe-ить наш фронт. Twitch Extension Sandbox = *.ext-twitch.tv,
+    # сам Twitch встраивает оверлей в стрим — *.twitch.tv.
+    response.headers["Content-Security-Policy"] = (
+        "frame-ancestors https://*.twitch.tv https://*.ext-twitch.tv"
+    )
+    return response
 
 # Инициализация
 db = Database("viewers.db")

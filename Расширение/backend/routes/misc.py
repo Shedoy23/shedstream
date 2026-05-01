@@ -303,24 +303,27 @@ async def resolve_twitch_id(twitch_id: str):
 
 @router.post("/api/user/map-twitch-id")
 async def map_twitch_id(request: Request):
-    """Сохраняем маппинг twitch_id → login в кэш. Требует JWT."""
+    """Подтвердить уже закэшированный маппинг своего twitch_id → login.
+
+    БЕЗОПАСНОСТЬ: эндпоинт больше НЕ создаёт новые маппинги по login из body.
+    Раньше можно было вызвать с `{twitch_id: <my_user_id>, login: <victim_login>}` и
+    отравить кэш — твой собственный JWT после этого резолвился в логин жертвы,
+    и все твои авторизованные действия зачитывались на её счёт.
+
+    Новые маппинги создаются только через `/api/user/resolve-twitch-token`,
+    который верифицирует логин через Helix API (источник правды).
+    """
     jwt_result = verify_twitch_jwt(request)
     if jwt_result["status"] != "valid":
         return {"status": "unauthorized"}
 
-    data  = await request.json()
-    tid   = data.get("twitch_id", "").lstrip("U")
-    login = sanitize_username(data.get("username", ""))
+    jwt_user_id = str(jwt_result.get("user_id", ""))
+    if not jwt_user_id:
+        return {"status": "no_user_id", "message": "Логин-через-Twitch требуется"}
 
-    # JWT-логин должен совпадать с маппируемым логином (через кеш)
-    jwt_login = sanitize_username(resolve_jwt_login(jwt_result))
-    if not login:
-        return {"status": "forbidden"}
-    # Разрешаем если логин совпадает или JWT ещё не закеширован
-    if jwt_login and jwt_login != login:
-        return {"status": "forbidden"}
+    cached = _twitch_id_cache.get(jwt_user_id)
+    if cached:
+        return {"status": "ok", "login": cached}
 
-    if tid and login:
-        _twitch_id_cache[tid] = login
-        cache_twitch_login(tid, jwt_result.get("username", ""), login)
-    return {"status": "ok"}
+    return {"status": "needs_resolve",
+            "message": "Кэш не заполнен — вызови /api/user/resolve-twitch-token"}

@@ -446,6 +446,18 @@ async def run_migrations():
                 pass
         await conn.commit()
         print("✅ Migration: skill_name локализация исправлена")
+
+        # ── M1: multi-tenant schema (channel_id во все TENANT-таблицы) ──
+        # Идемпотентно через `migrations_applied`. На single-tenant базе backfill'ит
+        # существующие строки текущим TWITCH_BROADCASTER_ID.
+        # См. docs/MULTITENANT_PLAN.md и backend/migrations/m1_multitenant.py
+        try:
+            from migrations import m1_multitenant
+            await m1_multitenant.apply(conn)
+        except Exception as e:
+            print(f"❌ M1 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

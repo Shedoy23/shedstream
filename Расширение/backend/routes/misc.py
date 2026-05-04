@@ -19,13 +19,15 @@ from dependencies import (
     get_db,
     get_overlay_state,
     require_admin,
+    require_jwt_user,
     require_stream_live,
-    resolve_jwt_login,
     set_overlay_donate,
 )
 from models import TransferRequest
 
 router = APIRouter()
+
+_AUTH_FAIL = {"success": False, "message": "❌ Требуется авторизация Twitch — открой расширение и войди"}
 
 # ── Twitch ID cache ───────────────────────────────────────────────────────────
 _twitch_app_token:    str   = None
@@ -62,17 +64,12 @@ async def transfer_points(request: Request, body: TransferRequest):
     if err := await require_stream_live():
         return err
 
-    jwt_result = verify_twitch_jwt(request)
-    if jwt_result["status"] == "none":
-        return {"success": False, "message": "❌ Требуется авторизация Twitch"}
-    if jwt_result["status"] == "invalid":
-        return {"success": False, "message": "❌ Неверный или просроченный JWT-токен"}
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    sender, channel_id = auth
 
-    sender   = sanitize_username(resolve_jwt_login(jwt_result))
     receiver = sanitize_username(body.receiver)
-
-    if not sender or not validate_username(sender):
-        return {"success": False, "message": "❌ Отправитель не найден — открой расширение и войди через Twitch"}
     if not receiver or not validate_username(receiver):
         return {"success": False, "message": "❌ Неверный получатель"}
     if sender == receiver:

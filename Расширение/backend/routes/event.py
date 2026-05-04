@@ -122,9 +122,10 @@ async def event_contribute(request: Request):
     """Закинуть очки в копилку рулекциона"""
     if err := await require_stream_live():
         return err
-    username = require_jwt_user(request)
-    if not username:
+    auth = require_jwt_user(request)
+    if not auth:
         return _AUTH_FAIL
+    username, channel_id = auth
     data   = await request.json()
     amount = int(data.get("amount", 0))
 
@@ -171,9 +172,10 @@ async def event_bid(request: Request):
     """Сделать ставку в активном рулекционе"""
     if err := await require_stream_live():
         return err
-    username = require_jwt_user(request)
-    if not username:
+    auth = require_jwt_user(request)
+    if not auth:
         return _AUTH_FAIL
+    username, channel_id = auth
     data   = await request.json()
     amount = int(data.get("amount", 0))
     bot = get_bot()

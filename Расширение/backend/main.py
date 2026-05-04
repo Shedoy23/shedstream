@@ -57,9 +57,6 @@ from dependencies import check_rate_limit, rate_cleanup_loop as _rate_cleanup_lo
 # ===== ПРОВЕРКА СТРИМА =====
 from dependencies import require_stream_live  # noqa: E402
 
-# ===== JWT ВЕРИФИКАЦИЯ TWITCH EXTENSION =====
-from auth import verify_twitch_jwt  # noqa: E402 — после инициализации логгера
-
 app = FastAPI()
 pending_commands = []
 

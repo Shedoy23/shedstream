@@ -4,12 +4,13 @@ routes/marriage.py — браки между зрителями (создани�
 import aiosqlite
 from fastapi import APIRouter, Depends, Request
 
-from auth import verify_twitch_jwt
-from config import FAMILY_CONFIG, sanitize_username, validate_username
-from dependencies import get_db, require_admin, require_stream_live, resolve_jwt_login
+from config import FAMILY_CONFIG, sanitize_username
+from dependencies import get_db, require_admin, require_jwt_user, require_stream_live
 from models import MarryRequest
 
 router = APIRouter()
+
+_AUTH_FAIL = {"success": False, "message": "❌ Требуется авторизация Twitch — открой расширение и войди"}
 
 
 @router.post("/api/marriage/create")
@@ -74,14 +75,10 @@ async def divorce(request: Request):
     """Развод — стоит 500💎"""
     if err := await require_stream_live():
         return err
-    jwt_result = verify_twitch_jwt(request)
-    if jwt_result.get("status") == "invalid":
-        return {"success": False, "message": "❌ Неверная авторизация Twitch"}
-    if jwt_result.get("status") == "none":
-        return {"success": False, "message": "❌ Требуется авторизация Twitch"}
-    sender = sanitize_username(resolve_jwt_login(jwt_result))
-    if not sender or not validate_username(sender):
-        return {"success": False, "message": "❌ Неверный отправитель"}
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    sender, channel_id = auth
 
     from dependencies import get_bot
     await get_bot().touch_viewer(sender)
@@ -118,14 +115,10 @@ async def marriage_withdraw(request: Request):
     """Вывести средства из семейного счёта на личный"""
     if err := await require_stream_live():
         return err
-    jwt_result = verify_twitch_jwt(request)
-    if jwt_result.get("status") == "invalid":
-        return {"success": False, "message": "❌ Неверная авторизация Twitch"}
-    if jwt_result.get("status") == "none":
-        return {"success": False, "message": "❌ Требуется авторизация Twitch"}
-    sender = sanitize_username(resolve_jwt_login(jwt_result))
-    if not sender or not validate_username(sender):
-        return {"success": False, "message": "❌ Неверный отправитель"}
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    sender, channel_id = auth
 
     from dependencies import get_bot
     await get_bot().touch_viewer(sender)
@@ -171,14 +164,10 @@ async def marriage_propose(request: Request):
     """Отправить предложение руки и сердца"""
     if err := await require_stream_live():
         return err
-    jwt_result = verify_twitch_jwt(request)
-    if jwt_result.get("status") == "invalid":
-        return {"success": False, "message": "❌ Неверная авторизация Twitch"}
-    if jwt_result.get("status") == "none":
-        return {"success": False, "message": "❌ Требуется авторизация Twitch"}
-    sender = sanitize_username(resolve_jwt_login(jwt_result))
-    if not sender or not validate_username(sender):
-        return {"success": False, "message": "❌ Неверный отправитель"}
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    sender, channel_id = auth
 
     from dependencies import get_bot
     await get_bot().touch_viewer(sender)
@@ -212,14 +201,10 @@ async def marriage_accept(request: Request):
     """Принять предложение руки и сердца"""
     if err := await require_stream_live():
         return err
-    jwt_result = verify_twitch_jwt(request)
-    if jwt_result.get("status") == "invalid":
-        return {"success": False, "message": "❌ Неверная авторизация Twitch"}
-    if jwt_result.get("status") == "none":
-        return {"success": False, "message": "❌ Требуется авторизация Twitch"}
-    sender = sanitize_username(resolve_jwt_login(jwt_result))
-    if not sender or not validate_username(sender):
-        return {"success": False, "message": "❌ Неверный отправитель"}
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    sender, channel_id = auth
 
     from dependencies import get_bot
     await get_bot().touch_viewer(sender)

@@ -9,7 +9,12 @@ import base64 as _base64
 import jwt
 from fastapi import Request
 
-from config import DEV_MODE, DEV_USERNAME, TWITCH_EXTENSION_SECRET
+from config import CHANNEL_POINTS_CONFIG, DEV_MODE, DEV_USERNAME, TWITCH_EXTENSION_SECRET
+
+# DEV_MODE fallback: подставляем broadcaster_id из конфига (единственный канал
+# в single-tenant модели). В multi-tenant прод-сценарии channel_id всегда
+# приходит из JWT claim (Twitch Extension Helper подставляет его автоматически).
+_DEV_CHANNEL_ID = str(CHANNEL_POINTS_CONFIG.get('broadcaster_id') or '')
 
 
 def verify_twitch_jwt(request: Request) -> dict:
@@ -18,6 +23,8 @@ def verify_twitch_jwt(request: Request) -> dict:
     Возвращает dict с:
       - status: 'valid' | 'invalid' | 'none'
       - username: имя пользователя из токена (payload['sub'])
+      - user_id: реальный Twitch user_id (если зритель залогинен)
+      - channel_id: ID стримера из claim 'channel_id' (broadcaster user_id)
 
     В production режим 'unsigned' ОТКЛЮЧЕН — любая неверная подпись = отказ.
     Не кидает исключений.
@@ -29,7 +36,11 @@ def verify_twitch_jwt(request: Request) -> dict:
     if DEV_MODE:
         client_ip = (request.client.host if request.client else "")
         if client_ip in ("127.0.0.1", "::1", "localhost"):
-            return {"status": "valid", "username": DEV_USERNAME}
+            return {
+                "status": "valid",
+                "username": DEV_USERNAME,
+                "channel_id": _DEV_CHANNEL_ID,
+            }
         # DEV_MODE + не-localhost → не выдаём bypass, идём по обычному JWT-пути
 
     token = request.headers.get("X-Twitch-JWT", "").strip()
@@ -52,9 +63,15 @@ def verify_twitch_jwt(request: Request) -> dict:
             algorithms=["HS256"],
             options={"verify_exp": True, "leeway": 60},
         )
-        username = payload.get("sub", "") or payload.get("opaque_user_id", "")
-        user_id  = str(payload.get("user_id", ""))
-        return {"status": "valid", "username": username, "user_id": user_id}
+        username   = payload.get("sub", "") or payload.get("opaque_user_id", "")
+        user_id    = str(payload.get("user_id", ""))
+        channel_id = str(payload.get("channel_id", ""))
+        return {
+            "status": "valid",
+            "username": username,
+            "user_id": user_id,
+            "channel_id": channel_id,
+        }
     except Exception as e:
         print(f"[auth] JWT verify failed: {type(e).__name__}: {e}")
         return {"status": "invalid"}

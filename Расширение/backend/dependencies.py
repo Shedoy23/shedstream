@@ -10,7 +10,7 @@ import os
 import secrets
 import time as _time
 from collections import defaultdict
-from typing import Optional
+from typing import Optional, Tuple
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -48,19 +48,24 @@ def resolve_jwt_login(jwt_result: dict) -> str:
     )
 
 
-def require_jwt_user(request: Request) -> Optional[str]:
+def require_jwt_user(request: Request) -> Optional[Tuple[str, int]]:
     """
-    Возвращает sanitized JWT-резолвенный логин или None.
+    Возвращает (sanitized_login, channel_id) или None.
 
     None означает что endpoint должен вернуть {"success": False, "message": ...}.
     Используется как замена `username` из request body — JWT-резолв
-    единственный достоверный источник имени зрителя.
+    единственный достоверный источник имени зрителя И стримера.
 
     Возвращает None если:
       - JWT-токена нет в заголовке X-Twitch-JWT
       - JWT невалиден или просрочен
       - JWT валиден но логин не резолвится (зритель должен открыть
         расширение и нажать «Login with Twitch» чтобы заполнить кэш)
+      - JWT не содержит channel_id (broadcaster context отсутствует —
+        не должно случаться в Twitch Extension JWT)
+
+    channel_id — это broadcaster's Twitch user_id (int). Все TENANT-таблицы
+    скоупятся по нему. См. MULTITENANT_PLAN.md §E.
     """
     jwt_result = verify_twitch_jwt(request)
     if jwt_result.get("status") != "valid":
@@ -68,7 +73,39 @@ def require_jwt_user(request: Request) -> Optional[str]:
     login = sanitize_username(resolve_jwt_login(jwt_result))
     if not login or not validate_username(login):
         return None
-    return login
+    raw_channel = jwt_result.get("channel_id") or ""
+    try:
+        channel_id = int(raw_channel)
+    except (TypeError, ValueError):
+        return None
+    if channel_id <= 0:
+        return None
+    return (login, channel_id)
+
+
+def require_jwt_channel(request: Request) -> Optional[int]:
+    """
+    Возвращает channel_id из JWT или None.
+
+    Облегчённая версия `require_jwt_user`: НЕ требует чтобы JWT-логин
+    резолвился (зритель мог не залогиниться через Twitch). Только проверяет
+    что JWT валиден и содержит broadcaster context.
+
+    Используется эндпоинтами где username приходит из body/mod-команды,
+    а JWT нужен только как «I'm in channel X»-контекст для multi-tenant
+    скоупинга. См. rimworld.py shop endpoints.
+    """
+    jwt_result = verify_twitch_jwt(request)
+    if jwt_result.get("status") != "valid":
+        return None
+    raw_channel = jwt_result.get("channel_id") or ""
+    try:
+        channel_id = int(raw_channel)
+    except (TypeError, ValueError):
+        return None
+    if channel_id <= 0:
+        return None
+    return channel_id
 
 # ── Rate limiting ─────────────────────────────────────────────────────────────
 _rate_buckets: dict = defaultdict(lambda: {"count": 0, "reset": 0.0})

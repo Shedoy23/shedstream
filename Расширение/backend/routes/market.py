@@ -6,11 +6,11 @@ from datetime import datetime, timedelta, timezone
 import aiosqlite
 from fastapi import APIRouter, Request
 
-from auth import verify_twitch_jwt
-from config import sanitize_username, validate_username
-from dependencies import get_bot, get_db, require_stream_live, resolve_jwt_login
+from dependencies import get_bot, get_db, require_jwt_user, require_stream_live
 
 router = APIRouter()
+
+_AUTH_FAIL = {"success": False, "message": "❌ Требуется авторизация Twitch — открой расширение и войди"}
 
 _MIN_PRICES = {
     "деревяшка": 10,
@@ -27,14 +27,10 @@ async def market_list_item(request: Request):
     if err := await require_stream_live():
         return err
 
-    jwt_result = verify_twitch_jwt(request)
-    if jwt_result.get("status") == "invalid":
-        return {"success": False, "message": "❌ Неверная авторизация Twitch"}
-    if jwt_result.get("status") == "none":
-        return {"success": False, "message": "❌ Требуется авторизация Twitch"}
-    username = sanitize_username(resolve_jwt_login(jwt_result))
-    if not username or not validate_username(username):
-        return {"success": False, "message": "❌ Неверный username"}
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
 
     await get_bot().touch_viewer(username)
 
@@ -107,14 +103,10 @@ async def market_buy_item(request: Request):
     """Купить предмет с рынка"""
     if err := await require_stream_live():
         return err
-    jwt_result = verify_twitch_jwt(request)
-    if jwt_result.get("status") == "invalid":
-        return {"success": False, "message": "❌ Неверная авторизация Twitch"}
-    if jwt_result.get("status") == "none":
-        return {"success": False, "message": "❌ Требуется авторизация Twitch"}
-    sender = sanitize_username(resolve_jwt_login(jwt_result))
-    if not sender or not validate_username(sender):
-        return {"success": False, "message": "❌ Неверный отправитель"}
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    sender, channel_id = auth
 
     await get_bot().touch_viewer(sender)
 
@@ -197,14 +189,10 @@ async def market_cancel_listing(request: Request):
     """Отозвать свой лот (возврат предмета)"""
     if err := await require_stream_live():
         return err
-    jwt_result = verify_twitch_jwt(request)
-    if jwt_result.get("status") == "invalid":
-        return {"success": False, "message": "❌ Неверная авторизация Twitch"}
-    if jwt_result.get("status") == "none":
-        return {"success": False, "message": "❌ Требуется авторизация Twitch"}
-    sender = sanitize_username(resolve_jwt_login(jwt_result))
-    if not sender or not validate_username(sender):
-        return {"success": False, "message": "❌ Неверный отправитель"}
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    sender, channel_id = auth
 
     await get_bot().touch_viewer(sender)
 

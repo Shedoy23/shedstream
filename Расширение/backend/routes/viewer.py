@@ -30,9 +30,10 @@ logger = logging.getLogger("rimlink")
 @router.post("/api/viewer/online")
 async def viewer_online(action: UserAction, request: Request):
     """Зритель открыл расширение"""
-    username = require_jwt_user(request)
-    if not username:
+    auth = require_jwt_user(request)
+    if not auth:
         return _AUTH_FAIL
+    username, channel_id = auth
     if not check_rate_limit(username, 20):
         return {"status": "rate_limited"}
     logger.info("ONLINE: %s", username)
@@ -121,9 +122,10 @@ async def viewer_stats(username: str):
 @router.post("/api/viewer/activity")
 async def track_activity(body: ActivityRequest, request: Request):
     """Отслеживание активности зрителя"""
-    username = require_jwt_user(request)
-    if not username:
+    auth = require_jwt_user(request)
+    if not auth:
         return _AUTH_FAIL
+    username, channel_id = auth
     if not check_rate_limit(username, 60):
         return {"status": "rate_limited"}
 
@@ -197,9 +199,10 @@ async def track_chat_message(body: ChatMessageRequest, request: Request):
     """
     if err := await require_stream_live():
         return {"status": "offline", "message": err["message"]}
-    username = require_jwt_user(request)
-    if not username:
+    auth = require_jwt_user(request)
+    if not auth:
         return _AUTH_FAIL
+    username, channel_id = auth
 
     db  = get_db()
     bot = get_bot()
@@ -242,9 +245,10 @@ async def track_chat_message(body: ChatMessageRequest, request: Request):
 @router.post("/api/viewer/click")
 async def track_click(request: Request):
     """Отслеживание кликов"""
-    safe_username = require_jwt_user(request)
-    if not safe_username:
+    auth = require_jwt_user(request)
+    if not auth:
         return _AUTH_FAIL
+    safe_username, channel_id = auth
     if not check_rate_limit(safe_username, 10):
         return {"status": "rate_limited"}
     db = get_db()
@@ -290,9 +294,10 @@ async def get_user_level(username: str):
 @router.post("/api/viewer/attendance")
 async def viewer_attendance(request: Request):
     """Стрик-бонус за 15 мин просмотра."""
-    username = require_jwt_user(request)
-    if not username:
+    auth = require_jwt_user(request)
+    if not auth:
         return {"success": False, "message": "❌ Требуется авторизация Twitch"}
+    username, channel_id = auth
     data    = await request.json()
     minutes = int(data.get("minutes", 0))
     bot     = get_bot()

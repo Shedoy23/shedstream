@@ -143,9 +143,10 @@ async def casino_bet(body: BetRequest, request: Request):
     """Ставка в казино (старый эндпоинт)."""
     if err := await require_stream_live():
         return err
-    username = require_jwt_user(request)
-    if not username:
+    auth = require_jwt_user(request)
+    if not auth:
         return _AUTH_FAIL
+    username, channel_id = auth
     db  = get_db()
     bot = get_bot()
     if not check_rate_limit(username, 60):
@@ -167,9 +168,10 @@ async def casino_bet(body: BetRequest, request: Request):
 @router.post("/api/casino/slots")
 async def play_slots(req: SpinSlotsRequest, request: Request):
     """Слоты с джекпотом, near-miss и риск-игрой."""
-    uname = require_jwt_user(request)
-    if not uname:
+    auth = require_jwt_user(request)
+    if not auth:
         return _AUTH_FAIL
+    uname, channel_id = auth
     db    = get_db()
 
     if not check_rate_limit(uname, 20):
@@ -262,9 +264,10 @@ async def get_jackpot_amount():
 @router.post("/api/casino/slots/double")
 async def risk_double(request: Request, choice: str):
     """Риск-игра: удвоить или потерять последний выигрыш. choice: red | black"""
-    uname = require_jwt_user(request)
-    if not uname:
+    auth = require_jwt_user(request)
+    if not auth:
         return _AUTH_FAIL
+    uname, channel_id = auth
     await get_bot().touch_viewer(uname)
 
     # Атомарный pop вместо get+pop — иначе два конкурентных запроса
@@ -301,9 +304,10 @@ async def risk_double(request: Request, choice: str):
 @router.post("/api/casino/slots/freespin")
 async def use_free_spin(request: Request):
     """Использовать одно бесплатное вращение (5 в день)."""
-    uname = require_jwt_user(request)
-    if not uname:
+    auth = require_jwt_user(request)
+    if not auth:
         return _AUTH_FAIL
+    uname, channel_id = auth
     if not check_rate_limit(uname, 5):
         return {"success": False, "message": "⏱ Подожди немного"}
     await get_bot().touch_viewer(uname)
@@ -374,9 +378,10 @@ async def use_free_spin(request: Request):
 @router.get("/api/casino/slots/freespin/status")
 async def freespin_status(request: Request):
     """Сколько фриспинов осталось сегодня."""
-    uname = require_jwt_user(request)
-    if not uname:
+    auth = require_jwt_user(request)
+    if not auth:
         return {"remaining": 0, "total": FREE_SPINS_COUNT, "error": "auth_required"}
+    uname, channel_id = auth
     db    = get_db()
     today = date.today().isoformat()
 

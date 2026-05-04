@@ -218,9 +218,10 @@ async def create_duel(body: DuelRequest, request: Request):
     """Создать дуэль и выбрать ход (ход скрыт от соперника)."""
     if err := await require_stream_live():
         return err
-    creator = require_jwt_user(request)
-    if not creator:
+    auth = require_jwt_user(request)
+    if not auth:
         return _AUTH_FAIL
+    creator, channel_id = auth
     db = get_db()
 
     if body.amount < 50:
@@ -263,9 +264,10 @@ async def accept_duel(req: AcceptDuelRequest, request: Request):
     """Принять дуэль, выбрать ход и определить победителя."""
     if err := await require_stream_live():
         return err
-    username = require_jwt_user(request)
-    if not username:
+    auth = require_jwt_user(request)
+    if not auth:
         return _AUTH_FAIL
+    username, channel_id = auth
     db  = get_db()
     bot = get_bot()
 

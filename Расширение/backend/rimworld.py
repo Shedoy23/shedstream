@@ -11,8 +11,8 @@ import os
 import time
 import traceback
 
-from auth import verify_twitch_jwt
 from config import sanitize_username, RIMWORLD_OFFLINE_TIMEOUT
+from dependencies import require_jwt_channel
 
 router = APIRouter()
 _security = HTTPBasic()
@@ -982,10 +982,11 @@ async def buy_item(request: Request):
         return err
     db = get_db()
 
-    # JWT-защита: блокируем только если токена нет вообще (как в остальных эндпоинтах).
-    _jwt = verify_twitch_jwt(request)
-    # 'valid' — авторизованный пользователь; 'none' — нет токена — блокируем; 'invalid' — пропускаем (токен есть, но невалиден по подписи)
-    if _jwt.get("status") == "none":
+    # JWT-защита: эндпоинт зовётся фронтом расширения — токен обязателен.
+    # username приходит из body (а не из JWT), но channel_id берём из JWT
+    # для multi-tenant скоупинга (M3).
+    channel_id = require_jwt_channel(request)
+    if not channel_id:
         return {"success": False, "message": "❌ Требуется авторизация Twitch"}
 
     data = await request.json()
@@ -1191,8 +1192,9 @@ async def buy_gene(request: Request):
     """Зритель покупает ген — прогрессивная цена: 1-й=1000, 2-й=2000, ..."""
     if err := await _require_stream_live():
         return err
-    # JWT-защита
-    if verify_twitch_jwt(request) == 'none':
+    # JWT-защита (channel_id для multi-tenant скоупинга)
+    channel_id = require_jwt_channel(request)
+    if not channel_id:
         return {"success": False, "message": "❌ Требуется авторизация Twitch"}
 
     db = get_db()
@@ -1320,8 +1322,9 @@ async def buy_passion(request: Request):
     """
     if err := await _require_stream_live():
         return err
-    # JWT-защита
-    if verify_twitch_jwt(request) == 'none':
+    # JWT-защита (channel_id для multi-tenant скоупинга)
+    channel_id = require_jwt_channel(request)
+    if not channel_id:
         return {"success": False, "message": "❌ Требуется авторизация Twitch"}
 
     db = get_db()
@@ -1447,8 +1450,9 @@ async def buy_trait(request: Request):
     """Зритель покупает черту — прогрессивная цена: 1-я=1000, 2-я=2000, ..."""
     if err := await _require_stream_live():
         return err
-    # JWT-защита
-    if verify_twitch_jwt(request) == 'none':
+    # JWT-защита (channel_id для multi-tenant скоупинга)
+    channel_id = require_jwt_channel(request)
+    if not channel_id:
         return {"success": False, "message": "❌ Требуется авторизация Twitch"}
     db = get_db()
     data = await request.json()
@@ -1577,8 +1581,9 @@ async def buy_implant_alias(request: Request):
     """Установка импланта. part_hint='left'|'right'|'' — выбор стороны для парных."""
     if err := await _require_stream_live():
         return err
-    # JWT-защита
-    if verify_twitch_jwt(request) == 'none':
+    # JWT-защита (channel_id для multi-tenant скоупинга)
+    channel_id = require_jwt_channel(request)
+    if not channel_id:
         return {"success": False, "message": "❌ Требуется авторизация Twitch"}
 
     db = get_db()
@@ -1639,8 +1644,9 @@ async def train_skill_alias(request: Request):
     """Алиас для buy-item с category=neurotrainer"""
     if err := await _require_stream_live():
         return err
-    # JWT-защита
-    if verify_twitch_jwt(request) == 'none':
+    # JWT-защита (channel_id для multi-tenant скоупинга)
+    channel_id = require_jwt_channel(request)
+    if not channel_id:
         return {"success": False, "message": "❌ Требуется авторизация Twitch"}
 
     db = get_db()

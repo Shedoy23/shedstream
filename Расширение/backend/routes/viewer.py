@@ -41,12 +41,12 @@ async def viewer_online(action: UserAction, request: Request):
     db = get_db()
     async with aiosqlite.connect(db.db_path) as conn:
         await conn.execute("""
-            INSERT INTO viewers (username, last_seen, is_afk)
-            VALUES (?, datetime('now'), 0)
-            ON CONFLICT(username) DO UPDATE SET
+            INSERT INTO viewers (channel_id, username, last_seen, is_afk)
+            VALUES (?, ?, datetime('now'), 0)
+            ON CONFLICT(channel_id, username) DO UPDATE SET
                 last_seen = datetime('now'),
                 is_afk = 0
-        """, (username,))
+        """, (channel_id, username))
         await conn.commit()
     return {"status": "ok"}
 
@@ -148,10 +148,10 @@ async def track_activity(body: ActivityRequest, request: Request):
 
     async with aiosqlite.connect(db.db_path) as conn:
         await conn.execute("""
-            INSERT INTO viewers (username, last_seen, is_afk)
-            VALUES (?, datetime('now'), 0)
-            ON CONFLICT(username) DO UPDATE SET last_seen = datetime('now'), is_afk = 0
-        """, (username,))
+            INSERT INTO viewers (channel_id, username, last_seen, is_afk)
+            VALUES (?, ?, datetime('now'), 0)
+            ON CONFLICT(channel_id, username) DO UPDATE SET last_seen = datetime('now'), is_afk = 0
+        """, (channel_id, username))
         stream_live = False
         try:
             stream_live = await bot._is_stream_live()

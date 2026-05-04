@@ -429,6 +429,16 @@ STREAK_REWARDS = {
     100: 100000,
 }
 
+# ===== MULTI-TENANT FALLBACK =====
+# Используется в helpers (add_points, touch_viewer и др.) и inline INSERT'ах
+# где channel_id ещё НЕ протолкнут из JWT. M1 миграция требует channel_id
+# во всех TENANT-таблицах; без явного значения берём этот fallback.
+# TODO M3: после полного query scoping убрать fallback, требовать channel_id явно.
+try:
+    DEFAULT_CHANNEL_ID = int(os.getenv('TWITCH_BROADCASTER_ID', '98319857') or 98319857)
+except (TypeError, ValueError):
+    DEFAULT_CHANNEL_ID = 98319857
+
 # ===== ОБМЕН CHANNEL POINTS TWITCH НА АЛМАЗЫ =====
 # Зритель тратит очки канала — бот зачисляет алмазы.
 # TWITCH_BROADCASTER_ID — числовой ID стримера (не ник).

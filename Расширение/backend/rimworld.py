@@ -624,40 +624,42 @@ async def get_my_pawn(username: str):
 async def sync_pawns_bulk(request: Request):
     """Массовая синхронизация пешек (правильная версия)"""
     db = get_db()
+    from config import DEFAULT_CHANNEL_ID  # mod endpoint без JWT, single-tenant до M3
+    channel_id = DEFAULT_CHANNEL_ID
     try:
         pawns_data = await request.json()
         if not isinstance(pawns_data, list):
             return {"status": "error", "message": "Expected list of pawns"}
-            
+
         print(f"📥 Массовая синхронизация: {len(pawns_data)} пешек")
-        
+
         async with aiosqlite.connect(db.db_path) as conn:
             for pawn_data in pawns_data:
                 username = pawn_data.get('username')
                 if not username:
                     continue
-                    
+
                 pawn_name = pawn_data.get('pawn_name', '')
                 is_alive = pawn_data.get('is_alive', True)
                 health = pawn_data.get('health', 1.0)
                 world_id = pawn_data.get('world_id', pawn_data.get('map_id', ''))
                 world_name = pawn_data.get('world_name', '')
-                
+
                 # Обновляем или вставляем пешку
                 await conn.execute("""
-                    INSERT INTO rimworld_pawns (username, pawn_name, is_alive, health, world_id, world_name, last_sync)
-                    VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                    ON CONFLICT(username) DO UPDATE SET
+                    INSERT INTO rimworld_pawns (channel_id, username, pawn_name, is_alive, health, world_id, world_name, last_sync)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    ON CONFLICT(channel_id, username) DO UPDATE SET
                         pawn_name = excluded.pawn_name,
                         is_alive = excluded.is_alive,
                         health = excluded.health,
                         world_id = excluded.world_id,
                         world_name = excluded.world_name,
                         last_sync = CURRENT_TIMESTAMP
-                """, (username, pawn_name, 1 if is_alive else 0, health, world_id, world_name))
-                
+                """, (channel_id, username, pawn_name, 1 if is_alive else 0, health, world_id, world_name))
+
                 # Получаем pawn_id
-                cursor = await conn.execute("SELECT id FROM rimworld_pawns WHERE username = ?", (username,))
+                cursor = await conn.execute("SELECT id FROM rimworld_pawns WHERE channel_id = ? AND username = ?", (channel_id, username))
                 row = await cursor.fetchone()
                 if not row:
                     continue
@@ -1911,6 +1913,8 @@ async def sync_pawn_death(request: Request, _admin: str = Depends(require_admin)
 async def sync_rimworld_state(request: Request):
     """Массовая синхронизация состояния из мода"""
     db = get_db()
+    from config import DEFAULT_CHANNEL_ID  # mod endpoint без JWT, single-tenant до M3
+    channel_id = DEFAULT_CHANNEL_ID
     try:
         data = await request.json()
         pawns = data.get('pawns', [])
@@ -1920,14 +1924,14 @@ async def sync_rimworld_state(request: Request):
                 if not username:
                     continue
                 await conn.execute("""
-                    INSERT INTO rimworld_pawns (username, pawn_name, is_alive, health, last_sync)
-                    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-                    ON CONFLICT(username) DO UPDATE SET
+                    INSERT INTO rimworld_pawns (channel_id, username, pawn_name, is_alive, health, last_sync)
+                    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    ON CONFLICT(channel_id, username) DO UPDATE SET
                         pawn_name=excluded.pawn_name,
                         is_alive=excluded.is_alive,
                         health=excluded.health,
                         last_sync=CURRENT_TIMESTAMP
-                """, (username, p.get('pawn_name',''), 1 if p.get('is_alive',True) else 0, p.get('health',1.0)))
+                """, (channel_id, username, p.get('pawn_name',''), 1 if p.get('is_alive',True) else 0, p.get('health',1.0)))
             await conn.commit()
         return {"status": "ok", "received": len(pawns)}
     except Exception as e:

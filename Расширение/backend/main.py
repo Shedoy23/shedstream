@@ -234,12 +234,12 @@ async def market_expiry_loop():
             now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
             async with db._connect() as conn:
                 cursor = await conn.execute(
-                    "SELECT id, seller, item_name FROM market_listings WHERE expires_at <= ?", (now,)
+                    "SELECT id, seller, item_name, channel_id FROM market_listings WHERE expires_at <= ?", (now,)
                 )
                 expired = await cursor.fetchall()
 
             returned = 0
-            for lid, seller, item_name in expired:
+            for lid, seller, item_name, listing_channel_id in expired:
                 async with db._connect() as conn:
                     try:
                         await conn.execute("BEGIN IMMEDIATE")
@@ -256,9 +256,9 @@ async def market_expiry_loop():
                         )).fetchone()
                         if item_row:
                             await conn.execute("""
-                                INSERT INTO inventory (username, item_id, quantity) VALUES (?, ?, 1)
-                                ON CONFLICT(username, item_id) DO UPDATE SET quantity = quantity + 1
-                            """, (seller, item_row[0]))
+                                INSERT INTO inventory (channel_id, username, item_id, quantity) VALUES (?, ?, ?, 1)
+                                ON CONFLICT(channel_id, username, item_id) DO UPDATE SET quantity = quantity + 1
+                            """, (listing_channel_id, seller, item_row[0]))
                         await conn.commit()
                         returned += 1
                     except Exception:
@@ -505,17 +505,18 @@ class TwitchChatBot(twitch_commands.Bot):
         # Сбрасываем AFK — зритель написал в чат
         bot.update_viewer_chat(username)
         try:
+            from config import DEFAULT_CHANNEL_ID  # M3: thread channel_id from IRC bot context
             async with db._connect() as conn:
                 await conn.execute("""
-                    INSERT INTO viewers (username, last_seen, is_afk)
-                    VALUES (?, datetime('now'), 0)
-                    ON CONFLICT(username) DO UPDATE SET
+                    INSERT INTO viewers (channel_id, username, last_seen, is_afk)
+                    VALUES (?, ?, datetime('now'), 0)
+                    ON CONFLICT(channel_id, username) DO UPDATE SET
                         last_seen = datetime('now'), is_afk = 0
-                """, (username,))
+                """, (DEFAULT_CHANNEL_ID, username))
                 await conn.execute("""
-                    INSERT INTO chat_stats (username, message_length, message_text)
-                    VALUES (?, ?, ?)
-                """, (username, len(text), ''))
+                    INSERT INTO chat_stats (channel_id, username, message_length, message_text)
+                    VALUES (?, ?, ?, ?)
+                """, (DEFAULT_CHANNEL_ID, username, len(text), ''))
                 await conn.commit()
             # Бонус очки за сообщение
             bonus = min(len(text) // 10, 10)

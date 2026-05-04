@@ -333,12 +333,12 @@ async def accept_duel(req: AcceptDuelRequest, request: Request):
             if cur.rowcount == 0:
                 return False
             await conn.execute("""
-                INSERT INTO viewers (username, points, last_seen, join_time, is_afk)
-                VALUES (?, ?, datetime('now'), datetime('now'), 0)
-                ON CONFLICT(username) DO UPDATE SET
+                INSERT INTO viewers (channel_id, username, points, last_seen, join_time, is_afk)
+                VALUES (?, ?, ?, datetime('now'), datetime('now'), 0)
+                ON CONFLICT(channel_id, username) DO UPDATE SET
                     points = points + ?,
                     last_seen = datetime('now')
-            """, (winner.lower(), amount, amount))
+            """, (channel_id, winner.lower(), amount, amount))
             return True
 
         if outcome == "win":

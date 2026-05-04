@@ -449,16 +449,19 @@ class Database:
             row = await cursor.fetchone()
             return row[0] if row else 0
     
-    async def add_points(self, username: str, amount: int):
-        """Начислить очки"""
+    async def add_points(self, username: str, amount: int, channel_id: int = None):
+        """Начислить очки. channel_id опционален пока M3 не протолкнёт его везде."""
+        from config import DEFAULT_CHANNEL_ID
+        if channel_id is None:
+            channel_id = DEFAULT_CHANNEL_ID
         async with self._connect() as db:
             await db.execute("""
-                INSERT INTO viewers (username, points, last_seen, join_time, is_afk)
-                VALUES (?, ?, datetime('now'), datetime('now'), 0)
-                ON CONFLICT(username) DO UPDATE SET
+                INSERT INTO viewers (channel_id, username, points, last_seen, join_time, is_afk)
+                VALUES (?, ?, ?, datetime('now'), datetime('now'), 0)
+                ON CONFLICT(channel_id, username) DO UPDATE SET
                     points = points + ?,
                     last_seen = datetime('now')
-            """, (username.lower(), amount, amount))
+            """, (channel_id, username.lower(), amount, amount))
             await db.commit()
     
     async def remove_points(self, username: str, amount: int) -> bool:
@@ -532,8 +535,11 @@ class Database:
                 for item in items
             ]
     
-    async def give_item(self, username: str, item_name: str, quantity: int = 1):
-        """Выдать предмет"""
+    async def give_item(self, username: str, item_name: str, quantity: int = 1, channel_id: int = None):
+        """Выдать предмет. channel_id опционален пока M3 не протолкнёт его везде."""
+        from config import DEFAULT_CHANNEL_ID
+        if channel_id is None:
+            channel_id = DEFAULT_CHANNEL_ID
         async with self._connect() as db:
             cursor = await db.execute(
                 "SELECT id FROM items WHERE name = ?",
@@ -542,14 +548,14 @@ class Database:
             item_row = await cursor.fetchone()
             if not item_row:
                 return False
-            
+
             item_id = item_row[0]
-            
+
             # Atomic upsert — без SELECT+UPDATE race condition
             await db.execute("""
-                INSERT INTO inventory (username, item_id, quantity) VALUES (?, ?, ?)
-                ON CONFLICT(username, item_id) DO UPDATE SET quantity = quantity + ?
-            """, (username.lower(), item_id, quantity, quantity))
+                INSERT INTO inventory (channel_id, username, item_id, quantity) VALUES (?, ?, ?, ?)
+                ON CONFLICT(channel_id, username, item_id) DO UPDATE SET quantity = quantity + ?
+            """, (channel_id, username.lower(), item_id, quantity, quantity))
             
             await db.commit()
             return True
@@ -979,20 +985,23 @@ class Database:
             return {"current_streak": effective, "max_streak": maximum,
                     "last_stream_id": last_sid}
 
-    async def record_attendance(self, username: str, stream_id: str, minutes: int) -> dict:
+    async def record_attendance(self, username: str, stream_id: str, minutes: int, channel_id: int = None) -> dict:
+        from config import DEFAULT_CHANNEL_ID
+        if channel_id is None:
+            channel_id = DEFAULT_CHANNEL_ID
         username = username.lower()
         async with self._connect() as db:
             await db.execute("""
-                INSERT INTO stream_attendance (username, stream_id, minutes, claimed)
-                VALUES (?, ?, ?, 0)
-                ON CONFLICT(username, stream_id) DO UPDATE SET minutes = MAX(minutes, excluded.minutes)
-            """, (username, stream_id, minutes))
+                INSERT INTO stream_attendance (channel_id, username, stream_id, minutes, claimed)
+                VALUES (?, ?, ?, ?, 0)
+                ON CONFLICT(channel_id, username, stream_id) DO UPDATE SET minutes = MAX(minutes, excluded.minutes)
+            """, (channel_id, username, stream_id, minutes))
 
             # Атомарно выставляем claimed=1 только если ещё не выдавали и порог достигнут
             # WHERE claimed=0 защищает от race condition двойной выдачи
             cur = await db.execute(
-                "UPDATE stream_attendance SET claimed = 1 WHERE username = ? AND stream_id = ? AND claimed = 0 AND minutes >= 15",
-                (username, stream_id))
+                "UPDATE stream_attendance SET claimed = 1 WHERE channel_id = ? AND username = ? AND stream_id = ? AND claimed = 0 AND minutes >= 15",
+                (channel_id, username, stream_id))
             await db.commit()
 
             if cur.rowcount == 0:
@@ -1000,23 +1009,23 @@ class Database:
                 return {"rewarded": False}
 
             cur = await db.execute(
-                "SELECT current_streak, max_streak, last_stream_id FROM stream_streaks WHERE username = ?",
-                (username,))
+                "SELECT current_streak, max_streak, last_stream_id FROM stream_streaks WHERE channel_id = ? AND username = ?",
+                (channel_id, username))
             srow = await cur.fetchone()
 
             if not srow:
                 new_streak, max_streak = 1, 1
                 await db.execute(
-                    "INSERT INTO stream_streaks (username, current_streak, max_streak, last_stream_id) VALUES (?,?,?,?)",
-                    (username, 1, 1, stream_id))
+                    "INSERT INTO stream_streaks (channel_id, username, current_streak, max_streak, last_stream_id) VALUES (?,?,?,?,?)",
+                    (channel_id, username, 1, 1, stream_id))
             else:
                 prev_current, prev_max, last_sid = srow
                 cur2 = await db.execute(
                     """SELECT COUNT(*) FROM stream_sessions s
-                       WHERE s.id != ? AND s.id != ?
-                       AND s.started_at > (SELECT started_at FROM stream_sessions WHERE id = ? LIMIT 1)
-                       AND s.started_at < (SELECT started_at FROM stream_sessions WHERE id = ? LIMIT 1)""",
-                    (last_sid, stream_id, last_sid, stream_id))
+                       WHERE s.channel_id = ? AND s.id != ? AND s.id != ?
+                       AND s.started_at > (SELECT started_at FROM stream_sessions WHERE channel_id = ? AND id = ? LIMIT 1)
+                       AND s.started_at < (SELECT started_at FROM stream_sessions WHERE channel_id = ? AND id = ? LIMIT 1)""",
+                    (channel_id, last_sid, stream_id, channel_id, last_sid, channel_id, stream_id))
                 gap_row = await cur2.fetchone()
                 missed = gap_row[0] if gap_row else 0
 
@@ -1038,13 +1047,13 @@ class Database:
 
                 max_streak = max(prev_max, new_streak)
                 await db.execute(
-                    """INSERT INTO stream_streaks (username, current_streak, max_streak, last_stream_id)
-                       VALUES (?,?,?,?)
-                       ON CONFLICT(username) DO UPDATE SET
+                    """INSERT INTO stream_streaks (channel_id, username, current_streak, max_streak, last_stream_id)
+                       VALUES (?,?,?,?,?)
+                       ON CONFLICT(channel_id, username) DO UPDATE SET
                            current_streak = excluded.current_streak,
                            max_streak = excluded.max_streak,
                            last_stream_id = excluded.last_stream_id""",
-                    (username, new_streak, max_streak, stream_id))
+                    (channel_id, username, new_streak, max_streak, stream_id))
 
             reward = 1000 * new_streak
             await db.execute(
@@ -1054,7 +1063,7 @@ class Database:
             return {"rewarded": True, "reward": reward,
                     "current_streak": new_streak, "max_streak": max_streak}
 
-    async def register_stream_session(self, stream_id: str):
+    async def register_stream_session(self, stream_id: str, channel_id: int = None):
         """Зарегистрировать стрим (старт или возобновление).
 
         - Закрывает любые висящие другие сессии (ended_at=NULL) — страховка
@@ -1063,29 +1072,35 @@ class Database:
           перерыва), сбрасывает ended_at=NULL — стрим снова «идёт», зрители
           могут его засчитать, get_streak не считает его пропуском.
         """
+        from config import DEFAULT_CHANNEL_ID
+        if channel_id is None:
+            channel_id = DEFAULT_CHANNEL_ID
         async with self._connect() as db:
             await db.execute(
                 "UPDATE stream_sessions SET ended_at = datetime('now') "
-                "WHERE id != ? AND ended_at IS NULL",
-                (stream_id,))
+                "WHERE channel_id = ? AND id != ? AND ended_at IS NULL",
+                (channel_id, stream_id))
             # UPSERT: новая запись ИЛИ сброс ended_at у существующей.
             await db.execute(
-                "INSERT INTO stream_sessions (id, ended_at) VALUES (?, NULL) "
-                "ON CONFLICT(id) DO UPDATE SET ended_at = NULL",
-                (stream_id,))
+                "INSERT INTO stream_sessions (channel_id, id, ended_at) VALUES (?, ?, NULL) "
+                "ON CONFLICT(channel_id, id) DO UPDATE SET ended_at = NULL",
+                (channel_id, stream_id))
             await db.commit()
 
-    async def end_stream_session(self, stream_id: str):
+    async def end_stream_session(self, stream_id: str, channel_id: int = None):
         """Пометить стрим как завершённый. Вызывается из reward_points_loop
         при переходе is_live: True→False. Без этого «пропущенный» стрим
         выглядит как «ещё идущий» и не сжигает стрик зрителей."""
         if not stream_id:
             return
+        from config import DEFAULT_CHANNEL_ID
+        if channel_id is None:
+            channel_id = DEFAULT_CHANNEL_ID
         async with self._connect() as db:
             await db.execute(
                 "UPDATE stream_sessions SET ended_at = datetime('now') "
-                "WHERE id = ? AND ended_at IS NULL",
-                (stream_id,))
+                "WHERE channel_id = ? AND id = ? AND ended_at IS NULL",
+                (channel_id, stream_id))
             await db.commit()
 
     async def get_total_watch_hours(self, username: str) -> float:

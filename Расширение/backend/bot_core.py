@@ -151,14 +151,19 @@ class BotCore:
         self.viewers_last_active[username] = datetime.now()
         self._bonus_cache.invalidate(f"bonus_{username}")
 
-    async def touch_viewer(self, username: str):
+    async def touch_viewer(self, username: str, channel_id: int = None):
         """Единая точка для любого действия пользователя (спин/ставка/покупка/…).
 
         Пишет в память И в БД (upsert last_seen, is_afk=0). Используется
         из action-эндпоинтов — там нет собственного INSERT INTO viewers.
+
+        channel_id опционален пока M3 не протолкнёт его из JWT во все вызовы.
         """
         if not username:
             return
+        from config import DEFAULT_CHANNEL_ID
+        if channel_id is None:
+            channel_id = DEFAULT_CHANNEL_ID
         username = username.lower()
         now = datetime.now()
         self.viewers_last_active[username] = now
@@ -166,12 +171,12 @@ class BotCore:
         try:
             async with self.db._connect() as conn:
                 await conn.execute("""
-                    INSERT INTO viewers (username, last_seen, is_afk, join_time)
-                    VALUES (?, datetime('now'), 0, datetime('now'))
-                    ON CONFLICT(username) DO UPDATE SET
+                    INSERT INTO viewers (channel_id, username, last_seen, is_afk, join_time)
+                    VALUES (?, ?, datetime('now'), 0, datetime('now'))
+                    ON CONFLICT(channel_id, username) DO UPDATE SET
                         last_seen = datetime('now'),
                         is_afk    = 0
-                """, (username,))
+                """, (channel_id, username))
                 await conn.commit()
         except Exception as e:
             logger.debug("touch_viewer db write failed for %s: %s", username, e)

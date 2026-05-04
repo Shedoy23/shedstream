@@ -150,13 +150,13 @@ async def market_buy_item(request: Request):
 
             await conn.execute(
                 """
-                INSERT INTO viewers (username, points, last_seen, join_time, is_afk)
-                VALUES (?, ?, datetime('now'), datetime('now'), 0)
-                ON CONFLICT(username) DO UPDATE SET
+                INSERT INTO viewers (channel_id, username, points, last_seen, join_time, is_afk)
+                VALUES (?, ?, ?, datetime('now'), datetime('now'), 0)
+                ON CONFLICT(channel_id, username) DO UPDATE SET
                     points = points + excluded.points,
                     last_seen = datetime('now')
                 """,
-                (seller, price))
+                (channel_id, seller, price))
 
             cursor2  = await conn.execute("SELECT id FROM items WHERE name = ?", (item_name,))
             item_row = await cursor2.fetchone()
@@ -165,9 +165,9 @@ async def market_buy_item(request: Request):
                 return {"success": False, "message": "Предмет из лота не найден"}
 
             await conn.execute(
-                "INSERT INTO inventory (username, item_id, quantity) VALUES (?, ?, 1) "
-                "ON CONFLICT(username, item_id) DO UPDATE SET quantity = quantity + 1",
-                (sender, item_row[0]))
+                "INSERT INTO inventory (channel_id, username, item_id, quantity) VALUES (?, ?, ?, 1) "
+                "ON CONFLICT(channel_id, username, item_id) DO UPDATE SET quantity = quantity + 1",
+                (channel_id, sender, item_row[0]))
 
             del_cur = await conn.execute(
                 "DELETE FROM market_listings WHERE id = ?", (lid,))
@@ -214,9 +214,9 @@ async def market_cancel_listing(request: Request):
         item_row  = await cursor2.fetchone()
         if item_row:
             await conn.execute("""
-                INSERT INTO inventory (username, item_id, quantity) VALUES (?, ?, 1)
-                ON CONFLICT(username, item_id) DO UPDATE SET quantity = quantity + 1
-            """, (sender, item_row[0]))
+                INSERT INTO inventory (channel_id, username, item_id, quantity) VALUES (?, ?, ?, 1)
+                ON CONFLICT(channel_id, username, item_id) DO UPDATE SET quantity = quantity + 1
+            """, (channel_id, sender, item_row[0]))
         await conn.execute("DELETE FROM market_listings WHERE id = ?", (listing_id,))
         await conn.commit()
 

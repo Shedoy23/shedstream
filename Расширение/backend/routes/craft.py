@@ -43,7 +43,9 @@ async def craft_item(request: Request):
     cost, result_name, emoji = recipe["cost"], recipe["result"], recipe["emoji"]
     db  = get_db()
     bot = get_bot()
-    await bot.touch_viewer(username)
+    from config import DEFAULT_CHANNEL_ID  # craft endpoint без JWT context, single-tenant до M3
+    channel_id = DEFAULT_CHANNEL_ID
+    await bot.touch_viewer(username, channel_id)
 
     try:
         async with aiosqlite.connect(db.db_path) as conn:
@@ -92,24 +94,24 @@ async def craft_item(request: Request):
                     await conn.execute("ROLLBACK")
                     return {"success": False, "message": "Результат не найден в базе"}
                 await conn.execute("""
-                    INSERT INTO inventory (username, item_id, quantity) VALUES (?,?,1)
-                    ON CONFLICT(username, item_id) DO UPDATE SET quantity=quantity+1
-                """, (username, res[0]))
+                    INSERT INTO inventory (channel_id, username, item_id, quantity) VALUES (?,?,?,1)
+                    ON CONFLICT(channel_id, username, item_id) DO UPDATE SET quantity=quantity+1
+                """, (channel_id, username, res[0]))
                 await conn.execute("""
-                    INSERT INTO craft_stats (username, item_type, crafted_count)
-                    VALUES (?, ?, 1)
-                    ON CONFLICT(username, item_type) DO UPDATE SET crafted_count = crafted_count + 1
-                """, (username, item_name))
+                    INSERT INTO craft_stats (channel_id, username, item_type, crafted_count)
+                    VALUES (?, ?, ?, 1)
+                    ON CONFLICT(channel_id, username, item_type) DO UPDATE SET crafted_count = crafted_count + 1
+                """, (channel_id, username, item_name))
                 await conn.commit()
                 asyncio.create_task(bot.check_and_unlock_achievements(username, "craft"))
                 return {"success": True, "chance": success_chance, "rolled": roll,
                         "message": f"✅ Успех! Скрафтил {emoji} {result_name}! (шанс {success_chance}%)"}
             else:
                 await conn.execute("""
-                    INSERT INTO craft_stats (username, item_type, crafted_count)
-                    VALUES (?, ?, 1)
-                    ON CONFLICT(username, item_type) DO UPDATE SET crafted_count = crafted_count + 1
-                """, (username, item_name))
+                    INSERT INTO craft_stats (channel_id, username, item_type, crafted_count)
+                    VALUES (?, ?, ?, 1)
+                    ON CONFLICT(channel_id, username, item_type) DO UPDATE SET crafted_count = crafted_count + 1
+                """, (channel_id, username, item_name))
                 await conn.commit()
                 return {"success": False, "chance": success_chance, "rolled": roll,
                         "message": f"❌ Крафт провалился! Материалы потеряны... (шанс был {success_chance}%)"}

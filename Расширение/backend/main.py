@@ -510,23 +510,24 @@ class TwitchChatBot(twitch_commands.Bot):
         # Сбрасываем AFK — зритель написал в чат
         bot.update_viewer_chat(username)
         try:
-            from config import DEFAULT_CHANNEL_ID  # M3: thread channel_id from IRC bot context
+            from dependencies import resolve_channel_id  # IRC bot — TODO M3.1: брать channel.id из twitchio
+            channel_id = resolve_channel_id()
             async with db._connect() as conn:
                 await conn.execute("""
                     INSERT INTO viewers (channel_id, username, last_seen, is_afk)
                     VALUES (?, ?, datetime('now'), 0)
                     ON CONFLICT(channel_id, username) DO UPDATE SET
                         last_seen = datetime('now'), is_afk = 0
-                """, (DEFAULT_CHANNEL_ID, username))
+                """, (channel_id, username))
                 await conn.execute("""
                     INSERT INTO chat_stats (channel_id, username, message_length, message_text)
                     VALUES (?, ?, ?, ?)
-                """, (DEFAULT_CHANNEL_ID, username, len(text), ''))
+                """, (channel_id, username, len(text), ''))
                 await conn.commit()
             # Бонус очки за сообщение
             bonus = min(len(text) // 10, 10)
             if bonus > 0:
-                await db.add_points(username, bonus)
+                await db.add_points(username, bonus, channel_id=channel_id)
             # Обновляем чат-квесты
             await bot._update_quest_progress(username, 'chat_messages_10', 1)
             await bot._update_quest_progress(username, 'chat_messages_25', 1)
@@ -577,8 +578,8 @@ class TwitchChatBot(twitch_commands.Bot):
                 return
 
             # Проверяем что уже не выдавали эту награду за этот стрик (BEGIN IMMEDIATE — атомарно)
-            from config import DEFAULT_CHANNEL_ID  # IRC USERNOTICE без JWT
-            channel_id = DEFAULT_CHANNEL_ID
+            from dependencies import resolve_channel_id  # IRC USERNOTICE — TODO M3.1: брать channel.id из twitchio
+            channel_id = resolve_channel_id()
             async with db._connect() as conn:
                 await conn.execute("BEGIN IMMEDIATE")
                 cursor = await conn.execute(
@@ -728,13 +729,14 @@ async def eventsub_channel_points(request: Request):
         reward_title = event.get("reward", {}).get("title", "")
         redemption_id = event.get("id", "")
         # broadcaster_user_id из payload — это и есть channel_id для multi-tenant.
-        # Fallback на DEFAULT_CHANNEL_ID если EventSub payload без broadcaster
+        # Fallback через resolve_channel_id() если EventSub payload без broadcaster
         # (теоретически невозможно, но defensive).
-        from config import DEFAULT_CHANNEL_ID
+        from dependencies import resolve_channel_id
         try:
-            channel_id = int(event.get("broadcaster_user_id") or DEFAULT_CHANNEL_ID)
+            raw = event.get("broadcaster_user_id")
+            channel_id = int(raw) if raw else resolve_channel_id()
         except (TypeError, ValueError):
-            channel_id = DEFAULT_CHANNEL_ID
+            channel_id = resolve_channel_id()
 
         rewards_cfg = CHANNEL_POINTS_CONFIG.get('rewards', {})
         reward_cfg  = rewards_cfg.get(reward_title)

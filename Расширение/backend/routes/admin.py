@@ -177,12 +177,13 @@ async def admin_give_item(request: Request, _admin: str = Depends(require_admin)
         item   = await cursor.fetchone()
         if not item:
             return {"success": False, "message": "Предмет не найден"}
-        from config import DEFAULT_CHANNEL_ID  # admin endpoint, single-tenant до M3
+        from dependencies import resolve_channel_id  # admin endpoint без JWT — TODO M4: per-channel admin UI
+        channel_id = resolve_channel_id()
         await conn.execute("""
             INSERT INTO inventory (channel_id, username, item_id, quantity)
             VALUES (?, ?, ?, ?)
             ON CONFLICT(channel_id, username, item_id) DO UPDATE SET quantity = quantity + ?
-        """, (DEFAULT_CHANNEL_ID, username, item_id, quantity, quantity))
+        """, (channel_id, username, item_id, quantity, quantity))
         await conn.commit()
     return {"success": True, "message": f"Выдано {item[0]} x{quantity} → {username}"}
 

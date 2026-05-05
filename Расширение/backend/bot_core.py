@@ -11,6 +11,7 @@ import os
 logger = logging.getLogger('rimlink.bot')
 
 from database import Database
+from dependencies import resolve_channel_id
 from event_manager import EventManager
 from config import (
     ACTIVE_WINDOW,
@@ -161,9 +162,7 @@ class BotCore:
         """
         if not username:
             return
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         username = username.lower()
         now = datetime.now()
         self.viewers_last_active[username] = now
@@ -467,9 +466,7 @@ class BotCore:
     
     async def _get_viewer_bonus(self, username: str, channel_id: int = None) -> int:
         """Получить бонус от предметов"""
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         cache_key = f"bonus_{channel_id}_{username}"
         cached = self._bonus_cache.get(cache_key)
         if cached is not None:
@@ -484,9 +481,7 @@ class BotCore:
     # ===== ОБНОВЛЕНИЕ КВЕСТОВ (УЛУЧШЕННАЯ ВЕРСИЯ) =====
     async def _update_quest_progress(self, username: str, quest_type: str, increment: int, channel_id: int = None):
         """Обновить прогресс квеста с поддержкой всех типов"""
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         today = date.today().isoformat()
         username = username.lower()
 
@@ -546,9 +541,7 @@ class BotCore:
 
     async def _complete_quest(self, username: str, quest_type: str, reward_points: int, reward_item: Optional[str], channel_id: int = None):
         """Выдать награду за завершённый квест"""
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         # Начисляем очки
         await self.db.add_points(username, reward_points, channel_id=channel_id)
 
@@ -567,9 +560,7 @@ class BotCore:
 
     async def update_chat_quest_progress(self, username: str, message_length: int, channel_id: int = None):
         """Обновить прогресс чат-квестов"""
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         # Защита от спама (не чаще раза в 2 секунды)
         now = datetime.now()
         last_update = self.last_chat_update.get(username, datetime.min)
@@ -597,9 +588,7 @@ class BotCore:
 
     async def update_activity_quest_progress(self, username: str, watch_time: int, clicks: int = 0, channel_id: int = None):
         """Обновить прогресс квестов активности"""
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         # Защита от спама (не чаще раза в 10 секунд)
         now = datetime.now()
         last_update = self.last_activity_update.get(username, datetime.min)
@@ -638,9 +627,13 @@ class BotCore:
             active = [(r[0], r[1]) for r in rows if r[1].lower() not in DROP_BLACKLIST]
         except Exception as e:
             logger.warning("Drop: чтение активных из БД упало: %s", e)
-            from config import DEFAULT_CHANNEL_ID
+            # Fallback in-memory cache не знает channel_id зрителей. resolve_channel_id()
+            # без аргумента упадёт в DEFAULT_CHANNEL_ID. В multi-tenant scenario
+            # этот fallback всё равно отдаст drop одному каналу (не идеально),
+            # но это всего лишь crash-recovery — нормальный путь работает корректно.
+            fallback_cid = resolve_channel_id()
             active = [
-                (DEFAULT_CHANNEL_ID, u) for u, t in self.viewers_last_active.items()
+                (fallback_cid, u) for u, t in self.viewers_last_active.items()
                 if t > cutoff and u.lower() not in DROP_BLACKLIST
             ]
         if not active:

@@ -5,6 +5,7 @@ from datetime import datetime, date
 from typing import Optional, List, Dict
 
 from db_pool import DBPool
+from dependencies import resolve_channel_id
 
 class Database:
     def __init__(self, db_path="viewers.db"):
@@ -441,9 +442,7 @@ class Database:
     # ===== ОЧКИ =====
     async def get_points(self, username: str, channel_id: int = None) -> int:
         """Получить очки пользователя. channel_id с fallback DEFAULT_CHANNEL_ID до M3.1."""
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         async with self._connect() as db:
             cursor = await db.execute(
                 "SELECT points FROM viewers WHERE channel_id = ? AND username = ?",
@@ -454,9 +453,7 @@ class Database:
     
     async def add_points(self, username: str, amount: int, channel_id: int = None):
         """Начислить очки. channel_id опционален пока M3 не протолкнёт его везде."""
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         async with self._connect() as db:
             await db.execute("""
                 INSERT INTO viewers (channel_id, username, points, last_seen, join_time, is_afk)
@@ -469,9 +466,7 @@ class Database:
     
     async def remove_points(self, username: str, amount: int, channel_id: int = None) -> bool:
         """Списать очки. Atomic — защита от race condition при одновременных списаниях."""
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         async with self._connect() as db:
             # Одним UPDATE: списываем только если points достаточно
             cursor = await db.execute(
@@ -520,9 +515,7 @@ class Database:
     # ===== ИНВЕНТАРЬ =====
     async def get_inventory(self, username: str, channel_id: int = None):
         """Получить инвентарь"""
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         async with self._connect() as db:
             cursor = await db.execute("""
                 SELECT i.emoji, i.display_name, i.value, i.rarity, inv.quantity
@@ -546,9 +539,7 @@ class Database:
     
     async def give_item(self, username: str, item_name: str, quantity: int = 1, channel_id: int = None):
         """Выдать предмет. channel_id опционален пока M3 не протолкнёт его везде."""
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         async with self._connect() as db:
             cursor = await db.execute(
                 "SELECT id FROM items WHERE name = ?",
@@ -574,9 +565,7 @@ class Database:
         
     async def get_user_level(self, username: str, channel_id: int = None) -> dict:
         """Расчёт уровня: 1 минута = 1 EXP. Порог растёт каждые 5 уровней."""
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         async with self._connect() as db:
             cur = await db.execute(
                 "SELECT COALESCE(SUM(watch_time), 0) FROM activity_stats WHERE channel_id = ? AND username = ?",
@@ -627,9 +616,7 @@ class Database:
         
         
     async def get_craft_count(self, username: str, item_type: str, channel_id: int = None) -> int:
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         async with self._connect() as db:
             c = await db.execute("SELECT crafted_count FROM craft_stats WHERE channel_id = ? AND username=? AND item_type=?",
                                  (channel_id, username.lower(), item_type))
@@ -644,9 +631,7 @@ class Database:
     # ===== КВЕСТЫ =====
     async def get_quests(self, username: str, channel_id: int = None):
         """Получить квесты с поддержкой новых типов"""
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         today = date.today().isoformat()
 
         async with self._connect() as db:
@@ -716,9 +701,7 @@ class Database:
     # ===== СТАТИСТИКА АКТИВНОСТИ =====
     async def add_activity(self, username: str, watch_time: int, clicks: int = 0, moves: int = 0, channel_id: int = None):
         """Добавить запись об активности"""
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         async with self._connect() as db:
             await db.execute("""
                 INSERT INTO activity_stats (channel_id, username, watch_time, active_clicks, active_moves)
@@ -728,9 +711,7 @@ class Database:
 
     async def get_today_activity(self, username: str, channel_id: int = None) -> dict:
         """Получить активность за сегодня"""
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         today = date.today().isoformat()
 
         async with self._connect() as db:
@@ -762,9 +743,7 @@ class Database:
     
     async def get_activity_stats(self, username: str, days: int = 7, channel_id: int = None) -> List[dict]:
         """Получить статистику активности за последние N дней"""
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         async with self._connect() as db:
             cursor = await db.execute("""
                 SELECT
@@ -791,9 +770,7 @@ class Database:
     # ===== СТАТИСТИКА ЧАТА =====
     async def add_chat_message(self, username: str, length: int, text: Optional[str] = None, channel_id: int = None):
         """Добавить запись о сообщении в чате. Текст не сохраняем — только длину."""
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         async with self._connect() as db:
             await db.execute("""
                 INSERT INTO chat_stats (channel_id, username, message_length, message_text)
@@ -803,9 +780,7 @@ class Database:
 
     async def get_today_chat_stats(self, username: str, channel_id: int = None) -> dict:
         """Получить статистику чата за сегодня"""
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         today = date.today().isoformat()
 
         async with self._connect() as db:
@@ -836,9 +811,7 @@ class Database:
     
     async def get_chat_stats(self, username: str, days: int = 7, channel_id: int = None) -> List[dict]:
         """Получить статистику чата за последние N дней"""
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         async with self._connect() as db:
             cursor = await db.execute("""
                 SELECT
@@ -865,9 +838,7 @@ class Database:
     # ===== КОМБИНИРОВАННАЯ СТАТИСТИКА =====
     async def get_daily_summary(self, username: str, channel_id: int = None) -> dict:
         """Получить сводку за сегодня"""
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         activity = await self.get_today_activity(username, channel_id=channel_id)
         chat = await self.get_today_chat_stats(username, channel_id=channel_id)
 
@@ -880,9 +851,7 @@ class Database:
 
     async def get_leaderboard(self, metric: str = "points", limit: int = 10, channel_id: int = None) -> List[dict]:
         """Получить таблицу лидеров по разным метрикам"""
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         async with self._connect() as db:
             if metric == "points":
                 cursor = await db.execute("""
@@ -918,9 +887,7 @@ class Database:
     # ===== КОЛОНИСТЫ =====
     async def get_colonists(self, username: str, channel_id: int = None):
         """Получить колонистов"""
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         async with self._connect() as db:
             cursor = await db.execute("""
                 SELECT name, is_alive,
@@ -952,9 +919,7 @@ class Database:
                      "emoji": r[3], "reward": r[4]} for r in rows]
 
     async def get_user_achievements(self, username: str, channel_id: int = None) -> list:
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         async with self._connect() as db:
             cur = await db.execute(
                 "SELECT achievement_key, unlocked_at FROM user_achievements WHERE channel_id = ? AND username = ?",
@@ -963,9 +928,7 @@ class Database:
             return [{"key": r[0], "unlocked_at": r[1]} for r in rows]
 
     async def unlock_achievement(self, username: str, key: str, channel_id: int = None):
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         username = username.lower()
         async with self._connect() as db:
             cur = await db.execute(
@@ -1009,9 +972,7 @@ class Database:
         Текущий (незавершённый) стрим не считается пропуском — зритель ещё
         может его засчитать, набрав 15 мин просмотра.
         """
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         username = username.lower()
         async with self._connect() as db:
             cur = await db.execute(
@@ -1042,9 +1003,7 @@ class Database:
                     "last_stream_id": last_sid}
 
     async def record_attendance(self, username: str, stream_id: str, minutes: int, channel_id: int = None) -> dict:
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         username = username.lower()
         async with self._connect() as db:
             await db.execute("""
@@ -1128,9 +1087,7 @@ class Database:
           перерыва), сбрасывает ended_at=NULL — стрим снова «идёт», зрители
           могут его засчитать, get_streak не считает его пропуском.
         """
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         async with self._connect() as db:
             await db.execute(
                 "UPDATE stream_sessions SET ended_at = datetime('now') "
@@ -1149,9 +1106,7 @@ class Database:
         выглядит как «ещё идущий» и не сжигает стрик зрителей."""
         if not stream_id:
             return
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         async with self._connect() as db:
             await db.execute(
                 "UPDATE stream_sessions SET ended_at = datetime('now') "
@@ -1160,9 +1115,7 @@ class Database:
             await db.commit()
 
     async def get_total_watch_hours(self, username: str, channel_id: int = None) -> float:
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         async with self._connect() as db:
             cur = await db.execute(
                 "SELECT SUM(minutes) FROM stream_attendance WHERE channel_id = ? AND username = ?",
@@ -1174,9 +1127,7 @@ class Database:
     # ===== СТАТИСТИКА (общая) =====
     async def get_stats(self, channel_id: int = None):
         """Общая статистика для одного канала."""
-        from config import DEFAULT_CHANNEL_ID
-        if channel_id is None:
-            channel_id = DEFAULT_CHANNEL_ID
+        channel_id = resolve_channel_id(channel_id)
         async with self._connect() as db:
             cursor = await db.execute(
                 "SELECT COUNT(*) FROM viewers WHERE channel_id = ? AND is_afk = 0",

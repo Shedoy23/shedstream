@@ -10,13 +10,46 @@ import os
 import secrets
 import time as _time
 from collections import defaultdict
+from contextvars import ContextVar
 from typing import Optional, Tuple
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from auth import verify_twitch_jwt
-from config import LOGIN_ATTEMPT_TTL, sanitize_username, validate_username
+from config import DEFAULT_CHANNEL_ID, LOGIN_ATTEMPT_TTL, sanitize_username, validate_username
+
+# ── Multi-tenant request context ──────────────────────────────────────────────
+# ContextVar автоматически пропагируется через `await` в рамках одной asyncio-task'и
+# и копируется в child task'и. Routes вызывают require_jwt_user / require_jwt_channel
+# в начале handler'а — это устанавливает channel_id в контекст. Все async DB-вызовы
+# дальше по цепочке (включая asyncio.create_task(...) для achievements и пр.)
+# автоматически видят правильный channel_id без явного проброса.
+#
+# Background loops (reward_points_loop, drop_loop, market_expiry_loop) НЕ ходят через
+# JWT — они передают channel_id явным параметром в db-helpers, что переопределяет
+# контекст-фоллбэк.
+_current_channel_id: ContextVar[Optional[int]] = ContextVar('current_channel_id', default=None)
+
+
+def resolve_channel_id(channel_id: Optional[int] = None) -> int:
+    """Разрешить channel_id для DB-helper.
+
+    Приоритет:
+      1. Явный параметр (background loops, EventSub)
+      2. ContextVar (установленный require_jwt_user / require_jwt_channel в JWT-routes)
+      3. DEFAULT_CHANNEL_ID (single-tenant fallback из config.py — TODO M4 убрать)
+
+    Это та точка через которую идёт ВЕСЬ выбор channel_id в коде. Если меняется
+    политика fallback'а (например, M4 добавит channels-registry и потребует
+    явный регистрант) — меняется только эта функция.
+    """
+    if channel_id is not None and channel_id > 0:
+        return channel_id
+    ctx_value = _current_channel_id.get()
+    if ctx_value is not None and ctx_value > 0:
+        return ctx_value
+    return DEFAULT_CHANNEL_ID
 
 # ── Shared state ──────────────────────────────────────────────────────────────
 _db  = None
@@ -80,6 +113,10 @@ def require_jwt_user(request: Request) -> Optional[Tuple[str, int]]:
         return None
     if channel_id <= 0:
         return None
+    # Кладём channel_id в контекст текущей request-task'и — все async db-вызовы
+    # дальше по цепочке (включая create_task(...) child'ов) автоматически
+    # увидят его через resolve_channel_id() без явного проброса.
+    _current_channel_id.set(channel_id)
     return (login, channel_id)
 
 
@@ -105,6 +142,8 @@ def require_jwt_channel(request: Request) -> Optional[int]:
         return None
     if channel_id <= 0:
         return None
+    # См. require_jwt_user — устанавливаем channel_id в context для авто-проброса.
+    _current_channel_id.set(channel_id)
     return channel_id
 
 # ── Rate limiting ─────────────────────────────────────────────────────────────

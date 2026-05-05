@@ -624,8 +624,8 @@ async def get_my_pawn(username: str):
 async def sync_pawns_bulk(request: Request):
     """Массовая синхронизация пешек (правильная версия)"""
     db = get_db()
-    from config import DEFAULT_CHANNEL_ID  # mod endpoint без JWT, single-tenant до M3
-    channel_id = DEFAULT_CHANNEL_ID
+    from dependencies import resolve_channel_id  # mod endpoint без JWT — TODO M4: HMAC + явный channel_id из мода
+    channel_id = resolve_channel_id()
     try:
         pawns_data = await request.json()
         if not isinstance(pawns_data, list):
@@ -1913,8 +1913,8 @@ async def sync_pawn_death(request: Request, _admin: str = Depends(require_admin)
 async def sync_rimworld_state(request: Request):
     """Массовая синхронизация состояния из мода"""
     db = get_db()
-    from config import DEFAULT_CHANNEL_ID  # mod endpoint без JWT, single-tenant до M3
-    channel_id = DEFAULT_CHANNEL_ID
+    from dependencies import resolve_channel_id  # mod endpoint без JWT — TODO M4: HMAC + явный channel_id из мода
+    channel_id = resolve_channel_id()
     try:
         data = await request.json()
         pawns = data.get('pawns', [])

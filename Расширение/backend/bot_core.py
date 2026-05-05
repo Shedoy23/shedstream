@@ -376,7 +376,7 @@ class BotCore:
             async with aiosqlite.connect(self.db.db_path) as conn:
                 cursor = await conn.execute(
                     """
-                    SELECT username,
+                    SELECT channel_id, username,
                            CAST((julianday('now') - julianday(last_seen)) * 86400 AS INTEGER) AS age_sec
                     FROM   viewers
                     WHERE  last_seen >= datetime('now', ?)
@@ -407,14 +407,14 @@ class BotCore:
 
         # 3. Классификация + начисление.
         active_count = reduced_count = 0
-        for username, age_sec in rows:
+        for channel_id, username, age_sec in rows:
             if age_sec >= REDUCED_WINDOW:
                 # защита от граничного случая (должно быть отфильтровано WHERE)
                 continue
 
             # Бонусы от инвентаря и уровня
-            item_bonus = await self._get_viewer_bonus(username)
-            level_data = await self.db.get_user_level(username)
+            item_bonus = await self._get_viewer_bonus(username, channel_id)
+            level_data = await self.db.get_user_level(username, channel_id=channel_id)
             level_info = self.db.get_level_info(level_data['level'])
             level_pct  = level_info.get('bonus_pct', 0)
 
@@ -430,7 +430,7 @@ class BotCore:
                 total_points //= 2
                 reduced_count += 1
 
-            await self.db.add_points(username, total_points)
+            await self.db.add_points(username, total_points, channel_id=channel_id)
 
             # Квесты «сколько минут посмотрено» тикаем только для активных,
             # чтобы AFK ×½ не засчитывало полноценное время (спорно, но
@@ -438,7 +438,7 @@ class BotCore:
             # статус reduced и так де-факто AFK).
             if status == "active":
                 for quest in WATCH_TIME_QUESTS:
-                    await self._update_quest_progress(username, quest, 1)
+                    await self._update_quest_progress(username, quest, 1, channel_id=channel_id)
 
         # 4. Синхронизация is_afk в БД — чтобы admin view был честным.
         #    active/reduced → is_afk=0 (онлайн в какой-то форме);
@@ -465,29 +465,35 @@ class BotCore:
                 f"reduced={reduced_count} (50%)"
             )
     
-    async def _get_viewer_bonus(self, username: str) -> int:
+    async def _get_viewer_bonus(self, username: str, channel_id: int = None) -> int:
         """Получить бонус от предметов"""
-        cache_key = f"bonus_{username}"
+        from config import DEFAULT_CHANNEL_ID
+        if channel_id is None:
+            channel_id = DEFAULT_CHANNEL_ID
+        cache_key = f"bonus_{channel_id}_{username}"
         cached = self._bonus_cache.get(cache_key)
         if cached is not None:
             return cached
-        
-        inventory = await self.db.get_inventory(username)
+
+        inventory = await self.db.get_inventory(username, channel_id=channel_id)
         bonus = sum(item['bonus'] * item['quantity'] for item in inventory)
-        
+
         self._bonus_cache.set(cache_key, bonus)
         return bonus
-    
+
     # ===== ОБНОВЛЕНИЕ КВЕСТОВ (УЛУЧШЕННАЯ ВЕРСИЯ) =====
-    async def _update_quest_progress(self, username: str, quest_type: str, increment: int):
+    async def _update_quest_progress(self, username: str, quest_type: str, increment: int, channel_id: int = None):
         """Обновить прогресс квеста с поддержкой всех типов"""
+        from config import DEFAULT_CHANNEL_ID
+        if channel_id is None:
+            channel_id = DEFAULT_CHANNEL_ID
         today = date.today().isoformat()
         username = username.lower()
 
         async with aiosqlite.connect(self.db.db_path) as conn:
             cursor = await conn.execute(
-                "SELECT id, current_value, target_value, completed_at FROM quests WHERE username = ? AND quest_type = ? AND day_date = ?",
-                (username, quest_type, today)
+                "SELECT id, current_value, target_value, completed_at FROM quests WHERE channel_id = ? AND username = ? AND quest_type = ? AND day_date = ?",
+                (channel_id, username, quest_type, today)
             )
             row = await cursor.fetchone()
 
@@ -503,14 +509,14 @@ class BotCore:
 
                 await conn.execute("""
                     INSERT INTO quests
-                    (username, quest_type, target_value, current_value, reward_points, reward_item_id, day_date)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (username, quest_type, target, increment, reward_points, None, today))
+                    (channel_id, username, quest_type, target_value, current_value, reward_points, reward_item_id, day_date)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (channel_id, username, quest_type, target, increment, reward_points, None, today))
                 await conn.commit()
 
                 # Проверяем, не завершился ли сразу
                 if increment >= target:
-                    await self._complete_quest(username, quest_type, reward_points, reward_item)
+                    await self._complete_quest(username, quest_type, reward_points, reward_item, channel_id=channel_id)
                 return
 
             quest_id, current, target, completed = row
@@ -533,68 +539,77 @@ class BotCore:
                     (quest_id,)
                 )
                 await conn.commit()
-                await self._complete_quest(username, quest_type, reward_points, reward_item)
+                await self._complete_quest(username, quest_type, reward_points, reward_item, channel_id=channel_id)
                 logger.info("Квест %s завершён для @%s", quest_type, username)
             else:
                 await conn.commit()
-    
-    async def _complete_quest(self, username: str, quest_type: str, reward_points: int, reward_item: Optional[str]):
+
+    async def _complete_quest(self, username: str, quest_type: str, reward_points: int, reward_item: Optional[str], channel_id: int = None):
         """Выдать награду за завершённый квест"""
+        from config import DEFAULT_CHANNEL_ID
+        if channel_id is None:
+            channel_id = DEFAULT_CHANNEL_ID
         # Начисляем очки
-        await self.db.add_points(username, reward_points)
-        
+        await self.db.add_points(username, reward_points, channel_id=channel_id)
+
         # Выдаём предмет, если есть
         if reward_item:
-            await self.db.give_item(username, reward_item)
+            await self.db.give_item(username, reward_item, channel_id=channel_id)
             logger.info("Предмет %s выдан @%s за квест %s", reward_item, username, quest_type)
-    
+
     # ===== СПЕЦИАЛИЗИРОВАННЫЕ МЕТОДЫ ДЛЯ КВЕСТОВ =====
-    async def _update_quests_by_type(self, username: str, quest_type: str, increment: int):
+    async def _update_quests_by_type(self, username: str, quest_type: str, increment: int, channel_id: int = None):
         """Обновить все квесты указанного типа"""
         for quest in QUEST_ORDER:
             quest_config = QUESTS_CONFIG.get(quest)
             if quest_config and quest_config.get('type') == quest_type:
-                await self._update_quest_progress(username, quest, increment)
+                await self._update_quest_progress(username, quest, increment, channel_id=channel_id)
 
-    async def update_chat_quest_progress(self, username: str, message_length: int):
+    async def update_chat_quest_progress(self, username: str, message_length: int, channel_id: int = None):
         """Обновить прогресс чат-квестов"""
+        from config import DEFAULT_CHANNEL_ID
+        if channel_id is None:
+            channel_id = DEFAULT_CHANNEL_ID
         # Защита от спама (не чаще раза в 2 секунды)
         now = datetime.now()
         last_update = self.last_chat_update.get(username, datetime.min)
         if (now - last_update).total_seconds() < 2:
             return
-        
+
         self.last_chat_update[username] = now
-        
+
         # Обновляем все чат-квесты
-        await self._update_quests_by_type(username, 'chat', 1)
-        
+        await self._update_quests_by_type(username, 'chat', 1, channel_id=channel_id)
+
         # Для комбинированного квеста active_viewer тоже добавляем прогресс
         if 'active_viewer' in QUESTS_CONFIG:
             # Проверяем, достигнуты ли условия
-            activity = await self.db.get_today_activity(username)
-            chat = await self.db.get_today_chat_stats(username)
-            
+            activity = await self.db.get_today_activity(username, channel_id=channel_id)
+            chat = await self.db.get_today_chat_stats(username, channel_id=channel_id)
+
             config = QUESTS_CONFIG['active_viewer']
             req = config.get('requirements', {})
-            
+
             if (activity.get('total_time', 0) >= req.get('time', 60) and
                 chat.get('message_count', 0) >= req.get('messages', 10) and
                 activity.get('total_clicks', 0) >= req.get('activity', 50)):
-                await self._update_quest_progress(username, 'active_viewer', 1)
-    
-    async def update_activity_quest_progress(self, username: str, watch_time: int, clicks: int = 0):
+                await self._update_quest_progress(username, 'active_viewer', 1, channel_id=channel_id)
+
+    async def update_activity_quest_progress(self, username: str, watch_time: int, clicks: int = 0, channel_id: int = None):
         """Обновить прогресс квестов активности"""
+        from config import DEFAULT_CHANNEL_ID
+        if channel_id is None:
+            channel_id = DEFAULT_CHANNEL_ID
         # Защита от спама (не чаще раза в 10 секунд)
         now = datetime.now()
         last_update = self.last_activity_update.get(username, datetime.min)
         if (now - last_update).total_seconds() < 10:
             return
-        
+
         self.last_activity_update[username] = now
-        
+
         # Обновляем квесты активности (каждые 60 секунд = +1)
-        await self._update_quests_by_type(username, 'activity', watch_time // 60)
+        await self._update_quests_by_type(username, 'activity', watch_time // 60, channel_id=channel_id)
     
     # ===== ДРОПЫ =====
     async def drop_loop(self):
@@ -616,29 +631,30 @@ class BotCore:
         try:
             async with aiosqlite.connect(self.db.db_path) as conn:
                 cursor = await conn.execute(
-                    "SELECT username FROM viewers WHERE last_seen >= datetime('now', ?)",
+                    "SELECT channel_id, username FROM viewers WHERE last_seen >= datetime('now', ?)",
                     (f"-{ACTIVE_WINDOW} seconds",),
                 )
                 rows = await cursor.fetchall()
-            active = [r[0] for r in rows if r[0].lower() not in DROP_BLACKLIST]
+            active = [(r[0], r[1]) for r in rows if r[1].lower() not in DROP_BLACKLIST]
         except Exception as e:
             logger.warning("Drop: чтение активных из БД упало: %s", e)
+            from config import DEFAULT_CHANNEL_ID
             active = [
-                u for u, t in self.viewers_last_active.items()
+                (DEFAULT_CHANNEL_ID, u) for u, t in self.viewers_last_active.items()
                 if t > cutoff and u.lower() not in DROP_BLACKLIST
             ]
         if not active:
             return
-        
-        lucky = random.choice(active)
-        
+
+        lucky_channel_id, lucky = random.choice(active)
+
         # Выбираем предмет для дропа
         item_name, rarity = random.choices(
             [(i[0], i[2]) for i in DROP_ITEMS],
             weights=[i[1] for i in DROP_ITEMS]
         )[0]
-        
-        await self.db.give_item(lucky, item_name)
+
+        await self.db.give_item(lucky, item_name, channel_id=lucky_channel_id)
         
         # Отправляем сообщение о дропе в чат
         await self.send_message(f"🎁 @{lucky} получил {item_name} в дропе!")

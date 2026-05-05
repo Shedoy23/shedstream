@@ -277,7 +277,12 @@ from dependencies import set_overlay_drop  # noqa: E402
 # ===== СЕМЬЯ =====
 
 async def run_family_income():
-    """Фоновая задача: начисляет бонус на семейный счёт когда оба онлайн (таблица marriages)"""
+    """Фоновая задача: начисляет бонус на семейный счёт когда оба онлайн (таблица marriages).
+
+    Multi-tenant safe: пара (channel_id, username) формирует ключ — один и тот же
+    ник на разных каналах считается разными зрителями. JOIN тянет channel_id из
+    marriages и проверяет что оба user1/user2 онлайн на ТОМ ЖЕ канале.
+    """
     while True:
         await asyncio.sleep(60)
         try:
@@ -286,15 +291,15 @@ async def run_family_income():
                 continue
             async with db._connect() as conn:
                 cursor = await conn.execute("""
-                    SELECT username FROM viewers
+                    SELECT channel_id, username FROM viewers
                     WHERE last_seen > datetime('now', '-10 minutes')
                 """)
-                online = {r[0] for r in await cursor.fetchall()}
+                online = {(r[0], r[1]) for r in await cursor.fetchall()}
 
                 cursor2 = await conn.execute(
-                    "SELECT id, user1, user2 FROM marriages WHERE divorced_at IS NULL")
-                for mid, u1, u2 in await cursor2.fetchall():
-                    if u1 in online and u2 in online:
+                    "SELECT id, channel_id, user1, user2 FROM marriages WHERE divorced_at IS NULL")
+                for mid, m_channel_id, u1, u2 in await cursor2.fetchall():
+                    if (m_channel_id, u1) in online and (m_channel_id, u2) in online:
                         await conn.execute(
                             "UPDATE marriages SET family_balance = family_balance + ? WHERE id = ?",
                             (FAMILY_CONFIG['bonus_per_min'], mid))
@@ -572,11 +577,13 @@ class TwitchChatBot(twitch_commands.Bot):
                 return
 
             # Проверяем что уже не выдавали эту награду за этот стрик (BEGIN IMMEDIATE — атомарно)
+            from config import DEFAULT_CHANNEL_ID  # IRC USERNOTICE без JWT
+            channel_id = DEFAULT_CHANNEL_ID
             async with db._connect() as conn:
                 await conn.execute("BEGIN IMMEDIATE")
                 cursor = await conn.execute(
-                    "SELECT id FROM streak_rewards WHERE username=? AND streak_count=?",
-                    (username, matched_streak)
+                    "SELECT id FROM streak_rewards WHERE channel_id=? AND username=? AND streak_count=?",
+                    (channel_id, username, matched_streak)
                 )
                 already_given = await cursor.fetchone()
                 if already_given:
@@ -584,8 +591,8 @@ class TwitchChatBot(twitch_commands.Bot):
                     print(f"⏭️ Награда за стрик {matched_streak} уже выдана @{username}")
                     return
                 await conn.execute(
-                    "INSERT INTO streak_rewards (username, streak_count, diamonds_given) VALUES (?,?,?)",
-                    (username, matched_streak, reward)
+                    "INSERT INTO streak_rewards (channel_id, username, streak_count, diamonds_given) VALUES (?,?,?,?)",
+                    (channel_id, username, matched_streak, reward)
                 )
                 await conn.commit()
 
@@ -720,6 +727,14 @@ async def eventsub_channel_points(request: Request):
         username    = event.get("user_login", "").lower()
         reward_title = event.get("reward", {}).get("title", "")
         redemption_id = event.get("id", "")
+        # broadcaster_user_id из payload — это и есть channel_id для multi-tenant.
+        # Fallback на DEFAULT_CHANNEL_ID если EventSub payload без broadcaster
+        # (теоретически невозможно, но defensive).
+        from config import DEFAULT_CHANNEL_ID
+        try:
+            channel_id = int(event.get("broadcaster_user_id") or DEFAULT_CHANNEL_ID)
+        except (TypeError, ValueError):
+            channel_id = DEFAULT_CHANNEL_ID
 
         rewards_cfg = CHANNEL_POINTS_CONFIG.get('rewards', {})
         reward_cfg  = rewards_cfg.get(reward_title)
@@ -730,25 +745,25 @@ async def eventsub_channel_points(request: Request):
 
         diamonds = reward_cfg['diamonds']
 
-        # Проверяем дублирование по redemption_id
+        # Проверяем дублирование по (channel_id, redemption_id)
         async with db._connect() as conn:
             cursor = await conn.execute(
-                "SELECT id FROM channel_points_log WHERE twitch_redemption_id=?",
-                (redemption_id,)
+                "SELECT id FROM channel_points_log WHERE channel_id=? AND twitch_redemption_id=?",
+                (channel_id, redemption_id)
             )
             if await cursor.fetchone():
                 return JSONResponse({"status": "duplicate"})
 
             await conn.execute(
                 """INSERT INTO channel_points_log
-                   (username, twitch_redemption_id, reward_title, channel_points_spent, diamonds_given)
-                   VALUES (?,?,?,?,?)""",
-                (username, redemption_id, reward_title,
+                   (channel_id, username, twitch_redemption_id, reward_title, channel_points_spent, diamonds_given)
+                   VALUES (?,?,?,?,?,?)""",
+                (channel_id, username, redemption_id, reward_title,
                  reward_cfg['channel_points_cost'], diamonds)
             )
             await conn.commit()
 
-        await db.add_points(username, diamonds)
+        await db.add_points(username, diamonds, channel_id=channel_id)
         print(f"💜 @{username} обменял channel points '{reward_title}' → +{diamonds}💎")
 
         try:

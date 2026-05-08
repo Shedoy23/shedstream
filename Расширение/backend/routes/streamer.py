@@ -41,6 +41,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from config import (
+    MODULE_TOKEN_SECRET,
     TWITCH_CLIENT_ID,
     TWITCH_CLIENT_SECRET,
     TWITCH_EXTENSION_SECRET,
@@ -416,6 +417,83 @@ async def streamer_logout():
     resp = RedirectResponse(url="/streamer", status_code=status.HTTP_302_FOUND)
     _clear_session_cookie(resp)
     return resp
+
+
+# ── Этап 3 step 2: Module token issuance ─────────────────────────────────────
+
+# Module token формат: `channel_id|module_id|expires_at|HMAC` (text-based,
+# без зависимости от внешних JWT-библиотек). Long-lived (1 год default) —
+# стример вставляет один раз в connector. Ротация через POST /streamer/
+# module-token/rotate (future).
+_MODULE_TOKEN_TTL = 365 * 24 * 3600  # 1 год
+
+
+def issue_module_token(channel_id: int, module_id: str,
+                        ttl_seconds: int = _MODULE_TOKEN_TTL) -> str:
+    """Сгенерировать module-token. Per docs/MODULE_API.md §4.
+
+    HMAC-SHA256(channel_id|module_id|expires_at, MODULE_TOKEN_SECRET).
+    """
+    expires_at = int(time.time()) + max(60, int(ttl_seconds))
+    msg = f"{int(channel_id)}|{module_id}|{expires_at}"
+    secret = (MODULE_TOKEN_SECRET or "").encode() or b"unconfigured-module-secret"
+    sig = hmac.new(secret, msg.encode(), hashlib.sha256).hexdigest()
+    return f"{msg}|{sig}"
+
+
+def verify_module_token(token: str) -> Optional[dict]:
+    """Проверить module-token. Returns {channel_id, module_id, expires_at} or None.
+
+    None при: невалидной подписи, expired-токене, малформед-формате.
+    Caller должен дополнительно проверить что url-path module_id совпадает
+    с token.module_id (mismatch = reject 403, кросс-модульная атака).
+    """
+    if not token or token.count('|') != 3:
+        return None
+    try:
+        cid_str, module_id, exp_str, sig = token.split('|', 3)
+        msg = f"{cid_str}|{module_id}|{exp_str}"
+        secret = (MODULE_TOKEN_SECRET or "").encode() or b"unconfigured-module-secret"
+        expected = hmac.new(secret, msg.encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(sig, expected):
+            return None
+        expires_at = int(exp_str)
+        if expires_at < int(time.time()):
+            return None
+        return {
+            "channel_id": int(cid_str),
+            "module_id": module_id,
+            "expires_at": expires_at,
+        }
+    except (ValueError, IndexError):
+        return None
+
+
+@router.get("/api/streamer/module-token", include_in_schema=False)
+async def streamer_module_token(request: Request):
+    """Стример из dashboard'а получает свой long-lived module-token.
+
+    Требует session cookie (M4.4). Возвращает токен — стример копирует его
+    в connector (в моде указывает в config'е). Mod использует в
+    Authorization: Bearer <token> при вызовах /v1/module/<id>/*.
+    """
+    cid = _read_session_cookie(request)
+    if cid is None:
+        return JSONResponse({"status": "unauthenticated"}, status_code=401)
+    module_id = (request.query_params.get("module_id") or "").strip()
+    if not module_id or not module_id.replace("_", "").isalnum():
+        return JSONResponse({"status": "invalid_module_id"}, status_code=400)
+    # TODO: проверить что module_id есть в реестре discover_modules — отказ
+    # для unknown id чтобы не плодить токены под несуществующие модули.
+    token = issue_module_token(cid, module_id)
+    return JSONResponse({
+        "status": "ok",
+        "module_id": module_id,
+        "channel_id": cid,
+        "token": token,
+        "expires_in": _MODULE_TOKEN_TTL,
+        "instructions": "Скопируй в config мода как module_token. Без этого connector не сможет слать события.",
+    })
 
 
 # ── M4 follow-up (б): OAuth refresh ──────────────────────────────────────────

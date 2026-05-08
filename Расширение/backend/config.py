@@ -49,6 +49,20 @@ TWITCH_OAUTH_REDIRECT_URI = os.getenv(
 # для будущего EventSub auto-register (M4.5 положит channel.channel_points_*).
 TWITCH_OAUTH_SCOPES = 'user:read:email channel:read:redemptions'
 
+# ===== Этап 3 step 2: Module API token signing =====
+# Module API токены — HMAC-подписанные per-channel-per-module credentials.
+# Стример получает токен из admin-UI dashboard, вставляет в connector
+# (мод/плагин), connector использует в Authorization: Bearer <token>.
+#
+# Если env не задан — используется TWITCH_EXTENSION_SECRET как fallback
+# (то же что cookie sessions подписывают). Безопасно: оба секрета
+# server-side и не попадают наружу. Раздельный secret — рекомендован
+# для prod если хочется ротировать модульные токены без инвалидации
+# admin-сессий.
+MODULE_TOKEN_SECRET = os.getenv('MODULE_TOKEN_SECRET', '') or TWITCH_EXTENSION_SECRET
+if not MODULE_TOKEN_SECRET:
+    print("⚠️  MODULE_TOKEN_SECRET и TWITCH_EXTENSION_SECRET не заданы — Module API auth не будет работать")
+
 # ===== M5: Per-channel rate limits + tier-based квоты =====
 # Лимит запросов в минуту на канал. Применяется в require_jwt_user/_channel
 # (M5 hook): JWT-аутентифицированный запрос для канала X считается в bucket

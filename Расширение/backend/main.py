@@ -831,6 +831,11 @@ async def on_startup():
         await db.init_pool()   # сначала пул соединений
         await db.init_tables()
         await run_migrations()
+        # M4.1: загрузить registered channels в in-memory cache.
+        # Должно быть ПОСЛЕ run_migrations() — m4_channels.apply backfill'ит
+        # существующего стримера; без этого первая партия запросов получит 403.
+        from dependencies import init_registered_channels_cache
+        await init_registered_channels_cache(db)
         await cleanup_test_accounts()
     except Exception as e:
         print(f"❌ Критическая ошибка при инициализации БД: {e}")

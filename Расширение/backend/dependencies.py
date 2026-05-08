@@ -32,6 +32,52 @@ from config import DEFAULT_CHANNEL_ID, LOGIN_ATTEMPT_TTL, sanitize_username, val
 _current_channel_id: ContextVar[Optional[int]] = ContextVar('current_channel_id', default=None)
 
 
+# ── M4.1: registered channels cache ───────────────────────────────────────────
+# In-memory set всех channel_id зарегистрированных в `channels` таблице.
+# Заполняется при startup из db.list_channels() и обновляется через
+# mark_channel_registered() при OAuth-регистрации (M4.3).
+#
+# Sync-проверка нужна потому что require_jwt_user/_channel — sync функции,
+# а делать async DB hop на каждый JWT-парсинг неприемлемо (TPS).
+#
+# Когерентность: если пользователь только что зарегистрировался и cache на этом
+# процессе ещё не обновлён (мульти-инстанс будущее) — получит 403 один раз,
+# на следующем запросе fallback в DB добавим в M5+.
+_registered_channels_cache: set = set()
+_channels_cache_initialized: bool = False
+
+
+def is_channel_registered(channel_id: int) -> bool:
+    """Зарегистрирован ли канал (есть запись в `channels`).
+
+    До init_registered_channels_cache() возвращает True (fail-open) —
+    защита от race на startup, когда первый запрос приходит до init.
+    После init — строгая проверка по кэшу.
+    """
+    if not _channels_cache_initialized:
+        return True
+    return channel_id in _registered_channels_cache
+
+
+def mark_channel_registered(channel_id: int) -> None:
+    """Добавить канал в cache. Вызывается M4.3 OAuth callback'ом
+    после db.upsert_channel(). Без этого канал получает 403 до рестарта."""
+    if channel_id and channel_id > 0:
+        _registered_channels_cache.add(int(channel_id))
+
+
+async def init_registered_channels_cache(db) -> None:
+    """Загрузить registered channels из БД. Вызывается из main.py startup
+    ПОСЛЕ run_migrations() (m4_channels.apply должен был backfill'ить
+    существующего стримера)."""
+    global _channels_cache_initialized
+    rows = await db.list_channels()
+    _registered_channels_cache.clear()
+    _registered_channels_cache.update(int(r["channel_id"]) for r in rows)
+    _channels_cache_initialized = True
+    print(f"✅ Registered channels cache: {len(_registered_channels_cache)} channels loaded")
+
+
 def resolve_channel_id(channel_id: Optional[int] = None) -> int:
     """Разрешить channel_id для DB-helper.
 
@@ -81,6 +127,22 @@ def resolve_jwt_login(jwt_result: dict) -> str:
     )
 
 
+def _raise_channel_not_registered(channel_id: int) -> None:
+    """M4.1: Канал не в реестре — попроси стримера зарегистрироваться.
+
+    Frontend ловит 403 + status='channel_not_registered' и показывает
+    «Стример не подключил расширение — попроси его зайти на shedoy23.ru/streamer».
+    """
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail={
+            "status": "channel_not_registered",
+            "channel_id": channel_id,
+            "message": "Стример не подключил расширение к платформе",
+        },
+    )
+
+
 def require_jwt_user(request: Request) -> Optional[Tuple[str, int]]:
     """
     Возвращает (sanitized_login, channel_id) или None.
@@ -96,6 +158,10 @@ def require_jwt_user(request: Request) -> Optional[Tuple[str, int]]:
         расширение и нажать «Login with Twitch» чтобы заполнить кэш)
       - JWT не содержит channel_id (broadcaster context отсутствует —
         не должно случаться в Twitch Extension JWT)
+
+    Поднимает HTTPException(403) если:
+      - JWT валиден, но channel_id не зарегистрирован в `channels`-реестре
+        (стример ещё не прошёл OAuth на shedoy23.ru/streamer)
 
     channel_id — это broadcaster's Twitch user_id (int). Все TENANT-таблицы
     скоупятся по нему. См. MULTITENANT_PLAN.md §E.
@@ -113,6 +179,8 @@ def require_jwt_user(request: Request) -> Optional[Tuple[str, int]]:
         return None
     if channel_id <= 0:
         return None
+    if not is_channel_registered(channel_id):
+        _raise_channel_not_registered(channel_id)
     # Кладём channel_id в контекст текущей request-task'и — все async db-вызовы
     # дальше по цепочке (включая create_task(...) child'ов) автоматически
     # увидят его через resolve_channel_id() без явного проброса.
@@ -128,6 +196,8 @@ def require_jwt_channel(request: Request) -> Optional[int]:
     резолвился (зритель мог не залогиниться через Twitch). Только проверяет
     что JWT валиден и содержит broadcaster context.
 
+    Поднимает HTTPException(403) если канал не в реестре (M4.1).
+
     Используется эндпоинтами где username приходит из body/mod-команды,
     а JWT нужен только как «I'm in channel X»-контекст для multi-tenant
     скоупинга. См. rimworld.py shop endpoints.
@@ -142,6 +212,8 @@ def require_jwt_channel(request: Request) -> Optional[int]:
         return None
     if channel_id <= 0:
         return None
+    if not is_channel_registered(channel_id):
+        _raise_channel_not_registered(channel_id)
     # См. require_jwt_user — устанавливаем channel_id в context для авто-проброса.
     _current_channel_id.set(channel_id)
     return channel_id

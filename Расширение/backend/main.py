@@ -626,15 +626,67 @@ _twitch_chat_bot = None
 
 # ===== EVENTSUB: CHANNEL POINTS =====
 
+async def _register_eventsub_for_broadcaster(
+    session: aiohttp.ClientSession,
+    headers: dict,
+    broadcaster_id: str,
+    callback_url: str,
+    secret: str,
+) -> None:
+    """Зарегистрировать channel.channel_points_*.add подписку для одного broadcaster'а.
+
+    Идемпотентно: проверяет существующие подписки и пропускает если уже есть
+    enabled-запись для этого broadcaster'а.
+    """
+    try:
+        async with session.get(
+            "https://api.twitch.tv/helix/eventsub/subscriptions",
+            headers=headers,
+        ) as r:
+            existing = await r.json()
+            if r.status not in (200, 202):
+                print(f"EventSub: ошибка получения подписок для {broadcaster_id} ({r.status}): {existing}")
+                return
+            for sub in existing.get('data', []):
+                if (sub['type'] == 'channel.channel_points_custom_reward_redemption.add'
+                        and sub['condition'].get('broadcaster_user_id') == broadcaster_id
+                        and sub['status'] == 'enabled'):
+                    print(f"✅ EventSub: подписка для broadcaster_id={broadcaster_id} уже активна")
+                    return
+
+        async with session.post(
+            "https://api.twitch.tv/helix/eventsub/subscriptions",
+            headers={**headers, "Content-Type": "application/json"},
+            json={
+                "type": "channel.channel_points_custom_reward_redemption.add",
+                "version": "1",
+                "condition": {"broadcaster_user_id": broadcaster_id},
+                "transport": {
+                    "method": "webhook",
+                    "callback": callback_url,
+                    "secret": secret,
+                },
+            },
+        ) as r:
+            resp = await r.json()
+            if r.status in (200, 202):
+                print(f"✅ EventSub: подписка для broadcaster_id={broadcaster_id} зарегистрирована")
+            else:
+                print(f"EventSub: ошибка регистрации для {broadcaster_id}: {resp}")
+    except Exception as e:
+        print(f"EventSub register error for {broadcaster_id}: {e}")
+
+
 async def register_eventsub_channel_points():
     """Подписываемся на channel.channel_points_custom_reward_redemption.add через EventSub.
     Webhook EventSub требует App Access Token (client credentials).
+
+    M4.5: при EVENTSUB_AUTO_REGISTER=true — регистрирует подписку ДЛЯ КАЖДОГО
+    канала из реестра channels (требует что у канала есть OAuth-консент с
+    channel:read:redemptions, иначе Twitch отклонит). При false (default) —
+    single-tenant поведение: один broadcaster из TWITCH_BROADCASTER_ID.
     """
     if not CHANNEL_POINTS_CONFIG.get('enabled'):
-        return
-    broadcaster_id = CHANNEL_POINTS_CONFIG.get('broadcaster_id', '')
-    if not broadcaster_id:
-        print("EventSub: TWITCH_BROADCASTER_ID не задан в .env — channel points не работают")
         return
 
     client_id    = os.getenv('TWITCH_CLIENT_ID', '')
@@ -648,45 +700,30 @@ async def register_eventsub_channel_points():
     try:
         app_token = await get_twitch_app_token()
         headers = {"Client-ID": client_id, "Authorization": f"Bearer {app_token}"}
-        print(f"🔍 EventSub: регистрация, broadcaster_id={broadcaster_id}, client_id={client_id[:8]}...")
 
-        async with aiohttp.ClientSession() as session:
-            # Проверяем — нет ли уже активной подписки
-            async with session.get(
-                "https://api.twitch.tv/helix/eventsub/subscriptions",
-                headers=headers
-            ) as r:
-                existing = await r.json()
-                if r.status not in (200, 202):
-                    print(f"EventSub: ошибка получения подписок ({r.status}): {existing}")
-                    return
-                for sub in existing.get('data', []):
-                    if (sub['type'] == 'channel.channel_points_custom_reward_redemption.add'
-                            and sub['condition'].get('broadcaster_user_id') == broadcaster_id
-                            and sub['status'] == 'enabled'):
-                        print("✅ EventSub: подписка на channel points уже активна")
-                        return
+        # M4.5: feature-flag решает single-tenant или multi-tenant режим.
+        from config import EVENTSUB_AUTO_REGISTER
 
-            # Регистрируем подписку
-            async with session.post(
-                "https://api.twitch.tv/helix/eventsub/subscriptions",
-                headers={**headers, "Content-Type": "application/json"},
-                json={
-                    "type": "channel.channel_points_custom_reward_redemption.add",
-                    "version": "1",
-                    "condition": {"broadcaster_user_id": broadcaster_id},
-                    "transport": {
-                        "method": "webhook",
-                        "callback": callback_url,
-                        "secret": secret
-                    }
-                }
-            ) as r:
-                resp = await r.json()
-                if r.status in (200, 202):
-                    print("✅ EventSub: подписка на channel points зарегистрирована, ждём верификацию...")
-                else:
-                    print(f"EventSub: ошибка регистрации: {resp}")
+        if EVENTSUB_AUTO_REGISTER:
+            # Multi-tenant: iterate registered channels.
+            channels = await db.list_channels()
+            if not channels:
+                print("EventSub: реестр channels пуст, никого не регистрируем")
+                return
+            print(f"🔍 EventSub: multi-tenant register для {len(channels)} каналов, client_id={client_id[:8]}...")
+            async with aiohttp.ClientSession() as session:
+                for ch in channels:
+                    bid = str(ch['channel_id'])
+                    await _register_eventsub_for_broadcaster(session, headers, bid, callback_url, secret)
+        else:
+            # Single-tenant fallback (legacy default).
+            broadcaster_id = CHANNEL_POINTS_CONFIG.get('broadcaster_id', '')
+            if not broadcaster_id:
+                print("EventSub: TWITCH_BROADCASTER_ID не задан в .env — channel points не работают")
+                return
+            print(f"🔍 EventSub: single-tenant register, broadcaster_id={broadcaster_id}, client_id={client_id[:8]}...")
+            async with aiohttp.ClientSession() as session:
+                await _register_eventsub_for_broadcaster(session, headers, broadcaster_id, callback_url, secret)
     except Exception as e:
         print(f"EventSub register error: {e}")
 

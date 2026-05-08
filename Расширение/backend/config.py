@@ -49,6 +49,19 @@ TWITCH_OAUTH_REDIRECT_URI = os.getenv(
 # для будущего EventSub auto-register (M4.5 положит channel.channel_points_*).
 TWITCH_OAUTH_SCOPES = 'user:read:email channel:read:redemptions'
 
+# ===== M4.5: EventSub AUTO-REGISTER (feature flag) =====
+# При false — register_eventsub_channel_points регистрирует ОДНУ подписку для
+# TWITCH_BROADCASTER_ID из .env (текущая single-tenant логика, безопасный default).
+# При true — iterate db.list_channels() и регистрируем по подписке на каждого
+# зарегистрированного стримера. Требует что у каждого канала есть OAuth-токен
+# (M4.3 OAuth flow) — без этого Twitch не примет subscription для broadcaster'а
+# который не авторизовал наш scope.
+#
+# Флипать в true когда: 1) есть >1 зарегистрированного стримера, 2) проверена
+# логика на dev-VPS или unit-тестами. До того момента — оставлять false чтобы
+# прод single-tenant поведение не менялось.
+EVENTSUB_AUTO_REGISTER = os.getenv('EVENTSUB_AUTO_REGISTER', 'false').lower() == 'true'
+
 # ===== DEV MODE (только для локального тестирования) =====
 # Добавьте DEV_MODE=true и DEV_USERNAME=ваш_ник в .env чтобы обойти JWT верификацию
 # НИКОГДА не включайте на продакшн сервере

@@ -1,0 +1,63 @@
+# RimWorld module manifest — соответствует docs/MODULE_API.md §5.
+# Загружается ядром при startup через `modules._loader.load_manifest`.
+#
+# Источник правды: список events/actions берётся из текущего rimworld.py
+# (~1981 строк) и существующего C# мода `RimLink/Source/`.
+
+id: rimworld
+version: 0.1.0                         # Pre-migration baseline. После полной миграции → 1.0.0.
+core_api_version: ">=1.0.0,<2.0.0"
+display_name: "RimWorld"
+description: "Двусторонняя интеграция с RimWorld колонией стримера: пешки, ивенты, магазин гена-черта-импланта."
+icon: "icon.png"
+
+# Стандартные events которые модуль может слать (см. MODULE_API.md §7)
+events:
+  - module.heartbeat
+  - module.session_start
+  - module.session_end
+  - module.catalog_update
+  - player.linked          # /api/rimworld/link → создание pawn
+  - player.unlinked        # /api/rimworld/unlink → удаление pawn
+  - player.state_update    # sync_pawns_bulk → обновление здоровья/настроения
+  - player.died            # pawn.died
+
+# Стандартные actions которые модуль исполняет (мод принимает команды)
+actions:
+  - player.spawn           # /api/rimworld/spawn → создать пешку
+  - player.heal            # /api/rimworld/heal → лечение
+  - player.respawn         # /api/rimworld/resurrect
+  - player.give_item       # шоп — выдать предмет пешке
+  - player.equip_item      # /api/rimworld/equip
+  - player.apply_effect    # implant установить
+  - player.modify_attribute # passion/skill модификация
+  - world.trigger_event    # /api/rimworld/trigger_event — рейд/торговец/etc
+
+# Custom events — RimWorld-specific, не входят в core API
+extensions:
+  events:
+    - pawn.trait_changed     # add/remove trait
+    - pawn.implant_installed
+    - pawn.gene_changed      # add/remove gene
+    - pawn.xenotype_changed
+  actions:
+    - pawn.add_trait
+    - pawn.remove_trait
+    - pawn.add_gene
+    - pawn.remove_gene
+    - pawn.set_xenotype
+    - pawn.set_passion
+    - pawn.passion_reset
+
+# Каталоги которые публикует модуль (см. MODULE_API.md §9)
+# Заполняются мод'ом через session-scoped publish во время module.catalog_update.
+catalogs:
+  - shop          # цены гена/черт/импланта/предметов RimWorld
+  - events        # каталог события (рейды/торговцы) которые мод умеет триггерить
+
+# UI-слоты — какие места во frontend модуль занимает
+# (детали в будущем MODULE_UI.md)
+ui_slots:
+  - shop_panel              # вкладка магазина в расширении
+  - event_trigger_panel     # ивент-кнопки
+  - player_inspector        # отображение пешки зрителя

@@ -74,7 +74,8 @@ from routes.event    import router as event_router
 from routes.promo    import router as promo_router
 from routes.marriage import router as marriage_router
 from routes.misc     import router as misc_router
-from routes.streamer import router as streamer_router
+from routes.streamer   import router as streamer_router
+from routes.module_api import router as module_api_router
 app.include_router(casino_router)
 app.include_router(duel_router)
 app.include_router(viewer_router)
@@ -85,7 +86,8 @@ app.include_router(event_router)
 app.include_router(promo_router)
 app.include_router(marriage_router)
 app.include_router(misc_router)
-app.include_router(streamer_router)  # M4.3: OAuth flow для регистрации стримеров
+app.include_router(streamer_router)    # M4.3: OAuth flow для регистрации стримеров
+app.include_router(module_api_router)  # Этап 3: Module API (handshake + module registry)
 
 
 # Путь к фронтенду из .env или значение по умолчанию
@@ -943,6 +945,9 @@ async def on_startup():
         # существующего стримера; без этого первая партия запросов получит 403.
         from dependencies import init_registered_channels_cache
         await init_registered_channels_cache(db)
+        # Этап 3 step 1: discover game modules (modules/<id>/manifest.yaml)
+        from modules._loader import discover_modules
+        discover_modules()
         await cleanup_test_accounts()
     except Exception as e:
         print(f"❌ Критическая ошибка при инициализации БД: {e}")

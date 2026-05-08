@@ -110,10 +110,11 @@ def _next_sunday_midnight() -> datetime:
     return target.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
-async def _ensure_season(conn) -> int:
-    """Возвращает ID активного сезона, создаёт новый если нет."""
+async def _ensure_season(conn, channel_id: int) -> int:
+    """Возвращает ID активного сезона КАНАЛА, создаёт новый если нет."""
     row = await (await conn.execute(
-        "SELECT id FROM duel_seasons WHERE finished = 0 ORDER BY id DESC LIMIT 1"
+        "SELECT id FROM duel_seasons WHERE channel_id = ? AND finished = 0 ORDER BY id DESC LIMIT 1",
+        (channel_id,)
     )).fetchone()
     if row:
         return row[0]
@@ -121,8 +122,8 @@ async def _ensure_season(conn) -> int:
     now     = datetime.now(timezone.utc)
     ends_at = _next_sunday_midnight()
     await conn.execute(
-        "INSERT INTO duel_seasons (started_at, ends_at, finished) VALUES (?, ?, 0)",
-        (now.isoformat(), ends_at.isoformat())
+        "INSERT INTO duel_seasons (channel_id, started_at, ends_at, finished) VALUES (?, ?, ?, 0)",
+        (channel_id, now.isoformat(), ends_at.isoformat())
     )
     row = await (await conn.execute("SELECT last_insert_rowid()")).fetchone()
     return row[0]
@@ -149,16 +150,26 @@ async def _update_stats(conn, username: str, elo: int, streak: int):
     )
 
 
-async def check_season_end():
-    """Проверяет окончание сезона; при необходимости начисляет призы и стартует новый."""
+async def check_season_end(channel_id: int = None):
+    """Проверяет окончание сезона КАНАЛА; начисляет призы и стартует новый.
+
+    M4 follow-up (а): channel_id теперь обязательная семантическая величина
+    (резолвится через resolve_channel_id_or_default). При None — соответствует
+    текущему ContextVar (если функция вызвана из request handler) или
+    DEFAULT_CHANNEL_ID. На startup на_startup'е итерирует по всем каналам в
+    реестре отдельно.
+    """
+    from dependencies import resolve_channel_id_or_default
+    cid = channel_id if channel_id else resolve_channel_id_or_default()
     db = get_db()
     async with db._connect() as conn:
         row = await (await conn.execute(
-            "SELECT id, ends_at FROM duel_seasons WHERE finished = 0 ORDER BY id DESC LIMIT 1"
+            "SELECT id, ends_at FROM duel_seasons WHERE channel_id = ? AND finished = 0 ORDER BY id DESC LIMIT 1",
+            (cid,)
         )).fetchone()
 
         if not row:
-            await _ensure_season(conn)
+            await _ensure_season(conn, cid)
             return
 
         season_id, ends_at_str = row
@@ -171,31 +182,34 @@ async def check_season_end():
 
         # ── Сезон закончился ──────────────────────────────────────────────
         top = await (await conn.execute(
-            "SELECT username, elo FROM duel_stats WHERE season_id = ? ORDER BY elo DESC LIMIT 3",
-            (season_id,)
+            "SELECT username, elo FROM duel_stats WHERE channel_id = ? AND season_id = ? ORDER BY elo DESC LIMIT 3",
+            (cid, season_id)
         )).fetchall()
 
         prize_parts = []
         for rank, (uname, elo) in enumerate(top, 1):
             prize = PRIZES.get(rank, 0)
             if prize:
-                await db.add_points(uname, prize)
+                await db.add_points(uname, prize, channel_id=cid)
                 prize_parts.append(f"#{rank} @{uname} ({elo} ELO) +{prize:,}💎")
 
-        await conn.execute("UPDATE duel_seasons SET finished = 1 WHERE id = ?", (season_id,))
+        await conn.execute(
+            "UPDATE duel_seasons SET finished = 1 WHERE channel_id = ? AND id = ?",
+            (cid, season_id)
+        )
 
         now     = datetime.now(timezone.utc)
         new_end = _next_sunday_midnight()
         await conn.execute(
-            "INSERT INTO duel_seasons (started_at, ends_at, finished) VALUES (?, ?, 0)",
-            (now.isoformat(), new_end.isoformat())
+            "INSERT INTO duel_seasons (channel_id, started_at, ends_at, finished) VALUES (?, ?, ?, 0)",
+            (cid, now.isoformat(), new_end.isoformat())
         )
         new_row = await (await conn.execute("SELECT last_insert_rowid()")).fetchone()
         new_season_id = new_row[0]
 
         await conn.execute(
-            "UPDATE duel_stats SET elo = ?, win_streak = 0, season_id = ?",
-            (ELO_START, new_season_id)
+            "UPDATE duel_stats SET elo = ?, win_streak = 0, season_id = ? WHERE channel_id = ?",
+            (ELO_START, new_season_id, cid)
         )
         await conn.commit()
 

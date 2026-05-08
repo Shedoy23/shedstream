@@ -969,10 +969,26 @@ async def on_startup():
     # M4 follow-up (б): держим OAuth-токены стримеров свежими.
     from routes.streamer import oauth_refresh_loop as _oauth_refresh_loop
     asyncio.create_task(_oauth_refresh_loop())
-    # Сезоны дуэлей — проверка при старте + восстановление pending
+    # Сезоны дуэлей — проверка при старте по каждому каналу + восстановление pending
     from routes.duel import check_season_end as _duel_season_check
     from routes.duel import load_pending_duels as _load_pending_duels
-    asyncio.create_task(_duel_season_check())
+
+    async def _check_all_channel_seasons():
+        """M4 follow-up (а): итерация check_season_end по реестру каналов.
+        Раньше один cross-tenant SELECT — после M1 стало неверно (per-channel)."""
+        try:
+            channel_rows = await db.list_channels()
+        except Exception as e:
+            print(f"⚠️ Не удалось прочитать channels для season-check: {e}")
+            return
+        for r in channel_rows:
+            cid = int(r['channel_id'])
+            try:
+                await _duel_season_check(channel_id=cid)
+            except Exception as e:
+                print(f"⚠️ check_season_end({cid}) failed: {e}")
+
+    asyncio.create_task(_check_all_channel_seasons())
     try:
         await _load_pending_duels()
     except Exception as e:

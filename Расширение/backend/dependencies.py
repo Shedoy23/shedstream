@@ -125,26 +125,35 @@ async def init_registered_channels_cache(db) -> None:
 
 
 def resolve_channel_id(channel_id: Optional[int] = None) -> int:
-    """Разрешить channel_id для DB-helper.
+    """Разрешить channel_id для DB-helper. **Строгая** версия (M4 follow-up а).
 
     Приоритет:
       1. Явный параметр (background loops, EventSub передающий broadcaster_id)
-      2. ContextVar (установленный require_jwt_user / require_jwt_channel в JWT-routes)
-      3. DEFAULT_CHANNEL_ID (single-tenant fallback из config.py)
+      2. ContextVar (установленный require_jwt_user / require_jwt_channel в
+         JWT-routes ИЛИ set_request_channel_id в IRC-handlers)
 
-    M4.2 status: строгая версия (raise если нет ни (1), ни (2)) откладывается до
-    очистки всех background-callers которые сейчас полагаются на (3) косвенно
-    (event_manager.end_event, check_season_end на старте, casino_bet, IRC
-    USERNOTICE handler — каждый требует threading channel_id или ContextVar.set
-    в момент создания task'и). См. `resolve_channel_id_or_default` для явного
-    soft-маркера на integration границах без JWT.
+    Если ни то, ни другое не дало ответ — поднимает RuntimeError. Это значит:
+      - Request handler не вызвал require_jwt_*  → bug, надо исправить
+      - Background task не передал channel_id явно → bug, надо исправить
+      - Startup-time код не set'нул ContextVar → bug, надо исправить
+
+    Для интеграционных границ где channel_id легитимно неизвестен на текущем
+    уровне зрелости (мод без HMAC, IRC USERNOTICE pre-(в), admin до per-channel
+    UI) — используй `resolve_channel_id_or_default()` с явным fallback'ом
+    на DEFAULT_CHANNEL_ID. Этот fallback означает «знаю что в multi-tenant
+    может быть некорректно — TODO исправить когда дойдут руки».
     """
     if channel_id is not None and channel_id > 0:
         return channel_id
     ctx_value = _current_channel_id.get()
     if ctx_value is not None and ctx_value > 0:
         return ctx_value
-    return DEFAULT_CHANNEL_ID
+    raise RuntimeError(
+        "channel_id not resolvable: ни явный параметр, ни ContextVar не дали ответ. "
+        "Request handler должен вызвать require_jwt_user/_channel; background task — "
+        "передать channel_id= явно; startup-job — итерировать по каналам и set_request_channel_id. "
+        "Для legacy-точек без JWT см. resolve_channel_id_or_default()."
+    )
 
 
 def resolve_channel_id_or_default(channel_id: Optional[int] = None) -> int:

@@ -90,6 +90,10 @@ class EventManager:
 
         now = datetime.now()
 
+        # M4 follow-up (а): храним channel_id в самом event'е, чтобы end_event
+        # (вызываемый из event_watcher_loop в background-контексте) знал куда
+        # начислять refunds и приз. Без этого strict resolve_channel_id упадёт.
+        from dependencies import resolve_channel_id_or_default
         self.active_event = {
             "id": str(uuid.uuid4())[:8],
             "type": event_type,
@@ -97,6 +101,7 @@ class EventManager:
             "start_time": now,
             "end_time": now + timedelta(seconds=EVENT_CONFIG["event_duration"]),
             "bids": {},
+            "channel_id": resolve_channel_id_or_default(),
         }
 
         self._current_leader = None
@@ -241,6 +246,11 @@ class EventManager:
 
         try:
             bids = event.get("bids", {})
+            # M4 follow-up (а): channel_id хранится в самом event'е (см. _build_event).
+            # Передаём явно во все DB-вызовы — иначе background-context end_event
+            # (из event_watcher_loop без ContextVar) поймает strict-RuntimeError.
+            from dependencies import resolve_channel_id_or_default
+            channel_id = event.get("channel_id") or resolve_channel_id_or_default()
 
             if not bids:
                 return None, None, event["prize"]
@@ -269,7 +279,7 @@ class EventManager:
                 for user, amount in bids.items():
                     if user != winner:
                         try:
-                            await self.db.add_points(user, amount)
+                            await self.db.add_points(user, amount, channel_id=channel_id)
                         except Exception as e:
                             print(f"refund error {user}: {e}")
 
@@ -278,7 +288,7 @@ class EventManager:
                     # Корректный метод — give_item(username, item_name, quantity=1).
                     # Раньше здесь был несуществующий db.add_item → AttributeError тихо
                     # проглатывался в except, победитель не получал приз.
-                    ok = await self.db.give_item(winner, event["prize"]["item_id"])
+                    ok = await self.db.give_item(winner, event["prize"]["item_id"], channel_id=channel_id)
                     if not ok:
                         print(f"reward error: item '{event['prize']['item_id']}' not found in items table")
                 except Exception as e:

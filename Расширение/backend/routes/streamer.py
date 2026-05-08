@@ -215,7 +215,7 @@ async def auth_callback(request: Request):
         oauth_refresh_token=refresh_token,
         oauth_expires_at=expires_at_iso,
     )
-    mark_channel_registered(channel_id)
+    mark_channel_registered(channel_id, login=login)
     print(f"✅ Streamer registered: {login} (channel_id={channel_id})")
 
     # M4.4: signed cookie + redirect на dashboard.

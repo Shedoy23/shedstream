@@ -7,6 +7,7 @@ import logging
 import os
 import time
 import time as _time
+from typing import Optional
 
 # Alias for places that already use _asyncio.create_task(...)
 _asyncio = asyncio
@@ -476,18 +477,37 @@ async def run_migrations():
 # ===== TWITCH IRC БОТ (отслеживание чата) =====
 
 class TwitchChatBot(twitch_commands.Bot):
-    def __init__(self):
+    """Multi-channel IRC бот (M4 follow-up в).
+
+    На startup джойнит ВСЕ зарегистрированные в `channels` каналы. При входящем
+    чате/USERNOTICE из канала #X — резолвит channel_id через login→id mapping
+    из dependencies, ставит в ContextVar, дальше DB-helpers/quest-progress
+    автоматически скоупятся правильно.
+
+    Late-join (новый стример OAuth-нулся после старта бота) — TODO future:
+    twitchio supports `await self.join_channels([login])`, нужно вызывать из
+    OAuth callback'а или периодической reconciliation-таски.
+    """
+
+    def __init__(self, channel_logins: list):
         token = os.getenv('TWITCH_OAUTH_TOKEN', '')
-        channel = os.getenv('TWITCH_CHANNEL_NAME', '').lower().strip()
-        if not token or not channel:
-            print("TWITCH_OAUTH_TOKEN или TWITCH_CHANNEL_NAME не заданы — IRC бот не запустится")
+        if not token:
+            print("TWITCH_OAUTH_TOKEN не задан — IRC бот не запустится")
             return
-        super().__init__(token=token, prefix='!', initial_channels=[channel])
-        self._channel = channel
-        print(f"🎮 TwitchChatBot инициализирован для канала: {channel}")
+        if not channel_logins:
+            # Защита: бот без каналов не несёт пользы. Лучше явный warning + skip.
+            print("⚠️  Список зарегистрированных каналов пуст — IRC бот не джойнит чаты")
+            return
+        clean = [c.lower().strip().lstrip('#') for c in channel_logins if c]
+        super().__init__(token=token, prefix='!', initial_channels=clean)
+        self._channel_logins = clean
+        # Default = первый канал из реестра. Используется когда выходящий
+        # send_message не имеет channel-контекста (legacy callers без ContextVar).
+        self._default_channel = clean[0]
+        print(f"🎮 TwitchChatBot инициализирован для каналов: {clean}")
 
     async def event_ready(self):
-        print(f"✅ IRC бот подключён как {self.nick} к #{self._channel}")
+        print(f"✅ IRC бот подключён как {self.nick} к каналам: {self._channel_logins}")
         # Передаём ссылку на себя в BotCore чтобы send_message работал
         bot.twitch_bot = self
         # Флашим сообщения которые накопились пока IRC подключался
@@ -498,15 +518,24 @@ class TwitchChatBot(twitch_commands.Bot):
         except Exception as e:
             print(f"flush_pending_chat error: {e}")
 
-    async def send_message(self, message: str):
-        """Отправить сообщение в канал через twitchio."""
+    async def send_message(self, message: str, channel_login: Optional[str] = None):
+        """Отправить сообщение в указанный канал (или default = первый из join'нутых).
+
+        M4 follow-up (в): channel_login параметр. Без него — fallback на
+        _default_channel чтобы legacy-вызовы из BotCore без channel-контекста
+        не сломались (single-tenant поведение остаётся как было).
+        """
+        target = (channel_login or self._default_channel or '').lower().lstrip('#')
+        if not target:
+            print(f"send_message: нет default канала — drop: {message}")
+            return
         try:
-            channel = self.get_channel(self._channel)
-            if channel:
-                await channel.send(message)
-                print(f"📢 [CHAT] {message}")
+            ch = self.get_channel(target)
+            if ch:
+                await ch.send(message)
+                print(f"📢 [CHAT #{target}] {message}")
             else:
-                print(f"Канал {self._channel} не найден — сообщение не отправлено")
+                print(f"Канал #{target} не найден в IRC-кэше — drop: {message}")
         except Exception as e:
             print(f"send_message error: {e}")
 
@@ -520,8 +549,15 @@ class TwitchChatBot(twitch_commands.Bot):
         # Сбрасываем AFK — зритель написал в чат
         bot.update_viewer_chat(username)
         try:
-            from dependencies import resolve_channel_id_or_default  # IRC bot — TODO M4.5: брать channel.id из twitchio
-            channel_id = resolve_channel_id_or_default()
+            # M4 follow-up (в): резолвим channel_id из twitchio ctx + ставим в ContextVar
+            from dependencies import (
+                get_channel_id_by_login,
+                set_request_channel_id,
+                resolve_channel_id_or_default,
+            )
+            chat_login = (getattr(message.channel, 'name', '') or '').lower().lstrip('#')
+            channel_id = get_channel_id_by_login(chat_login) or resolve_channel_id_or_default()
+            set_request_channel_id(channel_id)
             async with db._connect() as conn:
                 await conn.execute("""
                     INSERT INTO viewers (channel_id, username, last_seen, is_afk)
@@ -573,7 +609,25 @@ class TwitchChatBot(twitch_commands.Bot):
             if not username or streak <= 0:
                 return
 
-            print(f"🔥 Milestone: @{username} смотрит {streak} стримов подряд!")
+            # M4 follow-up (в): извлечь канал из IRC line `... USERNOTICE #channel ...`
+            # и поставить channel_id в ContextVar для downstream db-helpers.
+            chat_login = ""
+            try:
+                un_idx = data.index('USERNOTICE')
+                tail = data[un_idx + len('USERNOTICE'):].lstrip()
+                if tail.startswith('#'):
+                    chat_login = tail.split(maxsplit=1)[0].lstrip('#').lower()
+            except ValueError:
+                pass
+            from dependencies import (
+                get_channel_id_by_login,
+                set_request_channel_id,
+                resolve_channel_id_or_default,
+            )
+            channel_id = get_channel_id_by_login(chat_login) or resolve_channel_id_or_default()
+            set_request_channel_id(channel_id)
+
+            print(f"🔥 Milestone: @{username} смотрит {streak} стримов подряд! (channel #{chat_login})")
 
             # Ищем подходящую награду (берём наибольшую не превышающую streak)
             from config import STREAK_REWARDS
@@ -828,12 +882,26 @@ async def eventsub_channel_points(request: Request):
 
 async def start_twitch_bot():
     global _twitch_chat_bot
+    # M4 follow-up (в): тянем список каналов из реестра channels (M4.0).
+    # Fallback на TWITCH_CHANNEL_NAME — на случай свежего setup до миграции
+    # (хотя миграция M4.0 backfill'ит этот канал; defensive belt-and-suspenders).
+    try:
+        rows = await db.list_channels()
+        channel_logins = [r['login'] for r in rows if r.get('login')]
+    except Exception as e:
+        print(f"⚠️  IRC bot: не удалось прочитать channels из БД: {e}")
+        channel_logins = []
+    if not channel_logins:
+        env_channel = os.getenv('TWITCH_CHANNEL_NAME', '').lower().strip()
+        if env_channel:
+            channel_logins = [env_channel]
+            print(f"⚠️  IRC bot: реестр пуст, fallback на TWITCH_CHANNEL_NAME={env_channel}")
     # Retry loop — пробуем подключиться с паузами при ошибке
     while True:
         try:
-            _twitch_chat_bot = TwitchChatBot()
-            if not hasattr(_twitch_chat_bot, '_channel'):
-                print("IRC бот: токен или канал не заданы")
+            _twitch_chat_bot = TwitchChatBot(channel_logins)
+            if not hasattr(_twitch_chat_bot, '_channel_logins'):
+                print("IRC бот: токен не задан или нет каналов для джойна")
                 return
             # connect() работает в текущем event loop (в отличие от start())
             await _twitch_chat_bot.connect()

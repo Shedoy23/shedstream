@@ -46,6 +46,11 @@ _current_channel_id: ContextVar[Optional[int]] = ContextVar('current_channel_id'
 _registered_channels_cache: set = set()
 _channels_cache_initialized: bool = False
 
+# M4 follow-up (в): login (lowercase) → channel_id mapping. Нужно IRC-боту
+# чтобы при входящем чат-сообщении из канала #foo резолвить broadcaster_id
+# для multi-tenant скоупинга. Заполняется одновременно с _registered_*.
+_channel_login_to_id: dict = {}
+
 
 def is_channel_registered(channel_id: int) -> bool:
     """Зарегистрирован ли канал (есть запись в `channels`).
@@ -59,11 +64,45 @@ def is_channel_registered(channel_id: int) -> bool:
     return channel_id in _registered_channels_cache
 
 
-def mark_channel_registered(channel_id: int) -> None:
+def get_channel_id_by_login(login: str) -> Optional[int]:
+    """M4 follow-up (в): реверсный lookup для IRC-бота. Снимаем `#` префикс
+    и lowercase. Возвращает None если канал не зарегистрирован."""
+    if not login:
+        return None
+    return _channel_login_to_id.get(login.lstrip("#").lower())
+
+
+def get_channel_login_by_id(channel_id: int) -> Optional[str]:
+    """Прямой lookup channel_id → login. Используется чтобы slать сообщение
+    в правильный IRC-канал (twitchio оперирует именами каналов, не ID)."""
+    if channel_id is None:
+        return None
+    for login, cid in _channel_login_to_id.items():
+        if cid == int(channel_id):
+            return login
+    return None
+
+
+def set_request_channel_id(channel_id: int) -> None:
+    """Public setter для request-context ContextVar. Используется IRC-ботом
+    в начале event_message/event_raw_data — после этого все downstream
+    db-helpers видят правильный channel_id без явного проброса.
+    """
+    if channel_id and channel_id > 0:
+        _current_channel_id.set(int(channel_id))
+
+
+def mark_channel_registered(channel_id: int, login: Optional[str] = None) -> None:
     """Добавить канал в cache. Вызывается M4.3 OAuth callback'ом
-    после db.upsert_channel(). Без этого канал получает 403 до рестарта."""
+    после db.upsert_channel(). Без этого канал получает 403 до рестарта.
+
+    M4 follow-up (в): login параметр обновляет login→id mapping чтобы
+    IRC-бот мог скоупить чат-сообщения от только что зарегистрированного
+    канала (если он успеет джойнить — late-join handled in future)."""
     if channel_id and channel_id > 0:
         _registered_channels_cache.add(int(channel_id))
+        if login:
+            _channel_login_to_id[login.lower().lstrip("#")] = int(channel_id)
 
 
 async def init_registered_channels_cache(db) -> None:
@@ -73,9 +112,16 @@ async def init_registered_channels_cache(db) -> None:
     global _channels_cache_initialized
     rows = await db.list_channels()
     _registered_channels_cache.clear()
-    _registered_channels_cache.update(int(r["channel_id"]) for r in rows)
+    _channel_login_to_id.clear()
+    for r in rows:
+        cid = int(r["channel_id"])
+        _registered_channels_cache.add(cid)
+        login = r.get("login")
+        if login:
+            _channel_login_to_id[login.lower()] = cid
     _channels_cache_initialized = True
-    print(f"✅ Registered channels cache: {len(_registered_channels_cache)} channels loaded")
+    print(f"✅ Registered channels cache: {len(_registered_channels_cache)} channels loaded "
+          f"(login→id map: {len(_channel_login_to_id)} entries)")
 
 
 def resolve_channel_id(channel_id: Optional[int] = None) -> int:

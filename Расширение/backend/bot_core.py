@@ -183,26 +183,57 @@ class BotCore:
     def _twitch_bot_ready(self) -> bool:
         """IRC-бот подключён и умеет слать? Используется как гейт для send."""
         tb = self.twitch_bot
-        if tb is None or not hasattr(tb, '_channel'):
+        if tb is None:
             return False
-        # twitchio держит канал в кэше только после event_ready.
-        # До коннекта get_channel() вернёт None → message drop.
+        # M4 follow-up (в): default_channel — первый из join'нутых каналов.
+        # До event_ready() get_channel() возвращает None → message drop.
+        default_ch = getattr(tb, '_default_channel', None) or getattr(tb, '_channel', None)
+        if not default_ch:
+            return False
         try:
-            return tb.get_channel(tb._channel) is not None
+            return tb.get_channel(default_ch) is not None
         except Exception:
             # На старых версиях twitchio get_channel может не существовать —
             # в этом случае ограничимся проверкой атрибутов.
             return True
 
-    async def send_message(self, message: str):
+    def _resolve_send_target(self, channel_id: Optional[int]) -> Optional[str]:
+        """M4 follow-up (в): channel_id → channel_login для twitchio bot.
+
+        Приоритет:
+          1. Явный channel_id параметр
+          2. ContextVar (`resolve_channel_id_or_default` идёт в DEFAULT — но мы
+             хотим именно ContextVar здесь, а DEFAULT уже резолвится в default_channel
+             на уровне TwitchChatBot.send_message → нет смысла дублировать).
+        Возвращает None если каналу нет login-mapping → caller передаст None
+        в TwitchChatBot.send_message и тот отдаст в default_channel (legacy
+        single-tenant поведение).
+        """
+        from dependencies import (
+            get_channel_login_by_id,
+            _current_channel_id,
+        )
+        cid = channel_id
+        if cid is None or cid <= 0:
+            cid = _current_channel_id.get()
+        if cid is None or cid <= 0:
+            return None
+        return get_channel_login_by_id(int(cid))
+
+    async def send_message(self, message: str, channel_id: Optional[int] = None):
         """Отправить сообщение в чат Twitch.
 
+        M4 follow-up (в): channel_id опциональный. Если задан или есть в
+        ContextVar — sлать в соответствующий канал; иначе legacy default
+        (= TwitchChatBot._default_channel = первый из реестра).
+
         Если IRC-бот ещё не подключился (ранний старт или переподключение) —
-        складываем в очередь. Флашим при:
+        складываем в очередь с привязанным target_login. Флашим при:
           1) TwitchChatBot.event_ready() — сразу после коннекта
           2) Следующем успешном send_message (opportunistic)
           3) Периодическом pending_chat_flush_loop (safety net каждые 15с)
         """
+        target_login = self._resolve_send_target(channel_id)
         try:
             if self._twitch_bot_ready():
                 # Прежде чем слать текущее — добить хвост, чтобы сохранить порядок
@@ -210,13 +241,12 @@ class BotCore:
                 # перед "АУКЦИОН СТАРТОВАЛ").
                 if self._pending_chat_messages:
                     await self.flush_pending_chat()
-                await self.twitch_bot.send_message(message)
-                print(f"📢 [CHAT] {message}")
+                await self.twitch_bot.send_message(message, channel_login=target_login)
             else:
                 # IRC не готов — буферим (с капом на антизатопление памяти).
                 if len(self._pending_chat_messages) < self._pending_chat_limit:
-                    self._pending_chat_messages.append(message)
-                    print(f"📢 [CHAT QUEUED] {message}")
+                    self._pending_chat_messages.append((message, target_login))
+                    print(f"📢 [CHAT QUEUED #{target_login or 'default'}] {message}")
                 else:
                     print(f"📢 [CHAT DROPPED] очередь полна ({self._pending_chat_limit}): {message}")
         except Exception as e:
@@ -237,14 +267,20 @@ class BotCore:
         pending = self._pending_chat_messages[:]
         self._pending_chat_messages.clear()
         logger.info("Flushing %d pending chat messages", len(pending))
-        for msg in pending:
+        for entry in pending:
+            # M4 follow-up (в): backward-compat — старые str-записи (если что-то
+            # положилось до апгрейда) трактуем как target=None (= default).
+            if isinstance(entry, tuple):
+                msg, target_login = entry
+            else:
+                msg, target_login = entry, None
             try:
-                await self.twitch_bot.send_message(msg)
-                print(f"📢 [CHAT FLUSHED] {msg}")
+                await self.twitch_bot.send_message(msg, channel_login=target_login)
+                print(f"📢 [CHAT FLUSHED #{target_login or 'default'}] {msg}")
             except Exception as e:
                 logger.warning("flush_pending_chat send fail: %s", e)
                 # Не теряем сообщение — возвращаем в начало очереди.
-                self._pending_chat_messages.insert(0, msg)
+                self._pending_chat_messages.insert(0, (msg, target_login))
                 break
 
     async def pending_chat_flush_loop(self):

@@ -37,6 +37,25 @@ class Database:
     async def init_tables(self):
         """Создание всех необходимых таблиц. WAL и busy_timeout выставляются пулом."""
         async with self._connect() as db:
+            # M4: реестр стримеров (multi-tenant). См. migrations/m4_channels.py.
+            # Полная схема (с OAuth/EventSub полями) поднимается миграцией M4 —
+            # здесь только базовая для свежих установок без существующих миграций.
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS channels (
+                    channel_id INTEGER PRIMARY KEY,
+                    login TEXT NOT NULL,
+                    display_name TEXT,
+                    tier TEXT NOT NULL DEFAULT 'free',
+                    active_module TEXT DEFAULT NULL,
+                    registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    last_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    oauth_access_token TEXT,
+                    oauth_refresh_token TEXT,
+                    oauth_expires_at TIMESTAMP,
+                    eventsub_subscription_id TEXT
+                )
+            """)
+
             # Основная таблица зрителей
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS viewers (
@@ -1174,3 +1193,75 @@ class Database:
                 "today_chat_messages": today_chat,
                 "active_users_today": active_today
             }
+
+    # ===== M4: CHANNELS REGISTRY =====
+
+    async def get_channel(self, channel_id: int) -> Optional[Dict]:
+        """Вернуть запись стримера или None если канал не зарегистрирован.
+
+        Используется в M4.1 для eager-registration check (require_jwt_user → 403
+        если канал отсутствует) и в admin-UI lite для отображения tier/настроек.
+        """
+        async with self._connect() as db:
+            cur = await db.execute(
+                """
+                SELECT channel_id, login, display_name, tier, active_module,
+                       registered_at, last_seen_at,
+                       oauth_access_token, oauth_refresh_token, oauth_expires_at,
+                       eventsub_subscription_id
+                FROM channels WHERE channel_id = ?
+                """,
+                (channel_id,),
+            )
+            row = await cur.fetchone()
+            if not row:
+                return None
+            return {
+                "channel_id":               row[0],
+                "login":                    row[1],
+                "display_name":             row[2],
+                "tier":                     row[3],
+                "active_module":            row[4],
+                "registered_at":            row[5],
+                "last_seen_at":             row[6],
+                "oauth_access_token":       row[7],
+                "oauth_refresh_token":      row[8],
+                "oauth_expires_at":         row[9],
+                "eventsub_subscription_id": row[10],
+            }
+
+    async def list_channels(self) -> list:
+        """Список всех зарегистрированных стримеров (для admin / cross-channel ops)."""
+        async with self._connect() as db:
+            cur = await db.execute(
+                "SELECT channel_id, login, tier, active_module, registered_at "
+                "FROM channels ORDER BY registered_at DESC"
+            )
+            rows = await cur.fetchall()
+            return [
+                {"channel_id": r[0], "login": r[1], "tier": r[2],
+                 "active_module": r[3], "registered_at": r[4]}
+                for r in rows
+            ]
+
+    async def upsert_channel(
+        self,
+        channel_id: int,
+        login: str,
+        display_name: Optional[str] = None,
+        tier: str = "free",
+    ) -> None:
+        """Создать/обновить запись стримера. Используется M4.3 OAuth callback'ом."""
+        async with self._connect() as db:
+            await db.execute(
+                """
+                INSERT INTO channels (channel_id, login, display_name, tier)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(channel_id) DO UPDATE SET
+                    login        = excluded.login,
+                    display_name = excluded.display_name,
+                    last_seen_at = CURRENT_TIMESTAMP
+                """,
+                (channel_id, login.lower(), display_name or login, tier),
+            )
+            await db.commit()

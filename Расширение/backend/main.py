@@ -460,6 +460,14 @@ async def run_migrations():
             print(f"❌ M1 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M4: channels registry — реестр зарегистрированных стримеров ──
+        try:
+            from migrations import m4_channels
+            await m4_channels.apply(conn)
+        except Exception as e:
+            print(f"❌ M4 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

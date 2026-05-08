@@ -1,35 +1,43 @@
 """
-routes/streamer.py — M4.3 Twitch OAuth flow для регистрации стримеров платформы.
+routes/streamer.py — M4.3 OAuth flow + M4.4 admin-UI lite dashboard.
 
 Стример заходит на /streamer, нажимает «Sign in with Twitch», проходит OAuth
-консент, и после callback'а попадает в реестр `channels`. После этого
-расширение на его канале начинает работать (require_jwt_user пройдёт M4.1
-проверку).
+консент, и после callback'а попадает в реестр `channels`. Получает signed
+session cookie и редиректится на /streamer/dashboard где видит свой статус.
 
-OAuth flow:
-  1. /streamer                       — HTML с кнопкой login
-  2. /api/streamer/auth/start        — генерирует CSRF-state, редирект на Twitch
-  3. /api/streamer/auth/callback     — обменивает code на токены, fetch'ит
-                                       user info через Helix /users, upsert в
-                                       channels, редиректит на /streamer/success
-  4. /streamer/success               — HTML «успешно подключено»
+OAuth + dashboard flow:
+  1. GET /streamer                     — landing с кнопкой login (или редирект
+                                          на dashboard если cookie уже валиден)
+  2. GET /api/streamer/auth/start      — генерирует CSRF-state, 302 на Twitch
+  3. GET /api/streamer/auth/callback   — обмен code → tokens, Helix /users,
+                                          upsert в channels, set cookie, 302
+                                          на /streamer/dashboard
+  4. GET /streamer/dashboard           — требует cookie, рендерит статус
+  5. GET /api/streamer/me              — JSON для возможной dynamic-UI (M4+)
+  6. POST /streamer/logout             — очищает cookie
 
-Token refresh — out of M4.3 scope. Хранятся в `channels.oauth_*` для будущего
-M4.5 EventSub auto-register.
+Cookie session — HMAC-SHA256 подпись `channel_id|expires_at` с
+TWITCH_EXTENSION_SECRET. TTL 30 дней. HttpOnly, Secure, SameSite=Lax.
+
+Token refresh access_token'а — out of scope. M4.5 будет dёргать refresh_token
+при expires_at < now перед EventSub-вызовами.
 """
 import asyncio
+import hashlib
+import hmac
 import secrets
 import time
 from typing import Dict, Optional
 from urllib.parse import urlencode
 
 import aiohttp
-from fastapi import APIRouter, HTTPException, Request, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from config import (
     TWITCH_CLIENT_ID,
     TWITCH_CLIENT_SECRET,
+    TWITCH_EXTENSION_SECRET,
     TWITCH_OAUTH_REDIRECT_URI,
     TWITCH_OAUTH_SCOPES,
 )
@@ -98,33 +106,6 @@ _LOGIN_HTML = """<!DOCTYPE html>
 </html>"""
 
 
-def _success_html(login: str, display_name: str) -> str:
-    return f"""<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="utf-8">
-  <title>Подключено — {display_name}</title>
-  <style>
-    body {{ font-family: -apple-system, Segoe UI, Roboto, sans-serif; background: #18181b; color: #efeff1;
-           display: flex; flex-direction: column; align-items: center; justify-content: center;
-           min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }}
-    .card {{ max-width: 480px; background: #1f1f23; border-radius: 12px; padding: 40px;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.3); text-align: center; }}
-    h1 {{ font-size: 28px; margin: 0 0 12px; color: #00f5a0; }}
-    p {{ color: #adadb8; line-height: 1.5; margin: 0 0 16px; }}
-    .nick {{ color: #9147ff; font-weight: 600; }}
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h1>✓ Готово</h1>
-    <p>Канал <span class="nick">{display_name}</span> успешно подключён к платформе.</p>
-    <p>Теперь зрители на твоём стриме могут пользоваться расширением. Открой стрим и проверь.</p>
-  </div>
-</body>
-</html>"""
-
-
 def _error_html(message: str) -> str:
     return f"""<!DOCTYPE html>
 <html lang="ru"><head><meta charset="utf-8"><title>Ошибка</title>
@@ -137,8 +118,11 @@ a{{color:#9147ff;text-decoration:none}}</style></head>
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 @router.get("/streamer", include_in_schema=False)
-async def streamer_landing():
-    """Лендинг для стримеров — кнопка «Sign in with Twitch»."""
+async def streamer_landing(request: Request):
+    """Лендинг для стримеров. Если cookie валиден — редирект на dashboard."""
+    cid = _read_session_cookie(request)
+    if cid is not None:
+        return RedirectResponse(url="/streamer/dashboard", status_code=status.HTTP_302_FOUND)
     return HTMLResponse(_LOGIN_HTML)
 
 
@@ -228,7 +212,10 @@ async def auth_callback(request: Request):
     mark_channel_registered(channel_id)
     print(f"✅ Streamer registered: {login} (channel_id={channel_id})")
 
-    return HTMLResponse(_success_html(login, display_name))
+    # M4.4: signed cookie + redirect на dashboard.
+    response = RedirectResponse(url="/streamer/dashboard", status_code=status.HTTP_302_FOUND)
+    _set_session_cookie(response, channel_id)
+    return response
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -278,3 +265,148 @@ def _epoch_to_iso(epoch: float) -> str:
     """Convert epoch seconds to ISO 8601 UTC for SQLite TIMESTAMP column."""
     from datetime import datetime, timezone
     return datetime.fromtimestamp(epoch, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+
+
+# ── M4.4: Signed session cookies + dashboard ──────────────────────────────────
+
+_SESSION_COOKIE_NAME = "streamer_session"
+_SESSION_TTL = 30 * 24 * 3600  # 30 дней
+
+
+def _sign_session(channel_id: int, expires_at: int) -> str:
+    """HMAC-SHA256 подпись `channel_id|expires_at`. Secret: TWITCH_EXTENSION_SECRET."""
+    msg = f"{channel_id}|{expires_at}"
+    secret = (TWITCH_EXTENSION_SECRET or "").encode() or b"unconfigured-extension-secret"
+    sig = hmac.new(secret, msg.encode(), hashlib.sha256).hexdigest()
+    return f"{msg}|{sig}"
+
+
+def _verify_session(token: str) -> Optional[int]:
+    """Вернуть channel_id если token валиден и не expired."""
+    if not token or token.count('|') != 2:
+        return None
+    try:
+        cid_str, exp_str, sig = token.split('|', 2)
+        msg = f"{cid_str}|{exp_str}"
+        secret = (TWITCH_EXTENSION_SECRET or "").encode() or b"unconfigured-extension-secret"
+        expected = hmac.new(secret, msg.encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(sig, expected):
+            return None
+        if int(exp_str) < int(time.time()):
+            return None
+        return int(cid_str)
+    except (ValueError, IndexError):
+        return None
+
+
+def _set_session_cookie(response: Response, channel_id: int) -> None:
+    expires_at = int(time.time()) + _SESSION_TTL
+    token = _sign_session(channel_id, expires_at)
+    response.set_cookie(
+        key=_SESSION_COOKIE_NAME,
+        value=token,
+        max_age=_SESSION_TTL,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        path="/",
+    )
+
+
+def _clear_session_cookie(response: Response) -> None:
+    response.delete_cookie(key=_SESSION_COOKIE_NAME, path="/")
+
+
+def _read_session_cookie(request: Request) -> Optional[int]:
+    token = request.cookies.get(_SESSION_COOKIE_NAME, "")
+    return _verify_session(token)
+
+
+# ── Dashboard endpoints ──────────────────────────────────────────────────────
+
+def _dashboard_html(ch: dict) -> str:
+    """Inline dashboard. ch — record из db.get_channel() (без OAuth tokens)."""
+    tier = (ch.get("tier") or "free").upper()
+    tier_color = {"FREE": "#6e6e73", "PRO": "#9147ff", "VIP": "#f4b740"}.get(tier, "#6e6e73")
+    module = ch.get("active_module") or "—"
+    display = ch.get("display_name") or ch.get("login") or "?"
+    registered_at = ch.get("registered_at") or "?"
+    has_oauth = "✅" if ch.get("oauth_access_token") else "—"
+    return f"""<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><title>Dashboard — {display}</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  body{{font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#0e0e10;color:#efeff1;margin:0;padding:20px;min-height:100vh;box-sizing:border-box}}
+  .wrap{{max-width:720px;margin:40px auto}}
+  .header{{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}}
+  .header h1{{margin:0;font-size:22px}}
+  .nick{{color:#9147ff}}
+  .logout{{background:transparent;color:#adadb8;border:1px solid #3a3a3d;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px}}
+  .logout:hover{{color:#fff;border-color:#fff}}
+  .grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}}
+  .tile{{background:#1f1f23;border-radius:10px;padding:20px}}
+  .tile .lbl{{color:#adadb8;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px}}
+  .tile .val{{font-size:20px;font-weight:600}}
+  .tier-badge{{display:inline-block;padding:4px 12px;border-radius:6px;font-weight:700;font-size:14px;color:#fff;background:{tier_color}}}
+  .footnote{{margin-top:28px;color:#6e6e73;font-size:13px;line-height:1.5}}
+  code{{background:#1f1f23;padding:2px 8px;border-radius:4px;color:#e0d6ff}}
+</style></head>
+<body><div class="wrap">
+  <div class="header">
+    <h1>Привет, <span class="nick">{display}</span></h1>
+    <form action="/streamer/logout" method="post" style="margin:0">
+      <button type="submit" class="logout">Выйти</button>
+    </form>
+  </div>
+  <div class="grid">
+    <div class="tile"><div class="lbl">Тариф</div><div class="val"><span class="tier-badge">{tier}</span></div></div>
+    <div class="tile"><div class="lbl">Активный модуль</div><div class="val">{module}</div></div>
+    <div class="tile"><div class="lbl">Twitch login</div><div class="val">{ch.get("login","?")}</div></div>
+    <div class="tile"><div class="lbl">Channel ID</div><div class="val">{ch.get("channel_id","?")}</div></div>
+    <div class="tile"><div class="lbl">Подключён</div><div class="val">{registered_at}</div></div>
+    <div class="tile"><div class="lbl">OAuth токен</div><div class="val">{has_oauth}</div></div>
+  </div>
+  <div class="footnote">
+    Расширение установи через <a href="https://dashboard.twitch.tv/extensions" style="color:#9147ff">Twitch Dashboard → Extensions</a>.
+    Channel-points и settings (модуль, цены) появятся в следующих релизах M4.5+.
+  </div>
+</div></body></html>"""
+
+
+@router.get("/streamer/dashboard", include_in_schema=False)
+async def streamer_dashboard(request: Request):
+    """Dashboard стримера. Требует валидную session cookie."""
+    cid = _read_session_cookie(request)
+    if cid is None:
+        return RedirectResponse(url="/streamer", status_code=status.HTTP_302_FOUND)
+    db = get_db()
+    ch = await db.get_channel(cid)
+    if not ch:
+        # Cookie указывает на несуществующий канал (был удалён?). Чистим cookie + редирект.
+        resp = RedirectResponse(url="/streamer", status_code=status.HTTP_302_FOUND)
+        _clear_session_cookie(resp)
+        return resp
+    return HTMLResponse(_dashboard_html(ch))
+
+
+@router.get("/api/streamer/me", include_in_schema=False)
+async def streamer_me(request: Request):
+    """JSON-версия статуса для возможного dynamic-UI. Требует cookie."""
+    cid = _read_session_cookie(request)
+    if cid is None:
+        return JSONResponse({"status": "unauthenticated"}, status_code=401)
+    db = get_db()
+    ch = await db.get_channel(cid)
+    if not ch:
+        return JSONResponse({"status": "channel_not_found"}, status_code=404)
+    # Не отдаём OAuth-токены наружу — даже владельцу канала.
+    safe = {k: v for k, v in ch.items() if not k.startswith("oauth_")}
+    safe["has_oauth"] = bool(ch.get("oauth_access_token"))
+    return JSONResponse(safe)
+
+
+@router.post("/streamer/logout", include_in_schema=False)
+async def streamer_logout():
+    resp = RedirectResponse(url="/streamer", status_code=status.HTTP_302_FOUND)
+    _clear_session_cookie(resp)
+    return resp

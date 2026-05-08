@@ -1,6 +1,6 @@
 # Multi-tenant рефакторинг — план
 
-**Status:** M0 Discovery completed (2026-05-01)
+**Status:** M3.0.1 deployed (2026-05-04). Дальше M4 (channels registry + admin-UI lite + EventSub auto-register).
 **Context:** [PLATFORM_VISION.md](../../PLATFORM_VISION.md) этап 2 / [MODULE_API.md](MODULE_API.md) §13.
 
 Цель: один backend обслуживает N стримеров. Каждый запрос знает «для какого стримера» — данные изолированы по `channel_id` (Twitch broadcaster user_id).
@@ -261,7 +261,15 @@ DELETE FROM rimworld_pawns        WHERE channel_id = ?;
 
 ## История
 
-| Дата | Этап | Изменения |
-|---|---|---|
-| 2026-05-01 | M0 | WAL подтверждён, бэкапы настроены, discovery audit completed. План M1-M6 утверждён. |
-| 2026-05-02 | M0+ | После обсуждения: каталоги стали session-scoped (§H), eager registration + admin-UI lite встроены в M4 (§I), `purchase_counters` → pawn-scoped FK CASCADE. Время: 27-41 ч → 37-54 ч. |
+| Дата | Этап | Коммит | Изменения |
+|---|---|---|---|
+| 2026-05-01 | M0 | — | WAL подтверждён, бэкапы настроены, discovery audit completed. План M1-M6 утверждён. |
+| 2026-05-02 | M0+ | `8f05fb1` | После обсуждения: каталоги стали session-scoped (§H), eager registration + admin-UI lite встроены в M4 (§I), `purchase_counters` → pawn-scoped FK CASCADE. Время: 27-41 ч → 37-54 ч. |
+| 2026-05-02 | M1 | `c051201` | Schema migration задеплоен на прод. Все TENANT-таблицы получили `channel_id`, 17 пересозданы с PK включая channel_id. `purchase_counters` → `rimworld_purchase_counters` (FK CASCADE). 140 viewers backfill'ены `channel_id=98319857`. Миграция идемпотентна через `migrations_applied`. БД 9.4 → 12.5 MB. |
+| 2026-05-04 | M2 | `b7d9c09` | JWT layer. `auth.verify_twitch_jwt` извлекает `channel_id` claim. `dependencies.require_jwt_user` → `(login, channel_id)`. Новый helper `require_jwt_channel`. 20 callsites мигрированы. 5 баговых JWT-проверок в `rimworld.py` исправлены (сравнение dict с 'none' всегда False — auth был де-факто отключён). 11 файлов, +169/−128. |
+| 2026-05-04 | M1-fix | `c3a18c4` | 16 ON CONFLICT(username) → ON CONFLICT(channel_id, ...). Helpers `add_points/give_item/touch_viewer/record_attendance/register_stream_session/end_stream_session` приняли opt-in `channel_id` с fallback к `DEFAULT_CHANNEL_ID`. Затронуты viewers, inventory, craft_stats, stream_attendance, stream_streaks, stream_sessions, rimworld_pawns. 10 файлов, +148/−110. |
+| 2026-05-04 | M3.0 | `6883170` | Query scoping. `database.py`: 22 метода приняли `channel_id`-параметр + WHERE channel_id=? скоупинг. `bot_core.py`: `reward_points_loop`/`drop_loop` читают channel_id из viewers-row. `main.py`: `family_income_loop` проверяет (channel_id, username) пары; EventSub берёт channel_id из event payload. 3 файла, +281/−181. |
+| 2026-05-04 | M3.0.1 | `7f83b71` | ContextVar auto-propagation. `dependencies._current_channel_id: ContextVar` — глобальный контекст request-task'и. `require_jwt_user/_channel` вызывают `.set(channel_id)`. `resolve_channel_id(channel_id=None) -> int` — единая точка fallback'а: явный_параметр → ContextVar → DEFAULT_CHANNEL_ID. 37 inline if-блоков заменены. **Главный выигрыш:** routes/* (50+ callsites без channel_id) автоматически scoped через ContextVar — не требуют изменений. M3.1 фактически отменён. 7 файлов, +100/−114 (NET −14). |
+| | M4 | — | **Не начат.** channels registry + Twitch OAuth страница для стримера + admin-UI lite + EventSub auto-register + IRC bot scoping. После M4 убрать `DEFAULT_CHANNEL_ID` fallback. |
+| | M5 | — | Не начат. Per-channel rate limits + tier-based квоты. |
+| | M6 | — | Не начат. Testing 2 каналов + deploy. |

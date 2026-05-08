@@ -949,6 +949,9 @@ async def on_startup():
         raise  # Падаем явно — не скрываем проблему
     # Служебные фоновые задачи
     asyncio.create_task(_rate_cleanup_loop())
+    # M5: per-channel rate-limit bucket cleanup (раз в 5 мин)
+    from dependencies import channel_rate_cleanup_loop as _channel_rate_cleanup
+    asyncio.create_task(_channel_rate_cleanup())
     # Фоновые задачи бота
     asyncio.create_task(bot.reward_points_loop())
     asyncio.create_task(bot.drop_loop())

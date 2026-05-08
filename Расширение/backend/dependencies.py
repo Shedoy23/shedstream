@@ -17,7 +17,14 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from auth import verify_twitch_jwt
-from config import DEFAULT_CHANNEL_ID, LOGIN_ATTEMPT_TTL, sanitize_username, validate_username
+from config import (
+    DEFAULT_CHANNEL_ID,
+    LOGIN_ATTEMPT_TTL,
+    RATE_LIMITS_BY_TIER,
+    RATE_LIMIT_DEFAULT_TIER,
+    sanitize_username,
+    validate_username,
+)
 
 # ── Multi-tenant request context ──────────────────────────────────────────────
 # ContextVar автоматически пропагируется через `await` в рамках одной asyncio-task'и
@@ -50,6 +57,17 @@ _channels_cache_initialized: bool = False
 # чтобы при входящем чат-сообщении из канала #foo резолвить broadcaster_id
 # для multi-tenant скоупинга. Заполняется одновременно с _registered_*.
 _channel_login_to_id: dict = {}
+
+# M5: channel_id → tier ('free' / 'pro' / 'vip'). Заполняется одновременно
+# с registered_channels_cache. Используется в check_channel_rate_limit для
+# применения tier-based квот. Updates при OAuth-регистрации; runtime tier
+# changes (admin upgrade) пока требуют рестарта — TODO M6+.
+_channel_tier_cache: dict = {}
+
+# M5: per-channel rate-limit buckets. channel_id → {count, reset}.
+# Отличается от _rate_buckets (per-IP, ниже) — этот аккаунт-уровень,
+# защищает прод от ситуации «один канал шлёт 10K req/min с разных IP».
+_channel_rate_buckets: dict = {}
 
 
 def is_channel_registered(channel_id: int) -> bool:
@@ -92,17 +110,24 @@ def set_request_channel_id(channel_id: int) -> None:
         _current_channel_id.set(int(channel_id))
 
 
-def mark_channel_registered(channel_id: int, login: Optional[str] = None) -> None:
+def mark_channel_registered(channel_id: int, login: Optional[str] = None,
+                              tier: Optional[str] = None) -> None:
     """Добавить канал в cache. Вызывается M4.3 OAuth callback'ом
     после db.upsert_channel(). Без этого канал получает 403 до рестарта.
 
     M4 follow-up (в): login параметр обновляет login→id mapping чтобы
     IRC-бот мог скоупить чат-сообщения от только что зарегистрированного
-    канала (если он успеет джойнить — late-join handled in future)."""
+    канала (если он успеет джойнить — late-join handled in future).
+
+    M5: tier параметр кэширует тариф для check_channel_rate_limit.
+    Default — RATE_LIMIT_DEFAULT_TIER (free), upsert_channel в OAuth flow
+    тоже создаёт запись с tier='free' для новых регистрантов."""
     if channel_id and channel_id > 0:
-        _registered_channels_cache.add(int(channel_id))
+        cid = int(channel_id)
+        _registered_channels_cache.add(cid)
         if login:
-            _channel_login_to_id[login.lower().lstrip("#")] = int(channel_id)
+            _channel_login_to_id[login.lower().lstrip("#")] = cid
+        _channel_tier_cache[cid] = (tier or RATE_LIMIT_DEFAULT_TIER).lower()
 
 
 async def init_registered_channels_cache(db) -> None:
@@ -113,15 +138,56 @@ async def init_registered_channels_cache(db) -> None:
     rows = await db.list_channels()
     _registered_channels_cache.clear()
     _channel_login_to_id.clear()
+    _channel_tier_cache.clear()
     for r in rows:
         cid = int(r["channel_id"])
         _registered_channels_cache.add(cid)
         login = r.get("login")
         if login:
             _channel_login_to_id[login.lower()] = cid
+        tier = (r.get("tier") or RATE_LIMIT_DEFAULT_TIER).lower()
+        _channel_tier_cache[cid] = tier
     _channels_cache_initialized = True
     print(f"✅ Registered channels cache: {len(_registered_channels_cache)} channels loaded "
-          f"(login→id map: {len(_channel_login_to_id)} entries)")
+          f"(login→id map: {len(_channel_login_to_id)}, tier-cache: {len(_channel_tier_cache)})")
+
+
+# ── M5: Per-channel rate limits ──────────────────────────────────────────────
+
+def check_channel_rate_limit(channel_id: int) -> bool:
+    """True = разрешить, False = заблокировать (429).
+
+    Per-channel sliding window per минуту. Tier-based квоты:
+        free → 300 req/min (по умолчанию)
+        pro  → 1200 req/min
+        vip  → 6000 req/min
+    Override через .env RATE_LIMIT_FREE / _PRO / _VIP.
+
+    Применяется в require_jwt_user/_channel — JWT-аутентифицированные
+    запросы для канала X считаются в bucket этого канала. Background
+    loops НЕ ходят через JWT и не считаются (намеренно — они под нашим
+    контролем).
+    """
+    tier = _channel_tier_cache.get(channel_id, RATE_LIMIT_DEFAULT_TIER)
+    limit = RATE_LIMITS_BY_TIER.get(tier, RATE_LIMITS_BY_TIER[RATE_LIMIT_DEFAULT_TIER])
+    now = _time.time()
+    bucket = _channel_rate_buckets.setdefault(int(channel_id), {"count": 0, "reset": 0.0})
+    if now > bucket["reset"]:
+        bucket["count"] = 0
+        bucket["reset"] = now + 60
+    bucket["count"] += 1
+    return bucket["count"] <= limit
+
+
+async def channel_rate_cleanup_loop():
+    """Чистит просроченные channel rate-limit бакеты раз в 5 минут.
+    Аналог rate_cleanup_loop для per-IP, но для per-channel."""
+    while True:
+        await asyncio.sleep(300)
+        now = _time.time()
+        expired = [cid for cid, b in _channel_rate_buckets.items() if now > b["reset"] + 120]
+        for cid in expired:
+            del _channel_rate_buckets[cid]
 
 
 def resolve_channel_id(channel_id: Optional[int] = None) -> int:
@@ -227,6 +293,22 @@ def _raise_channel_not_registered(channel_id: int) -> None:
     )
 
 
+def _raise_channel_rate_limited(channel_id: int) -> None:
+    """M5: Per-channel rate limit exceeded → 429."""
+    tier = _channel_tier_cache.get(channel_id, RATE_LIMIT_DEFAULT_TIER)
+    limit = RATE_LIMITS_BY_TIER.get(tier, RATE_LIMITS_BY_TIER[RATE_LIMIT_DEFAULT_TIER])
+    raise HTTPException(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        detail={
+            "status": "channel_rate_limited",
+            "channel_id": channel_id,
+            "tier": tier,
+            "limit_per_min": limit,
+            "message": "Превышен лимит запросов канала. Попробуй через минуту или попроси стримера обновить тариф.",
+        },
+    )
+
+
 def require_jwt_user(request: Request) -> Optional[Tuple[str, int]]:
     """
     Возвращает (sanitized_login, channel_id) или None.
@@ -265,6 +347,9 @@ def require_jwt_user(request: Request) -> Optional[Tuple[str, int]]:
         return None
     if not is_channel_registered(channel_id):
         _raise_channel_not_registered(channel_id)
+    # M5: per-channel rate limit. После успешной registration check.
+    if not check_channel_rate_limit(channel_id):
+        _raise_channel_rate_limited(channel_id)
     # Кладём channel_id в контекст текущей request-task'и — все async db-вызовы
     # дальше по цепочке (включая create_task(...) child'ов) автоматически
     # увидят его через resolve_channel_id() без явного проброса.
@@ -298,6 +383,9 @@ def require_jwt_channel(request: Request) -> Optional[int]:
         return None
     if not is_channel_registered(channel_id):
         _raise_channel_not_registered(channel_id)
+    # M5: per-channel rate limit.
+    if not check_channel_rate_limit(channel_id):
+        _raise_channel_rate_limited(channel_id)
     # См. require_jwt_user — устанавливаем channel_id в context для авто-проброса.
     _current_channel_id.set(channel_id)
     return channel_id

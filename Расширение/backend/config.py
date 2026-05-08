@@ -49,6 +49,24 @@ TWITCH_OAUTH_REDIRECT_URI = os.getenv(
 # для будущего EventSub auto-register (M4.5 положит channel.channel_points_*).
 TWITCH_OAUTH_SCOPES = 'user:read:email channel:read:redemptions'
 
+# ===== M5: Per-channel rate limits + tier-based квоты =====
+# Лимит запросов в минуту на канал. Применяется в require_jwt_user/_channel
+# (M5 hook): JWT-аутентифицированный запрос для канала X считается в bucket
+# канала X. Если лимит превышен — 429.
+#
+# Квоты по тарифам — основа будущего биллинга. Free достаточен для
+# разогрева/тестов, Pro для типичного стрима 50-200 онлайна, VIP с запасом
+# на крупные стримы 1000+ онлайна.
+#
+# Можно переопределить в .env через RATE_LIMIT_FREE / _PRO / _VIP (req/min).
+RATE_LIMITS_BY_TIER = {
+    'free': int(os.getenv('RATE_LIMIT_FREE', '300')),   # ~5 req/sec на канал
+    'pro':  int(os.getenv('RATE_LIMIT_PRO',  '1200')),  # 20 req/sec
+    'vip':  int(os.getenv('RATE_LIMIT_VIP',  '6000')),  # 100 req/sec
+}
+# Tier для каналов которые ещё не имеют записи (или fallback при кэш-промахе).
+RATE_LIMIT_DEFAULT_TIER = 'free'
+
 # ===== M4.5: EventSub AUTO-REGISTER (feature flag) =====
 # При false — register_eventsub_channel_points регистрирует ОДНУ подписку для
 # TWITCH_BROADCASTER_ID из .env (текущая single-tenant логика, безопасный default).

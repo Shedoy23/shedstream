@@ -23,13 +23,14 @@
 - [x] `routes/module_api.py`: `GET /v1/modules`, `GET /v1/module/<id>/info`, `POST /v1/module/<id>/hello`
 - [x] `discover_modules()` вызов в `main.on_startup`
 
-### Step 2 — Read events from connector ⏳
-Цель: мод начинает слать `player.linked` / `player.died` / `player.state_update` через `POST /v1/module/rimworld/events` параллельно с легаси `/api/rimworld/link`. Двойная подача — переходный период.
+### Step 2 — Read events from connector ✅ (infrastructure done, real handlers — Step 3)
+Цель: мод начинает слать события через Module API параллельно с легаси `/api/rimworld/*`.
 
-- [ ] `POST /v1/module/<id>/events` endpoint в `routes/module_api.py`. Принимает массив envelope'ов. Валидирует через `manifest.supports_event()`.
-- [ ] HMAC auth (§4 спеки): `Authorization: Module <token>` где token подписан `MODULE_SECRET` из .env. Mod side берёт от стримера через OAuth (M4.3).
-- [ ] `RimWorldAdapter.handle_event` — диспатч по `env.type`. Стандартные события (player.linked → создать pawn в БД) реализуем напрямую через `db.*` helpers. Custom (pawn.gene_changed) — обновляют rimworld_pawn_genes.
-- [ ] Идемпотентность: храним последние `env.id` в Redis или in-memory ring; повторный envelope игнорим.
+- [x] `POST /v1/module/<id>/events` endpoint в `routes/module_api.py`. Принимает массив envelope'ов. Валидирует через `manifest.supports_event()`.
+- [x] Token auth (§4 спеки): `Authorization: Bearer <module-token>`. Token = HMAC-SHA256(`channel_id|module_id|expires_at`, MODULE_TOKEN_SECRET). Long-lived (1 year). Issuance: `GET /api/streamer/module-token?module_id=X` (cookie-protected, M4.4 dashboard).
+- [x] `RimWorldAdapter.handle_event` — диспатчер по `env.type`. **Lifecycle events** (session_start/_end/heartbeat/catalog_update) implemented (либо реальный handler, либо log+skip с TODO).
+- [ ] **Реальные db.* writes** для player.* и pawn.* events — ОТЛОЖЕНО в Step 3 (чтобы не дублировать с легаси /api/rimworld/* которые ещё активны).
+- [x] Идемпотентность: per-channel in-memory ring (5000 envelope id'ов), повторный envelope = ACK с `{duplicate: true}`.
 
 ### Step 3 — Action queue (core → connector)
 Цель: `player.spawn` вместо `POST /api/rimworld/spawn` идёт через action queue.
@@ -91,3 +92,4 @@
 | Дата | Шаг | Изменения |
 |---|---|---|
 | 2026-05-08 | Step 1 | Foundation: ModuleAdapter ABC, manifest.yaml, loader, /v1/module/* routes. RimWorldAdapter — stub. Existing rimworld.py не тронут. |
+| 2026-05-08 | Step 2 | Events endpoint + token auth + dedup. POST /v1/module/<id>/events. issue/verify_module_token (HMAC, 1-year TTL). GET /api/streamer/module-token (cookie-protected). RimWorldAdapter.handle_event — dispatcher с lifecycle handlers (session_*, catalog_update logged). Реальные db-writes для player.*/pawn.* отложены в Step 3. |

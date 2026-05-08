@@ -1,5 +1,6 @@
 """
-routes/streamer.py — M4.3 OAuth flow + M4.4 admin-UI lite dashboard.
+routes/streamer.py — M4.3 OAuth flow + M4.4 admin-UI lite dashboard
+                     + M4 follow-up (б): OAuth refresh.
 
 Стример заходит на /streamer, нажимает «Sign in with Twitch», проходит OAuth
 консент, и после callback'а попадает в реестр `channels`. Получает signed
@@ -19,8 +20,13 @@ OAuth + dashboard flow:
 Cookie session — HMAC-SHA256 подпись `channel_id|expires_at` с
 TWITCH_EXTENSION_SECRET. TTL 30 дней. HttpOnly, Secure, SameSite=Lax.
 
-Token refresh access_token'а — out of scope. M4.5 будет dёргать refresh_token
-при expires_at < now перед EventSub-вызовами.
+OAuth refresh (M4 follow-up):
+  - get_fresh_oauth_token(channel_id) — lazy refresh, вызывается перед каждым
+    user-level API-вызовом. Возвращает None если refresh_token недействителен
+    (стример отозвал доступ — нужно re-OAuth).
+  - oauth_refresh_loop() — фоновая задача каждый час: проактивно обновляет
+    токены за 30 минут до expiry. Так refresh_token не «протухает» от
+    бездействия (Twitch инвалидирует unused refresh после ~30 дней).
 """
 import asyncio
 import hashlib
@@ -410,3 +416,137 @@ async def streamer_logout():
     resp = RedirectResponse(url="/streamer", status_code=status.HTTP_302_FOUND)
     _clear_session_cookie(resp)
     return resp
+
+
+# ── M4 follow-up (б): OAuth refresh ──────────────────────────────────────────
+
+# Refresh когда до expiry осталось меньше этого окна (60 сек безопаснее
+# чем впритык — учитывает clock skew + network latency).
+_REFRESH_LEEWAY_SEC = 60
+# Background loop проактивно рефрешит за этим окном до expiry — так
+# refresh_token не «протухает» от бездействия (Twitch инвалидирует unused
+# через ~30 дней) + token всегда свеж когда понадобится.
+_PROACTIVE_REFRESH_WINDOW_SEC = 30 * 60
+
+
+def _parse_iso_to_epoch(iso_str: Optional[str]) -> float:
+    """Convert SQLite TIMESTAMP string (`YYYY-MM-DD HH:MM:SS` UTC) to epoch.
+    Возвращает 0 если parse failed → caller трактует как «expired»."""
+    if not iso_str:
+        return 0.0
+    from datetime import datetime, timezone
+    try:
+        # SQLite формат БЕЗ tz info — кладём UTC
+        dt = datetime.strptime(iso_str, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
+        return dt.timestamp()
+    except (ValueError, TypeError):
+        return 0.0
+
+
+async def _refresh_with_twitch(refresh_token: str) -> Optional[dict]:
+    """POST на Twitch refresh endpoint. Возвращает dict с access_token/
+    refresh_token/expires_in или None при ошибке."""
+    payload = {
+        'client_id':     TWITCH_CLIENT_ID,
+        'client_secret': TWITCH_CLIENT_SECRET,
+        'grant_type':    'refresh_token',
+        'refresh_token': refresh_token,
+    }
+    try:
+        async with aiohttp.ClientSession() as s:
+            async with s.post('https://id.twitch.tv/oauth2/token', data=payload, timeout=10) as r:
+                if r.status != 200:
+                    body = await r.text()
+                    print(f"⚠️  OAuth refresh failed: {r.status} {body[:200]}")
+                    return None
+                return await r.json()
+    except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+        print(f"⚠️  OAuth refresh network error: {e}")
+        return None
+
+
+async def _refresh_and_save(channel_id: int, refresh_token: str) -> Optional[str]:
+    """Refresh токенов + сохранить в БД. Возвращает новый access_token или None."""
+    data = await _refresh_with_twitch(refresh_token)
+    if not data:
+        return None
+    new_access = data.get('access_token')
+    new_refresh = data.get('refresh_token') or refresh_token  # rotates но defensive
+    expires_in = int(data.get('expires_in', 0))
+    if not new_access:
+        return None
+    new_expires_at = _epoch_to_iso(time.time() + max(0, expires_in))
+    db = get_db()
+    ok = await db.update_channel_oauth(channel_id, new_access, new_refresh, new_expires_at)
+    if not ok:
+        print(f"⚠️  OAuth refresh: канал {channel_id} не найден в БД (race?)")
+        return None
+    return new_access
+
+
+async def get_fresh_oauth_token(channel_id: int) -> Optional[str]:
+    """Вернуть валидный access_token для канала, обновив если близок к expiry.
+
+    Returns:
+        access_token (str) если канал зарегистрирован и refresh_token валиден.
+        None если канал не зарегистрирован, OAuth не пройден, ИЛИ refresh
+        отклонён Twitch (стример revoke'нул доступ — нужно re-OAuth).
+
+    Использование: вызывать перед каждым user-level Helix-запросом. Lazy.
+    """
+    db = get_db()
+    ch = await db.get_channel(channel_id)
+    if not ch:
+        return None
+    refresh = ch.get('oauth_refresh_token')
+    access = ch.get('oauth_access_token')
+    if not (refresh and access):
+        return None  # never registered or partial OAuth state
+
+    expires_at = _parse_iso_to_epoch(ch.get('oauth_expires_at'))
+    if time.time() < expires_at - _REFRESH_LEEWAY_SEC:
+        return access  # ещё валиден
+
+    return await _refresh_and_save(channel_id, refresh)
+
+
+async def oauth_refresh_loop() -> None:
+    """Фоновая задача: проверяет и обновляет токены раз в час.
+
+    Запускается в main.on_startup. При первом старте после M4 deploy этот
+    loop ничего не делает (один забекфилленный канал не имеет OAuth-полей —
+    тот стример должен пройти OAuth flow один раз через /streamer).
+
+    После того как стримеры зарегистрируются — loop держит их токены свежими.
+    """
+    db = get_db()
+    while True:
+        try:
+            channels = await db.list_channels()
+            now = time.time()
+            refreshed = 0
+            failed = 0
+            for ch in channels:
+                cid = ch['channel_id']
+                # list_channels возвращает trimmed dict без oauth_*; идём в get_channel.
+                full = await db.get_channel(cid)
+                if not full:
+                    continue
+                refresh = full.get('oauth_refresh_token')
+                if not refresh:
+                    continue  # не прошёл OAuth — ничего не рефрешим
+                expires_at = _parse_iso_to_epoch(full.get('oauth_expires_at'))
+                if expires_at - now > _PROACTIVE_REFRESH_WINDOW_SEC:
+                    continue  # ещё рано
+                new_token = await _refresh_and_save(cid, refresh)
+                if new_token:
+                    refreshed += 1
+                    print(f"🔄 OAuth refreshed для channel_id={cid}")
+                else:
+                    failed += 1
+                    print(f"⚠️  OAuth refresh FAILED для channel_id={cid} — стример должен re-OAuth")
+            if refreshed or failed:
+                print(f"OAuth refresh loop: refreshed={refreshed}, failed={failed}")
+        except Exception as e:
+            print(f"OAuth refresh loop error: {type(e).__name__}: {e}")
+        await asyncio.sleep(3600)

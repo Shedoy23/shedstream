@@ -1280,3 +1280,32 @@ class Database:
                  oauth_access_token, oauth_refresh_token, oauth_expires_at),
             )
             await db.commit()
+
+    async def update_channel_oauth(
+        self,
+        channel_id: int,
+        access_token: str,
+        refresh_token: str,
+        expires_at: str,
+    ) -> bool:
+        """Атомарное обновление только OAuth-полей канала.
+
+        Используется M4 follow-up (б) refresh-loop'ом — по сравнению с
+        `upsert_channel` не трогает login/display_name/tier/module чтобы
+        случайно не затереть админ-настройки. Вернёт False если канала нет
+        в реестре (race с удалением, например).
+        """
+        async with self._connect() as db:
+            cur = await db.execute(
+                """
+                UPDATE channels SET
+                    oauth_access_token  = ?,
+                    oauth_refresh_token = ?,
+                    oauth_expires_at    = ?,
+                    last_seen_at        = CURRENT_TIMESTAMP
+                WHERE channel_id = ?
+                """,
+                (access_token, refresh_token, expires_at, channel_id),
+            )
+            await db.commit()
+            return cur.rowcount > 0

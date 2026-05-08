@@ -898,6 +898,9 @@ async def on_startup():
     asyncio.create_task(bot.pending_chat_flush_loop())
     asyncio.create_task(run_family_income())
     asyncio.create_task(register_eventsub_channel_points())
+    # M4 follow-up (б): держим OAuth-токены стримеров свежими.
+    from routes.streamer import oauth_refresh_loop as _oauth_refresh_loop
+    asyncio.create_task(_oauth_refresh_loop())
     # Сезоны дуэлей — проверка при старте + восстановление pending
     from routes.duel import check_season_end as _duel_season_check
     from routes.duel import load_pending_duels as _load_pending_duels

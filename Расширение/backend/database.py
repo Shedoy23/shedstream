@@ -1250,18 +1250,33 @@ class Database:
         login: str,
         display_name: Optional[str] = None,
         tier: str = "free",
+        oauth_access_token: Optional[str] = None,
+        oauth_refresh_token: Optional[str] = None,
+        oauth_expires_at: Optional[str] = None,
     ) -> None:
-        """Создать/обновить запись стримера. Используется M4.3 OAuth callback'ом."""
+        """Создать/обновить запись стримера. Используется M4.3 OAuth callback'ом.
+
+        OAuth-поля опциональны — initial registration через .env backfill их не
+        ставит, OAuth-callback ставит их через тот же метод.
+
+        ON CONFLICT обновляет login/display_name/last_seen всегда, OAuth-поля
+        только если переданы (COALESCE с excluded — None НЕ затирает существующие).
+        """
         async with self._connect() as db:
             await db.execute(
                 """
-                INSERT INTO channels (channel_id, login, display_name, tier)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO channels (channel_id, login, display_name, tier,
+                                      oauth_access_token, oauth_refresh_token, oauth_expires_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(channel_id) DO UPDATE SET
-                    login        = excluded.login,
-                    display_name = excluded.display_name,
-                    last_seen_at = CURRENT_TIMESTAMP
+                    login                = excluded.login,
+                    display_name         = excluded.display_name,
+                    last_seen_at         = CURRENT_TIMESTAMP,
+                    oauth_access_token   = COALESCE(excluded.oauth_access_token, oauth_access_token),
+                    oauth_refresh_token  = COALESCE(excluded.oauth_refresh_token, oauth_refresh_token),
+                    oauth_expires_at     = COALESCE(excluded.oauth_expires_at, oauth_expires_at)
                 """,
-                (channel_id, login.lower(), display_name or login, tier),
+                (channel_id, login.lower(), display_name or login, tier,
+                 oauth_access_token, oauth_refresh_token, oauth_expires_at),
             )
             await db.commit()

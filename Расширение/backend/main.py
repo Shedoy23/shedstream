@@ -73,6 +73,7 @@ from routes.event    import router as event_router
 from routes.promo    import router as promo_router
 from routes.marriage import router as marriage_router
 from routes.misc     import router as misc_router
+from routes.streamer import router as streamer_router
 app.include_router(casino_router)
 app.include_router(duel_router)
 app.include_router(viewer_router)
@@ -83,6 +84,7 @@ app.include_router(event_router)
 app.include_router(promo_router)
 app.include_router(marriage_router)
 app.include_router(misc_router)
+app.include_router(streamer_router)  # M4.3: OAuth flow для регистрации стримеров
 
 
 # Путь к фронтенду из .env или значение по умолчанию

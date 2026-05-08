@@ -38,6 +38,17 @@ TWITCH_EXTENSION_SECRET = os.getenv('TWITCH_EXTENSION_SECRET', '')
 if not TWITCH_EXTENSION_SECRET:
     print("⚠️  TWITCH_EXTENSION_SECRET не задан в .env — JWT верификация будет отклонять все токены")
 
+# ===== M4.3: TWITCH OAUTH FOR STREAMER REGISTRATION =====
+# Стример проходит OAuth на /streamer чтобы зарегистрироваться в платформе.
+# REDIRECT_URI должен совпадать с настройкой Twitch Developer Console.
+TWITCH_OAUTH_REDIRECT_URI = os.getenv(
+    'TWITCH_OAUTH_REDIRECT_URI',
+    'https://shedoy23.ru/api/streamer/auth/callback'
+)
+# Скоупы: user:read:email чтобы получить login + user_id, channel:read:redemptions
+# для будущего EventSub auto-register (M4.5 положит channel.channel_points_*).
+TWITCH_OAUTH_SCOPES = 'user:read:email channel:read:redemptions'
+
 # ===== DEV MODE (только для локального тестирования) =====
 # Добавьте DEV_MODE=true и DEV_USERNAME=ваш_ник в .env чтобы обойти JWT верификацию
 # НИКОГДА не включайте на продакшн сервере

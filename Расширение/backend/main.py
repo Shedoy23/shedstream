@@ -518,8 +518,8 @@ class TwitchChatBot(twitch_commands.Bot):
         # Сбрасываем AFK — зритель написал в чат
         bot.update_viewer_chat(username)
         try:
-            from dependencies import resolve_channel_id  # IRC bot — TODO M3.1: брать channel.id из twitchio
-            channel_id = resolve_channel_id()
+            from dependencies import resolve_channel_id_or_default  # IRC bot — TODO M4.5: брать channel.id из twitchio
+            channel_id = resolve_channel_id_or_default()
             async with db._connect() as conn:
                 await conn.execute("""
                     INSERT INTO viewers (channel_id, username, last_seen, is_afk)
@@ -586,8 +586,8 @@ class TwitchChatBot(twitch_commands.Bot):
                 return
 
             # Проверяем что уже не выдавали эту награду за этот стрик (BEGIN IMMEDIATE — атомарно)
-            from dependencies import resolve_channel_id  # IRC USERNOTICE — TODO M3.1: брать channel.id из twitchio
-            channel_id = resolve_channel_id()
+            from dependencies import resolve_channel_id_or_default  # IRC USERNOTICE — TODO M4.5: брать channel.id из twitchio
+            channel_id = resolve_channel_id_or_default()
             async with db._connect() as conn:
                 await conn.execute("BEGIN IMMEDIATE")
                 cursor = await conn.execute(
@@ -737,14 +737,14 @@ async def eventsub_channel_points(request: Request):
         reward_title = event.get("reward", {}).get("title", "")
         redemption_id = event.get("id", "")
         # broadcaster_user_id из payload — это и есть channel_id для multi-tenant.
-        # Fallback через resolve_channel_id() если EventSub payload без broadcaster
-        # (теоретически невозможно, но defensive).
-        from dependencies import resolve_channel_id
+        # Fallback на DEFAULT_CHANNEL_ID если EventSub payload без broadcaster
+        # (теоретически невозможно, но defensive — используем _or_default).
+        from dependencies import resolve_channel_id_or_default
         try:
             raw = event.get("broadcaster_user_id")
-            channel_id = int(raw) if raw else resolve_channel_id()
+            channel_id = int(raw) if raw else resolve_channel_id_or_default()
         except (TypeError, ValueError):
-            channel_id = resolve_channel_id()
+            channel_id = resolve_channel_id_or_default()
 
         rewards_cfg = CHANNEL_POINTS_CONFIG.get('rewards', {})
         reward_cfg  = rewards_cfg.get(reward_title)

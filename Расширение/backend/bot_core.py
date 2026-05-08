@@ -11,7 +11,7 @@ import os
 logger = logging.getLogger('rimlink.bot')
 
 from database import Database
-from dependencies import resolve_channel_id
+from dependencies import resolve_channel_id, resolve_channel_id_or_default
 from event_manager import EventManager
 from config import (
     ACTIVE_WINDOW,
@@ -627,11 +627,11 @@ class BotCore:
             active = [(r[0], r[1]) for r in rows if r[1].lower() not in DROP_BLACKLIST]
         except Exception as e:
             logger.warning("Drop: чтение активных из БД упало: %s", e)
-            # Fallback in-memory cache не знает channel_id зрителей. resolve_channel_id()
-            # без аргумента упадёт в DEFAULT_CHANNEL_ID. В multi-tenant scenario
-            # этот fallback всё равно отдаст drop одному каналу (не идеально),
+            # Fallback in-memory cache не знает channel_id зрителей.
+            # resolve_channel_id_or_default() даст DEFAULT_CHANNEL_ID — в multi-tenant
+            # scenario fallback всё равно отдаст drop одному каналу (не идеально),
             # но это всего лишь crash-recovery — нормальный путь работает корректно.
-            fallback_cid = resolve_channel_id()
+            fallback_cid = resolve_channel_id_or_default()
             active = [
                 (fallback_cid, u) for u, t in self.viewers_last_active.items()
                 if t > cutoff and u.lower() not in DROP_BLACKLIST

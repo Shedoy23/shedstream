@@ -43,8 +43,8 @@ async def craft_item(request: Request):
     cost, result_name, emoji = recipe["cost"], recipe["result"], recipe["emoji"]
     db  = get_db()
     bot = get_bot()
-    from dependencies import resolve_channel_id  # craft endpoint без JWT — TODO M3.1: добавить require_jwt_user
-    channel_id = resolve_channel_id()
+    from dependencies import resolve_channel_id_or_default  # craft endpoint без JWT — TODO M4.4: добавить require_jwt_user
+    channel_id = resolve_channel_id_or_default()
     await bot.touch_viewer(username, channel_id)
 
     try:

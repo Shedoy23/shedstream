@@ -177,8 +177,8 @@ async def admin_give_item(request: Request, _admin: str = Depends(require_admin)
         item   = await cursor.fetchone()
         if not item:
             return {"success": False, "message": "Предмет не найден"}
-        from dependencies import resolve_channel_id  # admin endpoint без JWT — TODO M4: per-channel admin UI
-        channel_id = resolve_channel_id()
+        from dependencies import resolve_channel_id_or_default  # admin endpoint без JWT — TODO M4.4: per-channel admin UI
+        channel_id = resolve_channel_id_or_default()
         await conn.execute("""
             INSERT INTO inventory (channel_id, username, item_id, quantity)
             VALUES (?, ?, ?, ?)

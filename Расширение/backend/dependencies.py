@@ -82,13 +82,42 @@ def resolve_channel_id(channel_id: Optional[int] = None) -> int:
     """Разрешить channel_id для DB-helper.
 
     Приоритет:
-      1. Явный параметр (background loops, EventSub)
+      1. Явный параметр (background loops, EventSub передающий broadcaster_id)
       2. ContextVar (установленный require_jwt_user / require_jwt_channel в JWT-routes)
-      3. DEFAULT_CHANNEL_ID (single-tenant fallback из config.py — TODO M4 убрать)
+      3. DEFAULT_CHANNEL_ID (single-tenant fallback из config.py)
 
-    Это та точка через которую идёт ВЕСЬ выбор channel_id в коде. Если меняется
-    политика fallback'а (например, M4 добавит channels-registry и потребует
-    явный регистрант) — меняется только эта функция.
+    M4.2 status: строгая версия (raise если нет ни (1), ни (2)) откладывается до
+    очистки всех background-callers которые сейчас полагаются на (3) косвенно
+    (event_manager.end_event, check_season_end на старте, casino_bet, IRC
+    USERNOTICE handler — каждый требует threading channel_id или ContextVar.set
+    в момент создания task'и). См. `resolve_channel_id_or_default` для явного
+    soft-маркера на integration границах без JWT.
+    """
+    if channel_id is not None and channel_id > 0:
+        return channel_id
+    ctx_value = _current_channel_id.get()
+    if ctx_value is not None and ctx_value > 0:
+        return ctx_value
+    return DEFAULT_CHANNEL_ID
+
+
+def resolve_channel_id_or_default(channel_id: Optional[int] = None) -> int:
+    """Явная soft-версия — для integration boundaries где channel_id легитимно
+    неизвестен на текущем уровне зрелости платформы.
+
+    Семантически identical к `resolve_channel_id` сейчас (оба возвращают
+    DEFAULT_CHANNEL_ID если не разрешить из параметра/ContextVar). Цель —
+    discoverability: grep по `_or_default` показывает все legacy-точки,
+    которые нужно перевести на explicit channel_id перед тем как
+    `resolve_channel_id` станет строгим.
+
+    Текущие callers (M4.2):
+      - rimworld.py mod endpoints (TODO M4.5+: HMAC + channel_id из мода)
+      - main.py IRC bot handlers (TODO M4.5: channel.id из twitchio)
+      - main.py EventSub fallback (defensive — payload без broadcaster невозможен)
+      - routes/admin.py (TODO M4.4: per-channel admin UI)
+      - routes/craft.py (TODO M4.4: require_jwt_user)
+      - bot_core.py drop_loop crash-recovery cache
     """
     if channel_id is not None and channel_id > 0:
         return channel_id

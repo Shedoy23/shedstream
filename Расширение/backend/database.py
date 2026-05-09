@@ -348,36 +348,49 @@ class Database:
                     name TEXT NOT NULL, description TEXT, emoji TEXT DEFAULT '🏆', reward INTEGER DEFAULT 0
                 )
             """)
+            # Все 4 таблицы post-M1: PK включает channel_id для multi-tenant.
+            # На существующих БД с примененным M1 эти CREATE'ы не сработают
+            # (IF NOT EXISTS). Для свежих установок (новый dev VPS) — даёт
+            # сразу корректную схему без нужды в M1 миграции.
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS user_achievements (
+                    channel_id INTEGER NOT NULL,
                     username TEXT NOT NULL, achievement_key TEXT NOT NULL,
                     unlocked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    PRIMARY KEY (username, achievement_key)
+                    PRIMARY KEY (channel_id, username, achievement_key)
                 )
             """)
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS stream_streaks (
-                    username TEXT PRIMARY KEY, current_streak INTEGER DEFAULT 0,
-                    max_streak INTEGER DEFAULT 0, last_stream_id TEXT DEFAULT ''
+                    channel_id INTEGER NOT NULL,
+                    username TEXT NOT NULL,
+                    current_streak INTEGER DEFAULT 0,
+                    max_streak INTEGER DEFAULT 0,
+                    last_stream_id TEXT DEFAULT '',
+                    PRIMARY KEY (channel_id, username)
                 )
             """)
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS stream_attendance (
-                    username TEXT NOT NULL, stream_id TEXT NOT NULL,
-                    minutes INTEGER DEFAULT 0, claimed INTEGER DEFAULT 0,
-                    PRIMARY KEY (username, stream_id)
+                    channel_id INTEGER NOT NULL,
+                    username TEXT NOT NULL,
+                    stream_id TEXT NOT NULL,
+                    minutes INTEGER DEFAULT 0,
+                    claimed INTEGER DEFAULT 0,
+                    PRIMARY KEY (channel_id, username, stream_id)
                 )
             """)
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS stream_sessions (
-                    id TEXT PRIMARY KEY,
+                    channel_id INTEGER NOT NULL,
+                    id TEXT NOT NULL,
                     started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    ended_at   DATETIME DEFAULT NULL
+                    ended_at   DATETIME DEFAULT NULL,
+                    PRIMARY KEY (channel_id, id)
                 )
             """)
-            # Миграция: добавить колонку в существующие БД.
-            # ended_at нужен чтобы отличать «стрим ещё идёт» (нельзя засчитать
-            # как пропуск) от «стрим закончился» (можно считать сгоревшим стриком).
+            # ended_at миграция для legacy БД (single-tenant до M1) —
+            # если M1 ещё не применён, защищает от поломки.
             try:
                 await db.execute("ALTER TABLE stream_sessions ADD COLUMN ended_at DATETIME DEFAULT NULL")
             except Exception:

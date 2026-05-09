@@ -119,19 +119,15 @@ class BotCore:
         # Розыгрыши
         self.last_raffle = datetime.min
 
-        # Внимание (тревога) — per-channel-per-user
-        self.last_attention: Dict[Tuple[int, str], datetime] = {}
-
         # Пути для RimWorld
         self.rimworld_commands_file = RIMWORLD_COMMANDS_PATH
         self.rimworld_refunds_file = RIMWORLD_REFUNDS_PATH
 
-        # Статистика активности — per-channel-per-user (для дедупа quest-tick'ов)
-        self.last_activity_update: Dict[Tuple[int, str], datetime] = {}
-        self.current_stream_id: str = ""   # устанавливается при старте стрима
-
-        # Чат-сообщения — per-channel-per-user
-        self.last_chat_update: Dict[Tuple[int, str], datetime] = {}
+        # Текущий stream_id (single-channel глобально). KNOWN LIMITATION:
+        # после регистрации второго стримера stream_id будет тем же для всех
+        # — нужен per-channel рерайт reward_points_loop. См. ARCHITECTURE.md
+        # §10 Известные технические долги.
+        self.current_stream_id: str = ""
 
         # ── Chat-bonus антифрод (M7) ─────────────────────────────────────────
         # State per (channel_id, username):
@@ -495,24 +491,12 @@ class BotCore:
             logger.warning("Чтение активных из БД упало: %s", e)
             rows = []
 
-        # 2. Уборка in-memory мусора (TTL 30 мин) — не влияет на решение,
-        #    просто чтобы словарь не рос вечно. Ключи всех 4 dict'ов —
-        #    tuple (channel_id, username) после multi-tenant fix'а.
+        # 2. Уборка in-memory мусора (TTL 30 мин) — чтобы словарь не рос вечно.
         offline_cutoff = now - timedelta(seconds=REDUCED_WINDOW)
         for k in [k for k, t in self.viewers_last_active.items() if t < offline_cutoff]:
             del self.viewers_last_active[k]
             cid, uname = k
             self._bonus_cache.invalidate(f"bonus_{cid}_{uname}")
-
-        chat_cutoff = now - timedelta(hours=1)
-        for k in [k for k, t in self.last_chat_update.items() if t < chat_cutoff]:
-            del self.last_chat_update[k]
-        for k in [k for k, t in self.last_activity_update.items() if t < chat_cutoff]:
-            del self.last_activity_update[k]
-
-        attention_cutoff = now - timedelta(minutes=5)
-        for k in [k for k, t in self.last_attention.items() if t < attention_cutoff]:
-            del self.last_attention[k]
 
         # 3. Классификация + начисление.
         active_count = reduced_count = 0
@@ -595,7 +579,7 @@ class BotCore:
         today = date.today().isoformat()
         username = username.lower()
 
-        async with aiosqlite.connect(self.db.db_path) as conn:
+        async with self.db._connect() as conn:
             cursor = await conn.execute(
                 "SELECT id, current_value, target_value, completed_at FROM quests WHERE channel_id = ? AND username = ? AND quest_type = ? AND day_date = ?",
                 (channel_id, username, quest_type, today)
@@ -661,57 +645,16 @@ class BotCore:
             logger.info("Предмет %s выдан @%s за квест %s", reward_item, username, quest_type)
 
     # ===== СПЕЦИАЛИЗИРОВАННЫЕ МЕТОДЫ ДЛЯ КВЕСТОВ =====
-    async def _update_quests_by_type(self, username: str, quest_type: str, increment: int, channel_id: int = None):
-        """Обновить все квесты указанного типа"""
-        for quest in QUEST_ORDER:
-            quest_config = QUESTS_CONFIG.get(quest)
-            if quest_config and quest_config.get('type') == quest_type:
-                await self._update_quest_progress(username, quest, increment, channel_id=channel_id)
+    # Раньше здесь были `_update_quests_by_type`, `update_chat_quest_progress`,
+    # `update_activity_quest_progress` — удалены в M7 как dead code:
+    #   - никем не вызывались (chat-tick'и идут напрямую из IRC `event_message`,
+    #     watch_time-tick'и идут из `_reward_points`)
+    #   - reference на несуществующий quest 'active_viewer' (никогда не был в
+    #     QUESTS_CONFIG)
+    #   - update_activity_quest_progress использовал quest_type='activity' который
+    #     отсутствовал в config (только 'time' и 'chat' существуют)
+    # Если потребуется bulk-tick по типу — лучше создать pure helper иммутабельно.
 
-    async def update_chat_quest_progress(self, username: str, message_length: int, channel_id: int = None):
-        """Обновить прогресс чат-квестов"""
-        channel_id = resolve_channel_id(channel_id)
-        # Защита от спама (не чаще раза в 2 секунды) — per (channel, user)
-        now = datetime.now()
-        key = (int(channel_id), username.lower())
-        last_update = self.last_chat_update.get(key, datetime.min)
-        if (now - last_update).total_seconds() < 2:
-            return
-
-        self.last_chat_update[key] = now
-
-        # Обновляем все чат-квесты
-        await self._update_quests_by_type(username, 'chat', 1, channel_id=channel_id)
-
-        # Для комбинированного квеста active_viewer тоже добавляем прогресс.
-        # M7: убрана проверка `total_clicks` — мы больше не собираем clicks/moves
-        # как никогда не использовавшиеся. Условие теперь только time + messages.
-        if 'active_viewer' in QUESTS_CONFIG:
-            activity = await self.db.get_today_activity(username, channel_id=channel_id)
-            chat = await self.db.get_today_chat_stats(username, channel_id=channel_id)
-
-            config = QUESTS_CONFIG['active_viewer']
-            req = config.get('requirements', {})
-
-            if (activity.get('total_time', 0) >= req.get('time', 60) and
-                chat.get('message_count', 0) >= req.get('messages', 10)):
-                await self._update_quest_progress(username, 'active_viewer', 1, channel_id=channel_id)
-
-    async def update_activity_quest_progress(self, username: str, watch_time: int, channel_id: int = None):
-        """Обновить прогресс квестов активности"""
-        channel_id = resolve_channel_id(channel_id)
-        # Защита от спама (не чаще раза в 10 секунд) — per (channel, user)
-        now = datetime.now()
-        key = (int(channel_id), username.lower())
-        last_update = self.last_activity_update.get(key, datetime.min)
-        if (now - last_update).total_seconds() < 10:
-            return
-
-        self.last_activity_update[key] = now
-
-        # Обновляем квесты активности (каждые 60 секунд = +1)
-        await self._update_quests_by_type(username, 'activity', watch_time // 60, channel_id=channel_id)
-    
     # ===== ДРОПЫ =====
     async def drop_loop(self):
         """Цикл дропов"""

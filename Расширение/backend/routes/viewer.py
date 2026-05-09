@@ -16,7 +16,14 @@ from config import (
     WATCH_TIME_CAP,
     sanitize_username,
 )
-from dependencies import check_rate_limit, get_bot, get_db, require_jwt_user, require_stream_live
+from dependencies import (
+    check_rate_limit,
+    get_bot,
+    get_db,
+    require_jwt_channel,
+    require_jwt_user,
+    require_stream_live,
+)
 from models import ActivityRequest, ChatMessageRequest, UserAction
 
 _AUTH_FAIL = {"status": "unauthorized", "message": "❌ Требуется авторизация Twitch — открой расширение и войди"}
@@ -50,45 +57,53 @@ async def viewer_online(action: UserAction, request: Request):
 
 
 @router.get("/api/viewer/stats/{username}")
-async def viewer_stats(username: str):
-    """Статистика для зрителя"""
+async def viewer_stats(username: str, request: Request):
+    """Статистика для зрителя. Multi-tenant scoping через JWT —
+    показываем стат именно на канале просмотра, а не cross-channel."""
+    channel_id = require_jwt_channel(request)
+    if channel_id is None:
+        return {"status": "unauthorized"}
     uname = username.lower()
     db    = get_db()
     bot   = get_bot()
 
-    points    = await db.get_points(uname)
-    inventory = await db.get_inventory(uname) or []
-    quests    = await db.get_quests(uname)
+    points    = await db.get_points(uname, channel_id=channel_id)
+    inventory = await db.get_inventory(uname, channel_id=channel_id) or []
+    quests    = await db.get_quests(uname, channel_id=channel_id)
 
     async with db._connect() as conn:
         today = date.today().isoformat()
 
         cur = await conn.execute(
-            "SELECT COUNT(*), SUM(message_length) FROM chat_stats WHERE username = ? AND date(created_at) = ?",
-            (uname, today))
+            "SELECT COUNT(*), SUM(message_length) FROM chat_stats "
+            "WHERE channel_id=? AND username=? AND date(created_at)=?",
+            (channel_id, uname, today))
         row = await cur.fetchone()
         chat_count, chat_length = (row[0] or 0, row[1] or 0) if row else (0, 0)
 
         cur = await conn.execute(
-            "SELECT SUM(watch_time) FROM activity_stats WHERE username = ? AND date(created_at) = ?",
-            (uname, today))
+            "SELECT SUM(watch_time) FROM activity_stats "
+            "WHERE channel_id=? AND username=? AND date(created_at)=?",
+            (channel_id, uname, today))
         row = await cur.fetchone()
         watch_time_today = row[0] if row and row[0] else 0
 
         cur = await conn.execute(
-            "SELECT SUM(watch_time) FROM activity_stats WHERE username = ?", (uname,))
+            "SELECT SUM(watch_time) FROM activity_stats WHERE channel_id=? AND username=?",
+            (channel_id, uname))
         row = await cur.fetchone()
         watch_time_total = row[0] if row and row[0] else 0
 
         cur = await conn.execute(
-            "SELECT COUNT(*), SUM(message_length) FROM chat_stats WHERE username = ?", (uname,))
+            "SELECT COUNT(*), SUM(message_length) FROM chat_stats WHERE channel_id=? AND username=?",
+            (channel_id, uname))
         row = await cur.fetchone()
         chat_total_count, chat_total_length = (row[0] or 0, row[1] or 0) if row else (0, 0)
 
     try:
         base_income = POINTS_PER_MINUTE
         item_bonus  = sum(item.get("bonus", 0) * item.get("quantity", 1) for item in (inventory or []))
-        level_data  = await db.get_user_level(uname)
+        level_data  = await db.get_user_level(uname, channel_id=channel_id)
         level_pct   = db.get_level_info(level_data.get("level", 1)).get("bonus_pct", 0)
         income_per_min = int((base_income + item_bonus) * (1 + level_pct / 100))
     except Exception:
@@ -233,10 +248,15 @@ async def track_click(request: Request):
 
 
 @router.get("/api/viewer/quests/{username}")
-async def get_viewer_quests(username: str):
-    """Получить детальную информацию о квестах"""
+async def get_viewer_quests(username: str, request: Request):
+    """Получить детальную информацию о квестах. Multi-tenant scoping
+    через JWT — viewer может смотреть квесты только в рамках своего
+    стримерского канала."""
+    channel_id = require_jwt_channel(request)
+    if channel_id is None:
+        return {"quests": [], "status": "unauthorized"}
     db     = get_db()
-    quests = await db.get_quests(username)
+    quests = await db.get_quests(username, channel_id=channel_id)
     for quest in quests:
         quest_config = QUESTS_CONFIG.get(quest["type"])
         if quest_config:
@@ -280,20 +300,31 @@ async def viewer_attendance(request: Request):
 
 
 @router.get("/api/viewer/streak/{username}")
-async def get_viewer_streak(username: str):
-    return await get_db().get_streak(username)
+async def get_viewer_streak(username: str, request: Request):
+    """Стрик зрителя. Multi-tenant scoping через JWT."""
+    channel_id = require_jwt_channel(request)
+    if channel_id is None:
+        return {"current_streak": 0, "max_streak": 0, "last_stream_id": "", "status": "unauthorized"}
+    return await get_db().get_streak(username, channel_id=channel_id)
 
 
 @router.get("/api/achievements")
 async def get_all_achievements():
+    """Список ВСЕХ доступных достижений (определения). Game-agnostic, не требует JWT —
+    каталог достижений общий для всех каналов."""
     return {"achievements": await get_db().get_achievements()}
 
 
 @router.get("/api/viewer/achievements/{username}")
-async def get_viewer_achievements(username: str):
+async def get_viewer_achievements(username: str, request: Request):
+    """Какие достижения зритель уже получил на канале. Per-channel scoped через JWT."""
+    channel_id = require_jwt_channel(request)
+    if channel_id is None:
+        return {"achievements": [], "status": "unauthorized"}
     db       = get_db()
     all_ach  = await db.get_achievements()
-    unlocked = {a["key"]: a["unlocked_at"] for a in await db.get_user_achievements(username)}
+    unlocked = {a["key"]: a["unlocked_at"]
+                for a in await db.get_user_achievements(username, channel_id=channel_id)}
     for a in all_ach:
         a["unlocked"]    = a["key"] in unlocked
         a["unlocked_at"] = unlocked.get(a["key"])

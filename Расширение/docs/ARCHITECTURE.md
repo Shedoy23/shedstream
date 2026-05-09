@@ -612,6 +612,7 @@ class MyAdapter(ModuleAdapter):
 - **Single SQLite file** — масштабируется до ~50-100 каналов с активным играми. Дальше нужна миграция на Postgres (path: переписать `database.py` под asyncpg, остальные слои не меняются если они дисциплинированные).
 - **`event_manager.active_event` — single global** — не dict-per-channel. Multi-tenant proper требует рерайт. Сейчас работает потому что в моменте обычно один стрим активен у всех каналов параллельно (ивенты крутятся независимо в БД, но in-memory state в EventManager — общий).
 - **Late-join IRC bot** — новый OAuth-регистрант не джойнится в running TwitchChatBot до рестарта. Future fix: вызвать `self.join_channels([login])` из OAuth callback.
+- **🔴 `BotCore.current_stream_id` + `reward_points_loop` — single-channel** (CRITICAL для multi-tenant). Сейчас loop проверяет ОДИН канал `TWITCH_STREAM_CHANNEL` (env), `current_stream_id` — глобальный `str`. Когда зарегистрируется 2-й стример через OAuth — его стрик-система СЛОМАЕТСЯ: `record_attendance(stream_id=...)` будет получать stream_id первого канала. Fix: `Dict[channel_id, current_stream_id]`, итерация по `db.list_channels()` в loop, per-channel `is_stream_live` через Helix API. Объём: 2-3ч. **Рекомендуется делать ДО onboarding'а второго стримера.**
 
 ### 10.2 DB-discipline
 - **Raw SQL в routes/*** — есть ещё несколько мест где не через `db.*` helpers (например `routes/duel.py:_db_save_duel` использует `aiosqlite.connect` через `db._connect()`). См. Block 2 архитектурной прокачки.

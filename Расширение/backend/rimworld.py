@@ -1,5 +1,34 @@
-# rimworld.py — все эндпоинты связанные с RimWorld
-# Добавлены недостающие endpoint'ы для статуса и массовой синхронизации
+# rimworld.py — RimWorld legacy routes (1981 line monolith).
+#
+# DEPRECATION NOTICE (2026-05-08):
+# Этот файл — исторический monolith с 30+ /api/rimworld/* endpoint'ами.
+# Migration to Module API path в process'е, см. docs/MODULE_MIGRATION.md.
+#
+# Что СЕЙЧАС:
+#   - Endpoints вызывают C# мод напрямую (HTTP) и пишут в БД сырыми SQL
+#     через aiosqlite.connect(db.db_path) (30 мест — bypass pool, не идеально).
+#   - Параллельно работает Module API (см. routes/module_api.py + modules/
+#     rimworld/) который ждёт когда C# мод его подключит.
+#
+# Что БУДЕТ (Step 6.b decommission):
+#   - Когда C# мод переедет на POST /v1/module/rimworld/events + GET /actions
+#     (shape per docs/MODULE_API.md):
+#       * /api/rimworld/link        → event player.linked
+#       * /api/rimworld/unlink      → event player.unlinked
+#       * /api/rimworld/sync_pawns  → event player.state_update
+#       * /api/rimworld/spawn       → action player.spawn (через queue)
+#       * /api/rimworld/heal        → action player.heal
+#       * /api/rimworld/equip       → action player.equip_item
+#       * /api/rimworld/add_trait   → action pawn.add_trait (extension)
+#       * /api/rimworld/add_gene    → action pawn.add_gene (extension)
+#       * ... остальные аналогично
+#   - После полного перевода → этот файл становится 50-line shim или удаляется.
+#
+# До тех пор:
+#   - НЕ добавлять новый endpoint сюда — добавлять в Module API path
+#     (events/actions через manifest)
+#   - aiosqlite.connect(db.db_path) → НЕ копировать pattern, использовать
+#     db._connect() (через pool) в новом коде
 
 from fastapi import APIRouter, Request, Depends
 from fastapi.security import HTTPBasic, HTTPBasicCredentials

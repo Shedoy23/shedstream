@@ -1604,6 +1604,156 @@ class Database:
             await db.commit()
             return cur.rowcount > 0
 
+    # ===== ЭТАП 3 STEP 6.a: PAWN EXTENSION EVENTS HELPERS =====
+    #
+    # Под feature flag MODULE_API_PLAYER_EVENTS_ENABLED. RimWorld-specific
+    # extension events (pawn.trait_changed / _gene_changed / _implant_installed
+    # / _xenotype_changed) → INSERT/DELETE в rimworld_pawn_{traits,genes,
+    # hediffs}. Все таблицы имеют FK на rimworld_pawns(id) — нужен сначала
+    # resolve pawn_id из (channel_id, username).
+
+    async def _get_pawn_id(self, channel_id: int, viewer_id: str) -> Optional[int]:
+        """Резолв (channel_id, username) → rimworld_pawns.id. Возвращает None
+        если pawn не linked."""
+        async with self._connect() as db:
+            cur = await db.execute(
+                "SELECT id FROM rimworld_pawns WHERE channel_id = ? AND username = ?",
+                (channel_id, viewer_id),
+            )
+            row = await cur.fetchone()
+            return int(row[0]) if row else None
+
+    async def add_pawn_trait(
+        self,
+        channel_id: int,
+        viewer_id: str,
+        trait_def: str,
+        degree: int = 0,
+        label: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> bool:
+        """pawn.trait_changed (added). INSERT в rimworld_pawn_traits.
+        Возвращает False если pawn не найден."""
+        viewer_id = (viewer_id or "").strip().lower()
+        if not viewer_id or not trait_def:
+            return False
+        pawn_id = await self._get_pawn_id(channel_id, viewer_id)
+        if pawn_id is None:
+            return False
+        async with self._connect() as db:
+            await db.execute(
+                """
+                INSERT INTO rimworld_pawn_traits (pawn_id, trait_def, degree, label, trait_desc)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (pawn_id, trait_def, int(degree), label or trait_def, description or ""),
+            )
+            await db.commit()
+            return True
+
+    async def remove_pawn_trait(
+        self,
+        channel_id: int,
+        viewer_id: str,
+        trait_def: str,
+    ) -> bool:
+        """pawn.trait_changed (removed). DELETE по trait_def."""
+        viewer_id = (viewer_id or "").strip().lower()
+        if not viewer_id or not trait_def:
+            return False
+        pawn_id = await self._get_pawn_id(channel_id, viewer_id)
+        if pawn_id is None:
+            return False
+        async with self._connect() as db:
+            cur = await db.execute(
+                "DELETE FROM rimworld_pawn_traits WHERE pawn_id = ? AND trait_def = ?",
+                (pawn_id, trait_def),
+            )
+            await db.commit()
+            return cur.rowcount > 0
+
+    async def add_pawn_gene(
+        self,
+        channel_id: int,
+        viewer_id: str,
+        def_name: str,
+        label: Optional[str] = None,
+        is_active: bool = True,
+        xenogene: bool = True,
+        gene_class: Optional[str] = None,
+    ) -> bool:
+        """pawn.gene_changed (added). INSERT в rimworld_pawn_genes."""
+        viewer_id = (viewer_id or "").strip().lower()
+        if not viewer_id or not def_name:
+            return False
+        pawn_id = await self._get_pawn_id(channel_id, viewer_id)
+        if pawn_id is None:
+            return False
+        async with self._connect() as db:
+            await db.execute(
+                """
+                INSERT INTO rimworld_pawn_genes (pawn_id, def_name, label, is_active, xenogene, gene_class)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (pawn_id, def_name, label or def_name,
+                 1 if is_active else 0, 1 if xenogene else 0, gene_class or ""),
+            )
+            await db.commit()
+            return True
+
+    async def remove_pawn_gene(
+        self,
+        channel_id: int,
+        viewer_id: str,
+        def_name: str,
+    ) -> bool:
+        """pawn.gene_changed (removed). DELETE по def_name."""
+        viewer_id = (viewer_id or "").strip().lower()
+        if not viewer_id or not def_name:
+            return False
+        pawn_id = await self._get_pawn_id(channel_id, viewer_id)
+        if pawn_id is None:
+            return False
+        async with self._connect() as db:
+            cur = await db.execute(
+                "DELETE FROM rimworld_pawn_genes WHERE pawn_id = ? AND def_name = ?",
+                (pawn_id, def_name),
+            )
+            await db.commit()
+            return cur.rowcount > 0
+
+    async def add_pawn_implant(
+        self,
+        channel_id: int,
+        viewer_id: str,
+        body_part: str,
+        hediff_label: str,
+        severity: float = 0.0,
+        icon: str = "🦾",
+        is_permanent: bool = True,
+        description: Optional[str] = None,
+    ) -> bool:
+        """pawn.implant_installed → INSERT в rimworld_pawn_hediffs с
+        hediff_type='implant'."""
+        viewer_id = (viewer_id or "").strip().lower()
+        if not viewer_id or not hediff_label:
+            return False
+        pawn_id = await self._get_pawn_id(channel_id, viewer_id)
+        if pawn_id is None:
+            return False
+        async with self._connect() as db:
+            await db.execute(
+                """
+                INSERT INTO rimworld_pawn_hediffs
+                    (pawn_id, body_part, hediff_label, hediff_type, severity, icon, is_permanent, description)
+                VALUES (?, ?, ?, 'implant', ?, ?, ?, ?)
+                """,
+                (pawn_id, body_part or "", hediff_label, float(severity), icon,
+                 1 if is_permanent else 0, description or ""),
+            )
+            await db.commit()
+            return True
+
     # ===== БЛОК 1 АРХИТЕКТУРНОЙ ПРОКАЧКИ: DB HEALTH & VISIBILITY =====
     #
     # Endpoint /api/admin/db/health дёргает эти методы. Цель: видеть БД

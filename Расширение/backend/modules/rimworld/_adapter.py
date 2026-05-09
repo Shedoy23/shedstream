@@ -55,15 +55,13 @@ class RimWorldAdapter(ModuleAdapter):
             await self._on_player_event(channel_id, env)
             return
 
-        # ── Extension events (RimWorld-specific) ───────────────────────
-        # Step 5 не покрывает — pawn-skill/trait/gene/implant/xenotype updates
-        # требуют записи в rimworld_pawn_* таблицы которые легаси rimworld.py
-        # уже наполняет при /api/rimworld/sync_pawns_bulk. Перевод на
-        # Module-API-only path = Step 6 wrapper migration. Пока — log+skip.
+        # ── Extension events (RimWorld-specific, Step 6.a) ─────────────
+        # Реальные writes в rimworld_pawn_traits / _genes / _hediffs под
+        # тем же feature flag MODULE_API_PLAYER_EVENTS_ENABLED. При false —
+        # log only (легаси /api/rimworld/sync_pawns_bulk наполняет).
         if et in ("pawn.trait_changed", "pawn.implant_installed",
                    "pawn.gene_changed", "pawn.xenotype_changed"):
-            print(f"[rimworld:{channel_id}] extension {et} data={env.data} "
-                  f"(NOT_PROCESSED — Step 6 will route)")
+            await self._on_pawn_extension_event(channel_id, env)
             return
 
         # Unknown тип, не покрыт в manifest'е — manifest.supports_event уже
@@ -168,6 +166,97 @@ class RimWorldAdapter(ModuleAdapter):
         if et == "player.respawned":
             ok = await db.mark_player_alive(channel_id=channel_id, viewer_id=viewer_id, alive=True)
             print(f"[rimworld:{channel_id}] player.respawned viewer={viewer_id} ok={ok}")
+            return
+
+    async def _on_pawn_extension_event(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Step 6.a: pawn.* RimWorld-specific extension events.
+
+        env.data контракт:
+          pawn.trait_changed  : {viewer_id, action: 'add'|'remove', trait_def, degree?, label?, description?}
+          pawn.gene_changed   : {viewer_id, action: 'add'|'remove', def_name, label?, is_active?, xenogene?, gene_class?}
+          pawn.implant_installed: {viewer_id, body_part, hediff_label, severity?, icon?, description?}
+          pawn.xenotype_changed: {viewer_id, xenotype} — пока log only (нет dedicated DB column)
+
+        Под flag MODULE_API_PLAYER_EVENTS_ENABLED. False = log only (легаси
+        sync_pawns_bulk наполняет таблицы).
+        """
+        from config import MODULE_API_PLAYER_EVENTS_ENABLED
+        from dependencies import get_db
+        viewer_id = str(env.data.get("viewer_id", "")).strip().lower()
+        if not viewer_id:
+            print(f"[rimworld:{channel_id}] {env.type}: viewer_id required")
+            return
+
+        if not MODULE_API_PLAYER_EVENTS_ENABLED:
+            print(f"[rimworld:{channel_id}] {env.type} viewer={viewer_id} data={env.data} "
+                  f"(SKIPPED — MODULE_API_PLAYER_EVENTS_ENABLED=false)")
+            return
+
+        db = get_db()
+        et = env.type
+        action = str(env.data.get("action") or "add").lower()  # add | remove
+
+        if et == "pawn.trait_changed":
+            trait_def = str(env.data.get("trait_def", "")).strip()
+            if not trait_def:
+                print(f"[rimworld:{channel_id}] pawn.trait_changed: trait_def required")
+                return
+            if action == "remove":
+                ok = await db.remove_pawn_trait(channel_id, viewer_id, trait_def)
+            else:
+                ok = await db.add_pawn_trait(
+                    channel_id=channel_id, viewer_id=viewer_id, trait_def=trait_def,
+                    degree=int(env.data.get("degree") or 0),
+                    label=env.data.get("label"),
+                    description=env.data.get("description"),
+                )
+            print(f"[rimworld:{channel_id}] pawn.trait_changed action={action} "
+                  f"viewer={viewer_id} trait={trait_def} ok={ok}")
+            return
+
+        if et == "pawn.gene_changed":
+            def_name = str(env.data.get("def_name", "")).strip()
+            if not def_name:
+                print(f"[rimworld:{channel_id}] pawn.gene_changed: def_name required")
+                return
+            if action == "remove":
+                ok = await db.remove_pawn_gene(channel_id, viewer_id, def_name)
+            else:
+                ok = await db.add_pawn_gene(
+                    channel_id=channel_id, viewer_id=viewer_id, def_name=def_name,
+                    label=env.data.get("label"),
+                    is_active=bool(env.data.get("is_active", True)),
+                    xenogene=bool(env.data.get("xenogene", True)),
+                    gene_class=env.data.get("gene_class"),
+                )
+            print(f"[rimworld:{channel_id}] pawn.gene_changed action={action} "
+                  f"viewer={viewer_id} def={def_name} ok={ok}")
+            return
+
+        if et == "pawn.implant_installed":
+            hediff_label = str(env.data.get("hediff_label", "")).strip()
+            if not hediff_label:
+                print(f"[rimworld:{channel_id}] pawn.implant_installed: hediff_label required")
+                return
+            ok = await db.add_pawn_implant(
+                channel_id=channel_id, viewer_id=viewer_id,
+                body_part=str(env.data.get("body_part") or ""),
+                hediff_label=hediff_label,
+                severity=float(env.data.get("severity") or 0.0),
+                icon=str(env.data.get("icon") or "🦾"),
+                is_permanent=bool(env.data.get("is_permanent", True)),
+                description=env.data.get("description"),
+            )
+            print(f"[rimworld:{channel_id}] pawn.implant_installed viewer={viewer_id} "
+                  f"label={hediff_label} ok={ok}")
+            return
+
+        if et == "pawn.xenotype_changed":
+            # TODO: dedicated DB column в rimworld_pawns. Пока log only —
+            # xenotype информация доступна через rimworld_pawn_genes WHERE
+            # gene_class = 'Xenotype' (косвенно).
+            print(f"[rimworld:{channel_id}] pawn.xenotype_changed viewer={viewer_id} "
+                  f"xenotype={env.data.get('xenotype', '?')} (no dedicated DB column yet)")
             return
 
     async def _on_catalog_update(self, channel_id: int, env: ModuleEnvelope) -> None:

@@ -483,8 +483,14 @@ async def streamer_module_token(request: Request):
     module_id = (request.query_params.get("module_id") or "").strip()
     if not module_id or not module_id.replace("_", "").isalnum():
         return JSONResponse({"status": "invalid_module_id"}, status_code=400)
-    # TODO: проверить что module_id есть в реестре discover_modules — отказ
-    # для unknown id чтобы не плодить токены под несуществующие модули.
+    # Проверка что module_id зарегистрирован в реестре — не плодим токены для
+    # несуществующих модулей (защита от typo / probing).
+    from modules._loader import get_module
+    if get_module(module_id) is None:
+        return JSONResponse(
+            {"status": "module_not_found", "module_id": module_id},
+            status_code=404,
+        )
     token = issue_module_token(cid, module_id)
     return JSONResponse({
         "status": "ok",

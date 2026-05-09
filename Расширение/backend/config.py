@@ -49,6 +49,21 @@ TWITCH_OAUTH_REDIRECT_URI = os.getenv(
 # для будущего EventSub auto-register (M4.5 положит channel.channel_points_*).
 TWITCH_OAUTH_SCOPES = 'user:read:email channel:read:redemptions'
 
+# ===== Этап 3 step 5: Module API player events feature flag =====
+# При false (default) — `player.linked` / `player.died` / `player.respawned` /
+# `player.unlinked` / `player.state_update` events от connector'а ЛОГИРУЮТСЯ,
+# но НЕ записываются в rimworld_pawns. Запись делает легаси-путь
+# /api/rimworld/link / /sync_pawns_bulk / etc.
+#
+# При true — RimWorldAdapter сам пишет в БД через специализированные db-helpers.
+# Это даёт двойную запись в переходный период (легаси /api/rimworld/* всё ещё
+# работает) — для production нужно сначала переключить connector мода на
+# Module API path, потом флипнуть флаг, потом отключить легаси routes.
+#
+# Ставим в true только при ручном тесте на dev-VPS или после Step 6 wrapper
+# migration. До тех пор — false (безопасный default).
+MODULE_API_PLAYER_EVENTS_ENABLED = os.getenv('MODULE_API_PLAYER_EVENTS_ENABLED', 'false').lower() == 'true'
+
 # ===== Этап 3 step 2: Module API token signing =====
 # Module API токены — HMAC-подписанные per-channel-per-module credentials.
 # Стример получает токен из admin-UI dashboard, вставляет в connector

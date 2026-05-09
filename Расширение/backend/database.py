@@ -1517,3 +1517,89 @@ class Database:
             )
             await db.commit()
             return cur.rowcount
+
+    # ===== ЭТАП 3 STEP 5: MODULE API PLAYER EVENTS HELPERS =====
+    #
+    # Тонкие helpers под `RimWorldAdapter.handle_event` — пишут в rimworld_pawns
+    # (текущая схема, разделяемая с легаси /api/rimworld/* эндпоинтами). Под
+    # feature-flag MODULE_API_PLAYER_EVENTS_ENABLED — если false, adapter
+    # пропускает вызовы (log only).
+
+    async def upsert_player_pawn(
+        self,
+        channel_id: int,
+        viewer_id: str,
+        character_ref: str,
+        is_alive: bool = True,
+        health: float = 1.0,
+    ) -> bool:
+        """player.linked / player.state_update → UPSERT в rimworld_pawns.
+
+        viewer_id здесь — Twitch login зрителя (то же что в legacy /api/
+        rimworld/link). character_ref — pawn_name (либо ThingID).
+        is_alive/health опциональны (state_update передаёт; linked нет).
+        """
+        viewer_id = (viewer_id or "").strip().lower()
+        if not viewer_id or not character_ref:
+            return False
+        async with self._connect() as db:
+            await db.execute(
+                """
+                INSERT INTO rimworld_pawns
+                    (channel_id, username, pawn_name, is_alive, health, last_sync)
+                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(channel_id, username) DO UPDATE SET
+                    pawn_name = excluded.pawn_name,
+                    is_alive  = excluded.is_alive,
+                    health    = excluded.health,
+                    last_sync = CURRENT_TIMESTAMP
+                """,
+                (channel_id, viewer_id, character_ref,
+                 1 if is_alive else 0, max(0.0, min(1.0, float(health)))),
+            )
+            await db.commit()
+            return True
+
+    async def mark_player_alive(
+        self,
+        channel_id: int,
+        viewer_id: str,
+        alive: bool,
+    ) -> bool:
+        """player.died (alive=False) / player.respawned (alive=True). UPDATE
+        is_alive у существующей записи. Returns False если pawn'а не было
+        (надо сначала player.linked прислать)."""
+        viewer_id = (viewer_id or "").strip().lower()
+        if not viewer_id:
+            return False
+        async with self._connect() as db:
+            cur = await db.execute(
+                """
+                UPDATE rimworld_pawns
+                SET is_alive  = ?,
+                    health    = CASE WHEN ?=1 THEN MAX(health, 0.1) ELSE 0 END,
+                    last_sync = CURRENT_TIMESTAMP
+                WHERE channel_id = ? AND username = ?
+                """,
+                (1 if alive else 0, 1 if alive else 0, channel_id, viewer_id),
+            )
+            await db.commit()
+            return cur.rowcount > 0
+
+    async def remove_player_pawn(
+        self,
+        channel_id: int,
+        viewer_id: str,
+    ) -> bool:
+        """player.unlinked → DELETE pawn (со всеми зависимыми по FK CASCADE
+        — equipment, skills, hediffs, traits, genes, purchase_counters)."""
+        viewer_id = (viewer_id or "").strip().lower()
+        if not viewer_id:
+            return False
+        async with self._connect() as db:
+            cur = await db.execute(
+                "DELETE FROM rimworld_pawns WHERE channel_id = ? AND username = ?",
+                (channel_id, viewer_id),
+            )
+            await db.commit()
+            return cur.rowcount > 0

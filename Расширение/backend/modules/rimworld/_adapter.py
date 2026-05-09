@@ -49,21 +49,21 @@ class RimWorldAdapter(ModuleAdapter):
             await self._on_catalog_update(channel_id, env)
             return
 
-        # ── Player events ──────────────────────────────────────────────
+        # ── Player events (Step 5) ─────────────────────────────────────
         if et in ("player.linked", "player.unlinked", "player.state_update",
                    "player.died", "player.respawned"):
-            # Step 3 миграции: записывать в rimworld_pawns / pawn_skills / etc.
-            # Сейчас legacy /api/rimworld/link, /api/rimworld/sync_pawns делают
-            # это напрямую — не дублируем чтобы не было двойной записи.
-            print(f"[rimworld:{channel_id}] {et} viewer={env.data.get('viewer_id', '?')} "
-                  f"char={env.data.get('character_ref', '?')} (NOT_PROCESSED — legacy path active)")
+            await self._on_player_event(channel_id, env)
             return
 
-        # ── Extension events (RimWorld-specific) ──────────────────────
+        # ── Extension events (RimWorld-specific) ───────────────────────
+        # Step 5 не покрывает — pawn-skill/trait/gene/implant/xenotype updates
+        # требуют записи в rimworld_pawn_* таблицы которые легаси rimworld.py
+        # уже наполняет при /api/rimworld/sync_pawns_bulk. Перевод на
+        # Module-API-only path = Step 6 wrapper migration. Пока — log+skip.
         if et in ("pawn.trait_changed", "pawn.implant_installed",
                    "pawn.gene_changed", "pawn.xenotype_changed"):
             print(f"[rimworld:{channel_id}] extension {et} data={env.data} "
-                  f"(NOT_PROCESSED — Step 3 will route)")
+                  f"(NOT_PROCESSED — Step 6 will route)")
             return
 
         # Unknown тип, не покрыт в manifest'е — manifest.supports_event уже
@@ -93,6 +93,82 @@ class RimWorldAdapter(ModuleAdapter):
         cleared = await db.clear_module_catalogs(channel_id, self.id)
         print(f"[rimworld:{channel_id}] session_start seed={seed} world={world} "
               f"(cleared {cleared} catalog entries)")
+
+    async def _on_player_event(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Step 5: реагируем на player.linked/_unlinked/_state_update/_died/
+        _respawned. Под feature flag MODULE_API_PLAYER_EVENTS_ENABLED.
+
+        При false (default): log only — легаси /api/rimworld/link и
+        sync_pawns_bulk продолжают наполнять rimworld_pawns как раньше.
+        При true: пишем через db helpers (Step 5). Двойная запись с легаси
+        путём допустима — UPSERT idempotent, последняя запись побеждает.
+
+        После Step 6 wrapper migration легаси вызовы либо удаляются, либо
+        форвардятся в Module API path → флаг становится постоянно true.
+        """
+        from config import MODULE_API_PLAYER_EVENTS_ENABLED
+        viewer_id = str(env.data.get("viewer_id", "")).strip().lower()
+        character_ref = str(env.data.get("character_ref", "")).strip()
+
+        if not MODULE_API_PLAYER_EVENTS_ENABLED:
+            print(f"[rimworld:{channel_id}] {env.type} viewer={viewer_id} char={character_ref} "
+                  f"(SKIPPED — MODULE_API_PLAYER_EVENTS_ENABLED=false, legacy path active)")
+            return
+
+        if not viewer_id:
+            print(f"[rimworld:{channel_id}] {env.type}: viewer_id required, skip")
+            return
+
+        from dependencies import get_db
+        db = get_db()
+        et = env.type
+
+        if et == "player.linked":
+            if not character_ref:
+                print(f"[rimworld:{channel_id}] player.linked: character_ref required")
+                return
+            ok = await db.upsert_player_pawn(
+                channel_id=channel_id,
+                viewer_id=viewer_id,
+                character_ref=character_ref,
+                is_alive=True,
+                health=1.0,
+            )
+            print(f"[rimworld:{channel_id}] player.linked viewer={viewer_id} char={character_ref} ok={ok}")
+            return
+
+        if et == "player.unlinked":
+            ok = await db.remove_player_pawn(channel_id=channel_id, viewer_id=viewer_id)
+            print(f"[rimworld:{channel_id}] player.unlinked viewer={viewer_id} ok={ok}")
+            return
+
+        if et == "player.state_update":
+            # state_update может прийти без character_ref если pawn уже linked.
+            # Если character_ref передан — обновляем (rename pawn возможен).
+            health = float(env.data.get("health_pct") or 1.0)
+            alive = bool(env.data.get("alive", True))
+            if character_ref:
+                ok = await db.upsert_player_pawn(
+                    channel_id=channel_id,
+                    viewer_id=viewer_id,
+                    character_ref=character_ref,
+                    is_alive=alive,
+                    health=health,
+                )
+            else:
+                ok = await db.mark_player_alive(channel_id=channel_id, viewer_id=viewer_id, alive=alive)
+            print(f"[rimworld:{channel_id}] player.state_update viewer={viewer_id} alive={alive} hp={health:.2f} ok={ok}")
+            return
+
+        if et == "player.died":
+            ok = await db.mark_player_alive(channel_id=channel_id, viewer_id=viewer_id, alive=False)
+            print(f"[rimworld:{channel_id}] player.died viewer={viewer_id} cause={env.data.get('cause', '?')} ok={ok}")
+            return
+
+        if et == "player.respawned":
+            ok = await db.mark_player_alive(channel_id=channel_id, viewer_id=viewer_id, alive=True)
+            print(f"[rimworld:{channel_id}] player.respawned viewer={viewer_id} ok={ok}")
+            return
 
     async def _on_catalog_update(self, channel_id: int, env: ModuleEnvelope) -> None:
         """Step 4: replace module_catalogs для (channel, rimworld, type).

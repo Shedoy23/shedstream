@@ -481,6 +481,14 @@ async def run_migrations():
             print(f"❌ M5 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M6: module_catalogs — generic catalog хранилище для Module API ──
+        try:
+            from migrations import m6_module_catalogs
+            await m6_module_catalogs.apply(conn)
+        except Exception as e:
+            print(f"❌ M6 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

@@ -43,11 +43,10 @@ class RimWorldAdapter(ModuleAdapter):
             return
 
         if et == "module.catalog_update":
-            # Step 4 миграции: запись в session-scoped shop_catalog/event_catalog.
-            # Сейчас — log + safe-skip (legacy /api/rimworld/catalog/* всё ещё
-            # работает напрямую через rimworld.py).
-            print(f"[rimworld:{channel_id}] catalog_update: catalog={env.data.get('catalog')} "
-                  f"entries={len(env.data.get('entries') or [])}")
+            # Step 4: запись в module_catalogs (generic table). Replace-
+            # семантика — новый catalog_update полностью заменяет
+            # существующий per (channel, module, catalog_type).
+            await self._on_catalog_update(channel_id, env)
             return
 
         # ── Player events ──────────────────────────────────────────────
@@ -74,19 +73,50 @@ class RimWorldAdapter(ModuleAdapter):
     async def _on_session_start_business(self, channel_id: int, env: ModuleEnvelope) -> None:
         """Session-scoped catalog cleanup per docs/MULTITENANT_PLAN.md §H.
 
-        При новой игровой сессии стримера — sсрасываем кэшированные каталоги
-        и пешки. Они пере-публикуются модом через module.catalog_update +
-        player.linked в новой сессии.
+        При новой игровой сессии стримера — сбрасываем кэшированные каталоги.
+        Connector пере-публикует актуальные через `module.catalog_update`
+        в новой сессии.
 
-        TODO: дёрнуть `db.clear_rimworld_session(channel_id)` который
-        выполнит DELETE FROM shop_catalog/_events_catalog/_pawns где
-        channel_id = X. Method ещё не добавлен в database.py — Step 4
-        миграции.
+        ВАЖНО: чистим только Module-API каталоги (`module_catalogs` table).
+        Legacy таблицы (shop_catalog, rimworld_event_catalog) — НЕ трогаем
+        в этом коммите. Step 5/6 wrapper migration переведёт legacy чтения
+        на module_catalogs, тогда устаревшие таблицы можно сбросить.
+
+        Pawns (rimworld_pawns + связанные) — тоже не трогаем здесь, это
+        обязанность Step 5 когда player.linked/_died начнут писать через
+        Module API.
         """
         seed = env.data.get("game_seed", "")
         world = env.data.get("world_name", "")
+        from dependencies import get_db
+        db = get_db()
+        cleared = await db.clear_module_catalogs(channel_id, self.id)
         print(f"[rimworld:{channel_id}] session_start seed={seed} world={world} "
-              f"(TODO: clear session-scoped catalogs in Step 4)")
+              f"(cleared {cleared} catalog entries)")
+
+    async def _on_catalog_update(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Step 4: replace module_catalogs для (channel, rimworld, type).
+
+        env.data: {catalog: 'shop'|'events', entries: [{id, ...}, ...]}.
+        Replace-семантика — полная замена существующих entries.
+        """
+        from dependencies import get_db
+        catalog_type = str(env.data.get("catalog") or "").lower()
+        if catalog_type not in ("shop", "events"):
+            print(f"[rimworld:{channel_id}] catalog_update: unknown catalog={catalog_type!r}, skip")
+            return
+        entries = env.data.get("entries") or []
+        if not isinstance(entries, list):
+            print(f"[rimworld:{channel_id}] catalog_update: entries not list, skip")
+            return
+        db = get_db()
+        inserted = await db.replace_module_catalog(
+            channel_id=channel_id,
+            module_id=self.id,
+            catalog_type=catalog_type,
+            entries=entries,
+        )
+        print(f"[rimworld:{channel_id}] catalog_update: type={catalog_type} entries={inserted} (replaced)")
 
     async def dispatch_action(self, channel_id: int, env: ModuleEnvelope) -> Dict[str, Any]:
         """Step 3: enqueue в module_actions outbox.

@@ -1427,3 +1427,93 @@ class Database:
             )
             await db.commit()
             return cur.rowcount > 0
+
+    # ===== ЭТАП 3 STEP 4: MODULE CATALOGS =====
+    #
+    # Catalog publish/consume через Module API (см. docs/MODULE_API.md §9).
+    # Per-channel-per-module-per-type. Replace-семантика: новый catalog_update
+    # event полностью заменяет существующий каталог (DELETE + INSERT в
+    # одной транзакции).
+
+    async def replace_module_catalog(
+        self,
+        channel_id: int,
+        module_id: str,
+        catalog_type: str,
+        entries: List[Dict],
+    ) -> int:
+        """Полностью заменить каталог. Атомарно через BEGIN IMMEDIATE.
+
+        entries — list of dicts. Каждый должен содержать `id` (или `entry_id`)
+        — opaque ID, уникальный в рамках (channel, module, catalog_type).
+        Полный entry serialised в payload как JSON.
+
+        Returns count of inserted entries.
+        """
+        import json as _json
+        async with self._connect() as db:
+            await db.execute("BEGIN IMMEDIATE")
+            await db.execute(
+                "DELETE FROM module_catalogs WHERE channel_id=? AND module_id=? AND catalog_type=?",
+                (channel_id, module_id, catalog_type),
+            )
+            inserted = 0
+            for entry in entries or []:
+                if not isinstance(entry, dict):
+                    continue
+                entry_id = str(entry.get("id") or entry.get("entry_id") or "")
+                if not entry_id:
+                    continue  # без id невозможно дедуплицировать
+                payload = _json.dumps(entry, ensure_ascii=False)
+                await db.execute(
+                    """
+                    INSERT INTO module_catalogs
+                        (channel_id, module_id, catalog_type, entry_id, payload, updated_at)
+                    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    """,
+                    (channel_id, module_id, catalog_type, entry_id, payload),
+                )
+                inserted += 1
+            await db.commit()
+            return inserted
+
+    async def get_module_catalog(
+        self,
+        channel_id: int,
+        module_id: str,
+        catalog_type: str,
+    ) -> List[Dict]:
+        """SELECT all entries для канала+модуля+типа. Возвращает list payloads
+        (отпарсеных). Пустой list если каталог пуст / не публиковался."""
+        import json as _json
+        async with self._connect() as db:
+            cur = await db.execute(
+                "SELECT payload FROM module_catalogs "
+                "WHERE channel_id=? AND module_id=? AND catalog_type=? "
+                "ORDER BY id ASC",
+                (channel_id, module_id, catalog_type),
+            )
+            rows = await cur.fetchall()
+        result: List[Dict] = []
+        for r in rows:
+            try:
+                result.append(_json.loads(r[0]) if r[0] else {})
+            except (TypeError, ValueError):
+                continue
+        return result
+
+    async def clear_module_catalogs(
+        self,
+        channel_id: int,
+        module_id: str,
+    ) -> int:
+        """Очистить все каталоги канала+модуля (всех типов). Вызывается на
+        module.session_start per MULTITENANT_PLAN.md §H — каталоги
+        session-scoped."""
+        async with self._connect() as db:
+            cur = await db.execute(
+                "DELETE FROM module_catalogs WHERE channel_id=? AND module_id=?",
+                (channel_id, module_id),
+            )
+            await db.commit()
+            return cur.rowcount

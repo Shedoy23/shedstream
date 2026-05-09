@@ -380,3 +380,70 @@ async def module_ack(module_id: str, request: Request):
         error_msg=error_msg,
     )
     return {"acked": acked, "action_id": action_id, "status": "acked" if success else "failed"}
+
+
+# ── Этап 3 step 4: catalog read ──────────────────────────────────────────────
+
+@router.get("/v1/module/{module_id}/catalog/{catalog_type}", include_in_schema=False)
+async def module_catalog(module_id: str, catalog_type: str, request: Request):
+    """Прочитать каталог для канала.
+
+    Auth: либо Twitch JWT (зрительский фронт читает каталог стримера на котором
+    он смотрит), либо session cookie (стример видит свой каталог в админке).
+
+    Returns: {entries: [...]}.
+
+    Каталог наполняется connector'ом через `module.catalog_update` event.
+    Replace-семантика — последний catalog_update заместил всё, что было.
+    """
+    adapter = get_module(module_id)
+    if not adapter:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"status": "module_not_found", "module_id": module_id},
+        )
+    catalog_type = catalog_type.lower()
+    if catalog_type not in adapter.manifest.catalogs:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"status": "catalog_not_in_manifest",
+                    "available": adapter.manifest.catalogs},
+        )
+
+    # Резолв channel_id: 1) JWT если есть → 2) session cookie 3) явный ?channel_id
+    # Phase 1 — JWT viewer-frontend.
+    from auth import verify_twitch_jwt
+    jwt_result = verify_twitch_jwt(request)
+    channel_id: int = 0
+    if jwt_result.get("status") == "valid":
+        try:
+            channel_id = int(jwt_result.get("channel_id") or 0)
+        except (TypeError, ValueError):
+            channel_id = 0
+
+    # Phase 2 — streamer dashboard (cookie session).
+    if channel_id <= 0:
+        from routes.streamer import _read_session_cookie
+        ck = _read_session_cookie(request)
+        if ck is not None:
+            channel_id = int(ck)
+
+    # Phase 3 — explicit query param (только для diagnostic / public catalogs;
+    # при наличии auth выше ?channel_id игнорируется).
+    if channel_id <= 0:
+        raw = request.query_params.get("channel_id")
+        try:
+            channel_id = int(raw) if raw else 0
+        except ValueError:
+            channel_id = 0
+
+    if channel_id <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"status": "channel_id_unresolvable",
+                    "message": "Provide JWT, session cookie, or ?channel_id="},
+        )
+
+    entries = await get_db().get_module_catalog(channel_id, module_id, catalog_type)
+    return {"channel_id": channel_id, "module_id": module_id,
+            "catalog_type": catalog_type, "entries": entries}

@@ -32,14 +32,14 @@
 - [ ] **Реальные db.* writes** для player.* и pawn.* events — ОТЛОЖЕНО в Step 3 (чтобы не дублировать с легаси /api/rimworld/* которые ещё активны).
 - [x] Идемпотентность: per-channel in-memory ring (5000 envelope id'ов), повторный envelope = ACK с `{duplicate: true}`.
 
-### Step 3 — Action queue (core → connector)
+### Step 3 — Action queue (core → connector) ✅ (infrastructure done; routes wrapper migration — отдельная подзадача)
 Цель: `player.spawn` вместо `POST /api/rimworld/spawn` идёт через action queue.
 
-- [ ] Таблица `module_actions` (TENANT, channel_id PK + action_id): outbox для actions. Колонки: id, channel_id, module_id, type, data (JSON), status (queued/dispatched/acked/failed), created_at, dispatched_at, acked_at.
-- [ ] `RimWorldAdapter.dispatch_action(channel_id, env)` → INSERT в module_actions со status=queued.
-- [ ] `GET /v1/module/<id>/actions?since=<cursor>` — long-poll outbox. Возвращает batch + cursor.
-- [ ] `POST /v1/module/<id>/ack` — connector подтверждает execution. Ставит status=acked.
-- [ ] Routes shop/spawn/heal в rimworld.py перепишут `await rimworld.spawn_pawn(username)` на `await adapter.dispatch_action(channel_id, env_for_player_spawn)`. Старые routes остаются как тонкий wrapper.
+- [x] Таблица `module_actions` (см. `migrations/m5_module_actions.py`). PK auto-increment служит cursor'ом для long-poll. Композитные индексы для polling и ACK lookup.
+- [x] `RimWorldAdapter.dispatch_action(channel_id, env)` — реальная имплементация: manifest validation + INSERT через `db.enqueue_action`.
+- [x] `GET /v1/module/<id>/actions?since=<cursor>` — long-poll до 25 сек, проверяет БД каждую секунду. `fetch_pending_actions` атомарно помечает dispatched.
+- [x] `POST /v1/module/<id>/ack` — idempotent ACK (повторный ACK = `{acked: false}`, cross-channel ACK = false).
+- [ ] **Wrapper migration НЕ в этом коммите**: routes/spawn/heal в `rimworld.py` пока вызывают свои функции напрямую. Перевод на `dispatch_action` — отдельная подзадача step 5/6 чтобы избежать big-bang риска.
 
 ### Step 4 — Catalogs publish/consume
 Цель: shop_catalog и rimworld_event_catalog публикуются мод'ом через Module API а не legacy `/api/rimworld/catalog/*`.
@@ -93,3 +93,4 @@
 |---|---|---|
 | 2026-05-08 | Step 1 | Foundation: ModuleAdapter ABC, manifest.yaml, loader, /v1/module/* routes. RimWorldAdapter — stub. Existing rimworld.py не тронут. |
 | 2026-05-08 | Step 2 | Events endpoint + token auth + dedup. POST /v1/module/<id>/events. issue/verify_module_token (HMAC, 1-year TTL). GET /api/streamer/module-token (cookie-protected). RimWorldAdapter.handle_event — dispatcher с lifecycle handlers (session_*, catalog_update logged). Реальные db-writes для player.*/pawn.* отложены в Step 3. |
+| 2026-05-08 | Step 3 | Action queue. Migration m5_module_actions (table + 2 indexes). db.enqueue_action/fetch_pending_actions/ack_action helpers. RimWorldAdapter.dispatch_action — реальная имплементация. GET /v1/module/<id>/actions long-poll (25s timeout, 1s interval). POST /v1/module/<id>/ack idempotent. Wrapper migration legacy routes на dispatch_action — отложен в Step 5/6. |

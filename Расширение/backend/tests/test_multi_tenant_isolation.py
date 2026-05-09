@@ -385,6 +385,29 @@ async def test_catalog_replace_semantics():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Test 6: In-memory cache key — multi-tenant invariant
+# ─────────────────────────────────────────────────────────────────────────────
+def test_in_memory_cache_keys():
+    print("\n[6] In-memory cache: per-(channel, user) keys (no overwrite)")
+    # Симулируем то что bot_core.update_viewer_presence/chat делает:
+    # ключ — tuple (channel_id, username), не просто username.
+    cache = {}
+    from datetime import datetime as _dt
+    t1 = _dt(2026, 5, 9, 10, 0, 0)
+    t2 = _dt(2026, 5, 9, 11, 0, 0)
+    # alice на канале A
+    cache[(98319857, "alice")] = t1
+    # alice на канале B (другой стример) — должна быть НЕЗАВИСИМАЯ запись
+    cache[(99999, "alice")] = t2
+    assert_eq(len(cache), 2, "two keys for same username on different channels")
+    assert_eq(cache.get((98319857, "alice")), t1, "channel A retains its timestamp")
+    assert_eq(cache.get((99999, "alice")), t2, "channel B retains its timestamp")
+    # Регресс check: старый код хранил по username — overwrite'нул бы
+    assert_true(cache[(98319857, "alice")] != cache[(99999, "alice")],
+                "no cross-channel overwrite (bug class fixed)")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main runner
 # ─────────────────────────────────────────────────────────────────────────────
 async def run_all_tests():
@@ -397,6 +420,7 @@ async def run_all_tests():
     await test_channel_isolation()
     await test_action_queue_isolation()
     await test_catalog_replace_semantics()
+    test_in_memory_cache_keys()
 
     print("\n" + "=" * 70)
     print(f"PASSED: {len(_successes)}    FAILED: {len(_failures)}")

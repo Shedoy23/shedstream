@@ -12,7 +12,6 @@ from config import (
     ACTIVITY_CONFIG,
     MIN_HEARTBEAT_SECONDS,
     POINTS_PER_MINUTE,
-    QUEST_ORDER,
     QUESTS_CONFIG,
     WATCH_TIME_CAP,
     sanitize_username,
@@ -163,7 +162,7 @@ async def track_activity(body: ActivityRequest, request: Request):
             """, (username, watch_time))
         await conn.commit()
 
-    bot.update_viewer_presence(username)
+    bot.update_viewer_presence(username, channel_id)
 
     try:
         level_data  = await db.get_user_level(username)
@@ -189,12 +188,21 @@ async def track_activity(body: ActivityRequest, request: Request):
 
 @router.post("/api/viewer/chat-message")
 async def track_chat_message(body: ChatMessageRequest, request: Request):
-    """Отслеживание сообщений в чате (со стороны фронта).
+    """Presence-trace для chat-сообщений приходящих с frontend'а.
 
-    Внимание: настоящий учёт чата уже идёт через IRC-бот в main.py
-    (TwitchChatBot.event_message). Этот эндпоинт остаётся для legacy-вызовов
-    с фронта — но username берётся из JWT (а не из body), поэтому подделка
-    «пишу длинное сообщение за чужой ник» больше не работает.
+    DEDUP NOTE: настоящий учёт чата (chat_stats INSERT, бонус за длину,
+    quest tick) идёт через IRC-бот в main.py (TwitchChatBot.event_message).
+    Раньше этот endpoint дублировал ту же работу — тот же event приходил
+    от Twitch IRC и от frontend'а, и записывался ДВАЖДЫ в chat_stats,
+    а бонус начислялся ДВАЖДЫ.
+
+    Сейчас здесь — только presence trace (update_viewer_chat) на случай
+    если frontend знает о чате раньше IRC bot'а (вариант: открытое
+    расширение с собственным WebSocket к Twitch). Запись в chat_stats
+    и quest update отвечает IRC bot, источник правды.
+
+    Ничего не возвращает в смысле бонуса — frontend не должен ожидать
+    points от этого endpoint'а; они придут от IRC handler'а.
     """
     if err := await require_stream_live():
         return {"status": "offline", "message": err["message"]}
@@ -203,42 +211,9 @@ async def track_chat_message(body: ChatMessageRequest, request: Request):
         return _AUTH_FAIL
     username, channel_id = auth
 
-    db  = get_db()
     bot = get_bot()
-    bot.update_viewer_chat(username)
-
-    safe_text = (body.message_text or "")[:1000] if body.message_text else ""
-
-    async with db._connect() as conn:
-        await conn.execute("""
-            INSERT INTO chat_stats (username, message_length, message_text)
-            VALUES (?, ?, ?)
-        """, (username, body.message_length, safe_text))
-        await conn.commit()
-
-    if ACTIVITY_CONFIG.get("chat_bonus_enabled", True):
-        today = date.today().isoformat()
-        async with db._connect() as conn:
-            cursor = await conn.execute("""
-                SELECT SUM(message_length) FROM chat_stats
-                WHERE username = ? AND date(created_at) = ?
-            """, (username, today))
-            total_today = await cursor.fetchone() or (0,)
-        daily_limit = ACTIVITY_CONFIG.get("max_daily_chat_bonus", 500)
-        if total_today[0] < daily_limit:
-            bonus = min(body.message_length // 10, 10)
-            if bonus > 0:
-                await db.add_points(username, bonus)
-
-    try:
-        for quest in QUEST_ORDER:
-            quest_config = QUESTS_CONFIG.get(quest)
-            if quest_config and quest_config.get("type") == "chat":
-                await bot._update_quest_progress(username, quest, 1)
-    except Exception as e:
-        print(f"Ошибка обновления чат-квестов для {username}: {e}")
-
-    return {"status": "ok"}
+    bot.update_viewer_chat(username, channel_id)
+    return {"status": "ok", "deduped": True}
 
 
 @router.post("/api/viewer/click")

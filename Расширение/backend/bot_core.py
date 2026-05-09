@@ -5,13 +5,13 @@ import aiohttp
 import logging
 import random
 from datetime import datetime, timedelta, date
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 import os
 
 logger = logging.getLogger('rimlink.bot')
 
 from database import Database
-from dependencies import resolve_channel_id, resolve_channel_id_or_default
+from dependencies import resolve_channel_id
 from event_manager import EventManager
 from config import (
     ACTIVE_WINDOW,
@@ -83,8 +83,12 @@ class Cache:
 class BotCore:
     def __init__(self, db: Database):
         self.db = db
-        # Единый словарь: последнее действие (чат ИЛИ activity)
-        self.viewers_last_active: Dict[str, datetime] = {}
+        # In-memory presence trace: (channel_id, username) → datetime.
+        # Multi-tenant invariant: один и тот же ник на двух каналах должен
+        # быть РАЗНЫМИ записями. Раньше ключом был только username — alice
+        # из канала А перезаписывала alice из канала Б. После M5 (per-channel
+        # rate limits + блок 1/2 архитектурной прокачки) — обязательно tuple.
+        self.viewers_last_active: Dict[Tuple[int, str], datetime] = {}
         self.running = True
         self.twitch_bot = None  # Будет установлен из main.py
         # Очередь сообщений в чат, накопленных до подключения IRC.
@@ -93,35 +97,36 @@ class BotCore:
         # сообщение до Twitch не доходило. Теперь буферим и флашим при connect.
         self._pending_chat_messages: list = []
         self._pending_chat_limit = 50
-        
+
         # Кэш для бонусов
         self._bonus_cache = Cache(ttl=PERFORMANCE_CONFIG['cache_ttl'])
-        
+
         # Ивент менеджер
         self.event_manager = EventManager(self, db)
-        
+
         # Данные для казино
         self.casino_total_bets = 0
         self.casino_cooldown_until = datetime.min
         self.casino_cooldown_duration = CASINO_CONFIG['cooldown_duration']
         self.casino_threshold = CASINO_CONFIG['cooldown_threshold']
 
-        
+
         # Розыгрыши
         self.last_raffle = datetime.min
-        
-        # Внимание (тревога)
-        self.last_attention: Dict[str, datetime] = {}
-        
+
+        # Внимание (тревога) — per-channel-per-user
+        self.last_attention: Dict[Tuple[int, str], datetime] = {}
+
         # Пути для RimWorld
         self.rimworld_commands_file = RIMWORLD_COMMANDS_PATH
         self.rimworld_refunds_file = RIMWORLD_REFUNDS_PATH
-        
-        # Статистика активности (для предотвращения спама)
-        self.last_activity_update: Dict[str, datetime] = {}
+
+        # Статистика активности — per-channel-per-user (для дедупа quest-tick'ов)
+        self.last_activity_update: Dict[Tuple[int, str], datetime] = {}
         self.current_stream_id: str = ""   # устанавливается при старте стрима
 
-        self.last_chat_update: Dict[str, datetime] = {}
+        # Чат-сообщения — per-channel-per-user
+        self.last_chat_update: Dict[Tuple[int, str], datetime] = {}
         
         # Кэш проверки стрима (instance-level, не class-level)
         self._stream_live_cache: bool = False
@@ -135,22 +140,30 @@ class BotCore:
     # ===== АКТИВНОСТЬ ЗРИТЕЛЯ =====
     #
     # Источник правды — БД `viewers.last_seen`. In-memory словарь
-    # `viewers_last_active` живёт как write-through кэш: обновляется
-    # синхронно с БД, но _reward_points/_process_drop читают из БД —
-    # это переживает рестарт и закрывает расхождение с admin view.
-    def update_viewer_presence(self, username: str):
-        """Быстрое in-memory касание для heartbeat/chat handlers.
+    # `viewers_last_active` (ключ: (channel_id, username)) живёт как
+    # write-through кэш: обновляется синхронно с БД, но _reward_points/
+    # _process_drop читают из БД — это переживает рестарт и закрывает
+    # расхождение с admin view.
+    #
+    # Multi-tenant: ключ — tuple (channel_id, username), не просто username.
+    # Один ник на двух каналах = ДВЕ независимые записи.
+    def update_viewer_presence(self, username: str, channel_id: int):
+        """Быстрое in-memory касание для heartbeat handlers.
 
         DB-запись в этих горячих путях делают сами роуты (INSERT … ON CONFLICT),
         мы тут только обновляем память и кэш бонусов.
         """
-        self.viewers_last_active[username] = datetime.now()
-        self._bonus_cache.invalidate(f"bonus_{username}")
+        if not username or not channel_id:
+            return
+        self.viewers_last_active[(int(channel_id), username.lower())] = datetime.now()
+        self._bonus_cache.invalidate(f"bonus_{int(channel_id)}_{username.lower()}")
 
-    def update_viewer_chat(self, username: str):
+    def update_viewer_chat(self, username: str, channel_id: int):
         """Alias для чат-handler'ов — семантика та же что presence."""
-        self.viewers_last_active[username] = datetime.now()
-        self._bonus_cache.invalidate(f"bonus_{username}")
+        if not username or not channel_id:
+            return
+        self.viewers_last_active[(int(channel_id), username.lower())] = datetime.now()
+        self._bonus_cache.invalidate(f"bonus_{int(channel_id)}_{username.lower()}")
 
     async def touch_viewer(self, username: str, channel_id: int = None):
         """Единая точка для любого действия пользователя (спин/ставка/покупка/…).
@@ -158,15 +171,15 @@ class BotCore:
         Пишет в память И в БД (upsert last_seen, is_afk=0). Используется
         из action-эндпоинтов — там нет собственного INSERT INTO viewers.
 
-        channel_id опционален пока M3 не протолкнёт его из JWT во все вызовы.
+        channel_id может быть None — fallback через resolve_channel_id (strict).
         """
         if not username:
             return
         channel_id = resolve_channel_id(channel_id)
         username = username.lower()
         now = datetime.now()
-        self.viewers_last_active[username] = now
-        self._bonus_cache.invalidate(f"bonus_{username}")
+        self.viewers_last_active[(int(channel_id), username)] = now
+        self._bonus_cache.invalidate(f"bonus_{int(channel_id)}_{username}")
         try:
             async with self.db._connect() as conn:
                 await conn.execute("""
@@ -424,21 +437,23 @@ class BotCore:
             rows = []
 
         # 2. Уборка in-memory мусора (TTL 30 мин) — не влияет на решение,
-        #    просто чтобы словарь не рос вечно.
+        #    просто чтобы словарь не рос вечно. Ключи всех 4 dict'ов —
+        #    tuple (channel_id, username) после multi-tenant fix'а.
         offline_cutoff = now - timedelta(seconds=REDUCED_WINDOW)
-        for u in [u for u, t in self.viewers_last_active.items() if t < offline_cutoff]:
-            del self.viewers_last_active[u]
-            self._bonus_cache.invalidate(f"bonus_{u}")
+        for k in [k for k, t in self.viewers_last_active.items() if t < offline_cutoff]:
+            del self.viewers_last_active[k]
+            cid, uname = k
+            self._bonus_cache.invalidate(f"bonus_{cid}_{uname}")
 
         chat_cutoff = now - timedelta(hours=1)
-        for u in [u for u, t in self.last_chat_update.items() if t < chat_cutoff]:
-            del self.last_chat_update[u]
-        for u in [u for u, t in self.last_activity_update.items() if t < chat_cutoff]:
-            del self.last_activity_update[u]
+        for k in [k for k, t in self.last_chat_update.items() if t < chat_cutoff]:
+            del self.last_chat_update[k]
+        for k in [k for k, t in self.last_activity_update.items() if t < chat_cutoff]:
+            del self.last_activity_update[k]
 
         attention_cutoff = now - timedelta(minutes=5)
-        for u in [u for u, t in self.last_attention.items() if t < attention_cutoff]:
-            del self.last_attention[u]
+        for k in [k for k, t in self.last_attention.items() if t < attention_cutoff]:
+            del self.last_attention[k]
 
         # 3. Классификация + начисление.
         active_count = reduced_count = 0
@@ -597,13 +612,14 @@ class BotCore:
     async def update_chat_quest_progress(self, username: str, message_length: int, channel_id: int = None):
         """Обновить прогресс чат-квестов"""
         channel_id = resolve_channel_id(channel_id)
-        # Защита от спама (не чаще раза в 2 секунды)
+        # Защита от спама (не чаще раза в 2 секунды) — per (channel, user)
         now = datetime.now()
-        last_update = self.last_chat_update.get(username, datetime.min)
+        key = (int(channel_id), username.lower())
+        last_update = self.last_chat_update.get(key, datetime.min)
         if (now - last_update).total_seconds() < 2:
             return
 
-        self.last_chat_update[username] = now
+        self.last_chat_update[key] = now
 
         # Обновляем все чат-квесты
         await self._update_quests_by_type(username, 'chat', 1, channel_id=channel_id)
@@ -625,13 +641,14 @@ class BotCore:
     async def update_activity_quest_progress(self, username: str, watch_time: int, clicks: int = 0, channel_id: int = None):
         """Обновить прогресс квестов активности"""
         channel_id = resolve_channel_id(channel_id)
-        # Защита от спама (не чаще раза в 10 секунд)
+        # Защита от спама (не чаще раза в 10 секунд) — per (channel, user)
         now = datetime.now()
-        last_update = self.last_activity_update.get(username, datetime.min)
+        key = (int(channel_id), username.lower())
+        last_update = self.last_activity_update.get(key, datetime.min)
         if (now - last_update).total_seconds() < 10:
             return
 
-        self.last_activity_update[username] = now
+        self.last_activity_update[key] = now
 
         # Обновляем квесты активности (каждые 60 секунд = +1)
         await self._update_quests_by_type(username, 'activity', watch_time // 60, channel_id=channel_id)
@@ -663,13 +680,11 @@ class BotCore:
             active = [(r[0], r[1]) for r in rows if r[1].lower() not in DROP_BLACKLIST]
         except Exception as e:
             logger.warning("Drop: чтение активных из БД упало: %s", e)
-            # Fallback in-memory cache не знает channel_id зрителей.
-            # resolve_channel_id_or_default() даст DEFAULT_CHANNEL_ID — в multi-tenant
-            # scenario fallback всё равно отдаст drop одному каналу (не идеально),
-            # но это всего лишь crash-recovery — нормальный путь работает корректно.
-            fallback_cid = resolve_channel_id_or_default()
+            # Fallback in-memory cache теперь хранит (channel_id, username) —
+            # multi-tenant correct. Если кто-то всплыл в кэше но БД упала —
+            # отдаём drop по их реальному каналу, не fakedef'ному.
             active = [
-                (fallback_cid, u) for u, t in self.viewers_last_active.items()
+                (cid, u) for (cid, u), t in self.viewers_last_active.items()
                 if t > cutoff and u.lower() not in DROP_BLACKLIST
             ]
         if not active:

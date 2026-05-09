@@ -564,10 +564,9 @@ class TwitchChatBot(twitch_commands.Bot):
         if not username:
             return
         text = message.content or ''
-        # Сбрасываем AFK — зритель написал в чат
-        bot.update_viewer_chat(username)
         try:
             # M4 follow-up (в): резолвим channel_id из twitchio ctx + ставим в ContextVar
+            # Делаем это ДО update_viewer_chat — чтобы ключ был tuple-correct.
             from dependencies import (
                 get_channel_id_by_login,
                 set_request_channel_id,
@@ -576,6 +575,8 @@ class TwitchChatBot(twitch_commands.Bot):
             chat_login = (getattr(message.channel, 'name', '') or '').lower().lstrip('#')
             channel_id = get_channel_id_by_login(chat_login) or resolve_channel_id_or_default()
             set_request_channel_id(channel_id)
+            # Сбрасываем AFK — зритель написал в чат (per-channel presence trace)
+            bot.update_viewer_chat(username, channel_id)
             async with db._connect() as conn:
                 await conn.execute("""
                     INSERT INTO viewers (channel_id, username, last_seen, is_afk)

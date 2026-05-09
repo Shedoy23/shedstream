@@ -3,7 +3,6 @@ routes/market.py — рынок предметов между зрителями
 """
 from datetime import datetime, timedelta, timezone
 
-import aiosqlite
 from fastapi import APIRouter, Request
 
 from dependencies import get_bot, get_db, require_jwt_user, require_stream_live
@@ -48,7 +47,7 @@ async def market_list_item(request: Request):
         return {"success": False, "message": f"Минимальная цена: {min_price}💎"}
 
     db = get_db()
-    async with aiosqlite.connect(db.db_path) as conn:
+    async with db._connect() as conn:
         cursor = await conn.execute(
             "SELECT i.id, i.emoji, inv.quantity FROM inventory inv "
             "JOIN items i ON inv.item_id = i.id "
@@ -85,7 +84,7 @@ async def market_get():
     """Список активных лотов"""
     now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
     db  = get_db()
-    async with aiosqlite.connect(db.db_path) as conn:
+    async with db._connect() as conn:
         cursor = await conn.execute(
             "SELECT id, seller, item_name, item_emoji, price, expires_at "
             "FROM market_listings WHERE expires_at > ? ORDER BY created_at DESC",
@@ -116,7 +115,7 @@ async def market_buy_item(request: Request):
         return {"success": False, "message": "Неверные параметры"}
 
     db = get_db()
-    async with aiosqlite.connect(db.db_path) as conn:
+    async with db._connect() as conn:
         now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
         try:
             await conn.execute("BEGIN IMMEDIATE")
@@ -200,7 +199,7 @@ async def market_cancel_listing(request: Request):
     listing_id = int(data.get("listing_id") or 0)
 
     db = get_db()
-    async with aiosqlite.connect(db.db_path) as conn:
+    async with db._connect() as conn:
         cursor = await conn.execute(
             "SELECT seller, item_name FROM market_listings WHERE id = ?", (listing_id,))
         row = await cursor.fetchone()

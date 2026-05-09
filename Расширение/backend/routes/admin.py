@@ -1,5 +1,19 @@
 """
 routes/admin.py — администрирование: пользователи, предметы, очки.
+
+ARCH NOTE (Block 2 audit): этот файл — единственный route'ер использующий
+`aiosqlite.connect(db.db_path)` напрямую (bypass pool). Причина: Row factory
+(`conn.row_factory = aiosqlite.Row`) меняет state соединения, что mутирует
+pool-connection и влияет на следующих пользователей pool'а.
+
+Future migration path:
+1. Заменить `r['column']` на `r[index]` в SELECT-обработке
+2. Перейти на `db._connect()` (через pool)
+3. Удалить `import aiosqlite` отсюда
+
+Дополнительно: вся логика admin-routes должна перейти в database.py
+helpers (`db.list_users(search, limit)`, `db.update_user_points`, etc.) —
+сейчас raw SQL прямо в endpoint'ах. Это тоже Block 2 follow-up task.
 """
 import aiosqlite
 from fastapi import APIRouter, Depends, Request

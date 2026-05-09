@@ -6,7 +6,6 @@ import logging
 import re as _re
 from datetime import date
 
-import aiosqlite
 from fastapi import APIRouter, Request
 
 from config import (
@@ -39,7 +38,7 @@ async def viewer_online(action: UserAction, request: Request):
     logger.info("ONLINE: %s", username)
 
     db = get_db()
-    async with aiosqlite.connect(db.db_path) as conn:
+    async with db._connect() as conn:
         await conn.execute("""
             INSERT INTO viewers (channel_id, username, last_seen, is_afk)
             VALUES (?, ?, datetime('now'), 0)
@@ -62,7 +61,7 @@ async def viewer_stats(username: str):
     inventory = await db.get_inventory(uname) or []
     quests    = await db.get_quests(uname)
 
-    async with aiosqlite.connect(db.db_path) as conn:
+    async with db._connect() as conn:
         today = date.today().isoformat()
 
         cur = await conn.execute(
@@ -146,7 +145,7 @@ async def track_activity(body: ActivityRequest, request: Request):
     except Exception:
         level_before = 0
 
-    async with aiosqlite.connect(db.db_path) as conn:
+    async with db._connect() as conn:
         await conn.execute("""
             INSERT INTO viewers (channel_id, username, last_seen, is_afk)
             VALUES (?, ?, datetime('now'), 0)
@@ -210,7 +209,7 @@ async def track_chat_message(body: ChatMessageRequest, request: Request):
 
     safe_text = (body.message_text or "")[:1000] if body.message_text else ""
 
-    async with aiosqlite.connect(db.db_path) as conn:
+    async with db._connect() as conn:
         await conn.execute("""
             INSERT INTO chat_stats (username, message_length, message_text)
             VALUES (?, ?, ?)
@@ -219,7 +218,7 @@ async def track_chat_message(body: ChatMessageRequest, request: Request):
 
     if ACTIVITY_CONFIG.get("chat_bonus_enabled", True):
         today = date.today().isoformat()
-        async with aiosqlite.connect(db.db_path) as conn:
+        async with db._connect() as conn:
             cursor = await conn.execute("""
                 SELECT SUM(message_length) FROM chat_stats
                 WHERE username = ? AND date(created_at) = ?
@@ -330,7 +329,7 @@ async def get_viewer_achievements(username: str):
 async def get_online_users():
     """Список пользователей онлайн (не AFK) для дропдаунов"""
     db = get_db()
-    async with aiosqlite.connect(db.db_path) as conn:
+    async with db._connect() as conn:
         cursor = await conn.execute("""
             SELECT username FROM viewers
             WHERE is_afk = 0

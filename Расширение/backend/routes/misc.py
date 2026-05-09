@@ -7,7 +7,6 @@ import os
 import random
 
 import aiohttp
-import aiosqlite
 import jwt
 from fastapi import APIRouter, Depends, Request
 
@@ -138,7 +137,7 @@ async def handle_donate(request: Request, _admin: str = Depends(require_admin)):
 
     try:
         bot = get_bot()
-        async with aiosqlite.connect(db.db_path) as conn:
+        async with db._connect() as conn:
             await conn.execute(
                 "INSERT INTO event_pool (username, amount, donated_at) VALUES (?, ?, datetime('now'))",
                 (username, amount_rub))

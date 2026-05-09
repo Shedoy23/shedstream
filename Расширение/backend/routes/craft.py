@@ -4,7 +4,6 @@ routes/craft.py — крафт: 5 предметов → 1 следующего 
 import asyncio
 import random
 
-import aiosqlite
 from fastapi import APIRouter, Request
 
 from config import sanitize_username
@@ -48,7 +47,7 @@ async def craft_item(request: Request):
     await bot.touch_viewer(username, channel_id)
 
     try:
-        async with aiosqlite.connect(db.db_path) as conn:
+        async with db._connect() as conn:
             await conn.execute("BEGIN IMMEDIATE")
 
             cur = await conn.execute("SELECT id FROM items WHERE name=?", (item_name,))
@@ -128,7 +127,7 @@ async def get_craft_stats(username: str):
 
     db    = get_db()
     stats = []
-    async with aiosqlite.connect(db.db_path) as conn:
+    async with db._connect() as conn:
         for item_name, recipe in _CRAFT.items():
             result_name   = recipe["result"]
             crafted_count = await db.get_craft_count(username, item_name)

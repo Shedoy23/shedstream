@@ -1,7 +1,6 @@
 """
 routes/marriage.py — браки между зрителями (создание, развод, семейный счёт).
 """
-import aiosqlite
 from fastapi import APIRouter, Depends, Request
 
 from config import FAMILY_CONFIG, sanitize_username
@@ -22,7 +21,7 @@ async def create_marriage(request: MarryRequest, _admin: str = Depends(require_a
         return {"success": False, "message": "Нельзя жениться на себе"}
 
     db = get_db()
-    async with aiosqlite.connect(db.db_path) as conn:
+    async with db._connect() as conn:
         try:
             await conn.execute("BEGIN IMMEDIATE")
             for u in [request.user1, request.user2]:
@@ -52,7 +51,7 @@ async def create_marriage(request: MarryRequest, _admin: str = Depends(require_a
 async def marriage_status(username: str):
     """Статус брака"""
     db = get_db()
-    async with aiosqlite.connect(db.db_path) as conn:
+    async with db._connect() as conn:
         cursor = await conn.execute("""
             SELECT user1, user2, family_balance FROM marriages
             WHERE (user1 = ? OR user2 = ?) AND divorced_at IS NULL
@@ -89,7 +88,7 @@ async def divorce(request: Request):
     if points < DIVORCE_COST:
         return {"success": False, "message": f"Нужно {DIVORCE_COST}💎 для развода"}
 
-    async with aiosqlite.connect(db.db_path) as conn:
+    async with db._connect() as conn:
         cursor = await conn.execute("""
             SELECT id FROM marriages
             WHERE (user1 = ? OR user2 = ?) AND divorced_at IS NULL
@@ -101,7 +100,7 @@ async def divorce(request: Request):
     if not await db.remove_points(sender, DIVORCE_COST):
         return {"success": False, "message": f"Баланс упал — нужно {DIVORCE_COST}💎"}
 
-    async with aiosqlite.connect(db.db_path) as conn:
+    async with db._connect() as conn:
         await conn.execute("""
             UPDATE marriages SET divorced_at = CURRENT_TIMESTAMP WHERE id = ?
         """, (row[0],))
@@ -132,7 +131,7 @@ async def marriage_withdraw(request: Request):
         return {"success": False, "message": "Неверные параметры"}
 
     db = get_db()
-    async with aiosqlite.connect(db.db_path) as conn:
+    async with db._connect() as conn:
         try:
             await conn.execute("BEGIN IMMEDIATE")
             cursor = await conn.execute("""
@@ -178,7 +177,7 @@ async def marriage_propose(request: Request):
         return {"success": False, "message": "Неверные параметры"}
 
     db = get_db()
-    async with aiosqlite.connect(db.db_path) as conn:
+    async with db._connect() as conn:
         for u in [sender, target]:
             cursor = await conn.execute("""
                 SELECT id FROM marriages WHERE (user1=? OR user2=?) AND divorced_at IS NULL
@@ -210,7 +209,7 @@ async def marriage_accept(request: Request):
     await get_bot().touch_viewer(sender)
 
     db = get_db()
-    async with aiosqlite.connect(db.db_path) as conn:
+    async with db._connect() as conn:
         cursor = await conn.execute("""
             SELECT from_user FROM marriage_proposals WHERE to_user=?
             ORDER BY created_at DESC LIMIT 1
@@ -253,7 +252,7 @@ async def get_proposals(username: str):
     """Входящие предложения"""
     username = sanitize_username(username)
     db       = get_db()
-    async with aiosqlite.connect(db.db_path) as conn:
+    async with db._connect() as conn:
         cursor = await conn.execute("""
             SELECT from_user FROM marriage_proposals WHERE to_user=?
             ORDER BY created_at DESC

@@ -1,7 +1,6 @@
 """
 routes/promo.py — промокоды (активация и управление через админку).
 """
-import aiosqlite
 from fastapi import APIRouter, Depends, Request
 
 from config import sanitize_username
@@ -24,7 +23,7 @@ async def use_promo(request: Request):
     await get_bot().touch_viewer(username)
 
     db = get_db()
-    async with aiosqlite.connect(db.db_path) as conn:
+    async with db._connect() as conn:
         try:
             await conn.execute("BEGIN IMMEDIATE")
 
@@ -69,7 +68,7 @@ async def use_promo(request: Request):
 @router.get("/api/admin/promocodes")
 async def admin_get_promos(_admin: str = Depends(require_admin)):
     db = get_db()
-    async with aiosqlite.connect(db.db_path) as conn:
+    async with db._connect() as conn:
         c = await conn.execute(
             "SELECT id, code, points, item_name, max_uses, uses, created_at "
             "FROM promocodes ORDER BY id DESC")
@@ -93,7 +92,7 @@ async def admin_create_promo(request: Request, _admin: str = Depends(require_adm
         return {"success": False, "message": "Укажи код"}
 
     db = get_db()
-    async with aiosqlite.connect(db.db_path) as conn:
+    async with db._connect() as conn:
         try:
             await conn.execute(
                 "INSERT INTO promocodes (code, points, item_def, item_name, max_uses) VALUES (?,?,?,?,?)",
@@ -107,7 +106,7 @@ async def admin_create_promo(request: Request, _admin: str = Depends(require_adm
 @router.delete("/api/admin/promocodes/{promo_id}")
 async def admin_delete_promo(promo_id: int, _admin: str = Depends(require_admin)):
     db = get_db()
-    async with aiosqlite.connect(db.db_path) as conn:
+    async with db._connect() as conn:
         await conn.execute("DELETE FROM promocodes WHERE id = ?", (promo_id,))
         await conn.commit()
     return {"success": True}

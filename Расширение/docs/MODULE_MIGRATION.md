@@ -41,11 +41,13 @@
 - [x] `POST /v1/module/<id>/ack` — idempotent ACK (повторный ACK = `{acked: false}`, cross-channel ACK = false).
 - [ ] **Wrapper migration НЕ в этом коммите**: routes/spawn/heal в `rimworld.py` пока вызывают свои функции напрямую. Перевод на `dispatch_action` — отдельная подзадача step 5/6 чтобы избежать big-bang риска.
 
-### Step 4 — Catalogs publish/consume
-Цель: shop_catalog и rimworld_event_catalog публикуются мод'ом через Module API а не legacy `/api/rimworld/catalog/*`.
+### Step 4 — Catalogs publish/consume ✅ (Module-API path; legacy redirect — отдельный wrapper task)
 
-- [ ] `module.catalog_update` event (тип=shop|events, items: [...]). Adapter.handle_event запишет в session-scoped таблицы (см. MULTITENANT_PLAN.md §H).
-- [ ] `GET /api/shop/catalog?channel_id=X` теперь читает через adapter view, не напрямую таблицу. Frontend без изменений (тот же JSON-shape).
+- [x] Generic `module_catalogs` table (migration m6) — обслуживает все модули (rimworld + future bannerlord/minecraft).
+- [x] `module.catalog_update` handler (RimWorldAdapter._on_catalog_update): replace-семантика через `db.replace_module_catalog`. Validates catalog ∈ {shop, events}, entries is list.
+- [x] `module.session_start` теперь реально clear'ит каталоги канала через `db.clear_module_catalogs` (per MULTITENANT_PLAN.md §H).
+- [x] `GET /v1/module/<id>/catalog/<type>` — frontend (зритель/стример) читает каталог. 3-phase auth resolution: JWT → session cookie → ?channel_id.
+- [ ] **Legacy redirect НЕ в этом коммите**: `/api/rimworld/catalog/shop` и `/api/rimworld/catalog/events` пока продолжают читать из старых rimworld-specific таблиц (shop_catalog, rimworld_event_catalog). Перевод на module_catalogs — отдельная wrapper task в Step 6.
 
 ### Step 5 — Decommission rimworld.py routes
 - [ ] Постепенно удаляем `/api/rimworld/*` routes по мере покрытия в Module API. Либо превращаем в shim-форвардер.
@@ -94,3 +96,4 @@
 | 2026-05-08 | Step 1 | Foundation: ModuleAdapter ABC, manifest.yaml, loader, /v1/module/* routes. RimWorldAdapter — stub. Existing rimworld.py не тронут. |
 | 2026-05-08 | Step 2 | Events endpoint + token auth + dedup. POST /v1/module/<id>/events. issue/verify_module_token (HMAC, 1-year TTL). GET /api/streamer/module-token (cookie-protected). RimWorldAdapter.handle_event — dispatcher с lifecycle handlers (session_*, catalog_update logged). Реальные db-writes для player.*/pawn.* отложены в Step 3. |
 | 2026-05-08 | Step 3 | Action queue. Migration m5_module_actions (table + 2 indexes). db.enqueue_action/fetch_pending_actions/ack_action helpers. RimWorldAdapter.dispatch_action — реальная имплементация. GET /v1/module/<id>/actions long-poll (25s timeout, 1s interval). POST /v1/module/<id>/ack idempotent. Wrapper migration legacy routes на dispatch_action — отложен в Step 5/6. |
+| 2026-05-08 | Step 4 | Catalog publish/consume. Migration m6_module_catalogs (generic table). db.replace_module_catalog/get_module_catalog/clear_module_catalogs helpers. RimWorldAdapter._on_catalog_update real impl + _on_session_start_business clear (MULTITENANT_PLAN §H). GET /v1/module/<id>/catalog/<type> с 3-phase auth (JWT → cookie → ?channel_id). Legacy /api/rimworld/catalog/* redirect — Step 6. |

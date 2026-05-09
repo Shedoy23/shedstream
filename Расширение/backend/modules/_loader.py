@@ -65,11 +65,31 @@ def _parse_yaml(text: str) -> dict:
         return _parse_yaml_minimal(text)
 
 
+def _strip_inline_comment(s: str) -> str:
+    """Удалить inline `# comment` из YAML-значения. Уважает кавычки —
+    `#` внутри quoted strings не считается комментарием.
+    """
+    in_single = False
+    in_double = False
+    for i, c in enumerate(s):
+        if c == '"' and not in_single:
+            in_double = not in_double
+        elif c == "'" and not in_double:
+            in_single = not in_single
+        elif c == "#" and not in_single and not in_double:
+            # Comment начинается с # — но только если перед ним whitespace
+            # (или это начало строки). YAML "key:value#hash" — value целиком.
+            if i == 0 or s[i - 1].isspace():
+                return s[:i].rstrip()
+    return s
+
+
 def _parse_yaml_minimal(text: str) -> dict:
     """Минимальный fallback для нашего формата manifest'ов:
     - top-level scalar key: value
     - top-level list key: with `- item` блоком
     - один уровень вложенности (extensions.events / extensions.actions)
+    - inline `# comment` отрезается из values и list items
     Не поддерживает: якоря, теги, multiline literals, complex maps.
     Достаточно для нашего manifest.yaml шаблона.
     """
@@ -85,14 +105,14 @@ def _parse_yaml_minimal(text: str) -> dict:
             continue
         # Top-level list item (- foo)
         if line.startswith("  - "):
-            item = line[4:].strip().strip('"\'')
+            item = _strip_inline_comment(line[4:]).strip().strip('"\'')
             if current_nested_list and current_nested_key:
                 nested_dict.setdefault(current_nested_list, []).append(item)
             elif current_list_key:
                 result.setdefault(current_list_key, []).append(item)
             continue
         if line.startswith("    - "):
-            item = line[6:].strip().strip('"\'')
+            item = _strip_inline_comment(line[6:]).strip().strip('"\'')
             if current_nested_list and current_nested_key:
                 nested_dict.setdefault(current_nested_list, []).append(item)
             continue
@@ -100,7 +120,7 @@ def _parse_yaml_minimal(text: str) -> dict:
         if line.startswith("  ") and ":" in line and not line.lstrip().startswith("-"):
             key, _, val = line.lstrip().partition(":")
             key = key.strip()
-            val = val.strip().strip('"\'')
+            val = _strip_inline_comment(val).strip().strip('"\'')
             if current_nested_key:
                 if val:
                     nested_dict[key] = val
@@ -118,7 +138,7 @@ def _parse_yaml_minimal(text: str) -> dict:
                 current_nested_list = None
             key, _, val = line.partition(":")
             key = key.strip()
-            val = val.strip().strip('"\'')
+            val = _strip_inline_comment(val).strip().strip('"\'')
             if val:
                 result[key] = val
                 current_list_key = None

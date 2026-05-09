@@ -1,24 +1,28 @@
 """
-routes/module_api.py — Module API HTTP endpoints (этап 3 steps 1+2).
+routes/module_api.py — Module API HTTP endpoints (этап 3 steps 1+2+3).
 
 Реализует подмножество docs/MODULE_API.md §3.1 (REST long-poll transport):
   - GET  /v1/modules                 — list discovered modules
   - GET  /v1/module/<id>/info        — manifest dump (debug/admin)
   - POST /v1/module/<id>/hello       — handshake (§6)
   - POST /v1/module/<id>/events      — приём событий от connector'а (§7)
+  - GET  /v1/module/<id>/actions     — long-poll outbox для actions (§3.1, §8)
+  - POST /v1/module/<id>/ack         — connector'ский ACK на исполненный action
 
-Не реализовано (Step 3+):
-  - GET  /v1/module/<id>/actions     — long-poll outbox для actions
-  - POST /v1/module/<id>/ack         — connector'ский ACK
+Не реализовано (Step 4+):
+  - Catalogs publish/consume через module.catalog_update + module-shop endpoints
 """
 from __future__ import annotations
 
+import asyncio
+import time
 from collections import deque
 from typing import Deque, Set
 
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
+from dependencies import get_db
 from modules._base import ModuleEnvelope
 from modules._loader import get_module, list_modules
 
@@ -256,3 +260,123 @@ async def module_events(module_id: str, request: Request):
             acks.append({"id": env.id, "success": False, "error": f"{type(e).__name__}: {e}"})
 
     return {"status": "ok", "acks": acks}
+
+
+# ── Этап 3 step 3: actions outbox ────────────────────────────────────────────
+
+# Long-poll параметры. Connector делает GET с timeout'ом ~30 сек; мы держим
+# соединение до этого предела, проверяя БД каждые _POLL_INTERVAL.
+_LONG_POLL_TIMEOUT_SEC = 25
+_LONG_POLL_INTERVAL_SEC = 1.0
+_BATCH_LIMIT = 50
+
+
+def _verify_module_request(request: Request, module_id: str) -> int:
+    """Helper: validate Authorization + module match. Возвращает channel_id из
+    токена или поднимает HTTPException. Используется actions/ack endpoints'ами.
+    """
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"status": "missing_auth"},
+        )
+    token = auth[7:].strip()
+    from routes.streamer import verify_module_token
+    claims = verify_module_token(token)
+    if not claims:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"status": "invalid_token"},
+        )
+    if claims["module_id"] != module_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"status": "module_id_mismatch"},
+        )
+    return int(claims["channel_id"])
+
+
+@router.get("/v1/module/{module_id}/actions", include_in_schema=False)
+async def module_actions_poll(module_id: str, request: Request):
+    """Long-poll outbox для actions. Connector вызывает с `?since=<id>` где id
+    — последний полученный PK. Если есть queued — возвращает batch, помечает
+    их dispatched. Если нет — long-poll ждёт до 25 сек проверяя каждую секунду.
+
+    Returns: {actions: [{id, action_id, type, data, created_at}], cursor: int}
+    cursor — max(id) из batch. Connector использует как `since` в next call.
+    Пустой actions+timeout = таймаут long-poll'а; connector ре-запросит.
+    """
+    adapter = get_module(module_id)
+    if not adapter:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"status": "module_not_found", "module_id": module_id},
+        )
+    channel_id = _verify_module_request(request, module_id)
+
+    raw_since = request.query_params.get("since", "0")
+    try:
+        since_id = max(0, int(raw_since))
+    except ValueError:
+        since_id = 0
+
+    db = get_db()
+    deadline = time.time() + _LONG_POLL_TIMEOUT_SEC
+    while True:
+        actions = await db.fetch_pending_actions(
+            channel_id=channel_id,
+            module_id=module_id,
+            since_id=since_id,
+            limit=_BATCH_LIMIT,
+        )
+        if actions:
+            cursor = max(a["id"] for a in actions)
+            return {"actions": actions, "cursor": cursor}
+        if time.time() >= deadline:
+            return {"actions": [], "cursor": since_id}
+        await asyncio.sleep(_LONG_POLL_INTERVAL_SEC)
+
+
+@router.post("/v1/module/{module_id}/ack", include_in_schema=False)
+async def module_ack(module_id: str, request: Request):
+    """Connector ACK'ает исполнение action.
+
+    Body: {action_id: str, success: bool, error?: str}.
+
+    Returns: {acked: bool}. False если action_id не найден (повторный ACK,
+    чужой канал, или action не существует) — это не ошибка, idempotent.
+    """
+    adapter = get_module(module_id)
+    if not adapter:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"status": "module_not_found", "module_id": module_id},
+        )
+    channel_id = _verify_module_request(request, module_id)
+
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"status": "bad_json"},
+        )
+    action_id = str(body.get("action_id") or "")
+    if not action_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"status": "action_id_required"},
+        )
+    success = bool(body.get("success", True))
+    error_msg = body.get("error") if not success else None
+
+    db = get_db()
+    acked = await db.ack_action(
+        channel_id=channel_id,
+        module_id=module_id,
+        action_id=action_id,
+        success=success,
+        error_msg=error_msg,
+    )
+    return {"acked": acked, "action_id": action_id, "status": "acked" if success else "failed"}

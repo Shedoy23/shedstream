@@ -473,6 +473,14 @@ async def run_migrations():
             print(f"❌ M4 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M5: module_actions — outbox очередь для Module API ──
+        try:
+            from migrations import m5_module_actions
+            await m5_module_actions.apply(conn)
+        except Exception as e:
+            print(f"❌ M5 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

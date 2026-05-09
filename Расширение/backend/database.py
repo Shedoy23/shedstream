@@ -1309,3 +1309,121 @@ class Database:
             )
             await db.commit()
             return cur.rowcount > 0
+
+    # ===== ЭТАП 3 STEP 3: MODULE ACTIONS QUEUE =====
+    #
+    # Outbox-pattern: core enqueue'ит actions, connector long-poll'ит и ACK'ает.
+    # Lifecycle: queued → dispatched → acked|failed. См. migrations/m5_module_actions.py.
+
+    async def enqueue_action(
+        self,
+        channel_id: int,
+        module_id: str,
+        action_id: str,
+        action_type: str,
+        data: Optional[Dict] = None,
+    ) -> int:
+        """INSERT в module_actions со status=queued. Возвращает int PK.
+
+        action_id — envelope id, выданный caller'ом (UUID или подобное). НЕ
+        путать с PK таблицы (который служит cursor'ом для long-poll).
+        """
+        import json as _json
+        async with self._connect() as db:
+            cur = await db.execute(
+                """
+                INSERT INTO module_actions
+                    (channel_id, module_id, action_id, type, data, status)
+                VALUES (?, ?, ?, ?, ?, 'queued')
+                """,
+                (channel_id, module_id, action_id, action_type,
+                 _json.dumps(data or {}, ensure_ascii=False)),
+            )
+            await db.commit()
+            return cur.lastrowid
+
+    async def fetch_pending_actions(
+        self,
+        channel_id: int,
+        module_id: str,
+        since_id: int = 0,
+        limit: int = 50,
+    ) -> List[Dict]:
+        """Достаёт queued actions с PK > since_id. Атомарно помечает их
+        status=dispatched перед возвратом — защита от двойной выдачи если
+        connector long-poll переподключился и снова вызывает с тем же cursor.
+
+        Returns list of dicts: {id, action_id, type, data (JSON-парсенный),
+        created_at}. Пустой список = нет новых actions (long-poll waits).
+        """
+        import json as _json
+        async with self._connect() as db:
+            await db.execute("BEGIN IMMEDIATE")
+            cur = await db.execute(
+                """
+                SELECT id, action_id, type, data, created_at
+                FROM module_actions
+                WHERE channel_id = ? AND module_id = ?
+                  AND status = 'queued' AND id > ?
+                ORDER BY id ASC
+                LIMIT ?
+                """,
+                (channel_id, module_id, int(since_id), int(limit)),
+            )
+            rows = await cur.fetchall()
+            if not rows:
+                await db.commit()
+                return []
+            ids = [r[0] for r in rows]
+            placeholders = ",".join("?" for _ in ids)
+            await db.execute(
+                f"UPDATE module_actions SET status='dispatched', dispatched_at=CURRENT_TIMESTAMP "
+                f"WHERE id IN ({placeholders})",
+                ids,
+            )
+            await db.commit()
+
+        result: List[Dict] = []
+        for r in rows:
+            try:
+                data = _json.loads(r[3]) if r[3] else {}
+            except (TypeError, ValueError):
+                data = {}
+            result.append({
+                "id":         r[0],
+                "action_id":  r[1],
+                "type":       r[2],
+                "data":       data,
+                "created_at": r[4],
+            })
+        return result
+
+    async def ack_action(
+        self,
+        channel_id: int,
+        module_id: str,
+        action_id: str,
+        success: bool,
+        error_msg: Optional[str] = None,
+    ) -> bool:
+        """Connector подтвердил исполнение action. Status → acked|failed.
+
+        Возвращает False если запись не найдена (повторный ACK или action_id
+        от чужого канала). Идемпотентно: повторный ACK для уже acked записи
+        — no-op (rowcount=0 → False).
+        """
+        target_status = "acked" if success else "failed"
+        async with self._connect() as db:
+            cur = await db.execute(
+                """
+                UPDATE module_actions
+                SET status     = ?,
+                    acked_at   = CURRENT_TIMESTAMP,
+                    error_msg  = ?
+                WHERE channel_id = ? AND module_id = ? AND action_id = ?
+                  AND status IN ('queued', 'dispatched')
+                """,
+                (target_status, error_msg, channel_id, module_id, action_id),
+            )
+            await db.commit()
+            return cur.rowcount > 0

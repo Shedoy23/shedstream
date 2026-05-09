@@ -89,6 +89,33 @@ class RimWorldAdapter(ModuleAdapter):
               f"(TODO: clear session-scoped catalogs in Step 4)")
 
     async def dispatch_action(self, channel_id: int, env: ModuleEnvelope) -> Dict[str, Any]:
-        """Stub до Step 3. До action queue actions исполняются прямыми
-        /api/rimworld/<verb> вызовами."""
-        return {"queued": False, "reason": "not_implemented_yet", "action_id": env.id}
+        """Step 3: enqueue в module_actions outbox.
+
+        Connector long-poll'ит `GET /v1/module/rimworld/actions` и забирает.
+        Когда исполнит — POST'ит /v1/module/rimworld/ack {action_id, success}.
+
+        Validation: тип action должен быть declared в manifest.actions/extensions.
+        """
+        if not self.manifest.supports_action(env.type):
+            return {
+                "queued": False,
+                "reason": "action_not_in_manifest",
+                "action_id": env.id,
+                "type": env.type,
+            }
+        # Late-import чтобы избежать циклической зависимости modules ↔ dependencies.
+        from dependencies import get_db
+        db = get_db()
+        pk = await db.enqueue_action(
+            channel_id=channel_id,
+            module_id=self.id,
+            action_id=env.id,
+            action_type=env.type,
+            data=env.data,
+        )
+        return {
+            "queued": True,
+            "action_id": env.id,
+            "outbox_pk": pk,
+            "module_id": self.id,
+        }

@@ -2,8 +2,10 @@
 import aiosqlite
 import asyncio
 import aiohttp
+import hashlib
 import logging
 import random
+from collections import deque
 from datetime import datetime, timedelta, date
 from typing import Dict, Optional, Tuple
 import os
@@ -21,6 +23,9 @@ from config import (
     AUTO_MESSAGES_ENABLED,
     CACHE_EVICTION_INTERVAL,
     CASINO_CONFIG,
+    CHAT_BONUS_COOLDOWN_SEC,
+    CHAT_BONUS_DEDUP_WINDOW,
+    CHAT_BONUS_MIN_CHARS,
     CHECK_INTERVAL,
     DROP_BLACKLIST,
     DROP_CHANCE,
@@ -127,6 +132,17 @@ class BotCore:
 
         # Чат-сообщения — per-channel-per-user
         self.last_chat_update: Dict[Tuple[int, str], datetime] = {}
+
+        # ── Chat-bonus антифрод (M7) ─────────────────────────────────────────
+        # State per (channel_id, username):
+        #   - last_bonus_at: datetime последнего начисленного бонуса
+        #   - recent_hashes: deque последних N хешей сообщений (для dedup)
+        # Триггеры which прерывают bonus:
+        #   1. Cooldown < CHAT_BONUS_COOLDOWN_SEC от последнего бонуса
+        #   2. len(text) < CHAT_BONUS_MIN_CHARS — слишком короткое
+        #   3. hash(text) уже в recent_hashes — повтор/спам
+        self._chat_bonus_last_at: Dict[Tuple[int, str], datetime] = {}
+        self._chat_bonus_recent_hashes: Dict[Tuple[int, str], deque] = {}
         
         # Кэш проверки стрима (instance-level, не class-level)
         self._stream_live_cache: bool = False
@@ -192,6 +208,49 @@ class BotCore:
                 await conn.commit()
         except Exception as e:
             logger.debug("touch_viewer db write failed for %s: %s", username, e)
+
+    # ===== CHAT-BONUS АНТИФРОД (M7) =====
+    def compute_chat_bonus(self, channel_id: int, username: str, text: str) -> int:
+        """Сколько поинтов начислить за чат-сообщение, с антифрод-проверками.
+
+        Возвращает 0 если:
+          - len(text) < CHAT_BONUS_MIN_CHARS (10) — слишком короткое
+          - cooldown < CHAT_BONUS_COOLDOWN_SEC (10s) от последнего бонуса этому
+            (channel, user) — анти-флуд
+          - hash(text) уже видели в последних CHAT_BONUS_DEDUP_WINDOW (10) сообщениях
+            этого user'а на этом канале — анти copy-paste
+
+        Иначе: возвращает min(len(text) // 10, 10) (как раньше) и обновляет
+        state. State per (channel_id, username), in-memory.
+        """
+        if not text or not username or not channel_id:
+            return 0
+        if len(text) < CHAT_BONUS_MIN_CHARS:
+            return 0
+
+        key = (int(channel_id), username.lower())
+        now = datetime.now()
+
+        # Cooldown
+        last_at = self._chat_bonus_last_at.get(key)
+        if last_at and (now - last_at).total_seconds() < CHAT_BONUS_COOLDOWN_SEC:
+            return 0
+
+        # Dedup. Нормализуем текст: lower + collapse whitespace, чтобы
+        # "Привет" и "приВЕТ   " были одним хешем.
+        normalized = " ".join(text.lower().split())
+        msg_hash = hashlib.md5(normalized.encode("utf-8", errors="replace")).hexdigest()
+        recent = self._chat_bonus_recent_hashes.get(key)
+        if recent is None:
+            recent = deque(maxlen=CHAT_BONUS_DEDUP_WINDOW)
+            self._chat_bonus_recent_hashes[key] = recent
+        if msg_hash in recent:
+            return 0
+
+        # Bonus eligible — записываем state и возвращаем сумму.
+        recent.append(msg_hash)
+        self._chat_bonus_last_at[key] = now
+        return min(len(text) // 10, 10)
 
     def _twitch_bot_ready(self) -> bool:
         """IRC-бот подключён и умеет слать? Используется как гейт для send."""
@@ -624,9 +683,10 @@ class BotCore:
         # Обновляем все чат-квесты
         await self._update_quests_by_type(username, 'chat', 1, channel_id=channel_id)
 
-        # Для комбинированного квеста active_viewer тоже добавляем прогресс
+        # Для комбинированного квеста active_viewer тоже добавляем прогресс.
+        # M7: убрана проверка `total_clicks` — мы больше не собираем clicks/moves
+        # как никогда не использовавшиеся. Условие теперь только time + messages.
         if 'active_viewer' in QUESTS_CONFIG:
-            # Проверяем, достигнуты ли условия
             activity = await self.db.get_today_activity(username, channel_id=channel_id)
             chat = await self.db.get_today_chat_stats(username, channel_id=channel_id)
 
@@ -634,11 +694,10 @@ class BotCore:
             req = config.get('requirements', {})
 
             if (activity.get('total_time', 0) >= req.get('time', 60) and
-                chat.get('message_count', 0) >= req.get('messages', 10) and
-                activity.get('total_clicks', 0) >= req.get('activity', 50)):
+                chat.get('message_count', 0) >= req.get('messages', 10)):
                 await self._update_quest_progress(username, 'active_viewer', 1, channel_id=channel_id)
 
-    async def update_activity_quest_progress(self, username: str, watch_time: int, clicks: int = 0, channel_id: int = None):
+    async def update_activity_quest_progress(self, username: str, watch_time: int, channel_id: int = None):
         """Обновить прогресс квестов активности"""
         channel_id = resolve_channel_id(channel_id)
         # Защита от спама (не чаще раза в 10 секунд) — per (channel, user)

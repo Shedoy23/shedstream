@@ -17,8 +17,6 @@ class ActivityRequest(BaseModel):
     username: str
     watch_time: int   # секунд просмотрено
     total_time: int = 0
-    active_clicks: int = 0
-    active_moves: int = 0
 
 class ChatMessageRequest(BaseModel):
     username: str

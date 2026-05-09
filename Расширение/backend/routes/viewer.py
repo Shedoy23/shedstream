@@ -157,9 +157,9 @@ async def track_activity(body: ActivityRequest, request: Request):
             pass
         if stream_live:
             await conn.execute("""
-                INSERT INTO activity_stats (username, watch_time, active_clicks, active_moves)
-                VALUES (?, ?, 0, 0)
-            """, (username, watch_time))
+                INSERT INTO activity_stats (channel_id, username, watch_time)
+                VALUES (?, ?, ?)
+            """, (channel_id, username, watch_time))
         await conn.commit()
 
     bot.update_viewer_presence(username, channel_id)

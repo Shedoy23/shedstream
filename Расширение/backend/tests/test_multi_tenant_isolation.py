@@ -408,6 +408,79 @@ def test_in_memory_cache_keys():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Test 7: Chat-bonus антифрод (M7)
+# ─────────────────────────────────────────────────────────────────────────────
+def test_chat_bonus_antifraud():
+    print("\n[7] Chat-bonus антифрод (M7): cooldown + min length + dedup")
+    # Импорт BotCore + создаём фейковый instance минимально чтобы не
+    # дёргать DB. Метод compute_chat_bonus pure (in-memory only).
+    from bot_core import BotCore
+    # BotCore требует db в __init__ для event_manager. Дадим mock.
+    class _MockDb:
+        db_path = ":memory:"
+    bot = BotCore.__new__(BotCore)
+    # Минимальный init только нужных полей. __init__ дёрнет EventManager
+    # который не нужен здесь — обходимся вручную.
+    bot.db = _MockDb()
+    bot.viewers_last_active = {}
+    bot.last_chat_update = {}
+    bot.last_activity_update = {}
+    bot.last_attention = {}
+    bot._chat_bonus_last_at = {}
+    bot._chat_bonus_recent_hashes = {}
+    from collections import deque as _deque
+    bot._chat_bonus_recent_hashes_factory = _deque
+
+    cid_a = 98319857
+    cid_b = 99999
+
+    # Min length: < 10 chars → 0
+    assert_eq(bot.compute_chat_bonus(cid_a, "alice", "hi"), 0,
+              "<10 chars → no bonus")
+    assert_eq(bot.compute_chat_bonus(cid_a, "alice", "short"), 0,
+              "5 chars → no bonus")
+
+    # First long message → bonus
+    bonus1 = bot.compute_chat_bonus(cid_a, "alice", "Hello chat folks!")
+    assert_true(bonus1 > 0, "first 17-char msg → bonus")
+    expected = min(len("Hello chat folks!") // 10, 10)
+    assert_eq(bonus1, expected, f"bonus = min(len/10, 10) = {expected}")
+
+    # Cooldown: same user, immediately → 0
+    assert_eq(bot.compute_chat_bonus(cid_a, "alice", "Different message text"), 0,
+              "cooldown <10s → no bonus")
+
+    # Different user same channel — independent
+    bonus2 = bot.compute_chat_bonus(cid_a, "bob", "Hello from Bob there")
+    assert_true(bonus2 > 0, "different user same channel — own cooldown")
+
+    # Same user, different channel — independent
+    bonus3 = bot.compute_chat_bonus(cid_b, "alice", "Hello chat folks!")
+    assert_true(bonus3 > 0, "same user different channel — own state")
+
+    # Dedup: simulate cooldown expiry by manually clearing last_at, then send
+    # the SAME text → should be 0 because hash already in recent.
+    from datetime import datetime as _dt, timedelta as _td
+    # Forget cooldown for alice on cid_a
+    bot._chat_bonus_last_at[(cid_a, "alice")] = _dt.now() - _td(seconds=20)
+    # Same hash as bonus1 — was "Hello chat folks!"
+    assert_eq(bot.compute_chat_bonus(cid_a, "alice", "Hello chat folks!"), 0,
+              "dedup: repeat same text → no bonus (cooldown already expired)")
+
+    # Normalized dedup: case + extra whitespace shouldn't fool us
+    bot._chat_bonus_last_at[(cid_a, "alice")] = _dt.now() - _td(seconds=20)
+    assert_eq(bot.compute_chat_bonus(cid_a, "alice", "HELLO   chat   folks!"), 0,
+              "dedup: normalized case+whitespace → no bonus")
+
+    # New unique text after cooldown → bonus
+    bot._chat_bonus_last_at[(cid_a, "alice")] = _dt.now() - _td(seconds=20)
+    assert_true(
+        bot.compute_chat_bonus(cid_a, "alice", "Completely fresh and unique") > 0,
+        "new unique text after cooldown → bonus"
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main runner
 # ─────────────────────────────────────────────────────────────────────────────
 async def run_all_tests():
@@ -421,6 +494,7 @@ async def run_all_tests():
     await test_action_queue_isolation()
     await test_catalog_replace_semantics()
     test_in_memory_cache_keys()
+    test_chat_bonus_antifraud()
 
     print("\n" + "=" * 70)
     print(f"PASSED: {len(_successes)}    FAILED: {len(_failures)}")

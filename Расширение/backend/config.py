@@ -154,6 +154,17 @@ AFK_PENALTY_TIMEOUT = REDUCED_WINDOW
 # Отсекает пустые/нулевые пинги и осложняет накрутку через сырые POST-ы.
 MIN_HEARTBEAT_SECONDS = 30
 
+# ===== Chat-bonus антифрод (M7) =====
+# IRC bot ловит каждое сообщение в чате и может выдать бонус (1-10 поинтов)
+# за длинное сообщение. Без защиты — спам мелкими репликами или копи-паст
+# даёт unfair advantage. Триггеры pre-bonus:
+#   1. Cooldown — один бонус раз в N секунд (per channel, user)
+#   2. Min length — короткие сообщения не получают бонус
+#   3. Dedup — повтор в недавнем окне = no bonus (anti copy-paste)
+CHAT_BONUS_COOLDOWN_SEC = 10
+CHAT_BONUS_MIN_CHARS    = 10
+CHAT_BONUS_DEDUP_WINDOW = 10  # помним последние N хэшей сообщений на (channel, user)
+
 # ===== НАСТРОЙКИ ДРОПОВ =====
 DROP_INTERVAL = 1200     # 20 минут
 DROP_CHANCE = 0.25       # 25% шанс

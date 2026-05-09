@@ -489,6 +489,14 @@ async def run_migrations():
             print(f"❌ M6 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M7: drop unused activity metrics (active_clicks, active_moves) ──
+        try:
+            from migrations import m7_drop_active_metrics
+            await m7_drop_active_metrics.apply(conn)
+        except Exception as e:
+            print(f"❌ M7 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 
@@ -589,8 +597,9 @@ class TwitchChatBot(twitch_commands.Bot):
                     VALUES (?, ?, ?, ?)
                 """, (channel_id, username, len(text), ''))
                 await conn.commit()
-            # Бонус очки за сообщение
-            bonus = min(len(text) // 10, 10)
+            # M7: Бонус за сообщение через антифрод-helper.
+            # Проверяет cooldown (10s) + min length (10ch) + dedup last 10 hashes.
+            bonus = bot.compute_chat_bonus(channel_id, username, text)
             if bonus > 0:
                 await db.add_points(username, bonus, channel_id=channel_id)
             # Обновляем чат-квесты

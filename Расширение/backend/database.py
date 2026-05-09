@@ -255,14 +255,13 @@ class Database:
                 )
             """)
 
-            # Статистика активности
+            # Статистика активности (только watch_time — clicks/moves удалены
+            # в M7 как никогда не использовавшиеся)
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS activity_stats (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     username TEXT NOT NULL,
                     watch_time INTEGER DEFAULT 0,
-                    active_clicks INTEGER DEFAULT 0,
-                    active_moves INTEGER DEFAULT 0,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             """)
@@ -718,14 +717,14 @@ class Database:
             return result
     
     # ===== СТАТИСТИКА АКТИВНОСТИ =====
-    async def add_activity(self, username: str, watch_time: int, clicks: int = 0, moves: int = 0, channel_id: int = None):
-        """Добавить запись об активности"""
+    async def add_activity(self, username: str, watch_time: int, channel_id: int = None):
+        """Добавить запись об активности (только watch_time после M7)."""
         channel_id = resolve_channel_id(channel_id)
         async with self._connect() as db:
             await db.execute("""
-                INSERT INTO activity_stats (channel_id, username, watch_time, active_clicks, active_moves)
-                VALUES (?, ?, ?, ?, ?)
-            """, (channel_id, username.lower(), watch_time, clicks, moves))
+                INSERT INTO activity_stats (channel_id, username, watch_time)
+                VALUES (?, ?, ?)
+            """, (channel_id, username.lower(), watch_time))
             await db.commit()
 
     async def get_today_activity(self, username: str, channel_id: int = None) -> dict:
@@ -737,29 +736,23 @@ class Database:
             cursor = await db.execute("""
                 SELECT
                     SUM(watch_time) as total_time,
-                    SUM(active_clicks) as total_clicks,
-                    SUM(active_moves) as total_moves,
                     COUNT(*) as sessions
                 FROM activity_stats
                 WHERE channel_id = ? AND username = ? AND date(created_at) = ?
             """, (channel_id, username.lower(), today))
-            
+
             row = await cursor.fetchone()
-            
+
             if row and row[0]:
                 return {
                     "total_time": row[0] or 0,
-                    "total_clicks": row[1] or 0,
-                    "total_moves": row[2] or 0,
-                    "sessions": row[3] or 0
+                    "sessions": row[1] or 0
                 }
             return {
                 "total_time": 0,
-                "total_clicks": 0,
-                "total_moves": 0,
                 "sessions": 0
             }
-    
+
     async def get_activity_stats(self, username: str, days: int = 7, channel_id: int = None) -> List[dict]:
         """Получить статистику активности за последние N дней"""
         channel_id = resolve_channel_id(channel_id)
@@ -767,8 +760,7 @@ class Database:
             cursor = await db.execute("""
                 SELECT
                     date(created_at) as day,
-                    SUM(watch_time) as total_time,
-                    SUM(active_clicks) as total_clicks
+                    SUM(watch_time) as total_time
                 FROM activity_stats
                 WHERE channel_id = ? AND username = ?
                 AND created_at >= datetime('now', ?)
@@ -781,7 +773,6 @@ class Database:
                 {
                     "day": row[0],
                     "total_time": row[1] or 0,
-                    "total_clicks": row[2] or 0
                 }
                 for row in rows
             ]

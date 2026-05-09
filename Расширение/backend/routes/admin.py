@@ -216,3 +216,52 @@ async def admin_remove_item(request: Request, _admin: str = Depends(require_admi
                 (quantity, username, item_id))
         await conn.commit()
     return {"success": True, "message": f"Забрано {name} x{quantity} у {username}"}
+
+
+# ── Блок 1 архитектурной прокачки: DB health & visibility ────────────────────
+
+@router.get("/api/admin/db/health")
+async def admin_db_health(_admin: str = Depends(require_admin)):
+    """Снимок состояния БД для visibility. Видим перед тем как горит.
+
+    Returns:
+      {
+        db_size_mb, wal_size_mb,
+        tables: [{table, row_count, approx_bytes}, ...],
+        top_channels_by_viewers: [{channel_id, login, tier, viewers}, ...],
+        wal_checkpoint_now: {mode, busy, log_pages, checkpointed_pages} | null
+      }
+
+    Полезно проверять:
+    - wal_size_mb > 50 MB → checkpoint застрял (PASSIVE не успевает; писать
+      RESTART/TRUNCATE)
+    - top_channels первого канала >> остальных → возможный abuse
+    - tables top-3 несбалансированы → может не быть индекса
+    """
+    db = get_db()
+    db_bytes = await db.get_db_size_bytes()
+    wal_bytes = await db.get_wal_size_bytes()
+    tables = await db.get_table_sizes()
+    top_channels = await db.get_per_channel_record_counts(top=10)
+    # Сразу запустить PASSIVE checkpoint — visibility + maintenance в одном.
+    cp_stats = await db.wal_checkpoint("PASSIVE")
+    return {
+        "db_size_mb": round(db_bytes / 1024 / 1024, 2),
+        "wal_size_mb": round(wal_bytes / 1024 / 1024, 2),
+        "tables": tables[:30],  # топ-30, остальные малозначительны
+        "top_channels_by_viewers": top_channels,
+        "wal_checkpoint_now": cp_stats,
+    }
+
+
+@router.post("/api/admin/db/checkpoint")
+async def admin_db_checkpoint(
+    mode: str = "PASSIVE",
+    _admin: str = Depends(require_admin),
+):
+    """Принудительный WAL checkpoint. mode = PASSIVE|FULL|RESTART|TRUNCATE.
+
+    TRUNCATE — после backup'а раз в сутки чтобы WAL не рос indefinitely.
+    Использовать осторожно — RESTART/TRUNCATE могут блокировать writers.
+    """
+    return {"checkpoint": await get_db().wal_checkpoint(mode)}

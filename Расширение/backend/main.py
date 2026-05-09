@@ -898,6 +898,30 @@ async def eventsub_channel_points(request: Request):
     return JSONResponse({"status": "ok"})
 
 
+async def _wal_checkpoint_loop():
+    """Блок 1 архитектурной прокачки: periodic WAL maintenance.
+
+    SQLite auto-checkpoint срабатывает при достижении 1000 страниц в WAL,
+    но при высокой write-нагрузке без явных pause'ов WAL может расти.
+    PASSIVE checkpoint раз в час даёт мониторингу простую гарантию что
+    WAL рестарится. RESTART раз в сутки гарантирует возврат к нулевому
+    WAL и полную компактизацию.
+    """
+    hourly_count = 0
+    while True:
+        try:
+            await asyncio.sleep(3600)  # каждый час
+            hourly_count += 1
+            mode = "RESTART" if (hourly_count % 24) == 0 else "PASSIVE"
+            stats = await db.wal_checkpoint(mode)
+            if stats:
+                print(f"🔄 WAL checkpoint ({mode}): "
+                      f"log={stats['log_pages']}p ckpt={stats['checkpointed_pages']}p "
+                      f"busy={stats['busy']}")
+        except Exception as e:
+            print(f"WAL checkpoint loop error: {type(e).__name__}: {e}")
+
+
 async def start_twitch_bot():
     global _twitch_chat_bot
     # M4 follow-up (в): тянем список каналов из реестра channels (M4.0).
@@ -993,6 +1017,10 @@ async def on_startup():
     # M4 follow-up (б): держим OAuth-токены стримеров свежими.
     from routes.streamer import oauth_refresh_loop as _oauth_refresh_loop
     asyncio.create_task(_oauth_refresh_loop())
+    # Блок 1 архитектурной прокачки: periodic WAL checkpoint, защита от
+    # бесконечного роста WAL-файла. PASSIVE раз в час; раз в сутки —
+    # RESTART для более глубокой компактизации.
+    asyncio.create_task(_wal_checkpoint_loop())
     # Сезоны дуэлей — проверка при старте по каждому каналу + восстановление pending
     from routes.duel import check_season_end as _duel_season_check
     from routes.duel import load_pending_duels as _load_pending_duels

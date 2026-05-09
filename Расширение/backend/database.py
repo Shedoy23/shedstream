@@ -1603,3 +1603,115 @@ class Database:
             )
             await db.commit()
             return cur.rowcount > 0
+
+    # ===== БЛОК 1 АРХИТЕКТУРНОЙ ПРОКАЧКИ: DB HEALTH & VISIBILITY =====
+    #
+    # Endpoint /api/admin/db/health дёргает эти методы. Цель: видеть БД
+    # before-it-burns. Размер per-table, top-каналы по записям, WAL-стат.
+
+    async def get_db_size_bytes(self) -> int:
+        """Размер основного БД-файла в байтах (без WAL/SHM)."""
+        import os as _os
+        try:
+            return _os.path.getsize(self.db_path)
+        except OSError:
+            return 0
+
+    async def get_wal_size_bytes(self) -> int:
+        """Размер WAL-файла в байтах. Большой WAL → checkpoint застрял."""
+        import os as _os
+        try:
+            return _os.path.getsize(self.db_path + "-wal")
+        except OSError:
+            return 0
+
+    async def get_table_sizes(self) -> List[Dict]:
+        """Per-table page count + примерный размер. SQLite-specific через
+        `dbstat` virtual table если включён, или через PRAGMA fallback.
+        """
+        async with self._connect() as db:
+            # Через PRAGMA для каждой таблицы — page_count.
+            cur = await db.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' "
+                "AND name NOT LIKE 'sqlite_%' ORDER BY name"
+            )
+            tables = [r[0] for r in await cur.fetchall()]
+            cur = await db.execute("PRAGMA page_size")
+            page_size_row = await cur.fetchone()
+            page_size = int(page_size_row[0]) if page_size_row else 4096
+
+            result: List[Dict] = []
+            for tbl in tables:
+                try:
+                    cur = await db.execute(f"SELECT COUNT(*) FROM {tbl}")
+                    row_count_row = await cur.fetchone()
+                    row_count = int(row_count_row[0]) if row_count_row else 0
+                except Exception:
+                    row_count = -1
+                result.append({
+                    "table": tbl,
+                    "row_count": row_count,
+                    "approx_bytes": row_count * page_size if row_count > 0 else 0,
+                })
+        # Sort by row count desc — top-таблицы видны сразу
+        result.sort(key=lambda x: x["row_count"], reverse=True)
+        return result
+
+    async def get_per_channel_record_counts(self, top: int = 10) -> List[Dict]:
+        """Top-N каналов по числу строк viewers (proxy на размер канала).
+
+        После M1 многие таблицы имеют channel_id, но viewers — самая
+        репрезентативная. Дальше можно добавить inventory/chat_stats.
+        """
+        async with self._connect() as db:
+            cur = await db.execute(
+                """
+                SELECT v.channel_id,
+                       c.login,
+                       c.tier,
+                       COUNT(*) AS viewer_count
+                FROM viewers v
+                LEFT JOIN channels c ON c.channel_id = v.channel_id
+                GROUP BY v.channel_id
+                ORDER BY viewer_count DESC
+                LIMIT ?
+                """,
+                (int(top),),
+            )
+            rows = await cur.fetchall()
+        return [
+            {
+                "channel_id": r[0],
+                "login": r[1] or "(unknown)",
+                "tier": r[2] or "(unknown)",
+                "viewers": r[3],
+            }
+            for r in rows
+        ]
+
+    async def wal_checkpoint(self, mode: str = "PASSIVE") -> Optional[Dict]:
+        """Принудительный WAL checkpoint. Возвращает stats или None при ошибке.
+
+        Modes (SQLite docs):
+          PASSIVE  — не блокирует writers, чекпоинтит сколько может
+          FULL     — ждёт writer'ов, чекпоинтит до конца
+          RESTART  — после FULL ждёт readers
+          TRUNCATE — после RESTART усекает WAL до нуля
+
+        Для periodic loop достаточно PASSIVE. RESTART/TRUNCATE — раз в сутки
+        чтобы WAL не рос indefinitely.
+        """
+        mode = (mode or "PASSIVE").upper()
+        if mode not in ("PASSIVE", "FULL", "RESTART", "TRUNCATE"):
+            mode = "PASSIVE"
+        async with self._connect() as db:
+            try:
+                cur = await db.execute(f"PRAGMA wal_checkpoint({mode})")
+                row = await cur.fetchone()
+                # Returns (busy, log, checkpointed): busy=0 OK, log=pages в WAL,
+                # checkpointed=сколько перенесено в основной файл.
+                if row:
+                    return {"mode": mode, "busy": row[0], "log_pages": row[1], "checkpointed_pages": row[2]}
+            except Exception as e:
+                print(f"⚠️  wal_checkpoint failed: {e}")
+        return None

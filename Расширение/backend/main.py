@@ -67,7 +67,7 @@ app.include_router(rimworld_router)
 from routes.duel     import router as duel_router
 from routes.viewer   import router as viewer_router
 from routes.admin    import router as admin_router
-from routes.market   import router as market_router
+# market_router удалён 2026-05-10 — Phase 1.C compliance rework (P2P trade items, §6.2.8)
 # craft_router удалён 2026-05-10 — Phase 1.B compliance rework (3/3 gambling: §6.2.4 + §5.3)
 from routes.event    import router as event_router
 from routes.promo    import router as promo_router
@@ -79,7 +79,7 @@ from routes.module_api import router as module_api_router
 app.include_router(duel_router)
 app.include_router(viewer_router)
 app.include_router(admin_router)
-app.include_router(market_router)
+# market_router удалён 2026-05-10 (Phase 1.C compliance rework)
 # craft_router удалён 2026-05-10 (Phase 1.B compliance rework)
 app.include_router(event_router)
 app.include_router(promo_router)
@@ -100,7 +100,6 @@ _EXTENSION_FILES = {
     "/config.html":    "config.html",
     "/viewer.js":      "viewer.js",
     "/viewer.css":     "viewer.css",
-    "/market.js":      "market.js",
     "/pawn.js":        "pawn.js",
     "/shop.js":        "shop.js",
     "/family.js":      "family.js",
@@ -116,7 +115,6 @@ _EXTENSION_FILES_PREFIXED = {
     "/frontend/config.html":    "config.html",
     "/frontend/viewer.js":      "viewer.js",
     "/frontend/viewer.css":     "viewer.css",
-    "/frontend/market.js":      "market.js",
     "/frontend/pawn.js":        "pawn.js",
     "/frontend/shop.js":        "shop.js",
     "/frontend/family.js":      "family.js",
@@ -223,54 +221,9 @@ async def _on_drop_handler(username: str, item_name: str, rarity: str):
 
 bot.on_drop = _on_drop_handler
 
-# Запуск фоновых задач
-async def market_expiry_loop():
-    """Каждую минуту возвращает предметы из просроченных лотов.
-
-    Для каждого лота — отдельная транзакция BEGIN IMMEDIATE с проверкой rowcount DELETE,
-    чтобы не было двойной выдачи при гонке с /api/market/buy (который тоже держит BEGIN IMMEDIATE).
-    """
-    while True:
-        try:
-            await asyncio.sleep(60)
-            now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
-            async with db._connect() as conn:
-                cursor = await conn.execute(
-                    "SELECT id, seller, item_name, channel_id FROM market_listings WHERE expires_at <= ?", (now,)
-                )
-                expired = await cursor.fetchall()
-
-            returned = 0
-            for lid, seller, item_name, listing_channel_id in expired:
-                async with db._connect() as conn:
-                    try:
-                        await conn.execute("BEGIN IMMEDIATE")
-                        # Сначала удаляем лот — если его уже забрал покупатель, rowcount = 0 и инвентарь не трогаем
-                        del_cur = await conn.execute(
-                            "DELETE FROM market_listings WHERE id = ? AND expires_at <= ?",
-                            (lid, now),
-                        )
-                        if del_cur.rowcount == 0:
-                            await conn.execute("ROLLBACK")
-                            continue
-                        item_row = await (await conn.execute(
-                            "SELECT id FROM items WHERE name = ?", (item_name,)
-                        )).fetchone()
-                        if item_row:
-                            await conn.execute("""
-                                INSERT INTO inventory (channel_id, username, item_id, quantity) VALUES (?, ?, ?, 1)
-                                ON CONFLICT(channel_id, username, item_id) DO UPDATE SET quantity = quantity + 1
-                            """, (listing_channel_id, seller, item_row[0]))
-                        await conn.commit()
-                        returned += 1
-                    except Exception:
-                        await conn.execute("ROLLBACK")
-                        raise
-            if returned:
-                print(f"[Market] Возвращено {returned} просроченных лотов")
-        except Exception as e:
-            print(f"[Market] Ошибка expiry loop: {e}")
-
+# market_expiry_loop удалён 2026-05-10 (Phase 1.C compliance rework — рынок P2P
+# вырезан как §6.2.8 + 2026-Bits-tightening: items specified by users + off-platform
+# value exchange). См. COMPLIANCE_REWORK_PLAN.md §4 Phase 1.
 
 
 
@@ -1029,7 +982,7 @@ async def on_startup():
     # Фоновые задачи бота
     asyncio.create_task(bot.reward_points_loop())
     asyncio.create_task(bot.drop_loop())
-    asyncio.create_task(market_expiry_loop())
+    # market_expiry_loop удалён 2026-05-10 (Phase 1.C compliance rework)
     # Автозавершение рулекционов по таймеру (иначе ивент висит
     # до следующего опроса /api/event/status — и чат-оповещение
     # о победителе не уходит).

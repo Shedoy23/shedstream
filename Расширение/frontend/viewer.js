@@ -134,10 +134,7 @@ function setupCspSafeHandlers() {
             return;
         }
 
-        if (actionEl.id === 'market-refresh-btn') {
-            loadMarket();
-            return;
-        }
+        // market-refresh-btn handler удалён 2026-05-10 (Phase 1.C)
 
         if (actionEl.id === 'stats-refresh-btn') {
             loadStats();
@@ -180,9 +177,9 @@ function setupCspSafeHandlers() {
         const action = actionEl.dataset.action;
         if (!action) return;
 
-        if (action === 'mkt-list-item') doListItem();
+        // 'mkt-list-item' action удалён 2026-05-10 (Phase 1.C compliance rework)
         // 'casino' / 'slots' actions удалены 2026-05-10 (Phase 1.A compliance rework)
-        else if (action === 'duels') openDuels();
+        if (action === 'duels') openDuels();
         else if (action === 'advertisement') openAdvertisement();
         else if (action === 'transfer') transferPoints();
         else if (action === 'family') openFamily();
@@ -982,7 +979,7 @@ let _cachedInventory = [];
 
 function renderInventory(inventory) {
     _cachedInventory = inventory || [];
-    renderMarketSellPanel(); // обновляем панель продажи при каждом обновлении инвентаря
+    // renderMarketSellPanel вызов удалён 2026-05-10 (Phase 1.C compliance rework)
     const container = document.getElementById('inventory-list');
     if (!container) return;
     const countEl = document.getElementById('inventory-count');

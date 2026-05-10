@@ -277,18 +277,9 @@ class Database:
                 )
             """)
 
-            await db.execute("""                CREATE TABLE IF NOT EXISTS market_listings (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    seller TEXT NOT NULL,
-                    item_name TEXT NOT NULL,
-                    item_emoji TEXT DEFAULT '📦',
-                    price INTEGER NOT NULL,
-                    expires_at DATETIME NOT NULL,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            
-            
+            # market_listings — удалён 2026-05-10 (Phase 1.C compliance rework — P2P
+            # trade items, §6.2.8 + 2026-Bits-tightening). DROP TABLE в M8.
+
             # craft_stats — удалён 2026-05-10 (Phase 1.B compliance rework, 3/3 gambling).
             # DROP TABLE будет в M8. См. COMPLIANCE_REWORK_PLAN.md §4 Phase 1.
 

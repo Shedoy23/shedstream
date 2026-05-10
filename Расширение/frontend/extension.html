@@ -47,7 +47,7 @@
         <button class="tab active" data-tab="bot"><span class="tab-icon">🎮</span><span class="tab-text">Бот</span></button>
         <button class="tab" data-tab="rimworld"><span class="tab-icon">🌌</span><span class="tab-text">RimWorld</span></button>
         <button class="tab" data-tab="shop"><span class="tab-icon">🏪</span><span class="tab-text">Магазин</span></button>
-        <button class="tab" data-tab="market"><span class="tab-icon">🏷️</span><span class="tab-text">Рынок</span></button>
+        <!-- market tab удалён 2026-05-10 (Phase 1.C compliance rework — P2P trade) -->
         <button class="tab" data-tab="stats"><span class="tab-icon">📊</span><span class="tab-text">Стата</span></button>
     </div>
 
@@ -239,25 +239,7 @@
         </div>
     </div>
 
-    <!-- ===== РЫНОК ===== -->
-    <div id="market-tab" class="tab-content">
-        <div class="card">
-            <div class="card-header">
-                <h3>🏷️ Рынок зрителей</h3>
-                <button id="market-refresh-btn" class="small-btn">⟳ Обновить</button>
-            </div>
-            <div style="border-bottom:1px solid #2d2d2f;padding-bottom:10px;margin-bottom:10px;">
-                <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#444;margin-bottom:6px;">Выставить предмет</div>
-                <div id="market-sell-panel">
-                    <div style="color:#444;font-size:11px;">Сначала нажми «Рынок» ↑</div>
-                </div>
-            </div>
-            <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#444;margin-bottom:6px;">Активные лоты</div>
-            <div id="market-list">
-                <div class="loading">Нажми «Рынок» чтобы загрузить</div>
-            </div>
-        </div>
-    </div>
+    <!-- РЫНОК section целиком удалён 2026-05-10 (Phase 1.C compliance rework) -->
 
     <!-- ===== СТАТИСТИКА ===== -->
     <div id="stats-tab" class="tab-content">
@@ -333,7 +315,7 @@
 
     <!-- cache-bust v: обновить при любой правке JS, чтобы Twitch-CDN и браузер
          перечитали файлы (расширения агрессивно кешируют .js). -->
-    <script src="market.js?v=20260418"></script>
+    <!-- market.js удалён 2026-05-10 (Phase 1.C compliance rework) -->
     <script src="pawn.js?v=20260418"></script>
     <script src="shop.js?v=20260418"></script>
     <!-- casino.js удалён 2026-05-10 (Phase 1.A compliance rework) -->

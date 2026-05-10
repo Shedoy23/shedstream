@@ -734,7 +734,7 @@ html,body{width:100%;height:100%;height:-webkit-fill-available;background:var(--
   <!-- nav-casino удалён 2026-05-10 (Phase 1.A compliance rework) -->
   <button class="nav-btn" data-nav="rulection" id="nav-rulection"><div class="nav-icon">🎡</div><div class="nav-label">Рулекцион</div></button>
   <button class="nav-btn" data-nav="rimworld" id="nav-rimworld"><div class="nav-icon">🌍</div><div class="nav-label">RimWorld</div></button>
-  <button class="nav-btn" data-nav="market" id="nav-market"><div class="nav-icon">🏷️</div><div class="nav-label">Рынок</div></button>
+  <!-- nav-market удалён 2026-05-10 (Phase 1.C compliance rework) -->
 </nav>
 
 
@@ -813,7 +813,7 @@ function navigate(page) {
 
   if (page === 'rulection') loadRulection();
 
-  if (page === 'market') loadMarket();
+  // page === 'market' branch удалён 2026-05-10 (Phase 1.C compliance rework)
 
   if (page === 'rimworld') { if (!shopAllItems.length) { loadPawn(); loadShop(); loadRwEvents(); } else { renderShop(); } }
 
@@ -848,7 +848,7 @@ function bindMobileActionHandlers() {
     else if (action === 'open-genes') openGenesModal();
     else if (action === 'open-xenotype') openXenotypeModal();
     else if (action === 'filter-shop') filterShop(actionEl.dataset.cat || 'all');
-    else if (action === 'load-market') loadMarket();
+    // 'load-market' action удалён 2026-05-10 (Phase 1.C compliance rework)
     // craft-item action удалён 2026-05-10 (Phase 1.B compliance rework)
     else if (action === 'create-pawn') createPawn();
     else if (action === 'remove-trait') removeTrait(actionEl.dataset.traitDef || '', parseInt(actionEl.dataset.degree || '0', 10), actionEl.dataset.label || '');

@@ -289,15 +289,8 @@ class Database:
             """)
             
             
-                        # Статистика крафта (для прогрессии шанса)
-            await db.execute("""
-                CREATE TABLE IF NOT EXISTS craft_stats (
-                    username TEXT NOT NULL,
-                    item_type TEXT NOT NULL,
-                    crafted_count INTEGER DEFAULT 0,
-                    PRIMARY KEY (username, item_type)
-                )
-            """)
+            # craft_stats — удалён 2026-05-10 (Phase 1.B compliance rework, 3/3 gambling).
+            # DROP TABLE будет в M8. См. COMPLIANCE_REWORK_PLAN.md §4 Phase 1.
 
             # Заполняем справочник предметов если пустой
             await db.execute("""
@@ -432,7 +425,7 @@ class Database:
             # ── Seed достижений (INSERT OR IGNORE — не перезапишет существующие) ──
             achievements_seed = [
                 # key,               name,                        description,                                emoji,  reward
-                ('first_craft',      'Первый крафт',              'Скрафтил первый предмет',                  '🔨',   500),
+                # 'first_craft' achievement удалён 2026-05-10 (Phase 1.B compliance rework — crafting вырезан)
                 ('first_duel_win',   'Первая победа в дуэли',     'Выиграл первую дуэль',                     '⚔️',   500),
                 ('first_rimworld_buy','Покупатель RimWorld',      'Купил первый предмет в RimWorld',          '🛒',   500),
                 # 'first_casino' achievement удалён в Phase 1.A (2026-05-10) — casino вырезан
@@ -631,19 +624,9 @@ class Database:
         
         
         
-    async def get_craft_count(self, username: str, item_type: str, channel_id: int = None) -> int:
-        channel_id = resolve_channel_id(channel_id)
-        async with self._connect() as db:
-            c = await db.execute("SELECT crafted_count FROM craft_stats WHERE channel_id = ? AND username=? AND item_type=?",
-                                 (channel_id, username.lower(), item_type))
-            row = await c.fetchone()
-            return row[0] if row else 0
+    # get_craft_count + calc_craft_chance удалены 2026-05-10 (Phase 1.B compliance
+    # rework — 3/3 gambling: §6.2.4 + §5.3 Twitch Extension Guidelines).
 
-    def calc_craft_chance(self, owned_count: int) -> int:
-        """Шанс крафта: 100% - (кол-во предмета в инвентаре * 5%), минимум 50%"""
-        return max(50, 100 - owned_count * 5)
-    
-    
     # ===== КВЕСТЫ =====
     async def get_quests(self, username: str, channel_id: int = None):
         """Получить квесты с поддержкой новых типов"""

@@ -975,47 +975,10 @@ function localizeSkill(skill) {
     return SKILL_LABELS_RU[def] || skill.label || skill.name || def || "?";
 }
 
-// Рецепты крафта (только клиентская сторона для UI)
-const CRAFT_RECIPES = {
-    'деревяшка': { cost: 5, result: 'камень', resultEmoji: '🪨' },
-    'камень':    { cost: 5, result: 'амулет', resultEmoji: '🔮' },
-    'амулет':    { cost: 5, result: 'корона',  resultEmoji: '👑' },
-};
+// CRAFT_RECIPES + craftItem удалены 2026-05-10 (Phase 1.B compliance rework —
+// 3/3 gambling: §6.2.4 + §5.3 Twitch Extension Guidelines).
 
 let _cachedInventory = [];
-
-async function craftItem(srcKey) {
-    try {
-        // Сначала получаем статистику крафта чтобы показать шанс
-        const statsRes = await fetch(`${API_URL}/api/craft/stats/${userLogin}`);
-        const statsData = await statsRes.json();
-        const stat = (statsData.stats || []).find(s => s.item === srcKey);
-        const chance = stat ? stat.chance : 100;
-
-        // Показываем подтверждение с шансом
-        const recipe = CRAFT_RECIPES[srcKey];
-        if (!recipe) { showNotification('❌ Рецепт не найден', 'error'); return; }
-
-        showConfirm(`⚒️ Крафт: ${srcKey}`,
-            `Скрафтить 5× ${srcKey} → ${recipe.resultEmoji} ${recipe.result}?<br>
-            <span style="color:${chance >= 80 ? '#4ade80' : chance >= 50 ? '#fbbf24' : '#f87171'};">
-                Шанс успеха: ${chance}%
-            </span>`,
-            async () => {
-                try {
-                    const res = await fetch(`${API_URL}/api/craft`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ username: userLogin, item_name: srcKey })
-                    });
-                    const data = await res.json();
-                    showNotification(data.message, data.success ? 'success' : 'error');
-                    if (data.success) loadUserData();
-                } catch(e) { showNotification('❌ Ошибка', 'error'); }
-            }
-        );
-    } catch(e) { showNotification('❌ Ошибка', 'error'); }
-}
 
 function renderInventory(inventory) {
     _cachedInventory = inventory || [];
@@ -1030,22 +993,7 @@ function renderInventory(inventory) {
     }
     let html = '';
     inventory.forEach(item => {
-        const itemKey = item.name.toLowerCase();
-        const recipe  = CRAFT_RECIPES[itemKey];
-        const canCraft = recipe && item.quantity >= recipe.cost;
-
-        const craftBtn = recipe
-            ? `<button
-                class="craft-btn${canCraft ? '' : ' craft-btn--dim'}"
-                data-craft-item="${itemKey}"
-                ${canCraft ? '' : 'disabled'}
-                title="${canCraft
-                    ? `Скрафтить ${recipe.resultEmoji} ${recipe.result} (нужно ${recipe.cost}×)`
-                    : `Нужно ${recipe.cost}× (у тебя ${item.quantity})`}">
-                ⚒️${recipe.cost}→${recipe.resultEmoji}
-            </button>`
-            : '';
-
+        // craft-btn удалён 2026-05-10 (Phase 1.B compliance rework)
         html += `
             <div class="inventory-item">
                 <span class="item-icon">${item.emoji || '📦'}</span>
@@ -1055,14 +1003,10 @@ function renderInventory(inventory) {
                 </div>
                 <div class="item-actions">
                     <div class="item-quantity">×${item.quantity}</div>
-                    ${craftBtn}
                 </div>
             </div>`;
     });
     container.innerHTML = html;
-    container.querySelectorAll('[data-craft-item]').forEach(btn => {
-    btn.addEventListener('click', () => craftItem(btn.dataset.craftItem));
-});
 }
 
 // ===== РЫНОК =====

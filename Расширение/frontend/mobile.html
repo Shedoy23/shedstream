@@ -849,7 +849,7 @@ function bindMobileActionHandlers() {
     else if (action === 'open-xenotype') openXenotypeModal();
     else if (action === 'filter-shop') filterShop(actionEl.dataset.cat || 'all');
     else if (action === 'load-market') loadMarket();
-    else if (action === 'craft-item') craftItem(actionEl.dataset.itemName || '');
+    // craft-item action удалён 2026-05-10 (Phase 1.B compliance rework)
     else if (action === 'create-pawn') createPawn();
     else if (action === 'remove-trait') removeTrait(actionEl.dataset.traitDef || '', parseInt(actionEl.dataset.degree || '0', 10), actionEl.dataset.label || '');
     else if (action === 'buy-item') buyItem(actionEl.dataset.defName || '', parseInt(actionEl.dataset.price || '0', 10), actionEl.dataset.category || '');
@@ -1411,35 +1411,7 @@ async function loadQuests(d = null) {
 
 const ITEM_ICONS = { "деревяшка": "🪵", "камень": "🪨", "амулет": "🔮", "корона": "👑" };
 
-const CRAFT_RECIPES = {
-
-  'деревяшка': { cost: 5, result: 'камень', resultEmoji: '🪨' },
-
-  'камень': { cost: 5, result: 'амулет', resultEmoji: '🔮' },
-
-  'амулет': { cost: 5, result: 'корона', resultEmoji: '👑' },
-
-};
-
-
-
-async function craftItem(srcKey) {
-
-  if (!checkCooldown('craft_' + srcKey, 2000)) return;
-
-  try {
-
-    const r = await fetch(API + '/api/craft', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: userLogin, item_name: srcKey }) });
-
-    const d = await r.json();
-
-    toast(d.message, d.success ? 'success' : 'error');
-
-    if (d.success) { loadUserData(); loadInventory(); }
-
-  } catch(e) { toast('❌ Ошибка', 'error'); }
-
-}
+// CRAFT_RECIPES + craftItem() удалены 2026-05-10 (Phase 1.B compliance rework — 3/3 gambling)
 
 
 
@@ -1460,19 +1432,10 @@ async function loadInventory(d = null) {
     if (!inv.length) { setEl('inv-grid', `<div class="empty" style="grid-column:1/-1"><span class="empty-icon">🎒</span>Инвентарь пуст</div>`); return; }
 
     setEl('inv-grid', inv.map(i => {
-
+      // craft-btn удалён 2026-05-10 (Phase 1.B compliance rework)
       const key = i.item_name;
-
-      const recipe = CRAFT_RECIPES[key];
-
       const qty = i.quantity || 0;
-
-      const canCraft = recipe && qty >= recipe.cost;
-
-      const craftBtn = recipe
-        ? `<button class="inv-craft" data-action="craft-item" data-item-name="${key}" ${canCraft ? '' : 'disabled'} title="${canCraft ? `Скрафтить ${recipe.resultEmoji} (нужно ${recipe.cost}×)` : `Нужно ${recipe.cost}× (у тебя ${qty})`}">⚒️ ${recipe.cost}→${recipe.resultEmoji}</button>`
-        : '';
-      return `<div class="inv-item"><span class="inv-icon">${ITEM_ICONS[key] || '📦'}</span><div class="inv-name">${esc(i.display_name || key)}</div><div class="inv-qty">×${qty}</div>${craftBtn}</div>`;
+      return `<div class="inv-item"><span class="inv-icon">${ITEM_ICONS[key] || '📦'}</span><div class="inv-name">${esc(i.display_name || key)}</div><div class="inv-qty">×${qty}</div></div>`;
 
     }).join(''));
 

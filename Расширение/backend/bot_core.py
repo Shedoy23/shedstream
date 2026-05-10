@@ -801,11 +801,12 @@ class BotCore:
     ) -> list:
         """Проверяет и выдаёт достижения по триггеру (per-channel).
 
-        trigger: 'craft', 'duel_win', 'rimworld_buy', 'watch_hours',
-                 'level_up', 'streak'
+        trigger: 'duel_win', 'rimworld_buy', 'watch_hours', 'level_up', 'streak'
 
         Note: 'casino' trigger удалён в Phase 1.A (2026-05-10) — casino-механика
-        полностью вырезана как gambling по §6.2.3 Twitch Extension Guidelines.
+        вырезана как gambling по §6.2.3 Twitch Extension Guidelines.
+        Note: 'craft' trigger удалён в Phase 1.B (2026-05-10) — crafting механика
+        вырезана как 3/3 gambling по §6.2.4 + §5.3.
 
         Bug 4 fix (2026-05-10): channel_id прокидывается в unlock_achievement
         и send_message. Раньше unlock_achievement брал канал через
@@ -826,9 +827,7 @@ class BotCore:
                     channel_id=cid,
                 )
 
-        if trigger == 'craft':
-            await _try('first_craft')
-        elif trigger == 'duel_win':
+        if trigger == 'duel_win':
             await _try('first_duel_win')
         elif trigger == 'rimworld_buy':
             await _try('first_rimworld_buy')

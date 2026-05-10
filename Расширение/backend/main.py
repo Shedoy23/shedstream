@@ -68,7 +68,7 @@ from routes.duel     import router as duel_router
 from routes.viewer   import router as viewer_router
 from routes.admin    import router as admin_router
 from routes.market   import router as market_router
-from routes.craft    import router as craft_router
+# craft_router удалён 2026-05-10 — Phase 1.B compliance rework (3/3 gambling: §6.2.4 + §5.3)
 from routes.event    import router as event_router
 from routes.promo    import router as promo_router
 from routes.marriage import router as marriage_router
@@ -80,7 +80,7 @@ app.include_router(duel_router)
 app.include_router(viewer_router)
 app.include_router(admin_router)
 app.include_router(market_router)
-app.include_router(craft_router)
+# craft_router удалён 2026-05-10 (Phase 1.B compliance rework)
 app.include_router(event_router)
 app.include_router(promo_router)
 app.include_router(marriage_router)

@@ -77,11 +77,14 @@ class EventManager:
     # =========================
     def _build_event(self):
         """Создаёт структуру нового ивента и обновляет счётчики пула.
-        Вызывается только внутри self._lock."""
-        event_type = random.choices(
-            list(EVENT_TYPES.keys()),
-            weights=[EVENT_TYPES[t]["chance"] for t in EVENT_TYPES],
-        )[0]
+        Вызывается только внутри self._lock.
+
+        Phase 1.E (2026-05-10): рандом-выбор type удалён, остался только
+        'auction'. Phase 4 переделает в голосование за действие стримера.
+        """
+        # Раньше: random.choices(EVENT_TYPES.keys(), weights=...) — выбор
+        # между roulette/auction. Сейчас roulette удалён, type всегда 'auction'.
+        event_type = "auction"
 
         prize = random.choices(
             EVENT_ITEMS,
@@ -260,28 +263,21 @@ class EventManager:
             total_pool = sum(bids.values())
             participants = len(bids)
 
-            if event["type"] == "roulette":
-                roll = random.uniform(0, total_pool)
-                acc = 0
-                for user, value in bids.items():
-                    acc += value
-                    if acc >= roll:
-                        winner = user
-                        break
-                message = f"рулетка: победил @{winner}"
+            # Phase 1.E (2026-05-10): рулетка-режим вырезан как gambling
+            # (§6.2.3 + §6.2.6 — взвешенный рандом по сумме ставок).
+            # Остался только аукцион — детерминированный max-bid winner с
+            # рефандом проигравшим. В Phase 4 переделается в голосование
+            # за действие стримера.
+            winner, _ = max(bids.items(), key=lambda x: x[1])
+            message = f"аукцион: победил @{winner}"
 
-            else:
-                # Аукцион: победитель — тот, кто поставил больше всего
-                winner, _ = max(bids.items(), key=lambda x: x[1])
-                message = f"аукцион: победил @{winner}"
-
-                # Возвращаем очки проигравшим
-                for user, amount in bids.items():
-                    if user != winner:
-                        try:
-                            await self.db.add_points(user, amount, channel_id=channel_id)
-                        except Exception as e:
-                            print(f"refund error {user}: {e}")
+            # Возвращаем очки проигравшим
+            for user, amount in bids.items():
+                if user != winner:
+                    try:
+                        await self.db.add_points(user, amount, channel_id=channel_id)
+                    except Exception as e:
+                        print(f"refund error {user}: {e}")
 
             if winner:
                 try:

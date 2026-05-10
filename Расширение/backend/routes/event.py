@@ -1,5 +1,9 @@
 """
-routes/event.py — рулекцион (копилка + рулетка/аукцион) и админ-управление ивентами.
+routes/event.py — копилка + аукцион и админ-управление ивентами.
+
+Phase 1.E (2026-05-10): рулетка-режим удалён (§6.2.3 + §6.2.6 gambling).
+Остался только аукцион. Phase 4 переделает целиком в голосование за
+действие стримера.
 """
 from datetime import datetime
 
@@ -79,10 +83,8 @@ async def event_status():
             result["active_event"] = {
                 "id":        ev["id"],
                 "type":      ev["type"],
-                "type_name": "🎲 Рулетка" if ev["type"] == "roulette" else "⚖️ Аукцион",
-                "type_desc": ("Чем больше очков вкинул — тем выше шанс!"
-                               if ev["type"] == "roulette"
-                               else "Побеждает тот, кто вкинул больше всех!"),
+                "type_name": "⚖️ Аукцион",
+                "type_desc": "Побеждает тот, кто вкинул больше всех!",
                 "prize":        ev.get("prize", {"name": "Приз", "value": 0}),
                 "time_left":    round(time_left),
                 "time_left_fmt": f"{int(time_left//60)}:{int(time_left%60):02d}",
@@ -192,8 +194,7 @@ async def admin_event_start(_admin: str = Depends(require_admin)):
     if bot.event_manager.active_event:
         return {"success": False, "message": "Ивент уже активен"}
     ev        = await bot.event_manager.start_event()
-    type_name = "🎲 Рулетку" if ev["type"] == "roulette" else "⚖️ Аукцион"
-    return {"success": True, "message": f"Ивент запущен! Тип: {type_name}, Приз: {ev['prize']['name']}"}
+    return {"success": True, "message": f"Ивент запущен! Тип: ⚖️ Аукцион, Приз: {ev['prize']['name']}"}
 
 
 @router.post("/api/admin/event/stop")
@@ -221,13 +222,12 @@ async def admin_force_start(_admin: str = Depends(require_admin)):
     if bot.event_manager.active_event:
         return {"success": False, "message": "Ивент уже активен"}
     ev         = await bot.event_manager.start_event()
-    type_name  = "🎲 Рулетку" if ev["type"] == "roulette" else "⚖️ Аукцион"
     prize_name = ev["prize"]["name"]
     try:
-        await bot.send_message(f"🎡 АДМИН ЗАПУСТИЛ РУЛЕКЦИОН! {type_name}! Приз: {prize_name}!")
+        await bot.send_message(f"🎡 АДМИН ЗАПУСТИЛ ИВЕНТ! ⚖️ Аукцион! Приз: {prize_name}!")
     except Exception:
         pass
-    return {"success": True, "message": f"Ивент запущен! Тип: {type_name}, Приз: {prize_name}"}
+    return {"success": True, "message": f"Ивент запущен! Тип: ⚖️ Аукцион, Приз: {prize_name}"}
 
 
 @router.post("/api/admin/event/force-end")

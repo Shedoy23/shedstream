@@ -248,15 +248,14 @@ EVENT_ITEMS = [
 ]
 
 EVENT_TYPES = {
-    'roulette': {
-        'name': '🎲 РУЛЕТКА',
-        'description': 'Чем больше очков вкинул, тем выше шанс на победу!',
-        'chance': 50
-    },
+    # 'roulette' тип удалён 2026-05-10 (Phase 1.E compliance rework — gambling
+    # по §6.2.3 + §6.2.6: взвешенный рандом по сумме ставок = lottery с monetary
+    # value reward). Остался только аукцион (детерминированный max-bid winner).
+    # В Phase 4 переделается полностью в голосование за действие стримера.
     'auction': {
         'name': '⚖️ АУКЦИОН',
         'description': 'Кто больше накидал за 5 минут - тот и победил!',
-        'chance': 50
+        'chance': 100
     }
 }
 

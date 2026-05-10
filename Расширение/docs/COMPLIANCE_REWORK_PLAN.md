@@ -760,6 +760,7 @@ async def _process_drop(self, channel_id):
 
 ## 13. Документ-references
 
+- `Расширение/docs/PROJECT_PLAYBOOK.md` — продуктовый playbook (review prep, метрики, B2B, общий roadmap)
 - `Расширение/docs/ARCHITECTURE.md` — общая архитектура, Bug 4 fix history
 - `C:\Users\Edward\Desktop\work\memory\COMPLIANCE_AND_ARCHITECTURE.md` — оригинальный compliance-doc (по памяти)
 - Authoritative Twitch rules — реальные источники:

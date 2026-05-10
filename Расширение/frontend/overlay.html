@@ -104,77 +104,7 @@ body {
     opacity: 0.9;
 }
 
-/* ══════════════════════════════════════════
-   ДЖЕКПОТ — золото + частицы
-══════════════════════════════════════════ */
-.card-jackpot {
-    background: linear-gradient(135deg, rgba(15,10,0,0.92) 0%, rgba(40,25,0,0.92) 100%);
-    border: 1px solid rgba(255, 185, 0, 0.5);
-    box-shadow:
-        0 0 0 1px rgba(255,185,0,0.15),
-        0 8px 40px rgba(255,130,0,0.3),
-        inset 0 1px 0 rgba(255,200,50,0.2);
-}
-.card-jackpot .card-label { color: #ffd700; }
-.card-jackpot .card-title { color: #fff7d6; }
-.card-jackpot .card-sub   { color: #ffc060; }
-.card-jackpot .card-timer { background: linear-gradient(90deg, #ffd700, #ff8800); }
-.card-jackpot .card-icon  { color: #ffd700; }
-
-/* блеск на джекпоте */
-.card-jackpot::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(105deg,
-        transparent 30%,
-        rgba(255,215,0,0.06) 50%,
-        transparent 70%
-    );
-    animation: sheen 3s ease-in-out infinite;
-}
-@keyframes sheen {
-    0%,100% { transform: translateX(-100%); }
-    50%      { transform: translateX(100%); }
-}
-
-/* частицы джекпота */
-.particles {
-    position: absolute;
-    inset: 0;
-    overflow: hidden;
-    pointer-events: none;
-    border-radius: 16px;
-}
-.particle {
-    position: absolute;
-    width: 4px; height: 4px;
-    border-radius: 50%;
-    background: #ffd700;
-    animation: particleFly var(--d,1.5s) var(--delay,0s) ease-out infinite;
-    left: var(--x, 50%);
-    bottom: 0;
-    opacity: 0;
-}
-@keyframes particleFly {
-    0%   { transform: translate(0,0) scale(1);          opacity: 1; }
-    100% { transform: translate(var(--dx,20px),-80px) scale(0); opacity: 0; }
-}
-
-/* сумма джекпота — большая */
-.jackpot-amount {
-    font-family: 'Unbounded', sans-serif;
-    font-size: 32px;
-    font-weight: 900;
-    color: #ffd700;
-    text-shadow: 0 0 20px rgba(255,215,0,0.6), 0 0 40px rgba(255,140,0,0.4);
-    margin: 4px 0;
-    animation: pulseGlow 1s ease-in-out infinite alternate;
-}
-@keyframes pulseGlow {
-    from { text-shadow: 0 0 20px rgba(255,215,0,0.6), 0 0 40px rgba(255,140,0,0.4); }
-    to   { text-shadow: 0 0 30px rgba(255,215,0,0.9), 0 0 60px rgba(255,140,0,0.6); }
-}
+/* ДЖЕКПОТ CSS-блок целиком удалён 2026-05-10 (Phase 1.I lexicon scrub) */
 
 /* ══════════════════════════════════════════
    ИВЕНТ — СТАРТ (фиолетовый)
@@ -419,126 +349,7 @@ body {
 .drop-rarity.epic     { background: rgba(180,60,255,0.14);  border: 1px solid rgba(180,60,255,0.4);  color: #cc80ff; }
 
 
-#jackpot-mega {
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
-    opacity: 0;
-    z-index: 100;
-}
-
-#jackpot-mega.show {
-    animation: megaIn 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards,
-               megaOut 0.5s ease-in 4.5s forwards;
-}
-
-@keyframes megaIn {
-    from { opacity: 0; }
-    to   { opacity: 1; }
-}
-@keyframes megaOut {
-    from { opacity: 1; }
-    to   { opacity: 0; }
-}
-
-.mega-bg {
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(ellipse at center,
-        rgba(255,180,0,0.18) 0%,
-        rgba(255,100,0,0.08) 40%,
-        transparent 70%
-    );
-    animation: megaBgPulse 0.8s ease-in-out infinite alternate;
-}
-@keyframes megaBgPulse {
-    from { opacity: 0.7; transform: scale(1); }
-    to   { opacity: 1;   transform: scale(1.05); }
-}
-
-.mega-content {
-    text-align: center;
-    position: relative;
-    z-index: 1;
-}
-
-.mega-label {
-    font-family: 'Unbounded', sans-serif;
-    font-size: 14px;
-    letter-spacing: 6px;
-    text-transform: uppercase;
-    color: #ff9900;
-    opacity: 0.9;
-    margin-bottom: 8px;
-    animation: megaLabelIn 0.4s 0.1s both;
-}
-@keyframes megaLabelIn {
-    from { transform: translateY(-20px); opacity: 0; }
-    to   { transform: translateY(0);     opacity: 0.9; }
-}
-
-.mega-jackpot-text {
-    font-family: 'Unbounded', sans-serif;
-    font-size: 96px;
-    font-weight: 900;
-    line-height: 1;
-    background: linear-gradient(180deg, #fff7a0 0%, #ffd700 40%, #ff8800 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    text-shadow: none;
-    filter: drop-shadow(0 0 30px rgba(255,200,0,0.6));
-    animation: megaTextIn 0.5s 0.2s cubic-bezier(0.34,1.56,0.64,1) both;
-}
-@keyframes megaTextIn {
-    from { transform: scale(0.3); opacity: 0; }
-    to   { transform: scale(1);   opacity: 1; }
-}
-
-.mega-username {
-    font-family: 'Unbounded', sans-serif;
-    font-size: 28px;
-    font-weight: 700;
-    color: #fff7d6;
-    margin-top: 4px;
-    animation: megaNameIn 0.4s 0.4s both;
-    text-shadow: 0 2px 20px rgba(255,200,0,0.4);
-}
-@keyframes megaNameIn {
-    from { transform: translateY(20px); opacity: 0; }
-    to   { transform: translateY(0);    opacity: 1; }
-}
-
-.mega-amount {
-    font-size: 18px;
-    color: #ffd060;
-    margin-top: 8px;
-    animation: megaNameIn 0.4s 0.5s both;
-    letter-spacing: 1px;
-}
-
-/* искры вокруг мега-джекпота */
-.sparks {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-}
-.spark {
-    position: absolute;
-    width: 3px;
-    height: 3px;
-    border-radius: 50%;
-    background: #ffd700;
-    left: var(--sx); top: var(--sy);
-    animation: sparkFly var(--sd, 1s) var(--sdelay, 0s) ease-out infinite;
-}
-@keyframes sparkFly {
-    0%   { transform: translate(0,0) scale(1); opacity: 1; }
-    100% { transform: translate(var(--sdx,30px), var(--sdy,-60px)) scale(0); opacity: 0; }
-}
+/* MEGA JACKPOT CSS блок целиком удалён 2026-05-10 (Phase 1.I lexicon scrub) */
 
 /* ══════════════════════════════════════
    ПОСТОЯННАЯ ПАНЕЛЬ ИВЕНТА (справа)
@@ -826,17 +637,7 @@ body {
 </head>
 <body>
 
-<!-- ══════ МЕГА ДЖЕКПОТ (центр экрана) ══════ -->
-<div id="jackpot-mega">
-    <div class="mega-bg"></div>
-    <div class="sparks" id="mega-sparks"></div>
-    <div class="mega-content">
-        <div class="mega-label">🎰 СОРВАЛ ДЖЕКПОТ</div>
-        <div class="mega-jackpot-text">JACKPOT</div>
-        <div class="mega-username" id="mega-username">username</div>
-        <div class="mega-amount" id="mega-amount">+0 💎</div>
-    </div>
-</div>
+<!-- jackpot-mega div удалён 2026-05-10 (Phase 1.I lexicon scrub) -->
 
 <!-- ══════ ПОСТОЯННАЯ ПАНЕЛЬ ИВЕНТА (справа по центру) ══════ -->
 <div id="event-panel">
@@ -850,7 +651,7 @@ body {
             </div>
             <div style="font-size:11px;color:rgba(255,255,255,0.3);font-family:'JetBrains Mono',monospace;" id="ep-participants">0 участников</div>
         </div>
-        <div class="ep-type" id="ep-type-name">🎲 Рулетка</div>
+        <div class="ep-type" id="ep-type-name">⚖️ Аукцион</div>
         <div class="ep-prize" id="ep-prize">—</div>
         <div class="ep-timer-row">
             <div class="ep-timer" id="ep-timer">5:00</div>
@@ -874,10 +675,7 @@ body {
 const SERVER = 'https://shedoy23.ru';
 const POLL_INTERVAL = 2000;  // опрос каждые 2 сек
 
-// ✅ Фильтр джекпотов для оверлея
-// Показывать на оверлее только джекпоты больше этой суммы
-// В чате всё равно будут показываться все джекпоты как было
-const MIN_JACKPOT_AMOUNT = 25000;
+// MIN_JACKPOT_AMOUNT удалён 2026-05-10 (Phase 1.I lexicon scrub — casino вырезан)
 
 // ══════════════════════════════════════════
 // ОЧЕРЕДЬ УВЕДОМЛЕНИЙ
@@ -940,8 +738,7 @@ function showCard(config) {
 
 function buildCardHTML(cfg) {
     switch (cfg.type) {
-        case 'jackpot':
-            return buildJackpotCard(cfg);
+        // 'jackpot' card type удалён 2026-05-10 (Phase 1.I lexicon scrub)
         case 'event-start':
             return buildEventStartCard(cfg);
         case 'event-live':
@@ -960,31 +757,14 @@ function buildCardHTML(cfg) {
 // ══════════════════════════════════════════
 // ШАБЛОНЫ КАРТОЧЕК
 // ══════════════════════════════════════════
-function buildJackpotCard(cfg) {
-    const particles = Array.from({length: 12}, (_, i) => {
-        const x = 10 + Math.random() * 80;
-        const dx = (Math.random() - 0.5) * 60;
-        const d = 0.8 + Math.random() * 1.2;
-        const delay = Math.random() * 0.8;
-        return `<div class="particle" style="--x:${x}%;--dx:${dx}px;--d:${d}s;--delay:${delay}s;opacity:0"></div>`;
-    }).join('');
-
-    return `
-        <div class="particles">${particles}</div>
-        <div class="card-label">🎰 ДЖЕКПОТ</div>
-        <div class="card-title">${esc(cfg.username)}</div>
-        <div class="jackpot-amount">+${formatNum(cfg.amount)} 💎</div>
-        <div class="card-sub">ставка ${formatNum(cfg.bet)} → ×5</div>
-        <div class="card-timer"></div>
-    `;
-}
+// buildJackpotCard удалён 2026-05-10 (Phase 1.I lexicon scrub)
 
 function buildEventStartCard(cfg) {
     return `
         <div class="card-label">✨ ИВЕНТ НАЧАЛСЯ</div>
         <div class="card-title">${esc(cfg.type_name)}</div>
         <div class="card-sub">${esc(cfg.prize_name)} • ${esc(cfg.type_desc)}</div>
-        <div class="card-icon">${cfg.type === 'roulette' ? '🎲' : '⚖️'}</div>
+        <div class="card-icon">⚖️</div>
         <div class="card-timer"></div>
     `;
 }
@@ -1055,29 +835,7 @@ function buildDonateCard(cfg) {
     `;
 }
 
-// ══════════════════════════════════════════
-// МЕГА ДЖЕКПОТ (центральный)
-// ══════════════════════════════════════════
-function showMegaJackpot(username, amount) {
-    const el = document.getElementById('jackpot-mega');
-    document.getElementById('mega-username').textContent = '@' + username;
-    document.getElementById('mega-amount').textContent = '+' + formatNum(amount) + ' 💎';
-
-    // Генерируем искры
-    const sparks = document.getElementById('mega-sparks');
-    sparks.innerHTML = Array.from({length: 30}, () => {
-        const sx = 20 + Math.random() * 60 + 'vw';
-        const sy = 20 + Math.random() * 60 + 'vh';
-        const sdx = (Math.random() - 0.5) * 120 + 'px';
-        const sdy = -(30 + Math.random() * 100) + 'px';
-        const sd = 0.8 + Math.random() * 1.2 + 's';
-        const sdelay = Math.random() * 1 + 's';
-        return `<div class="spark" style="--sx:${sx};--sy:${sy};--sdx:${sdx};--sdy:${sdy};--sd:${sd};--sdelay:${sdelay}"></div>`;
-    }).join('');
-
-    el.className = 'show';
-    setTimeout(() => { el.className = ''; }, 5100);
-}
+// showMegaJackpot удалён 2026-05-10 (Phase 1.I lexicon scrub)
 
 // ══════════════════════════════════════════
 // ВСПОМОГАТЕЛЬНЫЕ
@@ -1103,9 +861,9 @@ function showEventPanel(ae) {
     const panel = document.getElementById('event-panel');
     panel.classList.add('visible');
 
-    document.getElementById('ep-type-name').textContent   = ae.type_name || '🎲 Рулетка';
+    document.getElementById('ep-type-name').textContent   = ae.type_name || '⚖️ Аукцион';
     document.getElementById('ep-prize').textContent       = '🏆 ' + (ae.prize?.name || '?');
-    document.getElementById('ep-badge-text').textContent  = ae.type === 'roulette' ? 'РУЛЕТКА' : 'АУКЦИОН';
+    document.getElementById('ep-badge-text').textContent  = 'АУКЦИОН';
     document.getElementById('ep-participants').textContent = ae.participants + ' участников';
     document.getElementById('ep-pool').textContent        = formatNum(ae.total_pool || 0);
 
@@ -1202,7 +960,7 @@ let lastEventState = null; // 'none' | 'active' | 'ended'
 let lastWinnerId = null;
 let lastDonateTs = null;
 let lastDropId = null;
-let seenJackpots = new Set();
+let seenLiveEventBuckets = new Set();  // ranamed from seenJackpots 2026-05-10 (Phase 1.I)
 
 async function poll() {
     try {
@@ -1236,8 +994,8 @@ async function poll() {
             // live-карточка в углу раз в 45 сек с текущими ставками
             if (ae.participants > 0) {
                 const liveKey = `live-${ae.id}-${Math.floor(ae.time_left / 45)}`;
-                if (!seenJackpots.has(liveKey)) {
-                    seenJackpots.add(liveKey);
+                if (!seenLiveEventBuckets.has(liveKey)) {
+                    seenLiveEventBuckets.add(liveKey);
                     queueNotif({
                         type: 'event-live',
                         type_name: ae.type_name,
@@ -1280,30 +1038,9 @@ async function poll() {
     } catch(e) {}
 
     try {
-        // 2. Джекпоты — опрашиваем отдельный эндпоинт
+        // 2. Donate / drop notifications через /api/overlay/latest
+        // jackpot-handler удалён 2026-05-10 (Phase 1.I — casino вырезано)
         const jp = await fetch(SERVER + '/api/overlay/latest').then(r => r.json());
-
-        if (jp.jackpot && !seenJackpots.has(jp.jackpot.id)) {
-            seenJackpots.add(jp.jackpot.id);
-            if (seenJackpots.size > 100) {
-                const first = seenJackpots.values().next().value;
-                seenJackpots.delete(first);
-            }
-
-            // ✅ ФИЛЬТР ДЖЕКПОТОВ
-            // Показываем на оверлее ТОЛЬКО джекпоты больше порога
-            // В чате ТВИЧА все джекпоты всё равно будут как было раньше
-            if (jp.jackpot.win >= MIN_JACKPOT_AMOUNT) {
-                showMegaJackpot(jp.jackpot.username, jp.jackpot.win);
-                queueNotif({
-                    type: 'jackpot',
-                    username: jp.jackpot.username,
-                    amount: jp.jackpot.win,
-                    bet: jp.jackpot.bet,
-                    duration: 8000
-                });
-            }
-        }
 
         if (jp.donate && jp.donate.ts !== lastDonateTs) {
             lastDonateTs = jp.donate.ts;
@@ -1336,11 +1073,7 @@ async function poll() {
 // добавь ?preview=1 к URL чтобы увидеть все анимации
 // ══════════════════════════════════════════
 function runPreview() {
-    setTimeout(() => {
-        showMegaJackpot('shedoy23', 125000);
-        queueNotif({ type: 'jackpot', username: 'shedoy23', amount: 125000, bet: 25000, duration: 8000 });
-    }, 500);
-
+    // Jackpot preview удалён 2026-05-10 (Phase 1.I — casino вырезан)
     setTimeout(() => {
         queueNotif({ type: 'donate', username: 'klut12', amount_rub: 500, points: 25000, gift: 'Корона 👑', duration: 7000 });
     }, 4000);

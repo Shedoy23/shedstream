@@ -579,77 +579,12 @@ html, body {
     to   { transform: translateY(0);    opacity: 1; }
 }
 
-/* ===== КАЗИНО АНИМАЦИИ ===== */
+/* Casino/jackpot/slots/coin анимации удалены 2026-05-10 (Phase 1.I lexicon scrub) */
 
-/* Shake при проигрыше */
-@keyframes casinoShake {
-    0%,100% { transform: translateX(0); }
-    15%      { transform: translateX(-7px) rotate(-1deg); }
-    30%      { transform: translateX(7px)  rotate(1deg); }
-    45%      { transform: translateX(-5px) rotate(-0.5deg); }
-    60%      { transform: translateX(5px)  rotate(0.5deg); }
-    75%      { transform: translateX(-3px); }
-    90%      { transform: translateX(3px); }
-}
-
-/* Победный bounce + свечение */
-@keyframes casinoWin {
-    0%   { transform: scale(0.7);  opacity: 0; }
-    60%  { transform: scale(1.08); opacity: 1; }
-    80%  { transform: scale(0.96); }
-    100% { transform: scale(1); }
-}
-
-/* Джекпот — большой bounce + мигание */
-@keyframes casinoJackpot {
-    0%   { transform: scale(0.5) rotate(-5deg); opacity: 0; }
-    50%  { transform: scale(1.15) rotate(2deg); opacity: 1; }
-    70%  { transform: scale(0.95) rotate(-1deg); }
-    85%  { transform: scale(1.05); }
-    100% { transform: scale(1) rotate(0); }
-}
-@keyframes jackpotGlow {
-    0%,100% { box-shadow: 0 0 10px rgba(255,215,0,0.4); }
-    50%      { box-shadow: 0 0 28px rgba(255,215,0,0.85), 0 0 50px rgba(255,165,0,0.4); }
-}
-
-/* Монеты */
-@keyframes coinFly {
-    0%   { transform: translateY(0) translateX(0) scale(1); opacity: 1; }
-    100% { transform: translateY(var(--dy)) translateX(var(--dx)) scale(0.4); opacity: 0; }
-}
-
-/* Пульсация кнопки ставки */
-@keyframes betPulse {
-    0%,100% { box-shadow: 0 0 0 0 rgba(145, 71, 255, 0.5); }
-    50%      { box-shadow: 0 0 0 7px rgba(145, 71, 255, 0); }
-}
-
-/* Накрутка счётчика — просто fade-in снизу */
+/* Накрутка счётчика — fade-in снизу (используется в overlay/прочих) */
 @keyframes countUp {
     from { transform: translateY(8px); opacity: 0; }
     to   { transform: translateY(0);   opacity: 1; }
-}
-
-.casino-btn-pulsing {
-    animation: betPulse 0.9s ease-in-out infinite;
-    opacity: 0.85;
-    cursor: not-allowed;
-    pointer-events: none;
-}
-
-.casino-result-shake  { animation: casinoShake  0.55s ease-in-out; }
-.casino-result-win    { animation: casinoWin    0.45s cubic-bezier(0.34,1.56,0.64,1); }
-.casino-result-jackpot {
-    animation: casinoJackpot 0.6s cubic-bezier(0.34,1.56,0.64,1),
-               jackpotGlow   1.4s ease-in-out 0.6s infinite;
-}
-.casino-coin {
-    position: absolute;
-    font-size: 18px;
-    pointer-events: none;
-    animation: coinFly 0.8s ease-out forwards;
-    z-index: 999999;
 }
 
 /* ===== AUTH STATUS ===== */
@@ -720,7 +655,7 @@ html, body {
 
 .duel-creator { font-weight: 700; color: #9147ff; font-size: 12px; }
 .duel-target  { color: #4ade80; font-size: 12px; }
-.duel-amount  { font-size: 12px; margin: 3px 0; }
+/* .duel-amount удалён 2026-05-10 (Phase 1.F — ставки в дуэлях вырезаны) */
 
 /* ===== ДОСТИЖЕНИЯ ===== */
 .achievement {
@@ -1220,64 +1155,4 @@ input[type="number"]::-webkit-inner-spin-button {
     overflow-y: auto;
 }
 
-/* ══════════════════════════════════
-   СЛОТ-МАШИНА
-══════════════════════════════════ */
-.slot-reel-wrap {
-    width: 72px;
-    height: 64px;
-    overflow: hidden;
-    border-radius: 10px;
-    background: #18181b;
-    border: 2px solid #3d3d3f;
-    position: relative;
-    /* Маска: символ виден только по центру */
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
-    mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
-}
-
-/* Линия посередине — «окно результата» */
-.slot-reel-wrap::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-top: 1px solid #9147ff44;
-    border-bottom: 1px solid #9147ff44;
-    top: calc(50% - 1px);
-    bottom: calc(50% - 1px);
-    pointer-events: none;
-}
-
-.slot-reel {
-    display: flex;
-    flex-direction: column;
-    will-change: transform;
-}
-
-.slot-cell {
-    width: 72px;
-    height: 64px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 30px;
-    flex-shrink: 0;
-    user-select: none;
-}
-
-/* Подсветка машины при выигрыше */
-#slots-machine {
-    padding: 8px;
-    border-radius: 14px;
-    background: #0e0e10;
-    border: 1px solid #2d2d2f;
-    transition: box-shadow 0.15s;
-}
-
-/* ===== ФИКС РАЗМЕРА ОКНА СЛОТОВ ===== */
-#slots-modal .modal-content {
-    min-height: 460px;
-}
-#slots-result {
-    min-height: 60px !important;
-}
+/* Slot-machine CSS блок целиком удалён 2026-05-10 (Phase 1.I lexicon scrub) */

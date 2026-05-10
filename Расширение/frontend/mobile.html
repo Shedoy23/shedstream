@@ -138,27 +138,7 @@ html,body{width:100%;height:100%;height:-webkit-fill-available;background:var(--
 
 .inv-craft:disabled{opacity:.35;cursor:not-allowed;background:rgba(255,255,255,.06);color:var(--muted)}
 
-.casino-hero{background:linear-gradient(135deg,rgba(124,77,255,.15),rgba(180,124,255,.08));border:1px solid rgba(124,77,255,.3);border-radius:24px;padding:24px 20px;text-align:center;margin-bottom:14px;position:relative;overflow:hidden}
-
-.casino-hero::before{content:'🎰';font-size:80px;position:absolute;right:-10px;top:-10px;opacity:.12;transform:rotate(15deg)}
-
-.casino-title{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;margin-bottom:4px}
-
-.casino-sub{font-size:12px;color:var(--muted);margin-bottom:20px}
-
-.casino-result-box{background:var(--bg);border-radius:16px;padding:14px;margin-bottom:16px;display:none;border:1px solid var(--border)}
-
-.casino-result-box.win{border-color:rgba(57,217,138,.4);background:rgba(57,217,138,.06)}
-
-.casino-result-box.jackpot{border-color:rgba(255,208,96,.5);background:rgba(255,208,96,.08)}
-
-.casino-result-box.loss{border-color:rgba(255,83,112,.3);background:rgba(255,83,112,.05)}
-
-.result-emoji{font-size:40px;margin-bottom:6px}
-
-.result-text{font-family:'Syne',sans-serif;font-size:16px;font-weight:700}
-
-.result-sub{font-size:12px;color:var(--muted);margin-top:4px}
+/* Casino-hero / casino-result-box / result-* CSS удалены 2026-05-10 (Phase 1.I lexicon scrub) */
 
 .bet-input-wrap{display:flex;background:var(--bg3);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:10px;transition:border-color .2s}
 
@@ -360,21 +340,9 @@ html,body{width:100%;height:100%;height:-webkit-fill-available;background:var(--
 
 .promo-btn:active{background:#5e35cc;transform:scale(.95)}
 
-.market-listing{display:flex;align-items:center;gap:12px;background:var(--bg3);border-radius:14px;padding:12px;margin-bottom:8px;border:1px solid var(--border)}
+/* market-listing CSS удалён 2026-05-10 (Phase 1.C compliance rework) */
 
-.market-listing-info{flex:1;min-width:0}
-
-.market-listing-name{font-size:13px;font-weight:500}
-
-.market-listing-meta{font-size:11px;color:var(--muted);margin-top:2px}
-
-.slot-machine{display:flex;gap:10px;justify-content:center;margin:14px 0}
-
-.slot-reel{width:64px;height:64px;background:var(--bg);border-radius:14px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:32px;overflow:hidden;position:relative}
-
-.slot-reel-inner{display:flex;flex-direction:column;transition:transform .9s cubic-bezier(.17,.67,.12,1.0);will-change:transform}
-
-.slot-cell{width:64px;height:64px;display:flex;align-items:center;justify-content:center;font-size:32px;flex-shrink:0}
+/* slot-machine / slot-reel / slot-cell CSS удалены 2026-05-10 (Phase 1.I lexicon scrub) */
 
 </style>
 
@@ -508,50 +476,11 @@ html,body{width:100%;height:100%;height:-webkit-fill-available;background:var(--
 
 
 
-  <!-- Casino + Слоты page удалены 2026-05-10 (Phase 1.A compliance rework) -->
-
-  <div class="page" id="page-casino" style="display:none;">
-    <!-- Stub: nav-кнопка тоже удалена ниже, эта страница больше не доступна. Будет полностью dropped в lexicon scrub финальной полировки. -->
-
-    <!-- Перевод -->
-
-    <div class="card">
-
-      <div class="card-title">💸 Передать очки</div>
-
-      <input class="m-input" id="tf-user" placeholder="Никнейм получателя">
-
-      <input class="m-input" id="tf-amt" type="number" placeholder="Сумма (мин. 10)">
-
-      <button class="btn-primary ghost" data-action="transfer-points">💸 Отправить</button>
-    </div>
-
-    <!-- Дуэли -->
-
-    <div class="card">
-
-      <div class="card-title">⚔️ Дуэли</div>
-
-      <div id="duels-list"><div class="empty"><span class="empty-icon">⚔️</span>Нет активных дуэлей</div></div>
-
-      <input class="m-input" id="duel-target" placeholder="Никнейм соперника" style="margin-top:10px">
-
-      <!-- duel-amount input удалён 2026-05-10 (Phase 1.F compliance rework — дуэли только за ELO) -->
-
-      <button class="btn-primary" data-action="create-duel">⚔️ Вызвать на дуэль</button>
-    </div>
-
-    <!-- Семья -->
-
-    <div class="card">
-
-      <div class="card-title">💍 Семья</div>
-
-      <div id="family-status-card"><div class="empty"><span class="empty-icon">💍</span>Загрузка...</div></div>
-
-    </div>
-
-  </div>
+  <!-- page-casino div удалён 2026-05-10 (Phase 1.I lexicon scrub).
+       Оригинал содержал три карточки: Передать (1.D removed), Дуэли (1.F
+       reworked, остаётся в desktop extension.html), Семья (1.G reworked,
+       остаётся в desktop extension.html). UX-восстановление мобильного
+       дуэли+семья UI можно вернуть в Phase 5+. -->
 
 
 
@@ -571,7 +500,7 @@ html,body{width:100%;height:100%;height:-webkit-fill-available;background:var(--
 
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
 
-        <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800" id="ev-type-name">🎲 Рулетка</div>
+        <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800" id="ev-type-name">⚖️ Аукцион</div>
 
         <div class="live-badge"><div class="live-dot"></div> LIVE</div>
 
@@ -707,20 +636,7 @@ html,body{width:100%;height:100%;height:-webkit-fill-available;background:var(--
 
 
 
-  <!-- ═══ РЫНОК ═══ -->
-
-  <div class="page" id="page-market">
-
-    <div class="card">
-
-      <div class="card-title">🏷️ Рынок зрителей <button data-action="load-market" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px">⟳</button></div>
-      <div id="market-sell" style="margin-bottom:12px"></div>
-
-      <div id="market-list"><div class="empty"><span class="empty-icon">🏷️</span>Нажми ⟳ для загрузки</div></div>
-
-    </div>
-
-  </div>
+  <!-- РЫНОК page удалена 2026-05-10 (Phase 1.C compliance rework) -->
 
 </div>
 
@@ -1487,301 +1403,8 @@ async function usePromo() {
 
 
 
-// ===== КАЗИНО (стандартное) =====
+// ===== Casino + Slots + Transfer удалены 2026-05-10 (Phase 1.I lexicon scrub) =====
 
-function setBet(val) {
-
-  const inp = document.getElementById('bet-inp');
-
-  inp.value = val === 0 ? userPoints : val;
-
-}
-
-
-
-async function placeBet() {
-
-  if (!userLogin) { toast('Не авторизован', 'error'); return; }
-
-  if (!checkCooldown('bet', 4000)) { toast('Подожди', 'error'); return; }
-
-  const amount = parseInt(document.getElementById('bet-inp').value);
-
-  if (!amount || amount < 50) { toast('Минимум 50 💎', 'error'); return; }
-
-  if (amount > userPoints) { toast('Недостаточно очков', 'error'); return; }
-
-  const btn = document.getElementById('bet-btn');
-
-  btn.textContent = '⏳ Крутим...'; btn.disabled = true;
-
-  try {
-
-    const d = await apiPost('/api/casino/bet', { username: userLogin, amount });
-
-    const box = document.getElementById('casino-result');
-
-    box.style.display = 'block'; box.className = 'casino-result-box ' + (d.result || 'loss');
-
-    if (d.result === 'jackpot') { setEl('r-emoji', '🎰'); setEl('r-text', 'ДЖЕКПОТ! ×5'); setEl('r-sub', '+' + fmtNum(d.win) + ' 💎'); }
-
-    else if (d.result === 'win') { setEl('r-emoji', '🍀'); setEl('r-text', 'Победа! ×2'); setEl('r-sub', '+' + fmtNum(d.win) + ' 💎'); }
-
-    else { setEl('r-emoji', '😢'); setEl('r-text', 'Проигрыш'); setEl('r-sub', '-' + fmtNum(amount) + ' 💎'); }
-
-    toast(d.result === 'jackpot' ? '🎰 ДЖЕКПОТ!' : d.result === 'win' ? '🍀 Победа!' : '😢 Проигрыш', d.result === 'loss' ? 'error' : 'success');
-
-    loadUserData();
-
-  } catch(e) { toast('Ошибка', 'error'); }
-
-  finally { btn.textContent = '🎲 Сделать ставку'; btn.disabled = false; }
-
-}
-
-
-
-// ===== СЛОТЫ =====
-
-const SLOT_SYMBOLS = [
-
-  { id: 'wood',   emoji: '🪵', mult: 0,   weight: 50, color: '#8B5E3C' },
-
-  { id: 'stone',  emoji: '🪨', mult: 0.5, weight: 30, color: '#9ca3af' },
-
-  { id: 'amulet', emoji: '🔮', mult: 1,   weight: 15, color: '#9147ff' },
-
-  { id: 'crown',  emoji: '👑', mult: 5,   weight: 5,  color: '#fbbf24' },
-
-];
-
-
-
-function _slotsPick() {
-
-  const total = SLOT_SYMBOLS.reduce((s, i) => s + i.weight, 0);
-
-  let r = Math.random() * total;
-
-  for (const s of SLOT_SYMBOLS) { r -= s.weight; if (r <= 0) return s; }
-
-  return SLOT_SYMBOLS[0];
-
-}
-
-
-
-function setSlotsBet(val) {
-
-  const inp = document.getElementById('slots-bet');
-
-  inp.value = val === 0 ? userPoints : val;
-
-}
-
-
-
-let _slotsSpinning = false;
-
-
-
-async function spinSlots() {
-
-  if (_slotsSpinning) return;
-
-  if (!checkCooldown('spinSlots', 3000)) return;
-
-  const bet = parseInt(document.getElementById('slots-bet').value);
-
-  if (!bet || bet < 50) { toast('Минимум 50 💎', 'error'); return; }
-
-  if (bet > userPoints) { toast('Недостаточно 💎', 'error'); return; }
-
-
-
-  _slotsSpinning = true;
-
-  const btn = document.getElementById('slots-btn');
-
-  btn.textContent = '⏳ Крутится...'; btn.disabled = true;
-
-  const resultBox = document.getElementById('slots-result');
-
-  resultBox.style.display = 'none';
-
-
-
-  // Генерируем результат
-
-  const results = [_slotsPick(), _slotsPick(), _slotsPick()];
-
-  const mult = results[0].mult * results[1].mult * results[2].mult;
-
-  const win = Math.floor(bet * mult);
-
-
-
-  // Анимация барабанов
-
-  const reels = document.querySelectorAll('.slot-reel');
-
-  const durations = [800, 1100, 1400];
-
-  await Promise.all(results.map((sym, i) => _animateSlotReel(reels[i], sym, durations[i])));
-
-
-
-  // Отправляем на сервер
-
-  try {
-
-    await apiPost('/api/casino/slots', { username: userLogin, bet, symbols: results.map(s => s.id), multiplier: mult, win });
-
-  } catch(e) { toast('Ошибка соединения', 'error'); _slotsSpinning = false; btn.textContent = '🎲 Крутить!'; btn.disabled = false; return; }
-
-
-
-  // Показываем результат
-
-  const icons = { jackpot: '🎰💥', win: '✨', loss: '💀' };
-
-  const colors = { jackpot: 'var(--gold)', win: 'var(--green)', loss: 'var(--red)' };
-
-  const isJackpot = results.every(s => s.id === 'crown');
-
-  const isWin = mult > 1;
-
-
-
-  resultBox.style.display = 'block';
-
-  resultBox.className = 'casino-result-box ' + (isJackpot ? 'jackpot' : isWin ? 'win' : 'loss');
-
-  setEl('sr-emoji', icons[isJackpot ? 'jackpot' : isWin ? 'win' : 'loss'] || '🎲');
-
-  setEl('sr-text', isJackpot ? `ДЖЕКПОТ! ×${mult}` : isWin ? `Выигрыш! ×${mult}` : 'Нет совпадений');
-
-  setEl('sr-sub', win > 0 ? '+' + win + ' 💎' : '-' + bet + ' 💎');
-
-
-
-  loadUserData();
-
-  _slotsSpinning = false;
-
-  btn.textContent = '🎲 Крутить ещё!'; btn.disabled = false;
-
-}
-
-
-
-async function _animateSlotReel(reelEl, finalSym, durMs) {
-
-  const cellH = 64;
-
-  const spinCount = 12 + Math.floor(Math.random() * 6);
-
-  const strip = [];
-
-  for (let i = 0; i < spinCount; i++) strip.push(_slotsPick());
-
-  strip.push(finalSym);
-
-
-
-  const inner = document.createElement('div');
-
-  inner.className = 'slot-reel-inner';
-
-  reelEl.innerHTML = '';
-
-  reelEl.appendChild(inner);
-
-  reelEl.style.overflow = 'hidden';
-
-
-
-  strip.forEach(s => {
-
-    const cell = document.createElement('div');
-
-    cell.className = 'slot-cell';
-
-    cell.style.color = s.color;
-
-    cell.textContent = s.emoji;
-
-    inner.appendChild(cell);
-
-  });
-
-
-
-  inner.style.transition = 'none';
-
-  inner.style.transform = 'translateY(0)';
-
-  await new Promise(r => requestAnimationFrame(r));
-
-
-
-  const targetOffset = -(strip.length - 1) * cellH;
-
-  inner.style.transition = `transform ${durMs}ms cubic-bezier(.17,.67,.12,1.0)`;
-
-  inner.style.transform = `translateY(${targetOffset}px)`;
-
-
-
-  await new Promise(r => setTimeout(r, durMs + 50));
-
-  inner.style.transition = 'none';
-
-  inner.style.transform = '';
-
-  inner.innerHTML = `<div class="slot-cell" style="color:${finalSym.color};font-size:32px;">${finalSym.emoji}</div>`;
-
-}
-
-
-
-// ===== ПЕРЕВОД ОЧКОВ =====
-
-async function transferPoints() {
-
-  const target = ((document.getElementById('tf-user') || {}).value || '').trim();
-
-  const amount = parseInt((document.getElementById('tf-amt') || {}).value);
-
-  if (!target) { toast('Укажи получателя', 'error'); return; }
-
-  if (!amount || amount < 10) { toast('Минимум 10 💎', 'error'); return; }
-
-  if (!checkCooldown('transfer', 5000)) return;
-
-  const token = _authToken || '';
-
-  if (!token) { toast('Нет авторизации — обнови страницу', 'error'); return; }
-
-  try {
-
-    const d = await fetch(API + '/api/points/transfer', {
-
-      method: 'POST',
-
-      headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': token },
-
-      body: JSON.stringify({ from: userLogin, sender: userLogin, to: target, receiver: target, amount })
-
-    }).then(r => r.json());
-
-    toast(d.message, d.success ? 'success' : 'error');
-
-    if (d.success) { loadUserData(); document.getElementById('tf-user').value = ''; document.getElementById('tf-amt').value = ''; }
-
-  } catch(e) { toast('Ошибка', 'error'); }
-
-}
 
 
 
@@ -2581,21 +2204,8 @@ async function acceptMarriage() {
 
 
 
-async function withdrawFamily() {
+// withdrawFamily() удалён 2026-05-10 (Phase 1.G compliance rework)
 
-  if (!checkCooldown('family_withdraw', 3000)) return;
-
-  try {
-
-    const d = await apiPost('/api/marriage/withdraw', { username: userLogin }, { headers: { 'X-Twitch-JWT': _authToken } });
-
-    toast(d.message, d.success ? 'success' : 'error');
-
-    if (d.success) { loadUserData(); loadFamily(); }
-
-  } catch(e) { toast('Ошибка', 'error'); }
-
-}
 
 
 
@@ -2614,110 +2224,8 @@ async function divorceFamily() {
   } catch(e) { toast('Ошибка', 'error'); }
 
 }
+// loadMarket / listItem / cancelListing удалены 2026-05-10 (Phase 1.C compliance rework)
 
-
-
-// ===== РЫНОК =====
-
-async function loadMarket() {
-
-  try {
-
-    const d = await apiFetch('/api/market/list');
-
-    const listings = d.listings || [];
-
-    const myItems = await apiFetch('/api/viewer/stats/' + encodeURIComponent(userLogin)).then(r => (r.inventory || []).filter(i => i.quantity > 0)).catch(() => []);
-
-    const sellHtml = myItems.length ? myItems.map(i => `
-
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-
-        <span style="font-size:20px">${ITEM_ICONS[i.item_name] || '📦'}</span>
-
-        <span style="flex:1;font-size:13px">${esc(i.display_name || i.item_name)} ×${i.quantity}</span>
-
-        <input type="number" id="sell-price-${esc(i.item_name)}" placeholder="Цена" style="width:80px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px;color:var(--text);font-size:12px">
-
-        <button class="shop-buy-btn" data-action="list-item" data-item-name="${esc(i.item_name)}">📤</button>
-      </div>`).join('') : '<div style="font-size:12px;color:var(--muted)">Инвентарь пуст</div>';
-
-    setEl('market-sell', '<div style="margin-bottom:6px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Выставить предмет</div>' + sellHtml);
-
-    if (!listings.length) { setEl('market-list', '<div class="empty"><span class="empty-icon">🏷️</span>Нет активных лотов</div>'); return; }
-
-    setEl('market-list', listings.map(l => {
-
-      const isMine = l.seller === userLogin;
-
-      const canBuy = !isMine && userPoints >= l.price;
-
-      return `<div class="market-listing"><div class="inv-icon" style="font-size:28px">${ITEM_ICONS[l.item_name] || '📦'}</div><div class="market-listing-info"><div class="market-listing-name">${esc(l.item_display_name || l.item_name)}</div><div class="market-listing-meta">${esc(l.seller)} · ${fmtNum(l.price)} 💎</div></div>${isMine ? `<button class="shop-buy-btn" style="background:#3a1a1a" data-action="cancel-listing" data-listing-id="${l.id}">❌</button>` : canBuy ? `<button class="shop-buy-btn" data-action="buy-listing" data-listing-id="${l.id}" data-price="${l.price}" data-item-name="${esc(l.item_display_name || l.item_name)}">Купить</button>` : '<button class="shop-buy-btn" disabled>🔒</button>'}</div>`;
-    }).join(''));
-
-  } catch(e) { setEl('market-list', '<div class="empty">Рынок недоступен</div>'); }
-
-}
-
-
-
-async function listItem(itemName) {
-
-  const price = parseInt((document.getElementById('sell-price-' + itemName) || {}).value);
-
-  if (!price || price < 1) { toast('Укажи цену', 'error'); return; }
-
-  if (!checkCooldown('list_' + itemName, 3000)) return;
-
-  try {
-
-    const d = await apiPost('/api/market/list', { username: userLogin, item_name: itemName, price });
-
-    toast(d.message, d.success ? 'success' : 'error');
-
-    if (d.success) loadMarket();
-
-  } catch(e) { toast('Ошибка', 'error'); }
-
-}
-
-
-
-async function buyListing(listingId, price, name) {
-
-  if (userPoints < price) { toast('Недостаточно 💎', 'error'); return; }
-
-  if (!checkCooldown('buy_listing', 3000)) return;
-
-  try {
-
-    const d = await apiPost('/api/market/buy', { username: userLogin, listing_id: listingId });
-
-    toast(d.message, d.success ? 'success' : 'error');
-
-    if (d.success) { loadUserData(); loadMarket(); }
-
-  } catch(e) { toast('Ошибка', 'error'); }
-
-}
-
-
-
-async function cancelListing(listingId) {
-
-  if (!checkCooldown('cancel_listing', 3000)) return;
-
-  try {
-
-    const d = await apiPost('/api/market/cancel', { username: userLogin, listing_id: listingId });
-
-    toast(d.message, d.success ? 'success' : 'error');
-
-    if (d.success) loadMarket();
-
-  } catch(e) { toast('Ошибка', 'error'); }
-
-}
 
 
 

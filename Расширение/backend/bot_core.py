@@ -123,11 +123,20 @@ class BotCore:
         self.rimworld_commands_file = RIMWORLD_COMMANDS_PATH
         self.rimworld_refunds_file = RIMWORLD_REFUNDS_PATH
 
-        # Текущий stream_id (single-channel глобально). KNOWN LIMITATION:
-        # после регистрации второго стримера stream_id будет тем же для всех
-        # — нужен per-channel рерайт reward_points_loop. См. ARCHITECTURE.md
-        # §10 Известные технические долги.
-        self.current_stream_id: str = ""
+        # Текущий stream_id per-channel (Bug 4 fix, 2026-05-10).
+        # Раньше было `current_stream_id: str = ""` — единое глобальное состояние,
+        # которое после регистрации 2-го стримера ломало и stream_session, и
+        # streak'и (все каналы делили один stream_id). Теперь это
+        # Dict[channel_id, stream_id] — каждый канал крутит свой день.
+        # Доступ через self.get_current_stream_id(channel_id) /
+        # self.set_current_stream_id(channel_id, stream_id).
+        self.current_stream_id: Dict[int, str] = {}
+
+        # Per-channel кэш проверки стрима через Helix API.
+        # Раньше было два скалярных поля _stream_live_cache/_stream_live_checked
+        # — это означало, что проверка одного канала "пробивала" кэш всем.
+        # Теперь key = channel_id, value = (is_live: bool, checked_ts: float).
+        self._stream_live_cache: Dict[int, Tuple[bool, float]] = {}
 
         # ── Chat-bonus антифрод (M7) ─────────────────────────────────────────
         # State per (channel_id, username):
@@ -139,11 +148,8 @@ class BotCore:
         #   3. hash(text) уже в recent_hashes — повтор/спам
         self._chat_bonus_last_at: Dict[Tuple[int, str], datetime] = {}
         self._chat_bonus_recent_hashes: Dict[Tuple[int, str], deque] = {}
-        
-        # Кэш проверки стрима (instance-level, не class-level)
-        self._stream_live_cache: bool = False
-        self._stream_live_checked: float = 0.0
-        # Кэш app-токена Twitch — токен живёт ~60 дней
+
+        # Кэш app-токена Twitch — токен живёт ~60 дней (shared всеми каналами)
         self._twitch_app_token: str = ""
         self._twitch_app_token_expires: float = 0.0
 
@@ -367,61 +373,123 @@ class BotCore:
             except Exception as e:
                 logger.debug("pending_chat_flush_loop iteration failed: %s", e)
     
+    # ===== STREAM_ID HELPERS (Bug 4 fix, multi-tenant) =====
+    def get_current_stream_id(self, channel_id: Optional[int] = None) -> str:
+        """Текущий stream_id для канала. Пустая строка если канал не в live.
+
+        channel_id=None → resolve через ContextVar (single-channel легаси-вызовы
+        и HTTP-роуты, которые вытаскивают канал из JWT).
+        """
+        cid = resolve_channel_id(channel_id)
+        return self.current_stream_id.get(cid, "")
+
+    def set_current_stream_id(self, channel_id: int, stream_id: str) -> None:
+        if not channel_id:
+            return
+        if stream_id:
+            self.current_stream_id[int(channel_id)] = stream_id
+        else:
+            self.current_stream_id.pop(int(channel_id), None)
+
     # ===== НАЧИСЛЕНИЕ ОЧКОВ =====
     async def reward_points_loop(self):
-        """Цикл начисления очков (каждую минуту)"""
-        logger.info("Цикл начисления запущен")
-        _was_live = False
+        """Цикл начисления очков (каждую минуту), multi-tenant.
+
+        Bug 4 fix (2026-05-10): раньше цикл обслуживал один глобальный канал
+        (TWITCH_STREAM_CHANNEL) и один глобальный current_stream_id. После
+        регистрации 2-го стримера это ломало streak/attendance/session.
+
+        Теперь: на каждом тике берём db.list_channels() и обрабатываем
+        каждый зарегистрированный канал независимо — свой is_live, своя
+        сессия, свой stream_id, своё начисление.
+        """
+        logger.info("Цикл начисления запущен (multi-tenant)")
+        was_live: Dict[int, bool] = {}
         while self.running:
             await asyncio.sleep(CHECK_INTERVAL)
-            is_live = await self._is_stream_live()
-            if is_live:
-                # Авторегистрируем сессию в трёх сценариях:
-                #   1. Первый вход в live после старта сервера (_was_live=False)
-                #   2. Смена даты (стрим пересёк полночь)
-                #   3. Возобновление стрима в тот же день (второй стрим — после
-                #      паузы; register_stream_session сбрасывает ended_at=NULL,
-                #      иначе get_streak считал бы этот день "завершённым" и
-                #      жёг зрителям стрик прямо во время второго стрима)
-                from datetime import date
-                today_id = date.today().isoformat()  # напр. "2025-01-15"
-                if not _was_live or self.current_stream_id != today_id:
-                    await self.handle_stream_start(today_id)
-                    logger.info("Автостарт/возобновление стрима: %s (prev=%s, was_live=%s)",
-                                today_id, self.current_stream_id or "none", _was_live)
-                _was_live = True
-                await self._reward_points()
-            else:
-                # Переход live→offline: закрываем сессию (ended_at=now).
-                # Это маркер «стрим прошёл» — get_streak будет считать её
-                # завершённой и сжигать стрик зрителям, которые её не засчитали.
-                if _was_live and self.current_stream_id:
-                    try:
-                        await self.db.end_stream_session(self.current_stream_id)
-                        logger.info("Стрим %s завершён (ended_at выставлен)",
-                                    self.current_stream_id)
-                    except Exception as e:
-                        logger.warning("end_stream_session failed: %s", e)
-                _was_live = False
-                logger.debug("Стрим %s не в эфире — начисление пропущено", TWITCH_STREAM_CHANNEL)
+            try:
+                channels = await self.db.list_channels()
+            except Exception as e:
+                logger.warning("reward_points_loop: list_channels упал: %s", e)
+                continue
 
-    async def _is_stream_live(self) -> bool:
-        """Проверить через Twitch Helix API, идёт ли стрим на канале TWITCH_STREAM_CHANNEL"""
-        from datetime import datetime
+            today_id = date.today().isoformat()
+            for ch in channels:
+                channel_id = ch["channel_id"]
+                login = (ch.get("login") or "").lower().strip()
+                try:
+                    is_live = await self._is_stream_live(channel_id=channel_id, login=login)
+                except Exception as e:
+                    logger.warning("is_stream_live(%s) упал: %s", login or channel_id, e)
+                    continue
+
+                prev_live = was_live.get(channel_id, False)
+                prev_sid  = self.current_stream_id.get(channel_id, "")
+                if is_live:
+                    # Сценарии регистрации сессии:
+                    #   1. Первый вход в live после старта сервера
+                    #   2. Смена даты (стрим пересёк полночь)
+                    #   3. Возобновление стрима в тот же день (второй стрим)
+                    if not prev_live or prev_sid != today_id:
+                        await self.handle_stream_start(today_id, channel_id=channel_id)
+                        logger.info(
+                            "[ch=%s/%s] Автостарт/возобновление: %s (prev=%s, was_live=%s)",
+                            channel_id, login or "?", today_id, prev_sid or "none", prev_live)
+                    was_live[channel_id] = True
+                    await self._reward_points(channel_id)
+                else:
+                    # Переход live→offline: закрываем сессию.
+                    if prev_live and prev_sid:
+                        try:
+                            await self.db.end_stream_session(prev_sid, channel_id=channel_id)
+                            logger.info("[ch=%s] Стрим %s завершён (ended_at выставлен)",
+                                        channel_id, prev_sid)
+                        except Exception as e:
+                            logger.warning("end_stream_session(%s,%s) failed: %s",
+                                           channel_id, prev_sid, e)
+                    was_live[channel_id] = False
+                    logger.debug("[ch=%s/%s] не в эфире — пропускаем",
+                                 channel_id, login or "?")
+
+    async def _is_stream_live(
+        self,
+        channel_id: Optional[int] = None,
+        login: Optional[str] = None,
+    ) -> bool:
+        """Проверить через Twitch Helix API, идёт ли стрим на канале.
+
+        channel_id=None → resolve через ContextVar (HTTP-роуты, single-channel
+        легаси-вызовы). login можно передать явно — экономит lookup в БД,
+        пригождается reward_points_loop'у который и так из list_channels()
+        тащит и login и channel_id.
+
+        Кэш per-channel (TTL=120с): раньше было два скалярных поля и проверка
+        одного канала пробивала кэш всему миру.
+        """
+        cid = resolve_channel_id(channel_id)
         now = datetime.now().timestamp()
-        # Используем кэш чтобы не спамить API каждую минуту
-        if now - self._stream_live_checked < 120:
-            return self._stream_live_cache
+
+        cached = self._stream_live_cache.get(cid)
+        if cached is not None and now - cached[1] < 120:
+            return cached[0]
+
+        # Резолвим login: явно передан → используем; иначе db.get_channel; иначе fallback
+        if not login:
+            try:
+                ch = await self.db.get_channel(cid)
+                if ch:
+                    login = (ch.get("login") or "").lower().strip()
+            except Exception:
+                login = None
+        channel = (login or TWITCH_STREAM_CHANNEL).lower().strip()
 
         client_id     = os.getenv("TWITCH_CLIENT_ID", "")
         client_secret = os.getenv("TWITCH_CLIENT_SECRET", "")
-        channel       = TWITCH_STREAM_CHANNEL.lower().strip()
 
         if not client_id or not client_secret:
             # Если ключей нет — не блокируем начисление, просто предупреждаем
             logger.warning("TWITCH_CLIENT_ID/SECRET не заданы — проверка стрима пропущена")
-            self._stream_live_cache   = True
-            self._stream_live_checked = now
+            self._stream_live_cache[cid] = (True, now)
             return True
 
         try:
@@ -449,72 +517,77 @@ class BotCore:
                     data = await r.json()
                     is_live = len(data.get("data", [])) > 0
 
-            self._stream_live_cache   = is_live
-            self._stream_live_checked = now
-            logger.info("Стрим %s: %s", channel, 'В ЭФИРЕ' if is_live else 'офлайн')
+            self._stream_live_cache[cid] = (is_live, now)
+            logger.info("Стрим [ch=%s] %s: %s", cid, channel,
+                        'В ЭФИРЕ' if is_live else 'офлайн')
             return is_live
 
         except Exception as e:
-            logger.warning("Ошибка проверки стрима: %s — продолжаем без блокировки", e)
-            self._stream_live_cache   = True   # при ошибке не блокируем
-            self._stream_live_checked = now
+            logger.warning("Ошибка проверки стрима [ch=%s]: %s — продолжаем без блокировки",
+                           cid, e)
+            self._stream_live_cache[cid] = (True, now)   # при ошибке не блокируем
             return True
     
-    async def _reward_points(self):
-        """Начислить очки зрителям по статусу активности.
+    async def _reward_points(self, channel_id: Optional[int] = None):
+        """Начислить очки зрителям по статусу активности (per-channel).
+
+        Bug 4 fix (2026-05-10): теперь принимает channel_id и фильтрует
+        viewers WHERE channel_id = ?. Раньше шёл по всему viewers без
+        фильтра — на одиночном канале ОК, после регистрации 2-го стримера
+        начислял всем сразу даже если только один канал в эфире.
 
         Источник правды — БД `viewers.last_seen`. По возрасту (age):
           age < ACTIVE_WINDOW                  → "active",  100% очков
           ACTIVE_WINDOW ≤ age < REDUCED_WINDOW → "reduced", 50%  очков
           age ≥ REDUCED_WINDOW                 → "offline", 0    (пропускаем)
 
-        В конце синхронизируем колонку `viewers.is_afk` с реальностью,
-        чтобы admin view и COUNT(is_afk=0) отражали текущие статусы.
+        is_afk synchronization тоже per-channel — чтобы офлайн-канал не
+        перетирал статусы в эфирном.
         """
+        cid = resolve_channel_id(channel_id)
         now = datetime.now()
 
-        # 1. Читаем из БД всех кто хотя бы раз отметился за REDUCED_WINDOW.
-        #    Это «канон», in-memory словарь больше не гейткипит награду.
+        # 1. Читаем активных с last_seen в пределах REDUCED_WINDOW для ЭТОГО канала.
         try:
-            async with aiosqlite.connect(self.db.db_path) as conn:
+            async with self.db._connect() as conn:
                 cursor = await conn.execute(
                     """
-                    SELECT channel_id, username,
+                    SELECT username,
                            CAST((julianday('now') - julianday(last_seen)) * 86400 AS INTEGER) AS age_sec
                     FROM   viewers
-                    WHERE  last_seen >= datetime('now', ?)
+                    WHERE  channel_id = ?
+                       AND last_seen >= datetime('now', ?)
                     """,
-                    (f"-{REDUCED_WINDOW} seconds",),
+                    (cid, f"-{REDUCED_WINDOW} seconds"),
                 )
                 rows = await cursor.fetchall()
         except Exception as e:
-            logger.warning("Чтение активных из БД упало: %s", e)
+            logger.warning("[ch=%s] Чтение активных из БД упало: %s", cid, e)
             rows = []
 
-        # 2. Уборка in-memory мусора (TTL 30 мин) — чтобы словарь не рос вечно.
+        # 2. Уборка in-memory мусора (TTL 30 мин) для записей этого канала.
         offline_cutoff = now - timedelta(seconds=REDUCED_WINDOW)
-        for k in [k for k, t in self.viewers_last_active.items() if t < offline_cutoff]:
+        for k in [k for k, t in self.viewers_last_active.items()
+                  if t < offline_cutoff and k[0] == cid]:
             del self.viewers_last_active[k]
-            cid, uname = k
+            _, uname = k
             self._bonus_cache.invalidate(f"bonus_{cid}_{uname}")
 
         # 3. Классификация + начисление.
         active_count = reduced_count = 0
-        for channel_id, username, age_sec in rows:
+        for username, age_sec in rows:
             if age_sec >= REDUCED_WINDOW:
-                # защита от граничного случая (должно быть отфильтровано WHERE)
                 continue
 
             # Бонусы от инвентаря и уровня
-            item_bonus = await self._get_viewer_bonus(username, channel_id)
-            level_data = await self.db.get_user_level(username, channel_id=channel_id)
+            item_bonus = await self._get_viewer_bonus(username, cid)
+            level_data = await self.db.get_user_level(username, channel_id=cid)
             level_info = self.db.get_level_info(level_data['level'])
             level_pct  = level_info.get('bonus_pct', 0)
 
             base_income  = POINTS_PER_MINUTE + item_bonus
             total_points = int(base_income * (1 + level_pct / 100))
 
-            # Статус
             if age_sec < ACTIVE_WINDOW:
                 status = "active"
                 active_count += 1
@@ -523,38 +596,35 @@ class BotCore:
                 total_points //= 2
                 reduced_count += 1
 
-            await self.db.add_points(username, total_points, channel_id=channel_id)
+            await self.db.add_points(username, total_points, channel_id=cid)
 
-            # Квесты «сколько минут посмотрено» тикаем только для активных,
-            # чтобы AFK ×½ не засчитывало полноценное время (спорно, но
-            # бывший код тикал всем — меняю на «только active» т.к.
-            # статус reduced и так де-факто AFK).
+            # Квесты watch_time — только для активных.
             if status == "active":
                 for quest in WATCH_TIME_QUESTS:
-                    await self._update_quest_progress(username, quest, 1, channel_id=channel_id)
+                    await self._update_quest_progress(username, quest, 1, channel_id=cid)
 
-        # 4. Синхронизация is_afk в БД — чтобы admin view был честным.
-        #    active/reduced → is_afk=0 (онлайн в какой-то форме);
-        #    offline        → is_afk=1.
+        # 4. is_afk sync — per-channel (раньше было WHERE без фильтра, что
+        #    при offline-канале ставило is_afk=1 ВСЕМ зрителям всех каналов).
         try:
-            async with aiosqlite.connect(self.db.db_path) as conn:
+            async with self.db._connect() as conn:
                 await conn.execute(
                     """
                     UPDATE viewers SET is_afk = CASE
                         WHEN last_seen >= datetime('now', ?) THEN 0
                         ELSE 1
                     END
+                    WHERE channel_id = ?
                     """,
-                    (f"-{REDUCED_WINDOW} seconds",),
+                    (f"-{REDUCED_WINDOW} seconds", cid),
                 )
                 await conn.commit()
         except Exception as e:
-            logger.warning("Sync is_afk упал: %s", e)
+            logger.warning("[ch=%s] Sync is_afk упал: %s", cid, e)
 
         total = active_count + reduced_count
         if total > 0:
             print(
-                f"💰 Награда: active={active_count} (100%), "
+                f"💰 [ch={cid}] Награда: active={active_count} (100%), "
                 f"reduced={reduced_count} (50%)"
             )
     
@@ -657,82 +727,108 @@ class BotCore:
 
     # ===== ДРОПЫ =====
     async def drop_loop(self):
-        """Цикл дропов"""
-        logger.info("Цикл дропов запущен (каждые %d мин)", DROP_INTERVAL // 60)
+        """Цикл дропов (multi-tenant): каждый канал в эфире — свой dice-roll."""
+        logger.info("Цикл дропов запущен (каждые %d мин, multi-tenant)",
+                    DROP_INTERVAL // 60)
         while self.running:
             await asyncio.sleep(DROP_INTERVAL)
-            await self._process_drop()
-    
-    async def _process_drop(self):
-        """Обработать дроп"""
-        if not await self._is_stream_live():
+            try:
+                channels = await self.db.list_channels()
+            except Exception as e:
+                logger.warning("drop_loop: list_channels упал: %s", e)
+                continue
+            for ch in channels:
+                try:
+                    await self._process_drop(channel_id=ch["channel_id"])
+                except Exception as e:
+                    logger.warning("drop iteration [ch=%s] failed: %s",
+                                   ch.get("channel_id"), e)
+
+    async def _process_drop(self, channel_id: Optional[int] = None):
+        """Обработать дроп для одного канала.
+
+        Bug 4 fix (2026-05-10): принимает channel_id явно — раньше тащил
+        активных из ВСЕХ каналов, slot-машинно выбирал победителя, и
+        send_message шёл в "default" канал даже если победитель был на другом.
+        """
+        cid = resolve_channel_id(channel_id)
+        if not await self._is_stream_live(channel_id=cid):
             return
         if random.random() > DROP_CHANCE:
             return
-        # Дроп — только среди "active" (< ACTIVE_WINDOW). Читаем из БД для
-        # консистентности с _reward_points и чтобы пережить рестарт.
+
         cutoff = datetime.now() - timedelta(seconds=ACTIVE_WINDOW)
         try:
-            async with aiosqlite.connect(self.db.db_path) as conn:
+            async with self.db._connect() as conn:
                 cursor = await conn.execute(
-                    "SELECT channel_id, username FROM viewers WHERE last_seen >= datetime('now', ?)",
-                    (f"-{ACTIVE_WINDOW} seconds",),
+                    "SELECT username FROM viewers WHERE channel_id = ? AND last_seen >= datetime('now', ?)",
+                    (cid, f"-{ACTIVE_WINDOW} seconds"),
                 )
                 rows = await cursor.fetchall()
-            active = [(r[0], r[1]) for r in rows if r[1].lower() not in DROP_BLACKLIST]
+            active = [r[0] for r in rows if r[0].lower() not in DROP_BLACKLIST]
         except Exception as e:
-            logger.warning("Drop: чтение активных из БД упало: %s", e)
-            # Fallback in-memory cache теперь хранит (channel_id, username) —
-            # multi-tenant correct. Если кто-то всплыл в кэше но БД упала —
-            # отдаём drop по их реальному каналу, не fakedef'ному.
+            logger.warning("[ch=%s] Drop: чтение активных из БД упало: %s", cid, e)
             active = [
-                (cid, u) for (cid, u), t in self.viewers_last_active.items()
-                if t > cutoff and u.lower() not in DROP_BLACKLIST
+                u for (k_cid, u), t in self.viewers_last_active.items()
+                if k_cid == cid and t > cutoff and u.lower() not in DROP_BLACKLIST
             ]
         if not active:
             return
 
-        lucky_channel_id, lucky = random.choice(active)
+        lucky = random.choice(active)
 
-        # Выбираем предмет для дропа
         item_name, rarity = random.choices(
             [(i[0], i[2]) for i in DROP_ITEMS],
             weights=[i[1] for i in DROP_ITEMS]
         )[0]
 
-        await self.db.give_item(lucky, item_name, channel_id=lucky_channel_id)
-        
-        # Отправляем сообщение о дропе в чат
-        await self.send_message(f"🎁 @{lucky} получил {item_name} в дропе!")
-        logger.info("ДРОП: @%s получил %s", lucky, item_name)
-        
-        # Уведомляем оверлей
+        await self.db.give_item(lucky, item_name, channel_id=cid)
+
+        await self.send_message(
+            f"🎁 @{lucky} получил {item_name} в дропе!", channel_id=cid)
+        logger.info("[ch=%s] ДРОП: @%s получил %s", cid, lucky, item_name)
+
         try:
             await self.on_drop(lucky, item_name, rarity)
         except Exception as e:
             print(f"⚠️ Ошибка on_drop: {e}")
-    
-    async def force_drop(self):
-        """Принудительный дроп (из админки)"""
-        await self._process_drop()
+
+    async def force_drop(self, channel_id: Optional[int] = None):
+        """Принудительный дроп (из админки) — на конкретном канале."""
+        await self._process_drop(channel_id=channel_id)
         return {"success": True, "message": "Принудительный дроп выполнен"}
     
     # ===== КАЗИНО =====
 
-    async def check_and_unlock_achievements(self, username: str, trigger: str, extra: dict = None) -> list:
-        """
-        Проверяет и выдаёт достижения по триггеру.
-        trigger: 'craft', 'duel_win', 'rimworld_buy', 'casino', 'watch_hours', 'level_up', 'streak'
+    async def check_and_unlock_achievements(
+        self,
+        username: str,
+        trigger: str,
+        extra: dict = None,
+        channel_id: Optional[int] = None,
+    ) -> list:
+        """Проверяет и выдаёт достижения по триггеру (per-channel).
+
+        trigger: 'craft', 'duel_win', 'rimworld_buy', 'casino', 'watch_hours',
+                 'level_up', 'streak'
+
+        Bug 4 fix (2026-05-10): channel_id прокидывается в unlock_achievement
+        и send_message. Раньше unlock_achievement брал канал через
+        resolve_channel_id() (= ContextVar или fallback) — для HTTP-роутов
+        это работало, но из reward_points_loop, где каналы итерируются
+        вручную, нужен явный аргумент.
         """
         unlocked = []
         extra = extra or {}
+        cid = resolve_channel_id(channel_id)
 
         async def _try(key):
-            result = await self.db.unlock_achievement(username, key)
+            result = await self.db.unlock_achievement(username, key, channel_id=cid)
             if result:
                 unlocked.append(result)
                 await self.send_message(
-                    f"🏆 @{username} получил достижение «{result['emoji']} {result['name']}»! +{result['reward']}💎"
+                    f"🏆 @{username} получил достижение «{result['emoji']} {result['name']}»! +{result['reward']}💎",
+                    channel_id=cid,
                 )
 
         if trigger == 'craft':
@@ -764,28 +860,44 @@ class BotCore:
 
         return unlocked
 
-    async def handle_stream_start(self, stream_id: str):
-        """Вызывается при старте стрима — регистрирует сессию."""
-        self.current_stream_id = stream_id
-        await self.db.register_stream_session(stream_id)
-        logger.info("Стрим зарегистрирован: %s", stream_id)
+    async def handle_stream_start(self, stream_id: str, channel_id: Optional[int] = None):
+        """Вызывается при старте стрима — регистрирует сессию для канала.
 
-    async def record_viewer_attendance(self, username: str, minutes: int) -> dict:
+        channel_id=None → resolve_channel_id() (для совместимости с легаси-вызовами).
         """
-        Записывает присутствие зрителя. При 15+ мин — выдаёт стрик-бонус и проверяет достижения.
+        cid = resolve_channel_id(channel_id)
+        self.set_current_stream_id(cid, stream_id)
+        await self.db.register_stream_session(stream_id, channel_id=cid)
+        logger.info("[ch=%s] Стрим зарегистрирован: %s", cid, stream_id)
+
+    async def record_viewer_attendance(
+        self,
+        username: str,
+        minutes: int,
+        channel_id: Optional[int] = None,
+    ) -> dict:
+        """Записывает присутствие зрителя на канале. При 15+ мин выдаёт
+        стрик-бонус и проверяет достижения.
+
+        Bug 4 fix (2026-05-10): теперь принимает channel_id и берёт
+        stream_id из per-channel dict. Раньше брал из глобального
+        self.current_stream_id, что ломалось при 2+ каналах.
         """
-        if not self.current_stream_id:
+        cid = resolve_channel_id(channel_id)
+        stream_id = self.current_stream_id.get(cid, "")
+        if not stream_id:
             return {"rewarded": False}
 
-        result = await self.db.record_attendance(username, self.current_stream_id, minutes)
+        result = await self.db.record_attendance(username, stream_id, minutes, channel_id=cid)
 
         if result.get("rewarded"):
             await self.check_and_unlock_achievements(username, 'streak', {
                 'current_streak': result['current_streak'],
                 'max_streak':     result['max_streak'],
-            })
-            hours = await self.db.get_total_watch_hours(username)
-            await self.check_and_unlock_achievements(username, 'watch_hours', {'hours': hours})
+            }, channel_id=cid)
+            hours = await self.db.get_total_watch_hours(username, channel_id=cid)
+            await self.check_and_unlock_achievements(
+                username, 'watch_hours', {'hours': hours}, channel_id=cid)
 
         return result
 
@@ -927,27 +1039,42 @@ class BotCore:
 
     # ===== ОСТАНОВ =====
     async def auto_message_loop(self):
-        """Цикл автосообщений в чат (каждые AUTO_MESSAGE_INTERVAL секунд).
-        Отправляет только во время стрима, перебирает сообщения по очереди.
+        """Цикл автосообщений (multi-tenant): на каждом тике обходим каналы
+        и шлём auto-message в те, что в эфире.
+
+        Bug 4 fix (2026-05-10): раньше шёл один _is_stream_live() и один
+        send_message() в default — после регистрации 2-го стримера он либо
+        слал ему чужие сообщения, либо игнорировал его эфир. Теперь индекс
+        автосообщений тоже per-channel (разные каналы — разные «места»
+        в плейлисте).
         """
         if not AUTO_MESSAGES_ENABLED or not AUTO_MESSAGES:
             print("ℹ️ Автосообщения отключены или список пуст")
             return
 
-        print(f"💬 Цикл автосообщений запущен (каждые {AUTO_MESSAGE_INTERVAL//60} мин)")
-        index = 0
+        print(f"💬 Цикл автосообщений запущен (каждые {AUTO_MESSAGE_INTERVAL//60} мин, multi-tenant)")
+        index_per_channel: Dict[int, int] = {}
         while self.running:
             await asyncio.sleep(AUTO_MESSAGE_INTERVAL)
             if not self.running:
                 break
-            if not await self._is_stream_live():
-                continue
             try:
-                msg = AUTO_MESSAGES[index % len(AUTO_MESSAGES)]
-                await self.send_message(msg)
-                index += 1
+                channels = await self.db.list_channels()
             except Exception as e:
-                print(f"⚠️ auto_message_loop: {e}")
+                print(f"⚠️ auto_message_loop list_channels: {e}")
+                continue
+            for ch in channels:
+                cid = ch["channel_id"]
+                login = (ch.get("login") or "").lower().strip()
+                try:
+                    if not await self._is_stream_live(channel_id=cid, login=login):
+                        continue
+                    idx = index_per_channel.get(cid, 0)
+                    msg = AUTO_MESSAGES[idx % len(AUTO_MESSAGES)]
+                    await self.send_message(msg, channel_id=cid)
+                    index_per_channel[cid] = idx + 1
+                except Exception as e:
+                    print(f"⚠️ auto_message_loop [ch={cid}]: {e}")
 
     async def shutdown(self):
         """Остановка бота"""

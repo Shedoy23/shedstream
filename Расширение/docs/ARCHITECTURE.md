@@ -117,11 +117,11 @@
 - Все routes принимающие действия пользователя (write-paths) **обязаны** вызывать `require_jwt_user` ИЛИ `require_jwt_channel` в начале.
 
 ### 2.5 Core services (background)
-- `bot_core.py` (`BotCore`) — startup-time singleton, держит фоновые loops
-  - `reward_points_loop` — раз в минуту, начисляет поинты активным viewers
-  - `drop_loop` — раз в N минут, кидает drop-предмет случайному активному viewer
+- `bot_core.py` (`BotCore`) — startup-time singleton, держит фоновые loops (все loops **multi-tenant** — итерируют `db.list_channels()` и обрабатывают каждый канал независимо, see Bug 4 fix 2026-05-10)
+  - `reward_points_loop` — раз в минуту, начисляет поинты активным viewers per-channel
+  - `drop_loop` — раз в N минут, кидает drop-предмет случайному активному viewer per-channel
   - `pending_chat_flush_loop` — safety-net для очереди сообщений до коннекта IRC
-  - `auto_message_loop` — авто-сообщения в чат при стриме live
+  - `auto_message_loop` — авто-сообщения в чат при стриме live, per-channel index
 - `event_manager.py` (`EventManager`) — `start_event` / `end_event` / `event_watcher_loop`
   - **Внимание:** один global `active_event` (не dict-per-channel пока). См. **Known limitations** ниже.
 - `main.py:register_eventsub_channel_points` — регистрация Twitch EventSub webhook (single или multi-channel зависит от `EVENTSUB_AUTO_REGISTER` flag)
@@ -612,7 +612,7 @@ class MyAdapter(ModuleAdapter):
 - **Single SQLite file** — масштабируется до ~50-100 каналов с активным играми. Дальше нужна миграция на Postgres (path: переписать `database.py` под asyncpg, остальные слои не меняются если они дисциплинированные).
 - **`event_manager.active_event` — single global** — не dict-per-channel. Multi-tenant proper требует рерайт. Сейчас работает потому что в моменте обычно один стрим активен у всех каналов параллельно (ивенты крутятся независимо в БД, но in-memory state в EventManager — общий).
 - **Late-join IRC bot** — новый OAuth-регистрант не джойнится в running TwitchChatBot до рестарта. Future fix: вызвать `self.join_channels([login])` из OAuth callback.
-- **🔴 `BotCore.current_stream_id` + `reward_points_loop` — single-channel** (CRITICAL для multi-tenant). Сейчас loop проверяет ОДИН канал `TWITCH_STREAM_CHANNEL` (env), `current_stream_id` — глобальный `str`. Когда зарегистрируется 2-й стример через OAuth — его стрик-система СЛОМАЕТСЯ: `record_attendance(stream_id=...)` будет получать stream_id первого канала. Fix: `Dict[channel_id, current_stream_id]`, итерация по `db.list_channels()` в loop, per-channel `is_stream_live` через Helix API. Объём: 2-3ч. **Рекомендуется делать ДО onboarding'а второго стримера.**
+- ~~**🔴 `BotCore.current_stream_id` + `reward_points_loop` — single-channel**~~ — **РЕЗОЛВНУТО 2026-05-10** (Bug 4). `current_stream_id` теперь `Dict[channel_id, str]`, `reward_points_loop`/`drop_loop`/`auto_message_loop`/`run_family_income` итерируют `db.list_channels()`, `_is_stream_live(channel_id, login)` — per-channel cache, `record_viewer_attendance`/`handle_stream_start`/`check_and_unlock_achievements` принимают `channel_id`. Покрыто тестом 8 в `test_multi_tenant_isolation.py`. Каждый канал крутит свой день независимо.
 
 ### 10.2 DB-discipline
 - **Raw SQL в routes/*** — есть ещё несколько мест где не через `db.*` helpers (например `routes/duel.py:_db_save_duel` использует `aiosqlite.connect` через `db._connect()`). См. Block 2 архитектурной прокачки.

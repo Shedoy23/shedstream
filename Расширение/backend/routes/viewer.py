@@ -167,7 +167,7 @@ async def track_activity(body: ActivityRequest, request: Request):
         """, (channel_id, username))
         stream_live = False
         try:
-            stream_live = await bot._is_stream_live()
+            stream_live = await bot._is_stream_live(channel_id=channel_id)
         except Exception:
             pass
         if stream_live:
@@ -295,7 +295,7 @@ async def viewer_attendance(request: Request):
     data    = await request.json()
     minutes = int(data.get("minutes", 0))
     bot     = get_bot()
-    result  = await bot.record_viewer_attendance(username, minutes)
+    result  = await bot.record_viewer_attendance(username, minutes, channel_id=channel_id)
     return {"success": True, **result}
 
 

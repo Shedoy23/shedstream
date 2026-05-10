@@ -481,6 +481,78 @@ def test_chat_bonus_antifraud():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Test 8: BotCore.current_stream_id is per-channel (Bug 4 fix, 2026-05-10)
+# ─────────────────────────────────────────────────────────────────────────────
+def test_current_stream_id_per_channel():
+    """Регресс-тест Bug 4: current_stream_id должен быть per-channel.
+
+    Раньше это было `current_stream_id: str = ""` — глобальное состояние.
+    После регистрации 2-го стримера запись stream_id канала B перетирала
+    запись канала A, и attendance/streak ломались.
+    """
+    print("\n[8] Bug 4 fix: current_stream_id per-channel")
+    from bot_core import BotCore
+
+    class _MockDb:
+        db_path = ":memory:"
+
+    bot = BotCore.__new__(BotCore)
+    bot.db = _MockDb()
+    bot.current_stream_id = {}
+
+    cid_a = 98319857
+    cid_b = 99999
+
+    # Изначально нет стрима — get вернёт ""
+    from dependencies import _current_channel_id
+    tok = _current_channel_id.set(cid_a)
+    try:
+        assert_eq(bot.get_current_stream_id(), "", "no stream → empty string")
+        assert_eq(bot.get_current_stream_id(channel_id=cid_b), "",
+                  "no stream channel B → empty string")
+    finally:
+        _current_channel_id.reset(tok)
+
+    # Регистрируем стрим канала A
+    bot.set_current_stream_id(cid_a, "2026-05-10")
+    assert_eq(bot.get_current_stream_id(channel_id=cid_a), "2026-05-10",
+              "channel A stream registered")
+    assert_eq(bot.get_current_stream_id(channel_id=cid_b), "",
+              "channel B isolated from A")
+
+    # Регистрируем стрим канала B (другая дата чтобы поймать collision)
+    bot.set_current_stream_id(cid_b, "2026-05-09")
+    assert_eq(bot.get_current_stream_id(channel_id=cid_a), "2026-05-10",
+              "channel A unchanged after B registered")
+    assert_eq(bot.get_current_stream_id(channel_id=cid_b), "2026-05-09",
+              "channel B has its own stream_id")
+    assert_true(
+        bot.get_current_stream_id(channel_id=cid_a) != bot.get_current_stream_id(channel_id=cid_b),
+        "no cross-channel overwrite of stream_id (Bug 4 regress)"
+    )
+
+    # Завершаем стрим канала B (set "" удаляет)
+    bot.set_current_stream_id(cid_b, "")
+    assert_eq(bot.get_current_stream_id(channel_id=cid_b), "",
+              "channel B ended → empty string")
+    assert_eq(bot.get_current_stream_id(channel_id=cid_a), "2026-05-10",
+              "channel A still live after B ended")
+
+    # _stream_live_cache тоже per-channel
+    bot._stream_live_cache = {}
+    bot._stream_live_cache[cid_a] = (True, 1234567890.0)
+    bot._stream_live_cache[cid_b] = (False, 1234567890.0)
+    assert_true(bot._stream_live_cache[cid_a][0] is True,
+                "channel A cached as live")
+    assert_true(bot._stream_live_cache[cid_b][0] is False,
+                "channel B cached as offline")
+    assert_true(
+        bot._stream_live_cache[cid_a] != bot._stream_live_cache[cid_b],
+        "stream_live cache isolated per channel (no scalar pollution)"
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main runner
 # ─────────────────────────────────────────────────────────────────────────────
 async def run_all_tests():
@@ -495,6 +567,7 @@ async def run_all_tests():
     await test_catalog_replace_semantics()
     test_in_memory_cache_keys()
     test_chat_bonus_antifraud()
+    test_current_stream_id_per_channel()
 
     print("\n" + "=" * 70)
     print(f"PASSED: {len(_successes)}    FAILED: {len(_failures)}")

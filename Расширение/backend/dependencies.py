@@ -544,15 +544,19 @@ def require_admin(credentials: HTTPBasicCredentials = Depends(_security), reques
 
 # ── Stream check ──────────────────────────────────────────────────────────────
 
-async def require_stream_live() -> Optional[dict]:
+async def require_stream_live(channel_id: Optional[int] = None) -> Optional[dict]:
     """
     Возвращает None если стрим идёт — можно продолжать.
     Возвращает error-dict если стрим офлайн.
     Использование: if err := await require_stream_live(): return err
+
+    Bug 4 fix (2026-05-10): channel_id опциональный — если None, берётся
+    из ContextVar (resolve_channel_id внутри _is_stream_live). Action-роуты,
+    где канал известен из JWT, могут передать его явно для надёжности.
     """
     _STREAM_OFFLINE_MSG = {"success": False, "message": "⚡ Доступно только во время стрима"}
     try:
-        live = await get_bot()._is_stream_live()
+        live = await get_bot()._is_stream_live(channel_id=channel_id)
         if not live:
             return _STREAM_OFFLINE_MSG
     except Exception:

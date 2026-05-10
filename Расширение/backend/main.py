@@ -287,22 +287,44 @@ async def run_family_income():
     Multi-tenant safe: пара (channel_id, username) формирует ключ — один и тот же
     ник на разных каналах считается разными зрителями. JOIN тянет channel_id из
     marriages и проверяет что оба user1/user2 онлайн на ТОМ ЖЕ канале.
+
+    Bug 4 fix (2026-05-10): is_stream_live проверяется per-channel —
+    бонусят только пары с того канала, где идёт стрим. Раньше один
+    глобальный _is_stream_live() гейтил всех — после регистрации 2-го
+    стримера семья на офлайн-канале либо получала бонус "за чужой стрим",
+    либо застревала без бонуса даже когда их канал был live.
     """
     while True:
         await asyncio.sleep(60)
         try:
-            # Начисляем только когда стрим идёт
-            if not await bot._is_stream_live():
+            channels = await db.list_channels()
+            live_channel_ids = set()
+            for ch in channels:
+                try:
+                    if await bot._is_stream_live(
+                        channel_id=ch["channel_id"],
+                        login=(ch.get("login") or "").lower().strip(),
+                    ):
+                        live_channel_ids.add(ch["channel_id"])
+                except Exception:
+                    pass
+            if not live_channel_ids:
                 continue
             async with db._connect() as conn:
-                cursor = await conn.execute("""
+                # Берём online только с live-каналов
+                placeholders = ",".join("?" * len(live_channel_ids))
+                cursor = await conn.execute(f"""
                     SELECT channel_id, username FROM viewers
                     WHERE last_seen > datetime('now', '-10 minutes')
-                """)
+                      AND channel_id IN ({placeholders})
+                """, tuple(live_channel_ids))
                 online = {(r[0], r[1]) for r in await cursor.fetchall()}
 
                 cursor2 = await conn.execute(
-                    "SELECT id, channel_id, user1, user2 FROM marriages WHERE divorced_at IS NULL")
+                    f"SELECT id, channel_id, user1, user2 FROM marriages "
+                    f"WHERE divorced_at IS NULL AND channel_id IN ({placeholders})",
+                    tuple(live_channel_ids),
+                )
                 for mid, m_channel_id, u1, u2 in await cursor2.fetchall():
                     if (m_channel_id, u1) in online and (m_channel_id, u2) in online:
                         await conn.execute(

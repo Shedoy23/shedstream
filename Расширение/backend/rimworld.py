@@ -117,13 +117,18 @@ _commands_lock = asyncio.Lock()
 def get_commands_lock():
     return _commands_lock
 
-async def _require_stream_live():
+async def _require_stream_live(channel_id=None):
     """Проверка стрима для rimworld эндпоинтов — через bot из main.
+
+    Bug 4 fix (2026-05-10): channel_id опциональный. RimWorld-эндпоинты
+    дёргаются с C# мода через TWITCH_BROADCASTER_ID и из админки —
+    fallback на ContextVar/legacy резолвится внутри _is_stream_live.
+
     Возвращает dict с ошибкой если стрим недоступен или проверка упала,
     None — если стрим живой."""
     try:
         import main as _main
-        live = await _main.bot._is_stream_live()
+        live = await _main.bot._is_stream_live(channel_id=channel_id)
         if not live:
             return {"success": False, "message": "⚡ Доступно только во время стрима"}
     except Exception as e:

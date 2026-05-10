@@ -23,13 +23,18 @@ _duels: dict = {}
 
 
 async def _db_save_duel(duel_id: str, d: dict) -> None:
-    """Сохранить pending-дуэль в БД."""
+    """Сохранить pending-дуэль в БД.
+
+    Phase 1.F (2026-05-10): amount удалён из dict (ставки нет). Колонка
+    pending_duels.amount будет дропнута в M8 (Phase 1.H). До тех пор пишем
+    amount=0 для backward-compat со старой schema.
+    """
     db = get_db()
     async with db._connect() as conn:
         await conn.execute(
             "INSERT OR REPLACE INTO pending_duels (duel_id, creator, amount, move, created_ts) "
             "VALUES (?, ?, ?, ?, ?)",
-            (duel_id, d["creator"], d["amount"], d["move"], d["created_ts"])
+            (duel_id, d["creator"], 0, d["move"], d["created_ts"])
         )
         await conn.commit()
 
@@ -52,14 +57,14 @@ async def load_pending_duels() -> None:
 
     now = time.time()
     loaded, expired = 0, 0
-    for duel_id, creator, amount, move, created_ts in rows:
+    for duel_id, creator, _amount, move, created_ts in rows:
+        # _amount игнорируется — Phase 1.F (2026-05-10) убрал ставки.
         if now - created_ts > 300:
             await _db_remove_duel(duel_id)
             expired += 1
             continue
         _duels[duel_id] = {
             "creator":    creator,
-            "amount":     amount,
             "move":       move,
             "status":     "pending",
             "created_ts": created_ts,
@@ -229,27 +234,24 @@ async def check_season_end(channel_id: int = None):
 
 @router.post("/api/duel/create")
 async def create_duel(body: DuelRequest, request: Request):
-    """Создать дуэль и выбрать ход (ход скрыт от соперника)."""
+    """Создать дуэль и выбрать ход (ход скрыт от соперника).
+
+    Phase 1.F (2026-05-10): ставка крустиков убрана (§6.2.6 wagering on
+    outcomes). Дуэль теперь — чистый ELO-матч. Phase 5 переделает в
+    matchmaking-очередь (поиск противника со схожим ELO).
+    """
     if err := await require_stream_live():
         return err
     auth = require_jwt_user(request)
     if not auth:
         return _AUTH_FAIL
     creator, channel_id = auth
-    db = get_db()
-
-    if body.amount < 50:
-        return {"success": False, "message": "Минимальная ставка 50💎"}
 
     move = body.move.lower() if body.move else ""
     if move not in _VALID_MOVES:
         return {"success": False, "message": "Выбери ход: 🪨 камень, ✂️ ножницы или 📄 бумага"}
 
     await get_bot().touch_viewer(creator)
-
-    creator_points = await db.get_points(creator)
-    if creator_points < body.amount:
-        return {"success": False, "message": f"У тебя только {creator_points}💎"}
 
     for d in _duels.values():
         if d["creator"] == creator and d["status"] == "pending":
@@ -260,7 +262,6 @@ async def create_duel(body: DuelRequest, request: Request):
     duel_id = f"duel_{int(time.time())}_{random.randint(1000, 9999)}"
     _duels[duel_id] = {
         "creator":    creator,
-        "amount":     body.amount,
         "move":       move,
         "status":     "pending",
         "created_ts": time.time(),
@@ -269,7 +270,7 @@ async def create_duel(body: DuelRequest, request: Request):
     return {
         "success":  True,
         "duel_id":  duel_id,
-        "message":  f"⚔️ Дуэль на {body.amount}💎 создана! Ход сделан тайно. Ждём соперника...",
+        "message":  f"⚔️ Дуэль создана! Ход сделан тайно. Ждём соперника...",
     }
 
 
@@ -308,15 +309,8 @@ async def accept_duel(req: AcceptDuelRequest, request: Request):
         await _db_remove_duel(duel_id)
         return {"success": False, "message": "Время дуэли истекло"}
 
-    creator_points = await db.get_points(duel["creator"])
-    if creator_points < duel["amount"]:
-        duel["status"] = "expired"
-        await _db_remove_duel(duel_id)
-        return {"success": False, "message": "У создателя не хватает очков — дуэль отменена"}
-
-    acceptor_points = await db.get_points(username)
-    if acceptor_points < duel["amount"]:
-        return {"success": False, "message": f"У тебя только {acceptor_points}💎"}
+    # Phase 1.F (2026-05-10): проверки баланса крустиков удалены —
+    # дуэли больше не на ставку (§6.2.6 wagering removal).
 
     await check_season_end()
 
@@ -338,38 +332,23 @@ async def accept_duel(req: AcceptDuelRequest, request: Request):
         )).fetchone()
         _top_before = _top_before_row[0] if _top_before_row else None
 
-        # Списание/начисление очков через тот же conn — без вложенного _connect(),
-        # иначе SQLite выдаёт "database is locked" внутри активной транзакции → 500.
-        async def _transfer(conn, loser: str, winner: str, amount: int) -> bool:
-            cur = await conn.execute(
-                "UPDATE viewers SET points = points - ? WHERE username = ? AND points >= ?",
-                (amount, loser.lower(), amount))
-            if cur.rowcount == 0:
-                return False
-            await conn.execute("""
-                INSERT INTO viewers (channel_id, username, points, last_seen, join_time, is_afk)
-                VALUES (?, ?, ?, datetime('now'), datetime('now'), 0)
-                ON CONFLICT(channel_id, username) DO UPDATE SET
-                    points = points + ?,
-                    last_seen = datetime('now')
-            """, (channel_id, winner.lower(), amount, amount))
-            return True
+        # Phase 1.F (2026-05-10): _transfer + списание/начисление крустиков
+        # удалены — дуэли только за ELO. Sезонные награды (PRIZES) compliant
+        # как награда за skill в сезоне, не gambling.
 
         if outcome == "win":
-            winner, loser = duel["creator"], username
-            await _transfer(conn, loser, winner, duel["amount"])
+            winner       = duel["creator"]
             new_c_elo    = _elo_update(c_elo, a_elo, 1.0)
             new_a_elo    = _elo_update(a_elo, c_elo, 0.0)
             new_c_streak = c_streak + 1
             new_a_streak = 0
         elif outcome == "lose":
-            winner, loser = username, duel["creator"]
-            await _transfer(conn, loser, winner, duel["amount"])
+            winner       = username
             new_c_elo    = _elo_update(c_elo, a_elo, 0.0)
             new_a_elo    = _elo_update(a_elo, c_elo, 1.0)
             new_c_streak = 0
             new_a_streak = a_streak + 1
-        else:  # draw — очки не переводятся, ELO сближается, стрики не меняются
+        else:  # draw — ELO сближается, стрики не меняются
             winner       = None
             new_c_elo    = _elo_update(c_elo, a_elo, 0.5)
             new_a_elo    = _elo_update(a_elo, c_elo, 0.5)
@@ -397,11 +376,11 @@ async def accept_duel(req: AcceptDuelRequest, request: Request):
 
     if outcome == "draw":
         msg = (f"⚔️ @{duel['creator']} {c_emoji} vs {a_emoji} @{username} — "
-               f"НИЧЬЯ! Ставки возвращены. "
+               f"НИЧЬЯ! "
                f"[ELO: {new_c_elo} ({c_delta}) vs {new_a_elo} ({a_delta})]")
     else:
         msg = (f"⚔️ @{duel['creator']} {c_emoji} vs {a_emoji} @{username} — "
-               f"победил @{winner}! +{duel['amount']}💎 "
+               f"победил @{winner}! "
                f"[ELO: {new_c_elo} ({c_delta}) vs {new_a_elo} ({a_delta})]")
 
     await bot.send_message(msg)
@@ -443,7 +422,6 @@ async def list_duels(username: str = ""):
         result.append({
             "duel_id":    duel_id,
             "creator":    d["creator"],
-            "amount":     d["amount"],
             "is_mine":    d["creator"] == username,
             "can_accept": d["creator"] != username,
         })

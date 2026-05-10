@@ -53,9 +53,8 @@ async function openDuels() {
 
                 <!-- Создать дуэль -->
                 <div style="margin-bottom:16px;">
-                    <p style="color:#adadb8;font-size:13px;margin-bottom:8px;">Выходи на арену — выбери ход и ставку. Противник не увидит твой выбор!</p>
+                    <p style="color:#adadb8;font-size:13px;margin-bottom:8px;">Выходи на арену — выбери ход. Противник не увидит твой выбор! Награды только за ELO в сезоне.</p>
                     ${_rpsPickerHtml('create')}
-                    <input type="number" id="duel-amount" class="modal-input" placeholder="Ставка (мин. 50)" min="50">
                     <button class="modal-btn" data-action="create-duel">⚔️ Выйти на арену</button>
                 </div>
 
@@ -81,7 +80,7 @@ async function openDuels() {
         _bindRpsPicker('create', move => { _selectedDuelMove = move; });
 
         document.querySelectorAll('[data-accept-duel]').forEach(btn => {
-            btn.addEventListener('click', () => _openAcceptModal(btn.dataset.acceptDuel, btn.dataset.amount));
+            btn.addEventListener('click', () => _openAcceptModal(btn.dataset.acceptDuel));
         });
 
     } catch (e) {
@@ -116,17 +115,16 @@ function _renderDuelsList(duels) {
         return `
             <div style="background:#2d2d2f;border-radius:8px;padding:10px;margin-bottom:7px;border-left:3px solid ${isMine ? '#9147ff' : '#f6ad55'}">
                 <div style="font-weight:600;">⚔️ @${escapeHtml(d.creator)} ищет противника</div>
-                <div style="color:#adadb8;font-size:13px;">💰 Ставка: ${d.amount}💎</div>
                 ${isMine
                     ? '<div style="color:#9147ff;font-size:12px;margin-top:5px;">Твоя дуэль — ждём соперника...</div>'
-                    : `<button class="small-btn" data-accept-duel="${d.duel_id}" data-amount="${d.amount}" style="margin-top:7px;">⚔️ Принять вызов</button>`
+                    : `<button class="small-btn" data-accept-duel="${d.duel_id}" style="margin-top:7px;">⚔️ Принять вызов</button>`
                 }
             </div>
         `;
     }).join('');
 }
 
-function _openAcceptModal(duelId, amount) {
+function _openAcceptModal(duelId) {
     _pendingAcceptId = duelId;
     let _acceptMove  = null;
 
@@ -139,7 +137,7 @@ function _openAcceptModal(duelId, amount) {
     modal.innerHTML = `
         <div class="modal-content" style="max-width:340px;">
             <h2>⚔️ Принять вызов</h2>
-            <p style="color:#adadb8;font-size:13px;margin-bottom:10px;">Ставка: <b>${amount}💎</b>. Выбери ход — противник не увидит его до результата.</p>
+            <p style="color:#adadb8;font-size:13px;margin-bottom:10px;">Выбери ход — противник не увидит его до результата. Награды только за ELO в сезоне.</p>
             ${_rpsPickerHtml('accept')}
             <button class="modal-btn" id="confirm-accept-btn">⚔️ Сразиться!</button>
             <button class="modal-btn cancel" data-action="close-modal">Отмена</button>
@@ -159,14 +157,12 @@ async function createDuel() {
     if (!checkCooldown('duel', 5000)) return;
     if (!_selectedDuelMove) { showNotification('❌ Выбери ход: 🪨 ✂️ 📄', 'error'); return; }
 
-    const amount = parseInt(document.getElementById('duel-amount')?.value);
-    if (!amount || amount < 50) { showNotification('❌ Минимальная ставка 50💎', 'error'); return; }
-
+    // Phase 1.F (2026-05-10): amount убран — дуэль только за ELO.
     try {
         const res  = await fetch(`${API_URL}/api/duel/create`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || '' },
-            body: JSON.stringify({ creator: userLogin, target: '', amount, move: _selectedDuelMove }),
+            body: JSON.stringify({ creator: userLogin, target: '', move: _selectedDuelMove }),
         });
         const data = await res.json();
         showNotification(data.message, data.success ? 'success' : 'error');

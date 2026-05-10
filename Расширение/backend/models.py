@@ -24,23 +24,16 @@ class ChatMessageRequest(BaseModel):
     message_text: Optional[str] = None
 
 
-# ===== КАЗИНО =====
-
-class BetRequest(BaseModel):
-    username: str
-    amount: int = Field(..., gt=0)
-
-class SpinSlotsRequest(BaseModel):
-    username: str
-    bet: int = Field(..., gt=0)
+# BetRequest + SpinSlotsRequest удалены 2026-05-10 (Phase 1.A casino removal)
 
 
 # ===== ДУЭЛИ / ПЕРЕВОДЫ / БРАК =====
 
 class DuelRequest(BaseModel):
+    """Phase 1.F (2026-05-10): amount field удалён — дуэли только за ELO,
+    без ставок крустиков (§6.2.6 wagering)."""
     creator: str
     target: str
-    amount: int = Field(..., gt=0)
     move: Literal["rock", "scissors", "paper"]
 
 class AcceptDuelRequest(BaseModel):

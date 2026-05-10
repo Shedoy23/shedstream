@@ -536,7 +536,7 @@ html,body{width:100%;height:100%;height:-webkit-fill-available;background:var(--
 
       <input class="m-input" id="duel-target" placeholder="Никнейм соперника" style="margin-top:10px">
 
-      <input class="m-input" id="duel-amount" type="number" placeholder="Ставка (мин. 50)">
+      <!-- duel-amount input удалён 2026-05-10 (Phase 1.F compliance rework — дуэли только за ELO) -->
 
       <button class="btn-primary" data-action="create-duel">⚔️ Вызвать на дуэль</button>
     </div>
@@ -2403,7 +2403,7 @@ async function loadDuels() {
 
       const canAccept = !isChallenger && duel.status === 'pending';
 
-      return `<div class="shop-item"><div class="shop-item-icon">⚔️</div><div class="shop-item-info"><div class="shop-item-name">${esc(opponent)}</div><div class="shop-item-cat">${fmtNum(duel.amount)} 💎 · ${duel.status === 'pending' ? 'ожидает' : 'активна'}</div></div>${canAccept ? `<button class="shop-buy-btn" data-action="accept-duel" data-duel-id="${duel.id}">✅</button>` : ''}</div>`;
+      return `<div class="shop-item"><div class="shop-item-icon">⚔️</div><div class="shop-item-info"><div class="shop-item-name">${esc(opponent)}</div><div class="shop-item-cat">${duel.status === 'pending' ? 'ожидает' : 'активна'}</div></div>${canAccept ? `<button class="shop-buy-btn" data-action="accept-duel" data-duel-id="${duel.id}">✅</button>` : ''}</div>`;
     }).join(''));
 
   } catch(e) {}
@@ -2413,27 +2413,15 @@ async function loadDuels() {
 
 
 async function createDuel() {
-
+  // Phase 1.F (2026-05-10): amount убран — дуэль только за ELO.
   const target = (document.getElementById('duel-target') || {}).value?.trim();
-
-  const amount = parseInt((document.getElementById('duel-amount') || {}).value);
-
   if (!target) { toast('Укажи соперника', 'error'); return; }
-
-  if (!amount || amount < 50) { toast('Минимум 50 💎', 'error'); return; }
-
   if (!checkCooldown('duel_create', 5000)) return;
-
   try {
-
-    const d = await apiPost('/api/duel/create', { challenger: userLogin, opponent: target, amount });
-
+    const d = await apiPost('/api/duel/create', { challenger: userLogin, opponent: target });
     toast(d.message, d.success ? 'success' : 'error');
-
-    if (d.success) { loadUserData(); loadDuels(); document.getElementById('duel-target').value = ''; document.getElementById('duel-amount').value = ''; }
-
+    if (d.success) { loadUserData(); loadDuels(); document.getElementById('duel-target').value = ''; }
   } catch(e) { toast('Ошибка', 'error'); }
-
 }
 
 

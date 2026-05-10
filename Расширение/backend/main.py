@@ -64,7 +64,6 @@ pending_commands = []
 # RimWorld роуты вынесены в rimworld.py
 app.include_router(rimworld_router)
 
-from routes.casino   import router as casino_router
 from routes.duel     import router as duel_router
 from routes.viewer   import router as viewer_router
 from routes.admin    import router as admin_router
@@ -76,7 +75,7 @@ from routes.marriage import router as marriage_router
 from routes.misc     import router as misc_router
 from routes.streamer   import router as streamer_router
 from routes.module_api import router as module_api_router
-app.include_router(casino_router)
+# casino_router удалён 2026-05-10 — Phase 1.A compliance rework (см. COMPLIANCE_REWORK_PLAN.md)
 app.include_router(duel_router)
 app.include_router(viewer_router)
 app.include_router(admin_router)
@@ -104,7 +103,6 @@ _EXTENSION_FILES = {
     "/market.js":      "market.js",
     "/pawn.js":        "pawn.js",
     "/shop.js":        "shop.js",
-    "/casino.js":      "casino.js",
     "/family.js":      "family.js",
     "/duels.js":       "duels.js",
     "/xenotype.js":    "xenotype.js",
@@ -121,7 +119,6 @@ _EXTENSION_FILES_PREFIXED = {
     "/frontend/market.js":      "market.js",
     "/frontend/pawn.js":        "pawn.js",
     "/frontend/shop.js":        "shop.js",
-    "/frontend/casino.js":      "casino.js",
     "/frontend/family.js":      "family.js",
     "/frontend/duels.js":       "duels.js",
     "/frontend/xenotype.js":    "xenotype.js",

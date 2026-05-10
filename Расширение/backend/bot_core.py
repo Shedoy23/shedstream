@@ -22,7 +22,6 @@ from config import (
     AUTO_MESSAGES,
     AUTO_MESSAGES_ENABLED,
     CACHE_EVICTION_INTERVAL,
-    CASINO_CONFIG,
     CHAT_BONUS_COOLDOWN_SEC,
     CHAT_BONUS_DEDUP_WINDOW,
     CHAT_BONUS_MIN_CHARS,
@@ -108,13 +107,6 @@ class BotCore:
 
         # Ивент менеджер
         self.event_manager = EventManager(self, db)
-
-        # Данные для казино
-        self.casino_total_bets = 0
-        self.casino_cooldown_until = datetime.min
-        self.casino_cooldown_duration = CASINO_CONFIG['cooldown_duration']
-        self.casino_threshold = CASINO_CONFIG['cooldown_threshold']
-
 
         # Розыгрыши
         self.last_raffle = datetime.min
@@ -809,8 +801,11 @@ class BotCore:
     ) -> list:
         """Проверяет и выдаёт достижения по триггеру (per-channel).
 
-        trigger: 'craft', 'duel_win', 'rimworld_buy', 'casino', 'watch_hours',
+        trigger: 'craft', 'duel_win', 'rimworld_buy', 'watch_hours',
                  'level_up', 'streak'
+
+        Note: 'casino' trigger удалён в Phase 1.A (2026-05-10) — casino-механика
+        полностью вырезана как gambling по §6.2.3 Twitch Extension Guidelines.
 
         Bug 4 fix (2026-05-10): channel_id прокидывается в unlock_achievement
         и send_message. Раньше unlock_achievement брал канал через
@@ -837,8 +832,6 @@ class BotCore:
             await _try('first_duel_win')
         elif trigger == 'rimworld_buy':
             await _try('first_rimworld_buy')
-        elif trigger == 'casino':
-            await _try('first_casino')
         elif trigger == 'watch_hours':
             hours = extra.get('hours', 0)
             if hours >= 10:  await _try('watch_10h')
@@ -902,80 +895,9 @@ class BotCore:
         return result
 
 
-    async def casino_bet(self, username: str, amount: int) -> dict:
-        """Сделать ставку в казино"""
-        now = datetime.now()
-        
-        # Проверка глобального кулдауна казино
-        if now < self.casino_cooldown_until:
-            minutes = int((self.casino_cooldown_until - now).total_seconds() / 60)
-            return {
-                "success": False,
-                "message": f"Казино закрыто! Осталось {minutes} мин"
-            }
-        
-        # Проверка минимальной ставки
-        if amount < CASINO_CONFIG['min_bet']:
-            return {
-                "success": False,
-                "message": f"Минимальная ставка {CASINO_CONFIG['min_bet']}💎"
-            }
-        
-        # Проверяем баланс
-        points = await self.db.get_points(username)
-        if points < amount:
-            return {
-                "success": False,
-                "message": f"Недостаточно очков! У тебя {points}💎"
-            }
-        
-        # Списываем ставку — проверяем результат (атомарность в БД)
-        success = await self.db.remove_points(username, amount)
-        if not success:
-            return {
-                "success": False,
-                "message": f"Ошибка списания очков! Попробуйте позже."
-            }
-        
-        self.casino_total_bets += amount
-        if self.casino_total_bets >= self.casino_threshold and now >= self.casino_cooldown_until:
-            self.casino_cooldown_until = now + timedelta(seconds=self.casino_cooldown_duration)
-            self.casino_total_bets = 0
-            logger.info("Казино уходит в кулдаун на %d мин", self.casino_cooldown_duration // 60)
-        
-        # Генерируем результат через конфиг
-        chances = CASINO_CONFIG['win_chances']
-        roll = random.random()
+    # casino_bet удалён в Phase 1.A (2026-05-10) — gambling по §6.2.3 Twitch Extension Guidelines.
+    # См. COMPLIANCE_REWORK_PLAN.md §4 Phase 1 Removal pass.
 
-        loss_threshold   = chances['loss']
-        double_threshold = loss_threshold + chances['double']
-        # остаток — джекпот
-
-        if roll < loss_threshold:
-            win_amount = 0
-            message = f"😢 @{username} проиграл {amount}💎"
-        elif roll < double_threshold:
-            win_amount = amount * 2
-            message = f"🍀 @{username} выиграл {win_amount}💎!"
-        else:
-            win_amount = amount * 5
-            message = f"🎰 @{username} СОРВАЛ ДЖЕКПОТ! {win_amount}💎!!!"
-        
-        if win_amount > 0:
-            await self.db.add_points(username, win_amount)
-        
-        # Пишем в чат только джекпот, обычная победа — молча
-        if win_amount == amount * 5:
-            await self.send_message(message)
-        
-        return {
-            "success": True,
-            "win": win_amount,
-            "loss": amount if win_amount == 0 else 0,
-            "result": "jackpot" if win_amount == amount * 5 else ("win" if win_amount > 0 else "loss"),
-            "message": message
-        }
-    
     # ===== СТАТИСТИКА =====
     async def get_viewer_detailed_stats(self, username: str) -> dict:
         """Получить расширенную статистику зрителя"""

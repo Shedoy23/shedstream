@@ -508,93 +508,10 @@ html,body{width:100%;height:100%;height:-webkit-fill-available;background:var(--
 
 
 
-  <!-- ═══ КАЗИНО ═══ -->
+  <!-- Casino + Слоты page удалены 2026-05-10 (Phase 1.A compliance rework) -->
 
-  <div class="page" id="page-casino">
-
-    <div class="casino-hero">
-
-      <div class="casino-title">🎰 Казино</div>
-
-      <div class="casino-sub">Проверь удачу — ×2 или ДЖЕКПОТ ×5</div>
-
-      <div class="casino-result-box" id="casino-result">
-
-        <div class="result-emoji" id="r-emoji">🎰</div>
-
-        <div class="result-text" id="r-text">—</div>
-
-        <div class="result-sub" id="r-sub">—</div>
-
-      </div>
-
-      <div class="bet-input-wrap">
-
-        <input class="bet-input" id="bet-inp" type="number" placeholder="Ставка" min="50">
-
-        <div class="bet-currency">💎</div>
-
-      </div>
-
-      <div class="quick-row">
-
-        <div class="quick-chip" data-action="set-bet" data-value="50">50</div>
-        <div class="quick-chip" data-action="set-bet" data-value="100">100</div>
-        <div class="quick-chip" data-action="set-bet" data-value="500">500</div>
-        <div class="quick-chip" data-action="set-bet" data-value="0">MAX</div>
-      </div>
-
-      <button class="btn-primary" data-action="place-bet" id="bet-btn">🎲 Сделать ставку</button>
-    </div>
-
-
-
-    <!-- Слоты -->
-
-    <div class="card">
-
-      <div class="card-title">🎲 Слоты</div>
-
-      <div class="slot-machine" id="slot-machine">
-
-        <div class="slot-reel"><div class="slot-cell">🪵</div></div>
-
-        <div class="slot-reel"><div class="slot-cell">🪵</div></div>
-
-        <div class="slot-reel"><div class="slot-cell">🪵</div></div>
-
-      </div>
-
-      <div class="casino-result-box" id="slots-result">
-
-        <div class="result-emoji" id="sr-emoji">🎲</div>
-
-        <div class="result-text" id="sr-text">—</div>
-
-        <div class="result-sub" id="sr-sub">—</div>
-
-      </div>
-
-      <div class="bet-input-wrap">
-
-        <input class="bet-input" id="slots-bet" type="number" placeholder="Ставка" min="50">
-
-        <div class="bet-currency">💎</div>
-
-      </div>
-
-      <div class="quick-row">
-
-        <div class="quick-chip" data-action="set-slots-bet" data-value="50">50</div>
-        <div class="quick-chip" data-action="set-slots-bet" data-value="100">100</div>
-        <div class="quick-chip" data-action="set-slots-bet" data-value="250">250</div>
-        <div class="quick-chip" data-action="set-slots-bet" data-value="0">MAX</div>
-      </div>
-
-      <button class="btn-primary" data-action="spin-slots" id="slots-btn">🎲 Крутить!</button>
-    </div>
-
-
+  <div class="page" id="page-casino" style="display:none;">
+    <!-- Stub: nav-кнопка тоже удалена ниже, эта страница больше не доступна. Будет полностью dropped в lexicon scrub финальной полировки. -->
 
     <!-- Перевод -->
 
@@ -814,7 +731,7 @@ html,body{width:100%;height:100%;height:-webkit-fill-available;background:var(--
 <nav id="nav">
 
   <button class="nav-btn active" data-nav="home" id="nav-home"><div class="nav-icon">🏠</div><div class="nav-label">Главная</div></button>
-  <button class="nav-btn" data-nav="casino" id="nav-casino"><div class="nav-icon">🎰</div><div class="nav-label">Казино</div></button>
+  <!-- nav-casino удалён 2026-05-10 (Phase 1.A compliance rework) -->
   <button class="nav-btn" data-nav="rulection" id="nav-rulection"><div class="nav-icon">🎡</div><div class="nav-label">Рулекцион</div></button>
   <button class="nav-btn" data-nav="rimworld" id="nav-rimworld"><div class="nav-icon">🌍</div><div class="nav-label">RimWorld</div></button>
   <button class="nav-btn" data-nav="market" id="nav-market"><div class="nav-icon">🏷️</div><div class="nav-label">Рынок</div></button>
@@ -900,7 +817,7 @@ function navigate(page) {
 
   if (page === 'rimworld') { if (!shopAllItems.length) { loadPawn(); loadShop(); loadRwEvents(); } else { renderShop(); } }
 
-  if (page === 'casino') { loadDuels(); loadFamily(); }
+  // page === 'casino' branch удалён 2026-05-10 (Phase 1.A compliance rework)
 
 }
 
@@ -920,10 +837,7 @@ function bindMobileActionHandlers() {
     const action = actionEl.dataset.action;
 
     if (action === 'use-promo') usePromo();
-    else if (action === 'set-bet') setBet(parseInt(actionEl.dataset.value || '0', 10));
-    else if (action === 'place-bet') placeBet();
-    else if (action === 'set-slots-bet') setSlotsBet(parseInt(actionEl.dataset.value || '0', 10));
-    else if (action === 'spin-slots') spinSlots();
+    // set-bet / place-bet / set-slots-bet / spin-slots удалены 2026-05-10 (Phase 1.A compliance rework)
     else if (action === 'transfer-points') transferPoints();
     else if (action === 'create-duel') createDuel();
     else if (action === 'place-bid') placeBid();

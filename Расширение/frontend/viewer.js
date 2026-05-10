@@ -73,7 +73,8 @@ function setupCspSafeHandlers() {
     _cspHandlersBound = true;
 
     document.addEventListener('click', function(event) {
-        const actionEl = event.target.closest('[data-action],[data-open-modal],[data-toggle-target],[data-close-self-modal],[data-accept-family],[data-close-modal],[data-bet],[data-slots-bet],[data-cat],#casino-bet-btn,#slots-spin-btn,#create-pawn-btn,#heal-pawn-btn,#btn-resurrect,#market-refresh-btn,#stats-refresh-btn,#refresh-pawn-btn,#panel-hide-btn,#rulection-contribute-btn,#rulection-bid-btn,#promo-activate-btn,#create-colonist-btn');
+        // casino-bet-btn / slots-spin-btn / data-bet / data-slots-bet удалены 2026-05-10 (Phase 1.A)
+        const actionEl = event.target.closest('[data-action],[data-open-modal],[data-toggle-target],[data-close-self-modal],[data-accept-family],[data-close-modal],[data-cat],#create-pawn-btn,#heal-pawn-btn,#btn-resurrect,#market-refresh-btn,#stats-refresh-btn,#refresh-pawn-btn,#panel-hide-btn,#rulection-contribute-btn,#rulection-bid-btn,#promo-activate-btn,#create-colonist-btn');
         if (!actionEl) return;
 
         if (actionEl.hasAttribute('data-close-modal')) {
@@ -116,25 +117,7 @@ function setupCspSafeHandlers() {
             return;
         }
 
-        if (actionEl.dataset.bet) {
-            setBet(parseInt(actionEl.dataset.bet || '0', 10));
-            return;
-        }
-
-        if (actionEl.dataset.slotsBet) {
-            setSlotseBet(parseInt(actionEl.dataset.slotsBet || '0', 10));
-            return;
-        }
-
-        if (actionEl.id === 'casino-bet-btn') {
-            placeBet();
-            return;
-        }
-
-        if (actionEl.id === 'slots-spin-btn') {
-            spinSlots();
-            return;
-        }
+        // casino/slots handlers удалены 2026-05-10 (Phase 1.A compliance rework)
 
         if (actionEl.id === 'create-pawn-btn') {
             showCreatePawnModal();
@@ -198,8 +181,7 @@ function setupCspSafeHandlers() {
         if (!action) return;
 
         if (action === 'mkt-list-item') doListItem();
-        else if (action === 'casino') openCasino();
-        else if (action === 'slots') openSlots();
+        // 'casino' / 'slots' actions удалены 2026-05-10 (Phase 1.A compliance rework)
         else if (action === 'duels') openDuels();
         else if (action === 'advertisement') openAdvertisement();
         else if (action === 'transfer') transferPoints();

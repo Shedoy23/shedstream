@@ -260,17 +260,8 @@ EVENT_TYPES = {
     }
 }
 
-# ===== НАСТРОЙКИ КАЗИНО =====
-CASINO_CONFIG = {
-    'min_bet': 50,
-    'cooldown_threshold': 1000000,
-    'cooldown_duration': 600,
-    'win_chances': {
-        'loss': 0.6,
-        'double': 0.35,
-        'jackpot': 0.05
-    }
-}
+# CASINO_CONFIG удалён в Phase 1.A (2026-05-10) — gambling по §6.2.3 Twitch Extension Guidelines.
+# См. COMPLIANCE_REWORK_PLAN.md §4 Phase 1.
 
 # ===== НАСТРОЙКИ TTS =====
 TTS_CONFIG = {

@@ -396,24 +396,9 @@ class Database:
             except Exception:
                 pass  # колонка уже есть
 
-            # Казино — настройки (джекпот и т.д.)
-            await db.execute("""
-                CREATE TABLE IF NOT EXISTS casino_settings (
-                    key TEXT PRIMARY KEY,
-                    value TEXT NOT NULL
-                )
-            """)
-            await db.execute(
-                "INSERT OR IGNORE INTO casino_settings (key, value) VALUES ('jackpot', '10000')"
-            )
-            # Ежедневные фриспины
-            await db.execute("""
-                CREATE TABLE IF NOT EXISTS free_spins_daily (
-                    username TEXT PRIMARY KEY,
-                    last_claim TEXT NOT NULL,
-                    spins_used INTEGER DEFAULT 0
-                )
-            """)
+            # casino_settings + free_spins_daily — удалены 2026-05-10 (Phase 1.A,
+            # gambling по §6.2.3 Twitch Extension Guidelines). DROP TABLE будет в M8.
+            # См. COMPLIANCE_REWORK_PLAN.md §4 Phase 1.
 
             # Дуэли — ELO и стрики
             await db.execute("""
@@ -450,7 +435,7 @@ class Database:
                 ('first_craft',      'Первый крафт',              'Скрафтил первый предмет',                  '🔨',   500),
                 ('first_duel_win',   'Первая победа в дуэли',     'Выиграл первую дуэль',                     '⚔️',   500),
                 ('first_rimworld_buy','Покупатель RimWorld',      'Купил первый предмет в RimWorld',          '🛒',   500),
-                ('first_casino',     'Удача новичка',             'Первый раз сыграл в казино',               '🎰',   300),
+                # 'first_casino' achievement удалён в Phase 1.A (2026-05-10) — casino вырезан
                 ('watch_10h',        '10 часов просмотра',        'Смотрел стримы суммарно 10 часов',         '⏱️',  2000),
                 ('watch_50h',        '50 часов просмотра',        'Смотрел стримы суммарно 50 часов',         '⌛',   8000),
                 ('watch_100h',       '100 часов просмотра',       'Смотрел стримы суммарно 100 часов',        '🏆',  20000),

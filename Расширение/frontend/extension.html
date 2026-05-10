@@ -54,18 +54,7 @@
     <!-- ===== БОТ ===== -->
     <div id="bot-tab" class="tab-content active">
         <div class="actions-grid">
-            <div class="action-card" data-action="casino">
-                <div class="action-icon">🎰</div>
-                <div class="action-title">Казино</div>
-                <div class="action-desc">Испытай удачу</div>
-                <div class="action-min">от 50💎</div>
-            </div>
-            <div class="action-card" data-action="slots">
-                <div class="action-icon">🎲</div>
-                <div class="action-title">Слоты</div>
-                <div class="action-desc">Крути барабаны</div>
-                <div class="action-min">от 50💎</div>
-            </div>
+            <!-- Casino + Slots action-cards удалены 2026-05-10 (Phase 1.A compliance rework) -->
             <div class="action-card" data-action="duels">
                 <div class="action-icon">⚔️</div>
                 <div class="action-title">Дуэли</div>
@@ -320,26 +309,7 @@
     </div>
 
     <!-- ===== МОДАЛКИ ===== -->
-    <div id="casino-modal" class="modal">
-        <div class="modal-content">
-            <h2>🎰 Казино</h2>
-            <div id="casino-result" style="display:none;margin-bottom:10px;background:#1a1a1c;border-radius:8px;"></div>
-            <div style="background:#2d2d2f;border-radius:8px;padding:10px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
-                <span style="color:#adadb8;font-size:12px;">Твой баланс:</span>
-                <span style="font-size:18px;font-weight:800;color:#9147ff;" id="casino-balance">0</span>
-            </div>
-            <input type="number" id="bet-amount" class="modal-input" placeholder="Сумма ставки" min="50">
-            <div class="quick-bets">
-                <button class="quick-bet" data-bet="50">50💎</button>
-                <button class="quick-bet" data-bet="100">100💎</button>
-                <button class="quick-bet" data-bet="250">250💎</button>
-                <button class="quick-bet" data-bet="500">500💎</button>
-            </div>
-            <div id="bet-warning" style="color:#f87171;font-size:11px;margin-bottom:6px;display:none;">⚠️ Сумма превышает твой баланс!</div>
-            <button class="modal-btn" id="casino-bet-btn">Сделать ставку</button>
-            <button class="modal-btn cancel" data-close-modal>Отмена</button>
-        </div>
-    </div>
+    <!-- casino-modal удалён 2026-05-10 (Phase 1.A compliance rework) -->
 
     <div id="colonist-modal" class="modal">
         <div class="modal-content">
@@ -366,7 +336,7 @@
     <script src="market.js?v=20260418"></script>
     <script src="pawn.js?v=20260418"></script>
     <script src="shop.js?v=20260418"></script>
-    <script src="casino.js?v=20260418"></script>
+    <!-- casino.js удалён 2026-05-10 (Phase 1.A compliance rework) -->
     <script src="family.js?v=20260418"></script>
     <script src="duels.js?v=20260418"></script>
     <script src="xenotype.js?v=20260418"></script>
@@ -375,84 +345,7 @@
 </div><!-- /overlay-panel -->
 
 
-    <!-- ===== СЛОТ-МАШИНА ===== -->
-    <div id="slots-modal" class="modal">
-        <div class="modal-content" style="max-width:320px;">
-            <h2 style="display:flex;align-items:center;justify-content:center;gap:8px;">
-                🎲 Слоты
-                <button id="slots-help-btn" type="button"
-                        style="background:#2d2d2f;border:1px solid #3a3a3e;border-radius:50%;width:24px;height:24px;color:#adadb8;font-size:13px;font-weight:700;cursor:pointer;line-height:1;"
-                        title="Таблица выплат">?</button>
-            </h2>
-
-            <!-- Текущий джекпот (растёт на 2% с каждой ставки) -->
-            <div id="slots-jackpot-display"
-                 style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:linear-gradient(90deg,#3a2c08,#1a1a1c);border:1px solid #fbbf2466;border-radius:8px;padding:8px 12px;margin-bottom:10px;">
-                <span style="font-size:12px;color:#adadb8;">🎰 Джекпот сейчас:</span>
-                <span id="slots-jackpot-value"
-                      style="font-size:18px;font-weight:800;color:#fbbf24;text-shadow:0 0 6px rgba(251,191,36,0.4);">—</span>
-            </div>
-
-            <!-- Таблица выплат (скрыта по умолчанию) -->
-            <div id="slots-help-panel" style="display:none;background:#1a1a1c;border-radius:8px;padding:10px;margin-bottom:10px;font-size:11px;color:#d4d4d8;">
-                <div style="font-weight:700;color:#9147ff;margin-bottom:6px;">💎 Выплаты (RTP ≈ 92%)</div>
-                <div style="display:grid;grid-template-columns:1fr auto;gap:3px 10px;">
-                    <span>👑👑👑 три короны</span>                   <span style="color:#fbbf24;font-weight:700;">ДЖЕКПОТ</span>
-                    <span>🔮🔮🔮 три амулета</span>                   <span style="color:#4ade80;">×75</span>
-                    <span>🪨🪨🪨 три камня</span>                     <span style="color:#4ade80;">×25</span>
-                    <span>🪵🪵🪵 три деревяшки</span>                 <span style="color:#f87171;">×0</span>
-                    <span>👑👑 + другое</span>                       <span style="color:#4ade80;">×4</span>
-                    <span>🔮🔮 + другое</span>                       <span style="color:#4ade80;">×3</span>
-                    <span>🪨🪨 / 🪵🪵 + другое</span>                 <span style="color:#fbbf24;">возврат 10%</span>
-                    <span>всё разное</span>                          <span style="color:#f87171;">-ставка</span>
-                </div>
-                <div style="margin-top:8px;padding-top:6px;border-top:1px solid #2d2d2f;color:#8b8b94;font-size:10px;line-height:1.4;">
-                    Шансы на барабан: 🪵 55% · 🪨 25% · 🔮 15% · 👑 5%.<br>
-                    2% каждой ставки уходит в джекпот.
-                </div>
-            </div>
-
-            <!-- Барабаны -->
-            <div id="slots-machine" style="display:flex;gap:8px;justify-content:center;margin-bottom:16px;">
-                <div class="slot-reel-wrap">
-                    <div class="slot-reel" id="reel-0">
-                        <div class="slot-cell">🪵</div>
-                    </div>
-                </div>
-                <div class="slot-reel-wrap">
-                    <div class="slot-reel" id="reel-1">
-                        <div class="slot-cell">🪵</div>
-                    </div>
-                </div>
-                <div class="slot-reel-wrap">
-                    <div class="slot-reel" id="reel-2">
-                        <div class="slot-cell">🪵</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Результат -->
-            <div id="slots-result" style="visibility:hidden; opacity:0; min-height:50px; padding:12px; background:#1a1a1c; border-radius:8px; margin-bottom:12px; transition: opacity 0.2s ease;"></div>
-
-            <!-- Баланс -->
-            <div style="background:#2d2d2f;border-radius:8px;padding:10px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
-                <span style="color:#adadb8;font-size:12px;">Твой баланс:</span>
-                <span style="font-size:18px;font-weight:800;color:#9147ff;" id="slots-balance">0</span>
-            </div>
-
-            <input type="number" id="slots-bet-amount" class="modal-input" placeholder="Сумма ставки" min="50">
-            <div class="quick-bets">
-                <button class="quick-bet" data-slots-bet="50">50💎</button>
-                <button class="quick-bet" data-slots-bet="100">100💎</button>
-                <button class="quick-bet" data-slots-bet="250">250💎</button>
-                <button class="quick-bet" data-slots-bet="500">500💎</button>
-            </div>
-            <div id="slots-bet-warning" style="color:#f87171;font-size:11px;margin-bottom:6px;display:none;">⚠️ Сумма превышает твой баланс!</div>
-
-            <button class="modal-btn" id="slots-spin-btn">🎲 Крутить!</button>
-            <button class="modal-btn cancel" data-close-modal>Отмена</button>
-        </div>
-    </div>
+    <!-- slots-modal целиком удалён 2026-05-10 (Phase 1.A compliance rework — gambling) -->
 
 </body>
 </html>

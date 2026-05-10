@@ -37,7 +37,7 @@ from config import (
     DEV_MODE,
     DEV_USERNAME,
     ECONOMY_CONFIG,
-    FAMILY_CONFIG,
+    # FAMILY_CONFIG удалён 2026-05-10 (Phase 1.G — financial pool removed)
     LOGIN_ATTEMPT_TTL,
     POINTS_PER_MINUTE,
     QUEST_ORDER,
@@ -230,59 +230,11 @@ bot.on_drop = _on_drop_handler
 from dependencies import set_overlay_drop  # noqa: E402
 
 # ===== СЕМЬЯ =====
-
-async def run_family_income():
-    """Фоновая задача: начисляет бонус на семейный счёт когда оба онлайн (таблица marriages).
-
-    Multi-tenant safe: пара (channel_id, username) формирует ключ — один и тот же
-    ник на разных каналах считается разными зрителями. JOIN тянет channel_id из
-    marriages и проверяет что оба user1/user2 онлайн на ТОМ ЖЕ канале.
-
-    Bug 4 fix (2026-05-10): is_stream_live проверяется per-channel —
-    бонусят только пары с того канала, где идёт стрим. Раньше один
-    глобальный _is_stream_live() гейтил всех — после регистрации 2-го
-    стримера семья на офлайн-канале либо получала бонус "за чужой стрим",
-    либо застревала без бонуса даже когда их канал был live.
-    """
-    while True:
-        await asyncio.sleep(60)
-        try:
-            channels = await db.list_channels()
-            live_channel_ids = set()
-            for ch in channels:
-                try:
-                    if await bot._is_stream_live(
-                        channel_id=ch["channel_id"],
-                        login=(ch.get("login") or "").lower().strip(),
-                    ):
-                        live_channel_ids.add(ch["channel_id"])
-                except Exception:
-                    pass
-            if not live_channel_ids:
-                continue
-            async with db._connect() as conn:
-                # Берём online только с live-каналов
-                placeholders = ",".join("?" * len(live_channel_ids))
-                cursor = await conn.execute(f"""
-                    SELECT channel_id, username FROM viewers
-                    WHERE last_seen > datetime('now', '-10 minutes')
-                      AND channel_id IN ({placeholders})
-                """, tuple(live_channel_ids))
-                online = {(r[0], r[1]) for r in await cursor.fetchall()}
-
-                cursor2 = await conn.execute(
-                    f"SELECT id, channel_id, user1, user2 FROM marriages "
-                    f"WHERE divorced_at IS NULL AND channel_id IN ({placeholders})",
-                    tuple(live_channel_ids),
-                )
-                for mid, m_channel_id, u1, u2 in await cursor2.fetchall():
-                    if (m_channel_id, u1) in online and (m_channel_id, u2) in online:
-                        await conn.execute(
-                            "UPDATE marriages SET family_balance = family_balance + ? WHERE id = ?",
-                            (FAMILY_CONFIG['bonus_per_min'], mid))
-                await conn.commit()
-        except Exception as e:
-            print(f"family_income error: {e}")
+# run_family_income() удалён 2026-05-10 (Phase 1.G compliance rework).
+# Раньше начислял +15💎/мин на family_balance когда оба супруга онлайн —
+# это shared currency pool с P2P withdraw, де-факто P2P transfer (серая
+# зона 2 в COMPLIANCE_REWORK_PLAN.md). Marriage остаётся как чисто social
+# механика: статус, partner, эмодзи в чате/overlay.
 
 
 from routes.misc import get_twitch_app_token  # noqa: E402
@@ -994,7 +946,7 @@ async def on_startup():
     # event_ready() флашит один раз, но если что-то поставилось позже (гонка
     # или transient disconnect), этот цикл каждые 15с добивает хвост.
     asyncio.create_task(bot.pending_chat_flush_loop())
-    asyncio.create_task(run_family_income())
+    # run_family_income() удалён 2026-05-10 (Phase 1.G compliance rework)
     asyncio.create_task(register_eventsub_channel_points())
     # M4 follow-up (б): держим OAuth-токены стримеров свежими.
     from routes.streamer import oauth_refresh_loop as _oauth_refresh_loop

@@ -474,10 +474,10 @@ ECONOMY_CONFIG = {
 
 # ===== НАСТРОЙКИ СЕМЬИ =====
 FAMILY_CONFIG = {
-    'income_per_min': 50,            # Базовый доход пары без предметов
-    'bonus_per_min': 15,            # Бонус к доходу за семью
-    'marriage_cost': 200,           # Стоимость создания пешки / вступления в брак
-    'divorce_cost': 500,            # Стоимость развода
+    # 'income_per_min' / 'bonus_per_min' удалены 2026-05-10 (Phase 1.G compliance
+    # rework — financial pool вырезан, marriage теперь чисто social).
+    # 'marriage_cost' тоже удалён (был не используется в коде).
+    'divorce_cost': 500,            # Sink крустиков, гейт от случайных разводов
 }
 
 # ===== НАСТРОЙКИ RIMWORLD =====

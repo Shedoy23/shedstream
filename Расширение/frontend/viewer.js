@@ -185,7 +185,7 @@ function setupCspSafeHandlers() {
         else if (action === 'family') openFamily();
         else if (action === 'refresh-shop-catalog') loadShopCatalog();
         else if (action === 'close-modal') closeModal();
-        else if (action === 'withdraw-family') withdrawFamily();
+        // 'withdraw-family' action удалён 2026-05-10 (Phase 1.G compliance rework)
         else if (action === 'divorce-family') divorceFamily();
         else if (action === 'propose-family') proposeFamily();
         else if (action === 'create-duel') createDuel();

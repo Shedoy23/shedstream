@@ -14,32 +14,13 @@ async function openFamily() {
         const content = document.getElementById('family-content');
         
         if (data.married) {
-            // Уже в браке
-            let proposals = [];
-            try {
-                const pr = await fetch(`${API_URL}/api/marriage/proposals/${encodeURIComponent(userLogin)}`);
-                const pd = await pr.json();
-                proposals = Array.isArray(pd.proposals) ? pd.proposals : [];
-            } catch (e) { console.warn('[family] proposals fetch failed:', e); }
-
+            // Уже в браке. Phase 1.G (2026-05-10): family_balance + withdraw
+            // удалены, marriage теперь чисто social.
             content.innerHTML = `
                 <div style="text-align:center;padding:10px 0;">
                     <div style="font-size:32px;margin-bottom:8px;">💑</div>
                     <div style="font-size:15px;font-weight:700;">Ты в браке с <span style="color:#f72585;">${escapeHtml(data.partner)}</span></div>
-                    <div style="background:#2d2d2f;border-radius:10px;padding:12px;margin:12px 0;">
-                        <div style="color:#adadb8;font-size:12px;">💰 Семейный счёт</div>
-                        <div style="font-size:20px;font-weight:900;color:#ffd700;">${data.balance}💎</div>
-                        <div style="color:#adadb8;font-size:11px;">+${data.bonus_per_min}/мин бонус</div>
-                    </div>
-                    <button class="modal-btn" data-action="withdraw-family">💸 Вывести на личный счёт</button>
-                    <button class="modal-btn" style="background:#3a1a1a;color:#f87171;border:1px solid #f87171;margin-top:8px;" data-action="divorce-family">💔 Развестись</button>
-                    ${proposals.length ? `<div style="margin-top:12px;background:#2d2d2f;padding:8px;border-radius:6px;">
-                        <div style="font-size:11px;color:#adadb8;margin-bottom:5px;">💌 Входящие предложения:</div>
-                        ${proposals.map(u => `<div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-                            <span style="font-size:12px;">@${escapeHtml(u)}</span>
-                            <button class="modal-btn" style="padding:2px 8px;font-size:10px;margin:0;" data-accept-family="${encodeURIComponent(u)}">Принять</button>
-                        </div>`).join('')}
-                    </div>` : ''}
+                    <button class="modal-btn" style="background:#3a1a1a;color:#f87171;border:1px solid #f87171;margin-top:12px;" data-action="divorce-family">💔 Развестись</button>
                 </div>`;
         } else {
             // Нет пары — проверяем входящие предложения
@@ -63,7 +44,7 @@ async function openFamily() {
                             <button class="modal-btn" style="padding:4px 10px;font-size:11px;margin:0;" data-accept-family="${encodeURIComponent(u)}">Принять</button>
                         </div>`).join('')}
                     </div>` : ''}
-                    <div style="font-size:11px;color:#adadb8;margin-bottom:12px;">Когда оба смотрят стрим — счёт пополняется.</div>
+                    <div style="font-size:11px;color:#adadb8;margin-bottom:12px;">Брак — это статус и социальная связь.</div>
                     <select id="family-target" class="modal-input" style="margin-bottom:10px;">
                         <option value="">— выбери зрителя —</option>${opts}
                     </select>
@@ -101,18 +82,10 @@ window.acceptFamilyProposal = async function(fromUser) {
     } catch { showNotification('❌ Ошибка', 'error'); }
 };
 
-window.withdrawFamily = async function() {
-    try {
-        const r = await fetch(`${API_URL}/api/marriage/withdraw`, {
-            method: 'POST', headers: {'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || ''},
-            body: JSON.stringify({ username: userLogin })
-        });
-        openFamily(); loadUserData();
-    } catch { showNotification('❌ Ошибка вывода', 'error'); }
-};
+// withdrawFamily удалён 2026-05-10 (Phase 1.G compliance rework)
 
 window.divorceFamily = async function() {
-    showConfirm('💔 Развод', 'Счёт будет разделён. Продолжить?', async () => {
+    showConfirm('💔 Развод', 'Подача заявления стоит 500💎. Продолжить?', async () => {
         try {
             const r = await fetch(`${API_URL}/api/marriage/divorce`, {
                 method: 'POST', headers: {'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || ''},

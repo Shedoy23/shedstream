@@ -859,7 +859,7 @@ function bindMobileActionHandlers() {
     else if (action === 'reset-passion') resetPassion(actionEl.dataset.defName || '', parseInt(actionEl.dataset.price || '0', 10));
     else if (action === 'buy-event') buyEvent(actionEl.dataset.eventId || '', parseInt(actionEl.dataset.cost || '0', 10));
     else if (action === 'accept-duel') acceptDuel(actionEl.dataset.duelId || '');
-    else if (action === 'withdraw-family') withdrawFamily();
+    // 'withdraw-family' action удалён 2026-05-10 (Phase 1.G compliance rework)
     else if (action === 'divorce-family') divorceFamily();
     else if (action === 'accept-marriage') acceptMarriage();
     else if (action === 'propose-marriage') proposeMarriage();
@@ -2501,7 +2501,7 @@ async function loadFamily() {
 
           <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Семейный счёт: <b style="color:var(--gold)">${fmtNum(d.balance)} 💎</b></div>
 
-          <button class="btn-primary" data-action="withdraw-family" style="margin-bottom:8px">💸 Вывести на счёт</button>
+          <!-- withdraw-family кнопка удалена 2026-05-10 (Phase 1.G compliance rework) -->
           <button class="btn-primary danger" data-action="divorce-family">💔 Развод (500 💎)</button>
         </div>`;
 

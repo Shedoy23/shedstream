@@ -421,6 +421,17 @@ async def run_migrations():
             print(f"❌ M7 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M8: compliance cleanup (Phase 1 of COMPLIANCE_REWORK_PLAN.md) ──
+        # DROP TABLE casino_settings, free_spins_daily, craft_stats, market_listings
+        # REFUND pending_duels.amount → creator + DROP COLUMN
+        # REFUND marriages.family_balance → user1/user2 50/50 + DROP COLUMN
+        try:
+            from migrations import m8_compliance_cleanup
+            await m8_compliance_cleanup.apply(conn)
+        except Exception as e:
+            print(f"❌ M8 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

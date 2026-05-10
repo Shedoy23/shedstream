@@ -199,56 +199,7 @@ async function acceptDuel(duelId) {
     _openAcceptModal(duelId, '?');
 }
 
-// ===== ПЕРЕВОД ОЧКОВ =====
-function transferPoints() {
-    const modal = document.createElement('div');
-    modal.className = 'modal active';
-    modal.id = 'transfer-modal';
-    modal.innerHTML = `
-        <div class="modal-content">
-            <h2>💸 Перевод очков</h2>
-            <select id="transfer-target" class="modal-input"><option value="">Загрузка...</option></select>
-            <input type="number" id="transfer-amount" class="modal-input" placeholder="Сумма (мин. 10)" min="10">
-            <button class="modal-btn" data-action="transfer-points">Перевести</button>
-            <button class="modal-btn cancel" data-action="close-modal">Отмена</button>
-        </div>
-    `;
-    (document.getElementById("overlay-panel") || document.body).appendChild(modal);
-    buildUserSelect('transfer-target', 'Выбери получателя');
-}
-
-async function doTransfer() {
-    const target = document.getElementById('transfer-target')?.value;
-    const amount = parseInt(document.getElementById('transfer-amount')?.value);
-    
-    if (!target || !amount) {
-        showNotification('❌ Заполни все поля!', 'error');
-        return;
-    }
-    
-    if (amount < 10) {
-        showNotification('❌ Минимальная сумма 10💎', 'error');
-        return;
-    }
-    
-    try {
-        const response = await fetch(`${API_URL}/api/points/transfer`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || '' },
-            body: JSON.stringify({ sender: userLogin, receiver: target, amount: amount })
-        });
-        
-        const data = await response.json();
-        showNotification(data.message, data.success ? 'success' : 'error');
-        if (data.success) {
-            closeModal();
-            loadUserData();
-        }
-    } catch (e) {
-        showNotification('❌ Ошибка перевода', 'error');
-    }
-}
-
+// transferPoints + doTransfer удалены 2026-05-10 (Phase 1.D compliance rework — P2P transfer)
 
 
 // ===== КСЕНОТИП =====

@@ -1,32 +1,28 @@
 """
-routes/misc.py — перевод очков, донаты, OBS-оверлей, резолв Twitch ID.
+routes/misc.py — OBS-оверлей, резолв Twitch ID.
+
+Phase 1.D (2026-05-10): /api/points/transfer + /api/donate удалены
+как несовместимые с Twitch Extension Guidelines:
+  - transfer: P2P внутренней валюты (серая зона 1, conservative removal)
+  - donate: прямая конвертация ₽→крустики (§5.2 + §5.4 + 2026-Bits-tightening)
 """
-import asyncio
 import base64 as _base64
 import os
-import random
 
 import aiohttp
 import jwt
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Request
 
 from auth import verify_twitch_jwt
-from config import ECONOMY_CONFIG, sanitize_username, validate_username
+from config import sanitize_username, validate_username
 from dependencies import (
     cache_twitch_login,
-    get_bot,
     get_db,
     get_overlay_state,
-    require_admin,
     require_jwt_user,
-    require_stream_live,
-    set_overlay_donate,
 )
-from models import TransferRequest
 
 router = APIRouter()
-
-_AUTH_FAIL = {"success": False, "message": "❌ Требуется авторизация Twitch — открой расширение и войди"}
 
 # ── Twitch ID cache ───────────────────────────────────────────────────────────
 _twitch_app_token:    str   = None
@@ -56,121 +52,16 @@ async def get_twitch_app_token() -> str:
 
 
 # ── Points transfer ───────────────────────────────────────────────────────────
-
-@router.post("/api/points/transfer")
-async def transfer_points(request: Request, body: TransferRequest):
-    """Перевести очки другому зрителю. Sender берётся из JWT-токена."""
-    if err := await require_stream_live():
-        return err
-
-    auth = require_jwt_user(request)
-    if not auth:
-        return _AUTH_FAIL
-    sender, channel_id = auth
-
-    receiver = sanitize_username(body.receiver)
-    if not receiver or not validate_username(receiver):
-        return {"success": False, "message": "❌ Неверный получатель"}
-    if sender == receiver:
-        return {"success": False, "message": "Нельзя переводить самому себе"}
-    if body.amount < ECONOMY_CONFIG["min_transfer"]:
-        return {"success": False, "message": f"Минимальная сумма {ECONOMY_CONFIG['min_transfer']}💎"}
-
-    await get_bot().touch_viewer(sender)
-
-    db             = get_db()
-    sender_points  = await db.get_points(sender)
-    if sender_points is None:
-        return {"success": False, "message": "❌ Отправитель не найден"}
-    if sender_points < body.amount:
-        return {"success": False, "message": f"У тебя только {sender_points}💎"}
-
-    receiver_points = await db.get_points(receiver)
-    if receiver_points is None:
-        return {"success": False, "message": "Получатель не найден"}
-
-    if not await db.remove_points(sender, body.amount):
-        return {"success": False, "message": "Баланс изменился — попробуй ещё раз"}
-    await db.add_points(receiver, body.amount)
-    return {"success": True, "message": f"✅ Переведено {body.amount}💎 пользователю @{receiver}"}
-
+# /api/points/transfer удалён 2026-05-10 (Phase 1.D compliance rework — серая зона
+# 1: P2P transfer extension currency, дух 2026-Bits-tightening против off-platform
+# value exchange / proxy-for-money). См. COMPLIANCE_REWORK_PLAN.md §4 Phase 1.
 
 # ── Donate ────────────────────────────────────────────────────────────────────
-
-@router.post("/api/donate")
-async def handle_donate(request: Request, _admin: str = Depends(require_admin)):
-    """Принимает донат и выдаёт очки (1 руб = 50 очков) + предмет если сумма >= 50 руб"""
-    from datetime import datetime
-
-    data       = await request.json()
-    username   = sanitize_username(data.get("username", ""))
-    amount_rub = float(data.get("amount_rub", 0))
-    if not username or amount_rub <= 0:
-        return {"success": False, "message": "Неверные параметры"}
-
-    POINTS_PER_RUB = ECONOMY_CONFIG["points_per_rub"]
-    points = int(amount_rub * POINTS_PER_RUB)
-    db     = get_db()
-    await db.add_points(username, points)
-
-    gift_item = None
-    if amount_rub >= ECONOMY_CONFIG["donation_item_threshold"]:
-        if amount_rub >= 1000:
-            items = [("корона", 100, "Корона 👑")]
-        elif amount_rub >= 500:
-            items = [("амулет", 70, "Амулет 🔮"), ("корона", 30, "Корона 👑")]
-        elif amount_rub >= 250:
-            items = [("камень", 40, "Камень 🪨"), ("амулет", 45, "Амулет 🔮"), ("корона", 15, "Корона 👑")]
-        else:
-            items = [
-                ("деревяшка", 60, "Деревяшка 🪵"),
-                ("камень",    28, "Камень 🪨"),
-                ("амулет",     9, "Амулет 🔮"),
-                ("корона",     3, "Корона 👑"),
-            ]
-        selected     = random.choices(items, weights=[i[1] for i in items])[0]
-        item_name    = selected[0]
-        display_name = selected[2]
-        await db.give_item(username, item_name)
-        gift_item = display_name
-        print(f"🎁 Донат {amount_rub}₽ → выдан предмет: {display_name} (@{username})")
-
-    try:
-        bot = get_bot()
-        async with db._connect() as conn:
-            await conn.execute(
-                "INSERT INTO event_pool (username, amount, donated_at) VALUES (?, ?, datetime('now'))",
-                (username, amount_rub))
-            await conn.commit()
-        bot.event_manager.donation_total += amount_rub
-    except Exception as e:
-        print(f"Ошибка обновления рулекциона: {e}")
-
-    msg = f"💰 Донат {amount_rub}₽ принят! +{points}💎"
-    if gift_item:
-        msg += f" и {gift_item} в инвентарь!"
-
-    set_overlay_donate({
-        "username":   username,
-        "amount_rub": amount_rub,
-        "points":     points,
-        "gift":       gift_item,
-        "ts":         datetime.now().isoformat(),
-    })
-
-    # Чат-оповещение про донат от 100₽. Шлём всегда, чтобы стример мог поблагодарить
-    # вслух, и чтобы другие видели что поддержка работает. Ниже 100₽ — шум.
-    if amount_rub >= 100:
-        try:
-            gift_part = f" + {gift_item}" if gift_item else ""
-            asyncio.create_task(get_bot().send_message(
-                f"💎✨ СПАСИБО @{username} за донат {amount_rub:g}₽! "
-                f"+{points:,}💎{gift_part}. Копилка рулекциона пополнена!"
-            ))
-        except Exception as e:
-            print(f"donate chat error: {e}")
-
-    return {"success": True, "points": points, "gift": gift_item, "message": msg}
+# /api/donate удалён 2026-05-10 (Phase 1.D compliance rework — прямое нарушение
+# §5.2 (items за money/commerce instruments), §5.4 (commerce instruments for
+# donations), §4.5 (off-Twitch action incentivisation), 2026-Bits-tightening.
+# Конвертация ₽ → крустики + рандомный предмет — всё под нож разом.
+# См. COMPLIANCE_REWORK_PLAN.md §4 Phase 1.
 
 
 # ── Overlay ───────────────────────────────────────────────────────────────────

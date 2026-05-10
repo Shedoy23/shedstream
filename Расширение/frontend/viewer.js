@@ -181,7 +181,7 @@ function setupCspSafeHandlers() {
         // 'casino' / 'slots' actions удалены 2026-05-10 (Phase 1.A compliance rework)
         if (action === 'duels') openDuels();
         else if (action === 'advertisement') openAdvertisement();
-        else if (action === 'transfer') transferPoints();
+        // 'transfer' action удалён 2026-05-10 (Phase 1.D compliance rework — P2P transfer)
         else if (action === 'family') openFamily();
         else if (action === 'refresh-shop-catalog') loadShopCatalog();
         else if (action === 'close-modal') closeModal();
@@ -189,7 +189,7 @@ function setupCspSafeHandlers() {
         else if (action === 'divorce-family') divorceFamily();
         else if (action === 'propose-family') proposeFamily();
         else if (action === 'create-duel') createDuel();
-        else if (action === 'transfer-points') doTransfer();
+        // 'transfer-points' action удалён 2026-05-10 (Phase 1.D compliance rework)
         else if (action === 'toggle-next') {
             const host = actionEl.closest('div');
             const details = host ? host.nextElementSibling : null;

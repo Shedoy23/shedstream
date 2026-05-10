@@ -838,7 +838,7 @@ function bindMobileActionHandlers() {
 
     if (action === 'use-promo') usePromo();
     // set-bet / place-bet / set-slots-bet / spin-slots удалены 2026-05-10 (Phase 1.A compliance rework)
-    else if (action === 'transfer-points') transferPoints();
+    // 'transfer-points' action удалён 2026-05-10 (Phase 1.D compliance rework)
     else if (action === 'create-duel') createDuel();
     else if (action === 'place-bid') placeBid();
     else if (action === 'contribute-pool') contributePool();

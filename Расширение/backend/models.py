@@ -48,10 +48,7 @@ class AcceptDuelRequest(BaseModel):
     username: str
     move: Literal["rock", "scissors", "paper"]
 
-class TransferRequest(BaseModel):
-    sender: str
-    receiver: str
-    amount: int = Field(..., gt=0)
+# TransferRequest удалён 2026-05-10 (Phase 1.D compliance rework — P2P transfer)
 
 class MarryRequest(BaseModel):
     user1: str

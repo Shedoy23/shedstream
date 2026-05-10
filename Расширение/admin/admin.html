@@ -1293,23 +1293,8 @@ async function deleteUser(username) {
 // DONATE
 // ═══════════════════════════════════════
 async function processDonation() {
-    const username = document.getElementById('donate-username').value.trim();
-    const amount = parseFloat(document.getElementById('donate-amount').value);
-
-    if (!username || !amount || amount <= 0) {
-        toast('❌ Заполни ник и сумму', 'error');
-        return;
-    }
-
-    const data = await apiPost('/api/donate', { username, amount_rub: amount },
-        `💰 Донат ${amount}₽ зачислен @${username}`);
-
-    if (data && data.success) {
-        addLog(`💸 ${username} задонатил ${amount}₽ → +${data.points}💎 ${data.gift ? ' + ' + data.gift : ''}`, 'success');
-        document.getElementById('donate-username').value = '';
-        document.getElementById('donate-amount').value = '';
-        if (document.getElementById('page-dashboard').classList.contains('active')) loadStats();
-    }
+    // /api/donate удалён 2026-05-10 (Phase 1.D compliance rework — §5.2 + §5.4 + 2026-Bits-tightening)
+    toast('❌ Конвертация донатов в крустики удалена (compliance Twitch)', 'error');
 }
 
 // ═══════════════════════════════════════

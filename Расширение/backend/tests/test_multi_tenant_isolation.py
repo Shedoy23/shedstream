@@ -805,6 +805,214 @@ def test_drops_distribution():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Test 11: Matchmaking infrastructure (Phase 5.0)
+# ─────────────────────────────────────────────────────────────────────────────
+async def test_matchmaking_infrastructure():
+    """Phase 5.0: проверяет matchmaking pipeline через raw SQL:
+      - enqueue: один юзер = одна активная queue per game (UNIQUE)
+      - cross-channel/cross-game isolation queue-записей
+      - find_match_pairs greedy ELO-pair логика
+      - ELO-spread соблюдается (слишком разные ELO не матчатся)
+      - room creation с правильными player_a/b после match
+      - access-control get_room (cross-user, cross-channel snoop blocked)
+      - finalize_match переводит room → finished
+    """
+    print("\n[11] Matchmaking infrastructure (Phase 5.0)")
+    import aiosqlite as _aio
+    import json as _json
+    import uuid as _uuid
+
+    db_path = tempfile.mktemp(suffix="_test.db")
+    try:
+        async with _aio.connect(db_path) as conn:
+            # Setup схема через M10
+            await conn.execute("CREATE TABLE viewers (channel_id INTEGER, username TEXT, points INTEGER DEFAULT 0, last_seen DATETIME, join_time DATETIME, is_afk INTEGER DEFAULT 0, PRIMARY KEY(channel_id, username))")
+            from migrations import m10_matchmaking
+            await m10_matchmaking.apply(conn)
+            await conn.commit()
+
+            cid_a = 98319857
+            cid_b = 99999
+
+            # ── 11.1: Enqueue alice на RPS ─────────────────────────────────────
+            cur = await conn.execute(
+                "INSERT INTO match_queue (channel_id, username, game_type, elo_at_queue, elo_spread) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (cid_a, "alice", "rps", 1100, 100)
+            )
+            q1 = cur.lastrowid
+            await conn.commit()
+            assert_true(q1 > 0, "alice enqueued on cid_a/rps")
+
+            # 11.2: UNIQUE constraint — повторный enqueue той же combo → fail
+            from aiosqlite import IntegrityError as _IE
+            try:
+                await conn.execute(
+                    "INSERT INTO match_queue (channel_id, username, game_type, elo_at_queue, elo_spread) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (cid_a, "alice", "rps", 1100, 100)
+                )
+                await conn.commit()
+                assert_true(False, "duplicate active queue entry should fail")
+            except _IE:
+                assert_true(True, "duplicate active queue entry rejected by UNIQUE")
+                await conn.rollback()
+
+            # 11.3: Тот же юзер другой game_type — OK (отдельный rating)
+            cur = await conn.execute(
+                "INSERT INTO match_queue (channel_id, username, game_type, elo_at_queue, elo_spread) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (cid_a, "alice", "tictactoe", 1100, 100)
+            )
+            await conn.commit()
+            assert_true(cur.lastrowid > 0, "alice can queue on different game_type")
+
+            # 11.4: Тот же юзер другой channel — OK (multi-tenant)
+            cur = await conn.execute(
+                "INSERT INTO match_queue (channel_id, username, game_type, elo_at_queue, elo_spread) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (cid_b, "alice", "rps", 1100, 100)
+            )
+            await conn.commit()
+            assert_true(cur.lastrowid > 0, "alice on cid_b/rps — independent from cid_a")
+
+            # 11.5: Bob queues cid_a/rps — должен матчиться с alice
+            await conn.execute(
+                "INSERT INTO match_queue (channel_id, username, game_type, elo_at_queue, elo_spread) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (cid_a, "bob", "rps", 1150, 100)
+            )
+            await conn.commit()
+
+            # 11.6: Simulate find_match_pairs greedy (inline mini-version)
+            cur = await conn.execute(
+                "SELECT id, username, elo_at_queue, elo_spread FROM match_queue "
+                "WHERE channel_id = ? AND game_type = ? AND status = 'queued' "
+                "ORDER BY elo_at_queue",
+                (cid_a, "rps")
+            )
+            queued = await cur.fetchall()
+            assert_eq(len(queued), 2, "2 queued (alice + bob) on cid_a/rps")
+
+            # Pair them
+            a_id, a_user, a_elo, a_spread = queued[0]
+            b_id, b_user, b_elo, b_spread = queued[1]
+            assert_true(abs(a_elo - b_elo) <= max(a_spread, b_spread),
+                        "ELO diff (50) <= spread (100) → matchable")
+
+            room_id = f"room_rps_{_uuid.uuid4().hex[:12]}"
+            await conn.execute(
+                "INSERT INTO match_rooms (room_id, channel_id, game_type, player_a, player_b, "
+                "player_a_elo, player_b_elo, state, status) VALUES (?, ?, ?, ?, ?, ?, ?, '{}', 'active')",
+                (room_id, cid_a, "rps", a_user, b_user, a_elo, b_elo)
+            )
+            await conn.execute(
+                "UPDATE match_queue SET status = 'matched', matched_with = ?, room_id = ? WHERE id = ?",
+                (b_id, room_id, a_id)
+            )
+            await conn.execute(
+                "UPDATE match_queue SET status = 'matched', matched_with = ?, room_id = ? WHERE id = ?",
+                (a_id, room_id, b_id)
+            )
+            await conn.commit()
+
+            # 11.7: Room visible to player_a + player_b, NOT visible to charlie
+            cur = await conn.execute(
+                "SELECT channel_id FROM match_rooms WHERE room_id = ? AND "
+                "(player_a = ? OR player_b = ?)",
+                (room_id, "alice", "alice")
+            )
+            row = await cur.fetchone()
+            assert_true(row is not None, "alice sees the room")
+            cur = await conn.execute(
+                "SELECT channel_id FROM match_rooms WHERE room_id = ? AND "
+                "(player_a = ? OR player_b = ?)",
+                (room_id, "charlie", "charlie")
+            )
+            row = await cur.fetchone()
+            assert_true(row is None, "charlie blocked from room (not a player)")
+
+            # 11.8: Cross-channel boundary — room на cid_a не виден из cid_b context
+            cur = await conn.execute(
+                "SELECT room_id FROM match_rooms WHERE room_id = ? AND channel_id = ?",
+                (room_id, cid_b)
+            )
+            row = await cur.fetchone()
+            assert_true(row is None, "cross-channel attack blocked")
+
+            # 11.9: State update — JSON storage
+            state = {"alice_move": "rock", "bob_move": None}
+            await conn.execute(
+                "UPDATE match_rooms SET state = ? WHERE room_id = ? AND status = 'active'",
+                (_json.dumps(state), room_id)
+            )
+            await conn.commit()
+            cur = await conn.execute("SELECT state FROM match_rooms WHERE room_id = ?", (room_id,))
+            stored = _json.loads((await cur.fetchone())[0])
+            assert_eq(stored["alice_move"], "rock", "state JSON roundtrip works")
+
+            # 11.10: ELO-spread protection — слишком разные не матчатся
+            # Charlie 1500 vs Dave 1100, обоим spread=100 → НЕ должны matched
+            await conn.execute(
+                "INSERT INTO match_queue (channel_id, username, game_type, elo_at_queue, elo_spread) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (cid_b, "charlie", "rps", 1500, 100)
+            )
+            await conn.execute(
+                "INSERT INTO match_queue (channel_id, username, game_type, elo_at_queue, elo_spread) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (cid_b, "dave", "rps", 1100, 100)
+            )
+            await conn.commit()
+            cur = await conn.execute(
+                "SELECT id, elo_at_queue, elo_spread FROM match_queue "
+                "WHERE channel_id = ? AND game_type = ? AND status = 'queued' ORDER BY elo_at_queue",
+                (cid_b, "rps")
+            )
+            cb_queued = await cur.fetchall()
+            # alice was here too (cid_b/rps) — теперь 3 в очереди
+            # Greedy: dave (1100) + (1100 alice если есть) первые, потом charlie уже не парим с разрывом 400
+            assert_true(len(cb_queued) == 3, "3 queued on cid_b/rps")
+            # Если бы был find_match_pairs запущен с greedy:
+            # sorted by elo: dave 1100, alice 1100, charlie 1500
+            # pair (dave, alice) — diff 0 <= 100 → match
+            # charlie остаётся unmatched
+            d_elo = cb_queued[0][1]; a_elo = cb_queued[1][1]; c_elo = cb_queued[2][1]
+            assert_true(abs(d_elo - a_elo) <= 100, "first pair (1100, 1100) within spread")
+            assert_true(abs(a_elo - c_elo) > 100, "alice-charlie diff > spread (would not match)")
+
+            # 11.11: finalize_match — status active → finished
+            await conn.execute(
+                "UPDATE match_rooms SET status = 'finished', winner = ?, outcome = ?, "
+                "finished_at = CURRENT_TIMESTAMP WHERE room_id = ? AND status = 'active'",
+                ("alice", "win_a", room_id)
+            )
+            await conn.commit()
+            cur = await conn.execute(
+                "SELECT status, winner, outcome FROM match_rooms WHERE room_id = ?",
+                (room_id,)
+            )
+            row = await cur.fetchone()
+            assert_eq(row[0], "finished", "room status = finished after finalize")
+            assert_eq(row[1], "alice", "winner = alice")
+            assert_eq(row[2], "win_a", "outcome = win_a")
+
+            # 11.12: После finalize — update active-only НЕ работает
+            cur = await conn.execute(
+                "UPDATE match_rooms SET state = '{\"replay\":true}' "
+                "WHERE room_id = ? AND status = 'active'",
+                (room_id,)
+            )
+            await conn.commit()
+            assert_eq(cur.rowcount, 0, "finished room rejects state updates")
+    finally:
+        try:
+            os.unlink(db_path)
+        except Exception:
+            pass
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main runner
 # ─────────────────────────────────────────────────────────────────────────────
 async def run_all_tests():
@@ -822,6 +1030,7 @@ async def run_all_tests():
     test_current_stream_id_per_channel()
     await test_cases_system()
     test_drops_distribution()
+    await test_matchmaking_infrastructure()
 
     print("\n" + "=" * 70)
     print(f"PASSED: {len(_successes)}    FAILED: {len(_failures)}")

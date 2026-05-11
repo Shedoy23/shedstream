@@ -1427,6 +1427,387 @@ class Database:
             )
             return await cur.fetchone() is not None
 
+    # ===== MATCHMAKING (Phase 5.0, 2026-05-11) =====
+    # Generic multi-game matchmaking. Game-specific логика (RPS / TicTacToe / Dice)
+    # хранится в state JSON и обрабатывается в game-specific helpers либо
+    # в routes/match endpoints перед сохранением.
+
+    async def enqueue_match(
+        self,
+        username: str,
+        game_type: str,
+        elo_spread: int = 100,
+        channel_id: Optional[int] = None,
+    ) -> Dict:
+        """Поставить юзера в очередь matchmaking.
+
+        Защита от двойного enqueue: partial UNIQUE index uq_match_queue_active_user.
+        Если уже стоит — возвращает existing queue_id.
+
+        Returns:
+            {'enqueued': True, 'queue_id': N, 'elo_at_queue': M, 'game_type': X}
+            | {'enqueued': False, 'reason': 'already_queued', 'queue_id': N}
+            | {'enqueued': False, 'reason': 'in_active_room', 'room_id': X}
+        """
+        cid = resolve_channel_id(channel_id)
+        uname = username.lower()
+
+        async with self._connect() as conn:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+
+                # Уже в активном room? Не пускаем в очередь
+                cur = await conn.execute(
+                    "SELECT room_id FROM match_rooms "
+                    "WHERE channel_id = ? AND status = 'active' AND game_type = ? "
+                    "AND (player_a = ? OR player_b = ?) LIMIT 1",
+                    (cid, game_type, uname, uname)
+                )
+                room_row = await cur.fetchone()
+                if room_row:
+                    await conn.execute("ROLLBACK")
+                    return {'enqueued': False, 'reason': 'in_active_room', 'room_id': room_row[0]}
+
+                # Уже в очереди?
+                cur = await conn.execute(
+                    "SELECT id FROM match_queue "
+                    "WHERE channel_id = ? AND username = ? AND game_type = ? AND status = 'queued'",
+                    (cid, uname, game_type)
+                )
+                existing = await cur.fetchone()
+                if existing:
+                    await conn.execute("ROLLBACK")
+                    return {'enqueued': False, 'reason': 'already_queued', 'queue_id': existing[0]}
+
+                # Получаем текущий ELO юзера для этой игры (создаём если нет)
+                cur = await conn.execute(
+                    "SELECT elo FROM duel_stats "
+                    "WHERE channel_id = ? AND username = ? AND game_type = ?",
+                    (cid, uname, game_type)
+                )
+                elo_row = await cur.fetchone()
+                if elo_row:
+                    current_elo = elo_row[0]
+                else:
+                    current_elo = 1100  # ELO_START default
+
+                # Insert into queue
+                cur = await conn.execute(
+                    "INSERT INTO match_queue "
+                    "(channel_id, username, game_type, elo_at_queue, elo_spread) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (cid, uname, game_type, current_elo, elo_spread)
+                )
+                queue_id = cur.lastrowid
+                await conn.commit()
+
+                return {
+                    'enqueued': True,
+                    'queue_id': queue_id,
+                    'elo_at_queue': current_elo,
+                    'game_type': game_type,
+                }
+            except Exception:
+                await conn.execute("ROLLBACK")
+                raise
+
+    async def cancel_queue(
+        self,
+        username: str,
+        game_type: str,
+        channel_id: Optional[int] = None,
+    ) -> Dict:
+        """Юзер выходит из очереди.
+
+        Returns:
+            {'cancelled': True, 'queue_id': N} | {'cancelled': False, 'reason': 'not_queued'}
+        """
+        cid = resolve_channel_id(channel_id)
+        uname = username.lower()
+
+        async with self._connect() as conn:
+            cur = await conn.execute(
+                "UPDATE match_queue SET status = 'cancelled' "
+                "WHERE channel_id = ? AND username = ? AND game_type = ? AND status = 'queued' "
+                "RETURNING id",
+                (cid, uname, game_type)
+            )
+            row = await cur.fetchone()
+            await conn.commit()
+            if row:
+                return {'cancelled': True, 'queue_id': row[0]}
+            return {'cancelled': False, 'reason': 'not_queued'}
+
+    async def get_queue_status(
+        self,
+        username: str,
+        game_type: str,
+        channel_id: Optional[int] = None,
+    ) -> Dict:
+        """Текущий статус юзера в matchmaking-системе.
+
+        Returns:
+            {'status': 'queued', 'queue_id': N, 'queued_at': ..., 'elo_at_queue': M, 'queue_position': K}
+            | {'status': 'matched', 'room_id': X, 'opponent': Y}
+            | {'status': 'in_room', 'room_id': X, 'opponent': Y}
+            | {'status': 'idle'}
+        """
+        cid = resolve_channel_id(channel_id)
+        uname = username.lower()
+
+        async with self._connect() as conn:
+            # Активный room?
+            cur = await conn.execute(
+                "SELECT room_id, player_a, player_b FROM match_rooms "
+                "WHERE channel_id = ? AND status = 'active' AND game_type = ? "
+                "AND (player_a = ? OR player_b = ?) LIMIT 1",
+                (cid, game_type, uname, uname)
+            )
+            room_row = await cur.fetchone()
+            if room_row:
+                room_id, p_a, p_b = room_row
+                opponent = p_b if p_a == uname else p_a
+                return {'status': 'in_room', 'room_id': room_id, 'opponent': opponent}
+
+            # В очереди?
+            cur = await conn.execute(
+                "SELECT id, status, queued_at, elo_at_queue, room_id FROM match_queue "
+                "WHERE channel_id = ? AND username = ? AND game_type = ? "
+                "AND status IN ('queued', 'matched') ORDER BY queued_at DESC LIMIT 1",
+                (cid, uname, game_type)
+            )
+            q_row = await cur.fetchone()
+            if q_row:
+                q_id, status, q_at, elo, q_room = q_row
+                if status == 'matched' and q_room:
+                    return {'status': 'matched', 'room_id': q_room, 'queue_id': q_id}
+
+                # Считаем queue_position (сколько раньше тебя стоит)
+                cur = await conn.execute(
+                    "SELECT COUNT(*) FROM match_queue "
+                    "WHERE channel_id = ? AND game_type = ? AND status = 'queued' "
+                    "AND queued_at < ?",
+                    (cid, game_type, q_at)
+                )
+                position = (await cur.fetchone())[0] + 1
+                return {
+                    'status': 'queued',
+                    'queue_id': q_id,
+                    'queued_at': q_at,
+                    'elo_at_queue': elo,
+                    'queue_position': position,
+                }
+
+            return {'status': 'idle'}
+
+    async def find_match_pairs(
+        self,
+        channel_id: int,
+        game_type: str,
+    ) -> int:
+        """Атомарно матчит пары юзеров в очереди по близкому ELO внутри
+        (channel_id, game_type). Создаёт match_rooms для каждой пары,
+        переводит queue-записи в 'matched'.
+
+        Алгоритм:
+          1. SELECT queued users ORDER BY elo_at_queue (для greedy pairing)
+          2. Pair consecutive если abs(elo_a - elo_b) <= max(spread_a, spread_b)
+          3. Per pair: create room, update queue rows, link через matched_with/room_id
+
+        Returns:
+            int — количество созданных пар (rooms)
+        """
+        import uuid
+        async with self._connect() as conn:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+
+                cur = await conn.execute(
+                    "SELECT id, username, elo_at_queue, elo_spread FROM match_queue "
+                    "WHERE channel_id = ? AND game_type = ? AND status = 'queued' "
+                    "ORDER BY elo_at_queue, queued_at",
+                    (channel_id, game_type)
+                )
+                queued = await cur.fetchall()
+
+                if len(queued) < 2:
+                    await conn.execute("ROLLBACK")
+                    return 0
+
+                pairs_made = 0
+                i = 0
+                while i + 1 < len(queued):
+                    a = queued[i]
+                    b = queued[i + 1]
+                    a_id, a_user, a_elo, a_spread = a
+                    b_id, b_user, b_elo, b_spread = b
+
+                    # ELO-spread check: разница не больше чем max позволяет
+                    diff = abs(a_elo - b_elo)
+                    max_allowed = max(a_spread, b_spread)
+                    if diff > max_allowed:
+                        # Не матчим эту пару, пробуем следующего как левый
+                        i += 1
+                        continue
+
+                    # Создаём room
+                    room_id = f"room_{game_type}_{uuid.uuid4().hex[:12]}"
+                    await conn.execute(
+                        "INSERT INTO match_rooms "
+                        "(room_id, channel_id, game_type, player_a, player_b, "
+                        " player_a_elo, player_b_elo, state, status) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, '{}', 'active')",
+                        (room_id, channel_id, game_type, a_user, b_user, a_elo, b_elo)
+                    )
+
+                    # Update queue records
+                    await conn.execute(
+                        "UPDATE match_queue SET status = 'matched', matched_with = ?, "
+                        "room_id = ?, matched_at = CURRENT_TIMESTAMP WHERE id = ?",
+                        (b_id, room_id, a_id)
+                    )
+                    await conn.execute(
+                        "UPDATE match_queue SET status = 'matched', matched_with = ?, "
+                        "room_id = ?, matched_at = CURRENT_TIMESTAMP WHERE id = ?",
+                        (a_id, room_id, b_id)
+                    )
+
+                    pairs_made += 1
+                    i += 2
+
+                await conn.commit()
+                return pairs_made
+            except Exception:
+                await conn.execute("ROLLBACK")
+                raise
+
+    async def get_room(
+        self,
+        room_id: str,
+        username: Optional[str] = None,
+        channel_id: Optional[int] = None,
+    ) -> Optional[Dict]:
+        """Получить данные комнаты. Если username передан — проверяет
+        что юзер в этой комнате (защита от cross-user/channel snoop'а).
+
+        Returns:
+            {'room_id', 'channel_id', 'game_type', 'player_a/b', 'player_a/b_elo',
+             'state' (dict), 'status', 'winner', 'outcome', 'created_at',
+             'finished_at', 'opponent' (если username передан)}
+            | None если не найдена / не разрешена
+        """
+        import json
+        cid = resolve_channel_id(channel_id) if channel_id is not None else None
+        uname = username.lower() if username else None
+
+        async with self._connect() as conn:
+            cur = await conn.execute(
+                "SELECT room_id, channel_id, game_type, player_a, player_b, "
+                "player_a_elo, player_b_elo, state, status, winner, outcome, "
+                "created_at, finished_at FROM match_rooms WHERE room_id = ?",
+                (room_id,)
+            )
+            row = await cur.fetchone()
+
+        if not row:
+            return None
+
+        room = {
+            'room_id':      row[0],
+            'channel_id':   row[1],
+            'game_type':    row[2],
+            'player_a':     row[3],
+            'player_b':     row[4],
+            'player_a_elo': row[5],
+            'player_b_elo': row[6],
+            'state':        json.loads(row[7] or '{}'),
+            'status':       row[8],
+            'winner':       row[9],
+            'outcome':      row[10],
+            'created_at':   row[11],
+            'finished_at':  row[12],
+        }
+
+        # Access control
+        if cid is not None and room['channel_id'] != cid:
+            return None
+        if uname is not None:
+            if room['player_a'] != uname and room['player_b'] != uname:
+                return None
+            room['opponent'] = room['player_b'] if room['player_a'] == uname else room['player_a']
+            room['you_are'] = 'a' if room['player_a'] == uname else 'b'
+
+        return room
+
+    async def update_room_state(
+        self,
+        room_id: str,
+        new_state: Dict,
+        channel_id: Optional[int] = None,
+    ) -> bool:
+        """Атомарно обновить game-specific state комнаты (JSON). Только
+        для active комнат — finished/aborted больше не принимают updates.
+        """
+        import json
+        cid = resolve_channel_id(channel_id) if channel_id is not None else None
+
+        async with self._connect() as conn:
+            params = [json.dumps(new_state), room_id]
+            sql = "UPDATE match_rooms SET state = ? WHERE room_id = ? AND status = 'active'"
+            if cid is not None:
+                sql += " AND channel_id = ?"
+                params.append(cid)
+            cur = await conn.execute(sql, params)
+            await conn.commit()
+            return cur.rowcount > 0
+
+    async def finalize_match(
+        self,
+        room_id: str,
+        winner: Optional[str],
+        outcome: str,
+        channel_id: Optional[int] = None,
+    ) -> Dict:
+        """Завершить матч: проставить winner, outcome, finished_at.
+        Status переходит 'active' → 'finished'.
+
+        ELO update и chat-notification — на caller (game-specific logic).
+
+        Args:
+            winner: username | None для draw
+            outcome: 'win_a' | 'win_b' | 'draw' | 'timeout' | 'aborted'
+
+        Returns:
+            {'finalized': True, 'room_id': X, 'winner': Y, 'outcome': Z}
+            | {'finalized': False, 'reason': 'not_active' | 'not_found'}
+        """
+        cid = resolve_channel_id(channel_id) if channel_id is not None else None
+        valid_outcomes = {'win_a', 'win_b', 'draw', 'timeout', 'aborted'}
+        if outcome not in valid_outcomes:
+            return {'finalized': False, 'reason': 'invalid_outcome', 'outcome': outcome}
+
+        status_to_set = 'aborted' if outcome == 'aborted' else 'finished'
+
+        async with self._connect() as conn:
+            params = [status_to_set, winner.lower() if winner else None,
+                      outcome, room_id]
+            sql = ("UPDATE match_rooms SET status = ?, winner = ?, outcome = ?, "
+                   "finished_at = CURRENT_TIMESTAMP "
+                   "WHERE room_id = ? AND status = 'active'")
+            if cid is not None:
+                sql += " AND channel_id = ?"
+                params.append(cid)
+            cur = await conn.execute(sql, params)
+            await conn.commit()
+            if cur.rowcount > 0:
+                return {
+                    'finalized': True,
+                    'room_id': room_id,
+                    'winner': winner,
+                    'outcome': outcome,
+                }
+            return {'finalized': False, 'reason': 'not_active_or_not_found'}
+
     # ===== M4: CHANNELS REGISTRY =====
 
     async def get_channel(self, channel_id: int) -> Optional[Dict]:

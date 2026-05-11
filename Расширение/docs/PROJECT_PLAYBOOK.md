@@ -473,13 +473,34 @@ TIER_FEATURES = {
   - Без бустов накопления (Variant 2a)
   - Acceptance: race conditions защищены, balance атомарно списывается
 
-- 🟡 **Phase 5: Дуэли v2 (matchmaking)**
-  - Убрать ставки (уже сделано Phase 1.F), теперь добавить queue
-  - БД: ALTER pending_duels (`status`, `matched_with`, `room_id`) + миграция M12
-  - Backend: `matchmaking_loop()` каждые 5 сек ищет пары по близкому ELO
-  - Endpoints: `/queue`, `/queue/status`, `/room/{id}/move`, `/room/{id}/state`
-  - Frontend: переписать UI «Найти противника» вместо «Создать дуэль»
-  - Acceptance: ELO-spread соблюдается, нет deadlock'ов в очереди
+- 🟡 **Phase 5: Multi-game matchmaking infrastructure**
+  Расширяемая matchmaking-инфра поверх которой работают разные PvP-игры.
+  Каждая игра — собственная state-machine, общая queue/ELO/sезонная инфра.
+
+  **5.0 Base matchmaking** (1-2 sессии)
+    - Убрать ставки (уже сделано Phase 1.F), добавить queue
+    - БД: ALTER pending_duels (`status`, `matched_with`, `room_id`, `game_type`) + миграция M12
+    - Backend: `matchmaking_loop()` каждые 5 сек ищет пары по близкому ELO внутри одного game_type
+    - Endpoints: `/queue`, `/queue/status`, `/room/{id}/move`, `/room/{id}/state`
+    - Frontend: «Найти противника» вместо «Создать дуэль», выбор game_type
+    - Acceptance: ELO-spread соблюдается, нет deadlock'ов в очереди, RPS (текущий) работает на новой инфре
+
+  **5.1 TicTacToe MVP** (1 сессия) — ⭐ MVP для multi-game проверки
+    - Game-type `tictactoe` на base matchmaking
+    - 3×3 grid, 2 игрока по очереди, win = 3 в ряд / draw
+    - Time-per-match: 2-3 минуты
+    - **Отдельный ELO** от RPS-дуэлей (§13.7 — отдельные ratings per game)
+    - Acceptance: 2 player match, нет state-leaks, sезонный leaderboard `tictactoe`
+    - **Тест на стриме перед расширением** в Battleship / Connect Four / etc
+
+  **5.2 Dice match** (1 сессия) — для расслаба (§13.12 filler-механика)
+    - Простейший формат: 2d6 vs 2d6, выше сумма выиграла, ничья = draw
+    - Vs bot (singleplayer fallback всегда доступен)
+    - Vs human через matchmaking
+    - Лексика UI: «Roll match», «Dice challenge», без «lucky/casino/jackpot»
+    - Без крустиков-наград. Только rating + косметический бейдж «🎲 Dice Master» топ-1 сезона (compliant §5.3)
+    - Animation: dice rolling 0.8s, никаких roulette-spin
+    - Acceptance: 0 lexicon hits для gambling-слов, distribution бросков uniform
 
 - 🟡 **Phase 4: Голосование за действие стримера**
   - Полный rework `event_manager.py` под voting model
@@ -515,6 +536,69 @@ TIER_FEATURES = {
   - История прошлых сезонов
 
 ### 5.4 FUTURE (post-review, sессии 13+)
+
+- 🔴 **Phase 7: Pets MVP — cross-channel companions** ⭐ **REVIEW FLAGSHIP**
+  Первая cross-channel механика. Differentiator от всех конкурентов (никто
+  не делает persistent companions across Twitch channels — §13.13). Sharp
+  positioning pitch: *"Persistent viewer companions across Twitch."*
+
+  **Pet appearance MVP:** 🥚 **Яичко-маскот** — символ начала. Narrative-hook
+  для возвращения юзера (метафора: пет растёт вместе с extension'ом, в
+  будущем «вылупляется» в формы — но это future, не MVP).
+
+  **Catalog MVP (5 cosmetics):**
+  - 🧢 Cap (300 Bits)
+  - 👑 Crown (800 Bits)
+  - 👓 Glasses (300 Bits)
+  - 🧣 Scarf (500 Bits)
+  - 🎨 Background colour (500 Bits)
+
+  Pricing tier'ы консервативные: 300 / 500 / 800 Bits. Подкорректируем по
+  метрикам purchase rate за первый месяц (§13.10 — числа = параметры).
+
+  **БД (новый pattern: cross-channel scope, exception от multi-tenant):**
+  - `pets(username PK, pet_type, hatched_at, last_seen)` — без channel_id
+  - `pet_inventory(username, item_id PK)` — owned cosmetics, без channel_id
+  - `pet_equipped(username, slot, item_id)` — текущая одёжка
+  - `pet_purchases(id, username, item_id, channel_id, bits_amount, ts)` —
+    channel_id для audit/revenue tracking (§7.5)
+  - `pet_catalog(item_id PK, name, slot, price_bits, rarity)` — catalog
+    controlled by extension dev (§6.2.8 protection)
+
+  **Compliance-критичное:**
+  - 🚫 НЕ делать «mystery box за Bits» (§6.2.4 ban)
+  - 🚫 НЕ давать стримеру загружать свои items (§6.2.8 ban)
+  - 🚫 НЕ давать pets utility (бусты накопления / преимущества)
+  - ✅ Каждый item — фиксированный prize за фиксированную цену
+  - ✅ Cross-channel persistence: купил на X → видно на Y, Z
+  - ✅ Revenue идёт каналу покупки (80% split, §7.5)
+
+  **Streamer-control (§13.11):**
+  - Single toggle: «show pets in overlay» (yes/no)
+  - НЕ может moderate отдельных pet'ов, выбирать catalog, менять prices
+  - Это enforces consistent user experience across channels
+
+  **Endpoints:**
+  - `GET /api/pet/my` — текущий pet + equipped + balance
+  - `GET /api/pet/catalog` — публичный catalog
+  - `POST /api/pet/purchase` — Bits transaction (через Twitch Bits API)
+  - `POST /api/pet/equip` — equip/unequip owned item
+  - `GET /api/overlay/pets?channel_id=X` — для overlay rendering (active viewers)
+
+  **Frontend:**
+  - `pet.js` — UI карты pet'а, catalog, equipped management
+  - Overlay-renderer: показывает pets активных зрителей в overlay
+  - Pet idle animation (минимум — 1 эмоция: idle/click-reaction)
+
+  **Acceptance:**
+  - Bits purchase атомарно через Twitch транзакции
+  - Cross-channel: открыл extension на канале Y, видит свой pet с купленной шапкой
+  - Streamer overlay-mute работает (если off — нет рендера pet'ов)
+  - 5 cosmetics в catalog, все purchaseable, equip/unequip без race-condition
+
+  **Размер:** 5-8 sессий. Большая разработка, потому в FUTURE а не NEXT.
+  После live-feedback и метрик (см §3.2 distribution) решаем расширение
+  catalog до 30+.
 
 - 🟡 **Battle pass / sезоны (extension-wide)**
   - Прогрессия за активность с косметикой по дорожке
@@ -563,14 +647,24 @@ TIER_FEATURES = {
 
 ### 5.7 Текущий фокус — что сейчас делаем
 
-| Фокус | Sессий до завершения | Cтатус |
+| Фокус | Sессий | Cтатус |
 |---|---|---|
-| Phase 1 cleanup | 0 (закрыто 2026-05-10, 9 коммитов) | ✅ DONE |
-| Phase 2 кейсы | 2-3 | NEXT |
+| Phase 1 cleanup | 0 | ✅ DONE (2026-05-10, 9 коммитов) |
+| Phase 2 кейсы | 2-3 | NOW |
 | Phase 6 drops в кейсы | 0.5 | depends Phase 2 |
-| Phase 3 гильдии база | 2-3 | потом |
+| Phase 5.0 matchmaking base | 1-2 | NEXT |
+| Phase 5.1 TicTacToe MVP | 1 | NEXT (тест на стриме перед расширением) |
+| Phase 5.2 Dice match | 1 | NEXT |
+| Phase 3 гильдии база | 2-3 | LATER |
+| Phase 4 голосование | 2 | LATER |
+| Phase 7 Pets MVP (review flagship) | 5-8 | FUTURE |
 
-**Не размываемся:** держим фокус на 1-2 фазах одновременно. Не открываем новые направления пока текущая не закрыта.
+**Принцип Option A (quick wins first):** делаем quick wins (games, dice)
+прежде чем большие проекты (pets). Foundation проверена через игры до того
+как рискуем на pets — большая разработка с неизвестной reception.
+
+**Не размываемся:** держим фокус на 1-2 фазах одновременно. Не открываем
+новые направления пока текущая не закрыта.
 
 ---
 

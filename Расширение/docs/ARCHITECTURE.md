@@ -184,6 +184,25 @@ Endpoints в `routes/module_api.py`:
 
 5. **Per-channel rate limit (M5)** срабатывает в JWT-helpers ПОСЛЕ registration check, ПЕРЕД ContextVar.set. Tier берётся из `_channel_tier_cache` (загружается на startup из `channels.tier`).
 
+6. **Cross-channel scope — explicit exception, не drift.** Подавляющее большинство таблиц TENANT-scoped (`channel_id` в PK). Некоторые механики **должны** быть cross-channel — например питомцы / cosmetics-inventory / user identity. Такие таблицы:
+   - Имеют PK на `username` (без `channel_id`), либо `(username, item_id)` где item_id глобален
+   - **Документированы** в этом разделе как exception (см. §3.1 ниже)
+   - НЕ резолвят `channel_id` через ContextVar для основных операций (read/write inventory) — это global state
+   - `channel_id` может присутствовать как **audit-поле** (например `pet_purchases.channel_id` — где была совершена покупка, для revenue tracking §7.5 compliance-doc), но НЕ как scope-фильтр
+   - **Pattern добавления новой cross-channel таблицы:** review-чек на compliance (catalog control §13.11 + §6.2.8), data-protection (cross-channel ≠ public — JWT всё равно требуется), audit для Twitch reviewer'а в submission notes
+
+### 3.1 Cross-channel exception tables
+
+| Таблица | PK | Scope | Назначение |
+|---|---|---|---|
+| `pets` (Phase 7+) | `username` | global per user | Pet appearance + state, viewer-owned |
+| `pet_inventory` (Phase 7+) | `(username, item_id)` | global per user | Owned cosmetics |
+| `pet_equipped` (Phase 7+) | `(username, slot)` | global per user | Currently equipped |
+| `pet_purchases` (Phase 7+) | `id` (autoincrement) | audit с `channel_id` | Transactions log для revenue tracking |
+| `pet_catalog` (Phase 7+) | `item_id` | global (extension-defined) | Catalog content; controlled by dev (§6.2.8) |
+
+Все остальные таблицы в `database.py` — TENANT-scoped. Новая cross-channel таблица = decision-point с review.
+
 ---
 
 ## 4. Game Bridge SDK invariants

@@ -388,6 +388,38 @@ class BotCore:
         else:
             self.current_stream_id.pop(int(channel_id), None)
 
+    # ===== MATCHMAKING LOOP (Phase 5.0, 2026-05-11) =====
+    async def matchmaking_loop(self):
+        """Цикл matchmaking: каждые 5 сек по всем каналам и game_types
+        ищет пары игроков в очереди по близкому ELO.
+
+        Generic — обслуживает все game_types зарегистрированные в очереди.
+        Game-specific game-state initialization после match (если нужна) —
+        делается game-specific endpoint'ами при первом submit_move.
+        """
+        from config import MATCHMAKING_INTERVAL, MATCHMAKING_GAME_TYPES
+        logger.info("Matchmaking loop запущен (interval=%ds, games=%s)",
+                    MATCHMAKING_INTERVAL, MATCHMAKING_GAME_TYPES)
+        while self.running:
+            await asyncio.sleep(MATCHMAKING_INTERVAL)
+            try:
+                channels = await self.db.list_channels()
+            except Exception as e:
+                logger.warning("matchmaking_loop: list_channels failed: %s", e)
+                continue
+
+            for ch in channels:
+                cid = ch["channel_id"]
+                for game_type in MATCHMAKING_GAME_TYPES:
+                    try:
+                        pairs = await self.db.find_match_pairs(cid, game_type)
+                        if pairs > 0:
+                            logger.info("[ch=%s/%s] matched %d pair(s)",
+                                        cid, game_type, pairs)
+                    except Exception as e:
+                        logger.warning("[ch=%s/%s] find_match_pairs failed: %s",
+                                       cid, game_type, e)
+
     # ===== НАЧИСЛЕНИЕ ОЧКОВ =====
     async def reward_points_loop(self):
         """Цикл начисления очков (каждую минуту), multi-tenant.

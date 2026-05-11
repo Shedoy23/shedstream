@@ -262,6 +262,23 @@ EVENT_TYPES = {
 # CASINO_CONFIG удалён в Phase 1.A (2026-05-10) — gambling по §6.2.3 Twitch Extension Guidelines.
 # См. COMPLIANCE_REWORK_PLAN.md §4 Phase 1.
 
+# ===== MATCHMAKING (Phase 5.0, 2026-05-11) =====
+# Интервал matchmaking_loop — как часто ищем пары в очереди (sek).
+# Trade-off: ниже — быстрее матч после enqueue, выше — меньше БД-нагрузка.
+MATCHMAKING_INTERVAL = 5
+
+# Какие game_types обслуживает matchmaking_loop. Добавляются по мере
+# реализации игр (Phase 5.1 TicTacToe, 5.2 Dice).
+# 'rps' зарегистрирован сразу — текущие дуэли v2 (после Phase 5.0 готовы
+# переехать на queue-based flow, см. Phase 5.0.D).
+MATCHMAKING_GAME_TYPES = ('rps',)
+
+# ELO-spread по умолчанию (если юзер не указал свой).
+MATCHMAKING_DEFAULT_ELO_SPREAD = 100
+
+# Auto-expire queue entries старше N секунд (cleanup от disconnected клиентов).
+MATCHMAKING_QUEUE_TTL_SEC = 300
+
 # ===== НАСТРОЙКИ КЕЙСОВ (Phase 2, 2026-05-11) =====
 # Фиксированная награда крустиков per tier. Балансится через config, не через
 # миграцию — позволяет корректировать без БД-изменений (см. урок 13.10

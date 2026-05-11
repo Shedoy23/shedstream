@@ -179,7 +179,8 @@ function setupCspSafeHandlers() {
 
         // 'mkt-list-item' action удалён 2026-05-10 (Phase 1.C compliance rework)
         // 'casino' / 'slots' actions удалены 2026-05-10 (Phase 1.A compliance rework)
-        if (action === 'duels') openDuels();
+        if (action === 'cases') openCasesModal();
+        else if (action === 'duels') openDuels();
         else if (action === 'advertisement') openAdvertisement();
         // 'transfer' action удалён 2026-05-10 (Phase 1.D compliance rework — P2P transfer)
         else if (action === 'family') openFamily();

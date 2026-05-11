@@ -107,6 +107,7 @@ _EXTENSION_FILES = {
     "/family.js":      "family.js",
     "/duels.js":       "duels.js",
     "/xenotype.js":    "xenotype.js",
+    "/cases.js":       "cases.js",
 }
 
 # Также поддерживаем префикс /frontend/ для совместимости
@@ -122,6 +123,7 @@ _EXTENSION_FILES_PREFIXED = {
     "/frontend/family.js":      "family.js",
     "/frontend/duels.js":       "duels.js",
     "/frontend/xenotype.js":    "xenotype.js",
+    "/frontend/cases.js":       "cases.js",
 }
 
 _MIME = {

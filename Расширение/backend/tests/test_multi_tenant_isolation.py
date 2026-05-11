@@ -553,6 +553,196 @@ def test_current_stream_id_per_channel():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Test 9: Cases system (Phase 2) — multi-tenant + idempotency + atomicity
+# ─────────────────────────────────────────────────────────────────────────────
+async def test_cases_system():
+    """Phase 2 cases via raw SQL (без Database класса — init_pool requires
+    full infrastructure setup, тут проверяем чистую логику multi-tenant
+    isolation + idempotency + atomicity).
+
+    Покрытие:
+      - Multi-tenant isolation: тот же username, разные channel_id → разные кейсы
+      - Idempotency через case_triggers_fired (one-time milestones)
+      - Cross-channel boundary: trigger_key уникален per channel, не глобально
+      - Cross-user attack protection: bob не может open кейс alice
+      - Already-opened protection
+      - Tier reward consistency (1k/10k/100k/500k)
+    """
+    print("\n[9] Cases system (Phase 2)")
+    import aiosqlite as _aio
+    db_path = tempfile.mktemp(suffix="_test.db")
+    try:
+        async with _aio.connect(db_path) as conn:
+            # Setup схема через M9 миграцию
+            from migrations import m9_cases
+            await m9_cases.apply(conn)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS viewers (
+                    channel_id INTEGER NOT NULL,
+                    username TEXT NOT NULL,
+                    points INTEGER DEFAULT 0,
+                    last_seen DATETIME,
+                    join_time DATETIME,
+                    is_afk INTEGER DEFAULT 0,
+                    PRIMARY KEY(channel_id, username)
+                )
+            """)
+            await conn.commit()
+
+            CASE_REWARDS = {'common': 1000, 'rare': 10000, 'epic': 100000, 'legendary': 500000}
+            cid_a = 98319857
+            cid_b = 99999
+
+            # ── Helper: raw grant_case logic (mirror of database.py) ──────────
+            async def grant_case(cid, user, tier, source, trigger_key=None):
+                if tier not in CASE_REWARDS:
+                    return {'granted': False, 'reason': 'invalid_tier'}
+                await conn.execute("BEGIN IMMEDIATE")
+                if trigger_key:
+                    cur = await conn.execute(
+                        "SELECT case_id FROM case_triggers_fired "
+                        "WHERE channel_id=? AND username=? AND trigger_key=?",
+                        (cid, user.lower(), trigger_key)
+                    )
+                    existing = await cur.fetchone()
+                    if existing:
+                        await conn.execute("ROLLBACK")
+                        return {'granted': False, 'reason': 'already_fired', 'case_id': existing[0]}
+                cur = await conn.execute(
+                    "INSERT INTO cases (channel_id, username, tier, source) VALUES (?, ?, ?, ?)",
+                    (cid, user.lower(), tier, source)
+                )
+                case_id = cur.lastrowid
+                if trigger_key:
+                    await conn.execute(
+                        "INSERT INTO case_triggers_fired (channel_id, username, trigger_key, case_id) "
+                        "VALUES (?, ?, ?, ?)",
+                        (cid, user.lower(), trigger_key, case_id)
+                    )
+                await conn.commit()
+                return {'granted': True, 'case_id': case_id, 'tier': tier}
+
+            # ── Helper: raw open_case ─────────────────────────────────────────
+            async def open_case(case_id, user, cid):
+                await conn.execute("BEGIN IMMEDIATE")
+                cur = await conn.execute(
+                    "SELECT channel_id, username, tier, opened_at FROM cases WHERE id=?",
+                    (case_id,)
+                )
+                row = await cur.fetchone()
+                if not row:
+                    await conn.execute("ROLLBACK")
+                    return {'opened': False, 'reason': 'not_found'}
+                row_cid, row_user, row_tier, row_opened = row
+                if row_cid != cid or row_user != user.lower():
+                    await conn.execute("ROLLBACK")
+                    return {'opened': False, 'reason': 'not_owner'}
+                if row_opened is not None:
+                    await conn.execute("ROLLBACK")
+                    return {'opened': False, 'reason': 'already_opened'}
+                reward = CASE_REWARDS[row_tier]
+                await conn.execute(
+                    "UPDATE cases SET opened_at=CURRENT_TIMESTAMP, reward_points=? WHERE id=?",
+                    (reward, case_id)
+                )
+                await conn.execute("""
+                    INSERT INTO viewers (channel_id, username, points, last_seen, join_time, is_afk)
+                    VALUES (?, ?, ?, datetime('now'), datetime('now'), 0)
+                    ON CONFLICT(channel_id, username) DO UPDATE SET points=points+excluded.points
+                """, (cid, user.lower(), reward))
+                cur = await conn.execute(
+                    "SELECT points FROM viewers WHERE channel_id=? AND username=?",
+                    (cid, user.lower())
+                )
+                bal = (await cur.fetchone())[0]
+                await conn.commit()
+                return {'opened': True, 'tier': row_tier, 'reward_points': reward, 'new_balance': bal}
+
+            # 9.1 Grant common case на канале A
+            r = await grant_case(cid_a, "alice", "common", "quest")
+            assert_true(r['granted'], "grant common case to alice on cid_a")
+            case_id_a = r['case_id']
+
+            # 9.2 Same username другой канал — отдельный кейс
+            r = await grant_case(cid_b, "alice", "rare", "streak", trigger_key="streak_10")
+            assert_true(r['granted'], "grant rare case to alice on cid_b")
+            case_id_b = r['case_id']
+            assert_true(case_id_a != case_id_b, "different case_ids per channel")
+
+            # 9.3 Idempotency через trigger_key — повтор НЕ выдаёт
+            r = await grant_case(cid_b, "alice", "rare", "streak", trigger_key="streak_10")
+            assert_eq(r['granted'], False, "duplicate streak_10 trigger rejected")
+            assert_eq(r['reason'], 'already_fired', "reason = already_fired")
+            assert_eq(r['case_id'], case_id_b, "returned existing case_id")
+
+            # 9.4 trigger_key UNIQUE per channel, не глобально
+            r = await grant_case(cid_a, "alice", "rare", "streak", trigger_key="streak_10")
+            assert_true(r['granted'], "channel A streak_10 — independent from channel B")
+
+            # 9.5 Open case → правильная награда
+            opn = await open_case(case_id_a, "alice", cid_a)
+            assert_true(opn['opened'], "common case opened")
+            assert_eq(opn['reward_points'], 1000, "common reward = 1000")
+            assert_eq(opn['new_balance'], 1000, "balance credited correctly")
+
+            # 9.6 Already-opened protection
+            opn = await open_case(case_id_a, "alice", cid_a)
+            assert_eq(opn['opened'], False, "second open rejected")
+            assert_eq(opn['reason'], 'already_opened', "reason = already_opened")
+
+            # 9.7 Cross-user attack: bob не может open кейс alice
+            opn = await open_case(case_id_b, "bob", cid_b)
+            assert_eq(opn['opened'], False, "bob cannot open alice's case")
+            assert_eq(opn['reason'], 'not_owner', "reason = not_owner")
+
+            # 9.8 Wrong-channel attack: alice's cid_b case через cid_a
+            opn = await open_case(case_id_b, "alice", cid_a)
+            assert_eq(opn['opened'], False, "wrong channel_id rejected")
+            assert_eq(opn['reason'], 'not_owner', "reason = not_owner (cross-channel boundary)")
+
+            # 9.9 Not-found protection
+            opn = await open_case(99999, "alice", cid_a)
+            assert_eq(opn['reason'], 'not_found', "non-existent case → not_found")
+
+            # 9.10 Validation
+            r = await grant_case(cid_a, "alice", "mythic", "quest")
+            assert_eq(r['granted'], False, "invalid tier rejected")
+
+            # 9.11 list/count per channel
+            cur = await conn.execute(
+                "SELECT COUNT(*) FROM cases WHERE channel_id=? AND username=?",
+                (cid_a, "alice")
+            )
+            a_total = (await cur.fetchone())[0]
+            cur = await conn.execute(
+                "SELECT COUNT(*) FROM cases WHERE channel_id=? AND username=? AND opened_at IS NULL",
+                (cid_a, "alice")
+            )
+            a_unopened = (await cur.fetchone())[0]
+            assert_eq(a_total, 2, "channel A: 2 cases for alice (opened common + closed rare)")
+            assert_eq(a_unopened, 1, "channel A: 1 unopened case (rare)")
+
+            # 9.12 Epic reward
+            r = await grant_case(cid_a, "charlie", "epic", "watch_milestone", trigger_key="watch_100h")
+            assert_true(r['granted'], "epic case granted")
+            opn = await open_case(r['case_id'], "charlie", cid_a)
+            assert_eq(opn['reward_points'], 100_000, "epic reward = 100k")
+            assert_eq(opn['new_balance'], 100_000, "charlie balance = 100k after epic open")
+
+            # 9.13 Legendary reward
+            r = await grant_case(cid_a, "dave", "legendary", "season_top",
+                                 trigger_key="season_2026_Q1_top1")
+            assert_true(r['granted'], "legendary case granted")
+            opn = await open_case(r['case_id'], "dave", cid_a)
+            assert_eq(opn['reward_points'], 500_000, "legendary reward = 500k")
+    finally:
+        try:
+            os.unlink(db_path)
+        except Exception:
+            pass
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main runner
 # ─────────────────────────────────────────────────────────────────────────────
 async def run_all_tests():
@@ -568,6 +758,7 @@ async def run_all_tests():
     test_in_memory_cache_keys()
     test_chat_bonus_antifraud()
     test_current_stream_id_per_channel()
+    await test_cases_system()
 
     print("\n" + "=" * 70)
     print(f"PASSED: {len(_successes)}    FAILED: {len(_failures)}")

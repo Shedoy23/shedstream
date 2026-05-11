@@ -706,6 +706,20 @@ class BotCore:
             await self.db.give_item(username, reward_item, channel_id=channel_id)
             logger.info("Предмет %s выдан @%s за квест %s", reward_item, username, quest_type)
 
+        # Phase 2 (2026-05-11): за завершённый квест выдаём обычный кейс.
+        # Идемпотентность через quests.day_date — один квест в день =>
+        # один кейс в день per quest_type. Re-grant защищён через DB UNIQUE
+        # пары (quest, day_date) в quests table.
+        try:
+            case_result = await self.db.grant_case(
+                username, tier='common', source='quest', channel_id=channel_id
+            )
+            if case_result.get('granted'):
+                logger.info("Common case granted to @%s за quest %s", username, quest_type)
+        except Exception as e:
+            # Не критично — quest награда уже выдана. Логируем для диагностики.
+            logger.warning("grant_case (quest %s, @%s) failed: %s", quest_type, username, e)
+
     # ===== СПЕЦИАЛИЗИРОВАННЫЕ МЕТОДЫ ДЛЯ КВЕСТОВ =====
     # Раньше здесь были `_update_quests_by_type`, `update_chat_quest_progress`,
     # `update_activity_quest_progress` — удалены в M7 как dead code:
@@ -827,6 +841,26 @@ class BotCore:
                     channel_id=cid,
                 )
 
+        # Phase 2 (2026-05-11): helper для one-time case grants с
+        # идемпотентным trigger_key — кейс не выдастся повторно за тот же
+        # milestone (через case_triggers_fired table).
+        async def _grant_milestone_case(tier: str, trigger_key: str):
+            try:
+                r = await self.db.grant_case(
+                    username, tier=tier, source='watch_milestone' if tier == 'epic' else 'streak',
+                    channel_id=cid, trigger_key=trigger_key,
+                )
+                if r.get('granted'):
+                    tier_emoji = {'common': '🎁', 'rare': '💎', 'epic': '💠', 'legendary': '👑'}.get(tier, '🎁')
+                    await self.send_message(
+                        f"{tier_emoji} @{username} получил {tier} кейс за milestone «{trigger_key}»!",
+                        channel_id=cid,
+                    )
+                    logger.info("%s case granted to @%s (trigger=%s)", tier, username, trigger_key)
+            except Exception as e:
+                logger.warning("milestone case grant failed (%s, %s, %s): %s",
+                               username, tier, trigger_key, e)
+
         if trigger == 'duel_win':
             await _try('first_duel_win')
         elif trigger == 'rimworld_buy':
@@ -835,7 +869,10 @@ class BotCore:
             hours = extra.get('hours', 0)
             if hours >= 10:  await _try('watch_10h')
             if hours >= 50:  await _try('watch_50h')
-            if hours >= 100: await _try('watch_100h')
+            if hours >= 100:
+                await _try('watch_100h')
+                # Phase 2: epic кейс единоразово за 100h просмотра
+                await _grant_milestone_case('epic', 'watch_100h')
         elif trigger == 'level_up':
             level = extra.get('level', 0)
             if level >= 5:  await _try('level_5')
@@ -846,7 +883,10 @@ class BotCore:
             max_s   = extra.get('max_streak', 0)
             if current >= 3:  await _try('streak_3')
             if current >= 5:  await _try('streak_5')
-            if current >= 10: await _try('streak_10')
+            if current >= 10:
+                await _try('streak_10')
+                # Phase 2: rare кейс единоразово за 10-стрик
+                await _grant_milestone_case('rare', 'streak_10')
             if max_s >= 5:    await _try('max_streak_5')
             if max_s >= 10:   await _try('max_streak_10')
 

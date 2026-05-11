@@ -445,6 +445,16 @@ async def run_migrations():
             print(f"❌ M9 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M10: matchmaking base (Phase 5.0 of COMPLIANCE_REWORK_PLAN.md) ──
+        # match_queue + match_rooms tables, rebuild duel_stats / duel_seasons
+        # с channel_id + game_type в PK, DROP legacy pending_duels
+        try:
+            from migrations import m10_matchmaking
+            await m10_matchmaking.apply(conn)
+        except Exception as e:
+            print(f"❌ M10 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

@@ -384,34 +384,32 @@ class Database:
             # gambling по §6.2.3 Twitch Extension Guidelines). DROP TABLE будет в M8.
             # См. COMPLIANCE_REWORK_PLAN.md §4 Phase 1.
 
-            # Дуэли — ELO и стрики
+            # Дуэли — ELO и стрики (post-M10 schema: per-channel + per-game)
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS duel_stats (
-                    username TEXT PRIMARY KEY,
-                    elo INTEGER DEFAULT 1100,
-                    win_streak INTEGER DEFAULT 0,
-                    season_id INTEGER DEFAULT 1
+                    channel_id INTEGER NOT NULL,
+                    username TEXT NOT NULL,
+                    game_type TEXT NOT NULL DEFAULT 'rps',
+                    elo INTEGER NOT NULL DEFAULT 1100,
+                    win_streak INTEGER NOT NULL DEFAULT 0,
+                    season_id INTEGER NOT NULL DEFAULT 1,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (channel_id, username, game_type)
                 )
             """)
-            # Сезоны дуэлей
+            # Сезоны дуэлей (post-M10: per-channel + per-game)
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS duel_seasons (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    channel_id INTEGER NOT NULL,
+                    game_type TEXT NOT NULL DEFAULT 'rps',
                     started_at TEXT NOT NULL,
                     ends_at TEXT NOT NULL,
-                    finished INTEGER DEFAULT 0
+                    finished INTEGER NOT NULL DEFAULT 0
                 )
             """)
-            # Ожидающие дуэли (переживают рестарт)
-            await db.execute("""
-                CREATE TABLE IF NOT EXISTS pending_duels (
-                    duel_id TEXT PRIMARY KEY,
-                    creator TEXT NOT NULL,
-                    amount INTEGER NOT NULL,
-                    move TEXT NOT NULL,
-                    created_ts REAL NOT NULL
-                )
-            """)
+            # pending_duels (legacy) — DROP в M10 (Phase 5.0). Заменён на
+            # match_queue + match_rooms (см. m10_matchmaking.py).
 
             # ── Seed достижений (INSERT OR IGNORE — не перезапишет существующие) ──
             achievements_seed = [

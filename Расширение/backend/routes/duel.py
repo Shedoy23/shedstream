@@ -115,11 +115,16 @@ def _next_sunday_midnight() -> datetime:
     return target.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
-async def _ensure_season(conn, channel_id: int) -> int:
-    """Возвращает ID активного сезона КАНАЛА, создаёт новый если нет."""
+async def _ensure_season(conn, channel_id: int, game_type: str = 'rps') -> int:
+    """Возвращает ID активного сезона КАНАЛА per game_type, создаёт новый если нет.
+
+    Phase 5.0 (M10): game_type добавлен — sезоны per (channel, game_type).
+    Default 'rps' для backward-compat существующих RPS-дуэлей.
+    """
     row = await (await conn.execute(
-        "SELECT id FROM duel_seasons WHERE channel_id = ? AND finished = 0 ORDER BY id DESC LIMIT 1",
-        (channel_id,)
+        "SELECT id FROM duel_seasons WHERE channel_id = ? AND game_type = ? AND finished = 0 "
+        "ORDER BY id DESC LIMIT 1",
+        (channel_id, game_type)
     )).fetchone()
     if row:
         return row[0]
@@ -127,31 +132,43 @@ async def _ensure_season(conn, channel_id: int) -> int:
     now     = datetime.now(timezone.utc)
     ends_at = _next_sunday_midnight()
     await conn.execute(
-        "INSERT INTO duel_seasons (channel_id, started_at, ends_at, finished) VALUES (?, ?, ?, 0)",
-        (channel_id, now.isoformat(), ends_at.isoformat())
+        "INSERT INTO duel_seasons (channel_id, game_type, started_at, ends_at, finished) "
+        "VALUES (?, ?, ?, ?, 0)",
+        (channel_id, game_type, now.isoformat(), ends_at.isoformat())
     )
     row = await (await conn.execute("SELECT last_insert_rowid()")).fetchone()
     return row[0]
 
 
-async def _get_stats(conn, username: str, season_id: int):
-    """Возвращает (elo, win_streak), создаёт запись если нет."""
+async def _get_stats(conn, username: str, season_id: int,
+                     channel_id: int, game_type: str = 'rps'):
+    """Возвращает (elo, win_streak) per (channel, user, game_type),
+    создаёт запись если нет.
+
+    Phase 5.0 (M10): channel_id + game_type теперь обязательные параметры.
+    """
     row = await (await conn.execute(
-        "SELECT elo, win_streak FROM duel_stats WHERE username = ?", (username,)
+        "SELECT elo, win_streak FROM duel_stats "
+        "WHERE channel_id = ? AND username = ? AND game_type = ?",
+        (channel_id, username.lower(), game_type)
     )).fetchone()
     if not row:
         await conn.execute(
-            "INSERT OR IGNORE INTO duel_stats (username, elo, win_streak, season_id) VALUES (?, ?, 0, ?)",
-            (username, ELO_START, season_id)
+            "INSERT OR IGNORE INTO duel_stats "
+            "(channel_id, username, game_type, elo, win_streak, season_id) "
+            "VALUES (?, ?, ?, ?, 0, ?)",
+            (channel_id, username.lower(), game_type, ELO_START, season_id)
         )
         return (ELO_START, 0)
     return (row[0], row[1])
 
 
-async def _update_stats(conn, username: str, elo: int, streak: int):
+async def _update_stats(conn, username: str, elo: int, streak: int,
+                        channel_id: int, game_type: str = 'rps'):
     await conn.execute(
-        "UPDATE duel_stats SET elo = ?, win_streak = ? WHERE username = ?",
-        (elo, streak, username)
+        "UPDATE duel_stats SET elo = ?, win_streak = ?, updated_at = CURRENT_TIMESTAMP "
+        "WHERE channel_id = ? AND username = ? AND game_type = ?",
+        (elo, streak, channel_id, username.lower(), game_type)
     )
 
 
@@ -321,14 +338,17 @@ async def accept_duel(req: AcceptDuelRequest, request: Request):
     a_emoji       = _RPS_EMOJI[acceptor_move]
 
     async with db._connect() as conn:
-        season_id          = await _ensure_season(conn)
-        c_elo, c_streak    = await _get_stats(conn, duel["creator"], season_id)
-        a_elo, a_streak    = await _get_stats(conn, username,        season_id)
+        # Phase 5.0 (M10): _ensure_season / _get_stats / _update_stats теперь
+        # принимают channel_id + game_type. RPS = 'rps' (default game_type).
+        season_id          = await _ensure_season(conn, channel_id, game_type='rps')
+        c_elo, c_streak    = await _get_stats(conn, duel["creator"], season_id, channel_id, 'rps')
+        a_elo, a_streak    = await _get_stats(conn, username,        season_id, channel_id, 'rps')
 
-        # Снимок лидера сезона ДО матча — чтобы поймать смену #1 после апдейта ELO.
+        # Снимок лидера сезона ДО матча per (channel, game_type).
         _top_before_row = await (await conn.execute(
-            "SELECT username FROM duel_stats WHERE season_id = ? ORDER BY elo DESC LIMIT 1",
-            (season_id,)
+            "SELECT username FROM duel_stats WHERE channel_id = ? AND game_type = ? "
+            "AND season_id = ? ORDER BY elo DESC LIMIT 1",
+            (channel_id, 'rps', season_id)
         )).fetchone()
         _top_before = _top_before_row[0] if _top_before_row else None
 
@@ -355,13 +375,14 @@ async def accept_duel(req: AcceptDuelRequest, request: Request):
             new_c_streak = c_streak
             new_a_streak = a_streak
 
-        await _update_stats(conn, duel["creator"], new_c_elo, new_c_streak)
-        await _update_stats(conn, username,         new_a_elo, new_a_streak)
+        await _update_stats(conn, duel["creator"], new_c_elo, new_c_streak, channel_id, 'rps')
+        await _update_stats(conn, username,         new_a_elo, new_a_streak, channel_id, 'rps')
 
-        # Лидер после матча — возможно, сменился.
+        # Лидер после матча — возможно, сменился (per channel + game).
         _top_after_row = await (await conn.execute(
-            "SELECT username FROM duel_stats WHERE season_id = ? ORDER BY elo DESC LIMIT 1",
-            (season_id,)
+            "SELECT username FROM duel_stats WHERE channel_id = ? AND game_type = ? "
+            "AND season_id = ? ORDER BY elo DESC LIMIT 1",
+            (channel_id, 'rps', season_id)
         )).fetchone()
         _top_after = _top_after_row[0] if _top_after_row else None
 
@@ -434,20 +455,32 @@ async def list_duels(username: str = ""):
 
 
 @router.get("/api/duel/leaderboard")
-async def duel_leaderboard():
-    """Топ-5 дуэлистов по ELO в текущем сезоне."""
+async def duel_leaderboard(request: Request, game_type: str = "rps"):
+    """Топ-5 дуэлистов по ELO в текущем сезоне per (channel, game_type).
+
+    Query: ?game_type=rps|tictactoe|dice (default 'rps' для backward compat)
+    """
+    from dependencies import resolve_channel_id_or_default, require_jwt_channel
+    cid = require_jwt_channel(request) or resolve_channel_id_or_default()
+
     db = get_db()
     async with db._connect() as conn:
         rows = await (await conn.execute(
-            "SELECT username, elo, win_streak FROM duel_stats ORDER BY elo DESC LIMIT 5"
+            "SELECT username, elo, win_streak FROM duel_stats "
+            "WHERE channel_id = ? AND game_type = ? ORDER BY elo DESC LIMIT 5",
+            (cid, game_type)
         )).fetchall()
         season_row = await (await conn.execute(
-            "SELECT id, ends_at FROM duel_seasons WHERE finished = 0 ORDER BY id DESC LIMIT 1"
+            "SELECT id, ends_at FROM duel_seasons "
+            "WHERE channel_id = ? AND game_type = ? AND finished = 0 "
+            "ORDER BY id DESC LIMIT 1",
+            (cid, game_type)
         )).fetchone()
 
     return {
         "season_id": season_row[0] if season_row else 1,
         "ends_at":   season_row[1] if season_row else None,
+        "game_type": game_type,
         "leaderboard": [
             {"rank": i + 1, "username": r[0], "elo": r[1], "win_streak": r[2]}
             for i, r in enumerate(rows)

@@ -1157,6 +1157,278 @@ class Database:
                 "active_users_today": active_today
             }
 
+    # ===== КЕЙСЫ (Phase 2, 2026-05-11) =====
+    # Compliance: фиксированная награда крустиков per tier, без RNG в содержимом.
+    # Кейсы выдаются за активность бесплатно (§5.3 Twitch — loot boxes OK
+    # если contents без monetary value; наша валюта non-tradable).
+
+    async def grant_case(
+        self,
+        username: str,
+        tier: str,
+        source: str,
+        channel_id: Optional[int] = None,
+        trigger_key: Optional[str] = None,
+    ) -> Dict:
+        """Выдать кейс юзеру.
+
+        Args:
+            username: имя юзера (lowered внутри)
+            tier: 'common' | 'rare' | 'epic' | 'legendary'
+            source: одна из CASE_SOURCES (audit откуда)
+            channel_id: канал (None → ContextVar)
+            trigger_key: если не None — идемпотентность через
+                case_triggers_fired. Тот же trigger_key для (channel, user)
+                → кейс НЕ выдаётся повторно. Пример: 'watch_100h',
+                'streak_10', 'season_2026_Q1_top1'.
+
+        Returns:
+            {'granted': True, 'case_id': N, 'tier': X, 'source': Y}
+            если выдан;
+            {'granted': False, 'reason': 'already_fired'}
+            если trigger_key уже сработал;
+            {'granted': False, 'reason': 'invalid_tier' | 'invalid_source'}
+            при ошибке валидации.
+        """
+        from config import CASE_TIER_REWARDS, CASE_SOURCES
+        if tier not in CASE_TIER_REWARDS:
+            return {'granted': False, 'reason': 'invalid_tier', 'tier': tier}
+        if source not in CASE_SOURCES:
+            return {'granted': False, 'reason': 'invalid_source', 'source': source}
+
+        cid = resolve_channel_id(channel_id)
+        uname = username.lower()
+
+        async with self._connect() as conn:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+
+                # Идемпотентность через trigger_key
+                if trigger_key:
+                    cur = await conn.execute(
+                        "SELECT case_id FROM case_triggers_fired "
+                        "WHERE channel_id = ? AND username = ? AND trigger_key = ?",
+                        (cid, uname, trigger_key)
+                    )
+                    existing = await cur.fetchone()
+                    if existing:
+                        await conn.execute("ROLLBACK")
+                        return {
+                            'granted': False, 'reason': 'already_fired',
+                            'trigger_key': trigger_key, 'case_id': existing[0]
+                        }
+
+                # Insert case
+                cur = await conn.execute(
+                    "INSERT INTO cases (channel_id, username, tier, source) "
+                    "VALUES (?, ?, ?, ?)",
+                    (cid, uname, tier, source)
+                )
+                case_id = cur.lastrowid
+
+                # Запись в case_triggers_fired если trigger_key передан
+                if trigger_key:
+                    await conn.execute(
+                        "INSERT INTO case_triggers_fired "
+                        "(channel_id, username, trigger_key, case_id) "
+                        "VALUES (?, ?, ?, ?)",
+                        (cid, uname, trigger_key, case_id)
+                    )
+
+                await conn.commit()
+                return {
+                    'granted': True, 'case_id': case_id,
+                    'tier': tier, 'source': source
+                }
+            except Exception:
+                await conn.execute("ROLLBACK")
+                raise
+
+    async def open_case(
+        self,
+        case_id: int,
+        username: str,
+        channel_id: Optional[int] = None,
+    ) -> Dict:
+        """Открыть кейс. Атомарно списать ownership + добавить reward в points.
+
+        Args:
+            case_id: id кейса (из cases.id)
+            username: должен быть владельцем (защита от cross-user open)
+            channel_id: канал (None → ContextVar; используется в JWT-роутах)
+
+        Returns:
+            {'opened': True, 'tier': X, 'reward_points': N, 'new_balance': M}
+            если открыт впервые;
+            {'opened': False, 'reason': 'already_opened' | 'not_found' |
+             'not_owner'} в остальных случаях.
+        """
+        from config import CASE_TIER_REWARDS
+        cid = resolve_channel_id(channel_id)
+        uname = username.lower()
+
+        async with self._connect() as conn:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+
+                # Lock case row + validate ownership and unopened state
+                cur = await conn.execute(
+                    "SELECT channel_id, username, tier, opened_at FROM cases WHERE id = ?",
+                    (case_id,)
+                )
+                row = await cur.fetchone()
+                if not row:
+                    await conn.execute("ROLLBACK")
+                    return {'opened': False, 'reason': 'not_found'}
+
+                row_cid, row_user, row_tier, row_opened = row
+                if row_cid != cid or row_user != uname:
+                    await conn.execute("ROLLBACK")
+                    return {'opened': False, 'reason': 'not_owner'}
+                if row_opened is not None:
+                    await conn.execute("ROLLBACK")
+                    return {'opened': False, 'reason': 'already_opened'}
+
+                reward = CASE_TIER_REWARDS.get(row_tier, 0)
+                if reward <= 0:
+                    # Защита от tier'а удалённого из config (старые кейсы)
+                    await conn.execute("ROLLBACK")
+                    return {'opened': False, 'reason': 'invalid_tier_no_reward'}
+
+                # Mark opened + record final reward (защита от изменения config
+                # после открытия — historical accuracy)
+                await conn.execute(
+                    "UPDATE cases SET opened_at = CURRENT_TIMESTAMP, reward_points = ? "
+                    "WHERE id = ? AND opened_at IS NULL",
+                    (reward, case_id)
+                )
+
+                # Кредитуем крустики в viewers.points (UPSERT — на случай если
+                # юзер недавно создан и записи нет)
+                await conn.execute("""
+                    INSERT INTO viewers (channel_id, username, points, last_seen, join_time, is_afk)
+                    VALUES (?, ?, ?, datetime('now'), datetime('now'), 0)
+                    ON CONFLICT(channel_id, username) DO UPDATE SET
+                        points = points + excluded.points,
+                        last_seen = datetime('now'),
+                        is_afk = 0
+                """, (cid, uname, reward))
+
+                # Получаем новый баланс
+                cur = await conn.execute(
+                    "SELECT points FROM viewers WHERE channel_id = ? AND username = ?",
+                    (cid, uname)
+                )
+                balance_row = await cur.fetchone()
+                new_balance = balance_row[0] if balance_row else 0
+
+                await conn.commit()
+                return {
+                    'opened': True,
+                    'tier': row_tier,
+                    'reward_points': reward,
+                    'new_balance': new_balance,
+                }
+            except Exception:
+                await conn.execute("ROLLBACK")
+                raise
+
+    async def list_cases(
+        self,
+        username: str,
+        channel_id: Optional[int] = None,
+        include_opened: bool = True,
+        limit: int = 50,
+    ) -> list:
+        """Список кейсов юзера, новейшие первыми.
+
+        Args:
+            username: имя
+            channel_id: канал (None → ContextVar)
+            include_opened: True = все кейсы; False = только закрытые
+            limit: max записей (UI обычно показывает 50 макс)
+
+        Returns:
+            [{'id': ..., 'tier': ..., 'source': ..., 'awarded_at': ...,
+              'opened_at': ..., 'reward_points': ...}]
+        """
+        cid = resolve_channel_id(channel_id)
+        uname = username.lower()
+
+        query = (
+            "SELECT id, tier, source, awarded_at, opened_at, reward_points "
+            "FROM cases WHERE channel_id = ? AND username = ?"
+        )
+        if not include_opened:
+            query += " AND opened_at IS NULL"
+        query += " ORDER BY awarded_at DESC LIMIT ?"
+
+        async with self._connect() as conn:
+            cur = await conn.execute(query, (cid, uname, limit))
+            rows = await cur.fetchall()
+            return [
+                {
+                    'id': r[0],
+                    'tier': r[1],
+                    'source': r[2],
+                    'awarded_at': r[3],
+                    'opened_at': r[4],
+                    'reward_points': r[5],
+                }
+                for r in rows
+            ]
+
+    async def count_unopened_cases(
+        self,
+        username: str,
+        channel_id: Optional[int] = None,
+    ) -> Dict[str, int]:
+        """Сколько закрытых кейсов у юзера, разбивка по tier.
+
+        Используется UI для badge'а на иконке «Кейсы» — сколько ждёт открытия.
+
+        Returns:
+            {'common': N, 'rare': N, 'epic': N, 'legendary': N, 'total': N}
+        """
+        cid = resolve_channel_id(channel_id)
+        uname = username.lower()
+
+        async with self._connect() as conn:
+            cur = await conn.execute(
+                "SELECT tier, COUNT(*) FROM cases "
+                "WHERE channel_id = ? AND username = ? AND opened_at IS NULL "
+                "GROUP BY tier",
+                (cid, uname)
+            )
+            rows = await cur.fetchall()
+
+        counts = {'common': 0, 'rare': 0, 'epic': 0, 'legendary': 0}
+        for tier, count in rows:
+            if tier in counts:
+                counts[tier] = count
+        counts['total'] = sum(counts.values())
+        return counts
+
+    async def is_trigger_fired(
+        self,
+        username: str,
+        trigger_key: str,
+        channel_id: Optional[int] = None,
+    ) -> bool:
+        """Проверить сработал ли one-time trigger для (channel, user, trigger_key).
+
+        Helper для логики триггеров чтобы не дёргать grant_case впустую.
+        """
+        cid = resolve_channel_id(channel_id)
+        uname = username.lower()
+        async with self._connect() as conn:
+            cur = await conn.execute(
+                "SELECT 1 FROM case_triggers_fired "
+                "WHERE channel_id = ? AND username = ? AND trigger_key = ?",
+                (cid, uname, trigger_key)
+            )
+            return await cur.fetchone() is not None
+
     # ===== M4: CHANNELS REGISTRY =====
 
     async def get_channel(self, channel_id: int) -> Optional[Dict]:

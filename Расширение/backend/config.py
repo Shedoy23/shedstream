@@ -262,6 +262,34 @@ EVENT_TYPES = {
 # CASINO_CONFIG удалён в Phase 1.A (2026-05-10) — gambling по §6.2.3 Twitch Extension Guidelines.
 # См. COMPLIANCE_REWORK_PLAN.md §4 Phase 1.
 
+# ===== НАСТРОЙКИ КЕЙСОВ (Phase 2, 2026-05-11) =====
+# Фиксированная награда крустиков per tier. Балансится через config, не через
+# миграцию — позволяет корректировать без БД-изменений (см. урок 13.10
+# COMPLIANCE_AND_ARCHITECTURE.md: числа = параметры, не законы).
+#
+# Compliance: содержимое каждого кейса детерминированно (нет RNG в reward).
+# Кейсы выдаются бесплатно за активность — §5.3 Twitch Extension Guidelines
+# permits loot boxes "as long as contents do not have monetary value" (наша
+# валюта non-tradable, non-exchangeable → no monetary value).
+CASE_TIER_REWARDS = {
+    'common':     1_000,
+    'rare':       10_000,
+    'epic':       100_000,
+    'legendary':  500_000,
+}
+
+# Valid sources для cases.source (audit-trail откуда выдан кейс).
+# Расширяется по мере добавления новых триггеров (Phase 6 drops loop, etc).
+CASE_SOURCES = (
+    'quest',            # daily quest completion → common
+    'streak',           # streak milestones (10) → rare
+    'watch_milestone',  # watch hour milestones (100h) → epic
+    'season_top',       # sезонный топ-3 → legendary
+    'drop',             # Phase 6 drops loop (tier weights 70/25/4/1)
+    'admin_grant',      # выдан admin'ом руками
+    'promo',            # через промокод (future)
+)
+
 # ===== НАСТРОЙКИ TTS =====
 TTS_CONFIG = {
     'enabled': True,

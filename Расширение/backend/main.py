@@ -432,6 +432,15 @@ async def run_migrations():
             print(f"❌ M8 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M9: cases (Phase 2 of COMPLIANCE_REWORK_PLAN.md) ──
+        # cases + case_triggers_fired tables (4 tiers fixed rewards)
+        try:
+            from migrations import m9_cases
+            await m9_cases.apply(conn)
+        except Exception as e:
+            print(f"❌ M9 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

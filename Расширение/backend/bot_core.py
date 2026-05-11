@@ -43,12 +43,17 @@ from config import (
 WATCH_TIME_QUESTS = ['watch_time_30', 'watch_time_60', 'watch_time_120',
                      'watch_time_180', 'watch_time_240', 'watch_time_300']
 
-# Предметы для дропа: (имя, вес, редкость)
-DROP_ITEMS = [
-    ('деревяшка', 70, 'common'),
-    ('камень', 20, 'uncommon'),
-    ('амулет', 8, 'rare'),
-    ('корона', 2, 'epic')
+# Phase 6 (2026-05-11): дропы выдают КЕЙСЫ (а не items как раньше).
+# Старая DROP_ITEMS = [(имя, вес, редкость)] удалена — items больше нет в
+# системе (Phase 1.B/1.C: crafting и рынок вырезаны).
+#
+# Tier weights для drop'ов: 70/25/4/1 (compliance §5.3 — free RNG-loot box,
+# содержимое без monetary value т.к. крустики non-tradable).
+DROP_CASE_TIERS = [
+    ('common',    70),
+    ('rare',      25),
+    ('epic',      4),
+    ('legendary', 1),
 ]
 
 # DROP_BLACKLIST импортируется из config.py (настраивается через .env)
@@ -753,9 +758,15 @@ class BotCore:
     async def _process_drop(self, channel_id: Optional[int] = None):
         """Обработать дроп для одного канала.
 
+        Phase 6 (2026-05-11): вместо item'а выдаёт КЕЙС случайного тира
+        (DROP_CASE_TIERS weights 70/25/4/1). Юзер потом открывает кейс
+        в UI → получает фиксированные крустики per tier.
+
+        Compliance §5.3: free RNG-loot box, content без monetary value
+        (наша валюта non-tradable).
+
         Bug 4 fix (2026-05-10): принимает channel_id явно — раньше тащил
-        активных из ВСЕХ каналов, slot-машинно выбирал победителя, и
-        send_message шёл в "default" канал даже если победитель был на другом.
+        активных из ВСЕХ каналов и send_message шёл в "default" канал.
         """
         cid = resolve_channel_id(channel_id)
         if not await self._is_stream_live(channel_id=cid):
@@ -783,19 +794,33 @@ class BotCore:
 
         lucky = random.choice(active)
 
-        item_name, rarity = random.choices(
-            [(i[0], i[2]) for i in DROP_ITEMS],
-            weights=[i[1] for i in DROP_ITEMS]
+        # Выбор тира кейса по весам 70/25/4/1
+        tier = random.choices(
+            [t[0] for t in DROP_CASE_TIERS],
+            weights=[t[1] for t in DROP_CASE_TIERS],
         )[0]
 
-        await self.db.give_item(lucky, item_name, channel_id=cid)
+        result = await self.db.grant_case(
+            lucky, tier=tier, source='drop', channel_id=cid
+        )
+        if not result.get('granted'):
+            logger.warning("[ch=%s] Drop case grant failed for @%s: %s",
+                           cid, lucky, result.get('reason'))
+            return
 
+        tier_emoji = {'common': '🎁', 'rare': '💎', 'epic': '💠', 'legendary': '👑'}.get(tier, '🎁')
+        tier_label = {'common': 'обычный', 'rare': 'редкий', 'epic': 'эпический', 'legendary': 'легендарный'}.get(tier, tier)
         await self.send_message(
-            f"🎁 @{lucky} получил {item_name} в дропе!", channel_id=cid)
-        logger.info("[ch=%s] ДРОП: @%s получил %s", cid, lucky, item_name)
+            f"{tier_emoji} @{lucky} поймал удачный момент — выпал {tier_label} кейс! "
+            f"Открой через расширение!", channel_id=cid)
+        logger.info("[ch=%s] DROP: @%s получил %s кейс (case_id=%s)",
+                    cid, lucky, tier, result.get('case_id'))
 
+        # on_drop overlay-hook сохранён для backward-compat с overlay.html.
+        # Передаём tier как rarity для overlay-card; item_name больше нет —
+        # передаём emoji+label чтобы overlay мог отрисовать что-то осмысленное.
         try:
-            await self.on_drop(lucky, item_name, rarity)
+            await self.on_drop(lucky, f"{tier_label} кейс", tier)
         except Exception as e:
             print(f"⚠️ Ошибка on_drop: {e}")
 

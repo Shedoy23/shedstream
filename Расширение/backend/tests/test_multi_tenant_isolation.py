@@ -743,6 +743,68 @@ async def test_cases_system():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Test 10: Drops → cases distribution (Phase 6, 2026-05-11)
+# ─────────────────────────────────────────────────────────────────────────────
+def test_drops_distribution():
+    """Phase 6: проверяет что DROP_CASE_TIERS weights дают распределение
+    близкое к expected (70/25/4/1) на 2000 samples.
+
+    Это chi-square-like sanity check, не строгий стат-тест — допустимые
+    толерансы установлены щедро (±3% для common, ±2% для rare, ±1% для
+    epic/legendary) чтобы не было flaky CI.
+
+    Также проверяет что weights суммируются правильно (sanity).
+    """
+    print("\n[10] Drops → cases distribution (Phase 6)")
+    import random as _random
+    from bot_core import DROP_CASE_TIERS
+
+    # Sanity: weights sum to 100
+    total_w = sum(t[1] for t in DROP_CASE_TIERS)
+    assert_eq(total_w, 100, "DROP_CASE_TIERS weights sum = 100")
+
+    # Tiers present
+    tier_names = [t[0] for t in DROP_CASE_TIERS]
+    assert_true('common' in tier_names, "common in DROP_CASE_TIERS")
+    assert_true('rare' in tier_names, "rare in DROP_CASE_TIERS")
+    assert_true('epic' in tier_names, "epic in DROP_CASE_TIERS")
+    assert_true('legendary' in tier_names, "legendary in DROP_CASE_TIERS")
+
+    # Sample distribution
+    N = 2000
+    counts = {t: 0 for t, _ in DROP_CASE_TIERS}
+    rng = _random.Random(42)  # seed для reproducible CI
+    for _ in range(N):
+        tier = rng.choices(
+            [t[0] for t in DROP_CASE_TIERS],
+            weights=[t[1] for t in DROP_CASE_TIERS],
+        )[0]
+        counts[tier] += 1
+
+    common_pct = counts['common'] / N * 100
+    rare_pct = counts['rare'] / N * 100
+    epic_pct = counts['epic'] / N * 100
+    legendary_pct = counts['legendary'] / N * 100
+
+    # Толеранс: 3% для common, 2% для rare, 1.5% для epic/legendary
+    # (с seed=42 на 2000 sample'ах распределение стабильное)
+    assert_true(67.0 <= common_pct <= 73.0,
+                f"common ≈ 70% (got {common_pct:.1f}%)")
+    assert_true(23.0 <= rare_pct <= 27.0,
+                f"rare ≈ 25% (got {rare_pct:.1f}%)")
+    assert_true(2.5 <= epic_pct <= 5.5,
+                f"epic ≈ 4% (got {epic_pct:.1f}%)")
+    assert_true(0.3 <= legendary_pct <= 2.5,
+                f"legendary ≈ 1% (got {legendary_pct:.1f}%)")
+
+    print(f"  Distribution на {N} samples (seed=42):")
+    print(f"    common:    {common_pct:.1f}% (target 70%)")
+    print(f"    rare:      {rare_pct:.1f}% (target 25%)")
+    print(f"    epic:      {epic_pct:.1f}% (target 4%)")
+    print(f"    legendary: {legendary_pct:.1f}% (target 1%)")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main runner
 # ─────────────────────────────────────────────────────────────────────────────
 async def run_all_tests():
@@ -759,6 +821,7 @@ async def run_all_tests():
     test_chat_bonus_antifraud()
     test_current_stream_id_per_channel()
     await test_cases_system()
+    test_drops_distribution()
 
     print("\n" + "=" * 70)
     print(f"PASSED: {len(_successes)}    FAILED: {len(_failures)}")

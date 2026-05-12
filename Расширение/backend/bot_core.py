@@ -420,6 +420,75 @@ class BotCore:
                         logger.warning("[ch=%s/%s] find_match_pairs failed: %s",
                                        cid, game_type, e)
 
+    # ===== VOTING LOOP (Phase 4, 2026-05-11) =====
+    async def voting_loop(self):
+        """Voting background loop:
+          1. Finalize expired active events (ends_at прошёл)
+          2. Auto-start event на каналах с pool >= threshold + default template
+
+        Применяя async-python-patterns:
+          - structured error handling (per-iteration try/except не валит loop)
+          - cooperative cancellation: sleep между tick'ами
+          - generic loop interval VOTING_LOOP_INTERVAL (10s default)
+        """
+        from config import VOTING_LOOP_INTERVAL, VOTING_POOL_THRESHOLD
+        logger.info("Voting loop запущен (interval=%ds, threshold=%d)",
+                    VOTING_LOOP_INTERVAL, VOTING_POOL_THRESHOLD)
+        while self.running:
+            await asyncio.sleep(VOTING_LOOP_INTERVAL)
+
+            # 1. Finalize expired
+            try:
+                expired = await self.db.find_expired_voting_events()
+                for evt in expired:
+                    event_id = evt["event_id"]
+                    cid = evt["channel_id"]
+                    try:
+                        result = await self.db.finalize_voting_event(event_id, channel_id=cid)
+                        if result.get("finalized"):
+                            winner = result.get("winner_option")
+                            outcome = result.get("outcome")
+                            if winner:
+                                msg = (f"🏆 Голосование завершено! Победил «{winner['label']}» "
+                                       f"({winner['pool']:,}💎)")
+                            else:
+                                msg = "🗳️ Голосование завершено: никто не голосовал"
+                            try:
+                                await self.send_message(msg, channel_id=cid)
+                            except Exception as e:
+                                logger.warning("voting_loop chat-notify failed: %s", e)
+                            logger.info("[ch=%s] voting event %s finalized: %s",
+                                        cid, event_id, outcome)
+                    except Exception as e:
+                        logger.warning("[ch=%s] voting finalize failed (event %s): %s",
+                                       cid, event_id, e)
+            except Exception as e:
+                logger.warning("voting_loop expired-events tick failed: %s", e)
+
+            # 2. Auto-start на каналах с готовностью
+            try:
+                ready = await self.db.find_channels_ready_for_voting(VOTING_POOL_THRESHOLD)
+                for ch in ready:
+                    cid = ch["channel_id"]
+                    tpl_id = ch["default_template_id"]
+                    try:
+                        result = await self.db.start_voting_event(tpl_id, channel_id=cid)
+                        if result.get("started"):
+                            try:
+                                await self.send_message(
+                                    f"🗳️ Стартовало голосование «{result['template_name']}»! "
+                                    f"Кидайте крустики на свой вариант — у тебя 5 минут.",
+                                    channel_id=cid,
+                                )
+                            except Exception:
+                                pass
+                            logger.info("[ch=%s] voting event auto-started: template=%s",
+                                        cid, tpl_id)
+                    except Exception as e:
+                        logger.warning("[ch=%s] voting auto-start failed: %s", cid, e)
+            except Exception as e:
+                logger.warning("voting_loop auto-start tick failed: %s", e)
+
     # ===== НАЧИСЛЕНИЕ ОЧКОВ =====
     async def reward_points_loop(self):
         """Цикл начисления очков (каждую минуту), multi-tenant.
@@ -602,7 +671,9 @@ class BotCore:
             _, uname = k
             self._bonus_cache.invalidate(f"bonus_{cid}_{uname}")
 
-        # 3. Классификация + начисление.
+        # 3. Классификация + начисление. Phase 4: incrementим voting pool
+        # = active_count units per minute (1 unit/min/active viewer).
+        from config import VOTING_POOL_PER_WATCH_MIN
         active_count = reduced_count = 0
         for username, age_sec in rows:
             if age_sec >= REDUCED_WINDOW:
@@ -632,7 +703,17 @@ class BotCore:
                 for quest in WATCH_TIME_QUESTS:
                     await self._update_quest_progress(username, quest, 1, channel_id=cid)
 
-        # 4. is_afk sync — per-channel (раньше было WHERE без фильтра, что
+        # 4. Voting pool increment: active viewers × VOTING_POOL_PER_WATCH_MIN
+        #    (1 unit/min/viewer). Auto-start подхватит voting_loop когда threshold.
+        if active_count > 0:
+            try:
+                await self.db.increment_voting_pool(
+                    cid, active_count * VOTING_POOL_PER_WATCH_MIN
+                )
+            except Exception as e:
+                logger.debug("voting pool increment failed: %s", e)
+
+        # 5. is_afk sync — per-channel (раньше было WHERE без фильтра, что
         #    при offline-канале ставило is_afk=1 ВСЕМ зрителям всех каналов).
         try:
             async with self.db._connect() as conn:

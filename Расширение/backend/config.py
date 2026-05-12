@@ -280,6 +280,25 @@ MATCHMAKING_DEFAULT_ELO_SPREAD = 100
 # Auto-expire queue entries старше N секунд (cleanup от disconnected клиентов).
 MATCHMAKING_QUEUE_TTL_SEC = 300
 
+# ===== PETS MVP (Phase 7, 2026-05-11) =====
+# Compliance критично: catalog задаётся ТУТ, не стримером (§6.2.8 protection).
+# Items deterministic, не mystery box за Bits (§6.2.4 ban).
+# Cosmetics-only — НЕТ utility (бустов / преимуществ).
+
+# Bits integration mode. Когда зарегистрируем Bits products в Twitch
+# Developer Console — flip на True. До этого moments — mock-режим без
+# реальных Bits transactions.
+PETS_BITS_REQUIRED = False                  # ENV override: PETS_BITS_REQUIRED=true
+
+# Default pet appearance — 🥚 яичко-маскот (символ начала, см. PROJECT_PLAYBOOK §5.4)
+PET_BASE_TYPE = 'egg'
+
+# Какие slots существуют. Если добавляем новый — расширяем CHECK в migration M13.
+PET_SLOTS = ('head', 'accessory', 'background', 'body')
+
+# Max pet name length (опц.)
+PET_NAME_MAX_LEN = 24
+
 # ===== ГОЛОСОВАНИЯ (Phase 4, 2026-05-11) =====
 # Voting events — стример настраивает варианты действий, юзеры вкидывают
 # крустики на свой выбор. §6.1.4 Twitch Extension Guidelines прямо разрешает.

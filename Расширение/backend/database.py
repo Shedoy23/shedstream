@@ -1427,6 +1427,428 @@ class Database:
             )
             return await cur.fetchone() is not None
 
+    # ===== PETS MVP (Phase 7, 2026-05-11) — CROSS-CHANNEL =====
+    # ВАЖНО: pets-таблицы GLOBAL per user (без channel_id в PK).
+    # Это explicit exception от multi-tenant invariant (см. ARCHITECTURE.md §3.1).
+    # channel_id хранится в pet_purchases только для revenue attribution (§7.5).
+
+    async def ensure_pet(self, username: str) -> Dict:
+        """Гарантирует что у юзера есть pet (creates 🥚 если нет).
+
+        Returns:
+            {'pet': {username, pet_type, hatched_at, last_seen, name},
+             'created': bool}
+        """
+        uname = username.lower()
+        async with self._connect() as conn:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+                cur = await conn.execute(
+                    "SELECT username, pet_type, hatched_at, last_seen, name "
+                    "FROM pets WHERE username = ?",
+                    (uname,)
+                )
+                row = await cur.fetchone()
+                if row:
+                    # Update last_seen
+                    await conn.execute(
+                        "UPDATE pets SET last_seen = CURRENT_TIMESTAMP WHERE username = ?",
+                        (uname,)
+                    )
+                    await conn.commit()
+                    return {
+                        'created': False,
+                        'pet': {
+                            'username': row[0], 'pet_type': row[1],
+                            'hatched_at': row[2], 'last_seen': row[3],
+                            'name': row[4],
+                        },
+                    }
+                # Hatch new pet
+                from config import PET_BASE_TYPE
+                await conn.execute(
+                    "INSERT INTO pets (username, pet_type) VALUES (?, ?)",
+                    (uname, PET_BASE_TYPE)
+                )
+                cur = await conn.execute(
+                    "SELECT username, pet_type, hatched_at, last_seen, name "
+                    "FROM pets WHERE username = ?",
+                    (uname,)
+                )
+                row = await cur.fetchone()
+                await conn.commit()
+                return {
+                    'created': True,
+                    'pet': {
+                        'username': row[0], 'pet_type': row[1],
+                        'hatched_at': row[2], 'last_seen': row[3],
+                        'name': row[4],
+                    },
+                }
+            except Exception:
+                await conn.execute("ROLLBACK")
+                raise
+
+    async def get_my_pet(self, username: str) -> Dict:
+        """Pet juicy info: pet appearance + inventory + equipped slots.
+
+        Cross-channel: НЕ scope'ит по channel_id (pets global per user).
+        """
+        uname = username.lower()
+        await self.ensure_pet(username)
+
+        async with self._connect() as conn:
+            # Pet base
+            cur = await conn.execute(
+                "SELECT pet_type, hatched_at, last_seen, name FROM pets WHERE username = ?",
+                (uname,)
+            )
+            pet_row = await cur.fetchone()
+            pet = {
+                'pet_type':   pet_row[0],
+                'hatched_at': pet_row[1],
+                'last_seen':  pet_row[2],
+                'name':       pet_row[3],
+            }
+
+            # Inventory + catalog join
+            cur = await conn.execute(
+                "SELECT pi.item_id, pc.name, pc.slot, pc.rarity, pc.emoji, "
+                "       pi.acquired_at "
+                "FROM pet_inventory pi "
+                "JOIN pet_catalog pc ON pc.item_id = pi.item_id "
+                "WHERE pi.username = ? AND pc.deprecated = 0 "
+                "ORDER BY pi.acquired_at DESC",
+                (uname,)
+            )
+            inventory = [
+                {'item_id': r[0], 'name': r[1], 'slot': r[2], 'rarity': r[3],
+                 'emoji': r[4], 'acquired_at': r[5]}
+                for r in await cur.fetchall()
+            ]
+
+            # Equipped slots
+            cur = await conn.execute(
+                "SELECT pe.slot, pe.item_id, pc.name, pc.emoji, pc.rarity "
+                "FROM pet_equipped pe "
+                "JOIN pet_catalog pc ON pc.item_id = pe.item_id "
+                "WHERE pe.username = ?",
+                (uname,)
+            )
+            equipped = {
+                r[0]: {'item_id': r[1], 'name': r[2], 'emoji': r[3], 'rarity': r[4]}
+                for r in await cur.fetchall()
+            }
+
+            return {
+                'username':  uname,
+                'pet':       pet,
+                'inventory': inventory,
+                'equipped':  equipped,
+            }
+
+    async def list_pet_catalog(self, include_owned: Optional[str] = None) -> list:
+        """Список активных catalog items. Если include_owned=username — для
+        каждого item возвращается owned: bool (juicy для UI).
+        """
+        async with self._connect() as conn:
+            cur = await conn.execute(
+                "SELECT item_id, name, slot, price_bits, rarity, emoji "
+                "FROM pet_catalog WHERE deprecated = 0 "
+                "ORDER BY price_bits, rarity DESC"
+            )
+            items = [
+                {'item_id': r[0], 'name': r[1], 'slot': r[2],
+                 'price_bits': r[3], 'rarity': r[4], 'emoji': r[5]}
+                for r in await cur.fetchall()
+            ]
+
+            if include_owned:
+                uname = include_owned.lower()
+                cur = await conn.execute(
+                    "SELECT item_id FROM pet_inventory WHERE username = ?",
+                    (uname,)
+                )
+                owned_set = {r[0] for r in await cur.fetchall()}
+                for item in items:
+                    item['owned'] = item['item_id'] in owned_set
+
+            return items
+
+    async def purchase_pet_item(
+        self,
+        username: str,
+        item_id: str,
+        channel_id: int,
+        bits_receipt: Optional[str] = None,
+        mode: str = 'mock',
+    ) -> Dict:
+        """Купить cosmetic за Bits.
+
+        Args:
+            username: cross-channel user
+            item_id: catalog item_id
+            channel_id: где совершена покупка (для revenue attribution §7.5)
+            bits_receipt: Twitch Bits transaction ID (REQUIRED if mode='bits')
+            mode: 'mock' для разработки / 'bits' для production
+
+        Returns:
+            {'purchased': True, 'item_id', 'price_bits', 'purchase_id'}
+            | {'purchased': False, 'reason': 'item_not_found' | 'deprecated' |
+                                            'already_owned' | 'receipt_already_used' |
+                                            'receipt_required'}
+
+        Compliance: атомарная транзакция — receipt проверяется UNIQUE,
+        item added в inventory + purchase audit в одной TX.
+        """
+        from config import PETS_BITS_REQUIRED
+        uname = username.lower()
+
+        if PETS_BITS_REQUIRED and mode != 'bits':
+            return {'purchased': False, 'reason': 'mock_mode_disabled'}
+        if mode == 'bits' and not bits_receipt:
+            return {'purchased': False, 'reason': 'receipt_required'}
+
+        async with self._connect() as conn:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+
+                # Validate item
+                cur = await conn.execute(
+                    "SELECT price_bits, deprecated FROM pet_catalog WHERE item_id = ?",
+                    (item_id,)
+                )
+                row = await cur.fetchone()
+                if not row:
+                    await conn.execute("ROLLBACK")
+                    return {'purchased': False, 'reason': 'item_not_found'}
+                price, deprecated = row
+                if deprecated:
+                    await conn.execute("ROLLBACK")
+                    return {'purchased': False, 'reason': 'deprecated'}
+
+                # Already owned?
+                cur = await conn.execute(
+                    "SELECT 1 FROM pet_inventory WHERE username = ? AND item_id = ?",
+                    (uname, item_id)
+                )
+                if await cur.fetchone():
+                    await conn.execute("ROLLBACK")
+                    return {'purchased': False, 'reason': 'already_owned'}
+
+                # Receipt-idempotency (only for bits mode)
+                if bits_receipt:
+                    cur = await conn.execute(
+                        "SELECT id FROM pet_purchases WHERE bits_receipt = ?",
+                        (bits_receipt,)
+                    )
+                    if await cur.fetchone():
+                        await conn.execute("ROLLBACK")
+                        return {'purchased': False, 'reason': 'receipt_already_used'}
+
+                # Ensure pet exists (для new юзеров)
+                from config import PET_BASE_TYPE
+                await conn.execute(
+                    "INSERT OR IGNORE INTO pets (username, pet_type) VALUES (?, ?)",
+                    (uname, PET_BASE_TYPE)
+                )
+
+                # Add to inventory
+                await conn.execute(
+                    "INSERT INTO pet_inventory (username, item_id) VALUES (?, ?)",
+                    (uname, item_id)
+                )
+
+                # Audit
+                cur = await conn.execute(
+                    "INSERT INTO pet_purchases "
+                    "(username, item_id, channel_id, bits_amount, bits_receipt, mode) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    (uname, item_id, channel_id, price, bits_receipt, mode)
+                )
+                purchase_id = cur.lastrowid
+                await conn.commit()
+
+                return {
+                    'purchased':   True,
+                    'item_id':     item_id,
+                    'price_bits':  price,
+                    'mode':        mode,
+                    'purchase_id': purchase_id,
+                }
+            except Exception:
+                await conn.execute("ROLLBACK")
+                raise
+
+    async def equip_pet_item(
+        self,
+        username: str,
+        item_id: Optional[str],
+        slot: Optional[str] = None,
+    ) -> Dict:
+        """Equip / unequip cosmetic.
+
+        Args:
+            item_id: если None → unequip slot. Если задан → equip + lookup slot.
+            slot: required если item_id is None (для unequip). Если item_id
+                  задан — slot берётся из catalog.
+
+        Returns:
+            {'equipped': True, 'slot': X, 'item_id': Y | None}
+            | {'equipped': False, 'reason': 'not_owned' | 'item_not_found' | 'invalid_args'}
+        """
+        uname = username.lower()
+        async with self._connect() as conn:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+
+                if item_id is None and slot is None:
+                    await conn.execute("ROLLBACK")
+                    return {'equipped': False, 'reason': 'invalid_args'}
+
+                if item_id is None:
+                    # Unequip slot
+                    cur = await conn.execute(
+                        "DELETE FROM pet_equipped WHERE username = ? AND slot = ?",
+                        (uname, slot)
+                    )
+                    await conn.commit()
+                    return {'equipped': True, 'slot': slot, 'item_id': None,
+                            'action': 'unequip'}
+
+                # Lookup item slot from catalog
+                cur = await conn.execute(
+                    "SELECT slot, deprecated FROM pet_catalog WHERE item_id = ?",
+                    (item_id,)
+                )
+                row = await cur.fetchone()
+                if not row:
+                    await conn.execute("ROLLBACK")
+                    return {'equipped': False, 'reason': 'item_not_found'}
+                catalog_slot, deprecated = row
+                if deprecated:
+                    await conn.execute("ROLLBACK")
+                    return {'equipped': False, 'reason': 'deprecated'}
+
+                # Check ownership
+                cur = await conn.execute(
+                    "SELECT 1 FROM pet_inventory WHERE username = ? AND item_id = ?",
+                    (uname, item_id)
+                )
+                if not await cur.fetchone():
+                    await conn.execute("ROLLBACK")
+                    return {'equipped': False, 'reason': 'not_owned'}
+
+                # Replace existing equip in slot
+                await conn.execute(
+                    "INSERT INTO pet_equipped (username, slot, item_id) "
+                    "VALUES (?, ?, ?) "
+                    "ON CONFLICT(username, slot) DO UPDATE SET "
+                    "item_id = excluded.item_id, equipped_at = CURRENT_TIMESTAMP",
+                    (uname, catalog_slot, item_id)
+                )
+                await conn.commit()
+                return {'equipped': True, 'slot': catalog_slot,
+                        'item_id': item_id, 'action': 'equip'}
+            except Exception:
+                await conn.execute("ROLLBACK")
+                raise
+
+    async def get_channel_pets_setting(self, channel_id: int) -> bool:
+        """Включен ли pets-overlay на канале."""
+        async with self._connect() as conn:
+            cur = await conn.execute(
+                "SELECT overlay_enabled FROM channel_pet_settings WHERE channel_id = ?",
+                (channel_id,)
+            )
+            row = await cur.fetchone()
+            return bool(row[0]) if row else True  # default ON
+
+    async def set_channel_pets_setting(self, channel_id: int, enabled: bool) -> None:
+        """Стример toggle'ит pets-overlay на канале."""
+        async with self._connect() as conn:
+            await conn.execute(
+                "INSERT INTO channel_pet_settings (channel_id, overlay_enabled) "
+                "VALUES (?, ?) "
+                "ON CONFLICT(channel_id) DO UPDATE SET "
+                "overlay_enabled = excluded.overlay_enabled, "
+                "updated_at = CURRENT_TIMESTAMP",
+                (channel_id, 1 if enabled else 0)
+            )
+            await conn.commit()
+
+    async def get_active_viewers_with_pets(
+        self,
+        channel_id: int,
+        active_window_sec: int = 600,
+        limit: int = 20,
+    ) -> list:
+        """Список активных viewers с их pets для overlay rendering.
+
+        - Multi-tenant читает viewers WHERE channel_id (per channel)
+        - Cross-channel читает pets+equipped (global per user)
+
+        Returns: [{username, pet_type, equipped: {head, accessory, ...}}]
+        """
+        async with self._connect() as conn:
+            # Fast active viewers list
+            cur = await conn.execute(
+                "SELECT username FROM viewers "
+                "WHERE channel_id = ? AND last_seen >= datetime('now', ?) "
+                "ORDER BY last_seen DESC LIMIT ?",
+                (channel_id, f"-{active_window_sec} seconds", limit)
+            )
+            active = [r[0] for r in await cur.fetchall()]
+            if not active:
+                return []
+
+            # Pet types + equipped slots for all in single query (где есть pet)
+            placeholders = ",".join("?" * len(active))
+            cur = await conn.execute(
+                f"SELECT username, pet_type FROM pets WHERE username IN ({placeholders})",
+                tuple(active)
+            )
+            pet_types = {r[0]: r[1] for r in await cur.fetchall()}
+
+            cur = await conn.execute(
+                f"SELECT pe.username, pe.slot, pe.item_id, pc.emoji "
+                f"FROM pet_equipped pe "
+                f"JOIN pet_catalog pc ON pc.item_id = pe.item_id "
+                f"WHERE pe.username IN ({placeholders})",
+                tuple(active)
+            )
+            equipped_by_user = {}
+            for row in await cur.fetchall():
+                u, slot, item_id, emoji = row
+                if u not in equipped_by_user:
+                    equipped_by_user[u] = {}
+                equipped_by_user[u][slot] = {'item_id': item_id, 'emoji': emoji}
+
+            # Build result
+            result = []
+            for username in active:
+                if username in pet_types:
+                    result.append({
+                        'username':  username,
+                        'pet_type':  pet_types[username],
+                        'equipped':  equipped_by_user.get(username, {}),
+                    })
+            return result
+
+    async def set_pet_name(self, username: str, name: Optional[str]) -> bool:
+        """Юзер задаёт имя своему pet."""
+        from config import PET_NAME_MAX_LEN
+        uname = username.lower()
+        if name:
+            name = name.strip()[:PET_NAME_MAX_LEN]
+        async with self._connect() as conn:
+            cur = await conn.execute(
+                "UPDATE pets SET name = ? WHERE username = ?",
+                (name, uname)
+            )
+            await conn.commit()
+            return cur.rowcount > 0
+
     # ===== VOTING EVENTS (Phase 4, 2026-05-11) =====
     # §6.1.4 Twitch Extension Guidelines: voting activities прямо разрешены.
     # Применяет skills/code-review-excellence: грунт-руль атомарных txns +

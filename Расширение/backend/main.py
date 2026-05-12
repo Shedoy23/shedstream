@@ -492,6 +492,16 @@ async def run_migrations():
             print(f"❌ M12 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M13: pets MVP (Phase 7 of COMPLIANCE_REWORK_PLAN.md) ──
+        # Первая cross-channel feature. pet_catalog + pets + pet_inventory +
+        # pet_equipped + pet_purchases + channel_pet_settings. Catalog seeded.
+        try:
+            from migrations import m13_pets
+            await m13_pets.apply(conn)
+        except Exception as e:
+            print(f"❌ M13 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

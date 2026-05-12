@@ -2214,6 +2214,62 @@ async def test_pets_system():
             (nm2,) = await cur.fetchone()
             assert_eq(nm2, None, "pet.name можно сбросить в NULL")
 
+            # 18.15 Hatch logic (Phase 8.B.2): первая покупка → egg → hatched.
+            # Fresh user (bob) — у alice состояние уже сложное.
+            bob = 'bob_hatch'
+            await conn.execute(
+                "INSERT INTO pets (username, pet_type) VALUES (?, 'egg')",
+                (bob,)
+            )
+            await conn.commit()
+            cur = await conn.execute("SELECT pet_type FROM pets WHERE username = ?", (bob,))
+            (start_type,) = await cur.fetchone()
+            assert_eq(start_type, 'egg', "bob_hatch стартует как egg")
+
+            # Симулируем purchase_pet_item TX: count inventory BEFORE INSERT
+            cur = await conn.execute(
+                "SELECT COUNT(*) FROM pet_inventory WHERE username = ?", (bob,)
+            )
+            (before,) = await cur.fetchone()
+            is_first = (before == 0)
+            assert_true(is_first, "первая покупка флаг = True (inventory empty)")
+
+            await conn.execute(
+                "INSERT INTO pet_inventory (username, item_id) VALUES (?, 'acc_glasses')",
+                (bob,)
+            )
+            # Hatch only если pet_type='egg'
+            cur = await conn.execute(
+                "UPDATE pets SET pet_type = 'hatched' WHERE username = ? AND pet_type = 'egg'",
+                (bob,)
+            )
+            assert_eq(cur.rowcount, 1, "egg → hatched (1 row updated)")
+            await conn.commit()
+
+            cur = await conn.execute("SELECT pet_type FROM pets WHERE username = ?", (bob,))
+            (new_type,) = await cur.fetchone()
+            assert_eq(new_type, 'hatched', "bob_hatch теперь в state hatched")
+
+            # 18.16 Hatch idempotent: вторая покупка НЕ должна сменить state
+            cur = await conn.execute(
+                "SELECT COUNT(*) FROM pet_inventory WHERE username = ?", (bob,)
+            )
+            (before2,) = await cur.fetchone()
+            is_first2 = (before2 == 0)
+            assert_true(not is_first2, "вторая покупка флаг = False (inventory > 0)")
+
+            await conn.execute(
+                "INSERT INTO pet_inventory (username, item_id) VALUES (?, 'acc_scarf')",
+                (bob,)
+            )
+            # UPDATE с WHERE pet_type='egg' — должен 0 rows (bob уже hatched)
+            cur = await conn.execute(
+                "UPDATE pets SET pet_type = 'hatched' WHERE username = ? AND pet_type = 'egg'",
+                (bob,)
+            )
+            assert_eq(cur.rowcount, 0, "hatch UPDATE idempotent (no rows changed на 2-й покупке)")
+            await conn.commit()
+
     finally:
         try:
             os.unlink(db_path)

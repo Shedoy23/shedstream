@@ -1653,11 +1653,30 @@ class Database:
                     (uname, PET_BASE_TYPE)
                 )
 
+                # Hatch check: первая покупка → egg переходит в hatched.
+                # Считаем "первая" по inventory ДО текущего INSERT (всё в TX).
+                cur = await conn.execute(
+                    "SELECT COUNT(*) FROM pet_inventory WHERE username = ?",
+                    (uname,)
+                )
+                (existing_count,) = await cur.fetchone()
+                is_first_purchase = (existing_count == 0)
+
                 # Add to inventory
                 await conn.execute(
                     "INSERT INTO pet_inventory (username, item_id) VALUES (?, ?)",
                     (uname, item_id)
                 )
+
+                hatched = False
+                if is_first_purchase:
+                    # Только если pet ещё в egg-state — апдейтим в hatched
+                    cur = await conn.execute(
+                        "UPDATE pets SET pet_type = 'hatched' "
+                        "WHERE username = ? AND pet_type = 'egg'",
+                        (uname,)
+                    )
+                    hatched = (cur.rowcount > 0)
 
                 # Audit
                 cur = await conn.execute(
@@ -1675,6 +1694,7 @@ class Database:
                     'price_bits':  price,
                     'mode':        mode,
                     'purchase_id': purchase_id,
+                    'hatched':     hatched,  # True если egg → 🐣 произошёл
                 }
             except Exception:
                 await conn.execute("ROLLBACK")

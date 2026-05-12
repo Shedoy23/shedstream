@@ -118,12 +118,17 @@ async def pet_purchase(request: Request):
     )
 
     if result.get("purchased"):
+        hatched = result.get("hatched", False)
         return {
             "success":   True,
             "item_id":   result["item_id"],
             "price_bits": result["price_bits"],
             "mode":      result["mode"],
-            "message":   f"✨ Куплено! Иди надевай в инвентарь.",
+            "hatched":   hatched,
+            "message":   (
+                "🐣 Твой пет ВЫЛУПИЛСЯ! Иди наряжай его!" if hatched
+                else "✨ Куплено! Иди надевай в инвентарь."
+            ),
         }
     reason_msg = {
         "item_not_found":      "Item не найден в catalog",

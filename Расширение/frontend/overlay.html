@@ -664,7 +664,22 @@ body {
     text-align: center;
     backdrop-filter: blur(8px);
     box-shadow: 0 4px 20px rgba(0,0,0,.4);
-    transition: transform .3s ease;
+    /* slide-in появление; каждой карточке через JS даём transitionDelay */
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity .35s ease, transform .35s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+.pet-card.in {
+    opacity: 1;
+    transform: translateY(0);
+}
+.pet-card.with-bg {
+    /* фон-косметика тонкое pulsing-свечение */
+    animation: pet-bg-pulse 4s ease-in-out infinite;
+}
+@keyframes pet-bg-pulse {
+    0%, 100% { box-shadow: 0 4px 20px rgba(0,0,0,.4), 0 0 0 0 rgba(145,71,255,0); }
+    50%      { box-shadow: 0 4px 20px rgba(0,0,0,.4), 0 0 22px 2px rgba(145,71,255,.18); }
 }
 .pet-card.with-bg {
     background: linear-gradient(135deg, rgba(145,71,255,.22), rgba(8,5,22,.85));
@@ -1212,6 +1227,10 @@ function runPreview() {
 // Polls /api/overlay/pets и рендерит активных зрителей.
 // Streamer может отключить через toggle на /api/streamer/pets/overlay-toggle.
 // ══════════════════════════════════════════
+// Track which usernames мы уже отрисовали в strip — чтобы не дёргать
+// stagger-анимацию на каждом poll-tick (только новые карточки animate).
+let _lastPetsSnapshot = '';
+
 async function pollPets() {
     try {
         const url = SERVER + '/api/overlay/pets'
@@ -1224,8 +1243,29 @@ async function pollPets() {
         if (!data.success || !data.enabled || !data.viewers || data.viewers.length === 0) {
             strip.classList.remove('visible');
             strip.innerHTML = '';
+            _lastPetsSnapshot = '';
             return;
         }
+
+        // Snapshot key: сортированный список (username|head|acc|bg|name)
+        const snapshot = data.viewers.map(v => {
+            const eq = v.equipped || {};
+            return [
+                v.username || '?',
+                eq.head?.item_id || '',
+                eq.accessory?.item_id || '',
+                eq.background?.item_id || '',
+                v.name || '',
+                v.pet_type || 'egg',
+            ].join('|');
+        }).sort().join(';');
+
+        // Если контент не изменился — пропускаем перерисовку (нет flicker).
+        if (snapshot === _lastPetsSnapshot) {
+            strip.classList.add('visible');
+            return;
+        }
+        _lastPetsSnapshot = snapshot;
 
         strip.innerHTML = data.viewers.map(v => {
             const eq = v.equipped || {};
@@ -1248,6 +1288,16 @@ async function pollPets() {
             `;
         }).join('');
         strip.classList.add('visible');
+
+        // Stagger-анимация: каждой карточке +60ms delay, .in флаг
+        const cards = strip.querySelectorAll('.pet-card');
+        cards.forEach((card, i) => {
+            card.style.transitionDelay = `${i * 60}ms`;
+            // двойной rAF — ждём что CSS подцепил initial state
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => card.classList.add('in'));
+            });
+        });
     } catch (e) { /* silent */ }
 }
 

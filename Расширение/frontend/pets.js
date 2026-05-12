@@ -17,6 +17,48 @@ let _petsState = {
     buying: false,
 };
 
+// Inject CSS для анимаций (hatch-burst, equip-bounce, NEW-badge).
+// Делаем один раз — guard через id.
+(function injectPetsStyles() {
+    if (document.getElementById('pets-anim-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'pets-anim-styles';
+    style.textContent = `
+        .pet-visual-anim.hatch-burst {
+            animation: pet-hatch 1.3s cubic-bezier(.34, 1.6, .64, 1) 1;
+        }
+        @keyframes pet-hatch {
+            0%   { transform: scale(1)    rotate(0deg); }
+            18%  { transform: scale(1.35) rotate(-8deg); filter: brightness(1.5); }
+            34%  { transform: scale(1.05) rotate(6deg);  filter: brightness(1.2); }
+            54%  { transform: scale(1.25) rotate(-4deg); }
+            76%  { transform: scale(1.05) rotate(2deg); }
+            100% { transform: scale(1)    rotate(0deg);  filter: brightness(1); }
+        }
+        .pet-card-equip-bounce {
+            animation: pet-bounce .45s cubic-bezier(.34, 1.6, .64, 1) 1;
+        }
+        @keyframes pet-bounce {
+            0%   { transform: scale(1); }
+            50%  { transform: scale(1.06); }
+            100% { transform: scale(1); }
+        }
+        .pet-new-badge {
+            display: inline-block;
+            background: #f87171;
+            color: #fff;
+            font-size: 9px;
+            font-weight: 700;
+            padding: 1px 5px;
+            border-radius: 3px;
+            letter-spacing: .5px;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
+    `;
+    document.head.appendChild(style);
+})();
+
 async function openPetsModal() {
     if (!isAuthUser()) {
         showNotification('⚠️ Войдите через Twitch', 'warning');
@@ -108,11 +150,12 @@ function _renderPetView() {
         <div style="
             background:${bgItem ? 'rgba(145,71,255,.18)' : '#1a1a1c'};
             border:1px solid ${bgItem ? 'rgba(145,71,255,.5)' : '#3a3a3e'};
-            border-radius:12px;padding:18px;text-align:center;margin-bottom:12px;">
+            border-radius:12px;padding:18px;text-align:center;margin-bottom:12px;
+            position:relative;overflow:hidden;">
             <div style="font-size:14px;color:#adadb8;margin-bottom:4px;">
                 ${bgItem ? bgItem.emoji + ' ' + escapeHtml(bgItem.name) : 'фон не надет'}
             </div>
-            <div style="font-size:64px;line-height:1;margin:8px 0;">
+            <div class="pet-visual-anim" style="font-size:64px;line-height:1;margin:8px 0;">
                 ${headItem ? `<span style="position:relative;top:-4px;font-size:32px;">${headItem.emoji}</span>` : ''}
                 ${petEmoji}
                 ${accItem ? `<span style="font-size:32px;">${accItem.emoji}</span>` : ''}
@@ -211,12 +254,18 @@ function _renderCatalogView() {
                    ${bitsRequired ? `💎 ${it.price_bits}` : 'Получить'}
                </button>`;
 
+        // NEW-badge для never-owned (для эпик/легендарных пометить ярче)
+        const showNewBadge = !owned && (it.rarity === 'epic' || it.rarity === 'legendary');
+        const newBadge = showNewBadge ? `<span class="pet-new-badge">NEW</span>` : '';
+
         return `
             <div style="background:#1a1a1c;border:1px solid ${rarityColor};border-radius:8px;
                         padding:10px;display:flex;align-items:center;gap:10px;margin-bottom:6px;">
                 <div style="font-size:30px;">${it.emoji || '🎁'}</div>
                 <div style="flex:1;">
-                    <div style="font-size:13px;font-weight:700;">${escapeHtml(it.name)}</div>
+                    <div style="font-size:13px;font-weight:700;">
+                        ${escapeHtml(it.name)}${newBadge}
+                    </div>
                     <div style="font-size:11px;color:${rarityColor};">
                         ${_slotRu(it.slot)} · ${_rarityRu(it.rarity)}
                     </div>
@@ -286,7 +335,17 @@ async function _equipItem(itemId) {
         });
         const data = await r.json();
         showNotification(data.message, data.success ? 'success' : 'error');
-        if (data.success) await _refreshPets();
+        if (data.success) {
+            await _refreshPets();
+            // bounce-эффект на petCard после перерисовки
+            setTimeout(() => {
+                const visual = document.querySelector('#pets-modal .pet-visual-anim');
+                if (visual) {
+                    visual.classList.add('pet-card-equip-bounce');
+                    setTimeout(() => visual.classList.remove('pet-card-equip-bounce'), 500);
+                }
+            }, 60);
+        }
     } catch (e) {
         showNotification('Ошибка сети', 'error');
     }
@@ -311,7 +370,8 @@ async function _buyItem(itemId) {
     if (_petsState.buying) return;
     _petsState.buying = true;
     try {
-        // MVP: bits_receipt не передаём — на бэке mock-mode либо TODO real Bits flow
+        // bits_receipt не передаём — backend в mock-mode или
+        // DEFERRED [BITS-SIG] в routes/pets.py docstring
         const r = await fetch(`${API_URL}/api/pet/purchase`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || '' },
@@ -319,12 +379,30 @@ async function _buyItem(itemId) {
         });
         const data = await r.json();
         showNotification(data.message, data.success ? 'success' : 'error');
-        if (data.success) await _refreshPets();
+        if (data.success) {
+            await _refreshPets();
+            // Hatch-celebration: переключаемся на «Мой» tab + punch animation
+            if (data.hatched) {
+                _petsState.tab = 'pet';
+                _renderPetsContent();
+                _triggerHatchCelebration();
+            }
+        }
     } catch (e) {
         showNotification('Ошибка сети', 'error');
     } finally {
         setTimeout(() => { _petsState.buying = false; }, 400);
     }
+}
+
+function _triggerHatchCelebration() {
+    // Найти pet-visual в DOM (последний рендер «Мой») и проиграть hatch-pulse
+    setTimeout(() => {
+        const visual = document.querySelector('#pets-modal .pet-visual-anim');
+        if (!visual) return;
+        visual.classList.add('hatch-burst');
+        setTimeout(() => visual.classList.remove('hatch-burst'), 1400);
+    }, 80);  // ждём пока _refreshPets перерисует
 }
 
 function _renderPetsError(msg) {

@@ -79,6 +79,7 @@ from routes.cases      import router as cases_router  # Phase 2 (2026-05-11)
 from routes.match      import router as match_router  # Phase 5.0 (2026-05-11)
 from routes.tictactoe  import router as tictactoe_router  # Phase 5.1 (2026-05-11)
 from routes.dice       import router as dice_router       # Phase 5.2 (2026-05-11)
+from routes.guilds     import router as guilds_router     # Phase 3 (2026-05-11)
 # casino_router удалён 2026-05-10 — Phase 1.A compliance rework (см. COMPLIANCE_REWORK_PLAN.md)
 app.include_router(duel_router)
 app.include_router(viewer_router)
@@ -95,6 +96,7 @@ app.include_router(cases_router)       # Phase 2 (2026-05-11): cases system
 app.include_router(match_router)       # Phase 5.0 (2026-05-11): matchmaking base
 app.include_router(tictactoe_router)   # Phase 5.1 (2026-05-11): TicTacToe MVP
 app.include_router(dice_router)        # Phase 5.2 (2026-05-11): Dice match
+app.include_router(guilds_router)      # Phase 3 (2026-05-11): Guilds base
 
 
 # Путь к фронтенду из .env или значение по умолчанию

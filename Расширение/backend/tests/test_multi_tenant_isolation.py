@@ -1709,6 +1709,269 @@ async def test_guilds_system():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Test 17: Voting events system (Phase 4)
+# ─────────────────────────────────────────────────────────────────────────────
+async def test_voting_system():
+    """Phase 4 Voting: проверяет основные invariants через raw SQL.
+
+    Severity-grouped (per code-review-excellence skill):
+      BLOCKING (correctness):
+        - Atomic bid: списание + pool incr + audit в одной TX
+        - Active event UNIQUE per channel (uq_voting_events_active)
+        - Default template UNIQUE per channel (uq_voting_templates_default)
+      IMPORTANT (multi-tenant):
+        - Bid не проходит между каналами
+        - Pool counter per-channel независимы
+      MINOR (logic):
+        - Finalize выбирает max-pool option
+        - Empty event (no bids) → cancelled, not finished
+    """
+    print("\n[17] Voting events (Phase 4)")
+    import aiosqlite as _aio
+    import json as _json
+    from datetime import datetime as _dt, timedelta as _td
+
+    db_path = tempfile.mktemp(suffix="_test.db")
+    try:
+        async with _aio.connect(db_path) as conn:
+            await conn.execute("""
+                CREATE TABLE viewers (
+                    channel_id INTEGER NOT NULL,
+                    username TEXT NOT NULL,
+                    points INTEGER DEFAULT 0,
+                    last_seen DATETIME,
+                    join_time DATETIME,
+                    is_afk INTEGER DEFAULT 0,
+                    PRIMARY KEY(channel_id, username)
+                )
+            """)
+            from migrations import m12_voting
+            await m12_voting.apply(conn)
+            await conn.commit()
+
+            cid_a = 98319857
+            cid_b = 99999
+
+            # Seed viewers
+            for u in ('alice', 'bob', 'charlie'):
+                for cid in (cid_a, cid_b):
+                    await conn.execute(
+                        "INSERT INTO viewers (channel_id, username, points) VALUES (?, ?, ?)",
+                        (cid, u, 100000)
+                    )
+            await conn.commit()
+
+            # 17.1 Create template на cid_a, is_default=True
+            template_a_opts = [
+                {"key": "rimworld", "label": "RimWorld", "description": "Колония"},
+                {"key": "bannerlord", "label": "Bannerlord", "description": "Битвы"},
+            ]
+            cur = await conn.execute(
+                "INSERT INTO streamer_voting_templates (channel_id, name, options_json, is_default) "
+                "VALUES (?, ?, ?, 1)",
+                (cid_a, "Что играть?", _json.dumps(template_a_opts))
+            )
+            tpl_a = cur.lastrowid
+            await conn.commit()
+            assert_true(tpl_a > 0, "template на cid_a создан с is_default=1")
+
+            # 17.2 Default UNIQUE per channel — повторный is_default=1 → fail
+            from aiosqlite import IntegrityError as _IE
+            try:
+                await conn.execute(
+                    "INSERT INTO streamer_voting_templates (channel_id, name, options_json, is_default) "
+                    "VALUES (?, ?, ?, 1)",
+                    (cid_a, "Alt", _json.dumps(template_a_opts))
+                )
+                await conn.commit()
+                assert_true(False, "second default template should fail")
+            except _IE:
+                assert_true(True, "second default template blocked by uq_voting_templates_default")
+                await conn.rollback()
+
+            # 17.3 Multi-tenant: default на другом канале — OK
+            await conn.execute(
+                "INSERT INTO streamer_voting_templates (channel_id, name, options_json, is_default) "
+                "VALUES (?, ?, ?, 1)",
+                (cid_b, "B default", _json.dumps(template_a_opts))
+            )
+            await conn.commit()
+            assert_true(True, "default template на cid_b — independent")
+
+            # 17.4 Start event для cid_a + snapshot options
+            ends_at = (_dt.utcnow() + _td(seconds=300)).isoformat()
+            cur = await conn.execute(
+                "INSERT INTO voting_events "
+                "(channel_id, template_id, template_name, ends_at, status) "
+                "VALUES (?, ?, 'Что играть?', ?, 'active')",
+                (cid_a, tpl_a, ends_at)
+            )
+            event_a = cur.lastrowid
+
+            for opt in template_a_opts:
+                await conn.execute(
+                    "INSERT INTO voting_options (event_id, option_key, label, description, pool) "
+                    "VALUES (?, ?, ?, ?, 0)",
+                    (event_a, opt["key"], opt["label"], opt["description"])
+                )
+            await conn.commit()
+            assert_true(event_a > 0, "voting event на cid_a создан")
+
+            # 17.5 Active event UNIQUE per channel — повторный start → fail
+            try:
+                await conn.execute(
+                    "INSERT INTO voting_events "
+                    "(channel_id, template_id, template_name, ends_at, status) "
+                    "VALUES (?, ?, 'X', ?, 'active')",
+                    (cid_a, tpl_a, ends_at)
+                )
+                await conn.commit()
+                assert_true(False, "second active event on same channel should fail")
+            except _IE:
+                assert_true(True, "second active event blocked by uq_voting_events_active_per_channel")
+                await conn.rollback()
+
+            # 17.6 Multi-tenant: active event на cid_b — OK
+            cur = await conn.execute(
+                "INSERT INTO voting_events "
+                "(channel_id, template_id, template_name, ends_at, status) "
+                "VALUES (?, ?, 'B event', ?, 'active')",
+                (cid_b, None, ends_at)
+            )
+            event_b = cur.lastrowid
+            await conn.commit()
+            assert_true(event_b != event_a, "event на cid_b — отдельный id")
+
+            # Получаем option_ids на cid_a event
+            cur = await conn.execute(
+                "SELECT id, option_key FROM voting_options WHERE event_id = ? ORDER BY id",
+                (event_a,)
+            )
+            opt_rows = await cur.fetchall()
+            opt_rimworld = opt_rows[0][0]
+            opt_bannerlord = opt_rows[1][0]
+
+            # 17.7 Atomic bid: списание + pool incr + audit
+            # alice кладёт 500 в RimWorld
+            await conn.execute("BEGIN IMMEDIATE")
+            cur = await conn.execute(
+                "UPDATE viewers SET points = points - 500 "
+                "WHERE channel_id = ? AND username = 'alice' AND points >= 500",
+                (cid_a,)
+            )
+            assert_eq(cur.rowcount, 1, "списание прошло")
+            await conn.execute(
+                "UPDATE voting_options SET pool = pool + 500 WHERE id = ?",
+                (opt_rimworld,)
+            )
+            await conn.execute(
+                "UPDATE voting_events SET total_pool = total_pool + 500 WHERE id = ?",
+                (event_a,)
+            )
+            await conn.execute(
+                "INSERT INTO voting_bids (event_id, option_id, channel_id, username, amount) "
+                "VALUES (?, ?, ?, 'alice', 500)",
+                (event_a, opt_rimworld, cid_a)
+            )
+            await conn.commit()
+
+            cur = await conn.execute(
+                "SELECT pool FROM voting_options WHERE id = ?", (opt_rimworld,)
+            )
+            assert_eq((await cur.fetchone())[0], 500, "RimWorld pool = 500 after alice bid")
+            cur = await conn.execute("SELECT total_pool FROM voting_events WHERE id = ?", (event_a,))
+            assert_eq((await cur.fetchone())[0], 500, "event total_pool = 500")
+
+            # 17.8 bob кладёт 1000 в Bannerlord → Bannerlord wins
+            await conn.execute(
+                "UPDATE viewers SET points = points - 1000 WHERE channel_id = ? AND username = 'bob'",
+                (cid_a,)
+            )
+            await conn.execute(
+                "UPDATE voting_options SET pool = pool + 1000 WHERE id = ?",
+                (opt_bannerlord,)
+            )
+            await conn.execute(
+                "UPDATE voting_events SET total_pool = total_pool + 1000 WHERE id = ?",
+                (event_a,)
+            )
+            await conn.execute(
+                "INSERT INTO voting_bids (event_id, option_id, channel_id, username, amount) "
+                "VALUES (?, ?, ?, 'bob', 1000)",
+                (event_a, opt_bannerlord, cid_a)
+            )
+            await conn.commit()
+
+            # 17.9 Finalize: max-pool option wins
+            cur = await conn.execute(
+                "SELECT id, option_key, label, pool FROM voting_options "
+                "WHERE event_id = ? ORDER BY pool DESC, id LIMIT 1",
+                (event_a,)
+            )
+            winner = await cur.fetchone()
+            assert_eq(winner[1], "bannerlord", "Bannerlord wins (1000 > 500)")
+            assert_eq(winner[3], 1000, "winner pool = 1000")
+
+            await conn.execute(
+                "UPDATE voting_events SET status = 'finished', winning_option_id = ?, "
+                "winning_option_key = ?, winning_option_label = ? WHERE id = ?",
+                (winner[0], winner[1], winner[2], event_a)
+            )
+            await conn.commit()
+
+            cur = await conn.execute("SELECT status FROM voting_events WHERE id = ?", (event_a,))
+            assert_eq((await cur.fetchone())[0], "finished", "event a status finished")
+
+            # 17.10 После finalize — новый active event на cid_a возможен
+            new_ends = (_dt.utcnow() + _td(seconds=300)).isoformat()
+            cur = await conn.execute(
+                "INSERT INTO voting_events "
+                "(channel_id, template_name, ends_at, status) VALUES (?, 'Next', ?, 'active')",
+                (cid_a, new_ends)
+            )
+            await conn.commit()
+            assert_true(cur.lastrowid > event_a, "new active event after finalize — OK")
+
+            # 17.11 Empty event scenario (no bids): finalize → 'cancelled'
+            # event_b на cid_b ещё active, total_pool = 0. Finalize:
+            await conn.execute(
+                "UPDATE voting_events SET status = 'cancelled' WHERE id = ? AND total_pool = 0",
+                (event_b,)
+            )
+            await conn.commit()
+            cur = await conn.execute("SELECT status FROM voting_events WHERE id = ?", (event_b,))
+            assert_eq((await cur.fetchone())[0], "cancelled", "empty event → cancelled, not finished")
+
+            # 17.12 Pool counter per-channel независимы
+            await conn.execute(
+                "INSERT INTO voting_pool_counters (channel_id, pool_units) VALUES (?, 500)",
+                (cid_a,)
+            )
+            await conn.execute(
+                "INSERT INTO voting_pool_counters (channel_id, pool_units) VALUES (?, 100)",
+                (cid_b,)
+            )
+            await conn.commit()
+            cur = await conn.execute("SELECT pool_units FROM voting_pool_counters WHERE channel_id = ?", (cid_a,))
+            assert_eq((await cur.fetchone())[0], 500, "cid_a pool = 500")
+            cur = await conn.execute("SELECT pool_units FROM voting_pool_counters WHERE channel_id = ?", (cid_b,))
+            assert_eq((await cur.fetchone())[0], 100, "cid_b pool = 100 (independent)")
+
+            # 17.13 Cross-channel boundary: bid с cid_a не должен попасть в event cid_b
+            cur = await conn.execute(
+                "SELECT id FROM voting_events WHERE id = ? AND channel_id = ?",
+                (event_a, cid_b)  # ищем event_a на чужом канале
+            )
+            row = await cur.fetchone()
+            assert_true(row is None, "cross-channel event lookup blocked")
+    finally:
+        try:
+            os.unlink(db_path)
+        except Exception:
+            pass
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main runner
 # ─────────────────────────────────────────────────────────────────────────────
 async def run_all_tests():
@@ -1732,6 +1995,7 @@ async def run_all_tests():
     test_dice_game_logic()
     await test_dice_match_flow()
     await test_guilds_system()
+    await test_voting_system()
 
     print("\n" + "=" * 70)
     print(f"PASSED: {len(_successes)}    FAILED: {len(_failures)}")

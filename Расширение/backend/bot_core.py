@@ -905,7 +905,7 @@ class BotCore:
         if not active:
             return
 
-        lucky = random.choice(active)
+        recipient = random.choice(active)  # rename из 'lucky' 2026-05-12 (Phase 8.A.2 lexicon hygiene)
 
         # Выбор тира кейса по весам 70/25/4/1
         tier = random.choices(
@@ -914,26 +914,26 @@ class BotCore:
         )[0]
 
         result = await self.db.grant_case(
-            lucky, tier=tier, source='drop', channel_id=cid
+            recipient, tier=tier, source='drop', channel_id=cid
         )
         if not result.get('granted'):
             logger.warning("[ch=%s] Drop case grant failed for @%s: %s",
-                           cid, lucky, result.get('reason'))
+                           cid, recipient, result.get('reason'))
             return
 
         tier_emoji = {'common': '🎁', 'rare': '💎', 'epic': '💠', 'legendary': '👑'}.get(tier, '🎁')
         tier_label = {'common': 'обычный', 'rare': 'редкий', 'epic': 'эпический', 'legendary': 'легендарный'}.get(tier, tier)
         await self.send_message(
-            f"{tier_emoji} @{lucky} поймал удачный момент — выпал {tier_label} кейс! "
+            f"{tier_emoji} @{recipient} получает {tier_label} кейс! "
             f"Открой через расширение!", channel_id=cid)
         logger.info("[ch=%s] DROP: @%s получил %s кейс (case_id=%s)",
-                    cid, lucky, tier, result.get('case_id'))
+                    cid, recipient, tier, result.get('case_id'))
 
         # on_drop overlay-hook сохранён для backward-compat с overlay.html.
         # Передаём tier как rarity для overlay-card; item_name больше нет —
         # передаём emoji+label чтобы overlay мог отрисовать что-то осмысленное.
         try:
-            await self.on_drop(lucky, f"{tier_label} кейс", tier)
+            await self.on_drop(recipient, f"{tier_label} кейс", tier)
         except Exception as e:
             print(f"⚠️ Ошибка on_drop: {e}")
 

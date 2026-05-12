@@ -396,7 +396,8 @@ _RATE_LIMIT       = 30      # запросов в минуту на IP по ум
 _RATE_BUCKETS_MAX = 10_000  # максимум уникальных IP в памяти
 
 # ── Overlay state ─────────────────────────────────────────────────────────────
-_overlay_jackpot = None   # {id, username, win, bet, ts}
+# _overlay_jackpot удалён 2026-05-12 (Phase 8.A.2 lexicon scrub — dead code,
+# casino вырезан в Phase 1.A; setter не вызывался, getter возвращал None)
 _overlay_drop    = None   # {id, username, item_name, rarity, ts}
 
 
@@ -451,10 +452,7 @@ async def rate_cleanup_loop():
 
 
 # ── Overlay state helpers ─────────────────────────────────────────────────────
-
-def set_overlay_jackpot(data: Optional[dict]) -> None:
-    global _overlay_jackpot
-    _overlay_jackpot = data
+# set_overlay_jackpot удалён 2026-05-12 (Phase 8.A.2 lexicon scrub)
 
 def set_overlay_drop(data: Optional[dict]) -> None:
     global _overlay_drop
@@ -467,7 +465,8 @@ def set_overlay_donate(data: Optional[dict]) -> None:
     _overlay_donate = data
 
 def get_overlay_state() -> dict:
-    return {"jackpot": _overlay_jackpot, "drop": _overlay_drop, "donate": _overlay_donate}
+    # "jackpot" key удалён 2026-05-12 (Phase 8.A.2 lexicon scrub)
+    return {"drop": _overlay_drop, "donate": _overlay_donate}
 
 
 # ── Last event winner ─────────────────────────────────────────────────────────

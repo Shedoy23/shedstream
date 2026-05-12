@@ -537,10 +537,24 @@ TIER_FEATURES = {
 
 ### 5.4 FUTURE (post-review, sессии 13+)
 
-- 🔴 **Phase 7: Pets MVP — cross-channel companions** ⭐ **REVIEW FLAGSHIP**
+- ✅ **Phase 7: Pets MVP — cross-channel companions** ⭐ **REVIEW FLAGSHIP** — **DONE 2026-05-12**
   Первая cross-channel механика. Differentiator от всех конкурентов (никто
   не делает persistent companions across Twitch channels — §13.13). Sharp
   positioning pitch: *"Persistent viewer companions across Twitch."*
+
+  **Шипнуто за 5 коммитов (9a148ed → 9f301d6):**
+  - 7.A+B: M13 migration (5 cross-channel таблиц + seed) + 8 DB-helpers
+  - 7.C: routes/pets.py — 7 endpoints (viewer + overlay + streamer)
+  - 7.D: frontend/pets.js — tabs «Мой» / «Магазин» + extension.html
+  - 7.E: overlay.html pets-strip + config.html broadcaster toggle
+  - 7.F: Test 18 isolation tests — 1067/1067 passing (+19 проверок)
+
+  **Что отложено post-MVP (intentional scope cut):**
+  - [BITS-SIG] Twitch Bits transaction JWT signature verify — сейчас
+    receipt-idempotency через UNIQUE index, signature verify добавится
+    при включении `PETS_BITS_REQUIRED=true` в production
+  - [BROADCASTER-JWT] streamer toggle config.html сейчас под require_admin;
+    self-serve через Twitch ext token role='broadcaster' — позже
 
   **Pet appearance MVP:** 🥚 **Яичко-маскот** — символ начала. Narrative-hook
   для возвращения юзера (метафора: пет растёт вместе с extension'ом, в
@@ -650,18 +664,20 @@ TIER_FEATURES = {
 | Фокус | Sессий | Cтатус |
 |---|---|---|
 | Phase 1 cleanup | 0 | ✅ DONE (2026-05-10, 9 коммитов) |
-| Phase 2 кейсы | 2-3 | NOW |
-| Phase 6 drops в кейсы | 0.5 | depends Phase 2 |
-| Phase 5.0 matchmaking base | 1-2 | NEXT |
-| Phase 5.1 TicTacToe MVP | 1 | NEXT (тест на стриме перед расширением) |
-| Phase 5.2 Dice match | 1 | NEXT |
-| Phase 3 гильдии база | 2-3 | LATER |
-| Phase 4 голосование | 2 | LATER |
-| Phase 7 Pets MVP (review flagship) | 5-8 | FUTURE |
+| Phase 2 кейсы | 2-3 | ✅ DONE (2026-05-11) |
+| Phase 6 drops в кейсы | 0.5 | ✅ DONE (2026-05-11) |
+| Phase 5.0 matchmaking base | 1-2 | ✅ DONE (2026-05-11) |
+| Phase 5.1 TicTacToe MVP | 1 | ✅ DONE (2026-05-11) |
+| Phase 5.2 Dice match | 1 | ✅ DONE (2026-05-11) |
+| Phase 3 гильдии база | 2-3 | ✅ DONE (2026-05-11) |
+| Phase 4 голосование | 2 | ✅ DONE (2026-05-11) |
+| Phase 7 Pets MVP (review flagship) | 5-8 | ✅ DONE (2026-05-12) |
+| Phase 8 pre-review polish | 1-2 | NOW |
+| Twitch review submission | 1 | NEXT |
 
-**Принцип Option A (quick wins first):** делаем quick wins (games, dice)
-прежде чем большие проекты (pets). Foundation проверена через игры до того
-как рискуем на pets — большая разработка с неизвестной reception.
+**Принцип Option A (quick wins first) сработал:** все 8 фаз (Phase 1-7)
+закрыты последовательно. Foundation проверена через игры до того как
+запустили pets (большая разработка с неизвестной reception).
 
 **Не размываемся:** держим фокус на 1-2 фазах одновременно. Не открываем
 новые направления пока текущая не закрыта.

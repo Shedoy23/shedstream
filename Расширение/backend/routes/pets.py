@@ -24,6 +24,17 @@ Endpoints:
 
   Streamer:
     POST /api/streamer/pets/overlay-toggle — body {enabled: bool}
+
+DEFERRED post-MVP (известно, по плану):
+  - [BITS-SIG] mock-mode default. Production-режим (PETS_BITS_REQUIRED=true)
+    включит проверку Twitch Bits transaction JWT signature через
+    Twitch extensions JWT lib (HS256 + extension secret). См. покупку
+    в `purchase_pet_item` — receipt-idempotency через UNIQUE уже на месте,
+    остаётся только signature verify шаг перед TX.
+  - [BROADCASTER-JWT] /api/streamer/pets/overlay-toggle сейчас под
+    require_admin (HTTPBasic). Self-serve через Twitch config.html будет
+    после внедрения broadcaster-JWT (role='broadcaster' в Twitch ext token).
+    До тех пор streamer переключает через /admin или просит саппорт.
 """
 from fastapi import APIRouter, Depends, Request
 
@@ -80,7 +91,8 @@ async def pet_purchase(request: Request):
     Логика:
       - PETS_BITS_REQUIRED=False → mode='mock', receipt не нужен
       - PETS_BITS_REQUIRED=True → mode='bits', receipt обязателен,
-        проверяется Twitch Bits transaction JWT (TODO: signature verify)
+        проверяется UNIQUE-индексом (idempotency)
+        Полная signature-verification — см. DEFERRED [BITS-SIG] в docstring модуля
 
     channel_id из JWT — для revenue attribution (§7.5).
     """

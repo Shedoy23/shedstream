@@ -401,7 +401,7 @@ SOUND_CONFIG = {
     'volume': {
         'default': 0.7,
         'win': 0.9,
-        'jackpot': 1.0,
+        # 'jackpot' удалён 2026-05-12 (Phase 8.A.2 lexicon scrub — dead key)
         'coin': 0.4,
         'error': 0.3,
         'gift': 0.8,

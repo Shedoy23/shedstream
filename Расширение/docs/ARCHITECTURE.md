@@ -193,15 +193,31 @@ Endpoints в `routes/module_api.py`:
 
 ### 3.1 Cross-channel exception tables
 
+**Status: Phase 7 завершён 2026-05-12** (commits 9a148ed → 9f301d6). Эти 5 таблиц
+из миграции M13 — первая работающая cross-channel механика в платформе.
+6-я таблица `channel_pet_settings` остаётся per-channel (broadcaster-controlled).
+
 | Таблица | PK | Scope | Назначение |
 |---|---|---|---|
-| `pets` (Phase 7+) | `username` | global per user | Pet appearance + state, viewer-owned |
-| `pet_inventory` (Phase 7+) | `(username, item_id)` | global per user | Owned cosmetics |
-| `pet_equipped` (Phase 7+) | `(username, slot)` | global per user | Currently equipped |
-| `pet_purchases` (Phase 7+) | `id` (autoincrement) | audit с `channel_id` | Transactions log для revenue tracking |
-| `pet_catalog` (Phase 7+) | `item_id` | global (extension-defined) | Catalog content; controlled by dev (§6.2.8) |
+| `pets` | `username` | global per user | Pet appearance + state, viewer-owned |
+| `pet_inventory` | `(username, item_id)` | global per user | Owned cosmetics (FK на `pet_catalog`) |
+| `pet_equipped` | `(username, slot)` | global per user | Currently equipped item per slot |
+| `pet_purchases` | `id` (autoincrement) | **audit** с `channel_id` | Transactions log — `channel_id` ХРАНИТСЯ для revenue attribution (§7.5 compliance-doc), но НЕ scope-фильтр |
+| `pet_catalog` | `item_id` | global (extension-defined) | Catalog content; controlled by dev (§6.2.8) — НЕ streamer-uploadable |
+| `channel_pet_settings` | `channel_id` | **TENANT** (по исключению от исключения) | Broadcaster opt-out для overlay-pets рендера (§7.4 broadcaster-control) |
 
-Все остальные таблицы в `database.py` — TENANT-scoped. Новая cross-channel таблица = decision-point с review.
+**Защитный guard rail**: Test 18 в `tests/test_multi_tenant_isolation.py` через
+PRAGMA table_info явно проверяет, что PK таблиц `pets/pet_inventory/pet_equipped`
+НЕ содержит `channel_id`. Если кто-то случайно добавит `channel_id` в PK —
+тест упадёт сразу. Аналогично проверяется что `channel_pet_settings.channel_id`
+ОСТАЁТСЯ в PK (per-channel).
+
+**Цена ошибки если случайно сделать pets TENANT-scoped:** viewer переключился
+на другой канал → видит пустой инвентарь → теряет купленные за Bits cosmetics.
+Refund-операции через Twitch Bits API долгие и снижают доверие к extension.
+
+Все остальные таблицы в `database.py` — TENANT-scoped. Новая cross-channel
+таблица = decision-point с review.
 
 ---
 

@@ -1972,6 +1972,256 @@ async def test_voting_system():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Test 18: Pets system (Phase 7) — CROSS-CHANNEL (explicit invariant exception)
+# ─────────────────────────────────────────────────────────────────────────────
+async def test_pets_system():
+    """Phase 7 Pets: проверяет cross-channel persistence + channel-scoped settings.
+
+    EXPLICIT INVARIANT EXCEPTION: pets, pet_inventory, pet_equipped — global
+    per user (без channel_id в PK). Этот тест — guard rail: чтобы случайно
+    не вернули channel_id в PK и не сломали cross-channel UX.
+
+    Severity-grouped (per code-review-excellence skill):
+      BLOCKING (correctness):
+        - pet purchased на cid_a → owned также на cid_b (global)
+        - already_owned guard работает (нельзя купить дважды)
+        - bits_receipt UNIQUE — один и тот же чек не применить дважды
+      IMPORTANT (multi-tenant):
+        - pet_purchases.channel_id хранится правильно (revenue attribution §7.5)
+        - channel_pet_settings per-channel независимы (А выключил — Б не задет)
+      MINOR (logic):
+        - equip slot — replace, не дублировать
+        - unequip удаляет slot row
+        - catalog deprecate скрывает item из active-list
+    """
+    print("\n[18] Pets system (Phase 7) — CROSS-CHANNEL invariant")
+    import aiosqlite as _aio
+
+    db_path = tempfile.mktemp(suffix="_test.db")
+    try:
+        async with _aio.connect(db_path) as conn:
+            from migrations import m13_pets
+            await m13_pets.apply(conn)
+            await conn.commit()
+
+            cid_a = 98319857
+            cid_b = 99999
+            user = 'alice'
+
+            # 18.1 Catalog seeded (M13 PETS_CATALOG_SEED — 5 items)
+            cur = await conn.execute("SELECT COUNT(*) FROM pet_catalog WHERE deprecated = 0")
+            (cnt,) = await cur.fetchone()
+            assert_true(cnt >= 5, f"catalog seeded ({cnt} active items)")
+
+            # 18.2 BLOCKING: pets.username is PK без channel_id (cross-channel by design)
+            cur = await conn.execute("PRAGMA table_info(pets)")
+            cols = await cur.fetchall()
+            pk_cols = [c[1] for c in cols if c[5] == 1]  # c[5] = pk flag
+            assert_eq(pk_cols, ['username'], "pets PK = (username,) без channel_id [CROSS-CHANNEL]")
+
+            cur = await conn.execute("PRAGMA table_info(pet_inventory)")
+            cols = await cur.fetchall()
+            pk_cols = [c[1] for c in cols if c[5] > 0]
+            assert_true(
+                set(pk_cols) == {'username', 'item_id'},
+                "pet_inventory PK = (username, item_id) без channel_id [CROSS-CHANNEL]"
+            )
+
+            cur = await conn.execute("PRAGMA table_info(pet_equipped)")
+            cols = await cur.fetchall()
+            pk_cols = [c[1] for c in cols if c[5] > 0]
+            assert_true(
+                set(pk_cols) == {'username', 'slot'},
+                "pet_equipped PK = (username, slot) без channel_id [CROSS-CHANNEL]"
+            )
+
+            # 18.3 Ensure pet (idempotent)
+            await conn.execute(
+                "INSERT OR IGNORE INTO pets (username, pet_type) VALUES (?, 'egg')",
+                (user,)
+            )
+            await conn.execute(
+                "INSERT OR IGNORE INTO pets (username, pet_type) VALUES (?, 'egg')",
+                (user,)
+            )  # second call no-op
+            cur = await conn.execute("SELECT COUNT(*) FROM pets WHERE username = ?", (user,))
+            (pcount,) = await cur.fetchone()
+            assert_eq(pcount, 1, "pet ensure idempotent (1 row даже после повтора)")
+
+            # 18.4 Purchase на cid_a (audit-row с channel_id для §7.5)
+            await conn.execute(
+                "INSERT INTO pet_inventory (username, item_id) VALUES (?, 'hat_cap')",
+                (user,)
+            )
+            await conn.execute(
+                "INSERT INTO pet_purchases "
+                "(username, item_id, channel_id, bits_amount, bits_receipt, mode) "
+                "VALUES (?, 'hat_cap', ?, 300, 'receipt-A1', 'bits')",
+                (user, cid_a)
+            )
+            await conn.commit()
+
+            # 18.5 BLOCKING: owned виден на cid_b (cross-channel)
+            cur = await conn.execute(
+                "SELECT COUNT(*) FROM pet_inventory WHERE username = ? AND item_id = 'hat_cap'",
+                (user,)
+            )
+            (ocount,) = await cur.fetchone()
+            assert_eq(ocount, 1, "[CROSS-CHANNEL] hat_cap owned by alice независимо от канала")
+
+            # 18.6 BLOCKING: already_owned — повторный INSERT в inventory падает (PK)
+            from aiosqlite import IntegrityError as _IE
+            try:
+                await conn.execute(
+                    "INSERT INTO pet_inventory (username, item_id) VALUES (?, 'hat_cap')",
+                    (user,)
+                )
+                await conn.commit()
+                assert_true(False, "повторный INSERT должен fail")
+            except _IE:
+                assert_true(True, "already_owned guard работает (PK constraint)")
+                await conn.rollback()
+
+            # 18.7 BLOCKING: bits_receipt UNIQUE — один receipt дважды не применить
+            try:
+                await conn.execute(
+                    "INSERT INTO pet_purchases "
+                    "(username, item_id, channel_id, bits_amount, bits_receipt, mode) "
+                    "VALUES (?, 'hat_crown', ?, 800, 'receipt-A1', 'bits')",
+                    (user, cid_b)
+                )
+                await conn.commit()
+                assert_true(False, "дубль receipt должен fail")
+            except _IE:
+                assert_true(True, "bits_receipt UNIQUE — дубль чека отбит")
+                await conn.rollback()
+
+            # 18.8 IMPORTANT: pet_purchases.channel_id хранит правильный канал (§7.5)
+            cur = await conn.execute(
+                "SELECT channel_id FROM pet_purchases WHERE bits_receipt = 'receipt-A1'"
+            )
+            (saved_cid,) = await cur.fetchone()
+            assert_eq(saved_cid, cid_a, "pet_purchases.channel_id = cid_a (revenue attribution)")
+
+            # 18.9 Покупка с другого канала идёт под cid_b
+            await conn.execute(
+                "INSERT INTO pet_inventory (username, item_id) VALUES (?, 'hat_crown')",
+                (user,)
+            )
+            await conn.execute(
+                "INSERT INTO pet_purchases "
+                "(username, item_id, channel_id, bits_amount, bits_receipt, mode) "
+                "VALUES (?, 'hat_crown', ?, 800, 'receipt-B1', 'bits')",
+                (user, cid_b)
+            )
+            await conn.commit()
+            cur = await conn.execute(
+                "SELECT COUNT(*) FROM pet_purchases WHERE username = ? AND channel_id = ?",
+                (user, cid_b)
+            )
+            (bcount,) = await cur.fetchone()
+            assert_eq(bcount, 1, "pet_purchases — отдельная audit row под cid_b")
+
+            cur = await conn.execute(
+                "SELECT COUNT(DISTINCT channel_id) FROM pet_purchases WHERE username = ?",
+                (user,)
+            )
+            (distinct_cid,) = await cur.fetchone()
+            assert_eq(distinct_cid, 2, "audit-trail видит обе покупки (cid_a + cid_b)")
+
+            # 18.10 MINOR: equip — один slot, один item per user. Replace при повторе.
+            await conn.execute(
+                "INSERT INTO pet_equipped (username, slot, item_id) VALUES (?, 'head', 'hat_cap')",
+                (user,)
+            )
+            # equip другой head item — должен replace
+            await conn.execute(
+                "INSERT OR REPLACE INTO pet_equipped (username, slot, item_id) "
+                "VALUES (?, 'head', 'hat_crown')",
+                (user,)
+            )
+            await conn.commit()
+            cur = await conn.execute(
+                "SELECT item_id FROM pet_equipped WHERE username = ? AND slot = 'head'",
+                (user,)
+            )
+            (eq_item,) = await cur.fetchone()
+            assert_eq(eq_item, 'hat_crown', "equip replace: head=hat_crown (один slot)")
+
+            # 18.11 unequip — DELETE row
+            await conn.execute(
+                "DELETE FROM pet_equipped WHERE username = ? AND slot = 'head'",
+                (user,)
+            )
+            await conn.commit()
+            cur = await conn.execute(
+                "SELECT COUNT(*) FROM pet_equipped WHERE username = ? AND slot = 'head'",
+                (user,)
+            )
+            (uqcount,) = await cur.fetchone()
+            assert_eq(uqcount, 0, "unequip: row удалён из pet_equipped")
+
+            # 18.12 IMPORTANT: channel_pet_settings per-channel независимы
+            await conn.execute(
+                "INSERT INTO channel_pet_settings (channel_id, overlay_enabled) VALUES (?, 0)",
+                (cid_a,)
+            )
+            await conn.execute(
+                "INSERT INTO channel_pet_settings (channel_id, overlay_enabled) VALUES (?, 1)",
+                (cid_b,)
+            )
+            await conn.commit()
+            cur = await conn.execute(
+                "SELECT overlay_enabled FROM channel_pet_settings WHERE channel_id = ?",
+                (cid_a,)
+            )
+            (a_setting,) = await cur.fetchone()
+            cur = await conn.execute(
+                "SELECT overlay_enabled FROM channel_pet_settings WHERE channel_id = ?",
+                (cid_b,)
+            )
+            (b_setting,) = await cur.fetchone()
+            assert_eq(a_setting, 0, "cid_a overlay выключен (independent)")
+            assert_eq(b_setting, 1, "cid_b overlay включён (independent)")
+
+            # 18.13 MINOR: catalog deprecate скрывает item из active list
+            await conn.execute("UPDATE pet_catalog SET deprecated = 1 WHERE item_id = 'hat_cap'")
+            await conn.commit()
+            cur = await conn.execute(
+                "SELECT COUNT(*) FROM pet_catalog WHERE deprecated = 0 AND item_id = 'hat_cap'"
+            )
+            (active,) = await cur.fetchone()
+            assert_eq(active, 0, "deprecated item исчез из active-list (но row остался)")
+
+            # И при этом owned-row не сломалась (FK на item_id):
+            cur = await conn.execute(
+                "SELECT COUNT(*) FROM pet_inventory WHERE username = ? AND item_id = 'hat_cap'",
+                (user,)
+            )
+            (still_owned,) = await cur.fetchone()
+            assert_eq(still_owned, 1, "deprecated item остался в inventory (FK не сломан)")
+
+            # 18.14 Sanity: name setter (last write wins, может быть None)
+            await conn.execute("UPDATE pets SET name = 'Гриша' WHERE username = ?", (user,))
+            await conn.commit()
+            cur = await conn.execute("SELECT name FROM pets WHERE username = ?", (user,))
+            (nm,) = await cur.fetchone()
+            assert_eq(nm, 'Гриша', "pet.name стал 'Гриша'")
+
+            await conn.execute("UPDATE pets SET name = NULL WHERE username = ?", (user,))
+            await conn.commit()
+            cur = await conn.execute("SELECT name FROM pets WHERE username = ?", (user,))
+            (nm2,) = await cur.fetchone()
+            assert_eq(nm2, None, "pet.name можно сбросить в NULL")
+
+    finally:
+        try:
+            os.unlink(db_path)
+        except Exception:
+            pass
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main runner
 # ─────────────────────────────────────────────────────────────────────────────
 async def run_all_tests():
@@ -1996,6 +2246,7 @@ async def run_all_tests():
     await test_dice_match_flow()
     await test_guilds_system()
     await test_voting_system()
+    await test_pets_system()
 
     print("\n" + "=" * 70)
     print(f"PASSED: {len(_successes)}    FAILED: {len(_failures)}")

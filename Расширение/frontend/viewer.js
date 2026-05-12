@@ -181,6 +181,7 @@ function setupCspSafeHandlers() {
         // 'casino' / 'slots' actions удалены 2026-05-10 (Phase 1.A compliance rework)
         if (action === 'cases') openCasesModal();
         else if (action === 'tictactoe') openTicTacToeModal();
+        else if (action === 'dice') openDiceModal();
         else if (action === 'duels') openDuels();
         else if (action === 'advertisement') openAdvertisement();
         // 'transfer' action удалён 2026-05-10 (Phase 1.D compliance rework — P2P transfer)

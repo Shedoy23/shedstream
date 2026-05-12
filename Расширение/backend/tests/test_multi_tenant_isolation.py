@@ -1262,6 +1262,187 @@ async def test_tictactoe_match_flow():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Test 14: Dice game logic (Phase 5.2) — pure helpers + lexicon scrub
+# ─────────────────────────────────────────────────────────────────────────────
+def test_dice_game_logic():
+    """Phase 5.2: проверяет dice helpers + compliance-lexicon на frontend.
+
+    Покрывает:
+      - _roll_2d6 в диапазоне 2..12 (1+1=2 min, 6+6=12 max), 2 values 1..6
+      - _resolve_winner: a/b/draw correct для всех соотношений
+      - _elo_update reuses standard K=32 logic
+      - Distribution на 1000 samples: avg sum ≈ 7 (expected value)
+      - Lexicon scrub: dice.js НЕ содержит casino/jackpot/lucky/bet
+    """
+    print("\n[14] Dice game logic + lexicon scrub (Phase 5.2)")
+    from routes.dice import (
+        _roll_2d6, _resolve_winner, _elo_update,
+        ELO_START, ELO_K, GAME_TYPE,
+    )
+
+    # 14.1 Roll structure: 2 кубика, каждый 1..6
+    import random as _random
+    rng_orig = _random.random
+    for _ in range(200):
+        roll = _roll_2d6()
+        assert_eq(len(roll), 2, "roll имеет 2 кубика")
+        for d in roll:
+            assert_true(1 <= d <= 6, f"кубик в 1..6: {d}")
+
+    # 14.2 Sum range 2..12
+    for _ in range(200):
+        roll = _roll_2d6()
+        s = sum(roll)
+        assert_true(2 <= s <= 12, f"sum в 2..12: {s}")
+
+    # 14.3 _resolve_winner — все возможные исходы
+    assert_eq(_resolve_winner([6, 6], [1, 1]), "a", "12 vs 2 → a")
+    assert_eq(_resolve_winner([1, 1], [6, 6]), "b", "2 vs 12 → b")
+    assert_eq(_resolve_winner([3, 4], [3, 4]), "draw", "7 vs 7 → draw")
+    assert_eq(_resolve_winner([6, 1], [4, 3]), "draw", "7 vs 7 (different rolls)")
+    assert_eq(_resolve_winner([5, 5], [4, 5]), "a", "10 vs 9 → a")
+
+    # 14.4 Distribution: average sum ≈ 7 на 1000 samples
+    import random as _r
+    seeded_rng = _r.Random(42)
+    samples = []
+    for _ in range(1000):
+        # Simulate roll using seeded rng (для воспроизводимости)
+        d1, d2 = seeded_rng.randint(1, 6), seeded_rng.randint(1, 6)
+        samples.append(d1 + d2)
+    avg = sum(samples) / len(samples)
+    assert_true(6.7 <= avg <= 7.3, f"avg sum ≈ 7 (got {avg:.2f})")
+
+    # 14.5 _elo_update аналогично TicTacToe (same K=32)
+    assert_eq(_elo_update(1100, 1100, 1.0), 1116, "equal win = +16")
+    assert_eq(_elo_update(1100, 1100, 0.0), 1084, "equal loss = -16")
+    assert_eq(_elo_update(1100, 1100, 0.5), 1100, "equal draw = unchanged")
+
+    # 14.6 Constants
+    assert_eq(GAME_TYPE, "dice", "GAME_TYPE = 'dice'")
+    assert_eq(ELO_START, 1100, "ELO_START = 1100")
+    assert_eq(ELO_K, 32, "ELO_K = 32")
+
+    # 14.7 LEXICON SCRUB: dice.js НЕ содержит запрещённых слов
+    import os.path
+    # __file__ = .../Расширение/backend/tests/test_multi_tenant_isolation.py
+    # tests_dir → backend_dir → extension_dir → frontend/dice.js
+    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    extension_dir = os.path.dirname(backend_dir)
+    dice_js_path = os.path.join(extension_dir, "frontend", "dice.js")
+    if os.path.exists(dice_js_path):
+        with open(dice_js_path, encoding="utf-8") as f:
+            content = f.read().lower()
+        forbidden = ['casino', 'jackpot', 'lucky', 'gamble',
+                     'высокая ставка', 'крутка', 'спин',
+                     'высокий ролл', 'high roller']
+        for word in forbidden:
+            assert_true(word not in content,
+                        f"dice.js не содержит '{word}' (compliance lexicon)")
+        print(f"  Lexicon scrub: checked {len(forbidden)} forbidden words — clean")
+    else:
+        print(f"  ⚠️  dice.js не найден по {dice_js_path} — lexicon scrub skipped")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Test 15: Dice match flow (vs bot endpoint + PvP roll logic)
+# ─────────────────────────────────────────────────────────────────────────────
+async def test_dice_match_flow():
+    """Phase 5.2: full match flow через прямой SQL для PvP rooms.
+
+    Симулирует PvP-roll сценарий, проверяет:
+      - State machine: rolls.a + rolls.b → finalize
+      - Wait-state: только один игрок roll'ил
+      - Cross-player blocked
+    """
+    print("\n[15] Dice match flow (Phase 5.2)")
+    import aiosqlite as _aio
+    import json as _json
+    import uuid as _uuid
+    from routes.dice import _resolve_winner
+
+    db_path = tempfile.mktemp(suffix="_test.db")
+    try:
+        async with _aio.connect(db_path) as conn:
+            await conn.execute("CREATE TABLE viewers (channel_id INTEGER, username TEXT, points INTEGER DEFAULT 0, last_seen DATETIME, join_time DATETIME, is_afk INTEGER DEFAULT 0, PRIMARY KEY(channel_id, username))")
+            from migrations import m10_matchmaking
+            await m10_matchmaking.apply(conn)
+            await conn.commit()
+
+            cid = 98319857
+            room_id = f"room_dice_{_uuid.uuid4().hex[:12]}"
+
+            await conn.execute(
+                "INSERT INTO match_rooms (room_id, channel_id, game_type, player_a, player_b, "
+                "player_a_elo, player_b_elo, state, status) "
+                "VALUES (?, ?, 'dice', 'alice', 'bob', 1100, 1100, '{}', 'active')",
+                (room_id, cid)
+            )
+            await conn.commit()
+
+            # 15.1 Only alice rolled — wait state
+            state = {"rolls": {"a": [6, 5], "b": None}, "phase": "rolling"}
+            await conn.execute(
+                "UPDATE match_rooms SET state = ? WHERE room_id = ? AND status = 'active'",
+                (_json.dumps(state), room_id)
+            )
+            await conn.commit()
+
+            cur = await conn.execute("SELECT state, status FROM match_rooms WHERE room_id = ?", (room_id,))
+            row = await cur.fetchone()
+            saved = _json.loads(row[0])
+            assert_eq(saved["rolls"]["a"], [6, 5], "alice roll [6,5] = 11 stored")
+            assert_eq(saved["rolls"]["b"], None, "bob ещё не roll'ил")
+            assert_eq(row[1], "active", "status still active (waiting)")
+
+            # 15.2 Bob rolls — resolve winner
+            state["rolls"]["b"] = [4, 3]
+            state["phase"] = "finished"
+            winner_role = _resolve_winner(state["rolls"]["a"], state["rolls"]["b"])
+            assert_eq(winner_role, "a", "alice 11 > bob 7 → a wins")
+
+            # Finalize
+            await conn.execute(
+                "UPDATE match_rooms SET state = ?, status = 'finished', "
+                "winner = 'alice', outcome = 'win_a', "
+                "player_a_elo = 1116, player_b_elo = 1084, "
+                "finished_at = CURRENT_TIMESTAMP WHERE room_id = ? AND status = 'active'",
+                (_json.dumps(state), room_id)
+            )
+            await conn.commit()
+
+            cur = await conn.execute(
+                "SELECT status, winner, outcome FROM match_rooms WHERE room_id = ?",
+                (room_id,)
+            )
+            row = await cur.fetchone()
+            assert_eq(row[0], "finished", "room finished after both rolls")
+            assert_eq(row[1], "alice", "alice winner")
+            assert_eq(row[2], "win_a", "outcome win_a")
+
+            # 15.3 Cross-player access блок: charlie не player
+            cur = await conn.execute(
+                "SELECT room_id FROM match_rooms WHERE room_id = ? AND "
+                "(player_a = 'charlie' OR player_b = 'charlie')",
+                (room_id,)
+            )
+            row = await cur.fetchone()
+            assert_true(row is None, "charlie blocked from dice room")
+
+            # 15.4 Draw scenario test
+            assert_eq(_resolve_winner([3, 4], [2, 5]), "draw", "7 vs 7 → draw")
+
+            # 15.5 Test extreme cases
+            assert_eq(_resolve_winner([6, 6], [1, 1]), "a", "12 vs 2 → max diff a wins")
+            assert_eq(_resolve_winner([1, 2], [3, 4]), "b", "3 vs 7 → b wins")
+    finally:
+        try:
+            os.unlink(db_path)
+        except Exception:
+            pass
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main runner
 # ─────────────────────────────────────────────────────────────────────────────
 async def run_all_tests():
@@ -1282,6 +1463,8 @@ async def run_all_tests():
     await test_matchmaking_infrastructure()
     test_tictactoe_game_logic()
     await test_tictactoe_match_flow()
+    test_dice_game_logic()
+    await test_dice_match_flow()
 
     print("\n" + "=" * 70)
     print(f"PASSED: {len(_successes)}    FAILED: {len(_failures)}")

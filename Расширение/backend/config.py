@@ -271,8 +271,8 @@ MATCHMAKING_INTERVAL = 5
 # реализации игр.
 # 'rps'       — legacy дуэли (Phase 1.F убрала ставки, остался ELO-only)
 # 'tictactoe' — Phase 5.1 MVP
-# 'dice'      — Phase 5.2 (планируется)
-MATCHMAKING_GAME_TYPES = ('rps', 'tictactoe')
+# 'dice'      — Phase 5.2 (vs bot + PvP)
+MATCHMAKING_GAME_TYPES = ('rps', 'tictactoe', 'dice')
 
 # ELO-spread по умолчанию (если юзер не указал свой).
 MATCHMAKING_DEFAULT_ELO_SPREAD = 100

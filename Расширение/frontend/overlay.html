@@ -633,11 +633,81 @@ body {
     opacity: 1;
 }
 
+/* ══════════════════════════════════════
+   PETS-STRIP — активные зрители с питомцами
+   (Phase 7, 2026-05-12; opt-out streamer'ом)
+══════════════════════════════════════ */
+#pets-strip {
+    position: absolute;
+    bottom: 40px;
+    left: 40px;
+    display: flex;
+    gap: 12px;
+    max-width: 900px;
+    flex-wrap: nowrap;
+    overflow: hidden;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity .4s ease, transform .4s ease;
+}
+#pets-strip.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+.pet-card {
+    background: rgba(15, 10, 30, 0.78);
+    border: 1px solid rgba(145, 71, 255, 0.35);
+    border-radius: 14px;
+    padding: 10px 12px;
+    min-width: 88px;
+    text-align: center;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 20px rgba(0,0,0,.4);
+    transition: transform .3s ease;
+}
+.pet-card.with-bg {
+    background: linear-gradient(135deg, rgba(145,71,255,.22), rgba(8,5,22,.85));
+    border-color: rgba(145, 71, 255, 0.6);
+}
+.pet-card-visual {
+    font-size: 30px;
+    line-height: 1.1;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.pet-card-visual .pc-head, .pet-card-visual .pc-acc {
+    font-size: 18px;
+}
+.pet-card-visual .pc-head { transform: translateY(-4px); }
+.pet-card-name {
+    font-size: 11px;
+    font-weight: 600;
+    color: #efeff1;
+    margin-top: 6px;
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: 'Unbounded', sans-serif;
+}
+.pet-card-user {
+    font-size: 9px;
+    color: #adadb8;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+}
+
 </style>
 </head>
 <body>
 
 <!-- jackpot-mega div удалён 2026-05-10 (Phase 1.I lexicon scrub) -->
+
+<!-- ══════ PETS-STRIP (Phase 7, 2026-05-12) ══════ -->
+<div id="pets-strip"></div>
 
 <!-- ══════ ПОСТОЯННАЯ ПАНЕЛЬ ИВЕНТА (справа по центру) ══════ -->
 <div id="event-panel">
@@ -674,8 +744,12 @@ body {
 <script>
 const SERVER = 'https://shedoy23.ru';
 const POLL_INTERVAL = 2000;  // опрос каждые 2 сек
+const PETS_POLL_INTERVAL = 12000;  // pets reshuffle каждые ~12 сек
 
 // MIN_JACKPOT_AMOUNT удалён 2026-05-10 (Phase 1.I lexicon scrub — casino вырезан)
+
+// channel_id из URL (?channel_id=NN), либо backend сам резолвит default
+const PETS_CHANNEL_ID = parseInt(new URLSearchParams(location.search).get('channel_id') || '0', 10);
 
 // ══════════════════════════════════════════
 // ОЧЕРЕДЬ УВЕДОМЛЕНИЙ
@@ -1134,6 +1208,56 @@ function runPreview() {
 }
 
 // ══════════════════════════════════════════
+// PETS-STRIP (Phase 7, 2026-05-12)
+// Polls /api/overlay/pets и рендерит активных зрителей.
+// Streamer может отключить через toggle на /api/streamer/pets/overlay-toggle.
+// ══════════════════════════════════════════
+async function pollPets() {
+    try {
+        const url = SERVER + '/api/overlay/pets'
+            + (PETS_CHANNEL_ID > 0 ? `?channel_id=${PETS_CHANNEL_ID}` : '');
+        const r = await fetch(url);
+        const data = await r.json();
+        const strip = document.getElementById('pets-strip');
+        if (!strip) return;
+
+        if (!data.success || !data.enabled || !data.viewers || data.viewers.length === 0) {
+            strip.classList.remove('visible');
+            strip.innerHTML = '';
+            return;
+        }
+
+        strip.innerHTML = data.viewers.map(v => {
+            const eq = v.equipped || {};
+            const head = eq.head?.emoji || '';
+            const acc  = eq.accessory?.emoji || '';
+            const bg   = eq.background;
+            const petEmoji = v.pet_type === 'egg' ? '🥚' : '🐣';
+            const displayName = v.name ? v.name : '@' + (v.username || '?');
+            const username = v.username ? '@' + v.username : '';
+            return `
+                <div class="pet-card ${bg ? 'with-bg' : ''}">
+                    <div class="pet-card-visual">
+                        ${head ? `<span class="pc-head">${head}</span>` : ''}
+                        <span>${petEmoji}</span>
+                        ${acc ? `<span class="pc-acc">${acc}</span>` : ''}
+                    </div>
+                    <div class="pet-card-name">${escapeHtmlOL(displayName)}</div>
+                    ${v.name && username ? `<div class="pet-card-user">${escapeHtmlOL(username)}</div>` : ''}
+                </div>
+            `;
+        }).join('');
+        strip.classList.add('visible');
+    } catch (e) { /* silent */ }
+}
+
+function escapeHtmlOL(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+        '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+    }[c]));
+}
+
+// ══════════════════════════════════════════
 // СТАРТ
 // ══════════════════════════════════════════
 if (new URLSearchParams(location.search).get('preview') === '1') {
@@ -1141,6 +1265,8 @@ if (new URLSearchParams(location.search).get('preview') === '1') {
 } else {
     poll();
     setInterval(poll, POLL_INTERVAL);
+    pollPets();
+    setInterval(pollPets, PETS_POLL_INTERVAL);
 }
 </script>
 </body>

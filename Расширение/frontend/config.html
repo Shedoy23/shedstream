@@ -21,6 +21,13 @@
             color: #9147ff;
             margin-bottom: 20px;
         }
+        h3 {
+            color: #efeff1;
+            font-size: 14px;
+            margin: 0 0 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
         p {
             color: #adadb8;
             line-height: 1.5;
@@ -39,12 +46,52 @@
         .link:hover {
             text-decoration: underline;
         }
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 12px;
+        }
+        .toggle-btn {
+            background: #2d2d2f;
+            border: 1px solid #3a3a3e;
+            color: #efeff1;
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background .2s;
+        }
+        .toggle-btn.on { background: #9147ff; border-color: #9147ff; }
+        .toggle-btn.off { background: #5a5a5e; border-color: #5a5a5e; }
+        .toggle-btn:hover { opacity: .85; }
+        .toggle-status {
+            font-size: 12px;
+            color: #adadb8;
+            margin-top: 6px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h2>⚙️ Настройки расширения</h2>
-        
+
+        <div class="info-box">
+            <h3>🐾 Питомцы зрителей в overlay</h3>
+            <p style="font-size:13px;">
+                Показывать питомцев активных зрителей внизу overlay. Можно
+                выключить, если хочешь чистый стрим.
+            </p>
+            <div class="toggle-row">
+                <div>
+                    <div id="pets-toggle-label" style="font-weight:600;">Загрузка…</div>
+                    <div class="toggle-status" id="pets-toggle-status"></div>
+                </div>
+                <button id="pets-toggle-btn" class="toggle-btn">…</button>
+            </div>
+        </div>
+
         <div class="info-box">
             <p>Расширение работает в штатном режиме.</p>
             <p>Для управления используйте админ-панель:</p>
@@ -55,5 +102,86 @@
             <p>📊 Статистика канала будет доступна в ближайшее время.</p>
         </div>
     </div>
+
+<script>
+const SERVER = 'https://shedoy23.ru';
+let _channelId = null;
+let _jwt = null;
+let _petsEnabled = null;
+
+// Twitch Extension config callback
+if (window.Twitch && Twitch.ext) {
+    Twitch.ext.onAuthorized(auth => {
+        _channelId = parseInt(auth.channelId, 10);
+        _jwt = auth.token;
+        _refreshPetsToggle();
+    });
+} else {
+    // Standalone preview — пробуем взять channel_id из URL
+    _channelId = parseInt(new URLSearchParams(location.search).get('channel_id') || '0', 10);
+    if (_channelId > 0) _refreshPetsToggle();
+}
+
+async function _refreshPetsToggle() {
+    if (!_channelId) return;
+    try {
+        const r = await fetch(`${SERVER}/api/overlay/pets?channel_id=${_channelId}`);
+        const data = await r.json();
+        _petsEnabled = !!data.enabled;
+        _renderPetsToggle();
+    } catch (e) {
+        _setPetsStatus('Не удалось загрузить статус', '#f87171');
+    }
+}
+
+function _renderPetsToggle() {
+    const lbl = document.getElementById('pets-toggle-label');
+    const btn = document.getElementById('pets-toggle-btn');
+    if (!lbl || !btn) return;
+    lbl.textContent = _petsEnabled ? '✅ Включено' : '⛔ Выключено';
+    btn.textContent = _petsEnabled ? 'Выключить' : 'Включить';
+    btn.className = 'toggle-btn ' + (_petsEnabled ? 'on' : 'off');
+    btn.onclick = () => _togglePets();
+    _setPetsStatus('', '#adadb8');
+}
+
+async function _togglePets() {
+    if (!_channelId) {
+        _setPetsStatus('Нет channel_id', '#f87171');
+        return;
+    }
+    const newState = !_petsEnabled;
+    try {
+        // Streamer-toggle endpoint требует admin auth (basic). Для self-serve
+        // через Twitch config UI broadcaster сам себя авторизует — переходник
+        // на бэке (TODO Phase 7.E.1: принимать Twitch JWT с role='broadcaster').
+        // Пока MVP — простой POST с обозначением что это требует admin.
+        const r = await fetch(`${SERVER}/api/streamer/pets/overlay-toggle`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ channel_id: _channelId, enabled: newState }),
+        });
+        if (r.status === 401 || r.status === 403) {
+            _setPetsStatus('Требуется логин в админ-панель (пока)', '#fbbf24');
+            return;
+        }
+        const data = await r.json();
+        if (data.success) {
+            _petsEnabled = data.enabled;
+            _renderPetsToggle();
+            _setPetsStatus('Сохранено', '#34d399');
+        } else {
+            _setPetsStatus(data.message || 'Ошибка', '#f87171');
+        }
+    } catch (e) {
+        _setPetsStatus('Ошибка сети', '#f87171');
+    }
+}
+
+function _setPetsStatus(msg, color) {
+    const el = document.getElementById('pets-toggle-status');
+    if (el) { el.textContent = msg; el.style.color = color; }
+}
+</script>
 </body>
 </html>

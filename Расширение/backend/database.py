@@ -1427,6 +1427,604 @@ class Database:
             )
             return await cur.fetchone() is not None
 
+    # ===== ГИЛЬДИИ (Phase 3, 2026-05-11) =====
+    # Социальная механика per канал. Multi-tenant scope:
+    # - guilds.channel_id определяет принадлежность канала
+    # - один юзер = одна гильдия per канал (UNIQUE index)
+    # - имя UNIQUE within channel (но один и тот же name можно на другом канале)
+
+    async def create_guild(
+        self,
+        name: str,
+        master_username: str,
+        tagline: str = "",
+        channel_id: Optional[int] = None,
+    ) -> Dict:
+        """Создать гильдию + добавить master'а как первого member'а.
+        Атомарно списать GUILD_CREATE_COST из master.points.
+
+        Validates:
+          - master не уже в другой гильдии на этом канале
+          - name не занят (case-sensitive, в рамках канала)
+          - master имеет достаточно крустиков для создания
+
+        Returns:
+            {'created': True, 'guild_id': N, 'remaining_balance': K}
+            | {'created': False, 'reason': 'already_in_guild' | 'name_taken' |
+                                          'insufficient_funds' | 'invalid_name'}
+        """
+        from config import (
+            GUILD_CREATE_COST, GUILD_NAME_MIN_LEN, GUILD_NAME_MAX_LEN,
+            GUILD_TAGLINE_MAX_LEN,
+        )
+        cid = resolve_channel_id(channel_id)
+        uname = master_username.lower()
+        name = (name or "").strip()
+        tagline = (tagline or "").strip()[:GUILD_TAGLINE_MAX_LEN]
+
+        if not (GUILD_NAME_MIN_LEN <= len(name) <= GUILD_NAME_MAX_LEN):
+            return {'created': False, 'reason': 'invalid_name',
+                    'message': f'Имя должно быть {GUILD_NAME_MIN_LEN}-{GUILD_NAME_MAX_LEN} символов'}
+
+        async with self._connect() as conn:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+
+                # Уже в гильдии?
+                cur = await conn.execute(
+                    "SELECT guild_id FROM guild_members "
+                    "WHERE channel_id = ? AND username = ? LIMIT 1",
+                    (cid, uname)
+                )
+                if await cur.fetchone():
+                    await conn.execute("ROLLBACK")
+                    return {'created': False, 'reason': 'already_in_guild'}
+
+                # Имя занято в этом канале (не disbanded)?
+                cur = await conn.execute(
+                    "SELECT id FROM guilds WHERE channel_id = ? AND name = ? "
+                    "AND disbanded_at IS NULL LIMIT 1",
+                    (cid, name)
+                )
+                if await cur.fetchone():
+                    await conn.execute("ROLLBACK")
+                    return {'created': False, 'reason': 'name_taken'}
+
+                # Списываем cost (атомарно, защита от race)
+                cur = await conn.execute(
+                    "UPDATE viewers SET points = points - ? "
+                    "WHERE channel_id = ? AND username = ? AND points >= ?",
+                    (GUILD_CREATE_COST, cid, uname, GUILD_CREATE_COST)
+                )
+                if cur.rowcount == 0:
+                    await conn.execute("ROLLBACK")
+                    return {'created': False, 'reason': 'insufficient_funds',
+                            'message': f'Нужно {GUILD_CREATE_COST:,}💎 для создания'}
+
+                # Создаём гильдию
+                cur = await conn.execute(
+                    "INSERT INTO guilds (channel_id, name, tagline, master_username, balance) "
+                    "VALUES (?, ?, ?, ?, 0)",
+                    (cid, name, tagline, uname)
+                )
+                guild_id = cur.lastrowid
+
+                # Master как первый member
+                await conn.execute(
+                    "INSERT INTO guild_members (guild_id, channel_id, username, role) "
+                    "VALUES (?, ?, ?, 'master')",
+                    (guild_id, cid, uname)
+                )
+
+                # Get remaining balance
+                cur = await conn.execute(
+                    "SELECT points FROM viewers WHERE channel_id = ? AND username = ?",
+                    (cid, uname)
+                )
+                row = await cur.fetchone()
+                remaining = row[0] if row else 0
+
+                await conn.commit()
+                return {
+                    'created': True, 'guild_id': guild_id,
+                    'remaining_balance': remaining, 'cost': GUILD_CREATE_COST,
+                }
+            except Exception:
+                await conn.execute("ROLLBACK")
+                raise
+
+    async def join_guild(
+        self,
+        guild_id: int,
+        username: str,
+        channel_id: Optional[int] = None,
+    ) -> Dict:
+        """Вступить в гильдию.
+
+        Checks:
+          - guild существует и не disbanded
+          - guild на ТОМ ЖЕ channel_id что юзер
+          - user не уже в гильдии
+          - количество members < max_members (base + skills bonus)
+        """
+        from config import GUILD_MAX_MEMBERS_BASE, GUILD_SKILLS_CONFIG
+        cid = resolve_channel_id(channel_id)
+        uname = username.lower()
+
+        async with self._connect() as conn:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+
+                # Уже в гильдии?
+                cur = await conn.execute(
+                    "SELECT guild_id FROM guild_members "
+                    "WHERE channel_id = ? AND username = ? LIMIT 1",
+                    (cid, uname)
+                )
+                if await cur.fetchone():
+                    await conn.execute("ROLLBACK")
+                    return {'joined': False, 'reason': 'already_in_guild'}
+
+                # Guild существует и активна?
+                cur = await conn.execute(
+                    "SELECT id, channel_id, name FROM guilds "
+                    "WHERE id = ? AND disbanded_at IS NULL",
+                    (guild_id,)
+                )
+                row = await cur.fetchone()
+                if not row:
+                    await conn.execute("ROLLBACK")
+                    return {'joined': False, 'reason': 'guild_not_found'}
+                if row[1] != cid:
+                    await conn.execute("ROLLBACK")
+                    return {'joined': False, 'reason': 'wrong_channel'}
+                guild_name = row[2]
+
+                # Считаем текущих members + max_members (base + bonus from extra_member_slots skill)
+                cur = await conn.execute(
+                    "SELECT COUNT(*) FROM guild_members WHERE guild_id = ?",
+                    (guild_id,)
+                )
+                current = (await cur.fetchone())[0]
+
+                cur = await conn.execute(
+                    "SELECT level FROM guild_skills "
+                    "WHERE guild_id = ? AND skill_key = 'extra_member_slots'",
+                    (guild_id,)
+                )
+                slot_row = await cur.fetchone()
+                slot_level = slot_row[0] if slot_row else 0
+                slot_bonus = slot_level * GUILD_SKILLS_CONFIG['extra_member_slots']['effect_per_level']
+                max_members = GUILD_MAX_MEMBERS_BASE + slot_bonus
+
+                if current >= max_members:
+                    await conn.execute("ROLLBACK")
+                    return {'joined': False, 'reason': 'guild_full',
+                            'current': current, 'max': max_members}
+
+                # Join
+                await conn.execute(
+                    "INSERT INTO guild_members (guild_id, channel_id, username, role) "
+                    "VALUES (?, ?, ?, 'member')",
+                    (guild_id, cid, uname)
+                )
+                await conn.commit()
+                return {'joined': True, 'guild_id': guild_id, 'guild_name': guild_name}
+            except Exception:
+                await conn.execute("ROLLBACK")
+                raise
+
+    async def leave_guild(
+        self,
+        username: str,
+        channel_id: Optional[int] = None,
+    ) -> Dict:
+        """Выйти из своей гильдии. Master не может leave — должен disband.
+
+        Returns:
+            {'left': True, 'guild_id': N} | {'left': False, 'reason': X}
+        """
+        cid = resolve_channel_id(channel_id)
+        uname = username.lower()
+
+        async with self._connect() as conn:
+            cur = await conn.execute(
+                "SELECT guild_id, role FROM guild_members "
+                "WHERE channel_id = ? AND username = ?",
+                (cid, uname)
+            )
+            row = await cur.fetchone()
+            if not row:
+                return {'left': False, 'reason': 'not_in_guild'}
+            guild_id, role = row
+            if role == 'master':
+                return {'left': False, 'reason': 'master_must_disband',
+                        'message': 'Master не может покинуть — используй disband'}
+
+            await conn.execute(
+                "DELETE FROM guild_members WHERE guild_id = ? AND username = ?",
+                (guild_id, uname)
+            )
+            await conn.commit()
+            return {'left': True, 'guild_id': guild_id}
+
+    async def contribute_to_guild(
+        self,
+        username: str,
+        amount: int,
+        channel_id: Optional[int] = None,
+    ) -> Dict:
+        """Вклад крустиков в balance гильдии. Списывается из viewers.points,
+        прибавляется к guilds.balance + audit запись в guild_contributions.
+
+        Атомарно через BEGIN IMMEDIATE.
+        """
+        from config import GUILD_MIN_CONTRIBUTE
+        cid = resolve_channel_id(channel_id)
+        uname = username.lower()
+
+        if amount < GUILD_MIN_CONTRIBUTE:
+            return {'contributed': False, 'reason': 'too_small',
+                    'message': f'Минимум {GUILD_MIN_CONTRIBUTE}💎'}
+
+        async with self._connect() as conn:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+
+                cur = await conn.execute(
+                    "SELECT guild_id FROM guild_members "
+                    "WHERE channel_id = ? AND username = ?",
+                    (cid, uname)
+                )
+                row = await cur.fetchone()
+                if not row:
+                    await conn.execute("ROLLBACK")
+                    return {'contributed': False, 'reason': 'not_in_guild'}
+                guild_id = row[0]
+
+                # Списываем атомарно
+                cur = await conn.execute(
+                    "UPDATE viewers SET points = points - ? "
+                    "WHERE channel_id = ? AND username = ? AND points >= ?",
+                    (amount, cid, uname, amount)
+                )
+                if cur.rowcount == 0:
+                    await conn.execute("ROLLBACK")
+                    return {'contributed': False, 'reason': 'insufficient_funds'}
+
+                # Прибавляем в guild balance
+                await conn.execute(
+                    "UPDATE guilds SET balance = balance + ? WHERE id = ?",
+                    (amount, guild_id)
+                )
+
+                # Audit
+                await conn.execute(
+                    "INSERT INTO guild_contributions (guild_id, channel_id, username, amount) "
+                    "VALUES (?, ?, ?, ?)",
+                    (guild_id, cid, uname, amount)
+                )
+
+                # Get new balance
+                cur = await conn.execute("SELECT balance FROM guilds WHERE id = ?", (guild_id,))
+                new_balance = (await cur.fetchone())[0]
+
+                await conn.commit()
+                return {
+                    'contributed':   True,
+                    'guild_id':      guild_id,
+                    'amount':        amount,
+                    'new_balance':   new_balance,
+                }
+            except Exception:
+                await conn.execute("ROLLBACK")
+                raise
+
+    async def kick_member(
+        self,
+        master_username: str,
+        target_username: str,
+        channel_id: Optional[int] = None,
+    ) -> Dict:
+        """Master выгоняет участника. Master cannot kick себя."""
+        cid = resolve_channel_id(channel_id)
+        muname = master_username.lower()
+        tuname = target_username.lower()
+
+        if muname == tuname:
+            return {'kicked': False, 'reason': 'cannot_kick_self'}
+
+        async with self._connect() as conn:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+
+                cur = await conn.execute(
+                    "SELECT guild_id, role FROM guild_members "
+                    "WHERE channel_id = ? AND username = ?",
+                    (cid, muname)
+                )
+                row = await cur.fetchone()
+                if not row or row[1] != 'master':
+                    await conn.execute("ROLLBACK")
+                    return {'kicked': False, 'reason': 'not_master'}
+                guild_id = row[0]
+
+                cur = await conn.execute(
+                    "DELETE FROM guild_members "
+                    "WHERE guild_id = ? AND username = ? AND role != 'master'",
+                    (guild_id, tuname)
+                )
+                await conn.commit()
+                if cur.rowcount == 0:
+                    return {'kicked': False, 'reason': 'target_not_member'}
+                return {'kicked': True, 'guild_id': guild_id, 'target': tuname}
+            except Exception:
+                await conn.execute("ROLLBACK")
+                raise
+
+    async def upgrade_guild_skill(
+        self,
+        master_username: str,
+        skill_key: str,
+        channel_id: Optional[int] = None,
+    ) -> Dict:
+        """Master прокачивает skill на следующий уровень из guild.balance.
+
+        Cost берётся из GUILD_SKILLS_CONFIG[skill_key]['cost_per_level'][level].
+        max_level limit enforced.
+        """
+        from config import GUILD_SKILLS_CONFIG
+        cid = resolve_channel_id(channel_id)
+        muname = master_username.lower()
+
+        if skill_key not in GUILD_SKILLS_CONFIG:
+            return {'upgraded': False, 'reason': 'unknown_skill'}
+        config = GUILD_SKILLS_CONFIG[skill_key]
+
+        async with self._connect() as conn:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+
+                # Verify master
+                cur = await conn.execute(
+                    "SELECT guild_id, role FROM guild_members "
+                    "WHERE channel_id = ? AND username = ?",
+                    (cid, muname)
+                )
+                row = await cur.fetchone()
+                if not row or row[1] != 'master':
+                    await conn.execute("ROLLBACK")
+                    return {'upgraded': False, 'reason': 'not_master'}
+                guild_id = row[0]
+
+                # Current level
+                cur = await conn.execute(
+                    "SELECT level FROM guild_skills WHERE guild_id = ? AND skill_key = ?",
+                    (guild_id, skill_key)
+                )
+                row = await cur.fetchone()
+                current_level = row[0] if row else 0
+
+                if current_level >= config['max_level']:
+                    await conn.execute("ROLLBACK")
+                    return {'upgraded': False, 'reason': 'max_level',
+                            'level': current_level}
+
+                cost = config['cost_per_level'][current_level]
+
+                # Atomic списание из balance
+                cur = await conn.execute(
+                    "UPDATE guilds SET balance = balance - ? "
+                    "WHERE id = ? AND balance >= ?",
+                    (cost, guild_id, cost)
+                )
+                if cur.rowcount == 0:
+                    await conn.execute("ROLLBACK")
+                    return {'upgraded': False, 'reason': 'insufficient_guild_balance',
+                            'cost': cost}
+
+                # UPSERT skill level
+                new_level = current_level + 1
+                await conn.execute(
+                    "INSERT INTO guild_skills (guild_id, skill_key, level, exp) "
+                    "VALUES (?, ?, ?, 0) "
+                    "ON CONFLICT(guild_id, skill_key) DO UPDATE SET "
+                    "level = excluded.level, updated_at = CURRENT_TIMESTAMP",
+                    (guild_id, skill_key, new_level)
+                )
+
+                # Get new balance
+                cur = await conn.execute("SELECT balance FROM guilds WHERE id = ?", (guild_id,))
+                new_balance = (await cur.fetchone())[0]
+
+                await conn.commit()
+                return {
+                    'upgraded':    True,
+                    'skill_key':   skill_key,
+                    'new_level':   new_level,
+                    'cost':        cost,
+                    'new_balance': new_balance,
+                }
+            except Exception:
+                await conn.execute("ROLLBACK")
+                raise
+
+    async def get_my_guild(
+        self,
+        username: str,
+        channel_id: Optional[int] = None,
+    ) -> Optional[Dict]:
+        """Текущая гильдия юзера + summary."""
+        cid = resolve_channel_id(channel_id)
+        uname = username.lower()
+
+        async with self._connect() as conn:
+            cur = await conn.execute(
+                "SELECT g.id, g.name, g.tagline, g.master_username, g.balance, "
+                "g.created_at, gm.role FROM guild_members gm "
+                "JOIN guilds g ON g.id = gm.guild_id "
+                "WHERE gm.channel_id = ? AND gm.username = ? AND g.disbanded_at IS NULL",
+                (cid, uname)
+            )
+            row = await cur.fetchone()
+            if not row:
+                return None
+            g_id, g_name, g_tagline, g_master, g_bal, g_created, my_role = row
+
+            # Member count
+            cur = await conn.execute(
+                "SELECT COUNT(*) FROM guild_members WHERE guild_id = ?", (g_id,)
+            )
+            member_count = (await cur.fetchone())[0]
+
+            # Skills
+            cur = await conn.execute(
+                "SELECT skill_key, level FROM guild_skills WHERE guild_id = ?",
+                (g_id,)
+            )
+            skills = {r[0]: r[1] for r in await cur.fetchall()}
+
+            return {
+                'guild_id':      g_id,
+                'name':          g_name,
+                'tagline':       g_tagline,
+                'master':        g_master,
+                'balance':       g_bal,
+                'created_at':    g_created,
+                'my_role':       my_role,
+                'member_count':  member_count,
+                'skills':        skills,
+            }
+
+    async def get_guild(
+        self,
+        guild_id: int,
+        channel_id: Optional[int] = None,
+    ) -> Optional[Dict]:
+        """Public info о гильдии + members list.
+
+        channel_id для access-control: если задан, гильдия с другого канала
+        не возвращается.
+        """
+        cid = resolve_channel_id(channel_id) if channel_id is not None else None
+
+        async with self._connect() as conn:
+            cur = await conn.execute(
+                "SELECT id, channel_id, name, tagline, master_username, balance, "
+                "created_at FROM guilds WHERE id = ? AND disbanded_at IS NULL",
+                (guild_id,)
+            )
+            row = await cur.fetchone()
+            if not row:
+                return None
+            if cid is not None and row[1] != cid:
+                return None
+
+            g_id, g_cid, g_name, g_tagline, g_master, g_bal, g_created = row
+
+            cur = await conn.execute(
+                "SELECT username, role, joined_at FROM guild_members "
+                "WHERE guild_id = ? ORDER BY role DESC, joined_at",
+                (g_id,)
+            )
+            members = [
+                {'username': r[0], 'role': r[1], 'joined_at': r[2]}
+                for r in await cur.fetchall()
+            ]
+
+            cur = await conn.execute(
+                "SELECT skill_key, level FROM guild_skills WHERE guild_id = ?",
+                (g_id,)
+            )
+            skills = {r[0]: r[1] for r in await cur.fetchall()}
+
+            # Top-5 contributors
+            cur = await conn.execute(
+                "SELECT username, SUM(amount) as total FROM guild_contributions "
+                "WHERE guild_id = ? GROUP BY username ORDER BY total DESC LIMIT 5",
+                (g_id,)
+            )
+            top_contribs = [
+                {'username': r[0], 'total': r[1]}
+                for r in await cur.fetchall()
+            ]
+
+            return {
+                'guild_id':       g_id,
+                'name':           g_name,
+                'tagline':        g_tagline,
+                'master':         g_master,
+                'balance':        g_bal,
+                'created_at':     g_created,
+                'members':        members,
+                'skills':         skills,
+                'top_contributors': top_contribs,
+            }
+
+    async def list_guilds(
+        self,
+        channel_id: Optional[int] = None,
+        limit: int = 20,
+    ) -> list:
+        """Top гильдий канала по balance."""
+        cid = resolve_channel_id(channel_id)
+        async with self._connect() as conn:
+            cur = await conn.execute(
+                "SELECT g.id, g.name, g.tagline, g.master_username, g.balance, "
+                "(SELECT COUNT(*) FROM guild_members WHERE guild_id = g.id) as members "
+                "FROM guilds g "
+                "WHERE g.channel_id = ? AND g.disbanded_at IS NULL "
+                "ORDER BY g.balance DESC LIMIT ?",
+                (cid, limit)
+            )
+            rows = await cur.fetchall()
+            return [
+                {'guild_id': r[0], 'name': r[1], 'tagline': r[2], 'master': r[3],
+                 'balance': r[4], 'member_count': r[5]}
+                for r in rows
+            ]
+
+    async def disband_guild(
+        self,
+        master_username: str,
+        channel_id: Optional[int] = None,
+    ) -> Dict:
+        """Master расформировывает гильдию. Soft delete (disbanded_at).
+        Members удаляются. Balance — теряется (sink крустиков системе).
+        """
+        cid = resolve_channel_id(channel_id)
+        muname = master_username.lower()
+
+        async with self._connect() as conn:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+
+                cur = await conn.execute(
+                    "SELECT guild_id, role FROM guild_members "
+                    "WHERE channel_id = ? AND username = ?",
+                    (cid, muname)
+                )
+                row = await cur.fetchone()
+                if not row or row[1] != 'master':
+                    await conn.execute("ROLLBACK")
+                    return {'disbanded': False, 'reason': 'not_master'}
+                guild_id = row[0]
+
+                # Soft-disband + remove all members
+                await conn.execute(
+                    "UPDATE guilds SET disbanded_at = CURRENT_TIMESTAMP WHERE id = ?",
+                    (guild_id,)
+                )
+                await conn.execute(
+                    "DELETE FROM guild_members WHERE guild_id = ?",
+                    (guild_id,)
+                )
+                await conn.commit()
+                return {'disbanded': True, 'guild_id': guild_id}
+            except Exception:
+                await conn.execute("ROLLBACK")
+                raise
+
     # ===== MATCHMAKING (Phase 5.0, 2026-05-11) =====
     # Generic multi-game matchmaking. Game-specific логика (RPS / TicTacToe / Dice)
     # хранится в state JSON и обрабатывается в game-specific helpers либо

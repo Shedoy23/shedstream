@@ -465,6 +465,15 @@ async def run_migrations():
             print(f"❌ M10 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M11: guilds base (Phase 3 of COMPLIANCE_REWORK_PLAN.md) ──
+        # guilds + members + skills + contributions tables
+        try:
+            from migrations import m11_guilds
+            await m11_guilds.apply(conn)
+        except Exception as e:
+            print(f"❌ M11 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

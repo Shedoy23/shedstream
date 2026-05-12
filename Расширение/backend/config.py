@@ -280,6 +280,37 @@ MATCHMAKING_DEFAULT_ELO_SPREAD = 100
 # Auto-expire queue entries старше N секунд (cleanup от disconnected клиентов).
 MATCHMAKING_QUEUE_TTL_SEC = 300
 
+# ===== ГИЛЬДИИ (Phase 3, 2026-05-11) =====
+# Cost создания гильдии — sink крустиков из личного баланса master'а.
+GUILD_CREATE_COST = 100_000
+
+# Лимиты:
+GUILD_NAME_MIN_LEN = 3
+GUILD_NAME_MAX_LEN = 30
+GUILD_TAGLINE_MAX_LEN = 80
+GUILD_MAX_MEMBERS_BASE = 10    # без skills прокачки
+GUILD_MIN_CONTRIBUTE = 100     # минимальный взнос в balance
+
+# Skills config (Phase 3 placeholder — v1 две ветки).
+# Расширяется в Phase 3.1+ когда увидим что просят юзеры (§13.10 числа = параметры).
+# cost_per_level — стоимость прокачки уровня N из balance гильдии.
+GUILD_SKILLS_CONFIG = {
+    'extra_member_slots': {
+        'name':           'Расширение состава',
+        'description':    '+5 слотов для участников на уровень',
+        'max_level':      5,
+        'cost_per_level': [50_000, 100_000, 200_000, 400_000, 800_000],
+        'effect_per_level': 5,  # +5 max_members per level
+    },
+    'cosmetic_banner_unlock': {
+        'name':           'Кастомный баннер',
+        'description':    'Разблокирует выбор баннера для гильдии',
+        'max_level':      1,
+        'cost_per_level': [200_000],
+        'effect_per_level': 1,  # unlock-style: 1 level = enabled
+    },
+}
+
 # ===== НАСТРОЙКИ КЕЙСОВ (Phase 2, 2026-05-11) =====
 # Фиксированная награда крустиков per tier. Балансится через config, не через
 # миграцию — позволяет корректировать без БД-изменений (см. урок 13.10

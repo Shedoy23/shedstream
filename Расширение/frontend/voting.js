@@ -1,0 +1,260 @@
+// voting.js — Voting events UI (Phase 4, 2026-05-11)
+//
+// View states:
+//   - waiting   → pool progress bar + leaderboard (no event yet)
+//   - active    → options list + bid form + top bidders
+//   - finished  → результат + winner
+
+const VOTING_POLL_INTERVAL_MS = 4000;
+let _votingPollId = null;
+let _votingBidLocked = false;
+
+async function openVotingModal() {
+    if (!isAuthUser()) {
+        showNotification('⚠️ Войдите через Twitch', 'warning');
+        return;
+    }
+    _renderVotingModal();
+    await _refreshVoting();
+    _startVotingPolling();
+}
+
+function _renderVotingModal() {
+    let modal = document.getElementById('voting-modal');
+    if (modal) modal.remove();
+    modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.id = 'voting-modal';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width:480px;max-height:90vh;overflow-y:auto;">
+            <h2>🗳️ Голосование за стримера</h2>
+            <div id="voting-content"><div class="loading">Загрузка...</div></div>
+            <button class="modal-btn cancel" id="voting-close-btn" style="margin-top:10px;">Закрыть</button>
+        </div>
+    `;
+    (document.getElementById('overlay-panel') || document.body).appendChild(modal);
+    document.getElementById('voting-close-btn').addEventListener('click', () => {
+        _stopVotingPolling();
+        modal.remove();
+    });
+}
+
+async function _refreshVoting() {
+    try {
+        const headers = { 'X-Twitch-JWT': authToken || '' };
+        const r = await fetch(`${API_URL}/api/voting/status`, { headers });
+        const data = await r.json();
+        if (!data.success) {
+            _renderVotingError(data.message || 'Ошибка');
+            return;
+        }
+        if (data.active_event) {
+            _renderActiveVoting(data);
+        } else {
+            _renderWaitingState(data);
+        }
+    } catch (e) {
+        _renderVotingError('Ошибка сети');
+    }
+}
+
+function _renderWaitingState(data) {
+    const el = document.getElementById('voting-content');
+    if (!el) return;
+    const pct = data.pool_pct || 0;
+    const cur = data.pool_units || 0;
+    const max = data.threshold || 1000;
+
+    const noTemplateMsg = !data.has_default_template
+        ? `<div style="background:#3a1a1a;border:1px solid #f87171;border-radius:6px;padding:8px;margin-top:10px;font-size:11px;color:#f87171;">
+              ⚠️ Стример ещё не настроил шаблоны голосований.
+              Когда копилка дойдёт до конца — ничего не запустится.
+           </div>`
+        : '';
+
+    el.innerHTML = `
+        <div style="text-align:center;padding:14px 10px;">
+            <div style="font-size:56px;margin-bottom:8px;">🗳️</div>
+            <div style="font-size:14px;color:#adadb8;margin-bottom:14px;">
+                Активного голосования сейчас нет. Копилка наполняется<br>
+                просмотром (+1 unit / мин активного зрителя) и чатом (+5 / msg).
+            </div>
+            <div style="background:#1a1a1c;border-radius:8px;padding:12px;margin-bottom:10px;">
+                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;">
+                    <span>Копилка</span>
+                    <span style="color:#fbbf24;">${cur.toLocaleString('ru-RU')} / ${max.toLocaleString('ru-RU')}</span>
+                </div>
+                <div style="background:#3a3a3e;border-radius:4px;height:10px;overflow:hidden;">
+                    <div style="background:linear-gradient(90deg,#9147ff,#fbbf24);
+                                width:${pct}%;height:100%;transition:width .3s;"></div>
+                </div>
+                <div style="font-size:11px;color:#adadb8;margin-top:6px;">${pct}% до автостарта</div>
+            </div>
+            ${noTemplateMsg}
+        </div>
+    `;
+}
+
+function _renderActiveVoting(data) {
+    const el = document.getElementById('voting-content');
+    if (!el) return;
+    const event = data.active_event;
+    const endsAt = new Date(event.ends_at);
+    const now = new Date();
+    const remainingMs = Math.max(0, endsAt.getTime() - now.getTime());
+    const remainingSec = Math.floor(remainingMs / 1000);
+    const remainingMin = Math.floor(remainingSec / 60);
+    const remainingSecOnly = remainingSec % 60;
+
+    const totalPool = event.total_pool || 0;
+    const opts = event.options || [];
+    const sortedOpts = [...opts].sort((a, b) => b.pool - a.pool);
+    const winner = sortedOpts[0];
+
+    const optsHtml = sortedOpts.map((o, i) => {
+        const pct = totalPool > 0 ? Math.round(o.pool / totalPool * 100) : 0;
+        const isLeading = i === 0 && o.pool > 0;
+        return `
+            <div style="background:${isLeading ? 'rgba(251,191,36,.15)' : '#1a1a1c'};
+                        border:1px solid ${isLeading ? 'rgba(251,191,36,.5)' : '#3a3a3e'};
+                        border-radius:8px;padding:10px;margin-bottom:6px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div style="flex:1;">
+                        <div style="font-weight:700;font-size:13px;">
+                            ${isLeading ? '👑 ' : ''}${escapeHtml(o.label)}
+                        </div>
+                        ${o.description ? `<div style="font-size:11px;color:#adadb8;margin-top:2px;">${escapeHtml(o.description)}</div>` : ''}
+                    </div>
+                    <button class="small-btn" data-vote-option="${o.id}" style="margin-left:8px;">
+                        Голосовать
+                    </button>
+                </div>
+                <div style="background:#3a3a3e;border-radius:3px;height:6px;overflow:hidden;margin-top:8px;">
+                    <div style="background:${isLeading ? '#fbbf24' : '#9147ff'};
+                                width:${pct}%;height:100%;transition:width .3s;"></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:11px;color:#adadb8;margin-top:4px;">
+                    <span>${o.pool.toLocaleString('ru-RU')}💎</span>
+                    <span>${pct}%</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    const topBidsHtml = (data.top_bidders || []).map((b, i) => {
+        const medal = ['🥇','🥈','🥉'][i] || `${i+1}.`;
+        return `<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0;">
+            <span>${medal} @${escapeHtml(b.username)}</span>
+            <span style="color:#fbbf24;">${b.total.toLocaleString('ru-RU')}💎</span>
+        </div>`;
+    }).join('');
+
+    el.innerHTML = `
+        <div style="background:linear-gradient(135deg,rgba(145,71,255,.18),rgba(251,191,36,.08));
+                    border:1px solid rgba(145,71,255,.5);border-radius:10px;padding:12px;margin-bottom:12px;">
+            <div style="font-size:15px;font-weight:800;">⚡ «${escapeHtml(event.template_name || 'Голосование')}»</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:12px;">
+                <span style="color:#adadb8;">⏰ Осталось: <b style="color:#fbbf24;">${remainingMin}:${remainingSecOnly.toString().padStart(2,'0')}</b></span>
+                <span style="color:#fbbf24;">💰 ${totalPool.toLocaleString('ru-RU')}💎</span>
+            </div>
+        </div>
+        <div style="font-size:12px;color:#adadb8;margin-bottom:4px;">Варианты (клик чтобы выбрать):</div>
+        <div id="voting-options-list">${optsHtml}</div>
+        ${topBidsHtml ? `
+            <details style="margin-top:10px;background:#1a1a1c;border-radius:6px;padding:8px 10px;">
+                <summary style="cursor:pointer;font-size:11px;color:#adadb8;">🏆 Топ-вкладчиков</summary>
+                <div style="margin-top:6px;">${topBidsHtml}</div>
+            </details>
+        ` : ''}
+    `;
+
+    // Bind vote buttons
+    el.querySelectorAll('[data-vote-option]').forEach(btn => {
+        const optId = parseInt(btn.dataset.voteOption, 10);
+        btn.addEventListener('click', () => _promptBidAmount(optId, opts.find(o => o.id === optId)));
+    });
+}
+
+function _promptBidAmount(optionId, option) {
+    let bidModal = document.getElementById('voting-bid-modal');
+    if (bidModal) bidModal.remove();
+    bidModal = document.createElement('div');
+    bidModal.className = 'modal active';
+    bidModal.id = 'voting-bid-modal';
+    bidModal.innerHTML = `
+        <div class="modal-content" style="max-width:340px;">
+            <h2>🗳️ Голосую за</h2>
+            <div style="background:#1a1a1c;border-radius:8px;padding:10px;margin-bottom:10px;">
+                <div style="font-weight:700;">${escapeHtml(option?.label || '?')}</div>
+                ${option?.description ? `<div style="font-size:11px;color:#adadb8;margin-top:2px;">${escapeHtml(option.description)}</div>` : ''}
+            </div>
+            <input id="voting-bid-amount" type="number" class="modal-input" placeholder="Сумма (мин. 50💎)" min="50">
+            <div style="display:flex;gap:4px;margin-bottom:10px;">
+                <button class="quick-bet" data-quick="50">50💎</button>
+                <button class="quick-bet" data-quick="500">500💎</button>
+                <button class="quick-bet" data-quick="5000">5k💎</button>
+                <button class="quick-bet" data-quick="50000">50k💎</button>
+            </div>
+            <button class="modal-btn" id="voting-bid-confirm-btn">✅ Голосовать</button>
+            <button class="modal-btn cancel" id="voting-bid-cancel-btn" style="margin-top:6px;">Отмена</button>
+        </div>
+    `;
+    (document.getElementById('overlay-panel') || document.body).appendChild(bidModal);
+
+    bidModal.querySelectorAll('[data-quick]').forEach(qb => {
+        qb.addEventListener('click', () => {
+            document.getElementById('voting-bid-amount').value = qb.dataset.quick;
+        });
+    });
+    document.getElementById('voting-bid-confirm-btn').addEventListener('click', async () => {
+        const amt = parseInt(document.getElementById('voting-bid-amount').value);
+        if (!amt || amt < 50) {
+            showNotification('Минимум 50💎', 'error');
+            return;
+        }
+        await _placeBid(optionId, amt);
+        bidModal.remove();
+    });
+    document.getElementById('voting-bid-cancel-btn').addEventListener('click', () => bidModal.remove());
+}
+
+async function _placeBid(optionId, amount) {
+    if (_votingBidLocked) return;
+    _votingBidLocked = true;
+    try {
+        const r = await fetch(`${API_URL}/api/voting/bid`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || '' },
+            body: JSON.stringify({ option_id: optionId, amount }),
+        });
+        const data = await r.json();
+        showNotification(data.message, data.success ? 'success' : 'error');
+        if (data.success) {
+            if (typeof loadUserData === 'function') loadUserData();
+            await _refreshVoting();
+        }
+    } catch (e) {
+        showNotification('Ошибка сети', 'error');
+    } finally {
+        setTimeout(() => { _votingBidLocked = false; }, 500);
+    }
+}
+
+function _renderVotingError(msg) {
+    const el = document.getElementById('voting-content');
+    if (el) el.innerHTML = `<div style="color:#f87171;text-align:center;padding:14px;">${msg}</div>`;
+}
+
+function _startVotingPolling() {
+    _stopVotingPolling();
+    _votingPollId = setInterval(_refreshVoting, VOTING_POLL_INTERVAL_MS);
+}
+
+function _stopVotingPolling() {
+    if (_votingPollId) {
+        clearInterval(_votingPollId);
+        _votingPollId = null;
+    }
+}
+
+window.openVotingModal = openVotingModal;

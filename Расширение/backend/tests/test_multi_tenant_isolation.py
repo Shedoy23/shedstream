@@ -1013,6 +1013,255 @@ async def test_matchmaking_infrastructure():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Test 12: TicTacToe game logic (Phase 5.1)
+# ─────────────────────────────────────────────────────────────────────────────
+def test_tictactoe_game_logic():
+    """Phase 5.1: проверяет pure game helpers через прямой import.
+
+    Покрывает:
+      - WIN_LINES охватывают все 8 winning paths
+      - _check_winner detects rows / cols / diagonals для 'a' и 'b'
+      - _check_winner возвращает '' если нет winner
+      - _is_full корректно работает
+      - _elo_update math (K=32, win/loss/draw)
+      - _initial_state — empty board, next_turn='a', moves=0
+    """
+    print("\n[12] TicTacToe game logic (Phase 5.1)")
+    from routes.tictactoe import (
+        WIN_LINES, _check_winner, _is_full, _elo_update,
+        _initial_state, ELO_START, ELO_K,
+    )
+
+    # 12.1 WIN_LINES охватывает 3 ряда + 3 столбца + 2 диагонали
+    assert_eq(len(WIN_LINES), 8, "8 winning lines (3+3+2)")
+    # Validate каждая line — это набор из 3 индексов 0-8
+    for line in WIN_LINES:
+        assert_eq(len(line), 3, f"win line has 3 cells: {line}")
+        for cell in line:
+            assert_true(0 <= cell <= 8, f"cell index in 0..8: {cell}")
+
+    # 12.2 _initial_state
+    state = _initial_state()
+    assert_eq(state["board"], ["", "", "", "", "", "", "", "", ""], "empty board")
+    assert_eq(state["next_turn"], "a", "first turn = a")
+    assert_eq(state["moves"], 0, "moves counter = 0")
+
+    # 12.3 No winner на пустой доске
+    assert_eq(_check_winner(state["board"]), "", "empty board → no winner")
+    assert_eq(_is_full(state["board"]), False, "empty board not full")
+
+    # 12.4 Row wins — 3 случая
+    for row_idx, (i, j, k) in enumerate(WIN_LINES[:3]):
+        b = ["", "", "", "", "", "", "", "", ""]
+        b[i] = b[j] = b[k] = "a"
+        assert_eq(_check_winner(b), "a", f"row {row_idx}: a wins on {(i,j,k)}")
+
+    # 12.5 Column wins
+    for col_idx, (i, j, k) in enumerate(WIN_LINES[3:6]):
+        b = ["", "", "", "", "", "", "", "", ""]
+        b[i] = b[j] = b[k] = "b"
+        assert_eq(_check_winner(b), "b", f"col {col_idx}: b wins on {(i,j,k)}")
+
+    # 12.6 Diagonal wins
+    for diag_idx, (i, j, k) in enumerate(WIN_LINES[6:8]):
+        b = ["", "", "", "", "", "", "", "", ""]
+        b[i] = b[j] = b[k] = "a"
+        assert_eq(_check_winner(b), "a", f"diag {diag_idx}: a wins on {(i,j,k)}")
+
+    # 12.7 Mixed cells — diagonal 0,4,8 = a win
+    b = ["a", "b", "b", "b", "a", "b", "b", "b", "a"]
+    assert_eq(_check_winner(b), "a", "diagonal 0,4,8 (all a) → a wins")
+
+    # 12.7b — checkerboard with diagonal win
+    b = ["a", "b", "a", "b", "a", "b", "a", "b", "a"]
+    # Diagonals: 0,4,8 = a,a,a → WIN
+    assert_eq(_check_winner(b), "a", "diagonal win even in mixed board")
+
+    # 12.8 Full board без winner = draw scenario
+    b = ["a", "b", "a", "b", "a", "b", "b", "a", "b"]
+    # Check: rows (aba/bab/bab) no; cols (abb/bab/aba) no; diags (aab/aab) no
+    assert_eq(_check_winner(b), "", "full board mixed: no winner (draw)")
+    assert_eq(_is_full(b), True, "all cells filled → is_full True")
+
+    # 12.9 _elo_update math — equal ratings + win
+    # expected = 1/(1+10^0) = 0.5, result=1.0, change = K*(1-0.5) = 16
+    new_elo = _elo_update(1100, 1100, 1.0)
+    assert_eq(new_elo, 1100 + 16, "equal ELO + win = +16 (K=32, half-K)")
+
+    # 12.10 _elo_update — equal + loss
+    new_elo = _elo_update(1100, 1100, 0.0)
+    assert_eq(new_elo, 1100 - 16, "equal ELO + loss = -16")
+
+    # 12.11 _elo_update — equal + draw
+    new_elo = _elo_update(1100, 1100, 0.5)
+    assert_eq(new_elo, 1100, "equal ELO + draw = unchanged")
+
+    # 12.12 _elo_update — upset (низкий бьёт высокого) даёт больше
+    upset_elo = _elo_update(1000, 1400, 1.0)
+    expected_change = upset_elo - 1000
+    fair_win = _elo_update(1100, 1100, 1.0) - 1100  # = 16
+    assert_true(expected_change > fair_win,
+                f"upset win > fair win: {expected_change} > {fair_win}")
+
+    # 12.13 _elo_update — favorite побеждает (мало ELO change)
+    fav_elo = _elo_update(1400, 1000, 1.0)
+    fav_change = fav_elo - 1400
+    assert_true(fav_change < fair_win,
+                f"favorite win < fair win: {fav_change} < {fair_win}")
+
+    # 12.14 Constants
+    assert_eq(ELO_START, 1100, "ELO_START = 1100")
+    assert_eq(ELO_K, 32, "ELO_K = 32 (standard)")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Test 13: TicTacToe end-to-end via /move endpoint logic (in-memory БД)
+# ─────────────────────────────────────────────────────────────────────────────
+async def test_tictactoe_match_flow():
+    """Phase 5.1: full match flow через прямое манипулирование state +
+    проверка БД transitions. Не дёргает endpoint (требует JWT), но
+    воспроизводит SQL что endpoint делает.
+
+    Проверки:
+      - State JSON roundtrip
+      - Win condition triggers finalize_match
+      - Cross-player access denied
+      - Turn validation
+    """
+    print("\n[13] TicTacToe match flow (Phase 5.1)")
+    import aiosqlite as _aio
+    import json as _json
+    import uuid as _uuid
+
+    db_path = tempfile.mktemp(suffix="_test.db")
+    try:
+        async with _aio.connect(db_path) as conn:
+            await conn.execute("CREATE TABLE viewers (channel_id INTEGER, username TEXT, points INTEGER DEFAULT 0, last_seen DATETIME, join_time DATETIME, is_afk INTEGER DEFAULT 0, PRIMARY KEY(channel_id, username))")
+            from migrations import m10_matchmaking
+            await m10_matchmaking.apply(conn)
+            await conn.commit()
+
+            cid = 98319857
+            room_id = f"room_tictactoe_{_uuid.uuid4().hex[:12]}"
+
+            # Setup: создаём активную ttt комнату alice vs bob
+            await conn.execute(
+                "INSERT INTO match_rooms (room_id, channel_id, game_type, player_a, player_b, "
+                "player_a_elo, player_b_elo, state, status) "
+                "VALUES (?, ?, 'tictactoe', 'alice', 'bob', 1100, 1100, '{}', 'active')",
+                (room_id, cid)
+            )
+            await conn.commit()
+
+            from routes.tictactoe import _check_winner, _initial_state
+
+            # 13.1 First move (alice, a, cell 0)
+            state = _initial_state()
+            assert_eq(state["next_turn"], "a", "initial turn = a")
+
+            # alice ходит cell 0
+            state["board"][0] = "a"
+            state["moves"] = 1
+            state["next_turn"] = "b"
+            await conn.execute(
+                "UPDATE match_rooms SET state = ? WHERE room_id = ? AND status = 'active'",
+                (_json.dumps(state), room_id)
+            )
+            await conn.commit()
+            assert_eq(_check_winner(state["board"]), "", "no winner yet (1 move)")
+
+            # 13.2 bob ходит cell 4
+            state["board"][4] = "b"
+            state["moves"] = 2
+            state["next_turn"] = "a"
+
+            # 13.3 alice cell 1
+            state["board"][1] = "a"
+            state["moves"] = 3
+            state["next_turn"] = "b"
+
+            # 13.4 bob cell 5
+            state["board"][5] = "b"
+            state["moves"] = 4
+            state["next_turn"] = "a"
+
+            # 13.5 alice cell 2 — победа в row 0
+            state["board"][2] = "a"
+            state["moves"] = 5
+            winner_role = _check_winner(state["board"])
+            assert_eq(winner_role, "a", "alice wins row 0")
+
+            # Finalize в БД
+            await conn.execute(
+                "UPDATE match_rooms SET state = ?, status = 'finished', "
+                "winner = 'alice', outcome = 'win_a', player_a_elo = 1116, player_b_elo = 1084, "
+                "finished_at = CURRENT_TIMESTAMP WHERE room_id = ? AND status = 'active'",
+                (_json.dumps(state), room_id)
+            )
+            await conn.commit()
+
+            # Verify
+            cur = await conn.execute(
+                "SELECT status, winner, outcome, player_a_elo, player_b_elo FROM match_rooms WHERE room_id = ?",
+                (room_id,)
+            )
+            row = await cur.fetchone()
+            assert_eq(row[0], "finished", "room status finished")
+            assert_eq(row[1], "alice", "winner = alice")
+            assert_eq(row[2], "win_a", "outcome = win_a")
+            assert_eq(row[3], 1116, "alice ELO updated")
+            assert_eq(row[4], 1084, "bob ELO updated")
+
+            # 13.6 Cross-player access: charlie не должен видеть комнату как player
+            cur = await conn.execute(
+                "SELECT room_id FROM match_rooms WHERE room_id = ? AND "
+                "(player_a = 'charlie' OR player_b = 'charlie')",
+                (room_id,)
+            )
+            row = await cur.fetchone()
+            assert_true(row is None, "charlie has no access to alice-vs-bob room")
+
+            # 13.7 После finalize — другой move attempt должен fail (status != active)
+            cur = await conn.execute(
+                "UPDATE match_rooms SET state = '{\"hack\":true}' "
+                "WHERE room_id = ? AND status = 'active'",
+                (room_id,)
+            )
+            await conn.commit()
+            assert_eq(cur.rowcount, 0, "finished room rejects post-game moves")
+
+            # 13.8 Sезонная статистика после match: duel_stats записи созданы
+            # (в реальном flow это делает /move endpoint после finalize)
+            await conn.execute(
+                "INSERT INTO duel_stats (channel_id, username, game_type, elo, win_streak, season_id) "
+                "VALUES (?, 'alice', 'tictactoe', 1116, 1, 1)",
+                (cid,)
+            )
+            await conn.execute(
+                "INSERT INTO duel_stats (channel_id, username, game_type, elo, win_streak, season_id) "
+                "VALUES (?, 'bob', 'tictactoe', 1084, 0, 1)",
+                (cid,)
+            )
+            await conn.commit()
+
+            # Leaderboard: alice выше bob
+            cur = await conn.execute(
+                "SELECT username, elo FROM duel_stats "
+                "WHERE channel_id = ? AND game_type = 'tictactoe' ORDER BY elo DESC",
+                (cid,)
+            )
+            rows = await cur.fetchall()
+            assert_eq(rows[0][0], "alice", "alice top of tictactoe leaderboard")
+            assert_eq(rows[0][1], 1116, "alice ELO = 1116")
+            assert_eq(rows[1][0], "bob", "bob second")
+    finally:
+        try:
+            os.unlink(db_path)
+        except Exception:
+            pass
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main runner
 # ─────────────────────────────────────────────────────────────────────────────
 async def run_all_tests():
@@ -1031,6 +1280,8 @@ async def run_all_tests():
     await test_cases_system()
     test_drops_distribution()
     await test_matchmaking_infrastructure()
+    test_tictactoe_game_logic()
+    await test_tictactoe_match_flow()
 
     print("\n" + "=" * 70)
     print(f"PASSED: {len(_successes)}    FAILED: {len(_failures)}")

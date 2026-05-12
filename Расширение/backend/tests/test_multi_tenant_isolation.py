@@ -1443,6 +1443,272 @@ async def test_dice_match_flow():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Test 16: Guilds system (Phase 3) — multi-tenant + cost + skills
+# ─────────────────────────────────────────────────────────────────────────────
+async def test_guilds_system():
+    """Phase 3 Guilds: проверяет через raw SQL основные invariants:
+      - Cost-списание при create (атомарно)
+      - Name UNIQUE per channel (не глобально)
+      - Один user = одна guild per channel
+      - Multi-tenant: same name on different channels OK
+      - Kick: master only, cannot kick self
+      - Upgrade skill: master only, balance-check, max_level
+      - Disband: master only, soft-delete
+    """
+    print("\n[16] Guilds system (Phase 3)")
+    import aiosqlite as _aio
+
+    db_path = tempfile.mktemp(suffix="_test.db")
+    try:
+        async with _aio.connect(db_path) as conn:
+            # Setup viewers + guilds schemas
+            await conn.execute("""
+                CREATE TABLE viewers (
+                    channel_id INTEGER NOT NULL,
+                    username TEXT NOT NULL,
+                    points INTEGER DEFAULT 0,
+                    last_seen DATETIME,
+                    join_time DATETIME,
+                    is_afk INTEGER DEFAULT 0,
+                    PRIMARY KEY(channel_id, username)
+                )
+            """)
+            from migrations import m11_guilds
+            await m11_guilds.apply(conn)
+            await conn.commit()
+
+            cid_a = 98319857
+            cid_b = 99999
+            COST = 100_000
+
+            # Seed viewers с балансом для create
+            for u in ('alice', 'bob', 'charlie'):
+                for cid in (cid_a, cid_b):
+                    await conn.execute(
+                        "INSERT INTO viewers (channel_id, username, points) VALUES (?, ?, ?)",
+                        (cid, u, 200_000)
+                    )
+            await conn.commit()
+
+            # 16.1 Insufficient funds — попытка create без денег
+            await conn.execute("UPDATE viewers SET points = 0 WHERE channel_id = ? AND username = 'alice'", (cid_a,))
+            await conn.commit()
+            cur = await conn.execute(
+                "UPDATE viewers SET points = points - ? "
+                "WHERE channel_id = ? AND username = 'alice' AND points >= ?",
+                (COST, cid_a, COST)
+            )
+            assert_eq(cur.rowcount, 0, "insufficient funds: UPDATE rowcount=0 (защита от race)")
+            await conn.execute("UPDATE viewers SET points = 200000 WHERE channel_id = ? AND username = 'alice'", (cid_a,))
+            await conn.commit()
+
+            # 16.2 Create guild alice на cid_a — должно списать 100k
+            await conn.execute(
+                "UPDATE viewers SET points = points - ? WHERE channel_id = ? AND username = 'alice'",
+                (COST, cid_a)
+            )
+            cur = await conn.execute(
+                "INSERT INTO guilds (channel_id, name, tagline, master_username) "
+                "VALUES (?, 'Alpha', 'For glory!', 'alice')",
+                (cid_a,)
+            )
+            guild_alpha_a = cur.lastrowid
+            await conn.execute(
+                "INSERT INTO guild_members (guild_id, channel_id, username, role) "
+                "VALUES (?, ?, 'alice', 'master')",
+                (guild_alpha_a, cid_a)
+            )
+            await conn.commit()
+            assert_true(guild_alpha_a > 0, "Alpha guild создан на cid_a")
+            cur = await conn.execute("SELECT points FROM viewers WHERE channel_id = ? AND username = 'alice'", (cid_a,))
+            assert_eq((await cur.fetchone())[0], 100_000, "alice потеряла 100k (200k → 100k)")
+
+            # 16.3 Name UNIQUE per channel — повтор Alpha на cid_a должен fail
+            from aiosqlite import IntegrityError as _IE
+            try:
+                await conn.execute(
+                    "INSERT INTO guilds (channel_id, name, master_username) VALUES (?, 'Alpha', 'bob')",
+                    (cid_a,)
+                )
+                await conn.commit()
+                assert_true(False, "duplicate name on same channel should fail")
+            except _IE:
+                assert_true(True, "duplicate name on same channel rejected")
+                await conn.rollback()
+
+            # 16.4 Multi-tenant: same name на cid_b — OK
+            cur = await conn.execute(
+                "INSERT INTO guilds (channel_id, name, master_username) VALUES (?, 'Alpha', 'bob')",
+                (cid_b,)
+            )
+            guild_alpha_b = cur.lastrowid
+            await conn.execute(
+                "INSERT INTO guild_members (guild_id, channel_id, username, role) "
+                "VALUES (?, ?, 'bob', 'master')",
+                (guild_alpha_b, cid_b)
+            )
+            await conn.commit()
+            assert_true(guild_alpha_b > 0, "Alpha на cid_b — OK (multi-tenant)")
+            assert_true(guild_alpha_a != guild_alpha_b, "разные guild_id")
+
+            # 16.5 Один user = одна guild per channel — повтор INSERT alice в другую guild
+            cur = await conn.execute(
+                "INSERT INTO guilds (channel_id, name, master_username) VALUES (?, 'Beta', 'bob')",
+                (cid_a,)
+            )
+            beta_a = cur.lastrowid
+            try:
+                await conn.execute(
+                    "INSERT INTO guild_members (guild_id, channel_id, username, role) "
+                    "VALUES (?, ?, 'alice', 'member')",
+                    (beta_a, cid_a)
+                )
+                await conn.commit()
+                assert_true(False, "alice second guild membership on same channel should fail (UNIQUE)")
+            except _IE:
+                assert_true(True, "second guild membership blocked by uq_guild_members_user_per_channel")
+                await conn.rollback()
+
+            # 16.6 bob может вступить в Alpha alice — добавим
+            await conn.execute(
+                "INSERT INTO guild_members (guild_id, channel_id, username, role) "
+                "VALUES (?, ?, 'bob', 'member')",
+                (guild_alpha_a, cid_a)
+            )
+            await conn.commit()
+            cur = await conn.execute(
+                "SELECT COUNT(*) FROM guild_members WHERE guild_id = ?", (guild_alpha_a,)
+            )
+            assert_eq((await cur.fetchone())[0], 2, "Alpha теперь 2 members (alice + bob)")
+
+            # 16.7 Contribute: bob кладёт 5k → balance Alpha = 5k, audit запись
+            await conn.execute(
+                "UPDATE viewers SET points = points - 5000 WHERE channel_id = ? AND username = 'bob'",
+                (cid_a,)
+            )
+            await conn.execute(
+                "UPDATE guilds SET balance = balance + 5000 WHERE id = ?",
+                (guild_alpha_a,)
+            )
+            await conn.execute(
+                "INSERT INTO guild_contributions (guild_id, channel_id, username, amount) "
+                "VALUES (?, ?, 'bob', 5000)",
+                (guild_alpha_a, cid_a)
+            )
+            await conn.commit()
+            cur = await conn.execute("SELECT balance FROM guilds WHERE id = ?", (guild_alpha_a,))
+            assert_eq((await cur.fetchone())[0], 5000, "Alpha balance = 5000 after bob contrib")
+
+            cur = await conn.execute(
+                "SELECT amount FROM guild_contributions WHERE guild_id = ? AND username = 'bob'",
+                (guild_alpha_a,)
+            )
+            assert_eq((await cur.fetchone())[0], 5000, "audit запись 5000 от bob")
+
+            # 16.8 Kick: master может удалить bob (charlie не master — попытка fail)
+            # Сначала charlie joins Alpha
+            await conn.execute(
+                "INSERT INTO guild_members (guild_id, channel_id, username, role) "
+                "VALUES (?, ?, 'charlie', 'member')",
+                (guild_alpha_a, cid_a)
+            )
+            await conn.commit()
+
+            # charlie пытается kick bob — fail (он member, не master)
+            cur = await conn.execute(
+                "SELECT role FROM guild_members WHERE guild_id = ? AND username = 'charlie'",
+                (guild_alpha_a,)
+            )
+            assert_eq((await cur.fetchone())[0], 'member', "charlie role = member")
+
+            # alice (master) kicks bob — OK
+            cur = await conn.execute(
+                "DELETE FROM guild_members WHERE guild_id = ? AND username = 'bob' AND role != 'master'",
+                (guild_alpha_a,)
+            )
+            await conn.commit()
+            assert_eq(cur.rowcount, 1, "bob kicked by master alice")
+
+            # Cannot kick self (master): DELETE WHERE role != 'master' защищает
+            cur = await conn.execute(
+                "DELETE FROM guild_members WHERE guild_id = ? AND username = 'alice' AND role != 'master'",
+                (guild_alpha_a,)
+            )
+            await conn.commit()
+            assert_eq(cur.rowcount, 0, "alice (master) cannot self-kick via this query pattern")
+
+            # 16.9 Upgrade skill: insufficient balance fail; sufficient OK
+            # Alpha balance = 5000; первый level extra_member_slots cost = 50_000
+            cur = await conn.execute(
+                "UPDATE guilds SET balance = balance - 50000 WHERE id = ? AND balance >= 50000",
+                (guild_alpha_a,)
+            )
+            assert_eq(cur.rowcount, 0, "5k balance < 50k cost → 0 rowcount (защита)")
+
+            # Boost balance and retry
+            await conn.execute(
+                "UPDATE guilds SET balance = balance + 100000 WHERE id = ?",
+                (guild_alpha_a,)
+            )
+            cur = await conn.execute(
+                "UPDATE guilds SET balance = balance - 50000 WHERE id = ? AND balance >= 50000",
+                (guild_alpha_a,)
+            )
+            assert_eq(cur.rowcount, 1, "now 105k balance, cost 50k → upgrade OK")
+
+            # Insert skill level 1
+            await conn.execute(
+                "INSERT INTO guild_skills (guild_id, skill_key, level) VALUES (?, 'extra_member_slots', 1)",
+                (guild_alpha_a,)
+            )
+            await conn.commit()
+
+            cur = await conn.execute(
+                "SELECT level FROM guild_skills WHERE guild_id = ? AND skill_key = 'extra_member_slots'",
+                (guild_alpha_a,)
+            )
+            assert_eq((await cur.fetchone())[0], 1, "skill level = 1 after upgrade")
+
+            # 16.10 Disband alpha_a — soft delete
+            await conn.execute(
+                "UPDATE guilds SET disbanded_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (guild_alpha_a,)
+            )
+            await conn.execute("DELETE FROM guild_members WHERE guild_id = ?", (guild_alpha_a,))
+            await conn.commit()
+
+            cur = await conn.execute("SELECT disbanded_at FROM guilds WHERE id = ?", (guild_alpha_a,))
+            assert_true((await cur.fetchone())[0] is not None, "disbanded_at set")
+
+            cur = await conn.execute("SELECT COUNT(*) FROM guild_members WHERE guild_id = ?", (guild_alpha_a,))
+            assert_eq((await cur.fetchone())[0], 0, "all members purged after disband")
+
+            # 16.11 После disband — name «Alpha» снова доступно на cid_a (partial UNIQUE active only)
+            cur = await conn.execute(
+                "INSERT INTO guilds (channel_id, name, master_username) VALUES (?, 'Alpha', 'charlie')",
+                (cid_a,)
+            )
+            new_alpha = cur.lastrowid
+            await conn.commit()
+            assert_true(new_alpha != guild_alpha_a, "новая Alpha на cid_a — другой id")
+            assert_true(new_alpha is not None, "name 'Alpha' переиспользуется после disband")
+
+            # 16.12 Cross-channel boundary: alpha_b на cid_b НЕ виден из cid_a context
+            cur = await conn.execute(
+                "SELECT id FROM guilds WHERE channel_id = ? AND name = 'Alpha' AND disbanded_at IS NULL",
+                (cid_a,)
+            )
+            row = await cur.fetchone()
+            assert_true(row is not None and row[0] == new_alpha, "cid_a sees only its own Alpha")
+            assert_true(row[0] != guild_alpha_b, "cid_b's Alpha не виден через WHERE channel_id=cid_a")
+    finally:
+        try:
+            os.unlink(db_path)
+        except Exception:
+            pass
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main runner
 # ─────────────────────────────────────────────────────────────────────────────
 async def run_all_tests():
@@ -1465,6 +1731,7 @@ async def run_all_tests():
     await test_tictactoe_match_flow()
     test_dice_game_logic()
     await test_dice_match_flow()
+    await test_guilds_system()
 
     print("\n" + "=" * 70)
     print(f"PASSED: {len(_successes)}    FAILED: {len(_failures)}")

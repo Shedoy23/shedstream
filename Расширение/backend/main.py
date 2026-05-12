@@ -478,6 +478,16 @@ async def run_migrations():
             print(f"❌ M11 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M12: voting events (Phase 4 of COMPLIANCE_REWORK_PLAN.md) ──
+        # streamer_voting_templates + voting_events + voting_options +
+        # voting_bids + voting_pool_counters
+        try:
+            from migrations import m12_voting
+            await m12_voting.apply(conn)
+        except Exception as e:
+            print(f"❌ M12 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

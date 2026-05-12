@@ -1427,6 +1427,492 @@ class Database:
             )
             return await cur.fetchone() is not None
 
+    # ===== VOTING EVENTS (Phase 4, 2026-05-11) =====
+    # §6.1.4 Twitch Extension Guidelines: voting activities прямо разрешены.
+    # Применяет skills/code-review-excellence: грунт-руль атомарных txns +
+    # access-control + structured error returns.
+
+    async def create_voting_template(
+        self,
+        name: str,
+        options: list,  # [{key, label, description}, ...]
+        is_default: bool = False,
+        channel_id: Optional[int] = None,
+    ) -> Dict:
+        """Стример создаёт template голосования.
+
+        Validates:
+          - 2..VOTING_MAX_OPTIONS вариантов
+          - Все option_key unique within template
+          - Если is_default=True — снимает default с других templates канала
+
+        Returns:
+            {'created': True, 'template_id': N}
+            | {'created': False, 'reason': 'invalid_options' | 'duplicate_keys'}
+        """
+        from config import VOTING_MAX_OPTIONS
+        import json
+        cid = resolve_channel_id(channel_id)
+
+        if not options or not isinstance(options, list):
+            return {'created': False, 'reason': 'invalid_options', 'message': 'Нужны варианты'}
+        if not (2 <= len(options) <= VOTING_MAX_OPTIONS):
+            return {'created': False, 'reason': 'invalid_options',
+                    'message': f'2-{VOTING_MAX_OPTIONS} вариантов'}
+
+        keys = [o.get('key', '').strip() for o in options]
+        if not all(keys):
+            return {'created': False, 'reason': 'invalid_options',
+                    'message': 'У каждого варианта должен быть key'}
+        if len(set(keys)) != len(keys):
+            return {'created': False, 'reason': 'duplicate_keys'}
+
+        async with self._connect() as conn:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+                if is_default:
+                    # Снять флаг с предыдущих default'ов
+                    await conn.execute(
+                        "UPDATE streamer_voting_templates SET is_default = 0 "
+                        "WHERE channel_id = ? AND is_default = 1",
+                        (cid,)
+                    )
+
+                cur = await conn.execute(
+                    "INSERT INTO streamer_voting_templates "
+                    "(channel_id, name, options_json, is_default) VALUES (?, ?, ?, ?)",
+                    (cid, name.strip()[:100], json.dumps(options),
+                     1 if is_default else 0)
+                )
+                tpl_id = cur.lastrowid
+                await conn.commit()
+                return {'created': True, 'template_id': tpl_id}
+            except Exception:
+                await conn.execute("ROLLBACK")
+                raise
+
+    async def list_voting_templates(
+        self,
+        channel_id: Optional[int] = None,
+    ) -> list:
+        """Все templates канала. Применяя fastapi-pro pattern — explicit JSON
+        parse в helper, не на endpoint level."""
+        import json
+        cid = resolve_channel_id(channel_id)
+        async with self._connect() as conn:
+            cur = await conn.execute(
+                "SELECT id, name, options_json, is_default, created_at "
+                "FROM streamer_voting_templates WHERE channel_id = ? "
+                "ORDER BY is_default DESC, created_at DESC",
+                (cid,)
+            )
+            rows = await cur.fetchall()
+            return [
+                {
+                    'template_id': r[0], 'name': r[1],
+                    'options': json.loads(r[2] or '[]'),
+                    'is_default': bool(r[3]), 'created_at': r[4],
+                }
+                for r in rows
+            ]
+
+    async def delete_voting_template(
+        self,
+        template_id: int,
+        channel_id: Optional[int] = None,
+    ) -> bool:
+        """Удалить template. Не может затронуть уже-запущенные events
+        (template_id у них уже в snapshot voting_options.label/key)."""
+        cid = resolve_channel_id(channel_id)
+        async with self._connect() as conn:
+            cur = await conn.execute(
+                "DELETE FROM streamer_voting_templates WHERE id = ? AND channel_id = ?",
+                (template_id, cid)
+            )
+            await conn.commit()
+            return cur.rowcount > 0
+
+    async def start_voting_event(
+        self,
+        template_id: int,
+        channel_id: Optional[int] = None,
+    ) -> Dict:
+        """Стартует event из template. Snapshot options → voting_options.
+
+        Защита от двойного active event per channel — uq_voting_events_active.
+
+        Returns:
+            {'started': True, 'event_id': N, 'options_count': K, 'ends_at': ISO}
+            | {'started': False, 'reason': 'active_event_exists' | 'template_not_found'}
+        """
+        from config import VOTING_EVENT_DURATION_SEC
+        import json
+        from datetime import datetime as _dt, timedelta as _td
+        cid = resolve_channel_id(channel_id)
+
+        async with self._connect() as conn:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+
+                # Load template
+                cur = await conn.execute(
+                    "SELECT name, options_json FROM streamer_voting_templates "
+                    "WHERE id = ? AND channel_id = ?",
+                    (template_id, cid)
+                )
+                row = await cur.fetchone()
+                if not row:
+                    await conn.execute("ROLLBACK")
+                    return {'started': False, 'reason': 'template_not_found'}
+                tpl_name, options_json = row
+                options = json.loads(options_json or '[]')
+
+                # Create event (UNIQUE active per channel защитит от двойного start)
+                ends_at = (_dt.utcnow() + _td(seconds=VOTING_EVENT_DURATION_SEC)).isoformat()
+                try:
+                    cur = await conn.execute(
+                        "INSERT INTO voting_events "
+                        "(channel_id, template_id, template_name, ends_at, status) "
+                        "VALUES (?, ?, ?, ?, 'active')",
+                        (cid, template_id, tpl_name, ends_at)
+                    )
+                    event_id = cur.lastrowid
+                except Exception as e:
+                    # Likely UNIQUE violation (already active event)
+                    await conn.execute("ROLLBACK")
+                    if 'UNIQUE' in str(e):
+                        return {'started': False, 'reason': 'active_event_exists'}
+                    raise
+
+                # Snapshot options
+                for opt in options:
+                    await conn.execute(
+                        "INSERT INTO voting_options "
+                        "(event_id, option_key, label, description, pool) "
+                        "VALUES (?, ?, ?, ?, 0)",
+                        (event_id, opt.get('key', ''), opt.get('label', ''),
+                         opt.get('description', ''))
+                    )
+
+                # Reset pool counter for this channel — следующий event только
+                # после нового accumulation cycle
+                await conn.execute(
+                    "INSERT INTO voting_pool_counters (channel_id, pool_units) "
+                    "VALUES (?, 0) "
+                    "ON CONFLICT(channel_id) DO UPDATE SET pool_units = 0",
+                    (cid,)
+                )
+
+                await conn.commit()
+                return {
+                    'started': True,
+                    'event_id': event_id,
+                    'template_name': tpl_name,
+                    'options_count': len(options),
+                    'ends_at': ends_at,
+                }
+            except Exception:
+                await conn.execute("ROLLBACK")
+                raise
+
+    async def place_voting_bid(
+        self,
+        event_id: int,
+        option_id: int,
+        username: str,
+        amount: int,
+        channel_id: Optional[int] = None,
+    ) -> Dict:
+        """Юзер вкидывает крустики в опцию голосования. Атомарно:
+          - Списать viewers.points
+          - +pool у voting_options
+          - +total_pool у voting_events
+          - INSERT в voting_bids (audit)
+
+        НЕ возвращает refund (collective voting model §6.1.4).
+
+        Validates:
+          - event active + same channel
+          - option belongs к event
+          - amount >= VOTING_MIN_BID
+          - sufficient funds
+        """
+        from config import VOTING_MIN_BID
+        cid = resolve_channel_id(channel_id)
+        uname = username.lower()
+
+        if amount < VOTING_MIN_BID:
+            return {'placed': False, 'reason': 'too_small',
+                    'message': f'Минимум {VOTING_MIN_BID}💎'}
+
+        async with self._connect() as conn:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+
+                # Verify event active + same channel
+                cur = await conn.execute(
+                    "SELECT id, channel_id, ends_at FROM voting_events "
+                    "WHERE id = ? AND status = 'active'",
+                    (event_id,)
+                )
+                row = await cur.fetchone()
+                if not row:
+                    await conn.execute("ROLLBACK")
+                    return {'placed': False, 'reason': 'event_not_active'}
+                if row[1] != cid:
+                    await conn.execute("ROLLBACK")
+                    return {'placed': False, 'reason': 'wrong_channel'}
+
+                # Verify option в event
+                cur = await conn.execute(
+                    "SELECT id FROM voting_options WHERE id = ? AND event_id = ?",
+                    (option_id, event_id)
+                )
+                if not await cur.fetchone():
+                    await conn.execute("ROLLBACK")
+                    return {'placed': False, 'reason': 'option_not_in_event'}
+
+                # Atomic списание из viewers
+                cur = await conn.execute(
+                    "UPDATE viewers SET points = points - ? "
+                    "WHERE channel_id = ? AND username = ? AND points >= ?",
+                    (amount, cid, uname, amount)
+                )
+                if cur.rowcount == 0:
+                    await conn.execute("ROLLBACK")
+                    return {'placed': False, 'reason': 'insufficient_funds'}
+
+                # Update pools (option + event total)
+                await conn.execute(
+                    "UPDATE voting_options SET pool = pool + ? WHERE id = ?",
+                    (amount, option_id)
+                )
+                await conn.execute(
+                    "UPDATE voting_events SET total_pool = total_pool + ? WHERE id = ?",
+                    (amount, event_id)
+                )
+
+                # Audit
+                await conn.execute(
+                    "INSERT INTO voting_bids "
+                    "(event_id, option_id, channel_id, username, amount) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (event_id, option_id, cid, uname, amount)
+                )
+
+                await conn.commit()
+                return {'placed': True, 'event_id': event_id, 'option_id': option_id,
+                        'amount': amount}
+            except Exception:
+                await conn.execute("ROLLBACK")
+                raise
+
+    async def get_active_voting_event(
+        self,
+        channel_id: Optional[int] = None,
+    ) -> Optional[Dict]:
+        """Текущий active event на канале + опции + total_pool.
+
+        Идёт также top-bidders per option.
+        """
+        cid = resolve_channel_id(channel_id)
+        async with self._connect() as conn:
+            cur = await conn.execute(
+                "SELECT id, template_name, started_at, ends_at, total_pool "
+                "FROM voting_events WHERE channel_id = ? AND status = 'active'",
+                (cid,)
+            )
+            row = await cur.fetchone()
+            if not row:
+                return None
+            event_id, tpl_name, started_at, ends_at, total_pool = row
+
+            cur = await conn.execute(
+                "SELECT id, option_key, label, description, pool "
+                "FROM voting_options WHERE event_id = ? ORDER BY pool DESC",
+                (event_id,)
+            )
+            options = [
+                {'id': r[0], 'key': r[1], 'label': r[2], 'description': r[3],
+                 'pool': r[4]}
+                for r in await cur.fetchall()
+            ]
+
+            return {
+                'event_id':       event_id,
+                'template_name':  tpl_name,
+                'started_at':     started_at,
+                'ends_at':        ends_at,
+                'total_pool':     total_pool,
+                'options':        options,
+            }
+
+    async def finalize_voting_event(
+        self,
+        event_id: int,
+        channel_id: Optional[int] = None,
+    ) -> Dict:
+        """Завершить event — выбрать option с max pool, set winner.
+
+        Если total_pool == 0 (никто не голосовал) → status='cancelled',
+        winning=None. Иначе — status='finished'.
+
+        Returns:
+            {'finalized': True, 'outcome': 'finished' | 'cancelled',
+             'winner_option': {...} | None}
+        """
+        cid = resolve_channel_id(channel_id) if channel_id is not None else None
+
+        async with self._connect() as conn:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+
+                cur = await conn.execute(
+                    "SELECT id, channel_id, total_pool, status FROM voting_events "
+                    "WHERE id = ?",
+                    (event_id,)
+                )
+                row = await cur.fetchone()
+                if not row:
+                    await conn.execute("ROLLBACK")
+                    return {'finalized': False, 'reason': 'not_found'}
+                _, evt_cid, total_pool, status = row
+                if cid is not None and evt_cid != cid:
+                    await conn.execute("ROLLBACK")
+                    return {'finalized': False, 'reason': 'wrong_channel'}
+                if status != 'active':
+                    await conn.execute("ROLLBACK")
+                    return {'finalized': False, 'reason': 'not_active'}
+
+                if total_pool == 0:
+                    # Никто не голосовал — cancel
+                    await conn.execute(
+                        "UPDATE voting_events SET status = 'cancelled' WHERE id = ?",
+                        (event_id,)
+                    )
+                    await conn.commit()
+                    return {'finalized': True, 'outcome': 'cancelled',
+                            'winner_option': None}
+
+                # Find max-pool option
+                cur = await conn.execute(
+                    "SELECT id, option_key, label, pool FROM voting_options "
+                    "WHERE event_id = ? ORDER BY pool DESC, id LIMIT 1",
+                    (event_id,)
+                )
+                winner = await cur.fetchone()
+                w_id, w_key, w_label, w_pool = winner
+
+                await conn.execute(
+                    "UPDATE voting_events SET status = 'finished', "
+                    "winning_option_id = ?, winning_option_key = ?, "
+                    "winning_option_label = ? WHERE id = ?",
+                    (w_id, w_key, w_label, event_id)
+                )
+
+                await conn.commit()
+                return {
+                    'finalized': True, 'outcome': 'finished',
+                    'winner_option': {
+                        'id': w_id, 'key': w_key, 'label': w_label, 'pool': w_pool,
+                    },
+                }
+            except Exception:
+                await conn.execute("ROLLBACK")
+                raise
+
+    async def get_voting_top_bidders(
+        self,
+        event_id: int,
+        limit: int = 5,
+    ) -> list:
+        """Top-N bidders по сумме вкладов в текущий event."""
+        async with self._connect() as conn:
+            cur = await conn.execute(
+                "SELECT username, SUM(amount) AS total FROM voting_bids "
+                "WHERE event_id = ? GROUP BY username ORDER BY total DESC LIMIT ?",
+                (event_id, limit)
+            )
+            return [
+                {'username': r[0], 'total': r[1]}
+                for r in await cur.fetchall()
+            ]
+
+    async def increment_voting_pool(
+        self,
+        channel_id: int,
+        units: int,
+    ) -> int:
+        """Increment pool counter канала (вызывается из reward_points_loop
+        для watch units и из chat-handler для chat units).
+
+        Returns: new pool_units value.
+        """
+        async with self._connect() as conn:
+            await conn.execute(
+                "INSERT INTO voting_pool_counters (channel_id, pool_units, last_increment_at) "
+                "VALUES (?, ?, CURRENT_TIMESTAMP) "
+                "ON CONFLICT(channel_id) DO UPDATE SET "
+                "pool_units = pool_units + excluded.pool_units, "
+                "last_increment_at = CURRENT_TIMESTAMP",
+                (channel_id, units)
+            )
+            cur = await conn.execute(
+                "SELECT pool_units FROM voting_pool_counters WHERE channel_id = ?",
+                (channel_id,)
+            )
+            row = await cur.fetchone()
+            await conn.commit()
+            return row[0] if row else 0
+
+    async def get_voting_pool(
+        self,
+        channel_id: Optional[int] = None,
+    ) -> int:
+        cid = resolve_channel_id(channel_id)
+        async with self._connect() as conn:
+            cur = await conn.execute(
+                "SELECT pool_units FROM voting_pool_counters WHERE channel_id = ?",
+                (cid,)
+            )
+            row = await cur.fetchone()
+            return row[0] if row else 0
+
+    async def find_expired_voting_events(self) -> list:
+        """All active events с ends_at в прошлом — для voting_loop."""
+        async with self._connect() as conn:
+            cur = await conn.execute(
+                "SELECT id, channel_id FROM voting_events "
+                "WHERE status = 'active' AND ends_at <= CURRENT_TIMESTAMP"
+            )
+            return [{'event_id': r[0], 'channel_id': r[1]}
+                    for r in await cur.fetchall()]
+
+    async def find_channels_ready_for_voting(
+        self,
+        threshold: int,
+    ) -> list:
+        """Каналы с pool_units >= threshold + default template + БЕЗ active event.
+
+        Returns: [{channel_id, pool_units, default_template_id}]
+        """
+        async with self._connect() as conn:
+            cur = await conn.execute(
+                "SELECT pc.channel_id, pc.pool_units, t.id "
+                "FROM voting_pool_counters pc "
+                "JOIN streamer_voting_templates t ON t.channel_id = pc.channel_id "
+                "WHERE pc.pool_units >= ? AND t.is_default = 1 "
+                "AND NOT EXISTS ("
+                "  SELECT 1 FROM voting_events e "
+                "  WHERE e.channel_id = pc.channel_id AND e.status = 'active'"
+                ")",
+                (threshold,)
+            )
+            return [
+                {'channel_id': r[0], 'pool_units': r[1], 'default_template_id': r[2]}
+                for r in await cur.fetchall()
+            ]
+
     # ===== ГИЛЬДИИ (Phase 3, 2026-05-11) =====
     # Социальная механика per канал. Multi-tenant scope:
     # - guilds.channel_id определяет принадлежность канала

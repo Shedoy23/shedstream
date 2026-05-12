@@ -280,6 +280,26 @@ MATCHMAKING_DEFAULT_ELO_SPREAD = 100
 # Auto-expire queue entries старше N секунд (cleanup от disconnected клиентов).
 MATCHMAKING_QUEUE_TTL_SEC = 300
 
+# ===== ГОЛОСОВАНИЯ (Phase 4, 2026-05-11) =====
+# Voting events — стример настраивает варианты действий, юзеры вкидывают
+# крустики на свой выбор. §6.1.4 Twitch Extension Guidelines прямо разрешает.
+
+# Pool accumulation: пассивная активность зрителей наполняет pool units.
+# При достижении порога — auto-start event (если default template есть).
+VOTING_POOL_THRESHOLD = 1000              # units для auto-start
+VOTING_POOL_PER_WATCH_MIN = 1             # +1 unit за минуту активного просмотра per viewer
+VOTING_POOL_PER_CHAT_MSG = 5              # +5 unit за каждое чат-сообщение
+
+# Event duration after start
+VOTING_EVENT_DURATION_SEC = 300           # 5 минут на голосование
+
+# Bid constraints
+VOTING_MIN_BID = 50                       # минимальный bid крустиков
+VOTING_MAX_OPTIONS = 6                    # макс вариантов в template
+
+# Matchmaking-style loop: проверка завершения events каждые N сек
+VOTING_LOOP_INTERVAL = 10
+
 # ===== ГИЛЬДИИ (Phase 3, 2026-05-11) =====
 # Cost создания гильдии — sink крустиков из личного баланса master'а.
 GUILD_CREATE_COST = 100_000

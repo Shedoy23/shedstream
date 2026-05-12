@@ -118,6 +118,7 @@ _EXTENSION_FILES = {
     "/cases.js":       "cases.js",
     "/tictactoe.js":   "tictactoe.js",
     "/dice.js":        "dice.js",
+    "/guilds.js":      "guilds.js",
 }
 
 # Также поддерживаем префикс /frontend/ для совместимости
@@ -136,6 +137,7 @@ _EXTENSION_FILES_PREFIXED = {
     "/frontend/cases.js":       "cases.js",
     "/frontend/tictactoe.js":   "tictactoe.js",
     "/frontend/dice.js":        "dice.js",
+    "/frontend/guilds.js":      "guilds.js",
 }
 
 _MIME = {

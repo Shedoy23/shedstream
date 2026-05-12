@@ -268,10 +268,11 @@ EVENT_TYPES = {
 MATCHMAKING_INTERVAL = 5
 
 # Какие game_types обслуживает matchmaking_loop. Добавляются по мере
-# реализации игр (Phase 5.1 TicTacToe, 5.2 Dice).
-# 'rps' зарегистрирован сразу — текущие дуэли v2 (после Phase 5.0 готовы
-# переехать на queue-based flow, см. Phase 5.0.D).
-MATCHMAKING_GAME_TYPES = ('rps',)
+# реализации игр.
+# 'rps'       — legacy дуэли (Phase 1.F убрала ставки, остался ELO-only)
+# 'tictactoe' — Phase 5.1 MVP
+# 'dice'      — Phase 5.2 (планируется)
+MATCHMAKING_GAME_TYPES = ('rps', 'tictactoe')
 
 # ELO-spread по умолчанию (если юзер не указал свой).
 MATCHMAKING_DEFAULT_ELO_SPREAD = 100

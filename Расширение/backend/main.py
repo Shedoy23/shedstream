@@ -77,6 +77,7 @@ from routes.streamer   import router as streamer_router
 from routes.module_api import router as module_api_router
 from routes.cases      import router as cases_router  # Phase 2 (2026-05-11)
 from routes.match      import router as match_router  # Phase 5.0 (2026-05-11)
+from routes.tictactoe  import router as tictactoe_router  # Phase 5.1 (2026-05-11)
 # casino_router удалён 2026-05-10 — Phase 1.A compliance rework (см. COMPLIANCE_REWORK_PLAN.md)
 app.include_router(duel_router)
 app.include_router(viewer_router)
@@ -91,6 +92,7 @@ app.include_router(streamer_router)    # M4.3: OAuth flow для регистр�
 app.include_router(module_api_router)  # Этап 3: Module API (handshake + module registry)
 app.include_router(cases_router)       # Phase 2 (2026-05-11): cases system
 app.include_router(match_router)       # Phase 5.0 (2026-05-11): matchmaking base
+app.include_router(tictactoe_router)   # Phase 5.1 (2026-05-11): TicTacToe MVP
 
 
 # Путь к фронтенду из .env или значение по умолчанию

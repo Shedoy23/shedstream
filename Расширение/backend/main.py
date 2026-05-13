@@ -1077,6 +1077,21 @@ async def on_startup():
 
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(run_migrations())
+
+    async def _bootstrap():
+        # CRITICAL: init_tables ДО run_migrations. На пустой БД миграции M1+
+        # ссылаются на таблицы которые создаёт init_tables (activity_stats,
+        # viewers, items, etc). Используем temp-пул только в этом event loop
+        # (uvicorn потом создаст свой через on_startup).
+        await db.init_pool()
+        await db.init_tables()
+        await run_migrations()
+        # Закрываем пул чтобы uvicorn создал свежие connection'ы в своём loop'е
+        await db._pool.close()
+        db._pool = None
+        from db_pool import DBPool
+        db._pool = DBPool(db_path=db.db_path, min_size=2, max_size=10, timeout=10.0)
+
+    asyncio.run(_bootstrap())
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

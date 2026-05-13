@@ -679,14 +679,13 @@ class BotCore:
             if age_sec >= REDUCED_WINDOW:
                 continue
 
-            # Бонусы от инвентаря и уровня
-            item_bonus = await self._get_viewer_bonus(username, cid)
+            # item_bonus убран 2026-05-13 (Phase 8.C): items больше не дают
+            # passive income (§5.3 cosmetic-only). Только level-bonus остаётся.
             level_data = await self.db.get_user_level(username, channel_id=cid)
             level_info = self.db.get_level_info(level_data['level'])
             level_pct  = level_info.get('bonus_pct', 0)
 
-            base_income  = POINTS_PER_MINUTE + item_bonus
-            total_points = int(base_income * (1 + level_pct / 100))
+            total_points = int(POINTS_PER_MINUTE * (1 + level_pct / 100))
 
             if age_sec < ACTIVE_WINDOW:
                 status = "active"

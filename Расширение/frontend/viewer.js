@@ -1010,12 +1010,16 @@ function renderInventory(inventory) {
     let html = '';
     inventory.forEach(item => {
         // craft-btn удалён 2026-05-10 (Phase 1.B compliance rework)
+        // item-bonus удалён 2026-05-13 (Phase 8.C): items больше не дают
+        // passive income (§5.3 cosmetic-only)
         html += `
             <div class="inventory-item">
                 <span class="item-icon">${item.emoji || '📦'}</span>
                 <div class="item-info">
                     <div class="item-name">${escapeHtml(item.name || '')}</div>
-                    <div class="item-bonus">+${item.bonus}💎/мин</div>
+                    <div class="item-rarity" style="font-size:11px;color:#adadb8;">
+                        ${escapeHtml(item.rarity || 'common')}
+                    </div>
                 </div>
                 <div class="item-actions">
                     <div class="item-quantity">×${item.quantity}</div>

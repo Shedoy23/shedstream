@@ -103,11 +103,12 @@ async def viewer_stats(username: str, request: Request):
         chat_total_count, chat_total_length = (row[0] or 0, row[1] or 0) if row else (0, 0)
 
     try:
+        # item_bonus убран 2026-05-13 (Phase 8.C): items больше не дают passive
+        # income (§5.3 — digital goods cosmetic-only, без game advantage).
         base_income = POINTS_PER_MINUTE
-        item_bonus  = sum(item.get("bonus", 0) * item.get("quantity", 1) for item in (inventory or []))
         level_data  = await db.get_user_level(uname, channel_id=channel_id)
         level_pct   = db.get_level_info(level_data.get("level", 1)).get("bonus_pct", 0)
-        income_per_min = int((base_income + item_bonus) * (1 + level_pct / 100))
+        income_per_min = int(base_income * (1 + level_pct / 100))
     except Exception:
         income_per_min = POINTS_PER_MINUTE
 

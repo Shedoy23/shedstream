@@ -283,15 +283,12 @@ class Database:
             # craft_stats — удалён 2026-05-10 (Phase 1.B compliance rework, 3/3 gambling).
             # DROP TABLE будет в M8. См. COMPLIANCE_REWORK_PLAN.md §4 Phase 1.
 
-            # Заполняем справочник предметов если пустой
-            await db.execute("""
-                INSERT OR IGNORE INTO items (name, display_name, value, rarity, craft_level, description, emoji)
-                VALUES
-                    ('деревяшка', 'Деревяшка', 1,   'common',   1, 'Простая палка. +1 очко/мин',      '🪵'),
-                    ('камень',    'Камень',    6,   'uncommon', 2, 'Тяжёлый камень. +6 очков/мин',    '🪨'),
-                    ('амулет',    'Амулет',    32,  'rare',     3, 'Магический амулет. +32 очка/мин',  '🔮'),
-                    ('корона',    'Корона',    200, 'epic',     4, 'Золотая корона. +200 очков/мин!', '👑')
-            """)
+            # Items seed убран 2026-05-13 (Phase 8.C lexicon/compliance):
+            # items с value>0 = passive-income utility = §5.3 advantage violation.
+            # items.value колонка остаётся для legacy data, но больше не используется
+            # (см. bot_core._get_viewer_bonus / viewer.py income calc — закомменчены).
+            # Inventory таблица остаётся для UI cosmetic, но quests/events больше
+            # НЕ выдают items.
 
             # Индексы
             await db.execute("""

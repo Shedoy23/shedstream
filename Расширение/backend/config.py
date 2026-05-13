@@ -508,7 +508,7 @@ QUESTS_CONFIG = {
     'watch_time_300': {
         'target': 300,
         'reward_points': 10000,
-        'reward_item': 'амулет',
+        'reward_item': None,  # 2026-05-13 (Phase 8.C): item rewards убраны (§5.3 compliance)
         'display_name': '📺 5 ЧАСОВ ПРОСМОТРА!',
         'emoji': '🏆',
         'type': 'time'
@@ -534,7 +534,7 @@ QUESTS_CONFIG = {
     'chat_messages_50': {
         'target': 50,
         'reward_points': 2500,
-        'reward_item': 'камень',
+        'reward_item': None,  # 2026-05-13 (Phase 8.C): item rewards убраны (§5.3 compliance)
         'display_name': '💬 50 сообщений в чате',
         'emoji': '💎',
         'type': 'chat'

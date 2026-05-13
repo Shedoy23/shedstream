@@ -537,10 +537,21 @@ async def _apply_indexes(conn) -> None:
     if await _is_applied(conn, name):
         return
 
+    skipped = 0
     for ddl in COMPOSITE_INDEXES:
-        await conn.execute(ddl)
+        try:
+            await conn.execute(ddl)
+        except Exception as e:
+            # Таблица может отсутствовать (Phase 1 cleanup убрал market_listings
+            # из init_tables; M8 ещё не выполнялся на этом этапе). Indexes на
+            # отсутствующие таблицы безопасно пропускать — DROP TABLE в M8
+            # удалит их если они вдруг появятся.
+            if "no such table" in str(e):
+                skipped += 1
+                continue
+            raise
     for old in OLD_INDEXES_TO_DROP:
         await conn.execute(f"DROP INDEX IF EXISTS {old}")
     await conn.commit()
     await _mark_applied(conn, name)
-    print(f"✅ M1: композитных индексов добавлено: {len(COMPOSITE_INDEXES)}")
+    print(f"✅ M1: композитных индексов добавлено: {len(COMPOSITE_INDEXES) - skipped} (skipped {skipped})")

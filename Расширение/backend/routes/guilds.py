@@ -278,24 +278,13 @@ async def guild_my(request: Request):
     return {"success": True, "in_guild": True, "guild": guild}
 
 
-@router.get("/api/guild/{guild_id}")
-async def guild_get(guild_id: int, request: Request):
-    """Public info о гильдии (только если на твоём канале)."""
-    auth = require_jwt_user(request)
-    if not auth:
-        return _AUTH_FAIL
-    username, channel_id = auth
-
-    db = get_db()
-    guild = await db.get_guild(guild_id, channel_id=channel_id)
-    if not guild:
-        return {"success": False, "message": "Гильдия не найдена"}
-    return {"success": True, "guild": guild}
-
-
 @router.get("/api/guild/list")
 async def guild_list(request: Request):
-    """Top гильдий канала."""
+    """Top гильдий канала.
+
+    ВАЖНО: routing — этот endpoint должен идти ДО `/api/guild/{guild_id}`,
+    иначе FastAPI ловит «list» как guild_id и возвращает 422 (int_parsing).
+    """
     auth = require_jwt_user(request)
     if not auth:
         return _AUTH_FAIL
@@ -323,3 +312,20 @@ async def guild_skills_config():
             for key, cfg in GUILD_SKILLS_CONFIG.items()
         ],
     }
+
+
+# `/{guild_id}` — ловит ВСЁ после /api/guild/, поэтому идёт ПОСЛЕ всех
+# конкретных путей (/list, /my, /skills/config) чтобы их не перекрыть.
+@router.get("/api/guild/{guild_id}")
+async def guild_get(guild_id: int, request: Request):
+    """Public info о гильдии (только если на твоём канале)."""
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+
+    db = get_db()
+    guild = await db.get_guild(guild_id, channel_id=channel_id)
+    if not guild:
+        return {"success": False, "message": "Гильдия не найдена"}
+    return {"success": True, "guild": guild}

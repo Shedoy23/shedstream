@@ -23,6 +23,8 @@ from dependencies import (
     require_jwt_channel,
     require_jwt_user,
     require_stream_live,
+    resolve_channel_id_or_default,
+    set_request_channel_id,
 )
 from models import ActivityRequest, ChatMessageRequest, UserAction
 
@@ -267,13 +269,24 @@ async def get_viewer_quests(username: str, request: Request):
 
 
 @router.get("/api/user/level/{username}")
-async def get_user_level(username: str):
-    """Получить уровень и EXP пользователя"""
+async def get_user_level(username: str, request: Request):
+    """Получить уровень и EXP пользователя.
+
+    Public-ish: если есть JWT — берём channel_id из него, иначе fallback
+    в DEFAULT (legacy boundary — этот endpoint вызывается без JWT при
+    инициализации viewer.js, до того как X-Twitch-JWT добавится).
+    """
     username = sanitize_username(username)
     if not username:
         return {"level": 1, "exp": 0, "total_exp": 0, "exp_needed": 100, "title": "Зритель", "bonus_pct": 0}
+
+    # Set ContextVar — JWT если возможно, иначе default-канал
+    auth = require_jwt_user(request)
+    channel_id = auth[1] if auth else resolve_channel_id_or_default()
+    set_request_channel_id(channel_id)
+
     db         = get_db()
-    level_data = await db.get_user_level(username)
+    level_data = await db.get_user_level(username, channel_id=channel_id)
     level_info = db.get_level_info(level_data["level"])
     return {
         "level":      level_data["level"],

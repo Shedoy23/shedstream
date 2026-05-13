@@ -887,7 +887,9 @@ async function loadUserData() {
     if (!userLogin) return;
     
     try {
-        const response = await fetch(`${API_URL}/api/viewer/stats/${userLogin}`);
+        const response = await fetch(`${API_URL}/api/viewer/stats/${userLogin}`, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
 
         // 🔧 ИСПРАВЛЕНИЕ: Проверяем код ответа сервера
         if (!response.ok) {
@@ -918,7 +920,7 @@ async function loadUserData() {
         if (rimworldEvents && rimworldEvents.length > 0) renderEvents();
         
         // Обновляем счётчик дуэлей
-        fetch(`${API_URL}/api/duel/list`)
+        fetch(`${API_URL}/api/duel/list`, { headers: { 'X-Twitch-JWT': authToken || '' } })
             .then(r => r.json())
             .then(d => {
                 const el = document.getElementById('duel-count');
@@ -934,7 +936,9 @@ async function loadUserData() {
 async function loadUserLevel() {
     if (!userLogin) return;
     try {
-        const r = await fetch(`${API_URL}/api/user/level/${userLogin}`);
+        const r = await fetch(`${API_URL}/api/user/level/${userLogin}`, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
         const d = await r.json();
         renderLevelBar(d);
     } catch(e) { console.error('[level]', e); }
@@ -1108,10 +1112,11 @@ async function createPawn(name) {
 async function loadStats() {
     if (!userLogin) return;
     try {
+        const h = { headers: { 'X-Twitch-JWT': authToken || '' } };
         const [statsResp, achResp, streakResp] = await Promise.all([
-            fetch(`${API_URL}/api/viewer/stats/${userLogin}`),
-            fetch(`${API_URL}/api/viewer/achievements/${userLogin}`),
-            fetch(`${API_URL}/api/viewer/streak/${userLogin}`),
+            fetch(`${API_URL}/api/viewer/stats/${userLogin}`,        h),
+            fetch(`${API_URL}/api/viewer/achievements/${userLogin}`, h),
+            fetch(`${API_URL}/api/viewer/streak/${userLogin}`,       h),
         ]);
         const statsData  = await statsResp.json();
         const achData    = await achResp.json();

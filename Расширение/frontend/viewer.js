@@ -911,7 +911,7 @@ async function loadUserData() {
         const incomeEl = document.getElementById('income');
         if (incomeEl) incomeEl.textContent = `+${income}`;
         
-        renderCases(data.unopened_cases || {});
+        renderInventoryCases(data.unopened_cases || {});
         renderQuests(data.quests || []);
         loadUserLevel();
         
@@ -996,11 +996,15 @@ function localizeSkill(skill) {
 
 let _cachedInventory = [];
 
-// renderInventory → renderCases (Phase 8.C, 2026-05-13):
+// renderInventory → renderInventoryCases (Phase 8.C, 2026-05-13):
 // «Инвентарь» теперь показывает закрытые кейсы per tier, не старые items.
 // Items были utility (passive income) — §5.3 ban. Кейсы — fixed-reward
 // активити (§6.2.4 compliant, see migrations/m9_cases.py).
-function renderCases(unopenedCounts) {
+//
+// ВАЖНО: name collision — в cases.js есть СВОЯ renderCases() для модалки.
+// viewer.js грузится ПОСЛЕ cases.js → его function declarations перебивают
+// глобальный scope. Поэтому здесь имя `renderInventoryCases`.
+function renderInventoryCases(unopenedCounts) {
     const container = document.getElementById('inventory-list');
     if (!container) return;
 

@@ -192,11 +192,20 @@ async def admin_case_grant(request: Request, _admin: str = Depends(require_admin
     if tier not in CASE_TIER_REWARDS:
         return {"success": False, "message": f"Тир должен быть один из: {list(CASE_TIER_REWARDS.keys())}"}
 
-    # channel_id — берём из admin-сессии (или из body для cross-channel admin'а).
-    # Пока: используем resolve_channel_id_or_default через grant_case (она внутри сделает).
+    # channel_id из body (cross-channel admin), либо fallback на default.
+    # legacy boundary — admin без JWT, см. ARCHITECTURE.md §3.1
+    from dependencies import resolve_channel_id_or_default, set_request_channel_id
+    try:
+        channel_id = int(data.get("channel_id", 0))
+    except (TypeError, ValueError):
+        channel_id = 0
+    if channel_id <= 0:
+        channel_id = resolve_channel_id_or_default()
+    set_request_channel_id(channel_id)
+
     db = get_db()
     result = await db.grant_case(
-        username, tier, source="admin_grant", trigger_key=trigger_key,
+        username, tier, source="admin_grant", channel_id=channel_id, trigger_key=trigger_key,
     )
 
     if result["granted"]:

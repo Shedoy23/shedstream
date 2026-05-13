@@ -911,7 +911,7 @@ async function loadUserData() {
         const incomeEl = document.getElementById('income');
         if (incomeEl) incomeEl.textContent = `+${income}`;
         
-        renderInventory(data.inventory || []);
+        renderCases(data.unopened_cases || {});
         renderQuests(data.quests || []);
         loadUserLevel();
         
@@ -996,33 +996,49 @@ function localizeSkill(skill) {
 
 let _cachedInventory = [];
 
-function renderInventory(inventory) {
-    _cachedInventory = inventory || [];
-    // renderMarketSellPanel вызов удалён 2026-05-10 (Phase 1.C compliance rework)
+// renderInventory → renderCases (Phase 8.C, 2026-05-13):
+// «Инвентарь» теперь показывает закрытые кейсы per tier, не старые items.
+// Items были utility (passive income) — §5.3 ban. Кейсы — fixed-reward
+// активити (§6.2.4 compliant, see migrations/m9_cases.py).
+function renderCases(unopenedCounts) {
     const container = document.getElementById('inventory-list');
     if (!container) return;
+
+    const tiers = [
+        { key: 'legendary', emoji: '👑', label: 'Легендарный', color: '#fbbf24' },
+        { key: 'epic',      emoji: '💠', label: 'Эпический',   color: '#a855f7' },
+        { key: 'rare',      emoji: '💎', label: 'Редкий',      color: '#3b82f6' },
+        { key: 'common',    emoji: '🎁', label: 'Обычный',     color: '#9ca3af' },
+    ];
+
+    const total = tiers.reduce((s, t) => s + (unopenedCounts[t.key] || 0), 0);
     const countEl = document.getElementById('inventory-count');
-    if (countEl) countEl.textContent = inventory.length;
-    if (!inventory || inventory.length === 0) {
-        container.innerHTML = '<div class="loading">Инвентарь пуст</div>';
+    if (countEl) countEl.textContent = total;
+
+    if (total === 0) {
+        container.innerHTML = `
+            <div style="font-size:12px;color:#adadb8;text-align:center;padding:14px 8px;">
+                Нет закрытых кейсов.<br>
+                <span style="font-size:11px;">Они выпадают рандомно за активность.</span>
+            </div>`;
         return;
     }
+
     let html = '';
-    inventory.forEach(item => {
-        // craft-btn удалён 2026-05-10 (Phase 1.B compliance rework)
-        // item-bonus удалён 2026-05-13 (Phase 8.C): items больше не дают
-        // passive income (§5.3 cosmetic-only)
+    tiers.forEach(t => {
+        const n = unopenedCounts[t.key] || 0;
+        if (n === 0) return;
         html += `
-            <div class="inventory-item">
-                <span class="item-icon">${item.emoji || '📦'}</span>
+            <div class="inventory-item" data-action="cases" style="cursor:pointer;border:1px solid ${t.color}33;">
+                <span class="item-icon" style="font-size:22px;">${t.emoji}</span>
                 <div class="item-info">
-                    <div class="item-name">${escapeHtml(item.name || '')}</div>
-                    <div class="item-rarity" style="font-size:11px;color:#adadb8;">
-                        ${escapeHtml(item.rarity || 'common')}
+                    <div class="item-name">${t.label} кейс</div>
+                    <div class="item-rarity" style="font-size:11px;color:${t.color};">
+                        Кликни чтобы открыть
                     </div>
                 </div>
                 <div class="item-actions">
-                    <div class="item-quantity">×${item.quantity}</div>
+                    <div class="item-quantity">×${n}</div>
                 </div>
             </div>`;
     });

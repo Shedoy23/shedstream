@@ -72,6 +72,9 @@ async def viewer_stats(username: str, request: Request):
     points    = await db.get_points(uname, channel_id=channel_id)
     inventory = await db.get_inventory(uname, channel_id=channel_id) or []
     quests    = await db.get_quests(uname, channel_id=channel_id)
+    # 2026-05-13 (Phase 8.C): inventory → cases. Items больше cosmetic-only,
+    # а главный «инвентарь» юзера — кейсы (закрытые/открытые).
+    unopened_cases = await db.count_unopened_cases(uname, channel_id=channel_id)
 
     async with db._connect() as conn:
         today = date.today().isoformat()
@@ -120,7 +123,8 @@ async def viewer_stats(username: str, request: Request):
 
     return {
         "points":         points,
-        "inventory":      inventory,
+        "inventory":      inventory,         # legacy cosmetic items (без bonus)
+        "unopened_cases": unopened_cases,    # {common: N, rare: M, epic: K, legendary: L}
         "quests":         quests,
         "income_per_min": income_per_min,
         "active_event":   active_event,

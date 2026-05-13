@@ -272,6 +272,14 @@ const debouncedMoveReport = createDebouncedReporter(2000, () => {
     lastActivityTime = now;
 });
 
+// isAuthUser() helper — перенесён из casino.js при его удалении 2026-05-10
+// (Phase 1.A compliance rework). Используется cases/dice/duels/family/
+// guilds/pets/tictactoe/voting/xenotype.js для guard'а перед UI-действиями.
+function isAuthUser() {
+    return userLogin && userLogin !== 'testuser' && !/^U[a-zA-Z0-9]{8,}$/.test(userLogin);
+}
+window.isAuthUser = isAuthUser;
+
 const ACTIVITY_CONFIG = {
     watch_time_update_interval: 60,
     chat_bonus_enabled: true,
@@ -286,8 +294,9 @@ document.addEventListener('DOMContentLoaded', function() {
     setupTabs();
     setupCspSafeHandlers();
     setupActivityTracking();
-    setupBetInputListener();
-    
+    // setupBetInputListener() удалён 2026-05-13 — был в casino.js (Phase 1.A),
+    // вызов забыли убрать. Bet-input UI не существует.
+
     // Кнопка обновления на вкладке RimWorld
     const rimworldTab = document.getElementById('rimworld-tab');
     if (rimworldTab) {

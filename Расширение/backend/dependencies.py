@@ -503,8 +503,12 @@ _ADMIN_PASSWORD = _raw_admin_password
 LOGIN_ATTEMPT_MAX = 10
 
 
-def require_admin(credentials: HTTPBasicCredentials = Depends(_security), request: Request = None):
-    """Защита всех /admin и /api/admin роутов через HTTP Basic Auth."""
+async def require_admin(credentials: HTTPBasicCredentials = Depends(_security), request: Request = None):
+    """Защита всех /admin и /api/admin роутов через HTTP Basic Auth.
+
+    async, чтобы ContextVar.set() в нашей фрейме видело endpoint
+    (sync deps fastapi пускает через threadpool, контекст теряется).
+    """
     global _failed_login_attempts
     now = _time.time()
     ip  = (request.client.host if request and request.client else None) or credentials.username
@@ -525,6 +529,14 @@ def require_admin(credentials: HTTPBasicCredentials = Depends(_security), reques
 
     if ok_user and ok_pass:
         _failed_login_attempts.pop(ip, None)
+        # 2026-05-14: устанавливаем default channel_id в ContextVar.
+        # Admin без JWT — legacy boundary (см. ARCHITECTURE.md §3.1).
+        # Без этого все admin endpoints зовущие db.X(channel_id=None)
+        # падали 500 на resolve_channel_id (например /api/admin/stats).
+        try:
+            set_request_channel_id(resolve_channel_id_or_default())
+        except Exception:
+            pass  # если default не настроен — пускаем, ошибка вылезет в endpoint
         return
 
     if ip not in _failed_login_attempts:

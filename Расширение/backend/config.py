@@ -218,16 +218,17 @@ else:
         RIMWORLD_BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 
 # ===== ПРОЧИЕ НАСТРОЙКИ =====
-# DONATION_MULTIPLIER устарел — используй ECONOMY_CONFIG['points_per_rub']
+# DONATION_MULTIPLIER + ECONOMY_CONFIG donation keys удалены 2026-05-14
+# (Phase 8.F donate removal — §5.2/§5.4 compliance).
 RAFFLE_COOLDOWN = 300    # 5 минут
 AUTO_MESSAGES_ENABLED = True
 AUTO_MESSAGE_INTERVAL = 180  # 3 минут
 
 AUTO_MESSAGES = [
     '💎 Чтобы участвовать в интеграции, купи в наградах канала ПОЛУЧИТЬ ДОСТУП К...',
-    '🎁 Донат 1₽ = 100 очков!',
+    # Донат-сообщение удалено 2026-05-14 (Phase 8.F)
     '📜 Ежедневные квесты обновляются в 00:00 МСК!',
-    '🎁 Предметы падают каждые 20 минут с шансом 25%!',
+    '🎁 Кейсы падают каждые 20 минут с шансом 25%!',
     '💬 Пиши в чат и получай бонусные очки!',
     '⏰ Активные зрители получают больше очков!'
 ]
@@ -585,13 +586,13 @@ ACTIVITY_CONFIG = {
 TWITCH_STREAM_CHANNEL = os.getenv('TWITCH_STREAM_CHANNEL', 'shedoy23')  # Канал для проверки онлайна
 
 # ===== НАСТРОЙКИ ЭКОНОМИКИ =====
+# 2026-05-14 (Phase 8.F donate removal): убраны donation-keys
+# (points_per_rub, donation_item_threshold, min_event_donations) — §5.2/§5.4
+# Twitch Extension Guidelines, real-money flow вне Bits недопустим.
 ECONOMY_CONFIG = {
-    'points_per_rub': 100,          # Очков за 1 рубль доната
-    'donation_item_threshold': 50,  # Минимум рублей для получения предмета с доната
     'min_transfer': 10,             # Минимум очков для перевода зрителю
-    'min_event_contribute': 100,    # Минимум очков для вклада в копилку рулекциона
-    'min_event_donations': 500,     # Минимум рублей донатов для старта ивента
-    'income_no_items': 5,           # Доход/мин без предметов (отображение)
+    'min_event_contribute': 100,    # Минимум очков для вклада (voting events)
+    'income_no_items': 5,           # Доход/мин (отображение)
 }
 
 # ===== НАСТРОЙКИ СЕМЬИ =====

@@ -68,7 +68,10 @@ async def get_twitch_app_token() -> str:
 
 @router.get("/api/overlay/latest")
 async def overlay_latest():
-    """OBS-оверлей: последние события (джекпот, донат, дроп). Публичный."""
+    """OBS-оверлей: последние события (дроп). Публичный.
+
+    jackpot/donate ключи удалены (Phase 8.A.2 / 8.F lexicon+compliance).
+    """
     return get_overlay_state()
 
 

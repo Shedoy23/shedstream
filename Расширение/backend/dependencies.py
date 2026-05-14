@@ -458,15 +458,16 @@ def set_overlay_drop(data: Optional[dict]) -> None:
     global _overlay_drop
     _overlay_drop = data
 
-_overlay_donate = None   # {username, amount_rub, points, gift, ts}
-
-def set_overlay_donate(data: Optional[dict]) -> None:
-    global _overlay_donate
-    _overlay_donate = data
+# _overlay_donate / set_overlay_donate удалены 2026-05-14 (Phase 8.F donate removal)
+# — direct ₽→крустики конвертация противоречит §5.2/§5.4 Twitch Extension
+# Guidelines (real-money flow вне Bits = денежная транзакция bypass'ом
+# revenue share). См. также Phase 1.D в COMPLIANCE_REWORK_PLAN.md где
+# /api/donate endpoint был удалён, но overlay state setter забыли убрать.
 
 def get_overlay_state() -> dict:
     # "jackpot" key удалён 2026-05-12 (Phase 8.A.2 lexicon scrub)
-    return {"drop": _overlay_drop, "donate": _overlay_donate}
+    # "donate" key удалён 2026-05-14 (Phase 8.F donate removal)
+    return {"drop": _overlay_drop}
 
 
 # ── Last event winner ─────────────────────────────────────────────────────────

@@ -264,46 +264,8 @@ body {
     100% { transform: rotate(calc(var(--r) + 360deg)) translateY(120px) scaleX(0.5); opacity: 0; }
 }
 
-/* ══════════════════════════════════════════
-   ДОНАТ
-══════════════════════════════════════════ */
-.card-donate {
-    background: linear-gradient(135deg, rgba(5,5,20,0.93) 0%, rgba(8,8,30,0.93) 100%);
-    border: 1px solid rgba(80,140,255,0.4);
-    box-shadow:
-        0 0 0 1px rgba(80,140,255,0.1),
-        0 8px 40px rgba(40,80,220,0.25),
-        inset 0 1px 0 rgba(120,160,255,0.12);
-}
-.card-donate .card-label { color: #7090ff; }
-.card-donate .card-title { color: #e8eeff; }
-.card-donate .card-sub   { color: #9ab0ff; }
-.card-donate .card-timer { background: linear-gradient(90deg, #7090ff, #b060ff); }
-
-.donate-amount {
-    font-family: 'Unbounded', sans-serif;
-    font-size: 28px;
-    font-weight: 900;
-    color: #7090ff;
-    text-shadow: 0 0 20px rgba(112,144,255,0.5);
-}
-.donate-points {
-    font-size: 12px;
-    color: #9ab0ff;
-    margin-top: 2px;
-}
-.donate-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(112,144,255,0.12);
-    border: 1px solid rgba(112,144,255,0.3);
-    border-radius: 8px;
-    padding: 4px 10px;
-    font-size: 12px;
-    color: #c8d4ff;
-    margin-top: 6px;
-}
+/* ДОНАТ CSS-блок удалён 2026-05-14 (Phase 8.F donate removal —
+   §5.2/§5.4 compliance, real-money flow вне Bits недопустим) */
 
 /* ══════════════════════════════════════════
    ДРОП — янтарно-оранжевый
@@ -834,8 +796,7 @@ function buildCardHTML(cfg) {
             return buildEventLiveCard(cfg);
         case 'event-end':
             return buildEventEndCard(cfg);
-        case 'donate':
-            return buildDonateCard(cfg);
+        // 'donate' case удалён 2026-05-14 (Phase 8.F donate removal)
         case 'drop':
             return buildDropCard(cfg);
         default:
@@ -911,18 +872,8 @@ function buildDropCard(cfg) {
     `;
 }
 
-function buildDonateCard(cfg) {
-    const itemHTML = cfg.gift ? `<div class="donate-item">🎁 Выпало: ${esc(cfg.gift)}</div>` : '';
-    return `
-        <div class="card-label">💙 ДОНАТ</div>
-        <div class="card-title">${esc(cfg.username)}</div>
-        <div class="donate-amount">${cfg.amount_rub}₽</div>
-        <div class="donate-points">+${formatNum(cfg.points)} 💎 в копилку</div>
-        ${itemHTML}
-        <div class="card-icon">💙</div>
-        <div class="card-timer"></div>
-    `;
-}
+// buildDonateCard удалён 2026-05-14 (Phase 8.F donate removal —
+// §5.2/§5.4 compliance, real-money flow вне Bits недопустим)
 
 // showMegaJackpot удалён 2026-05-10 (Phase 1.I lexicon scrub)
 
@@ -1047,7 +998,7 @@ function fmtEpTime(s) {
 let lastEventId = null;
 let lastEventState = null; // 'none' | 'active' | 'ended'
 let lastWinnerId = null;
-let lastDonateTs = null;
+// lastDonateTs удалён 2026-05-14 (Phase 8.F donate removal)
 let lastDropId = null;
 let seenLiveEventBuckets = new Set();  // ranamed from seenJackpots 2026-05-10 (Phase 1.I)
 
@@ -1127,21 +1078,10 @@ async function poll() {
     } catch(e) {}
 
     try {
-        // 2. Donate / drop notifications через /api/overlay/latest
+        // 2. Drop notifications через /api/overlay/latest
         // jackpot-handler удалён 2026-05-10 (Phase 1.I — casino вырезано)
+        // donate-handler удалён 2026-05-14 (Phase 8.F donate removal)
         const jp = await fetch(SERVER + '/api/overlay/latest').then(r => r.json());
-
-        if (jp.donate && jp.donate.ts !== lastDonateTs) {
-            lastDonateTs = jp.donate.ts;
-            queueNotif({
-                type: 'donate',
-                username: jp.donate.username,
-                amount_rub: jp.donate.amount_rub,
-                points: jp.donate.points,
-                gift: jp.donate.gift || null,
-                duration: 7000
-            });
-        }
 
         if (jp.drop && jp.drop.id !== lastDropId) {
             lastDropId = jp.drop.id;
@@ -1163,63 +1103,18 @@ async function poll() {
 // ══════════════════════════════════════════
 function runPreview() {
     // Jackpot preview удалён 2026-05-10 (Phase 1.I — casino вырезан)
+    // Donate preview удалён 2026-05-14 (Phase 8.F donate removal)
+    // Roulette mock-event preview удалён 2026-05-14 — roulette был removed
+    // в Phase 1.E (gambling §6.2.4), replaced на voting events (Phase 4)
+
+    // Drop preview — для тестирования drop-card анимации
     setTimeout(() => {
-        queueNotif({ type: 'donate', username: 'klut12', amount_rub: 500, points: 25000, gift: 'Корона 👑', duration: 7000 });
-    }, 4000);
+        queueNotif({ type: 'drop', username: 'antitail1', item_name: '🎁 Обычный кейс', rarity: 'common', duration: 6000 });
+    }, 2000);
 
     setTimeout(() => {
-        const mockEvent = {
-            id: 'preview-1',
-            type: 'roulette',
-            type_name: '🎲 Рулетка',
-            prize: { name: 'Корона 👑' },
-            time_left: 300,
-            time_left_fmt: '5:00',
-            type_desc: 'Чем больше вкинул — тем выше шанс!',
-            participants: 4,
-            total_pool: 48500,
-            bids: [
-                { username: 'slopkom',   amount: 20000, chance: 41.2 },
-                { username: 'klut12',    amount: 15000, chance: 30.9 },
-                { username: 'eliya',     amount: 8500,  chance: 17.5 },
-                { username: 'antitail1', amount: 5000,  chance: 10.3 },
-            ]
-        };
-        showEventPanel(mockEvent);
-        announceEvent('🎲 Рулетка', 'Корона 👑');
-        queueNotif({ type: 'event-start', type_name: '🎲 Рулетка', prize_name: 'Корона 👑', type_desc: 'Чем больше вкинул — тем выше шанс!', event_type: 'roulette', duration: 7000 });
+        queueNotif({ type: 'drop', username: 'eliya', item_name: '👑 Легендарный кейс', rarity: 'legendary', duration: 6000 });
     }, 8000);
-
-    setTimeout(() => {
-        queueNotif({
-            type: 'event-live',
-            type_name: '🎲 Рулетка',
-            prize_name: 'Корона 👑',
-            time_left_fmt: '2:30',
-            participants: 4,
-            total_pool: 48500,
-            bids: [
-                { username: 'slopkom',  amount: 20000, chance: 41.2 },
-                { username: 'klut12',   amount: 15000, chance: 30.9 },
-                { username: 'eliya',    amount: 8500,  chance: 17.5 },
-                { username: 'antitail1',amount: 5000,  chance: 10.3 },
-            ],
-            duration: 10000
-        });
-    }, 13000);
-
-    setTimeout(() => {
-        hideEventPanel();
-        queueNotif({ type: 'event-end', winner: 'klut12', prize_name: 'Корона 👑', message: '🎲 В рулетке победил @klut12!', duration: 9000 });
-    }, 21000);
-
-    setTimeout(() => {
-        queueNotif({ type: 'drop', username: 'antitail1', item_name: '🔮 Амулет', rarity: 'rare', duration: 6000 });
-    }, 26000);
-
-    setTimeout(() => {
-        queueNotif({ type: 'drop', username: 'eliya', item_name: '👑 Корона', rarity: 'epic', duration: 6000 });
-    }, 30000);
 }
 
 // ══════════════════════════════════════════

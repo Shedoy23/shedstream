@@ -16,13 +16,74 @@ helpers (`db.list_users(search, limit)`, `db.update_user_points`, etc.) —
 сейчас raw SQL прямо в endpoint'ах. Это тоже Block 2 follow-up task.
 """
 import aiosqlite
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
 
 from config import sanitize_username
 from dependencies import get_bot, get_db, require_admin
 
 router = APIRouter()
+
+
+@router.get("/api/admin/dev/jwt")
+async def admin_dev_jwt(
+    username: str = Query("shedoy23", description="Логин для preview"),
+    minutes: int = Query(60, description="Срок жизни токена в минутах"),
+    _admin: str = Depends(require_admin),
+):
+    """Выдать валидный Twitch Extension JWT для standalone-preview расширения
+    без необходимости поднимать live-стрим.
+
+    Use case: открыть https://shedoy23.ru/frontend/extension.html?dev_jwt=<TOKEN>
+    в браузере → extension работает как будто загружен через Twitch helper.
+
+    SECURITY: только admin. JWT короткоживущий (default 60 минут). Подписывается
+    тем же TWITCH_EXTENSION_SECRET что и реальные Twitch tokens — поэтому
+    backend принимает токен legitimately, никакого специального bypass нет.
+    """
+    import base64
+    import time
+    import jwt as _jwt
+    from config import TWITCH_EXTENSION_SECRET, CHANNEL_POINTS_CONFIG
+
+    if not TWITCH_EXTENSION_SECRET:
+        return {"success": False, "message": "TWITCH_EXTENSION_SECRET не настроен"}
+
+    uname = sanitize_username(username)
+    if not uname:
+        return {"success": False, "message": "Неверный username"}
+
+    broadcaster_id = str(CHANNEL_POINTS_CONFIG.get("broadcaster_id") or "")
+    if not broadcaster_id:
+        return {"success": False, "message": "TWITCH_BROADCASTER_ID не настроен"}
+
+    # Decode base64-encoded secret (Twitch стандарт)
+    secret_b64 = TWITCH_EXTENSION_SECRET.replace("-", "+").replace("_", "/")
+    padding = 4 - len(secret_b64) % 4
+    if padding != 4:
+        secret_b64 += "=" * padding
+    secret_bytes = base64.b64decode(secret_b64)
+
+    payload = {
+        "channel_id":          broadcaster_id,
+        "user_id":             broadcaster_id,
+        "sub":                 uname,
+        "role":                "broadcaster",
+        "opaque_user_id":      f"U{broadcaster_id}",
+        "exp":                 int(time.time()) + max(1, min(minutes, 1440)) * 60,
+    }
+    token = _jwt.encode(payload, secret_bytes, algorithm="HS256")
+
+    preview_url = (
+        f"https://shedoy23.ru/frontend/extension.html?dev_jwt={token}&dev_user={uname}"
+    )
+    return {
+        "success":      True,
+        "token":        token,
+        "preview_url":  preview_url,
+        "expires_in":   payload["exp"] - int(time.time()),
+        "username":     uname,
+    }
 
 
 @router.get("/admin", response_class=HTMLResponse)

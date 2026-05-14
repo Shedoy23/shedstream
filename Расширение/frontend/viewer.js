@@ -311,9 +311,31 @@ document.addEventListener('DOMContentLoaded', function() {
         rimworldTab.appendChild(refreshBtn);
     }
     
+    // === DEV PREVIEW MODE ===
+    // Открыто как ?dev_jwt=<TOKEN>&dev_user=<LOGIN> → инициализируем
+    // auth state вручную без Twitch helper'a. JWT генерится через
+    // /api/admin/dev/jwt (требует admin auth), подпись = legit
+    // (TWITCH_EXTENSION_SECRET), backend принимает как обычный.
+    const _devParams = new URLSearchParams(location.search);
+    const _devJwt    = _devParams.get('dev_jwt');
+    const _devUser   = _devParams.get('dev_user');
+    if (_devJwt) {
+        dbg('🛠️  DEV PREVIEW MODE active');
+        authToken = _devJwt;
+        userLogin = (_devUser || 'shedoy23').toLowerCase();
+        try {
+            const parts  = _devJwt.split('.');
+            const pad    = 4 - parts[1].length % 4;
+            const payload = JSON.parse(atob(parts[1] + '='.repeat(pad % 4)));
+            userId       = String(payload.user_id || payload.channel_id || '0');
+        } catch (e) {}
+        updateUIAfterAuth();
+        return;  // не идём в Twitch.ext path
+    }
+
     if (window.Twitch && window.Twitch.ext) {
         dbg('✅ Twitch API доступен');
-        
+
         window.Twitch.ext.onAuthorized(function(auth) {
             // auth получена
             userId = auth.userId;

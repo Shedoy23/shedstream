@@ -552,7 +552,14 @@ async def require_stream_live(channel_id: Optional[int] = None) -> Optional[dict
     Bug 4 fix (2026-05-10): channel_id опциональный — если None, берётся
     из ContextVar (resolve_channel_id внутри _is_stream_live). Action-роуты,
     где канал известен из JWT, могут передать его явно для надёжности.
+
+    Testing bypass (2026-05-14): TESTING_BYPASS_STREAM_LIVE=true в .env
+    отключает проверку — для функционального теста без стрима.
     """
+    from config import TESTING_BYPASS_STREAM_LIVE
+    if TESTING_BYPASS_STREAM_LIVE:
+        return None
+
     _STREAM_OFFLINE_MSG = {"success": False, "message": "⚡ Доступно только во время стрима"}
     try:
         live = await get_bot()._is_stream_live(channel_id=channel_id)

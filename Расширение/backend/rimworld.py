@@ -125,7 +125,13 @@ async def _require_stream_live(channel_id=None):
     fallback на ContextVar/legacy резолвится внутри _is_stream_live.
 
     Возвращает dict с ошибкой если стрим недоступен или проверка упала,
-    None — если стрим живой."""
+    None — если стрим живой.
+
+    Testing bypass (2026-05-14): TESTING_BYPASS_STREAM_LIVE=true в .env
+    отключает проверку — для функционального теста без стрима."""
+    from config import TESTING_BYPASS_STREAM_LIVE
+    if TESTING_BYPASS_STREAM_LIVE:
+        return None
     try:
         import main as _main
         live = await _main.bot._is_stream_live(channel_id=channel_id)

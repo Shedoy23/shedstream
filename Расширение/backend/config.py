@@ -114,6 +114,12 @@ EVENTSUB_AUTO_REGISTER = os.getenv('EVENTSUB_AUTO_REGISTER', 'false').lower() ==
 # НИКОГДА не включайте на продакшн сервере
 DEV_MODE     = os.getenv('DEV_MODE', 'false').lower() == 'true'
 DEV_USERNAME = os.getenv('DEV_USERNAME', 'dev_user').lower().strip()
+
+# Testing-без-стрима. Если True — require_stream_live() всегда возвращает None.
+# Используется для функционального тестирования без необходимости поднимать стрим.
+# WARN: НЕ оставлять True в проде надолго — viewer'ы смогут тратить очки на дуэли
+# / события когда канал офлайн. Включать только на test-канале или коротко.
+TESTING_BYPASS_STREAM_LIVE = os.getenv('TESTING_BYPASS_STREAM_LIVE', 'false').lower() == 'true'
 if DEV_MODE:
     print(f"⚠️  DEV_MODE включён — JWT верификация отключена, пользователь: '{DEV_USERNAME}'")
 

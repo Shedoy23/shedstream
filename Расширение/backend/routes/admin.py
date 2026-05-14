@@ -74,6 +74,17 @@ async def admin_dev_jwt(
     }
     token = _jwt.encode(payload, secret_bytes, algorithm="HS256")
 
+    # Pre-populate login cache — иначе resolve_jwt_login() пустой и
+    # require_jwt_user() вернёт None → backend ответит "unauthorized".
+    # Cache обычно заполняется через /api/whoami на первом юзер-логине;
+    # preview-mode минует этот flow, поэтому injecting вручную.
+    from dependencies import cache_twitch_login
+    cache_twitch_login(
+        user_id=broadcaster_id,
+        opaque_id=f"U{broadcaster_id}",
+        login=uname,
+    )
+
     preview_url = (
         f"https://shedoy23.ru/frontend/extension.html?dev_jwt={token}&dev_user={uname}"
     )

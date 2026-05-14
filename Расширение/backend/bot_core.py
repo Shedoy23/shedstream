@@ -613,11 +613,31 @@ class BotCore:
                     headers={"Client-ID": client_id, "Authorization": f"Bearer {app_token}"}
                 ) as r:
                     data = await r.json()
-                    is_live = len(data.get("data", [])) > 0
+                    streams = data.get("data", [])
+                    is_live = len(streams) > 0
+                    stream_info = streams[0] if is_live else None
 
+            # Transition detect для нотификаций: ранее (cached[0]) был False,
+            # сейчас стал True → fire TG notify (Phase 8.G).
+            was_live = cached[0] if cached is not None else None
             self._stream_live_cache[cid] = (is_live, now)
             logger.info("Стрим [ch=%s] %s: %s", cid, channel,
                         'В ЭФИРЕ' if is_live else 'офлайн')
+
+            if is_live and was_live is False and stream_info:
+                # Стрим только что стартовал. Шлём TG нотификацию (no-op
+                # если TELEGRAM_* не настроены в .env).
+                try:
+                    from notifications import notify_stream_online
+                    asyncio.create_task(notify_stream_online(
+                        channel_id=cid,
+                        login=channel,
+                        title=stream_info.get("title"),
+                        game=stream_info.get("game_name"),
+                    ))
+                except Exception as e:
+                    logger.warning("TG hook upstream error: %s", e)
+
             return is_live
 
         except Exception as e:

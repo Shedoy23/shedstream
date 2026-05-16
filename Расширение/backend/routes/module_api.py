@@ -315,6 +315,17 @@ async def module_actions_poll(module_id: str, request: Request):
         )
     channel_id = _verify_module_request(request, module_id)
 
+    # Online status flicker fix: mod active = long-poll keeps coming. Mark
+    # last_seen на каждый poll start (как heartbeat) — UI badge не будет
+    # пугать "оффлайн" между event'ами. Только для bannerlord — обобщить
+    # позже (нужен generic last_seen helper в _base).
+    if module_id == "bannerlord":
+        try:
+            from modules.bannerlord._adapter import update_last_seen
+            update_last_seen(channel_id)
+        except Exception:
+            pass
+
     raw_since = request.query_params.get("since", "0")
     try:
         since_id = max(0, int(raw_since))

@@ -83,21 +83,39 @@ namespace BannerlordLink.Actions
                     return;
                 }
 
-                // Для enemy side используем тоже MainParty.Party как origin — это
-                // workaround, т.к. proper enemy party lookup нетривиален для late
-                // reinforcement. SpawnTroop's isPlayerSide=false сам разместит agent
-                // на enemy team. BLT pattern (SummonHero.cs:1010).
-                var mainParty = MobileParty.MainParty;
-                if (mainParty?.Party == null)
+                // Resolve party origin for spawn:
+                //   ally  → MobileParty.MainParty.Party (player party)
+                //   enemy → first enemy team's party (iter agents, найти origin
+                //           агента противника). Если не нашли — fallback MainParty
+                //           но с log warning.
+                // engine ставит side по origin.party.MapFaction.IsAtWarWith(player),
+                // НЕ только по isPlayerSide flag. Без правильного origin — даже
+                // isPlayerSide:false спавнит агента в player team.
+                PartyBase originParty;
+                if (isPlayerSide)
                 {
-                    BannerlordLinkModule.Log($"[player.spawn:{sideLabel}] @{username}: MainParty unavailable");
+                    originParty = MobileParty.MainParty?.Party;
+                }
+                else
+                {
+                    originParty = FindEnemyParty() ?? MobileParty.MainParty?.Party;
+                    if (originParty == MobileParty.MainParty?.Party)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[player.spawn:{sideLabel}] @{username}: WARNING enemy party not found, " +
+                            "fallback на MainParty (агент может спавниться за стримера)");
+                    }
+                }
+                if (originParty == null)
+                {
+                    BannerlordLinkModule.Log($"[player.spawn:{sideLabel}] @{username}: no origin party");
                     return;
                 }
 
                 bool withHorse = ResolveWithHorse(username);
 
                 Agent agent = Mission.Current.SpawnTroop(
-                    new PartyAgentOrigin(mainParty.Party, hero.CharacterObject),
+                    new PartyAgentOrigin(originParty, hero.CharacterObject),
                     isPlayerSide:        isPlayerSide,
                     hasFormation:        true,
                     spawnWithHorse:      withHorse,
@@ -171,6 +189,31 @@ namespace BannerlordLink.Actions
             var hc = PowerCache.GetHeroClass(username);
             if (hc == null) return false;
             return MountedClasses.Contains(hc.Value.classKey);
+        }
+
+        // Find any party belonging to enemy team. Itersует Mission.Agents
+        // и берёт origin'у первого живого enemy hero/troop agent'а.
+        // BattleCombatant → PartyBase cast (BattleCombatant — это PartyBase или
+        // CustomBattleCombatant, обычно PartyBase).
+        private static PartyBase FindEnemyParty()
+        {
+            if (Mission.Current == null) return null;
+            var playerTeam = Mission.Current.PlayerTeam;
+            if (playerTeam == null) return null;
+
+            foreach (var a in Mission.Current.Agents)
+            {
+                if (a == null || !a.IsActive() || !a.IsHuman) continue;
+                if (a.Team == null) continue;
+                if (a.Team == playerTeam) continue;
+                if (!a.Team.IsEnemyOf(playerTeam)) continue;
+
+                // Origin может быть PartyAgentOrigin (PartyBase) или SimpleAgentOrigin.
+                // BattleCombatant — interface; cast'имся на PartyBase.
+                var origin = a.Origin as PartyAgentOrigin;
+                if (origin?.BattleCombatant is PartyBase pb) return pb;
+            }
+            return null;
         }
     }
 }

@@ -1270,8 +1270,7 @@ function renderBannerlordActivePowers() {
 
     // Sprint 5.0: summon button (player.spawn) — отдельно, не active power.
     renderBannerlordSummonButton();
-    // Sprint 5.1c: 3 random-equip buttons.
-    renderBannerlordRandomEquip();
+    // Sprint 5.1c random-equip перемещён в shop card (loadBannerlordShop рендерит).
 }
 
 // Sprint 5.0 — кнопка "📯 Призвать в бой" (player.spawn).
@@ -1301,12 +1300,12 @@ function renderBannerlordSummonButton() {
     }
 }
 
-// Sprint 5.1c — 3 кнопки random-equip:
+// Sprint 5.1c — 3 кнопки random-equip, размещены в shop card "Действия в игре".
+// Рендерятся как HTML-блок (renderBannerlordRandomEquipHtml) который
+// loadBannerlordShop добавляет перед catalog items.
 //   weapon (1M⦷), armor (500K⦷), horse (1.25M⦷ — только mounted classes)
 // Цены проверяются server-side (frontend price = display only).
-function renderBannerlordRandomEquip() {
-    const slot = document.getElementById('bnr-random-equip-slot');
-    if (!slot) return;
+function renderBannerlordRandomEquipHtml() {
     const currentKey = _bannerlordClassesCache?.current?.class_key || '';
     const MOUNTED = new Set(['cavalry', 'camel_cavalry', 'horse_archer', 'camel_archer', 'knight']);
     const isMounted = MOUNTED.has(currentKey);
@@ -1317,28 +1316,36 @@ function renderBannerlordRandomEquip() {
         ? 'Только для конных классов (cavalry / horse_archer / camel_* / knight)'
         : 'Случайный скакун из high-tier пула';
 
-    slot.innerHTML = `
-        <div style="font-size:11px;color:#adadb8;margin-top:8px;margin-bottom:4px;">
-            🎁 Случайный товар
-        </div>
-        <div style="display:flex;flex-direction:column;gap:4px;">
-            <button class="extra-btn" id="bnr-random-weapon"
-                    title="Случайное оружие из high-tier пула"
-                    style="font-size:12px;padding:6px;">
-                🗡 Купить оружие <span style="color:#fbbf24;">1М⦷</span>
-            </button>
-            <button class="extra-btn" id="bnr-random-armor"
-                    title="Случайная броня (любой slot) из high-tier пула"
-                    style="font-size:12px;padding:6px;">
-                🛡 Купить броню <span style="color:#fbbf24;">500К⦷</span>
-            </button>
-            <button class="extra-btn" id="bnr-random-horse"
-                    ${horseDisabled}
-                    title="${horseTitle}"
-                    style="font-size:12px;padding:6px;${horseStyle}">
-                🐎 Купить коня <span style="color:#fbbf24;">1.25М⦷</span>
-            </button>
+    return `
+        <div style="padding:6px 10px 10px 10px;">
+            <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">
+                🎁 Случайный товар
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+                <button class="extra-btn" id="bnr-random-weapon"
+                        title="Случайное оружие из high-tier пула"
+                        style="font-size:12px;padding:6px;">
+                    🗡 Купить оружие <span style="color:#fbbf24;">1М⦷</span>
+                </button>
+                <button class="extra-btn" id="bnr-random-armor"
+                        title="Случайная броня (любой slot) из high-tier пула"
+                        style="font-size:12px;padding:6px;">
+                    🛡 Купить броню <span style="color:#fbbf24;">500К⦷</span>
+                </button>
+                <button class="extra-btn" id="bnr-random-horse"
+                        ${horseDisabled}
+                        title="${horseTitle}"
+                        style="font-size:12px;padding:6px;${horseStyle}">
+                    🐎 Купить коня <span style="color:#fbbf24;">1.25М⦷</span>
+                </button>
+            </div>
         </div>`;
+}
+
+function _bindBannerlordRandomEquip() {
+    const MOUNTED = new Set(['cavalry', 'camel_cavalry', 'horse_archer', 'camel_archer', 'knight']);
+    const currentKey = _bannerlordClassesCache?.current?.class_key || '';
+    const isMounted = MOUNTED.has(currentKey);
 
     document.getElementById('bnr-random-weapon')?.addEventListener('click', () => {
         _bannerlordBuyAction('player.equip_item', { random_category: 'weapon' });
@@ -1490,6 +1497,10 @@ async function loadBannerlordHero() {
                 </div>`).join('')
             : '<div style="font-size:11px;color:#adadb8;">Нет экипировки</div>';
 
+        // Sprint M19: level / clan / kingdom badges
+        const clanLabel = h.clan_name ? escapeHtml(h.clan_name) : '<span style="color:#9ca3af;">не вступил</span>';
+        const kingdomLabel = h.kingdom_name ? escapeHtml(h.kingdom_name) : '<span style="color:#9ca3af;">не вступил</span>';
+
         body.innerHTML = `
             <div style="padding:8px;">
                 <div style="font-weight:700;font-size:15px;margin-bottom:2px;">
@@ -1500,15 +1511,20 @@ async function loadBannerlordHero() {
                     ${h.culture ? ' · ' + escapeHtml(h.culture) : ''}
                     ${h.location ? ' · 📍 ' + escapeHtml(h.location) : ''}
                 </div>
-                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px;">
-                    <span>💰 Динары:</span>
+                <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:12px;margin-bottom:8px;">
+                    <span style="color:#adadb8;">💰 Динары:</span>
                     <span style="color:#fbbf24;font-weight:700;">${(h.gold || 0).toLocaleString('ru-RU')}</span>
+                    <span style="color:#adadb8;">⭐ Уровень:</span>
+                    <span style="color:#efeff1;font-weight:700;">${h.level || 1}</span>
+                    <span style="color:#adadb8;">🏰 Клан:</span>
+                    <span style="color:#efeff1;">${clanLabel}</span>
+                    <span style="color:#adadb8;">👑 Королевство:</span>
+                    <span style="color:#efeff1;">${kingdomLabel}</span>
                 </div>
                 <div id="bnr-buff-hud"></div>
                 <div id="hero-class-picker-slot"></div>
                 <div id="bnr-active-powers-slot"></div>
                 <div id="bnr-summon-slot"></div>
-                <div id="bnr-random-equip-slot"></div>
                 <details style="margin-bottom:6px;">
                     <summary style="font-size:11px;color:#adadb8;cursor:pointer;">Топ скиллы</summary>
                     <div style="margin-top:4px;">${topSkills}</div>
@@ -1528,30 +1544,31 @@ async function loadBannerlordShop() {
     const list = document.getElementById('bannerlord-shop-list');
     const cnt  = document.getElementById('bannerlord-shop-count');
     if (!list) return;
+    // Sprint M19: random-equip всегда сверху (даже если catalog пустой).
+    const randomEquipBlock = renderBannerlordRandomEquipHtml();
     try {
         const r = await fetch(`${API_URL}/api/bannerlord/shop`, {
             headers: { 'X-Twitch-JWT': authToken || '' },
         });
         const data = await r.json();
         if (!data.success) {
-            list.innerHTML = `<div class="loading">${escapeHtml(data.message || 'Ошибка')}</div>`;
+            list.innerHTML = randomEquipBlock +
+                `<div class="loading">${escapeHtml(data.message || 'Ошибка')}</div>`;
+            _bindBannerlordRandomEquip();
             return;
         }
         const items = data.items || [];
-        if (cnt) cnt.textContent = items.length;
+        if (cnt) cnt.textContent = items.length + 3;  // +3 random-equip buttons
         if (items.length === 0) {
-            list.innerHTML = `
-                <div style="text-align:center;padding:14px;font-size:12px;color:#adadb8;">
-                    Каталог пустой. Мод ещё не прислал shop-данные.<br>
-                    <span style="font-size:11px;">
-                        Когда стример запустит игру с подключённым модулем — здесь
-                        появятся actions с ценами.
-                    </span>
+            list.innerHTML = randomEquipBlock + `
+                <div style="text-align:center;padding:14px;font-size:11px;color:#adadb8;border-top:1px solid #3d3d3f;margin-top:6px;">
+                    Каталог пуст. Мод пришлёт shop-данные когда стример запустит игру.
                 </div>`;
+            _bindBannerlordRandomEquip();
             return;
         }
         // Каждый item — {catalog_type, entry_id, name?, price?, action_type?, ...}
-        list.innerHTML = items.map(it => {
+        const catalogHtml = items.map(it => {
             const name = escapeHtml(it.name || it.entry_id || '?');
             const price = parseInt(it.price || 0, 10);
             const actionType = it.action_type || it.entry_id;
@@ -1572,7 +1589,9 @@ async function loadBannerlordShop() {
                     </button>
                 </div>`;
         }).join('');
-        // Bind buy handlers
+        list.innerHTML = randomEquipBlock + catalogHtml;
+        _bindBannerlordRandomEquip();
+        // Bind buy handlers для catalog items
         list.querySelectorAll('[data-bnr-buy]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const actionType = btn.dataset.bnrBuy;
@@ -1581,7 +1600,9 @@ async function loadBannerlordShop() {
             });
         });
     } catch (e) {
-        list.innerHTML = `<div class="loading" style="color:#f87171;">Ошибка сети</div>`;
+        list.innerHTML = randomEquipBlock +
+            `<div class="loading" style="color:#f87171;">Ошибка сети</div>`;
+        _bindBannerlordRandomEquip();
     }
 }
 

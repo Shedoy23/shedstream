@@ -338,7 +338,7 @@ class BannerlordAdapter(ModuleAdapter):
         await self._log_event(channel_id, "player.unlinked", username, env.data)
 
     async def _on_player_state_update(self, channel_id: int, env: ModuleEnvelope) -> None:
-        """Mod synced состояние hero (gold, location, alive/prisoner status)."""
+        """Mod synced состояние hero (gold, location, alive/prisoner, +M19 meta)."""
         data = env.data
         username = (data.get("username") or "").lower()
         if not username:
@@ -346,7 +346,10 @@ class BannerlordAdapter(ModuleAdapter):
 
         fields = []
         params: list = []
-        for k in ("gold", "is_alive", "is_prisoner", "location"):
+        # M19: level / clan_name / kingdom_name добавлены — mod пушит после
+        # adoption + HeroLevelledUp + опционально на daily tick для clan/kingdom.
+        for k in ("gold", "is_alive", "is_prisoner", "location",
+                  "level", "clan_name", "kingdom_name"):
             if k in data:
                 fields.append(f"{k} = ?")
                 params.append(data[k])

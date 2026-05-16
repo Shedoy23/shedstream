@@ -564,6 +564,15 @@ async def run_migrations():
             print(f"❌ M18 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M19: bannerlord_heroes meta (level / clan_name / kingdom_name) ──
+        # Расширяет hero card UI — viewer видит уровень, клан, королевство.
+        try:
+            from migrations import m19_bannerlord_hero_meta
+            await m19_bannerlord_hero_meta.apply(conn)
+        except Exception as e:
+            print(f"❌ M19 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

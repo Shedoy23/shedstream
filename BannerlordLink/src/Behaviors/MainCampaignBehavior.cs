@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using BannerlordLink.Util;
 using Newtonsoft.Json;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
@@ -63,26 +64,12 @@ namespace BannerlordLink.Behaviors
 
         private void OnHeroLevelledUp(Hero hero, bool shouldNotify)
         {
-            if (hero?.Name == null) return;
-
-            try
-            {
-                string username = hero.Name.ToString().ToLowerInvariant();
-                string evtData = JsonConvert.SerializeObject(new
-                {
-                    username = username,
-                    hero_id = hero.StringId,
-                    level = hero.Level,
-                });
-                Task.Run(async () => await BannerlordLinkModule.Backend
-                    .PostEventAsync("bannerlord", "player.state_update", evtData));
-                BannerlordLinkModule.Log(
-                    $"[CampaignEvent] HeroLevelledUp: {username} → level {hero.Level}");
-            }
-            catch (Exception ex)
-            {
-                BannerlordLinkModule.Log($"[CampaignEvent] HeroLevelledUp handler error: {ex.Message}");
-            }
+            // Sprint M19: вместо inline {username, level} пушим полный snapshot —
+            // backend получит level + случайно изменившийся clan/kingdom/gold/etc.
+            HeroStateSync.Push(hero);
+            BannerlordLinkModule.Log(
+                $"[CampaignEvent] HeroLevelledUp: {hero?.Name?.ToString()} → " +
+                $"level {hero?.Level} (full state pushed)");
         }
     }
 }

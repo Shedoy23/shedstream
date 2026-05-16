@@ -256,10 +256,10 @@ async def bannerlord_my_hero(request: Request):
 
     db = get_db()
     async with db._connect() as conn:
-        # Hero base
+        # Hero base + M19 meta (level / clan_name / kingdom_name)
         cur = await conn.execute(
             "SELECT hero_id, display_name, culture, is_alive, is_prisoner, gold, "
-            "       location, adopted_at, last_sync "
+            "       location, adopted_at, last_sync, level, clan_name, kingdom_name "
             "FROM bannerlord_heroes WHERE channel_id=? AND username=?",
             (channel_id, username))
         row = await cur.fetchone()
@@ -275,6 +275,9 @@ async def bannerlord_my_hero(request: Request):
             "location":     row[6],
             "adopted_at":   row[7],
             "last_sync":    row[8],
+            "level":        row[9] or 1,
+            "clan_name":    row[10],
+            "kingdom_name": row[11],
         }
 
         # Skills

@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using BannerlordLink.Util;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using TaleWorlds.CampaignSystem;
@@ -129,6 +130,8 @@ namespace BannerlordLink.Actions
 
                 // 5. Post player.linked обратно — backend upsert в bannerlord_heroes
                 PostLinked(newHero, username);
+                // 6. Sprint M19: post full state — UI показывает level/clan/kingdom
+                HeroStateSync.Push(newHero);
             }
             catch (Exception ex)
             {

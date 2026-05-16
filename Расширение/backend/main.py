@@ -1,8 +1,6 @@
 # main.py - обновленная версия
 import asyncio
 from datetime import datetime, timezone
-import hashlib
-import hmac as _hmac
 import logging
 import os
 import time
@@ -105,6 +103,12 @@ app.include_router(voting_router)      # Phase 4 (2026-05-11): Voting events
 app.include_router(pets_router)        # Phase 7 (2026-05-12): Pets MVP (cross-channel)
 app.include_router(bannerlord_router)  # Sprint 1.3 (2026-05-15): Bannerlord viewer endpoints
 app.include_router(dev_login_router)   # 2026-05-16: /dev OAuth test page
+
+# Phase A (2026-05-16): EventSub generic router (/eventsub + legacy alias
+# /eventsub/channel-points). Заменил inline-обработчик и старую
+# register_eventsub_channel_points функцию.
+from eventsub import router as eventsub_router  # noqa: E402
+app.include_router(eventsub_router)
 
 
 # Путь к фронтенду из .env или значение по умолчанию
@@ -540,6 +544,15 @@ async def run_migrations():
             print(f"❌ M16 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M17: EventSub dedupe (Phase A) ──
+        # eventsub_seen table — идемпотентность Twitch webhook retry'ев.
+        try:
+            from migrations import m17_eventsub_dedupe
+            await m17_eventsub_dedupe.apply(conn)
+        except Exception as e:
+            print(f"❌ M17 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 
@@ -756,69 +769,29 @@ class TwitchChatBot(twitch_commands.Bot):
 
 _twitch_chat_bot = None
 
-# ===== EVENTSUB: CHANNEL POINTS =====
+# ===== EVENTSUB: SUBSCRIPTIONS REGISTRATION =====
+# Webhook handler вынесен в backend/eventsub.py (Phase A, 2026-05-16).
+# Здесь только startup-регистрация типов подписок: channel_points + stream.online/offline.
 
-async def _register_eventsub_for_broadcaster(
-    session: aiohttp.ClientSession,
-    headers: dict,
-    broadcaster_id: str,
-    callback_url: str,
-    secret: str,
-) -> None:
-    """Зарегистрировать channel.channel_points_*.add подписку для одного broadcaster'а.
+async def register_eventsub_subscriptions():
+    """Регистрирует все Phase A EventSub-подписки для зарегистрированных каналов.
 
-    Идемпотентно: проверяет существующие подписки и пропускает если уже есть
-    enabled-запись для этого broadcaster'а.
-    """
-    try:
-        async with session.get(
-            "https://api.twitch.tv/helix/eventsub/subscriptions",
-            headers=headers,
-        ) as r:
-            existing = await r.json()
-            if r.status not in (200, 202):
-                print(f"EventSub: ошибка получения подписок для {broadcaster_id} ({r.status}): {existing}")
-                return
-            for sub in existing.get('data', []):
-                if (sub['type'] == 'channel.channel_points_custom_reward_redemption.add'
-                        and sub['condition'].get('broadcaster_user_id') == broadcaster_id
-                        and sub['status'] == 'enabled'):
-                    print(f"✅ EventSub: подписка для broadcaster_id={broadcaster_id} уже активна")
-                    return
+    Типы (PHASE_A_SUBSCRIPTIONS в eventsub.py):
+      - channel.channel_points_custom_reward_redemption.add
+      - stream.online
+      - stream.offline
 
-        async with session.post(
-            "https://api.twitch.tv/helix/eventsub/subscriptions",
-            headers={**headers, "Content-Type": "application/json"},
-            json={
-                "type": "channel.channel_points_custom_reward_redemption.add",
-                "version": "1",
-                "condition": {"broadcaster_user_id": broadcaster_id},
-                "transport": {
-                    "method": "webhook",
-                    "callback": callback_url,
-                    "secret": secret,
-                },
-            },
-        ) as r:
-            resp = await r.json()
-            if r.status in (200, 202):
-                print(f"✅ EventSub: подписка для broadcaster_id={broadcaster_id} зарегистрирована")
-            else:
-                print(f"EventSub: ошибка регистрации для {broadcaster_id}: {resp}")
-    except Exception as e:
-        print(f"EventSub register error for {broadcaster_id}: {e}")
-
-
-async def register_eventsub_channel_points():
-    """Подписываемся на channel.channel_points_custom_reward_redemption.add через EventSub.
     Webhook EventSub требует App Access Token (client credentials).
 
-    M4.5: при EVENTSUB_AUTO_REGISTER=true — регистрирует подписку ДЛЯ КАЖДОГО
-    канала из реестра channels (требует что у канала есть OAuth-консент с
-    channel:read:redemptions, иначе Twitch отклонит). При false (default) —
-    single-tenant поведение: один broadcaster из TWITCH_BROADCASTER_ID.
+    M4.5: при EVENTSUB_AUTO_REGISTER=true — multi-tenant режим (итерируем
+    реестр channels). При false (default) — single-tenant (TWITCH_BROADCASTER_ID).
+    Каждый тип регистрируется идемпотентно (см. eventsub.register_subscription).
     """
     if not CHANNEL_POINTS_CONFIG.get('enabled'):
+        # Флаг сохраняем как master-switch — отключает все EventSub-регистрации,
+        # не только channel_points. Это даёт возможность отрубить весь
+        # EventSub-flow одним env-флагом если что-то пойдёт не так.
+        print("EventSub: CHANNEL_POINTS_CONFIG.enabled=false — регистрация подписок пропущена")
         return
 
     client_id    = os.getenv('TWITCH_CLIENT_ID', '')
@@ -833,129 +806,44 @@ async def register_eventsub_channel_points():
         app_token = await get_twitch_app_token()
         headers = {"Client-ID": client_id, "Authorization": f"Bearer {app_token}"}
 
-        # M4.5: feature-flag решает single-tenant или multi-tenant режим.
         from config import EVENTSUB_AUTO_REGISTER
+        from eventsub import register_all_for_broadcaster
 
         if EVENTSUB_AUTO_REGISTER:
-            # Multi-tenant: iterate registered channels.
             channels = await db.list_channels()
             if not channels:
                 print("EventSub: реестр channels пуст, никого не регистрируем")
                 return
-            print(f"🔍 EventSub: multi-tenant register для {len(channels)} каналов, client_id={client_id[:8]}...")
+            print(
+                f"🔍 EventSub: multi-tenant register для {len(channels)} каналов "
+                f"(3 типа × N каналов), client_id={client_id[:8]}…"
+            )
             async with aiohttp.ClientSession() as session:
                 for ch in channels:
                     bid = str(ch['channel_id'])
-                    await _register_eventsub_for_broadcaster(session, headers, bid, callback_url, secret)
+                    await register_all_for_broadcaster(
+                        session, headers, bid, callback_url, secret
+                    )
         else:
-            # Single-tenant fallback (legacy default).
             broadcaster_id = CHANNEL_POINTS_CONFIG.get('broadcaster_id', '')
             if not broadcaster_id:
-                print("EventSub: TWITCH_BROADCASTER_ID не задан в .env — channel points не работают")
+                print("EventSub: TWITCH_BROADCASTER_ID не задан в .env")
                 return
-            print(f"🔍 EventSub: single-tenant register, broadcaster_id={broadcaster_id}, client_id={client_id[:8]}...")
+            print(
+                f"🔍 EventSub: single-tenant register, broadcaster_id={broadcaster_id}, "
+                f"client_id={client_id[:8]}…"
+            )
             async with aiohttp.ClientSession() as session:
-                await _register_eventsub_for_broadcaster(session, headers, broadcaster_id, callback_url, secret)
+                await register_all_for_broadcaster(
+                    session, headers, broadcaster_id, callback_url, secret
+                )
     except Exception as e:
         print(f"EventSub register error: {e}")
 
 
-@app.post("/eventsub/channel-points")
-async def eventsub_channel_points(request: Request):
-    """Вебхук от Twitch EventSub — срабатывает когда зритель тратит channel points."""
-    import json as _json
-    body_bytes = await request.body()
-
-    msg_id        = request.headers.get("Twitch-Eventsub-Message-Id", "")
-    msg_timestamp = request.headers.get("Twitch-Eventsub-Message-Timestamp", "")
-    msg_signature = request.headers.get("Twitch-Eventsub-Message-Signature", "")
-    msg_type      = request.headers.get("Twitch-Eventsub-Message-Type", "")
-    secret        = CHANNEL_POINTS_CONFIG['eventsub_secret'].encode()
-
-    hmac_msg = (msg_id + msg_timestamp).encode() + body_bytes
-    expected_sig = "sha256=" + _hmac.new(secret, hmac_msg, hashlib.sha256).hexdigest()
-
-    if not _hmac.compare_digest(expected_sig, msg_signature):
-        print(f"EventSub: неверная подпись! expected={expected_sig[:30]} got={msg_signature[:30]}")
-        return JSONResponse({"error": "invalid signature"}, status_code=403)
-
-    # Replay-protection: Twitch шлёт ISO-таймстамп, отказываем сообщениям старше 10 мин.
-    # Дедуп по redemption_id защищает только пока БД жива; timestamp-window нужен
-    # для случая «БД пересоздана, старая валидная подпись переиграна».
-    try:
-        msg_dt = datetime.fromisoformat(msg_timestamp.replace('Z', '+00:00'))
-        age_sec = abs(_time.time() - msg_dt.timestamp())
-        if age_sec > 600:
-            print(f"EventSub: timestamp out of window ({int(age_sec)}s)")
-            return JSONResponse({"error": "timestamp out of window"}, status_code=403)
-    except (ValueError, TypeError) as e:
-        print(f"EventSub: bad timestamp '{msg_timestamp}': {e}")
-        return JSONResponse({"error": "bad timestamp"}, status_code=400)
-
-    # Парсим тело из body_bytes (request.json() повторно не читает стрим)
-    data = _json.loads(body_bytes)
-
-    # Twitch требует подтвердить подписку при первом запросе
-    if msg_type == "webhook_callback_verification":
-        challenge = data.get("challenge", "")
-        print("✅ EventSub: верификация подписки, отвечаем challenge")
-        from fastapi.responses import PlainTextResponse
-        return PlainTextResponse(content=challenge)
-
-    if msg_type == "notification":
-        event = data.get("event", {})
-        username    = event.get("user_login", "").lower()
-        reward_title = event.get("reward", {}).get("title", "")
-        redemption_id = event.get("id", "")
-        # broadcaster_user_id из payload — это и есть channel_id для multi-tenant.
-        # Fallback на DEFAULT_CHANNEL_ID если EventSub payload без broadcaster
-        # (теоретически невозможно, но defensive — используем _or_default).
-        from dependencies import resolve_channel_id_or_default
-        try:
-            raw = event.get("broadcaster_user_id")
-            channel_id = int(raw) if raw else resolve_channel_id_or_default()
-        except (TypeError, ValueError):
-            channel_id = resolve_channel_id_or_default()
-
-        rewards_cfg = CHANNEL_POINTS_CONFIG.get('rewards', {})
-        reward_cfg  = rewards_cfg.get(reward_title)
-
-        if not reward_cfg:
-            # Название награды не в конфиге — игнорируем
-            return JSONResponse({"status": "ignored"})
-
-        diamonds = reward_cfg['diamonds']
-
-        # Проверяем дублирование по (channel_id, redemption_id)
-        async with db._connect() as conn:
-            cursor = await conn.execute(
-                "SELECT id FROM channel_points_log WHERE channel_id=? AND twitch_redemption_id=?",
-                (channel_id, redemption_id)
-            )
-            if await cursor.fetchone():
-                return JSONResponse({"status": "duplicate"})
-
-            await conn.execute(
-                """INSERT INTO channel_points_log
-                   (channel_id, username, twitch_redemption_id, reward_title, channel_points_spent, diamonds_given)
-                   VALUES (?,?,?,?,?,?)""",
-                (channel_id, username, redemption_id, reward_title,
-                 reward_cfg['channel_points_cost'], diamonds)
-            )
-            await conn.commit()
-
-        await db.add_points(username, diamonds, channel_id=channel_id)
-        print(f"💜 @{username} обменял channel points '{reward_title}' → +{diamonds}💎")
-
-        try:
-            await bot.send_message(
-                f"💜 @{username} обменял баллы канала на {diamonds}💎! "
-                f"Спасибо за поддержку! monkaHmm"
-            )
-        except Exception:
-            pass
-
-    return JSONResponse({"status": "ok"})
+# EventSub webhook handler перенесён в backend/eventsub.py (Phase A, 2026-05-16).
+# Routes /eventsub и /eventsub/channel-points (legacy alias) подключаются через
+# eventsub_router в app.include_router выше.
 
 
 async def _wal_checkpoint_loop():
@@ -1075,7 +963,12 @@ async def on_startup():
     # или transient disconnect), этот цикл каждые 15с добивает хвост.
     asyncio.create_task(bot.pending_chat_flush_loop())
     # run_family_income() удалён 2026-05-10 (Phase 1.G compliance rework)
-    asyncio.create_task(register_eventsub_channel_points())
+    # Phase A (2026-05-16): регистрируем три типа подписок (channel_points +
+    # stream.online + stream.offline) для всех каналов в реестре.
+    asyncio.create_task(register_eventsub_subscriptions())
+    # TTL cleanup для eventsub_seen — раз в час чистит expired (24h retention).
+    from eventsub import cleanup_seen_loop as _eventsub_cleanup
+    asyncio.create_task(_eventsub_cleanup())
     # M4 follow-up (б): держим OAuth-токены стримеров свежими.
     from routes.streamer import oauth_refresh_loop as _oauth_refresh_loop
     asyncio.create_task(_oauth_refresh_loop())

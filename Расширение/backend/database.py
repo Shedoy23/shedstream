@@ -1091,6 +1091,22 @@ class Database:
                 (channel_id, stream_id))
             await db.commit()
 
+    async def end_active_stream_sessions(self, channel_id: int = None) -> int:
+        """Закрыть все активные стрим-сессии канала (ended_at=NULL → NOW).
+
+        Используется EventSub `stream.offline` handler'ом — Twitch не присылает
+        stream_id в offline-payload, только broadcaster_user_id. Возвращает
+        число закрытых сессий (обычно 0 или 1).
+        """
+        channel_id = resolve_channel_id(channel_id)
+        async with self._connect() as db:
+            cur = await db.execute(
+                "UPDATE stream_sessions SET ended_at = datetime('now') "
+                "WHERE channel_id = ? AND ended_at IS NULL",
+                (channel_id,))
+            await db.commit()
+            return cur.rowcount or 0
+
     async def get_total_watch_hours(self, username: str, channel_id: int = None) -> float:
         channel_id = resolve_channel_id(channel_id)
         async with self._connect() as db:

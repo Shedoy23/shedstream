@@ -97,12 +97,15 @@ RATE_LIMITS_BY_TIER = {
 RATE_LIMIT_DEFAULT_TIER = 'free'
 
 # ===== M4.5: EventSub AUTO-REGISTER (feature flag) =====
-# При false — register_eventsub_channel_points регистрирует ОДНУ подписку для
+# При false — register_eventsub_subscriptions регистрирует подписки только для
 # TWITCH_BROADCASTER_ID из .env (текущая single-tenant логика, безопасный default).
 # При true — iterate db.list_channels() и регистрируем по подписке на каждого
 # зарегистрированного стримера. Требует что у каждого канала есть OAuth-токен
 # (M4.3 OAuth flow) — без этого Twitch не примет subscription для broadcaster'а
 # который не авторизовал наш scope.
+#
+# Phase A (2026-05-16): регистрируется 3 типа подписок на канал —
+# channel_points, stream.online, stream.offline. См. eventsub.PHASE_A_SUBSCRIPTIONS.
 #
 # Флипать в true когда: 1) есть >1 зарегистрированного стримера, 2) проверена
 # логика на dev-VPS или unit-тестами. До того момента — оставлять false чтобы

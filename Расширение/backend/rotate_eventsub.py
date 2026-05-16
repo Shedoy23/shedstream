@@ -4,8 +4,9 @@ rotate_eventsub.py — удалить все EventSub-подписки теку�
 
 Зачем: после смены EVENTSUB_SECRET в .env старые подписки на стороне Twitch
 всё ещё используют старый секрет, поэтому HMAC-проверка в нашем бэке падает.
-Удалив подписку и перезапустив бэк, register_eventsub_channel_points() в
-main.py создаст новую с новым секретом.
+Удалив подписку и перезапустив бэк, register_eventsub_subscriptions() в
+main.py создаст новые подписки (Phase A: channel_points + stream.online/offline)
+с новым секретом.
 
 Использование:
     1) Подключись к VPS (или запусти локально с тем же .env).

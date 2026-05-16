@@ -479,6 +479,19 @@ async def bannerlord_buy_action(request: Request):
         data["side"] = side
         data["price"] = SPAWN_PRICES[side]
 
+    # hero.create: culture choice (empire/sturgia/vlandia/aserai/khuzait/battania).
+    # Validate whitelist; null/empty = mod выберет random wanderer.
+    if action_type == "hero.create":
+        ALLOWED_CULTURES = {"empire", "sturgia", "vlandia", "aserai", "khuzait", "battania"}
+        culture = (data.get("culture") or "").strip().lower()
+        if culture and culture not in ALLOWED_CULTURES:
+            return {
+                "success": False,
+                "message": f"Культура '{culture}' не разрешена "
+                           f"(допустимо: {sorted(ALLOWED_CULTURES)})",
+            }
+        data["culture"] = culture  # mod resolve'ит '' → random
+
     # Sprint M20+M21: hero.upgrade_gear — БЕСПЛАТНО в крустиках, mod
     # списывает Hero.Gold (in-game динары) — см. UpgradeGearHandler.cs.
     # Backend только validates eligibility и enqueue'ит action.

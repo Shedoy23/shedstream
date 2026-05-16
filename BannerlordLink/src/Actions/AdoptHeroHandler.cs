@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using BannerlordLink.Util;
@@ -52,15 +53,19 @@ namespace BannerlordLink.Actions
                 return Task.FromResult<(bool, string)>((false, "no target username in action data"));
             }
 
+            // Optional culture choice: data.culture = empire/sturgia/vlandia/
+            // aserai/khuzait/battania (lowercase). Null/empty = random.
+            string culture = (data["culture"]?.ToString() ?? "").Trim().ToLowerInvariant();
+
             // Enqueue creation на main thread — НЕ ждём.
             // ACK backend'у уйдёт success=true сейчас (action accepted),
             // финальный результат — через player.linked event позже.
-            MainThreadDispatcher.Enqueue(() => CreateHeroOnMainThread(username));
+            MainThreadDispatcher.Enqueue(() => CreateHeroOnMainThread(username, culture));
 
             return Task.FromResult<(bool, string)>((true, null));
         }
 
-        private static void CreateHeroOnMainThread(string username)
+        private static void CreateHeroOnMainThread(string username, string requestedCulture)
         {
             try
             {
@@ -72,13 +77,15 @@ namespace BannerlordLink.Actions
                     return;
                 }
 
-                // Get all wanderer templates (vanilla — culture-agnostic)
-                var wandererTemplates = MBObjectManager.Instance
+                // Get all wanderer templates. Filter по requested culture
+                // (data.culture). Если culture пустой / unknown / нет templates
+                // для неё — fallback на random любой wanderer.
+                var allWanderers = MBObjectManager.Instance
                     .GetObjectTypeList<CharacterObject>()
                     .Where(c => c.Occupation == Occupation.Wanderer)
                     .ToList();
 
-                if (wandererTemplates.Count == 0)
+                if (allWanderers.Count == 0)
                 {
                     BannerlordLinkModule.Log($"[hero.create] @{username}: no wanderer templates found");
                     PostFailed(username, "no_wanderer_templates");
@@ -86,7 +93,24 @@ namespace BannerlordLink.Actions
                 }
 
                 var rng = new Random();
-                var template = wandererTemplates[rng.Next(wandererTemplates.Count)];
+                List<CharacterObject> pool = allWanderers;
+                if (!string.IsNullOrEmpty(requestedCulture))
+                {
+                    var filtered = allWanderers
+                        .Where(c => string.Equals(c.Culture?.StringId, requestedCulture,
+                            StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+                    if (filtered.Count > 0)
+                    {
+                        pool = filtered;
+                    }
+                    else
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[hero.create] @{username}: no wanderers for culture '{requestedCulture}', fallback random");
+                    }
+                }
+                var template = pool[rng.Next(pool.Count)];
 
                 // 1. Create the hero
                 Hero newHero = HeroCreator.CreateSpecialHero(template);

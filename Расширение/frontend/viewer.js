@@ -1655,28 +1655,58 @@ async function loadBannerlordHero() {
             return;
         }
         if (!data.has_hero) {
+            const CULTURES = [
+                { key: 'empire',    label: 'Империя',  icon: '🏛️', desc: 'Латифундии, мечи и копья' },
+                { key: 'sturgia',   label: 'Стургия',  icon: '🪓', desc: 'Севера́не, секиры, щиты' },
+                { key: 'vlandia',   label: 'Вландия',  icon: '🛡️', desc: 'Рыцари и арбалетчики' },
+                { key: 'aserai',    label: 'Асерай',   icon: '🐪', desc: 'Пустыня, лёгкая конница' },
+                { key: 'khuzait',   label: 'Хузаит',   icon: '🐎', desc: 'Степные лучники' },
+                { key: 'battania',  label: 'Баттания', icon: '🌲', desc: 'Лесные охотники, луки' },
+            ];
+            const cultureBtns = CULTURES.map(c => `
+                <button class="extra-btn" data-bnr-culture="${c.key}"
+                        title="${escapeHtml(c.desc)}"
+                        style="font-size:12px;padding:6px 8px;display:flex;
+                               flex-direction:column;align-items:center;gap:2px;
+                               min-width:78px;">
+                    <span style="font-size:18px;">${c.icon}</span>
+                    <span>${escapeHtml(c.label)}</span>
+                </button>`).join('');
+
             body.innerHTML = `
-                <div style="text-align:center;padding:16px;color:#adadb8;font-size:13px;">
+                <div style="text-align:center;padding:14px;color:#adadb8;font-size:13px;">
                     <div style="font-size:36px;margin-bottom:8px;">⚔️</div>
-                    У тебя ещё нет героя в Bannerlord.<br>
-                    <span style="font-size:11px;">
-                        Создай нового странника — он появится в случайном городе
-                        с нулевыми навыками. Имя героя в игре = твой ник.
-                    </span>
-                    <div style="margin-top:14px;">
-                        <button class="modal-btn"
-                                id="bnr-adopt-btn"
-                                data-bnr-buy="hero.create"
-                                data-bnr-price="0"
-                                style="width:auto;padding:8px 18px;">
-                            ⚔️ Стать героем
-                        </button>
+                    <div style="font-weight:700;color:#efeff1;margin-bottom:4px;">
+                        У тебя ещё нет героя в Bannerlord
                     </div>
+                    <div style="font-size:11px;margin-bottom:12px;">
+                        Выбери культуру — герой родится в её землях.<br>
+                        Имя в игре: <b style="color:#fbbf24;">[BLink] ${escapeHtml((window.userLogin || '').toLowerCase())}</b>
+                    </div>
+                    <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:6px;">
+                        ${cultureBtns}
+                    </div>
+                    <div style="margin-top:10px;font-size:10px;color:#6b7280;">
+                        Можно также выбрать случайную:
+                    </div>
+                    <button class="extra-btn" id="bnr-adopt-random"
+                            style="margin-top:6px;font-size:11px;padding:4px 12px;">
+                        🎲 Случайная культура
+                    </button>
                 </div>`;
-            // bind через event delegation которое уже есть для других bnr-buy
-            const btn = document.getElementById('bnr-adopt-btn');
-            if (btn) {
-                btn.addEventListener('click', () => _bannerlordBuyAction('hero.create', { price: 0 }));
+
+            // Bind culture-specific buttons
+            body.querySelectorAll('[data-bnr-culture]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const culture = btn.dataset.bnrCulture;
+                    _bannerlordBuyAction('hero.create', { price: 0, culture });
+                });
+            });
+            // Random button
+            const randomBtn = document.getElementById('bnr-adopt-random');
+            if (randomBtn) {
+                randomBtn.addEventListener('click', () =>
+                    _bannerlordBuyAction('hero.create', { price: 0 }));
             }
             return;
         }

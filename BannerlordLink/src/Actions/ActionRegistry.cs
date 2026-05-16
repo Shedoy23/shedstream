@@ -29,20 +29,20 @@ namespace BannerlordLink.Actions
         public static void RegisterDefaults()
         {
             // ── REAL handlers ──────────────────────────────────────────────
-            Register(new AdoptHeroHandler());  // hero.create — adoption flow
+            Register(new AdoptHeroHandler());     // hero.create — adoption
+            Register(new HealHeroHandler());      // player.heal — restore HP
+            Register(new GiveGoldHandler());      // player.give_item (item_type=gold)
+            Register(new AddSkillXpHandler());    // hero.add_skill — XP boost
 
-            // ── Echo stubs (Sprint 3 заменим на real) ──────────────────────
+            // ── Echo stubs (TODO Sprint 3.3+ заменить на real) ─────────────
             string[] echoTypes =
             {
                 "player.spawn",
-                "player.heal",
                 "player.respawn",
-                "player.give_item",
                 "player.equip_item",
                 "player.modify_attribute",
                 "world.trigger_event",
                 "world.broadcast_message",
-                "hero.add_skill",
                 "hero.set_culture",
                 "hero.set_faction",
                 "hero.recruit_troops",

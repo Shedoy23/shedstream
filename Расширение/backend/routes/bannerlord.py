@@ -25,6 +25,25 @@ router = APIRouter()
 
 _AUTH_FAIL = {"success": False, "message": "❌ Требуется авторизация Twitch"}
 
+
+@router.get("/api/bannerlord/ping")
+async def bannerlord_ping():
+    """Public health check для C# мода — connectivity test.
+
+    Mod при load пингует это endpoint чтобы убедиться что backend reachable
+    и его module discoverable. Не требует auth — это бессекретный probe.
+
+    Реальный auth flow (module token handshake) — через Module API
+    /v1/module/* endpoints, Sprint 2.3.
+    """
+    import time
+    return {
+        "ok":          True,
+        "module_id":   "bannerlord",
+        "server_time": int(time.time()),
+        "message":     "Bannerlord backend ready",
+    }
+
 # Action types которые viewer может купить через /api/bannerlord/action.
 # Должны быть в bannerlord/manifest.yaml actions/extensions.
 _PURCHASABLE_ACTIONS = (

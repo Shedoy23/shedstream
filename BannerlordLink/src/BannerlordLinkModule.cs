@@ -1,4 +1,7 @@
 using System;
+using System.IO;
+using System.Threading.Tasks;
+using BannerlordLink.Net;
 using HarmonyLib;
 using TaleWorlds.MountAndBlade;
 using Debug = TaleWorlds.Library.Debug;
@@ -7,17 +10,6 @@ namespace BannerlordLink
 {
     /// <summary>
     /// Entry point Bannerlord-мода. Поднимается игрой через SubModule.xml.
-    ///
-    /// Lifecycle:
-    ///   1. OnSubModuleLoad — early init
-    ///   2. OnBeforeInitialModuleScreenSetAsRoot — Harmony.PatchAll()
-    ///   3. OnGameStart — load campaign behaviors (если game is Campaign)
-    ///
-    /// Sprint 2.1 status:
-    ///   ✅ Skeleton (this file)
-    ///   ⏳ Backend HTTP client (Net/BackendClient.cs) — Sprint 2.2
-    ///   ⏳ Action poller (Net/ActionPoller.cs) — Sprint 2.3
-    ///   ⏳ CampaignEvents handlers — Sprint 2.4
     /// </summary>
     public class BannerlordLinkModule : MBSubModuleBase
     {
@@ -25,16 +17,61 @@ namespace BannerlordLink
         private const string MOD_VERSION = "0.1.0";
         private const string HARMONY_ID = "ru.shedoy23.bannerlordlink";
 
+        private static readonly string _logPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            "Mount and Blade II Bannerlord", "Configs", "ModLogs",
+            $"bannerlordlink_{DateTime.Now:yyyyMMdd}.txt"
+        );
+
         private Harmony _harmony;
+
+        // Sprint 2.2: shared между all subscribers моду. Public static чтобы
+        // CampaignBehavior'ы и action handlers могли его дёргать.
+        public static BackendConfig Config { get; private set; }
+        public static BackendClient Backend { get; private set; }
+
+        /// <summary>Простой file-based logger чтобы видеть load в TXT.</summary>
+        public static void Log(string msg)
+        {
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(_logPath));
+                File.AppendAllText(
+                    _logPath,
+                    $"[{DateTime.Now:HH:mm:ss.fff}] {msg}{Environment.NewLine}"
+                );
+            }
+            catch (Exception) { /* file logging fail — не критично */ }
+
+            try { Debug.Print($"[{MOD_NAME}] {msg}"); } catch (Exception) { }
+        }
 
         protected override void OnSubModuleLoad()
         {
             base.OnSubModuleLoad();
-            Debug.Print($"[{MOD_NAME}] v{MOD_VERSION} loading...");
+            Log($"v{MOD_VERSION} OnSubModuleLoad");
 
-            // TODO Sprint 2.2: load BackendConfig (token, URL) из config.json в
-            //   <game>/Modules/Shedoy23.BannerlordLink/config.json. Если нет —
-            //   log warning, continue без backend (mod not crash).
+            // Sprint 2.2: load config + init backend client + async ping.
+            // Если backend unreachable — log warning, мод продолжает работать
+            // без backend (offline-mode, future actions просто не дойдут).
+            try
+            {
+                Config = BackendConfig.LoadOrCreate(Log);
+                Backend = new BackendClient(Config, Log);
+
+                // Fire-and-forget ping (не блокирует load). Result в log.
+                Task.Run(async () =>
+                {
+                    bool ok = await Backend.PingAsync();
+                    Log(ok
+                        ? "Backend connectivity: OK ✓"
+                        : "Backend connectivity: FAILED (mod в offline-mode)");
+                });
+            }
+            catch (Exception ex)
+            {
+                Log($"Backend init FAILED: {ex.Message}");
+            }
         }
 
         protected override void OnBeforeInitialModuleScreenSetAsRoot()
@@ -47,11 +84,11 @@ namespace BannerlordLink
                 {
                     _harmony = new Harmony(HARMONY_ID);
                     _harmony.PatchAll();
-                    Debug.Print($"[{MOD_NAME}] Harmony patched (id={HARMONY_ID})");
+                    Log($"Harmony patched (id={HARMONY_ID})");
                 }
                 catch (Exception ex)
                 {
-                    Debug.Print($"[{MOD_NAME}] Harmony patch FAILED: {ex.Message}");
+                    Log($"Harmony patch FAILED: {ex.Message}");
                 }
             }
         }
@@ -59,20 +96,15 @@ namespace BannerlordLink
         protected override void OnSubModuleUnloaded()
         {
             base.OnSubModuleUnloaded();
-            try
-            {
-                _harmony?.UnpatchAll(HARMONY_ID);
-            }
-            catch (Exception) { }
-            Debug.Print($"[{MOD_NAME}] unloaded");
+            try { _harmony?.UnpatchAll(HARMONY_ID); } catch { }
+            try { Backend?.Dispose(); } catch { }
+            Log("unloaded");
         }
 
         protected override void OnGameStart(TaleWorlds.Core.Game game, TaleWorlds.Core.IGameStarter gameStarter)
         {
             base.OnGameStart(game, gameStarter);
-
-            // TODO Sprint 2.4: if (game.GameType is Campaign) → register
-            //   MainCampaignBehavior через CampaignGameStarter
+            Log($"OnGameStart game={game?.GameType?.GetType().Name ?? "null"}");
         }
     }
 }

@@ -387,19 +387,25 @@ async def bannerlord_buy_action(request: Request):
     if price < 0:
         return {"success": False, "message": "Цена не может быть отрицательной"}
 
-    # Sprint 4.8: server-side cooldown enforcement для power.activate.
+    # Sprint 4.8/5.0: server-side cooldown enforcement.
+    # Для power.activate ключ cooldown'а = data.power_key (per-power).
+    # Для player.spawn — сам action_type (один cooldown на summon вообще).
     # Frontend disable — UX only; реальная защита здесь.
+    cooldown_key = None
     if action_type == "power.activate":
+        cooldown_key = (data.get("power_key") or "").strip().lower() or None
+    elif action_type == "player.spawn":
+        cooldown_key = "player.spawn"
+
+    if cooldown_key:
         from modules.bannerlord._adapter import check_cooldown
-        power_key = (data.get("power_key") or "").strip().lower()
-        if power_key:
-            remaining = check_cooldown(channel_id, username, power_key)
-            if remaining > 0:
-                return {
-                    "success": False,
-                    "message": f"Способность на перезарядке ({int(remaining)}с)",
-                    "cooldown_remaining_s": round(remaining, 1),
-                }
+        remaining = check_cooldown(channel_id, username, cooldown_key)
+        if remaining > 0:
+            return {
+                "success": False,
+                "message": f"Способность на перезарядке ({int(remaining)}с)",
+                "cooldown_remaining_s": round(remaining, 1),
+            }
 
     db = get_db()
     async with db._connect() as conn:
@@ -500,13 +506,11 @@ async def bannerlord_buy_action(request: Request):
                 pass
             raise
 
-    # Sprint 4.8: запустить cooldown ПОСЛЕ commit (если упало — cooldown
+    # Sprint 4.8/5.0: запустить cooldown ПОСЛЕ commit (если упало — cooldown
     # не считается). Происходит вне TX — cooldown это in-memory state.
-    if action_type == "power.activate":
+    if cooldown_key:
         from modules.bannerlord._adapter import set_cooldown
-        power_key = (data.get("power_key") or "").strip().lower()
-        if power_key:
-            set_cooldown(channel_id, username, power_key)
+        set_cooldown(channel_id, username, cooldown_key)
 
     return {
         "success":   True,

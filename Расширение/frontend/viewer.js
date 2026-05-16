@@ -1267,6 +1267,36 @@ function renderBannerlordActivePowers() {
             _bannerlordBuyAction('power.activate', { price, power_key: powerKey });
         });
     });
+
+    // Sprint 5.0: summon button (player.spawn) — отдельно, не active power.
+    renderBannerlordSummonButton();
+}
+
+// Sprint 5.0 — кнопка "📯 Призвать в бой" (player.spawn).
+// Cooldown ключ на backend'е = "player.spawn" (1 cooldown на summon).
+function renderBannerlordSummonButton() {
+    const slot = document.getElementById('bnr-summon-slot');
+    if (!slot) return;
+    const SUMMON_PRICE = 500;
+    const cdRem = (_bannerlordCooldowns.find(c => c.power_key === 'player.spawn') || {}).remaining_s || 0;
+    const onCooldown = cdRem > 0;
+    const suffix = onCooldown
+        ? `<span style="color:#9ca3af;">${Math.ceil(cdRem)}с</span>`
+        : `<span style="color:#fbbf24;">${SUMMON_PRICE}💎</span>`;
+    slot.innerHTML = `
+        <button class="modal-btn" id="bnr-summon-btn"
+                ${onCooldown ? 'disabled' : ''}
+                title="Призвать твоего героя в текущий бой стримера"
+                style="width:100%;margin-top:6px;padding:7px;font-size:12px;
+                       ${onCooldown ? 'opacity:0.5;cursor:not-allowed;' : ''}">
+            📯 Призвать в бой ${suffix}
+        </button>`;
+    const btn = document.getElementById('bnr-summon-btn');
+    if (btn && !onCooldown) {
+        btn.addEventListener('click', () => {
+            _bannerlordBuyAction('player.spawn', { price: SUMMON_PRICE });
+        });
+    }
 }
 
 // Sprint 4.6 — buff HUD: chip-list с current remaining time.
@@ -1422,6 +1452,7 @@ async function loadBannerlordHero() {
                 <div id="bnr-buff-hud"></div>
                 <div id="hero-class-picker-slot"></div>
                 <div id="bnr-active-powers-slot"></div>
+                <div id="bnr-summon-slot"></div>
                 <details style="margin-bottom:6px;">
                     <summary style="font-size:11px;color:#adadb8;cursor:pointer;">Топ скиллы</summary>
                     <div style="margin-top:4px;">${topSkills}</div>

@@ -3,7 +3,7 @@
 **Назначение:** для чата по Bannerlord-модулю. Для общей extension
 работы — см. `CONTEXT.md`. Для RimWorld — `CONTEXT_RIMWORLD.md`.
 
-**Last updated:** 2026-05-16 (Sprint 4.9 closed — sound + cooldowns)
+**Last updated:** 2026-05-16 (Sprint 5.0 closed — summon hero в Mission)
 
 ## TL;DR
 
@@ -13,9 +13,9 @@ powers (HP×, skill boost, body scale), могут активировать acti
 (heal_burst). Adoption / class change / actions — через extension UI
 + action queue.
 
-## Текущий статус — Sprint 4.9 closed
+## Текущий статус — Sprint 5.0 closed
 
-### ✅ Закрыто (14 sprints)
+### ✅ Закрыто (15 sprints)
 
 **Backend infrastructure:**
 - M14 migration: `bannerlord_heroes` / `_skills` / `_attributes` /
@@ -44,6 +44,13 @@ powers (HP×, skill boost, body scale), могут активировать acti
   - `player.give_item` (gold)
   - `hero.add_skill` (XP boost)
   - `player.modify_attribute` (attribute points)
+  - `player.spawn` (5.0, MVP) — summon viewer hero в текущую Mission через
+    `Mission.Current.SpawnTroop(new PartyAgentOrigin(MainParty, character),
+    isPlayerSide:true, isReinforcement:true, ...)`. Гард: Mission alive +
+    `CurrentState==Continuing` + hero не уже spawned. spawnWithHorse — по
+    class_key (cavalry/horse_archer/knight = mounted). HeroLookup +
+    AgentVisuals.FadeIn для smooth entry. NOT scope MVP: Tournament/Siege/
+    Deployment modes (TODO 5.1), custom position/direction, formation join.
   - `power.activate` — 4 power_keys:
     - `heal_burst` (4.3) — +50 HP instant
     - `shield_break_burst` (4.5+4.6+4.9) — AoE: ChangeWeaponHitPoints(shield,0)
@@ -84,6 +91,9 @@ powers (HP×, skill boost, body scale), могут активировать acti
   shield_break_burst (200💎, только tank), rage (300💎), retribution_toggle
   (300💎). Hardcoded prices. Disabled пока buff активен ИЛИ cooldown идёт
   (показывается "Xс" вместо цены, decrement client-side между poll'ами).
+- **Summon button** (Sprint 5.0, viewer.js): «📯 Призвать в бой» (500💎,
+  cooldown 120с — `player.spawn` key в POWER_COOLDOWNS). Wide button под
+  active powers, disabled на cooldown.
 - **Buff HUD** (Sprint 4.6, viewer.js): chip-list над class picker'ом
   с current remaining time. Polling /api/bannerlord/my-buffs каждые 2.5с +
   client-side decrement 1с для smooth countdown.
@@ -93,11 +103,11 @@ powers (HP×, skill boost, body scale), могут активировать acti
 - **4.10** Active power balancing — собрать stream-feedback на rage 1.3-1.8×,
   retribution 20-50%, cooldowns 30/60/90с после live test. Скорее всего
   cooldown в админку (per-streamer rebalance) — 4.11.
-- **5.0** `player.spawn` — summon hero как агент в текущую Mission. BLT
-  SummonHero.cs (1142 строки) reference: подбор position, equipment apply,
-  formation join, team assignment, mount handling. Сложно — отдельный sprint.
-- **5.1** `player.equip_item` — real equipment apply (ItemRoster + Equipment
-  modification + сохранение в save).
+- **5.1** Расширить `player.spawn`: Tournament + Siege + Deployment modes
+  (resolve `MissionMode` enum через reflection или fully-qualified namespace
+  если найдётся правильная DLL). Реinforcement waves через
+  `MissionAgentSpawnLogic.IsSideDepleted` Harmony patch (BLT pattern).
+  Real `player.equip_item` (ItemRoster + Equipment modification + save sync).
 - **5.2** Class re-balance + compliance rebrand (наши class names + values
   vs BLT — должны полностью отличаться перед public release).
 - **4.6** TG/extension notifications — HeroKilled (player.died уже
@@ -140,6 +150,7 @@ X:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\
     │   │   ├── HealHeroHandler.cs / GiveGoldHandler.cs
     │   │   ├── AddSkillXpHandler.cs / ModifyAttributeHandler.cs
     │   │   ├── ActivatePowerHandler.cs (power.activate)
+    │   │   ├── SummonHeroHandler.cs (player.spawn — 5.0 MVP)
     │   │   ├── EchoHandler.cs (stub для unimplemented actions)
     │   │   └── HeroLookup.cs (find Hero by viewer login)
     │   ├── Behaviors\

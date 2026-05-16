@@ -55,11 +55,15 @@ _cooldowns: dict = {}
 # Cooldown seconds для каждого active power_key. Tuned for live stream
 # pacing — поправим в 4.10 после feedback. Хардкод чтобы не плодить миграции
 # на mvp scale; рефакторим в админку когда понадобится per-streamer балансинг.
+# Также используется как cooldown для action_types (summon).
 POWER_COOLDOWNS = {
     "heal_burst":          30,
     "shield_break_burst":  90,
     "rage":                60,
     "retribution_toggle":  90,
+    # Sprint 5.0: player.spawn = summon hero в Mission. Cooldown особо нужен —
+    # spawn в идущий бой это серьёзное вмешательство, нельзя спамить.
+    "player.spawn":        120,
 }
 
 

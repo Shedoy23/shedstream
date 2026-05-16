@@ -27,6 +27,14 @@ import json
 import traceback
 from pathlib import Path
 
+# Windows console (cp1251) не умеет emoji — переключаем stdout/stderr на UTF-8.
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except AttributeError:
+        pass
+
 # Setup imports — script запускается из backend/, добавляем его в path
 HERE = Path(__file__).parent.absolute()
 BACKEND = HERE.parent
@@ -39,6 +47,8 @@ os.environ.setdefault("TWITCH_CLIENT_SECRET", "test_secret")
 os.environ.setdefault("TWITCH_BOT_ID", "test_bot")
 os.environ.setdefault("TWITCH_EXTENSION_SECRET", "test-ext-secret-32bytes-1234567890ab")
 os.environ.setdefault("MODULE_TOKEN_SECRET", "test-module-secret-32bytes-1234567890")
+# Подавляем warning-emoji в dependencies.py при импорте (см. test_eventsub.py).
+os.environ.setdefault("ADMIN_PASSWORD", "test_admin_password_for_tests_only")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

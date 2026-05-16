@@ -190,10 +190,10 @@ function _promptBidAmount(optionId, option) {
             </div>
             <input id="voting-bid-amount" type="number" class="modal-input" placeholder="Сумма (мин. 50💎)" min="50">
             <div style="display:flex;gap:4px;margin-bottom:10px;">
-                <button class="quick-bet" data-quick="50">50💎</button>
-                <button class="quick-bet" data-quick="500">500💎</button>
-                <button class="quick-bet" data-quick="5000">5k💎</button>
-                <button class="quick-bet" data-quick="50000">50k💎</button>
+                <button class="quick-vote" data-quick="50">50💎</button>
+                <button class="quick-vote" data-quick="500">500💎</button>
+                <button class="quick-vote" data-quick="5000">5k💎</button>
+                <button class="quick-vote" data-quick="50000">50k💎</button>
             </div>
             <button class="modal-btn" id="voting-bid-confirm-btn">✅ Голосовать</button>
             <button class="modal-btn cancel" id="voting-bid-cancel-btn" style="margin-top:6px;">Отмена</button>

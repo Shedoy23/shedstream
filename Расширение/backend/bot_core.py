@@ -561,14 +561,18 @@ class BotCore:
         пригождается reward_points_loop'у который и так из list_channels()
         тащит и login и channel_id.
 
-        Кэш per-channel (TTL=120с): раньше было два скалярных поля и проверка
+        Кэш per-channel (TTL=300с): раньше было два скалярных поля и проверка
         одного канала пробивала кэш всему миру.
+
+        Phase A (2026-05-16): EventSub `stream.online`/`stream.offline` пишут
+        cache мгновенно. Polling остался как fallback на случай потерянного
+        EventSub event'а — TTL поднят с 120с до 300с (Helix calls -2.5×).
         """
         cid = resolve_channel_id(channel_id)
         now = datetime.now().timestamp()
 
         cached = self._stream_live_cache.get(cid)
-        if cached is not None and now - cached[1] < 120:
+        if cached is not None and now - cached[1] < 300:
             return cached[0]
 
         # Резолвим login: явно передан → используем; иначе db.get_channel; иначе fallback

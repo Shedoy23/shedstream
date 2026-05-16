@@ -3,7 +3,7 @@
 **Назначение:** для чата по **общей** части расширения. Если работа над
 конкретным модулем — см. `CONTEXT_RIMWORLD.md` или `CONTEXT_BANNERLORD.md`.
 
-**Last updated:** 2026-05-16
+**Last updated:** 2026-05-16 (Phase A: EventSub realtime landed)
 
 ## TL;DR
 
@@ -27,7 +27,20 @@ streamer'а сейчас (`twitch.tv/shedoy23`) — продакшн на Timewe
 - **Phase 8 polish** — lexicon, hatch animation, mobile parity, donate
   removal, TG notify, admin auth fix, preview-mode
 - **Dev login flow** (`/dev`) — Twitch OAuth + persistent test access
-- **1088/1088 isolation tests** passing
+- **Phase A: EventSub realtime (2026-05-16, commit `506f9d7`)** — `backend/eventsub.py`
+  generic dispatcher с HMAC verify, 10-мин replay window, dedupe table (M17),
+  multi-tenant channel gate, handler-exception caught (нет 5xx → нет Twitch
+  retry-loop). Регистрируются 3 подписки на канал: channel_points (existing)
+  + stream.online + stream.offline. TG-нотификация теперь приходит за 1-3 сек
+  (vs 0-120s polling). `_is_stream_live` polling TTL: 120s→300s (fallback).
+  **EVENTSUB_SECRET ротирован** на 32-byte url-safe.
+- **Compliance mini-audit (2026-05-16, commit `cda5105`)** — research подтвердил
+  что CP→in-extension currency Twitch разрешает с условиями. Применено:
+  disclosure footer на extension/mobile («алмазы не имеют денежной ценности»),
+  CSS class `quick-bet`→`quick-vote`, winner modal «Выигрыш»→«Награда»,
+  CP reward titles в config.py «N очков → алмазы»→«Награда: N алмазов»
+  (синхронизировано с Twitch Creator Dashboard).
+- **1088/1088 isolation tests + 34/34 EventSub security tests** passing
 - **Production deployed** — supervisor RUNNING, БД чистая, logrotate
 
 ### 🔴 Блокер для Twitch submission
@@ -46,10 +59,12 @@ streamer'а сейчас (`twitch.tv/shedoy23`) — продакшн на Timewe
 - **Frontend:** Vanilla JS (`extension.html`, `mobile.html`,
   `overlay.html`, `config.html`)
 - **Game mod:** RimWorld C# (Harmony patches), Bannerlord C# (net472)
-- **БД:** SQLite + WAL, 16 migrations (M1-M16)
+- **БД:** SQLite + WAL, 17 migrations (M1-M17)
 - **Auth:** Twitch Extension JWT (HS256, `TWITCH_EXTENSION_SECRET`)
 - **Hosting:** supervisor → uvicorn :8000, nginx reverse proxy
 - **TG notifier:** stream-online → Telegram channel (см. `TELEGRAM_SETUP.md`)
+- **Realtime:** EventSub webhook → backend/eventsub.py (stream.online/offline,
+  channel_points). Подробнее в Phase A entry выше.
 
 ## Server / deploy
 
@@ -82,8 +97,9 @@ tar -cz backend/X frontend/Y | ssh root@31.130.132.224 \
 | `Расширение/backend/main.py` | FastAPI app + startup + migrations |
 | `Расширение/backend/bot_core.py` | IRC bot + reward loops + matchmaking |
 | `Расширение/backend/database.py` | Всё SQL + helpers |
+| `Расширение/backend/eventsub.py` | EventSub generic dispatcher (Phase A) |
 | `Расширение/backend/routes/` | Routes по features (pets/cases/guilds/voting/...) |
-| `Расширение/backend/migrations/m1-m16_*.py` | Schema migrations |
+| `Расширение/backend/migrations/m1-m17_*.py` | Schema migrations |
 | `Расширение/backend/routes/dev_login.py` | /dev OAuth flow |
 | `Расширение/backend/notifications.py` | TG sendMessage helper |
 | `Расширение/backend/modules/{rimworld,bannerlord}/` | Module adapters + manifests |

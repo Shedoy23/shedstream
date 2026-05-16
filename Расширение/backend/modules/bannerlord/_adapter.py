@@ -246,6 +246,10 @@ class BannerlordAdapter(ModuleAdapter):
             await self._on_buff_expired(channel_id, env)
             return
 
+        if et == "hero.gear_tier_changed":
+            await self._on_gear_tier_changed(channel_id, env)
+            return
+
         if et == "world.event_occurred":
             await self._on_world_event(channel_id, env)
             return
@@ -497,6 +501,28 @@ class BannerlordAdapter(ModuleAdapter):
             if not perViewer:
                 _active_buffs.pop(key, None)
         await self._log_event(channel_id, "buff.expired", username, data)
+
+    async def _on_gear_tier_changed(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Mod применил gear upgrade — backend сохраняет new tier в DB cache.
+
+        Mod source-of-truth: tier обновляется ТОЛЬКО после successful in-game
+        upgrade (Hero.Gold deducted, equipment replaced). Backend не управляет
+        tier'ом сам; этот event = ack от mod'а.
+        """
+        data = env.data
+        username = (data.get("username") or "").lower()
+        new_tier = int(data.get("gear_tier") or 0)
+        if not username or new_tier < 1 or new_tier > 6:
+            return
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            await conn.execute(
+                "UPDATE bannerlord_heroes SET gear_tier=?, last_sync=CURRENT_TIMESTAMP "
+                "WHERE channel_id=? AND username=?",
+                (new_tier, channel_id, username))
+            await conn.commit()
+        await self._log_event(channel_id, "hero.gear_tier_changed", username, data)
+        print(f"[bannerlord:{channel_id}] @{username} gear_tier → T{new_tier}")
 
     # ── World events ──────────────────────────────────────────────────────────
 

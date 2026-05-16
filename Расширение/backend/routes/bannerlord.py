@@ -240,15 +240,33 @@ _PURCHASABLE_ACTIONS = (
     "hero.recruit_troops",
 )
 
-# Sprint M20: gear upgrade costs (крустиков) per target tier 1..6.
-# Прогрессивно — T6 требует серьёзного гринда.
-TIER_COSTS = {
+# Sprint M20: gear upgrade costs в Hero.Gold (in-game динары, не крустики).
+# Mod-side source-of-truth — mod проверяет Hero.Gold ≥ cost и списывает.
+# Backend нужны только для UI display (показать "T2 — 100K динаров").
+# Должны совпадать с HERO_GOLD_TIER_COSTS в C# UpgradeGearHandler.
+HERO_GOLD_TIER_COSTS = {
     1:    50_000,
     2:   100_000,
     3:   200_000,
     4:   400_000,
     5:   800_000,
     6: 1_500_000,
+}
+
+# Sprint M21: give_gold presets — 1000⦷ → 5000 динаров (1:5).
+# Маппинг {крустики: динары} — server-side override клиентского amount.
+GIVE_GOLD_PRESETS = {
+    1_000:   5_000,
+    5_000:  25_000,
+    20_000: 100_000,
+}
+
+# Sprint M21: add_skill_xp presets — 1000⦷ → 100 XP.
+# Маппинг {крустики: xp} в random skill.
+ADD_SKILL_XP_PRESETS = {
+      500:    50,
+    1_000:   100,
+    5_000:   500,
 }
 
 # Actions которые НЕ требуют existing alive hero (adopt + respawn).
@@ -448,14 +466,14 @@ async def bannerlord_buy_action(request: Request):
         data["side"] = side
         data["price"] = SPAWN_PRICES[side]
 
-    # Sprint M20: hero.upgrade_gear — server-side resolve target_tier + price.
-    # Frontend кнопка не передаёт target_tier (защита от viewer-side абуза),
-    # backend читает current gear_tier из БД и инкрементирует на +1.
-    gear_upgrade_target_tier = None
+    # Sprint M20+M21: hero.upgrade_gear — БЕСПЛАТНО в крустиках, mod
+    # списывает Hero.Gold (in-game динары) — см. UpgradeGearHandler.cs.
+    # Backend только validates eligibility и enqueue'ит action.
+    # Backend НЕ обновляет gear_tier сам — mod пушит hero.gear_tier_changed
+    # после successful in-game upgrade.
     if action_type == "hero.upgrade_gear":
         db_tmp = get_db()
         async with db_tmp._connect() as conn:
-            # Need class_key + current gear_tier
             cur = await conn.execute(
                 "SELECT h.gear_tier, c.class_key "
                 "FROM bannerlord_heroes h "
@@ -481,8 +499,42 @@ async def bannerlord_buy_action(request: Request):
         target_tier = current_tier + 1
         data["class_key"] = class_key
         data["target_tier"] = target_tier
-        data["price"] = TIER_COSTS[target_tier]
-        gear_upgrade_target_tier = target_tier
+        data["hero_gold_cost"] = HERO_GOLD_TIER_COSTS[target_tier]
+        data["price"] = 0   # крустики: бесплатно
+
+    # Sprint M21: player.give_item (gold) — server-side amount по крустики preset.
+    if action_type == "player.give_item":
+        item_type = (data.get("item_type") or "gold").strip().lower()
+        if item_type == "gold":
+            try:
+                crusticov = int(data.get("price") or 0)
+            except (TypeError, ValueError):
+                return {"success": False, "message": "Неверная цена"}
+            if crusticov not in GIVE_GOLD_PRESETS:
+                return {
+                    "success": False,
+                    "message": f"Неизвестный пресет {crusticov}⦷ "
+                               f"(допустимы: {sorted(GIVE_GOLD_PRESETS.keys())})",
+                }
+            data["item_type"] = "gold"
+            data["amount"] = GIVE_GOLD_PRESETS[crusticov]
+            # price остаётся = crusticov (передан клиентом, validated в preset map)
+
+    # Sprint M21: hero.add_skill — server-side xp по крустики preset.
+    # skill_key опциональный — если пуст, mod random pick.
+    if action_type == "hero.add_skill":
+        try:
+            crusticov = int(data.get("price") or 0)
+        except (TypeError, ValueError):
+            return {"success": False, "message": "Неверная цена"}
+        if crusticov not in ADD_SKILL_XP_PRESETS:
+            return {
+                "success": False,
+                "message": f"Неизвестный пресет {crusticov}⦷ "
+                           f"(допустимы: {sorted(ADD_SKILL_XP_PRESETS.keys())})",
+            }
+        data["xp"] = ADD_SKILL_XP_PRESETS[crusticov]
+        # skill_key может быть пустым = random skill в mod
 
     try:
         price = int(data.get("price", 0))
@@ -602,15 +654,11 @@ async def bannerlord_buy_action(request: Request):
                         chosen_at   = CURRENT_TIMESTAMP
                 """, (channel_id, username, class_key_lower))
 
-            # Sprint M20: hero.upgrade_gear — atomic increment gear_tier
-            # (внутри той же TX что charge). Если backend упал между charge
-            # и enqueue, rollback вернёт всё. Mod при следующем pull получит
-            # action и применит equipment.
-            if action_type == "hero.upgrade_gear" and gear_upgrade_target_tier:
-                await conn.execute(
-                    "UPDATE bannerlord_heroes SET gear_tier=?, last_sync=CURRENT_TIMESTAMP "
-                    "WHERE channel_id=? AND username=?",
-                    (gear_upgrade_target_tier, channel_id, username))
+            # Sprint M21: hero.upgrade_gear — backend НЕ обновляет gear_tier.
+            # Mod source-of-truth: списывает Hero.Gold и пушит
+            # hero.gear_tier_changed event только при successful upgrade.
+            # Это страхует race condition если mod не может списать (insufficient
+            # in-game gold) — backend остаётся синхронизирован с реальным state.
 
             await conn.commit()
         except Exception:

@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using BannerlordLink.Util;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.Core;
 using TaleWorlds.MountAndBlade;
 using TaleWorlds.ObjectSystem;
@@ -112,6 +114,20 @@ namespace BannerlordLink.Actions
             return Task.FromResult<(bool, string)>((true, null));
         }
 
+        // Tier costs in Hero.Gold (in-game динары). Source of truth — mod-side
+        // экономика. Backend получает hero.gear_tier_changed event после
+        // successful upgrade и обновляет DB cache.
+        private static readonly Dictionary<int, int> HERO_GOLD_TIER_COSTS =
+            new Dictionary<int, int>
+        {
+            [1] =    50_000,
+            [2] =   100_000,
+            [3] =   200_000,
+            [4] =   400_000,
+            [5] =   800_000,
+            [6] = 1_500_000,
+        };
+
         private static void ApplyUpgrade(string username, string classKey, int targetTier)
         {
             try
@@ -127,6 +143,17 @@ namespace BannerlordLink.Actions
                 if (hero == null || !hero.IsAlive)
                 {
                     BannerlordLinkModule.Log($"[upgrade_gear] @{username}: hero не найден или мёртв");
+                    return;
+                }
+
+                // Hero.Gold check — source of truth для tier upgrade economy.
+                // Если недостаточно динаров — refuse, gear_tier на backend не
+                // изменится (mod не пушит hero.gear_tier_changed).
+                int cost = HERO_GOLD_TIER_COSTS.TryGetValue(targetTier, out var c) ? c : 0;
+                if (hero.Gold < cost)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[upgrade_gear] @{username}: not enough gold ({hero.Gold} < {cost} для T{targetTier})");
                     return;
                 }
 
@@ -180,13 +207,28 @@ namespace BannerlordLink.Actions
                     }
                 }
 
+                // Списать Hero.Gold ПОСЛЕ apply equipment (atomic в-game).
+                // GiveGoldAction.ApplyBetweenCharacters(giver, receiver, amount):
+                // если первый аргумент null — взять gold из nowhere, отрицательный
+                // amount = deduct из hero.
+                int goldBefore = hero.Gold;
+                GiveGoldAction.ApplyBetweenCharacters(hero, null, cost, true);
                 BannerlordLinkModule.Log(
                     $"[upgrade_gear] @{username} → T{targetTier} ({classKey}): " +
-                    $"{slotsFilled} slots filled, {slotsSkipped} not found");
+                    $"{slotsFilled} slots filled, {slotsSkipped} not found, " +
+                    $"gold {goldBefore} → {hero.Gold} (-{cost})");
 
-                // 4. Sync обновлённое snar back на backend (push equip change events
-                //    per item — backend bannerlord_equipment refresh'нётся при следующем
-                //    state pull). Также push full state — UI refresh.
+                // Push hero.gear_tier_changed event — backend update'ит row.
+                string evtData = JsonConvert.SerializeObject(new
+                {
+                    username = username,
+                    gear_tier = targetTier,
+                    cost_gold = cost,
+                });
+                Task.Run(async () => await BannerlordLinkModule.Backend
+                    .PostEventAsync("bannerlord", "hero.gear_tier_changed", evtData));
+
+                // Full state sync — gold/level/etc. UI refresh.
                 HeroStateSync.Push(hero);
             }
             catch (Exception ex)

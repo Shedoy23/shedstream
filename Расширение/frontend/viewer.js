@@ -1084,9 +1084,9 @@ let _bannerlordBuffs = [];          // 4.6 — last-known buffs cache; entries {
 let _bannerlordCooldowns = [];      // 4.8 — last-known cooldowns; entries { power_key, remaining_s }
 let _bannerlordCurrentGearTier = 0; // M20 — last seen gear_tier (cached for shop render)
 
-// Sprint M20 — gear upgrade prices (mirror TIER_COSTS на backend) для UI label.
-// Server-side enforced — frontend price = display only.
-const GEAR_TIER_COSTS = {
+// Sprint M21 — gear upgrade costs в Hero.Gold (in-game динары, не крустики).
+// Mirror HERO_GOLD_TIER_COSTS на backend и в UpgradeGearHandler.cs.
+const HERO_GOLD_TIER_COSTS = {
     1:    50_000,
     2:   100_000,
     3:   200_000,
@@ -1094,6 +1094,11 @@ const GEAR_TIER_COSTS = {
     5:   800_000,
     6: 1_500_000,
 };
+const _formatBigGold = n => n >= 1_000_000
+    ? `${(n / 1_000_000).toFixed(2).replace(/\.?0+$/, '')}М💰`
+    : n >= 1_000
+        ? `${Math.round(n / 1_000)}К💰`
+        : `${n}💰`;
 const _formatBigPrice = n => n >= 1_000_000
     ? `${(n / 1_000_000).toFixed(2).replace(/\.?0+$/, '')}М⦷`
     : n >= 1_000
@@ -1376,8 +1381,9 @@ function renderBannerlordRandomEquipHtml() {
         </div>`;
 }
 
-// Sprint M20 — gear upgrade button (hero.upgrade_gear).
-// Tier-based progression: 0→1→…→6. Server-side resolve target_tier и price.
+// Sprint M21 — gear upgrade button (hero.upgrade_gear).
+// БЕСПЛАТНО в крустиках; mod-side списывает Hero.Gold (in-game динары).
+// Tier-based progression: 0→1→…→6.
 function renderBannerlordGearUpgradeHtml() {
     const currentTier = _bannerlordCurrentGearTier || 0;
     const hasClass = !!_bannerlordClassesCache?.current?.class_key;
@@ -1395,16 +1401,16 @@ function renderBannerlordGearUpgradeHtml() {
     }
 
     const targetTier = currentTier + 1;
-    const price = GEAR_TIER_COSTS[targetTier] || 0;
+    const heroGoldCost = HERO_GOLD_TIER_COSTS[targetTier] || 0;
     const noClass = !hasClass;
     const title = noClass
         ? 'Сначала выбери класс — он определяет slot template'
-        : `Прокачать снаряжение: T${currentTier} → T${targetTier}. Замена всех слотов на random items нужного tier.`;
+        : `Прокачать снаряжение: T${currentTier} → T${targetTier}. Списываются ${heroGoldCost.toLocaleString('ru-RU')} динаров у героя в игре (НЕ крустики).`;
 
     return `
         <div style="padding:6px 10px;border-top:1px solid #3d3d3f;margin-top:4px;">
             <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">
-                🛡 Снаряжение (текущий: ${currentTier === 0 ? 'базовое' : 'T' + currentTier})
+                🛡 Снаряжение (текущий: ${currentTier === 0 ? 'базовое' : 'T' + currentTier}) — оплата in-game динарами героя
             </div>
             <button class="extra-btn" id="bnr-upgrade-gear-btn"
                     ${noClass ? 'disabled' : ''}
@@ -1412,7 +1418,7 @@ function renderBannerlordGearUpgradeHtml() {
                     style="width:100%;font-size:12px;padding:6px;
                            ${noClass ? 'opacity:0.5;cursor:not-allowed;' : ''}">
                 ⚒ Улучшить до T${targetTier}
-                <span style="color:#fbbf24;">${_formatBigPrice(price)}</span>
+                <span style="color:#fbbf24;">${_formatBigGold(heroGoldCost)}</span>
             </button>
         </div>`;
 }
@@ -1421,8 +1427,70 @@ function _bindBannerlordGearUpgrade() {
     const btn = document.getElementById('bnr-upgrade-gear-btn');
     if (!btn || btn.disabled) return;
     btn.addEventListener('click', () => {
-        // Server resolves target_tier и price; frontend только триггер.
+        // Server resolves target_tier; крустики price=0 (mod деducts Hero.Gold).
         _bannerlordBuyAction('hero.upgrade_gear', {});
+    });
+}
+
+// Sprint M21 — конверт крустики → in-game динары (1:5) и крустики → skill XP.
+// Цены server-side enforced (GIVE_GOLD_PRESETS / ADD_SKILL_XP_PRESETS).
+const GIVE_GOLD_OPTIONS = [
+    { crusticov: 1_000,  dinars:   5_000 },
+    { crusticov: 5_000,  dinars:  25_000 },
+    { crusticov: 20_000, dinars: 100_000 },
+];
+const ADD_SKILL_OPTIONS = [
+    { crusticov:   500, xp:  50 },
+    { crusticov: 1_000, xp: 100 },
+    { crusticov: 5_000, xp: 500 },
+];
+
+function renderBannerlordCurrencyHtml() {
+    const goldRows = GIVE_GOLD_OPTIONS.map(o => `
+        <button class="extra-btn" data-bnr-givegold="${o.crusticov}"
+                title="Дать +${o.dinars.toLocaleString('ru-RU')} динаров герою в игре"
+                style="font-size:11px;padding:5px;">
+            💰 +${_formatBigGold(o.dinars)}
+            <span style="color:#fbbf24;">${_formatBigPrice(o.crusticov)}</span>
+        </button>`).join('');
+
+    const xpRows = ADD_SKILL_OPTIONS.map(o => `
+        <button class="extra-btn" data-bnr-skillxp="${o.crusticov}"
+                title="+${o.xp} XP в случайный skill"
+                style="font-size:11px;padding:5px;">
+            📚 +${o.xp} XP (рандом)
+            <span style="color:#fbbf24;">${_formatBigPrice(o.crusticov)}</span>
+        </button>`).join('');
+
+    return `
+        <div style="padding:6px 10px;border-top:1px solid #3d3d3f;margin-top:4px;">
+            <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">
+                💰 Динары (1000⦷ → 5000 динаров)
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px;">${goldRows}</div>
+        </div>
+        <div style="padding:6px 10px;border-top:1px solid #3d3d3f;margin-top:4px;">
+            <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">
+                📚 Опыт в скилл (random)
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px;">${xpRows}</div>
+        </div>`;
+}
+
+function _bindBannerlordCurrency() {
+    document.querySelectorAll('[data-bnr-givegold]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const crusticov = parseInt(btn.dataset.bnrGivegold, 10) || 0;
+            // Backend resolves amount; price = crusticov для charge.
+            _bannerlordBuyAction('player.give_item', { price: crusticov, item_type: 'gold' });
+        });
+    });
+    document.querySelectorAll('[data-bnr-skillxp]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const crusticov = parseInt(btn.dataset.bnrSkillxp, 10) || 0;
+            // skill_key пуст → mod выбирает random.
+            _bannerlordBuyAction('hero.add_skill', { price: crusticov });
+        });
     });
 }
 
@@ -1636,30 +1704,34 @@ async function loadBannerlordShop() {
     const list = document.getElementById('bannerlord-shop-list');
     const cnt  = document.getElementById('bannerlord-shop-count');
     if (!list) return;
-    // Sprint M19+M20: random-equip + gear-upgrade всегда сверху.
+    // Sprint M19+M20+M21: random-equip + gear-upgrade + currency (gold/XP) сверху.
     const randomEquipBlock = renderBannerlordRandomEquipHtml();
     const gearUpgradeBlock = renderBannerlordGearUpgradeHtml();
+    const currencyBlock = renderBannerlordCurrencyHtml();
     try {
         const r = await fetch(`${API_URL}/api/bannerlord/shop`, {
             headers: { 'X-Twitch-JWT': authToken || '' },
         });
         const data = await r.json();
         if (!data.success) {
-            list.innerHTML = randomEquipBlock + gearUpgradeBlock +
+            list.innerHTML = randomEquipBlock + gearUpgradeBlock + currencyBlock +
                 `<div class="loading">${escapeHtml(data.message || 'Ошибка')}</div>`;
             _bindBannerlordRandomEquip();
             _bindBannerlordGearUpgrade();
+            _bindBannerlordCurrency();
             return;
         }
         const items = data.items || [];
-        if (cnt) cnt.textContent = items.length + 4;  // +3 random-equip + 1 gear-upgrade
+        // +3 random-equip + 1 gear-upgrade + 3 give_gold + 3 add_skill = +10
+        if (cnt) cnt.textContent = items.length + 10;
         if (items.length === 0) {
-            list.innerHTML = randomEquipBlock + gearUpgradeBlock + `
+            list.innerHTML = randomEquipBlock + gearUpgradeBlock + currencyBlock + `
                 <div style="text-align:center;padding:14px;font-size:11px;color:#adadb8;border-top:1px solid #3d3d3f;margin-top:6px;">
                     Каталог пуст. Мод пришлёт shop-данные когда стример запустит игру.
                 </div>`;
             _bindBannerlordRandomEquip();
             _bindBannerlordGearUpgrade();
+            _bindBannerlordCurrency();
             return;
         }
         // Каждый item — {catalog_type, entry_id, name?, price?, action_type?, ...}
@@ -1684,9 +1756,10 @@ async function loadBannerlordShop() {
                     </button>
                 </div>`;
         }).join('');
-        list.innerHTML = randomEquipBlock + gearUpgradeBlock + catalogHtml;
+        list.innerHTML = randomEquipBlock + gearUpgradeBlock + currencyBlock + catalogHtml;
         _bindBannerlordRandomEquip();
         _bindBannerlordGearUpgrade();
+        _bindBannerlordCurrency();
         // Bind buy handlers для catalog items
         list.querySelectorAll('[data-bnr-buy]').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -1696,10 +1769,11 @@ async function loadBannerlordShop() {
             });
         });
     } catch (e) {
-        list.innerHTML = randomEquipBlock + gearUpgradeBlock +
+        list.innerHTML = randomEquipBlock + gearUpgradeBlock + currencyBlock +
             `<div class="loading" style="color:#f87171;">Ошибка сети</div>`;
         _bindBannerlordRandomEquip();
         _bindBannerlordGearUpgrade();
+        _bindBannerlordCurrency();
     }
 }
 

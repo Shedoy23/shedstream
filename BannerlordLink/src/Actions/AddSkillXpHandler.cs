@@ -28,10 +28,10 @@ namespace BannerlordLink.Actions
 
             if (string.IsNullOrEmpty(username))
                 return Task.FromResult<(bool, string)>((false, "no target username"));
-            if (string.IsNullOrEmpty(skillKey))
-                return Task.FromResult<(bool, string)>((false, "skill_key required"));
             if (xp <= 0)
                 return Task.FromResult<(bool, string)>((false, "xp must be > 0"));
+            // Если skill_key пуст — mod выберет random skill (server-side option
+            // для simple UI с одной кнопкой "+XP в случайный skill").
 
             MainThreadDispatcher.Enqueue(() =>
             {
@@ -44,28 +44,48 @@ namespace BannerlordLink.Actions
                         return;
                     }
 
-                    // Skill lookup: DefaultSkills.<Name> — это static PROPERTIES
-                    // (не fields) в Bannerlord 1.3.x. Reflection через GetProperties.
-                    // Fields-fallback на случай modded skills.
+                    // Skill resolution:
+                    //   skillKey пуст → random pick из all DefaultSkills properties
+                    //   skillKey задан → lookup по name (case-insensitive)
                     SkillObject skill = null;
                     var t = typeof(DefaultSkills);
-                    foreach (var p in t.GetProperties(BindingFlags.Public | BindingFlags.Static))
+                    var allSkillProps = t.GetProperties(BindingFlags.Public | BindingFlags.Static)
+                        .Where(p => p.PropertyType == typeof(SkillObject))
+                        .ToList();
+
+                    if (string.IsNullOrEmpty(skillKey))
                     {
-                        if (p.PropertyType != typeof(SkillObject)) continue;
-                        if (!string.Equals(p.Name, skillKey, StringComparison.OrdinalIgnoreCase))
-                            continue;
-                        skill = p.GetValue(null) as SkillObject;
-                        break;
-                    }
-                    if (skill == null)
-                    {
-                        foreach (var f in t.GetFields(BindingFlags.Public | BindingFlags.Static))
+                        // Random skill — простой подход для "1000⦷ → +100 XP в случайный skill"
+                        var rng = new Random();
+                        var allSkills = allSkillProps
+                            .Select(p => p.GetValue(null) as SkillObject)
+                            .Where(s => s != null)
+                            .ToList();
+                        if (allSkills.Count > 0)
                         {
-                            if (f.FieldType != typeof(SkillObject)) continue;
-                            if (!string.Equals(f.Name, skillKey, StringComparison.OrdinalIgnoreCase))
+                            skill = allSkills[rng.Next(allSkills.Count)];
+                            skillKey = skill.StringId;  // для log
+                        }
+                    }
+                    else
+                    {
+                        foreach (var p in allSkillProps)
+                        {
+                            if (!string.Equals(p.Name, skillKey, StringComparison.OrdinalIgnoreCase))
                                 continue;
-                            skill = f.GetValue(null) as SkillObject;
+                            skill = p.GetValue(null) as SkillObject;
                             break;
+                        }
+                        if (skill == null)
+                        {
+                            foreach (var f in t.GetFields(BindingFlags.Public | BindingFlags.Static))
+                            {
+                                if (f.FieldType != typeof(SkillObject)) continue;
+                                if (!string.Equals(f.Name, skillKey, StringComparison.OrdinalIgnoreCase))
+                                    continue;
+                                skill = f.GetValue(null) as SkillObject;
+                                break;
+                            }
                         }
                     }
                     if (skill == null)

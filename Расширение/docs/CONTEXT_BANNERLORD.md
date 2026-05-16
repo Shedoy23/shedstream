@@ -3,141 +3,167 @@
 **Назначение:** для чата по Bannerlord-модулю. Для общей extension
 работы — см. `CONTEXT.md`. Для RimWorld — `CONTEXT_RIMWORLD.md`.
 
-**Last updated:** 2026-05-16 (Sprint 5.1c closed — random equip коробочки)
+**Last updated:** 2026-05-16 (dual-currency economy live)
+
+---
 
 ## TL;DR
 
-Второй gaming-модуль платформы. Зрители adopt'ят NPC героя, выбирают
-**класс** (Tank/Archer/Cavalry/...) с подходящим snar'ем и passive
-powers (HP×, skill boost, body scale), могут активировать active power
-(heal_burst). Adoption / class change / actions — через extension UI
-+ action queue.
+Второй gaming-модуль платформы. Зрители adopt'ят NPC героя в Bannerlord
+(имя hero = ник зрителя), выбирают **класс** (Tank/Archer/Cavalry/...
+13 классов) с подходящим snar'ем и passive/active powers, тратят валюту
+из стрима на:
 
-## Текущий статус — Sprint 5.1c closed
+- **Боевое:** призыв в бой (за или против стримера), 4 active powers
+  (heal_burst / shield_break / rage / retribution_toggle)
+- **Экономику:** конвертация крустиков в Hero.Gold или skill XP
+- **Прогрессию:** улучшение снаряжения по 6 tier'ам (платится Hero.Gold,
+  не крустиками — это создаёт economy loop)
+- **Случайности:** random equip (оружие / броня / конь)
 
-### ✅ Закрыто (17 sprints)
+**Архитектура:** C# Bannerlord-submodule (`BannerlordLink/`,
+prod-mirror в `Modules/Shedoy23.BannerlordLink/`) ↔ FastAPI backend
+(`Расширение/backend/`) через Module API generic dispatcher
+(`routes/module_api.py`) + Bannerlord-specific endpoints
+(`routes/bannerlord.py`).
 
-**Backend infrastructure:**
-- M14 migration: `bannerlord_heroes` / `_skills` / `_attributes` /
-  `_equipment` / `_events_log` (TENANT-scoped)
-- M15 migration: `bannerlord_classes` (13 seeded) + `bannerlord_hero_class`
-- M16 migration: `bannerlord_class_powers` (33 power rows)
-- **M17 migration** (Sprint 4.5): armor_bypass_pct→ignore_armor_pct fixup
-  + 4 active powers seeded (tank/shield_break_burst, psycho/berserk/rage,
-  knight/retribution_toggle)
-- routes/bannerlord.py: 8 endpoints (my-hero, shop, action (4.8 cooldown enforcement),
-  ping, status, class-state, classes (+ current_powers Sprint 4.7),
-  my-buffs (4.6, +cooldowns Sprint 4.8))
-- modules/bannerlord/_adapter.py: 14 event types обработаны (+ buff.activated /
-  buff.expired Sprint 4.6, кэш in-memory `_active_buffs` per (channel_id, username)).
-  Sprint 4.8: `_cooldowns` dict + POWER_COOLDOWNS map (heal 30s / shield_break 90s /
-  rage 60s / retribution 90s) + check_cooldown / set_cooldown helpers.
-- Test 19 — 15 isolation assertions
+---
 
-**C# mod** (`BannerlordLink/`, `Modules/Shedoy23.BannerlordLink/` на проде):
-- SDK-style csproj, `.NET Framework 4.8` net472, x64
+## Экономика — две валюты (важно!)
+
+| Валюта | Где живёт | Что покупает |
+|---|---|---|
+| **Крустики ⦷** | Backend `viewers.points` | Быстрые boost'ы — powers, summon, random-equip, конверсия в Hero.Gold / XP |
+| **Hero.Gold 💰** | In-game (Bannerlord save) | Gear tier upgrades (T1→T6) — единственный sink |
+
+**Loop:** viewer накапливает крустики на стриме → конвертирует часть
+в Hero.Gold (1000⦷ = 5000💰, 1:5) → копит много 💰 → улучшает снаряжение
+в extension'е (mod-side списывает Hero.Gold, replace'ит slots на
+random items нужного tier'а).
+
+**Source of truth:**
+- Крустики: backend `viewers.points`, atomic charge внутри `/action` TX
+- Hero.Gold: мод (`hero.Gold` через `GiveGoldAction.ApplyBetweenCharacters`)
+- gear_tier: мод пушит `hero.gear_tier_changed` event после successful
+  in-game upgrade → backend обновляет DB cache. Если мод не смог
+  списать (insufficient gold) — event не отправлен, backend остаётся
+  синхронизирован.
+
+---
+
+## Текущий статус — 19 sprints закрыто
+
+### Backend infrastructure
+- **Migrations:**
+  - M14 — `bannerlord_heroes` / `_skills` / `_attributes` /
+    `_equipment` / `_events_log` (TENANT-scoped, M14_bannerlord.py)
+  - M15 — `bannerlord_classes` (13 seeded) + `bannerlord_hero_class`
+  - M16 — `bannerlord_class_powers` (33 power rows)
+  - M17 (parallel) — eventsub_dedupe (не наш, из main)
+  - M18 — `armor_bypass_pct → ignore_armor_pct` fixup + 4 active power seeds
+    (tank/shield_break_burst, psycho+berserk/rage, knight/retribution_toggle)
+  - M19 — bannerlord_heroes meta: `level INT DEFAULT 1`, `clan_name TEXT`,
+    `kingdom_name TEXT`
+  - M20 — bannerlord_heroes: `gear_tier INT DEFAULT 0`
+
+- **routes/bannerlord.py:** 9 endpoints (см. ниже)
+- **modules/bannerlord/_adapter.py:** 15 event types обработаны.
+  In-memory state: `_last_seen`, `_active_buffs`, `_cooldowns`.
+  Helpers: `get_active_buffs`, `get_active_cooldowns`, `check_cooldown`,
+  `set_cooldown`.
+- **POWER_COOLDOWNS** в `_adapter.py`: heal=30s / shield_break=90s /
+  rage=60s / retribution=90s / player.spawn=120s. Server-side enforced
+  в `/action` (key=power_key для power.activate, key=action_type для
+  player.spawn).
+- **Server-side price maps** в `routes/bannerlord.py`:
+  - `RANDOM_EQUIP_PRICES`: weapon=1M⦷ / armor=500K⦷ / horse=1.25M⦷
+  - `SPAWN_PRICES`: player=500⦷ / enemy=1000⦷
+  - `HERO_GOLD_TIER_COSTS` (display + mod mirror): T1=50K / T2=100K /
+    T3=200K / T4=400K / T5=800K / T6=1.5M динаров
+  - `GIVE_GOLD_PRESETS`: 1K⦷→5K💰 / 5K⦷→25K💰 / 20K⦷→100K💰 (1:5)
+  - `ADD_SKILL_XP_PRESETS`: 500⦷→50XP / 1K⦷→100XP / 5K⦷→500XP
+- **Test 19** — 15 isolation assertions (не обновлялся под новые поля,
+  TODO добавить assertions для gear_tier / level / clan)
+
+### C# mod (BannerlordLink)
+- SDK-style csproj, `.NET Framework 4.8` net472, x64, Bannerlord 1.3.15
 - BackendClient + Config + ActionPoller + MainThreadDispatcher
-- 7 real action handlers (+ Sprint 4.5 расширил `power.activate`):
-  - `hero.create` (adoption — fresh NPC + SetName)
-  - `hero.set_class` (apply equipment + skill boosts + powers cache)
-  - `player.heal` (max HP)
-  - `player.give_item` (gold)
-  - `hero.add_skill` (XP boost)
-  - `player.modify_attribute` (attribute points)
-  - `player.spawn` (5.0 + 5.1a) — summon viewer hero в текущую Mission через
-    `Mission.Current.SpawnTroop(new PartyAgentOrigin(MainParty, character),
-    isPlayerSide:true, isReinforcement:true, ...)`. Гард: Mission alive +
-    `CurrentState==Continuing` + Mode == "Battle" (reflection-safe через
-    `.ToString()`) + hero не уже spawned. spawnWithHorse — по class_key
-    (cavalry/horse_archer/knight = mounted). HeroLookup + AgentVisuals.FadeIn
-    для smooth entry. Reinforcement waves поддержаны через Harmony postfix
-    на `MissionAgentSpawnLogic.IsSideDepleted` (Patches/IsSideDepletedPatch.cs):
-    если на side есть adopted hero (PowerCache contains username) — side
-    не depleted, vanilla spawn logic продолжит реinforcement.
-  - `player.equip_item` (5.1b + 5.1c) — два режима:
-    • **Targeted** (5.1b): `data.item_id` → `MBObjectManager.GetObject<ItemObject>`
-      → resolve slot (`data.slot` или auto-infer по ItemType) → apply.
-    • **Random** (5.1c): `data.random_category` (weapon/armor/horse) →
-      `MBObjectManager.GetObjectTypeList<ItemObject>()` filter by ItemType +
-      Tier ≥ 4 (high-tier) + `!NotMerchandise` → `MBRandom.RandomInt` pick.
-    Slot resolve по ItemType. `hero.BattleEquipment[idx] = new EquipmentElement(item)`.
-    Fire-and-forget `hero.equipment_changed` event на backend.
-  - `power.activate` — 4 power_keys:
-    - `heal_burst` (4.3) — +50 HP instant
-    - `shield_break_burst` (4.5+4.6+4.9) — AoE: ChangeWeaponHitPoints(shield,0)
-      + particle `psys_game_shield_break` через `Mission.Scene.CreateBurstParticle`
-      + sound `event:/mission/combat/shield/broken` через `Mission.MakeSound`
-      (TaleWorlds.MountAndBlade SoundEvent API)
-    - `rage` (4.5) — timed 30s outgoing damage multi (1.3-1.8× per level)
-    - `retribution_toggle` (4.5) — timed 60s extra reflect % overlay
-- **Buff event push** (Sprint 4.6): ActiveBuffState.Activate / RemoveExpired
-  пушат `buff.activated` / `buff.expired` события на backend через
-  PostEventAsync (fire-and-forget, не ждут ACK). Backend хранит in-memory
-  для frontend HUD.
-- MainCampaignBehavior (HeroKilled, HeroLevelledUp → events)
-- PowersMissionBehavior (HP multi + body_scale via reflection +
-  Sprint 4.5 slow-tick cleanup expired buffs через `ActiveBuffState.RemoveExpired`,
-  OnEndMission → Clear)
-- **Patches/DamageHookPatch.cs** — Sprint 4.4-4.5 Harmony Prefix на
-  `Mission.RegisterBlow`:
-   • passive `ignore_armor_pct` / `armor_bypass_pct` (alias, attacker outgoing —
-     сдвигает damage из AbsorbedByArmor в InflictedDamage),
-   • passive `damage_reflect_pct` (victim incoming — counter-blow с recursion
-     guard через ThreadLocal),
-   • active `rage` (outgoing multi ×1.5 после ignore_armor, capped 5x),
-   • active `retribution_toggle` (incoming reflect overlay, sum с passive
-     capped 95%).
-  Username резолвится через CharacterObject.HeroObject.Name.
-- **Net/ActiveBuffState.cs** (Sprint 4.5) — ConcurrentDictionary singleton
-  `username → powerKey → BuffEntry{powerKey, ExpiresAt, Value}`. Expiry source:
-  `Mission.Current.CurrentTime` (паузо-чувствительный — buff не утечёт во время
-  Esc-меню). API: Activate / GetValue / RemoveExpired / Clear.
+- Action handlers (10 real):
+  - `hero.create` — adopt fresh wanderer + SetName + initial state push
+  - `hero.set_class` — apply class equipment (FindRandomItem per slot)
+  - `hero.upgrade_gear` — 6-tier progression, Hero.Gold deduction +
+    push hero.gear_tier_changed (M21+ dual-currency)
+  - `hero.add_skill` — XP boost; **random skill** если skill_key пуст
+  - `player.heal` / `player.give_item` (gold) /
+    `player.modify_attribute`
+  - `player.spawn` — summon в Mission через `Mission.SpawnTroop`;
+    `data.side` ("player"/"enemy"). Mode check via `.ToString()=="Battle"`
+    (reflection-safe). Guards: alive + Continuing + не already spawned.
+  - `player.equip_item` — targeted (`item_id`) или random
+    (`random_category`: weapon/armor/horse) с tier ≥4 filter
+  - `power.activate` — 4 power_keys: heal_burst / shield_break_burst
+    (AoE + particle + sound) / rage (timed multi) / retribution_toggle
+- Campaign behaviors:
+  - `MainCampaignBehavior` — HeroKilled → player.died; HeroLevelledUp →
+    HeroStateSync.Push (full state)
+  - `PowersMissionBehavior` — `OnAgentBuild` apply passive HP/scale +
+    slow-tick `ActiveBuffState.RemoveExpired` + `OnEndMission → Clear`
+- Harmony patches (`src/Patches/`):
+  - `DamageHookPatch.cs` — Prefix на `Mission.RegisterBlow`:
+    passive ignore_armor + damage_reflect + active rage outgoing multi +
+    retribution_toggle overlay (sum capped 95%)
+  - `IsSideDepletedPatch.cs` — Postfix на `MissionAgentSpawnLogic`:
+    если на side есть adopted hero (PowerCache) → side не depleted
+    (reinforcement waves продолжаются)
+- Helpers:
+  - `Net/PowerCache.cs` — class+power dict singleton (DB-synced)
+  - `Net/ActiveBuffState.cs` — timed buffs ConcurrentDictionary;
+    expiry source `Mission.Current.CurrentTime` (паузо-чувств.)
+  - `Util/HeroStateSync.cs` — push full state (gold/level/clan/kingdom/
+    location/is_alive/is_prisoner) на backend; вызывается из
+    AdoptHeroHandler + MainCampaignBehavior + UpgradeGearHandler
 
-**Frontend** (`extension.html` Bannerlord tab):
-- Hero card (avatar, culture, gold, skills, equipment)
-- Class picker (13 buttons, current highlighted)
-- Online badge (🟢/🔴 polling /api/bannerlord/status)
-- «⚔️ Стать героем» в empty state
-- **Active power buttons** (Sprint 4.7+4.8, viewer.js): heal_burst (100💎),
-  shield_break_burst (200💎, только tank), rage (300💎), retribution_toggle
-  (300💎). Hardcoded prices. Disabled пока buff активен ИЛИ cooldown идёт
-  (показывается "Xс" вместо цены, decrement client-side между poll'ами).
-- **Summon button** (Sprint 5.0, viewer.js): «📯 Призвать в бой» (500💎,
-  cooldown 120с — `player.spawn` key в POWER_COOLDOWNS). Wide button под
-  active powers, disabled на cooldown.
-- **Random equip buttons** (Sprint 5.1c, viewer.js): «🗡 Купить оружие 1М⦷» /
-  «🛡 Купить броню 500К⦷» / «🐎 Купить коня 1.25М⦷». Horse-button disabled
-  для non-mounted classes. Цены отображаются на UI, **server-side
-  override'ит** `data.price` из `RANDOM_EQUIP_PRICES` map в
-  routes/bannerlord.py — viewer не может послать price:0.
-- **Buff HUD** (Sprint 4.6, viewer.js): chip-list над class picker'ом
-  с current remaining time. Polling /api/bannerlord/my-buffs каждые 2.5с +
-  client-side decrement 1с для smooth countdown.
+### Frontend (`extension.html` / `viewer.js`)
+- Hero card grid: 💰 Динары / ⭐ Уровень / 🛡 Снаряжение (T1-T6 ★) /
+  🏰 Клан / 👑 Королевство (последние 3 "не вступил" если null)
+- Class picker (13 кнопок)
+- Online badge (🟢/🔴 polling /status)
+- Active power buttons (heal / shield_break / rage / retribution) —
+  disabled на active buff или cooldown, показ X с countdown
+- Buff HUD — chip-list над picker'ом (rage 24с / retribution 58с)
+- Summon: 2 кнопки «📯 Призвать за стримера 500⦷» / «⚔️ Призвать против
+  стримера 1000⦷» (красная). Общий cooldown 120с.
+- Shop card ("Действия в игре") — 4 блока:
+  1. 🎁 Случайный товар: weapon/armor/horse buttons
+  2. 🛡 Снаряжение: ⚒ Улучшить до T{N+1} (цена в **💰 динарах**, не крустиках)
+  3. 💰 Динары: +5K/25K/100K за 1K/5K/20K⦷
+  4. 📚 Опыт: +50/100/500 XP в random skill за 500/1K/5K⦷
 
 ### ⏳ Pending sprints
+- **4.10** Balancing после live test: финальные cooldowns + active
+  power values + tier costs (Hero.Gold + крустики rates) — нужны
+  stream data
+- **5.2** Compliance rebrand перед public release: аудит class_keys /
+  power_keys / numeric values vs BLT, NOTICE.md, Twitch submission prep
+- **Test 19 extend** — assertions для gear_tier / level / clan
+  изоляции между channels
+- **Adapter sync на cache invalidate** — после смены clan/kingdom
+  в-игре нужен trigger для re-sync state (сейчас обновляется только
+  на adopt + level-up)
 
-- **4.10** Active power balancing — собрать stream-feedback на rage 1.3-1.8×,
-  retribution 20-50%, cooldowns 30/60/90с после live test. Скорее всего
-  cooldown в админку (per-streamer rebalance) — 4.11.
-- **5.2** Class re-balance + compliance rebrand (наши class names + values
-  vs BLT — должны полностью отличаться перед public release).
-- **4.6** TG/extension notifications — HeroKilled (player.died уже
-  посылается, но TG notify pending)
-- **5.0** `player.spawn` (summon в Mission) — complex, BLT 1142 строк
-- **5.1** `player.equip_item` — real equipment (ItemRoster + Equipment)
-- **5.2** Class re-balance + rebrand перед public (compliance)
+---
 
 ## Stack
-
 - **C# mod:** `.NET Framework 4.8` net472 x64, Bannerlord 1.3.15
-- **References:** TaleWorlds.{Core/Library/MountAndBlade/CampaignSystem/
-  Engine/Localization/ObjectSystem/DotNet}, Bannerlord.Harmony,
-  Newtonsoft.Json
-- **Build:** `dotnet build` (~1-2 сек), output напрямую в
+- **References:** TaleWorlds.{Core / Library / MountAndBlade /
+  CampaignSystem / CampaignSystem.AgentOrigins / CampaignSystem.Party /
+  CampaignSystem.Actions / Engine / Localization / ObjectSystem /
+  DotNet}, Bannerlord.Harmony, Newtonsoft.Json
+- **Build:** `dotnet build` (~1-2 сек), output в
   `Modules/Shedoy23.BannerlordLink/bin/Win64_Shipping_Client/`
-- **Editor:** VS Code + `ms-dotnettools.csharp` extension
+- **Editor:** VS Code + `ms-dotnettools.csharp`
 
-## Файл структура mod'a
+## File structure (BannerlordLink mod)
 
 ```
 X:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\
@@ -149,64 +175,35 @@ X:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\
     │   ├── BannerlordLinkModule.cs   ← MBSubModuleBase entry
     │   ├── MainThreadDispatcher.cs   ← cross-thread queue
     │   ├── Net\
-    │   │   ├── BackendConfig.cs      ← config.json load/save
-    │   │   ├── BackendClient.cs      ← HTTP + JWT auth
-    │   │   ├── ActionPoller.cs       ← long-poll loop
-    │   │   ├── PowerCache.cs         ← class+power state singleton (DB-synced)
-    │   │   └── ActiveBuffState.cs    ← timed active buffs runtime (Sprint 4.5)
+    │   │   ├── BackendConfig.cs / BackendClient.cs / ActionPoller.cs
+    │   │   ├── PowerCache.cs         ← class+power singleton (DB-synced)
+    │   │   └── ActiveBuffState.cs    ← timed buffs runtime
     │   ├── Actions\
-    │   │   ├── IActionHandler.cs / ActionRegistry.cs
+    │   │   ├── IActionHandler.cs / ActionRegistry.cs / EchoHandler.cs
     │   │   ├── AdoptHeroHandler.cs (hero.create)
     │   │   ├── SetClassHandler.cs (hero.set_class)
+    │   │   ├── UpgradeGearHandler.cs (hero.upgrade_gear — M21 dual-currency)
     │   │   ├── HealHeroHandler.cs / GiveGoldHandler.cs
     │   │   ├── AddSkillXpHandler.cs / ModifyAttributeHandler.cs
     │   │   ├── ActivatePowerHandler.cs (power.activate)
-    │   │   ├── SummonHeroHandler.cs (player.spawn — 5.0 + 5.1a improvements)
-    │   │   ├── EquipItemHandler.cs (player.equip_item — 5.1b MVP)
-    │   │   ├── EchoHandler.cs (stub для unimplemented actions)
-    │   │   └── HeroLookup.cs (find Hero by viewer login)
+    │   │   ├── SummonHeroHandler.cs (player.spawn ally/enemy)
+    │   │   ├── EquipItemHandler.cs (player.equip_item targeted/random)
+    │   │   └── HeroLookup.cs
     │   ├── Behaviors\
     │   │   ├── MainCampaignBehavior.cs   ← HeroKilled / LevelledUp
-    │   │   └── PowersMissionBehavior.cs  ← OnAgentBuild apply HP/scale
-    │   └── Patches\
-    │       ├── DamageHookPatch.cs        ← Harmony Prefix Mission.RegisterBlow
-    │       └── IsSideDepletedPatch.cs    ← Harmony Postfix для reinforcement (5.1a)
+    │   │   └── PowersMissionBehavior.cs  ← OnAgentBuild + buff tick
+    │   ├── Patches\
+    │   │   ├── DamageHookPatch.cs        ← Mission.RegisterBlow Prefix
+    │   │   └── IsSideDepletedPatch.cs    ← reinforcement keep-alive
+    │   └── Util\
+    │       └── HeroStateSync.cs          ← push full state snapshot
     └── bin\Win64_Shipping_Client\
         └── BannerlordLink.dll  ← output после dotnet build
 ```
 
 Mirror в git-репо: `BannerlordLink/` (sync через `cp` после правок).
 
-## Лицензия BLT (важно!)
-
-**BLT (LGPL 2.1)** — используем как **reference только**, не copy-paste.
-- ✅ Идеи / архитектурные паттерны / API discovery / 5-10 строчные idioms
-- ❌ Целые классы / method bodies / identical names+numbers
-
-Наши классы и powers — clean-room re-impl с **отличающимися** numbers
-(115/130/150 vs BLT's 120/135/160), переименованными powers, разным
-mix. **Перед public release** — full rebrand (свои уникальные names).
-См. `docs/BANNERLORD_MVP.md` §8.
-
-## Build + test cycle
-
-```cmd
-# Build
-cd "X:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\Shedoy23.BannerlordLink\src"
-dotnet build
-
-# Restart Bannerlord (нет hot-reload)
-# Mod log:
-type "C:\Users\Edward\Documents\Mount and Blade II Bannerlord\Configs\ModLogs\bannerlordlink_*.txt"
-
-# Mirror в репо
-cd C:\Users\Edward\Desktop\work\.claude\worktrees\<...>
-cp X:\SteamLibrary\...\Shedoy23.BannerlordLink\src\*.cs BannerlordLink\src\
-# Sync sub-folders Actions/, Behaviors/, Net/ соответственно
-
-# Backend deploy
-tar -cz backend/X | ssh root@31.130.132.224 'cd /root/twitch-extension && tar -xz && supervisorctl restart twitchbot'
-```
+---
 
 ## Backend endpoints (Bannerlord-specific)
 
@@ -214,21 +211,23 @@ tar -cz backend/X | ssh root@31.130.132.224 'cd /root/twitch-extension && tar -x
 |---|---|
 | `GET /api/bannerlord/ping` | Public health check |
 | `GET /api/bannerlord/status` | Online/offline (last event < 60s) |
-| `GET /api/bannerlord/my-hero` | Hero + skills + attributes + equipment |
-| `GET /api/bannerlord/classes` | Catalog + viewer's current class |
-| `GET /api/bannerlord/class-state` | All channel heroes + powers (для mod) |
-| `GET /api/bannerlord/shop` | module_catalogs catalog (пока пусто) |
-| `POST /api/bannerlord/action` | Atomic charge + enqueue в `module_actions` |
+| `GET /api/bannerlord/my-hero` | Hero + skills + attributes + equipment + level/clan/kingdom/gear_tier |
+| `GET /api/bannerlord/classes` | Catalog + viewer's current class + current_powers (active) |
+| `GET /api/bannerlord/class-state` | All channel heroes + powers (для mod на handshake) |
+| `GET /api/bannerlord/shop` | module_catalogs (mod-pushed item shop, optional) |
+| `GET /api/bannerlord/my-buffs` | `{buffs: [{power_key, remaining_s}], cooldowns: [...]}` (HUD polling) |
+| `POST /api/bannerlord/action` | Atomic charge крустиков + cooldown check + enqueue в module_actions |
 | `POST /api/admin/module/issue-token` | Issue module-token для mod auth |
 
-## Schema (M14-M16)
+## Schema (M14-M20)
 
 ```
 bannerlord_heroes        (channel_id, username) PK
                           hero_id, display_name, culture, is_alive,
-                          is_prisoner, gold, location, last_sync
-bannerlord_skills        (channel_id, username, skill_key) PK
-                          level, xp
+                          is_prisoner, gold, location, last_sync,
+                          level, clan_name, kingdom_name,   ← M19
+                          gear_tier                          ← M20
+bannerlord_skills        (channel_id, username, skill_key) PK, level, xp
 bannerlord_attributes    (channel_id, username, attribute) PK, value
 bannerlord_equipment     (channel_id, username, slot) PK, item_id, item_name
 bannerlord_events_log    id PK, channel_id, event_type, username, payload
@@ -237,6 +236,49 @@ bannerlord_hero_class    (channel_id, username) PK, class_key, class_level
 bannerlord_class_powers  (class_key, power_key) PK, lvl1/2/3 values
 ```
 
+## Event types (mod → backend)
+
+Standard: `module.{heartbeat,session_start,session_end,catalog_update}`,
+`player.{linked,unlinked,state_update,died,respawned}`,
+`world.event_occurred`.
+
+Extensions (Bannerlord-specific):
+- `hero.{skill_changed, equipment_changed, relation_changed, faction_changed}`
+- `buff.{activated, expired}` — runtime active power state (Sprint 4.6)
+- `hero.gear_tier_changed` — после successful in-game upgrade (Sprint M21)
+
+## Build + deploy cycle
+
+```cmd
+# C# build (mirror в production folder)
+cd "X:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\Shedoy23.BannerlordLink\src"
+dotnet build
+
+# Restart Bannerlord (нет hot-reload). Mod log:
+type "C:\Users\Edward\Documents\Mount and Blade II Bannerlord\Configs\ModLogs\bannerlordlink_*.txt"
+
+# Sync обратно в git-репо (для commit)
+cd C:\Users\Edward\Desktop\work\.claude\worktrees\<...>
+cp "X:\SteamLibrary\...\Shedoy23.BannerlordLink\src\*.cs" BannerlordLink\src\
+
+# Backend + frontend deploy на прод
+cd Расширение
+tar -cz backend frontend | ssh root@31.130.132.224 \
+  'cd /root/twitch-extension && tar -xz && supervisorctl restart twitchbot'
+```
+
+## Лицензия BLT (важно!)
+
+**BLT (LGPL 2.1)** — используем как **reference только**, не copy-paste.
+- ✅ Идеи / архитектурные паттерны / API discovery / 5-10 строчные idioms
+- ❌ Целые классы / method bodies / identical names+numbers
+
+Наш `BannerlordLink/` — clean-room re-impl: отличающаяся архитектура
+(DB-driven + flat handlers vs BLT's class hierarchy), отличающиеся
+numeric values (например M16 ignore_armor 10/25/40 vs BLT 12/27/45),
+наши имена классов (Tank/Archer/Psycho/Berserk/Knight). **Перед public
+release** (Sprint 5.2) — полный аудит для финального compliance check.
+
 ## Тестирование
 
 См. `CONTEXT.md` §«Тестирование» — те же flows работают:
@@ -244,21 +286,16 @@ bannerlord_class_powers  (class_key, power_key) PK, lvl1/2/3 values
 - `curl /api/admin/dev/jwt` для preview tokens
 - `TESTING_BYPASS_STREAM_LIVE=true` для actions без go-live
 
-Module test данные:
+**Module test данные:**
 - Channel: 98319857 (shedoy23)
 - Module token (issued, 1 год TTL) — в config.json мода
-
-## Open вопросы / next steps
-
-1. **Sprint 4.4 damage hooks** — Harmony patch research
-2. **Sprint 4.5** — ещё 2-3 active powers (rage / shield_break / retribution)
-3. **Sprint 5.0 summon** — Hero как агент в текущей mission (BLT 1142 строк reference)
-4. **Compliance rebrand** перед Twitch submission — свои class names + power values
 
 ## Repo
 
 - **GitHub:** `Shedoy23/shedstream` (private)
-- **Files:** `BannerlordLink/` (mirror mod) + `Расширение/backend/{routes/bannerlord.py, migrations/m14-m16_*.py, modules/bannerlord/}` + `Расширение/docs/BANNERLORD_*.md`
+- **Files:** `BannerlordLink/` (mirror mod), `Расширение/backend/`
+  ({routes/bannerlord.py, migrations/m14_*-m20_*, modules/bannerlord/}),
+  `Расширение/frontend/viewer.js`, `Расширение/docs/BANNERLORD_*.md`
 
 ---
 

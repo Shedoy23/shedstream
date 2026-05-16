@@ -25,13 +25,21 @@ namespace BannerlordLink.Behaviors
     /// </summary>
     public class MainCampaignBehavior : CampaignBehaviorBase
     {
+        // M22: dedupe push session_start между OnGameLoadFinished + OnSessionLaunched.
+        // RimLink pattern — sync на каждый save load, не только при первом запуске
+        // mod'a. OnGameLoadFinishedEvent fires только при first load (per Game
+        // instance) — для switch save в одной session нужен OnSessionLaunched.
+        private string _lastPushedSaveId;
+
         public override void RegisterEvents()
         {
             CampaignEvents.HeroKilledEvent.AddNonSerializedListener(this, OnHeroKilled);
             CampaignEvents.HeroLevelledUp.AddNonSerializedListener(this, OnHeroLevelledUp);
-            // M22: detect save switch — push session_start с real save_id
-            // (Campaign.UniqueGameId per save).
+            // Multiple events для надёжности — каждый load save должен пушить
+            // session_start. Dedupe by save_id (если тот же save reloaded —
+            // backend сам skip reset).
             CampaignEvents.OnGameLoadFinishedEvent.AddNonSerializedListener(this, OnGameLoadFinished);
+            CampaignEvents.OnSessionLaunchedEvent.AddNonSerializedListener(this, OnSessionLaunched);
         }
 
         public override void SyncData(IDataStore dataStore)
@@ -75,28 +83,40 @@ namespace BannerlordLink.Behaviors
                 $"level {hero?.Level} (full state pushed)");
         }
 
-        // M22: при load campaign push session_start с real save_id
-        // (Campaign.UniqueGameId — guid per save). Backend сравнивает с
-        // last known для канала и reset'ит heroes если save_id изменился.
-        private void OnGameLoadFinished()
+        // M22: push session_start с real save_id (Campaign.UniqueGameId)
+        // на КАЖДЫЙ save load. Backend сравнивает с last known save_id для
+        // канала и reset'ит heroes если save_id изменился.
+        private void OnGameLoadFinished() => PushSessionStart("game_load_finished");
+        private void OnSessionLaunched(CampaignGameStarter starter)
+            => PushSessionStart("session_launched");
+
+        private void PushSessionStart(string trigger)
         {
             try
             {
                 string saveId = Campaign.Current?.UniqueGameId ?? "unknown";
+                if (string.Equals(saveId, _lastPushedSaveId, StringComparison.Ordinal))
+                {
+                    // Тот же save повторно — пропускаем чтобы не спамить backend.
+                    return;
+                }
+                _lastPushedSaveId = saveId;
+
                 string evtData = JsonConvert.SerializeObject(new
                 {
                     save_id = saveId,
+                    trigger = trigger,
                     mod_version = "0.1.0",
                 });
                 Task.Run(async () => await BannerlordLinkModule.Backend
                     .PostEventAsync("bannerlord", "module.session_start", evtData));
                 BannerlordLinkModule.Log(
-                    $"[CampaignEvent] OnGameLoadFinished: session_start pushed save_id={saveId}");
+                    $"[CampaignEvent] {trigger}: session_start pushed save_id={saveId}");
             }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log(
-                    $"[CampaignEvent] OnGameLoadFinished handler error: {ex.Message}");
+                    $"[CampaignEvent] PushSessionStart({trigger}) error: {ex.Message}");
             }
         }
     }

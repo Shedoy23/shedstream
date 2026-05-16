@@ -1138,9 +1138,24 @@ async function loadBannerlordHero() {
                     <div style="font-size:36px;margin-bottom:8px;">⚔️</div>
                     У тебя ещё нет героя в Bannerlord.<br>
                     <span style="font-size:11px;">
-                        Купи action <b>«Стать героем»</b> ниже либо стример adopt'ит тебя сам.
+                        Создай нового странника — он появится в случайном городе
+                        с нулевыми навыками. Имя героя в игре = твой ник.
                     </span>
+                    <div style="margin-top:14px;">
+                        <button class="modal-btn"
+                                id="bnr-adopt-btn"
+                                data-bnr-buy="hero.create"
+                                data-bnr-price="0"
+                                style="width:auto;padding:8px 18px;">
+                            ⚔️ Стать героем
+                        </button>
+                    </div>
                 </div>`;
+            // bind через event delegation которое уже есть для других bnr-buy
+            const btn = document.getElementById('bnr-adopt-btn');
+            if (btn) {
+                btn.addEventListener('click', () => _bannerlordBuyAction('hero.create', { price: 0 }));
+            }
             return;
         }
         const h = data.hero;

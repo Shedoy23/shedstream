@@ -29,18 +29,18 @@ namespace BannerlordLink.Actions
         public static void RegisterDefaults()
         {
             // ── REAL handlers ──────────────────────────────────────────────
-            Register(new AdoptHeroHandler());     // hero.create — adoption
-            Register(new HealHeroHandler());      // player.heal — restore HP
-            Register(new GiveGoldHandler());      // player.give_item (item_type=gold)
-            Register(new AddSkillXpHandler());    // hero.add_skill — XP boost
+            Register(new AdoptHeroHandler());        // hero.create — adoption
+            Register(new HealHeroHandler());         // player.heal — restore HP
+            Register(new GiveGoldHandler());         // player.give_item (gold)
+            Register(new AddSkillXpHandler());       // hero.add_skill — XP boost
+            Register(new ModifyAttributeHandler());  // player.modify_attribute — points
 
-            // ── Echo stubs (TODO Sprint 3.3+ заменить на real) ─────────────
+            // ── Echo stubs (TODO Sprint 3.4+ заменить на real) ─────────────
             string[] echoTypes =
             {
-                "player.spawn",
-                "player.respawn",
-                "player.equip_item",
-                "player.modify_attribute",
+                "player.spawn",       // summon в Mission — complex, Sprint 3.5
+                "player.respawn",     // heir succession — complex
+                "player.equip_item",  // weapon/armor — Sprint 3.4 (ItemRoster)
                 "world.trigger_event",
                 "world.broadcast_message",
                 "hero.set_culture",

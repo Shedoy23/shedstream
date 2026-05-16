@@ -2,8 +2,10 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using BannerlordLink.Actions;
+using BannerlordLink.Behaviors;
 using BannerlordLink.Net;
 using HarmonyLib;
+using TaleWorlds.CampaignSystem;
 using TaleWorlds.MountAndBlade;
 using Debug = TaleWorlds.Library.Debug;
 
@@ -131,6 +133,22 @@ namespace BannerlordLink
         {
             base.OnGameStart(game, gameStarter);
             Log($"OnGameStart game={game?.GameType?.GetType().Name ?? "null"}");
+
+            // Sprint 2.5: register CampaignBehavior если started Campaign.
+            // Behavior subscribes на HeroKilledEvent / HeroLevelledUp и
+            // posts соответствующие events на backend.
+            if (game?.GameType is Campaign && gameStarter is CampaignGameStarter campaignStarter)
+            {
+                try
+                {
+                    campaignStarter.AddBehavior(new MainCampaignBehavior());
+                    Log("MainCampaignBehavior registered (HeroKilled + HeroLevelledUp)");
+                }
+                catch (Exception ex)
+                {
+                    Log($"CampaignBehavior register FAILED: {ex.Message}");
+                }
+            }
         }
 
         /// <summary>Каждый frame — drain main-thread dispatcher queue.

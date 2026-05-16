@@ -250,6 +250,10 @@ class BannerlordAdapter(ModuleAdapter):
             await self._on_gear_tier_changed(channel_id, env)
             return
 
+        if et == "module.heroes_snapshot":
+            await self._on_heroes_snapshot(channel_id, env)
+            return
+
         if et == "world.event_occurred":
             await self._on_world_event(channel_id, env)
             return
@@ -558,6 +562,47 @@ class BannerlordAdapter(ModuleAdapter):
             if not perViewer:
                 _active_buffs.pop(key, None)
         await self._log_event(channel_id, "buff.expired", username, data)
+
+    async def _on_heroes_snapshot(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Mod пушит при OnSessionLaunched список ВСЕХ alive heroes (lowercase
+        names) в текущем save. Backend diff'ит с bannerlord_heroes для канала
+        и DELETE'ит rows которых нет в snapshot — extension покажет
+        "Стать героем" для viewer'ов чей hero отсутствует в новом save.
+
+        Корректно работает между save файлами одной campaign (где UniqueGameId
+        совпадает, но AliveHeroes может различаться если ты убил/удалил heroes).
+        Per-hero existence check вместо save_id matching.
+        """
+        data = env.data
+        usernames = data.get("usernames") or []
+        if not isinstance(usernames, list):
+            return
+        # Lowercase + dedupe для safety (mod уже делает, но defensive)
+        snapshot = {str(u).lower() for u in usernames if u}
+
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            cur = await conn.execute(
+                "SELECT username FROM bannerlord_heroes WHERE channel_id=?",
+                (channel_id,))
+            existing = [row[0] for row in await cur.fetchall()]
+            missing = [u for u in existing if u not in snapshot]
+            if missing:
+                # DELETE rows для missing usernames в каждой related table.
+                placeholders = ",".join("?" * len(missing))
+                for table in ("bannerlord_heroes", "bannerlord_skills",
+                              "bannerlord_attributes", "bannerlord_equipment",
+                              "bannerlord_hero_class"):
+                    await conn.execute(
+                        f"DELETE FROM {table} WHERE channel_id=? AND username IN ({placeholders})",
+                        [channel_id] + missing)
+                await conn.commit()
+            else:
+                await conn.commit()
+
+        print(f"[bannerlord:{channel_id}] heroes_snapshot: "
+              f"{len(snapshot)} alive in save, {len(existing)} in DB, "
+              f"removed {len(missing)} stale ({missing[:3]}...)")
 
     async def _on_gear_tier_changed(self, channel_id: int, env: ModuleEnvelope) -> None:
         """Mod применил gear upgrade — backend сохраняет new tier в DB cache.

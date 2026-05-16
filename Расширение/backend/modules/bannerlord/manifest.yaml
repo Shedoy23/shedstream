@@ -60,6 +60,7 @@ extensions:
     - buff.activated      # Sprint 4.6: mod пушит при ActiveBuffState.Activate
     - buff.expired        # Sprint 4.6: mod пушит при RemoveExpired
     - hero.gear_tier_changed  # M20+: mod пушит после successful upgrade_gear
+    - module.heroes_snapshot  # M22+: mod пушит alive heroes на session_launched
   actions:
     - hero.create        # Adoption flow — spawn fresh wanderer + SetName(viewer)
     - hero.set_class     # Sprint 4.1: класс + equipment apply

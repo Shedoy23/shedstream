@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using BannerlordLink.Util;
 using Newtonsoft.Json;
@@ -112,11 +113,47 @@ namespace BannerlordLink.Behaviors
                     .PostEventAsync("bannerlord", "module.session_start", evtData));
                 BannerlordLinkModule.Log(
                     $"[CampaignEvent] {trigger}: session_start pushed save_id={saveId}");
+
+                // Sprint M22+: ALSO push heroes_snapshot — список имён всех
+                // alive heroes в save (lowercase). Backend diff'ит с
+                // bannerlord_heroes.username и удаляет rows которых нет
+                // в snapshot. Точный per-hero existence check — лучше чем
+                // save_id matching (UniqueGameId per-campaign, не per-save).
+                PushHeroesSnapshot(saveId);
             }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log(
                     $"[CampaignEvent] PushSessionStart({trigger}) error: {ex.Message}");
+            }
+        }
+
+        private void PushHeroesSnapshot(string saveId)
+        {
+            try
+            {
+                if (Campaign.Current == null) return;
+                var usernames = Campaign.Current.AliveHeroes
+                    ?.Where(h => h?.Name != null)
+                    .Select(h => h.Name.ToString()?.ToLowerInvariant())
+                    .Where(n => !string.IsNullOrEmpty(n))
+                    .Distinct()
+                    .ToArray() ?? new string[0];
+
+                string evtData = JsonConvert.SerializeObject(new
+                {
+                    save_id = saveId,
+                    usernames = usernames,
+                });
+                Task.Run(async () => await BannerlordLinkModule.Backend
+                    .PostEventAsync("bannerlord", "module.heroes_snapshot", evtData));
+                BannerlordLinkModule.Log(
+                    $"[CampaignEvent] heroes_snapshot pushed: {usernames.Length} alive heroes");
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[CampaignEvent] PushHeroesSnapshot error: {ex.Message}");
             }
         }
     }

@@ -22,9 +22,16 @@ namespace BannerlordLink.Behaviors
     /// Damage-modifying powers (ignore_armor_pct / armor_bypass_pct /
     /// damage_reflect_pct) обрабатываются Harmony-patch'ем на
     /// Mission.RegisterBlow — см. Patches/DamageHookPatch.cs (Sprint 4.4).
+    ///
+    /// Active timed buffs (rage / retribution_toggle) живут в
+    /// ActiveBuffState — этот MissionLogic вызывает RemoveExpired каждые
+    /// 2 сек (slow-tick) и Clear на end-mission (Sprint 4.5).
     /// </summary>
     public class PowersMissionBehavior : MissionLogic
     {
+        private const float BUFF_TICK_INTERVAL = 2.0f;
+        private float _buffTickAcc;
+
         public override void OnAgentBuild(Agent agent, Banner banner)
         {
             base.OnAgentBuild(agent, banner);
@@ -33,6 +40,25 @@ namespace BannerlordLink.Behaviors
             {
                 BannerlordLinkModule.Log($"[PowersMission] OnAgentBuild error: {ex.Message}");
             }
+        }
+
+        public override void OnMissionTick(float dt)
+        {
+            base.OnMissionTick(dt);
+            _buffTickAcc += dt;
+            if (_buffTickAcc < BUFF_TICK_INTERVAL) return;
+            _buffTickAcc = 0f;
+            try { ActiveBuffState.RemoveExpired(); }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[PowersMission] buff cleanup error: {ex.Message}");
+            }
+        }
+
+        protected override void OnEndMission()
+        {
+            base.OnEndMission();
+            ActiveBuffState.Clear();
         }
 
         private static void ApplyPassivePowers(Agent agent)

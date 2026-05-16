@@ -1,24 +1,27 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using BannerlordLink.Net;
 using Newtonsoft.Json.Linq;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.Core;
 using TaleWorlds.MountAndBlade;
 
 namespace BannerlordLink.Actions
 {
     /// <summary>
     /// Real handler для `power.activate` — triggered active ability для hero
-    /// в текущей Mission. MVP single power: "heal_burst" (+50 HP мгновенно).
+    /// в текущей Mission.
     ///
-    /// data: { target, power_key }
-    /// Поддерживаемые power_keys (Sprint 4.3 MVP):
-    ///   heal_burst — +50 HP к active agent
+    /// data: { target, power_key, [duration_s], [value] }
+    /// Поддерживаемые power_keys:
+    ///   heal_burst         — +50 HP к active agent (Sprint 4.3)
+    ///   shield_break_burst — AoE: break shields всех врагов в радиусе (4.5)
+    ///   rage               — timed outgoing damage multi, 30s default (4.5)
+    ///   retribution_toggle — timed extra reflect %, 60s default (4.5)
     ///
-    /// Future (Sprint 4.4+):
-    ///   - shield_break_burst (immediate AoE shield break)
-    ///   - rage (temporary damage modifier, 30s duration)
-    ///   - retribution_toggle (active damage reflection ON)
+    /// Timed powers держат state в ActiveBuffState (читается из DamageHookPatch).
+    /// PowersMissionBehavior.OnMissionTick чистит expired каждые 2 сек.
     ///
     /// Все active powers требуют hero spawned как agent в Mission.Current.
     /// Иначе skipped с log "no active agent".
@@ -36,11 +39,18 @@ namespace BannerlordLink.Actions
             if (string.IsNullOrEmpty(username))
                 return Task.FromResult<(bool, string)>((false, "no target username"));
 
-            MainThreadDispatcher.Enqueue(() => Activate(username, powerKey));
+            // Optional overrides — backend может передать кастомные value/duration.
+            // Иначе берём дефолты из PowerCache (class+level value) и hard-coded duration.
+            float? durationOverride = (float?)data["duration_s"];
+            double? valueOverride = (double?)data["value"];
+
+            MainThreadDispatcher.Enqueue(() => Activate(username, powerKey, durationOverride, valueOverride));
             return Task.FromResult<(bool, string)>((true, null));
         }
 
-        private static void Activate(string username, string powerKey)
+        private static void Activate(
+            string username, string powerKey,
+            float? durationOverride, double? valueOverride)
         {
             try
             {
@@ -79,6 +89,15 @@ namespace BannerlordLink.Actions
                     case "heal_burst":
                         ApplyHealBurst(agent, username);
                         break;
+                    case "shield_break_burst":
+                        ApplyShieldBreakBurst(agent, username, valueOverride);
+                        break;
+                    case "rage":
+                        ActivateRage(username, durationOverride, valueOverride);
+                        break;
+                    case "retribution_toggle":
+                        ActivateRetribution(username, durationOverride, valueOverride);
+                        break;
                     default:
                         BannerlordLinkModule.Log(
                             $"[power.activate] @{username}: unknown power '{powerKey}'");
@@ -100,6 +119,85 @@ namespace BannerlordLink.Actions
             agent.Health = Math.Min(max, agent.Health + BURST_AMOUNT);
             BannerlordLinkModule.Log(
                 $"[power.heal_burst] @{username}: HP {before:F0} → {agent.Health:F0} / {max:F0}");
+        }
+
+        // shield_break_burst — instant AoE: для всех живых enemy-агентов в
+        // радиусе R от caster ломаем shield слот (ChangeWeaponHitPoints=0).
+        // Radius — из valueOverride > PowerCache > 6m default.
+        private static void ApplyShieldBreakBurst(Agent caster, string username, double? valueOverride)
+        {
+            float radius = (float)(
+                valueOverride
+                ?? PowerCache.GetPowerValue(username, "shield_break_burst")
+                ?? 6.0);
+            if (radius <= 0f) radius = 6f;
+
+            int broken = 0;
+            // Iterate Mission.Current.Agents — no allocation alternative для small N.
+            foreach (var a in Mission.Current.Agents)
+            {
+                if (a == null || a == caster || !a.IsActive() || !a.IsHuman) continue;
+                if (!a.IsEnemyOf(caster)) continue;
+                float dist = a.Position.Distance(caster.Position);
+                if (dist > radius) continue;
+                if (TryBreakShield(a)) broken++;
+            }
+
+            BannerlordLinkModule.Log(
+                $"[power.shield_break_burst] @{username} radius={radius}m: broke {broken} shield(s)");
+        }
+
+        // Search through weapon slots, find a shield, zero its hitpoints.
+        // Без visual effect в MVP — vanilla shield-break particles работают
+        // когда hitpoints вычисляются за 0 в нормальном combat'е, у нас
+        // мгновенно — пока без частиц (Sprint 5.x с OneShotEffect API).
+        private static bool TryBreakShield(Agent agent)
+        {
+            try
+            {
+                for (int i = 0; i < (int)EquipmentIndex.NumAllWeaponSlots; i++)
+                {
+                    var idx = (EquipmentIndex)i;
+                    var weapon = agent.Equipment[idx];
+                    if (weapon.IsEmpty) continue;
+                    var usage = weapon.CurrentUsageItem;
+                    if (usage == null) continue;
+                    if (usage.WeaponClass == WeaponClass.LargeShield
+                        || usage.WeaponClass == WeaponClass.SmallShield)
+                    {
+                        agent.ChangeWeaponHitPoints(idx, 0);
+                        return true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[shield_break] {ex.Message}");
+            }
+            return false;
+        }
+
+        private static void ActivateRage(string username, float? durationOverride, double? valueOverride)
+        {
+            float duration = durationOverride ?? 30f;
+            double multi = valueOverride
+                ?? PowerCache.GetPowerValue(username, "rage")
+                ?? 1.5;
+            if (multi <= 1.0) multi = 1.5;  // защита от backend mis-config
+            ActiveBuffState.Activate(username, "rage", duration, multi);
+            BannerlordLinkModule.Log(
+                $"[power.rage] @{username}: ×{multi:F2} dmg for {duration}s");
+        }
+
+        private static void ActivateRetribution(string username, float? durationOverride, double? valueOverride)
+        {
+            float duration = durationOverride ?? 60f;
+            double pct = valueOverride
+                ?? PowerCache.GetPowerValue(username, "retribution_toggle")
+                ?? 30.0;
+            ActiveBuffState.Activate(username, "retribution_toggle", duration, pct);
+            BannerlordLinkModule.Log(
+                $"[power.retribution] @{username}: +{pct:F0}% reflect for {duration}s");
         }
     }
 }

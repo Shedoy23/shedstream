@@ -3,7 +3,7 @@
 **Назначение:** для чата по Bannerlord-модулю. Для общей extension
 работы — см. `CONTEXT.md`. Для RimWorld — `CONTEXT_RIMWORLD.md`.
 
-**Last updated:** 2026-05-16 (Sprint 4.4 closed — damage hooks)
+**Last updated:** 2026-05-16 (Sprint 4.5 closed — active powers)
 
 ## TL;DR
 
@@ -13,15 +13,18 @@ powers (HP×, skill boost, body scale), могут активировать acti
 (heal_burst). Adoption / class change / actions — через extension UI
 + action queue.
 
-## Текущий статус — Sprint 4.4 closed
+## Текущий статус — Sprint 4.5 closed
 
-### ✅ Закрыто (9 sprints)
+### ✅ Закрыто (10 sprints)
 
 **Backend infrastructure:**
 - M14 migration: `bannerlord_heroes` / `_skills` / `_attributes` /
   `_equipment` / `_events_log` (TENANT-scoped)
 - M15 migration: `bannerlord_classes` (13 seeded) + `bannerlord_hero_class`
 - M16 migration: `bannerlord_class_powers` (33 power rows)
+- **M17 migration** (Sprint 4.5): armor_bypass_pct→ignore_armor_pct fixup
+  + 4 active powers seeded (tank/shield_break_burst, psycho/berserk/rage,
+  knight/retribution_toggle)
 - routes/bannerlord.py: 7 endpoints (my-hero, shop, action, ping, status,
   class-state, classes)
 - modules/bannerlord/_adapter.py: 12 event types обработаны
@@ -30,21 +33,37 @@ powers (HP×, skill boost, body scale), могут активировать acti
 **C# mod** (`BannerlordLink/`, `Modules/Shedoy23.BannerlordLink/` на проде):
 - SDK-style csproj, `.NET Framework 4.8` net472, x64
 - BackendClient + Config + ActionPoller + MainThreadDispatcher
-- 7 real action handlers:
+- 7 real action handlers (+ Sprint 4.5 расширил `power.activate`):
   - `hero.create` (adoption — fresh NPC + SetName)
   - `hero.set_class` (apply equipment + skill boosts + powers cache)
   - `player.heal` (max HP)
   - `player.give_item` (gold)
   - `hero.add_skill` (XP boost)
   - `player.modify_attribute` (attribute points)
-  - `power.activate` (heal_burst MVP)
+  - `power.activate` — 4 power_keys:
+    - `heal_burst` (4.3) — +50 HP instant
+    - `shield_break_burst` (4.5) — AoE: ChangeWeaponHitPoints(shield,0)
+      для всех enemy в радиусе (6/8/10м по уровню класса)
+    - `rage` (4.5) — timed 30s outgoing damage multi (1.3-1.8× per level)
+    - `retribution_toggle` (4.5) — timed 60s extra reflect % overlay
 - MainCampaignBehavior (HeroKilled, HeroLevelledUp → events)
-- PowersMissionBehavior (HP multi + body_scale via reflection)
-- **Patches/DamageHookPatch.cs** — Sprint 4.4 Harmony Prefix на
-  `Mission.RegisterBlow`: applies `ignore_armor_pct` / `armor_bypass_pct`
-  (alias, attacker outgoing — сдвигает damage из AbsorbedByArmor в InflictedDamage)
-  и `damage_reflect_pct` (victim incoming — counter-blow с recursion guard
-  через ThreadLocal). Username резолвится через CharacterObject.HeroObject.Name.
+- PowersMissionBehavior (HP multi + body_scale via reflection +
+  Sprint 4.5 slow-tick cleanup expired buffs через `ActiveBuffState.RemoveExpired`,
+  OnEndMission → Clear)
+- **Patches/DamageHookPatch.cs** — Sprint 4.4-4.5 Harmony Prefix на
+  `Mission.RegisterBlow`:
+   • passive `ignore_armor_pct` / `armor_bypass_pct` (alias, attacker outgoing —
+     сдвигает damage из AbsorbedByArmor в InflictedDamage),
+   • passive `damage_reflect_pct` (victim incoming — counter-blow с recursion
+     guard через ThreadLocal),
+   • active `rage` (outgoing multi ×1.5 после ignore_armor, capped 5x),
+   • active `retribution_toggle` (incoming reflect overlay, sum с passive
+     capped 95%).
+  Username резолвится через CharacterObject.HeroObject.Name.
+- **Net/ActiveBuffState.cs** (Sprint 4.5) — ConcurrentDictionary singleton
+  `username → powerKey → BuffEntry{powerKey, ExpiresAt, Value}`. Expiry source:
+  `Mission.Current.CurrentTime` (паузо-чувствительный — buff не утечёт во время
+  Esc-меню). API: Activate / GetValue / RemoveExpired / Clear.
 
 **Frontend** (`extension.html` Bannerlord tab):
 - Hero card (avatar, culture, gold, skills, equipment)
@@ -54,13 +73,15 @@ powers (HP×, skill boost, body scale), могут активировать acti
 
 ### ⏳ Pending sprints
 
-- **4.5** Active powers — `shield_break_burst` (instant AoE через
-  `Mission.GetNearbyAgents` + `ChangeWeaponHitPoints(slot,0)` + visual
-  `psys_game_shield_break`), `rage` (timed 30s damage multi через
-  ActiveBuffState dict + check в DamageHookPatch), `retribution_toggle`
-  (timed 60s overlay поверх passive reflect). Также M17 fixup migration:
-  объединить `armor_bypass_pct` → `ignore_armor_pct` (в текущем DamageHookPatch
-  оба обрабатываются как alias, см. ResolvePct).
+- **4.6** Visual polish — shield_break_burst пока без particles
+  (BLT использует `OneShotEffect.Trigger("psys_game_shield_break", ...)`
+  через свой helper, у нас raw TaleWorlds API API research нужен). Также
+  rage / retribution на extension'е (HUD-индикатор активного buff'а
+  с remaining time).
+- **4.7** Extension UI кнопки для active powers — сейчас зрители могут
+  вызвать `power.activate` через generic action endpoint, но в Bannerlord
+  tab нет dedicated buttons. Добавить кнопки с current class powers
+  (читая `/api/bannerlord/classes` для текущего class powers list).
 - **4.6** TG/extension notifications — HeroKilled (player.died уже
   посылается, но TG notify pending)
 - **5.0** `player.spawn` (summon в Mission) — complex, BLT 1142 строк
@@ -92,7 +113,8 @@ X:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\
     │   │   ├── BackendConfig.cs      ← config.json load/save
     │   │   ├── BackendClient.cs      ← HTTP + JWT auth
     │   │   ├── ActionPoller.cs       ← long-poll loop
-    │   │   └── PowerCache.cs         ← class+power state singleton
+    │   │   ├── PowerCache.cs         ← class+power state singleton (DB-synced)
+    │   │   └── ActiveBuffState.cs    ← timed active buffs runtime (Sprint 4.5)
     │   ├── Actions\
     │   │   ├── IActionHandler.cs / ActionRegistry.cs
     │   │   ├── AdoptHeroHandler.cs (hero.create)

@@ -34,6 +34,12 @@ streamer'а сейчас (`twitch.tv/shedoy23`) — продакшн на Timewe
   + stream.online + stream.offline. TG-нотификация теперь приходит за 1-3 сек
   (vs 0-120s polling). `_is_stream_live` polling TTL: 120s→300s (fallback).
   **EVENTSUB_SECRET ротирован** на 32-byte url-safe.
+- **Compliance mini-audit (2026-05-16, commit `cda5105`)** — research подтвердил
+  что CP→in-extension currency Twitch разрешает с условиями. Применено:
+  disclosure footer на extension/mobile («алмазы не имеют денежной ценности»),
+  CSS class `quick-bet`→`quick-vote`, winner modal «Выигрыш»→«Награда»,
+  CP reward titles в config.py «N очков → алмазы»→«Награда: N алмазов»
+  (синхронизировано с Twitch Creator Dashboard).
 - **1088/1088 isolation tests + 34/34 EventSub security tests** passing
 - **Production deployed** — supervisor RUNNING, БД чистая, logrotate
 

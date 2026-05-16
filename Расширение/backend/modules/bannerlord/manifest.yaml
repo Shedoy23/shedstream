@@ -63,6 +63,7 @@ extensions:
     - hero.create        # Adoption flow — spawn fresh wanderer + SetName(viewer)
     - hero.set_class     # Sprint 4.1: класс + equipment apply
     - power.activate     # Sprint 4.3: active power burst (heal_burst MVP)
+    - hero.upgrade_gear  # Sprint M20: 6-tier equipment progression
     - hero.add_skill
     - hero.set_culture
     - hero.set_faction

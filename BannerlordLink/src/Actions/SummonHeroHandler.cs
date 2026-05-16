@@ -50,52 +50,58 @@ namespace BannerlordLink.Actions
             if (string.IsNullOrEmpty(username))
                 return Task.FromResult<(bool, string)>((false, "no target username"));
 
-            MainThreadDispatcher.Enqueue(() => Summon(username));
+            // data.side: "enemy" → spawn на стороне противника; default = ally стримера.
+            // Cooldown общий на оба варианта (key="player.spawn" в backend POWER_COOLDOWNS).
+            string side = (data["side"]?.ToString() ?? "").Trim().ToLowerInvariant();
+            bool isPlayerSide = side != "enemy";
+
+            MainThreadDispatcher.Enqueue(() => Summon(username, isPlayerSide));
             return Task.FromResult<(bool, string)>((true, null));
         }
 
-        private static void Summon(string username)
+        private static void Summon(string username, bool isPlayerSide)
         {
+            string sideLabel = isPlayerSide ? "ally" : "enemy";
             try
             {
                 if (!IsMissionReadyForSummon(out string reason))
                 {
-                    BannerlordLinkModule.Log($"[player.spawn] @{username}: skip — {reason}");
+                    BannerlordLinkModule.Log($"[player.spawn:{sideLabel}] @{username}: skip — {reason}");
                     return;
                 }
 
                 Hero hero = HeroLookup.FindByUsername(username);
                 if (hero == null)
                 {
-                    BannerlordLinkModule.Log($"[player.spawn] @{username}: hero not found in AliveHeroes");
+                    BannerlordLinkModule.Log($"[player.spawn:{sideLabel}] @{username}: hero not found in AliveHeroes");
                     return;
                 }
 
                 if (IsAlreadySpawned(hero))
                 {
-                    BannerlordLinkModule.Log($"[player.spawn] @{username}: уже spawned в Mission");
+                    BannerlordLinkModule.Log($"[player.spawn:{sideLabel}] @{username}: уже spawned в Mission");
                     return;
                 }
 
+                // Для enemy side используем тоже MainParty.Party как origin — это
+                // workaround, т.к. proper enemy party lookup нетривиален для late
+                // reinforcement. SpawnTroop's isPlayerSide=false сам разместит agent
+                // на enemy team. BLT pattern (SummonHero.cs:1010).
                 var mainParty = MobileParty.MainParty;
                 if (mainParty?.Party == null)
                 {
-                    BannerlordLinkModule.Log($"[player.spawn] @{username}: MainParty unavailable");
+                    BannerlordLinkModule.Log($"[player.spawn:{sideLabel}] @{username}: MainParty unavailable");
                     return;
                 }
 
                 bool withHorse = ResolveWithHorse(username);
 
-                // SpawnTroop signature (1.3.x): origin, isPlayerSide, hasFormation,
-                // spawnWithHorse, isReinforcement, formationTroopCount=1, formationTroopIndex=0,
-                // isAlarmed=true, wieldInitialWeapons=true, forceDismounted=false,
-                // initialPosition?, initialDirection?
                 Agent agent = Mission.Current.SpawnTroop(
                     new PartyAgentOrigin(mainParty.Party, hero.CharacterObject),
-                    isPlayerSide:        true,
+                    isPlayerSide:        isPlayerSide,
                     hasFormation:        true,
                     spawnWithHorse:      withHorse,
-                    isReinforcement:     true,    // late-spawn в идущий бой
+                    isReinforcement:     true,
                     formationTroopCount: 1,
                     formationTroopIndex: 0,
                     isAlarmed:           true,
@@ -106,18 +112,17 @@ namespace BannerlordLink.Actions
 
                 if (agent != null)
                 {
-                    // Smooth visual entry — fade in agent + mount если есть.
                     try { agent.MountAgent?.FadeIn(); agent.FadeIn(); } catch { }
                 }
 
                 BannerlordLinkModule.Log(
-                    $"[player.spawn] @{username} → summoned " +
+                    $"[player.spawn:{sideLabel}] @{username} → summoned " +
                     $"(horse={withHorse}, agent={(agent != null ? "OK" : "NULL")})");
             }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log(
-                    $"[player.spawn] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
+                    $"[player.spawn:{sideLabel}] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
             }
         }
 

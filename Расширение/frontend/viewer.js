@@ -1082,6 +1082,23 @@ let _bannerlordBuffPollId = null;   // 4.6 — periodic GET /api/bannerlord/my-b
 let _bannerlordBuffTickId = null;   // 4.6 — client-side decrement (1s) для smooth countdown
 let _bannerlordBuffs = [];          // 4.6 — last-known buffs cache; entries { power_key, remaining_s }
 let _bannerlordCooldowns = [];      // 4.8 — last-known cooldowns; entries { power_key, remaining_s }
+let _bannerlordCurrentGearTier = 0; // M20 — last seen gear_tier (cached for shop render)
+
+// Sprint M20 — gear upgrade prices (mirror TIER_COSTS на backend) для UI label.
+// Server-side enforced — frontend price = display only.
+const GEAR_TIER_COSTS = {
+    1:    50_000,
+    2:   100_000,
+    3:   200_000,
+    4:   400_000,
+    5:   800_000,
+    6: 1_500_000,
+};
+const _formatBigPrice = n => n >= 1_000_000
+    ? `${(n / 1_000_000).toFixed(2).replace(/\.?0+$/, '')}М⦷`
+    : n >= 1_000
+        ? `${Math.round(n / 1_000)}К⦷`
+        : `${n}⦷`;
 
 // Sprint 4.7 — UI labels + hardcoded prices для active power buttons.
 // Цены rebалансим в админку позже; сейчас просто работающий MVP.
@@ -1273,29 +1290,46 @@ function renderBannerlordActivePowers() {
     // Sprint 5.1c random-equip перемещён в shop card (loadBannerlordShop рендерит).
 }
 
-// Sprint 5.0 — кнопка "📯 Призвать в бой" (player.spawn).
-// Cooldown ключ на backend'е = "player.spawn" (1 cooldown на summon).
+// Sprint 5.0 — кнопки призыва (player.spawn).
+// Cooldown ключ на backend'е = "player.spawn" (общий на обе стороны).
+// Цены server-side enforced (SPAWN_PRICES в routes/bannerlord.py).
 function renderBannerlordSummonButton() {
     const slot = document.getElementById('bnr-summon-slot');
     if (!slot) return;
-    const SUMMON_PRICE = 500;
+    const ALLY_PRICE = 500;
+    const ENEMY_PRICE = 1000;   // 2× тролл-tax
     const cdRem = (_bannerlordCooldowns.find(c => c.power_key === 'player.spawn') || {}).remaining_s || 0;
     const onCooldown = cdRem > 0;
-    const suffix = onCooldown
+    const cdLabel = onCooldown
         ? `<span style="color:#9ca3af;">${Math.ceil(cdRem)}с</span>`
-        : `<span style="color:#fbbf24;">${SUMMON_PRICE}💎</span>`;
+        : '';
+
     slot.innerHTML = `
-        <button class="modal-btn" id="bnr-summon-btn"
-                ${onCooldown ? 'disabled' : ''}
-                title="Призвать твоего героя в текущий бой стримера"
-                style="width:100%;margin-top:6px;padding:7px;font-size:12px;
-                       ${onCooldown ? 'opacity:0.5;cursor:not-allowed;' : ''}">
-            📯 Призвать в бой ${suffix}
-        </button>`;
-    const btn = document.getElementById('bnr-summon-btn');
-    if (btn && !onCooldown) {
-        btn.addEventListener('click', () => {
-            _bannerlordBuyAction('player.spawn', { price: SUMMON_PRICE });
+        <div style="display:flex;flex-direction:column;gap:4px;margin-top:6px;">
+            <button class="modal-btn" id="bnr-summon-ally-btn"
+                    ${onCooldown ? 'disabled' : ''}
+                    title="Призвать героя в бой на сторону стримера"
+                    style="width:100%;padding:7px;font-size:12px;
+                           ${onCooldown ? 'opacity:0.5;cursor:not-allowed;' : ''}">
+                📯 Призвать за стримера
+                ${onCooldown ? cdLabel : `<span style="color:#fbbf24;">${ALLY_PRICE}💎</span>`}
+            </button>
+            <button class="modal-btn" id="bnr-summon-enemy-btn"
+                    ${onCooldown ? 'disabled' : ''}
+                    title="Призвать героя ПРОТИВ стримера (на сторону противника)"
+                    style="width:100%;padding:7px;font-size:12px;background:#7c1d1d;
+                           ${onCooldown ? 'opacity:0.5;cursor:not-allowed;' : ''}">
+                ⚔️ Призвать против стримера
+                ${onCooldown ? cdLabel : `<span style="color:#fbbf24;">${ENEMY_PRICE}💎</span>`}
+            </button>
+        </div>`;
+
+    if (!onCooldown) {
+        document.getElementById('bnr-summon-ally-btn')?.addEventListener('click', () => {
+            _bannerlordBuyAction('player.spawn', { price: ALLY_PRICE, side: 'player' });
+        });
+        document.getElementById('bnr-summon-enemy-btn')?.addEventListener('click', () => {
+            _bannerlordBuyAction('player.spawn', { price: ENEMY_PRICE, side: 'enemy' });
         });
     }
 }
@@ -1340,6 +1374,56 @@ function renderBannerlordRandomEquipHtml() {
                 </button>
             </div>
         </div>`;
+}
+
+// Sprint M20 — gear upgrade button (hero.upgrade_gear).
+// Tier-based progression: 0→1→…→6. Server-side resolve target_tier и price.
+function renderBannerlordGearUpgradeHtml() {
+    const currentTier = _bannerlordCurrentGearTier || 0;
+    const hasClass = !!_bannerlordClassesCache?.current?.class_key;
+
+    if (currentTier >= 6) {
+        return `
+            <div style="padding:6px 10px;border-top:1px solid #3d3d3f;margin-top:4px;">
+                <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">
+                    🛡 Снаряжение
+                </div>
+                <div style="font-size:11px;color:#fbbf24;text-align:center;padding:4px;">
+                    T6 ★ — максимум достигнут
+                </div>
+            </div>`;
+    }
+
+    const targetTier = currentTier + 1;
+    const price = GEAR_TIER_COSTS[targetTier] || 0;
+    const noClass = !hasClass;
+    const title = noClass
+        ? 'Сначала выбери класс — он определяет slot template'
+        : `Прокачать снаряжение: T${currentTier} → T${targetTier}. Замена всех слотов на random items нужного tier.`;
+
+    return `
+        <div style="padding:6px 10px;border-top:1px solid #3d3d3f;margin-top:4px;">
+            <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">
+                🛡 Снаряжение (текущий: ${currentTier === 0 ? 'базовое' : 'T' + currentTier})
+            </div>
+            <button class="extra-btn" id="bnr-upgrade-gear-btn"
+                    ${noClass ? 'disabled' : ''}
+                    title="${escapeHtml(title)}"
+                    style="width:100%;font-size:12px;padding:6px;
+                           ${noClass ? 'opacity:0.5;cursor:not-allowed;' : ''}">
+                ⚒ Улучшить до T${targetTier}
+                <span style="color:#fbbf24;">${_formatBigPrice(price)}</span>
+            </button>
+        </div>`;
+}
+
+function _bindBannerlordGearUpgrade() {
+    const btn = document.getElementById('bnr-upgrade-gear-btn');
+    if (!btn || btn.disabled) return;
+    btn.addEventListener('click', () => {
+        // Server resolves target_tier и price; frontend только триггер.
+        _bannerlordBuyAction('hero.upgrade_gear', {});
+    });
 }
 
 function _bindBannerlordRandomEquip() {
@@ -1500,6 +1584,12 @@ async function loadBannerlordHero() {
         // Sprint M19: level / clan / kingdom badges
         const clanLabel = h.clan_name ? escapeHtml(h.clan_name) : '<span style="color:#9ca3af;">не вступил</span>';
         const kingdomLabel = h.kingdom_name ? escapeHtml(h.kingdom_name) : '<span style="color:#9ca3af;">не вступил</span>';
+        // Sprint M20: gear tier indicator (cached для shop UI)
+        const gearTier = h.gear_tier || 0;
+        _bannerlordCurrentGearTier = gearTier;
+        const gearTierLabel = gearTier === 0
+            ? '<span style="color:#9ca3af;">базовое</span>'
+            : `<span style="color:#fbbf24;">T${gearTier} ★</span>`;
 
         body.innerHTML = `
             <div style="padding:8px;">
@@ -1516,6 +1606,8 @@ async function loadBannerlordHero() {
                     <span style="color:#fbbf24;font-weight:700;">${(h.gold || 0).toLocaleString('ru-RU')}</span>
                     <span style="color:#adadb8;">⭐ Уровень:</span>
                     <span style="color:#efeff1;font-weight:700;">${h.level || 1}</span>
+                    <span style="color:#adadb8;">🛡 Снаряжение:</span>
+                    <span style="color:#efeff1;font-weight:700;">${gearTierLabel}</span>
                     <span style="color:#adadb8;">🏰 Клан:</span>
                     <span style="color:#efeff1;">${clanLabel}</span>
                     <span style="color:#adadb8;">👑 Королевство:</span>
@@ -1544,27 +1636,30 @@ async function loadBannerlordShop() {
     const list = document.getElementById('bannerlord-shop-list');
     const cnt  = document.getElementById('bannerlord-shop-count');
     if (!list) return;
-    // Sprint M19: random-equip всегда сверху (даже если catalog пустой).
+    // Sprint M19+M20: random-equip + gear-upgrade всегда сверху.
     const randomEquipBlock = renderBannerlordRandomEquipHtml();
+    const gearUpgradeBlock = renderBannerlordGearUpgradeHtml();
     try {
         const r = await fetch(`${API_URL}/api/bannerlord/shop`, {
             headers: { 'X-Twitch-JWT': authToken || '' },
         });
         const data = await r.json();
         if (!data.success) {
-            list.innerHTML = randomEquipBlock +
+            list.innerHTML = randomEquipBlock + gearUpgradeBlock +
                 `<div class="loading">${escapeHtml(data.message || 'Ошибка')}</div>`;
             _bindBannerlordRandomEquip();
+            _bindBannerlordGearUpgrade();
             return;
         }
         const items = data.items || [];
-        if (cnt) cnt.textContent = items.length + 3;  // +3 random-equip buttons
+        if (cnt) cnt.textContent = items.length + 4;  // +3 random-equip + 1 gear-upgrade
         if (items.length === 0) {
-            list.innerHTML = randomEquipBlock + `
+            list.innerHTML = randomEquipBlock + gearUpgradeBlock + `
                 <div style="text-align:center;padding:14px;font-size:11px;color:#adadb8;border-top:1px solid #3d3d3f;margin-top:6px;">
                     Каталог пуст. Мод пришлёт shop-данные когда стример запустит игру.
                 </div>`;
             _bindBannerlordRandomEquip();
+            _bindBannerlordGearUpgrade();
             return;
         }
         // Каждый item — {catalog_type, entry_id, name?, price?, action_type?, ...}
@@ -1589,8 +1684,9 @@ async function loadBannerlordShop() {
                     </button>
                 </div>`;
         }).join('');
-        list.innerHTML = randomEquipBlock + catalogHtml;
+        list.innerHTML = randomEquipBlock + gearUpgradeBlock + catalogHtml;
         _bindBannerlordRandomEquip();
+        _bindBannerlordGearUpgrade();
         // Bind buy handlers для catalog items
         list.querySelectorAll('[data-bnr-buy]').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -1600,9 +1696,10 @@ async function loadBannerlordShop() {
             });
         });
     } catch (e) {
-        list.innerHTML = randomEquipBlock +
+        list.innerHTML = randomEquipBlock + gearUpgradeBlock +
             `<div class="loading" style="color:#f87171;">Ошибка сети</div>`;
         _bindBannerlordRandomEquip();
+        _bindBannerlordGearUpgrade();
     }
 }
 

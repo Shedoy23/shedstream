@@ -38,6 +38,7 @@ namespace BannerlordLink.Actions
             Register(new ActivatePowerHandler());    // power.activate — active power burst
             Register(new SummonHeroHandler());       // player.spawn — summon в Mission (5.0)
             Register(new EquipItemHandler());        // player.equip_item — equip ItemObject (5.1b)
+            Register(new UpgradeGearHandler());      // hero.upgrade_gear — 6-tier progression
 
             // ── Echo stubs (TODO Sprint 5.2+ заменить на real) ─────────────
             string[] echoTypes =

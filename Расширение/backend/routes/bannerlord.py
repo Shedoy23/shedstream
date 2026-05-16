@@ -228,6 +228,7 @@ _PURCHASABLE_ACTIONS = (
     "hero.create",            # adoption — special: НЕ требует существующего hero
     "hero.set_class",         # Sprint 4.1: класс + equipment apply
     "power.activate",         # Sprint 4.3: active power burst
+    "hero.upgrade_gear",      # Sprint M20: 6-tier equipment progression
     "player.spawn",
     "player.heal",
     "player.respawn",
@@ -238,6 +239,17 @@ _PURCHASABLE_ACTIONS = (
     "hero.add_skill",
     "hero.recruit_troops",
 )
+
+# Sprint M20: gear upgrade costs (крустиков) per target tier 1..6.
+# Прогрессивно — T6 требует серьёзного гринда.
+TIER_COSTS = {
+    1:    50_000,
+    2:   100_000,
+    3:   200_000,
+    4:   400_000,
+    5:   800_000,
+    6: 1_500_000,
+}
 
 # Actions которые НЕ требуют existing alive hero (adopt + respawn).
 _ACTIONS_WITHOUT_HERO_REQUIREMENT = ("hero.create", "player.respawn")
@@ -256,10 +268,11 @@ async def bannerlord_my_hero(request: Request):
 
     db = get_db()
     async with db._connect() as conn:
-        # Hero base + M19 meta (level / clan_name / kingdom_name)
+        # Hero base + M19 meta + M20 gear_tier
         cur = await conn.execute(
             "SELECT hero_id, display_name, culture, is_alive, is_prisoner, gold, "
-            "       location, adopted_at, last_sync, level, clan_name, kingdom_name "
+            "       location, adopted_at, last_sync, level, clan_name, kingdom_name, "
+            "       gear_tier "
             "FROM bannerlord_heroes WHERE channel_id=? AND username=?",
             (channel_id, username))
         row = await cur.fetchone()
@@ -278,6 +291,7 @@ async def bannerlord_my_hero(request: Request):
             "level":        row[9] or 1,
             "clan_name":    row[10],
             "kingdom_name": row[11],
+            "gear_tier":    row[12] or 0,
         }
 
         # Skills
@@ -383,13 +397,17 @@ async def bannerlord_buy_action(request: Request):
     if action_type not in _PURCHASABLE_ACTIONS:
         return {"success": False, "message": f"Action '{action_type}' не разрешён"}
 
-    # Sprint 5.1c: server-side price enforcement для random equip.
-    # Frontend ставит price, но мы OVERRIDE — viewer не может отправить price:0
-    # и купить за бесплатно. Также проверка mounted-class для horse.
+    # Sprint 5.1c/5.2: server-side price enforcement.
+    # Frontend ставит price для отображения, но мы OVERRIDE — viewer не
+    # может отправить price:0 и купить за бесплатно.
     RANDOM_EQUIP_PRICES = {
         "weapon": 1_000_000,
         "armor":    500_000,
         "horse":  1_250_000,
+    }
+    SPAWN_PRICES = {
+        "player": 500,    # на сторону стримера (ally)
+        "enemy":  1000,   # против стримера — 2× as тролл-tax
     }
     MOUNTED_CLASSES = {
         "cavalry", "camel_cavalry", "horse_archer", "camel_archer", "knight"
@@ -422,6 +440,49 @@ async def bannerlord_buy_action(request: Request):
                     }
             # Server-side override клиентской цены
             data["price"] = RANDOM_EQUIP_PRICES[random_category]
+
+    if action_type == "player.spawn":
+        side = (data.get("side") or "player").strip().lower()
+        if side not in SPAWN_PRICES:
+            return {"success": False, "message": f"Side '{side}' не разрешён"}
+        data["side"] = side
+        data["price"] = SPAWN_PRICES[side]
+
+    # Sprint M20: hero.upgrade_gear — server-side resolve target_tier + price.
+    # Frontend кнопка не передаёт target_tier (защита от viewer-side абуза),
+    # backend читает current gear_tier из БД и инкрементирует на +1.
+    gear_upgrade_target_tier = None
+    if action_type == "hero.upgrade_gear":
+        db_tmp = get_db()
+        async with db_tmp._connect() as conn:
+            # Need class_key + current gear_tier
+            cur = await conn.execute(
+                "SELECT h.gear_tier, c.class_key "
+                "FROM bannerlord_heroes h "
+                "LEFT JOIN bannerlord_hero_class c "
+                "  ON c.channel_id=h.channel_id AND c.username=h.username "
+                "WHERE h.channel_id=? AND h.username=?",
+                (channel_id, username))
+            row = await cur.fetchone()
+        if not row:
+            return {"success": False, "message": "Сначала создай героя"}
+        current_tier = row[0] or 0
+        class_key = (row[1] or "").lower()
+        if not class_key:
+            return {
+                "success": False,
+                "message": "Сначала выбери класс — он определяет slot template",
+            }
+        if current_tier >= 6:
+            return {
+                "success": False,
+                "message": "Снаряжение уже T6 — выше некуда",
+            }
+        target_tier = current_tier + 1
+        data["class_key"] = class_key
+        data["target_tier"] = target_tier
+        data["price"] = TIER_COSTS[target_tier]
+        gear_upgrade_target_tier = target_tier
 
     try:
         price = int(data.get("price", 0))
@@ -540,6 +601,16 @@ async def bannerlord_buy_action(request: Request):
                         class_level = 1,
                         chosen_at   = CURRENT_TIMESTAMP
                 """, (channel_id, username, class_key_lower))
+
+            # Sprint M20: hero.upgrade_gear — atomic increment gear_tier
+            # (внутри той же TX что charge). Если backend упал между charge
+            # и enqueue, rollback вернёт всё. Mod при следующем pull получит
+            # action и применит equipment.
+            if action_type == "hero.upgrade_gear" and gear_upgrade_target_tier:
+                await conn.execute(
+                    "UPDATE bannerlord_heroes SET gear_tier=?, last_sync=CURRENT_TIMESTAMP "
+                    "WHERE channel_id=? AND username=?",
+                    (gear_upgrade_target_tier, channel_id, username))
 
             await conn.commit()
         except Exception:

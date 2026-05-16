@@ -573,6 +573,15 @@ async def run_migrations():
             print(f"❌ M19 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M20: bannerlord_heroes.gear_tier (6-tier equipment progression) ──
+        # !снаряга / extension upgrade button — viewer прокачивает snar 0→6.
+        try:
+            from migrations import m20_bannerlord_gear_tier
+            await m20_bannerlord_gear_tier.apply(conn)
+        except Exception as e:
+            print(f"❌ M20 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

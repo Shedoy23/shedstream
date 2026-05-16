@@ -264,11 +264,28 @@ def cache_twitch_login(user_id: str, opaque_id: str, login: str) -> None:
         _twitch_login_cache[clean] = login
 
 def resolve_jwt_login(jwt_result: dict) -> str:
-    """Резолвим реальный логин из JWT-результата через кеш.
-    Возвращает логин если найден, иначе пустую строку."""
+    """Резолвим реальный логин из JWT-результата.
+
+    Priority:
+      1. jwt_result['username'] (= sub) если это уже **real login** (буквы,
+         не Twitch opaque ID типа U<digits>). Это case для preview-mode и
+         dev-tokens где мы сразу кладём login в sub claim.
+      2. Twitch login cache (заполняется через /api/whoami при первом
+         logged-in запросе зрителя).
+      3. Empty string — login not resolved.
+    """
+    opaque = str(jwt_result.get("username", "")).strip()
     user_id = str(jwt_result.get("user_id", ""))
-    opaque  = str(jwt_result.get("username", ""))
-    clean   = opaque.lstrip("U")
+    clean = opaque.lstrip("U")
+
+    # Heuristic: real Twitch login содержит хотя бы одну букву + не U<digits>.
+    # Twitch opaque IDs формата U<12-cyfr>, e.g. U98319857.
+    # Real logins типа "shedoy23" — буквы + цифры, lowercase.
+    import re as _re
+    if opaque and _re.search(r"[a-z]", opaque.lower()) and not _re.fullmatch(r"U\d+", opaque):
+        return opaque.lower()
+
+    # Cache fallback (legacy)
     return (
         _twitch_login_cache.get(user_id)
         or _twitch_login_cache.get(opaque)

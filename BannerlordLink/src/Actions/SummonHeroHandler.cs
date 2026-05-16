@@ -131,12 +131,21 @@ namespace BannerlordLink.Actions
                 reason = $"mission state {m.CurrentState} (нужен Continuing)";
                 return false;
             }
-            // TODO Sprint 5.1: MissionMode check (skip Tournament/Siege/Deployment).
-            // В 1.3.15 MissionMode enum resolve failed на текущем reference set —
-            // в bin/Win64_Shipping_Client/TaleWorlds.MountAndBlade.dll нет enum
-            // в expected namespace. Skip пока — IsLoadingFinished + Continuing
-            // фильтрует большую часть edge cases. Если будет краш в
-            // tournament/siege — добавим check через reflection или Mission.Mode.ToString().
+            // Sprint 5.1: MissionMode resolve через .ToString() — reflection-safe
+            // (enum может быть в TaleWorlds.MountAndBlade.View или другой DLL'е
+            // которой нет в наших reference). Battle/Deployment/Tournament/Siege/
+            // Conversation/Stealth/Duel/StartUp — known modes.
+            // Skip всё кроме Battle: deployment чреват крашем (см. BLT строка 285
+            // — "SpawnAgent crashes if called in MissionMode.Deployment"), остальные
+            // имеют свою spawn logic + UI которая не учитывает наших агентов.
+            string modeStr;
+            try { modeStr = m.Mode.ToString(); }
+            catch { modeStr = null; }
+            if (modeStr != null && modeStr != "Battle")
+            {
+                reason = $"mission mode {modeStr} (MVP supports только Battle)";
+                return false;
+            }
             reason = null;
             return true;
         }

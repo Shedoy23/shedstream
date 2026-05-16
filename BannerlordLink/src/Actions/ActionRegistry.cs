@@ -37,12 +37,12 @@ namespace BannerlordLink.Actions
             Register(new ModifyAttributeHandler());  // player.modify_attribute — points
             Register(new ActivatePowerHandler());    // power.activate — active power burst
             Register(new SummonHeroHandler());       // player.spawn — summon в Mission (5.0)
+            Register(new EquipItemHandler());        // player.equip_item — equip ItemObject (5.1b)
 
-            // ── Echo stubs (TODO Sprint 5.1+ заменить на real) ─────────────
+            // ── Echo stubs (TODO Sprint 5.2+ заменить на real) ─────────────
             string[] echoTypes =
             {
                 "player.respawn",     // heir succession — complex
-                "player.equip_item",  // weapon/armor — Sprint 5.1 (ItemRoster)
                 "world.trigger_event",
                 "world.broadcast_message",
                 "hero.set_culture",

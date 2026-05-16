@@ -438,7 +438,12 @@ class BannerlordAdapter(ModuleAdapter):
             await conn.commit()
 
     async def _on_equipment_changed(self, channel_id: int, env: ModuleEnvelope) -> None:
-        """Hero equipped/unequipped item."""
+        """Hero equipped/unequipped item.
+
+        M21: payload расширен — tier / item_value / weight / stats (per-type
+        dict). stats хранится как JSON string в bannerlord_equipment.stats_json.
+        Старые events (без stats) тоже supported — поля nullable.
+        """
         data = env.data
         username = (data.get("username") or "").lower()
         slot = (data.get("slot") or "").lower()
@@ -447,17 +452,30 @@ class BannerlordAdapter(ModuleAdapter):
         if not username or not slot:
             return
 
+        # M21 extended fields
+        tier = data.get("tier")              # int 0-5 or None
+        item_value = data.get("item_value")  # int or None
+        weight = data.get("weight")          # float or None
+        stats = data.get("stats")            # dict or None
+        stats_json = json.dumps(stats, ensure_ascii=False) if stats is not None else None
+
         from dependencies import get_db
         async with get_db()._connect() as conn:
             if item_id:
                 await conn.execute("""
                     INSERT INTO bannerlord_equipment
-                        (channel_id, username, slot, item_id, item_name)
-                    VALUES (?, ?, ?, ?, ?)
+                        (channel_id, username, slot, item_id, item_name,
+                         tier, item_value, weight, stats_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(channel_id, username, slot) DO UPDATE SET
-                        item_id   = excluded.item_id,
-                        item_name = excluded.item_name
-                """, (channel_id, username, slot, item_id, item_name))
+                        item_id    = excluded.item_id,
+                        item_name  = excluded.item_name,
+                        tier       = excluded.tier,
+                        item_value = excluded.item_value,
+                        weight     = excluded.weight,
+                        stats_json = excluded.stats_json
+                """, (channel_id, username, slot, item_id, item_name,
+                      tier, item_value, weight, stats_json))
             else:
                 # Unequipped — удаляем row
                 await conn.execute(

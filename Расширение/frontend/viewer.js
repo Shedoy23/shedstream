@@ -1381,6 +1381,62 @@ function renderBannerlordRandomEquipHtml() {
         </div>`;
 }
 
+// Sprint M21 — рендер одного слота экипировки с stats badges.
+// it = {item_id, item_name, tier (0-5), item_value, weight, stats (dict)}
+function _renderEquipRow(slot, it, slotIcons) {
+    if (!it || !it.item_id) {
+        return `<div style="font-size:11px;padding:1px 0;color:#6b7280;">
+            ${slotIcons[slot] || '·'} ${slot}: <em>пусто</em>
+        </div>`;
+    }
+    const name = escapeHtml(it.item_name || it.item_id || '—');
+    const tierBadge = (it.tier != null && it.tier >= 0)
+        ? `<span style="color:#fbbf24;font-weight:700;margin-left:4px;">T${it.tier + 1}★</span>`
+        : '';
+    const stats = it.stats || {};
+    const isWeapon = ['weapon0','weapon1','weapon2','weapon3'].includes(slot);
+    const isArmor = ['head','body','leg','gloves','cape','horseharness'].includes(slot);
+    const isHorse = slot === 'horse';
+
+    let statsHtml = '';
+    if (isWeapon) {
+        const chunks = [];
+        if (stats.swing_dmg)   chunks.push(`<span style="color:#f87171;">⚔ ${stats.swing_dmg}${stats.swing_type ? '/' + stats.swing_type[0].toUpperCase() : ''}</span>`);
+        if (stats.thrust_dmg)  chunks.push(`<span style="color:#fb923c;">▶ ${stats.thrust_dmg}${stats.thrust_type ? '/' + stats.thrust_type[0].toUpperCase() : ''}</span>`);
+        if (stats.swing_spd)   chunks.push(`<span style="color:#60a5fa;">⏱ ${stats.swing_spd}</span>`);
+        if (stats.length)      chunks.push(`<span style="color:#9ca3af;">📏 ${stats.length}</span>`);
+        if (stats.accuracy)    chunks.push(`<span style="color:#a78bfa;">🎯 ${stats.accuracy}</span>`);
+        if (stats.missile_spd) chunks.push(`<span style="color:#34d399;">💨 ${stats.missile_spd}</span>`);
+        // shield-specific (hp + body)
+        if (stats.hp)          chunks.push(`<span style="color:#fbbf24;">🛡 hp ${stats.hp}</span>`);
+        // ammo
+        if (stats.stack)       chunks.push(`<span style="color:#94a3b8;">×${stats.stack}</span>`);
+        statsHtml = chunks.join(' ');
+    } else if (isArmor) {
+        const a = stats || {};
+        const chunks = [];
+        if (a.head) chunks.push(`<span style="color:#a78bfa;">🪖${a.head}</span>`);
+        if (a.body) chunks.push(`<span style="color:#fbbf24;">👕${a.body}</span>`);
+        if (a.leg)  chunks.push(`<span style="color:#34d399;">👢${a.leg}</span>`);
+        if (a.arm)  chunks.push(`<span style="color:#60a5fa;">💪${a.arm}</span>`);
+        statsHtml = chunks.join(' ');
+    } else if (isHorse) {
+        const chunks = [];
+        if (stats.speed)    chunks.push(`<span style="color:#60a5fa;">💨 ${stats.speed}</span>`);
+        if (stats.charge)   chunks.push(`<span style="color:#f87171;">⚡ ${stats.charge}</span>`);
+        if (stats.maneuver) chunks.push(`<span style="color:#34d399;">🔄 ${stats.maneuver}</span>`);
+        if (stats.hp)       chunks.push(`<span style="color:#fbbf24;">❤ ${stats.hp}</span>`);
+        statsHtml = chunks.join(' ');
+    }
+
+    return `<div style="font-size:11px;padding:2px 0;border-bottom:1px solid #2d2d2f;">
+        <div style="display:flex;justify-content:space-between;">
+            <span><span style="color:#adadb8;">${slotIcons[slot] || '·'}</span> ${name}${tierBadge}</span>
+        </div>
+        ${statsHtml ? `<div style="font-size:10px;color:#9ca3af;padding-left:14px;margin-top:1px;">${statsHtml}</div>` : ''}
+    </div>`;
+}
+
 // Sprint M21 — gear upgrade button (hero.upgrade_gear).
 // БЕСПЛАТНО в крустиках; mod-side списывает Hero.Gold (in-game динары).
 // Tier-based progression: 0→1→…→6.
@@ -1639,14 +1695,19 @@ async function loadBannerlordHero() {
             </div>`
         ).join('') || '<div style="font-size:11px;color:#adadb8;">Нет данных по скиллам</div>';
 
-        // Equipment
-        const eqEntries = Object.entries(data.equipment || {});
+        // Equipment + M21 stats: tier badge + per-type stat chips.
+        // Sort: weapons → armor → horse чтобы выглядело упорядоченно.
+        const _slotOrder = ['weapon0','weapon1','weapon2','weapon3',
+            'head','body','leg','gloves','cape','horse','horseharness'];
+        const _slotIcon = {
+            weapon0:'⚔', weapon1:'⚔', weapon2:'⚔', weapon3:'⚔',
+            head:'🪖', body:'👕', leg:'👢', gloves:'🧤', cape:'🧥',
+            horse:'🐎', horseharness:'🐎',
+        };
+        const eqEntries = Object.entries(data.equipment || {})
+            .sort((a, b) => (_slotOrder.indexOf(a[0]) + 100) - (_slotOrder.indexOf(b[0]) + 100));
         const eqHtml = eqEntries.length
-            ? eqEntries.map(([slot, it]) =>
-                `<div style="font-size:11px;padding:1px 0;">
-                    <span style="color:#adadb8;">${slot}:</span>
-                    ${escapeHtml(it.item_name || it.item_id || '—')}
-                </div>`).join('')
+            ? eqEntries.map(([slot, it]) => _renderEquipRow(slot, it, _slotIcon)).join('')
             : '<div style="font-size:11px;color:#adadb8;">Нет экипировки</div>';
 
         // Sprint M19: level / clan / kingdom badges

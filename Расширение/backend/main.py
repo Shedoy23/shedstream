@@ -582,6 +582,16 @@ async def run_migrations():
             print(f"❌ M20 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M21: bannerlord_equipment + stats (tier/value/weight/stats_json) ──
+        # Mod пушит полные stats per slot. UI показывает badges
+        # (T3 ★ / ⚔️ 95dmg / 🛡 50 / 🏇 50spd).
+        try:
+            from migrations import m21_bannerlord_equipment_stats
+            await m21_bannerlord_equipment_stats.apply(conn)
+        except Exception as e:
+            print(f"❌ M21 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

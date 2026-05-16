@@ -329,15 +329,28 @@ async def bannerlord_my_hero(request: Request):
             (channel_id, username))
         attributes = {r[0]: r[1] for r in await cur.fetchall()}
 
-        # Equipment
+        # Equipment + M21 stats
         cur = await conn.execute(
-            "SELECT slot, item_id, item_name FROM bannerlord_equipment "
-            "WHERE channel_id=? AND username=?",
+            "SELECT slot, item_id, item_name, tier, item_value, weight, stats_json "
+            "FROM bannerlord_equipment WHERE channel_id=? AND username=?",
             (channel_id, username))
-        equipment = {
-            r[0]: {"item_id": r[1], "item_name": r[2]}
-            for r in await cur.fetchall()
-        }
+        equipment = {}
+        for r in await cur.fetchall():
+            slot_name, item_id, item_name, tier, item_value, weight, stats_json = r
+            stats = None
+            if stats_json:
+                try:
+                    stats = json.loads(stats_json)
+                except Exception:
+                    stats = None
+            equipment[slot_name] = {
+                "item_id":    item_id,
+                "item_name":  item_name,
+                "tier":       tier,           # 0-5 (frontend +1 для UI T1-T6)
+                "item_value": item_value,     # base game price
+                "weight":     weight,
+                "stats":      stats,          # dict с per-type stats
+            }
 
     return {
         "success":    True,

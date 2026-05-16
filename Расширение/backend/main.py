@@ -976,9 +976,10 @@ async def on_startup():
     # бесконечного роста WAL-файла. PASSIVE раз в час; раз в сутки —
     # RESTART для более глубокой компактизации.
     asyncio.create_task(_wal_checkpoint_loop())
-    # Сезоны дуэлей — проверка при старте по каждому каналу + восстановление pending
+    # Сезоны дуэлей — проверка при старте по каждому каналу.
+    # _load_pending_duels удалён 2026-05-17 (T2) — pending_duels table dropped
+    # миграцией M10, persistence теперь in-memory only (5min TTL короче рестартов).
     from routes.duel import check_season_end as _duel_season_check
-    from routes.duel import load_pending_duels as _load_pending_duels
 
     async def _check_all_channel_seasons():
         """M4 follow-up (а): итерация check_season_end по реестру каналов.
@@ -996,10 +997,6 @@ async def on_startup():
                 print(f"⚠️ check_season_end({cid}) failed: {e}")
 
     asyncio.create_task(_check_all_channel_seasons())
-    try:
-        await _load_pending_duels()
-    except Exception as e:
-        print(f"⚠️ Не удалось загрузить pending-дуэли: {e}")
     print("✅ Сервер запущен")
 
 if __name__ == "__main__":

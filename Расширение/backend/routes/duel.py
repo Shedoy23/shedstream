@@ -17,60 +17,12 @@ _AUTH_FAIL = {"success": False, "message": "❌ Требуется автори�
 
 router = APIRouter()
 
-# Ожидающие дуэли: {duel_id: {creator, amount, move, status, created_ts}}
-# Dict — быстрый доступ; параллельно персистим в БД (pending_duels), чтобы переживали рестарт.
+# Ожидающие дуэли: {duel_id: {creator, move, status, created_ts}}.
+# In-memory only (5-минутный TTL короче рестартов, persistence не нужна).
+# Persistence в `pending_duels` table удалена 2026-05-17 (T2 plan) — таблица
+# была дропнута миграцией M10, но writer-функции остались и кидали
+# OperationalError на каждое создание дуэли.
 _duels: dict = {}
-
-
-async def _db_save_duel(duel_id: str, d: dict) -> None:
-    """Сохранить pending-дуэль в БД.
-
-    Phase 1.F (2026-05-10): amount удалён из dict (ставки нет). Колонка
-    pending_duels.amount будет дропнута в M8 (Phase 1.H). До тех пор пишем
-    amount=0 для backward-compat со старой schema.
-    """
-    db = get_db()
-    async with db._connect() as conn:
-        await conn.execute(
-            "INSERT OR REPLACE INTO pending_duels (duel_id, creator, amount, move, created_ts) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (duel_id, d["creator"], 0, d["move"], d["created_ts"])
-        )
-        await conn.commit()
-
-
-async def _db_remove_duel(duel_id: str) -> None:
-    """Удалить дуэль из БД (при accept/expire)."""
-    db = get_db()
-    async with db._connect() as conn:
-        await conn.execute("DELETE FROM pending_duels WHERE duel_id = ?", (duel_id,))
-        await conn.commit()
-
-
-async def load_pending_duels() -> None:
-    """Восстанавливаем pending-дуэли из БД при старте приложения."""
-    db = get_db()
-    async with db._connect() as conn:
-        rows = await (await conn.execute(
-            "SELECT duel_id, creator, amount, move, created_ts FROM pending_duels"
-        )).fetchall()
-
-    now = time.time()
-    loaded, expired = 0, 0
-    for duel_id, creator, _amount, move, created_ts in rows:
-        # _amount игнорируется — Phase 1.F (2026-05-10) убрал ставки.
-        if now - created_ts > 300:
-            await _db_remove_duel(duel_id)
-            expired += 1
-            continue
-        _duels[duel_id] = {
-            "creator":    creator,
-            "move":       move,
-            "status":     "pending",
-            "created_ts": created_ts,
-        }
-        loaded += 1
-    print(f"[duel] Восстановлено {loaded} pending-дуэлей из БД (отброшено просроченных: {expired})")
 
 # RPS: атакующий → защитник → победа атакующего?
 _RPS_BEATS = {
@@ -283,7 +235,6 @@ async def create_duel(body: DuelRequest, request: Request):
         "status":     "pending",
         "created_ts": time.time(),
     }
-    await _db_save_duel(duel_id, _duels[duel_id])
     return {
         "success":  True,
         "duel_id":  duel_id,
@@ -323,7 +274,6 @@ async def accept_duel(req: AcceptDuelRequest, request: Request):
     duel["status"] = "accepting"
     if time.time() - duel["created_ts"] > 300:
         duel["status"] = "expired"
-        await _db_remove_duel(duel_id)
         return {"success": False, "message": "Время дуэли истекло"}
 
     # Phase 1.F (2026-05-10): проверки баланса крустиков удалены —
@@ -390,7 +340,6 @@ async def accept_duel(req: AcceptDuelRequest, request: Request):
 
     duel["status"] = "completed"
     duel["winner"] = winner
-    await _db_remove_duel(duel_id)
 
     c_delta = _delta_str(new_c_elo, c_elo)
     a_delta = _delta_str(new_a_elo, a_elo)
@@ -449,7 +398,6 @@ async def list_duels(username: str = ""):
 
     for eid in expired:
         _duels[eid]["status"] = "expired"
-        await _db_remove_duel(eid)
     _duels = {k: v for k, v in _duels.items() if v["status"] == "pending"}
     return {"duels": result}
 

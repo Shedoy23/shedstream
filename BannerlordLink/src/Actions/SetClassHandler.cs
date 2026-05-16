@@ -172,7 +172,7 @@ namespace BannerlordLink.Actions
                 ["athletic_skill_boost"]    = "Athletics",
             };
 
-            string username = hero.Name?.ToString()?.ToLowerInvariant();
+            string username = BannerlordLink.Util.HeroNaming.ExtractUsername(hero.Name?.ToString());
             if (string.IsNullOrEmpty(username)) return;
 
             foreach (var pair in skillMap)

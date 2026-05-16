@@ -114,11 +114,9 @@ namespace BannerlordLink.Behaviors
                 BannerlordLinkModule.Log(
                     $"[CampaignEvent] {trigger}: session_start pushed save_id={saveId}");
 
-                // Sprint M22+: ALSO push heroes_snapshot — список имён всех
-                // alive heroes в save (lowercase). Backend diff'ит с
-                // bannerlord_heroes.username и удаляет rows которых нет
-                // в snapshot. Точный per-hero existence check — лучше чем
-                // save_id matching (UniqueGameId per-campaign, не per-save).
+                // Sprint M22+: heroes_snapshot после ОПЦИОНАЛЬНОЙ миграции
+                // legacy hero names → [BLink] prefix (для backwards-compat).
+                MigrateLegacyHeroNames();
                 PushHeroesSnapshot(saveId);
             }
             catch (Exception ex)
@@ -133,9 +131,13 @@ namespace BannerlordLink.Behaviors
             try
             {
                 if (Campaign.Current == null) return;
+                // Filter ТОЛЬКО adopted heroes ([BLink] prefix). 2000 vanilla
+                // heroes → ~5-50 adopted. Backend ожидает lowercase logins
+                // (без [BLink] prefix) — HeroNaming.ExtractUsername делает это.
                 var usernames = Campaign.Current.AliveHeroes
-                    ?.Where(h => h?.Name != null)
-                    .Select(h => h.Name.ToString()?.ToLowerInvariant())
+                    ?.Where(h => h?.Name != null
+                        && BannerlordLink.Util.HeroNaming.IsAdopted(h.Name.ToString()))
+                    .Select(h => BannerlordLink.Util.HeroNaming.ExtractUsername(h.Name.ToString()))
                     .Where(n => !string.IsNullOrEmpty(n))
                     .Distinct()
                     .ToArray() ?? new string[0];
@@ -148,12 +150,57 @@ namespace BannerlordLink.Behaviors
                 Task.Run(async () => await BannerlordLinkModule.Backend
                     .PostEventAsync("bannerlord", "module.heroes_snapshot", evtData));
                 BannerlordLinkModule.Log(
-                    $"[CampaignEvent] heroes_snapshot pushed: {usernames.Length} alive heroes");
+                    $"[CampaignEvent] heroes_snapshot pushed: {usernames.Length} adopted heroes " +
+                    $"(filter: [BLink] prefix only)");
             }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log(
                     $"[CampaignEvent] PushHeroesSnapshot error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// One-time migration: existing adopted heroes (имя совпадает с
+        /// known viewer username из PowerCache) получают [BLink] prefix
+        /// если они без него. Это нужно для smooth transition после
+        /// deploy этого fix'а — heroes в старых save'ах не имеют префикса.
+        /// </summary>
+        private void MigrateLegacyHeroNames()
+        {
+            try
+            {
+                if (Campaign.Current?.AliveHeroes == null) return;
+                var known = BannerlordLink.Net.PowerCache.GetAllUsernames();
+                if (known == null || known.Length == 0) return;
+
+                int migrated = 0;
+                foreach (var username in known)
+                {
+                    // Match exactly old name = username (без prefix).
+                    var hero = Campaign.Current.AliveHeroes.FirstOrDefault(h =>
+                        h?.Name != null
+                        && !BannerlordLink.Util.HeroNaming.IsAdopted(h.Name.ToString())
+                        && string.Equals(h.Name.ToString(), username,
+                            StringComparison.OrdinalIgnoreCase));
+                    if (hero == null) continue;
+
+                    var (full, first) = BannerlordLink.Util.HeroNaming.Format(username);
+                    hero.SetName(full, first);
+                    migrated++;
+                    BannerlordLinkModule.Log(
+                        $"[NameMigration] @{username} → {BannerlordLink.Util.HeroNaming.PREFIX}{username}");
+                }
+                if (migrated > 0)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[NameMigration] {migrated} legacy hero(es) renamed with [BLink] prefix");
+                }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[NameMigration] error: {ex.Message}");
             }
         }
     }

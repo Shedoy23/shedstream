@@ -27,7 +27,7 @@ namespace BannerlordLink.Util
             if (hero == null || hero.Name == null) return;
             try
             {
-                string username = hero.Name.ToString()?.ToLowerInvariant();
+                string username = HeroNaming.ExtractUsername(hero.Name.ToString());
                 if (string.IsNullOrEmpty(username)) return;
 
                 // Clan / Kingdom могут быть null (wanderer без клана / клан вне

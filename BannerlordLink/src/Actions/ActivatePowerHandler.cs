@@ -64,15 +64,16 @@ namespace BannerlordLink.Actions
                     return;
                 }
 
-                // Find agent in current mission
+                // Find agent in current mission. Match по extracted username
+                // ([BLink] prefix stripped + lowercase).
                 Agent agent = null;
                 foreach (var a in Mission.Current.Agents)
                 {
                     if (a == null || !a.IsHuman || !a.IsActive()) continue;
                     var hero = (a.Character as TaleWorlds.CampaignSystem.CharacterObject)?.HeroObject;
                     if (hero?.Name == null) continue;
-                    if (string.Equals(hero.Name.ToString(), username,
-                            StringComparison.OrdinalIgnoreCase))
+                    string extracted = BannerlordLink.Util.HeroNaming.ExtractUsername(hero.Name.ToString());
+                    if (string.Equals(extracted, username, StringComparison.OrdinalIgnoreCase))
                     {
                         agent = a;
                         break;

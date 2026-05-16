@@ -44,7 +44,7 @@ namespace BannerlordLink.Patches
                     if (a.Team == null || a.Team.Side != side) continue;
                     var hero = (a.Character as CharacterObject)?.HeroObject;
                     if (hero?.Name == null) continue;
-                    string name = hero.Name.ToString()?.ToLowerInvariant();
+                    string name = Util.HeroNaming.ExtractUsername(hero.Name.ToString());
                     if (string.IsNullOrEmpty(name)) continue;
                     if (PowerCache.GetHeroClass(name) != null)
                     {

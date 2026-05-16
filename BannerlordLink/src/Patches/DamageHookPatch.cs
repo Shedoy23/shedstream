@@ -177,7 +177,7 @@ namespace BannerlordLink.Patches
             if (agent == null || !agent.IsHuman) return null;
             var hero = (agent.Character as CharacterObject)?.HeroObject;
             if (hero?.Name == null) return null;
-            string user = hero.Name.ToString()?.ToLowerInvariant();
+            string user = BannerlordLink.Util.HeroNaming.ExtractUsername(hero.Name.ToString());
             return string.IsNullOrEmpty(user) ? null : user;
         }
 

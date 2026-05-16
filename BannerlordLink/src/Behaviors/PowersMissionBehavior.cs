@@ -71,7 +71,7 @@ namespace BannerlordLink.Behaviors
             Hero hero = (agent.Character as CharacterObject)?.HeroObject;
             if (hero == null) return;
 
-            string username = hero.Name?.ToString()?.ToLowerInvariant();
+            string username = BannerlordLink.Util.HeroNaming.ExtractUsername(hero.Name?.ToString());
             if (string.IsNullOrEmpty(username)) return;
 
             var hc = PowerCache.GetHeroClass(username);

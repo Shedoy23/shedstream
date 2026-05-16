@@ -1,16 +1,16 @@
 using System;
 using System.Linq;
+using BannerlordLink.Util;
 using TaleWorlds.CampaignSystem;
 
 namespace BannerlordLink.Actions
 {
     /// <summary>
-    /// Helper: найти Hero в игре по viewer's username (имя hero совпадает
-    /// с viewer_login после `hero.create` adoption).
+    /// Find Hero by viewer's username. Adopted heroes named "[BLink] {login}"
+    /// (M22 v3). HeroNaming.ExtractUsername strip'ит prefix → match lowercase
+    /// viewer login.
     ///
-    /// Источник: Campaign.Current.AliveHeroes (включая wanderer'ов в towns).
-    /// MBObjectManager.GetObjectTypeList<Hero>() возвращал null —
-    /// Hero registers иначе чем CharacterObject.
+    /// Backwards compat: heroes без префикса тоже match'атся (legacy).
     /// </summary>
     public static class HeroLookup
     {
@@ -19,16 +19,15 @@ namespace BannerlordLink.Actions
             if (string.IsNullOrEmpty(username)) return null;
             if (Campaign.Current == null) return null;
 
-            // AliveHeroes — все живые heroes (wanderers + nobles + companions).
-            // Для dead heroes — будет TODO Sprint 3.3+ когда понадобится respawn.
             var alive = Campaign.Current.AliveHeroes;
             if (alive == null) return null;
 
+            string target = username.ToLowerInvariant();
             foreach (var h in alive)
             {
                 if (h?.Name == null) continue;
-                if (string.Equals(h.Name.ToString(), username,
-                        StringComparison.OrdinalIgnoreCase))
+                var extracted = HeroNaming.ExtractUsername(h.Name.ToString());
+                if (string.Equals(extracted, target, StringComparison.OrdinalIgnoreCase))
                     return h;
             }
             return null;

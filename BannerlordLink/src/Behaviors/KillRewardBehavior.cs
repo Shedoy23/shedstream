@@ -108,7 +108,7 @@ namespace BannerlordLink.Behaviors
             if (agent == null || !agent.IsHuman) return null;
             var hero = (agent.Character as CharacterObject)?.HeroObject;
             if (hero?.Name == null) return null;
-            string name = hero.Name.ToString()?.ToLowerInvariant();
+            string name = BannerlordLink.Util.HeroNaming.ExtractUsername(hero.Name.ToString());
             if (string.IsNullOrEmpty(name)) return null;
             // Filter only adopted heroes — у нас в PowerCache._heroClass list
             // viewer'ов с class. Если name есть → adopted.

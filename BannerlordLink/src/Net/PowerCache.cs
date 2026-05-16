@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 
@@ -46,6 +47,16 @@ namespace BannerlordLink.Net
             lock (_lock)
             {
                 return _heroClass.TryGetValue(username, out var hc) ? hc : ((string, int)?)null;
+            }
+        }
+
+        /// <summary>All known adopted usernames (lowercase). Использует
+        /// MainCampaignBehavior для migration legacy hero names → [BLink] prefix.</summary>
+        public static string[] GetAllUsernames()
+        {
+            lock (_lock)
+            {
+                return _heroClass.Keys.ToArray();
             }
         }
 

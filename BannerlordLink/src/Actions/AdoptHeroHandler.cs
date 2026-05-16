@@ -119,9 +119,9 @@ namespace BannerlordLink.Actions
 
                 newHero.HeroDeveloper.InitializeHeroDeveloper();
 
-                // 4. Rename → viewer login
-                var nameText = new TextObject(username);
-                newHero.SetName(nameText, nameText);
+                // 4. Rename → "[BLink] {viewer_login}" full / "{viewer_login}" first
+                var (fullName, firstName) = HeroNaming.Format(username);
+                newHero.SetName(fullName, firstName);
 
                 BannerlordLinkModule.Log(
                     $"[hero.create] @{username} → hero_id={newHero.StringId} " +

@@ -1,11 +1,11 @@
 using System;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
-using TaleWorlds.ObjectSystem;
 
 namespace BannerlordLink.Actions
 {
@@ -44,15 +44,37 @@ namespace BannerlordLink.Actions
                         return;
                     }
 
-                    // Skill lookup: либо by StringId, либо by Name (case-insensitive)
-                    var skill = MBObjectManager.Instance
-                        .GetObjectTypeList<SkillObject>()
-                        .FirstOrDefault(s =>
-                            string.Equals(s.StringId, skillKey, StringComparison.OrdinalIgnoreCase) ||
-                            string.Equals(s.Name?.ToString(), skillKey, StringComparison.OrdinalIgnoreCase));
+                    // Skill lookup: DefaultSkills.<Name> — это static PROPERTIES
+                    // (не fields) в Bannerlord 1.3.x. Reflection через GetProperties.
+                    // Fields-fallback на случай modded skills.
+                    SkillObject skill = null;
+                    var t = typeof(DefaultSkills);
+                    foreach (var p in t.GetProperties(BindingFlags.Public | BindingFlags.Static))
+                    {
+                        if (p.PropertyType != typeof(SkillObject)) continue;
+                        if (!string.Equals(p.Name, skillKey, StringComparison.OrdinalIgnoreCase))
+                            continue;
+                        skill = p.GetValue(null) as SkillObject;
+                        break;
+                    }
                     if (skill == null)
                     {
-                        BannerlordLinkModule.Log($"[hero.add_skill] @{username}: skill '{skillKey}' не найден");
+                        foreach (var f in t.GetFields(BindingFlags.Public | BindingFlags.Static))
+                        {
+                            if (f.FieldType != typeof(SkillObject)) continue;
+                            if (!string.Equals(f.Name, skillKey, StringComparison.OrdinalIgnoreCase))
+                                continue;
+                            skill = f.GetValue(null) as SkillObject;
+                            break;
+                        }
+                    }
+                    if (skill == null)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[hero.add_skill] @{username}: skill '{skillKey}' не найден " +
+                            "(пробуй: Bow / OneHanded / TwoHanded / Polearm / Crossbow / " +
+                            "Throwing / Riding / Athletics / Crafting / Tactics / Scouting / " +
+                            "Roguery / Charm / Leadership / Trade / Steward / Medicine / Engineering)");
                         return;
                     }
 

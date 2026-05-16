@@ -106,16 +106,10 @@ namespace BannerlordLink.Actions
                 // Даём 1 skill point в первый skill (минимум для survival).
                 try
                 {
-                    // Get any skill через MBObjectManager (vanilla, без BLT helper).
-                    // DefaultSkills.OneHanded — статическое поле, тоже работает но
-                    // ObjectTypeList надёжнее на случай modded skills.
-                    var firstSkill = MBObjectManager.Instance
-                        .GetObjectTypeList<SkillObject>()
-                        .FirstOrDefault();
-                    if (firstSkill != null)
-                    {
-                        newHero.HeroDeveloper.SetInitialSkillLevel(firstSkill, 1);
-                    }
+                    // DefaultSkills.OneHanded — static field, гарантированно
+                    // существует в vanilla 1.3.x. Никаких GetObjectTypeList
+                    // (returns null для SkillObject — Skills register иначе).
+                    newHero.HeroDeveloper.SetInitialSkillLevel(DefaultSkills.OneHanded, 1);
                 }
                 catch (Exception ex)
                 {

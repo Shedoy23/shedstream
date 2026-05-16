@@ -170,6 +170,7 @@ async def bannerlord_ping():
 _PURCHASABLE_ACTIONS = (
     "hero.create",            # adoption — special: НЕ требует существующего hero
     "hero.set_class",         # Sprint 4.1: класс + equipment apply
+    "power.activate",         # Sprint 4.3: active power burst
     "player.spawn",
     "player.heal",
     "player.respawn",

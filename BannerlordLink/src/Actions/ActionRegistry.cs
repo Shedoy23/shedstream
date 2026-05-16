@@ -35,6 +35,7 @@ namespace BannerlordLink.Actions
             Register(new GiveGoldHandler());         // player.give_item (gold)
             Register(new AddSkillXpHandler());       // hero.add_skill — XP boost
             Register(new ModifyAttributeHandler());  // player.modify_attribute — points
+            Register(new ActivatePowerHandler());    // power.activate — active power burst
 
             // ── Echo stubs (TODO Sprint 3.4+ заменить на real) ─────────────
             string[] echoTypes =

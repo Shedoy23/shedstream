@@ -69,14 +69,23 @@ MODULE_API_PLAYER_EVENTS_ENABLED = os.getenv('MODULE_API_PLAYER_EVENTS_ENABLED',
 # Стример получает токен из admin-UI dashboard, вставляет в connector
 # (мод/плагин), connector использует в Authorization: Bearer <token>.
 #
-# Если env не задан — используется TWITCH_EXTENSION_SECRET как fallback
-# (то же что cookie sessions подписывают). Безопасно: оба секрета
-# server-side и не попадают наружу. Раздельный secret — рекомендован
-# для prod если хочется ротировать модульные токены без инвалидации
-# admin-сессий.
-MODULE_TOKEN_SECRET = os.getenv('MODULE_TOKEN_SECRET', '') or TWITCH_EXTENSION_SECRET
+# **ВАЖНО (regression 2026-05-17):** если MODULE_TOKEN_SECRET не задан,
+# fallback на TWITCH_EXTENSION_SECRET ломает существующие mod-токены при
+# любой ротации TWITCH_EXTENSION_SECRET (вне зависимости от того,
+# планировали ли мы trogat module API). Поэтому MODULE_TOKEN_SECRET
+# **должен быть задан отдельно** на любом prod-deployment — fallback
+# теперь даёт громкий warning при startup чтобы это заметить.
+_MODULE_TOKEN_SECRET_ENV = os.getenv('MODULE_TOKEN_SECRET', '').strip()
+MODULE_TOKEN_SECRET = _MODULE_TOKEN_SECRET_ENV or TWITCH_EXTENSION_SECRET
 if not MODULE_TOKEN_SECRET:
     print("⚠️  MODULE_TOKEN_SECRET и TWITCH_EXTENSION_SECRET не заданы — Module API auth не будет работать")
+elif not _MODULE_TOKEN_SECRET_ENV:
+    print(
+        "⚠️  MODULE_TOKEN_SECRET не задан явно — fallback на TWITCH_EXTENSION_SECRET. "
+        "При ротации TWITCH_EXTENSION_SECRET все mod-токены станут невалидны (regression 2026-05-17). "
+        "Рекомендуется: secrets.token_urlsafe(32) в .env как MODULE_TOKEN_SECRET=... — "
+        "после этого mod-токены не зависят от extension secret rotation."
+    )
 
 # ===== M5: Per-channel rate limits + tier-based квоты =====
 # Лимит запросов в минуту на канал. Применяется в require_jwt_user/_channel

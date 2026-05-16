@@ -82,6 +82,7 @@ from routes.dice       import router as dice_router       # Phase 5.2 (2026-05-1
 from routes.guilds     import router as guilds_router     # Phase 3 (2026-05-11)
 from routes.voting     import router as voting_router     # Phase 4 (2026-05-11)
 from routes.pets       import router as pets_router       # Phase 7 (2026-05-12)
+from routes.bannerlord  import router as bannerlord_router # Sprint 1.3 (2026-05-15)
 # casino_router удалён 2026-05-10 — Phase 1.A compliance rework (см. COMPLIANCE_REWORK_PLAN.md)
 app.include_router(duel_router)
 app.include_router(viewer_router)
@@ -101,6 +102,7 @@ app.include_router(dice_router)        # Phase 5.2 (2026-05-11): Dice match
 app.include_router(guilds_router)      # Phase 3 (2026-05-11): Guilds base
 app.include_router(voting_router)      # Phase 4 (2026-05-11): Voting events
 app.include_router(pets_router)        # Phase 7 (2026-05-12): Pets MVP (cross-channel)
+app.include_router(bannerlord_router)  # Sprint 1.3 (2026-05-15): Bannerlord viewer endpoints
 
 
 # Путь к фронтенду из .env или значение по умолчанию

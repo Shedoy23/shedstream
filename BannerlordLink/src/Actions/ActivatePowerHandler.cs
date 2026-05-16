@@ -180,9 +180,10 @@ namespace BannerlordLink.Actions
             return false;
         }
 
-        // Native game-asset particle "psys_game_shield_break" у off-hand bone.
+        // Native game-asset particle + sound у off-hand bone.
         // Frame = agent global frame * skeleton bone-local frame. AgentVisuals
         // может быть null если agent disposed — wrap try/catch и no-op fallback.
+        // Sprint 4.9: sound через Mission.MakeSound (TaleWorlds public API).
         private static void TryTriggerShieldBreakFx(Agent agent)
         {
             try
@@ -196,8 +197,29 @@ namespace BannerlordLink.Actions
                 MatrixFrame frame = agent.AgentVisuals.GetGlobalFrame()
                                   * skel.GetBoneEntitialFrame(bone);
                 int psysId = ParticleSystemManager.GetRuntimeIdByName("psys_game_shield_break");
-                if (psysId < 0) return;
-                Mission.Current.Scene.CreateBurstParticle(psysId, frame);
+                if (psysId >= 0)
+                {
+                    Mission.Current.Scene.CreateBurstParticle(psysId, frame);
+                }
+
+                // Sound — отдельный try/catch чтобы particle всегда срабатывал
+                // даже если sound API дропнет (API нестабилен между 1.3.x patch'ами).
+                try
+                {
+                    int soundId = SoundEvent.GetEventIdFromString(
+                        "event:/mission/combat/shield/broken");
+                    if (soundId >= 0)
+                    {
+                        // Positional args (BLT pattern, OneShotEffect.cs:54):
+                        // soundEventId, position, soundEventPlayInArea, isReverbAffected,
+                        // relatedAgentIndex, parentObjectIndex
+                        Mission.Current.MakeSound(soundId, frame.origin, false, true, agent.Index, -1);
+                    }
+                }
+                catch (Exception sx)
+                {
+                    BannerlordLinkModule.Log($"[shield_break sound] {sx.Message}");
+                }
             }
             catch (Exception ex)
             {

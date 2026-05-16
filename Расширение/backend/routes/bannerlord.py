@@ -177,23 +177,31 @@ async def bannerlord_status(request: Request):
 
 @router.get("/api/bannerlord/my-buffs")
 async def bannerlord_my_buffs(request: Request):
-    """Sprint 4.6 — текущие active buffs (rage, retribution_toggle) для viewer'а.
+    """Sprint 4.6/4.8 — active buffs + cooldowns для viewer'а.
 
-    State хранится in-memory в `_adapter.py:_active_buffs`, обновляется
-    через mod'овые события buff.activated/buff.expired. Reset на supervisor
-    restart — mod пошлёт buff.activated повторно если buff ещё активен.
+    Buffs: текущие активные active powers (rage / retribution_toggle).
+      State в `_adapter.py:_active_buffs`, обновляется через mod'овые
+      buff.activated/buff.expired. Reset на supervisor restart — mod
+      повторно пошлёт buff.activated если buff ещё активен.
 
-    Response: { success, buffs: [{power_key, remaining_s}] }
-    Frontend polling (~2с) + client-side decrement для smooth countdown.
+    Cooldowns (4.8): remaining seconds до следующей разрешённой активации
+      каждого power_key. Set'ится при /action для power.activate.
+
+    Response: { success, buffs: [{power_key, remaining_s}],
+                       cooldowns: [{power_key, remaining_s}] }
+    Frontend polling 2.5с + client-side decrement для smooth countdown.
     """
     auth = require_jwt_user(request)
     if not auth:
         return _AUTH_FAIL
     username, channel_id = auth
 
-    from modules.bannerlord._adapter import get_active_buffs
-    buffs = get_active_buffs(channel_id, username)
-    return {"success": True, "buffs": buffs}
+    from modules.bannerlord._adapter import get_active_buffs, get_active_cooldowns
+    return {
+        "success":   True,
+        "buffs":     get_active_buffs(channel_id, username),
+        "cooldowns": get_active_cooldowns(channel_id, username),
+    }
 
 
 @router.get("/api/bannerlord/ping")
@@ -379,6 +387,20 @@ async def bannerlord_buy_action(request: Request):
     if price < 0:
         return {"success": False, "message": "Цена не может быть отрицательной"}
 
+    # Sprint 4.8: server-side cooldown enforcement для power.activate.
+    # Frontend disable — UX only; реальная защита здесь.
+    if action_type == "power.activate":
+        from modules.bannerlord._adapter import check_cooldown
+        power_key = (data.get("power_key") or "").strip().lower()
+        if power_key:
+            remaining = check_cooldown(channel_id, username, power_key)
+            if remaining > 0:
+                return {
+                    "success": False,
+                    "message": f"Способность на перезарядке ({int(remaining)}с)",
+                    "cooldown_remaining_s": round(remaining, 1),
+                }
+
     db = get_db()
     async with db._connect() as conn:
         # ── Special case validation: hero.set_class ──
@@ -477,6 +499,14 @@ async def bannerlord_buy_action(request: Request):
             except Exception:
                 pass
             raise
+
+    # Sprint 4.8: запустить cooldown ПОСЛЕ commit (если упало — cooldown
+    # не считается). Происходит вне TX — cooldown это in-memory state.
+    if action_type == "power.activate":
+        from modules.bannerlord._adapter import set_cooldown
+        power_key = (data.get("power_key") or "").strip().lower()
+        if power_key:
+            set_cooldown(channel_id, username, power_key)
 
     return {
         "success":   True,

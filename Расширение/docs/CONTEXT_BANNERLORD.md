@@ -3,7 +3,7 @@
 **Назначение:** для чата по Bannerlord-модулю. Для общей extension
 работы — см. `CONTEXT.md`. Для RimWorld — `CONTEXT_RIMWORLD.md`.
 
-**Last updated:** 2026-05-16 (Sprint 4.7 closed — UI buttons + buff HUD)
+**Last updated:** 2026-05-16 (Sprint 4.9 closed — sound + cooldowns)
 
 ## TL;DR
 
@@ -13,9 +13,9 @@ powers (HP×, skill boost, body scale), могут активировать acti
 (heal_burst). Adoption / class change / actions — через extension UI
 + action queue.
 
-## Текущий статус — Sprint 4.7 closed
+## Текущий статус — Sprint 4.9 closed
 
-### ✅ Закрыто (12 sprints)
+### ✅ Закрыто (14 sprints)
 
 **Backend infrastructure:**
 - M14 migration: `bannerlord_heroes` / `_skills` / `_attributes` /
@@ -25,10 +25,13 @@ powers (HP×, skill boost, body scale), могут активировать acti
 - **M17 migration** (Sprint 4.5): armor_bypass_pct→ignore_armor_pct fixup
   + 4 active powers seeded (tank/shield_break_burst, psycho/berserk/rage,
   knight/retribution_toggle)
-- routes/bannerlord.py: 8 endpoints (my-hero, shop, action, ping, status,
-  class-state, classes (+ current_powers field Sprint 4.7), my-buffs (4.6))
+- routes/bannerlord.py: 8 endpoints (my-hero, shop, action (4.8 cooldown enforcement),
+  ping, status, class-state, classes (+ current_powers Sprint 4.7),
+  my-buffs (4.6, +cooldowns Sprint 4.8))
 - modules/bannerlord/_adapter.py: 14 event types обработаны (+ buff.activated /
-  buff.expired Sprint 4.6, кэш in-memory `_active_buffs` per (channel_id, username))
+  buff.expired Sprint 4.6, кэш in-memory `_active_buffs` per (channel_id, username)).
+  Sprint 4.8: `_cooldowns` dict + POWER_COOLDOWNS map (heal 30s / shield_break 90s /
+  rage 60s / retribution 90s) + check_cooldown / set_cooldown helpers.
 - Test 19 — 15 isolation assertions
 
 **C# mod** (`BannerlordLink/`, `Modules/Shedoy23.BannerlordLink/` на проде):
@@ -43,9 +46,10 @@ powers (HP×, skill boost, body scale), могут активировать acti
   - `player.modify_attribute` (attribute points)
   - `power.activate` — 4 power_keys:
     - `heal_burst` (4.3) — +50 HP instant
-    - `shield_break_burst` (4.5+4.6) — AoE: ChangeWeaponHitPoints(shield,0) +
-      particle effect `psys_game_shield_break` через
-      `Mission.Scene.CreateBurstParticle` для всех enemy в радиусе (6/8/10м)
+    - `shield_break_burst` (4.5+4.6+4.9) — AoE: ChangeWeaponHitPoints(shield,0)
+      + particle `psys_game_shield_break` через `Mission.Scene.CreateBurstParticle`
+      + sound `event:/mission/combat/shield/broken` через `Mission.MakeSound`
+      (TaleWorlds.MountAndBlade SoundEvent API)
     - `rage` (4.5) — timed 30s outgoing damage multi (1.3-1.8× per level)
     - `retribution_toggle` (4.5) — timed 60s extra reflect % overlay
 - **Buff event push** (Sprint 4.6): ActiveBuffState.Activate / RemoveExpired
@@ -76,25 +80,26 @@ powers (HP×, skill boost, body scale), могут активировать acti
 - Class picker (13 buttons, current highlighted)
 - Online badge (🟢/🔴 polling /api/bannerlord/status)
 - «⚔️ Стать героем» в empty state
-- **Active power buttons** (Sprint 4.7, viewer.js): heal_burst (100💎),
+- **Active power buttons** (Sprint 4.7+4.8, viewer.js): heal_burst (100💎),
   shield_break_burst (200💎, только tank), rage (300💎), retribution_toggle
-  (300💎). Hardcoded prices. Disabled пока buff активен.
+  (300💎). Hardcoded prices. Disabled пока buff активен ИЛИ cooldown идёт
+  (показывается "Xс" вместо цены, decrement client-side между poll'ами).
 - **Buff HUD** (Sprint 4.6, viewer.js): chip-list над class picker'ом
   с current remaining time. Polling /api/bannerlord/my-buffs каждые 2.5с +
   client-side decrement 1с для smooth countdown.
 
 ### ⏳ Pending sprints
 
-- **4.8** Cooldowns — server-side rate-limit (e.g. 30с cooldown между
-  активациями rage / retribution на одного зрителя). Сейчас frontend
-  disable'ит кнопку только если buff активен; но если зритель ждёт
-  expiry и тут же активирует rage снова — нужен min interval.
-- **4.9** Shield-break sound — пока скипнули (только particle).
-  `Mission.Current.MakeSound(SoundEvent.GetEventIdFromString(
-  "event:/mission/combat/shield/broken"), origin, ...)` — нужно
-  убедиться что API стабилен в 1.3.15.
-- **4.10** Active power balancing — собрать stream-feedback на rage 1.3-1.8×
-  и retribution 20-50% после live test.
+- **4.10** Active power balancing — собрать stream-feedback на rage 1.3-1.8×,
+  retribution 20-50%, cooldowns 30/60/90с после live test. Скорее всего
+  cooldown в админку (per-streamer rebalance) — 4.11.
+- **5.0** `player.spawn` — summon hero как агент в текущую Mission. BLT
+  SummonHero.cs (1142 строки) reference: подбор position, equipment apply,
+  formation join, team assignment, mount handling. Сложно — отдельный sprint.
+- **5.1** `player.equip_item` — real equipment apply (ItemRoster + Equipment
+  modification + сохранение в save).
+- **5.2** Class re-balance + compliance rebrand (наши class names + values
+  vs BLT — должны полностью отличаться перед public release).
 - **4.6** TG/extension notifications — HeroKilled (player.died уже
   посылается, но TG notify pending)
 - **5.0** `player.spawn` (summon в Mission) — complex, BLT 1142 строк

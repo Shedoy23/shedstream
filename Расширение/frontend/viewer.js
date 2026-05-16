@@ -1081,6 +1081,7 @@ let _bannerlordPollId = null;
 let _bannerlordBuffPollId = null;   // 4.6 — periodic GET /api/bannerlord/my-buffs (2.5s)
 let _bannerlordBuffTickId = null;   // 4.6 — client-side decrement (1s) для smooth countdown
 let _bannerlordBuffs = [];          // 4.6 — last-known buffs cache; entries { power_key, remaining_s }
+let _bannerlordCooldowns = [];      // 4.8 — last-known cooldowns; entries { power_key, remaining_s }
 
 // Sprint 4.7 — UI labels + hardcoded prices для active power buttons.
 // Цены rebалансим в админку позже; сейчас просто работающий MVP.
@@ -1138,15 +1139,23 @@ function _startBannerlordPolling() {
     // decrement (1s) чтобы countdown был smooth между poll'ами.
     _bannerlordBuffPollId = setInterval(loadBannerlordBuffs, 2500);
     _bannerlordBuffTickId = setInterval(() => {
-        let changed = false;
+        let buffsChanged = false, cdsChanged = false;
         for (const b of _bannerlordBuffs) {
             if (b.remaining_s > 0) {
                 b.remaining_s = Math.max(0, b.remaining_s - 1);
-                changed = true;
+                buffsChanged = true;
             }
         }
         _bannerlordBuffs = _bannerlordBuffs.filter(b => b.remaining_s > 0);
-        if (changed) _renderBannerlordBuffs();
+        for (const c of _bannerlordCooldowns) {
+            if (c.remaining_s > 0) {
+                c.remaining_s = Math.max(0, c.remaining_s - 1);
+                cdsChanged = true;
+            }
+        }
+        _bannerlordCooldowns = _bannerlordCooldowns.filter(c => c.remaining_s > 0);
+        if (buffsChanged) _renderBannerlordBuffs();
+        if (cdsChanged || buffsChanged) renderBannerlordActivePowers();
     }, 1000);
 }
 
@@ -1211,17 +1220,25 @@ function renderBannerlordActivePowers() {
     const powers = _bannerlordClassesCache.current_powers || [];
     if (!powers.length) { slot.innerHTML = ''; return; }
 
-    // Disabled state: если active buff с тем же power_key уже бежит — нельзя
-    // активировать повторно (буду overwriting но UX лучше disable).
+    // Disabled state: если active buff с тем же power_key бежит (4.6) ИЛИ
+    // cooldown ещё не истёк (4.8) — нельзя активировать. UX-only check,
+    // backend всё равно отклонит /action на 4.8 cooldown server-side.
     const activeKeys = new Set(_bannerlordBuffs.map(b => b.power_key));
+    const cdMap = {};
+    for (const c of _bannerlordCooldowns) cdMap[c.power_key] = c.remaining_s;
 
     const btnsHtml = powers.map(p => {
         const meta = BNR_POWER_LABELS[p.power_key];
         if (!meta) return '';
         const price = BNR_POWER_PRICES[p.power_key] ?? 0;
         const isActive = activeKeys.has(p.power_key);
-        const disabled = isActive ? 'disabled' : '';
-        const bgColor = isActive ? '#3d3d3f' : '#2d2d2f';
+        const cdRem = cdMap[p.power_key] || 0;
+        const onCooldown = cdRem > 0;
+        const disabled = (isActive || onCooldown) ? 'disabled' : '';
+        const bgColor = (isActive || onCooldown) ? '#3d3d3f' : '#2d2d2f';
+        const suffix = onCooldown
+            ? ` <span style="color:#9ca3af;">${Math.ceil(cdRem)}с</span>`
+            : ` <span style="color:#fbbf24;">${price}💎</span>`;
         return `
             <button class="small-btn"
                     data-bnr-power="${escapeHtml(p.power_key)}"
@@ -1230,9 +1247,8 @@ function renderBannerlordActivePowers() {
                     title="${escapeHtml(meta.desc)}"
                     style="background:${bgColor};color:#efeff1;padding:6px 8px;
                            margin:2px;font-size:11px;border:1px solid #3d3d3f;
-                           ${isActive ? 'opacity:0.5;cursor:not-allowed;' : ''}">
-                ${meta.icon} ${escapeHtml(meta.label)}
-                <span style="color:#fbbf24;">${price}💎</span>
+                           ${(isActive || onCooldown) ? 'opacity:0.5;cursor:not-allowed;' : ''}">
+                ${meta.icon} ${escapeHtml(meta.label)}${suffix}
             </button>`;
     }).join('');
 
@@ -1262,11 +1278,11 @@ async function loadBannerlordBuffs() {
         const data = await r.json();
         if (data.success) {
             _bannerlordBuffs = data.buffs || [];
+            _bannerlordCooldowns = data.cooldowns || [];   // Sprint 4.8
             _renderBannerlordBuffs();
-            // active power buttons могут disable'ся если buff активен
             renderBannerlordActivePowers();
         }
-    } catch (e) { /* silent — buff HUD не критичен */ }
+    } catch (e) { /* silent — HUD не критичен */ }
 }
 
 function _renderBannerlordBuffs() {
@@ -1323,6 +1339,7 @@ function _stopBannerlordPolling() {
         _bannerlordBuffTickId = null;
     }
     _bannerlordBuffs = [];
+    _bannerlordCooldowns = [];
 }
 
 async function loadBannerlordHero() {

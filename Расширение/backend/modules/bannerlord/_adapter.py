@@ -45,6 +45,23 @@ _last_seen: dict = {}  # {channel_id: unix_timestamp}
 #   {(channel_id, username): {power_key: expires_at_unix}}
 _active_buffs: dict = {}
 
+# Sprint 4.8: in-memory cooldowns per viewer для active powers. Server-side
+# enforcement (frontend disable — только UX, не security). Set'ится при
+# successful /api/bannerlord/action для power.activate. Reset на restart —
+# OK (viewer получит "бесплатный" cooldown skip, не критично).
+#   {(channel_id, username): {power_key: cooldown_expires_at_unix}}
+_cooldowns: dict = {}
+
+# Cooldown seconds для каждого active power_key. Tuned for live stream
+# pacing — поправим в 4.10 после feedback. Хардкод чтобы не плодить миграции
+# на mvp scale; рефакторим в админку когда понадобится per-streamer балансинг.
+POWER_COOLDOWNS = {
+    "heal_burst":          30,
+    "shield_break_burst":  90,
+    "rage":                60,
+    "retribution_toggle":  90,
+}
+
 
 def update_last_seen(channel_id: int) -> None:
     """Обновить last-seen timestamp для канала."""
@@ -82,6 +99,63 @@ def get_active_buffs(channel_id: int, username: str) -> list:
     if not perViewer:
         _active_buffs.pop(key, None)
     return out
+
+
+def get_active_cooldowns(channel_id: int, username: str) -> list:
+    """[{power_key, remaining_s}] для viewer'а. Sprint 4.8."""
+    import time
+    key = (channel_id, (username or "").lower())
+    perViewer = _cooldowns.get(key)
+    if not perViewer:
+        return []
+    now = time.time()
+    out = []
+    expired = []
+    for power_key, exp_at in perViewer.items():
+        rem = exp_at - now
+        if rem <= 0:
+            expired.append(power_key)
+        else:
+            out.append({"power_key": power_key, "remaining_s": round(rem, 1)})
+    for pk in expired:
+        perViewer.pop(pk, None)
+    if not perViewer:
+        _cooldowns.pop(key, None)
+    return out
+
+
+def check_cooldown(channel_id: int, username: str, power_key: str) -> float:
+    """Возвращает remaining seconds (>0 → on cooldown), 0 если можно activate.
+
+    Sprint 4.8. /api/bannerlord/action вызывает перед charge.
+    """
+    import time
+    key = (channel_id, (username or "").lower())
+    perViewer = _cooldowns.get(key)
+    if not perViewer:
+        return 0.0
+    exp_at = perViewer.get(power_key)
+    if exp_at is None:
+        return 0.0
+    rem = exp_at - time.time()
+    if rem <= 0:
+        perViewer.pop(power_key, None)
+        return 0.0
+    return rem
+
+
+def set_cooldown(channel_id: int, username: str, power_key: str) -> None:
+    """Запустить cooldown для power_key. Длительность из POWER_COOLDOWNS.
+
+    Sprint 4.8. Вызывается после successful enqueue power.activate в /action.
+    Если power_key не в POWER_COOLDOWNS — no-op (e.g. unknown power).
+    """
+    import time
+    cd_seconds = POWER_COOLDOWNS.get(power_key)
+    if not cd_seconds:
+        return
+    key = (channel_id, (username or "").lower())
+    _cooldowns.setdefault(key, {})[power_key] = time.time() + cd_seconds
 
 
 # Events которые triggrят TG-нотификацию (major world events).

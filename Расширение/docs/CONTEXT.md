@@ -1,159 +1,146 @@
-# RimLink — Context Handoff
+# RimLink — Main Context (chat handoff)
 
-**Для:** быстрый ввод нового Claude-чата в контекст проекта.
-**Last updated:** 2026-05-14
+**Назначение:** для чата по **общей** части расширения. Если работа над
+конкретным модулем — см. `CONTEXT_RIMWORLD.md` или `CONTEXT_BANNERLORD.md`.
+
+**Last updated:** 2026-05-16
 
 ## TL;DR
 
-**Twitch Extension** для viewer engagement. Основной канал: `twitch.tv/shedoy23`.
-Backend на VPS Timeweb (`31.130.132.224`), frontend хостится на `shedoy23.ru`.
-Single-stream сейчас, multi-tenant архитектура готова. Цель — пройти Twitch
-review и стать **multi-game platform** (RimWorld → Bannerlord → Minecraft).
+Twitch Extension для viewer engagement. Multi-tenant FastAPI backend +
+SQLite + twitchio bot + vanilla JS frontend. Запускается у одного
+streamer'а сейчас (`twitch.tv/shedoy23`) — продакшн на Timeweb VPS
+`31.130.132.224`, домен `shedoy23.ru`.
+
+Архитектурно — **platform с pluggable game modules**:
+- **Core (game-agnostic):** balance, kasy, gilds, voting, matchmaking
+  (TicTacToe / Dice), pets (cross-channel cosmetic), Twitch chat hooks,
+  channel-points integration, TG notifications, dev login, OAuth
+- **Game modules:** RimWorld (legacy + Phase 7 refactor) и Bannerlord
+  (Sprint 4.3 — classes + powers MVP)
+
+## Текущий статус
+
+### ✅ Закрыто
+- **Phase 1-7 compliance rework** — casino/craft/market/donate/transfer
+  вырезаны, replaced на cases/guilds/voting/matchmaking/pets
+- **Phase 8 polish** — lexicon, hatch animation, mobile parity, donate
+  removal, TG notify, admin auth fix, preview-mode
+- **Dev login flow** (`/dev`) — Twitch OAuth + persistent test access
+- **1088/1088 isolation tests** passing
+- **Production deployed** — supervisor RUNNING, БД чистая, logrotate
+
+### 🔴 Блокер для Twitch submission
+1. Description в Twitch Extension Store → переписать на «multi-game platform»
+2. Frontend zip → upload в Twitch Hosted Test → Released
+3. Submission notes — `docs/REVIEW_SUBMISSION.md`
+
+### 🟢 Intentional DEFERRED (после launch)
+- [BITS-SIG] real Twitch Bits transaction JWT signature verify
+- [BROADCASTER-JWT] streamer toggle через role='broadcaster'
+- Generic UI renderer (overkill пока для 2 модулей)
 
 ## Stack
 
 - **Backend:** Python FastAPI + aiosqlite (DBPool) + twitchio bot
-- **Frontend:** Vanilla JS (`extension.html`, `mobile.html`, `overlay.html`, `config.html`)
-- **Game mod:** RimWorld C# (Harmony patches)
-- **БД:** SQLite (`viewers.db`, WAL), 13 миграций (M1-M13)
-- **Auth:** Twitch Extension JWT (HS256, TWITCH_EXTENSION_SECRET)
-- **Hosting:** supervisor → uvicorn на порту 8000, nginx reverse proxy
+- **Frontend:** Vanilla JS (`extension.html`, `mobile.html`,
+  `overlay.html`, `config.html`)
+- **Game mod:** RimWorld C# (Harmony patches), Bannerlord C# (net472)
+- **БД:** SQLite + WAL, 16 migrations (M1-M16)
+- **Auth:** Twitch Extension JWT (HS256, `TWITCH_EXTENSION_SECRET`)
+- **Hosting:** supervisor → uvicorn :8000, nginx reverse proxy
+- **TG notifier:** stream-online → Telegram channel (см. `TELEGRAM_SETUP.md`)
 
-## Текущий статус (Phase 8.H, commit 134a585)
+## Server / deploy
 
-### ✅ Закрыто
-- Compliance rework Phase 1-7 — вырезаны casino/craft/market/donate/transfer/
-  family-financial/roulette/mystery-boxes/item-bonus
-- Replacements: кейсы (4 tier fixed reward), guilds + skills, voting events,
-  matchmaking (TicTacToe + Dice), pets MVP (cross-channel cosmetics)
-- Phase 8.A-H polish: lexicon scrub, hatch animation, UI cleanup,
-  donate removal, mobile = extension copy, admin auth fix, TG notify,
-  preview-mode для теста без стрима
-- Production deployed, БД wipe + fresh state (Phase 8.C)
-- 1073/1073 isolation tests passing
-- Telegram-нотификация при go-live (канал @ttvshedoy23)
-
-### 🔴 Блокер для Twitch submission
-1. Описание в Twitch Extension Store → переписать на «multi-game platform»
-2. Frontend zip → загрузить в Twitch Hosted Test → активировать Released
-3. Submission notes — копипаст из `docs/REVIEW_SUBMISSION.md`
-
-### 🟡 Soft requirements
-- Promo-код для reviewer'а (admin endpoint `/api/admin/case/grant` готов)
-- Видео-демо 3-5 мин (optional)
-- Тест-канал live при ревью
-
-### 🟢 Intentional DEFERRED (после launch)
-- `[BITS-SIG]` real Twitch Bits signature verify (сейчас mock-mode)
-- `[BROADCASTER-JWT]` streamer toggle через role='broadcaster' (сейчас admin)
-- Generic UI renderer (overkill пока, см. предыдущие обсуждения)
-
-### ⚪ Future (отложено осознанно)
-- Bannerlord module (3-5 недель, backend + C# mod)
-- Battle pass / sезоны
-- Турниры между гильдиями
-- Community marketplace для модулей
-
-## Ключевые файлы (репо)
-
-| Где | Что |
-|---|---|
-| `Расширение/docs/PROJECT_PLAYBOOK.md` | Roadmap, метрики, B2B-вижн |
-| `Расширение/docs/ARCHITECTURE.md` | Multi-tenant invariants, layers, §3.1 cross-channel exception |
-| `Расширение/docs/COMPLIANCE_REWORK_PLAN.md` | 6 фаз compliance + verdict-таблица 16 механик |
-| `Расширение/docs/REVIEW_SUBMISSION.md` | Submission notes для Twitch reviewer'а |
-| `Расширение/docs/TELEGRAM_SETUP.md` | TG-нотификации + /etc/hosts fix |
-| `Расширение/docs/MODULE_API.md` | Game Bridge SDK для новых игр |
-| `Расширение/backend/main.py` | FastAPI app + startup + migrations |
-| `Расширение/backend/bot_core.py` | IRC bot + reward loops + matchmaking |
-| `Расширение/backend/database.py` | Всё SQL + helpers |
-| `Расширение/backend/routes/*.py` | По endpoint group (pets, cases, guilds, voting, ...) |
-| `Расширение/backend/migrations/m1-m13_*.py` | Schema migrations |
-| `Расширение/backend/notifications.py` | Telegram sendMessage helper |
-| `Расширение/frontend/extension.html` | Главный UI (320 строк) |
-| `Расширение/frontend/mobile.html` | КОПИЯ extension.html (sync через deploy) |
-
-## Server info
-
-- **Host:** `root@31.130.132.224` (Timeweb VPS)
+- **Host:** `root@31.130.132.224` (Timeweb VPS, SSH key auth)
 - **Path:** `/root/twitch-extension/{backend,frontend,admin,docs,backups,logs}`
-- **Supervisor:** `/etc/supervisor/conf.d/twitchbot.conf` → uvicorn на 8000
-- **Nginx:** `/etc/nginx/sites-enabled/` → reverse proxy `shedoy23.ru` → :8000
-- **Logs:** `/var/log/twitchbot.{out,err}.log` (logrotate настроен: daily/10M/7days)
-- **Backups:** `/root/twitch-extension/backups/` (daily через `backup_db.sh` cron)
+- **Supervisor:** `/etc/supervisor/conf.d/twitchbot.conf`
+- **Logs:** `/var/log/twitchbot.{out,err}.log` (logrotate daily/10M/7d)
 - **DB:** `/root/twitch-extension/backend/viewers.db`
-- **Admin:** `https://shedoy23.ru/admin` (HTTP Basic, creds в .env)
+- **Admin panel:** `https://shedoy23.ru/admin` (HTTP Basic, creds в .env)
+- **Dev login:** `https://shedoy23.ru/dev` (Twitch OAuth, persistent cookie)
 
-## Deploy
-
-Нет CI. Manual через tar-pipe SSH:
+### Deploy
+Нет CI. Manual tar-pipe SSH:
 ```bash
 cd Расширение
 tar -cz backend/X frontend/Y | ssh root@31.130.132.224 \
   'cd /root/twitch-extension && tar -xz && supervisorctl restart twitchbot'
 ```
 
-Detail: `git push origin HEAD:main` → потом manual tar-pipe.
+## Ключевые файлы
 
-## Live testing (без стрима)
+| Где | Что |
+|---|---|
+| `Расширение/docs/PROJECT_PLAYBOOK.md` | Roadmap, метрики, B2B |
+| `Расширение/docs/ARCHITECTURE.md` | Multi-tenant, layers, §3.1 cross-channel |
+| `Расширение/docs/COMPLIANCE_REWORK_PLAN.md` | 6 фаз compliance + verdict-таблица |
+| `Расширение/docs/REVIEW_SUBMISSION.md` | Submission notes для Twitch reviewer'а |
+| `Расширение/docs/TELEGRAM_SETUP.md` | TG-нотификации |
+| `Расширение/docs/MODULE_API.md` | Game Bridge SDK |
+| `Расширение/backend/main.py` | FastAPI app + startup + migrations |
+| `Расширение/backend/bot_core.py` | IRC bot + reward loops + matchmaking |
+| `Расширение/backend/database.py` | Всё SQL + helpers |
+| `Расширение/backend/routes/` | Routes по features (pets/cases/guilds/voting/...) |
+| `Расширение/backend/migrations/m1-m16_*.py` | Schema migrations |
+| `Расширение/backend/routes/dev_login.py` | /dev OAuth flow |
+| `Расширение/backend/notifications.py` | TG sendMessage helper |
+| `Расширение/backend/modules/{rimworld,bannerlord}/` | Module adapters + manifests |
+| `Расширение/frontend/extension.html` | Главный UI |
+| `Расширение/frontend/mobile.html` | КОПИЯ extension.html |
 
-Twitch не показывает extension panel когда канал offline. Решение —
-**standalone preview**:
+## Тестирование
+
+### Live test без стрима
+1. https://shedoy23.ru/dev → login через Twitch
+2. После OAuth → click «Open extension preview»
+3. Открывается extension.html с твоим JWT — все фичи работают
+
+Альтернатива: `curl -u admin:pass /api/admin/dev/jwt?username=X&minutes=60`
+→ preview_url для конкретного юзера.
+
+### Bypass для отсутствия стрима
+Когда нужно тестить action queue без go-live:
 ```bash
-curl -u shedoy23:PASS "https://shedoy23.ru/api/admin/dev/jwt?username=shedoy23&minutes=60"
+ssh root@31.130.132.224 'sed -i "/TESTING_BYPASS_STREAM_LIVE/d" .env;
+                        echo "TESTING_BYPASS_STREAM_LIVE=true" >> .env;
+                        supervisorctl restart twitchbot'
 ```
-→ открыть `preview_url` в браузере. Работает с любого устройства.
+Не забыть выключить после теста.
 
-## Что обсуждали недавно
-
-- **Mobile UI:** mobile.html был legacy (2247 строк без новых фич), сделали
-  копией extension.html (parity)
-- **Donate:** убрали полностью (§5.2/§5.4 compliance violation), dead code
-  + UI элементы вырезаны
-- **Generic UI renderer:** обсудили, решили НЕ делать сейчас (premature
-  optimization для 1-2 модулей)
-- **Whitelist auto-add:** Twitch не даёт API для управления test-whitelist'ом.
-  Возможна полумера: queue в БД + admin endpoint выдаёт CSV для копи-paste.
-  Юзер ещё не решил делать или нет.
-- **Phase 8.H preview-mode:** работает, login cache pre-populate hotfix
-
-## Open вопросы
-
-1. Запускать **whitelist queue** (auto-collect ников из channel point
-   redemption "ПОЛУЧИТЬ ДОСТУП")?
-2. Когда **Twitch submission** — после каких ещё фич?
-3. Включать **PETS_BITS_REQUIRED=true** на проде (сейчас mock) — после
-   регистрации Bits products в Twitch dashboard
-4. Как поступить с EventSub `stream.online` — добавлять для instant
-   нотификации (сейчас 0-120s latency через polling)?
-
-## Команды для быстрой проверки
+## Quick verification
 
 ```bash
-# Status сервера
+# Server status
 ssh root@31.130.132.224 'supervisorctl status twitchbot && df -h /root | head -2'
 
 # Свежие логи
 ssh root@31.130.132.224 'tail -30 /var/log/twitchbot.err.log'
 
-# Live кейсы у юзера
+# DB stats
 ssh root@31.130.132.224 'sqlite3 /root/twitch-extension/backend/viewers.db \
-  "SELECT id, tier, opened_at FROM cases WHERE username=\"shedoy23\""'
+  "SELECT name FROM migrations_applied ORDER BY applied_at DESC LIMIT 5"'
 
-# Текущий баланс
-curl -u shedoy23:PASS "https://shedoy23.ru/api/admin/user/shedoy23"
-
-# Preview URL (1 час)
-curl -u shedoy23:PASS "https://shedoy23.ru/api/admin/dev/jwt?username=shedoy23"
+# Preview URL
+curl -u shedoy23:33133313 "https://shedoy23.ru/api/admin/dev/jwt?username=shedoy23"
 ```
+
+## Open вопросы / next steps
+
+1. Twitch submission — когда финальный заход?
+2. Bannerlord Sprint 4.4+ (damage hooks) — отдельный чат рекомендуется (см.
+   CONTEXT_BANNERLORD.md)
+3. RimWorld rework под new Module API — отдельный чат (см. CONTEXT_RIMWORLD.md)
+4. Whitelist auto-add из channel point redemption (обсуждалось, не решено)
 
 ## Repo
 
 - **GitHub:** `Shedoy23/shedstream` (private monorepo)
-- **Default branch:** `main`
-- **Текущий HEAD:** `134a585` (Phase 8.H preview-mode hotfix)
+- **Branch:** `main`
+- **HEAD:** см. `git log --oneline -1`
 
 ---
 
-**Точка входа для нового чата:** скинуть этот файл + сказать
-*«Читай CONTEXT.md, продолжаем работу. Сейчас хочу обсудить X»*.
+**Использование для нового чата:** скинуть этот файл + сказать
+*«Читай CONTEXT.md, продолжаем работу над main extension»*.

@@ -637,21 +637,37 @@ try:
 except (TypeError, ValueError):
     DEFAULT_CHANNEL_ID = 98319857
 
-# ===== ОБМЕН CHANNEL POINTS TWITCH НА АЛМАЗЫ =====
-# Зритель тратит очки канала — бот зачисляет алмазы.
+# ===== CHANNEL POINTS → IN-EXTENSION АЛМАЗЫ (loyalty reward) =====
+# Зритель redeem'ит channel-point reward — бэк начисляет внутренние алмазы.
+#
+# Compliance (см. mini-audit 2026-05-16):
+#   - Twitch Channel Points Acceptable Use Policy явно разрешает CP →
+#     in-extension currency, при условии что эта currency не имеет monetary
+#     value и не cash-out'ится в реальные деньги. У нас алмазы только тратятся
+#     внутри расширения (cases/cosmetics). Disclosure показан зрителю
+#     в extension.html / mobile.html (compliance-disclosure block).
+#   - Названия наград — formulated как loyalty reward (не «обмен/exchange»):
+#     "Награда: ..." не воспринимается reviewer'ами как commercial transaction.
+#
+# !!! ВАЖНО про синхронизацию с Twitch Dashboard !!!
+# Ключи в `rewards` ДОЛЖНЫ ТОЧНО совпадать с custom reward titles
+# в Twitch Creator Dashboard → Channel Points → Manage Rewards. Если
+# поменял здесь — обязательно поменяй и там, иначе EventSub redemption
+# event прилетит с title который не найдётся в config и будет ignored.
+#
 # TWITCH_BROADCASTER_ID — числовой ID стримера (не ник).
-# Узнать можно тут: https://www.streamweasels.com/tools/convert-twitch-username-to-user-id/
-# Название награды должно точно совпадать с тем что создано в Twitch Dashboard.
+# Получить можно тут: https://www.streamweasels.com/tools/convert-twitch-username-to-user-id/
 CHANNEL_POINTS_CONFIG = {
     'enabled': True,
     'broadcaster_id': os.getenv('TWITCH_BROADCASTER_ID', ''),
-    # Название кастомной награды в Twitch → сколько алмазов давать
+    # title → сколько алмазов начислить как loyalty reward
     'rewards': {
-        '5000 очков → алмазы': {'channel_points_cost': 5000, 'diamonds': 5000},
-        '10000 очков → алмазы': {'channel_points_cost': 10000, 'diamonds': 12000},
-        '25000 очков → алмазы': {'channel_points_cost': 25000, 'diamonds': 35000},
+        'Награда: 5000 алмазов':  {'channel_points_cost': 5000,  'diamonds': 5000},
+        'Награда: 12000 алмазов': {'channel_points_cost': 10000, 'diamonds': 12000},
+        'Награда: 35000 алмазов': {'channel_points_cost': 25000, 'diamonds': 35000},
     },
-    # Секрет для верификации EventSub вебхука (любая строка, мин. 10 символов)
+    # Секрет для верификации EventSub вебхука (32+ url-safe bytes).
+    # Ротирован 2026-05-16 на secrets.token_urlsafe(32).
     'eventsub_secret': os.getenv('EVENTSUB_SECRET', ''),
 }
 

@@ -112,16 +112,16 @@ function showLastWinner(winnerData) {
     modal.id = 'rulection-winner-modal';
     modal.innerHTML = `
         <div class="modal-content" style="max-width:320px; text-align:center;">
-            <h2 style="color:#ffd700; margin-bottom:16px;">🏆 ИВЕНТ ЗАВЕРШЁН!</h2>
-            <div style="font-size:48px; margin-bottom:16px;">🎉</div>
+            <h2 style="color:#ffd700; margin-bottom:16px;">🎉 ИВЕНТ ЗАВЕРШЁН!</h2>
+            <div style="font-size:48px; margin-bottom:16px;">🏆</div>
             <div style="font-size:18px; font-weight:700; margin-bottom:8px;">
-                Победитель: <span style="color:#9147ff;">${escapeHtml(winnerData.winner)}</span>
+                Лучший участник: <span style="color:#9147ff;">${escapeHtml(winnerData.winner)}</span>
             </div>
             <div style="background:#2d2d2f; border-radius:12px; padding:16px; margin:16px 0;">
-                <div style="color:#adadb8; font-size:13px; margin-bottom:4px;">💰 Выигрыш</div>
+                <div style="color:#adadb8; font-size:13px; margin-bottom:4px;">🎁 Награда</div>
                 <div style="font-size:24px; font-weight:900; color:#ffd700;">${winnerData.prize?.value || 0}💎</div>
                 <div style="font-size:12px; color:#adadb8; margin-top:8px;">
-                    🎁 Приз: ${escapeHtml(winnerData.prize?.name || '—')}
+                    ✨ Предмет: ${escapeHtml(winnerData.prize?.name || '—')}
                 </div>
             </div>
             <button class="modal-btn" data-close-self-modal style="background:#9147ff;">
@@ -264,7 +264,7 @@ function _startRulectionPolling() {
 }
 
 function _rulectionPollInterval() {
-    // Во время активного ивента опрашиваем чаще — ставки меняются быстро
+    // Во время активного ивента опрашиваем чаще — вклады меняются быстро
     return _rulectionIsEvent ? 4000 : 10000;
 }
 

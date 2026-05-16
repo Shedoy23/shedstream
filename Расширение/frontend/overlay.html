@@ -173,7 +173,7 @@ body {
     100% { box-shadow: 0 0 0 0   rgba(0,232,184,0); }
 }
 
-/* ставки */
+/* вклады голосующих */
 .bids-list {
     margin-top: 10px;
     display: flex;
@@ -494,7 +494,7 @@ body {
 }
 .ep-stats-row b { color: rgba(255,255,255,0.75); }
 
-/* ставки */
+/* вклады голосующих */
 .ep-bids {
     display: flex;
     flex-direction: column;
@@ -1031,7 +1031,7 @@ async function poll() {
                 updateEventPanel(ae);
             }
 
-            // live-карточка в углу раз в 45 сек с текущими ставками
+            // live-карточка в углу раз в 45 сек с текущими вкладами
             if (ae.participants > 0) {
                 const liveKey = `live-${ae.id}-${Math.floor(ae.time_left / 45)}`;
                 if (!seenLiveEventBuckets.has(liveKey)) {

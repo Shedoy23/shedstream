@@ -308,7 +308,10 @@ async def test_dispatch_flow():
                 body = _make_eventsub_payload(event_type, broadcaster_id)
                 sig = _make_signature(secret, msg_id, msg_ts, body)
                 if bad_signature:
-                    sig = sig[:-2] + "00"
+                    # Гарантированно разный (последние 3 символа hex). Раньше
+                    # был sig[:-2]+"00" — флакал ~1/65536 когда настоящая
+                    # подпись случайно заканчивалась на "00".
+                    sig = sig[:-3] + ("xyz" if sig[-3:] != "xyz" else "abc")
                 req = StubRequest(body, {
                     "Twitch-Eventsub-Message-Id": msg_id,
                     "Twitch-Eventsub-Message-Timestamp": msg_ts,

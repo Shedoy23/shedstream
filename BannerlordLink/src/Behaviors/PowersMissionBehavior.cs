@@ -19,8 +19,9 @@ namespace BannerlordLink.Behaviors
     ///   - hp_multiplier  → agent.BaseHealthLimit × HealthLimit × Health
     ///   - body_scale     → agent.AgentScale (visual + reach)
     ///
-    /// Powers требующие damage hook (armor_bypass / damage_reflect /
-    /// ignore_armor) — Sprint 4.3.
+    /// Damage-modifying powers (ignore_armor_pct / armor_bypass_pct /
+    /// damage_reflect_pct) обрабатываются Harmony-patch'ем на
+    /// Mission.RegisterBlow — см. Patches/DamageHookPatch.cs (Sprint 4.4).
     /// </summary>
     public class PowersMissionBehavior : MissionLogic
     {
@@ -112,9 +113,5 @@ namespace BannerlordLink.Behaviors
             }
         }
 
-        // Sprint 4.4+ damage hooks (armor_bypass / damage_reflect / ignore_armor):
-        // требуют Harmony patch на MissionCombatMechanicsHelper или Agent.RegisterBlow
-        // т.к. damage modification должен быть ДО вычисления urna в game.
-        // Это отдельная задача с точным API research per version.
     }
 }

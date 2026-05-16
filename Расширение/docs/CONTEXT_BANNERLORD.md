@@ -3,7 +3,7 @@
 **Назначение:** для чата по Bannerlord-модулю. Для общей extension
 работы — см. `CONTEXT.md`. Для RimWorld — `CONTEXT_RIMWORLD.md`.
 
-**Last updated:** 2026-05-16 (Sprint 4.3 closed)
+**Last updated:** 2026-05-16 (Sprint 4.4 closed — damage hooks)
 
 ## TL;DR
 
@@ -13,9 +13,9 @@ powers (HP×, skill boost, body scale), могут активировать acti
 (heal_burst). Adoption / class change / actions — через extension UI
 + action queue.
 
-## Текущий статус — Sprint 4.3 closed
+## Текущий статус — Sprint 4.4 closed
 
-### ✅ Закрыто (8 sprints)
+### ✅ Закрыто (9 sprints)
 
 **Backend infrastructure:**
 - M14 migration: `bannerlord_heroes` / `_skills` / `_attributes` /
@@ -40,6 +40,11 @@ powers (HP×, skill boost, body scale), могут активировать acti
   - `power.activate` (heal_burst MVP)
 - MainCampaignBehavior (HeroKilled, HeroLevelledUp → events)
 - PowersMissionBehavior (HP multi + body_scale via reflection)
+- **Patches/DamageHookPatch.cs** — Sprint 4.4 Harmony Prefix на
+  `Mission.RegisterBlow`: applies `ignore_armor_pct` / `armor_bypass_pct`
+  (alias, attacker outgoing — сдвигает damage из AbsorbedByArmor в InflictedDamage)
+  и `damage_reflect_pct` (victim incoming — counter-blow с recursion guard
+  через ThreadLocal). Username резолвится через CharacterObject.HeroObject.Name.
 
 **Frontend** (`extension.html` Bannerlord tab):
 - Hero card (avatar, culture, gold, skills, equipment)
@@ -49,10 +54,13 @@ powers (HP×, skill boost, body scale), могут активировать acti
 
 ### ⏳ Pending sprints
 
-- **4.4** Damage hooks (`armor_bypass` / `damage_reflect` / `ignore_armor`)
-  — требуют Harmony patch на `Agent.RegisterBlow` (API research)
-- **4.5** More active powers — rage timed buff, shield break, retribution
-  toggle (нужно state-machine + tick handler)
+- **4.5** Active powers — `shield_break_burst` (instant AoE через
+  `Mission.GetNearbyAgents` + `ChangeWeaponHitPoints(slot,0)` + visual
+  `psys_game_shield_break`), `rage` (timed 30s damage multi через
+  ActiveBuffState dict + check в DamageHookPatch), `retribution_toggle`
+  (timed 60s overlay поверх passive reflect). Также M17 fixup migration:
+  объединить `armor_bypass_pct` → `ignore_armor_pct` (в текущем DamageHookPatch
+  оба обрабатываются как alias, см. ResolvePct).
 - **4.6** TG/extension notifications — HeroKilled (player.died уже
   посылается, но TG notify pending)
 - **5.0** `player.spawn` (summon в Mission) — complex, BLT 1142 строк
@@ -94,9 +102,11 @@ X:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\
     │   │   ├── ActivatePowerHandler.cs (power.activate)
     │   │   ├── EchoHandler.cs (stub для unimplemented actions)
     │   │   └── HeroLookup.cs (find Hero by viewer login)
-    │   └── Behaviors\
-    │       ├── MainCampaignBehavior.cs   ← HeroKilled / LevelledUp
-    │       └── PowersMissionBehavior.cs  ← OnAgentBuild apply HP/scale
+    │   ├── Behaviors\
+    │   │   ├── MainCampaignBehavior.cs   ← HeroKilled / LevelledUp
+    │   │   └── PowersMissionBehavior.cs  ← OnAgentBuild apply HP/scale
+    │   └── Patches\
+    │       └── DamageHookPatch.cs        ← Harmony Prefix Mission.RegisterBlow
     └── bin\Win64_Shipping_Client\
         └── BannerlordLink.dll  ← output после dotnet build
 ```

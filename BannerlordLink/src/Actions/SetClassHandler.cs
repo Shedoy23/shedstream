@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using BannerlordLink.Net;
 using Newtonsoft.Json.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
@@ -131,10 +132,68 @@ namespace BannerlordLink.Actions
 
                 BannerlordLinkModule.Log(
                     $"[set_class] @{username} → {classKey} (mount={mount?.StringId ?? "—"})");
+
+                // Sprint 4.2: update PowerCache immediately + refresh from backend
+                // (на случай если class_level изменился). Skill boosts применяем
+                // здесь (persistent на hero), HP/scale — в MissionLogic.
+                PowerCache.UpdateHero(username, classKey, 1);
+                ApplyClassSkillBoosts(hero, classKey);
+
+                // Async refresh full cache (для других viewers тоже)
+                _ = Task.Run(async () =>
+                    await PowerCache.RefreshAsync(BannerlordLinkModule.Backend));
             }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log($"[set_class] @{username} CRASHED: {ex.Message}");
+            }
+        }
+
+        /// <summary>Apply *_skill_boost powers как persistent skill levels.
+        /// HP/scale остаются для MissionLogic (per-spawn). Skills — на hero
+        /// permanently т.к. это в campaign view тоже отображается.</summary>
+        private static void ApplyClassSkillBoosts(Hero hero, string classKey)
+        {
+            // Mapping our power_key suffix → DefaultSkills property name
+            var skillMap = new Dictionary<string, string>
+            {
+                ["one_handed_skill_boost"]  = "OneHanded",
+                ["two_handed_skill_boost"]  = "TwoHanded",
+                ["polearm_skill_boost"]     = "Polearm",
+                ["bow_skill_boost"]         = "Bow",
+                ["crossbow_skill_boost"]    = "Crossbow",
+                ["throwing_skill_boost"]    = "Throwing",
+                ["riding_skill_boost"]      = "Riding",
+                ["athletic_skill_boost"]    = "Athletics",
+            };
+
+            string username = hero.Name?.ToString()?.ToLowerInvariant();
+            if (string.IsNullOrEmpty(username)) return;
+
+            foreach (var pair in skillMap)
+            {
+                var val = PowerCache.GetPowerValue(username, pair.Key);
+                if (!val.HasValue || val.Value <= 0) continue;
+
+                try
+                {
+                    var prop = typeof(TaleWorlds.Core.DefaultSkills).GetProperty(pair.Value);
+                    var skill = prop?.GetValue(null) as TaleWorlds.Core.SkillObject;
+                    if (skill == null) continue;
+                    int targetLvl = (int)val.Value;
+                    int current = hero.GetSkillValue(skill);
+                    if (targetLvl > current)
+                    {
+                        hero.HeroDeveloper.SetInitialSkillLevel(skill, targetLvl);
+                        BannerlordLinkModule.Log(
+                            $"[set_class] @{username} {pair.Value} boosted {current} → {targetLvl}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[set_class] skill {pair.Key} apply error: {ex.Message}");
+                }
             }
         }
 

@@ -24,6 +24,7 @@
     <Reference Include="TaleWorlds.Engine"><HintPath>$(BannerlordBin)\TaleWorlds.Engine.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="TaleWorlds.Localization"><HintPath>$(BannerlordBin)\TaleWorlds.Localization.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="TaleWorlds.ObjectSystem"><HintPath>$(BannerlordBin)\TaleWorlds.ObjectSystem.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="TaleWorlds.DotNet"><HintPath>$(BannerlordBin)\TaleWorlds.DotNet.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="System.Net.Http"/>
     <Reference Include="Newtonsoft.Json"><HintPath>$(BannerlordBin)\Newtonsoft.Json.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>

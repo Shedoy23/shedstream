@@ -531,6 +531,15 @@ async def run_migrations():
             print(f"❌ M15 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M16: bannerlord class passive powers (Sprint 4.2) ──
+        # bannerlord_class_powers — per-class power scaling (lvl1/2/3).
+        try:
+            from migrations import m16_bannerlord_class_powers
+            await m16_bannerlord_class_powers.apply(conn)
+        except Exception as e:
+            print(f"❌ M16 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

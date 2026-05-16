@@ -91,6 +91,10 @@ namespace BannerlordLink
                             ActionRegistry.RegisterDefaults();
                             Poller = new ActionPoller(Backend, "bannerlord", Log);
                             Poller.Start();
+
+                            // Sprint 4.2: загружаем powers + heroes class state
+                            // в кэш (используется MissionLogic при agent build).
+                            await PowerCache.RefreshAsync(Backend);
                         }
                     }
                 });
@@ -158,6 +162,22 @@ namespace BannerlordLink
         {
             base.OnApplicationTick(dt);
             MainThreadDispatcher.DrainQueue();
+        }
+
+        /// <summary>Bannerlord auto-calls на каждой новой Mission.
+        /// Register MissionBehaviors которые должны быть active в battles.</summary>
+        public override void OnMissionBehaviorInitialize(Mission mission)
+        {
+            base.OnMissionBehaviorInitialize(mission);
+            try
+            {
+                mission.AddMissionBehavior(new PowersMissionBehavior());
+                Log("PowersMissionBehavior added to Mission");
+            }
+            catch (Exception ex)
+            {
+                Log($"OnMissionBehaviorInitialize FAILED: {ex.Message}");
+            }
         }
     }
 }

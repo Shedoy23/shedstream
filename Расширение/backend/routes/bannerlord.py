@@ -26,6 +26,54 @@ router = APIRouter()
 _AUTH_FAIL = {"success": False, "message": "❌ Требуется авторизация Twitch"}
 
 
+@router.get("/api/bannerlord/class-state")
+async def bannerlord_class_state(request: Request):
+    """Snapshot всех heroes канала + их class + power values.
+
+    Mod вызывает на session_start и кэширует в памяти. При AgentBuild в
+    Mission смотрит cache для apply powers.
+
+    Auth: module-token (через /v1/module/...) OR streamer session.
+    Пока — допускаем admin для тестов.
+    Sprint 4.2 follow-up: лучше переместить под /v1/module/bannerlord/
+    с module-token auth.
+    """
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    _, channel_id = auth
+
+    db = get_db()
+    async with db._connect() as conn:
+        # All heroes + their class + level
+        cur = await conn.execute("""
+            SELECT h.username, h.hero_id, c.class_key, c.class_level
+            FROM bannerlord_heroes h
+            LEFT JOIN bannerlord_hero_class c
+              ON h.channel_id = c.channel_id AND h.username = c.username
+            WHERE h.channel_id=? AND h.is_alive=1
+        """, (channel_id,))
+        heroes = []
+        for r in await cur.fetchall():
+            heroes.append({
+                "username":    r[0],
+                "hero_id":     r[1],
+                "class_key":   r[2],
+                "class_level": r[3] or 1,
+            })
+
+        # Powers catalog (full — mod cache'ит)
+        cur = await conn.execute("""
+            SELECT class_key, power_key, lvl1_value, lvl2_value, lvl3_value
+            FROM bannerlord_class_powers
+        """)
+        powers = {}
+        for r in await cur.fetchall():
+            powers.setdefault(r[0], {})[r[1]] = [r[2], r[3], r[4]]
+
+    return {"success": True, "heroes": heroes, "powers": powers}
+
+
 @router.get("/api/bannerlord/classes")
 async def bannerlord_classes(request: Request):
     """Catalog классов (seeded в M15). Public-ish (но JWT — для consistency).

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Module>
+	<Name value="BannerlordLink"/>
+	<Id value="BannerlordLink"/>
+	<Version value="v0.1.0"/>
+	<DefaultModule value="true"/>
+	<SingleplayerModule value="true"/>
+	<Official value="false"/>
+	<!-- 2026-05-15: dependencies МИНИМАЛЬНЫЕ — без DLC.
+	     BLT depends на NavalDLC/StoryMode/CustomBattle — мы это НЕ берём
+	     (юзер хочет работу независимо от DLC). См. docs/BANNERLORD_MVP.md §8. -->
+	<DependedModules>
+		<DependedModule Id="Bannerlord.Harmony"/>
+		<DependedModule Id="Native"/>
+		<DependedModule Id="SandBoxCore"/>
+		<DependedModule Id="Sandbox"/>
+	</DependedModules>
+	<SubModules>
+		<SubModule>
+			<Name value="BannerlordLink"/>
+			<DLLName value="BannerlordLink.dll"/>
+			<SubModuleClassType value="BannerlordLink.BannerlordLinkModule"/>
+			<Tags>
+			</Tags>
+		</SubModule>
+	</SubModules>
+	<DependedModuleMetadatas>
+		<DependedModuleMetadata id="Bannerlord.Harmony" order="LoadBeforeThis"/>
+		<DependedModuleMetadata id="Native" order="LoadBeforeThis"/>
+		<DependedModuleMetadata id="SandBoxCore" order="LoadBeforeThis"/>
+		<DependedModuleMetadata id="Sandbox" order="LoadBeforeThis"/>
+	</DependedModuleMetadatas>
+	<Xmls>
+	</Xmls>
+</Module>

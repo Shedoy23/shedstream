@@ -26,6 +26,52 @@ router = APIRouter()
 _AUTH_FAIL = {"success": False, "message": "❌ Требуется авторизация Twitch"}
 
 
+@router.get("/api/bannerlord/classes")
+async def bannerlord_classes(request: Request):
+    """Catalog классов (seeded в M15). Public-ish (но JWT — для consistency).
+
+    Frontend renders class picker; selected class triggers
+    POST /api/bannerlord/action {hero.set_class, class_key}.
+    """
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    _, channel_id = auth
+
+    db = get_db()
+    async with db._connect() as conn:
+        # Catalog (active only)
+        cur = await conn.execute("""
+            SELECT class_key, name, formation, slot1, slot2, slot3, slot4,
+                   use_horse, use_camel, description
+            FROM bannerlord_classes
+            WHERE deprecated = 0
+            ORDER BY class_key
+        """)
+        classes = []
+        for r in await cur.fetchall():
+            classes.append({
+                "class_key":   r[0],
+                "name":        r[1],
+                "formation":   r[2],
+                "slots":       [s for s in (r[3], r[4], r[5], r[6]) if s],
+                "use_horse":   bool(r[7]),
+                "use_camel":   bool(r[8]),
+                "description": r[9],
+            })
+
+        # Current viewer's class (если есть)
+        username = auth[0]
+        cur = await conn.execute(
+            "SELECT class_key, class_level FROM bannerlord_hero_class "
+            "WHERE channel_id=? AND username=?",
+            (channel_id, username))
+        row = await cur.fetchone()
+        current = {"class_key": row[0], "class_level": row[1]} if row else None
+
+    return {"success": True, "classes": classes, "current": current}
+
+
 @router.get("/api/bannerlord/status")
 async def bannerlord_status(request: Request):
     """Online/offline status мода для UI badge.
@@ -75,6 +121,7 @@ async def bannerlord_ping():
 # Должны быть в bannerlord/manifest.yaml actions/extensions.
 _PURCHASABLE_ACTIONS = (
     "hero.create",            # adoption — special: НЕ требует существующего hero
+    "hero.set_class",         # Sprint 4.1: класс + equipment apply
     "player.spawn",
     "player.heal",
     "player.respawn",
@@ -236,6 +283,31 @@ async def bannerlord_buy_action(request: Request):
 
     db = get_db()
     async with db._connect() as conn:
+        # ── Special case: hero.set_class — backend сразу UPSERT'ит выбор ──
+        # Mod при выполнении просто apply equipment к Hero (visual side).
+        if action_type == "hero.set_class":
+            class_key = (data.get("class_key") or "").strip().lower()
+            if not class_key:
+                return {"success": False, "message": "class_key required"}
+            cur = await conn.execute(
+                "SELECT 1 FROM bannerlord_classes WHERE class_key=? AND deprecated=0",
+                (class_key,))
+            if not await cur.fetchone():
+                return {"success": False, "message": f"Класс '{class_key}' не существует"}
+            # UPSERT — переключение класса разрешено (Sprint 4.1 keep simple,
+            # без cooldown'ов / costs). Class level стартует с 1.
+            await conn.execute("""
+                INSERT INTO bannerlord_hero_class
+                    (channel_id, username, class_key, class_level, chosen_at)
+                VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)
+                ON CONFLICT(channel_id, username) DO UPDATE SET
+                    class_key = excluded.class_key,
+                    class_level = 1,
+                    chosen_at = CURRENT_TIMESTAMP
+            """, (channel_id, username, class_key))
+            # Pass class_key в action data для mod (он применит equipment)
+            data["class_key"] = class_key
+
         # Hero check (skip для adopt/respawn actions)
         if action_type not in _ACTIONS_WITHOUT_HERO_REQUIREMENT:
             cur = await conn.execute(

@@ -1108,11 +1108,63 @@ function _startBannerlordPolling() {
     loadBannerlordHero();
     loadBannerlordShop();
     loadBannerlordStatus();
+    loadBannerlordClasses();
     _bannerlordPollId = setInterval(() => {
         loadBannerlordHero();
         loadBannerlordShop();
         loadBannerlordStatus();
+        loadBannerlordClasses();
     }, 8000);
+}
+
+let _bannerlordClassesCache = null;
+async function loadBannerlordClasses() {
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/classes`, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
+        const data = await r.json();
+        if (data.success) _bannerlordClassesCache = data;
+        // Re-render hero body если он уже отображён — picker появится
+        renderBannerlordClassPicker();
+    } catch (e) { /* silent */ }
+}
+
+function renderBannerlordClassPicker() {
+    const slot = document.getElementById('hero-class-picker-slot');
+    if (!slot || !_bannerlordClassesCache) return;
+    const { classes, current } = _bannerlordClassesCache;
+    const currentKey = current?.class_key;
+    const currentName = currentKey
+        ? (classes.find(c => c.class_key === currentKey)?.name || currentKey)
+        : null;
+
+    const optsHtml = classes.map(c => {
+        const isCurrent = c.class_key === currentKey;
+        return `
+            <button class="small-btn"
+                    data-bnr-class="${escapeHtml(c.class_key)}"
+                    style="background:${isCurrent ? '#9147ff' : '#2d2d2f'};
+                           color:#efeff1;padding:6px 10px;margin:2px;font-size:11px;
+                           border:1px solid ${isCurrent ? '#fbbf24' : '#3d3d3f'};">
+                ${escapeHtml(c.name)}
+            </button>`;
+    }).join('');
+
+    slot.innerHTML = `
+        <div style="font-size:11px;color:#adadb8;margin-top:8px;margin-bottom:4px;">
+            ${currentName ? '🎖️ Текущий класс: <b style="color:#fbbf24;">' + escapeHtml(currentName) + '</b>'
+                          : '⚠️ Класс не выбран'}
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:2px;margin-bottom:6px;">${optsHtml}</div>
+    `;
+
+    slot.querySelectorAll('[data-bnr-class]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const classKey = btn.dataset.bnrClass;
+            _bannerlordBuyAction('hero.set_class', { price: 0, class_key: classKey });
+        });
+    });
 }
 
 async function loadBannerlordStatus() {
@@ -1219,6 +1271,7 @@ async function loadBannerlordHero() {
                     <span>💰 Динары:</span>
                     <span style="color:#fbbf24;font-weight:700;">${(h.gold || 0).toLocaleString('ru-RU')}</span>
                 </div>
+                <div id="hero-class-picker-slot"></div>
                 <details style="margin-bottom:6px;">
                     <summary style="font-size:11px;color:#adadb8;cursor:pointer;">Топ скиллы</summary>
                     <div style="margin-top:4px;">${topSkills}</div>
@@ -1228,6 +1281,7 @@ async function loadBannerlordHero() {
                     <div style="margin-top:4px;">${eqHtml}</div>
                 </details>
             </div>`;
+        renderBannerlordClassPicker();
     } catch (e) {
         body.innerHTML = `<div style="color:#f87171;padding:10px;">Ошибка сети</div>`;
     }

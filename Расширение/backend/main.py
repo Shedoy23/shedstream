@@ -519,6 +519,16 @@ async def run_migrations():
             print(f"❌ M14 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M15: bannerlord classes (Sprint 4.1) ──
+        # 13 seeded classes (Tank/Archer/Cavalry/...) + bannerlord_hero_class
+        # binding table. BLT-style class system, clean-room re-impl.
+        try:
+            from migrations import m15_bannerlord_classes
+            await m15_bannerlord_classes.apply(conn)
+        except Exception as e:
+            print(f"❌ M15 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

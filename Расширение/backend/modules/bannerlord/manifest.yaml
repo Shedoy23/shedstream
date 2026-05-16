@@ -59,6 +59,7 @@ extensions:
     - hero.faction_changed
   actions:
     - hero.create        # Adoption flow — spawn fresh wanderer + SetName(viewer)
+    - hero.set_class     # Sprint 4.1: класс + equipment apply
     - hero.add_skill
     - hero.set_culture
     - hero.set_faction

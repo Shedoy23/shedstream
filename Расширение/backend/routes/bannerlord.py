@@ -47,8 +47,10 @@ async def bannerlord_ping():
 # Action types которые viewer может купить через /api/bannerlord/action.
 # Должны быть в bannerlord/manifest.yaml actions/extensions.
 _PURCHASABLE_ACTIONS = (
+    "hero.create",            # adoption — special: НЕ требует существующего hero
     "player.spawn",
     "player.heal",
+    "player.respawn",
     "player.give_item",
     "player.equip_item",
     "player.modify_attribute",
@@ -56,6 +58,9 @@ _PURCHASABLE_ACTIONS = (
     "hero.add_skill",
     "hero.recruit_troops",
 )
+
+# Actions которые НЕ требуют existing alive hero (adopt + respawn).
+_ACTIONS_WITHOUT_HERO_REQUIREMENT = ("hero.create", "player.respawn")
 
 
 @router.get("/api/bannerlord/my-hero")
@@ -204,21 +209,34 @@ async def bannerlord_buy_action(request: Request):
 
     db = get_db()
     async with db._connect() as conn:
-        # Hero check
-        cur = await conn.execute(
-            "SELECT is_alive FROM bannerlord_heroes WHERE channel_id=? AND username=?",
-            (channel_id, username))
-        hero_row = await cur.fetchone()
-        if not hero_row:
-            return {
-                "success": False,
-                "message": "Сначала нужно adopt'ить hero. Стример должен запустить игру.",
-            }
-        if not hero_row[0] and action_type != "player.respawn":
-            return {
-                "success": False,
-                "message": "Твой hero мёртв. Подожди heir succession.",
-            }
+        # Hero check (skip для adopt/respawn actions)
+        if action_type not in _ACTIONS_WITHOUT_HERO_REQUIREMENT:
+            cur = await conn.execute(
+                "SELECT is_alive FROM bannerlord_heroes WHERE channel_id=? AND username=?",
+                (channel_id, username))
+            hero_row = await cur.fetchone()
+            if not hero_row:
+                return {
+                    "success": False,
+                    "message": "Сначала нужно создать героя. Action hero.create.",
+                }
+            if not hero_row[0]:
+                return {
+                    "success": False,
+                    "message": "Твой hero мёртв. Подожди heir succession.",
+                }
+        else:
+            # Для hero.create — наоборот, проверка что hero ещё НЕ существует.
+            if action_type == "hero.create":
+                cur = await conn.execute(
+                    "SELECT is_alive FROM bannerlord_heroes WHERE channel_id=? AND username=?",
+                    (channel_id, username))
+                hero_row = await cur.fetchone()
+                if hero_row and hero_row[0]:
+                    return {
+                        "success": False,
+                        "message": "У тебя уже есть живой герой.",
+                    }
 
         # Balance check + atomic charge
         try:

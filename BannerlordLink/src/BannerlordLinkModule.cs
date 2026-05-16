@@ -132,5 +132,14 @@ namespace BannerlordLink
             base.OnGameStart(game, gameStarter);
             Log($"OnGameStart game={game?.GameType?.GetType().Name ?? "null"}");
         }
+
+        /// <summary>Каждый frame — drain main-thread dispatcher queue.
+        /// Background tasks (ActionPoller) enqueue работу сюда, мы её
+        /// выполняем в безопасном main-thread контексте.</summary>
+        protected override void OnApplicationTick(float dt)
+        {
+            base.OnApplicationTick(dt);
+            MainThreadDispatcher.DrainQueue();
+        }
     }
 }

@@ -25,12 +25,15 @@ namespace BannerlordLink.Actions
             return _handlers.TryGetValue(actionType ?? "", out var h) ? h : null;
         }
 
-        /// <summary>Sprint 2.4 default — все manifest action types как Echo.</summary>
+        /// <summary>Default registry — REAL handlers где есть, Echo stub'ы для остального.</summary>
         public static void RegisterDefaults()
         {
-            string[] knownTypes =
+            // ── REAL handlers ──────────────────────────────────────────────
+            Register(new AdoptHeroHandler());  // hero.create — adoption flow
+
+            // ── Echo stubs (Sprint 3 заменим на real) ──────────────────────
+            string[] echoTypes =
             {
-                // Standard actions из manifest.yaml
                 "player.spawn",
                 "player.heal",
                 "player.respawn",
@@ -39,13 +42,12 @@ namespace BannerlordLink.Actions
                 "player.modify_attribute",
                 "world.trigger_event",
                 "world.broadcast_message",
-                // Bannerlord extensions
                 "hero.add_skill",
                 "hero.set_culture",
                 "hero.set_faction",
                 "hero.recruit_troops",
             };
-            foreach (var t in knownTypes)
+            foreach (var t in echoTypes)
             {
                 Register(new EchoHandler(t));
             }

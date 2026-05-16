@@ -1,7 +1,9 @@
 using System;
+using System.Reflection;
 using BannerlordLink.Net;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
+using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 
 namespace BannerlordLink.Behaviors
@@ -58,11 +60,61 @@ namespace BannerlordLink.Behaviors
                 agent.Health *= ratio;
             }
 
-            // ── body_scale — Sprint 4.2.5 (требует reflection на
-            // private Agent.SetInitialAgentScale). Skip для MVP.
+            // ── body_scale (Sprint 4.2.5) ─────────────────────────────────
+            // Agent.AgentScale read-only → through reflection на private
+            // Agent.SetInitialAgentScale. BLT использовал тот же подход.
+            var scale = PowerCache.GetPowerValue(username, "body_scale");
+            if (scale.HasValue && Math.Abs(scale.Value - 1.0) > 0.001)
+            {
+                TrySetAgentScale(agent, (float)scale.Value);
+            }
 
             BannerlordLinkModule.Log(
-                $"[PowersMission] @{username} ({hc.Value.classKey} L{hc.Value.level}): hp×{hp ?? 1.0:F2}");
+                $"[PowersMission] @{username} ({hc.Value.classKey} L{hc.Value.level}): " +
+                $"hp×{hp ?? 1.0:F2} scale×{scale ?? 1.0:F2}");
         }
+
+        /// <summary>Reflection call на private Agent.SetInitialAgentScale.
+        /// Cached MethodInfo, no expensive lookup per spawn.</summary>
+        private static MethodInfo _setScaleMethod;
+        private static bool _setScaleResolved;
+
+        private static void TrySetAgentScale(Agent agent, float scale)
+        {
+            if (!_setScaleResolved)
+            {
+                _setScaleResolved = true;
+                try
+                {
+                    _setScaleMethod = typeof(Agent).GetMethod(
+                        "SetInitialAgentScale",
+                        BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+                    if (_setScaleMethod == null)
+                    {
+                        BannerlordLinkModule.Log(
+                            "[PowersMission] SetInitialAgentScale method not found via reflection");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log($"[PowersMission] scale reflection error: {ex.Message}");
+                }
+            }
+            if (_setScaleMethod == null) return;
+            try
+            {
+                _setScaleMethod.Invoke(agent, new object[] { scale });
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[PowersMission] SetInitialAgentScale call failed: {ex.Message}");
+            }
+        }
+
+        // Sprint 4.4+ damage hooks (armor_bypass / damage_reflect / ignore_armor):
+        // требуют Harmony patch на MissionCombatMechanicsHelper или Agent.RegisterBlow
+        // т.к. damage modification должен быть ДО вычисления urna в game.
+        // Это отдельная задача с точным API research per version.
     }
 }

@@ -157,9 +157,17 @@ async def auth_start():
 
 @router.get("/api/streamer/auth/callback", include_in_schema=False)
 async def auth_callback(request: Request):
-    """Twitch вернул code. Меняем на токены, fetch'им user info, регистрируем канал."""
-    code = request.query_params.get('code')
+    """Twitch вернул code. Меняем на токены, fetch'им user info, регистрируем канал.
+
+    Dispatch: если state начинается с 'dev_' — это flow из /dev (viewer
+    test page), передаём управление в routes.dev_login.handle_dev_callback.
+    """
     state = request.query_params.get('state', '')
+    if state.startswith('dev_'):
+        from routes.dev_login import handle_dev_callback
+        return await handle_dev_callback(request)
+
+    code = request.query_params.get('code')
     error = request.query_params.get('error')
 
     if error:

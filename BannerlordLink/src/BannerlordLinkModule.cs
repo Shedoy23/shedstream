@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using BannerlordLink.Actions;
 using BannerlordLink.Net;
 using HarmonyLib;
 using TaleWorlds.MountAndBlade;
@@ -29,6 +30,7 @@ namespace BannerlordLink
         // CampaignBehavior'ы и action handlers могли его дёргать.
         public static BackendConfig Config { get; private set; }
         public static BackendClient Backend { get; private set; }
+        public static ActionPoller Poller { get; private set; }
 
         /// <summary>Простой file-based logger чтобы видеть load в TXT.</summary>
         public static void Log(string msg)
@@ -78,6 +80,16 @@ namespace BannerlordLink
                         Log(acked
                             ? "Module API handshake: SUCCESS — backend знает что мы online"
                             : "Module API handshake: FAILED — проверь module_token в config.json");
+
+                        if (acked)
+                        {
+                            // Sprint 2.4: start action poller после успешного handshake.
+                            // ActionRegistry.RegisterDefaults() ставит EchoHandler
+                            // на все manifest action types (test stub).
+                            ActionRegistry.RegisterDefaults();
+                            Poller = new ActionPoller(Backend, "bannerlord", Log);
+                            Poller.Start();
+                        }
                     }
                 });
             }
@@ -109,6 +121,7 @@ namespace BannerlordLink
         protected override void OnSubModuleUnloaded()
         {
             base.OnSubModuleUnloaded();
+            try { Poller?.Stop(); } catch { }
             try { _harmony?.UnpatchAll(HARMONY_ID); } catch { }
             try { Backend?.Dispose(); } catch { }
             Log("unloaded");

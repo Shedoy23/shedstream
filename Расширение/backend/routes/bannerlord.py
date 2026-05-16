@@ -26,6 +26,33 @@ router = APIRouter()
 _AUTH_FAIL = {"success": False, "message": "❌ Требуется авторизация Twitch"}
 
 
+@router.get("/api/bannerlord/status")
+async def bannerlord_status(request: Request):
+    """Online/offline status мода для UI badge.
+
+    Online = last event от мода < 60 сек назад. Mod шлёт heartbeat
+    автоматически (планируется в Sprint 3.4) или events через
+    CampaignBehavior + ActionPoller polling который keeps connection alive.
+    """
+    import time
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    _, channel_id = auth
+
+    from modules.bannerlord._adapter import get_last_seen
+    last_seen = get_last_seen(channel_id)
+    age = time.time() - last_seen if last_seen > 0 else None
+    online = age is not None and age < 60
+
+    return {
+        "success":     True,
+        "online":      online,
+        "last_seen":   last_seen if last_seen > 0 else None,
+        "age_seconds": age,
+    }
+
+
 @router.get("/api/bannerlord/ping")
 async def bannerlord_ping():
     """Public health check для C# мода — connectivity test.

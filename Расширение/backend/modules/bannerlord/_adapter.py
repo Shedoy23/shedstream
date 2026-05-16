@@ -32,6 +32,24 @@ from .._base import ModuleAdapter, ModuleEnvelope
 
 logger = logging.getLogger("rimlink.modules.bannerlord")
 
+# In-memory last-seen tracking per channel — для UI online badge.
+# Заполняется каждым event (любой type → mod alive). Frontend читает через
+# GET /api/bannerlord/status. Reset на supervisor restart, что OK (mod пошлёт
+# session_start при следующем боте подключении).
+_last_seen: dict = {}  # {channel_id: unix_timestamp}
+
+
+def update_last_seen(channel_id: int) -> None:
+    """Обновить last-seen timestamp для канала."""
+    import time
+    _last_seen[channel_id] = time.time()
+
+
+def get_last_seen(channel_id: int) -> float:
+    """Возвращает unix timestamp последнего event'а или 0 если не было."""
+    return _last_seen.get(channel_id, 0.0)
+
+
 # Events которые triggrят TG-нотификацию (major world events).
 # Не каждое event_occurred — это спам. Только заметные исходы.
 _TG_TRIGGER_EVENTS = (
@@ -54,8 +72,11 @@ class BannerlordAdapter(ModuleAdapter):
         """Dispatch по env.type. Module API §7 standard + manifest extensions."""
         et = env.type
 
+        # Update last-seen для любого event — mod alive (for UI online badge).
+        update_last_seen(channel_id)
+
         if et == "module.heartbeat":
-            return  # no-op
+            return  # no-op (но last-seen уже обновлён выше)
 
         if et == "module.session_start":
             await self._on_session_start(channel_id, env)

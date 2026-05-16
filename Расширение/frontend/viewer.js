@@ -1107,10 +1107,32 @@ function _startBannerlordPolling() {
     if (_bannerlordPollId) return;
     loadBannerlordHero();
     loadBannerlordShop();
+    loadBannerlordStatus();
     _bannerlordPollId = setInterval(() => {
         loadBannerlordHero();
         loadBannerlordShop();
+        loadBannerlordStatus();
     }, 8000);
+}
+
+async function loadBannerlordStatus() {
+    const badge = document.getElementById('bannerlord-status-badge');
+    if (!badge) return;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/status`, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
+        const data = await r.json();
+        if (data.online) {
+            badge.style.color = '#34d399';
+            badge.textContent = '🟢 Онлайн';
+        } else {
+            badge.style.color = '#f87171';
+            badge.textContent = '🔴 Оффлайн';
+        }
+    } catch (e) {
+        // silent — badge остаётся прежним
+    }
 }
 
 function _stopBannerlordPolling() {

@@ -506,6 +506,17 @@ async def run_migrations():
             print(f"❌ M13 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M14: bannerlord — второй gaming-модуль платформы ──
+        # bannerlord_heroes + bannerlord_skills + bannerlord_attributes +
+        # bannerlord_equipment + bannerlord_events_log. TENANT-scoped.
+        # См. docs/BANNERLORD_MVP.md §3 + Sprint 1.
+        try:
+            from migrations import m14_bannerlord
+            await m14_bannerlord.apply(conn)
+        except Exception as e:
+            print(f"❌ M14 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

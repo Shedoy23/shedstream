@@ -215,23 +215,36 @@ Bannerlord UI:
 у нас фора потому что infrastructure (Module API, БД pool, JWT auth,
 multi-tenant) уже есть.
 
-## 8. Open вопросы перед стартом
+## 8. Решения по open вопросам (2026-05-15)
 
-1. **Bannerlord version target.** Latest stable = 1.3.x. BLT под 1.3.15.
-   Я фиксирую 1.3.15 как target? Или хочешь latest 1.4.x?
-2. **C# IDE.** Visual Studio Community / Rider у тебя готово?
-3. **Test save.** Нужен «clean» save с парой готовых NPC-героев чтобы
-   тестить adoption. У тебя такой есть, или генерим новый?
-4. **JWT token transfer.** Стример скопирует свой JWT из extension config
-   в `BannerlordLink/config.json` локально на своём ПК. ОК?
-5. **Hero name policy.** Если зритель `@LuckyLokki` adoptит NPC `Lord
-   Rolf of Vlandia` — мы переименовываем NPC на «LuckyLokki» в игре, или
-   оставляем original имя и просто mapping в БД? Скорее всего вариант 2
-   (UX в игре естественнее, mapping в overlay показывает «Hero Lord
-   Rolf — owned by @LuckyLokki»).
-6. **Death = permanent или respawn?** RimLink имеет respurrect через
-   purchase. Bannerlord: 1) permanent death + heir succession (BLT
-   pattern), либо 2) respawn-purchase. Что выбираем?
+1. **Bannerlord version target:** **1.3.15** (юзер has installed
+   `X:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord`)
+2. **No DLC dependency:** BLT depends on `NavalDLC`, `StoryMode`,
+   `CustomBattle` — нам это запрещено (юзер хочет работу без DLC).
+   `SubModule.xml` depends только на `Bannerlord.Harmony`, `Native`,
+   `SandBoxCore`, `Sandbox`. C# код не использует DLC-specific API
+   (e.g. naval combat events, story-quest hooks).
+3. **C# IDE:** не готов. Sprint 2 — поднимаем Visual Studio 2022
+   Community (free, standard для Bannerlord modding). Подготовлю
+   `BANNERLORD_DEV_ENV.md` когда дойдём до C# части.
+4. **Test save:** новый clean save при тестировании (Sprint 5).
+5. **Hero name policy:** **переименовываем NPC на ник зрителя**
+   (`Hero.SetName(viewer_login)`). Save сохраняет new name. При
+   reload mod читает name → если совпадает с known viewer login →
+   re-bind в backend. UX: в игре зрители видят свои ники как имена
+   героев.
+6. **Death policy:** **BLT-style permanent death + heir succession**.
+   MVP simplified vs BLT:
+   - При `HeroKilled` event → backend помечает `is_alive=0`, log в
+     `bannerlord_events_log`
+   - Backend assign'ит viewer'у нового NPC heir (free unadopted hero
+     from available pool)
+   - Mod при следующем polling tick получает action `player.respawned`
+     с `new_hero_id` → `Hero.SetName(viewer_login)` на новом NPC
+   - **Не делаем (для MVP):** наследование equipment / gold / skills.
+     Heir стартует с базовым snar (как любой NPC), zрителю expressed
+     as «твой герой пал, тебе дали нового — начни заново»
+   - Post-MVP: real BLT-style heirs (родственники из clan, inheritance)
 
 ## 9. Что я делаю прямо сейчас (после approve'а)
 

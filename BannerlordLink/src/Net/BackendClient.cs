@@ -49,7 +49,10 @@ namespace BannerlordLink.Net
             _http = new HttpClient
             {
                 BaseAddress = new Uri(_config.BackendUrl),
-                Timeout = TimeSpan.FromSeconds(10),
+                // 35s > backend long-poll timeout (25s) на /v1/module/<id>/actions.
+                // Без этого client cancellation срабатывал до response →
+                // backend marked dispatched но client body не получал.
+                Timeout = TimeSpan.FromSeconds(35),
             };
             _http.DefaultRequestHeaders.UserAgent.ParseAdd(
                 "BannerlordLink/0.1.0 (+https://shedoy23.ru)");

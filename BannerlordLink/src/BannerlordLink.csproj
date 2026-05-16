@@ -1,91 +1,29 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
-
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <OutputType>Library</OutputType>
-    <RootNamespace>BannerlordLink</RootNamespace>
     <AssemblyName>BannerlordLink</AssemblyName>
-    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
-    <LangVersion>9</LangVersion>
-    <FileAlignment>512</FileAlignment>
+    <RootNamespace>BannerlordLink</RootNamespace>
+    <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+    <TargetFramework>net472</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>latest</LangVersion>
+    <OutputType>Library</OutputType>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <OutputPath>..\bin\Win64_Shipping_Client\</OutputPath>
+    <BannerlordPath>X:\SteamLibrary\steamapps\common\Mount &amp; Blade II Bannerlord</BannerlordPath>
+    <BannerlordBin>$(BannerlordPath)\bin\Win64_Shipping_Client</BannerlordBin>
+    <HarmonyBin>X:\SteamLibrary\steamapps\workshop\content\261550\2859188632\bin\Win64_Shipping_Client</HarmonyBin>
   </PropertyGroup>
 
-  <!-- BANNERLORD_GAME_DIR должна быть environment variable.
-       Установи через:
-         setx BANNERLORD_GAME_DIR "X:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord"
-       (потом перезапусти shell / VS Code).
-       Без неё MSBuild не найдёт TaleWorlds DLL'ки. -->
-
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <!-- Output → прямо в game Modules/ для quick iteration.
-         Если не нужно автодеплоя — закомменти OutputPath. -->
-    <OutputPath>$(BANNERLORD_GAME_DIR)\Modules\BannerlordLink\bin\Win64_Shipping_Client\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-
-  <!-- ════════ TaleWorlds API references ════════
-       Игра: Bannerlord 1.3.15. DLL'ки лежат в bin\Win64_Shipping_Client.
-       НЕ копируем в output (Private=False) — это runtime'овые DLL'ки игры. -->
   <ItemGroup>
-    <Reference Include="TaleWorlds.Core">
-      <HintPath>$(BANNERLORD_GAME_DIR)\bin\Win64_Shipping_Client\TaleWorlds.Core.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="TaleWorlds.Library">
-      <HintPath>$(BANNERLORD_GAME_DIR)\bin\Win64_Shipping_Client\TaleWorlds.Library.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="TaleWorlds.MountAndBlade">
-      <HintPath>$(BANNERLORD_GAME_DIR)\bin\Win64_Shipping_Client\TaleWorlds.MountAndBlade.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="TaleWorlds.CampaignSystem">
-      <HintPath>$(BANNERLORD_GAME_DIR)\Modules\SandBox\bin\Win64_Shipping_Client\TaleWorlds.CampaignSystem.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="TaleWorlds.Engine">
-      <HintPath>$(BANNERLORD_GAME_DIR)\bin\Win64_Shipping_Client\TaleWorlds.Engine.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="TaleWorlds.Localization">
-      <HintPath>$(BANNERLORD_GAME_DIR)\bin\Win64_Shipping_Client\TaleWorlds.Localization.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-
-    <!-- Harmony (для патчей; устанавливается через Bannerlord.Harmony модуль игры) -->
-    <Reference Include="0Harmony">
-      <HintPath>$(BANNERLORD_GAME_DIR)\Modules\Bannerlord.Harmony\bin\Win64_Shipping_Client\0Harmony.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-
-    <!-- System refs для HTTP + JSON -->
-    <Reference Include="System"/>
-    <Reference Include="System.Core"/>
+    <Reference Include="0Harmony"><HintPath>$(HarmonyBin)\0Harmony.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="TaleWorlds.Core"><HintPath>$(BannerlordBin)\TaleWorlds.Core.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="TaleWorlds.Library"><HintPath>$(BannerlordBin)\TaleWorlds.Library.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="TaleWorlds.MountAndBlade"><HintPath>$(BannerlordBin)\TaleWorlds.MountAndBlade.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="TaleWorlds.CampaignSystem"><HintPath>$(BannerlordBin)\TaleWorlds.CampaignSystem.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="TaleWorlds.Engine"><HintPath>$(BannerlordBin)\TaleWorlds.Engine.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="TaleWorlds.Localization"><HintPath>$(BannerlordBin)\TaleWorlds.Localization.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="TaleWorlds.ObjectSystem"><HintPath>$(BannerlordBin)\TaleWorlds.ObjectSystem.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="System.Net.Http"/>
-    <Reference Include="System.Web"/>
   </ItemGroup>
-
-  <!-- Source files: всё .cs из этой директории + subfolders -->
-  <ItemGroup>
-    <Compile Include="**\*.cs" Exclude="bin\**;obj\**"/>
-  </ItemGroup>
-
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

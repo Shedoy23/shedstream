@@ -1,14 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Module>
 	<Name value="BannerlordLink"/>
-	<Id value="BannerlordLink"/>
+	<Id value="Shedoy23.BannerlordLink"/>
 	<Version value="v0.1.0"/>
 	<DefaultModule value="true"/>
 	<SingleplayerModule value="true"/>
 	<Official value="false"/>
-	<!-- 2026-05-15: dependencies МИНИМАЛЬНЫЕ — без DLC.
-	     BLT depends на NavalDLC/StoryMode/CustomBattle — мы это НЕ берём
-	     (юзер хочет работу независимо от DLC). См. docs/BANNERLORD_MVP.md §8. -->
+	<!-- Минимум зависимостей — БЕЗ DLC (NavalDLC/StoryMode/CustomBattle).
+	     Юзер хочет работу независимо от DLC. -->
 	<DependedModules>
 		<DependedModule Id="Bannerlord.Harmony"/>
 		<DependedModule Id="Native"/>

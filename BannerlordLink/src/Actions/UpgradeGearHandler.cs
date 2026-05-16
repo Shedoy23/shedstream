@@ -230,6 +230,8 @@ namespace BannerlordLink.Actions
 
                 // Full state sync — gold/level/etc. UI refresh.
                 HeroStateSync.Push(hero);
+                // Push equipment snapshot — 11 slots → backend bannerlord_equipment.
+                EquipmentSync.PushAll(hero);
             }
             catch (Exception ex)
             {

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using BannerlordLink.Net;
+using BannerlordLink.Util;
 using Newtonsoft.Json.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
@@ -142,6 +143,10 @@ namespace BannerlordLink.Actions
                 // Async refresh full cache (для других viewers тоже)
                 _ = Task.Run(async () =>
                     await PowerCache.RefreshAsync(BannerlordLinkModule.Backend));
+
+                // Push equipment snapshot — backend bannerlord_equipment +
+                // frontend hero card обновятся.
+                EquipmentSync.PushAll(hero);
             }
             catch (Exception ex)
             {

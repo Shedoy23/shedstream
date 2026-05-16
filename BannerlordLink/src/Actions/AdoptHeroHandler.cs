@@ -132,6 +132,9 @@ namespace BannerlordLink.Actions
                 PostLinked(newHero, username);
                 // 6. Sprint M19: post full state — UI показывает level/clan/kingdom
                 HeroStateSync.Push(newHero);
+                // 7. Push equipment snapshot — wanderer template имеет starting
+                //    equipment, UI должен показать в hero card.
+                EquipmentSync.PushAll(newHero);
             }
             catch (Exception ex)
             {

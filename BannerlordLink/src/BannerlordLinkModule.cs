@@ -172,7 +172,8 @@ namespace BannerlordLink
             try
             {
                 mission.AddMissionBehavior(new PowersMissionBehavior());
-                Log("PowersMissionBehavior added to Mission");
+                mission.AddMissionBehavior(new KillRewardBehavior());
+                Log("MissionBehaviors registered: PowersMissionBehavior + KillRewardBehavior");
             }
             catch (Exception ex)
             {

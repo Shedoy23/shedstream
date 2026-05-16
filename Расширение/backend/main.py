@@ -592,6 +592,16 @@ async def run_migrations():
             print(f"❌ M21 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M22: bannerlord_channel_state (save-switch tracking) ──
+        # При смене save в-игре mod пушит session_start с новым UniqueGameId.
+        # Backend reset'ит heroes если save_id изменился.
+        try:
+            from migrations import m22_bannerlord_channel_state
+            await m22_bannerlord_channel_state.apply(conn)
+        except Exception as e:
+            print(f"❌ M22 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

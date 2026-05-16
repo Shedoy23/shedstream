@@ -130,12 +130,35 @@ namespace BannerlordLink.Actions
 
                 if (agent != null)
                 {
+                    // BLT pattern (SummonHero.cs:744-746): forced SetTeam после
+                    // spawn'a — engine может проигнорировать isPlayerSide и
+                    // ставить team по origin.party.MapFaction. SetTeam гарантирует
+                    // правильную сторону независимо от party origin.
+                    try
+                    {
+                        Team targetTeam = isPlayerSide
+                            ? Mission.Current.PlayerTeam
+                            : Mission.Current.PlayerEnemyTeam;
+                        if (targetTeam != null && agent.Team != targetTeam)
+                        {
+                            agent.SetTeam(targetTeam, false);
+                            BannerlordLinkModule.Log(
+                                $"[player.spawn:{sideLabel}] @{username} forced SetTeam → " +
+                                $"{(isPlayerSide ? "PlayerTeam" : "PlayerEnemyTeam")}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[player.spawn:{sideLabel}] @{username} SetTeam failed: {ex.Message}");
+                    }
                     try { agent.MountAgent?.FadeIn(); agent.FadeIn(); } catch { }
                 }
 
                 BannerlordLinkModule.Log(
                     $"[player.spawn:{sideLabel}] @{username} → summoned " +
-                    $"(horse={withHorse}, agent={(agent != null ? "OK" : "NULL")})");
+                    $"(horse={withHorse}, agent={(agent != null ? "OK" : "NULL")}, " +
+                    $"team={agent?.Team?.Side.ToString() ?? "?"})");
             }
             catch (Exception ex)
             {

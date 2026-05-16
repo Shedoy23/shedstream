@@ -260,16 +260,55 @@ class BannerlordAdapter(ModuleAdapter):
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
     async def _on_session_start(self, channel_id: int, env: ModuleEnvelope) -> None:
-        """Чистим session-scoped catalogs (MULTITENANT_PLAN §H pattern).
+        """Session start handler.
 
-        Heroes / skills / equipment — НЕ чистим: они persistent across
-        sessions (зритель сохраняет hero даже если стример перезагрузил save).
+        Чистим session-scoped catalogs (MULTITENANT_PLAN §H pattern).
+
+        Sprint M22: save-switch detection. Сравниваем переданный save_id
+        с last known для channel:
+          • match → reload того же save, heroes persist
+          • mismatch → стример загрузил другой save, heroes из старого
+            не существуют в новом → DELETE all hero data для channel
+            (zрители увидят "Стать героем" в extension)
+
+        Mod передаёт save_id = Campaign.Current.UniqueGameId (boot-time
+        stub "boot_*" для backwards-compat с старыми DLL).
         """
         save_id = env.data.get("save_id", "")
         from dependencies import get_db
-        cleared = await get_db().clear_module_catalogs(channel_id, self.id)
+        db = get_db()
+        cleared = await db.clear_module_catalogs(channel_id, self.id)
+
+        # M22: compare and reset on switch
+        reset = False
+        if save_id and not save_id.startswith("boot_"):
+            async with db._connect() as conn:
+                cur = await conn.execute(
+                    "SELECT current_save_id FROM bannerlord_channel_state "
+                    "WHERE channel_id=?", (channel_id,))
+                row = await cur.fetchone()
+                prev = (row[0] if row else None)
+                if prev and prev != save_id:
+                    # Save switched — reset all hero data для этого канала.
+                    for table in ("bannerlord_heroes", "bannerlord_skills",
+                                  "bannerlord_attributes", "bannerlord_equipment",
+                                  "bannerlord_hero_class"):
+                        await conn.execute(
+                            f"DELETE FROM {table} WHERE channel_id=?", (channel_id,))
+                    reset = True
+                # Update channel state regardless
+                await conn.execute("""
+                    INSERT INTO bannerlord_channel_state
+                        (channel_id, current_save_id, last_session_at)
+                    VALUES (?, ?, CURRENT_TIMESTAMP)
+                    ON CONFLICT(channel_id) DO UPDATE SET
+                        current_save_id = excluded.current_save_id,
+                        last_session_at = CURRENT_TIMESTAMP
+                """, (channel_id, save_id))
+                await conn.commit()
+
         print(f"[bannerlord:{channel_id}] session_start save_id={save_id} "
-              f"(cleared {cleared} catalog entries)")
+              f"(cleared {cleared} catalogs, hero_reset={reset})")
 
     async def _on_catalog_update(self, channel_id: int, env: ModuleEnvelope) -> None:
         """Generic catalog write. Catalog types declared в manifest.yaml."""

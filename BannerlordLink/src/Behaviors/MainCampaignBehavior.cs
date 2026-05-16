@@ -29,6 +29,9 @@ namespace BannerlordLink.Behaviors
         {
             CampaignEvents.HeroKilledEvent.AddNonSerializedListener(this, OnHeroKilled);
             CampaignEvents.HeroLevelledUp.AddNonSerializedListener(this, OnHeroLevelledUp);
+            // M22: detect save switch — push session_start с real save_id
+            // (Campaign.UniqueGameId per save).
+            CampaignEvents.OnGameLoadFinishedEvent.AddNonSerializedListener(this, OnGameLoadFinished);
         }
 
         public override void SyncData(IDataStore dataStore)
@@ -70,6 +73,31 @@ namespace BannerlordLink.Behaviors
             BannerlordLinkModule.Log(
                 $"[CampaignEvent] HeroLevelledUp: {hero?.Name?.ToString()} → " +
                 $"level {hero?.Level} (full state pushed)");
+        }
+
+        // M22: при load campaign push session_start с real save_id
+        // (Campaign.UniqueGameId — guid per save). Backend сравнивает с
+        // last known для канала и reset'ит heroes если save_id изменился.
+        private void OnGameLoadFinished()
+        {
+            try
+            {
+                string saveId = Campaign.Current?.UniqueGameId ?? "unknown";
+                string evtData = JsonConvert.SerializeObject(new
+                {
+                    save_id = saveId,
+                    mod_version = "0.1.0",
+                });
+                Task.Run(async () => await BannerlordLinkModule.Backend
+                    .PostEventAsync("bannerlord", "module.session_start", evtData));
+                BannerlordLinkModule.Log(
+                    $"[CampaignEvent] OnGameLoadFinished: session_start pushed save_id={saveId}");
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[CampaignEvent] OnGameLoadFinished handler error: {ex.Message}");
+            }
         }
     }
 }

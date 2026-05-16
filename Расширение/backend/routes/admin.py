@@ -25,6 +25,59 @@ from dependencies import get_bot, get_db, require_admin
 router = APIRouter()
 
 
+@router.post("/api/admin/module/issue-token")
+async def admin_issue_module_token(
+    request: Request,
+    _admin: str = Depends(require_admin),
+):
+    """Admin: выдать module-token для C# мода / connector'а.
+
+    Body: {"module_id": "bannerlord", "channel_id": 98319857}
+    Returns: {token, channel_id, module_id, expires_in}
+
+    Альтернатива к /api/streamer/module-token (session cookie). Use case —
+    quick test mode без поднятия web-dashboard auth flow. Streamer руками
+    copy-paste'ит token в config.json своего мода.
+
+    Token подписан MODULE_TOKEN_SECRET (HMAC-SHA256), TTL 30 дней.
+    """
+    data = await request.json()
+    module_id = (data.get("module_id") or "").strip().lower()
+    try:
+        channel_id = int(data.get("channel_id", 0))
+    except (TypeError, ValueError):
+        return {"success": False, "message": "channel_id должен быть числом"}
+
+    if not module_id or not module_id.replace("_", "").replace(".", "").isalnum():
+        return {"success": False, "message": "Неверный module_id"}
+    if channel_id <= 0:
+        return {"success": False, "message": "channel_id обязателен"}
+
+    # Проверка что module зарегистрирован
+    from modules._loader import get_module
+    if get_module(module_id) is None:
+        return {
+            "success": False,
+            "message": f"Module '{module_id}' не зарегистрирован в реестре",
+        }
+
+    from routes.streamer import issue_module_token, _MODULE_TOKEN_TTL
+    token = issue_module_token(channel_id, module_id)
+
+    return {
+        "success":      True,
+        "token":        token,
+        "module_id":    module_id,
+        "channel_id":   channel_id,
+        "expires_in":   _MODULE_TOKEN_TTL,
+        "instructions": (
+            "Скопируй token в Modules/Shedoy23.BannerlordLink/config.json как "
+            "module_token, также вставь channel_id. Restart Bannerlord — "
+            "мод сможет слать events на /v1/module/<id>/events."
+        ),
+    }
+
+
 @router.get("/api/admin/dev/jwt")
 async def admin_dev_jwt(
     username: str = Query("shedoy23", description="Логин для preview"),

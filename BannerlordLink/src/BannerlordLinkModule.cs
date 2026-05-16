@@ -59,13 +59,26 @@ namespace BannerlordLink
                 Config = BackendConfig.LoadOrCreate(Log);
                 Backend = new BackendClient(Config, Log);
 
-                // Fire-and-forget ping (не блокирует load). Result в log.
+                // Fire-and-forget: ping + module.session_start event если есть token.
                 Task.Run(async () =>
                 {
                     bool ok = await Backend.PingAsync();
                     Log(ok
                         ? "Backend connectivity: OK ✓"
                         : "Backend connectivity: FAILED (mod в offline-mode)");
+
+                    // Sprint 2.3: handshake — посылаем module.session_start.
+                    // Backend RimWorld-style: clear catalogs + acknowledge mod online.
+                    if (ok && !string.IsNullOrEmpty(Config.ModuleToken))
+                    {
+                        string sessionData =
+                            $"{{\"save_id\":\"boot_{DateTime.UtcNow.Ticks}\",\"mod_version\":\"{MOD_VERSION}\"}}";
+                        bool acked = await Backend.PostEventAsync(
+                            "bannerlord", "module.session_start", sessionData);
+                        Log(acked
+                            ? "Module API handshake: SUCCESS — backend знает что мы online"
+                            : "Module API handshake: FAILED — проверь module_token в config.json");
+                    }
                 });
             }
             catch (Exception ex)

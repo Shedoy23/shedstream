@@ -94,6 +94,40 @@ namespace BannerlordLink.Net
             }
         }
 
+        /// <summary>POST одиночный module envelope на /v1/module/&lt;id&gt;/events.
+        ///
+        /// Envelope wrapper: {channel_id, envelopes:[{id, kind, type, ts, data}]}
+        /// Auth: Bearer module_token (выставлен в ctor если есть в config).
+        /// </summary>
+        /// <param name="moduleId">id модуля (bannerlord)</param>
+        /// <param name="eventType">type из manifest, e.g. module.session_start, player.linked</param>
+        /// <param name="data">extra fields в data{} envelope'а</param>
+        /// <returns>true если backend ACK'нул success</returns>
+        public async Task<bool> PostEventAsync(string moduleId, string eventType, string dataJson = "{}")
+        {
+            if (string.IsNullOrEmpty(_config.ModuleToken))
+            {
+                _log($"PostEvent {eventType} skipped — module_token не задан в config");
+                return false;
+            }
+
+            string envelopeId = Guid.NewGuid().ToString("N");
+            long ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            string body = string.Format(
+                "{{\"channel_id\":{0},\"envelopes\":[{{" +
+                "\"id\":\"{1}\",\"kind\":\"event\",\"type\":\"{2}\",\"ts\":{3},\"data\":{4}" +
+                "}}]}}",
+                _config.ChannelId, envelopeId, eventType, ts, dataJson);
+
+            string response = await PostJsonAsync($"/v1/module/{moduleId}/events", body);
+            if (response == null) return false;
+
+            // Простой проверочный check — должен содержать "status":"ok"
+            bool ok = response.Contains("\"status\":\"ok\"") || response.Contains("\"status\": \"ok\"");
+            _log($"event {eventType} → {(ok ? "ACK" : "REJECTED")}: {Truncate(response, 200)}");
+            return ok;
+        }
+
         /// <summary>POST произвольного JSON-payload'а. Для будущих event-передач.
         /// Возвращает response body как string, либо null если упало.</summary>
         public async Task<string> PostJsonAsync(string path, string jsonBody)

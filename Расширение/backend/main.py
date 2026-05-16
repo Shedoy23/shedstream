@@ -540,14 +540,16 @@ async def run_migrations():
             print(f"❌ M16 migration FAILED: {type(e).__name__}: {e}")
             raise
 
-        # ── M17: armor_bypass→ignore_armor fixup + active powers (Sprint 4.5) ──
+        # ── M18: armor_bypass→ignore_armor fixup + active powers (Sprint 4.5) ──
         # Объединяет дубликат armor_bypass_pct → ignore_armor_pct и seed'ит
         # active powers (shield_break_burst / rage / retribution_toggle).
+        # Был M17, перенумерован в M18 чтобы не конфликтовать с
+        # m17_eventsub_dedupe на main (EventSub feature).
         try:
-            from migrations import m17_bannerlord_active_powers
-            await m17_bannerlord_active_powers.apply(conn)
+            from migrations import m18_bannerlord_active_powers
+            await m18_bannerlord_active_powers.apply(conn)
         except Exception as e:
-            print(f"❌ M17 migration FAILED: {type(e).__name__}: {e}")
+            print(f"❌ M18 migration FAILED: {type(e).__name__}: {e}")
             raise
 
         print("✅ Migrations complete")

@@ -1,5 +1,8 @@
 """
-Migration M17: Bannerlord active powers seed + armor_bypass_pct fixup.
+Migration M18: Bannerlord active powers seed + armor_bypass_pct fixup.
+
+Renamed from M17 → M18: на main параллельно зарегистрирована
+m17_eventsub_dedupe (EventSub feature) — сохраняем sequential nums.
 
 Sprint 4.5 changes:
   1. **Fixup:** объединить `armor_bypass_pct` → `ignore_armor_pct`. M16 seed
@@ -18,7 +21,7 @@ Sprint 4.5 changes:
      60s для retribution_toggle) — backend может override через
      data.duration_s.
 
-Идемпотентно через migrations_applied['M17.bannerlord_active_powers'].
+Идемпотентно через migrations_applied['M18.bannerlord_active_powers'].
 Safe to re-run.
 """
 
@@ -38,7 +41,7 @@ ACTIVE_POWERS_SEED = [
 
 async def apply(conn) -> None:
     await _ensure_migrations_table(conn)
-    if await _is_applied(conn, "M17.bannerlord_active_powers"):
+    if await _is_applied(conn, "M18.bannerlord_active_powers"):
         return
 
     # ── 1. Fixup armor_bypass_pct → ignore_armor_pct ──────────────────────
@@ -72,9 +75,9 @@ async def apply(conn) -> None:
         )
 
     await conn.commit()
-    await _mark_applied(conn, "M17.bannerlord_active_powers")
+    await _mark_applied(conn, "M18.bannerlord_active_powers")
     print(
-        f"✅ M17: armor_bypass_pct→ignore_armor_pct fixup + "
+        f"✅ M18: armor_bypass_pct→ignore_armor_pct fixup + "
         f"{len(ACTIVE_POWERS_SEED)} active powers seeded"
     )
 

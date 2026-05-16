@@ -1100,10 +1100,10 @@ const _formatBigGold = n => n >= 1_000_000
         ? `${Math.round(n / 1_000)}К💰`
         : `${n}💰`;
 const _formatBigPrice = n => n >= 1_000_000
-    ? `${(n / 1_000_000).toFixed(2).replace(/\.?0+$/, '')}М⦷`
+    ? `${(n / 1_000_000).toFixed(2).replace(/\.?0+$/, '')}М💎`
     : n >= 1_000
-        ? `${Math.round(n / 1_000)}К⦷`
-        : `${n}⦷`;
+        ? `${Math.round(n / 1_000)}К💎`
+        : `${n}💎`;
 
 // Sprint 4.7 — UI labels + hardcoded prices для active power buttons.
 // Цены rebалансим в админку позже; сейчас просто работающий MVP.
@@ -1342,7 +1342,7 @@ function renderBannerlordSummonButton() {
 // Sprint 5.1c — 3 кнопки random-equip, размещены в shop card "Действия в игре".
 // Рендерятся как HTML-блок (renderBannerlordRandomEquipHtml) который
 // loadBannerlordShop добавляет перед catalog items.
-//   weapon (1M⦷), armor (500K⦷), horse (1.25M⦷ — только mounted classes)
+//   weapon (1M💎), armor (500K💎), horse (1.25M💎 — только mounted classes)
 // Цены проверяются server-side (frontend price = display only).
 function renderBannerlordRandomEquipHtml() {
     const currentKey = _bannerlordClassesCache?.current?.class_key || '';
@@ -1364,18 +1364,18 @@ function renderBannerlordRandomEquipHtml() {
                 <button class="extra-btn" id="bnr-random-weapon"
                         title="Случайное оружие из high-tier пула"
                         style="font-size:12px;padding:6px;">
-                    🗡 Купить оружие <span style="color:#fbbf24;">1М⦷</span>
+                    🗡 Купить оружие <span style="color:#fbbf24;">1М💎</span>
                 </button>
                 <button class="extra-btn" id="bnr-random-armor"
                         title="Случайная броня (любой slot) из high-tier пула"
                         style="font-size:12px;padding:6px;">
-                    🛡 Купить броню <span style="color:#fbbf24;">500К⦷</span>
+                    🛡 Купить броню <span style="color:#fbbf24;">500К💎</span>
                 </button>
                 <button class="extra-btn" id="bnr-random-horse"
                         ${horseDisabled}
                         title="${horseTitle}"
                         style="font-size:12px;padding:6px;${horseStyle}">
-                    🐎 Купить коня <span style="color:#fbbf24;">1.25М⦷</span>
+                    🐎 Купить коня <span style="color:#fbbf24;">1.25М💎</span>
                 </button>
             </div>
         </div>`;
@@ -1465,7 +1465,7 @@ function renderBannerlordCurrencyHtml() {
     return `
         <div style="padding:6px 10px;border-top:1px solid #3d3d3f;margin-top:4px;">
             <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">
-                💰 Динары (1000⦷ → 5000 динаров)
+                💰 Динары (1000💎 → 5000 динаров)
             </div>
             <div style="display:flex;flex-direction:column;gap:3px;">${goldRows}</div>
         </div>

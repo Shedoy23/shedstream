@@ -3,7 +3,7 @@
 **Назначение:** для чата по Bannerlord-модулю. Для общей extension
 работы — см. `CONTEXT.md`. Для RimWorld — `CONTEXT_RIMWORLD.md`.
 
-**Last updated:** 2026-05-16 (Sprint 4.5 closed — active powers)
+**Last updated:** 2026-05-16 (Sprint 4.7 closed — UI buttons + buff HUD)
 
 ## TL;DR
 
@@ -13,9 +13,9 @@ powers (HP×, skill boost, body scale), могут активировать acti
 (heal_burst). Adoption / class change / actions — через extension UI
 + action queue.
 
-## Текущий статус — Sprint 4.5 closed
+## Текущий статус — Sprint 4.7 closed
 
-### ✅ Закрыто (10 sprints)
+### ✅ Закрыто (12 sprints)
 
 **Backend infrastructure:**
 - M14 migration: `bannerlord_heroes` / `_skills` / `_attributes` /
@@ -25,9 +25,10 @@ powers (HP×, skill boost, body scale), могут активировать acti
 - **M17 migration** (Sprint 4.5): armor_bypass_pct→ignore_armor_pct fixup
   + 4 active powers seeded (tank/shield_break_burst, psycho/berserk/rage,
   knight/retribution_toggle)
-- routes/bannerlord.py: 7 endpoints (my-hero, shop, action, ping, status,
-  class-state, classes)
-- modules/bannerlord/_adapter.py: 12 event types обработаны
+- routes/bannerlord.py: 8 endpoints (my-hero, shop, action, ping, status,
+  class-state, classes (+ current_powers field Sprint 4.7), my-buffs (4.6))
+- modules/bannerlord/_adapter.py: 14 event types обработаны (+ buff.activated /
+  buff.expired Sprint 4.6, кэш in-memory `_active_buffs` per (channel_id, username))
 - Test 19 — 15 isolation assertions
 
 **C# mod** (`BannerlordLink/`, `Modules/Shedoy23.BannerlordLink/` на проде):
@@ -42,10 +43,15 @@ powers (HP×, skill boost, body scale), могут активировать acti
   - `player.modify_attribute` (attribute points)
   - `power.activate` — 4 power_keys:
     - `heal_burst` (4.3) — +50 HP instant
-    - `shield_break_burst` (4.5) — AoE: ChangeWeaponHitPoints(shield,0)
-      для всех enemy в радиусе (6/8/10м по уровню класса)
+    - `shield_break_burst` (4.5+4.6) — AoE: ChangeWeaponHitPoints(shield,0) +
+      particle effect `psys_game_shield_break` через
+      `Mission.Scene.CreateBurstParticle` для всех enemy в радиусе (6/8/10м)
     - `rage` (4.5) — timed 30s outgoing damage multi (1.3-1.8× per level)
     - `retribution_toggle` (4.5) — timed 60s extra reflect % overlay
+- **Buff event push** (Sprint 4.6): ActiveBuffState.Activate / RemoveExpired
+  пушат `buff.activated` / `buff.expired` события на backend через
+  PostEventAsync (fire-and-forget, не ждут ACK). Backend хранит in-memory
+  для frontend HUD.
 - MainCampaignBehavior (HeroKilled, HeroLevelledUp → events)
 - PowersMissionBehavior (HP multi + body_scale via reflection +
   Sprint 4.5 slow-tick cleanup expired buffs через `ActiveBuffState.RemoveExpired`,
@@ -70,18 +76,25 @@ powers (HP×, skill boost, body scale), могут активировать acti
 - Class picker (13 buttons, current highlighted)
 - Online badge (🟢/🔴 polling /api/bannerlord/status)
 - «⚔️ Стать героем» в empty state
+- **Active power buttons** (Sprint 4.7, viewer.js): heal_burst (100💎),
+  shield_break_burst (200💎, только tank), rage (300💎), retribution_toggle
+  (300💎). Hardcoded prices. Disabled пока buff активен.
+- **Buff HUD** (Sprint 4.6, viewer.js): chip-list над class picker'ом
+  с current remaining time. Polling /api/bannerlord/my-buffs каждые 2.5с +
+  client-side decrement 1с для smooth countdown.
 
 ### ⏳ Pending sprints
 
-- **4.6** Visual polish — shield_break_burst пока без particles
-  (BLT использует `OneShotEffect.Trigger("psys_game_shield_break", ...)`
-  через свой helper, у нас raw TaleWorlds API API research нужен). Также
-  rage / retribution на extension'е (HUD-индикатор активного buff'а
-  с remaining time).
-- **4.7** Extension UI кнопки для active powers — сейчас зрители могут
-  вызвать `power.activate` через generic action endpoint, но в Bannerlord
-  tab нет dedicated buttons. Добавить кнопки с current class powers
-  (читая `/api/bannerlord/classes` для текущего class powers list).
+- **4.8** Cooldowns — server-side rate-limit (e.g. 30с cooldown между
+  активациями rage / retribution на одного зрителя). Сейчас frontend
+  disable'ит кнопку только если buff активен; но если зритель ждёт
+  expiry и тут же активирует rage снова — нужен min interval.
+- **4.9** Shield-break sound — пока скипнули (только particle).
+  `Mission.Current.MakeSound(SoundEvent.GetEventIdFromString(
+  "event:/mission/combat/shield/broken"), origin, ...)` — нужно
+  убедиться что API стабилен в 1.3.15.
+- **4.10** Active power balancing — собрать stream-feedback на rage 1.3-1.8×
+  и retribution 20-50% после live test.
 - **4.6** TG/extension notifications — HeroKilled (player.died уже
   посылается, но TG notify pending)
 - **5.0** `player.spawn` (summon в Mission) — complex, BLT 1142 строк

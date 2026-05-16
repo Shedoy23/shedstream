@@ -117,7 +117,35 @@ async def bannerlord_classes(request: Request):
         row = await cur.fetchone()
         current = {"class_key": row[0], "class_level": row[1]} if row else None
 
-    return {"success": True, "classes": classes, "current": current}
+        # Sprint 4.7: active powers для current класса viewer'а (для UI кнопок).
+        # Фильтруем только active power_keys — passive (hp_multi / armor / skill
+        # boosts) не покупаются runtime'ом. Heal_burst — special: доступен всем.
+        ACTIVE_POWER_KEYS = (
+            "shield_break_burst", "rage", "retribution_toggle"
+        )
+        current_powers = []
+        if current:
+            cur = await conn.execute(
+                "SELECT power_key, lvl1_value, lvl2_value, lvl3_value "
+                "FROM bannerlord_class_powers WHERE class_key = ?",
+                (current["class_key"],))
+            for pr in await cur.fetchall():
+                pk = pr[0]
+                if pk not in ACTIVE_POWER_KEYS:
+                    continue
+                lvl = max(1, min(3, current["class_level"] or 1))
+                val = pr[lvl]  # 1→lvl1_value (idx 1), 2→lvl2_value (idx 2), 3→idx 3
+                current_powers.append({"power_key": pk, "value": val})
+
+        # heal_burst всегда доступен (не привязан к классу)
+        current_powers.append({"power_key": "heal_burst", "value": 50.0})
+
+    return {
+        "success": True,
+        "classes": classes,
+        "current": current,
+        "current_powers": current_powers,
+    }
 
 
 @router.get("/api/bannerlord/status")
@@ -145,6 +173,27 @@ async def bannerlord_status(request: Request):
         "last_seen":   last_seen if last_seen > 0 else None,
         "age_seconds": age,
     }
+
+
+@router.get("/api/bannerlord/my-buffs")
+async def bannerlord_my_buffs(request: Request):
+    """Sprint 4.6 — текущие active buffs (rage, retribution_toggle) для viewer'а.
+
+    State хранится in-memory в `_adapter.py:_active_buffs`, обновляется
+    через mod'овые события buff.activated/buff.expired. Reset на supervisor
+    restart — mod пошлёт buff.activated повторно если buff ещё активен.
+
+    Response: { success, buffs: [{power_key, remaining_s}] }
+    Frontend polling (~2с) + client-side decrement для smooth countdown.
+    """
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+
+    from modules.bannerlord._adapter import get_active_buffs
+    buffs = get_active_buffs(channel_id, username)
+    return {"success": True, "buffs": buffs}
 
 
 @router.get("/api/bannerlord/ping")

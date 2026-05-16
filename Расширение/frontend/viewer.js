@@ -1078,6 +1078,24 @@ function renderInventoryCases(unopenedCounts) {
 //   'bannerlord' → bannerlord hero UI + покупка actions
 //   null         → подсказка «Подключи модуль игры»
 let _bannerlordPollId = null;
+let _bannerlordBuffPollId = null;   // 4.6 — periodic GET /api/bannerlord/my-buffs (2.5s)
+let _bannerlordBuffTickId = null;   // 4.6 — client-side decrement (1s) для smooth countdown
+let _bannerlordBuffs = [];          // 4.6 — last-known buffs cache; entries { power_key, remaining_s }
+
+// Sprint 4.7 — UI labels + hardcoded prices для active power buttons.
+// Цены rebалансим в админку позже; сейчас просто работающий MVP.
+const BNR_POWER_LABELS = {
+    heal_burst:         { icon: '💊', label: 'Лечение',  desc: '+50 HP' },
+    shield_break_burst: { icon: '🛡️', label: 'Разбить щит', desc: 'AoE, мгновенно' },
+    rage:               { icon: '🔥', label: 'Ярость',    desc: 'damage ×, 30с' },
+    retribution_toggle: { icon: '↩',  label: 'Возмездие', desc: '+reflect %, 60с' },
+};
+const BNR_POWER_PRICES = {
+    heal_burst:         100,
+    shield_break_burst: 200,
+    rage:               300,
+    retribution_toggle: 300,
+};
 
 function switchIntegrationModule(activeModule) {
     const empty   = document.getElementById('integration-empty');
@@ -1109,12 +1127,27 @@ function _startBannerlordPolling() {
     loadBannerlordShop();
     loadBannerlordStatus();
     loadBannerlordClasses();
+    loadBannerlordBuffs();
     _bannerlordPollId = setInterval(() => {
         loadBannerlordHero();
         loadBannerlordShop();
         loadBannerlordStatus();
         loadBannerlordClasses();
     }, 8000);
+    // Buff HUD: faster poll (2.5s) для смены состояния, плюс client-side
+    // decrement (1s) чтобы countdown был smooth между poll'ами.
+    _bannerlordBuffPollId = setInterval(loadBannerlordBuffs, 2500);
+    _bannerlordBuffTickId = setInterval(() => {
+        let changed = false;
+        for (const b of _bannerlordBuffs) {
+            if (b.remaining_s > 0) {
+                b.remaining_s = Math.max(0, b.remaining_s - 1);
+                changed = true;
+            }
+        }
+        _bannerlordBuffs = _bannerlordBuffs.filter(b => b.remaining_s > 0);
+        if (changed) _renderBannerlordBuffs();
+    }, 1000);
 }
 
 let _bannerlordClassesCache = null;
@@ -1165,6 +1198,95 @@ function renderBannerlordClassPicker() {
             _bannerlordBuyAction('hero.set_class', { price: 0, class_key: classKey });
         });
     });
+
+    // Sprint 4.7: render active power buttons под picker'ом (для current class).
+    renderBannerlordActivePowers();
+}
+
+// Sprint 4.7 — active power buttons (heal_burst + class-specific actives).
+function renderBannerlordActivePowers() {
+    const slot = document.getElementById('bnr-active-powers-slot');
+    if (!slot) return;
+    if (!_bannerlordClassesCache) { slot.innerHTML = ''; return; }
+    const powers = _bannerlordClassesCache.current_powers || [];
+    if (!powers.length) { slot.innerHTML = ''; return; }
+
+    // Disabled state: если active buff с тем же power_key уже бежит — нельзя
+    // активировать повторно (буду overwriting но UX лучше disable).
+    const activeKeys = new Set(_bannerlordBuffs.map(b => b.power_key));
+
+    const btnsHtml = powers.map(p => {
+        const meta = BNR_POWER_LABELS[p.power_key];
+        if (!meta) return '';
+        const price = BNR_POWER_PRICES[p.power_key] ?? 0;
+        const isActive = activeKeys.has(p.power_key);
+        const disabled = isActive ? 'disabled' : '';
+        const bgColor = isActive ? '#3d3d3f' : '#2d2d2f';
+        return `
+            <button class="small-btn"
+                    data-bnr-power="${escapeHtml(p.power_key)}"
+                    data-bnr-price="${price}"
+                    ${disabled}
+                    title="${escapeHtml(meta.desc)}"
+                    style="background:${bgColor};color:#efeff1;padding:6px 8px;
+                           margin:2px;font-size:11px;border:1px solid #3d3d3f;
+                           ${isActive ? 'opacity:0.5;cursor:not-allowed;' : ''}">
+                ${meta.icon} ${escapeHtml(meta.label)}
+                <span style="color:#fbbf24;">${price}💎</span>
+            </button>`;
+    }).join('');
+
+    slot.innerHTML = `
+        <div style="font-size:11px;color:#adadb8;margin-top:8px;margin-bottom:4px;">
+            ⚡ Способности
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:2px;margin-bottom:6px;">
+            ${btnsHtml}
+        </div>`;
+
+    slot.querySelectorAll('[data-bnr-power]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const powerKey = btn.dataset.bnrPower;
+            const price = parseInt(btn.dataset.bnrPrice, 10) || 0;
+            _bannerlordBuyAction('power.activate', { price, power_key: powerKey });
+        });
+    });
+}
+
+// Sprint 4.6 — buff HUD: chip-list с current remaining time.
+async function loadBannerlordBuffs() {
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/my-buffs`, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
+        const data = await r.json();
+        if (data.success) {
+            _bannerlordBuffs = data.buffs || [];
+            _renderBannerlordBuffs();
+            // active power buttons могут disable'ся если buff активен
+            renderBannerlordActivePowers();
+        }
+    } catch (e) { /* silent — buff HUD не критичен */ }
+}
+
+function _renderBannerlordBuffs() {
+    const slot = document.getElementById('bnr-buff-hud');
+    if (!slot) return;
+    if (!_bannerlordBuffs.length) { slot.innerHTML = ''; return; }
+
+    const chips = _bannerlordBuffs.map(b => {
+        const meta = BNR_POWER_LABELS[b.power_key];
+        const icon = meta?.icon || '✨';
+        const label = meta?.label || b.power_key;
+        const sec = Math.ceil(b.remaining_s);
+        return `<span style="display:inline-block;background:#9147ff;color:#efeff1;
+                              padding:2px 8px;border-radius:10px;font-size:11px;
+                              font-weight:700;margin:0 2px;">
+            ${icon} ${escapeHtml(label)} ${sec}с
+        </span>`;
+    }).join('');
+
+    slot.innerHTML = `<div style="padding:4px 0 6px 0;">${chips}</div>`;
 }
 
 async function loadBannerlordStatus() {
@@ -1192,6 +1314,15 @@ function _stopBannerlordPolling() {
         clearInterval(_bannerlordPollId);
         _bannerlordPollId = null;
     }
+    if (_bannerlordBuffPollId) {
+        clearInterval(_bannerlordBuffPollId);
+        _bannerlordBuffPollId = null;
+    }
+    if (_bannerlordBuffTickId) {
+        clearInterval(_bannerlordBuffTickId);
+        _bannerlordBuffTickId = null;
+    }
+    _bannerlordBuffs = [];
 }
 
 async function loadBannerlordHero() {
@@ -1271,7 +1402,9 @@ async function loadBannerlordHero() {
                     <span>💰 Динары:</span>
                     <span style="color:#fbbf24;font-weight:700;">${(h.gold || 0).toLocaleString('ru-RU')}</span>
                 </div>
+                <div id="bnr-buff-hud"></div>
                 <div id="hero-class-picker-slot"></div>
+                <div id="bnr-active-powers-slot"></div>
                 <details style="margin-bottom:6px;">
                     <summary style="font-size:11px;color:#adadb8;cursor:pointer;">Топ скиллы</summary>
                     <div style="margin-top:4px;">${topSkills}</div>

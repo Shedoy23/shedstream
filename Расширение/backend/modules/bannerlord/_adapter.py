@@ -38,6 +38,13 @@ logger = logging.getLogger("rimlink.modules.bannerlord")
 # session_start при следующем боте подключении).
 _last_seen: dict = {}  # {channel_id: unix_timestamp}
 
+# Sprint 4.6: in-memory active buffs per viewer. Backend получает события
+# buff.activated/buff.expired от мода и хранит remaining time для frontend
+# HUD. Reset на restart — mod при следующей активации пошлёт buff.activated
+# повторно (или buff истечёт raw, mod пушнёт buff.expired). Acceptable.
+#   {(channel_id, username): {power_key: expires_at_unix}}
+_active_buffs: dict = {}
+
 
 def update_last_seen(channel_id: int) -> None:
     """Обновить last-seen timestamp для канала."""
@@ -48,6 +55,33 @@ def update_last_seen(channel_id: int) -> None:
 def get_last_seen(channel_id: int) -> float:
     """Возвращает unix timestamp последнего event'а или 0 если не было."""
     return _last_seen.get(channel_id, 0.0)
+
+
+def get_active_buffs(channel_id: int, username: str) -> list:
+    """Возвращает [{power_key, remaining_s}] для viewer'а. Expired drop'аются.
+
+    Frontend читает через GET /api/bannerlord/my-buffs каждые ~2 сек,
+    decrement'ит remaining client-side между poll'ами (smooth countdown).
+    """
+    import time
+    key = (channel_id, (username or "").lower())
+    perViewer = _active_buffs.get(key)
+    if not perViewer:
+        return []
+    now = time.time()
+    out = []
+    expired = []
+    for power_key, exp_at in perViewer.items():
+        rem = exp_at - now
+        if rem <= 0:
+            expired.append(power_key)
+        else:
+            out.append({"power_key": power_key, "remaining_s": round(rem, 1)})
+    for pk in expired:
+        perViewer.pop(pk, None)
+    if not perViewer:
+        _active_buffs.pop(key, None)
+    return out
 
 
 # Events которые triggrят TG-нотификацию (major world events).
@@ -124,6 +158,14 @@ class BannerlordAdapter(ModuleAdapter):
         if et in ("hero.relation_changed", "hero.faction_changed"):
             # Cosmetic-only, log only пока (не влияет на game-state в backend)
             await self._log_event(channel_id, et, env.data.get("username"), env.data)
+            return
+
+        if et == "buff.activated":
+            await self._on_buff_activated(channel_id, env)
+            return
+
+        if et == "buff.expired":
+            await self._on_buff_expired(channel_id, env)
             return
 
         if et == "world.event_occurred":
@@ -338,6 +380,42 @@ class BannerlordAdapter(ModuleAdapter):
                     "WHERE channel_id=? AND username=? AND slot=?",
                     (channel_id, username, slot))
             await conn.commit()
+
+    # ── Buff events (Sprint 4.6) ──────────────────────────────────────────────
+
+    async def _on_buff_activated(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Mod активировал active buff (rage/retribution_toggle) для зрителя.
+
+        Хранится только in-memory: state живёт в C# моде (источник истины),
+        мы тут — кэш для frontend HUD. На expiry или mission end mod пушнёт
+        buff.expired.
+        """
+        import time
+        data = env.data
+        username = (data.get("username") or "").lower()
+        power_key = (data.get("power_key") or "").lower()
+        duration_s = float(data.get("duration_s") or 0)
+        if not username or not power_key or duration_s <= 0:
+            return
+        expires_at = time.time() + duration_s
+        key = (channel_id, username)
+        _active_buffs.setdefault(key, {})[power_key] = expires_at
+        await self._log_event(channel_id, "buff.activated", username, data)
+
+    async def _on_buff_expired(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Mod сообщил что buff истёк. Удаляем из in-memory store."""
+        data = env.data
+        username = (data.get("username") or "").lower()
+        power_key = (data.get("power_key") or "").lower()
+        if not username or not power_key:
+            return
+        key = (channel_id, username)
+        perViewer = _active_buffs.get(key)
+        if perViewer:
+            perViewer.pop(power_key, None)
+            if not perViewer:
+                _active_buffs.pop(key, None)
+        await self._log_event(channel_id, "buff.expired", username, data)
 
     # ── World events ──────────────────────────────────────────────────────────
 

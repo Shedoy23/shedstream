@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using TaleWorlds.MountAndBlade;
 
 namespace BannerlordLink.Net
@@ -54,6 +55,10 @@ namespace BannerlordLink.Net
 
             BannerlordLinkModule.Log(
                 $"[BuffState] @{username} {powerKey} activated value={value:F2} duration={duration}s");
+
+            // Sprint 4.6: fire-and-forget push на backend → frontend HUD timer.
+            // Не ждём ACK — buff state локально уже set, push best-effort.
+            PostBuffEventAsync("buff.activated", username, powerKey, duration, value);
         }
 
         /// <summary>Resolve active buff value, или null если нет / expired.</summary>
@@ -87,6 +92,7 @@ namespace BannerlordLink.Net
                         removed++;
                         BannerlordLinkModule.Log(
                             $"[BuffState] @{userKvp.Key} {k} expired");
+                        PostBuffEventAsync("buff.expired", userKvp.Key, k, 0f, 0.0);
                     }
                 }
             }
@@ -97,6 +103,37 @@ namespace BannerlordLink.Net
         public static void Clear()
         {
             _buffs.Clear();
+        }
+
+        // Fire-and-forget event push. Backend хранит in-memory dict для
+        // /api/bannerlord/my-buffs (frontend HUD). Manifest extensions.events
+        // декларирует buff.activated / buff.expired (Sprint 4.6).
+        private static void PostBuffEventAsync(string eventType, string username,
+            string powerKey, float duration, double value)
+        {
+            var backend = BannerlordLinkModule.Backend;
+            if (backend == null) return;
+
+            string json = string.Format(
+                System.Globalization.CultureInfo.InvariantCulture,
+                "{{\"username\":\"{0}\",\"power_key\":\"{1}\",\"duration_s\":{2:F1},\"value\":{3:F3}}}",
+                EscapeJson(username), EscapeJson(powerKey), duration, value);
+
+            Task.Run(async () =>
+            {
+                try { await backend.PostEventAsync("bannerlord", eventType, json); }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[BuffState] push {eventType} failed: {ex.Message}");
+                }
+            });
+        }
+
+        private static string EscapeJson(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            return s.Replace("\\", "\\\\").Replace("\"", "\\\"");
         }
     }
 }

@@ -5,6 +5,8 @@ using BannerlordLink.Net;
 using Newtonsoft.Json.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
+using TaleWorlds.Engine;
+using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 
 namespace BannerlordLink.Actions
@@ -147,10 +149,10 @@ namespace BannerlordLink.Actions
                 $"[power.shield_break_burst] @{username} radius={radius}m: broke {broken} shield(s)");
         }
 
-        // Search through weapon slots, find a shield, zero its hitpoints.
-        // Без visual effect в MVP — vanilla shield-break particles работают
-        // когда hitpoints вычисляются за 0 в нормальном combat'е, у нас
-        // мгновенно — пока без частиц (Sprint 5.x с OneShotEffect API).
+        // Search through weapon slots, find a shield, zero its hitpoints +
+        // визуально дёрнуть native shield-break particle effect (4.6).
+        // Particle через Mission.Scene.CreateBurstParticle — pure TaleWorlds API.
+        // Sound пропускаем (4.6 scope: только particle).
         private static bool TryBreakShield(Agent agent)
         {
             try
@@ -166,6 +168,7 @@ namespace BannerlordLink.Actions
                         || usage.WeaponClass == WeaponClass.SmallShield)
                     {
                         agent.ChangeWeaponHitPoints(idx, 0);
+                        TryTriggerShieldBreakFx(agent);
                         return true;
                     }
                 }
@@ -175,6 +178,31 @@ namespace BannerlordLink.Actions
                 BannerlordLinkModule.Log($"[shield_break] {ex.Message}");
             }
             return false;
+        }
+
+        // Native game-asset particle "psys_game_shield_break" у off-hand bone.
+        // Frame = agent global frame * skeleton bone-local frame. AgentVisuals
+        // может быть null если agent disposed — wrap try/catch и no-op fallback.
+        private static void TryTriggerShieldBreakFx(Agent agent)
+        {
+            try
+            {
+                if (agent?.AgentVisuals == null || Mission.Current?.Scene == null) return;
+                var skel = agent.AgentVisuals.GetSkeleton();
+                if (skel == null) return;
+                sbyte bone = agent.Monster?.OffHandItemBoneIndex ?? (sbyte)-1;
+                if (bone < 0) return;
+
+                MatrixFrame frame = agent.AgentVisuals.GetGlobalFrame()
+                                  * skel.GetBoneEntitialFrame(bone);
+                int psysId = ParticleSystemManager.GetRuntimeIdByName("psys_game_shield_break");
+                if (psysId < 0) return;
+                Mission.Current.Scene.CreateBurstParticle(psysId, frame);
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[shield_break fx] {ex.Message}");
+            }
         }
 
         private static void ActivateRage(string username, float? durationOverride, double? valueOverride)

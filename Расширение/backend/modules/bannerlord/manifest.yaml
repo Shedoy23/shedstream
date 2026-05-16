@@ -57,6 +57,8 @@ extensions:
     - hero.equipment_changed
     - hero.relation_changed
     - hero.faction_changed
+    - buff.activated      # Sprint 4.6: mod пушит при ActiveBuffState.Activate
+    - buff.expired        # Sprint 4.6: mod пушит при RemoveExpired
   actions:
     - hero.create        # Adoption flow — spawn fresh wanderer + SetName(viewer)
     - hero.set_class     # Sprint 4.1: класс + equipment apply

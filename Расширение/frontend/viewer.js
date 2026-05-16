@@ -935,6 +935,7 @@ async function loadUserData() {
         
         renderInventoryCases(data.unopened_cases || {});
         renderQuests(data.quests || []);
+        switchIntegrationModule(data.active_module || null);
         loadUserLevel();
         
         // Перерисовываем магазин и ивенты с актуальным балансом (кнопки enabled/disabled)
@@ -1070,6 +1071,223 @@ function renderInventoryCases(unopenedCounts) {
     });
     container.innerHTML = html;
 }
+
+// ===== ИНТЕГРАЦИЯ (Sprint 1.5, 2026-05-15) =====
+// Switcher tab «🔌 Интеграция» по channel.active_module:
+//   'rimworld'   → существующий pawn UI
+//   'bannerlord' → bannerlord hero UI + покупка actions
+//   null         → подсказка «Подключи модуль игры»
+let _bannerlordPollId = null;
+
+function switchIntegrationModule(activeModule) {
+    const empty   = document.getElementById('integration-empty');
+    const rim     = document.getElementById('rimworld-content');
+    const bnr     = document.getElementById('bannerlord-content');
+    if (!empty || !rim || !bnr) return;
+
+    if (activeModule === 'bannerlord') {
+        empty.style.display = 'none';
+        rim.style.display = 'none';
+        bnr.style.display = '';
+        _startBannerlordPolling();
+    } else if (activeModule === 'rimworld') {
+        empty.style.display = 'none';
+        rim.style.display = '';
+        bnr.style.display = 'none';
+        _stopBannerlordPolling();
+    } else {
+        empty.style.display = '';
+        rim.style.display = 'none';
+        bnr.style.display = 'none';
+        _stopBannerlordPolling();
+    }
+}
+
+function _startBannerlordPolling() {
+    if (_bannerlordPollId) return;
+    loadBannerlordHero();
+    loadBannerlordShop();
+    _bannerlordPollId = setInterval(() => {
+        loadBannerlordHero();
+        loadBannerlordShop();
+    }, 8000);
+}
+
+function _stopBannerlordPolling() {
+    if (_bannerlordPollId) {
+        clearInterval(_bannerlordPollId);
+        _bannerlordPollId = null;
+    }
+}
+
+async function loadBannerlordHero() {
+    const body = document.getElementById('hero-body');
+    if (!body) return;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/my-hero`, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
+        const data = await r.json();
+        if (!data.success) {
+            body.innerHTML = `<div style="color:#f87171;padding:10px;">${escapeHtml(data.message || 'Ошибка')}</div>`;
+            return;
+        }
+        if (!data.has_hero) {
+            body.innerHTML = `
+                <div style="text-align:center;padding:16px;color:#adadb8;font-size:13px;">
+                    <div style="font-size:36px;margin-bottom:8px;">⚔️</div>
+                    У тебя ещё нет героя в Bannerlord.<br>
+                    <span style="font-size:11px;">
+                        Купи action <b>«Стать героем»</b> ниже либо стример adopt'ит тебя сам.
+                    </span>
+                </div>`;
+            return;
+        }
+        const h = data.hero;
+        const aliveBadge = h.is_alive
+            ? `<span style="color:#34d399;">●&nbsp;жив</span>`
+            : `<span style="color:#f87171;">💀&nbsp;мёртв</span>`;
+        const prisonerBadge = h.is_prisoner
+            ? ` <span style="color:#fbbf24;">⛓ в плену</span>` : '';
+
+        // Top-5 skills
+        const topSkills = (data.skills || []).slice(0, 5).map(s =>
+            `<div style="display:flex;justify-content:space-between;font-size:11px;padding:1px 0;">
+                <span>${escapeHtml(s.skill_key)}</span>
+                <span style="color:#fbbf24;">${s.level}</span>
+            </div>`
+        ).join('') || '<div style="font-size:11px;color:#adadb8;">Нет данных по скиллам</div>';
+
+        // Equipment
+        const eqEntries = Object.entries(data.equipment || {});
+        const eqHtml = eqEntries.length
+            ? eqEntries.map(([slot, it]) =>
+                `<div style="font-size:11px;padding:1px 0;">
+                    <span style="color:#adadb8;">${slot}:</span>
+                    ${escapeHtml(it.item_name || it.item_id || '—')}
+                </div>`).join('')
+            : '<div style="font-size:11px;color:#adadb8;">Нет экипировки</div>';
+
+        body.innerHTML = `
+            <div style="padding:8px;">
+                <div style="font-weight:700;font-size:15px;margin-bottom:2px;">
+                    ${escapeHtml(h.display_name || '—')}
+                </div>
+                <div style="font-size:11px;color:#adadb8;margin-bottom:8px;">
+                    ${aliveBadge}${prisonerBadge}
+                    ${h.culture ? ' · ' + escapeHtml(h.culture) : ''}
+                    ${h.location ? ' · 📍 ' + escapeHtml(h.location) : ''}
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px;">
+                    <span>💰 Динары:</span>
+                    <span style="color:#fbbf24;font-weight:700;">${(h.gold || 0).toLocaleString('ru-RU')}</span>
+                </div>
+                <details style="margin-bottom:6px;">
+                    <summary style="font-size:11px;color:#adadb8;cursor:pointer;">Топ скиллы</summary>
+                    <div style="margin-top:4px;">${topSkills}</div>
+                </details>
+                <details>
+                    <summary style="font-size:11px;color:#adadb8;cursor:pointer;">Экипировка</summary>
+                    <div style="margin-top:4px;">${eqHtml}</div>
+                </details>
+            </div>`;
+    } catch (e) {
+        body.innerHTML = `<div style="color:#f87171;padding:10px;">Ошибка сети</div>`;
+    }
+}
+
+async function loadBannerlordShop() {
+    const list = document.getElementById('bannerlord-shop-list');
+    const cnt  = document.getElementById('bannerlord-shop-count');
+    if (!list) return;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/shop`, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
+        const data = await r.json();
+        if (!data.success) {
+            list.innerHTML = `<div class="loading">${escapeHtml(data.message || 'Ошибка')}</div>`;
+            return;
+        }
+        const items = data.items || [];
+        if (cnt) cnt.textContent = items.length;
+        if (items.length === 0) {
+            list.innerHTML = `
+                <div style="text-align:center;padding:14px;font-size:12px;color:#adadb8;">
+                    Каталог пустой. Мод ещё не прислал shop-данные.<br>
+                    <span style="font-size:11px;">
+                        Когда стример запустит игру с подключённым модулем — здесь
+                        появятся actions с ценами.
+                    </span>
+                </div>`;
+            return;
+        }
+        // Каждый item — {catalog_type, entry_id, name?, price?, action_type?, ...}
+        list.innerHTML = items.map(it => {
+            const name = escapeHtml(it.name || it.entry_id || '?');
+            const price = parseInt(it.price || 0, 10);
+            const actionType = it.action_type || it.entry_id;
+            const canBuy = actionType && _cachedUserPoints >= price;
+            return `
+                <div class="shop-item">
+                    <div class="shop-item-info">
+                        <div class="shop-item-name">${name}</div>
+                        <div class="shop-item-cat" style="font-size:11px;color:#adadb8;">
+                            ${escapeHtml(it.catalog_type || '')}${it.description ? ' · ' + escapeHtml(it.description) : ''}
+                        </div>
+                    </div>
+                    <button class="shop-buy-btn"
+                            data-bnr-buy="${escapeHtml(actionType || '')}"
+                            data-bnr-price="${price}"
+                            ${canBuy ? '' : 'disabled style="opacity:.5;cursor:not-allowed;"'}>
+                        ${price.toLocaleString('ru-RU')}💎
+                    </button>
+                </div>`;
+        }).join('');
+        // Bind buy handlers
+        list.querySelectorAll('[data-bnr-buy]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const actionType = btn.dataset.bnrBuy;
+                const price = parseInt(btn.dataset.bnrPrice || '0', 10);
+                _bannerlordBuyAction(actionType, { price });
+            });
+        });
+    } catch (e) {
+        list.innerHTML = `<div class="loading" style="color:#f87171;">Ошибка сети</div>`;
+    }
+}
+
+async function _bannerlordBuyAction(actionType, data) {
+    if (!isAuthUser()) {
+        showNotification('⚠️ Войдите через Twitch', 'warning');
+        return;
+    }
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/action`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Twitch-JWT': authToken || '',
+            },
+            body: JSON.stringify({ action_type: actionType, data }),
+        });
+        const result = await r.json();
+        showNotification(result.message, result.success ? 'success' : 'error');
+        if (result.success) {
+            if (typeof loadUserData === 'function') loadUserData();
+        }
+    } catch (e) {
+        showNotification('Ошибка сети', 'error');
+    }
+}
+
+// Refresh button
+document.addEventListener('click', (ev) => {
+    if (ev.target && ev.target.id === 'refresh-hero-btn') {
+        loadBannerlordHero();
+        loadBannerlordShop();
+    }
+});
 
 // ===== РЫНОК =====
 function renderQuests(quests) {

@@ -1,16 +1,4 @@
 <!DOCTYPE html>
-<!--
-    mobile.html — копия extension.html (2026-05-14, Phase 8.E).
-    Twitch Mobile App рендерит extension в WebView через mobile-panel
-    конфиг → этот файл. Раньше был отдельный legacy UI (2247 строк),
-    новые фичи Phase 2-7 туда не дошли.
-
-    Решение: единый UI на mobile и desktop. extension.html достаточно
-    tap-friendly (viewport meta, action-cards с большой target area).
-
-    ВАЖНО: если меняешь extension.html — обнови ЭТОТ файл тоже
-    (cp extension.html mobile.html + восстановить этот комментарий).
--->
 <html lang="ru">
 <head>
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://extension-files.twitch.tv; connect-src 'self' https://api.twitch.tv https://shedoy23.ru http://localhost:* http://127.0.0.1:*; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:;">
@@ -163,6 +151,51 @@
 
     <!-- ===== RIMWORLD ===== -->
     <div id="rimworld-tab" class="tab-content">
+        <!-- 2026-05-15: tab переименован «RimWorld» → «🔌 Интеграция».
+             Содержимое conditional по channel.active_module:
+               'rimworld'   → блок #rimworld-content (legacy)
+               'bannerlord' → блок #bannerlord-content (Sprint 1.5)
+               null         → подсказка «Подключи модуль игры» -->
+
+        <div id="integration-empty" style="display:none;padding:20px;text-align:center;color:#adadb8;">
+            <div style="font-size:48px;margin-bottom:12px;">🔌</div>
+            <div style="font-weight:700;font-size:15px;color:#efeff1;margin-bottom:6px;">
+                Игровой модуль не подключён
+            </div>
+            <div style="font-size:12px;line-height:1.5;">
+                Стример должен запустить игру с подключённым модулем<br>
+                (RimWorld или Bannerlord) чтобы появились интерактивные фичи.
+            </div>
+        </div>
+
+        <!-- ===== BANNERLORD CONTENT (Sprint 1.5) ===== -->
+        <div id="bannerlord-content" style="display:none;">
+            <div class="rimworld-status-row">
+                <span class="rimworld-status-label">⚔️ Bannerlord</span>
+                <span id="bannerlord-status-badge" style="font-size:11px;font-weight:700;color:#f87171;">🔴 Оффлайн</span>
+            </div>
+
+            <div class="card" id="my-hero-card">
+                <div class="card-header">
+                    <h3>👤 Мой герой</h3>
+                    <button class="small-btn" id="refresh-hero-btn">🔄</button>
+                </div>
+                <div id="hero-body" class="loading">Загрузка...</div>
+            </div>
+
+            <div class="card" id="bannerlord-shop-card" style="margin-top:10px;">
+                <div class="card-header">
+                    <h3>🛒 Действия в игре</h3>
+                    <span class="card-badge" id="bannerlord-shop-count">0</span>
+                </div>
+                <div class="shop-list" id="bannerlord-shop-list">
+                    <div class="loading">Ждём данных от мода...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== RIMWORLD CONTENT (legacy) ===== -->
+        <div id="rimworld-content">
         <div class="rimworld-status-row">
             <span class="rimworld-status-label">RimWorld</span>
             <span id="rimworld-status-badge" style="font-size:11px;font-weight:700;color:#f87171;">🔴 Оффлайн</span>
@@ -220,7 +253,8 @@
                 <div class="loading">Загрузка...</div>
             </div>
         </div>
-    </div>
+        </div><!-- /rimworld-content -->
+    </div><!-- /rimworld-tab -->
 
     <!-- ===== МАГАЗИН (заглушка) ===== -->
     <div id="shop-tab" class="tab-content">
@@ -307,19 +341,19 @@
     <!-- cache-bust v: обновить при любой правке JS, чтобы Twitch-CDN и браузер
          перечитали файлы (расширения агрессивно кешируют .js). -->
     <!-- market.js удалён 2026-05-10 (Phase 1.C compliance rework) -->
-    <script src="pawn.js?v=20260513f"></script>
-    <script src="shop.js?v=20260513f"></script>
+    <script src="pawn.js?v=20260515a"></script>
+    <script src="shop.js?v=20260515a"></script>
     <!-- casino.js удалён 2026-05-10 (Phase 1.A compliance rework) -->
-    <script src="cases.js?v=20260513f"></script>
-    <script src="tictactoe.js?v=20260513f"></script>
-    <script src="dice.js?v=20260513f"></script>
-    <script src="guilds.js?v=20260513f"></script>
-    <script src="voting.js?v=20260513f"></script>
-    <script src="pets.js?v=20260513f"></script>
-    <script src="family.js?v=20260513f"></script>
-    <script src="duels.js?v=20260513f"></script>
-    <script src="xenotype.js?v=20260513f"></script>
-    <script src="viewer.js?v=20260513f"></script>
+    <script src="cases.js?v=20260515a"></script>
+    <script src="tictactoe.js?v=20260515a"></script>
+    <script src="dice.js?v=20260515a"></script>
+    <script src="guilds.js?v=20260515a"></script>
+    <script src="voting.js?v=20260515a"></script>
+    <script src="pets.js?v=20260515a"></script>
+    <script src="family.js?v=20260515a"></script>
+    <script src="duels.js?v=20260515a"></script>
+    <script src="xenotype.js?v=20260515a"></script>
+    <script src="viewer.js?v=20260515a"></script>
     </div><!-- /panel-content -->
 </div><!-- /overlay-panel -->
 

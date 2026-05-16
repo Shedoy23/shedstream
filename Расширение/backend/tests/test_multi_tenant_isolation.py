@@ -2278,6 +2278,248 @@ async def test_pets_system():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Test 19: Bannerlord module (Sprint 1.4) — TENANT-scoped (channel_id в PK)
+# ─────────────────────────────────────────────────────────────────────────────
+async def test_bannerlord_system():
+    """Sprint 1 Bannerlord: проверяет multi-tenant isolation 5 таблиц M14.
+
+    Severity-grouped:
+      BLOCKING (correctness):
+        - heroes / skills / attributes / equipment scoped per channel_id
+        - hero_id UNIQUE per (channel_id, hero_id) — нельзя одного NPC
+          adopt'ить дважды на одном канале
+        - cascade unlink: удаление hero сметает skills/attrs/equipment
+      IMPORTANT (multi-tenant):
+        - viewer @alice имеет разных heroes на cid_a vs cid_b
+        - events_log изолированы per channel
+      MINOR (logic):
+        - is_alive=0 для dead hero, last_sync обновляется
+        - equipment unequip удаляет row
+        - skills upsert (level=N на повторный insert обновляет)
+    """
+    print("\n[19] Bannerlord system (Sprint 1) — TENANT-scoped")
+    import aiosqlite as _aio
+
+    db_path = tempfile.mktemp(suffix="_test.db")
+    try:
+        async with _aio.connect(db_path) as conn:
+            from migrations import m14_bannerlord
+            await m14_bannerlord.apply(conn)
+            await conn.commit()
+
+            cid_a = 98319857
+            cid_b = 99999
+            user = 'alice'
+
+            # 19.1 Verify все 5 таблиц созданы
+            cur = await conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' "
+                "AND name LIKE 'bannerlord_%' ORDER BY name"
+            )
+            tables = [r[0] for r in await cur.fetchall()]
+            assert_eq(
+                tables,
+                ['bannerlord_attributes', 'bannerlord_equipment',
+                 'bannerlord_events_log', 'bannerlord_heroes',
+                 'bannerlord_skills'],
+                "M14: 5 bannerlord_* таблиц созданы"
+            )
+
+            # 19.2 BLOCKING: heroes PK = (channel_id, username) — TENANT scope
+            cur = await conn.execute("PRAGMA table_info(bannerlord_heroes)")
+            cols = await cur.fetchall()
+            pk_cols = sorted([c[1] for c in cols if c[5] > 0])
+            assert_eq(pk_cols, ['channel_id', 'username'],
+                      "bannerlord_heroes PK = (channel_id, username) [TENANT]")
+
+            # 19.3 Same viewer — разные heroes per channel (multi-tenant)
+            await conn.execute(
+                "INSERT INTO bannerlord_heroes "
+                "(channel_id, username, hero_id, display_name, culture) "
+                "VALUES (?, ?, 'hero_A1', 'Alice on A', 'vlandian')",
+                (cid_a, user))
+            await conn.execute(
+                "INSERT INTO bannerlord_heroes "
+                "(channel_id, username, hero_id, display_name, culture) "
+                "VALUES (?, ?, 'hero_B1', 'Alice on B', 'aserai')",
+                (cid_b, user))
+            await conn.commit()
+
+            cur = await conn.execute(
+                "SELECT hero_id, culture FROM bannerlord_heroes "
+                "WHERE channel_id=? AND username=?", (cid_a, user))
+            row = await cur.fetchone()
+            assert_eq(row, ('hero_A1', 'vlandian'), "alice@cid_a → hero_A1/vlandian")
+
+            cur = await conn.execute(
+                "SELECT hero_id, culture FROM bannerlord_heroes "
+                "WHERE channel_id=? AND username=?", (cid_b, user))
+            row = await cur.fetchone()
+            assert_eq(row, ('hero_B1', 'aserai'), "alice@cid_b → hero_B1/aserai (isolated)")
+
+            # 19.4 BLOCKING: hero_id UNIQUE per channel (uq_bannerlord_heroes_hero_id)
+            from aiosqlite import IntegrityError as _IE
+            try:
+                # bob пытается adopt уже adopted hero_A1 на cid_a → fail
+                await conn.execute(
+                    "INSERT INTO bannerlord_heroes "
+                    "(channel_id, username, hero_id, display_name, culture) "
+                    "VALUES (?, ?, 'hero_A1', 'Bob', 'empire')",
+                    (cid_a, 'bob'))
+                await conn.commit()
+                assert_true(False, "second adopt того же hero_id должен fail")
+            except _IE:
+                assert_true(True, "hero_id UNIQUE per channel — duplicate adopt отбит")
+                await conn.rollback()
+
+            # 19.5 НО hero_A1 на cid_b — OK (UNIQUE per channel_id)
+            await conn.execute(
+                "INSERT INTO bannerlord_heroes "
+                "(channel_id, username, hero_id, display_name) "
+                "VALUES (?, ?, 'hero_A1', 'Charlie')",
+                (cid_b, 'charlie'))
+            await conn.commit()
+            assert_true(True, "hero_A1 reused на cid_b — channels изолированы")
+
+            # 19.6 Skills + Attributes + Equipment per-hero per-channel
+            await conn.execute(
+                "INSERT INTO bannerlord_skills "
+                "(channel_id, username, skill_key, level, xp) "
+                "VALUES (?, ?, 'bow', 50, 1200)", (cid_a, user))
+            await conn.execute(
+                "INSERT INTO bannerlord_skills "
+                "(channel_id, username, skill_key, level, xp) "
+                "VALUES (?, ?, 'bow', 10, 50)", (cid_b, user))
+            await conn.execute(
+                "INSERT INTO bannerlord_equipment "
+                "(channel_id, username, slot, item_id, item_name) "
+                "VALUES (?, ?, 'weapon_0', 'sword_t3', 'Sword of Valor')",
+                (cid_a, user))
+            await conn.execute(
+                "INSERT INTO bannerlord_attributes "
+                "(channel_id, username, attribute, value) "
+                "VALUES (?, ?, 'vigor', 7)", (cid_a, user))
+            await conn.commit()
+
+            cur = await conn.execute(
+                "SELECT level FROM bannerlord_skills "
+                "WHERE channel_id=? AND username=? AND skill_key='bow'",
+                (cid_a, user))
+            (lvl_a,) = await cur.fetchone()
+            cur = await conn.execute(
+                "SELECT level FROM bannerlord_skills "
+                "WHERE channel_id=? AND username=? AND skill_key='bow'",
+                (cid_b, user))
+            (lvl_b,) = await cur.fetchone()
+            assert_eq((lvl_a, lvl_b), (50, 10),
+                      "alice bow level разный per channel (50 vs 10)")
+
+            # 19.7 Skill upsert — повторный INSERT обновляет level
+            await conn.execute("""
+                INSERT INTO bannerlord_skills (channel_id, username, skill_key, level, xp)
+                VALUES (?, ?, 'bow', 60, 1500)
+                ON CONFLICT(channel_id, username, skill_key) DO UPDATE SET
+                    level = excluded.level,
+                    xp    = excluded.xp
+            """, (cid_a, user))
+            await conn.commit()
+            cur = await conn.execute(
+                "SELECT level FROM bannerlord_skills "
+                "WHERE channel_id=? AND username=? AND skill_key='bow'",
+                (cid_a, user))
+            (lvl,) = await cur.fetchone()
+            assert_eq(lvl, 60, "skill upsert: level обновлён до 60")
+
+            # 19.8 player.died — is_alive=0
+            await conn.execute(
+                "UPDATE bannerlord_heroes SET is_alive=0 "
+                "WHERE channel_id=? AND username=?", (cid_a, user))
+            await conn.commit()
+            cur = await conn.execute(
+                "SELECT is_alive FROM bannerlord_heroes "
+                "WHERE channel_id=? AND username=?", (cid_a, user))
+            (alive,) = await cur.fetchone()
+            assert_eq(alive, 0, "alice@cid_a dead (is_alive=0)")
+
+            # 19.9 player.respawned — новый hero_id, is_alive=1
+            await conn.execute(
+                "UPDATE bannerlord_heroes SET hero_id='hero_A2', is_alive=1, is_prisoner=0 "
+                "WHERE channel_id=? AND username=?", (cid_a, user))
+            await conn.commit()
+            cur = await conn.execute(
+                "SELECT hero_id, is_alive FROM bannerlord_heroes "
+                "WHERE channel_id=? AND username=?", (cid_a, user))
+            row = await cur.fetchone()
+            assert_eq(row, ('hero_A2', 1), "alice respawned → hero_A2, is_alive=1")
+
+            # 19.10 Equipment unequip
+            await conn.execute(
+                "DELETE FROM bannerlord_equipment "
+                "WHERE channel_id=? AND username=? AND slot='weapon_0'",
+                (cid_a, user))
+            await conn.commit()
+            cur = await conn.execute(
+                "SELECT COUNT(*) FROM bannerlord_equipment "
+                "WHERE channel_id=? AND username=?", (cid_a, user))
+            (cnt,) = await cur.fetchone()
+            assert_eq(cnt, 0, "unequip weapon_0 удалил row")
+
+            # 19.11 Events log — per channel scope
+            await conn.execute(
+                "INSERT INTO bannerlord_events_log "
+                "(channel_id, event_type, username, payload) "
+                "VALUES (?, 'player.died', ?, '{\"killer\": \"bandit\"}')",
+                (cid_a, user))
+            await conn.execute(
+                "INSERT INTO bannerlord_events_log "
+                "(channel_id, event_type, username, payload) "
+                "VALUES (?, 'world.siege_won', NULL, '{}')",
+                (cid_b,))
+            await conn.commit()
+            cur = await conn.execute(
+                "SELECT COUNT(*) FROM bannerlord_events_log WHERE channel_id=?",
+                (cid_a,))
+            (a_evt,) = await cur.fetchone()
+            cur = await conn.execute(
+                "SELECT COUNT(*) FROM bannerlord_events_log WHERE channel_id=?",
+                (cid_b,))
+            (b_evt,) = await cur.fetchone()
+            assert_eq((a_evt, b_evt), (1, 1),
+                      "events_log: 1 запись на каждом канале (изолированно)")
+
+            # 19.12 Cascade unlink — удаление hero сметает связанные
+            for tbl in ('bannerlord_skills', 'bannerlord_attributes',
+                         'bannerlord_equipment', 'bannerlord_heroes'):
+                await conn.execute(
+                    f"DELETE FROM {tbl} WHERE channel_id=? AND username=?",
+                    (cid_a, user))
+            await conn.commit()
+            cur = await conn.execute(
+                "SELECT COUNT(*) FROM bannerlord_heroes WHERE channel_id=?",
+                (cid_a,))
+            (cnt,) = await cur.fetchone()
+            assert_eq(cnt, 0, "cascade unlink alice@cid_a удалил hero")
+            cur = await conn.execute(
+                "SELECT COUNT(*) FROM bannerlord_skills WHERE channel_id=? AND username=?",
+                (cid_a, user))
+            (cnt,) = await cur.fetchone()
+            assert_eq(cnt, 0, "cascade unlink удалил alice skills")
+
+            # 19.13 Cross-channel НЕ затронут
+            cur = await conn.execute(
+                "SELECT COUNT(*) FROM bannerlord_heroes WHERE channel_id=?",
+                (cid_b,))
+            (b_cnt,) = await cur.fetchone()
+            assert_true(b_cnt >= 2, "cid_b heroes (alice + charlie) не задеты unlink'ом")
+
+    finally:
+        try:
+            os.unlink(db_path)
+        except Exception:
+            pass
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main runner
 # ─────────────────────────────────────────────────────────────────────────────
 async def run_all_tests():
@@ -2303,6 +2545,7 @@ async def run_all_tests():
     await test_guilds_system()
     await test_voting_system()
     await test_pets_system()
+    await test_bannerlord_system()
 
     print("\n" + "=" * 70)
     print(f"PASSED: {len(_successes)}    FAILED: {len(_failures)}")

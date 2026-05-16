@@ -1720,6 +1720,33 @@ async function loadBannerlordHero() {
             ? '<span style="color:#9ca3af;">базовое</span>'
             : `<span style="color:#fbbf24;">T${gearTier} ★</span>`;
 
+        // Sprint M21: armor summary — sum head/body/leg/arm coverage по
+        // 5 armor slots (head/body/leg/gloves/cape). Engine считает
+        // защиту по hitzone — viewer видит per-zone total.
+        // Также avg tier по filled armor slots.
+        const _armorSlots = ['head', 'body', 'leg', 'gloves', 'cape'];
+        let totalHead = 0, totalBody = 0, totalLeg = 0, totalArm = 0;
+        let tierSum = 0, tierCount = 0;
+        for (const s of _armorSlots) {
+            const eq = (data.equipment || {})[s];
+            if (!eq) continue;
+            const st = eq.stats || {};
+            totalHead += st.head || 0;
+            totalBody += st.body || 0;
+            totalLeg  += st.leg  || 0;
+            totalArm  += st.arm  || 0;
+            if (eq.tier != null && eq.tier >= 0) {
+                tierSum += eq.tier;
+                tierCount++;
+            }
+        }
+        const totalArmor = totalHead + totalBody + totalLeg + totalArm;
+        const armorAvgTier = tierCount > 0 ? Math.round(tierSum / tierCount) + 1 : null;
+        const armorLabel = totalArmor === 0
+            ? '<span style="color:#9ca3af;">нет</span>'
+            : `<span style="color:#efeff1;">🪖${totalHead} 👕${totalBody} 👢${totalLeg} 💪${totalArm}</span>` +
+              (armorAvgTier ? ` <span style="color:#fbbf24;">~T${armorAvgTier}</span>` : '');
+
         body.innerHTML = `
             <div style="padding:8px;">
                 <div style="font-weight:700;font-size:15px;margin-bottom:2px;">
@@ -1741,6 +1768,8 @@ async function loadBannerlordHero() {
                     <span style="color:#efeff1;">${clanLabel}</span>
                     <span style="color:#adadb8;">👑 Королевство:</span>
                     <span style="color:#efeff1;">${kingdomLabel}</span>
+                    <span style="color:#adadb8;">🛡 Броня:</span>
+                    <span>${armorLabel}</span>
                 </div>
                 <div id="bnr-buff-hud"></div>
                 <div id="hero-class-picker-slot"></div>

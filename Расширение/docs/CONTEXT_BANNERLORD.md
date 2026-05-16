@@ -3,7 +3,7 @@
 **Назначение:** для чата по Bannerlord-модулю. Для общей extension
 работы — см. `CONTEXT.md`. Для RimWorld — `CONTEXT_RIMWORLD.md`.
 
-**Last updated:** 2026-05-16 (Sprint 5.1 closed — spawn expand + equip_item)
+**Last updated:** 2026-05-16 (Sprint 5.1c closed — random equip коробочки)
 
 ## TL;DR
 
@@ -13,9 +13,9 @@ powers (HP×, skill boost, body scale), могут активировать acti
 (heal_burst). Adoption / class change / actions — через extension UI
 + action queue.
 
-## Текущий статус — Sprint 5.1 closed
+## Текущий статус — Sprint 5.1c closed
 
-### ✅ Закрыто (16 sprints)
+### ✅ Закрыто (17 sprints)
 
 **Backend infrastructure:**
 - M14 migration: `bannerlord_heroes` / `_skills` / `_attributes` /
@@ -54,12 +54,14 @@ powers (HP×, skill boost, body scale), могут активировать acti
     на `MissionAgentSpawnLogic.IsSideDepleted` (Patches/IsSideDepletedPatch.cs):
     если на side есть adopted hero (PowerCache contains username) — side
     не depleted, vanilla spawn logic продолжит реinforcement.
-  - `player.equip_item` (5.1b MVP) — `MBObjectManager.GetObject<ItemObject>(item_id)`
-    → resolve slot (explicit `data.slot` или infer по `ItemType` — armor →
-    Body/Head/Leg/Gloves/Cape; horse → Horse; weapons/shields/ammo → first
-    empty Weapon0..3) → `hero.BattleEquipment[idx] = new EquipmentElement(item)`.
-    Fire-and-forget `hero.equipment_changed` event на backend — bannerlord_equipment
-    table обновится автоматически.
+  - `player.equip_item` (5.1b + 5.1c) — два режима:
+    • **Targeted** (5.1b): `data.item_id` → `MBObjectManager.GetObject<ItemObject>`
+      → resolve slot (`data.slot` или auto-infer по ItemType) → apply.
+    • **Random** (5.1c): `data.random_category` (weapon/armor/horse) →
+      `MBObjectManager.GetObjectTypeList<ItemObject>()` filter by ItemType +
+      Tier ≥ 4 (high-tier) + `!NotMerchandise` → `MBRandom.RandomInt` pick.
+    Slot resolve по ItemType. `hero.BattleEquipment[idx] = new EquipmentElement(item)`.
+    Fire-and-forget `hero.equipment_changed` event на backend.
   - `power.activate` — 4 power_keys:
     - `heal_burst` (4.3) — +50 HP instant
     - `shield_break_burst` (4.5+4.6+4.9) — AoE: ChangeWeaponHitPoints(shield,0)
@@ -103,6 +105,11 @@ powers (HP×, skill boost, body scale), могут активировать acti
 - **Summon button** (Sprint 5.0, viewer.js): «📯 Призвать в бой» (500💎,
   cooldown 120с — `player.spawn` key в POWER_COOLDOWNS). Wide button под
   active powers, disabled на cooldown.
+- **Random equip buttons** (Sprint 5.1c, viewer.js): «🗡 Купить оружие 1М⦷» /
+  «🛡 Купить броню 500К⦷» / «🐎 Купить коня 1.25М⦷». Horse-button disabled
+  для non-mounted classes. Цены отображаются на UI, **server-side
+  override'ит** `data.price` из `RANDOM_EQUIP_PRICES` map в
+  routes/bannerlord.py — viewer не может послать price:0.
 - **Buff HUD** (Sprint 4.6, viewer.js): chip-list над class picker'ом
   с current remaining time. Polling /api/bannerlord/my-buffs каждые 2.5с +
   client-side decrement 1с для smooth countdown.
@@ -112,11 +119,6 @@ powers (HP×, skill boost, body scale), могут активировать acti
 - **4.10** Active power balancing — собрать stream-feedback на rage 1.3-1.8×,
   retribution 20-50%, cooldowns 30/60/90с после live test. Скорее всего
   cooldown в админку (per-streamer rebalance) — 4.11.
-- **5.1c** Shop catalog auto-seeding: mod при `module.session_start` пушит
-  `module.catalog_update {catalog: "shop", entries: [{action_type:
-  "player.equip_item", item_id, name, price, slot, item_type}]}` —
-  ~10-15 hardcoded mid-tier items. Frontend уже рендерит `bannerlord-shop-list`,
-  нужно добавить click handler → `_bannerlordBuyAction('player.equip_item', ...)`.
 - **5.2** Class re-balance + compliance rebrand (наши class names + values
   vs BLT — должны полностью отличаться перед public release).
 - **4.6** TG/extension notifications — HeroKilled (player.died уже

@@ -380,6 +380,46 @@ async def bannerlord_buy_action(request: Request):
     if action_type not in _PURCHASABLE_ACTIONS:
         return {"success": False, "message": f"Action '{action_type}' не разрешён"}
 
+    # Sprint 5.1c: server-side price enforcement для random equip.
+    # Frontend ставит price, но мы OVERRIDE — viewer не может отправить price:0
+    # и купить за бесплатно. Также проверка mounted-class для horse.
+    RANDOM_EQUIP_PRICES = {
+        "weapon": 1_000_000,
+        "armor":    500_000,
+        "horse":  1_250_000,
+    }
+    MOUNTED_CLASSES = {
+        "cavalry", "camel_cavalry", "horse_archer", "camel_archer", "knight"
+    }
+
+    if action_type == "player.equip_item":
+        random_category = (data.get("random_category") or "").strip().lower()
+        if random_category:
+            if random_category not in RANDOM_EQUIP_PRICES:
+                return {
+                    "success": False,
+                    "message": f"Категория '{random_category}' не разрешена "
+                               "(weapon / armor / horse)",
+                }
+            # Mounted-class gate для horse
+            if random_category == "horse":
+                db_tmp = get_db()
+                async with db_tmp._connect() as conn:
+                    cur = await conn.execute(
+                        "SELECT class_key FROM bannerlord_hero_class "
+                        "WHERE channel_id=? AND username=?",
+                        (channel_id, username))
+                    row = await cur.fetchone()
+                    class_key = (row[0] or "").lower() if row else ""
+                if class_key not in MOUNTED_CLASSES:
+                    return {
+                        "success": False,
+                        "message": "Конь доступен только для конных классов "
+                                   "(cavalry / horse_archer / camel_* / knight)",
+                    }
+            # Server-side override клиентской цены
+            data["price"] = RANDOM_EQUIP_PRICES[random_category]
+
     try:
         price = int(data.get("price", 0))
     except (TypeError, ValueError):

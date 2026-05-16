@@ -1270,6 +1270,8 @@ function renderBannerlordActivePowers() {
 
     // Sprint 5.0: summon button (player.spawn) — отдельно, не active power.
     renderBannerlordSummonButton();
+    // Sprint 5.1c: 3 random-equip buttons.
+    renderBannerlordRandomEquip();
 }
 
 // Sprint 5.0 — кнопка "📯 Призвать в бой" (player.spawn).
@@ -1295,6 +1297,59 @@ function renderBannerlordSummonButton() {
     if (btn && !onCooldown) {
         btn.addEventListener('click', () => {
             _bannerlordBuyAction('player.spawn', { price: SUMMON_PRICE });
+        });
+    }
+}
+
+// Sprint 5.1c — 3 кнопки random-equip:
+//   weapon (1M⦷), armor (500K⦷), horse (1.25M⦷ — только mounted classes)
+// Цены проверяются server-side (frontend price = display only).
+function renderBannerlordRandomEquip() {
+    const slot = document.getElementById('bnr-random-equip-slot');
+    if (!slot) return;
+    const currentKey = _bannerlordClassesCache?.current?.class_key || '';
+    const MOUNTED = new Set(['cavalry', 'camel_cavalry', 'horse_archer', 'camel_archer', 'knight']);
+    const isMounted = MOUNTED.has(currentKey);
+
+    const horseDisabled = !isMounted ? 'disabled' : '';
+    const horseStyle = !isMounted ? 'opacity:0.5;cursor:not-allowed;' : '';
+    const horseTitle = !isMounted
+        ? 'Только для конных классов (cavalry / horse_archer / camel_* / knight)'
+        : 'Случайный скакун из high-tier пула';
+
+    slot.innerHTML = `
+        <div style="font-size:11px;color:#adadb8;margin-top:8px;margin-bottom:4px;">
+            🎁 Случайный товар
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+            <button class="extra-btn" id="bnr-random-weapon"
+                    title="Случайное оружие из high-tier пула"
+                    style="font-size:12px;padding:6px;">
+                🗡 Купить оружие <span style="color:#fbbf24;">1М⦷</span>
+            </button>
+            <button class="extra-btn" id="bnr-random-armor"
+                    title="Случайная броня (любой slot) из high-tier пула"
+                    style="font-size:12px;padding:6px;">
+                🛡 Купить броню <span style="color:#fbbf24;">500К⦷</span>
+            </button>
+            <button class="extra-btn" id="bnr-random-horse"
+                    ${horseDisabled}
+                    title="${horseTitle}"
+                    style="font-size:12px;padding:6px;${horseStyle}">
+                🐎 Купить коня <span style="color:#fbbf24;">1.25М⦷</span>
+            </button>
+        </div>`;
+
+    document.getElementById('bnr-random-weapon')?.addEventListener('click', () => {
+        _bannerlordBuyAction('player.equip_item', { random_category: 'weapon' });
+    });
+    document.getElementById('bnr-random-armor')?.addEventListener('click', () => {
+        _bannerlordBuyAction('player.equip_item', { random_category: 'armor' });
+    });
+    const horseBtn = document.getElementById('bnr-random-horse');
+    if (horseBtn && isMounted) {
+        horseBtn.addEventListener('click', () => {
+            _bannerlordBuyAction('player.equip_item', { random_category: 'horse' });
         });
     }
 }
@@ -1453,6 +1508,7 @@ async function loadBannerlordHero() {
                 <div id="hero-class-picker-slot"></div>
                 <div id="bnr-active-powers-slot"></div>
                 <div id="bnr-summon-slot"></div>
+                <div id="bnr-random-equip-slot"></div>
                 <details style="margin-bottom:6px;">
                     <summary style="font-size:11px;color:#adadb8;cursor:pointer;">Топ скиллы</summary>
                     <div style="margin-top:4px;">${topSkills}</div>

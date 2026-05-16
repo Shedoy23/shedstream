@@ -343,6 +343,13 @@ document.addEventListener('DOMContentLoaded', function() {
             helixToken = auth.helixToken;
             clientId = auth.clientId;
 
+            // Phase C (2026-05-17): init PubSub realtime bus. Подписываемся на
+            // broadcast + whisper-<opaqueId>. Idempotent — safe to call multiple
+            // times (Twitch может re-fire onAuthorized при token refresh).
+            if (window.RealtimeBus) {
+                window.RealtimeBus.init(auth.userId);
+            }
+
             // Декодируем токен — проверяем есть ли user_id
             let jwtUserId = null;
             try {

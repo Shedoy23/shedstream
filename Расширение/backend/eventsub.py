@@ -419,6 +419,13 @@ async def _on_stream_online(event: dict, channel_id: int) -> None:
     asyncio.create_task(notify_stream_online(
         channel_id=channel_id, login=login,
     ))
+    # Phase C (2026-05-17): broadcast stream_state — frontend мгновенно
+    # снимет «доступно только во время стрима» gate без следующего polling.
+    try:
+        from pubsub import broadcast as _pubsub_broadcast
+        _pubsub_broadcast(channel_id, "stream_state", {"live": True})
+    except Exception as e:
+        logger.warning("stream.online pubsub broadcast failed: %s", e)
     logger.info(
         "🔴 stream.online ch=%s login=%s sid=%s",
         channel_id, login, stream_id[:12] if stream_id else "?",
@@ -454,6 +461,13 @@ async def _on_stream_offline(event: dict, channel_id: int) -> None:
         logger.warning(
             "stream.offline end_session ch=%s failed: %s", channel_id, e
         )
+    # Phase C: broadcast stream_state — frontend мгновенно перекроет
+    # action endpoints с require_stream_live (без задержки следующего polling).
+    try:
+        from pubsub import broadcast as _pubsub_broadcast
+        _pubsub_broadcast(channel_id, "stream_state", {"live": False})
+    except Exception as e:
+        logger.warning("stream.offline pubsub broadcast failed: %s", e)
 
 
 # ─── TTL cleanup ─────────────────────────────────────────────────────────────

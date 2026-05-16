@@ -405,6 +405,24 @@ async def dice_roll(request: Request):
         except Exception:
             pass
 
+    # Phase C (2026-05-17): match_state broadcast — оппонент мгновенно видит
+    # обновлённый roll/winner без 3-сек polling.
+    try:
+        from pubsub import broadcast as _pubsub_broadcast
+        _pubsub_broadcast(channel_id, "match_state", {
+            "room_id":  room_id,
+            "game":     "dice",
+            "state":    state,
+            "status":   "finished" if finished else "active",
+            "finished": finished,
+            "winner":   winner_user,
+        })
+    except Exception as e:
+        import logging
+        logging.getLogger("rimlink.dice").warning(
+            "post-roll match_state broadcast failed: %s", e
+        )
+
     return {
         "success":      True,
         "mode":         "pvp",

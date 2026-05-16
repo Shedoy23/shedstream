@@ -425,6 +425,7 @@ class BotCore:
         """Voting background loop:
           1. Finalize expired active events (ends_at прошёл)
           2. Auto-start event на каналах с pool >= threshold + default template
+          3. Broadcast vote_tick для всех active events (Phase C, 2026-05-17)
 
         Применяя async-python-patterns:
           - structured error handling (per-iteration try/except не валит loop)
@@ -432,6 +433,7 @@ class BotCore:
           - generic loop interval VOTING_LOOP_INTERVAL (10s default)
         """
         from config import VOTING_LOOP_INTERVAL, VOTING_POOL_THRESHOLD
+        from pubsub import broadcast as _pubsub_broadcast
         logger.info("Voting loop запущен (interval=%ds, threshold=%d)",
                     VOTING_LOOP_INTERVAL, VOTING_POOL_THRESHOLD)
         while self.running:
@@ -457,6 +459,16 @@ class BotCore:
                                 await self.send_message(msg, channel_id=cid)
                             except Exception as e:
                                 logger.warning("voting_loop chat-notify failed: %s", e)
+                            # Phase C: broadcast vote_ended — frontend мгновенно покажет
+                            # winner modal без следующего polling.
+                            try:
+                                _pubsub_broadcast(cid, "vote_ended", {
+                                    "event_id": event_id,
+                                    "outcome": outcome,
+                                    "winner": winner,  # {id, key, label, pool} | None
+                                })
+                            except Exception as e:
+                                logger.warning("voting_loop pubsub vote_ended failed: %s", e)
                             logger.info("[ch=%s] voting event %s finalized: %s",
                                         cid, event_id, outcome)
                     except Exception as e:
@@ -482,12 +494,51 @@ class BotCore:
                                 )
                             except Exception:
                                 pass
+                            # Phase C: broadcast vote_started — frontend сразу
+                            # рендерит UI без ожидания poll-tick'а.
+                            try:
+                                # Fetch full state с options (frontend применит сразу).
+                                state = await self.db.get_active_voting_event(channel_id=cid)
+                                if state:
+                                    _pubsub_broadcast(cid, "vote_started", {
+                                        "event_id":      state["event_id"],
+                                        "template_name": state["template_name"],
+                                        "ends_at":       state["ends_at"],
+                                        "total_pool":    state["total_pool"],
+                                        "options":       state["options"],
+                                    })
+                            except Exception as e:
+                                logger.warning("voting_loop pubsub vote_started failed: %s", e)
                             logger.info("[ch=%s] voting event auto-started: template=%s",
                                         cid, tpl_id)
                     except Exception as e:
                         logger.warning("[ch=%s] voting auto-start failed: %s", cid, e)
             except Exception as e:
                 logger.warning("voting_loop auto-start tick failed: %s", e)
+
+            # 3. Phase C: broadcast vote_tick для всех active events (1 раз/10s).
+            # Дополнительно immediate vote_tick fire'ится после каждого bid
+            # в routes/voting.py — это даёт <1s latency при активном торге.
+            try:
+                active_channels = await self.db.list_channels()
+                for ch in active_channels:
+                    cid = int(ch["channel_id"])
+                    state = await self.db.get_active_voting_event(channel_id=cid)
+                    if not state:
+                        continue
+                    try:
+                        _pubsub_broadcast(cid, "vote_tick", {
+                            "event_id":   state["event_id"],
+                            "total_pool": state["total_pool"],
+                            "options": [
+                                {"id": o["id"], "pool": o["pool"]}
+                                for o in state["options"]
+                            ],
+                        })
+                    except Exception as e:
+                        logger.warning("voting_loop pubsub vote_tick failed: %s", e)
+            except Exception as e:
+                logger.warning("voting_loop vote_tick fanout failed: %s", e)
 
     # ===== НАЧИСЛЕНИЕ ОЧКОВ =====
     async def reward_points_loop(self):

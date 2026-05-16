@@ -969,6 +969,10 @@ async def on_startup():
     # TTL cleanup для eventsub_seen — раз в час чистит expired (24h retention).
     from eventsub import cleanup_seen_loop as _eventsub_cleanup
     asyncio.create_task(_eventsub_cleanup())
+    # Phase C (2026-05-17): PubSub drain loop — pop'ит per-topic queue с
+    # throttle 1msg/sec на (channel, topic) и шлёт в Helix /extensions/pubsub.
+    from pubsub import drain_loop as _pubsub_drain
+    asyncio.create_task(_pubsub_drain())
     # M4 follow-up (б): держим OAuth-токены стримеров свежими.
     from routes.streamer import oauth_refresh_loop as _oauth_refresh_loop
     asyncio.create_task(_oauth_refresh_loop())

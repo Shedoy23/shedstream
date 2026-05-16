@@ -14,13 +14,17 @@
 //   7. После finished → показать результат + Close
 
 const TTT_GAME_TYPE = 'tictactoe';
-const TTT_POLL_INTERVAL_MS = 3000;     // queue / room polling
+// Phase C (2026-05-17): PubSub realtime push покрывает match_state.
+// Polling остаётся как fallback для queue → matched transition (нет push
+// для queue tick) и safety net: 3s → 15s.
+const TTT_POLL_INTERVAL_MS = 15000;
 const TTT_MOVE_COOLDOWN_MS = 600;      // защита от двойного click
 
 let _tttPollId = null;
 let _tttCurrentRoomId = null;
 let _tttMoveLocked = false;
 let _tttLastState = null;
+let _tttRealtimeUnsub = null;
 
 async function openTicTacToeModal() {
     if (!isAuthUser()) {
@@ -30,6 +34,24 @@ async function openTicTacToeModal() {
     _renderTttModal();
     await _tttRefreshStatus();
     _startTttPolling();
+    _subscribeTttRealtime();
+}
+
+function _subscribeTttRealtime() {
+    if (!window.RealtimeBus || _tttRealtimeUnsub) return;
+    _tttRealtimeUnsub = window.RealtimeBus.subscribe('match_state', function (data) {
+        // Filter: только наша комната и наш game type. Backend broadcast'ит
+        // всем зрителям канала — фильтруем по room_id.
+        if (!_tttCurrentRoomId || data.room_id !== _tttCurrentRoomId) return;
+        if (data.game !== TTT_GAME_TYPE) return;
+        // Re-fetch canonical state — endpoint возвращает ELO и opponent info
+        // которые в broadcast payload не включены.
+        _tttRefreshStatus();
+    });
+}
+
+function _unsubscribeTttRealtime() {
+    if (_tttRealtimeUnsub) { _tttRealtimeUnsub(); _tttRealtimeUnsub = null; }
 }
 
 function _renderTttModal() {
@@ -61,6 +83,7 @@ function _renderTttModal() {
     // Listener для close — отменяет polling
     document.getElementById('ttt-close-btn').addEventListener('click', () => {
         _stopTttPolling();
+        _unsubscribeTttRealtime();
         _tttCurrentRoomId = null;
         modal.remove();
     });

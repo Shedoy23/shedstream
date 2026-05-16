@@ -5,9 +5,13 @@
 //   - active    → options list + bid form + top bidders
 //   - finished  → результат + winner
 
-const VOTING_POLL_INTERVAL_MS = 4000;
+// Phase C (2026-05-17): PubSub realtime push покрывает vote_started/tick/ended.
+// Polling остаётся как fallback на случай потери delivery: 4s → 30s
+// (Twitch PubSub не гарантирует доставку, но 99%+ обычно proходит).
+const VOTING_POLL_INTERVAL_MS = 30000;
 let _votingPollId = null;
 let _votingBidLocked = false;
+let _votingUnsubs = [];  // RealtimeBus unsubscribers — освобождаются при close
 
 async function openVotingModal() {
     if (!isAuthUser()) {
@@ -17,6 +21,25 @@ async function openVotingModal() {
     _renderVotingModal();
     await _refreshVoting();
     _startVotingPolling();
+    _subscribeVotingRealtime();
+}
+
+function _subscribeVotingRealtime() {
+    if (!window.RealtimeBus) return;
+    // Все три события: started/tick/ended → trigger refresh.
+    // Можно было применять envelope.data напрямую (less roundtrip), но
+    // _refreshVoting единственный canonical render path — меньше risk
+    // дивергенции UI vs server state.
+    _votingUnsubs.push(window.RealtimeBus.subscribe('vote_started', _refreshVoting));
+    _votingUnsubs.push(window.RealtimeBus.subscribe('vote_tick', _refreshVoting));
+    _votingUnsubs.push(window.RealtimeBus.subscribe('vote_ended', _refreshVoting));
+}
+
+function _unsubscribeVotingRealtime() {
+    for (let i = 0; i < _votingUnsubs.length; i++) {
+        try { _votingUnsubs[i](); } catch (e) {}
+    }
+    _votingUnsubs = [];
 }
 
 function _renderVotingModal() {
@@ -35,6 +58,7 @@ function _renderVotingModal() {
     (document.getElementById('overlay-panel') || document.body).appendChild(modal);
     document.getElementById('voting-close-btn').addEventListener('click', () => {
         _stopVotingPolling();
+        _unsubscribeVotingRealtime();
         modal.remove();
     });
 }

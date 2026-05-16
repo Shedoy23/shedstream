@@ -283,8 +283,8 @@ async def bannerlord_buy_action(request: Request):
 
     db = get_db()
     async with db._connect() as conn:
-        # ── Special case: hero.set_class — backend сразу UPSERT'ит выбор ──
-        # Mod при выполнении просто apply equipment к Hero (visual side).
+        # ── Special case validation: hero.set_class ──
+        # Сам UPSERT — внутри TX ниже (чтобы не nested-transaction).
         if action_type == "hero.set_class":
             class_key = (data.get("class_key") or "").strip().lower()
             if not class_key:
@@ -294,17 +294,6 @@ async def bannerlord_buy_action(request: Request):
                 (class_key,))
             if not await cur.fetchone():
                 return {"success": False, "message": f"Класс '{class_key}' не существует"}
-            # UPSERT — переключение класса разрешено (Sprint 4.1 keep simple,
-            # без cooldown'ов / costs). Class level стартует с 1.
-            await conn.execute("""
-                INSERT INTO bannerlord_hero_class
-                    (channel_id, username, class_key, class_level, chosen_at)
-                VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)
-                ON CONFLICT(channel_id, username) DO UPDATE SET
-                    class_key = excluded.class_key,
-                    class_level = 1,
-                    chosen_at = CURRENT_TIMESTAMP
-            """, (channel_id, username, class_key))
             # Pass class_key в action data для mod (он применит equipment)
             data["class_key"] = class_key
 
@@ -368,6 +357,20 @@ async def bannerlord_buy_action(request: Request):
                     (channel_id, module_id, action_id, type, data, status)
                 VALUES (?, 'bannerlord', ?, ?, ?, 'queued')
             """, (channel_id, action_id, action_type, json.dumps(payload, ensure_ascii=False)))
+
+            # Special case в той же TX: UPSERT bannerlord_hero_class.
+            # Backend остаётся source-of-truth по class даже если mod offline.
+            if action_type == "hero.set_class":
+                class_key_lower = data.get("class_key", "").strip().lower()
+                await conn.execute("""
+                    INSERT INTO bannerlord_hero_class
+                        (channel_id, username, class_key, class_level, chosen_at)
+                    VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)
+                    ON CONFLICT(channel_id, username) DO UPDATE SET
+                        class_key   = excluded.class_key,
+                        class_level = 1,
+                        chosen_at   = CURRENT_TIMESTAMP
+                """, (channel_id, username, class_key_lower))
 
             await conn.commit()
         except Exception:

@@ -39,6 +39,7 @@ namespace BannerlordLink.Actions
             Register(new SummonHeroHandler());       // player.spawn — summon в Mission (5.0)
             Register(new EquipItemHandler());        // player.equip_item — equip ItemObject (5.1b)
             Register(new UpgradeGearHandler());      // hero.upgrade_gear — 6-tier progression
+            Register(new RecruitTroopsHandler());    // hero.recruit_troops — BLT-style свита
 
             // ── Echo stubs (TODO Sprint 5.2+ заменить на real) ─────────────
             string[] echoTypes =
@@ -48,7 +49,6 @@ namespace BannerlordLink.Actions
                 "world.broadcast_message",
                 "hero.set_culture",
                 "hero.set_faction",
-                "hero.recruit_troops",
             };
             foreach (var t in echoTypes)
             {

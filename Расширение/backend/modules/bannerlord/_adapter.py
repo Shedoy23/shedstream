@@ -254,6 +254,10 @@ class BannerlordAdapter(ModuleAdapter):
             await self._on_heroes_snapshot(channel_id, env)
             return
 
+        if et == "hero.retinue_changed":
+            await self._on_retinue_changed(channel_id, env)
+            return
+
         if et == "world.event_occurred":
             await self._on_world_event(channel_id, env)
             return
@@ -603,6 +607,43 @@ class BannerlordAdapter(ModuleAdapter):
         print(f"[bannerlord:{channel_id}] heroes_snapshot: "
               f"{len(snapshot)} alive in save, {len(existing)} in DB, "
               f"removed {len(missing)} stale ({missing[:3]}...)")
+
+    async def _on_retinue_changed(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """M23: mod после recruit/upgrade troop пушит обновлённый slot.
+
+        Payload: {username, slot_index, troop_id, troop_name, tier, action}
+        Backend UPSERT'ит row в bannerlord_retinue.
+        """
+        data = env.data
+        username = (data.get("username") or "").lower()
+        try:
+            slot_index = int(data.get("slot_index"))
+        except (TypeError, ValueError):
+            return
+        troop_id = data.get("troop_id") or ""
+        troop_name = data.get("troop_name") or troop_id
+        try:
+            tier = int(data.get("tier") or 0)
+        except (TypeError, ValueError):
+            tier = 0
+        if not username or not troop_id:
+            return
+
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            await conn.execute("""
+                INSERT INTO bannerlord_retinue
+                    (channel_id, username, slot_index, troop_id, troop_name, tier)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(channel_id, username, slot_index) DO UPDATE SET
+                    troop_id   = excluded.troop_id,
+                    troop_name = excluded.troop_name,
+                    tier       = excluded.tier
+            """, (channel_id, username, slot_index, troop_id, troop_name, tier))
+            await conn.commit()
+        action = data.get("action", "?")
+        print(f"[bannerlord:{channel_id}] @{username} retinue {action}: "
+              f"slot {slot_index} → {troop_id} T{tier + 1}")
 
     async def _on_gear_tier_changed(self, channel_id: int, env: ModuleEnvelope) -> None:
         """Mod применил gear upgrade — backend сохраняет new tier в DB cache.

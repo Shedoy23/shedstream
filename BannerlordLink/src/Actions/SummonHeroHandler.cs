@@ -6,7 +6,9 @@ using Newtonsoft.Json.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.AgentOrigins;
 using TaleWorlds.CampaignSystem.Party;
+using TaleWorlds.Core;
 using TaleWorlds.MountAndBlade;
+using TaleWorlds.ObjectSystem;
 
 namespace BannerlordLink.Actions
 {
@@ -50,16 +52,26 @@ namespace BannerlordLink.Actions
             if (string.IsNullOrEmpty(username))
                 return Task.FromResult<(bool, string)>((false, "no target username"));
 
-            // data.side: "enemy" → spawn на стороне противника; default = ally стримера.
-            // Cooldown общий на оба варианта (key="player.spawn" в backend POWER_COOLDOWNS).
             string side = (data["side"]?.ToString() ?? "").Trim().ToLowerInvariant();
             bool isPlayerSide = side != "enemy";
 
-            MainThreadDispatcher.Enqueue(() => Summon(username, isPlayerSide));
+            // Backend пердаёт retinue snapshot — список troop_ids для spawn'a.
+            var retinueIds = new System.Collections.Generic.List<string>();
+            if (data["retinue"] is JArray arr)
+            {
+                foreach (var item in arr)
+                {
+                    var id = item["troop_id"]?.ToString();
+                    if (!string.IsNullOrEmpty(id)) retinueIds.Add(id);
+                }
+            }
+
+            MainThreadDispatcher.Enqueue(() => Summon(username, isPlayerSide, retinueIds));
             return Task.FromResult<(bool, string)>((true, null));
         }
 
-        private static void Summon(string username, bool isPlayerSide)
+        private static void Summon(string username, bool isPlayerSide,
+            System.Collections.Generic.List<string> retinueIds)
         {
             string sideLabel = isPlayerSide ? "ally" : "enemy";
             try
@@ -159,6 +171,51 @@ namespace BannerlordLink.Actions
                     $"[player.spawn:{sideLabel}] @{username} → summoned " +
                     $"(horse={withHorse}, agent={(agent != null ? "OK" : "NULL")}, " +
                     $"team={agent?.Team?.Side.ToString() ?? "?"})");
+
+                // Sprint M23 retinue spawn: после hero — также spawn'им свиту.
+                // BLT pattern (BLTSummonBehavior.SpawnAgent для каждого troop).
+                if (retinueIds != null && retinueIds.Count > 0 && agent != null)
+                {
+                    int spawned = 0;
+                    foreach (var troopId in retinueIds)
+                    {
+                        var troop = MBObjectManager.Instance.GetObject<CharacterObject>(troopId);
+                        if (troop == null) continue;
+                        try
+                        {
+                            var retinueAgent = Mission.Current.SpawnTroop(
+                                new PartyAgentOrigin(originParty, troop),
+                                isPlayerSide:        isPlayerSide,
+                                hasFormation:        true,
+                                spawnWithHorse:      troop.Equipment != null && troop.HasMount(),
+                                isReinforcement:     true,
+                                formationTroopCount: 1,
+                                formationTroopIndex: 0,
+                                isAlarmed:           true,
+                                wieldInitialWeapons: true,
+                                forceDismounted:     false,
+                                initialPosition:     null,
+                                initialDirection:    null);
+                            if (retinueAgent != null)
+                            {
+                                Team t = isPlayerSide
+                                    ? Mission.Current.PlayerTeam
+                                    : Mission.Current.PlayerEnemyTeam;
+                                if (t != null && retinueAgent.Team != t)
+                                    retinueAgent.SetTeam(t, false);
+                                try { retinueAgent.MountAgent?.FadeIn(); retinueAgent.FadeIn(); } catch { }
+                                spawned++;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            BannerlordLinkModule.Log(
+                                $"[player.spawn:{sideLabel}] retinue {troopId} failed: {ex.Message}");
+                        }
+                    }
+                    BannerlordLinkModule.Log(
+                        $"[player.spawn:{sideLabel}] @{username} retinue: {spawned}/{retinueIds.Count} spawned");
+                }
             }
             catch (Exception ex)
             {

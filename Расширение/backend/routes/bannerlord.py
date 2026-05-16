@@ -352,6 +352,16 @@ async def bannerlord_my_hero(request: Request):
                 "stats":      stats,          # dict с per-type stats
             }
 
+        # Retinue (M23) — BLT-style свита, sorted by slot_index
+        cur = await conn.execute(
+            "SELECT slot_index, troop_id, troop_name, tier FROM bannerlord_retinue "
+            "WHERE channel_id=? AND username=? ORDER BY slot_index",
+            (channel_id, username))
+        retinue = [
+            {"slot_index": r[0], "troop_id": r[1], "troop_name": r[2], "tier": r[3] or 0}
+            for r in await cur.fetchall()
+        ]
+
     return {
         "success":    True,
         "has_hero":   True,
@@ -359,6 +369,7 @@ async def bannerlord_my_hero(request: Request):
         "skills":     skills,
         "attributes": attributes,
         "equipment":  equipment,
+        "retinue":    retinue,
     }
 
 
@@ -478,6 +489,24 @@ async def bannerlord_buy_action(request: Request):
             return {"success": False, "message": f"Side '{side}' не разрешён"}
         data["side"] = side
         data["price"] = SPAWN_PRICES[side]
+
+    # hero.recruit_troops: backend passes current retinue snapshot в data
+    # чтобы mod знал какие slots filled (для add vs upgrade decision).
+    # Also: player.spawn — pass retinue для spawn вместе с hero.
+    # Recruit: 100💎 в крустиках за попытку (mod ещё проверяет Hero.Gold).
+    if action_type in ("hero.recruit_troops", "player.spawn"):
+        db_tmp = get_db()
+        async with db_tmp._connect() as conn:
+            cur = await conn.execute(
+                "SELECT slot_index, troop_id, troop_name, tier FROM bannerlord_retinue "
+                "WHERE channel_id=? AND username=? ORDER BY slot_index",
+                (channel_id, username))
+            data["retinue"] = [
+                {"slot_index": r[0], "troop_id": r[1], "troop_name": r[2], "tier": r[3] or 0}
+                for r in await cur.fetchall()
+            ]
+        if action_type == "hero.recruit_troops":
+            data["price"] = 100   # server-side enforced
 
     # hero.create: culture choice (empire/sturgia/vlandia/aserai/khuzait/battania).
     # Validate whitelist; null/empty = mod выберет random wanderer.

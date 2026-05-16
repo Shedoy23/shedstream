@@ -1437,6 +1437,55 @@ function _renderEquipRow(slot, it, slotIcons) {
     </div>`;
 }
 
+// Sprint M23 — render свита (retinue) под Экипировкой в hero card.
+// retinue = [{slot_index, troop_id, troop_name, tier}]
+const RECRUIT_PRICE = 100;  // крустиков за попытку (UI display)
+function _renderRetinue(retinue) {
+    const slot = document.getElementById('bnr-retinue-slot');
+    if (!slot) return;
+    const MAX_SLOTS = 10;
+    const list = retinue || [];
+
+    const rows = list.length === 0
+        ? '<div style="font-size:11px;color:#9ca3af;padding:2px 0;">пусто</div>'
+        : list.map(t => `
+            <div style="display:flex;justify-content:space-between;font-size:11px;padding:1px 0;">
+                <span>${escapeHtml(t.troop_name || t.troop_id)}</span>
+                <span style="color:#fbbf24;">T${(t.tier || 0) + 1}★</span>
+            </div>`).join('');
+
+    const isMaxed = list.length >= MAX_SLOTS;
+    const allMax = list.length > 0 && list.every(t => (t.tier || 0) >= 5);
+    const btnLabel = isMaxed
+        ? (allMax ? '🛡️ Свита максимально прокачана' : `⬆ Прокачать свиту (${RECRUIT_PRICE}💎)`)
+        : `➕ Нанять воина (${RECRUIT_PRICE}💎)`;
+    const btnDisabled = allMax;
+
+    slot.innerHTML = `
+        <details>
+            <summary style="font-size:11px;color:#adadb8;cursor:pointer;">
+                Свита (${list.length}/${MAX_SLOTS})
+            </summary>
+            <div style="margin-top:4px;">
+                ${rows}
+                <button class="extra-btn" id="bnr-recruit-btn"
+                        ${btnDisabled ? 'disabled' : ''}
+                        title="${isMaxed ? 'Прокачивает random троопа на следующий tier' : 'Нанимает basic troop культуры героя'}. Списываются 100💎 крустиков + ~5K-50K динаров у героя в игре (per tier)."
+                        style="margin-top:6px;width:100%;font-size:11px;padding:6px;
+                               ${btnDisabled ? 'opacity:0.5;cursor:not-allowed;' : ''}">
+                    ${btnLabel}
+                </button>
+            </div>
+        </details>`;
+
+    const btn = document.getElementById('bnr-recruit-btn');
+    if (btn && !btnDisabled) {
+        btn.addEventListener('click', () => {
+            _bannerlordBuyAction('hero.recruit_troops', { price: RECRUIT_PRICE });
+        });
+    }
+}
+
 // Sprint M21 — gear upgrade button (hero.upgrade_gear).
 // БЕСПЛАТНО в крустиках; mod-side списывает Hero.Gold (in-game динары).
 // Tier-based progression: 0→1→…→6.
@@ -1813,7 +1862,10 @@ async function loadBannerlordHero() {
                     <summary style="font-size:11px;color:#adadb8;cursor:pointer;">Экипировка</summary>
                     <div style="margin-top:4px;">${eqHtml}</div>
                 </details>
+                <div id="bnr-retinue-slot"></div>
             </div>`;
+        // Sprint M23 — render свита под equipment.
+        _renderRetinue(data.retinue || []);
         renderBannerlordClassPicker();
     } catch (e) {
         body.innerHTML = `<div style="color:#f87171;padding:10px;">Ошибка сети</div>`;

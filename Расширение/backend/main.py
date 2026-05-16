@@ -602,6 +602,16 @@ async def run_migrations():
             print(f"❌ M22 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M23: bannerlord_retinue (BLT-style свита) ──
+        # Per-hero retinue list. Mod при player.spawn спавнит retinue
+        # рядом с hero. hero.recruit_troops добавляет/прокачивает.
+        try:
+            from migrations import m23_bannerlord_retinue
+            await m23_bannerlord_retinue.apply(conn)
+        except Exception as e:
+            print(f"❌ M23 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

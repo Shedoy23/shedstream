@@ -24,7 +24,7 @@ namespace BannerlordLink.Actions
     ///      Mod просто получает существующий retinue через action_data:
     ///        data.retinue = [{slot_index, troop_id, tier}, ...]
     ///      и решает что делать (add/upgrade).
-    ///   3. Если len(retinue) < MAX_RETINUE (10):
+    ///   3. Если len(retinue) < MAX_RETINUE (5):
     ///      • Pick basic troop из hero.Culture (BasicTroop)
     ///      • Hero.Gold cost = TIER_COSTS[0] = 5000
     ///      • Insert new slot
@@ -41,7 +41,7 @@ namespace BannerlordLink.Actions
     {
         public string ActionType => "hero.recruit_troops";
 
-        private const int MAX_RETINUE = 10;
+        private const int MAX_RETINUE = 5;
 
         private static readonly int[] TIER_COSTS =
         {

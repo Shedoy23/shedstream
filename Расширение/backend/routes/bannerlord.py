@@ -440,13 +440,15 @@ async def bannerlord_buy_action(request: Request):
         return {"success": False, "message": f"Action '{action_type}' не разрешён"}
 
     # Sprint 5.1c/5.2: server-side price enforcement.
-    # Frontend ставит price для отображения, но мы OVERRIDE — viewer не
-    # может отправить price:0 и купить за бесплатно.
-    RANDOM_EQUIP_PRICES = {
-        "weapon": 1_000_000,
-        "armor":    500_000,
-        "horse":  1_250_000,
+    # Random equip — БЕСПЛАТНО в крустиках (price=0), mod-side списывает
+    # Hero.Gold (in-game динары) — fairness через game economy.
+    # Mirror HERO_GOLD_RANDOM_PRICES в C# EquipItemHandler.
+    RANDOM_EQUIP_HERO_GOLD = {
+        "weapon": 50_000,
+        "armor":  25_000,
+        "horse":  80_000,
     }
+    RANDOM_EQUIP_PRICES = RANDOM_EQUIP_HERO_GOLD  # legacy name (some refs ниже)
     SPAWN_PRICES = {
         "player": 500,    # на сторону стримера (ally)
         "enemy":  1000,   # против стримера — 2× as тролл-tax
@@ -480,8 +482,11 @@ async def bannerlord_buy_action(request: Request):
                         "message": "Конь доступен только для конных классов "
                                    "(cavalry / horse_archer / camel_* / knight)",
                     }
-            # Server-side override клиентской цены
-            data["price"] = RANDOM_EQUIP_PRICES[random_category]
+            # Random equip теперь оплачивается Hero.Gold (in-game), не
+            # крустиками. Frontend показывает 💰 (динары); mod проверяет
+            # hero.Gold перед apply.
+            data["hero_gold_cost"] = RANDOM_EQUIP_HERO_GOLD[random_category]
+            data["price"] = 0  # крустики free
 
     if action_type == "player.spawn":
         side = (data.get("side") or "player").strip().lower()

@@ -1339,11 +1339,10 @@ function renderBannerlordSummonButton() {
     }
 }
 
-// Sprint 5.1c — 3 кнопки random-equip, размещены в shop card "Действия в игре".
-// Рендерятся как HTML-блок (renderBannerlordRandomEquipHtml) который
-// loadBannerlordShop добавляет перед catalog items.
-//   weapon (1M💎), armor (500K💎), horse (1.25M💎 — только mounted classes)
-// Цены проверяются server-side (frontend price = display only).
+// Sprint M23: random-equip перенесён на Hero.Gold (in-game динары).
+// Mod-side enforced (hero.Gold check + deduct). Backend price=0 в крустиках.
+// Fairness через игровую экономику — viewer сначала копит динары
+// (give_gold или внутри игры), потом тратит на random box.
 function renderBannerlordRandomEquipHtml() {
     const currentKey = _bannerlordClassesCache?.current?.class_key || '';
     const MOUNTED = new Set(['cavalry', 'camel_cavalry', 'horse_archer', 'camel_archer', 'knight']);
@@ -1352,30 +1351,30 @@ function renderBannerlordRandomEquipHtml() {
     const horseDisabled = !isMounted ? 'disabled' : '';
     const horseStyle = !isMounted ? 'opacity:0.5;cursor:not-allowed;' : '';
     const horseTitle = !isMounted
-        ? 'Только для конных классов (cavalry / horse_archer / camel_* / knight)'
-        : 'Случайный скакун из high-tier пула';
+        ? 'Только для конных классов (cavalry / horse_archer / camel_* / knight). 80K динаров у героя в игре.'
+        : 'Случайный скакун из high-tier пула. Списываются 80K динаров у героя в игре.';
 
     return `
         <div style="padding:6px 10px 10px 10px;">
             <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">
-                🎁 Случайный товар
+                🎁 Случайный товар — оплата in-game динарами героя
             </div>
             <div style="display:flex;flex-direction:column;gap:4px;">
                 <button class="extra-btn" id="bnr-random-weapon"
-                        title="Случайное оружие из high-tier пула"
+                        title="Случайное оружие из high-tier пула. Списываются 50K динаров у героя в игре."
                         style="font-size:12px;padding:6px;">
-                    🗡 Купить оружие <span style="color:#fbbf24;">1М💎</span>
+                    🗡 Купить оружие <span style="color:#fbbf24;">50К💰</span>
                 </button>
                 <button class="extra-btn" id="bnr-random-armor"
-                        title="Случайная броня (любой slot) из high-tier пула"
+                        title="Случайная броня (любой slot) из high-tier пула. Списываются 25K динаров у героя в игре."
                         style="font-size:12px;padding:6px;">
-                    🛡 Купить броню <span style="color:#fbbf24;">500К💎</span>
+                    🛡 Купить броню <span style="color:#fbbf24;">25К💰</span>
                 </button>
                 <button class="extra-btn" id="bnr-random-horse"
                         ${horseDisabled}
                         title="${horseTitle}"
                         style="font-size:12px;padding:6px;${horseStyle}">
-                    🐎 Купить коня <span style="color:#fbbf24;">1.25М💎</span>
+                    🐎 Купить коня <span style="color:#fbbf24;">80К💰</span>
                 </button>
             </div>
         </div>`;
@@ -1443,7 +1442,7 @@ const RECRUIT_PRICE = 100;  // крустиков за попытку (UI displa
 function _renderRetinue(retinue) {
     const slot = document.getElementById('bnr-retinue-slot');
     if (!slot) return;
-    const MAX_SLOTS = 10;
+    const MAX_SLOTS = 5;
     const list = retinue || [];
 
     const rows = list.length === 0

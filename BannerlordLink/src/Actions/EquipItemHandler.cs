@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.ObjectSystem;
@@ -53,6 +54,18 @@ namespace BannerlordLink.Actions
             return Task.FromResult<(bool, string)>((true, null));
         }
 
+        // Hero.Gold prices для random_category (in-game динары, не крустики).
+        // Mod-side enforced — backend price=0 в крустиках, fairness через
+        // in-game экономику (зритель сначала копит динары через give_gold
+        // action или внутри игры, потом тратит на random box).
+        private static readonly System.Collections.Generic.Dictionary<string, int> HERO_GOLD_RANDOM_PRICES =
+            new System.Collections.Generic.Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["weapon"] = 50_000,
+            ["armor"]  = 25_000,
+            ["horse"]  = 80_000,
+        };
+
         private static void Equip(string username, string itemId, string slotName, string category)
         {
             try
@@ -65,8 +78,22 @@ namespace BannerlordLink.Actions
                 }
 
                 ItemObject item;
+                int heroGoldCost = 0;
                 if (!string.IsNullOrEmpty(category))
                 {
+                    // Hero.Gold check — fairness через in-game экономику
+                    if (HERO_GOLD_RANDOM_PRICES.TryGetValue(category, out int cost))
+                    {
+                        heroGoldCost = cost;
+                        if (hero.Gold < cost)
+                        {
+                            BannerlordLinkModule.Log(
+                                $"[player.equip_item] @{username}: not enough gold ({hero.Gold} < {cost}) " +
+                                $"для random {category}");
+                            return;
+                        }
+                    }
+
                     item = PickRandomItemByCategory(category);
                     if (item == null)
                     {
@@ -99,11 +126,28 @@ namespace BannerlordLink.Actions
 
                 hero.BattleEquipment[idx] = new EquipmentElement(item);
 
-                BannerlordLinkModule.Log(
-                    $"[player.equip_item] @{username}: {item.Name} → slot {idx} (type={item.ItemType})");
+                // Deduct Hero.Gold (только для random, не для targeted)
+                if (heroGoldCost > 0)
+                {
+                    int before = hero.Gold;
+                    GiveGoldAction.ApplyBetweenCharacters(hero, null, heroGoldCost, true);
+                    BannerlordLinkModule.Log(
+                        $"[player.equip_item] @{username}: {item.Name} → slot {idx}, " +
+                        $"gold {before} → {hero.Gold} (-{heroGoldCost})");
+                }
+                else
+                {
+                    BannerlordLinkModule.Log(
+                        $"[player.equip_item] @{username}: {item.Name} → slot {idx} (type={item.ItemType})");
+                }
 
                 // Sync event на backend → bannerlord_equipment table обновится.
                 PostEquipmentEventAsync(username, idx, item);
+                // Hero state — gold update for UI
+                if (heroGoldCost > 0)
+                {
+                    BannerlordLink.Util.HeroStateSync.Push(hero);
+                }
             }
             catch (Exception ex)
             {

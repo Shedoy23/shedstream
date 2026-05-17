@@ -40,6 +40,7 @@ namespace BannerlordLink.Actions
             Register(new EquipItemHandler());        // player.equip_item — equip ItemObject (5.1b)
             Register(new UpgradeGearHandler());      // hero.upgrade_gear — 6-tier progression
             Register(new RecruitTroopsHandler());    // hero.recruit_troops — BLT-style свита
+            Register(new JoinTournamentHandler());   // hero.join_tournament — Sprint 5.3
 
             // ── Echo stubs (TODO Sprint 5.2+ заменить на real) ─────────────
             string[] echoTypes =

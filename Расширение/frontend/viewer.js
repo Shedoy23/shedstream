@@ -1083,6 +1083,8 @@ let _bannerlordBuffTickId = null;   // 4.6 — client-side decrement (1s) для
 let _bannerlordBuffs = [];          // 4.6 — last-known buffs cache; entries { power_key, remaining_s }
 let _bannerlordCooldowns = [];      // 4.8 — last-known cooldowns; entries { power_key, remaining_s }
 let _bannerlordCurrentGearTier = 0; // M20 — last seen gear_tier (cached for shop render)
+let _bannerlordTournamentPollId = null;  // Sprint 5.3 — poll /api/bannerlord/tournament (3s)
+let _bannerlordTournament = null;        // last snapshot {queue, state, in_queue, my_bet, config}
 
 // Sprint M21 — gear upgrade costs в Hero.Gold (in-game динары, не крустики).
 // Mirror HERO_GOLD_TIER_COSTS на backend и в UpgradeGearHandler.cs.
@@ -1151,6 +1153,7 @@ function _startBannerlordPolling() {
     loadBannerlordStatus();
     loadBannerlordClasses();
     loadBannerlordBuffs();
+    loadBannerlordTournament();
     _bannerlordPollId = setInterval(() => {
         loadBannerlordHero();
         loadBannerlordShop();
@@ -1160,6 +1163,8 @@ function _startBannerlordPolling() {
     // Buff HUD: faster poll (2.5s) для смены состояния, плюс client-side
     // decrement (1s) чтобы countdown был smooth между poll'ами.
     _bannerlordBuffPollId = setInterval(loadBannerlordBuffs, 2500);
+    // Tournament: 3s poll — отображает queue / running state / bets
+    _bannerlordTournamentPollId = setInterval(loadBannerlordTournament, 3000);
     _bannerlordBuffTickId = setInterval(() => {
         let buffsChanged = false, cdsChanged = false;
         for (const b of _bannerlordBuffs) {
@@ -1198,37 +1203,39 @@ function renderBannerlordClassPicker() {
     const slot = document.getElementById('hero-class-picker-slot');
     if (!slot || !_bannerlordClassesCache) return;
     const { classes, current } = _bannerlordClassesCache;
-    const currentKey = current?.class_key;
-    const currentName = currentKey
-        ? (classes.find(c => c.class_key === currentKey)?.name || currentKey)
-        : null;
+    const currentKey = current?.class_key || '';
 
-    const optsHtml = classes.map(c => {
-        const isCurrent = c.class_key === currentKey;
-        return `
-            <button class="small-btn"
-                    data-bnr-class="${escapeHtml(c.class_key)}"
-                    style="background:${isCurrent ? '#9147ff' : '#2d2d2f'};
-                           color:#efeff1;padding:6px 10px;margin:2px;font-size:11px;
-                           border:1px solid ${isCurrent ? '#fbbf24' : '#3d3d3f'};">
-                ${escapeHtml(c.name)}
-            </button>`;
+    // Sprint 5.3b — compact dropdown вместо grid кнопок (UX feedback).
+    const optionsHtml = classes.map(c => {
+        const selected = c.class_key === currentKey ? 'selected' : '';
+        return `<option value="${escapeHtml(c.class_key)}" ${selected}>${escapeHtml(c.name)}</option>`;
     }).join('');
 
+    const placeholderOpt = currentKey
+        ? ''
+        : '<option value="" disabled selected>— выбери класс —</option>';
+
     slot.innerHTML = `
-        <div style="font-size:11px;color:#adadb8;margin-top:8px;margin-bottom:4px;">
-            ${currentName ? '🎖️ Текущий класс: <b style="color:#fbbf24;">' + escapeHtml(currentName) + '</b>'
-                          : '⚠️ Класс не выбран'}
+        <div style="display:flex;align-items:center;gap:6px;margin-top:8px;margin-bottom:6px;">
+            <span style="font-size:11px;color:#adadb8;white-space:nowrap;">🎖️ Класс:</span>
+            <select id="bnr-class-select"
+                    style="flex:1;background:#2d2d2f;color:#efeff1;border:1px solid #3d3d3f;
+                           padding:5px 8px;font-size:12px;border-radius:4px;cursor:pointer;
+                           ${currentKey ? '' : 'border-color:#fbbf24;'}">
+                ${placeholderOpt}
+                ${optionsHtml}
+            </select>
         </div>
-        <div style="display:flex;flex-wrap:wrap;gap:2px;margin-bottom:6px;">${optsHtml}</div>
     `;
 
-    slot.querySelectorAll('[data-bnr-class]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const classKey = btn.dataset.bnrClass;
+    const sel = document.getElementById('bnr-class-select');
+    if (sel) {
+        sel.addEventListener('change', () => {
+            const classKey = sel.value;
+            if (!classKey || classKey === currentKey) return;
             _bannerlordBuyAction('hero.set_class', { price: 0, class_key: classKey });
         });
-    });
+    }
 
     // Sprint 4.7: render active power buttons под picker'ом (для current class).
     renderBannerlordActivePowers();
@@ -1686,8 +1693,178 @@ function _stopBannerlordPolling() {
         clearInterval(_bannerlordBuffTickId);
         _bannerlordBuffTickId = null;
     }
+    if (_bannerlordTournamentPollId) {
+        clearInterval(_bannerlordTournamentPollId);
+        _bannerlordTournamentPollId = null;
+    }
     _bannerlordBuffs = [];
     _bannerlordCooldowns = [];
+    _bannerlordTournament = null;
+}
+
+// ===== Sprint 5.3: Турнир зрителей (BLT-style) =====
+async function loadBannerlordTournament() {
+    const body = document.getElementById('bannerlord-tournament-body');
+    const badge = document.getElementById('bannerlord-tournament-status');
+    if (!body || !badge) return;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/tournament`, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
+        const data = await r.json();
+        if (!data.success) {
+            body.innerHTML = `<div style="color:#f87171;padding:8px;font-size:12px;">${escapeHtml(data.message || 'ошибка')}</div>`;
+            return;
+        }
+        _bannerlordTournament = data;
+        _renderBannerlordTournament(data);
+    } catch (e) {
+        // silent
+    }
+}
+
+function _renderBannerlordTournament(data) {
+    const body = document.getElementById('bannerlord-tournament-body');
+    const badge = document.getElementById('bannerlord-tournament-status');
+    if (!body || !badge) return;
+
+    const state = data.state || {};
+    const queue = data.queue || [];
+    const cfg = data.config || {};
+    const entryFee = (cfg.entry_fee_gold || 5000).toLocaleString('ru-RU');
+
+    // Status badge
+    if (state.status === 'running') {
+        badge.textContent = `⚔️ раунд ${(state.current_round || 0) + 1}/4`;
+        badge.style.color = '#fbbf24';
+    } else {
+        badge.textContent = `idle (${queue.length})`;
+        badge.style.color = '#9ca3af';
+    }
+
+    if (state.status === 'running') {
+        // RUNNING — показываем участников + ставки
+        const participants = state.participants || [];
+        const myBet = data.my_bet;
+
+        let participantsHtml;
+        if (myBet) {
+            participantsHtml = `
+                <div style="font-size:12px;color:#34d399;padding:6px;background:rgba(52,211,153,0.1);border-radius:4px;margin-bottom:6px;">
+                    ✅ Ставка размещена: <b>${escapeHtml(myBet.target)}</b> на ${myBet.amount}⦷
+                </div>`;
+        } else {
+            participantsHtml = `
+                <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">Поставь крустиков на участника (выигрыш делится пропорционально):</div>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:4px;align-items:center;">
+                    ${participants.map(p => `
+                        <span style="font-size:12px;">⚔️ ${escapeHtml(p)}</span>
+                        <button class="extra-btn bnr-bet-btn" data-target="${escapeHtml(p)}"
+                                style="font-size:11px;padding:3px 8px;">Поставить</button>
+                    `).join('')}
+                </div>`;
+        }
+
+        body.innerHTML = `
+            <div style="padding:8px;">
+                <div style="font-size:12px;color:#fbbf24;font-weight:700;margin-bottom:6px;">
+                    🏆 Турнир идёт — раунд ${(state.current_round || 0) + 1}/4
+                </div>
+                ${participantsHtml}
+                ${state.last_winner ? `<div style="font-size:11px;color:#adadb8;margin-top:6px;">Прошлый победитель: <b>${escapeHtml(state.last_winner)}</b></div>` : ''}
+            </div>`;
+
+        // Bind bet buttons
+        body.querySelectorAll('.bnr-bet-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const target = btn.getAttribute('data-target');
+                _promptBannerlordBet(target);
+            });
+        });
+        return;
+    }
+
+    // IDLE — show queue + join button
+    const inQueue = !!data.in_queue;
+
+    const queueHtml = queue.length === 0
+        ? '<div style="font-size:11px;color:#9ca3af;padding:4px 0;">очередь пуста</div>'
+        : `<div style="font-size:11px;color:#adadb8;margin:4px 0 2px 0;">В очереди (${queue.length}/16):</div>` +
+          queue.map((q, i) => `
+            <div style="display:flex;justify-content:space-between;font-size:11px;padding:1px 6px;
+                        ${q.username === data.my_username ? 'background:rgba(251,191,36,0.1);' : ''}">
+                <span>${i + 1}. ${escapeHtml(q.username)}</span>
+                <span style="color:#9ca3af;">${q.class_key || ''}</span>
+            </div>`).join('');
+
+    const joinBtnHtml = inQueue
+        ? `<div style="font-size:12px;color:#34d399;text-align:center;padding:6px;background:rgba(52,211,153,0.1);border-radius:4px;margin-top:6px;">
+                ✅ Ты в очереди, ждём пока стример запустит турнир
+           </div>`
+        : `<button class="extra-btn" id="bnr-join-tournament-btn"
+                  title="Списывает ${entryFee} динаров у героя в игре (НЕ крустики)"
+                  style="margin-top:6px;width:100%;font-size:12px;padding:8px;">
+                ⚔️ Вступить в турнир (${entryFee}💰)
+           </button>`;
+
+    body.innerHTML = `
+        <div style="padding:8px;">
+            <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">
+                Когда стример запустит — все из очереди дерутся, победитель получает ${TOURNAMENT_PRIZE_GOLD.toLocaleString('ru-RU')}💰 + XP + приз. Раундовые победители получают ${TOURNAMENT_ROUND_GOLD.toLocaleString('ru-RU')}💰.
+            </div>
+            ${queueHtml}
+            ${joinBtnHtml}
+            ${state.last_winner ? `<div style="font-size:11px;color:#adadb8;margin-top:6px;text-align:center;">🏆 Прошлый победитель: <b>${escapeHtml(state.last_winner)}</b></div>` : ''}
+        </div>`;
+
+    const joinBtn = document.getElementById('bnr-join-tournament-btn');
+    if (joinBtn) {
+        joinBtn.addEventListener('click', () => {
+            _bannerlordBuyAction('hero.join_tournament', { price: 0 });
+        });
+    }
+}
+
+const TOURNAMENT_PRIZE_GOLD = 50000;
+const TOURNAMENT_ROUND_GOLD = 10000;
+const TOURNAMENT_BET_PRESETS = [100, 500, 1000, 5000];
+
+function _promptBannerlordBet(target) {
+    // Modal-like prompt с выбором amount
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:9999;';
+    overlay.innerHTML = `
+        <div style="background:#18181b;border:1px solid #3d3d3f;border-radius:8px;padding:20px;max-width:320px;">
+            <h3 style="margin:0 0 12px 0;font-size:14px;color:#efeff1;">💰 Ставка на @${escapeHtml(target)}</h3>
+            <div style="font-size:11px;color:#adadb8;margin-bottom:10px;">
+                Выбери сумму. Если @${escapeHtml(target)} победит в раунде — получишь долю pot'а.
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
+                ${TOURNAMENT_BET_PRESETS.map(amt => `
+                    <button class="extra-btn bnr-bet-amount" data-amount="${amt}"
+                            style="font-size:12px;padding:8px;">
+                        ${amt}⦷
+                    </button>
+                `).join('')}
+            </div>
+            <button class="extra-btn" id="bnr-bet-cancel"
+                    style="width:100%;font-size:11px;padding:6px;background:#3d3d3f;">
+                Отмена
+            </button>
+        </div>`;
+    document.body.appendChild(overlay);
+
+    overlay.querySelectorAll('.bnr-bet-amount').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const amount = parseInt(btn.getAttribute('data-amount'), 10);
+            overlay.remove();
+            _bannerlordBuyAction('tournament.bet', { target, amount });
+        });
+    });
+    document.getElementById('bnr-bet-cancel').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', e => {
+        if (e.target === overlay) overlay.remove();
+    });
 }
 
 async function loadBannerlordHero() {

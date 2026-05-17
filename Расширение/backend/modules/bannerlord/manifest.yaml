@@ -62,6 +62,11 @@ extensions:
     - hero.gear_tier_changed  # M20+: mod пушит после successful upgrade_gear
     - module.heroes_snapshot  # M22+: mod пушит alive heroes на session_launched
     - hero.retinue_changed    # M23+: mod пушит после recruit/upgrade troop
+    - tournament.joined       # Sprint 5.3: viewer added to queue (mod paid Hero.Gold)
+    - tournament.left         # Sprint 5.3: viewer removed (refund / hero died / etc.)
+    - tournament.started      # Sprint 5.3: tournament fight started, participants frozen
+    - tournament.round_ended  # Sprint 5.3: round closed, bets resolved
+    - tournament.ended        # Sprint 5.3: final, winner gets prize
   actions:
     - hero.create        # Adoption flow — spawn fresh wanderer + SetName(viewer)
     - hero.set_class     # Sprint 4.1: класс + equipment apply
@@ -71,6 +76,8 @@ extensions:
     - hero.set_culture
     - hero.set_faction
     - hero.recruit_troops
+    - hero.join_tournament   # Sprint 5.3: BLT-style viewer tournament queue
+    - tournament.bet         # Sprint 5.3: viewer ставит крустики на участника
 
 # Каталоги — те же что RimWorld (универсальный shape entry per MODULE_API.md §9):
 catalogs:

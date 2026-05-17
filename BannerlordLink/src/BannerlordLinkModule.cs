@@ -152,6 +152,17 @@ namespace BannerlordLink
                 {
                     Log($"CampaignBehavior register FAILED: {ex.Message}");
                 }
+
+                // Sprint 5.3: tournament queue + game menu options
+                try
+                {
+                    campaignStarter.AddBehavior(new TournamentQueueBehavior());
+                    Log("TournamentQueueBehavior registered (viewer tournaments)");
+                }
+                catch (Exception ex)
+                {
+                    Log($"TournamentQueueBehavior register FAILED: {ex.Message}");
+                }
             }
         }
 

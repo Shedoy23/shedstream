@@ -204,6 +204,95 @@ async def bannerlord_my_buffs(request: Request):
     }
 
 
+@router.get("/api/bannerlord/tournament")
+async def bannerlord_tournament(request: Request):
+    """Турнир: queue + state + my bet status.
+
+    Frontend polling ~3s для UI update:
+      - "Турнир: idle (3 в очереди)" → можно join
+      - "Турнир: running, раунд 2/4, ставки открыты на участников X/Y" → можно bet
+    """
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+
+    db = get_db()
+    async with db._connect() as conn:
+        # Queue (ordered by joined_at)
+        cur = await conn.execute("""
+            SELECT q.username, q.entry_fee, q.joined_at,
+                   c.class_key
+            FROM bannerlord_tournament_queue q
+            LEFT JOIN bannerlord_hero_class c
+              ON c.channel_id = q.channel_id AND c.username = q.username
+            WHERE q.channel_id=?
+            ORDER BY q.joined_at ASC
+        """, (channel_id,))
+        queue = []
+        for r in await cur.fetchall():
+            queue.append({
+                "username":  r[0],
+                "entry_fee": r[1] or 0,
+                "class_key": r[3],
+            })
+
+        # State
+        cur = await conn.execute("""
+            SELECT status, current_round, participants, last_winner, started_at
+            FROM bannerlord_tournament_state WHERE channel_id=?
+        """, (channel_id,))
+        row = await cur.fetchone()
+        if row:
+            try:
+                participants = json.loads(row[2] or "[]")
+            except Exception:
+                participants = []
+            state = {
+                "status":        row[0] or "idle",
+                "current_round": row[1] or 0,
+                "participants":  participants,
+                "last_winner":   row[3],
+                "started_at":    row[4],
+            }
+        else:
+            state = {
+                "status":        "idle",
+                "current_round": 0,
+                "participants":  [],
+                "last_winner":   None,
+                "started_at":    None,
+            }
+
+        # My bet (этот раунд)
+        my_bet = None
+        if state["status"] == "running":
+            cur = await conn.execute("""
+                SELECT target, amount FROM bannerlord_tournament_bets
+                WHERE channel_id=? AND bettor=? AND round_index=?
+            """, (channel_id, username, state["current_round"]))
+            br = await cur.fetchone()
+            if br:
+                my_bet = {"target": br[0], "amount": br[1]}
+
+        # In queue?
+        in_queue = any(q["username"] == username for q in queue)
+
+    return {
+        "success":     True,
+        "queue":       queue,
+        "state":       state,
+        "in_queue":    in_queue,
+        "my_bet":      my_bet,
+        "my_username": username,
+        "config": {
+            "entry_fee_gold": TOURNAMENT_ENTRY_FEE_GOLD,
+            "min_bet":        TOURNAMENT_MIN_BET,
+            "max_bet":        TOURNAMENT_MAX_BET,
+        },
+    }
+
+
 @router.get("/api/bannerlord/ping")
 async def bannerlord_ping():
     """Public health check для C# мода — connectivity test.
@@ -238,7 +327,15 @@ _PURCHASABLE_ACTIONS = (
     "world.trigger_event",
     "hero.add_skill",
     "hero.recruit_troops",
+    "hero.join_tournament",      # Sprint 5.3: BLT-style viewer tournament queue
+    "tournament.bet",            # Sprint 5.3: viewer ставит крустики на участника
 )
+
+# Sprint 5.3: tournament entry fee — Hero.Gold (списывается mod-side).
+# Backend хранит mirror для UI + bets resolution.
+TOURNAMENT_ENTRY_FEE_GOLD = 5_000          # in-game динары
+TOURNAMENT_MIN_BET = 100                   # крустиков
+TOURNAMENT_MAX_BET = 10_000                # крустиков
 
 # Sprint M20: gear upgrade costs в Hero.Gold (in-game динары, не крустики).
 # Mod-side source-of-truth — mod проверяет Hero.Gold ≥ cost и списывает.
@@ -269,8 +366,15 @@ ADD_SKILL_XP_PRESETS = {
     5_000:   500,
 }
 
-# Actions которые НЕ требуют existing alive hero (adopt + respawn).
-_ACTIONS_WITHOUT_HERO_REQUIREMENT = ("hero.create", "player.respawn")
+# Actions которые НЕ требуют existing alive hero (adopt + respawn + bet).
+_ACTIONS_WITHOUT_HERO_REQUIREMENT = (
+    "hero.create",
+    "player.respawn",
+    "tournament.bet",     # bettor может ставить и без своего героя
+)
+
+# Actions которые НЕ enqueue'аться в module_actions (pure backend ops).
+_BACKEND_ONLY_ACTIONS = ("tournament.bet",)
 
 
 @router.get("/api/bannerlord/my-hero")
@@ -596,6 +700,90 @@ async def bannerlord_buy_action(request: Request):
         data["xp"] = ADD_SKILL_XP_PRESETS[crusticov]
         # skill_key может быть пустым = random skill в mod
 
+    # Sprint 5.3: hero.join_tournament — БЕСПЛАТНО в крустиках,
+    # mod списывает TOURNAMENT_ENTRY_FEE_GOLD динаров. Backend
+    # вставляет row в bannerlord_tournament_queue только когда mod
+    # пушит event tournament.joined (mod = source-of-truth для очереди).
+    if action_type == "hero.join_tournament":
+        # Check status — не пускаем в running tournament
+        db_tmp = get_db()
+        async with db_tmp._connect() as conn:
+            cur = await conn.execute(
+                "SELECT status FROM bannerlord_tournament_state WHERE channel_id=?",
+                (channel_id,))
+            row = await cur.fetchone()
+            status = (row[0] if row else "idle") or "idle"
+            if status == "running":
+                return {
+                    "success": False,
+                    "message": "Турнир уже идёт — подожди следующий",
+                }
+            # Already in queue?
+            cur = await conn.execute(
+                "SELECT 1 FROM bannerlord_tournament_queue "
+                "WHERE channel_id=? AND username=?",
+                (channel_id, username))
+            if await cur.fetchone():
+                return {
+                    "success": False,
+                    "message": "Ты уже в очереди на турнир",
+                }
+        data["hero_gold_cost"] = TOURNAMENT_ENTRY_FEE_GOLD
+        data["price"] = 0   # крустики free
+
+    # Sprint 5.3: tournament.bet — крустики ставка на участника turnir'а.
+    # Atomic charge крустиков; запись в bannerlord_tournament_bets.
+    if action_type == "tournament.bet":
+        target = (data.get("target") or "").strip().lower()
+        try:
+            amount = int(data.get("amount") or 0)
+        except (TypeError, ValueError):
+            return {"success": False, "message": "Неверная сумма ставки"}
+        if not target:
+            return {"success": False, "message": "Не указан участник"}
+        if amount < TOURNAMENT_MIN_BET or amount > TOURNAMENT_MAX_BET:
+            return {
+                "success": False,
+                "message": f"Ставка от {TOURNAMENT_MIN_BET} до "
+                           f"{TOURNAMENT_MAX_BET}⦷",
+            }
+        # Tournament must be running + target в participants
+        db_tmp = get_db()
+        async with db_tmp._connect() as conn:
+            cur = await conn.execute(
+                "SELECT status, current_round, participants "
+                "FROM bannerlord_tournament_state WHERE channel_id=?",
+                (channel_id,))
+            row = await cur.fetchone()
+        if not row or (row[0] or "idle") != "running":
+            return {"success": False, "message": "Турнир не идёт"}
+        try:
+            participants = json.loads(row[2] or "[]")
+        except Exception:
+            participants = []
+        if target not in [str(p).lower() for p in participants]:
+            return {
+                "success": False,
+                "message": f"@{target} не участвует в турнире",
+            }
+        round_index = int(row[1] or 0)
+        # Already bet this round?
+        db_tmp = get_db()
+        async with db_tmp._connect() as conn:
+            cur = await conn.execute(
+                "SELECT 1 FROM bannerlord_tournament_bets "
+                "WHERE channel_id=? AND bettor=? AND round_index=?",
+                (channel_id, username, round_index))
+            if await cur.fetchone():
+                return {
+                    "success": False,
+                    "message": f"Ты уже ставил в раунде {round_index + 1}",
+                }
+        data["target"] = target
+        data["amount"] = amount
+        data["round_index"] = round_index
+        data["price"] = amount   # списать ставку как price крустиков
+
     try:
         price = int(data.get("price", 0))
     except (TypeError, ValueError):
@@ -690,15 +878,29 @@ async def bannerlord_buy_action(request: Request):
                     "WHERE channel_id=? AND username=?",
                     (price, channel_id, username))
 
-            # Enqueue action в outbox (через тот же conn — atomic с charge)
+            # Enqueue action в outbox (через тот же conn — atomic с charge).
+            # tournament.bet — backend-only (не идёт в mod), пропускаем enqueue.
             action_id = uuid.uuid4().hex
             payload = dict(data)
             payload["initiated_by"] = username
-            await conn.execute("""
-                INSERT INTO module_actions
-                    (channel_id, module_id, action_id, type, data, status)
-                VALUES (?, 'bannerlord', ?, ?, ?, 'queued')
-            """, (channel_id, action_id, action_type, json.dumps(payload, ensure_ascii=False)))
+            if action_type not in _BACKEND_ONLY_ACTIONS:
+                await conn.execute("""
+                    INSERT INTO module_actions
+                        (channel_id, module_id, action_id, type, data, status)
+                    VALUES (?, 'bannerlord', ?, ?, ?, 'queued')
+                """, (channel_id, action_id, action_type,
+                      json.dumps(payload, ensure_ascii=False)))
+
+            # Sprint 5.3: tournament.bet — записываем в bets table.
+            if action_type == "tournament.bet":
+                await conn.execute("""
+                    INSERT INTO bannerlord_tournament_bets
+                        (channel_id, bettor, target, amount, round_index)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (channel_id, username,
+                      data.get("target"),
+                      data.get("amount"),
+                      data.get("round_index", 0)))
 
             # Special case в той же TX: UPSERT bannerlord_hero_class.
             # Backend остаётся source-of-truth по class даже если mod offline.

@@ -258,6 +258,27 @@ class BannerlordAdapter(ModuleAdapter):
             await self._on_retinue_changed(channel_id, env)
             return
 
+        # ── Sprint 5.3: Tournament events ──────────────────────────────────
+        if et == "tournament.joined":
+            await self._on_tournament_joined(channel_id, env)
+            return
+
+        if et == "tournament.left":
+            await self._on_tournament_left(channel_id, env)
+            return
+
+        if et == "tournament.started":
+            await self._on_tournament_started(channel_id, env)
+            return
+
+        if et == "tournament.round_ended":
+            await self._on_tournament_round_ended(channel_id, env)
+            return
+
+        if et == "tournament.ended":
+            await self._on_tournament_ended(channel_id, env)
+            return
+
         if et == "world.event_occurred":
             await self._on_world_event(channel_id, env)
             return
@@ -666,6 +687,194 @@ class BannerlordAdapter(ModuleAdapter):
             await conn.commit()
         await self._log_event(channel_id, "hero.gear_tier_changed", username, data)
         print(f"[bannerlord:{channel_id}] @{username} gear_tier → T{new_tier}")
+
+    # ── Sprint 5.3: Tournament events ─────────────────────────────────────────
+
+    async def _on_tournament_joined(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Mod после deduct Hero.Gold добавил viewer'а в TournamentQueue —
+        backend INSERT'ит row для UI mirror.
+
+        Payload: {username, entry_fee}
+        """
+        data = env.data
+        username = (data.get("username") or "").lower()
+        try:
+            entry_fee = int(data.get("entry_fee") or 0)
+        except (TypeError, ValueError):
+            entry_fee = 0
+        if not username:
+            return
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            await conn.execute("""
+                INSERT INTO bannerlord_tournament_queue
+                    (channel_id, username, entry_fee)
+                VALUES (?, ?, ?)
+                ON CONFLICT(channel_id, username) DO UPDATE SET
+                    entry_fee = excluded.entry_fee,
+                    joined_at = CURRENT_TIMESTAMP
+            """, (channel_id, username, entry_fee))
+            await conn.commit()
+        print(f"[bannerlord:{channel_id}] @{username} joined tournament "
+              f"queue (fee={entry_fee}💰)")
+
+    async def _on_tournament_left(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Viewer убран из очереди (hero died между join и start, refund etc.)."""
+        data = env.data
+        username = (data.get("username") or "").lower()
+        if not username:
+            return
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            await conn.execute(
+                "DELETE FROM bannerlord_tournament_queue "
+                "WHERE channel_id=? AND username=?",
+                (channel_id, username))
+            await conn.commit()
+        print(f"[bannerlord:{channel_id}] @{username} left tournament queue")
+
+    async def _on_tournament_started(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Турнир начался — backend сохраняет participants snapshot.
+
+        Payload: {participants: [username...]}
+        Очередь очищается; этот же list используется для bet validation
+        и для финального payout.
+        """
+        data = env.data
+        participants = data.get("participants") or []
+        if not isinstance(participants, list):
+            participants = []
+        participants = [str(p).lower() for p in participants]
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            await conn.execute("""
+                INSERT INTO bannerlord_tournament_state
+                    (channel_id, status, current_round, participants, started_at)
+                VALUES (?, 'running', 0, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(channel_id) DO UPDATE SET
+                    status        = 'running',
+                    current_round = 0,
+                    participants  = excluded.participants,
+                    started_at    = CURRENT_TIMESTAMP
+            """, (channel_id, json.dumps(participants, ensure_ascii=False)))
+            # Clear queue (participants ушли в бой)
+            await conn.execute(
+                "DELETE FROM bannerlord_tournament_queue WHERE channel_id=?",
+                (channel_id,))
+            await conn.commit()
+        print(f"[bannerlord:{channel_id}] tournament started: "
+              f"{len(participants)} participants ({participants[:3]}...)")
+
+    async def _on_tournament_round_ended(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Конец раунда: resolve ставок текущего раунда + advance round_index.
+
+        Payload: {round_index, survivors: [username...]}
+        Bet wins если bettor.target ∈ survivors. Pot redistribution:
+          payout = round((amount / sum(winning_amounts)) * total_pot)
+        Если ни одной winning bet — pot crematorium (burn).
+        """
+        data = env.data
+        try:
+            round_index = int(data.get("round_index") or 0)
+        except (TypeError, ValueError):
+            return
+        survivors = data.get("survivors") or []
+        survivors_lower = {str(s).lower() for s in survivors}
+
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            # Fetch all open bets для этого round
+            cur = await conn.execute("""
+                SELECT bettor, target, amount FROM bannerlord_tournament_bets
+                WHERE channel_id=? AND round_index=? AND resolved=0
+            """, (channel_id, round_index))
+            bets = await cur.fetchall()
+            total_pot = sum(b[2] for b in bets)
+            winning = [(b[0], b[2]) for b in bets if (b[1] or "").lower() in survivors_lower]
+            total_winning = sum(a for _, a in winning)
+
+            for bettor, target, amount in bets:
+                won = (target or "").lower() in survivors_lower
+                if won and total_winning > 0:
+                    # Proportional share of total pot
+                    payout = int(round((amount / total_winning) * total_pot))
+                else:
+                    payout = 0
+                await conn.execute("""
+                    UPDATE bannerlord_tournament_bets
+                    SET resolved=?, payout=?
+                    WHERE channel_id=? AND bettor=? AND round_index=?
+                """, (1 if won else 2, payout, channel_id, bettor, round_index))
+                # Credit payout to viewer
+                if won and payout > 0:
+                    await conn.execute(
+                        "UPDATE viewers SET points = points + ? "
+                        "WHERE channel_id=? AND username=?",
+                        (payout, channel_id, bettor))
+
+            # Advance round index
+            await conn.execute("""
+                UPDATE bannerlord_tournament_state
+                SET current_round = ?
+                WHERE channel_id=?
+            """, (round_index + 1, channel_id))
+            await conn.commit()
+        print(f"[bannerlord:{channel_id}] tournament round {round_index} ended, "
+              f"{len(survivors_lower)} survivors, pot={total_pot}⦷, "
+              f"{len(winning)} winners")
+
+    async def _on_tournament_ended(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Турнир закончился — финал ИЛИ aborted (стример вышел досрочно).
+
+        Payload: {winner: username|null, participants: [...], aborted: bool}
+        Backend записывает last_winner + status='idle' (готов к новому).
+        Mod-side даёт hero.Gold + XP + prize item победителю.
+
+        Aborted: any open bets refund'аются bettor'ам (бот не виноват что
+        стример вышел). Также очищаем queue если осталась.
+        """
+        data = env.data
+        winner = (data.get("winner") or "").lower() or None
+        aborted = bool(data.get("aborted"))
+
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            # Если aborted — refund открытые ставки
+            if aborted:
+                cur = await conn.execute("""
+                    SELECT bettor, amount FROM bannerlord_tournament_bets
+                    WHERE channel_id=? AND resolved=0
+                """, (channel_id,))
+                open_bets = await cur.fetchall()
+                for bettor, amount in open_bets:
+                    if amount and amount > 0:
+                        await conn.execute(
+                            "UPDATE viewers SET points = points + ? "
+                            "WHERE channel_id=? AND username=?",
+                            (amount, channel_id, bettor))
+                await conn.execute("""
+                    UPDATE bannerlord_tournament_bets
+                    SET resolved=2, payout=amount
+                    WHERE channel_id=? AND resolved=0
+                """, (channel_id,))
+                if open_bets:
+                    print(f"[bannerlord:{channel_id}] tournament aborted — "
+                          f"refunded {len(open_bets)} open bets")
+
+            await conn.execute("""
+                UPDATE bannerlord_tournament_state
+                SET status='idle', last_winner=?, participants='[]', current_round=0
+                WHERE channel_id=?
+            """, (winner, channel_id))
+            # Aborted — гарантированно чистим queue (на случай если start был, но roster generation failed)
+            if aborted:
+                await conn.execute(
+                    "DELETE FROM bannerlord_tournament_queue WHERE channel_id=?",
+                    (channel_id,))
+            await conn.commit()
+        await self._log_event(channel_id, "tournament.ended", winner, data)
+        status_str = "ABORTED" if aborted else f"winner=@{winner}"
+        print(f"[bannerlord:{channel_id}] tournament ended ({status_str})")
 
     # ── World events ──────────────────────────────────────────────────────────
 

@@ -612,6 +612,24 @@ async def run_migrations():
             print(f"❌ M23 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M24: bannerlord_tournament_queue + state ──
+        # BLT-style viewer tournaments. Очередь + run-time state.
+        try:
+            from migrations import m24_bannerlord_tournament
+            await m24_bannerlord_tournament.apply(conn)
+        except Exception as e:
+            print(f"❌ M24 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
+        # ── M25: bannerlord_tournament_bets ──
+        # Ставки на участников турнира (крустики).
+        try:
+            from migrations import m25_bannerlord_tournament_bets
+            await m25_bannerlord_tournament_bets.apply(conn)
+        except Exception as e:
+            print(f"❌ M25 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

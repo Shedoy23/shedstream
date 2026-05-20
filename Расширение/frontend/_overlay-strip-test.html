@@ -9,17 +9,36 @@
             font-family: sans-serif;
             background: linear-gradient(45deg, #5b21b6, #831843, #1e1b4b);
             min-height: 100vh;
-            padding: 40px;
             color: #fff;
+            position: relative;
+            overflow: hidden;
         }
-        h1 { font-size: 18px; margin: 0 0 20px; opacity: 0.7; }
+        h1 { font-size: 18px; margin: 0; padding: 20px; opacity: 0.7; }
 
         /* === Зеркало overlay.html стилей === */
+        #pets-strip {
+            position: absolute;
+            bottom: 40px;
+            left: 0;
+            right: 0;
+            height: 120px;
+            overflow: hidden;
+            pointer-events: none;
+        }
         .pet-card {
+            position: absolute;
+            bottom: 0;
+            left: var(--walk-start, 0vw);
             min-width: 72px;
             text-align: center;
-            opacity: 1;
-            transform: translateY(0);
+            animation: pet-walk var(--walk-duration, 22s) ease-in-out
+                       var(--walk-delay, 0s) infinite;
+            will-change: transform;
+        }
+        @keyframes pet-walk {
+            0%   { transform: translateX(0)                     translateY(0); }
+            50%  { transform: translateX(var(--walk-amp, 30vw)) translateY(-4px); }
+            100% { transform: translateX(0)                     translateY(0); }
         }
         .pet-card .pet-stage {
             animation: pet-card-sway 2.8s ease-in-out infinite;
@@ -37,7 +56,6 @@
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
             text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 6px rgba(0,0,0,0.6);
         }
-        #pets-strip { display: flex; gap: 12px; }
 
         /* === Pet stage (overlay копия) === */
         .pet-stage {
@@ -116,6 +134,18 @@
             `;
         }).join('');
         strip.querySelectorAll('.pet-card').forEach((card, i) => {
+            const startPct = 5 + Math.floor(Math.random() * 76);
+            const ampVw    = 15 + Math.floor(Math.random() * 16);
+            let dir;
+            if      (startPct + ampVw > 90) dir = -1;
+            else if (startPct - ampVw < 5)  dir = 1;
+            else                            dir = Math.random() < 0.5 ? 1 : -1;
+            const duration = 18 + Math.floor(Math.random() * 13);
+            const delay    = Math.floor(Math.random() * 80) / 10;
+            card.style.setProperty('--walk-start',    `${startPct}vw`);
+            card.style.setProperty('--walk-amp',      `${dir * ampVw}vw`);
+            card.style.setProperty('--walk-duration', `${duration}s`);
+            card.style.setProperty('--walk-delay',    `${delay}s`);
             card.style.setProperty('--pet-card-sway-delay', `${i * 0.25}s`);
         });
     </script>

@@ -599,45 +599,52 @@ body {
    PETS-STRIP — активные зрители с питомцами
    (Phase 7, 2026-05-12; opt-out streamer'ом)
 ══════════════════════════════════════ */
+/* Sprint 5.22 patch: pets гуляют по всей ширине overlay'а, а не сидят
+   фиксированным строем в нижнем левом углу. Strip занимает всю ширину;
+   каждая карточка — position:absolute со своим random walk-path. */
 #pets-strip {
     position: absolute;
     bottom: 40px;
-    left: 40px;
-    display: flex;
-    gap: 12px;
-    max-width: 900px;
-    flex-wrap: nowrap;
-    overflow: hidden;
+    left: 0;
+    right: 0;
+    height: 120px;
     pointer-events: none;
+    overflow: hidden;
     opacity: 0;
-    transform: translateY(20px);
-    transition: opacity .4s ease, transform .4s ease;
+    transition: opacity .4s ease;
 }
 #pets-strip.visible {
     opacity: 1;
-    transform: translateY(0);
 }
-/* Sprint 5.22 patch: pet-card frameless (без background/border/shadow) —
-   только creature + ник под ним. Sway-анимация качает каждую карточку
-   слева-направо со staggered delay'ями (JS ставит --pet-card-sway-delay). */
+/* Pet-card frameless (background/border/shadow убраны). Position:absolute
+   с random --walk-start (left base). Анимация pet-walk oscillates
+   translateX от 0 до --walk-amp + лёгкий bob по Y. */
 .pet-card {
+    position: absolute;
+    bottom: 0;
+    left: var(--walk-start, 0vw);
     min-width: 72px;
     text-align: center;
-    /* slide-in появление */
     opacity: 0;
-    transform: translateY(16px);
-    transition: opacity .35s ease, transform .35s cubic-bezier(0.34, 1.4, 0.64, 1);
+    transition: opacity .35s ease;
+    animation: pet-walk var(--walk-duration, 22s) ease-in-out
+               var(--walk-delay, 0s) infinite;
+    will-change: transform;
 }
 .pet-card.in {
     opacity: 1;
-    transform: translateY(0);
 }
-/* Sway — качание creature'а влево-вправо. На .pet-stage чтобы не
-   конфликтовать со slide-in transform у .pet-card. */
+@keyframes pet-walk {
+    0%   { transform: translateX(0)                       translateY(0); }
+    50%  { transform: translateX(var(--walk-amp, 30vw))   translateY(-4px); }
+    100% { transform: translateX(0)                       translateY(0); }
+}
+/* Sway — качание creature'а в ритм шагов (на .pet-stage child).
+   --pet-card-sway-delay JS-staggered чтобы каждый качался не синхронно. */
 .pet-card .pet-stage {
     animation: pet-card-sway 2.8s ease-in-out infinite;
     animation-delay: var(--pet-card-sway-delay, 0s);
-    transform-origin: 50% 90%;  /* качаемся от основания */
+    transform-origin: 50% 90%;
 }
 @keyframes pet-card-sway {
     0%, 100% { transform: rotate(-5deg); }
@@ -1377,13 +1384,27 @@ async function pollPets() {
         }).join('');
         strip.classList.add('visible');
 
-        // Stagger-анимация: slide-in (.in флаг + transitionDelay) +
-        // staggered sway-delay через CSS var (--pet-card-sway-delay).
-        // Sway шаг 0.25s × i создаёт «случайный» wobble эффект.
+        // Sprint 5.22 patch: каждому pet'у свой random walk-path по экрану.
+        // Constraints чтобы pet не выходил за границы:
+        //   start: 5-80vw, amp: 15-30vw, direction авто из доступного места
+        //   (если start+amp > 90 → влево, если start-amp < 5 → вправо, иначе random).
+        // Pets пересекаются и проходят друг через друга — overlap-friendly.
         const cards = strip.querySelectorAll('.pet-card');
         cards.forEach((card, i) => {
-            card.style.transitionDelay = `${i * 60}ms`;
+            const startPct = 5 + Math.floor(Math.random() * 76);     // 5-80vw
+            const ampVw    = 15 + Math.floor(Math.random() * 16);    // 15-30vw
+            let dir;
+            if      (startPct + ampVw > 90) dir = -1;                // пойдёт влево
+            else if (startPct - ampVw < 5)  dir = 1;                 // пойдёт вправо
+            else                            dir = Math.random() < 0.5 ? 1 : -1;
+            const duration = 18 + Math.floor(Math.random() * 13);    // 18-30s
+            const delay    = Math.floor(Math.random() * 80) / 10;    // 0-8s
+            card.style.setProperty('--walk-start',    `${startPct}vw`);
+            card.style.setProperty('--walk-amp',      `${dir * ampVw}vw`);
+            card.style.setProperty('--walk-duration', `${duration}s`);
+            card.style.setProperty('--walk-delay',    `${delay}s`);
             card.style.setProperty('--pet-card-sway-delay', `${i * 0.25}s`);
+            card.style.transitionDelay = `${i * 60}ms`;
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => card.classList.add('in'));
             });

@@ -1480,6 +1480,23 @@ async function pollBannerlordSummoned() {
     } catch (e) { /* silent */ }
 }
 
+// ════════ TTS «Озвучить сообщение» (Sprint 5.23, 2026-05-21) ════════
+// Polling /api/overlay/tts/pending каждые 3s. Получаем audio_url с
+// pre-generated mp3 (gTTS на бэке), играем через <audio>.
+//
+// Web Speech API использовался в начальной версии, но OBS Browser Source
+// (Chromium-CEF) этот API поддерживает плохо — speechSynthesis.speak()
+// часто не выводит звук. Переключение на серверный mp3 + Audio() намного
+// надёжнее (OBS воспроизводит обычные audio elements без проблем).
+//
+// One-at-a-time: пока активен audio, не делаем новый poll.
+//
+// ВАЖНО: блок объявлений идёт ДО if/else ниже, иначе initTts() вызывается
+// раньше чем const TTS_POLL_INTERVAL инициализирована (temporal dead zone).
+const TTS_POLL_INTERVAL = 3000;
+let _ttsBusy = false;
+let _ttsCurrentAudio = null;
+
 if (new URLSearchParams(location.search).get('preview') === '1') {
     runPreview();
 } else {
@@ -1491,20 +1508,6 @@ if (new URLSearchParams(location.search).get('preview') === '1') {
     setInterval(pollBannerlordSummoned, BNR_POLL_INTERVAL);
     initTts();
 }
-
-// ════════ TTS «Озвучить сообщение» (Sprint 5.23, 2026-05-21) ════════
-// Polling /api/overlay/tts/pending каждые 3s. Получаем audio_url с
-// pre-generated mp3 (gTTS на бэке), играем через <audio>.
-//
-// Web Speech API использовался в начальной версии, но OBS Browser Source
-// (Chromium-CEF) этот API поддерживает плохо — speechSynthesis.speak()
-// часто не выводит звук. Переключение на серверный mp3 + Audio() namного
-// надёжнее (OBS воспроизводит обычные audio elements без проблем).
-//
-// One-at-a-time: пока активен audio, не делаем новый poll.
-const TTS_POLL_INTERVAL = 3000;
-let _ttsBusy = false;
-let _ttsCurrentAudio = null;
 
 async function pollTts() {
     if (_ttsBusy) return;

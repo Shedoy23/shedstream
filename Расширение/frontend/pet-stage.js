@@ -108,9 +108,12 @@
         const bgHtml = bg
             ? `<div class="pet-stage__bg">${_renderItem(bg)}</div>`
             : '';
-        // aura — пульсирующее свечение
+        // aura — Sprint 5.22 patch: 6 маленьких particle вокруг pet'а
+        // с staggered pulse animation вместо одного большого blurred emoji.
+        // Каждая particle — отдельный span на clock-позиции; CSS управляет
+        // позиционированием и delay'ями анимации.
         const auraHtml = aura
-            ? `<div class="pet-stage__aura">${_renderItem(aura)}</div>`
+            ? `<div class="pet-stage__aura">${_renderAuraParticles(aura)}</div>`
             : '';
 
         // Pre-hatch — только яйцо, items не показываем (юзер ещё не купил
@@ -139,6 +142,18 @@
                 ${acc  ? `<div class="pet-stage__slot pet-stage__slot--accessory">${_renderItem(acc)}</div>`  : ''}
             </div>
         `;
+    }
+
+    // Sprint 5.22 patch: render 6 копий aura content'а как particles
+    // с CSS-классами .pet-stage__aura-particle--n0..n5. Каждая получает
+    // свою позицию + animation-delay из CSS.
+    function _renderAuraParticles(aura) {
+        const content = _renderItem(aura);
+        let html = '';
+        for (let i = 0; i < 6; i++) {
+            html += `<span class="pet-stage__aura-particle pet-stage__aura-particle--n${i}">${content}</span>`;
+        }
+        return html;
     }
 
     function _esc(s) {

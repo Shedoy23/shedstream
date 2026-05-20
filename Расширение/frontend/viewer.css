@@ -318,23 +318,36 @@ html, body {
     pointer-events: none;
 }
 
+/* Sprint 5.22 patch: aura — 6 маленьких particles на clock-позициях
+   вокруг pet'а, каждая со staggered pulse animation. Создаёт эффект
+   «вихря» вокруг creature'а. */
 .pet-stage__aura {
     position: absolute;
-    inset: -8%;
+    inset: 0;
     z-index: 2;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(var(--pet-stage-size, 180px) * 1.05);
-    opacity: 0.7;
-    animation: pet-stage-aura 2.4s ease-in-out infinite;
     pointer-events: none;
 }
-
-@keyframes pet-stage-aura {
-    0%, 100% { transform: scale(0.95); opacity: 0.5; }
-    50%      { transform: scale(1.05); opacity: 0.85; }
+.pet-stage__aura-particle {
+    position: absolute;
+    font-size: calc(var(--pet-stage-size, 180px) * 0.18);
+    line-height: 1;
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.7);
+    animation: pet-stage-aura-particle 1.8s ease-in-out infinite;
+    filter: drop-shadow(0 0 4px rgba(255,255,255,0.45));
 }
+@keyframes pet-stage-aura-particle {
+    0%, 100% { opacity: 0.45; transform: translate(-50%, -50%) scale(0.85); }
+    50%      { opacity: 1.00; transform: translate(-50%, -50%) scale(1.15); }
+}
+/* 6 позиций по часовой стрелке от 12 часов:
+   12 → 2 → 4 → 6 → 8 → 10. Staggered delay'и создают «бегущий» вихрь. */
+.pet-stage__aura-particle--n0 { top:  -2%; left: 50%; animation-delay: 0s;     }
+.pet-stage__aura-particle--n1 { top:  22%; left: 95%; animation-delay: 0.30s;  }
+.pet-stage__aura-particle--n2 { top:  72%; left: 95%; animation-delay: 0.60s;  }
+.pet-stage__aura-particle--n3 { top: 100%; left: 50%; animation-delay: 0.90s;  }
+.pet-stage__aura-particle--n4 { top:  72%; left:  5%; animation-delay: 1.20s;  }
+.pet-stage__aura-particle--n5 { top:  22%; left:  5%; animation-delay: 1.50s;  }
 
 .pet-stage__base {
     position: absolute;

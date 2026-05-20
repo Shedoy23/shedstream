@@ -691,6 +691,16 @@ async def run_migrations():
             print(f"❌ M31 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M32: hard-delete misfit items ──
+        # Тестеры ещё не получили доступ — safe удалить навсегда вместо
+        # soft-deprecate. Items: face_mask / body_tie / hat_cowboy / acc_scarf.
+        try:
+            from migrations import m32_pets_delete_misfits
+            await m32_pets_delete_misfits.apply(conn)
+        except Exception as e:
+            print(f"❌ M32 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

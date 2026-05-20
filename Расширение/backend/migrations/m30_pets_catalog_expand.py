@@ -23,18 +23,17 @@ Item IDs: префиксы по slot для читаемости:
   aura_* → aura
 """
 
-# Sprint 5.22 expansion — 15 new items
+# Sprint 5.22 expansion — 11 new items (после M32 cleanup'а 4 misfit items
+# выкинуты из seed: hat_cowboy/face_mask/body_tie — их emoji содержат
+# встроенное «лицо/торс» и плохо ложатся на blob creature'а).
 CATALOG_ADDS = [
-    # ── head (3 new) ──
+    # ── head (2 new) ──
     ('hat_top',         'Цилиндр',              'head',       500, 'rare',     '🎩'),
     ('hat_grad',        'Академическая шапочка', 'head',       500, 'rare',     '🎓'),
-    ('hat_cowboy',      'Ковбойская шляпа',     'head',       500, 'rare',     '🤠'),
-    # ── face (2 new) ──
+    # ── face (1 new) ──
     ('face_sunglasses', 'Тёмные очки',          'face',       500, 'rare',     '🕶️'),
-    ('face_mask',       'Маска',                'face',       300, 'common',   '😷'),
-    # ── body (2 new) ──
+    # ── body (1 new) ──
     ('body_bowtie',     'Бабочка',              'body',       500, 'rare',     '🦋'),
-    ('body_tie',        'Галстук',              'body',       300, 'common',   '👔'),
     # ── accessory (4 new) ──
     ('acc_balloon',     'Шарик',                'accessory',  300, 'common',   '🎈'),
     ('acc_ball',        'Мяч',                  'accessory',  300, 'common',   '⚽'),

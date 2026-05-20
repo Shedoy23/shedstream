@@ -301,21 +301,44 @@ html, body {
     margin: 0 auto;
     border-radius: 18px;
     overflow: hidden;
-    background: radial-gradient(ellipse at 50% 60%, rgba(168,85,247,.18), transparent 70%);
+    /* Body color вариативность через CSS-переменные. Дефолтная палитра
+       — фиолетовая. Конкретные background items переопределяют их.
+       --pet-stage-bg-glow контролирует backdrop-glow stage'а. */
+    --pet-body-light:  #d8b4fe;
+    --pet-body-mid:    #a855f7;
+    --pet-body-dark:   #6b21a8;
+    --pet-body-stroke: #4c1d95;
+    --pet-stage-bg-glow: rgba(168,85,247,.18);
+    background: radial-gradient(ellipse at 50% 60%,
+                var(--pet-stage-bg-glow), transparent 70%);
+    transition: --pet-body-light .35s, --pet-body-mid .35s,
+                --pet-body-dark .35s, background .35s;
 }
 
-.pet-stage__bg {
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(var(--pet-stage-size, 180px) * 1.1);
-    line-height: 1;
-    opacity: 0.22;
-    filter: blur(3px);
-    pointer-events: none;
+/* ── Background presets — переопределяют palette ────────────────────────── */
+.pet-stage--bg_violet {
+    /* Bright violet — насыщеннее default'а */
+    --pet-body-light:  #f3e8ff;
+    --pet-body-mid:    #c084fc;
+    --pet-body-dark:   #7e22ce;
+    --pet-body-stroke: #581c87;
+    --pet-stage-bg-glow: rgba(192,132,252,.22);
+}
+.pet-stage--bg_rainbow {
+    /* Радужный градиент — тёплый → холодный */
+    --pet-body-light:  #fef3c7;
+    --pet-body-mid:    #f472b6;
+    --pet-body-dark:   #8b5cf6;
+    --pet-body-stroke: #be185d;
+    --pet-stage-bg-glow: rgba(244,114,182,.24);
+}
+.pet-stage--bg_stars {
+    /* Звёздно-синяя ночная палитра */
+    --pet-body-light:  #93c5fd;
+    --pet-body-mid:    #3b82f6;
+    --pet-body-dark:   #1e3a8a;
+    --pet-body-stroke: #1e40af;
+    --pet-stage-bg-glow: rgba(59,130,246,.22);
 }
 
 /* Sprint 5.22 patch: aura — 6 маленьких particles на clock-позициях

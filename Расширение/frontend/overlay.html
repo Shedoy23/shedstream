@@ -668,14 +668,29 @@ body {
     margin: 0 auto;
     border-radius: 14px;
     overflow: hidden;
-    background: radial-gradient(ellipse at 50% 60%, rgba(168,85,247,.18), transparent 70%);
+    --pet-body-light:  #d8b4fe;
+    --pet-body-mid:    #a855f7;
+    --pet-body-dark:   #6b21a8;
+    --pet-body-stroke: #4c1d95;
+    --pet-stage-bg-glow: rgba(168,85,247,.18);
+    background: radial-gradient(ellipse at 50% 60%,
+                var(--pet-stage-bg-glow), transparent 70%);
 }
-.pet-stage__bg {
-    position: absolute; inset: 0; z-index: 1;
-    display: flex; align-items: center; justify-content: center;
-    font-size: calc(var(--pet-stage-size, 64px) * 1.1);
-    line-height: 1; opacity: 0.22; filter: blur(2px);
-    pointer-events: none;
+/* Body palette presets (зеркало viewer.css) */
+.pet-stage--bg_violet {
+    --pet-body-light: #f3e8ff; --pet-body-mid: #c084fc;
+    --pet-body-dark:  #7e22ce; --pet-body-stroke: #581c87;
+    --pet-stage-bg-glow: rgba(192,132,252,.22);
+}
+.pet-stage--bg_rainbow {
+    --pet-body-light: #fef3c7; --pet-body-mid: #f472b6;
+    --pet-body-dark:  #8b5cf6; --pet-body-stroke: #be185d;
+    --pet-stage-bg-glow: rgba(244,114,182,.24);
+}
+.pet-stage--bg_stars {
+    --pet-body-light: #93c5fd; --pet-body-mid: #3b82f6;
+    --pet-body-dark:  #1e3a8a; --pet-body-stroke: #1e40af;
+    --pet-stage-bg-glow: rgba(59,130,246,.22);
 }
 /* Sprint 5.22 patch: aura particles (overlay inline copy) */
 .pet-stage__aura { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
@@ -900,7 +915,7 @@ body {
 <!-- pet-stage.js: shared SVG creature renderer (Sprint 5.21).
      Загружается ДО основного скрипта overlay чтобы window.PetStage был
      доступен в renderPets(). -->
-<script src="pet-stage.js?v=20260520e"></script>
+<script src="pet-stage.js?v=20260520f"></script>
 
 <script>
 const SERVER = 'https://shedoy23.ru';

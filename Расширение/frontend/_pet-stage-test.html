@@ -25,10 +25,17 @@
             { title: 'Очки', pet:{pet_type:'creature'}, equipped:{face:{emoji:'👓'}} },
             { title: 'Шарф (body)', pet:{pet_type:'creature'}, equipped:{body:{emoji:'🧣'}} },
             { title: 'Аксессуар (сбоку)', pet:{pet_type:'creature'}, equipped:{accessory:{emoji:'🎈'}} },
-            { title: 'Фон + аура', pet:{pet_type:'creature'}, equipped:{background:{emoji:'🟣'}, aura:{emoji:'✨'}} },
+            { title: 'BG violet (skin)',  pet:{pet_type:'creature'}, equipped:{background:{item_id:'bg_violet',emoji:'🟣'}} },
+            { title: 'BG rainbow (skin)', pet:{pet_type:'creature'}, equipped:{background:{item_id:'bg_rainbow',emoji:'🌈'}} },
+            { title: 'BG stars (skin)',   pet:{pet_type:'creature'}, equipped:{background:{item_id:'bg_stars',emoji:'⭐'}} },
+            { title: 'Только аура',       pet:{pet_type:'creature'}, equipped:{aura:{emoji:'✨'}} },
+            { title: 'Stars-skin + огонь', pet:{pet_type:'creature'},
+              equipped:{background:{item_id:'bg_stars',emoji:'⭐'}, aura:{emoji:'🔥'}} },
             { title: 'ВСЁ сразу', pet:{pet_type:'creature',name:'Max'},
               equipped:{head:{emoji:'👑'}, face:{emoji:'👓'}, body:{emoji:'🧣'},
-                        accessory:{emoji:'🎈'}, background:{emoji:'🟣'}, aura:{emoji:'✨'}} },
+                        accessory:{emoji:'🎈'},
+                        background:{item_id:'bg_rainbow',emoji:'🌈'},
+                        aura:{emoji:'✨'}} },
         ];
         const grid = document.getElementById('grid');
         grid.innerHTML = cases.map(c => `

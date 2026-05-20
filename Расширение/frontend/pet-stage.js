@@ -21,49 +21,55 @@
     'use strict';
 
     // ── Inline SVG creature (post-hatch) ─────────────────────────────────────
-    // Дизайн: универсальный фиолетовый blob с лицом. Кросс-возрастной
-    // (узнаваемый и для детей и для взрослой аудитории), не привязан к
-    // конкретному животному (cat/dog могут оттолкнуть фанатов другого).
-    // Eyes простые точки чтобы очки сверху ложились читаемо.
-    const CREATURE_SVG = `
-        <svg viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg"
-             class="pet-stage__creature">
-            <defs>
-                <radialGradient id="pet-body-grad" cx="38%" cy="32%" r="70%">
-                    <stop offset="0%"   stop-color="#d8b4fe"/>
-                    <stop offset="60%"  stop-color="#a855f7"/>
-                    <stop offset="100%" stop-color="#6b21a8"/>
-                </radialGradient>
-                <radialGradient id="pet-cheek-grad" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%"   stop-color="#fb7185" stop-opacity="0.8"/>
-                    <stop offset="100%" stop-color="#fb7185" stop-opacity="0"/>
-                </radialGradient>
-            </defs>
-            <!-- Body — округлый blob -->
-            <ellipse cx="90" cy="100" rx="60" ry="62"
-                     fill="url(#pet-body-grad)"
-                     stroke="#4c1d95" stroke-width="1.5"/>
-            <!-- Highlight на животе -->
-            <ellipse cx="90" cy="125" rx="32" ry="14"
-                     fill="#ffffff" opacity="0.13"/>
-            <!-- Cheeks (за глазами для теплоты) -->
-            <ellipse cx="62"  cy="106" rx="9" ry="5" fill="url(#pet-cheek-grad)"/>
-            <ellipse cx="118" cy="106" rx="9" ry="5" fill="url(#pet-cheek-grad)"/>
-            <!-- Eyes (whites) -->
-            <ellipse cx="72"  cy="88" rx="9.5" ry="10" fill="white"/>
-            <ellipse cx="108" cy="88" rx="9.5" ry="10" fill="white"/>
-            <!-- Pupils -->
-            <ellipse cx="74"  cy="90" rx="4.5" ry="5" fill="#1a1a1c"/>
-            <ellipse cx="110" cy="90" rx="4.5" ry="5" fill="#1a1a1c"/>
-            <!-- Pupil shines -->
-            <circle cx="75.5"  cy="88" r="1.6" fill="white"/>
-            <circle cx="111.5" cy="88" r="1.6" fill="white"/>
-            <!-- Mouth -->
-            <path d="M 80 112 Q 90 119 100 112"
-                  stroke="#1a1a1c" stroke-width="2.5"
-                  fill="none" stroke-linecap="round"/>
-        </svg>
-    `;
+    // Sprint 5.22 patch (2026-05-20): body color через CSS variables
+    // (--pet-body-{mid,stroke}). Background slot не рендерится отдельным
+    // слоем, а добавляет CSS-класс .pet-stage--{item_id} который
+    // переопределяет переменные → creature перекрашивается.
+    //
+    // Использован solid fill (не gradient) потому что несколько inline-SVG
+    // с одинаковым gradient ID де-дуплицируются браузером и все ссылаются
+    // на первое определение → cross-stage цвет ломается. «Глубину» даёт
+    // highlight + shadow ellipses поверх плоского fill.
+    function _buildCreatureSvg() {
+        return `
+            <svg viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg"
+                 class="pet-stage__creature">
+                <!-- Body — solid mid цвет + highlight + shadow для объёма -->
+                <ellipse cx="90" cy="100" rx="60" ry="62"
+                         style="fill: var(--pet-body-mid, #a855f7);
+                                stroke: var(--pet-body-stroke, #4c1d95);"
+                         stroke-width="1.5"/>
+                <!-- Highlight (light top-left) -->
+                <ellipse cx="72" cy="75" rx="28" ry="20"
+                         style="fill: var(--pet-body-light, #d8b4fe);"
+                         opacity="0.45"/>
+                <!-- Shadow (dark bottom-right) -->
+                <ellipse cx="110" cy="135" rx="38" ry="22"
+                         style="fill: var(--pet-body-dark, #6b21a8);"
+                         opacity="0.35"/>
+                <!-- Belly highlight (subtle white) -->
+                <ellipse cx="90" cy="128" rx="30" ry="12"
+                         fill="#ffffff" opacity="0.10"/>
+                <!-- Cheeks (за глазами для теплоты) — solid pink с opacity -->
+                <ellipse cx="62"  cy="106" rx="9" ry="5" fill="#fb7185" opacity="0.55"/>
+                <ellipse cx="118" cy="106" rx="9" ry="5" fill="#fb7185" opacity="0.55"/>
+                <!-- Eyes (whites) -->
+                <ellipse cx="72"  cy="88" rx="9.5" ry="10" fill="white"/>
+                <ellipse cx="108" cy="88" rx="9.5" ry="10" fill="white"/>
+                <!-- Pupils -->
+                <ellipse cx="74"  cy="90" rx="4.5" ry="5" fill="#1a1a1c"/>
+                <ellipse cx="110" cy="90" rx="4.5" ry="5" fill="#1a1a1c"/>
+                <!-- Pupil shines -->
+                <circle cx="75.5"  cy="88" r="1.6" fill="white"/>
+                <circle cx="111.5" cy="88" r="1.6" fill="white"/>
+                <!-- Mouth -->
+                <path d="M 80 112 Q 90 119 100 112"
+                      stroke="#1a1a1c" stroke-width="2.5"
+                      fill="none" stroke-linecap="round"/>
+            </svg>
+        `;
+    }
+    const CREATURE_SVG = _buildCreatureSvg();  // backward-compat экспорт
 
     // ── Item renderer ─────────────────────────────────────────────────────────
     // Item может содержать svg_path (inline SVG) или fallback на emoji.
@@ -104,14 +110,11 @@
         const body = equipped.body;
         const acc  = equipped.accessory;
 
-        // background — большой blurred emoji за всем
-        const bgHtml = bg
-            ? `<div class="pet-stage__bg">${_renderItem(bg)}</div>`
-            : '';
-        // aura — Sprint 5.22 patch: 6 маленьких particle вокруг pet'а
-        // с staggered pulse animation вместо одного большого blurred emoji.
-        // Каждая particle — отдельный span на clock-позиции; CSS управляет
-        // позиционированием и delay'ями анимации.
+        // Sprint 5.22 patch: background теперь = окрас creature'а (CSS-класс
+        // .pet-stage--{bg_item_id} переопределяет --pet-body-* переменные).
+        // Старый bg-emoji слой убран — конфликтовал с аурой визуально.
+        const bgClass = bg && bg.item_id ? `pet-stage--${bg.item_id}` : '';
+        // aura — 6 particle на clock-позициях со staggered pulse.
         const auraHtml = aura
             ? `<div class="pet-stage__aura">${_renderAuraParticles(aura)}</div>`
             : '';
@@ -121,8 +124,7 @@
         // незарасклюнутого pet'а каким-то образом всплыли equip'ы — игнор.
         if (!hatched) {
             return `
-                <div class="pet-stage ${className}" style="--pet-stage-size:${size}px;">
-                    ${bgHtml}
+                <div class="pet-stage ${bgClass} ${className}" style="--pet-stage-size:${size}px;">
                     ${auraHtml}
                     <div class="pet-stage__egg">🥚</div>
                 </div>
@@ -131,9 +133,8 @@
 
         // Post-hatch — full creature stack
         return `
-            <div class="pet-stage pet-stage--hatched ${className}"
+            <div class="pet-stage pet-stage--hatched ${bgClass} ${className}"
                  style="--pet-stage-size:${size}px;">
-                ${bgHtml}
                 ${auraHtml}
                 <div class="pet-stage__base">${CREATURE_SVG}</div>
                 ${body ? `<div class="pet-stage__slot pet-stage__slot--body">${_renderItem(body)}</div>` : ''}

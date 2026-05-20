@@ -386,29 +386,36 @@ html, body {
 .pet-stage__slot svg { width: 100%; height: 100%; display: block; }
 
 /* Slot positions — координаты ВНУТРИ pet-stage (% от размера).
-   Подобраны под CREATURE_SVG anchor points в pet-stage.js. */
+   Подобраны под CREATURE_SVG anchor points (180×180 viewBox):
+     eyes cy=88   → 49% (face center)
+     mouth y=112  → 62%
+     body cy=100, ry=62 → bottom at 162 → 90%
+   Sprint 5.21 patch (2026-05-20):
+     face 38% → 50% (очки были на лбу)
+     body 72% → 82% (шарф закрывал рот)
+     head -6% → -2% (корона висела высоко) */
 .pet-stage__slot--head {
-    top: -6%; left: 50%;
-    width: 38%; height: 38%;
+    top: -2%; left: 50%;
+    width: 42%; height: 38%;
     transform: translateX(-50%);
     z-index: 7;
 }
 .pet-stage__slot--face {
-    top: 38%; left: 50%;
-    width: 50%; height: 22%;
+    top: 50%; left: 50%;
+    width: 52%; height: 22%;
     transform: translate(-50%, -50%);
     z-index: 6;
     font-size: calc(var(--pet-stage-size, 180px) * 0.20);
 }
 .pet-stage__slot--body {
-    top: 72%; left: 50%;
+    top: 82%; left: 50%;
     width: 50%; height: 22%;
     transform: translate(-50%, -50%);
     z-index: 5;
     font-size: calc(var(--pet-stage-size, 180px) * 0.22);
 }
 .pet-stage__slot--accessory {
-    top: 55%; right: 0%;
+    top: 60%; right: 0%;
     width: 28%; height: 28%;
     z-index: 6;
     font-size: calc(var(--pet-stage-size, 180px) * 0.20);

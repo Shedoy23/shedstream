@@ -754,13 +754,10 @@ body {
     font-weight: 600;
     color: #efeff1;
     margin-top: 4px;
-    max-width: 80px;
-    overflow: hidden;
-    text-overflow: ellipsis;
     white-space: nowrap;
     font-family: 'Unbounded', sans-serif;
     /* Sprint 5.22 patch: без рамки текст должен читаться на любом фоне
-       стрима — text-shadow обводка по контуру. */
+       стрима — text-shadow обводка по контуру. Длинные ники не режутся. */
     text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 6px rgba(0,0,0,0.6);
 }
 .pet-card-user {
@@ -1397,7 +1394,7 @@ async function pollPets() {
             if      (startPct + ampVw > 90) dir = -1;                // пойдёт влево
             else if (startPct - ampVw < 5)  dir = 1;                 // пойдёт вправо
             else                            dir = Math.random() < 0.5 ? 1 : -1;
-            const duration = 18 + Math.floor(Math.random() * 13);    // 18-30s
+            const duration = 54 + Math.floor(Math.random() * 37);    // 54-90s (×3 медленнее)
             const delay    = Math.floor(Math.random() * 80) / 10;    // 0-8s
             card.style.setProperty('--walk-start',    `${startPct}vw`);
             card.style.setProperty('--walk-amp',      `${dir * ampVw}vw`);

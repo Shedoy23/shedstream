@@ -33,11 +33,11 @@ async def create_marriage(request: MarryRequest, _admin: str = Depends(require_a
                     await conn.execute("ROLLBACK")
                     return {"success": False, "message": f"@{u} уже в браке"}
 
-            # Phase 1.G (2026-05-10): family_balance колонка остаётся до M8
-            # для backward-compat schema; пишем 0 явно. После M8 INSERT станет
-            # без этой колонки.
+            # Phase 1.G (2026-05-10): family_balance колонка удалена в M8.
+            # Sprint 5.20 fix (2026-05-20): убран family_balance из INSERT —
+            # прод падал с OperationalError: no column named family_balance.
             await conn.execute("""
-                INSERT INTO marriages (user1, user2, family_balance) VALUES (?, ?, 0)
+                INSERT INTO marriages (user1, user2) VALUES (?, ?)
             """, (request.user1, request.user2))
             await conn.commit()
         except Exception:
@@ -192,9 +192,10 @@ async def marriage_accept(request: Request):
             """, (u, u))
             if await cursor2.fetchone():
                 return {"success": False, "message": f"@{u} уже в браке"}
-        # Phase 1.G (2026-05-10): family_balance колонка backward-compat (см. выше).
+        # Phase 1.G (2026-05-10): family_balance удалена в M8.
+        # Sprint 5.20 fix (2026-05-20): убран family_balance из INSERT.
         await conn.execute("""
-            INSERT INTO marriages (user1, user2, family_balance) VALUES (?, ?, 0)
+            INSERT INTO marriages (user1, user2) VALUES (?, ?)
         """, (proposer, sender))
         await conn.execute("DELETE FROM marriage_proposals WHERE to_user=?", (sender,))
         await conn.commit()
@@ -214,6 +215,42 @@ async def marriage_accept(request: Request):
         "success": True,
         "message": f"💒 @{proposer} и @{sender} теперь в браке!",
     }
+
+
+@router.post("/api/marriage/reject")
+async def marriage_reject(request: Request):
+    """Отклонить конкретное предложение руки и сердца.
+
+    Sprint 5.20 (2026-05-20): добавлено для UX-симметрии с accept. Раньше
+    зритель мог только принять или игнорировать — теперь явный reject
+    DELETE'ит запись из marriage_proposals (от proposer'а к sender'у).
+    """
+    if err := await require_stream_live():
+        return err
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    sender, channel_id = auth
+
+    from dependencies import get_bot
+    await get_bot().touch_viewer(sender)
+
+    data = await request.json()
+    from_user = sanitize_username(data.get("from_user", ""))
+    if not from_user:
+        return {"success": False, "message": "Неверные параметры"}
+
+    db = get_db()
+    async with db._connect() as conn:
+        cursor = await conn.execute("""
+            DELETE FROM marriage_proposals WHERE from_user=? AND to_user=?
+        """, (from_user, sender))
+        await conn.commit()
+        deleted = cursor.rowcount
+
+    if not deleted:
+        return {"success": False, "message": "Предложение не найдено"}
+    return {"success": True, "message": f"💔 Предложение от @{from_user} отклонено"}
 
 
 @router.get("/api/marriage/proposals/{username}")

@@ -39,9 +39,10 @@ async function openFamily() {
                 <div style="text-align:center;">
                     ${proposals.length ? `<div style="margin-bottom:12px;background:#2d2d2f;padding:10px;border-radius:8px;text-align:left;">
                         <div style="font-size:12px;color:#ffd700;margin-bottom:6px;">💌 Входящие предложения:</div>
-                        ${proposals.map(u => `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                            <span style="font-size:13px;">💍 @${escapeHtml(u)}</span>
+                        ${proposals.map(u => `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:4px;">
+                            <span style="font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;">💍 @${escapeHtml(u)}</span>
                             <button class="modal-btn" style="padding:4px 10px;font-size:11px;margin:0;" data-accept-family="${encodeURIComponent(u)}">Принять</button>
+                            <button class="modal-btn cancel" style="padding:4px 10px;font-size:11px;margin:0;" data-reject-family="${encodeURIComponent(u)}">Отклонить</button>
                         </div>`).join('')}
                     </div>` : ''}
                     <div style="font-size:11px;color:#adadb8;margin-bottom:12px;">Брак — это статус и социальная связь.</div>
@@ -79,6 +80,25 @@ window.acceptFamilyProposal = async function(fromUser) {
         const d = await r.json();
         showNotification(d.message, d.success ? 'success' : 'error');
         if (d.success) { closeModal(); loadUserData(); }
+    } catch { showNotification('❌ Ошибка', 'error'); }
+};
+
+// Sprint 5.20: симметричный reject — DELETE предложения от конкретного proposer'а.
+// Модалка перерисовывается чтобы убрать отклонённую строку из списка.
+window.rejectFamilyProposal = async function(fromUser) {
+    try {
+        const r = await fetch(`${API_URL}/api/marriage/reject`, {
+            method: 'POST', headers: {'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || ''},
+            body: JSON.stringify({ from_user: fromUser })
+        });
+        const d = await r.json();
+        showNotification(d.message, d.success ? 'success' : 'error');
+        if (d.success) {
+            // Перерисовываем модалку с обновлённым списком предложений
+            const existing = document.getElementById('family-modal');
+            if (existing) existing.remove();
+            openFamily();
+        }
     } catch { showNotification('❌ Ошибка', 'error'); }
 };
 

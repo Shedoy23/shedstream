@@ -74,7 +74,7 @@ function setupCspSafeHandlers() {
 
     document.addEventListener('click', function(event) {
         // casino-bet-btn / slots-spin-btn / data-bet / data-slots-bet удалены 2026-05-10 (Phase 1.A)
-        const actionEl = event.target.closest('[data-action],[data-open-modal],[data-toggle-target],[data-close-self-modal],[data-accept-family],[data-close-modal],[data-cat],#create-pawn-btn,#heal-pawn-btn,#btn-resurrect,#market-refresh-btn,#stats-refresh-btn,#refresh-pawn-btn,#panel-hide-btn,#rulection-contribute-btn,#rulection-bid-btn,#promo-activate-btn,#create-colonist-btn');
+        const actionEl = event.target.closest('[data-action],[data-open-modal],[data-toggle-target],[data-close-self-modal],[data-accept-family],[data-reject-family],[data-close-modal],[data-cat],#create-pawn-btn,#heal-pawn-btn,#btn-resurrect,#market-refresh-btn,#stats-refresh-btn,#refresh-pawn-btn,#panel-hide-btn,#rulection-contribute-btn,#rulection-bid-btn,#promo-activate-btn,#create-colonist-btn');
         if (!actionEl) return;
 
         if (actionEl.hasAttribute('data-close-modal')) {
@@ -157,6 +157,12 @@ function setupCspSafeHandlers() {
         if (actionEl.dataset.acceptFamily) {
             const fromUser = decodeURIComponent(actionEl.dataset.acceptFamily);
             if (fromUser) acceptFamilyProposal(fromUser);
+            return;
+        }
+
+        if (actionEl.dataset.rejectFamily) {
+            const fromUser = decodeURIComponent(actionEl.dataset.rejectFamily);
+            if (fromUser) rejectFamilyProposal(fromUser);
             return;
         }
 

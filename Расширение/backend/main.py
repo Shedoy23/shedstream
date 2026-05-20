@@ -712,6 +712,16 @@ async def run_migrations():
             print(f"❌ M33 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M34: TTS audio_data BLOB ──
+        # Sprint 5.23 patch: OBS Browser Source плохо поддерживает Web Speech
+        # API — переключение на server-side gTTS + mp3 BLOB в DB.
+        try:
+            from migrations import m34_tts_audio_blob
+            await m34_tts_audio_blob.apply(conn)
+        except Exception as e:
+            print(f"❌ M34 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

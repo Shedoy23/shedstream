@@ -1493,24 +1493,18 @@ if (new URLSearchParams(location.search).get('preview') === '1') {
 }
 
 // ════════ TTS «Озвучить сообщение» (Sprint 5.23, 2026-05-21) ════════
-// Polling /api/overlay/tts/pending каждые 3s. Если есть pending message —
-// озвучиваем через speechSynthesis (Web Speech API, ru-RU голос),
-// на on-screen banner показываем «@user: text», после end → POST played.
+// Polling /api/overlay/tts/pending каждые 3s. Получаем audio_url с
+// pre-generated mp3 (gTTS на бэке), играем через <audio>.
 //
-// One-at-a-time: пока активна speech, не делаем новый poll (избегаем
-// race condition с overlapping speakers).
+// Web Speech API использовался в начальной версии, но OBS Browser Source
+// (Chromium-CEF) этот API поддерживает плохо — speechSynthesis.speak()
+// часто не выводит звук. Переключение на серверный mp3 + Audio() namного
+// надёжнее (OBS воспроизводит обычные audio elements без проблем).
+//
+// One-at-a-time: пока активен audio, не делаем новый poll.
 const TTS_POLL_INTERVAL = 3000;
 let _ttsBusy = false;
-let _ttsRussianVoice = null;
-
-function _selectRussianVoice() {
-    const voices = speechSynthesis.getVoices() || [];
-    // Приоритет: ru-RU > любой содержащий 'russian' в имени > первый ru-*
-    return voices.find(v => v.lang === 'ru-RU')
-        || voices.find(v => /russian/i.test(v.name || ''))
-        || voices.find(v => (v.lang || '').startsWith('ru'))
-        || null;
-}
+let _ttsCurrentAudio = null;
 
 async function pollTts() {
     if (_ttsBusy) return;
@@ -1519,24 +1513,20 @@ async function pollTts() {
             + (PETS_CHANNEL_ID > 0 ? `?channel_id=${PETS_CHANNEL_ID}` : '');
         const r = await fetch(url);
         const d = await r.json();
-        if (!d.success || !d.message) return;
-        _speakTts(d.message);
+        if (!d.success || !d.message || !d.message.audio_url) return;
+        _playTts(d.message);
     } catch (e) { /* silent */ }
 }
 
-function _speakTts(msg) {
+function _playTts(msg) {
     _ttsBusy = true;
     _showTtsBanner(msg.username, msg.text);
 
-    const u = new SpeechSynthesisUtterance(msg.text);
-    u.lang   = 'ru-RU';
-    u.rate   = 1.0;
-    u.pitch  = 1.0;
-    u.volume = 1.0;
-    if (!_ttsRussianVoice) _ttsRussianVoice = _selectRussianVoice();
-    if (_ttsRussianVoice) u.voice = _ttsRussianVoice;
+    const audio = new Audio(`${SERVER}${msg.audio_url}`);
+    _ttsCurrentAudio = audio;
 
     const onDone = async () => {
+        if (_ttsCurrentAudio === audio) _ttsCurrentAudio = null;
         _ttsBusy = false;
         _hideTtsBanner();
         try {
@@ -1547,12 +1537,18 @@ function _speakTts(msg) {
             });
         } catch (e) { /* silent */ }
     };
-    u.onend   = onDone;
-    u.onerror = onDone;
-    // Safety timeout — если speech не вызвал end за 60s (browser bug),
-    // принудительно завершаем чтобы не залип на одном сообщении.
-    setTimeout(() => { if (_ttsBusy) onDone(); }, 60000);
-    speechSynthesis.speak(u);
+    audio.onended = onDone;
+    audio.onerror = onDone;
+    // Safety timeout — если audio не воспроизвёлся за 60s (OBS audio
+    // routing bug или corrupt mp3), принудительно завершаем.
+    setTimeout(() => { if (_ttsBusy && _ttsCurrentAudio === audio) onDone(); }, 60000);
+
+    // play() возвращает Promise, отлавливаем reject (autoplay-policy
+    // блокировки в OBS).
+    audio.play().catch((err) => {
+        console.warn('[tts] audio.play() rejected:', err);
+        onDone();
+    });
 }
 
 function _showTtsBanner(username, text) {
@@ -1594,13 +1590,6 @@ function _hideTtsBanner() {
 }
 
 function initTts() {
-    // Pre-warm voices (некоторые браузеры лениво грузят)
-    if (typeof speechSynthesis !== 'undefined') {
-        speechSynthesis.onvoiceschanged = () => {
-            _ttsRussianVoice = _selectRussianVoice();
-        };
-        _ttsRussianVoice = _selectRussianVoice();
-    }
     setInterval(pollTts, TTS_POLL_INTERVAL);
 }
 </script>

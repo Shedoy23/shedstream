@@ -2,24 +2,36 @@
 routes/tts.py — Озвучка сообщений зрителями (Sprint 5.23, 2026-05-21).
 
 Платный TTS-донат: зритель за 5000💎 (TTS_COST) отправляет текст до 200
-символов, overlay'й стрима озвучивает через Web Speech API. Cooldown
-30s между сообщениями одного юзера.
+символов, overlay'й стрима воспроизводит mp3 через <audio>. Cooldown
+30s между сообщениями.
+
+Server-side TTS через gTTS (Google Translate TTS, free, ru-RU). На submit
+генерируем mp3, сохраняем как BLOB в tts_messages.audio_data. Overlay
+получает audio_url, играет через Audio().
+
+Архитектурное решение (Sprint 5.23 patch): изначально пробовали Web
+Speech API — speechSynthesis.speak() прямо в overlay.html. OBS Browser
+Source (Chromium-CEF) этот API поддерживает плохо: speak() не выводит
+аудио надёжно, события onend/onerror не всегда срабатывают. Переключение
+на серверный mp3 — robust для OBS.
 
 Endpoints:
   Viewer (JWT):
-    POST /api/tts/submit             — submit {message}, debit, queue
-  Overlay (public, channel_id query):
-    GET  /api/overlay/tts/pending    — oldest pending message для канала
-    POST /api/overlay/tts/played     — {id}, mark played после speechEnd
+    POST /api/tts/submit             — debit + gTTS-генерация + queue
+  Overlay (public):
+    GET  /api/overlay/tts/pending    — oldest pending + audio_url
+    POST /api/overlay/tts/played     — mark played после <audio> ended
+    GET  /api/tts/audio/{id}.mp3     — раздаёт mp3 из BLOB'а
 
 Compliance:
-  • Crystal-burn механика (внутренняя валюта, no real $).
-  • НЕТ модерации текста (per Sprint 5.23 решение) — ответственность на
-    стримере: банит обидчиков в чате/extension.
-  • Streamer-toggle off-by-default НЕ реализуем для MVP (если будет
-    abuse — потом добавим channel_tts_settings таблицу как у pets).
+  • Crystal-burn (no real $) — §5.2 OK.
+  • Без модерации текста (per решение).
 """
+import asyncio
+import io
+
 from fastapi import APIRouter, Request
+from fastapi.responses import Response
 
 from config import TTS_COST, TTS_COOLDOWN_S, TTS_MAX_LEN
 from dependencies import (
@@ -30,6 +42,16 @@ from dependencies import (
 router = APIRouter()
 
 _AUTH_FAIL = {"success": False, "message": "❌ Требуется авторизация Twitch"}
+
+
+def _generate_tts_mp3(text: str) -> bytes:
+    """Sync gTTS вызов — генерирует mp3 в память. Запускаем через
+    asyncio.to_thread из async endpoint'а чтобы не блочить event loop.
+    Raises Exception если gTTS API недоступен (offline / rate-limit)."""
+    from gtts import gTTS
+    buf = io.BytesIO()
+    gTTS(text=text, lang='ru', slow=False).write_to_fp(buf)
+    return buf.getvalue()
 
 
 @router.post("/api/tts/submit")
@@ -76,22 +98,38 @@ async def tts_submit(request: Request):
                 "message": f"⏳ Подожди ещё {remaining}s",
             }
 
-    # Balance check + debit
+    # Balance check (debit ПОСЛЕ успешной gTTS генерации чтобы при
+    # сетевой ошибке gTTS юзер не потерял крустики)
     points = await db.get_points(username)
     if points < TTS_COST:
         return {
             "success": False,
             "message": f"Нужно {TTS_COST}💎 (у тебя {points}💎)",
         }
+
+    # Generate mp3 через gTTS. Sync вызов → в thread pool.
+    try:
+        audio_bytes = await asyncio.to_thread(_generate_tts_mp3, message)
+    except Exception as e:
+        print(f"[tts] gTTS generation failed: {type(e).__name__}: {e}")
+        return {
+            "success": False,
+            "message": "❌ Ошибка TTS-сервиса, попробуй позже",
+        }
+
+    if not audio_bytes:
+        return {"success": False, "message": "❌ Пустой результат TTS"}
+
+    # Debit + queue
     if not await db.remove_points(username, TTS_COST):
         return {"success": False, "message": "Не удалось списать"}
 
-    # Queue
     async with db._connect() as conn:
         await conn.execute(
-            "INSERT INTO tts_messages (channel_id, username, message, cost) "
-            "VALUES (?, ?, ?, ?)",
-            (channel_id, username, message, TTS_COST)
+            "INSERT INTO tts_messages "
+            "(channel_id, username, message, cost, audio_data) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (channel_id, username, message, TTS_COST, audio_bytes)
         )
         await conn.commit()
 
@@ -132,8 +170,35 @@ async def tts_pending(channel_id: int = 0):
             "username":   row[1],
             "text":       row[2],
             "created_at": row[3],
+            "audio_url":  f"/api/tts/audio/{row[0]}.mp3",
         },
     }
+
+
+@router.get("/api/tts/audio/{msg_id}.mp3")
+async def tts_audio(msg_id: int):
+    """Раздаёт mp3 для конкретного message id из audio_data BLOB.
+
+    Public — overlay.html без auth. id указан в URL, по нему overlay
+    получает из /api/overlay/tts/pending. Кеширование браузером
+    отключено (Cache-Control: no-cache) — overlay скачивает каждый раз.
+    """
+    db = get_db()
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT audio_data FROM tts_messages WHERE id = ?",
+            (msg_id,)
+        )
+        row = await cur.fetchone()
+
+    if not row or not row[0]:
+        return Response(status_code=404)
+
+    return Response(
+        content=row[0],
+        media_type="audio/mpeg",
+        headers={"Cache-Control": "no-cache"},
+    )
 
 
 @router.post("/api/overlay/tts/played")

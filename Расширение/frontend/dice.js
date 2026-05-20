@@ -367,11 +367,17 @@ function _renderDicePvP(room) {
         document.getElementById('dice-roll-btn').addEventListener('click', _diceRollPvP);
     }
     if (finished) {
+        // Sprint 5.24 fix: останавливаем polling чтобы бэк не «выпиннул»
+        // result screen когда зачистит finished room (через 15s polling
+        // получали null → авто-переход в idle). Юзер сам жмёт «Сыграть
+        // ещё» → restart polling под новую очередь.
+        _stopDicePolling();
         document.getElementById('dice-new-game-btn').addEventListener('click', async () => {
             _diceCurrentRoomId = null;
             _renderDiceIdle();
             _loadDiceLeaderboard();
             if (typeof loadUserData === 'function') setTimeout(loadUserData, 500);
+            _startDicePolling();
         });
     }
 }

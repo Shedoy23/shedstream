@@ -1526,10 +1526,13 @@ function _playTts(msg) {
     _showTtsBanner(msg.username, msg.text);
 
     const audio = new Audio(`${SERVER}${msg.audio_url}`);
+    audio.preload = 'auto';
+    audio.volume = 1.0;
     _ttsCurrentAudio = audio;
 
     const onDone = async () => {
-        if (_ttsCurrentAudio === audio) _ttsCurrentAudio = null;
+        if (_ttsCurrentAudio !== audio) return;
+        _ttsCurrentAudio = null;
         _ttsBusy = false;
         _hideTtsBanner();
         try {
@@ -1542,16 +1545,9 @@ function _playTts(msg) {
     };
     audio.onended = onDone;
     audio.onerror = onDone;
-    // Safety timeout — если audio не воспроизвёлся за 60s (OBS audio
-    // routing bug или corrupt mp3), принудительно завершаем.
-    setTimeout(() => { if (_ttsBusy && _ttsCurrentAudio === audio) onDone(); }, 60000);
+    setTimeout(onDone, 60000);  // safety если onended не сработает
 
-    // play() возвращает Promise, отлавливаем reject (autoplay-policy
-    // блокировки в OBS).
-    audio.play().catch((err) => {
-        console.warn('[tts] audio.play() rejected:', err);
-        onDone();
-    });
+    audio.play().catch(onDone);  // autoplay-policy reject → пропускаем
 }
 
 function _showTtsBanner(username, text) {

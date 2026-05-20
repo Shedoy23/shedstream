@@ -287,6 +287,119 @@ html, body {
     display: inline-block;
 }
 
+/* ===== СЕКЦИИ «БОТ» (Sprint 5.19, 2026-05-20) =====
+   4 семантические группы: 🎮 Игры / 🤝 Социалка / 🎁 Награды / 📺 Канал.
+   Header — компактный, всегда виден, на mobile увеличенные tap targets.
+   .bot-grid auto-fit подгоняет 2–3 колонки в зависимости от ширины. */
+.bot-section {
+    margin-bottom: 14px;
+}
+
+.bot-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #adadb8;
+    padding: 0 2px 6px;
+    border-bottom: 1px solid #2d2d2f;
+    margin-bottom: 8px;
+}
+
+.bot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+    gap: 6px;
+}
+
+.bot-grid--two {
+    grid-template-columns: 1fr 1fr;
+}
+
+/* Компактный вариант .action-card — горизонтальный layout (иконка слева, текст справа) */
+.action-card.bot-card {
+    padding: 10px 10px;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-height: 56px;
+}
+
+.bot-card-icon {
+    font-size: 22px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.bot-card-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.bot-card-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #efeff1;
+    margin-bottom: 2px;
+    line-height: 1.15;
+    /* До 2 строк max — длинные слова («Крестики-нолики», «Голосование»)
+       перетекут на вторую строку вместо обрезания эллипсисом. */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+}
+
+.bot-card-sub {
+    font-size: 11px;
+    color: #adadb8;
+    line-height: 1.2;
+    /* Sub — одна строка с эллипсисом (компактно) */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Mobile / Twitch panel — горизонтальный icon+text не помещается в 3-col grid
+   (cards ~100-110px). Переключаем на вертикальный stack: icon сверху центр,
+   текст снизу. Title получает всю ширину карточки → длинные слова
+   («Крестики», «Промокод») умещаются в 1-2 строки. */
+@media (max-width: 480px) {
+    .action-card.bot-card {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 4px;
+        padding: 10px 6px;
+        min-height: 76px;
+    }
+    .bot-card-icon {
+        font-size: 22px;
+    }
+    .bot-card-body {
+        width: 100%;
+    }
+    .bot-section-title {
+        font-size: 12px;
+    }
+}
+
+/* Канал-секция (2-col) на mobile — оставляем horizontal, там карточки ~165px
+   широкие, длинные слова («Голосование», «Реклама») умещаются. */
+@media (max-width: 480px) {
+    .bot-grid--two .action-card.bot-card {
+        flex-direction: row;
+        align-items: center;
+        text-align: left;
+        gap: 9px;
+        padding: 12px 10px;
+        min-height: 60px;
+    }
+}
+
 /* ===== БАЗОВЫЕ КАРТОЧКИ ===== */
 .card {
     background: #1f1f23;

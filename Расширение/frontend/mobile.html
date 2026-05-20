@@ -51,100 +51,115 @@
         <button class="tab" data-tab="stats"><span class="tab-icon">📊</span><span class="tab-text">Стата</span></button>
     </div>
 
-    <!-- ===== БОТ ===== -->
+    <!-- ===== БОТ =====
+         Sprint 5.19 (2026-05-20): зеркало extension.html — 4 секции
+         (🎮 Игры / 🤝 Социалка / 🎁 Награды / 📺 Канал). Кейсы/Квесты/Промо
+         в секции Награды — клик открывает модалки. CSS в viewer.css (.bot-section,
+         .bot-grid, .bot-card). -->
     <div id="bot-tab" class="tab-content active">
-        <div class="actions-grid">
-            <!-- Casino + Slots action-cards удалены 2026-05-10 (Phase 1.A compliance rework) -->
-            <!-- Cases action-card удалён 2026-05-13 (Phase 8.C) — кейсы теперь
-                 в split-view «🎁 Кейсы» с кликом-открытием по строке -->
-            <div class="action-card" data-action="tictactoe">
-                <div class="action-icon">❌⭕</div>
-                <div class="action-title">Крестики-нолики</div>
-                <div class="action-desc">PvP-матч за ELO</div>
-                <div class="action-min">3×3</div>
-            </div>
-            <div class="action-card" data-action="dice">
-                <div class="action-icon">🎲</div>
-                <div class="action-title">Кубики</div>
-                <div class="action-desc">2d6: бот или PvP</div>
-                <div class="action-min">расслаб</div>
-            </div>
-            <div class="action-card" data-action="guilds">
-                <div class="action-icon">⚔️</div>
-                <div class="action-title">Гильдии</div>
-                <div class="action-desc">Соберись с другими</div>
-                <div class="action-min">от 100k</div>
-            </div>
-            <div class="action-card" data-action="voting">
-                <div class="action-icon">🗳️</div>
-                <div class="action-title">Голосование</div>
-                <div class="action-desc">Реши что играет стример</div>
-                <div class="action-min">за крустики</div>
-            </div>
-            <div class="action-card" data-action="pets">
-                <div class="action-icon">🐾</div>
-                <div class="action-title">Питомец</div>
-                <div class="action-desc">Косметика и инвентарь</div>
-                <div class="action-min">cross-channel</div>
-            </div>
-            <div class="action-card" data-action="duels">
-                <div class="action-icon">⚔️</div>
-                <div class="action-title">Дуэли</div>
-                <div class="action-desc">Сразись с другим</div>
-                <div class="action-min" id="duel-count">0 активных</div>
-            </div>
-            <div class="action-card" data-action="advertisement">
-                <div class="action-icon">📢</div>
-                <div class="action-title">Реклама</div>
-                <div class="action-desc">Ваша реклама здесь</div>
-            </div>
-            <!-- transfer action-card удалён 2026-05-10 (Phase 1.D compliance rework — P2P transfer) -->
-            <div class="action-card" data-action="family">
-                <div class="action-icon">💍</div>
-                <div class="action-title">Семья</div>
-                <div class="action-desc" id="family-status-desc">Вступить в брак</div>
-                <div class="action-min">+5💎/мин вместе</div>
-            </div>
-        </div>
 
-        <div class="split-view">
-            <div class="card">
-                <div class="card-header">
-                    <h3>🎁 Кейсы</h3>
-                    <span class="card-badge" id="inventory-count">0</span>
+        <!-- 🎮 Игры -->
+        <div class="bot-section">
+            <div class="bot-section-title">🎮 Игры</div>
+            <div class="bot-grid">
+                <div class="action-card bot-card" data-action="tictactoe">
+                    <div class="bot-card-icon">❌⭕</div>
+                    <div class="bot-card-body">
+                        <div class="bot-card-title">Крестики</div>
+                        <div class="bot-card-sub" id="ttt-state">PvP · ELO</div>
+                    </div>
                 </div>
-                <div class="inventory-list" id="inventory-list">
-                    <div class="loading">Загрузка...</div>
+                <div class="action-card bot-card" data-action="dice">
+                    <div class="bot-card-icon">🎲</div>
+                    <div class="bot-card-body">
+                        <div class="bot-card-title">Кубики</div>
+                        <div class="bot-card-sub" id="dice-state">2d6 · бот/PvP</div>
+                    </div>
                 </div>
-                <button class="rulection-btn" data-action="cases" id="cases-open-btn"
-                        style="width:100%;margin-top:8px;">
-                    🎁 Открыть кейсы
-                </button>
-            </div>
-            <div class="card">
-                <div class="card-header">
-                    <h3>📜 Квесты</h3>
-                    <span class="card-badge" id="quest-count">0</span>
-                </div>
-                <div class="quests-list" id="quests-list">
-                    <div class="loading">Загрузка...</div>
+                <div class="action-card bot-card" data-action="duels">
+                    <div class="bot-card-icon">⚔️</div>
+                    <div class="bot-card-body">
+                        <div class="bot-card-title">Дуэли</div>
+                        <div class="bot-card-sub" id="duel-count">0 активных</div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Рулекцион-блок удалён 2026-05-13 (Phase 8.C) —
-             механика replaced на Voting events (см. action-card «🗳️ Голосование»).
-             Раньше: contribute → roulette/auction. Теперь: contribute через
-             watch_time/chat → voting event auto-starts (см. m12_voting.py). -->
+        <!-- 🤝 Социалка -->
+        <div class="bot-section">
+            <div class="bot-section-title">🤝 Социалка</div>
+            <div class="bot-grid">
+                <div class="action-card bot-card" data-action="pets">
+                    <div class="bot-card-icon">🐾</div>
+                    <div class="bot-card-body">
+                        <div class="bot-card-title">Питомец</div>
+                        <div class="bot-card-sub" id="pets-state">Косметика</div>
+                    </div>
+                </div>
+                <div class="action-card bot-card" data-action="family">
+                    <div class="bot-card-icon">💍</div>
+                    <div class="bot-card-body">
+                        <div class="bot-card-title">Семья</div>
+                        <div class="bot-card-sub" id="family-status-desc">Свободен</div>
+                    </div>
+                </div>
+                <div class="action-card bot-card" data-action="guilds">
+                    <div class="bot-card-icon">🛡️</div>
+                    <div class="bot-card-body">
+                        <div class="bot-card-title">Гильдия</div>
+                        <div class="bot-card-sub" id="guild-state">Не состоишь</div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-        <!-- Промокод -->
-        <div class="card">
-            <div class="card-header"><h3>🎁 Промокод</h3></div>
-            <div class="rulection-input-row">
-                <input type="text" id="promo-input" class="rulection-input"
-                    placeholder="Введи промокод..."
-                    style="text-transform:uppercase;letter-spacing:1px;margin-bottom:0;">
-                <button id="promo-activate-btn" class="rulection-btn">✅ Активировать</button>
+        <!-- 🎁 Награды -->
+        <div class="bot-section">
+            <div class="bot-section-title">🎁 Награды</div>
+            <div class="bot-grid">
+                <div class="action-card bot-card" data-action="cases">
+                    <div class="bot-card-icon">🎁</div>
+                    <div class="bot-card-body">
+                        <div class="bot-card-title">Кейсы</div>
+                        <div class="bot-card-sub" id="inventory-count">0 закрытых</div>
+                    </div>
+                </div>
+                <div class="action-card bot-card" data-action="quests">
+                    <div class="bot-card-icon">📜</div>
+                    <div class="bot-card-body">
+                        <div class="bot-card-title">Квесты</div>
+                        <div class="bot-card-sub" id="quest-count">0/0</div>
+                    </div>
+                </div>
+                <div class="action-card bot-card" data-action="promo">
+                    <div class="bot-card-icon">💌</div>
+                    <div class="bot-card-body">
+                        <div class="bot-card-title">Промокод</div>
+                        <div class="bot-card-sub">Введи код</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 📺 Канал -->
+        <div class="bot-section">
+            <div class="bot-section-title">📺 Канал</div>
+            <div class="bot-grid bot-grid--two">
+                <div class="action-card bot-card" data-action="voting">
+                    <div class="bot-card-icon">🗳️</div>
+                    <div class="bot-card-body">
+                        <div class="bot-card-title">Голосование</div>
+                        <div class="bot-card-sub" id="voting-state">Реши что играет стример</div>
+                    </div>
+                </div>
+                <div class="action-card bot-card" data-action="advertisement">
+                    <div class="bot-card-icon">📢</div>
+                    <div class="bot-card-body">
+                        <div class="bot-card-title">Реклама</div>
+                        <div class="bot-card-sub">Ваша реклама здесь</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -367,19 +382,19 @@
     <!-- cache-bust v: обновить при любой правке JS, чтобы Twitch-CDN и браузер
          перечитали файлы (расширения агрессивно кешируют .js). -->
     <!-- market.js удалён 2026-05-10 (Phase 1.C compliance rework) -->
-    <script src="pawn.js?v=20260516d"></script>
-    <script src="shop.js?v=20260516d"></script>
+    <script src="pawn.js?v=20260520a"></script>
+    <script src="shop.js?v=20260520a"></script>
     <!-- casino.js удалён 2026-05-10 (Phase 1.A compliance rework) -->
-    <script src="cases.js?v=20260516d"></script>
-    <script src="tictactoe.js?v=20260516d"></script>
-    <script src="dice.js?v=20260516d"></script>
-    <script src="guilds.js?v=20260516d"></script>
-    <script src="voting.js?v=20260516d"></script>
-    <script src="pets.js?v=20260516d"></script>
-    <script src="family.js?v=20260516d"></script>
-    <script src="duels.js?v=20260516d"></script>
-    <script src="xenotype.js?v=20260516d"></script>
-    <script src="viewer.js?v=20260516d"></script>
+    <script src="cases.js?v=20260520a"></script>
+    <script src="tictactoe.js?v=20260520a"></script>
+    <script src="dice.js?v=20260520a"></script>
+    <script src="guilds.js?v=20260520a"></script>
+    <script src="voting.js?v=20260520a"></script>
+    <script src="pets.js?v=20260520a"></script>
+    <script src="family.js?v=20260520a"></script>
+    <script src="duels.js?v=20260520a"></script>
+    <script src="xenotype.js?v=20260520a"></script>
+    <script src="viewer.js?v=20260520a"></script>
     </div><!-- /panel-content -->
 </div><!-- /overlay-panel -->
 

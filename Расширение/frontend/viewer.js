@@ -187,6 +187,9 @@ function setupCspSafeHandlers() {
         else if (action === 'pets') openPetsModal();
         else if (action === 'duels') openDuels();
         else if (action === 'advertisement') openAdvertisement();
+        // Sprint 5.19: квесты/промо переехали из inline-блоков в модалки
+        else if (action === 'quests') openQuestsModal();
+        else if (action === 'promo') openPromoModal();
         // 'transfer' action удалён 2026-05-10 (Phase 1.D compliance rework — P2P transfer)
         else if (action === 'family') openFamily();
         else if (action === 'refresh-shop-catalog') loadShopCatalog();
@@ -1024,13 +1027,11 @@ let _cachedInventory = [];
 // Items были utility (passive income) — §5.3 ban. Кейсы — fixed-reward
 // активити (§6.2.4 compliant, see migrations/m9_cases.py).
 //
-// ВАЖНО: name collision — в cases.js есть СВОЯ renderCases() для модалки.
-// viewer.js грузится ПОСЛЕ cases.js → его function declarations перебивают
-// глобальный scope. Поэтому здесь имя `renderInventoryCases`.
+// Sprint 5.19 (2026-05-20): inventory-list div убран из bot-tab (кейсы теперь
+// открываются модалкой через openCasesModal в cases.js). Функция оставлена
+// чтобы обновлять badge `inventory-count` в секции «🎁 Награды» из loadUserData.
+// Если inventory-list где-то всё ещё есть — рендерим (backward-compat).
 function renderInventoryCases(unopenedCounts) {
-    const container = document.getElementById('inventory-list');
-    if (!container) return;
-
     const tiers = [
         { key: 'legendary', emoji: '👑', label: 'Легендарный', color: '#fbbf24' },
         { key: 'epic',      emoji: '💠', label: 'Эпический',   color: '#a855f7' },
@@ -1040,7 +1041,10 @@ function renderInventoryCases(unopenedCounts) {
 
     const total = tiers.reduce((s, t) => s + (unopenedCounts[t.key] || 0), 0);
     const countEl = document.getElementById('inventory-count');
-    if (countEl) countEl.textContent = total;
+    if (countEl) countEl.textContent = total > 0 ? `${total} закрытых` : 'Нет закрытых';
+
+    const container = document.getElementById('inventory-list');
+    if (!container) return;  // Sprint 5.19: норма — div больше не в main view
 
     if (total === 0) {
         container.innerHTML = `
@@ -2919,20 +2923,31 @@ document.addEventListener('click', (ev) => {
     }
 });
 
-// ===== РЫНОК =====
+// Sprint 5.19 (2026-05-20): quests-list div переехал из bot-tab в модалку
+// (openQuestsModal). Кешируем quests чтобы при открытии модалки сразу
+// показать актуальные данные без повторного fetch.
+let _cachedQuests = [];
+
 function renderQuests(quests) {
+    _cachedQuests = quests || [];
+
+    const completed = _cachedQuests.filter(q => q.completed).length;
+    const countEl = document.getElementById('quest-count');
+    if (countEl) {
+        countEl.textContent = _cachedQuests.length === 0
+            ? 'Нет квестов'
+            : `${completed}/${_cachedQuests.length}`;
+    }
+
+    // Рендерим только если div quests-list виден (т.е. модалка открыта)
     const container = document.getElementById('quests-list');
     if (!container) return;
-    
-    const completed = quests.filter(q => q.completed).length;
-    const countEl = document.getElementById('quest-count');
-    if (countEl) countEl.textContent = `${completed}/${quests.length}`;
-    
+
     if (!quests || quests.length === 0) {
         container.innerHTML = '<div class="loading">Нет активных квестов</div>';
         return;
     }
-    
+
     let html = '';
     quests.forEach(quest => {
         const progress = (quest.current / quest.target) * 100;
@@ -2950,6 +2965,72 @@ function renderQuests(quests) {
         `;
     });
     container.innerHTML = html;
+}
+
+// ===== МОДАЛКИ КВЕСТОВ И ПРОМО (Sprint 5.19, 2026-05-20) =====
+// Раньше квесты + промо жили inline на «Бот» вкладке. Теперь — три
+// компактные кнопки в секции «🎁 Награды» открывают модалки.
+
+function openQuestsModal() {
+    let modal = document.getElementById('quests-modal');
+    if (modal) modal.remove();
+    modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.id = 'quests-modal';
+
+    const completed = _cachedQuests.filter(q => q.completed).length;
+    const totalCount = _cachedQuests.length;
+    const subtitle = totalCount === 0
+        ? 'Сегодня квестов нет'
+        : `Выполнено ${completed}/${totalCount}`;
+
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width:480px;max-height:85vh;overflow-y:auto;">
+            <h2 style="display:flex;align-items:center;justify-content:space-between;">
+                <span>📜 Квесты</span>
+                <span style="font-size:13px;color:#adadb8;font-weight:500;">${subtitle}</span>
+            </h2>
+            <div id="quests-list" class="quests-list" style="margin-bottom:12px;">
+                <div class="loading">Загрузка...</div>
+            </div>
+            <button class="modal-btn cancel" data-action="close-modal" style="width:100%;">
+                Закрыть
+            </button>
+        </div>
+    `;
+    (document.getElementById('overlay-panel') || document.body).appendChild(modal);
+    // Сразу рендерим из кеша (loadUserData уже вызвал renderQuests до открытия)
+    renderQuests(_cachedQuests);
+}
+
+function openPromoModal() {
+    let modal = document.getElementById('promo-modal');
+    if (modal) modal.remove();
+    modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.id = 'promo-modal';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width:380px;">
+            <h2>💌 Промокод</h2>
+            <p style="margin-bottom:14px;color:#adadb8;font-size:12px;">
+                Введи активный промокод и получи бонус.
+            </p>
+            <input type="text" id="promo-input" class="modal-input"
+                placeholder="Промокод..."
+                style="text-transform:uppercase;letter-spacing:1.5px;text-align:center;margin-bottom:10px;">
+            <div style="display:flex;gap:8px;">
+                <button id="promo-activate-btn" class="modal-btn" style="flex:1;">
+                    ✅ Активировать
+                </button>
+                <button class="modal-btn cancel" data-action="close-modal" style="flex:1;">
+                    Отмена
+                </button>
+            </div>
+        </div>
+    `;
+    (document.getElementById('overlay-panel') || document.body).appendChild(modal);
+    // Автофокус на input для удобства мобильного ввода
+    setTimeout(() => document.getElementById('promo-input')?.focus(), 50);
 }
 
 // ===== КОЛОНИСТЫ =====

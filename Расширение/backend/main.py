@@ -681,6 +681,16 @@ async def run_migrations():
             print(f"❌ M30 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M31: deprecate 4 misfit items ──
+        # Emoji с встроенным человеческим телом (маска/галстук/ковбойская/шарф)
+        # плохо смотрелись на blob'е — deprecated.
+        try:
+            from migrations import m31_pets_deprecate_misfits
+            await m31_pets_deprecate_misfits.apply(conn)
+        except Exception as e:
+            print(f"❌ M31 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

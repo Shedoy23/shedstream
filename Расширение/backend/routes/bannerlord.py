@@ -391,6 +391,22 @@ _PURCHASABLE_ACTIONS = (
     "hero.create_party",         # Sprint 5.13: clan-leader creates MobileParty (Hero.Gold 200K)
 )
 
+# Sprint 5.18 (refactor): helper для повторяющегося Hero.Gold pre-check.
+# Используется в нескольких action handlers (create_clan, create_kingdom,
+# join_clan, join_kingdom, create_party, recruit_troops, add_focus,
+# add_attribute, upgrade_gear). Source-of-truth — backend cache
+# `bannerlord_heroes.gold` (mod пушит на каждом HeroStateSync).
+async def _fetch_hero_gold(channel_id: int, username: str) -> int:
+    """Возвращает cached Hero.Gold (или 0 если героя нет)."""
+    db = get_db()
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT gold FROM bannerlord_heroes WHERE channel_id=? AND username=?",
+            (channel_id, username))
+        row = await cur.fetchone()
+    return (row[0] if row else 0) or 0
+
+
 # Sprint 5.9: clan creation cost — mirror C# CreateClanHandler.CREATE_COST.
 CLAN_CREATE_COST = 1_000_000   # 1M динаров
 
@@ -892,13 +908,7 @@ async def bannerlord_buy_action(request: Request):
         # Точная стоимость зависит от текущего focus в skill (mod знает),
         # но мы здесь делаем conservative check на самый низкий tier.
         # Mod сам проверит реальную стоимость и откажет если не хватит.
-        db_tmp = get_db()
-        async with db_tmp._connect() as conn:
-            cur = await conn.execute(
-                "SELECT gold FROM bannerlord_heroes WHERE channel_id=? AND username=?",
-                (channel_id, username))
-            row = await cur.fetchone()
-        hero_gold = (row[0] if row else 0) or 0
+        hero_gold = await _fetch_hero_gold(channel_id, username)
         min_needed = FOCUS_TIER_COSTS[0] * amount  # хотя бы amount × cheapest tier
         if hero_gold < min_needed:
             return {
@@ -929,13 +939,7 @@ async def bannerlord_buy_action(request: Request):
             }
 
         cost = ATTRIBUTE_COST * amount
-        db_tmp = get_db()
-        async with db_tmp._connect() as conn:
-            cur = await conn.execute(
-                "SELECT gold FROM bannerlord_heroes WHERE channel_id=? AND username=?",
-                (channel_id, username))
-            row = await cur.fetchone()
-        hero_gold = (row[0] if row else 0) or 0
+        hero_gold = await _fetch_hero_gold(channel_id, username)
         if hero_gold < cost:
             return {
                 "success": False,
@@ -1042,13 +1046,7 @@ async def bannerlord_buy_action(request: Request):
             return {"success": False, "message": "Имя клана обязательно"}
         if len(clan_name_in) > 64:
             return {"success": False, "message": "Имя клана слишком длинное"}
-        db_tmp = get_db()
-        async with db_tmp._connect() as conn:
-            cur = await conn.execute(
-                "SELECT gold FROM bannerlord_heroes WHERE channel_id=? AND username=?",
-                (channel_id, username))
-            row = await cur.fetchone()
-        hero_gold = (row[0] if row else 0) or 0
+        hero_gold = await _fetch_hero_gold(channel_id, username)
         if hero_gold < CLAN_JOIN_COST:
             return {
                 "success": False,

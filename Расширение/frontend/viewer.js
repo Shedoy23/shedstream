@@ -1555,56 +1555,10 @@ function _renderRetinue(retinue) {
     });
 }
 
-// Sprint M21 — gear upgrade button (hero.upgrade_gear).
-// БЕСПЛАТНО в крустиках; mod-side списывает Hero.Gold (in-game динары).
-// Tier-based progression: 0→1→…→6.
-function renderBannerlordGearUpgradeHtml() {
-    const currentTier = _bannerlordCurrentGearTier || 0;
-    const hasClass = !!_bannerlordClassesCache?.current?.class_key;
-
-    if (currentTier >= 6) {
-        return `
-            <div style="padding:6px 10px;border-top:1px solid #3d3d3f;margin-top:4px;">
-                <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">
-                    🛡 Снаряжение
-                </div>
-                <div style="font-size:11px;color:#fbbf24;text-align:center;padding:4px;">
-                    T6 ★ — максимум достигнут
-                </div>
-            </div>`;
-    }
-
-    const targetTier = currentTier + 1;
-    const heroGoldCost = HERO_GOLD_TIER_COSTS[targetTier] || 0;
-    const noClass = !hasClass;
-    const title = noClass
-        ? 'Сначала выбери класс — он определяет slot template'
-        : `Прокачать снаряжение: T${currentTier} → T${targetTier}. Списываются ${heroGoldCost.toLocaleString('ru-RU')} динаров у героя в игре (НЕ крустики).`;
-
-    return `
-        <div style="padding:6px 10px;border-top:1px solid #3d3d3f;margin-top:4px;">
-            <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">
-                🛡 Снаряжение (текущий: ${currentTier === 0 ? 'базовое' : 'T' + currentTier}) — оплата in-game динарами героя
-            </div>
-            <button class="extra-btn" id="bnr-upgrade-gear-btn"
-                    ${noClass ? 'disabled' : ''}
-                    title="${escapeHtml(title)}"
-                    style="width:100%;font-size:12px;padding:6px;
-                           ${noClass ? 'opacity:0.5;cursor:not-allowed;' : ''}">
-                ⚒ Улучшить до T${targetTier}
-                <span style="color:#fbbf24;">${_formatBigGold(heroGoldCost)}</span>
-            </button>
-        </div>`;
-}
-
-function _bindBannerlordGearUpgrade() {
-    const btn = document.getElementById('bnr-upgrade-gear-btn');
-    if (!btn || btn.disabled) return;
-    btn.addEventListener('click', () => {
-        // Server resolves target_tier; крустики price=0 (mod деducts Hero.Gold).
-        _bannerlordBuyAction('hero.upgrade_gear', {});
-    });
-}
+// Sprint M21 → 5.10: gear upgrade button перенесена inline в hero card
+// (рядом с "🛡 Снаряжение: T2 ★ [⚒ T3 (100K💰)]"). Раньше был отдельный
+// shop-блок renderBannerlordGearUpgradeHtml + _bindBannerlordGearUpgrade —
+// удалены в 5.18 cleanup. См. inline binding в loadBannerlordHero.
 
 // Sprint M21 — конверт крустики → in-game динары (1:5) и крустики → skill XP.
 // Цены server-side enforced (GIVE_GOLD_PRESETS / ADD_SKILL_XP_PRESETS).
@@ -1705,48 +1659,9 @@ const BNR_ATTR_ICONS = {
 const BNR_FOCUS_TIER_COSTS = [30000, 40000, 50000, 60000, 75000];
 const BNR_ATTRIBUTE_COST = 50000;
 
-function renderBannerlordProgressionHtml() {
-    const skillOptions = `<option value="">— random skill —</option>` +
-        BNR_SKILLS.map(s => `<option value="${s}">${BNR_SKILL_LABELS_RU[s] || s}</option>`).join('');
-    const attrOptions = `<option value="">— random attribute —</option>` +
-        BNR_ATTRIBUTES.map(a => `<option value="${a}">${BNR_ATTR_LABELS_RU[a] || a}</option>`).join('');
-
-    return `
-        <div style="padding:6px 10px;border-top:1px solid #3d3d3f;margin-top:4px;">
-            <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">
-                🎯 Фокус в скилл — оплата in-game динарами (30K-75K по уровню)
-            </div>
-            <div style="display:flex;gap:4px;margin-bottom:4px;">
-                <select id="bnr-focus-skill"
-                        style="flex:1;background:#2d2d2f;color:#efeff1;border:1px solid #3d3d3f;
-                               padding:5px;font-size:11px;border-radius:3px;">
-                    ${skillOptions}
-                </select>
-                <button class="extra-btn" id="bnr-focus-btn"
-                        title="Добавить +1 focus в выбранный (или random) skill. Cost 30K-75K динаров tier-based."
-                        style="font-size:11px;padding:5px 10px;">
-                    🎯 +1
-                </button>
-            </div>
-        </div>
-        <div style="padding:6px 10px;border-top:1px solid #3d3d3f;margin-top:4px;">
-            <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">
-                💪 Атрибут — оплата in-game динарами (50K за поинт)
-            </div>
-            <div style="display:flex;gap:4px;margin-bottom:4px;">
-                <select id="bnr-attr-select"
-                        style="flex:1;background:#2d2d2f;color:#efeff1;border:1px solid #3d3d3f;
-                               padding:5px;font-size:11px;border-radius:3px;">
-                    ${attrOptions}
-                </select>
-                <button class="extra-btn" id="bnr-attr-btn"
-                        title="Добавить +1 attribute point в выбранный (или random) attribute. Cost 50K динаров."
-                        style="font-size:11px;padding:5px 10px;">
-                    💪 +1
-                </button>
-            </div>
-        </div>`;
-}
+// Sprint 5.8 → 5.8c: ранее был renderBannerlordProgressionHtml (dropdown в shop)
+// + _bindBannerlordProgression. Удалено в 5.8c — invest-кнопки перенесены
+// внутрь progression modal (per-row + buttons). См. _openBannerlordProgressionModal.
 
 // Sprint 5.8: Progression modal — отображает все скиллы (level + focus stars)
 // + 6 атрибутов. Открывается по кнопке "🎯 Прогрессия" в hero card.
@@ -2286,25 +2201,6 @@ function _openBannerlordCreateClanDialog() {
         if (e.key === 'Enter') confirm();
         if (e.key === 'Escape') close();
     });
-}
-
-function _bindBannerlordProgression() {
-    const focusBtn = document.getElementById('bnr-focus-btn');
-    if (focusBtn) {
-        focusBtn.addEventListener('click', () => {
-            const select = document.getElementById('bnr-focus-skill');
-            const skill_key = select ? select.value : '';
-            _bannerlordBuyAction('hero.add_focus', { skill_key, amount: 1 });
-        });
-    }
-    const attrBtn = document.getElementById('bnr-attr-btn');
-    if (attrBtn) {
-        attrBtn.addEventListener('click', () => {
-            const select = document.getElementById('bnr-attr-select');
-            const attribute_key = select ? select.value : '';
-            _bannerlordBuyAction('hero.add_attribute', { attribute_key, amount: 1 });
-        });
-    }
 }
 
 function _bindBannerlordRandomEquip() {
@@ -2905,38 +2801,33 @@ async function loadBannerlordShop() {
     const cnt  = document.getElementById('bannerlord-shop-count');
     if (!list) return;
     // Sprint M19+M20+M21: random-equip + gear-upgrade + currency (gold/XP) сверху.
+    // Sprint 5.10/5.8c: gear-upgrade перенесён в hero card (inline кнопка);
+    // progression — в modal (per-row + buttons). В shop остались только
+    // randomEquip + currency converters.
     const randomEquipBlock = renderBannerlordRandomEquipHtml();
-    // Sprint 5.10: gear-upgrade перенесён в hero card (inline кнопка рядом с tier label)
-    const gearUpgradeBlock = '';
     const currencyBlock = renderBannerlordCurrencyHtml();
-    // Sprint 5.8c: progression block перенесён в hero card modal (по строчным "+" кнопкам)
-    const progressionBlock = '';
     try {
         const r = await fetch(`${API_URL}/api/bannerlord/shop`, {
             headers: { 'X-Twitch-JWT': authToken || '' },
         });
         const data = await r.json();
         if (!data.success) {
-            list.innerHTML = randomEquipBlock + gearUpgradeBlock + currencyBlock + progressionBlock +
+            list.innerHTML = randomEquipBlock + currencyBlock +
                 `<div class="loading">${escapeHtml(data.message || 'Ошибка')}</div>`;
             _bindBannerlordRandomEquip();
-            _bindBannerlordGearUpgrade();
             _bindBannerlordCurrency();
-            _bindBannerlordProgression();
             return;
         }
         const items = data.items || [];
-        // +3 random-equip + 1 gear-upgrade + 3 give_gold + 3 add_skill = +10
-        if (cnt) cnt.textContent = items.length + 10;
+        // +3 random-equip + 3 give_gold + 3 add_skill = +9 fixed actions
+        if (cnt) cnt.textContent = items.length + 9;
         if (items.length === 0) {
-            list.innerHTML = randomEquipBlock + gearUpgradeBlock + currencyBlock + progressionBlock + `
+            list.innerHTML = randomEquipBlock + currencyBlock + `
                 <div style="text-align:center;padding:14px;font-size:11px;color:#adadb8;border-top:1px solid #3d3d3f;margin-top:6px;">
                     Каталог пуст. Мод пришлёт shop-данные когда стример запустит игру.
                 </div>`;
             _bindBannerlordRandomEquip();
-            _bindBannerlordGearUpgrade();
             _bindBannerlordCurrency();
-            _bindBannerlordProgression();
             return;
         }
         // Каждый item — {catalog_type, entry_id, name?, price?, action_type?, ...}
@@ -2961,11 +2852,9 @@ async function loadBannerlordShop() {
                     </button>
                 </div>`;
         }).join('');
-        list.innerHTML = randomEquipBlock + gearUpgradeBlock + currencyBlock + progressionBlock + catalogHtml;
+        list.innerHTML = randomEquipBlock + currencyBlock + catalogHtml;
         _bindBannerlordRandomEquip();
-        _bindBannerlordGearUpgrade();
         _bindBannerlordCurrency();
-        _bindBannerlordProgression();
         // Bind buy handlers для catalog items
         list.querySelectorAll('[data-bnr-buy]').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -2975,11 +2864,9 @@ async function loadBannerlordShop() {
             });
         });
     } catch (e) {
-        list.innerHTML = randomEquipBlock + gearUpgradeBlock + currencyBlock + progressionBlock +
+        list.innerHTML = randomEquipBlock + currencyBlock +
             `<div class="loading" style="color:#f87171;">Ошибка сети</div>`;
         _bindBannerlordRandomEquip();
-        _bindBannerlordProgression();
-        _bindBannerlordGearUpgrade();
         _bindBannerlordCurrency();
     }
 }

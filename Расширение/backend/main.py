@@ -1073,6 +1073,10 @@ async def on_startup():
     # TTL cleanup для eventsub_seen — раз в час чистит expired (24h retention).
     from eventsub import cleanup_seen_loop as _eventsub_cleanup
     asyncio.create_task(_eventsub_cleanup())
+    # Phase C (2026-05-17): PubSub drain loop — pop'ит per-topic queue с
+    # throttle 1msg/sec на (channel, topic) и шлёт в Helix /extensions/pubsub.
+    from pubsub import drain_loop as _pubsub_drain
+    asyncio.create_task(_pubsub_drain())
     # M4 follow-up (б): держим OAuth-токены стримеров свежими.
     from routes.streamer import oauth_refresh_loop as _oauth_refresh_loop
     asyncio.create_task(_oauth_refresh_loop())
@@ -1080,9 +1084,10 @@ async def on_startup():
     # бесконечного роста WAL-файла. PASSIVE раз в час; раз в сутки —
     # RESTART для более глубокой компактизации.
     asyncio.create_task(_wal_checkpoint_loop())
-    # Сезоны дуэлей — проверка при старте по каждому каналу + восстановление pending
+    # Сезоны дуэлей — проверка при старте по каждому каналу.
+    # _load_pending_duels удалён 2026-05-17 (T2) — pending_duels table dropped
+    # миграцией M10, persistence теперь in-memory only (5min TTL короче рестартов).
     from routes.duel import check_season_end as _duel_season_check
-    from routes.duel import load_pending_duels as _load_pending_duels
 
     async def _check_all_channel_seasons():
         """M4 follow-up (а): итерация check_season_end по реестру каналов.
@@ -1100,10 +1105,6 @@ async def on_startup():
                 print(f"⚠️ check_season_end({cid}) failed: {e}")
 
     asyncio.create_task(_check_all_channel_seasons())
-    try:
-        await _load_pending_duels()
-    except Exception as e:
-        print(f"⚠️ Не удалось загрузить pending-дуэли: {e}")
     print("✅ Сервер запущен")
 
 if __name__ == "__main__":

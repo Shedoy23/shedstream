@@ -104,6 +104,27 @@ async def voting_bid(request: Request):
     )
 
     if result.get("placed"):
+        # Phase C (2026-05-17): immediate vote_tick broadcast — другие зрители
+        # увидят updated pool в течение 1 сек (throttle), без 4-сек polling.
+        # voting_loop ещё fire'ит vote_tick раз/10s как baseline (race-safe:
+        # frontend dedupe'ит по seq, последний выигрывает).
+        try:
+            from pubsub import broadcast as _pubsub_broadcast
+            state = await db.get_active_voting_event(channel_id=channel_id)
+            if state:
+                _pubsub_broadcast(channel_id, "vote_tick", {
+                    "event_id":   state["event_id"],
+                    "total_pool": state["total_pool"],
+                    "options": [
+                        {"id": o["id"], "pool": o["pool"]}
+                        for o in state["options"]
+                    ],
+                })
+        except Exception as e:
+            import logging
+            logging.getLogger("rimlink.voting").warning(
+                "post-bid vote_tick broadcast failed: %s", e
+            )
         return {
             "success":    True,
             "event_id":   result["event_id"],

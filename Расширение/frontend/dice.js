@@ -9,12 +9,15 @@
 //   - Animation: dice rolling 0.8s — простой emoji shuffle
 
 const DICE_GAME_TYPE = 'dice';
-const DICE_POLL_INTERVAL_MS = 3000;
+// Phase C (2026-05-17): PubSub realtime push для match_state. Polling
+// fallback для queue tick: 3s → 15s.
+const DICE_POLL_INTERVAL_MS = 15000;
 
 let _dicePollId = null;
 let _diceCurrentRoomId = null;
 let _diceMoveLocked = false;
 let _diceLastState = null;
+let _diceRealtimeUnsub = null;
 
 const _DICE_EMOJI = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
 
@@ -26,6 +29,20 @@ async function openDiceModal() {
     _renderDiceModal();
     await _diceRefreshStatus();
     _startDicePolling();
+    _subscribeDiceRealtime();
+}
+
+function _subscribeDiceRealtime() {
+    if (!window.RealtimeBus || _diceRealtimeUnsub) return;
+    _diceRealtimeUnsub = window.RealtimeBus.subscribe('match_state', function (data) {
+        if (!_diceCurrentRoomId || data.room_id !== _diceCurrentRoomId) return;
+        if (data.game !== DICE_GAME_TYPE) return;
+        _diceRefreshStatus();
+    });
+}
+
+function _unsubscribeDiceRealtime() {
+    if (_diceRealtimeUnsub) { _diceRealtimeUnsub(); _diceRealtimeUnsub = null; }
 }
 
 function _renderDiceModal() {
@@ -55,6 +72,7 @@ function _renderDiceModal() {
     (document.getElementById('overlay-panel') || document.body).appendChild(modal);
     document.getElementById('dice-close-btn').addEventListener('click', () => {
         _stopDicePolling();
+        _unsubscribeDiceRealtime();
         _diceCurrentRoomId = null;
         modal.remove();
     });

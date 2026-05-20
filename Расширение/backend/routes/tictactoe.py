@@ -398,6 +398,24 @@ async def tictactoe_move(request: Request):
     your_elo = new_elo_a if you_are == "a" else new_elo_b
     opp_elo = new_elo_b if you_are == "a" else new_elo_a
 
+    # Phase C (2026-05-17): match_state broadcast — оппонент мгновенно видит
+    # обновлённый board без 3-сек polling. Frontend dedupe по seq.
+    try:
+        from pubsub import broadcast as _pubsub_broadcast
+        _pubsub_broadcast(channel_id, "match_state", {
+            "room_id":  room_id,
+            "game":     GAME_TYPE,
+            "state":    state,
+            "status":   "finished" if finished else "active",
+            "finished": finished,
+            "winner":   winner_user,
+        })
+    except Exception as e:
+        import logging
+        logging.getLogger("rimlink.tictactoe").warning(
+            "post-move match_state broadcast failed: %s", e
+        )
+
     return {
         "success":   True,
         "state":     state,

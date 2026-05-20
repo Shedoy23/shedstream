@@ -382,6 +382,9 @@
     <!-- cache-bust v: обновить при любой правке JS, чтобы Twitch-CDN и браузер
          перечитали файлы (расширения агрессивно кешируют .js). -->
     <!-- market.js удалён 2026-05-10 (Phase 1.C compliance rework) -->
+    <!-- realtime.js — Phase C (2026-05-17). Должен загружаться ДО viewer.js,
+         чтобы window.RealtimeBus был доступен в onAuthorized callback. -->
+    <script src="realtime.js?v=20260520a"></script>
     <script src="pawn.js?v=20260520a"></script>
     <script src="shop.js?v=20260520a"></script>
     <!-- casino.js удалён 2026-05-10 (Phase 1.A compliance rework) -->

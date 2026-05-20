@@ -117,6 +117,7 @@ namespace BannerlordLink.Behaviors
                 // Sprint M22+: heroes_snapshot после ОПЦИОНАЛЬНОЙ миграции
                 // legacy hero names → [BLink] prefix (для backwards-compat).
                 MigrateLegacyHeroNames();
+                IntroduceAdoptedHeroes();
                 PushHeroesSnapshot(saveId);
             }
             catch (Exception ex)
@@ -196,11 +197,106 @@ namespace BannerlordLink.Behaviors
                     BannerlordLinkModule.Log(
                         $"[NameMigration] {migrated} legacy hero(es) renamed with [BLink] prefix");
                 }
+
+                // Cleanup orphan opaque IDs ([BLink] u_xxx, [BLink] u7sm4o...) —
+                // creats до фикса JWT auth. Strip [BLink] prefix → они становятся
+                // обычными wanderers, выпадают из heroes_snapshot filter.
+                CleanupOpaqueHeroes();
             }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log(
                     $"[NameMigration] error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Sprint 5.16: retroactive introduction. Все alive [BLink] heroes,
+        /// созданные до фикса 5.16, не имеют HasMet=true → отображаются как
+        /// "Unknown wanderer" у стримера. На каждом session_start вызываем
+        /// SetHasMet() для всех adopted heroes — idempotent (engine просто
+        /// re-set'ит boolean, безболезненно).
+        /// </summary>
+        private void IntroduceAdoptedHeroes()
+        {
+            try
+            {
+                if (Campaign.Current?.AliveHeroes == null) return;
+                int introduced = 0;
+                foreach (var hero in Campaign.Current.AliveHeroes.ToList())
+                {
+                    if (hero?.Name == null) continue;
+                    if (!BannerlordLink.Util.HeroNaming.IsAdopted(hero.Name.ToString())) continue;
+                    if (hero.HasMet) continue;   // skip — уже introduced
+                    try
+                    {
+                        hero.SetHasMet();
+                        introduced++;
+                    }
+                    catch { }
+                }
+                if (introduced > 0)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[Introduce] {introduced} adopted hero(es) marked HasMet=true " +
+                        "(retroactive)");
+                }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[Introduce] error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Sprint 5.3c: detect и развенчать (un-adopt) opaque-ID героев —
+        /// `[BLink] u7sm4o56sut9pgnkuobvh`, `[BLink] u_tehzvsseaya8blbpepk` и т.п.
+        /// Они появились из-за JWT auth бага (fixed 2026-05-17). Strip prefix
+        /// → герой становится обычным wanderer, не светится в extension.
+        /// </summary>
+        private static readonly System.Text.RegularExpressions.Regex _opaqueRx =
+            new System.Text.RegularExpressions.Regex(
+                @"^u[a-z0-9_-]{15,}$",
+                System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        private void CleanupOpaqueHeroes()
+        {
+            try
+            {
+                if (Campaign.Current?.AliveHeroes == null) return;
+
+                int cleaned = 0;
+                foreach (var hero in Campaign.Current.AliveHeroes.ToList())
+                {
+                    if (hero?.Name == null) continue;
+                    string name = hero.Name.ToString();
+                    if (!BannerlordLink.Util.HeroNaming.IsAdopted(name)) continue;
+                    string viewerLogin = BannerlordLink.Util.HeroNaming
+                        .ExtractUsername(name);
+                    if (string.IsNullOrEmpty(viewerLogin)) continue;
+                    // длинный + начинается с 'u' + base64url chars → opaque
+                    if (!_opaqueRx.IsMatch(viewerLogin)) continue;
+
+                    // Развенчать: убрать [BLink] prefix чтобы выпал из snapshot
+                    // filter. Имя оставляем (game world references invariant).
+                    var newFirst = new TaleWorlds.Localization.TextObject(
+                        $"Orphan_{viewerLogin.Substring(0, System.Math.Min(8, viewerLogin.Length))}");
+                    hero.SetName(newFirst, newFirst);
+                    cleaned++;
+                    BannerlordLinkModule.Log(
+                        $"[CleanupOpaque] un-adopted orphan: {name} → {newFirst}");
+                }
+                if (cleaned > 0)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[CleanupOpaque] {cleaned} opaque hero(es) un-adopted");
+                }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[CleanupOpaque] error: {ex.Message}");
             }
         }
     }

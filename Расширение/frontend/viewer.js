@@ -1085,7 +1085,33 @@ let _bannerlordCooldowns = [];      // 4.8 — last-known cooldowns; entries { p
 let _bannerlordCurrentGearTier = 0; // M20 — last seen gear_tier (cached for shop render)
 let _bannerlordTournamentPollId = null;  // Sprint 5.3 — poll /api/bannerlord/tournament (3s)
 let _bannerlordTournament = null;        // last snapshot {queue, state, in_queue, my_bet, config}
+let _bannerlordBattlePollId = null;      // Sprint 5.5 — poll /api/bannerlord/battle-status (2s)
+let _bannerlordBattle = null;            // last snapshot {in_battle, my_stats, participant_count}
+let _bannerlordWasInBattle = false;      // detect new-battle transition для cooldown UI refresh
+let _bannerlordLastRetinue = [];         // last retinue snapshot — repaint без re-fetch
+let _bannerlordLastHero = null;          // last /my-hero snapshot — для progression modal
 
+// Sprint 5.5: helper для проверки battle state (для banner / future use).
+function bnrIsInBattle() { return !!(_bannerlordBattle && _bannerlordBattle.in_battle); }
+
+// Sprint 5.5: persist open/closed state у <details> элементов (Топ скиллы /
+// Экипировка / Свита) между ре-рендерами hero card. innerHTML replace
+// иначе сбрасывает раскрытое состояние каждые 8s.
+const _bannerlordDetailsOpen = new Set();
+function _bnrDetailsAttr(key) {
+    return _bannerlordDetailsOpen.has(key) ? 'open' : '';
+}
+function _bnrBindDetailsPersistence() {
+    document.querySelectorAll('[data-bnr-details]').forEach(el => {
+        const key = el.getAttribute('data-bnr-details');
+        if (!key || el.dataset.bnrBound === '1') return;
+        el.dataset.bnrBound = '1';
+        el.addEventListener('toggle', () => {
+            if (el.open) _bannerlordDetailsOpen.add(key);
+            else _bannerlordDetailsOpen.delete(key);
+        });
+    });
+}
 // Sprint M21 — gear upgrade costs в Hero.Gold (in-game динары, не крустики).
 // Mirror HERO_GOLD_TIER_COSTS на backend и в UpgradeGearHandler.cs.
 const HERO_GOLD_TIER_COSTS = {
@@ -1154,6 +1180,7 @@ function _startBannerlordPolling() {
     loadBannerlordClasses();
     loadBannerlordBuffs();
     loadBannerlordTournament();
+    loadBannerlordBattleStatus();
     _bannerlordPollId = setInterval(() => {
         loadBannerlordHero();
         loadBannerlordShop();
@@ -1165,6 +1192,8 @@ function _startBannerlordPolling() {
     _bannerlordBuffPollId = setInterval(loadBannerlordBuffs, 2500);
     // Tournament: 3s poll — отображает queue / running state / bets
     _bannerlordTournamentPollId = setInterval(loadBannerlordTournament, 3000);
+    // Battle status: 2s poll — banner "идёт бой" + my HP/kills/gold/xp
+    _bannerlordBattlePollId = setInterval(loadBannerlordBattleStatus, 2000);
     _bannerlordBuffTickId = setInterval(() => {
         let buffsChanged = false, cdsChanged = false;
         for (const b of _bannerlordBuffs) {
@@ -1308,8 +1337,8 @@ function renderBannerlordActivePowers() {
 function renderBannerlordSummonButton() {
     const slot = document.getElementById('bnr-summon-slot');
     if (!slot) return;
-    const ALLY_PRICE = 500;
-    const ENEMY_PRICE = 1000;   // 2× тролл-tax
+    const ALLY_PRICE = 100;    // 5.4: 500→100
+    const ENEMY_PRICE = 200;   // 5.4: 1000→200 (2× тролл-tax)
     const cdRem = (_bannerlordCooldowns.find(c => c.power_key === 'player.spawn') || {}).remaining_s || 0;
     const onCooldown = cdRem > 0;
     const cdLabel = onCooldown
@@ -1443,9 +1472,10 @@ function _renderEquipRow(slot, it, slotIcons) {
     </div>`;
 }
 
-// Sprint M23 — render свита (retinue) под Экипировкой в hero card.
-// retinue = [{slot_index, troop_id, troop_name, tier}]
-const RECRUIT_PRICE = 100;  // крустиков за попытку (UI display)
+// Sprint M23/5.14 — render свита (retinue) под Экипировкой в hero card.
+// retinue = [{slot_index, troop_id, troop_name, tier, is_elite}]
+const RECRUIT_PRICE_BASIC = 100;   // крустиков basic
+const RECRUIT_PRICE_ELITE = 300;   // крустиков elite (3×)
 function _renderRetinue(retinue) {
     const slot = document.getElementById('bnr-retinue-slot');
     if (!slot) return;
@@ -1454,42 +1484,75 @@ function _renderRetinue(retinue) {
 
     const rows = list.length === 0
         ? '<div style="font-size:11px;color:#9ca3af;padding:2px 0;">пусто</div>'
-        : list.map(t => `
-            <div style="display:flex;justify-content:space-between;font-size:11px;padding:1px 0;">
-                <span>${escapeHtml(t.troop_name || t.troop_id)}</span>
-                <span style="color:#fbbf24;">T${(t.tier || 0) + 1}★</span>
-            </div>`).join('');
+        : list.map(t => {
+            const eliteBadge = t.is_elite
+                ? '<span style="color:#fbbf24;font-size:9px;margin-right:4px;" title="Elite troop (EliteBasicTroop chain)">★</span>'
+                : '';
+            return `
+                <div style="display:flex;justify-content:space-between;font-size:11px;padding:1px 0;">
+                    <span>${eliteBadge}${escapeHtml(t.troop_name || t.troop_id)}</span>
+                    <span style="color:#fbbf24;">T${(t.tier || 0) + 1}★</span>
+                </div>`;
+        }).join('');
 
     const isMaxed = list.length >= MAX_SLOTS;
-    const allMax = list.length > 0 && list.every(t => (t.tier || 0) >= 5);
-    const btnLabel = isMaxed
-        ? (allMax ? '🛡️ Свита максимально прокачана' : `⬆ Прокачать свиту (${RECRUIT_PRICE}💎)`)
-        : `➕ Нанять воина (${RECRUIT_PRICE}💎)`;
-    const btnDisabled = allMax;
+    // separate maxed checks для basic / elite
+    const basicSlots = list.filter(t => !t.is_elite);
+    const eliteSlots = list.filter(t => t.is_elite);
+    const basicAllMax = basicSlots.length > 0 && basicSlots.every(t => (t.tier || 0) >= 5);
+    const eliteAllMax = eliteSlots.length > 0 && eliteSlots.every(t => (t.tier || 0) >= 5);
+
+    const basicLabel = !isMaxed
+        ? `➕ Нанять воина (${RECRUIT_PRICE_BASIC}💎)`
+        : (basicAllMax
+            ? '✓ Basic maxed'
+            : `⬆ Прокачать basic (${RECRUIT_PRICE_BASIC}💎)`);
+    const eliteLabel = !isMaxed
+        ? `★ Нанять элитного (${RECRUIT_PRICE_ELITE}💎)`
+        : (eliteAllMax
+            ? '✓ Elite maxed'
+            : `⬆ Прокачать elite (${RECRUIT_PRICE_ELITE}💎)`);
+
+    const basicDisabled = isMaxed && (basicSlots.length === 0 || basicAllMax);
+    const eliteDisabled = isMaxed && (eliteSlots.length === 0 || eliteAllMax);
 
     slot.innerHTML = `
-        <details>
+        <details data-bnr-details="retinue" ${_bnrDetailsAttr('retinue')}>
             <summary style="font-size:11px;color:#adadb8;cursor:pointer;">
                 Свита (${list.length}/${MAX_SLOTS})
+                ${eliteSlots.length > 0
+                    ? `<span style="color:#fbbf24;font-size:10px;">★${eliteSlots.length}</span>`
+                    : ''}
             </summary>
             <div style="margin-top:4px;">
                 ${rows}
-                <button class="extra-btn" id="bnr-recruit-btn"
-                        ${btnDisabled ? 'disabled' : ''}
-                        title="${isMaxed ? 'Прокачивает random троопа на следующий tier' : 'Нанимает basic troop культуры героя'}. Списываются 100💎 крустиков + ~5K-50K динаров у героя в игре (per tier)."
-                        style="margin-top:6px;width:100%;font-size:11px;padding:6px;
-                               ${btnDisabled ? 'opacity:0.5;cursor:not-allowed;' : ''}">
-                    ${btnLabel}
-                </button>
+                <div style="display:flex;gap:4px;margin-top:6px;">
+                    <button class="extra-btn" id="bnr-recruit-basic-btn"
+                            ${basicDisabled ? 'disabled' : ''}
+                            title="Basic troop (battanian_recruit / khuzait_nomad / etc). Списать 100💎 крустиков + 5K-80K динаров у героя."
+                            style="flex:1;font-size:11px;padding:6px;
+                                   ${basicDisabled ? 'opacity:0.5;cursor:not-allowed;' : ''}">
+                        ${basicLabel}
+                    </button>
+                    <button class="extra-btn" id="bnr-recruit-elite-btn"
+                            ${eliteDisabled ? 'disabled' : ''}
+                            title="Elite troop (battanian_oathsworn / vlandian_squire / etc) — другая ветка прокачки до champion/hero. 3× стоимость."
+                            style="flex:1;font-size:11px;padding:6px;background:#5c2d12;color:#fbbf24;
+                                   ${eliteDisabled ? 'opacity:0.5;cursor:not-allowed;' : ''}">
+                        ${eliteLabel}
+                    </button>
+                </div>
             </div>
         </details>`;
 
-    const btn = document.getElementById('bnr-recruit-btn');
-    if (btn && !btnDisabled) {
-        btn.addEventListener('click', () => {
-            _bannerlordBuyAction('hero.recruit_troops', { price: RECRUIT_PRICE });
-        });
-    }
+    document.getElementById('bnr-recruit-basic-btn')?.addEventListener('click', () => {
+        if (basicDisabled) return;
+        _bannerlordBuyAction('hero.recruit_troops', { is_elite: false });
+    });
+    document.getElementById('bnr-recruit-elite-btn')?.addEventListener('click', () => {
+        if (eliteDisabled) return;
+        _bannerlordBuyAction('hero.recruit_troops', { is_elite: true });
+    });
 }
 
 // Sprint M21 — gear upgrade button (hero.upgrade_gear).
@@ -1605,6 +1668,645 @@ function _bindBannerlordCurrency() {
     });
 }
 
+// ===== Sprint 5.8: Focus / Attribute investments (Hero.Gold cost) =====
+const BNR_SKILLS = [
+    'OneHanded', 'TwoHanded', 'Polearm', 'Bow', 'Crossbow', 'Throwing',
+    'Athletics', 'Riding', 'Smithing', 'Scouting', 'Tactics', 'Roguery',
+    'Charm', 'Leadership', 'Trade', 'Steward', 'Medicine', 'Engineering',
+];
+const BNR_SKILL_LABELS_RU = {
+    OneHanded: 'Одноручное', TwoHanded: 'Двуручное', Polearm: 'Древковое',
+    Bow: 'Лук', Crossbow: 'Арбалет', Throwing: 'Метательное',
+    Athletics: 'Атлетика', Riding: 'Верховая езда', Smithing: 'Кузнечное',
+    Scouting: 'Разведка', Tactics: 'Тактика', Roguery: 'Бесчестие',
+    Charm: 'Обаяние', Leadership: 'Лидерство', Trade: 'Торговля',
+    Steward: 'Управление', Medicine: 'Медицина', Engineering: 'Инженерия',
+};
+const BNR_ATTRIBUTES = ['Vigor', 'Control', 'Endurance', 'Cunning', 'Social', 'Intelligence'];
+const BNR_ATTR_LABELS_RU = {
+    Vigor: 'Vigor (сила)', Control: 'Control (точность)',
+    Endurance: 'Endurance (выносл.)', Cunning: 'Cunning (хитрость)',
+    Social: 'Social (соц.)', Intelligence: 'Intelligence (интелл.)',
+};
+// Sprint 5.17: vanilla Bannerlord skill→attribute mapping. Атрибут даёт
+// +1 cap к skill за каждое очко (max 30 cap при attr=10).
+const BNR_ATTR_TO_SKILLS = {
+    Vigor:        ['OneHanded', 'TwoHanded', 'Polearm'],
+    Control:      ['Bow', 'Crossbow', 'Throwing'],
+    Endurance:    ['Riding', 'Athletics', 'Smithing'],
+    Cunning:      ['Scouting', 'Tactics', 'Roguery'],
+    Social:       ['Charm', 'Leadership', 'Trade'],
+    Intelligence: ['Steward', 'Medicine', 'Engineering'],
+};
+const BNR_ATTR_ICONS = {
+    Vigor: '💪', Control: '🎯', Endurance: '⛰️',
+    Cunning: '🦊', Social: '💬', Intelligence: '📚',
+};
+const BNR_FOCUS_TIER_COSTS = [30000, 40000, 50000, 60000, 75000];
+const BNR_ATTRIBUTE_COST = 50000;
+
+function renderBannerlordProgressionHtml() {
+    const skillOptions = `<option value="">— random skill —</option>` +
+        BNR_SKILLS.map(s => `<option value="${s}">${BNR_SKILL_LABELS_RU[s] || s}</option>`).join('');
+    const attrOptions = `<option value="">— random attribute —</option>` +
+        BNR_ATTRIBUTES.map(a => `<option value="${a}">${BNR_ATTR_LABELS_RU[a] || a}</option>`).join('');
+
+    return `
+        <div style="padding:6px 10px;border-top:1px solid #3d3d3f;margin-top:4px;">
+            <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">
+                🎯 Фокус в скилл — оплата in-game динарами (30K-75K по уровню)
+            </div>
+            <div style="display:flex;gap:4px;margin-bottom:4px;">
+                <select id="bnr-focus-skill"
+                        style="flex:1;background:#2d2d2f;color:#efeff1;border:1px solid #3d3d3f;
+                               padding:5px;font-size:11px;border-radius:3px;">
+                    ${skillOptions}
+                </select>
+                <button class="extra-btn" id="bnr-focus-btn"
+                        title="Добавить +1 focus в выбранный (или random) skill. Cost 30K-75K динаров tier-based."
+                        style="font-size:11px;padding:5px 10px;">
+                    🎯 +1
+                </button>
+            </div>
+        </div>
+        <div style="padding:6px 10px;border-top:1px solid #3d3d3f;margin-top:4px;">
+            <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">
+                💪 Атрибут — оплата in-game динарами (50K за поинт)
+            </div>
+            <div style="display:flex;gap:4px;margin-bottom:4px;">
+                <select id="bnr-attr-select"
+                        style="flex:1;background:#2d2d2f;color:#efeff1;border:1px solid #3d3d3f;
+                               padding:5px;font-size:11px;border-radius:3px;">
+                    ${attrOptions}
+                </select>
+                <button class="extra-btn" id="bnr-attr-btn"
+                        title="Добавить +1 attribute point в выбранный (или random) attribute. Cost 50K динаров."
+                        style="font-size:11px;padding:5px 10px;">
+                    💪 +1
+                </button>
+            </div>
+        </div>`;
+}
+
+// Sprint 5.8: Progression modal — отображает все скиллы (level + focus stars)
+// + 6 атрибутов. Открывается по кнопке "🎯 Прогрессия" в hero card.
+function _openBannerlordProgressionModal() {
+    const data = _bannerlordLastHero;
+    if (!data || !data.has_hero) {
+        showNotification('⚠️ Сначала создай героя', 'warning');
+        return;
+    }
+    const skills = data.skills || [];
+    const attrs = data.attributes || {};
+
+    // Build skill lookup
+    const skillsByKey = {};
+    for (const s of skills) skillsByKey[s.skill_key] = s;
+
+    // Helper: render одну skill row
+    function _renderSkillRow(key) {
+        const s = skillsByKey[key] || { skill_key: key, level: 0, focus: 0 };
+        const focus = s.focus || 0;
+        const focusStars = '★'.repeat(focus) + '☆'.repeat(5 - focus);
+        const label = BNR_SKILL_LABELS_RU[key] || key;
+        const lvlColor = s.level >= 100 ? '#fbbf24' : (s.level >= 50 ? '#34d399' : '#efeff1');
+        const maxed = focus >= 5;
+        const nextCost = maxed ? 0 : BNR_FOCUS_TIER_COSTS[focus];
+        const btnTitle = maxed
+            ? 'F5 максимум'
+            : `+1 focus в ${label} → F${focus + 1}. Списать ${nextCost.toLocaleString('ru-RU')}💰 динаров.`;
+        return `
+            <div style="display:flex;justify-content:space-between;align-items:center;
+                        padding:3px 6px 3px 14px;font-size:11px;gap:8px;
+                        border-bottom:1px solid rgba(255,255,255,0.05);">
+                <span style="color:#efeff1;flex:1;">└ ${escapeHtml(label)}</span>
+                <span style="color:#fbbf24;font-family:monospace;letter-spacing:1px;">${focusStars}</span>
+                <span style="color:${lvlColor};min-width:30px;text-align:right;
+                             font-family:monospace;font-weight:700;">${s.level || 0}</span>
+                <button class="small-btn bnr-prog-focus-btn"
+                        data-skill="${escapeHtml(key)}"
+                        ${maxed ? 'disabled' : ''}
+                        title="${escapeHtml(btnTitle)}"
+                        style="padding:2px 8px;font-size:11px;background:#3d3d3f;
+                               color:#fbbf24;font-weight:700;
+                               ${maxed ? 'opacity:0.3;cursor:not-allowed;' : ''}">
+                    🎯+
+                </button>
+            </div>`;
+    }
+
+    // Render: attribute header + nested skills (Sprint 5.17 group-by-attribute)
+    const groupedRows = BNR_ATTRIBUTES.map(attrKey => {
+        const val = attrs[attrKey] || 0;
+        const filled = '●'.repeat(val) + '○'.repeat(10 - val);
+        const attrLabel = BNR_ATTR_LABELS_RU[attrKey] || attrKey;
+        const attrIcon = BNR_ATTR_ICONS[attrKey] || '·';
+        const valColor = val >= 8 ? '#fbbf24' : (val >= 5 ? '#34d399' : '#efeff1');
+        const maxed = val >= 10;
+        const btnTitle = maxed
+            ? '10/10 максимум'
+            : `+1 в ${attrLabel} → ${val + 1}/10. Списать ${BNR_ATTRIBUTE_COST.toLocaleString('ru-RU')}💰 динаров.`;
+
+        const childSkills = (BNR_ATTR_TO_SKILLS[attrKey] || []).map(_renderSkillRow).join('');
+
+        return `
+            <div style="background:rgba(147,197,253,0.06);border-top:1px solid rgba(147,197,253,0.15);
+                        padding:5px 6px;display:flex;justify-content:space-between;
+                        align-items:center;font-size:11px;gap:8px;font-weight:700;">
+                <span style="color:#93c5fd;flex:1;">${attrIcon} ${escapeHtml(attrLabel)}</span>
+                <span style="color:#93c5fd;font-family:monospace;letter-spacing:1px;font-weight:400;">${filled}</span>
+                <span style="color:${valColor};min-width:36px;text-align:right;
+                             font-family:monospace;">${val}/10</span>
+                <button class="small-btn bnr-prog-attr-btn"
+                        data-attr="${escapeHtml(attrKey)}"
+                        ${maxed ? 'disabled' : ''}
+                        title="${escapeHtml(btnTitle)}"
+                        style="padding:2px 8px;font-size:11px;background:#3d3d3f;
+                               color:#93c5fd;font-weight:700;
+                               ${maxed ? 'opacity:0.3;cursor:not-allowed;' : ''}">
+                    💪+
+                </button>
+            </div>
+            ${childSkills}`;
+    }).join('');
+
+    const overlay = document.createElement('div');
+    overlay.id = 'bnr-progression-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);' +
+        'display:flex;align-items:center;justify-content:center;z-index:9999;padding:10px;';
+    overlay.innerHTML = `
+        <div style="background:#18181b;border:1px solid #3d3d3f;border-radius:8px;
+                    padding:14px;max-width:380px;width:100%;max-height:90vh;overflow-y:auto;">
+            <div style="display:flex;justify-content:space-between;align-items:center;
+                        margin-bottom:10px;border-bottom:1px solid #3d3d3f;padding-bottom:6px;">
+                <h3 style="margin:0;font-size:14px;color:#efeff1;">🎯 Прогрессия</h3>
+                <button id="bnr-prog-close" class="small-btn"
+                        style="padding:4px 10px;font-size:11px;background:#3d3d3f;">✕</button>
+            </div>
+
+            <div style="font-size:11px;color:#adadb8;margin-bottom:6px;line-height:1.4;">
+                💪 Атрибут (50K💰) повышает cap трёх связанных скиллов.<br>
+                🎯 Фокус (30-75K💰) ускоряет прокачку конкретного скилла.
+            </div>
+            <div>${groupedRows}</div>
+
+            <div style="margin-top:10px;font-size:10px;color:#9ca3af;text-align:center;">
+                Каждый атрибут даёт +1 cap к 3 скиллам своей категории.
+                Без фокуса можно прокачать до 25-30 уровня.
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+
+    document.getElementById('bnr-prog-close')?.addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', e => {
+        if (e.target === overlay) overlay.remove();
+    });
+
+    // Per-row "+" buttons — invest в конкретный skill / attribute
+    overlay.querySelectorAll('.bnr-prog-focus-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const skill_key = btn.getAttribute('data-skill');
+            _bannerlordBuyAction('hero.add_focus', { skill_key, amount: 1 });
+            // Re-open модал через ~3.5s чтобы показать новый focus state.
+            // Закрываем сейчас, чтобы UX был чище.
+            overlay.remove();
+            setTimeout(() => {
+                if (typeof loadBannerlordHero === 'function') loadBannerlordHero();
+                setTimeout(_openBannerlordProgressionModal, 600);
+            }, 3500);
+        });
+    });
+    overlay.querySelectorAll('.bnr-prog-attr-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const attribute_key = btn.getAttribute('data-attr');
+            _bannerlordBuyAction('hero.add_attribute', { attribute_key, amount: 1 });
+            overlay.remove();
+            setTimeout(() => {
+                if (typeof loadBannerlordHero === 'function') loadBannerlordHero();
+                setTimeout(_openBannerlordProgressionModal, 600);
+            }, 3500);
+        });
+    });
+}
+
+// Sprint 5.11: общий helper для открытия modal — clan / kingdom management.
+// Содержит варианты create / join / leave в зависимости от текущего state.
+function _openBannerlordClanModal() {
+    const h = _bannerlordLastHero?.hero || {};
+    const hasClan = !!h.clan_name;
+    const info = h.clan_info || null;
+
+    // Info block (если есть clan)
+    const infoBlock = hasClan && info ? `
+        <div style="background:rgba(251,191,36,0.05);border:1px solid #3d3d3f;
+                    border-radius:6px;padding:8px 10px;margin-bottom:10px;">
+            <div style="font-size:13px;color:#fbbf24;font-weight:700;margin-bottom:6px;
+                        text-align:center;">
+                ${escapeHtml(info.name || h.clan_name)}
+            </div>
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:11px;">
+                <span style="color:#adadb8;">👑 Лидер:</span>
+                <span style="color:#efeff1;">
+                    ${escapeHtml(info.leader_name || '?')}
+                    ${info.is_leader ? '<b style="color:#fbbf24;">(это ты!)</b>' : ''}
+                </span>
+                <span style="color:#adadb8;">⭐ Tier:</span>
+                <span style="color:#efeff1;">${info.tier || 0}</span>
+                <span style="color:#adadb8;">🏆 Renown:</span>
+                <span style="color:#efeff1;">${(info.renown || 0).toLocaleString('ru-RU')}</span>
+                <span style="color:#adadb8;">👥 Героев:</span>
+                <span style="color:#efeff1;">${info.members_count || 0}</span>
+                <span style="color:#adadb8;">⚔ Отрядов:</span>
+                <span style="color:#efeff1;">${info.parties_count || 0}</span>
+                <span style="color:#adadb8;">🏰 Поселений:</span>
+                <span style="color:#efeff1;">${info.fiefs_count || 0}</span>
+                ${info.kingdom_name ? `
+                <span style="color:#adadb8;">👑 Королевство:</span>
+                <span style="color:#efeff1;">${escapeHtml(info.kingdom_name)}</span>` : ''}
+            </div>
+        </div>` : '';
+
+    const isLeader = !!info?.is_leader;
+    const hasParties = (info?.parties_count || 0) > 0;
+    const partyBtn = isLeader && !hasParties
+        ? `<button class="extra-btn" id="bnr-clan-modal-create-party"
+                   title="Создать MobileParty на карте — hero роумит как AI lord. Списать 200,000💰 динаров, добавит retinue в roster + стартовый food/horses."
+                   style="width:100%;font-size:12px;padding:8px;
+                          background:#1e3a5f;color:#93c5fd;font-weight:700;">
+                ⚔ Создать отряд (party) (200K💰)
+           </button>`
+        : isLeader && hasParties
+            ? `<div style="font-size:11px;color:#34d399;text-align:center;padding:6px;">
+                ✅ У клана уже есть ${info.parties_count} отряд(ов)
+               </div>`
+            : `<button class="extra-btn" disabled
+                       title="Только clan-leader может создать party"
+                       style="width:100%;font-size:12px;padding:8px;opacity:0.5;cursor:not-allowed;">
+                ⚔ Создать отряд <span style="color:#9ca3af;font-size:10px;">(только для лидеров)</span>
+               </button>`;
+
+    const actions = hasClan ? `
+        ${infoBlock}
+        ${isLeader
+            ? `<div style="font-size:11px;color:#fbbf24;margin-bottom:6px;text-align:center;">
+                ⚠️ Ты лидер — нельзя просто покинуть. Сначала передай лидерство (TBD).
+               </div>`
+            : `<button class="extra-btn" id="bnr-clan-modal-leave"
+                       title="Покинуть клан — бесплатно. Hero станет wanderer'ом."
+                       style="width:100%;font-size:12px;padding:8px;margin-bottom:6px;
+                              background:#7f1d1d;color:#fca5a5;">
+                    🚪 Покинуть клан
+               </button>`}
+        ${partyBtn}` : `
+        <div style="font-size:11px;color:#adadb8;margin-bottom:8px;">
+            У тебя пока нет клана. Можно создать собственный или вступить в существующий.
+        </div>
+        <button class="extra-btn" id="bnr-clan-modal-create"
+                title="Создать собственный клан под лидерством героя. Списать 1,000,000💰 динаров."
+                style="width:100%;font-size:12px;padding:8px;margin-bottom:6px;
+                       background:#7c2d12;color:#fbbf24;font-weight:700;">
+            🏰 Создать свой клан (1M💰)
+        </button>
+        <button class="extra-btn" id="bnr-clan-modal-join"
+                title="Вступить в существующий клан (50K💰). Введёшь имя клана."
+                style="width:100%;font-size:12px;padding:8px;background:#1e3a5f;color:#93c5fd;">
+            🤝 Вступить в клан (50K💰)
+        </button>`;
+
+    _bnrShowSimpleModal({
+        title: '🏰 Управление кланом',
+        body: actions,
+        bind: overlay => {
+            overlay.querySelector('#bnr-clan-modal-create')?.addEventListener('click', () => {
+                overlay.remove();
+                _openBannerlordCreateClanDialog();
+            });
+            overlay.querySelector('#bnr-clan-modal-join')?.addEventListener('click', () => {
+                overlay.remove();
+                _openBannerlordJoinDialog('clan');
+            });
+            overlay.querySelector('#bnr-clan-modal-leave')?.addEventListener('click', () => {
+                if (!confirm('Ты уверен что хочешь покинуть клан? Hero станет wanderer\'ом.')) return;
+                _bannerlordBuyAction('hero.leave_clan', {});
+                overlay.remove();
+            });
+            overlay.querySelector('#bnr-clan-modal-create-party')?.addEventListener('click', () => {
+                if (!confirm('Создать MobileParty? Hero появится на карте как AI lord. Списать 200K💰 динаров + добавит retinue в roster.')) return;
+                _bannerlordBuyAction('hero.create_party', {});
+                overlay.remove();
+            });
+        },
+    });
+}
+
+function _openBannerlordKingdomModal() {
+    const h = _bannerlordLastHero?.hero || {};
+    const hasClan = !!h.clan_name;
+    const hasKingdom = !!h.kingdom_name;
+    const info = h.kingdom_info || null;
+
+    let body;
+    if (hasKingdom) {
+        const infoBlock = info ? `
+            <div style="background:rgba(147,197,253,0.05);border:1px solid #3d3d3f;
+                        border-radius:6px;padding:8px 10px;margin-bottom:10px;">
+                <div style="font-size:13px;color:#93c5fd;font-weight:700;margin-bottom:6px;
+                            text-align:center;">
+                    ${escapeHtml(info.name || h.kingdom_name)}
+                </div>
+                <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:11px;">
+                    <span style="color:#adadb8;">👑 Правитель:</span>
+                    <span style="color:#efeff1;">
+                        ${escapeHtml(info.ruler_name || '?')}
+                        ${info.is_ruler ? '<b style="color:#fbbf24;">(это ты!)</b>' : ''}
+                    </span>
+                    <span style="color:#adadb8;">🏰 Кланов:</span>
+                    <span style="color:#efeff1;">${info.clans_count || 0}</span>
+                    <span style="color:#adadb8;">🌆 Поселений:</span>
+                    <span style="color:#efeff1;">${info.fiefs_count || 0}</span>
+                    <span style="color:#adadb8;">⚔ Война с:</span>
+                    <span style="color:${(info.at_war_count || 0) > 0 ? '#f87171' : '#efeff1'};">
+                        ${info.at_war_count || 0} королевств
+                    </span>
+                </div>
+            </div>` : `
+            <div style="font-size:12px;color:#efeff1;margin-bottom:6px;">
+                Текущее королевство: <b style="color:#fbbf24;">${escapeHtml(h.kingdom_name)}</b>
+            </div>`;
+        body = `
+            ${infoBlock}
+            <button class="extra-btn" id="bnr-kingdom-modal-leave"
+                    title="Вывести clan из королевства — бесплатно."
+                    style="width:100%;font-size:12px;padding:8px;
+                           background:#7f1d1d;color:#fca5a5;">
+                🚪 Покинуть королевство
+            </button>`;
+    } else if (!hasClan) {
+        body = `
+            <div style="font-size:11px;color:#fbbf24;margin-bottom:8px;">
+                ⚠️ Сначала создай или вступи в клан — королевства создаются только клан-лидерами.
+            </div>
+            <button class="extra-btn" id="bnr-kingdom-goto-clan"
+                    style="width:100%;font-size:12px;padding:8px;background:#3d3d3f;color:#fbbf24;">
+                🏰 Открыть управление кланом
+            </button>`;
+    } else {
+        body = `
+            <div style="font-size:11px;color:#adadb8;margin-bottom:8px;">
+                Твой клан '${escapeHtml(h.clan_name)}' независим. Можно создать собственное королевство или вступить в существующее.
+            </div>
+            <button class="extra-btn" id="bnr-kingdom-modal-create"
+                    title="Создать собственное королевство (5,000,000💰 динаров). Clan становится правящим кланом."
+                    style="width:100%;font-size:12px;padding:8px;margin-bottom:6px;
+                           background:#7c2d12;color:#fbbf24;font-weight:700;">
+                👑 Создать королевство (5M💰)
+            </button>
+            <button class="extra-btn" id="bnr-kingdom-modal-join"
+                    title="Вступить в существующее королевство (100K💰)."
+                    style="width:100%;font-size:12px;padding:8px;background:#1e3a5f;color:#93c5fd;">
+                🤝 Вступить в королевство (100K💰)
+            </button>`;
+    }
+
+    _bnrShowSimpleModal({
+        title: '👑 Управление королевством',
+        body: body,
+        bind: overlay => {
+            overlay.querySelector('#bnr-kingdom-goto-clan')?.addEventListener('click', () => {
+                overlay.remove();
+                _openBannerlordClanModal();
+            });
+            overlay.querySelector('#bnr-kingdom-modal-create')?.addEventListener('click', () => {
+                overlay.remove();
+                _openBannerlordCreateKingdomDialog();
+            });
+            overlay.querySelector('#bnr-kingdom-modal-join')?.addEventListener('click', () => {
+                overlay.remove();
+                _openBannerlordJoinDialog('kingdom');
+            });
+            overlay.querySelector('#bnr-kingdom-modal-leave')?.addEventListener('click', () => {
+                if (!confirm('Ты уверен что хочешь покинуть королевство? Clan станет независимым.')) return;
+                _bannerlordBuyAction('hero.leave_kingdom', {});
+                overlay.remove();
+            });
+        },
+    });
+}
+
+// Common modal shell — для clan / kingdom management.
+function _bnrShowSimpleModal({ title, body, bind }) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);' +
+        'display:flex;align-items:center;justify-content:center;z-index:9999;padding:10px;';
+    overlay.innerHTML = `
+        <div style="background:#18181b;border:1px solid #3d3d3f;border-radius:8px;
+                    padding:18px;max-width:340px;width:100%;">
+            <div style="display:flex;justify-content:space-between;align-items:center;
+                        margin-bottom:12px;border-bottom:1px solid #3d3d3f;padding-bottom:8px;">
+                <h3 style="margin:0;font-size:14px;color:#efeff1;">${title}</h3>
+                <button class="small-btn bnr-modal-close-btn"
+                        style="padding:4px 10px;font-size:11px;background:#3d3d3f;">✕</button>
+            </div>
+            ${body}
+        </div>`;
+    document.body.appendChild(overlay);
+    const close = () => overlay.remove();
+    overlay.querySelector('.bnr-modal-close-btn')?.addEventListener('click', close);
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+    if (typeof bind === 'function') bind(overlay);
+}
+
+// Sprint 5.12: dialog для ввода имени королевства + confirm "Создать".
+function _openBannerlordCreateKingdomDialog() {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);' +
+        'display:flex;align-items:center;justify-content:center;z-index:9999;padding:10px;';
+    overlay.innerHTML = `
+        <div style="background:#18181b;border:1px solid #3d3d3f;border-radius:8px;
+                    padding:18px;max-width:340px;width:100%;">
+            <h3 style="margin:0 0 10px 0;font-size:14px;color:#efeff1;">
+                👑 Создать королевство
+            </h3>
+            <div style="font-size:11px;color:#adadb8;margin-bottom:10px;line-height:1.4;">
+                Твой клан станет правящим в новом королевстве. Списывается
+                <b style="color:#fbbf24;">5,000,000💰 динаров</b> + бонус: 2K влияния и
+                2M kingdom wallet. Имя получит префикс <code>[BLink]</code>.
+            </div>
+            <input id="bnr-kingdom-name-input" type="text" maxlength="32"
+                   placeholder="например: Великое Княжество"
+                   style="width:100%;background:#2d2d2f;color:#efeff1;
+                          border:1px solid #3d3d3f;border-radius:4px;
+                          padding:6px 8px;font-size:12px;margin-bottom:12px;
+                          box-sizing:border-box;">
+            <div style="display:flex;gap:6px;">
+                <button id="bnr-k-cancel" class="extra-btn"
+                        style="flex:1;font-size:11px;padding:7px;background:#3d3d3f;">
+                    Отмена
+                </button>
+                <button id="bnr-k-confirm" class="extra-btn"
+                        style="flex:2;font-size:12px;padding:7px;background:#7c2d12;
+                               color:#fbbf24;font-weight:700;">
+                    👑 Создать (5M💰)
+                </button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    const input = document.getElementById('bnr-kingdom-name-input');
+    input?.focus();
+    const close = () => overlay.remove();
+    const confirm = () => {
+        const kingdom_name = (input?.value || '').trim();
+        _bannerlordBuyAction('hero.create_kingdom', { kingdom_name });
+        close();
+    };
+    document.getElementById('bnr-k-cancel')?.addEventListener('click', close);
+    document.getElementById('bnr-k-confirm')?.addEventListener('click', confirm);
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+    input?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') confirm();
+        if (e.key === 'Escape') close();
+    });
+}
+
+// Sprint 5.12: единый dialog для join — type 'clan' или 'kingdom'.
+function _openBannerlordJoinDialog(type) {
+    const isClan = type === 'clan';
+    const config = isClan
+        ? { icon: '🤝', title: 'Вступить в клан', cost: '50K💰',
+            actionType: 'hero.join_clan', field: 'clan_name',
+            placeholder: 'например: Vlandian Royal Clan',
+            hint: 'Введи (часть) имя существующего клана. Mod fuzzy-matches.' }
+        : { icon: '🤝', title: 'Вступить в королевство', cost: '100K💰',
+            actionType: 'hero.join_kingdom', field: 'kingdom_name',
+            placeholder: 'например: Vlandia',
+            hint: 'Введи (часть) имя королевства. Твой clan присоединится как вассал.' };
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);' +
+        'display:flex;align-items:center;justify-content:center;z-index:9999;padding:10px;';
+    overlay.innerHTML = `
+        <div style="background:#18181b;border:1px solid #3d3d3f;border-radius:8px;
+                    padding:18px;max-width:340px;width:100%;">
+            <h3 style="margin:0 0 10px 0;font-size:14px;color:#efeff1;">
+                ${config.icon} ${config.title}
+            </h3>
+            <div style="font-size:11px;color:#adadb8;margin-bottom:10px;line-height:1.4;">
+                ${config.hint} Списать <b style="color:#fbbf24;">${config.cost} динаров</b>.
+            </div>
+            <input id="bnr-join-name-input" type="text" maxlength="64"
+                   placeholder="${config.placeholder}"
+                   style="width:100%;background:#2d2d2f;color:#efeff1;
+                          border:1px solid #3d3d3f;border-radius:4px;
+                          padding:6px 8px;font-size:12px;margin-bottom:12px;
+                          box-sizing:border-box;">
+            <div style="display:flex;gap:6px;">
+                <button id="bnr-j-cancel" class="extra-btn"
+                        style="flex:1;font-size:11px;padding:7px;background:#3d3d3f;">
+                    Отмена
+                </button>
+                <button id="bnr-j-confirm" class="extra-btn"
+                        style="flex:2;font-size:12px;padding:7px;background:#1e3a5f;
+                               color:#93c5fd;font-weight:700;">
+                    ${config.icon} Вступить (${config.cost})
+                </button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    const input = document.getElementById('bnr-join-name-input');
+    input?.focus();
+    const close = () => overlay.remove();
+    const confirm = () => {
+        const name = (input?.value || '').trim();
+        if (!name) return;
+        _bannerlordBuyAction(config.actionType, { [config.field]: name });
+        close();
+    };
+    document.getElementById('bnr-j-cancel')?.addEventListener('click', close);
+    document.getElementById('bnr-j-confirm')?.addEventListener('click', confirm);
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+    input?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') confirm();
+        if (e.key === 'Escape') close();
+    });
+}
+
+// Sprint 5.9: dialog для ввода имени клана + confirm "Создать".
+function _openBannerlordCreateClanDialog() {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);' +
+        'display:flex;align-items:center;justify-content:center;z-index:9999;padding:10px;';
+    overlay.innerHTML = `
+        <div style="background:#18181b;border:1px solid #3d3d3f;border-radius:8px;
+                    padding:18px;max-width:340px;width:100%;">
+            <h3 style="margin:0 0 10px 0;font-size:14px;color:#efeff1;">
+                🏰 Создать собственный клан
+            </h3>
+            <div style="font-size:11px;color:#adadb8;margin-bottom:10px;line-height:1.4;">
+                Твой герой станет лидером нового клана и сможет создать отряд
+                (party) на карте. Списывается <b style="color:#fbbf24;">1,000,000💰
+                динаров</b> у героя в игре. Имя получит префикс <code>[BLink]</code>.
+            </div>
+            <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">
+                Имя клана (опционально, до 32 символов):
+            </div>
+            <input id="bnr-clan-name-input" type="text" maxlength="32"
+                   placeholder="например: Воины Заката"
+                   style="width:100%;background:#2d2d2f;color:#efeff1;
+                          border:1px solid #3d3d3f;border-radius:4px;
+                          padding:6px 8px;font-size:12px;margin-bottom:12px;
+                          box-sizing:border-box;">
+            <div style="display:flex;gap:6px;">
+                <button id="bnr-clan-cancel" class="extra-btn"
+                        style="flex:1;font-size:11px;padding:7px;background:#3d3d3f;">
+                    Отмена
+                </button>
+                <button id="bnr-clan-confirm" class="extra-btn"
+                        style="flex:2;font-size:12px;padding:7px;background:#7c2d12;
+                               color:#fbbf24;font-weight:700;">
+                    🏰 Создать (1M💰)
+                </button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+
+    const input = document.getElementById('bnr-clan-name-input');
+    if (input) input.focus();
+
+    const close = () => overlay.remove();
+    const confirm = () => {
+        const clan_name = (input?.value || '').trim();
+        _bannerlordBuyAction('hero.create_clan', { clan_name });
+        close();
+    };
+
+    document.getElementById('bnr-clan-cancel')?.addEventListener('click', close);
+    document.getElementById('bnr-clan-confirm')?.addEventListener('click', confirm);
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+    input?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') confirm();
+        if (e.key === 'Escape') close();
+    });
+}
+
+function _bindBannerlordProgression() {
+    const focusBtn = document.getElementById('bnr-focus-btn');
+    if (focusBtn) {
+        focusBtn.addEventListener('click', () => {
+            const select = document.getElementById('bnr-focus-skill');
+            const skill_key = select ? select.value : '';
+            _bannerlordBuyAction('hero.add_focus', { skill_key, amount: 1 });
+        });
+    }
+    const attrBtn = document.getElementById('bnr-attr-btn');
+    if (attrBtn) {
+        attrBtn.addEventListener('click', () => {
+            const select = document.getElementById('bnr-attr-select');
+            const attribute_key = select ? select.value : '';
+            _bannerlordBuyAction('hero.add_attribute', { attribute_key, amount: 1 });
+        });
+    }
+}
+
 function _bindBannerlordRandomEquip() {
     const MOUNTED = new Set(['cavalry', 'camel_cavalry', 'horse_archer', 'camel_archer', 'knight']);
     const currentKey = _bannerlordClassesCache?.current?.class_key || '';
@@ -1697,9 +2399,100 @@ function _stopBannerlordPolling() {
         clearInterval(_bannerlordTournamentPollId);
         _bannerlordTournamentPollId = null;
     }
+    if (_bannerlordBattlePollId) {
+        clearInterval(_bannerlordBattlePollId);
+        _bannerlordBattlePollId = null;
+    }
     _bannerlordBuffs = [];
     _bannerlordCooldowns = [];
     _bannerlordTournament = null;
+    _bannerlordBattle = null;
+    _bannerlordWasInBattle = false;
+}
+
+// ===== Sprint 5.5: Battle status indicator (banner only) =====
+async function loadBannerlordBattleStatus() {
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/battle-status`, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
+        const data = await r.json();
+        if (!data.success) return;
+        _bannerlordBattle = data;
+        // На transition (старт боя) дёргаем buffs reload — backend сбрасывает
+        // cooldowns у participants, frontend должен подхватить.
+        if (!!data.in_battle && !_bannerlordWasInBattle) {
+            if (typeof loadBannerlordBuffs === 'function') loadBannerlordBuffs();
+        }
+        _bannerlordWasInBattle = !!data.in_battle;
+        _renderBannerlordBattleBanner(data);
+    } catch (e) { /* silent */ }
+}
+
+function _renderBannerlordBattleBanner(data) {
+    const slot = document.getElementById('bnr-battle-banner-slot');
+    if (!slot) return;
+    if (!data.in_battle) {
+        slot.innerHTML = '';
+        return;
+    }
+
+    const my = data.my_stats;
+    const participantCount = data.participant_count || 0;
+    const cnt = `${participantCount} участ.`;
+
+    if (!my) {
+        // Viewer не участвует в текущем бою — просто индикатор
+        slot.innerHTML = `
+            <div style="background:linear-gradient(135deg,#7c2d12,#dc2626);
+                        border-radius:6px;padding:6px 10px;margin-bottom:6px;
+                        font-size:11px;color:#fff;text-align:center;
+                        animation:bnr-battle-pulse 2s ease-in-out infinite;">
+                ⚔️ В игре идёт бой — ${cnt}
+            </div>`;
+        return;
+    }
+
+    // Viewer участвует — показываем его stats
+    const hp = Math.max(0, my.hp || 0);
+    const hpMax = Math.max(1, my.hp_max || 100);
+    const pct = Math.max(0, Math.min(100, (hp / hpMax) * 100));
+    const alive = my.alive && hp > 0;
+    const stateLabels = {
+        active: '⚔️ В бою',
+        routed: '🏃 Бежит',
+        unconscious: '💤 Без сознания',
+        killed: '💀 Погиб',
+    };
+    const stateLabel = stateLabels[my.state] || (alive ? '⚔️ В бою' : '💀 Погиб');
+    const stateColor = alive ? '#fbbf24' : '#f87171';
+
+    slot.innerHTML = `
+        <div style="background:linear-gradient(135deg,#1e293b,#7c2d12);
+                    border:1px solid #dc2626;border-radius:8px;
+                    padding:8px 10px;margin-bottom:8px;
+                    box-shadow:0 0 12px rgba(220,38,38,0.4);">
+            <div style="display:flex;justify-content:space-between;
+                        align-items:center;margin-bottom:6px;">
+                <span style="font-size:12px;color:${stateColor};font-weight:700;">
+                    ${stateLabel}
+                </span>
+                <span style="font-size:10px;color:#9ca3af;">${cnt}</span>
+            </div>
+            <div style="background:rgba(0,0,0,0.4);border-radius:4px;
+                        height:8px;overflow:hidden;margin-bottom:6px;">
+                <div style="width:${pct.toFixed(1)}%;height:100%;
+                            background:${alive ? 'linear-gradient(90deg,#dc2626,#10b981)' : '#525252'};
+                            transition:width 0.4s ease;"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;
+                        font-size:11px;font-family:'JetBrains Mono',monospace;">
+                <span style="color:#efeff1;">❤ ${hp}/${hpMax}</span>
+                <span style="color:#ffffff;">☠ ${my.kills || 0}</span>
+                <span style="color:#fbbf24;">+${(my.gold_earned || 0).toLocaleString('ru-RU')}💰</span>
+                <span style="color:#93c5fd;">+${(my.xp_earned || 0).toLocaleString('ru-RU')} XP</span>
+            </div>
+        </div>`;
 }
 
 // ===== Sprint 5.3: Турнир зрителей (BLT-style) =====
@@ -1879,6 +2672,7 @@ async function loadBannerlordHero() {
             body.innerHTML = `<div style="color:#f87171;padding:10px;">${escapeHtml(data.message || 'Ошибка')}</div>`;
             return;
         }
+        _bannerlordLastHero = data;   // 5.8: cache для progression modal
         if (!data.has_hero) {
             const CULTURES = [
                 { key: 'empire',    label: 'Империя',  icon: '🏛️', desc: 'Латифундии, мечи и копья' },
@@ -1966,14 +2760,50 @@ async function loadBannerlordHero() {
             : '<div style="font-size:11px;color:#adadb8;">Нет экипировки</div>';
 
         // Sprint M19: level / clan / kingdom badges
-        const clanLabel = h.clan_name ? escapeHtml(h.clan_name) : '<span style="color:#9ca3af;">не вступил</span>';
-        const kingdomLabel = h.kingdom_name ? escapeHtml(h.kingdom_name) : '<span style="color:#9ca3af;">не вступил</span>';
+        // Sprint 5.11: clan/kingdom labels стали clickable — открывают modal
+        // с вариантами create/join/leave (вместо inline-кнопок).
+        const clanName = h.clan_name ? escapeHtml(h.clan_name)
+                                     : '<span style="color:#9ca3af;">не вступил</span>';
+        const kingdomName = h.kingdom_name ? escapeHtml(h.kingdom_name)
+                                           : '<span style="color:#9ca3af;">не вступил</span>';
+        const clanLabel = `
+            <span class="bnr-clickable-row" id="bnr-clan-row"
+                  title="Управление кланом"
+                  style="cursor:pointer;text-decoration:underline dotted #6b7280;
+                         text-underline-offset:3px;">
+                ${clanName} <span style="font-size:9px;color:#9ca3af;">⚙</span>
+            </span>`;
+        const kingdomLabel = `
+            <span class="bnr-clickable-row" id="bnr-kingdom-row"
+                  title="Управление королевством"
+                  style="cursor:pointer;text-decoration:underline dotted #6b7280;
+                         text-underline-offset:3px;">
+                ${kingdomName} <span style="font-size:9px;color:#9ca3af;">⚙</span>
+            </span>`;
         // Sprint M20: gear tier indicator (cached для shop UI)
+        // Sprint 5.10: inline "⚒ Улучшить" button рядом с tier label.
         const gearTier = h.gear_tier || 0;
         _bannerlordCurrentGearTier = gearTier;
-        const gearTierLabel = gearTier === 0
+        const _gtierText = gearTier === 0
             ? '<span style="color:#9ca3af;">базовое</span>'
             : `<span style="color:#fbbf24;">T${gearTier} ★</span>`;
+        const _hasClass = !!_bannerlordClassesCache?.current?.class_key;
+        let _gtierBtn = '';
+        if (gearTier >= 6) {
+            _gtierBtn = '<span style="color:#fbbf24;font-size:10px;margin-left:6px;">MAX</span>';
+        } else if (_hasClass) {
+            const _nextTier = gearTier + 1;
+            const _cost = HERO_GOLD_TIER_COSTS[_nextTier] || 0;
+            _gtierBtn = `<button class="small-btn" id="bnr-inline-upgrade-btn"
+                    title="Улучшить снаряжение T${gearTier} → T${_nextTier}. Списать ${_cost.toLocaleString('ru-RU')}💰 динаров у героя."
+                    style="font-size:10px;padding:2px 8px;margin-left:6px;
+                           background:#3d3d3f;color:#fbbf24;">
+                ⚒ T${_nextTier} (${_formatBigGold(_cost)})
+            </button>`;
+        } else {
+            _gtierBtn = '<span style="color:#9ca3af;font-size:10px;margin-left:6px;">сначала класс</span>';
+        }
+        const gearTierLabel = _gtierText + _gtierBtn;
 
         // Sprint M21: armor summary — sum head/body/leg/arm coverage по
         // 5 armor slots (head/body/leg/gloves/cape). Engine считает
@@ -2012,37 +2842,59 @@ async function loadBannerlordHero() {
                     ${h.culture ? ' · ' + escapeHtml(h.culture) : ''}
                     ${h.location ? ' · 📍 ' + escapeHtml(h.location) : ''}
                 </div>
-                <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:12px;margin-bottom:8px;">
-                    <span style="color:#adadb8;">💰 Динары:</span>
-                    <span style="color:#fbbf24;font-weight:700;">${(h.gold || 0).toLocaleString('ru-RU')}</span>
-                    <span style="color:#adadb8;">⭐ Уровень:</span>
-                    <span style="color:#efeff1;font-weight:700;">${h.level || 1}</span>
-                    <span style="color:#adadb8;">🛡 Снаряжение:</span>
-                    <span style="color:#efeff1;font-weight:700;">${gearTierLabel}</span>
-                    <span style="color:#adadb8;">🏰 Клан:</span>
-                    <span style="color:#efeff1;">${clanLabel}</span>
-                    <span style="color:#adadb8;">👑 Королевство:</span>
-                    <span style="color:#efeff1;">${kingdomLabel}</span>
-                    <span style="color:#adadb8;">🛡 Броня:</span>
-                    <span>${armorLabel}</span>
+                <div style="display:grid;grid-template-columns:auto auto;gap:4px 8px;
+                            font-size:12px;margin-bottom:8px;justify-content:start;
+                            text-align:left;">
+                    <span style="color:#adadb8;text-align:left;">💰 Динары:</span>
+                    <span style="color:#fbbf24;font-weight:700;text-align:left;">${(h.gold || 0).toLocaleString('ru-RU')}</span>
+                    <span style="color:#adadb8;text-align:left;">⭐ Уровень:</span>
+                    <span style="color:#efeff1;font-weight:700;text-align:left;">${h.level || 1}</span>
+                    <span style="color:#adadb8;text-align:left;">🛡 Снаряжение:</span>
+                    <span style="color:#efeff1;font-weight:700;text-align:left;">${gearTierLabel}</span>
+                    <span style="color:#adadb8;text-align:left;">🏰 Клан:</span>
+                    <span style="color:#efeff1;text-align:left;">${clanLabel}</span>
+                    <span style="color:#adadb8;text-align:left;">👑 Королевство:</span>
+                    <span style="color:#efeff1;text-align:left;">${kingdomLabel}</span>
+                    <span style="color:#adadb8;text-align:left;">🛡 Броня:</span>
+                    <span style="text-align:left;">${armorLabel}</span>
                 </div>
+                <div id="bnr-battle-banner-slot"></div>
                 <div id="bnr-buff-hud"></div>
                 <div id="hero-class-picker-slot"></div>
                 <div id="bnr-active-powers-slot"></div>
                 <div id="bnr-summon-slot"></div>
-                <details style="margin-bottom:6px;">
-                    <summary style="font-size:11px;color:#adadb8;cursor:pointer;">Топ скиллы</summary>
-                    <div style="margin-top:4px;">${topSkills}</div>
-                </details>
-                <details>
+                <button class="extra-btn" id="bnr-open-progression-btn"
+                        title="Все скиллы с focus stars + 6 атрибутов"
+                        style="width:100%;font-size:11px;padding:6px;margin-bottom:6px;">
+                    🎯 Прогрессия — скиллы / фокусы / атрибуты
+                </button>
+                <details data-bnr-details="equipment" ${_bnrDetailsAttr('equipment')}>
                     <summary style="font-size:11px;color:#adadb8;cursor:pointer;">Экипировка</summary>
                     <div style="margin-top:4px;">${eqHtml}</div>
                 </details>
                 <div id="bnr-retinue-slot"></div>
             </div>`;
         // Sprint M23 — render свита под equipment.
-        _renderRetinue(data.retinue || []);
+        _bannerlordLastRetinue = data.retinue || [];
+        _renderRetinue(_bannerlordLastRetinue);
         renderBannerlordClassPicker();
+        // Sprint 5.5: immediately repaint battle banner из cache чтобы
+        // не было 0-2s gap'a после hero re-render.
+        if (_bannerlordBattle) _renderBannerlordBattleBanner(_bannerlordBattle);
+        // Sprint 5.5: bind toggle persistence для <details> (skills/equipment/retinue)
+        _bnrBindDetailsPersistence();
+        // Sprint 5.8: bind кнопку открытия progression modal
+        document.getElementById('bnr-open-progression-btn')?.addEventListener('click',
+            _openBannerlordProgressionModal);
+        // Sprint 5.11: bind clickable clan/kingdom rows (открывают modal)
+        document.getElementById('bnr-clan-row')?.addEventListener('click',
+            _openBannerlordClanModal);
+        document.getElementById('bnr-kingdom-row')?.addEventListener('click',
+            _openBannerlordKingdomModal);
+        // Sprint 5.10: inline upgrade gear button (рядом с tier label)
+        document.getElementById('bnr-inline-upgrade-btn')?.addEventListener('click', () => {
+            _bannerlordBuyAction('hero.upgrade_gear', {});
+        });
     } catch (e) {
         body.innerHTML = `<div style="color:#f87171;padding:10px;">Ошибка сети</div>`;
     }
@@ -2054,32 +2906,37 @@ async function loadBannerlordShop() {
     if (!list) return;
     // Sprint M19+M20+M21: random-equip + gear-upgrade + currency (gold/XP) сверху.
     const randomEquipBlock = renderBannerlordRandomEquipHtml();
-    const gearUpgradeBlock = renderBannerlordGearUpgradeHtml();
+    // Sprint 5.10: gear-upgrade перенесён в hero card (inline кнопка рядом с tier label)
+    const gearUpgradeBlock = '';
     const currencyBlock = renderBannerlordCurrencyHtml();
+    // Sprint 5.8c: progression block перенесён в hero card modal (по строчным "+" кнопкам)
+    const progressionBlock = '';
     try {
         const r = await fetch(`${API_URL}/api/bannerlord/shop`, {
             headers: { 'X-Twitch-JWT': authToken || '' },
         });
         const data = await r.json();
         if (!data.success) {
-            list.innerHTML = randomEquipBlock + gearUpgradeBlock + currencyBlock +
+            list.innerHTML = randomEquipBlock + gearUpgradeBlock + currencyBlock + progressionBlock +
                 `<div class="loading">${escapeHtml(data.message || 'Ошибка')}</div>`;
             _bindBannerlordRandomEquip();
             _bindBannerlordGearUpgrade();
             _bindBannerlordCurrency();
+            _bindBannerlordProgression();
             return;
         }
         const items = data.items || [];
         // +3 random-equip + 1 gear-upgrade + 3 give_gold + 3 add_skill = +10
         if (cnt) cnt.textContent = items.length + 10;
         if (items.length === 0) {
-            list.innerHTML = randomEquipBlock + gearUpgradeBlock + currencyBlock + `
+            list.innerHTML = randomEquipBlock + gearUpgradeBlock + currencyBlock + progressionBlock + `
                 <div style="text-align:center;padding:14px;font-size:11px;color:#adadb8;border-top:1px solid #3d3d3f;margin-top:6px;">
                     Каталог пуст. Мод пришлёт shop-данные когда стример запустит игру.
                 </div>`;
             _bindBannerlordRandomEquip();
             _bindBannerlordGearUpgrade();
             _bindBannerlordCurrency();
+            _bindBannerlordProgression();
             return;
         }
         // Каждый item — {catalog_type, entry_id, name?, price?, action_type?, ...}
@@ -2104,10 +2961,11 @@ async function loadBannerlordShop() {
                     </button>
                 </div>`;
         }).join('');
-        list.innerHTML = randomEquipBlock + gearUpgradeBlock + currencyBlock + catalogHtml;
+        list.innerHTML = randomEquipBlock + gearUpgradeBlock + currencyBlock + progressionBlock + catalogHtml;
         _bindBannerlordRandomEquip();
         _bindBannerlordGearUpgrade();
         _bindBannerlordCurrency();
+        _bindBannerlordProgression();
         // Bind buy handlers для catalog items
         list.querySelectorAll('[data-bnr-buy]').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -2117,9 +2975,10 @@ async function loadBannerlordShop() {
             });
         });
     } catch (e) {
-        list.innerHTML = randomEquipBlock + gearUpgradeBlock + currencyBlock +
+        list.innerHTML = randomEquipBlock + gearUpgradeBlock + currencyBlock + progressionBlock +
             `<div class="loading" style="color:#f87171;">Ошибка сети</div>`;
         _bindBannerlordRandomEquip();
+        _bindBannerlordProgression();
         _bindBannerlordGearUpgrade();
         _bindBannerlordCurrency();
     }
@@ -2143,6 +3002,22 @@ async function _bannerlordBuyAction(actionType, data) {
         showNotification(result.message, result.success ? 'success' : 'error');
         if (result.success) {
             if (typeof loadUserData === 'function') loadUserData();
+            // Sprint 5.3d: ускоряем UI feedback для bannerlord actions —
+            // вместо ожидания 8s polling cycle, дёргаем reload через ~3.5s
+            // (после mod poll + apply). Особенно важно для recruit_troops
+            // и upgrade_gear — viewer видит результат почти сразу.
+            const isBannerlord = actionType.startsWith('hero.')
+                || actionType.startsWith('player.')
+                || actionType.startsWith('power.')
+                || actionType.startsWith('tournament.');
+            if (isBannerlord && typeof loadBannerlordHero === 'function') {
+                setTimeout(() => {
+                    loadBannerlordHero();
+                    if (typeof loadBannerlordTournament === 'function') {
+                        loadBannerlordTournament();
+                    }
+                }, 3500);
+            }
         }
     } catch (e) {
         showNotification('Ошибка сети', 'error');

@@ -630,6 +630,33 @@ async def run_migrations():
             print(f"❌ M25 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M26: bannerlord_skills.focus column ──
+        # BLT-style focus points per skill (0-5).
+        try:
+            from migrations import m26_bannerlord_focus
+            await m26_bannerlord_focus.apply(conn)
+        except Exception as e:
+            print(f"❌ M26 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
+        # ── M27: clan_info_json + kingdom_info_json columns ──
+        # Structured info для UI модалов (leader, tier, renown, fiefs etc.).
+        try:
+            from migrations import m27_bannerlord_clan_kingdom_info
+            await m27_bannerlord_clan_kingdom_info.apply(conn)
+        except Exception as e:
+            print(f"❌ M27 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
+        # ── M28: is_elite column в bannerlord_retinue ──
+        # BLT-style elite retinue (EliteBasicTroop chain, 3× cost).
+        try:
+            from migrations import m28_bannerlord_retinue_elite
+            await m28_bannerlord_retinue_elite.apply(conn)
+        except Exception as e:
+            print(f"❌ M28 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

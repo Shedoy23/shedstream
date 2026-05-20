@@ -677,6 +677,108 @@ body {
     margin-top: 2px;
 }
 
+/* ══════ Sprint 5.4: Bannerlord summoned heroes panel (BLT-style) ══════ */
+#bnr-summoned-panel {
+    position: fixed;
+    left: 14px;
+    bottom: 14px;
+    right: 14px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px;
+    z-index: 6;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    max-height: 35vh;
+    overflow: hidden;
+}
+#bnr-summoned-panel.visible { opacity: 1; }
+
+/* ── Карточка героя (HP bar = фон, заливается слева направо) ── */
+.bnr-hero-card {
+    position: relative;
+    min-width: 110px;
+    max-width: 170px;
+    flex: 0 1 auto;
+    padding: 6px 10px;
+    border-radius: 6px;
+    overflow: hidden;
+    color: #fff;
+    font-family: 'Unbounded', sans-serif;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+}
+
+/* Side coloring — background + HP fill colors */
+.bnr-hero-card.side-player { background: #202050; }
+.bnr-hero-card.side-enemy  { background: #401122; }
+
+/* HP bar — absolute fill behind content */
+.bnr-hp-fill {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    transition: width 0.4s ease;
+    opacity: 0.85;
+}
+.bnr-hero-card.side-player .bnr-hp-fill { background: #6666CC; }
+.bnr-hero-card.side-enemy  .bnr-hp-fill { background: #AA3277; }
+
+/* State filters (по BLT) */
+.bnr-hero-card.state-routed .bnr-hero-name {
+    filter:
+        drop-shadow(0 0 1px black)
+        drop-shadow(0 0 2px black)
+        drop-shadow(0 0 5px #fbbf24)
+        drop-shadow(0 0 3px #fbbf24);
+}
+.bnr-hero-card.state-unconscious .bnr-hero-name {
+    filter:
+        drop-shadow(0 0 1px black)
+        drop-shadow(0 0 2px black)
+        drop-shadow(0 0 5px #fb923c)
+        drop-shadow(0 0 3px #fb923c);
+}
+.bnr-hero-card.state-killed .bnr-hero-name {
+    filter:
+        drop-shadow(0 0 1px black)
+        drop-shadow(0 0 2px black)
+        drop-shadow(0 0 5px #ef4444)
+        drop-shadow(0 0 3px #ef4444);
+}
+.bnr-hero-card.state-killed,
+.bnr-hero-card.state-unconscious {
+    opacity: 0.75;
+}
+
+.bnr-hero-card > * { position: relative; z-index: 1; }
+
+.bnr-hero-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    margin-bottom: 3px;
+    letter-spacing: 0.2px;
+}
+
+.bnr-hero-stats {
+    display: flex;
+    gap: 6px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+.bnr-hero-stats .stat-kills { color: #ffffff; font-weight: 700; }
+.bnr-hero-stats .stat-gold  { color: #fbbf24; margin-left: auto; }
+.bnr-hero-stats .stat-xp    { color: #FF7FB0; }
+
 </style>
 </head>
 <body>
@@ -685,6 +787,9 @@ body {
 
 <!-- ══════ PETS-STRIP (Phase 7, 2026-05-12) ══════ -->
 <div id="pets-strip"></div>
+
+<!-- ══════ BANNERLORD: SUMMONED HEROES (Sprint 5.4) ══════ -->
+<div id="bnr-summoned-panel"></div>
 
 <!-- ══════ ПОСТОЯННАЯ ПАНЕЛЬ ИВЕНТА (справа по центру) ══════ -->
 <div id="event-panel">
@@ -1205,6 +1310,68 @@ function escapeHtmlOL(s) {
 // ══════════════════════════════════════════
 // СТАРТ
 // ══════════════════════════════════════════
+// ══════════════════════════════════════════
+// BANNERLORD SUMMONED HEROES — Sprint 5.4 (BLT-style)
+// Polls /api/overlay/bannerlord/summoned каждые 1с.
+// Row-layout, HP bar = card background fill, side colors (blue/red),
+// state glow (active/routed/unconscious/killed), compact numbers.
+// ══════════════════════════════════════════
+const BNR_POLL_INTERVAL = 1000;
+
+// Compact number formatter ("1.2K" / "12M") — BLT pattern.
+const _bnrCompact = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
+function bnrFmt(n) { return _bnrCompact.format(Math.round(n || 0)); }
+
+// Sort: player side first → больше kills сверху → alpha.
+function bnrSortParticipants(a, b) {
+    if (a.is_player_side !== b.is_player_side) return a.is_player_side ? -1 : 1;
+    if ((b.kills || 0) !== (a.kills || 0)) return (b.kills || 0) - (a.kills || 0);
+    return (a.username || '').localeCompare(b.username || '');
+}
+
+async function pollBannerlordSummoned() {
+    try {
+        const url = SERVER + '/api/overlay/bannerlord/summoned'
+            + (PETS_CHANNEL_ID > 0 ? `?channel_id=${PETS_CHANNEL_ID}` : '');
+        const r = await fetch(url);
+        const data = await r.json();
+        const panel = document.getElementById('bnr-summoned-panel');
+        if (!panel) return;
+
+        const participants = (data.participants || []).slice().sort(bnrSortParticipants);
+        if (!data.active || participants.length === 0) {
+            panel.classList.remove('visible');
+            panel.innerHTML = '';
+            return;
+        }
+
+        panel.innerHTML = participants.map(p => {
+            const username = escapeHtmlOL(p.username || '?');
+            const hp = Math.max(0, p.hp || 0);
+            const hpMax = Math.max(1, p.hp_max || 100);
+            const pct = Math.max(0, Math.min(100, (hp / hpMax) * 100));
+            const sideClass = p.is_player_side ? 'side-player' : 'side-enemy';
+            const stateClass = `state-${p.state || (p.alive ? 'active' : 'killed')}`;
+            const kills = p.kills || 0;
+            const gold = bnrFmt(p.gold_earned);
+            const xp = bnrFmt(p.xp_earned);
+            const killsStr = kills > 0 ? `☠${kills}` : '';
+            return `
+                <div class="bnr-hero-card ${sideClass} ${stateClass}">
+                    <div class="bnr-hp-fill" style="width: ${pct.toFixed(1)}%;"></div>
+                    <div class="bnr-hero-name">${username}</div>
+                    <div class="bnr-hero-stats">
+                        <span class="stat-kills">${killsStr}</span>
+                        <span class="stat-gold">+${gold}💰</span>
+                        <span class="stat-xp">+${xp}XP</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        panel.classList.add('visible');
+    } catch (e) { /* silent */ }
+}
+
 if (new URLSearchParams(location.search).get('preview') === '1') {
     runPreview();
 } else {
@@ -1212,6 +1379,8 @@ if (new URLSearchParams(location.search).get('preview') === '1') {
     setInterval(poll, POLL_INTERVAL);
     pollPets();
     setInterval(pollPets, PETS_POLL_INTERVAL);
+    pollBannerlordSummoned();
+    setInterval(pollBannerlordSummoned, BNR_POLL_INTERVAL);
 }
 </script>
 </body>

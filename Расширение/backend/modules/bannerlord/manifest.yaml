@@ -62,11 +62,21 @@ extensions:
     - hero.gear_tier_changed  # M20+: mod пушит после successful upgrade_gear
     - module.heroes_snapshot  # M22+: mod пушит alive heroes на session_launched
     - hero.retinue_changed    # M23+: mod пушит после recruit/upgrade troop
+    - hero.focus_changed      # Sprint 5.8: mod пушит после add_focus
+    - hero.attribute_changed  # Sprint 5.8: mod пушит после add_attribute
+    - hero.clan_created       # Sprint 5.9: mod пушит после успешного clan create
+    - hero.kingdom_created    # Sprint 5.12: mod пушит после kingdom create
+    - hero.clan_left          # Sprint 5.12: mod пушит после leave_clan
+    - hero.kingdom_left       # Sprint 5.12: mod пушит после leave_kingdom
+    - hero.clan_joined        # Sprint 5.12: mod пушит после join_clan
+    - hero.kingdom_joined     # Sprint 5.12: mod пушит после join_kingdom
+    - hero.party_created      # Sprint 5.13: mod пушит после create_party
     - tournament.joined       # Sprint 5.3: viewer added to queue (mod paid Hero.Gold)
     - tournament.left         # Sprint 5.3: viewer removed (refund / hero died / etc.)
     - tournament.started      # Sprint 5.3: tournament fight started, participants frozen
     - tournament.round_ended  # Sprint 5.3: round closed, bets resolved
     - tournament.ended        # Sprint 5.3: final, winner gets prize
+    - battle.stats_snapshot   # Sprint 5.4: per-Mission stats для overlay (HP/kills/gold/xp)
   actions:
     - hero.create        # Adoption flow — spawn fresh wanderer + SetName(viewer)
     - hero.set_class     # Sprint 4.1: класс + equipment apply
@@ -78,6 +88,15 @@ extensions:
     - hero.recruit_troops
     - hero.join_tournament   # Sprint 5.3: BLT-style viewer tournament queue
     - tournament.bet         # Sprint 5.3: viewer ставит крустики на участника
+    - hero.add_focus         # Sprint 5.8: focus point в skill (Hero.Gold tier-based)
+    - hero.add_attribute     # Sprint 5.8: attribute point (Hero.Gold flat 50K)
+    - hero.create_clan       # Sprint 5.9: BLT-style clan creation (Hero.Gold 1M)
+    - hero.create_kingdom    # Sprint 5.12: kingdom creation (Hero.Gold 5M)
+    - hero.leave_clan        # Sprint 5.12: leave own clan (free)
+    - hero.leave_kingdom     # Sprint 5.12: clan leaves kingdom (free)
+    - hero.join_clan         # Sprint 5.12: join existing clan (Hero.Gold 50K)
+    - hero.join_kingdom      # Sprint 5.12: clan joins kingdom (Hero.Gold 100K)
+    - hero.create_party      # Sprint 5.13: clan-leader creates MobileParty on world map (Hero.Gold 200K)
 
 # Каталоги — те же что RimWorld (универсальный shape entry per MODULE_API.md §9):
 catalogs:

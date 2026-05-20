@@ -323,7 +323,15 @@ async def _on_channel_points(event: dict, channel_id: int) -> None:
     rewards_cfg = CHANNEL_POINTS_CONFIG.get("rewards", {})
     reward_cfg = rewards_cfg.get(reward_title)
     if not reward_cfg:
-        return  # title не в конфиге — игнор
+        # title не в конфиге — log + ignore (раньше silently dropped, чинит
+        # отладку: видно incoming title чтобы понять mismatch с config).
+        logger.warning(
+            "channel_points: unknown reward title '%s' ch=%s user=@%s "
+            "(known titles: %s)",
+            reward_title, channel_id, username,
+            list(rewards_cfg.keys()),
+        )
+        return
 
     diamonds = reward_cfg["diamonds"]
     db = get_db()

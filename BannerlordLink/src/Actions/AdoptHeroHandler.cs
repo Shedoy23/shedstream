@@ -143,9 +143,46 @@ namespace BannerlordLink.Actions
 
                 newHero.HeroDeveloper.InitializeHeroDeveloper();
 
+                // Sprint 5.10b: strip wanderer's starting equipment. Иначе
+                // engine иногда выдаёт T5-T6 шмот рандомно (зависит от
+                // template — некоторые "Khergit Defector" etc. идут с
+                // high-tier стандартным набором). Bypasses gear progression
+                // system → unfair. Чистим все 11 slots до пустоты —
+                // viewer получит шмот через hero.set_class.
+                try
+                {
+                    StripEquipment(newHero);
+                    BannerlordLinkModule.Log(
+                        $"[hero.create] @{username}: equipment stripped " +
+                        "(базовое, viewer set_class даст start гир)");
+                }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[hero.create] @{username} StripEquipment warn: {ex.Message}");
+                }
+
                 // 4. Rename → "[BLink] {viewer_login}" full / "{viewer_login}" first
                 var (fullName, firstName) = HeroNaming.Format(username);
                 newHero.SetName(fullName, firstName);
+
+                // Sprint 5.16: убираем fog-of-war — MainHero "знакомится" с
+                // новым hero, чтобы он сразу появлялся в encyclopedia /
+                // clan UI / diplomacy на стороне стримера. Без этого engine
+                // показывает viewer'а как "Unknown wanderer" пока не встретят
+                // физически на карте.
+                try
+                {
+                    newHero.SetHasMet();
+                    BannerlordLinkModule.Log(
+                        $"[hero.create] @{username}: marked as met by MainHero " +
+                        "(visible в encyclopedia)");
+                }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[hero.create] @{username} SetHasMet warn: {ex.Message}");
+                }
 
                 BannerlordLinkModule.Log(
                     $"[hero.create] @{username} → hero_id={newHero.StringId} " +
@@ -166,6 +203,42 @@ namespace BannerlordLink.Actions
                     $"[hero.create] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
                 PostFailed(username, ex.Message);
             }
+        }
+
+        // Sprint 5.10b: clear все 11 equipment slots (battle + civilian).
+        // Set EquipmentElement.Invalid → engine видит slot как пустой.
+        private static void StripEquipment(Hero hero)
+        {
+            if (hero == null) return;
+            var slots = new[]
+            {
+                EquipmentIndex.Weapon0, EquipmentIndex.Weapon1,
+                EquipmentIndex.Weapon2, EquipmentIndex.Weapon3,
+                EquipmentIndex.Head, EquipmentIndex.Body,
+                EquipmentIndex.Leg, EquipmentIndex.Gloves,
+                EquipmentIndex.Cape,
+                EquipmentIndex.Horse, EquipmentIndex.HorseHarness,
+            };
+            try
+            {
+                var battle = hero.BattleEquipment;
+                if (battle != null)
+                {
+                    foreach (var idx in slots)
+                        battle[idx] = EquipmentElement.Invalid;
+                }
+            }
+            catch { }
+            try
+            {
+                var civ = hero.CivilianEquipment;
+                if (civ != null)
+                {
+                    foreach (var idx in slots)
+                        civ[idx] = EquipmentElement.Invalid;
+                }
+            }
+            catch { }
         }
 
         private static void PostLinked(Hero hero, string username)

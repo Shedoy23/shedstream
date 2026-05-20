@@ -1,4 +1,5 @@
 # database.py - работа с твоей БД
+import re as _re_db
 import aiosqlite
 from contextlib import asynccontextmanager
 from datetime import datetime, date
@@ -6,6 +7,19 @@ from typing import Optional, List, Dict
 
 from db_pool import DBPool
 from dependencies import resolve_channel_id
+
+
+# 2026-05-17: Guard helper — детектит Twitch opaque user IDs.
+# `u_xxx` / 15+ base64url chars — это значит viewer НЕ нажал Share Identity.
+_OPAQUE_RX = _re_db.compile(r"^u[a-z0-9_-]{15,}$")
+
+
+def _is_opaque_login(name: str) -> bool:
+    """True если имя похоже на Twitch opaque_user_id (не real login)."""
+    if not name:
+        return False
+    n = name.strip().lower()
+    return bool(_OPAQUE_RX.match(n)) or len(n) > 25
 
 class Database:
     def __init__(self, db_path="viewers.db"):
@@ -447,7 +461,15 @@ class Database:
             return row[0] if row else 0
     
     async def add_points(self, username: str, amount: int, channel_id: int = None):
-        """Начислить очки. channel_id опционален пока M3 не протолкнёт его везде."""
+        """Начислить очки. channel_id опционален пока M3 не протолкнёт его везде.
+
+        2026-05-17: Guard против opaque Twitch IDs (u_xxx / длинные base64url
+        строки). Если такая запись попала в `viewers` через старый JWT-баг —
+        НЕ накручивать ей points, иначе reward_points_loop'у не выйдет из
+        неё (add_points refreshes last_seen → record never times out).
+        """
+        if username and _is_opaque_login(username):
+            return  # silently skip opaque entries (don't enable infinite loop)
         channel_id = resolve_channel_id(channel_id)
         async with self._connect() as db:
             await db.execute("""

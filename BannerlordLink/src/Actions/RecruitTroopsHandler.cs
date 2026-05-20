@@ -42,6 +42,7 @@ namespace BannerlordLink.Actions
         public string ActionType => "hero.recruit_troops";
 
         private const int MAX_RETINUE = 5;
+        private const float ELITE_COST_MULTIPLIER = 3f;   // Sprint 5.14: 3× для elite
 
         private static readonly int[] TIER_COSTS =
         {
@@ -60,10 +61,13 @@ namespace BannerlordLink.Actions
             if (string.IsNullOrEmpty(username))
                 return Task.FromResult<(bool, string)>((false, "no target username"));
 
+            // Sprint 5.14: is_elite flag — recruit/upgrade culture.EliteBasicTroop
+            bool isElite = (bool?)data["is_elite"] ?? false;
+
             // Backend passes current retinue snapshot (из bannerlord_retinue).
             // Mod использует чтобы знать какие slots filled и какие troops upgrade'ить.
             var retinueJson = data["retinue"] as JArray;
-            var existingSlots = new List<(int slot, string troopId, int tier)>();
+            var existingSlots = new List<(int slot, string troopId, int tier, bool isElite)>();
             if (retinueJson != null)
             {
                 foreach (var item in retinueJson)
@@ -71,16 +75,19 @@ namespace BannerlordLink.Actions
                     int slot = (int?)item["slot_index"] ?? -1;
                     string troopId = item["troop_id"]?.ToString();
                     int tier = (int?)item["tier"] ?? 0;
+                    bool slotElite = (bool?)item["is_elite"] ?? false;
                     if (slot >= 0 && !string.IsNullOrEmpty(troopId))
-                        existingSlots.Add((slot, troopId, tier));
+                        existingSlots.Add((slot, troopId, tier, slotElite));
                 }
             }
 
-            MainThreadDispatcher.Enqueue(() => Recruit(username, existingSlots));
+            MainThreadDispatcher.Enqueue(() => Recruit(username, existingSlots, isElite));
             return Task.FromResult<(bool, string)>((true, null));
         }
 
-        private static void Recruit(string username, List<(int slot, string troopId, int tier)> existing)
+        private static void Recruit(string username,
+            List<(int slot, string troopId, int tier, bool isElite)> existing,
+            bool wantElite)
         {
             try
             {
@@ -99,15 +106,32 @@ namespace BannerlordLink.Actions
                 }
 
                 // Decide: add new troop OR upgrade existing?
+                // Sprint 5.14: для upgrade pickaем slot нужного типа (elite/basic),
+                // чтобы wantElite=true upgrade'ил elite trooper, не basic.
                 bool addNew = existing.Count < MAX_RETINUE;
-                int tier = addNew ? 0 : existing.OrderBy(s => s.tier).First().tier;
-                int cost = tier < TIER_COSTS.Length ? TIER_COSTS[tier] : TIER_COSTS[TIER_COSTS.Length - 1];
+                int tier = 0;
+                if (!addNew)
+                {
+                    var sameTypeSlots = existing.Where(s => s.isElite == wantElite).ToList();
+                    if (sameTypeSlots.Count == 0)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[recruit_troops] @{username}: " +
+                            $"нет {(wantElite ? "elite" : "basic")} troop'ов для upgrade " +
+                            "(только противоположный тип)");
+                        return;
+                    }
+                    tier = sameTypeSlots.OrderBy(s => s.tier).First().tier;
+                }
+                int baseCost = tier < TIER_COSTS.Length ? TIER_COSTS[tier] : TIER_COSTS[TIER_COSTS.Length - 1];
+                int cost = wantElite ? (int)(baseCost * ELITE_COST_MULTIPLIER) : baseCost;
 
                 if (hero.Gold < cost)
                 {
                     BannerlordLinkModule.Log(
                         $"[recruit_troops] @{username}: not enough gold ({hero.Gold} < {cost}) " +
-                        $"для {(addNew ? "recruit" : $"upgrade T{tier}")}");
+                        $"для {(addNew ? "recruit" : $"upgrade T{tier}")} " +
+                        $"{(wantElite ? "[ELITE 3×]" : "")}");
                     return;
                 }
 
@@ -117,22 +141,43 @@ namespace BannerlordLink.Actions
 
                 if (addNew)
                 {
-                    // Basic troop из culture
                     var culture = hero.Culture;
-                    if (culture?.BasicTroop == null)
+                    if (culture == null)
                     {
                         BannerlordLinkModule.Log(
-                            $"[recruit_troops] @{username}: no BasicTroop для culture {culture?.StringId ?? "?"}");
+                            $"[recruit_troops] @{username}: hero.Culture == null");
                         return;
                     }
-                    newTroop = culture.BasicTroop;
+                    // Sprint 5.14: pick basic OR elite troop по wantElite
+                    newTroop = wantElite ? culture.EliteBasicTroop : culture.BasicTroop;
+                    if (newTroop == null || newTroop.Culture != culture)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[recruit_troops] @{username}: " +
+                            $"culture.{(wantElite ? "EliteBasicTroop" : "BasicTroop")} mismatch! " +
+                            $"hero.Culture={culture.StringId}, " +
+                            $"got={newTroop?.StringId ?? "null"}. " +
+                            "Fallback к explicit search.");
+                        newTroop = FindCultureRecruit(culture, wantElite);
+                        if (newTroop == null)
+                        {
+                            BannerlordLinkModule.Log(
+                                $"[recruit_troops] @{username}: no T0 " +
+                                $"{(wantElite ? "elite" : "basic")} troop для {culture.StringId}");
+                            return;
+                        }
+                    }
                     newTier = (int)newTroop.Tier;
-                    updatedSlot = existing.Count;  // append
+                    updatedSlot = existing.Count;
+                    BannerlordLinkModule.Log(
+                        $"[recruit_troops] @{username}: hero.Culture={culture.StringId}, " +
+                        $"picked {newTroop.StringId} {(wantElite ? "[ELITE]" : "[basic]")}");
                 }
                 else
                 {
-                    // Upgrade lowest-tier troop. Find slot.
-                    var slot = existing.OrderBy(s => s.tier).First();
+                    // Upgrade lowest-tier troop того же типа что wantElite.
+                    var slot = existing.Where(s => s.isElite == wantElite)
+                                       .OrderBy(s => s.tier).First();
                     var current = MBObjectManager.Instance.GetObject<CharacterObject>(slot.troopId);
                     if (current?.UpgradeTargets == null || current.UpgradeTargets.Length == 0)
                     {
@@ -141,10 +186,24 @@ namespace BannerlordLink.Actions
                             "(уже maxed)");
                         return;
                     }
+                    // Safety: предпочитаем upgrade targets совпадающие с hero.Culture.
+                    // Если retinue troop изначально WAR другой культуры (legacy bug
+                    // или херо сменил клан), upgrade оставит its own culture chain.
+                    // Filter, и если ничего не найдено — используем любой target.
                     var rng = new Random();
-                    newTroop = current.UpgradeTargets[rng.Next(current.UpgradeTargets.Length)];
+                    var sameCulture = current.UpgradeTargets
+                        .Where(t => t != null && t.Culture == hero.Culture)
+                        .ToList();
+                    var pool = sameCulture.Count > 0
+                        ? sameCulture
+                        : current.UpgradeTargets.ToList();
+                    newTroop = pool[rng.Next(pool.Count)];
                     newTier = (int)newTroop.Tier;
                     updatedSlot = slot.slot;
+                    BannerlordLinkModule.Log(
+                        $"[recruit_troops] @{username}: upgrade {current.StringId} → " +
+                        $"{newTroop.StringId} (Culture={newTroop.Culture?.StringId}, " +
+                        $"hero.Culture={hero.Culture?.StringId})");
                 }
 
                 // Deduct gold + push event
@@ -162,6 +221,7 @@ namespace BannerlordLink.Actions
                     troop_id = newTroop.StringId,
                     troop_name = newTroop.Name?.ToString() ?? newTroop.StringId,
                     tier = newTier,
+                    is_elite = wantElite,
                     action = addNew ? "recruit" : "upgrade",
                 };
                 string json = JsonConvert.SerializeObject(payload);
@@ -175,6 +235,50 @@ namespace BannerlordLink.Actions
             {
                 BannerlordLinkModule.Log(
                     $"[recruit_troops] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+
+        /// <summary>Sprint 5.10d/5.14: explicit search для T0/T1 troop'a по culture.
+        /// Fallback когда culture.BasicTroop/EliteBasicTroop сломан (mod conflict).
+        /// elite=true → ищем "elite" в StringId (vlandian_squire / khuzait_oathsworn / etc.).</summary>
+        private static CharacterObject FindCultureRecruit(CultureObject culture, bool elite = false)
+        {
+            if (culture == null) return null;
+            try
+            {
+                var all = MBObjectManager.Instance.GetObjectTypeList<CharacterObject>();
+                if (all == null) return null;
+                // Filter: same culture + soldier (not hero / wanderer) + tier 0/1
+                var candidates = all
+                    .Where(c => c != null
+                                && c.Culture == culture
+                                && c.IsBasicTroop
+                                && !c.IsHero
+                                && (int)c.Tier <= 1
+                                && (!elite || (c.StringId?.Contains("elite") ?? false)
+                                    || (c.StringId?.Contains("squire") ?? false)
+                                    || (c.StringId?.Contains("noble") ?? false)
+                                    || (c.StringId?.Contains("oathsworn") ?? false)))
+                    .OrderBy(c => (int)c.Tier)
+                    .ToList();
+                if (candidates.Count == 0)
+                {
+                    // Relax — just any troop of this culture с low tier
+                    candidates = all
+                        .Where(c => c != null
+                                    && c.Culture == culture
+                                    && !c.IsHero
+                                    && (int)c.Tier <= 1)
+                        .OrderBy(c => (int)c.Tier)
+                        .ToList();
+                }
+                return candidates.Count > 0 ? candidates[0] : null;
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[recruit_troops] FindCultureRecruit({culture.StringId}) crashed: {ex.Message}");
+                return null;
             }
         }
     }

@@ -52,6 +52,18 @@ _active_buffs: dict = {}
 #   {(channel_id, username): {power_key: cooldown_expires_at_unix}}
 _cooldowns: dict = {}
 
+# Sprint 5.4: in-memory snapshot активных summoned heroes в Mission.
+# Mod пушит battle.stats_snapshot каждые ~1.5с. Overlay polls and renders
+# (HP bar / kills / gold / xp).
+#   {channel_id: {
+#       'final': bool,          # True если Mission ended
+#       'updated_at': unix_ts,
+#       'participants': [{username, hp, hp_max, alive, kills, gold_earned, xp_earned}],
+#   }}
+_battle_stats: dict = {}
+# Sec, после которого snapshot считается stale → overlay скрывает карточки.
+_BATTLE_STATS_TTL = 8.0
+
 # Cooldown seconds для каждого active power_key. Tuned for live stream
 # pacing — поправим в 4.10 после feedback. Хардкод чтобы не плодить миграции
 # на mvp scale; рефакторим в админку когда понадобится per-streamer балансинг.
@@ -162,6 +174,49 @@ def set_cooldown(channel_id: int, username: str, power_key: str) -> None:
     _cooldowns.setdefault(key, {})[power_key] = time.time() + cd_seconds
 
 
+def get_battle_stats(channel_id: int) -> dict:
+    """Возвращает snapshot активного боя для overlay. Если stale (>TTL) —
+    возвращает пустой dict (overlay скрывает карточки)."""
+    import time as _time
+    snap = _battle_stats.get(channel_id)
+    if not snap:
+        return {"active": False, "participants": []}
+    age = _time.time() - snap.get("updated_at", 0)
+    if age > _BATTLE_STATS_TTL or snap.get("final"):
+        # Final ИЛИ stale — overlay скрывает (battle закончился / pause)
+        return {
+            "active":       False,
+            "final":        snap.get("final", False),
+            "participants": snap.get("participants", []),
+            "age_sec":      round(age, 1),
+        }
+    return {
+        "active":       True,
+        "final":        False,
+        "participants": snap.get("participants", []),
+        "age_sec":      round(age, 1),
+    }
+
+
+def get_my_battle_stats(channel_id: int, username: str) -> dict:
+    """Sprint 5.5: для viewer extension. Возвращает только МОИ stats
+    + флаг in_battle. Использует тот же snapshot что и overlay."""
+    snap = get_battle_stats(channel_id)
+    in_battle = snap.get("active", False)
+    my = None
+    if in_battle and username:
+        u = username.lower()
+        for p in snap.get("participants", []):
+            if (p.get("username") or "").lower() == u:
+                my = p
+                break
+    return {
+        "in_battle":         in_battle,
+        "participant_count": len(snap.get("participants", [])) if in_battle else 0,
+        "my_stats":          my,
+    }
+
+
 # Events которые triggrят TG-нотификацию (major world events).
 # Не каждое event_occurred — это спам. Только заметные исходы.
 _TG_TRIGGER_EVENTS = (
@@ -256,6 +311,23 @@ class BannerlordAdapter(ModuleAdapter):
 
         if et == "hero.retinue_changed":
             await self._on_retinue_changed(channel_id, env)
+            return
+
+        if et == "hero.focus_changed":
+            await self._on_focus_changed(channel_id, env)
+            return
+
+        if et == "hero.attribute_changed":
+            await self._on_attribute_changed(channel_id, env)
+            return
+
+        if et == "hero.clan_created":
+            await self._on_clan_created(channel_id, env)
+            return
+
+        # ── Sprint 5.4: Battle stats snapshot (для overlay) ────────────────
+        if et == "battle.stats_snapshot":
+            self._on_battle_stats(channel_id, env)
             return
 
         # ── Sprint 5.3: Tournament events ──────────────────────────────────
@@ -436,6 +508,56 @@ class BannerlordAdapter(ModuleAdapter):
                 f"UPDATE bannerlord_heroes SET {', '.join(fields)} "
                 f"WHERE channel_id=? AND username=?",
                 params)
+
+            # Sprint 5.8: UPSERT skills (level/focus) и attributes если пришли.
+            skills_payload = data.get("skills")
+            if isinstance(skills_payload, dict):
+                for skill_key, info in skills_payload.items():
+                    if not isinstance(info, dict):
+                        continue
+                    try:
+                        level = int(info.get("level") or 0)
+                        focus = int(info.get("focus") or 0)
+                    except (TypeError, ValueError):
+                        continue
+                    await conn.execute("""
+                        INSERT INTO bannerlord_skills
+                            (channel_id, username, skill_key, level, xp, focus)
+                        VALUES (?, ?, ?, ?, 0, ?)
+                        ON CONFLICT(channel_id, username, skill_key) DO UPDATE SET
+                            level = excluded.level,
+                            focus = excluded.focus
+                    """, (channel_id, username, skill_key, level, focus))
+
+            attrs_payload = data.get("attributes")
+            if isinstance(attrs_payload, dict):
+                for attr_key, value in attrs_payload.items():
+                    try:
+                        v = int(value)
+                    except (TypeError, ValueError):
+                        continue
+                    await conn.execute("""
+                        INSERT INTO bannerlord_attributes
+                            (channel_id, username, attribute, value)
+                        VALUES (?, ?, ?, ?)
+                        ON CONFLICT(channel_id, username, attribute) DO UPDATE SET
+                            value = excluded.value
+                    """, (channel_id, username, attr_key, v))
+
+            # Sprint 5.11: clan_info + kingdom_info JSON storage
+            for k, col in [("clan_info", "clan_info_json"),
+                           ("kingdom_info", "kingdom_info_json")]:
+                info = data.get(k)
+                if info is not None:
+                    try:
+                        json_str = json.dumps(info, ensure_ascii=False) if info else None
+                    except Exception:
+                        json_str = None
+                    await conn.execute(
+                        f"UPDATE bannerlord_heroes SET {col}=? "
+                        f"WHERE channel_id=? AND username=?",
+                        (json_str, channel_id, username))
+
             await conn.commit()
 
     async def _on_player_died(self, channel_id: int, env: ModuleEnvelope) -> None:
@@ -647,6 +769,7 @@ class BannerlordAdapter(ModuleAdapter):
             tier = int(data.get("tier") or 0)
         except (TypeError, ValueError):
             tier = 0
+        is_elite = 1 if bool(data.get("is_elite", False)) else 0
         if not username or not troop_id:
             return
 
@@ -654,17 +777,19 @@ class BannerlordAdapter(ModuleAdapter):
         async with get_db()._connect() as conn:
             await conn.execute("""
                 INSERT INTO bannerlord_retinue
-                    (channel_id, username, slot_index, troop_id, troop_name, tier)
-                VALUES (?, ?, ?, ?, ?, ?)
+                    (channel_id, username, slot_index, troop_id, troop_name, tier, is_elite)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(channel_id, username, slot_index) DO UPDATE SET
                     troop_id   = excluded.troop_id,
                     troop_name = excluded.troop_name,
-                    tier       = excluded.tier
-            """, (channel_id, username, slot_index, troop_id, troop_name, tier))
+                    tier       = excluded.tier,
+                    is_elite   = excluded.is_elite
+            """, (channel_id, username, slot_index, troop_id, troop_name, tier, is_elite))
             await conn.commit()
         action = data.get("action", "?")
         print(f"[bannerlord:{channel_id}] @{username} retinue {action}: "
-              f"slot {slot_index} → {troop_id} T{tier + 1}")
+              f"slot {slot_index} → {troop_id} T{tier + 1} "
+              f"{'[ELITE]' if is_elite else ''}")
 
     async def _on_gear_tier_changed(self, channel_id: int, env: ModuleEnvelope) -> None:
         """Mod применил gear upgrade — backend сохраняет new tier в DB cache.
@@ -687,6 +812,124 @@ class BannerlordAdapter(ModuleAdapter):
             await conn.commit()
         await self._log_event(channel_id, "hero.gear_tier_changed", username, data)
         print(f"[bannerlord:{channel_id}] @{username} gear_tier → T{new_tier}")
+
+    # ── Sprint 5.8: Focus / Attribute changes ─────────────────────────────────
+
+    async def _on_focus_changed(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Mod пушит после successful add_focus. Backend log'ает в audit
+        (UI отображение позже — для MVP только log)."""
+        data = env.data or {}
+        username = (data.get("username") or "").lower()
+        skill = data.get("skill_name") or data.get("skill_key") or "?"
+        new_focus = data.get("new_focus")
+        cost = data.get("cost") or 0
+        await self._log_event(channel_id, "hero.focus_changed", username, data)
+        print(f"[bannerlord:{channel_id}] @{username} focus +{data.get('amount', 1)} "
+              f"в {skill} → F{new_focus} (-{cost}💰)")
+
+    async def _on_attribute_changed(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Mod пушит после successful add_attribute. UPSERT в bannerlord_attributes
+        (existing M14 table) для UI display."""
+        data = env.data or {}
+        username = (data.get("username") or "").lower()
+        attr_key = data.get("attribute_key") or "?"
+        new_val = data.get("new_value") or 0
+        cost = data.get("cost") or 0
+        if not username or not attr_key or attr_key == "?":
+            return
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            await conn.execute("""
+                INSERT INTO bannerlord_attributes
+                    (channel_id, username, attribute, value)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(channel_id, username, attribute) DO UPDATE SET
+                    value = excluded.value
+            """, (channel_id, username, attr_key, new_val))
+            await conn.commit()
+        await self._log_event(channel_id, "hero.attribute_changed", username, data)
+        print(f"[bannerlord:{channel_id}] @{username} attribute +{data.get('amount', 1)} "
+              f"в {attr_key} → {new_val} (-{cost}💰)")
+
+    # ── Sprint 5.9: Clan creation ─────────────────────────────────────────────
+
+    async def _on_clan_created(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Mod пушит после успешного hero.create_clan. UPDATE bannerlord_heroes
+        с новым clan_name (UI отображение)."""
+        data = env.data or {}
+        username = (data.get("username") or "").lower()
+        clan_name = data.get("clan_name") or ""
+        if not username or not clan_name:
+            return
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            await conn.execute(
+                "UPDATE bannerlord_heroes SET clan_name=?, last_sync=CURRENT_TIMESTAMP "
+                "WHERE channel_id=? AND username=?",
+                (clan_name, channel_id, username))
+            await conn.commit()
+        await self._log_event(channel_id, "hero.clan_created", username, data)
+        print(f"[bannerlord:{channel_id}] @{username} created clan '{clan_name}' "
+              f"(culture={data.get('culture')}, home={data.get('home_settlement')})")
+
+    # ── Sprint 5.4: Battle stats snapshot ─────────────────────────────────────
+
+    def _on_battle_stats(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Mod push'нул snapshot участников Mission. Сохраняем в memory
+        для overlay polling + viewer-side battle banner.
+
+        Sprint 5.5: detect новый бой → reset cooldowns participating viewers.
+        Условия "новый бой":
+          • не было предыдущего snapshot'а ИЛИ
+          • предыдущий был final=True ИЛИ
+          • прошло > BATTLE_STATS_TTL с прошлого push'а (stale)
+        """
+        import time as _time
+        data = env.data or {}
+        participants = data.get("participants") or []
+        if not isinstance(participants, list):
+            participants = []
+        is_final = bool(data.get("final"))
+        now = _time.time()
+
+        # Detect new battle transition
+        prev = _battle_stats.get(channel_id)
+        is_new_battle = False
+        if not is_final and len(participants) > 0:
+            if not prev:
+                is_new_battle = True
+            elif prev.get("final"):
+                is_new_battle = True
+            elif now - prev.get("updated_at", 0) > _BATTLE_STATS_TTL:
+                is_new_battle = True
+
+        _battle_stats[channel_id] = {
+            "final":        is_final,
+            "updated_at":   now,
+            "participants": participants,
+        }
+
+        # New battle → reset active cooldowns participating viewers
+        # (heal_burst / shield_break / rage / retribution / player.spawn).
+        if is_new_battle:
+            cleared = 0
+            for p in participants:
+                u = (p.get("username") or "").lower()
+                if not u:
+                    continue
+                key = (channel_id, u)
+                if key in _cooldowns:
+                    del _cooldowns[key]
+                    cleared += 1
+            if cleared > 0:
+                print(f"[bannerlord:{channel_id}] new battle started — "
+                      f"reset cooldowns for {cleared} participant(s)")
+
+        # Log только final (snapshot spam)
+        if is_final:
+            kills_total = sum(int(p.get("kills") or 0) for p in participants)
+            print(f"[bannerlord:{channel_id}] battle.stats final — "
+                  f"{len(participants)} heroes, {kills_total} kills total")
 
     # ── Sprint 5.3: Tournament events ─────────────────────────────────────────
 

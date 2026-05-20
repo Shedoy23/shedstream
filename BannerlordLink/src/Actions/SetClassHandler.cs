@@ -76,17 +76,22 @@ namespace BannerlordLink.Actions
             string username = (data["target"]?.ToString() ?? data["initiated_by"]?.ToString() ?? "")
                               .Trim().ToLowerInvariant();
             string classKey = (data["class_key"]?.ToString() ?? "").Trim().ToLowerInvariant();
+            // Sprint 5.10c: gear_tier passed from backend — preserve прогрессию
+            // при class change. user-facing tier (1..6), 0 = базовое.
+            int gearTier = (int?)data["gear_tier"] ?? 0;
+            if (gearTier < 0) gearTier = 0;
+            if (gearTier > 6) gearTier = 6;
 
             if (string.IsNullOrEmpty(username))
                 return Task.FromResult<(bool, string)>((false, "no target username"));
             if (string.IsNullOrEmpty(classKey) || !_classes.ContainsKey(classKey))
                 return Task.FromResult<(bool, string)>((false, $"unknown class '{classKey}'"));
 
-            MainThreadDispatcher.Enqueue(() => ApplyClass(username, classKey));
+            MainThreadDispatcher.Enqueue(() => ApplyClass(username, classKey, gearTier));
             return Task.FromResult<(bool, string)>((true, null));
         }
 
-        private static void ApplyClass(string username, string classKey)
+        private static void ApplyClass(string username, string classKey, int gearTier)
         {
             try
             {
@@ -98,8 +103,9 @@ namespace BannerlordLink.Actions
                 }
                 var cfg = _classes[classKey];
 
-                // Pool вещей по типу — vanilla items.
-                // Cache по типу чтобы не сканить ItemObject.All на каждом slot.
+                // Sprint 5.10c: engine tier = user-tier - 1 (0..5). Tier=0
+                // (user "базовое") → engine tier 0 (cheapest items).
+                int engineTier = Math.Max(0, gearTier - 1);
                 var rng = new Random();
                 var equipment = hero.BattleEquipment;
 
@@ -109,7 +115,7 @@ namespace BannerlordLink.Actions
                     var slotType = cfg.Slots[i];
                     if (slotType == T.Invalid) continue;
 
-                    var item = FindRandomItem(slotType, rng);
+                    var item = FindTieredItem(slotType, engineTier, rng);
                     if (item == null)
                     {
                         BannerlordLinkModule.Log($"[set_class] @{username}: no item для {slotType} (slot {i})");
@@ -121,9 +127,9 @@ namespace BannerlordLink.Actions
                 // Mount slot (Horse / Camel)
                 ItemObject mount = null;
                 if (cfg.UseHorse)
-                    mount = FindRandomItem(T.Horse, rng, name => !name.Contains("camel"));
+                    mount = FindTieredItem(T.Horse, engineTier, rng, name => !name.Contains("camel"));
                 else if (cfg.UseCamel)
-                    mount = FindRandomItem(T.Horse, rng, name => name.Contains("camel"));
+                    mount = FindTieredItem(T.Horse, engineTier, rng, name => name.Contains("camel"));
                 // (T.Horse покрывает оба — Camel это subtype в vanilla 1.3.x)
 
                 if (mount != null)
@@ -132,7 +138,7 @@ namespace BannerlordLink.Actions
                 }
 
                 BannerlordLinkModule.Log(
-                    $"[set_class] @{username} → {classKey} (mount={mount?.StringId ?? "—"})");
+                    $"[set_class] @{username} → {classKey} (T{gearTier}, mount={mount?.StringId ?? "—"})");
 
                 // Sprint 4.2: update PowerCache immediately + refresh from backend
                 // (на случай если class_level изменился). Skill boosts применяем
@@ -202,15 +208,19 @@ namespace BannerlordLink.Actions
             }
         }
 
-        private static ItemObject FindRandomItem(
+        // Sprint 5.10c: tier-aware lookup (BLT pattern, EquipHero.cs).
+        // exact tier → fallback (tier-1) → fallback (tier+1) → random.
+        // engineTier ∈ 0..5 (Bannerlord enum ItemTiers).
+        private static ItemObject FindTieredItem(
             ItemObject.ItemTypeEnum type,
+            int engineTier,
             Random rng,
             Func<string, bool> nameFilter = null)
         {
             var pool = MBObjectManager.Instance
                 .GetObjectTypeList<ItemObject>()
                 ?.Where(i => i != null && i.ItemType == type)
-                ?.Where(i => !i.NotMerchandise)  // skip quest-only items
+                ?.Where(i => !i.NotMerchandise)
                 ?.ToList();
             if (pool == null || pool.Count == 0) return null;
 
@@ -222,6 +232,16 @@ namespace BannerlordLink.Actions
                 if (filtered.Count > 0) pool = filtered;
             }
 
+            // 1) exact tier
+            var atTier = pool.Where(i => (int)i.Tier == engineTier).ToList();
+            if (atTier.Count > 0) return atTier[rng.Next(atTier.Count)];
+            // 2) one tier below
+            var lower = pool.Where(i => (int)i.Tier == Math.Max(0, engineTier - 1)).ToList();
+            if (lower.Count > 0) return lower[rng.Next(lower.Count)];
+            // 3) one tier above
+            var higher = pool.Where(i => (int)i.Tier == Math.Min(5, engineTier + 1)).ToList();
+            if (higher.Count > 0) return higher[rng.Next(higher.Count)];
+            // 4) last resort
             return pool[rng.Next(pool.Count)];
         }
     }

@@ -41,6 +41,15 @@ namespace BannerlordLink.Actions
             Register(new UpgradeGearHandler());      // hero.upgrade_gear — 6-tier progression
             Register(new RecruitTroopsHandler());    // hero.recruit_troops — BLT-style свита
             Register(new JoinTournamentHandler());   // hero.join_tournament — Sprint 5.3
+            Register(new AddFocusHandler());         // hero.add_focus — Sprint 5.8 (Hero.Gold tier-based)
+            Register(new AddAttributeHandler());     // hero.add_attribute — Sprint 5.8 (Hero.Gold flat)
+            Register(new CreateClanHandler());       // hero.create_clan — Sprint 5.9 (BLT-style clan creation)
+            Register(new CreateKingdomHandler());    // hero.create_kingdom — Sprint 5.12 (5M)
+            Register(new LeaveClanHandler());        // hero.leave_clan — Sprint 5.12
+            Register(new LeaveKingdomHandler());     // hero.leave_kingdom — Sprint 5.12
+            Register(new JoinClanHandler());         // hero.join_clan — Sprint 5.12
+            Register(new JoinKingdomHandler());      // hero.join_kingdom — Sprint 5.12
+            Register(new CreatePartyHandler());      // hero.create_party — Sprint 5.13 (BLT-style)
 
             // ── Echo stubs (TODO Sprint 5.2+ заменить на real) ─────────────
             string[] echoTypes =

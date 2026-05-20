@@ -660,8 +660,16 @@ except (TypeError, ValueError):
 CHANNEL_POINTS_CONFIG = {
     'enabled': True,
     'broadcaster_id': os.getenv('TWITCH_BROADCASTER_ID', ''),
-    # title → сколько алмазов начислить как loyalty reward
+    # title → сколько алмазов начислить как loyalty reward.
+    # Streamer переименовал rewards в Twitch dashboard — теперь формат
+    # "{cost} очков → алмазы → Награда: {diamonds} алмазов".
+    # Старые названия оставлены для backwards-compat (если кто-то откатит).
     'rewards': {
+        # Текущие (актуал 2026-05-17 — Twitch dashboard)
+        '5000 очков → алмазы → Награда: 5000 алмазов':   {'channel_points_cost': 5000,  'diamonds': 5000},
+        '10000 очков → алмазы → Награда: 12000 алмазов': {'channel_points_cost': 10000, 'diamonds': 12000},
+        '25000 очков → алмазы → Награда: 35000 алмазов': {'channel_points_cost': 25000, 'diamonds': 35000},
+        # Legacy (если кто-то откатит названия в dashboard)
         'Награда: 5000 алмазов':  {'channel_points_cost': 5000,  'diamonds': 5000},
         'Награда: 12000 алмазов': {'channel_points_cost': 10000, 'diamonds': 12000},
         'Награда: 35000 алмазов': {'channel_points_cost': 25000, 'diamonds': 35000},

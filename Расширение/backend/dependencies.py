@@ -278,11 +278,40 @@ def resolve_jwt_login(jwt_result: dict) -> str:
     user_id = str(jwt_result.get("user_id", ""))
     clean = opaque.lstrip("U")
 
-    # Heuristic: real Twitch login содержит хотя бы одну букву + не U<digits>.
-    # Twitch opaque IDs формата U<12-cyfr>, e.g. U98319857.
-    # Real logins типа "shedoy23" — буквы + цифры, lowercase.
     import re as _re
-    if opaque and _re.search(r"[a-z]", opaque.lower()) and not _re.fullmatch(r"U\d+", opaque):
+
+    # 1) Twitch opaque_user_id pattern: capital "U" + ≥15 base64url-style chars
+    #    (e.g. "U7SM4O56SUT9PGNKUOBVH", "U_TEHZVSSEAYA8BLBPEPK",
+    #    "UZH7V2U5P__VKNQOGKSII"). Реальные Twitch логины никогда не выглядят
+    #    так — это значит viewer НЕ нажал "Share Identity" на расширении.
+    #    Включаем '_' и '-' т.к. opaque IDs base64url (могут содержать).
+    #    Сразу падаем в cache lookup чтобы не утечь opaque в hero names.
+    #    Реальные числовые opaque (U<digits>, dev tokens) — ниже отдельно.
+    if _re.fullmatch(r"U[A-Za-z0-9_-]{15,}", opaque):
+        return (
+            _twitch_login_cache.get(user_id)
+            or _twitch_login_cache.get(opaque)
+            or _twitch_login_cache.get(clean)
+            or ""
+        )
+
+    # 2) Дополнительная защита: Twitch login максимум 25 символов и состоит
+    #    из [a-zA-Z0-9_]. Если строка длиннее 25 или содержит '_' в начале
+    #    + длиннее 18 — это похоже на opaque, не пускаем.
+    if opaque and len(opaque) > 25:
+        return (
+            _twitch_login_cache.get(user_id)
+            or _twitch_login_cache.get(opaque)
+            or _twitch_login_cache.get(clean)
+            or ""
+        )
+
+    # 3) Heuristic: real Twitch login содержит хотя бы одну букву + не U<digits>.
+    #    Twitch dev/preview opaque IDs формата U<12-cyfr>, e.g. U98319857.
+    #    Real logins типа "shedoy23" — буквы + цифры, lowercase, ≤25 chars.
+    if (opaque and len(opaque) <= 25
+            and _re.search(r"[a-z]", opaque.lower())
+            and not _re.fullmatch(r"U\d+", opaque)):
         return opaque.lower()
 
     # Cache fallback (legacy)

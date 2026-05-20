@@ -89,20 +89,25 @@ namespace BannerlordLink.Actions
                     return;
                 }
 
-                if (IsAlreadySpawned(hero))
+                // Sprint 5.15: если hero уже в Mission (auto-spawned engine'ом
+                // как клан-член), НЕ пропускаем — spawn только retinue + heal.
+                // Свита фантомная (только в нашем backend), engine её не знает.
+                Agent existingAgent = FindExistingHeroAgent(hero);
+                bool heroAlreadySpawned = existingAgent != null;
+                if (heroAlreadySpawned)
                 {
-                    BannerlordLinkModule.Log($"[player.spawn:{sideLabel}] @{username}: уже spawned в Mission");
-                    return;
+                    BannerlordLinkModule.Log(
+                        $"[player.spawn:{sideLabel}] @{username}: hero уже в Mission " +
+                        "(engine auto-spawn) — спавним только retinue + heal");
                 }
 
-                // Resolve party origin for spawn:
+                // Sprint 5.7 — BLT-aligned party selection:
                 //   ally  → MobileParty.MainParty.Party (player party)
-                //   enemy → first enemy team's party (iter agents, найти origin
-                //           агента противника). Если не нашли — fallback MainParty
-                //           но с log warning.
-                // engine ставит side по origin.party.MapFaction.IsAtWarWith(player),
-                // НЕ только по isPlayerSide flag. Без правильного origin — даже
-                // isPlayerSide:false спавнит агента в player team.
+                //   enemy → RANDOM enemy team party. Если нет — REFUSE (НЕ
+                //           fallback на MainParty, чтобы не спавнить enemy
+                //           на стороне стримера).
+                // Sprint 5.15: если hero уже spawned, party селект всё равно
+                // нужен — для retinue spawning (тот же origin).
                 PartyBase originParty;
                 if (isPlayerSide)
                 {
@@ -110,12 +115,13 @@ namespace BannerlordLink.Actions
                 }
                 else
                 {
-                    originParty = FindEnemyParty() ?? MobileParty.MainParty?.Party;
-                    if (originParty == MobileParty.MainParty?.Party)
+                    originParty = SelectRandomEnemyParty();
+                    if (originParty == null)
                     {
                         BannerlordLinkModule.Log(
-                            $"[player.spawn:{sideLabel}] @{username}: WARNING enemy party not found, " +
-                            "fallback на MainParty (агент может спавниться за стримера)");
+                            $"[player.spawn:{sideLabel}] @{username}: enemy party " +
+                            "не найдена в Mission — отказ (не fallback'имся на MainParty).");
+                        return;
                     }
                 }
                 if (originParty == null)
@@ -124,23 +130,82 @@ namespace BannerlordLink.Actions
                     return;
                 }
 
+                // Sprint 5.7 — track original party for restoration on OnEndMission.
+                // BLT pattern: hero временно добавляется в spawn party (для proper
+                // engine integration — formations, reinforcement counts), затем на
+                // mission end восстанавливается обратно в свою vanilla party.
+                PartyBase originalHeroParty = hero.PartyBelongedTo?.Party;
+                bool wasLeader = originalHeroParty?.LeaderHero == hero;
+                int oldHP = hero.HitPoints;
+
+                if (originalHeroParty != null && originalHeroParty != originParty)
+                {
+                    try { originalHeroParty.AddMember(hero.CharacterObject, -1); }
+                    catch (Exception ex)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[player.spawn:{sideLabel}] @{username}: remove from " +
+                            $"original party failed: {ex.Message}");
+                    }
+                }
+                try { originParty.AddMember(hero.CharacterObject, 1); }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[player.spawn:{sideLabel}] @{username}: add to spawn party failed: {ex.Message}");
+                }
+
+                // Зарегистрировать восстановление на OnEndMission.
+                BannerlordLink.Behaviors.KillRewardBehavior.RegisterPartyRestore(
+                    hero, originalHeroParty, wasLeader, oldHP);
+
+                // Sprint 5.7 — formation preference (player side only). BLT:
+                //   Campaign.SetPlayerFormationPreference(char, formationClass)
+                // Без этого engine кидает hero в default Infantry даже если archer.
+                if (isPlayerSide)
+                {
+                    try
+                    {
+                        var formationClass = ResolveFormationClass(username);
+                        Campaign.Current.SetPlayerFormationPreference(
+                            hero.CharacterObject, formationClass);
+                        BannerlordLinkModule.Log(
+                            $"[player.spawn:{sideLabel}] @{username} formation pref → {formationClass}");
+                    }
+                    catch (Exception ex)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[player.spawn:{sideLabel}] @{username} SetPlayerFormationPreference failed: {ex.Message}");
+                    }
+                }
+
                 bool withHorse = ResolveWithHorse(username);
 
-                Agent agent = Mission.Current.SpawnTroop(
-                    new PartyAgentOrigin(originParty, hero.CharacterObject),
-                    isPlayerSide:        isPlayerSide,
-                    hasFormation:        true,
-                    spawnWithHorse:      withHorse,
-                    isReinforcement:     true,
-                    formationTroopCount: 1,
-                    formationTroopIndex: 0,
-                    isAlarmed:           true,
-                    wieldInitialWeapons: true,
-                    forceDismounted:     !withHorse,
-                    initialPosition:     null,
-                    initialDirection:    null);
+                // Sprint 5.15: re-use existing agent если hero auto-spawned;
+                // иначе spawn fresh agent через engine API.
+                Agent agent;
+                if (heroAlreadySpawned)
+                {
+                    agent = existingAgent;
+                }
+                else
+                {
+                    agent = Mission.Current.SpawnTroop(
+                        new PartyAgentOrigin(originParty, hero.CharacterObject),
+                        isPlayerSide:        isPlayerSide,
+                        hasFormation:        true,
+                        spawnWithHorse:      withHorse,
+                        isReinforcement:     true,
+                        formationTroopCount: 1,
+                        formationTroopIndex: 0,
+                        isAlarmed:           true,
+                        wieldInitialWeapons: true,
+                        forceDismounted:     !withHorse,
+                        initialPosition:     null,
+                        initialDirection:    null);
+                }
 
-                if (agent != null)
+                if (agent != null && !heroAlreadySpawned)
                 {
                     // BLT pattern (SummonHero.cs:744-746): forced SetTeam после
                     // spawn'a — engine может проигнорировать isPlayerSide и
@@ -165,12 +230,55 @@ namespace BannerlordLink.Actions
                             $"[player.spawn:{sideLabel}] @{username} SetTeam failed: {ex.Message}");
                     }
                     try { agent.MountAgent?.FadeIn(); agent.FadeIn(); } catch { }
+
+                    // Sprint 5.5: force-heal hero до 100% HP при призыве.
+                    // Sprint 5.15: НЕ healим если hero уже spawned (был бы exploit
+                    // "вызови во время боя чтобы залечиться"). Heal только при
+                    // настоящем fresh spawn.
+                    try
+                    {
+                        hero.HitPoints = hero.MaxHitPoints;
+                        if (agent.IsActive())
+                        {
+                            agent.Health = agent.HealthLimit;
+                        }
+                        BannerlordLinkModule.Log(
+                            $"[player.spawn:{sideLabel}] @{username} HP restored → " +
+                            $"{(int)agent.HealthLimit}/{(int)agent.HealthLimit}");
+                    }
+                    catch (Exception ex)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[player.spawn:{sideLabel}] @{username} HP heal failed: {ex.Message}");
+                    }
                 }
 
                 BannerlordLinkModule.Log(
-                    $"[player.spawn:{sideLabel}] @{username} → summoned " +
+                    $"[player.spawn:{sideLabel}] @{username} → " +
+                    $"{(heroAlreadySpawned ? "retinue-only" : "summoned")} " +
                     $"(horse={withHorse}, agent={(agent != null ? "OK" : "NULL")}, " +
                     $"team={agent?.Team?.Side.ToString() ?? "?"})");
+
+                // Sprint 5.7 — expire team query caches + reset formation spawn
+                // indices. BLT pattern — без этого engine AI может не сразу
+                // заметить нового agent'a (продолжит игнорировать в формации).
+                try
+                {
+                    foreach (var t in Mission.Current.Teams)
+                    {
+                        t.QuerySystem.Expire();
+                    }
+                    foreach (var f in Mission.Current.Teams
+                                 .SelectMany(t => t.FormationsIncludingSpecialAndEmpty))
+                    {
+                        f.SetSpawnIndex(0);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[player.spawn:{sideLabel}] @{username} cache expire failed: {ex.Message}");
+                }
 
                 // Sprint M23 retinue spawn: после hero — также spawn'им свиту.
                 // BLT pattern (BLTSummonBehavior.SpawnAgent для каждого troop).
@@ -204,6 +312,11 @@ namespace BannerlordLink.Actions
                                 if (t != null && retinueAgent.Team != t)
                                     retinueAgent.SetTeam(t, false);
                                 try { retinueAgent.MountAgent?.FadeIn(); retinueAgent.FadeIn(); } catch { }
+                                // Sprint 5.6: register attribution для kill credit
+                                try {
+                                    BannerlordLink.Behaviors.KillRewardBehavior
+                                        .RegisterRetinue(retinueAgent, username);
+                                } catch { }
                                 spawned++;
                             }
                         }
@@ -255,13 +368,20 @@ namespace BannerlordLink.Actions
 
         private static bool IsAlreadySpawned(Hero hero)
         {
-            if (hero?.CharacterObject == null || Mission.Current == null) return false;
+            return FindExistingHeroAgent(hero) != null;
+        }
+
+        /// <summary>Sprint 5.15: возвращает existing Agent для hero в Mission
+        /// или null. Используется чтобы re-attach retinue к auto-spawned'у hero.</summary>
+        private static Agent FindExistingHeroAgent(Hero hero)
+        {
+            if (hero?.CharacterObject == null || Mission.Current == null) return null;
             foreach (var a in Mission.Current.Agents)
             {
                 if (a == null || !a.IsActive()) continue;
-                if (a.Character == hero.CharacterObject) return true;
+                if (a.Character == hero.CharacterObject) return a;
             }
-            return false;
+            return null;
         }
 
         private static bool ResolveWithHorse(string username)
@@ -271,29 +391,60 @@ namespace BannerlordLink.Actions
             return MountedClasses.Contains(hc.Value.classKey);
         }
 
-        // Find any party belonging to enemy team. Itersует Mission.Agents
-        // и берёт origin'у первого живого enemy hero/troop agent'а.
-        // BattleCombatant → PartyBase cast (BattleCombatant — это PartyBase или
-        // CustomBattleCombatant, обычно PartyBase).
-        private static PartyBase FindEnemyParty()
+        // Sprint 5.7 — RANDOM enemy party (BLT pattern). Раньше брали FIRST
+        // встречного — однообразный spawn point + предсказуемо. Теперь — uniqe
+        // parties → SelectRandom(). Если enemy team пуста → null (refuse).
+        private static PartyBase SelectRandomEnemyParty()
         {
             if (Mission.Current == null) return null;
-            var playerTeam = Mission.Current.PlayerTeam;
-            if (playerTeam == null) return null;
+            var enemyTeam = Mission.Current.PlayerEnemyTeam;
+            if (enemyTeam == null) return null;
 
-            foreach (var a in Mission.Current.Agents)
+            var unique = new System.Collections.Generic.HashSet<PartyBase>();
+            // TeamAgents может быть null если team только что spawn'нулась — fallback
+            // на Mission.Agents filter.
+            var source = (System.Collections.Generic.IEnumerable<Agent>)enemyTeam.TeamAgents
+                        ?? Mission.Current.Agents;
+            foreach (var a in source)
             {
-                if (a == null || !a.IsActive() || !a.IsHuman) continue;
-                if (a.Team == null) continue;
-                if (a.Team == playerTeam) continue;
-                if (!a.Team.IsEnemyOf(playerTeam)) continue;
-
-                // Origin может быть PartyAgentOrigin (PartyBase) или SimpleAgentOrigin.
-                // BattleCombatant — interface; cast'имся на PartyBase.
+                if (a == null || !a.IsActive()) continue;
+                if (a.Team != enemyTeam && !(a.Team?.IsEnemyOf(Mission.Current.PlayerTeam) ?? false))
+                    continue;
                 var origin = a.Origin as PartyAgentOrigin;
-                if (origin?.BattleCombatant is PartyBase pb) return pb;
+                if (origin?.BattleCombatant is PartyBase pb) unique.Add(pb);
             }
-            return null;
+            if (unique.Count == 0) return null;
+            var list = unique.ToList();
+            return list[new Random().Next(list.Count)];
+        }
+
+        // Sprint 5.7 — map class_key → FormationClass для
+        // SetPlayerFormationPreference. Соответствует M15 bannerlord_classes.
+        private static FormationClass ResolveFormationClass(string username)
+        {
+            try
+            {
+                var hc = PowerCache.GetHeroClass(username);
+                string classKey = (hc?.classKey ?? "").ToLowerInvariant();
+                switch (classKey)
+                {
+                    case "archer":          return FormationClass.Ranged;
+                    case "horse_archer":
+                    case "camel_archer":    return FormationClass.HorseArcher;
+                    case "cavalry":
+                    case "camel_cavalry":
+                    case "knight":          return FormationClass.Cavalry;
+                    case "tank":
+                    case "berserk":
+                    case "psycho":
+                    case "infantry":
+                    default:                return FormationClass.Infantry;
+                }
+            }
+            catch
+            {
+                return FormationClass.Infantry;
+            }
         }
     }
 }

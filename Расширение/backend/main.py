@@ -133,6 +133,8 @@ _EXTENSION_FILES = {
     "/guilds.js":      "guilds.js",
     "/voting.js":      "voting.js",
     "/pets.js":        "pets.js",
+    "/pet-stage.js":   "pet-stage.js",  # Sprint 5.21: shared SVG creature renderer
+    "/realtime.js":    "realtime.js",   # Phase C: PubSub realtime bus
 }
 
 # Также поддерживаем префикс /frontend/ для совместимости
@@ -154,6 +156,8 @@ _EXTENSION_FILES_PREFIXED = {
     "/frontend/guilds.js":      "guilds.js",
     "/frontend/voting.js":      "voting.js",
     "/frontend/pets.js":        "pets.js",
+    "/frontend/pet-stage.js":   "pet-stage.js",  # Sprint 5.21
+    "/frontend/realtime.js":    "realtime.js",   # Phase C
 }
 
 _MIME = {
@@ -655,6 +659,16 @@ async def run_migrations():
             await m28_bannerlord_retinue_elite.apply(conn)
         except Exception as e:
             print(f"❌ M28 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
+        # ── M29: pets schema v2 (face+aura slots, svg_path, scarf→body) ──
+        # Sprint 5.21: расширили slot set с 4 до 6 чтобы items накладывались
+        # на правильные части creature'а (очки → лицо, шарф → грудь).
+        try:
+            from migrations import m29_pets_slots_v2
+            await m29_pets_slots_v2.apply(conn)
+        except Exception as e:
+            print(f"❌ M29 migration FAILED: {type(e).__name__}: {e}")
             raise
 
         print("✅ Migrations complete")

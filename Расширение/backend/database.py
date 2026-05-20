@@ -1547,9 +1547,10 @@ class Database:
             }
 
             # Inventory + catalog join
+            # Sprint 5.21: добавлен svg_path для items с inline SVG art
             cur = await conn.execute(
                 "SELECT pi.item_id, pc.name, pc.slot, pc.rarity, pc.emoji, "
-                "       pi.acquired_at "
+                "       pc.svg_path, pi.acquired_at "
                 "FROM pet_inventory pi "
                 "JOIN pet_catalog pc ON pc.item_id = pi.item_id "
                 "WHERE pi.username = ? AND pc.deprecated = 0 "
@@ -1558,20 +1559,22 @@ class Database:
             )
             inventory = [
                 {'item_id': r[0], 'name': r[1], 'slot': r[2], 'rarity': r[3],
-                 'emoji': r[4], 'acquired_at': r[5]}
+                 'emoji': r[4], 'svg_path': r[5], 'acquired_at': r[6]}
                 for r in await cur.fetchall()
             ]
 
             # Equipped slots
             cur = await conn.execute(
-                "SELECT pe.slot, pe.item_id, pc.name, pc.emoji, pc.rarity "
+                "SELECT pe.slot, pe.item_id, pc.name, pc.emoji, pc.rarity, "
+                "       pc.svg_path "
                 "FROM pet_equipped pe "
                 "JOIN pet_catalog pc ON pc.item_id = pe.item_id "
                 "WHERE pe.username = ?",
                 (uname,)
             )
             equipped = {
-                r[0]: {'item_id': r[1], 'name': r[2], 'emoji': r[3], 'rarity': r[4]}
+                r[0]: {'item_id': r[1], 'name': r[2], 'emoji': r[3],
+                       'rarity': r[4], 'svg_path': r[5]}
                 for r in await cur.fetchall()
             }
 
@@ -1588,13 +1591,14 @@ class Database:
         """
         async with self._connect() as conn:
             cur = await conn.execute(
-                "SELECT item_id, name, slot, price_bits, rarity, emoji "
+                "SELECT item_id, name, slot, price_bits, rarity, emoji, svg_path "
                 "FROM pet_catalog WHERE deprecated = 0 "
                 "ORDER BY price_bits, rarity DESC"
             )
             items = [
                 {'item_id': r[0], 'name': r[1], 'slot': r[2],
-                 'price_bits': r[3], 'rarity': r[4], 'emoji': r[5]}
+                 'price_bits': r[3], 'rarity': r[4], 'emoji': r[5],
+                 'svg_path': r[6]}
                 for r in await cur.fetchall()
             ]
 
@@ -1866,7 +1870,7 @@ class Database:
             pet_types = {r[0]: r[1] for r in await cur.fetchall()}
 
             cur = await conn.execute(
-                f"SELECT pe.username, pe.slot, pe.item_id, pc.emoji "
+                f"SELECT pe.username, pe.slot, pe.item_id, pc.emoji, pc.svg_path "
                 f"FROM pet_equipped pe "
                 f"JOIN pet_catalog pc ON pc.item_id = pe.item_id "
                 f"WHERE pe.username IN ({placeholders})",
@@ -1874,10 +1878,12 @@ class Database:
             )
             equipped_by_user = {}
             for row in await cur.fetchall():
-                u, slot, item_id, emoji = row
+                u, slot, item_id, emoji, svg_path = row
                 if u not in equipped_by_user:
                     equipped_by_user[u] = {}
-                equipped_by_user[u][slot] = {'item_id': item_id, 'emoji': emoji}
+                equipped_by_user[u][slot] = {
+                    'item_id': item_id, 'emoji': emoji, 'svg_path': svg_path,
+                }
 
             # Build result
             result = []

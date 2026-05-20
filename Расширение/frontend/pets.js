@@ -136,46 +136,44 @@ function _renderPetView() {
     const inventory = data.inventory || [];
     const equipped  = data.equipped || {};   // {slot: item}
 
-    const petEmoji = pet.pet_type === 'egg' ? '🥚' : '🐣';
     const nameDisplay = pet.name
         ? `<span style="color:#fbbf24;">${escapeHtml(pet.name)}</span>`
         : `<span style="color:#adadb8;font-style:italic;">без имени</span>`;
 
-    // visual stack: background → pet → head/accessory overlays
-    const bgItem  = equipped.background;
-    const headItem = equipped.head;
-    const accItem  = equipped.accessory;
+    // Sprint 5.21: shared PetStage компонент рендерит creature + slots.
+    // Заменяет старый stacked-emoji подход (head + petEmoji + accessory
+    // в одной строке без позиционирования).
+    const stageHtml = (typeof PetStage !== 'undefined' && PetStage.renderHtml)
+        ? PetStage.renderHtml(pet, equipped, {size: 180, className: 'pet-visual-anim'})
+        : `<div class="pet-visual-anim" style="font-size:64px;">${pet.pet_type === 'egg' ? '🥚' : '🐣'}</div>`;
 
     const petCard = `
-        <div style="
-            background:${bgItem ? 'rgba(145,71,255,.18)' : '#1a1a1c'};
-            border:1px solid ${bgItem ? 'rgba(145,71,255,.5)' : '#3a3a3e'};
-            border-radius:12px;padding:18px;text-align:center;margin-bottom:12px;
-            position:relative;overflow:hidden;">
-            <div style="font-size:14px;color:#adadb8;margin-bottom:4px;">
-                ${bgItem ? bgItem.emoji + ' ' + escapeHtml(bgItem.name) : 'фон не надет'}
-            </div>
-            <div class="pet-visual-anim" style="font-size:64px;line-height:1;margin:8px 0;">
-                ${headItem ? `<span style="position:relative;top:-4px;font-size:32px;">${headItem.emoji}</span>` : ''}
-                ${petEmoji}
-                ${accItem ? `<span style="font-size:32px;">${accItem.emoji}</span>` : ''}
+        <div style="background:#1a1a1c;border:1px solid #3a3a3e;border-radius:12px;
+                    padding:14px;text-align:center;margin-bottom:12px;">
+            <div style="margin:0 auto 6px;">
+                ${stageHtml}
             </div>
             <div style="font-weight:700;font-size:16px;margin-top:6px;">${nameDisplay}</div>
             <button class="small-btn" data-pet-action="rename" style="margin-top:8px;">✏️ Переименовать</button>
         </div>
     `;
 
-    // Equipped slots panel
-    const slotsHtml = ['head', 'accessory', 'background'].map(slot => {
+    // Equipped slots panel — все 6 slots
+    // Order: head → face → body → accessory → background → aura
+    const slotOrder = ['head', 'face', 'body', 'accessory', 'background', 'aura'];
+    const slotsHtml = slotOrder.map(slot => {
         const item = equipped[slot];
-        const slotLabel = { head: 'Голова', accessory: 'Аксессуар', background: 'Фон' }[slot];
+        const slotLabel = {
+            head: 'Голова', face: 'Лицо', body: 'Грудь',
+            accessory: 'Сбоку', background: 'Фон', aura: 'Аура'
+        }[slot];
         if (!item) {
             return `<div style="background:#1a1a1c;border:1px dashed #3a3a3e;border-radius:6px;padding:8px;text-align:center;font-size:11px;color:#adadb8;">
                 ${slotLabel}: пусто
             </div>`;
         }
         return `<div style="background:#1a1a1c;border:1px solid #3a3a3e;border-radius:6px;padding:8px;text-align:center;">
-            <div style="font-size:24px;">${item.emoji}</div>
+            <div style="font-size:24px;">${item.emoji || '🎁'}</div>
             <div style="font-size:11px;color:#adadb8;margin:2px 0;">${slotLabel}</div>
             <div style="font-size:11px;font-weight:600;">${escapeHtml(item.name)}</div>
             <button class="small-btn" data-pet-action="unequip" data-slot="${slot}" style="margin-top:4px;font-size:10px;">🗑️ Снять</button>
@@ -411,7 +409,10 @@ function _renderPetsError(msg) {
 }
 
 function _slotRu(slot) {
-    return { head: 'голова', accessory: 'аксессуар', background: 'фон', body: 'тело' }[slot] || slot;
+    return {
+        head: 'голова', face: 'лицо', body: 'грудь',
+        accessory: 'сбоку', background: 'фон', aura: 'аура'
+    }[slot] || slot;
 }
 
 function _rarityRu(rarity) {

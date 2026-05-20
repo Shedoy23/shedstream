@@ -312,8 +312,10 @@ PETS_BITS_REQUIRED = False                  # ENV override: PETS_BITS_REQUIRED=t
 # Default pet appearance — 🥚 яичко-маскот (символ начала, см. PROJECT_PLAYBOOK §5.4)
 PET_BASE_TYPE = 'egg'
 
-# Какие slots существуют. Если добавляем новый — расширяем CHECK в migration M13.
-PET_SLOTS = ('head', 'accessory', 'background', 'body')
+# Какие slots существуют. Если добавляем новый — расширяем CHECK в миграции
+# (current: M29 = 6 slots). Order = render z-index низ→верх:
+#   background → aura → (creature base) → body → face → head → accessory
+PET_SLOTS = ('background', 'aura', 'body', 'face', 'head', 'accessory')
 
 # Max pet name length (опц.)
 PET_NAME_MAX_LEN = 24

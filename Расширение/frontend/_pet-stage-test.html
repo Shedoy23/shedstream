@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Pet Stage Test</title>
+    <link rel="stylesheet" href="viewer.css">
+    <style>
+        body { background: #0e0e10; color: #efeff1; font-family: sans-serif; padding: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 800px; }
+        .case { background: #1f1f23; border: 1px solid #2d2d2f; border-radius: 10px; padding: 16px; }
+        .case h3 { margin: 0 0 10px; font-size: 14px; color: #adadb8; }
+    </style>
+</head>
+<body>
+    <h1>Pet Stage — визуальные тест-кейсы</h1>
+    <div class="grid" id="grid"></div>
+
+    <script src="pet-stage.js"></script>
+    <script>
+        const cases = [
+            { title: 'Egg, ничего не надето', pet: {pet_type:'egg'}, equipped: {} },
+            { title: 'Hatched, голый', pet: {pet_type:'creature',name:'Гриша'}, equipped: {} },
+            { title: 'Шапка-кепка', pet:{pet_type:'creature'}, equipped:{head:{emoji:'🧢'}} },
+            { title: 'Корона', pet:{pet_type:'creature'}, equipped:{head:{emoji:'👑'}} },
+            { title: 'Очки', pet:{pet_type:'creature'}, equipped:{face:{emoji:'👓'}} },
+            { title: 'Шарф (body)', pet:{pet_type:'creature'}, equipped:{body:{emoji:'🧣'}} },
+            { title: 'Аксессуар (сбоку)', pet:{pet_type:'creature'}, equipped:{accessory:{emoji:'🎈'}} },
+            { title: 'Фон + аура', pet:{pet_type:'creature'}, equipped:{background:{emoji:'🟣'}, aura:{emoji:'✨'}} },
+            { title: 'ВСЁ сразу', pet:{pet_type:'creature',name:'Max'},
+              equipped:{head:{emoji:'👑'}, face:{emoji:'👓'}, body:{emoji:'🧣'},
+                        accessory:{emoji:'🎈'}, background:{emoji:'🟣'}, aura:{emoji:'✨'}} },
+        ];
+        const grid = document.getElementById('grid');
+        grid.innerHTML = cases.map(c => `
+            <div class="case">
+                <h3>${c.title}</h3>
+                ${PetStage.renderHtml(c.pet, c.equipped, {size: 180})}
+            </div>
+        `).join('');
+    </script>
+</body>
+</html>

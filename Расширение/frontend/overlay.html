@@ -648,17 +648,83 @@ body {
     border-color: rgba(145, 71, 255, 0.6);
 }
 .pet-card-visual {
-    font-size: 30px;
     line-height: 1.1;
-    height: 38px;
     display: flex;
     align-items: center;
     justify-content: center;
+    margin-bottom: 4px;
 }
 .pet-card-visual .pc-head, .pet-card-visual .pc-acc {
     font-size: 18px;
 }
 .pet-card-visual .pc-head { transform: translateY(-4px); }
+
+/* ===== PET-STAGE (Sprint 5.21) — inline копия для standalone overlay.html =====
+   Зеркало стилей из viewer.css. SVG creature + 6 anchored slots. */
+.pet-stage {
+    position: relative;
+    width: var(--pet-stage-size, 64px);
+    aspect-ratio: 1;
+    margin: 0 auto;
+    border-radius: 14px;
+    overflow: hidden;
+    background: radial-gradient(ellipse at 50% 60%, rgba(168,85,247,.18), transparent 70%);
+}
+.pet-stage__bg {
+    position: absolute; inset: 0; z-index: 1;
+    display: flex; align-items: center; justify-content: center;
+    font-size: calc(var(--pet-stage-size, 64px) * 1.1);
+    line-height: 1; opacity: 0.22; filter: blur(2px);
+    pointer-events: none;
+}
+.pet-stage__aura {
+    position: absolute; inset: -8%; z-index: 2;
+    display: flex; align-items: center; justify-content: center;
+    font-size: calc(var(--pet-stage-size, 64px) * 1.05);
+    opacity: 0.7;
+    animation: pet-stage-aura 2.4s ease-in-out infinite;
+    pointer-events: none;
+}
+@keyframes pet-stage-aura {
+    0%, 100% { transform: scale(0.95); opacity: 0.5; }
+    50%      { transform: scale(1.05); opacity: 0.85; }
+}
+.pet-stage__base {
+    position: absolute; inset: 0; z-index: 3;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    animation: pet-stage-breathe 4s ease-in-out infinite;
+}
+.pet-stage__creature { width: 100%; height: 100%; display: block; }
+@keyframes pet-stage-breathe {
+    0%, 100% { transform: translateY(0)    scale(1); }
+    50%      { transform: translateY(-1px) scale(1.015); }
+}
+.pet-stage__egg {
+    position: absolute; inset: 0; z-index: 3;
+    display: flex; align-items: center; justify-content: center;
+    font-size: calc(var(--pet-stage-size, 64px) * 0.55);
+    line-height: 1;
+    animation: pet-stage-wobble 3.2s ease-in-out infinite;
+    pointer-events: none;
+}
+@keyframes pet-stage-wobble {
+    0%, 100% { transform: rotate(-3deg); }
+    50%      { transform: rotate( 3deg); }
+}
+.pet-stage__slot {
+    position: absolute;
+    display: flex; align-items: center; justify-content: center;
+    font-size: calc(var(--pet-stage-size, 64px) * 0.22);
+    line-height: 1;
+    pointer-events: none;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35));
+}
+.pet-stage__slot svg { width: 100%; height: 100%; display: block; }
+.pet-stage__slot--head      { top: -6%; left: 50%; width: 38%; height: 38%; transform: translateX(-50%); z-index: 7; }
+.pet-stage__slot--face      { top: 38%; left: 50%; width: 50%; height: 22%; transform: translate(-50%, -50%); z-index: 6; font-size: calc(var(--pet-stage-size, 64px) * 0.20); }
+.pet-stage__slot--body      { top: 72%; left: 50%; width: 50%; height: 22%; transform: translate(-50%, -50%); z-index: 5; font-size: calc(var(--pet-stage-size, 64px) * 0.22); }
+.pet-stage__slot--accessory { top: 55%; right: 0%; width: 28%; height: 28%; z-index: 6; font-size: calc(var(--pet-stage-size, 64px) * 0.20); }
 .pet-card-name {
     font-size: 11px;
     font-weight: 600;
@@ -822,6 +888,11 @@ body {
 
 <!-- ══════ КАРТОЧКИ (правый нижний угол) ══════ -->
 <div class="notification" id="notif-stack"></div>
+
+<!-- pet-stage.js: shared SVG creature renderer (Sprint 5.21).
+     Загружается ДО основного скрипта overlay чтобы window.PetStage был
+     доступен в renderPets(). -->
+<script src="pet-stage.js?v=20260520c"></script>
 
 <script>
 const SERVER = 'https://shedoy23.ru';
@@ -1269,19 +1340,18 @@ async function pollPets() {
 
         strip.innerHTML = data.viewers.map(v => {
             const eq = v.equipped || {};
-            const head = eq.head?.emoji || '';
-            const acc  = eq.accessory?.emoji || '';
-            const bg   = eq.background;
-            const petEmoji = v.pet_type === 'egg' ? '🥚' : '🐣';
+            const bg = eq.background;
+            const pet = {pet_type: v.pet_type, name: v.name};
             const displayName = v.name ? v.name : '@' + (v.username || '?');
             const username = v.username ? '@' + v.username : '';
+            // Sprint 5.21: shared PetStage rendering — creature SVG + slot overlays.
+            // Размер 64px для compact strip-card.
+            const stageHtml = (typeof PetStage !== 'undefined')
+                ? PetStage.renderHtml(pet, eq, {size: 64})
+                : `<span>${v.pet_type === 'egg' ? '🥚' : '🐣'}</span>`;
             return `
                 <div class="pet-card ${bg ? 'with-bg' : ''}">
-                    <div class="pet-card-visual">
-                        ${head ? `<span class="pc-head">${head}</span>` : ''}
-                        <span>${petEmoji}</span>
-                        ${acc ? `<span class="pc-acc">${acc}</span>` : ''}
-                    </div>
+                    <div class="pet-card-visual">${stageHtml}</div>
                     <div class="pet-card-name">${escapeHtmlOL(displayName)}</div>
                     ${v.name && username ? `<div class="pet-card-user">${escapeHtmlOL(username)}</div>` : ''}
                 </div>

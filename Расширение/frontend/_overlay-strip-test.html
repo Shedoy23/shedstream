@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Overlay Strip Test</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: sans-serif;
+            background: linear-gradient(45deg, #5b21b6, #831843, #1e1b4b);
+            min-height: 100vh;
+            padding: 40px;
+            color: #fff;
+        }
+        h1 { font-size: 18px; margin: 0 0 20px; opacity: 0.7; }
+
+        /* === Зеркало overlay.html стилей === */
+        .pet-card {
+            min-width: 72px;
+            text-align: center;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .pet-card .pet-stage {
+            animation: pet-card-sway 2.8s ease-in-out infinite;
+            animation-delay: var(--pet-card-sway-delay, 0s);
+            transform-origin: 50% 90%;
+        }
+        @keyframes pet-card-sway {
+            0%, 100% { transform: rotate(-5deg); }
+            50%      { transform: rotate( 5deg); }
+        }
+        .pet-card-visual { line-height: 1.1; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; }
+        .pet-card-name {
+            font-size: 11px; font-weight: 600; color: #efeff1;
+            margin-top: 4px; max-width: 80px;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 6px rgba(0,0,0,0.6);
+        }
+        #pets-strip { display: flex; gap: 12px; }
+
+        /* === Pet stage (overlay копия) === */
+        .pet-stage {
+            position: relative;
+            width: var(--pet-stage-size, 64px);
+            aspect-ratio: 1;
+            margin: 0 auto;
+            overflow: visible;
+            --pet-body-light:  #d8b4fe;
+            --pet-body-mid:    #a855f7;
+            --pet-body-dark:   #6b21a8;
+            --pet-body-stroke: #4c1d95;
+        }
+        .pet-stage--bg_violet  { --pet-body-light: #f3e8ff; --pet-body-mid: #c084fc; --pet-body-dark: #7e22ce; --pet-body-stroke: #581c87; }
+        .pet-stage--bg_rainbow { --pet-body-light: #fef3c7; --pet-body-mid: #f472b6; --pet-body-dark: #8b5cf6; --pet-body-stroke: #be185d; }
+        .pet-stage--bg_stars   { --pet-body-light: #93c5fd; --pet-body-mid: #3b82f6; --pet-body-dark: #1e3a8a; --pet-body-stroke: #1e40af; }
+        .pet-stage__base { position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; pointer-events: none; }
+        .pet-stage__creature { width: 100%; height: 100%; display: block; }
+        .pet-stage__slot { position: absolute; display: flex; align-items: center; justify-content: center; line-height: 1; pointer-events: none; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35)); }
+        .pet-stage__slot--head { top: -2%; left: 50%; width: 42%; height: 38%; transform: translateX(-50%); z-index: 7; font-size: calc(var(--pet-stage-size, 64px) * 0.22); }
+        .pet-stage__slot--face { top: 50%; left: 50%; width: 52%; height: 22%; transform: translate(-50%, -50%); z-index: 6; font-size: calc(var(--pet-stage-size, 64px) * 0.20); }
+        .pet-stage__slot--body { top: 82%; left: 50%; width: 50%; height: 22%; transform: translate(-50%, -50%); z-index: 5; font-size: calc(var(--pet-stage-size, 64px) * 0.22); }
+        .pet-stage__slot--accessory { top: 60%; right: 0%; width: 28%; height: 28%; z-index: 6; font-size: calc(var(--pet-stage-size, 64px) * 0.20); }
+        .pet-stage__aura { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+        .pet-stage__aura-particle {
+            position: absolute;
+            font-size: calc(var(--pet-stage-size, 64px) * 0.18);
+            line-height: 1;
+            transform: translate(-50%, -50%) scale(0.7);
+            animation: pet-stage-aura-particle 1.8s ease-in-out infinite;
+            filter: drop-shadow(0 0 3px rgba(255,255,255,0.45));
+        }
+        @keyframes pet-stage-aura-particle {
+            0%, 100% { opacity: 0.45; transform: translate(-50%, -50%) scale(0.85); }
+            50%      { opacity: 1.00; transform: translate(-50%, -50%) scale(1.15); }
+        }
+        .pet-stage__aura-particle--n0 { top:  -2%; left: 50%; animation-delay: 0s;    }
+        .pet-stage__aura-particle--n1 { top:  22%; left: 95%; animation-delay: 0.30s; }
+        .pet-stage__aura-particle--n2 { top:  72%; left: 95%; animation-delay: 0.60s; }
+        .pet-stage__aura-particle--n3 { top: 100%; left: 50%; animation-delay: 0.90s; }
+        .pet-stage__aura-particle--n4 { top:  72%; left:  5%; animation-delay: 1.20s; }
+        .pet-stage__aura-particle--n5 { top:  22%; left:  5%; animation-delay: 1.50s; }
+    </style>
+</head>
+<body>
+    <h1>Overlay strip — frameless + sway (имитирует фон стрима)</h1>
+    <div id="pets-strip"></div>
+
+    <script src="pet-stage.js"></script>
+    <script>
+        const viewers = [
+            { username: 'shedoy23', name: 'Пиво', pet_type: 'creature',
+              equipped: {head:{emoji:'👑'}, face:{emoji:'👓'}, body:{emoji:'🧣'},
+                         background:{item_id:'bg_rainbow',emoji:'🌈'}, aura:{emoji:'✨'}} },
+            { username: 'fish_lord', name: null, pet_type: 'creature',
+              equipped: {face:{emoji:'🕶️'}, accessory:{emoji:'🎈'}} },
+            { username: 'gamer_x', name: 'Мася', pet_type: 'creature',
+              equipped: {head:{emoji:'🎩'}, background:{item_id:'bg_stars',emoji:'⭐'}, aura:{emoji:'🔥'}} },
+            { username: 'newbie', name: null, pet_type: 'egg', equipped: {} },
+            { username: 'star_dust', name: 'Кеша', pet_type: 'creature',
+              equipped: {head:{emoji:'🎓'}, accessory:{emoji:'🎮'}, background:{item_id:'bg_violet',emoji:'🟣'}} },
+        ];
+        const strip = document.getElementById('pets-strip');
+        strip.innerHTML = viewers.map(v => {
+            const username = '@' + v.username;
+            const stageHtml = PetStage.renderHtml(
+                {pet_type: v.pet_type, name: v.name},
+                v.equipped || {},
+                {size: 64}
+            );
+            return `
+                <div class="pet-card">
+                    <div class="pet-card-visual">${stageHtml}</div>
+                    <div class="pet-card-name">${username}</div>
+                </div>
+            `;
+        }).join('');
+        strip.querySelectorAll('.pet-card').forEach((card, i) => {
+            card.style.setProperty('--pet-card-sway-delay', `${i * 0.25}s`);
+        });
+    </script>
+</body>
+</html>

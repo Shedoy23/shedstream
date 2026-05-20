@@ -617,16 +617,13 @@ body {
     opacity: 1;
     transform: translateY(0);
 }
+/* Sprint 5.22 patch: pet-card frameless (без background/border/shadow) —
+   только creature + ник под ним. Sway-анимация качает каждую карточку
+   слева-направо со staggered delay'ями (JS ставит --pet-card-sway-delay). */
 .pet-card {
-    background: rgba(15, 10, 30, 0.78);
-    border: 1px solid rgba(145, 71, 255, 0.35);
-    border-radius: 14px;
-    padding: 10px 12px;
-    min-width: 88px;
+    min-width: 72px;
     text-align: center;
-    backdrop-filter: blur(8px);
-    box-shadow: 0 4px 20px rgba(0,0,0,.4);
-    /* slide-in появление; каждой карточке через JS даём transitionDelay */
+    /* slide-in появление */
     opacity: 0;
     transform: translateY(16px);
     transition: opacity .35s ease, transform .35s cubic-bezier(0.34, 1.4, 0.64, 1);
@@ -635,17 +632,16 @@ body {
     opacity: 1;
     transform: translateY(0);
 }
-.pet-card.with-bg {
-    /* фон-косметика тонкое pulsing-свечение */
-    animation: pet-bg-pulse 4s ease-in-out infinite;
+/* Sway — качание creature'а влево-вправо. На .pet-stage чтобы не
+   конфликтовать со slide-in transform у .pet-card. */
+.pet-card .pet-stage {
+    animation: pet-card-sway 2.8s ease-in-out infinite;
+    animation-delay: var(--pet-card-sway-delay, 0s);
+    transform-origin: 50% 90%;  /* качаемся от основания */
 }
-@keyframes pet-bg-pulse {
-    0%, 100% { box-shadow: 0 4px 20px rgba(0,0,0,.4), 0 0 0 0 rgba(145,71,255,0); }
-    50%      { box-shadow: 0 4px 20px rgba(0,0,0,.4), 0 0 22px 2px rgba(145,71,255,.18); }
-}
-.pet-card.with-bg {
-    background: linear-gradient(135deg, rgba(145,71,255,.22), rgba(8,5,22,.85));
-    border-color: rgba(145, 71, 255, 0.6);
+@keyframes pet-card-sway {
+    0%, 100% { transform: rotate(-5deg); }
+    50%      { transform: rotate( 5deg); }
 }
 .pet-card-visual {
     line-height: 1.1;
@@ -666,15 +662,13 @@ body {
     width: var(--pet-stage-size, 64px);
     aspect-ratio: 1;
     margin: 0 auto;
-    border-radius: 14px;
-    overflow: hidden;
+    /* Sprint 5.22 patch: overlay = frameless (no border-radius/overflow/bg).
+       В extension.html сохраняется border-radius внутри pets-modal через viewer.css. */
+    overflow: visible;
     --pet-body-light:  #d8b4fe;
     --pet-body-mid:    #a855f7;
     --pet-body-dark:   #6b21a8;
     --pet-body-stroke: #4c1d95;
-    --pet-stage-bg-glow: rgba(168,85,247,.18);
-    background: radial-gradient(ellipse at 50% 60%,
-                var(--pet-stage-bg-glow), transparent 70%);
 }
 /* Body palette presets (зеркало viewer.css) */
 .pet-stage--bg_violet {
@@ -752,18 +746,22 @@ body {
     font-size: 11px;
     font-weight: 600;
     color: #efeff1;
-    margin-top: 6px;
+    margin-top: 4px;
     max-width: 80px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     font-family: 'Unbounded', sans-serif;
+    /* Sprint 5.22 patch: без рамки текст должен читаться на любом фоне
+       стрима — text-shadow обводка по контуру. */
+    text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 6px rgba(0,0,0,0.6);
 }
 .pet-card-user {
     font-size: 9px;
-    color: #adadb8;
+    color: #cccce0;
     letter-spacing: 0.5px;
     margin-top: 2px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.85), 0 0 4px rgba(0,0,0,0.6);
 }
 
 /* ══════ Sprint 5.4: Bannerlord summoned heroes panel (BLT-style) ══════ */
@@ -1363,30 +1361,29 @@ async function pollPets() {
 
         strip.innerHTML = data.viewers.map(v => {
             const eq = v.equipped || {};
-            const bg = eq.background;
             const pet = {pet_type: v.pet_type, name: v.name};
-            const displayName = v.name ? v.name : '@' + (v.username || '?');
-            const username = v.username ? '@' + v.username : '';
+            const username = '@' + (v.username || '?');
             // Sprint 5.21: shared PetStage rendering — creature SVG + slot overlays.
-            // Размер 64px для compact strip-card.
+            // Sprint 5.22 patch: frameless card, username под pet'ом (без рамки).
             const stageHtml = (typeof PetStage !== 'undefined')
                 ? PetStage.renderHtml(pet, eq, {size: 64})
                 : `<span>${v.pet_type === 'egg' ? '🥚' : '🐣'}</span>`;
             return `
-                <div class="pet-card ${bg ? 'with-bg' : ''}">
+                <div class="pet-card">
                     <div class="pet-card-visual">${stageHtml}</div>
-                    <div class="pet-card-name">${escapeHtmlOL(displayName)}</div>
-                    ${v.name && username ? `<div class="pet-card-user">${escapeHtmlOL(username)}</div>` : ''}
+                    <div class="pet-card-name">${escapeHtmlOL(username)}</div>
                 </div>
             `;
         }).join('');
         strip.classList.add('visible');
 
-        // Stagger-анимация: каждой карточке +60ms delay, .in флаг
+        // Stagger-анимация: slide-in (.in флаг + transitionDelay) +
+        // staggered sway-delay через CSS var (--pet-card-sway-delay).
+        // Sway шаг 0.25s × i создаёт «случайный» wobble эффект.
         const cards = strip.querySelectorAll('.pet-card');
         cards.forEach((card, i) => {
             card.style.transitionDelay = `${i * 60}ms`;
-            // двойной rAF — ждём что CSS подцепил initial state
+            card.style.setProperty('--pet-card-sway-delay', `${i * 0.25}s`);
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => card.classList.add('in'));
             });

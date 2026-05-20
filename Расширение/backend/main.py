@@ -671,6 +671,16 @@ async def run_migrations():
             print(f"❌ M29 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M30: pets catalog expansion (+15 items, total → 20) ──
+        # Sprint 5.22: после редизайна creature'а добавляем больше косметик
+        # под каждый slot (особенно accessory + aura — были пустые).
+        try:
+            from migrations import m30_pets_catalog_expand
+            await m30_pets_catalog_expand.apply(conn)
+        except Exception as e:
+            print(f"❌ M30 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

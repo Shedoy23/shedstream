@@ -1489,6 +1489,119 @@ if (new URLSearchParams(location.search).get('preview') === '1') {
     setInterval(pollPets, PETS_POLL_INTERVAL);
     pollBannerlordSummoned();
     setInterval(pollBannerlordSummoned, BNR_POLL_INTERVAL);
+    initTts();
+}
+
+// ════════ TTS «Озвучить сообщение» (Sprint 5.23, 2026-05-21) ════════
+// Polling /api/overlay/tts/pending каждые 3s. Если есть pending message —
+// озвучиваем через speechSynthesis (Web Speech API, ru-RU голос),
+// на on-screen banner показываем «@user: text», после end → POST played.
+//
+// One-at-a-time: пока активна speech, не делаем новый poll (избегаем
+// race condition с overlapping speakers).
+const TTS_POLL_INTERVAL = 3000;
+let _ttsBusy = false;
+let _ttsRussianVoice = null;
+
+function _selectRussianVoice() {
+    const voices = speechSynthesis.getVoices() || [];
+    // Приоритет: ru-RU > любой содержащий 'russian' в имени > первый ru-*
+    return voices.find(v => v.lang === 'ru-RU')
+        || voices.find(v => /russian/i.test(v.name || ''))
+        || voices.find(v => (v.lang || '').startsWith('ru'))
+        || null;
+}
+
+async function pollTts() {
+    if (_ttsBusy) return;
+    try {
+        const url = `${SERVER}/api/overlay/tts/pending`
+            + (PETS_CHANNEL_ID > 0 ? `?channel_id=${PETS_CHANNEL_ID}` : '');
+        const r = await fetch(url);
+        const d = await r.json();
+        if (!d.success || !d.message) return;
+        _speakTts(d.message);
+    } catch (e) { /* silent */ }
+}
+
+function _speakTts(msg) {
+    _ttsBusy = true;
+    _showTtsBanner(msg.username, msg.text);
+
+    const u = new SpeechSynthesisUtterance(msg.text);
+    u.lang   = 'ru-RU';
+    u.rate   = 1.0;
+    u.pitch  = 1.0;
+    u.volume = 1.0;
+    if (!_ttsRussianVoice) _ttsRussianVoice = _selectRussianVoice();
+    if (_ttsRussianVoice) u.voice = _ttsRussianVoice;
+
+    const onDone = async () => {
+        _ttsBusy = false;
+        _hideTtsBanner();
+        try {
+            await fetch(`${SERVER}/api/overlay/tts/played`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({id: msg.id}),
+            });
+        } catch (e) { /* silent */ }
+    };
+    u.onend   = onDone;
+    u.onerror = onDone;
+    // Safety timeout — если speech не вызвал end за 60s (browser bug),
+    // принудительно завершаем чтобы не залип на одном сообщении.
+    setTimeout(() => { if (_ttsBusy) onDone(); }, 60000);
+    speechSynthesis.speak(u);
+}
+
+function _showTtsBanner(username, text) {
+    let banner = document.getElementById('tts-banner');
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'tts-banner';
+        banner.style.cssText = `
+            position: fixed; top: 40px; left: 50%; transform: translateX(-50%);
+            background: rgba(15, 10, 30, 0.92);
+            border: 2px solid rgba(168, 85, 247, 0.7);
+            border-radius: 14px;
+            padding: 14px 22px;
+            max-width: 70vw;
+            font-family: 'Unbounded', sans-serif;
+            color: #efeff1;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 24px rgba(168,85,247,0.3);
+            z-index: 99999;
+            opacity: 0;
+            transition: opacity .3s ease;
+        `;
+        document.body.appendChild(banner);
+    }
+    banner.innerHTML = `
+        <div style="font-size:13px;color:#a855f7;font-weight:700;margin-bottom:4px;">
+            🎤 @${escapeHtmlOL(username)}
+        </div>
+        <div style="font-size:18px;line-height:1.4;">
+            ${escapeHtmlOL(text)}
+        </div>
+    `;
+    requestAnimationFrame(() => { banner.style.opacity = '1'; });
+}
+
+function _hideTtsBanner() {
+    const banner = document.getElementById('tts-banner');
+    if (!banner) return;
+    banner.style.opacity = '0';
+}
+
+function initTts() {
+    // Pre-warm voices (некоторые браузеры лениво грузят)
+    if (typeof speechSynthesis !== 'undefined') {
+        speechSynthesis.onvoiceschanged = () => {
+            _ttsRussianVoice = _selectRussianVoice();
+        };
+        _ttsRussianVoice = _selectRussianVoice();
+    }
+    setInterval(pollTts, TTS_POLL_INTERVAL);
 }
 </script>
 </body>

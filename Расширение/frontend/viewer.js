@@ -196,6 +196,8 @@ function setupCspSafeHandlers() {
         // Sprint 5.19: квесты/промо переехали из inline-блоков в модалки
         else if (action === 'quests') openQuestsModal();
         else if (action === 'promo') openPromoModal();
+        // Sprint 5.23: TTS «Озвучить сообщение»
+        else if (action === 'tts') openTtsModal();
         // 'transfer' action удалён 2026-05-10 (Phase 1.D compliance rework — P2P transfer)
         else if (action === 'family') openFamily();
         else if (action === 'refresh-shop-catalog') loadShopCatalog();
@@ -3044,6 +3046,89 @@ function openPromoModal() {
     (document.getElementById('overlay-panel') || document.body).appendChild(modal);
     // Автофокус на input для удобства мобильного ввода
     setTimeout(() => document.getElementById('promo-input')?.focus(), 50);
+}
+
+// ===== TTS «Озвучить сообщение» (Sprint 5.23, 2026-05-21) =====
+// Зритель платит 5000💎 за озвучку текста до 200 символов через
+// Web Speech API на overlay'е стрима. Cooldown 30s между сообщениями.
+const TTS_COST    = 5000;
+const TTS_MAX_LEN = 200;
+
+function openTtsModal() {
+    let modal = document.getElementById('tts-modal');
+    if (modal) modal.remove();
+    modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.id = 'tts-modal';
+    const balance = parseInt(document.getElementById('points')?.textContent || '0');
+    const canAfford = balance >= TTS_COST;
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width:420px;">
+            <h2>🎤 Озвучить сообщение</h2>
+            <p style="margin-bottom:10px;color:#adadb8;font-size:12px;">
+                Стример услышит твоё сообщение на стриме через TTS.
+            </p>
+            <textarea id="tts-input" maxlength="${TTS_MAX_LEN}"
+                placeholder="Напиши что озвучить..."
+                style="width:100%;min-height:90px;background:#2d2d2f;border:1px solid #3d3d3f;
+                       border-radius:7px;padding:10px;color:#efeff1;font-size:13px;font-family:inherit;
+                       resize:vertical;outline:none;box-sizing:border-box;"></textarea>
+            <div style="display:flex;justify-content:space-between;align-items:center;
+                        margin-top:8px;margin-bottom:14px;font-size:11px;color:#adadb8;">
+                <span id="tts-char-count">0 / ${TTS_MAX_LEN}</span>
+                <span style="color:${canAfford ? '#fbbf24' : '#f87171'};font-weight:700;">
+                    ${TTS_COST}💎 · у тебя ${balance}💎
+                </span>
+            </div>
+            <div style="display:flex;gap:8px;">
+                <button id="tts-submit-btn" class="modal-btn" style="flex:1;"
+                        ${canAfford ? '' : 'disabled'}>
+                    🎤 Озвучить
+                </button>
+                <button class="modal-btn cancel" data-action="close-modal" style="flex:1;">
+                    Отмена
+                </button>
+            </div>
+        </div>
+    `;
+    (document.getElementById('overlay-panel') || document.body).appendChild(modal);
+    const input  = document.getElementById('tts-input');
+    const count  = document.getElementById('tts-char-count');
+    const submit = document.getElementById('tts-submit-btn');
+    input.addEventListener('input', () => {
+        count.textContent = `${input.value.length} / ${TTS_MAX_LEN}`;
+    });
+    submit.addEventListener('click', () => _submitTts(input.value));
+    setTimeout(() => input.focus(), 50);
+}
+
+async function _submitTts(text) {
+    const msg = (text || '').trim();
+    if (!msg) return showNotification('Введи сообщение', 'error');
+    if (msg.length > TTS_MAX_LEN) {
+        return showNotification(`Макс ${TTS_MAX_LEN} символов`, 'error');
+    }
+    const btn = document.getElementById('tts-submit-btn');
+    if (btn) btn.disabled = true;
+    try {
+        const r = await fetch(`${API_URL}/api/tts/submit`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || ''},
+            body: JSON.stringify({ message: msg }),
+        });
+        const d = await r.json();
+        showNotification(d.message, d.success ? 'success' : 'error', 4000);
+        if (d.success) {
+            const modal = document.getElementById('tts-modal');
+            if (modal) modal.remove();
+            loadUserData();
+        } else if (btn) {
+            btn.disabled = false;
+        }
+    } catch (e) {
+        showNotification('Ошибка сети', 'error');
+        if (btn) btn.disabled = false;
+    }
 }
 
 // ===== КОЛОНИСТЫ =====

@@ -320,6 +320,14 @@ PET_SLOTS = ('background', 'aura', 'body', 'face', 'head', 'accessory')
 # Max pet name length (опц.)
 PET_NAME_MAX_LEN = 24
 
+# ===== TTS «Озвучить сообщение» (Sprint 5.23, 2026-05-21) =====
+# Зрители платят крустиками за TTS-озвучку текста на overlay'е стрима
+# через Web Speech API. Compliance: in-extension currency burn (без real $),
+# §5.x Twitch Extension Guidelines — virtual goods OK.
+TTS_COST        = 5000   # крустиков за сообщение
+TTS_COOLDOWN_S  = 30     # секунд между TTS от одного юзера
+TTS_MAX_LEN     = 200    # макс длина текста
+
 # ===== ГОЛОСОВАНИЯ (Phase 4, 2026-05-11) =====
 # Voting events — стример настраивает варианты действий, юзеры вкидывают
 # крустики на свой выбор. §6.1.4 Twitch Extension Guidelines прямо разрешает.

@@ -738,6 +738,109 @@ def _broadcast_state(channel_id, room_id, state, finished=False, winner_user=Non
             "match_state broadcast failed: %s", e)
 
 
+@router.get("/api/dice/poll")
+async def dice_poll(request: Request, room_id: str):
+    """Lazy-expire poll endpoint для dice rooms.
+
+    Sprint 5.24a fix (2026-05-21): generic /api/match/room/{id}/state не
+    знает про game-specific timer'ы. Frontend polling должен дёргать ЭТОТ
+    endpoint вместо /state для dice rooms — он на каждый запрос проверяет
+    deadline_at и если истёк → auto-actions (random roll / keep no reroll).
+
+    Returns same shape as /api/match/room/{id}/state но с авто-обработкой
+    expiration'а.
+    """
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+    uname = username.lower()
+
+    db = get_db()
+    finished_just_now = False
+    winner_user = None
+    async with db._connect() as conn:
+        try:
+            await conn.execute("BEGIN IMMEDIATE")
+            cur = await conn.execute(
+                "SELECT channel_id, game_type, player_a, player_b, "
+                "player_a_elo, player_b_elo, state, status, winner, outcome "
+                "FROM match_rooms WHERE room_id = ?",
+                (room_id,)
+            )
+            row = await cur.fetchone()
+            if not row:
+                await conn.execute("ROLLBACK")
+                return {"success": False, "reason": "not_found"}
+            room_cid, gt, p_a, p_b, elo_a, elo_b, state_json, status, winner, outcome = row
+
+            if room_cid != channel_id or gt != GAME_TYPE or uname not in (p_a, p_b):
+                await conn.execute("ROLLBACK")
+                return {"success": False, "reason": "access_denied"}
+
+            state = json.loads(state_json or "{}")
+            if state.get("version") != 2 and status == "active":
+                state = _new_dice_state()
+
+            changed = False
+            if status == "active":
+                changed = _maybe_expire_phase(state)
+                # Если после lazy-expire оба decided последний раунд → finalize
+                if state.get("phase") == "finished":
+                    winner_user, outcome, new_elo_a, new_elo_b = await _finalize_pvp_match(
+                        conn, room_id, state, channel_id, p_a, p_b, elo_a, elo_b)
+                    finished_just_now = True
+                elif changed:
+                    await conn.execute(
+                        "UPDATE match_rooms SET state = ? WHERE room_id = ?",
+                        (json.dumps(state), room_id)
+                    )
+            await conn.commit()
+        except Exception:
+            await conn.execute("ROLLBACK")
+            raise
+
+    if finished_just_now:
+        _broadcast_state(channel_id, room_id, state,
+                         finished=True, winner_user=winner_user)
+        try:
+            bot = get_bot()
+            a_sum = state["totals"]["a"]
+            b_sum = state["totals"]["b"]
+            if winner_user:
+                await bot.send_message(
+                    f"🎲 Dice 3-round: @{p_a} ({a_sum}) vs @{p_b} ({b_sum}) — "
+                    f"победил @{winner_user}!", channel_id=channel_id)
+            else:
+                await bot.send_message(
+                    f"🎲 Dice ничья: @{p_a} ({a_sum}) = @{p_b} ({b_sum})",
+                    channel_id=channel_id)
+        except Exception: pass
+
+    you_are = "a" if uname == p_a else "b"
+    opponent = p_b if you_are == "a" else p_a
+    final_status = "finished" if (finished_just_now or status == "finished") else status
+
+    return {
+        "success":  True,
+        "room": {
+            "room_id":      room_id,
+            "channel_id":   channel_id,
+            "game_type":    GAME_TYPE,
+            "player_a":     p_a,
+            "player_b":     p_b,
+            "player_a_elo": elo_a,
+            "player_b_elo": elo_b,
+            "state":        state,
+            "status":       final_status,
+            "you_are":      you_are,
+            "opponent":     opponent,
+            "winner":       winner_user or winner,
+            "outcome":      outcome,
+        }
+    }
+
+
 @router.get("/api/dice/leaderboard")
 async def dice_leaderboard(request: Request):
     """Топ-5 dice ELO per channel."""

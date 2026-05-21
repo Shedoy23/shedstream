@@ -287,7 +287,9 @@ async function _diceCancelQueue() {
 async function _diceRefreshRoom(roomId) {
     try {
         const headers = { 'X-Twitch-JWT': authToken || '' };
-        const r = await fetch(`${API_URL}/api/match/room/${roomId}/state`, { headers });
+        // Sprint 5.24a: используем /api/dice/poll (lazy-expire) вместо
+        // generic /api/match/room/.../state — поллит deadline и auto-action'нет.
+        const r = await fetch(`${API_URL}/api/dice/poll?room_id=${encodeURIComponent(roomId)}`, { headers });
         const data = await r.json();
         if (!data.success || !data.room) {
             _diceCurrentRoomId = null;

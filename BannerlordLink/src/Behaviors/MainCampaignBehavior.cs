@@ -41,10 +41,12 @@ namespace BannerlordLink.Behaviors
             // backend сам skip reset).
             CampaignEvents.OnGameLoadFinishedEvent.AddNonSerializedListener(this, OnGameLoadFinished);
             CampaignEvents.OnSessionLaunchedEvent.AddNonSerializedListener(this, OnSessionLaunched);
-            // Sprint 5.27h: hourly safety net — выкидывает [BLink] viewer-героев
-            // которые залипли в MainParty после battle (fallback на случай если
-            // KillRewardBehavior.OnEndMission не отработал — retreat / abort).
-            CampaignEvents.HourlyTickEvent.AddNonSerializedListener(this, OnHourlyTick);
+            // Sprint 5.27h.2: HourlyTick eviction OTKLU4EN — приводил к "минус
+            // members" в MainParty + ломал passive heal. AddMember(-1) на героя
+            // без re-attach (как BLT) оставляет phantom-reference. Откатываем
+            // и полагаемся на OnEndMission в KillRewardBehavior.
+            // Если нужно вручную очистить залипших — chat-команда / save edit.
+            // CampaignEvents.HourlyTickEvent.AddNonSerializedListener(this, OnHourlyTick);
         }
 
         public override void SyncData(IDataStore dataStore)
@@ -88,11 +90,11 @@ namespace BannerlordLink.Behaviors
                 $"level {hero?.Level} (full state pushed)");
         }
 
-        /// <summary>Sprint 5.27h: safety net для PartyRestore.
-        /// Каждый час сканит MainParty.MemberRoster и выкидывает [BLink]
-        /// viewer-героев, которые не принадлежат PlayerClan. Срабатывает
-        /// когда KillRewardBehavior.OnEndMission пропустил restore
-        /// (retreat, abort, crash mid-mission).</summary>
+        /// <summary>Sprint 5.27h: safety-net для PartyRestore. ОТКЛЮЧЕНО в 5.27h.2 —
+        /// AddMember(-1) без re-attach (как BLT) оставлял "phantom" reference,
+        /// MainParty уходила "в минус", passive heal ломался. Код оставлен для
+        /// будущего ручного вызова через chat-команду (более safe path: с
+        /// count check + EnterSettlementAction в HomeSettlement).</summary>
         private void OnHourlyTick()
         {
             try
@@ -120,25 +122,36 @@ namespace BannerlordLink.Behaviors
                     if (ch == null || !ch.IsHero) continue;
                     var hero = ch.HeroObject;
                     if (hero == null) continue;
-                    // Гард #1: MainHero никогда не трогаем (defensive — он не
-                    // должен быть [BLink], но on все случаи).
                     if (hero == Hero.MainHero) continue;
-                    // Гард #2: только viewer-героев ([BLink] prefix).
                     if (hero.Name == null) continue;
                     string name = hero.Name.ToString();
                     if (!BannerlordLink.Util.HeroNaming.IsAdopted(name)) continue;
-                    // Гард #3: если hero реально принадлежит PlayerClan
-                    // (companion / spouse / vieer вступил в player clan) —
-                    // оставляем. Иначе выкидываем.
                     if (hero.Clan == playerClan) continue;
+
+                    // Safe eviction: count check + zero-set + send home.
+                    int curCount = 0;
+                    try { curCount = roster.GetTroopCount(ch); } catch { }
+                    if (curCount <= 0) continue;
 
                     try
                     {
-                        mainParty.Party.AddMember(ch, -1);
+                        // Удалить ровно curCount troops этого character (=0).
+                        roster.AddToCounts(ch, -curCount);
+                        // Отправить hero в HomeSettlement чтобы PartyBelongedTo
+                        // не висел phantom-reference'ом.
+                        var home = hero.HomeSettlement;
+                        if (home != null)
+                        {
+                            try
+                            {
+                                EnterSettlementAction.ApplyForCharacterOnly(hero, home);
+                            }
+                            catch { }
+                        }
                         evicted++;
                         BannerlordLinkModule.Log(
                             $"[HourlyTick] evicted stuck @{name} from MainParty " +
-                            $"(clan={hero.Clan?.Name?.ToString() ?? "?"})");
+                            $"(clan={hero.Clan?.Name?.ToString() ?? "?"}, sent home={home?.Name?.ToString() ?? "—"})");
                     }
                     catch (Exception ex)
                     {

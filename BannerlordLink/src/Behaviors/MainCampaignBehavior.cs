@@ -120,12 +120,16 @@ namespace BannerlordLink.Behaviors
                     if (ch == null || !ch.IsHero) continue;
                     var hero = ch.HeroObject;
                     if (hero == null) continue;
-                    // Только viewer-героев ([BLink] prefix).
+                    // Гард #1: MainHero никогда не трогаем (defensive — он не
+                    // должен быть [BLink], но on все случаи).
+                    if (hero == Hero.MainHero) continue;
+                    // Гард #2: только viewer-героев ([BLink] prefix).
                     if (hero.Name == null) continue;
                     string name = hero.Name.ToString();
                     if (!BannerlordLink.Util.HeroNaming.IsAdopted(name)) continue;
-                    // Если hero реально принадлежит PlayerClan (companion / spouse
-                    // стримера) — оставляем. Иначе выкидываем.
+                    // Гард #3: если hero реально принадлежит PlayerClan
+                    // (companion / spouse / vieer вступил в player clan) —
+                    // оставляем. Иначе выкидываем.
                     if (hero.Clan == playerClan) continue;
 
                     try

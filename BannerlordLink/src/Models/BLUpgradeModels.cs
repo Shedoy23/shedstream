@@ -1,9 +1,12 @@
+using System.Collections.Generic;
 using BannerlordLink.Behaviors;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.ComponentInterfaces;
+using TaleWorlds.CampaignSystem.Naval;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Roster;
 using TaleWorlds.CampaignSystem.Settlements;
+using TaleWorlds.Library;
 using TaleWorlds.Localization;
 
 namespace BannerlordLink.Models
@@ -125,6 +128,10 @@ namespace BannerlordLink.Models
         public override TroopRoster FindAppropriateInitialRosterForMobileParty(
             MobileParty party, PartyTemplateObject partyTemplate)
             => _previous.FindAppropriateInitialRosterForMobileParty(party, partyTemplate);
+
+        public override List<Ship> FindAppropriateInitialShipsForMobileParty(
+            MobileParty party, PartyTemplateObject partyTemplate)
+            => _previous.FindAppropriateInitialShipsForMobileParty(party, partyTemplate);
     }
 
 
@@ -134,6 +141,7 @@ namespace BannerlordLink.Models
 
         public BLClanTierModel(ClanTierModel previous) { _previous = previous; }
 
+        // ── единственный override с логикой апгрейда ──
         public override int GetPartyLimitForTier(Clan clan, int clanTier)
         {
             int baseLimit = _previous.GetPartyLimitForTier(clan, clanTier);
@@ -143,10 +151,20 @@ namespace BannerlordLink.Models
             return baseLimit + bonus;
         }
 
-        public override int GetCompanionLimit(Clan clan)
-            => _previous.GetCompanionLimit(clan);
-
-        public override int GetRequiredRenownForTier(int tier)
-            => _previous.GetRequiredRenownForTier(tier);
+        // ── всё остальное — pure delegation к _previous ──
+        public override int GetCompanionLimit(Clan clan) => _previous.GetCompanionLimit(clan);
+        public override int GetRequiredRenownForTier(int tier) => _previous.GetRequiredRenownForTier(tier);
+        public override int CalculateTier(Clan clan) => _previous.CalculateTier(clan);
+        public override int CalculateInitialRenown(Clan clan) => _previous.CalculateInitialRenown(clan);
+        public override int CalculateInitialInfluence(Clan clan) => _previous.CalculateInitialInfluence(clan);
+        public override (ExplainedNumber, bool) HasUpcomingTier(Clan clan, out TextObject explanation, bool includeExplanation = false)
+            => _previous.HasUpcomingTier(clan, out explanation, includeExplanation);
+        public override int MinClanTier => _previous.MinClanTier;
+        public override int MaxClanTier => _previous.MaxClanTier;
+        public override int BannerEligibleTier => _previous.BannerEligibleTier;
+        public override int MercenaryEligibleTier => _previous.MercenaryEligibleTier;
+        public override int VassalEligibleTier => _previous.VassalEligibleTier;
+        public override int RebelClanStartingTier => _previous.RebelClanStartingTier;
+        public override int CompanionToLordClanStartingTier => _previous.CompanionToLordClanStartingTier;
     }
 }

@@ -2119,9 +2119,36 @@ function _openBannerlordProfileModal() {
             </div>
         </div>
         <div style="background:#1a1a1c;border:1px solid #3a3a3e;border-radius:6px;
-                    padding:10px;margin-bottom:8px;color:#6b7280;font-size:11px;
-                    text-align:center;">
-            🚧 Брак с NPC и family tree — в следующих обновлениях (5.27b/c)
+                    padding:10px;margin-bottom:8px;">
+            <div style="font-size:12px;color:#adadb8;margin-bottom:6px;">
+                💍 <b style="color:#efeff1;">Семейное положение</b>
+            </div>
+            ${h.spouse_name ? `
+                <div style="font-size:11px;color:#adadb8;margin-bottom:8px;">
+                    Супруг(а): <b style="color:#fbbf24;">${escapeHtml(h.spouse_name)}</b>
+                </div>
+                <button class="extra-btn" id="bnr-divorce-btn"
+                        style="width:100%;font-size:11px;padding:8px;
+                               background:#7f1d1d;color:#fca5a5;">
+                    💔 Развестись (бесплатно)
+                </button>
+            ` : `
+                <div style="font-size:11px;color:#adadb8;margin-bottom:8px;">
+                    Не в браке. Engine найдёт случайную подходящую NPC противоположного пола.
+                </div>
+                <button class="extra-btn" id="bnr-marry-btn"
+                        ${heroGold >= 50000 ? '' : 'disabled'}
+                        style="width:100%;font-size:12px;padding:8px;
+                               background:${heroGold >= 50000 ? '#5b21b6' : '#2d2d2f'};
+                               color:${heroGold >= 50000 ? '#f472b6' : '#6b7280'};
+                               ${heroGold >= 50000 ? '' : 'cursor:not-allowed;'}">
+                    💍 Жениться/выйти замуж (50K💰)
+                </button>
+            `}
+        </div>
+        <div style="background:#1a1a1c;border:1px solid #3a3a3e;border-radius:6px;
+                    padding:10px;color:#6b7280;font-size:11px;text-align:center;">
+            🚧 Family tree (дети, родственники) — в обновлении 5.27c
         </div>
     `;
 
@@ -2136,6 +2163,16 @@ function _openBannerlordProfileModal() {
                     _bannerlordBuyAction('hero.set_gender', {gender: newGender});
                     overlay.remove();
                 });
+            });
+            overlay.querySelector('#bnr-marry-btn')?.addEventListener('click', () => {
+                if (!confirm('Engine выберет случайную подходящую NPC. Спишет 50K💰. Продолжить?')) return;
+                _bannerlordBuyAction('hero.marry', {});
+                overlay.remove();
+            });
+            overlay.querySelector('#bnr-divorce-btn')?.addEventListener('click', () => {
+                if (!confirm('Развод бесплатный. Точно?')) return;
+                _bannerlordBuyAction('hero.divorce', {});
+                overlay.remove();
             });
         },
     });

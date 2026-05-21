@@ -390,10 +390,14 @@ _PURCHASABLE_ACTIONS = (
     "hero.join_kingdom",         # Sprint 5.12: clan joins kingdom (Hero.Gold 100K)
     "hero.create_party",         # Sprint 5.13: clan-leader creates MobileParty (Hero.Gold 200K)
     "hero.set_gender",           # Sprint 5.27a: gender swap (Hero.Gold 50K)
+    "hero.marry",                # Sprint 5.27b: marriage to random NPC (50K)
+    "hero.divorce",              # Sprint 5.27b: free divorce
 )
 
 # Sprint 5.27a — стоимость gender swap (BLT default: 50k).
 GENDER_SWAP_COST = 50_000
+# Sprint 5.27b — стоимость брака с NPC.
+MARRIAGE_COST = 50_000
 
 # Sprint 5.18 (refactor): helper для повторяющегося Hero.Gold pre-check.
 # Используется в нескольких action handlers (create_clan, create_kingdom,
@@ -988,6 +992,25 @@ async def bannerlord_buy_action(request: Request):
         data["gender"] = gender
         data["hero_gold_cost"] = GENDER_SWAP_COST
         data["price"] = 0  # крустики free
+
+    # Sprint 5.27b: hero.marry — брак с random suitable NPC (50K💰).
+    # Mod выбирает подходящую NPC (opposite gender, single, 18+, не [BLink]).
+    if action_type == "hero.marry":
+        hero_gold = await _fetch_hero_gold(channel_id, username)
+        if hero_gold < MARRIAGE_COST:
+            return {
+                "success": False,
+                "message": f"Нужно {MARRIAGE_COST:,}💰 для брака "
+                           f"(у тебя {hero_gold:,}💰).",
+            }
+        data["hero_gold_cost"] = MARRIAGE_COST
+        data["price"] = 0
+
+    # Sprint 5.27b: hero.divorce — free (никакой gold check, мод просто
+    # обнуляет Spouse). Развод emotionally free :)
+    if action_type == "hero.divorce":
+        data["hero_gold_cost"] = 0
+        data["price"] = 0
 
     # Sprint 5.9: hero.create_clan — БЕСПЛАТНО в крустиках, mod списывает
     # 100K Hero.Gold. Validation clan_name + Hero.Gold pre-check + check

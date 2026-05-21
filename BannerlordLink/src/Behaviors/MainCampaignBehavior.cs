@@ -41,12 +41,12 @@ namespace BannerlordLink.Behaviors
             // backend сам skip reset).
             CampaignEvents.OnGameLoadFinishedEvent.AddNonSerializedListener(this, OnGameLoadFinished);
             CampaignEvents.OnSessionLaunchedEvent.AddNonSerializedListener(this, OnSessionLaunched);
-            // Sprint 5.27h.2: HourlyTick eviction OTKLU4EN — приводил к "минус
-            // members" в MainParty + ломал passive heal. AddMember(-1) на героя
-            // без re-attach (как BLT) оставляет phantom-reference. Откатываем
-            // и полагаемся на OnEndMission в KillRewardBehavior.
-            // Если нужно вручную очистить залипших — chat-команда / save edit.
-            // CampaignEvents.HourlyTickEvent.AddNonSerializedListener(this, OnHourlyTick);
+            // Sprint 5.27l: MapEventEnded — campaign-level event "битва завершилась".
+            // BLT тоже использует (BLTAdoptAHeroCampaignBehavior:272). Триггерит
+            // после ВСЕХ battle/raid/siege независимо от того сработал ли
+            // MissionLogic.OnEndMission. Safe cleanup через BLT pattern
+            // (EnterSettlementAction.ApplyForCharacterOnly).
+            CampaignEvents.MapEventEnded.AddNonSerializedListener(this, OnMapEventEnded);
         }
 
         public override void SyncData(IDataStore dataStore)
@@ -90,16 +90,20 @@ namespace BannerlordLink.Behaviors
                 $"level {hero?.Level} (full state pushed)");
         }
 
-        /// <summary>Sprint 5.27h: safety-net для PartyRestore. ОТКЛЮЧЕНО в 5.27h.2 —
-        /// AddMember(-1) без re-attach (как BLT) оставлял "phantom" reference,
-        /// MainParty уходила "в минус", passive heal ломался. Код оставлен для
-        /// будущего ручного вызова через chat-команду (более safe path: с
-        /// count check + EnterSettlementAction в HomeSettlement).</summary>
-        private void OnHourlyTick()
+        /// <summary>Sprint 5.27l: cleanup viewer-героев из MainParty после
+        /// КАЖДОГО боя (CampaignEvents.MapEventEnded — fires после battle/raid/
+        /// siege с campaign-уровня, независимо от того сработал MissionLogic.
+        /// OnEndMission или нет).
+        ///
+        /// BLT pattern: AddToCounts(-curCount) + EnterSettlementAction в
+        /// HomeSettlement → нет phantom-reference → MainParty инварианты
+        /// сохранены.</summary>
+        private void OnMapEventEnded(TaleWorlds.CampaignSystem.MapEvents.MapEvent ev)
         {
             try
             {
-                // Skip если в активном Mission — не лезем в roster в бою.
+                // Skip если в активном Mission — engine ещё разбирается с
+                // post-battle UI (loot, party screen). Защита от race condition.
                 if (TaleWorlds.MountAndBlade.Mission.Current != null) return;
 
                 var mainParty = TaleWorlds.CampaignSystem.Party.MobileParty.MainParty;
@@ -109,7 +113,7 @@ namespace BannerlordLink.Behaviors
                 var playerClan = Clan.PlayerClan;
                 int evicted = 0;
 
-                // Iterate по copy чтобы не модифицировать во время enumeration.
+                // Snapshot перед modification (избежать collection-modified).
                 var snapshot = new System.Collections.Generic.List<TaleWorlds.CampaignSystem.Roster.TroopRosterElement>();
                 for (int i = 0; i < roster.Count; i++)
                 {
@@ -122,24 +126,39 @@ namespace BannerlordLink.Behaviors
                     if (ch == null || !ch.IsHero) continue;
                     var hero = ch.HeroObject;
                     if (hero == null) continue;
+                    // Гард #1: never touch MainHero.
                     if (hero == Hero.MainHero) continue;
+                    // Гард #2: only [BLink] viewer-heroes.
                     if (hero.Name == null) continue;
                     string name = hero.Name.ToString();
                     if (!BannerlordLink.Util.HeroNaming.IsAdopted(name)) continue;
+                    // Гард #3: companion / spouse в PlayerClan — оставляем.
                     if (hero.Clan == playerClan) continue;
 
-                    // Safe eviction: count check + zero-set + send home.
+                    // Safe eviction (BLT pattern):
+                    //   1) Check current count, skip if already 0.
+                    //   2) AddToCounts(-curCount) — атомарно в roster.
+                    //   3) EnterSettlementAction → дать hero legit home.
                     int curCount = 0;
                     try { curCount = roster.GetTroopCount(ch); } catch { }
                     if (curCount <= 0) continue;
 
                     try
                     {
-                        // Удалить ровно curCount troops этого character (=0).
                         roster.AddToCounts(ch, -curCount);
-                        // Отправить hero в HomeSettlement чтобы PartyBelongedTo
-                        // не висел phantom-reference'ом.
+
                         var home = hero.HomeSettlement;
+                        if (home == null)
+                        {
+                            // Fallback: any town in map.
+                            try
+                            {
+                                home = TaleWorlds.CampaignSystem.Settlements.Settlement.All
+                                    ?.Where(s => s != null && s.IsTown)
+                                    .FirstOrDefault();
+                            }
+                            catch { }
+                        }
                         if (home != null)
                         {
                             try
@@ -150,25 +169,27 @@ namespace BannerlordLink.Behaviors
                         }
                         evicted++;
                         BannerlordLinkModule.Log(
-                            $"[HourlyTick] evicted stuck @{name} from MainParty " +
-                            $"(clan={hero.Clan?.Name?.ToString() ?? "?"}, sent home={home?.Name?.ToString() ?? "—"})");
+                            $"[MapEventEnded] evicted @{name} from MainParty " +
+                            $"(clan={hero.Clan?.Name?.ToString() ?? "?"}, " +
+                            $"home={home?.Name?.ToString() ?? "—"})");
                     }
                     catch (Exception ex)
                     {
                         BannerlordLinkModule.Log(
-                            $"[HourlyTick] evict {name} failed: {ex.Message}");
+                            $"[MapEventEnded] evict {name} failed: {ex.Message}");
                     }
                 }
 
                 if (evicted > 0)
                 {
                     BannerlordLinkModule.Log(
-                        $"[HourlyTick] evicted {evicted} stuck viewer-heroes из MainParty");
+                        $"[MapEventEnded] cleaned {evicted} viewer-heroes из MainParty " +
+                        $"after battle ({ev?.EventType.ToString() ?? "?"})");
                 }
             }
             catch (Exception ex)
             {
-                BannerlordLinkModule.Log($"[HourlyTick] CRASHED: {ex.Message}");
+                BannerlordLinkModule.Log($"[MapEventEnded] CRASHED: {ex.Message}");
             }
         }
 

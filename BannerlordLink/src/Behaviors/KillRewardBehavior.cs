@@ -12,39 +12,65 @@ using TaleWorlds.MountAndBlade;
 namespace BannerlordLink.Behaviors
 {
     /// <summary>
-    /// MissionLogic: kill reward + battle participation для adopted heroes
-    /// (BLT pattern, BLTAdoptAHeroCommonMissionBehavior.OnAgentRemoved).
+    /// MissionLogic: kill reward + battle participation для adopted heroes.
+    /// BLT-aligned (Sprint 5.27g): all constants × 0.5 от BLT defaults.
     ///
-    /// Per-kill reward (OnAgentRemoved):
-    ///   • Trooper kill   : +50💰 +25 XP в weapon skill +10 HP
-    ///   • Hero kill bonus: +500💰 +200 XP (10× за убийство Hero NPC)
-    ///   • Horse/mount kill: × 0.25 multiplier (BLT pattern)
+    /// Personal kill (OnAgentRemoved, affector == наш hero):
+    ///   gold = GOLD_PER_KILL × horseFactor × max(levelBoost, MinGold)
+    ///   xp   = XP_PER_KILL   × horseFactor × levelBoost     → AddSkillXp(weaponSkill)
+    ///   heal = HEAL_PER_KILL × horseFactor × levelBoost     → affector.Health
     ///
-    /// Battle-end participation bonus (OnEndMission):
-    ///   • Каждому участвовавшему alive adopted hero (PlayerVictory):
-    ///     +200💰 +100 XP random skill
+    /// Retinue kill (affector == свита нашего hero):
+    ///   gold = RETINUE_GOLD_PER_KILL × horseFactor × max(levelBoost, MinGold)
+    ///         → owner.Hero
+    ///   heal = RETINUE_HEAL_PER_KILL × horseFactor × levelBoost
+    ///         → САМ retinue agent (не owner)
+    ///   xp   = 0                                          (BLT: свита XP не даёт)
     ///
-    /// Overlay stats push: каждые 1.5с пушим snapshot активных summoned
-    /// heroes на backend → overlay.html отображает HP/kills/gold/xp.
+    /// Killed (наш hero был убит — consolation):
+    ///   xp = XP_PER_KILLED × levelBoost(killerLevel)
+    ///
+    /// Level scaling (BLT formula):
+    ///   factor = (1 - (killedLvl - killerLvl) / 30) ^ (-10 × n)
+    ///   gold-only clamp: max(factor, MinGold) для human kills
+    ///
+    /// Kill streaks: 5/10/15 — extra gold+XP bonus. Reset на смерть.
+    ///
+    /// Overlay stats push каждые 1.5с (snapshot участников).
     /// </summary>
     public class KillRewardBehavior : MissionLogic
     {
-        // Per-kill (trooper)
-        private const int   GOLD_PER_KILL = 50;
-        private const int   XP_PER_KILL   = 25;
-        private const float HEAL_PER_KILL = 10f;
-        private const float HORSE_FACTOR  = 0.25f;
+        // ── Sprint 5.27g: BLT defaults × 0.5 ────────────────────────────────
 
-        // Per-kill (Hero NPC, e.g. лорд / claimant)
-        private const int HERO_KILL_GOLD = 500;
-        private const int HERO_KILL_XP   = 200;
+        // Personal kill (trooper)
+        private const int   GOLD_PER_KILL = 2500;   // BLT 5000
+        private const int   XP_PER_KILL   = 2500;   // BLT 5000
+        private const float HEAL_PER_KILL = 10f;    // BLT 20
+        private const float HORSE_FACTOR  = 0.25f;  // BLT 0.25 (mount kill multiplier)
 
-        // Retinue kill — half reward owner'у (indirect, не сам убил)
-        private const float RETINUE_KILL_FACTOR = 0.5f;
+        // Killed (consolation XP за смерть нашего hero)
+        private const int   XP_PER_KILLED = 1000;   // BLT 2000
 
-        // Battle-end participation (PlayerVictory)
-        private const int VICTORY_GOLD = 200;
-        private const int VICTORY_XP   = 100;
+        // Retinue kill — gold owner'у, heal retinue agent'у самому.
+        private const int   RETINUE_GOLD_PER_KILL = 1250;  // BLT 2500
+        private const float RETINUE_HEAL_PER_KILL = 25f;   // BLT 50
+
+        // Relative level scaling (BLT pattern):
+        // levelBoost = (1 - (killedLvl - killerLvl) / 30)^(-10 × n).
+        // n = 1.0 → full BLT effect; cap = 5 → max ×5 boost.
+        // MinGold = 0.5 — gold factor clamp (только для human kills).
+        private const int   MAX_LEVEL_IN_PRACTICE = 30;
+        private const float REL_LEVEL_SCALING_N   = 1f;
+        private const float LEVEL_SCALING_CAP     = 5f;
+        private const float MINIMUM_GOLD_PER_KILL = 0.5f;
+
+        // Kill streak milestones (BLT × 0.5): kills → +gold/+xp награда.
+        private static readonly (int kills, int gold, int xp)[] KILL_STREAKS =
+        {
+            ( 5,  2500,  2500),
+            (10,  5000,  5000),
+            (15, 10000, 10000),
+        };
 
         // Static registry: retinue agent → owner username. Populated
         // SummonHeroHandler'ом при spawn'е retinue. Cleared OnEndMission.
@@ -179,7 +205,6 @@ namespace BannerlordLink.Behaviors
         private readonly Dictionary<string, BattleStats> _participants =
             new Dictionary<string, BattleStats>();
         private float _nextStatsPushAt = 0f;
-        private bool _resultsApplied;
 
         private class BattleStats
         {
@@ -191,6 +216,27 @@ namespace BannerlordLink.Behaviors
             public int RetinueKills;     // киллы свиты, кредитятся owner'у
             public int GoldEarned;
             public int XpEarned;
+            public int KillStreak;       // BLT pattern — reset on death/kill
+        }
+
+        /// <summary>BLT formula: (1 − (killedLvl − killerLvl) / 30) ^ (−10×n).
+        /// killerLvl > killedLvl → factor &lt; 1 (penalty за слабую цель).
+        /// killerLvl &lt; killedLvl → factor &gt; 1 (boost за сильную цель).
+        /// Capped к cap (BLT default 5×).</summary>
+        private static float RelativeLevelScaling(int killerLevel, int killedLevel,
+            float n, float cap)
+        {
+            try
+            {
+                int delta = Math.Min(MAX_LEVEL_IN_PRACTICE - 1, killedLevel - killerLevel);
+                float baseFactor = 1f - delta / (float)MAX_LEVEL_IN_PRACTICE;
+                if (baseFactor <= 0f) return cap;  // killed много выше — max boost
+                float exponent = -10f * Math.Max(0f, Math.Min(1f, n));
+                float boost = (float)Math.Pow(baseFactor, exponent);
+                if (float.IsNaN(boost) || float.IsInfinity(boost)) return cap;
+                return Math.Min(boost, cap);
+            }
+            catch { return 1f; }
         }
 
         /// <summary>True если agent на team стримера (alliance OK).</summary>
@@ -271,121 +317,266 @@ namespace BannerlordLink.Behaviors
             AgentState agentState, KillingBlow blow)
         {
             base.OnAgentRemoved(affectedAgent, affectorAgent, agentState, blow);
-            if (affectorAgent == null || affectedAgent == null) return;
-            if (affectorAgent == affectedAgent) return;
+            if (affectedAgent == null) return;
+
+            // ── Killed leg: наш hero был убит → consolation XP (BLT XPPerKilled) ─
+            try
+            {
+                HandleAffectedKilled(affectedAgent, affectorAgent, agentState, blow);
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[KillReward] HandleAffectedKilled CRASHED: {ex.GetType().Name}: {ex.Message}");
+            }
+
+            // ── Killer leg: наш hero / его retinue убил кого-то → award reward ──
+            if (affectorAgent == null || affectorAgent == affectedAgent) return;
 
             try
             {
-                // Kill reward — два пути:
-                //   1. Personal kill: affector сам adopted hero ([BLink] prefix)
-                //   2. Retinue kill: affector — troop из свиты (registry lookup)
-                //      → credit owner с RETINUE_KILL_FACTOR (0.5×)
-                string killerName = GetBLinkUsername(affectorAgent);
-                bool isRetinueKill = false;
-                Hero killer = null;
+                HandleAffectorKill(affectedAgent, affectorAgent, agentState, blow);
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[KillReward] HandleAffectorKill CRASHED: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
 
-                if (killerName != null)
-                {
-                    // Personal kill — affector сам hero
-                    killer = (affectorAgent.Character as CharacterObject)?.HeroObject;
-                    if (killer == null || !killer.IsAlive) return;
-                }
-                else if (_retinueOwners.TryGetValue(affectorAgent, out var ownerUsername))
-                {
-                    // Retinue kill — credit owner
-                    killerName = ownerUsername;
-                    isRetinueKill = true;
-                    if (_participants.TryGetValue(ownerUsername, out var ownerStats))
-                    {
-                        killer = ownerStats.Hero;
-                    }
-                    if (killer == null || !killer.IsAlive) return;
-                }
-                else
-                {
-                    return;  // не наш killer
-                }
+        /// <summary>Если affected это наш hero и его прибили — даём consolation XP
+        /// (BLT XPPerKilled) с level-scaling. Reset kill streak.</summary>
+        private void HandleAffectedKilled(Agent affectedAgent, Agent affectorAgent,
+            AgentState state, KillingBlow blow)
+        {
+            if (affectedAgent == null || !affectedAgent.IsHuman) return;
+            if (state != AgentState.Unconscious && state != AgentState.Killed) return;
 
-                bool isHumanTarget = affectedAgent.IsHuman;
-                bool isHeroTarget = isHumanTarget
-                    && (affectedAgent.Character as CharacterObject)?.HeroObject != null;
+            string victimUsername = GetBLinkUsername(affectedAgent);
+            if (victimUsername == null) return;
 
-                int gold;
-                int xp;
-                float heal;
-                string label;
+            Hero victim = (affectedAgent.Character as CharacterObject)?.HeroObject;
+            if (victim == null) return;
 
-                if (isHeroTarget)
-                {
-                    gold = HERO_KILL_GOLD;
-                    xp = HERO_KILL_XP;
-                    heal = HEAL_PER_KILL;
-                    label = "HERO";
-                }
-                else
-                {
-                    float factor = isHumanTarget ? 1f : HORSE_FACTOR;
-                    gold = (int)(GOLD_PER_KILL * factor);
-                    xp = (int)(XP_PER_KILL * factor);
-                    heal = HEAL_PER_KILL * factor;
-                    label = isHumanTarget ? "human" : "mount";
-                }
+            // Reset streak
+            if (_participants.TryGetValue(victimUsername, out var vstats))
+            {
+                vstats.KillStreak = 0;
+            }
 
-                // Retinue kill — половина reward'а owner'у (indirect, не сам убил).
-                // Heal не применяется (retinue далеко от owner'a).
-                if (isRetinueKill)
-                {
-                    gold = (int)(gold * RETINUE_KILL_FACTOR);
-                    xp = (int)(xp * RETINUE_KILL_FACTOR);
-                    heal = 0f;
-                    label += "/retinue";
-                }
+            // Consolation XP. Level scaling: убит higher-level → больше xp.
+            int killerLevel = victim.Level;
+            try
+            {
+                var killerChar = affectorAgent?.Character as CharacterObject;
+                if (killerChar != null) killerLevel = killerChar.Level;
+            }
+            catch { }
 
-                if (gold > 0)
-                {
-                    try { GiveGoldAction.ApplyBetweenCharacters(null, killer, gold, true); }
-                    catch (Exception gex)
-                    { BannerlordLinkModule.Log($"[KillReward] gold give failed: {gex.Message}"); }
-                }
+            float levelBoost = RelativeLevelScaling(
+                victim.Level, killerLevel,
+                REL_LEVEL_SCALING_N, LEVEL_SCALING_CAP);
+            int xp = (int)(XP_PER_KILLED * levelBoost);
+            if (xp <= 0) return;
 
-                SkillObject skill = ResolveSkillFromBlow(blow);
-                if (skill != null && xp > 0)
-                {
-                    try { killer.HeroDeveloper.AddSkillXp(skill, xp); }
-                    catch (Exception sex)
-                    { BannerlordLinkModule.Log($"[KillReward] xp add failed: {sex.Message}"); }
-                }
+            SkillObject skill = ResolveSkillFromBlow(blow) ?? DefaultSkills.Athletics;
+            try { victim.HeroDeveloper.AddSkillXp(skill, xp); }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[KillReward] @{victimUsername} XPPerKilled failed: {ex.Message}");
+                return;
+            }
 
-                if (heal > 0f && affectorAgent.IsActive())
+            if (vstats != null) vstats.XpEarned += xp;
+
+            BannerlordLinkModule.Log(
+                $"[KillReward] @{victimUsername} killed by {affectorAgent?.Name?.ToString() ?? "?"} → " +
+                $"consolation +{xp} XP ({skill.StringId}, levelBoost={levelBoost:F2})");
+
+            HeroStateSyncSafe(victim);
+        }
+
+        /// <summary>Affector — наш hero или его retinue → выдать gold/xp/heal.
+        /// BLT pattern: личный kill даёт всё, retinue kill даёт gold owner'у +
+        /// heal САМОМУ retinue agent'у (не owner'у), XP не даёт.</summary>
+        private void HandleAffectorKill(Agent affectedAgent, Agent affectorAgent,
+            AgentState state, KillingBlow blow)
+        {
+            // Identify killer как personal hero / retinue owner.
+            string killerName = GetBLinkUsername(affectorAgent);
+            bool isRetinueKill = false;
+            Hero killer = null;
+
+            if (killerName != null)
+            {
+                killer = (affectorAgent.Character as CharacterObject)?.HeroObject;
+                if (killer == null || !killer.IsAlive) return;
+            }
+            else if (_retinueOwners.TryGetValue(affectorAgent, out var ownerUsername))
+            {
+                killerName = ownerUsername;
+                isRetinueKill = true;
+                if (_participants.TryGetValue(ownerUsername, out var ownerStats))
+                    killer = ownerStats.Hero;
+                if (killer == null || !killer.IsAlive) return;
+            }
+            else
+            {
+                return;  // не наш killer
+            }
+
+            bool isHumanTarget = affectedAgent.IsHuman;
+            bool isHeroTarget = isHumanTarget
+                && (affectedAgent.Character as CharacterObject)?.HeroObject != null;
+
+            // Base reward по типу kill'a
+            int baseGold;
+            int baseXp;
+            float baseHeal;
+            if (isRetinueKill)
+            {
+                baseGold = RETINUE_GOLD_PER_KILL;
+                baseXp   = 0;                       // BLT: свита XP не даёт
+                baseHeal = RETINUE_HEAL_PER_KILL;   // heal — самому retinue agent'у
+            }
+            else
+            {
+                baseGold = GOLD_PER_KILL;
+                baseXp   = XP_PER_KILL;
+                baseHeal = HEAL_PER_KILL;
+            }
+
+            // Horse factor (×0.25 если убил mount)
+            float horseFactor = isHumanTarget ? 1f : HORSE_FACTOR;
+            baseGold = (int)(baseGold * horseFactor);
+            baseXp   = (int)(baseXp   * horseFactor);
+            baseHeal = baseHeal * horseFactor;
+
+            // Level scaling (BLT): killer-level vs killed-level
+            int killerLevel = killer.Level;
+            int killedLevel = killerLevel;
+            try
+            {
+                var killedChar = affectedAgent.Character as CharacterObject;
+                if (killedChar != null) killedLevel = killedChar.Level;
+            }
+            catch { }
+
+            float levelBoost = RelativeLevelScaling(
+                killerLevel, killedLevel,
+                REL_LEVEL_SCALING_N, LEVEL_SCALING_CAP);
+
+            // Gold factor: max(levelBoost, MinGold) для human, для mount без clamp.
+            float goldBoost = isHumanTarget
+                ? Math.Max(levelBoost, MINIMUM_GOLD_PER_KILL)
+                : levelBoost;
+
+            int gold = (int)(baseGold * goldBoost);
+            int xp   = (int)(baseXp   * levelBoost);
+            float heal = baseHeal * levelBoost;
+
+            // Apply gold (owner)
+            if (gold > 0)
+            {
+                try { GiveGoldAction.ApplyBetweenCharacters(null, killer, gold, true); }
+                catch (Exception ex)
+                { BannerlordLinkModule.Log($"[KillReward] gold give failed: {ex.Message}"); }
+            }
+
+            // Apply XP (personal only — свита XP не даёт)
+            SkillObject skill = ResolveSkillFromBlow(blow) ?? DefaultSkills.Athletics;
+            if (xp > 0 && !isRetinueKill)
+            {
+                try { killer.HeroDeveloper.AddSkillXp(skill, xp); }
+                catch (Exception ex)
+                { BannerlordLinkModule.Log($"[KillReward] xp add failed: {ex.Message}"); }
+            }
+
+            // Apply heal:
+            //   personal kill → affector это hero, heal hero agent
+            //   retinue kill  → affector это retinue agent, heal САМ retinue
+            if (heal > 0f && affectorAgent.IsActive())
+            {
+                try
                 {
                     affectorAgent.Health = Math.Min(
                         affectorAgent.HealthLimit,
                         affectorAgent.Health + heal);
                 }
-
-                // Track stats per participant
-                if (_participants.TryGetValue(killerName, out var s))
-                {
-                    if (isRetinueKill) s.RetinueKills++;
-                    else s.Kills++;
-                    s.GoldEarned += gold;
-                    s.XpEarned += xp;
-                    if (!isRetinueKill) s.Agent = affectorAgent;
-                }
-
-                string victimName = affectedAgent.Name ?? "?";
-                BannerlordLinkModule.Log(
-                    $"[KillReward] @{killerName} {(isRetinueKill ? "retinue" : "personal")} killed {victimName} " +
-                    $"({label}): +{gold}💰 +{xp} XP " +
-                    $"({skill?.StringId ?? "—"}) +{heal:F0} HP");
-
-                HeroStateSyncSafe(killer);
+                catch { }
             }
-            catch (Exception ex)
+
+            // Update stats + kill streak (BLT pattern: streak только за personal)
+            int streakReward = 0;
+            int streakXp = 0;
+            int streakLevel = 0;
+            if (_participants.TryGetValue(killerName, out var s))
             {
-                BannerlordLinkModule.Log(
-                    $"[KillReward] OnAgentRemoved CRASHED: {ex.GetType().Name}: {ex.Message}");
+                if (isRetinueKill)
+                {
+                    s.RetinueKills++;
+                }
+                else
+                {
+                    s.Kills++;
+                    if (isHumanTarget)  // streak только за людей
+                    {
+                        s.KillStreak++;
+                        foreach (var ks in KILL_STREAKS)
+                        {
+                            if (s.KillStreak == ks.kills)
+                            {
+                                streakReward = ks.gold;
+                                streakXp     = ks.xp;
+                                streakLevel  = ks.kills;
+                                break;
+                            }
+                        }
+                    }
+                }
+                s.GoldEarned += gold;
+                s.XpEarned += xp;
+                if (!isRetinueKill) s.Agent = affectorAgent;
             }
+
+            // Apply kill-streak bonus (если milestone reached)
+            if (streakReward > 0 || streakXp > 0)
+            {
+                try
+                {
+                    if (streakReward > 0)
+                        GiveGoldAction.ApplyBetweenCharacters(null, killer, streakReward, true);
+                    if (streakXp > 0)
+                        killer.HeroDeveloper.AddSkillXp(skill, streakXp);
+                    if (s != null)
+                    {
+                        s.GoldEarned += streakReward;
+                        s.XpEarned   += streakXp;
+                    }
+                    BannerlordLinkModule.Log(
+                        $"[KillReward] @{killerName} 🔥 STREAK ×{streakLevel}: " +
+                        $"+{streakReward}💰 +{streakXp} XP ({skill.StringId})");
+                }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[KillReward] streak award failed: {ex.Message}");
+                }
+            }
+
+            string targetLabel = isHeroTarget ? "HERO"
+                : (isHumanTarget ? "human" : "mount");
+            if (isRetinueKill) targetLabel += "/retinue";
+
+            string victimName = affectedAgent.Name?.ToString() ?? "?";
+            BannerlordLinkModule.Log(
+                $"[KillReward] @{killerName} {(isRetinueKill ? "retinue" : "personal")} " +
+                $"killed {victimName} ({targetLabel}): " +
+                $"+{gold}💰 +{xp} XP ({skill.StringId}) +{heal:F0} HP " +
+                $"[lvl K{killerLevel}/T{killedLevel} → boost ×{levelBoost:F2}]");
+
+            HeroStateSyncSafe(killer);
         }
 
         public override void OnMissionTick(float dt)
@@ -412,15 +603,13 @@ namespace BannerlordLink.Behaviors
         protected override void OnEndMission()
         {
             base.OnEndMission();
-            try
-            {
-                ApplyVictoryRewards();
-                PushStatsSnapshot(isFinal: true);
-            }
+            // Sprint 5.27g: убрали flat VICTORY bonus. BLT-pattern награждает
+            // через per-kill + kill streaks, отдельной "победы" нет.
+            try { PushStatsSnapshot(isFinal: true); }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log(
-                    $"[KillReward] OnEndMission CRASHED: {ex.Message}");
+                    $"[KillReward] PushStatsSnapshot final crashed: {ex.Message}");
             }
             // Clear retinue registry — agent references умирают вместе с Mission
             try { _retinueOwners.Clear(); } catch { }
@@ -431,64 +620,6 @@ namespace BannerlordLink.Behaviors
                 BannerlordLinkModule.Log(
                     $"[KillReward] RestorePartyMembership crashed: {ex.Message}");
             }
-        }
-
-        /// <summary>Mission закончилась — если PlayerVictory, выдать
-        /// participation bonus каждому alive adopted hero.</summary>
-        private void ApplyVictoryRewards()
-        {
-            if (_resultsApplied) return;
-            _resultsApplied = true;
-
-            bool victory = false;
-            try
-            {
-                var mr = Mission?.MissionResult;
-                if (mr != null && mr.PlayerVictory) victory = true;
-            }
-            catch { /* MissionResult может быть null на abort */ }
-
-            if (!victory)
-            {
-                BannerlordLinkModule.Log(
-                    $"[KillReward] battle ended (no PlayerVictory) — " +
-                    $"{_participants.Count} participants, no bonus");
-                return;
-            }
-
-            int rewarded = 0;
-            // Snapshot копия (defensive — engine может вклиниться)
-            List<BattleStats> snapshot;
-            try { snapshot = _participants.Values.ToList(); }
-            catch { return; }
-
-            foreach (var s in snapshot)
-            {
-                if (s?.Hero == null || !s.Hero.IsAlive) continue;
-                try
-                {
-                    GiveGoldAction.ApplyBetweenCharacters(null, s.Hero, VICTORY_GOLD, true);
-                    var skill = PickRandomSkill();
-                    if (skill != null)
-                        s.Hero.HeroDeveloper.AddSkillXp(skill, VICTORY_XP);
-
-                    s.GoldEarned += VICTORY_GOLD;
-                    s.XpEarned += VICTORY_XP;
-                    rewarded++;
-
-                    BannerlordLinkModule.Log(
-                        $"[KillReward] @{s.Username} VICTORY bonus: " +
-                        $"+{VICTORY_GOLD}💰 +{VICTORY_XP}XP ({skill?.StringId ?? "?"})");
-                    HeroStateSyncSafe(s.Hero);
-                }
-                catch (Exception ex)
-                {
-                    BannerlordLinkModule.Log(
-                        $"[KillReward] victory reward @{s.Username} failed: {ex.Message}");
-                }
-            }
-            BannerlordLinkModule.Log(
-                $"[KillReward] PlayerVictory — rewarded {rewarded}/{_participants.Count} heroes");
         }
 
         /// <summary>Push current participants snapshot для overlay.
@@ -595,18 +726,6 @@ namespace BannerlordLink.Behaviors
                 BannerlordLinkModule.Log(
                     $"[KillReward] PushStatsSnapshot CRASHED: {ex.GetType().Name}: {ex.Message}");
             }
-        }
-
-        private static SkillObject PickRandomSkill()
-        {
-            try
-            {
-                var all = TaleWorlds.ObjectSystem.MBObjectManager.Instance
-                    .GetObjectTypeList<SkillObject>();
-                if (all == null || all.Count == 0) return null;
-                return all[new Random().Next(all.Count)];
-            }
-            catch { return null; }
         }
 
         private static SkillObject ResolveSkillFromBlow(KillingBlow blow)

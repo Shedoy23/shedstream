@@ -1879,8 +1879,19 @@ function _openBannerlordClanModal() {
                 ⚔ Создать отряд <span style="color:#9ca3af;font-size:10px;">(только для лидеров)</span>
                </button>`;
 
+    // Sprint 5.26b: кнопка «Апгрейды клана» (BLT-style buffs)
+    const upgradesBtn = hasClan ? `
+        <button class="extra-btn" id="bnr-clan-modal-upgrades"
+                title="Долгосрочные баффы клана: +renown/день, +party size, +retinue size, и т.д."
+                style="width:100%;font-size:12px;padding:8px;margin-bottom:6px;
+                       background:#1f1a30;color:#c084fc;font-weight:700;
+                       border:1px solid #5b21b6;">
+            🏆 Апгрейды клана
+        </button>` : '';
+
     const actions = hasClan ? `
         ${infoBlock}
+        ${upgradesBtn}
         ${isLeader
             ? `<div style="font-size:11px;color:#fbbf24;margin-bottom:6px;text-align:center;">
                 ⚠️ Ты лидер — нельзя просто покинуть. Сначала передай лидерство (TBD).
@@ -1928,6 +1939,136 @@ function _openBannerlordClanModal() {
                 if (!confirm('Создать MobileParty? Hero появится на карте как AI lord. Списать 200K💰 динаров + добавит retinue в roster.')) return;
                 _bannerlordBuyAction('hero.create_party', {});
                 overlay.remove();
+            });
+            // Sprint 5.26b: clan upgrades
+            overlay.querySelector('#bnr-clan-modal-upgrades')?.addEventListener('click', () => {
+                overlay.remove();
+                _openBannerlordClanUpgradesModal();
+            });
+        },
+    });
+}
+
+// Sprint 5.26b: Clan upgrades modal (BLT-style buffs)
+async function _openBannerlordClanUpgradesModal() {
+    // Fetch list
+    let data;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/clan-upgrades`, {
+            headers: {'X-Twitch-JWT': authToken || ''},
+        });
+        data = await r.json();
+    } catch (e) {
+        showNotification('Ошибка загрузки апгрейдов', 'error');
+        return;
+    }
+    if (!data.success) {
+        showNotification(data.message || 'Не удалось загрузить', 'error');
+        return;
+    }
+    const upgrades = data.upgrades || [];
+    const heroGold = data.hero_gold || 0;
+
+    // Группируем по tier
+    const byTier = {};
+    upgrades.forEach(u => {
+        if (!byTier[u.tier]) byTier[u.tier] = [];
+        byTier[u.tier].push(u);
+    });
+    const tiers = Object.keys(byTier).map(Number).sort((a, b) => a - b);
+
+    const _effectsToStr = (effects) => {
+        const labels = {
+            renown_daily:       '🏆 +%v renown/день',
+            influence_daily:    '👑 +%v влияния/день',
+            party_size_bonus:   '⚔️ +%v к party',
+            retinue_size_bonus: '🛡️ +%v retinue',
+            party_speed_bonus:  '🐎 +%v скорости',
+            party_amount_bonus: '🪖 +%v parties',
+            max_vassals_bonus:  '🏰 +%v вассалов',
+            army_speed_bonus:   '⚡ +%v army speed',
+        };
+        return Object.entries(effects || {})
+            .map(([k, v]) => (labels[k] || `${k}: ${v}`).replace('%v', v))
+            .join(' · ');
+    };
+
+    const tierHtml = tiers.map(tier => {
+        const items = byTier[tier].map(u => {
+            const canAfford = heroGold >= u.gold_cost;
+            const ownedBadge = u.owned
+                ? `<span style="color:#34d399;font-weight:700;font-size:11px;">✓ ВЛАДЕЕШЬ</span>`
+                : u.locked
+                    ? `<span style="color:#6b7280;font-size:11px;">🔒 Нужен предыдущий</span>`
+                    : canAfford
+                        ? `<button class="small-btn" data-bnr-upg-buy="${u.upgrade_id}"
+                                  style="background:#5b21b6;color:#fbbf24;font-weight:700;">
+                              Купить ${u.gold_cost.toLocaleString('ru-RU')}💰
+                           </button>`
+                        : `<span style="color:#f87171;font-size:11px;">
+                              Нужно ${u.gold_cost.toLocaleString('ru-RU')}💰
+                           </span>`;
+            return `
+                <div style="background:${u.owned ? 'rgba(52,211,153,0.05)' : '#1a1a1c'};
+                            border:1px solid ${u.owned ? 'rgba(52,211,153,0.3)' : '#3a3a3e'};
+                            border-radius:6px;padding:8px 10px;margin-bottom:5px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;
+                                gap:8px;margin-bottom:3px;">
+                        <span style="font-size:13px;font-weight:700;color:${u.owned ? '#34d399' : '#efeff1'};">
+                            ${escapeHtml(u.name)}
+                        </span>
+                        ${ownedBadge}
+                    </div>
+                    <div style="font-size:11px;color:#adadb8;margin-bottom:3px;">
+                        ${escapeHtml(u.description || '')}
+                    </div>
+                    <div style="font-size:10px;color:#c084fc;">
+                        ${_effectsToStr(u.effects)}
+                    </div>
+                </div>`;
+        }).join('');
+        return `
+            <div style="margin-bottom:12px;">
+                <div style="font-size:11px;color:#9147ff;font-weight:700;letter-spacing:1px;
+                            padding-bottom:4px;border-bottom:1px solid #3a3a3e;margin-bottom:6px;">
+                    TIER ${tier}
+                </div>
+                ${items}
+            </div>`;
+    }).join('');
+
+    _bnrShowSimpleModal({
+        title: `🏆 Апгрейды клана · 💰 ${heroGold.toLocaleString('ru-RU')}`,
+        body: tierHtml || '<div style="color:#adadb8;text-align:center;">Каталог пуст.</div>',
+        bind: overlay => {
+            overlay.querySelectorAll('[data-bnr-upg-buy]').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const upgId = btn.dataset.bnrUpgBuy;
+                    btn.disabled = true;
+                    btn.textContent = '⏳ Покупаем...';
+                    try {
+                        const r = await fetch(`${API_URL}/api/bannerlord/clan-upgrades/buy`, {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json',
+                                      'X-Twitch-JWT': authToken || ''},
+                            body: JSON.stringify({upgrade_id: upgId}),
+                        });
+                        const d = await r.json();
+                        showNotification(d.message, d.success ? 'success' : 'error', 4000);
+                        if (d.success) {
+                            // Refresh modal
+                            overlay.remove();
+                            _openBannerlordClanUpgradesModal();
+                            if (typeof loadBannerlordHero === 'function') loadBannerlordHero();
+                        } else {
+                            btn.disabled = false;
+                            btn.textContent = `Купить ${heroGold}💰`;
+                        }
+                    } catch (e) {
+                        showNotification('Ошибка сети', 'error');
+                        btn.disabled = false;
+                    }
+                });
             });
         },
     });

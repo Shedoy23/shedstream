@@ -1979,14 +1979,14 @@ async function _openBannerlordClanUpgradesModal() {
 
     const _effectsToStr = (effects) => {
         const labels = {
-            renown_daily:       '🏆 +%v renown/день',
+            renown_daily:       '🏆 +%v славы/день',
             influence_daily:    '👑 +%v влияния/день',
-            party_size_bonus:   '⚔️ +%v к party',
-            retinue_size_bonus: '🛡️ +%v retinue',
-            party_speed_bonus:  '🐎 +%v скорости',
-            party_amount_bonus: '🪖 +%v parties',
+            party_size_bonus:   '⚔️ +%v к отряду',
+            retinue_size_bonus: '🛡️ +%v к свите',
+            party_speed_bonus:  '🐎 +%v скорости отряда',
+            party_amount_bonus: '🪖 +%v к лимиту отрядов',
             max_vassals_bonus:  '🏰 +%v вассалов',
-            army_speed_bonus:   '⚡ +%v army speed',
+            army_speed_bonus:   '⚡ +%v скорости армии',
         };
         return Object.entries(effects || {})
             .map(([k, v]) => (labels[k] || `${k}: ${v}`).replace('%v', v))

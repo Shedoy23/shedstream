@@ -1763,8 +1763,12 @@ function _openBannerlordProgressionModal() {
     }
 
     // Render: attribute header + nested skills (Sprint 5.17 group-by-attribute)
+    // Sprint 5.27u: case-insensitive lookup — backend хранит attribute keys в
+    // lowercase (engine StringId), frontend BNR_ATTRIBUTES в PascalCase.
+    // Без fallback'а на toLowerCase() все viewer'ы видели 0/10 несмотря на
+    // корректные value в БД.
     const groupedRows = BNR_ATTRIBUTES.map(attrKey => {
-        const val = attrs[attrKey] || 0;
+        const val = attrs[attrKey] ?? attrs[attrKey.toLowerCase()] ?? 0;
         const filled = '●'.repeat(val) + '○'.repeat(10 - val);
         const attrLabel = BNR_ATTR_LABELS_RU[attrKey] || attrKey;
         const attrIcon = BNR_ATTR_ICONS[attrKey] || '·';

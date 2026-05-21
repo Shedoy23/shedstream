@@ -1726,6 +1726,18 @@ function _openBannerlordProgressionModal() {
     const skills = data.skills || [];
     const attrs = data.attributes || {};
 
+    // Sprint 5.27v: runtime canary — словить contract drift сразу. Если
+    // backend начнёт отдавать другой shape (e.g. изменится capitalization
+    // или ключи), DevTools console сразу покажет проблему вместо тихого
+    // "0/10 везде". Это профилактика для skills/equipment/etc. в будущем.
+    const attrKeys = Object.keys(attrs);
+    if (attrKeys.length > 0 && BNR_ATTRIBUTES.every(k =>
+            attrs[k] === undefined && attrs[k.toLowerCase()] === undefined)) {
+        console.warn('[BNR contract drift] attributes object has keys but ' +
+                     'none match expected:', attrKeys,
+                     'expected one of:', BNR_ATTRIBUTES);
+    }
+
     // Build skill lookup
     const skillsByKey = {};
     for (const s of skills) skillsByKey[s.skill_key] = s;

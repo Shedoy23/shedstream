@@ -555,11 +555,17 @@ async def bannerlord_my_hero(request: Request):
         ]
 
         # Attributes
+        # Sprint 5.27v: нормализуем keys к PascalCase в response, чтобы
+        # frontend получал стабильный shape независимо от того, как mod
+        # их сохранил (engine StringId был lowercase → frontend ожидал
+        # PascalCase → 0/10 для всех). Single source of truth: response.
         cur = await conn.execute(
             "SELECT attribute, value FROM bannerlord_attributes "
             "WHERE channel_id=? AND username=?",
             (channel_id, username))
-        attributes = {r[0]: r[1] for r in await cur.fetchall()}
+        def _to_pascal(k: str) -> str:
+            return (k[0].upper() + k[1:].lower()) if k else k
+        attributes = {_to_pascal(r[0]): r[1] for r in await cur.fetchall()}
 
         # Equipment + M21 stats
         cur = await conn.execute(

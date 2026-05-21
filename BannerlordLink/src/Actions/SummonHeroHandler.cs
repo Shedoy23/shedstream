@@ -90,6 +90,21 @@ namespace BannerlordLink.Actions
                     return;
                 }
 
+                // Sprint 5.27r: block ENEMY summon в hideout (BLT pattern
+                // — SummonHero.cs:309 "!settings.OnPlayerSide" block).
+                // Hideout — асимметричная миссия, enemy spawn ломает баланс
+                // (player + 7 troops vs ~5 бандитов; +viewer enemy = unfair).
+                bool isHideoutMission = false;
+                try { isHideoutMission = (Mission.Current?.Mode.ToString() == "Stealth"); }
+                catch { }
+                if (isHideoutMission && !isPlayerSide)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[player.spawn:{sideLabel}] @{username}: enemy summon в hideout " +
+                        "запрещён (BLT pattern — асимметричная миссия)");
+                    return;
+                }
+
                 // Sprint 5.15: если hero уже в Mission (auto-spawned engine'ом
                 // как клан-член), НЕ пропускаем — spawn только retinue + heal.
                 // Свита фантомная (только в нашем backend), engine её не знает.
@@ -189,46 +204,64 @@ namespace BannerlordLink.Actions
 
                 bool withHorse = ResolveWithHorse(username);
 
+                // Sprint 5.27r: detect hideout PRE-spawn чтобы skip position
+                // anchor (anchor 3m от стримера может быть outside walkable
+                // area в cramped hideout map). В hideout engine сам подбирает
+                // valid spawn slot через isReinforcement=true.
+                bool heroInHideout = false;
+                try { heroInHideout = (Mission.Current?.Mode.ToString() == "Stealth"); }
+                catch { }
+
                 // Sprint 5.27f: spawn hero РЯДОМ с стримером (Agent.Main),
                 // не в default reinforcement zone (backline).
                 // 5.27p: enemy spawn — 10m ВПЕРЕДИ стримера (looking direction),
                 // ally — 3m perpendicular от него.
+                // 5.27r: SKIP anchor в hideout — engine default лучше.
                 Vec3? heroSpawnPos = null;
                 Vec2? heroSpawnDir = null;
-                try
+                if (!heroInHideout)
                 {
-                    var streamer = Agent.Main;
-                    if (streamer != null && streamer.IsActive())
+                    try
                     {
-                        var look = streamer.LookDirection;
-                        if (isPlayerSide)
+                        var streamer = Agent.Main;
+                        if (streamer != null && streamer.IsActive())
                         {
-                            // Ally: 3m влево/право (alternating по хэшу username).
-                            int hashSign = (username.GetHashCode() & 1) == 0 ? 1 : -1;
-                            float perpX = -look.y;
-                            float perpY = look.x;
-                            heroSpawnPos = new Vec3(
-                                streamer.Position.x + perpX * 3f * hashSign,
-                                streamer.Position.y + perpY * 3f * hashSign,
-                                streamer.Position.z);
-                            heroSpawnDir = look.AsVec2;
-                        }
-                        else
-                        {
-                            // Enemy: 10m ВПЕРЕДИ стримера, looking назад (face-to-face).
-                            heroSpawnPos = new Vec3(
-                                streamer.Position.x + look.x * 10f,
-                                streamer.Position.y + look.y * 10f,
-                                streamer.Position.z);
-                            // Face the streamer (opposite of his look direction)
-                            heroSpawnDir = new Vec2(-look.x, -look.y);
+                            var look = streamer.LookDirection;
+                            if (isPlayerSide)
+                            {
+                                // Ally: 3m влево/право (alternating по хэшу username).
+                                int hashSign = (username.GetHashCode() & 1) == 0 ? 1 : -1;
+                                float perpX = -look.y;
+                                float perpY = look.x;
+                                heroSpawnPos = new Vec3(
+                                    streamer.Position.x + perpX * 3f * hashSign,
+                                    streamer.Position.y + perpY * 3f * hashSign,
+                                    streamer.Position.z);
+                                heroSpawnDir = look.AsVec2;
+                            }
+                            else
+                            {
+                                // Enemy: 10m ВПЕРЕДИ стримера, looking назад (face-to-face).
+                                heroSpawnPos = new Vec3(
+                                    streamer.Position.x + look.x * 10f,
+                                    streamer.Position.y + look.y * 10f,
+                                    streamer.Position.z);
+                                // Face the streamer (opposite of his look direction)
+                                heroSpawnDir = new Vec2(-look.x, -look.y);
+                            }
                         }
                     }
+                    catch (Exception ex)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[player.spawn:{sideLabel}] @{username} anchor resolve failed: {ex.Message}");
+                    }
                 }
-                catch (Exception ex)
+                else
                 {
                     BannerlordLinkModule.Log(
-                        $"[player.spawn:{sideLabel}] @{username} anchor resolve failed: {ex.Message}");
+                        $"[player.spawn:{sideLabel}] @{username} hideout detected — " +
+                        "skip position anchor (engine default better for cramped map)");
                 }
 
                 // Sprint 5.15: re-use existing agent если hero auto-spawned;

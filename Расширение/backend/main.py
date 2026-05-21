@@ -724,6 +724,15 @@ async def run_migrations():
             print(f"❌ M34 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M35: Bannerlord clan upgrades (BLT-style) ──
+        # Sprint 5.26: catalog + owned tables + seed 10 upgrades.
+        try:
+            from migrations import m35_clan_upgrades
+            await m35_clan_upgrades.apply(conn)
+        except Exception as e:
+            print(f"❌ M35 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

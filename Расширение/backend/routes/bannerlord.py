@@ -1362,3 +1362,183 @@ async def bannerlord_buy_action(request: Request):
         "charged":   price,
         "message":   f"⚔️ Action {action_type} в очереди ({price}💎 списано)",
     }
+
+
+# ════════ Sprint 5.26: Clan Upgrades (BLT-style) ════════
+
+import json as _bnr_clan_json
+
+
+@router.get("/api/bannerlord/clan-upgrades")
+async def bannerlord_clan_upgrades_list(request: Request):
+    """Список clan upgrades для текущего канала + own/locked status юзера.
+
+    Response:
+      {
+        success: True,
+        upgrades: [
+          {upgrade_id, name, description, tier, required_upgrade_id,
+           gold_cost, effects, owned: bool, locked: bool},
+          ...
+        ],
+        hero_gold: int
+      }
+    """
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+
+    db = get_db()
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT upgrade_id, name, description, tier, required_upgrade_id, "
+            "gold_cost, effects_json FROM bannerlord_clan_upgrades_catalog "
+            "WHERE channel_id = ? AND deprecated = 0 "
+            "ORDER BY tier ASC, gold_cost ASC",
+            (channel_id,)
+        )
+        rows = await cur.fetchall()
+
+        cur = await conn.execute(
+            "SELECT upgrade_id FROM bannerlord_clan_upgrades_owned "
+            "WHERE channel_id = ? AND username = ?",
+            (channel_id, username)
+        )
+        owned_set = {r[0] for r in await cur.fetchall()}
+
+    upgrades = []
+    for upg_id, name, desc, tier, req, cost, effects_json in rows:
+        owned = upg_id in owned_set
+        # Locked если prereq exists и не куплен
+        locked = bool(req and req not in owned_set)
+        upgrades.append({
+            "upgrade_id":          upg_id,
+            "name":                name,
+            "description":         desc or '',
+            "tier":                tier,
+            "required_upgrade_id": req,
+            "gold_cost":           cost,
+            "effects":             _bnr_clan_json.loads(effects_json or '{}'),
+            "owned":               owned,
+            "locked":              locked and not owned,
+        })
+
+    hero_gold = await _fetch_hero_gold(channel_id, username)
+    return {"success": True, "upgrades": upgrades, "hero_gold": hero_gold}
+
+
+@router.post("/api/bannerlord/clan-upgrades/buy")
+async def bannerlord_clan_upgrades_buy(request: Request):
+    """Купить апгрейд клана за hero.gold.
+
+    Body: {"upgrade_id": str}
+    Валидации:
+      - upgrade exists и not deprecated
+      - не куплен уже
+      - prereq куплен (если есть)
+      - hero.gold >= cost
+    """
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+
+    data = await request.json()
+    upgrade_id = (data.get("upgrade_id") or '').strip()
+    if not upgrade_id:
+        return {"success": False, "message": "upgrade_id обязателен"}
+
+    db = get_db()
+    async with db._connect() as conn:
+        try:
+            await conn.execute("BEGIN IMMEDIATE")
+
+            # Load upgrade
+            cur = await conn.execute(
+                "SELECT name, required_upgrade_id, gold_cost, deprecated "
+                "FROM bannerlord_clan_upgrades_catalog "
+                "WHERE channel_id = ? AND upgrade_id = ?",
+                (channel_id, upgrade_id)
+            )
+            row = await cur.fetchone()
+            if not row:
+                await conn.execute("ROLLBACK")
+                return {"success": False, "message": "Апгрейд не найден"}
+            name, req, cost, deprecated = row
+            if deprecated:
+                await conn.execute("ROLLBACK")
+                return {"success": False, "message": "Апгрейд недоступен"}
+
+            # Check not already owned
+            cur = await conn.execute(
+                "SELECT 1 FROM bannerlord_clan_upgrades_owned "
+                "WHERE channel_id = ? AND username = ? AND upgrade_id = ?",
+                (channel_id, username, upgrade_id)
+            )
+            if await cur.fetchone():
+                await conn.execute("ROLLBACK")
+                return {"success": False, "message": "Уже куплено"}
+
+            # Check prereq
+            if req:
+                cur = await conn.execute(
+                    "SELECT 1 FROM bannerlord_clan_upgrades_owned "
+                    "WHERE channel_id = ? AND username = ? AND upgrade_id = ?",
+                    (channel_id, username, req)
+                )
+                if not await cur.fetchone():
+                    await conn.execute("ROLLBACK")
+                    return {"success": False,
+                            "message": f"Сначала купи предыдущий апгрейд"}
+
+            # Check gold
+            cur = await conn.execute(
+                "SELECT gold FROM bannerlord_heroes WHERE channel_id = ? AND username = ?",
+                (channel_id, username)
+            )
+            hero_row = await cur.fetchone()
+            current_gold = (hero_row[0] if hero_row else 0) or 0
+            if current_gold < cost:
+                await conn.execute("ROLLBACK")
+                return {
+                    "success": False,
+                    "message": f"Нужно {cost:,}💰 (у тебя {current_gold:,}💰)",
+                }
+
+            # Debit + insert ownership
+            await conn.execute(
+                "UPDATE bannerlord_heroes SET gold = gold - ? "
+                "WHERE channel_id = ? AND username = ?",
+                (cost, channel_id, username)
+            )
+            await conn.execute(
+                "INSERT INTO bannerlord_clan_upgrades_owned "
+                "(channel_id, username, upgrade_id, gold_paid) VALUES (?, ?, ?, ?)",
+                (channel_id, username, upgrade_id, cost)
+            )
+
+            # Enqueue action для мода (применит эффекты in-game).
+            # Mod polls module_actions через /api/module/actions.
+            import uuid as _uuid
+            action_id = _uuid.uuid4().hex
+            await conn.execute("""
+                INSERT INTO module_actions
+                    (channel_id, module_id, action_id, type, data, status)
+                VALUES (?, 'bannerlord', ?, 'clan.upgrade_purchased', ?, 'queued')
+            """, (channel_id, action_id,
+                  _bnr_clan_json.dumps({
+                      "username":   username,
+                      "upgrade_id": upgrade_id,
+                  }, ensure_ascii=False)))
+
+            await conn.commit()
+        except Exception:
+            await conn.execute("ROLLBACK")
+            raise
+
+    return {
+        "success":    True,
+        "upgrade_id": upgrade_id,
+        "message":    f"✨ {name} куплено (-{cost:,}💰)",
+    }

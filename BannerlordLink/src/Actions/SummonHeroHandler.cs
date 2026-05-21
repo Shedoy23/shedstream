@@ -416,19 +416,36 @@ namespace BannerlordLink.Actions
                 reason = $"mission state {m.CurrentState} (нужен Continuing)";
                 return false;
             }
-            // Sprint 5.1: MissionMode resolve через .ToString() — reflection-safe
-            // (enum может быть в TaleWorlds.MountAndBlade.View или другой DLL'е
-            // которой нет в наших reference). Battle/Deployment/Tournament/Siege/
-            // Conversation/Stealth/Duel/StartUp — known modes.
-            // Skip всё кроме Battle: deployment чреват крашем (см. BLT строка 285
-            // — "SpawnAgent crashes if called in MissionMode.Deployment"), остальные
-            // имеют свою spawn logic + UI которая не учитывает наших агентов.
+            // Sprint 5.27m: BLT-aligned mode filter.
+            //
+            // BLOCK (BLT pattern, BLTSummonBehavior SpawnAgent block-list):
+            //   - Deployment   — SpawnAgent crashes (BLT line 285)
+            //   - CutScene     — engine не учитывает наших agents
+            //   - Conversation — dialog UI
+            //   - Replay       — playback mode, no spawn
+            //   - Barter       — trade UI
+            //   - Duel         — 1×1, нельзя добавлять third party
+            //   - Tournament   — у нас отдельный TournamentMissionBehavior
+            //
+            // ALLOW:
+            //   - Battle (field/siege/hideout combat)
+            //   - Stealth (hideout sneak — combat начинается в Battle, но
+            //     иногда вся миссия в Stealth mode → разрешаем для зачистки)
+            //   - StartUp (mission setup — обычно затухает быстро в Battle)
+            //
+            // Для таверны / lord-halls / town visits нужен SummonInLocation
+            // flow (CampaignMission.Current.Location) — это отдельная фича
+            // (BLT 200+ строк отдельного метода). Не делаем пока.
             string modeStr;
             try { modeStr = m.Mode.ToString(); }
             catch { modeStr = null; }
-            if (modeStr != null && modeStr != "Battle")
+
+            if (modeStr == "Deployment" || modeStr == "CutScene"
+                || modeStr == "Conversation" || modeStr == "Replay"
+                || modeStr == "Barter"      || modeStr == "Duel"
+                || modeStr == "Tournament")
             {
-                reason = $"mission mode {modeStr} (MVP supports только Battle)";
+                reason = $"mission mode {modeStr} (BLT block-list)";
                 return false;
             }
             reason = null;

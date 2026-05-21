@@ -392,12 +392,15 @@ _PURCHASABLE_ACTIONS = (
     "hero.set_gender",           # Sprint 5.27a: gender swap (Hero.Gold 50K)
     "hero.marry",                # Sprint 5.27b: marriage to random NPC (50K)
     "hero.divorce",              # Sprint 5.27b: free divorce
+    "hero.make_baby",            # Sprint 5.27c: pregnancy (100K)
 )
 
 # Sprint 5.27a — стоимость gender swap (BLT default: 50k).
 GENDER_SWAP_COST = 50_000
 # Sprint 5.27b — стоимость брака с NPC.
 MARRIAGE_COST = 50_000
+# Sprint 5.27c — стоимость pregnancy (трюк на дитя).
+BABY_COST = 100_000
 
 # Sprint 5.18 (refactor): helper для повторяющегося Hero.Gold pre-check.
 # Используется в нескольких action handlers (create_clan, create_kingdom,
@@ -500,7 +503,8 @@ async def bannerlord_my_hero(request: Request):
         cur = await conn.execute(
             "SELECT hero_id, display_name, culture, is_alive, is_prisoner, gold, "
             "       location, adopted_at, last_sync, level, clan_name, kingdom_name, "
-            "       gear_tier, clan_info_json, kingdom_info_json "
+            "       gear_tier, clan_info_json, kingdom_info_json, "
+            "       is_female, family_info_json "
             "FROM bannerlord_heroes WHERE channel_id=? AND username=?",
             (channel_id, username))
         row = await cur.fetchone()
@@ -531,7 +535,13 @@ async def bannerlord_my_hero(request: Request):
             "gear_tier":    row[12] or 0,
             "clan_info":    _safe_json(row[13]),
             "kingdom_info": _safe_json(row[14]),
+            "is_female":    bool(row[15]) if row[15] is not None else None,
+            "family_info":  _safe_json(row[16]),
         }
+        # Convenience: top-level spouse_name (для profile modal display)
+        fi = hero.get("family_info") or {}
+        sp = fi.get("spouse") if isinstance(fi, dict) else None
+        hero["spouse_name"] = sp.get("name") if isinstance(sp, dict) else None
 
         # Skills + Sprint 5.8 focus
         cur = await conn.execute(
@@ -1010,6 +1020,19 @@ async def bannerlord_buy_action(request: Request):
     # обнуляет Spouse). Развод emotionally free :)
     if action_type == "hero.divorce":
         data["hero_gold_cost"] = 0
+        data["price"] = 0
+
+    # Sprint 5.27c: hero.make_baby — pregnancy через MakePregnantAction (100K💰).
+    # Mod проверяет spouse + age + max children (5).
+    if action_type == "hero.make_baby":
+        hero_gold = await _fetch_hero_gold(channel_id, username)
+        if hero_gold < BABY_COST:
+            return {
+                "success": False,
+                "message": f"Нужно {BABY_COST:,}💰 для зачатия "
+                           f"(у тебя {hero_gold:,}💰).",
+            }
+        data["hero_gold_cost"] = BABY_COST
         data["price"] = 0
 
     # Sprint 5.9: hero.create_clan — БЕСПЛАТНО в крустиках, mod списывает

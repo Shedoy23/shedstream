@@ -2146,10 +2146,7 @@ function _openBannerlordProfileModal() {
                 </button>
             `}
         </div>
-        <div style="background:#1a1a1c;border:1px solid #3a3a3e;border-radius:6px;
-                    padding:10px;color:#6b7280;font-size:11px;text-align:center;">
-            🚧 Family tree (дети, родственники) — в обновлении 5.27c
-        </div>
+        ${_renderFamilyTreeHtml(h)}
     `;
 
     _bnrShowSimpleModal({
@@ -2174,8 +2171,95 @@ function _openBannerlordProfileModal() {
                 _bannerlordBuyAction('hero.divorce', {});
                 overlay.remove();
             });
+            // Sprint 5.27c: make baby
+            overlay.querySelector('#bnr-make-baby-btn')?.addEventListener('click', () => {
+                if (!confirm('Зачатие — 100K💰. Через ~36 in-game дней появится ребёнок.\nПродолжить?')) return;
+                _bannerlordBuyAction('hero.make_baby', {});
+                overlay.remove();
+            });
         },
     });
+}
+
+// Sprint 5.27c: рендер family tree section для profile modal
+function _renderFamilyTreeHtml(h) {
+    const fi = h.family_info || {};
+    const spouse = fi.spouse;
+    const children = Array.isArray(fi.children) ? fi.children : [];
+    const father = fi.father;
+    const mother = fi.mother;
+    const siblings = fi.sibling_count || 0;
+    const heroGold = h.gold || 0;
+    const BABY_COST = 100000;
+    const aliveChildren = children.filter(c => c?.is_alive);
+    const canMakeBaby = !!spouse && spouse.is_alive && aliveChildren.length < 5 && heroGold >= BABY_COST;
+    const noBabyReason =
+        !spouse ? 'нет супруга(и)'
+        : !spouse.is_alive ? 'супруг(а) мёртв(а)'
+        : aliveChildren.length >= 5 ? 'максимум 5 детей в клане'
+        : heroGold < BABY_COST ? 'не хватает 💰'
+        : null;
+
+    const heroEmoji = (p) => p?.is_female ? '♀' : '♂';
+    const heroLine = (p) => p
+        ? `<div style="font-size:11px;color:${p.is_alive ? '#efeff1' : '#6b7280'};">
+              ${heroEmoji(p)} ${escapeHtml(p.name || '?')} · ${p.age || '?'} лет
+              ${p.is_alive ? '' : '☠️'}
+              ${p.is_pregnant ? '🤰' : ''}
+           </div>`
+        : '<div style="font-size:11px;color:#6b7280;">—</div>';
+
+    let childrenHtml;
+    if (children.length === 0) {
+        childrenHtml = '<div style="font-size:11px;color:#6b7280;">Детей пока нет</div>';
+    } else {
+        childrenHtml = children.map(c => `
+            <div style="font-size:11px;color:${c.is_alive ? '#efeff1' : '#6b7280'};
+                        padding:2px 0;">
+                ${heroEmoji(c)} ${escapeHtml(c.name || '?')} · ${c.age || '?'} лет
+                ${c.is_alive ? '' : '☠️'}
+            </div>
+        `).join('');
+    }
+
+    return `
+        <div style="background:#1a1a1c;border:1px solid #3a3a3e;border-radius:6px;
+                    padding:10px;">
+            <div style="font-size:12px;color:#adadb8;margin-bottom:8px;">
+                👨‍👩‍👧 <b style="color:#efeff1;">Семья</b>
+            </div>
+
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 8px;
+                        font-size:11px;margin-bottom:10px;">
+                <span style="color:#adadb8;">👴 Отец:</span> ${heroLine(father)}
+                <span style="color:#adadb8;">👵 Мать:</span> ${heroLine(mother)}
+                ${siblings > 0
+                    ? `<span style="color:#adadb8;">👫 Братья/сёстры:</span>
+                       <span style="color:#efeff1;">${siblings}</span>` : ''}
+            </div>
+
+            <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">
+                👶 Дети (${aliveChildren.length} живых из ${children.length}):
+            </div>
+            <div style="background:#0e0e10;border-radius:4px;padding:6px;margin-bottom:10px;
+                        max-height:120px;overflow-y:auto;">
+                ${childrenHtml}
+            </div>
+
+            <button class="extra-btn" id="bnr-make-baby-btn"
+                    ${canMakeBaby ? '' : 'disabled'}
+                    style="width:100%;font-size:12px;padding:8px;
+                           background:${canMakeBaby ? '#5b21b6' : '#2d2d2f'};
+                           color:${canMakeBaby ? '#f472b6' : '#6b7280'};
+                           ${canMakeBaby ? '' : 'cursor:not-allowed;'}">
+                🤰 Зачать ребёнка (100K💰)
+                ${noBabyReason ? ` — ${noBabyReason}` : ''}
+            </button>
+            <div style="font-size:10px;color:#6b7280;margin-top:6px;text-align:center;">
+                Через ~36 in-game дней появится ребёнок (engine PregnancyCampaignBehavior).
+            </div>
+        </div>
+    `;
 }
 
 function _openBannerlordKingdomModal() {

@@ -493,7 +493,7 @@ class BannerlordAdapter(ModuleAdapter):
         # M19: level / clan_name / kingdom_name добавлены — mod пушит после
         # adoption + HeroLevelledUp + опционально на daily tick для clan/kingdom.
         for k in ("gold", "is_alive", "is_prisoner", "location",
-                  "level", "clan_name", "kingdom_name"):
+                  "level", "clan_name", "kingdom_name", "is_female"):
             if k in data:
                 fields.append(f"{k} = ?")
                 params.append(data[k])
@@ -544,9 +544,10 @@ class BannerlordAdapter(ModuleAdapter):
                             value = excluded.value
                     """, (channel_id, username, attr_key, v))
 
-            # Sprint 5.11: clan_info + kingdom_info JSON storage
+            # Sprint 5.11+5.27c: clan_info / kingdom_info / family_info JSON storage
             for k, col in [("clan_info", "clan_info_json"),
-                           ("kingdom_info", "kingdom_info_json")]:
+                           ("kingdom_info", "kingdom_info_json"),
+                           ("family_info", "family_info_json")]:
                 info = data.get(k)
                 if info is not None:
                     try:

@@ -47,6 +47,8 @@ namespace BannerlordLink.Util
                 // Sprint 5.11: clan / kingdom info dicts для модалов.
                 var clanInfo = BuildClanInfo(hero);
                 var kingdomInfo = BuildKingdomInfo(hero);
+                // Sprint 5.27c: family info (spouse + children + parents + siblings)
+                var familyInfo = BuildFamilyInfo(hero);
 
                 var payload = new
                 {
@@ -56,6 +58,7 @@ namespace BannerlordLink.Util
                     level         = hero.Level,
                     is_alive      = hero.IsAlive ? 1 : 0,
                     is_prisoner   = hero.IsPrisoner ? 1 : 0,
+                    is_female     = hero.IsFemale ? 1 : 0,
                     location      = hero.CurrentSettlement?.Name?.ToString(),
                     clan_name     = clanName,
                     kingdom_name  = kingdomName,
@@ -63,6 +66,7 @@ namespace BannerlordLink.Util
                     attributes    = attrsSnapshot,
                     clan_info     = clanInfo,
                     kingdom_info  = kingdomInfo,
+                    family_info   = familyInfo,
                 };
                 string json = JsonConvert.SerializeObject(payload);
 
@@ -205,6 +209,55 @@ namespace BannerlordLink.Util
                 BannerlordLinkModule.Log($"[HeroStateSync] BuildAttributesSnapshot: {ex.Message}");
             }
             return result;
+        }
+
+        /// <summary>Sprint 5.27c: family info — spouse + children + parents + siblings.</summary>
+        private static object BuildFamilyInfo(Hero hero)
+        {
+            try
+            {
+                if (hero == null) return null;
+                object SpouseObj(Hero s) => s == null ? null : new
+                {
+                    name        = s.Name?.ToString(),
+                    age         = (int)s.Age,
+                    is_female   = s.IsFemale,
+                    is_alive    = s.IsAlive,
+                    is_pregnant = s.IsPregnant,
+                };
+                System.Collections.Generic.List<object> ChildrenList(System.Collections.Generic.IEnumerable<Hero> kids)
+                {
+                    var list = new System.Collections.Generic.List<object>();
+                    if (kids == null) return list;
+                    foreach (var c in kids)
+                    {
+                        if (c == null) continue;
+                        list.Add(new
+                        {
+                            name      = c.Name?.ToString(),
+                            age       = (int)c.Age,
+                            is_female = c.IsFemale,
+                            is_alive  = c.IsAlive,
+                        });
+                    }
+                    return list;
+                }
+
+                int siblingCount = hero.Siblings?.Count(s => s != null && s.IsAlive) ?? 0;
+                return new
+                {
+                    spouse       = SpouseObj(hero.Spouse),
+                    children     = ChildrenList(hero.Children),
+                    father       = SpouseObj(hero.Father),
+                    mother       = SpouseObj(hero.Mother),
+                    sibling_count = siblingCount,
+                };
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[HeroStateSync] BuildFamilyInfo: {ex.Message}");
+                return null;
+            }
         }
     }
 }

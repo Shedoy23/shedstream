@@ -53,6 +53,7 @@ namespace BannerlordLink.Actions
             Register(new SetGenderHandler());        // hero.set_gender — Sprint 5.27a (gender swap)
             Register(new MarryHandler());            // hero.marry — Sprint 5.27b (NPC marriage)
             Register(new DivorceHandler());          // hero.divorce — Sprint 5.27b (free divorce)
+            Register(new MakeBabyHandler());         // hero.make_baby — Sprint 5.27c (pregnancy)
 
             // ── Echo stubs (TODO Sprint 5.2+ заменить на real) ─────────────
             string[] echoTypes =

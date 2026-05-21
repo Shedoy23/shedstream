@@ -733,6 +733,15 @@ async def run_migrations():
             print(f"❌ M35 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M36: Bannerlord hero family info ──
+        # Sprint 5.27c: + is_female, family_info_json в bannerlord_heroes.
+        try:
+            from migrations import m36_bannerlord_family
+            await m36_bannerlord_family.apply(conn)
+        except Exception as e:
+            print(f"❌ M36 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

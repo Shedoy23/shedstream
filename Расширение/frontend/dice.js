@@ -305,8 +305,23 @@ async function _diceRefreshRoom(roomId) {
 function _renderDicePvP(room) {
     const el = document.getElementById('dice-content');
     if (!el) return;
-    const state    = room.state || {};
-    const v2       = state.version === 2;
+    let state = room.state || {};
+
+    // Sprint 5.24a fix: новая комната — backend ещё не инициализировал
+    // state.version=2 (это происходит на первом /api/dice/roll). Чтобы
+    // не висеть «Загрузка», задаём дефолты сразу и показываем roll-кнопку.
+    if (state.version !== 2) {
+        state = {
+            version:      2,
+            rounds_total: 3,
+            current_round: 1,
+            rolls:        {a: [], b: []},
+            totals:       {a: 0, b: 0},
+            phase:        'rolling',
+            deadline_at:  null,
+        };
+    }
+
     const youAre   = room.you_are;
     const oppAre   = youAre === 'a' ? 'b' : 'a';
     const opponent = room.opponent;
@@ -317,15 +332,6 @@ function _renderDicePvP(room) {
     if (eloBadge) {
         const myElo = youAre === 'a' ? room.player_a_elo : room.player_b_elo;
         eloBadge.textContent = `${myElo} ELO`;
-    }
-
-    // Backward-compat: если room ещё на v1 (старая single-roll логика),
-    // fallback на старый рендер чтобы не падать.
-    if (!v2) {
-        el.innerHTML = `<div style="text-align:center;padding:14px;color:#adadb8;">
-            Загрузка...
-        </div>`;
-        return;
     }
 
     const roundsTotal = state.rounds_total || 3;

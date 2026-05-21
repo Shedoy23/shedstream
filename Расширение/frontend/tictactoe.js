@@ -14,11 +14,11 @@
 //   7. После finished → показать результат + Close
 
 const TTT_GAME_TYPE = 'tictactoe';
-// Phase C (2026-05-17): PubSub realtime push покрывает match_state.
-// Polling остаётся как fallback для queue → matched transition (нет push
-// для queue tick) и safety net: 3s → 15s.
-const TTT_POLL_INTERVAL_MS = 15000;
+// Sprint 5.24c: 4×4 + BO3 + 10s timer → poll 2s (был 15s) для timer countdown.
+const TTT_POLL_INTERVAL_MS = 2000;
 const TTT_MOVE_COOLDOWN_MS = 600;      // защита от двойного click
+const TTT_BOARD_SIZE = 4;
+const TTT_CELLS_TOTAL = TTT_BOARD_SIZE * TTT_BOARD_SIZE;
 
 let _tttPollId = null;
 let _tttCurrentRoomId = null;
@@ -218,10 +218,11 @@ async function _tttCancelQueue() {
 async function _tttRefreshRoom(roomId) {
     try {
         const headers = { 'X-Twitch-JWT': authToken || '' };
-        const r = await fetch(`${API_URL}/api/match/room/${roomId}/state`, { headers });
+        // Sprint 5.24c: используем /api/tictactoe/poll (lazy-expire timer)
+        // вместо generic /api/match/room/.../state.
+        const r = await fetch(`${API_URL}/api/tictactoe/poll?room_id=${encodeURIComponent(roomId)}`, { headers });
         const data = await r.json();
         if (!data.success || !data.room) {
-            // Room уже закрыт / cleanup'нут
             _tttCurrentRoomId = null;
             _renderTttIdle();
             return;
@@ -233,69 +234,111 @@ async function _tttRefreshRoom(roomId) {
     }
 }
 
+// Sprint 5.24c: 4×4 + BO3. State v2 — см. routes/tictactoe.py docstring.
 function _renderTttBoard(room) {
     const el = document.getElementById('ttt-content');
     if (!el) return;
 
-    const state = room.state || {};
-    const board = state.board || ['', '', '', '', '', '', '', '', ''];
-    const youAre = room.you_are; // 'a' | 'b'
-    const opponent = room.opponent;
-    const myMark = youAre === 'a' ? '❌' : '⭕';
-    const oppMark = youAre === 'a' ? '⭕' : '❌';
-    const myTurn = state.next_turn === youAre;
-    const finished = room.status !== 'active';
-
-    // Header
-    let headerHtml;
-    if (finished) {
-        if (room.winner === userLogin) {
-            headerHtml = `<div style="font-size:18px;font-weight:800;color:#4ade80;">🎉 Победа!</div>`;
-        } else if (room.outcome === 'draw') {
-            headerHtml = `<div style="font-size:18px;font-weight:800;color:#fbbf24;">🤝 Ничья</div>`;
-        } else {
-            headerHtml = `<div style="font-size:18px;font-weight:800;color:#f87171;">😢 Поражение</div>`;
-        }
-    } else if (myTurn) {
-        headerHtml = `<div style="font-size:16px;font-weight:700;color:#9147ff;">Твой ход (${myMark})</div>`;
-    } else {
-        headerHtml = `<div style="font-size:16px;color:#adadb8;">Ход @${escapeHtml(opponent)} (${oppMark})...</div>`;
+    let state = room.state || {};
+    // Lazy v2 init если backend ещё не персистнул
+    if (state.version !== 2) {
+        state = {
+            version: 2, board_size: TTT_BOARD_SIZE, rounds_total: 3,
+            current_round: 1,
+            boards: [{cells: new Array(TTT_CELLS_TOTAL).fill(''),
+                      next_turn: 'a', moves: 0, winner: null}],
+            wins: {a: 0, b: 0}, phase: 'playing', deadline_at: null, starter: 'a',
+        };
     }
 
-    // Board
-    const cellsHtml = board.map((mark, i) => {
+    const youAre   = room.you_are;
+    const oppAre   = youAre === 'a' ? 'b' : 'a';
+    const opponent = room.opponent;
+    const myMark   = youAre === 'a' ? '❌' : '⭕';
+    const oppMark  = youAre === 'a' ? '⭕' : '❌';
+    const finished = room.status !== 'active' || state.phase === 'finished';
+
+    const curBoard = state.boards[state.boards.length - 1];
+    const cells = curBoard?.cells || new Array(TTT_CELLS_TOTAL).fill('');
+    const myTurn = !finished && curBoard?.next_turn === youAre;
+    const yourWins = state.wins[youAre] || 0;
+    const oppWins  = state.wins[oppAre]  || 0;
+    const roundsTotal = state.rounds_total || 3;
+    const curRound = state.current_round || 1;
+
+    // ─── Header ─────────────────────────────────────────────────────────────
+    let headerHtml;
+    if (finished) {
+        const youWon = room.winner === userLogin;
+        const isDraw = !room.winner;
+        const color  = youWon ? '#4ade80' : isDraw ? '#fbbf24' : '#f87171';
+        const text   = youWon ? '🎉 Победа!' : isDraw ? '🤝 Ничья' : '😢 Поражение';
+        headerHtml = `<div style="font-size:20px;font-weight:800;color:${color};">${text}</div>
+            <div style="font-size:13px;color:#adadb8;margin-top:4px;">${yourWins} : ${oppWins}</div>`;
+    } else if (myTurn) {
+        headerHtml = `<div style="font-size:14px;font-weight:700;color:#9147ff;">Твой ход (${myMark})</div>
+            <div style="font-size:11px;color:#adadb8;margin-top:2px;">Раунд ${Math.min(curRound, roundsTotal)} · Wins ${yourWins} : ${oppWins}</div>`;
+    } else {
+        headerHtml = `<div style="font-size:14px;color:#adadb8;">Ход @${escapeHtml(opponent)} (${oppMark})...</div>
+            <div style="font-size:11px;color:#adadb8;margin-top:2px;">Раунд ${Math.min(curRound, roundsTotal)} · Wins ${yourWins} : ${oppWins}</div>`;
+    }
+
+    // Timer
+    let timerHtml = '';
+    if (!finished && state.deadline_at) {
+        const ms = new Date(state.deadline_at).getTime() - Date.now();
+        const sec = Math.max(0, Math.ceil(ms / 1000));
+        timerHtml = `<div style="text-align:center;font-size:11px;color:${sec<=3?'#f87171':'#adadb8'};margin-top:4px;">⏱️ ${sec}с</div>`;
+    }
+
+    // ─── Round indicator boxes (3) ──────────────────────────────────────────
+    const roundBoxes = [];
+    for (let i = 0; i < roundsTotal; i++) {
+        const board = state.boards[i];
+        const isCur = (i === curRound - 1) && !finished;
+        let icon = '';
+        if (board && board.winner === youAre) icon = '✅';
+        else if (board && board.winner === oppAre) icon = '❌';
+        else if (board && board.winner === 'draw') icon = '=';
+        roundBoxes.push(`
+            <div style="background:${isCur ? '#1f1a30' : '#181820'};
+                        border:1px solid ${isCur ? '#9147ff' : '#2d2d2f'};
+                        border-radius:6px;padding:5px;text-align:center;
+                        ${isCur ? 'box-shadow:0 0 8px rgba(145,71,255,0.25);' : ''}">
+                <div style="font-size:9px;color:#adadb8;">Р${i+1}</div>
+                <div style="font-size:16px;">${icon || '·'}</div>
+            </div>
+        `);
+    }
+    const roundIndicator = `<div style="display:grid;grid-template-columns:repeat(${roundsTotal},1fr);gap:6px;margin-bottom:10px;">${roundBoxes.join('')}</div>`;
+
+    // ─── 4×4 Board ──────────────────────────────────────────────────────────
+    const cellsHtml = cells.map((mark, i) => {
         let display = '';
         let bg = '#1a1a1c';
         let cursor = 'default';
         if (mark === 'a') { display = '❌'; bg = '#2a1a3a'; }
         else if (mark === 'b') { display = '⭕'; bg = '#1a2a3a'; }
-        else if (myTurn && !finished) {
-            cursor = 'pointer';
-        }
+        else if (myTurn && !finished) { cursor = 'pointer'; }
         return `
             <div data-ttt-cell="${i}"
-                 style="background:${bg};border:2px solid #3a3a3e;border-radius:8px;
+                 style="background:${bg};border:2px solid #3a3a3e;border-radius:6px;
                         aspect-ratio:1;display:flex;align-items:center;justify-content:center;
-                        font-size:42px;cursor:${cursor};transition:all .15s;
-                        ${myTurn && !mark && !finished ? 'opacity:1;' : ''}">
+                        font-size:24px;cursor:${cursor};transition:all .15s;">
                 ${display}
             </div>
         `;
     }).join('');
 
     el.innerHTML = `
-        <div style="text-align:center;margin-bottom:14px;">
-            ${headerHtml}
-            <div style="font-size:12px;color:#adadb8;margin-top:4px;">
-                @${escapeHtml(userLogin || '?')} ${myMark} vs ${oppMark} @${escapeHtml(opponent || '?')}
-            </div>
+        <div style="text-align:center;margin-bottom:10px;">
+            ${headerHtml}${timerHtml}
         </div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px;max-width:280px;margin-left:auto;margin-right:auto;">
+        ${roundIndicator}
+        <div style="display:grid;grid-template-columns:repeat(${TTT_BOARD_SIZE},1fr);gap:4px;margin-bottom:14px;max-width:280px;margin-left:auto;margin-right:auto;">
             ${cellsHtml}
         </div>
-        ${finished ? `
-            <button class="modal-btn" id="ttt-new-game-btn">⚔️ Сыграть ещё</button>
-        ` : ''}
+        ${finished ? `<button class="modal-btn" id="ttt-new-game-btn">⚔️ Сыграть ещё</button>` : ''}
     `;
 
     // ELO badge update
@@ -309,7 +352,7 @@ function _renderTttBoard(room) {
     if (myTurn && !finished) {
         el.querySelectorAll('[data-ttt-cell]').forEach(cell => {
             const idx = parseInt(cell.dataset.tttCell, 10);
-            if (board[idx]) return; // already taken
+            if (cells[idx]) return; // already taken
             cell.addEventListener('mouseenter', () => {
                 cell.style.transform = 'scale(1.05)';
                 cell.style.borderColor = '#9147ff';

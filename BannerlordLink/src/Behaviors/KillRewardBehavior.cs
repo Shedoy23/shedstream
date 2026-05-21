@@ -89,7 +89,14 @@ namespace BannerlordLink.Behaviors
             });
         }
 
-        /// <summary>Восстановить hero в его original party. Вызывается из OnEndMission.</summary>
+        /// <summary>Восстановить hero в его original party. Вызывается из OnEndMission.
+        ///
+        /// Sprint 5.27e fix: раньше restore требовал OriginalParty != null —
+        /// но у адоптированных viewer'ов чаще НЕТ своей party (PartyBelongedTo
+        /// == null). SpawnHero всё равно делал AddMember(MainParty), и без
+        /// restore эти герои оставались в streamer'овском party навсегда.
+        /// Теперь removal делается ВСЕГДА (если current != original),
+        /// а add-back в original — только если он был.</summary>
         private static void RestorePartyMembership()
         {
             foreach (var entry in _partyRestores.ToList())
@@ -98,21 +105,42 @@ namespace BannerlordLink.Behaviors
                 try
                 {
                     var currentParty = entry.Hero.PartyBelongedTo?.Party;
-                    if (entry.OriginalParty != null && currentParty != entry.OriginalParty)
+
+                    // Skip если hero уже в нужном месте (либо в original,
+                    // либо без party — тогда мы ничего не меняли).
+                    if (currentParty == entry.OriginalParty) continue;
+
+                    // 1) Remove from current party (обычно MainParty стримера).
+                    //    Делается ВСЕГДА — иначе viewer остаётся в roster'е.
+                    if (currentParty != null)
                     {
-                        // Восстанавливаем HP если original party жива
-                        if (entry.OriginalParty.MemberRoster != null
-                            && entry.OriginalParty.MemberRoster.TotalHealthyCount > 0)
+                        try { currentParty.AddMember(entry.Hero.CharacterObject, -1); }
+                        catch (Exception ex)
                         {
-                            entry.Hero.HitPoints = entry.OldHP;
+                            BannerlordLinkModule.Log(
+                                $"[PartyRestore] {entry.Hero.Name} remove from " +
+                                $"{currentParty.Name} failed: {ex.Message}");
                         }
-                        try { currentParty?.AddMember(entry.Hero.CharacterObject, -1); } catch { }
+                    }
+
+                    // 2) Restore HP.
+                    try { entry.Hero.HitPoints = entry.OldHP; } catch { }
+
+                    // 3) Re-add в original party ТОЛЬКО если он был и ещё жив.
+                    if (entry.OriginalParty != null
+                        && entry.OriginalParty.MemberRoster != null
+                        && entry.OriginalParty.MemberRoster.TotalHealthyCount > 0)
+                    {
                         try
                         {
                             entry.OriginalParty.MemberRoster.AddToCounts(
                                 entry.Hero.CharacterObject, 1, insertAtFront: entry.WasLeader);
                         }
-                        catch { }
+                        catch (Exception ex)
+                        {
+                            BannerlordLinkModule.Log(
+                                $"[PartyRestore] add to {entry.OriginalParty.Name} failed: {ex.Message}");
+                        }
                         if (entry.WasLeader)
                         {
                             try
@@ -124,6 +152,15 @@ namespace BannerlordLink.Behaviors
                         BannerlordLinkModule.Log(
                             $"[PartyRestore] {entry.Hero.Name} → {entry.OriginalParty.Name} " +
                             $"(was_leader={entry.WasLeader}, hp={entry.OldHP})");
+                    }
+                    else
+                    {
+                        // Viewer был "свободным" (no party / clan ledger only) —
+                        // после removal он туда же и вернётся (engine оставит
+                        // его в clan.Heroes / Settlement.HeroesWithoutParty).
+                        BannerlordLinkModule.Log(
+                            $"[PartyRestore] {entry.Hero.Name} → detached from " +
+                            $"{currentParty?.Name?.ToString() ?? "?"} (no original party)");
                     }
                 }
                 catch (Exception ex)

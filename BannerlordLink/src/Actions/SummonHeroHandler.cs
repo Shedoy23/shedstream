@@ -319,10 +319,27 @@ namespace BannerlordLink.Actions
                 // BLT pattern (BLTSummonBehavior.SpawnAgent для каждого troop).
                 //
                 // Sprint 5.27d: spawn retinue РЯДОМ с hero (ring 60° × 2m), не в
-                // default reinforcement zone (там engine кидает в backline,
-                // часто на другом конце поля). isReinforcement=false → engine
-                // учитывает initialPosition. Direction = hero's look direction.
-                if (retinueIds != null && retinueIds.Count > 0 && agent != null)
+                // default reinforcement zone.
+                //
+                // Sprint 5.27n: skip retinue в hideout missions. Hideout имеет
+                // 8-troop limit + tight indoor map. 1 viewer × hero + 5 retinue
+                // = 6 agents → быстро упирается в limit, мешает геймплею.
+                // Detection: MissionMode == Stealth (в vanilla Bannerlord этот
+                // mode почти exclusively используется в hideouts).
+                bool inHideout = false;
+                try
+                {
+                    inHideout = (Mission.Current?.Mode.ToString() == "Stealth");
+                }
+                catch { }
+
+                if (inHideout && retinueIds != null && retinueIds.Count > 0)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[player.spawn:{sideLabel}] @{username} hideout detected — " +
+                        $"skip retinue ({retinueIds.Count} troops) для 8-limit");
+                }
+                if (retinueIds != null && retinueIds.Count > 0 && agent != null && !inHideout)
                 {
                     Vec3? anchorPos = null;
                     Vec2? anchorDir = null;

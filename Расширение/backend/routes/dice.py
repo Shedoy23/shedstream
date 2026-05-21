@@ -540,13 +540,14 @@ async def dice_roll(request: Request):
                 "reroll_index": None,
             })
 
-            # Если оба теперь rolled → переход в deciding со свежим deadline
+            # Sprint 5.24a fix: рефрешим deadline на КАЖДОМ action чтобы
+            # оппа всегда имел свежие 10s от последнего хода. Иначе если
+            # юзер тупил с opener'ом 30s — deadline уже истёк когда он рольнул.
             if _player_has_initial(state, "a", cur_idx) and _player_has_initial(state, "b", cur_idx):
                 state["phase"] = "deciding"
-                state["deadline_at"] = _deadline_at()
             else:
-                # Один rolled — оставляем rolling-фазу, deadline уже стоит
                 state["phase"] = "rolling"
+            state["deadline_at"] = _deadline_at()
 
             await conn.execute(
                 "UPDATE match_rooms SET state = ? WHERE room_id = ?",
@@ -653,6 +654,9 @@ async def dice_decide(request: Request):
                 new_dice[reroll_index] = _roll_d6()
                 entry["final"] = new_dice
                 entry["reroll_index"] = reroll_index
+
+            # Sprint 5.24a fix: deadline refresh на каждом action для fair timer
+            state["deadline_at"] = _deadline_at()
 
             # Check if both decided this round → advance
             if _player_has_decided(state, "a", cur_idx) and _player_has_decided(state, "b", cur_idx):

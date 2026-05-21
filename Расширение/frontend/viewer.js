@@ -1846,12 +1846,26 @@ function _openBannerlordProgressionModal() {
     overlay.querySelectorAll('.bnr-prog-attr-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const attribute_key = btn.getAttribute('data-attr');
+            // 5.27t: optimistic UI — сразу +1 в модалке + delay reopen больше.
+            // Mod может занять до 5с между poll'ами + event push, 3.5с было мало.
+            const attrCellLabel = btn.closest('div')?.querySelector('span:nth-child(3)');
+            if (attrCellLabel) {
+                const currentMatch = attrCellLabel.textContent.match(/(\d+)\/10/);
+                if (currentMatch) {
+                    const optimistic = Math.min(10, parseInt(currentMatch[1]) + 1);
+                    attrCellLabel.textContent = optimistic + '/10';
+                    attrCellLabel.style.color = '#fbbf24';
+                }
+                btn.disabled = true;
+                btn.style.opacity = '0.3';
+                btn.textContent = '⏳';
+            }
             _bannerlordBuyAction('hero.add_attribute', { attribute_key, amount: 1 });
-            overlay.remove();
             setTimeout(() => {
+                overlay.remove();
                 if (typeof loadBannerlordHero === 'function') loadBannerlordHero();
-                setTimeout(_openBannerlordProgressionModal, 600);
-            }, 3500);
+                setTimeout(_openBannerlordProgressionModal, 800);
+            }, 5000);
         });
     });
 }

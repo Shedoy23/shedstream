@@ -254,7 +254,7 @@ function _renderRpsModal() {
         _stopRpsPolling();
         _rpsRoomId = null;
         // Если в очереди — leave
-        fetch(`${API_URL}/api/match/queue/leave`, {
+        fetch(`${API_URL}/api/match/queue/cancel`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || ''},
             body: JSON.stringify({game_type: RPS_GAME_TYPE}),
@@ -329,7 +329,7 @@ function _renderRpsQueued(data) {
     `;
     document.getElementById('rps-leave-btn').addEventListener('click', async () => {
         try {
-            await fetch(`${API_URL}/api/match/queue/leave`, {
+            await fetch(`${API_URL}/api/match/queue/cancel`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || ''},
                 body: JSON.stringify({game_type: RPS_GAME_TYPE}),

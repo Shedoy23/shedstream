@@ -7,6 +7,7 @@ using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.AgentOrigins;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.Core;
+using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 using TaleWorlds.ObjectSystem;
 
@@ -282,13 +283,47 @@ namespace BannerlordLink.Actions
 
                 // Sprint M23 retinue spawn: после hero — также spawn'им свиту.
                 // BLT pattern (BLTSummonBehavior.SpawnAgent для каждого troop).
+                //
+                // Sprint 5.27d: spawn retinue РЯДОМ с hero (ring 60° × 2m), не в
+                // default reinforcement zone (там engine кидает в backline,
+                // часто на другом конце поля). isReinforcement=false → engine
+                // учитывает initialPosition. Direction = hero's look direction.
                 if (retinueIds != null && retinueIds.Count > 0 && agent != null)
                 {
+                    Vec3? anchorPos = null;
+                    Vec2? anchorDir = null;
+                    if (agent.IsActive())
+                    {
+                        try
+                        {
+                            anchorPos = agent.Position;
+                            anchorDir = agent.LookDirection.AsVec2;
+                        }
+                        catch { }
+                    }
+
                     int spawned = 0;
+                    int ringIdx = 0;
                     foreach (var troopId in retinueIds)
                     {
                         var troop = MBObjectManager.Instance.GetObject<CharacterObject>(troopId);
                         if (troop == null) continue;
+
+                        // Ring offset: 60° step × 2m radius (формация полукольцом).
+                        // 5 slots → углы 0/60/120/180/240/300°.
+                        Vec3? spawnPos = null;
+                        if (anchorPos.HasValue)
+                        {
+                            float angleRad = (ringIdx * 60f) * 0.0174533f;
+                            float dx = (float)Math.Cos(angleRad) * 2f;
+                            float dy = (float)Math.Sin(angleRad) * 2f;
+                            spawnPos = new Vec3(
+                                anchorPos.Value.x + dx,
+                                anchorPos.Value.y + dy,
+                                anchorPos.Value.z);
+                        }
+                        ringIdx++;
+
                         try
                         {
                             var retinueAgent = Mission.Current.SpawnTroop(
@@ -296,14 +331,14 @@ namespace BannerlordLink.Actions
                                 isPlayerSide:        isPlayerSide,
                                 hasFormation:        true,
                                 spawnWithHorse:      troop.Equipment != null && troop.HasMount(),
-                                isReinforcement:     true,
+                                isReinforcement:     !spawnPos.HasValue,
                                 formationTroopCount: 1,
                                 formationTroopIndex: 0,
                                 isAlarmed:           true,
                                 wieldInitialWeapons: true,
                                 forceDismounted:     false,
-                                initialPosition:     null,
-                                initialDirection:    null);
+                                initialPosition:     spawnPos,
+                                initialDirection:    anchorDir);
                             if (retinueAgent != null)
                             {
                                 Team t = isPlayerSide

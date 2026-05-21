@@ -1518,7 +1518,8 @@ function _renderRetinue(retinue) {
     if (!slot) return;
     const MAX_SLOTS = 5;
     const list = retinue || [];
-    const heroGold = (_bannerlordLastHero?.gold) || 0;
+    // /my-hero shape: { hero: {gold:N, ...}, retinue: [...] } — gold вложен в .hero
+    const heroGold = (_bannerlordLastHero?.hero?.gold) || 0;
 
     const rows = list.length === 0
         ? '<div style="font-size:11px;color:#9ca3af;padding:2px 0;">пусто</div>'

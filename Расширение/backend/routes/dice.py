@@ -51,9 +51,13 @@ router = APIRouter()
 _AUTH_FAIL = {"success": False, "message": "❌ Требуется авторизация Twitch"}
 
 GAME_TYPE = "dice"
-ELO_START = 1100
+ELO_START = 1000
 ELO_K = 32
-PRIZES = {1: 1_000_000, 2: 500_000, 3: 350_000}
+# Sprint 5.25 rebalance: prizes 300/200/100k (было 1M/500k/350k),
+# 2-недельный сезон (было 1 нед), prize gate elo >= 1100 (filtering
+# free-loaders которые сидят на стартовом ELO без побед).
+PRIZES = {1: 300_000, 2: 200_000, 3: 100_000}
+PRIZE_ELO_GATE = 1100
 
 ROUNDS_TOTAL = 3
 TURN_TIMEOUT_S = 10  # на каждую фазу (rolling / deciding) даётся 10s
@@ -161,13 +165,20 @@ def _elo_update(rating: int, opp_rating: int, result: float) -> int:
 
 # ─── Season helpers ───────────────────────────────────────────────────────────
 
-def _next_sunday_midnight():
+def _next_season_end():
+    """Sprint 5.25: 2-week season (было 1 week). Aligns на Sunday midnight."""
     now = datetime.now(timezone.utc)
     days_ahead = (6 - now.weekday()) % 7
     if days_ahead == 0:
-        days_ahead = 7
+        days_ahead = 14  # сегодня Sunday → следующий через 2 недели
+    else:
+        days_ahead += 7  # ближайший Sunday + неделя = бай-уикли
     target = now + timedelta(days=days_ahead)
     return target.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+# Backward-compat alias (старое имя ещё используется в коде ниже)
+_next_sunday_midnight = _next_season_end
 
 
 async def _ensure_season(conn, channel_id: int) -> int:
@@ -235,11 +246,13 @@ async def check_season_end(channel_id: int = None):
         if datetime.now(timezone.utc) < ends_at:
             return
 
+        # Sprint 5.25: prize gate — только игроки с ELO >= 1100 получают приз
+        # (фильтр free-loaders, кто сел в очередь но никогда не побеждал).
         top = await (await conn.execute(
             "SELECT username, elo FROM duel_stats "
-            "WHERE channel_id = ? AND game_type = ? AND season_id = ? "
+            "WHERE channel_id = ? AND game_type = ? AND season_id = ? AND elo >= ? "
             "ORDER BY elo DESC LIMIT 3",
-            (cid, GAME_TYPE, season_id)
+            (cid, GAME_TYPE, season_id, PRIZE_ELO_GATE)
         )).fetchall()
         prize_parts = []
         for rank, (uname, elo) in enumerate(top, 1):

@@ -39,7 +39,7 @@ router = APIRouter()
 _AUTH_FAIL = {"success": False, "message": "❌ Требуется авторизация Twitch"}
 
 GAME_TYPE = "rps"  # совмещаем season/ELO с duel.py
-ELO_START = 1100
+ELO_START = 1000   # Sprint 5.25 rebalance
 ELO_K = 32
 
 ROUNDS_MAX     = 3   # best-of-3 → max 3 раунда

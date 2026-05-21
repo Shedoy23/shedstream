@@ -54,9 +54,11 @@ router = APIRouter()
 _AUTH_FAIL = {"success": False, "message": "❌ Требуется авторизация Twitch"}
 
 GAME_TYPE      = "tictactoe"
-ELO_START      = 1100
+ELO_START      = 1000
 ELO_K          = 32
-PRIZES         = {1: 1_000_000, 2: 500_000, 3: 350_000}
+# Sprint 5.25 rebalance — см. dice.py
+PRIZES         = {1: 300_000, 2: 200_000, 3: 100_000}
+PRIZE_ELO_GATE = 1100
 
 BOARD_SIZE     = 4
 ROUNDS_MAX     = 3
@@ -239,13 +241,19 @@ def _elo_update(rating: int, opp_rating: int, result: float) -> int:
 
 # ─── Season helpers (per channel + per game) ──────────────────────────────────
 
-def _next_sunday_midnight():
+def _next_season_end():
+    """Sprint 5.25: 2-week season."""
     now = datetime.now(timezone.utc)
     days_ahead = (6 - now.weekday()) % 7
     if days_ahead == 0:
-        days_ahead = 7
+        days_ahead = 14
+    else:
+        days_ahead += 7
     target = now + timedelta(days=days_ahead)
     return target.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+_next_sunday_midnight = _next_season_end
 
 
 async def _ensure_season(conn, channel_id: int) -> int:
@@ -320,12 +328,12 @@ async def check_season_end(channel_id: int = None):
         if datetime.now(timezone.utc) < ends_at:
             return  # sезон ещё идёт
 
-        # Sезон закончен — выдаём PRIZES top-3 крустиками
+        # Sезон закончен — выдаём PRIZES top-3 крустиками (filter elo >= gate)
         top = await (await conn.execute(
             "SELECT username, elo FROM duel_stats "
-            "WHERE channel_id = ? AND game_type = ? AND season_id = ? "
+            "WHERE channel_id = ? AND game_type = ? AND season_id = ? AND elo >= ? "
             "ORDER BY elo DESC LIMIT 3",
-            (cid, GAME_TYPE, season_id)
+            (cid, GAME_TYPE, season_id, PRIZE_ELO_GATE)
         )).fetchall()
 
         prize_parts = []

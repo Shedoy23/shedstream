@@ -33,9 +33,11 @@ _RPS_BEATS = {
 _RPS_EMOJI  = {"rock": "🪨", "scissors": "✂️", "paper": "📄"}
 _VALID_MOVES = ("rock", "scissors", "paper")
 
-ELO_START = 1100
+ELO_START = 1000
 ELO_K     = 32
-PRIZES    = {1: 1_000_000, 2: 500_000, 3: 350_000}
+# Sprint 5.25 rebalance — см. dice.py
+PRIZES         = {1: 300_000, 2: 200_000, 3: 100_000}
+PRIZE_ELO_GATE = 1100
 
 
 # ─── Helpers ────────────────────────────────────────────────────────────────
@@ -59,10 +61,13 @@ def _delta_str(new: int, old: int) -> str:
 
 
 def _next_sunday_midnight() -> datetime:
+    """Sprint 5.25: 2-week season aligned на Sunday midnight."""
     now  = datetime.now(timezone.utc)
     days = (6 - now.weekday()) % 7
     if days == 0:
-        days = 7
+        days = 14
+    else:
+        days += 7
     target = now + timedelta(days=days)
     return target.replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -154,10 +159,12 @@ async def check_season_end(channel_id: int = None):
         if datetime.now(timezone.utc) < ends_at:
             return  # Сезон ещё идёт
 
-        # ── Сезон закончился ──────────────────────────────────────────────
+        # ── Сезон закончился (Sprint 5.25: prize gate elo >= 1100) ────────
         top = await (await conn.execute(
-            "SELECT username, elo FROM duel_stats WHERE channel_id = ? AND season_id = ? ORDER BY elo DESC LIMIT 3",
-            (cid, season_id)
+            "SELECT username, elo FROM duel_stats "
+            "WHERE channel_id = ? AND season_id = ? AND elo >= ? "
+            "ORDER BY elo DESC LIMIT 3",
+            (cid, season_id, PRIZE_ELO_GATE)
         )).fetchall()
 
         prize_parts = []

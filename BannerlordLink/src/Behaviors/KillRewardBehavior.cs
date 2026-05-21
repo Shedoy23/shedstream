@@ -72,6 +72,14 @@ namespace BannerlordLink.Behaviors
             (15, 10000, 10000),
         };
 
+        // Participation reward (BLT × 0.5, fires в OnEndMission).
+        // Применяется к каждому BLink-участнику независимо от kill'ов —
+        // награда за факт участия. Newbie-friendly: lose штраф убран.
+        private const int WIN_GOLD  = 5000;   // BLT 10000
+        private const int WIN_XP    = 5000;   // BLT 10000
+        private const int LOSE_GOLD = 0;      // BLT 5000 (штраф) — мы не штрафуем
+        private const int LOSE_XP   = 2500;   // BLT 5000 (consolation)
+
         // Static registry: retinue agent → owner username. Populated
         // SummonHeroHandler'ом при spawn'е retinue. Cleared OnEndMission.
         private static readonly Dictionary<Agent, string> _retinueOwners =
@@ -346,6 +354,112 @@ namespace BannerlordLink.Behaviors
             if (!BannerlordLink.Util.HeroNaming.IsAdopted(name)) return null;
             string username = BannerlordLink.Util.HeroNaming.ExtractUsername(name);
             return string.IsNullOrEmpty(username) ? null : username;
+        }
+
+        /// <summary>Sprint 5.27k — BLT WinGold/WinXP/LoseXP × 0.5.
+        /// Fires в OnEndMission для каждого участника battle (BLink prefix):
+        ///   • Если их сторона ПОБЕДИЛА:  +WIN_GOLD +WIN_XP
+        ///   • Если их сторона ПРОИГРАЛА: +LOSE_XP (без штрафа gold)
+        /// Skip если BattleState == DefenderPullBack (siege retreat).</summary>
+        private void ApplyParticipationRewards()
+        {
+            if (_participants.Count == 0) return;
+
+            // MissionResult может быть null на abort/retreat — skip полностью.
+            var result = Mission?.MissionResult;
+            if (result == null) return;
+            // BLT pattern: skip когда defender отступил в keep (siege).
+            try
+            {
+                if (result.BattleState == BattleState.DefenderPullBack) return;
+            }
+            catch { /* enum may not exist in старых TaleWorlds */ }
+
+            bool playerVictory = false;
+            try { playerVictory = result.PlayerVictory; }
+            catch { return; }
+
+            int rewarded = 0;
+            List<BattleStats> snapshot;
+            try { snapshot = _participants.Values.ToList(); }
+            catch { return; }
+
+            foreach (var s in snapshot)
+            {
+                if (s?.Hero == null) continue;
+                try
+                {
+                    // Их side выиграл = (они на player side) == (player победил).
+                    bool theirSideWon = s.IsPlayerSide == playerVictory;
+
+                    int goldDelta = theirSideWon ? WIN_GOLD : -LOSE_GOLD;
+                    int xpDelta   = theirSideWon ? WIN_XP   : LOSE_XP;
+
+                    if (goldDelta != 0)
+                    {
+                        try
+                        {
+                            // ApplyBetweenCharacters(null, hero, delta>0)
+                            // или (hero, null, delta>0) для удаления.
+                            if (goldDelta > 0)
+                                GiveGoldAction.ApplyBetweenCharacters(null, s.Hero, goldDelta, true);
+                            else
+                                GiveGoldAction.ApplyBetweenCharacters(s.Hero, null, -goldDelta, true);
+                            s.GoldEarned += goldDelta;
+                        }
+                        catch (Exception ex)
+                        { BannerlordLinkModule.Log($"[Participation] @{s.Username} gold failed: {ex.Message}"); }
+                    }
+
+                    if (xpDelta > 0)
+                    {
+                        // BLT: SkillXP.ImproveSkill(hero, xp, SkillsEnum.All).
+                        // У нас нет helper'a — distribute по нескольким skills.
+                        try { DistributeXpAcrossSkills(s.Hero, xpDelta); }
+                        catch (Exception ex)
+                        { BannerlordLinkModule.Log($"[Participation] @{s.Username} xp failed: {ex.Message}"); }
+                        s.XpEarned += xpDelta;
+                    }
+
+                    rewarded++;
+                    BannerlordLinkModule.Log(
+                        $"[Participation] @{s.Username} side={(s.IsPlayerSide ? "ally" : "enemy")} " +
+                        $"result={(theirSideWon ? "🏆WIN" : "💀LOSS")}: " +
+                        $"{(goldDelta >= 0 ? "+" : "")}{goldDelta}💰 +{xpDelta} XP");
+
+                    HeroStateSyncSafe(s.Hero);
+                }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[Participation] @{s?.Username} CRASHED: {ex.Message}");
+                }
+            }
+            BannerlordLinkModule.Log(
+                $"[Participation] applied to {rewarded}/{_participants.Count} participants " +
+                $"(playerVictory={playerVictory})");
+        }
+
+        /// <summary>BLT SkillXP.ImproveSkill(hero, xp, SkillsEnum.All) аналог:
+        /// raspaivает xp по 4 ключевым combat skills + Athletics + Riding.</summary>
+        private static void DistributeXpAcrossSkills(Hero hero, int totalXp)
+        {
+            if (hero == null || totalXp <= 0) return;
+            var pool = new[] {
+                DefaultSkills.OneHanded,
+                DefaultSkills.TwoHanded,
+                DefaultSkills.Polearm,
+                DefaultSkills.Bow,
+                DefaultSkills.Crossbow,
+                DefaultSkills.Athletics,
+                DefaultSkills.Riding,
+            };
+            int per = totalXp / pool.Length;
+            if (per <= 0) per = 1;
+            foreach (var skill in pool)
+            {
+                try { hero.HeroDeveloper.AddSkillXp(skill, per); } catch { }
+            }
         }
 
         public override void OnAgentRemoved(Agent affectedAgent, Agent affectorAgent,
@@ -638,8 +752,14 @@ namespace BannerlordLink.Behaviors
         protected override void OnEndMission()
         {
             base.OnEndMission();
-            // Sprint 5.27g: убрали flat VICTORY bonus. BLT-pattern награждает
-            // через per-kill + kill streaks, отдельной "победы" нет.
+            // Sprint 5.27k: BLT-style participation reward (WinGold/WinXP /
+            // LoseXP × 0.5). Применяется за факт участия независимо от kill'ов.
+            try { ApplyParticipationRewards(); }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[KillReward] ApplyParticipationRewards crashed: {ex.Message}");
+            }
             try { PushStatsSnapshot(isFinal: true); }
             catch (Exception ex)
             {

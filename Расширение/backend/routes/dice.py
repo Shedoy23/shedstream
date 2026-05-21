@@ -1,30 +1,37 @@
 """
-routes/dice.py — Dice match MVP (Phase 5.2 of COMPLIANCE_REWORK_PLAN.md).
+routes/dice.py — Dice match (Sprint 5.24a 3-round + reroll, 2026-05-21).
 
-Простая high-roll механика для расслабона. Два режима:
-  1. Vs bot — instant single-request match (без ELO, без сезонных наград).
+Два режима:
+  1. Vs bot — instant single-roll match (без ELO, без раундов).
      Чисто фановый расслаб когда не хочется ждать.
-  2. PvP — через matchmaking очередь (Phase 5.0 infra), с ELO + sезонами.
+  2. PvP — 3 раунда с механикой переброса:
+       a) Каждый игрок бросает 2d6 (initial)
+       b) Видит свой результат (не оппа), решает: переброс ОДНОГО кубика
+          или оставить как есть
+       c) После обоих decisions → round score; advance к следующему раунду
+       d) После 3 раундов — winner = чья общая сумма больше
+     Цель: добавить элемент стратегии (вероятностный расчёт) поверх рандома.
 
-Game logic:
-  Каждый игрок броsает 2d6, суммирует. Выше сумма = победа. Ничья = draw.
-  - 2 кубика per player: каждый 1-6 → сумма 2-12
-  - Expected value: 7
-  - Range diff: 0..10
+10-секундный таймер на каждую фазу (rolling / deciding). Lazy expire:
+на /api/match/room/{id}/state poll проверяем deadline_at, если истёк —
+auto-action (random roll / keep без reroll).
 
-Compliance:
-  - Никаких ставок крустиков (Phase 1.F убрала)
-  - Vs bot: rating не считается, чисто casual
-  - PvP: ELO + sезонные награды top-3 (compliant как skill-based competition)
-  - Лексика UI: "Roll", "Бросок", "Match" — НЕТ "casino dice", "lucky",
-    "jackpot", "high stakes"
-  - Animation: dice rolling 0.8s, no roulette-style spin (см. lessons §13.12)
-
-State JSON (для PvP rooms):
+State JSON v2 (для PvP rooms):
   {
-    "rolls": {"a": [d1, d2] | null, "b": [d1, d2] | null},
-    "phase": "rolling" | "finished"
+    "version": 2,
+    "rounds_total": 3,
+    "current_round": 1,        # 1-indexed
+    "rolls": {
+      "a": [{initial: [d1,d2], final: [d1,d2]|null, reroll_index: 0|1|null}, ...],
+      "b": [...]
+    },
+    "totals": {"a": int, "b": int},  # сумма final dice по всем сыгранным раундам
+    "phase": "rolling" | "deciding" | "finished",
+    "deadline_at": "ISO" | null,
   }
+
+Compliance: §6.2.4 — НЕ mystery box, никаких real-money стейков. Skill+chance
+elements компетится в ELO (§5.x OK для skill-based competition).
 """
 import json
 import random
@@ -48,6 +55,9 @@ ELO_START = 1100
 ELO_K = 32
 PRIZES = {1: 1_000_000, 2: 500_000, 3: 350_000}
 
+ROUNDS_TOTAL = 3
+TURN_TIMEOUT_S = 10  # на каждую фазу (rolling / deciding) даётся 10s
+
 # SystemRandom — НЕ нужен (без monetary stakes). Default random OK для casual.
 _rng = random.Random()
 
@@ -59,14 +69,88 @@ def _roll_2d6() -> list:
     return [_rng.randint(1, 6), _rng.randint(1, 6)]
 
 
-def _resolve_winner(roll_a: list, roll_b: list) -> str:
-    """Compare 2d6 vs 2d6 sums. Returns 'a' | 'b' | 'draw'."""
-    s_a = sum(roll_a)
-    s_b = sum(roll_b)
-    if s_a > s_b:
-        return "a"
-    if s_b > s_a:
-        return "b"
+def _roll_d6() -> int:
+    return _rng.randint(1, 6)
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _deadline_at(seconds: int = TURN_TIMEOUT_S) -> str:
+    return (datetime.now(timezone.utc) + timedelta(seconds=seconds)).isoformat()
+
+
+def _deadline_expired(iso_str) -> bool:
+    if not iso_str:
+        return False
+    try:
+        dt = datetime.fromisoformat(iso_str)
+        return datetime.now(timezone.utc) >= dt
+    except Exception:
+        return False
+
+
+def _new_dice_state() -> dict:
+    return {
+        "version":      2,
+        "rounds_total": ROUNDS_TOTAL,
+        "current_round": 1,
+        "rolls":        {"a": [], "b": []},
+        "totals":       {"a": 0, "b": 0},
+        "phase":        "rolling",
+        "deadline_at":  _deadline_at(),
+    }
+
+
+def _player_has_initial(state, role, round_idx):
+    """role='a'/'b', round_idx 0-based."""
+    rolls = state["rolls"][role]
+    return len(rolls) > round_idx
+
+
+def _player_has_decided(state, role, round_idx):
+    rolls = state["rolls"][role]
+    if len(rolls) <= round_idx:
+        return False
+    return rolls[round_idx].get("final") is not None
+
+
+def _compute_phase(state) -> str:
+    """Текущая фаза на основе rolls. 'rolling' если кто-то не initial-roll'нул,
+    'deciding' если оба rolled но не оба decided, 'finished' если все раунды
+    сыграны."""
+    if state["current_round"] > state["rounds_total"]:
+        return "finished"
+    idx = state["current_round"] - 1
+    a_init = _player_has_initial(state, "a", idx)
+    b_init = _player_has_initial(state, "b", idx)
+    if not (a_init and b_init):
+        return "rolling"
+    a_done = _player_has_decided(state, "a", idx)
+    b_done = _player_has_decided(state, "b", idx)
+    if a_done and b_done:
+        # Bug-safe: должно было advance в /decide. На всякий случай.
+        return "advancing"
+    return "deciding"
+
+
+def _recompute_totals(state):
+    """Сумма по final-rolls во всех завершённых раундах."""
+    totals = {"a": 0, "b": 0}
+    for role in ("a", "b"):
+        for r in state["rolls"][role]:
+            if r.get("final"):
+                totals[role] += sum(r["final"])
+    state["totals"] = totals
+
+
+def _resolve_pvp_winner(state):
+    """После 3 раундов — кто победил по сумме."""
+    sa = state["totals"]["a"]
+    sb = state["totals"]["b"]
+    if sa > sb: return "a"
+    if sb > sa: return "b"
     return "draw"
 
 
@@ -238,17 +322,116 @@ async def dice_play_vs_bot(request: Request):
     }
 
 
+async def _finalize_pvp_match(conn, room_id, state, channel_id, p_a, p_b, elo_a, elo_b):
+    """Завершение после 3 раундов. Применяет ELO + duel_stats updates,
+    обновляет match_rooms row. Returns (winner_user, outcome, new_elo_a, new_elo_b)."""
+    state["phase"] = "finished"
+    state["deadline_at"] = None
+    _recompute_totals(state)
+    winner_role = _resolve_pvp_winner(state)
+    if winner_role == "a":
+        winner_user, outcome = p_a, "win_a"
+        new_elo_a = _elo_update(elo_a, elo_b, 1.0)
+        new_elo_b = _elo_update(elo_b, elo_a, 0.0)
+    elif winner_role == "b":
+        winner_user, outcome = p_b, "win_b"
+        new_elo_a = _elo_update(elo_a, elo_b, 0.0)
+        new_elo_b = _elo_update(elo_b, elo_a, 1.0)
+    else:
+        winner_user, outcome = None, "draw"
+        new_elo_a = _elo_update(elo_a, elo_b, 0.5)
+        new_elo_b = _elo_update(elo_b, elo_a, 0.5)
+
+    await conn.execute(
+        "UPDATE match_rooms SET state = ?, status = 'finished', "
+        "winner = ?, outcome = ?, player_a_elo = ?, player_b_elo = ?, "
+        "finished_at = CURRENT_TIMESTAMP WHERE room_id = ?",
+        (json.dumps(state), winner_user, outcome, new_elo_a, new_elo_b, room_id)
+    )
+
+    season_id = await _ensure_season(conn, channel_id)
+    _a_old, a_streak = await _get_or_init_stats(conn, channel_id, p_a, season_id)
+    _b_old, b_streak = await _get_or_init_stats(conn, channel_id, p_b, season_id)
+    if outcome == "win_a":
+        new_a_streak, new_b_streak = a_streak + 1, 0
+    elif outcome == "win_b":
+        new_a_streak, new_b_streak = 0, b_streak + 1
+    else:
+        new_a_streak, new_b_streak = a_streak, b_streak
+    await _update_stats(conn, channel_id, p_a, new_elo_a, new_a_streak)
+    await _update_stats(conn, channel_id, p_b, new_elo_b, new_b_streak)
+
+    return winner_user, outcome, new_elo_a, new_elo_b
+
+
+def _maybe_expire_phase(state):
+    """Lazy expiration: вызывается перед read/write если deadline истёк.
+    Auto-actions: rolling → auto-roll, deciding → auto-keep (no reroll).
+    Returns True если что-то изменили (нужно записать state в БД)."""
+    if state.get("phase") == "finished":
+        return False
+    if not _deadline_expired(state.get("deadline_at")):
+        return False
+
+    idx = state["current_round"] - 1
+    changed = False
+    for role in ("a", "b"):
+        if not _player_has_initial(state, role, idx):
+            # Auto-roll
+            initial = _roll_2d6()
+            state["rolls"][role].append({
+                "initial": initial,
+                "final":   None,
+                "reroll_index": None,
+            })
+            changed = True
+
+    # После auto-rolls возможно оба rolled — переход в deciding со свежим
+    # deadline. Если они уже rolled и deadline прошёл в "deciding" — auto-keep.
+    new_phase = _compute_phase(state)
+    if new_phase == "rolling":
+        # Кто-то не rolled даже после auto — не должно быть
+        state["phase"] = "rolling"
+        state["deadline_at"] = _deadline_at()
+    elif new_phase == "deciding":
+        # Если был в "rolling" и теперь "deciding" — это нормальный progress,
+        # дать 10s на decide. Иначе (был в "deciding" и deadline истёк) →
+        # auto-keep.
+        if state.get("phase") == "deciding":
+            for role in ("a", "b"):
+                if not _player_has_decided(state, role, idx):
+                    state["rolls"][role][idx]["final"] = state["rolls"][role][idx]["initial"]
+                    state["rolls"][role][idx]["reroll_index"] = None
+                    changed = True
+            # После auto-keep оба decided — нужно advance
+            new_phase = _compute_phase(state)
+        else:
+            state["phase"] = "deciding"
+            state["deadline_at"] = _deadline_at()
+
+    if new_phase == "advancing":
+        # Оба решили — advance round
+        state["current_round"] += 1
+        _recompute_totals(state)
+        if state["current_round"] > state["rounds_total"]:
+            state["phase"] = "finished"
+            state["deadline_at"] = None
+        else:
+            state["phase"] = "rolling"
+            state["deadline_at"] = _deadline_at()
+        changed = True
+
+    return changed
+
+
 @router.post("/api/dice/roll")
 async def dice_roll(request: Request):
-    """Roll в PvP match (после matchmaking).
+    """Initial-roll в PvP match для текущего раунда.
 
     Body: {"room_id": str}
 
-    Логика:
-      - Загружаем room, проверяем access + status='active'
-      - Если ты ещё не roll'ил → бросаем твои 2d6, записываем в state.rolls[you_are]
-      - Если оппонент уже roll'ил → определяем winner + finalize match + ELO update
-      - Если оппонент ещё нет → возвращаем wait
+    После roll'а игрок получает свои кубики, но не оппа. Решает re-roll
+    через /api/dice/decide.
     """
     auth = require_jwt_user(request)
     if not auth:
@@ -294,81 +477,201 @@ async def dice_roll(request: Request):
                 return {"success": False, "reason": "not_active", "message": "Матч уже завершён"}
 
             state = json.loads(state_json or "{}")
-            if "rolls" not in state:
-                state["rolls"] = {"a": None, "b": None}
-                state["phase"] = "rolling"
+            # Sprint 5.24a: state v2 — multi-round. Если version<2 (старая
+            # одно-roll'ная partial-finished room) — пересоздаём пустое state.
+            if state.get("version") != 2:
+                state = _new_dice_state()
 
             you_are = "a" if uname == p_a else "b"
             opponent = p_b if you_are == "a" else p_a
 
-            # Already rolled?
-            if state["rolls"].get(you_are):
+            # Lazy expire if deadline passed
+            _maybe_expire_phase(state)
+
+            # If already finished (e.g. after expiration cascade) — finalize
+            if state.get("phase") == "finished" and status == "active":
+                winner_user, outcome, new_elo_a_, new_elo_b_ = await _finalize_pvp_match(
+                    conn, room_id, state, channel_id, p_a, p_b, elo_a, elo_b)
+                await conn.commit()
+                _broadcast_state(channel_id, room_id, state,
+                                 finished=True, winner_user=winner_user)
+                return {
+                    "success":  True,
+                    "mode":     "pvp",
+                    "you_are":  you_are,
+                    "opponent": opponent,
+                    "state":    state,
+                    "finished": True,
+                    "winner":   winner_user,
+                    "message":  ("🎉 Победа!" if winner_user == uname else
+                                 "😢 Поражение" if winner_user else "🤝 Ничья"),
+                }
+
+            cur_idx = state["current_round"] - 1
+            if state.get("phase") != "rolling":
+                # Уже не в rolling-фазе — нельзя initial-rollать
+                await conn.execute(
+                    "UPDATE match_rooms SET state = ? WHERE room_id = ?",
+                    (json.dumps(state), room_id)
+                )
+                await conn.commit()
+                return {
+                    "success": False,
+                    "reason":  "not_rolling_phase",
+                    "phase":   state.get("phase"),
+                    "state":   state,
+                    "message": "Сейчас не фаза броска",
+                }
+
+            if _player_has_initial(state, you_are, cur_idx):
                 await conn.execute("ROLLBACK")
                 return {
                     "success":  False,
                     "reason":   "already_rolled",
-                    "your_roll": state["rolls"][you_are],
-                    "message":  "Ты уже бросил",
+                    "state":    state,
+                    "message":  "Ты уже бросил в этом раунде",
                 }
 
-            # Бросаем
-            your_roll = _roll_2d6()
-            state["rolls"][you_are] = your_roll
+            # Initial roll этого раунда
+            initial = _roll_2d6()
+            state["rolls"][you_are].append({
+                "initial":      initial,
+                "final":        None,
+                "reroll_index": None,
+            })
 
-            opponent_roll = state["rolls"].get("b" if you_are == "a" else "a")
-
-            finished = False
-            outcome = None
-            winner_user = None
-            new_elo_a, new_elo_b = elo_a, elo_b
-
-            if opponent_roll:
-                # Оба roll'ed → finalize
-                winner_role = _resolve_winner(
-                    your_roll if you_are == "a" else opponent_roll,
-                    opponent_roll if you_are == "a" else your_roll
-                )
-                finished = True
-                state["phase"] = "finished"
-
-                if winner_role == "a":
-                    outcome = "win_a"
-                    winner_user = p_a
-                    new_elo_a = _elo_update(elo_a, elo_b, 1.0)
-                    new_elo_b = _elo_update(elo_b, elo_a, 0.0)
-                elif winner_role == "b":
-                    outcome = "win_b"
-                    winner_user = p_b
-                    new_elo_a = _elo_update(elo_a, elo_b, 0.0)
-                    new_elo_b = _elo_update(elo_b, elo_a, 1.0)
-                else:
-                    outcome = "draw"
-                    new_elo_a = _elo_update(elo_a, elo_b, 0.5)
-                    new_elo_b = _elo_update(elo_b, elo_a, 0.5)
-
-                await conn.execute(
-                    "UPDATE match_rooms SET state = ?, status = 'finished', "
-                    "winner = ?, outcome = ?, player_a_elo = ?, player_b_elo = ?, "
-                    "finished_at = CURRENT_TIMESTAMP WHERE room_id = ?",
-                    (json.dumps(state), winner_user, outcome, new_elo_a, new_elo_b, room_id)
-                )
-
-                # Update duel_stats
-                season_id = await _ensure_season(conn, channel_id)
-                _a_old, a_streak = await _get_or_init_stats(conn, channel_id, p_a, season_id)
-                _b_old, b_streak = await _get_or_init_stats(conn, channel_id, p_b, season_id)
-
-                if outcome == "win_a":
-                    new_a_streak, new_b_streak = a_streak + 1, 0
-                elif outcome == "win_b":
-                    new_a_streak, new_b_streak = 0, b_streak + 1
-                else:
-                    new_a_streak, new_b_streak = a_streak, b_streak
-
-                await _update_stats(conn, channel_id, p_a, new_elo_a, new_a_streak)
-                await _update_stats(conn, channel_id, p_b, new_elo_b, new_b_streak)
+            # Если оба теперь rolled → переход в deciding со свежим deadline
+            if _player_has_initial(state, "a", cur_idx) and _player_has_initial(state, "b", cur_idx):
+                state["phase"] = "deciding"
+                state["deadline_at"] = _deadline_at()
             else:
-                # Только мы roll'ed, оппонент ещё нет
+                # Один rolled — оставляем rolling-фазу, deadline уже стоит
+                state["phase"] = "rolling"
+
+            await conn.execute(
+                "UPDATE match_rooms SET state = ? WHERE room_id = ?",
+                (json.dumps(state), room_id)
+            )
+
+            await conn.commit()
+        except Exception:
+            await conn.execute("ROLLBACK")
+            raise
+
+    _broadcast_state(channel_id, room_id, state, finished=False, winner_user=None)
+    return {
+        "success":   True,
+        "mode":      "pvp",
+        "you_are":   you_are,
+        "opponent":  opponent,
+        "state":     state,
+        "message":   "Бросок принят. Решай: переброс или оставить.",
+    }
+
+
+@router.post("/api/dice/decide")
+async def dice_decide(request: Request):
+    """После initial-roll'а игрок решает: переброс одного кубика или оставить.
+
+    Body: {"room_id": str, "reroll_index": 0 | 1 | null}
+      - reroll_index=null → keep, final = initial
+      - reroll_index in [0,1] → bросаем 1 кубик заново, заменяем final[idx]
+    """
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+    uname = username.lower()
+
+    data = await request.json()
+    room_id = data.get("room_id")
+    reroll_index = data.get("reroll_index")
+    if not room_id:
+        return {"success": False, "message": "room_id обязателен"}
+    if reroll_index is not None and reroll_index not in (0, 1):
+        return {"success": False, "message": "reroll_index должен быть 0, 1 или null"}
+
+    await check_season_end(channel_id)
+
+    db = get_db()
+    finished = False
+    winner_user = None
+    async with db._connect() as conn:
+        try:
+            await conn.execute("BEGIN IMMEDIATE")
+
+            cur = await conn.execute(
+                "SELECT channel_id, game_type, player_a, player_b, "
+                "player_a_elo, player_b_elo, state, status FROM match_rooms WHERE room_id = ?",
+                (room_id,)
+            )
+            row = await cur.fetchone()
+            if not row:
+                await conn.execute("ROLLBACK")
+                return {"success": False, "reason": "not_found"}
+            room_cid, gt, p_a, p_b, elo_a, elo_b, state_json, status = row
+
+            if room_cid != channel_id or gt != GAME_TYPE or uname not in (p_a, p_b):
+                await conn.execute("ROLLBACK")
+                return {"success": False, "reason": "access_denied"}
+            if status != "active":
+                await conn.execute("ROLLBACK")
+                return {"success": False, "reason": "not_active",
+                        "message": "Матч уже завершён"}
+
+            state = json.loads(state_json or "{}")
+            if state.get("version") != 2:
+                state = _new_dice_state()
+
+            _maybe_expire_phase(state)
+
+            you_are = "a" if uname == p_a else "b"
+            cur_idx = state["current_round"] - 1
+
+            if state.get("phase") not in ("deciding", "finished"):
+                await conn.execute("ROLLBACK")
+                return {"success": False, "reason": "not_deciding_phase",
+                        "state": state, "message": "Сейчас не фаза решения"}
+
+            if not _player_has_initial(state, you_are, cur_idx):
+                await conn.execute("ROLLBACK")
+                return {"success": False, "reason": "no_initial_roll",
+                        "message": "Сначала брось кубики"}
+            if _player_has_decided(state, you_are, cur_idx):
+                await conn.execute("ROLLBACK")
+                return {"success": False, "reason": "already_decided",
+                        "state": state, "message": "Решение уже принято"}
+
+            # Apply decision
+            entry = state["rolls"][you_are][cur_idx]
+            initial = entry["initial"]
+            if reroll_index is None:
+                entry["final"] = list(initial)
+                entry["reroll_index"] = None
+            else:
+                new_dice = list(initial)
+                new_dice[reroll_index] = _roll_d6()
+                entry["final"] = new_dice
+                entry["reroll_index"] = reroll_index
+
+            # Check if both decided this round → advance
+            if _player_has_decided(state, "a", cur_idx) and _player_has_decided(state, "b", cur_idx):
+                _recompute_totals(state)
+                if state["current_round"] >= state["rounds_total"]:
+                    # Game over
+                    winner_user, outcome, new_elo_a, new_elo_b = await _finalize_pvp_match(
+                        conn, room_id, state, channel_id, p_a, p_b, elo_a, elo_b)
+                    finished = True
+                else:
+                    state["current_round"] += 1
+                    state["phase"] = "rolling"
+                    state["deadline_at"] = _deadline_at()
+                    await conn.execute(
+                        "UPDATE match_rooms SET state = ? WHERE room_id = ?",
+                        (json.dumps(state), room_id)
+                    )
+            else:
+                # Wait for opponent decision
                 await conn.execute(
                     "UPDATE match_rooms SET state = ? WHERE room_id = ?",
                     (json.dumps(state), room_id)
@@ -379,34 +682,46 @@ async def dice_roll(request: Request):
             await conn.execute("ROLLBACK")
             raise
 
-    # Chat-notification на финал (вне БД)
     if finished:
         try:
             bot = get_bot()
-            a_sum = sum(state["rolls"]["a"])
-            b_sum = sum(state["rolls"]["b"])
+            a_sum = state["totals"]["a"]
+            b_sum = state["totals"]["b"]
             if winner_user:
                 await bot.send_message(
-                    f"🎲 Dice match: @{p_a} ({a_sum}) vs @{p_b} ({b_sum}) — победил @{winner_user}! "
-                    f"[ELO: {new_elo_a} / {new_elo_b}]",
-                    channel_id=channel_id,
-                )
+                    f"🎲 Dice 3-round: @{p_a} ({a_sum}) vs @{p_b} ({b_sum}) — "
+                    f"победил @{winner_user}!", channel_id=channel_id)
             else:
                 await bot.send_message(
                     f"🎲 Dice ничья: @{p_a} ({a_sum}) = @{p_b} ({b_sum})",
-                    channel_id=channel_id,
-                )
-        except Exception:
-            pass
+                    channel_id=channel_id)
+        except Exception: pass
 
-    if winner_user:
-        try:
-            await get_bot().check_and_unlock_achievements(winner_user, "duel_win", channel_id=channel_id)
-        except Exception:
-            pass
+        if winner_user:
+            try:
+                await get_bot().check_and_unlock_achievements(
+                    winner_user, "duel_win", channel_id=channel_id)
+            except Exception: pass
 
-    # Phase C (2026-05-17): match_state broadcast — оппонент мгновенно видит
-    # обновлённый roll/winner без 3-сек polling.
+    _broadcast_state(channel_id, room_id, state,
+                     finished=finished, winner_user=winner_user)
+
+    return {
+        "success":   True,
+        "mode":      "pvp",
+        "you_are":   you_are,
+        "state":     state,
+        "finished":  finished,
+        "winner":    winner_user,
+        "message":   ("🎉 Победа!" if finished and winner_user == uname else
+                      "😢 Поражение" if finished and winner_user else
+                      "🤝 Ничья" if finished else
+                      "Решение принято"),
+    }
+
+
+def _broadcast_state(channel_id, room_id, state, finished=False, winner_user=None):
+    """Phase C realtime broadcast — оппа моментально видит обновлённое state."""
     try:
         from pubsub import broadcast as _pubsub_broadcast
         _pubsub_broadcast(channel_id, "match_state", {
@@ -420,27 +735,7 @@ async def dice_roll(request: Request):
     except Exception as e:
         import logging
         logging.getLogger("rimlink.dice").warning(
-            "post-roll match_state broadcast failed: %s", e
-        )
-
-    return {
-        "success":      True,
-        "mode":         "pvp",
-        "your_roll":    your_roll,
-        "opponent_roll": opponent_roll,
-        "you_are":      you_are,
-        "opponent":     opponent,
-        "finished":     finished,
-        "winner":       winner_user,
-        "outcome":      outcome,
-        "your_elo":     new_elo_a if you_are == "a" else new_elo_b,
-        "opponent_elo": new_elo_b if you_are == "a" else new_elo_a,
-        "state":        state,
-        "message":      ("⏳ Ждём оппонента..." if not finished else
-                         "🎉 Победа!" if winner_user == uname else
-                         "😢 Поражение" if winner_user else
-                         "🤝 Ничья"),
-    }
+            "match_state broadcast failed: %s", e)
 
 
 @router.get("/api/dice/leaderboard")

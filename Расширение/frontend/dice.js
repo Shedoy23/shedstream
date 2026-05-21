@@ -11,7 +11,8 @@
 const DICE_GAME_TYPE = 'dice';
 // Phase C (2026-05-17): PubSub realtime push для match_state. Polling
 // fallback для queue tick: 3s → 15s.
-const DICE_POLL_INTERVAL_MS = 15000;
+// Sprint 5.24a: poll 2s (было 15s) для отзывчивого UX с раундами и таймером.
+const DICE_POLL_INTERVAL_MS = 2000;
 
 let _dicePollId = null;
 let _diceCurrentRoomId = null;
@@ -300,16 +301,16 @@ async function _diceRefreshRoom(roomId) {
     }
 }
 
+// Sprint 5.24a: 3 раунда + reroll. State v2 — см. routes/dice.py docstring.
 function _renderDicePvP(room) {
     const el = document.getElementById('dice-content');
     if (!el) return;
-    const state = room.state || {};
-    const rolls = state.rolls || {a: null, b: null};
-    const youAre = room.you_are;
-    const yourRoll = rolls[youAre];
-    const oppRoll = rolls[youAre === 'a' ? 'b' : 'a'];
+    const state    = room.state || {};
+    const v2       = state.version === 2;
+    const youAre   = room.you_are;
+    const oppAre   = youAre === 'a' ? 'b' : 'a';
     const opponent = room.opponent;
-    const finished = room.status !== 'active';
+    const finished = room.status !== 'active' || state.phase === 'finished';
 
     // ELO badge
     const eloBadge = document.getElementById('dice-elo-badge');
@@ -318,67 +319,183 @@ function _renderDicePvP(room) {
         eloBadge.textContent = `${myElo} ELO`;
     }
 
+    // Backward-compat: если room ещё на v1 (старая single-roll логика),
+    // fallback на старый рендер чтобы не падать.
+    if (!v2) {
+        el.innerHTML = `<div style="text-align:center;padding:14px;color:#adadb8;">
+            Загрузка...
+        </div>`;
+        return;
+    }
+
+    const roundsTotal = state.rounds_total || 3;
+    const curRound    = state.current_round || 1;
+    const rolls       = state.rolls || {a: [], b: []};
+    const totals      = state.totals || {a: 0, b: 0};
+    const yourRolls   = rolls[youAre] || [];
+    const oppRolls    = rolls[oppAre] || [];
+    const yourTotal   = totals[youAre] || 0;
+    const oppTotal    = totals[oppAre] || 0;
+
+    // ─── Header: results / round / status ─────────────────────────────
     let headerHtml;
     if (finished) {
-        if (room.winner === userLogin) {
-            headerHtml = `<div style="font-size:20px;font-weight:800;color:#4ade80;">🎉 Победа!</div>`;
-        } else if (room.outcome === 'draw') {
-            headerHtml = `<div style="font-size:20px;font-weight:800;color:#fbbf24;">🤝 Ничья</div>`;
+        const youWon = room.winner === userLogin;
+        const isDraw = !room.winner;
+        if (youWon) {
+            headerHtml = `<div style="font-size:22px;font-weight:800;color:#4ade80;">🎉 Победа!</div>
+                <div style="font-size:13px;color:#adadb8;margin-top:4px;">${yourTotal} vs ${oppTotal}</div>`;
+        } else if (isDraw) {
+            headerHtml = `<div style="font-size:22px;font-weight:800;color:#fbbf24;">🤝 Ничья</div>
+                <div style="font-size:13px;color:#adadb8;margin-top:4px;">${yourTotal} = ${oppTotal}</div>`;
         } else {
-            headerHtml = `<div style="font-size:20px;font-weight:800;color:#f87171;">😢 Поражение</div>`;
+            headerHtml = `<div style="font-size:22px;font-weight:800;color:#f87171;">😢 Поражение</div>
+                <div style="font-size:13px;color:#adadb8;margin-top:4px;">${yourTotal} vs ${oppTotal}</div>`;
         }
-    } else if (!yourRoll) {
-        headerHtml = `<div style="font-size:16px;font-weight:700;color:#9147ff;">Твой бросок!</div>`;
-    } else if (!oppRoll) {
-        headerHtml = `<div style="font-size:16px;color:#adadb8;">⏳ Ждём @${escapeHtml(opponent)}...</div>`;
     } else {
-        headerHtml = `<div style="font-size:16px;color:#adadb8;">Подсчёт...</div>`;
+        const displayRound = Math.min(curRound, roundsTotal);
+        headerHtml = `
+            <div style="font-size:13px;color:#9147ff;font-weight:700;letter-spacing:1px;">
+                РАУНД ${displayRound} / ${roundsTotal}
+            </div>
+            <div style="font-size:11px;color:#adadb8;margin-top:2px;">
+                Счёт: <b style="color:#efeff1;">${yourTotal}</b> vs <b style="color:#efeff1;">${oppTotal}</b>
+            </div>
+        `;
     }
 
-    const yourDiceDisplay = yourRoll
-        ? `<div style="font-size:48px;letter-spacing:6px;">${yourRoll.map(d => _DICE_EMOJI[d-1]).join(' ')}</div>
-           <div style="font-size:18px;font-weight:700;color:#9147ff;">= ${yourRoll[0]+yourRoll[1]}</div>`
-        : `<div style="font-size:48px;letter-spacing:6px;color:#3a3a3e;">🎲 🎲</div>
-           <div style="font-size:13px;color:#adadb8;">не бросал</div>`;
+    // ─── Round history table (rounds 1..N) ────────────────────────────
+    function _diceStr(d) { return d.map(x => _DICE_EMOJI[x-1]).join(''); }
+    const roundsBoxes = [];
+    for (let i = 0; i < roundsTotal; i++) {
+        const yourR = yourRolls[i];
+        const oppR  = oppRolls[i];
+        const isCur = (i === curRound - 1) && !finished;
+        const yourDiceStr = (yourR && yourR.final) ? _diceStr(yourR.final)
+                          : (yourR && yourR.initial) ? `<span style="opacity:0.55">${_diceStr(yourR.initial)}</span>`
+                          : '—';
+        const oppDiceStr  = (oppR && oppR.final) ? _diceStr(oppR.final)
+                          : (oppR && oppR.initial) ? `<span style="opacity:0.55">🎲🎲</span>`
+                          : '—';
+        const yourSum = (yourR && yourR.final) ? yourR.final[0]+yourR.final[1] : '';
+        const oppSum  = (oppR  && oppR.final)  ? oppR.final[0]+oppR.final[1]  : '';
+        roundsBoxes.push(`
+            <div style="background:${isCur ? '#1f1a30' : '#181820'};
+                        border:1px solid ${isCur ? '#9147ff' : '#2d2d2f'};
+                        border-radius:6px;padding:6px;text-align:center;
+                        ${isCur ? 'box-shadow:0 0 8px rgba(145,71,255,0.25);' : ''}">
+                <div style="font-size:9px;color:#adadb8;">Р${i+1}</div>
+                <div style="font-size:13px;letter-spacing:1px;">${yourDiceStr}</div>
+                <div style="font-size:10px;color:#9147ff;font-weight:700;">${yourSum}</div>
+                <div style="height:1px;background:#2d2d2f;margin:3px 0;"></div>
+                <div style="font-size:13px;letter-spacing:1px;">${oppDiceStr}</div>
+                <div style="font-size:10px;color:#9147ff;font-weight:700;">${oppSum}</div>
+            </div>
+        `);
+    }
+    const roundsHtml = `<div style="display:grid;grid-template-columns:repeat(${roundsTotal},1fr);gap:6px;margin-bottom:10px;">${roundsBoxes.join('')}</div>`;
 
-    const oppDiceDisplay = oppRoll
-        ? `<div style="font-size:48px;letter-spacing:6px;">${oppRoll.map(d => _DICE_EMOJI[d-1]).join(' ')}</div>
-           <div style="font-size:18px;font-weight:700;color:#9147ff;">= ${oppRoll[0]+oppRoll[1]}</div>`
-        : `<div style="font-size:48px;letter-spacing:6px;color:#3a3a3e;">🎲 🎲</div>
-           <div style="font-size:13px;color:#adadb8;">не бросал</div>`;
+    // ─── Action area: roll / decide / wait / replay ───────────────────
+    const idx = curRound - 1;
+    const yourCur = yourRolls[idx];
+    const oppCur  = oppRolls[idx];
+    const yourHasInitial = !!(yourCur && yourCur.initial);
+    const yourHasDecided = !!(yourCur && yourCur.final);
+    const oppHasInitial  = !!(oppCur && oppCur.initial);
+    const oppHasDecided  = !!(oppCur && oppCur.final);
+
+    let actionHtml = '';
+    let timerHtml = '';
+    if (!finished && state.deadline_at) {
+        const ms = new Date(state.deadline_at).getTime() - Date.now();
+        const sec = Math.max(0, Math.ceil(ms / 1000));
+        timerHtml = `<div style="text-align:center;font-size:11px;color:${sec<=3?'#f87171':'#adadb8'};margin-top:4px;">⏱️ ${sec}с</div>`;
+    }
+
+    if (finished) {
+        actionHtml = `<button class="modal-btn" id="dice-new-game-btn" style="margin-top:8px;">⚔️ Сыграть ещё</button>`;
+    } else if (state.phase === 'rolling' && !yourHasInitial) {
+        actionHtml = `<button class="modal-btn" id="dice-roll-btn" style="margin-top:8px;">🎲 БРОСИТЬ КУБИКИ</button>`;
+    } else if (state.phase === 'rolling' && yourHasInitial) {
+        actionHtml = `<div style="text-align:center;padding:14px 8px;color:#adadb8;font-size:13px;">
+            Ты бросил <b style="color:#9147ff;">${_diceStr(yourCur.initial)} = ${yourCur.initial[0]+yourCur.initial[1]}</b>.<br>
+            ⏳ Ждём @${escapeHtml(opponent)}...
+        </div>`;
+    } else if (state.phase === 'deciding' && yourHasInitial && !yourHasDecided) {
+        const d1 = yourCur.initial[0];
+        const d2 = yourCur.initial[1];
+        actionHtml = `
+            <div style="text-align:center;font-size:13px;color:#adadb8;margin-bottom:8px;">
+                Твой бросок: <b style="color:#efeff1;">${_diceStr(yourCur.initial)} = ${d1+d2}</b>
+            </div>
+            <div style="text-align:center;font-size:11px;color:#adadb8;margin-bottom:6px;">Перебросить ОДИН кубик? (оппа не видишь)</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
+                <button class="modal-btn" data-dice-decide="0" style="font-size:13px;padding:8px;">🔄 ${_DICE_EMOJI[d1-1]} (${d1})</button>
+                <button class="modal-btn" data-dice-decide="1" style="font-size:13px;padding:8px;">🔄 ${_DICE_EMOJI[d2-1]} (${d2})</button>
+                <button class="modal-btn" data-dice-decide="keep" style="font-size:13px;padding:8px;background:#2d2d2f;border:1px solid #3a3a3e;">✓ Оставить</button>
+            </div>
+        `;
+    } else if (state.phase === 'deciding' && yourHasDecided) {
+        actionHtml = `<div style="text-align:center;padding:14px 8px;color:#adadb8;font-size:13px;">
+            Решение принято.<br>⏳ Ждём @${escapeHtml(opponent)}...
+        </div>`;
+    } else {
+        actionHtml = `<div style="text-align:center;padding:14px 8px;color:#adadb8;font-size:13px;">
+            ${state.phase === 'finished' ? 'Подсчёт результатов...' : 'Загрузка...'}
+        </div>`;
+    }
 
     el.innerHTML = `
-        <div style="text-align:center;margin-bottom:14px;">${headerHtml}</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
-            <div style="background:#1f1a30;border:1px solid #3d3d3f;border-radius:8px;padding:12px;">
-                <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">Ты</div>
-                ${yourDiceDisplay}
-            </div>
-            <div style="background:#1a1f30;border:1px solid #3d3d3f;border-radius:8px;padding:12px;">
-                <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">@${escapeHtml(opponent || '?')}</div>
-                ${oppDiceDisplay}
-            </div>
-        </div>
-        ${!finished && !yourRoll ? '<button class="modal-btn" id="dice-roll-btn">🎲 БРОСИТЬ КУБИКИ</button>' : ''}
-        ${finished ? '<button class="modal-btn" id="dice-new-game-btn">⚔️ Сыграть ещё</button>' : ''}
+        <div style="text-align:center;margin-bottom:10px;">${headerHtml}${timerHtml}</div>
+        ${roundsHtml}
+        ${actionHtml}
     `;
 
-    if (!finished && !yourRoll) {
-        document.getElementById('dice-roll-btn').addEventListener('click', _diceRollPvP);
-    }
-    if (finished) {
-        // Sprint 5.24 fix: останавливаем polling чтобы бэк не «выпиннул»
-        // result screen когда зачистит finished room (через 15s polling
-        // получали null → авто-переход в idle). Юзер сам жмёт «Сыграть
-        // ещё» → restart polling под новую очередь.
+    // Wire-up handlers
+    const rollBtn = document.getElementById('dice-roll-btn');
+    if (rollBtn) rollBtn.addEventListener('click', _diceRollPvP);
+
+    el.querySelectorAll('[data-dice-decide]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const v = btn.dataset.diceDecide;
+            const rerollIndex = v === 'keep' ? null : parseInt(v, 10);
+            _diceDecidePvP(rerollIndex);
+        });
+    });
+
+    const newGameBtn = document.getElementById('dice-new-game-btn');
+    if (newGameBtn) {
         _stopDicePolling();
-        document.getElementById('dice-new-game-btn').addEventListener('click', async () => {
+        newGameBtn.addEventListener('click', async () => {
             _diceCurrentRoomId = null;
             _renderDiceIdle();
             _loadDiceLeaderboard();
             if (typeof loadUserData === 'function') setTimeout(loadUserData, 500);
             _startDicePolling();
         });
+    }
+}
+
+async function _diceDecidePvP(rerollIndex) {
+    if (_diceMoveLocked || !_diceCurrentRoomId) return;
+    _diceMoveLocked = true;
+    try {
+        const r = await fetch(`${API_URL}/api/dice/decide`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || '' },
+            body: JSON.stringify({ room_id: _diceCurrentRoomId, reroll_index: rerollIndex }),
+        });
+        const data = await r.json();
+        if (!data.success) {
+            showNotification(data.message || 'Не удалось', 'error');
+            return;
+        }
+        // Refresh state
+        await _diceRefreshRoom(_diceCurrentRoomId);
+    } catch (e) {
+        showNotification('Ошибка сети', 'error');
+    } finally {
+        setTimeout(() => { _diceMoveLocked = false; }, 400);
     }
 }
 

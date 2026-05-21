@@ -684,9 +684,11 @@ async def bannerlord_buy_action(request: Request):
     # Hero.Gold (in-game динары) — fairness через game economy.
     # Mirror HERO_GOLD_RANDOM_PRICES в C# EquipItemHandler.
     RANDOM_EQUIP_HERO_GOLD = {
-        "weapon": 50_000,
-        "armor":  25_000,
-        "horse":  80_000,
+        # 5.27o: повышены до T5–T6 уровня (random equip даёт high-tier
+        # items, baseline должен соответствовать ценности).
+        "weapon": 1_000_000,
+        "armor":    500_000,
+        "horse":  1_000_000,
     }
     RANDOM_EQUIP_PRICES = RANDOM_EQUIP_HERO_GOLD  # legacy name (some refs ниже)
     SPAWN_PRICES = {

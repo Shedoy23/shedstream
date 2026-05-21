@@ -58,12 +58,14 @@ namespace BannerlordLink.Actions
         // Mod-side enforced — backend price=0 в крустиках, fairness через
         // in-game экономику (зритель сначала копит динары через give_gold
         // action или внутри игры, потом тратит на random box).
+        // Sprint 5.27o: повышены до T5–T6 уровня — random equip выдаёт
+        // high-tier item, baseline должен соответствовать ценности.
         private static readonly System.Collections.Generic.Dictionary<string, int> HERO_GOLD_RANDOM_PRICES =
             new System.Collections.Generic.Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
         {
-            ["weapon"] = 50_000,
-            ["armor"]  = 25_000,
-            ["horse"]  = 80_000,
+            ["weapon"] = 1_000_000,
+            ["armor"]  =   500_000,
+            ["horse"]  = 1_000_000,
         };
 
         private static void Equip(string username, string itemId, string slotName, string category)

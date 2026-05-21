@@ -1406,8 +1406,8 @@ function renderBannerlordRandomEquipHtml() {
     const horseDisabled = !isMounted ? 'disabled' : '';
     const horseStyle = !isMounted ? 'opacity:0.5;cursor:not-allowed;' : '';
     const horseTitle = !isMounted
-        ? 'Только для конных классов (cavalry / horse_archer / camel_* / knight). 80K динаров у героя в игре.'
-        : 'Случайный скакун из high-tier пула. Списываются 80K динаров у героя в игре.';
+        ? 'Только для конных классов (cavalry / horse_archer / camel_* / knight). 1 000 000💰 у героя в игре (T5–T6 конь).'
+        : 'Случайный скакун из high-tier пула (T5–T6). Списывается 1 000 000💰 у героя в игре.';
 
     return `
         <div style="padding:6px 10px 10px 10px;">
@@ -1416,21 +1416,20 @@ function renderBannerlordRandomEquipHtml() {
             </div>
             <div style="display:flex;flex-direction:column;gap:4px;">
                 <button class="extra-btn" id="bnr-random-weapon"
-                        title="Случайное оружие из high-tier пула. Списываются 50K динаров у героя в игре."
+                        title="Случайное оружие из high-tier пула (T5–T6). Списывается 1 000 000💰 у героя в игре."
                         style="font-size:12px;padding:6px;">
-                    🗡 Купить оружие <span style="color:#fbbf24;">50К💰</span>
+                    🗡 Купить оружие <span style="color:#fbbf24;">1 000 000💰</span>
                 </button>
                 <button class="extra-btn" id="bnr-random-armor"
-                        title="Случайная броня (любой slot) из high-tier пула. Списываются 25K динаров у героя в игре."
+                        title="Случайная броня (любой slot) из high-tier пула (T5–T6). Списывается 500 000💰 у героя в игре."
                         style="font-size:12px;padding:6px;">
-                    🛡 Купить броню <span style="color:#fbbf24;">25К💰</span>
+                    🛡 Купить броню <span style="color:#fbbf24;">500 000💰</span>
                 </button>
                 <button class="extra-btn" id="bnr-random-horse"
                         ${horseDisabled}
                         title="${horseTitle}"
                         style="font-size:12px;padding:6px;${horseStyle}">
-                    🐎 Купить коня <span style="color:#fbbf24;">80К💰</span>
-                </button>
+                    🐎 Купить коня <span style="color:#fbbf24;">1 000 000💰</span>
             </div>
         </div>`;
 }

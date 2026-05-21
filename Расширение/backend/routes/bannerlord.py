@@ -690,8 +690,8 @@ async def bannerlord_buy_action(request: Request):
     }
     RANDOM_EQUIP_PRICES = RANDOM_EQUIP_HERO_GOLD  # legacy name (some refs ниже)
     SPAWN_PRICES = {
-        "player": 100,    # на сторону стримера (ally) — 5.4: было 500
-        "enemy":  200,    # против стримера — 2× as тролл-tax — 5.4: было 1000
+        "player": 50,     # на сторону стримера (ally) — 5.27i: ×0.5 от 100
+        "enemy":  100,    # против стримера — 2× as тролл-tax — 5.27i: ×0.5 от 200
     }
     MOUNTED_CLASSES = {
         "cavalry", "camel_cavalry", "horse_archer", "camel_archer", "knight"

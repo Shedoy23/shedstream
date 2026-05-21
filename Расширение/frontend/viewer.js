@@ -1356,8 +1356,8 @@ function renderBannerlordActivePowers() {
 function renderBannerlordSummonButton() {
     const slot = document.getElementById('bnr-summon-slot');
     if (!slot) return;
-    const ALLY_PRICE = 100;    // 5.4: 500→100
-    const ENEMY_PRICE = 200;   // 5.4: 1000→200 (2× тролл-tax)
+    const ALLY_PRICE = 50;     // 5.27i: 100→50 (×0.5)
+    const ENEMY_PRICE = 100;   // 5.27i: 200→100 (×0.5, 2× тролл-tax сохранён)
     const cdRem = (_bannerlordCooldowns.find(c => c.power_key === 'player.spawn') || {}).remaining_s || 0;
     const onCooldown = cdRem > 0;
     const cdLabel = onCooldown

@@ -75,7 +75,8 @@ POWER_COOLDOWNS = {
     "retribution_toggle":  90,
     # Sprint 5.0: player.spawn = summon hero в Mission. Cooldown особо нужен —
     # spawn в идущий бой это серьёзное вмешательство, нельзя спамить.
-    "player.spawn":        120,
+    # Sprint 5.27i: 120s → 30s (быстрее ротация участников).
+    "player.spawn":        30,
 }
 
 

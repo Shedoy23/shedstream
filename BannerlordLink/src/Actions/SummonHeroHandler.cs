@@ -109,6 +109,13 @@ namespace BannerlordLink.Actions
                 //           на стороне стримера).
                 // Sprint 5.15: если hero уже spawned, party селект всё равно
                 // нужен — для retinue spawning (тот же origin).
+                // Sprint 5.27p: enemy spawn больше не refuse'ит когда нет
+                // enemy PartyBase. Hideout / arena / tournament агентыхnave не
+                // PartyAgentOrigin → SelectRandomEnemyParty возвращает null.
+                // Раньше: отказ. Теперь: fallback на MainParty + forced
+                // SetTeam(PlayerEnemyTeam) ниже (engine ignored origin'овский
+                // side когда мы explicit SetTeam'им). BLT тоже использует
+                // MainParty для enemy если ничего лучше нет.
                 PartyBase originParty;
                 if (isPlayerSide)
                 {
@@ -121,13 +128,13 @@ namespace BannerlordLink.Actions
                     {
                         BannerlordLinkModule.Log(
                             $"[player.spawn:{sideLabel}] @{username}: enemy party " +
-                            "не найдена в Mission — отказ (не fallback'имся на MainParty).");
-                        return;
+                            "не найдена → fallback на MainParty (forced SetTeam fix'нет side)");
+                        originParty = MobileParty.MainParty?.Party;
                     }
                 }
                 if (originParty == null)
                 {
-                    BannerlordLinkModule.Log($"[player.spawn:{sideLabel}] @{username}: no origin party");
+                    BannerlordLinkModule.Log($"[player.spawn:{sideLabel}] @{username}: no origin party (даже MainParty=null?!)");
                     return;
                 }
 
@@ -183,23 +190,21 @@ namespace BannerlordLink.Actions
                 bool withHorse = ResolveWithHorse(username);
 
                 // Sprint 5.27f: spawn hero РЯДОМ с стримером (Agent.Main),
-                // не в default reinforcement zone (backline). Для ally side
-                // только — enemy остаются в стандартной enemy backline.
-                // Offset: 3m влево/право от стримера, alternating.
+                // не в default reinforcement zone (backline).
+                // 5.27p: enemy spawn — 10m ВПЕРЕДИ стримера (looking direction),
+                // ally — 3m perpendicular от него.
                 Vec3? heroSpawnPos = null;
                 Vec2? heroSpawnDir = null;
-                if (isPlayerSide)
+                try
                 {
-                    try
+                    var streamer = Agent.Main;
+                    if (streamer != null && streamer.IsActive())
                     {
-                        var streamer = Agent.Main;
-                        if (streamer != null && streamer.IsActive())
+                        var look = streamer.LookDirection;
+                        if (isPlayerSide)
                         {
-                            // Side offset (alternating L/R по хэшу username)
-                            // чтобы массовые призывы не валились в одну точку.
+                            // Ally: 3m влево/право (alternating по хэшу username).
                             int hashSign = (username.GetHashCode() & 1) == 0 ? 1 : -1;
-                            var look = streamer.LookDirection;
-                            // perpendicular в горизонтальной плоскости
                             float perpX = -look.y;
                             float perpY = look.x;
                             heroSpawnPos = new Vec3(
@@ -208,12 +213,22 @@ namespace BannerlordLink.Actions
                                 streamer.Position.z);
                             heroSpawnDir = look.AsVec2;
                         }
+                        else
+                        {
+                            // Enemy: 10m ВПЕРЕДИ стримера, looking назад (face-to-face).
+                            heroSpawnPos = new Vec3(
+                                streamer.Position.x + look.x * 10f,
+                                streamer.Position.y + look.y * 10f,
+                                streamer.Position.z);
+                            // Face the streamer (opposite of his look direction)
+                            heroSpawnDir = new Vec2(-look.x, -look.y);
+                        }
                     }
-                    catch (Exception ex)
-                    {
-                        BannerlordLinkModule.Log(
-                            $"[player.spawn:{sideLabel}] @{username} anchor resolve failed: {ex.Message}");
-                    }
+                }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[player.spawn:{sideLabel}] @{username} anchor resolve failed: {ex.Message}");
                 }
 
                 // Sprint 5.15: re-use existing agent если hero auto-spawned;
@@ -496,26 +511,40 @@ namespace BannerlordLink.Actions
 
         // Sprint 5.7 — RANDOM enemy party (BLT pattern). Раньше брали FIRST
         // встречного — однообразный spawn point + предсказуемо. Теперь — uniqe
-        // parties → SelectRandom(). Если enemy team пуста → null (refuse).
+        // parties → SelectRandom(). null → fallback на MainParty (см. caller).
+        //
+        // Sprint 5.27p: diagnostic log с подсчётом agents (понять что блокирует
+        // если viewer'ы получают "против стримера не вызывается").
         private static PartyBase SelectRandomEnemyParty()
         {
             if (Mission.Current == null) return null;
             var enemyTeam = Mission.Current.PlayerEnemyTeam;
-            if (enemyTeam == null) return null;
+            if (enemyTeam == null)
+            {
+                BannerlordLinkModule.Log("[SelectEnemyParty] PlayerEnemyTeam == null");
+                return null;
+            }
 
             var unique = new System.Collections.Generic.HashSet<PartyBase>();
             // TeamAgents может быть null если team только что spawn'нулась — fallback
             // на Mission.Agents filter.
             var source = (System.Collections.Generic.IEnumerable<Agent>)enemyTeam.TeamAgents
                         ?? Mission.Current.Agents;
+
+            int total = 0, inactive = 0, wrongTeam = 0, noOrigin = 0;
             foreach (var a in source)
             {
-                if (a == null || !a.IsActive()) continue;
+                total++;
+                if (a == null || !a.IsActive()) { inactive++; continue; }
                 if (a.Team != enemyTeam && !(a.Team?.IsEnemyOf(Mission.Current.PlayerTeam) ?? false))
-                    continue;
+                { wrongTeam++; continue; }
                 var origin = a.Origin as PartyAgentOrigin;
-                if (origin?.BattleCombatant is PartyBase pb) unique.Add(pb);
+                if (origin?.BattleCombatant is PartyBase pb) { unique.Add(pb); }
+                else { noOrigin++; }
             }
+            BannerlordLinkModule.Log(
+                $"[SelectEnemyParty] scanned={total} inactive={inactive} " +
+                $"wrongTeam={wrongTeam} noPartyOrigin={noOrigin} → uniqueParties={unique.Count}");
             if (unique.Count == 0) return null;
             var list = unique.ToList();
             return list[new Random().Next(list.Count)];

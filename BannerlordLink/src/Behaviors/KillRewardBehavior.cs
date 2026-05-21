@@ -181,12 +181,47 @@ namespace BannerlordLink.Behaviors
                     }
                     else
                     {
-                        // Viewer был "свободным" (no party / clan ledger only) —
-                        // после removal он туда же и вернётся (engine оставит
-                        // его в clan.Heroes / Settlement.HeroesWithoutParty).
-                        BannerlordLinkModule.Log(
-                            $"[PartyRestore] {entry.Hero.Name} → detached from " +
-                            $"{currentParty?.Name?.ToString() ?? "?"} (no original party)");
+                        // Sprint 5.27j: BLT pattern — viewer без original party
+                        // отправляется в HomeSettlement через
+                        // EnterSettlementAction.ApplyForCharacterOnly. Без этого
+                        // PartyBelongedTo может застрять в phantom-state
+                        // (count=0 в roster но hero числится "in party"),
+                        // что ломает MainParty инварианты (negative members,
+                        // broken passive heal). См. BLT AdoptAHero.cs:435.
+                        var home = entry.Hero.HomeSettlement;
+                        if (home == null)
+                        {
+                            // Fallback: любой town в map.
+                            try
+                            {
+                                home = TaleWorlds.CampaignSystem.Settlements.Settlement.All
+                                    ?.Where(s => s != null && s.IsTown)
+                                    .FirstOrDefault();
+                            }
+                            catch { }
+                        }
+                        if (home != null)
+                        {
+                            try
+                            {
+                                EnterSettlementAction.ApplyForCharacterOnly(entry.Hero, home);
+                                BannerlordLinkModule.Log(
+                                    $"[PartyRestore] {entry.Hero.Name} → sent home " +
+                                    $"({home.Name?.ToString() ?? "?"}) [no original party, BLT pattern]");
+                            }
+                            catch (Exception ex)
+                            {
+                                BannerlordLinkModule.Log(
+                                    $"[PartyRestore] EnterSettlementAction failed for " +
+                                    $"{entry.Hero.Name}: {ex.Message}");
+                            }
+                        }
+                        else
+                        {
+                            BannerlordLinkModule.Log(
+                                $"[PartyRestore] {entry.Hero.Name} → detached from " +
+                                $"{currentParty?.Name?.ToString() ?? "?"} (no home settlement either!)");
+                        }
                     }
                 }
                 catch (Exception ex)

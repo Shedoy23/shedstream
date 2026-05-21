@@ -257,6 +257,21 @@ namespace BannerlordLink.Actions
 
                 if (agent != null && !heroAlreadySpawned)
                 {
+                    // Sprint 5.27q: BLT pattern — переименование agent через
+                    // reflection (_name field). Engine показывает Name при
+                    // hover/target на agent'a. Для hero: чистое "@username"
+                    // (без [BLink] prefix), чтобы стример сразу видел чей это
+                    // hero без визуального мусора.
+                    try
+                    {
+                        SetAgentDisplayName(agent, $"@{username}");
+                    }
+                    catch (Exception ex)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[player.spawn:{sideLabel}] @{username} rename failed: {ex.Message}");
+                    }
+
                     // BLT pattern (SummonHero.cs:744-746): forced SetTeam после
                     // spawn'a — engine может проигнорировать isPlayerSide и
                     // ставить team по origin.party.MapFaction. SetTeam гарантирует
@@ -418,6 +433,14 @@ namespace BannerlordLink.Actions
                                     BannerlordLink.Behaviors.KillRewardBehavior
                                         .RegisterRetinue(retinueAgent, username);
                                 } catch { }
+                                // Sprint 5.27q: rename "{TroopName} (@username)"
+                                // BLT pattern (BLTSummonBehavior:307).
+                                try
+                                {
+                                    string orig = retinueAgent.Name ?? troop.Name?.ToString() ?? troop.StringId;
+                                    SetAgentDisplayName(retinueAgent, $"{orig} (@{username})");
+                                }
+                                catch { }
                                 spawned++;
                             }
                         }
@@ -487,6 +510,27 @@ namespace BannerlordLink.Actions
         private static bool IsAlreadySpawned(Hero hero)
         {
             return FindExistingHeroAgent(hero) != null;
+        }
+
+        /// <summary>Sprint 5.27q: переименовывает agent через reflection.
+        /// Engine показывает Name при hover/target на agent. BLT pattern
+        /// (BLTSummonBehavior:280 — AccessTools.Field(typeof(Agent), "_name")).
+        /// Cached reflection field — устанавливается один раз.</summary>
+        private static System.Reflection.FieldInfo _agentNameField;
+        private static void SetAgentDisplayName(Agent agent, string newName)
+        {
+            if (agent == null || string.IsNullOrEmpty(newName)) return;
+            if (_agentNameField == null)
+            {
+                _agentNameField = HarmonyLib.AccessTools.Field(typeof(Agent), "_name");
+                if (_agentNameField == null)
+                {
+                    BannerlordLinkModule.Log(
+                        "[SetAgentDisplayName] Agent._name field not found via reflection!");
+                    return;
+                }
+            }
+            _agentNameField.SetValue(agent, new TaleWorlds.Localization.TextObject(newName));
         }
 
         /// <summary>Sprint 5.15: возвращает existing Agent для hero в Mission

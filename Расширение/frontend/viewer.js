@@ -2074,6 +2074,73 @@ async function _openBannerlordClanUpgradesModal() {
     });
 }
 
+// Sprint 5.27a: profile modal — gender swap (+ marriage/family tree в 5.27b/c).
+function _openBannerlordProfileModal() {
+    const h = _bannerlordLastHero?.hero || {};
+    const isFemale = !!h.is_female;
+    const heroGold = h.gold || 0;
+    const GENDER_COST = 50000;
+    const canAfford = heroGold >= GENDER_COST;
+    const currentLabel = h.is_female === true ? '♀ Женский'
+                       : h.is_female === false ? '♂ Мужской'
+                       : '— (не известно)';
+
+    const body = `
+        <div style="background:#1a1a1c;border:1px solid #3a3a3e;border-radius:6px;
+                    padding:10px;margin-bottom:10px;">
+            <div style="font-size:12px;color:#adadb8;margin-bottom:4px;">
+                Текущий пол: <b style="color:#efeff1;">${currentLabel}</b>
+            </div>
+            <div style="font-size:11px;color:#adadb8;margin-bottom:8px;">
+                Стоимость: <b style="color:#fbbf24;">${GENDER_COST.toLocaleString('ru-RU')}💰</b>
+                · у тебя ${heroGold.toLocaleString('ru-RU')}💰
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+                <button class="extra-btn" data-gender-set="male"
+                        ${canAfford ? '' : 'disabled'}
+                        style="font-size:12px;padding:8px;
+                               background:${canAfford ? '#1e3a5f' : '#2d2d2f'};
+                               color:${canAfford ? '#93c5fd' : '#6b7280'};
+                               ${canAfford ? '' : 'cursor:not-allowed;'}">
+                    ♂ Мужской
+                </button>
+                <button class="extra-btn" data-gender-set="female"
+                        ${canAfford ? '' : 'disabled'}
+                        style="font-size:12px;padding:8px;
+                               background:${canAfford ? '#5b21b6' : '#2d2d2f'};
+                               color:${canAfford ? '#f472b6' : '#6b7280'};
+                               ${canAfford ? '' : 'cursor:not-allowed;'}">
+                    ♀ Женский
+                </button>
+            </div>
+            <div style="font-size:10px;color:#6b7280;margin-top:8px;text-align:center;">
+                Если есть супруг(а) — engine автоматом перевернёт их пол
+                чтоб брак остался валиден.
+            </div>
+        </div>
+        <div style="background:#1a1a1c;border:1px solid #3a3a3e;border-radius:6px;
+                    padding:10px;margin-bottom:8px;color:#6b7280;font-size:11px;
+                    text-align:center;">
+            🚧 Брак с NPC и family tree — в следующих обновлениях (5.27b/c)
+        </div>
+    `;
+
+    _bnrShowSimpleModal({
+        title: '🧬 Профиль и семья',
+        body,
+        bind: overlay => {
+            overlay.querySelectorAll('[data-gender-set]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const newGender = btn.dataset.genderSet;
+                    if (!confirm(`Сменить пол на ${newGender === 'female' ? 'женский ♀' : 'мужской ♂'}? Спишет 50K💰.`)) return;
+                    _bannerlordBuyAction('hero.set_gender', {gender: newGender});
+                    overlay.remove();
+                });
+            });
+        },
+    });
+}
+
 function _openBannerlordKingdomModal() {
     const h = _bannerlordLastHero?.hero || {};
     const hasClan = !!h.clan_name;
@@ -2924,6 +2991,12 @@ async function loadBannerlordHero() {
                         style="width:100%;font-size:11px;padding:6px;margin-bottom:6px;">
                     🎯 Прогрессия — скиллы / фокусы / атрибуты
                 </button>
+                <button class="extra-btn" id="bnr-open-profile-btn"
+                        title="Семейные настройки: смена пола, брак, дети"
+                        style="width:100%;font-size:11px;padding:6px;margin-bottom:6px;
+                               background:#1f1a30;color:#c084fc;">
+                    🧬 Профиль и семья
+                </button>
                 <details data-bnr-details="equipment" ${_bnrDetailsAttr('equipment')}>
                     <summary style="font-size:11px;color:#adadb8;cursor:pointer;">Экипировка</summary>
                     <div style="margin-top:4px;">${eqHtml}</div>
@@ -2942,6 +3015,9 @@ async function loadBannerlordHero() {
         // Sprint 5.8: bind кнопку открытия progression modal
         document.getElementById('bnr-open-progression-btn')?.addEventListener('click',
             _openBannerlordProgressionModal);
+        // Sprint 5.27a: profile modal (gender swap + marriage + family tree)
+        document.getElementById('bnr-open-profile-btn')?.addEventListener('click',
+            _openBannerlordProfileModal);
         // Sprint 5.11: bind clickable clan/kingdom rows (открывают modal)
         document.getElementById('bnr-clan-row')?.addEventListener('click',
             _openBannerlordClanModal);

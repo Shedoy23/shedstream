@@ -50,6 +50,7 @@ namespace BannerlordLink.Actions
             Register(new JoinClanHandler());         // hero.join_clan — Sprint 5.12
             Register(new JoinKingdomHandler());      // hero.join_kingdom — Sprint 5.12
             Register(new CreatePartyHandler());      // hero.create_party — Sprint 5.13 (BLT-style)
+            Register(new SetGenderHandler());        // hero.set_gender — Sprint 5.27a (gender swap)
 
             // ── Echo stubs (TODO Sprint 5.2+ заменить на real) ─────────────
             string[] echoTypes =

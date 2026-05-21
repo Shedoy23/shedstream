@@ -389,7 +389,11 @@ _PURCHASABLE_ACTIONS = (
     "hero.join_clan",            # Sprint 5.12: join existing clan (Hero.Gold 50K)
     "hero.join_kingdom",         # Sprint 5.12: clan joins kingdom (Hero.Gold 100K)
     "hero.create_party",         # Sprint 5.13: clan-leader creates MobileParty (Hero.Gold 200K)
+    "hero.set_gender",           # Sprint 5.27a: gender swap (Hero.Gold 50K)
 )
+
+# Sprint 5.27a — стоимость gender swap (BLT default: 50k).
+GENDER_SWAP_COST = 50_000
 
 # Sprint 5.18 (refactor): helper для повторяющегося Hero.Gold pre-check.
 # Используется в нескольких action handlers (create_clan, create_kingdom,
@@ -966,6 +970,24 @@ async def bannerlord_buy_action(request: Request):
         data["amount"] = amount
         data["hero_gold_cost"] = cost
         data["price"] = 0
+
+    # Sprint 5.27a: hero.set_gender — gender swap (50k💰 Hero.Gold).
+    # Body: {gender: "male"|"female"}. Mod auto-flips spouse если есть
+    # (Bannerlord не любит same-sex marriages).
+    if action_type == "hero.set_gender":
+        gender = (data.get("gender") or "").strip().lower()
+        if gender not in ("male", "female"):
+            return {"success": False, "message": "gender должен быть male|female"}
+        hero_gold = await _fetch_hero_gold(channel_id, username)
+        if hero_gold < GENDER_SWAP_COST:
+            return {
+                "success": False,
+                "message": f"Нужно {GENDER_SWAP_COST:,}💰 для смены пола "
+                           f"(у тебя {hero_gold:,}💰).",
+            }
+        data["gender"] = gender
+        data["hero_gold_cost"] = GENDER_SWAP_COST
+        data["price"] = 0  # крустики free
 
     # Sprint 5.9: hero.create_clan — БЕСПЛАТНО в крустиках, mod списывает
     # 100K Hero.Gold. Validation clan_name + Hero.Gold pre-check + check

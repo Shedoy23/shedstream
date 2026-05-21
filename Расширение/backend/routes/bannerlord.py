@@ -978,10 +978,16 @@ async def bannerlord_buy_action(request: Request):
         cost = ATTRIBUTE_COST * amount
         hero_gold = await _fetch_hero_gold(channel_id, username)
         if hero_gold < cost:
+            # 5.27s diagnostic: log refuse так стример видит причину в supervisor.
+            print(f"[bannerlord:{channel_id}] hero.add_attribute REFUSE @{username} "
+                  f"attr={attr_key or 'random'} cost={cost} hero_gold={hero_gold}")
             return {
                 "success": False,
-                "message": f"Нужно {cost:,}💰 динаров (у тебя {hero_gold:,}💰).",
+                "message": f"Нужно {cost:,}💰 динаров у героя (у тебя {hero_gold:,}💰). "
+                           "Заработай в битвах или конвертируй крустики в gold.",
             }
+        print(f"[bannerlord:{channel_id}] hero.add_attribute QUEUE @{username} "
+              f"attr={attr_key or 'random'} amount={amount} cost={cost}")
         data["attribute_key"] = attr_key  # '' = random
         data["amount"] = amount
         data["hero_gold_cost"] = cost

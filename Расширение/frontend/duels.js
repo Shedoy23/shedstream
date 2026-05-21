@@ -47,28 +47,21 @@ async function openDuels() {
         const modal = document.createElement('div');
         modal.className = 'modal active';
         modal.id = 'duels-modal';
+        // Sprint 5.24b: invite-flow убран. Остался только matchmaking BO3
+        // + лидерборд сезона. Старые endpoints (create/accept) живут
+        // для backward-compat с висящими invite'ами через бот в чате.
         modal.innerHTML = `
             <div class="modal-content" style="max-width:460px;">
                 <h2>⚔️ Дуэли</h2>
 
-                <!-- Sprint 5.24b: matchmaking — best-of-3 RPS через очередь -->
+                <p style="color:#adadb8;font-size:13px;margin-bottom:14px;text-align:center;">
+                    Камень/ножницы/бумага. Best-of-3. Победа добавляет ELO.
+                </p>
+
                 <button class="modal-btn" id="duel-find-btn"
-                        style="margin-bottom:14px;background:#5a2c9d;border-color:#9147ff;">
-                    🔎 Найти соперника (BO3)
+                        style="margin-bottom:16px;font-size:15px;padding:14px;background:#5a2c9d;border-color:#9147ff;">
+                    🔎 Найти соперника
                 </button>
-
-                <!-- Создать дуэль (invite-flow, legacy) -->
-                <div style="margin-bottom:16px;">
-                    <p style="color:#adadb8;font-size:13px;margin-bottom:8px;">Или классическая дуэль с одного раунда — выбери ход:</p>
-                    ${_rpsPickerHtml('create')}
-                    <button class="modal-btn" data-action="create-duel">⚔️ Выйти на арену</button>
-                </div>
-
-                <!-- Активные дуэли -->
-                <div style="max-height:180px;overflow-y:auto;margin-bottom:16px;">
-                    <h3 style="margin-bottom:8px;">Активные дуэли:</h3>
-                    <div id="duels-list">${_renderDuelsList(listData.duels || [])}</div>
-                </div>
 
                 <!-- Лидерборд -->
                 <div>
@@ -83,13 +76,7 @@ async function openDuels() {
 
         (document.getElementById("overlay-panel") || document.body).appendChild(modal);
 
-        _bindRpsPicker('create', move => { _selectedDuelMove = move; });
-
-        document.querySelectorAll('[data-accept-duel]').forEach(btn => {
-            btn.addEventListener('click', () => _openAcceptModal(btn.dataset.acceptDuel));
-        });
-
-        // Sprint 5.24b: matchmaking — best-of-3 RPS через очередь
+        // Sprint 5.24b: matchmaking-only flow
         document.getElementById('duel-find-btn')?.addEventListener('click', () => {
             document.getElementById('duels-modal')?.remove();
             openRpsMatchmaking();

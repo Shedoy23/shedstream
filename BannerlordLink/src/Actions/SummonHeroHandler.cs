@@ -182,6 +182,40 @@ namespace BannerlordLink.Actions
 
                 bool withHorse = ResolveWithHorse(username);
 
+                // Sprint 5.27f: spawn hero РЯДОМ с стримером (Agent.Main),
+                // не в default reinforcement zone (backline). Для ally side
+                // только — enemy остаются в стандартной enemy backline.
+                // Offset: 3m влево/право от стримера, alternating.
+                Vec3? heroSpawnPos = null;
+                Vec2? heroSpawnDir = null;
+                if (isPlayerSide)
+                {
+                    try
+                    {
+                        var streamer = Agent.Main;
+                        if (streamer != null && streamer.IsActive())
+                        {
+                            // Side offset (alternating L/R по хэшу username)
+                            // чтобы массовые призывы не валились в одну точку.
+                            int hashSign = (username.GetHashCode() & 1) == 0 ? 1 : -1;
+                            var look = streamer.LookDirection;
+                            // perpendicular в горизонтальной плоскости
+                            float perpX = -look.y;
+                            float perpY = look.x;
+                            heroSpawnPos = new Vec3(
+                                streamer.Position.x + perpX * 3f * hashSign,
+                                streamer.Position.y + perpY * 3f * hashSign,
+                                streamer.Position.z);
+                            heroSpawnDir = look.AsVec2;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[player.spawn:{sideLabel}] @{username} anchor resolve failed: {ex.Message}");
+                    }
+                }
+
                 // Sprint 5.15: re-use existing agent если hero auto-spawned;
                 // иначе spawn fresh agent через engine API.
                 Agent agent;
@@ -196,14 +230,14 @@ namespace BannerlordLink.Actions
                         isPlayerSide:        isPlayerSide,
                         hasFormation:        true,
                         spawnWithHorse:      withHorse,
-                        isReinforcement:     true,
+                        isReinforcement:     !heroSpawnPos.HasValue,
                         formationTroopCount: 1,
                         formationTroopIndex: 0,
                         isAlarmed:           true,
                         wieldInitialWeapons: true,
                         forceDismounted:     !withHorse,
-                        initialPosition:     null,
-                        initialDirection:    null);
+                        initialPosition:     heroSpawnPos,
+                        initialDirection:    heroSpawnDir);
                 }
 
                 if (agent != null && !heroAlreadySpawned)

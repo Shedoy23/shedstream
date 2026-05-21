@@ -41,6 +41,10 @@ namespace BannerlordLink.Behaviors
             // backend сам skip reset).
             CampaignEvents.OnGameLoadFinishedEvent.AddNonSerializedListener(this, OnGameLoadFinished);
             CampaignEvents.OnSessionLaunchedEvent.AddNonSerializedListener(this, OnSessionLaunched);
+            // Sprint 5.27h: hourly safety net — выкидывает [BLink] viewer-героев
+            // которые залипли в MainParty после battle (fallback на случай если
+            // KillRewardBehavior.OnEndMission не отработал — retreat / abort).
+            CampaignEvents.HourlyTickEvent.AddNonSerializedListener(this, OnHourlyTick);
         }
 
         public override void SyncData(IDataStore dataStore)
@@ -82,6 +86,73 @@ namespace BannerlordLink.Behaviors
             BannerlordLinkModule.Log(
                 $"[CampaignEvent] HeroLevelledUp: {hero?.Name?.ToString()} → " +
                 $"level {hero?.Level} (full state pushed)");
+        }
+
+        /// <summary>Sprint 5.27h: safety net для PartyRestore.
+        /// Каждый час сканит MainParty.MemberRoster и выкидывает [BLink]
+        /// viewer-героев, которые не принадлежат PlayerClan. Срабатывает
+        /// когда KillRewardBehavior.OnEndMission пропустил restore
+        /// (retreat, abort, crash mid-mission).</summary>
+        private void OnHourlyTick()
+        {
+            try
+            {
+                // Skip если в активном Mission — не лезем в roster в бою.
+                if (TaleWorlds.MountAndBlade.Mission.Current != null) return;
+
+                var mainParty = TaleWorlds.CampaignSystem.Party.MobileParty.MainParty;
+                var roster = mainParty?.MemberRoster;
+                if (roster == null || roster.Count == 0) return;
+
+                var playerClan = Clan.PlayerClan;
+                int evicted = 0;
+
+                // Iterate по copy чтобы не модифицировать во время enumeration.
+                var snapshot = new System.Collections.Generic.List<TaleWorlds.CampaignSystem.Roster.TroopRosterElement>();
+                for (int i = 0; i < roster.Count; i++)
+                {
+                    snapshot.Add(roster.GetElementCopyAtIndex(i));
+                }
+
+                foreach (var slot in snapshot)
+                {
+                    var ch = slot.Character;
+                    if (ch == null || !ch.IsHero) continue;
+                    var hero = ch.HeroObject;
+                    if (hero == null) continue;
+                    // Только viewer-героев ([BLink] prefix).
+                    if (hero.Name == null) continue;
+                    string name = hero.Name.ToString();
+                    if (!BannerlordLink.Util.HeroNaming.IsAdopted(name)) continue;
+                    // Если hero реально принадлежит PlayerClan (companion / spouse
+                    // стримера) — оставляем. Иначе выкидываем.
+                    if (hero.Clan == playerClan) continue;
+
+                    try
+                    {
+                        mainParty.Party.AddMember(ch, -1);
+                        evicted++;
+                        BannerlordLinkModule.Log(
+                            $"[HourlyTick] evicted stuck @{name} from MainParty " +
+                            $"(clan={hero.Clan?.Name?.ToString() ?? "?"})");
+                    }
+                    catch (Exception ex)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[HourlyTick] evict {name} failed: {ex.Message}");
+                    }
+                }
+
+                if (evicted > 0)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[HourlyTick] evicted {evicted} stuck viewer-heroes из MainParty");
+                }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[HourlyTick] CRASHED: {ex.Message}");
+            }
         }
 
         // M22: push session_start с real save_id (Campaign.UniqueGameId)

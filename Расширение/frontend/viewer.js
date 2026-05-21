@@ -1495,11 +1495,30 @@ function _renderEquipRow(slot, it, slotIcons) {
 // retinue = [{slot_index, troop_id, troop_name, tier, is_elite}]
 const RECRUIT_PRICE_BASIC = 100;   // крустиков basic
 const RECRUIT_PRICE_ELITE = 300;   // крустиков elite (3×)
+// Sprint 5.27h — TIER_COSTS из mod-side RecruitTroopsHandler.TIER_COSTS.
+// Используется UI чтобы вывести требуемые dinars в кнопке + disable если
+// hero.Gold < cost.
+const RETINUE_TIER_DINARS = [5_000, 10_000, 20_000, 30_000, 50_000, 80_000];
+const RETINUE_ELITE_MULT = 3;
+function _computeRetinueDinarCost(slots, isElite, isAdd) {
+    let tier = 0;
+    if (!isAdd) {
+        const sameType = slots.filter(s => !!s.is_elite === isElite);
+        if (sameType.length === 0) return 0;
+        tier = Math.min(...sameType.map(s => s.tier || 0));
+    }
+    const base = RETINUE_TIER_DINARS[Math.min(tier, RETINUE_TIER_DINARS.length - 1)];
+    return isElite ? base * RETINUE_ELITE_MULT : base;
+}
+function _fmtDinars(n) {
+    return n.toLocaleString('ru-RU').replace(/,/g, ' ');
+}
 function _renderRetinue(retinue) {
     const slot = document.getElementById('bnr-retinue-slot');
     if (!slot) return;
     const MAX_SLOTS = 5;
     const list = retinue || [];
+    const heroGold = (_bannerlordLastHero?.gold) || 0;
 
     const rows = list.length === 0
         ? '<div style="font-size:11px;color:#9ca3af;padding:2px 0;">пусто</div>'
@@ -1521,19 +1540,33 @@ function _renderRetinue(retinue) {
     const basicAllMax = basicSlots.length > 0 && basicSlots.every(t => (t.tier || 0) >= 5);
     const eliteAllMax = eliteSlots.length > 0 && eliteSlots.every(t => (t.tier || 0) >= 5);
 
-    const basicLabel = !isMaxed
-        ? `➕ Нанять воина (${RECRUIT_PRICE_BASIC}💎)`
-        : (basicAllMax
-            ? '✓ Basic maxed'
-            : `⬆ Прокачать basic (${RECRUIT_PRICE_BASIC}💎)`);
-    const eliteLabel = !isMaxed
-        ? `★ Нанять элитного (${RECRUIT_PRICE_ELITE}💎)`
-        : (eliteAllMax
-            ? '✓ Elite maxed'
-            : `⬆ Прокачать elite (${RECRUIT_PRICE_ELITE}💎)`);
+    // Dinar costs (mod-side RecruitTroopsHandler логика).
+    const basicCost = _computeRetinueDinarCost(list, false, !isMaxed);
+    const eliteCost = _computeRetinueDinarCost(list, true,  !isMaxed);
+    const basicLow  = heroGold < basicCost;
+    const eliteLow  = heroGold < eliteCost;
 
-    const basicDisabled = isMaxed && (basicSlots.length === 0 || basicAllMax);
-    const eliteDisabled = isMaxed && (eliteSlots.length === 0 || eliteAllMax);
+    const basicLabel = basicAllMax && isMaxed
+        ? '✓ Basic maxed'
+        : (eliteSlots.length === 0 && basicSlots.length === 0 && isMaxed
+            ? '✓ Basic maxed'
+            : `${!isMaxed ? '➕ Нанять' : '⬆ Прокачать'} basic
+               <div style="font-size:10px;font-weight:normal;margin-top:2px;opacity:0.85;">
+                   ${RECRUIT_PRICE_BASIC}💎 + ${_fmtDinars(basicCost)}💰
+                   ${basicLow ? `<span style="color:#f87171;"> (не хватает ${_fmtDinars(basicCost - heroGold)}💰)</span>` : ''}
+               </div>`);
+    const eliteLabel = eliteAllMax && isMaxed
+        ? '✓ Elite maxed'
+        : (basicSlots.length === 0 && eliteSlots.length === 0 && isMaxed
+            ? '✓ Elite maxed'
+            : `${!isMaxed ? '★ Нанять' : '⬆ Прокачать'} elite
+               <div style="font-size:10px;font-weight:normal;margin-top:2px;opacity:0.85;">
+                   ${RECRUIT_PRICE_ELITE}💎 + ${_fmtDinars(eliteCost)}💰
+                   ${eliteLow ? `<span style="color:#f87171;"> (не хватает ${_fmtDinars(eliteCost - heroGold)}💰)</span>` : ''}
+               </div>`);
+
+    const basicDisabled = (isMaxed && (basicSlots.length === 0 || basicAllMax)) || basicLow;
+    const eliteDisabled = (isMaxed && (eliteSlots.length === 0 || eliteAllMax)) || eliteLow;
 
     slot.innerHTML = `
         <details data-bnr-details="retinue" ${_bnrDetailsAttr('retinue')}>
@@ -1548,15 +1581,15 @@ function _renderRetinue(retinue) {
                 <div style="display:flex;gap:4px;margin-top:6px;">
                     <button class="extra-btn" id="bnr-recruit-basic-btn"
                             ${basicDisabled ? 'disabled' : ''}
-                            title="Basic troop (battanian_recruit / khuzait_nomad / etc). Списать 100💎 крустиков + 5K-80K динаров у героя."
-                            style="flex:1;font-size:11px;padding:6px;
+                            title="Basic troop (battanian_recruit / khuzait_nomad / etc). Списать ${RECRUIT_PRICE_BASIC}💎 крустиков + ${_fmtDinars(basicCost)}💰 динаров у героя."
+                            style="flex:1;font-size:11px;padding:6px;line-height:1.2;
                                    ${basicDisabled ? 'opacity:0.5;cursor:not-allowed;' : ''}">
                         ${basicLabel}
                     </button>
                     <button class="extra-btn" id="bnr-recruit-elite-btn"
                             ${eliteDisabled ? 'disabled' : ''}
-                            title="Elite troop (battanian_oathsworn / vlandian_squire / etc) — другая ветка прокачки до champion/hero. 3× стоимость."
-                            style="flex:1;font-size:11px;padding:6px;background:#5c2d12;color:#fbbf24;
+                            title="Elite troop (battanian_oathsworn / vlandian_squire / etc) — другая ветка прокачки. 3× стоимость. Списать ${RECRUIT_PRICE_ELITE}💎 + ${_fmtDinars(eliteCost)}💰."
+                            style="flex:1;font-size:11px;padding:6px;line-height:1.2;background:#5c2d12;color:#fbbf24;
                                    ${eliteDisabled ? 'opacity:0.5;cursor:not-allowed;' : ''}">
                         ${eliteLabel}
                     </button>

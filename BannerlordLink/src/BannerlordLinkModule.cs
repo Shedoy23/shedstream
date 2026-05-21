@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using BannerlordLink.Actions;
 using BannerlordLink.Behaviors;
@@ -150,6 +151,37 @@ namespace BannerlordLink
                     // Sprint 5.26c: BLT-style clan upgrades (daily renown + influence tick).
                     campaignStarter.AddBehavior(new ClanUpgradesBehavior());
                     Log("ClanUpgradesBehavior registered (daily clan upgrades tick)");
+
+                    // Sprint 5.26d: model replacements для статических clan-upgrade
+                    // эффектов (party_size, party/army_speed, party_amount).
+                    // Pattern: subclass нативной model, делегирует _previous, добавляет
+                    // bonus сверху. Регистрируется через AddModel — game подменяет.
+                    try
+                    {
+                        var prevPartySpeed = campaignStarter.Models
+                            .OfType<TaleWorlds.CampaignSystem.ComponentInterfaces.PartySpeedModel>()
+                            .FirstOrDefault();
+                        if (prevPartySpeed != null)
+                            campaignStarter.AddModel(new Models.BLPartySpeedModel(prevPartySpeed));
+
+                        var prevPartySize = campaignStarter.Models
+                            .OfType<TaleWorlds.CampaignSystem.ComponentInterfaces.PartySizeLimitModel>()
+                            .FirstOrDefault();
+                        if (prevPartySize != null)
+                            campaignStarter.AddModel(new Models.BLPartySizeLimitModel(prevPartySize));
+
+                        var prevClanTier = campaignStarter.Models
+                            .OfType<TaleWorlds.CampaignSystem.ComponentInterfaces.ClanTierModel>()
+                            .FirstOrDefault();
+                        if (prevClanTier != null)
+                            campaignStarter.AddModel(new Models.BLClanTierModel(prevClanTier));
+
+                        Log("BLUpgradeModels registered (party_size/speed + clan party_amount)");
+                    }
+                    catch (Exception ex)
+                    {
+                        Log($"BLUpgradeModels register FAILED: {ex.Message}");
+                    }
                 }
                 catch (Exception ex)
                 {

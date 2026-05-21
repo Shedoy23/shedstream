@@ -26,12 +26,47 @@ namespace BannerlordLink.Behaviors
     /// </summary>
     public class ClanUpgradesBehavior : CampaignBehaviorBase
     {
+        // Static accessor для model replacements (вызываются из BLUpgradeModels.cs).
+        // Pattern скопирован с BLT'шного UpgradeBehavior.Current.
+        public static ClanUpgradesBehavior Current { get; private set; }
+
+        public ClanUpgradesBehavior() { Current = this; }
+
         // Кэш: username → list of upgrade_ids
         private Dictionary<string, List<string>> _ownedByUser = new Dictionary<string, List<string>>();
         // Кэш: upgrade_id → effects dict
         private Dictionary<string, Dictionary<string, double>> _effectsByUpgrade =
             new Dictionary<string, Dictionary<string, double>>();
         private bool _fetchedThisTick;
+
+        /// <summary>
+        /// Суммарный эффект effectKey для конкретного hero. Возвращает 0 если
+        /// hero не [BLink], не имеет купленных upgrades, или ключ не присутствует
+        /// ни в одном из его upgrades.
+        /// </summary>
+        public double GetBonusFor(Hero hero, string effectKey)
+        {
+            if (hero?.Name == null) return 0.0;
+            if (!HeroNaming.IsAdopted(hero.Name.ToString())) return 0.0;
+            var login = HeroNaming.ExtractUsername(hero.Name.ToString())?.ToLowerInvariant();
+            if (string.IsNullOrEmpty(login)) return 0.0;
+            if (!_ownedByUser.TryGetValue(login, out var upgrades)) return 0.0;
+
+            double total = 0.0;
+            foreach (var upgId in upgrades)
+            {
+                if (!_effectsByUpgrade.TryGetValue(upgId, out var eff)) continue;
+                if (eff.TryGetValue(effectKey, out var v)) total += v;
+            }
+            return total;
+        }
+
+        /// <summary>Sum effect для clan'а (берёт у clan.Leader).</summary>
+        public double GetBonusForClan(Clan clan, string effectKey)
+        {
+            if (clan?.Leader == null) return 0.0;
+            return GetBonusFor(clan.Leader, effectKey);
+        }
 
         public override void RegisterEvents()
         {

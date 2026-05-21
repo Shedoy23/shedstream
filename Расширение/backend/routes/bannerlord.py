@@ -748,7 +748,24 @@ async def bannerlord_buy_action(request: Request):
             if action_type == "hero.recruit_troops":
                 # Sprint 5.14: is_elite flag — 3× cost для elite troops
                 want_elite = bool(data.get("is_elite", False))
-                MAX_RETINUE = 5
+                # Sprint 5.26d: retinue_size_bonus из clan upgrades суммируется
+                # к базовым 5 slots. Бонус = sum effects.retinue_size_bonus по
+                # owned upgrades этого юзера в этом канале.
+                base_cap = 5
+                bonus_cap = 0
+                cur = await conn.execute(
+                    "SELECT u.effects_json FROM bannerlord_clan_upgrades_owned o "
+                    "JOIN bannerlord_clan_upgrades_catalog u ON "
+                    "  u.channel_id = o.channel_id AND u.upgrade_id = o.upgrade_id "
+                    "WHERE o.channel_id = ? AND o.username = ?",
+                    (channel_id, username))
+                for (eff_json,) in await cur.fetchall():
+                    try:
+                        eff = json.loads(eff_json or '{}')
+                        bonus_cap += int(eff.get("retinue_size_bonus", 0) or 0)
+                    except Exception:
+                        pass
+                MAX_RETINUE = base_cap + bonus_cap
 
                 # Sprint 5.14: проверяем slots ТОГО же типа (basic vs elite)
                 # для upgrade-decision. Empty slots → new troop.

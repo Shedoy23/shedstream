@@ -147,6 +147,9 @@ namespace BannerlordLink
                 {
                     campaignStarter.AddBehavior(new MainCampaignBehavior());
                     Log("MainCampaignBehavior registered (HeroKilled + HeroLevelledUp)");
+                    // Sprint 5.26c: BLT-style clan upgrades (daily renown + influence tick).
+                    campaignStarter.AddBehavior(new ClanUpgradesBehavior());
+                    Log("ClanUpgradesBehavior registered (daily clan upgrades tick)");
                 }
                 catch (Exception ex)
                 {

@@ -1428,6 +1428,49 @@ async def bannerlord_clan_upgrades_list(request: Request):
     return {"success": True, "upgrades": upgrades, "hero_gold": hero_gold}
 
 
+@router.get("/api/bannerlord/clan-upgrades/all-owners")
+async def bannerlord_clan_upgrades_all_owners(channel_id: int = 0):
+    """Возвращает MAP {username → [upgrade_id, ...]} для всех heroes канала.
+
+    Public-ish (channel_id query — нет JWT т.к. mod вызывает с module token).
+    Mod polls этот endpoint раз в N минут чтобы знать актуальные owned upgrades
+    каждого hero для daily tick применения эффектов.
+
+    Также возвращает effects для каждого upgrade чтобы mod не дёргал отдельный
+    catalog endpoint.
+    """
+    from dependencies import resolve_channel_id_or_default
+    if channel_id <= 0:
+        channel_id = resolve_channel_id_or_default()
+
+    db = get_db()
+    async with db._connect() as conn:
+        # Catalog (только active)
+        cur = await conn.execute(
+            "SELECT upgrade_id, effects_json FROM bannerlord_clan_upgrades_catalog "
+            "WHERE channel_id = ? AND deprecated = 0",
+            (channel_id,)
+        )
+        catalog = {}
+        for upg_id, eff_json in await cur.fetchall():
+            try:
+                catalog[upg_id] = _bnr_clan_json.loads(eff_json or '{}')
+            except Exception:
+                catalog[upg_id] = {}
+
+        # Owned per username
+        cur = await conn.execute(
+            "SELECT username, upgrade_id FROM bannerlord_clan_upgrades_owned "
+            "WHERE channel_id = ?",
+            (channel_id,)
+        )
+        owners = {}
+        for username, upg_id in await cur.fetchall():
+            owners.setdefault(username, []).append(upg_id)
+
+    return {"success": True, "owners": owners, "catalog_effects": catalog}
+
+
 @router.post("/api/bannerlord/clan-upgrades/buy")
 async def bannerlord_clan_upgrades_buy(request: Request):
     """Купить апгрейд клана за hero.gold.

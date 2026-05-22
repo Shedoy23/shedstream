@@ -3,7 +3,8 @@
 **Назначение:** для чата по Bannerlord-модулю. Для общей extension
 работы — см. `CONTEXT.md`. Для RimWorld — `CONTEXT_RIMWORLD.md`.
 
-**Last updated:** 2026-05-20 (sprints 5.4–5.18 закрыты, clan/kingdom/party live)
+**Last updated:** 2026-05-21 (sprints 5.19–5.27v закрыты, BLT-aligned rewards,
+hideout fixed, family system, attribute case bug fix)
 
 ---
 
@@ -14,14 +15,20 @@
 (13 классов) с подходящим snar'ем и passive/active powers, тратят валюту
 из стрима на:
 
-- **Боевое:** призыв в бой (за/против стримера), 4 active powers, kill
-  rewards, victory participation bonus
-- **Экономику:** конвертация крустиков в Hero.Gold или skill XP
-- **Прогрессию:** gear upgrade (6 tier), focus в skills, attribute points
+- **Боевое:** призыв в бой (за/против стримера) — **50/100💎** + cooldown 30s,
+  4 active powers, BLT-aligned kill rewards × 0.5 (2500/2500 gold/xp + level
+  scaling + kill streaks 5/10/15), participation rewards (5000💰/5000XP
+  победителям, 2500XP проигравшим), spawn anchor около стримера
+- **Экономику:** конвертация крустиков в Hero.Gold или skill XP, random equip
+  (T5-T6: weapon 1M / armor 500K / horse 1M)
+- **Прогрессию:** gear upgrade (6 tier), focus в skills, attribute points,
+  clan upgrades (BLT-style 10 catalog items с static effects через model replacement)
 - **Социальное:** clan create/join/leave, kingdom create/join/leave,
-  MobileParty creation
-- **Свита:** basic + elite retinue (BLT pattern, 5 slots, 3× cost для elite)
+  MobileParty creation, **gender swap, marriage, divorce, make baby + family tree**
+- **Свита:** basic + elite retinue (BLT pattern, 5 slots, 3× cost для elite,
+  ring 60°×2m вокруг hero, skip в hideout)
 - **Турниры:** queue + 16-man bracket + bets
+- **Имена в бою:** Agent.Name через reflection — hero=`@username`, retinue=`Trooper (@username)`
 
 **Архитектура:** C# Bannerlord-submodule (`BannerlordLink/`,
 prod-mirror в `Modules/Shedoy23.BannerlordLink/`) ↔ FastAPI backend
@@ -35,169 +42,254 @@ prod-mirror в `Modules/Shedoy23.BannerlordLink/`) ↔ FastAPI backend
 
 | Валюта | Где живёт | Что покупает |
 |---|---|---|
-| **Крустики ⦷** | Backend `viewers.points` | Призыв (100/200⦷), powers, retinue recruit (100/300⦷), XP/gold конверсия, бесплатные actions (clan/kingdom/party — 0⦷) |
-| **Hero.Gold 💰** | In-game | Gear tier (50K–1.5M), random equip (25K–80K), focus (30K–75K), attributes (50K), retinue troops (5K–80K basic / ×3 elite), clan (1M), kingdom (5M), party (200K), tournament entry (5K), join clan/kingdom (50K/100K) |
+| **Крустики ⦷** | Backend `viewers.points` | Призыв (**50/100⦷** после 5.27i), powers, retinue recruit (100/300⦷), XP/gold конверсия, бесплатные actions (clan/kingdom/party/family — 0⦷) |
+| **Hero.Gold 💰** | In-game | Gear tier (50K–1.5M), random equip T5-T6 (**500K-1M** после 5.27o), focus (30K–75K), attributes (50K), retinue troops (5K–80K basic / ×3 elite), clan (1M), kingdom (5M), party (200K), tournament entry (5K), join clan/kingdom (50K/100K), **gender swap (50K), marriage (50K), baby (100K)** |
 
 **Source of truth:**
 - Крустики: backend `viewers.points`, atomic charge внутри `/action` TX
 - Hero.Gold: мод (`hero.Gold` через `GiveGoldAction.ApplyBetweenCharacters`)
-- gear_tier / clan / kingdom: mod пушит `hero.*_changed` event → backend
-  cache. Mod source-of-truth.
+- gear_tier / clan / kingdom / family_info: mod пушит `hero.*_changed`
+  event → backend cache. Mod source-of-truth.
 
 ---
 
-## Sprints статус — 28 закрыто (5.0 → 5.18)
+## Sprints статус — 40+ закрыто (5.0 → 5.27v)
 
 ### Migrations applied (prod)
-- **M14** — bannerlord_heroes / _skills / _attributes / _equipment / _events_log
-- **M15** — bannerlord_classes (13 seeded) + bannerlord_hero_class
-- **M16** — bannerlord_class_powers (33 power rows)
-- **M17** — eventsub_dedupe (main)
-- **M18** — active power seeds (heal_burst / shield_break / rage / retribution)
-- **M19** — heroes.level / clan_name / kingdom_name columns
-- **M20** — heroes.gear_tier column
-- **M21** — equipment.tier / item_value / weight / stats_json
-- **M22** — bannerlord_channel_state (save-switch detection)
-- **M23** — bannerlord_retinue (5 slots)
-- **M24** — bannerlord_tournament_queue + _state
-- **M25** — bannerlord_tournament_bets
-- **M26** — bannerlord_skills.focus column
-- **M27** — heroes.clan_info_json + kingdom_info_json
-- **M28** — retinue.is_elite column
+- **M14–M28** — base schema (heroes/skills/attrs/equipment/classes/powers/
+  tournament/retinue/focus/clan_info/kingdom_info)
+- **M29** — pets schema v2 (face+aura slots, svg_path, scarf→body)
+- **M30** — pets catalog +15 items
+- **M31** — pets deprecate 4 misfit items
+- **M32** — pets hard-delete misfits
+- **M33** — tts_messages table
+- **M34** — tts.audio_data BLOB (server-side gTTS)
+- **M35** — bannerlord_clan_upgrades_catalog + _owned (BLT clan upgrades)
+- **M36** — bannerlord_heroes + `is_female INTEGER`, `family_info_json TEXT`
 
-### Action handlers (21 real + 4 echo stubs)
-- `hero.create` — adopt wanderer + culture filter + `[BLink]` prefix +
-  StripEquipment (anti T5-T6 wanderer template) + SetHasMet (no fog-of-war)
+### Action handlers (28 real + stubs)
+**Hero progression:**
+- `hero.create` — adopt wanderer + culture filter + [BLink] prefix
 - `hero.set_class` — apply class equipment + gear_tier aware
-  (FindTieredItem BLT pattern)
 - `hero.upgrade_gear` — 6-tier replace (Hero.Gold cost)
-- `hero.add_skill` — random skill XP boost
-- `hero.add_focus` — tier-based focus point per skill (Hero.Gold 30K-75K)
-- `hero.add_attribute` — flat 50K Hero.Gold per attribute point
-- `hero.recruit_troops` — basic OR elite retinue (is_elite flag, 3× cost)
-- `hero.create_clan` — `Clan.CreateClan` + culture + banner + 50 renown (1M💰)
-- `hero.create_kingdom` — `KingdomManager.CreateKingdom` + 2K влияния + 2M wallet (5M💰)
-- `hero.create_party` — `MobilePartyHelper.SpawnLordParty` + retinue + starting loot (200K💰)
-- `hero.leave_clan` — hero.Clan = null + place в random town (free)
-- `hero.leave_kingdom` — `ChangeKingdomAction.ApplyByLeaveKingdom` (free)
-- `hero.join_clan` — fuzzy match Clan.All → set hero.Clan (50K💰)
-- `hero.join_kingdom` — `ChangeKingdomAction.ApplyByJoinToKingdom` (100K💰)
-- `hero.join_tournament` — добавление в очередь (5K💰)
-- `player.spawn` — summon (ally/enemy), force-heal + party.AddMember +
-  SetPlayerFormationPreference + retinue re-spawn если hero auto-entered
-- `player.heal` — restore HP в Mission
-- `player.give_item` — Hero.Gold +5K/25K/100K
-- `player.equip_item` — random T4+ weapon/armor/horse (Hero.Gold)
-- `player.modify_attribute` — single point boost
-- `power.activate` — 4 active powers
-- `tournament.bet` — backend-only (charge крустиков)
-- Stubs: `player.respawn` / `hero.set_culture` / `hero.set_faction` /
-  `world.broadcast_message` / `world.trigger_event`
+- `hero.add_skill` / `hero.add_focus` / `hero.add_attribute`
+- `hero.recruit_troops` — basic OR elite retinue (is_elite flag)
+
+**Family system (Sprint 5.27a-c):**
+- `hero.set_gender` — gender swap (50K💰, auto-flip spouse если same-sex)
+- `hero.marry` — random suitable NPC (50K💰, NPC переходит в hero.Clan)
+- `hero.divorce` — free, sets Spouse=null обеим сторонам
+- `hero.make_baby` — pregnancy (100K💰, max 5 alive children, `MakePregnantAction.Apply`)
+
+**Clan / Kingdom / Party:**
+- `hero.create_clan` (1M💰) / `hero.create_kingdom` (5M💰) / `hero.create_party` (200K💰)
+- `hero.leave_clan` / `hero.leave_kingdom` (free)
+- `hero.join_clan` (50K💰) / `hero.join_kingdom` (100K💰)
+- `hero.join_tournament` (5K💰)
+
+**Battle / combat:**
+- `player.spawn` — summon (ally 50⦷ / enemy 100⦷ после 5.27i, CD 30s)
+  - Anchor: ally — 3m perpendicular от Agent.Main, alternating L/R по hash
+  - Anchor: enemy — 10m forward от Agent.Main + face-to-face
+  - Hideout: skip position anchor + block enemy summon (5.27r)
+  - Retinue: ring 60°×2m вокруг hero, skip в hideout (5.27n)
+  - Agent rename: `@username` для hero, `Trooper (@username)` для retinue
+    через reflection `AccessTools.Field(typeof(Agent), "_name")`
+- `player.heal` / `player.give_item` / `player.equip_item` / `player.modify_attribute`
+- `power.activate` — 4 active powers (heal_burst/shield_break/rage/retribution)
+- `tournament.bet` — backend-only
 
 ### Campaign + Mission behaviors
 
 - **MainCampaignBehavior:**
   - HeroKilledEvent → player.died
-  - HeroLevelledUp → HeroStateSync.Push (full state с focus/attributes/clan/kingdom info)
-  - OnSessionLaunched + OnGameLoadFinished — push session_start + heroes_snapshot
-  - MigrateLegacyHeroNames (add [BLink] prefix retroactively)
-  - CleanupOpaqueHeroes (strip [BLink] от opaque-ID heroes — JWT bug legacy)
-  - IntroduceAdoptedHeroes (retroactive SetHasMet для existing adopted)
+  - HeroLevelledUp → HeroStateSync.Push
+  - OnSessionLaunched + OnGameLoadFinished → push session_start
+  - **MapEventEnded** (Sprint 5.27l) — выкидывает [BLink] viewer-героев
+    из MainParty.MemberRoster после боя через `EnterSettlementAction.
+    ApplyForCharacterOnly(HomeSettlement)` (BLT pattern, защита от
+    phantom-reference)
+  - HourlyTickEvent — DISABLED (5.27h.2 — ломал MainParty в минус)
 
-- **PowersMissionBehavior:**
-  - OnAgentBuild → apply passive HP/scale
-  - OnMissionTick → ActiveBuffState.RemoveExpired (slow-tick)
-  - OnEndMission → ActiveBuffState.Clear
+- **PowersMissionBehavior** (без изменений)
 
-- **KillRewardBehavior** (MissionLogic):
-  - OnAgentBuild — track participants in `_participants` dict (по [BLink] prefix)
-  - OnAgentRemoved — +50💰/+25XP per trooper kill, ×0.25 на mount, **×10 на Hero kill** (500/200)
-  - Retinue kills credit owner'у ×0.5 (через static `_retinueOwners` registry,
-    populated SummonHeroHandler'ом)
-  - Static `_partyRestores` registry — restore hero в original party на OnEndMission
-    (BLT pattern, party.AddMember для proper spawn integration)
-  - OnEndMission → +200💰/+100XP всем alive participants если PlayerVictory
-  - OnMissionTick → push `battle.stats_snapshot` каждые 1.5s (overlay)
+- **KillRewardBehavior** (полностью переделан в 5.27g — BLT × 0.5 scale):
+  - Personal kill: 2500💰 + 2500 XP × horseFactor × levelBoost
+  - Retinue kill: 1250💰 owner, +25 HP heal самому retinue (BLT pattern), 0 XP
+  - Killed (наш hero убит) → +1000 XP consolation × levelBoost (BLT XPPerKilled)
+  - Level scaling: `(1 - delta/30)^(-10 × n)`, cap 5×, MinGold clamp 0.5
+  - Kill streaks: 5/10/15 kills → +2.5K/+5K/+10K bonus, reset on death
+  - **Participation** (Sprint 5.27k, fires в OnEndMission):
+    - Win: +5000💰 +5000 XP (всем участникам)
+    - Loss: +2500 XP consolation, **без gold штрафа** (newbie-friendly)
+    - Skip на DefenderPullBack
+  - **PartyRestore** (Sprint 5.27e/j fix):
+    - Removal из current party ВСЕГДА, не только если есть OriginalParty
+    - No-original-party fallback: `EnterSettlementAction.ApplyForCharacterOnly
+      (HomeSettlement)` (BLT pattern — даёт hero legit location, нет phantom)
+  - Agent rename via reflection при spawn (Sprint 5.27q)
 
-- **TournamentQueueBehavior** + **TournamentMissionBehavior** — Sprint 5.3,
-  16-man bracket с Harmony patches на FightTournamentGame.GetParticipantCharacters
-  + TournamentBehavior.EndCurrentMatch
+- **ClanUpgradesBehavior** (Sprint 5.26c) — static `Current` accessor,
+  `GetBonusFor(hero, effectKey)`, daily tick применяет renown +
+  ChangeClanInfluenceAction. Catalog из 10 BLT-style upgrades T1-T5.
 
-### Harmony patches
-- `DamageHookPatch` — Mission.RegisterBlow Prefix (passive ignore_armor + damage_reflect)
-- `IsSideDepletedPatch` — reinforcement keep-alive пока adopted hero alive
-- `TournamentParticipantsPatch` — viewer tournament roster injection
+- **BLUpgradeModels** (Sprint 5.26d) — model replacements через
+  `campaignStarter.AddModel`: `BLPartySpeedModel`, `BLPartySizeLimitModel`,
+  `BLClanTierModel`. Subclass TaleWorlds models, delegate to `_previous`,
+  добавляют bonus от ClanUpgradesBehavior. Включает overrides для
+  Naval DLC (`FindAppropriateInitialShipsForMobileParty`),
+  `CalculateInitialRenown → int`, `HasUpcomingTier → (ExplainedNumber, bool)`.
+
+- **TournamentQueueBehavior** + **TournamentMissionBehavior** (без изменений)
+
+### Harmony patches (без изменений)
+- `DamageHookPatch`, `IsSideDepletedPatch`, `TournamentParticipantsPatch`
 
 ### Helpers
-- `HeroNaming.cs` — [BLink] prefix conventions
-- `HeroLookup.cs` — find hero by username (StringComparison.OrdinalIgnoreCase)
-- `PowerCache.cs` — class+power dict singleton (DB-synced)
-- `ActiveBuffState.cs` — timed buffs ConcurrentDictionary
-- `HeroStateSync.cs` — full state push (gold/level/clan/kingdom/skills/attributes/clan_info/kingdom_info)
-- `EquipmentSync.cs` — push 11 slots equipment snapshot
+- `HeroNaming.cs`, `HeroLookup.cs`, `PowerCache.cs`, `ActiveBuffState.cs`
+- **`HeroStateSync.cs`** (расширен 5.27c):
+  - Payload включает: gold/level/clan/kingdom/skills/attributes/
+    clan_info/kingdom_info + `is_female` + `family_info` {spouse, children[],
+    father, mother, sibling_count}
+- `EquipmentSync.cs` — без изменений
 
 ### Backend
-- `routes/bannerlord.py` — 11 endpoints, `_fetch_hero_gold` helper для price checks
-- `modules/bannerlord/_adapter.py` — 22 event handler types,
-  in-memory state (`_last_seen`, `_active_buffs`, `_cooldowns`, `_battle_stats`)
+- `routes/bannerlord.py` — 12+ endpoints + clan-upgrades CRUD
+- `modules/bannerlord/_adapter.py` — 25 event handler types
 - Server-side price maps:
-  - `RANDOM_EQUIP_HERO_GOLD`: weapon=50K / armor=25K / horse=80K
-  - `SPAWN_PRICES`: player=100⦷ / enemy=200⦷
-  - `HERO_GOLD_TIER_COSTS`: 50K→1.5M
-  - `GIVE_GOLD_PRESETS`: 1K⦷→5K💰 / 5K⦷→25K💰 / 20K⦷→100K💰 (1:5)
-  - `ADD_SKILL_XP_PRESETS`: 500⦷→50XP / 1K⦷→100XP / 5K⦷→500XP
-  - `RECRUIT_TIER_COSTS`: 5K/10K/20K/30K/50K/80K (× 3 для elite)
-  - `FOCUS_TIER_COSTS`: 30K/40K/50K/60K/75K
-  - `ATTRIBUTE_COST`: 50K
-  - `CLAN_CREATE_COST`: 1M / `KINGDOM_CREATE_COST`: 5M
-  - `CLAN_JOIN_COST`: 50K / `KINGDOM_JOIN_COST`: 100K
-  - `PARTY_CREATE_COST`: 200K
-  - `TOURNAMENT_ENTRY_FEE_GOLD`: 5K
+  - `RANDOM_EQUIP_HERO_GOLD`: weapon=1M / armor=500K / horse=1M (5.27o T5-T6)
+  - `SPAWN_PRICES`: player=50⦷ / enemy=100⦷ (5.27i ×0.5)
+  - `POWER_COOLDOWNS["player.spawn"]`: 30s (5.27i, было 120s)
+  - `GENDER_SWAP_COST` / `MARRIAGE_COST`: 50K
+  - `BABY_COST`: 100K
+- `routes/bannerlord.py` `/my-hero` (Sprint 5.27v):
+  - Attributes keys normalized к PascalCase via `_to_pascal` helper
+    (single source of truth — frontend всегда видит `Vigor`, `Intelligence`
+    даже если БД хранит lowercase из engine StringId)
+- TTS endpoints в `routes/tts.py` (sprint 5.23, server-side gTTS)
+- Сезонные призы dice/duel/RPS/TTT (sprint 5.25): 300k/200k/100k, 2 недели,
+  ELO start 1000, prize gate ≥1100
 
-### Frontend (`viewer.js` ~3500 строк после cleanup)
+### Frontend (`viewer.js` ~3700 строк)
 
-**Hero card layout:**
-- Header: name + alive/prisoner badge + culture + location
-- Stats grid: 💰 Динары / ⭐ Уровень / 🛡 Снаряжение (T1-T6 ★) с inline ⚒ upgrade button /
-  🏰 Клан ⚙ (clickable) / 👑 Королевство ⚙ (clickable) / 🛡 Броня summary
-- Battle banner (когда in_battle) — HP bar + state + kills + gold_earned + xp_earned
-- Buff HUD (active power timers с countdown)
-- Class picker (dropdown, 13 классов)
-- Active power buttons (heal_burst / shield_break / rage / retribution — disabled при cooldown / active)
-- Summon buttons (📯 Призвать за / ⚔️ Против — 100/200⦷)
-- **🎯 Прогрессия** button → modal с **grouped layout** (attribute → 3 child skills с per-row + buttons)
-- Equipment details (collapsible, persisted state)
-- Свита details (collapsible) — **2 кнопки**: ➕ basic / ★ elite
+**Hero card layout (Sprint 5.19 redesigned):**
+- Семантические секции: Бот / Магазин / Канал / Bannerlord (modal-button)
+- Inline shop+quests+promo modals
+- Pets — universal pet system с overlay items (face/aura/body slots),
+  walking pets в overlay (sway animation, full username)
 
-**Shop card:** теперь только 2 блока (после cleanup):
-1. 🎁 Случайный товар (weapon=50K💰 / armor=25K💰 / horse=80K💰)
-2. 💰 Динары + 📚 Опыт конверсии (3 пресета каждая)
+**Bannerlord hero card:**
+- Header + alive/prisoner + culture + location
+- Stats grid: 💰 Динары / ⭐ Уровень / 🛡 Снаряжение T1-T6 + inline ⚒ upgrade /
+  🏰 Клан ⚙ / 👑 Королевство ⚙ + 🛡 Броня summary
+- Battle banner (in_battle) — HP bar + kills + gold_earned + xp_earned
+- Buff HUD
+- Class picker (13 классов)
+- Active power buttons (cooldown-aware)
+- Summon buttons (📯 50⦷ / ⚔️ 100⦷ — 5.27i)
+- **🧬 Профиль и семья** modal — gender swap / marriage / divorce / family tree
+  + кнопка зачать ребёнка (Sprint 5.27a-c)
+- **🛡 Улучшения клана** modal — Sprint 5.26b
+- **🎯 Прогрессия** modal — attribute groups + skills + per-row + buttons,
+  optimistic UI update on click (Sprint 5.27t), 5s reopen delay
+- Equipment + Свита details (collapsible, persisted state)
+  - Свита кнопки показывают: `100💎 + 5 000💰` + "не хватает X💰" при недостатке (5.27h)
 
-**Modals:**
-- Progression — attribute groups + skills + per-row "+" buttons
-- Clan management — info block (leader/tier/renown/fiefs/parties/kingdom)
-  + actions (create/join/leave/create-party)
-- Kingdom management — info block + actions (create/join/leave)
-- Create clan / create kingdom — input для имени + confirm
-- Join clan / join kingdom — fuzzy-match dialog
-- Tournament join + bet modal
+**Shop card:**
+1. 🎁 Случайный товар (T5-T6 после 5.27o)
+2. 💰 Динары + 📚 Опыт конверсии
+
+**Mini-games (Sprint 5.24):**
+- Дуэли — matchmaking queue + BO3 + 10s timer (RPS-style ELO)
+- Кубики — 3 раунда + re-roll одного кубика + 10s timer + auto-expire on poll
+- TTT — 4×4 grid + BO3 + 10s timer
+- All games have lazy expiration through generic /poll endpoint
+
+**TTS (Sprint 5.23):**
+- "🔊 Озвучить сообщение" в Канал секции (3-я карточка)
+- Server-side gTTS Python lib → MP3 BLOB → frontend Audio() в overlay
+- Web Speech API не работает в OBS browser source — пришлось переехать на server-side
 
 **Polling:**
-- `/api/bannerlord/status` — 8s (online badge)
-- `/api/bannerlord/my-hero` — 8s (full state)
-- `/api/bannerlord/shop` — 8s
-- `/api/bannerlord/classes` — 8s
-- `/api/bannerlord/my-buffs` — 2.5s (HUD)
-- `/api/bannerlord/tournament` — 3s
+- `/api/bannerlord/status` — 8s
+- `/api/bannerlord/my-hero` — 8s
+- `/api/bannerlord/my-buffs` — 2.5s
 - `/api/bannerlord/battle-status` — 2s
+- Pet overlay — 1s
 
 **Overlay (overlay.html):**
-- BLT-style cards bottom-row: HP-bar background + side color (blue/red) +
-  state glow (active/routed/unconscious/killed) + compact numbers + sort by side+kills
-- Polls `/api/overlay/bannerlord/summoned` каждые 1s
+- BLT-style cards bottom-row (HP-bar + side color + state glow + sort)
+- TTS audio play (Audio element, OBS must enable "Control audio via OBS")
+- Walking pets с full username
 
 ### Mobile (`mobile.html`)
-Parity с `extension.html` — hero card / shop / tournament card. Логика единая в viewer.js.
+Parity с `extension.html`.
+
+---
+
+## 1.4.5 / 1.3.15 история (важно!)
+
+**21 мая 2026** TaleWorlds выпустили **BL 1.4.5 + War Sails 1.2.5** (seaborne
+village raids + voiceovers). Steam обновил engine автоматически.
+
+**Старый save (1.3.15) crash'нул на load** в 1.4.5 — TaleWorlds save format
+не backwards-compatible на minor bumps. `Game Integrity is Achieved: False`.
+**30+ community модов** (Diplomacy, ImprovedGarrisons, Vlandian Steel Reforged,
+ItemQualityIndicator, BLSE и пр.) собраны под 1.3.15 — все падали.
+
+**Решение:** user manually откатил Steam до 1.3.15 (Steam validation /
+manifest manual). Сейчас all live на **1.3.15** (Build Version: v1.3.15.110062).
+
+Наш мод собран против **1.4.5 references** во время короткого update window,
+но binary-compatible с 1.3.15 — работает без proблем (см. логи: kill rewards,
+summon, retinue, family — всё OK).
+
+**Action item на будущее:** при следующем engine update — сначала закрыть
+Bannerlord, отключить Steam auto-update, дождаться 1.4.5-compatible
+community модов, потом upgrade'нуть и пересобрать наш мод.
+
+---
+
+## Recent sprints (5.19 → 5.27v) — детально
+
+**Sprint 5.19 — UI redesign:** семантические секции extension.html
+**Sprint 5.20 — Marriage 500 fix:** dropped `family_balance` из INSERT'ов, M8 dropped column
+**Sprint 5.21 — Pets v2:** SVG creature + face/aura/body slots, walking overlay
+**Sprint 5.22 — Pet polish:** aura particles, body color (no separate bg), frameless walk, slower, full username
+**Sprint 5.23 — TTT (TTS):** server-side gTTS вместо Web Speech (OBS unfriendly)
+**Sprint 5.24 — Mini-games rework:** dice 3 rounds + reroll + 10s timer, duel matchmaking + BO3, TTT 4×4 + BO3
+**Sprint 5.25 — Season prizes:** 300/200/100k, 2 weeks, ELO 1000 start, prize gate ≥1100
+**Sprint 5.26 — Clan upgrades (BLT-style):**
+  - 5.26a: schema + 10 catalog items + purchase (M35)
+  - 5.26b: frontend modal в bannerlord card
+  - 5.26c: mod-side ClanUpgradesBehavior daily ticks (renown + влияние)
+  - 5.26d: static effects через model replacements (BLPartySpeedModel etc.)
+**Sprint 5.27 — Family + battle rework:**
+  - 5.27a: Hero gender swap (50K💰, BLT style)
+  - 5.27b: Hero marriage to NPC + divorce
+  - 5.27c: Children + family tree (M36, MakeBabyHandler)
+  - 5.27d: Retinue spawns NEAR hero (ring 60°×2m), не в backline
+  - 5.27e fix: PartyRestore removal безусловно (даже если no original party)
+  - 5.27f: Hero spawn anchor near streamer (Agent.Main + perp offset)
+  - 5.27g: Kill rewards BLT-aligned × 0.5 (2500/2500 + level scaling + streaks)
+  - 5.27h: HourlyTick safety net (потом DISABLED в .2, ломал MainParty)
+  - 5.27h.1: Retinue UI heroGold accessor fix (`.hero.gold` not `.gold`)
+  - 5.27h.2: HourlyTick eviction reverted (phantom reference)
+  - 5.27i: Summon prices × 0.5 + cooldown 120→30s
+  - 5.27j: BLT-pattern restore via EnterSettlementAction для viewer без party
+  - 5.27k: Participation reward (BLT WinGold × 0.5, +XP loss consolation, no gold penalty)
+  - 5.27l: Cleanup tied to MapEventEnded (после боя, не hourly)
+  - 5.27m: Разрешили hideout combat (BLT block-list mode filter)
+  - 5.27n: Skip retinue spawn в hideout (8-limit)
+  - 5.27o: Random equip prices до T5-T6 (1M / 500K / 1M)
+  - 5.27p: Enemy summon fallback + diagnostic + spawn position
+  - 5.27q: Nickname над персонажами через reflection `Agent._name`
+  - 5.27r: Hideout summon — skip anchor + block enemy
+  - 5.27s: Diagnostic log для add_attribute REFUSE/QUEUE
+  - 5.27t: Optimistic UI для add_attribute (immediate +1, 5s reopen delay)
+  - 5.27u FIX: attribute lookup case-insensitive (lowercase в БД vs PascalCase в JS)
+  - 5.27v: Single source of truth — backend normalize attr keys к PascalCase
+    + runtime canary в frontend для contract drift
 
 ---
 
@@ -208,45 +300,54 @@ Parity с `extension.html` — hero card / shop / tournament card. Логика 
   (audit class_keys / power_keys / numeric values vs BLT LGPL,
   NOTICE.md, Extension submission)
 - **Test 19 extend** — `test_multi_tenant_isolation.py` assertions
-  для новых fields (gear_tier / level / clan_name / clan_info_json /
-  focus / attributes / retinue.is_elite)
+  для новых fields (clan_info_json / focus / attributes / retinue.is_elite /
+  family_info_json / is_female)
 
 **🟠 Features в очереди:**
-- **Auto-summon 30 мин подписка** — viewer покупает window auto-spawn'a в каждый battle (~3 часа работы, обсуждено в Sprint 5.16)
+- **Tavern summon (SummonInLocation)** — BLT 200+ строчный метод,
+  `CampaignMission.Current.Location` API (Location-based spawn, не Mission)
+- **Auto-summon 30 мин подписка** — viewer покупает window auto-spawn'a
 - **Transfer clan leadership** — для leaders которые хотят покинуть клан
 - **Party order commands** (BLT-level): siege/defend/patrol/raid/garrison
 - **Party disband / stats inline**
+- **Always-visible 3D nametag floating над head** — нужен custom MissionView
+  (200+ строк рендера в 3D пространстве). Сейчас имя показывается только
+  при hover/target (BLT pattern).
 
 **🟡 Tech debt / polish:**
 - **Sprint 4.10 Balancing** — после live data: cooldowns + active power values + tier costs
-- **Adapter cache invalidate** — re-sync state при смене clan/kingdom in-game
-- 20 handlers share username-extract pattern → `ActionHandlerBase`
-- `KillRewardBehavior` accumulates 2 unrelated static registries
-  (`_retinueOwners`, `_partyRestores`) — split на `MissionStateBehavior`?
-- `bannerlord_buy_action` — 750-строчная мега-функция, можно dispatch table
+- **TTL для queued module_actions** — сейчас лежат вечно если mod не applied;
+  нет refund при skip/expire (e.g. summon купил но вне Mission)
+- 20+ handlers share username-extract pattern → `ActionHandlerBase`
+- `KillRewardBehavior` accumulates 2 static registries (`_retinueOwners`,
+  `_partyRestores`) — split на `MissionStateBehavior`?
+- `bannerlord_buy_action` — 750-строчная мега-функция, dispatch table
 
 **🔵 Wild ideas:**
 - AI Advisors (rule-based MVP — Trade Advisor)
-- Hero relations system (приятели/соперники между adopted heroes)
+- Hero relations system
 - Custom prize items в турнирах
 
 ---
 
 ## Stack
-- **C# mod:** .NET Framework 4.8 net472 x64, Bannerlord 1.3.15
+- **C# mod:** .NET Framework 4.8 net472 x64, Bannerlord **1.3.15** (откат с 1.4.5)
 - **References:** TaleWorlds.{Core / Library / MountAndBlade / CampaignSystem /
   CampaignSystem.AgentOrigins / CampaignSystem.Party / CampaignSystem.Actions /
   Engine / Localization / ObjectSystem / DotNet}, Bannerlord.Harmony,
-  Newtonsoft.Json, **SandBox** (для TournamentBehavior)
+  Newtonsoft.Json, SandBox
 - **Build:** `dotnet build` (~1-2 сек), output в
   `Modules/Shedoy23.BannerlordLink/bin/Win64_Shipping_Client/`
+- **Backend:** FastAPI + SQLite + aiosqlite, supervisor на VPS 31.130.132.224
+- **Frontend:** vanilla JS, no build (Twitch extension constraint),
+  cache-bust через `?v=YYYYMMDDx` суффикс в HTML script tags
 
 ## File structure (mod)
 
 ```
 X:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\
 └── Modules\Shedoy23.BannerlordLink\
-    ├── SubModule.xml          ← module declaration
+    ├── SubModule.xml
     ├── config.json            ← module_token + channel_id (gitignored)
     ├── src\
     │   ├── BannerlordLink.csproj
@@ -255,44 +356,53 @@ X:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\
     │   ├── Net\
     │   │   ├── BackendConfig.cs / BackendClient.cs / ActionPoller.cs
     │   │   ├── PowerCache.cs / ActiveBuffState.cs
-    │   ├── Actions\ (21 real handlers + EchoHandler + Registry)
+    │   ├── Actions\ (28 real handlers + Echo + Registry)
+    │   │   ├── AdoptHeroHandler.cs
+    │   │   ├── SetGenderHandler.cs    ← 5.27a
+    │   │   ├── MarryHandler.cs         ← 5.27b (also DivorceHandler)
+    │   │   ├── MakeBabyHandler.cs      ← 5.27c
+    │   │   └── ...
+    │   ├── Models\
+    │   │   └── BLUpgradeModels.cs      ← 5.26d
     │   ├── Behaviors\
-    │   │   ├── MainCampaignBehavior.cs
-    │   │   ├── PowersMissionBehavior.cs
-    │   │   ├── KillRewardBehavior.cs
-    │   │   ├── TournamentQueueBehavior.cs
-    │   │   └── TournamentMissionBehavior.cs
+    │   │   ├── MainCampaignBehavior.cs ← + MapEventEnded (5.27l)
+    │   │   ├── ClanUpgradesBehavior.cs ← 5.26c
+    │   │   ├── KillRewardBehavior.cs   ← BLT × 0.5 + participation (5.27g/k)
+    │   │   └── ...
     │   ├── Patches\
-    │   │   ├── DamageHookPatch.cs
-    │   │   ├── IsSideDepletedPatch.cs
-    │   │   └── TournamentParticipantsPatch.cs
     │   └── Util\
-    │       ├── HeroNaming.cs / HeroStateSync.cs / EquipmentSync.cs
+    │       ├── HeroNaming.cs / HeroStateSync.cs ← + family_info (5.27c)
+    │       └── EquipmentSync.cs
 ```
 
-Git mirror: `BannerlordLink/` (sync через `cp` после правок). Verified
-0-drift с X:\ source via md5 hash comparison (Sprint 5.18 audit).
+Git mirror: `BannerlordLink/` (sync через `cp` после правок).
 
 ---
 
 ## Build + deploy cycle
 
-```cmd
+```bash
 # C# build (mirror в production folder)
-cd "X:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\Shedoy23.BannerlordLink\src"
-dotnet build
+cd "/x/SteamLibrary/.../Shedoy23.BannerlordLink/src"
+"/c/Program Files/dotnet/dotnet" build BannerlordLink.csproj -c Release
 
 # Restart Bannerlord (нет hot-reload).
-type "C:\Users\Edward\Documents\Mount and Blade II Bannerlord\Configs\ModLogs\bannerlordlink_*.txt"
+# Логи: C:/ProgramData/Mount and Blade II Bannerlord/logs/rgl_log_*.txt
+#       AppData/Roaming/Mount and Blade II Bannerlord/Logs/*.log
 
 # Sync обратно в git-репо
-cd C:\Users\Edward\Desktop\work\.claude\worktrees\<...>
-cp "X:\SteamLibrary\...\Shedoy23.BannerlordLink\src\<file>.cs" BannerlordLink\src\<...>\
+cp "X:/SteamLibrary/.../Shedoy23.BannerlordLink/src/<file>.cs" \
+   "C:/.../hopeful-agnesi-ea9afe/BannerlordLink/src/<...>/"
 
-# Backend + frontend deploy на прод
+# Backend + frontend deploy на прод (FOR NEW CONTEXT: 31.130.132.224)
 cd Расширение
-tar -cz backend frontend | ssh root@31.130.132.224 \
-  'cd /root/twitch-extension && tar -xz && supervisorctl restart twitchbot'
+tar -cf /tmp/sprintX.tar backend/routes/bannerlord.py frontend/viewer.js \
+    frontend/extension.html frontend/mobile.html
+scp /tmp/sprintX.tar root@31.130.132.224:/tmp/
+ssh root@31.130.132.224 'cd /root/twitch-extension && tar -xf /tmp/sprintX.tar && supervisorctl restart twitchbot'
+
+# Cache-bust frontend (sed bump)
+sed -i 's/viewer.js?v=20260521u/viewer.js?v=20260521v/g' frontend/{extension,mobile}.html
 ```
 
 ## Лицензия BLT (важно!)
@@ -301,10 +411,11 @@ tar -cz backend frontend | ssh root@31.130.132.224 \
 - ✅ Идеи / архитектурные паттерны / API discovery / 5-10 строчные idioms
 - ❌ Целые классы / method bodies / identical names+numbers
 
-Наш `BannerlordLink/` — clean-room re-impl. Numeric values отличаются от BLT
-(например retinue costs, attribute cost, kingdom prestige bonus). Имена
-наших классов независимы (Tank/Archer/Psycho/Berserk/Knight). **Перед public
-release** (Sprint 5.2) — полный audit для финального compliance.
+Наш `BannerlordLink/` — clean-room re-impl. **Перед public release**
+(Sprint 5.2) — полный audit для финального compliance.
+
+**BLT 5.2.4 source extracted** в `/tmp/blt-src/Bannerlord-Twitch-5.2.4/`
+для reference во время dev (не commit'ить).
 
 ## Тестирование
 
@@ -317,13 +428,40 @@ release** (Sprint 5.2) — полный audit для финального compli
 - Channel: 98319857 (shedoy23)
 - Module token в `Modules/Shedoy23.BannerlordLink/config.json` (gitignored)
 
+**Logs:**
+- Mod: `C:/Users/Edward/AppData/Roaming/Mount and Blade II Bannerlord/Logs/`
+- Game: `C:/ProgramData/Mount and Blade II Bannerlord/logs/rgl_log_*.txt`
+- Game crashes: `C:/ProgramData/Mount and Blade II Bannerlord/crashes/` (если user не cancel'ит dump)
+- Backend: `ssh root@31.130.132.224 'supervisorctl tail -200 twitchbot stdout'`
+- DB query: `sqlite3 /root/twitch-extension/backend/viewers.db 'SELECT ...'`
+
 ## Repo
 
 - **GitHub:** `Shedoy23/shedstream` (private)
-- **Files:** `BannerlordLink/` (mirror mod), `Расширение/backend/`
-  ({routes/bannerlord.py, migrations/m14-m28, modules/bannerlord/}),
+- **Files:** `BannerlordLink/` (mirror mod), `Расширение/backend/`,
   `Расширение/frontend/{viewer.js,extension.html,mobile.html,overlay.html}`,
-  `Расширение/docs/BANNERLORD_*.md`
+  `Расширение/docs/BANNERLORD_*.md` + `CONTEXT_BANNERLORD.md`
+
+## Recent gotchas / lessons
+
+1. **Case-mismatch bugs тихие но дорогие** — backend хранит engine StringId
+   lowercase, frontend hardcoded PascalCase, всё это время viewers платили
+   крустики а UI показывал 0/10. Lesson: normalize at the boundary
+   (5.27v approach). Опасно для любых dictionary lookups между Python и JS.
+2. **TaleWorlds save format не backwards-compatible** — minor engine bump
+   (1.3.15 → 1.4.5) crashes старые saves. Auto-update должен быть OFF
+   на streaming PC.
+3. **AddMember(-1) без re-attach даёт phantom** — Hero.PartyBelongedTo
+   остаётся указывать на старую party, count=0 → MainParty в минус, passive
+   heal ломается. Нужен EnterSettlementAction.ApplyForCharacterOnly как
+   "home" target (BLT pattern).
+4. **`isReinforcement: true` ignores initialPosition** — для placement near
+   streamer нужно false + valid Vec3.
+5. **Hideout (`MissionMode.Stealth`)** — 8-troop limit, position anchor
+   опасен (может быть outside walkable area), enemy summon неуместен.
+6. **Engine DLL lock при build** — если Bannerlord запущен, copy в bin/
+   fails. Compile проходит (CS errors = 0), но DLL не обновляется.
+   Решение: закрыть игру перед `dotnet build -c Release`.
 
 ---
 

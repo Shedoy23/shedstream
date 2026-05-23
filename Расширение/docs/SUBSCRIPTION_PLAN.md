@@ -1,293 +1,452 @@
-# Подписочная система через Boosty — MVP Plan
+# Подписочная система — MVP Plan (revised)
 
 **Статус:** Design draft, не реализовано
-**Created:** 2026-05-21 (после ChatGPT-консультации с Claude про Twitch ToS)
-**Контекст:** добавить **side revenue** для стримера через Boosty subscriptions, **строго cosmetic-only** чтобы не нарушать Twitch ToS
+**Created:** 2026-05-21 (initial)
+**Revised:** 2026-05-21 (после verification против Twitch Extension Guidelines)
+
+**КРИТИЧЕСКОЕ ОТКРЫТИЕ:** прямой Boosty-only flow **в extension** содержит compliance риски. Strategy переосмыслена: **двойной канал** — Twitch native subs как primary + Boosty как fallback для регионов без Twitch payment.
 
 ---
 
-## TL;DR
+## TL;DR (revised)
 
-3 тира Boosty-подписки → viewer получает **только cosmetic / convenience / community** perks. Никакого pay-to-win.
+Старый план — "Boosty подписки → unlock cosmetics в extension" — **на грани Section 5.2** ("Extensions may not allow items to be exchanged for money or other commerce instruments").
 
-**MVP scope:** Tier 1 + Tier 2 + backend wiring. Tier 3 (custom artwork) откладываем — слишком дорого per-viewer.
+Новый план:
+- **Primary channel:** Twitch native subscriptions через Subscription Status API ✅ **0% risk, Twitch-incentivized**
+- **Secondary channel:** Boosty manual-grant (без direct in-extension purchase flow) ⚠️ **низкий риск, work-around для Russian viewers без Twitch payment**
 
----
-
-## ⚠️ Compliance constraints (Twitch ToS)
-
-### ✅ Разрешено
-- Cosmetic visual changes (цветной ник, badge, custom skin)
-- Community access (Discord sub-channel)
-- Quality-of-life (early access к beta features, no ads если будут)
-- Branded recognition (mention в overlay / honor wall)
-- Cross-game cosmetics через единую "подписочную валюту"
-
-### ❌ Запрещено
-- Дополнительные **крустики** в месяц (валюта = gameplay impact)
-- Снижение **cooldown'ов** (`player.spawn`, powers, retinue recruit)
-- Boost ELO / выигрыш в mini-games (dice/duel/TTT)
-- Free tournament entry / skip queue
-- Эксклюзивные **классы / powers** в Bannerlord (pay-to-win combat)
-- Доп. **retinue slots** / Hero.Gold income multiplier
-- Higher loot rates / extra HP / reduced damage taken
-
-### 🟡 Серая зона (избегаем)
-- Priority в matchmaking queue (теоретически competitive advantage)
-- Премиум кубики с большим числом сторон
-- "Sub-only" prize pools в сезонах
-
-**Правило:** если viewer без подписки играет с viewer'ом с подпиской в mini-game — у них **те же шансы**. Подписан **выглядит круче**, но не **выигрывает чаще**.
+**MVP scope:** Twitch native subs → cosmetic unlocks. Boosty integration — Phase 2.
 
 ---
 
-## Tier breakdown
+## ⚠️ Verified Twitch Extension Guidelines compliance
 
-### 🥉 Tier 1 — "Зритель" (~200₽/мес)
+Источники: [Extension Guidelines & Policies](https://dev.twitch.tv/docs/extensions/guidelines-and-policies/), [Monetization](https://dev.twitch.tv/docs/extensions/monetization/), [Developer Services Agreement](https://legal.twitch.com/legal/developer-agreement/), [Bits Acceptable Use](https://legal.twitch.com/legal/bits-acceptable-use/).
 
-Easy commitment, цель = массовый conversion casual fan'ов.
+### ✅ ЯВНО РАЗРЕШЕНО
 
-| Perk | Реализация |
+| Что | Источник |
 |---|---|
-| 🎨 Цветной ник в extension | UI cosmetic — выбор из 6 палитр |
-| 📛 Sub badge рядом с ником | SVG значок в hero card / chat |
-| 💬 Кастомная подпись (≤30 chars) | Free-text поле "♂️ wifey", emoji, мини-bio |
-| 🎁 Random rare pet item ежемесячно | Drop из sub-only pool в начале месяца |
-| 💎 Sub Discord channel | Внешний linked invite |
-| 🚫 Без рекламы | Если когда-то добавим promo cards — bypass |
+| Bits для unlocking levels, lives, avatars, attributes, speeds, social features | Bits Acceptable Use |
+| Twitch native subs — extension может видеть tier (1/2/3) viewer'a через Subscription Status API | Monetization docs |
+| Streamer charging viewers (extension features for streamer) | §5.1 — "differentiated experiences or functionality" |
+| Items exchangeable за loyalty points ИЛИ Bits | §5.2 |
+| Off-platform perks через Discord / Patreon (вне extension) | Industry standard, не нарушает Twitch ToS |
+| Cosmetic display в extension если sub status verified через Twitch API | По умолчанию |
 
-### 🥈 Tier 2 — "Постоянка" (~500-700₽/мес)
+### ❌ ЯВНО ЗАПРЕЩЕНО
 
-Premium с visible cosmetics в overlay (другие viewers видят что ты sub).
-
-Всё из Tier 1, плюс:
-
-| Perk | Реализация |
+| Что | Цитата |
 |---|---|
-| 🌟 Animated pet auras | Sub-only items в `pet_catalog` с tier_gate='tier2' |
-| 🖼 Custom card frame | Золотая рамка вокруг summoned hero в `overlay.html` |
-| 🐾 Custom slime palette (4 sub-only) | Sub-only entries в `PET_PALETTES` (radioactive/glitch/gold-foil/holographic) |
-| ⏰ Early access — beta toggle | Feature flag в frontend на основе sub_tier |
-| 📞 Voice chat lobby за 30 мин до стрима | Discord-side, не интегрируется в код |
-| 🎤 Premium TTS voices | gTTS дополнительные lang/accent параметры (`/api/tts/submit` принимает voice_param) |
-| 📣 "Гость недели" overlay | Раз/неделю выбор random sub'a → 1-мин показ в overlay |
+| Items exchanged за money or commerce instruments | §5.2: "Extensions may not allow items to be exchanged for money or other commerce instruments" |
+| Loot boxes с element of randomness и monetary value | §5.3 |
+| Off-site links на коммерческие сайты (включая Boosty/Patreon purchase pages) | §4.6.3 |
+| NFTs creation/listing/trading/redemption | §4.11 |
+| Pay-to-play game access через Bits | §6.2.1 |
+| Gambling/sweepstakes/wagering через Bits | §6.2.3-6.2.6 |
+| Third-party advertising networks через extension | Twitch ToS — exclusive right to monetize |
 
-### 🥇 Tier 3 — "Меценат" (~1500-2000₽/мес)
+### 🟡 СЕРАЯ ЗОНА (избегаем для safety)
 
-⚠️ **Отложено за MVP** — требует custom artwork работы per-viewer.
-
-| Perk | Сложность |
+| Что | Риск |
 |---|---|
-| 🎨 Custom pet species (sprite design) | Custom SVG generation (Claude Design per-sub, ~$X в Anthropic credit) |
-| 🏰 Custom Bannerlord clan banner | Custom SVG, persistent |
-| 👤 Hero portrait вместо текста | Sprite generation, OBS overlay |
-| 📜 Honor Wall | Отдельная страница / overlay panel |
-| 🎬 Personalized intro при призыве | TTS + overlay panel customization |
-| 🛠 Direct feature requests | Discord priority, off-product |
-| 📊 Personal stats dashboard | Custom view с persistent data (survive save resets) |
-| 💬 Кастомный chat command `!{phrase}` | Bot command registration через config UI |
+| Boosty subscription → unlock cosmetic в extension (direct link) | Может быть расценено как §5.2 violation (items exchanged for money) |
+| In-extension UI "введи свой Boosty username" | Possibly OK, но **не должно содержать link/CTA на Boosty payment page** |
+| "Premium TTS voices" gated за external sub | Серая зона — это extension feature gated за non-Bits/non-Twitch-sub payment |
+| Кросс-game cosmetic currency через Boosty | Если описывается как "premium tier" — §5.2 риск |
+
+### 🟢 БЕЗОПАСНЫЕ ПРИНЦИПЫ
+
+1. **Twitch native sub** = primary signal для in-extension cosmetics. API легально, поддерживается, incentivized.
+2. **Boosty / Patreon perks** — **только вне extension** (Discord, YouTube, etc.) — это standard practice
+3. **Manual grant** через admin panel — minimal risk если не automated payment flow inside extension
+4. **No purchase CTA** в extension UI на external platforms
+5. **Cosmetic display** допустим если unlocks случились **вне extension** (не payment flow inside)
 
 ---
 
-## Cross-game cosmetics — "Меценатские очки"
+## Strategy — двойной канал
 
-**Идея:** единая sub-валюта поверх tiers, тратится на cosmetics в любой игре.
+### Канал A: Twitch native subscriptions (primary)
 
-```
-Tier 1 = 100 очков / мес
-Tier 2 = 300 очков / мес
-Tier 3 = 1000 очков / мес
+Использует [Subscription Status API](https://dev.twitch.tv/docs/extensions/reference/#configuration-service):
+```js
+twitch.onAuthorized(auth => {
+    twitch.viewer.subscriptionStatus  // tier 'not_subscribed' | '1000' | '2000' | '3000'
+});
 ```
 
-Тратятся на:
-- Bannerlord clan banner (50 очков)
-- Pet item премиум (30-100 очков)
-- RimWorld pawn skin (50 очков)
-- TTS premium voice slot (20 очков на 100 messages)
+**Преимущества:**
+- 100% Twitch-legal, специально для extensions
+- Twitch pays creator 50-70% от sub
+- Viewer уже умеет subscribe в Twitch
+- Status auto-syncs, не нужен manual link
 
-**НЕ доступны** за крустики (regular currency). Persistent across months.
+**Минусы:**
+- Russian viewers не могут платить (PayPal/cards заблочены)
+- Twitch fee = 30-50%
+- Tier цены fixed: $4.99 / $9.99 / $24.99
 
-**Pro:** viewer'ы видят value подписки независимо от того, в какую игру стример играет.
-**Contra:** усложнение UI. Возможно отложить до v2.
+### Канал B: Boosty manual (secondary, для RU)
+
+**ВАЖНО:** ZERO direct integration с in-extension purchase flow. Только manual admin grant.
+
+**Flow:**
+1. Viewer subscribes на Boosty (off-Twitch)
+2. Viewer пишет streamer'у в Discord/Twitter с подтверждением (screenshot Boosty profile)
+3. Streamer через **admin panel** grant'ит perks вручную (`POST /api/admin/sub/grant`)
+4. Extension отображает cosmetics для этого viewer'a (без знания почему)
+
+**Преимущества:**
+- Compliance-safe (нет purchase flow в extension)
+- Покрывает Russian viewers
+- Streamer ручной контроль (verify подлинности)
+
+**Минусы:**
+- Manual labor (не scaling если 50+ subs)
+- Latency от purchase до grant (часы / дни)
+- Verification механизм рудиментарный
+
+### Канал C (отложен): Боссти автоматизация
+
+Можно сделать polling Boosty API + auto-grant, **НО**:
+- Если automation видна в extension UI ("Я подписан на Boosty → unlock cosmetic") → §5.2 risk
+- Если automation **off-extension** (backend получает Boosty webhook → updates DB → extension показывает result) — **возможно** OK
+- Решить **после** legal review or Twitch dev support consultation
+
+**Для MVP пропускаем.**
+
+---
+
+## Tier breakdown (revised)
+
+Все perks **строго cosmetic / convenience / community**, чтобы избежать pay-to-win претензий.
+
+### 🥉 Tier 1 — "Зритель" (Twitch Tier 1 sub OR Boosty ~200₽/мес)
+
+| Perk | Где видно | Безопасность |
+|---|---|---|
+| 🎨 Цветной ник в extension | extension UI | ✅ Cosmetic |
+| 📛 Sub badge рядом с ником | extension UI + overlay | ✅ Cosmetic |
+| 💬 Кастомная подпись (≤30 chars) | extension UI hero card | ✅ Cosmetic |
+| 🎁 Random rare pet item ежемесячно | Pet inventory unlock | ✅ Cosmetic (не competitive) |
+| 💎 Sub-only Discord channel | Discord (off-Twitch) | ✅ 100% out-of-band |
+| 🚫 Without ads | Extension UI (если когда-то добавим promo) | ✅ Convenience |
+
+### 🥈 Tier 2 — "Постоянка" (Twitch Tier 2 OR Boosty ~500-700₽/мес)
+
+Всё из Tier 1 +
+
+| Perk | Где видно | Безопасность |
+|---|---|---|
+| 🌟 Animated pet auras (sub-only items) | Pet inventory | ✅ Cosmetic |
+| 🖼 Custom card frame в overlay | OBS overlay | ✅ Cosmetic |
+| 🐾 Custom slime palette (4 sub-only) | Pet inventory | ✅ Cosmetic |
+| ⏰ Early access — beta features | Extension UI feature flag | ✅ Convenience |
+| 📞 Voice chat lobby за 30 мин | Discord (off-Twitch) | ✅ 100% out-of-band |
+| 🎤 Premium TTS voices | Extension TTS modal | 🟡 См. ниже |
+| 📣 "Гость недели" overlay | OBS overlay panel | ✅ Cosmetic |
+
+**🟡 Премium TTS voices** — серая зона если viewer не получает то же качество TTS без подписки. Mitigation:
+- **All viewers** имеют access к basic TTS (стандартные голоса)
+- **Subs** имеют access к +5 voice variants (additional, не "лучше")
+- TTS character cap одинаковый для всех
+- Бот сам генерит audio в любом случае — sub только меняет voice param
+
+Это similar to "custom emote" — premium content **в дополнение**, не **вместо**.
+
+### 🥇 Tier 3 — "Меценат" (Twitch Tier 3 OR Boosty ~1500-2000₽/мес)
+
+⚠️ **Отложено за MVP** — требует per-viewer custom artwork (Claude Design generation costs / Anthropic credits).
+
+| Perk | Где видно | Безопасность |
+|---|---|---|
+| 🎨 Custom pet species (sprite design) | Pet inventory unique entry | ✅ Cosmetic |
+| 🏰 Custom Bannerlord clan banner | Game / extension | ✅ Cosmetic |
+| 👤 Hero portrait вместо текста | Extension UI + overlay | ✅ Cosmetic |
+| 📜 Honor Wall mention | Overlay панель | ✅ Recognition |
+| 🎬 Personalized intro при призыве | OBS overlay | ✅ Recognition |
+| 🛠 Direct feature requests | Discord priority | ✅ Out-of-band |
+| 📊 Personal stats dashboard | Extension UI sub-only view | ✅ Cosmetic data |
+| 💬 Кастомный chat command `!{phrase}` | Twitch chat | 🟡 Bot-controlled, проверь chat ToS |
+
+---
+
+## ❌ ЧТО НЕ ДОБАВЛЯЕМ (банится по правилам)
+
+### Pay-to-win (Section 5.2)
+
+- ❌ Bonus crusticov в месяц
+- ❌ Снижение cooldown'ов
+- ❌ ELO boost в mini-games
+- ❌ Skip queue в tournaments
+- ❌ Эксклюзивные классы / powers в Bannerlord
+- ❌ Доп retinue slots
+- ❌ Higher loot rates / Hero.Gold income multipliers
+- ❌ Free tournament entry
+
+### Gambling / sweepstakes (Section 6.2.3-6.2.6)
+
+- ❌ Loot box mechanic с monetary value
+- ❌ Gachapon-style pet pulls с random rarity
+- ❌ Chance to win Bits/money via subscription
+
+### Off-site monetization (Section 4.6.3, 4.11)
+
+- ❌ NFT integration
+- ❌ Direct purchase link в extension UI
+- ❌ Third-party ad networks через extension
+- ❌ "Subscribe on Boosty" CTA button в extension
 
 ---
 
 ## Database schema (M37 migration)
 
 ```sql
--- M37: subscriptions table
+-- M37: subscription state (unified Twitch + Boosty)
 CREATE TABLE viewer_subscriptions (
     channel_id    INTEGER NOT NULL,
     username      TEXT NOT NULL,
     tier          TEXT NOT NULL,         -- 'tier1' | 'tier2' | 'tier3'
-    source        TEXT NOT NULL,         -- 'boosty' | 'manual' (admin)
+    source        TEXT NOT NULL,         -- 'twitch_native' | 'boosty_manual' | 'admin_grant'
+    twitch_tier   TEXT,                  -- '1000' | '2000' | '3000' (если source=twitch_native)
     started_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    expires_at    TIMESTAMP NOT NULL,    -- расчёт + 31 день от Boosty webhook
-    cosmetics_json TEXT,                 -- JSON {name_color, badge_id, custom_caption, palette_unlocks[]}
-    boosty_user_id TEXT,                 -- для webhook match
+    expires_at    TIMESTAMP NOT NULL,
+    cosmetics_json TEXT,                 -- JSON {name_color, badge_variant, custom_caption}
+    granted_by    TEXT,                  -- admin username если source='admin_grant'
+    granted_note  TEXT,                  -- "Boosty subscription verified by screenshot at 2026-05-21"
     PRIMARY KEY (channel_id, username)
 );
 
 CREATE INDEX idx_subscriptions_expires ON viewer_subscriptions(expires_at);
-CREATE INDEX idx_subscriptions_boosty ON viewer_subscriptions(boosty_user_id);
 ```
 
-### Опционально (для Tier 1 cosmetics)
-
-```sql
--- Subscriptions могут тратить очки на эксклюзив items
-CREATE TABLE viewer_sub_currency (
-    channel_id INTEGER NOT NULL,
-    username   TEXT NOT NULL,
-    balance    INTEGER NOT NULL DEFAULT 0,
-    earned_total INTEGER NOT NULL DEFAULT 0,    -- lifetime
-    spent_total  INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (channel_id, username)
-);
-
-CREATE TABLE viewer_sub_unlocks (
-    channel_id INTEGER NOT NULL,
-    username   TEXT NOT NULL,
-    item_id    TEXT NOT NULL,      -- 'pet:hat_rainbow' | 'bannerlord:banner_gold' | 'tts:voice_robot'
-    unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (channel_id, username, item_id)
-);
-```
+**Note:** убрали `boosty_user_id` колонку — без auto-polling Boosty API она не нужна. Manual grant flow не требует Boosty ID storage.
 
 ---
 
-## Boosty integration
+## Twitch Subscription Status integration (Phase 1 priority)
 
-### Webhook flow
+### Frontend
 
-Boosty не имеет официального webhook API (по состоянию на 2026-05-21). Варианты:
+```js
+// extension.js / viewer.js на onAuthorized
+twitch.onAuthorized(auth => {
+    fetch('/api/sub/sync', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${auth.token}` }
+    });
+});
 
-1. **Polling Boosty API** — `GET /api/v1/{user}/subscribers` каждые 5-15 мин, diff'им с БД
-   - Pro: легко реализовать
-   - Contra: задержка до 15 мин при новом sub'е, нужен Boosty access token
-2. **Manual sub linking** — viewer вводит в extension свой Boosty username + код для верификации
-   - Pro: zero Boosty API dependency
-   - Contra: viewer-side friction
-3. **Гибрид** — manual link при первой подписке, потом polling для renewals
+// Listen for subscription state changes
+twitch.listen('broadcast', (target, contentType, message) => {
+    if (message === 'subscription_changed') reloadHero();
+});
+```
 
-**Для MVP:** вариант 3. Viewer 1 раз вводит свой Boosty username в extension, мы polling'ом обновляем `expires_at`.
-
-### Backend (`routes/subscriptions.py` — новый)
+### Backend
 
 ```python
-# Эндпоинты MVP
-POST /api/sub/link          # {boosty_username, verify_code}
-GET  /api/sub/me            # current sub state + perks
-GET  /api/sub/cosmetics     # available cosmetics для my tier
-POST /api/sub/customize     # update cosmetics_json (name_color, caption, etc)
-
-# Admin only
-POST /api/admin/sub/grant   # ручное добавление sub (для тестов / награждения)
-POST /api/admin/sub/expire  # отозвать
+# routes/subscriptions.py
+@router.post("/api/sub/sync")
+async def sync_twitch_subscription(claims):
+    """Frontend sends Twitch JWT → backend extracts subscription tier
+    from JWT claims OR через Helix API call.
+    JWT contains: sub (user_id), subscription_status (опционально),
+    pubsub_perms etc.
+    """
+    twitch_tier = claims.get('subscription_status')  # '1000' / '2000' / '3000' / null
+    if twitch_tier:
+        await upsert_subscription(
+            channel_id=claims['channel_id'],
+            username=claims['user_id'],
+            tier=map_twitch_to_internal(twitch_tier),
+            source='twitch_native',
+            twitch_tier=twitch_tier,
+            expires_at=now + 31 days
+        )
 ```
 
-### Polling task
-
-`backend/sub_poller.py` — async task запускается на старте supervisor'а:
-- Каждые 10 мин: для каждого linked Boosty user → check API → update tier/expires_at
-- Если истёк → демоут до 'free' (cosmetics остаются visible но lock-on'ятся)
+**Twitch JWT contains** `subscription_status` claim если extension has Subscription Status capability enabled (declare в manifest). Free Twitch feature.
 
 ---
 
-## Frontend touchpoints
+## Admin grant flow (Boosty manual)
 
-### Где cosmetic gates
-
-1. **extension.html / mobile.html** — секция "Профиль" с кастомизацией ника/подписи (только если sub)
-2. **viewer.js hero card render** — добавить badge SVG + цветной ник
-3. **overlay.html** — золотая рамка вокруг hero cards для tier2+ subs
-4. **pet-stage.js** — sub-only palette options + sub-only items при render
-5. **chat-area** — sub badge рядом с message author
-
-### Sub badge SVG (placeholder, заменим pixel-art версией когда придёт)
-
-```html
-<svg viewBox="0 0 24 24" class="sub-badge sub-tier-{1|2|3}">
-  <path d="..." fill="var(--tier-color)"/>
-</svg>
+```python
+# routes/admin.py
+@router.post("/api/admin/sub/grant")
+async def admin_grant_subscription(request, claims=Depends(require_admin)):
+    """Streamer вручную добавляет sub после off-Twitch verification.
+    Body: {username, tier, source='boosty_manual', duration_days=31, note}
+    """
+    data = await request.json()
+    await upsert_subscription(
+        channel_id=streamer_channel_id,
+        username=data['username'],
+        tier=data['tier'],
+        source='boosty_manual',
+        expires_at=now + days(data['duration_days']),
+        granted_by=claims['username'],
+        granted_note=data['note']
+    )
 ```
 
-Tier colors:
-- Tier 1: серебро `#c0c0c0`
-- Tier 2: золото `#f0c33a`
-- Tier 3: радуга `linear-gradient(...)`
+**Admin panel UI** (HTML form):
+- Username dropdown
+- Tier select
+- Duration (default 31 days)
+- Source select (boosty/youtube/manual/etc.)
+- Note text area ("Boosty screenshot verified at...")
+
+---
+
+## Frontend cosmetic gates
+
+Где cosmetics будут видны если viewer sub:
+
+### 1. Hero card в extension.html
+
+```js
+function renderHeroCard(hero) {
+    const sub = _bannerlordLastHero?.subscription;
+    const nameColor = sub?.cosmetics?.name_color || '#efeff1';
+    const badge = sub?.tier ? renderBadge(sub.tier) : '';
+
+    return `<div class="hero-card">
+        ${badge}
+        <span style="color:${nameColor}">${hero.name}</span>
+        ${sub?.cosmetics?.caption ? `<div class="sub-caption">${sub.cosmetics.caption}</div>` : ''}
+    </div>`;
+}
+```
+
+### 2. Pet items unlock
+
+```js
+// pets.js — render catalog
+const items = catalog.filter(item => {
+    if (!item.tier_gate) return true;
+    return userSubTier >= item.tier_gate;
+});
+```
+
+### 3. Overlay decorations (overlay.html)
+
+```js
+// Tier 2+ subs get golden frame around summoned hero
+const frameClass = participant.sub_tier >= 2 ? 'sub-tier2-frame' : '';
+```
+
+### 4. TTS premium voices
+
+```python
+# routes/tts.py
+ALL_VOICES = ['default']
+PREMIUM_VOICES = ['robot', 'baby', 'deep', 'asmr', 'announcer']
+
+def get_allowed_voices(user_tier):
+    return ALL_VOICES + (PREMIUM_VOICES if user_tier >= 2 else [])
+```
 
 ---
 
 ## Implementation phases
 
-### Phase 1 — Backend wiring (~4-6 часов)
+### Phase 1 — Twitch native subs (~4-5 часов) ⭐ PRIORITY
 
-- [ ] M37 migration: `viewer_subscriptions`
-- [ ] `routes/subscriptions.py`: link / me / cosmetics / customize endpoints
-- [ ] `sub_poller.py` task: Boosty API polling
-- [ ] Test 19 extension для sub data isolation
+- [ ] M37 migration: `viewer_subscriptions` table
+- [ ] Manifest update: enable Subscription Status capability in Twitch Developer Console
+- [ ] Frontend: `twitch.onAuthorized` → `/api/sub/sync` call
+- [ ] Backend `/api/sub/sync`: extract tier from JWT, upsert DB
+- [ ] Tier 1 cosmetics: name color picker, custom caption, badge SVG render
+- [ ] Pet catalog: add `tier_gate` column (M38), 5-10 sub-only items
 
-### Phase 2 — Tier 1 frontend (~3-4 часа)
+### Phase 2 — Boosty manual flow (~3-4 часа)
 
-- [ ] Sub link modal в extension UI ("введи свой Boosty username")
-- [ ] Подпись + цветной ник + badge render в hero card
-- [ ] Sub-only pet items unlock'нутся когда `tier >= 1`
-- [ ] Monthly drop random item — backend cron, добавление в `pet_unlocked` table
+- [ ] Admin panel: `/admin/subscriptions` page (HTML form)
+- [ ] Backend: `POST /api/admin/sub/grant` endpoint (require_admin)
+- [ ] Frontend: render Boosty-granted subs same way как Twitch native subs
+- [ ] Docs: streamer instructions ("how to verify Boosty subscriber")
 
 ### Phase 3 — Tier 2 cosmetics (~4-5 часов)
 
-- [ ] Sub-only pet palettes (4 цвета) — добавить в `PET_PALETTES` с `tier_gate='tier2'`
-- [ ] Animated pet auras — sub-only items в `pet_catalog` с `tier_gate`
-- [ ] Custom card frame в `overlay.html` для tier2+ subs
-- [ ] Premium TTS voices — `/api/tts/submit` принимает `voice` param, поддерживает 5-6 variants
-- [ ] Early access feature flag — `?beta=true` в URL → frontend читает `_subscription.tier >= 2`
+- [ ] Pet palettes: 4 sub-only entries (radioactive, glitch, gold-foil, holographic)
+- [ ] Overlay: tier2 frame styling
+- [ ] TTS premium voices: backend voice param + frontend dropdown
+- [ ] Animated pet auras (need pixel art batch from Claude Design)
+- [ ] Early access feature flag (`?beta=true` URL toggle)
 
 ### Phase 4 — Polish + monitoring (~2-3 часа)
 
-- [ ] Admin panel UI для grant/expire
-- [ ] Analytics — sub conversion / retention metrics
-- [ ] "Guest of the week" overlay panel
-- [ ] Auto-expire workflow + email/Discord ping owner
+- [ ] Sub expiration cron task (daily check, auto-demote)
+- [ ] Email/Discord ping streamer на новой подписке (Twitch native)
+- [ ] Analytics dashboard: sub conversion / churn / breakdown by source
+- [ ] Test 19 extension: sub data multi-tenant isolation
 
-### Phase 5 — Tier 3 (отложено, заявка по mvp data)
+### Phase 5 — Tier 3 (отложен)
 
-После Phase 1-4 + анализа conversion из Tier 1 → 2 → 3. Если есть spending demand — делаем custom artwork pipeline (Claude Design generation per-sub).
-
----
-
-## Risk register
-
-| Риск | Митигация |
-|---|---|
-| Twitch отозвает extension за pay-to-win претензию | Strict cosmetic-only enforcement в коде + audit перед каждым deploy |
-| Boosty API меняется / закрывается | Manual fallback link, не критически зависим |
-| Viewer обманывает (Boosty user fake) | Verify code: одноразовый key, viewer должен опубликовать на своём Boosty profile / отправить в стример Discord |
-| Бренди bookkeeping (subs истекают) | Daily cron task auto-expire + email уведомление owner'у |
-| Sub видит что perks тривиальные → отписывается | Quarterly content drops — новые sub-only items, чтобы оставался reason renew |
+Только после Phase 1-4 + анализ Tier 1→2 conversion.
 
 ---
 
-## Open questions
+## Risk register (revised)
 
-1. **Цены в RUB или USD?** Boosty — RUB native. Stripe / PayPal — USD/EUR. Возможно multi-platform позже.
-2. **Цвет accent для tier 2 sub** — кастомизация или fixed gold?
-3. **Honor wall** — публичный (видят все viewers) или sub-only?
-4. **Sub-only Discord channel** — модерация чья? streamer'a или automated?
-5. **Refund policy** — если viewer купил и пожаловался, что делать с unlocked cosmetics?
-
----
-
-## Дальнейшие шаги
-
-- [ ] Стример (shedoy23) одобряет tier prices + perk list
-- [ ] Решить вопросы из Open questions (выше)
-- [ ] Phase 1 implementation start — после deploy текущего pet pixel-art batch'a
-- [ ] M37 migration + Boosty wiring → Phase 2-3 — параллельно
-- [ ] Soft-launch Tier 1 → 2 недели метрик → решение про Tier 2 launch
-- [ ] Tier 3 — постponed, не in scope MVP
+| Риск | Митигация | Severity |
+|---|---|---|
+| Twitch refused extension за §5.2 (Boosty as commerce instrument) | Strict separation: no purchase CTA в extension, manual admin grant only | 🟡 Mid |
+| Sub status JWT claim не работает | Fallback на Helix API call с extension client credentials | 🟢 Low |
+| Russian viewers не могут платить ни Twitch ни Boosty | Allow manual admin grant с любым source ('crypto', 'ko-fi', etc.) | 🟢 Low |
+| Viewer обманывает (fake Boosty screenshot) | Streamer ручная verify — это его judgement call | 🟢 Low |
+| Sub-only cosmetics виден как "premium tier locked to external pay" → §5.2 | Cosmetics unlocks через manual grant — нет automated payment connection в extension | 🟡 Mid |
+| Currency conversion (USD ↔ RUB) | Multi-currency UI, prices in BOТH RUB и USD | 🟢 Low |
+| Twitch меняет Subscription Status API | Subscription Status — stable Twitch product, доказано работает | 🟢 Low |
 
 ---
 
-**Источник:** ChatGPT-консультация со streamer'ом (2026-05-21), Twitch ToS analysis,
-Boosty product research. Update'нуть при первом запуске + после feedback от subs.
+## Open questions (отвечает streamer перед Phase 1)
+
+1. **Boosty integration срочность** — нужен ли в MVP (Phase 2) или отложить до запроса от viewer'ов?
+2. **Tier цены RUB** — финальные? (200 / 500 / 1500 — это предположения)
+3. **Honor wall** — public visible all viewers или sub-only?
+4. **Sub-only Discord channel** — кто модерирует?
+5. **Premium TTS voices** — какие конкретно? (robot/baby/deep — это плейсхолдеры)
+6. **Manual grant frequency** — приемлемо ли для streamer'а отвечать на verify pings 1-2 раза в день?
+
+---
+
+## Sources / verified citations
+
+- [Twitch Extensions Guidelines & Policies](https://dev.twitch.tv/docs/extensions/guidelines-and-policies/)
+- [Extension Monetization Documentation](https://dev.twitch.tv/docs/extensions/monetization/)
+- [Twitch Developer Services Agreement](https://legal.twitch.com/legal/developer-agreement/)
+- [Bits Acceptable Use Policy](https://legal.twitch.com/legal/bits-acceptable-use/)
+- [Twitch Monetized Streamer Agreement](https://legal.twitch.com/en/legal/monetized-streamer-agreement/)
+- [Monetization for All blog post (May 2026)](https://blog.twitch.tv/en/2026/05/13/monetization-for-all/)
+
+---
+
+## TL;DR пересмотренного решения
+
+**Раньше (initial draft):** "Boosty подписки → unlock cosmetics в extension" — ⚠️ §5.2 риск.
+
+**Сейчас (revised):**
+1. **Twitch native subscriptions** — primary channel (legal, Twitch-supported, automated)
+2. **Boosty / Patreon / любой external** — manual admin grant only (streamer manually verifies, no in-extension purchase CTA)
+3. **Cosmetic-only perks** (no pay-to-win, gambling, NFTs)
+4. **Out-of-band community perks** (Discord, YouTube, voice lobby) — completely safe
+
+**Phase 1 immediately actionable:** Twitch native sub integration через Subscription Status API. ~4-5 часов работы. Это **safe legal path** + Twitch payment infrastructure.
+
+**Phase 2 (Boosty manual)** — для Russian viewers. Manual admin grant flow, no automated payment integration in extension UI.
+
+---
+
+**Дальнейшие шаги:**
+
+- [ ] Streamer (shedoy23) одобряет revised plan
+- [ ] Решить Open questions (6 вопросов выше)
+- [ ] Phase 1 implementation — после deploy текущего pet pixel-art batch'а
+- [ ] Soft-launch Twitch native subs (Phase 1+3) → 2 недели метрик
+- [ ] Phase 2 (Boosty manual) — после feedback от Russian viewers

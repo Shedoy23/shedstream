@@ -249,32 +249,6 @@ class DBPoolContext:
             self.conn = None
 
 
-# Функция для миграции legacy-кода на pool
-def migrate_to_pool(legacy_func):
-    """
-    Декоратор для миграции legacy-функций на использование пула.
-
-    Пример:
-        @migrate_to_pool
-        async def get_viewer(username):
-            async with aiosqlite.connect(db.db_path) as conn:
-                ...
-    """
-    import functools
-
-    @functools.wraps(legacy_func)
-    async def wrapper(*args, **kwargs):
-        db_path = kwargs.get("db_path") or (
-            getattr(args[0], "db_path", None) if args else None
-        )
-        conn = None
-        try:
-            pool = get_db_pool(db_path)
-            await pool.initialize()
-            conn = await pool.acquire()
-            return await legacy_func(conn=conn, **kwargs)
-        finally:
-            if conn is not None:
-                await pool.release(conn)
-
-    return wrapper
+# Sprint 5.31 #45f — `migrate_to_pool` декоратор удалён (codegraph dead-code
+# audit, 0 callers). Изначально планировался для постепенной миграции legacy-
+# функций на DB pool, но никто его не применил. Если понадобится — git log.

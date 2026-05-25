@@ -32,7 +32,12 @@ _AUTH_FAIL = {"success": False, "message": "❌ Требуется автори�
 
 @router.get("/api/viewer/cases")
 async def viewer_cases(request: Request):
-    """Список кейсов юзера (открытые + неоткрытые), новейшие первыми.
+    """Список ТОЛЬКО закрытых кейсов юзера, новейшие первыми.
+
+    Sprint 5.28: UX cleanup — раньше отдавали include_opened=True (история
+    открытых тоже шла в grid как dimmed cards). Юзер пожаловался: badge
+    «все открыты» + «Нет закрытых кейсов» + 12 серых карточек = confusing.
+    Историю не показываем; список = inbox закрытых.
 
     Multi-tenant scoping через JWT (channel_id из токена + username владельца).
     """
@@ -42,13 +47,17 @@ async def viewer_cases(request: Request):
     username, channel_id = auth
 
     db = get_db()
-    cases = await db.list_cases(username, channel_id=channel_id, include_opened=True, limit=100)
+    cases = await db.list_cases(username, channel_id=channel_id, include_opened=False, limit=100)
     counts = await db.count_unopened_cases(username, channel_id=channel_id)
+    # Sprint 5.28: lifetime count — нужно frontend'у чтобы различать
+    # «никогда не было кейсов» vs «все открыл» в empty-state сообщении.
+    lifetime = await db.count_all_cases(username, channel_id=channel_id)
 
     return {
         "success": True,
         "cases": cases,
         "unopened_counts": counts,
+        "lifetime_count": lifetime,
     }
 
 
@@ -121,15 +130,23 @@ async def viewer_case_open(request: Request):
 # ── Public preview endpoint ────────────────────────────────────────────────────
 
 @router.get("/api/case/preview/{tier}")
-async def case_preview(tier: str):
+async def case_preview(tier: str, request: Request):
     """Preview награды per tier. Public — viewer видит **до** открытия что
     получит. Compliance: detерминированный prize, юзер всегда знает шансы
     (а здесь шансов нет вообще — фиксированно).
+
+    Sprint 5.31 #45e (audit MED-9) — добавлен per-IP rate limit (60/min).
+    Раньше endpoint был полностью anon без guard'а — trivial DoS vector
+    пока Nginx-level лимиты не активизируются.
 
     Returns:
         {success: True, tier, reward_points, label, color}
         | {success: False, message}
     """
+    from dependencies import check_rate_limit
+    client_ip = (request.client.host if request.client else "unknown")
+    if not check_rate_limit(client_ip, limit=60):
+        return {"success": False, "message": "Слишком много запросов"}
     tier = tier.lower().strip()
     if tier not in CASE_TIER_REWARDS:
         return {"success": False, "message": "Неизвестный тир"}
@@ -156,8 +173,13 @@ async def case_preview(tier: str):
 
 
 @router.get("/api/case/preview")
-async def case_preview_all():
+async def case_preview_all(request: Request):
     """All tiers в одном запросе — для UI catalog'а / FAQ."""
+    # Sprint 5.31 #45e (audit MED-9) — rate limit как у /preview/{tier}.
+    from dependencies import check_rate_limit
+    client_ip = (request.client.host if request.client else "unknown")
+    if not check_rate_limit(client_ip, limit=60):
+        return {"success": False, "message": "Слишком много запросов"}
     labels = {"common": "Обычный", "rare": "Редкий", "epic": "Эпический", "legendary": "Легендарный"}
     colors = {"common": "#9ca3af", "rare": "#3b82f6", "epic": "#a855f7", "legendary": "#fbbf24"}
     tiers = []

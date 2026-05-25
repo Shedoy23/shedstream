@@ -15,6 +15,7 @@ routes/module_api.py — Module API HTTP endpoints (этап 3 steps 1+2+3).
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from collections import deque
 from typing import Deque, Set
@@ -23,6 +24,8 @@ from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
 from dependencies import get_db
+
+log = logging.getLogger("rimlink.module_api")
 from modules._base import ModuleEnvelope
 from modules._loader import get_module, list_modules
 
@@ -173,26 +176,30 @@ async def module_events(module_id: str, request: Request):
         )
 
     # 1. Auth
+    # Sprint 5.31 #45e (audit MED-8) — collapse trio of auth failures
+    # (missing_auth / invalid_token / module_id_mismatch / channel_id_mismatch
+    # ниже) в ОДИН error response. Раньше attacker мог распознать «какой
+    # именно из leaked токенов в его руках» по различающимся error messages
+    # (timing oracle). Теперь returned-side identical; reason всё ещё
+    # логируется внутрь для debugging.
+    _AUTH_FAILED = {"status": "auth_failed",
+                    "message": "Module-token missing, expired or wrong channel"}
     token = _extract_bearer_token(request)
     if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"status": "missing_auth", "message": "Authorization: Bearer <module-token> required"},
-        )
+        log.warning("[module_api] auth_failed: missing Bearer (module=%s ip=%s)",
+                    module_id, request.client.host if request.client else "?")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=_AUTH_FAILED)
     # Late-import чтобы избежать циклической зависимости routes ↔ streamer.
     from routes.streamer import verify_module_token
     claims = verify_module_token(token)
     if not claims:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"status": "invalid_token", "message": "Module-token не валиден или истёк"},
-        )
+        log.warning("[module_api] auth_failed: invalid/expired token (module=%s)",
+                    module_id)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=_AUTH_FAILED)
     if claims["module_id"] != module_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={"status": "module_id_mismatch",
-                    "message": f"Token issued for {claims['module_id']}, route is {module_id}"},
-        )
+        log.warning("[module_api] auth_failed: module_id mismatch "
+                    "(token=%s, route=%s)", claims["module_id"], module_id)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=_AUTH_FAILED)
 
     # 2. Body
     try:
@@ -208,11 +215,11 @@ async def module_events(module_id: str, request: Request):
     except (TypeError, ValueError):
         body_channel_id = 0
     if body_channel_id != claims["channel_id"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={"status": "channel_id_mismatch",
-                    "message": "body.channel_id не совпадает с token.channel_id"},
-        )
+        # Sprint 5.31 #45e (audit MED-8) — same _AUTH_FAILED response для
+        # неотличимости от прочих auth fails (timing oracle protection).
+        log.warning("[module_api] auth_failed: body channel_id=%s ≠ token=%s",
+                    body_channel_id, claims["channel_id"])
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=_AUTH_FAILED)
     channel_id = body_channel_id
 
     envelopes_raw = body.get("envelopes") or []
@@ -257,7 +264,16 @@ async def module_events(module_id: str, request: Request):
             await adapter.handle_event(channel_id, env)
             acks.append({"id": env.id, "success": True})
         except Exception as e:
-            acks.append({"id": env.id, "success": False, "error": f"{type(e).__name__}: {e}"})
+            # Sprint 5.29 audit fix #34: было лог только в ack response — сервер
+            # сам ничего не печатал → если supervisorctl tail смотришь,
+            # не увидишь что envelope failed. Теперь logger.exception
+            # с stack trace в stderr.
+            import logging
+            logging.getLogger("rimlink.module_api").exception(
+                "[event handler] channel=%s envelope_id=%s type=%s failed: %s",
+                channel_id, env.id, env.type, e)
+            acks.append({"id": env.id, "success": False,
+                         "error": f"{type(e).__name__}: {e}"})
 
     return {"status": "ok", "acks": acks}
 
@@ -274,26 +290,29 @@ _BATCH_LIMIT = 50
 def _verify_module_request(request: Request, module_id: str) -> int:
     """Helper: validate Authorization + module match. Возвращает channel_id из
     токена или поднимает HTTPException. Используется actions/ack endpoints'ами.
+
+    Sprint 5.31 #45e (audit MED-8) — все 3 failure paths возвращают
+    одинаковый response чтобы attacker не мог через 401-vs-403 различать
+    «leaked токен с правильного канала» vs «leaked с чужого канала».
+    Reason пишется в лог (WARNING) для дебага.
     """
+    _AUTH_FAILED = {"status": "auth_failed",
+                    "message": "Module-token missing, expired or wrong channel"}
     auth = request.headers.get("Authorization", "")
     if not auth.startswith("Bearer "):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"status": "missing_auth"},
-        )
+        log.warning("[module_api] auth_failed: missing Bearer (module=%s)", module_id)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=_AUTH_FAILED)
     token = auth[7:].strip()
     from routes.streamer import verify_module_token
     claims = verify_module_token(token)
     if not claims:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"status": "invalid_token"},
-        )
+        log.warning("[module_api] auth_failed: invalid/expired token (module=%s)",
+                    module_id)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=_AUTH_FAILED)
     if claims["module_id"] != module_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={"status": "module_id_mismatch"},
-        )
+        log.warning("[module_api] auth_failed: module_id mismatch "
+                    "(token=%s route=%s)", claims["module_id"], module_id)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=_AUTH_FAILED)
     return int(claims["channel_id"])
 
 
@@ -390,6 +409,21 @@ async def module_ack(module_id: str, request: Request):
         success=success,
         error_msg=error_msg,
     )
+
+    # Sprint 5.29 audit fix #34: trace action lifecycle. Раньше ACK silent —
+    # никаких логов; нельзя было сопоставить «buy_action enqueue» c «mod
+    # processed». Теперь action_id трэйсится по обоим сторонам.
+    import logging
+    _log_ack = logging.getLogger("rimlink.module_api")
+    if success:
+        _log_ack.info("[bannerlord ACK ok] action_id=%s ch=%s module=%s",
+                      action_id, channel_id, module_id)
+    else:
+        _log_ack.warning(
+            "[bannerlord ACK FAIL] action_id=%s ch=%s module=%s reason=%s "
+            "— viewer paid крустики but action not applied (refund TODO #21)",
+            action_id, channel_id, module_id, error_msg)
+
     return {"acked": acked, "action_id": action_id, "status": "acked" if success else "failed"}
 
 

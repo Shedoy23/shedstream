@@ -376,3 +376,69 @@ async def get_online_users():
         """)
         rows = await cursor.fetchall()
     return {"users": [r[0] for r in rows]}
+
+
+# Sprint 5.31 #45b — Perks/tier endpoint для бейджа в шапке расширения.
+# Возвращает текущему viewer'у его role + boosty_tier + twitch_sub_tier чтобы
+# фронт мог нарисовать "TS1" / "BS2" / "👑 Стример" / "🛡 Модер" рядом с ником.
+@router.get("/api/viewer/perks")
+async def viewer_perks(request: Request):
+    """Return {role, twitch_sub_tier, boosty_tier} для текущего JWT-юзера.
+
+    Sprint 5.31 #45c — каждая ветка отказа логируется чтобы можно было
+    дебажить "почему мой бейдж не показывает BS2" без переоткрытия issue.
+    """
+    from auth import verify_twitch_jwt
+    jwt_data = verify_twitch_jwt(request)
+    if jwt_data.get("status") != "valid":
+        logger.info("[perks] invalid JWT status=%s — returning anon defaults",
+                    jwt_data.get("status"))
+        return {"success": False, "role": "viewer",
+                "twitch_sub_tier": 0, "boosty_tier": 0}
+    role = (jwt_data.get("role") or "viewer").lower()
+    user_id = str(jwt_data.get("user_id") or "")
+    try:
+        channel_id = int(jwt_data.get("channel_id") or 0)
+    except (TypeError, ValueError):
+        channel_id = 0
+
+    # Username для Boosty lookup — без него Boosty tier не определить.
+    # require_jwt_user даёт sanitized login, но если viewer не залогинен —
+    # будет None, и Boosty всё равно не сможем зарезолвить. Тогда возвращаем 0.
+    auth = require_jwt_user(request)
+    username = auth[0] if auth else ""
+
+    # Boosty tier (manual list).
+    boosty_tier = 0
+    if channel_id and username:
+        try:
+            from routes.bannerlord_boosty import get_boosty_tier
+            boosty_tier = await get_boosty_tier(channel_id, username)
+        except Exception as e:
+            logger.warning("[perks] boosty lookup failed: %s", e)
+    else:
+        logger.debug("[perks] boosty lookup skipped: ch=%s user=%s "
+                     "(missing channel_id or username — JWT без identity share?)",
+                     channel_id, username)
+
+    # Twitch sub tier (Helix). Только если есть user_id + channel_id.
+    twitch_sub_tier = 0
+    if channel_id and user_id:
+        try:
+            from twitch_subs import get_subscription_tier
+            t = await get_subscription_tier(channel_id, user_id)
+            twitch_sub_tier = int(t or 0)
+        except Exception as e:
+            logger.warning("[perks] twitch sub lookup failed: %s", e)
+    else:
+        logger.debug("[perks] twitch sub lookup skipped: ch=%s user_id=%s "
+                     "(missing channel_id or user_id)", channel_id, user_id)
+
+    logger.info("[perks] resolved ch=%s user=%s role=%s TS=%s BS=%s",
+                channel_id, username or "?", role, twitch_sub_tier, boosty_tier)
+    return {
+        "success":          True,
+        "role":             role,             # viewer | moderator | broadcaster
+        "twitch_sub_tier":  twitch_sub_tier,  # 0 | 1 | 2 | 3
+        "boosty_tier":      boosty_tier,      # 0 | 1 | 2 | 3
+    }

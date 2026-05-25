@@ -45,9 +45,15 @@ TWITCH_OAUTH_REDIRECT_URI = os.getenv(
     'TWITCH_OAUTH_REDIRECT_URI',
     'https://shedoy23.ru/api/streamer/auth/callback'
 )
-# Скоупы: user:read:email чтобы получить login + user_id, channel:read:redemptions
-# для будущего EventSub auto-register (M4.5 положит channel.channel_points_*).
-TWITCH_OAUTH_SCOPES = 'user:read:email channel:read:redemptions'
+# Скоупы для broadcaster OAuth:
+#   user:read:email             — login + user_id для регистрации канала
+#   channel:read:redemptions    — EventSub auto-register для channel points
+#   channel:read:subscriptions  — Sprint 5.29: проверка sub-status зрителей
+#                                 через Helix /subscriptions (для perk-tier
+#                                 system — price discount + reward boost).
+# Existing streamers нужно re-OAuth чтобы scope добавился к их токену
+# (без re-OAuth Helix будет 401 на /subscriptions запросы — handled gracefully).
+TWITCH_OAUTH_SCOPES = 'user:read:email channel:read:redemptions channel:read:subscriptions'
 
 # ===== Этап 3 step 5: Module API player events feature flag =====
 # При false (default) — `player.linked` / `player.died` / `player.respawned` /

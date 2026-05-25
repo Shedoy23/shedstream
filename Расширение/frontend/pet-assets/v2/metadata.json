@@ -1,0 +1,65 @@
+{
+  "group_id": "328616b0-0905-4ac6-8eac-9993a0fef58a",
+  "states": [
+    {
+      "character": {
+        "id": "b10e5f13-74bc-41f7-9580-c66fd19464c7",
+        "name": "A cute pixel chibi character",
+        "prompt": "A cute pixel chibi character with a stout, rounded physique, short stubby arms and legs, wearing a simple tunic and belt, standing in a confident, wide-legged stance, cheerful expression with wide eyes and a small smile, low top-down perspective.",
+        "size": {
+          "width": 104,
+          "height": 104
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-05-24T12:40:53.473386+00:00"
+      },
+      "folder": "A_cute_pixel_chibi_character",
+      "frames": {
+        "rotations": {
+          "south": "A_cute_pixel_chibi_character/rotations/south.png",
+          "south-east": "A_cute_pixel_chibi_character/rotations/south-east.png",
+          "east": "A_cute_pixel_chibi_character/rotations/east.png",
+          "north-east": "A_cute_pixel_chibi_character/rotations/north-east.png",
+          "north": "A_cute_pixel_chibi_character/rotations/north.png",
+          "north-west": "A_cute_pixel_chibi_character/rotations/north-west.png",
+          "west": "A_cute_pixel_chibi_character/rotations/west.png",
+          "south-west": "A_cute_pixel_chibi_character/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    },
+    {
+      "character": {
+        "id": "686cd617-1b75-4be1-bca8-a2038817d4d3",
+        "name": "\u0421\u043d\u044f\u0442\u044c \u0441 \u043f\u0435\u0440\u0441\u043e\u043d\u0430\u0436\u0430 \u043e\u0434",
+        "prompt": "A cute pixel chibi character with a stout, rounded physique, short stubby arms and legs, wearing a simple tunic and belt, standing in a confident, wide-legged stance, cheerful expression with wide eyes and a small smile, low top-down perspective.",
+        "size": {
+          "width": 104,
+          "height": 104
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-05-24T12:51:34.263092+00:00"
+      },
+      "folder": "686cd617",
+      "frames": {
+        "rotations": {
+          "south": "686cd617/rotations/south.png",
+          "south-east": "686cd617/rotations/south-east.png",
+          "east": "686cd617/rotations/east.png",
+          "north-east": "686cd617/rotations/north-east.png",
+          "north": "686cd617/rotations/north.png",
+          "north-west": "686cd617/rotations/north-west.png",
+          "west": "686cd617/rotations/west.png",
+          "south-west": "686cd617/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.0",
+  "export_date": "2026-05-24T12:54:51.036079"
+}

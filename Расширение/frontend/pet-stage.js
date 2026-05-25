@@ -20,79 +20,64 @@
 (function (global) {
     'use strict';
 
-    // ── Inline SVG creature (post-hatch) ─────────────────────────────────────
-    // Sprint 5.22 patch (2026-05-20): body color через CSS variables
-    // (--pet-body-{mid,stroke}). Background slot не рендерится отдельным
-    // слоем, а добавляет CSS-класс .pet-stage--{item_id} который
-    // переопределяет переменные → creature перекрашивается.
+    // ── Pixel-art PNG creature (Sprint 5.28, 2026-05-24) ────────────────────
+    // До 5.28: inline SVG blob с ellipses (smooth slime). Items от Claude
+    // Design были pixel-art и плохо ложились на smooth творение.
     //
-    // Использован solid fill (не gradient) потому что несколько inline-SVG
-    // с одинаковым gradient ID де-дуплицируются браузером и все ссылаются
-    // на первое определение → cross-stage цвет ломается. «Глубину» даёт
-    // highlight + shadow ellipses поверх плоского fill.
-    function _buildCreatureSvg() {
-        return `
-            <svg viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg"
-                 class="pet-stage__creature">
-                <!-- Body — solid mid цвет + highlight + shadow для объёма -->
-                <ellipse cx="90" cy="100" rx="60" ry="62"
-                         style="fill: var(--pet-body-mid, #a855f7);
-                                stroke: var(--pet-body-stroke, #4c1d95);"
-                         stroke-width="1.5"/>
-                <!-- Highlight (light top-left) -->
-                <ellipse cx="72" cy="75" rx="28" ry="20"
-                         style="fill: var(--pet-body-light, #d8b4fe);"
-                         opacity="0.45"/>
-                <!-- Shadow (dark bottom-right) -->
-                <ellipse cx="110" cy="135" rx="38" ry="22"
-                         style="fill: var(--pet-body-dark, #6b21a8);"
-                         opacity="0.35"/>
-                <!-- Belly highlight (subtle white) -->
-                <ellipse cx="90" cy="128" rx="30" ry="12"
-                         fill="#ffffff" opacity="0.10"/>
-                <!-- Cheeks (за глазами для теплоты) — solid pink с opacity -->
-                <ellipse cx="62"  cy="106" rx="9" ry="5" fill="#fb7185" opacity="0.55"/>
-                <ellipse cx="118" cy="106" rx="9" ry="5" fill="#fb7185" opacity="0.55"/>
-                <!-- Eyes (whites) -->
-                <ellipse cx="72"  cy="88" rx="9.5" ry="10" fill="white"/>
-                <ellipse cx="108" cy="88" rx="9.5" ry="10" fill="white"/>
-                <!-- Pupils -->
-                <ellipse cx="74"  cy="90" rx="4.5" ry="5" fill="#1a1a1c"/>
-                <ellipse cx="110" cy="90" rx="4.5" ry="5" fill="#1a1a1c"/>
-                <!-- Pupil shines -->
-                <circle cx="75.5"  cy="88" r="1.6" fill="white"/>
-                <circle cx="111.5" cy="88" r="1.6" fill="white"/>
-                <!-- Mouth -->
-                <path d="M 80 112 Q 90 119 100 112"
-                      stroke="#1a1a1c" stroke-width="2.5"
-                      fill="none" stroke-linecap="round"/>
-            </svg>
-        `;
+    // 5.28: переход на pixel-art creature от PixelLab — 104×104 PNG с
+    // 8-direction rotation. Два варианта (kimono dressed / underwear base).
+    // CSS image-rendering: pixelated сохраняет chunky pixels при scaling
+    // с 104px source до 64-180px рендера.
+    //
+    // Pet-asset path: frontend/pet-assets/v2/{variant}/{direction}.png
+    // где variant = 'kimono' | 'underwear', direction = 'south' | 'east' | ...
+    //
+    // Backward-compat: CREATURE_SVG экспорт — старый код может его звать,
+    // возвращаем wrapper image вместо SVG.
+    const PET_ASSET_BASE = 'pet-assets/v2';
+    const DEFAULT_VARIANT = 'kimono';   // default: dressed character (не «голый младенец»)
+    const DEFAULT_DIRECTION = 'south';
+
+    function _buildCreatureImg(variant, direction) {
+        variant   = variant   || DEFAULT_VARIANT;
+        direction = direction || DEFAULT_DIRECTION;
+        const src = `${PET_ASSET_BASE}/${variant}/${direction}.png`;
+        return `<img src="${src}" class="pet-stage__creature"
+                     alt="pet creature" draggable="false"/>`;
     }
-    const CREATURE_SVG = _buildCreatureSvg();  // backward-compat экспорт
+    const CREATURE_SVG = _buildCreatureImg();  // backward-compat экспорт
 
     // ── Item renderer ─────────────────────────────────────────────────────────
-    // Item может содержать svg_path (inline SVG) или fallback на emoji.
-    // svg_path — относительный path внутри 180×180 viewBox, или полный
-    // svg-тег. Сейчас фиксируем как inline SVG (если есть) либо просто emoji.
+    // Sprint 5.28: emoji fallback УБРАН. Items рендерятся ТОЛЬКО как
+    // pixel-art assets:
+    //   - item.svg_path → inline SVG (от Claude Design)
+    //   - item.png_path → PNG <img> (от PixelLab generations)
+    // Item с одним только emoji полем НЕ рендерится (silently ignored).
+    // Это потому что pixel-art creature + Unicode emoji ставят визуальный
+    // диссонанс — кепка-emoji флоатит над pixel-головой неконсистентно.
+    //
+    // Каждый item — full 180×180 (или 104×104) overlay. Position анкоров
+    // baked-in в самом sprite'е, slot CSS даёт только z-stack и full-cover.
     function _renderItem(item) {
         if (!item) return '';
         if (item.svg_path) {
-            // svg_path = либо целый <svg>...</svg>, либо path-content.
-            // Если начинается с <svg → используем как есть; иначе wrapping
-            // в стандартный 180×180 viewBox.
             const sp = item.svg_path.trim();
             if (sp.startsWith('<svg')) return sp;
             return `<svg viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg">${sp}</svg>`;
         }
-        return _esc(item.emoji || '');
+        if (item.png_path) {
+            return `<img src="${item.png_path}" class="pet-stage__item-img"
+                         alt="" draggable="false"/>`;
+        }
+        // Emoji-only items не рендерятся в pixel-art эстетике.
+        return '';
     }
 
     // ── Public render ─────────────────────────────────────────────────────────
     /**
      * @param {object} pet       — {pet_type, name, ...}
      * @param {object} equipped  — {slot: item, ...}
-     * @param {object} [opts]    — {size: 180, className: ''}
+     * @param {object} [opts]    — {size: 180, className: '', variant: 'kimono', direction: 'south'}
      * @returns {string} innerHTML
      */
     function renderHtml(pet, equipped, opts) {
@@ -101,6 +86,7 @@
         opts     = opts     || {};
         const size       = opts.size || 180;
         const className  = opts.className || '';
+        const direction  = opts.direction || DEFAULT_DIRECTION;
         const hatched    = pet.pet_type && pet.pet_type !== 'egg';
 
         const bg  = equipped.background;
@@ -109,6 +95,20 @@
         const face = equipped.face;
         const body = equipped.body;
         const acc  = equipped.accessory;
+
+        // Sprint 5.28: body slot может содержать SKIN-item (skin_kimono/skin_underwear),
+        // который меняет character variant вместо overlay-рендера. Convention по
+        // item_id префиксу 'skin_'. Если найден — extract variant name + НЕ рендерим
+        // body как item-слой (он становится частью creature'а сам).
+        let variant = opts.variant || DEFAULT_VARIANT;
+        let bodySkinOverride = false;
+        if (body && typeof body.item_id === 'string' && body.item_id.startsWith('skin_')) {
+            const v = body.item_id.slice(5);  // 'skin_kimono' → 'kimono'
+            if (v === 'kimono' || v === 'underwear') {
+                variant = v;
+                bodySkinOverride = true;
+            }
+        }
 
         // Sprint 5.22 patch: background теперь = окрас creature'а (CSS-класс
         // .pet-stage--{bg_item_id} переопределяет --pet-body-* переменные).
@@ -132,12 +132,18 @@
         }
 
         // Post-hatch — full creature stack
+        const creatureImg = _buildCreatureImg(variant, direction);
+        // Если body — skin-override, не рендерим его как item-слой (variant уже
+        // отражён в creature itself). Иначе обычный body item overlay.
+        const bodyItemHtml = (body && !bodySkinOverride)
+            ? `<div class="pet-stage__slot pet-stage__slot--body">${_renderItem(body)}</div>`
+            : '';
         return `
             <div class="pet-stage pet-stage--hatched ${bgClass} ${className}"
                  style="--pet-stage-size:${size}px;">
                 ${auraHtml}
-                <div class="pet-stage__base">${CREATURE_SVG}</div>
-                ${body ? `<div class="pet-stage__slot pet-stage__slot--body">${_renderItem(body)}</div>` : ''}
+                <div class="pet-stage__base">${creatureImg}</div>
+                ${bodyItemHtml}
                 ${face ? `<div class="pet-stage__slot pet-stage__slot--face">${_renderItem(face)}</div>` : ''}
                 ${head ? `<div class="pet-stage__slot pet-stage__slot--head">${_renderItem(head)}</div>` : ''}
                 ${acc  ? `<div class="pet-stage__slot pet-stage__slot--accessory">${_renderItem(acc)}</div>`  : ''}
@@ -166,6 +172,10 @@
     global.PetStage = {
         renderHtml: renderHtml,
         escapeHtml: _esc,
-        CREATURE_SVG: CREATURE_SVG,
+        CREATURE_SVG: CREATURE_SVG,           // legacy export (now returns img tag)
+        buildCreatureImg: _buildCreatureImg,  // (variant, direction) → img html
+        VARIANTS:   ['kimono', 'underwear'],
+        DIRECTIONS: ['south', 'south-east', 'east', 'north-east',
+                     'north', 'north-west', 'west', 'south-west'],
     };
 })(typeof window !== 'undefined' ? window : globalThis);

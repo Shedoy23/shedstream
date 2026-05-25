@@ -17,31 +17,122 @@
 
     <script src="pet-stage.js"></script>
     <script>
+        // Sprint 5.28 TEST: LLM-generated witch hat в нашем ASCII-pipe формате.
+        // 104×104 viewBox, 1-pixel cells. Анкор хата подобран под head'у kimono
+        // character'а (y=5-20). Сравнение качества: LLM-pixel-art vs PixelLab.
+        const WITCH_HAT_LLM = `<svg viewBox="0 0 104 104" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+<rect x="52" y="5" width="1" height="1" fill="#1a1d24"/>
+<rect x="51" y="6" width="3" height="1" fill="#1a1d24"/>
+<rect x="51" y="7" width="1" height="1" fill="#1a1d24"/>
+<rect x="52" y="7" width="1" height="1" fill="#5a3a78"/>
+<rect x="53" y="7" width="1" height="1" fill="#1a1d24"/>
+<rect x="50" y="8" width="1" height="1" fill="#1a1d24"/>
+<rect x="51" y="8" width="3" height="1" fill="#5a3a78"/>
+<rect x="54" y="8" width="1" height="1" fill="#1a1d24"/>
+<rect x="50" y="9" width="1" height="1" fill="#1a1d24"/>
+<rect x="51" y="9" width="3" height="1" fill="#5a3a78"/>
+<rect x="54" y="9" width="1" height="1" fill="#1a1d24"/>
+<rect x="49" y="10" width="1" height="1" fill="#1a1d24"/>
+<rect x="50" y="10" width="4" height="1" fill="#5a3a78"/>
+<rect x="54" y="10" width="1" height="1" fill="#2a1840"/>
+<rect x="55" y="10" width="1" height="1" fill="#1a1d24"/>
+<rect x="49" y="11" width="1" height="1" fill="#1a1d24"/>
+<rect x="50" y="11" width="4" height="1" fill="#5a3a78"/>
+<rect x="54" y="11" width="1" height="1" fill="#2a1840"/>
+<rect x="55" y="11" width="1" height="1" fill="#1a1d24"/>
+<rect x="48" y="12" width="1" height="1" fill="#1a1d24"/>
+<rect x="49" y="12" width="5" height="1" fill="#5a3a78"/>
+<rect x="54" y="12" width="2" height="1" fill="#2a1840"/>
+<rect x="56" y="12" width="1" height="1" fill="#1a1d24"/>
+<rect x="48" y="13" width="1" height="1" fill="#1a1d24"/>
+<rect x="49" y="13" width="5" height="1" fill="#5a3a78"/>
+<rect x="54" y="13" width="2" height="1" fill="#2a1840"/>
+<rect x="56" y="13" width="1" height="1" fill="#1a1d24"/>
+<rect x="47" y="14" width="1" height="1" fill="#1a1d24"/>
+<rect x="48" y="14" width="9" height="1" fill="#e6b94a"/>
+<rect x="51" y="14" width="2" height="1" fill="#f8d76b"/>
+<rect x="57" y="14" width="1" height="1" fill="#1a1d24"/>
+<rect x="47" y="15" width="1" height="1" fill="#1a1d24"/>
+<rect x="48" y="15" width="9" height="1" fill="#e6b94a"/>
+<rect x="49" y="15" width="3" height="1" fill="#f8d76b"/>
+<rect x="57" y="15" width="1" height="1" fill="#1a1d24"/>
+<rect x="46" y="16" width="1" height="1" fill="#1a1d24"/>
+<rect x="47" y="16" width="7" height="1" fill="#5a3a78"/>
+<rect x="54" y="16" width="4" height="1" fill="#2a1840"/>
+<rect x="58" y="16" width="1" height="1" fill="#1a1d24"/>
+<rect x="46" y="17" width="1" height="1" fill="#1a1d24"/>
+<rect x="47" y="17" width="7" height="1" fill="#5a3a78"/>
+<rect x="54" y="17" width="4" height="1" fill="#2a1840"/>
+<rect x="58" y="17" width="1" height="1" fill="#1a1d24"/>
+<rect x="38" y="18" width="28" height="1" fill="#1a1d24"/>
+<rect x="38" y="19" width="1" height="1" fill="#1a1d24"/>
+<rect x="39" y="19" width="13" height="1" fill="#5a3a78"/>
+<rect x="52" y="19" width="13" height="1" fill="#2a1840"/>
+<rect x="65" y="19" width="1" height="1" fill="#1a1d24"/>
+<rect x="38" y="20" width="28" height="1" fill="#1a1d24"/>
+</svg>`;
+
+        // Sprint 5.28: emoji items больше не рендерятся (pixel-art only).
+        // Старые тест-кейсы с {emoji:'🧢'} оставляем для регресс-чека:
+        // должны показать TOLko creature без emoji-слоёв.
         const cases = [
-            { title: 'Egg, ничего не надето', pet: {pet_type:'egg'}, equipped: {} },
-            { title: 'Hatched, голый', pet: {pet_type:'creature',name:'Гриша'}, equipped: {} },
-            { title: 'Шапка-кепка', pet:{pet_type:'creature'}, equipped:{head:{emoji:'🧢'}} },
-            { title: 'Корона', pet:{pet_type:'creature'}, equipped:{head:{emoji:'👑'}} },
-            { title: 'Очки', pet:{pet_type:'creature'}, equipped:{face:{emoji:'👓'}} },
-            { title: 'Шарф (body)', pet:{pet_type:'creature'}, equipped:{body:{emoji:'🧣'}} },
-            { title: 'Аксессуар (сбоку)', pet:{pet_type:'creature'}, equipped:{accessory:{emoji:'🎈'}} },
-            { title: 'BG violet (skin)',  pet:{pet_type:'creature'}, equipped:{background:{item_id:'bg_violet',emoji:'🟣'}} },
-            { title: 'BG rainbow (skin)', pet:{pet_type:'creature'}, equipped:{background:{item_id:'bg_rainbow',emoji:'🌈'}} },
-            { title: 'BG stars (skin)',   pet:{pet_type:'creature'}, equipped:{background:{item_id:'bg_stars',emoji:'⭐'}} },
-            { title: 'Только аура',       pet:{pet_type:'creature'}, equipped:{aura:{emoji:'✨'}} },
-            { title: 'Stars-skin + огонь', pet:{pet_type:'creature'},
-              equipped:{background:{item_id:'bg_stars',emoji:'⭐'}, aura:{emoji:'🔥'}} },
-            { title: 'ВСЁ сразу', pet:{pet_type:'creature',name:'Max'},
-              equipped:{head:{emoji:'👑'}, face:{emoji:'👓'}, body:{emoji:'🧣'},
-                        accessory:{emoji:'🎈'},
-                        background:{item_id:'bg_rainbow',emoji:'🌈'},
-                        aura:{emoji:'✨'}} },
+            // Pre-hatch
+            { title: 'Egg, не вылупился', pet:{pet_type:'egg'}, equipped:{} },
+
+            // Hatched character — оба варианта × 8 directions
+            { title: 'kimono / south',  pet:{pet_type:'creature',name:'Гриша'},
+              equipped:{}, opts:{variant:'kimono', direction:'south'} },
+            { title: 'kimono / south-east', pet:{pet_type:'creature'},
+              equipped:{}, opts:{variant:'kimono', direction:'south-east'} },
+            { title: 'kimono / east',   pet:{pet_type:'creature'},
+              equipped:{}, opts:{variant:'kimono', direction:'east'} },
+            { title: 'kimono / north-east', pet:{pet_type:'creature'},
+              equipped:{}, opts:{variant:'kimono', direction:'north-east'} },
+            { title: 'kimono / north',  pet:{pet_type:'creature'},
+              equipped:{}, opts:{variant:'kimono', direction:'north'} },
+            { title: 'kimono / north-west', pet:{pet_type:'creature'},
+              equipped:{}, opts:{variant:'kimono', direction:'north-west'} },
+            { title: 'kimono / west',   pet:{pet_type:'creature'},
+              equipped:{}, opts:{variant:'kimono', direction:'west'} },
+            { title: 'kimono / south-west', pet:{pet_type:'creature'},
+              equipped:{}, opts:{variant:'kimono', direction:'south-west'} },
+
+            { title: 'underwear / south',  pet:{pet_type:'creature'},
+              equipped:{}, opts:{variant:'underwear', direction:'south'} },
+            { title: 'underwear / east',   pet:{pet_type:'creature'},
+              equipped:{}, opts:{variant:'underwear', direction:'east'} },
+            { title: 'underwear / west',   pet:{pet_type:'creature'},
+              equipped:{}, opts:{variant:'underwear', direction:'west'} },
+            { title: 'underwear / north',  pet:{pet_type:'creature'},
+              equipped:{}, opts:{variant:'underwear', direction:'north'} },
+
+            // Regression: emoji items НЕ должны рендериться
+            { title: 'regression: emoji-only items (нет рендера)',
+              pet:{pet_type:'creature'},
+              equipped:{head:{emoji:'👑'}, face:{emoji:'👓'},
+                        body:{emoji:'🧣'}, accessory:{emoji:'🎈'}} },
+
+            // ── LLM-generated witch hat quality test (Sprint 5.28) ────────
+            // Шапка нарисована Claude в нашем ASCII pipeline (104×104 viewBox).
+            // Сравнение качества: LLM-pixel-art vs PixelLab-pixel-art.
+            { title: 'TEST: LLM witch hat (kimono / south)',
+              pet:{pet_type:'creature'},
+              equipped:{head:{svg_path: WITCH_HAT_LLM}},
+              opts:{variant:'kimono', direction:'south'} },
+            { title: 'TEST: LLM witch hat (kimono / east)',
+              pet:{pet_type:'creature'},
+              equipped:{head:{svg_path: WITCH_HAT_LLM}},
+              opts:{variant:'kimono', direction:'east'} },
+            { title: 'TEST: LLM witch hat (underwear / south)',
+              pet:{pet_type:'creature'},
+              equipped:{head:{svg_path: WITCH_HAT_LLM}},
+              opts:{variant:'underwear', direction:'south'} },
         ];
         const grid = document.getElementById('grid');
         grid.innerHTML = cases.map(c => `
             <div class="case">
                 <h3>${c.title}</h3>
-                ${PetStage.renderHtml(c.pet, c.equipped, {size: 180})}
+                ${PetStage.renderHtml(c.pet, c.equipped, {size: 180, ...(c.opts || {})})}
             </div>
         `).join('');
     </script>

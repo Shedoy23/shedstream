@@ -382,7 +382,18 @@ html, body {
     animation: pet-stage-breathe 4s ease-in-out infinite;
 }
 
-.pet-stage__creature { width: 100%; height: 100%; display: block; }
+/* Sprint 5.28 (2026-05-24): creature теперь <img> с PNG-спрайтом
+   (PixelLab pixel-art chibi). image-rendering: pixelated сохраняет
+   chunky pixels при upscaling 104px source → 64-180px DOM render. */
+.pet-stage__creature {
+    width: 100%;
+    height: 100%;
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    -ms-interpolation-mode: nearest-neighbor;
+}
 
 @keyframes pet-stage-breathe {
     0%, 100% { transform: translateY(0)    scale(1); }
@@ -407,55 +418,34 @@ html, body {
     50%      { transform: rotate( 3deg); }
 }
 
+/* Sprint 5.28 (2026-05-24): slot rendering пересобран под pixel-art items.
+   Старая система: каждый slot — small frame в %-позиции (head вверху,
+   face в центре, body внизу), внутри рендерилось emoji.
+   Новая система: каждый slot — FULL OVERLAY (104×104 / 180×180). Item
+   sprite сам внутри своего frame правильно позиционирован — slot CSS
+   даёт только z-stack. Items от Claude Design / PixelLab включают anchor
+   point в сам PNG/SVG. */
 .pet-stage__slot {
     position: absolute;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(var(--pet-stage-size, 180px) * 0.22);
-    line-height: 1;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     pointer-events: none;
-    /* Лёгкая тень чтобы items не сливались с creature'ом */
-    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35));
 }
-
-.pet-stage__slot svg { width: 100%; height: 100%; display: block; }
-
-/* Slot positions — координаты ВНУТРИ pet-stage (% от размера).
-   Подобраны под CREATURE_SVG anchor points (180×180 viewBox):
-     eyes cy=88   → 49% (face center)
-     mouth y=112  → 62%
-     body cy=100, ry=62 → bottom at 162 → 90%
-   Sprint 5.21 patch (2026-05-20):
-     face 38% → 50% (очки были на лбу)
-     body 72% → 82% (шарф закрывал рот)
-     head -6% → -2% (корона висела высоко) */
-.pet-stage__slot--head {
-    top: -2%; left: 50%;
-    width: 42%; height: 38%;
-    transform: translateX(-50%);
-    z-index: 7;
+.pet-stage__slot svg,
+.pet-stage__slot .pet-stage__item-img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    -ms-interpolation-mode: nearest-neighbor;
 }
-.pet-stage__slot--face {
-    top: 50%; left: 50%;
-    width: 52%; height: 22%;
-    transform: translate(-50%, -50%);
-    z-index: 6;
-    font-size: calc(var(--pet-stage-size, 180px) * 0.20);
-}
-.pet-stage__slot--body {
-    top: 82%; left: 50%;
-    width: 50%; height: 22%;
-    transform: translate(-50%, -50%);
-    z-index: 5;
-    font-size: calc(var(--pet-stage-size, 180px) * 0.22);
-}
-.pet-stage__slot--accessory {
-    top: 60%; right: 0%;
-    width: 28%; height: 28%;
-    z-index: 6;
-    font-size: calc(var(--pet-stage-size, 180px) * 0.20);
-}
+.pet-stage__slot--body      { z-index: 5; }
+.pet-stage__slot--face      { z-index: 6; }
+.pet-stage__slot--accessory { z-index: 6; }
+.pet-stage__slot--head      { z-index: 7; }
 
 /* Small variant (для overlay strip) — все размеры наследуются из
    --pet-stage-size, ничего не надо переопределять. */

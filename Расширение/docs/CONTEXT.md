@@ -1,11 +1,10 @@
 # Twitch Extension — Main Context (chat handoff)
 
 **Назначение:** для **общей** части расширения. Для конкретных модулей —
-см. `CONTEXT_RIMWORLD.md` (legacy game) и `CONTEXT_BANNERLORD.md`
-(active live game, sprint 5.27v).
+см. `CONTEXT_RIMWORLD.md` (legacy game), `CONTEXT_BANNERLORD.md`
+(active live game, sprint 5.27v), `CONTEXT_PETS_V3.md` (in-progress pixel-art overhaul, paused awaiting PixelLab subscription).
 
-**Last updated:** 2026-05-21 (sprints 5.19–5.27v закрыты, BLT-aligned Bannerlord,
-семейная система, mini-games rework, TTS, pets v2)
+**Last updated:** 2026-05-24 (sprints 5.19–5.27v закрыты + pets v3 visual rewrite started)
 
 ---
 

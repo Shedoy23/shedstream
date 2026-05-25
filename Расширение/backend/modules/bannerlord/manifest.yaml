@@ -77,6 +77,7 @@ extensions:
     - tournament.round_ended  # Sprint 5.3: round closed, bets resolved
     - tournament.ended        # Sprint 5.3: final, winner gets prize
     - battle.stats_snapshot   # Sprint 5.4: per-Mission stats для overlay (HP/kills/gold/xp)
+    - action.failed           # Sprint 5.29 BLT-parity #3: mod refused action → refund крустики
   actions:
     - hero.create        # Adoption flow — spawn fresh wanderer + SetName(viewer)
     - hero.set_class     # Sprint 4.1: класс + equipment apply
@@ -97,6 +98,17 @@ extensions:
     - hero.join_clan         # Sprint 5.12: join existing clan (Hero.Gold 50K)
     - hero.join_kingdom      # Sprint 5.12: clan joins kingdom (Hero.Gold 100K)
     - hero.create_party      # Sprint 5.13: clan-leader creates MobileParty on world map (Hero.Gold 200K)
+    - hero.smith_item        # Sprint 5.29 BLT-parity #6: trophy crafting (backend-only generation)
+    - hero.equip_trophy      # Sprint 5.29 BLT-parity #6 phase A: equip trophy into hero inventory
+    # Sprint 5.31 #45g (codegraph audit HIGH-2) — раньше manifest не знал
+    # о этих 4 actions потому что routes/bannerlord.py пишет в module_actions
+    # напрямую (bypass dispatch_action). Если когда-нибудь рефакторят на
+    # generic dispatch — manifest.supports_action() refuse'нёт. Добавлены
+    # явно чтобы такой регресс не случился.
+    - hero.set_gender        # Sprint 5.27a: gender swap (Hero.Gold 50K)
+    - hero.marry             # Sprint 5.27a: marry random NPC (Hero.Gold 50K)
+    - hero.divorce           # Sprint 5.27a: divorce current spouse (free)
+    - hero.make_baby         # Sprint 5.27a: pregnancy (Hero.Gold 100K)
 
 # Каталоги — те же что RimWorld (универсальный shape entry per MODULE_API.md §9):
 catalogs:

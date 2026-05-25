@@ -31,6 +31,7 @@ OAuth refresh (M4 follow-up):
 import asyncio
 import hashlib
 import hmac
+import logging
 import secrets
 import time
 from typing import Dict, Optional
@@ -39,6 +40,8 @@ from urllib.parse import urlencode
 import aiohttp
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+
+log = logging.getLogger("rimlink.streamer")
 
 from config import (
     MODULE_TOKEN_SECRET,
@@ -297,8 +300,16 @@ def _sign_session(channel_id: int, expires_at: int) -> str:
 
 
 def _verify_session(token: str) -> Optional[int]:
-    """Вернуть channel_id если token валиден и не expired."""
-    if not token or token.count('|') != 2:
+    """Вернуть channel_id если token валиден и не expired.
+
+    Sprint 5.31 #45c — logging для дебага "почему dashboard говорит re-login".
+    Каждая ветка отказа логируется с reason'ом. Пустой cookie (anon hit) —
+    silent (нет смысла спамить, такие запросы нормальны).
+    """
+    if not token:
+        return None  # no cookie — normal anon hit, skip log
+    if token.count('|') != 2:
+        log.warning("[session] malformed cookie token (bad pipe count)")
         return None
     try:
         cid_str, exp_str, sig = token.split('|', 2)
@@ -306,11 +317,16 @@ def _verify_session(token: str) -> Optional[int]:
         secret = (TWITCH_EXTENSION_SECRET or "").encode() or b"unconfigured-extension-secret"
         expected = hmac.new(secret, msg.encode(), hashlib.sha256).hexdigest()
         if not hmac.compare_digest(sig, expected):
+            log.warning("[session] cookie HMAC mismatch cid=%s — forged or "
+                        "TWITCH_EXTENSION_SECRET changed", cid_str)
             return None
         if int(exp_str) < int(time.time()):
+            log.info("[session] cookie expired cid=%s exp=%s now=%s",
+                     cid_str, exp_str, int(time.time()))
             return None
         return int(cid_str)
-    except (ValueError, IndexError):
+    except (ValueError, IndexError) as e:
+        log.warning("[session] cookie parse error: %s: %s", type(e).__name__, e)
         return None
 
 
@@ -352,19 +368,58 @@ def _dashboard_html(ch: dict) -> str:
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
   body{{font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#0e0e10;color:#efeff1;margin:0;padding:20px;min-height:100vh;box-sizing:border-box}}
-  .wrap{{max-width:720px;margin:40px auto}}
+  .wrap{{max-width:840px;margin:40px auto}}
   .header{{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}}
   .header h1{{margin:0;font-size:22px}}
   .nick{{color:#9147ff}}
   .logout{{background:transparent;color:#adadb8;border:1px solid #3a3a3d;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px}}
   .logout:hover{{color:#fff;border-color:#fff}}
-  .grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}}
+  .grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:32px}}
   .tile{{background:#1f1f23;border-radius:10px;padding:20px}}
   .tile .lbl{{color:#adadb8;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px}}
   .tile .val{{font-size:20px;font-weight:600}}
   .tier-badge{{display:inline-block;padding:4px 12px;border-radius:6px;font-weight:700;font-size:14px;color:#fff;background:{tier_color}}}
+  .section{{background:#1f1f23;border-radius:10px;padding:24px;margin-bottom:24px}}
+  .section h2{{margin:0 0 4px;font-size:18px;color:#c084fc}}
+  .section .sub{{color:#adadb8;font-size:13px;margin-bottom:16px}}
   .footnote{{margin-top:28px;color:#6e6e73;font-size:13px;line-height:1.5}}
   code{{background:#1f1f23;padding:2px 8px;border-radius:4px;color:#e0d6ff}}
+  /* Boosty admin */
+  .boosty-tier-info{{background:rgba(192,132,252,0.07);border:1px solid #3a2a5a;
+                     border-radius:6px;padding:10px 14px;font-size:13px;
+                     color:#adadb8;line-height:1.6;margin-bottom:14px}}
+  .boosty-tier-info b{{color:#c084fc}}
+  .boosty-row{{display:flex;align-items:center;gap:10px;padding:8px 12px;
+              background:rgba(192,132,252,0.05);border:1px solid #2d2d2f;
+              border-radius:6px;margin-bottom:6px;font-size:13px}}
+  .boosty-row .u{{flex:1;color:#efeff1;font-weight:700}}
+  .boosty-row .t{{color:#c084fc;font-size:12px}}
+  .boosty-row .n{{color:#9ca3af;font-style:italic;font-size:12px;flex:1;text-align:right}}
+  .boosty-row button{{background:#7f1d1d;color:#fca5a5;border:none;padding:4px 10px;
+                      border-radius:4px;cursor:pointer;font-size:12px}}
+  .boosty-row button:hover{{background:#991b1b;color:#fff}}
+  .boosty-form{{display:grid;grid-template-columns:1fr 90px 1fr auto;gap:8px;
+               margin-top:12px;margin-bottom:8px}}
+  .boosty-form input,.boosty-form select{{background:#0e0e10;color:#efeff1;
+       border:1px solid #3d3d3f;border-radius:5px;padding:8px;font-size:13px}}
+  .boosty-form button{{background:#7e22ce;color:#fff;border:none;
+                       padding:8px 16px;border-radius:5px;cursor:pointer;
+                       font-weight:700;font-size:13px}}
+  .boosty-form button:hover{{background:#9333ea}}
+  .boosty-bulk{{margin-top:16px;border-top:1px solid #2d2d2f;padding-top:14px}}
+  .boosty-bulk textarea{{width:100%;box-sizing:border-box;background:#0e0e10;
+      color:#efeff1;border:1px solid #3d3d3f;border-radius:5px;padding:8px;
+      font-family:monospace;font-size:12px;min-height:80px;resize:vertical}}
+  .boosty-bulk button{{background:#1f1a30;color:#c084fc;border:1px solid #5b21b6;
+       padding:8px 16px;border-radius:5px;cursor:pointer;font-size:13px;margin-top:8px}}
+  .boosty-empty{{color:#6e6e73;font-style:italic;text-align:center;padding:18px}}
+  .boosty-msg{{margin-top:10px;padding:8px 12px;border-radius:5px;font-size:13px;display:none}}
+  .boosty-msg.ok{{background:rgba(52,211,153,0.1);border:1px solid #34d399;color:#34d399;display:block}}
+  .boosty-msg.err{{background:rgba(248,113,113,0.1);border:1px solid #f87171;color:#f87171;display:block}}
+  @media (max-width:640px){{
+    .boosty-form{{grid-template-columns:1fr;}}
+    .boosty-row{{flex-wrap:wrap}}
+  }}
 </style></head>
 <body><div class="wrap">
   <div class="header">
@@ -381,11 +436,158 @@ def _dashboard_html(ch: dict) -> str:
     <div class="tile"><div class="lbl">Подключён</div><div class="val">{registered_at}</div></div>
     <div class="tile"><div class="lbl">OAuth токен</div><div class="val">{has_oauth}</div></div>
   </div>
+
+  <!-- Boosty subscribers admin (Sprint 5.31 #45b) -->
+  <div class="section" id="boosty-section">
+    <h2>💜 Boosty-подписчики</h2>
+    <div class="sub">
+      Веди список Twitch-логинов своих Boosty-сабов вручную. Они получат
+      те же price/reward boost'ы что Twitch sub'ы — Boosty не отдаёт matching
+      API между профилем Boosty и Twitch identity, поэтому только ручной список.
+    </div>
+    <div class="boosty-tier-info">
+      <b>T1</b> — ×0.85 цена / ×1.5 награда (Бакалавр)<br>
+      <b>T2</b> — ×0.70 цена / ×2.0 награда (Магистр)<br>
+      <b>T3</b> — ×0.50 цена / ×3.0 награда (Жнец)
+    </div>
+    <div id="boosty-list"><div class="boosty-empty">Загрузка…</div></div>
+    <div class="boosty-form">
+      <input id="b-username" type="text" placeholder="twitch_username" autocomplete="off">
+      <select id="b-tier">
+        <option value="1">T1</option>
+        <option value="2">T2</option>
+        <option value="3">T3</option>
+      </select>
+      <input id="b-note" type="text" placeholder="заметка (опционально)" autocomplete="off">
+      <button id="b-add">➕ Добавить / Обновить</button>
+    </div>
+    <div id="boosty-msg" class="boosty-msg"></div>
+    <details class="boosty-bulk">
+      <summary style="cursor:pointer;color:#adadb8;font-size:13px;">
+        📋 Массовая вставка (CSV)
+      </summary>
+      <div style="color:#6e6e73;font-size:12px;margin:8px 0;">
+        Формат: <code>username,tier,note</code> — по одной строке.
+        Пример: <code>bobby,2,Магистр</code>
+      </div>
+      <textarea id="b-bulk-text" placeholder="username,tier,note&#10;another,1,Бакалавр"></textarea>
+      <label style="display:flex;align-items:center;gap:6px;margin-top:8px;
+                    font-size:12px;color:#adadb8;cursor:pointer;">
+        <input id="b-bulk-replace" type="checkbox">
+        Полная замена (удалить тех, кого нет в списке)
+      </label>
+      <button id="b-bulk-apply">📥 Применить</button>
+    </details>
+  </div>
+
   <div class="footnote">
     Расширение установи через <a href="https://dashboard.twitch.tv/extensions" style="color:#9147ff">Twitch Dashboard → Extensions</a>.
     Channel-points и settings (модуль, цены) появятся в следующих релизах M4.5+.
   </div>
-</div></body></html>"""
+</div>
+
+<script>
+(function(){{
+  const tierLabel = t => t===1?'T1 (×0.85 / ×1.5)' : t===2?'T2 (×0.70 / ×2.0)' : t===3?'T3 (×0.50 / ×3.0)' : '?';
+  const esc = s => String(s||'').replace(/[&<>"']/g, c =>
+      ({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}})[c]);
+  const msg = (text, ok) => {{
+    const el = document.getElementById('boosty-msg');
+    el.textContent = text;
+    el.className = 'boosty-msg ' + (ok ? 'ok' : 'err');
+    setTimeout(() => {{ el.className = 'boosty-msg'; }}, 4000);
+  }};
+  async function load() {{
+    const r = await fetch('/api/dashboard/boosty/subscribers', {{credentials:'include'}});
+    const d = await r.json();
+    const list = document.getElementById('boosty-list');
+    if (!d.success) {{
+      list.innerHTML = '<div class="boosty-empty">' + esc(d.message || 'Ошибка') + '</div>';
+      return;
+    }}
+    if (!d.subscribers || d.subscribers.length === 0) {{
+      list.innerHTML = '<div class="boosty-empty">Список пуст — добавь подписчиков ниже ↓</div>';
+      return;
+    }}
+    list.innerHTML = d.subscribers.map(s => `
+      <div class="boosty-row">
+        <span class="u">@${{esc(s.username)}}</span>
+        <span class="t">${{tierLabel(s.tier)}}</span>
+        ${{s.note ? '<span class="n">' + esc(s.note) + '</span>' : '<span class="n"></span>'}}
+        <button data-u="${{esc(s.username)}}">✖ Удалить</button>
+      </div>`).join('');
+    list.querySelectorAll('button[data-u]').forEach(btn => {{
+      btn.addEventListener('click', async () => {{
+        const u = btn.getAttribute('data-u');
+        if (!confirm('Удалить @' + u + ' из списка?')) return;
+        const r = await fetch('/api/dashboard/boosty/subscribers', {{
+          method: 'POST',
+          credentials: 'include',
+          headers: {{'Content-Type':'application/json'}},
+          body: JSON.stringify({{username: u, tier: 0}})
+        }});
+        const d = await r.json();
+        msg(d.message || (d.success ? 'OK' : 'Ошибка'), !!d.success);
+        load();
+      }});
+    }});
+  }}
+  document.getElementById('b-add').addEventListener('click', async () => {{
+    const u = document.getElementById('b-username').value.trim();
+    const t = parseInt(document.getElementById('b-tier').value, 10);
+    const n = document.getElementById('b-note').value.trim();
+    if (!u) {{ msg('Введи twitch username', false); return; }}
+    const r = await fetch('/api/dashboard/boosty/subscribers', {{
+      method: 'POST',
+      credentials: 'include',
+      headers: {{'Content-Type':'application/json'}},
+      body: JSON.stringify({{username: u, tier: t, note: n}})
+    }});
+    const d = await r.json();
+    msg(d.message || (d.success ? 'OK' : 'Ошибка'), !!d.success);
+    if (d.success) {{
+      document.getElementById('b-username').value = '';
+      document.getElementById('b-note').value = '';
+      load();
+    }}
+  }});
+  document.getElementById('b-bulk-apply').addEventListener('click', async () => {{
+    const txt = document.getElementById('b-bulk-text').value.trim();
+    if (!txt) {{ msg('Вставь CSV', false); return; }}
+    const replace = document.getElementById('b-bulk-replace').checked;
+    const entries = [];
+    for (const raw of txt.split(/\\r?\\n/)) {{
+      const line = raw.trim();
+      if (!line) continue;
+      const parts = line.split(',').map(p => p.trim());
+      const u = parts[0] || '';
+      const t = parseInt(parts[1] || '0', 10);
+      const note = parts.slice(2).join(',') || '';
+      if (!u || t < 1 || t > 3) continue;
+      entries.push({{username: u, tier: t, note: note}});
+    }}
+    if (entries.length === 0) {{
+      msg('Не распознано ни одной строки', false);
+      return;
+    }}
+    if (replace && !confirm('Полная замена: всех текущих, кого нет в списке, удалит. Продолжить?')) return;
+    const r = await fetch('/api/dashboard/boosty/subscribers/bulk', {{
+      method: 'POST',
+      credentials: 'include',
+      headers: {{'Content-Type':'application/json'}},
+      body: JSON.stringify({{entries: entries, replace_all: replace}})
+    }});
+    const d = await r.json();
+    msg(d.message || (d.success ? 'OK' : 'Ошибка'), !!d.success);
+    if (d.success) {{
+      document.getElementById('b-bulk-text').value = '';
+      load();
+    }}
+  }});
+  load();
+}})();
+</script>
+</body></html>"""
 
 
 @router.get("/streamer/dashboard", include_in_schema=False)

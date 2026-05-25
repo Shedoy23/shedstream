@@ -14,7 +14,9 @@ Multi-tenant: все endpoints scope'ятся через JWT.channel_id.
 """
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 import uuid
 
 from fastapi import APIRouter, Request
@@ -22,6 +24,52 @@ from fastapi import APIRouter, Request
 from dependencies import get_db, require_jwt_user
 
 router = APIRouter()
+
+# Sprint 5.29 audit fix #39 — per-(channel,user) asyncio.Lock для serializing
+# actions того же viewer'а. Закрывает race condition:
+#   1. Viewer spam'нул 2× hero.create_clan (1M динаров)
+#   2. Backend ОБА раза читает кэшированный gold (мод ещё не успел deduct)
+#   3. Оба validate → оба enqueue → mod успешно делает первый, отказывает
+#      второй. Refund для второго работает (#21 уже задеплоен), но всё равно
+#      ненужные round-trip'ы / spam в логах / risk нарваться на edge cases.
+#
+# Lock per-(channel,user) сериализует: второй action ждёт пока первый
+# полностью закончит buy_action endpoint. Mod успевает применить + push'ить
+# state_update до того как второй action прочитает gold.
+#
+# Lock держится только на время backend buy_action (charge + enqueue) —
+# обычно <100ms. Не блокирует mod на main thread.
+#
+# Grows unbounded для new users — приемлемо на our scale (<100 active
+# viewers per stream).
+_user_action_locks: dict[tuple[int, str], asyncio.Lock] = {}
+_user_action_locks_meta_lock = asyncio.Lock()
+
+
+async def _get_user_lock(channel_id: int, username: str) -> asyncio.Lock:
+    """Lazy-init per-user lock. Thread-safe через meta-lock."""
+    key = (channel_id, (username or "").lower())
+    if key not in _user_action_locks:
+        async with _user_action_locks_meta_lock:
+            if key not in _user_action_locks:   # double-check after acquire
+                _user_action_locks[key] = asyncio.Lock()
+    return _user_action_locks[key]
+
+# Sprint 5.29 audit fix #34: action_id tracing logs + REFUSE prefix unification.
+# Раньше большинство refuse paths логировали без префикса — нельзя было
+# grep'нуть "что отказано сегодня". Также enqueue не логировал action_id —
+# нельзя было проследить судьбу конкретного action через цепочку
+# buy_action → mod poll → mod apply → ack.
+log = logging.getLogger("rimlink.bannerlord")
+
+
+def _refuse(action_type: str, username: str, reason: str) -> None:
+    """grep-friendly: `grep '\\[bannerlord REFUSE\\]'` найдёт все отказы."""
+    try:
+        log.warning("[bannerlord REFUSE] action=%s user=%s reason=%s",
+                    action_type, username, reason)
+    except Exception:
+        pass
 
 _AUTH_FAIL = {"success": False, "message": "❌ Требуется авторизация Twitch"}
 
@@ -286,7 +334,8 @@ async def bannerlord_tournament(request: Request):
         "my_bet":      my_bet,
         "my_username": username,
         "config": {
-            "entry_fee_gold": TOURNAMENT_ENTRY_FEE_GOLD,
+            "entry_fee_gold": TOURNAMENT_ENTRY_FEE_GOLD,  # legacy 0 — backward-compat
+            "join_price":     TOURNAMENT_JOIN_PRICE,      # 5.28: 1000 крустиков
             "min_bet":        TOURNAMENT_MIN_BET,
             "max_bet":        TOURNAMENT_MAX_BET,
         },
@@ -315,6 +364,60 @@ async def bannerlord_battle_status(request: Request):
     from modules.bannerlord._adapter import get_my_battle_stats
     data = get_my_battle_stats(channel_id, username)
     return {"success": True, **data}
+
+
+# Sprint 5.30 #41 — power activation events для overlay broadcast.
+# Ring buffer per-channel, auto-prune events older than 30s. Overlay polls
+# every 1s, renders big floating banner for each new event (по seq counter).
+_power_events: dict[int, list[dict]] = {}
+_power_events_seq: dict[int, int] = {}
+_POWER_EVENTS_TTL_SEC = 30
+
+
+def _push_power_event(channel_id: int, user: str, power_key: str,
+                       value: float = 0.0, duration_s: float = 0.0) -> None:
+    """Inline-called from buy_action когда action_type=power.activate.
+    Append event в ring buffer + prune старые. Idempotent через seq."""
+    import time
+    now = time.time()
+    seq = _power_events_seq.get(channel_id, 0) + 1
+    _power_events_seq[channel_id] = seq
+    lst = _power_events.setdefault(channel_id, [])
+    lst.append({
+        "seq":         seq,
+        "ts":          now,
+        "user":        (user or "").lower(),
+        "power_key":   power_key,
+        "value":       value,
+        "duration_s":  duration_s,
+    })
+    # Prune expired
+    cutoff = now - _POWER_EVENTS_TTL_SEC
+    _power_events[channel_id] = [e for e in lst if e["ts"] >= cutoff]
+
+
+@router.get("/api/overlay/bannerlord/power-events")
+async def overlay_bannerlord_power_events(channel_id: int = 0, since_seq: int = 0):
+    """Sprint 5.30 #41 — recent power activations для overlay big-banner display.
+
+    Public endpoint (no JWT) для OBS browser source.
+    Returns events with seq > since_seq. Overlay polls с last seq → animates
+    каждое новое событие как floating banner ~3-5s.
+
+    Returns: {success, events: [...], cursor: max_seq}
+    """
+    if channel_id <= 0:
+        from dependencies import resolve_channel_id_or_default
+        channel_id = resolve_channel_id_or_default()
+
+    lst = _power_events.get(channel_id, [])
+    fresh = [e for e in lst if e["seq"] > int(since_seq or 0)]
+    max_seq = max((e["seq"] for e in fresh), default=int(since_seq or 0))
+    return {
+        "success":  True,
+        "events":   fresh,
+        "cursor":   max_seq,
+    }
 
 
 @router.get("/api/overlay/bannerlord/summoned")
@@ -393,6 +496,8 @@ _PURCHASABLE_ACTIONS = (
     "hero.marry",                # Sprint 5.27b: marriage to random NPC (50K)
     "hero.divorce",              # Sprint 5.27b: free divorce
     "hero.make_baby",            # Sprint 5.27c: pregnancy (100K)
+    "hero.smith_item",           # Sprint 5.29 BLT-parity #6: trophy crafting
+    "hero.equip_trophy",         # Sprint 5.29 BLT-parity #6 phase A: equip into hero inventory
 )
 
 # Sprint 5.27a — стоимость gender swap (BLT default: 50k).
@@ -440,9 +545,13 @@ ALLOWED_SKILLS = {
 }
 ALLOWED_ATTRIBUTES = {"Vigor", "Control", "Endurance", "Cunning", "Social", "Intelligence"}
 
-# Sprint 5.3: tournament entry fee — Hero.Gold (списывается mod-side).
-# Backend хранит mirror для UI + bets resolution.
-TOURNAMENT_ENTRY_FEE_GOLD = 5_000          # in-game динары
+# Sprint 5.3: tournament entry fee.
+# 5.28a: было 0 крустиков + 5000 динаров → отказы в моде, крустики не списывались.
+# 5.28b: было 1000 крустиков + 0 динаров → юзер передумал, нужно free.
+# 5.28c: ПОЛНОСТЬЮ БЕСПЛАТНО. Идея: turnover в очереди важнее barrier-to-entry,
+# монетизация остаётся через ставки на участников (TOURNAMENT_MIN/MAX_BET).
+TOURNAMENT_ENTRY_FEE_GOLD = 0              # in-game динары (deprecated, было 5000)
+TOURNAMENT_JOIN_PRICE     = 0              # крустиков (5.28c: free)
 TOURNAMENT_MIN_BET = 100                   # крустиков
 TOURNAMENT_MAX_BET = 10_000                # крустиков
 
@@ -483,7 +592,7 @@ _ACTIONS_WITHOUT_HERO_REQUIREMENT = (
 )
 
 # Actions которые НЕ enqueue'аться в module_actions (pure backend ops).
-_BACKEND_ONLY_ACTIONS = ("tournament.bet",)
+_BACKEND_ONLY_ACTIONS = ("tournament.bet", "hero.smith_item")
 
 
 @router.get("/api/bannerlord/my-hero")
@@ -500,11 +609,13 @@ async def bannerlord_my_hero(request: Request):
     db = get_db()
     async with db._connect() as conn:
         # Hero base + M19 meta + M20 gear_tier + M27 clan/kingdom info
+        # + M38 iteration (heir succession counter, Sprint 5.29).
         cur = await conn.execute(
             "SELECT hero_id, display_name, culture, is_alive, is_prisoner, gold, "
             "       location, adopted_at, last_sync, level, clan_name, kingdom_name, "
             "       gear_tier, clan_info_json, kingdom_info_json, "
-            "       is_female, family_info_json "
+            "       is_female, family_info_json, "
+            "       COALESCE(iteration, 1) "
             "FROM bannerlord_heroes WHERE channel_id=? AND username=?",
             (channel_id, username))
         row = await cur.fetchone()
@@ -537,6 +648,7 @@ async def bannerlord_my_hero(request: Request):
             "kingdom_info": _safe_json(row[14]),
             "is_female":    bool(row[15]) if row[15] is not None else None,
             "family_info":  _safe_json(row[16]),
+            "iteration":    int(row[17]) if row[17] is not None else 1,  # Sprint 5.29
         }
         # Convenience: top-level spouse_name (для profile modal display)
         fi = hero.get("family_info") or {}
@@ -676,11 +788,34 @@ async def bannerlord_buy_action(request: Request):
         return _AUTH_FAIL
     username, channel_id = auth
 
+    # Sprint 5.29 BLT-parity #9: extract role для perk-tier system.
+    # Twitch JWT role enum: viewer / broadcaster / moderator / external.
+    # Subscriber detection via Helix — TODO (требует broadcaster OAuth scope).
+    from auth import verify_twitch_jwt
+    _jwt = verify_twitch_jwt(request)
+    user_role = (_jwt.get("role") if _jwt.get("status") == "valid" else "viewer") or "viewer"
+
     body = await request.json()
     action_type = (body.get("action_type") or "").strip()
     data = body.get("data") or {}
     if not isinstance(data, dict):
         return {"success": False, "message": "data должен быть объектом"}
+    # Pass role в data для mod (использует для XP/gold boost).
+    data["_user_role"] = user_role
+
+    # Sprint 5.29 audit fix #39 — per-user serialization (double-spend prevention).
+    # Wrap entire handler в asyncio.Lock keyed (channel, username).
+    # Без этого два simultaneous actions того же viewer'а оба видят кэшированный
+    # gold/balance, оба validate, оба charge — refund для второго работает,
+    # но это плодит ненужные actions в outbox + spam в логах.
+    user_lock = await _get_user_lock(channel_id, username)
+    async with user_lock:
+        return await _bannerlord_buy_action_locked(
+            request, username, channel_id, action_type, data)
+
+
+async def _bannerlord_buy_action_locked(request, username, channel_id, action_type, data):
+    """Sprint 5.29: extracted body of bannerlord_buy_action — runs под user_lock."""
 
     if action_type not in _PURCHASABLE_ACTIONS:
         return {"success": False, "message": f"Action '{action_type}' не разрешён"}
@@ -1211,36 +1346,50 @@ async def bannerlord_buy_action(request: Request):
         data["hero_gold_cost"] = KINGDOM_JOIN_COST
         data["price"] = 0
 
-    # Sprint 5.3: hero.join_tournament — БЕСПЛАТНО в крустиках,
-    # mod списывает TOURNAMENT_ENTRY_FEE_GOLD динаров. Backend
-    # вставляет row в bannerlord_tournament_queue только когда mod
-    # пушит event tournament.joined (mod = source-of-truth для очереди).
-    if action_type == "hero.join_tournament":
-        # Check status — не пускаем в running tournament
+    # Sprint 5.29 BLT-parity #6 phase A: hero.equip_trophy — pre-validate
+    # ownership + inject trophy details в data для mod handler.
+    if action_type == "hero.equip_trophy":
+        try:
+            trophy_id = int(data.get("custom_item_id") or 0)
+        except (TypeError, ValueError):
+            trophy_id = 0
+        if trophy_id <= 0:
+            return {"success": False, "message": "custom_item_id required"}
         db_tmp = get_db()
         async with db_tmp._connect() as conn:
             cur = await conn.execute(
-                "SELECT status FROM bannerlord_tournament_state WHERE channel_id=?",
-                (channel_id,))
+                "SELECT base_type, base_subtype, custom_name, rarity, tier "
+                "FROM bannerlord_custom_items "
+                "WHERE id=? AND channel_id=? AND owner_username=?",
+                (trophy_id, channel_id, username))
             row = await cur.fetchone()
-            status = (row[0] if row else "idle") or "idle"
-            if status == "running":
-                return {
-                    "success": False,
-                    "message": "Турнир уже идёт — подожди следующий",
-                }
-            # Already in queue?
-            cur = await conn.execute(
-                "SELECT 1 FROM bannerlord_tournament_queue "
-                "WHERE channel_id=? AND username=?",
-                (channel_id, username))
-            if await cur.fetchone():
-                return {
-                    "success": False,
-                    "message": "Ты уже в очереди на турнир",
-                }
-        data["hero_gold_cost"] = TOURNAMENT_ENTRY_FEE_GOLD
-        data["price"] = 0   # крустики free
+        if not row:
+            return {
+                "success": False,
+                "message": "Трофей не найден / не твой",
+            }
+        data["base_type"]    = row[0]
+        data["base_subtype"] = row[1]
+        data["custom_name"]  = row[2]
+        data["rarity"]       = row[3]
+        data["tier"]         = row[4]
+        data["price"] = 0
+
+    # Sprint 5.3 / 5.28 update: hero.join_tournament — 1000 крустиков, 0 динаров.
+    # Раньше было: 0 крустиков + 5000 динаров in-game → adopted viewer'ы часто
+    # без денег → отказы в моде, крустики уже потрачены (не было).
+    # Теперь: 1000 крустиков списываются на backend ДО enqueue (universal
+    # buy-action price path), мод гарантированно ставит в очередь.
+    # mod = source-of-truth для очереди (event tournament.joined → INSERT).
+    if action_type == "hero.join_tournament":
+        # Sprint 5.31 #45d (audit HIGH-5) — checks перенесены ВНУТРЬ BEGIN
+        # IMMEDIATE ниже (см. _tournament_join_atomic_check). Раньше SELECT
+        # status + SELECT queue делались отдельной connection ВНЕ TX —
+        # два одновременных POST'а могли пройти оба SELECT'а, оба
+        # списывали 1000⦷, второй уходил в never-land без refund.
+        # Теперь checks под одним IMMEDIATE lock'ом — serialized.
+        data["hero_gold_cost"] = 0           # mod больше не списывает динары
+        data["price"] = TOURNAMENT_JOIN_PRICE  # 1000 крустиков
 
     # Sprint 5.3: tournament.bet — крустики ставка на участника turnir'а.
     # Atomic charge крустиков; запись в bannerlord_tournament_bets.
@@ -1278,22 +1427,67 @@ async def bannerlord_buy_action(request: Request):
                 "message": f"@{target} не участвует в турнире",
             }
         round_index = int(row[1] or 0)
-        # Already bet this round?
-        db_tmp = get_db()
-        async with db_tmp._connect() as conn:
-            cur = await conn.execute(
-                "SELECT 1 FROM bannerlord_tournament_bets "
-                "WHERE channel_id=? AND bettor=? AND round_index=?",
-                (channel_id, username, round_index))
-            if await cur.fetchone():
-                return {
-                    "success": False,
-                    "message": f"Ты уже ставил в раунде {round_index + 1}",
-                }
+        # Sprint 5.31 #45e (audit MED-6) — dedup check перенесён ВНУТРЬ
+        # BEGIN IMMEDIATE ниже (см. tournament.bet атомарный блок). Раньше
+        # SELECT был отдельной connection — два concurrent bet'а от того же
+        # юзера проходили оба SELECT'а и оба charge'или.
         data["target"] = target
         data["amount"] = amount
         data["round_index"] = round_index
         data["price"] = amount   # списать ставку как price крустиков
+
+    # ════════════════════════════════════════════════════════════════════
+    # Sprint 5.29 audit fix #32 — server-side ACTION_PRICES enforcement.
+    # ════════════════════════════════════════════════════════════════════
+    # SECURITY: до этого fix'а viewer мог POST `{action_type: "player.heal",
+    # data: {price: 0}}` и получить бесплатное действие. Backend читал
+    # data["price"] напрямую из viewer payload'а для actions БЕЗ explicit
+    # per-action branch. Fix: server-side price table enforce'ит цену.
+    #
+    # Two categories:
+    #   _ACTIONS_WITH_OWN_PRICING — already set data["price"] выше
+    #     (player.spawn → SPAWN_PRICES per-side; tournament.bet → amount;
+    #      все *clan/kingdom/party/marry/* → 0 потому что mod использует
+    #      Hero.Gold; etc.).
+    #   ACTION_PRICES_DEFAULT — fallback для actions БЕЗ branch'а.
+    #     Hardcoded crustic price, viewer override игнорируется.
+    #
+    # Unknown action (не в одном из двух) → REFUSE (security gate, новые
+    # actions требуют explicit price entry).
+    _ACTIONS_WITH_OWN_PRICING = {
+        "player.spawn", "player.equip_item", "hero.set_class",
+        "hero.upgrade_gear", "hero.recruit_troops",
+        "hero.join_tournament", "tournament.bet",
+        "hero.create_clan", "hero.create_kingdom", "hero.leave_clan",
+        "hero.leave_kingdom", "hero.join_clan", "hero.join_kingdom",
+        "hero.create_party", "hero.set_gender", "hero.marry",
+        "hero.divorce", "hero.make_baby",
+        "hero.add_focus", "hero.add_attribute",
+        "hero.equip_trophy",  # Sprint 5.29 BLT-parity #6 phase A
+    }
+    ACTION_PRICES_DEFAULT = {
+        "hero.create":             0,    # adoption — free
+        "player.heal":            50,
+        "player.respawn":        500,    # heir succession (future)
+        "player.give_item":      100,
+        "player.modify_attribute": 50,
+        "world.trigger_event":  1000,    # heavy / admin-style
+        "hero.add_skill":        100,
+        "power.activate":         50,    # standardize crustik price per power use
+        "hero.smith_item":       500,    # Sprint 5.29 BLT-parity #6 — trophy crafting
+        "hero.equip_trophy":      0,    # Sprint 5.29 BLT-parity #6 phase A — free (viewer уже заплатил smith)
+    }
+    if action_type not in _ACTIONS_WITH_OWN_PRICING:
+        if action_type not in ACTION_PRICES_DEFAULT:
+            log.warning(
+                "[bannerlord SECURITY REFUSE] no server-side price for %s user=%s ch=%s",
+                action_type, username, channel_id)
+            return {
+                "success": False,
+                "message": f"Action '{action_type}' не имеет server-side цены",
+            }
+        # Жёсткий override — viewer не может задать price.
+        data["price"] = ACTION_PRICES_DEFAULT[action_type]
 
     try:
         price = int(data.get("price", 0))
@@ -1302,15 +1496,87 @@ async def bannerlord_buy_action(request: Request):
     if price < 0:
         return {"success": False, "message": "Цена не может быть отрицательной"}
 
+    # Sprint 5.29 BLT-parity #9 — role + subscription-based perks.
+    # Sprint 5.30 Task #40: real Helix subscription detection (twitch_subs.py).
+    #   broadcaster (self) → 0.5× price, 2.0× rewards
+    #   moderator          → 0.75× price, 1.5× rewards
+    #   tier 3 sub         → 0.50× price, 3.0× rewards
+    #   tier 2 sub         → 0.70× price, 2.0× rewards
+    #   tier 1 sub         → 0.85× price, 1.5× rewards
+    #   viewer (no perk)   → 1.0× (default)
+    # Mod handlers (KillReward, tournament reward) умножают gold/XP на
+    # data["reward_boost"]. Sub cache 5min (twitch_subs.py).
+    _user_role = (_jwt.get("role") or "viewer") if _jwt.get("status") == "valid" else "viewer"
+    _user_twitch_id = (_jwt.get("user_id") or "") if _jwt.get("status") == "valid" else ""
+
+    if _user_role == "broadcaster":
+        price_mult, reward_mult, role_label = 0.5, 2.0, "broadcaster"
+    elif _user_role == "moderator":
+        price_mult, reward_mult, role_label = 0.75, 1.5, "moderator"
+    else:
+        # Sprint 5.31 #45 — Boosty manual list lookup ПЕРВЫМ.
+        # Streamer вёл список вручную через /api/streamer/boosty/subscribers.
+        # Mapping: tier 1 → 0.85/1.5, 2 → 0.70/2.0, 3 → 0.50/3.0
+        # (тот же что twitch_subs.SUB_BOOSTS).
+        boosty_tier = 0
+        try:
+            from routes.bannerlord_boosty import get_boosty_tier
+            boosty_tier = await get_boosty_tier(channel_id, username)
+        except Exception as _bex:
+            log.warning("[bannerlord PERK] boosty check failed: %s", _bex)
+        boosty_mults = {
+            1: (0.85, 1.5),
+            2: (0.70, 2.0),
+            3: (0.50, 3.0),
+        }
+        if boosty_tier > 0:
+            price_mult, reward_mult = boosty_mults.get(boosty_tier, (1.0, 1.0))
+            role_label = f"boosty_tier{boosty_tier}"
+        else:
+            # Lookup real Helix Twitch subscription tier — cache 5 min.
+            try:
+                from twitch_subs import get_sub_boost
+                sub_price_mult, sub_reward_mult = await get_sub_boost(channel_id, _user_twitch_id)
+            except Exception as _sub_ex:
+                log.warning("[bannerlord PERK] twitch sub check failed: %s", _sub_ex)
+                sub_price_mult, sub_reward_mult = 1.0, 1.0
+            if sub_reward_mult > 1.0:
+                price_mult, reward_mult = sub_price_mult, sub_reward_mult
+                role_label = "subscriber"
+            else:
+                price_mult, reward_mult, role_label = 1.0, 1.0, "viewer"
+    if price > 0 and price_mult < 1.0:
+        new_price = max(0, int(price * price_mult))
+        price = new_price
+        data["price"] = price   # backend uses this in TX
+    data["reward_boost"] = reward_mult   # mod использует
+    data["_perk_label"] = role_label    # для frontend UI (badge)
+    # Sprint 5.31 #45c — UNCONDITIONAL perk-resolve log. Каждая покупка
+    # оставляет запись о том, какой role/tier применился и почему. Без этого
+    # нельзя дебажить "почему мне не дали скидку" / "почему BS2 не сработал".
+    log.info("[bannerlord PERK RESOLVED] ch=%s user=%s action=%s role=%s "
+             "price=%d×%.2f reward×%.2f",
+             channel_id, username, action_type, role_label, price, price_mult, reward_mult)
+
     # Sprint 4.8/5.0: server-side cooldown enforcement.
     # Для power.activate ключ cooldown'а = data.power_key (per-power).
-    # Для player.spawn — сам action_type (один cooldown на summon вообще).
+    # Для player.spawn — split per-side (Sprint 5.29: ally и enemy раздельно).
+    # Sprint 5.29 audit fix #28: extended на spam-prone actions
+    # (recruit / heal / equip / add_skill / add_focus / add_attribute / marry / etc.)
+    # — ACTION_COOLDOWNS_SEC в _adapter.py.
     # Frontend disable — UX only; реальная защита здесь.
     cooldown_key = None
     if action_type == "power.activate":
         cooldown_key = (data.get("power_key") or "").strip().lower() or None
     elif action_type == "player.spawn":
-        cooldown_key = "player.spawn"
+        # split per-side — ally CD не блокирует enemy и наоборот
+        side = (data.get("side") or "player").strip().lower()
+        cooldown_key = f"player.spawn:{side}"
+    else:
+        # Sprint 5.29: fallback к action-level CD из ACTION_COOLDOWNS_SEC.
+        from modules.bannerlord._adapter import ACTION_COOLDOWNS_SEC
+        if action_type in ACTION_COOLDOWNS_SEC:
+            cooldown_key = action_type
 
     if cooldown_key:
         from modules.bannerlord._adapter import check_cooldown
@@ -1379,23 +1645,95 @@ async def bannerlord_buy_action(request: Request):
         try:
             await conn.execute("BEGIN IMMEDIATE")
 
-            cur = await conn.execute(
-                "SELECT points FROM viewers WHERE channel_id=? AND username=?",
-                (channel_id, username))
-            row = await cur.fetchone()
-            balance = row[0] if row else 0
-            if balance < price:
-                await conn.execute("ROLLBACK")
-                return {
-                    "success": False,
-                    "message": f"Недостаточно крустиков: {balance} < {price}",
-                }
+            # Sprint 5.31 #45e (audit MED-6) — tournament.bet dedup
+            # ВНУТРИ TX, защищён BEGIN IMMEDIATE lock'ом. Раньше SELECT был
+            # отдельной connection — два concurrent bet'а от того же юзера
+            # обходили dedup и оба charge'или.
+            if action_type == "tournament.bet":
+                cur = await conn.execute(
+                    "SELECT 1 FROM bannerlord_tournament_bets "
+                    "WHERE channel_id=? AND bettor=? AND round_index=?",
+                    (channel_id, username, data.get("round_index", 0)))
+                if await cur.fetchone():
+                    await conn.execute("ROLLBACK")
+                    return {
+                        "success": False,
+                        "message": f"Ты уже ставил в раунде "
+                                   f"{int(data.get('round_index', 0)) + 1}",
+                    }
 
-            if price > 0:
-                await conn.execute(
-                    "UPDATE viewers SET points = points - ? "
+            # Sprint 5.31 #45d (audit HIGH-5) — для hero.join_tournament: проверка
+            # status + dedup ВНУТРИ BEGIN IMMEDIATE (один lock с charge). Раньше
+            # эти SELECT'ы были вне TX — race window между ними и charge.
+            if action_type == "hero.join_tournament":
+                cur = await conn.execute(
+                    "SELECT status FROM bannerlord_tournament_state WHERE channel_id=?",
+                    (channel_id,))
+                _row = await cur.fetchone()
+                _status = (_row[0] if _row else "idle") or "idle"
+                if _status == "running":
+                    await conn.execute("ROLLBACK")
+                    return {
+                        "success": False,
+                        "message": "Турнир уже идёт — подожди следующий",
+                    }
+                # Already in queue?
+                cur = await conn.execute(
+                    "SELECT 1 FROM bannerlord_tournament_queue "
                     "WHERE channel_id=? AND username=?",
-                    (price, channel_id, username))
+                    (channel_id, username))
+                if await cur.fetchone():
+                    await conn.execute("ROLLBACK")
+                    return {
+                        "success": False,
+                        "message": "Ты уже в очереди на турнир",
+                    }
+                # Pending join action в outbox (не ACK'нут модом)? Защита от
+                # double-click: ACK задержался, второй request видит queue
+                # пустым но action ещё in-flight.
+                cur = await conn.execute(
+                    "SELECT 1 FROM module_actions "
+                    "WHERE channel_id=? AND module_id='bannerlord' "
+                    "AND type='hero.join_tournament' "
+                    "AND json_extract(data, '$.initiated_by')=? "
+                    "AND status IN ('queued','dispatched') "
+                    "LIMIT 1",
+                    (channel_id, username))
+                if await cur.fetchone():
+                    await conn.execute("ROLLBACK")
+                    log.info("[join_tournament] dedup blocked @%s ch=%s "
+                             "(pending action in module_actions)",
+                             username, channel_id)
+                    return {
+                        "success": False,
+                        "message": "Заявка уже отправлена — подожди подтверждения",
+                    }
+
+            # Sprint 5.31 #45d (audit HIGH-6) — atomic single-shot UPDATE
+            # вместо SELECT-then-UPDATE. Старый pattern полагался на
+            # in-process asyncio.Lock (см. _user_action_locks) — бесполезен
+            # под --workers > 1. UPDATE с условием `points >= ?` атомарен
+            # на уровне SQLite даже без in-process lock'а; rowcount=0 =
+            # недостаточно крустиков (либо row не существует — viewer
+            # никогда не зарабатывал).
+            if price > 0:
+                cur = await conn.execute(
+                    "UPDATE viewers SET points = points - ? "
+                    "WHERE channel_id=? AND username=? AND points >= ?",
+                    (price, channel_id, username, price))
+                if cur.rowcount != 1:
+                    # Re-read balance чтобы вернуть точное сообщение.
+                    cur2 = await conn.execute(
+                        "SELECT points FROM viewers WHERE channel_id=? AND username=?",
+                        (channel_id, username))
+                    _row = await cur2.fetchone()
+                    _balance = (_row[0] if _row else 0) or 0
+                    await conn.execute("ROLLBACK")
+                    return {
+                        "success": False,
+                        "message": f"Недостаточно крустиков: {_balance} < {price}",
+                    }
+            # price=0 → ничего не списываем (freebie actions).
 
             # Enqueue action в outbox (через тот же conn — atomic с charge).
             # tournament.bet — backend-only (не идёт в mod), пропускаем enqueue.
@@ -1421,6 +1759,50 @@ async def bannerlord_buy_action(request: Request):
                       data.get("amount"),
                       data.get("round_index", 0)))
 
+            # Sprint 5.29 BLT-parity #6: hero.smith_item — backend-only trophy.
+            # Generates random custom item, inserts в bannerlord_custom_items.
+            # Mod не задействуется (текущий MVP); future iteration добавит
+            # in-game ItemObject creation через mod handler.
+            smith_result = None
+            if action_type == "hero.smith_item":
+                base_type = (data.get("base_type") or "").strip().lower()
+                if base_type not in ("weapon", "armor", "horse"):
+                    # Этой validation должен был быть сделан до — но guard на всякий
+                    await conn.execute("ROLLBACK")
+                    return {
+                        "success": False,
+                        "message": "base_type должен быть weapon / armor / horse",
+                    }
+                # Inventory cap
+                cur_inv = await conn.execute(
+                    "SELECT COUNT(*) FROM bannerlord_custom_items "
+                    "WHERE channel_id=? AND owner_username=?",
+                    (channel_id, username))
+                inv_row = await cur_inv.fetchone()
+                if inv_row and inv_row[0] >= 50:
+                    await conn.execute("ROLLBACK")
+                    return {
+                        "success": False,
+                        "message": "Инвентарь полон (50). Дискарди что-то.",
+                    }
+                # Generate inline (reuse module logic).
+                from routes.bannerlord_custom_items import _generate_item, RARITY_COLORS
+                item = _generate_item(base_type)
+                cur_smith = await conn.execute(
+                    "INSERT INTO bannerlord_custom_items "
+                    "(channel_id, owner_username, base_type, base_subtype, "
+                    " custom_name, rarity, tier, icon) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+                    (channel_id, username, item["base_type"], item["base_subtype"],
+                     item["custom_name"], item["rarity"], item["tier"], item["icon"]))
+                smith_row = await cur_smith.fetchone()
+                item_id_db = smith_row[0] if smith_row else 0
+                smith_result = {**item, "id": item_id_db,
+                                "color": RARITY_COLORS[item["rarity"]]}
+                log.info("[bannerlord SMITH] user=%s ch=%s base=%s rarity=%s '%s'",
+                         username, channel_id, base_type,
+                         item["rarity"], item["custom_name"])
+
             # Special case в той же TX: UPSERT bannerlord_hero_class.
             # Backend остаётся source-of-truth по class даже если mod offline.
             if action_type == "hero.set_class":
@@ -1442,11 +1824,18 @@ async def bannerlord_buy_action(request: Request):
             # in-game gold) — backend остаётся синхронизирован с реальным state.
 
             await conn.commit()
-        except Exception:
+        except Exception as ex:
+            # Sprint 5.29 audit fix #34: было silent — exception swallowed +
+            # raised, FastAPI default handler logged opaque 500. Теперь
+            # explicit logger.exception с context.
             try:
                 await conn.execute("ROLLBACK")
             except Exception:
                 pass
+            log.exception(
+                "[bannerlord buy_action] commit failed ch=%s user=%s "
+                "action=%s price=%s: %s",
+                channel_id, username, action_type, price, ex)
             raise
 
     # Sprint 4.8/5.0: запустить cooldown ПОСЛЕ commit (если упало — cooldown
@@ -1455,11 +1844,48 @@ async def bannerlord_buy_action(request: Request):
         from modules.bannerlord._adapter import set_cooldown
         set_cooldown(channel_id, username, cooldown_key)
 
+    # Sprint 5.30 #41 — broadcast power activation event для OBS overlay.
+    # Append to ring buffer per-channel; overlay.html polls /api/overlay/bannerlord/power-events.
+    if action_type == "power.activate":
+        try:
+            _power_key = (data.get("power_key") or "").strip().lower()
+            _push_power_event(
+                channel_id=channel_id,
+                user=username,
+                power_key=_power_key,
+                value=float(data.get("value") or 0),
+                duration_s=float(data.get("duration_s") or 0),
+            )
+        except Exception as _pex:
+            log.warning("[bannerlord overlay power-event] push failed: %s", _pex)
+
+    # Sprint 5.29 audit fix #34: log enqueued action_id для трассировки.
+    # Frontend получает action_id в response — теперь и в логах есть.
+    # Когда mod пушит ack — можно matched against action_id.
+    if action_type not in _BACKEND_ONLY_ACTIONS:
+        log.info(
+            "[bannerlord ENQUEUE] action_id=%s action=%s user=%s ch=%s price=%s",
+            action_id, action_type, username, channel_id, price)
+
+    # Sprint 5.29 BLT-parity #6: smith result returned inline.
+    if action_type == "hero.smith_item" and smith_result:
+        return {
+            "success":    True,
+            "action_id":  action_id,
+            "charged":    price,
+            "message":    f"{smith_result['icon']} Создан: «{smith_result['custom_name']}» ({smith_result['rarity']})",
+            "item":       smith_result,
+            "perk":       role_label,
+            "perk_price_mult": price_mult,
+        }
+
     return {
-        "success":   True,
-        "action_id": action_id,
-        "charged":   price,
-        "message":   f"⚔️ Action {action_type} в очереди ({price}💎 списано)",
+        "success":    True,
+        "action_id":  action_id,
+        "charged":    price,
+        "message":    f"⚔️ Action {action_type} в очереди ({price}💎 списано)",
+        "perk":       role_label,
+        "perk_price_mult": price_mult,
     }
 
 

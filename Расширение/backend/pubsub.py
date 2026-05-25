@@ -263,10 +263,13 @@ async def _send_to_twitch(channel_id: int, topic: str, message: str) -> bool:
 
     Errors logged но не raised — caller (drain loop) не должен crash на
     transient Twitch issues. Frontend polling fallback покрывает потери.
+
+    Sprint 5.31 #45d (audit HIGH-7) — теперь shared session из http_session.
+    Раньше создавали локальную ClientSession без close'a на shutdown —
+    утечка connector'ов на каждом reload'е, плюс concurrency-race на init.
     """
-    global _session
-    if _session is None or _session.closed:
-        _session = aiohttp.ClientSession()
+    from http_session import get_session
+    session = await get_session()
 
     client_id = (
         os.getenv("TWITCH_EXTENSION_CLIENT_ID")
@@ -296,7 +299,7 @@ async def _send_to_twitch(channel_id: int, topic: str, message: str) -> bool:
     }
 
     try:
-        async with _session.post(
+        async with session.post(
             _TWITCH_PUBSUB_URL, json=body, headers=headers,
             timeout=aiohttp.ClientTimeout(total=10),
         ) as r:
@@ -361,8 +364,8 @@ async def drain_loop():
             await asyncio.sleep(0.1)
         except asyncio.CancelledError:
             logger.info("pubsub drain loop cancelled, shutting down")
-            if _session and not _session.closed:
-                await _session.close()
+            # Sprint 5.31 #45d — shared session закрывается в on_shutdown
+            # (http_session.close_session). Здесь больше ничего не делаем.
             raise
         except Exception as e:
             logger.exception("pubsub drain loop error: %s: %s",

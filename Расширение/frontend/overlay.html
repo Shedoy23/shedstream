@@ -634,17 +634,90 @@ body {
 .pet-card.in {
     opacity: 1;
 }
+/* Sprint 5.28: walk cycle с idle phases. Pet большую часть времени стоит
+   в south, иногда делает поход вправо (с east sprite) → idle на новом месте
+   → возвращается влево (с west sprite). Direction sprites swapped через
+   stacked img'и с opacity-keyframes (см. .pet-walk-frame). */
 @keyframes pet-walk {
-    0%   { transform: translateX(0)                       translateY(0); }
-    50%  { transform: translateX(var(--walk-amp, 30vw))   translateY(-4px); }
-    100% { transform: translateX(0)                       translateY(0); }
+    /* 0-30%: idle at start. */
+    0%, 30%    { transform: translateX(0)                                  translateY(0); }
+    /* 30-50%: walking right с 5 bob-up'ами (каждые ~2.5% = ~1.5-3.5s). */
+    32.5%      { transform: translateX(calc(var(--walk-amp, 30vw) * 0.125)) translateY(-5px); }
+    35%        { transform: translateX(calc(var(--walk-amp, 30vw) * 0.250)) translateY(0); }
+    37.5%      { transform: translateX(calc(var(--walk-amp, 30vw) * 0.375)) translateY(-5px); }
+    40%        { transform: translateX(calc(var(--walk-amp, 30vw) * 0.500)) translateY(0); }
+    42.5%      { transform: translateX(calc(var(--walk-amp, 30vw) * 0.625)) translateY(-5px); }
+    45%        { transform: translateX(calc(var(--walk-amp, 30vw) * 0.750)) translateY(0); }
+    47.5%      { transform: translateX(calc(var(--walk-amp, 30vw) * 0.875)) translateY(-5px); }
+    50%        { transform: translateX(var(--walk-amp, 30vw))               translateY(0); }
+    /* 50-80%: idle at right end. */
+    80%        { transform: translateX(var(--walk-amp, 30vw))               translateY(0); }
+    /* 80-100%: walking back left с 5 bob-up'ами. */
+    82.5%      { transform: translateX(calc(var(--walk-amp, 30vw) * 0.875)) translateY(-5px); }
+    85%        { transform: translateX(calc(var(--walk-amp, 30vw) * 0.750)) translateY(0); }
+    87.5%      { transform: translateX(calc(var(--walk-amp, 30vw) * 0.625)) translateY(-5px); }
+    90%        { transform: translateX(calc(var(--walk-amp, 30vw) * 0.500)) translateY(0); }
+    92.5%      { transform: translateX(calc(var(--walk-amp, 30vw) * 0.375)) translateY(-5px); }
+    95%        { transform: translateX(calc(var(--walk-amp, 30vw) * 0.250)) translateY(0); }
+    97.5%      { transform: translateX(calc(var(--walk-amp, 30vw) * 0.125)) translateY(-5px); }
+    100%       { transform: translateX(0)                                   translateY(0); }
+}
+
+/* Sprint 5.28: direction-aware sprite swap. Stacked east/west img'и поверх
+   south creature. Opacity-keyframes синхронизированы с pet-walk через
+   shared --walk-duration / --walk-delay. */
+.pet-walk-frame {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: var(--pet-stage-size, 128px);
+    height: var(--pet-stage-size, 128px);
+    transform: translateX(-50%);
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    -ms-interpolation-mode: nearest-neighbor;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 4;
+    animation-duration: var(--walk-duration, 22s);
+    animation-delay: var(--walk-delay, 0s);
+    animation-iteration-count: infinite;
+    animation-timing-function: linear;
+}
+.pet-walk-frame--east { animation-name: pet-walk-frame-east; }
+.pet-walk-frame--west { animation-name: pet-walk-frame-west; }
+
+/* East visible 30-50% cycle (walking right). Fast 0.1% switch для crisp swap. */
+@keyframes pet-walk-frame-east {
+    0%, 29.9%   { opacity: 0; }
+    30%, 49.9%  { opacity: 1; }
+    50%, 100%   { opacity: 0; }
+}
+/* West visible 80-100% cycle (walking back left). */
+@keyframes pet-walk-frame-west {
+    0%, 79.9%   { opacity: 0; }
+    80%, 99.9%  { opacity: 1; }
+    100%        { opacity: 0; }
 }
 /* Sway — качание creature'а в ритм шагов (на .pet-stage child).
-   --pet-card-sway-delay JS-staggered чтобы каждый качался не синхронно. */
+   --pet-card-sway-delay JS-staggered чтобы каждый качался не синхронно.
+   Sprint 5.28: south creature скрыт во время walking-фаз (30-50% и 80-100%)
+   чтобы не накладываться на east/west overlay sprites. Два анимации —
+   sway (transform) + visibility (opacity) одновременно. */
 .pet-card .pet-stage {
-    animation: pet-card-sway 2.8s ease-in-out infinite;
-    animation-delay: var(--pet-card-sway-delay, 0s);
+    animation: pet-card-sway 2.8s ease-in-out infinite,
+               pet-walk-south-visibility var(--walk-duration, 22s) steps(1, end) infinite;
+    animation-delay: var(--pet-card-sway-delay, 0s),
+                     var(--walk-delay, 0s);
     transform-origin: 50% 90%;
+}
+@keyframes pet-walk-south-visibility {
+    0%, 29.9%   { opacity: 1; }
+    30%, 49.9%  { opacity: 0; }
+    50%, 79.9%  { opacity: 1; }
+    80%, 99.9%  { opacity: 0; }
+    100%        { opacity: 1; }
 }
 @keyframes pet-card-sway {
     0%, 100% { transform: rotate(-5deg); }
@@ -656,6 +729,8 @@ body {
     align-items: center;
     justify-content: center;
     margin-bottom: 4px;
+    /* Sprint 5.28: anchor для absolute pet-walk-frame overlays (east/west sprites) */
+    position: relative;
 }
 .pet-card-visual .pc-head, .pet-card-visual .pc-acc {
     font-size: 18px;
@@ -666,7 +741,7 @@ body {
    Зеркало стилей из viewer.css. SVG creature + 6 anchored slots. */
 .pet-stage {
     position: relative;
-    width: var(--pet-stage-size, 64px);
+    width: var(--pet-stage-size, 128px);
     aspect-ratio: 1;
     margin: 0 auto;
     /* Sprint 5.22 patch: overlay = frameless (no border-radius/overflow/bg).
@@ -697,7 +772,7 @@ body {
 .pet-stage__aura { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 .pet-stage__aura-particle {
     position: absolute;
-    font-size: calc(var(--pet-stage-size, 64px) * 0.18);
+    font-size: calc(var(--pet-stage-size, 128px) * 0.18);
     line-height: 1;
     transform: translate(-50%, -50%) scale(0.7);
     animation: pet-stage-aura-particle 1.8s ease-in-out infinite;
@@ -719,7 +794,15 @@ body {
     pointer-events: none;
     animation: pet-stage-breathe 4s ease-in-out infinite;
 }
-.pet-stage__creature { width: 100%; height: 100%; display: block; }
+/* Sprint 5.28 (2026-05-24): PNG pixel-art creature вместо SVG blob.
+   image-rendering: pixelated сохраняет chunky pixels при upscale. */
+.pet-stage__creature {
+    width: 100%; height: 100%; display: block;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    -ms-interpolation-mode: nearest-neighbor;
+}
 @keyframes pet-stage-breathe {
     0%, 100% { transform: translateY(0)    scale(1); }
     50%      { transform: translateY(-1px) scale(1.015); }
@@ -727,7 +810,7 @@ body {
 .pet-stage__egg {
     position: absolute; inset: 0; z-index: 3;
     display: flex; align-items: center; justify-content: center;
-    font-size: calc(var(--pet-stage-size, 64px) * 0.55);
+    font-size: calc(var(--pet-stage-size, 128px) * 0.55);
     line-height: 1;
     animation: pet-stage-wobble 3.2s ease-in-out infinite;
     pointer-events: none;
@@ -737,18 +820,26 @@ body {
     50%      { transform: rotate( 3deg); }
 }
 .pet-stage__slot {
+    /* Sprint 5.28: slot = FULL OVERLAY. Item sprite внутри 104×104 viewBox
+       сам себя anchor'ит — slot CSS даёт только z-stack. */
     position: absolute;
-    display: flex; align-items: center; justify-content: center;
-    font-size: calc(var(--pet-stage-size, 64px) * 0.22);
-    line-height: 1;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     pointer-events: none;
-    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35));
 }
-.pet-stage__slot svg { width: 100%; height: 100%; display: block; }
-.pet-stage__slot--head      { top: -2%; left: 50%; width: 42%; height: 38%; transform: translateX(-50%); z-index: 7; }
-.pet-stage__slot--face      { top: 50%; left: 50%; width: 52%; height: 22%; transform: translate(-50%, -50%); z-index: 6; font-size: calc(var(--pet-stage-size, 64px) * 0.20); }
-.pet-stage__slot--body      { top: 82%; left: 50%; width: 50%; height: 22%; transform: translate(-50%, -50%); z-index: 5; font-size: calc(var(--pet-stage-size, 64px) * 0.22); }
-.pet-stage__slot--accessory { top: 60%; right: 0%;  width: 28%; height: 28%; z-index: 6; font-size: calc(var(--pet-stage-size, 64px) * 0.20); }
+.pet-stage__slot svg,
+.pet-stage__slot .pet-stage__item-img {
+    width: 100%; height: 100%; display: block;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    -ms-interpolation-mode: nearest-neighbor;
+}
+.pet-stage__slot--body      { z-index: 5; }
+.pet-stage__slot--face      { z-index: 6; }
+.pet-stage__slot--accessory { z-index: 6; }
+.pet-stage__slot--head      { z-index: 7; }
 .pet-card-name {
     font-size: 11px;
     font-weight: 600;
@@ -914,10 +1005,10 @@ body {
 <!-- ══════ КАРТОЧКИ (правый нижний угол) ══════ -->
 <div class="notification" id="notif-stack"></div>
 
-<!-- pet-stage.js: shared SVG creature renderer (Sprint 5.21).
+<!-- pet-stage.js: PNG pixel-art creature renderer (Sprint 5.28).
      Загружается ДО основного скрипта overlay чтобы window.PetStage был
      доступен в renderPets(). -->
-<script src="pet-stage.js?v=20260520f"></script>
+<script src="pet-stage.js?v=20260524b"></script>
 
 <script>
 const SERVER = 'https://shedoy23.ru';
@@ -1367,14 +1458,32 @@ async function pollPets() {
             const eq = v.equipped || {};
             const pet = {pet_type: v.pet_type, name: v.name};
             const username = '@' + (v.username || '?');
-            // Sprint 5.21: shared PetStage rendering — creature SVG + slot overlays.
-            // Sprint 5.22 patch: frameless card, username под pet'ом (без рамки).
+            // Sprint 5.28: pet 2× размер (128px), direction-aware walking.
+            // Pet-stage рендерит south creature; на overlay поверх клеим
+            // east + west sprites через absolute positioning, opacity
+            // animations swap'ают их synchronized с pet-walk position.
             const stageHtml = (typeof PetStage !== 'undefined')
-                ? PetStage.renderHtml(pet, eq, {size: 64})
+                ? PetStage.renderHtml(pet, eq, {size: 128})
                 : `<span>${v.pet_type === 'egg' ? '🥚' : '🐣'}</span>`;
+            // Variant detection для east/west PNG paths (mirror логики из pet-stage.js).
+            let variant = 'kimono';
+            if (eq.body && typeof eq.body.item_id === 'string' &&
+                eq.body.item_id.startsWith('skin_')) {
+                const v2 = eq.body.item_id.slice(5);
+                if (v2 === 'kimono' || v2 === 'underwear') variant = v2;
+            }
+            const isHatched = pet.pet_type && pet.pet_type !== 'egg';
+            const walkSprites = isHatched ? `
+                <img src="pet-assets/v2/${variant}/east.png"
+                     class="pet-walk-frame pet-walk-frame--east"
+                     alt="" draggable="false"/>
+                <img src="pet-assets/v2/${variant}/west.png"
+                     class="pet-walk-frame pet-walk-frame--west"
+                     alt="" draggable="false"/>
+            ` : '';
             return `
                 <div class="pet-card">
-                    <div class="pet-card-visual">${stageHtml}</div>
+                    <div class="pet-card-visual">${stageHtml}${walkSprites}</div>
                     <div class="pet-card-name">${escapeHtmlOL(username)}</div>
                 </div>
             `;
@@ -1394,7 +1503,7 @@ async function pollPets() {
             if      (startPct + ampVw > 90) dir = -1;                // пойдёт влево
             else if (startPct - ampVw < 5)  dir = 1;                 // пойдёт вправо
             else                            dir = Math.random() < 0.5 ? 1 : -1;
-            const duration = 54 + Math.floor(Math.random() * 37);    // 54-90s (×3 медленнее)
+            const duration = 90 + Math.floor(Math.random() * 61);    // 90-150s (5.28: ещё медленнее)
             const delay    = Math.floor(Math.random() * 80) / 10;    // 0-8s
             card.style.setProperty('--walk-start',    `${startPct}vw`);
             card.style.setProperty('--walk-amp',      `${dir * ampVw}vw`);
@@ -1402,6 +1511,19 @@ async function pollPets() {
             card.style.setProperty('--walk-delay',    `${delay}s`);
             card.style.setProperty('--pet-card-sway-delay', `${i * 0.25}s`);
             card.style.transitionDelay = `${i * 60}ms`;
+            // Sprint 5.28: если pet идёт первым leg'ом ВЛЕВО (dir=-1), свопаем
+            // east/west sprites — класс --east держит timing-slot 30-50% (первая
+            // нога путешествия), --west держит 80-100% (возврат). Sprite-src
+            // должен соответствовать НАПРАВЛЕНИЮ, а не времени.
+            if (dir === -1) {
+                const eastImg = card.querySelector('.pet-walk-frame--east');
+                const westImg = card.querySelector('.pet-walk-frame--west');
+                if (eastImg && westImg) {
+                    const tmp = eastImg.src;
+                    eastImg.src = westImg.src;
+                    westImg.src = tmp;
+                }
+            }
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => card.classList.add('in'));
             });
@@ -1506,7 +1628,86 @@ if (new URLSearchParams(location.search).get('preview') === '1') {
     setInterval(pollPets, PETS_POLL_INTERVAL);
     pollBannerlordSummoned();
     setInterval(pollBannerlordSummoned, BNR_POLL_INTERVAL);
+    pollBannerlordPowerEvents();
+    setInterval(pollBannerlordPowerEvents, 1000);   // Sprint 5.30 #41 every 1s
     initTts();
+}
+
+// ════════ Sprint 5.30 #41 — Power activation broadcast ════════
+// Polls /api/overlay/bannerlord/power-events with last seq, renders
+// large floating banner per new event ~4s. Streamer + audience видят
+// сразу когда viewer купил heal/rage/retribution.
+let _bnrPowerSeq = 0;
+
+const BNR_POWER_META = {
+    heal_burst:         { icon: '💊', label: 'Лечение',  color: '#34d399', glow: 'rgba(52,211,153,0.55)' },
+    shield_break_burst: { icon: '🛡️', label: 'Разбит щит', color: '#fb923c', glow: 'rgba(251,146,60,0.55)' },
+    rage:               { icon: '🔥', label: 'Ярость',   color: '#f87171', glow: 'rgba(248,113,113,0.65)' },
+    retribution_toggle: { icon: '↩',  label: 'Возмездие', color: '#93c5fd', glow: 'rgba(147,197,253,0.55)' },
+};
+
+async function pollBannerlordPowerEvents() {
+    try {
+        const url = SERVER + '/api/overlay/bannerlord/power-events'
+            + `?since_seq=${_bnrPowerSeq}`
+            + (PETS_CHANNEL_ID > 0 ? `&channel_id=${PETS_CHANNEL_ID}` : '');
+        const r = await fetch(url);
+        const data = await r.json();
+        if (data.cursor > _bnrPowerSeq) _bnrPowerSeq = data.cursor;
+        for (const ev of (data.events || [])) {
+            spawnBnrPowerBanner(ev);
+        }
+    } catch (e) { /* silent */ }
+}
+
+function spawnBnrPowerBanner(ev) {
+    const meta = BNR_POWER_META[ev.power_key] || {
+        icon: '✨', label: ev.power_key, color: '#fbbf24', glow: 'rgba(251,191,36,0.55)',
+    };
+    const container = document.getElementById('bnr-power-banner-host')
+                    || (() => {
+                        const d = document.createElement('div');
+                        d.id = 'bnr-power-banner-host';
+                        d.style.cssText = 'position:fixed;left:50%;top:18%;'
+                            + 'transform:translateX(-50%);z-index:99999;'
+                            + 'pointer-events:none;display:flex;'
+                            + 'flex-direction:column;gap:6px;align-items:center;';
+                        document.body.appendChild(d);
+                        return d;
+                    })();
+    const banner = document.createElement('div');
+    const duration = ev.duration_s ? ` · ${Math.round(ev.duration_s)}с` : '';
+    const value = ev.value ? ` ×${(+ev.value).toFixed(1)}` : '';
+    banner.style.cssText = `
+        background: linear-gradient(135deg, rgba(0,0,0,0.85) 0%, rgba(20,20,30,0.92) 100%);
+        border: 2px solid ${meta.color};
+        box-shadow: 0 0 24px ${meta.glow}, inset 0 0 12px ${meta.glow};
+        color: ${meta.color};
+        padding: 12px 22px;
+        border-radius: 12px;
+        font: 700 22px/1.2 'Inter', sans-serif;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        opacity: 0;
+        transform: scale(0.7) translateY(-12px);
+        transition: opacity .25s ease, transform .25s ease;
+        white-space: nowrap;
+    `;
+    banner.innerHTML = `
+        ${meta.icon} <span style="color:#fff;">@${(ev.user || '?')}</span>
+        → ${meta.label}${value}${duration}
+    `;
+    container.appendChild(banner);
+    // Animate in
+    requestAnimationFrame(() => {
+        banner.style.opacity = '1';
+        banner.style.transform = 'scale(1) translateY(0)';
+    });
+    // Auto-fade after 4s, remove after 4.5s
+    setTimeout(() => {
+        banner.style.opacity = '0';
+        banner.style.transform = 'scale(0.9) translateY(-8px)';
+    }, 4000);
+    setTimeout(() => banner.remove(), 4500);
 }
 
 async function pollTts() {

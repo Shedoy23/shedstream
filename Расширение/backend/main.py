@@ -83,6 +83,10 @@ from routes.pets       import router as pets_router       # Phase 7 (2026-05-12)
 from routes.tts        import router as tts_router        # Sprint 5.23 (2026-05-21)
 from routes.rps        import router as rps_router        # Sprint 5.24b (2026-05-21)
 from routes.bannerlord  import router as bannerlord_router # Sprint 1.3 (2026-05-15)
+from routes.bannerlord_achievements import router as bannerlord_achievements_router # Sprint 5.29
+from routes.bannerlord_custom_items import router as bannerlord_custom_items_router # Sprint 5.29
+from routes.bannerlord_auctions import router as bannerlord_auctions_router  # Sprint 5.29 phase B
+from routes.bannerlord_boosty import router as bannerlord_boosty_router  # Sprint 5.31 #45
 from routes.dev_login   import router as dev_login_router  # /dev test page (2026-05-16)
 # casino_router удалён 2026-05-10 — Phase 1.A compliance rework (см. COMPLIANCE_REWORK_PLAN.md)
 app.include_router(duel_router)
@@ -106,6 +110,10 @@ app.include_router(pets_router)        # Phase 7 (2026-05-12): Pets MVP (cross-c
 app.include_router(tts_router)         # Sprint 5.23 (2026-05-21): TTS «Озвучить сообщение»
 app.include_router(rps_router)         # Sprint 5.24b (2026-05-21): RPS bo3 matchmade
 app.include_router(bannerlord_router)  # Sprint 1.3 (2026-05-15): Bannerlord viewer endpoints
+app.include_router(bannerlord_achievements_router)  # Sprint 5.29 BLT-parity #5
+app.include_router(bannerlord_custom_items_router)  # Sprint 5.29 BLT-parity #6
+app.include_router(bannerlord_auctions_router)  # Sprint 5.29 BLT-parity #6 phase B
+app.include_router(bannerlord_boosty_router)    # Sprint 5.31 #45 — Boosty subs
 app.include_router(dev_login_router)   # 2026-05-16: /dev OAuth test page
 
 # Phase A (2026-05-16): EventSub generic router (/eventsub + legacy alias
@@ -205,6 +213,13 @@ _register_extension_routes()
 # Статические файлы (остальные ресурсы если есть)
 if FRONTEND_PATH and os.path.exists(FRONTEND_PATH):
     app.mount("/static", StaticFiles(directory=FRONTEND_PATH), name="static")
+    # Sprint 5.28: pet-assets/ mount для PixelLab PNG-спрайтов character'а
+    # (kimono + underwear × 8 directions). pet-stage.js загружает их по
+    # относительному пути "pet-assets/v2/{variant}/{direction}.png".
+    _pet_assets_path = os.path.join(FRONTEND_PATH, "pet-assets")
+    if os.path.exists(_pet_assets_path):
+        app.mount("/pet-assets", StaticFiles(directory=_pet_assets_path), name="pet-assets")
+        print(f"✅ Pet-assets mounted: {_pet_assets_path}")
     print(f"✅ Frontend папка подключена: {FRONTEND_PATH}")
 app.add_middleware(
     CORSMiddleware,
@@ -742,6 +757,57 @@ async def run_migrations():
             print(f"❌ M36 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # ── M37: Pets v3 clean slate ──
+        # Sprint 5.28: wipe emoji-era pets data, rebuild catalog with
+        # 'mythic' rarity + png_path column. Items (catalog rows) добавятся
+        # отдельной миграцией M38 когда PixelLab batch готов.
+        try:
+            from migrations import m37_pets_v3_clean_slate
+            await m37_pets_v3_clean_slate.apply(conn)
+        except Exception as e:
+            print(f"❌ M37 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
+        # Sprint 5.29 / BLT-parity #7 — iteration counter для heir succession.
+        try:
+            from migrations import m38_hero_iteration
+            await m38_hero_iteration.apply(conn)
+        except Exception as e:
+            print(f"❌ M38 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
+        # Sprint 5.29 / BLT-parity #5 — achievements система.
+        try:
+            from migrations import m39_bannerlord_achievements
+            await m39_bannerlord_achievements.apply(conn)
+        except Exception as e:
+            print(f"❌ M39 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
+        # Sprint 5.29 / BLT-parity #6 — custom items / smithing trophies.
+        try:
+            from migrations import m40_custom_items
+            await m40_custom_items.apply(conn)
+        except Exception as e:
+            print(f"❌ M40 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
+        # Sprint 5.29 / BLT-parity #6 phase B — auction system.
+        try:
+            from migrations import m41_auctions
+            await m41_auctions.apply(conn)
+        except Exception as e:
+            print(f"❌ M41 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
+        # Sprint 5.31 #45 — Boosty manual-list subscribers
+        try:
+            from migrations import m42_boosty_subscribers
+            await m42_boosty_subscribers.apply(conn)
+        except Exception as e:
+            print(f"❌ M42 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 
@@ -1035,6 +1101,52 @@ async def register_eventsub_subscriptions():
 # eventsub_router в app.include_router выше.
 
 
+async def _dispatched_action_sweeper():
+    """Sprint 5.29 audit fix #38 — re-queue stuck dispatched actions.
+
+    Действия в `module_actions` со status='dispatched' могут залипнуть если
+    mod упал между fetch и ACK. Viewer заплатил крустики (или гольд), но
+    действие не выполнилось и не refund'нулось. Sweeper раз в 5 минут:
+      - SELECT * WHERE status='dispatched' AND dispatched_at < now - 10min
+      - UPDATE status='queued' WHERE id IN (...)
+      - log INFO with count + ids
+
+    После re-queue action попадёт в следующий long-poll mod'а. Если mod
+    обработает ОК → ACK success. Если опять refuse → action.failed → refund.
+    Idempotent: re-queue не дублирует, просто меняет status.
+    """
+    sweep_interval_sec = 300       # 5 min
+    stale_threshold_sec = 600      # 10 min
+    print("🔁 Dispatched-action sweeper started "
+          f"(interval={sweep_interval_sec}s, stale_after={stale_threshold_sec}s)")
+    while True:
+        try:
+            await asyncio.sleep(sweep_interval_sec)
+            async with db._connect() as conn:
+                # Use datetime arithmetic — SQLite datetime('now') is UTC string.
+                cur = await conn.execute(
+                    "SELECT id, action_id, channel_id, type FROM module_actions "
+                    "WHERE status='dispatched' "
+                    "  AND dispatched_at IS NOT NULL "
+                    "  AND dispatched_at < datetime('now', ?)",
+                    (f"-{stale_threshold_sec} seconds",))
+                rows = await cur.fetchall()
+                if not rows:
+                    continue
+                ids = [r[0] for r in rows]
+                placeholders = ",".join("?" for _ in ids)
+                await conn.execute(
+                    f"UPDATE module_actions SET status='queued' "
+                    f"WHERE id IN ({placeholders})",
+                    ids)
+                await conn.commit()
+                for r in rows:
+                    print(f"🔁 [sweeper] re-queued stale dispatched action "
+                          f"id={r[0]} action_id={r[1]} ch={r[2]} type={r[3]}")
+        except Exception as e:
+            print(f"❌ Dispatched-action sweeper error: {type(e).__name__}: {e}")
+
+
 async def _wal_checkpoint_loop():
     """Блок 1 архитектурной прокачки: periodic WAL maintenance.
 
@@ -1165,6 +1277,14 @@ async def on_startup():
     # M4 follow-up (б): держим OAuth-токены стримеров свежими.
     from routes.streamer import oauth_refresh_loop as _oauth_refresh_loop
     asyncio.create_task(_oauth_refresh_loop())
+    # Sprint 5.29 audit fix #38: dispatched-action sweeper. Если mod упал
+    # между fetch и ACK, action залипает в status='dispatched' forever.
+    # Sweeper раз в 5 мин re-queue'ит rows старше 10 мин. Viewer заплатил
+    # — действие либо повторится либо refund'нётся через action.failed.
+    asyncio.create_task(_dispatched_action_sweeper())
+    # Sprint 5.29 BLT-parity #6 phase B: auctions resolver loop (every 30s).
+    from routes.bannerlord_auctions import auctions_resolve_loop as _auctions_resolve
+    asyncio.create_task(_auctions_resolve())
     # Блок 1 архитектурной прокачки: periodic WAL checkpoint, защита от
     # бесконечного роста WAL-файла. PASSIVE раз в час; раз в сутки —
     # RESTART для более глубокой компактизации.
@@ -1191,6 +1311,17 @@ async def on_startup():
 
     asyncio.create_task(_check_all_channel_seasons())
     print("✅ Сервер запущен")
+
+
+# Sprint 5.31 #45d (audit HIGH-7,8) — graceful shutdown shared HTTP session.
+@app.on_event("shutdown")
+async def on_shutdown():
+    """Close shared aiohttp.ClientSession (см. http_session.py)."""
+    try:
+        from http_session import close_session
+        await close_session()
+    except Exception as e:
+        print(f"⚠️ http_session close failed: {e}")
 
 if __name__ == "__main__":
     import asyncio

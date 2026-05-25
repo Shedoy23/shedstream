@@ -76,7 +76,43 @@ POWER_COOLDOWNS = {
     # Sprint 5.0: player.spawn = summon hero в Mission. Cooldown особо нужен —
     # spawn в идущий бой это серьёзное вмешательство, нельзя спамить.
     # Sprint 5.27i: 120s → 30s (быстрее ротация участников).
-    "player.spawn":        30,
+    # Sprint 5.29: split per side — player.spawn:player vs player.spawn:enemy.
+    "player.spawn":          30,   # legacy fallback (если side не передан)
+    "player.spawn:player":   30,   # ally — viewer на стороне стримера
+    "player.spawn:enemy":    45,   # enemy — slightly longer, чтобы не спамили против
+}
+
+# Sprint 5.29 audit fix #28 — anti-spam cooldowns per (channel, user, action_type).
+# Раньше cooldown был ТОЛЬКО на power.activate и player.spawn. Spam-prone actions
+# (recruit / heal / equip / add_skill / add_focus / add_attribute / marry / etc.)
+# можно было spam'ить кнопками в overlay → backend ack'ал каждое сразу,
+# крустики списывались, действие шло. Теперь — soft rate-limit per user.
+#
+# Values — short enough to не мешать legit use, long enough чтобы блокировать
+# рапидный clicker.
+ACTION_COOLDOWNS_SEC = {
+    "player.heal":               5,    # quick combat use
+    "player.equip_item":        15,
+    "player.modify_attribute":  20,
+    "hero.add_skill":            3,
+    "hero.add_focus":           10,
+    "hero.add_attribute":       30,
+    "hero.recruit_troops":      10,
+    "hero.upgrade_gear":        30,
+    "hero.set_class":           60,
+    "hero.marry":              180,    # heavy lore-action, 3 min
+    "hero.divorce":             60,
+    "hero.make_baby":          300,    # 5 min
+    "hero.set_gender":         300,
+    "hero.create_clan":        600,    # 10 min — серьёзное действие
+    "hero.create_kingdom":    1200,    # 20 min — очень серьёзное
+    "hero.create_party":       600,
+    "hero.leave_clan":          60,
+    "hero.leave_kingdom":       60,
+    "hero.join_clan":          120,
+    "hero.join_kingdom":       120,
+    "hero.join_tournament":     30,    # хочется быстрая re-queue после поражения
+    "world.trigger_event":    3600,    # admin-style, 1h
 }
 
 
@@ -162,13 +198,15 @@ def check_cooldown(channel_id: int, username: str, power_key: str) -> float:
 
 
 def set_cooldown(channel_id: int, username: str, power_key: str) -> None:
-    """Запустить cooldown для power_key. Длительность из POWER_COOLDOWNS.
+    """Запустить cooldown для power_key. Длительность из POWER_COOLDOWNS либо
+    ACTION_COOLDOWNS_SEC (fallback).
 
-    Sprint 4.8. Вызывается после successful enqueue power.activate в /action.
-    Если power_key не в POWER_COOLDOWNS — no-op (e.g. unknown power).
+    Sprint 4.8 — power.activate.
+    Sprint 5.29 audit fix #28 — extended на action_type'ы (spam protection).
+    Если key не в обоих dict'ах — no-op.
     """
     import time
-    cd_seconds = POWER_COOLDOWNS.get(power_key)
+    cd_seconds = POWER_COOLDOWNS.get(power_key) or ACTION_COOLDOWNS_SEC.get(power_key)
     if not cd_seconds:
         return
     key = (channel_id, (username or "").lower())
@@ -326,6 +364,26 @@ class BannerlordAdapter(ModuleAdapter):
             await self._on_clan_created(channel_id, env)
             return
 
+        # Sprint 5.29 audit fix #33 — 6 manifest events для clan/kingdom/party
+        if et == "hero.clan_joined":
+            await self._on_clan_joined(channel_id, env)
+            return
+        if et == "hero.clan_left":
+            await self._on_clan_left(channel_id, env)
+            return
+        if et == "hero.kingdom_created":
+            await self._on_kingdom_created(channel_id, env)
+            return
+        if et == "hero.kingdom_joined":
+            await self._on_kingdom_joined(channel_id, env)
+            return
+        if et == "hero.kingdom_left":
+            await self._on_kingdom_left(channel_id, env)
+            return
+        if et == "hero.party_created":
+            await self._on_party_created(channel_id, env)
+            return
+
         # ── Sprint 5.4: Battle stats snapshot (для overlay) ────────────────
         if et == "battle.stats_snapshot":
             self._on_battle_stats(channel_id, env)
@@ -356,8 +414,99 @@ class BannerlordAdapter(ModuleAdapter):
             await self._on_world_event(channel_id, env)
             return
 
+        # Sprint 5.29 / BLT-parity #3: refund крустиков на отказ мода
+        if et == "action.failed":
+            await self._on_action_failed(channel_id, env)
+            return
+
         # Unknown — manifest.supports_event уже отверг бы в routes/module_api.py
         logger.warning("[bannerlord:%s] unhandled event type=%s", channel_id, et)
+
+    async def _on_action_failed(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Sprint 5.29 / BLT-parity #3 — refund крустиков на refuse мода.
+
+        Mod handler refuse'ил action асинхронно (после ACK success=true в
+        ActionPoller). Сейчас мод пушит action.failed event с action_id +
+        reason. Backend ищет module_actions row, читает data.price, возвращает
+        крустики в viewers.points, marks action error_msg = "REFUNDED:".
+
+        Idempotent через error_msg LIKE 'REFUNDED:%' check.
+
+        env.data: {action_id: str, reason: str}
+        """
+        action_id = (env.data or {}).get("action_id") or ""
+        reason = (env.data or {}).get("reason") or "unspecified"
+        if not action_id:
+            logger.warning("[bannerlord:%s] action.failed без action_id, skip", channel_id)
+            return
+
+        async with get_db()._connect() as conn:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+                cur = await conn.execute(
+                    "SELECT data, error_msg FROM module_actions "
+                    "WHERE channel_id=? AND module_id='bannerlord' AND action_id=?",
+                    (channel_id, action_id))
+                row = await cur.fetchone()
+                if not row:
+                    await conn.execute("ROLLBACK")
+                    logger.warning(
+                        "[bannerlord:%s] action.failed action_id=%s not found",
+                        channel_id, action_id)
+                    return
+
+                data_str, error_msg = row
+                # Idempotent: уже refunded — skip
+                if error_msg and error_msg.startswith("REFUNDED:"):
+                    await conn.execute("ROLLBACK")
+                    logger.info(
+                        "[bannerlord:%s] action.failed action_id=%s already refunded, skip",
+                        channel_id, action_id)
+                    return
+
+                # Parse data → price + initiated_by
+                try:
+                    import json as _json
+                    parsed = _json.loads(data_str or "{}")
+                except Exception:
+                    parsed = {}
+                price = int(parsed.get("price") or 0)
+                username = (parsed.get("initiated_by") or "").lower()
+
+                if price <= 0 or not username:
+                    # Не было payment'а (free action) — лог + mark.
+                    await conn.execute(
+                        "UPDATE module_actions SET error_msg=? "
+                        "WHERE channel_id=? AND module_id='bannerlord' AND action_id=?",
+                        (f"REFUNDED:0 (no_price) reason={reason}", channel_id, action_id))
+                    await conn.commit()
+                    logger.info(
+                        "[bannerlord:%s] action.failed action_id=%s NO_REFUND "
+                        "(price=%s user=%s reason=%s)",
+                        channel_id, action_id, price, username, reason)
+                    return
+
+                # Refund крустики
+                await conn.execute(
+                    "UPDATE viewers SET points = points + ? "
+                    "WHERE channel_id=? AND username=?",
+                    (price, channel_id, username))
+                await conn.execute(
+                    "UPDATE module_actions SET error_msg=? "
+                    "WHERE channel_id=? AND module_id='bannerlord' AND action_id=?",
+                    (f"REFUNDED:{price} reason={reason}", channel_id, action_id))
+                await conn.commit()
+                logger.info(
+                    "[bannerlord:%s] REFUND ok action_id=%s user=%s +%s💎 reason=%s",
+                    channel_id, action_id, username, price, reason)
+            except Exception as ex:
+                try:
+                    await conn.execute("ROLLBACK")
+                except Exception:
+                    pass
+                logger.exception(
+                    "[bannerlord:%s] action.failed handler crashed action_id=%s: %s",
+                    channel_id, action_id, ex)
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -489,6 +638,17 @@ class BannerlordAdapter(ModuleAdapter):
         if not username:
             return
 
+        # Sprint 5.29 BLT-parity #5: achievements high-water-mark tracking.
+        # Push level/gold через set_stat_max — auto-detects new HWM.
+        try:
+            from routes.bannerlord_achievements import set_stat_max
+            if "level" in data:
+                await set_stat_max(channel_id, username, "level_max", int(data["level"] or 0))
+            if "gold" in data:
+                await set_stat_max(channel_id, username, "gold_max", int(data["gold"] or 0))
+        except Exception:
+            pass
+
         fields = []
         params: list = []
         # M19: level / clan_name / kingdom_name добавлены — mod пушит после
@@ -563,7 +723,16 @@ class BannerlordAdapter(ModuleAdapter):
             await conn.commit()
 
     async def _on_player_died(self, channel_id: int, env: ModuleEnvelope) -> None:
-        """HeroKilled event. Mark dead + audit. Heir succession — Sprint 1.3+."""
+        """HeroKilled event. Mark dead + bump iteration counter for heir succession.
+
+        Sprint 5.29 / BLT-parity #7: instead of auto-respawn, mark dead и
+        increment iteration. Frontend show'ает «Поколение N мёртв + Возродить»
+        button. Viewer click'ает → POST hero.create → AdoptHeroHandler берёт
+        new wanderer with same username (iteration N+1).
+
+        Old hero остаётся в game world как dead [BLink] @username (engine не
+        re-spawn'ит мёртвых), новый — fresh start от 0 уровня.
+        """
         data = env.data
         username = (data.get("username") or "").lower()
         if not username:
@@ -572,19 +741,16 @@ class BannerlordAdapter(ModuleAdapter):
         from dependencies import get_db
         async with get_db()._connect() as conn:
             await conn.execute(
-                "UPDATE bannerlord_heroes SET is_alive=0, last_sync=CURRENT_TIMESTAMP "
+                "UPDATE bannerlord_heroes SET is_alive=0, "
+                "iteration = iteration + 1, "
+                "last_sync=CURRENT_TIMESTAMP "
                 "WHERE channel_id=? AND username=?",
                 (channel_id, username))
             await conn.commit()
 
         await self._log_event(channel_id, "player.died", username, data)
         print(f"[bannerlord:{channel_id}] @{username} hero died "
-              f"killer={data.get('killer_name', 'unknown')}")
-
-        # TODO Sprint 1.3+: auto-heir assignment
-        #   - find free unadopted NPC hero from pool
-        #   - enqueue player.respawn action в action queue → mod исполнит
-        #   - update bannerlord_heroes с new hero_id, is_alive=1
+              f"(iteration bumped) killer={data.get('killer_name', 'unknown')}")
 
     async def _on_player_respawned(self, channel_id: int, env: ModuleEnvelope) -> None:
         """Heir succession completed — mod подтвердил respawn на новом hero."""
@@ -871,8 +1037,130 @@ class BannerlordAdapter(ModuleAdapter):
                 (clan_name, channel_id, username))
             await conn.commit()
         await self._log_event(channel_id, "hero.clan_created", username, data)
+        # Sprint 5.29 BLT-parity #5: achievement trigger
+        try:
+            from routes.bannerlord_achievements import set_stat_flag
+            await set_stat_flag(channel_id, username, "clan_created")
+        except Exception:
+            pass
         print(f"[bannerlord:{channel_id}] @{username} created clan '{clan_name}' "
               f"(culture={data.get('culture')}, home={data.get('home_settlement')})")
+
+    # ── Sprint 5.29 audit fix #33: 6 manifest events для clan/kingdom/party ──
+    # Раньше mod пушил эти events → backend logged "unhandled" → bannerlord_heroes
+    # cache stale (clan_name/kingdom_name не обновлялся до следующего полного
+    # player.state_update push'а от мода, что могло быть через минуты). UI показывал
+    # старое значение → viewer думал что action не сработал.
+
+    async def _on_clan_joined(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Mod пушит после hero.join_clan. UPDATE clan_name."""
+        data = env.data or {}
+        username = (data.get("username") or "").lower()
+        clan_name = data.get("clan_name") or ""
+        if not username or not clan_name:
+            return
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            await conn.execute(
+                "UPDATE bannerlord_heroes SET clan_name=?, last_sync=CURRENT_TIMESTAMP "
+                "WHERE channel_id=? AND username=?",
+                (clan_name, channel_id, username))
+            await conn.commit()
+        await self._log_event(channel_id, "hero.clan_joined", username, data)
+        logger.info("[bannerlord:%s] @%s joined clan '%s'", channel_id, username, clan_name)
+
+    async def _on_clan_left(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Mod пушит после hero.leave_clan. UPDATE clan_name=NULL (и kingdom_name=NULL
+        потому что покидание clan'а косвенно отвязывает от kingdom)."""
+        data = env.data or {}
+        username = (data.get("username") or "").lower()
+        if not username:
+            return
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            await conn.execute(
+                "UPDATE bannerlord_heroes SET clan_name=NULL, kingdom_name=NULL, "
+                "last_sync=CURRENT_TIMESTAMP "
+                "WHERE channel_id=? AND username=?",
+                (channel_id, username))
+            await conn.commit()
+        await self._log_event(channel_id, "hero.clan_left", username, data)
+        logger.info("[bannerlord:%s] @%s left clan (was '%s')",
+                    channel_id, username, data.get("old_clan_name") or "?")
+
+    async def _on_kingdom_created(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Mod пушит после hero.create_kingdom. UPDATE kingdom_name."""
+        data = env.data or {}
+        username = (data.get("username") or "").lower()
+        kingdom_name = data.get("kingdom_name") or ""
+        if not username or not kingdom_name:
+            return
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            await conn.execute(
+                "UPDATE bannerlord_heroes SET kingdom_name=?, last_sync=CURRENT_TIMESTAMP "
+                "WHERE channel_id=? AND username=?",
+                (kingdom_name, channel_id, username))
+            await conn.commit()
+        await self._log_event(channel_id, "hero.kingdom_created", username, data)
+        # Sprint 5.29 BLT-parity #5: achievement trigger
+        try:
+            from routes.bannerlord_achievements import set_stat_flag
+            await set_stat_flag(channel_id, username, "kingdom_created")
+        except Exception:
+            pass
+        logger.info("[bannerlord:%s] @%s created kingdom '%s'",
+                    channel_id, username, kingdom_name)
+
+    async def _on_kingdom_joined(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Mod пушит после hero.join_kingdom. UPDATE kingdom_name."""
+        data = env.data or {}
+        username = (data.get("username") or "").lower()
+        kingdom_name = data.get("kingdom_name") or ""
+        if not username or not kingdom_name:
+            return
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            await conn.execute(
+                "UPDATE bannerlord_heroes SET kingdom_name=?, last_sync=CURRENT_TIMESTAMP "
+                "WHERE channel_id=? AND username=?",
+                (kingdom_name, channel_id, username))
+            await conn.commit()
+        await self._log_event(channel_id, "hero.kingdom_joined", username, data)
+        logger.info("[bannerlord:%s] @%s joined kingdom '%s'",
+                    channel_id, username, kingdom_name)
+
+    async def _on_kingdom_left(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Mod пушит после hero.leave_kingdom (clan покидает kingdom).
+        UPDATE kingdom_name=NULL."""
+        data = env.data or {}
+        username = (data.get("username") or "").lower()
+        if not username:
+            return
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            await conn.execute(
+                "UPDATE bannerlord_heroes SET kingdom_name=NULL, "
+                "last_sync=CURRENT_TIMESTAMP "
+                "WHERE channel_id=? AND username=?",
+                (channel_id, username))
+            await conn.commit()
+        await self._log_event(channel_id, "hero.kingdom_left", username, data)
+        logger.info("[bannerlord:%s] @%s left kingdom (was '%s')",
+                    channel_id, username, data.get("old_kingdom_name") or "?")
+
+    async def _on_party_created(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Mod пушит после hero.create_party. Логируем (sample data в audit log).
+        bannerlord_heroes не имеет party_name column'а — только лог."""
+        data = env.data or {}
+        username = (data.get("username") or "").lower()
+        if not username:
+            return
+        await self._log_event(channel_id, "hero.party_created", username, data)
+        logger.info("[bannerlord:%s] @%s created party '%s' at '%s'",
+                    channel_id, username,
+                    data.get("party_name") or "?",
+                    data.get("spawn_settlement") or "?")
 
     # ── Sprint 5.4: Battle stats snapshot ─────────────────────────────────────
 
@@ -904,6 +1192,35 @@ class BannerlordAdapter(ModuleAdapter):
                 is_new_battle = True
             elif now - prev.get("updated_at", 0) > _BATTLE_STATS_TTL:
                 is_new_battle = True
+
+        # Sprint 5.29 BLT-parity #5: kills achievement — fire-and-forget
+        # incremental delta. Battle.stats_snapshot имеет cumulative kills
+        # per username — track previous, increment delta. Only при is_final
+        # чтобы избежать race на short snapshot intervals + дешевле DB writes.
+        if is_final and prev and isinstance(prev.get("participants"), list):
+            try:
+                prev_kills = {}
+                for p in prev["participants"]:
+                    u = (p.get("username") or "").lower()
+                    if u:
+                        prev_kills[u] = int(p.get("kills") or 0)
+                import asyncio as _asyncio
+                from routes.bannerlord_achievements import increment_stat as _inc
+                async def _ach_kills_apply():
+                    for p in participants:
+                        u = (p.get("username") or "").lower()
+                        if not u:
+                            continue
+                        new_k = int(p.get("kills") or 0)
+                        delta = max(0, new_k - prev_kills.get(u, 0))
+                        if delta > 0:
+                            try:
+                                await _inc(channel_id, u, "kills", delta)
+                            except Exception:
+                                pass
+                _asyncio.create_task(_ach_kills_apply())
+            except Exception:
+                pass
 
         _battle_stats[channel_id] = {
             "final":        is_final,
@@ -1007,6 +1324,13 @@ class BannerlordAdapter(ModuleAdapter):
                 "DELETE FROM bannerlord_tournament_queue WHERE channel_id=?",
                 (channel_id,))
             await conn.commit()
+        # Sprint 5.29 BLT-parity #5: achievement increment per participant
+        try:
+            from routes.bannerlord_achievements import increment_stat
+            for p in participants:
+                await increment_stat(channel_id, p, "tournament_participations", 1)
+        except Exception:
+            pass
         print(f"[bannerlord:{channel_id}] tournament started: "
               f"{len(participants)} participants ({participants[:3]}...)")
 
@@ -1118,6 +1442,13 @@ class BannerlordAdapter(ModuleAdapter):
                     (channel_id,))
             await conn.commit()
         await self._log_event(channel_id, "tournament.ended", winner, data)
+        # Sprint 5.29 BLT-parity #5: achievement increment для winner
+        if winner and not aborted:
+            try:
+                from routes.bannerlord_achievements import increment_stat
+                await increment_stat(channel_id, winner, "tournament_wins", 1)
+            except Exception:
+                pass
         status_str = "ABORTED" if aborted else f"winner=@{winner}"
         print(f"[bannerlord:{channel_id}] tournament ended ({status_str})")
 

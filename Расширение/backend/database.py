@@ -1442,6 +1442,27 @@ class Database:
         counts['total'] = sum(counts.values())
         return counts
 
+    async def count_all_cases(
+        self,
+        username: str,
+        channel_id: Optional[int] = None,
+    ) -> int:
+        """Сколько ВСЕГО кейсов выпало юзеру за всё время (open + closed).
+
+        Sprint 5.28: используется UI для empty-state messaging — отличить
+        «новый юзер, ни одного не получал» от «всё открыл».
+        """
+        cid = resolve_channel_id(channel_id)
+        uname = username.lower()
+        async with self._connect() as conn:
+            cur = await conn.execute(
+                "SELECT COUNT(*) FROM cases "
+                "WHERE channel_id = ? AND username = ?",
+                (cid, uname)
+            )
+            row = await cur.fetchone()
+        return int(row[0]) if row else 0
+
     async def is_trigger_fired(
         self,
         username: str,

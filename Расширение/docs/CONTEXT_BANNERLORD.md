@@ -66,6 +66,54 @@ prod-mirror в `Modules/Shedoy23.BannerlordLink/`) ↔ FastAPI backend
 - **M34** — tts.audio_data BLOB (server-side gTTS)
 - **M35** — bannerlord_clan_upgrades_catalog + _owned (BLT clan upgrades)
 - **M36** — bannerlord_heroes + `is_female INTEGER`, `family_info_json TEXT`
+- **M37–M41** — pets v3 clean-slate + BLT-parity achievements/auctions/heirs/active-powers
+- **M42** (Sprint 5.31 #45) — `bannerlord_boosty_subscribers` (PK channel_id+twitch_username,
+  tier 1/2/3, optional note). Streamer ведёт список вручную через **/streamer/dashboard**
+  (cookie-сессия). Boosty подписчики получают те же price/reward boost'ы что Twitch sub.
+  Perk chain: broadcaster → moderator → **Boosty** → Helix Twitch sub → viewer.
+  Endpoints: `/api/dashboard/boosty/subscribers` (GET/POST), `.../bulk` (POST).
+  In-memory cache в `routes/bannerlord_boosty.py` с per-channel invalidation
+  on mutation, чтобы lookup в buy_action был sub-ms.
+
+### Sprint 5.31 #45b–#45f — Boosty rollout + 4 раунда аудита
+
+- **#45b** — Boosty admin перенесён в /streamer/dashboard (cookie-auth) +
+  tier-бейдж под ником в шапке расширения (`TS1`/`BS2`/...) через
+  `/api/viewer/perks`.
+- **#45c (logging gaps audit)** — perk-resolved INFO лог на каждой покупке;
+  `[boosty cache]` per-channel load count; cookie session verify trio
+  (malformed/HMAC mismatch/expired); twitch_subs 429 dedicated branch;
+  frontend `[perks]` dbg вместо silent-catch. Smoke-verified в prod логе.
+- **#45d (HIGH audit, 9 fixes)** —
+  *MOD:* TournamentQueueBehavior static field → `ConditionalWeakTable<Settlement,...>`;
+  `_partyRestores` mission-keyed filter (no cross-mission leak); `_retinueOwners`
+  `ConcurrentDictionary` → `ConditionalWeakTable<Agent,...>` (GC auto-evict);
+  ActionPoller OCE re-throw (без ACK на shutdown — нет fake refund).
+  *BACKEND:* tournament.join_tournament status+queue+pending dedup внутри
+  BEGIN IMMEDIATE; charge — atomic `UPDATE ... WHERE points >= ?` + rowcount
+  (multi-worker safe); shared aiohttp.ClientSession (new `http_session.py`)
+  закрывается в `on_shutdown`; pubsub + twitch_subs мигрированы на shared;
+  DEV_MODE double-gate `RIMLINK_ENV != prod` (.env set on prod).
+- **#45e (MED audit, 13 fixes)** —
+  *MOD:* DamageHookPatch periodic blow counter (life-sign против Harmony
+  binding break); SetAgentDisplayName multi-field reflection + periodic
+  re-warn; OnHeroKilled — ExtractUsername + skip non-adopted; BackendClient
+  `JsonConvert.SerializeObject` вместо `string.Format`; HeroStateSync
+  per-property try/catch; ActionPoller dedup ring (action_id ConcurrentDict
+  TTL 10 мин, max 2000 — закрывает sweeper double-debit).
+  *BACKEND:* tournament.bet dedup внутри BEGIN IMMEDIATE; module_api auth
+  trio unified `auth_failed` (timing oracle protection); cases.py preview
+  endpoints per-IP rate-limit 60/min.
+  *FRONTEND:* 5 setInterval → safeInterval; escape `${title}`, `${a.item_icon}`,
+  `${it.icon}` defensively.
+- **#45f (CodeGraph dead-code audit)** — удалено 387 строк dead кода:
+  `_openBannerlordBoostyModal` (202 строки в viewer.js, orphan после переноса
+  на dashboard); 3 JWT endpoint'а `/api/streamer/boosty/*` + helper
+  `_require_streamer_role` (158 строк в bannerlord_boosty.py — заменены
+  cookie-auth dashboard'овскими); `migrate_to_pool` декоратор (27 строк
+  в db_pool.py, 0 callers). Все non-actionable findings (auction discount
+  intentional; RimWorld legacy routes — внешний C# мод может звать;
+  `resolve_channel_id_or_default` — overlay endpoints OK для single-tenant).
 
 ### Action handlers (28 real + stubs)
 **Hero progression:**

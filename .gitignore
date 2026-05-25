@@ -48,3 +48,6 @@ Thumbs.db
 .claude/
 memory/
 skills-lock.json
+
+# CodeGraph index (binary SQLite, regen via codegraph init)
+.codegraph/

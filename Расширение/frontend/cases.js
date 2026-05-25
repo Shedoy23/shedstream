@@ -134,11 +134,17 @@ function renderCases() {
 
     const cases = _casesData.cases || [];
     if (!cases.length) {
-        grid.innerHTML = `
-            <div style="grid-column:1/-1;text-align:center;color:#adadb8;padding:16px;">
-                Пока нет кейсов. Выполняй квесты и держи streak — кейсы появятся!
-            </div>
-        `;
+        // Sprint 5.28: backend теперь шлёт только закрытые. Empty-state
+        // зависит от lifetime_count — если > 0 значит юзер всё открыл,
+        // иначе ещё ни одного не выпало.
+        const lifetime = _casesData.lifetime_count || 0;
+        grid.innerHTML = lifetime > 0
+            ? `<div style="grid-column:1/-1;text-align:center;color:#adadb8;padding:16px;">
+                   🎉 Все кейсы открыты! Заходи завтра за новым дневным квестом.
+               </div>`
+            : `<div style="grid-column:1/-1;text-align:center;color:#adadb8;padding:16px;">
+                   Пока нет кейсов. Выполняй квесты и держи streak — кейсы появятся!
+               </div>`;
         return;
     }
 

@@ -23,6 +23,8 @@ let userLogin = 'testuser';
 let authToken = '';
 let helixToken = '';
 let clientId = '';
+// Sprint 5.31 #45 — broadcaster JWT role (Boosty admin button gating).
+let _isBroadcaster = false;
 
 // ===== ГЛОБАЛЬНЫЙ МЕНЕДЖЕР ИНТЕРВАЛОВ =====
 // Все таймеры и интервалы регистрируются здесь и очищаются при закрытии страницы
@@ -339,6 +341,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const pad    = 4 - parts[1].length % 4;
             const payload = JSON.parse(atob(parts[1] + '='.repeat(pad % 4)));
             userId       = String(payload.user_id || payload.channel_id || '0');
+            _isBroadcaster = (payload.role === 'broadcaster');
         } catch (e) {}
         updateUIAfterAuth();
         return;  // не идём в Twitch.ext path
@@ -368,6 +371,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const pad = 4 - parts[1].length % 4;
                 const payload = JSON.parse(atob(parts[1] + '='.repeat(pad % 4)));
                 jwtUserId = payload.user_id || null;
+                // Sprint 5.31 #45 — broadcaster role detect для Boosty admin UI.
+                _isBroadcaster = (payload.role === 'broadcaster');
                 // JWT payload не логируем в продакшене
             } catch(e) {}
 
@@ -452,6 +457,12 @@ function updateUIAfterAuth() {
     loadRimworldEvents();
     checkRimworldStatus();
     loadRulection(); // загружаем рулекцион сразу при входе
+    // Sprint 5.31 #45b: подгрузить role+sub-tier badges под ником.
+    loadUserPerksBadge();
+    if (!window._intervalUserPerks) {
+        // Refresh каждые 5 мин (Helix sub cache TTL).
+        window._intervalUserPerks = safeInterval(loadUserPerksBadge, 5 * 60 * 1000);
+    }
     
     // Запускаем периодическое обновление (только один раз)
     if (!uiUpdateInterval) {
@@ -470,6 +481,68 @@ function updateUIAfterAuth() {
     _startAttendanceTracking();
 }
 
+
+// Sprint 5.31 #45b — обновить бейдж роли + tier'ов под ником зрителя.
+// Endpoint /api/viewer/perks возвращает {role, twitch_sub_tier, boosty_tier}.
+// Role: broadcaster → '👑 Стример', moderator → '🛡 Модер', else 'Зритель'.
+// Tier'ы: Twitch sub → TS1/TS2/TS3 (фиолет), Boosty → BS1/BS2/BS3 (фиолет тёмнее).
+async function loadUserPerksBadge() {
+    try {
+        const r = await fetch(`${API_URL}/api/viewer/perks`, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
+        const d = await r.json();
+        if (!d || !d.success) {
+            // Sprint 5.31 #45c — больше не silent. Пусть видно в console.
+            dbg('[perks] response not success', d);
+            return;
+        }
+        dbg('[perks] resolved', d);
+        const roleEl = document.getElementById('user-role-badge');
+        if (roleEl) {
+            if (d.role === 'broadcaster') {
+                roleEl.textContent = '👑 Стример';
+                roleEl.style.color = '#fbbf24';
+            } else if (d.role === 'moderator') {
+                roleEl.textContent = '🛡 Модер';
+                roleEl.style.color = '#34d399';
+            } else {
+                roleEl.textContent = 'Зритель';
+                roleEl.style.color = '';
+            }
+        }
+        const tierEl = document.getElementById('user-tier-badges');
+        if (tierEl) {
+            const badges = [];
+            const ts = parseInt(d.twitch_sub_tier || 0, 10);
+            const bs = parseInt(d.boosty_tier || 0, 10);
+            const badgeStyle = (bg, brd, fg, title) =>
+                `display:inline-block;padding:2px 7px;border-radius:4px;`
+              + `font-size:10px;font-weight:700;line-height:1.3;`
+              + `background:${bg};border:1px solid ${brd};color:${fg};`
+              + `letter-spacing:0.3px;` + (title ? `cursor:help;` : '');
+            if (ts >= 1 && ts <= 3) {
+                badges.push(
+                    `<span title="Twitch Sub Tier ${ts} — скидка и бонус к награде"
+                           style="${badgeStyle('#1f1145','#7e22ce','#c084fc',true)}">
+                        TS${ts}
+                    </span>`);
+            }
+            if (bs >= 1 && bs <= 3) {
+                badges.push(
+                    `<span title="Boosty Sub Tier ${bs} — скидка и бонус к награде"
+                           style="${badgeStyle('#2a0a3a','#a21caf','#e879f9',true)}">
+                        BS${bs}
+                    </span>`);
+            }
+            tierEl.innerHTML = badges.join('');
+        }
+    } catch (e) {
+        // Sprint 5.31 #45c — было silent. Теперь в console чтобы багрепорт
+        // от пользователя «нет тиерного бейджа» можно было дебажить.
+        console.warn('[perks] loadUserPerksBadge failed:', e);
+    }
+}
 
 
 // ===== ЗАПРОС IDENTITY У ЗРИТЕЛЯ =====
@@ -997,7 +1070,7 @@ function renderLevelBar(data) {
             <div style="background:linear-gradient(135deg,#9147ff,#b47cff);border-radius:10px;padding:4px 10px;font-size:13px;font-weight:700;color:#fff;white-space:nowrap;">
                 LVL ${level}
             </div>
-            <div style="font-size:11px;color:#adadb8;">${title}${bonus_pct > 0 ? ` (+${bonus_pct}% доход)` : ''}</div>
+            <div style="font-size:11px;color:#adadb8;">${escapeHtml(title)}${bonus_pct > 0 ? ` (+${Number(bonus_pct) || 0}% доход)` : ''}</div>
         </div>
         <div style="height:6px;background:#2d2d2f;border-radius:3px;overflow:hidden;margin-bottom:4px;">
             <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#9147ff,#b47cff);border-radius:3px;transition:width 0.5s;"></div>
@@ -1200,7 +1273,11 @@ function _startBannerlordPolling() {
     loadBannerlordBuffs();
     loadBannerlordTournament();
     loadBannerlordBattleStatus();
-    _bannerlordPollId = setInterval(() => {
+    // Sprint 5.31 #45e (audit MED-10) — все 4 интервала обёрнуты в
+    // safeInterval. Раньше использовали raw setInterval — на cleanupAllTimers()
+    // (закрытие страницы / Twitch helper teardown) эти 4 ID не были
+    // зарегистрированы в _globalIntervals и оставались висеть до natural GC.
+    _bannerlordPollId = safeInterval(() => {
         loadBannerlordHero();
         loadBannerlordShop();
         loadBannerlordStatus();
@@ -1208,23 +1285,40 @@ function _startBannerlordPolling() {
     }, 8000);
     // Buff HUD: faster poll (2.5s) для смены состояния, плюс client-side
     // decrement (1s) чтобы countdown был smooth между poll'ами.
-    _bannerlordBuffPollId = setInterval(loadBannerlordBuffs, 2500);
+    _bannerlordBuffPollId = safeInterval(loadBannerlordBuffs, 2500);
     // Tournament: 3s poll — отображает queue / running state / bets
-    _bannerlordTournamentPollId = setInterval(loadBannerlordTournament, 3000);
+    _bannerlordTournamentPollId = safeInterval(loadBannerlordTournament, 3000);
     // Battle status: 2s poll — banner "идёт бой" + my HP/kills/gold/xp
-    _bannerlordBattlePollId = setInterval(loadBannerlordBattleStatus, 2000);
-    _bannerlordBuffTickId = setInterval(() => {
+    _bannerlordBattlePollId = safeInterval(loadBannerlordBattleStatus, 2000);
+    // Sprint 5.29 audit fix #37: clock-based recompute вместо decrement.
+    // Раньше client-side -1/sec drift'ил когда browser tab throttled (background
+    // / mobile sleep). Теперь — каждый tick читает Date.now() и computes
+    // remaining_s из expires_at_ms. No drift, выживает throttling и suspend.
+    _bannerlordBuffTickId = safeInterval(() => {
+        const now = Date.now();
         let buffsChanged = false, cdsChanged = false;
         for (const b of _bannerlordBuffs) {
-            if (b.remaining_s > 0) {
-                b.remaining_s = Math.max(0, b.remaining_s - 1);
+            const newRem = b.expires_at_ms
+                ? Math.max(0, (b.expires_at_ms - now) / 1000)
+                : Math.max(0, (b.remaining_s || 0) - 1);
+            if (Math.abs(newRem - (b.remaining_s || 0)) >= 0.5) {
+                b.remaining_s = newRem;
+                buffsChanged = true;
+            } else if (newRem === 0 && b.remaining_s !== 0) {
+                b.remaining_s = 0;
                 buffsChanged = true;
             }
         }
         _bannerlordBuffs = _bannerlordBuffs.filter(b => b.remaining_s > 0);
         for (const c of _bannerlordCooldowns) {
-            if (c.remaining_s > 0) {
-                c.remaining_s = Math.max(0, c.remaining_s - 1);
+            const newRem = c.expires_at_ms
+                ? Math.max(0, (c.expires_at_ms - now) / 1000)
+                : Math.max(0, (c.remaining_s || 0) - 1);
+            if (Math.abs(newRem - (c.remaining_s || 0)) >= 0.5) {
+                c.remaining_s = newRem;
+                cdsChanged = true;
+            } else if (newRem === 0 && c.remaining_s !== 0) {
+                c.remaining_s = 0;
                 cdsChanged = true;
             }
         }
@@ -1244,7 +1338,10 @@ async function loadBannerlordClasses() {
         if (data.success) _bannerlordClassesCache = data;
         // Re-render hero body если он уже отображён — picker появится
         renderBannerlordClassPicker();
-    } catch (e) { /* silent */ }
+    } catch (e) {
+        // Sprint 5.29 audit fix #36: silent → warn
+        console.warn('[BNR loadBannerlordClasses]', e);
+    }
 }
 
 function renderBannerlordClassPicker() {
@@ -1430,6 +1527,7 @@ function renderBannerlordRandomEquipHtml() {
                         title="${horseTitle}"
                         style="font-size:12px;padding:6px;${horseStyle}">
                     🐎 Купить коня <span style="color:#fbbf24;">1 000 000💰</span>
+                </button>
             </div>
         </div>`;
 }
@@ -1956,9 +2054,12 @@ function _openBannerlordClanModal() {
         ${infoBlock}
         ${upgradesBtn}
         ${isLeader
-            ? `<div style="font-size:11px;color:#fbbf24;margin-bottom:6px;text-align:center;">
-                ⚠️ Ты лидер — нельзя просто покинуть. Сначала передай лидерство (TBD).
-               </div>`
+            ? `<button class="extra-btn" id="bnr-clan-modal-leave"
+                       title="Лидер: лидерство передастся старшему non-hero, или clan disband'нется если ты единственный."
+                       style="width:100%;font-size:12px;padding:8px;margin-bottom:6px;
+                              background:#7f1d1d;color:#fca5a5;">
+                    🚪 Покинуть клан <span style="color:#fbbf24;font-size:10px;">(передать/disband)</span>
+               </button>`
             : `<button class="extra-btn" id="bnr-clan-modal-leave"
                        title="Покинуть клан — бесплатно. Hero станет wanderer'ом."
                        style="width:100%;font-size:12px;padding:8px;margin-bottom:6px;
@@ -2138,6 +2239,383 @@ async function _openBannerlordClanUpgradesModal() {
 }
 
 // Sprint 5.27a: profile modal — gender swap (+ marriage/family tree в 5.27b/c).
+// Sprint 5.29 BLT-parity #6 phase B — Auctions modal.
+async function _openBannerlordAuctionsModal() {
+    if (!isAuthUser()) {
+        showNotification('⚠️ Войдите через Twitch', 'warning');
+        return;
+    }
+    let data;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/auctions`, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
+        data = await r.json();
+        if (!data.success) {
+            showNotification(data.message || 'Не удалось загрузить', 'error');
+            return;
+        }
+    } catch (e) {
+        console.error('[BNR auctions]', e);
+        showNotification(`Ошибка сети: ${e.message || e}`, 'error');
+        return;
+    }
+    const auctions = data.auctions || [];
+    const mine = data.my_username;
+    const fmtTime = (s) => {
+        const m = Math.floor(s/60), sec = s % 60;
+        return m > 0 ? `${m}м ${sec}с` : `${sec}с`;
+    };
+    const auctionsHtml = auctions.length === 0
+        ? '<div style="color:#adadb8;text-align:center;padding:14px;font-size:12px;">Нет активных аукционов. Выстави свой трофей через кузницу!</div>'
+        : auctions.map(a => {
+            const isMine = a.is_mine;
+            const isLeading = a.current_bidder === mine;
+            const bidStr = a.current_bid > 0
+                ? `<span style="color:#fbbf24;">${a.current_bid}💎</span> от @${escapeHtml(a.current_bidder)}`
+                : `<span style="color:#9ca3af;">нет ставок (резерв ${a.reserve_price}💎)</span>`;
+            const actionBtn = isMine
+                ? (a.current_bid > 0
+                    ? '<span style="color:#9ca3af;font-size:10px;">Твой лот — есть бид, нельзя отменить</span>'
+                    : `<button class="extra-btn bnr-auction-cancel" data-auction-id="${a.id}"
+                              style="font-size:10px;padding:4px 8px;color:#f87171;">
+                            ✗ Отменить
+                       </button>`)
+                : `<button class="extra-btn bnr-auction-bid" data-auction-id="${a.id}"
+                          data-current-bid="${a.current_bid}" data-reserve="${a.reserve_price}"
+                          ${isLeading ? 'disabled' : ''}
+                          style="font-size:10px;padding:4px 8px;color:#fbbf24;
+                                 ${isLeading ? 'opacity:0.5;cursor:not-allowed;' : ''}">
+                      ${isLeading ? 'Ты лидер' : '⚖ Bid'}
+                   </button>`;
+            return `
+            <div style="background:rgba(58,58,62,0.3);border:1px solid ${a.item_color};
+                        border-radius:6px;padding:8px 10px;margin-bottom:6px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <div style="font-size:18px;">${escapeHtml(a.item_icon || '')}</div>
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-size:12px;color:${a.item_color};font-weight:700;
+                                    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                            ${escapeHtml(a.item_name || 'Item')}
+                        </div>
+                        <div style="font-size:10px;color:#adadb8;">
+                            ${escapeHtml(a.item_base_type || '?')} / ${escapeHtml(a.item_rarity || 'common')}
+                            / T${a.item_tier} · продаёт @${escapeHtml(a.seller)}
+                        </div>
+                        <div style="font-size:11px;color:#9ca3af;margin-top:2px;">
+                            ${bidStr} · ⏱ ${fmtTime(a.remaining_s)}
+                        </div>
+                    </div>
+                    ${actionBtn}
+                </div>
+            </div>`;
+        }).join('');
+    _bnrShowSimpleModal({
+        title: `⚖ Аукционы (${auctions.length} активн.)`,
+        body: `
+            <div style="margin-bottom:8px;font-size:11px;color:#adadb8;text-align:center;">
+                Бид списывает крустики immediately. Перебили — refund.
+                Победитель забирает трофей, продавец получает 90% от bid'а.
+            </div>
+            <div style="max-height:400px;overflow-y:auto;">${auctionsHtml}</div>
+        `,
+        bind: overlay => {
+            overlay.querySelectorAll('.bnr-auction-bid').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const id = parseInt(btn.dataset.auctionId, 10);
+                    const cur = parseInt(btn.dataset.currentBid, 10) || 0;
+                    const reserve = parseInt(btn.dataset.reserve, 10);
+                    const minBid = cur === 0 ? reserve : Math.ceil(cur * 1.05);
+                    const amtStr = prompt(
+                        `Bid (минимум ${minBid}💎):`, String(minBid));
+                    if (!amtStr) return;
+                    const amount = parseInt(amtStr, 10);
+                    if (!amount || amount < minBid) {
+                        showNotification(`Bid должен быть ≥ ${minBid}💎`, 'error');
+                        return;
+                    }
+                    try {
+                        const r = await fetch(`${API_URL}/api/bannerlord/auctions/bid`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Twitch-JWT': authToken || '',
+                            },
+                            body: JSON.stringify({ auction_id: id, amount }),
+                        });
+                        const res = await r.json();
+                        showNotification(res.message || (res.success ? 'OK' : 'Ошибка'),
+                            res.success ? 'success' : 'error');
+                        if (res.success) {
+                            overlay.remove();
+                            setTimeout(_openBannerlordAuctionsModal, 200);
+                            if (typeof loadUserData === 'function') loadUserData();
+                        }
+                    } catch (e) {
+                        console.error('[BNR auction bid]', e);
+                        showNotification('Ошибка сети', 'error');
+                    }
+                });
+            });
+            overlay.querySelectorAll('.bnr-auction-cancel').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const id = parseInt(btn.dataset.auctionId, 10);
+                    if (!confirm('Отменить свой аукцион?')) return;
+                    try {
+                        const r = await fetch(`${API_URL}/api/bannerlord/auctions/cancel`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Twitch-JWT': authToken || '',
+                            },
+                            body: JSON.stringify({ auction_id: id }),
+                        });
+                        const res = await r.json();
+                        showNotification(res.message || (res.success ? 'OK' : 'Ошибка'),
+                            res.success ? 'success' : 'error');
+                        if (res.success) {
+                            overlay.remove();
+                            setTimeout(_openBannerlordAuctionsModal, 200);
+                        }
+                    } catch (e) {
+                        console.error('[BNR auction cancel]', e);
+                        showNotification('Ошибка сети', 'error');
+                    }
+                });
+            });
+        }
+    });
+}
+
+// Sprint 5.29 BLT-parity #6 — Smithing forge modal (trophy collection).
+// MVP: backend-only trophies, no in-game ItemObject yet. Future iteration
+// добавит actual Bannerlord equipment integration + auction.
+async function _openBannerlordForgeModal() {
+    if (!isAuthUser()) {
+        showNotification('⚠️ Войдите через Twitch', 'warning');
+        return;
+    }
+    let data;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/custom-items`, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
+        data = await r.json();
+        if (!data.success) {
+            showNotification(data.message || 'Не удалось загрузить', 'error');
+            return;
+        }
+    } catch (e) {
+        console.error('[BNR forge]', e);
+        showNotification(`Ошибка сети: ${e.message || e}`, 'error');
+        return;
+    }
+    const items = data.items || [];
+    const slotsUsed = items.length;
+    const slotsMax = data.max_slots || 50;
+    const itemsHtml = items.length === 0
+        ? '<div style="color:#adadb8;text-align:center;padding:14px;font-size:12px;">Пустая кузница. Скуй первый трофей!</div>'
+        : items.map(it => `
+            <div style="display:flex;align-items:center;gap:8px;
+                        background:rgba(58,58,62,0.3);border:1px solid ${it.color};
+                        border-radius:6px;padding:6px 10px;margin-bottom:4px;">
+                <div style="font-size:18px;">${escapeHtml(it.icon || '')}</div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:12px;color:${it.color};font-weight:700;
+                                overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                        ${escapeHtml(it.custom_name)}
+                    </div>
+                    <div style="font-size:10px;color:#adadb8;">
+                        ${escapeHtml(it.base_type)} / ${it.rarity} / T${it.tier}
+                    </div>
+                </div>
+                <button class="extra-btn bnr-equip-trophy" data-item-id="${it.id}"
+                        title="Экипировать (передаст реальный item в инвентарь героя в игре)"
+                        style="font-size:10px;padding:3px 8px;color:#34d399;">
+                    ⚔
+                </button>
+                <button class="extra-btn bnr-auction-trophy" data-item-id="${it.id}"
+                        data-item-name="${escapeHtml(it.custom_name)}"
+                        title="Выставить на аукцион"
+                        style="font-size:10px;padding:3px 8px;color:#fbbf24;">
+                    ⚖
+                </button>
+                <button class="extra-btn bnr-discard-item" data-item-id="${it.id}"
+                        title="Дискарди (удалить безвозвратно)"
+                        style="font-size:10px;padding:3px 8px;color:#f87171;">
+                    ✗
+                </button>
+            </div>
+        `).join('');
+    const SMITH_PRICE = 500;   // mirror ACTION_PRICES_DEFAULT
+    const body = `
+        <div style="margin-bottom:10px;font-size:11px;color:#adadb8;text-align:center;">
+            Куй случайные трофеи — оружие / броню / коня. Rarity рандом
+            (common 60% → legendary 1%). Трофеи копятся в инвентаре.
+            Слотов: <b>${slotsUsed}/${slotsMax}</b>.
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;">
+            <button class="extra-btn bnr-smith-btn" data-base="weapon"
+                    style="font-size:12px;padding:8px;background:#3a1a1a;color:#fbbf24;">
+                ⚔ Оружие<br><span style="font-size:10px;">${SMITH_PRICE}💎</span>
+            </button>
+            <button class="extra-btn bnr-smith-btn" data-base="armor"
+                    style="font-size:12px;padding:8px;background:#1a2a3a;color:#93c5fd;">
+                🛡 Броня<br><span style="font-size:10px;">${SMITH_PRICE}💎</span>
+            </button>
+            <button class="extra-btn bnr-smith-btn" data-base="horse"
+                    style="font-size:12px;padding:8px;background:#1a3a1a;color:#86efac;">
+                🐎 Конь<br><span style="font-size:10px;">${SMITH_PRICE}💎</span>
+            </button>
+        </div>
+        <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">Инвентарь:</div>
+        <div style="max-height:340px;overflow-y:auto;">${itemsHtml}</div>
+    `;
+    _bnrShowSimpleModal({
+        title: `🔨 Кузница (${slotsUsed}/${slotsMax})`,
+        body: body,
+        bind: overlay => {
+            overlay.querySelectorAll('.bnr-smith-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const base = btn.dataset.base;
+                    overlay.remove();
+                    _bannerlordBuyAction('hero.smith_item', { base_type: base });
+                    // Re-open modal через 1s чтобы показать новый item
+                    setTimeout(_openBannerlordForgeModal, 1200);
+                });
+            });
+            overlay.querySelectorAll('.bnr-equip-trophy').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = parseInt(btn.dataset.itemId, 10);
+                    overlay.remove();
+                    _bannerlordBuyAction('hero.equip_trophy', { custom_item_id: id });
+                });
+            });
+            overlay.querySelectorAll('.bnr-auction-trophy').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const id = parseInt(btn.dataset.itemId, 10);
+                    const itemName = btn.dataset.itemName;
+                    const reserveStr = prompt(
+                        `Резерв для «${itemName}» (100-100000 крустиков):`, '500');
+                    if (!reserveStr) return;
+                    const reserve = parseInt(reserveStr, 10);
+                    if (!reserve || reserve < 100) {
+                        showNotification('Резерв 100+ крустиков', 'error');
+                        return;
+                    }
+                    try {
+                        const r = await fetch(`${API_URL}/api/bannerlord/auctions/create`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Twitch-JWT': authToken || '',
+                            },
+                            body: JSON.stringify({
+                                custom_item_id: id,
+                                reserve_price: reserve,
+                                duration_sec: 300,
+                            }),
+                        });
+                        const res = await r.json();
+                        showNotification(res.message || (res.success ? 'OK' : 'Ошибка'),
+                            res.success ? 'success' : 'error');
+                        if (res.success) {
+                            overlay.remove();
+                            setTimeout(_openBannerlordAuctionsModal, 200);
+                        }
+                    } catch (e) {
+                        console.error('[BNR auction create]', e);
+                        showNotification('Ошибка сети', 'error');
+                    }
+                });
+            });
+            overlay.querySelectorAll('.bnr-discard-item').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const id = parseInt(btn.dataset.itemId, 10);
+                    if (!confirm('Дискарди трофей? Безвозвратно.')) return;
+                    try {
+                        const r = await fetch(`${API_URL}/api/bannerlord/custom-items/discard`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Twitch-JWT': authToken || '',
+                            },
+                            body: JSON.stringify({ item_id: id }),
+                        });
+                        const res = await r.json();
+                        showNotification(res.message || (res.success ? 'OK' : 'Не удалось'),
+                            res.success ? 'success' : 'error');
+                        if (res.success) {
+                            overlay.remove();
+                            setTimeout(_openBannerlordForgeModal, 200);
+                        }
+                    } catch (e) {
+                        console.error('[BNR discard]', e);
+                        showNotification('Ошибка сети', 'error');
+                    }
+                });
+            });
+        }
+    });
+}
+
+// Sprint 5.29 BLT-parity #5 — Achievements modal.
+async function _openBannerlordAchievementsModal() {
+    if (!isAuthUser()) {
+        showNotification('⚠️ Войдите через Twitch', 'warning');
+        return;
+    }
+    let data;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/achievements`, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
+        data = await r.json();
+        if (!data.success) {
+            showNotification(data.message || 'Не удалось загрузить', 'error');
+            return;
+        }
+    } catch (e) {
+        console.error('[BNR achievements]', e);
+        showNotification(`Ошибка сети: ${e.message || e}`, 'error');
+        return;
+    }
+    const items = (data.achievements || []).map(a => {
+        const pct = a.threshold > 0
+            ? Math.min(100, Math.round(a.current_value / a.threshold * 100))
+            : 0;
+        const cardBg = a.unlocked ? 'rgba(251,191,36,0.10)' : 'rgba(58,58,62,0.4)';
+        const opacity = a.unlocked ? '1' : '0.55';
+        const progressBar = a.unlocked
+            ? `<div style="background:#fbbf24;height:4px;border-radius:2px;width:100%;"></div>`
+            : `<div style="background:#3a3a3e;height:4px;border-radius:2px;position:relative;">
+                   <div style="background:#9ca3af;height:4px;border-radius:2px;width:${pct}%;"></div>
+               </div>`;
+        return `
+        <div style="background:${cardBg};border:1px solid #3d3d3f;border-radius:6px;
+                    padding:8px 10px;margin-bottom:6px;opacity:${opacity};">
+            <div style="display:flex;align-items:center;gap:8px;">
+                <div style="font-size:22px;">${a.icon || '🏆'}</div>
+                <div style="flex:1;">
+                    <div style="font-size:12px;color:${a.unlocked ? '#fbbf24' : '#efeff1'};
+                                font-weight:700;">
+                        ${escapeHtml(a.name)} ${a.unlocked ? '✓' : ''}
+                    </div>
+                    <div style="font-size:10px;color:#adadb8;">${escapeHtml(a.description)}</div>
+                </div>
+                <div style="font-size:10px;color:#9ca3af;text-align:right;min-width:60px;">
+                    ${a.current_value.toLocaleString('ru-RU')} / ${a.threshold.toLocaleString('ru-RU')}
+                </div>
+            </div>
+            <div style="margin-top:5px;">${progressBar}</div>
+        </div>`;
+    }).join('');
+    _bnrShowSimpleModal({
+        title: `🏆 Достижения (${data.unlocked_count}/${data.total})`,
+        body: items || '<div style="color:#adadb8;text-align:center;padding:12px;">Нет данных</div>',
+    });
+}
+
 function _openBannerlordProfileModal() {
     const h = _bannerlordLastHero?.hero || {};
     const isFemale = !!h.is_female;
@@ -2419,6 +2897,12 @@ function _openBannerlordKingdomModal() {
     });
 }
 
+// Sprint 5.31 #45b — Boosty admin перенесён на /streamer/dashboard.
+// Sprint 5.31 #45f (codegraph dead-code audit) — модал удалён, ~205 строк.
+// История: первый деплой Boosty имел админ-UI внутри расширения, потом
+// перенесли на дашборд (cookie-сессия), а кнопка в расширении тоже убрана.
+// Если нужно вернуть — git log по этому файлу до 2026-05-25.
+
 // Common modal shell — для clan / kingdom management.
 function _bnrShowSimpleModal({ title, body, bind }) {
     const overlay = document.createElement('div');
@@ -2634,6 +3118,10 @@ function _bindBannerlordRandomEquip() {
 }
 
 // Sprint 4.6 — buff HUD: chip-list с current remaining time.
+// Sprint 5.29 audit fix #37: store absolute expires_at_ms на каждый fetch
+// чтобы ticker мог recompute remaining = (expires_at_ms - Date.now())/1000.
+// Раньше client-side декремент drift'ил когда tab throttled — viewer видел
+// power как "unlocked" пока CD реально active, кликал → backend rejects.
 async function loadBannerlordBuffs() {
     try {
         const r = await fetch(`${API_URL}/api/bannerlord/my-buffs`, {
@@ -2641,12 +3129,22 @@ async function loadBannerlordBuffs() {
         });
         const data = await r.json();
         if (data.success) {
-            _bannerlordBuffs = data.buffs || [];
-            _bannerlordCooldowns = data.cooldowns || [];   // Sprint 4.8
+            const now = Date.now();
+            _bannerlordBuffs = (data.buffs || []).map(b => ({
+                ...b,
+                expires_at_ms: now + (b.remaining_s || 0) * 1000,
+            }));
+            _bannerlordCooldowns = (data.cooldowns || []).map(c => ({
+                ...c,
+                expires_at_ms: now + (c.remaining_s || 0) * 1000,
+            }));
             _renderBannerlordBuffs();
             renderBannerlordActivePowers();
         }
-    } catch (e) { /* silent — HUD не критичен */ }
+    } catch (e) {
+        // Sprint 5.29 audit fix #36: было silent — теперь warn (HUD-poll)
+        console.warn('[BNR loadBannerlordBuffs]', e);
+    }
 }
 
 function _renderBannerlordBuffs() {
@@ -2685,7 +3183,8 @@ async function loadBannerlordStatus() {
             badge.textContent = '🔴 Оффлайн';
         }
     } catch (e) {
-        // silent — badge остаётся прежним
+        // Sprint 5.29 audit fix #36: badge silent OK, но логируем для диагностики
+        console.warn('[BNR loadBannerlordStatus]', e);
     }
 }
 
@@ -2733,7 +3232,10 @@ async function loadBannerlordBattleStatus() {
         }
         _bannerlordWasInBattle = !!data.in_battle;
         _renderBannerlordBattleBanner(data);
-    } catch (e) { /* silent */ }
+    } catch (e) {
+        // Sprint 5.29 audit fix #36: silent → warn
+        console.warn('[BNR loadBannerlordBattleStatus]', e);
+    }
 }
 
 function _renderBannerlordBattleBanner(data) {
@@ -2831,7 +3333,9 @@ function _renderBannerlordTournament(data) {
     const state = data.state || {};
     const queue = data.queue || [];
     const cfg = data.config || {};
-    const entryFee = (cfg.entry_fee_gold || 5000).toLocaleString('ru-RU');
+    // Sprint 5.28: цена в крустиках. Backend шлёт config.join_price (default 1000).
+    const joinPrice = (cfg.join_price ?? 1000);
+    const joinPriceText = joinPrice.toLocaleString('ru-RU');
 
     // Status badge
     if (state.status === 'running') {
@@ -2902,9 +3406,9 @@ function _renderBannerlordTournament(data) {
                 ✅ Ты в очереди, ждём пока стример запустит турнир
            </div>`
         : `<button class="extra-btn" id="bnr-join-tournament-btn"
-                  title="Списывает ${entryFee} динаров у героя в игре (НЕ крустики)"
+                  title="${joinPrice > 0 ? `Списывает ${joinPriceText} крустиков` : 'Бесплатно — ставка на турнир остаётся за крустики'}"
                   style="margin-top:6px;width:100%;font-size:12px;padding:8px;">
-                ⚔️ Вступить в турнир (${entryFee}💰)
+                ⚔️ Вступить в турнир${joinPrice > 0 ? ` (${joinPriceText}⦷)` : ' (бесплатно)'}
            </button>`;
 
     body.innerHTML = `
@@ -2920,6 +3424,7 @@ function _renderBannerlordTournament(data) {
     const joinBtn = document.getElementById('bnr-join-tournament-btn');
     if (joinBtn) {
         joinBtn.addEventListener('click', () => {
+            // Sprint 5.28: backend сам ставит price=1000⦷; шлём 0 — он перепишет.
             _bannerlordBuyAction('hero.join_tournament', { price: 0 });
         });
     }
@@ -3037,6 +3542,44 @@ async function loadBannerlordHero() {
             return;
         }
         const h = data.hero;
+
+        // Sprint 5.29 BLT-parity #7: dead hero → show heir succession UI
+        // вместо stats. Click "Возрождение" → POST hero.create → new wanderer.
+        if (h && h.is_alive === false) {
+            const iter = h.iteration || 1;
+            const nextIter = iter + 1;
+            body.innerHTML = `
+                <div style="text-align:center;padding:14px;color:#adadb8;font-size:13px;">
+                    <div style="font-size:48px;margin-bottom:8px;">💀</div>
+                    <div style="font-weight:700;color:#f87171;margin-bottom:4px;">
+                        Поколение ${iter} мёртв
+                    </div>
+                    <div style="font-size:11px;margin-bottom:14px;color:#9ca3af;">
+                        ${escapeHtml(h.display_name || '[BLink] ' + (window.userLogin || ''))}
+                        ${h.clan_name ? `(${escapeHtml(h.clan_name)})` : ''}
+                    </div>
+                    <div style="font-size:12px;margin-bottom:8px;color:#fbbf24;">
+                        🕯️ Возродиться героем поколения ${nextIter} (бесплатно)
+                    </div>
+                    <div style="font-size:10px;color:#6b7280;margin-bottom:10px;">
+                        Новый герой родится с 0 уровня, без снаряжения. Имя то же.
+                    </div>
+                    <button class="extra-btn" id="bnr-heir-respawn"
+                            style="font-size:12px;padding:8px 14px;
+                                   background:#7c2d12;color:#fbbf24;font-weight:700;">
+                        🕯️ Возродить героя
+                    </button>
+                </div>`;
+            const respawnBtn = document.getElementById('bnr-heir-respawn');
+            if (respawnBtn) {
+                respawnBtn.addEventListener('click', () => {
+                    if (!confirm('Возродить героя? Новый wanderer от 0 уровня (имя то же).')) return;
+                    _bannerlordBuyAction('hero.create', { price: 0 });
+                });
+            }
+            return;
+        }
+
         const aliveBadge = h.is_alive
             ? `<span style="color:#34d399;">●&nbsp;жив</span>`
             : `<span style="color:#f87171;">💀&nbsp;мёртв</span>`;
@@ -3181,6 +3724,26 @@ async function loadBannerlordHero() {
                                background:#1f1a30;color:#c084fc;">
                     🧬 Профиль и семья
                 </button>
+                <button class="extra-btn" id="bnr-open-achievements-btn"
+                        title="Список достижений: убийства / турниры / прогрессия / семья"
+                        style="width:100%;font-size:11px;padding:6px;margin-bottom:6px;
+                               background:#3a2a0a;color:#fbbf24;">
+                    🏆 Достижения
+                </button>
+                <button class="extra-btn" id="bnr-open-forge-btn"
+                        title="Куй уникальные трофеи: оружие, броню, коней. Random rarity."
+                        style="width:100%;font-size:11px;padding:6px;margin-bottom:6px;
+                               background:#2a1a0a;color:#fb923c;">
+                    🔨 Кузница (трофеи)
+                </button>
+                <!-- Sprint 5.31 #45b: Boosty admin перенесён на /streamer/dashboard
+                     (https://shedoy23.ru/streamer/dashboard). Кнопка из расширения убрана. -->
+                <button class="extra-btn" id="bnr-open-auctions-btn"
+                        title="Активные аукционы — бид крустиками или выставь свой трофей"
+                        style="width:100%;font-size:11px;padding:6px;margin-bottom:6px;
+                               background:#2a200a;color:#fbbf24;">
+                    ⚖ Аукционы
+                </button>
                 <details data-bnr-details="equipment" ${_bnrDetailsAttr('equipment')}>
                     <summary style="font-size:11px;color:#adadb8;cursor:pointer;">Экипировка</summary>
                     <div style="margin-top:4px;">${eqHtml}</div>
@@ -3202,6 +3765,16 @@ async function loadBannerlordHero() {
         // Sprint 5.27a: profile modal (gender swap + marriage + family tree)
         document.getElementById('bnr-open-profile-btn')?.addEventListener('click',
             _openBannerlordProfileModal);
+        // Sprint 5.29 BLT-parity #5: achievements modal
+        document.getElementById('bnr-open-achievements-btn')?.addEventListener('click',
+            _openBannerlordAchievementsModal);
+        // Sprint 5.29 BLT-parity #6: custom items / smithing modal
+        document.getElementById('bnr-open-forge-btn')?.addEventListener('click',
+            _openBannerlordForgeModal);
+        // Sprint 5.29 BLT-parity #6 phase B: auctions modal
+        document.getElementById('bnr-open-auctions-btn')?.addEventListener('click',
+            _openBannerlordAuctionsModal);
+        // Sprint 5.31 #45b: Boosty admin перенесён на /streamer/dashboard.
         // Sprint 5.11: bind clickable clan/kingdom rows (открывают modal)
         document.getElementById('bnr-clan-row')?.addEventListener('click',
             _openBannerlordClanModal);
@@ -3291,11 +3864,23 @@ async function loadBannerlordShop() {
     }
 }
 
+// Sprint 5.29 audit fix #35: in-flight guard per actionType. Раньше rapid
+// double-click → 2 POSTs → 2 charges → 2 actions enqueued. Mod может оба
+// выполнить или один отказать, но backend оба раза charged. Двойная оплата
+// крустиков. Single-flight per actionType блокирует второй click пока первый
+// не завершится. Если в полёте — silent return (toast уже видит первый).
+const _bnrInflight = new Set();
+
 async function _bannerlordBuyAction(actionType, data) {
     if (!isAuthUser()) {
         showNotification('⚠️ Войдите через Twitch', 'warning');
         return;
     }
+    if (_bnrInflight.has(actionType)) {
+        console.warn('[BNR action] duplicate-click guarded', actionType);
+        return;
+    }
+    _bnrInflight.add(actionType);
     try {
         const r = await fetch(`${API_URL}/api/bannerlord/action`, {
             method: 'POST',
@@ -3306,7 +3891,28 @@ async function _bannerlordBuyAction(actionType, data) {
             body: JSON.stringify({ action_type: actionType, data }),
         });
         const result = await r.json();
-        showNotification(result.message, result.success ? 'success' : 'error');
+        // Sprint 5.29 audit fix #36: backend message в console для audit trail.
+        // Раньше backend rejections / silent issues — нечем диагностировать без
+        // прикладного breakpoint в DevTools.
+        console.log('[BNR action]', actionType,
+                    result.success ? '✓' : '✗',
+                    result.message || '(no message)',
+                    result.perk ? `(perk=${result.perk} ×${result.perk_price_mult})` : '');
+        // Sprint 5.30 #40: append perk-badge к toast если discount применён
+        let toastMsg = result.message || (result.success ? 'OK' : 'Действие не выполнено');
+        if (result.success && result.perk && result.perk_price_mult < 1.0) {
+            const perkIcons = {
+                broadcaster:    '👑',
+                moderator:      '🛡️',
+                subscriber:     '⭐',
+                boosty_tier1:   '💜',
+                boosty_tier2:   '💜💜',
+                boosty_tier3:   '💜💜💜',
+            };
+            const icon = perkIcons[result.perk] || '✨';
+            toastMsg = `${toastMsg} (${icon} ×${result.perk_price_mult.toFixed(2)} price)`;
+        }
+        showNotification(toastMsg, result.success ? 'success' : 'error');
         if (result.success) {
             if (typeof loadUserData === 'function') loadUserData();
             // Sprint 5.3d: ускоряем UI feedback для bannerlord actions —
@@ -3327,7 +3933,12 @@ async function _bannerlordBuyAction(actionType, data) {
             }
         }
     } catch (e) {
-        showNotification('Ошибка сети', 'error');
+        // Sprint 5.29 audit fix #36: real error в console чтобы можно было
+        // диагностировать — раньше «Ошибка сети» без context.
+        console.error('[BNR action] network/json error', actionType, e);
+        showNotification(`Ошибка сети: ${e.message || e}`, 'error');
+    } finally {
+        _bnrInflight.delete(actionType);
     }
 }
 

@@ -24,7 +24,9 @@
             <div class="avatar">👤</div>
             <div>
                 <div class="username" id="username">Загрузка...</div>
-                <div class="badge">Зритель</div>
+                <div class="badge" id="user-role-badge">Зритель</div>
+                <!-- Sprint 5.31 #45b: tier бейджи (TS1/BS2/...) рядом с ролью. -->
+                <div id="user-tier-badges" style="display:flex;gap:4px;margin-top:3px;"></div>
             </div>
         </div>
         <div class="balance-info">
@@ -395,18 +397,18 @@
     <script src="pawn.js?v=20260520b"></script>
     <script src="shop.js?v=20260520b"></script>
     <!-- casino.js удалён 2026-05-10 (Phase 1.A compliance rework) -->
-    <script src="cases.js?v=20260520b"></script>
+    <script src="cases.js?v=20260524a"></script>
     <script src="tictactoe.js?v=20260520b"></script>
     <script src="dice.js?v=20260520b"></script>
     <script src="guilds.js?v=20260520b"></script>
     <script src="voting.js?v=20260520b"></script>
-    <!-- pet-stage.js: shared SVG creature renderer (Sprint 5.21). MUST загружаться ДО pets.js -->
-    <script src="pet-stage.js?v=20260521n"></script>
+    <!-- pet-stage.js: PNG pixel-art creature (Sprint 5.28). MUST загружаться ДО pets.js -->
+    <script src="pet-stage.js?v=20260524b"></script>
     <script src="pets.js?v=20260521n"></script>
     <script src="family.js?v=20260520b"></script>
     <script src="duels.js?v=20260520b"></script>
     <script src="xenotype.js?v=20260520b"></script>
-    <script src="viewer.js?v=20260521u"></script>
+    <script src="viewer.js?v=20260525m"></script>
     </div><!-- /panel-content -->
 </div><!-- /overlay-panel -->
 

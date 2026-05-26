@@ -87,6 +87,7 @@ from routes.bannerlord_achievements import router as bannerlord_achievements_rou
 from routes.bannerlord_custom_items import router as bannerlord_custom_items_router # Sprint 5.29
 from routes.bannerlord_auctions import router as bannerlord_auctions_router  # Sprint 5.29 phase B
 from routes.bannerlord_family import router as bannerlord_family_router       # Sprint 5.33 BLT-parity FAM
+from routes.bannerlord_vassals import router as bannerlord_vassals_router     # Sprint 5.33 BLT-parity VAS
 from routes.bannerlord_boosty import router as bannerlord_boosty_router  # Sprint 5.31 #45
 from routes.dev_login   import router as dev_login_router  # /dev test page (2026-05-16)
 # casino_router удалён 2026-05-10 — Phase 1.A compliance rework (см. COMPLIANCE_REWORK_PLAN.md)
@@ -115,6 +116,7 @@ app.include_router(bannerlord_achievements_router)  # Sprint 5.29 BLT-parity #5
 app.include_router(bannerlord_custom_items_router)  # Sprint 5.29 BLT-parity #6
 app.include_router(bannerlord_auctions_router)  # Sprint 5.29 BLT-parity #6 phase B
 app.include_router(bannerlord_family_router)    # Sprint 5.33 BLT-parity FAM — marriage proposals
+app.include_router(bannerlord_vassals_router)   # Sprint 5.33 BLT-parity VAS — vassal sub-clans
 app.include_router(bannerlord_boosty_router)    # Sprint 5.31 #45 — Boosty subs
 app.include_router(dev_login_router)   # 2026-05-16: /dev OAuth test page
 
@@ -880,6 +882,14 @@ async def run_migrations():
             await m51_custom_item_stats.apply(conn)
         except Exception as e:
             print(f"❌ M51 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
+        # Sprint 5.33 (BLT-parity VAS) — vassal sub-clan system
+        try:
+            from migrations import m52_vassals
+            await m52_vassals.apply(conn)
+        except Exception as e:
+            print(f"❌ M52 migration FAILED: {type(e).__name__}: {e}")
             raise
 
         print("✅ Migrations complete")

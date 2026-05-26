@@ -860,6 +860,9 @@ _PURCHASABLE_ACTIONS = (
     "hero.rename_child",         # переименовать своего взрослого ребёнка
     "hero.change_child_looks",   # body code change ребёнка
     "hero.respec_child_skills",  # re-init child skills (HeroDeveloper)
+    # Sprint 5.33 (BLT-parity VAS) — vassal sub-clan management
+    "hero.create_vassal_clan",   # 250K Hero.Gold — выделить heir в новый clan
+    "hero.rename_vassal",        # 50K Hero.Gold — rename vassal clan
 )
 
 # Sprint 5.27a — стоимость gender swap (BLT default: 50k).
@@ -962,6 +965,9 @@ _BACKEND_ONLY_ACTIONS = (
     "hero.propose_marriage",
     "hero.respond_marriage_proposal",
     "hero.cancel_proposal",
+    # Sprint 5.33 VAS — vassal create/rename — backend INSERT + enqueue mod
+    "hero.create_vassal_clan",
+    "hero.rename_vassal",
 )
 
 
@@ -1893,6 +1899,10 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
         "hero.rename_child":             50,    # customize child name
         "hero.change_child_looks":      200,    # body change (BLT pattern)
         "hero.respec_child_skills":     500,    # full skill re-roll
+        # Sprint 5.33 (BLT-parity VAS) — sub-clan progression. High crustic
+        # entry barrier — это long-term feature, не impulse-buy.
+        "hero.create_vassal_clan":     1000,    # large engagement decision
+        "hero.rename_vassal":           100,    # cosmetic
     }
     if action_type not in _ACTIONS_WITH_OWN_PRICING:
         if action_type not in ACTION_PRICES_DEFAULT:
@@ -2351,6 +2361,21 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
                 if not family_result.get("success"):
                     await conn.execute("ROLLBACK")
                     return family_result
+
+            # Sprint 5.33 (BLT-parity VAS) — vassal sub-clan handlers.
+            vassal_result = None
+            if action_type == "hero.create_vassal_clan":
+                from routes.bannerlord_vassals import handle_create_vassal
+                vassal_result = await handle_create_vassal(conn, channel_id, username, data)
+                if not vassal_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return vassal_result
+            elif action_type == "hero.rename_vassal":
+                from routes.bannerlord_vassals import handle_rename_vassal
+                vassal_result = await handle_rename_vassal(conn, channel_id, username, data)
+                if not vassal_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return vassal_result
 
             # Special case в той же TX: UPSERT bannerlord_hero_class.
             # Backend остаётся source-of-truth по class даже если mod offline.

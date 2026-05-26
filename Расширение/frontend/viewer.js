@@ -1641,6 +1641,166 @@ function _openProposalsModal(incoming) {
     overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.remove(); });
 }
 
+// Sprint 5.33 (BLT-parity VAS) — Vassal sub-clan management.
+// Viewer-leader клана может выделить взрослого ребёнка (heir) в собственный
+// vassal-clan. Прогрессия sub-clan'ов = long-term retention для donator'ов.
+async function loadBannerlordVassals() {
+    const slot = document.getElementById('bnr-vassals-slot');
+    if (!slot) return;
+    try {
+        const [vassR, heirsR] = await Promise.all([
+            fetch(`${API_URL}/api/bannerlord/vassals`, {
+                headers: { 'X-Twitch-JWT': authToken || '' }
+            }).then(r => r.json()).catch(() => ({success: false})),
+            fetch(`${API_URL}/api/bannerlord/eligible-heirs`, {
+                headers: { 'X-Twitch-JWT': authToken || '' }
+            }).then(r => r.json()).catch(() => ({success: false})),
+        ]);
+        const vassals = (vassR.success && Array.isArray(vassR.vassals))
+            ? vassR.vassals : [];
+        const eligible = (heirsR.success && Array.isArray(heirsR.heirs))
+            ? heirsR.heirs : [];
+
+        // Hide section если нет vassals и нет eligible heirs.
+        if (vassals.length === 0 && eligible.length === 0) {
+            slot.innerHTML = '';
+            return;
+        }
+        console.info('[FE-VAS] loaded vassals=%d eligible=%d',
+                     vassals.length, eligible.length);
+
+        let html = `
+            <div style="background:#1a1f2e;border:1px solid #1e40af;border-radius:4px;
+                        padding:8px;font-size:11px;color:#bfdbfe;">
+                <div style="font-size:12px;font-weight:700;color:#60a5fa;margin-bottom:6px;">
+                    🏰 Вассальные кланы
+                </div>`;
+        if (vassals.length > 0) {
+            html += `
+                <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:6px;">
+                    ${vassals.map(v => `
+                        <div data-vassal-id="${v.id}"
+                             data-vassal-name="${escapeHtml(v.vassal_name)}"
+                             style="display:flex;justify-content:space-between;align-items:center;
+                                    background:#0f1730;padding:4px 6px;border-radius:3px;">
+                            <span style="color:#dbeafe;font-size:11px;">🏰 ${escapeHtml(v.vassal_name)}</span>
+                            <button class="bnr-vas-rename small-btn"
+                                    title="Переименовать (100⦷)"
+                                    style="font-size:9px;padding:2px 5px;background:#1e3a8a;color:#bfdbfe;">✏</button>
+                        </div>
+                    `).join('')}
+                </div>`;
+        }
+        if (eligible.length > 0 && vassals.length < 5) {
+            html += `
+                <button id="bnr-vas-create" class="extra-btn"
+                        title="Выделить взрослого ребёнка в собственный sub-clan (1000⦷)"
+                        style="width:100%;font-size:11px;padding:6px;background:#1e3a8a;
+                               color:#fff;font-weight:700;">
+                    🏰 Создать вассала (1000⦷) — ${eligible.length} наследников доступно
+                </button>`;
+        } else if (vassals.length >= 5) {
+            html += `
+                <div style="font-size:10px;color:#6b7280;text-align:center;">
+                    Максимум вассалов (5/5)
+                </div>`;
+        }
+        html += `</div>`;
+        slot.innerHTML = html;
+
+        // Bind rename buttons
+        slot.querySelectorAll('.bnr-vas-rename').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const parent = e.target.closest('[data-vassal-id]');
+                if (!parent) return;
+                const id = parseInt(parent.dataset.vassalId, 10);
+                const oldName = parent.dataset.vassalName || '';
+                const newName = window.prompt(`Новое имя для «${oldName}»:`, oldName);
+                if (!newName || newName === oldName) return;
+                await _bannerlordBuyAction('hero.rename_vassal', {
+                    vassal_id: id,
+                    new_name: newName,
+                });
+                setTimeout(loadBannerlordVassals, 1500);
+            });
+        });
+
+        // Bind create button
+        document.getElementById('bnr-vas-create')?.addEventListener('click', () => {
+            _openCreateVassalModal(eligible);
+        });
+    } catch (e) {
+        console.warn('[FE-VAS] loadVassals failed', e);
+        slot.innerHTML = '';
+    }
+}
+
+function _openCreateVassalModal(eligibleHeirs) {
+    if (!eligibleHeirs || eligibleHeirs.length === 0) return;
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;
+        display:flex;align-items:center;justify-content:center;`;
+    overlay.innerHTML = `
+        <div style="background:#1a1f2e;border:1px solid #1e40af;border-radius:6px;
+                    padding:14px;max-width:380px;width:90%;color:#bfdbfe;">
+            <div style="font-size:14px;font-weight:700;color:#60a5fa;margin-bottom:10px;">
+                🏰 Создать вассальный клан (1000⦷)
+            </div>
+            <div style="font-size:11px;color:#9ca3af;margin-bottom:8px;">
+                Выдели взрослого наследника в собственный sub-clan.
+                Он станет лидером, ваш клан получает 25% от его доходов.
+            </div>
+            <label style="font-size:11px;color:#dbeafe;display:block;margin-bottom:4px;">
+                Наследник:
+            </label>
+            <select id="bnr-vas-heir-pick"
+                    style="width:100%;padding:6px;font-size:12px;background:#0f1730;
+                           color:#dbeafe;border:1px solid #1e40af;margin-bottom:8px;">
+                ${eligibleHeirs.map(h =>
+                    `<option value="${escapeHtml(h.hero_id)}">${escapeHtml(h.name)}</option>`
+                ).join('')}
+            </select>
+            <label style="font-size:11px;color:#dbeafe;display:block;margin-bottom:4px;">
+                Имя нового клана:
+            </label>
+            <input id="bnr-vas-name-input" type="text" maxlength="50"
+                   placeholder="Дом ..." value=""
+                   style="width:100%;padding:6px;font-size:12px;background:#0f1730;
+                          color:#dbeafe;border:1px solid #1e40af;margin-bottom:10px;
+                          box-sizing:border-box;">
+            <div style="display:flex;gap:4px;">
+                <button id="bnr-vas-confirm" class="extra-btn"
+                        style="flex:1;font-size:11px;padding:6px;
+                               background:#1e40af;color:#fff;font-weight:700;">
+                    🏰 Создать (1000⦷)
+                </button>
+                <button id="bnr-vas-cancel" class="extra-btn"
+                        style="flex:1;font-size:11px;padding:6px;
+                               background:#2d2d3f;color:#bfdbfe;">
+                    Отмена
+                </button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    document.getElementById('bnr-vas-cancel')?.addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.remove(); });
+    document.getElementById('bnr-vas-confirm')?.addEventListener('click', async () => {
+        const heirId = document.getElementById('bnr-vas-heir-pick')?.value;
+        const name = document.getElementById('bnr-vas-name-input')?.value?.trim();
+        if (!heirId || !name || name.length < 2) {
+            showNotification('Выбери наследника и имя (≥2 символа)', 'warning');
+            return;
+        }
+        await _bannerlordBuyAction('hero.create_vassal_clan', {
+            heir_hero_id: heirId,
+            vassal_name: name,
+        });
+        overlay.remove();
+        setTimeout(loadBannerlordVassals, 2000);  // engine apply takes ~1s
+    });
+}
+
 // Sprint 5.32 — inner tab switcher. 4 panes: hero / inventory / combat / progression.
 // Состояние persisted в localStorage чтобы при reopen extension вернуться туда же.
 function _setBnrInnerTab(tab) {
@@ -4410,6 +4570,7 @@ async function loadBannerlordHero() {
                 <div id="bnr-daily-slot" style="margin-bottom:8px;"></div>
                 <div id="bnr-heir-slot" style="margin-bottom:8px;"></div>
                 <div id="bnr-family-slot" style="margin-bottom:8px;"></div>
+                <div id="bnr-vassals-slot" style="margin-bottom:8px;"></div>
                 <button class="extra-btn" id="bnr-open-profile-btn"
                         title="Семейные настройки: смена пола, брак, дети"
                         style="width:100%;font-size:12px;padding:8px;margin-top:4px;
@@ -4487,6 +4648,8 @@ async function loadBannerlordHero() {
         loadBannerlordHeirs();
         // Sprint 5.33 (BLT-parity FAM) — Family section (children + proposals).
         loadBannerlordFamily();
+        // Sprint 5.33 (BLT-parity VAS) — Vassal sub-clans section.
+        loadBannerlordVassals();
         // Sprint 5.5: immediately repaint battle banner из cache чтобы
         // не было 0-2s gap'a после hero re-render.
         if (_bannerlordBattle) _renderBannerlordBattleBanner(_bannerlordBattle);

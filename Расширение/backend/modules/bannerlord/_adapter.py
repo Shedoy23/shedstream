@@ -144,6 +144,9 @@ ACTION_COOLDOWNS_SEC = {
     "hero.rename_child":             10,
     "hero.change_child_looks":       30,
     "hero.respec_child_skills":     120,
+    # Sprint 5.33 (BLT-parity VAS) — vassal sub-clan management
+    "hero.create_vassal_clan":      300,   # heavy state mutation, не спам
+    "hero.rename_vassal":            30,
 }
 
 
@@ -447,6 +450,11 @@ class BannerlordAdapter(ModuleAdapter):
             return
         if et == "hero.heir_died":
             await self._on_heir_died(channel_id, env)
+            return
+
+        # Sprint 5.33 (BLT-parity VAS) — vassal lifecycle events
+        if et == "hero.vassal_created":
+            await self._on_vassal_created(channel_id, env)
             return
 
         if et == "world.event_occurred":
@@ -1635,6 +1643,31 @@ class BannerlordAdapter(ModuleAdapter):
         # реально потеряли pre-collected heir'а (печально, но not critical).
         logger.info("[HEIR-DIED] ch=%s heir_id=%s affected=%d (0=NPC death not tracked, >0=our heir lost)",
                     channel_id, heir_hero_id, affected)
+
+    # ── Sprint 5.33 (BLT-parity VAS): vassal lifecycle ────────────────────────
+
+    async def _on_vassal_created(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Mod пушит после успешного создания vassal-clan'а в-game.
+        Payload: {placeholder_clan_id, real_clan_id, parent_username, heir_hero_id, vassal_name}.
+        Backend backfill'ит реальный Clan.StringId в bannerlord_vassals."""
+        data = env.data
+        placeholder = (data.get("placeholder_clan_id") or "").strip()
+        real_clan_id = (data.get("real_clan_id") or "").strip()
+        if not placeholder or not real_clan_id:
+            logger.warning("[VAS-CREATED] ch=%s missing placeholder/real: %s",
+                           channel_id, data)
+            return
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            cur = await conn.execute(
+                "UPDATE bannerlord_vassals SET vassal_clan_id=? "
+                "WHERE channel_id=? AND vassal_clan_id=?",
+                (real_clan_id, channel_id, placeholder))
+            affected = cur.rowcount
+            await conn.commit()
+        await self._log_event(channel_id, "hero.vassal_created", None, data)
+        logger.info("[VAS-CREATED] ch=%s placeholder=%s → real=%s affected=%d",
+                    channel_id, placeholder, real_clan_id, affected)
 
     # ── World events ──────────────────────────────────────────────────────────
 

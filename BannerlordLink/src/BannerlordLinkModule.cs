@@ -323,6 +323,10 @@ namespace BannerlordLink
                     campaignStarter.AddBehavior(new ClanUpgradesBehavior());
                     Log("ClanUpgradesBehavior registered (daily clan upgrades tick)");
 
+                    // Sprint 5.33 (BLT-parity SHOP) — workshop profit sync (OnDailyTick).
+                    campaignStarter.AddBehavior(new WorkshopProfitSyncBehavior());
+                    Log("WorkshopProfitSyncBehavior registered (daily profit → backend payout)");
+
                     // Sprint 5.26d: model replacements для статических clan-upgrade
                     // эффектов (party_size, party/army_speed, party_amount).
                     // Pattern: subclass нативной model, делегирует _previous, добавляет

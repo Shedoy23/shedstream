@@ -2284,6 +2284,185 @@ async function loadBannerlordRansomPool() {
     }
 }
 
+// ───────────────────────────────────────────────────────────────────────────
+// Sprint 5.33 (BLT-parity SHOP) — Workshops passive income panel.
+// Viewer покупает workshop в town за 1000⦷ + Hero.Gold capital, каждый
+// game-day mod пушит net dinars → backend конвертирует в крустики (100:1)
+// и credit'ит viewer'у автоматически.
+
+// Curated vanilla 1.3.x workshop types. Mod валидирует через
+// MBObjectManager.GetObject<WorkshopType>(stringId).
+const _BNR_WORKSHOP_TYPES = [
+    { id: 'brewery',         name: 'Пивоварня',         emoji: '🍺' },
+    { id: 'smithy',          name: 'Кузница',           emoji: '⚒' },
+    { id: 'wool_weavery',    name: 'Шерстяная ткацкая', emoji: '🐑' },
+    { id: 'linen_weavery',   name: 'Льняная ткацкая',   emoji: '🌾' },
+    { id: 'tannery',         name: 'Дубильня',          emoji: '🐄' },
+    { id: 'pottery_shop',    name: 'Гончарня',          emoji: '🏺' },
+    { id: 'olive_press',     name: 'Маслодавильня',     emoji: '🫒' },
+    { id: 'wine_press',      name: 'Винодельня',        emoji: '🍷' },
+    { id: 'velvet_weavery',  name: 'Бархатная ткацкая', emoji: '👘' },
+    { id: 'silversmith',     name: 'Серебряных дел',    emoji: '🥈' },
+    { id: 'wood_workshop',   name: 'Древоделия',        emoji: '🪵' },
+];
+
+async function loadBannerlordWorkshops() {
+    const slot = document.getElementById('bnr-workshops-slot');
+    if (!slot) return;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/my-workshops`, {
+            headers: { 'X-Twitch-JWT': authToken || '' }
+        }).then(r => r.json()).catch(() => ({success: false}));
+        const workshops = (r.success && Array.isArray(r.workshops)) ? r.workshops : [];
+        const maxWorkshops = r.max_workshops || 3;
+
+        let html = `
+            <div style="background:#1a2008;border:1px solid #65a30d;border-radius:4px;
+                        padding:8px;font-size:11px;color:#d9f99d;">
+                <div style="font-size:12px;font-weight:700;color:#84cc16;margin-bottom:6px;">
+                    🏭 Мои мастерские (${workshops.length}/${maxWorkshops})
+                    <span style="font-size:9px;color:#9ca3af;font-weight:normal;">
+                        — passive ⦷ daily
+                    </span>
+                </div>`;
+
+        if (workshops.length > 0) {
+            html += `<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">`;
+            for (const w of workshops) {
+                const typeEntry = _BNR_WORKSHOP_TYPES.find(t => t.id === w.workshop_type)
+                                  || { emoji: '🏭', name: w.workshop_type_name || w.workshop_type };
+                html += `
+                    <div data-workshop-id="${w.id}"
+                         style="background:#0a1308;padding:6px 8px;border-radius:3px;
+                                display:flex;justify-content:space-between;align-items:center;">
+                        <div style="flex:1;">
+                            <div style="color:#d9f99d;font-size:11px;">
+                                ${typeEntry.emoji} <strong>${escapeHtml(typeEntry.name)}</strong>
+                                <span style="color:#9ca3af;"> · ${escapeHtml(w.settlement_name || w.settlement_id)}</span>
+                            </div>
+                            <div style="font-size:10px;color:#65a30d;margin-top:2px;">
+                                💰 Накоплено: ${(w.total_profit || 0).toLocaleString('ru-RU')} дин.
+                                → ${(w.estimated_crustic || 0).toLocaleString('ru-RU')}⦷
+                            </div>
+                        </div>
+                        <button class="bnr-ws-sell small-btn"
+                                title="Продать (50% refund от engine)"
+                                style="font-size:9px;padding:2px 6px;background:#9a3412;
+                                       color:#fed7aa;">💸 Продать</button>
+                    </div>`;
+            }
+            html += `</div>`;
+        }
+
+        if (workshops.length < maxWorkshops) {
+            html += `
+                <button id="bnr-ws-buy" class="extra-btn"
+                        title="Купить мастерскую в выбранном town'е (1000⦷ + engine cost из Hero.Gold)"
+                        style="width:100%;font-size:11px;padding:6px;background:#65a30d;
+                               color:#fff;font-weight:700;">
+                    🏭 Купить мастерскую (1000⦷)
+                </button>`;
+        } else {
+            html += `
+                <div style="font-size:10px;color:#6b7280;text-align:center;">
+                    Лимит мастерских (${maxWorkshops}/${maxWorkshops})
+                </div>`;
+        }
+        html += `</div>`;
+        slot.innerHTML = html;
+
+        // Bind sell buttons.
+        slot.querySelectorAll('.bnr-ws-sell').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const parent = e.target.closest('[data-workshop-id]');
+                if (!parent) return;
+                if (!window.confirm('Продать мастерскую? Получишь ~50% refund.')) return;
+                const wsId = parseInt(parent.dataset.workshopId, 10);
+                await _bannerlordBuyAction('hero.sell_workshop', { workshop_id: wsId });
+                setTimeout(loadBannerlordWorkshops, 1500);
+            });
+        });
+
+        document.getElementById('bnr-ws-buy')?.addEventListener('click',
+            _openBuyWorkshopModal);
+    } catch (e) {
+        console.warn('[FE-SHOP] loadWorkshops failed', e);
+        slot.innerHTML = '';
+    }
+}
+
+function _openBuyWorkshopModal() {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;
+        display:flex;align-items:center;justify-content:center;`;
+    overlay.innerHTML = `
+        <div style="background:#1a2008;border:1px solid #65a30d;border-radius:6px;
+                    padding:14px;max-width:440px;width:90%;color:#d9f99d;
+                    max-height:85vh;overflow-y:auto;">
+            <div style="font-size:14px;font-weight:700;color:#84cc16;margin-bottom:10px;">
+                🏭 Купить мастерскую (1000⦷)
+            </div>
+            <div style="font-size:11px;color:#9ca3af;margin-bottom:10px;">
+                Mod купит ближайший свободный slot в town'е, переоборудует под
+                выбранный тип. Engine cost списывается из Hero.Gold вашего героя.
+                Профит автоматом конвертируется в ⦷ ежедневно (100 дин = 1⦷).
+            </div>
+            <label style="font-size:11px;color:#d9f99d;display:block;margin-bottom:4px;">
+                Тип мастерской:
+            </label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-bottom:10px;">
+                ${_BNR_WORKSHOP_TYPES.map((t, i) => `
+                    <label style="display:flex;align-items:center;gap:4px;
+                                  background:#0a1308;padding:5px 6px;border-radius:3px;
+                                  cursor:pointer;font-size:10px;">
+                        <input type="radio" name="bnr-ws-type" value="${t.id}"
+                               data-name="${escapeHtml(t.name)}" ${i === 0 ? 'checked' : ''}>
+                        <span style="color:#d9f99d;">${t.emoji} ${escapeHtml(t.name)}</span>
+                    </label>
+                `).join('')}
+            </div>
+            <label style="font-size:11px;color:#d9f99d;display:block;margin-bottom:4px;">
+                Town (название или StringId):
+            </label>
+            <input id="bnr-ws-town" type="text" maxlength="80"
+                   placeholder="например: Pravend / Sargot / Marunath"
+                   style="width:100%;padding:6px;font-size:12px;background:#0a1308;
+                          color:#d9f99d;border:1px solid #65a30d;margin-bottom:10px;
+                          box-sizing:border-box;">
+            <div style="display:flex;gap:4px;">
+                <button id="bnr-ws-buy-confirm" class="extra-btn"
+                        style="flex:1;font-size:11px;padding:6px;
+                               background:#65a30d;color:#fff;font-weight:700;">
+                    🏭 Купить (1000⦷)
+                </button>
+                <button id="bnr-ws-buy-cancel" class="extra-btn"
+                        style="flex:1;font-size:11px;padding:6px;
+                               background:#2d2d3f;color:#d9f99d;">Отмена</button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    document.getElementById('bnr-ws-buy-cancel')?.addEventListener('click',
+        () => overlay.remove());
+    overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.remove(); });
+    document.getElementById('bnr-ws-buy-confirm')?.addEventListener('click', async () => {
+        const typeSel = overlay.querySelector('input[name="bnr-ws-type"]:checked');
+        const town = (document.getElementById('bnr-ws-town')?.value || '').trim();
+        if (!typeSel || !town || town.length < 3) {
+            showNotification('Выбери тип и укажи town (≥3 символа)', 'warning');
+            return;
+        }
+        await _bannerlordBuyAction('hero.buy_workshop', {
+            settlement_id:      town,
+            settlement_name:    town,
+            workshop_type:      typeSel.value,
+            workshop_type_name: typeSel.dataset.name,
+        });
+        overlay.remove();
+        setTimeout(loadBannerlordWorkshops, 2000);
+    });
+}
+
 // Sprint 5.32 — inner tab switcher. 4 panes: hero / inventory / combat / progression.
 // Состояние persisted в localStorage чтобы при reopen extension вернуться туда же.
 function _setBnrInnerTab(tab) {
@@ -5057,6 +5236,7 @@ async function loadBannerlordHero() {
                 <div id="bnr-party-orders-slot" style="margin-bottom:8px;"></div>
                 <div id="bnr-diplo-slot" style="margin-bottom:8px;"></div>
                 <div id="bnr-ransom-slot" style="margin-bottom:8px;"></div>
+                <div id="bnr-workshops-slot" style="margin-bottom:8px;"></div>
                 <button class="extra-btn" id="bnr-open-profile-btn"
                         title="Семейные настройки: смена пола, брак, дети"
                         style="width:100%;font-size:12px;padding:8px;margin-top:4px;
@@ -5141,6 +5321,8 @@ async function loadBannerlordHero() {
         // Sprint 5.33 (BLT-parity DIPLO) — Kingdom politics + ransom pool.
         loadBannerlordDiplomacy();
         loadBannerlordRansomPool();
+        // Sprint 5.33 (BLT-parity SHOP) — Workshops passive income panel.
+        loadBannerlordWorkshops();
         // Sprint 5.5: immediately repaint battle banner из cache чтобы
         // не было 0-2s gap'a после hero re-render.
         if (_bannerlordBattle) _renderBannerlordBattleBanner(_bannerlordBattle);

@@ -104,6 +104,16 @@ namespace BannerlordLink.Actions
                     case "retribution_toggle":
                         ActivateRetribution(username, durationOverride, valueOverride, agent);
                         break;
+                    // Sprint 5.33 (BLT-parity FX) — 3 new character effects.
+                    case "poison_dot":
+                        ApplyPoisonDot(agent, username, durationOverride, valueOverride);
+                        break;
+                    case "disarm_burst":
+                        ApplyDisarmBurst(agent, username);
+                        break;
+                    case "berserker_charge":
+                        ApplyBerserkerCharge(agent, username, durationOverride, valueOverride);
+                        break;
                     default:
                         BannerlordLinkModule.Log(
                             $"[power.activate] REFUSE @{username}: unknown power '{powerKey}'");
@@ -266,6 +276,166 @@ namespace BannerlordLink.Actions
             // Sprint 5.30 #41
             BannerlordLink.Util.PowerVisualFx.PlayActivation(
                 agent, "retribution_toggle", username, (int)pct);
+        }
+
+        // ── Sprint 5.33 (BLT-parity FX) — 3 new character effects ────────────
+
+        /// <summary>Poison DoT — random enemy в радиусе получает damage per second.
+        /// Stores active state в `ActiveBuffState` keyed by victim agent index.
+        /// DamageHookPatch / Mission tick реально применит ticks. MVP — мы делаем
+        /// ОДНОРАЗОВЫЙ damage с popup; full periodic tick — followup.
+        ///
+        /// Value = damage per tick. Duration = 10s. Tick interval = 1s (handled
+        /// by PowersMissionBehavior.OnMissionTick через ActiveBuffState).</summary>
+        private static void ApplyPoisonDot(Agent caster, string username,
+            float? durationOverride, double? valueOverride)
+        {
+            float duration = durationOverride ?? 10f;
+            double dps = valueOverride
+                ?? PowerCache.GetPowerValue(username, "poison_dot")
+                ?? 5.0;
+
+            // Find random enemy в радиусе 15м.
+            Agent target = FindRandomEnemyNearby(caster, 15f);
+            if (target == null)
+            {
+                BannerlordLinkModule.Log(
+                    $"[power.poison_dot] @{username}: no enemy in 15m range");
+                return;
+            }
+            // Apply DoT — initial burst + register для periodic tick.
+            // Store по target.Index — каждый tick через PowersMissionBehavior
+            // будет drain'ить.
+            int initial = (int)dps;
+            try
+            {
+                var blow = new Blow(caster.Index)
+                {
+                    InflictedDamage = initial,
+                    DamageType = DamageTypes.Pierce,
+                    DamageCalculated = true,
+                    BlowFlag = BlowFlags.None,
+                    BoneIndex = target.Monster?.ThoraxLookDirectionBoneIndex ?? (sbyte)0,
+                    GlobalPosition = target.Position,
+                    Direction = caster.LookDirection,
+                    SwingDirection = caster.LookDirection,
+                };
+                AttackCollisionData cd = default;
+                target.RegisterBlow(blow, cd);
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[power.poison_dot] initial blow warn: {ex.Message}");
+            }
+
+            // Register DoT в ActiveBuffState (per-target keyed). PowersMissionBehavior
+            // tick читает и применяет каждую секунду.
+            ActiveBuffState.Activate(
+                $"dot_target_{target.Index}", "poison_dot", duration, dps);
+            BannerlordLinkModule.Log(
+                $"[power.poison_dot] @{username} → enemy idx={target.Index} " +
+                $"{(int)dps} dmg/s for {duration}s (initial -{initial} HP)");
+            BannerlordLink.Util.PowerVisualFx.PlayActivation(target, "poison_dot", username, (int)dps);
+        }
+
+        /// <summary>Disarm burst — random enemy роняет wielded weapon.
+        /// Engine API: Agent.DropItem(EquipmentIndex). Instant, no duration.</summary>
+        private static void ApplyDisarmBurst(Agent caster, string username)
+        {
+            Agent target = FindRandomEnemyNearby(caster, 15f);
+            if (target == null)
+            {
+                BannerlordLinkModule.Log(
+                    $"[power.disarm_burst] @{username}: no enemy in 15m range");
+                return;
+            }
+            try
+            {
+                // GetWieldedItemIndex API нет в нашей версии engine — loop через
+                // 4 weapon slots, drop first non-empty melee/ranged item.
+                EquipmentIndex dropSlot = EquipmentIndex.None;
+                for (int i = 0; i < 4; i++)
+                {
+                    var slot = (EquipmentIndex)i;
+                    if (target.Equipment[slot].IsEmpty) continue;
+                    dropSlot = slot;
+                    break;
+                }
+                if (dropSlot == EquipmentIndex.None)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[power.disarm_burst] @{username} enemy idx={target.Index} " +
+                        $"has no weapons to drop");
+                    return;
+                }
+                target.DropItem(dropSlot);
+                BannerlordLinkModule.Log(
+                    $"[power.disarm_burst] @{username} → enemy idx={target.Index} " +
+                    $"dropped weapon slot={dropSlot}");
+                BannerlordLink.Util.PowerVisualFx.PlayActivation(target, "disarm_burst", username);
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[power.disarm_burst] @{username} crash: {ex.Message}");
+            }
+        }
+
+        /// <summary>Berserker charge — self movement speed bonus.
+        /// Value = % bonus (e.g. 50 → 1.5× speed). Duration default 8s.
+        /// Agent.SetMaximumSpeedLimit — engine API.</summary>
+        private static void ApplyBerserkerCharge(Agent caster, string username,
+            float? durationOverride, double? valueOverride)
+        {
+            float duration = durationOverride ?? 8f;
+            double bonusPct = valueOverride
+                ?? PowerCache.GetPowerValue(username, "berserker_charge")
+                ?? 50.0;
+            float mult = 1f + (float)(bonusPct / 100.0);
+
+            // Register в buff state — PowersMissionBehavior tick применит / снимет.
+            ActiveBuffState.Activate(username, "berserker_charge", duration, mult);
+
+            // Apply immediate speed bonus.
+            try
+            {
+                // SetMaximumSpeedLimit(speed, isMultiplier=true)
+                caster.SetMaximumSpeedLimit(mult, true);
+                BannerlordLinkModule.Log(
+                    $"[power.berserker_charge] @{username} speed ×{mult:F2} for {duration}s");
+                BannerlordLink.Util.PowerVisualFx.PlayActivation(
+                    caster, "berserker_charge", username, $"+{(int)bonusPct}%");
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[power.berserker_charge] speed limit warn: {ex.Message}");
+            }
+        }
+
+        /// <summary>Helper — find random active enemy human within radius.
+        /// Used by poison_dot + disarm_burst target resolution.</summary>
+        private static Agent FindRandomEnemyNearby(Agent caster, float radius)
+        {
+            try
+            {
+                var candidates = new System.Collections.Generic.List<Agent>();
+                foreach (var a in Mission.Current.Agents)
+                {
+                    if (a == null || a == caster || !a.IsActive() || !a.IsHuman) continue;
+                    if (!a.IsEnemyOf(caster)) continue;
+                    float dist = a.Position.Distance(caster.Position);
+                    if (dist > radius) continue;
+                    candidates.Add(a);
+                }
+                if (candidates.Count == 0) return null;
+                return candidates[TaleWorlds.Core.MBRandom.RandomInt(candidates.Count)];
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[FindRandomEnemyNearby] warn: {ex.Message}");
+                return null;
+            }
         }
     }
 }

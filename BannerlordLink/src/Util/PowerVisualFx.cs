@@ -69,6 +69,28 @@ namespace BannerlordLink.Util
                     SoundEventPath = "event:/mission/combat/shield/hit",
                     ParticleName   = "psys_game_shield_block_spark",
                 },
+                // Sprint 5.33 (BLT-parity FX) — 3 character effects.
+                ["poison_dot"] = new PowerFxConfig
+                {
+                    PopupText      = "☠ {user} отравил врага ({value} dmg/s)",
+                    PopupColor     = new TaleWorlds.Library.Color(0.5f, 0.95f, 0.3f), // poisonous green
+                    SoundEventPath = "event:/mission/combat/melee/hit",
+                    ParticleName   = "psys_game_burning_agent",  // зеленоватый burn = poison visual stub
+                },
+                ["disarm_burst"] = new PowerFxConfig
+                {
+                    PopupText      = "💥 {user} обезоружил врага",
+                    PopupColor     = new TaleWorlds.Library.Color(1.0f, 0.85f, 0.2f), // yellow flash
+                    SoundEventPath = "event:/mission/combat/shield/broken",
+                    ParticleName   = "psys_game_shield_break",
+                },
+                ["berserker_charge"] = new PowerFxConfig
+                {
+                    PopupText      = "💨 {user} берсерк-рывок +{value} speed",
+                    PopupColor     = new TaleWorlds.Library.Color(1.0f, 0.4f, 0.0f), // orange-red
+                    SoundEventPath = "event:/mission/combat/melee/swing",
+                    ParticleName   = "psys_game_burning_agent",
+                },
             };
 
         /// <summary>Public API: show activation cue для power'а на конкретном agent'е.

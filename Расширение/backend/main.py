@@ -866,6 +866,14 @@ async def run_migrations():
             print(f"❌ M49 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # Sprint 5.33 (BLT-parity FX) — character effects (poison/disarm/charge)
+        try:
+            from migrations import m50_character_effects
+            await m50_character_effects.apply(conn)
+        except Exception as e:
+            print(f"❌ M50 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

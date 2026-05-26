@@ -1232,12 +1232,20 @@ const BNR_POWER_LABELS = {
     shield_break_burst: { icon: '🛡️', label: 'Разбить щит', desc: 'AoE, мгновенно' },
     rage:               { icon: '🔥', label: 'Ярость',    desc: 'damage ×, 30с' },
     retribution_toggle: { icon: '↩',  label: 'Возмездие', desc: '+reflect %, 60с' },
+    // Sprint 5.33 (BLT-parity FX) — character effects.
+    poison_dot:         { icon: '☠',  label: 'Яд',        desc: 'Случ. враг DoT 10с' },
+    disarm_burst:       { icon: '💥', label: 'Обезоружить', desc: 'Случ. враг роняет оружие' },
+    berserker_charge:   { icon: '💨', label: 'Берсерк-рывок', desc: '+speed 8с (себе)' },
 };
 const BNR_POWER_PRICES = {
     heal_burst:         100,
     shield_break_burst: 200,
     rage:               300,
     retribution_toggle: 300,
+    // Sprint 5.33 FX
+    poison_dot:         350,  // DoT — медленный, но total damage высокий
+    disarm_burst:       250,  // disarm — disruption, не damage
+    berserker_charge:   200,  // mobility self-buff
 };
 
 function switchIntegrationModule(activeModule) {

@@ -80,6 +80,10 @@ POWER_COOLDOWNS = {
     "player.spawn":          30,   # legacy fallback (если side не передан)
     "player.spawn:player":   30,   # ally — viewer на стороне стримера
     "player.spawn:enemy":    45,   # enemy — slightly longer, чтобы не спамили против
+    # Sprint 5.33 (BLT-parity FX) — character effects (BLT-Buffet inspired).
+    "poison_dot":          60,    # DoT 10s — нельзя стакать на одного врага каждые 10с
+    "disarm_burst":        45,    # instant disarm — короткий cd, mobile harassment
+    "berserker_charge":    60,    # self speed buff 8s
 }
 
 # Sprint 5.29 audit fix #28 — anti-spam cooldowns per (channel, user, action_type).

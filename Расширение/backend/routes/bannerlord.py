@@ -866,6 +866,10 @@ _PURCHASABLE_ACTIONS = (
     # Sprint 5.33 (BLT-parity SIEGE) — party order strategic management
     "hero.party_order_set",      # установить siege/defend/raid/garrison/patrol
     "hero.party_order_release",  # отменить active order
+    # Sprint 5.33 (BLT-parity DIPLO) — kingdom politics + ransom
+    "hero.enact_policy",         # 1500⦷ king-only — propose+pass policy
+    "hero.make_peace",           # 2000⦷ king-only — propose peace с врагом
+    "hero.pay_ransom",           # 500⦷ — chip into ransom pool captured hero
 )
 
 # Sprint 5.27a — стоимость gender swap (BLT default: 50k).
@@ -974,6 +978,10 @@ _BACKEND_ONLY_ACTIONS = (
     # Sprint 5.33 SIEGE — party orders — backend INSERT + enqueue mod
     "hero.party_order_set",
     "hero.party_order_release",
+    # Sprint 5.33 DIPLO — kingdom politics + ransom — backend INSERT + enqueue mod
+    "hero.enact_policy",
+    "hero.make_peace",
+    "hero.pay_ransom",
 )
 
 
@@ -1912,6 +1920,10 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
         # Sprint 5.33 (BLT-parity SIEGE) — party strategic orders
         "hero.party_order_set":         500,    # significant strategic decision
         "hero.party_order_release":       0,    # free cancel
+        # Sprint 5.33 (BLT-parity DIPLO) — kingdom politics + ransom
+        "hero.enact_policy":           1500,    # king-only major political move
+        "hero.make_peace":             2000,    # king-only diplomatic decision
+        "hero.pay_ransom":              500,    # crowd-fund tier, any viewer
     }
     if action_type not in _ACTIONS_WITH_OWN_PRICING:
         if action_type not in ACTION_PRICES_DEFAULT:
@@ -2400,6 +2412,27 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
                 if not siege_result.get("success"):
                     await conn.execute("ROLLBACK")
                     return siege_result
+
+            # Sprint 5.33 (BLT-parity DIPLO) — kingdom politics + ransom.
+            diplo_result = None
+            if action_type == "hero.enact_policy":
+                from routes.bannerlord_diplomacy import handle_enact_policy
+                diplo_result = await handle_enact_policy(conn, channel_id, username, data)
+                if not diplo_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return diplo_result
+            elif action_type == "hero.make_peace":
+                from routes.bannerlord_diplomacy import handle_make_peace
+                diplo_result = await handle_make_peace(conn, channel_id, username, data)
+                if not diplo_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return diplo_result
+            elif action_type == "hero.pay_ransom":
+                from routes.bannerlord_diplomacy import handle_pay_ransom
+                diplo_result = await handle_pay_ransom(conn, channel_id, username, data)
+                if not diplo_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return diplo_result
 
             # Special case в той же TX: UPSERT bannerlord_hero_class.
             # Backend остаётся source-of-truth по class даже если mod offline.

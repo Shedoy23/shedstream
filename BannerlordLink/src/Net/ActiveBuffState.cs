@@ -71,12 +71,15 @@ namespace BannerlordLink.Net
             return entry.Value;
         }
 
-        /// <summary>Dropped expired buffs. Called from MissionLogic slow tick.</summary>
-        public static int RemoveExpired()
+        /// <summary>Drop expired buffs. Called from MissionLogic slow tick.
+        /// Sprint 5.33 — returns list of expired (username, powerKey, value)
+        /// чтобы caller мог react (e.g. reset speed for berserker_charge,
+        /// stop DoT visual particle).</summary>
+        public static List<(string username, string powerKey, double value)> RemoveExpired()
         {
-            if (Mission.Current == null) return 0;
+            var expiredList = new List<(string, string, double)>();
+            if (Mission.Current == null) return expiredList;
             float now = Mission.Current.CurrentTime;
-            int removed = 0;
 
             foreach (var userKvp in _buffs)
             {
@@ -87,16 +90,43 @@ namespace BannerlordLink.Net
                 }
                 foreach (var k in expired)
                 {
-                    if (userKvp.Value.TryRemove(k, out _))
+                    if (userKvp.Value.TryRemove(k, out var entry))
                     {
-                        removed++;
+                        expiredList.Add((userKvp.Key, k, entry.Value));
                         BannerlordLinkModule.Log(
-                            $"[BuffState] @{userKvp.Key} {k} expired");
+                            $"[BuffState] @{userKvp.Key} {k} expired (value={entry.Value:F2})");
                         PostBuffEventAsync("buff.expired", userKvp.Key, k, 0f, 0.0);
                     }
                 }
             }
-            return removed;
+            return expiredList;
+        }
+
+        /// <summary>Sprint 5.33 (BLT-parity FX) — DoT tick support. Returns
+        /// snapshot всех active "poison_dot" buffs (keyed by "dot_target_{agentIdx}")
+        /// для caller'а — он apply'ит per-tick damage в Mission tick.</summary>
+        public static List<(int agentIndex, double damagePerSec, float remainingSec)> SnapshotDotTargets()
+        {
+            var list = new List<(int, double, float)>();
+            if (Mission.Current == null) return list;
+            float now = Mission.Current.CurrentTime;
+            foreach (var userKvp in _buffs)
+            {
+                // DoT keyed by "dot_target_{idx}" — extract index из username.
+                if (!userKvp.Key.StartsWith("dot_target_",
+                    StringComparison.OrdinalIgnoreCase)) continue;
+                string idxStr = userKvp.Key.Substring("dot_target_".Length);
+                if (!int.TryParse(idxStr, out int agentIdx)) continue;
+
+                foreach (var bk in userKvp.Value)
+                {
+                    if (bk.Key != "poison_dot") continue;
+                    if (now >= bk.Value.ExpiresAt) continue;
+                    float remaining = bk.Value.ExpiresAt - now;
+                    list.Add((agentIdx, bk.Value.Value, remaining));
+                }
+            }
+            return list;
         }
 
         /// <summary>Drop ALL buffs (mission ended).</summary>

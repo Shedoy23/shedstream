@@ -123,6 +123,17 @@ extensions:
     # Sprint 5.32 (BLT-parity M2.1) — heir auto-activation на death героя.
     # Backend pushes этот action в module_actions из _on_player_died.
     - hero.activate_heir
+    # Sprint 5.33 (BLT-parity FAM) — viewer↔viewer marriage proposals между
+    # взрослыми детьми. Backend hold'ит proposals в bannerlord_marriage_proposals
+    # (m49). При accept'е enqueue mod-action `hero.activate_marriage` (mod
+    # физически жениет 2 heroes через Hero.Spouse). Plus child customization.
+    - hero.propose_marriage
+    - hero.respond_marriage_proposal
+    - hero.cancel_proposal
+    - hero.rename_child
+    - hero.change_child_looks
+    - hero.respec_child_skills
+    - hero.activate_marriage
 
 # Каталоги — те же что RimWorld (универсальный shape entry per MODULE_API.md §9):
 catalogs:

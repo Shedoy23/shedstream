@@ -1232,12 +1232,20 @@ const BNR_POWER_LABELS = {
     shield_break_burst: { icon: '🛡️', label: 'Разбить щит', desc: 'AoE, мгновенно' },
     rage:               { icon: '🔥', label: 'Ярость',    desc: 'damage ×, 30с' },
     retribution_toggle: { icon: '↩',  label: 'Возмездие', desc: '+reflect %, 60с' },
+    // Sprint 5.33 (BLT-parity FX) — character effects.
+    poison_dot:         { icon: '☠',  label: 'Яд',        desc: 'Случ. враг DoT 10с' },
+    disarm_burst:       { icon: '💥', label: 'Обезоружить', desc: 'Случ. враг роняет оружие' },
+    berserker_charge:   { icon: '💨', label: 'Берсерк-рывок', desc: '+speed 8с (себе)' },
 };
 const BNR_POWER_PRICES = {
     heal_burst:         100,
     shield_break_burst: 200,
     rage:               300,
     retribution_toggle: 300,
+    // Sprint 5.33 FX
+    poison_dot:         350,  // DoT — медленный, но total damage высокий
+    disarm_burst:       250,  // disarm — disruption, не damage
+    berserker_charge:   200,  // mobility self-buff
 };
 
 function switchIntegrationModule(activeModule) {
@@ -1384,6 +1392,253 @@ async function loadBannerlordHeirs() {
         console.warn('[FE-M2] loadHeirs failed', e);
         slot.innerHTML = '';
     }
+}
+
+// Sprint 5.33 (BLT-parity FAM) — Family section: children list + per-child actions +
+// proposals (incoming/outgoing). Главный engagement loop для multi-generation streamов.
+async function loadBannerlordFamily() {
+    const slot = document.getElementById('bnr-family-slot');
+    if (!slot) return;
+    try {
+        const [childrenR, proposalsR] = await Promise.all([
+            fetch(`${API_URL}/api/bannerlord/my-children`, {
+                headers: { 'X-Twitch-JWT': authToken || '' }
+            }).then(r => r.json()).catch(() => ({success: false})),
+            fetch(`${API_URL}/api/bannerlord/proposals`, {
+                headers: { 'X-Twitch-JWT': authToken || '' }
+            }).then(r => r.json()).catch(() => ({success: false})),
+        ]);
+        const children = (childrenR.success && Array.isArray(childrenR.children))
+            ? childrenR.children : [];
+        const incoming = (proposalsR.success && Array.isArray(proposalsR.incoming))
+            ? proposalsR.incoming : [];
+        const outgoing = (proposalsR.success && Array.isArray(proposalsR.outgoing))
+            ? proposalsR.outgoing : [];
+
+        // Если у viewer'а нет ни детей, ни proposals — section скрыта
+        if (children.length === 0 && incoming.length === 0 && outgoing.length === 0) {
+            slot.innerHTML = '';
+            return;
+        }
+        console.info('[FE-FAM] loaded children=%d incoming=%d outgoing=%d',
+                     children.length, incoming.length, outgoing.length);
+
+        let html = `
+            <div style="background:#1a1a2e;border:1px solid #5b21b6;border-radius:4px;
+                        padding:8px;font-size:11px;color:#c4b5fd;">
+                <div style="font-size:12px;font-weight:700;color:#a78bfa;margin-bottom:6px;">
+                    🌳 Семья и потомство
+                </div>`;
+
+        // Incoming proposals (приоритет внимания)
+        if (incoming.length > 0) {
+            html += `
+                <div style="background:#3b0a4a;padding:6px;border-radius:3px;margin-bottom:6px;">
+                    <div style="color:#f0abfc;font-weight:700;margin-bottom:4px;">
+                        💍 Входящих предложений: ${incoming.length}
+                    </div>
+                    <div style="font-size:10px;color:#e9d5ff;">
+                        ${incoming.map(p => `от @${escapeHtml(p.proposer_username)}: «${escapeHtml(p.proposer_child_name)} ❤ ${escapeHtml(p.target_child_name)}»`).join('<br>')}
+                    </div>
+                    <button class="extra-btn" id="bnr-open-proposals-btn"
+                            style="width:100%;font-size:11px;padding:5px;margin-top:6px;
+                                   background:#7c3aed;color:#fff;font-weight:700;">
+                        Рассмотреть предложения
+                    </button>
+                </div>`;
+        }
+
+        // Outgoing (мои pending)
+        if (outgoing.length > 0) {
+            html += `
+                <div style="font-size:10px;color:#9ca3af;margin-bottom:4px;">
+                    📤 Отправлено: ${outgoing.length}
+                    <span style="color:#6b7280;">(ждут ответа)</span>
+                </div>`;
+        }
+
+        // Children list
+        if (children.length > 0) {
+            html += `
+                <div style="font-size:10px;color:#9ca3af;margin-top:4px;margin-bottom:4px;">
+                    👨‍👩‍👧 Взрослых детей: ${children.length}
+                </div>
+                <div style="display:flex;flex-direction:column;gap:3px;">
+                    ${children.map(c => `
+                        <div data-child-id="${escapeHtml(c.hero_id)}"
+                             data-child-name="${escapeHtml(c.name)}"
+                             style="display:flex;justify-content:space-between;align-items:center;
+                                    background:#0f0f1e;padding:4px 6px;border-radius:3px;">
+                            <span style="color:#e9d5ff;font-size:11px;">${escapeHtml(c.name)}</span>
+                            <div style="display:flex;gap:3px;">
+                                <button class="bnr-fam-rename small-btn" title="Переименовать (50⦷)"
+                                        style="font-size:9px;padding:2px 5px;background:#2d2d3f;color:#a78bfa;">✏</button>
+                                <button class="bnr-fam-respec small-btn" title="Респект скиллов (500⦷)"
+                                        style="font-size:9px;padding:2px 5px;background:#2d2d3f;color:#a78bfa;">🎯</button>
+                                <button class="bnr-fam-propose small-btn" title="Предложить брак другому viewer'у (100⦷)"
+                                        style="font-size:9px;padding:2px 5px;background:#4c1d95;color:#fff;">💍</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>`;
+        } else {
+            html += `
+                <div style="font-size:10px;color:#6b7280;margin-top:4px;">
+                    Дети взрослеют через ~18 лет после make_baby. Жди.
+                </div>`;
+        }
+        html += `</div>`;
+        slot.innerHTML = html;
+
+        // Bind handlers
+        document.getElementById('bnr-open-proposals-btn')?.addEventListener('click',
+            () => _openProposalsModal(incoming));
+        slot.querySelectorAll('.bnr-fam-rename').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const parent = e.target.closest('[data-child-id]');
+                if (!parent) return;
+                _famRenameChild(parent.dataset.childId, parent.dataset.childName);
+            });
+        });
+        slot.querySelectorAll('.bnr-fam-respec').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const parent = e.target.closest('[data-child-id]');
+                if (!parent) return;
+                _famRespecChild(parent.dataset.childId, parent.dataset.childName);
+            });
+        });
+        slot.querySelectorAll('.bnr-fam-propose').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const parent = e.target.closest('[data-child-id]');
+                if (!parent) return;
+                _famProposeMarriage(parent.dataset.childId, parent.dataset.childName);
+            });
+        });
+    } catch (e) {
+        console.warn('[FE-FAM] loadFamily failed', e);
+        slot.innerHTML = '';
+    }
+}
+
+async function _famRenameChild(childId, currentName) {
+    const newName = window.prompt(`Новое имя для «${currentName}»:`, currentName);
+    if (!newName || newName === currentName) return;
+    await _bannerlordBuyAction('hero.rename_child',
+        { child_hero_id: childId, new_name: newName });
+    setTimeout(loadBannerlordFamily, 1500);
+}
+
+async function _famRespecChild(childId, name) {
+    if (!await _bnrConfirm(
+        `Сбросить все скиллы «${name}» (500⦷)? Hero вернётся к 0 levels.`,
+        'Респект')) return;
+    await _bannerlordBuyAction('hero.respec_child_skills',
+        { child_hero_id: childId });
+}
+
+async function _famProposeMarriage(myChildId, myChildName) {
+    const targetUser = window.prompt(
+        `Предложить брак для «${myChildName}». Введи username другого viewer'а:`);
+    if (!targetUser) return;
+    const tu = targetUser.trim().toLowerCase().replace(/^@/, '');
+    if (!tu) return;
+    // Fetch their children
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/public-children?username=${encodeURIComponent(tu)}`, {
+            headers: { 'X-Twitch-JWT': authToken || '' }
+        });
+        const d = await r.json();
+        if (!d.success || !Array.isArray(d.children) || d.children.length === 0) {
+            showNotification(`У @${tu} нет взрослых детей`, 'warning');
+            return;
+        }
+        // UI choice — простой prompt с numbered list (MVP)
+        const list = d.children.map((c, i) => `${i+1}. ${c.name}`).join('\n');
+        const choice = window.prompt(
+            `Дети @${tu}:\n${list}\n\nВведи номер (1-${d.children.length}):`);
+        const idx = parseInt(choice, 10) - 1;
+        if (isNaN(idx) || idx < 0 || idx >= d.children.length) return;
+        const targetChild = d.children[idx];
+        if (!await _bnrConfirm(
+            `Предложить @${tu}: «${myChildName} ❤ ${targetChild.name}»? (100⦷)`,
+            'Отправить'
+        )) return;
+        await _bannerlordBuyAction('hero.propose_marriage', {
+            price: 100,
+            proposer_child_hero_id: myChildId,
+            target_username: tu,
+            target_child_hero_id: targetChild.hero_id,
+        });
+        setTimeout(loadBannerlordFamily, 1500);
+    } catch (e) {
+        console.warn('[FE-FAM] propose failed', e);
+        showNotification('Ошибка сети', 'error');
+    }
+}
+
+function _openProposalsModal(incoming) {
+    if (!incoming || incoming.length === 0) return;
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;
+        display:flex;align-items:center;justify-content:center;`;
+    overlay.innerHTML = `
+        <div style="background:#1f1a30;border:1px solid #5b21b6;border-radius:6px;
+                    padding:14px;max-width:380px;width:90%;color:#c4b5fd;">
+            <div style="font-size:14px;font-weight:700;color:#a78bfa;margin-bottom:10px;">
+                💍 Входящие предложения брака
+            </div>
+            ${incoming.map(p => `
+                <div data-proposal-id="${p.id}"
+                     style="background:#0f0f1e;padding:8px;border-radius:4px;margin-bottom:6px;
+                            border:1px solid #4c1d95;">
+                    <div style="font-size:11px;margin-bottom:4px;">
+                        от <b style="color:#f0abfc;">@${escapeHtml(p.proposer_username)}</b>:
+                    </div>
+                    <div style="font-size:12px;color:#e9d5ff;margin-bottom:6px;">
+                        «${escapeHtml(p.proposer_child_name)} ❤ ${escapeHtml(p.target_child_name)}»
+                    </div>
+                    <div style="display:flex;gap:4px;">
+                        <button class="bnr-prop-accept extra-btn"
+                                style="flex:1;font-size:11px;padding:5px;
+                                       background:#15803d;color:#dcfce7;font-weight:700;">
+                            ✓ Принять
+                        </button>
+                        <button class="bnr-prop-reject extra-btn"
+                                style="flex:1;font-size:11px;padding:5px;
+                                       background:#7f1d1d;color:#fee2e2;font-weight:700;">
+                            ✗ Отклонить
+                        </button>
+                    </div>
+                </div>
+            `).join('')}
+            <button id="bnr-prop-close" class="extra-btn"
+                    style="width:100%;font-size:11px;padding:6px;margin-top:6px;
+                           background:#2d2d3f;color:#c4b5fd;">
+                Закрыть
+            </button>
+        </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelectorAll('.bnr-prop-accept').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const id = parseInt(e.target.closest('[data-proposal-id]').dataset.proposalId, 10);
+            await _bannerlordBuyAction('hero.respond_marriage_proposal',
+                { proposal_id: id, accept: true });
+            overlay.remove();
+            setTimeout(loadBannerlordFamily, 1500);
+        });
+    });
+    overlay.querySelectorAll('.bnr-prop-reject').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const id = parseInt(e.target.closest('[data-proposal-id]').dataset.proposalId, 10);
+            await _bannerlordBuyAction('hero.respond_marriage_proposal',
+                { proposal_id: id, accept: false });
+            overlay.remove();
+            setTimeout(loadBannerlordFamily, 1500);
+        });
+    });
+    document.getElementById('bnr-prop-close')?.addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.remove(); });
 }
 
 // Sprint 5.32 — inner tab switcher. 4 panes: hero / inventory / combat / progression.
@@ -2612,7 +2867,23 @@ async function _openBannerlordForgeModal() {
     const slotsMax = data.max_slots || 50;
     const itemsHtml = items.length === 0
         ? '<div style="color:#adadb8;text-align:center;padding:14px;font-size:12px;">Пустая кузница. Скуй первый трофей!</div>'
-        : items.map(it => `
+        : items.map(it => {
+            // Sprint 5.33 (BLT-parity ITEM) — rolled stats display.
+            const statParts = [];
+            if (it.damage_bonus > 0) statParts.push(`⚔ +${it.damage_bonus}`);
+            if (it.armor_bonus > 0)  statParts.push(`🛡 +${it.armor_bonus}`);
+            if (it.weight_factor && Math.abs(it.weight_factor - 1.0) > 0.001) {
+                const pct = ((it.weight_factor - 1.0) * 100).toFixed(0);
+                statParts.push(`⚖ ${pct >= 0 ? '+' : ''}${pct}%`);
+            }
+            if (it.speed_factor && Math.abs(it.speed_factor - 1.0) > 0.001) {
+                const pct = ((it.speed_factor - 1.0) * 100).toFixed(0);
+                statParts.push(`💨 +${pct}%`);
+            }
+            const statsLine = statParts.length
+                ? `<div style="font-size:10px;color:#fbbf24;margin-top:2px;">${statParts.join(' · ')}</div>`
+                : '';
+            return `
             <div style="display:flex;align-items:center;gap:8px;
                         background:rgba(58,58,62,0.3);border:1px solid ${it.color};
                         border-radius:6px;padding:6px 10px;margin-bottom:4px;">
@@ -2625,6 +2896,7 @@ async function _openBannerlordForgeModal() {
                     <div style="font-size:10px;color:#adadb8;">
                         ${escapeHtml(it.base_type)} / ${it.rarity} / T${it.tier}
                     </div>
+                    ${statsLine}
                 </div>
                 <button class="extra-btn bnr-equip-trophy" data-item-id="${it.id}"
                         title="Экипировать (передаст реальный item в инвентарь героя в игре)"
@@ -2643,7 +2915,7 @@ async function _openBannerlordForgeModal() {
                     ✗
                 </button>
             </div>
-        `).join('');
+        `;}).join('');
     const SMITH_PRICE = 500;   // mirror ACTION_PRICES_DEFAULT
     const body = `
         <div style="margin-bottom:10px;font-size:11px;color:#adadb8;text-align:center;">
@@ -4075,6 +4347,7 @@ async function loadBannerlordHero() {
                 </div>
                 <div id="bnr-daily-slot" style="margin-bottom:8px;"></div>
                 <div id="bnr-heir-slot" style="margin-bottom:8px;"></div>
+                <div id="bnr-family-slot" style="margin-bottom:8px;"></div>
                 <button class="extra-btn" id="bnr-open-profile-btn"
                         title="Семейные настройки: смена пола, брак, дети"
                         style="width:100%;font-size:12px;padding:8px;margin-top:4px;
@@ -4150,6 +4423,8 @@ async function loadBannerlordHero() {
         loadBannerlordDaily();
         // Sprint 5.32 (BLT-parity FE-M2) — refill heir slot.
         loadBannerlordHeirs();
+        // Sprint 5.33 (BLT-parity FAM) — Family section (children + proposals).
+        loadBannerlordFamily();
         // Sprint 5.5: immediately repaint battle banner из cache чтобы
         // не было 0-2s gap'a после hero re-render.
         if (_bannerlordBattle) _renderBannerlordBattleBanner(_bannerlordBattle);

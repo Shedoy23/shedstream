@@ -86,6 +86,7 @@ from routes.bannerlord  import router as bannerlord_router # Sprint 1.3 (2026-05
 from routes.bannerlord_achievements import router as bannerlord_achievements_router # Sprint 5.29
 from routes.bannerlord_custom_items import router as bannerlord_custom_items_router # Sprint 5.29
 from routes.bannerlord_auctions import router as bannerlord_auctions_router  # Sprint 5.29 phase B
+from routes.bannerlord_family import router as bannerlord_family_router       # Sprint 5.33 BLT-parity FAM
 from routes.bannerlord_boosty import router as bannerlord_boosty_router  # Sprint 5.31 #45
 from routes.dev_login   import router as dev_login_router  # /dev test page (2026-05-16)
 # casino_router удалён 2026-05-10 — Phase 1.A compliance rework (см. COMPLIANCE_REWORK_PLAN.md)
@@ -113,6 +114,7 @@ app.include_router(bannerlord_router)  # Sprint 1.3 (2026-05-15): Bannerlord vie
 app.include_router(bannerlord_achievements_router)  # Sprint 5.29 BLT-parity #5
 app.include_router(bannerlord_custom_items_router)  # Sprint 5.29 BLT-parity #6
 app.include_router(bannerlord_auctions_router)  # Sprint 5.29 BLT-parity #6 phase B
+app.include_router(bannerlord_family_router)    # Sprint 5.33 BLT-parity FAM — marriage proposals
 app.include_router(bannerlord_boosty_router)    # Sprint 5.31 #45 — Boosty subs
 app.include_router(dev_login_router)   # 2026-05-16: /dev OAuth test page
 
@@ -856,6 +858,30 @@ async def run_migrations():
             print(f"❌ M48 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # Sprint 5.33 (BLT-parity FAM) — viewer↔viewer marriage proposals между детьми
+        try:
+            from migrations import m49_marriage_proposals
+            await m49_marriage_proposals.apply(conn)
+        except Exception as e:
+            print(f"❌ M49 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
+        # Sprint 5.33 (BLT-parity FX) — character effects (poison/disarm/charge)
+        try:
+            from migrations import m50_character_effects
+            await m50_character_effects.apply(conn)
+        except Exception as e:
+            print(f"❌ M50 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
+        # Sprint 5.33 (BLT-parity ITEM) — rolled stats для custom items (trophy bonuses)
+        try:
+            from migrations import m51_custom_item_stats
+            await m51_custom_item_stats.apply(conn)
+        except Exception as e:
+            print(f"❌ M51 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 
@@ -1333,6 +1359,21 @@ async def on_startup():
     # Sprint 5.29 BLT-parity #6 phase B: auctions resolver loop (every 30s).
     from routes.bannerlord_auctions import auctions_resolve_loop as _auctions_resolve
     asyncio.create_task(_auctions_resolve())
+    # Sprint 5.33 (BLT-parity FAM): marriage proposals expire loop (every 60s).
+    # Mark pending proposals as 'expired' если created+24h < now. Viewer'у никто
+    # не отвечает 24h → proposal сам закрывается.
+    async def _proposals_expire_loop():
+        import asyncio as _asyncio
+        from routes.bannerlord_family import expire_old_proposals
+        while True:
+            try:
+                affected = await expire_old_proposals()
+                if affected > 0:
+                    print(f"[FAM-EXPIRE] marked {affected} proposals as expired")
+            except Exception as e:
+                print(f"[FAM-EXPIRE] loop crashed: {type(e).__name__}: {e}")
+            await _asyncio.sleep(60)
+    asyncio.create_task(_proposals_expire_loop())
     # Блок 1 архитектурной прокачки: periodic WAL checkpoint, защита от
     # бесконечного роста WAL-файла. PASSIVE раз в час; раз в сутки —
     # RESTART для более глубокой компактизации.

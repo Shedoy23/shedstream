@@ -852,6 +852,14 @@ _PURCHASABLE_ACTIONS = (
     "hero.detach_charge",        # Бежать на ближайшее enemy formation
     "hero.detach_walls",         # Siege only: лезть на стены/лестницы/башни
     "hero.detach_gate",          # Siege only: к ближайшим воротам/баррикаде
+    # Sprint 5.33 (BLT-parity FAM) — viewer↔viewer семейные интеракции
+    # между взрослыми детьми. Proposal flow с accept/reject через 24h timeout.
+    "hero.propose_marriage",     # A → B: «поженим Маше и Петю?»
+    "hero.respond_marriage_proposal", # B принимает/отклоняет
+    "hero.cancel_proposal",      # A отзывает proposal до response
+    "hero.rename_child",         # переименовать своего взрослого ребёнка
+    "hero.change_child_looks",   # body code change ребёнка
+    "hero.respec_child_skills",  # re-init child skills (HeroDeveloper)
 )
 
 # Sprint 5.27a — стоимость gender swap (BLT default: 50k).
@@ -946,7 +954,15 @@ _ACTIONS_WITHOUT_HERO_REQUIREMENT = (
 )
 
 # Actions которые НЕ enqueue'аться в module_actions (pure backend ops).
-_BACKEND_ONLY_ACTIONS = ("tournament.bet", "hero.smith_item")
+_BACKEND_ONLY_ACTIONS = (
+    "tournament.bet", "hero.smith_item",
+    # Sprint 5.33 (BLT-parity FAM) — proposal flow это backend state machine.
+    # На respond accept backend САМ enqueue'ит mod-action hero.activate_marriage.
+    # Сам propose/respond/cancel — backend-only.
+    "hero.propose_marriage",
+    "hero.respond_marriage_proposal",
+    "hero.cancel_proposal",
+)
 
 
 @router.get("/api/bannerlord/my-hero")
@@ -1722,7 +1738,9 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
         db_tmp = get_db()
         async with db_tmp._connect() as conn:
             cur = await conn.execute(
-                "SELECT base_type, base_subtype, custom_name, rarity, tier "
+                "SELECT base_type, base_subtype, custom_name, rarity, tier, "
+                "       COALESCE(damage_bonus, 0), COALESCE(armor_bonus, 0), "
+                "       COALESCE(weight_factor, 1.0), COALESCE(speed_factor, 1.0) "
                 "FROM bannerlord_custom_items "
                 "WHERE id=? AND channel_id=? AND owner_username=?",
                 (trophy_id, channel_id, username))
@@ -1737,6 +1755,13 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
         data["custom_name"]  = row[2]
         data["rarity"]       = row[3]
         data["tier"]         = row[4]
+        # Sprint 5.33 (BLT-parity ITEM) — rolled stats injection.
+        # Mod-side EquipTrophyHandler читает эти поля и регистрирует в
+        # ActiveTrophyState для apply через DamageHookPatch.
+        data["damage_bonus"]  = row[5]
+        data["armor_bonus"]   = row[6]
+        data["weight_factor"] = row[7]
+        data["speed_factor"]  = row[8]
         data["price"] = 0
 
     # Sprint 5.3 / 5.28 update: hero.join_tournament — 1000 крустиков, 0 динаров.
@@ -1859,6 +1884,15 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
         "hero.detach_charge":     30,
         "hero.detach_walls":      30,
         "hero.detach_gate":       30,
+        # Sprint 5.33 (BLT-parity FAM) — семейные viewer↔viewer интеракции.
+        # Propose/respond — viral engagement-loop, цены символические.
+        # Rename/looks/respec — cosmetic + customization.
+        "hero.propose_marriage":         100,   # viewer A: «поженим Машу + Петю?»
+        "hero.respond_marriage_proposal": 0,    # accept/reject — free
+        "hero.cancel_proposal":           0,    # withdraw — free
+        "hero.rename_child":             50,    # customize child name
+        "hero.change_child_looks":      200,    # body change (BLT pattern)
+        "hero.respec_child_skills":     500,    # full skill re-roll
     }
     if action_type not in _ACTIONS_WITH_OWN_PRICING:
         if action_type not in ACTION_PRICES_DEFAULT:
@@ -2280,10 +2314,13 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
                 cur_smith = await conn.execute(
                     "INSERT INTO bannerlord_custom_items "
                     "(channel_id, owner_username, base_type, base_subtype, "
-                    " custom_name, rarity, tier, icon) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+                    " custom_name, rarity, tier, icon, "
+                    " damage_bonus, armor_bonus, weight_factor, speed_factor) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
                     (channel_id, username, item["base_type"], item["base_subtype"],
-                     item["custom_name"], item["rarity"], item["tier"], item["icon"]))
+                     item["custom_name"], item["rarity"], item["tier"], item["icon"],
+                     item.get("damage_bonus", 0), item.get("armor_bonus", 0),
+                     item.get("weight_factor", 1.0), item.get("speed_factor", 1.0)))
                 smith_row = await cur_smith.fetchone()
                 item_id_db = smith_row[0] if smith_row else 0
                 smith_result = {**item, "id": item_id_db,
@@ -2291,6 +2328,29 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
                 log.info("[bannerlord SMITH] user=%s ch=%s base=%s rarity=%s '%s'",
                          username, channel_id, base_type,
                          item["rarity"], item["custom_name"])
+
+            # Sprint 5.33 (BLT-parity FAM) — family proposal handlers.
+            # Все 3 — backend-only state machine. On accept в `respond_marriage`
+            # backend enqueue'ит mod-action `hero.activate_marriage` сам.
+            family_result = None
+            if action_type == "hero.propose_marriage":
+                from routes.bannerlord_family import handle_propose_marriage
+                family_result = await handle_propose_marriage(conn, channel_id, username, data)
+                if not family_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return family_result
+            elif action_type == "hero.respond_marriage_proposal":
+                from routes.bannerlord_family import handle_respond_marriage
+                family_result = await handle_respond_marriage(conn, channel_id, username, data)
+                if not family_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return family_result
+            elif action_type == "hero.cancel_proposal":
+                from routes.bannerlord_family import handle_cancel_proposal
+                family_result = await handle_cancel_proposal(conn, channel_id, username, data)
+                if not family_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return family_result
 
             # Special case в той же TX: UPSERT bannerlord_hero_class.
             # Backend остаётся source-of-truth по class даже если mod offline.

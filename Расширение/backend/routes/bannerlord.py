@@ -863,6 +863,9 @@ _PURCHASABLE_ACTIONS = (
     # Sprint 5.33 (BLT-parity VAS) — vassal sub-clan management
     "hero.create_vassal_clan",   # 250K Hero.Gold — выделить heir в новый clan
     "hero.rename_vassal",        # 50K Hero.Gold — rename vassal clan
+    # Sprint 5.33 (BLT-parity SIEGE) — party order strategic management
+    "hero.party_order_set",      # установить siege/defend/raid/garrison/patrol
+    "hero.party_order_release",  # отменить active order
 )
 
 # Sprint 5.27a — стоимость gender swap (BLT default: 50k).
@@ -968,6 +971,9 @@ _BACKEND_ONLY_ACTIONS = (
     # Sprint 5.33 VAS — vassal create/rename — backend INSERT + enqueue mod
     "hero.create_vassal_clan",
     "hero.rename_vassal",
+    # Sprint 5.33 SIEGE — party orders — backend INSERT + enqueue mod
+    "hero.party_order_set",
+    "hero.party_order_release",
 )
 
 
@@ -1903,6 +1909,9 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
         # entry barrier — это long-term feature, не impulse-buy.
         "hero.create_vassal_clan":     1000,    # large engagement decision
         "hero.rename_vassal":           100,    # cosmetic
+        # Sprint 5.33 (BLT-parity SIEGE) — party strategic orders
+        "hero.party_order_set":         500,    # significant strategic decision
+        "hero.party_order_release":       0,    # free cancel
     }
     if action_type not in _ACTIONS_WITH_OWN_PRICING:
         if action_type not in ACTION_PRICES_DEFAULT:
@@ -2376,6 +2385,21 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
                 if not vassal_result.get("success"):
                     await conn.execute("ROLLBACK")
                     return vassal_result
+
+            # Sprint 5.33 (BLT-parity SIEGE) — party order handlers.
+            siege_result = None
+            if action_type == "hero.party_order_set":
+                from routes.bannerlord_party_orders import handle_set_party_order
+                siege_result = await handle_set_party_order(conn, channel_id, username, data)
+                if not siege_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return siege_result
+            elif action_type == "hero.party_order_release":
+                from routes.bannerlord_party_orders import handle_release_party_order
+                siege_result = await handle_release_party_order(conn, channel_id, username, data)
+                if not siege_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return siege_result
 
             # Special case в той же TX: UPSERT bannerlord_hero_class.
             # Backend остаётся source-of-truth по class даже если mod offline.

@@ -147,6 +147,9 @@ ACTION_COOLDOWNS_SEC = {
     # Sprint 5.33 (BLT-parity VAS) — vassal sub-clan management
     "hero.create_vassal_clan":      300,   # heavy state mutation, не спам
     "hero.rename_vassal":            30,
+    # Sprint 5.33 (BLT-parity SIEGE) — party orders
+    "hero.party_order_set":         120,   # значительное решение, anti-spam
+    "hero.party_order_release":      10,
 }
 
 

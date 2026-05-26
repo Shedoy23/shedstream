@@ -53,6 +53,48 @@ namespace BannerlordLink.Behaviors
             {
                 BannerlordLinkModule.Log($"[PowersMission] buff cleanup error: {ex.Message}");
             }
+            // Sprint 5.30 #41 — periodic re-burst для timed buffs (subtle visual
+            // reinforcement что buff active). Iterate all (username, buff) и
+            // play tick particle на agent если найден в Mission.
+            try { PlayBuffTickParticles(); }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[PowersMission] buff tick fx error: {ex.Message}");
+            }
+        }
+
+        /// <summary>Sprint 5.30 #41 — для каждого active buff, найти agent
+        /// и проиграть subtle particle. Делается каждые BUFF_TICK_INTERVAL.
+        /// Все exceptions per-buff catched — один сбой не валит весь tick.</summary>
+        private static void PlayBuffTickParticles()
+        {
+            if (Mission.Current == null) return;
+            var actives = BannerlordLink.Net.ActiveBuffState.SnapshotActive();
+            if (actives == null || actives.Count == 0) return;
+            foreach (var (username, powerKey) in actives)
+            {
+                Agent agent = FindAgentByUsername(username);
+                if (agent == null) continue;
+                BannerlordLink.Util.PowerVisualFx.PlayBuffTick(agent, powerKey);
+            }
+        }
+
+        private static Agent FindAgentByUsername(string username)
+        {
+            try
+            {
+                foreach (var a in Mission.Current.Agents)
+                {
+                    if (a == null || !a.IsHuman || !a.IsActive()) continue;
+                    var hero = (a.Character as CharacterObject)?.HeroObject;
+                    if (hero?.Name == null) continue;
+                    var extracted = BannerlordLink.Util.HeroNaming.ExtractUsername(hero.Name.ToString());
+                    if (string.Equals(extracted, username, StringComparison.OrdinalIgnoreCase))
+                        return a;
+                }
+            }
+            catch { }
+            return null;
         }
 
         protected override void OnEndMission()

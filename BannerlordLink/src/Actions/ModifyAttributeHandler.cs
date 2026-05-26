@@ -38,6 +38,16 @@ namespace BannerlordLink.Actions
             {
                 try
                 {
+                    // Sprint 5.28: nельзя менять attribute во время Mission
+                    // (engine native crash). См. AddAttributeHandler comment.
+                    if (TaleWorlds.MountAndBlade.Mission.Current != null)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[modify_attribute] @{username}: skip — нельзя во " +
+                            "время Mission (engine crash risk)");
+                        return;
+                    }
+
                     var hero = HeroLookup.FindByUsername(username);
                     if (hero == null || !hero.IsAlive)
                     {

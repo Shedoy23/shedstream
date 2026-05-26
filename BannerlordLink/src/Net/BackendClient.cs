@@ -116,11 +116,39 @@ namespace BannerlordLink.Net
 
             string envelopeId = Guid.NewGuid().ToString("N");
             long ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            string body = string.Format(
-                "{{\"channel_id\":{0},\"envelopes\":[{{" +
-                "\"id\":\"{1}\",\"kind\":\"event\",\"type\":\"{2}\",\"ts\":{3},\"data\":{4}" +
-                "}}]}}",
-                _config.ChannelId, envelopeId, eventType, ts, dataJson);
+            // Sprint 5.31 #45e (audit MED-4) — раньше string.Format'или JSON
+            // руками. eventType с " или \ ломал envelope; dataJson мог
+            // быть уже-сериализованным (через JsonConvert) или ручным
+            // (с разным escaping) → inconsistency. Теперь:
+            //   1. eventType serialized через JsonConvert (escape гарантирован)
+            //   2. data — pre-serialized raw JSON; чтобы вставить без двойного
+            //      escape, парсим в JToken и кладём в anon object'ный wrap.
+            Newtonsoft.Json.Linq.JToken parsedData;
+            try
+            {
+                parsedData = Newtonsoft.Json.Linq.JToken.Parse(
+                    string.IsNullOrEmpty(dataJson) ? "{}" : dataJson);
+            }
+            catch (Exception ex)
+            {
+                _log($"PostEvent {eventType} — bad dataJson, skipping: {ex.Message}");
+                return false;
+            }
+            string body = Newtonsoft.Json.JsonConvert.SerializeObject(new
+            {
+                channel_id = _config.ChannelId,
+                envelopes = new[]
+                {
+                    new
+                    {
+                        id = envelopeId,
+                        kind = "event",
+                        type = eventType,
+                        ts = ts,
+                        data = parsedData,
+                    },
+                },
+            });
 
             string response = await PostJsonAsync($"/v1/module/{moduleId}/events", body);
             if (response == null) return false;

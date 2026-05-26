@@ -105,6 +105,27 @@ namespace BannerlordLink.Net
             _buffs.Clear();
         }
 
+        /// <summary>Sprint 5.30 #41 — snapshot active buffs как list of
+        /// (username, powerKey) для periodic visual tick в PowersMissionBehavior.
+        /// Не возвращает expired/value — только enumeration. ExpiresAt comparado
+        /// с Mission.Current.CurrentTime (тот же scale что в Activate/GetValue).</summary>
+        public static System.Collections.Generic.List<(string username, string powerKey)>
+            SnapshotActive()
+        {
+            var list = new System.Collections.Generic.List<(string, string)>();
+            if (Mission.Current == null) return list;
+            float now = Mission.Current.CurrentTime;
+            foreach (var userKvp in _buffs)
+            {
+                foreach (var buffKvp in userKvp.Value)
+                {
+                    if (now < buffKvp.Value.ExpiresAt)
+                        list.Add((userKvp.Key, buffKvp.Key));
+                }
+            }
+            return list;
+        }
+
         // Fire-and-forget event push. Backend хранит in-memory dict для
         // /api/bannerlord/my-buffs (frontend HUD). Manifest extensions.events
         // декларирует buff.activated / buff.expired (Sprint 4.6).

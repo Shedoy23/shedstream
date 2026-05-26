@@ -1264,8 +1264,157 @@ function switchIntegrationModule(activeModule) {
     }
 }
 
+// Sprint 5.32 #46 — daily rewards. 1 раз в день (UTC) viewer выбирает либо
+// 100K💰 динаров либо 50K XP в random skill. Increments engagement (открытие
+// расширения раз в день за бонусом).
+async function loadBannerlordDaily() {
+    const slot = document.getElementById('bnr-daily-slot');
+    if (!slot) return;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/daily-status`, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
+        const d = await r.json();
+        if (!d || !d.success) { slot.innerHTML = ''; return; }
+        const goldAmt = (d.reward_amounts?.gold || 100000).toLocaleString('ru-RU');
+        const xpAmt   = (d.reward_amounts?.xp   || 50000).toLocaleString('ru-RU');
+        if (d.can_claim) {
+            slot.innerHTML = `
+                <div style="background:linear-gradient(135deg,#3a2a0a,#2a200a);
+                            border:1px solid #92400e;border-radius:6px;padding:8px 10px;">
+                    <div style="font-size:11px;color:#fbbf24;font-weight:700;margin-bottom:6px;
+                                display:flex;align-items:center;gap:4px;">
+                        🎁 Дейлик доступен! Выбери награду:
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+                        <button class="extra-btn" id="bnr-daily-claim-gold"
+                                title="Получить ${goldAmt}💰 динаров (Hero.Gold)"
+                                style="font-size:11px;padding:8px 4px;
+                                       background:#3a2a0a;color:#fbbf24;font-weight:700;
+                                       border:1px solid #b45309;">
+                            💰 +${goldAmt} динаров
+                        </button>
+                        <button class="extra-btn" id="bnr-daily-claim-xp"
+                                title="Получить ${xpAmt} XP в случайный скилл (class-weighted)"
+                                style="font-size:11px;padding:8px 4px;
+                                       background:#1e3a5f;color:#93c5fd;font-weight:700;
+                                       border:1px solid #1d4ed8;">
+                            📚 +${xpAmt} XP
+                        </button>
+                    </div>
+                </div>`;
+            slot.querySelector('#bnr-daily-claim-gold')?.addEventListener('click',
+                () => _claimDailyReward('gold'));
+            slot.querySelector('#bnr-daily-claim-xp')?.addEventListener('click',
+                () => _claimDailyReward('xp'));
+        } else {
+            const lastRew = d.last_reward_type === 'gold'
+                ? `💰 ${goldAmt} динаров`
+                : `📚 ${xpAmt} XP`;
+            slot.innerHTML = `
+                <div style="background:rgba(58,42,10,0.3);border:1px solid #3d3d3f;
+                            border-radius:6px;padding:7px 10px;font-size:11px;
+                            color:#9ca3af;">
+                    🎁 Сегодня уже забрал: <span style="color:#fbbf24;">${lastRew}</span>.
+                    <span style="font-size:10px;display:block;margin-top:2px;">
+                        Возвращайся завтра в 00:00 UTC за новым дейликом.
+                    </span>
+                </div>`;
+        }
+    } catch (e) { dbg('[BNR daily] failed', e); }
+}
+
+async function _claimDailyReward(rewardType) {
+    const goldBtn = document.getElementById('bnr-daily-claim-gold');
+    const xpBtn   = document.getElementById('bnr-daily-claim-xp');
+    if (goldBtn) goldBtn.disabled = true;
+    if (xpBtn)   xpBtn.disabled = true;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/daily-claim`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Twitch-JWT': authToken || '',
+            },
+            body: JSON.stringify({ reward_type: rewardType }),
+        });
+        const d = await r.json();
+        showNotification(d.message || (d.success ? 'OK' : 'Ошибка'), d.success ? 'success' : 'error');
+    } catch (e) {
+        showNotification('Ошибка сети', 'error');
+    }
+    // Re-load status (показывает "уже забрал" state).
+    loadBannerlordDaily();
+    // Refresh hero для отображения gold/level updates когда мод применит.
+    setTimeout(loadBannerlordHero, 1500);
+}
+
+// Sprint 5.32 (BLT-parity FE-M2) — heir queue display.
+// Backend `hero.heir_came_of_age` event пушит ребёнка adopted hero'я в очередь.
+// На death героя backend auto-pick first alive heir (M2.1 ActivateHeirHandler).
+// Frontend показывает кому-то в очереди наследники — пользователь видит
+// continuity своего рода.
+async function loadBannerlordHeirs() {
+    const slot = document.getElementById('bnr-heir-slot');
+    if (!slot) return;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/heirs`, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
+        const d = await r.json();
+        if (!d || !d.success || !Array.isArray(d.heirs) || d.heirs.length === 0) {
+            slot.innerHTML = '';
+            return;
+        }
+        // Sprint 5.32 (LOG-4) — info log при non-empty heirs. Silent на 0
+        // (большинство пользователей без heirs, не спамим).
+        console.info('[FE-HEIR] loaded', d.heirs.length, 'heirs:',
+                     d.heirs.map(h => h.name).join(', '));
+        const names = d.heirs.map(h => escapeHtml(h.name || '?')).join(', ');
+        // Truncate если очень длинный.
+        const namesDisplay = names.length > 80 ? names.slice(0, 78) + '…' : names;
+        slot.innerHTML = `
+            <div style="background:#1a1a2e;border:1px solid #5b21b6;border-radius:4px;
+                        padding:6px 8px;font-size:11px;color:#c084fc;"
+                 title="На смерть героя первый из списка автоматически унаследует имя [BLink] и стартанёт с прокачанным уровнем + clan.">
+                🕯 <b>Наследников: ${d.heirs.length}</b>
+                <span style="color:#a78bfa;">${namesDisplay}</span>
+            </div>`;
+    } catch (e) {
+        console.warn('[FE-M2] loadHeirs failed', e);
+        slot.innerHTML = '';
+    }
+}
+
+// Sprint 5.32 — inner tab switcher. 4 panes: hero / inventory / combat / progression.
+// Состояние persisted в localStorage чтобы при reopen extension вернуться туда же.
+function _setBnrInnerTab(tab) {
+    const valid = ['combat', 'hero', 'inventory', 'progression'];
+    if (!valid.includes(tab)) tab = 'combat';
+    document.querySelectorAll('.bnr-tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.bnrTab === tab);
+    });
+    document.querySelectorAll('.bnr-tab-pane').forEach(pane => {
+        pane.classList.toggle('active', pane.dataset.bnrPane === tab);
+    });
+    try { localStorage.setItem('bnr_active_tab', tab); } catch (e) {}
+}
+
+function _bindBnrInnerTabs() {
+    document.querySelectorAll('.bnr-tab-btn').forEach(btn => {
+        if (btn.dataset.bnrBound) return;  // idempotent
+        btn.dataset.bnrBound = '1';
+        btn.addEventListener('click', () => _setBnrInnerTab(btn.dataset.bnrTab));
+    });
+    // Restore tab из last session. Sprint 5.32 (revised): default = combat.
+    let saved = 'combat';
+    try { saved = localStorage.getItem('bnr_active_tab') || 'combat'; } catch (e) {}
+    _setBnrInnerTab(saved);
+}
+
 function _startBannerlordPolling() {
     if (_bannerlordPollId) return;
+    _bindBnrInnerTabs();
     loadBannerlordHero();
     loadBannerlordShop();
     loadBannerlordStatus();
@@ -1273,6 +1422,9 @@ function _startBannerlordPolling() {
     loadBannerlordBuffs();
     loadBannerlordTournament();
     loadBannerlordBattleStatus();
+    // Sprint 5.32 #46 — daily reward status. Один раз на startup + после
+    // каждого re-render hero pane (через chain inside renderBannerlordHero).
+    loadBannerlordDaily();
     // Sprint 5.31 #45e (audit MED-10) — все 4 интервала обёрнуты в
     // safeInterval. Раньше использовали raw setInterval — на cleanupAllTimers()
     // (закрытие страницы / Twitch helper teardown) эти 4 ID не были
@@ -1360,8 +1512,33 @@ function renderBannerlordClassPicker() {
         ? ''
         : '<option value="" disabled selected>— выбери класс —</option>';
 
+    // Sprint 5.32 — class progression info (level 1/2/3 from primary skill).
+    // primary_skill_level показывает текущее значение, next_threshold — что
+    // нужно достичь для следующего уровня класса.
+    let progressionHtml = '';
+    if (current && current.class_level) {
+        const cl = current.class_level;
+        const ps = current.primary_skill;
+        const psLevel = current.primary_skill_level || 0;
+        const nextT = current.next_threshold;
+        const stars = '★'.repeat(cl) + '☆'.repeat(3 - cl);
+        const progress = nextT
+            ? `${ps} ${psLevel}/${nextT} → lvl ${cl + 1}`
+            : `${ps} ${psLevel} (MAX)`;
+        progressionHtml = `
+            <div style="margin-top:4px;font-size:10px;color:#adadb8;
+                        background:rgba(251,191,36,0.05);border-radius:4px;
+                        padding:4px 8px;display:flex;justify-content:space-between;
+                        align-items:center;gap:6px;">
+                <span><span style="color:#fbbf24;">${stars}</span> класс lvl ${cl}</span>
+                <span style="color:#9ca3af;font-size:9px;" title="Качай ${ps} чтобы апгрейднуть class lvl и усилить активки. Bow / Riding / OneHanded / TwoHanded / Polearm в зависимости от класса.">
+                    ${escapeHtml(progress)}
+                </span>
+            </div>`;
+    }
+
     slot.innerHTML = `
-        <div style="display:flex;align-items:center;gap:6px;margin-top:8px;margin-bottom:6px;">
+        <div style="display:flex;align-items:center;gap:6px;margin-top:8px;margin-bottom:4px;">
             <span style="font-size:11px;color:#adadb8;white-space:nowrap;">🎖️ Класс:</span>
             <select id="bnr-class-select"
                     style="flex:1;background:#2d2d2f;color:#efeff1;border:1px solid #3d3d3f;
@@ -1371,6 +1548,7 @@ function renderBannerlordClassPicker() {
                 ${optionsHtml}
             </select>
         </div>
+        ${progressionHtml}
     `;
 
     const sel = document.getElementById('bnr-class-select');
@@ -1389,10 +1567,23 @@ function renderBannerlordClassPicker() {
 // Sprint 4.7 — active power buttons (heal_burst + class-specific actives).
 function renderBannerlordActivePowers() {
     const slot = document.getElementById('bnr-active-powers-slot');
-    if (!slot) return;
-    if (!_bannerlordClassesCache) { slot.innerHTML = ''; return; }
+    if (!slot) {
+        dbg('[BNR activePowers] slot не найден в DOM');
+        return;
+    }
+    if (!_bannerlordClassesCache) {
+        dbg('[BNR activePowers] _bannerlordClassesCache не загружен');
+        slot.innerHTML = '';
+        return;
+    }
     const powers = _bannerlordClassesCache.current_powers || [];
-    if (!powers.length) { slot.innerHTML = ''; return; }
+    dbg('[BNR activePowers] received', powers.length, 'powers:', powers);
+    if (!powers.length) {
+        slot.innerHTML = `<div style="font-size:11px;color:#9ca3af;margin:8px 0;text-align:center;">
+            Способности появятся после выбора класса (Прокачка → Класс)
+        </div>`;
+        return;
+    }
 
     // Disabled state: если active buff с тем же power_key бежит (4.6) ИЛИ
     // cooldown ещё не истёк (4.8) — нельзя активировать. UX-only check,
@@ -2094,13 +2285,19 @@ function _openBannerlordClanModal() {
                 overlay.remove();
                 _openBannerlordJoinDialog('clan');
             });
-            overlay.querySelector('#bnr-clan-modal-leave')?.addEventListener('click', () => {
-                if (!confirm('Ты уверен что хочешь покинуть клан? Hero станет wanderer\'ом.')) return;
+            overlay.querySelector('#bnr-clan-modal-leave')?.addEventListener('click', async () => {
+                if (!await _bnrConfirm(
+                    'Ты уверен что хочешь покинуть клан? Hero станет wanderer\'ом.',
+                    '🚪 Покинуть'
+                )) return;
                 _bannerlordBuyAction('hero.leave_clan', {});
                 overlay.remove();
             });
-            overlay.querySelector('#bnr-clan-modal-create-party')?.addEventListener('click', () => {
-                if (!confirm('Создать MobileParty? Hero появится на карте как AI lord. Списать 200K💰 динаров + добавит retinue в roster.')) return;
+            overlay.querySelector('#bnr-clan-modal-create-party')?.addEventListener('click', async () => {
+                if (!await _bnrConfirm(
+                    'Создать MobileParty? Hero появится на карте как AI lord. Списать 200K💰 динаров + добавит retinue в roster.',
+                    '⚔ Создать'
+                )) return;
                 _bannerlordBuyAction('hero.create_party', {});
                 overlay.remove();
             });
@@ -2360,7 +2557,7 @@ async function _openBannerlordAuctionsModal() {
             overlay.querySelectorAll('.bnr-auction-cancel').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     const id = parseInt(btn.dataset.auctionId, 10);
-                    if (!confirm('Отменить свой аукцион?')) return;
+                    if (!await _bnrConfirm('Отменить свой аукцион?', 'Отменить')) return;
                     try {
                         const r = await fetch(`${API_URL}/api/bannerlord/auctions/cancel`, {
                             method: 'POST',
@@ -2532,7 +2729,7 @@ async function _openBannerlordForgeModal() {
             overlay.querySelectorAll('.bnr-discard-item').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     const id = parseInt(btn.dataset.itemId, 10);
-                    if (!confirm('Дискарди трофей? Безвозвратно.')) return;
+                    if (!await _bnrConfirm('Дискарди трофей? Безвозвратно.', '🗑 Уничтожить')) return;
                     try {
                         const r = await fetch(`${API_URL}/api/bannerlord/custom-items/discard`, {
                             method: 'POST',
@@ -2695,26 +2892,39 @@ function _openBannerlordProfileModal() {
         body,
         bind: overlay => {
             overlay.querySelectorAll('[data-gender-set]').forEach(btn => {
-                btn.addEventListener('click', () => {
+                btn.addEventListener('click', async () => {
                     const newGender = btn.dataset.genderSet;
-                    if (!confirm(`Сменить пол на ${newGender === 'female' ? 'женский ♀' : 'мужской ♂'}? Спишет 50K💰.`)) return;
+                    if (!await _bnrConfirm(
+                        `Сменить пол на ${newGender === 'female' ? 'женский ♀' : 'мужской ♂'}? Спишет 50K💰.`,
+                        'Сменить'
+                    )) return;
                     _bannerlordBuyAction('hero.set_gender', {gender: newGender});
                     overlay.remove();
                 });
             });
-            overlay.querySelector('#bnr-marry-btn')?.addEventListener('click', () => {
-                if (!confirm('Engine выберет случайную подходящую NPC. Спишет 50K💰. Продолжить?')) return;
-                _bannerlordBuyAction('hero.marry', {});
+            overlay.querySelector('#bnr-marry-btn')?.addEventListener('click', async () => {
+                if (!await _bnrConfirm(
+                    'Engine выберет случайную подходящую NPC. Спишет 50K💰. Продолжить?',
+                    '💍 Жениться'
+                )) return;
+                // Sprint 5.32 UX — await action чтобы пользователь увидел
+                // backend сообщение (cooldown, "уже в браке" etc) ДО закрытия
+                // модала. Раньше fire-and-forget → notification мог
+                // промелькнуть и пропасть незамеченным.
+                await _bannerlordBuyAction('hero.marry', {});
                 overlay.remove();
             });
-            overlay.querySelector('#bnr-divorce-btn')?.addEventListener('click', () => {
-                if (!confirm('Развод бесплатный. Точно?')) return;
-                _bannerlordBuyAction('hero.divorce', {});
+            overlay.querySelector('#bnr-divorce-btn')?.addEventListener('click', async () => {
+                if (!await _bnrConfirm('Развод бесплатный. Точно?', '💔 Развестись')) return;
+                await _bannerlordBuyAction('hero.divorce', {});
                 overlay.remove();
             });
             // Sprint 5.27c: make baby
-            overlay.querySelector('#bnr-make-baby-btn')?.addEventListener('click', () => {
-                if (!confirm('Зачатие — 100K💰. Через ~36 in-game дней появится ребёнок.\nПродолжить?')) return;
+            overlay.querySelector('#bnr-make-baby-btn')?.addEventListener('click', async () => {
+                if (!await _bnrConfirm(
+                    'Зачатие — 100K💰. Через ~36 in-game дней появится ребёнок. Продолжить?',
+                    '👶 Зачать'
+                )) return;
                 _bannerlordBuyAction('hero.make_baby', {});
                 overlay.remove();
             });
@@ -2888,8 +3098,11 @@ function _openBannerlordKingdomModal() {
                 overlay.remove();
                 _openBannerlordJoinDialog('kingdom');
             });
-            overlay.querySelector('#bnr-kingdom-modal-leave')?.addEventListener('click', () => {
-                if (!confirm('Ты уверен что хочешь покинуть королевство? Clan станет независимым.')) return;
+            overlay.querySelector('#bnr-kingdom-modal-leave')?.addEventListener('click', async () => {
+                if (!await _bnrConfirm(
+                    'Ты уверен что хочешь покинуть королевство? Clan станет независимым.',
+                    '🚪 Покинуть'
+                )) return;
                 _bannerlordBuyAction('hero.leave_kingdom', {});
                 overlay.remove();
             });
@@ -2904,6 +3117,48 @@ function _openBannerlordKingdomModal() {
 // Если нужно вернуть — git log по этому файлу до 2026-05-25.
 
 // Common modal shell — для clan / kingdom management.
+// Sprint 5.32 BUGFIX — `window.confirm()` тихо подавляется в sandboxed Twitch
+// Extension iframe (без allow-modals в sandbox attr) и всегда возвращает false.
+// Каждый `if (!confirm(...)) return;` блокировал hero.marry / divorce /
+// set_gender / leave_clan / create_party / make_baby / heir respawn etc.
+// Этот helper — drop-in замена: показывает HTML-overlay с Да/Нет,
+// resolve'ит promise по клику. Используем await pattern в caller'ах.
+function _bnrConfirm(message, confirmLabel = 'Да', cancelLabel = 'Отмена') {
+    return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);' +
+            'display:flex;align-items:center;justify-content:center;z-index:99999;padding:10px;';
+        overlay.innerHTML = `
+            <div style="background:#18181b;border:1px solid #3d3d3f;border-radius:8px;
+                        padding:18px;max-width:340px;width:100%;">
+                <div style="font-size:13px;color:#efeff1;margin-bottom:14px;line-height:1.4;
+                            white-space:pre-line;">
+                    ${escapeHtml(message)}
+                </div>
+                <div style="display:flex;gap:8px;">
+                    <button id="bnr-confirm-cancel" class="extra-btn"
+                            style="flex:1;font-size:12px;padding:8px;
+                                   background:#3d3d3f;color:#efeff1;">
+                        ${escapeHtml(cancelLabel)}
+                    </button>
+                    <button id="bnr-confirm-ok" class="extra-btn"
+                            style="flex:2;font-size:12px;padding:8px;
+                                   background:#7c2d12;color:#fbbf24;font-weight:700;">
+                        ${escapeHtml(confirmLabel)}
+                    </button>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+        const close = (val) => { try { overlay.remove(); } catch (e) {} resolve(val); };
+        overlay.querySelector('#bnr-confirm-ok')?.addEventListener('click', () => close(true));
+        overlay.querySelector('#bnr-confirm-cancel')?.addEventListener('click', () => close(false));
+        // Click outside dialog = cancel.
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) close(false);
+        });
+    });
+}
+
 function _bnrShowSimpleModal({ title, body, bind }) {
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);' +
@@ -3232,10 +3487,97 @@ async function loadBannerlordBattleStatus() {
         }
         _bannerlordWasInBattle = !!data.in_battle;
         _renderBannerlordBattleBanner(data);
+        // Sprint 5.32 (BLT-parity DET-4) — render detachment commands если
+        // viewer в активном Mission'е (alive=true). Иначе hide secion.
+        _renderBannerlordDetachmentPanel(data);
     } catch (e) {
         // Sprint 5.29 audit fix #36: silent → warn
         console.warn('[BNR loadBannerlordBattleStatus]', e);
     }
+}
+
+// Sprint 5.32 (BLT-parity DET-4) — Detachment-команды для viewer'а в Mission.
+// 6 кнопок: detach/attach + hold/charge + walls/gate. Caller — кнопка → POST
+// `hero.detach_X` action → backend pricing → mod handler → HeroDetachmentBehavior.
+//
+// Disabled state если viewer не alive в текущей mission (`data.my_stats.alive`).
+function _renderBannerlordDetachmentPanel(battleData) {
+    const slot = document.getElementById('bnr-detachment-slot');
+    if (!slot) return;
+    const alive = !!(battleData && battleData.in_battle
+                     && battleData.my_stats && battleData.my_stats.alive);
+    // Если не в бою / не alive → не рендерим panel. Reduce clutter.
+    if (!alive) {
+        // Sprint 5.32 (LOG-4) — log только при transition (panel был — стал hidden).
+        if (slot.innerHTML !== '') {
+            console.info('[FE-DET] panel HIDE (alive=false or not in_battle)');
+        }
+        slot.innerHTML = '';
+        return;
+    }
+    // Sprint 5.32 (LOG-4) — log при first render (panel пустой → станет filled).
+    const wasEmpty = slot.innerHTML === '';
+    if (wasEmpty) {
+        console.info('[FE-DET] panel SHOW (battle started, viewer alive)');
+    }
+    slot.innerHTML = `
+        <div style="font-size:12px;color:#fbbf24;font-weight:700;margin-bottom:6px;
+                    border-top:1px solid #3d3d3f;padding-top:8px;">
+            🎯 Команды отряда
+            <span style="font-size:10px;color:#9ca3af;font-weight:normal;
+                         margin-left:6px;">(управляй своим героем в бою)</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;
+                    font-size:11px;">
+            <button class="extra-btn bnr-det-btn" data-det-act="hero.detach_hold"
+                    data-det-cost="30"
+                    title="Стоять на текущей позиции. Полезно archer'ам — sniper-mode не отступает."
+                    style="background:#1e3a8a;color:#bfdbfe;padding:6px;">
+                ⛔ Стоять (30⦷)
+            </button>
+            <button class="extra-btn bnr-det-btn" data-det-act="hero.detach_charge"
+                    data-det-cost="30"
+                    title="Бежать на ближайшее enemy formation. Berserk'и заходят первыми, ломают фронт."
+                    style="background:#7c1d1d;color:#fecaca;padding:6px;">
+                ⚔ В атаку (30⦷)
+            </button>
+            <button class="extra-btn bnr-det-btn" data-det-act="hero.attach"
+                    data-det-cost="10"
+                    title="Вернуть hero в parent formation стримера. Подчиняется AI commander снова."
+                    style="background:#1f4a35;color:#a7f3d0;padding:6px;">
+                🔄 В строй (10⦷)
+            </button>
+            <button class="extra-btn bnr-det-btn" data-det-act="hero.detach_walls"
+                    data-det-cost="30"
+                    title="🏰 Siege only: лезть на стены/лестницы/башни. Archer'ам — defense top."
+                    style="background:#3d2e0a;color:#fde68a;padding:6px;">
+                🪜 К стенам (30⦷)
+            </button>
+            <button class="extra-btn bnr-det-btn" data-det-act="hero.detach_gate"
+                    data-det-cost="30"
+                    title="🏰 Siege only: к ближайшим воротам / баррикаде. Tank'ам — открыть gate."
+                    style="background:#3d1e0a;color:#fdba74;padding:6px;">
+                🚪 К воротам (30⦷)
+            </button>
+            <button class="extra-btn bnr-det-btn" data-det-act="hero.detach"
+                    data-det-cost="10"
+                    title="Выйти из строя в собственный отряд. После — выбери одну из 4 команд выше. Также авто-detach при любой из выше команд."
+                    style="background:#2d2d2f;color:#d1d5db;padding:6px;">
+                🚶 Отделиться (10⦷)
+            </button>
+        </div>`;
+    // Bind handlers — каждая кнопка POST'ит свой action.
+    slot.querySelectorAll('.bnr-det-btn').forEach(btn => {
+        btn.addEventListener('click', async (ev) => {
+            const act = btn.dataset.detAct;
+            const cost = parseInt(btn.dataset.detCost || '0', 10);
+            if (!act) return;
+            // Sprint 5.32 (LOG-4) — log на click чтобы в DevTools видеть
+            // последовательность нажатий: '[FE-DET] click hero.detach_charge cost=30'
+            console.info('[FE-DET] click', act, 'cost=' + cost);
+            await _bannerlordBuyAction(act, { price: cost });
+        });
+    });
 }
 
 function _renderBannerlordBattleBanner(data) {
@@ -3572,17 +3914,30 @@ async function loadBannerlordHero() {
                 </div>`;
             const respawnBtn = document.getElementById('bnr-heir-respawn');
             if (respawnBtn) {
-                respawnBtn.addEventListener('click', () => {
-                    if (!confirm('Возродить героя? Новый wanderer от 0 уровня (имя то же).')) return;
+                respawnBtn.addEventListener('click', async () => {
+                    if (!await _bnrConfirm(
+                        'Возродить героя? Новый wanderer от 0 уровня (имя то же).',
+                        '🕯️ Возродить'
+                    )) return;
                     _bannerlordBuyAction('hero.create', { price: 0 });
                 });
             }
             return;
         }
 
-        const aliveBadge = h.is_alive
-            ? `<span style="color:#34d399;">●&nbsp;жив</span>`
-            : `<span style="color:#f87171;">💀&nbsp;мёртв</span>`;
+        // Sprint 5.32 — 4-state badge:
+        //   💚 жив        — IsAlive=true, IsWounded=false (active)
+        //   🟡 ранен в бою — IsAlive=true, IsWounded=true (KO'd, восстановится)
+        //   ⛓ в плену     — IsPrisoner=true (orthogonal flag, может быть alive+prisoner)
+        //   💀 мёртв      — IsAlive=false (permanent death, триггер "Создать нового")
+        let aliveBadge;
+        if (!h.is_alive) {
+            aliveBadge = `<span style="color:#f87171;">💀&nbsp;мёртв</span>`;
+        } else if (h.is_wounded) {
+            aliveBadge = `<span style="color:#fbbf24;" title="Ранен в бою — оживёт через несколько дней. Не permanent death.">🟡&nbsp;ранен</span>`;
+        } else {
+            aliveBadge = `<span style="color:#34d399;">●&nbsp;жив</span>`;
+        }
         const prisonerBadge = h.is_prisoner
             ? ` <span style="color:#fbbf24;">⛓ в плену</span>` : '';
 
@@ -3682,78 +4037,119 @@ async function loadBannerlordHero() {
             : `<span style="color:#efeff1;">🪖${totalHead} 👕${totalBody} 👢${totalLeg} 💪${totalArm}</span>` +
               (armorAvgTier ? ` <span style="color:#fbbf24;">~T${armorAvgTier}</span>` : '');
 
+        // Sprint 5.32 — content split на 4 panes + always-visible header.
+        // Header (#hero-body): name + status + culture + location (compact).
         body.innerHTML = `
-            <div style="padding:8px;">
-                <div style="font-weight:700;font-size:15px;margin-bottom:2px;">
-                    ${escapeHtml(h.display_name || '—')}
+            <div style="font-weight:700;font-size:14px;line-height:1.2;
+                        overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                ${escapeHtml(h.display_name || '—')}
+            </div>
+            <div style="font-size:11px;color:#adadb8;margin-top:2px;">
+                ${aliveBadge}${prisonerBadge}${h.culture ? ' · ' + escapeHtml(h.culture) : ''}${h.location ? ' · 📍 ' + escapeHtml(h.location) : ''}
+            </div>`;
+
+        // 🛡 Герой pane — stats grid + daily reward + profile button.
+        // Sprint 5.32 (revised) — battle banner перенесён в Combat pane.
+        // Sprint 5.32 #46 — daily reward slot для виральности.
+        const paneHero = document.getElementById('bnr-pane-hero-body');
+        if (paneHero) paneHero.innerHTML = `
+            <div style="padding:6px;">
+                <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 10px;
+                            font-size:12px;margin-bottom:10px;align-items:center;">
+                    <span style="color:#adadb8;">💰 Динары:</span>
+                    <span style="color:#fbbf24;font-weight:700;">${(h.gold || 0).toLocaleString('ru-RU')}</span>
+                    <span style="color:#adadb8;">⭐ Уровень:</span>
+                    <span style="color:#efeff1;font-weight:700;">${h.level || 1}</span>
+                    <span style="color:#adadb8;">🛡 Снаряжение:</span>
+                    <span style="color:#efeff1;font-weight:700;">${gearTierLabel}</span>
+                    <span style="color:#adadb8;">🏰 Клан:</span>
+                    <span style="color:#efeff1;">${clanLabel}</span>
+                    <span style="color:#adadb8;">👑 Королевство:</span>
+                    <span style="color:#efeff1;">${kingdomLabel}</span>
+                    <span style="color:#adadb8;">🛡 Броня:</span>
+                    <span>${armorLabel}</span>
+                    ${(h.tournament_wins || 0) > 0 ? `
+                        <span style="color:#adadb8;">🏆 Турниры:</span>
+                        <span style="color:#fbbf24;font-weight:700;" title="Wins за всю историю канала. Note: ×0.7-0.85 HP penalty в next турнире — анти-сноубол.">${h.tournament_wins}${h.tournament_wins >= 3 ? ' <span style="font-size:10px;color:#fb923c;">ветеран</span>' : ''}</span>
+                    ` : ''}
                 </div>
-                <div style="font-size:11px;color:#adadb8;margin-bottom:8px;">
-                    ${aliveBadge}${prisonerBadge}
-                    ${h.culture ? ' · ' + escapeHtml(h.culture) : ''}
-                    ${h.location ? ' · 📍 ' + escapeHtml(h.location) : ''}
-                </div>
-                <div style="display:grid;grid-template-columns:auto auto;gap:4px 8px;
-                            font-size:12px;margin-bottom:8px;justify-content:start;
-                            text-align:left;">
-                    <span style="color:#adadb8;text-align:left;">💰 Динары:</span>
-                    <span style="color:#fbbf24;font-weight:700;text-align:left;">${(h.gold || 0).toLocaleString('ru-RU')}</span>
-                    <span style="color:#adadb8;text-align:left;">⭐ Уровень:</span>
-                    <span style="color:#efeff1;font-weight:700;text-align:left;">${h.level || 1}</span>
-                    <span style="color:#adadb8;text-align:left;">🛡 Снаряжение:</span>
-                    <span style="color:#efeff1;font-weight:700;text-align:left;">${gearTierLabel}</span>
-                    <span style="color:#adadb8;text-align:left;">🏰 Клан:</span>
-                    <span style="color:#efeff1;text-align:left;">${clanLabel}</span>
-                    <span style="color:#adadb8;text-align:left;">👑 Королевство:</span>
-                    <span style="color:#efeff1;text-align:left;">${kingdomLabel}</span>
-                    <span style="color:#adadb8;text-align:left;">🛡 Броня:</span>
-                    <span style="text-align:left;">${armorLabel}</span>
-                </div>
-                <div id="bnr-battle-banner-slot"></div>
-                <div id="bnr-buff-hud"></div>
-                <div id="hero-class-picker-slot"></div>
-                <div id="bnr-active-powers-slot"></div>
-                <div id="bnr-summon-slot"></div>
-                <button class="extra-btn" id="bnr-open-progression-btn"
-                        title="Все скиллы с focus stars + 6 атрибутов"
-                        style="width:100%;font-size:11px;padding:6px;margin-bottom:6px;">
-                    🎯 Прогрессия — скиллы / фокусы / атрибуты
-                </button>
+                <div id="bnr-daily-slot" style="margin-bottom:8px;"></div>
+                <div id="bnr-heir-slot" style="margin-bottom:8px;"></div>
                 <button class="extra-btn" id="bnr-open-profile-btn"
                         title="Семейные настройки: смена пола, брак, дети"
-                        style="width:100%;font-size:11px;padding:6px;margin-bottom:6px;
-                               background:#1f1a30;color:#c084fc;">
+                        style="width:100%;font-size:12px;padding:8px;margin-top:4px;
+                               background:#1f1a30;color:#c084fc;font-weight:700;
+                               border:1px solid #5b21b6;">
                     🧬 Профиль и семья
                 </button>
+            </div>`;
+
+        // 🎒 Инвентарь pane — Экипировка + Свита + Достижения + Кузница + Аукционы.
+        const paneInv = document.getElementById('bnr-pane-inventory-body');
+        if (paneInv) paneInv.innerHTML = `
+            <div style="padding:6px;">
+                <div style="font-size:12px;color:#fbbf24;font-weight:700;margin-bottom:6px;">
+                    🎽 Экипировка
+                </div>
+                <div style="margin-bottom:10px;">${eqHtml}</div>
+                <div id="bnr-retinue-slot" style="margin-bottom:10px;"></div>
                 <button class="extra-btn" id="bnr-open-achievements-btn"
                         title="Список достижений: убийства / турниры / прогрессия / семья"
-                        style="width:100%;font-size:11px;padding:6px;margin-bottom:6px;
-                               background:#3a2a0a;color:#fbbf24;">
+                        style="width:100%;font-size:12px;padding:8px;margin-bottom:6px;
+                               background:#3a2a0a;color:#fbbf24;font-weight:700;
+                               border:1px solid #92400e;">
                     🏆 Достижения
                 </button>
                 <button class="extra-btn" id="bnr-open-forge-btn"
                         title="Куй уникальные трофеи: оружие, броню, коней. Random rarity."
-                        style="width:100%;font-size:11px;padding:6px;margin-bottom:6px;
-                               background:#2a1a0a;color:#fb923c;">
+                        style="width:100%;font-size:12px;padding:8px;margin-bottom:6px;
+                               background:#2a1a0a;color:#fb923c;font-weight:700;
+                               border:1px solid #9a3412;">
                     🔨 Кузница (трофеи)
                 </button>
-                <!-- Sprint 5.31 #45b: Boosty admin перенесён на /streamer/dashboard
-                     (https://shedoy23.ru/streamer/dashboard). Кнопка из расширения убрана. -->
                 <button class="extra-btn" id="bnr-open-auctions-btn"
                         title="Активные аукционы — бид крустиками или выставь свой трофей"
-                        style="width:100%;font-size:11px;padding:6px;margin-bottom:6px;
-                               background:#2a200a;color:#fbbf24;">
+                        style="width:100%;font-size:12px;padding:8px;
+                               background:#2a200a;color:#fbbf24;font-weight:700;
+                               border:1px solid #92400e;">
                     ⚖ Аукционы
                 </button>
-                <details data-bnr-details="equipment" ${_bnrDetailsAttr('equipment')}>
-                    <summary style="font-size:11px;color:#adadb8;cursor:pointer;">Экипировка</summary>
-                    <div style="margin-top:4px;">${eqHtml}</div>
-                </details>
-                <div id="bnr-retinue-slot"></div>
+            </div>`;
+
+        // ⚔ Бой pane — battle banner (HP / kills / gold / XP) + buffs + powers + summon.
+        // Sprint 5.32 (revised) — battle banner здесь (раньше был в Hero pane).
+        // Это первая видимая вкладка → viewer сразу видит боевой статус.
+        const paneCombat = document.getElementById('bnr-pane-combat-body');
+        if (paneCombat) paneCombat.innerHTML = `
+            <div style="padding:6px;">
+                <div id="bnr-battle-banner-slot"></div>
+                <div id="bnr-buff-hud"></div>
+                <div id="bnr-active-powers-slot"></div>
+                <div id="bnr-summon-slot"></div>
+                <div id="bnr-detachment-slot" style="margin-top:10px;"></div>
+            </div>`;
+
+        // 💪 Прокачка pane — класс + Прогрессия button (shop card live ниже в HTML).
+        const paneProg = document.getElementById('bnr-pane-progression-body');
+        if (paneProg) paneProg.innerHTML = `
+            <div style="padding:6px;">
+                <div id="hero-class-picker-slot" style="margin-bottom:10px;"></div>
+                <button class="extra-btn" id="bnr-open-progression-btn"
+                        title="Все скиллы с focus stars + 6 атрибутов"
+                        style="width:100%;font-size:12px;padding:8px;
+                               background:#1e3a5f;color:#93c5fd;font-weight:700;
+                               border:1px solid #1e40af;">
+                    🎯 Прогрессия — скиллы / фокусы / атрибуты
+                </button>
             </div>`;
         // Sprint M23 — render свита под equipment.
         _bannerlordLastRetinue = data.retinue || [];
         _renderRetinue(_bannerlordLastRetinue);
         renderBannerlordClassPicker();
+        // Sprint 5.32 #46 — refill daily slot (recreated на re-render Hero pane).
+        loadBannerlordDaily();
+        // Sprint 5.32 (BLT-parity FE-M2) — refill heir slot.
+        loadBannerlordHeirs();
         // Sprint 5.5: immediately repaint battle banner из cache чтобы
         // не было 0-2s gap'a после hero re-render.
         if (_bannerlordBattle) _renderBannerlordBattleBanner(_bannerlordBattle);
@@ -3881,6 +4277,16 @@ async function _bannerlordBuyAction(actionType, data) {
         return;
     }
     _bnrInflight.add(actionType);
+    // Sprint 5.32 (BLT-parity H1) — idempotency client_action_id. Backend
+    // m46 UNIQUE partial index на (channel_id, module_id, client_action_id)
+    // блокирует двойной charge крустиков при retry (network blip, proxy
+    // replay, multi-click обходящий _bnrInflight). crypto.randomUUID
+    // доступен на HTTPS (Twitch Extension всегда грузится через HTTPS),
+    // fallback — Date.now() + Math.random для совместимости.
+    const clientActionId = (window.crypto && window.crypto.randomUUID)
+        ? window.crypto.randomUUID()
+        : (Date.now().toString(36) + '-' + Math.random().toString(36).slice(2));
+    const payload = { ...data, client_action_id: clientActionId };
     try {
         const r = await fetch(`${API_URL}/api/bannerlord/action`, {
             method: 'POST',
@@ -3888,7 +4294,7 @@ async function _bannerlordBuyAction(actionType, data) {
                 'Content-Type': 'application/json',
                 'X-Twitch-JWT': authToken || '',
             },
-            body: JSON.stringify({ action_type: actionType, data }),
+            body: JSON.stringify({ action_type: actionType, data: payload }),
         });
         const result = await r.json();
         // Sprint 5.29 audit fix #36: backend message в console для audit trail.
@@ -3912,7 +4318,32 @@ async function _bannerlordBuyAction(actionType, data) {
             const icon = perkIcons[result.perk] || '✨';
             toastMsg = `${toastMsg} (${icon} ×${result.perk_price_mult.toFixed(2)} price)`;
         }
-        showNotification(toastMsg, result.success ? 'success' : 'error');
+        // Sprint 5.32 (BLT-parity FE-M7) — role-gate refuse с понятным icon.
+        // Backend ROLE_PRIORITY проверка возвращает required_role / your_role
+        // когда viewer'у не хватает прав (e.g. set_gender для не-sub'а).
+        // Показываем 🔒 + клейм роли в toast чтобы это не выглядело как обычная
+        // ошибка ("действие не выполнено") а как **gate** (есть путь — стань sub).
+        if (!result.success && result.required_role) {
+            const roleLabel = {
+                subscriber:   '⭐ Tier 1+ sub',
+                moderator:    '🛡 модераторов',
+                broadcaster:  '👑 стримера',
+            }[result.required_role] || result.required_role;
+            toastMsg = `🔒 ${toastMsg}`;
+            // Sprint 5.32 (LOG-4) — categorized prefix [FE-GATE] для grep'а.
+            console.warn('[FE-GATE]', actionType,
+                         `required=${result.required_role} your=${result.your_role}`);
+        }
+        // Sprint 5.32 (LOG-4) — log на idempotent_replay (H1) чтобы видно
+        // когда retry реально срабатывает (дебаг network blip / proxy issues).
+        if (result.idempotent_replay) {
+            console.info('[FE-IDEM] retry hit', actionType,
+                         'action_id=' + result.action_id);
+        }
+        // Sprint 5.32 UX — errors longer (6s) чтобы юзер успел прочесть
+        // cooldown / refuse сообщения. Success short (3.5s default).
+        showNotification(toastMsg, result.success ? 'success' : 'error',
+                         result.success ? 3500 : 6000);
         if (result.success) {
             if (typeof loadUserData === 'function') loadUserData();
             // Sprint 5.3d: ускоряем UI feedback для bannerlord actions —

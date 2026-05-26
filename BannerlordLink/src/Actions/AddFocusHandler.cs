@@ -52,28 +52,38 @@ namespace BannerlordLink.Actions
             if (amount < 1) amount = 1;
             if (amount > 5) amount = 5;
 
-            MainThreadDispatcher.Enqueue(() => Apply(username, skillKey, amount));
+            string actionId = BannerlordLink.Util.ActionFeedback.GetActionId(data);
+            MainThreadDispatcher.Enqueue(() => Apply(username, skillKey, amount, actionId));
             return Task.FromResult<(bool, string)>((true, null));
         }
 
-        private static void Apply(string username, string skillKey, int amount)
+        private static void Apply(string username, string skillKey, int amount, string actionId)
         {
             try
             {
+                if (TaleWorlds.MountAndBlade.Mission.Current != null)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[add_focus] REFUSE @{username}: нельзя во время Mission (engine crash risk)");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "in_mission");
+                    return;
+                }
+
                 var hero = HeroLookup.FindByUsername(username);
                 if (hero == null || !hero.IsAlive)
                 {
                     BannerlordLinkModule.Log(
-                        $"[add_focus] @{username}: hero не найден / мёртв");
+                        $"[add_focus] REFUSE @{username}: hero не найден / мёртв");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "hero_not_found_or_dead");
                     return;
                 }
 
-                // Resolve skill — either named or random improvable
                 SkillObject skill = null;
                 var allSkills = MBObjectManager.Instance.GetObjectTypeList<SkillObject>();
                 if (allSkills == null || allSkills.Count == 0)
                 {
-                    BannerlordLinkModule.Log($"[add_focus] @{username}: no skills available");
+                    BannerlordLinkModule.Log($"[add_focus] REFUSE @{username}: no skills available");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "no_skills_object");
                     return;
                 }
 
@@ -85,35 +95,36 @@ namespace BannerlordLink.Actions
                     if (skill == null)
                     {
                         BannerlordLinkModule.Log(
-                            $"[add_focus] @{username}: skill '{skillKey}' не найден");
+                            $"[add_focus] REFUSE @{username}: skill '{skillKey}' не найден");
+                        BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "unknown_skill:" + skillKey);
                         return;
                     }
                     if (hero.HeroDeveloper.GetFocus(skill) >= 5)
                     {
                         BannerlordLinkModule.Log(
-                            $"[add_focus] @{username}: {skill.StringId} уже F5 (max)");
+                            $"[add_focus] REFUSE @{username}: {skill.StringId} уже F5 (max)");
+                        BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "skill_focus_maxed");
                         return;
                     }
                 }
                 else
                 {
-                    // Random — выбираем skill где focus < 5
                     var improvable = allSkills.Where(s => hero.HeroDeveloper.GetFocus(s) < 5).ToList();
                     if (improvable.Count == 0)
                     {
                         BannerlordLinkModule.Log(
-                            $"[add_focus] @{username}: все skills уже F5 (max)");
+                            $"[add_focus] REFUSE @{username}: все skills уже F5 (max)");
+                        BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "all_skills_focus_maxed");
                         return;
                     }
-                    skill = improvable[new Random().Next(improvable.Count)];
+                    // Sprint 5.32 (BLT-parity LOW-5) — engine-grade MBRandom.
+                    skill = improvable[TaleWorlds.Core.MBRandom.RandomInt(improvable.Count)];
                 }
 
-                // Cap amount to remaining capacity
                 int currentFocus = hero.HeroDeveloper.GetFocus(skill);
                 int maxAdd = 5 - currentFocus;
                 if (amount > maxAdd) amount = maxAdd;
 
-                // Compute total cost (tier-based per level)
                 int totalCost = 0;
                 for (int i = 0; i < amount; i++)
                 {
@@ -127,8 +138,9 @@ namespace BannerlordLink.Actions
                 if (hero.Gold < totalCost)
                 {
                     BannerlordLinkModule.Log(
-                        $"[add_focus] @{username}: not enough gold " +
+                        $"[add_focus] REFUSE @{username}: not enough hero gold " +
                         $"({hero.Gold} < {totalCost}) для +{amount} focus в {skill.StringId}");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "not_enough_hero_gold");
                     return;
                 }
 

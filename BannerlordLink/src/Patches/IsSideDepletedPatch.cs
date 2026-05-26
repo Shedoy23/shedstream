@@ -27,9 +27,36 @@ namespace BannerlordLink.Patches
     /// Если так — patch class не build'ится, мы катимся без него (existing
     /// vanilla behavior сохранится).
     /// </summary>
-    [HarmonyPatch(typeof(MissionAgentSpawnLogic), "IsSideDepleted")]
+    // Sprint 5.32 ROBUST FIX — было `[HarmonyPatch(typeof(MissionAgentSpawnLogic), "IsSideDepleted")]`.
+    // Hard typeof reference throw'ит при load если type / method missing в текущей версии
+    // TaleWorlds. Переписали на `[HarmonyPatch]` + `TargetMethods()` — gracefully skip
+    // если method не resolved.
+    [HarmonyPatch]
     public static class IsSideDepletedPatch
     {
+        public static System.Collections.Generic.IEnumerable<System.Reflection.MethodBase>
+            TargetMethods()
+        {
+            var t = AccessTools.TypeByName(
+                "TaleWorlds.MountAndBlade.MissionAgentSpawnLogic");
+            if (t == null)
+            {
+                BannerlordLinkModule.Log(
+                    "[IsSideDepleted] MissionAgentSpawnLogic type не найден — patch skip");
+                yield break;
+            }
+            var m = AccessTools.Method(t, "IsSideDepleted");
+            if (m == null)
+            {
+                BannerlordLinkModule.Log(
+                    "[IsSideDepleted] method IsSideDepleted не найден — patch skip");
+                yield break;
+            }
+            BannerlordLinkModule.Log(
+                "[IsSideDepleted] postfix registered (anti-depletion для adopted heroes)");
+            yield return m;
+        }
+
         [HarmonyPostfix]
         public static void Postfix(BattleSideEnum side, ref bool __result)
         {

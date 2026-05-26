@@ -40,11 +40,73 @@ namespace BannerlordLink.Behaviors
         private bool _completed;   // true если OnTournamentEnd сработал штатно
         private bool _abortedSent; // dedupe abort event
 
+        // Sprint 5.28: track rounds won per username для escalating final reward.
+        // BLT pattern: финальный приз масштабируется от количества выигранных раундов.
+        private readonly Dictionary<string, int> _roundsWon = new Dictionary<string, int>();
+
+        // Sprint 5.29 BLT-parity #10: anti-snowball list — последние WINNERS_HISTORY_SIZE
+        // победителей турниров. При spawn в следующих турнирах их HP/health
+        // снижается, чтобы один и тот же viewer не доминировал.
+        // Static — persistent через mission lifecycle, переживает один заход в save.
+        private static readonly List<string> _recentWinners = new List<string>();
+        private const int WINNERS_HISTORY_SIZE = 5;
+        private const float RECENT_WINNER_HP_PENALTY = 0.75f;  // 25% reduction (default)
+
+        // Sprint 5.32 (BLT-parity M5) — per-class HP penalty.
+        // Раньше blanket ×0.75 для всех — tank-классы переносили легко (large
+        // HP pool + heavy armor абсорбирует урон), cavalry почти не страдала
+        // (mobility компенсирует), но archer'ы / horse_archer'ы доминировали
+        // потому что long-range advantage был нетронут. Теперь дифференцируем:
+        //   tank/knight (heavy armor + shield)  → 0.85 (легчайший nerf)
+        //   infantry/berserk/psycho             → 0.78 (medium)
+        //   crossbow/heavy_crossbow             → 0.74 (range advantage)
+        //   archer/heavy_archer                 → 0.72 (range advantage)
+        //   cavalry/camel_cavalry/assassin      → 0.70 (mobility+range)
+        //   horse_archer/camel_archer           → 0.65 (heaviest — best class)
+        //   unknown / no class                  → 0.75 (legacy fallback)
+        private static readonly Dictionary<string, float> _classHpPenalty =
+            new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["tank"]            = 0.85f,
+                ["knight"]          = 0.85f,
+                ["infantry"]        = 0.78f,
+                ["berserk"]         = 0.78f,
+                ["psycho"]          = 0.78f,
+                ["crossbow"]        = 0.74f,
+                ["heavy_crossbow"]  = 0.74f,
+                ["archer"]          = 0.72f,
+                ["heavy_archer"]    = 0.72f,
+                ["cavalry"]         = 0.70f,
+                ["camel_cavalry"]   = 0.70f,
+                ["assassin"]        = 0.70f,
+                ["horse_archer"]    = 0.65f,
+                ["camel_archer"]    = 0.65f,
+            };
+
+        private static float ComputePenaltyForUser(string username)
+        {
+            try
+            {
+                var hc = BannerlordLink.Net.PowerCache.GetHeroClass(username);
+                if (hc.HasValue && !string.IsNullOrEmpty(hc.Value.classKey)
+                    && _classHpPenalty.TryGetValue(hc.Value.classKey, out float p))
+                {
+                    return p;
+                }
+            }
+            catch { }
+            return RECENT_WINNER_HP_PENALTY;
+        }
+
         // Rewards tuning
         public const int ROUND_WIN_GOLD  = 10_000;
         public const int ROUND_WIN_XP    =    500;
         public const int ROUND_LOSE_XP   =    200;
-        public const int FINAL_WIN_GOLD  = 50_000;
+        // 5.28: финальный приз = FINAL_BASE + ROUND_WIN_GOLD × rounds_won.
+        // Чемпион 4-этапного турнира получает 20K + 10K×4 = 60K (было flat 50K).
+        // Финалист с 3 wins (если bracket позволил) получит 50K. Тонкая
+        // корреляция с performance, не только с финальной победой.
+        public const int FINAL_BASE_GOLD = 20_000;
         public const int FINAL_WIN_XP    =  2_000;
 
         public TournamentMissionBehavior(
@@ -53,6 +115,57 @@ namespace BannerlordLink.Behaviors
         {
             _playerParticipates = playerParticipates;
             _participants = participants ?? new List<TournamentQueueBehavior.QueueEntry>();
+            // Sprint 5.32 (BLT-parity H8) — pull persistent recent winners из backend.
+            // Раньше `_recentWinners` был static List который reset'ился на reload
+            // save / restart игры. Теперь bannerlord_heroes.tournament_wins
+            // (m47) — persistent counter, fetch'им top-5 GET'ом при init.
+            // Fire-and-forget: если backend unreachable — fallback к in-memory list'у.
+            _ = System.Threading.Tasks.Task.Run(async () =>
+            {
+                try { await RefreshRecentWinnersFromBackendAsync(); }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[tournament] H8 fetch recent winners warn: {ex.Message}");
+                }
+            });
+        }
+
+        // Sprint 5.32 (BLT-parity H8) — populate _recentWinners из backend
+        // bannerlord_heroes.tournament_wins (через /api/bannerlord/recent-tournament-winners).
+        private static async System.Threading.Tasks.Task RefreshRecentWinnersFromBackendAsync()
+        {
+            try
+            {
+                string resp = await BannerlordLinkModule.Backend.GetAsync(
+                    "bannerlord/recent-tournament-winners?limit=5");
+                if (string.IsNullOrEmpty(resp)) return;
+                // Lightweight parse без full JSON deserializer — payload простой:
+                // {"success": true, "winners": [{"username": "...", "wins": N}, ...]}
+                var parsed = Newtonsoft.Json.Linq.JObject.Parse(resp);
+                var winners = parsed["winners"] as Newtonsoft.Json.Linq.JArray;
+                if (winners == null) return;
+                var fresh = new List<string>();
+                foreach (var w in winners)
+                {
+                    var name = w["username"]?.ToString();
+                    if (!string.IsNullOrEmpty(name))
+                        fresh.Add(name.ToLowerInvariant());
+                }
+                lock (_recentWinners)
+                {
+                    _recentWinners.Clear();
+                    _recentWinners.AddRange(fresh);
+                }
+                BannerlordLinkModule.Log(
+                    $"[tournament:anti-snowball H8] loaded {fresh.Count} recent winners " +
+                    $"from backend: {string.Join(", ", fresh)}");
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[tournament:anti-snowball H8] fetch failed: {ex.Message}");
+            }
         }
 
         /// <summary>Called by patch on FightTournamentGame.GetParticipantCharacters
@@ -73,8 +186,12 @@ namespace BannerlordLink.Behaviors
                     roster.Add(entry.Hero.CharacterObject);
             }
 
-            // Fill до 16 culture basic/elite troops
-            var fillerTroops = CollectFillerTroops();
+            // Sprint 5.28: culture-aware filler — приоритезируем basic/elite
+            // host-settlement'а (BLT pattern). Если их не хватает (редко) —
+            // фоллбэк на all-cultures. Атмосферно: имперский турнир ловит
+            // имперских troops, а не сборную солянку.
+            var hostCulture = TaleWorlds.CampaignSystem.Settlements.Settlement.CurrentSettlement?.Culture;
+            var fillerTroops = CollectFillerTroops(hostCulture);
             var rng = new Random();
             while (roster.Count < TournamentQueueBehavior.TOURNAMENT_SIZE && fillerTroops.Count > 0)
             {
@@ -88,16 +205,30 @@ namespace BannerlordLink.Behaviors
             return _cachedRoster;
         }
 
-        private static List<CharacterObject> CollectFillerTroops()
+        /// <summary>BLT-style filler: приоритезируем host-culture basic/elite,
+        /// fallback на все культуры если не хватает.</summary>
+        private static List<CharacterObject> CollectFillerTroops(CultureObject hostCulture)
         {
             var result = new List<CharacterObject>();
             try
             {
+                // Step 1: host-culture первыми (basic + elite, дублицированы
+                // в pool чтобы статистически чаще выпадали при random pick)
+                if (hostCulture != null)
+                {
+                    for (int i = 0; i < 3; i++)
+                    {
+                        if (hostCulture.BasicTroop != null) result.Add(hostCulture.BasicTroop);
+                        if (hostCulture.EliteBasicTroop != null) result.Add(hostCulture.EliteBasicTroop);
+                    }
+                }
+                // Step 2: остальные культуры как fallback pool
                 var cultures = MBObjectManager.Instance.GetObjectTypeList<CultureObject>();
                 foreach (var c in cultures)
                 {
-                    if (c?.BasicTroop != null) result.Add(c.BasicTroop);
-                    if (c?.EliteBasicTroop != null) result.Add(c.EliteBasicTroop);
+                    if (c == null || c == hostCulture) continue;
+                    if (c.BasicTroop != null) result.Add(c.BasicTroop);
+                    if (c.EliteBasicTroop != null) result.Add(c.EliteBasicTroop);
                 }
             }
             catch (Exception ex)
@@ -105,6 +236,43 @@ namespace BannerlordLink.Behaviors
                 BannerlordLinkModule.Log($"[tournament] CollectFillerTroops error: {ex.Message}");
             }
             return result;
+        }
+
+        /// <summary>Sprint 5.29 BLT-parity #10 — anti-snowball: при spawn agent'а
+        /// который является recent winner, снижаем его HP на старте. Победители
+        /// последних 5 турниров приходят с handicap, чтобы не доминировали.</summary>
+        public override void OnAgentBuild(Agent agent, Banner banner)
+        {
+            base.OnAgentBuild(agent, banner);
+            try
+            {
+                var hero = (agent?.Character as CharacterObject)?.HeroObject;
+                if (hero?.Name == null) return;
+                string heroName = hero.Name.ToString();
+                if (!HeroNaming.IsAdopted(heroName)) return;
+                string username = HeroNaming.ExtractUsername(heroName);
+                if (string.IsNullOrEmpty(username)) return;
+                if (!_recentWinners.Contains(username)) return;
+
+                // Penalty: starting HP × 0.75. Health limit не трогаем — иначе
+                // post-mission heal восстановит full normal HP (а не reduced).
+                // Только текущая Health в момент tournament fight нерфится.
+                if (agent.IsActive() && agent.HealthLimit > 0)
+                {
+                    // Sprint 5.32 (BLT-parity M5) — per-class penalty.
+                    float penalty = ComputePenaltyForUser(username);
+                    float newHp = agent.HealthLimit * penalty;
+                    agent.Health = newHp;
+                    BannerlordLinkModule.Log(
+                        $"[tournament:anti-snowball M5] @{username} recent winner → " +
+                        $"HP {agent.HealthLimit:F0} × {penalty:F2} = {newHp:F0} (per-class)");
+                }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[tournament:anti-snowball] OnAgentBuild error: {ex.Message}");
+            }
         }
 
         /// <summary>Wire up TournamentBehavior callbacks. Called после AddMissionBehavior.</summary>
@@ -149,11 +317,21 @@ namespace BannerlordLink.Behaviors
                     bool won = winners.Contains(entry.Hero);
                     if (won)
                     {
-                        GiveGoldAction.ApplyBetweenCharacters(null, entry.Hero, ROUND_WIN_GOLD, true);
-                        AddRandomSkillXp(entry.Hero, ROUND_WIN_XP);
+                        // Sprint 5.30 #42 — sub reward_boost
+                        int roundGold = BannerlordLink.Net.RewardBoostCache
+                            .ApplyToInt(entry.Username, ROUND_WIN_GOLD);
+                        int roundXp = BannerlordLink.Net.RewardBoostCache
+                            .ApplyToInt(entry.Username, ROUND_WIN_XP);
+                        GiveGoldAction.ApplyBetweenCharacters(null, entry.Hero, roundGold, true);
+                        AddRandomSkillXp(entry.Hero, roundXp);
+                        if (!string.IsNullOrEmpty(entry.Username))
+                        {
+                            _roundsWon.TryGetValue(entry.Username, out int prev);
+                            _roundsWon[entry.Username] = prev + 1;
+                        }
                         BannerlordLinkModule.Log(
                             $"[tournament] @{entry.Username} won round {roundIndex} → " +
-                            $"+{ROUND_WIN_GOLD}💰 +{ROUND_WIN_XP}XP");
+                            $"+{roundGold}💰 +{roundXp}XP");
                     }
                     else
                     {
@@ -177,8 +355,15 @@ namespace BannerlordLink.Behaviors
                     round_index = roundIndex,
                     survivors = survivors,
                 });
-                Task.Run(async () => await BannerlordLinkModule.Backend
-                    .PostEventAsync("bannerlord", "tournament.round_ended", evtData));
+                // Sprint 5.31 #45c — было fire-and-forget без try/catch:
+                // если backend POST fail'ит, событие тихо терялось.
+                Task.Run(async () => {
+                    try { await BannerlordLinkModule.Backend
+                        .PostEventAsync("bannerlord", "tournament.round_ended", evtData); }
+                    catch (Exception ex) {
+                        BannerlordLinkModule.Log($"[tournament] round_ended push failed: {ex.Message}");
+                    }
+                });
             }
             catch (Exception ex)
             {
@@ -206,8 +391,27 @@ namespace BannerlordLink.Behaviors
 
                 if (adoptedWinner)
                 {
-                    GiveGoldAction.ApplyBetweenCharacters(null, winnerHero, FINAL_WIN_GOLD, true);
-                    AddRandomSkillXp(winnerHero, FINAL_WIN_XP);
+                    // Sprint 5.29 BLT-parity #10: record в recent winners для
+                    // anti-snowball debuff в следующих турнирах.
+                    _recentWinners.Add(winnerUsername);
+                    while (_recentWinners.Count > WINNERS_HISTORY_SIZE)
+                        _recentWinners.RemoveAt(0);
+                    BannerlordLinkModule.Log(
+                        $"[tournament:anti-snowball] recent winners (last {WINNERS_HISTORY_SIZE}): " +
+                        string.Join(", ", _recentWinners));
+
+                    // 5.28: escalating final reward — base + per-round-won bonus.
+                    // Чемпион 4-этапного: 20K + 4×10K = 60K. Без выигранных
+                    // раундов (lucky bracket): только base 20K.
+                    _roundsWon.TryGetValue(winnerUsername, out int wonCount);
+                    int baseFinalGold = FINAL_BASE_GOLD + ROUND_WIN_GOLD * wonCount;
+                    // Sprint 5.30 #42 — sub reward_boost для финального приза
+                    int finalGold = BannerlordLink.Net.RewardBoostCache
+                        .ApplyToInt(winnerUsername, baseFinalGold);
+                    int finalXp = BannerlordLink.Net.RewardBoostCache
+                        .ApplyToInt(winnerUsername, FINAL_WIN_XP);
+                    GiveGoldAction.ApplyBetweenCharacters(null, winnerHero, finalGold, true);
+                    AddRandomSkillXp(winnerHero, finalXp);
 
                     // Prize item — добавляем в hero inventory если есть PartyBelongedTo
                     var prize = tb.TournamentGame?.Prize;
@@ -219,13 +423,15 @@ namespace BannerlordLink.Behaviors
                         {
                             party.AddToCounts(prize, 1);
                             BannerlordLinkModule.Log(
-                                $"[tournament] @{winnerUsername} WON tournament → " +
-                                $"+{FINAL_WIN_GOLD}💰 +{FINAL_WIN_XP}XP + prize {prize.StringId} в инвентарь");
+                                $"[tournament] @{winnerUsername} WON tournament " +
+                                $"({wonCount} rounds) → +{finalGold}💰 (={FINAL_BASE_GOLD}+{ROUND_WIN_GOLD}×{wonCount}) " +
+                                $"+{FINAL_WIN_XP}XP + prize {prize.StringId} в инвентарь");
                         }
                         else
                         {
                             BannerlordLinkModule.Log(
-                                $"[tournament] @{winnerUsername} WON но нет party — prize не выдан");
+                                $"[tournament] @{winnerUsername} WON ({wonCount} rounds) → " +
+                                $"+{finalGold}💰, но нет party — prize не выдан");
                         }
                     }
                 }
@@ -246,8 +452,14 @@ namespace BannerlordLink.Behaviors
                     adopted_winner = adoptedWinner,
                     participants = participantUsernames,
                 });
-                Task.Run(async () => await BannerlordLinkModule.Backend
-                    .PostEventAsync("bannerlord", "tournament.ended", evtData));
+                // Sprint 5.31 #45c — wrap fire-and-forget с try/catch.
+                Task.Run(async () => {
+                    try { await BannerlordLinkModule.Backend
+                        .PostEventAsync("bannerlord", "tournament.ended", evtData); }
+                    catch (Exception ex) {
+                        BannerlordLinkModule.Log($"[tournament] ended push failed (winner): {ex.Message}");
+                    }
+                });
 
                 _hasGeneratedRoster = false;
                 _cachedRoster = null;
@@ -282,8 +494,14 @@ namespace BannerlordLink.Behaviors
                     aborted = true,
                     participants = participantUsernames,
                 });
-                Task.Run(async () => await BannerlordLinkModule.Backend
-                    .PostEventAsync("bannerlord", "tournament.ended", evtData));
+                // Sprint 5.31 #45c — wrap fire-and-forget с try/catch.
+                Task.Run(async () => {
+                    try { await BannerlordLinkModule.Backend
+                        .PostEventAsync("bannerlord", "tournament.ended", evtData); }
+                    catch (Exception ex) {
+                        BannerlordLinkModule.Log($"[tournament] ended push failed (aborted): {ex.Message}");
+                    }
+                });
                 BannerlordLinkModule.Log(
                     "[tournament] OnEndMission: aborted (стример вышел досрочно), " +
                     "pushed tournament.ended winner=null");

@@ -80,10 +80,14 @@ ADJ_BY_RARITY = {
     "legendary": ADJECTIVES_LEGENDARY,
 }
 
-# Backend cost для smith action (HW Hero.Gold). Mirror в mod если нужен.
-SMITH_GOLD_COST = 100_000
-# Cost в крустиках — server-enforced через ACTION_PRICES в bannerlord.py
-# (Не здесь — это handled в общем buy_action flow.)
+# Sprint 5.32 (BLT-parity M14) — раньше тут был SMITH_GOLD_COST = 100_000,
+# но он нигде не списывался (handler НЕ дёргал mod.hero.spend_gold). Был
+# чисто декоративной константой. Удалён в M14 cleanup. Если в будущем
+# понадобится Hero.Gold cost — добавить отдельный action в module_actions
+# с amount, mod execute'нет GiveGoldAction.ApplyBetweenCharacters(hero, null, cost).
+#
+# Cost в крустиках — server-enforced через ACTION_PRICES_DEFAULT в bannerlord.py
+# ("hero.smith_item": 500), handled в общем buy_action flow.
 
 
 def _roll_rarity() -> str:

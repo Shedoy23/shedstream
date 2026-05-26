@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using BannerlordLink.Net;
 using Newtonsoft.Json;
@@ -82,21 +84,46 @@ namespace BannerlordLink.Behaviors
 
         // Static registry: retinue agent → owner username. Populated
         // SummonHeroHandler'ом при spawn'е retinue. Cleared OnEndMission.
-        private static readonly Dictionary<Agent, string> _retinueOwners =
-            new Dictionary<Agent, string>();
+        //
+        // Sprint 5.31 #45d (audit HIGH-3) — переход с ConcurrentDictionary
+        // на ConditionalWeakTable<Agent, string>. ConcurrentDictionary
+        // держит strong reference на Agent → если OnEndMission не fire'ит
+        // (state transition без EndMission), Agent-объекты из мёртвой
+        // миссии висят до process restart, блокируя GC и портя attribution
+        // следующей миссии. CWT даёт weak-key — мёртвые Agent'ы auto-evict.
+        // Thread-safety гарантирует сам CWT (lock-free reads, locked writes).
+        //
+        // Sprint 5.28 (history): был ConcurrentDictionary — Bannerlord
+        // в основном single-threaded на main thread, но native engine
+        // может callback'ать с других threads (AI, physics, animation).
+        // Iteration mid-write бросал Collection modified exception на
+        // background thread без catch → process die.
+        private static readonly ConditionalWeakTable<Agent, string> _retinueOwners =
+            new ConditionalWeakTable<Agent, string>();
 
         /// <summary>Called от SummonHeroHandler после spawn'a retinue agent'a.
         /// Регистрирует attribution: kill этого agent'a кредитится owner'у.</summary>
         public static void RegisterRetinue(Agent agent, string ownerUsername)
         {
             if (agent == null || string.IsNullOrEmpty(ownerUsername)) return;
-            _retinueOwners[agent] = ownerUsername.ToLowerInvariant();
+            // CWT.Add throws on duplicate key. Remove+Add для idempotency.
+            _retinueOwners.Remove(agent);
+            _retinueOwners.Add(agent, ownerUsername.ToLowerInvariant());
         }
 
         // Sprint 5.7: registry для restore hero обратно в original party
         // после Mission end. BLT pattern (SummonHero.cs onMissionOver).
+        //
+        // Sprint 5.31 #45d (audit HIGH-2) — entries теперь keyed by Mission.
+        // Если auto-resolve → следующая миссия запускается до того как
+        // OnEndMission предыдущей пробежал по restore — записи от mission N
+        // утекали в restore N+1 (hero восстанавливался в stale OriginalParty).
+        // Теперь RestorePartyMembership фильтрует ТОЛЬКО записи которые были
+        // зарегистрированы для текущей `Mission.Current` (захваченной при
+        // регистрации).
         private class PartyRestoreEntry
         {
+            public Mission Mission;   // sprint 5.31 #45d — для фильтра по миссии
             public Hero Hero;
             public TaleWorlds.CampaignSystem.Party.PartyBase OriginalParty;
             public bool WasLeader;
@@ -116,6 +143,7 @@ namespace BannerlordLink.Behaviors
             if (hero == null) return;
             _partyRestores.Add(new PartyRestoreEntry
             {
+                Mission       = Mission.Current,   // snapshot текущей миссии
                 Hero          = hero,
                 OriginalParty = originalParty,
                 WasLeader     = wasLeader,
@@ -133,7 +161,15 @@ namespace BannerlordLink.Behaviors
         /// а add-back в original — только если он был.</summary>
         private static void RestorePartyMembership()
         {
-            foreach (var entry in _partyRestores.ToList())
+            // Sprint 5.31 #45d — обрабатываем ТОЛЬКО записи для текущей миссии.
+            // Записи без mission'a (старые до фикса) обрабатываем тоже —
+            // backward compat. Записи для других миссий — оставляем в списке,
+            // их обработает ИХ OnEndMission.
+            var currentMission = Mission.Current;
+            var toProcess = _partyRestores
+                .Where(e => e == null || e.Mission == null || e.Mission == currentMission)
+                .ToList();
+            foreach (var entry in toProcess)
             {
                 if (entry?.Hero == null) continue;
                 try
@@ -145,22 +181,52 @@ namespace BannerlordLink.Behaviors
                     if (currentParty == entry.OriginalParty) continue;
 
                     // 1) Remove from current party (обычно MainParty стримера).
-                    //    Делается ВСЕГДА — иначе viewer остаётся в roster'е.
-                    if (currentParty != null)
+                    //
+                    // Sprint 5.28 fix (negative-roster bug):
+                    // Раньше делали безусловный AddMember(-1). Если engine уже
+                    // remove'нул героя (death mid-battle → auto-clear из roster'а,
+                    // или MapEventEnded handler уже evict'нул его), наш -1 уводил
+                    // count в негатив. У юзера накопилось -36/101 «Войны готовые
+                    // к битве». Теперь проверяем GetTroopCount > 0 до удаления.
+                    if (currentParty?.MemberRoster != null)
                     {
-                        try { currentParty.AddMember(entry.Hero.CharacterObject, -1); }
-                        catch (Exception ex)
+                        int curCount = 0;
+                        try { curCount = currentParty.MemberRoster.GetTroopCount(entry.Hero.CharacterObject); }
+                        catch { }
+                        if (curCount > 0)
+                        {
+                            try { currentParty.MemberRoster.AddToCounts(entry.Hero.CharacterObject, -1); }
+                            catch (Exception ex)
+                            {
+                                BannerlordLinkModule.Log(
+                                    $"[PartyRestore] {entry.Hero.Name} remove from " +
+                                    $"{currentParty.Name} failed: {ex.Message}");
+                            }
+                        }
+                        else
                         {
                             BannerlordLinkModule.Log(
-                                $"[PartyRestore] {entry.Hero.Name} remove from " +
-                                $"{currentParty.Name} failed: {ex.Message}");
+                                $"[PartyRestore] {entry.Hero.Name} skip remove from " +
+                                $"{currentParty.Name?.ToString() ?? "?"} — count={curCount} " +
+                                "(engine already cleared or never was в roster)");
                         }
                     }
 
-                    // 2) Restore HP.
+                    // 2) Skip остальное если hero мёртв — не реанимируем призраков
+                    //    в original party (ещё один путь корраптить roster: dead hero
+                    //    + AddToCounts(+1) → ghost member). HP restore тоже не имеет
+                    //    смысла для трупа.
+                    if (!entry.Hero.IsAlive)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[PartyRestore] {entry.Hero.Name} мёртв — skip HP/re-add (BLT pattern)");
+                        continue;
+                    }
+
+                    // 3) Restore HP (alive hero only).
                     try { entry.Hero.HitPoints = entry.OldHP; } catch { }
 
-                    // 3) Re-add в original party ТОЛЬКО если он был и ещё жив.
+                    // 4) Re-add в original party ТОЛЬКО если он был и ещё жив.
                     if (entry.OriginalParty != null
                         && entry.OriginalParty.MemberRoster != null
                         && entry.OriginalParty.MemberRoster.TotalHealthyCount > 0)
@@ -238,15 +304,18 @@ namespace BannerlordLink.Behaviors
                         $"[PartyRestore] entry failed: {ex.Message}");
                 }
             }
-            _partyRestores.Clear();
+            // Sprint 5.31 #45d — удаляем только обработанные. Записи для
+            // других миссий остаются ждать своего OnEndMission.
+            _partyRestores.RemoveAll(e => toProcess.Contains(e));
         }
 
         // Overlay state push interval (sec)
         private const float STATS_PUSH_INTERVAL = 1.5f;
 
-        // username → BattleStats (per-Mission tracker)
-        private readonly Dictionary<string, BattleStats> _participants =
-            new Dictionary<string, BattleStats>();
+        // username → BattleStats (per-Mission tracker).
+        // Sprint 5.28: ConcurrentDictionary (см. _retinueOwners выше).
+        private readonly ConcurrentDictionary<string, BattleStats> _participants =
+            new ConcurrentDictionary<string, BattleStats>();
         private float _nextStatsPushAt = 0f;
 
         private class BattleStats
@@ -392,8 +461,15 @@ namespace BannerlordLink.Behaviors
                     // Их side выиграл = (они на player side) == (player победил).
                     bool theirSideWon = s.IsPlayerSide == playerVictory;
 
-                    int goldDelta = theirSideWon ? WIN_GOLD : -LOSE_GOLD;
-                    int xpDelta   = theirSideWon ? WIN_XP   : LOSE_XP;
+                    // Sprint 5.30 #42 — apply sub reward_boost к participation reward.
+                    int baseGold = theirSideWon ? WIN_GOLD : -LOSE_GOLD;
+                    int baseXp   = theirSideWon ? WIN_XP   : LOSE_XP;
+                    int goldDelta = baseGold >= 0
+                        ? BannerlordLink.Net.RewardBoostCache.ApplyToInt(s.Username, baseGold)
+                        : baseGold;   // losses не boost'им (penalty уже nerf'ed)
+                    int xpDelta = baseXp >= 0
+                        ? BannerlordLink.Net.RewardBoostCache.ApplyToInt(s.Username, baseXp)
+                        : baseXp;
 
                     if (goldDelta != 0)
                     {
@@ -422,10 +498,13 @@ namespace BannerlordLink.Behaviors
                     }
 
                     rewarded++;
+                    // Sprint 5.31 #45c — добавлен sub-boost в participation-лог.
+                    double subBoost = BannerlordLink.Net.RewardBoostCache.Get(s.Username);
                     BannerlordLinkModule.Log(
                         $"[Participation] @{s.Username} side={(s.IsPlayerSide ? "ally" : "enemy")} " +
                         $"result={(theirSideWon ? "🏆WIN" : "💀LOSS")}: " +
-                        $"{(goldDelta >= 0 ? "+" : "")}{goldDelta}💰 +{xpDelta} XP");
+                        $"{(goldDelta >= 0 ? "+" : "")}{goldDelta}💰 +{xpDelta} XP " +
+                        $"[sub ×{subBoost:F2}]");
 
                     HeroStateSyncSafe(s.Hero);
                 }
@@ -621,8 +700,14 @@ namespace BannerlordLink.Behaviors
                 ? Math.Max(levelBoost, MINIMUM_GOLD_PER_KILL)
                 : levelBoost;
 
-            int gold = (int)(baseGold * goldBoost);
-            int xp   = (int)(baseXp   * levelBoost);
+            // Sprint 5.30 #42 — sub-tier reward_boost из RewardBoostCache.
+            // Backend пушит boost при login/action (через _user_role + Helix
+            // sub detection). Per-user multiplier к gold + XP (heal не трогаем —
+            // tactical advantage и без того сильный).
+            double rewardBoost = BannerlordLink.Net.RewardBoostCache.Get(killerName);
+
+            int gold = (int)(baseGold * goldBoost * rewardBoost);
+            int xp   = (int)(baseXp   * levelBoost * rewardBoost);
             float heal = baseHeal * levelBoost;
 
             // Apply gold (owner)
@@ -676,8 +761,11 @@ namespace BannerlordLink.Behaviors
                         {
                             if (s.KillStreak == ks.kills)
                             {
-                                streakReward = ks.gold;
-                                streakXp     = ks.xp;
+                                // Sprint 5.30 #42 — apply sub reward_boost
+                                streakReward = BannerlordLink.Net.RewardBoostCache
+                                    .ApplyToInt(killerName, ks.gold);
+                                streakXp = BannerlordLink.Net.RewardBoostCache
+                                    .ApplyToInt(killerName, ks.xp);
                                 streakLevel  = ks.kills;
                                 break;
                             }
@@ -706,6 +794,22 @@ namespace BannerlordLink.Behaviors
                     BannerlordLinkModule.Log(
                         $"[KillReward] @{killerName} 🔥 STREAK ×{streakLevel}: " +
                         $"+{streakReward}💰 +{streakXp} XP ({skill.StringId})");
+
+                    // Sprint 5.29: in-game popup на kill streak (BLT pattern).
+                    // Цвет — gradient от bronze (5) до red (15).
+                    try
+                    {
+                        var col = streakLevel >= 15
+                            ? new TaleWorlds.Library.Color(1f, 0.13f, 0.13f)   // red
+                            : (streakLevel >= 10
+                                ? new TaleWorlds.Library.Color(1f, 0.55f, 0.0f) // orange
+                                : new TaleWorlds.Library.Color(1f, 0.84f, 0.18f)); // gold
+                        TaleWorlds.Library.InformationManager.DisplayMessage(
+                            new TaleWorlds.Library.InformationMessage(
+                                $"🔥 @{killerName} STREAK ×{streakLevel}! +{streakReward}💰",
+                                col));
+                    }
+                    catch { }
                 }
                 catch (Exception ex)
                 {
@@ -719,14 +823,61 @@ namespace BannerlordLink.Behaviors
             if (isRetinueKill) targetLabel += "/retinue";
 
             string victimName = affectedAgent.Name?.ToString() ?? "?";
+            // Sprint 5.31 #45c — добавлен sub-boost в kill-лог.
+            // Раньше rewardBoost применялся (L675) но в логе не показывался —
+            // нельзя было понять "subscriber не получил x1.5" cache miss это
+            // или реально применилось.
             BannerlordLinkModule.Log(
                 $"[KillReward] @{killerName} {(isRetinueKill ? "retinue" : "personal")} " +
                 $"killed {victimName} ({targetLabel}): " +
                 $"+{gold}💰 +{xp} XP ({skill.StringId}) +{heal:F0} HP " +
-                $"[lvl K{killerLevel}/T{killedLevel} → boost ×{levelBoost:F2}]");
+                $"[lvl K{killerLevel}/T{killedLevel} → boost ×{levelBoost:F2}, " +
+                $"sub ×{rewardBoost:F2}]");
 
             HeroStateSyncSafe(killer);
         }
+
+        // Sprint 5.32 (BLT-parity M1) — per-tick HP regen для viewer-hero'ев.
+        // BLT pattern (BLTAdoptAHeroCustomMissionBehavior.AddListeners onSlowTick)
+        // — даёт viewer'ам passive HP throughout battle. Без этого они умирают
+        // в долгих сиегах гораздо быстрее обычных troops. Per-class rate чтобы
+        // tank регенерил быстрее archer'а (компенсирует melee-exposure):
+        //   tank/knight        → 5.0 HP/s  (heavy armor + shield-front-line)
+        //   infantry/berserk/psycho/assassin → 3.0 HP/s
+        //   cavalry/camel_cavalry → 4.0 HP/s (mobility = ranged exposure)
+        //   horse_archer/camel_archer → 3.5 HP/s
+        //   archer/heavy_archer/crossbow/heavy_crossbow → 2.0 HP/s
+        //   unknown class      → 2.5 HP/s default
+        private const float REGEN_INTERVAL = 1.0f;
+        private float _nextRegenAt = 0f;
+        private static readonly Dictionary<string, float> _classRegenPerSec =
+            new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["tank"]            = 5.0f,
+                ["knight"]          = 5.0f,
+                ["infantry"]        = 3.0f,
+                ["berserk"]         = 3.0f,
+                ["psycho"]          = 3.0f,
+                ["assassin"]        = 3.0f,
+                ["cavalry"]         = 4.0f,
+                ["camel_cavalry"]   = 4.0f,
+                ["horse_archer"]    = 3.5f,
+                ["camel_archer"]    = 3.5f,
+                ["archer"]          = 2.0f,
+                ["heavy_archer"]    = 2.0f,
+                ["crossbow"]        = 2.0f,
+                ["heavy_crossbow"]  = 2.0f,
+            };
+        private const float DEFAULT_REGEN_PER_SEC = 2.5f;
+
+        // Sprint 5.32 (LOG-2) — periodic regen stats. Каждые 10 секунд dump'аем
+        // одну строку чтобы streamer мог понять — heal'ает ли реально regen,
+        // или агенты на cap'е (no-op), или поведение сломано. Counters reset
+        // после каждого dump'а.
+        private const float REGEN_STATS_LOG_INTERVAL = 10.0f;
+        private float _nextRegenStatsAt = 0f;
+        private int _regenHealedCount = 0;
+        private float _regenHpTotal = 0f;
 
         public override void OnMissionTick(float dt)
         {
@@ -737,15 +888,111 @@ namespace BannerlordLink.Behaviors
                 float now;
                 try { now = Mission.CurrentTime; }
                 catch { return; }
-                if (now < _nextStatsPushAt) return;
-                if (_participants.Count == 0) return;
-                _nextStatsPushAt = now + STATS_PUSH_INTERVAL;
-                PushStatsSnapshot();
+
+                // Stats push (existing).
+                if (now >= _nextStatsPushAt && _participants.Count > 0)
+                {
+                    _nextStatsPushAt = now + STATS_PUSH_INTERVAL;
+                    PushStatsSnapshot();
+                }
+
+                // Sprint 5.32 (BLT-parity M1) — passive HP regen tick.
+                if (now >= _nextRegenAt && _participants.Count > 0)
+                {
+                    _nextRegenAt = now + REGEN_INTERVAL;
+                    ApplyPassiveRegen(REGEN_INTERVAL);
+                }
+
+                // Sprint 5.32 CRASH FIX — drain pending reflects из DamageHookPatch.
+                // Counter-blows откладываются queue'ом из RegisterBlow Prefix'а,
+                // applies здесь — отдельный frame, fresh AttackCollisionData, no
+                // shared ref → нет engine corruption.
+                try
+                {
+                    BannerlordLink.Patches.DamageHookPatch.DrainPendingReflects();
+                }
+                catch (Exception drainEx)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[KillReward] DrainPendingReflects warn: {drainEx.Message}");
+                }
+                // Sprint 5.32 (LOG-2) — periodic regen summary. 10s interval.
+                // Если viewer'и активно лечатся — counters > 0. Если нет —
+                // counters=0 значит "behavior работает, регенерить некому
+                // (все на cap'е или мёртвые)". Это лучше silent log absence.
+                if (now >= _nextRegenStatsAt)
+                {
+                    _nextRegenStatsAt = now + REGEN_STATS_LOG_INTERVAL;
+                    if (_regenHealedCount > 0)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[M1-REGEN] last 10s: heals={_regenHealedCount} ticks " +
+                            $"on {_participants.Count} participants, " +
+                            $"+{_regenHpTotal:F0} HP total");
+                    }
+                    _regenHealedCount = 0;
+                    _regenHpTotal = 0f;
+                }
             }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log(
                     $"[KillReward] OnMissionTick CRASHED: {ex.Message}");
+            }
+        }
+
+        private void ApplyPassiveRegen(float seconds)
+        {
+            try
+            {
+                // Snapshot для безопасной iteration (collection может меняться mid-frame).
+                List<BattleStats> snapshot;
+                try { snapshot = _participants.Values.ToList(); }
+                catch { return; }
+
+                foreach (var s in snapshot)
+                {
+                    if (s == null || s.Hero == null) continue;        // retinue → skip
+                    if (string.IsNullOrEmpty(s.Username)) continue;
+                    var agent = s.Agent;
+                    if (agent == null) continue;
+                    bool active;
+                    try { active = agent.IsActive(); }
+                    catch { continue; }
+                    if (!active) continue;
+                    float hp, hpMax;
+                    try { hp = agent.Health; hpMax = agent.HealthLimit; }
+                    catch { continue; }
+                    if (hp <= 0f || hp >= hpMax) continue;             // dead or at cap
+
+                    // Lookup per-class rate.
+                    float rate = DEFAULT_REGEN_PER_SEC;
+                    try
+                    {
+                        var hc = BannerlordLink.Net.PowerCache.GetHeroClass(s.Username);
+                        if (hc.HasValue && !string.IsNullOrEmpty(hc.Value.classKey)
+                            && _classRegenPerSec.TryGetValue(hc.Value.classKey, out float r))
+                        {
+                            rate = r;
+                        }
+                    }
+                    catch { }
+
+                    float newHp = Math.Min(hpMax, hp + rate * seconds);
+                    try
+                    {
+                        agent.Health = newHp;
+                        // Sprint 5.32 (LOG-2) — counter для periodic dump.
+                        _regenHealedCount++;
+                        _regenHpTotal += (newHp - hp);
+                    }
+                    catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[KillReward M1] regen pass crashed: {ex.Message}");
             }
         }
 
@@ -766,14 +1013,38 @@ namespace BannerlordLink.Behaviors
                 BannerlordLinkModule.Log(
                     $"[KillReward] PushStatsSnapshot final crashed: {ex.Message}");
             }
-            // Clear retinue registry — agent references умирают вместе с Mission
-            try { _retinueOwners.Clear(); } catch { }
+            // Sprint 5.31 #45d — больше не нужен explicit Clear: CWT
+            // (weak keys) auto-evict'ит мёртвые Agent'ы через GC. Старый
+            // ConcurrentDictionary держал strong refs → нужен был Clear.
             // Restore heroes в их original parties (BLT pattern)
             try { RestorePartyMembership(); }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log(
                     $"[KillReward] RestorePartyMembership crashed: {ex.Message}");
+            }
+
+            // Sprint 5.32 (BLT-parity H5) — post-mission state push для каждого
+            // [BLink]-participants. Backend получит is_wounded=1 для viewer'ов
+            // KO'd в Mission'е (engine ставит Hero.IsWounded=true при поражении
+            // в бою БЕЗ death). Без этого UI badge "🟡 ранен" появлялся бы только
+            // на следующий campaign day (DailyTickHero в MainCampaignBehavior).
+            try
+            {
+                foreach (var s in _participants.Values)
+                {
+                    if (s == null || string.IsNullOrEmpty(s.Username)) continue;
+                    Hero hero;
+                    try { hero = BannerlordLink.Actions.HeroLookup.FindByUsername(s.Username); }
+                    catch { continue; }
+                    if (hero == null) continue;
+                    HeroStateSyncSafe(hero);
+                }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[KillReward] post-mission state push (H5) failed: {ex.Message}");
             }
         }
 

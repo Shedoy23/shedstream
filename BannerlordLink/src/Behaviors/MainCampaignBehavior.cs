@@ -47,6 +47,156 @@ namespace BannerlordLink.Behaviors
             // MissionLogic.OnEndMission. Safe cleanup через BLT pattern
             // (EnterSettlementAction.ApplyForCharacterOnly).
             CampaignEvents.MapEventEnded.AddNonSerializedListener(this, OnMapEventEnded);
+
+            // Sprint 5.32 (BLT-parity H5) — daily wounded-state sync.
+            // M43 column `bannerlord_heroes.is_wounded` уже добавлена.
+            // HeroStateSync.Push пушит `is_wounded = hero.IsWounded ? 1 : 0`.
+            // Без daily tick wounded state менялось бы только когда viewer
+            // покупает action — recovery (HP restore через несколько дней
+            // engine'ом) не отражался бы в UI badge. DailyTickHero fires
+            // per-hero — мы фильтруем только BLink (адопт'нутые) + push'им
+            // когда IsWounded transition'ит. Это lightweight: ~50-200 viewers
+            // × ~1 HTTP-PUSH per day = ничтожная нагрузка.
+            CampaignEvents.DailyTickHeroEvent.AddNonSerializedListener(this, OnDailyTickHero);
+
+            // Sprint 5.32 (BLT-parity M2) — heir queue foundation.
+            // HeroComesOfAgeEvent fires когда engine продвигает child через 18-летний
+            // порог. Если parent — adopted [BLink]-hero, мы пушим heir.came_of_age
+            // event на backend → INSERT в bannerlord_heirs. Frontend получает список
+            // через GET /api/bannerlord/heirs. Это foundation: на death героя backend
+            // в будущем (M2.1) может pick first alive heir вместо random wanderer.
+            CampaignEvents.HeroComesOfAgeEvent.AddNonSerializedListener(this, OnHeroComesOfAge);
+            // Heir died ДО succession — UPDATE alive=0 в backend.
+            CampaignEvents.HeroKilledEvent.AddNonSerializedListener(this, OnHeirMaybeDied);
+        }
+
+        private void OnHeroComesOfAge(Hero hero)
+        {
+            try
+            {
+                if (hero == null || hero.Father == null && hero.Mother == null) return;
+                // Find parent who is [BLink]-hero.
+                Hero parent = null;
+                if (hero.Father != null && hero.Father.Name != null
+                    && BannerlordLink.Util.HeroNaming.IsAdopted(hero.Father.Name.ToString()))
+                {
+                    parent = hero.Father;
+                }
+                else if (hero.Mother != null && hero.Mother.Name != null
+                    && BannerlordLink.Util.HeroNaming.IsAdopted(hero.Mother.Name.ToString()))
+                {
+                    parent = hero.Mother;
+                }
+                if (parent == null) return;
+                string parentName = parent.Name.ToString();
+                string parentUsername = BannerlordLink.Util.HeroNaming.ExtractUsername(parentName);
+                if (string.IsNullOrEmpty(parentUsername)) return;
+
+                string heirName = hero.Name?.ToString() ?? hero.StringId;
+                BannerlordLinkModule.Log(
+                    $"[heir M2] @{parentUsername}: child '{heirName}' came of age " +
+                    $"(heir_id={hero.StringId})");
+
+                string evtData = Newtonsoft.Json.JsonConvert.SerializeObject(new
+                {
+                    parent_username = parentUsername,
+                    heir_hero_id    = hero.StringId,
+                    heir_name       = heirName,
+                });
+                System.Threading.Tasks.Task.Run(async () =>
+                    await BannerlordLinkModule.Backend.PostEventAsync(
+                        "bannerlord", "hero.heir_came_of_age", evtData));
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[heir M2] OnHeroComesOfAge warn: {ex.Message}");
+            }
+        }
+
+        private void OnHeirMaybeDied(Hero victim, Hero killer,
+            KillCharacterAction.KillCharacterActionDetail detail,
+            bool showNotification)
+        {
+            // M2 heir.died — push event только если victim — heir одного из adopted
+            // heroes. Backend проверит UNIQUE constraint, если heir_id не в bannerlord_heirs
+            // — silent no-op (это обычный NPC death).
+            try
+            {
+                if (victim == null) return;
+                // Если у victim сам [BLink] — это primary hero death, отдельный flow.
+                if (victim.Name != null
+                    && BannerlordLink.Util.HeroNaming.IsAdopted(victim.Name.ToString()))
+                    return;
+                // Check если родитель [BLink].
+                bool parentIsAdopted =
+                    (victim.Father?.Name != null
+                     && BannerlordLink.Util.HeroNaming.IsAdopted(victim.Father.Name.ToString()))
+                    || (victim.Mother?.Name != null
+                        && BannerlordLink.Util.HeroNaming.IsAdopted(victim.Mother.Name.ToString()));
+                if (!parentIsAdopted) return;
+
+                BannerlordLinkModule.Log(
+                    $"[heir M2] heir died: heir_id={victim.StringId} " +
+                    $"({victim.Name?.ToString() ?? "?"}) detail={detail}");
+                string evtData = Newtonsoft.Json.JsonConvert.SerializeObject(new
+                {
+                    heir_hero_id = victim.StringId,
+                });
+                System.Threading.Tasks.Task.Run(async () =>
+                    await BannerlordLinkModule.Backend.PostEventAsync(
+                        "bannerlord", "hero.heir_died", evtData));
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[heir M2] OnHeirMaybeDied warn: {ex.Message}");
+            }
+        }
+
+        // Sprint 5.32 (BLT-parity H5) — track последнее pushed IsWounded
+        // состояние per hero чтобы push'ить ТОЛЬКО при изменении. Без
+        // этого был бы daily POST для каждого viewer'а каждый день
+        // (ненужный шум в backend log + 0 информации).
+        private static readonly System.Collections.Generic.Dictionary<string, bool>
+            _lastPushedWoundedState = new System.Collections.Generic.Dictionary<string, bool>();
+
+        private void OnDailyTickHero(Hero hero)
+        {
+            try
+            {
+                if (hero == null || !hero.IsAlive) return;
+                // Только BLink-герои.
+                if (hero.Name == null) return;
+                string name = hero.Name.ToString();
+                if (!BannerlordLink.Util.HeroNaming.IsAdopted(name)) return;
+
+                bool currentWounded;
+                try { currentWounded = hero.IsWounded; }
+                catch { return; }  // старая версия игры без IsWounded — skip
+
+                string key = hero.StringId;
+                bool needPush = false;
+                if (!_lastPushedWoundedState.TryGetValue(key, out bool last))
+                {
+                    needPush = true;  // first observation
+                }
+                else if (last != currentWounded)
+                {
+                    needPush = true;
+                    BannerlordLinkModule.Log(
+                        $"[DailyTickHero H5] @{name}: wounded transition " +
+                        $"{last} → {currentWounded}");
+                }
+                if (needPush)
+                {
+                    _lastPushedWoundedState[key] = currentWounded;
+                    BannerlordLink.Util.HeroStateSync.Push(hero);
+                }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[DailyTickHero H5] @{hero?.Name?.ToString() ?? "?"}: warn {ex.Message}");
+            }
         }
 
         public override void SyncData(IDataStore dataStore)
@@ -60,7 +210,20 @@ namespace BannerlordLink.Behaviors
 
             try
             {
-                string username = victim.Name.ToString().ToLowerInvariant();
+                // Sprint 5.31 #45e (audit MED-3) — раньше отправляли username =
+                // raw Name.ToString() для ВСЕХ умерших heroes. Для не-adopted
+                // это были localised vanilla имена ("Raganvad" и т.п.) — backend
+                // не находил matching row в bannerlord_heroes, event тратился
+                // впустую. Plus для adopted: full "[BLink] viewer" вместо
+                // чистого username. Теперь ExtractUsername + skip non-adopted.
+                string username = BannerlordLink.Util.HeroNaming
+                    .ExtractUsername(victim.Name.ToString());
+                if (string.IsNullOrEmpty(username))
+                {
+                    // Non-adopted hero — не наш viewer, событие не пушим.
+                    return;
+                }
+                username = username.ToLowerInvariant();
                 string killerName = killer?.Name?.ToString() ?? "unknown";
                 string evtData = JsonConvert.SerializeObject(new
                 {
@@ -72,7 +235,16 @@ namespace BannerlordLink.Behaviors
                 Task.Run(async () => await BannerlordLinkModule.Backend
                     .PostEventAsync("bannerlord", "player.died", evtData));
                 BannerlordLinkModule.Log(
-                    $"[CampaignEvent] HeroKilled: {username} by {killerName} ({detail})");
+                    $"[CampaignEvent] HeroKilled: @{username} by {killerName} ({detail})");
+                // Sprint 5.32 — force-push HeroStateSync чтобы is_alive=0 пришёл
+                // в backend сразу (без ожидания следующего periodic sync).
+                // Иначе viewer мог видеть "жив" до 8s polling tick.
+                try { BannerlordLink.Util.HeroStateSync.Push(victim); }
+                catch (Exception syncEx)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[CampaignEvent] HeroKilled HeroStateSync push failed: {syncEx.Message}");
+                }
             }
             catch (Exception ex)
             {
@@ -196,9 +368,118 @@ namespace BannerlordLink.Behaviors
         // M22: push session_start с real save_id (Campaign.UniqueGameId)
         // на КАЖДЫЙ save load. Backend сравнивает с last known save_id для
         // канала и reset'ит heroes если save_id изменился.
-        private void OnGameLoadFinished() => PushSessionStart("game_load_finished");
+        // Sprint 5.28: + repair MainParty roster если негативный count.
+        private void OnGameLoadFinished()
+        {
+            RepairNegativeRoster();
+            PushSessionStart("game_load_finished");
+        }
         private void OnSessionLaunched(CampaignGameStarter starter)
-            => PushSessionStart("session_launched");
+        {
+            RepairNegativeRoster();
+            PushSessionStart("session_launched");
+        }
+
+        /// <summary>Sprint 5.28: repair MainParty roster от последствий старых багов:
+        ///
+        /// 1) NEGATIVE counts — `RestorePartyMembership` делал безусловный
+        ///    AddMember(-1) для уже-ушедших героев, уводя count ниже 0.
+        ///    Юзер: «Войны готовые к битве -36/101».
+        ///
+        /// 2) DUPLICATE hero counts — `SummonHero` делал безусловный +1 при
+        ///    каждом призыве, даже если hero уже в MainParty. После N summon'ов
+        ///    одного viewer'а его count = N. Юзер: «17 дублей kuro_gothic».
+        ///
+        /// Heroes (NOT regular troops!) с count > 1 схлопываем в 1 (если в
+        /// PlayerClan) или в 0 (если adopted-but-not-clan).
+        /// Regular troops с positive count — не трогаем, нормальное состояние.
+        ///
+        /// Запускается раз на сессию (load / session launch).</summary>
+        private static void RepairNegativeRoster()
+        {
+            try
+            {
+                var mainParty = TaleWorlds.CampaignSystem.Party.MobileParty.MainParty;
+                var roster = mainParty?.MemberRoster;
+                if (roster == null || roster.Count == 0) return;
+
+                int fixedNegatives = 0;
+                int totalDeficit = 0;
+                int fixedDupes = 0;
+                int totalExcess = 0;
+
+                // Snapshot перед modification (избежать collection-modified).
+                var snapshot = new System.Collections.Generic.List<TaleWorlds.CampaignSystem.Roster.TroopRosterElement>();
+                for (int i = 0; i < roster.Count; i++)
+                {
+                    snapshot.Add(roster.GetElementCopyAtIndex(i));
+                }
+
+                var playerClan = Clan.PlayerClan;
+
+                foreach (var slot in snapshot)
+                {
+                    var ch = slot.Character;
+                    if (ch == null) continue;
+
+                    // === Case 1: negative count (применимо ко всем) ===
+                    if (slot.Number < 0)
+                    {
+                        int deficit = slot.Number;
+                        try
+                        {
+                            roster.AddToCounts(ch, -deficit);
+                            fixedNegatives++;
+                            totalDeficit += deficit;
+                            BannerlordLinkModule.Log(
+                                $"[RosterRepair] cleared negative '{ch.StringId}' ({deficit} → 0)");
+                        }
+                        catch (Exception ex)
+                        {
+                            BannerlordLinkModule.Log(
+                                $"[RosterRepair] negative fix {ch.StringId} failed: {ex.Message}");
+                        }
+                        continue;
+                    }
+
+                    // === Case 2: hero dupes (только для heroes!) ===
+                    // Heroes должны быть count=1 в clan party, count=0 иначе.
+                    // Troops с count > 1 — нормальные виды войск, не трогаем.
+                    if (!ch.IsHero || ch.HeroObject == null) continue;
+                    if (slot.Number <= 1) continue;
+
+                    int targetCount = (ch.HeroObject.Clan == playerClan) ? 1 : 0;
+                    int excess = slot.Number - targetCount;
+                    if (excess <= 0) continue;
+
+                    try
+                    {
+                        roster.AddToCounts(ch, -excess);
+                        fixedDupes++;
+                        totalExcess += excess;
+                        BannerlordLinkModule.Log(
+                            $"[RosterRepair] collapsed hero '{ch.HeroObject.Name?.ToString() ?? ch.StringId}' " +
+                            $"({slot.Number} → {targetCount}, removed {excess} dupes)");
+                    }
+                    catch (Exception ex)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[RosterRepair] dupe fix {ch.StringId} failed: {ex.Message}");
+                    }
+                }
+
+                if (fixedNegatives > 0 || fixedDupes > 0)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[RosterRepair] done — negatives:{fixedNegatives} (deficit={totalDeficit}), " +
+                        $"hero-dupes:{fixedDupes} (excess={totalExcess})");
+                }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[RosterRepair] CRASHED: {ex.Message}");
+            }
+        }
 
         private void PushSessionStart(string trigger)
         {

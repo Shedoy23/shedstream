@@ -24,7 +24,11 @@ namespace BannerlordLink.Actions
     /// </summary>
     public class MakeBabyHandler : IActionHandler
     {
-        private const int MAX_ALIVE_CHILDREN = 5;
+        // Sprint 5.32 (BLT-parity LOW-7) — default limit, может быть override'нут
+        // через data["max_alive_children"] из backend (Boosty tier3 sub'ам можно
+        // увеличить, premium streamers — настройка). Backend пока всегда не шлёт
+        // и используется DEFAULT, но архитектура готова к per-channel/per-tier override.
+        private const int DEFAULT_MAX_ALIVE_CHILDREN = 5;
 
         public string ActionType => "hero.make_baby";
 
@@ -34,6 +38,16 @@ namespace BannerlordLink.Actions
                               .Trim().ToLowerInvariant();
             if (string.IsNullOrEmpty(username))
                 return Task.FromResult<(bool, string)>((false, "no target username"));
+
+            // Sprint 5.32 (BLT-parity LOW-7) — read override из payload.
+            int maxAliveChildren = DEFAULT_MAX_ALIVE_CHILDREN;
+            try
+            {
+                int? overrideVal = (int?)data["max_alive_children"];
+                if (overrideVal.HasValue && overrideVal.Value > 0 && overrideVal.Value <= 20)
+                    maxAliveChildren = overrideVal.Value;
+            }
+            catch { }
 
             MainThreadDispatcher.Enqueue(() =>
             {
@@ -60,10 +74,10 @@ namespace BannerlordLink.Actions
                     int childCount = hero.Children?
                         .Where(c => c != null && !c.IsDead && c.Clan == hero.Clan)
                         .Count() ?? 0;
-                    if (childCount >= MAX_ALIVE_CHILDREN)
+                    if (childCount >= maxAliveChildren)
                     {
                         BannerlordLinkModule.Log(
-                            $"[hero.make_baby] @{username}: уже {childCount} детей в клане, лимит {MAX_ALIVE_CHILDREN}");
+                            $"[hero.make_baby] @{username}: уже {childCount} детей в клане, лимит {maxAliveChildren}");
                         return;
                     }
 
@@ -79,7 +93,7 @@ namespace BannerlordLink.Actions
                     MakePregnantAction.Apply(target);
                     BannerlordLinkModule.Log(
                         $"[hero.make_baby] @{username}: {target.Name} забеременела "
-                        + $"(текущих детей: {childCount}/{MAX_ALIVE_CHILDREN})");
+                        + $"(текущих детей: {childCount}/{maxAliveChildren})");
                 }
                 catch (Exception ex)
                 {

@@ -113,6 +113,25 @@ ACTION_COOLDOWNS_SEC = {
     "hero.join_kingdom":       120,
     "hero.join_tournament":     30,    # хочется быстрая re-queue после поражения
     "world.trigger_event":    3600,    # admin-style, 1h
+    # Sprint 5.32 (BLT-parity H3) — добавлены недостающие actions для full coverage.
+    # Без этих entry'ев curl bypass обходил throttle для adopt-spam, smith-spam,
+    # bet-spam, trophy-spam. Главные actions уже покрыты выше (audit-fix #28).
+    "hero.create":              60,    # adoption — viewer спамит /adopt пока не зайдёт «redeem»
+    "hero.smith_item":          30,    # crafting — economy-heavy
+    "hero.equip_trophy":         5,    # equip/unequip toggle
+    "tournament.bet":            3,    # game-logic уже dedup'ит по round_index; safety-net против multi-target spam
+    # NB: power.activate cooldown идёт через POWER_COOLDOWNS (per-power_key),
+    #     player.spawn — через POWER_COOLDOWNS["player.spawn:<side>"].
+    #     Эти actions НЕ нужно дублировать здесь.
+    # Sprint 5.32 (BLT-parity Detachment) — короткий cooldown 2s чтобы viewer
+    # мог реагировать на изменение боя ("противник прорвался к gate'у —
+    # сменю hold на charge"), но не спамил кликами для двойного списания.
+    "hero.detach":               2,
+    "hero.attach":                2,
+    "hero.detach_hold":           2,
+    "hero.detach_charge":         2,
+    "hero.detach_walls":          3,    # siege — re-issue takes engine моменты
+    "hero.detach_gate":           3,
 }
 
 
@@ -410,6 +429,14 @@ class BannerlordAdapter(ModuleAdapter):
             await self._on_tournament_ended(channel_id, env)
             return
 
+        # Sprint 5.32 (BLT-parity M2) — heir queue foundation.
+        if et == "hero.heir_came_of_age":
+            await self._on_heir_came_of_age(channel_id, env)
+            return
+        if et == "hero.heir_died":
+            await self._on_heir_died(channel_id, env)
+            return
+
         if et == "world.event_occurred":
             await self._on_world_event(channel_id, env)
             return
@@ -440,6 +467,10 @@ class BannerlordAdapter(ModuleAdapter):
             logger.warning("[bannerlord:%s] action.failed без action_id, skip", channel_id)
             return
 
+        # Sprint 5.32 BUGFIX — late-import get_db (как остальные methods в этом
+        # файле). Раньше NameError: name 'get_db' is not defined ломал refund flow
+        # → viewer'у не возвращались крустики на mod refuse.
+        from dependencies import get_db
         async with get_db()._connect() as conn:
             try:
                 await conn.execute("BEGIN IMMEDIATE")
@@ -598,7 +629,9 @@ class BannerlordAdapter(ModuleAdapter):
 
         from dependencies import get_db
         async with get_db()._connect() as conn:
-            # ON CONFLICT (channel_id, username) — re-adopt (после heir) обновляет hero_id
+            # ON CONFLICT (channel_id, username) — re-adopt (после heir) обновляет hero_id.
+            # Sprint 5.32 (BLT-parity H4) — также reset'им is_wounded=0 чтобы новый
+            # hero не наследовал KO-флаг от мёртвого (m43 добавила колонку).
             await conn.execute("""
                 INSERT INTO bannerlord_heroes
                     (channel_id, username, hero_id, display_name, culture, is_alive)
@@ -609,6 +642,7 @@ class BannerlordAdapter(ModuleAdapter):
                     culture      = COALESCE(excluded.culture, culture),
                     is_alive     = 1,
                     is_prisoner  = 0,
+                    is_wounded   = 0,
                     last_sync    = CURRENT_TIMESTAMP
             """, (channel_id, username, hero_id, display_name, culture))
             await conn.commit()
@@ -653,7 +687,8 @@ class BannerlordAdapter(ModuleAdapter):
         params: list = []
         # M19: level / clan_name / kingdom_name добавлены — mod пушит после
         # adoption + HeroLevelledUp + опционально на daily tick для clan/kingdom.
-        for k in ("gold", "is_alive", "is_prisoner", "location",
+        # Sprint 5.32 (M43) — is_wounded для KO state (frontend показывает 🟡 ранен).
+        for k in ("gold", "is_alive", "is_prisoner", "is_wounded", "location",
                   "level", "clan_name", "kingdom_name", "is_female"):
             if k in data:
                 fields.append(f"{k} = ?")
@@ -739,6 +774,7 @@ class BannerlordAdapter(ModuleAdapter):
             return
 
         from dependencies import get_db
+        import uuid as _uuid
         async with get_db()._connect() as conn:
             await conn.execute(
                 "UPDATE bannerlord_heroes SET is_alive=0, "
@@ -746,11 +782,64 @@ class BannerlordAdapter(ModuleAdapter):
                 "last_sync=CURRENT_TIMESTAMP "
                 "WHERE channel_id=? AND username=?",
                 (channel_id, username))
+
+            # Sprint 5.32 (BLT-parity M2.1) — heir auto-activation.
+            # Pick first alive non-activated heir → mark activated=1 → enqueue
+            # mod action hero.activate_heir с heir_hero_id + parent_username.
+            # Mod renames heir → [BLink] {parent_username}, transfers clan,
+            # пушит player.linked. Viewer мгновенно получает нового hero без
+            # клика "Возродить" + без потери прогресса (heir уже level'нутый
+            # ребёнок with parent's clan/skills).
+            #
+            # Fallback: если heirs нет — existing flow ("Поколение N мёртв,
+            # возродить" UI button → AdoptHeroHandler new wanderer).
+            cur_heir = await conn.execute(
+                "SELECT heir_hero_id, heir_name FROM bannerlord_heirs "
+                "WHERE channel_id=? AND parent_username=? "
+                "AND alive=1 AND activated=0 "
+                "ORDER BY came_of_age_at ASC LIMIT 1",  # старший first (came_of_age earliest)
+                (channel_id, username))
+            heir_row = await cur_heir.fetchone()
+            heir_activated = None
+            if heir_row:
+                heir_id, heir_name = heir_row
+                # Mark activated to prevent picking same heir on second death.
+                await conn.execute(
+                    "UPDATE bannerlord_heirs SET activated=1 "
+                    "WHERE channel_id=? AND heir_hero_id=?",
+                    (channel_id, heir_id))
+
+                # Enqueue mod action.
+                action_id = _uuid.uuid4().hex
+                payload = {
+                    "initiated_by":    username,
+                    "target":          username,
+                    "parent_username": username,
+                    "heir_hero_id":    heir_id,
+                    "heir_name":       heir_name,
+                    "_auto":           True,
+                }
+                import json as _json
+                await conn.execute("""
+                    INSERT INTO module_actions
+                        (channel_id, module_id, action_id, type, data, status)
+                    VALUES (?, 'bannerlord', ?, 'hero.activate_heir', ?, 'queued')
+                """, (channel_id, action_id,
+                      _json.dumps(payload, ensure_ascii=False)))
+                heir_activated = (heir_id, heir_name)
+
             await conn.commit()
 
         await self._log_event(channel_id, "player.died", username, data)
-        print(f"[bannerlord:{channel_id}] @{username} hero died "
-              f"(iteration bumped) killer={data.get('killer_name', 'unknown')}")
+        if heir_activated:
+            # Sprint 5.32 (LOG-3) — explicit prefix для heir-activation flow.
+            print(f"[HEIR-ACTIVATE] ch={channel_id} @{username} died → "
+                  f"AUTO-HEIR queued: '{heir_activated[1]}' (id={heir_activated[0]}) "
+                  f"— mod должен ActivateHeirHandler execute через ~1s")
+        else:
+            print(f"[HEIR-ACTIVATE] ch={channel_id} @{username} died, "
+                  f"NO HEIR (iteration bumped to next) "
+                  f"killer={data.get('killer_name', 'unknown')}")
 
     async def _on_player_respawned(self, channel_id: int, env: ModuleEnvelope) -> None:
         """Heir succession completed — mod подтвердил respawn на новом hero."""
@@ -1449,8 +1538,91 @@ class BannerlordAdapter(ModuleAdapter):
                 await increment_stat(channel_id, winner, "tournament_wins", 1)
             except Exception:
                 pass
+
+            # Sprint 5.32 (BLT-parity H8) — persistent anti-snowball counter.
+            # bannerlord_heroes.tournament_wins → mod GET'ит при tournament
+            # start как список "недавних winner'ов" → анти-сноубол HP penalty.
+            # Раньше _recentWinners был static List в C# → сбрасывался на
+            # reload save → доминирующий viewer переставал получать nerf.
+            try:
+                from dependencies import get_db
+                async with get_db()._connect() as conn2:
+                    await conn2.execute(
+                        "UPDATE bannerlord_heroes "
+                        "SET tournament_wins = tournament_wins + 1 "
+                        "WHERE channel_id=? AND username=?",
+                        (channel_id, winner))
+                    await conn2.commit()
+            except Exception as e:
+                logger.warning("[bannerlord:%s] tournament_wins UPDATE failed for @%s: %s",
+                               channel_id, winner, e)
+
         status_str = "ABORTED" if aborted else f"winner=@{winner}"
         print(f"[bannerlord:{channel_id}] tournament ended ({status_str})")
+
+    # ── Sprint 5.32 (BLT-parity M2): heir queue ───────────────────────────────
+
+    async def _on_heir_came_of_age(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Mod пушит когда ребёнок adopted hero'я достиг 18 лет.
+
+        Payload: {parent_username, heir_hero_id, heir_name}.
+        INSERT в bannerlord_heirs. PRIMARY KEY (channel_id, heir_hero_id) защищает
+        от дублей. Frontend GET /api/bannerlord/heirs?username=… подтянет list.
+        """
+        data = env.data
+        parent_username = (data.get("parent_username") or "").lower()
+        heir_hero_id = (data.get("heir_hero_id") or "").strip()
+        heir_name = (data.get("heir_name") or "").strip() or heir_hero_id
+
+        # Sprint 5.32 (LOG-3) — entry log с params чтобы trace heir-flow в логах.
+        logger.info("[HEIR-COMA] ch=%s parent=@%s heir='%s' (id=%s) entering...",
+                    channel_id, parent_username, heir_name, heir_hero_id)
+
+        if not parent_username or not heir_hero_id:
+            logger.warning("[HEIR-COMA] ch=%s missing parent/heir: %s",
+                           channel_id, data)
+            return
+
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            await conn.execute("""
+                INSERT INTO bannerlord_heirs
+                    (channel_id, parent_username, heir_hero_id, heir_name)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(channel_id, heir_hero_id) DO UPDATE SET
+                    heir_name = excluded.heir_name,
+                    alive     = 1
+            """, (channel_id, parent_username, heir_hero_id, heir_name))
+            await conn.commit()
+
+        await self._log_event(channel_id, "hero.heir_came_of_age", parent_username, data)
+        print(f"[HEIR-COMA] ch={channel_id} parent=@{parent_username} "
+              f"heir={heir_name} ({heir_hero_id}) INSERTED OK")
+
+    async def _on_heir_died(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Mod пушит когда heir умер ДО succession (engine killed via plague/war/etc.).
+
+        Payload: {heir_hero_id}. UPDATE alive=0 — не показываем в очереди больше.
+        """
+        data = env.data
+        heir_hero_id = (data.get("heir_hero_id") or "").strip()
+        if not heir_hero_id:
+            logger.warning("[HEIR-DIED] ch=%s missing heir_hero_id", channel_id)
+            return
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            cur = await conn.execute(
+                "UPDATE bannerlord_heirs SET alive=0 "
+                "WHERE channel_id=? AND heir_hero_id=?",
+                (channel_id, heir_hero_id))
+            affected = cur.rowcount
+            await conn.commit()
+        await self._log_event(channel_id, "hero.heir_died", None, data)
+        # Sprint 5.32 (LOG-3) — affected rowcount показывает был ли heir вообще
+        # в нашей очереди. 0 = engine NPC death (не наш heir, нормально). >0 =
+        # реально потеряли pre-collected heir'а (печально, но not critical).
+        logger.info("[HEIR-DIED] ch=%s heir_id=%s affected=%d (0=NPC death not tracked, >0=our heir lost)",
+                    channel_id, heir_hero_id, affected)
 
     # ── World events ──────────────────────────────────────────────────────────
 

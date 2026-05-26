@@ -192,39 +192,67 @@
             </div>
         </div>
 
-        <!-- ===== BANNERLORD CONTENT (Sprint 1.5) ===== -->
+        <!-- ===== BANNERLORD CONTENT (Sprint 1.5; Sprint 5.32 UI refactor — 4 inner tabs) ===== -->
         <div id="bannerlord-content" style="display:none;">
             <div class="rimworld-status-row">
                 <span class="rimworld-status-label">⚔️ Bannerlord</span>
                 <span id="bannerlord-status-badge" style="font-size:11px;font-weight:700;color:#f87171;">🔴 Оффлайн</span>
             </div>
 
-            <div class="card" id="my-hero-card">
-                <div class="card-header">
-                    <h3>👤 Мой герой</h3>
-                    <button class="small-btn" id="refresh-hero-btn">🔄</button>
-                </div>
-                <div id="hero-body" class="loading">Загрузка...</div>
-            </div>
-
-            <div class="card" id="bannerlord-shop-card" style="margin-top:10px;">
-                <div class="card-header">
-                    <h3>🛒 Действия в игре</h3>
-                    <span class="card-badge" id="bannerlord-shop-count">0</span>
-                </div>
-                <div class="shop-list" id="bannerlord-shop-list">
-                    <div class="loading">Ждём данных от мода...</div>
+            <div id="my-hero-card" style="padding:8px 6px 6px 6px;
+                 background:rgba(45,45,47,0.3);border-radius:6px;margin-bottom:6px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div id="hero-body" style="flex:1;min-width:0;">
+                        <div class="loading" style="font-size:12px;">Загрузка героя...</div>
+                    </div>
+                    <button class="small-btn" id="refresh-hero-btn"
+                            style="margin-left:8px;flex:0 0 auto;">🔄</button>
                 </div>
             </div>
 
-            <!-- Sprint 5.3: viewer tournament card (copy с extension.html) -->
-            <div class="card" id="bannerlord-tournament-card" style="margin-top:10px;">
-                <div class="card-header">
-                    <h3>🏆 Турнир зрителей</h3>
-                    <span class="card-badge" id="bannerlord-tournament-status">idle</span>
+            <div class="bnr-tab-strip" id="bnr-tab-strip">
+                <button class="bnr-tab-btn active" data-bnr-tab="combat">
+                    <span class="bnr-tab-icon">⚔</span><span>Бой</span>
+                </button>
+                <button class="bnr-tab-btn" data-bnr-tab="hero">
+                    <span class="bnr-tab-icon">🛡</span><span>Герой</span>
+                </button>
+                <button class="bnr-tab-btn" data-bnr-tab="inventory">
+                    <span class="bnr-tab-icon">🎒</span><span>Инвентарь</span>
+                </button>
+                <button class="bnr-tab-btn" data-bnr-tab="progression">
+                    <span class="bnr-tab-icon">💪</span><span>Прокачка</span>
+                </button>
+            </div>
+
+            <div class="bnr-tab-pane active" data-bnr-pane="combat">
+                <div id="bnr-pane-combat-body"></div>
+                <div class="card" id="bannerlord-tournament-card" style="margin-top:10px;">
+                    <div class="card-header">
+                        <h3>🏆 Турнир зрителей</h3>
+                        <span class="card-badge" id="bannerlord-tournament-status">idle</span>
+                    </div>
+                    <div id="bannerlord-tournament-body">
+                        <div class="loading">Загрузка турнира...</div>
+                    </div>
                 </div>
-                <div id="bannerlord-tournament-body">
-                    <div class="loading">Загрузка турнира...</div>
+            </div>
+            <div class="bnr-tab-pane" data-bnr-pane="hero">
+                <div id="bnr-pane-hero-body"></div>
+            </div>
+            <div class="bnr-tab-pane" data-bnr-pane="inventory">
+                <div id="bnr-pane-inventory-body"></div>
+            </div>
+            <div class="bnr-tab-pane" data-bnr-pane="progression">
+                <div id="bnr-pane-progression-body"></div>
+                <div class="card" id="bannerlord-shop-card" style="margin-top:10px;">
+                    <div class="card-header">
+                        <h3>🛒 Действия в игре</h3>
+                        <span class="card-badge" id="bannerlord-shop-count">0</span>
+                    </div>
+                    <div class="shop-list" id="bannerlord-shop-list">
+                        <div class="loading">Ждём данных от мода...</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -408,7 +436,7 @@
     <script src="family.js?v=20260520b"></script>
     <script src="duels.js?v=20260520b"></script>
     <script src="xenotype.js?v=20260520b"></script>
-    <script src="viewer.js?v=20260525m"></script>
+    <script src="viewer.js?v=20260525u"></script>
     </div><!-- /panel-content -->
 </div><!-- /overlay-panel -->
 

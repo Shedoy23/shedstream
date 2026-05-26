@@ -56,41 +56,43 @@ namespace BannerlordLink.Actions
 
             string desiredName = (data["clan_name"]?.ToString() ?? "").Trim();
 
-            MainThreadDispatcher.Enqueue(() => Apply(username, desiredName));
+            string actionId = BannerlordLink.Util.ActionFeedback.GetActionId(data);
+            MainThreadDispatcher.Enqueue(() => Apply(username, desiredName, actionId));
             return Task.FromResult<(bool, string)>((true, null));
         }
 
-        private static void Apply(string username, string desiredName)
+        private static void Apply(string username, string desiredName, string actionId)
         {
             try
             {
                 var hero = HeroLookup.FindByUsername(username);
                 if (hero == null || !hero.IsAlive)
                 {
-                    BannerlordLinkModule.Log(
-                        $"[create_clan] @{username}: hero не найден / мёртв");
+                    BannerlordLinkModule.Log($"[create_clan] REFUSE @{username}: hero не найден / мёртв");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "hero_not_found_or_dead");
                     return;
                 }
 
                 if (hero.IsPrisoner)
                 {
-                    BannerlordLinkModule.Log(
-                        $"[create_clan] @{username}: ты пленник, нельзя создать clan");
+                    BannerlordLinkModule.Log($"[create_clan] REFUSE @{username}: пленник");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "is_prisoner");
                     return;
                 }
 
                 if (hero.IsClanLeader)
                 {
                     BannerlordLinkModule.Log(
-                        $"[create_clan] @{username}: уже лидер clan '{hero.Clan?.Name}'");
+                        $"[create_clan] REFUSE @{username}: уже лидер clan '{hero.Clan?.Name}'");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "already_clan_leader");
                     return;
                 }
 
                 if (hero.Gold < CREATE_COST)
                 {
                     BannerlordLinkModule.Log(
-                        $"[create_clan] @{username}: not enough gold " +
-                        $"({hero.Gold} < {CREATE_COST})");
+                        $"[create_clan] REFUSE @{username}: not enough hero gold ({hero.Gold} < {CREATE_COST})");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "not_enough_hero_gold");
                     return;
                 }
 
@@ -109,7 +111,8 @@ namespace BannerlordLink.Actions
                 if (exists)
                 {
                     BannerlordLinkModule.Log(
-                        $"[create_clan] @{username}: clan '{fullClanName}' уже существует");
+                        $"[create_clan] REFUSE @{username}: clan '{fullClanName}' уже существует");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "clan_name_exists");
                     return;
                 }
 
@@ -118,7 +121,8 @@ namespace BannerlordLink.Actions
                 if (newClan == null)
                 {
                     BannerlordLinkModule.Log(
-                        $"[create_clan] @{username}: Clan.CreateClan вернул null");
+                        $"[create_clan] REFUSE @{username}: Clan.CreateClan вернул null");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "engine_create_clan_null");
                     return;
                 }
 

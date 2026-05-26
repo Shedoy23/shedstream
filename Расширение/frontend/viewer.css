@@ -1437,3 +1437,43 @@ input[type="number"]::-webkit-inner-spin-button {
     0%, 100% { box-shadow: 0 0 6px rgba(220,38,38,0.3); }
     50%      { box-shadow: 0 0 14px rgba(220,38,38,0.7); }
 }
+
+/* ===== BANNERLORD INNER TABS (Sprint 5.32 — UI refactor) =====
+   4 вкладки внутри Bannerlord: Герой / Инвентарь / Бой / Прокачка.
+   Раньше всё было в одной длинной колонке — теперь логические группы. */
+.bnr-tab-strip {
+    display: flex;
+    gap: 2px;
+    margin: 8px 0 4px 0;
+    border-bottom: 1px solid #2d2d2f;
+    padding-bottom: 0;
+}
+.bnr-tab-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #adadb8;
+    padding: 8px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    line-height: 1.2;
+}
+.bnr-tab-btn:hover { color: #efeff1; }
+.bnr-tab-btn.active {
+    color: #fbbf24;
+    border-bottom-color: #fbbf24;
+}
+.bnr-tab-pane { display: none; }
+.bnr-tab-pane.active { display: block; }
+.bnr-tab-icon { font-size: 14px; }
+@media (max-width: 360px) {
+    .bnr-tab-btn { font-size: 10px; padding: 6px 2px; }
+    .bnr-tab-icon { font-size: 12px; }
+}

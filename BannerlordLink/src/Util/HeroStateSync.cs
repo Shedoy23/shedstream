@@ -50,6 +50,15 @@ namespace BannerlordLink.Util
                 // Sprint 5.27c: family info (spouse + children + parents + siblings)
                 var familyInfo = BuildFamilyInfo(hero);
 
+                // Sprint 5.32 — is_wounded для KO state. Hero.IsWounded
+                // возвращает true когда hero ранен в бою (KO'd, временно
+                // не active). Через несколько дней оживёт автоматически.
+                // ВАЖНО: IsAlive=true при IsWounded=true — KO != death.
+                // Permanent death = IsAlive=false (через HeroKilledEvent).
+                bool isWounded = false;
+                try { isWounded = hero.IsWounded; }
+                catch { /* old game version без IsWounded — оставляем false */ }
+
                 var payload = new
                 {
                     username      = username,
@@ -58,6 +67,7 @@ namespace BannerlordLink.Util
                     level         = hero.Level,
                     is_alive      = hero.IsAlive ? 1 : 0,
                     is_prisoner   = hero.IsPrisoner ? 1 : 0,
+                    is_wounded    = isWounded ? 1 : 0,
                     is_female     = hero.IsFemale ? 1 : 0,
                     location      = hero.CurrentSettlement?.Name?.ToString(),
                     clan_name     = clanName,
@@ -211,20 +221,38 @@ namespace BannerlordLink.Util
             return result;
         }
 
-        /// <summary>Sprint 5.27c: family info — spouse + children + parents + siblings.</summary>
+        /// <summary>Sprint 5.27c: family info — spouse + children + parents + siblings.
+        ///
+        /// Sprint 5.31 #45e (audit MED-5) — каждое property-чтение в отдельный
+        /// try/catch. Раньше TaleWorlds bug на `hero.Spouse?.IsPregnant` для
+        /// dead spouse в 1.2.x ловился outer catch'ем → ВСЁ family_info уходило
+        /// null'ом, UI не отличал "spouseless" от "engine threw". Теперь
+        /// частичные пробои допустимы — отдаём то, что удалось прочитать.</summary>
         private static object BuildFamilyInfo(Hero hero)
         {
             try
             {
                 if (hero == null) return null;
-                object SpouseObj(Hero s) => s == null ? null : new
+
+                // Safe-read helpers — каждое поле в своём try/catch.
+                T Safe<T>(Func<T> getter, T fallback = default)
                 {
-                    name        = s.Name?.ToString(),
-                    age         = (int)s.Age,
-                    is_female   = s.IsFemale,
-                    is_alive    = s.IsAlive,
-                    is_pregnant = s.IsPregnant,
-                };
+                    try { return getter(); }
+                    catch { return fallback; }
+                }
+                object SpouseObj(Hero s)
+                {
+                    if (s == null) return null;
+                    return new
+                    {
+                        name        = Safe(() => s.Name?.ToString(), "?"),
+                        age         = Safe(() => (int)s.Age, 0),
+                        is_female   = Safe(() => s.IsFemale, false),
+                        is_alive    = Safe(() => s.IsAlive, true),
+                        // IsPregnant — known throw point для dead spouse в 1.2.x.
+                        is_pregnant = Safe(() => s.IsPregnant, false),
+                    };
+                }
                 System.Collections.Generic.List<object> ChildrenList(System.Collections.Generic.IEnumerable<Hero> kids)
                 {
                     var list = new System.Collections.Generic.List<object>();
@@ -232,24 +260,33 @@ namespace BannerlordLink.Util
                     foreach (var c in kids)
                     {
                         if (c == null) continue;
-                        list.Add(new
+                        try
                         {
-                            name      = c.Name?.ToString(),
-                            age       = (int)c.Age,
-                            is_female = c.IsFemale,
-                            is_alive  = c.IsAlive,
-                        });
+                            list.Add(new
+                            {
+                                name      = Safe(() => c.Name?.ToString(), "?"),
+                                age       = Safe(() => (int)c.Age, 0),
+                                is_female = Safe(() => c.IsFemale, false),
+                                is_alive  = Safe(() => c.IsAlive, true),
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            BannerlordLinkModule.Log(
+                                $"[HeroStateSync] child entry skipped: {ex.Message}");
+                        }
                     }
                     return list;
                 }
 
-                int siblingCount = hero.Siblings?.Count(s => s != null && s.IsAlive) ?? 0;
+                int siblingCount = Safe(
+                    () => hero.Siblings?.Count(s => s != null && s.IsAlive) ?? 0, 0);
                 return new
                 {
-                    spouse       = SpouseObj(hero.Spouse),
+                    spouse       = Safe<object>(() => SpouseObj(hero.Spouse)),
                     children     = ChildrenList(hero.Children),
-                    father       = SpouseObj(hero.Father),
-                    mother       = SpouseObj(hero.Mother),
+                    father       = Safe<object>(() => SpouseObj(hero.Father)),
+                    mother       = Safe<object>(() => SpouseObj(hero.Mother)),
                     sibling_count = siblingCount,
                 };
             }

@@ -167,6 +167,35 @@ namespace BannerlordLink.Actions
                             return;
                         }
                     }
+
+                    // Sprint 5.32 (BLT-parity M12) — class-aware troop selection.
+                    // Cavalry viewer должен получать cavalry-troop'а, archer — archer.
+                    // BFS вниз по UpgradeTargets от basic/elite recruit'а ищет
+                    // первого troop'а с подходящим FormationClass. Если не находим
+                    // (culture может не иметь cavalry-tree, e.g. Empire mainline)
+                    // — fallback к default basic/elite (старый behavior).
+                    try
+                    {
+                        var desiredFormation = ResolveDesiredFormation(username);
+                        if (desiredFormation.HasValue)
+                        {
+                            var matched = FindTroopByFormationBfs(newTroop, desiredFormation.Value, maxDepth: 3);
+                            if (matched != null && matched != newTroop)
+                            {
+                                BannerlordLinkModule.Log(
+                                    $"[recruit_troops M12] @{username}: class-match → " +
+                                    $"{matched.StringId} ({desiredFormation.Value}) " +
+                                    $"вместо default {newTroop.StringId}");
+                                newTroop = matched;
+                            }
+                        }
+                    }
+                    catch (Exception fmEx)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[recruit_troops M12] @{username}: formation-match warn: {fmEx.Message}");
+                    }
+
                     newTier = (int)newTroop.Tier;
                     updatedSlot = existing.Count;
                     BannerlordLinkModule.Log(
@@ -280,6 +309,77 @@ namespace BannerlordLink.Actions
                     $"[recruit_troops] FindCultureRecruit({culture.StringId}) crashed: {ex.Message}");
                 return null;
             }
+        }
+
+        // Sprint 5.32 (BLT-parity M12) — class viewer'а → желаемый FormationClass
+        // для retinue. Map mirror'ит C# class_key → TaleWorlds FormationClass.
+        // Возвращает null если class неизвестен / нет в cache (используем default).
+        private static readonly System.Collections.Generic.Dictionary<string, FormationClass>
+            _classToFormation = new System.Collections.Generic.Dictionary<string, FormationClass>(
+                StringComparer.OrdinalIgnoreCase)
+            {
+                ["tank"]            = FormationClass.Infantry,
+                ["knight"]          = FormationClass.Cavalry,
+                ["psycho"]          = FormationClass.Infantry,
+                ["berserk"]         = FormationClass.Infantry,
+                ["assassin"]        = FormationClass.Infantry,
+                ["archer"]          = FormationClass.Ranged,
+                ["heavy_archer"]    = FormationClass.Ranged,
+                ["crossbow"]        = FormationClass.Ranged,
+                ["heavy_crossbow"]  = FormationClass.Ranged,
+                ["cavalry"]         = FormationClass.Cavalry,
+                ["camel_cavalry"]   = FormationClass.Cavalry,
+                ["horse_archer"]    = FormationClass.HorseArcher,
+                ["camel_archer"]    = FormationClass.HorseArcher,
+            };
+
+        private static FormationClass? ResolveDesiredFormation(string username)
+        {
+            try
+            {
+                var hc = BannerlordLink.Net.PowerCache.GetHeroClass(username);
+                if (hc.HasValue && !string.IsNullOrEmpty(hc.Value.classKey)
+                    && _classToFormation.TryGetValue(hc.Value.classKey, out var fc))
+                {
+                    return fc;
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        /// <summary>BFS вниз по UpgradeTargets дереву от root'а ищем
+        /// первого troop'а с заданным FormationClass. Limit depth = 3
+        /// (T0 → T1 → T2 → T3 максимум — обычно cavalry/archer branch
+        /// разделяется на tier 1-2). Возвращает root если match не найден
+        /// в depth limit (caller'у решать что делать).</summary>
+        private static CharacterObject FindTroopByFormationBfs(
+            CharacterObject root, FormationClass desired, int maxDepth)
+        {
+            if (root == null) return null;
+            // Quick exit: root уже матчится.
+            try { if (root.GetFormationClass() == desired) return root; }
+            catch { return root; }  // GetFormationClass может бросать на некоторых troop'ах
+
+            var visited = new System.Collections.Generic.HashSet<CharacterObject> { root };
+            var queue = new System.Collections.Generic.Queue<(CharacterObject troop, int depth)>();
+            queue.Enqueue((root, 0));
+            while (queue.Count > 0)
+            {
+                var (cur, depth) = queue.Dequeue();
+                if (depth >= maxDepth) continue;
+                if (cur.UpgradeTargets == null) continue;
+                foreach (var next in cur.UpgradeTargets)
+                {
+                    if (next == null || visited.Contains(next)) continue;
+                    visited.Add(next);
+                    try { if (next.GetFormationClass() == desired) return next; }
+                    catch { continue; }
+                    queue.Enqueue((next, depth + 1));
+                }
+            }
+            // Not found — caller'у решать.
+            return null;
         }
     }
 }

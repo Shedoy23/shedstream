@@ -808,6 +808,54 @@ async def run_migrations():
             print(f"❌ M42 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # Sprint 5.32 — is_wounded column для KO state
+        try:
+            from migrations import m43_hero_wounded
+            await m43_hero_wounded.apply(conn)
+        except Exception as e:
+            print(f"❌ M43 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
+        # Sprint 5.32 — active powers для всех классов
+        try:
+            from migrations import m44_class_actives_for_all
+            await m44_class_actives_for_all.apply(conn)
+        except Exception as e:
+            print(f"❌ M44 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
+        # Sprint 5.32 (BLT-parity #46) — daily reward claims
+        try:
+            from migrations import m45_daily_claims
+            await m45_daily_claims.apply(conn)
+        except Exception as e:
+            print(f"❌ M45 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
+        # Sprint 5.32 (BLT-parity H1) — client_action_id idempotency
+        try:
+            from migrations import m46_client_action_id
+            await m46_client_action_id.apply(conn)
+        except Exception as e:
+            print(f"❌ M46 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
+        # Sprint 5.32 (BLT-parity H8) — tournament_wins для persistent anti-snowball
+        try:
+            from migrations import m47_tournament_wins
+            await m47_tournament_wins.apply(conn)
+        except Exception as e:
+            print(f"❌ M47 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
+        # Sprint 5.32 (BLT-parity M2) — heir queue foundation
+        try:
+            from migrations import m48_heir_queue
+            await m48_heir_queue.apply(conn)
+        except Exception as e:
+            print(f"❌ M48 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

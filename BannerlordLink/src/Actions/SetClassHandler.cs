@@ -7,6 +7,7 @@ using BannerlordLink.Util;
 using Newtonsoft.Json.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
+using TaleWorlds.MountAndBlade;
 using TaleWorlds.ObjectSystem;
 
 namespace BannerlordLink.Actions
@@ -87,18 +88,35 @@ namespace BannerlordLink.Actions
             if (string.IsNullOrEmpty(classKey) || !_classes.ContainsKey(classKey))
                 return Task.FromResult<(bool, string)>((false, $"unknown class '{classKey}'"));
 
-            MainThreadDispatcher.Enqueue(() => ApplyClass(username, classKey, gearTier));
+            // Sprint 5.32 (BLT-parity H7) — pass actionId для refund-on-refuse.
+            string actionId = ActionFeedback.GetActionId(data);
+            MainThreadDispatcher.Enqueue(() => ApplyClass(username, classKey, gearTier, actionId));
             return Task.FromResult<(bool, string)>((true, null));
         }
 
-        private static void ApplyClass(string username, string classKey, int gearTier)
+        private static void ApplyClass(string username, string classKey, int gearTier, string actionId)
         {
             try
             {
+                // Sprint 5.32 (BLT-parity H7) — Mission guard. BLT pattern
+                // (SetHeroClass.cs:68-72) — `You cannot change class, as a
+                // mission is active!`. Без guard'а равно equipment swap
+                // на active Agent → engine использует stale equipment до
+                // respawn'а, на следующем attack'е может null-deref.
+                if (Mission.Current != null)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[set_class] REFUSE @{username}: нельзя сменить класс во время Mission " +
+                        $"(mode={Mission.Current.Mode})");
+                    ActionFeedback.PostFailed(actionId, "in_mission");
+                    return;
+                }
+
                 var hero = HeroLookup.FindByUsername(username);
                 if (hero == null || !hero.IsAlive)
                 {
                     BannerlordLinkModule.Log($"[set_class] @{username}: hero не найден или мёртв");
+                    ActionFeedback.PostFailed(actionId, "hero_not_found_or_dead");
                     return;
                 }
                 var cfg = _classes[classKey];
@@ -109,11 +127,34 @@ namespace BannerlordLink.Actions
                 var rng = new Random();
                 var equipment = hero.BattleEquipment;
 
+                // Sprint 5.32 (BLT-parity M8) — preserve tier-5/6 (modifier'нутые)
+                // предметы при class change. BLT pattern: если slot занят smithed/
+                // Lordly/Masterwork item'ом, viewer вложил много динаров / крустиков —
+                // не затирать random T1-T2 шмотом при class change. Старый код
+                // безусловно overwrites → теряются legendary item'ы.
+                int preservedSlots = 0;
+
                 // 4 weapon slots
                 for (int i = 0; i < 4 && i < cfg.Slots.Length; i++)
                 {
                     var slotType = cfg.Slots[i];
                     if (slotType == T.Invalid) continue;
+
+                    // Preserve modifier'нутый slot.
+                    try
+                    {
+                        var current = equipment[(EquipmentIndex)i];
+                        if (!current.IsEmpty && current.ItemModifier != null)
+                        {
+                            preservedSlots++;
+                            BannerlordLinkModule.Log(
+                                $"[set_class M8] @{username}: slot {i} preserved " +
+                                $"({current.Item?.Name?.ToString() ?? "?"} " +
+                                $"mod={current.ItemModifier.StringId})");
+                            continue;
+                        }
+                    }
+                    catch { }
 
                     var item = FindTieredItem(slotType, engineTier, rng);
                     if (item == null)
@@ -124,18 +165,41 @@ namespace BannerlordLink.Actions
                     equipment[(EquipmentIndex)i] = new EquipmentElement(item);
                 }
 
-                // Mount slot (Horse / Camel)
+                // Mount slot (Horse / Camel) — также preserve modifier mount.
                 ItemObject mount = null;
-                if (cfg.UseHorse)
-                    mount = FindTieredItem(T.Horse, engineTier, rng, name => !name.Contains("camel"));
-                else if (cfg.UseCamel)
-                    mount = FindTieredItem(T.Horse, engineTier, rng, name => name.Contains("camel"));
-                // (T.Horse покрывает оба — Camel это subtype в vanilla 1.3.x)
-
-                if (mount != null)
+                bool mountPreserved = false;
+                try
                 {
-                    equipment[EquipmentIndex.Horse] = new EquipmentElement(mount);
+                    var currMount = equipment[EquipmentIndex.Horse];
+                    if (!currMount.IsEmpty && currMount.ItemModifier != null)
+                    {
+                        mountPreserved = true;
+                        preservedSlots++;
+                        BannerlordLinkModule.Log(
+                            $"[set_class M8] @{username}: mount preserved " +
+                            $"({currMount.Item?.Name?.ToString() ?? "?"} " +
+                            $"mod={currMount.ItemModifier.StringId})");
+                    }
                 }
+                catch { }
+                if (!mountPreserved)
+                {
+                    if (cfg.UseHorse)
+                        mount = FindTieredItem(T.Horse, engineTier, rng, name => !name.Contains("camel"));
+                    else if (cfg.UseCamel)
+                        mount = FindTieredItem(T.Horse, engineTier, rng, name => name.Contains("camel"));
+                    // (T.Horse покрывает оба — Camel это subtype в vanilla 1.3.x)
+
+                    if (mount != null)
+                    {
+                        equipment[EquipmentIndex.Horse] = new EquipmentElement(mount);
+                    }
+                }
+
+                if (preservedSlots > 0)
+                    BannerlordLinkModule.Log(
+                        $"[set_class M8] @{username}: preserved {preservedSlots} " +
+                        $"modifier'нутых slot'ов через class change");
 
                 BannerlordLinkModule.Log(
                     $"[set_class] @{username} → {classKey} (T{gearTier}, mount={mount?.StringId ?? "—"})");

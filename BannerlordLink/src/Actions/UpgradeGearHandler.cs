@@ -110,7 +110,8 @@ namespace BannerlordLink.Actions
             if (targetTier < 1 || targetTier > 6)
                 return Task.FromResult<(bool, string)>((false, $"invalid target_tier {targetTier}"));
 
-            MainThreadDispatcher.Enqueue(() => ApplyUpgrade(username, classKey, targetTier));
+            string actionId = BannerlordLink.Util.ActionFeedback.GetActionId(data);
+            MainThreadDispatcher.Enqueue(() => ApplyUpgrade(username, classKey, targetTier, actionId));
             return Task.FromResult<(bool, string)>((true, null));
         }
 
@@ -128,32 +129,32 @@ namespace BannerlordLink.Actions
             [6] = 1_500_000,
         };
 
-        private static void ApplyUpgrade(string username, string classKey, int targetTier)
+        private static void ApplyUpgrade(string username, string classKey, int targetTier, string actionId)
         {
             try
             {
                 if (Mission.Current != null)
                 {
                     BannerlordLinkModule.Log(
-                        $"[upgrade_gear] @{username}: skip — нельзя менять snar во время Mission");
+                        $"[upgrade_gear] REFUSE @{username}: нельзя менять snar во время Mission");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "in_mission");
                     return;
                 }
 
                 var hero = HeroLookup.FindByUsername(username);
                 if (hero == null || !hero.IsAlive)
                 {
-                    BannerlordLinkModule.Log($"[upgrade_gear] @{username}: hero не найден или мёртв");
+                    BannerlordLinkModule.Log($"[upgrade_gear] REFUSE @{username}: hero не найден или мёртв");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "hero_not_found_or_dead");
                     return;
                 }
 
-                // Hero.Gold check — source of truth для tier upgrade economy.
-                // Если недостаточно динаров — refuse, gear_tier на backend не
-                // изменится (mod не пушит hero.gear_tier_changed).
                 int cost = HERO_GOLD_TIER_COSTS.TryGetValue(targetTier, out var c) ? c : 0;
                 if (hero.Gold < cost)
                 {
                     BannerlordLinkModule.Log(
-                        $"[upgrade_gear] @{username}: not enough gold ({hero.Gold} < {cost} для T{targetTier})");
+                        $"[upgrade_gear] REFUSE @{username}: not enough hero gold ({hero.Gold} < {cost} для T{targetTier})");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "not_enough_hero_gold");
                     return;
                 }
 
@@ -193,13 +194,25 @@ namespace BannerlordLink.Actions
                 // ── 3. Horse + Harness для mounted classes ──
                 if (cfg.UseHorse || cfg.UseCamel)
                 {
-                    var horse = FindTieredItem(T.Horse, engineTier, rng);
+                    // Sprint 5.32 (BLT-parity M4) — family-type matching.
+                    // Camel и Horse — разные mounts в TaleWorlds (Horse.ItemType,
+                    // но с разными HorseComponent.Monster). Раньше FindTieredItem
+                    // мог выбрать camel mount для horse-class или наоборот.
+                    // Аналогично harness — camel harness не подходит к horse mount.
+                    // Теперь: используем `name.Contains("camel")` matcher как в
+                    // SetClassHandler (надёжнее чем HorseComponent.Monster lookup
+                    // который иногда null для DLC mounts).
+                    bool wantCamel = cfg.UseCamel;
+                    System.Func<string, bool> mountFilter = wantCamel
+                        ? (System.Func<string, bool>)(name => name.IndexOf("camel", StringComparison.OrdinalIgnoreCase) >= 0)
+                        : (name => name.IndexOf("camel", StringComparison.OrdinalIgnoreCase) < 0);
+                    var horse = FindTieredItem(T.Horse, engineTier, rng, mountFilter);
                     if (horse != null)
                     {
                         equipment[EquipmentIndex.Horse] = new EquipmentElement(horse);
                         slotsFilled++;
                     }
-                    var harness = FindTieredItem(T.HorseHarness, engineTier, rng);
+                    var harness = FindTieredItem(T.HorseHarness, engineTier, rng, mountFilter);
                     if (harness != null)
                     {
                         equipment[EquipmentIndex.HorseHarness] = new EquipmentElement(harness);
@@ -243,7 +256,12 @@ namespace BannerlordLink.Actions
         // Tier-aware item lookup. Сначала exact-tier match, потом fallback на
         // (tier-1), потом любой merchandise-item типа. Это страхует случаи
         // где pool sparse (e.g. T6 Bolts может не существовать).
-        private static ItemObject FindTieredItem(ItemObject.ItemTypeEnum type, int engineTier, Random rng)
+        //
+        // Sprint 5.32 (BLT-parity M4) — optional nameFilter predicate для
+        // family-type matching (camel vs horse mount/harness).
+        private static ItemObject FindTieredItem(
+            ItemObject.ItemTypeEnum type, int engineTier, Random rng,
+            System.Func<string, bool> nameFilter = null)
         {
             var pool = MBObjectManager.Instance
                 .GetObjectTypeList<ItemObject>()
@@ -251,6 +269,17 @@ namespace BannerlordLink.Actions
                 ?.Where(i => !i.NotMerchandise)
                 ?.ToList();
             if (pool == null || pool.Count == 0) return null;
+
+            // Apply name filter (camel/non-camel) если задан.
+            if (nameFilter != null)
+            {
+                var filtered = pool
+                    .Where(i => nameFilter(i.StringId ?? ""))
+                    .ToList();
+                if (filtered.Count > 0) pool = filtered;
+                // если filter дал empty pool — fall through к unfiltered
+                // (lieber camel-harness-on-horse чем пустой slot).
+            }
 
             // exact tier
             var atTier = pool.Where(i => (int)i.Tier == engineTier).ToList();

@@ -51,10 +51,104 @@ namespace BannerlordLink
             try { Debug.Print($"[{MOD_NAME}] {msg}"); } catch (Exception) { }
         }
 
+        // Sprint 5.32 — verbose logging toggle.
+        // Включается через env-var BANNERLORDLINK_VERBOSE=1 ИЛИ через файл-flag
+        // в %MyDocs%/Mount and Blade II Bannerlord/Configs/bannerlordlink_verbose.flag
+        // (создать пустой файл с таким именем — verbose on).
+        //
+        // При verbose=true:
+        //   - DamageHookPatch логирует каждый blow с inputs/outputs
+        //   - SummonHero логирует каждый retinue agent (Index, HP, equipment)
+        //   - Detachment логирует formation state before/after
+        //   - LeaveClan логирует reflection step-by-step
+        // Это **очень шумно** — только для diagnosis crash'ей. На обычном
+        // streamе оставляй OFF.
+        //
+        // Cached в static field — eval'им once при первом use. Если flag
+        // создан/удалён mid-session — нужен restart mod'а.
+        private static readonly bool _verboseLog = ResolveVerboseFlag();
+
+        public static bool VerboseEnabled => _verboseLog;
+
+        /// <summary>Verbose log — выводится ТОЛЬКО если VERBOSE-flag enabled.
+        /// Callers оборачивают ленивым string-build чтобы не allocate'ить
+        /// при disabled state: `Log.LogVerbose(() => $"detail: {hot_calc}")`.</summary>
+        public static void LogVerbose(Func<string> msgFactory)
+        {
+            if (!_verboseLog) return;
+            try { Log("[V] " + msgFactory()); }
+            catch (Exception ex) { Log($"[V] factory crashed: {ex.Message}"); }
+        }
+
+        /// <summary>Plain verbose без lazy — для cheap message construction.</summary>
+        public static void LogVerbose(string msg)
+        {
+            if (!_verboseLog) return;
+            Log("[V] " + msg);
+        }
+
+        private static bool ResolveVerboseFlag()
+        {
+            try
+            {
+                if (Environment.GetEnvironmentVariable("BANNERLORDLINK_VERBOSE") == "1")
+                    return true;
+                var flagFile = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                    "Mount and Blade II Bannerlord", "Configs",
+                    "bannerlordlink_verbose.flag");
+                return File.Exists(flagFile);
+            }
+            catch { return false; }
+        }
+
         protected override void OnSubModuleLoad()
         {
             base.OnSubModuleLoad();
             Log($"v{MOD_VERSION} OnSubModuleLoad");
+            Log($"[VERBOSE] verbose logging = {(_verboseLog ? "ON (детальные logs включены)" : "OFF (стандартное)")}. " +
+                $"Toggle via env BANNERLORDLINK_VERBOSE=1 или файл bannerlordlink_verbose.flag в Configs/");
+
+            // Sprint 5.28: GLOBAL crash hooks. До этого спринта unhandled
+            // exceptions на background thread'ах валили процесс БЕЗ логов —
+            // ButterLib ловит только main-thread, AppDomain hooks никем не
+            // ставились. Теперь любой fault логируется в bannerlordlink_*.txt
+            // с полным stack trace, прежде чем game упадёт.
+            //
+            // UnobservedTaskException — для fire-and-forget Task.Run в hot
+            // path (battle.stats_snapshot, HeroStateSync, BuffState). После
+            // SetObserved() .NET не валит процесс (4.5+ default не-валит,
+            // но явно подстраховываемся).
+            try
+            {
+                AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
+                {
+                    try
+                    {
+                        var ex = e.ExceptionObject as Exception;
+                        Log($"[FATAL] AppDomain.UnhandledException terminating={e.IsTerminating}: " +
+                            $"{ex?.GetType().FullName}: {ex?.Message}\n{ex?.StackTrace}\n" +
+                            $"InnerException: {ex?.InnerException?.GetType().FullName}: " +
+                            $"{ex?.InnerException?.Message}\n{ex?.InnerException?.StackTrace}");
+                    }
+                    catch { }
+                };
+                TaskScheduler.UnobservedTaskException += (sender, e) =>
+                {
+                    try
+                    {
+                        Log($"[WARN] UnobservedTaskException: {e.Exception?.GetType().FullName}: " +
+                            $"{e.Exception?.Message}\n{e.Exception?.StackTrace}");
+                        e.SetObserved();   // не валим процесс
+                    }
+                    catch { }
+                };
+                Log("Global crash hooks installed (AppDomain.UnhandledException + UnobservedTaskException)");
+            }
+            catch (Exception ex)
+            {
+                Log($"Crash hooks install FAILED: {ex.Message}");
+            }
 
             // Sprint 2.2: load config + init backend client + async ping.
             // Если backend unreachable — log warning, мод продолжает работать
@@ -112,16 +206,87 @@ namespace BannerlordLink
 
             if (_harmony == null)
             {
-                try
+                _harmony = new Harmony(HARMONY_ID);
+                // Sprint 5.32 CRITICAL FIX — resilient PatchAll. Раньше
+                // _harmony.PatchAll() патчил все [HarmonyPatch] классы за один
+                // call — если ОДИН TargetMethod бросал exception (e.g. NameMarker
+                // не нашёл TaleWorlds type), вся PatchAll прерывалась → ВСЕ
+                // остальные patches (включая TournamentParticipantsPatch) НЕ
+                // регистрировались → турнир тащил vanilla NPC вместо viewer'ов.
+                //
+                // Лог 2026-05-25 показывает: `Harmony patch FAILED: Patching
+                // exception in MissionNameMarkerTargetVMCtorHook::TargetMethod`,
+                // и сразу tournament-patch не fires вообще.
+                //
+                // Решение: iterate все типы в assembly с [HarmonyPatch] и
+                // patch каждый ИНДИВИДУАЛЬНО в try/catch. Broken patch скип'ает
+                // с лог-warn, остальные продолжают регистрацию.
+                // Sprint 5.32 — skip-list пустой. Все patches переведены на
+                // resilient `TargetMethods()` (yield) pattern — gracefully skip
+                // через empty enumerable если target type / method missing,
+                // вместо throwing HarmonyException.
+                //
+                // DamageHookPatch — refactored: counter-blow для reflect теперь
+                // delayed через _pendingReflects queue, drains в KillRewardBehavior
+                // .OnMissionTick (fresh frame, no shared AttackCollisionData ref).
+                // Раньше inline counter-blow corrupted engine state → native crash.
+                //
+                // Если какой-то patch снова крашит — добавь его имя сюда (typeName
+                // ИЛИ outerName для nested patches типа `BannerCampaignBehaviorPatch+DailyTickHeroFinalizer`).
+                var SKIP_PATCH_NAMES = new System.Collections.Generic.HashSet<string>(
+                    StringComparer.Ordinal)
                 {
-                    _harmony = new Harmony(HARMONY_ID);
-                    _harmony.PatchAll();
-                    Log($"Harmony patched (id={HARMONY_ID})");
-                }
-                catch (Exception ex)
+                    // empty — все patches теперь resilient
+                };
+                int ok = 0, failed = 0, skipped = 0;
+                var asm = typeof(BannerlordLinkModule).Assembly;
+                Type[] types;
+                try { types = asm.GetTypes(); }
+                catch (Exception tex)
                 {
-                    Log($"Harmony patch FAILED: {ex.Message}");
+                    Log($"Harmony GetTypes() crashed: {tex.Message} — fallback к PatchAll");
+                    try { _harmony.PatchAll(); ok = 1; }
+                    catch (Exception fex) { Log($"PatchAll fallback FAILED: {fex.Message}"); failed = 1; }
+                    Log($"Harmony patched (id={HARMONY_ID}): ok={ok} failed={failed}");
+                    return;
                 }
+                foreach (var t in types)
+                {
+                    // Patch только классы с [HarmonyPatch] атрибутом.
+                    bool hasAttr = false;
+                    try
+                    {
+                        var attrs = t.GetCustomAttributes(typeof(HarmonyPatch), inherit: false);
+                        hasAttr = attrs != null && attrs.Length > 0;
+                    }
+                    catch { continue; }
+                    if (!hasAttr) continue;
+
+                    // Skip-list: high-risk patches которые могут корраптить engine.
+                    // Включая nested ("DamageHookPatch+SomeNested"): startswith check
+                    // плюс exact name.
+                    string typeName = t.Name;
+                    string outerName = t.DeclaringType?.Name ?? "";
+                    if (SKIP_PATCH_NAMES.Contains(typeName) || SKIP_PATCH_NAMES.Contains(outerName))
+                    {
+                        Log($"Harmony patch SKIP (safe-rollback): {t.FullName}");
+                        skipped++;
+                        continue;
+                    }
+
+                    try
+                    {
+                        var processor = _harmony.CreateClassProcessor(t);
+                        processor.Patch();
+                        ok++;
+                    }
+                    catch (Exception pex)
+                    {
+                        Log($"Harmony patch skip: {t.FullName} — {pex.GetType().Name}: {pex.Message}");
+                        failed++;
+                    }
+                }
+                Log($"Harmony patched (id={HARMONY_ID}): ok={ok} failed={failed} skipped={skipped}");
             }
         }
 
@@ -148,6 +313,12 @@ namespace BannerlordLink
                 {
                     campaignStarter.AddBehavior(new MainCampaignBehavior());
                     Log("MainCampaignBehavior registered (HeroKilled + HeroLevelledUp)");
+                    // Sprint 5.32 (BLT-parity M9) — persistent identity dict.
+                    // ДОЛЖЕН быть зарегистрирован ДО других behaviors, чтобы
+                    // SyncData загрузило dict до того как OnGameLoadFinished бы
+                    // сделали bootstrap-проверку existing [BLink] heroes.
+                    campaignStarter.AddBehavior(new HeroIdentityBehavior());
+                    Log("HeroIdentityBehavior registered (persistent username dict)");
                     // Sprint 5.26c: BLT-style clan upgrades (daily renown + influence tick).
                     campaignStarter.AddBehavior(new ClanUpgradesBehavior());
                     Log("ClanUpgradesBehavior registered (daily clan upgrades tick)");
@@ -219,7 +390,11 @@ namespace BannerlordLink
             {
                 mission.AddMissionBehavior(new PowersMissionBehavior());
                 mission.AddMissionBehavior(new KillRewardBehavior());
-                Log("MissionBehaviors registered: PowersMissionBehavior + KillRewardBehavior");
+                // Sprint 5.32 (BLT-parity Detachment) — viewer-controlled formation
+                // commands. MissionBehavior — short-lived (per-mission), Instance
+                // resetся через OnEndMission. Action handlers зовут Instance.X.
+                mission.AddMissionBehavior(new HeroDetachmentBehavior());
+                Log("MissionBehaviors registered: Powers + KillReward + Detachment");
             }
             catch (Exception ex)
             {

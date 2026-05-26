@@ -2,11 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using BannerlordLink.Util;
 using Newtonsoft.Json.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
+using TaleWorlds.MountAndBlade;
 using TaleWorlds.ObjectSystem;
 
 namespace BannerlordLink.Actions
@@ -50,7 +52,10 @@ namespace BannerlordLink.Actions
             if (string.IsNullOrEmpty(itemId) && string.IsNullOrEmpty(category))
                 return Task.FromResult<(bool, string)>((false, "no item_id или random_category"));
 
-            MainThreadDispatcher.Enqueue(() => Equip(username, itemId, slotName, category));
+            // Sprint 5.32 (BLT-parity H7) — pass actionId для refund-on-refuse
+            // когда Mission.Current блокирует equip.
+            string actionId = ActionFeedback.GetActionId(data);
+            MainThreadDispatcher.Enqueue(() => Equip(username, itemId, slotName, category, actionId));
             return Task.FromResult<(bool, string)>((true, null));
         }
 
@@ -68,14 +73,32 @@ namespace BannerlordLink.Actions
             ["horse"]  = 1_000_000,
         };
 
-        private static void Equip(string username, string itemId, string slotName, string category)
+        private static void Equip(string username, string itemId, string slotName, string category, string actionId)
         {
             try
             {
+                // Sprint 5.32 (BLT-parity H7) — Mission guard. BLT pattern
+                // (SetHeroClass.cs:68-72) — equipment changes блокированы во
+                // время Mission. Без guard'а:
+                //   - Active Agent держит ссылку на старое оружие до respawn'а,
+                //     swap слотов вызывает visual desync или null-deref
+                //     при следующем attack'е.
+                //   - "Random box" exploits — viewer покупает random_category
+                //     прямо в бою чтобы получить high-tier oружие на руки.
+                if (Mission.Current != null)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[player.equip_item] REFUSE @{username}: нельзя equip во время Mission " +
+                        $"(mode={Mission.Current.Mode})");
+                    ActionFeedback.PostFailed(actionId, "in_mission");
+                    return;
+                }
+
                 Hero hero = HeroLookup.FindByUsername(username);
                 if (hero == null)
                 {
                     BannerlordLinkModule.Log($"[player.equip_item] @{username}: hero not found");
+                    ActionFeedback.PostFailed(actionId, "hero_not_found");
                     return;
                 }
 
@@ -123,7 +146,35 @@ namespace BannerlordLink.Actions
                     BannerlordLinkModule.Log(
                         $"[player.equip_item] @{username}: cannot determine slot для item " +
                         $"'{itemId}' (type={item.ItemType})");
+                    ActionFeedback.PostFailed(actionId, "slot_undeterminable");
                     return;
+                }
+
+                // Sprint 5.32 (BLT-parity M3) — modifier guard.
+                // Если slot занят item'ом с ItemModifier (Lordly/Masterwork/Smithed),
+                // НЕ перезаписываем — это «именные»/смитованные шмотки на которые
+                // viewer накопил много динаров или которые специально crafted'ились
+                // через сюжетные/премиум path. Random equip / shop equip не должен
+                // их затирать. BLT pattern (EquipHero.cs:517-520).
+                try
+                {
+                    var current = hero.BattleEquipment[idx];
+                    if (!current.IsEmpty && current.ItemModifier != null)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[player.equip_item] REFUSE @{username}: slot {idx} занят " +
+                            $"модифицированным '{current.Item?.Name?.ToString() ?? "?"}' " +
+                            $"(mod={current.ItemModifier.StringId}). " +
+                            $"Сними его вручную через UI прежде чем equip новое.");
+                        ActionFeedback.PostFailed(actionId, "slot_has_modifier");
+                        return;
+                    }
+                }
+                catch (Exception mex)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[player.equip_item] @{username}: modifier-guard check warn: {mex.Message}");
+                    // fall through — не блокируем equip если read crash'нул
                 }
 
                 hero.BattleEquipment[idx] = new EquipmentElement(item);

@@ -78,6 +78,8 @@ extensions:
     - tournament.ended        # Sprint 5.3: final, winner gets prize
     - battle.stats_snapshot   # Sprint 5.4: per-Mission stats для overlay (HP/kills/gold/xp)
     - action.failed           # Sprint 5.29 BLT-parity #3: mod refused action → refund крустики
+    - hero.heir_came_of_age   # Sprint 5.32 (BLT-parity M2): mod пушит когда ребёнок [BLink] hero'я взрослеет 18+
+    - hero.heir_died          # Sprint 5.32 (BLT-parity M2): heir умер ДО succession, mark alive=0
   actions:
     - hero.create        # Adoption flow — spawn fresh wanderer + SetName(viewer)
     - hero.set_class     # Sprint 4.1: класс + equipment apply
@@ -109,6 +111,18 @@ extensions:
     - hero.marry             # Sprint 5.27a: marry random NPC (Hero.Gold 50K)
     - hero.divorce           # Sprint 5.27a: divorce current spouse (free)
     - hero.make_baby         # Sprint 5.27a: pregnancy (Hero.Gold 100K)
+    # Sprint 5.32 (BLT-parity Detachment) — viewer-controlled formation commands
+    # для своего hero-agent'а внутри Mission. 6 actions: detach/attach + hold/
+    # charge/walls/gate (последние два — siege only). Pattern из Randomchair22-fork.
+    - hero.detach            # Вынуть из formation в свой отряд
+    - hero.attach            # Вернуть в parent formation
+    - hero.detach_hold       # Стоять (sniper-mode)
+    - hero.detach_charge     # Бежать на ближайшее enemy formation
+    - hero.detach_walls      # Siege: walls/ladders/towers
+    - hero.detach_gate       # Siege: nearest gate/barricade
+    # Sprint 5.32 (BLT-parity M2.1) — heir auto-activation на death героя.
+    # Backend pushes этот action в module_actions из _on_player_died.
+    - hero.activate_heir
 
 # Каталоги — те же что RimWorld (универсальный shape entry per MODULE_API.md §9):
 catalogs:

@@ -276,6 +276,31 @@ async def bid_auction(request: Request):
                 "WHERE id=?",
                 (amount, username, auction_id))
 
+            # Sprint 5.32 (BLT-parity M10) — anti-snipe extension.
+            # Если bid пришёл в окне последних 10 секунд до ends_at — продлеваем
+            # таймер на +30s. Защита от "last-second sniping" — бот / late
+            # bidder который ждёт чтобы поставить ставку за 1s до конца и
+            # отбить лот у нормальных bidder'ов которые не успеют ответить.
+            # Eternal extend защищён внутри resolver loop'а: если bidder перестал
+            # пушить, через 30s ends_at пройдёт и обычный auction-resolve сработает.
+            cur_ext = await conn.execute(
+                "SELECT (julianday(ends_at) - julianday('now')) * 86400 "
+                "FROM bannerlord_auctions WHERE id=?",
+                (auction_id,))
+            ext_row = await cur_ext.fetchone()
+            seconds_left = (ext_row[0] if ext_row else None) or 0
+            extended = False
+            if 0 < seconds_left < 10:
+                await conn.execute(
+                    "UPDATE bannerlord_auctions "
+                    "SET ends_at = datetime('now', '+30 seconds') "
+                    "WHERE id=?",
+                    (auction_id,))
+                extended = True
+                log.info("[bannerlord AUCTION ANTI-SNIPE] auction=%s ch=%s "
+                         "ends_at extended +30s (was %.1fs left, bid by @%s)",
+                         auction_id, channel_id, seconds_left, username)
+
             await conn.commit()
         except Exception as ex:
             try: await conn.execute("ROLLBACK")
@@ -314,31 +339,65 @@ async def cancel_auction(request: Request):
         await conn.execute("BEGIN IMMEDIATE")
         try:
             cur = await conn.execute(
-                "SELECT seller_username, current_bid, status "
+                "SELECT seller_username, current_bid, status, reserve_price "
                 "FROM bannerlord_auctions WHERE id=? AND channel_id=?",
                 (auction_id, channel_id))
             row = await cur.fetchone()
             if not row:
                 await conn.execute("ROLLBACK")
                 return {"success": False, "message": "Не найден"}
-            seller, current_bid, status = row
+            seller, current_bid, status, reserve_price = row
+            current_bid = current_bid or 0
+            reserve_price = reserve_price or 0
             if seller != username:
                 await conn.execute("ROLLBACK")
                 return {"success": False, "message": "Не твой аукцион"}
             if status != "active":
                 await conn.execute("ROLLBACK")
                 return {"success": False, "message": "Уже закрыт"}
-            if current_bid > 0:
+
+            # Sprint 5.32 (BLT-parity M11) — раньше cancel блокировался при
+            # ЛЮБОМ bid (current_bid > 0). Теперь: блокируем только если bid
+            # достиг reserve_price — тогда аукцион «состоялся», отменять
+            # нечестно. Если ни одна ставка не достигла reserve → seller
+            # может cancel + всем bidder'ам refund'им их points.
+            if current_bid >= reserve_price and reserve_price > 0:
                 await conn.execute("ROLLBACK")
                 return {
                     "success": False,
-                    "message": "Уже есть bids — отменить нельзя",
+                    "message": "Ставка уже достигла резерва — отменить нельзя",
                 }
+
+            # Refund всем outstanding bidder'ам (refunded=0). Их points
+            # были вычтены при bid'е. Возвращаем.
+            cur_refund = await conn.execute(
+                "SELECT bidder, amount FROM bannerlord_auction_bids "
+                "WHERE auction_id=? AND refunded=0",
+                (auction_id,))
+            refund_rows = await cur_refund.fetchall()
+            refunded_count = 0
+            for bidder, amount in refund_rows:
+                if amount and amount > 0:
+                    await conn.execute(
+                        "UPDATE viewers SET points = points + ? "
+                        "WHERE channel_id=? AND username=?",
+                        (amount, channel_id, bidder))
+                    refunded_count += 1
+            if refund_rows:
+                await conn.execute(
+                    "UPDATE bannerlord_auction_bids SET refunded=1 "
+                    "WHERE auction_id=? AND refunded=0",
+                    (auction_id,))
+
             await conn.execute(
                 "UPDATE bannerlord_auctions SET status='cancelled', "
                 "resolved_at=CURRENT_TIMESTAMP WHERE id=?",
                 (auction_id,))
             await conn.commit()
+            if refunded_count > 0:
+                log.info("[bannerlord AUCTION CANCEL] auction=%s ch=%s "
+                         "refunded %s bidders (below reserve)",
+                         auction_id, channel_id, refunded_count)
         except Exception as ex:
             try: await conn.execute("ROLLBACK")
             except Exception: pass

@@ -21,6 +21,7 @@ namespace BannerlordLink.Actions
             if (string.IsNullOrEmpty(username))
                 return Task.FromResult<(bool, string)>((false, "no target username"));
 
+            string actionId = BannerlordLink.Util.ActionFeedback.GetActionId(data);
             MainThreadDispatcher.Enqueue(() =>
             {
                 try
@@ -28,12 +29,14 @@ namespace BannerlordLink.Actions
                     var hero = HeroLookup.FindByUsername(username);
                     if (hero == null)
                     {
-                        BannerlordLinkModule.Log($"[player.heal] @{username}: hero не найден");
+                        BannerlordLinkModule.Log($"[player.heal] REFUSE @{username}: hero не найден");
+                        BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "hero_not_found");
                         return;
                     }
                     if (!hero.IsAlive)
                     {
-                        BannerlordLinkModule.Log($"[player.heal] @{username}: hero мёртв, heal skipped");
+                        BannerlordLinkModule.Log($"[player.heal] REFUSE @{username}: hero мёртв");
+                        BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "hero_dead");
                         return;
                     }
                     int before = hero.HitPoints;

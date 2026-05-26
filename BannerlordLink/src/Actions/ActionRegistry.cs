@@ -54,6 +54,15 @@ namespace BannerlordLink.Actions
             Register(new MarryHandler());            // hero.marry — Sprint 5.27b (NPC marriage)
             Register(new DivorceHandler());          // hero.divorce — Sprint 5.27b (free divorce)
             Register(new MakeBabyHandler());         // hero.make_baby — Sprint 5.27c (pregnancy)
+            Register(new EquipTrophyHandler());      // hero.equip_trophy — Sprint 5.29 BLT-parity #6 phase A
+            Register(new ActivateHeirHandler());     // hero.activate_heir — Sprint 5.32 BLT-parity M2.1
+            // Sprint 5.32 (BLT-parity Detachment) — 6 viewer commands управления agent'ом in-Mission
+            Register(new DetachHandler());           // hero.detach
+            Register(new AttachHandler());           // hero.attach
+            Register(new HoldHandler());             // hero.detach_hold
+            Register(new ChargeHandler());           // hero.detach_charge
+            Register(new WallsHandler());            // hero.detach_walls (siege only)
+            Register(new GateHandler());             // hero.detach_gate (siege only)
 
             // ── Echo stubs (TODO Sprint 5.2+ заменить на real) ─────────────
             string[] echoTypes =

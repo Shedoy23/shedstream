@@ -73,7 +73,31 @@ namespace BannerlordLink.Actions
                 if (Campaign.Current == null)
                 {
                     BannerlordLinkModule.Log($"[hero.create] @{username}: Campaign не started, skip");
-                    PostFailed(username, "campaign_not_started");
+                    PostCreateFailedEvent(username, "campaign_not_started");
+                    return;
+                }
+
+                // Sprint 5.32 (BLT-parity H6) — duplicate-adopt guard.
+                // BLT pattern (BLTAdoptAHeroCampaignBehavior.GetAdoptedHero) —
+                // нельзя выдать viewer'у второго [BLink]-hero пока существующий
+                // живой. Backend race может пропустить параллельные adoption
+                // запросы (один JWT → 2 POST'а в один тик до того как player.linked
+                // дойдёт). Mod-side guard защищает на main thread.
+                //
+                // Не учитываем мёртвых — для них viewer должен сделать re-adopt
+                // (это разрешено, H4-fix).
+                var existing = HeroLookup.FindByUsername(username);
+                if (existing != null && existing.IsAlive)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[hero.create] REFUSE @{username}: уже есть живой " +
+                        $"[BLink]-hero (id={existing.StringId}, clan={existing.Clan?.Name?.ToString() ?? "—"}). " +
+                        $"Используй существующего или /leave_clan для retire.");
+                    PostCreateFailedEvent(username, "already_adopted");
+                    // Re-push state — frontend может быть рассинхронизирован
+                    // (например, потерял linked event раньше). Push гарантирует
+                    // UI снова видит существующего hero.
+                    try { HeroStateSync.Push(existing); } catch { }
                     return;
                 }
 
@@ -88,7 +112,7 @@ namespace BannerlordLink.Actions
                 if (allWanderers.Count == 0)
                 {
                     BannerlordLinkModule.Log($"[hero.create] @{username}: no wanderer templates found");
-                    PostFailed(username, "no_wanderer_templates");
+                    PostCreateFailedEvent(username, "no_wanderer_templates");
                     return;
                 }
 
@@ -116,13 +140,11 @@ namespace BannerlordLink.Actions
                 Hero newHero = HeroCreator.CreateSpecialHero(template);
                 newHero.ChangeState(Hero.CharacterStates.Active);
 
-                // 2. Place в случайный town (default behaviour для wanderer'а)
-                var towns = Settlement.All.Where(s => s.IsTown).ToList();
-                if (towns.Count > 0)
-                {
-                    var settlement = towns[rng.Next(towns.Count)];
-                    EnterSettlementAction.ApplyForCharacterOnly(newHero, settlement);
-                }
+                // 2. Place в таверну ближайшего town'а — wanderer'ам там
+                // прямая прописка. Sprint 5.32 — раньше random town, но без
+                // HomeSettlement engine иногда считал героя orphan и помечал
+                // Lost. WandererHome ставит HomeSettlement + tavern character.
+                BannerlordLink.Util.WandererHome.PlaceInNearestTavern(newHero);
 
                 // 3. Reset all skills/attributes to 0 — equal start для всех viewers
                 newHero.HeroDeveloper.ClearHero();
@@ -166,6 +188,21 @@ namespace BannerlordLink.Actions
                 var (fullName, firstName) = HeroNaming.Format(username);
                 newHero.SetName(fullName, firstName);
 
+                // Sprint 5.32 (BLT-parity M9) — persistent identity registration.
+                // Backbone для М9 — dict heroId→username сохраняется через SyncData.
+                // Future-proof: если engine переименует hero (clan promotion, save
+                // migration), HeroLookup.FindByUsername найдёт его через dict, не
+                // через name-substring parsing.
+                try
+                {
+                    BannerlordLink.Behaviors.HeroIdentityBehavior.Instance?.Register(newHero, username);
+                }
+                catch (Exception idEx)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[hero.create] @{username} HeroIdentity register warn: {idEx.Message}");
+                }
+
                 // Sprint 5.16: убираем fog-of-war — MainHero "знакомится" с
                 // новым hero, чтобы он сразу появлялся в encyclopedia /
                 // clan UI / diplomacy на стороне стримера. Без этого engine
@@ -201,7 +238,7 @@ namespace BannerlordLink.Actions
             {
                 BannerlordLinkModule.Log(
                     $"[hero.create] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
-                PostFailed(username, ex.Message);
+                PostCreateFailedEvent(username, ex.Message);
             }
         }
 
@@ -259,16 +296,16 @@ namespace BannerlordLink.Actions
             });
         }
 
-        private static void PostFailed(string username, string reason)
+        // Sprint 5.31 #45g (codegraph audit MED-6) — renamed from PostFailed
+        // чтобы не было naming collision с Util.ActionFeedback.PostFailed
+        // (одинаковая сигнатура (string, string), противоположная семантика —
+        // тут username vs там actionId). Раньше неосторожный рефактор мог
+        // переключить вызов и сломать refund pipeline без compile error.
+        private static void PostCreateFailedEvent(string username, string reason)
         {
             // Sprint 2.5+: можно добавить отдельный event hero.create_failed.
             // Пока — просто log, viewer увидит что hero нет в /api/bannerlord/my-hero
             // и сможет повторить попытку.
-            string dataJson = JsonConvert.SerializeObject(new
-            {
-                username = username,
-                reason = reason,
-            });
             Task.Run(async () =>
             {
                 await BannerlordLinkModule.Backend.PostEventAsync(

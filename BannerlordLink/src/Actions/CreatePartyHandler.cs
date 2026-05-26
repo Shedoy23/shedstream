@@ -58,24 +58,27 @@ namespace BannerlordLink.Actions
                 .Where(s => !string.IsNullOrEmpty(s))
                 .ToList() ?? new System.Collections.Generic.List<string>();
 
-            MainThreadDispatcher.Enqueue(() => Apply(username, retinueIds));
+            string actionId = BannerlordLink.Util.ActionFeedback.GetActionId(data);
+            MainThreadDispatcher.Enqueue(() => Apply(username, retinueIds, actionId));
             return Task.FromResult<(bool, string)>((true, null));
         }
 
         private static void Apply(string username,
-            System.Collections.Generic.List<string> retinueIds)
+            System.Collections.Generic.List<string> retinueIds, string actionId)
         {
             try
             {
                 var hero = HeroLookup.FindByUsername(username);
                 if (hero == null || !hero.IsAlive)
                 {
-                    BannerlordLinkModule.Log($"[create_party] @{username}: hero не найден / мёртв");
+                    BannerlordLinkModule.Log($"[create_party] REFUSE @{username}: hero не найден / мёртв");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "hero_not_found_or_dead");
                     return;
                 }
                 if (hero.IsPrisoner)
                 {
-                    BannerlordLinkModule.Log($"[create_party] @{username}: пленник");
+                    BannerlordLinkModule.Log($"[create_party] REFUSE @{username}: пленник");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "is_prisoner");
                     return;
                 }
                 if (hero.HeroState == Hero.CharacterStates.Released ||
@@ -83,39 +86,43 @@ namespace BannerlordLink.Actions
                     hero.HeroState == Hero.CharacterStates.Fugitive)
                 {
                     BannerlordLinkModule.Log(
-                        $"[create_party] @{username}: hero state {hero.HeroState}, отказ");
+                        $"[create_party] REFUSE @{username}: hero state {hero.HeroState}");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "bad_state:" + hero.HeroState);
                     return;
                 }
                 if (hero.Clan == null)
                 {
-                    BannerlordLinkModule.Log(
-                        $"[create_party] @{username}: hero без clan");
+                    BannerlordLinkModule.Log($"[create_party] REFUSE @{username}: hero без clan");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "no_clan");
                     return;
                 }
                 if (hero.Clan == Clan.PlayerClan)
                 {
-                    BannerlordLinkModule.Log(
-                        $"[create_party] @{username}: нельзя в player clan");
+                    BannerlordLinkModule.Log($"[create_party] REFUSE @{username}: в player clan нельзя");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "in_player_clan");
                     return;
                 }
                 if (hero.PartyBelongedTo != null)
                 {
                     BannerlordLinkModule.Log(
-                        $"[create_party] @{username}: уже в party '{hero.PartyBelongedTo.Name}'");
+                        $"[create_party] REFUSE @{username}: уже в party '{hero.PartyBelongedTo.Name}'");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "already_in_party");
                     return;
                 }
                 if (!hero.IsClanLeader &&
                     (hero.Clan.WarPartyComponents?.Count ?? 0) >= hero.Clan.CommanderLimit)
                 {
                     BannerlordLinkModule.Log(
-                        $"[create_party] @{username}: clan party limit reached " +
+                        $"[create_party] REFUSE @{username}: clan party limit " +
                         $"({hero.Clan.WarPartyComponents.Count}/{hero.Clan.CommanderLimit})");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "clan_party_limit");
                     return;
                 }
                 if (hero.Gold < CREATE_COST)
                 {
                     BannerlordLinkModule.Log(
-                        $"[create_party] @{username}: not enough gold ({hero.Gold} < {CREATE_COST})");
+                        $"[create_party] REFUSE @{username}: not enough hero gold ({hero.Gold} < {CREATE_COST})");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "not_enough_hero_gold");
                     return;
                 }
 

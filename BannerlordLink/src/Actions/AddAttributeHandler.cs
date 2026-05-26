@@ -43,19 +43,29 @@ namespace BannerlordLink.Actions
             if (amount < 1) amount = 1;
             if (amount > 10) amount = 10;
 
-            MainThreadDispatcher.Enqueue(() => Apply(username, attrKey, amount));
+            string actionId = BannerlordLink.Util.ActionFeedback.GetActionId(data);
+            MainThreadDispatcher.Enqueue(() => Apply(username, attrKey, amount, actionId));
             return Task.FromResult<(bool, string)>((true, null));
         }
 
-        private static void Apply(string username, string attrKey, int amount)
+        private static void Apply(string username, string attrKey, int amount, string actionId)
         {
             try
             {
+                if (TaleWorlds.MountAndBlade.Mission.Current != null)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[add_attribute] REFUSE @{username}: нельзя во время Mission (engine crash risk)");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "in_mission");
+                    return;
+                }
+
                 var hero = HeroLookup.FindByUsername(username);
                 if (hero == null || !hero.IsAlive)
                 {
                     BannerlordLinkModule.Log(
-                        $"[add_attribute] @{username}: hero не найден / мёртв");
+                        $"[add_attribute] REFUSE @{username}: hero не найден / мёртв");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "hero_not_found_or_dead");
                     return;
                 }
 
@@ -63,7 +73,8 @@ namespace BannerlordLink.Actions
                     .GetObjectTypeList<CharacterAttribute>();
                 if (allAttributes == null || allAttributes.Count == 0)
                 {
-                    BannerlordLinkModule.Log($"[add_attribute] @{username}: no attributes available");
+                    BannerlordLinkModule.Log($"[add_attribute] REFUSE @{username}: no attributes available");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "no_attributes_object");
                     return;
                 }
 
@@ -76,13 +87,15 @@ namespace BannerlordLink.Actions
                     if (attribute == null)
                     {
                         BannerlordLinkModule.Log(
-                            $"[add_attribute] @{username}: attribute '{attrKey}' не найден");
+                            $"[add_attribute] REFUSE @{username}: attribute '{attrKey}' не найден");
+                        BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "unknown_attribute:" + attrKey);
                         return;
                     }
                     if (hero.GetAttributeValue(attribute) >= 10)
                     {
                         BannerlordLinkModule.Log(
-                            $"[add_attribute] @{username}: {attribute.StringId} уже 10 (max)");
+                            $"[add_attribute] REFUSE @{username}: {attribute.StringId} уже 10 (max)");
+                        BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "attribute_maxed");
                         return;
                     }
                 }
@@ -93,10 +106,12 @@ namespace BannerlordLink.Actions
                     if (improvable.Count == 0)
                     {
                         BannerlordLinkModule.Log(
-                            $"[add_attribute] @{username}: все attributes уже 10 (max)");
+                            $"[add_attribute] REFUSE @{username}: все attributes уже 10 (max)");
+                        BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "all_attributes_maxed");
                         return;
                     }
-                    attribute = improvable[new Random().Next(improvable.Count)];
+                    // Sprint 5.32 (BLT-parity LOW-5) — engine-grade MBRandom.
+                    attribute = improvable[TaleWorlds.Core.MBRandom.RandomInt(improvable.Count)];
                 }
 
                 // Cap amount to remaining capacity
@@ -109,8 +124,9 @@ namespace BannerlordLink.Actions
                 if (hero.Gold < totalCost)
                 {
                     BannerlordLinkModule.Log(
-                        $"[add_attribute] @{username}: not enough gold " +
+                        $"[add_attribute] REFUSE @{username}: not enough hero gold " +
                         $"({hero.Gold} < {totalCost}) для +{amount} в {attribute.StringId}");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "not_enough_hero_gold");
                     return;
                 }
 

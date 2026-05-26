@@ -39,60 +39,111 @@ namespace BannerlordLink.Actions
             if (string.IsNullOrEmpty(username))
                 return Task.FromResult<(bool, string)>((false, "no target username"));
 
+            // Sprint 5.29 / BLT-parity #3: actionId для refund-on-refuse.
+            string actionId = ActionFeedback.GetActionId(data);
+
             MainThreadDispatcher.Enqueue(() =>
             {
+                BannerlordLinkModule.Log(
+                    $"[hero.marry] @{username}: handler called, processing...");
                 try
                 {
                     var hero = HeroLookup.FindByUsername(username);
                     if (hero == null)
                     {
-                        BannerlordLinkModule.Log($"[hero.marry] @{username}: hero не найден");
+                        BannerlordLinkModule.Log($"[hero.marry] REFUSE @{username}: hero не найден");
+                        ActionFeedback.PostFailed(actionId, "hero_not_found");
                         return;
                     }
                     if (!hero.IsAlive)
                     {
-                        BannerlordLinkModule.Log($"[hero.marry] @{username}: hero мёртв");
+                        BannerlordLinkModule.Log($"[hero.marry] REFUSE @{username}: hero мёртв");
+                        ActionFeedback.PostFailed(actionId, "hero_dead");
                         return;
                     }
                     if (hero.Spouse != null)
                     {
                         BannerlordLinkModule.Log(
-                            $"[hero.marry] @{username}: уже в браке с {hero.Spouse.Name}");
+                            $"[hero.marry] REFUSE @{username}: уже в браке с {hero.Spouse.Name}");
+                        ActionFeedback.PostFailed(actionId, "already_married");
                         return;
                     }
                     if (hero.Age < 18)
                     {
-                        BannerlordLinkModule.Log($"[hero.marry] @{username}: too young");
+                        BannerlordLinkModule.Log($"[hero.marry] REFUSE @{username}: too young");
+                        ActionFeedback.PostFailed(actionId, "too_young");
                         return;
                     }
 
-                    // Найти suitable NPC
-                    var candidates = Hero.AllAliveHeroes
+                    // Sprint 5.29: relaxed filter + диагностика. Раньше filter
+                    // слишком строгий (Age < 50, !IsClanLeader, Clan != null) →
+                    // в late-game часто 0 кандидатов. Viewer кликает «жениться»
+                    // → мод silently returns → user видит success-toast в
+                    // overlay но в игре ничего не меняется.
+                    //
+                    // Tiered fallback: сначала strict, потом relax.
+                    var allCandidates = Hero.AllAliveHeroes
                         .Where(h => h != null
                                  && h != hero
                                  && h.IsAlive
-                                 && h.Age >= 18 && h.Age < 50
                                  && h.IsFemale != hero.IsFemale
                                  && h.Spouse == null
                                  && h.Name != null
                                  && !HeroNaming.IsAdopted(h.Name.ToString())
-                                 && !h.IsClanLeader
                                  && h != Hero.MainHero
-                                 && h.Clan != null
                                  && !h.IsPrisoner
-                                 && !h.IsFugitive)
+                                 && !h.IsFugitive
+                                 && h.Age >= 18)
                         .ToList();
+
+                    // Tier 1 (best): age < 50 + not leader + has clan
+                    var candidates = allCandidates
+                        .Where(h => h.Age < 50 && !h.IsClanLeader && h.Clan != null)
+                        .ToList();
+                    string tier = "T1 (strict)";
+
+                    // Tier 2: drop age cap (older nobles OK)
+                    if (candidates.Count == 0)
+                    {
+                        candidates = allCandidates
+                            .Where(h => !h.IsClanLeader && h.Clan != null)
+                            .ToList();
+                        tier = "T2 (no age cap)";
+                    }
+                    // Tier 3: allow clanless
+                    if (candidates.Count == 0)
+                    {
+                        candidates = allCandidates
+                            .Where(h => !h.IsClanLeader)
+                            .ToList();
+                        tier = "T3 (clanless OK)";
+                    }
+                    // Tier 4: allow clan leaders (last resort)
+                    if (candidates.Count == 0)
+                    {
+                        candidates = allCandidates;
+                        tier = "T4 (leaders OK)";
+                    }
 
                     if (candidates.Count == 0)
                     {
                         BannerlordLinkModule.Log(
-                            $"[hero.marry] @{username}: нет подходящих NPC для брака");
+                            $"[hero.marry] REFUSE @{username}: 0 подходящих NPC " +
+                            $"(всего alive {Hero.AllAliveHeroes.Count()}, opposite gender single = 0). " +
+                            $"Triggering refund.");
+                        ActionFeedback.PostFailed(actionId, "no_candidates");
                         return;
                     }
+                    BannerlordLinkModule.Log(
+                        $"[hero.marry] @{username}: candidates pool={candidates.Count} ({tier})");
 
-                    // Random pick из 5 случайных кандидатов (variety)
-                    var rng = new Random();
-                    var npc = candidates[rng.Next(candidates.Count)];
+                    // Sprint 5.32 (BLT-parity LOW-5) — TaleWorlds.Core.MBRandom
+                    // вместо `new Random()`. `new Random()` использует Environment.TickCount
+                    // как seed — если две action'ы вызваны в той же миллисекунде (rare
+                    // но возможно при batch'е actions on main thread tick), они получат
+                    // одинаковый seed → одинаковый pick. MBRandom — engine-grade, shared
+                    // state, гарантировано unique sequence.
+                    var npc = candidates[TaleWorlds.Core.MBRandom.RandomInt(candidates.Count)];
 
                     // Apply marriage (pattern из BLT)
                     var oldClan = npc.Clan;

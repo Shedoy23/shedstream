@@ -13,11 +13,19 @@ namespace BannerlordLink.Actions
     /// <summary>
     /// Sprint 5.3 — `hero.join_tournament` action handler.
     ///
+    /// Sprint 5.28 change: цена перенесена с in-game динаров на extension
+    /// крустики (backend списывает 1000 крустиков с viewer ДО enqueue
+    /// action'а). Мод больше НЕ проверяет hero.Gold и НЕ списывает
+    /// денары — все записавшиеся попадают в очередь.
+    ///
+    /// Раньше: viewer кликал «записаться» → списались крустики на backend
+    /// → мод проверял hero.Gold ≥ 5000 → если нет, отказ, но крустики
+    /// уже списались. Result: 5-6 «записались», только 2 попали в турнир.
+    ///
     /// Flow:
-    ///   1. Backend enqueue'ит action {target: username, hero_gold_cost: 5000}
-    ///   2. Mod main-thread: find hero, check Hero.Gold ≥ entry_fee
-    ///   3. Deduct gold + AddToQueue(username, fee)
-    ///   4. Push event tournament.joined → backend INSERT в queue table
+    ///   1. Backend списывает 1000 крустиков + enqueue'ит action {target: username}
+    ///   2. Mod main-thread: find hero (alive) → AddToQueue
+    ///   3. Push event tournament.joined → backend INSERT в queue table
     ///
     /// Если viewer вне Mission (overworld OK), queue работает; в Mission
     /// — skip (нельзя в бою).
@@ -34,21 +42,20 @@ namespace BannerlordLink.Actions
             if (string.IsNullOrEmpty(username))
                 return Task.FromResult<(bool, string)>((false, "no target username"));
 
-            int entryFee = (int?)data["hero_gold_cost"]
-                        ?? TournamentQueueBehavior.ENTRY_FEE_GOLD;
-
-            MainThreadDispatcher.Enqueue(() => Join(username, entryFee));
+            string actionId = BannerlordLink.Util.ActionFeedback.GetActionId(data);
+            MainThreadDispatcher.Enqueue(() => Join(username, actionId));
             return Task.FromResult<(bool, string)>((true, null));
         }
 
-        private static void Join(string username, int entryFee)
+        private static void Join(string username, string actionId)
         {
             try
             {
                 if (Mission.Current != null)
                 {
                     BannerlordLinkModule.Log(
-                        $"[join_tournament] @{username}: skip — нельзя в Mission");
+                        $"[join_tournament] REFUSE @{username}: нельзя в Mission");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "in_mission");
                     return;
                 }
 
@@ -56,15 +63,8 @@ namespace BannerlordLink.Actions
                 if (hero == null || !hero.IsAlive)
                 {
                     BannerlordLinkModule.Log(
-                        $"[join_tournament] @{username}: hero не найден / мёртв");
-                    return;
-                }
-
-                if (hero.Gold < entryFee)
-                {
-                    BannerlordLinkModule.Log(
-                        $"[join_tournament] @{username}: not enough gold " +
-                        $"({hero.Gold} < {entryFee})");
+                        $"[join_tournament] REFUSE @{username}: hero не найден / мёртв");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "hero_not_found_or_dead");
                     return;
                 }
 
@@ -72,36 +72,31 @@ namespace BannerlordLink.Actions
                 if (queue == null)
                 {
                     BannerlordLinkModule.Log(
-                        $"[join_tournament] @{username}: TournamentQueueBehavior null");
+                        $"[join_tournament] REFUSE @{username}: TournamentQueueBehavior null");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "queue_unavailable");
                     return;
                 }
 
-                var (ok, message) = queue.AddToQueue(username, entryFee);
+                var (ok, message) = queue.AddToQueue(username, 0);
                 if (!ok)
                 {
                     BannerlordLinkModule.Log(
-                        $"[join_tournament] @{username}: {message}");
+                        $"[join_tournament] REFUSE @{username}: {message}");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "queue_reject:" + message);
                     return;
                 }
-
-                // Deduct Hero.Gold
-                GiveGoldAction.ApplyBetweenCharacters(hero, null, entryFee, true);
 
                 // Push event tournament.joined → backend mirror
                 string evtData = JsonConvert.SerializeObject(new
                 {
                     username = username,
-                    entry_fee = entryFee,
+                    entry_fee = 0,
                 });
                 Task.Run(async () => await BannerlordLinkModule.Backend
                     .PostEventAsync("bannerlord", "tournament.joined", evtData));
 
-                // Push hero state sync — gold changed
-                HeroStateSync.Push(hero);
-
                 BannerlordLinkModule.Log(
-                    $"[join_tournament] @{username} joined queue " +
-                    $"(-{entryFee}💰, gold={hero.Gold}, {message})");
+                    $"[join_tournament] @{username} joined queue ({message})");
             }
             catch (Exception ex)
             {

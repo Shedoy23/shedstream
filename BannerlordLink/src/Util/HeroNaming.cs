@@ -40,19 +40,29 @@ namespace BannerlordLink.Util
 
         /// <summary>
         /// Извлекает viewer login (lowercase) из adopted hero name.
-        /// Поддерживает оба формата для backwards-compat:
+        /// Только для имён С [BLink] префиксом — возвращает null для vanilla NPC.
+        ///
+        /// Sprint 5.32 BUGFIX — раньше возвращал name.ToLowerInvariant() даже
+        /// для НЕ-adopted heroes ("backwards-compat" с pre-Sprint 5.27 legacy
+        /// без prefix). Эта лояльность ломала filter в OnHeroKilled и др.:
+        ///   `if (string.IsNullOrEmpty(extracted)) skip` пропускал vanilla
+        /// NPC через filter → пушился player.died event для случайных
+        /// vanilla смертей ("Lost" detail). А legacy без префикса давно не
+        /// существует — все adopted'ы с Sprint 5.27 имеют [BLink].
+        ///
+        /// Использование:
         ///   "[BLink] Shedoy23" → "shedoy23"
-        ///   "shedoy23"          → "shedoy23"  (old style без prefix)
-        /// Используется во всех handlers/behaviors которые resolve username
-        /// из agent.Character.HeroObject.Name.
+        ///   "Денос из Лартис"  → null  (vanilla NPC — skip)
         /// </summary>
         public static string ExtractUsername(string displayName)
         {
             if (string.IsNullOrEmpty(displayName)) return null;
             string trimmed = displayName.Trim();
-            if (trimmed.StartsWith(PREFIX, StringComparison.Ordinal))
-                trimmed = trimmed.Substring(PREFIX.Length).Trim();
-            return trimmed.ToLowerInvariant();
+            if (!trimmed.StartsWith(PREFIX, StringComparison.Ordinal))
+                return null;   // не наш — vanilla NPC или что-то ещё
+            string login = trimmed.Substring(PREFIX.Length).Trim();
+            if (string.IsNullOrEmpty(login)) return null;
+            return login.ToLowerInvariant();
         }
     }
 }

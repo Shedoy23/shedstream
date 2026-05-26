@@ -67,26 +67,29 @@ namespace BannerlordLink.Actions
                 }
             }
 
-            MainThreadDispatcher.Enqueue(() => Summon(username, isPlayerSide, retinueIds));
+            string actionId = BannerlordLink.Util.ActionFeedback.GetActionId(data);
+            MainThreadDispatcher.Enqueue(() => Summon(username, isPlayerSide, retinueIds, actionId));
             return Task.FromResult<(bool, string)>((true, null));
         }
 
         private static void Summon(string username, bool isPlayerSide,
-            System.Collections.Generic.List<string> retinueIds)
+            System.Collections.Generic.List<string> retinueIds, string actionId)
         {
             string sideLabel = isPlayerSide ? "ally" : "enemy";
             try
             {
                 if (!IsMissionReadyForSummon(out string reason))
                 {
-                    BannerlordLinkModule.Log($"[player.spawn:{sideLabel}] @{username}: skip — {reason}");
+                    BannerlordLinkModule.Log($"[player.spawn:{sideLabel}] REFUSE @{username}: {reason}");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "mission_not_ready:" + reason);
                     return;
                 }
 
                 Hero hero = HeroLookup.FindByUsername(username);
                 if (hero == null)
                 {
-                    BannerlordLinkModule.Log($"[player.spawn:{sideLabel}] @{username}: hero not found in AliveHeroes");
+                    BannerlordLinkModule.Log($"[player.spawn:{sideLabel}] REFUSE @{username}: hero not found");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "hero_not_found");
                     return;
                 }
 
@@ -100,8 +103,8 @@ namespace BannerlordLink.Actions
                 if (isHideoutMission && !isPlayerSide)
                 {
                     BannerlordLinkModule.Log(
-                        $"[player.spawn:{sideLabel}] @{username}: enemy summon в hideout " +
-                        "запрещён (BLT pattern — асимметричная миссия)");
+                        $"[player.spawn:{sideLabel}] REFUSE @{username}: enemy summon в hideout запрещён");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "enemy_in_hideout_blocked");
                     return;
                 }
 
@@ -149,7 +152,10 @@ namespace BannerlordLink.Actions
                 }
                 if (originParty == null)
                 {
-                    BannerlordLinkModule.Log($"[player.spawn:{sideLabel}] @{username}: no origin party (даже MainParty=null?!)");
+                    // Sprint 5.31 #45c — REFUSE prefix + refund. Раньше viewer
+                    // платил и ничего не происходило молча.
+                    BannerlordLinkModule.Log($"[player.spawn:{sideLabel}] REFUSE @{username}: no origin party (даже MainParty=null?!)");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "no_origin_party");
                     return;
                 }
 
@@ -157,30 +163,79 @@ namespace BannerlordLink.Actions
                 // BLT pattern: hero временно добавляется в spawn party (для proper
                 // engine integration — formations, reinforcement counts), затем на
                 // mission end восстанавливается обратно в свою vanilla party.
+                //
+                // Sprint 5.28 fix (дубли в отряде): раньше +1 шёл БЕЗУСЛОВНО
+                // даже когда hero уже в target party (e.g. re-summon того же
+                // viewer'а во время боя, или engine auto-spawn'нул как clan-
+                // member'а). Каждый повторный summon → ещё +1 → у юзера
+                // накопилось 17 копий kuro_gothic.
+                //
+                // BLT решает это правильно (BLT SummonHero.cs:358-361):
+                //     if (originalParty?.Party != party) {
+                //         originalParty?.Party?.AddMember(hero, -1);
+                //         party.AddMember(hero, 1);
+                //     }
+                // — и `+1`, и `-1` ОБА внутри одного if'а. Если hero уже в
+                // target party — не трогаем roster вообще.
+                //
+                // Также проверяем GetTroopCount(target) > 0 как safety:
+                // если engine уже добавил hero как PlayerClan member, мы
+                // не должны его дублировать.
                 PartyBase originalHeroParty = hero.PartyBelongedTo?.Party;
                 bool wasLeader = originalHeroParty?.LeaderHero == hero;
                 int oldHP = hero.HitPoints;
 
-                if (originalHeroParty != null && originalHeroParty != originParty)
+                int alreadyInTarget = 0;
+                try { alreadyInTarget = originParty.MemberRoster?.GetTroopCount(hero.CharacterObject) ?? 0; }
+                catch { }
+
+                bool didRosterTransfer = false;
+                if (originalHeroParty != originParty && alreadyInTarget == 0)
                 {
-                    try { originalHeroParty.AddMember(hero.CharacterObject, -1); }
+                    // Real transfer: hero не в target. Делаем -1/+1 атомарно.
+                    if (originalHeroParty != null)
+                    {
+                        int curOrig = 0;
+                        try { curOrig = originalHeroParty.MemberRoster?.GetTroopCount(hero.CharacterObject) ?? 0; }
+                        catch { }
+                        if (curOrig > 0)
+                        {
+                            try { originalHeroParty.MemberRoster.AddToCounts(hero.CharacterObject, -1); }
+                            catch (Exception ex)
+                            {
+                                BannerlordLinkModule.Log(
+                                    $"[player.spawn:{sideLabel}] @{username}: remove from " +
+                                    $"original party failed: {ex.Message}");
+                            }
+                        }
+                    }
+                    try
+                    {
+                        originParty.MemberRoster.AddToCounts(hero.CharacterObject, 1);
+                        didRosterTransfer = true;
+                    }
                     catch (Exception ex)
                     {
                         BannerlordLinkModule.Log(
-                            $"[player.spawn:{sideLabel}] @{username}: remove from " +
-                            $"original party failed: {ex.Message}");
+                            $"[player.spawn:{sideLabel}] @{username}: add to spawn party failed: {ex.Message}");
                     }
                 }
-                try { originParty.AddMember(hero.CharacterObject, 1); }
-                catch (Exception ex)
+                else
                 {
                     BannerlordLinkModule.Log(
-                        $"[player.spawn:{sideLabel}] @{username}: add to spawn party failed: {ex.Message}");
+                        $"[player.spawn:{sideLabel}] @{username}: hero уже в target party " +
+                        $"(count={alreadyInTarget}, originSame={originalHeroParty == originParty}) " +
+                        "— skip +1 (BLT pattern, avoid dupe)");
                 }
 
-                // Зарегистрировать восстановление на OnEndMission.
-                BannerlordLink.Behaviors.KillRewardBehavior.RegisterPartyRestore(
-                    hero, originalHeroParty, wasLeader, oldHP);
+                // Sprint 5.28: register restore ТОЛЬКО если мы реально
+                // transfer'или hero. Иначе на OnEndMission делать нечего —
+                // hero остаётся где был.
+                if (didRosterTransfer)
+                {
+                    BannerlordLink.Behaviors.KillRewardBehavior.RegisterPartyRestore(
+                        hero, originalHeroParty, wasLeader, oldHP);
+                }
 
                 // Sprint 5.7 — formation preference (player side only). BLT:
                 //   Campaign.SetPlayerFormationPreference(char, formationClass)
@@ -204,65 +259,30 @@ namespace BannerlordLink.Actions
 
                 bool withHorse = ResolveWithHorse(username);
 
-                // Sprint 5.27r: detect hideout PRE-spawn чтобы skip position
-                // anchor (anchor 3m от стримера может быть outside walkable
-                // area в cramped hideout map). В hideout engine сам подбирает
-                // valid spawn slot через isReinforcement=true.
-                bool heroInHideout = false;
-                try { heroInHideout = (Mission.Current?.Mode.ToString() == "Stealth"); }
-                catch { }
-
-                // Sprint 5.27f: spawn hero РЯДОМ с стримером (Agent.Main),
-                // не в default reinforcement zone (backline).
-                // 5.27p: enemy spawn — 10m ВПЕРЕДИ стримера (looking direction),
-                // ally — 3m perpendicular от него.
-                // 5.27r: SKIP anchor в hideout — engine default лучше.
+                // Sprint 5.29: BLT-style spawn placement — initialPosition=null +
+                // isReinforcement=true → engine выбирает default reinforcement
+                // marker для каждой side. Ally выходит из backline стримера,
+                // enemy — из backline врага. Это:
+                //   - Корректно integrates с formation system (AI commander
+                //     учитывает их как proper reinforcement).
+                //   - Не спавнит врага В формации стримера (старый "10m впереди").
+                //   - Не лепит ally вплотную к стримеру (старый "3m perp" —
+                //     блокировал движение, иногда spawn'ил в стенах).
+                //   - В hideout / arena работает корректно (engine знает map).
+                //
+                // Раньше (Sprint 5.27f/p):
+                //   ally  → 3m perpendicular от Agent.Main
+                //   enemy → 10m впереди Agent.Main, face-to-face
+                // Эта схема feels arcade-y, ломала immersion и иногда крашила
+                // engine когда spawn point был invalid (walls, edge of map).
+                //
+                // BLT тоже использует null position в battle mode — мы возврат к
+                // engine default.
                 Vec3? heroSpawnPos = null;
                 Vec2? heroSpawnDir = null;
-                if (!heroInHideout)
-                {
-                    try
-                    {
-                        var streamer = Agent.Main;
-                        if (streamer != null && streamer.IsActive())
-                        {
-                            var look = streamer.LookDirection;
-                            if (isPlayerSide)
-                            {
-                                // Ally: 3m влево/право (alternating по хэшу username).
-                                int hashSign = (username.GetHashCode() & 1) == 0 ? 1 : -1;
-                                float perpX = -look.y;
-                                float perpY = look.x;
-                                heroSpawnPos = new Vec3(
-                                    streamer.Position.x + perpX * 3f * hashSign,
-                                    streamer.Position.y + perpY * 3f * hashSign,
-                                    streamer.Position.z);
-                                heroSpawnDir = look.AsVec2;
-                            }
-                            else
-                            {
-                                // Enemy: 10m ВПЕРЕДИ стримера, looking назад (face-to-face).
-                                heroSpawnPos = new Vec3(
-                                    streamer.Position.x + look.x * 10f,
-                                    streamer.Position.y + look.y * 10f,
-                                    streamer.Position.z);
-                                // Face the streamer (opposite of his look direction)
-                                heroSpawnDir = new Vec2(-look.x, -look.y);
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        BannerlordLinkModule.Log(
-                            $"[player.spawn:{sideLabel}] @{username} anchor resolve failed: {ex.Message}");
-                    }
-                }
-                else
-                {
-                    BannerlordLinkModule.Log(
-                        $"[player.spawn:{sideLabel}] @{username} hideout detected — " +
-                        "skip position anchor (engine default better for cramped map)");
-                }
+                BannerlordLinkModule.Log(
+                    $"[player.spawn:{sideLabel}] @{username} → engine default " +
+                    "reinforcement zone (BLT pattern, no position override)");
 
                 // Sprint 5.15: re-use existing agent если hero auto-spawned;
                 // иначе spawn fresh agent через engine API.
@@ -356,6 +376,28 @@ namespace BannerlordLink.Actions
                     $"{(heroAlreadySpawned ? "retinue-only" : "summoned")} " +
                     $"(horse={withHorse}, agent={(agent != null ? "OK" : "NULL")}, " +
                     $"team={agent?.Team?.Side.ToString() ?? "?"})");
+
+                // Sprint 5.29: in-game popup + audio cue для стримера (BLT pattern).
+                // Раньше стример не понимал что viewer призван — только log в файле.
+                // Цветной popup в top-left ленте + sound notification.
+                if (!heroAlreadySpawned)
+                {
+                    try
+                    {
+                        var col = isPlayerSide
+                            ? new TaleWorlds.Library.Color(0.32f, 0.83f, 0.45f)  // green
+                            : new TaleWorlds.Library.Color(0.87f, 0.21f, 0.21f); // red
+                        TaleWorlds.Library.InformationManager.DisplayMessage(
+                            new TaleWorlds.Library.InformationMessage(
+                                $"{(isPlayerSide ? "📯" : "⚔️")} @{username} {(isPlayerSide ? "за тебя" : "ПРОТИВ тебя")} ({(withHorse ? "конный" : "пеший")})",
+                                col));
+                    }
+                    catch (Exception ex)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[player.spawn:{sideLabel}] @{username} popup failed: {ex.Message}");
+                    }
+                }
 
                 // Sprint 5.7 — expire team query caches + reset formation spawn
                 // indices. BLT pattern — без этого engine AI может не сразу
@@ -455,11 +497,50 @@ namespace BannerlordLink.Actions
                                 initialDirection:    anchorDir);
                             if (retinueAgent != null)
                             {
+                                BannerlordLinkModule.LogVerbose(() =>
+                                    $"[player.spawn V] @{username} retinue spawned " +
+                                    $"idx={retinueAgent.Index} troop={troop.StringId} " +
+                                    $"hp={(int)retinueAgent.Health}/{(int)retinueAgent.HealthLimit} " +
+                                    $"team={retinueAgent.Team?.Side} formation={retinueAgent.Formation?.FormationIndex}");
                                 Team t = isPlayerSide
                                     ? Mission.Current.PlayerTeam
                                     : Mission.Current.PlayerEnemyTeam;
                                 if (t != null && retinueAgent.Team != t)
                                     retinueAgent.SetTeam(t, false);
+
+                                // Sprint 5.32 ROLLBACK M13 — Crash dump 28004 (22:12):
+                                // native crash в Mission tick через 5-10s после
+                                // retinue HP×2 setter на 5 troops. Engine corrupts
+                                // internal state когда BaseHealthLimit мутируется
+                                // ПОСЛЕ Agent creation (Bannerlord 1.3.15).
+                                //
+                                // Disable ×2 multiplier. Retinue spawnится с default
+                                // engine HP — это restoration к pre-M13 behavior
+                                // (раньше работало стабильно). Если streamer хочет
+                                // более прочную свиту — buy elite troops через
+                                // hero.recruit_troops с is_elite=true (×3 cost).
+                                //
+                                // BLT pattern в Randomchair22-fork: BLTSummonBehavior
+                                // делает aналогичный setter, но возможно у них
+                                // другая Agent API surface (1.2.x), либо они setter
+                                // используют ВО ВРЕМЯ SpawnTroop call вместо
+                                // post-spawn mutation.
+                                // try
+                                // {
+                                //     float origLimit = retinueAgent.HealthLimit;
+                                //     if (origLimit > 0f)
+                                //     {
+                                //         retinueAgent.BaseHealthLimit = origLimit * 2f;
+                                //         retinueAgent.HealthLimit = origLimit * 2f;
+                                //         retinueAgent.Health = retinueAgent.HealthLimit;
+                                //     }
+                                // }
+                                // catch (Exception hpEx)
+                                // {
+                                //     BannerlordLinkModule.Log(
+                                //         $"[player.spawn:{sideLabel}] @{username} retinue HP×2 warn: {hpEx.Message}");
+                                // }
+
                                 try { retinueAgent.MountAgent?.FadeIn(); retinueAgent.FadeIn(); } catch { }
                                 // Sprint 5.6: register attribution для kill credit
                                 try {
@@ -536,6 +617,53 @@ namespace BannerlordLink.Actions
                 reason = $"mission mode {modeStr} (BLT block-list)";
                 return false;
             }
+
+            // Sprint 5.32 CRASH FIX — в Bannerlord 1.3.x tournament mission
+            // имеет Mode=Battle (НЕ "Tournament"), но содержит TournamentBehavior /
+            // TournamentFightMissionController как mission behavior. Без этой
+            // проверки player.spawn proходит mode-check, потом engine крашит с
+            // "Nullable object must have a value" в SpawnTroop (нет default
+            // reinforcement zone для tournament arena → engine .Value на
+            // Nullable<Vec3> внутри своего SpawnPathFinder).
+            //
+            // Лог crash'а (17:18:24): tournament в town_B5 → @z_pot купил player.spawn
+            // → [player.spawn:ally] CRASHED: InvalidOperationException.
+            try
+            {
+                // TournamentBehavior — campaign-level, TournamentFightMissionController
+                // или *TournamentMissionBehavior — mission-level. Сканим MissionBehaviors
+                // по имени типа (надёжнее чем typed generic — namespace может
+                // меняться между версиями TaleWorlds).
+                bool isTournamentMission = false;
+                foreach (var b in m.MissionBehaviors)
+                {
+                    if (b == null) continue;
+                    var n = b.GetType().Name;
+                    if (n.IndexOf("Tournament", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        // Skip наш собственный TournamentMissionBehavior — он
+                        // используется для tracking, но не блокирует summon.
+                        // Хотя в текущей логике мы вообще НЕ хотим summon во время
+                        // tournament — так что блокируем.
+                        isTournamentMission = true;
+                        BannerlordLinkModule.Log(
+                            $"[player.spawn] tournament detected via behavior: {b.GetType().FullName}");
+                        break;
+                    }
+                }
+                if (isTournamentMission)
+                {
+                    reason = "tournament mission (engine не имеет reinforcement zone, " +
+                             "spawn → InvalidOperationException)";
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[player.spawn] tournament-detect warn: {ex.Message}");
+            }
+
             reason = null;
             return true;
         }
@@ -548,22 +676,77 @@ namespace BannerlordLink.Actions
         /// <summary>Sprint 5.27q: переименовывает agent через reflection.
         /// Engine показывает Name при hover/target на agent. BLT pattern
         /// (BLTSummonBehavior:280 — AccessTools.Field(typeof(Agent), "_name")).
-        /// Cached reflection field — устанавливается один раз.</summary>
+        /// Cached reflection field — устанавливается один раз.
+        ///
+        /// Sprint 5.31 #45e (audit MED-2) — раньше при отвале reflection
+        /// (Agent._name переименован в новой версии TaleWorlds) warning
+        /// логировался ОДИН раз, потом все @username markers просто пропадали
+        /// молча. Теперь:
+        ///   1. Reflection пробует поочерёдно несколько кандидатов
+        ///      (`_name`, `<Name>k__BackingField`).
+        ///   2. Failures периодически re-log'аются (каждые 100 пропущенных
+        ///      вызовов) чтобы streamer видел "почему имена пропали".
+        ///   3. Не пытаемся fallback на native Agent.Name property —
+        ///      она read-only во всех известных версиях.</summary>
         private static System.Reflection.FieldInfo _agentNameField;
+        private static bool _agentNameFieldFailed;
+        private static int _agentNameSkippedCount;
+        private static readonly string[] _AGENT_NAME_FIELD_CANDIDATES = new[]
+        {
+            "_name",                  // Bannerlord 1.0–1.2.x
+            "<Name>k__BackingField",  // если переведут на auto-property
+        };
+
         private static void SetAgentDisplayName(Agent agent, string newName)
         {
             if (agent == null || string.IsNullOrEmpty(newName)) return;
-            if (_agentNameField == null)
+            if (_agentNameFieldFailed)
             {
-                _agentNameField = HarmonyLib.AccessTools.Field(typeof(Agent), "_name");
-                if (_agentNameField == null)
+                // Periodic re-log так багрепорт "имена не показываются"
+                // легко найти grep'ом в логе.
+                _agentNameSkippedCount++;
+                if (_agentNameSkippedCount % 100 == 1)
                 {
                     BannerlordLinkModule.Log(
-                        "[SetAgentDisplayName] Agent._name field not found via reflection!");
+                        $"[SetAgentDisplayName] reflection broken — " +
+                        $"skipped {_agentNameSkippedCount} rename'ов. " +
+                        $"Tried fields: {string.Join(",", _AGENT_NAME_FIELD_CANDIDATES)}");
+                }
+                return;
+            }
+            if (_agentNameField == null)
+            {
+                foreach (var fieldName in _AGENT_NAME_FIELD_CANDIDATES)
+                {
+                    _agentNameField = HarmonyLib.AccessTools.Field(typeof(Agent), fieldName);
+                    if (_agentNameField != null)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[SetAgentDisplayName] resolved Agent.{fieldName} via reflection");
+                        break;
+                    }
+                }
+                if (_agentNameField == null)
+                {
+                    _agentNameFieldFailed = true;
+                    BannerlordLinkModule.Log(
+                        "[SetAgentDisplayName] CRITICAL: Agent name field not found! " +
+                        "Tried: " + string.Join(",", _AGENT_NAME_FIELD_CANDIDATES) +
+                        " — @username markers недоступны до фикса. Проверь версию игры.");
                     return;
                 }
             }
-            _agentNameField.SetValue(agent, new TaleWorlds.Localization.TextObject(newName));
+            try
+            {
+                _agentNameField.SetValue(agent, new TaleWorlds.Localization.TextObject(newName));
+            }
+            catch (Exception ex)
+            {
+                // SetValue может бросить если тип поля изменился.
+                BannerlordLinkModule.Log(
+                    $"[SetAgentDisplayName] SetValue failed: {ex.GetType().Name}: {ex.Message}");
+                _agentNameFieldFailed = true;
+            }
         }
 
         /// <summary>Sprint 5.15: возвращает existing Agent для hero в Mission

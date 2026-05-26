@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using BannerlordLink.Actions;
 using BannerlordLink.Util;
@@ -51,8 +52,44 @@ namespace BannerlordLink.Behaviors
         public IReadOnlyList<QueueEntry> Queue => _queue;
         public bool TournamentAvailable => _queue.Count > 0;
 
-        // Reference grabbed by patch to enumerate participants.
+        // Sprint 5.32 BUGFIX — REVERT Sprint 5.31 #45d (CWT was overkill +
+        // broken in practice). Crash dump показал что Postfix фоторепортно не
+        // вызывался — `[tournament:patch] roster replaced` отсутствует в
+        // логах. Причина: Settlement reference, переданный в Postfix, не
+        // reference-equal с тем что сохранили в CWT → TryGetValue=false →
+        // silent skip. Race window'а на main-thread synchronous menu callback
+        // нет — возвращаемся к простому static field + Settlement check.
         public static TournamentMissionBehavior StartingTournament;
+        public static Settlement StartingSettlement;   // safety check для Postfix
+
+        public static TournamentMissionBehavior GetStartingFor(Settlement settlement)
+        {
+            if (StartingTournament == null) return null;
+            // Soft check: либо одинаковый settlement, либо StartingSettlement не
+            // зарегистрирован (legacy fallback).
+            if (StartingSettlement != null && settlement != null &&
+                StartingSettlement != settlement)
+            {
+                // Different settlement — это vanilla tournament в другом городе,
+                // не наш. Пропускаем без logging (нормальная ситуация).
+                return null;
+            }
+            return StartingTournament;
+        }
+
+        private static void SetStartingFor(Settlement settlement, TournamentMissionBehavior beh)
+        {
+            StartingTournament = beh;
+            StartingSettlement = settlement;
+            BannerlordLinkModule.Log(
+                $"[tournament] StartingTournament set: settlement={settlement?.StringId ?? "?"}");
+        }
+
+        private static void ClearStartingFor(Settlement settlement)
+        {
+            StartingTournament = null;
+            StartingSettlement = null;
+        }
 
         public override void RegisterEvents()
         {
@@ -72,10 +109,62 @@ namespace BannerlordLink.Behaviors
                 OnSessionLaunched);
         }
 
+        // Sprint 5.28: persist queue через SyncData. BLT тоже это делает —
+        // мы раньше комментировали что «BLT re-инициализирует», но это
+        // неверно. Без persistence стример сохраняется с 6 в очереди,
+        // загружает save — пусто. Сейчас фиксим: сериализуем usernames +
+        // entry fees, на load восстанавливаем Hero через HeroLookup.
+        // Storage tag — короткий, version-prefixed для будущей миграции.
+        private const string SAVE_KEY = "blink_tournament_queue_v1";
+
         public override void SyncData(IDataStore dataStore)
         {
-            // Stateless — очередь не переживает save/load (как BLT, который
-            // тоже re-инициализирует queue на каждую сессию).
+            try
+            {
+                if (dataStore.IsSaving)
+                {
+                    var rows = _queue
+                        .Where(e => e?.Hero != null && !e.Hero.IsDead)
+                        .Select(e => $"{e.Username}|{e.EntryFee}")
+                        .ToList();
+                    string blob = string.Join(";", rows);
+                    dataStore.SyncData(SAVE_KEY, ref blob);
+                }
+                else  // loading
+                {
+                    string blob = null;
+                    dataStore.SyncData(SAVE_KEY, ref blob);
+                    _queue.Clear();
+                    if (string.IsNullOrEmpty(blob)) return;
+
+                    int restored = 0, skipped = 0;
+                    foreach (var row in blob.Split(';'))
+                    {
+                        if (string.IsNullOrWhiteSpace(row)) continue;
+                        var parts = row.Split('|');
+                        if (parts.Length < 1) continue;
+                        string username = parts[0].Trim().ToLowerInvariant();
+                        int fee = 0;
+                        if (parts.Length >= 2) int.TryParse(parts[1], out fee);
+                        var hero = HeroLookup.FindByUsername(username);
+                        if (hero == null || !hero.IsAlive) { skipped++; continue; }
+                        _queue.Add(new QueueEntry
+                        {
+                            Username = username,
+                            Hero = hero,
+                            EntryFee = fee,
+                        });
+                        restored++;
+                    }
+                    BannerlordLinkModule.Log(
+                        $"[tournament] SyncData load: restored {restored} queue entries " +
+                        $"({skipped} skipped — dead/missing)");
+                }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[tournament] SyncData error: {ex.Message}");
+            }
         }
 
         private void OnSessionLaunched(CampaignGameStarter starter)
@@ -177,16 +266,18 @@ namespace BannerlordLink.Behaviors
                 var snapshot = _queue.Take(maxViewers).ToList();
 
                 // Создаём mission behaviour ДО реального tournament create —
-                // patch на GetParticipantCharacters читает StartingTournament.
-                StartingTournament = new TournamentMissionBehavior(
+                // patch на GetParticipantCharacters читает starting tournament
+                // по settlement key (см. ConditionalWeakTable выше).
+                var startingTournament = new TournamentMissionBehavior(
                     playerParticipates, snapshot);
+                SetStartingFor(settlement, startingTournament);
 
                 var tournamentGame = Campaign.Current.Models.TournamentModel
                     .CreateTournament(settlement.Town);
                 tournamentGame.PrepareForTournamentGame(playerParticipates);
 
-                MissionState.Current.CurrentMission.AddMissionBehavior(StartingTournament);
-                StartingTournament.PrepareForTournamentGame();
+                MissionState.Current.CurrentMission.AddMissionBehavior(startingTournament);
+                startingTournament.PrepareForTournamentGame();
 
                 // Очередь сбрасываем — snapshot уже в активном турнире.
                 _queue.RemoveAll(e => snapshot.Contains(e));
@@ -210,13 +301,13 @@ namespace BannerlordLink.Behaviors
                     $"{participantUsernames.Length} viewers " +
                     $"(player_in={playerParticipates})");
 
-                StartingTournament = null;
+                ClearStartingFor(settlement);
             }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log(
                     $"[tournament] StartViewerTournament FAILED: {ex.Message}");
-                StartingTournament = null;
+                ClearStartingFor(Settlement.CurrentSettlement);
             }
         }
     }

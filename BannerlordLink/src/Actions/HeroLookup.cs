@@ -19,6 +19,22 @@ namespace BannerlordLink.Actions
             if (string.IsNullOrEmpty(username)) return null;
             if (Campaign.Current == null) return null;
 
+            // Sprint 5.32 (BLT-parity M9) — first attempt через persistent dict.
+            // HeroIdentityBehavior сохраняет heroId→username через SyncData,
+            // что resilient к engine rename (clan promotion / retirement /
+            // vanilla переименования). Если dict содержит mapping — instant
+            // hit без linear scan AliveHeroes (O(1)).
+            try
+            {
+                var dictHero = BannerlordLink.Behaviors.HeroIdentityBehavior.Instance
+                    ?.FindByUsername(username);
+                if (dictHero != null) return dictHero;
+            }
+            catch { /* fallback к name-scan ниже */ }
+
+            // Legacy / fallback path: scan через name-substring. Покрывает
+            // saves до 5.32 пока bootstrap не отработал, плюс safety net
+            // если registration в AdoptHeroHandler не сработал.
             var alive = Campaign.Current.AliveHeroes;
             if (alive == null) return null;
 

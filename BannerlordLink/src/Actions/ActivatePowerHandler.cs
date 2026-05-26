@@ -45,22 +45,24 @@ namespace BannerlordLink.Actions
             // Иначе берём дефолты из PowerCache (class+level value) и hard-coded duration.
             float? durationOverride = (float?)data["duration_s"];
             double? valueOverride = (double?)data["value"];
+            string actionId = BannerlordLink.Util.ActionFeedback.GetActionId(data);
 
-            MainThreadDispatcher.Enqueue(() => Activate(username, powerKey, durationOverride, valueOverride));
+            MainThreadDispatcher.Enqueue(() =>
+                Activate(username, powerKey, durationOverride, valueOverride, actionId));
             return Task.FromResult<(bool, string)>((true, null));
         }
 
         private static void Activate(
             string username, string powerKey,
-            float? durationOverride, double? valueOverride)
+            float? durationOverride, double? valueOverride, string actionId)
         {
             try
             {
                 if (Mission.Current == null)
                 {
                     BannerlordLinkModule.Log(
-                        $"[power.activate] @{username}: no active Mission " +
-                        "(hero не в battle)");
+                        $"[power.activate] REFUSE @{username}: no active Mission");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "no_active_mission");
                     return;
                 }
 
@@ -83,7 +85,8 @@ namespace BannerlordLink.Actions
                 if (agent == null)
                 {
                     BannerlordLinkModule.Log(
-                        $"[power.activate] @{username}: hero не spawned как agent в Mission");
+                        $"[power.activate] REFUSE @{username}: hero не spawned как agent в Mission");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "hero_not_spawned");
                     return;
                 }
 
@@ -96,14 +99,15 @@ namespace BannerlordLink.Actions
                         ApplyShieldBreakBurst(agent, username, valueOverride);
                         break;
                     case "rage":
-                        ActivateRage(username, durationOverride, valueOverride);
+                        ActivateRage(username, durationOverride, valueOverride, agent);
                         break;
                     case "retribution_toggle":
-                        ActivateRetribution(username, durationOverride, valueOverride);
+                        ActivateRetribution(username, durationOverride, valueOverride, agent);
                         break;
                     default:
                         BannerlordLinkModule.Log(
-                            $"[power.activate] @{username}: unknown power '{powerKey}'");
+                            $"[power.activate] REFUSE @{username}: unknown power '{powerKey}'");
+                        BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "unknown_power:" + powerKey);
                         break;
                 }
             }
@@ -122,6 +126,8 @@ namespace BannerlordLink.Actions
             agent.Health = Math.Min(max, agent.Health + BURST_AMOUNT);
             BannerlordLinkModule.Log(
                 $"[power.heal_burst] @{username}: HP {before:F0} → {agent.Health:F0} / {max:F0}");
+            // Sprint 5.30 #41 — visible cue
+            BannerlordLink.Util.PowerVisualFx.PlayActivation(agent, "heal_burst", username);
         }
 
         // shield_break_burst — instant AoE: для всех живых enemy-агентов в
@@ -148,6 +154,9 @@ namespace BannerlordLink.Actions
 
             BannerlordLinkModule.Log(
                 $"[power.shield_break_burst] @{username} radius={radius}m: broke {broken} shield(s)");
+            // Sprint 5.30 #41 — popup (particle/sound на каждом victim уже идёт через
+            // TryTriggerShieldBreakFx; здесь добавляем только activation popup для caster'а).
+            BannerlordLink.Util.PowerVisualFx.PlayActivation(caster, "shield_break_burst", username, broken);
         }
 
         // Search through weapon slots, find a shield, zero its hitpoints +
@@ -228,7 +237,8 @@ namespace BannerlordLink.Actions
             }
         }
 
-        private static void ActivateRage(string username, float? durationOverride, double? valueOverride)
+        private static void ActivateRage(string username, float? durationOverride,
+            double? valueOverride, Agent agent)
         {
             float duration = durationOverride ?? 30f;
             double multi = valueOverride
@@ -238,9 +248,13 @@ namespace BannerlordLink.Actions
             ActiveBuffState.Activate(username, "rage", duration, multi);
             BannerlordLinkModule.Log(
                 $"[power.rage] @{username}: ×{multi:F2} dmg for {duration}s");
+            // Sprint 5.30 #41 — popup + sound + burst particle
+            BannerlordLink.Util.PowerVisualFx.PlayActivation(
+                agent, "rage", username, $"{multi:F1}");
         }
 
-        private static void ActivateRetribution(string username, float? durationOverride, double? valueOverride)
+        private static void ActivateRetribution(string username, float? durationOverride,
+            double? valueOverride, Agent agent)
         {
             float duration = durationOverride ?? 60f;
             double pct = valueOverride
@@ -249,6 +263,9 @@ namespace BannerlordLink.Actions
             ActiveBuffState.Activate(username, "retribution_toggle", duration, pct);
             BannerlordLinkModule.Log(
                 $"[power.retribution] @{username}: +{pct:F0}% reflect for {duration}s");
+            // Sprint 5.30 #41
+            BannerlordLink.Util.PowerVisualFx.PlayActivation(
+                agent, "retribution_toggle", username, (int)pct);
         }
     }
 }

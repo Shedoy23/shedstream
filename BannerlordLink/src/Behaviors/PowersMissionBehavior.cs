@@ -48,11 +48,28 @@ namespace BannerlordLink.Behaviors
             _buffTickAcc += dt;
             if (_buffTickAcc < BUFF_TICK_INTERVAL) return;
             _buffTickAcc = 0f;
-            try { ActiveBuffState.RemoveExpired(); }
+
+            // Sprint 5.33 (BLT-parity FX) — RemoveExpired теперь returns list.
+            // Caller react'ит на specific expirations (berserker_charge — reset
+            // speed back to 1.0×; poison_dot — engine cleanup).
+            try
+            {
+                var expired = ActiveBuffState.RemoveExpired();
+                if (expired.Count > 0) HandleExpiredBuffs(expired);
+            }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log($"[PowersMission] buff cleanup error: {ex.Message}");
             }
+
+            // Sprint 5.33 (BLT-parity FX) — apply DoT damage to poisoned agents.
+            // Каждый tick (~2 сек) — damage = damagePerSec × BUFF_TICK_INTERVAL.
+            try { ApplyDotTicks(); }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[PowersMission] DoT tick error: {ex.Message}");
+            }
+
             // Sprint 5.30 #41 — periodic re-burst для timed buffs (subtle visual
             // reinforcement что buff active). Iterate all (username, buff) и
             // play tick particle на agent если найден в Mission.
@@ -60,6 +77,90 @@ namespace BannerlordLink.Behaviors
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log($"[PowersMission] buff tick fx error: {ex.Message}");
+            }
+        }
+
+        /// <summary>Sprint 5.33 (BLT-parity FX) — react на specific buff expirations.
+        /// berserker_charge → reset agent speed back to 1.0×.
+        /// poison_dot → engine cleanup (target.Index больше не tick'ается).</summary>
+        private static void HandleExpiredBuffs(
+            System.Collections.Generic.List<(string username, string powerKey, double value)> expired)
+        {
+            foreach (var (username, powerKey, _) in expired)
+            {
+                try
+                {
+                    if (powerKey == "berserker_charge")
+                    {
+                        var agent = FindAgentByUsername(username);
+                        if (agent != null && agent.IsActive())
+                        {
+                            agent.SetMaximumSpeedLimit(1f, true);
+                            BannerlordLinkModule.Log(
+                                $"[FX expire] @{username} berserker_charge → speed reset 1.0×");
+                        }
+                    }
+                    // poison_dot expire — no agent-side cleanup needed (we don't
+                    // mutate engine state on each tick, just RegisterBlow).
+                }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[FX expire] @{username} {powerKey} cleanup warn: {ex.Message}");
+                }
+            }
+        }
+
+        /// <summary>Sprint 5.33 (BLT-parity FX) — apply DoT damage to poisoned
+        /// agents. Each tick (~BUFF_TICK_INTERVAL sec): damage = dps × interval.
+        /// Lookup agent by index — может быть dead/disposed → skip.</summary>
+        private static void ApplyDotTicks()
+        {
+            if (Mission.Current == null) return;
+            var dots = ActiveBuffState.SnapshotDotTargets();
+            if (dots.Count == 0) return;
+
+            int applied = 0;
+            foreach (var (agentIdx, dps, _) in dots)
+            {
+                try
+                {
+                    Agent target = null;
+                    // Iterate Mission.Current.Agents — find by Index.
+                    foreach (var a in Mission.Current.Agents)
+                    {
+                        if (a == null) continue;
+                        if (a.Index == agentIdx) { target = a; break; }
+                    }
+                    if (target == null || !target.IsActive()) continue;
+                    int dmg = (int)Math.Max(1.0, dps * BUFF_TICK_INTERVAL);
+                    var blow = new Blow(-1)
+                    {
+                        InflictedDamage = dmg,
+                        DamageType = DamageTypes.Pierce,
+                        DamageCalculated = true,
+                        BlowFlag = BlowFlags.None,
+                        BoneIndex = target.Monster?.ThoraxLookDirectionBoneIndex ?? (sbyte)0,
+                        GlobalPosition = target.Position,
+                        Direction = TaleWorlds.Library.Vec3.Forward,
+                        SwingDirection = TaleWorlds.Library.Vec3.Forward,
+                    };
+                    AttackCollisionData cd = default;
+                    target.RegisterBlow(blow, cd);
+                    applied++;
+                    // Visual: re-pulse poison particle.
+                    BannerlordLink.Util.PowerVisualFx.PlayBuffTick(target, "poison_dot");
+                }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[FX DoT] agent idx={agentIdx} tick warn: {ex.Message}");
+                }
+            }
+            if (applied > 0)
+            {
+                BannerlordLinkModule.Log(
+                    $"[FX DoT] applied {applied}/{dots.Count} poison ticks this round");
             }
         }
 

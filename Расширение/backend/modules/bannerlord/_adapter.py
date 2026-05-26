@@ -154,6 +154,9 @@ ACTION_COOLDOWNS_SEC = {
     "hero.enact_policy":            300,   # heavy political decision, anti-spam
     "hero.make_peace":              600,   # huge decision, hard cooldown
     "hero.pay_ransom":               20,   # short — many viewers can chip in
+    # Sprint 5.33 (BLT-parity SHOP) — workshops passive income
+    "hero.buy_workshop":            120,   # economic decision, no spam
+    "hero.sell_workshop":            60,
 }
 
 
@@ -462,6 +465,11 @@ class BannerlordAdapter(ModuleAdapter):
         # Sprint 5.33 (BLT-parity VAS) — vassal lifecycle events
         if et == "hero.vassal_created":
             await self._on_vassal_created(channel_id, env)
+            return
+
+        # Sprint 5.33 (BLT-parity SHOP) — workshop daily profit sync
+        if et == "hero.workshop_profit_sync":
+            await self._on_workshop_profit_sync(channel_id, env)
             return
 
         if et == "world.event_occurred":
@@ -1675,6 +1683,56 @@ class BannerlordAdapter(ModuleAdapter):
         await self._log_event(channel_id, "hero.vassal_created", None, data)
         logger.info("[VAS-CREATED] ch=%s placeholder=%s → real=%s affected=%d",
                     channel_id, placeholder, real_clan_id, affected)
+
+    # ── Sprint 5.33 (BLT-parity SHOP): workshop daily profit sync ─────────────
+
+    async def _on_workshop_profit_sync(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Mod пушит OnDailyTick: {owner, settlement_id, workshop_type, net_dinars}.
+        Backend конвертирует net dinars → crustic, credit'ит viewer.
+
+        Resolve DB row через (channel, owner, settlement_id, workshop_type) —
+        UNIQUE partial idx гарантирует один active.
+        """
+        data = env.data
+        owner = (data.get("owner") or env.user or "").strip().lower()
+        settlement_id = (data.get("settlement_id") or "").strip()
+        workshop_type = (data.get("workshop_type") or "").strip()
+        try:
+            net_dinars = int(data.get("net_dinars") or 0)
+        except (TypeError, ValueError):
+            net_dinars = 0
+        if not owner or not settlement_id or not workshop_type or net_dinars <= 0:
+            return
+
+        try:
+            from dependencies import get_db as _gdb
+            async with _gdb()._connect() as conn:
+                cur = await conn.execute(
+                    "SELECT id FROM bannerlord_workshops "
+                    "WHERE channel_id=? AND owner_username=? "
+                    "  AND settlement_id=? AND workshop_type=? "
+                    "  AND status='active' LIMIT 1",
+                    (channel_id, owner, settlement_id, workshop_type))
+                row = await cur.fetchone()
+            if not row:
+                logger.warning("[SHOP-SYNC] no active row ch=%s @%s %s/%s",
+                               channel_id, owner, settlement_id, workshop_type)
+                return
+            workshop_id = row[0]
+
+            from routes.bannerlord_workshops import credit_workshop_profit
+            crustic = await credit_workshop_profit(
+                channel_id, owner, workshop_id, net_dinars)
+            await self._log_event(channel_id, "hero.workshop_profit_sync", owner, {
+                "workshop_id": workshop_id,
+                "net_dinars":  net_dinars,
+                "crustic":     crustic,
+            })
+            logger.info("[SHOP-SYNC] ch=%s @%s ws=%s +%d dinars → +%d⦷",
+                        channel_id, owner, workshop_id, net_dinars, crustic)
+        except Exception as ex:
+            logger.exception("[SHOP-SYNC] failed ch=%s @%s %s/%s: %s",
+                             channel_id, owner, settlement_id, workshop_type, ex)
 
     # ── World events ──────────────────────────────────────────────────────────
 

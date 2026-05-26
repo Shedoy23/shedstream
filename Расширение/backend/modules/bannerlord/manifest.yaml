@@ -85,6 +85,7 @@ extensions:
     - hero.released           # Sprint 5.33 (BLT-parity DIPLO): mod пушит при освобождении из плена
     - hero.policy_enacted     # Sprint 5.33 (BLT-parity DIPLO): mod пушит после EnactPolicyDecision passed
     - hero.peace_concluded    # Sprint 5.33 (BLT-parity DIPLO): mod пушит после MakePeaceAction
+    - hero.workshop_profit_sync  # Sprint 5.33 (BLT-parity SHOP): mod OnDailyTick пушит net dinars
   actions:
     - hero.create        # Adoption flow — spawn fresh wanderer + SetName(viewer)
     - hero.set_class     # Sprint 4.1: класс + equipment apply
@@ -138,6 +139,9 @@ extensions:
     - hero.enact_policy        # king-only: propose policy для kingdom'а (1500⦷)
     - hero.make_peace          # king-only: peace offer с enemy kingdom (2000⦷)
     - hero.pay_ransom          # any viewer: chip into ransom pool (500⦷)
+    # Sprint 5.33 (BLT-parity SHOP) — workshops passive income loop
+    - hero.buy_workshop        # 1000⦷ entry — viewer покупает workshop в town
+    - hero.sell_workshop       # free — engine refund 50% capital
     # Sprint 5.33 (BLT-parity FAM) — viewer↔viewer marriage proposals между
     # взрослыми детьми. Backend hold'ит proposals в bannerlord_marriage_proposals
     # (m49). При accept'е enqueue mod-action `hero.activate_marriage` (mod

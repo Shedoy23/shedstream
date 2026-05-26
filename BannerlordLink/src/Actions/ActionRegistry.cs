@@ -78,6 +78,9 @@ namespace BannerlordLink.Actions
             Register(new EnactPolicyHandler());         // hero.enact_policy
             Register(new MakePeaceHandler());           // hero.make_peace
             Register(new PayRansomHandler());           // hero.pay_ransom
+            // Sprint 5.33 (BLT-parity SHOP) — workshops passive income
+            Register(new BuyWorkshopHandler());         // hero.buy_workshop
+            Register(new SellWorkshopHandler());        // hero.sell_workshop
 
             // ── Echo stubs (TODO Sprint 5.2+ заменить на real) ─────────────
             string[] echoTypes =

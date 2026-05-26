@@ -90,6 +90,7 @@ from routes.bannerlord_family import router as bannerlord_family_router       # 
 from routes.bannerlord_vassals import router as bannerlord_vassals_router     # Sprint 5.33 BLT-parity VAS
 from routes.bannerlord_party_orders import router as bannerlord_party_orders_router  # Sprint 5.33 BLT-parity SIEGE
 from routes.bannerlord_diplomacy import router as bannerlord_diplomacy_router  # Sprint 5.33 BLT-parity DIPLO
+from routes.bannerlord_workshops import router as bannerlord_workshops_router  # Sprint 5.33 BLT-parity SHOP
 from routes.bannerlord_boosty import router as bannerlord_boosty_router  # Sprint 5.31 #45
 from routes.dev_login   import router as dev_login_router  # /dev test page (2026-05-16)
 # casino_router удалён 2026-05-10 — Phase 1.A compliance rework (см. COMPLIANCE_REWORK_PLAN.md)
@@ -121,6 +122,7 @@ app.include_router(bannerlord_family_router)    # Sprint 5.33 BLT-parity FAM —
 app.include_router(bannerlord_vassals_router)   # Sprint 5.33 BLT-parity VAS — vassal sub-clans
 app.include_router(bannerlord_party_orders_router)  # Sprint 5.33 BLT-parity SIEGE — party orders
 app.include_router(bannerlord_diplomacy_router)  # Sprint 5.33 BLT-parity DIPLO — kingdom politics + ransom
+app.include_router(bannerlord_workshops_router)  # Sprint 5.33 BLT-parity SHOP — workshops passive income
 app.include_router(bannerlord_boosty_router)    # Sprint 5.31 #45 — Boosty subs
 app.include_router(dev_login_router)   # 2026-05-16: /dev OAuth test page
 
@@ -910,6 +912,14 @@ async def run_migrations():
             await m54_diplomacy.apply(conn)
         except Exception as e:
             print(f"❌ M54 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
+        # Sprint 5.33 (BLT-parity SHOP) — workshops passive income loop
+        try:
+            from migrations import m55_workshops
+            await m55_workshops.apply(conn)
+        except Exception as e:
+            print(f"❌ M55 migration FAILED: {type(e).__name__}: {e}")
             raise
 
         print("✅ Migrations complete")

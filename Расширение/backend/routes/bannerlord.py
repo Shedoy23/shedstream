@@ -870,6 +870,9 @@ _PURCHASABLE_ACTIONS = (
     "hero.enact_policy",         # 1500⦷ king-only — propose+pass policy
     "hero.make_peace",           # 2000⦷ king-only — propose peace с врагом
     "hero.pay_ransom",           # 500⦷ — chip into ransom pool captured hero
+    # Sprint 5.33 (BLT-parity SHOP) — workshops passive income loop
+    "hero.buy_workshop",         # 1000⦷ entry — viewer покупает workshop в town
+    "hero.sell_workshop",        # free — engine refund 50% capital
 )
 
 # Sprint 5.27a — стоимость gender swap (BLT default: 50k).
@@ -982,6 +985,9 @@ _BACKEND_ONLY_ACTIONS = (
     "hero.enact_policy",
     "hero.make_peace",
     "hero.pay_ransom",
+    # Sprint 5.33 SHOP — workshops — backend INSERT/UPDATE + enqueue mod
+    "hero.buy_workshop",
+    "hero.sell_workshop",
 )
 
 
@@ -1924,6 +1930,9 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
         "hero.enact_policy":           1500,    # king-only major political move
         "hero.make_peace":             2000,    # king-only diplomatic decision
         "hero.pay_ransom":              500,    # crowd-fund tier, any viewer
+        # Sprint 5.33 (BLT-parity SHOP) — workshops passive income
+        "hero.buy_workshop":           1000,    # entry fee, plus Hero.Gold capital
+        "hero.sell_workshop":             0,    # free — engine handles refund
     }
     if action_type not in _ACTIONS_WITH_OWN_PRICING:
         if action_type not in ACTION_PRICES_DEFAULT:
@@ -2433,6 +2442,21 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
                 if not diplo_result.get("success"):
                     await conn.execute("ROLLBACK")
                     return diplo_result
+
+            # Sprint 5.33 (BLT-parity SHOP) — workshops passive income.
+            shop_result = None
+            if action_type == "hero.buy_workshop":
+                from routes.bannerlord_workshops import handle_buy_workshop
+                shop_result = await handle_buy_workshop(conn, channel_id, username, data)
+                if not shop_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return shop_result
+            elif action_type == "hero.sell_workshop":
+                from routes.bannerlord_workshops import handle_sell_workshop
+                shop_result = await handle_sell_workshop(conn, channel_id, username, data)
+                if not shop_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return shop_result
 
             # Special case в той же TX: UPSERT bannerlord_hero_class.
             # Backend остаётся source-of-truth по class даже если mod offline.

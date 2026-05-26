@@ -80,6 +80,7 @@ extensions:
     - action.failed           # Sprint 5.29 BLT-parity #3: mod refused action → refund крустики
     - hero.heir_came_of_age   # Sprint 5.32 (BLT-parity M2): mod пушит когда ребёнок [BLink] hero'я взрослеет 18+
     - hero.heir_died          # Sprint 5.32 (BLT-parity M2): heir умер ДО succession, mark alive=0
+    - hero.vassal_created     # Sprint 5.33 (BLT-parity VAS): backfill real clan_id after CreateClan
   actions:
     - hero.create        # Adoption flow — spawn fresh wanderer + SetName(viewer)
     - hero.set_class     # Sprint 4.1: класс + equipment apply
@@ -123,6 +124,9 @@ extensions:
     # Sprint 5.32 (BLT-parity M2.1) — heir auto-activation на death героя.
     # Backend pushes этот action в module_actions из _on_player_died.
     - hero.activate_heir
+    # Sprint 5.33 (BLT-parity VAS) — vassal sub-clan management
+    - hero.create_vassal_clan
+    - hero.rename_vassal
     # Sprint 5.33 (BLT-parity FAM) — viewer↔viewer marriage proposals между
     # взрослыми детьми. Backend hold'ит proposals в bannerlord_marriage_proposals
     # (m49). При accept'е enqueue mod-action `hero.activate_marriage` (mod

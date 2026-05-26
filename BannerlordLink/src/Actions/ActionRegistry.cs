@@ -68,6 +68,9 @@ namespace BannerlordLink.Actions
             Register(new ChildRenameHandler());         // hero.rename_child
             Register(new ChildLooksHandler());          // hero.change_child_looks
             Register(new ChildRespecSkillsHandler());   // hero.respec_child_skills
+            // Sprint 5.33 (BLT-parity VAS) — vassal sub-clan management
+            Register(new CreateVassalClanHandler());    // hero.create_vassal_clan
+            Register(new RenameVassalHandler());        // hero.rename_vassal
 
             // ── Echo stubs (TODO Sprint 5.2+ заменить на real) ─────────────
             string[] echoTypes =

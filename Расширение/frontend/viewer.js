@@ -2612,15 +2612,22 @@ async function _openBannerlordClanUpgradesModal() {
     const tierHtml = tiers.map(tier => {
         const items = byTier[tier].map(u => {
             const canAfford = heroGold >= u.gold_cost;
+            // Sprint 5.33 BULK — non-owned + non-locked + canAfford = selectable for bulk.
+            const isSelectable = !u.owned && !u.locked && canAfford;
             const ownedBadge = u.owned
                 ? `<span style="color:#34d399;font-weight:700;font-size:11px;">✓ ВЛАДЕЕШЬ</span>`
                 : u.locked
                     ? `<span style="color:#6b7280;font-size:11px;">🔒 Нужен предыдущий</span>`
-                    : canAfford
-                        ? `<button class="small-btn" data-bnr-upg-buy="${u.upgrade_id}"
-                                  style="background:#5b21b6;color:#fbbf24;font-weight:700;">
-                              Купить ${u.gold_cost.toLocaleString('ru-RU')}💰
-                           </button>`
+                    : isSelectable
+                        ? `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;
+                                       font-size:11px;color:#fbbf24;font-weight:700;">
+                              <input type="checkbox" class="bnr-upg-check"
+                                     data-bnr-upg-id="${u.upgrade_id}"
+                                     data-bnr-upg-cost="${u.gold_cost}"
+                                     data-bnr-upg-name="${escapeHtml(u.name)}"
+                                     style="cursor:pointer;width:14px;height:14px;">
+                              ${u.gold_cost.toLocaleString('ru-RU')}💰
+                           </label>`
                         : `<span style="color:#f87171;font-size:11px;">
                               Нужно ${u.gold_cost.toLocaleString('ru-RU')}💰
                            </span>`;
@@ -2653,38 +2660,93 @@ async function _openBannerlordClanUpgradesModal() {
             </div>`;
     }).join('');
 
+    // Sprint 5.33 BULK — sticky footer-bar: "Выбрано: N (M💰) [Купить все]"
+    const bulkFooter = `
+        <div id="bnr-bulk-footer" style="
+            position:sticky;bottom:0;background:#0f0f12;padding:8px;margin-top:6px;
+            border-top:1px solid #5b21b6;border-radius:0 0 6px 6px;
+            display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <div style="font-size:11px;color:#adadb8;">
+                Выбрано: <b id="bnr-bulk-count" style="color:#fbbf24;">0</b> ·
+                Стоимость: <b id="bnr-bulk-total" style="color:#fbbf24;">0💰</b>
+            </div>
+            <button id="bnr-bulk-buy" disabled
+                    style="background:#5b21b6;color:#9ca3af;padding:6px 12px;font-size:11px;
+                           font-weight:700;border-radius:4px;border:none;cursor:not-allowed;">
+                💰 Купить все выбранные
+            </button>
+        </div>`;
+
     _bnrShowSimpleModal({
         title: `🏆 Апгрейды клана · 💰 ${heroGold.toLocaleString('ru-RU')}`,
-        body: tierHtml || '<div style="color:#adadb8;text-align:center;">Каталог пуст.</div>',
+        body: (tierHtml || '<div style="color:#adadb8;text-align:center;">Каталог пуст.</div>')
+              + bulkFooter,
         bind: overlay => {
-            overlay.querySelectorAll('[data-bnr-upg-buy]').forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    const upgId = btn.dataset.bnrUpgBuy;
-                    btn.disabled = true;
-                    btn.textContent = '⏳ Покупаем...';
-                    try {
-                        const r = await fetch(`${API_URL}/api/bannerlord/clan-upgrades/buy`, {
-                            method: 'POST',
-                            headers: {'Content-Type': 'application/json',
-                                      'X-Twitch-JWT': authToken || ''},
-                            body: JSON.stringify({upgrade_id: upgId}),
-                        });
-                        const d = await r.json();
-                        showNotification(d.message, d.success ? 'success' : 'error', 4000);
-                        if (d.success) {
-                            // Refresh modal
-                            overlay.remove();
-                            _openBannerlordClanUpgradesModal();
-                            if (typeof loadBannerlordHero === 'function') loadBannerlordHero();
-                        } else {
-                            btn.disabled = false;
-                            btn.textContent = `Купить ${heroGold}💰`;
-                        }
-                    } catch (e) {
-                        showNotification('Ошибка сети', 'error');
-                        btn.disabled = false;
-                    }
+            const recalcBulk = () => {
+                const checked = overlay.querySelectorAll('.bnr-upg-check:checked');
+                let count = 0, total = 0;
+                checked.forEach(cb => {
+                    count++;
+                    total += parseInt(cb.dataset.bnrUpgCost || '0', 10);
                 });
+                const countEl = overlay.querySelector('#bnr-bulk-count');
+                const totalEl = overlay.querySelector('#bnr-bulk-total');
+                const buyBtn = overlay.querySelector('#bnr-bulk-buy');
+                if (countEl) countEl.textContent = count;
+                if (totalEl) totalEl.textContent = total.toLocaleString('ru-RU') + '💰';
+                if (buyBtn) {
+                    const enabled = count > 0 && count <= 10 && total <= heroGold;
+                    buyBtn.disabled = !enabled;
+                    buyBtn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+                    buyBtn.style.color = enabled ? '#fbbf24' : '#9ca3af';
+                    if (count > 10) {
+                        buyBtn.textContent = `❌ Макс 10 за раз (выбрано ${count})`;
+                    } else if (total > heroGold) {
+                        buyBtn.textContent = `❌ Не хватает ${(total - heroGold).toLocaleString('ru-RU')}💰`;
+                    } else if (count === 0) {
+                        buyBtn.textContent = '💰 Купить все выбранные';
+                    } else {
+                        buyBtn.textContent = `💰 Купить ${count} апгрейдов`;
+                    }
+                }
+            };
+
+            overlay.querySelectorAll('.bnr-upg-check').forEach(cb => {
+                cb.addEventListener('change', recalcBulk);
+            });
+
+            const buyBtn = overlay.querySelector('#bnr-bulk-buy');
+            buyBtn?.addEventListener('click', async () => {
+                const checked = overlay.querySelectorAll('.bnr-upg-check:checked');
+                const ids = Array.from(checked).map(cb => cb.dataset.bnrUpgId);
+                if (ids.length === 0) return;
+                buyBtn.disabled = true;
+                buyBtn.textContent = '⏳ Покупаем ' + ids.length + '...';
+                try {
+                    const r = await fetch(`${API_URL}/api/bannerlord/clan-upgrades/buy`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json',
+                                  'X-Twitch-JWT': authToken || ''},
+                        body: JSON.stringify({upgrade_ids: ids}),
+                    });
+                    const d = await r.json();
+                    showNotification(d.message, d.success ? 'success' : 'error',
+                                     d.success ? 5000 : 6000);
+                    console.info('[FE-BULK] purchased', ids.length, 'upgrades:',
+                                 d.success ? 'OK' : d.message);
+                    if (d.success) {
+                        overlay.remove();
+                        _openBannerlordClanUpgradesModal();
+                        if (typeof loadBannerlordHero === 'function') loadBannerlordHero();
+                    } else {
+                        buyBtn.disabled = false;
+                        recalcBulk();
+                    }
+                } catch (e) {
+                    showNotification('Ошибка сети', 'error');
+                    buyBtn.disabled = false;
+                    recalcBulk();
+                }
             });
         },
     });

@@ -2547,14 +2547,22 @@ async def bannerlord_clan_upgrades_all_owners(channel_id: int = 0):
 
 @router.post("/api/bannerlord/clan-upgrades/buy")
 async def bannerlord_clan_upgrades_buy(request: Request):
-    """Купить апгрейд клана за hero.gold.
+    """Купить апгрейд(ы) клана за hero.gold.
 
-    Body: {"upgrade_id": str}
-    Валидации:
-      - upgrade exists и not deprecated
+    Sprint 5.33 BULK (BLT-parity Lait fork inspiration) — теперь принимает
+    либо одиночный `upgrade_id` (legacy), либо list `upgrade_ids` для bulk
+    purchase. Все апгрейды покупаются **атомарно** — или все, или ни одного
+    (если gold кончится).
+
+    Body:
+      {"upgrade_id": str}          — single (legacy)
+      {"upgrade_ids": [str, ...]}  — bulk (NEW), max 10 за раз
+
+    Валидации (для каждого upgrade):
+      - exists и not deprecated
       - не куплен уже
       - prereq куплен (если есть)
-      - hero.gold >= cost
+      - сумма gold >= sum(cost'ов) — atomic check
     """
     auth = require_jwt_user(request)
     if not auth:
@@ -2562,100 +2570,134 @@ async def bannerlord_clan_upgrades_buy(request: Request):
     username, channel_id = auth
 
     data = await request.json()
-    upgrade_id = (data.get("upgrade_id") or '').strip()
-    if not upgrade_id:
-        return {"success": False, "message": "upgrade_id обязателен"}
+    # Normalize input — either bulk list или single id (backward-compat).
+    bulk_ids = data.get("upgrade_ids")
+    if isinstance(bulk_ids, list) and bulk_ids:
+        upgrade_ids = [str(x).strip() for x in bulk_ids if str(x).strip()]
+    else:
+        single = (data.get("upgrade_id") or '').strip()
+        upgrade_ids = [single] if single else []
+    if not upgrade_ids:
+        return {"success": False, "message": "upgrade_id/upgrade_ids обязателен"}
+    # Cap bulk size — anti-spam + UI ergonomics
+    if len(upgrade_ids) > 10:
+        return {"success": False, "message": "Максимум 10 апгрейдов за раз"}
+    # Dedup в payload (защита если фронт прислал дубликаты)
+    upgrade_ids = list(dict.fromkeys(upgrade_ids))
 
     db = get_db()
     async with db._connect() as conn:
         try:
             await conn.execute("BEGIN IMMEDIATE")
 
-            # Load upgrade
-            cur = await conn.execute(
-                "SELECT name, required_upgrade_id, gold_cost, deprecated "
-                "FROM bannerlord_clan_upgrades_catalog "
-                "WHERE channel_id = ? AND upgrade_id = ?",
-                (channel_id, upgrade_id)
-            )
-            row = await cur.fetchone()
-            if not row:
-                await conn.execute("ROLLBACK")
-                return {"success": False, "message": "Апгрейд не найден"}
-            name, req, cost, deprecated = row
-            if deprecated:
-                await conn.execute("ROLLBACK")
-                return {"success": False, "message": "Апгрейд недоступен"}
-
-            # Check not already owned
-            cur = await conn.execute(
-                "SELECT 1 FROM bannerlord_clan_upgrades_owned "
-                "WHERE channel_id = ? AND username = ? AND upgrade_id = ?",
-                (channel_id, username, upgrade_id)
-            )
-            if await cur.fetchone():
-                await conn.execute("ROLLBACK")
-                return {"success": False, "message": "Уже куплено"}
-
-            # Check prereq
-            if req:
+            # Phase 1 — load & validate ALL upgrades. Collect total cost.
+            # Bulk failure mode: на первой проблеме ROLLBACK с понятным message.
+            validated = []  # list of (upgrade_id, name, cost)
+            total_cost = 0
+            for uid in upgrade_ids:
+                cur = await conn.execute(
+                    "SELECT name, required_upgrade_id, gold_cost, deprecated "
+                    "FROM bannerlord_clan_upgrades_catalog "
+                    "WHERE channel_id = ? AND upgrade_id = ?",
+                    (channel_id, uid))
+                row = await cur.fetchone()
+                if not row:
+                    await conn.execute("ROLLBACK")
+                    return {"success": False,
+                            "message": f"Апгрейд '{uid}' не найден"}
+                name, req, cost, deprecated = row
+                if deprecated:
+                    await conn.execute("ROLLBACK")
+                    return {"success": False,
+                            "message": f"'{name}' недоступен"}
                 cur = await conn.execute(
                     "SELECT 1 FROM bannerlord_clan_upgrades_owned "
                     "WHERE channel_id = ? AND username = ? AND upgrade_id = ?",
-                    (channel_id, username, req)
-                )
-                if not await cur.fetchone():
+                    (channel_id, username, uid))
+                if await cur.fetchone():
                     await conn.execute("ROLLBACK")
                     return {"success": False,
-                            "message": f"Сначала купи предыдущий апгрейд"}
+                            "message": f"'{name}' уже куплено"}
+                # Prereq check — может быть в samem bulk batch'е выше (chain
+                # purchase). Учитываем both owned-in-DB и validated-in-list.
+                if req:
+                    cur = await conn.execute(
+                        "SELECT 1 FROM bannerlord_clan_upgrades_owned "
+                        "WHERE channel_id = ? AND username = ? AND upgrade_id = ?",
+                        (channel_id, username, req))
+                    has_prereq = await cur.fetchone() is not None
+                    if not has_prereq:
+                        # Check если prereq в bulk batch'е выше — chained buy.
+                        has_prereq = any(v[0] == req for v in validated)
+                    if not has_prereq:
+                        await conn.execute("ROLLBACK")
+                        return {"success": False,
+                                "message": f"Для '{name}' нужен сначала prereq '{req}'"}
+                validated.append((uid, name, cost))
+                total_cost += cost
 
-            # Check gold
+            # Phase 2 — gold check (sum), atomic.
             cur = await conn.execute(
                 "SELECT gold FROM bannerlord_heroes WHERE channel_id = ? AND username = ?",
-                (channel_id, username)
-            )
+                (channel_id, username))
             hero_row = await cur.fetchone()
             current_gold = (hero_row[0] if hero_row else 0) or 0
-            if current_gold < cost:
+            if current_gold < total_cost:
                 await conn.execute("ROLLBACK")
                 return {
                     "success": False,
-                    "message": f"Нужно {cost:,}💰 (у тебя {current_gold:,}💰)",
+                    "message": f"Нужно {total_cost:,}💰 (у тебя {current_gold:,}💰) для {len(validated)} апгрейдов",
                 }
 
-            # Debit + insert ownership
+            # Phase 3 — debit + INSERT × N + enqueue mod actions.
             await conn.execute(
                 "UPDATE bannerlord_heroes SET gold = gold - ? "
                 "WHERE channel_id = ? AND username = ?",
-                (cost, channel_id, username)
-            )
-            await conn.execute(
-                "INSERT INTO bannerlord_clan_upgrades_owned "
-                "(channel_id, username, upgrade_id, gold_paid) VALUES (?, ?, ?, ?)",
-                (channel_id, username, upgrade_id, cost)
-            )
+                (total_cost, channel_id, username))
 
-            # Enqueue action для мода (применит эффекты in-game).
-            # Mod polls module_actions через /api/module/actions.
             import uuid as _uuid
-            action_id = _uuid.uuid4().hex
-            await conn.execute("""
-                INSERT INTO module_actions
-                    (channel_id, module_id, action_id, type, data, status)
-                VALUES (?, 'bannerlord', ?, 'clan.upgrade_purchased', ?, 'queued')
-            """, (channel_id, action_id,
-                  _bnr_clan_json.dumps({
-                      "username":   username,
-                      "upgrade_id": upgrade_id,
-                  }, ensure_ascii=False)))
+            purchased_names = []
+            for uid, name, cost in validated:
+                await conn.execute(
+                    "INSERT INTO bannerlord_clan_upgrades_owned "
+                    "(channel_id, username, upgrade_id, gold_paid) VALUES (?, ?, ?, ?)",
+                    (channel_id, username, uid, cost))
+                action_id = _uuid.uuid4().hex
+                await conn.execute("""
+                    INSERT INTO module_actions
+                        (channel_id, module_id, action_id, type, data, status)
+                    VALUES (?, 'bannerlord', ?, 'clan.upgrade_purchased', ?, 'queued')
+                """, (channel_id, action_id,
+                      _bnr_clan_json.dumps({
+                          "username":   username,
+                          "upgrade_id": uid,
+                      }, ensure_ascii=False)))
+                purchased_names.append(name)
 
             await conn.commit()
         except Exception:
             await conn.execute("ROLLBACK")
             raise
 
-    return {
-        "success":    True,
-        "upgrade_id": upgrade_id,
-        "message":    f"✨ {name} куплено (-{cost:,}💰)",
-    }
+    if len(validated) == 1:
+        # Backward-compat response shape.
+        uid, name, cost = validated[0]
+        return {
+            "success":    True,
+            "upgrade_id": uid,
+            "message":    f"✨ {name} куплено (-{cost:,}💰)",
+        }
+    else:
+        log.info("[BNR-BULK] ch=%s user=@%s bought %d upgrades total=%d💰",
+                 channel_id, username, len(validated), total_cost)
+        return {
+            "success":   True,
+            "bulk":      True,
+            "count":     len(validated),
+            "upgrade_ids": [v[0] for v in validated],
+            "total_cost": total_cost,
+            "message":   f"✨ Куплено {len(validated)} апгрейдов: " +
+                         ", ".join(purchased_names[:3]) +
+                         (f" и ещё {len(purchased_names)-3}" if len(purchased_names) > 3 else "") +
+                         f" (-{total_cost:,}💰)",
+        }

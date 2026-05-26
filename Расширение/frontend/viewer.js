@@ -2867,7 +2867,23 @@ async function _openBannerlordForgeModal() {
     const slotsMax = data.max_slots || 50;
     const itemsHtml = items.length === 0
         ? '<div style="color:#adadb8;text-align:center;padding:14px;font-size:12px;">Пустая кузница. Скуй первый трофей!</div>'
-        : items.map(it => `
+        : items.map(it => {
+            // Sprint 5.33 (BLT-parity ITEM) — rolled stats display.
+            const statParts = [];
+            if (it.damage_bonus > 0) statParts.push(`⚔ +${it.damage_bonus}`);
+            if (it.armor_bonus > 0)  statParts.push(`🛡 +${it.armor_bonus}`);
+            if (it.weight_factor && Math.abs(it.weight_factor - 1.0) > 0.001) {
+                const pct = ((it.weight_factor - 1.0) * 100).toFixed(0);
+                statParts.push(`⚖ ${pct >= 0 ? '+' : ''}${pct}%`);
+            }
+            if (it.speed_factor && Math.abs(it.speed_factor - 1.0) > 0.001) {
+                const pct = ((it.speed_factor - 1.0) * 100).toFixed(0);
+                statParts.push(`💨 +${pct}%`);
+            }
+            const statsLine = statParts.length
+                ? `<div style="font-size:10px;color:#fbbf24;margin-top:2px;">${statParts.join(' · ')}</div>`
+                : '';
+            return `
             <div style="display:flex;align-items:center;gap:8px;
                         background:rgba(58,58,62,0.3);border:1px solid ${it.color};
                         border-radius:6px;padding:6px 10px;margin-bottom:4px;">
@@ -2880,6 +2896,7 @@ async function _openBannerlordForgeModal() {
                     <div style="font-size:10px;color:#adadb8;">
                         ${escapeHtml(it.base_type)} / ${it.rarity} / T${it.tier}
                     </div>
+                    ${statsLine}
                 </div>
                 <button class="extra-btn bnr-equip-trophy" data-item-id="${it.id}"
                         title="Экипировать (передаст реальный item в инвентарь героя в игре)"
@@ -2898,7 +2915,7 @@ async function _openBannerlordForgeModal() {
                     ✗
                 </button>
             </div>
-        `).join('');
+        `;}).join('');
     const SMITH_PRICE = 500;   // mirror ACTION_PRICES_DEFAULT
     const body = `
         <div style="margin-bottom:10px;font-size:11px;color:#adadb8;text-align:center;">

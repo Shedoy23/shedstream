@@ -102,8 +102,55 @@ def _roll_rarity() -> str:
     return "common"
 
 
+def _roll_stats(base_type: str, rarity: str) -> dict:
+    """Sprint 5.33 (BLT-parity ITEM) — roll rarity-based stat bonuses.
+
+    Weapon  → damage_bonus  (outgoing)
+    Armor   → armor_bonus + weight_factor (incoming + speed)
+    Horse   → speed_factor + armor_bonus (mount)
+
+    Min/max ranges per rarity escalate. Non-applicable fields = 0 / 1.0.
+    """
+    # (dmg_min, dmg_max, armor_min, armor_max, factor_swing)
+    ranges = {
+        "common":    (1, 3,   1, 2,   0.03),   # ±3% factor
+        "uncommon":  (3, 6,   2, 4,   0.06),
+        "rare":      (6, 10,  4, 7,   0.10),
+        "epic":      (10, 15, 7, 11,  0.13),
+        "legendary": (15, 25, 11, 18, 0.18),
+    }
+    r = ranges.get(rarity, ranges["common"])
+    dmg_min, dmg_max, arm_min, arm_max, fct = r
+
+    damage_bonus = 0
+    armor_bonus = 0
+    weight_factor = 1.0
+    speed_factor = 1.0
+
+    if base_type == "weapon":
+        damage_bonus = random.randint(dmg_min, dmg_max)
+    elif base_type == "armor":
+        armor_bonus = random.randint(arm_min, arm_max)
+        # Лучшая броня — обычно тяжелее. Но Lordly-pattern может дать +armor +speed.
+        # Roll: 30% chance weight_factor < 1.0 (lighter even with armor)
+        if random.random() < 0.3:
+            weight_factor = round(1.0 - random.uniform(0, fct), 3)
+        else:
+            weight_factor = round(1.0 + random.uniform(0, fct * 0.5), 3)
+    else:  # horse
+        speed_factor = round(1.0 + random.uniform(0, fct), 3)
+        armor_bonus = random.randint(arm_min // 2, arm_max // 2)  # lighter armor
+
+    return {
+        "damage_bonus":  damage_bonus,
+        "armor_bonus":   armor_bonus,
+        "weight_factor": weight_factor,
+        "speed_factor":  speed_factor,
+    }
+
+
 def _generate_item(base_type: str) -> Dict:
-    """Roll random custom item — name + rarity + tier."""
+    """Roll random custom item — name + rarity + tier + Sprint 5.33 stats."""
     rarity = _roll_rarity()
     tier = {"common": 1, "uncommon": 2, "rare": 3, "epic": 4, "legendary": 5}.get(rarity, 1)
     if base_type == "weapon":
@@ -114,6 +161,7 @@ def _generate_item(base_type: str) -> Dict:
         subtype = random.choice(HORSE_SUBTYPES)
     adj = random.choice(ADJ_BY_RARITY[rarity])
     name = f"{adj} {subtype}"
+    stats = _roll_stats(base_type, rarity)
     return {
         "base_type":    base_type,
         "base_subtype": subtype,
@@ -121,6 +169,7 @@ def _generate_item(base_type: str) -> Dict:
         "rarity":       rarity,
         "tier":         tier,
         "icon":         RARITY_ICONS[rarity],
+        **stats,   # damage_bonus / armor_bonus / weight_factor / speed_factor
     }
 
 
@@ -137,7 +186,9 @@ async def viewer_custom_items(request: Request):
     async with get_db()._connect() as conn:
         cur = await conn.execute(
             "SELECT id, base_type, base_subtype, custom_name, rarity, tier, "
-            "       icon, created_at "
+            "       icon, created_at, "
+            "       COALESCE(damage_bonus, 0), COALESCE(armor_bonus, 0), "
+            "       COALESCE(weight_factor, 1.0), COALESCE(speed_factor, 1.0) "
             "FROM bannerlord_custom_items "
             "WHERE channel_id=? AND owner_username=? "
             "ORDER BY id DESC LIMIT 100",
@@ -147,15 +198,20 @@ async def viewer_custom_items(request: Request):
     items = []
     for r in rows:
         items.append({
-            "id":           r[0],
-            "base_type":    r[1],
-            "base_subtype": r[2],
-            "custom_name":  r[3],
-            "rarity":       r[4],
-            "tier":         r[5],
-            "icon":         r[6],
-            "color":        RARITY_COLORS.get(r[4], "#adadb8"),
-            "created_at":   r[7],
+            "id":            r[0],
+            "base_type":     r[1],
+            "base_subtype":  r[2],
+            "custom_name":   r[3],
+            "rarity":        r[4],
+            "tier":          r[5],
+            "icon":          r[6],
+            "color":         RARITY_COLORS.get(r[4], "#adadb8"),
+            "created_at":    r[7],
+            # Sprint 5.33 (BLT-parity ITEM) — rolled stats
+            "damage_bonus":  r[8],
+            "armor_bonus":   r[9],
+            "weight_factor": r[10],
+            "speed_factor":  r[11],
         })
     return {
         "success":   True,

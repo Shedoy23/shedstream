@@ -77,6 +77,41 @@ namespace BannerlordLink.Actions
         {
             string username = (data["target"]?.ToString() ?? data["initiated_by"]?.ToString() ?? "")
                               .Trim().ToLowerInvariant();
+
+            // Sprint 5.33 (BLT-parity ITEM) — register trophy bonuses в
+            // ActiveTrophyState. DamageHookPatch.Prefix будет читать на каждом
+            // blow для apply'а damage_bonus / armor_bonus.
+            try
+            {
+                int dmgBonus = (int?)data["damage_bonus"] ?? 0;
+                int armBonus = (int?)data["armor_bonus"] ?? 0;
+                float weightF = (float?)data["weight_factor"] ?? 1.0f;
+                float speedF = (float?)data["speed_factor"] ?? 1.0f;
+                string regName = data["custom_name"]?.ToString() ?? "?";
+                string regBaseType = (data["base_type"]?.ToString() ?? "").ToLowerInvariant();
+
+                if (!string.IsNullOrEmpty(username) &&
+                    (dmgBonus > 0 || armBonus > 0 ||
+                     Math.Abs(weightF - 1.0f) > 0.001f || Math.Abs(speedF - 1.0f) > 0.001f))
+                {
+                    BannerlordLink.Net.ActiveTrophyState.Register(username,
+                        new BannerlordLink.Net.ActiveTrophyState.TrophyStats
+                        {
+                            DamageBonus = dmgBonus,
+                            ArmorBonus = armBonus,
+                            WeightFactor = weightF,
+                            SpeedFactor = speedF,
+                            CustomName = regName,
+                            BaseType = regBaseType,
+                        });
+                }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[hero.equip_trophy] @{username} trophy register warn: {ex.Message}");
+            }
+
             if (string.IsNullOrEmpty(username))
                 return Task.FromResult<(bool, string)>((false, "no target"));
 

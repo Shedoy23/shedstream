@@ -1738,7 +1738,9 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
         db_tmp = get_db()
         async with db_tmp._connect() as conn:
             cur = await conn.execute(
-                "SELECT base_type, base_subtype, custom_name, rarity, tier "
+                "SELECT base_type, base_subtype, custom_name, rarity, tier, "
+                "       COALESCE(damage_bonus, 0), COALESCE(armor_bonus, 0), "
+                "       COALESCE(weight_factor, 1.0), COALESCE(speed_factor, 1.0) "
                 "FROM bannerlord_custom_items "
                 "WHERE id=? AND channel_id=? AND owner_username=?",
                 (trophy_id, channel_id, username))
@@ -1753,6 +1755,13 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
         data["custom_name"]  = row[2]
         data["rarity"]       = row[3]
         data["tier"]         = row[4]
+        # Sprint 5.33 (BLT-parity ITEM) — rolled stats injection.
+        # Mod-side EquipTrophyHandler читает эти поля и регистрирует в
+        # ActiveTrophyState для apply через DamageHookPatch.
+        data["damage_bonus"]  = row[5]
+        data["armor_bonus"]   = row[6]
+        data["weight_factor"] = row[7]
+        data["speed_factor"]  = row[8]
         data["price"] = 0
 
     # Sprint 5.3 / 5.28 update: hero.join_tournament — 1000 крустиков, 0 динаров.
@@ -2305,10 +2314,13 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
                 cur_smith = await conn.execute(
                     "INSERT INTO bannerlord_custom_items "
                     "(channel_id, owner_username, base_type, base_subtype, "
-                    " custom_name, rarity, tier, icon) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+                    " custom_name, rarity, tier, icon, "
+                    " damage_bonus, armor_bonus, weight_factor, speed_factor) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
                     (channel_id, username, item["base_type"], item["base_subtype"],
-                     item["custom_name"], item["rarity"], item["tier"], item["icon"]))
+                     item["custom_name"], item["rarity"], item["tier"], item["icon"],
+                     item.get("damage_bonus", 0), item.get("armor_bonus", 0),
+                     item.get("weight_factor", 1.0), item.get("speed_factor", 1.0)))
                 smith_row = await cur_smith.fetchone()
                 item_id_db = smith_row[0] if smith_row else 0
                 smith_result = {**item, "id": item_id_db,

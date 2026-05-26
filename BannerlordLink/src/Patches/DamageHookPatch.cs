@@ -68,6 +68,9 @@ namespace BannerlordLink.Patches
             {
                 ApplyIgnoreArmor(attacker, ref b, ref collisionData);
                 ApplyRageOutgoing(attacker, ref b, ref collisionData);
+                // Sprint 5.33 (BLT-parity ITEM) — trophy bonuses.
+                // Attacker damage_bonus + victim armor_bonus как absorption.
+                ApplyTrophyBonuses(attacker, victim, ref b, ref collisionData);
                 ApplyReflect(attacker, victim, ref b, ref collisionData);
 
                 if (!_firstHitLogged)
@@ -144,6 +147,59 @@ namespace BannerlordLink.Patches
             cd.InflictedDamage = inflicted;
             BannerlordLinkModule.LogVerbose(() =>
                 $"[DamageHook RAGE] @{user} ×{multi:F2} dmg {beforeDmg}→{inflicted}");
+        }
+
+        /// <summary>Sprint 5.33 (BLT-parity ITEM) — applies trophy bonuses.
+        /// Attacker active trophy (weapon) → +damage_bonus к outgoing.
+        /// Victim active trophy (armor) → -armor_bonus от incoming (absorption).
+        ///
+        /// Compose order: applied ПОСЛЕ ignore_armor + rage и ДО reflect.
+        /// Damage_bonus stacks с rage multiplier additively (final = (base × rage) + trophy).
+        /// Armor_bonus раздельно от ignore_armor — это новое поле, не наследуется
+        /// от armor reduction.</summary>
+        private static void ApplyTrophyBonuses(
+            Agent attacker, Agent victim, ref Blow b, ref AttackCollisionData cd)
+        {
+            // Attacker side — damage bonus for weapon trophy.
+            string attUser = GetAdoptedUsername(attacker);
+            if (attUser != null)
+            {
+                var t = ActiveTrophyState.Get(attUser);
+                if (t.HasValue && t.Value.DamageBonus > 0
+                    && t.Value.BaseType == "weapon")
+                {
+                    int before = b.InflictedDamage;
+                    int bonus = t.Value.DamageBonus;
+                    b.InflictedDamage += bonus;
+                    cd.InflictedDamage = b.InflictedDamage;
+                    // Snapshot для lambda (ref b нельзя capture'ить).
+                    int afterDmg = b.InflictedDamage;
+                    string tName = t.Value.CustomName;
+                    BannerlordLinkModule.LogVerbose(() =>
+                        $"[DamageHook TROPHY] @{attUser} weapon '{tName}' " +
+                        $"+{bonus} dmg ({before}→{afterDmg})");
+                }
+            }
+
+            // Victim side — armor bonus = damage absorption.
+            string vicUser = GetAdoptedUsername(victim);
+            if (vicUser != null)
+            {
+                var t = ActiveTrophyState.Get(vicUser);
+                if (t.HasValue && t.Value.ArmorBonus > 0
+                    && (t.Value.BaseType == "armor" || t.Value.BaseType == "horse"))
+                {
+                    int before = b.InflictedDamage;
+                    int absorbed = Math.Min(t.Value.ArmorBonus, b.InflictedDamage);
+                    b.InflictedDamage -= absorbed;
+                    cd.InflictedDamage = b.InflictedDamage;
+                    int afterDmg = b.InflictedDamage;
+                    string tName = t.Value.CustomName;
+                    BannerlordLinkModule.LogVerbose(() =>
+                        $"[DamageHook TROPHY] @{vicUser} armor '{tName}' " +
+                        $"absorbed {absorbed} ({before}→{afterDmg})");
+                }
+            }
         }
 
         /// <summary>Sprint 5.32 CRASH FIX — раньше counter-blow inline вызывался

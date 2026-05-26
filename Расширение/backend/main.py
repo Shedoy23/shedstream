@@ -874,6 +874,14 @@ async def run_migrations():
             print(f"❌ M50 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # Sprint 5.33 (BLT-parity ITEM) — rolled stats для custom items (trophy bonuses)
+        try:
+            from migrations import m51_custom_item_stats
+            await m51_custom_item_stats.apply(conn)
+        except Exception as e:
+            print(f"❌ M51 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

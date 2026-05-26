@@ -71,6 +71,9 @@ namespace BannerlordLink.Actions
             // Sprint 5.33 (BLT-parity VAS) — vassal sub-clan management
             Register(new CreateVassalClanHandler());    // hero.create_vassal_clan
             Register(new RenameVassalHandler());        // hero.rename_vassal
+            // Sprint 5.33 (BLT-parity SIEGE) — party strategic orders
+            Register(new SetPartyOrderHandler());       // hero.party_order_set
+            Register(new ReleasePartyOrderHandler());   // hero.party_order_release
 
             // ── Echo stubs (TODO Sprint 5.2+ заменить на real) ─────────────
             string[] echoTypes =

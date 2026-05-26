@@ -127,6 +127,9 @@ extensions:
     # Sprint 5.33 (BLT-parity VAS) — vassal sub-clan management
     - hero.create_vassal_clan
     - hero.rename_vassal
+    # Sprint 5.33 (BLT-parity SIEGE) — party strategic orders
+    - hero.party_order_set
+    - hero.party_order_release
     # Sprint 5.33 (BLT-parity FAM) — viewer↔viewer marriage proposals между
     # взрослыми детьми. Backend hold'ит proposals в bannerlord_marriage_proposals
     # (m49). При accept'е enqueue mod-action `hero.activate_marriage` (mod

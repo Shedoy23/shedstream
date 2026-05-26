@@ -1801,6 +1801,173 @@ function _openCreateVassalModal(eligibleHeirs) {
     });
 }
 
+// ───────────────────────────────────────────────────────────────────────────
+// Sprint 5.33 (BLT-parity SIEGE) — Party orders panel.
+// Viewer-leader партии может выдать своей MobileParty стратегический приказ:
+// siege / defend / raid / garrison / patrol. Backend хранит active order
+// (UNIQUE per viewer), mod выставляет engine SetMove* API.
+async function loadBannerlordPartyOrders() {
+    const slot = document.getElementById('bnr-party-orders-slot');
+    if (!slot) return;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/party-orders`, {
+            headers: { 'X-Twitch-JWT': authToken || '' }
+        }).then(r => r.json()).catch(() => ({success: false}));
+        const active = (r.success && r.active) ? r.active : null;
+
+        const orderEmoji = {
+            siege: '🏰', defend: '🛡', raid: '🔥',
+            garrison: '🏛', patrol: '🐎',
+        };
+        const orderLabel = {
+            siege: 'Осада', defend: 'Защита', raid: 'Грабёж',
+            garrison: 'Гарнизон', patrol: 'Патруль',
+        };
+
+        let html = `
+            <div style="background:#2a1a0a;border:1px solid #92400e;border-radius:4px;
+                        padding:8px;font-size:11px;color:#fed7aa;">
+                <div style="font-size:12px;font-weight:700;color:#fb923c;margin-bottom:6px;">
+                    ⚔ Приказы моей партии
+                </div>`;
+
+        if (active) {
+            const emoji = orderEmoji[active.order_type] || '⚔';
+            const lbl = orderLabel[active.order_type] || active.order_type;
+            html += `
+                <div style="background:#1a0f08;padding:6px 8px;border-radius:3px;
+                            margin-bottom:6px;display:flex;justify-content:space-between;
+                            align-items:center;">
+                    <span style="color:#fed7aa;font-size:11px;">
+                        ${emoji} <strong>${lbl}</strong>
+                        <span style="color:#9ca3af;"> →
+                            ${escapeHtml(active.target_settlement_name || active.target_settlement_id)}
+                        </span>
+                    </span>
+                    <button id="bnr-order-cancel" class="extra-btn"
+                            title="Отменить приказ (бесплатно)"
+                            style="font-size:9px;padding:2px 6px;background:#2d2d3f;
+                                   color:#fed7aa;">🏳 Отменить</button>
+                </div>`;
+        } else {
+            html += `
+                <div style="font-size:10px;color:#9ca3af;margin-bottom:6px;text-align:center;">
+                    Партия действует автономно
+                </div>`;
+        }
+
+        html += `
+            <button id="bnr-order-set" class="extra-btn"
+                    title="Назначить новый приказ (500⦷). Заменяет текущий."
+                    style="width:100%;font-size:11px;padding:6px;background:#92400e;
+                           color:#fff;font-weight:700;">
+                ⚔ ${active ? 'Изменить приказ' : 'Назначить приказ'} (500⦷)
+            </button>
+            </div>`;
+        slot.innerHTML = html;
+
+        // Bind buttons.
+        document.getElementById('bnr-order-cancel')?.addEventListener('click', async () => {
+            await _bannerlordBuyAction('hero.party_order_release', {});
+            setTimeout(loadBannerlordPartyOrders, 1500);
+        });
+        document.getElementById('bnr-order-set')?.addEventListener('click', () => {
+            _openSetPartyOrderModal(active);
+        });
+    } catch (e) {
+        console.warn('[FE-SIEGE] loadPartyOrders failed', e);
+        slot.innerHTML = '';
+    }
+}
+
+function _openSetPartyOrderModal(currentActive) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;
+        display:flex;align-items:center;justify-content:center;`;
+    const preType = currentActive?.order_type || 'siege';
+    const preName = currentActive?.target_settlement_name || '';
+    const preId = currentActive?.target_settlement_id || '';
+
+    const orderOptions = [
+        { v: 'siege',    e: '🏰', l: 'Осада',     desc: 'Атаковать поселение врага' },
+        { v: 'defend',   e: '🛡', l: 'Защита',    desc: 'Защищать поселение' },
+        { v: 'raid',     e: '🔥', l: 'Грабёж',    desc: 'Налёт на деревню (требуется война)' },
+        { v: 'garrison', e: '🏛', l: 'Гарнизон',  desc: 'Войти в поселение и стоять' },
+        { v: 'patrol',   e: '🐎', l: 'Патруль',   desc: 'Патрулировать вокруг поселения' },
+    ];
+
+    overlay.innerHTML = `
+        <div style="background:#1a1208;border:1px solid #92400e;border-radius:6px;
+                    padding:14px;max-width:420px;width:90%;color:#fed7aa;">
+            <div style="font-size:14px;font-weight:700;color:#fb923c;margin-bottom:10px;">
+                ⚔ Стратегический приказ (500⦷)
+            </div>
+            <div style="font-size:11px;color:#9ca3af;margin-bottom:10px;">
+                Партия следует приказу пока активен. Заменяет предыдущий.
+                Sieges/raids требуют состояния войны с владельцем цели.
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px;">
+                ${orderOptions.map(o => `
+                    <label style="display:flex;align-items:center;gap:6px;
+                                  background:#0f0805;padding:5px 8px;border-radius:3px;
+                                  cursor:pointer;font-size:11px;">
+                        <input type="radio" name="bnr-order-type" value="${o.v}"
+                               ${o.v === preType ? 'checked' : ''}>
+                        <span style="color:#fed7aa;">
+                            ${o.e} <strong>${o.l}</strong>
+                            <span style="color:#6b7280;font-size:10px;"> — ${o.desc}</span>
+                        </span>
+                    </label>
+                `).join('')}
+            </div>
+            <label style="font-size:11px;color:#fed7aa;display:block;margin-bottom:4px;">
+                Поселение (название или ID):
+            </label>
+            <input id="bnr-order-target-name" type="text" maxlength="80"
+                   placeholder="например: Lycaron / Sargot / Marunath"
+                   value="${escapeHtml(preName || preId)}"
+                   style="width:100%;padding:6px;font-size:12px;background:#0f0805;
+                          color:#fed7aa;border:1px solid #92400e;margin-bottom:6px;
+                          box-sizing:border-box;">
+            <div style="font-size:9px;color:#6b7280;margin-bottom:10px;">
+                Mod ищет по точному ID или fuzzy-name match (≥3 символа).
+                ⚠ Только лидер клана может выдавать приказы своей партии.
+            </div>
+            <div style="display:flex;gap:4px;">
+                <button id="bnr-order-confirm" class="extra-btn"
+                        style="flex:1;font-size:11px;padding:6px;
+                               background:#92400e;color:#fff;font-weight:700;">
+                    ⚔ Выдать приказ (500⦷)
+                </button>
+                <button id="bnr-order-cancel-modal" class="extra-btn"
+                        style="flex:1;font-size:11px;padding:6px;
+                               background:#2d2d3f;color:#fed7aa;">
+                    Отмена
+                </button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    document.getElementById('bnr-order-cancel-modal')?.addEventListener('click',
+        () => overlay.remove());
+    overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.remove(); });
+    document.getElementById('bnr-order-confirm')?.addEventListener('click', async () => {
+        const orderType = overlay.querySelector('input[name="bnr-order-type"]:checked')?.value;
+        const tgtRaw = (document.getElementById('bnr-order-target-name')?.value || '').trim();
+        if (!orderType || !tgtRaw || tgtRaw.length < 3) {
+            showNotification('Выбери приказ и укажи цель (≥3 символа)', 'warning');
+            return;
+        }
+        await _bannerlordBuyAction('hero.party_order_set', {
+            order_type:              orderType,
+            target_settlement_id:    tgtRaw,
+            target_settlement_name:  tgtRaw,
+        });
+        overlay.remove();
+        setTimeout(loadBannerlordPartyOrders, 2000);
+    });
+}
+
 // Sprint 5.32 — inner tab switcher. 4 panes: hero / inventory / combat / progression.
 // Состояние persisted в localStorage чтобы при reopen extension вернуться туда же.
 function _setBnrInnerTab(tab) {
@@ -4571,6 +4738,7 @@ async function loadBannerlordHero() {
                 <div id="bnr-heir-slot" style="margin-bottom:8px;"></div>
                 <div id="bnr-family-slot" style="margin-bottom:8px;"></div>
                 <div id="bnr-vassals-slot" style="margin-bottom:8px;"></div>
+                <div id="bnr-party-orders-slot" style="margin-bottom:8px;"></div>
                 <button class="extra-btn" id="bnr-open-profile-btn"
                         title="Семейные настройки: смена пола, брак, дети"
                         style="width:100%;font-size:12px;padding:8px;margin-top:4px;
@@ -4650,6 +4818,8 @@ async function loadBannerlordHero() {
         loadBannerlordFamily();
         // Sprint 5.33 (BLT-parity VAS) — Vassal sub-clans section.
         loadBannerlordVassals();
+        // Sprint 5.33 (BLT-parity SIEGE) — Party orders section.
+        loadBannerlordPartyOrders();
         // Sprint 5.5: immediately repaint battle banner из cache чтобы
         // не было 0-2s gap'a после hero re-render.
         if (_bannerlordBattle) _renderBannerlordBattleBanner(_bannerlordBattle);

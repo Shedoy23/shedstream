@@ -1968,6 +1968,322 @@ function _openSetPartyOrderModal(currentActive) {
     });
 }
 
+// ───────────────────────────────────────────────────────────────────────────
+// Sprint 5.33 (BLT-parity DIPLO) — Kingdom politics panel.
+// King/clan-leader может купить enact политики (toggle add/remove) для своего
+// kingdom'а или предложить peace с enemy. Все viewers могут chip in в ransom
+// pool captured heroes (отдельная section).
+
+// Curated set vanilla 1.3.x policies — popular & impactful. Mod валидирует
+// PolicyObject.StringId через MBObjectManager.GetObject<PolicyObject>.
+const _BNR_POLICIES = [
+    { id: 'forgiveness_of_debts', name: 'Forgiveness of Debts',
+      desc: 'Loyalty +1, Tax -10%. Дёшево, но кланы недовольны.' },
+    { id: 'land_grants', name: 'Land Grants',
+      desc: 'Clan tier влияет на fief share. Поддержка крупных кланов.' },
+    { id: 'precarial_land_tenure', name: 'Precarial Land Tenure',
+      desc: 'Notables +5 power per fief. Влияние стороннее.' },
+    { id: 'royal_guard', name: 'Royal Guard',
+      desc: 'Король получает +50 кавалерии. Силовая опора трона.' },
+    { id: 'sacred_majesty', name: 'Sacred Majesty',
+      desc: 'King influence +2/day, others -1. Авторитарный режим.' },
+    { id: 'trial_by_jury', name: 'Trial by Jury',
+      desc: 'Loyalty +0.5, Security +1. Народная популярность.' },
+    { id: 'imperial_towns', name: 'Imperial Towns',
+      desc: 'Town prosperity +5%. Городам — вино!' },
+    { id: 'noble_retinues', name: 'Noble Retinues',
+      desc: 'Clan +10 party size. Большие армии.' },
+    { id: 'lords_privy_council', name: 'Lords Privy Council',
+      desc: 'Lords +1 influence/day. Феодальная демократия.' },
+    { id: 'state_pilgrims', name: 'State Pilgrims',
+      desc: 'Town loyalty +1.5 in same culture. Культурный буст.' },
+    { id: 'serfdom', name: 'Serfdom',
+      desc: 'Village hearth +10%. Низшие классы работают за двоих.' },
+    { id: 'citizenship', name: 'Citizenship',
+      desc: 'Town loyalty +1 в same culture. Гражданская честь.' },
+];
+
+async function loadBannerlordDiplomacy() {
+    const slot = document.getElementById('bnr-diplo-slot');
+    if (!slot) return;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/kingdom-state`, {
+            headers: { 'X-Twitch-JWT': authToken || '' }
+        }).then(r => r.json()).catch(() => ({success: false}));
+        if (!r.success || !r.has_hero) { slot.innerHTML = ''; return; }
+        if (!r.kingdom_id) {
+            slot.innerHTML = `
+                <div style="background:#1a1208;border:1px solid #92400e;border-radius:4px;
+                            padding:6px;font-size:10px;color:#9ca3af;text-align:center;">
+                    🏛 Политика kingdom'а доступна когда герой вступит в королевство
+                </div>`;
+            return;
+        }
+        const canEnact = r.is_king || r.is_clan_leader;
+        const canMakePeace = r.is_king;
+
+        let html = `
+            <div style="background:#1a1208;border:1px solid #92400e;border-radius:4px;
+                        padding:8px;font-size:11px;color:#fed7aa;">
+                <div style="font-size:12px;font-weight:700;color:#fb923c;margin-bottom:6px;">
+                    🏛 Политика — ${escapeHtml(r.kingdom_name || r.kingdom_id)}
+                    ${r.is_king ? '<span style="color:#fbbf24;font-size:9px;"> 👑 КОРОЛЬ</span>' : ''}
+                </div>`;
+
+        if ((r.policies_enacted || []).length > 0) {
+            html += `
+                <div style="font-size:10px;color:#9ca3af;margin-bottom:3px;">Активные политики:</div>
+                <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;">
+                    ${r.policies_enacted.map(p => `
+                        <span style="background:#0f0805;padding:2px 5px;border-radius:3px;
+                                     font-size:10px;color:#fed7aa;border:1px solid #92400e;">
+                            ${escapeHtml(p.policy_name || p.policy_id)}
+                        </span>
+                    `).join('')}
+                </div>`;
+        }
+
+        if ((r.policies_pending || []).length > 0) {
+            html += `
+                <div style="font-size:10px;color:#fbbf24;margin-bottom:3px;">⏳ На обсуждении:</div>
+                <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;">
+                    ${r.policies_pending.map(p => `
+                        <span style="background:#1a1208;padding:2px 5px;border-radius:3px;
+                                     font-size:10px;color:#fbbf24;border:1px dashed #92400e;">
+                            ${escapeHtml(p.policy_name || p.policy_id)}
+                        </span>
+                    `).join('')}
+                </div>`;
+        }
+
+        if (canEnact) {
+            html += `
+                <button id="bnr-diplo-policy-btn" class="extra-btn"
+                        title="Активировать/отозвать политику (1500⦷). Toggle — повтор за ту же цену отзывает."
+                        style="width:100%;font-size:11px;padding:6px;background:#92400e;
+                               color:#fff;font-weight:700;margin-bottom:4px;">
+                    📜 Активировать политику (1500⦷)
+                </button>`;
+        }
+        if (canMakePeace) {
+            html += `
+                <button id="bnr-diplo-peace-btn" class="extra-btn"
+                        title="Предложить peace одной из вражеских kingdom'ов (2000⦷)"
+                        style="width:100%;font-size:11px;padding:6px;background:#1e3a5f;
+                               color:#fff;font-weight:700;">
+                    🕊 Предложить peace (2000⦷)
+                </button>`;
+        }
+        html += `</div>`;
+        slot.innerHTML = html;
+
+        document.getElementById('bnr-diplo-policy-btn')?.addEventListener('click',
+            () => _openEnactPolicyModal(r));
+        document.getElementById('bnr-diplo-peace-btn')?.addEventListener('click',
+            () => _openMakePeaceModal(r));
+    } catch (e) {
+        console.warn('[FE-DIPLO] loadDiplomacy failed', e);
+        slot.innerHTML = '';
+    }
+}
+
+function _openEnactPolicyModal(state) {
+    const enactedIds = new Set((state.policies_enacted || []).map(p => p.policy_id));
+    const pendingIds = new Set((state.policies_pending || []).map(p => p.policy_id));
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;
+        display:flex;align-items:center;justify-content:center;`;
+    overlay.innerHTML = `
+        <div style="background:#1a1208;border:1px solid #92400e;border-radius:6px;
+                    padding:14px;max-width:480px;width:90%;color:#fed7aa;
+                    max-height:85vh;overflow-y:auto;">
+            <div style="font-size:14px;font-weight:700;color:#fb923c;margin-bottom:10px;">
+                📜 Активация политики (1500⦷)
+            </div>
+            <div style="font-size:11px;color:#9ca3af;margin-bottom:10px;">
+                Toggle: если политика активна — отозвать. Иначе — активировать.
+                Эффект применяется мгновенно (король игнорирует совет лордов).
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px;">
+                ${_BNR_POLICIES.map(p => {
+                    const active = enactedIds.has(p.id);
+                    const pending = pendingIds.has(p.id);
+                    return `
+                    <label style="display:flex;align-items:flex-start;gap:6px;
+                                  background:${active ? '#1a2008' : '#0f0805'};
+                                  padding:6px 8px;border-radius:3px;cursor:pointer;
+                                  ${pending ? 'opacity:0.5;cursor:not-allowed;' : ''}
+                                  border:1px solid ${active ? '#4ade80' : '#1a1208'};">
+                        <input type="radio" name="bnr-policy-pick" value="${p.id}"
+                               data-name="${escapeHtml(p.name)}"
+                               ${pending ? 'disabled' : ''}>
+                        <span style="flex:1;">
+                            ${active ? '<span style="color:#4ade80;">✓ </span>' : ''}
+                            <strong style="color:#fed7aa;">${escapeHtml(p.name)}</strong>
+                            ${pending ? '<span style="color:#fbbf24;font-size:9px;"> (на обсуждении)</span>' : ''}
+                            <div style="font-size:10px;color:#9ca3af;margin-top:2px;">
+                                ${escapeHtml(p.desc)}
+                            </div>
+                        </span>
+                    </label>`;
+                }).join('')}
+            </div>
+            <div style="display:flex;gap:4px;">
+                <button id="bnr-policy-confirm" class="extra-btn"
+                        style="flex:1;font-size:11px;padding:6px;
+                               background:#92400e;color:#fff;font-weight:700;">
+                    📜 Применить (1500⦷)
+                </button>
+                <button id="bnr-policy-cancel" class="extra-btn"
+                        style="flex:1;font-size:11px;padding:6px;
+                               background:#2d2d3f;color:#fed7aa;">Отмена</button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    document.getElementById('bnr-policy-cancel')?.addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.remove(); });
+    document.getElementById('bnr-policy-confirm')?.addEventListener('click', async () => {
+        const sel = overlay.querySelector('input[name="bnr-policy-pick"]:checked');
+        if (!sel) { showNotification('Выбери политику', 'warning'); return; }
+        await _bannerlordBuyAction('hero.enact_policy', {
+            policy_id:   sel.value,
+            policy_name: sel.dataset.name,
+        });
+        overlay.remove();
+        setTimeout(loadBannerlordDiplomacy, 2000);
+    });
+}
+
+function _openMakePeaceModal(state) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;
+        display:flex;align-items:center;justify-content:center;`;
+    overlay.innerHTML = `
+        <div style="background:#0f1730;border:1px solid #1e40af;border-radius:6px;
+                    padding:14px;max-width:400px;width:90%;color:#bfdbfe;">
+            <div style="font-size:14px;font-weight:700;color:#60a5fa;margin-bottom:10px;">
+                🕊 Предложить peace (2000⦷)
+            </div>
+            <div style="font-size:11px;color:#9ca3af;margin-bottom:10px;">
+                Мод resolve'ит target kingdom по name или StringId.
+                Tribute может быть отрицательным (они платят нам).
+            </div>
+            <label style="font-size:11px;color:#dbeafe;display:block;margin-bottom:4px;">
+                Target kingdom (название или ID):
+            </label>
+            <input id="bnr-peace-target" type="text" maxlength="80"
+                   placeholder="например: Vlandia / Sturgia / Aserai"
+                   style="width:100%;padding:6px;font-size:12px;background:#0a0f1a;
+                          color:#bfdbfe;border:1px solid #1e40af;margin-bottom:8px;
+                          box-sizing:border-box;">
+            <label style="font-size:11px;color:#dbeafe;display:block;margin-bottom:4px;">
+                Tribute (золото/день, можно отрицательное):
+            </label>
+            <input id="bnr-peace-tribute" type="number" value="0"
+                   min="-10000" max="10000" step="100"
+                   style="width:100%;padding:6px;font-size:12px;background:#0a0f1a;
+                          color:#bfdbfe;border:1px solid #1e40af;margin-bottom:10px;
+                          box-sizing:border-box;">
+            <div style="display:flex;gap:4px;">
+                <button id="bnr-peace-confirm" class="extra-btn"
+                        style="flex:1;font-size:11px;padding:6px;
+                               background:#1e40af;color:#fff;font-weight:700;">
+                    🕊 Заключить (2000⦷)
+                </button>
+                <button id="bnr-peace-cancel" class="extra-btn"
+                        style="flex:1;font-size:11px;padding:6px;
+                               background:#2d2d3f;color:#bfdbfe;">Отмена</button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    document.getElementById('bnr-peace-cancel')?.addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.remove(); });
+    document.getElementById('bnr-peace-confirm')?.addEventListener('click', async () => {
+        const tgt = (document.getElementById('bnr-peace-target')?.value || '').trim();
+        const trb = parseInt(document.getElementById('bnr-peace-tribute')?.value || '0', 10) || 0;
+        if (!tgt || tgt.length < 2) {
+            showNotification('Укажи target kingdom (≥2 символа)', 'warning');
+            return;
+        }
+        await _bannerlordBuyAction('hero.make_peace', {
+            target_kingdom_id:   tgt,
+            target_kingdom_name: tgt,
+            offered_tribute:     trb,
+        });
+        overlay.remove();
+        setTimeout(loadBannerlordDiplomacy, 2000);
+    });
+}
+
+// ─── Ransom pool section — captured viewers + chip-in button ──────────────────
+async function loadBannerlordRansomPool() {
+    const slot = document.getElementById('bnr-ransom-slot');
+    if (!slot) return;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/ransom-pool`, {
+            headers: { 'X-Twitch-JWT': authToken || '' }
+        }).then(r => r.json()).catch(() => ({success: false}));
+        const captures = (r.success && Array.isArray(r.captures)) ? r.captures : [];
+        if (captures.length === 0) { slot.innerHTML = ''; return; }
+
+        let html = `
+            <div style="background:#2a0a0a;border:1px solid #b91c1c;border-radius:4px;
+                        padding:8px;font-size:11px;color:#fecaca;">
+                <div style="font-size:12px;font-weight:700;color:#fb7185;margin-bottom:6px;">
+                    ⛓ В плену — собираем выкуп
+                </div>
+                <div style="display:flex;flex-direction:column;gap:4px;">
+                ${captures.map(c => {
+                    const pct = Math.min(100, Math.floor(100 * (c.pool_total || 0) / Math.max(1, c.ransom_cost)));
+                    return `
+                    <div data-captured="${escapeHtml(c.captured_hero)}"
+                         style="background:#0f0505;padding:6px 8px;border-radius:3px;">
+                        <div style="display:flex;justify-content:space-between;
+                                    align-items:center;margin-bottom:3px;">
+                            <span style="color:#fecaca;font-size:11px;">
+                                ⛓ @${escapeHtml(c.captured_hero)}
+                                <span style="color:#9ca3af;font-size:10px;">
+                                    T${c.gear_tier || 1} · lvl ${c.level || 0}
+                                </span>
+                            </span>
+                            <button class="bnr-ransom-pay small-btn"
+                                    title="Внести 500⦷ в pool выкупа"
+                                    style="font-size:9px;padding:2px 6px;background:#b91c1c;
+                                           color:#fee2e2;">💰 +500⦷</button>
+                        </div>
+                        <div style="background:#1a0505;height:5px;border-radius:2px;overflow:hidden;">
+                            <div style="background:linear-gradient(90deg,#fb7185,#fbbf24);
+                                        height:100%;width:${pct}%;transition:width 0.3s;"></div>
+                        </div>
+                        <div style="font-size:9px;color:#9ca3af;margin-top:2px;">
+                            ${c.pool_total || 0} / ${c.ransom_cost}⦷ pool
+                            ${c.contributors > 0 ? ` · ${c.contributors} участников` : ''}
+                        </div>
+                    </div>`;
+                }).join('')}
+                </div>
+            </div>`;
+        slot.innerHTML = html;
+
+        slot.querySelectorAll('.bnr-ransom-pay').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const parent = e.target.closest('[data-captured]');
+                if (!parent) return;
+                const captured = parent.dataset.captured;
+                await _bannerlordBuyAction('hero.pay_ransom', {
+                    captured_hero: captured,
+                });
+                setTimeout(loadBannerlordRansomPool, 1200);
+            });
+        });
+    } catch (e) {
+        console.warn('[FE-RANSOM] loadRansom failed', e);
+        slot.innerHTML = '';
+    }
+}
+
 // Sprint 5.32 — inner tab switcher. 4 panes: hero / inventory / combat / progression.
 // Состояние persisted в localStorage чтобы при reopen extension вернуться туда же.
 function _setBnrInnerTab(tab) {
@@ -4739,6 +5055,8 @@ async function loadBannerlordHero() {
                 <div id="bnr-family-slot" style="margin-bottom:8px;"></div>
                 <div id="bnr-vassals-slot" style="margin-bottom:8px;"></div>
                 <div id="bnr-party-orders-slot" style="margin-bottom:8px;"></div>
+                <div id="bnr-diplo-slot" style="margin-bottom:8px;"></div>
+                <div id="bnr-ransom-slot" style="margin-bottom:8px;"></div>
                 <button class="extra-btn" id="bnr-open-profile-btn"
                         title="Семейные настройки: смена пола, брак, дети"
                         style="width:100%;font-size:12px;padding:8px;margin-top:4px;
@@ -4820,6 +5138,9 @@ async function loadBannerlordHero() {
         loadBannerlordVassals();
         // Sprint 5.33 (BLT-parity SIEGE) — Party orders section.
         loadBannerlordPartyOrders();
+        // Sprint 5.33 (BLT-parity DIPLO) — Kingdom politics + ransom pool.
+        loadBannerlordDiplomacy();
+        loadBannerlordRansomPool();
         // Sprint 5.5: immediately repaint battle banner из cache чтобы
         // не было 0-2s gap'a после hero re-render.
         if (_bannerlordBattle) _renderBannerlordBattleBanner(_bannerlordBattle);

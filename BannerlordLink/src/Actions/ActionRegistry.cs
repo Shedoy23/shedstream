@@ -74,6 +74,10 @@ namespace BannerlordLink.Actions
             // Sprint 5.33 (BLT-parity SIEGE) — party strategic orders
             Register(new SetPartyOrderHandler());       // hero.party_order_set
             Register(new ReleasePartyOrderHandler());   // hero.party_order_release
+            // Sprint 5.33 (BLT-parity DIPLO) — kingdom politics + ransom
+            Register(new EnactPolicyHandler());         // hero.enact_policy
+            Register(new MakePeaceHandler());           // hero.make_peace
+            Register(new PayRansomHandler());           // hero.pay_ransom
 
             // ── Echo stubs (TODO Sprint 5.2+ заменить на real) ─────────────
             string[] echoTypes =

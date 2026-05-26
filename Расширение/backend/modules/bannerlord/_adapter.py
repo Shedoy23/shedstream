@@ -150,6 +150,10 @@ ACTION_COOLDOWNS_SEC = {
     # Sprint 5.33 (BLT-parity SIEGE) — party orders
     "hero.party_order_set":         120,   # значительное решение, anti-spam
     "hero.party_order_release":      10,
+    # Sprint 5.33 (BLT-parity DIPLO) — kingdom politics + ransom
+    "hero.enact_policy":            300,   # heavy political decision, anti-spam
+    "hero.make_peace":              600,   # huge decision, hard cooldown
+    "hero.pay_ransom":               20,   # short — many viewers can chip in
 }
 
 

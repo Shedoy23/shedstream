@@ -81,6 +81,10 @@ extensions:
     - hero.heir_came_of_age   # Sprint 5.32 (BLT-parity M2): mod пушит когда ребёнок [BLink] hero'я взрослеет 18+
     - hero.heir_died          # Sprint 5.32 (BLT-parity M2): heir умер ДО succession, mark alive=0
     - hero.vassal_created     # Sprint 5.33 (BLT-parity VAS): backfill real clan_id after CreateClan
+    - hero.captured           # Sprint 5.33 (BLT-parity DIPLO): mod пушит при OnHeroPrisonerTaken
+    - hero.released           # Sprint 5.33 (BLT-parity DIPLO): mod пушит при освобождении из плена
+    - hero.policy_enacted     # Sprint 5.33 (BLT-parity DIPLO): mod пушит после EnactPolicyDecision passed
+    - hero.peace_concluded    # Sprint 5.33 (BLT-parity DIPLO): mod пушит после MakePeaceAction
   actions:
     - hero.create        # Adoption flow — spawn fresh wanderer + SetName(viewer)
     - hero.set_class     # Sprint 4.1: класс + equipment apply
@@ -130,6 +134,10 @@ extensions:
     # Sprint 5.33 (BLT-parity SIEGE) — party strategic orders
     - hero.party_order_set
     - hero.party_order_release
+    # Sprint 5.33 (BLT-parity DIPLO) — kingdom politics + ransom (Lait fork)
+    - hero.enact_policy        # king-only: propose policy для kingdom'а (1500⦷)
+    - hero.make_peace          # king-only: peace offer с enemy kingdom (2000⦷)
+    - hero.pay_ransom          # any viewer: chip into ransom pool (500⦷)
     # Sprint 5.33 (BLT-parity FAM) — viewer↔viewer marriage proposals между
     # взрослыми детьми. Backend hold'ит proposals в bannerlord_marriage_proposals
     # (m49). При accept'е enqueue mod-action `hero.activate_marriage` (mod

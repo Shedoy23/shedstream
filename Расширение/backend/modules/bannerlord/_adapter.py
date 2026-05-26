@@ -132,6 +132,14 @@ ACTION_COOLDOWNS_SEC = {
     "hero.detach_charge":         2,
     "hero.detach_walls":          3,    # siege — re-issue takes engine моменты
     "hero.detach_gate":           3,
+    # Sprint 5.33 (BLT-parity FAM) — anti-spam для семейных интеракций.
+    # Propose 60s — нельзя зафлудить таргета. Rest — short.
+    "hero.propose_marriage":         60,
+    "hero.respond_marriage_proposal": 3,
+    "hero.cancel_proposal":           5,
+    "hero.rename_child":             10,
+    "hero.change_child_looks":       30,
+    "hero.respec_child_skills":     120,
 }
 
 

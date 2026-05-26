@@ -63,6 +63,11 @@ namespace BannerlordLink.Actions
             Register(new ChargeHandler());           // hero.detach_charge
             Register(new WallsHandler());            // hero.detach_walls (siege only)
             Register(new GateHandler());             // hero.detach_gate (siege only)
+            // Sprint 5.33 (BLT-parity FAM) — viewer↔viewer семейные интеракции
+            Register(new ActivateMarriageHandler());    // hero.activate_marriage
+            Register(new ChildRenameHandler());         // hero.rename_child
+            Register(new ChildLooksHandler());          // hero.change_child_looks
+            Register(new ChildRespecSkillsHandler());   // hero.respec_child_skills
 
             // ── Echo stubs (TODO Sprint 5.2+ заменить на real) ─────────────
             string[] echoTypes =

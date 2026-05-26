@@ -1343,6 +1343,21 @@ async def on_startup():
     # Sprint 5.29 BLT-parity #6 phase B: auctions resolver loop (every 30s).
     from routes.bannerlord_auctions import auctions_resolve_loop as _auctions_resolve
     asyncio.create_task(_auctions_resolve())
+    # Sprint 5.33 (BLT-parity FAM): marriage proposals expire loop (every 60s).
+    # Mark pending proposals as 'expired' если created+24h < now. Viewer'у никто
+    # не отвечает 24h → proposal сам закрывается.
+    async def _proposals_expire_loop():
+        import asyncio as _asyncio
+        from routes.bannerlord_family import expire_old_proposals
+        while True:
+            try:
+                affected = await expire_old_proposals()
+                if affected > 0:
+                    print(f"[FAM-EXPIRE] marked {affected} proposals as expired")
+            except Exception as e:
+                print(f"[FAM-EXPIRE] loop crashed: {type(e).__name__}: {e}")
+            await _asyncio.sleep(60)
+    asyncio.create_task(_proposals_expire_loop())
     # Блок 1 архитектурной прокачки: periodic WAL checkpoint, защита от
     # бесконечного роста WAL-файла. PASSIVE раз в час; раз в сутки —
     # RESTART для более глубокой компактизации.

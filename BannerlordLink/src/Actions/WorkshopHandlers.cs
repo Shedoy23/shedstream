@@ -44,13 +44,20 @@ namespace BannerlordLink.Actions
             string typeName = data["workshop_type_name"]?.ToString() ?? typeId;
             int backendWorkshopId = 0;
             try { backendWorkshopId = data["workshop_id"]?.ToObject<int>() ?? 0; } catch { }
+            string actionId = ActionFeedback.GetActionId(data);
+
+            BannerlordLinkModule.Log(
+                $"[shop-buy ENTRY] @{username} settlement='{settlementName}' (id={settlementId}) " +
+                $"type='{typeName}' (id={typeId}) backend_row={backendWorkshopId} action_id={actionId}");
 
             if (string.IsNullOrEmpty(username) ||
                 string.IsNullOrEmpty(settlementId) ||
                 string.IsNullOrEmpty(typeId))
+            {
+                BannerlordLinkModule.Log("[shop-buy REFUSE] missing required fields");
                 return Task.FromResult<(bool, string)>((false, "missing fields"));
+            }
 
-            string actionId = ActionFeedback.GetActionId(data);
             MainThreadDispatcher.Enqueue(() =>
                 Apply(username, settlementId, settlementName, typeId, typeName,
                       backendWorkshopId, actionId));
@@ -208,10 +215,18 @@ namespace BannerlordLink.Actions
                               .Trim().ToLowerInvariant();
             string settlementId = (data["settlement_id"]?.ToString() ?? "").Trim();
             string typeId = (data["workshop_type"]?.ToString() ?? "").Trim();
-            if (string.IsNullOrEmpty(username))
-                return Task.FromResult<(bool, string)>((false, "no username"));
-
             string actionId = ActionFeedback.GetActionId(data);
+
+            BannerlordLinkModule.Log(
+                $"[shop-sell ENTRY] @{username} settlement={settlementId} type={typeId} " +
+                $"action_id={actionId}");
+
+            if (string.IsNullOrEmpty(username))
+            {
+                BannerlordLinkModule.Log("[shop-sell REFUSE] no username");
+                return Task.FromResult<(bool, string)>((false, "no username"));
+            }
+
             MainThreadDispatcher.Enqueue(() => Apply(username, settlementId, typeId, actionId));
             return Task.FromResult<(bool, string)>((true, null));
         }

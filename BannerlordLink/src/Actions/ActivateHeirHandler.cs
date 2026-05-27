@@ -44,16 +44,28 @@ namespace BannerlordLink.Actions
             string heirHeroId = (data["heir_hero_id"]?.ToString() ?? "").Trim();
             string heirName = data["heir_name"]?.ToString() ?? heirHeroId;
 
-            if (string.IsNullOrEmpty(parentUsername))
-                return Task.FromResult<(bool, string)>((false, "no parent_username"));
-            if (string.IsNullOrEmpty(heirHeroId))
-                return Task.FromResult<(bool, string)>((false, "no heir_hero_id"));
-
             // Sprint 5.33 (BLT-parity HERITAGE) — capture inherited assets payload.
             // Backend collected viewer's active workshops/caravans, mod re-transfers
             // engine ownership к heir. Fiefs auto-handle через clan-leader change.
             var inheritedWorkshops = data["inherited_workshops"] as JArray;
             var inheritedCaravans  = data["inherited_caravans"]  as JArray;
+
+            BannerlordLinkModule.Log(
+                $"[heir.activate ENTRY] parent=@{parentUsername} heir_id={heirHeroId} " +
+                $"heir_name='{heirName}' " +
+                $"workshops_inherited={inheritedWorkshops?.Count ?? 0} " +
+                $"caravans_inherited={inheritedCaravans?.Count ?? 0}");
+
+            if (string.IsNullOrEmpty(parentUsername))
+            {
+                BannerlordLinkModule.Log("[heir.activate REFUSE] no parent_username");
+                return Task.FromResult<(bool, string)>((false, "no parent_username"));
+            }
+            if (string.IsNullOrEmpty(heirHeroId))
+            {
+                BannerlordLinkModule.Log("[heir.activate REFUSE] no heir_hero_id");
+                return Task.FromResult<(bool, string)>((false, "no heir_hero_id"));
+            }
 
             MainThreadDispatcher.Enqueue(() =>
                 Activate(parentUsername, heirHeroId, heirName,

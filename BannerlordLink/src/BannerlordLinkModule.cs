@@ -89,17 +89,29 @@ namespace BannerlordLink
 
         private static bool ResolveVerboseFlag()
         {
+            // Sprint 5.33 AUDIT-2: temporarily ON-by-default для testing period
+            // новых sprints (SIEGE/DIPLO/SHOP/FIEF/CARAVAN/HERITAGE). Когда
+            // механики verified, можно вернуть default OFF (set DEFAULT_ON=false).
+            const bool DEFAULT_ON = true;
             try
             {
-                if (Environment.GetEnvironmentVariable("BANNERLORDLINK_VERBOSE") == "1")
-                    return true;
+                // Explicit env-var override: BANNERLORDLINK_VERBOSE=0 force-disables.
+                string env = Environment.GetEnvironmentVariable("BANNERLORDLINK_VERBOSE");
+                if (env == "1") return true;
+                if (env == "0") return false;
                 var flagFile = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                     "Mount and Blade II Bannerlord", "Configs",
                     "bannerlordlink_verbose.flag");
-                return File.Exists(flagFile);
+                if (File.Exists(flagFile)) return true;
+                var disableFile = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                    "Mount and Blade II Bannerlord", "Configs",
+                    "bannerlordlink_verbose_OFF.flag");
+                if (File.Exists(disableFile)) return false;
+                return DEFAULT_ON;
             }
-            catch { return false; }
+            catch { return DEFAULT_ON; }
         }
 
         protected override void OnSubModuleLoad()

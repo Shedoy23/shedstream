@@ -31,11 +31,18 @@ namespace BannerlordLink.Actions
             string kingdomId = (data["kingdom_id"]?.ToString() ?? "").Trim();
             string policyId = (data["policy_id"]?.ToString() ?? "").Trim();
             string policyName = data["policy_name"]?.ToString() ?? policyId;
+            string actionId = ActionFeedback.GetActionId(data);
+
+            BannerlordLinkModule.Log(
+                $"[diplo-policy ENTRY] @{username} kingdom={kingdomId} policy={policyId} " +
+                $"name='{policyName}' action_id={actionId}");
 
             if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(policyId))
+            {
+                BannerlordLinkModule.Log("[diplo-policy REFUSE] missing username or policy_id");
                 return Task.FromResult<(bool, string)>((false, "missing fields"));
+            }
 
-            string actionId = ActionFeedback.GetActionId(data);
             MainThreadDispatcher.Enqueue(() =>
                 Apply(username, kingdomId, policyId, policyName, actionId));
             return Task.FromResult<(bool, string)>((true, null));
@@ -127,11 +134,18 @@ namespace BannerlordLink.Actions
             string targetKingdomName = data["target_kingdom_name"]?.ToString() ?? targetKingdomId;
             int tribute = 0;
             try { tribute = (int)(data["offered_tribute"]?.ToObject<int>() ?? 0); } catch { }
+            string actionId = ActionFeedback.GetActionId(data);
+
+            BannerlordLinkModule.Log(
+                $"[diplo-peace ENTRY] @{username} → target='{targetKingdomName}' " +
+                $"(id={targetKingdomId}) tribute={tribute} action_id={actionId}");
 
             if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(targetKingdomId))
+            {
+                BannerlordLinkModule.Log("[diplo-peace REFUSE] missing username or target_kingdom_id");
                 return Task.FromResult<(bool, string)>((false, "missing fields"));
+            }
 
-            string actionId = ActionFeedback.GetActionId(data);
             MainThreadDispatcher.Enqueue(() =>
                 Apply(username, targetKingdomId, targetKingdomName, tribute, actionId));
             return Task.FromResult<(bool, string)>((true, null));
@@ -229,10 +243,17 @@ namespace BannerlordLink.Actions
             string capturedUser = (data["captured_hero"]?.ToString()
                                    ?? data["target"]?.ToString() ?? "")
                                   .Trim().ToLowerInvariant();
-            if (string.IsNullOrEmpty(capturedUser))
-                return Task.FromResult<(bool, string)>((false, "no captured_hero"));
-
             string actionId = ActionFeedback.GetActionId(data);
+
+            BannerlordLinkModule.Log(
+                $"[diplo-ransom ENTRY] release captured @{capturedUser} action_id={actionId}");
+
+            if (string.IsNullOrEmpty(capturedUser))
+            {
+                BannerlordLinkModule.Log("[diplo-ransom REFUSE] no captured_hero");
+                return Task.FromResult<(bool, string)>((false, "no captured_hero"));
+            }
+
             MainThreadDispatcher.Enqueue(() => Apply(capturedUser, actionId));
             return Task.FromResult<(bool, string)>((true, null));
         }

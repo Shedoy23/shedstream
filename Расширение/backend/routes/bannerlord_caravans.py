@@ -134,7 +134,11 @@ async def handle_buy_caravan(conn, channel_id: int, owner: str, data: dict) -> d
     """Create new caravan. Mod вызывает CaravanPartyComponent.CreateCaravanParty."""
     home_settlement_id = (data.get("home_settlement_id") or "").strip()
     home_settlement_name = (data.get("home_settlement_name") or "").strip() or home_settlement_id
+    log.info("[CARAVAN-BUY ENTRY] ch=%s @%s home=%s",
+             channel_id, owner, home_settlement_id)
     if not home_settlement_id:
+        log.info("[CARAVAN-BUY REFUSE] missing home_settlement_id ch=%s @%s",
+                 channel_id, owner)
         return {"success": False, "message": "home_settlement_id required"}
 
     # Limit check.
@@ -178,9 +182,12 @@ async def handle_buy_caravan(conn, channel_id: int, owner: str, data: dict) -> d
 
 async def handle_sell_caravan(conn, channel_id: int, owner: str, data: dict) -> dict:
     """Sell caravan. Mod вызывает TransferCaravanOwnership к MainHero."""
+    raw = data.get("caravan_id")
+    log.info("[CARAVAN-SELL ENTRY] ch=%s @%s caravan_id=%s", channel_id, owner, raw)
     try:
-        caravan_id = int(data.get("caravan_id") or 0)
+        caravan_id = int(raw or 0)
     except (TypeError, ValueError):
+        log.info("[CARAVAN-SELL REFUSE] invalid caravan_id raw=%r", raw)
         return {"success": False, "message": "caravan_id required"}
 
     cur = await conn.execute(
@@ -220,9 +227,13 @@ async def handle_sell_caravan(conn, channel_id: int, owner: str, data: dict) -> 
 async def handle_pay_caravan_rescue(conn, channel_id: int, owner: str, data: dict) -> dict:
     """Crowd-fund rescue для destroyed caravan. На pool ≥ cost — backend
     auto-respawns caravan через enqueue hero.buy_caravan action."""
+    raw = data.get("caravan_id")
+    log.info("[CARAVAN-RESCUE ENTRY] ch=%s contributor=@%s caravan_id=%s",
+             channel_id, owner, raw)
     try:
-        caravan_id = int(data.get("caravan_id") or 0)
+        caravan_id = int(raw or 0)
     except (TypeError, ValueError):
+        log.info("[CARAVAN-RESCUE REFUSE] invalid caravan_id raw=%r", raw)
         return {"success": False, "message": "caravan_id required"}
     contribution = 500
 

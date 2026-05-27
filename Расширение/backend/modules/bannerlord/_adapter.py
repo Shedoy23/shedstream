@@ -166,6 +166,95 @@ ACTION_COOLDOWNS_SEC = {
 }
 
 
+# Sprint 5.33 IMPROV-1 — background cleanup для stale streamer channels.
+# Friend feedback: "если стример offline 10+ минут — лайф кеш зачищаем".
+# Без этого: in-memory dicts (_battle_stats, _active_buffs, _cooldowns) растут
+# unbounded когда streamer'ы приходят и уходят. Хоть entries уже expire'ятся
+# lazily при чтении — для caнаlov которые НЕ читают NEXT раз (e.g. streamer
+# больше никогда не запустит) garbage висит до process restart.
+#
+# Loop: каждые CLEANUP_INTERVAL_SEC проходит по _last_seen, finds entries
+# где last_seen < now - STALE_THRESHOLD_SEC, dropит соответствующие entries
+# из всех cache dicts.
+STALE_THRESHOLD_SEC = 600    # 10 минут — friend's recommendation
+CLEANUP_INTERVAL_SEC = 60    # проверять раз в минуту
+
+
+async def stale_channels_cleanup_loop():
+    """Background task. Запускается в main.py lifespan handler."""
+    import asyncio
+    import time as _time
+    import logging
+    log = logging.getLogger(__name__)
+
+    while True:
+        try:
+            await asyncio.sleep(CLEANUP_INTERVAL_SEC)
+            now = _time.time()
+
+            # 1) Find stale channel_id's.
+            stale_channels = []
+            for ch_id, last_ts in list(_last_seen.items()):
+                if now - last_ts > STALE_THRESHOLD_SEC:
+                    stale_channels.append(ch_id)
+
+            if not stale_channels:
+                continue
+
+            # 2) Drop entries from all in-memory caches.
+            stats_dropped = 0
+            buffs_dropped = 0
+            cds_dropped = 0
+            last_seen_dropped = 0
+
+            for ch_id in stale_channels:
+                # _battle_stats keyed by channel_id directly
+                if _battle_stats.pop(ch_id, None) is not None:
+                    stats_dropped += 1
+                # _last_seen — drop последним чтобы logger знал ch_id
+                if _last_seen.pop(ch_id, None) is not None:
+                    last_seen_dropped += 1
+
+            # _active_buffs / _cooldowns — keyed by (channel_id, username) tuple
+            stale_set = set(stale_channels)
+            for key in list(_active_buffs.keys()):
+                if isinstance(key, tuple) and key[0] in stale_set:
+                    _active_buffs.pop(key, None)
+                    buffs_dropped += 1
+            for key in list(_cooldowns.keys()):
+                if isinstance(key, tuple) and key[0] in stale_set:
+                    _cooldowns.pop(key, None)
+                    cds_dropped += 1
+
+            # Sprint 5.30 #41 — _power_events ring buffer per-channel. Tоже cleanup.
+            try:
+                from routes.bannerlord import _power_events, _power_events_seq
+                pe_dropped = 0
+                for ch_id in stale_channels:
+                    if _power_events.pop(ch_id, None) is not None:
+                        pe_dropped += 1
+                    _power_events_seq.pop(ch_id, None)
+            except Exception:
+                pe_dropped = 0
+
+            log.info(
+                "[BNR CLEANUP] %d stale channels (>%ds offline) — "
+                "dropped %d battle_stats, %d active_buffs, %d cooldowns, "
+                "%d power_event_buffers, %d last_seen entries",
+                len(stale_channels), STALE_THRESHOLD_SEC,
+                stats_dropped, buffs_dropped, cds_dropped,
+                pe_dropped if 'pe_dropped' in dir() else 0,
+                last_seen_dropped)
+
+        except asyncio.CancelledError:
+            log.info("[BNR CLEANUP] task cancelled (shutdown)")
+            raise
+        except Exception as ex:
+            # Никогда не давать упасть loop'у — log + sleep + продолжать
+            log.exception("[BNR CLEANUP] loop iteration crashed: %s", ex)
+            await asyncio.sleep(CLEANUP_INTERVAL_SEC)
+
+
 def update_last_seen(channel_id: int) -> None:
     """Обновить last-seen timestamp для канала."""
     import time

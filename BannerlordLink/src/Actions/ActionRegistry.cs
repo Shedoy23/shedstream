@@ -84,13 +84,16 @@ namespace BannerlordLink.Actions
             // Sprint 5.33 (BLT-parity CARAVAN) — mobile passive income trilogy closer
             Register(new BuyCaravanHandler());          // hero.buy_caravan
             Register(new SellCaravanHandler());         // hero.sell_caravan
+            // Sprint 5.33 GAP-closure — replace EchoHandler stubs с real handlers
+            Register(new BroadcastMessageHandler());    // world.broadcast_message
+            Register(new TriggerWorldEventHandler());   // world.trigger_event
 
-            // ── Echo stubs (TODO Sprint 5.2+ заменить на real) ─────────────
+            // ── Echo stubs (low priority — оставлены пока stubs) ────────────
+            // player.respawn — handled через hero.activate_heir (auto-heir flow)
+            // hero.set_culture / hero.set_faction — LOW priority, stub OK для тестов
             string[] echoTypes =
             {
-                "player.respawn",     // heir succession — complex
-                "world.trigger_event",
-                "world.broadcast_message",
+                "player.respawn",     // heir succession — auto-handled через hero.activate_heir
                 "hero.set_culture",
                 "hero.set_faction",
             };

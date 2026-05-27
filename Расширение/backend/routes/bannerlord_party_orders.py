@@ -76,14 +76,21 @@ async def handle_set_party_order(conn, channel_id: int, owner: str, data: dict) 
     import uuid as _uuid
 
     order_type = (data.get("order_type") or "").strip().lower()
-    if order_type not in VALID_ORDER_TYPES:
-        return {"success": False,
-                "message": f"order_type должен быть {'/'.join(VALID_ORDER_TYPES)}"}
-
     target_id = (data.get("target_settlement_id") or "").strip()
     target_name = (data.get("target_settlement_name") or "").strip() or target_id
+
+    log.info("[SIEGE-SET ENTRY] ch=%s @%s order=%s target='%s' (id=%s)",
+             channel_id, owner, order_type, target_name, target_id)
+
+    if order_type not in VALID_ORDER_TYPES:
+        log.info("[SIEGE-SET REFUSE] invalid order_type ch=%s @%s raw=%r",
+                 channel_id, owner, order_type)
+        return {"success": False,
+                "message": f"order_type должен быть {'/'.join(VALID_ORDER_TYPES)}"}
     # patrol не требует strict target (area scan), но для UI consistency требуем.
     if not target_id:
+        log.info("[SIEGE-SET REFUSE] missing target_settlement_id ch=%s @%s",
+                 channel_id, owner)
         return {"success": False, "message": "target_settlement_id required"}
 
     # Cancel old active order (если есть) — UNIQUE partial idx не позволил бы INSERT.
@@ -129,12 +136,16 @@ async def handle_release_party_order(conn, channel_id: int, owner: str, data: di
     import json as _json
     import uuid as _uuid
 
+    log.info("[SIEGE-RELEASE ENTRY] ch=%s @%s", channel_id, owner)
+
     cur = await conn.execute(
         "UPDATE bannerlord_party_orders SET status='cancelled' "
         "WHERE channel_id=? AND owner_username=? AND status='active'",
         (channel_id, owner))
     affected = cur.rowcount or 0
     if affected == 0:
+        log.info("[SIEGE-RELEASE REFUSE] no active order ch=%s @%s",
+                 channel_id, owner)
         return {"success": False, "message": "Нет активного приказа"}
 
     action_id = _uuid.uuid4().hex

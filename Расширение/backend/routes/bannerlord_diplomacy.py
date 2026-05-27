@@ -176,7 +176,11 @@ async def handle_enact_policy(conn, channel_id: int, owner: str, data: dict) -> 
     """King-only: propose policy для своего kingdom'а. Mod применит engine API."""
     policy_id = (data.get("policy_id") or "").strip()
     policy_name = (data.get("policy_name") or "").strip() or policy_id
+    log.info("[DIPLO-POLICY ENTRY] ch=%s @%s policy=%s name='%s'",
+             channel_id, owner, policy_id, policy_name)
     if not policy_id or len(policy_id) < 3:
+        log.info("[DIPLO-POLICY REFUSE] invalid policy_id ch=%s @%s raw=%r",
+                 channel_id, owner, policy_id)
         return {"success": False, "message": "policy_id required (≥3 chars)"}
 
     # Check: viewer должен быть king (или хотя бы clan leader в kingdom).
@@ -240,7 +244,12 @@ async def handle_make_peace(conn, channel_id: int, owner: str, data: dict) -> di
         offered_tribute = 0
     offered_tribute = max(-10_000, min(10_000, offered_tribute))  # cap
 
+    log.info("[DIPLO-PEACE ENTRY] ch=%s @%s target='%s' (id=%s) tribute=%d",
+             channel_id, owner, target_kingdom_name, target_kingdom_id, offered_tribute)
+
     if not target_kingdom_id or len(target_kingdom_id) < 2:
+        log.info("[DIPLO-PEACE REFUSE] missing target_kingdom_id ch=%s @%s",
+                 channel_id, owner)
         return {"success": False, "message": "target_kingdom_id required"}
 
     # Check: viewer должен быть king.
@@ -302,7 +311,11 @@ async def handle_pay_ransom(conn, channel_id: int, owner: str, data: dict) -> di
     Когда pool ≥ cost — backend сам enqueues release-action и mod применяет.
     """
     captured = (data.get("captured_hero") or "").strip().lower()
+    log.info("[DIPLO-RANSOM ENTRY] ch=%s contributor=@%s captured=@%s",
+             channel_id, owner, captured)
     if not captured:
+        log.info("[DIPLO-RANSOM REFUSE] missing captured_hero ch=%s @%s",
+                 channel_id, owner)
         return {"success": False, "message": "captured_hero required"}
     # 5.33 — fixed contribution per pay action (UI shows total pool progress).
     # 500⦷ = ACTION_PRICES_DEFAULT — viewer оплачивает крустиками side-track,

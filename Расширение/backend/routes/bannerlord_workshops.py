@@ -98,7 +98,11 @@ async def handle_buy_workshop(conn, channel_id: int, owner: str, data: dict) -> 
     workshop_type = (data.get("workshop_type") or "").strip()
     workshop_type_name = (data.get("workshop_type_name") or "").strip() or workshop_type
 
+    log.info("[SHOP-BUY ENTRY] ch=%s @%s settlement=%s type=%s",
+             channel_id, owner, settlement_id, workshop_type)
+
     if not settlement_id or not workshop_type:
+        log.info("[SHOP-BUY REFUSE] missing fields ch=%s @%s", channel_id, owner)
         return {"success": False, "message": "settlement_id и workshop_type required"}
 
     # Limit check.
@@ -153,9 +157,13 @@ async def handle_buy_workshop(conn, channel_id: int, owner: str, data: dict) -> 
 
 async def handle_sell_workshop(conn, channel_id: int, owner: str, data: dict) -> dict:
     """Sell workshop. Engine refund 50% capital, backend marks sold."""
+    workshop_id_raw = data.get("workshop_id")
+    log.info("[SHOP-SELL ENTRY] ch=%s @%s workshop_id=%s",
+             channel_id, owner, workshop_id_raw)
     try:
-        workshop_id = int(data.get("workshop_id"))
+        workshop_id = int(workshop_id_raw)
     except (TypeError, ValueError):
+        log.info("[SHOP-SELL REFUSE] invalid workshop_id raw=%r", workshop_id_raw)
         return {"success": False, "message": "workshop_id required"}
 
     # Validate ownership.
@@ -166,6 +174,8 @@ async def handle_sell_workshop(conn, channel_id: int, owner: str, data: dict) ->
         (workshop_id, channel_id, owner))
     row = await cur.fetchone()
     if not row:
+        log.info("[SHOP-SELL REFUSE] workshop not found / not owned ch=%s @%s id=%s",
+                 channel_id, owner, workshop_id)
         return {"success": False, "message": "Workshop не найден"}
     settlement_id, settlement_name, workshop_type, workshop_type_name = (
         row[0], row[1], row[2], row[3])

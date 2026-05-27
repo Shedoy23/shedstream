@@ -38,10 +38,19 @@ namespace BannerlordLink.Actions
             try { caravanId = data["caravan_id"]?.ToObject<int>() ?? 0; } catch { }
             string homeId = (data["home_settlement_id"]?.ToString() ?? "").Trim();
             string homeName = data["home_settlement_name"]?.ToString() ?? homeId;
-            if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(homeId) || caravanId <= 0)
-                return Task.FromResult<(bool, string)>((false, "missing fields"));
-
             string actionId = ActionFeedback.GetActionId(data);
+
+            BannerlordLinkModule.Log(
+                $"[caravan-buy ENTRY] @{username} home='{homeName}' (id={homeId}) " +
+                $"caravan_row={caravanId} action_id={actionId}");
+
+            if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(homeId) || caravanId <= 0)
+            {
+                BannerlordLinkModule.Log(
+                    $"[caravan-buy REFUSE] missing fields (user='{username}' home='{homeId}' caravanId={caravanId})");
+                return Task.FromResult<(bool, string)>((false, "missing fields"));
+            }
+
             MainThreadDispatcher.Enqueue(() =>
                 Apply(username, caravanId, homeId, homeName, actionId));
             return Task.FromResult<(bool, string)>((true, null));
@@ -160,10 +169,17 @@ namespace BannerlordLink.Actions
             string username = (data["initiated_by"]?.ToString() ?? data["target"]?.ToString() ?? "")
                               .Trim().ToLowerInvariant();
             string partyId = (data["party_id"]?.ToString() ?? "").Trim();
-            if (string.IsNullOrEmpty(username))
-                return Task.FromResult<(bool, string)>((false, "no username"));
-
             string actionId = ActionFeedback.GetActionId(data);
+
+            BannerlordLinkModule.Log(
+                $"[caravan-sell ENTRY] @{username} party_id={partyId} action_id={actionId}");
+
+            if (string.IsNullOrEmpty(username))
+            {
+                BannerlordLinkModule.Log("[caravan-sell REFUSE] no username");
+                return Task.FromResult<(bool, string)>((false, "no username"));
+            }
+
             MainThreadDispatcher.Enqueue(() => Apply(username, partyId, actionId));
             return Task.FromResult<(bool, string)>((true, null));
         }

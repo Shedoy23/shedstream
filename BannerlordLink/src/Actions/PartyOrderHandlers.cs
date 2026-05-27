@@ -37,11 +37,18 @@ namespace BannerlordLink.Actions
             string orderType = (data["order_type"]?.ToString() ?? "").Trim().ToLowerInvariant();
             string targetId = (data["target_settlement_id"]?.ToString() ?? "").Trim();
             string targetName = data["target_settlement_name"]?.ToString() ?? targetId;
+            string actionId = ActionFeedback.GetActionId(data);
+
+            BannerlordLinkModule.Log(
+                $"[party_order ENTRY] @{username} order={orderType} target='{targetName}' " +
+                $"(id={targetId}) action_id={actionId}");
 
             if (string.IsNullOrEmpty(username))
+            {
+                BannerlordLinkModule.Log("[party_order REFUSE] no username in payload");
                 return Task.FromResult<(bool, string)>((false, "no username"));
+            }
 
-            string actionId = ActionFeedback.GetActionId(data);
             MainThreadDispatcher.Enqueue(() =>
                 Apply(username, orderType, targetId, targetName, actionId));
             return Task.FromResult<(bool, string)>((true, null));
@@ -189,11 +196,15 @@ namespace BannerlordLink.Actions
                         ActionFeedback.PostFailed(actionId, "unknown_order");
                         return;
                 }
+                BannerlordLinkModule.Log(
+                    $"[party_order EXIT-OK] @{username} order={orderType} → '{targetName}' applied " +
+                    $"(party leader={mp.LeaderHero?.Name}, target faction={target.MapFaction?.Name})");
             }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log(
-                    $"[party_order.set] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
+                    $"[party_order.set] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}\n" +
+                    $"  Stack: {ex.StackTrace?.Substring(0, Math.Min(400, ex.StackTrace?.Length ?? 0))}");
                 ActionFeedback.PostFailed(actionId, "crashed");
             }
         }

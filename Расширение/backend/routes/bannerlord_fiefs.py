@@ -97,11 +97,15 @@ async def my_fiefs(request: Request):
 
 async def handle_tribute_boost(conn, channel_id: int, owner: str, data: dict) -> dict:
     """Apply 7-day +50% boost к specified fief. Backend-only (no mod action)."""
+    raw = data.get("fief_id_internal")
+    log.info("[FIEF-BOOST ENTRY] ch=%s @%s fief_id_internal=%s",
+             channel_id, owner, raw)
     try:
-        fief_row_id = int(data.get("fief_id_internal") or 0)
+        fief_row_id = int(raw or 0)
     except (TypeError, ValueError):
         fief_row_id = 0
     if fief_row_id <= 0:
+        log.info("[FIEF-BOOST REFUSE] invalid fief_id_internal raw=%r", raw)
         return {"success": False, "message": "fief_id_internal required"}
 
     # Validate ownership.

@@ -2749,6 +2749,76 @@ async function loadBannerlordCaravanRescues() {
     }
 }
 
+// ───────────────────────────────────────────────────────────────────────────
+// Sprint 5.33 (BLT-parity HERITAGE) — Inheritance log section.
+// Когда viewer умирает + heir активируется, parent's workshops/caravans/fiefs
+// transfer'ятся к heir engine-side (mod ActivateHeirHandler). Backend logs
+// каждый asset в bannerlord_inheritance_log — frontend показывает recent
+// inheritance события для transparency + dopamine.
+
+async function loadBannerlordInheritance() {
+    const slot = document.getElementById('bnr-inheritance-slot');
+    if (!slot) return;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/inheritance-log?limit=15`, {
+            headers: { 'X-Twitch-JWT': authToken || '' }
+        }).then(r => r.json()).catch(() => ({success: false}));
+        const items = (r.success && Array.isArray(r.items)) ? r.items : [];
+        if (items.length === 0) { slot.innerHTML = ''; return; }
+
+        const typeEmoji = { workshop: '🏭', caravan: '🐪', fief: '🏛' };
+        const typeColor = { workshop: '#84cc16', caravan: '#a78bfa', fief: '#f59e0b' };
+
+        // Group by inherited_at date (день).
+        const groups = new Map();
+        for (const it of items) {
+            const day = (it.inherited_at || '').substring(0, 10);
+            if (!groups.has(day)) groups.set(day, []);
+            groups.get(day).push(it);
+        }
+
+        let html = `
+            <div style="background:#1a1614;border:1px solid #92400e;border-radius:4px;
+                        padding:8px;font-size:11px;color:#fde68a;">
+                <div style="font-size:12px;font-weight:700;color:#facc15;margin-bottom:6px;">
+                    ⚱ Наследие — переходило к моим heir'ам
+                </div>`;
+        for (const [day, dayItems] of groups) {
+            const totalValue = dayItems.reduce((s, x) => s + (x.total_value || 0), 0);
+            html += `
+                <div style="margin-bottom:6px;">
+                    <div style="font-size:10px;color:#fbbf24;font-weight:700;margin-bottom:3px;">
+                        ${escapeHtml(day || 'recent')}
+                        ${totalValue > 0 ? `<span style="color:#9ca3af;font-weight:normal;">
+                            — ${totalValue.toLocaleString('ru-RU')} дин. total</span>` : ''}
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:2px;">
+                    ${dayItems.map(it => {
+                        const emoji = typeEmoji[it.asset_type] || '⚱';
+                        const color = typeColor[it.asset_type] || '#fde68a';
+                        return `
+                            <div style="background:#0f0c0a;padding:4px 6px;border-radius:3px;
+                                        font-size:10px;border-left:2px solid ${color};">
+                                ${emoji} <span style="color:${color};">${escapeHtml(it.asset_name || it.asset_type)}</span>
+                                ${(it.total_value || 0) > 0 ? `<span style="color:#9ca3af;float:right;">
+                                    ${it.total_value.toLocaleString('ru-RU')} дин.</span>` : ''}
+                            </div>`;
+                    }).join('')}
+                    </div>
+                </div>`;
+        }
+        html += `
+                <div style="font-size:9px;color:#6b7280;text-align:center;margin-top:3px;">
+                    Empire transcends death — assets re-claimed engine-side
+                </div>
+            </div>`;
+        slot.innerHTML = html;
+    } catch (e) {
+        console.warn('[FE-HERITAGE] loadInheritance failed', e);
+        slot.innerHTML = '';
+    }
+}
+
 // Sprint 5.32 — inner tab switcher. 4 panes: hero / inventory / combat / progression.
 // Состояние persisted в localStorage чтобы при reopen extension вернуться туда же.
 function _setBnrInnerTab(tab) {
@@ -5526,6 +5596,7 @@ async function loadBannerlordHero() {
                 <div id="bnr-fiefs-slot" style="margin-bottom:8px;"></div>
                 <div id="bnr-caravans-slot" style="margin-bottom:8px;"></div>
                 <div id="bnr-caravan-rescue-slot" style="margin-bottom:8px;"></div>
+                <div id="bnr-inheritance-slot" style="margin-bottom:8px;"></div>
                 <button class="extra-btn" id="bnr-open-profile-btn"
                         title="Семейные настройки: смена пола, брак, дети"
                         style="width:100%;font-size:12px;padding:8px;margin-top:4px;
@@ -5617,6 +5688,8 @@ async function loadBannerlordHero() {
         // Sprint 5.33 (BLT-parity CARAVAN) — Mobile passive income trilogy closer.
         loadBannerlordCaravans();
         loadBannerlordCaravanRescues();
+        // Sprint 5.33 (BLT-parity HERITAGE) — Inheritance log.
+        loadBannerlordInheritance();
         // Sprint 5.5: immediately repaint battle banner из cache чтобы
         // не было 0-2s gap'a после hero re-render.
         if (_bannerlordBattle) _renderBannerlordBattleBanner(_bannerlordBattle);

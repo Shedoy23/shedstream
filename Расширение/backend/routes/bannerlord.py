@@ -2855,3 +2855,40 @@ async def bannerlord_clan_upgrades_buy(request: Request):
                          (f" и ещё {len(purchased_names)-3}" if len(purchased_names) > 3 else "") +
                          f" (-{total_cost:,}💰)",
         }
+
+
+# ════════ Sprint 5.33 (BLT-parity HERITAGE) ════════════════════════════════════
+
+@router.get("/api/bannerlord/inheritance-log")
+async def bannerlord_inheritance_log(request: Request, limit: int = 20):
+    """История наследования — assets, переданные heir'у viewer'а после death.
+    Frontend "Наследие" section показывает audit entries для transparency.
+    """
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+    limit = max(1, min(int(limit or 20), 100))
+
+    db = get_db()
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT id, parent_username, heir_hero_id, asset_type, asset_ref, "
+            "       asset_name, total_value, inherited_at "
+            "FROM bannerlord_inheritance_log "
+            "WHERE channel_id=? AND parent_username=? "
+            "ORDER BY inherited_at DESC LIMIT ?",
+            (channel_id, username, limit))
+        rows = await cur.fetchall()
+
+    items = [{
+        "id":              r[0],
+        "parent_username": r[1],
+        "heir_hero_id":    r[2],
+        "asset_type":      r[3],
+        "asset_ref":       r[4],
+        "asset_name":      r[5],
+        "total_value":     r[6] or 0,
+        "inherited_at":    r[7],
+    } for r in rows]
+    return {"success": True, "items": items}

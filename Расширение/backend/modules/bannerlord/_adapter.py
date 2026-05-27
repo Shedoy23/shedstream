@@ -858,6 +858,7 @@ class BannerlordAdapter(ModuleAdapter):
                 (channel_id, username))
             heir_row = await cur_heir.fetchone()
             heir_activated = None
+            inherited_count = 0
             if heir_row:
                 heir_id, heir_name = heir_row
                 # Mark activated to prevent picking same heir on second death.
@@ -866,7 +867,101 @@ class BannerlordAdapter(ModuleAdapter):
                     "WHERE channel_id=? AND heir_hero_id=?",
                     (channel_id, heir_id))
 
-                # Enqueue mod action.
+                # Sprint 5.33 (BLT-parity HERITAGE) — collect parent's assets,
+                # pass payload to mod handler для engine-side ownership transfer.
+                # Backend rows already keyed by owner_username (unchanged через
+                # heir rename), но engine ownership уходит к notable on death →
+                # mod ApplyByDeath default behavior. HERITAGE re-claims это.
+                inherited_workshops = []
+                inherited_caravans = []
+                inherited_fiefs = []
+                try:
+                    cur_w = await conn.execute(
+                        "SELECT id, settlement_id, settlement_name, workshop_type, "
+                        "       workshop_type_name, total_profit "
+                        "FROM bannerlord_workshops "
+                        "WHERE channel_id=? AND owner_username=? AND status='active'",
+                        (channel_id, username))
+                    for r in await cur_w.fetchall():
+                        inherited_workshops.append({
+                            "row_id":            r[0],
+                            "settlement_id":     r[1],
+                            "settlement_name":   r[2],
+                            "workshop_type":     r[3],
+                            "workshop_type_name": r[4],
+                            "total_value":       r[5] or 0,
+                        })
+
+                    cur_c = await conn.execute(
+                        "SELECT id, party_id, home_settlement_name, total_collected_dinars "
+                        "FROM bannerlord_caravans "
+                        "WHERE channel_id=? AND owner_username=? AND status='active' "
+                        "  AND party_id IS NOT NULL",
+                        (channel_id, username))
+                    for r in await cur_c.fetchall():
+                        inherited_caravans.append({
+                            "row_id":            r[0],
+                            "party_id":          r[1],
+                            "home_name":         r[2],
+                            "total_value":       r[3] or 0,
+                        })
+
+                    cur_f = await conn.execute(
+                        "SELECT id, fief_id, fief_name, fief_type, total_collected_dinars "
+                        "FROM bannerlord_fiefs "
+                        "WHERE channel_id=? AND owner_username=?",
+                        (channel_id, username))
+                    for r in await cur_f.fetchall():
+                        inherited_fiefs.append({
+                            "row_id":         r[0],
+                            "fief_id":        r[1],
+                            "fief_name":      r[2],
+                            "fief_type":      r[3],
+                            "total_value":    r[4] or 0,
+                        })
+                except Exception as ex_assets:
+                    logger.warning("[HERITAGE] asset collection warn ch=%s @%s: %s",
+                                   channel_id, username, ex_assets)
+
+                # Log inheritance entries (audit, frontend "Наследие" section).
+                import json as _json_h
+                for w in inherited_workshops:
+                    await conn.execute(
+                        "INSERT INTO bannerlord_inheritance_log "
+                        "(channel_id, parent_username, heir_hero_id, "
+                        " asset_type, asset_ref, asset_name, total_value) "
+                        "VALUES (?, ?, ?, 'workshop', ?, ?, ?)",
+                        (channel_id, username, heir_id,
+                         _json_h.dumps({"settlement_id": w["settlement_id"],
+                                        "workshop_type": w["workshop_type"]}),
+                         f"{w.get('workshop_type_name') or '?'} в {w.get('settlement_name') or '?'}",
+                         w["total_value"]))
+                    inherited_count += 1
+                for c in inherited_caravans:
+                    await conn.execute(
+                        "INSERT INTO bannerlord_inheritance_log "
+                        "(channel_id, parent_username, heir_hero_id, "
+                        " asset_type, asset_ref, asset_name, total_value) "
+                        "VALUES (?, ?, ?, 'caravan', ?, ?, ?)",
+                        (channel_id, username, heir_id,
+                         _json_h.dumps({"party_id": c["party_id"]}),
+                         f"Караван из {c.get('home_name') or '?'}",
+                         c["total_value"]))
+                    inherited_count += 1
+                for f in inherited_fiefs:
+                    await conn.execute(
+                        "INSERT INTO bannerlord_inheritance_log "
+                        "(channel_id, parent_username, heir_hero_id, "
+                        " asset_type, asset_ref, asset_name, total_value) "
+                        "VALUES (?, ?, ?, 'fief', ?, ?, ?)",
+                        (channel_id, username, heir_id,
+                         _json_h.dumps({"fief_id": f["fief_id"],
+                                        "fief_type": f["fief_type"]}),
+                         f"{f.get('fief_type') or '?'}: {f.get('fief_name') or '?'}",
+                         f["total_value"]))
+                    inherited_count += 1
+
+                # Enqueue mod action — extended payload с inherited_assets.
                 action_id = _uuid.uuid4().hex
                 payload = {
                     "initiated_by":    username,
@@ -875,6 +970,10 @@ class BannerlordAdapter(ModuleAdapter):
                     "heir_hero_id":    heir_id,
                     "heir_name":       heir_name,
                     "_auto":           True,
+                    # HERITAGE: assets — mod re-transfers engine ownership.
+                    "inherited_workshops": inherited_workshops,
+                    "inherited_caravans":  inherited_caravans,
+                    "inherited_fiefs":     inherited_fiefs,
                 }
                 import json as _json
                 await conn.execute("""
@@ -890,9 +989,12 @@ class BannerlordAdapter(ModuleAdapter):
         await self._log_event(channel_id, "player.died", username, data)
         if heir_activated:
             # Sprint 5.32 (LOG-3) — explicit prefix для heir-activation flow.
+            heritage_suffix = (f" + HERITAGE: {inherited_count} assets passed"
+                               if inherited_count > 0 else "")
             print(f"[HEIR-ACTIVATE] ch={channel_id} @{username} died → "
                   f"AUTO-HEIR queued: '{heir_activated[1]}' (id={heir_activated[0]}) "
-                  f"— mod должен ActivateHeirHandler execute через ~1s")
+                  f"— mod должен ActivateHeirHandler execute через ~1s"
+                  f"{heritage_suffix}")
         else:
             print(f"[HEIR-ACTIVATE] ch={channel_id} @{username} died, "
                   f"NO HEIR (iteration bumped to next) "

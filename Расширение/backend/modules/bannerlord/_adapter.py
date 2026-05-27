@@ -159,6 +159,10 @@ ACTION_COOLDOWNS_SEC = {
     "hero.sell_workshop":            60,
     # Sprint 5.33 (BLT-parity FIEF) — tribute boost (7-day duration anyway)
     "hero.tribute_boost":           120,   # короткий cd — boost cap есть в handler'е
+    # Sprint 5.33 (BLT-parity CARAVAN) — mobile passive income
+    "hero.buy_caravan":             180,   # economic decision, mid cooldown
+    "hero.sell_caravan":             60,
+    "hero.pay_caravan_rescue":       20,   # short — chat crowd-fund
 }
 
 
@@ -477,6 +481,17 @@ class BannerlordAdapter(ModuleAdapter):
         # Sprint 5.33 (BLT-parity FIEF) — fief tribute daily sync
         if et == "hero.fief_tribute_sync":
             await self._on_fief_tribute_sync(channel_id, env)
+            return
+
+        # Sprint 5.33 (BLT-parity CARAVAN) — caravan lifecycle (3 events)
+        if et == "hero.caravan_created":
+            await self._on_caravan_created(channel_id, env)
+            return
+        if et == "hero.caravan_profit_sync":
+            await self._on_caravan_profit_sync(channel_id, env)
+            return
+        if et == "hero.caravan_destroyed":
+            await self._on_caravan_destroyed(channel_id, env)
             return
 
         if et == "world.event_occurred":
@@ -1774,6 +1789,71 @@ class BannerlordAdapter(ModuleAdapter):
         except Exception as ex:
             logger.exception("[FIEF-SYNC] failed ch=%s @%s fief=%s: %s",
                              channel_id, owner, fief_id, ex)
+
+    # ── Sprint 5.33 (BLT-parity CARAVAN): caravan lifecycle ───────────────────
+
+    async def _on_caravan_created(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Mod confirms caravan party created → backfill engine StringId."""
+        data = env.data
+        try:
+            caravan_id = int(data.get("caravan_id") or 0)
+        except (TypeError, ValueError):
+            caravan_id = 0
+        party_id = (data.get("party_id") or "").strip()
+        if caravan_id <= 0 or not party_id:
+            logger.warning("[CARAVAN-CREATED] missing fields ch=%s data=%s", channel_id, data)
+            return
+        try:
+            from routes.bannerlord_caravans import backfill_caravan_party_id
+            await backfill_caravan_party_id(channel_id, caravan_id, party_id)
+            await self._log_event(channel_id, "hero.caravan_created", env.user, {
+                "caravan_id": caravan_id, "party_id": party_id,
+            })
+        except Exception as ex:
+            logger.exception("[CARAVAN-CREATED] failed: %s", ex)
+
+    async def _on_caravan_profit_sync(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Daily profit sync — mod diffs PartyTradeGold.
+        Payload: {owner, party_id, net_dinars}."""
+        data = env.data
+        owner = (data.get("owner") or env.user or "").strip().lower()
+        party_id = (data.get("party_id") or "").strip()
+        try:
+            net_dinars = int(data.get("net_dinars") or 0)
+        except (TypeError, ValueError):
+            net_dinars = 0
+        if not owner or not party_id or net_dinars <= 0:
+            return
+        try:
+            from routes.bannerlord_caravans import credit_caravan_profit
+            crustic = await credit_caravan_profit(
+                channel_id, owner, party_id, net_dinars)
+            await self._log_event(channel_id, "hero.caravan_profit_sync", owner, {
+                "party_id":    party_id,
+                "net_dinars":  net_dinars,
+                "crustic":     crustic,
+            })
+        except Exception as ex:
+            logger.exception("[CARAVAN-SYNC] failed ch=%s @%s party=%s: %s",
+                             channel_id, owner, party_id, ex)
+
+    async def _on_caravan_destroyed(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Caravan party destroyed (bandits / war). Mark + open rescue pool.
+        Payload: {party_id, captor_name (optional)}."""
+        data = env.data
+        party_id = (data.get("party_id") or "").strip()
+        captor = (data.get("captor_name") or "").strip()
+        if not party_id:
+            return
+        try:
+            from routes.bannerlord_caravans import mark_caravan_destroyed
+            await mark_caravan_destroyed(channel_id, party_id, captor)
+            await self._log_event(channel_id, "hero.caravan_destroyed", env.user, {
+                "party_id": party_id, "captor": captor,
+            })
+        except Exception as ex:
+            logger.exception("[CARAVAN-DESTROYED] failed ch=%s party=%s: %s",
+                             channel_id, party_id, ex)
 
     # ── World events ──────────────────────────────────────────────────────────
 

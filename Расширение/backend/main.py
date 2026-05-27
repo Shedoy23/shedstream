@@ -92,6 +92,7 @@ from routes.bannerlord_party_orders import router as bannerlord_party_orders_rou
 from routes.bannerlord_diplomacy import router as bannerlord_diplomacy_router  # Sprint 5.33 BLT-parity DIPLO
 from routes.bannerlord_workshops import router as bannerlord_workshops_router  # Sprint 5.33 BLT-parity SHOP
 from routes.bannerlord_fiefs import router as bannerlord_fiefs_router  # Sprint 5.33 BLT-parity FIEF
+from routes.bannerlord_caravans import router as bannerlord_caravans_router  # Sprint 5.33 BLT-parity CARAVAN
 from routes.bannerlord_boosty import router as bannerlord_boosty_router  # Sprint 5.31 #45
 from routes.dev_login   import router as dev_login_router  # /dev test page (2026-05-16)
 # casino_router удалён 2026-05-10 — Phase 1.A compliance rework (см. COMPLIANCE_REWORK_PLAN.md)
@@ -125,6 +126,7 @@ app.include_router(bannerlord_party_orders_router)  # Sprint 5.33 BLT-parity SIE
 app.include_router(bannerlord_diplomacy_router)  # Sprint 5.33 BLT-parity DIPLO — kingdom politics + ransom
 app.include_router(bannerlord_workshops_router)  # Sprint 5.33 BLT-parity SHOP — workshops passive income
 app.include_router(bannerlord_fiefs_router)  # Sprint 5.33 BLT-parity FIEF — fief tribute passive income
+app.include_router(bannerlord_caravans_router)  # Sprint 5.33 BLT-parity CARAVAN — mobile passive income + rescue
 app.include_router(bannerlord_boosty_router)    # Sprint 5.31 #45 — Boosty subs
 app.include_router(dev_login_router)   # 2026-05-16: /dev OAuth test page
 
@@ -930,6 +932,14 @@ async def run_migrations():
             await m56_fiefs.apply(conn)
         except Exception as e:
             print(f"❌ M56 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
+        # Sprint 5.33 (BLT-parity CARAVAN) — mobile caravans + rescue pool
+        try:
+            from migrations import m57_caravans
+            await m57_caravans.apply(conn)
+        except Exception as e:
+            print(f"❌ M57 migration FAILED: {type(e).__name__}: {e}")
             raise
 
         print("✅ Migrations complete")

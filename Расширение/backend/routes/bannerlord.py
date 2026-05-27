@@ -875,6 +875,10 @@ _PURCHASABLE_ACTIONS = (
     "hero.sell_workshop",        # free — engine refund 50% capital
     # Sprint 5.33 (BLT-parity FIEF) — fief tribute boost
     "hero.tribute_boost",        # 2000⦷ — +50% multiplier on 1 fief for 7 days
+    # Sprint 5.33 (BLT-parity CARAVAN) — mobile passive income trilogy closer
+    "hero.buy_caravan",          # 1500⦷ entry + 15K Hero.Gold capital
+    "hero.sell_caravan",         # free — engine transfer к MainHero
+    "hero.pay_caravan_rescue",   # 500⦷ — chip into rescue pool destroyed caravan
 )
 
 # Sprint 5.27a — стоимость gender swap (BLT default: 50k).
@@ -992,6 +996,10 @@ _BACKEND_ONLY_ACTIONS = (
     "hero.sell_workshop",
     # Sprint 5.33 FIEF — tribute boost — backend-only state mutation
     "hero.tribute_boost",
+    # Sprint 5.33 CARAVAN — caravan lifecycle — backend INSERT/UPDATE + enqueue mod
+    "hero.buy_caravan",
+    "hero.sell_caravan",
+    "hero.pay_caravan_rescue",
 )
 
 
@@ -1939,6 +1947,10 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
         "hero.sell_workshop":             0,    # free — engine handles refund
         # Sprint 5.33 (BLT-parity FIEF) — fief tribute boost
         "hero.tribute_boost":          2000,    # 7-day +50% multiplier на 1 fief
+        # Sprint 5.33 (BLT-parity CARAVAN) — mobile passive income
+        "hero.buy_caravan":            1500,    # entry fee + 15K Hero.Gold capital
+        "hero.sell_caravan":              0,    # free — engine handles transfer
+        "hero.pay_caravan_rescue":      500,    # rescue pool chip-in
     }
     if action_type not in _ACTIONS_WITH_OWN_PRICING:
         if action_type not in ACTION_PRICES_DEFAULT:
@@ -2472,6 +2484,27 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
                 if not fief_result.get("success"):
                     await conn.execute("ROLLBACK")
                     return fief_result
+
+            # Sprint 5.33 (BLT-parity CARAVAN) — caravan lifecycle.
+            caravan_result = None
+            if action_type == "hero.buy_caravan":
+                from routes.bannerlord_caravans import handle_buy_caravan
+                caravan_result = await handle_buy_caravan(conn, channel_id, username, data)
+                if not caravan_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return caravan_result
+            elif action_type == "hero.sell_caravan":
+                from routes.bannerlord_caravans import handle_sell_caravan
+                caravan_result = await handle_sell_caravan(conn, channel_id, username, data)
+                if not caravan_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return caravan_result
+            elif action_type == "hero.pay_caravan_rescue":
+                from routes.bannerlord_caravans import handle_pay_caravan_rescue
+                caravan_result = await handle_pay_caravan_rescue(conn, channel_id, username, data)
+                if not caravan_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return caravan_result
 
             # Special case в той же TX: UPSERT bannerlord_hero_class.
             # Backend остаётся source-of-truth по class даже если mod offline.

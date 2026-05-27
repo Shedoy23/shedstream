@@ -1,8 +1,35 @@
 # Подписочная система — MVP Plan (final)
 
-**Статус:** Design draft, не реализовано
+**Статус:** ⚠ **Partial impl shipped → NEUTRALIZED Sprint 5.33 (commit `9a0929c`)**
+
+История:
+- 2026-05-21: design draft (этот документ)
+- Sprint 5.31 (#45): shipped Boosty manual list (`m42_boosty_subscribers.py`,
+  `routes/bannerlord_boosty.py`) + Twitch native sub detection (`twitch_subs.py`,
+  `SUB_BOOSTS` multipliers tier 1/2/3 → 0.85/0.70/0.50× price, 1.5/2.0/3.0× rewards).
+- **Sprint 5.33 (2026-05-28, commit 9a0929c — feature/tos-compliance)**: gameplay
+  multipliers за подписки REMOVED — Twitch Extension Developer Agreement
+  prohibits subscription-gated gameplay rewards в Extensions. Spirit applies
+  к third-party paid subs (Boosty/Patreon/Ko-fi) тоже.
+  - `SUB_BOOSTS` всё → (1.0, 1.0)
+  - Boosty router endpoints остались для **cosmetic UI only** (badge display)
+  - `bannerlord.buy_action` больше не дёргает `get_boosty_tier`
+  - `_ACTIONS_MIN_ROLE`: removed "subscriber" gates, оставлен только role-based
+- Sprint 5.33 follow-up (commit `d46284d`): Boosty admin UI honest disclosure
+  ("cosmetic only" warning, удалены misleading "T1 — ×0.85" labels).
+
+**Применимость данного документа сегодня:**
+- ✅ Раздел "Что РАЗРЕШЕНО" (cosmetic badges, emotes, frames) — still valid
+- ✅ "❌ Что НЕ ДОБАВЛЯЕМ (pay-to-win banned)" — это и было нарушено в 5.31,
+  fix'нуто в 5.33. **Following this rule strictly going forward.**
+- ❌ Phase 2 implementation flow (admin grant, sub_status table) — частично shipped,
+  но gameplay-effects neutralized
+
+См. также: `BLT_AUDIT_2026-05-28.md` для актуального состояния.
+
 **Created:** 2026-05-21 (initial)
 **Revised:** 2026-05-21 (verification против Twitch ToS — упрощено после правильного чтения §5.2)
+**Status update:** 2026-05-28 (Sprint 5.33 ToS compliance)
 
 ---
 

@@ -1167,14 +1167,21 @@ class BotCore:
             "active_event": self.event_manager.active_event is not None
         }
     
-    # ===== МЕТОДЫ ДЛЯ ИВЕНТОВ (ОБНОВЛЕНЫ) =====
+    # ===== МЕТОДЫ ДЛЯ ИВЕНТОВ =====
+    # Sprint 5.33 TOS WARNING fixes (W1, 2026-05-28):
+    # - Удалён dead roulette branch (event_manager после Phase 1.E type='auction' always)
+    # - Lexicon scrub: "Рулекцион/Рулетка/Ставка" → "Аукцион/Вклад"
+    #   per twitch-compliance skill rules (forbidden: bet, ставка, gambling,
+    #   казино, выигрыш, jackpot, spin в игровом контексте).
     async def on_event_start(self, event_type: str, prize_name: str):
-        """Вызывается при старте ивента"""
-        type_name = "🎲 Рулетка" if event_type == 'roulette' else "⚖️ Аукцион"
+        """Вызывается при старте ивента (всегда аукцион после Phase 1.E)."""
         duration_min = EVENT_CONFIG.get('event_duration', 180) // 60
-        message = f"🎡 РУЛЕКЦИОН АКТИВИРОВАН! Запускается {type_name}! Приз: {prize_name}! У вас {duration_min} мин чтобы сделать ставки!"
+        message = (
+            f"⚖️ АУКЦИОН АКТИВИРОВАН! Приз: {prize_name}! "
+            f"У вас {duration_min} мин чтобы сделать свой вклад!"
+        )
         await self.send_message(message)
-    
+
     async def on_event_end(
         self,
         winner: str,
@@ -1184,26 +1191,13 @@ class BotCore:
         total_pool: int = 0,
         participants: int = 0,
     ):
-        """Оповещение о победителе рулекциона в чат.
-
-        Разный текст для рулетки (шанс + ставка) и аукциона (только ставка).
-        """
-        if event_type == "roulette":
-            chance = (winner_bid / total_pool * 100) if total_pool > 0 else 0.0
-            text = (
-                f"🎲✨ РУЛЕТКА ЗАВЕРШЕНА! ✨🎲 "
-                f"🏆 Победитель — @{winner}! "
-                f"Ставка: {winner_bid:,}💎 | Шанс: {chance:.1f}% | "
-                f"Участников: {participants} | Банк: {total_pool:,}💎 "
-                f"🎁 Приз: {prize_name}!"
-            )
-        else:
-            text = (
-                f"⚖️💥 АУКЦИОН ЗАВЕРШЁН! 💥⚖️ "
-                f"🏆 Победитель — @{winner}! "
-                f"Победная ставка: {winner_bid:,}💎 | Соперников: {max(0, participants-1)} "
-                f"🎁 Приз: {prize_name}!"
-            )
+        """Оповещение о победителе аукциона в чат."""
+        text = (
+            f"⚖️💥 АУКЦИОН ЗАВЕРШЁН! 💥⚖️ "
+            f"🏆 Победитель — @{winner}! "
+            f"Победный вклад: {winner_bid:,}💎 | Соперников: {max(0, participants-1)} "
+            f"🎁 Приз: {prize_name}!"
+        )
         await self.send_message(text)
     
     async def on_drop(self, username: str, item_name: str, rarity: str):

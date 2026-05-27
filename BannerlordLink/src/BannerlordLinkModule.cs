@@ -331,6 +331,10 @@ namespace BannerlordLink
                     campaignStarter.AddBehavior(new FiefTributeSyncBehavior());
                     Log("FiefTributeSyncBehavior registered (daily fief tribute → backend payout)");
 
+                    // Sprint 5.33 (BLT-parity CARAVAN) — caravan tracker (DailyTick + MobilePartyDestroyed).
+                    campaignStarter.AddBehavior(new CaravanTrackerBehavior());
+                    Log("CaravanTrackerBehavior registered (caravan profit + destroyed event)");
+
                     // Sprint 5.26d: model replacements для статических clan-upgrade
                     // эффектов (party_size, party/army_speed, party_amount).
                     // Pattern: subclass нативной model, делегирует _previous, добавляет

@@ -81,6 +81,9 @@ namespace BannerlordLink.Actions
             // Sprint 5.33 (BLT-parity SHOP) — workshops passive income
             Register(new BuyWorkshopHandler());         // hero.buy_workshop
             Register(new SellWorkshopHandler());        // hero.sell_workshop
+            // Sprint 5.33 (BLT-parity CARAVAN) — mobile passive income trilogy closer
+            Register(new BuyCaravanHandler());          // hero.buy_caravan
+            Register(new SellCaravanHandler());         // hero.sell_caravan
 
             // ── Echo stubs (TODO Sprint 5.2+ заменить на real) ─────────────
             string[] echoTypes =

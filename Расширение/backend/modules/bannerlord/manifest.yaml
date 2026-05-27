@@ -87,6 +87,9 @@ extensions:
     - hero.peace_concluded    # Sprint 5.33 (BLT-parity DIPLO): mod пушит после MakePeaceAction
     - hero.workshop_profit_sync  # Sprint 5.33 (BLT-parity SHOP): mod OnDailyTick пушит net dinars
     - hero.fief_tribute_sync     # Sprint 5.33 (BLT-parity FIEF): mod OnDailyTick для owned fief'ов
+    - hero.caravan_created       # Sprint 5.33 (BLT-parity CARAVAN): mod backfill engine party_id
+    - hero.caravan_profit_sync   # Sprint 5.33 (BLT-parity CARAVAN): daily diff PartyTradeGold
+    - hero.caravan_destroyed     # Sprint 5.33 (BLT-parity CARAVAN): MobilePartyDestroyed event
   actions:
     - hero.create        # Adoption flow — spawn fresh wanderer + SetName(viewer)
     - hero.set_class     # Sprint 4.1: класс + equipment apply
@@ -145,6 +148,10 @@ extensions:
     - hero.sell_workshop       # free — engine refund 50% capital
     # Sprint 5.33 (BLT-parity FIEF) — fief tribute boost
     - hero.tribute_boost       # 2000⦷ — 7-day +50% multiplier на один fief
+    # Sprint 5.33 (BLT-parity CARAVAN) — mobile passive income trilogy closer
+    - hero.buy_caravan         # 1500⦷ + 15K Hero.Gold — создать caravan
+    - hero.sell_caravan        # free — transfer к MainHero
+    - hero.pay_caravan_rescue  # 500⦷ — chip в rescue pool destroyed caravan
     # Sprint 5.33 (BLT-parity FAM) — viewer↔viewer marriage proposals между
     # взрослыми детьми. Backend hold'ит proposals в bannerlord_marriage_proposals
     # (m49). При accept'е enqueue mod-action `hero.activate_marriage` (mod

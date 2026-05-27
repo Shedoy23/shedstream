@@ -486,6 +486,8 @@ function updateUIAfterAuth() {
 // Endpoint /api/viewer/perks возвращает {role, twitch_sub_tier, boosty_tier}.
 // Role: broadcaster → '👑 Стример', moderator → '🛡 Модер', else 'Зритель'.
 // Tier'ы: Twitch sub → TS1/TS2/TS3 (фиолет), Boosty → BS1/BS2/BS3 (фиолет тёмнее).
+// Sprint 5.33 TOS-COMPLIANCE — tier badges = COSMETIC ONLY. Подписки больше
+// НЕ дают discount или reward bonus. Только moderator/broadcaster имеют perks.
 async function loadUserPerksBadge() {
     try {
         const r = await fetch(`${API_URL}/api/viewer/perks`, {
@@ -521,16 +523,19 @@ async function loadUserPerksBadge() {
               + `font-size:10px;font-weight:700;line-height:1.3;`
               + `background:${bg};border:1px solid ${brd};color:${fg};`
               + `letter-spacing:0.3px;` + (title ? `cursor:help;` : '');
+            // Sprint 5.33 TOS-COMPLIANCE — sub tier badges remain как cosmetic
+            // ONLY. Подписки больше не дают gameplay benefits (Twitch ToS).
+            // Badge — это just "thanks for supporting"-style visual.
             if (ts >= 1 && ts <= 3) {
                 badges.push(
-                    `<span title="Twitch Sub Tier ${ts} — скидка и бонус к награде"
+                    `<span title="Twitch Sub Tier ${ts}"
                            style="${badgeStyle('#1f1145','#7e22ce','#c084fc',true)}">
                         TS${ts}
                     </span>`);
             }
             if (bs >= 1 && bs <= 3) {
                 badges.push(
-                    `<span title="Boosty Sub Tier ${bs} — скидка и бонус к награде"
+                    `<span title="Boosty Sub Tier ${bs}"
                            style="${badgeStyle('#2a0a3a','#a21caf','#e879f9',true)}">
                         BS${bs}
                     </span>`);
@@ -5844,16 +5849,14 @@ async function _bannerlordBuyAction(actionType, data) {
                     result.success ? '✓' : '✗',
                     result.message || '(no message)',
                     result.perk ? `(perk=${result.perk} ×${result.perk_price_mult})` : '');
-        // Sprint 5.30 #40: append perk-badge к toast если discount применён
+        // Sprint 5.30 #40: append perk-badge к toast если discount применён.
+        // Sprint 5.33 TOS-COMPLIANCE: sub-based perks removed. Только
+        // channel-role perks (broadcaster/moderator) дают discount.
         let toastMsg = result.message || (result.success ? 'OK' : 'Действие не выполнено');
         if (result.success && result.perk && result.perk_price_mult < 1.0) {
             const perkIcons = {
-                broadcaster:    '👑',
-                moderator:      '🛡️',
-                subscriber:     '⭐',
-                boosty_tier1:   '💜',
-                boosty_tier2:   '💜💜',
-                boosty_tier3:   '💜💜💜',
+                broadcaster: '👑',
+                moderator:   '🛡️',
             };
             const icon = perkIcons[result.perk] || '✨';
             toastMsg = `${toastMsg} (${icon} ×${result.perk_price_mult.toFixed(2)} price)`;

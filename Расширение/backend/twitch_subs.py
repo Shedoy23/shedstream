@@ -2,6 +2,13 @@
 twitch_subs.py — Twitch Helix subscription detection.
 
 Sprint 5.29 BLT-parity #9 real implementation.
+Sprint 5.33 TOS-COMPLIANCE (2026-05-28): subscription-based bonuses NEUTRALIZED.
+  Twitch Extension Developer Agreement / Community Guidelines prohibit:
+    - Gating gameplay rewards / features behind subscriptions
+    - Discounts or reward multipliers based on sub status
+  Detection function `get_subscription_tier` остаётся (может пригодиться
+  для cosmetic-only badges в будущем), но `get_sub_boost` возвращает
+  (1.0, 1.0) для ВСЕХ tiers. Sub-status больше НЕ влияет на цены/награды.
 
 Использует broadcaster's OAuth token (scope: channel:read:subscriptions) для
 проверки sub-status зрителей через Helix /subscriptions endpoint.
@@ -17,22 +24,18 @@ API:
     Response 403 → forbidden (broadcaster_id mismatch)
 
 Кэш: in-memory dict `(channel_id, user_id) → (tier_int, expires_at)`.
-TTL 5 мин — sub-status меняется редко, viewer не заметит discount delay.
+TTL 5 мин — sub-status меняется редко.
 
 Public API:
     get_subscription_tier(channel_id: int, user_id: str) → int | None
         - 0    = not subscribed
-        - 1    = tier 1 (5$)
-        - 2    = tier 2 (10$)
-        - 3    = tier 3 (25$)
+        - 1/2/3 = tier (Helix's "1000"/"2000"/"3000")
         - None = unknown (Helix error / no OAuth)
+        NOTE: returned value сейчас не используется для gameplay perks —
+        только для optional cosmetic UI (e.g. badge), if ever needed.
 
     get_sub_boost(channel_id: int, user_id: str) → (price_mult, reward_mult)
-        - viewer:    (1.0, 1.0)
-        - tier 1:    (0.85, 1.5)
-        - tier 2:    (0.70, 2.0)
-        - tier 3:    (0.50, 3.0)
-        - unknown:   (1.0, 1.0)  defensive fallback
+        ALWAYS RETURNS (1.0, 1.0) — Twitch ToS compliance.
 """
 from __future__ import annotations
 
@@ -52,14 +55,15 @@ _TWITCH_CLIENT_ID = os.getenv("TWITCH_CLIENT_ID") or ""
 _SUB_CACHE: dict[tuple[int, str], tuple[int, float]] = {}
 _CACHE_TTL_SEC = 300   # 5 min
 
-# Boost multipliers per tier.
-# (price_mult, reward_mult): viewer pays price × price_mult; rewards × reward_mult
+# Sprint 5.33 TOS-COMPLIANCE: все tier multipliers → (1.0, 1.0).
+# Twitch ToS prohibits sub-based discounts/rewards в Extensions.
+# Dict kept для structural compatibility (existing imports), но эффект 0.
 SUB_BOOSTS = {
-    0: (1.0, 1.0),      # not subscribed
-    1: (0.85, 1.5),     # tier 1
-    2: (0.70, 2.0),     # tier 2
-    3: (0.50, 3.0),     # tier 3
-    -1: (1.0, 1.0),     # unknown — default fallback (no perk)
+    0: (1.0, 1.0),
+    1: (1.0, 1.0),      # was (0.85, 1.5) — removed for ToS compliance
+    2: (1.0, 1.0),      # was (0.70, 2.0) — removed for ToS compliance
+    3: (1.0, 1.0),      # was (0.50, 3.0) — removed for ToS compliance
+    -1: (1.0, 1.0),
 }
 
 

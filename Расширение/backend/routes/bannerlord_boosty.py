@@ -5,20 +5,18 @@ Sprint 5.31 #45. Boosty не имеет matching API для Twitch identity, п�
 streamer ведёт список вручную:
   - Twitch username
   - Boosty tier (1/2/3)
-  - Optional note (типа "уровень Жнец", "Бакалавр" — для напоминания
-    streamer'у какому Boosty tier'у соответствует tier 1/2/3 в нашей системе)
+  - Optional note
+
+Sprint 5.33 TOS-COMPLIANCE (2026-05-28): Boosty tier больше НЕ даёт gameplay
+benefits (Twitch ToS prohibits paid-subscription-gated rewards в Extensions —
+spirit applies к third-party paid subs тоже). Endpoints остаются для
+cosmetic-only badge UI; bannerlord.buy_action больше НЕ читает get_boosty_tier.
 
 Endpoints:
   GET  /api/streamer/boosty/subscribers — список (streamer auth)
   POST /api/streamer/boosty/subscribers — add/update viewer
   POST /api/streamer/boosty/subscribers/delete — remove viewer
-  GET  /api/bannerlord/boosty-tier?username=X — internal helper для perks
-
-Backend flow в bannerlord.buy_action:
-  1. broadcaster/moderator → applies role-based
-  2. Boosty lookup (manual list) → если есть, используем
-  3. Helix Twitch sub → fall back
-  4. Viewer default 1.0×
+  GET  /api/bannerlord/boosty-tier?username=X — cosmetic helper (no gameplay effect)
 
 Streamer-only endpoints защищены через broadcaster role + JWT check.
 """

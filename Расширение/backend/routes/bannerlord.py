@@ -1971,19 +1971,20 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
     if price < 0:
         return {"success": False, "message": "Цена не может быть отрицательной"}
 
-    # Sprint 5.29 BLT-parity #9 — role + subscription-based perks.
-    # Sprint 5.30 Task #40: real Helix subscription detection (twitch_subs.py).
-    #   broadcaster (self) → 0.5× price, 2.0× rewards
-    #   moderator          → 0.75× price, 1.5× rewards
-    #   tier 3 sub         → 0.50× price, 3.0× rewards
-    #   tier 2 sub         → 0.70× price, 2.0× rewards
-    #   tier 1 sub         → 0.85× price, 1.5× rewards
-    #   viewer (no perk)   → 1.0× (default)
-    # Mod handlers (KillReward, tournament reward) умножают gold/XP на
-    # data["reward_boost"]. Sub cache 5min (twitch_subs.py).
+    # Sprint 5.33 TOS-COMPLIANCE (2026-05-28) — REMOVED subscription bonuses.
+    # Twitch Extension ToS / Community Guidelines:
+    #   - Cannot gate gameplay rewards behind Twitch subscriptions
+    #   - Cannot give sub'ам discount on in-extension currency
+    #   - Cannot give sub'ам extra rewards
+    # Removed:
+    #   - Twitch Tier 1/2/3 multipliers (0.85/0.70/0.50× price, 1.5/2.0/3.0× rewards)
+    #   - Boosty Tier 1/2/3 same multipliers (third-party paywall, same spirit)
+    # Kept (role-based, NOT subscription-based — OK per ToS):
+    #   - broadcaster (channel owner) → 0.5× price, 2.0× rewards
+    #   - moderator (appointed role)  → 0.75× price, 1.5× rewards
+    #
     # Sprint 5.32 fix — `_jwt` был bound в внешнем bannerlord_buy_action,
     # но эта функция (_bannerlord_buy_action_locked) — отдельная scope.
-    # Re-resolve JWT здесь чтобы не было NameError.
     from auth import verify_twitch_jwt
     _jwt = verify_twitch_jwt(request)
     _user_role = (_jwt.get("role") or "viewer") if _jwt.get("status") == "valid" else "viewer"
@@ -1994,57 +1995,25 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
     elif _user_role == "moderator":
         price_mult, reward_mult, role_label = 0.75, 1.5, "moderator"
     else:
-        # Sprint 5.31 #45 — Boosty manual list lookup ПЕРВЫМ.
-        # Streamer вёл список вручную через /api/streamer/boosty/subscribers.
-        # Mapping: tier 1 → 0.85/1.5, 2 → 0.70/2.0, 3 → 0.50/3.0
-        # (тот же что twitch_subs.SUB_BOOSTS).
-        boosty_tier = 0
-        try:
-            from routes.bannerlord_boosty import get_boosty_tier
-            boosty_tier = await get_boosty_tier(channel_id, username)
-        except Exception as _bex:
-            log.warning("[bannerlord PERK] boosty check failed: %s", _bex)
-        boosty_mults = {
-            1: (0.85, 1.5),
-            2: (0.70, 2.0),
-            3: (0.50, 3.0),
-        }
-        if boosty_tier > 0:
-            price_mult, reward_mult = boosty_mults.get(boosty_tier, (1.0, 1.0))
-            role_label = f"boosty_tier{boosty_tier}"
-        else:
-            # Lookup real Helix Twitch subscription tier — cache 5 min.
-            try:
-                from twitch_subs import get_sub_boost
-                sub_price_mult, sub_reward_mult = await get_sub_boost(channel_id, _user_twitch_id)
-            except Exception as _sub_ex:
-                log.warning("[bannerlord PERK] twitch sub check failed: %s", _sub_ex)
-                sub_price_mult, sub_reward_mult = 1.0, 1.0
-            if sub_reward_mult > 1.0:
-                price_mult, reward_mult = sub_price_mult, sub_reward_mult
-                role_label = "subscriber"
-            else:
-                price_mult, reward_mult, role_label = 1.0, 1.0, "viewer"
-    # Sprint 5.32 (BLT-parity M7) — subscriber-only / mod-only / broadcaster-only gates.
-    # Некоторые действия лорно-важные или admin-style — не для random viewer'а:
-    #   - hero.set_gender — изменение пола героя, BLT-style lore-bender, оставляем
-    #     для sub'ов (поддерживает streamer'а финансово, у нерфит троллей)
-    #   - hero.create_kingdom — крупное мир-альтерирующее действие
-    #   - world.trigger_event — admin-style, только мод/стример
-    # Frontend получает min_role в catalog payload (TODO), показывает disabled
-    # state с tooltip "Доступно для Tier 1+ sub'ов". Backend — REFUSE с понятным
-    # message + НЕ списывает крустики.
+        # Sub status (Twitch + Boosty) больше НЕ влияет на price/reward.
+        # Detection функции остаются для optional cosmetic UI (badge) если
+        # понадобятся в будущем — НЕ для perks.
+        price_mult, reward_mult, role_label = 1.0, 1.0, "viewer"
+    # Sprint 5.33 TOS-COMPLIANCE — REMOVED subscriber-only action gating.
+    # Twitch ToS prohibits gating gameplay features за Twitch subscription.
+    # Previously gated:
+    #   hero.set_gender → "subscriber"     — теперь open для всех
+    #   hero.create_kingdom → "subscriber" — теперь open для всех (цена 5M Hero.Gold
+    #     остаётся естественным economic gate)
+    #   world.trigger_event → "moderator"  — admin-style, OK keep (channel role)
+    # Kept gating only для channel roles (broadcaster/moderator), не subscription.
     _ROLE_PRIORITY = {
-        "viewer":         0,
-        "boosty_tier1":   1, "boosty_tier2": 1, "boosty_tier3": 1,
-        "subscriber":     1,
-        "moderator":      2,
-        "broadcaster":    3,
+        "viewer":      0,
+        "moderator":   2,
+        "broadcaster": 3,
     }
     _ACTIONS_MIN_ROLE = {
-        "hero.set_gender":       "subscriber",
-        "hero.create_kingdom":   "subscriber",
-        "world.trigger_event":   "moderator",
+        "world.trigger_event":   "moderator",  # admin-style spawn, OK keep
     }
     required_role = _ACTIONS_MIN_ROLE.get(action_type)
     if required_role:
@@ -2057,8 +2026,7 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
                 action_type, required_role, username, role_label,
                 my_priority, need_priority)
             human_role = {
-                "subscriber": "Tier 1+ подписчиков (Twitch sub / Boosty)",
-                "moderator":  "модераторов",
+                "moderator":   "модераторов",
                 "broadcaster": "стримера",
             }.get(required_role, required_role)
             return {

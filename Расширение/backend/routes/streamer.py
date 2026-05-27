@@ -441,14 +441,18 @@ def _dashboard_html(ch: dict) -> str:
   <div class="section" id="boosty-section">
     <h2>💜 Boosty-подписчики</h2>
     <div class="sub">
-      Веди список Twitch-логинов своих Boosty-сабов вручную. Они получат
-      те же price/reward boost'ы что Twitch sub'ы — Boosty не отдаёт matching
-      API между профилем Boosty и Twitch identity, поэтому только ручной список.
+      Веди список Twitch-логинов своих Boosty-сабов вручную.
+      <br><br>
+      ⚠ <b>Важно (Sprint 5.33 ToS compliance, 2026-05-28)</b>: после обновления
+      Twitch Extension Developer Agreement, gameplay-бонусы за подписки
+      (Twitch sub OR Boosty) <b>УБРАНЫ</b> — это нарушение правил Twitch.
+      Cписок остаётся для cosmetic UI (badges в extension), без price/reward
+      эффекта.
     </div>
     <div class="boosty-tier-info">
-      <b>T1</b> — ×0.85 цена / ×1.5 награда (Бакалавр)<br>
-      <b>T2</b> — ×0.70 цена / ×2.0 награда (Магистр)<br>
-      <b>T3</b> — ×0.50 цена / ×3.0 награда (Жнец)
+      <b>T1</b> — cosmetic badge (Бакалавр)<br>
+      <b>T2</b> — cosmetic badge (Магистр)<br>
+      <b>T3</b> — cosmetic badge (Жнец)
     </div>
     <div id="boosty-list"><div class="boosty-empty">Загрузка…</div></div>
     <div class="boosty-form">
@@ -488,7 +492,7 @@ def _dashboard_html(ch: dict) -> str:
 
 <script>
 (function(){{
-  const tierLabel = t => t===1?'T1 (×0.85 / ×1.5)' : t===2?'T2 (×0.70 / ×2.0)' : t===3?'T3 (×0.50 / ×3.0)' : '?';
+  const tierLabel = t => t===1?'T1 (cosmetic)' : t===2?'T2 (cosmetic)' : t===3?'T3 (cosmetic)' : '?';
   const esc = s => String(s||'').replace(/[&<>"']/g, c =>
       ({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}})[c]);
   const msg = (text, ok) => {{

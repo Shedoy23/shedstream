@@ -1,25 +1,26 @@
 """
 Migration M42 — Boosty subscribers table (manual-list MVP).
 
-Sprint 5.31 #45 — Boosty подписки как аналог Twitch sub'ов. Boosty не имеет
-matching API между Boosty profile и Twitch identity, поэтому streamer ведёт
-список вручную через admin panel.
+Sprint 5.31 #45 — Boosty подписки как cosmetic-only badge list.
+Sprint 5.33 TOS-COMPLIANCE (2026-05-28): gameplay multipliers за подписки
+REMOVED (Twitch ToS prohibits subscription-gated rewards в Extensions —
+spirit applies к third-party paid subs тоже). Table остаётся для cosmetic
+UI (badges); bannerlord.buy_action больше НЕ использует boosty tier для
+price/reward modifications.
 
-Tier:
-  1 = Tier 1 (минимальный paid)
-  2 = Tier 2 (средний)
-  3 = Tier 3 (максимальный)
+Tier (cosmetic-only после 5.33):
+  1 = Tier 1 (Бакалавр-уровень — badge BS1)
+  2 = Tier 2 (Магистр-уровень — badge BS2)
+  3 = Tier 3 (Жнец-уровень — badge BS3)
 
-Boost multipliers тот же что Twitch sub (см. twitch_subs.SUB_BOOSTS):
-  tier 1 → price ×0.85, reward ×1.5
-  tier 2 → price ×0.70, reward ×2.0
-  tier 3 → price ×0.50, reward ×3.0
+Historical (DEPRECATED — НЕ применяется):
+  ~~tier 1 → price ×0.85, reward ×1.5~~
+  ~~tier 2 → price ×0.70, reward ×2.0~~
+  ~~tier 3 → price ×0.50, reward ×3.0~~
 
-Backend flow в bannerlord.buy_action:
-  1. Если broadcaster/moderator role → applies (как было)
-  2. Иначе: lookup boosty_subscribers tier — если есть, используем
-  3. Иначе: lookup Helix Twitch sub tier
-  4. Иначе: viewer (1.0×)
+Backend flow в bannerlord.buy_action (5.33+):
+  1. Если broadcaster/moderator role → applies (channel role, ToS OK)
+  2. Иначе → (1.0, 1.0) "viewer" — sub status doesn't matter
 
 Idempotent через migrations_applied table.
 """

@@ -2463,6 +2463,85 @@ function _openBuyWorkshopModal() {
     });
 }
 
+// ───────────────────────────────────────────────────────────────────────────
+// Sprint 5.33 (BLT-parity FIEF) — Fief tribute passive income panel.
+// Read-only view (owned fiefs come from in-game ownership). Active feature:
+// tribute_boost — 2000⦷ → 7-day +50% multiplier на один fief.
+
+async function loadBannerlordFiefs() {
+    const slot = document.getElementById('bnr-fiefs-slot');
+    if (!slot) return;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/my-fiefs`, {
+            headers: { 'X-Twitch-JWT': authToken || '' }
+        }).then(r => r.json()).catch(() => ({success: false}));
+        const fiefs = (r.success && Array.isArray(r.fiefs)) ? r.fiefs : [];
+        if (fiefs.length === 0) { slot.innerHTML = ''; return; }
+
+        const typeEmoji = { town: '🏛', castle: '🏰', village: '🏘' };
+        const typeLabel = { town: 'Город', castle: 'Замок', village: 'Деревня' };
+        const boostPct  = Math.round(((r.boost_mult || 1.5) - 1) * 100);
+        const boostDays = r.boost_days || 7;
+
+        let html = `
+            <div style="background:#1a1308;border:1px solid #b45309;border-radius:4px;
+                        padding:8px;font-size:11px;color:#fed7aa;">
+                <div style="font-size:12px;font-weight:700;color:#f59e0b;margin-bottom:6px;">
+                    👑 Мои владения — passive ⦷ daily
+                </div>
+                <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">
+                ${fiefs.map(f => {
+                    const emoji = typeEmoji[f.fief_type] || '🏛';
+                    const lbl   = typeLabel[f.fief_type] || f.fief_type;
+                    return `
+                    <div data-fief-id="${f.id}"
+                         style="background:#0f0805;padding:6px 8px;border-radius:3px;
+                                display:flex;justify-content:space-between;align-items:center;
+                                ${f.boost_active ? 'border:1px solid #facc15;' : ''}">
+                        <div style="flex:1;">
+                            <div style="color:#fed7aa;font-size:11px;">
+                                ${emoji} <strong>${escapeHtml(f.fief_name || f.fief_id)}</strong>
+                                <span style="color:#9ca3af;font-size:10px;"> · ${lbl}</span>
+                                ${f.boost_active ? '<span style="color:#facc15;font-size:9px;font-weight:700;"> ⚡ BOOST</span>' : ''}
+                            </div>
+                            <div style="font-size:10px;color:#b45309;margin-top:2px;">
+                                💰 ${(f.total_collected_dinars || 0).toLocaleString('ru-RU')} дин.
+                                → ${(f.estimated_crustic || 0).toLocaleString('ru-RU')}⦷
+                            </div>
+                        </div>
+                        ${!f.boost_active ? `
+                            <button class="bnr-fief-boost small-btn"
+                                    title="+${boostPct}% multiplier на ${boostDays} дней (2000⦷)"
+                                    style="font-size:9px;padding:2px 6px;background:#b45309;
+                                           color:#fed7aa;">⚡ Boost</button>
+                        ` : ''}
+                    </div>`;
+                }).join('')}
+                </div>
+                <div style="font-size:9px;color:#6b7280;text-align:center;">
+                    Auto-payout: 200 дин = 1⦷ (×${(r.boost_mult || 1.5).toFixed(1)} с boost)
+                </div>
+            </div>`;
+        slot.innerHTML = html;
+
+        slot.querySelectorAll('.bnr-fief-boost').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const parent = e.target.closest('[data-fief-id]');
+                if (!parent) return;
+                if (!window.confirm(`Купить boost +${boostPct}% на ${boostDays} дней? (2000⦷)`)) return;
+                const fiefRowId = parseInt(parent.dataset.fiefId, 10);
+                await _bannerlordBuyAction('hero.tribute_boost', {
+                    fief_id_internal: fiefRowId,
+                });
+                setTimeout(loadBannerlordFiefs, 1200);
+            });
+        });
+    } catch (e) {
+        console.warn('[FE-FIEF] loadFiefs failed', e);
+        slot.innerHTML = '';
+    }
+}
+
 // Sprint 5.32 — inner tab switcher. 4 panes: hero / inventory / combat / progression.
 // Состояние persisted в localStorage чтобы при reopen extension вернуться туда же.
 function _setBnrInnerTab(tab) {
@@ -5237,6 +5316,7 @@ async function loadBannerlordHero() {
                 <div id="bnr-diplo-slot" style="margin-bottom:8px;"></div>
                 <div id="bnr-ransom-slot" style="margin-bottom:8px;"></div>
                 <div id="bnr-workshops-slot" style="margin-bottom:8px;"></div>
+                <div id="bnr-fiefs-slot" style="margin-bottom:8px;"></div>
                 <button class="extra-btn" id="bnr-open-profile-btn"
                         title="Семейные настройки: смена пола, брак, дети"
                         style="width:100%;font-size:12px;padding:8px;margin-top:4px;
@@ -5323,6 +5403,8 @@ async function loadBannerlordHero() {
         loadBannerlordRansomPool();
         // Sprint 5.33 (BLT-parity SHOP) — Workshops passive income panel.
         loadBannerlordWorkshops();
+        // Sprint 5.33 (BLT-parity FIEF) — Fief tribute passive income.
+        loadBannerlordFiefs();
         // Sprint 5.5: immediately repaint battle banner из cache чтобы
         // не было 0-2s gap'a после hero re-render.
         if (_bannerlordBattle) _renderBannerlordBattleBanner(_bannerlordBattle);

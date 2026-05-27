@@ -157,6 +157,8 @@ ACTION_COOLDOWNS_SEC = {
     # Sprint 5.33 (BLT-parity SHOP) — workshops passive income
     "hero.buy_workshop":            120,   # economic decision, no spam
     "hero.sell_workshop":            60,
+    # Sprint 5.33 (BLT-parity FIEF) — tribute boost (7-day duration anyway)
+    "hero.tribute_boost":           120,   # короткий cd — boost cap есть в handler'е
 }
 
 
@@ -470,6 +472,11 @@ class BannerlordAdapter(ModuleAdapter):
         # Sprint 5.33 (BLT-parity SHOP) — workshop daily profit sync
         if et == "hero.workshop_profit_sync":
             await self._on_workshop_profit_sync(channel_id, env)
+            return
+
+        # Sprint 5.33 (BLT-parity FIEF) — fief tribute daily sync
+        if et == "hero.fief_tribute_sync":
+            await self._on_fief_tribute_sync(channel_id, env)
             return
 
         if et == "world.event_occurred":
@@ -1733,6 +1740,40 @@ class BannerlordAdapter(ModuleAdapter):
         except Exception as ex:
             logger.exception("[SHOP-SYNC] failed ch=%s @%s %s/%s: %s",
                              channel_id, owner, settlement_id, workshop_type, ex)
+
+    # ── Sprint 5.33 (BLT-parity FIEF): fief tribute daily sync ────────────────
+
+    async def _on_fief_tribute_sync(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Mod пушит OnDailyTick для каждого owned fief.
+        Payload: {owner, fief_id, fief_name, fief_type [town/castle/village], net_dinars}.
+        Backend UPSERT'ит row, применяет boost multiplier (если active), credit'ит crustic.
+        """
+        data = env.data
+        owner = (data.get("owner") or env.user or "").strip().lower()
+        fief_id = (data.get("fief_id") or "").strip()
+        fief_name = (data.get("fief_name") or fief_id).strip()
+        fief_type = (data.get("fief_type") or "town").strip().lower()
+        try:
+            net_dinars = int(data.get("net_dinars") or 0)
+        except (TypeError, ValueError):
+            net_dinars = 0
+        if not owner or not fief_id or net_dinars <= 0:
+            return
+        try:
+            from routes.bannerlord_fiefs import credit_fief_tribute
+            crustic = await credit_fief_tribute(
+                channel_id, owner, fief_id, fief_name, fief_type, net_dinars)
+            await self._log_event(channel_id, "hero.fief_tribute_sync", owner, {
+                "fief_id":    fief_id,
+                "fief_type":  fief_type,
+                "net_dinars": net_dinars,
+                "crustic":    crustic,
+            })
+            logger.info("[FIEF-SYNC] ch=%s @%s %s/%s +%d dinars → +%d⦷",
+                        channel_id, owner, fief_type, fief_name, net_dinars, crustic)
+        except Exception as ex:
+            logger.exception("[FIEF-SYNC] failed ch=%s @%s fief=%s: %s",
+                             channel_id, owner, fief_id, ex)
 
     # ── World events ──────────────────────────────────────────────────────────
 

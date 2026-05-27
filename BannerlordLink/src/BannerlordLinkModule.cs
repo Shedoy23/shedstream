@@ -327,6 +327,10 @@ namespace BannerlordLink
                     campaignStarter.AddBehavior(new WorkshopProfitSyncBehavior());
                     Log("WorkshopProfitSyncBehavior registered (daily profit → backend payout)");
 
+                    // Sprint 5.33 (BLT-parity FIEF) — fief tribute sync (OnDailyTick).
+                    campaignStarter.AddBehavior(new FiefTributeSyncBehavior());
+                    Log("FiefTributeSyncBehavior registered (daily fief tribute → backend payout)");
+
                     // Sprint 5.26d: model replacements для статических clan-upgrade
                     // эффектов (party_size, party/army_speed, party_amount).
                     // Pattern: subclass нативной model, делегирует _previous, добавляет

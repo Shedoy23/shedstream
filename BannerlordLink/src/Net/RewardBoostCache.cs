@@ -5,15 +5,15 @@ namespace BannerlordLink.Net
 {
     /// <summary>
     /// Sprint 5.30 #42 — per-user reward boost (gold/XP multiplier).
+    /// Sprint 5.33 TOS-COMPLIANCE (2026-05-28) — sub-based boosts removed
+    /// (Twitch ToS). Cache теперь хранит boost только для channel-role
+    /// users (broadcaster ×2.0, moderator ×1.5). Подписчики НЕ имеют boost
+    /// (backend пушит reward_boost=1.0 им).
     ///
-    /// Backend пушит reward_boost в data при каждом action (см. bannerlord.py
-    /// _user_role + Helix sub detection). Mod кэширует значение per-username
-    /// и применяет в кapitalIzationKillRewardBehavior и TournamentMissionBehavior
-    /// — для kill gold/XP, tournament win/final reward, и т.д.
-    ///
-    /// До этого reward_boost применялся ТОЛЬКО в AddSkillXp (одно место).
-    /// Sub-tier 1/2/3 платил меньше за купленные powers (price discount), но
-    /// per-kill gold/XP не умножался — обещание «sub ×3 rewards» было broken.
+    /// Backend пушит reward_boost в data при каждом action (bannerlord.py
+    /// _user_role gate). Mod кэширует значение per-username и применяет в
+    /// KillRewardBehavior и TournamentMissionBehavior — для kill gold/XP,
+    /// tournament win/final reward, и т.д.
     ///
     /// Cache updated:
     ///   - ActionPoller перехватывает data._reward_boost из каждого action'а

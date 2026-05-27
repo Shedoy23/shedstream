@@ -283,7 +283,12 @@ async def module_events(module_id: str, request: Request):
 # Long-poll параметры. Connector делает GET с timeout'ом ~30 сек; мы держим
 # соединение до этого предела, проверяя БД каждые _POLL_INTERVAL.
 _LONG_POLL_TIMEOUT_SEC = 25
-_LONG_POLL_INTERVAL_SEC = 1.0
+# Sprint 5.33 IMPROV-2 (friend feedback): action delivery responsiveness.
+# Раньше = 1.0s — viewer's purchase появлялся в-game с latency 0-1000ms.
+# Снижено до 0.3s — sub-second responsiveness (avg ~150ms latency). Cost:
+# 3× CPU на idle long-polls (negligible на нашем scale — 1-5 streamers).
+# Если scale пойдёт до 100+ concurrent streamers — повысить обратно к 1.0.
+_LONG_POLL_INTERVAL_SEC = 0.3
 _BATCH_LIMIT = 50
 
 

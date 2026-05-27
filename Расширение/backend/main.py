@@ -1427,6 +1427,11 @@ async def on_startup():
     # Sprint 5.29 BLT-parity #6 phase B: auctions resolver loop (every 30s).
     from routes.bannerlord_auctions import auctions_resolve_loop as _auctions_resolve
     asyncio.create_task(_auctions_resolve())
+    # Sprint 5.33 IMPROV-1 — stale-channels in-memory cleanup (friend feedback).
+    # Раз в 60с проверяет _last_seen и dropит entries из _battle_stats /
+    # _active_buffs / _cooldowns / _power_events для каналов offline >10min.
+    from modules.bannerlord._adapter import stale_channels_cleanup_loop as _bnr_cleanup
+    asyncio.create_task(_bnr_cleanup())
     # Sprint 5.33 (BLT-parity FAM): marriage proposals expire loop (every 60s).
     # Mark pending proposals as 'expired' если created+24h < now. Viewer'у никто
     # не отвечает 24h → proposal сам закрывается.

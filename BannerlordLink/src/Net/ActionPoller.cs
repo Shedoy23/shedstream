@@ -75,9 +75,16 @@ namespace BannerlordLink.Net
                     if (body == null)
                     {
                         consecutiveFails++;
-                        // Backoff: 5s × min(fails, 6) → max 30s
+                        // Backoff: 5s × min(fails, 6) → max 30s.
+                        // Sprint 5.33 IMPROV-2 (friend feedback) — adaptive:
+                        // в Mission (battle/siege/town walk) viewer ждёт action effects
+                        // → recovery критичнее, сжимаем backoff в 2×. На world map
+                        // viewer'ам можно подождать; original schedule.
                         int delay = Math.Min(consecutiveFails, 6) * 5;
-                        _log($"poll failed (consecutive={consecutiveFails}), retry in {delay}s");
+                        bool inMission = false;
+                        try { inMission = TaleWorlds.MountAndBlade.Mission.Current != null; } catch { }
+                        if (inMission) delay = Math.Max(2, delay / 2);
+                        _log($"poll failed (consecutive={consecutiveFails}, mission={inMission}), retry in {delay}s");
                         await Task.Delay(TimeSpan.FromSeconds(delay), ct);
                         continue;
                     }

@@ -873,6 +873,8 @@ _PURCHASABLE_ACTIONS = (
     # Sprint 5.33 (BLT-parity SHOP) — workshops passive income loop
     "hero.buy_workshop",         # 1000⦷ entry — viewer покупает workshop в town
     "hero.sell_workshop",        # free — engine refund 50% capital
+    # Sprint 5.33 (BLT-parity FIEF) — fief tribute boost
+    "hero.tribute_boost",        # 2000⦷ — +50% multiplier on 1 fief for 7 days
 )
 
 # Sprint 5.27a — стоимость gender swap (BLT default: 50k).
@@ -988,6 +990,8 @@ _BACKEND_ONLY_ACTIONS = (
     # Sprint 5.33 SHOP — workshops — backend INSERT/UPDATE + enqueue mod
     "hero.buy_workshop",
     "hero.sell_workshop",
+    # Sprint 5.33 FIEF — tribute boost — backend-only state mutation
+    "hero.tribute_boost",
 )
 
 
@@ -1933,6 +1937,8 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
         # Sprint 5.33 (BLT-parity SHOP) — workshops passive income
         "hero.buy_workshop":           1000,    # entry fee, plus Hero.Gold capital
         "hero.sell_workshop":             0,    # free — engine handles refund
+        # Sprint 5.33 (BLT-parity FIEF) — fief tribute boost
+        "hero.tribute_boost":          2000,    # 7-day +50% multiplier на 1 fief
     }
     if action_type not in _ACTIONS_WITH_OWN_PRICING:
         if action_type not in ACTION_PRICES_DEFAULT:
@@ -2457,6 +2463,15 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
                 if not shop_result.get("success"):
                     await conn.execute("ROLLBACK")
                     return shop_result
+
+            # Sprint 5.33 (BLT-parity FIEF) — tribute boost.
+            fief_result = None
+            if action_type == "hero.tribute_boost":
+                from routes.bannerlord_fiefs import handle_tribute_boost
+                fief_result = await handle_tribute_boost(conn, channel_id, username, data)
+                if not fief_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return fief_result
 
             # Special case в той же TX: UPSERT bannerlord_hero_class.
             # Backend остаётся source-of-truth по class даже если mod offline.

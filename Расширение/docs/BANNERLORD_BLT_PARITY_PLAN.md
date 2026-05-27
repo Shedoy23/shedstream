@@ -162,19 +162,28 @@
 
 ---
 
-### ★★ 9. Sub multiplier на gold/XP
+### ~~★★ 9. Sub multiplier на gold/XP~~ ❌ DEPRECATED (2026-05-28 ToS compliance)
 
-**Зачем:** Twitch sub'ы получают bonus → loyalty mechanic + monetization.
+> ⛔ **НЕ ДЕЛАТЬ.** Twitch Extension Developer Agreement / Community Guidelines
+> prohibit subscription-gated gameplay rewards в Extensions. Sub-based gold/XP
+> multipliers — direct violation. Same spirit applies к third-party paid subs
+> (Boosty/Patreon/Ko-fi). См. Sprint 5.33 commit `9a0929c` для context.
+>
+> **Permitted alternative**: channel-role perks (broadcaster, moderator) —
+> уже implemented в `routes/bannerlord.py:1992-1995`. Sub badges остаются
+> cosmetic-only.
 
-**Подход:**
-- Twitch JWT уже содержит `role: subscriber | viewer`. Mod получает в action data.
-- Backend route handler парсит JWT → ставит `data["sub_boost"] = 1.5` (или 2× per tier) если sub.
-- Mod handlers: при apply gold/XP — умножает на `sub_boost`.
-- Streamer-config'able multiplier через admin panel: `SUB_BOOST_TIER1`, `SUB_BOOST_TIER2`, `SUB_BOOST_TIER3`.
+~~**Зачем:** Twitch sub'ы получают bonus → loyalty mechanic + monetization.~~
 
-**Effort:** low (~80 строк, backend + 5-7 handlers).
-**Файлы:** `backend/routes/bannerlord.py`, multiple Action handlers.
-**Тест:** sub viewer добавляет gold → получает 1.5×.
+~~**Подход:**~~
+- ~~Twitch JWT уже содержит `role: subscriber | viewer`. Mod получает в action data.~~
+- ~~Backend route handler парсит JWT → ставит `data["sub_boost"] = 1.5` (или 2× per tier) если sub.~~
+- ~~Mod handlers: при apply gold/XP — умножает на `sub_boost`.~~
+- ~~Streamer-config'able multiplier через admin panel: `SUB_BOOST_TIER1`, `SUB_BOOST_TIER2`, `SUB_BOOST_TIER3`.~~
+
+~~**Effort:** low (~80 строк, backend + 5-7 handlers).~~
+~~**Файлы:** `backend/routes/bannerlord.py`, multiple Action handlers.~~
+~~**Тест:** sub viewer добавляет gold → получает 1.5×.~~
 
 ---
 

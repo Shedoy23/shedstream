@@ -942,6 +942,14 @@ async def run_migrations():
             print(f"❌ M57 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # Sprint 5.33 (BLT-parity HERITAGE) — inheritance audit log
+        try:
+            from migrations import m58_inheritance
+            await m58_inheritance.apply(conn)
+        except Exception as e:
+            print(f"❌ M58 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

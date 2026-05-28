@@ -54,48 +54,87 @@ namespace BannerlordLink.Patches
 
         private static Type ResolveVMType()
         {
-            // 1. Try known fast-path full names first (cheaper than scan).
-            string[] candidates = new[]
+            // 2026-05-28: Bannerlord 1.3.x — type стал GENERIC (`1 suffix
+            // в metadata) + base class non-generic. Patch base — он работает
+            // для ВСЕХ derivative-classes автоматом, и его легче резолвить.
+            // Hierarchy:
+            //   MissionNameMarkerTargetBaseVM  ← non-generic, наш target
+            //   MissionNameMarkerTargetVM<T>   ← generic derived (`1)
+            //
+            // 1. Try direct assembly load (most reliable).
+            try
             {
-                "SandBox.ViewModelCollection.Missions.NameMarker.MissionNameMarkerTargetVM",
-                "SandBox.ViewModelCollection.Missions.NameMarker.Targets.MissionNameMarkerTargetVM",
-                "TaleWorlds.MountAndBlade.View.MissionViews.MissionNameMarkerTargetVM",
-            };
-            foreach (var fn in candidates)
-            {
-                Type t = null;
-                try { t = AccessTools.TypeByName(fn); }
-                catch { /* armor/equipment overhauls могут sabotage'нуть TypeByName */ }
-                if (t != null)
+                string asmPath = System.IO.Path.Combine(
+                    TaleWorlds.Library.BasePath.Name,
+                    "Modules", "SandBox", "bin", "Win64_Shipping_Client",
+                    "SandBox.ViewModelCollection.dll");
+                if (System.IO.File.Exists(asmPath))
                 {
-                    BannerlordLinkModule.Log(
-                        $"[NameMarker] resolved type via known name: {t.FullName}");
-                    return t;
+                    var asm = System.Reflection.Assembly.LoadFrom(asmPath);
+                    // Try BASE first (non-generic, патчит всю иерархию).
+                    Type tBase = asm.GetType(
+                        "SandBox.ViewModelCollection.Missions.NameMarker.Targets.MissionNameMarkerTargetBaseVM",
+                        throwOnError: false);
+                    if (tBase != null)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[NameMarker] resolved BASE type via direct asm.GetType: {tBase.FullName}");
+                        return tBase;
+                    }
+                    // Fallback: открытый generic (`1).
+                    Type tGen = asm.GetType(
+                        "SandBox.ViewModelCollection.Missions.NameMarker.Targets.MissionNameMarkerTargetVM`1",
+                        throwOnError: false);
+                    if (tGen != null)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[NameMarker] resolved GENERIC type via direct asm.GetType: {tGen.FullName}");
+                        return tGen;
+                    }
+                    // Last resort — scan все типы в этой конкретной asm.
+                    Type[] types;
+                    try { types = asm.GetTypes(); }
+                    catch (System.Reflection.ReflectionTypeLoadException rtl)
+                    { types = rtl.Types ?? Array.Empty<Type>(); }
+                    foreach (var t in types)
+                    {
+                        if (t == null || t.Name == null) continue;
+                        // Name returns "MissionNameMarkerTargetVM`1" для generic, проверяем оба.
+                        if (t.Name == "MissionNameMarkerTargetBaseVM")
+                        {
+                            BannerlordLinkModule.Log(
+                                $"[NameMarker] resolved via SandBox.VM scan: {t.FullName}");
+                            return t;
+                        }
+                    }
                 }
             }
-            // 2. Fallback — scan all loaded assemblies for matching simple name.
-            //    Sprint 5.33 COMPAT-2 — было `catch { continue; }` (Exception
-            //    swallow), но `ReflectionTypeLoadException` всё равно содержит
-            //    partial results через `ex.Types` — другие моды могут иметь
-            //    broken TypeRef но валидные типы рядом. Используем partial.
-            //    Самый robust способ — выживает в любой namespace shuffle.
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[NameMarker] direct asm load failed: {ex.GetType().Name}: {ex.Message}");
+            }
+
+            // 2. Final fallback — AppDomain wide scan (старый код, ищет base + generic).
             foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
             {
                 Type[] types;
                 try { types = asm.GetTypes(); }
                 catch (System.Reflection.ReflectionTypeLoadException rtl)
-                {
-                    // Partial — берём только non-null entries.
-                    types = rtl.Types ?? Array.Empty<Type>();
-                }
+                { types = rtl.Types ?? Array.Empty<Type>(); }
                 catch { continue; }
                 foreach (var t in types)
                 {
                     if (t == null || t.Name == null) continue;
-                    if (t.Name == "MissionNameMarkerTargetVM")
+                    // 2026-05-28: type стал generic → Name == "MissionNameMarkerTargetVM`1".
+                    // Patch BaseVM (non-generic, работает универсально).
+                    if (t.Name == "MissionNameMarkerTargetBaseVM"
+                        || t.Name == "MissionNameMarkerTargetVM`1"
+                        || t.Name == "MissionNameMarkerTargetVM")
                     {
                         BannerlordLinkModule.Log(
-                            $"[NameMarker] resolved type via assembly scan: {t.FullName}");
+                            $"[NameMarker] resolved via AppDomain scan: {t.FullName} " +
+                            $"(asm={asm.GetName().Name})");
                         return t;
                     }
                 }

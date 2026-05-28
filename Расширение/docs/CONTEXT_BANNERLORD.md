@@ -3,8 +3,19 @@
 **Назначение:** для чата по Bannerlord-модулю. Для общей extension
 работы — см. `CONTEXT.md`. Для RimWorld — `CONTEXT_RIMWORLD.md`.
 
-**Last updated:** 2026-05-21 (sprints 5.19–5.27v закрыты, BLT-aligned rewards,
-hideout fixed, family system, attribute case bug fix)
+**Last updated:** 2026-05-28 (sprints 5.33 + NameMarker rewrite через
+MissionView pattern из Lait BLT)
+
+## ⚠️ ОБЯЗАТЕЛЬНЫЙ REFERENCE для новых фич
+
+**Authoritative source-of-truth:**
+```
+https://github.com/Lait96/Bannerlord-Twitch-lait
+```
+
+При **любой** новой Bannerlord фиче — **сначала проверить как у Lait**,
+потом адаптировать (не копировать построчно). Подробный workflow
++ mapping таблица + anti-patterns: [BANNERLORD_BLT_REFERENCE.md](./BANNERLORD_BLT_REFERENCE.md)
 
 ---
 

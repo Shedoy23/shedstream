@@ -27,7 +27,7 @@ import uuid as _uuid
 
 from fastapi import APIRouter, Request
 
-from auth import require_jwt_user
+from dependencies import require_jwt_user
 from dependencies import get_db
 
 log = logging.getLogger(__name__)

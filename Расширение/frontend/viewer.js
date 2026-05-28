@@ -2365,6 +2365,102 @@ async function loadBannerlordRansomPool() {
 
 // Curated vanilla 1.3.x workshop types. Mod валидирует через
 // MBObjectManager.GetObject<WorkshopType>(stringId).
+// ───────────────────────────────────────────────────────────────────────────
+// Sprint 5.33 CURRENCY-1 (2026-05-28) — emoji-clarified price display.
+//
+// Two currencies в Bannerlord:
+//   💎 ⦷ — krustiki (platform — viewer earns watching/chat, spent на actions)
+//   💰     — dinars (Hero.Gold engine in-game gold — earned battles/trade)
+//
+// Many actions require BOTH (capital validation): workshop entry 1000⦷ +
+// engine capital ~20K, caravan 1500⦷ + 15K Hero.Gold, etc. UX-confusion если
+// показать одну цифру — viewer думал «у меня хватит» а engine refuse'нет.
+//
+// Helpers:
+//   _bnrPrice(c, d) → HTML span "💎 1000 + 💰 20K" (или одну если другая 0)
+//   _bnrCanAfford(c, d) → bool — есть ли у viewer'а обе суммы
+//   _bnrAfford(c, d) → {ok, missing: 'crustic'|'dinar'|'both'|null}
+//
+// _bannerlordLastHero.hero.gold = current Hero.Gold (cached).
+// userPoints (global) = current ⦷ balance.
+// ───────────────────────────────────────────────────────────────────────────
+
+function _bnrFmtN(n) {
+    // Compact format: 12345 → "12.3K", 1234 → "1.2K", 999 → "999".
+    if (n == null || isNaN(n)) return '0';
+    n = Math.abs(Math.round(n));
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (n >= 1_000)     return (n / 1_000).toFixed(1).replace(/\.0$/, '') + 'K';
+    return String(n);
+}
+
+function _bnrPrice(crustic, dinars) {
+    // Returns plain text "💎 1000 + 💰 20K". For inline button text.
+    const parts = [];
+    if (crustic && crustic > 0) parts.push(`💎 ${_bnrFmtN(crustic)}`);
+    if (dinars && dinars > 0)   parts.push(`💰 ${_bnrFmtN(dinars)}`);
+    return parts.length ? parts.join(' + ') : '💎 0';
+}
+
+function _bnrAfford(crustic, dinars) {
+    const haveCrustic = (window.userPoints || 0);
+    const haveDinars  = (_bannerlordLastHero?.hero?.gold) || 0;
+    const lackCrustic = crustic > haveCrustic;
+    const lackDinars  = dinars  > haveDinars;
+    return {
+        ok:      !lackCrustic && !lackDinars,
+        lackCrustic, lackDinars,
+        haveCrustic, haveDinars,
+        needCrustic: crustic || 0,
+        needDinars:  dinars  || 0,
+    };
+}
+
+function _bnrPriceHtml(crustic, dinars) {
+    // Color-coded HTML: red на любой компонент которого не хватает.
+    const a = _bnrAfford(crustic, dinars);
+    const parts = [];
+    if (crustic && crustic > 0) {
+        const color = a.lackCrustic ? '#f87171' : '#a5f3fc';
+        parts.push(`<span style="color:${color};">💎 ${_bnrFmtN(crustic)}</span>`);
+    }
+    if (dinars && dinars > 0) {
+        const color = a.lackDinars ? '#f87171' : '#fbbf24';
+        parts.push(`<span style="color:${color};">💰 ${_bnrFmtN(dinars)}</span>`);
+    }
+    return parts.length ? parts.join(' <span style="color:#6b7280;">+</span> ') : '💎 0';
+}
+
+function _bnrAffordTooltip(crustic, dinars) {
+    const a = _bnrAfford(crustic, dinars);
+    if (a.ok) return `Стоимость: ${_bnrPrice(crustic, dinars)} — хватает ✓`;
+    const missing = [];
+    if (a.lackCrustic) missing.push(`💎 ⦷: нужно ${crustic.toLocaleString('ru-RU')}, есть ${a.haveCrustic.toLocaleString('ru-RU')}`);
+    if (a.lackDinars)  missing.push(`💰 динаров: нужно ${dinars.toLocaleString('ru-RU')}, есть ${a.haveDinars.toLocaleString('ru-RU')}`);
+    return 'Не хватает:\n  • ' + missing.join('\n  • ');
+}
+
+// Header strip — current balances. Renders into element by id.
+function _bnrRenderBalances(targetId) {
+    const el = document.getElementById(targetId);
+    if (!el) return;
+    const c = window.userPoints || 0;
+    const d = (_bannerlordLastHero?.hero?.gold) || 0;
+    el.innerHTML = `
+        <span style="display:inline-flex;gap:8px;font-size:11px;
+                     background:#0a1308;padding:3px 8px;border-radius:3px;
+                     border:1px solid #1f2937;">
+            <span title="Крустики — платформенная валюта" style="color:#a5f3fc;">
+                💎 ${c.toLocaleString('ru-RU')}⦷
+            </span>
+            <span style="color:#374151;">|</span>
+            <span title="Динары — in-game Hero.Gold (зарабатывается боями/торговлей)"
+                  style="color:#fbbf24;">
+                💰 ${d.toLocaleString('ru-RU')} дин.
+            </span>
+        </span>`;
+}
+
 // Sprint 5.33 WORKSHOP-FIX (2026-05-28): IDs aligned с engine spworkshops.xml.
 // Раньше silversmith/wood_workshop возвращали MBObjectManager null →
 // мод REFUSE'нул с refund. Engine использует silversmithy + wood_WorkshopType
@@ -2394,14 +2490,32 @@ async function loadBannerlordWorkshops() {
         const workshops = (r.success && Array.isArray(r.workshops)) ? r.workshops : [];
         const maxWorkshops = r.max_workshops || 3;
 
+        // Sprint 5.33 CURRENCY-1 — clear price display + Hero.Gold visible.
+        const WORKSHOP_CRUSTIC = 1000;
+        const WORKSHOP_DINAR_EST = 20000;  // engine WorkshopModel.InitialCapital ~ 14-25K
+        const wsAfford = _bnrAfford(WORKSHOP_CRUSTIC, WORKSHOP_DINAR_EST);
+
         let html = `
             <div style="background:#1a2008;border:1px solid #65a30d;border-radius:4px;
                         padding:8px;font-size:11px;color:#d9f99d;">
-                <div style="font-size:12px;font-weight:700;color:#84cc16;margin-bottom:6px;">
-                    🏭 Мои мастерские (${workshops.length}/${maxWorkshops})
-                    <span style="font-size:9px;color:#9ca3af;font-weight:normal;">
-                        — passive ⦷ daily
+                <div style="display:flex;justify-content:space-between;align-items:center;
+                            margin-bottom:6px;flex-wrap:wrap;gap:4px;">
+                    <div style="font-size:12px;font-weight:700;color:#84cc16;">
+                        🏭 Мои мастерские (${workshops.length}/${maxWorkshops})
+                    </div>
+                    <span style="display:inline-flex;gap:6px;font-size:10px;
+                                 background:#0a1308;padding:2px 6px;border-radius:3px;">
+                        <span style="color:#a5f3fc;" title="Платформенные крустики">
+                            💎 ${(window.userPoints||0).toLocaleString('ru-RU')}
+                        </span>
+                        <span style="color:#374151;">|</span>
+                        <span style="color:#fbbf24;" title="Hero.Gold (in-game динары)">
+                            💰 ${((_bannerlordLastHero?.hero?.gold)||0).toLocaleString('ru-RU')}
+                        </span>
                     </span>
+                </div>
+                <div style="font-size:9px;color:#9ca3af;margin-bottom:6px;">
+                    Пассивный доход: 💰 динары → 💎 крустики (100:1 ежедневно)
                 </div>`;
 
         if (workshops.length > 0) {
@@ -2419,8 +2533,9 @@ async function loadBannerlordWorkshops() {
                                 <span style="color:#9ca3af;"> · ${escapeHtml(w.settlement_name || w.settlement_id)}</span>
                             </div>
                             <div style="font-size:10px;color:#65a30d;margin-top:2px;">
-                                💰 Накоплено: ${(w.total_profit || 0).toLocaleString('ru-RU')} дин.
-                                → ${(w.estimated_crustic || 0).toLocaleString('ru-RU')}⦷
+                                <span style="color:#fbbf24;">💰 ${(w.total_profit || 0).toLocaleString('ru-RU')}</span>
+                                <span style="color:#6b7280;">→</span>
+                                <span style="color:#a5f3fc;">💎 ${(w.estimated_crustic || 0).toLocaleString('ru-RU')}</span>
                             </div>
                         </div>
                         <button class="bnr-ws-sell small-btn"
@@ -2433,12 +2548,14 @@ async function loadBannerlordWorkshops() {
         }
 
         if (workshops.length < maxWorkshops) {
+            const btnBg = wsAfford.ok ? '#65a30d' : '#3f3f0b';
+            const btnOpacity = wsAfford.ok ? '1' : '0.65';
             html += `
                 <button id="bnr-ws-buy" class="extra-btn"
-                        title="Купить мастерскую в выбранном town'е (1000⦷ + engine cost из Hero.Gold)"
-                        style="width:100%;font-size:11px;padding:6px;background:#65a30d;
-                               color:#fff;font-weight:700;">
-                    🏭 Купить мастерскую (1000⦷)
+                        title="${escapeHtml(_bnrAffordTooltip(WORKSHOP_CRUSTIC, WORKSHOP_DINAR_EST))}"
+                        style="width:100%;font-size:11px;padding:6px;background:${btnBg};
+                               color:#fff;font-weight:700;opacity:${btnOpacity};">
+                    🏭 Купить мастерскую — ${_bnrPriceHtml(WORKSHOP_CRUSTIC, WORKSHOP_DINAR_EST)}
                 </button>`;
         } else {
             html += `
@@ -2478,13 +2595,30 @@ function _openBuyWorkshopModal() {
         <div style="background:#1a2008;border:1px solid #65a30d;border-radius:6px;
                     padding:14px;max-width:440px;width:90%;color:#d9f99d;
                     max-height:85vh;overflow-y:auto;">
-            <div style="font-size:14px;font-weight:700;color:#84cc16;margin-bottom:10px;">
-                🏭 Купить мастерскую (1000⦷)
+            <div style="font-size:14px;font-weight:700;color:#84cc16;margin-bottom:6px;">
+                🏭 Купить мастерскую
             </div>
-            <div style="font-size:11px;color:#9ca3af;margin-bottom:10px;">
-                Mod купит ближайший свободный slot в town'е, переоборудует под
-                выбранный тип. Engine cost списывается из Hero.Gold вашего героя.
-                Профит автоматом конвертируется в ⦷ ежедневно (100 дин = 1⦷).
+            <div style="display:flex;gap:6px;font-size:11px;margin-bottom:10px;
+                        background:#0a1308;padding:6px 8px;border-radius:3px;">
+                <div style="flex:1;">
+                    <div style="color:#9ca3af;font-size:9px;">Стоимость:</div>
+                    <div style="font-size:13px;font-weight:700;">
+                        ${_bnrPriceHtml(1000, 20000)}
+                    </div>
+                </div>
+                <div style="flex:1;border-left:1px solid #1f2937;padding-left:8px;">
+                    <div style="color:#9ca3af;font-size:9px;">У тебя:</div>
+                    <div style="font-size:11px;">
+                        <span style="color:#a5f3fc;">💎 ${(window.userPoints||0).toLocaleString('ru-RU')}</span>
+                        <span style="color:#6b7280;">|</span>
+                        <span style="color:#fbbf24;">💰 ${((_bannerlordLastHero?.hero?.gold)||0).toLocaleString('ru-RU')}</span>
+                    </div>
+                </div>
+            </div>
+            <div style="font-size:10px;color:#9ca3af;margin-bottom:10px;line-height:1.4;">
+                <div>💎 — entry fee, списывается с твоего ⦷ балланса</div>
+                <div>💰 — initial capital, списывается с Hero.Gold (engine)</div>
+                <div>📈 Профит конвертируется в 💎 ежедневно (100 💰 = 1 💎)</div>
             </div>
             <label style="font-size:11px;color:#d9f99d;display:block;margin-bottom:4px;">
                 Тип мастерской:
@@ -2512,7 +2646,7 @@ function _openBuyWorkshopModal() {
                 <button id="bnr-ws-buy-confirm" class="extra-btn"
                         style="flex:1;font-size:11px;padding:6px;
                                background:#65a30d;color:#fff;font-weight:700;">
-                    🏭 Купить (1000⦷)
+                    🏭 Купить — ${_bnrPriceHtml(1000, 20000)}
                 </button>
                 <button id="bnr-ws-buy-cancel" class="extra-btn"
                         style="flex:1;font-size:11px;padding:6px;
@@ -2564,8 +2698,20 @@ async function loadBannerlordFiefs() {
         let html = `
             <div style="background:#1a1308;border:1px solid #b45309;border-radius:4px;
                         padding:8px;font-size:11px;color:#fed7aa;">
-                <div style="font-size:12px;font-weight:700;color:#f59e0b;margin-bottom:6px;">
-                    👑 Мои владения — passive ⦷ daily
+                <div style="display:flex;justify-content:space-between;align-items:center;
+                            margin-bottom:6px;flex-wrap:wrap;gap:4px;">
+                    <div style="font-size:12px;font-weight:700;color:#f59e0b;">
+                        👑 Мои владения
+                    </div>
+                    <span style="display:inline-flex;gap:6px;font-size:10px;
+                                 background:#0f0805;padding:2px 6px;border-radius:3px;">
+                        <span style="color:#a5f3fc;">💎 ${(window.userPoints||0).toLocaleString('ru-RU')}</span>
+                        <span style="color:#374151;">|</span>
+                        <span style="color:#fbbf24;">💰 ${((_bannerlordLastHero?.hero?.gold)||0).toLocaleString('ru-RU')}</span>
+                    </span>
+                </div>
+                <div style="font-size:9px;color:#9ca3af;margin-bottom:6px;">
+                    Tribute passive: 💰 динары → 💎 крустики (200:1 ежедневно)
                 </div>
                 <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">
                 ${fiefs.map(f => {
@@ -2582,22 +2728,23 @@ async function loadBannerlordFiefs() {
                                 <span style="color:#9ca3af;font-size:10px;"> · ${lbl}</span>
                                 ${f.boost_active ? '<span style="color:#facc15;font-size:9px;font-weight:700;"> ⚡ BOOST</span>' : ''}
                             </div>
-                            <div style="font-size:10px;color:#b45309;margin-top:2px;">
-                                💰 ${(f.total_collected_dinars || 0).toLocaleString('ru-RU')} дин.
-                                → ${(f.estimated_crustic || 0).toLocaleString('ru-RU')}⦷
+                            <div style="font-size:10px;margin-top:2px;">
+                                <span style="color:#fbbf24;">💰 ${(f.total_collected_dinars || 0).toLocaleString('ru-RU')}</span>
+                                <span style="color:#6b7280;">→</span>
+                                <span style="color:#a5f3fc;">💎 ${(f.estimated_crustic || 0).toLocaleString('ru-RU')}</span>
                             </div>
                         </div>
                         ${!f.boost_active ? `
                             <button class="bnr-fief-boost small-btn"
-                                    title="+${boostPct}% multiplier на ${boostDays} дней (2000⦷)"
+                                    title="${escapeHtml(_bnrAffordTooltip(2000, 0))} | +${boostPct}% на ${boostDays} дней"
                                     style="font-size:9px;padding:2px 6px;background:#b45309;
-                                           color:#fed7aa;">⚡ Boost</button>
+                                           color:#fed7aa;">⚡ Boost ${_bnrPriceHtml(2000, 0)}</button>
                         ` : ''}
                     </div>`;
                 }).join('')}
                 </div>
                 <div style="font-size:9px;color:#6b7280;text-align:center;">
-                    Auto-payout: 200 дин = 1⦷ (×${(r.boost_mult || 1.5).toFixed(1)} с boost)
+                    Auto-payout: 200 💰 = 1 💎 (×${(r.boost_mult || 1.5).toFixed(1)} с boost)
                 </div>
             </div>`;
         slot.innerHTML = html;
@@ -2635,12 +2782,32 @@ async function loadBannerlordCaravans() {
         const caravans = (r.success && Array.isArray(r.caravans)) ? r.caravans : [];
         const maxC = r.max_caravans || 2;
 
+        // Sprint 5.33 CURRENCY-1 — clear price display + Hero.Gold visible.
+        const CARAVAN_CRUSTIC = 1500;
+        const CARAVAN_DINAR   = 15000;
+        const cAfford = _bnrAfford(CARAVAN_CRUSTIC, CARAVAN_DINAR);
+
         let html = `
             <div style="background:#1a1820;border:1px solid #7c3aed;border-radius:4px;
                         padding:8px;font-size:11px;color:#ddd6fe;">
-                <div style="font-size:12px;font-weight:700;color:#a78bfa;margin-bottom:6px;">
-                    🐪 Мои караваны (${caravans.filter(c => c.status === 'active').length}/${maxC})
-                    <span style="font-size:9px;color:#9ca3af;font-weight:normal;"> — mobile ⦷ daily</span>
+                <div style="display:flex;justify-content:space-between;align-items:center;
+                            margin-bottom:6px;flex-wrap:wrap;gap:4px;">
+                    <div style="font-size:12px;font-weight:700;color:#a78bfa;">
+                        🐪 Мои караваны (${caravans.filter(c => c.status === 'active').length}/${maxC})
+                    </div>
+                    <span style="display:inline-flex;gap:6px;font-size:10px;
+                                 background:#0f0d18;padding:2px 6px;border-radius:3px;">
+                        <span style="color:#a5f3fc;" title="Платформенные крустики">
+                            💎 ${(window.userPoints||0).toLocaleString('ru-RU')}
+                        </span>
+                        <span style="color:#374151;">|</span>
+                        <span style="color:#fbbf24;" title="Hero.Gold (in-game динары)">
+                            💰 ${((_bannerlordLastHero?.hero?.gold)||0).toLocaleString('ru-RU')}
+                        </span>
+                    </span>
+                </div>
+                <div style="font-size:9px;color:#9ca3af;margin-bottom:6px;">
+                    Mobile passive: 💰 динары → 💎 крустики (150:1). ⚠ Бандиты могут уничтожить.
                 </div>`;
 
         if (caravans.length > 0) {
@@ -2658,9 +2825,10 @@ async function loadBannerlordCaravans() {
                                 ${isDest ? '💀' : '🐪'} <strong>${escapeHtml(c.home_settlement_name || 'Caravan')}</strong>
                                 ${isDest ? '<span style="color:#fb7185;font-size:9px;font-weight:700;"> УНИЧТОЖЕН</span>' : ''}
                             </div>
-                            <div style="font-size:10px;color:${isDest ? '#fb7185' : '#7c3aed'};margin-top:2px;">
-                                💰 ${(c.total_collected_dinars || 0).toLocaleString('ru-RU')} дин.
-                                → ${(c.estimated_crustic || 0).toLocaleString('ru-RU')}⦷
+                            <div style="font-size:10px;margin-top:2px;">
+                                <span style="color:${isDest ? '#fb7185' : '#fbbf24'};">💰 ${(c.total_collected_dinars || 0).toLocaleString('ru-RU')}</span>
+                                <span style="color:#6b7280;">→</span>
+                                <span style="color:${isDest ? '#fb7185' : '#a5f3fc'};">💎 ${(c.estimated_crustic || 0).toLocaleString('ru-RU')}</span>
                             </div>
                         </div>
                         ${!isDest ? `
@@ -2676,12 +2844,14 @@ async function loadBannerlordCaravans() {
 
         const activeCount = caravans.filter(c => c.status === 'active').length;
         if (activeCount < maxC) {
+            const btnBg = cAfford.ok ? '#7c3aed' : '#2d1b5a';
+            const btnOpacity = cAfford.ok ? '1' : '0.65';
             html += `
                 <button id="bnr-caravan-buy" class="extra-btn"
-                        title="Купить караван (1500⦷ + engine cost из Hero.Gold)"
-                        style="width:100%;font-size:11px;padding:6px;background:#7c3aed;
-                               color:#fff;font-weight:700;">
-                    🐪 Купить караван (1500⦷)
+                        title="${escapeHtml(_bnrAffordTooltip(CARAVAN_CRUSTIC, CARAVAN_DINAR))}"
+                        style="width:100%;font-size:11px;padding:6px;background:${btnBg};
+                               color:#fff;font-weight:700;opacity:${btnOpacity};">
+                    🐪 Купить караван — ${_bnrPriceHtml(CARAVAN_CRUSTIC, CARAVAN_DINAR)}
                 </button>`;
         } else {
             html += `
@@ -2718,14 +2888,31 @@ function _openBuyCaravanModal() {
     overlay.innerHTML = `
         <div style="background:#1a1820;border:1px solid #7c3aed;border-radius:6px;
                     padding:14px;max-width:400px;width:90%;color:#ddd6fe;">
-            <div style="font-size:14px;font-weight:700;color:#a78bfa;margin-bottom:10px;">
-                🐪 Купить караван (1500⦷)
+            <div style="font-size:14px;font-weight:700;color:#a78bfa;margin-bottom:6px;">
+                🐪 Купить караван
             </div>
-            <div style="font-size:11px;color:#9ca3af;margin-bottom:10px;">
-                Mod создаст caravan party owned by вашим heroes из выбранного town'а.
-                Engine deducts ~15K динаров из Hero.Gold вашего героя.
-                Auto-payout ежедневно (150 дин = 1⦷). ⚠ Caravan может быть
-                destroyed бандитами — viewers соберут rescue pool.
+            <div style="display:flex;gap:6px;font-size:11px;margin-bottom:10px;
+                        background:#0f0d18;padding:6px 8px;border-radius:3px;">
+                <div style="flex:1;">
+                    <div style="color:#9ca3af;font-size:9px;">Стоимость:</div>
+                    <div style="font-size:13px;font-weight:700;">
+                        ${_bnrPriceHtml(1500, 15000)}
+                    </div>
+                </div>
+                <div style="flex:1;border-left:1px solid #1f2937;padding-left:8px;">
+                    <div style="color:#9ca3af;font-size:9px;">У тебя:</div>
+                    <div style="font-size:11px;">
+                        <span style="color:#a5f3fc;">💎 ${(window.userPoints||0).toLocaleString('ru-RU')}</span>
+                        <span style="color:#6b7280;">|</span>
+                        <span style="color:#fbbf24;">💰 ${((_bannerlordLastHero?.hero?.gold)||0).toLocaleString('ru-RU')}</span>
+                    </div>
+                </div>
+            </div>
+            <div style="font-size:10px;color:#9ca3af;margin-bottom:10px;line-height:1.4;">
+                <div>💎 — entry fee, списывается с твоего ⦷ балланса</div>
+                <div>💰 — capital (15K), списывается с Hero.Gold (engine)</div>
+                <div>📈 Profit конвертируется в 💎 ежедневно (150 💰 = 1 💎)</div>
+                <div style="color:#fb7185;">⚠ Бандиты могут уничтожить — viewers собирают rescue pool</div>
             </div>
             <label style="font-size:11px;color:#ddd6fe;display:block;margin-bottom:4px;">
                 Home town (название или StringId):
@@ -2739,7 +2926,7 @@ function _openBuyCaravanModal() {
                 <button id="bnr-caravan-buy-confirm" class="extra-btn"
                         style="flex:1;font-size:11px;padding:6px;
                                background:#7c3aed;color:#fff;font-weight:700;">
-                    🐪 Купить (1500⦷)
+                    🐪 Купить — ${_bnrPriceHtml(1500, 15000)}
                 </button>
                 <button id="bnr-caravan-buy-cancel" class="extra-btn"
                         style="flex:1;font-size:11px;padding:6px;

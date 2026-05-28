@@ -3,8 +3,9 @@
 **Назначение:** для чата по Bannerlord-модулю. Для общей extension
 работы — см. `CONTEXT.md`. Для RimWorld — `CONTEXT_RIMWORLD.md`.
 
-**Last updated:** 2026-05-28 (sprints 5.33 + NameMarker rewrite через
-MissionView pattern из Lait BLT)
+**Last updated:** 2026-05-29 (BLT-RC22 refactor Stages 0-7 + FLICKER-FIX v7 +
+vassal income share + COMPAT matrix + data-ownership analysis. См.
+«Remaining feature backlog» ниже.)
 
 ## ⚠️ ОБЯЗАТЕЛЬНЫЙ REFERENCE для новых фич
 
@@ -46,6 +47,39 @@ prod-mirror в `Modules/Shedoy23.BannerlordLink/`) ↔ FastAPI backend
 (`Расширение/backend/`) через Module API generic dispatcher
 (`routes/module_api.py`) + Bannerlord-specific endpoints
 (`routes/bannerlord.py`).
+
+---
+
+## Remaining feature backlog (BLT-parity gaps)
+
+> Консолидировано 2026-05-29. Детальный аудит каждой фичи (что у BLT, что у
+> нас) — `BLT_RC22_REFERENCE.md` секции C.x (ссылки в таблице). Оценки —
+> грубая прикидка, не обязательство. Делать сверху вниз (от короткого).
+
+| # | Фича | Оценка | Reference | Суть |
+|---|---|---|---|---|
+| 1 | **KingdomTaxBehavior** | ~3-5 дн | C.5 (стр.465) | Король собирает налог с вассальных кланов (rate 0-1), идёт лидеру правящего клана. Не таксить ruling clan. У нас НЕТ. |
+| 2 | **TrainingBehavior** | ~3-5 дн | C.17 (стр.896) | Платная тренировка войск героя (XP/tier-up за валюту). NEW feature, 326 LOC. У нас НЕТ. |
+| 3 | **Two retinues (Retinue2)** | ~3-5 дн | C.7 (стр.520,586) | Вторая независимая свита (basic + elite раздельно). У нас одна (5 слотов). Expansion. |
+| 4 | **BLTLogsBehavior** | ~1-2 нед | C.26 (стр.1219) | Лента событий (kills/levelup/prisoner/death) → feed history. ~1100 LOC у BLT. У нас НЕТ log feed. |
+| 5 | **BLTSettlementUpgradeBehavior** | ~1 нед+ | C.9 (стр.642) + UpgradeBehavior C.25 | Апгрейд поселений (prosperity/loyalty/security/food/militia/tax бонусы daily tick). У нас ClanUpgrades — меньший scope. |
+
+**Отложено (deferred, не в очереди):**
+- **Vassal income share — UI surfacing.** Механика РАБОТАЕТ in-game (мод skim'ит
+  25% дневной чистой прибыли вассала → master, см. `VassalAutoFollowBehavior.
+  OnDailyTickClan`), но во фронте (vassals panel) не отображается «получено с
+  вассалов: X». Нужен backend-event + хранение + рендер. Низкий приоритет.
+
+**Недавно закрыто (чтобы новый чат не переделывал):**
+- BLT-RC22 refactor **Stages 0-7** (audio mute, AgentPfx persistent particles,
+  centralized DamageHook filter, permadeath prevention, mount protection,
+  siege/militia engine fixes, summon mount guards, RetinueAllowed guards,
+  VassalAutoFollowBehavior). См. `REFACTOR_PLAN_BLT_RC22.md`.
+- **FLICKER-FIX v7** — Hero pane секции больше не мерцают (split volatile
+  stats grid vs stable sub-slots в `viewer.js`).
+- **Vassal income share** (механика, см. deferred выше про UI).
+- **COMPAT-3** — `BANNERLORD_COMPAT_MATRIX.md` (версии/патчи/конфликты).
+- **ARCH-1** — `ARCH_DATA_OWNERSHIP.md` (разбор SQL-vs-save split-brain).
 
 ---
 

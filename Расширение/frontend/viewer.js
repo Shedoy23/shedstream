@@ -1513,7 +1513,8 @@ async function loadBannerlordFamily() {
                 </div>`;
         }
         html += `</div>`;
-        slot.innerHTML = html;
+        // FLICKER-FIX: skip rebind при identical HTML.
+        if (!_smartInnerHTML(slot, html)) return;
 
         // Bind handlers
         document.getElementById('bnr-open-proposals-btn')?.addEventListener('click',
@@ -1779,7 +1780,8 @@ async function loadBannerlordVassals() {
                 </div>`;
         }
         html += `</div>`;
-        slot.innerHTML = html;
+        // FLICKER-FIX: skip rebind при identical HTML.
+        if (!_smartInnerHTML(slot, html)) return;
 
         // Bind rename buttons
         slot.querySelectorAll('.bnr-vas-rename').forEach(btn => {
@@ -1937,7 +1939,8 @@ async function loadBannerlordPartyOrders() {
                 ⚔ ${active ? 'Изменить приказ' : 'Назначить приказ'} (500⦷)
             </button>
             </div>`;
-        slot.innerHTML = html;
+        // FLICKER-FIX: skip rebind при identical HTML.
+        if (!_smartInnerHTML(slot, html)) return;
 
         // Bind buttons.
         document.getElementById('bnr-order-cancel')?.addEventListener('click', async () => {
@@ -2148,7 +2151,8 @@ async function loadBannerlordDiplomacy() {
                 </button>`;
         }
         html += `</div>`;
-        slot.innerHTML = html;
+        // FLICKER-FIX: skip rebind при identical HTML.
+        if (!_smartInnerHTML(slot, html)) return;
 
         document.getElementById('bnr-diplo-policy-btn')?.addEventListener('click',
             () => _openEnactPolicyModal(r));
@@ -2338,7 +2342,8 @@ async function loadBannerlordRansomPool() {
                 }).join('')}
                 </div>
             </div>`;
-        slot.innerHTML = html;
+        // FLICKER-FIX: skip rebind при identical HTML.
+        if (!_smartInnerHTML(slot, html)) return;
 
         slot.querySelectorAll('.bnr-ransom-pay').forEach(btn => {
             btn.addEventListener('click', async (e) => {
@@ -2384,6 +2389,19 @@ async function loadBannerlordRansomPool() {
 // _bannerlordLastHero.hero.gold = current Hero.Gold (cached).
 // userPoints (global) = current ⦷ balance.
 // ───────────────────────────────────────────────────────────────────────────
+
+// Sprint 5.33 FLICKER-FIX (2026-05-28) — skip identical innerHTML rewrite.
+// Раньше каждый 8s poll re-render'ил весь hero pane + sub-loaders, даже
+// если данные не изменились. Browser discard'ил/recreate'ил DOM tree →
+// visible flicker. _smartInnerHTML кэширует last set string и no-op'ит
+// если новый identical.
+function _smartInnerHTML(el, html) {
+    if (!el) return false;
+    if (el._lastSmartHtml === html) return false;
+    el.innerHTML = html;
+    el._lastSmartHtml = html;
+    return true;
+}
 
 function _bnrFmtN(n) {
     // Compact format: 12345 → "12.3K", 1234 → "1.2K", 999 → "999".
@@ -2564,7 +2582,9 @@ async function loadBannerlordWorkshops() {
                 </div>`;
         }
         html += `</div>`;
-        slot.innerHTML = html;
+        // FLICKER-FIX: dedupe — skip rebind если HTML identical (избежать
+        // double-handlers на sell/buy buttons).
+        if (!_smartInnerHTML(slot, html)) return;
 
         // Bind sell buttons.
         slot.querySelectorAll('.bnr-ws-sell').forEach(btn => {
@@ -2747,7 +2767,8 @@ async function loadBannerlordFiefs() {
                     Auto-payout: 200 💰 = 1 💎 (×${(r.boost_mult || 1.5).toFixed(1)} с boost)
                 </div>
             </div>`;
-        slot.innerHTML = html;
+        // FLICKER-FIX: skip rebind при identical HTML.
+        if (!_smartInnerHTML(slot, html)) return;
 
         slot.querySelectorAll('.bnr-fief-boost').forEach(btn => {
             btn.addEventListener('click', async (e) => {
@@ -2860,7 +2881,8 @@ async function loadBannerlordCaravans() {
                 </div>`;
         }
         html += `</div>`;
-        slot.innerHTML = html;
+        // FLICKER-FIX: skip rebind при identical HTML.
+        if (!_smartInnerHTML(slot, html)) return;
 
         slot.querySelectorAll('.bnr-caravan-sell').forEach(btn => {
             btn.addEventListener('click', async (e) => {
@@ -2996,7 +3018,8 @@ async function loadBannerlordCaravanRescues() {
                 }).join('')}
                 </div>
             </div>`;
-        slot.innerHTML = html;
+        // FLICKER-FIX: skip rebind при identical HTML.
+        if (!_smartInnerHTML(slot, html)) return;
 
         slot.querySelectorAll('.bnr-caravan-rescue-pay').forEach(btn => {
             btn.addEventListener('click', async (e) => {
@@ -3077,7 +3100,8 @@ async function loadBannerlordInheritance() {
                     Empire transcends death — assets re-claimed engine-side
                 </div>
             </div>`;
-        slot.innerHTML = html;
+        // FLICKER-FIX: dedupe (no bindings here, just paint).
+        _smartInnerHTML(slot, html);
     } catch (e) {
         console.warn('[FE-HERITAGE] loadInheritance failed', e);
         slot.innerHTML = '';
@@ -5816,7 +5840,10 @@ async function loadBannerlordHero() {
 
         // Sprint 5.32 — content split на 4 panes + always-visible header.
         // Header (#hero-body): name + status + culture + location (compact).
-        body.innerHTML = `
+        // Sprint 5.33 FLICKER-FIX (2026-05-28) — _smartInnerHTML skip'ит
+        // identical rewrite; результат используется чтобы не re-bind'ить
+        // listeners на тех же nodes (избегаем double-handlers).
+        const _bnrHeroHtml = `
             <div style="font-weight:700;font-size:14px;line-height:1.2;
                         overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                 ${escapeHtml(h.display_name || '—')}
@@ -5870,7 +5897,11 @@ async function loadBannerlordHero() {
                     🧬 Профиль и семья
                 </button>
             </div>`;
-
+        // FLICKER-FIX: dedupe — если HTML identical, no-op (no DOM thrash).
+        // _changed=true → продолжаем pane render + listener bind. Если false,
+        // существующий DOM остаётся, listeners привязаны, sub-loaders update'ятся ниже.
+        const _bnrChanged = _smartInnerHTML(body, _bnrHeroHtml);
+      if (_bnrChanged) {
         // 🎒 Инвентарь pane — Экипировка + Свита + Достижения + Кузница + Аукционы.
         const paneInv = document.getElementById('bnr-pane-inventory-body');
         if (paneInv) paneInv.innerHTML = `
@@ -5933,6 +5964,9 @@ async function loadBannerlordHero() {
         _bannerlordLastRetinue = data.retinue || [];
         _renderRetinue(_bannerlordLastRetinue);
         renderBannerlordClassPicker();
+      }  // ← end of `if (_bnrChanged)` for panes + retinue + class picker
+        // ↓ Sub-loaders ALWAYS run — они дедуплируются сами через _smartInnerHTML
+        //   на своих slot'ах. Видят свежие данные даже когда hero pane не сменился.
         // Sprint 5.32 #46 — refill daily slot (recreated на re-render Hero pane).
         loadBannerlordDaily();
         // Sprint 5.32 (BLT-parity FE-M2) — refill heir slot.
@@ -5958,6 +5992,8 @@ async function loadBannerlordHero() {
         // Sprint 5.5: immediately repaint battle banner из cache чтобы
         // не было 0-2s gap'a после hero re-render.
         if (_bannerlordBattle) _renderBannerlordBattleBanner(_bannerlordBattle);
+      if (_bnrChanged) {  // ← bindings ТОЛЬКО при actual DOM rewrite (избежать
+                          //   double-handlers — addEventListener allows duplicates).
         // Sprint 5.5: bind toggle persistence для <details> (skills/equipment/retinue)
         _bnrBindDetailsPersistence();
         // Sprint 5.8: bind кнопку открытия progression modal
@@ -5985,6 +6021,7 @@ async function loadBannerlordHero() {
         document.getElementById('bnr-inline-upgrade-btn')?.addEventListener('click', () => {
             _bannerlordBuyAction('hero.upgrade_gear', {});
         });
+      }  // ← end of `if (_bnrChanged)` for bindings
     } catch (e) {
         body.innerHTML = `<div style="color:#f87171;padding:10px;">Ошибка сети</div>`;
     }

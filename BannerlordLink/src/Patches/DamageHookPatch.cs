@@ -70,12 +70,45 @@ namespace BannerlordLink.Patches
 
             try
             {
-                ApplyIgnoreArmor(attacker, ref b, ref collisionData);
-                ApplyRageOutgoing(attacker, ref b, ref collisionData);
+                // 2026-05-29 Stage 2 (BLT-RC22 centralized filter pattern) —
+                // single-pass hero resolve. Раньше каждый Apply* method дёргал
+                // GetAdoptedUsername независимо (5 lookups per blow). Теперь
+                // ОДИН lookup pair с mount redirect + early exit для blow'ов
+                // которые не затрагивают viewer-hero.
+                //
+                // Mount redirect (BLT PowerHandler.cs:187-189): когда лошадь
+                // топчет противника (charge damage), attacker — это mount Agent,
+                // не hero. Мы redirect к RiderAgent чтобы rage/trophy buffs
+                // viewer'а применялись к charge damage. Раньше мы это пропускали
+                // → viewers теряли damage modifications для верховых атак.
+                Agent attackerSrc = attacker.IsMount ? attacker.RiderAgent : attacker;
+                Agent victimSrc   = victim.IsMount ? victim.RiderAgent : victim;
+                string attackerUser = GetAdoptedUsername(attackerSrc);
+                string victimUser   = GetAdoptedUsername(victimSrc);
+
+                // Early exit: blow не затрагивает viewer-hero ни на одной
+                // стороне (mob vs mob, ~99% blow'ов в большой battle).
+                // Раньше шли через все 4 Apply* (5 lookups + condition checks).
+                // Теперь — 2 lookups + return. CPU saving в hot path.
+                if (attackerUser == null && victimUser == null) return;
+
+                if (attackerUser != null)
+                {
+                    ApplyIgnoreArmor(attackerUser, ref b, ref collisionData);
+                    ApplyRageOutgoing(attackerUser, ref b, ref collisionData);
+                }
                 // Sprint 5.33 (BLT-parity ITEM) — trophy bonuses.
                 // Attacker damage_bonus + victim armor_bonus как absorption.
-                ApplyTrophyBonuses(attacker, victim, ref b, ref collisionData);
-                ApplyReflect(attacker, victim, ref b, ref collisionData);
+                // Применяется если ЛЮБАЯ сторона adopted (attacker getting
+                // damage bonus OR victim getting armor absorption).
+                if (attackerUser != null || victimUser != null)
+                {
+                    ApplyTrophyBonuses(attackerUser, victimUser, ref b, ref collisionData);
+                }
+                if (victimUser != null)
+                {
+                    ApplyReflect(victimUser, ref b, ref collisionData);
+                }
 
                 if (!_firstHitLogged)
                 {
@@ -98,11 +131,11 @@ namespace BannerlordLink.Patches
             }
         }
 
-        private static void ApplyIgnoreArmor(Agent attacker, ref Blow b, ref AttackCollisionData cd)
+        // 2026-05-29 Stage 2 — signature change: username теперь pre-resolved
+        // в Prefix (single-pass lookup). Раньше каждый Apply* делал свой
+        // GetAdoptedUsername lookup.
+        private static void ApplyIgnoreArmor(string user, ref Blow b, ref AttackCollisionData cd)
         {
-            string user = GetAdoptedUsername(attacker);
-            if (user == null) return;
-
             double pct = ResolvePct(user, "ignore_armor_pct", "armor_bypass_pct");
             if (pct <= 0) return;
             if (b.AbsorbedByArmor <= 0) return;
@@ -130,11 +163,9 @@ namespace BannerlordLink.Patches
         // Sprint 4.5 — rage active power. Multiplies outgoing damage.
         // Накладывается ПОСЛЕ ignore_armor чтобы multi применялся к итоговому
         // InflictedDamage (включая броне-bypass). Кэп 5x чтобы не было overflow.
-        private static void ApplyRageOutgoing(Agent attacker, ref Blow b, ref AttackCollisionData cd)
+        // 2026-05-29 Stage 2 — user pre-resolved в Prefix.
+        private static void ApplyRageOutgoing(string user, ref Blow b, ref AttackCollisionData cd)
         {
-            string user = GetAdoptedUsername(attacker);
-            if (user == null) return;
-
             var rage = ActiveBuffState.GetValue(user, "rage");
             if (!rage.HasValue) return;
 
@@ -161,11 +192,12 @@ namespace BannerlordLink.Patches
         /// Damage_bonus stacks с rage multiplier additively (final = (base × rage) + trophy).
         /// Armor_bonus раздельно от ignore_armor — это новое поле, не наследуется
         /// от armor reduction.</summary>
+        // 2026-05-29 Stage 2 — attUser/vicUser pre-resolved в Prefix.
+        // Каждый side может быть null если та сторона не adopted hero.
         private static void ApplyTrophyBonuses(
-            Agent attacker, Agent victim, ref Blow b, ref AttackCollisionData cd)
+            string attUser, string vicUser, ref Blow b, ref AttackCollisionData cd)
         {
             // Attacker side — damage bonus for weapon trophy.
-            string attUser = GetAdoptedUsername(attacker);
             if (attUser != null)
             {
                 var t = ActiveTrophyState.Get(attUser);
@@ -186,7 +218,6 @@ namespace BannerlordLink.Patches
             }
 
             // Victim side — armor bonus = damage absorption.
-            string vicUser = GetAdoptedUsername(victim);
             if (vicUser != null)
             {
                 var t = ActiveTrophyState.Get(vicUser);
@@ -217,12 +248,12 @@ namespace BannerlordLink.Patches
         ///
         /// Damage reduction на victim применяется immediately (b.InflictedDamage
         /// модифицируется ref — safe, mutation своего блока).</summary>
+        // 2026-05-29 Stage 2 — victim user (renamed locally от "user")
+        // pre-resolved в Prefix. Attacker no longer needed для parameter list
+        // т.к. counter-blow disabled (FMOD fix).
         private static void ApplyReflect(
-            Agent attacker, Agent victim, ref Blow b, ref AttackCollisionData cd)
+            string user, ref Blow b, ref AttackCollisionData cd)
         {
-            string user = GetAdoptedUsername(victim);
-            if (user == null) return;
-
             double passive = ResolvePct(user, "damage_reflect_pct");
             double retribution = ActiveBuffState.GetValue(user, "retribution_toggle") ?? 0.0;
             // Suma capped at 95% чтобы не было > 100% (heroes неубиваемые) +

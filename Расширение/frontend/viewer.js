@@ -1888,7 +1888,13 @@ async function loadBannerlordPartyOrders() {
         const r = await fetch(`${API_URL}/api/bannerlord/party-orders`, {
             headers: { 'X-Twitch-JWT': authToken || '' }
         }).then(r => r.json()).catch(() => ({success: false}));
-        const active = (r.success && r.active) ? r.active : null;
+
+        // FLICKER-FIX v6 (2026-05-29): на backend error НЕ clear slot — оставляем
+        // last known good render видимым. Иначе при transient network blip
+        // секция мерцает blank → render → blank каждые несколько секунд.
+        if (!r || r.success === false) return;
+
+        const active = r.active ? r.active : null;
 
         const orderEmoji = {
             siege: '🏰', defend: '🛡', raid: '🔥',
@@ -1951,8 +1957,9 @@ async function loadBannerlordPartyOrders() {
             _openSetPartyOrderModal(active);
         });
     } catch (e) {
-        console.warn('[FE-SIEGE] loadPartyOrders failed', e);
-        slot.innerHTML = '';
+        // FLICKER-FIX v6 — НЕ clear на network exception. Last good render
+        // остаётся видимым пока poll не recover'нет.
+        console.warn('[FE-SIEGE] loadPartyOrders failed (keeping last render):', e);
     }
 }
 
@@ -2607,7 +2614,12 @@ async function loadBannerlordWorkshops() {
         const r = await fetch(`${API_URL}/api/bannerlord/my-workshops`, {
             headers: { 'X-Twitch-JWT': authToken || '' }
         }).then(r => r.json()).catch(() => ({success: false}));
-        const workshops = (r.success && Array.isArray(r.workshops)) ? r.workshops : [];
+
+        // FLICKER-FIX v6 (2026-05-29): skip update на backend error — last good
+        // render остаётся. Иначе section мерцает каждые ~8s при transient blip.
+        if (!r || r.success === false) return;
+
+        const workshops = Array.isArray(r.workshops) ? r.workshops : [];
         const maxWorkshops = r.max_workshops || 3;
 
         // Sprint 5.33 CURRENCY-1 — clear price display + Hero.Gold visible.
@@ -2693,8 +2705,8 @@ async function loadBannerlordWorkshops() {
         document.getElementById('bnr-ws-buy')?.addEventListener('click',
             _openBuyWorkshopModal);
     } catch (e) {
-        console.warn('[FE-SHOP] loadWorkshops failed', e);
-        slot.innerHTML = '';
+        // FLICKER-FIX v6 — НЕ clear на exception. Last good render survives.
+        console.warn('[FE-SHOP] loadWorkshops failed (keeping last render):', e);
     }
 }
 
@@ -2815,8 +2827,20 @@ async function loadBannerlordFiefs() {
         const r = await fetch(`${API_URL}/api/bannerlord/my-fiefs`, {
             headers: { 'X-Twitch-JWT': authToken || '' }
         }).then(r => r.json()).catch(() => ({success: false}));
-        const fiefs = (r.success && Array.isArray(r.fiefs)) ? r.fiefs : [];
-        if (fiefs.length === 0) { slot.innerHTML = ''; return; }
+
+        // FLICKER-FIX v6 (2026-05-29): skip update на backend error — last good
+        // render остаётся видимым через transient blips.
+        if (!r || r.success === false) return;
+
+        const fiefs = Array.isArray(r.fiefs) ? r.fiefs : [];
+        // FLICKER-FIX v6: при genuine empty state (0 fiefs) — render stable
+        // placeholder через _smartInnerHTML вместо slot.innerHTML='' (последний
+        // вариант → repaint каждый poll → flicker). _smartInnerHTML dedupe
+        // identical HTML → repaint только при изменении.
+        if (fiefs.length === 0) {
+            _smartInnerHTML(slot, '');  // dedupe even empty
+            return;
+        }
 
         const typeEmoji = { town: '🏛', castle: '🏰', village: '🏘' };
         const typeLabel = { town: 'Город', castle: 'Замок', village: 'Деревня' };
@@ -2878,8 +2902,8 @@ async function loadBannerlordFiefs() {
             });
         });
     } catch (e) {
-        console.warn('[FE-FIEF] loadFiefs failed', e);
-        slot.innerHTML = '';
+        // FLICKER-FIX v6 — НЕ clear на exception. Last good render остаётся.
+        console.warn('[FE-FIEF] loadFiefs failed (keeping last render):', e);
     }
 }
 
@@ -2895,7 +2919,12 @@ async function loadBannerlordCaravans() {
         const r = await fetch(`${API_URL}/api/bannerlord/my-caravans`, {
             headers: { 'X-Twitch-JWT': authToken || '' }
         }).then(r => r.json()).catch(() => ({success: false}));
-        const caravans = (r.success && Array.isArray(r.caravans)) ? r.caravans : [];
+
+        // FLICKER-FIX v6 (2026-05-29): skip update на backend error — last good
+        // render остаётся видимым. Иначе section мерцает каждые ~8s при transient blip.
+        if (!r || r.success === false) return;
+
+        const caravans = Array.isArray(r.caravans) ? r.caravans : [];
         const maxC = r.max_caravans || 2;
 
         // Sprint 5.33 CURRENCY-1 — clear price display + Hero.Gold visible.
@@ -2979,8 +3008,8 @@ async function loadBannerlordCaravans() {
         document.getElementById('bnr-caravan-buy')?.addEventListener('click',
             _openBuyCaravanModal);
     } catch (e) {
-        console.warn('[FE-CARAVAN] loadCaravans failed', e);
-        slot.innerHTML = '';
+        // FLICKER-FIX v6 — НЕ clear на exception. Last good render остаётся.
+        console.warn('[FE-CARAVAN] loadCaravans failed (keeping last render):', e);
     }
 }
 

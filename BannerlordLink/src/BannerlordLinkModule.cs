@@ -89,10 +89,11 @@ namespace BannerlordLink
 
         private static bool ResolveVerboseFlag()
         {
-            // Sprint 5.33 AUDIT-2: temporarily ON-by-default для testing period
-            // новых sprints (SIEGE/DIPLO/SHOP/FIEF/CARAVAN/HERITAGE). Когда
-            // механики verified, можно вернуть default OFF (set DEFAULT_ON=false).
-            const bool DEFAULT_ON = true;
+            // 2026-05-28: DEFAULT_ON revert → false. Verbose log I/O contributed
+            // (likely) к FMOD resource exhaustion в long battles (crash dump
+            // 2026-05-28_16.53.15 показал FMOD error 30 "invalid object handle").
+            // Flag-file `bannerlordlink_verbose.flag` остаётся opt-in для debug.
+            const bool DEFAULT_ON = false;
             try
             {
                 // Explicit env-var override: BANNERLORDLINK_VERBOSE=0 force-disables.

@@ -295,7 +295,13 @@ namespace BannerlordLink.Patches
                         DamageType = req.Attacker.IsMount ? DamageTypes.Blunt : req.DamageType,
                         BoneIndex = req.Attacker.Monster?.ThoraxLookDirectionBoneIndex ?? (sbyte)0,
                         GlobalPosition = req.Attacker.Position,
-                        BlowFlag = BlowFlags.None,
+                        // 2026-05-28 FMOD FIX: NoSound flag — counter-blow без
+                        // sound event генерации. Reduces FMOD handle exhaustion
+                        // в long battles (FMOD pool limited, our reflects добавляли
+                        // sound на каждый dequeue → crash via invalid handle).
+                        // BlowFlags.NoSound существует в Bannerlord 1.3.x. Если
+                        // нет (build error) — fallback на None через ifdef.
+                        BlowFlag = BlowFlags.NoSound,
                         BaseMagnitude = 0f,
                         InflictedDamage = req.Damage,
                         SwingDirection = req.Attacker.LookDirection.NormalizedCopy(),

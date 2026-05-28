@@ -64,7 +64,16 @@ namespace BannerlordLink.Patches
                     foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
                     {
                         Type[] types;
+                        // Sprint 5.33 COMPAT-2 — RTL partial-results fallback.
+                        // Если какой-то мод сабботажит assembly resolution,
+                        // ReflectionTypeLoadException.Types[] всё равно содержит
+                        // валидные типы — не пропускаем целую сборку из-за одного
+                        // битого TypeRef.
                         try { types = asm.GetTypes(); }
+                        catch (System.Reflection.ReflectionTypeLoadException rtl)
+                        {
+                            types = rtl.Types ?? Array.Empty<Type>();
+                        }
                         catch { continue; }
                         foreach (var ty in types)
                         {

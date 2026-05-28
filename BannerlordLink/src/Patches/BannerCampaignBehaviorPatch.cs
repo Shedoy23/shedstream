@@ -25,9 +25,29 @@ namespace BannerlordLink.Patches
     /// </summary>
     public static class BannerCampaignBehaviorPatch
     {
+        // Sprint 5.33 COMPAT-1 — guard static cctor против Reflection throws.
+        // Раньше `static readonly Type ... = AccessTools.TypeByName(...)` ←
+        // если другой мод (особенно armor/equipment overhaul вроде Last Down
+        // Armory) ранее load'ит assembly с битыми TypeRef, AccessTools может
+        // bubble ReflectionTypeLoadException из cctor → JIT-loader валит
+        // наш DLL целиком, OnSubModuleLoad никогда не fire, лог пустой,
+        // user видит только native 0xC0000005 access violation. Lazy + guard.
         private static readonly Type _bannerCampaignBehaviorType =
-            AccessTools.TypeByName(
-                "TaleWorlds.CampaignSystem.CampaignBehaviors.BannerCampaignBehavior");
+            SafeResolveType("TaleWorlds.CampaignSystem.CampaignBehaviors.BannerCampaignBehavior");
+
+        private static Type SafeResolveType(string fullName)
+        {
+            try { return AccessTools.TypeByName(fullName); }
+            catch (Exception ex)
+            {
+                // Class load — нельзя trust'ить BannerlordLinkModule.Log
+                // (тоже мог не загрузиться), пишем в Console прямо.
+                try { System.Console.WriteLine(
+                    $"[BannerlordLink/COMPAT] SafeResolveType('{fullName}') threw " +
+                    $"{ex.GetType().Name}: {ex.Message} — patch skip"); } catch { }
+                return null;
+            }
+        }
 
         [HarmonyPatch]
         public static class DailyTickHeroFinalizer

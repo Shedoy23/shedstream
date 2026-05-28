@@ -35,7 +35,22 @@ namespace BannerlordLink.Patches
         // ".NameMarker.Targets.MissionNameMarkerTargetVM" → AccessTools.TypeByName
         // вернул null → patch silently degraded → @username markers пропали.
         // Теперь scan'им все loaded assemblies на тип whose simple name matches.
-        private static readonly Type _vmType = ResolveVMType();
+        // Sprint 5.33 COMPAT-1 — guard cctor (см. BannerCampaignBehaviorPatch
+        // комментарий). Если ResolveVMType throw'нет в class load → весь
+        // DLL не JIT'ится → silent native crash. Ловим всё.
+        private static readonly Type _vmType = SafeResolveVMType();
+
+        private static Type SafeResolveVMType()
+        {
+            try { return ResolveVMType(); }
+            catch (Exception ex)
+            {
+                try { System.Console.WriteLine(
+                    $"[BannerlordLink/COMPAT] ResolveVMType threw " +
+                    $"{ex.GetType().Name}: {ex.Message} — markers fallback на vanilla"); } catch { }
+                return null;
+            }
+        }
 
         private static Type ResolveVMType()
         {
@@ -48,7 +63,9 @@ namespace BannerlordLink.Patches
             };
             foreach (var fn in candidates)
             {
-                var t = AccessTools.TypeByName(fn);
+                Type t = null;
+                try { t = AccessTools.TypeByName(fn); }
+                catch { /* armor/equipment overhauls могут sabotage'нуть TypeByName */ }
                 if (t != null)
                 {
                     BannerlordLinkModule.Log(
@@ -57,12 +74,21 @@ namespace BannerlordLink.Patches
                 }
             }
             // 2. Fallback — scan all loaded assemblies for matching simple name.
+            //    Sprint 5.33 COMPAT-2 — было `catch { continue; }` (Exception
+            //    swallow), но `ReflectionTypeLoadException` всё равно содержит
+            //    partial results через `ex.Types` — другие моды могут иметь
+            //    broken TypeRef но валидные типы рядом. Используем partial.
             //    Самый robust способ — выживает в любой namespace shuffle.
             foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
             {
                 Type[] types;
                 try { types = asm.GetTypes(); }
-                catch { continue; }   // assembly load issues, skip
+                catch (System.Reflection.ReflectionTypeLoadException rtl)
+                {
+                    // Partial — берём только non-null entries.
+                    types = rtl.Types ?? Array.Empty<Type>();
+                }
+                catch { continue; }
                 foreach (var t in types)
                 {
                     if (t == null || t.Name == null) continue;

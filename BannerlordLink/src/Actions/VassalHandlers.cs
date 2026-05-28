@@ -125,6 +125,21 @@ namespace BannerlordLink.Actions
                     $"[vassal.create] OK: parent=@{parentUser} heir='{heirName}' " +
                     $"vassal='{vassalName}' clan_id={realClanId}");
 
+                // 2026-05-29 Stage 7 (BLT-RC22 pattern) — register vassal с
+                // VassalAutoFollowBehavior. Это значит на любой kingdom move /
+                // war / peace master'а (parentUser) — этот vassal автоматически
+                // следует за ним. См. Behaviors/VassalAutoFollowBehavior.cs.
+                try
+                {
+                    BannerlordLink.Behaviors.VassalAutoFollowBehavior.Current?
+                        .RegisterVassal(newClan, parentUser);
+                }
+                catch (Exception vex)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[vassal.create] auto-follow register warn: {vex.Message}");
+                }
+
                 // Push event для backend backfill (placeholder_clan_id → real_clan_id).
                 string evtData = JsonConvert.SerializeObject(new
                 {

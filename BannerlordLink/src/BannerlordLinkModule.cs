@@ -386,6 +386,21 @@ namespace BannerlordLink
                     campaignStarter.AddBehavior(new PartyOrderBehavior());
                     Log("PartyOrderBehavior registered (sticky orders + auto-release on completion)");
 
+                    // 2026-05-29 Stage 7 (BLT-RC22 pattern) — vassal clans
+                    // auto-follow master через CampaignEvents (kingdom change /
+                    // war declared / peace made / clan destroyed). Pattern из
+                    // BLT VassalBehavior.cs.
+                    //
+                    // Без этого: AI shuffles vassal clans between kingdoms
+                    // independently от master, vassals war'ят против master'а,
+                    // distance grows over campaign time.
+                    //
+                    // Registration ПОСЛЕ PartyOrderBehavior т.к. оба listen на
+                    // OnClanChangedKingdom — order не критичен но consistency
+                    // важна.
+                    campaignStarter.AddBehavior(new VassalAutoFollowBehavior());
+                    Log("VassalAutoFollowBehavior registered (vassal auto-syncs с master)");
+
                     // Sprint 5.26d: model replacements для статических clan-upgrade
                     // эффектов (party_size, party/army_speed, party_amount).
                     // Pattern: subclass нативной model, делегирует _previous, добавляет

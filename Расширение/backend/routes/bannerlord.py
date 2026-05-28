@@ -870,6 +870,7 @@ _PURCHASABLE_ACTIONS = (
     "hero.enact_policy",         # 1500⦷ king-only — propose+pass policy
     "hero.make_peace",           # 2000⦷ king-only — propose peace с врагом
     "hero.pay_ransom",           # 500⦷ — chip into ransom pool captured hero
+    "kingdom.set_tax_rate",      # free king-only — set kingdom tax 0-100% (Backlog #1)
     # Sprint 5.33 (BLT-parity SHOP) — workshops passive income loop
     "hero.buy_workshop",         # 1000⦷ entry — viewer покупает workshop в town
     "hero.sell_workshop",        # free — engine refund 50% capital
@@ -991,6 +992,7 @@ _BACKEND_ONLY_ACTIONS = (
     "hero.enact_policy",
     "hero.make_peace",
     "hero.pay_ransom",
+    "kingdom.set_tax_rate",
     # Sprint 5.33 SHOP — workshops — backend INSERT/UPDATE + enqueue mod
     "hero.buy_workshop",
     "hero.sell_workshop",
@@ -1942,6 +1944,7 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
         "hero.enact_policy":           1500,    # king-only major political move
         "hero.make_peace":             2000,    # king-only diplomatic decision
         "hero.pay_ransom":              500,    # crowd-fund tier, any viewer
+        "kingdom.set_tax_rate":           0,    # free — king manages own kingdom (Backlog #1)
         # Sprint 5.33 (BLT-parity SHOP) — workshops passive income
         "hero.buy_workshop":           1000,    # entry fee, plus Hero.Gold capital
         "hero.sell_workshop":             0,    # free — engine handles refund
@@ -2425,6 +2428,12 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
             elif action_type == "hero.pay_ransom":
                 from routes.bannerlord_diplomacy import handle_pay_ransom
                 diplo_result = await handle_pay_ransom(conn, channel_id, username, data)
+                if not diplo_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return diplo_result
+            elif action_type == "kingdom.set_tax_rate":
+                from routes.bannerlord_diplomacy import handle_set_kingdom_tax
+                diplo_result = await handle_set_kingdom_tax(conn, channel_id, username, data)
                 if not diplo_result.get("success"):
                     await conn.execute("ROLLBACK")
                     return diplo_result

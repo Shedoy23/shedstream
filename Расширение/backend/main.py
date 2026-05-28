@@ -954,6 +954,14 @@ async def run_migrations():
             print(f"❌ M58 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # Backlog #1 (BLT-RC22 C.5) — kingdom tax rate (display projection)
+        try:
+            from migrations import m59_kingdom_tax
+            await m59_kingdom_tax.apply(conn)
+        except Exception as e:
+            print(f"❌ M59 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

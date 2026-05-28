@@ -303,4 +303,78 @@ namespace BannerlordLink.Actions
             }
         }
     }
+
+    // ── SetKingdomTaxHandler — king sets kingdom tax rate (Backlog #1, BLT C.5) ──
+    public class SetKingdomTaxHandler : IActionHandler
+    {
+        public string ActionType => "kingdom.set_tax_rate";
+
+        public Task<(bool success, string error)> ExecuteAsync(JObject data)
+        {
+            string username = (data["initiated_by"]?.ToString() ?? data["target"]?.ToString() ?? "")
+                              .Trim().ToLowerInvariant();
+            int ratePct = 0;
+            try { ratePct = (int)(data["tax_rate_pct"]?.ToObject<int>() ?? 0); } catch { }
+            // Clamp 0..100 (mod-side defense; backend тоже валидирует).
+            if (ratePct < 0) ratePct = 0;
+            else if (ratePct > 100) ratePct = 100;
+            string actionId = ActionFeedback.GetActionId(data);
+
+            BannerlordLinkModule.Log(
+                $"[kingdom-tax ENTRY] @{username} rate={ratePct}% action_id={actionId}");
+
+            if (string.IsNullOrEmpty(username))
+                return Task.FromResult<(bool, string)>((false, "no username"));
+
+            MainThreadDispatcher.Enqueue(() => Apply(username, ratePct, actionId));
+            return Task.FromResult<(bool, string)>((true, null));
+        }
+
+        private static void Apply(string username, int ratePct, string actionId)
+        {
+            try
+            {
+                if (Campaign.Current == null)
+                {
+                    ActionFeedback.PostFailed(actionId, "no_campaign");
+                    return;
+                }
+                var hero = HeroLookup.FindByUsername(username);
+                if (hero == null || !hero.IsAlive)
+                {
+                    ActionFeedback.PostFailed(actionId, "hero_not_found");
+                    return;
+                }
+                var kingdom = hero.Clan?.Kingdom;
+                if (kingdom == null)
+                {
+                    BannerlordLinkModule.Log($"[kingdom-tax] REFUSE @{username}: не в kingdom'е");
+                    ActionFeedback.PostFailed(actionId, "no_kingdom");
+                    return;
+                }
+                // King-only: только правитель королевства задаёт налог.
+                if (kingdom.Leader != hero)
+                {
+                    BannerlordLinkModule.Log($"[kingdom-tax] REFUSE @{username}: не король");
+                    ActionFeedback.PostFailed(actionId, "not_king");
+                    return;
+                }
+                var beh = BannerlordLink.Behaviors.KingdomTaxBehavior.Current;
+                if (beh == null)
+                {
+                    ActionFeedback.PostFailed(actionId, "behavior_missing");
+                    return;
+                }
+                beh.SetKingdomTaxRate(kingdom, ratePct / 100f);
+                BannerlordLinkModule.Log(
+                    $"[kingdom-tax] @{username} set {kingdom.Name} tax → {ratePct}%");
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[kingdom-tax] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
+                ActionFeedback.PostFailed(actionId, "crashed");
+            }
+        }
+    }
 }

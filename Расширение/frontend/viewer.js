@@ -2156,6 +2156,28 @@ async function loadBannerlordDiplomacy() {
                     🕊 Предложить peace (2000⦷)
                 </button>`;
         }
+        // Backlog #1 (BLT-RC22 C.5) — kingdom tax: king задаёт ставку. Вассальные
+        // кланы королевства ежедневно платят % дневной прибыли в казну короля.
+        if (r.is_king) {
+            const curTax = r.kingdom_tax_pct || 0;
+            const presets = [0, 10, 25, 50];
+            html += `
+                <div style="margin-top:6px;border-top:1px solid #3d2a0a;padding-top:6px;">
+                    <div style="font-size:10px;color:#fbbf24;margin-bottom:3px;">
+                        👑 Налог королевства: <b>${curTax}%</b>
+                        <span style="color:#9ca3af;font-size:9px;"> — % дневной прибыли вассалов → тебе</span>
+                    </div>
+                    <div style="display:flex;gap:3px;">
+                        ${presets.map(p => `
+                            <button class="bnr-tax-btn extra-btn" data-tax-pct="${p}"
+                                    style="flex:1;font-size:10px;padding:4px;
+                                           background:${p === curTax ? '#b45309' : '#2d2d3f'};
+                                           color:#fed7aa;font-weight:${p === curTax ? '700' : '400'};">
+                                ${p}%
+                            </button>`).join('')}
+                    </div>
+                </div>`;
+        }
         html += `</div>`;
         // FLICKER-FIX: skip rebind при identical HTML.
         if (!_smartInnerHTML(slot, html)) return;
@@ -2164,6 +2186,13 @@ async function loadBannerlordDiplomacy() {
             () => _openEnactPolicyModal(r));
         document.getElementById('bnr-diplo-peace-btn')?.addEventListener('click',
             () => _openMakePeaceModal(r));
+        slot.querySelectorAll('.bnr-tax-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const pct = parseInt(btn.dataset.taxPct, 10) || 0;
+                await _bannerlordBuyAction('kingdom.set_tax_rate', { tax_rate_pct: pct });
+                setTimeout(loadBannerlordDiplomacy, 1200);
+            });
+        });
     } catch (e) {
         console.warn('[FE-DIPLO] loadDiplomacy failed (keeping last render)', e);
     }

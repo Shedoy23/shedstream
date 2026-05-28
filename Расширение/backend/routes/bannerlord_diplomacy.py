@@ -55,15 +55,16 @@ async def my_kingdom_state(request: Request):
     async with get_db()._connect() as conn:
         # Мой hero state из cache — нужны kingdom_id + is_king flag.
         cur = await conn.execute(
-            "SELECT kingdom_id, kingdom_name, is_clan_leader, is_king, captured "
+            "SELECT kingdom_id, kingdom_name, is_clan_leader, is_king, captured, "
+            "       COALESCE(kingdom_tax_pct, 0) "
             "FROM bannerlord_heroes "
             "WHERE channel_id=? AND username=?",
             (channel_id, username))
         row = await cur.fetchone()
         if not row:
             return {"success": True, "has_hero": False}
-        kingdom_id, kingdom_name, is_clan_leader, is_king, captured = (
-            row[0], row[1], bool(row[2]), bool(row[3]), bool(row[4]))
+        kingdom_id, kingdom_name, is_clan_leader, is_king, captured, kingdom_tax_pct = (
+            row[0], row[1], bool(row[2]), bool(row[3]), bool(row[4]), int(row[5] or 0))
 
         # Active policy requests для моего kingdom'а.
         policies_pending = []
@@ -116,6 +117,7 @@ async def my_kingdom_state(request: Request):
         "is_clan_leader":   is_clan_leader,
         "is_king":          is_king,
         "captured":         captured,
+        "kingdom_tax_pct":  kingdom_tax_pct,
         "policies_pending": policies_pending,
         "policies_enacted": policies_enacted,
         "peace_offers":     peace_offers,
@@ -384,4 +386,56 @@ async def handle_pay_ransom(conn, channel_id: int, owner: str, data: dict) -> di
     return {
         "success": True,
         "message": f"💰 Вложено {contribution}⦷ — pool {pool_total}/{cost}",
+    }
+
+
+async def handle_set_kingdom_tax(conn, channel_id: int, owner: str, data: dict) -> dict:
+    """Backlog #1 (BLT-RC22 C.5) — king задаёт налоговую ставку 0-100% своего
+    королевства. Backend: validate is_king, clamp, UPDATE проекции tax_pct,
+    enqueue mod action. Авторитет ставки — мод (KingdomTaxBehavior)."""
+    try:
+        rate_pct = int(data.get("tax_rate_pct") or 0)
+    except (TypeError, ValueError):
+        rate_pct = 0
+    rate_pct = max(0, min(100, rate_pct))  # clamp 0..100
+
+    log.info("[KINGDOM-TAX ENTRY] ch=%s @%s rate=%d%%", channel_id, owner, rate_pct)
+
+    # King-only check.
+    cur = await conn.execute(
+        "SELECT kingdom_id, kingdom_name, is_king "
+        "FROM bannerlord_heroes WHERE channel_id=? AND username=?",
+        (channel_id, owner))
+    row = await cur.fetchone()
+    if not row:
+        return {"success": False, "message": "hero не найден"}
+    my_kingdom_id, my_kingdom_name, is_king = row[0], row[1], bool(row[2])
+    if not my_kingdom_id:
+        return {"success": False, "message": "Не состоишь в kingdom'е"}
+    if not is_king:
+        return {"success": False, "message": "Только король задаёт налог королевства"}
+
+    # Persist projection (display) on king's row. Authority = mod.
+    await conn.execute(
+        "UPDATE bannerlord_heroes SET kingdom_tax_pct=? "
+        "WHERE channel_id=? AND username=?",
+        (rate_pct, channel_id, owner))
+
+    action_id = _uuid.uuid4().hex
+    payload = {
+        "initiated_by": owner,
+        "target":       owner,
+        "tax_rate_pct": rate_pct,
+    }
+    await conn.execute(
+        "INSERT INTO module_actions "
+        "(channel_id, module_id, action_id, type, data, status) "
+        "VALUES (?, 'bannerlord', ?, 'kingdom.set_tax_rate', ?, 'queued')",
+        (channel_id, action_id, _json.dumps(payload, ensure_ascii=False)))
+
+    log.info("[KINGDOM-TAX] ch=%s @%s kingdom='%s' → %d%%",
+             channel_id, owner, my_kingdom_name, rate_pct)
+    return {
+        "success": True,
+        "message": f"👑 Налог королевства {my_kingdom_name or ''}: {rate_pct}%",
     }

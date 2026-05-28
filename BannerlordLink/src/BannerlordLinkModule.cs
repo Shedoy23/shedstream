@@ -401,6 +401,11 @@ namespace BannerlordLink
                     campaignStarter.AddBehavior(new VassalAutoFollowBehavior());
                     Log("VassalAutoFollowBehavior registered (vassal auto-syncs с master)");
 
+                    // Backlog #1 (BLT-RC22 C.5) — kingdom tax: король-viewer
+                    // собирает rate% дневной прибыли вассальных кланов.
+                    campaignStarter.AddBehavior(new KingdomTaxBehavior());
+                    Log("KingdomTaxBehavior registered (king taxes vassal clans)");
+
                     // Sprint 5.26d: model replacements для статических clan-upgrade
                     // эффектов (party_size, party/army_speed, party_amount).
                     // Pattern: subclass нативной model, делегирует _previous, добавляет

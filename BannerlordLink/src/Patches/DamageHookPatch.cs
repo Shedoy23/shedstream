@@ -110,6 +110,24 @@ namespace BannerlordLink.Patches
                     ApplyReflect(victimUser, ref b, ref collisionData);
                 }
 
+                // AUDIT 2026-05-29 (fix #8): final defensive clamp на mutated
+                // damage values. История нативных крашей связана с RegisterBlow +
+                // shared AttackCollisionData; в движок подаём только sane,
+                // неотрицательные, не-NaN, не-переполненные значения. DMG_CAP
+                // заведомо выше любого реального удара (>100k = corruption).
+                // Только когда мы реально модифицировали (одна из сторон adopted —
+                // гарантировано выше по early-exit).
+                const int DMG_CAP = 100000;
+                if (float.IsNaN(b.BaseMagnitude) || float.IsInfinity(b.BaseMagnitude))
+                    b.BaseMagnitude = 0f;
+                if (b.BaseMagnitude < 0f) b.BaseMagnitude = 0f;
+                else if (b.BaseMagnitude > DMG_CAP) b.BaseMagnitude = DMG_CAP;
+                collisionData.BaseMagnitude = b.BaseMagnitude;
+
+                if (b.InflictedDamage < 0) b.InflictedDamage = 0;
+                else if (b.InflictedDamage > DMG_CAP) b.InflictedDamage = DMG_CAP;
+                collisionData.InflictedDamage = b.InflictedDamage;
+
                 if (!_firstHitLogged)
                 {
                     _firstHitLogged = true;

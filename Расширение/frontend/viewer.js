@@ -3281,7 +3281,12 @@ function _startBannerlordPolling() {
     // safeInterval. Раньше использовали raw setInterval — на cleanupAllTimers()
     // (закрытие страницы / Twitch helper teardown) эти 4 ID не были
     // зарегистрированы в _globalIntervals и оставались висеть до natural GC.
+    // AUDIT 2026-05-29 (fix #5): back off ВСЕ Bannerlord-поллеры когда панель
+    // не видна (зритель свернул панель / переключил вкладку). Раньше ~16 req/8с
+    // уходили на бэк даже для невидимой панели × N зрителей = доминирующая
+    // нагрузка. document.hidden=true → skip; на re-show следующий tick подхватит.
     _bannerlordPollId = safeInterval(() => {
+        if (document.hidden) return;
         loadBannerlordHero();
         loadBannerlordShop();
         loadBannerlordStatus();
@@ -3289,11 +3294,11 @@ function _startBannerlordPolling() {
     }, 8000);
     // Buff HUD: faster poll (2.5s) для смены состояния, плюс client-side
     // decrement (1s) чтобы countdown был smooth между poll'ами.
-    _bannerlordBuffPollId = safeInterval(loadBannerlordBuffs, 2500);
+    _bannerlordBuffPollId = safeInterval(() => { if (!document.hidden) loadBannerlordBuffs(); }, 2500);
     // Tournament: 3s poll — отображает queue / running state / bets
-    _bannerlordTournamentPollId = safeInterval(loadBannerlordTournament, 3000);
+    _bannerlordTournamentPollId = safeInterval(() => { if (!document.hidden) loadBannerlordTournament(); }, 3000);
     // Battle status: 2s poll — banner "идёт бой" + my HP/kills/gold/xp
-    _bannerlordBattlePollId = safeInterval(loadBannerlordBattleStatus, 2000);
+    _bannerlordBattlePollId = safeInterval(() => { if (!document.hidden) loadBannerlordBattleStatus(); }, 2000);
     // Sprint 5.29 audit fix #37: clock-based recompute вместо decrement.
     // Раньше client-side -1/sec drift'ил когда browser tab throttled (background
     // / mobile sleep). Теперь — каждый tick читает Date.now() и computes
@@ -6912,9 +6917,9 @@ function renderEvents() {
         const cdLabel = mins > 0 ? `⏱ ${mins}м ${secs}с` : `⏱ ${secs}с`;
         return `
             <div class="shop-item">
-                <div class="shop-item-icon" style="font-size:22px;">${escapeHtml(ev.name.split(' ')[0])}</div>
+                <div class="shop-item-icon" style="font-size:22px;">${escapeHtml((ev.name||'').split(' ')[0])}</div>
                 <div class="shop-item-info">
-                    <div class="shop-item-name">${escapeHtml(ev.name.replace(/^\S+\s*/, ''))}</div>
+                    <div class="shop-item-name">${escapeHtml((ev.name||'').replace(/^\S+\s*/, ''))}</div>
                 </div>
                 <div class="shop-item-buy">
                     <div class="shop-item-price">${ev.cost}💎</div>

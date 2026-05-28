@@ -33,6 +33,17 @@ namespace BannerlordLink.Actions
             if (amount <= 0)
                 return Task.FromResult<(bool, string)>((false, "amount must be > 0"));
 
+            // AUDIT 2026-05-29 (fix #4): cap backend-supplied amount. Мод не
+            // должен слепо доверять payload — защита от malformed/compromised
+            // backend, который мог бы выдать int.MaxValue золота и сломать econ.
+            const int MAX_GOLD_GRANT = 10_000_000;
+            if (amount > MAX_GOLD_GRANT)
+            {
+                BannerlordLinkModule.Log(
+                    $"[give_item:gold] @{username}: amount {amount} > cap, clamp → {MAX_GOLD_GRANT}");
+                amount = MAX_GOLD_GRANT;
+            }
+
             MainThreadDispatcher.Enqueue(() =>
             {
                 try

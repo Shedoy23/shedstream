@@ -84,8 +84,8 @@ async def module_hello(module_id: str, request: Request):
     """Handshake (§6 спеки). Connector прислал manifest digest + version,
     core отвечает welcome'ом со списком capabilities.
 
-    Минимальная имплементация: НЕТ авторизации, НЕТ session-tracking.
-    Следующие шаги добавят module-token check (§4) и persisted session.
+    Auth: Bearer module-token (как все module-endpoint'ы). channel_id берётся
+    ИЗ токена — body.channel_id игнорируется.
     """
     adapter = get_module(module_id)
     if not adapter:
@@ -94,24 +94,15 @@ async def module_hello(module_id: str, request: Request):
             detail={"status": "module_not_found", "module_id": module_id},
         )
 
+    # AUDIT 2026-05-29 (FULL_AUDIT fix #2): раньше hello НЕ требовал auth и
+    # доверял body.channel_id → любой мог спуфить online-статус / session
+    # side-effects чужого канала. Теперь channel_id authoritative из module-token.
+    channel_id = _verify_module_request(request, module_id)
+
     try:
         body = await request.json()
     except Exception:
         body = {}
-
-    # Channel определяется через JWT (extension iframe context) — но для
-    # mod connector'а JWT нет. До добавления module-token в §4 просто
-    # принимаем broadcaster_id из body. TODO M5+: enforce HMAC signature.
-    raw_cid = body.get("channel_id") or 0
-    try:
-        channel_id = int(raw_cid)
-    except (TypeError, ValueError):
-        channel_id = 0
-    if channel_id <= 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"status": "channel_id_required", "message": "body.channel_id обязательно"},
-        )
 
     connector_version = str(body.get("connector_version", "unknown"))
     manifest_digest = str(body.get("manifest_digest", ""))
@@ -478,14 +469,18 @@ async def module_catalog(module_id: str, catalog_type: str, request: Request):
         if ck is not None:
             channel_id = int(ck)
 
-    # Phase 3 — explicit query param (только для diagnostic / public catalogs;
-    # при наличии auth выше ?channel_id игнорируется).
+    # Phase 3 — explicit query param. AUDIT 2026-05-29 (FULL_AUDIT fix #1):
+    # раньше это давало UNAUTHENTICATED cross-tenant чтение каталога ЛЮБОГО
+    # канала по ?channel_id= (enumerable). Теперь fallback разрешён ТОЛЬКО в
+    # DEV_MODE (локальная диагностика). В prod без JWT/cookie → 401 ниже.
     if channel_id <= 0:
-        raw = request.query_params.get("channel_id")
-        try:
-            channel_id = int(raw) if raw else 0
-        except ValueError:
-            channel_id = 0
+        from config import DEV_MODE
+        if DEV_MODE:
+            raw = request.query_params.get("channel_id")
+            try:
+                channel_id = int(raw) if raw else 0
+            except ValueError:
+                channel_id = 0
 
     if channel_id <= 0:
         raise HTTPException(

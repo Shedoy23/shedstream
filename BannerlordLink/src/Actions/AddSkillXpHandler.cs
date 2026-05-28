@@ -56,6 +56,11 @@ namespace BannerlordLink.Actions
                 return Task.FromResult<(bool, string)>((false, "no target username"));
             if (xp <= 0)
                 return Task.FromResult<(bool, string)>((false, "xp must be > 0"));
+            // AUDIT 2026-05-29 (fix #4): cap backend-supplied xp. Outcome уже
+            // ограничен SKILL_CAP=330, но без input-cap большой xp × reward_boost
+            // мог переполнить (int)Math.Round(...) → отрицательный xp. Clamp.
+            const int MAX_XP_GRANT = 1_000_000;
+            if (xp > MAX_XP_GRANT) xp = MAX_XP_GRANT;
             // Если skill_key пуст — mod выберет random skill (server-side option
             // для simple UI с одной кнопкой "+XP в случайный skill").
 

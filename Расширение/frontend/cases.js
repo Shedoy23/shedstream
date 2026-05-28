@@ -280,7 +280,7 @@ async function loadTierPreview() {
 function renderCasesError(msg) {
     const grid = document.getElementById('cases-grid');
     if (!grid) return;
-    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:#f87171;padding:14px;">${msg}</div>`;
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:#f87171;padding:14px;">${escapeHtml(msg)}</div>`;
 }
 
 // Badge poll: обновляет счётчик закрытых кейсов в action-card (не открывая modal)

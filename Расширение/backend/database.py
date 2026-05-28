@@ -3560,7 +3560,13 @@ class Database:
         """
         import json as _json
         async with self._connect() as db:
-            await db.execute("BEGIN IMMEDIATE")
+            # AUDIT 2026-05-29 (fix #5): read-first. Раньше BEGIN IMMEDIATE
+            # (write-reserved lock) открывался на КАЖДЫЙ poll даже при 0 queued
+            # actions → 50-100 каналов × 1 poll/сек = беспричинная write-
+            # contention на единый SQLite. Теперь плоский SELECT (без write-lock);
+            # write-tx открываем ТОЛЬКО когда реально есть строки для dispatch.
+            # Безопасно: один connector на канал, long-poll последователен —
+            # нет конкурентного poll'а за те же строки в рамках канала.
             cur = await db.execute(
                 """
                 SELECT id, action_id, type, data, created_at
@@ -3574,13 +3580,13 @@ class Database:
             )
             rows = await cur.fetchall()
             if not rows:
-                await db.commit()
                 return []
             ids = [r[0] for r in rows]
             placeholders = ",".join("?" for _ in ids)
+            await db.execute("BEGIN IMMEDIATE")
             await db.execute(
                 f"UPDATE module_actions SET status='dispatched', dispatched_at=CURRENT_TIMESTAMP "
-                f"WHERE id IN ({placeholders})",
+                f"WHERE id IN ({placeholders}) AND status='queued'",
                 ids,
             )
             await db.commit()

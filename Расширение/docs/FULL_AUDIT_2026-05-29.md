@@ -1,5 +1,15 @@
 # Full audit — backend + frontend + mod (2026-05-29)
 
+> **UPDATE 2026-05-29 — все 8 «Fix first» закрыты и задеплоены.** #1 catalog
+> Phase-3 gated DEV_MODE (prod без auth → 401, проверено); #2 hello требует
+> module-token (мод его шлёт по умолчанию + handshake идёт через /events, не
+> /hello → нулевой риск для коннектора); #3 SyncData try/catch; #4 cap'ы
+> gold(10M)/xp(1M)/tribute(±5M); #5 frontend back-off на document.hidden +
+> backend read-first long-poll (BEGIN IMMEDIATE только при наличии строк);
+> #6 ev.name null-guard; #7 cases.js escapeHtml (pets.js уже был escaped);
+> #8 DamageHook final clamp (≥0, ≤100k, NaN-guard). Mod пересобран+DLL задеплоен,
+> backend перезапущен, frontend cache-bust v=20260529b. #8 ждёт in-game verify.
+
 > Метод: 3 параллельных deep-агента (backend / frontend / mod), все 4 оси
 > (безопасность / баги / тех-долг / производительность). Находки уровня
 > Critical/High я (главный) **перепроверил по коду** — калибровки помечены.

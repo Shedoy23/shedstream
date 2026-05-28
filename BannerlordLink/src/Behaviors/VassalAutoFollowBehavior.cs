@@ -90,9 +90,30 @@ namespace BannerlordLink.Behaviors
 
         public override void SyncData(IDataStore dataStore)
         {
-            dataStore.SyncData("BLink_VassalToMaster", ref _vassalToMaster);
+            // AUDIT 2026-05-29 (fix #3): каждый SyncData обёрнут в try/catch.
+            // Если движок не сможет (де)сериализовать Dictionary — мы НЕ роняем
+            // save/load pipeline (теряем persistence этой мапы, но кампания не
+            // корраптится). Pattern из HeroIdentityBehavior.
+            try
+            {
+                dataStore.SyncData("BLink_VassalToMaster", ref _vassalToMaster);
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[VassalAutoFollow] SyncData VassalToMaster failed: {ex.Message}");
+            }
             if (_vassalToMaster == null) _vassalToMaster = new Dictionary<string, string>();
-            dataStore.SyncData("BLink_VassalLastGold", ref _vassalLastGold);
+
+            try
+            {
+                dataStore.SyncData("BLink_VassalLastGold", ref _vassalLastGold);
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[VassalAutoFollow] SyncData VassalLastGold failed: {ex.Message}");
+            }
             if (_vassalLastGold == null) _vassalLastGold = new Dictionary<string, int>();
         }
 

@@ -134,6 +134,12 @@ namespace BannerlordLink.Actions
             string targetKingdomName = data["target_kingdom_name"]?.ToString() ?? targetKingdomId;
             int tribute = 0;
             try { tribute = (int)(data["offered_tribute"]?.ToObject<int>() ?? 0); } catch { }
+            // AUDIT 2026-05-29 (fix #4): clamp backend-supplied tribute к разумному
+            // диапазону. Мод не должен слепо доверять payload — malformed/большое
+            // значение могло бы сломать дипломатию/экономику.
+            const int MAX_TRIBUTE = 5_000_000;
+            if (tribute > MAX_TRIBUTE) tribute = MAX_TRIBUTE;
+            else if (tribute < -MAX_TRIBUTE) tribute = -MAX_TRIBUTE;
             string actionId = ActionFeedback.GetActionId(data);
 
             BannerlordLinkModule.Log(

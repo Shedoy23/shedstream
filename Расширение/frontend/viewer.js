@@ -2524,24 +2524,15 @@ async function loadBannerlordWorkshops() {
         const WORKSHOP_DINAR_EST = 20000;  // engine WorkshopModel.InitialCapital ~ 14-25K
         const wsAfford = _bnrAfford(WORKSHOP_CRUSTIC, WORKSHOP_DINAR_EST);
 
+        // FLICKER-FIX v4: НЕ показываем live balance strip в header.
+        // Balance меняется каждый poll → html string differs → cache miss →
+        // repaint каждые 8s — видимый flicker. Balance виден в buy modal
+        // и в main extension header (там обновляется ниже poll throttle).
         let html = `
             <div style="background:#1a2008;border:1px solid #65a30d;border-radius:4px;
                         padding:8px;font-size:11px;color:#d9f99d;">
-                <div style="display:flex;justify-content:space-between;align-items:center;
-                            margin-bottom:6px;flex-wrap:wrap;gap:4px;">
-                    <div style="font-size:12px;font-weight:700;color:#84cc16;">
-                        🏭 Мои мастерские (${workshops.length}/${maxWorkshops})
-                    </div>
-                    <span style="display:inline-flex;gap:6px;font-size:10px;
-                                 background:#0a1308;padding:2px 6px;border-radius:3px;">
-                        <span style="color:#a5f3fc;" title="Платформенные крустики">
-                            💎 ${(_cachedUserPoints||0).toLocaleString('ru-RU')}
-                        </span>
-                        <span style="color:#374151;">|</span>
-                        <span style="color:#fbbf24;" title="Hero.Gold (in-game динары)">
-                            💰 ${((_bannerlordLastHero?.hero?.gold)||0).toLocaleString('ru-RU')}
-                        </span>
-                    </span>
+                <div style="font-size:12px;font-weight:700;color:#84cc16;margin-bottom:4px;">
+                    🏭 Мои мастерские (${workshops.length}/${maxWorkshops})
                 </div>
                 <div style="font-size:9px;color:#9ca3af;margin-bottom:6px;">
                     Пассивный доход в 💰 динарах — копятся в Hero.Gold (на gear/smith/marriage)
@@ -2725,20 +2716,12 @@ async function loadBannerlordFiefs() {
         const boostPct  = Math.round(((r.boost_mult || 1.5) - 1) * 100);
         const boostDays = r.boost_days || 7;
 
+        // FLICKER-FIX v4: balance strip убран.
         let html = `
             <div style="background:#1a1308;border:1px solid #b45309;border-radius:4px;
                         padding:8px;font-size:11px;color:#fed7aa;">
-                <div style="display:flex;justify-content:space-between;align-items:center;
-                            margin-bottom:6px;flex-wrap:wrap;gap:4px;">
-                    <div style="font-size:12px;font-weight:700;color:#f59e0b;">
-                        👑 Мои владения
-                    </div>
-                    <span style="display:inline-flex;gap:6px;font-size:10px;
-                                 background:#0f0805;padding:2px 6px;border-radius:3px;">
-                        <span style="color:#a5f3fc;">💎 ${(_cachedUserPoints||0).toLocaleString('ru-RU')}</span>
-                        <span style="color:#374151;">|</span>
-                        <span style="color:#fbbf24;">💰 ${((_bannerlordLastHero?.hero?.gold)||0).toLocaleString('ru-RU')}</span>
-                    </span>
+                <div style="font-size:12px;font-weight:700;color:#f59e0b;margin-bottom:4px;">
+                    👑 Мои владения
                 </div>
                 <div style="font-size:9px;color:#9ca3af;margin-bottom:6px;">
                     Tribute passive в 💰 динарах — копятся в Hero.Gold
@@ -2813,24 +2796,12 @@ async function loadBannerlordCaravans() {
         const CARAVAN_DINAR   = 15000;
         const cAfford = _bnrAfford(CARAVAN_CRUSTIC, CARAVAN_DINAR);
 
+        // FLICKER-FIX v4: balance strip убран (см. workshops комментарий).
         let html = `
             <div style="background:#1a1820;border:1px solid #7c3aed;border-radius:4px;
                         padding:8px;font-size:11px;color:#ddd6fe;">
-                <div style="display:flex;justify-content:space-between;align-items:center;
-                            margin-bottom:6px;flex-wrap:wrap;gap:4px;">
-                    <div style="font-size:12px;font-weight:700;color:#a78bfa;">
-                        🐪 Мои караваны (${caravans.filter(c => c.status === 'active').length}/${maxC})
-                    </div>
-                    <span style="display:inline-flex;gap:6px;font-size:10px;
-                                 background:#0f0d18;padding:2px 6px;border-radius:3px;">
-                        <span style="color:#a5f3fc;" title="Платформенные крустики">
-                            💎 ${(_cachedUserPoints||0).toLocaleString('ru-RU')}
-                        </span>
-                        <span style="color:#374151;">|</span>
-                        <span style="color:#fbbf24;" title="Hero.Gold (in-game динары)">
-                            💰 ${((_bannerlordLastHero?.hero?.gold)||0).toLocaleString('ru-RU')}
-                        </span>
-                    </span>
+                <div style="font-size:12px;font-weight:700;color:#a78bfa;margin-bottom:4px;">
+                    🐪 Мои караваны (${caravans.filter(c => c.status === 'active').length}/${maxC})
                 </div>
                 <div style="font-size:9px;color:#9ca3af;margin-bottom:6px;">
                     Mobile passive в 💰 динарах — копятся в Hero.Gold. ⚠ Бандиты могут уничтожить.

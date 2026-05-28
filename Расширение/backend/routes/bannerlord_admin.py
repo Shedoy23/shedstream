@@ -1,0 +1,234 @@
+"""
+routes/bannerlord_admin.py — Streamer admin tools для Bannerlord module.
+
+Sprint 5.33 (2026-05-28) RESET-1: реализация friend's feedback —
+"вернуть стримерам возможность влиять на данные своей игры. Мало ли что,
+может залагает что и нужно будет данные подчистить".
+
+Endpoints:
+  POST /api/streamer/bannerlord/reset
+    Wipes ALL per-channel Bannerlord game state. Atomic TX.
+    Auth: broadcaster JWT only.
+    Confirmation: request body must contain {"confirm_phrase": "<channel_id>"} —
+    streamer'у нужно ввести свой channel_id чтобы избежать accidental wipe.
+
+  GET /api/streamer/bannerlord/reset/preview
+    Returns row counts per table — preview что будет удалено.
+    Без actual delete. Auth: broadcaster JWT.
+
+Не trashing:
+  - Catalog tables (bannerlord_classes, bannerlord_class_powers,
+    bannerlord_clan_upgrades_catalog) — это system-wide reference data
+  - bannerlord_boosty_subscribers — streamer's manual list (cosmetic-UI per ToS)
+  - bannerlord_events_log — audit log (oldest auto-pruned via retention)
+
+Trash:
+  per-channel game state tables (33 total — heroes/skills/equipment/workshops/
+  fiefs/caravans/heirs/proposals/vassals/etc.) + module_actions queue.
+"""
+from __future__ import annotations
+
+import logging
+from fastapi import APIRouter, Request
+
+from dependencies import get_db
+# Reuse streamer's session-cookie auth helper — это streamer-dashboard endpoint,
+# не Twitch Extension JWT (different auth flow). Auth = "streamer logged in
+# через OAuth → session cookie set → these endpoints recognize his channel_id".
+from routes.streamer import _read_session_cookie
+
+log = logging.getLogger(__name__)
+router = APIRouter()
+
+
+# Tables wiped on reset (per-channel data). Order doesn't matter — all
+# scoped by channel_id, no cross-table FK cascades critical.
+RESETTABLE_TABLES = [
+    # Hero core state
+    "bannerlord_heroes",
+    "bannerlord_skills",
+    "bannerlord_attributes",
+    "bannerlord_equipment",
+    "bannerlord_hero_class",
+    "bannerlord_channel_state",
+    "bannerlord_retinue",
+    # Clan / kingdom related
+    "bannerlord_clan_upgrades_owned",
+    "bannerlord_vassals",
+    # Achievements / daily
+    "bannerlord_user_stats",
+    "bannerlord_achievements_unlocked",
+    "bannerlord_daily_claims",
+    # Tournament
+    "bannerlord_tournament_queue",
+    "bannerlord_tournament_state",
+    "bannerlord_tournament_bets",
+    # Auctions
+    "bannerlord_auctions",
+    "bannerlord_auction_bids",
+    # Trophy items
+    "bannerlord_custom_items",
+    # Heir / family / marriage
+    "bannerlord_heirs",
+    "bannerlord_marriage_proposals",
+    # Party orders / strategic
+    "bannerlord_party_orders",
+    # Diplomacy
+    "bannerlord_policy_requests",
+    "bannerlord_peace_offers",
+    "bannerlord_ransom_pool",
+    # Economic empire (passive income trilogy + heritage)
+    "bannerlord_workshops",
+    "bannerlord_fiefs",
+    "bannerlord_caravans",
+    "bannerlord_caravan_rescue_pool",
+    "bannerlord_inheritance_log",
+]
+
+# Tables NOT touched by reset:
+PRESERVED_TABLES = [
+    "bannerlord_classes",              # system catalog
+    "bannerlord_class_powers",         # system catalog
+    "bannerlord_clan_upgrades_catalog",  # system catalog
+    "bannerlord_boosty_subscribers",   # streamer's cosmetic badge list
+    "bannerlord_events_log",           # audit (retention policy elsewhere)
+]
+
+
+def _require_streamer_session(request: Request) -> tuple[bool, int, str]:
+    """Returns (is_authed, channel_id, message). channel_id может быть 0
+    при auth failure. Auth = session cookie set when streamer OAuth'нулся через
+    /streamer flow."""
+    cid = _read_session_cookie(request)
+    if cid is None:
+        return False, 0, "Streamer session required — login через /streamer"
+    return True, int(cid), ""
+
+
+@router.get("/api/streamer/bannerlord/reset/preview")
+async def bannerlord_reset_preview(request: Request):
+    """Preview row counts per resettable table. Не deletes anything."""
+    ok, channel_id, msg = _require_streamer_session(request)
+    if not ok:
+        return {"success": False, "message": msg}
+
+    db = get_db()
+    counts: dict[str, int] = {}
+    total = 0
+    async with db._connect() as conn:
+        for table in RESETTABLE_TABLES:
+            try:
+                cur = await conn.execute(
+                    f"SELECT COUNT(*) FROM {table} WHERE channel_id=?",
+                    (channel_id,))
+                row = await cur.fetchone()
+                count = (row[0] if row else 0) or 0
+            except Exception as e:
+                # Table может не существовать (старый schema)
+                log.warning("[BNR-RESET preview] table %s missing: %s", table, e)
+                count = -1   # signals "missing/error"
+            counts[table] = count
+            if count > 0:
+                total += count
+
+        # module_actions для bannerlord
+        try:
+            cur = await conn.execute(
+                "SELECT COUNT(*) FROM module_actions "
+                "WHERE channel_id=? AND module_id='bannerlord'",
+                (channel_id,))
+            row = await cur.fetchone()
+            counts["module_actions (bannerlord)"] = (row[0] if row else 0) or 0
+            total += counts["module_actions (bannerlord)"]
+        except Exception as e:
+            counts["module_actions (bannerlord)"] = -1
+            log.warning("[BNR-RESET preview] module_actions count failed: %s", e)
+
+    return {
+        "success":           True,
+        "channel_id":        channel_id,
+        "total_rows":        total,
+        "table_counts":      counts,
+        "preserved_tables":  PRESERVED_TABLES,
+    }
+
+
+@router.post("/api/streamer/bannerlord/reset")
+async def bannerlord_reset(request: Request):
+    """Wipes ALL per-channel Bannerlord game state. Atomic TX.
+
+    Body: {"confirm_phrase": "<channel_id_as_string>"}
+    Streamer'у нужно явно re-type свой channel_id — protection от accidental
+    button click. Если confirm_phrase ≠ channel_id строкой — refuse.
+    """
+    ok, channel_id, msg = _require_streamer_session(request)
+    if not ok:
+        return {"success": False, "message": msg}
+
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    confirm_phrase = str(body.get("confirm_phrase") or "").strip()
+    expected = str(channel_id)
+    if confirm_phrase != expected:
+        return {
+            "success": False,
+            "message": f"Confirm phrase mismatch — expected '{expected}', got '{confirm_phrase}'",
+        }
+
+    db = get_db()
+    deleted: dict[str, int] = {}
+    total_deleted = 0
+
+    async with db._connect() as conn:
+        try:
+            await conn.execute("BEGIN IMMEDIATE")
+            for table in RESETTABLE_TABLES:
+                try:
+                    cur = await conn.execute(
+                        f"DELETE FROM {table} WHERE channel_id=?",
+                        (channel_id,))
+                    rowcount = cur.rowcount or 0
+                    deleted[table] = rowcount
+                    total_deleted += rowcount
+                except Exception as e:
+                    log.warning("[BNR-RESET] table %s delete failed: %s", table, e)
+                    deleted[table] = -1
+
+            # module_actions
+            try:
+                cur = await conn.execute(
+                    "DELETE FROM module_actions "
+                    "WHERE channel_id=? AND module_id='bannerlord'",
+                    (channel_id,))
+                rowcount = cur.rowcount or 0
+                deleted["module_actions (bannerlord)"] = rowcount
+                total_deleted += rowcount
+            except Exception as e:
+                log.warning("[BNR-RESET] module_actions delete failed: %s", e)
+                deleted["module_actions (bannerlord)"] = -1
+
+            await conn.commit()
+        except Exception as ex:
+            try: await conn.execute("ROLLBACK")
+            except Exception: pass
+            log.exception("[BNR-RESET] TX failed for ch=%s: %s", channel_id, ex)
+            return {
+                "success": False,
+                "message": f"Reset failed: {type(ex).__name__}: {ex}",
+            }
+
+    log.warning(
+        "[BNR-RESET] ch=%s broadcaster-initiated WIPE — %d rows deleted across %d tables",
+        channel_id, total_deleted, len([v for v in deleted.values() if v > 0]))
+
+    return {
+        "success":        True,
+        "channel_id":     channel_id,
+        "total_deleted":  total_deleted,
+        "deleted_by_table": deleted,
+        "message":        f"🧹 Wiped {total_deleted} rows across "
+                          f"{len([v for v in deleted.values() if v > 0])} tables. "
+                          "Mod restart рекомендован если кампания active.",
+    }

@@ -110,9 +110,38 @@ namespace BannerlordLink.Util
                 },
             };
 
+        // 2026-05-29 Stage 1 (BLT-RC22 pattern) — set of power keys которые
+        // имеют persistent visual via AgentPfx (looping particle attached to
+        // agent). Activation cue = entry burst. Deactivation cue (на expire)
+        // = exit burst. Persistent particle между ними — НЕ re-bursted.
+        //
+        // Powers НЕ в этом set'е → традиционный one-shot burst behavior:
+        //   - heal_burst (instant heal)
+        //   - shield_break_burst (instant AoE)
+        //   - disarm_burst (instant AoE)
+        //
+        // Powers в этом set'е → AgentPfx persistent:
+        //   - rage (timed damage buff)
+        //   - retribution_toggle (timed reflect)
+        //   - poison_dot (timed DoT)
+        //   - berserker_charge (timed speed buff)
+        private static readonly System.Collections.Generic.HashSet<string> TIMED_POWERS =
+            new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "rage",
+                "retribution_toggle",
+                "poison_dot",
+                "berserker_charge",
+            };
+
         /// <summary>Public API: show activation cue для power'а на конкретном agent'е.
         /// Wraps все три steps (popup / sound / particle) в один try'ax-блок —
-        /// каждый step может fail независимо без поломки остальных.</summary>
+        /// каждый step может fail независимо без поломки остальных.
+        ///
+        /// 2026-05-29 Stage 1 — для timed powers (rage/retribution_toggle/
+        /// poison_dot/berserker_charge) ДОПОЛНИТЕЛЬНО создаёт AgentPfx
+        /// persistent particle и attach'ит к ActiveBuffState.BuffEntry для
+        /// auto-cleanup на expire.</summary>
         public static void PlayActivation(Agent agent, string powerKey, string username,
             object valueDisplay = null)
         {
@@ -148,6 +177,7 @@ namespace BannerlordLink.Util
             if (agent == null || !agent.IsActive() || Mission.Current?.Scene == null)
                 return;
 
+            // 2a. Entry cue — one-shot burst + sound (BLT ActivateEffect pattern).
             try
             {
                 MatrixFrame frame = ResolveAgentFrame(agent);
@@ -158,27 +188,69 @@ namespace BannerlordLink.Util
             {
                 BannerlordLinkModule.Log($"[PowerFx] sfx error: {ex.Message}");
             }
+
+            // 2b. Persistent AgentPfx — только для timed powers.
+            //     Replaces старый BuffsTicker re-burst pattern (Stage 0 P1.2
+            //     отключил его — теперь активно используем AgentPfx).
+            if (!string.IsNullOrEmpty(username)
+                && TIMED_POWERS.Contains(powerKey)
+                && !string.IsNullOrEmpty(cfg.ParticleName))
+            {
+                try
+                {
+                    var pfx = new AgentPfx(agent, cfg.ParticleName);
+                    pfx.Start();
+                    if (pfx.IsActive)
+                    {
+                        BannerlordLink.Net.ActiveBuffState.AttachPfx(username, powerKey, pfx);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[PowerFx] persistent pfx attach failed for {powerKey}: {ex.Message}");
+                }
+            }
         }
 
-        /// <summary>Для timed buffs — periodic re-burst чтобы visually
-        /// reinforce «эта способность ВСЁ ЕЩЁ активна». Subtle smaller version.
-        /// Вызывается из BuffsTickerBehavior каждые ~3 сек.</summary>
-        public static void PlayBuffTick(Agent agent, string powerKey)
+        /// <summary>2026-05-29 Stage 1 — exit cue для timed buff'а (mirror'ит
+        /// BLT DeactivateEffect.Trigger). Вызывается из ActiveBuffState
+        /// RemoveExpired или HandleExpiredBuffs когда buff истёк.
+        ///
+        /// Один-разовый burst + sound (если AudioEnabled) на agent's frame.
+        /// AgentPfx persistent particle stops отдельно в ActiveBuffState.RemoveExpired.
+        ///
+        /// No-op если agent disposed или Mission scene null.</summary>
+        public static void PlayDeactivation(Agent agent, string powerKey)
         {
-            if (agent == null || !agent.IsActive() || Mission.Current?.Scene == null)
-                return;
+            if (agent == null || !agent.IsActive() || Mission.Current?.Scene == null) return;
             if (!CONFIG.TryGetValue(powerKey ?? "", out var cfg)) return;
-            if (string.IsNullOrEmpty(cfg.ParticleName)) return;
 
             try
             {
                 MatrixFrame frame = ResolveAgentFrame(agent);
+                // Используем тот же particle что и для activation — symmetric cue.
+                // Sound тот же — viewer слышит entry + exit chime.
                 PlayParticle(cfg.ParticleName, frame);
+                PlaySound(cfg.SoundEventPath, frame, agent);
             }
             catch (Exception ex)
             {
-                BannerlordLinkModule.Log($"[PowerFx] tick burst error: {ex.Message}");
+                BannerlordLinkModule.Log($"[PowerFx] deactivation error: {ex.Message}");
             }
+        }
+
+        /// <summary>DEPRECATED 2026-05-29 Stage 1. Раньше PowersMissionBehavior
+        /// дёргал этот method каждые 2 секунды для re-burst particle. Теперь
+        /// persistent AgentPfx (см. PlayActivation для timed powers) обеспечивает
+        /// continuous visual indicator. Stage 0 P1.2 уже отключил callsite —
+        /// этот метод остаётся как stub для compatibility (любые caller'ы получат
+        /// silent no-op).
+        ///
+        /// Удалить полностью когда BuffsTicker полностью убран в Stage 2+.</summary>
+        public static void PlayBuffTick(Agent agent, string powerKey)
+        {
+            // Intentional no-op. Replaced by persistent AgentPfx.
         }
 
         // ── Helpers ────────────────────────────────────────────────────────

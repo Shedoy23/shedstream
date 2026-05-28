@@ -121,6 +121,19 @@ namespace BannerlordLink.Behaviors
                     }
                     // poison_dot expire — no agent-side cleanup needed (we don't
                     // mutate engine state on each tick, just RegisterBlow).
+
+                    // 2026-05-29 Stage 1 (BLT-RC22 pattern) — exit cue для
+                    // timed buffs. AgentPfx.Stop() уже произошёл в
+                    // ActiveBuffState.RemoveExpired. Здесь play one-shot
+                    // burst+sound chime чтобы viewer видел "buff закончился".
+                    // No-op для buff'ов которые НЕ имели persistent pfx
+                    // (instant powers — heal_burst/shield_break/disarm_burst
+                    // не попадают в expired list т.к. их duration=0).
+                    var pfxAgent = FindAgentByUsername(username);
+                    if (pfxAgent != null && pfxAgent.IsActive())
+                    {
+                        BannerlordLink.Util.PowerVisualFx.PlayDeactivation(pfxAgent, powerKey);
+                    }
                 }
                 catch (Exception ex)
                 {

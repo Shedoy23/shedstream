@@ -457,7 +457,16 @@ namespace BannerlordLink
                 // commands. MissionBehavior — short-lived (per-mission), Instance
                 // resetся через OnEndMission. Action handlers зовут Instance.X.
                 mission.AddMissionBehavior(new HeroDetachmentBehavior());
-                Log("MissionBehaviors registered: Powers + KillReward + Detachment");
+
+                // 2026-05-29 Stage 1 (BLT-RC22 pattern) — persistent particle
+                // lifecycle coordinator. Tracks все AgentPfx instances созданные
+                // в PowerVisualFx.PlayActivation. Per-frame OnPreDisplayMissionTick
+                // обновляет position. OnAgentDeleted auto-cleanup. OnEndMission
+                // полный clear. БЕЗ этого behaviour'а AgentPfx.Register/Unregister
+                // станут no-op'ами через HeroPfxBehaviour.Current → null.
+                mission.AddMissionBehavior(new BannerlordLink.Behaviors.HeroPfxBehaviour());
+
+                Log("MissionBehaviors registered: Powers + KillReward + Detachment + HeroPfx");
             }
             catch (Exception ex)
             {

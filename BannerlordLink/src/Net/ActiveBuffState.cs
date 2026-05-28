@@ -24,11 +24,21 @@ namespace BannerlordLink.Net
     /// </summary>
     public static class ActiveBuffState
     {
-        public struct BuffEntry
+        public class BuffEntry
         {
             public string PowerKey;   // "rage" / "retribution_toggle"
             public float ExpiresAt;   // mission.CurrentTime в момент expiry
             public double Value;      // damage multi (1.5) или reflect % (50)
+
+            // 2026-05-29 Stage 1 (BLT-RC22 pattern) — persistent particle handle.
+            // Lifecycle: created on Activate (via PowerVisualFx.AttachBuffPfx),
+            // Stop()'d on RemoveExpired или explicit clear. Если null — no
+            // persistent visual (e.g. instant powers heal_burst).
+            //
+            // Изменён struct → class чтобы хранить mutable reference type.
+            // ConcurrentDictionary всё ещё работает (reference assignments
+            // atomic), но nested mutation pattern теперь cleaner.
+            public BannerlordLink.Util.AgentPfx Pfx;
         }
 
         // username → powerKey → entry
@@ -71,6 +81,28 @@ namespace BannerlordLink.Net
             return entry.Value;
         }
 
+        /// <summary>2026-05-29 Stage 1 — attach persistent particle handle к
+        /// уже-активному buff entry. Caller (PowerVisualFx.PlayActivation)
+        /// создаёт AgentPfx и передаёт сюда. RemoveExpired автоматически
+        /// Stop()'нет на expire.
+        ///
+        /// No-op если buff entry not found (e.g. Activate ещё не вызван или
+        /// уже истёк). Safe для defensive call.</summary>
+        public static void AttachPfx(string username, string powerKey, BannerlordLink.Util.AgentPfx pfx)
+        {
+            if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(powerKey)) return;
+            if (pfx == null) return;
+            if (!_buffs.TryGetValue(username, out var perUser)) return;
+            if (!perUser.TryGetValue(powerKey, out var entry)) return;
+
+            // Замена предыдущего pfx (если был) — старый Stop() чтобы не leak.
+            if (entry.Pfx != null && entry.Pfx != pfx)
+            {
+                try { entry.Pfx.Stop(); } catch { /* swallow */ }
+            }
+            entry.Pfx = pfx;
+        }
+
         /// <summary>Drop expired buffs. Called from MissionLogic slow tick.
         /// Sprint 5.33 — returns list of expired (username, powerKey, value)
         /// чтобы caller мог react (e.g. reset speed for berserker_charge,
@@ -95,6 +127,22 @@ namespace BannerlordLink.Net
                         expiredList.Add((userKvp.Key, k, entry.Value));
                         BannerlordLinkModule.Log(
                             $"[BuffState] @{userKvp.Key} {k} expired (value={entry.Value:F2})");
+
+                        // 2026-05-29 Stage 1 — Stop persistent particle на expire.
+                        // AgentPfx.Stop() idempotent + auto-unregister из
+                        // HeroPfxBehaviour. Без этого particle бы leaked до
+                        // OnEndMission cleanup.
+                        if (entry.Pfx != null)
+                        {
+                            try { entry.Pfx.Stop(); }
+                            catch (Exception ex)
+                            {
+                                BannerlordLinkModule.Log(
+                                    $"[BuffState] @{userKvp.Key} {k} pfx.Stop error: {ex.Message}");
+                            }
+                            entry.Pfx = null;
+                        }
+
                         PostBuffEventAsync("buff.expired", userKvp.Key, k, 0f, 0.0);
                     }
                 }
@@ -129,9 +177,22 @@ namespace BannerlordLink.Net
             return list;
         }
 
-        /// <summary>Drop ALL buffs (mission ended).</summary>
+        /// <summary>Drop ALL buffs (mission ended).
+        /// 2026-05-29 Stage 1 — также Stop()'ит все persistent particles
+        /// (auto-defensive — HeroPfxBehaviour.OnEndMission делает то же,
+        /// но мы дублируем чтобы не зависеть от behavior ordering).</summary>
         public static void Clear()
         {
+            foreach (var userKvp in _buffs)
+            {
+                foreach (var bk in userKvp.Value)
+                {
+                    if (bk.Value.Pfx != null)
+                    {
+                        try { bk.Value.Pfx.Stop(); } catch { /* swallow */ }
+                    }
+                }
+            }
             _buffs.Clear();
         }
 

@@ -97,23 +97,25 @@ namespace BannerlordLink.Actions
                     return;
                 }
 
-                // Get random caravan template для culture home settlement'а.
-                PartyTemplateObject template = null;
-                try
-                {
-                    template = CaravanHelper.GetRandomCaravanTemplate(
-                        home.Culture, false, false);
-                }
-                catch (Exception tEx)
-                {
-                    BannerlordLinkModule.Log(
-                        $"[caravan-buy] template fetch failed: {tEx.Message}");
-                }
+                // Sprint 5.33 VERIFY-1 fix — culture cascade. CaravanHelper.
+                // GetRandomCaravanTemplate может вернуть null если для конкретной
+                // culture нет template'ов с matching (isElite, isInitial) flags.
+                // Раньше передавали home.Culture (settlement) — но caravan units
+                // обычно spawn'ятся from OWNER culture. Пробуем cascade:
+                //   1. hero.Culture (owner) с (false, false)
+                //   2. home.Culture (settlement) с (false, false)
+                //   3. ЛЮБОЙ culture с template'ами — last resort
+                PartyTemplateObject template = TryResolveCaravanTemplate(hero, home);
                 if (template == null)
                 {
+                    BannerlordLinkModule.Log(
+                        $"[caravan-buy] REFUSE @{username}: no caravan template found " +
+                        $"(hero.Culture='{hero.Culture?.StringId}' home.Culture='{home.Culture?.StringId}')");
                     ActionFeedback.PostFailed(actionId, "no_template");
                     return;
                 }
+                BannerlordLinkModule.Log(
+                    $"[caravan-buy] resolved template id='{template.StringId}'");
 
                 // Create caravan party. Signature 1.3.x:
                 // CreateCaravanParty(owner, home, template, isElite, ownerLeader, itemRoster, isInitial)
@@ -156,6 +158,40 @@ namespace BannerlordLink.Actions
                     $"[caravan-buy] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
                 ActionFeedback.PostFailed(actionId, "crashed");
             }
+        }
+
+        /// <summary>Sprint 5.33 VERIFY-1 — culture cascade for caravan template.
+        /// CaravanHelper.GetRandomCaravanTemplate filtering is opaque; passing
+        /// home.Culture в проде вернул null. Cascade gives 3 шанса найти template.</summary>
+        private static PartyTemplateObject TryResolveCaravanTemplate(Hero hero, Settlement home)
+        {
+            PartyTemplateObject Try(CultureObject c, string label)
+            {
+                if (c == null) return null;
+                try
+                {
+                    var t = CaravanHelper.GetRandomCaravanTemplate(c, false, false);
+                    if (t != null)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[caravan-buy] template via {label} (culture='{c.StringId}') → {t.StringId}");
+                        return t;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[caravan-buy] template via {label} threw: {ex.Message}");
+                }
+                return null;
+            }
+
+            return Try(hero?.Culture, "hero.Culture")
+                ?? Try(home?.Culture, "home.Culture")
+                ?? Try(Hero.MainHero?.Culture, "MainHero.Culture")  // last resort: streamer culture
+                ?? Try(Campaign.Current?.GameStarted == true
+                       ? Settlement.All?.FirstOrDefault(s => s?.Culture != null)?.Culture
+                       : null, "any-settlement");
         }
     }
 

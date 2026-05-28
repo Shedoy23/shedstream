@@ -107,29 +107,21 @@ namespace BannerlordLink.Actions
                     return;
                 }
 
-                WorkshopType wsType = null;
-                try { wsType = MBObjectManager.Instance.GetObject<WorkshopType>(typeId); }
-                catch { }
+                WorkshopType wsType = ResolveWorkshopType(typeId, typeName);
                 if (wsType == null)
                 {
-                    // Fuzzy fallback by name.
-                    string needle = (typeName ?? "").ToLowerInvariant();
-                    if (needle.Length >= 3)
-                    {
-                        foreach (var w in WorkshopType.All)
-                        {
-                            if ((w?.Name?.ToString() ?? "").ToLowerInvariant().Contains(needle))
-                            { wsType = w; break; }
-                        }
-                    }
-                }
-                if (wsType == null)
-                {
+                    // Sprint 5.33 VERIFY-1 fix — диагностика: log ВСЕ engine
+                    // WorkshopType StringIds + Names на ONE log entry чтобы
+                    // backend/extension catalog можно было reconcile'ить.
+                    LogAvailableWorkshopTypes();
                     BannerlordLinkModule.Log(
-                        $"[shop-buy] REFUSE @{username}: workshop_type '{typeId}' not found");
+                        $"[shop-buy] REFUSE @{username}: workshop_type '{typeId}' " +
+                        $"(name='{typeName}') not found в engine — см. catalog log выше");
                     ActionFeedback.PostFailed(actionId, "type_not_found");
                     return;
                 }
+                BannerlordLinkModule.Log(
+                    $"[shop-buy] resolved type id='{wsType.StringId}' name='{wsType.Name}'");
 
                 // Find available Workshop slot. Strategy:
                 //   1) Pick first workshop в town not owned by Hero.MainHero / our clan
@@ -200,6 +192,90 @@ namespace BannerlordLink.Actions
                 BannerlordLinkModule.Log(
                     $"[shop-buy] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
                 ActionFeedback.PostFailed(actionId, "crashed");
+            }
+        }
+
+        /// <summary>Sprint 5.33 VERIFY-1 — robust resolver. Strategy:
+        ///   1. MBObjectManager.GetObject<WorkshopType>(stringId) — fast path
+        ///   2. Iterate WorkshopType.All сравнивая StringId case-insensitive
+        ///   3. Iterate WorkshopType.All fuzzy-matching by Name (substring)
+        /// Логирует каждый attempt'у чтобы было clear что не работает.</summary>
+        private static WorkshopType ResolveWorkshopType(string typeId, string typeName)
+        {
+            // Stage 1: MBObjectManager fast path.
+            WorkshopType found = null;
+            try { found = MBObjectManager.Instance.GetObject<WorkshopType>(typeId); }
+            catch { }
+            if (found != null) return found;
+
+            // Stage 2: exact StringId match via iteration (case-insensitive).
+            // Vanilla 1.3.x XML может иметь captured StringIds которые не
+            // resolve'ятся через MBObjectManager (modded XML / version skew).
+            try
+            {
+                string idLower = (typeId ?? "").ToLowerInvariant();
+                if (!string.IsNullOrEmpty(idLower))
+                {
+                    foreach (var w in WorkshopType.All)
+                    {
+                        if (w == null) continue;
+                        if ((w.StringId ?? "").ToLowerInvariant() == idLower)
+                            return w;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[shop-buy] StringId iteration failed: {ex.Message}");
+            }
+
+            // Stage 3: fuzzy by Name (existing logic).
+            try
+            {
+                string needle = (typeName ?? "").ToLowerInvariant();
+                if (needle.Length >= 3)
+                {
+                    foreach (var w in WorkshopType.All)
+                    {
+                        if (w == null) continue;
+                        if ((w.Name?.ToString() ?? "").ToLowerInvariant().Contains(needle))
+                            return w;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[shop-buy] Name fuzzy iteration failed: {ex.Message}");
+            }
+            return null;
+        }
+
+        // Логируется один раз per game session (cached flag).
+        private static bool _catalogLogged;
+        private static void LogAvailableWorkshopTypes()
+        {
+            if (_catalogLogged) return;
+            _catalogLogged = true;
+            try
+            {
+                var sb = new System.Text.StringBuilder();
+                sb.Append("[shop-buy CATALOG] engine WorkshopType.All:");
+                int n = 0;
+                foreach (var w in WorkshopType.All)
+                {
+                    if (w == null) continue;
+                    sb.Append($"\n  - id='{w.StringId}' name='{w.Name}'");
+                    n++;
+                }
+                sb.Append($"\n  (total {n} types — reconcile extension _BNR_WORKSHOP_TYPES against this list)");
+                BannerlordLinkModule.Log(sb.ToString());
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[shop-buy CATALOG] enumeration failed: {ex.GetType().Name}: {ex.Message}");
             }
         }
     }

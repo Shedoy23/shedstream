@@ -13,6 +13,7 @@
     <BannerlordPath>X:\SteamLibrary\steamapps\common\Mount &amp; Blade II Bannerlord</BannerlordPath>
     <BannerlordBin>$(BannerlordPath)\bin\Win64_Shipping_Client</BannerlordBin>
     <SandBoxBin>$(BannerlordPath)\Modules\SandBox\bin\Win64_Shipping_Client</SandBoxBin>
+    <NativeBin>$(BannerlordPath)\Modules\Native\bin\Win64_Shipping_Client</NativeBin>
     <HarmonyBin>X:\SteamLibrary\steamapps\workshop\content\261550\2859188632\bin\Win64_Shipping_Client</HarmonyBin>
   </PropertyGroup>
 
@@ -27,6 +28,13 @@
     <Reference Include="TaleWorlds.ObjectSystem"><HintPath>$(BannerlordBin)\TaleWorlds.ObjectSystem.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="TaleWorlds.DotNet"><HintPath>$(BannerlordBin)\TaleWorlds.DotNet.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="SandBox"><HintPath>$(SandBoxBin)\SandBox.dll</HintPath><Private>false</Private></Reference>
+    <!-- NAMETAG-1 (2026-05-28): Gauntlet UI + InputSystem + MissionView для HeroNametagMissionView. -->
+    <Reference Include="TaleWorlds.InputSystem"><HintPath>$(BannerlordBin)\TaleWorlds.InputSystem.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="TaleWorlds.GauntletUI"><HintPath>$(BannerlordBin)\TaleWorlds.GauntletUI.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="TaleWorlds.GauntletUI.Data"><HintPath>$(BannerlordBin)\TaleWorlds.GauntletUI.Data.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="TaleWorlds.Engine.GauntletUI"><HintPath>$(BannerlordBin)\TaleWorlds.Engine.GauntletUI.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="TaleWorlds.MountAndBlade.View"><HintPath>$(NativeBin)\TaleWorlds.MountAndBlade.View.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="TaleWorlds.ScreenSystem"><HintPath>$(BannerlordBin)\TaleWorlds.ScreenSystem.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="System.Net.Http"/>
     <Reference Include="Newtonsoft.Json"><HintPath>$(BannerlordBin)\Newtonsoft.Json.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>

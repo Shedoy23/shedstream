@@ -38,6 +38,18 @@ namespace BannerlordLink.Util
                 && displayName.StartsWith(PREFIX, StringComparison.Ordinal);
         }
 
+        /// <summary>2026-05-29 Stage 3 (BLT-RC22 pattern) — Hero overload для
+        /// permadeath prevention patches. Reads hero.Name.ToString() и применяет
+        /// IsAdopted(string) check. Null-safe.
+        ///
+        /// Используется в Patches/AdoptedHeroDeathPatch.cs для filter на
+        /// KillCharacterAction.ApplyInternal + Mission.OnAgentRemoved.</summary>
+        public static bool IsAdopted(TaleWorlds.CampaignSystem.Hero hero)
+        {
+            if (hero?.Name == null) return false;
+            return IsAdopted(hero.Name.ToString());
+        }
+
         /// <summary>
         /// Извлекает viewer login (lowercase) из adopted hero name.
         /// Только для имён С [BLink] префиксом — возвращает null для vanilla NPC.

@@ -2387,19 +2387,30 @@ async function loadBannerlordRansomPool() {
 //   _bnrAfford(c, d) → {ok, missing: 'crustic'|'dinar'|'both'|null}
 //
 // _bannerlordLastHero.hero.gold = current Hero.Gold (cached).
-// userPoints (global) = current ⦷ balance.
+// _cachedUserPoints (module) = current ⦷ balance (updated on /api/me poll).
 // ───────────────────────────────────────────────────────────────────────────
 
 // Sprint 5.33 FLICKER-FIX (2026-05-28) — skip identical innerHTML rewrite.
 // Раньше каждый 8s poll re-render'ил весь hero pane + sub-loaders, даже
 // если данные не изменились. Browser discard'ил/recreate'ил DOM tree →
-// visible flicker. _smartInnerHTML кэширует last set string и no-op'ит
-// если новый identical.
+// visible flicker.
+//
+// FLICKER-FIX v2: module-scoped cache keyed by element ID. Раньше cache
+// жил на DOM element (`el._lastSmartHtml`). Когда hero body innerHTML
+// rewrite'ился (gold/HP change), все sub-slot DIVs (workshops, caravans,
+// etc.) re-created → их per-element cache пропадал → cascading flicker.
+// Теперь keyed cache survives parent re-render.
+const _smartHtmlCache = {};
 function _smartInnerHTML(el, html) {
     if (!el) return false;
-    if (el._lastSmartHtml === html) return false;
+    const key = el.id;
+    // Same html string AND element has content → cache hit, no paint.
+    // (Если parent re-rendered и el — fresh empty node, length=0 → paint.)
+    if (key && _smartHtmlCache[key] === html && el.innerHTML.length > 0) {
+        return false;
+    }
     el.innerHTML = html;
-    el._lastSmartHtml = html;
+    if (key) _smartHtmlCache[key] = html;
     return true;
 }
 
@@ -2421,7 +2432,7 @@ function _bnrPrice(crustic, dinars) {
 }
 
 function _bnrAfford(crustic, dinars) {
-    const haveCrustic = (window.userPoints || 0);
+    const haveCrustic = (_cachedUserPoints || 0);
     const haveDinars  = (_bannerlordLastHero?.hero?.gold) || 0;
     const lackCrustic = crustic > haveCrustic;
     const lackDinars  = dinars  > haveDinars;
@@ -2524,7 +2535,7 @@ async function loadBannerlordWorkshops() {
                     <span style="display:inline-flex;gap:6px;font-size:10px;
                                  background:#0a1308;padding:2px 6px;border-radius:3px;">
                         <span style="color:#a5f3fc;" title="Платформенные крустики">
-                            💎 ${(window.userPoints||0).toLocaleString('ru-RU')}
+                            💎 ${(_cachedUserPoints||0).toLocaleString('ru-RU')}
                         </span>
                         <span style="color:#374151;">|</span>
                         <span style="color:#fbbf24;" title="Hero.Gold (in-game динары)">
@@ -2628,7 +2639,7 @@ function _openBuyWorkshopModal() {
                 <div style="flex:1;border-left:1px solid #1f2937;padding-left:8px;">
                     <div style="color:#9ca3af;font-size:9px;">У тебя:</div>
                     <div style="font-size:11px;">
-                        <span style="color:#a5f3fc;">💎 ${(window.userPoints||0).toLocaleString('ru-RU')}</span>
+                        <span style="color:#a5f3fc;">💎 ${(_cachedUserPoints||0).toLocaleString('ru-RU')}</span>
                         <span style="color:#6b7280;">|</span>
                         <span style="color:#fbbf24;">💰 ${((_bannerlordLastHero?.hero?.gold)||0).toLocaleString('ru-RU')}</span>
                     </div>
@@ -2724,7 +2735,7 @@ async function loadBannerlordFiefs() {
                     </div>
                     <span style="display:inline-flex;gap:6px;font-size:10px;
                                  background:#0f0805;padding:2px 6px;border-radius:3px;">
-                        <span style="color:#a5f3fc;">💎 ${(window.userPoints||0).toLocaleString('ru-RU')}</span>
+                        <span style="color:#a5f3fc;">💎 ${(_cachedUserPoints||0).toLocaleString('ru-RU')}</span>
                         <span style="color:#374151;">|</span>
                         <span style="color:#fbbf24;">💰 ${((_bannerlordLastHero?.hero?.gold)||0).toLocaleString('ru-RU')}</span>
                     </span>
@@ -2813,7 +2824,7 @@ async function loadBannerlordCaravans() {
                     <span style="display:inline-flex;gap:6px;font-size:10px;
                                  background:#0f0d18;padding:2px 6px;border-radius:3px;">
                         <span style="color:#a5f3fc;" title="Платформенные крустики">
-                            💎 ${(window.userPoints||0).toLocaleString('ru-RU')}
+                            💎 ${(_cachedUserPoints||0).toLocaleString('ru-RU')}
                         </span>
                         <span style="color:#374151;">|</span>
                         <span style="color:#fbbf24;" title="Hero.Gold (in-game динары)">
@@ -2917,7 +2928,7 @@ function _openBuyCaravanModal() {
                 <div style="flex:1;border-left:1px solid #1f2937;padding-left:8px;">
                     <div style="color:#9ca3af;font-size:9px;">У тебя:</div>
                     <div style="font-size:11px;">
-                        <span style="color:#a5f3fc;">💎 ${(window.userPoints||0).toLocaleString('ru-RU')}</span>
+                        <span style="color:#a5f3fc;">💎 ${(_cachedUserPoints||0).toLocaleString('ru-RU')}</span>
                         <span style="color:#6b7280;">|</span>
                         <span style="color:#fbbf24;">💰 ${((_bannerlordLastHero?.hero?.gold)||0).toLocaleString('ru-RU')}</span>
                     </div>
@@ -5621,6 +5632,34 @@ async function loadBannerlordHero() {
             return;
         }
         _bannerlordLastHero = data;   // 5.8: cache для progression modal
+
+        // FLICKER-FIX v3 (2026-05-28): structural-only hash для dedup hero body.
+        // Раньше каждый gold tick (~8s poll) перерисовывал ВЕСЬ hero pane
+        // template (HTML string менялся из-за нового gold value) → sub-slots
+        // внутри (workshops/caravans/etc.) destroy'ились + recreated empty
+        // → их sub-loaders rebuilt visibly. Теперь body innerHTML rewrite'ится
+        // только при изменении структурных fields. Gold в header будет
+        // обновляться через next structural change (level up, kingdom join,
+        // etc.) — но gold уже виден актуально в sub-slot headers (workshop/
+        // caravan/fief panels) которые dedupe sub-loaders'и refresh'ат.
+        const _h = data.hero || {};
+        const _structHash = JSON.stringify({
+            has_hero:     data.has_hero,
+            name:         _h.display_name,
+            level:        _h.level,
+            culture:      _h.culture,
+            location:     _h.location,
+            clan_id:      _h.clan_id,
+            kingdom_id:   _h.kingdom_id,
+            alive:        _h.is_alive,
+            prisoner:     _h.is_prisoner,
+            tournament_w: _h.tournament_wins,
+            retinue_n:    (data.retinue || []).length,
+            // gold / hp / kills исключены — сменятся независимо через sub-slots
+        });
+        const _structChanged = (body._bnrLastStruct !== _structHash);
+        body._bnrLastStruct = _structHash;
+
         if (!data.has_hero) {
             const CULTURES = [
                 { key: 'empire',    label: 'Империя',  icon: '🏛️', desc: 'Латифундии, мечи и копья' },
@@ -5890,10 +5929,10 @@ async function loadBannerlordHero() {
                     🧬 Профиль и семья
                 </button>
             </div>`;
-        // FLICKER-FIX: dedupe — если HTML identical, no-op (no DOM thrash).
-        // _changed=true → продолжаем pane render + listener bind. Если false,
-        // существующий DOM остаётся, listeners привязаны, sub-loaders update'ятся ниже.
-        const _bnrChanged = _smartInnerHTML(body, _bnrHeroHtml);
+        // FLICKER-FIX v3: structural change OR fallback HTML compare.
+        // _structChanged=false → skip body innerHTML rewrite (gold/HP/kills
+        // меняются, но они в template'е тоже — игнорируем для dedup'a).
+        const _bnrChanged = _structChanged && _smartInnerHTML(body, _bnrHeroHtml);
       if (_bnrChanged) {
         // 🎒 Инвентарь pane — Экипировка + Свита + Достижения + Кузница + Аукционы.
         const paneInv = document.getElementById('bnr-pane-inventory-body');

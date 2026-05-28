@@ -11,11 +11,11 @@ from typing import Optional
 _asyncio = asyncio
 
 # ===== ЛОГИРОВАНИЕ =====
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
-)
+# Sprint 5.33 PHASE1-3 (2026-05-28): switched к structured logging.
+# Default text format (dev-friendly). Production: set LOG_FORMAT=json для
+# Loki/ELK/Datadog ingestion. Level via LOG_LEVEL.
+from logging_setup import setup_logging
+setup_logging()
 logger = logging.getLogger('rimlink')
 
 import aiohttp
@@ -1434,6 +1434,11 @@ async def on_startup():
     # _active_buffs / _cooldowns / _power_events для каналов offline >10min.
     from modules.bannerlord._adapter import stale_channels_cleanup_loop as _bnr_cleanup
     asyncio.create_task(_bnr_cleanup())
+    # Sprint 5.33 PHASE1-1 — DB backup loop (in-process, не зависит от cron).
+    # Atomic sqlite .backup каждые BACKUP_INTERVAL_HOURS (default 6h),
+    # retain BACKUP_RETAIN_COUNT (default 14). Skips если free disk < 200MB.
+    from backup_loop import db_backup_loop as _db_backup
+    asyncio.create_task(_db_backup())
     # Sprint 5.33 (BLT-parity FAM): marriage proposals expire loop (every 60s).
     # Mark pending proposals as 'expired' если created+24h < now. Viewer'у никто
     # не отвечает 24h → proposal сам закрывается.
@@ -1489,6 +1494,7 @@ async def on_shutdown():
 
 if __name__ == "__main__":
     import asyncio
+    import os
 
     async def _bootstrap():
         # CRITICAL: init_tables ДО run_migrations. На пустой БД миграции M1+
@@ -1506,4 +1512,35 @@ if __name__ == "__main__":
 
     asyncio.run(_bootstrap())
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+    # Sprint 5.33 PHASE1-2 (2026-05-28) — production server tuning.
+    #
+    # Why workers=1: backend has IN-PROCESS state (cooldowns, buffs, battle_stats,
+    # power_events ring buffer + 5+ background loops: backup, cleanup, sweeper,
+    # auctions, proposals expire). Naive workers=N would:
+    #   1. Cross-worker state inconsistency (viewer hits worker A, then B → empty cache)
+    #   2. Background loops duplicated N× (4× backup writes → race + waste)
+    #   3. SQLite WAL: N writer processes still serialize через BEGIN IMMEDIATE
+    # Path to true multi-worker = move state к Redis + decouple background loops
+    # to dedicated scheduler process. Out of scope for now (1-50 streamer scale).
+    #
+    # Scaling knobs available SAFELY на single worker:
+    #   limit_concurrency: ceiling на concurrent requests (long-polls eat connections)
+    #   timeout_keep_alive: HTTP keepalive (default 5s — too short for our long-poll)
+    #   backlog: TCP accept queue depth (default 2048 — fine)
+    workers = int(os.getenv("UVICORN_WORKERS", "1"))
+    limit_concurrency = int(os.getenv("UVICORN_LIMIT_CONCURRENCY", "500"))
+    keep_alive = int(os.getenv("UVICORN_KEEP_ALIVE", "30"))   # >25s long-poll timeout
+    if workers > 1:
+        print(
+            f"⚠ WARNING: UVICORN_WORKERS={workers} > 1 — backend has in-process state. "
+            "Cooldowns/buffs/battle stats не sync across workers. Background "
+            "loops will duplicate. Read main.py PHASE1-2 note before scaling."
+        )
+    print(f"🚀 uvicorn workers={workers} limit_concurrency={limit_concurrency} keep_alive={keep_alive}s")
+    uvicorn.run(
+        app, host="0.0.0.0", port=8000,
+        workers=workers if workers > 1 else None,   # None = single async worker
+        limit_concurrency=limit_concurrency,
+        timeout_keep_alive=keep_alive,
+    )

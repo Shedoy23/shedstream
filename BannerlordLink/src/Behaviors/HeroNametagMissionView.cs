@@ -74,9 +74,20 @@ namespace BannerlordLink.Behaviors
         private bool _hideAll;
         private bool _firstTickLogged;
 
+        // 2026-05-28 POST-CRASH: kill-switch — после N consecutive errors
+        // отключаем view до next mission. Защита от reproducing crash через
+        // per-frame Agent enumeration во время unstable engine state.
+        private int _consecutiveErrors;
+        private bool _aborted;
+        private const int MAX_CONSECUTIVE_ERRORS = 5;
+
         // ─── MissionView lifecycle ────────────────────────────────────────
         public override void OnMissionScreenTick(float dt)
         {
+            // 2026-05-28 POST-CRASH: kill-switch protection. После 5
+            // consecutive errors отключаем view (no-op tick) до next mission.
+            if (_aborted) return;
+
             try
             {
                 // Toggle key — H по умолчанию.
@@ -96,15 +107,32 @@ namespace BannerlordLink.Behaviors
                 }
 
                 UpdateNametags();
+                _consecutiveErrors = 0;  // reset on successful tick
             }
             catch (Exception ex)
             {
-                if (!_firstTickLogged)
+                _consecutiveErrors++;
+                if (!_firstTickLogged || _consecutiveErrors % 30 == 0)
                 {
                     _firstTickLogged = true;
                     BannerlordLinkModule.Log(
-                        $"[NameTag] OnMissionScreenTick crash (first occurrence logged): " +
+                        $"[NameTag] OnMissionScreenTick error #{_consecutiveErrors}: " +
                         $"{ex.GetType().Name}: {ex.Message}");
+                }
+                if (_consecutiveErrors >= MAX_CONSECUTIVE_ERRORS)
+                {
+                    _aborted = true;
+                    BannerlordLinkModule.Log(
+                        $"[NameTag] ABORTED — {_consecutiveErrors} consecutive errors. " +
+                        "View disabled until next mission to prevent crash cascade.");
+                    try
+                    {
+                        _vm?.Heroes?.Clear();
+                        _agentToVM.Clear();
+                        if (_layer != null && MissionScreen != null)
+                            MissionScreen.RemoveLayer(_layer);
+                    }
+                    catch { }
                 }
             }
         }
@@ -130,20 +158,24 @@ namespace BannerlordLink.Behaviors
             var seenIndexes = new HashSet<int>();
             var visibleEntries = new List<HeroNametagVM>();
 
+            // 2026-05-28 POST-CRASH: per-agent try/catch — если один agent
+            // в plenum'нул state и read'ы throw'ят, не лети fail на весь tick.
             foreach (var agent in agents)
             {
-                if (agent == null || !agent.IsActive() || !agent.IsHuman) continue;
-                var hero = (agent.Character as TaleWorlds.CampaignSystem.CharacterObject)
-                    ?.HeroObject;
-                if (hero?.Name == null) continue;
+                try
+                {
+                    if (agent == null || !agent.IsActive() || !agent.IsHuman) continue;
+                    var hero = (agent.Character as TaleWorlds.CampaignSystem.CharacterObject)
+                        ?.HeroObject;
+                    if (hero?.Name == null) continue;
 
-                string fullName = hero.Name.ToString();
-                if (!HeroNaming.IsAdopted(fullName)) continue;
-                string username = HeroNaming.ExtractUsername(fullName);
-                if (string.IsNullOrEmpty(username)) continue;
+                    string fullName = hero.Name.ToString();
+                    if (!HeroNaming.IsAdopted(fullName)) continue;
+                    string username = HeroNaming.ExtractUsername(fullName);
+                    if (string.IsNullOrEmpty(username)) continue;
 
-                int key = agent.Index;
-                seenIndexes.Add(key);
+                    int key = agent.Index;
+                    seenIndexes.Add(key);
 
                 if (!_agentToVM.TryGetValue(key, out var vm))
                 {
@@ -205,6 +237,19 @@ namespace BannerlordLink.Behaviors
                 vm.Color    = ResolveColor(agent);
                 vm.IsVisible = true;
                 visibleEntries.Add(vm);
+                }   // end inner try (per-agent block — POST-CRASH safety)
+                catch (Exception agentEx)
+                {
+                    // Single-agent failure не должен валить tick. Log once per session.
+                    if (!_firstTickLogged)
+                    {
+                        _firstTickLogged = true;
+                        BannerlordLinkModule.Log(
+                            $"[NameTag] per-agent error (first only): " +
+                            $"{agentEx.GetType().Name}: {agentEx.Message}");
+                    }
+                    // continue к next agent
+                }
             }
 
             // Remove VMs for agents that died/despawned.

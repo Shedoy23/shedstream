@@ -259,52 +259,35 @@ namespace BannerlordLink.Actions
 
                 bool withHorse = ResolveWithHorse(username);
 
-                // Sprint 5.33 SPAWN-CLOSE (2026-05-28): ally spawn near Agent.Main
-                // (3-5m по бокам), enemy остаётся engine default.
+                // 2026-05-28 REVERT (post-crash): возврат к BLT-Lait pattern.
+                // SPAWN-CLOSE override (perp offset 3.5-6.5m от Agent.Main) был
+                // intentional deviation от BLT. После crash session 19:59:22 с
+                // long battle (multiple viewer spawns + retinue + kill rewards
+                // every second) — возможный contributing factor: invalid pos
+                // когда Agent.Main moved между position read + SpawnTroop.
                 //
-                // Раньше (Sprint 5.29) ally использовал engine reinforcement zone —
-                // оно может быть далеко от main party (другой формации, или edge of
-                // map). User feedback 2026-05-28: «спавн зрителей в бою далеко от
-                // мейн отряда».
+                // BLT-Lait pattern (BLTSummonBehavior.cs):
+                //   initialPosition: null
+                //   initialDirection: null
+                //   isReinforcement: !DeploymentFlag (true в обычном бою)
                 //
-                // Solution: ally → near Agent.Main с perpendicular offset (стабильнее
-                // чем reinforcement zone в open battle, и viewer сразу в action).
-                // Enemy → null (engine reinforcement zone) — мы НЕ хотим спавнить
-                // enemy в формации стримера.
+                // Engine reinforcement spawn zone:
+                //   • Ally side  → behind/within player formation backline
+                //   • Enemy side → behind/within enemy formation backline
+                //   • Proper formation integration (AI commander видит как
+                //     proper reinforcement, не loose Agent)
+                //   • Safe в siege / arena / hideout (engine validates pos)
                 //
-                // Edge cases (hideout / arena / siege): где Agent.Main.Position
-                // может быть в walls — fallback на null если position invalid.
+                // User feedback ранее: «спавн далеко от мейн отряда». Это
+                // intended engine behavior — viewer reinforcement из backline.
+                // Принимаем как BLT-canonical. Если позже понадобится closer
+                // spawn — отдельный re-implement через Mission.GetSpawnPoint
+                // (engine-validated path), не Agent.Main + raw offset.
                 Vec3? heroSpawnPos = null;
                 Vec2? heroSpawnDir = null;
-                if (isPlayerSide && Agent.Main != null && Agent.Main.IsActive())
-                {
-                    try
-                    {
-                        var mainPos = Agent.Main.Position;
-                        var mainDir = Agent.Main.LookDirection.AsVec2;
-                        // Perpendicular offset: 90° к look direction, рандомизированно
-                        // влево/право чтобы 5 viewer'ов не лепились в одну точку.
-                        var perp = new Vec2(-mainDir.y, mainDir.x);
-                        float offsetDist = 3.5f + (Math.Abs(username.GetHashCode()) % 30) / 10f;  // 3.5-6.5m
-                        float sideSign = (Math.Abs(username.GetHashCode()) % 2 == 0) ? 1f : -1f;
-                        var offset = perp * (offsetDist * sideSign);
-                        heroSpawnPos = new Vec3(
-                            mainPos.x + offset.x,
-                            mainPos.y + offset.y,
-                            mainPos.z);
-                        heroSpawnDir = mainDir;   // лицом туда же куда стример смотрит
-                        BannerlordLinkModule.Log(
-                            $"[player.spawn:{sideLabel}] @{username} → near Agent.Main " +
-                            $"(offset {offsetDist:F1}m side={(sideSign > 0 ? "R" : "L")})");
-                    }
-                    catch (Exception posEx)
-                    {
-                        BannerlordLinkModule.Log(
-                            $"[player.spawn:{sideLabel}] @{username} position calc failed: {posEx.Message} — fallback engine default");
-                        heroSpawnPos = null;
-                        heroSpawnDir = null;
-                    }
-                }
+                BannerlordLinkModule.Log(
+                    $"[player.spawn:{sideLabel}] @{username} → engine reinforcement zone " +
+                    "(BLT-canonical, no position override)");
                 if (!heroSpawnPos.HasValue)
                 {
                     BannerlordLinkModule.Log(

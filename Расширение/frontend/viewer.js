@@ -1453,12 +1453,30 @@ async function loadBannerlordFamily() {
                 </div>`;
         }
 
-        // Outgoing (мои pending)
+        // Outgoing (мои pending) — Sprint 5.33 UI-Gap1: добавлена кнопка отзыва
+        // (× cancel) per proposal. Раньше viewer не мог withdraw proposal — теперь может.
         if (outgoing.length > 0) {
             html += `
                 <div style="font-size:10px;color:#9ca3af;margin-bottom:4px;">
                     📤 Отправлено: ${outgoing.length}
                     <span style="color:#6b7280;">(ждут ответа)</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:6px;">
+                    ${outgoing.map(p => `
+                        <div data-proposal-id="${p.id}"
+                             data-proposal-summary="${escapeHtml(p.proposer_child_name)} ❤ ${escapeHtml(p.target_child_name)}"
+                             style="display:flex;justify-content:space-between;align-items:center;
+                                    background:#0f0a18;padding:4px 6px;border-radius:3px;font-size:10px;">
+                            <span style="color:#c4b5fd;">
+                                к @${escapeHtml(p.target_username)}:
+                                «${escapeHtml(p.proposer_child_name)} ❤ ${escapeHtml(p.target_child_name)}»
+                            </span>
+                            <button class="bnr-fam-cancel small-btn"
+                                    title="Отозвать предложение (бесплатно)"
+                                    style="font-size:9px;padding:2px 5px;background:#2d2d3f;
+                                           color:#fb7185;">✕</button>
+                        </div>
+                    `).join('')}
                 </div>`;
         }
 
@@ -1478,6 +1496,8 @@ async function loadBannerlordFamily() {
                             <div style="display:flex;gap:3px;">
                                 <button class="bnr-fam-rename small-btn" title="Переименовать (50⦷)"
                                         style="font-size:9px;padding:2px 5px;background:#2d2d3f;color:#a78bfa;">✏</button>
+                                <button class="bnr-fam-looks small-btn" title="Изменить внешность (200⦷). Скопируй body_code из in-game character menu"
+                                        style="font-size:9px;padding:2px 5px;background:#2d2d3f;color:#a78bfa;">🎨</button>
                                 <button class="bnr-fam-respec small-btn" title="Респект скиллов (500⦷)"
                                         style="font-size:9px;padding:2px 5px;background:#2d2d3f;color:#a78bfa;">🎯</button>
                                 <button class="bnr-fam-propose small-btn" title="Предложить брак другому viewer'у (100⦷)"
@@ -1519,6 +1539,30 @@ async function loadBannerlordFamily() {
                 _famProposeMarriage(parent.dataset.childId, parent.dataset.childName);
             });
         });
+        // Sprint 5.33 UI-Gap1: cancel outgoing proposal binding
+        slot.querySelectorAll('.bnr-fam-cancel').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const parent = e.target.closest('[data-proposal-id]');
+                if (!parent) return;
+                const proposalId = parseInt(parent.dataset.proposalId, 10);
+                const summary = parent.dataset.proposalSummary || 'предложение';
+                if (!await _bnrConfirm(
+                    `Отозвать «${summary}»?`,
+                    'Отозвать'
+                )) return;
+                await _bannerlordBuyAction('hero.cancel_proposal',
+                    { proposal_id: proposalId });
+                setTimeout(loadBannerlordFamily, 1500);
+            });
+        });
+        // Sprint 5.33 UI-Gap2: change-looks button binding (per child)
+        slot.querySelectorAll('.bnr-fam-looks').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const parent = e.target.closest('[data-child-id]');
+                if (!parent) return;
+                _famChangeChildLooks(parent.dataset.childId, parent.dataset.childName);
+            });
+        });
     } catch (e) {
         console.warn('[FE-FAM] loadFamily failed', e);
         slot.innerHTML = '';
@@ -1539,6 +1583,30 @@ async function _famRespecChild(childId, name) {
         'Респект')) return;
     await _bannerlordBuyAction('hero.respec_child_skills',
         { child_hero_id: childId });
+}
+
+// Sprint 5.33 UI-Gap2 — change child appearance (BLT pattern body_code change).
+// Mod handler expects body_code = TaleWorlds BodyProperties.FromString format —
+// long hex/key string. Easiest UX: viewer copies body_code из in-game character
+// creator (Profile/Looks menu имеет "Export" button в 1.3.x), pastes здесь.
+async function _famChangeChildLooks(childId, name) {
+    const bodyCode = window.prompt(
+        `🎨 Изменить внешность «${name}» (200⦷)\n\n` +
+        `Вставь body_code (скопируй из in-game character menu → Export).\n` +
+        `Поддерживается формат TaleWorlds BodyProperties.`,
+        ''
+    );
+    if (!bodyCode || bodyCode.trim().length < 8) {
+        if (bodyCode !== null) {
+            showNotification('body_code слишком короткий или невалидный', 'warning');
+        }
+        return;
+    }
+    await _bannerlordBuyAction('hero.change_child_looks', {
+        child_hero_id: childId,
+        body_code: bodyCode.trim(),
+    });
+    setTimeout(loadBannerlordFamily, 1500);
 }
 
 async function _famProposeMarriage(myChildId, myChildName) {

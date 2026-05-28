@@ -196,6 +196,54 @@ namespace BannerlordLink.Actions
                     }
                 }
 
+                // BLT-PARITY (2026-05-28) — armor slots ARE NOT optional.
+                // Sprint 5.10b stripped armor в AdoptHeroHandler, intent был
+                // «viewer получит шмот через set_class» — но реализовано было
+                // только 4 weapons + mount. Armor (Head/Body/Leg/Gloves/Cape)
+                // остался пустым → viewer голый в бою.
+                //
+                // BLT pattern: SetClass → автоматически UpgradeEquipment(tier).
+                // У нас: набиваем armor здесь, чтобы set_class давал complete
+                // outfit (как у viewer'а ожидание после "выбрал класс").
+                // Modifier preservation работает же по pattern weapon slots.
+                var armorSlots = new (EquipmentIndex idx, ItemObject.ItemTypeEnum type)[]
+                {
+                    (EquipmentIndex.Head,   ItemObject.ItemTypeEnum.HeadArmor),
+                    (EquipmentIndex.Body,   ItemObject.ItemTypeEnum.BodyArmor),
+                    (EquipmentIndex.Leg,    ItemObject.ItemTypeEnum.LegArmor),
+                    (EquipmentIndex.Gloves, ItemObject.ItemTypeEnum.HandArmor),
+                    (EquipmentIndex.Cape,   ItemObject.ItemTypeEnum.Cape),
+                };
+                int armorEquipped = 0, armorPreserved = 0;
+                foreach (var slot in armorSlots)
+                {
+                    try
+                    {
+                        var current = equipment[slot.idx];
+                        // Preserve modifier'нутый armor (M8 pattern).
+                        if (!current.IsEmpty && current.ItemModifier != null)
+                        {
+                            armorPreserved++;
+                            continue;
+                        }
+                        var item = FindTieredItem(slot.type, engineTier, rng);
+                        if (item != null)
+                        {
+                            equipment[slot.idx] = new EquipmentElement(item);
+                            armorEquipped++;
+                        }
+                    }
+                    catch (Exception aex)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[set_class] armor slot {slot.idx} apply error: {aex.Message}");
+                    }
+                }
+                if (armorEquipped > 0 || armorPreserved > 0)
+                    BannerlordLinkModule.Log(
+                        $"[set_class] @{username}: armor T{gearTier} → " +
+                        $"{armorEquipped} equipped, {armorPreserved} preserved (modifier'нутые)");
+
                 if (preservedSlots > 0)
                     BannerlordLinkModule.Log(
                         $"[set_class M8] @{username}: preserved {preservedSlots} " +

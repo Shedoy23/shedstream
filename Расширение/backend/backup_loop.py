@@ -37,8 +37,27 @@ MIN_FREE_DISK_MB = 200      # skip backup if less than this free
 
 
 def _resolve_db_path() -> Path:
-    """Same logic as db_pool.py — keep in sync."""
-    return Path(os.getenv("DB_PATH", "data/rimworld.db"))
+    """Reconcile с тем что main.py фактически использует.
+
+    main.py:260 — `Database("viewers.db")` — авторитарный path для production.
+    db_pool fallback `data/rimworld.db` — legacy default, в проде не используется.
+    Env DB_PATH override остаётся для dev/test setups.
+
+    Logic:
+      1. DB_PATH env override — если задан
+      2. viewers.db (production default)
+      3. data/rimworld.db (legacy fallback)
+    """
+    env_override = os.getenv("DB_PATH")
+    if env_override:
+        return Path(env_override)
+    # Production: backend's CWD = /root/twitch-extension/backend, viewers.db там
+    candidates = [Path("viewers.db"), Path("data/rimworld.db"), Path("data.db")]
+    for cand in candidates:
+        if cand.exists():
+            return cand
+    # Default — production layout
+    return Path("viewers.db")
 
 
 def _resolve_backup_dir() -> Path:

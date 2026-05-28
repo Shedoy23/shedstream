@@ -593,6 +593,12 @@ class BannerlordAdapter(ModuleAdapter):
             await self._on_party_order_status(channel_id, env)
             return
 
+        # Sprint 5.33 CATALOG-1 — live settlements catalog from mod (towns/
+        # villages/castles + faction info) → backend cache → extension dropdown.
+        if et == "world.settlements_catalog":
+            await self._on_settlements_catalog(channel_id, env)
+            return
+
         # Sprint 5.29 / BLT-parity #3: refund крустиков на отказ мода
         if et == "action.failed":
             await self._on_action_failed(channel_id, env)
@@ -2093,6 +2099,48 @@ class BannerlordAdapter(ModuleAdapter):
         except Exception as ex:
             logger.exception("[PORDER-STATUS] failed ch=%s @%s: %s",
                              channel_id, owner, ex)
+
+    # ── Sprint 5.33 CATALOG-1: settlements catalog cache ─────────────────────
+
+    # In-memory per-channel cache. Mod пушит один раз на game load.
+    # Структура: { channel_id: { "updated_at": float, "settlements": [...] } }
+    _settlements_cache: Dict[int, Dict[str, Any]] = {}
+
+    async def _on_settlements_catalog(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Stores live engine settlements catalog для extension dropdown."""
+        import time as _time
+        data = env.data
+        settlements = data.get("settlements") or []
+        if not isinstance(settlements, list):
+            logger.warning("[CATALOG] ch=%s settlements не list — skip", channel_id)
+            return
+        # Validate basic shape: { id, name, type, culture, faction, faction_n }
+        clean = []
+        for s in settlements:
+            if not isinstance(s, dict): continue
+            sid = (s.get("id") or "").strip()
+            if not sid: continue
+            clean.append({
+                "id":        sid,
+                "name":      (s.get("name") or sid),
+                "type":      (s.get("type") or "other"),
+                "culture":   s.get("culture") or "",
+                "faction":   s.get("faction") or "",
+                "faction_n": s.get("faction_n") or "",
+            })
+        self._settlements_cache[channel_id] = {
+            "updated_at":  _time.time(),
+            "settlements": clean,
+        }
+        logger.info("[CATALOG] ch=%s settlements cache updated: %d entries",
+                    channel_id, len(clean))
+        await self._log_event(channel_id, "world.settlements_catalog", env.user, {
+            "count": len(clean),
+        })
+
+    def get_settlements(self, channel_id: int) -> Optional[Dict[str, Any]]:
+        """Public accessor для endpoint."""
+        return self._settlements_cache.get(channel_id)
 
     # ── World events ──────────────────────────────────────────────────────────
 

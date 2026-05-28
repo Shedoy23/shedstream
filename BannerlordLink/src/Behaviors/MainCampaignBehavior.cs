@@ -509,11 +509,63 @@ namespace BannerlordLink.Behaviors
                 MigrateLegacyHeroNames();
                 IntroduceAdoptedHeroes();
                 PushHeroesSnapshot(saveId);
+                // Sprint 5.33 CATALOG-1 (2026-05-28): push settlements catalog
+                // чтобы extension мог построить dropdown реальных engine towns —
+                // viewers не вводят fake names → 90% buy REFUND'ов уйдут.
+                PushSettlementsCatalog(saveId);
             }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log(
                     $"[CampaignEvent] PushSessionStart({trigger}) error: {ex.Message}");
+            }
+        }
+
+        /// <summary>Sprint 5.33 CATALOG-1 (2026-05-28) — push live engine
+        /// settlement catalog (towns + villages + castles) с faction info.
+        /// Extension использует для dropdown'а вместо free-text input.
+        /// Включает modded settlements автоматически.</summary>
+        private void PushSettlementsCatalog(string saveId)
+        {
+            try
+            {
+                if (Campaign.Current == null) return;
+                var items = new System.Collections.Generic.List<object>();
+                foreach (var s in TaleWorlds.CampaignSystem.Settlements.Settlement.All)
+                {
+                    if (s == null || s.StringId == null) continue;
+                    // Skip hideouts (bandit lairs) — не useful для UI.
+                    if (s.IsHideout) continue;
+                    string type = s.IsTown ? "town"
+                                : s.IsCastle ? "castle"
+                                : s.IsVillage ? "village"
+                                : "other";
+                    items.Add(new
+                    {
+                        id        = s.StringId,
+                        name      = s.Name?.ToString() ?? s.StringId,
+                        type      = type,
+                        culture   = s.Culture?.StringId,
+                        faction   = s.MapFaction?.StringId,
+                        faction_n = s.MapFaction?.Name?.ToString(),
+                    });
+                }
+                string evtData = JsonConvert.SerializeObject(new
+                {
+                    save_id     = saveId,
+                    count       = items.Count,
+                    settlements = items,
+                });
+                Task.Run(async () => await BannerlordLinkModule.Backend
+                    .PostEventAsync("bannerlord", "world.settlements_catalog", evtData));
+                BannerlordLinkModule.Log(
+                    $"[CampaignEvent] settlements_catalog pushed: {items.Count} settlements " +
+                    $"(towns + villages + castles, hideouts excluded)");
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[CampaignEvent] PushSettlementsCatalog error: {ex.Message}");
             }
         }
 

@@ -2490,6 +2490,97 @@ function _bnrRenderBalances(targetId) {
         </span>`;
 }
 
+// ───────────────────────────────────────────────────────────────────────────
+// Sprint 5.33 CATALOG-3 (2026-05-28) — live settlements catalog from mod.
+//
+// Mod пушит /v1/module/bannerlord/event:world.settlements_catalog со списком
+// всех engine settlements. Backend кэширует per-channel. Endpoint:
+//   GET /api/bannerlord/settlements?type=town
+//
+// Cached на frontend в _bnrSettlementsCache (refresh при первом fetch +
+// при open модала). Filtered by type для каждого use case.
+// ───────────────────────────────────────────────────────────────────────────
+
+let _bnrSettlementsCache = null;   // { ts, by_type: {town: [...], castle: [...]}}
+let _bnrSettlementsFetching = null; // promise если уже в полёте
+
+async function _bnrFetchSettlements(force = false) {
+    if (!force && _bnrSettlementsCache &&
+        Date.now() - _bnrSettlementsCache.ts < 60_000) {
+        return _bnrSettlementsCache.by_type;
+    }
+    if (_bnrSettlementsFetching) return _bnrSettlementsFetching;
+    _bnrSettlementsFetching = (async () => {
+        try {
+            const r = await fetch(`${API_URL}/api/bannerlord/settlements`, {
+                headers: { 'X-Twitch-JWT': authToken || '' },
+            }).then(r => r.json()).catch(() => ({success: false}));
+            const all = (r.success && Array.isArray(r.settlements))
+                        ? r.settlements : [];
+            const by_type = { town: [], castle: [], village: [], other: [] };
+            for (const s of all) {
+                const t = (s.type || 'other');
+                if (!by_type[t]) by_type[t] = [];
+                by_type[t].push(s);
+            }
+            // Sort each by name для предсказуемого UX
+            for (const t of Object.keys(by_type)) {
+                by_type[t].sort((a, b) =>
+                    (a.name || '').localeCompare(b.name || '', 'ru'));
+            }
+            _bnrSettlementsCache = { ts: Date.now(), by_type };
+            return by_type;
+        } catch (e) {
+            console.warn('[FE-CATALOG] fetch failed', e);
+            return { town: [], castle: [], village: [], other: [] };
+        } finally {
+            _bnrSettlementsFetching = null;
+        }
+    })();
+    return _bnrSettlementsFetching;
+}
+
+// Renders a <select> с группировкой по culture/faction.
+function _bnrRenderSettlementSelect(settlements, opts) {
+    opts = opts || {};
+    const inputId = opts.id || 'bnr-settlement-select';
+    if (!settlements || settlements.length === 0) {
+        return `
+            <div style="font-size:11px;color:#fb7185;padding:6px;background:#2a0a0a;
+                        border-radius:3px;">
+                ⚠ Мод не передал список settlements (game не запущена или
+                устаревший mod). Перезагрузи save в игре.
+            </div>
+            <input type="hidden" id="${inputId}" value="">
+            <input type="hidden" id="${inputId}-name" value="">`;
+    }
+    // Group by faction name
+    const byFaction = {};
+    for (const s of settlements) {
+        const k = s.faction_n || s.faction || '— нейтральные —';
+        if (!byFaction[k]) byFaction[k] = [];
+        byFaction[k].push(s);
+    }
+    const factionNames = Object.keys(byFaction).sort((a, b) =>
+        a.localeCompare(b, 'ru'));
+    const optgroups = factionNames.map(fn => {
+        const items = byFaction[fn].map(s => `
+            <option value="${escapeHtml(s.id)}"
+                    data-name="${escapeHtml(s.name)}">
+                ${escapeHtml(s.name)}
+            </option>`).join('');
+        return `<optgroup label="${escapeHtml(fn)}">${items}</optgroup>`;
+    }).join('');
+    return `
+        <select id="${inputId}"
+                style="width:100%;padding:6px;font-size:12px;
+                       background:#0a1308;color:#d9f99d;
+                       border:1px solid #65a30d;box-sizing:border-box;">
+            <option value="">— выбери из списка —</option>
+            ${optgroups}
+        </select>`;
+}
+
 // Sprint 5.33 WORKSHOP-FIX (2026-05-28): IDs aligned с engine spworkshops.xml.
 // Раньше silversmith/wood_workshop возвращали MBObjectManager null →
 // мод REFUSE'нул с refund. Engine использует silversmithy + wood_WorkshopType
@@ -2656,13 +2747,13 @@ function _openBuyWorkshopModal() {
                 `).join('')}
             </div>
             <label style="font-size:11px;color:#d9f99d;display:block;margin-bottom:4px;">
-                Town (название или StringId):
+                Town (выбери из engine catalog):
             </label>
-            <input id="bnr-ws-town" type="text" maxlength="80"
-                   placeholder="например: Pravend / Sargot / Marunath"
-                   style="width:100%;padding:6px;font-size:12px;background:#0a1308;
-                          color:#d9f99d;border:1px solid #65a30d;margin-bottom:10px;
-                          box-sizing:border-box;">
+            <div id="bnr-ws-town-slot" style="margin-bottom:10px;">
+                <div style="font-size:11px;color:#9ca3af;padding:6px;">
+                    ⏳ Загружается список городов...
+                </div>
+            </div>
             <div style="display:flex;gap:4px;">
                 <button id="bnr-ws-buy-confirm" class="extra-btn"
                         style="flex:1;font-size:11px;padding:6px;
@@ -2678,16 +2769,32 @@ function _openBuyWorkshopModal() {
     document.getElementById('bnr-ws-buy-cancel')?.addEventListener('click',
         () => overlay.remove());
     overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.remove(); });
+    // CATALOG-3: load real engine towns в dropdown
+    _bnrFetchSettlements().then(byType => {
+        const slot = document.getElementById('bnr-ws-town-slot');
+        if (slot) {
+            slot.innerHTML = _bnrRenderSettlementSelect(byType.town || [],
+                { id: 'bnr-ws-town' });
+        }
+    });
     document.getElementById('bnr-ws-buy-confirm')?.addEventListener('click', async () => {
         const typeSel = overlay.querySelector('input[name="bnr-ws-type"]:checked');
-        const town = (document.getElementById('bnr-ws-town')?.value || '').trim();
-        if (!typeSel || !town || town.length < 3) {
-            showNotification('Выбери тип и укажи town (≥3 символа)', 'warning');
+        const townSel = document.getElementById('bnr-ws-town');
+        const townId = (townSel?.value || '').trim();
+        const townName = townSel?.tagName === 'SELECT'
+            ? (townSel.options[townSel.selectedIndex]?.dataset?.name || townId)
+            : townId;
+        if (!typeSel) {
+            showNotification('Выбери тип мастерской', 'warning');
+            return;
+        }
+        if (!townId) {
+            showNotification('Выбери town из списка', 'warning');
             return;
         }
         await _bannerlordBuyAction('hero.buy_workshop', {
-            settlement_id:      town,
-            settlement_name:    town,
+            settlement_id:      townId,
+            settlement_name:    townName,
             workshop_type:      typeSel.value,
             workshop_type_name: typeSel.dataset.name,
         });
@@ -2912,13 +3019,13 @@ function _openBuyCaravanModal() {
                 <div style="color:#fb7185;">⚠ Бандиты могут уничтожить — viewers собирают rescue pool</div>
             </div>
             <label style="font-size:11px;color:#ddd6fe;display:block;margin-bottom:4px;">
-                Home town (название или StringId):
+                Home town (выбери из engine catalog):
             </label>
-            <input id="bnr-caravan-home" type="text" maxlength="80"
-                   placeholder="например: Pravend / Sargot / Marunath"
-                   style="width:100%;padding:6px;font-size:12px;background:#0f0d18;
-                          color:#ddd6fe;border:1px solid #7c3aed;margin-bottom:10px;
-                          box-sizing:border-box;">
+            <div id="bnr-caravan-home-slot" style="margin-bottom:10px;">
+                <div style="font-size:11px;color:#9ca3af;padding:6px;">
+                    ⏳ Загружается список городов...
+                </div>
+            </div>
             <div style="display:flex;gap:4px;">
                 <button id="bnr-caravan-buy-confirm" class="extra-btn"
                         style="flex:1;font-size:11px;padding:6px;
@@ -2934,15 +3041,34 @@ function _openBuyCaravanModal() {
     document.getElementById('bnr-caravan-buy-cancel')?.addEventListener('click',
         () => overlay.remove());
     overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.remove(); });
+    // CATALOG-3: load real engine towns в caravan home dropdown
+    _bnrFetchSettlements().then(byType => {
+        const slot = document.getElementById('bnr-caravan-home-slot');
+        if (slot) {
+            slot.innerHTML = _bnrRenderSettlementSelect(byType.town || [],
+                { id: 'bnr-caravan-home' });
+            // Re-style the <select> для caravan theme
+            const sel = document.getElementById('bnr-caravan-home');
+            if (sel && sel.tagName === 'SELECT') {
+                sel.style.background = '#0f0d18';
+                sel.style.color = '#ddd6fe';
+                sel.style.borderColor = '#7c3aed';
+            }
+        }
+    });
     document.getElementById('bnr-caravan-buy-confirm')?.addEventListener('click', async () => {
-        const home = (document.getElementById('bnr-caravan-home')?.value || '').trim();
-        if (!home || home.length < 3) {
-            showNotification('Укажи home town (≥3 символа)', 'warning');
+        const homeSel = document.getElementById('bnr-caravan-home');
+        const home = (homeSel?.value || '').trim();
+        const homeName = homeSel?.tagName === 'SELECT'
+            ? (homeSel.options[homeSel.selectedIndex]?.dataset?.name || home)
+            : home;
+        if (!home) {
+            showNotification('Выбери home town из списка', 'warning');
             return;
         }
         await _bannerlordBuyAction('hero.buy_caravan', {
             home_settlement_id:   home,
-            home_settlement_name: home,
+            home_settlement_name: homeName,
         });
         overlay.remove();
         setTimeout(loadBannerlordCaravans, 2000);

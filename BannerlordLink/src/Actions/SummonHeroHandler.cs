@@ -257,7 +257,11 @@ namespace BannerlordLink.Actions
                     }
                 }
 
-                bool withHorse = ResolveWithHorse(username);
+                // 2026-05-29 Stage 5 (BLT-RC22 pattern) — ShouldUseMount adds
+                // Mission-context guards on top of class check. Cavalry-class
+                // в siege/stealth/naval → forced dismount чтобы не stuck'ились
+                // в geometry. См. ShouldUseMount() ниже для full pattern.
+                bool withHorse = ShouldUseMount(username);
 
                 // 2026-05-28 v2: ally → null (BLT-canonical engine zone),
                 // enemy → near random enemy agent чтобы спавнить в их формацию.
@@ -817,6 +821,76 @@ namespace BannerlordLink.Actions
             var hc = PowerCache.GetHeroClass(username);
             if (hc == null) return false;
             return MountedClasses.Contains(hc.Value.classKey);
+        }
+
+        /// <summary>2026-05-29 Stage 5 (BLT-RC22 pattern) — Mission-context
+        /// aware mount selection. Wraps ResolveWithHorse с guards для конкретных
+        /// Mission types где cavalry должна быть dismounted независимо от class.
+        ///
+        /// Pattern из BLT-RC22 BLTSummonBehavior.cs:410-420 (ShouldBeMounted):
+        ///   public static bool ShouldBeMounted(FormationClass formationClass)
+        ///       => Mission.Current.Mode != MissionMode.Stealth
+        ///          && !MissionHelpers.InSiegeMission()
+        ///          && Mission.Current?.IsNavalBattle == false
+        ///          && formationClass is Cavalry or LightCavalry or HeavyCavalry or HorseArcher;
+        ///
+        /// Why это важно:
+        ///   - Siege: лошади бесполезны на стенах/в воротах. Engine SpawnTroop
+        ///     может вернуть mount но всадник застрянет geometrically.
+        ///   - Stealth (vanilla rare — escape sequences): mounted units выдают
+        ///     position. Tactical fail.
+        ///   - Naval: на корабле верхом не повоюешь (если что — лошади падают
+        ///     за борт через physics).
+        ///
+        /// Без этого guard'а cavalry-class viewer в siege получает horse и:
+        ///   - либо застревает (visible bug)
+        ///   - либо engine крашится при попытке pathfind с mount в narrow geometry
+        ///
+        /// Naval check (IsNavalBattle) — для War Sails compat. В Bannerlord
+        /// 1.3.15 без War Sails DLC всегда false.</summary>
+        private static bool ShouldUseMount(string username)
+        {
+            // Base: check class compatibility (existing logic).
+            if (!ResolveWithHorse(username)) return false;
+
+            var m = Mission.Current;
+            if (m == null) return false;
+
+            // Guard 1: Stealth mode — never mounted.
+            if (m.Mode == MissionMode.Stealth)
+            {
+                BannerlordLinkModule.Log(
+                    $"[player.spawn] @{username} cavalry-class → forced dismount (stealth mode)");
+                return false;
+            }
+
+            // Guard 2: Siege battle — never mounted. Check IsSiegeBattle
+            // напрямую (не через MissionHelpers — у нас нет того class'а).
+            try
+            {
+                if (m.IsSiegeBattle)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[player.spawn] @{username} cavalry-class → forced dismount (siege)");
+                    return false;
+                }
+            }
+            catch { /* IsSiegeBattle may not exist on all 1.3.x sub-versions */ }
+
+            // Guard 3: Naval battle — never mounted. IsNavalBattle accessor
+            // присутствует в Bannerlord 1.3.15 (returns false если no War Sails).
+            try
+            {
+                if (m.IsNavalBattle)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[player.spawn] @{username} cavalry-class → forced dismount (naval)");
+                    return false;
+                }
+            }
+            catch { /* IsNavalBattle may не exist в strict 1.3.15 без DLC */ }
+
+            return true;
         }
 
         // Sprint 5.7 — RANDOM enemy party (BLT pattern). Раньше брали FIRST

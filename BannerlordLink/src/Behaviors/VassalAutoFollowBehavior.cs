@@ -54,6 +54,20 @@ namespace BannerlordLink.Behaviors
         // vassal_clan_StringId → master viewer login (lowercase)
         private Dictionary<string, string> _vassalToMaster = new Dictionary<string, string>();
 
+        // 2026-05-29 (VAS income share) — vassal_clan_StringId → last observed
+        // leader gold. Дневной delta (net profit) × INCOME_SHARE_PCT транзитом
+        // master'у. Persisted чтобы baseline переживал save/load.
+        private Dictionary<string, int> _vassalLastGold = new Dictionary<string, int>();
+
+        // 25% дневной ЧИСТОЙ прибыли вассала (gold delta day-over-day) → master
+        // hero gold. Совпадает с backend default income_share_pct (таблица
+        // bannerlord_vassals). Берём net gold-delta, а не gross income —
+        // справедливее: skim'им только реальную прибыль, и если вассал
+        // потратился (delta ≤ 0) — ничего не уводим.
+        private const float INCOME_SHARE_PCT = 25f;
+        // Буфер: всегда оставляем вассалу минимум, чтобы не банкротить.
+        private const int MIN_VASSAL_BUFFER = 500;
+
         public VassalAutoFollowBehavior()
         {
             Current = this;
@@ -69,12 +83,17 @@ namespace BannerlordLink.Behaviors
                 this, OnMakePeace);
             CampaignEvents.OnClanDestroyedEvent.AddNonSerializedListener(
                 this, OnClanDestroyed);
+            // 2026-05-29 (VAS income share) — daily 25% net-profit skim.
+            CampaignEvents.DailyTickClanEvent.AddNonSerializedListener(
+                this, OnDailyTickClan);
         }
 
         public override void SyncData(IDataStore dataStore)
         {
             dataStore.SyncData("BLink_VassalToMaster", ref _vassalToMaster);
             if (_vassalToMaster == null) _vassalToMaster = new Dictionary<string, string>();
+            dataStore.SyncData("BLink_VassalLastGold", ref _vassalLastGold);
+            if (_vassalLastGold == null) _vassalLastGold = new Dictionary<string, int>();
         }
 
         // ─── Public registration API ──────────────────────────────────────────────
@@ -289,6 +308,67 @@ namespace BannerlordLink.Behaviors
             }
         }
 
+        // ─── Income share (daily 25% net-profit skim) ──────────────────────────────
+
+        /// <summary>2026-05-29 (VAS income share) — раз в день: 25% дневной
+        /// ЧИСТОЙ прибыли вассала (прирост Leader.Gold за сутки) → gold героя-
+        /// мастера. Backend column income_share_pct наконец реализован in-game.
+        ///
+        /// Net-profit (а не gross income): если вассал потратился (delta ≤ 0) →
+        /// skip. Буфер MIN_VASSAL_BUFFER чтобы не увести вассала в минус.
+        /// Master мёртв/исчез → no-op (baseline всё равно обновляем, чтобы не
+        /// копить «долг» за период когда master отсутствовал).</summary>
+        private void OnDailyTickClan(Clan clan)
+        {
+            try
+            {
+                if (clan == null || clan.IsEliminated) return;
+                if (!_vassalToMaster.TryGetValue(clan.StringId, out var masterUser)) return;
+
+                Hero vassalLeader = clan.Leader;
+                if (vassalLeader == null || !vassalLeader.IsAlive) return;
+
+                int cur = vassalLeader.Gold;
+
+                // First observation — establish baseline, no skim yet.
+                if (!_vassalLastGold.TryGetValue(clan.StringId, out int prev))
+                {
+                    _vassalLastGold[clan.StringId] = cur;
+                    return;
+                }
+
+                int delta = cur - prev;
+                // Update baseline upfront — covers spend-down + no-master cases.
+                _vassalLastGold[clan.StringId] = cur;
+                if (delta <= 0) return;  // нет прибыли → нечего делить
+
+                Clan masterClan = ResolveMasterClan(masterUser);
+                Hero masterHero = masterClan?.Leader;
+                if (masterHero == null || !masterHero.IsAlive) return;  // master gone
+                if (masterHero == vassalLeader) return;                 // safety (self)
+
+                int share = (int)(delta * INCOME_SHARE_PCT / 100f);
+                if (share <= 0) return;
+
+                // Cap: keep MIN_VASSAL_BUFFER в кармане вассала.
+                int affordable = Math.Max(0, cur - MIN_VASSAL_BUFFER);
+                share = Math.Min(share, affordable);
+                if (share <= 0) return;
+
+                GiveGoldAction.ApplyBetweenCharacters(vassalLeader, masterHero, share, true);
+                // Re-sync baseline после трансфера (Gold изменился).
+                _vassalLastGold[clan.StringId] = vassalLeader.Gold;
+
+                BannerlordLinkModule.Log(
+                    $"[VassalIncome] {clan.Name} → master @{masterUser}: {share} denars " +
+                    $"(25% от дневной прибыли {delta})");
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[VassalIncome] OnDailyTickClan error: {ex.Message}");
+            }
+        }
+
         private void OnClanDestroyed(Clan destroyedClan)
         {
             try
@@ -299,6 +379,7 @@ namespace BannerlordLink.Behaviors
                 if (_vassalToMaster.ContainsKey(destroyedClan.StringId))
                 {
                     _vassalToMaster.Remove(destroyedClan.StringId);
+                    _vassalLastGold.Remove(destroyedClan.StringId);
                     BannerlordLinkModule.Log(
                         $"[VassalAutoFollow] Removed destroyed vassal {destroyedClan.Name}");
                 }
@@ -318,6 +399,7 @@ namespace BannerlordLink.Behaviors
                     foreach (var key in toRemove)
                     {
                         _vassalToMaster.Remove(key);
+                        _vassalLastGold.Remove(key);
                     }
                     if (toRemove.Count > 0)
                     {

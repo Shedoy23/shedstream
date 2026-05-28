@@ -218,6 +218,38 @@ namespace BannerlordLink
 
             if (_harmony == null)
             {
+                // 2026-05-28 NAMEMARKER FIX: force-load SandBox.ViewModelCollection
+                // ДО PatchAll. Этот assembly содержит MissionNameMarkerTargetVM
+                // (нужен NameMarkerPatch'у). Без явной загрузки он lazy-loaded
+                // только когда engine открывает первую Mission → к этому моменту
+                // PatchAll уже отработал и NameMarkerPatch graceful-skip'нулся.
+                //
+                // Forcing reference на любой публичный тип из SandBox.ViewModelCollection
+                // триггерит CLR assembly load. Используем reflection-by-name чтобы
+                // не bind'нуть compile-time (defensive против rename).
+                try
+                {
+                    string asmPath = System.IO.Path.Combine(
+                        TaleWorlds.Library.BasePath.Name,
+                        "Modules", "SandBox", "bin", "Win64_Shipping_Client",
+                        "SandBox.ViewModelCollection.dll");
+                    if (System.IO.File.Exists(asmPath))
+                    {
+                        var loaded = System.Reflection.Assembly.LoadFrom(asmPath);
+                        Log($"[NameMarker prep] force-loaded {loaded.GetName().Name} " +
+                            $"v{loaded.GetName().Version}");
+                    }
+                    else
+                    {
+                        Log($"[NameMarker prep] SandBox.ViewModelCollection.dll не найден " +
+                            $"по пути: {asmPath}");
+                    }
+                }
+                catch (Exception lex)
+                {
+                    Log($"[NameMarker prep] force-load failed: {lex.GetType().Name}: {lex.Message}");
+                }
+
                 _harmony = new Harmony(HARMONY_ID);
                 // Sprint 5.32 CRITICAL FIX — resilient PatchAll. Раньше
                 // _harmony.PatchAll() патчил все [HarmonyPatch] классы за один

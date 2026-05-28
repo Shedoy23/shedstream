@@ -259,30 +259,58 @@ namespace BannerlordLink.Actions
 
                 bool withHorse = ResolveWithHorse(username);
 
-                // Sprint 5.29: BLT-style spawn placement — initialPosition=null +
-                // isReinforcement=true → engine выбирает default reinforcement
-                // marker для каждой side. Ally выходит из backline стримера,
-                // enemy — из backline врага. Это:
-                //   - Корректно integrates с formation system (AI commander
-                //     учитывает их как proper reinforcement).
-                //   - Не спавнит врага В формации стримера (старый "10m впереди").
-                //   - Не лепит ally вплотную к стримеру (старый "3m perp" —
-                //     блокировал движение, иногда spawn'ил в стенах).
-                //   - В hideout / arena работает корректно (engine знает map).
+                // Sprint 5.33 SPAWN-CLOSE (2026-05-28): ally spawn near Agent.Main
+                // (3-5m по бокам), enemy остаётся engine default.
                 //
-                // Раньше (Sprint 5.27f/p):
-                //   ally  → 3m perpendicular от Agent.Main
-                //   enemy → 10m впереди Agent.Main, face-to-face
-                // Эта схема feels arcade-y, ломала immersion и иногда крашила
-                // engine когда spawn point был invalid (walls, edge of map).
+                // Раньше (Sprint 5.29) ally использовал engine reinforcement zone —
+                // оно может быть далеко от main party (другой формации, или edge of
+                // map). User feedback 2026-05-28: «спавн зрителей в бою далеко от
+                // мейн отряда».
                 //
-                // BLT тоже использует null position в battle mode — мы возврат к
-                // engine default.
+                // Solution: ally → near Agent.Main с perpendicular offset (стабильнее
+                // чем reinforcement zone в open battle, и viewer сразу в action).
+                // Enemy → null (engine reinforcement zone) — мы НЕ хотим спавнить
+                // enemy в формации стримера.
+                //
+                // Edge cases (hideout / arena / siege): где Agent.Main.Position
+                // может быть в walls — fallback на null если position invalid.
                 Vec3? heroSpawnPos = null;
                 Vec2? heroSpawnDir = null;
-                BannerlordLinkModule.Log(
-                    $"[player.spawn:{sideLabel}] @{username} → engine default " +
-                    "reinforcement zone (BLT pattern, no position override)");
+                if (isPlayerSide && Agent.Main != null && Agent.Main.IsActive())
+                {
+                    try
+                    {
+                        var mainPos = Agent.Main.Position;
+                        var mainDir = Agent.Main.LookDirection.AsVec2;
+                        // Perpendicular offset: 90° к look direction, рандомизированно
+                        // влево/право чтобы 5 viewer'ов не лепились в одну точку.
+                        var perp = new Vec2(-mainDir.y, mainDir.x);
+                        float offsetDist = 3.5f + (Math.Abs(username.GetHashCode()) % 30) / 10f;  // 3.5-6.5m
+                        float sideSign = (Math.Abs(username.GetHashCode()) % 2 == 0) ? 1f : -1f;
+                        var offset = perp * (offsetDist * sideSign);
+                        heroSpawnPos = new Vec3(
+                            mainPos.x + offset.x,
+                            mainPos.y + offset.y,
+                            mainPos.z);
+                        heroSpawnDir = mainDir;   // лицом туда же куда стример смотрит
+                        BannerlordLinkModule.Log(
+                            $"[player.spawn:{sideLabel}] @{username} → near Agent.Main " +
+                            $"(offset {offsetDist:F1}m side={(sideSign > 0 ? "R" : "L")})");
+                    }
+                    catch (Exception posEx)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[player.spawn:{sideLabel}] @{username} position calc failed: {posEx.Message} — fallback engine default");
+                        heroSpawnPos = null;
+                        heroSpawnDir = null;
+                    }
+                }
+                if (!heroSpawnPos.HasValue)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[player.spawn:{sideLabel}] @{username} → engine default " +
+                        "reinforcement zone (no Agent.Main или enemy side)");
+                }
 
                 // Sprint 5.15: re-use existing agent если hero auto-spawned;
                 // иначе spawn fresh agent через engine API.

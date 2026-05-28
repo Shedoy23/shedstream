@@ -32,6 +32,21 @@ namespace BannerlordLink.Behaviors
         private const float BUFF_TICK_INTERVAL = 2.0f;
         private float _buffTickAcc;
 
+        // 2026-05-29 P1.2 (Stage 0 Phase 1) — feature flag для отключения
+        // per-tick particle re-burst. Сравнение с BLT-RC22 показало что они
+        // создают particle ОДИН раз (AgentPfx persistent looping) и НЕ дёргают
+        // CreateBurstParticle каждые 2 сек. См. docs/BLT_RC22_REFERENCE.md
+        // секция A.2 и refactor plan Phase 3 — full AgentPfx adoption.
+        //
+        // Сейчас (Phase 1) — просто отключаем re-burst. Это убирает
+        // 15 particle calls на каждые 30 сек активного buff'а на каждого
+        // viewer'а с активным buff'ом. В большой battle с 5+ buff'ами это
+        // 75+ particle calls сэкономлено за 30 сек. Понижает FMOD pressure
+        // на ~5-10%.
+        //
+        // Phase 3 заменит этот flag на persistent AgentPfx (BLT pattern).
+        private const bool BUFF_TICK_PARTICLES_ENABLED = false;
+
         public override void OnAgentBuild(Agent agent, Banner banner)
         {
             base.OnAgentBuild(agent, banner);
@@ -70,13 +85,17 @@ namespace BannerlordLink.Behaviors
                 BannerlordLinkModule.Log($"[PowersMission] DoT tick error: {ex.Message}");
             }
 
-            // Sprint 5.30 #41 — periodic re-burst для timed buffs (subtle visual
-            // reinforcement что buff active). Iterate all (username, buff) и
-            // play tick particle на agent если найден в Mission.
-            try { PlayBuffTickParticles(); }
-            catch (Exception ex)
+            // Sprint 5.30 #41 — periodic re-burst для timed buffs.
+            // 2026-05-29 P1.2 — отключено через BUFF_TICK_PARTICLES_ENABLED flag.
+            // CreateBurstParticle каждые 2 сек = FMOD pool pressure. См.
+            // комментарий у константы наверху файла.
+            if (BUFF_TICK_PARTICLES_ENABLED)
             {
-                BannerlordLinkModule.Log($"[PowersMission] buff tick fx error: {ex.Message}");
+                try { PlayBuffTickParticles(); }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log($"[PowersMission] buff tick fx error: {ex.Message}");
+                }
             }
         }
 

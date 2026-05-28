@@ -165,10 +165,23 @@ namespace BannerlordLink.Net
             var backend = BannerlordLinkModule.Backend;
             if (backend == null) return;
 
-            string json = string.Format(
-                System.Globalization.CultureInfo.InvariantCulture,
-                "{{\"username\":\"{0}\",\"power_key\":\"{1}\",\"duration_s\":{2:F1},\"value\":{3:F3}}}",
-                EscapeJson(username), EscapeJson(powerKey), duration, value);
+            // 2026-05-29 P1.4 (Stage 0 Phase 1) — ранее использовался ручной
+            // string.Format с :F1/:F3 для float/double. Newtonsoft JToken.Parse
+            // на стороне BackendClient давился на "position 72" с "F" character —
+            // 100% воспроизводимый bug. См. Расширение/docs/REFACTOR_PLAN_BLT_RC22.md
+            // и логи crash 5/6 (бесконечные "bad dataJson, skipping" warnings).
+            //
+            // Fix: JsonConvert.SerializeObject anonymous object — Newtonsoft
+            // serializer гарантирует корректный JSON (численные literals + escape
+            // strings). Эквивалентный pattern используется в BackendClient.cs:137
+            // для envelope wrapper.
+            string json = Newtonsoft.Json.JsonConvert.SerializeObject(new
+            {
+                username = username,
+                power_key = powerKey,
+                duration_s = duration,
+                value = value,
+            });
 
             Task.Run(async () =>
             {
@@ -179,12 +192,6 @@ namespace BannerlordLink.Net
                         $"[BuffState] push {eventType} failed: {ex.Message}");
                 }
             });
-        }
-
-        private static string EscapeJson(string s)
-        {
-            if (string.IsNullOrEmpty(s)) return "";
-            return s.Replace("\\", "\\\\").Replace("\"", "\\\"");
         }
     }
 }

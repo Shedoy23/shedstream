@@ -49,7 +49,11 @@ namespace BannerlordLink.Patches
         // == 0` → ранний return до счётчика. Если streamer ведёт бой и за минуту
         // мы НЕ залогировали "processed N blows" — значит binding сломан.
         private static long _blowsProcessed;
-        private const long BLOW_LOG_EVERY = 200;
+        // 2026-05-29 P1.3 (Stage 0 Phase 1) — увеличено 200 → 1000.
+        // В большой battle (1000 blows/sec) старое значение давало 5 stdout
+        // writes/sec в hot path. Logger contention в file I/O. Liveness check
+        // всё ещё работает — "patch alive" каждую секунду.
+        private const long BLOW_LOG_EVERY = 1000;
 
         // Harmony резолвит args по имени. Имена `attacker / victim / b / collisionData`
         // должны совпадать с сигнатурой Mission.RegisterBlow — остальные параметры

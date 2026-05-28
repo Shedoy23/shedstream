@@ -51,3 +51,6 @@ skills-lock.json
 
 # CodeGraph index (binary SQLite, regen via codegraph init)
 .codegraph/
+
+# External reference repos (BLT-RC22 etc) — local clones for audit, not part of project
+reference/

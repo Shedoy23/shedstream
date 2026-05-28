@@ -28,6 +28,23 @@ namespace BannerlordLink.Util
     /// </summary>
     public static class PowerVisualFx
     {
+        // 2026-05-29 P1.1 (Stage 0 Phase 1) — глобальный feature flag для
+        // отключения Mission.MakeSound calls во всех PlayActivation/PlayBuffTick.
+        // Default: false (audio off).
+        //
+        // Причина: code review BLT-RC22 (Section A.1 OneShotEffect, B.10 AddDamagePower)
+        // показал что они дёргают MakeSound ОЧЕНЬ редко — только on shield shatter
+        // (rare event) и через ActivePowerGroup.ActivateEffect (one-shot per buff).
+        // У нас же КАЖДАЯ PlayActivation дёргает MakeSound для 7 powers ×
+        // N viewers × M активаций = большой FMOD pool pressure.
+        //
+        // Phase 1: feature flag (cheap, reversible).
+        // Phase 3 (refactor): adopt OneShotEffect struct + ActivateEffect/
+        // DeactivateEffect pattern. Then re-enable selectively.
+        //
+        // См. Расширение/docs/REFACTOR_PLAN_BLT_RC22.md секцию Phase 1.1.
+        public static bool AudioEnabled = false;
+
         public class PowerFxConfig
         {
             public string PopupText;       // "@user активировал Ярость"
@@ -198,6 +215,13 @@ namespace BannerlordLink.Util
 
         private static void PlaySound(string soundEvent, MatrixFrame frame, Agent agent)
         {
+            // 2026-05-29 P1.1 (Stage 0 Phase 1) — global mute flag.
+            // По умолчанию AudioEnabled=false (см. const declaration наверху файла).
+            // Все 7 powers (heal_burst, shield_break_burst, rage, retribution_toggle,
+            // poison_dot, disarm_burst, berserker_charge) больше не дёргают MakeSound.
+            // Particle + popup остаются — visual feedback не теряется.
+            if (!AudioEnabled) return;
+
             if (string.IsNullOrEmpty(soundEvent)) return;
             try
             {

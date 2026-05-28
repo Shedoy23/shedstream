@@ -5604,32 +5604,58 @@ async function loadBannerlordHero() {
         }
         _bannerlordLastHero = data;   // 5.8: cache для progression modal
 
-        // FLICKER-FIX v3 (2026-05-28): structural-only hash для dedup hero body.
-        // Раньше каждый gold tick (~8s poll) перерисовывал ВЕСЬ hero pane
-        // template (HTML string менялся из-за нового gold value) → sub-slots
-        // внутри (workshops/caravans/etc.) destroy'ились + recreated empty
-        // → их sub-loaders rebuilt visibly. Теперь body innerHTML rewrite'ится
-        // только при изменении структурных fields. Gold в header будет
-        // обновляться через next structural change (level up, kingdom join,
-        // etc.) — но gold уже виден актуально в sub-slot headers (workshop/
-        // caravan/fief panels) которые dedupe sub-loaders'и refresh'ат.
+        // FLICKER-FIX v5 (2026-05-28): MINIMAL struct hash — только truly rare
+        // events. Раньше включал location (меняется при движении по карте
+        // → body rewrite → sub-slot DIVs (workshops/caravans/etc.) становятся
+        // empty → sub-loader fetch 100-500ms → 0.2-0.5 сек blank flicker).
+        //
+        // Now hash = ONLY то что реально нужно re-render body:
+        //   - has_hero    (adopted ли)
+        //   - level       (level-up rare)
+        //   - clan_id     (joined/left clan)
+        //   - kingdom_id  (joined/left kingdom)
+        //   - alive       (death/respawn)
+        //   - prisoner    (capture/release)
+        //
+        // Excluded: name (set on adopt + never changes), culture (same),
+        // location (changes constantly), retinue_n (changes часто), gold/hp
+        // (every poll). Эти будут stale в header'е до next struct change —
+        // НО они уже видны актуально в sub-slot панелях или modal'ах.
         const _h = data.hero || {};
         const _structHash = JSON.stringify({
-            has_hero:     data.has_hero,
-            name:         _h.display_name,
-            level:        _h.level,
-            culture:      _h.culture,
-            location:     _h.location,
-            clan_id:      _h.clan_id,
-            kingdom_id:   _h.kingdom_id,
-            alive:        _h.is_alive,
-            prisoner:     _h.is_prisoner,
-            tournament_w: _h.tournament_wins,
-            retinue_n:    (data.retinue || []).length,
-            // gold / hp / kills исключены — сменятся независимо через sub-slots
+            has_hero:    data.has_hero,
+            level:       _h.level,
+            clan_id:     _h.clan_id,
+            kingdom_id:  _h.kingdom_id,
+            alive:       _h.is_alive,
+            prisoner:    _h.is_prisoner,
         });
         const _structChanged = (body._bnrLastStruct !== _structHash);
         body._bnrLastStruct = _structHash;
+
+        // FLICKER-FIX v5 PRESERVE: на body innerHTML rewrite сохраняем
+        // существующее содержимое sub-slot'ов чтобы избежать blank gap
+        // во время sub-loader fetch.
+        const _preserveSlots = (cb) => {
+            if (!_structChanged) return cb(false);
+            // Capture current sub-slot innerHTMLs (если они уже rendered).
+            const slotIds = ['bnr-daily-slot','bnr-heir-slot','bnr-family-slot',
+                'bnr-vassals-slot','bnr-party-orders-slot','bnr-diplo-slot',
+                'bnr-ransom-slot','bnr-workshops-slot','bnr-fiefs-slot',
+                'bnr-caravans-slot','bnr-caravan-rescue-slot','bnr-inheritance-slot'];
+            const snapshot = {};
+            for (const id of slotIds) {
+                const el = document.getElementById(id);
+                if (el && el.innerHTML) snapshot[id] = el.innerHTML;
+            }
+            const result = cb(true);
+            // Restore sub-slot innerHTMLs back into fresh DOM.
+            for (const id of Object.keys(snapshot)) {
+                const el = document.getElementById(id);
+                if (el && !el.innerHTML) el.innerHTML = snapshot[id];
+            }
+            return result;
+        };
 
         if (!data.has_hero) {
             const CULTURES = [
@@ -5900,10 +5926,10 @@ async function loadBannerlordHero() {
                     🧬 Профиль и семья
                 </button>
             </div>`;
-        // FLICKER-FIX v3: structural change OR fallback HTML compare.
-        // _structChanged=false → skip body innerHTML rewrite (gold/HP/kills
-        // меняются, но они в template'е тоже — игнорируем для dedup'a).
-        const _bnrChanged = _structChanged && _smartInnerHTML(body, _bnrHeroHtml);
+        // FLICKER-FIX v5: structural change wrapped в _preserveSlots — sub-slot
+        // content NOT destroyed во время body rewrite.
+        const _bnrChanged = _preserveSlots(() =>
+            _structChanged && _smartInnerHTML(body, _bnrHeroHtml));
       if (_bnrChanged) {
         // 🎒 Инвентарь pane — Экипировка + Свита + Достижения + Кузница + Аукционы.
         const paneInv = document.getElementById('bnr-pane-inventory-body');

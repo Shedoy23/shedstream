@@ -259,35 +259,74 @@ namespace BannerlordLink.Actions
 
                 bool withHorse = ResolveWithHorse(username);
 
-                // 2026-05-28 REVERT (post-crash): возврат к BLT-Lait pattern.
-                // SPAWN-CLOSE override (perp offset 3.5-6.5m от Agent.Main) был
-                // intentional deviation от BLT. После crash session 19:59:22 с
-                // long battle (multiple viewer spawns + retinue + kill rewards
-                // every second) — возможный contributing factor: invalid pos
-                // когда Agent.Main moved между position read + SpawnTroop.
+                // 2026-05-28 v2: ally → null (BLT-canonical engine zone),
+                // enemy → near random enemy agent чтобы спавнить в их формацию.
                 //
-                // BLT-Lait pattern (BLTSummonBehavior.cs):
-                //   initialPosition: null
-                //   initialDirection: null
-                //   isReinforcement: !DeploymentFlag (true в обычном бою)
+                // User feedback (post crash recovery): «"против стримера"
+                // спавнится прям рядом со стримером, а не во вражеский отряд».
                 //
-                // Engine reinforcement spawn zone:
-                //   • Ally side  → behind/within player formation backline
-                //   • Enemy side → behind/within enemy formation backline
-                //   • Proper formation integration (AI commander видит как
-                //     proper reinforcement, не loose Agent)
-                //   • Safe в siege / arena / hideout (engine validates pos)
+                // Root cause: engine reinforcement zone иногда даёт enemy spawn
+                // близко к streamer formation если battle mid-clash (обе formations
+                // сошлись, backlines перекрылись). + если fallback на MainParty
+                // (когда нет enemy party origin), engine реально кладёт near
+                // MainParty position игнорируя isPlayerSide.
                 //
-                // User feedback ранее: «спавн далеко от мейн отряда». Это
-                // intended engine behavior — viewer reinforcement из backline.
-                // Принимаем как BLT-canonical. Если позже понадобится closer
-                // spawn — отдельный re-implement через Mission.GetSpawnPoint
-                // (engine-validated path), не Agent.Main + raw offset.
+                // Fix: для enemy side берём position существующего enemy agent
+                // (any alive enemy in PlayerEnemyTeam) + small offset. Engine
+                // SpawnTroop validates ground там, safe. Не используем Agent.Main
+                // (prev crash-attributed). Не raw-calculate enemy formation
+                // center (heavy, требует Formation iteration).
                 Vec3? heroSpawnPos = null;
                 Vec2? heroSpawnDir = null;
-                BannerlordLinkModule.Log(
-                    $"[player.spawn:{sideLabel}] @{username} → engine reinforcement zone " +
-                    "(BLT-canonical, no position override)");
+                if (!isPlayerSide)
+                {
+                    try
+                    {
+                        var enemyTeam = Mission.Current?.PlayerEnemyTeam;
+                        if (enemyTeam != null)
+                        {
+                            Agent enemyAnchor = null;
+                            // Find ANY alive enemy human agent. Prefer non-mounted
+                            // чтобы pos не плыла со скакуном.
+                            foreach (var a in Mission.Current.Agents)
+                            {
+                                if (a == null || !a.IsActive() || !a.IsHuman) continue;
+                                if (a.Team != enemyTeam) continue;
+                                enemyAnchor = a;
+                                if (!a.HasMount) break;   // prefer dismounted
+                            }
+                            if (enemyAnchor != null)
+                            {
+                                // Small 2-4m perp offset от anchor чтобы не overlap.
+                                var anchorPos = enemyAnchor.Position;
+                                var anchorDir = enemyAnchor.LookDirection.AsVec2;
+                                var perp = new Vec2(-anchorDir.y, anchorDir.x);
+                                int hash = Math.Abs(username.GetHashCode());
+                                float offsetDist = 2f + (hash % 30) / 15f;  // 2-4m
+                                float sideSign = (hash % 2 == 0) ? 1f : -1f;
+                                var offset = perp * (offsetDist * sideSign);
+                                heroSpawnPos = new Vec3(
+                                    anchorPos.x + offset.x,
+                                    anchorPos.y + offset.y,
+                                    anchorPos.z);
+                                heroSpawnDir = anchorDir;
+                                BannerlordLinkModule.Log(
+                                    $"[player.spawn:{sideLabel}] @{username} → near enemy agent " +
+                                    $"(anchor idx={enemyAnchor.Index} offset {offsetDist:F1}m " +
+                                    $"side={(sideSign > 0 ? "R" : "L")})");
+                            }
+                        }
+                    }
+                    catch (Exception posEx)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[player.spawn:{sideLabel}] @{username} enemy-anchor pos calc failed: " +
+                            $"{posEx.Message} — fallback engine default");
+                        heroSpawnPos = null;
+                        heroSpawnDir = null;
+                    }
+                }
+                // Ally side → null (BLT-canonical, engine reinforcement zone).
                 if (!heroSpawnPos.HasValue)
                 {
                     BannerlordLinkModule.Log(

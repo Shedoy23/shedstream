@@ -264,12 +264,26 @@ namespace BannerlordLink.Patches
         }
 
         /// <summary>Drain pending reflects. Called from KillRewardBehavior.OnMissionTick.
-        /// Это вне любого RegisterBlow Prefix scope → no shared ref, no re-entry.</summary>
+        /// Это вне любого RegisterBlow Prefix scope → no shared ref, no re-entry.
+        ///
+        /// 2026-05-28 CRASH FIX: cap drain at MAX_DRAINS_PER_TICK чтобы не
+        /// перегружать engine RegisterBlow в sustained reflect cascade. Crash
+        /// session 21:36:29 показал ~200 reflects за 6 секунд (~30/сек) →
+        /// engine state может corrupt under prolonged load. Throttle защищает.
+        /// Reflects сверх cap — drop'ятся (next tick possible re-queue если
+        /// поток продолжается).</summary>
+        private const int MAX_DRAINS_PER_TICK = 3;
         public static void DrainPendingReflects()
         {
-            int applied = 0;
+            int applied = 0, dropped = 0;
             while (_pendingReflects.TryDequeue(out var req))
             {
+                // 2026-05-28: hard cap чтобы избежать sustained RegisterBlow load.
+                if (applied >= MAX_DRAINS_PER_TICK)
+                {
+                    dropped++;
+                    continue;   // drain queue но не RegisterBlow
+                }
                 try
                 {
                     if (req.Attacker == null || !req.Attacker.IsActive()) continue;
@@ -305,10 +319,12 @@ namespace BannerlordLink.Patches
                         $"[DamageHook] async reflect failed: {ex.GetType().Name}: {ex.Message}");
                 }
             }
-            if (applied > 0)
+            if (applied > 0 || dropped > 0)
             {
                 BannerlordLinkModule.Log(
-                    $"[DamageHook DRAIN] applied {applied} pending reflects this tick");
+                    $"[DamageHook DRAIN] applied {applied}" +
+                    (dropped > 0 ? $", dropped {dropped} (throttle cap)" : "") +
+                    " pending reflects this tick");
             }
         }
 

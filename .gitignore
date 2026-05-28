@@ -54,3 +54,7 @@ skills-lock.json
 
 # External reference repos (BLT-RC22 etc) — local clones for audit, not part of project
 reference/
+
+# Build artifacts (BLT-RC22 audit housekeeping)
+BannerlordLink/src/obj/
+BannerlordLink/src/bin/

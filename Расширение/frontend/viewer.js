@@ -1288,7 +1288,7 @@ async function loadBannerlordDaily() {
             headers: { 'X-Twitch-JWT': authToken || '' },
         });
         const d = await r.json();
-        if (!d || !d.success) { slot.innerHTML = ''; return; }
+        if (!d || !d.success) return;  // AUDIT fix: keep last render on transient fail
         const goldAmt = (d.reward_amounts?.gold || 100000).toLocaleString('ru-RU');
         const xpAmt   = (d.reward_amounts?.xp   || 50000).toLocaleString('ru-RU');
         if (d.can_claim) {
@@ -1375,8 +1375,9 @@ async function loadBannerlordHeirs() {
             headers: { 'X-Twitch-JWT': authToken || '' },
         });
         const d = await r.json();
-        if (!d || !d.success || !Array.isArray(d.heirs) || d.heirs.length === 0) {
-            slot.innerHTML = '';
+        if (!d || d.success === false) return;  // AUDIT fix: keep last on transient fail
+        if (!Array.isArray(d.heirs) || d.heirs.length === 0) {
+            _smartInnerHTML(slot, '');  // genuine empty — dedup, no flicker
             return;
         }
         // Sprint 5.32 (LOG-4) — info log при non-empty heirs. Silent на 0
@@ -1394,8 +1395,7 @@ async function loadBannerlordHeirs() {
                 <span style="color:#a78bfa;">${namesDisplay}</span>
             </div>`;
     } catch (e) {
-        console.warn('[FE-M2] loadHeirs failed', e);
-        slot.innerHTML = '';
+        console.warn('[FE-M2] loadHeirs failed (keeping last render)', e);
     }
 }
 
@@ -1565,8 +1565,7 @@ async function loadBannerlordFamily() {
             });
         });
     } catch (e) {
-        console.warn('[FE-FAM] loadFamily failed', e);
-        slot.innerHTML = '';
+        console.warn('[FE-FAM] loadFamily failed (keeping last render)', e);
     }
 }
 
@@ -1805,8 +1804,7 @@ async function loadBannerlordVassals() {
             _openCreateVassalModal(eligible);
         });
     } catch (e) {
-        console.warn('[FE-VAS] loadVassals failed', e);
-        slot.innerHTML = '';
+        console.warn('[FE-VAS] loadVassals failed (keeping last render)', e);
     }
 }
 
@@ -2093,7 +2091,8 @@ async function loadBannerlordDiplomacy() {
         const r = await fetch(`${API_URL}/api/bannerlord/kingdom-state`, {
             headers: { 'X-Twitch-JWT': authToken || '' }
         }).then(r => r.json()).catch(() => ({success: false}));
-        if (!r.success || !r.has_hero) { slot.innerHTML = ''; return; }
+        if (r.success === false) return;  // AUDIT fix: keep last on transient fail
+        if (!r.has_hero) { _smartInnerHTML(slot, ''); return; }  // genuine — no hero
         if (!r.kingdom_id) {
             slot.innerHTML = `
                 <div style="background:#1a1208;border:1px solid #92400e;border-radius:4px;
@@ -2166,8 +2165,7 @@ async function loadBannerlordDiplomacy() {
         document.getElementById('bnr-diplo-peace-btn')?.addEventListener('click',
             () => _openMakePeaceModal(r));
     } catch (e) {
-        console.warn('[FE-DIPLO] loadDiplomacy failed', e);
-        slot.innerHTML = '';
+        console.warn('[FE-DIPLO] loadDiplomacy failed (keeping last render)', e);
     }
 }
 
@@ -2364,8 +2362,7 @@ async function loadBannerlordRansomPool() {
             });
         });
     } catch (e) {
-        console.warn('[FE-RANSOM] loadRansom failed', e);
-        slot.innerHTML = '';
+        console.warn('[FE-RANSOM] loadRansom failed (keeping last render)', e);
     }
 }
 
@@ -3162,8 +3159,7 @@ async function loadBannerlordCaravanRescues() {
             });
         });
     } catch (e) {
-        console.warn('[FE-CARAVAN-RESCUE] loadRescues failed', e);
-        slot.innerHTML = '';
+        console.warn('[FE-CARAVAN-RESCUE] loadRescues failed (keeping last render)', e);
     }
 }
 
@@ -3233,8 +3229,7 @@ async function loadBannerlordInheritance() {
         // FLICKER-FIX: dedupe (no bindings here, just paint).
         _smartInnerHTML(slot, html);
     } catch (e) {
-        console.warn('[FE-HERITAGE] loadInheritance failed', e);
-        slot.innerHTML = '';
+        console.warn('[FE-HERITAGE] loadInheritance failed (keeping last render)', e);
     }
 }
 

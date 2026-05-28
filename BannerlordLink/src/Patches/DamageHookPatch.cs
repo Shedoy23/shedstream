@@ -235,12 +235,23 @@ namespace BannerlordLink.Patches
             b.InflictedDamage = newInflicted;
             cd.InflictedDamage = newInflicted;
 
-            // 2. Counter-blow — queue для асинхронного apply'а.
-            EnqueueReflect(attacker, victim, reflected, b.DamageType);
+            // 2. Counter-blow — DISABLED 2026-05-28 (4th FMOD crash).
+            //
+            // After 4 successive crashes correlated с DamageHook activity
+            // (FMOD invalid handle), we eliminate the biggest sustained-load
+            // RegisterBlow path. REFLECT now DAMAGE-REDUCTION ONLY:
+            //   - victim receives reduced damage (good for tank/defensive)
+            //   - attacker NOT counter-hit (gameplay simplification)
+            //
+            // To re-enable counter-blow при stable build, uncomment EnqueueReflect.
+            // BLT-Lait использует ReflectDamagePower aналогично (no counter),
+            // так что это actually closer to BLT-parity.
+            //
+            // EnqueueReflect(attacker, victim, reflected, b.DamageType);   // disabled
             BannerlordLinkModule.LogVerbose(() =>
                 $"[DamageHook REFLECT] @{user} pct={pct:F1}% " +
                 $"dmg {beforeDmg}→{newInflicted} (reduced -{reflected}) " +
-                $"counter-blow queued (queue={_pendingReflects.Count})");
+                $"[counter-blow disabled — FMOD safety]");
         }
 
         // Sprint 5.32 CRASH FIX — pending reflects queue. KillRewardBehavior

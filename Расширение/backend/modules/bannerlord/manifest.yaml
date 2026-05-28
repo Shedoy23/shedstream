@@ -35,6 +35,7 @@ events:
   - player.died
   - player.respawned
   - world.event_occurred
+  - world.settlements_catalog   # Sprint 5.33 CATALOG-1 — mod pushes engine settlements catalog
 
 # Стандартные actions — стример сможет триггерить:
 #   player.spawn = заспавнить героя зрителя в текущую сцену
@@ -90,6 +91,8 @@ extensions:
     - hero.caravan_created       # Sprint 5.33 (BLT-parity CARAVAN): mod backfill engine party_id
     - hero.caravan_profit_sync   # Sprint 5.33 (BLT-parity CARAVAN): daily diff PartyTradeGold
     - hero.caravan_destroyed     # Sprint 5.33 (BLT-parity CARAVAN): MobilePartyDestroyed event
+    - hero.party_order_status    # Sprint 5.33 PORDER: sticky order set/release/expire/complete
+    # world.settlements_catalog объявлен в base events (наверху, поэтому без префикса hero.)
   actions:
     - hero.create        # Adoption flow — spawn fresh wanderer + SetName(viewer)
     - hero.set_class     # Sprint 4.1: класс + equipment apply

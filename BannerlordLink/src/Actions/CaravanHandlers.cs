@@ -160,9 +160,14 @@ namespace BannerlordLink.Actions
             }
         }
 
-        /// <summary>Sprint 5.33 VERIFY-1 — culture cascade for caravan template.
-        /// CaravanHelper.GetRandomCaravanTemplate filtering is opaque; passing
-        /// home.Culture в проде вернул null. Cascade gives 3 шанса найти template.</summary>
+        /// <summary>Sprint 5.33 WORKSHOP-FIX (2026-05-28) — bulletproof template resolver.
+        ///
+        /// Strategy:
+        ///   1. Try CaravanHelper.GetRandomCaravanTemplate on cascade of cultures
+        ///      (hero → home → MainHero → any-non-bandit).
+        ///   2. Brute-force: MBObjectManager.GetObjectTypeList<PartyTemplateObject>
+        ///      + StringId.Contains("caravan") — last resort if Helper is broken.
+        ///   3. Каждая попытка логируется → видно что не сработало.</summary>
         private static PartyTemplateObject TryResolveCaravanTemplate(Hero hero, Settlement home)
         {
             PartyTemplateObject Try(CultureObject c, string label)
@@ -177,6 +182,8 @@ namespace BannerlordLink.Actions
                             $"[caravan-buy] template via {label} (culture='{c.StringId}') → {t.StringId}");
                         return t;
                     }
+                    BannerlordLinkModule.Log(
+                        $"[caravan-buy] {label} (culture='{c.StringId}') → null");
                 }
                 catch (Exception ex)
                 {
@@ -186,12 +193,81 @@ namespace BannerlordLink.Actions
                 return null;
             }
 
-            return Try(hero?.Culture, "hero.Culture")
-                ?? Try(home?.Culture, "home.Culture")
-                ?? Try(Hero.MainHero?.Culture, "MainHero.Culture")  // last resort: streamer culture
-                ?? Try(Campaign.Current?.GameStarted == true
-                       ? Settlement.All?.FirstOrDefault(s => s?.Culture != null)?.Culture
-                       : null, "any-settlement");
+            // Stage 1: cascade of explicit cultures.
+            var result = Try(hero?.Culture, "hero.Culture")
+                      ?? Try(home?.Culture, "home.Culture")
+                      ?? Try(Hero.MainHero?.Culture, "MainHero.Culture");
+            if (result != null) return result;
+
+            // Stage 2: enumerate all non-bandit cultures.
+            try
+            {
+                var allCultures = MBObjectManager.Instance.GetObjectTypeList<CultureObject>();
+                foreach (var c in allCultures ?? (System.Collections.Generic.IEnumerable<CultureObject>)Array.Empty<CultureObject>())
+                {
+                    if (c == null) continue;
+                    if (c.IsBandit) continue;
+                    var t = Try(c, $"enum-culture[{c.StringId}]");
+                    if (t != null) return t;
+                }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[caravan-buy] enum cultures crash: {ex.Message}");
+            }
+
+            // Stage 3: brute-force любой PartyTemplate с "caravan" в StringId.
+            try
+            {
+                var templates = MBObjectManager.Instance.GetObjectTypeList<PartyTemplateObject>();
+                LogCaravanTemplatesCatalog(templates);
+                foreach (var t in templates ?? (System.Collections.Generic.IEnumerable<PartyTemplateObject>)Array.Empty<PartyTemplateObject>())
+                {
+                    if (t == null || t.StringId == null) continue;
+                    string id = t.StringId.ToLowerInvariant();
+                    if (!id.Contains("caravan")) continue;
+                    if (id.Contains("elite") || id.Contains("bandit")) continue;
+                    BannerlordLinkModule.Log(
+                        $"[caravan-buy] brute-force template fallback → {t.StringId}");
+                    return t;
+                }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[caravan-buy] brute-force crash: {ex.Message}");
+            }
+
+            return null;
+        }
+
+        // Catalog logger — runs at most once per session to expose все templates.
+        private static bool _templateCatalogLogged;
+        private static void LogCaravanTemplatesCatalog(System.Collections.Generic.IEnumerable<PartyTemplateObject> templates)
+        {
+            if (_templateCatalogLogged) return;
+            _templateCatalogLogged = true;
+            try
+            {
+                var sb = new System.Text.StringBuilder();
+                sb.Append("[caravan-buy CATALOG] PartyTemplateObject containing 'caravan':");
+                int n = 0;
+                foreach (var t in templates ?? (System.Collections.Generic.IEnumerable<PartyTemplateObject>)Array.Empty<PartyTemplateObject>())
+                {
+                    if (t?.StringId == null) continue;
+                    if (!t.StringId.ToLowerInvariant().Contains("caravan")) continue;
+                    sb.Append($"\n  - '{t.StringId}'");
+                    n++;
+                }
+                sb.Append($"\n  (total {n} caravan-related templates)");
+                BannerlordLinkModule.Log(sb.ToString());
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[caravan-buy CATALOG] enumeration failed: {ex.Message}");
+            }
         }
     }
 

@@ -2365,18 +2365,23 @@ async function loadBannerlordRansomPool() {
 
 // Curated vanilla 1.3.x workshop types. Mod валидирует через
 // MBObjectManager.GetObject<WorkshopType>(stringId).
+// Sprint 5.33 WORKSHOP-FIX (2026-05-28): IDs aligned с engine spworkshops.xml.
+// Раньше silversmith/wood_workshop возвращали MBObjectManager null →
+// мод REFUSE'нул с refund. Engine использует silversmithy + wood_WorkshopType
+// (последнее — TaleWorlds vanilla typo, не наш). Все ID проверены против
+// SandBox/ModuleData/spworkshops.xml для 1.3.15.
 const _BNR_WORKSHOP_TYPES = [
-    { id: 'brewery',         name: 'Пивоварня',         emoji: '🍺' },
-    { id: 'smithy',          name: 'Кузница',           emoji: '⚒' },
-    { id: 'wool_weavery',    name: 'Шерстяная ткацкая', emoji: '🐑' },
-    { id: 'linen_weavery',   name: 'Льняная ткацкая',   emoji: '🌾' },
-    { id: 'tannery',         name: 'Дубильня',          emoji: '🐄' },
-    { id: 'pottery_shop',    name: 'Гончарня',          emoji: '🏺' },
-    { id: 'olive_press',     name: 'Маслодавильня',     emoji: '🫒' },
-    { id: 'wine_press',      name: 'Винодельня',        emoji: '🍷' },
-    { id: 'velvet_weavery',  name: 'Бархатная ткацкая', emoji: '👘' },
-    { id: 'silversmith',     name: 'Серебряных дел',    emoji: '🥈' },
-    { id: 'wood_workshop',   name: 'Древоделия',        emoji: '🪵' },
+    { id: 'brewery',          name: 'Пивоварня',         emoji: '🍺' },
+    { id: 'smithy',           name: 'Кузница',           emoji: '⚒' },
+    { id: 'wool_weavery',     name: 'Шерстяная ткацкая', emoji: '🐑' },
+    { id: 'linen_weavery',    name: 'Льняная ткацкая',   emoji: '🌾' },
+    { id: 'tannery',          name: 'Дубильня',          emoji: '🐄' },
+    { id: 'pottery_shop',     name: 'Гончарня',          emoji: '🏺' },
+    { id: 'olive_press',      name: 'Маслодавильня',     emoji: '🫒' },
+    { id: 'wine_press',       name: 'Винодельня',        emoji: '🍷' },
+    { id: 'velvet_weavery',   name: 'Бархатная ткацкая', emoji: '👘' },
+    { id: 'silversmithy',     name: 'Серебряных дел',    emoji: '🥈' },
+    { id: 'wood_WorkshopType', name: 'Древоделия',       emoji: '🪵' },
 ];
 
 async function loadBannerlordWorkshops() {

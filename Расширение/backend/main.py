@@ -93,6 +93,7 @@ from routes.bannerlord_diplomacy import router as bannerlord_diplomacy_router  #
 from routes.bannerlord_workshops import router as bannerlord_workshops_router  # Sprint 5.33 BLT-parity SHOP
 from routes.bannerlord_fiefs import router as bannerlord_fiefs_router  # Sprint 5.33 BLT-parity FIEF
 from routes.bannerlord_caravans import router as bannerlord_caravans_router  # Sprint 5.33 BLT-parity CARAVAN
+from routes.bannerlord_admin import router as bannerlord_admin_router  # Sprint 5.33 RESET-1 — streamer admin tools
 from routes.bannerlord_boosty import router as bannerlord_boosty_router  # Sprint 5.31 #45
 from routes.dev_login   import router as dev_login_router  # /dev test page (2026-05-16)
 # casino_router удалён 2026-05-10 — Phase 1.A compliance rework (см. COMPLIANCE_REWORK_PLAN.md)
@@ -127,6 +128,7 @@ app.include_router(bannerlord_diplomacy_router)  # Sprint 5.33 BLT-parity DIPLO 
 app.include_router(bannerlord_workshops_router)  # Sprint 5.33 BLT-parity SHOP — workshops passive income
 app.include_router(bannerlord_fiefs_router)  # Sprint 5.33 BLT-parity FIEF — fief tribute passive income
 app.include_router(bannerlord_caravans_router)  # Sprint 5.33 BLT-parity CARAVAN — mobile passive income + rescue
+app.include_router(bannerlord_admin_router)  # Sprint 5.33 RESET-1 — streamer admin tools
 app.include_router(bannerlord_boosty_router)    # Sprint 5.31 #45 — Boosty subs
 app.include_router(dev_login_router)   # 2026-05-16: /dev OAuth test page
 

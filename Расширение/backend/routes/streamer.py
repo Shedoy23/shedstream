@@ -484,6 +484,37 @@ def _dashboard_html(ch: dict) -> str:
     </details>
   </div>
 
+  <!-- Bannerlord admin tools (Sprint 5.33 RESET-1, 2026-05-28) -->
+  <div class="section" id="bnr-admin-section">
+    <h2>⚙ Bannerlord — admin tools</h2>
+    <div class="sub" style="color:#fb7185;">
+      ⚠ <b>Опасные действия.</b> Используй если backend cache десинхронизировался
+      с моей кампанией или нужно начать чисто (тест, новый wipe и т.д.).
+      Reset удаляет ВСЕ per-channel Bannerlord данные: heroes / workshops /
+      fiefs / caravans / heirs / proposals / vassals / party orders / diplomacy /
+      tournament queue / auctions / achievements / pending mod actions.
+      <b>НЕ удаляются</b>: catalog (classes/powers/upgrades), Boosty list (cosmetic),
+      audit events log.
+    </div>
+    <div style="margin-top:10px;">
+      <button id="bnr-reset-preview-btn"
+              style="background:#3d3d3f;color:#efeff1;border:1px solid #5d5d5f;
+                     padding:8px 14px;border-radius:4px;cursor:pointer;">
+        👁 Preview (узнать что будет удалено)
+      </button>
+      <button id="bnr-reset-confirm-btn"
+              style="background:#7f1d1d;color:#fee2e2;border:1px solid #991b1b;
+                     padding:8px 14px;border-radius:4px;cursor:pointer;margin-left:6px;">
+        🧹 Reset Bannerlord data
+      </button>
+    </div>
+    <div id="bnr-reset-result"
+         style="margin-top:12px;padding:8px 12px;background:#0a0a0a;
+                border-radius:4px;font-size:11px;color:#adadb8;
+                display:none;white-space:pre-wrap;font-family:monospace;">
+    </div>
+  </div>
+
   <div class="footnote">
     Расширение установи через <a href="https://dashboard.twitch.tv/extensions" style="color:#9147ff">Twitch Dashboard → Extensions</a>.
     Channel-points и settings (модуль, цены) появятся в следующих релизах M4.5+.
@@ -589,6 +620,84 @@ def _dashboard_html(ch: dict) -> str:
     }}
   }});
   load();
+
+  // Sprint 5.33 RESET-1 — Bannerlord admin reset tools.
+  // GET preview /api/streamer/bannerlord/reset/preview → table_counts
+  // POST /api/streamer/bannerlord/reset с {confirm_phrase: channel_id} → wipe.
+  const bnrResetOut = document.getElementById('bnr-reset-result');
+  const bnrResetShow = (txt, isError) => {{
+    bnrResetOut.style.display = 'block';
+    bnrResetOut.style.color = isError ? '#fb7185' : '#adadb8';
+    bnrResetOut.textContent = txt;
+  }};
+  document.getElementById('bnr-reset-preview-btn')?.addEventListener('click', async () => {{
+    bnrResetShow('Loading preview...', false);
+    try {{
+      const r = await fetch('/api/streamer/bannerlord/reset/preview', {{
+        credentials: 'include',
+      }});
+      const d = await r.json();
+      if (!d.success) {{ bnrResetShow('❌ ' + (d.message || 'Failed'), true); return; }}
+      const lines = [];
+      lines.push('Channel #' + d.channel_id + ' — total rows: ' + d.total_rows);
+      lines.push('');
+      lines.push('Per table:');
+      const entries = Object.entries(d.table_counts || {{}}).sort((a, b) => (b[1] || 0) - (a[1] || 0));
+      for (const [tbl, cnt] of entries) {{
+        if (cnt === 0) continue;
+        lines.push('  ' + (cnt === -1 ? '?' : String(cnt).padStart(5)) + '  ' + tbl);
+      }}
+      lines.push('');
+      lines.push('Preserved (НЕ удаляются): ' + (d.preserved_tables || []).join(', '));
+      bnrResetShow(lines.join('\\n'), false);
+    }} catch (e) {{
+      bnrResetShow('❌ Network error: ' + e.message, true);
+    }}
+  }});
+  document.getElementById('bnr-reset-confirm-btn')?.addEventListener('click', async () => {{
+    // Get current channel_id from session — fetch /api/streamer/me
+    let channelId = null;
+    try {{
+      const meR = await fetch('/api/streamer/me', {{credentials: 'include'}});
+      const me = await meR.json();
+      channelId = me.id || me.channel_id;
+    }} catch (e) {{}}
+    if (!channelId) {{
+      bnrResetShow('❌ Не удалось определить channel_id (re-login?)', true);
+      return;
+    }}
+    const phrase = prompt(
+      'Это удалит ВСЁ per-channel Bannerlord state.\\n\\n' +
+      'Для подтверждения введи свой channel_id: ' + channelId
+    );
+    if (phrase === null) return;
+    if (String(phrase).trim() !== String(channelId)) {{
+      bnrResetShow('❌ Confirmation mismatch — ничего не удалено', true);
+      return;
+    }}
+    bnrResetShow('Wiping...', false);
+    try {{
+      const r = await fetch('/api/streamer/bannerlord/reset', {{
+        method: 'POST',
+        credentials: 'include',
+        headers: {{'Content-Type': 'application/json'}},
+        body: JSON.stringify({{confirm_phrase: String(channelId)}}),
+      }});
+      const d = await r.json();
+      if (!d.success) {{ bnrResetShow('❌ ' + (d.message || 'Failed'), true); return; }}
+      const lines = [];
+      lines.push('✅ ' + (d.message || 'Done'));
+      lines.push('');
+      lines.push('Deleted ' + d.total_deleted + ' rows. Detail:');
+      for (const [tbl, cnt] of Object.entries(d.deleted_by_table || {{}})) {{
+        if (cnt === 0) continue;
+        lines.push('  ' + (cnt === -1 ? '?' : String(cnt).padStart(5)) + '  ' + tbl);
+      }}
+      bnrResetShow(lines.join('\\n'), false);
+    }} catch (e) {{
+      bnrResetShow('❌ Network error: ' + e.message, true);
+    }}
+  }});
 }})();
 </script>
 </body></html>"""

@@ -2533,7 +2533,7 @@ async function loadBannerlordWorkshops() {
                     </span>
                 </div>
                 <div style="font-size:9px;color:#9ca3af;margin-bottom:6px;">
-                    Пассивный доход: 💰 динары → 💎 крустики (100:1 ежедневно)
+                    Пассивный доход в 💰 динарах — копятся в Hero.Gold (на gear/smith/marriage)
                 </div>`;
 
         if (workshops.length > 0) {
@@ -2551,9 +2551,8 @@ async function loadBannerlordWorkshops() {
                                 <span style="color:#9ca3af;"> · ${escapeHtml(w.settlement_name || w.settlement_id)}</span>
                             </div>
                             <div style="font-size:10px;color:#65a30d;margin-top:2px;">
-                                <span style="color:#fbbf24;">💰 ${(w.total_profit || 0).toLocaleString('ru-RU')}</span>
-                                <span style="color:#6b7280;">→</span>
-                                <span style="color:#a5f3fc;">💎 ${(w.estimated_crustic || 0).toLocaleString('ru-RU')}</span>
+                                <span style="color:#9ca3af;">Заработано:</span>
+                                <span style="color:#fbbf24;font-weight:700;">💰 ${(w.total_profit || 0).toLocaleString('ru-RU')}</span>
                             </div>
                         </div>
                         <button class="bnr-ws-sell small-btn"
@@ -2638,7 +2637,7 @@ function _openBuyWorkshopModal() {
             <div style="font-size:10px;color:#9ca3af;margin-bottom:10px;line-height:1.4;">
                 <div>💎 — entry fee, списывается с твоего ⦷ балланса</div>
                 <div>💰 — initial capital, списывается с Hero.Gold (engine)</div>
-                <div>📈 Профит конвертируется в 💎 ежедневно (100 💰 = 1 💎)</div>
+                <div>📈 Профит копится в Hero.Gold (динары — на gear/smith/marriage)</div>
             </div>
             <label style="font-size:11px;color:#d9f99d;display:block;margin-bottom:4px;">
                 Тип мастерской:
@@ -2731,7 +2730,7 @@ async function loadBannerlordFiefs() {
                     </span>
                 </div>
                 <div style="font-size:9px;color:#9ca3af;margin-bottom:6px;">
-                    Tribute passive: 💰 динары → 💎 крустики (200:1 ежедневно)
+                    Tribute passive в 💰 динарах — копятся в Hero.Gold
                 </div>
                 <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">
                 ${fiefs.map(f => {
@@ -2749,22 +2748,17 @@ async function loadBannerlordFiefs() {
                                 ${f.boost_active ? '<span style="color:#facc15;font-size:9px;font-weight:700;"> ⚡ BOOST</span>' : ''}
                             </div>
                             <div style="font-size:10px;margin-top:2px;">
-                                <span style="color:#fbbf24;">💰 ${(f.total_collected_dinars || 0).toLocaleString('ru-RU')}</span>
-                                <span style="color:#6b7280;">→</span>
-                                <span style="color:#a5f3fc;">💎 ${(f.estimated_crustic || 0).toLocaleString('ru-RU')}</span>
+                                <span style="color:#9ca3af;">Заработано:</span>
+                                <span style="color:#fbbf24;font-weight:700;">💰 ${(f.total_collected_dinars || 0).toLocaleString('ru-RU')}</span>
                             </div>
                         </div>
-                        ${!f.boost_active ? `
-                            <button class="bnr-fief-boost small-btn"
-                                    title="${escapeHtml(_bnrAffordTooltip(2000, 0))} | +${boostPct}% на ${boostDays} дней"
-                                    style="font-size:9px;padding:2px 6px;background:#b45309;
-                                           color:#fed7aa;">⚡ Boost ${_bnrPriceHtml(2000, 0)}</button>
-                        ` : ''}
+                        ${/* Sprint 5.33 DECOUPLE-1: Tribute boost deprecated —
+                            бустер ⦷-output смысла не имеет когда ⦷ output = 0. */ ''}
                     </div>`;
                 }).join('')}
                 </div>
                 <div style="font-size:9px;color:#6b7280;text-align:center;">
-                    Auto-payout: 200 💰 = 1 💎 (×${(r.boost_mult || 1.5).toFixed(1)} с boost)
+                    Динары → Hero.Gold (на gear/smith). ⦷ не выдаётся пассивно.
                 </div>
             </div>`;
         // FLICKER-FIX: skip rebind при identical HTML.
@@ -2828,7 +2822,7 @@ async function loadBannerlordCaravans() {
                     </span>
                 </div>
                 <div style="font-size:9px;color:#9ca3af;margin-bottom:6px;">
-                    Mobile passive: 💰 динары → 💎 крустики (150:1). ⚠ Бандиты могут уничтожить.
+                    Mobile passive в 💰 динарах — копятся в Hero.Gold. ⚠ Бандиты могут уничтожить.
                 </div>`;
 
         if (caravans.length > 0) {
@@ -2847,9 +2841,8 @@ async function loadBannerlordCaravans() {
                                 ${isDest ? '<span style="color:#fb7185;font-size:9px;font-weight:700;"> УНИЧТОЖЕН</span>' : ''}
                             </div>
                             <div style="font-size:10px;margin-top:2px;">
-                                <span style="color:${isDest ? '#fb7185' : '#fbbf24'};">💰 ${(c.total_collected_dinars || 0).toLocaleString('ru-RU')}</span>
-                                <span style="color:#6b7280;">→</span>
-                                <span style="color:${isDest ? '#fb7185' : '#a5f3fc'};">💎 ${(c.estimated_crustic || 0).toLocaleString('ru-RU')}</span>
+                                <span style="color:#9ca3af;">Заработано:</span>
+                                <span style="color:${isDest ? '#fb7185' : '#fbbf24'};font-weight:700;">💰 ${(c.total_collected_dinars || 0).toLocaleString('ru-RU')}</span>
                             </div>
                         </div>
                         ${!isDest ? `
@@ -2933,7 +2926,7 @@ function _openBuyCaravanModal() {
             <div style="font-size:10px;color:#9ca3af;margin-bottom:10px;line-height:1.4;">
                 <div>💎 — entry fee, списывается с твоего ⦷ балланса</div>
                 <div>💰 — capital (15K), списывается с Hero.Gold (engine)</div>
-                <div>📈 Profit конвертируется в 💎 ежедневно (150 💰 = 1 💎)</div>
+                <div>📈 Profit копится в Hero.Gold (динары на gear/smith/marriage)</div>
                 <div style="color:#fb7185;">⚠ Бандиты могут уничтожить — viewers собирают rescue pool</div>
             </div>
             <label style="font-size:11px;color:#ddd6fe;display:block;margin-bottom:4px;">

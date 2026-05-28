@@ -77,7 +77,9 @@ async def my_workshops(request: Request):
             "workshop_type_name":  r[4],
             "initial_capital":     r[5] or 0,
             "total_profit":        r[6] or 0,
-            "estimated_crustic":   (r[6] or 0) // DINAR_TO_CRUSTIC,
+            # Sprint 5.33 DECOUPLE-1 — passive ⦷-payout removed; field kept
+            # для backward-compat (returns 0) so old clients don't crash.
+            "estimated_crustic":   0,
             "opened_at":           r[7],
             "last_synced_at":      r[8],
         })
@@ -211,16 +213,22 @@ async def handle_sell_workshop(conn, channel_id: int, owner: str, data: dict) ->
 
 async def credit_workshop_profit(channel_id: int, owner: str, workshop_id: int,
                                   net_dinars: int) -> int:
-    """Called by event handler — convert net dinars → crustic, credit viewer.
+    """Sprint 5.33 DECOUPLE-1 (2026-05-28) — passive income → ⦷ DISABLED.
 
-    Returns crustic credited (для logging).
+    Workshop profit (net dinars) теперь оседает только в engine Hero.Gold —
+    viewer тратит динары на gear/smith/marriage/etc. ⦷ — currency
+    «внимания» (просмотр, чат) — не должны генерироваться пассивно от
+    in-game собственности (anti-AFK-farm + cleaner ToS positioning).
+
+    Backward note: viewers уже получили исторические ⦷ — не отзываем.
+    Эта функция продолжает tracking total_profit для UI/stats, но
+    add_points больше не вызывает.
     """
     if net_dinars <= 0:
         return 0
-    crustic = int(net_dinars) // DINAR_TO_CRUSTIC
     db = get_db()
     async with db._connect() as conn:
-        # Update workshop profit + last_synced_at.
+        # Update workshop profit + last_synced_at (stat tracking only).
         await conn.execute(
             "UPDATE bannerlord_workshops SET "
             "  total_profit = total_profit + ?, "
@@ -229,9 +237,6 @@ async def credit_workshop_profit(channel_id: int, owner: str, workshop_id: int,
             "WHERE id=? AND channel_id=? AND status='active'",
             (net_dinars, workshop_id, channel_id))
         await conn.commit()
-    # Credit crustic to viewer (separate function — uses own connection).
-    if crustic > 0:
-        await db.add_points(owner, crustic, channel_id=channel_id)
-        log.info("[SHOP-PAYOUT] ch=%s @%s workshop=%s credited %s⦷ (%d dinars)",
-                 channel_id, owner, workshop_id, crustic, net_dinars)
-    return crustic
+    log.info("[SHOP-SYNC] ch=%s @%s workshop=%s +%d dinars (engine; ⦷ payout disabled)",
+             channel_id, owner, workshop_id, net_dinars)
+    return 0   # 0 ⦷ credited — passive income decoupled from platform currency

@@ -73,7 +73,7 @@ async def my_caravans(request: Request):
             "home_settlement_name":   r[3],
             "initial_capital":        r[4] or 0,
             "total_collected_dinars": r[5] or 0,
-            "estimated_crustic":      (r[5] or 0) // DINAR_TO_CRUSTIC_CARAVAN,
+            "estimated_crustic":      0,  # DECOUPLE-1: passive ⦷ disabled
             "last_synced_at":         r[6],
             "opened_at":              r[7],
             "status":                 r[8],
@@ -305,11 +305,18 @@ async def handle_pay_caravan_rescue(conn, channel_id: int, owner: str, data: dic
 
 async def credit_caravan_profit(channel_id: int, owner: str, party_id: str,
                                   net_dinars: int) -> int:
-    """Sync handler — update + credit."""
+    """Sprint 5.33 DECOUPLE-1 (2026-05-28) — passive ⦷ payout REMOVED.
+
+    Caravan profit оседает в engine Hero.Gold (PartyTradeGold). Динары
+    идут на gear/smith/marriage — ⦷ остаются «вознаграждение за внимание»
+    (просмотр, чат), не AFK farming.
+
+    Tracking total_collected_dinars сохранён для UI ("ваш караван заработал
+    150K дин."). add_points removed.
+    """
     if net_dinars <= 0:
         return 0
     db = get_db()
-    crustic = int(net_dinars) // DINAR_TO_CRUSTIC_CARAVAN
     async with db._connect() as conn:
         cur = await conn.execute(
             "UPDATE bannerlord_caravans SET "
@@ -322,11 +329,9 @@ async def credit_caravan_profit(channel_id: int, owner: str, party_id: str,
     if affected == 0:
         log.warning("[CARAVAN-SYNC] no active row ch=%s party_id=%s", channel_id, party_id)
         return 0
-    if crustic > 0:
-        await db.add_points(owner, crustic, channel_id=channel_id)
-        log.info("[CARAVAN-SYNC] ch=%s @%s party=%s +%d dinars → +%d⦷",
-                 channel_id, owner, party_id, net_dinars, crustic)
-    return crustic
+    log.info("[CARAVAN-SYNC] ch=%s @%s party=%s +%d dinars (engine; ⦷ payout disabled)",
+             channel_id, owner, party_id, net_dinars)
+    return 0   # 0 ⦷ credited — passive income decoupled from platform currency
 
 
 async def mark_caravan_destroyed(channel_id: int, party_id: str, captor_name: str = ""):

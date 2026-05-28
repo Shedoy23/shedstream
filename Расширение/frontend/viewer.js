@@ -6042,11 +6042,56 @@ async function loadBannerlordHero() {
         // Render UNCONDITIONAL (gold/HP/level updates каждый poll) — но
         // bindings для clan-row/kingdom-row/upgrade-btn (внизу) тоже
         // unconditional, потому что DOM-узлы recreated на каждом poll.
+        // FLICKER-FIX v7 (2026-05-29): РАЗДЕЛЯЕМ volatile stats grid и stable
+        // sub-slots. Раньше `paneHero.innerHTML = ...` переписывался КАЖДЫЙ
+        // poll (gold/level live-updates), что УНИЧТОЖАЛО 12 sub-slot DIV'ов
+        // (workshops/caravans/fiefs/party-orders/heir/...) → они становились
+        // empty → async sub-loader fetch 100-500ms → видимый blank flicker
+        // каждые 8s ("пропадают и снова загружаются"). _preserveSlots не
+        // помогал т.к. он обёрнут вокруг записи в #hero-body (header), а слоты
+        // живут в ОТДЕЛЬНОМ #bnr-pane-hero-body.
+        //
+        // Теперь: skeleton (slots + profile button) строится ОДИН раз и больше
+        // не пересоздаётся; каждый poll обновляется только #bnr-pane-hero-stats
+        // через _smartInnerHTML (dedupe → repaint лишь при изменении gold/etc).
         const paneHero = document.getElementById('bnr-pane-hero-body');
-        if (paneHero) paneHero.innerHTML = `
-            <div style="padding:6px;">
+        if (paneHero) {
+            // (1) Build stable skeleton ОДИН раз — sub-slots НЕ пересоздаются.
+            if (!document.getElementById('bnr-pane-hero-stats')) {
+                paneHero.innerHTML = `
+                    <div style="padding:6px;">
+                        <div id="bnr-pane-hero-stats" style="margin-bottom:10px;"></div>
+                        <div id="bnr-daily-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-heir-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-family-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-vassals-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-party-orders-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-diplo-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-ransom-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-workshops-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-fiefs-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-caravans-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-caravan-rescue-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-inheritance-slot" style="margin-bottom:8px;"></div>
+                        <button class="extra-btn" id="bnr-open-profile-btn"
+                                title="Семейные настройки: смена пола, брак, дети"
+                                style="width:100%;font-size:12px;padding:8px;margin-top:4px;
+                                       background:#1f1a30;color:#c084fc;font-weight:700;
+                                       border:1px solid #5b21b6;">
+                            🧬 Профиль и семья
+                        </button>
+                    </div>`;
+                // Profile button живёт в skeleton (recreated только тут) →
+                // bind ОДИН раз. (Раньше биндился в if(_bnrChanged) ниже — мог
+                // терять handler на polls без struct change.)
+                document.getElementById('bnr-open-profile-btn')?.addEventListener('click',
+                    _openBannerlordProfileModal);
+            }
+            // (2) Volatile stats grid — обновляется каждый poll, но это
+            //     ИЗОЛИРОВАННЫЙ под-элемент; sub-slots рядом не трогаются.
+            const _statsHtml = `
                 <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 10px;
-                            font-size:12px;margin-bottom:10px;align-items:center;">
+                            font-size:12px;align-items:center;">
                     <span style="color:#adadb8;">💰 Динары:</span>
                     <span style="color:#fbbf24;font-weight:700;">${(h.gold || 0).toLocaleString('ru-RU')}</span>
                     <span style="color:#adadb8;">⭐ Уровень:</span>
@@ -6063,38 +6108,21 @@ async function loadBannerlordHero() {
                         <span style="color:#adadb8;">🏆 Турниры:</span>
                         <span style="color:#fbbf24;font-weight:700;" title="Wins за всю историю канала. Note: ×0.7-0.85 HP penalty в next турнире — анти-сноубол.">${h.tournament_wins}${h.tournament_wins >= 3 ? ' <span style="font-size:10px;color:#fb923c;">ветеран</span>' : ''}</span>
                     ` : ''}
-                </div>
-                <div id="bnr-daily-slot" style="margin-bottom:8px;"></div>
-                <div id="bnr-heir-slot" style="margin-bottom:8px;"></div>
-                <div id="bnr-family-slot" style="margin-bottom:8px;"></div>
-                <div id="bnr-vassals-slot" style="margin-bottom:8px;"></div>
-                <div id="bnr-party-orders-slot" style="margin-bottom:8px;"></div>
-                <div id="bnr-diplo-slot" style="margin-bottom:8px;"></div>
-                <div id="bnr-ransom-slot" style="margin-bottom:8px;"></div>
-                <div id="bnr-workshops-slot" style="margin-bottom:8px;"></div>
-                <div id="bnr-fiefs-slot" style="margin-bottom:8px;"></div>
-                <div id="bnr-caravans-slot" style="margin-bottom:8px;"></div>
-                <div id="bnr-caravan-rescue-slot" style="margin-bottom:8px;"></div>
-                <div id="bnr-inheritance-slot" style="margin-bottom:8px;"></div>
-                <button class="extra-btn" id="bnr-open-profile-btn"
-                        title="Семейные настройки: смена пола, брак, дети"
-                        style="width:100%;font-size:12px;padding:8px;margin-top:4px;
-                               background:#1f1a30;color:#c084fc;font-weight:700;
-                               border:1px solid #5b21b6;">
-                    🧬 Профиль и семья
-                </button>
-            </div>`;
-        // BUGFIX 2026-05-28: bind clan-row/kingdom-row/upgrade-btn handlers
-        // unconditionally потому что paneHero перерисовывается КАЖДЫЙ poll
-        // (gold/HP меняются). Иначе старые DOM nodes уносят handlers с собой
-        // → клик на «Клан»/«Королевство» не открывает modal.
-        document.getElementById('bnr-clan-row')?.addEventListener('click',
-            _openBannerlordClanModal);
-        document.getElementById('bnr-kingdom-row')?.addEventListener('click',
-            _openBannerlordKingdomModal);
-        document.getElementById('bnr-inline-upgrade-btn')?.addEventListener('click', () => {
-            _bannerlordBuyAction('hero.upgrade_gear', {});
-        });
+                </div>`;
+            // (3) Rebind clan/kingdom/upgrade ТОЛЬКО когда grid реально
+            //     перерисован (новые DOM nodes). _smartInnerHTML returns true
+            //     лишь при изменении → нет дублей listener'ов.
+            const _statsSlot = document.getElementById('bnr-pane-hero-stats');
+            if (_smartInnerHTML(_statsSlot, _statsHtml)) {
+                document.getElementById('bnr-clan-row')?.addEventListener('click',
+                    _openBannerlordClanModal);
+                document.getElementById('bnr-kingdom-row')?.addEventListener('click',
+                    _openBannerlordKingdomModal);
+                document.getElementById('bnr-inline-upgrade-btn')?.addEventListener('click', () => {
+                    _bannerlordBuyAction('hero.upgrade_gear', {});
+                });
+            }
+        }
 
         // FLICKER-FIX v5: structural change wrapped в _preserveSlots — sub-slot
         // content NOT destroyed во время body rewrite.
@@ -6198,9 +6226,9 @@ async function loadBannerlordHero() {
         // Sprint 5.8: bind кнопку открытия progression modal
         document.getElementById('bnr-open-progression-btn')?.addEventListener('click',
             _openBannerlordProgressionModal);
-        // Sprint 5.27a: profile modal (gender swap + marriage + family tree)
-        document.getElementById('bnr-open-profile-btn')?.addEventListener('click',
-            _openBannerlordProfileModal);
+        // Sprint 5.27a: profile modal — FLICKER-FIX v7: binding перенесён в
+        // skeleton-build (paneHero выше). Кнопка живёт в стабильном skeleton,
+        // биндится ОДИН раз → здесь повторно НЕ биндим (избегаем дублей).
         // Sprint 5.29 BLT-parity #5: achievements modal
         document.getElementById('bnr-open-achievements-btn')?.addEventListener('click',
             _openBannerlordAchievementsModal);

@@ -587,6 +587,12 @@ class BannerlordAdapter(ModuleAdapter):
             await self._on_world_event(channel_id, env)
             return
 
+        # Sprint 5.33 PORDER — sticky party-order lifecycle status push.
+        # Mod пушит при set/release/expire/complete (auto-detected).
+        if et == "hero.party_order_status":
+            await self._on_party_order_status(channel_id, env)
+            return
+
         # Sprint 5.29 / BLT-parity #3: refund крустиков на отказ мода
         if et == "action.failed":
             await self._on_action_failed(channel_id, env)
@@ -2045,6 +2051,48 @@ class BannerlordAdapter(ModuleAdapter):
         except Exception as ex:
             logger.exception("[CARAVAN-DESTROYED] failed ch=%s party=%s: %s",
                              channel_id, party_id, ex)
+
+    # ── Sprint 5.33 PORDER: party order status sync ──────────────────────────
+
+    async def _on_party_order_status(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Mod пушит при set/release/expire/complete для sticky orders.
+
+        Payload: {owner, order_type, target_id, target_name, remaining_hours}
+          - order_type=None означает release/expire/complete → DB row → 'completed'
+          - order_type set → DB row остаётся 'active' (insert уже сделан в handler)
+
+        Зачем: extension polls /api/bannerlord/party-orders и видит actual state
+        из mod-side (engine может auto-complete order до того как UI request'нет).
+        """
+        data = env.data
+        owner = (data.get("owner") or env.user or "").strip().lower()
+        order_type = data.get("order_type")  # может быть None
+        if not owner:
+            return
+
+        try:
+            from dependencies import get_db as _gdb
+            async with _gdb()._connect() as conn:
+                if order_type is None:
+                    # Release/expire/complete — mark active row as completed.
+                    await conn.execute(
+                        "UPDATE bannerlord_party_orders SET status='completed' "
+                        "WHERE channel_id=? AND owner_username=? AND status='active'",
+                        (channel_id, owner))
+                    await conn.commit()
+            await self._log_event(channel_id, "hero.party_order_status", owner, {
+                "order_type": order_type,
+                "target_id":  data.get("target_id"),
+                "target_name": data.get("target_name"),
+                "remaining_hours": data.get("remaining_hours"),
+            })
+            logger.info("[PORDER-STATUS] ch=%s @%s order=%s target=%s remain=%s",
+                        channel_id, owner, order_type or "released",
+                        data.get("target_name") or "—",
+                        data.get("remaining_hours"))
+        except Exception as ex:
+            logger.exception("[PORDER-STATUS] failed ch=%s @%s: %s",
+                             channel_id, owner, ex)
 
     # ── World events ──────────────────────────────────────────────────────────
 

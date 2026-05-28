@@ -347,6 +347,12 @@ namespace BannerlordLink
                     campaignStarter.AddBehavior(new CaravanTrackerBehavior());
                     Log("CaravanTrackerBehavior registered (caravan profit + destroyed event)");
 
+                    // Sprint 5.33 PORDER — sticky party orders (HourlyTick re-issue +
+                    // completion detection). Без этого engine AI drift'ит и order
+                    // через 1-2 hour'а забыт.
+                    campaignStarter.AddBehavior(new PartyOrderBehavior());
+                    Log("PartyOrderBehavior registered (sticky orders + auto-release on completion)");
+
                     // Sprint 5.26d: model replacements для статических clan-upgrade
                     // эффектов (party_size, party/army_speed, party_amount).
                     // Pattern: subclass нативной model, делегирует _previous, добавляет

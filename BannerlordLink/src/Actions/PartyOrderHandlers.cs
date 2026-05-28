@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using BannerlordLink.Behaviors;
 using BannerlordLink.Util;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -196,6 +197,12 @@ namespace BannerlordLink.Actions
                         ActionFeedback.PostFailed(actionId, "unknown_order");
                         return;
                 }
+                // Sprint 5.33 PORDER — register sticky order. Behavior takes
+                // over: HourlyTick re-issue если AI drift'нул, auto-release
+                // при completion (siege won / raid done / settlement captured).
+                // Без этого goal сваливался через 1-2 game-hour'а.
+                PartyOrderBehavior.SetOrder(username, orderType, target);
+
                 BannerlordLinkModule.Log(
                     $"[party_order EXIT-OK] @{username} order={orderType} → '{targetName}' applied " +
                     $"(party leader={mp.LeaderHero?.Name}, target faction={target.MapFaction?.Name})");
@@ -237,6 +244,10 @@ namespace BannerlordLink.Actions
                 if (mp == null) return;
                 try
                 {
+                    // Sprint 5.33 PORDER — drop sticky order ПЕРЕД hold, иначе
+                    // behavior re-issue'нет на следующем HourlyTick.
+                    PartyOrderBehavior.ReleaseOrder(username, "viewer_action");
+
                     // Reset AI к default. Engine continues autonomous behavior.
                     mp.SetMoveModeHold();
                     BannerlordLinkModule.Log(

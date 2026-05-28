@@ -492,13 +492,62 @@ namespace BannerlordLink.Actions
                 }
                 catch { }
 
+                // 2026-05-29 Stage 6 (BLT-RC22 pattern) — extended retinue guards.
+                // BLT MissionHelpers.RetinueAllowed() = InSiegeMission OR
+                // InFieldBattleMission. Everything else → no retinue (arena
+                // practice, tournament, conversation, deployment, cutscene).
+                //
+                // У нас уже skip hideout. Добавляем arena (training arena в town):
+                //   - LocationComplex.Current?.GetLocationWithId("arena") detection
+                //   - Or simpler: MissionMode != Battle → no retinue
+                //
+                // Также Deployment / Conversation / CutScene / Replay через
+                // MissionMode check (BLT block list pattern).
+                bool retinueAllowed = true;
+                string retinueBlockReason = null;
+                try
+                {
+                    var m = Mission.Current;
+                    if (m != null)
+                    {
+                        // Block 1: not in Battle mode (covers Conversation,
+                        // Deployment, CutScene, Replay, etc.).
+                        if (m.Mode != MissionMode.Battle && m.Mode != MissionMode.StartUp)
+                        {
+                            retinueAllowed = false;
+                            retinueBlockReason = $"mode={m.Mode} (need Battle)";
+                        }
+
+                        // Block 2: Arena practice (training arena в town). Detection
+                        // через CampaignMission Location.StringId == "arena".
+                        try
+                        {
+                            var loc = CampaignMission.Current?.Location?.StringId;
+                            if (loc == "arena")
+                            {
+                                retinueAllowed = false;
+                                retinueBlockReason = "arena practice";
+                            }
+                        }
+                        catch { /* CampaignMission may не loaded — fallthrough */ }
+                    }
+                }
+                catch { /* defensive */ }
+
+                if (!retinueAllowed && retinueIds != null && retinueIds.Count > 0)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[player.spawn:{sideLabel}] @{username} retinue BLOCKED " +
+                        $"({retinueBlockReason}) — skip {retinueIds.Count} troops");
+                }
+
                 if (inHideout && retinueIds != null && retinueIds.Count > 0)
                 {
                     BannerlordLinkModule.Log(
                         $"[player.spawn:{sideLabel}] @{username} hideout detected — " +
                         $"skip retinue ({retinueIds.Count} troops) для 8-limit");
                 }
-                if (retinueIds != null && retinueIds.Count > 0 && agent != null && !inHideout)
+                if (retinueIds != null && retinueIds.Count > 0 && agent != null && !inHideout && retinueAllowed)
                 {
                     Vec3? anchorPos = null;
                     Vec2? anchorDir = null;

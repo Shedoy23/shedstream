@@ -147,7 +147,33 @@ namespace BannerlordLink.Patches
                 // Только Killed state → consider conversion. Unconscious /
                 // Routed / etc. — pass through.
                 if (agentState != AgentState.Killed) return;
-                if (affectedAgent == null || !affectedAgent.IsHuman) return;
+                if (affectedAgent == null) return;
+
+                // 2026-05-29 Stage 6 (BLT-RC22 pattern) — branch 1: adopted hero mount.
+                // Если умирающий agent — это лошадь зарегистрированная в
+                // AdoptedMountTrackerBehavior → защищаем. Saddle/harness
+                // equipment не теряется → viewer не возвращается к extension'у
+                // c "I lost my horse, refund please".
+                //
+                // Pattern из BLT BLTAdoptAHeroCommonMissionBehavior:186-189.
+                if (affectedAgent.IsMount)
+                {
+                    var tracker = BannerlordLink.Behaviors.AdoptedMountTrackerBehavior.Current;
+                    if (tracker != null && tracker.IsTracked(affectedAgent))
+                    {
+                        agentState = AgentState.Unconscious;
+                        try { affectedAgent.State = AgentState.Unconscious; }
+                        catch { /* swallow — ref param выше всё-равно сработал */ }
+
+                        BannerlordLinkModule.LogVerbose(() =>
+                            $"[DeathProtect] Converted adopted hero's mount " +
+                            $"(idx={affectedAgent.Index}) Killed → Unconscious");
+                    }
+                    return;  // Mount handled — не fall-through к human check.
+                }
+
+                // Branch 2: human agent → check if adopted hero.
+                if (!affectedAgent.IsHuman) return;
 
                 // Извлечь Hero from agent character.
                 var hero = (affectedAgent.Character as CharacterObject)?.HeroObject;

@@ -466,7 +466,14 @@ namespace BannerlordLink
                 // станут no-op'ами через HeroPfxBehaviour.Current → null.
                 mission.AddMissionBehavior(new BannerlordLink.Behaviors.HeroPfxBehaviour());
 
-                Log("MissionBehaviors registered: Powers + KillReward + Detachment + HeroPfx");
+                // 2026-05-29 Stage 6 (BLT-RC22 pattern) — track mounts of adopted
+                // heroes. На OnAgentBuild: добавляет agent.MountAgent в HashSet
+                // если rider — adopted hero. На Mission.OnAgentRemoved (через
+                // AdoptedHeroDeathPatch) — если умирающий agent в HashSet'е →
+                // Killed → Unconscious. Сохраняет saddle/harness equipment.
+                mission.AddMissionBehavior(new BannerlordLink.Behaviors.AdoptedMountTrackerBehavior());
+
+                Log("MissionBehaviors registered: Powers + KillReward + Detachment + HeroPfx + MountTracker");
             }
             catch (Exception ex)
             {

@@ -6010,6 +6010,9 @@ async function loadBannerlordHero() {
         // 🛡 Герой pane — stats grid + daily reward + profile button.
         // Sprint 5.32 (revised) — battle banner перенесён в Combat pane.
         // Sprint 5.32 #46 — daily reward slot для виральности.
+        // Render UNCONDITIONAL (gold/HP/level updates каждый poll) — но
+        // bindings для clan-row/kingdom-row/upgrade-btn (внизу) тоже
+        // unconditional, потому что DOM-узлы recreated на каждом poll.
         const paneHero = document.getElementById('bnr-pane-hero-body');
         if (paneHero) paneHero.innerHTML = `
             <div style="padding:6px;">
@@ -6052,6 +6055,18 @@ async function loadBannerlordHero() {
                     🧬 Профиль и семья
                 </button>
             </div>`;
+        // BUGFIX 2026-05-28: bind clan-row/kingdom-row/upgrade-btn handlers
+        // unconditionally потому что paneHero перерисовывается КАЖДЫЙ poll
+        // (gold/HP меняются). Иначе старые DOM nodes уносят handlers с собой
+        // → клик на «Клан»/«Королевство» не открывает modal.
+        document.getElementById('bnr-clan-row')?.addEventListener('click',
+            _openBannerlordClanModal);
+        document.getElementById('bnr-kingdom-row')?.addEventListener('click',
+            _openBannerlordKingdomModal);
+        document.getElementById('bnr-inline-upgrade-btn')?.addEventListener('click', () => {
+            _bannerlordBuyAction('hero.upgrade_gear', {});
+        });
+
         // FLICKER-FIX v5: structural change wrapped в _preserveSlots — sub-slot
         // content NOT destroyed во время body rewrite.
         const _bnrChanged = _preserveSlots(() =>
@@ -6167,15 +6182,8 @@ async function loadBannerlordHero() {
         document.getElementById('bnr-open-auctions-btn')?.addEventListener('click',
             _openBannerlordAuctionsModal);
         // Sprint 5.31 #45b: Boosty admin перенесён на /streamer/dashboard.
-        // Sprint 5.11: bind clickable clan/kingdom rows (открывают modal)
-        document.getElementById('bnr-clan-row')?.addEventListener('click',
-            _openBannerlordClanModal);
-        document.getElementById('bnr-kingdom-row')?.addEventListener('click',
-            _openBannerlordKingdomModal);
-        // Sprint 5.10: inline upgrade gear button (рядом с tier label)
-        document.getElementById('bnr-inline-upgrade-btn')?.addEventListener('click', () => {
-            _bannerlordBuyAction('hero.upgrade_gear', {});
-        });
+        // Sprint 5.11: clan/kingdom row + upgrade-btn bindings перенесены
+        // ВЫШЕ за пределы if(_bnrChanged) — DOM пересоздаётся каждый poll.
       }  // ← end of `if (_bnrChanged)` for bindings
     } catch (e) {
         body.innerHTML = `<div style="color:#f87171;padding:10px;">Ошибка сети</div>`;

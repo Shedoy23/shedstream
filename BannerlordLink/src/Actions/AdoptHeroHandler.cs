@@ -140,6 +140,37 @@ namespace BannerlordLink.Actions
                 Hero newHero = HeroCreator.CreateSpecialHero(template);
                 newHero.ChangeState(Hero.CharacterStates.Active);
 
+                // 1a. AGE OVERRIDE (2026-05-28, BLT-parity audit fix).
+                // Wanderer templates могут быть children (< 18) или elderly
+                // (60+). Engine refuses many actions для children (clan,
+                // marriage, иногда summon в Mission); elderly mрут от age
+                // через несколько game-months. Forcing adult range 22-35.
+                //
+                // BLT pattern (Lait AdoptAHero.ExecuteInternal):
+                //   newHero.SetBirthDay(CampaignTime.YearsFromNow(-Math.Max(
+                //       AgeModel.HeroComesOfAge, StartingAgeRange.Random())));
+                try
+                {
+                    int minAge = 22;
+                    int maxAge = 35;
+                    try
+                    {
+                        int comesOfAge = Campaign.Current.Models.AgeModel
+                            ?.HeroComesOfAge ?? 18;
+                        if (comesOfAge > minAge) minAge = comesOfAge;
+                    }
+                    catch { }
+                    int years = rng.Next(minAge, maxAge + 1);
+                    newHero.SetBirthDay(CampaignTime.YearsFromNow(-years));
+                    BannerlordLinkModule.Log(
+                        $"[hero.create] @{username}: age set to {years} (adult range {minAge}-{maxAge})");
+                }
+                catch (Exception ageEx)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[hero.create] @{username} SetBirthDay warn: {ageEx.Message}");
+                }
+
                 // 2. Place в таверну ближайшего town'а — wanderer'ам там
                 // прямая прописка. Sprint 5.32 — раньше random town, но без
                 // HomeSettlement engine иногда считал героя orphan и помечал
@@ -193,14 +224,40 @@ namespace BannerlordLink.Actions
                 // Future-proof: если engine переименует hero (clan promotion, save
                 // migration), HeroLookup.FindByUsername найдёт его через dict, не
                 // через name-substring parsing.
+                //
+                // 2026-05-28: Register() now returns iteration count
+                // (re-adopt counter, BLT-parity AdoptAHero.Iteration).
+                int heroIteration = 0;
                 try
                 {
-                    BannerlordLink.Behaviors.HeroIdentityBehavior.Instance?.Register(newHero, username);
+                    heroIteration = BannerlordLink.Behaviors.HeroIdentityBehavior
+                        .Instance?.Register(newHero, username) ?? 0;
                 }
                 catch (Exception idEx)
                 {
                     BannerlordLinkModule.Log(
                         $"[hero.create] @{username} HeroIdentity register warn: {idEx.Message}");
+                }
+
+                // STARTING GOLD (2026-05-28, BLT-parity).
+                // BLT даёт configurable starting gold + наследство от прошлых
+                // adoption iterations. У нас простой 1000 динаров — viewer
+                // может сразу что-то купить в-game (cheap consumable) без
+                // grind. Прирост = (iteration * 500) — bonus за re-adopt'ы.
+                try
+                {
+                    int baseGold = 1000;
+                    int legacyBonus = heroIteration * 500;
+                    int total = baseGold + legacyBonus;
+                    newHero.ChangeHeroGold(total);
+                    BannerlordLinkModule.Log(
+                        $"[hero.create] @{username}: starting gold +{total}💰 " +
+                        $"(base={baseGold}, legacy_bonus={legacyBonus} from iter={heroIteration})");
+                }
+                catch (Exception gEx)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[hero.create] @{username} starting gold warn: {gEx.Message}");
                 }
 
                 // Sprint 5.16: убираем fog-of-war — MainHero "знакомится" с
@@ -227,7 +284,7 @@ namespace BannerlordLink.Actions
                     $"town={newHero.HomeSettlement?.Name?.ToString() ?? "—"}");
 
                 // 5. Post player.linked обратно — backend upsert в bannerlord_heroes
-                PostLinked(newHero, username);
+                PostLinked(newHero, username, heroIteration);
                 // 6. Sprint M19: post full state — UI показывает level/clan/kingdom
                 HeroStateSync.Push(newHero);
                 // 7. Push equipment snapshot — wanderer template имеет starting
@@ -278,7 +335,7 @@ namespace BannerlordLink.Actions
             catch { }
         }
 
-        private static void PostLinked(Hero hero, string username)
+        private static void PostLinked(Hero hero, string username, int iteration)
         {
             string dataJson = JsonConvert.SerializeObject(new
             {
@@ -286,6 +343,9 @@ namespace BannerlordLink.Actions
                 hero_id = hero.StringId,
                 display_name = username,
                 culture = hero.Culture?.StringId,
+                // 2026-05-28: iteration counter (BLT-parity, для Heritage log).
+                // 0 = first adoption, 1 = second, ... etc.
+                iteration = iteration,
             });
             Task.Run(async () =>
             {

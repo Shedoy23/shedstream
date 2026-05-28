@@ -40,6 +40,12 @@ namespace BannerlordLink.Behaviors
         private Dictionary<string, string> _heroIdToUsername =
             new Dictionary<string, string>(StringComparer.Ordinal);
 
+        // 2026-05-28 BLT-PARITY (Lait AdoptAHero `Iteration` counter) —
+        // tracks re-adopt count per viewer. Increments on each Register().
+        // Useful для Heritage log (показывать "Hero #N of viewer @username").
+        private Dictionary<string, int> _iterationByUsername =
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
         public override void RegisterEvents()
         {
             Instance = this;
@@ -53,6 +59,10 @@ namespace BannerlordLink.Behaviors
                 dataStore.SyncData("BannerlordLink_HeroIdentity_v1", ref _heroIdToUsername);
                 if (_heroIdToUsername == null)
                     _heroIdToUsername = new Dictionary<string, string>(StringComparer.Ordinal);
+                // 2026-05-28: iteration counter (per-username re-adopt count).
+                dataStore.SyncData("BannerlordLink_HeroIteration_v1", ref _iterationByUsername);
+                if (_iterationByUsername == null)
+                    _iterationByUsername = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             }
             catch (Exception ex)
             {
@@ -60,25 +70,48 @@ namespace BannerlordLink.Behaviors
                     $"[HeroIdentity] SyncData warn: {ex.Message}");
                 if (_heroIdToUsername == null)
                     _heroIdToUsername = new Dictionary<string, string>(StringComparer.Ordinal);
+                if (_iterationByUsername == null)
+                    _iterationByUsername = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             }
         }
 
         /// <summary>Register mapping. Called from AdoptHeroHandler сразу после
-        /// CreateSpecialHero + SetName.</summary>
-        public void Register(Hero hero, string username)
+        /// CreateSpecialHero + SetName.
+        ///
+        /// Returns iteration count (BLT-parity, per-username re-adopt counter,
+        /// 0 для first adopt, 1 для second, etc.). Backend stores это в
+        /// inheritance_log для отображения "Hero #N of @username".</summary>
+        public int Register(Hero hero, string username)
         {
-            if (hero == null || string.IsNullOrEmpty(username)) return;
+            if (hero == null || string.IsNullOrEmpty(username)) return 0;
             try
             {
-                _heroIdToUsername[hero.StringId] = username.ToLowerInvariant();
+                string userLower = username.ToLowerInvariant();
+                _heroIdToUsername[hero.StringId] = userLower;
+                int iteration = 0;
+                if (_iterationByUsername.TryGetValue(userLower, out int prev))
+                {
+                    iteration = prev + 1;
+                }
+                _iterationByUsername[userLower] = iteration;
                 BannerlordLinkModule.Log(
-                    $"[HeroIdentity M9] register: {hero.StringId} → @{username}");
+                    $"[HeroIdentity M9] register: {hero.StringId} → @{username} (iteration={iteration})");
+                return iteration;
             }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log(
                     $"[HeroIdentity M9] Register warn: {ex.Message}");
+                return 0;
             }
+        }
+
+        /// <summary>Get current iteration count for username (-1 if never registered).</summary>
+        public int GetIteration(string username)
+        {
+            if (string.IsNullOrEmpty(username)) return -1;
+            return _iterationByUsername.TryGetValue(username.ToLowerInvariant(), out int n)
+                ? n : -1;
         }
 
         /// <summary>Lookup username by hero ID. Returns null если не registered.</summary>

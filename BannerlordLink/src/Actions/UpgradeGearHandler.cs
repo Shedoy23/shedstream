@@ -165,15 +165,31 @@ namespace BannerlordLink.Actions
                 int slotsFilled = 0, slotsSkipped = 0;
 
                 // ── 1. Weapon slots по class config ──
+                // Anti-duplicate (BLT EquipHero.cs:241): seed уже надетыми
+                // weapon'ами + добавляем каждый выбранный → классы с двумя
+                // слотами одного типа (berserk=2×2H, assassin=2×1H) не получат
+                // 2 одинаковых молота.
+                var usedWeaponIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                for (int s = 0; s < 4; s++)
+                {
+                    try
+                    {
+                        var cur = equipment[(EquipmentIndex)s];
+                        if (!cur.IsEmpty && cur.Item != null)
+                            usedWeaponIds.Add(cur.Item.StringId ?? "");
+                    }
+                    catch { }
+                }
                 for (int i = 0; i < 4 && i < cfg.Slots.Length; i++)
                 {
                     var slotType = cfg.Slots[i];
                     if (slotType == T.Invalid) continue;
 
-                    var item = FindTieredItem(slotType, engineTier, rng);
+                    var item = FindTieredItem(slotType, engineTier, rng, null, usedWeaponIds);
                     if (item != null && ShouldReplaceSlot(equipment, (EquipmentIndex)i, engineTier))
                     {
                         equipment[(EquipmentIndex)i] = new EquipmentElement(item);
+                        usedWeaponIds.Add(item.StringId ?? "");
                         slotsFilled++;
                     }
                     else slotsSkipped++;
@@ -276,9 +292,16 @@ namespace BannerlordLink.Actions
         //
         // Sprint 5.32 (BLT-parity M4) — optional nameFilter predicate для
         // family-type matching (camel vs horse mount/harness).
+        //
+        // 2026-05-29 (anti-duplicate, BLT EquipHero.cs:241/273): optional
+        // excludeIds — StringId'ы предметов уже надетых в этом проходе. Сначала
+        // пытаемся выбрать вне excludeIds (чтобы berserk/assassin не получили 2
+        // одинаковых молота), и только если deduped-пул пуст — fallback на full
+        // pool (BLT тоже допускает дубль как last-resort).
         private static ItemObject FindTieredItem(
             ItemObject.ItemTypeEnum type, int engineTier, Random rng,
-            System.Func<string, bool> nameFilter = null)
+            System.Func<string, bool> nameFilter = null,
+            HashSet<string> excludeIds = null)
         {
             var pool = MBObjectManager.Instance
                 .GetObjectTypeList<ItemObject>()
@@ -298,12 +321,26 @@ namespace BannerlordLink.Actions
                 // (lieber camel-harness-on-horse чем пустой slot).
             }
 
-            // 2026-05-29 — адаптация BLT SelectRandomItemNearestTier
-            // (EquipHero.cs:579). Группируем по tier, сортируем по близости к
-            // target (ключ 100*|target-t| + t — при равной дистанции
-            // предпочитаем НИЖНИЙ tier), берём random из ближайшей группы.
-            // Раньше last-resort был random из всего пула → для T6-стрел (vanilla
-            // макс ~T4) выпадал случайный T1. Теперь — ближайшая группа (T4).
+            // Anti-duplicate first pass: исключаем уже надетое в этом проходе.
+            if (excludeIds != null && excludeIds.Count > 0)
+            {
+                var deduped = pool.Where(i => !excludeIds.Contains(i.StringId ?? "")).ToList();
+                var pick = PickNearestTier(deduped, engineTier, rng);
+                if (pick != null) return pick;
+                // deduped пуст (весь пул уже занят) → fall through на full pool.
+            }
+            return PickNearestTier(pool, engineTier, rng);
+        }
+
+        // 2026-05-29 — адаптация BLT SelectRandomItemNearestTier
+        // (EquipHero.cs:579). Группируем по tier, сортируем по близости к
+        // target (ключ 100*|target-t| + t — при равной дистанции предпочитаем
+        // НИЖНИЙ tier), берём random из ближайшей группы. Раньше last-resort был
+        // random из всего пула → для T6-стрел (vanilla макс ~T4) выпадал
+        // случайный T1. Теперь — ближайшая группа (T4).
+        private static ItemObject PickNearestTier(List<ItemObject> pool, int engineTier, Random rng)
+        {
+            if (pool == null || pool.Count == 0) return null;
             var nearest = pool.GroupBy(i => (int)i.Tier)
                 .OrderBy(g => 100 * Math.Abs(engineTier - g.Key) + g.Key)
                 .FirstOrDefault();

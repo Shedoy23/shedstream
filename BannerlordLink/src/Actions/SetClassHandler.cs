@@ -134,6 +134,22 @@ namespace BannerlordLink.Actions
                 // безусловно overwrites → теряются legendary item'ы.
                 int preservedSlots = 0;
 
+                // Anti-duplicate (BLT EquipHero.cs:241): seed уже надетыми
+                // weapon'ами (вкл. preserved modifier-предметы) + добавляем
+                // каждый выбранный → классы с двумя слотами одного типа
+                // (berserk=2×2H, assassin=2×1H) не получат 2 одинаковых молота.
+                var usedWeaponIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                for (int s = 0; s < 4; s++)
+                {
+                    try
+                    {
+                        var cur = equipment[(EquipmentIndex)s];
+                        if (!cur.IsEmpty && cur.Item != null)
+                            usedWeaponIds.Add(cur.Item.StringId ?? "");
+                    }
+                    catch { }
+                }
+
                 // 4 weapon slots
                 for (int i = 0; i < 4 && i < cfg.Slots.Length; i++)
                 {
@@ -156,13 +172,14 @@ namespace BannerlordLink.Actions
                     }
                     catch { }
 
-                    var item = FindTieredItem(slotType, engineTier, rng);
+                    var item = FindTieredItem(slotType, engineTier, rng, null, usedWeaponIds);
                     if (item == null)
                     {
                         BannerlordLinkModule.Log($"[set_class] @{username}: no item для {slotType} (slot {i})");
                         continue;
                     }
                     equipment[(EquipmentIndex)i] = new EquipmentElement(item);
+                    usedWeaponIds.Add(item.StringId ?? "");
                 }
 
                 // Mount slot (Horse / Camel) — также preserve modifier mount.
@@ -321,13 +338,21 @@ namespace BannerlordLink.Actions
         }
 
         // Sprint 5.10c: tier-aware lookup (BLT pattern, EquipHero.cs).
-        // exact tier → fallback (tier-1) → fallback (tier+1) → random.
-        // engineTier ∈ 0..5 (Bannerlord enum ItemTiers).
+        // 2026-05-29 — выровнено с UpgradeGearHandler на BLT
+        // SelectRandomItemNearestTier (EquipHero.cs:579): группируем по tier,
+        // берём ближайшую к target группу (ключ 100*|target-t| + t, при равной
+        // дистанции предпочитаем нижний tier). Старый last-resort был random из
+        // всего пула → T1-стрелы при T6. Теперь — ближайшая группа.
+        //
+        // excludeIds (BLT EquipHero.cs:241/273): StringId'ы уже надетого в этом
+        // проходе. Сначала ищем вне excludeIds (анти-дубль), при пустом
+        // deduped-пуле — fallback на full pool.
         private static ItemObject FindTieredItem(
             ItemObject.ItemTypeEnum type,
             int engineTier,
             Random rng,
-            Func<string, bool> nameFilter = null)
+            Func<string, bool> nameFilter = null,
+            HashSet<string> excludeIds = null)
         {
             var pool = MBObjectManager.Instance
                 .GetObjectTypeList<ItemObject>()
@@ -344,17 +369,25 @@ namespace BannerlordLink.Actions
                 if (filtered.Count > 0) pool = filtered;
             }
 
-            // 1) exact tier
-            var atTier = pool.Where(i => (int)i.Tier == engineTier).ToList();
-            if (atTier.Count > 0) return atTier[rng.Next(atTier.Count)];
-            // 2) one tier below
-            var lower = pool.Where(i => (int)i.Tier == Math.Max(0, engineTier - 1)).ToList();
-            if (lower.Count > 0) return lower[rng.Next(lower.Count)];
-            // 3) one tier above
-            var higher = pool.Where(i => (int)i.Tier == Math.Min(5, engineTier + 1)).ToList();
-            if (higher.Count > 0) return higher[rng.Next(higher.Count)];
-            // 4) last resort
-            return pool[rng.Next(pool.Count)];
+            // Anti-duplicate first pass.
+            if (excludeIds != null && excludeIds.Count > 0)
+            {
+                var deduped = pool.Where(i => !excludeIds.Contains(i.StringId ?? "")).ToList();
+                var pick = PickNearestTier(deduped, engineTier, rng);
+                if (pick != null) return pick;
+            }
+            return PickNearestTier(pool, engineTier, rng);
+        }
+
+        private static ItemObject PickNearestTier(List<ItemObject> pool, int engineTier, Random rng)
+        {
+            if (pool == null || pool.Count == 0) return null;
+            var nearest = pool.GroupBy(i => (int)i.Tier)
+                .OrderBy(g => 100 * Math.Abs(engineTier - g.Key) + g.Key)
+                .FirstOrDefault();
+            if (nearest == null) return null;
+            var nearestList = nearest.ToList();
+            return nearestList[rng.Next(nearestList.Count)];
         }
     }
 }

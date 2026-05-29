@@ -50,6 +50,17 @@ namespace BannerlordLink.Patches
     [HarmonyPatch(typeof(Town), "GetDefenderParties")]
     internal static class Town_GetDefenderParties_MilitiaFix
     {
+        // 2026-05-29 INCIDENT — DISABLED pending RCA. Воспроизводимый нативный
+        // вылет на РАЗВЁРТЫВАНИИ осады за защитную сторону. Этот Prefix целиком
+        // ПОДМЕНЯЕТ Town.GetDefenderParties ленивым итератором, который движок
+        // перечисляет ВНЕ нашего try/catch, игнорирует battleType и пересекается
+        // с другими garrison/siege-модами (ImprovedGarrisons, SiegeFix,
+        // AutoDeploySiegeEngines) → битый список защитников → краш в нативном
+        // коде сборки осадных формирований. Prepare()=false → Harmony НЕ
+        // применяет патч, движок использует ванильный GetDefenderParties.
+        // Цена: militia не sally-out (мелкий correctness-fix) — приемлемо.
+        public static bool Prepare() => false;
+
         [HarmonyPrefix]
         public static bool Prefix(
             Town __instance,

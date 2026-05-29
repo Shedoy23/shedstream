@@ -872,12 +872,12 @@ _PURCHASABLE_ACTIONS = (
     "hero.pay_ransom",           # 500⦷ — chip into ransom pool captured hero
     "kingdom.set_tax_rate",      # free king-only — set kingdom tax 0-100% (Backlog #1)
     # Sprint 5.33 (BLT-parity SHOP) — workshops passive income loop
-    "hero.buy_workshop",         # 1000⦷ entry — viewer покупает workshop в town
+    "hero.buy_workshop",         # 2500⦷ — viewer покупает workshop в town (чистая 💎)
     "hero.sell_workshop",        # free — engine refund 50% capital
     # Sprint 5.33 (BLT-parity FIEF) — fief tribute boost
     "hero.tribute_boost",        # 2000⦷ — +50% multiplier on 1 fief for 7 days
     # Sprint 5.33 (BLT-parity CARAVAN) — mobile passive income trilogy closer
-    "hero.buy_caravan",          # 1500⦷ entry + 15K Hero.Gold capital
+    "hero.buy_caravan",          # 4000⦷ — create caravan party (чистая 💎)
     "hero.sell_caravan",         # free — engine transfer к MainHero
     "hero.pay_caravan_rescue",   # 500⦷ — chip into rescue pool destroyed caravan
 )
@@ -1953,12 +1953,12 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
         "hero.pay_ransom":              500,    # crowd-fund tier, any viewer
         "kingdom.set_tax_rate":           0,    # free — king manages own kingdom (Backlog #1)
         # Sprint 5.33 (BLT-parity SHOP) — workshops passive income
-        "hero.buy_workshop":           1000,    # entry fee, plus Hero.Gold capital
+        "hero.buy_workshop":           2500,    # 2026-05-29: чистая 💎 (Hero.Gold капитал НЕ списывался — миф убран, цена поднята 1000→2500)
         "hero.sell_workshop":             0,    # free — engine handles refund
         # Sprint 5.33 (BLT-parity FIEF) — fief tribute boost
         "hero.tribute_boost":          2000,    # 7-day +50% multiplier на 1 fief
         # Sprint 5.33 (BLT-parity CARAVAN) — mobile passive income
-        "hero.buy_caravan":            1500,    # entry fee + 15K Hero.Gold capital
+        "hero.buy_caravan":            4000,    # 2026-05-29: чистая 💎 (15K Hero.Gold капитал НЕ списывался — миф убран, цена поднята 1500→4000)
         "hero.sell_caravan":              0,    # free — engine handles transfer
         "hero.pay_caravan_rescue":      500,    # rescue pool chip-in
     }

@@ -1767,10 +1767,10 @@ async function loadBannerlordVassals() {
         if (eligible.length > 0 && vassals.length < 5) {
             html += `
                 <button id="bnr-vas-create" class="extra-btn"
-                        title="Выделить взрослого ребёнка в собственный sub-clan (1000⦷)"
+                        title="Выделить взрослого ребёнка в собственный sub-clan (250K💰 у героя)"
                         style="width:100%;font-size:11px;padding:6px;background:#1e3a8a;
                                color:#fff;font-weight:700;">
-                    🏰 Создать вассала (1000⦷) — ${eligible.length} наследников доступно
+                    🏰 Создать вассала (250K💰) — ${eligible.length} наследников доступно
                 </button>`;
         } else if (vassals.length >= 5) {
             html += `
@@ -2397,9 +2397,9 @@ async function loadBannerlordRansomPool() {
 
 // ───────────────────────────────────────────────────────────────────────────
 // Sprint 5.33 (BLT-parity SHOP) — Workshops passive income panel.
-// Viewer покупает workshop в town за 1000⦷ + Hero.Gold capital, каждый
-// game-day mod пушит net dinars → backend конвертирует в крустики (100:1)
-// и credit'ит viewer'у автоматически.
+// Viewer покупает workshop в town за 2500⦷ (чистая 💎 — Hero.Gold капитал
+// движком НЕ списывается). Мастерская реально создаётся в игре (передача
+// владения через ChangeOwnerOfWorkshopAction) и генерит доход герою.
 
 // Curated vanilla 1.3.x workshop types. Mod валидирует через
 // MBObjectManager.GetObject<WorkshopType>(stringId).
@@ -2410,9 +2410,9 @@ async function loadBannerlordRansomPool() {
 //   💎 ⦷ — krustiki (platform — viewer earns watching/chat, spent на actions)
 //   💰     — dinars (Hero.Gold engine in-game gold — earned battles/trade)
 //
-// Many actions require BOTH (capital validation): workshop entry 1000⦷ +
-// engine capital ~20K, caravan 1500⦷ + 15K Hero.Gold, etc. UX-confusion если
-// показать одну цифру — viewer думал «у меня хватит» а engine refuse'нет.
+// 2026-05-29 currency re-map: одно действие = одна валюта. Хелперы ниже
+// принимают (crustic, dinars) и для нулевого компонента просто скрывают его
+// (см. _bnrPriceHtml/_bnrAfford), так что одновалютные вызовы рендерятся чисто.
 //
 // Helpers:
 //   _bnrPrice(c, d) → HTML span "💎 1000 + 💰 20K" (или одну если другая 0)
@@ -2649,8 +2649,8 @@ async function loadBannerlordWorkshops() {
         const maxWorkshops = r.max_workshops || 3;
 
         // Sprint 5.33 CURRENCY-1 — clear price display + Hero.Gold visible.
-        const WORKSHOP_CRUSTIC = 1000;
-        const WORKSHOP_DINAR_EST = 20000;  // engine WorkshopModel.InitialCapital ~ 14-25K
+        const WORKSHOP_CRUSTIC = 2500;     // 2026-05-29: чистая 💎 (цена поднята 1000→2500)
+        const WORKSHOP_DINAR_EST = 0;      // капитал НЕ списывался — миф убран
         const wsAfford = _bnrAfford(WORKSHOP_CRUSTIC, WORKSHOP_DINAR_EST);
 
         // FLICKER-FIX v4: НЕ показываем live balance strip в header.
@@ -2954,8 +2954,8 @@ async function loadBannerlordCaravans() {
         const maxC = r.max_caravans || 2;
 
         // Sprint 5.33 CURRENCY-1 — clear price display + Hero.Gold visible.
-        const CARAVAN_CRUSTIC = 1500;
-        const CARAVAN_DINAR   = 15000;
+        const CARAVAN_CRUSTIC = 4000;      // 2026-05-29: чистая 💎 (цена поднята 1500→4000)
+        const CARAVAN_DINAR   = 0;         // 15K капитал НЕ списывался — миф убран
         const cAfford = _bnrAfford(CARAVAN_CRUSTIC, CARAVAN_DINAR);
 
         // FLICKER-FIX v4: balance strip убран (см. workshops комментарий).

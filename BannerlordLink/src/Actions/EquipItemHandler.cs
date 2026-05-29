@@ -212,7 +212,8 @@ namespace BannerlordLink.Actions
         // Slot resolution: explicit slotName > infer by ItemType.
         // EquipmentIndex enum: Weapon0..3, Head, Body, Leg, Gloves, Cape,
         // Horse, HorseHarness, ExtraWeaponSlot. NumAllWeaponSlots = 4.
-        private static EquipmentIndex ResolveSlot(ItemObject item, string slotName, Hero hero)
+        // 2026-05-29: internal — reused by EquipTrophyHandler («одеть» trophy).
+        internal static EquipmentIndex ResolveSlot(ItemObject item, string slotName, Hero hero)
         {
             if (!string.IsNullOrEmpty(slotName) &&
                 Enum.TryParse<EquipmentIndex>(slotName, ignoreCase: true, out var parsed))

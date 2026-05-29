@@ -168,12 +168,45 @@ namespace BannerlordLink.Actions
                     return;
                 }
 
-                roster.AddToCounts(picked, 1);
-
-                BannerlordLinkModule.Log(
-                    $"[equip_trophy] @{username} получил {picked.Name?.ToString() ?? picked.StringId} " +
-                    $"(трофей: «{customName}» {rarity}, tier {picked.Tier}) → " +
-                    $"{(party != null ? party.Name?.ToString() : "MainParty")} inventory");
+                // 2026-05-29 FIX («одеть не работало»): раньше делали
+                // roster.AddToCounts → предмет падал в инвентарь party (а для
+                // party-less adopted hero — в MainParty стримера), на героя НЕ
+                // надевался → "ничего не произошло". Теперь НАДЕВАЕМ на тело
+                // героя через BattleEquipment[slot] (reuse EquipItemHandler.ResolveSlot).
+                EquipmentIndex idx = EquipItemHandler.ResolveSlot(picked, null, hero);
+                if (idx == EquipmentIndex.None)
+                {
+                    // Fallback: слот не определён (редко) → в inventory как раньше.
+                    roster.AddToCounts(picked, 1);
+                    BannerlordLinkModule.Log(
+                        $"[equip_trophy] @{username} slot undeterminable для " +
+                        $"{picked.StringId} → AddToCounts fallback");
+                }
+                else
+                {
+                    // Modifier-guard: не затираем именную/смитованную шмотку.
+                    bool blocked = false;
+                    try
+                    {
+                        var cur = hero.BattleEquipment[idx];
+                        if (!cur.IsEmpty && cur.ItemModifier != null) blocked = true;
+                    }
+                    catch { }
+                    if (blocked)
+                    {
+                        roster.AddToCounts(picked, 1);
+                        BannerlordLinkModule.Log(
+                            $"[equip_trophy] @{username}: slot {idx} занят модифицированным " +
+                            $"предметом → трофей в inventory (не затираем)");
+                    }
+                    else
+                    {
+                        hero.BattleEquipment[idx] = new EquipmentElement(picked);
+                        BannerlordLinkModule.Log(
+                            $"[equip_trophy] @{username} НАДЕЛ {picked.Name?.ToString() ?? picked.StringId} " +
+                            $"(трофей «{customName}» {rarity} T{picked.Tier}) → slot {idx}");
+                    }
+                }
 
                 // Sprint 5.31 #45g (codegraph audit MED-4) — push equipment_changed.
                 // Раньше success path не пушил event → backend cache stale до

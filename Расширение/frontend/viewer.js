@@ -4599,12 +4599,6 @@ async function _openBannerlordForgeModal() {
                     ${statsLine}
                 </div>
                 ${equipBtn}
-                <button class="extra-btn bnr-auction-trophy" data-item-id="${it.id}"
-                        data-item-name="${escapeHtml(it.custom_name)}"
-                        title="Выставить на аукцион"
-                        style="font-size:10px;padding:3px 8px;color:#fbbf24;">
-                    ⚖
-                </button>
                 <button class="extra-btn bnr-discard-item" data-item-id="${it.id}"
                         title="Дискарди (удалить безвозвратно)"
                         style="font-size:10px;padding:3px 8px;color:#f87171;">
@@ -4658,44 +4652,8 @@ async function _openBannerlordForgeModal() {
                     setTimeout(_openBannerlordForgeModal, 1200);
                 });
             });
-            overlay.querySelectorAll('.bnr-auction-trophy').forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    const id = parseInt(btn.dataset.itemId, 10);
-                    const itemName = btn.dataset.itemName;
-                    const reserveStr = prompt(
-                        `Резерв для «${itemName}» (100-100000 крустиков):`, '500');
-                    if (!reserveStr) return;
-                    const reserve = parseInt(reserveStr, 10);
-                    if (!reserve || reserve < 100) {
-                        showNotification('Резерв 100+ крустиков', 'error');
-                        return;
-                    }
-                    try {
-                        const r = await fetch(`${API_URL}/api/bannerlord/auctions/create`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-Twitch-JWT': authToken || '',
-                            },
-                            body: JSON.stringify({
-                                custom_item_id: id,
-                                reserve_price: reserve,
-                                duration_sec: 300,
-                            }),
-                        });
-                        const res = await r.json();
-                        showNotification(res.message || (res.success ? 'OK' : 'Ошибка'),
-                            res.success ? 'success' : 'error');
-                        if (res.success) {
-                            overlay.remove();
-                            setTimeout(_openBannerlordAuctionsModal, 200);
-                        }
-                    } catch (e) {
-                        console.error('[BNR auction create]', e);
-                        showNotification('Ошибка сети', 'error');
-                    }
-                });
-            });
+            // 2026-05-29 — аукцион (P2P-торговля) убран из UI ради Twitch-
+            // комплаенса (та же категория что удалённый «Маркет», Phase 1.C).
             overlay.querySelectorAll('.bnr-discard-item').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     const id = parseInt(btn.dataset.itemId, 10);
@@ -6191,13 +6149,6 @@ async function loadBannerlordHero() {
                                border:1px solid #9a3412;">
                     🔨 Кузница (трофеи)
                 </button>
-                <button class="extra-btn" id="bnr-open-auctions-btn"
-                        title="Активные аукционы — бид крустиками или выставь свой трофей"
-                        style="width:100%;font-size:12px;padding:8px;
-                               background:#2a200a;color:#fbbf24;font-weight:700;
-                               border:1px solid #92400e;">
-                    ⚖ Аукционы
-                </button>
             </div>`;
 
         // ⚔ Бой pane — battle banner (HP / kills / gold / XP) + buffs + powers + summon.
@@ -6274,9 +6225,7 @@ async function loadBannerlordHero() {
         // Sprint 5.29 BLT-parity #6: custom items / smithing modal
         document.getElementById('bnr-open-forge-btn')?.addEventListener('click',
             _openBannerlordForgeModal);
-        // Sprint 5.29 BLT-parity #6 phase B: auctions modal
-        document.getElementById('bnr-open-auctions-btn')?.addEventListener('click',
-            _openBannerlordAuctionsModal);
+        // 2026-05-29 — аукцион (P2P trade) убран из UI ради Twitch-комплаенса.
         // Sprint 5.31 #45b: Boosty admin перенесён на /streamer/dashboard.
         // Sprint 5.11: clan/kingdom row + upgrade-btn bindings перенесены
         // ВЫШЕ за пределы if(_bnrChanged) — DOM пересоздаётся каждый poll.

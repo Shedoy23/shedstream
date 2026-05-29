@@ -285,12 +285,23 @@ namespace BannerlordLink.Actions
             var atTier = pool.Where(i => (int)i.Tier == engineTier).ToList();
             if (atTier.Count > 0) return atTier[rng.Next(atTier.Count)];
 
-            // fallback: one tier below (BLT pattern, EquipHero.cs:279)
-            var lower = pool.Where(i => (int)i.Tier == Math.Max(0, engineTier - 1)).ToList();
-            if (lower.Count > 0) return lower[rng.Next(lower.Count)];
+            // 2026-05-29 FIX («стрелы T1 при T6»): берём ЛУЧШИЙ доступный tier
+            // ≤ target, а НЕ random из всего пула. Для ammo/shield/части коней
+            // high-tier предметов нет (vanilla arrows макс ~T4), и раньше
+            // last-resort = random any → часто выпадал T1. Теперь — самый
+            // высокий существующий tier не выше target (т.е. T4-стрелы при T6).
+            var capped = pool.Where(i => (int)i.Tier <= engineTier).ToList();
+            if (capped.Count > 0)
+            {
+                int bestTier = capped.Max(i => (int)i.Tier);
+                var best = capped.Where(i => (int)i.Tier == bestTier).ToList();
+                return best[rng.Next(best.Count)];
+            }
 
-            // last resort: random из всего пула
-            return pool[rng.Next(pool.Count)];
+            // Ничего ≤ target (target ниже минимума пула) — берём минимальный tier.
+            int minTier = pool.Min(i => (int)i.Tier);
+            var low = pool.Where(i => (int)i.Tier == minTier).ToList();
+            return low[rng.Next(low.Count)];
         }
     }
 }

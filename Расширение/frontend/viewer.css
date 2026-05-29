@@ -920,6 +920,17 @@ html, body {
 
 .small-btn:hover { border-color: #9147ff; color: #9147ff; }
 
+/* ===== КУЛДАУН НА КНОПКЕ (data-bnr-cd) ===== */
+/* Кнопка действия, на которой тикает отсчёт перезарядки. Гасим цвет и hover
+   чтобы было очевидно что она временно недоступна. */
+.bnr-on-cd {
+    opacity: 0.55 !important;
+    cursor: not-allowed !important;
+    color: #9ca3af !important;
+    border-color: #3d3d3f !important;
+}
+.bnr-on-cd:hover { border-color: #3d3d3f !important; color: #9ca3af !important; }
+
 /* ===== ДУЭЛИ ===== */
 .duel-item {
     background: #2d2d2f;

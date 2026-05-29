@@ -2525,9 +2525,19 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
 
     # Sprint 4.8/5.0: запустить cooldown ПОСЛЕ commit (если упало — cooldown
     # не считается). Происходит вне TX — cooldown это in-memory state.
+    # cooldown_applied_s — длительность запущенного CD; возвращаем frontend'у
+    # чтобы кнопка сразу показала отсчёт (без второго клика / ожидания poll'а).
+    cooldown_applied_s = 0
     if cooldown_key:
-        from modules.bannerlord._adapter import set_cooldown
+        from modules.bannerlord._adapter import (
+            set_cooldown, POWER_COOLDOWNS, ACTION_COOLDOWNS_SEC,
+        )
         set_cooldown(channel_id, username, cooldown_key)
+        cooldown_applied_s = (
+            POWER_COOLDOWNS.get(cooldown_key)
+            or ACTION_COOLDOWNS_SEC.get(cooldown_key)
+            or 0
+        )
 
     # Sprint 5.30 #41 — broadcast power activation event для OBS overlay.
     # Append to ring buffer per-channel; overlay.html polls /api/overlay/bannerlord/power-events.
@@ -2562,6 +2572,7 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
             "item":       smith_result,
             "perk":       role_label,
             "perk_price_mult": price_mult,
+            "cooldown_applied_s": cooldown_applied_s,
         }
 
     return {
@@ -2571,6 +2582,7 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
         "message":    f"⚔️ Action {action_type} в очереди ({price}💎 списано)",
         "perk":       role_label,
         "perk_price_mult": price_mult,
+        "cooldown_applied_s": cooldown_applied_s,
     }
 
 

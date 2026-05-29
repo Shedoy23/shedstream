@@ -3750,6 +3750,7 @@ function _renderRetinue(retinue) {
                 ${rows}
                 <div style="display:flex;gap:4px;margin-top:6px;">
                     <button class="extra-btn" id="bnr-recruit-basic-btn"
+                            data-bnr-cd="hero.recruit_troops"
                             ${basicDisabled ? 'disabled' : ''}
                             title="Basic troop (battanian_recruit / khuzait_nomad / etc). Списать ${RECRUIT_PRICE_BASIC}💎 крустиков + ${_fmtDinars(basicCost)}💰 динаров у героя."
                             style="flex:1;font-size:11px;padding:6px;line-height:1.2;
@@ -3757,6 +3758,7 @@ function _renderRetinue(retinue) {
                         ${basicLabel}
                     </button>
                     <button class="extra-btn" id="bnr-recruit-elite-btn"
+                            data-bnr-cd="hero.recruit_troops"
                             ${eliteDisabled ? 'disabled' : ''}
                             title="Elite troop (battanian_oathsworn / vlandian_squire / etc) — другая ветка прокачки. 3× стоимость. Списать ${RECRUIT_PRICE_ELITE}💎 + ${_fmtDinars(eliteCost)}💰."
                             style="flex:1;font-size:11px;padding:6px;line-height:1.2;background:#5c2d12;color:#fbbf24;
@@ -3836,6 +3838,7 @@ function _bindBannerlordCurrency() {
         });
     });
     document.querySelectorAll('[data-bnr-skillxp]').forEach(btn => {
+        btn.dataset.bnrCd = 'hero.add_skill';   // кулдаун на кнопке
         btn.addEventListener('click', () => {
             const crusticov = parseInt(btn.dataset.bnrSkillxp, 10) || 0;
             // skill_key пуст → mod выбирает random.
@@ -4017,6 +4020,7 @@ function _openBannerlordProgressionModal() {
 
     // Per-row "+" buttons — invest в конкретный skill / attribute
     overlay.querySelectorAll('.bnr-prog-focus-btn').forEach(btn => {
+        btn.dataset.bnrCd = 'hero.add_focus';   // кулдаун на кнопке
         btn.addEventListener('click', () => {
             const skill_key = btn.getAttribute('data-skill');
             _bannerlordBuyAction('hero.add_focus', { skill_key, amount: 1 });
@@ -4030,6 +4034,7 @@ function _openBannerlordProgressionModal() {
         });
     });
     overlay.querySelectorAll('.bnr-prog-attr-btn').forEach(btn => {
+        btn.dataset.bnrCd = 'hero.add_attribute';   // кулдаун на кнопке
         btn.addEventListener('click', () => {
             const attribute_key = btn.getAttribute('data-attr');
             // 5.27t: optimistic UI — сразу +1 в модалке + delay reopen больше.
@@ -4635,6 +4640,7 @@ async function _openBannerlordForgeModal() {
         body: body,
         bind: overlay => {
             overlay.querySelectorAll('.bnr-smith-btn').forEach(btn => {
+                btn.dataset.bnrCd = 'hero.smith_item';   // кулдаун на кнопке
                 btn.addEventListener('click', () => {
                     const base = btn.dataset.base;
                     overlay.remove();
@@ -4644,6 +4650,7 @@ async function _openBannerlordForgeModal() {
                 });
             });
             overlay.querySelectorAll('.bnr-equip-trophy').forEach(btn => {
+                btn.dataset.bnrCd = 'hero.equip_trophy';   // кулдаун на кнопке
                 btn.addEventListener('click', () => {
                     const id = parseInt(btn.dataset.itemId, 10);
                     overlay.remove();
@@ -5286,6 +5293,12 @@ function _bindBannerlordRandomEquip() {
     const currentKey = _bannerlordClassesCache?.current?.class_key || '';
     const isMounted = MOUNTED.has(currentKey);
 
+    // Кулдаун на кнопке (player.equip_item — общий CD на все три).
+    ['bnr-random-weapon', 'bnr-random-armor', 'bnr-random-horse'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.dataset.bnrCd = 'player.equip_item';
+    });
+
     document.getElementById('bnr-random-weapon')?.addEventListener('click', () => {
         _bannerlordBuyAction('player.equip_item', { random_category: 'weapon' });
     });
@@ -5496,6 +5509,7 @@ function _renderBannerlordDetachmentPanel(battleData) {
         </div>`;
     // Bind handlers — каждая кнопка POST'ит свой action.
     slot.querySelectorAll('.bnr-det-btn').forEach(btn => {
+        if (btn.dataset.detAct) btn.dataset.bnrCd = btn.dataset.detAct;   // кулдаун на кнопке
         btn.addEventListener('click', async (ev) => {
             const act = btn.dataset.detAct;
             const cost = parseInt(btn.dataset.detCost || '0', 10);
@@ -5693,6 +5707,7 @@ function _renderBannerlordTournament(data) {
 
     const joinBtn = document.getElementById('bnr-join-tournament-btn');
     if (joinBtn) {
+        joinBtn.dataset.bnrCd = 'hero.join_tournament';   // кулдаун на кнопке
         joinBtn.addEventListener('click', () => {
             // Sprint 5.28: backend сам ставит price=1000⦷; шлём 0 — он перепишет.
             _bannerlordBuyAction('hero.join_tournament', { price: 0 });
@@ -5982,6 +5997,7 @@ async function loadBannerlordHero() {
             const _nextTier = gearTier + 1;
             const _cost = HERO_GOLD_TIER_COSTS[_nextTier] || 0;
             _gtierBtn = `<button class="small-btn" id="bnr-inline-upgrade-btn"
+                    data-bnr-cd="hero.upgrade_gear"
                     title="Улучшить снаряжение T${gearTier} → T${_nextTier}. Списать ${_cost.toLocaleString('ru-RU')}💰 динаров у героя."
                     style="font-size:10px;padding:2px 8px;margin-left:6px;
                            background:#3d3d3f;color:#fbbf24;">
@@ -6317,6 +6333,82 @@ async function loadBannerlordShop() {
 // не завершится. Если в полёте — silent return (toast уже видит первый).
 const _bnrInflight = new Set();
 
+// ===== КУЛДАУН НА КНОПКЕ (data-bnr-cd) =====
+// 2026-05-29: вместо warning-тоста «способность на перезарядке» показываем
+// тикающий отсчёт прямо на кнопке (как у кнопок способностей/призыва).
+// Источник истины — _bannerlordCooldowns (poll /my-buffs обновляет, ключ =
+// power_key, для action-level CD ключ = сам action_type). Кнопка помечается
+// атрибутом data-bnr-cd="<action_type>". Глобальный 1s-тикер сканирует все
+// такие кнопки и синхронизирует их состояние. Подход data-driven →
+// переживает перерисовку панели (после re-render тикер заново применит CD).
+
+// Сколько секунд осталось по cooldown-ключу (0 = не на CD). Берём абсолютный
+// expires_at_ms чтобы не было drift'а при throttled-табе.
+function _bnrCdRemaining(key) {
+    if (!key) return 0;
+    const c = _bannerlordCooldowns.find(x => x.power_key === key);
+    if (!c) return 0;
+    if (typeof c.expires_at_ms === 'number') {
+        return Math.max(0, (c.expires_at_ms - Date.now()) / 1000);
+    }
+    return c.remaining_s || 0;
+}
+
+// Локально проставить/обновить CD (до следующего poll'а). Вызывается из
+// dispatcher'а сразу после ответа backend'а — кнопка реагирует мгновенно.
+function _bnrSetLocalCooldown(key, seconds) {
+    if (!key || !(seconds > 0)) return;
+    const expires_at_ms = Date.now() + seconds * 1000;
+    const existing = _bannerlordCooldowns.find(c => c.power_key === key);
+    if (existing) {
+        existing.expires_at_ms = expires_at_ms;
+        existing.remaining_s = seconds;
+    } else {
+        _bannerlordCooldowns.push({ power_key: key, remaining_s: seconds, expires_at_ms });
+    }
+    _bnrActionCdTick();   // применить немедленно, не ждать тика
+}
+
+function _bnrCdLabel(rem) {
+    return rem >= 60
+        ? `⏳ ${Math.floor(rem / 60)}:${(rem % 60).toString().padStart(2, '0')}`
+        : `⏳ ${rem}с`;
+}
+
+// Глобальный тик: синхронизирует все [data-bnr-cd] кнопки с _bannerlordCooldowns.
+function _bnrActionCdTick() {
+    const btns = document.querySelectorAll('[data-bnr-cd]');
+    if (!btns.length) return;
+    btns.forEach(btn => {
+        const key = btn.getAttribute('data-bnr-cd');
+        const rem = Math.ceil(_bnrCdRemaining(key));
+        if (rem > 0) {
+            // Входим/обновляем CD-состояние. Сохраняем оригинальный HTML один раз.
+            if (btn.dataset.bnrCdOrig === undefined) {
+                btn.dataset.bnrCdOrig = btn.innerHTML;
+                btn.dataset.bnrCdWasDisabled = btn.disabled ? '1' : '0';
+            }
+            btn.disabled = true;
+            btn.classList.add('bnr-on-cd');
+            const label = _bnrCdLabel(rem);
+            if (btn.textContent !== label) btn.textContent = label;
+        } else if (btn.dataset.bnrCdOrig !== undefined) {
+            // CD истёк — восстанавливаем кнопку.
+            btn.innerHTML = btn.dataset.bnrCdOrig;
+            btn.disabled = btn.dataset.bnrCdWasDisabled === '1';
+            btn.classList.remove('bnr-on-cd');
+            delete btn.dataset.bnrCdOrig;
+            delete btn.dataset.bnrCdWasDisabled;
+        }
+    });
+}
+
+// Один глобальный тикер на страницу.
+if (!window._bnrCdTickerStarted) {
+    window._bnrCdTickerStarted = true;
+    setInterval(_bnrActionCdTick, 1000);
+}
+
 async function _bannerlordBuyAction(actionType, data) {
     if (!isAuthUser()) {
         showNotification('⚠️ Войдите через Twitch', 'warning');
@@ -6388,10 +6480,32 @@ async function _bannerlordBuyAction(actionType, data) {
             console.info('[FE-IDEM] retry hit', actionType,
                          'action_id=' + result.action_id);
         }
+        // 2026-05-29 — кулдаун на кнопке вместо warning-тоста.
+        // На успехе с CD — запускаем отсчёт сразу (cooldown_applied_s).
+        // На отказе по CD — синхронизируем remaining и НЕ показываем тост,
+        // если для этого действия есть помеченная кнопка (она покажет отсчёт).
+        const isCdReject = !result.success
+            && typeof result.cooldown_remaining_s === 'number'
+            && result.cooldown_remaining_s > 0;
+        if (result.success
+            && typeof result.cooldown_applied_s === 'number'
+            && result.cooldown_applied_s > 0) {
+            _bnrSetLocalCooldown(actionType, result.cooldown_applied_s);
+        }
+        if (isCdReject) {
+            _bnrSetLocalCooldown(actionType, result.cooldown_remaining_s);
+        }
+        let _hasCdBtn = false;
+        try {
+            _hasCdBtn = !!document.querySelector(`[data-bnr-cd="${actionType}"]`);
+        } catch (_) { _hasCdBtn = false; }
+
         // Sprint 5.32 UX — errors longer (6s) чтобы юзер успел прочесть
         // cooldown / refuse сообщения. Success short (3.5s default).
-        showNotification(toastMsg, result.success ? 'success' : 'error',
-                         result.success ? 3500 : 6000);
+        if (!(isCdReject && _hasCdBtn)) {
+            showNotification(toastMsg, result.success ? 'success' : 'error',
+                             result.success ? 3500 : 6000);
+        }
         if (result.success) {
             if (typeof loadUserData === 'function') loadUserData();
             // Sprint 5.3d: ускоряем UI feedback для bannerlord actions —

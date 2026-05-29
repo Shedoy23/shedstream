@@ -978,6 +978,14 @@ async def run_migrations():
             print(f"❌ M61 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # Balance pass — combat powers для ranged-классов (M61 их пропустил)
+        try:
+            from migrations import m62_combat_powers_ranged
+            await m62_combat_powers_ranged.apply(conn)
+        except Exception as e:
+            print(f"❌ M62 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

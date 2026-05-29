@@ -1701,36 +1701,15 @@ class BannerlordAdapter(ModuleAdapter):
 
         from dependencies import get_db
         async with get_db()._connect() as conn:
-            # Fetch all open bets для этого round
-            cur = await conn.execute("""
-                SELECT bettor, target, amount FROM bannerlord_tournament_bets
-                WHERE channel_id=? AND round_index=? AND resolved=0
-            """, (channel_id, round_index))
-            bets = await cur.fetchall()
-            total_pot = sum(b[2] for b in bets)
-            winning = [(b[0], b[2]) for b in bets if (b[1] or "").lower() in survivors_lower]
-            total_winning = sum(a for _, a in winning)
-
-            for bettor, target, amount in bets:
-                won = (target or "").lower() in survivors_lower
-                if won and total_winning > 0:
-                    # Proportional share of total pot
-                    payout = int(round((amount / total_winning) * total_pot))
-                else:
-                    payout = 0
-                await conn.execute("""
-                    UPDATE bannerlord_tournament_bets
-                    SET resolved=?, payout=?
-                    WHERE channel_id=? AND bettor=? AND round_index=?
-                """, (1 if won else 2, payout, channel_id, bettor, round_index))
-                # Credit payout to viewer
-                if won and payout > 0:
-                    await conn.execute(
-                        "UPDATE viewers SET points = points + ? "
-                        "WHERE channel_id=? AND username=?",
-                        (payout, channel_id, bettor))
-
-            # Advance round index
+            # 2026-05-29 FIX («ставки сгорали»): НЕ резолвим ставки помачтево.
+            # tournament.round_ended прилетает на КАЖДЫЙ match (Harmony
+            # EndCurrentMatch postfix), а раунд = несколько матчей. Раньше на
+            # первом матче мы резолвили ВСЕ ставки раунда против survivors
+            # одного матча → ставки на победителей других матчей сгорали, и
+            # current_round преждевременно advance'ился. Теперь ставки
+            # резолвятся ТОЛЬКО в конце турнира по финальному победителю
+            # (_on_tournament_ended, Predictions-style). Здесь — только advance
+            # round_index (для bet dedup / UI).
             await conn.execute("""
                 UPDATE bannerlord_tournament_state
                 SET current_round = ?
@@ -1738,8 +1717,7 @@ class BannerlordAdapter(ModuleAdapter):
             """, (round_index + 1, channel_id))
             await conn.commit()
         print(f"[bannerlord:{channel_id}] tournament round {round_index} ended, "
-              f"{len(survivors_lower)} survivors, pot={total_pot}⦷, "
-              f"{len(winning)} winners")
+              f"{len(survivors_lower)} survivors (bets resolve at tournament end)")
 
     async def _on_tournament_ended(self, channel_id: int, env: ModuleEnvelope) -> None:
         """Турнир закончился — финал ИЛИ aborted (стример вышел досрочно).
@@ -1778,6 +1756,42 @@ class BannerlordAdapter(ModuleAdapter):
                 if open_bets:
                     print(f"[bannerlord:{channel_id}] tournament aborted — "
                           f"refunded {len(open_bets)} open bets")
+            elif winner:
+                # 2026-05-29 FIX — резолв ВСЕХ открытых ставок по ФИНАЛЬНОМУ
+                # победителю (Predictions-style): backers чемпиона делят весь
+                # банк пропорционально ставке, остальные сгорают. Раньше ставки
+                # ошибочно резолвились помачтево в round_ended → сгорали.
+                cur = await conn.execute("""
+                    SELECT bettor, target, amount, round_index
+                    FROM bannerlord_tournament_bets
+                    WHERE channel_id=? AND resolved=0
+                """, (channel_id,))
+                bets = await cur.fetchall()
+                total_pot = sum((b[2] or 0) for b in bets)
+                total_winning = sum((b[2] or 0) for b in bets
+                                    if (b[1] or "").lower() == winner)
+                paid, n_backers = 0, 0
+                for bettor, target, amount, r_idx in bets:
+                    amount = amount or 0
+                    won = (target or "").lower() == winner
+                    payout = (int(round((amount / total_winning) * total_pot))
+                              if (won and total_winning > 0) else 0)
+                    await conn.execute("""
+                        UPDATE bannerlord_tournament_bets
+                        SET resolved=?, payout=?
+                        WHERE channel_id=? AND bettor=? AND round_index=?
+                    """, (1 if won else 2, payout, channel_id, bettor, r_idx))
+                    if won and payout > 0:
+                        await conn.execute(
+                            "UPDATE viewers SET points = points + ? "
+                            "WHERE channel_id=? AND username=?",
+                            (payout, channel_id, bettor))
+                        paid += payout
+                        n_backers += 1
+                if bets:
+                    print(f"[bannerlord:{channel_id}] tournament bets resolved by "
+                          f"winner @{winner}: {n_backers} backers split pot={total_pot}⦷ "
+                          f"(paid {paid}, {len(bets)} bets total)")
 
             await conn.execute("""
                 UPDATE bannerlord_tournament_state

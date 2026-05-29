@@ -158,83 +158,11 @@ namespace BannerlordLink.Actions
                     return;
                 }
 
-                var cfg = _classes[classKey];
                 int engineTier = targetTier - 1;   // 1-6 → 0-5
-                var rng = new Random();
-                var equipment = hero.BattleEquipment;
-                int slotsFilled = 0, slotsSkipped = 0;
-
-                // ── 1. Weapon slots по class config ──
-                // Anti-duplicate (BLT EquipHero.cs:241): seed уже надетыми
-                // weapon'ами + добавляем каждый выбранный → классы с двумя
-                // слотами одного типа (berserk=2×2H, assassin=2×1H) не получат
-                // 2 одинаковых молота.
-                var usedWeaponIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                for (int s = 0; s < 4; s++)
-                {
-                    try
-                    {
-                        var cur = equipment[(EquipmentIndex)s];
-                        if (!cur.IsEmpty && cur.Item != null)
-                            usedWeaponIds.Add(cur.Item.StringId ?? "");
-                    }
-                    catch { }
-                }
-                for (int i = 0; i < 4 && i < cfg.Slots.Length; i++)
-                {
-                    var slotType = cfg.Slots[i];
-                    if (slotType == T.Invalid) continue;
-
-                    var item = FindTieredItem(slotType, engineTier, rng, null, usedWeaponIds);
-                    if (item != null && ShouldReplaceSlot(equipment, (EquipmentIndex)i, engineTier))
-                    {
-                        equipment[(EquipmentIndex)i] = new EquipmentElement(item);
-                        usedWeaponIds.Add(item.StringId ?? "");
-                        slotsFilled++;
-                    }
-                    else slotsSkipped++;
-                }
-
-                // ── 2. Armor slots — всегда заполняем все 5 ──
-                foreach (var (idx, type) in ArmorSlots)
-                {
-                    var item = FindTieredItem(type, engineTier, rng);
-                    if (item != null && ShouldReplaceSlot(equipment, idx, engineTier))
-                    {
-                        equipment[idx] = new EquipmentElement(item);
-                        slotsFilled++;
-                    }
-                    else slotsSkipped++;
-                }
-
-                // ── 3. Horse + Harness для mounted classes ──
-                if (cfg.UseHorse || cfg.UseCamel)
-                {
-                    // Sprint 5.32 (BLT-parity M4) — family-type matching.
-                    // Camel и Horse — разные mounts в TaleWorlds (Horse.ItemType,
-                    // но с разными HorseComponent.Monster). Раньше FindTieredItem
-                    // мог выбрать camel mount для horse-class или наоборот.
-                    // Аналогично harness — camel harness не подходит к horse mount.
-                    // Теперь: используем `name.Contains("camel")` matcher как в
-                    // SetClassHandler (надёжнее чем HorseComponent.Monster lookup
-                    // который иногда null для DLC mounts).
-                    bool wantCamel = cfg.UseCamel;
-                    System.Func<string, bool> mountFilter = wantCamel
-                        ? (System.Func<string, bool>)(name => name.IndexOf("camel", StringComparison.OrdinalIgnoreCase) >= 0)
-                        : (name => name.IndexOf("camel", StringComparison.OrdinalIgnoreCase) < 0);
-                    var horse = FindTieredItem(T.Horse, engineTier, rng, mountFilter);
-                    if (horse != null && ShouldReplaceSlot(equipment, EquipmentIndex.Horse, engineTier))
-                    {
-                        equipment[EquipmentIndex.Horse] = new EquipmentElement(horse);
-                        slotsFilled++;
-                    }
-                    var harness = FindTieredItem(T.HorseHarness, engineTier, rng, mountFilter);
-                    if (harness != null && ShouldReplaceSlot(equipment, EquipmentIndex.HorseHarness, engineTier))
-                    {
-                        equipment[EquipmentIndex.HorseHarness] = new EquipmentElement(harness);
-                        slotsFilled++;
-                    }
-                }
+                // 2026-05-29 — slot-fill вынесен в ApplyGearLoadout (общий с
+                // ReequipGearHandler). Анти-дубль оружия + ShouldReplaceSlot
+                // (не затираем призы/крафт) внутри.
+                int slotsFilled = ApplyGearLoadout(hero, classKey, engineTier);
 
                 // Списать Hero.Gold ПОСЛЕ apply equipment (atomic в-game).
                 // GiveGoldAction.ApplyBetweenCharacters(giver, receiver, amount):
@@ -244,7 +172,7 @@ namespace BannerlordLink.Actions
                 GiveGoldAction.ApplyBetweenCharacters(hero, null, cost, true);
                 BannerlordLinkModule.Log(
                     $"[upgrade_gear] @{username} → T{targetTier} ({classKey}): " +
-                    $"{slotsFilled} slots filled, {slotsSkipped} not found, " +
+                    $"{slotsFilled} slots filled, " +
                     $"gold {goldBefore} → {hero.Gold} (-{cost})");
 
                 // Push hero.gear_tier_changed event — backend update'ит row.
@@ -267,6 +195,80 @@ namespace BannerlordLink.Actions
                 BannerlordLinkModule.Log(
                     $"[upgrade_gear] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
             }
+        }
+
+        // 2026-05-29 — общий slot-fill для upgrade_gear И reequip_gear. Набивает
+        // weapon/armor/horse слоты под класс на заданном engineTier (0-5).
+        // Анти-дубль оружия (seed уже надетыми + добавляем каждый выбранный) +
+        // ShouldReplaceSlot (не затираем призы/крафт). Возвращает кол-во
+        // заполненных слотов. Списание золота/синк делает caller.
+        internal static int ApplyGearLoadout(Hero hero, string classKey, int engineTier)
+        {
+            if (hero == null || classKey == null || !_classes.TryGetValue(classKey, out var cfg))
+                return 0;
+            var rng = new Random();
+            var equipment = hero.BattleEquipment;
+            int slotsFilled = 0;
+
+            // ── 1. Weapon slots по class config (анти-дубль) ──
+            var usedWeaponIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (int s = 0; s < 4; s++)
+            {
+                try
+                {
+                    var cur = equipment[(EquipmentIndex)s];
+                    if (!cur.IsEmpty && cur.Item != null)
+                        usedWeaponIds.Add(cur.Item.StringId ?? "");
+                }
+                catch { }
+            }
+            for (int i = 0; i < 4 && i < cfg.Slots.Length; i++)
+            {
+                var slotType = cfg.Slots[i];
+                if (slotType == T.Invalid) continue;
+
+                var item = FindTieredItem(slotType, engineTier, rng, null, usedWeaponIds);
+                if (item != null && ShouldReplaceSlot(equipment, (EquipmentIndex)i, engineTier))
+                {
+                    equipment[(EquipmentIndex)i] = new EquipmentElement(item);
+                    usedWeaponIds.Add(item.StringId ?? "");
+                    slotsFilled++;
+                }
+            }
+
+            // ── 2. Armor slots — всегда заполняем все 5 ──
+            foreach (var (idx, type) in ArmorSlots)
+            {
+                var item = FindTieredItem(type, engineTier, rng);
+                if (item != null && ShouldReplaceSlot(equipment, idx, engineTier))
+                {
+                    equipment[idx] = new EquipmentElement(item);
+                    slotsFilled++;
+                }
+            }
+
+            // ── 3. Horse + Harness для mounted classes (family-type matching) ──
+            if (cfg.UseHorse || cfg.UseCamel)
+            {
+                bool wantCamel = cfg.UseCamel;
+                System.Func<string, bool> mountFilter = wantCamel
+                    ? (System.Func<string, bool>)(name => name.IndexOf("camel", StringComparison.OrdinalIgnoreCase) >= 0)
+                    : (name => name.IndexOf("camel", StringComparison.OrdinalIgnoreCase) < 0);
+                var horse = FindTieredItem(T.Horse, engineTier, rng, mountFilter);
+                if (horse != null && ShouldReplaceSlot(equipment, EquipmentIndex.Horse, engineTier))
+                {
+                    equipment[EquipmentIndex.Horse] = new EquipmentElement(horse);
+                    slotsFilled++;
+                }
+                var harness = FindTieredItem(T.HorseHarness, engineTier, rng, mountFilter);
+                if (harness != null && ShouldReplaceSlot(equipment, EquipmentIndex.HorseHarness, engineTier))
+                {
+                    equipment[EquipmentIndex.HorseHarness] = new EquipmentElement(harness);
+                    slotsFilled++;
+                }
+            }
+
+            return slotsFilled;
         }
 
         // 2026-05-29 — адаптация BLT (EquipHero.cs:253 "Never replace stuff that

@@ -108,6 +108,7 @@ ACTION_COOLDOWNS_SEC = {
     "hero.recruit_troops":      10,
     "hero.train_troops":        30,    # 2026-05-29 BLT TrainingBehavior — bulk-upgrade свиты
     "hero.upgrade_gear":        30,
+    "hero.reequip_gear":        30,    # 2026-05-29 re-roll снаряги (anti-spam fishing)
     "hero.set_class":           60,
     "hero.marry":              180,    # heavy lore-action, 3 min
     "hero.divorce":             60,

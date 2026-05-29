@@ -6052,7 +6052,19 @@ async function loadBannerlordHero() {
         } else {
             _gtierBtn = '<span style="color:#9ca3af;font-size:10px;margin-left:6px;">сначала класс</span>';
         }
-        const gearTierLabel = _gtierText + _gtierBtn;
+        // 2026-05-29 — «переформировать снаряжение» (BLT ReequipInsteadOfUpgrade):
+        // ре-ролл всех слотов на ТЕКУЩЕМ тире (бесплатно), фикс кривой/залипшей
+        // экипировки. Доступно только при выбранном классе, в т.ч. на MAX.
+        const _reequipBtn = _hasClass
+            ? `<button class="small-btn" id="bnr-reequip-btn"
+                    data-bnr-cd="hero.reequip_gear"
+                    title="Переформировать снаряжение: ре-ролл всех слотов на текущем тире (T${gearTier || 0}). Бесплатно — фикс если экипировка кривая/залипла. Турнирные призы и крафт сохраняются."
+                    style="font-size:10px;padding:2px 6px;margin-left:4px;
+                           background:#2d3a2d;color:#86efac;">
+                🔄
+            </button>`
+            : '';
+        const gearTierLabel = _gtierText + _gtierBtn + _reequipBtn;
 
         // Sprint M21: armor summary — sum head/body/leg/arm coverage по
         // 5 armor slots (head/body/leg/gloves/cape). Engine считает
@@ -6179,6 +6191,9 @@ async function loadBannerlordHero() {
                     _openBannerlordKingdomModal);
                 document.getElementById('bnr-inline-upgrade-btn')?.addEventListener('click', () => {
                     _bannerlordBuyAction('hero.upgrade_gear', {});
+                });
+                document.getElementById('bnr-reequip-btn')?.addEventListener('click', () => {
+                    _bannerlordBuyAction('hero.reequip_gear', {});
                 });
             }
         }

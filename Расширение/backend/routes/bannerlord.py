@@ -821,6 +821,7 @@ _PURCHASABLE_ACTIONS = (
     "hero.set_class",         # Sprint 4.1: класс + equipment apply
     "power.activate",         # Sprint 4.3: active power burst
     "hero.upgrade_gear",      # Sprint M20: 6-tier equipment progression
+    "hero.reequip_gear",      # 2026-05-29: re-roll снаряги на текущем тире (BLT ReequipInsteadOfUpgrade)
     "player.spawn",
     "player.heal",
     "player.respawn",
@@ -1465,6 +1466,33 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
         data["hero_gold_cost"] = HERO_GOLD_TIER_COSTS[target_tier]
         data["price"] = 0   # крустики: бесплатно
 
+    # 2026-05-29 hero.reequip_gear — «переформировать снаряжение» (BLT
+    # ReequipInsteadOfUpgrade). Ре-ролл на ТЕКУЩЕМ тире (без повышения), FREE,
+    # работает в т.ч. на T6 (фикс-утилита при кривой экипировке). Mod
+    # переиспользует ApplyGearLoadout.
+    if action_type == "hero.reequip_gear":
+        db_tmp = get_db()
+        async with db_tmp._connect() as conn:
+            cur = await conn.execute(
+                "SELECT h.gear_tier, c.class_key "
+                "FROM bannerlord_heroes h "
+                "LEFT JOIN bannerlord_hero_class c "
+                "  ON c.channel_id=h.channel_id AND c.username=h.username "
+                "WHERE h.channel_id=? AND h.username=?",
+                (channel_id, username))
+            row = await cur.fetchone()
+        if not row:
+            return {"success": False, "message": "Сначала создай героя"}
+        class_key = (row[1] or "").lower()
+        if not class_key:
+            return {
+                "success": False,
+                "message": "Сначала выбери класс — он определяет slot template",
+            }
+        data["class_key"] = class_key
+        data["gear_tier"] = row[0] or 0     # текущий тир — ре-ролл на нём
+        data["price"] = 0                   # крустики: бесплатно (utility/fix)
+
     # Sprint M21: player.give_item (gold) — server-side amount по крустики preset.
     if action_type == "player.give_item":
         item_type = (data.get("item_type") or "gold").strip().lower()
@@ -1910,7 +1938,7 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
     # security/exploit гэп — sub'ы с Boosty tier3 ×0.5 платили 50 за 5K динаров.
     _ACTIONS_WITH_OWN_PRICING = {
         "player.spawn", "player.equip_item", "hero.set_class",
-        "hero.upgrade_gear", "hero.recruit_troops", "hero.train_troops",
+        "hero.upgrade_gear", "hero.reequip_gear", "hero.recruit_troops", "hero.train_troops",
         "hero.join_tournament", "tournament.bet",
         "hero.create_clan", "hero.create_kingdom", "hero.leave_clan",
         "hero.leave_kingdom", "hero.join_clan", "hero.join_kingdom",

@@ -63,6 +63,7 @@ extensions:
     - hero.gear_tier_changed  # M20+: mod пушит после successful upgrade_gear
     - module.heroes_snapshot  # M22+: mod пушит alive heroes на session_launched
     - hero.retinue_changed    # M23+: mod пушит после recruit/upgrade troop
+    - hero.retinue_casualty   # 2026-05-29 (BLT RetinueDeathChance): войско свиты погибло навсегда
     - hero.focus_changed      # Sprint 5.8: mod пушит после add_focus
     - hero.attribute_changed  # Sprint 5.8: mod пушит после add_attribute
     - hero.clan_created       # Sprint 5.9: mod пушит после успешного clan create

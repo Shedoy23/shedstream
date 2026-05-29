@@ -547,6 +547,18 @@ namespace BannerlordLink.Behaviors
             base.OnAgentRemoved(affectedAgent, affectorAgent, agentState, blow);
             if (affectedAgent == null) return;
 
+            // ── Retinue casualty (BLT RetinueDeathChance) — призванное войско
+            //    свиты при killing blow с шансом теряется НАВСЕГДА. ──
+            try
+            {
+                HandleRetinueCasualty(affectedAgent, agentState);
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[KillReward] retinue casualty CRASHED: {ex.GetType().Name}: {ex.Message}");
+            }
+
             // ── Killed leg: наш hero был убит → consolation XP (BLT XPPerKilled) ─
             try
             {
@@ -570,6 +582,41 @@ namespace BannerlordLink.Behaviors
                 BannerlordLinkModule.Log(
                     $"[KillReward] HandleAffectorKill CRASHED: {ex.GetType().Name}: {ex.Message}");
             }
+        }
+
+        // 2026-05-29 (BLT-parity BLTSummonBehavior) — шанс безвозвратной гибели
+        // войска свиты. BLT default RetinueDeathChance = 0.025 (2.5%).
+        private const float RETINUE_DEATH_CHANCE = 0.025f;
+
+        /// <summary>Если убитый агент — наше призванное войско свиты (есть в
+        /// RetinueRegistry) и это реальная смерть (Killed), бросаем шанс гибели.
+        /// Выпал → пушим hero.retinue_casualty (backend убирает 1 слот навсегда).
+        /// Не выпал → войско просто «погибло на этот бой», вернётся следующим
+        /// призывом. Reg-запись снимаем в любом случае (агент удалён из миссии).</summary>
+        private void HandleRetinueCasualty(Agent affectedAgent, AgentState state)
+        {
+            if (state != AgentState.Killed) return;   // unconscious не считается
+            var tag = BannerlordLink.Net.RetinueRegistry.Get(affectedAgent);
+            if (tag == null) return;                  // не наше войско свиты
+            BannerlordLink.Net.RetinueRegistry.Remove(affectedAgent);
+
+            if (TaleWorlds.Core.MBRandom.RandomFloat >= RETINUE_DEATH_CHANCE)
+                return;                               // выжил (вернётся след. бой)
+
+            string troopName =
+                (affectedAgent.Character as CharacterObject)?.Name?.ToString() ?? tag.TroopId;
+            var payload = new
+            {
+                username = tag.User,
+                troop_id = tag.TroopId,
+                troop_name = troopName,
+            };
+            string json = Newtonsoft.Json.JsonConvert.SerializeObject(payload);
+            System.Threading.Tasks.Task.Run(async () => await BannerlordLinkModule.Backend
+                .PostEventAsync("bannerlord", "hero.retinue_casualty", json));
+            BannerlordLinkModule.Log(
+                $"[KillReward] @{tag.User} RETINUE CASUALTY — {tag.TroopId} погиб " +
+                $"навсегда ({RETINUE_DEATH_CHANCE * 100f:F1}% roll)");
         }
 
         /// <summary>Если affected это наш hero и его прибили — даём consolation XP

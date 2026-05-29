@@ -496,6 +496,10 @@ class BannerlordAdapter(ModuleAdapter):
             await self._on_retinue_changed(channel_id, env)
             return
 
+        if et == "hero.retinue_casualty":
+            await self._on_retinue_casualty(channel_id, env)
+            return
+
         if et == "hero.focus_changed":
             await self._on_focus_changed(channel_id, env)
             return
@@ -1312,6 +1316,60 @@ class BannerlordAdapter(ModuleAdapter):
         print(f"[bannerlord:{channel_id}] @{username} retinue {action}: "
               f"slot {slot_index} → {troop_id} T{tier + 1} "
               f"{'[ELITE]' if is_elite else ''}")
+
+    async def _on_retinue_casualty(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """2026-05-29 (BLT RetinueDeathChance): войско свиты погибло в бою НАВСЕГДА.
+
+        Payload: {username, troop_id, troop_name}
+        Удаляем ОДИН слот (минимальный slot_index) с этим troop_id и
+        re-pack'им оставшиеся slot_index'ы в непрерывный 0..N-1 — иначе recruit
+        (slot = existing.Count) затрёт существующий слот при заполнении дыры.
+        """
+        data = env.data
+        username = (data.get("username") or "").lower()
+        troop_id = data.get("troop_id") or ""
+        if not username or not troop_id:
+            return
+
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            cur = await conn.execute(
+                "SELECT slot_index FROM bannerlord_retinue "
+                "WHERE channel_id=? AND username=? AND troop_id=? "
+                "ORDER BY slot_index LIMIT 1",
+                (channel_id, username, troop_id))
+            row = await cur.fetchone()
+            if not row:
+                return
+            dead_slot = row[0]
+
+            # Удаляем погибший слот, затем re-pack оставшихся.
+            await conn.execute(
+                "DELETE FROM bannerlord_retinue "
+                "WHERE channel_id=? AND username=? AND slot_index=?",
+                (channel_id, username, dead_slot))
+
+            cur = await conn.execute(
+                "SELECT troop_id, troop_name, tier, COALESCE(is_elite, 0) "
+                "FROM bannerlord_retinue "
+                "WHERE channel_id=? AND username=? ORDER BY slot_index",
+                (channel_id, username))
+            remaining = await cur.fetchall()
+            await conn.execute(
+                "DELETE FROM bannerlord_retinue WHERE channel_id=? AND username=?",
+                (channel_id, username))
+            for new_idx, r in enumerate(remaining):
+                await conn.execute(
+                    "INSERT INTO bannerlord_retinue "
+                    "(channel_id, username, slot_index, troop_id, troop_name, tier, is_elite) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (channel_id, username, new_idx, r[0], r[1], r[2], r[3]))
+            await conn.commit()
+
+        troop_name = data.get("troop_name") or troop_id
+        print(f"[bannerlord:{channel_id}] @{username} retinue CASUALTY: "
+              f"{troop_name} ({troop_id}) погиб навсегда — slot {dead_slot} "
+              f"удалён, осталось {len(remaining)}")
 
     async def _on_gear_tier_changed(self, channel_id: int, env: ModuleEnvelope) -> None:
         """Mod применил gear upgrade — backend сохраняет new tier в DB cache.

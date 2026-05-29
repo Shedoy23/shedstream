@@ -600,6 +600,10 @@ namespace BannerlordLink.Actions
                                 initialDirection:    anchorDir);
                             if (retinueAgent != null)
                             {
+                                // 2026-05-29 (BLT RetinueDeathChance) — регистрируем
+                                // войско свиты для ролла гибели в KillRewardBehavior.
+                                BannerlordLink.Net.RetinueRegistry.Register(
+                                    retinueAgent, username, troop.StringId);
                                 BannerlordLinkModule.LogVerbose(() =>
                                     $"[player.spawn V] @{username} retinue spawned " +
                                     $"idx={retinueAgent.Index} troop={troop.StringId} " +

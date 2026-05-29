@@ -44,6 +44,29 @@ namespace BannerlordLink.Util
             EquipmentIndex.HorseHarness,
         };
 
+        /// <summary>Explicit slot → clean name. НЕ полагаемся на idx.ToString()
+        /// т.к. EquipmentIndex имеет enum-алиасы с общими int-значениями
+        /// (Head==NumAllWeaponSlots==ArmorItemBeginSlot, Weapon0==WeaponItemBeginSlot,
+        /// Horse==ArmorItemEndSlot) → ToString() даёт неверное имя слота.</summary>
+        private static string SlotName(EquipmentIndex idx)
+        {
+            switch (idx)
+            {
+                case EquipmentIndex.Weapon0:      return "weapon0";
+                case EquipmentIndex.Weapon1:      return "weapon1";
+                case EquipmentIndex.Weapon2:      return "weapon2";
+                case EquipmentIndex.Weapon3:      return "weapon3";
+                case EquipmentIndex.Head:         return "head";
+                case EquipmentIndex.Body:         return "body";
+                case EquipmentIndex.Leg:          return "leg";
+                case EquipmentIndex.Gloves:       return "gloves";
+                case EquipmentIndex.Cape:         return "cape";
+                case EquipmentIndex.Horse:        return "horse";
+                case EquipmentIndex.HorseHarness: return "horseharness";
+                default:                          return idx.ToString().ToLowerInvariant();
+            }
+        }
+
         public static void PushAll(Hero hero)
         {
             if (hero == null || hero.Name == null) return;
@@ -57,7 +80,14 @@ namespace BannerlordLink.Util
                 foreach (var idx in SLOTS_TO_SYNC)
                 {
                     var el = eq[idx];
-                    string slotName = idx.ToString().ToLowerInvariant();
+                    // 2026-05-29 FIX (статы шлема/оружия всегда 0): НЕ используем
+                    // idx.ToString() — у EquipmentIndex enum-алиасы делят int-
+                    // значения: Head(5)=NumAllWeaponSlots=ArmorItemBeginSlot,
+                    // Weapon0(0)=WeaponItemBeginSlot, Horse(10)=ArmorItemEndSlot.
+                    // ToString() возвращал первый алиас ("numallweaponslots" и
+                    // т.п.) → фронт не узнавал slot → иконка '·', статы 0.
+                    // Явный маппинг даёт правильные имена.
+                    string slotName = SlotName(idx);
 
                     if (el.IsEmpty || el.Item == null)
                     {

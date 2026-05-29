@@ -149,6 +149,23 @@ async def handle_create_vassal(conn, channel_id: int, parent_user: str, data: di
         return {"success": False,
                 "message": f"Максимум 5 вассалов. Сейчас: {cnt_row[0]}"}
 
+    # 2026-05-29 currency re-map: вассал-клан платится динарами героя (250K),
+    # как обычный клан (CreateClanHandler — 1M). Pre-check кэшированного
+    # Hero.Gold — чистый отказ без orphan-placeholder. Мод спишет ровно
+    # VASSAL_GOLD_COST при создании (см. CreateVassalClanHandler.cs).
+    VASSAL_GOLD_COST = 250_000
+    cur = await conn.execute(
+        "SELECT gold FROM bannerlord_heroes WHERE channel_id=? AND username=?",
+        (channel_id, parent_user))
+    grow = await cur.fetchone()
+    parent_gold = (grow[0] if grow else 0) or 0
+    if parent_gold < VASSAL_GOLD_COST:
+        return {
+            "success": False,
+            "message": f"Нужно {VASSAL_GOLD_COST:,}💰 динаров для вассал-клана, "
+                       f"у тебя {parent_gold:,}💰 (накопи в игре).",
+        }
+
     # INSERT initial row — vassal_clan_id будет updated mod'ом через event.
     # Placeholder ID = "pending_{action_id}" — mod заменит на реальный.
     action_id = _uuid.uuid4().hex

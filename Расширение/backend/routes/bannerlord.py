@@ -1385,8 +1385,10 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
                 data["is_elite"] = want_elite
 
         if action_type == "hero.recruit_troops":
-            # Sprint 5.14: elite — 300💎 крустиков (3×) для UX consistency
-            data["price"] = 300 if data.get("is_elite") else 100
+            # 2026-05-29 currency re-map: рекрут платится ТОЛЬКО динарами героя
+            # (hero_gold_cost ниже, списывается модом). Крустиковая часть убрана
+            # — одно действие = одна валюта (армия = кошелёк героя 💰).
+            data["price"] = 0
 
     # hero.create: culture choice (empire/sturgia/vlandia/aserai/khuzait/battania).
     # Validate whitelist; null/empty = mod выберет random wanderer.
@@ -1940,7 +1942,7 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
         "hero.respec_child_skills":     500,    # full skill re-roll
         # Sprint 5.33 (BLT-parity VAS) — sub-clan progression. High crustic
         # entry barrier — это long-term feature, не impulse-buy.
-        "hero.create_vassal_clan":     1000,    # large engagement decision
+        "hero.create_vassal_clan":        0,    # 2026-05-29 currency re-map: платится Hero.Gold (как обычный клан), мод списывает 💰
         "hero.rename_vassal":           100,    # cosmetic
         # Sprint 5.33 (BLT-parity SIEGE) — party strategic orders
         "hero.party_order_set":         500,    # significant strategic decision

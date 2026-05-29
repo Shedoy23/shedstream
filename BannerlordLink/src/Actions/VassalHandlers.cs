@@ -31,6 +31,11 @@ namespace BannerlordLink.Actions
     {
         public string ActionType => "hero.create_vassal_clan";
 
+        // 2026-05-29 currency re-map: вассал-клан платится динарами инициатора
+        // (parentUser), как обычный клан (CreateClanHandler — 1M). MIRROR
+        // VASSAL_GOLD_COST в bannerlord_vassals.py (backend pre-check кэша).
+        private const int VASSAL_GOLD_COST = 250_000;
+
         public Task<(bool success, string error)> ExecuteAsync(JObject data)
         {
             string parentUser = (data["parent_username"]?.ToString() ?? "").ToLowerInvariant();
@@ -77,6 +82,28 @@ namespace BannerlordLink.Actions
                     return;
                 }
 
+                // 2026-05-29 currency re-map: резолвим инициатора (parentUser) и
+                // проверяем его Hero.Gold ДО создания клана — чтобы не плодить
+                // clan при нехватке. Backend уже проверил кэш, здесь —
+                // авторитетная проверка по live-золоту.
+                Hero parentHero = null;
+                try { parentHero = HeroLookup.FindByUsername(parentUser); } catch { }
+                if (parentHero == null || !parentHero.IsAlive)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[vassal.create] REFUSE: parent @{parentUser} not found/alive");
+                    ActionFeedback.PostFailed(actionId, "parent_not_found");
+                    return;
+                }
+                if (parentHero.Gold < VASSAL_GOLD_COST)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[vassal.create] REFUSE @{parentUser}: not enough hero gold " +
+                        $"({parentHero.Gold} < {VASSAL_GOLD_COST})");
+                    ActionFeedback.PostFailed(actionId, "not_enough_hero_gold");
+                    return;
+                }
+
                 // Create new Clan через engine API. Pattern из CreateClanHandler.
                 var nameObj = new TextObject(vassalName);
                 Clan newClan = Clan.CreateClan(vassalName);  // engine assigns StringId
@@ -118,6 +145,18 @@ namespace BannerlordLink.Actions
                 catch (Exception lex)
                 {
                     BannerlordLinkModule.Log($"[vassal.create] SetLeader warn: {lex.Message}");
+                }
+
+                // Списать стоимость вассал-клана с инициатора (динары).
+                try
+                {
+                    GiveGoldAction.ApplyBetweenCharacters(parentHero, null, VASSAL_GOLD_COST, true);
+                    BannerlordLinkModule.Log(
+                        $"[vassal.create] @{parentUser}: -{VASSAL_GOLD_COST}💰, gold={parentHero.Gold}");
+                }
+                catch (Exception gex)
+                {
+                    BannerlordLinkModule.Log($"[vassal.create] gold deduct warn: {gex.Message}");
                 }
 
                 string realClanId = newClan.StringId ?? "";

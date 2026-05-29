@@ -1818,7 +1818,7 @@ function _openCreateVassalModal(eligibleHeirs) {
         <div style="background:#1a1f2e;border:1px solid #1e40af;border-radius:6px;
                     padding:14px;max-width:380px;width:90%;color:#bfdbfe;">
             <div style="font-size:14px;font-weight:700;color:#60a5fa;margin-bottom:10px;">
-                🏰 Создать вассальный клан (1000⦷)
+                🏰 Создать вассальный клан (250K💰)
             </div>
             <div style="font-size:11px;color:#9ca3af;margin-bottom:8px;">
                 Выдели взрослого наследника в собственный sub-clan.
@@ -1846,7 +1846,7 @@ function _openCreateVassalModal(eligibleHeirs) {
                 <button id="bnr-vas-confirm" class="extra-btn"
                         style="flex:1;font-size:11px;padding:6px;
                                background:#1e40af;color:#fff;font-weight:700;">
-                    🏰 Создать (1000⦷)
+                    🏰 Создать (250K💰)
                 </button>
                 <button id="bnr-vas-cancel" class="extra-btn"
                         style="flex:1;font-size:11px;padding:6px;
@@ -3722,7 +3722,7 @@ function _renderRetinue(retinue) {
             ? '✓ Basic maxed'
             : `${!isMaxed ? '➕ Нанять' : '⬆ Прокачать'} basic
                <div style="font-size:10px;font-weight:normal;margin-top:2px;opacity:0.85;">
-                   ${RECRUIT_PRICE_BASIC}💎 + ${_fmtDinars(basicCost)}💰
+                   ${_fmtDinars(basicCost)}💰
                    ${basicLow ? `<span style="color:#f87171;"> (не хватает ${_fmtDinars(basicCost - heroGold)}💰)</span>` : ''}
                </div>`);
     const eliteLabel = eliteAllMax && isMaxed
@@ -3731,7 +3731,7 @@ function _renderRetinue(retinue) {
             ? '✓ Elite maxed'
             : `${!isMaxed ? '★ Нанять' : '⬆ Прокачать'} elite
                <div style="font-size:10px;font-weight:normal;margin-top:2px;opacity:0.85;">
-                   ${RECRUIT_PRICE_ELITE}💎 + ${_fmtDinars(eliteCost)}💰
+                   ${_fmtDinars(eliteCost)}💰
                    ${eliteLow ? `<span style="color:#f87171;"> (не хватает ${_fmtDinars(eliteCost - heroGold)}💰)</span>` : ''}
                </div>`);
 
@@ -3752,7 +3752,7 @@ function _renderRetinue(retinue) {
                     <button class="extra-btn" id="bnr-recruit-basic-btn"
                             data-bnr-cd="hero.recruit_troops"
                             ${basicDisabled ? 'disabled' : ''}
-                            title="Basic troop (battanian_recruit / khuzait_nomad / etc). Списать ${RECRUIT_PRICE_BASIC}💎 крустиков + ${_fmtDinars(basicCost)}💰 динаров у героя."
+                            title="Basic troop (battanian_recruit / khuzait_nomad / etc). Списать ${_fmtDinars(basicCost)}💰 динаров у героя."
                             style="flex:1;font-size:11px;padding:6px;line-height:1.2;
                                    ${basicDisabled ? 'opacity:0.5;cursor:not-allowed;' : ''}">
                         ${basicLabel}
@@ -3760,7 +3760,7 @@ function _renderRetinue(retinue) {
                     <button class="extra-btn" id="bnr-recruit-elite-btn"
                             data-bnr-cd="hero.recruit_troops"
                             ${eliteDisabled ? 'disabled' : ''}
-                            title="Elite troop (battanian_oathsworn / vlandian_squire / etc) — другая ветка прокачки. 3× стоимость. Списать ${RECRUIT_PRICE_ELITE}💎 + ${_fmtDinars(eliteCost)}💰."
+                            title="Elite troop (battanian_oathsworn / vlandian_squire / etc) — другая ветка прокачки. 3× стоимость. Списать ${_fmtDinars(eliteCost)}💰 динаров у героя."
                             style="flex:1;font-size:11px;padding:6px;line-height:1.2;background:#5c2d12;color:#fbbf24;
                                    ${eliteDisabled ? 'opacity:0.5;cursor:not-allowed;' : ''}">
                         ${eliteLabel}

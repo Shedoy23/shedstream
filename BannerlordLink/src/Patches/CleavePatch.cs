@@ -32,6 +32,15 @@ namespace BannerlordLink.Patches
         public static System.Collections.Generic.IEnumerable<System.Reflection.MethodBase>
             TargetMethods()
         {
+            // 2026-05-29 INCIDENT — DISABLED pending RCA. Native crash при входе
+            // в крупный бой (~1200 агентов) сразу после выката cleave. Cleave
+            // принудительно ставит MeleeCollisionReaction.SlicedThrough на 15-40%
+            // melee-хитов adopted-героев (psycho/berserk/cavalry) — массовое
+            // forced cut-through в плотном бою = вероятный native-краш движка.
+            // Скип патча, пока не подтвердим причину. Остальные combat-фичи
+            // (lifesteal/iron-skin/explosive/retinue-death) НЕ затронуты.
+            yield break;
+#pragma warning disable CS0162
             var m = AccessTools.Method(typeof(Mission), "MeleeHitCallback");
             if (m == null)
             {

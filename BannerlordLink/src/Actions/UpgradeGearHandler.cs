@@ -171,7 +171,7 @@ namespace BannerlordLink.Actions
                     if (slotType == T.Invalid) continue;
 
                     var item = FindTieredItem(slotType, engineTier, rng);
-                    if (item != null)
+                    if (item != null && ShouldReplaceSlot(equipment, (EquipmentIndex)i, engineTier))
                     {
                         equipment[(EquipmentIndex)i] = new EquipmentElement(item);
                         slotsFilled++;
@@ -183,7 +183,7 @@ namespace BannerlordLink.Actions
                 foreach (var (idx, type) in ArmorSlots)
                 {
                     var item = FindTieredItem(type, engineTier, rng);
-                    if (item != null)
+                    if (item != null && ShouldReplaceSlot(equipment, idx, engineTier))
                     {
                         equipment[idx] = new EquipmentElement(item);
                         slotsFilled++;
@@ -207,13 +207,13 @@ namespace BannerlordLink.Actions
                         ? (System.Func<string, bool>)(name => name.IndexOf("camel", StringComparison.OrdinalIgnoreCase) >= 0)
                         : (name => name.IndexOf("camel", StringComparison.OrdinalIgnoreCase) < 0);
                     var horse = FindTieredItem(T.Horse, engineTier, rng, mountFilter);
-                    if (horse != null)
+                    if (horse != null && ShouldReplaceSlot(equipment, EquipmentIndex.Horse, engineTier))
                     {
                         equipment[EquipmentIndex.Horse] = new EquipmentElement(horse);
                         slotsFilled++;
                     }
                     var harness = FindTieredItem(T.HorseHarness, engineTier, rng, mountFilter);
-                    if (harness != null)
+                    if (harness != null && ShouldReplaceSlot(equipment, EquipmentIndex.HorseHarness, engineTier))
                     {
                         equipment[EquipmentIndex.HorseHarness] = new EquipmentElement(harness);
                         slotsFilled++;
@@ -253,9 +253,26 @@ namespace BannerlordLink.Actions
             }
         }
 
-        // Tier-aware item lookup. Сначала exact-tier match, потом fallback на
-        // (tier-1), потом любой merchandise-item типа. Это страхует случаи
-        // где pool sparse (e.g. T6 Bolts может не существовать).
+        // 2026-05-29 — адаптация BLT (EquipHero.cs:253 "Never replace stuff that
+        // is higher tier (in practice it can only be tournament prize)"). НЕ
+        // затираем слот если текущий предмет ВЫШЕ target tier'а (турнирный приз)
+        // ИЛИ именной/смитованный (ItemModifier — крафтовый трофей, надетый
+        // через «одеть»). Пустой слот — всегда заполняем.
+        private static bool ShouldReplaceSlot(Equipment eq, EquipmentIndex idx, int engineTier)
+        {
+            try
+            {
+                var cur = eq[idx];
+                if (cur.IsEmpty || cur.Item == null) return true;
+                if (cur.ItemModifier != null) return false;            // crafted/named — keep
+                if ((int)cur.Item.Tier > engineTier) return false;     // higher-tier prize — keep
+            }
+            catch { /* defensive — на сомнении заменяем */ }
+            return true;
+        }
+
+        // Tier-aware item lookup — адаптация BLT SelectRandomItemNearestTier:
+        // группируем по tier, берём ближайшую к target группу (см. ниже).
         //
         // Sprint 5.32 (BLT-parity M4) — optional nameFilter predicate для
         // family-type matching (camel vs horse mount/harness).
@@ -281,27 +298,18 @@ namespace BannerlordLink.Actions
                 // (lieber camel-harness-on-horse чем пустой slot).
             }
 
-            // exact tier
-            var atTier = pool.Where(i => (int)i.Tier == engineTier).ToList();
-            if (atTier.Count > 0) return atTier[rng.Next(atTier.Count)];
-
-            // 2026-05-29 FIX («стрелы T1 при T6»): берём ЛУЧШИЙ доступный tier
-            // ≤ target, а НЕ random из всего пула. Для ammo/shield/части коней
-            // high-tier предметов нет (vanilla arrows макс ~T4), и раньше
-            // last-resort = random any → часто выпадал T1. Теперь — самый
-            // высокий существующий tier не выше target (т.е. T4-стрелы при T6).
-            var capped = pool.Where(i => (int)i.Tier <= engineTier).ToList();
-            if (capped.Count > 0)
-            {
-                int bestTier = capped.Max(i => (int)i.Tier);
-                var best = capped.Where(i => (int)i.Tier == bestTier).ToList();
-                return best[rng.Next(best.Count)];
-            }
-
-            // Ничего ≤ target (target ниже минимума пула) — берём минимальный tier.
-            int minTier = pool.Min(i => (int)i.Tier);
-            var low = pool.Where(i => (int)i.Tier == minTier).ToList();
-            return low[rng.Next(low.Count)];
+            // 2026-05-29 — адаптация BLT SelectRandomItemNearestTier
+            // (EquipHero.cs:579). Группируем по tier, сортируем по близости к
+            // target (ключ 100*|target-t| + t — при равной дистанции
+            // предпочитаем НИЖНИЙ tier), берём random из ближайшей группы.
+            // Раньше last-resort был random из всего пула → для T6-стрел (vanilla
+            // макс ~T4) выпадал случайный T1. Теперь — ближайшая группа (T4).
+            var nearest = pool.GroupBy(i => (int)i.Tier)
+                .OrderBy(g => 100 * Math.Abs(engineTier - g.Key) + g.Key)
+                .FirstOrDefault();
+            if (nearest == null) return null;
+            var nearestList = nearest.ToList();
+            return nearestList[rng.Next(nearestList.Count)];
         }
     }
 }

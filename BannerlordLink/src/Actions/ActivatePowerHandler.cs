@@ -121,6 +121,9 @@ namespace BannerlordLink.Actions
                     case "ironskin_toggle":
                         ActivateIronskin(username, durationOverride, valueOverride, agent);
                         break;
+                    case "explosive_arrows":
+                        ActivateExplosiveArrows(username, durationOverride, valueOverride, agent);
+                        break;
                     default:
                         BannerlordLinkModule.Log(
                             $"[power.activate] REFUSE @{username}: unknown power '{powerKey}'");
@@ -448,6 +451,22 @@ namespace BannerlordLink.Actions
             BannerlordLinkModule.Log(
                 $"[power.ironskin_toggle] @{username}: -{pct:F0}% incoming for {duration}s");
             BannerlordLink.Util.PowerVisualFx.PlayActivation(agent, "ironskin_toggle", username, (int)pct);
+        }
+
+        // 2026-05-29 (BLT-parity AoE) — взрывные стрелы: buff, во время которого
+        // missile-хиты дают AoE по площади (см. DamageHook.ApplyExplosiveArrows).
+        // Value = урон в центре взрыва. Self-buff (цель не нужна).
+        private static void ActivateExplosiveArrows(string username, float? durationOverride,
+            double? valueOverride, Agent agent)
+        {
+            float duration = durationOverride ?? 12f;
+            double dmg = valueOverride
+                ?? PowerCache.GetPowerValue(username, "explosive_arrows")
+                ?? 40.0;
+            ActiveBuffState.Activate(username, "explosive_arrows", duration, dmg);
+            BannerlordLinkModule.Log(
+                $"[power.explosive_arrows] @{username}: AoE arrows ({dmg:F0} center) for {duration}s");
+            BannerlordLink.Util.PowerVisualFx.PlayActivation(agent, "explosive_arrows", username, (int)dmg);
         }
 
         /// <summary>Helper — find random active enemy human within radius.

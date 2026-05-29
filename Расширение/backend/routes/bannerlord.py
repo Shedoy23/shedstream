@@ -374,6 +374,8 @@ async def bannerlord_classes(request: Request):
             "shield_break_burst", "rage", "retribution_toggle",
             # 2026-05-29 BLT-parity combat powers (active variants).
             "lifesteal_burst", "ironskin_toggle",
+            # 2026-05-29 взрывные стрелы (ranged AoE active).
+            "explosive_arrows",
         )
         current_powers = []
         if current:

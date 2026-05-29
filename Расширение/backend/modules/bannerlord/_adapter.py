@@ -87,6 +87,7 @@ POWER_COOLDOWNS = {
     # 2026-05-29 (BLT-parity combat powers) — active burst-варианты.
     "lifesteal_burst":     75,    # вампиризм-всплеск ~12s
     "ironskin_toggle":     90,    # снижение урона ~12s (как retribution)
+    "explosive_arrows":    75,    # AoE-стрелы ~12s (ranged burst)
 }
 
 # Sprint 5.29 audit fix #28 — anti-spam cooldowns per (channel, user, action_type).

@@ -986,6 +986,14 @@ async def run_migrations():
             print(f"❌ M62 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # Active power «взрывные стрелы» (BLT AddDamagePower AoE) для ranged
+        try:
+            from migrations import m63_explosive_arrows
+            await m63_explosive_arrows.apply(conn)
+        except Exception as e:
+            print(f"❌ M63 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

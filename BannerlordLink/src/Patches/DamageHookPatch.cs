@@ -100,6 +100,10 @@ namespace BannerlordLink.Patches
                     // финального урона (после armor-bypass + rage). Передаём
                     // attackerSrc (mount-redirect к rider'у) — лечим hero, не коня.
                     ApplyLifesteal(attackerUser, attackerSrc, b.InflictedDamage);
+                    // 2026-05-29 (BLT-parity AoE) — взрывные стрелы: на missile-
+                    // хите при активном буффе наносим AoE по ближайшим врагам
+                    // через отложенную очередь (FMOD-safe).
+                    ApplyExplosiveArrows(attackerUser, attackerSrc, victim, ref collisionData);
                 }
                 // Sprint 5.33 (BLT-parity ITEM) — trophy bonuses.
                 // Attacker damage_bonus + victim armor_bonus как absorption.
@@ -236,6 +240,50 @@ namespace BannerlordLink.Patches
             BannerlordLinkModule.LogVerbose(() =>
                 $"[DamageHook LIFESTEAL] @{user} {pct:F1}% → +{(after - before):F0} hp " +
                 $"({before:F0}→{after:F0})");
+        }
+
+        // 2026-05-29 (BLT-parity AddDamagePower AoE) — взрывные стрелы.
+        // На missile-хите при активном буффе explosive_arrows наносим AoE по
+        // ≤3 ближайшим врагам вокруг точки попадания. Урон в центре = value
+        // буффа, спад center/(dist/R+1)^2 (формула BLT AreaOfEffectDef).
+        //
+        // FMOD-safety: НЕ вызываем RegisterBlow inline — кладём в ту же
+        // отложенную очередь что reflect (EnqueueReflect → DrainPendingReflects:
+        // BlowFlags.NoSound + троттл ≤3/тик). Звуковых событий не плодим.
+        private const float EXPLOSIVE_RADIUS = 3.5f;
+        private const int EXPLOSIVE_MAX_TARGETS = 3;
+        private static void ApplyExplosiveArrows(
+            string user, Agent attackerSrc, Agent victim, ref AttackCollisionData cd)
+        {
+            if (attackerSrc == null || victim == null) return;
+            if (!cd.IsMissile) return;                 // только стрелы/болты
+            var center = ActiveBuffState.GetValue(user, "explosive_arrows");
+            if (!center.HasValue || center.Value <= 0) return;
+            if (Mission.Current == null) return;
+
+            double damageAtCenter = center.Value;
+            var pos = victim.Position;
+            var hits = new System.Collections.Generic.List<(Agent a, float d)>();
+            foreach (var a in Mission.Current.Agents)
+            {
+                if (a == null || a == attackerSrc || a == victim) continue;
+                if (!a.IsActive() || !a.IsHuman) continue;
+                if (!a.IsEnemyOf(attackerSrc)) continue;
+                float dist = a.Position.Distance(pos);
+                if (dist > EXPLOSIVE_RADIUS) continue;
+                hits.Add((a, dist));
+            }
+            if (hits.Count == 0) return;
+            hits.Sort((x, y) => x.d.CompareTo(y.d));
+            int n = Math.Min(EXPLOSIVE_MAX_TARGETS, hits.Count);
+            for (int i = 0; i < n; i++)
+            {
+                int dmg = (int)(damageAtCenter / Math.Pow(hits[i].d / EXPLOSIVE_RADIUS + 1f, 2f));
+                if (dmg <= 0) continue;
+                EnqueueReflect(attackerSrc, hits[i].a, dmg, DamageTypes.Blunt);
+            }
+            BannerlordLinkModule.LogVerbose(() =>
+                $"[DamageHook EXPLOSIVE] @{user} AoE center={damageAtCenter:F0} → {n} targets");
         }
 
         // 2026-05-29 (BLT-parity TakeDamagePower) — железная кожа. Снижаем

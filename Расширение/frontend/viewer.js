@@ -1244,6 +1244,7 @@ const BNR_POWER_LABELS = {
     // 2026-05-29 (BLT-parity combat powers) — active варианты.
     lifesteal_burst:    { icon: '🩸', label: 'Вампиризм',   desc: '% урона → хил, 12с' },
     ironskin_toggle:    { icon: '🛡', label: 'Железная кожа', desc: '−% урона, 12с' },
+    explosive_arrows:   { icon: '🧨', label: 'Взрывные стрелы', desc: 'AoE с попаданий, 12с' },
 };
 const BNR_POWER_PRICES = {
     heal_burst:         100,
@@ -1257,6 +1258,7 @@ const BNR_POWER_PRICES = {
     // 2026-05-29 (BLT-parity combat powers)
     lifesteal_burst:    300,  // sustain burst
     ironskin_toggle:    300,  // defensive burst (как retribution)
+    explosive_arrows:   350,  // ranged AoE burst (high value)
 };
 
 function switchIntegrationModule(activeModule) {

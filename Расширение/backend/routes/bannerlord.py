@@ -371,7 +371,9 @@ async def bannerlord_classes(request: Request):
         # Фильтруем только active power_keys — passive (hp_multi / armor / skill
         # boosts) не покупаются runtime'ом. Heal_burst — special: доступен всем.
         ACTIVE_POWER_KEYS = (
-            "shield_break_burst", "rage", "retribution_toggle"
+            "shield_break_burst", "rage", "retribution_toggle",
+            # 2026-05-29 BLT-parity combat powers (active variants).
+            "lifesteal_burst", "ironskin_toggle",
         )
         current_powers = []
         if current:

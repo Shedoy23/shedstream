@@ -1241,6 +1241,9 @@ const BNR_POWER_LABELS = {
     poison_dot:         { icon: '☠',  label: 'Яд',        desc: 'Случ. враг DoT 10с' },
     disarm_burst:       { icon: '💥', label: 'Обезоружить', desc: 'Случ. враг роняет оружие' },
     berserker_charge:   { icon: '💨', label: 'Берсерк-рывок', desc: '+speed 8с (себе)' },
+    // 2026-05-29 (BLT-parity combat powers) — active варианты.
+    lifesteal_burst:    { icon: '🩸', label: 'Вампиризм',   desc: '% урона → хил, 12с' },
+    ironskin_toggle:    { icon: '🛡', label: 'Железная кожа', desc: '−% урона, 12с' },
 };
 const BNR_POWER_PRICES = {
     heal_burst:         100,
@@ -1251,6 +1254,9 @@ const BNR_POWER_PRICES = {
     poison_dot:         350,  // DoT — медленный, но total damage высокий
     disarm_burst:       250,  // disarm — disruption, не damage
     berserker_charge:   200,  // mobility self-buff
+    // 2026-05-29 (BLT-parity combat powers)
+    lifesteal_burst:    300,  // sustain burst
+    ironskin_toggle:    300,  // defensive burst (как retribution)
 };
 
 function switchIntegrationModule(activeModule) {

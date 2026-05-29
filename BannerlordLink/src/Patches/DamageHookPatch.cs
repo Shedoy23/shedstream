@@ -96,6 +96,10 @@ namespace BannerlordLink.Patches
                 {
                     ApplyIgnoreArmor(attackerUser, ref b, ref collisionData);
                     ApplyRageOutgoing(attackerUser, ref b, ref collisionData);
+                    // 2026-05-29 (BLT-parity) — вампиризм: лечим атакующего на %
+                    // финального урона (после armor-bypass + rage). Передаём
+                    // attackerSrc (mount-redirect к rider'у) — лечим hero, не коня.
+                    ApplyLifesteal(attackerUser, attackerSrc, b.InflictedDamage);
                 }
                 // Sprint 5.33 (BLT-parity ITEM) — trophy bonuses.
                 // Attacker damage_bonus + victim armor_bonus как absorption.
@@ -107,6 +111,10 @@ namespace BannerlordLink.Patches
                 }
                 if (victimUser != null)
                 {
+                    // 2026-05-29 (BLT-parity TakeDamagePower) — железная кожа:
+                    // снижаем входящий урон ДО reflect (reflect считается от
+                    // уже сниженного значения).
+                    ApplyDamageReduction(victimUser, ref b, ref collisionData);
                     ApplyReflect(victimUser, ref b, ref collisionData);
                 }
 
@@ -200,6 +208,55 @@ namespace BannerlordLink.Patches
             cd.InflictedDamage = inflicted;
             BannerlordLinkModule.LogVerbose(() =>
                 $"[DamageHook RAGE] @{user} ×{multi:F2} dmg {beforeDmg}→{inflicted}");
+        }
+
+        // 2026-05-29 (BLT-parity AbsorbHealthPower) — вампиризм. Лечим
+        // атакующего на % нанесённого урона. Passive lifesteal_pct (PowerCache,
+        // per class+level) + active lifesteal_burst (ActiveBuffState, timed).
+        // Per-hit heal capped (anti-degenerate при rage×5) + clamp к HealthLimit.
+        private static void ApplyLifesteal(string user, Agent attackerSrc, int inflictedDamage)
+        {
+            if (attackerSrc == null || !attackerSrc.IsActive()) return;
+            if (inflictedDamage <= 0) return;
+
+            double passive = ResolvePct(user, "lifesteal_pct");
+            double burst = ActiveBuffState.GetValue(user, "lifesteal_burst") ?? 0.0;
+            double pct = Math.Min(100.0, passive + burst);
+            if (pct <= 0) return;
+
+            float limit = attackerSrc.HealthLimit;
+            if (attackerSrc.Health >= limit) return;
+
+            float heal = (float)(inflictedDamage * pct / 100.0);
+            if (heal <= 0) return;
+            if (heal > 100f) heal = 100f;            // per-hit cap
+            float before = attackerSrc.Health;
+            float after = Math.Min(limit, before + heal);
+            attackerSrc.Health = after;
+            BannerlordLinkModule.LogVerbose(() =>
+                $"[DamageHook LIFESTEAL] @{user} {pct:F1}% → +{(after - before):F0} hp " +
+                $"({before:F0}→{after:F0})");
+        }
+
+        // 2026-05-29 (BLT-parity TakeDamagePower) — железная кожа. Снижаем
+        // входящий урон на %. Passive damage_reduction_pct (PowerCache) + active
+        // ironskin_toggle (ActiveBuffState). Cap 80% чтобы hero не был неубиваем.
+        private static void ApplyDamageReduction(string user, ref Blow b, ref AttackCollisionData cd)
+        {
+            double passive = ResolvePct(user, "damage_reduction_pct");
+            double toggle = ActiveBuffState.GetValue(user, "ironskin_toggle") ?? 0.0;
+            double pct = Math.Min(80.0, passive + toggle);
+            if (pct <= 0) return;
+
+            int reduced = (int)(b.InflictedDamage * pct / 100.0);
+            if (reduced <= 0) return;
+
+            int beforeDmg = b.InflictedDamage;
+            int newInflicted = Math.Max(0, b.InflictedDamage - reduced);
+            b.InflictedDamage = newInflicted;
+            cd.InflictedDamage = newInflicted;
+            BannerlordLinkModule.LogVerbose(() =>
+                $"[DamageHook IRONSKIN] @{user} -{pct:F1}% dmg {beforeDmg}→{newInflicted}");
         }
 
         /// <summary>Sprint 5.33 (BLT-parity ITEM) — applies trophy bonuses.

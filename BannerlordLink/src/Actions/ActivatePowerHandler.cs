@@ -114,6 +114,13 @@ namespace BannerlordLink.Actions
                     case "berserker_charge":
                         ApplyBerserkerCharge(agent, username, durationOverride, valueOverride);
                         break;
+                    // 2026-05-29 (BLT-parity combat powers) — active variants.
+                    case "lifesteal_burst":
+                        ActivateLifestealBurst(username, durationOverride, valueOverride, agent);
+                        break;
+                    case "ironskin_toggle":
+                        ActivateIronskin(username, durationOverride, valueOverride, agent);
+                        break;
                     default:
                         BannerlordLinkModule.Log(
                             $"[power.activate] REFUSE @{username}: unknown power '{powerKey}'");
@@ -411,6 +418,36 @@ namespace BannerlordLink.Actions
                 BannerlordLinkModule.Log(
                     $"[power.berserker_charge] speed limit warn: {ex.Message}");
             }
+        }
+
+        // 2026-05-29 (BLT-parity AbsorbHealthPower active) — вампиризм-всплеск.
+        // Value = % урона → хил на время буффа; читается в DamageHook.ApplyLifesteal.
+        private static void ActivateLifestealBurst(string username, float? durationOverride,
+            double? valueOverride, Agent agent)
+        {
+            float duration = durationOverride ?? 12f;
+            double pct = valueOverride
+                ?? PowerCache.GetPowerValue(username, "lifesteal_burst")
+                ?? 40.0;
+            ActiveBuffState.Activate(username, "lifesteal_burst", duration, pct);
+            BannerlordLinkModule.Log(
+                $"[power.lifesteal_burst] @{username}: +{pct:F0}% lifesteal for {duration}s");
+            BannerlordLink.Util.PowerVisualFx.PlayActivation(agent, "lifesteal_burst", username, (int)pct);
+        }
+
+        // 2026-05-29 (BLT-parity TakeDamagePower active) — железная кожа-тоггл.
+        // Value = % снижения входящего урона; читается в DamageHook.ApplyDamageReduction.
+        private static void ActivateIronskin(string username, float? durationOverride,
+            double? valueOverride, Agent agent)
+        {
+            float duration = durationOverride ?? 12f;
+            double pct = valueOverride
+                ?? PowerCache.GetPowerValue(username, "ironskin_toggle")
+                ?? 40.0;
+            ActiveBuffState.Activate(username, "ironskin_toggle", duration, pct);
+            BannerlordLinkModule.Log(
+                $"[power.ironskin_toggle] @{username}: -{pct:F0}% incoming for {duration}s");
+            BannerlordLink.Util.PowerVisualFx.PlayActivation(agent, "ironskin_toggle", username, (int)pct);
         }
 
         /// <summary>Helper — find random active enemy human within radius.

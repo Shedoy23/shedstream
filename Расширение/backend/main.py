@@ -970,6 +970,14 @@ async def run_migrations():
             print(f"❌ M60 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # BLT-parity combat powers — lifesteal / iron-skin / cleave
+        try:
+            from migrations import m61_combat_powers
+            await m61_combat_powers.apply(conn)
+        except Exception as e:
+            print(f"❌ M61 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

@@ -59,7 +59,7 @@ prod-mirror в `Modules/Shedoy23.BannerlordLink/`) ↔ FastAPI backend
 | # | Фича | Оценка | Reference | Суть |
 |---|---|---|---|---|
 | ~~1~~ | ~~**KingdomTaxBehavior**~~ | ✅ DONE 2026-05-29 | C.5 | Король-viewer задаёт налог 0-100% (Kingdom-панель), вассальные кланы королевства ежедневно платят % дневной прибыли в казну короля. `KingdomTaxBehavior` (mod) + `kingdom.set_tax_rate` action + m59 `kingdom_tax_pct`. |
-| 2 | **TrainingBehavior** | ~3-5 дн | C.17 (стр.896) | Платная тренировка войск героя (XP/tier-up за валюту). NEW feature, 326 LOC. У нас НЕТ. |
+| ~~2~~ | ~~**TrainingBehavior**~~ | ✅ DONE 2026-05-29 | C.17 | Адаптировано под нашу backend-свиту (не MobileParty): `hero.train_troops` — bulk-upgrade ВСЕХ слотов свиты на тир за раз (all-or-nothing, динары, переиспользует recruit UpgradeTargets-логику). Прямое действие вместо пассивного фонда (наша свита ≠ MobileParty). Mod `TrainTroopsHandler` + кнопка «🎯 Тренировать свиту». |
 | 3 | **Two retinues (Retinue2)** | ~3-5 дн | C.7 (стр.520,586) | Вторая независимая свита (basic + elite раздельно). У нас одна (5 слотов). Expansion. |
 | 4 | **BLTLogsBehavior** | ~1-2 нед | C.26 (стр.1219) | Лента событий (kills/levelup/prisoner/death) → feed history. ~1100 LOC у BLT. У нас НЕТ log feed. |
 | 5 | **BLTSettlementUpgradeBehavior** | ~1 нед+ | C.9 (стр.642) + UpgradeBehavior C.25 | Апгрейд поселений (prosperity/loyalty/security/food/militia/tax бонусы daily tick). У нас ClanUpgrades — меньший scope. |

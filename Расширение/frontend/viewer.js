@@ -4571,10 +4571,22 @@ async function _openBannerlordForgeModal() {
             const statsLine = statParts.length
                 ? `<div style="font-size:10px;color:#fbbf24;margin-top:2px;">${statParts.join(' · ')}</div>`
                 : '';
+            // Phase B — источник предмета + состояние "получен в игре".
+            const srcBadge = it.source === 'tournament'
+                ? '<span style="color:#fbbf24;"> · 🏆 турнир</span>'
+                : '<span style="color:#9ca3af;"> · 🔨 кузница</span>';
+            const claimedBadge = it.claimed
+                ? '<span style="color:#34d399;"> · ✓ в игре</span>' : '';
+            const equipBtn = it.claimed
+                ? '<span title="Уже в инвентаре героя" style="font-size:12px;padding:3px 8px;color:#6b7280;">✓</span>'
+                : `<button class="extra-btn bnr-equip-trophy" data-item-id="${it.id}"
+                        title="Получить в игре — реальный предмет в инвентарь героя + бонус в бою"
+                        style="font-size:10px;padding:3px 8px;color:#34d399;">📥</button>`;
             return `
             <div style="display:flex;align-items:center;gap:8px;
                         background:rgba(58,58,62,0.3);border:1px solid ${it.color};
-                        border-radius:6px;padding:6px 10px;margin-bottom:4px;">
+                        border-radius:6px;padding:6px 10px;margin-bottom:4px;
+                        ${it.claimed ? 'opacity:0.7;' : ''}">
                 <div style="font-size:18px;">${escapeHtml(it.icon || '')}</div>
                 <div style="flex:1;min-width:0;">
                     <div style="font-size:12px;color:${it.color};font-weight:700;
@@ -4582,15 +4594,11 @@ async function _openBannerlordForgeModal() {
                         ${escapeHtml(it.custom_name)}
                     </div>
                     <div style="font-size:10px;color:#adadb8;">
-                        ${escapeHtml(it.base_type)} / ${it.rarity} / T${it.tier}
+                        ${escapeHtml(it.base_type)} / ${it.rarity} / T${it.tier}${srcBadge}${claimedBadge}
                     </div>
                     ${statsLine}
                 </div>
-                <button class="extra-btn bnr-equip-trophy" data-item-id="${it.id}"
-                        title="Экипировать (передаст реальный item в инвентарь героя в игре)"
-                        style="font-size:10px;padding:3px 8px;color:#34d399;">
-                    ⚔
-                </button>
+                ${equipBtn}
                 <button class="extra-btn bnr-auction-trophy" data-item-id="${it.id}"
                         data-item-name="${escapeHtml(it.custom_name)}"
                         title="Выставить на аукцион"
@@ -4646,6 +4654,8 @@ async function _openBannerlordForgeModal() {
                     const id = parseInt(btn.dataset.itemId, 10);
                     overlay.remove();
                     _bannerlordBuyAction('hero.equip_trophy', { custom_item_id: id });
+                    // Re-open чтобы показать обновлённое состояние "✓ в игре".
+                    setTimeout(_openBannerlordForgeModal, 1200);
                 });
             });
             overlay.querySelectorAll('.bnr-auction-trophy').forEach(btn => {

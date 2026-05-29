@@ -173,6 +173,43 @@ def _generate_item(base_type: str) -> Dict:
     }
 
 
+def generate_prize_item() -> Dict:
+    """Tournament prize — random type, rarity biased вверх (награда не должна
+    быть мусором). Common апгрейдится до uncommon+. Phase B."""
+    base_type = random.choice(["weapon", "armor", "horse"])
+    item = _generate_item(base_type)
+    if item["rarity"] == "common":
+        prize_rarity = random.choices(
+            ["uncommon", "rare", "epic", "legendary"],
+            weights=[50, 30, 15, 5])[0]
+        tier = {"uncommon": 2, "rare": 3, "epic": 4, "legendary": 5}[prize_rarity]
+        item["rarity"] = prize_rarity
+        item["tier"] = tier
+        item["icon"] = RARITY_ICONS[prize_rarity]
+        adj = random.choice(ADJ_BY_RARITY[prize_rarity])
+        item["custom_name"] = f"{adj} {item['base_subtype']}"
+        item.update(_roll_stats(base_type, prize_rarity))
+    return item
+
+
+async def insert_custom_item(conn, channel_id: int, username: str,
+                             item: Dict, source: str) -> int:
+    """Insert a generated item into the unified inventory (persists rolled
+    stats + source). Returns new id (0 on fail). Caller commits. Phase B."""
+    cur = await conn.execute(
+        "INSERT INTO bannerlord_custom_items "
+        "(channel_id, owner_username, base_type, base_subtype, custom_name, "
+        " rarity, tier, icon, damage_bonus, armor_bonus, weight_factor, "
+        " speed_factor, source, claimed) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0) RETURNING id",
+        (channel_id, username, item["base_type"], item["base_subtype"],
+         item["custom_name"], item["rarity"], item["tier"], item["icon"],
+         item.get("damage_bonus", 0), item.get("armor_bonus", 0),
+         item.get("weight_factor", 1.0), item.get("speed_factor", 1.0), source))
+    row = await cur.fetchone()
+    return row[0] if row else 0
+
+
 # ── API ──────────────────────────────────────────────────────────────────────
 
 @router.get("/api/bannerlord/custom-items")
@@ -188,7 +225,8 @@ async def viewer_custom_items(request: Request):
             "SELECT id, base_type, base_subtype, custom_name, rarity, tier, "
             "       icon, created_at, "
             "       COALESCE(damage_bonus, 0), COALESCE(armor_bonus, 0), "
-            "       COALESCE(weight_factor, 1.0), COALESCE(speed_factor, 1.0) "
+            "       COALESCE(weight_factor, 1.0), COALESCE(speed_factor, 1.0), "
+            "       COALESCE(source, 'forge'), COALESCE(claimed, 0) "
             "FROM bannerlord_custom_items "
             "WHERE channel_id=? AND owner_username=? "
             "ORDER BY id DESC LIMIT 100",
@@ -212,6 +250,9 @@ async def viewer_custom_items(request: Request):
             "armor_bonus":   r[9],
             "weight_factor": r[10],
             "speed_factor":  r[11],
+            # Phase B — inventory unification
+            "source":        r[12],   # 'forge' | 'tournament'
+            "claimed":       bool(r[13]),
         })
     return {
         "success":   True,
@@ -259,17 +300,9 @@ async def viewer_smith_item(request: Request):
                 "message": "Инвентарь полон (50 max). Дискарди что-то.",
             }
 
-        # Generate + insert
+        # Generate + insert (Phase B — persists rolled stats + source='forge')
         item = _generate_item(base_type)
-        cur = await conn.execute(
-            "INSERT INTO bannerlord_custom_items "
-            "(channel_id, owner_username, base_type, base_subtype, "
-            " custom_name, rarity, tier, icon) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
-            (channel_id, username, item["base_type"], item["base_subtype"],
-             item["custom_name"], item["rarity"], item["tier"], item["icon"]))
-        row = await cur.fetchone()
-        item_id = row[0] if row else 0
+        item_id = await insert_custom_item(conn, channel_id, username, item, "forge")
         await conn.commit()
 
     log.info("[bannerlord SMITH] ch=%s user=%s base=%s rarity=%s name='%s'",

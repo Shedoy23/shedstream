@@ -1780,16 +1780,21 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
             cur = await conn.execute(
                 "SELECT base_type, base_subtype, custom_name, rarity, tier, "
                 "       COALESCE(damage_bonus, 0), COALESCE(armor_bonus, 0), "
-                "       COALESCE(weight_factor, 1.0), COALESCE(speed_factor, 1.0) "
+                "       COALESCE(weight_factor, 1.0), COALESCE(speed_factor, 1.0), "
+                "       COALESCE(claimed, 0) "
                 "FROM bannerlord_custom_items "
                 "WHERE id=? AND channel_id=? AND owner_username=?",
                 (trophy_id, channel_id, username))
             row = await cur.fetchone()
-        if not row:
-            return {
-                "success": False,
-                "message": "Трофей не найден / не твой",
-            }
+            if not row:
+                return {"success": False, "message": "Трофей не найден / не твой"}
+            # Phase B — нельзя получить один предмет дважды (анти double-bonus).
+            if int(row[9] or 0) == 1:
+                return {"success": False, "message": "Этот предмет уже получен в игре"}
+            # Optimistic claim — предмет уходит в инвентарь героя через mod.
+            await conn.execute(
+                "UPDATE bannerlord_custom_items SET claimed=1 WHERE id=?", (trophy_id,))
+            await conn.commit()
         data["base_type"]    = row[0]
         data["base_subtype"] = row[1]
         data["custom_name"]  = row[2]

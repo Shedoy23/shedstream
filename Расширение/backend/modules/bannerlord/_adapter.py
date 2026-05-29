@@ -1817,6 +1817,22 @@ class BannerlordAdapter(ModuleAdapter):
                 logger.warning("[bannerlord:%s] tournament_wins UPDATE failed for @%s: %s",
                                channel_id, winner, e)
 
+            # Phase B (inventory unification) — победитель получает предмет в
+            # тот же инвентарь, что и кузница (source='tournament').
+            try:
+                from routes.bannerlord_custom_items import (
+                    generate_prize_item, insert_custom_item)
+                from dependencies import get_db as _get_db
+                prize = generate_prize_item()
+                async with _get_db()._connect() as conn3:
+                    await insert_custom_item(conn3, channel_id, winner, prize, "tournament")
+                    await conn3.commit()
+                logger.info("[bannerlord:%s] tournament prize → @%s: %s (%s)",
+                            channel_id, winner, prize["custom_name"], prize["rarity"])
+            except Exception as e:
+                logger.warning("[bannerlord:%s] tournament prize failed for @%s: %s",
+                               channel_id, winner, e)
+
         status_str = "ABORTED" if aborted else f"winner=@{winner}"
         print(f"[bannerlord:{channel_id}] tournament ended ({status_str})")
 

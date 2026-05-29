@@ -962,6 +962,14 @@ async def run_migrations():
             print(f"❌ M59 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # Inventory unification Phase B — custom_items source/claimed
+        try:
+            from migrations import m60_custom_items_source
+            await m60_custom_items_source.apply(conn)
+        except Exception as e:
+            print(f"❌ M60 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

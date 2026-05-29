@@ -102,6 +102,7 @@ extensions:
     - hero.set_culture
     - hero.set_faction
     - hero.recruit_troops
+    - hero.train_troops      # 2026-05-29 (BLT TrainingBehavior): bulk-upgrade свиты
     - hero.join_tournament   # Sprint 5.3: BLT-style viewer tournament queue
     - tournament.bet         # Sprint 5.3: viewer ставит крустики на участника
     - hero.add_focus         # Sprint 5.8: focus point в skill (Hero.Gold tier-based)

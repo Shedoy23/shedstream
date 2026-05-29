@@ -40,6 +40,7 @@ namespace BannerlordLink.Actions
             Register(new EquipItemHandler());        // player.equip_item — equip ItemObject (5.1b)
             Register(new UpgradeGearHandler());      // hero.upgrade_gear — 6-tier progression
             Register(new RecruitTroopsHandler());    // hero.recruit_troops — BLT-style свита
+            Register(new TrainTroopsHandler());      // hero.train_troops — bulk-upgrade свиты (BLT TrainingBehavior)
             Register(new JoinTournamentHandler());   // hero.join_tournament — Sprint 5.3
             Register(new AddFocusHandler());         // hero.add_focus — Sprint 5.8 (Hero.Gold tier-based)
             Register(new AddAttributeHandler());     // hero.add_attribute — Sprint 5.8 (Hero.Gold flat)

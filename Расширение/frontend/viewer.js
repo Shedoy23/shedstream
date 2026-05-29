@@ -3687,6 +3687,19 @@ function _computeRetinueDinarCost(slots, isElite, isAdd) {
     const base = RETINUE_TIER_DINARS[Math.min(tier, RETINUE_TIER_DINARS.length - 1)];
     return isElite ? base * RETINUE_ELITE_MULT : base;
 }
+// 2026-05-29 (BLT TrainingBehavior) — оценка стоимости bulk-тренировки: сумма
+// цены апгрейда каждого слота (tier<5; tier 5 = вероятно maxed, пропускаем).
+// Мод делает реальную проверку UpgradeTargets/affordability.
+function _computeTrainCost(slots) {
+    let total = 0;
+    for (const s of (slots || [])) {
+        const tier = s.tier || 0;
+        if (tier >= 5) continue;   // T6 — вероятно maxed
+        const base = RETINUE_TIER_DINARS[Math.min(tier, RETINUE_TIER_DINARS.length - 1)];
+        total += s.is_elite ? base * RETINUE_ELITE_MULT : base;
+    }
+    return total;
+}
 function _fmtDinars(n) {
     return n.toLocaleString('ru-RU').replace(/,/g, ' ');
 }
@@ -3746,6 +3759,12 @@ function _renderRetinue(retinue) {
     const basicDisabled = (isMaxed && (basicSlots.length === 0 || basicAllMax)) || basicLow;
     const eliteDisabled = (isMaxed && (eliteSlots.length === 0 || eliteAllMax)) || eliteLow;
 
+    // 2026-05-29 (BLT TrainingBehavior) — bulk-тренировка свиты.
+    const trainCost = _computeTrainCost(list);
+    const trainLow = heroGold < trainCost;
+    // Активна только если есть кого качать (непустая свита + не вся maxed) и хватает динаров.
+    const trainDisabled = list.length === 0 || trainCost <= 0 || trainLow;
+
     slot.innerHTML = `
         <details data-bnr-details="retinue" ${_bnrDetailsAttr('retinue')}>
             <summary style="font-size:11px;color:#adadb8;cursor:pointer;">
@@ -3774,6 +3793,21 @@ function _renderRetinue(retinue) {
                         ${eliteLabel}
                     </button>
                 </div>
+                <button class="extra-btn" id="bnr-train-troops-btn"
+                        data-bnr-cd="hero.train_troops"
+                        ${trainDisabled ? 'disabled' : ''}
+                        title="Тренировать всю свиту: каждый слот апается на тир. Списать у героя ~${_fmtDinars(trainCost)}💰 динаров (точную сумму считает игра, maxed-слоты пропускаются)."
+                        style="width:100%;margin-top:4px;font-size:11px;padding:6px;line-height:1.2;background:#1e3a2f;color:#86efac;
+                               ${trainDisabled ? 'opacity:0.5;cursor:not-allowed;' : ''}">
+                    🎯 Тренировать свиту
+                    <div style="font-size:10px;font-weight:normal;margin-top:2px;opacity:0.85;">
+                        ${list.length === 0
+                            ? 'свита пуста'
+                            : (trainCost <= 0
+                                ? 'вся свита maxed'
+                                : `~${_fmtDinars(trainCost)}💰${trainLow ? ` <span style="color:#f87171;">(не хватает ${_fmtDinars(trainCost - heroGold)}💰)</span>` : ''}`)}
+                    </div>
+                </button>
             </div>
         </details>`;
 
@@ -3784,6 +3818,10 @@ function _renderRetinue(retinue) {
     document.getElementById('bnr-recruit-elite-btn')?.addEventListener('click', () => {
         if (eliteDisabled) return;
         _bannerlordBuyAction('hero.recruit_troops', { is_elite: true });
+    });
+    document.getElementById('bnr-train-troops-btn')?.addEventListener('click', () => {
+        if (trainDisabled) return;
+        _bannerlordBuyAction('hero.train_troops', {});
     });
 }
 

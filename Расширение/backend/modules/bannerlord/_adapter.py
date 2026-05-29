@@ -106,6 +106,7 @@ ACTION_COOLDOWNS_SEC = {
     "hero.add_focus":           10,
     "hero.add_attribute":       30,
     "hero.recruit_troops":      10,
+    "hero.train_troops":        30,    # 2026-05-29 BLT TrainingBehavior — bulk-upgrade свиты
     "hero.upgrade_gear":        30,
     "hero.set_class":           60,
     "hero.marry":              180,    # heavy lore-action, 3 min

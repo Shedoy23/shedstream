@@ -830,6 +830,7 @@ _PURCHASABLE_ACTIONS = (
     "world.trigger_event",
     "hero.add_skill",
     "hero.recruit_troops",
+    "hero.train_troops",         # 2026-05-29 (BLT TrainingBehavior): bulk-upgrade свиты за динары
     "hero.join_tournament",      # Sprint 5.3: BLT-style viewer tournament queue
     "tournament.bet",            # Sprint 5.3: viewer ставит крустики на участника
     "hero.add_focus",            # Sprint 5.8: focus point в skill (Hero.Gold tier-based)
@@ -1309,7 +1310,8 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
     # MIRROR mod TIER_COSTS из RecruitTroopsHandler.cs — для pre-check Hero.Gold.
     RECRUIT_TIER_COSTS = [5_000, 10_000, 20_000, 30_000, 50_000, 80_000]
     ELITE_COST_MULTIPLIER = 3
-    if action_type in ("hero.recruit_troops", "player.spawn", "hero.create_party"):
+    if action_type in ("hero.recruit_troops", "player.spawn", "hero.create_party",
+                       "hero.train_troops"):
         db_tmp = get_db()
         async with db_tmp._connect() as conn:
             cur = await conn.execute(
@@ -1392,6 +1394,12 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
             # 2026-05-29 currency re-map: рекрут платится ТОЛЬКО динарами героя
             # (hero_gold_cost ниже, списывается модом). Крустиковая часть убрана
             # — одно действие = одна валюта (армия = кошелёк героя 💰).
+            data["price"] = 0
+
+        if action_type == "hero.train_troops":
+            # 2026-05-29 (BLT TrainingBehavior): тренировка свиты платится ТОЛЬКО
+            # динарами героя — мод списывает сумму апгрейдов всех слотов. retinue
+            # snapshot уже приложен выше. Крустиков 0.
             data["price"] = 0
 
     # hero.create: culture choice (empire/sturgia/vlandia/aserai/khuzait/battania).
@@ -1902,7 +1910,7 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
     # security/exploit гэп — sub'ы с Boosty tier3 ×0.5 платили 50 за 5K динаров.
     _ACTIONS_WITH_OWN_PRICING = {
         "player.spawn", "player.equip_item", "hero.set_class",
-        "hero.upgrade_gear", "hero.recruit_troops",
+        "hero.upgrade_gear", "hero.recruit_troops", "hero.train_troops",
         "hero.join_tournament", "tournament.bet",
         "hero.create_clan", "hero.create_kingdom", "hero.leave_clan",
         "hero.leave_kingdom", "hero.join_clan", "hero.join_kingdom",

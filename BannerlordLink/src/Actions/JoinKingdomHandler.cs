@@ -108,6 +108,23 @@ namespace BannerlordLink.Actions
                     return;
                 }
 
+                // 2026-05-31 (audit) — после join у безфиефного клана HomeSettlement
+                // остаётся null → роняет ванильный daily-tick. Пешим вьюхам почти
+                // всегда 0 фиефов. Reconcile как в BLT KingdomManagement.
+                try
+                {
+                    if (hero.Clan != null && hero.Clan.Fiefs.Count == 0)
+                    {
+                        hero.Clan.ConsiderAndUpdateHomeSettlement();
+                        foreach (var h in hero.Clan.Heroes) h.UpdateHomeSettlement();
+                    }
+                }
+                catch (Exception hsEx)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[join_kingdom] @{username}: home-settlement reconcile warn: {hsEx.Message}");
+                }
+
                 BannerlordLinkModule.Log(
                     $"[join_kingdom] @{username}: clan '{hero.Clan.Name}' joined '{target.Name}' " +
                     $"(-{JOIN_COST}💰)");

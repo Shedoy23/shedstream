@@ -192,15 +192,30 @@ namespace BannerlordLink.Actions
                     var idx = (EquipmentIndex)i;
                     var weapon = agent.Equipment[idx];
                     if (weapon.IsEmpty) continue;
-                    var usage = weapon.CurrentUsageItem;
-                    if (usage == null) continue;
-                    if (usage.WeaponClass == WeaponClass.LargeShield
-                        || usage.WeaponClass == WeaponClass.SmallShield)
+
+                    // 2026-06-01 — надёжная детекция щита по ItemType. Раньше шли
+                    // только через CurrentUsageItem.WeaponClass — у несвыбранного
+                    // щита usage мог быть null → power «не срабатывал».
+                    bool isShield = weapon.Item != null
+                        && weapon.Item.ItemType == ItemObject.ItemTypeEnum.Shield;
+                    if (!isShield)
                     {
-                        agent.ChangeWeaponHitPoints(idx, 0);
-                        TryTriggerShieldBreakFx(agent);
-                        return true;
+                        var usage = weapon.CurrentUsageItem;
+                        isShield = usage != null
+                            && (usage.WeaponClass == WeaponClass.LargeShield
+                                || usage.WeaponClass == WeaponClass.SmallShield);
                     }
+                    if (!isShield) continue;
+
+                    // 2026-06-01 — ChangeWeaponHitPoints(0) ломает щит только ВО
+                    // ВРЕМЯ удара (BLT: collisionData.IsShieldBroken). Наш инстант-
+                    // AoE без удара → щит не пропадал = «не работает». Поэтому
+                    // ВЫБИВАЕМ щит из руки через DropItem — гарантированный видимый
+                    // эффект (тот же API, что у disarm_burst). HP=0 — как fallback.
+                    agent.ChangeWeaponHitPoints(idx, 0);
+                    TryTriggerShieldBreakFx(agent);
+                    agent.DropItem(idx);
+                    return true;
                 }
             }
             catch (Exception ex)

@@ -35,7 +35,26 @@ namespace BannerlordLink.Behaviors
     {
         public override MissionBehaviorType BehaviorType => MissionBehaviorType.Other;
 
-        public static HeroDetachmentBehavior Instance { get; private set; }
+        // 2026-06-01 FIX — раньше был автосвойством {get;private set;}. ПРОБЛЕМА:
+        // static Instance обнулялся OnEndMission'ом overlapping/nested миссии
+        // (hideout!) ПОКА этот behavior ещё жив и тикает → detach-команды видели
+        // Instance==null ("behavior null" / "charge_failed"), хотя агент в бою.
+        // Теперь резолвим из текущей миссии (авторитетно), static — fallback.
+        private static HeroDetachmentBehavior _instance;
+        public static HeroDetachmentBehavior Instance
+        {
+            get
+            {
+                try
+                {
+                    var b = Mission.Current?.GetMissionBehavior<HeroDetachmentBehavior>();
+                    if (b != null) return b;
+                }
+                catch { }
+                return _instance;
+            }
+            private set { _instance = value; }
+        }
 
         public enum DetachOrder
         {
@@ -79,7 +98,10 @@ namespace BannerlordLink.Behaviors
         {
             base.OnEndMission();
             _states.Clear();
-            Instance = null;
+            // 2026-06-01 FIX — обнуляем static ТОЛЬКО если это мы. Иначе
+            // OnEndMission старой/overlapping миссии затирал Instance живого
+            // behavior'а (hideout) → команды видели "behavior null".
+            if (ReferenceEquals(_instance, this)) _instance = null;
         }
 
         public override void OnAgentDeleted(Agent affectedAgent)
@@ -161,6 +183,17 @@ namespace BannerlordLink.Behaviors
                 BannerlordLinkModule.Log(
                     $"[DET] DETACH @{ResolveUsername(agent)} idx={agent.Index} " +
                     $"(scripted control, total active={_states.Count})");
+                // 2026-06-01 DIAG — почему агент не двигается? Ключевое: он = игрок
+                // (Controller=Player / Agent.Main → scripted-движение игнорится движком)?
+                try
+                {
+                    bool isMain = Agent.Main != null && agent == Agent.Main;
+                    string form = agent.Formation != null ? agent.Formation.Index.ToString() : "none";
+                    BannerlordLinkModule.Log(
+                        $"[DET-DIAG] idx={agent.Index} isMain={isMain} controller={agent.Controller} " +
+                        $"formation={form} team={agent.Team?.Side}");
+                }
+                catch (Exception dex) { BannerlordLinkModule.Log($"[DET-DIAG] warn: {dex.Message}"); }
                 return true;
             }
             catch (Exception ex)
@@ -298,15 +331,23 @@ namespace BannerlordLink.Behaviors
             try
             {
                 var agent = st.Agent;
-                try { agent.DisableScriptedMovement(); } catch { }
-                try { agent.DisableScriptedCombatMovement(); } catch { }
-                try { agent.SetAutomaticTargetSelection(true); } catch { }
-                try { agent.SetScriptedFlags(Agent.AIScriptedFrameFlags.None); } catch { }
-
-                var enemyFormation = FindNearestEnemyFormation(agent);
-                if (enemyFormation != null)
+                // 2026-06-01 FIX — раньше DisableScriptedMovement + SetTargetFormationIndex
+                // возвращало агента под контроль формации (которая стоит) → герой не двигался.
+                // Теперь СКРИПТУЕМ позицию НА ближайшего врага (тот же механизм, что Hold,
+                // но цель — враг) + авто-таргет для атаки в упор. Re-issue каждые 0.5с ведёт
+                // за движущимся врагом.
+                var enemy = FindNearestEnemyAgent(agent);
+                if (enemy != null)
                 {
-                    try { agent.SetTargetFormationIndex(enemyFormation.Index); } catch { }
+                    var pos = enemy.GetWorldPosition();
+                    agent.SetScriptedPosition(ref pos, false,
+                        Agent.AIScriptedFrameFlags.NeverSlowDown);
+                    try { agent.SetAutomaticTargetSelection(true); } catch { }
+                }
+                else
+                {
+                    // Врагов не нашли — снимаем скрипт, пусть AI решает сам.
+                    try { agent.DisableScriptedMovement(); } catch { }
                 }
             }
             catch (Exception ex)
@@ -358,28 +399,21 @@ namespace BannerlordLink.Behaviors
             return true;
         }
 
-        /// <summary>Find nearest enemy formation with units (для Charge target).</summary>
-        private static Formation FindNearestEnemyFormation(Agent agent)
+        /// <summary>Nearest active enemy agent — цель scripted-позиции для Charge.</summary>
+        private static Agent FindNearestEnemyAgent(Agent agent)
         {
             try
             {
-                Team myTeam = agent.Team;
-                if (myTeam == null || Mission.Current == null) return null;
-                Vec2 ap = agent.Position.AsVec2;
-                Formation best = null;
+                if (agent == null || Mission.Current == null) return null;
+                Vec3 ap = agent.Position;
+                Agent best = null;
                 float bestSq = float.MaxValue;
-                foreach (Team t in Mission.Current.Teams)
+                foreach (var a in Mission.Current.Agents)
                 {
-                    if (t == null || !t.IsEnemyOf(myTeam)) continue;
-                    foreach (Formation f in t.FormationsIncludingEmpty)
-                    {
-                        if (f == null || f.CountOfUnits == 0) continue;
-                        Vec2 fp;
-                        try { fp = f.OrderPosition; }
-                        catch { continue; }
-                        float d = ap.DistanceSquared(fp);
-                        if (d < bestSq) { bestSq = d; best = f; }
-                    }
+                    if (a == null || a == agent || !a.IsActive()) continue;
+                    if (!a.IsEnemyOf(agent)) continue;
+                    float d = (a.Position - ap).LengthSquared;
+                    if (d < bestSq) { bestSq = d; best = a; }
                 }
                 return best;
             }

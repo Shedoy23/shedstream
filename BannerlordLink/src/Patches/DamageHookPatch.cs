@@ -280,7 +280,14 @@ namespace BannerlordLink.Patches
             {
                 int dmg = (int)(damageAtCenter / Math.Pow(hits[i].d / EXPLOSIVE_RADIUS + 1f, 2f));
                 if (dmg <= 0) continue;
-                EnqueueReflect(attackerSrc, hits[i].a, dmg, DamageTypes.Blunt);
+                // 2026-05-31 FIX — порядок агентов. Drain делает
+                // req.Attacker.RegisterBlow(Blow(owner=req.Victim)): бьёт
+                // req.Attacker, «источник» = req.Victim. Для AoE урон должен
+                // получить ВРАГ (hits[i].a), источник = стрелок (attackerSrc).
+                // Раньше было (attackerSrc, hits[i].a) → взрыв бил САМОГО
+                // стрелка, врагам ноль → «не работало». BLT DoAgentDamage:
+                // target.RegisterBlow(Blow(from.Index)) — та же семантика.
+                EnqueueReflect(hits[i].a, attackerSrc, dmg, DamageTypes.Blunt);
             }
             BannerlordLinkModule.LogVerbose(() =>
                 $"[DamageHook EXPLOSIVE] @{user} AoE center={damageAtCenter:F0} → {n} targets");

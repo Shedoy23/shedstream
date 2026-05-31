@@ -222,6 +222,9 @@ namespace BannerlordLink.Actions
                     // = реальный эффект на XP-throughput. BLT default (BLTAdoptAHero
                     // AddSkillXpAction calls with affected=true).
                     hero.HeroDeveloper.AddSkillXp(skill, boostedXp, isAffectedByFocusFactor: true);
+                    // 2026-05-31 (audit) — применяем level/derived-статы СРАЗУ, не ждём
+                    // daily-tick (BLT SkillXP делает так же). Иначе level лагает день.
+                    hero.HeroDeveloper.DevelopCharacterStats();
                     int after = hero.GetSkillValue(skill);
                     // Soft-cap clamp: если AddSkillXp перепрыгнул cap (большой
                     // boostedXp за раз), сжимаем до cap'а через SetInitialSkillLevel.

@@ -29,18 +29,19 @@ namespace BannerlordLink.Patches
     [HarmonyPatch]
     public static class CleavePatch
     {
+        // 2026-06-01 — предохранители против нативного краша в больших боях
+        // (incident 2026-05-29: ~1200 агентов + массовый forced cut-through).
+        //   • CLEAVE_MAX_AGENTS — выше этого размера боя cleave полностью off;
+        //   • CLEAVE_CHANCE_CAP — эффективный максимум шанса (сид до 40% → режем).
+        private const int CLEAVE_MAX_AGENTS = 500;
+        private const float CLEAVE_CHANCE_CAP = 20f;
+
         public static System.Collections.Generic.IEnumerable<System.Reflection.MethodBase>
             TargetMethods()
         {
-            // 2026-05-29 INCIDENT — DISABLED pending RCA. Native crash при входе
-            // в крупный бой (~1200 агентов) сразу после выката cleave. Cleave
-            // принудительно ставит MeleeCollisionReaction.SlicedThrough на 15-40%
-            // melee-хитов adopted-героев (psycho/berserk/cavalry) — массовое
-            // forced cut-through в плотном бою = вероятный native-краш движка.
-            // Скип патча, пока не подтвердим причину. Остальные combat-фичи
-            // (lifesteal/iron-skin/explosive/retinue-death) НЕ затронуты.
-            yield break;
-#pragma warning disable CS0162
+            // 2026-06-01 RE-ENABLED с предохранителями (см. Postfix + константы).
+            // 2026-05-29 был DISABLED после native-краша; теперь cleave срабатывает
+            // только в боях ≤ CLEAVE_MAX_AGENTS и с урезанным шансом.
             var m = AccessTools.Method(typeof(Mission), "MeleeHitCallback");
             if (m == null)
             {
@@ -49,7 +50,7 @@ namespace BannerlordLink.Patches
                 yield break;
             }
             BannerlordLinkModule.Log(
-                "[Cleave] postfix registered (cut-through для adopted heroes)");
+                "[Cleave] postfix registered (cut-through, agent-capped ≤" + CLEAVE_MAX_AGENTS + ")");
             yield return m;
         }
 
@@ -65,6 +66,11 @@ namespace BannerlordLink.Patches
             if (colReaction == MeleeCollisionReaction.Bounced) return;
             if (attacker == null) return;
 
+            // 2026-06-01 — агент-кап: в плотном бою массовый forced cut-through
+            // ронял движок (native crash). Выше порога — cleave не трогаем.
+            var mission = Mission.Current;
+            if (mission == null || mission.Agents.Count > CLEAVE_MAX_AGENTS) return;
+
             try
             {
                 // Mount redirect — charge/верховые атаки идут от mount Agent.
@@ -78,11 +84,13 @@ namespace BannerlordLink.Patches
                 var chance = PowerCache.GetPowerValue(user, "cleave_chance_pct");
                 if (!chance.HasValue || chance.Value <= 0) return;
 
-                if (TaleWorlds.Core.MBRandom.RandomFloat * 100f < chance.Value)
+                // 2026-06-01 — шанс-кап: режем эффективный шанс (сид до 40%).
+                double eff = Math.Min(CLEAVE_CHANCE_CAP, chance.Value);
+                if (TaleWorlds.Core.MBRandom.RandomFloat * 100f < eff)
                 {
                     colReaction = MeleeCollisionReaction.SlicedThrough;
                     BannerlordLinkModule.LogVerbose(() =>
-                        $"[Cleave] @{user} cut-through ({chance.Value:F0}% roll)");
+                        $"[Cleave] @{user} cut-through ({eff:F0}% eff, {mission.Agents.Count} ag)");
                 }
             }
             catch (Exception ex)

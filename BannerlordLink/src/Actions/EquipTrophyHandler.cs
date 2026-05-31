@@ -140,6 +140,16 @@ namespace BannerlordLink.Actions
                     return;
                 }
 
+                // 2026-05-31 (audit) — off-mission гард: нельзя писать BattleEquipment
+                // на живом Agent во время Mission (stale equipment → null-deref на
+                // следующей атаке). Как в прочих equip-хендлерах.
+                if (TaleWorlds.MountAndBlade.Mission.Current != null)
+                {
+                    BannerlordLinkModule.Log($"[equip_trophy] REFUSE @{username}: нельзя надеть во время Mission");
+                    ActionFeedback.PostFailed(actionId, "in_mission");
+                    return;
+                }
+
                 // Get target party — viewer's hero PartyBelongedTo или MainParty.
                 ItemRoster roster = null;
                 var party = hero.PartyBelongedTo;

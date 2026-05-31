@@ -165,8 +165,13 @@ namespace BannerlordLink.Behaviors
                         if (a.Index == agentIdx) { target = a; break; }
                     }
                     if (target == null || !target.IsActive()) continue;
+                    // 2026-05-31 (audit) — не тикаем DoT в не-mortal/турнир/арена
+                    // миссиях (DisableDying), иначе lethal урон там, где движок
+                    // этого не ждёт (BLT BLTEffectsBehaviour gate'ит так же).
+                    if (target.CurrentMortalityState != Agent.MortalityState.Mortal
+                        || Mission.Current?.DisableDying == true) continue;
                     int dmg = (int)Math.Max(1.0, dps * BUFF_TICK_INTERVAL);
-                    var blow = new Blow(-1)
+                    var blow = new Blow(target.Index)   // 2026-05-31 (audit): был Blow(-1) — невалидный owner-index
                     {
                         InflictedDamage = dmg,
                         DamageType = DamageTypes.Pierce,
@@ -176,6 +181,7 @@ namespace BannerlordLink.Behaviors
                         GlobalPosition = target.Position,
                         Direction = TaleWorlds.Library.Vec3.Forward,
                         SwingDirection = TaleWorlds.Library.Vec3.Forward,
+                        WeaponRecord = new() { AffectorWeaponSlotOrMissileIndex = -1 },   // 2026-05-31 (audit): init weapon-record
                     };
                     AttackCollisionData cd = default;
                     target.RegisterBlow(blow, cd);

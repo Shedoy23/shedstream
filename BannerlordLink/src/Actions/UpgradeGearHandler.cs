@@ -51,15 +51,15 @@ namespace BannerlordLink.Actions
             new Dictionary<string, ClassConfig>(StringComparer.OrdinalIgnoreCase)
         {
             ["tank"]            = new ClassConfig { Slots = new[] { T.OneHandedWeapon, T.Shield, T.Invalid, T.Invalid } },
-            ["archer"]          = new ClassConfig { Slots = new[] { T.Bow, T.Arrows, T.Invalid, T.Invalid } },
-            ["heavy_archer"]    = new ClassConfig { Slots = new[] { T.Bow, T.Arrows, T.Shield, T.OneHandedWeapon } },
-            ["crossbow"]        = new ClassConfig { Slots = new[] { T.Crossbow, T.Bolts, T.Invalid, T.Invalid } },
-            ["heavy_crossbow"]  = new ClassConfig { Slots = new[] { T.Crossbow, T.Bolts, T.Shield, T.OneHandedWeapon } },
+            ["archer"]          = new ClassConfig { Slots = new[] { T.OneHandedWeapon, T.Arrows, T.Arrows, T.Bow } },
+            ["heavy_archer"]    = new ClassConfig { Slots = new[] { T.TwoHandedWeapon, T.Arrows, T.Arrows, T.Bow } },
+            ["crossbow"]        = new ClassConfig { Slots = new[] { T.OneHandedWeapon, T.Bolts, T.Bolts, T.Crossbow } },
+            ["heavy_crossbow"]  = new ClassConfig { Slots = new[] { T.TwoHandedWeapon, T.Bolts, T.Bolts, T.Crossbow } },
             ["cavalry"]         = new ClassConfig { Slots = new[] { T.OneHandedWeapon, T.Polearm, T.Shield, T.Invalid }, UseHorse = true },
             ["camel_cavalry"]   = new ClassConfig { Slots = new[] { T.OneHandedWeapon, T.Polearm, T.Shield, T.Invalid }, UseCamel = true },
-            ["horse_archer"]    = new ClassConfig { Slots = new[] { T.Bow, T.Arrows, T.OneHandedWeapon, T.Invalid }, UseHorse = true },
-            ["camel_archer"]    = new ClassConfig { Slots = new[] { T.Bow, T.Arrows, T.OneHandedWeapon, T.Invalid }, UseCamel = true },
-            ["psycho"]          = new ClassConfig { Slots = new[] { T.TwoHandedWeapon, T.Invalid, T.Invalid, T.Invalid } },
+            ["horse_archer"]    = new ClassConfig { Slots = new[] { T.Bow, T.Arrows, T.OneHandedWeapon, T.Arrows }, UseHorse = true },
+            ["camel_archer"]    = new ClassConfig { Slots = new[] { T.Bow, T.Arrows, T.OneHandedWeapon, T.Arrows }, UseCamel = true },
+            ["psycho"]          = new ClassConfig { Slots = new[] { T.TwoHandedWeapon, T.Thrown, T.Thrown, T.Invalid } },
             ["berserk"]         = new ClassConfig { Slots = new[] { T.TwoHandedWeapon, T.TwoHandedWeapon, T.Invalid, T.Invalid } },
             ["assassin"]        = new ClassConfig { Slots = new[] { T.OneHandedWeapon, T.OneHandedWeapon, T.Thrown, T.Invalid } },
             ["knight"]          = new ClassConfig { Slots = new[] { T.OneHandedWeapon, T.Shield, T.Polearm, T.Invalid }, UseHorse = true },
@@ -225,9 +225,22 @@ namespace BannerlordLink.Actions
             for (int i = 0; i < 4 && i < cfg.Slots.Length; i++)
             {
                 var slotType = cfg.Slots[i];
-                if (slotType == T.Invalid) continue;
+                if (slotType == T.Invalid)
+                {
+                    // 2026-05-31 FIX — чистим неиспользуемый слот (как в
+                    // SetClassHandler). «Пересбор» заодно убирает stale-оружие
+                    // от прошлого класса. Legendary (modifier'нутый) сохраняем.
+                    try
+                    {
+                        var stale = equipment[(EquipmentIndex)i];
+                        if (!stale.IsEmpty && stale.ItemModifier == null)
+                            equipment[(EquipmentIndex)i] = EquipmentElement.Invalid;
+                    }
+                    catch { }
+                    continue;
+                }
 
-                var item = FindTieredItem(slotType, engineTier, rng, null, usedWeaponIds);
+                var item = FindTieredItem(slotType, engineTier, rng, null, usedWeaponIds, hero);
                 if (item != null && ShouldReplaceSlot(equipment, (EquipmentIndex)i, engineTier))
                 {
                     equipment[(EquipmentIndex)i] = new EquipmentElement(item);
@@ -239,7 +252,7 @@ namespace BannerlordLink.Actions
             // ── 2. Armor slots — всегда заполняем все 5 ──
             foreach (var (idx, type) in ArmorSlots)
             {
-                var item = FindTieredItem(type, engineTier, rng);
+                var item = FindTieredItem(type, engineTier, rng, null, null, hero);
                 if (item != null && ShouldReplaceSlot(equipment, idx, engineTier))
                 {
                     equipment[idx] = new EquipmentElement(item);
@@ -254,18 +267,29 @@ namespace BannerlordLink.Actions
                 System.Func<string, bool> mountFilter = wantCamel
                     ? (System.Func<string, bool>)(name => name.IndexOf("camel", StringComparison.OrdinalIgnoreCase) >= 0)
                     : (name => name.IndexOf("camel", StringComparison.OrdinalIgnoreCase) < 0);
-                var horse = FindTieredItem(T.Horse, engineTier, rng, mountFilter);
+                var horse = FindTieredItem(T.Horse, engineTier, rng, mountFilter, null, hero);
                 if (horse != null && ShouldReplaceSlot(equipment, EquipmentIndex.Horse, engineTier))
                 {
                     equipment[EquipmentIndex.Horse] = new EquipmentElement(horse);
                     slotsFilled++;
                 }
-                var harness = FindTieredItem(T.HorseHarness, engineTier, rng, mountFilter);
+                var harness = FindTieredItem(T.HorseHarness, engineTier, rng, mountFilter, null, hero);
                 if (harness != null && ShouldReplaceSlot(equipment, EquipmentIndex.HorseHarness, engineTier))
                 {
                     equipment[EquipmentIndex.HorseHarness] = new EquipmentElement(harness);
                     slotsFilled++;
                 }
+            }
+            else
+            {
+                // Пеший класс — снять коня + барду (фикс «остаётся в кавалерийской
+                // формации» при reequip/upgrade пешим классом, 2026-05-29).
+                try
+                {
+                    equipment[EquipmentIndex.Horse] = EquipmentElement.Invalid;
+                    equipment[EquipmentIndex.HorseHarness] = EquipmentElement.Invalid;
+                }
+                catch { }
             }
 
             return slotsFilled;
@@ -303,7 +327,8 @@ namespace BannerlordLink.Actions
         private static ItemObject FindTieredItem(
             ItemObject.ItemTypeEnum type, int engineTier, Random rng,
             System.Func<string, bool> nameFilter = null,
-            HashSet<string> excludeIds = null)
+            HashSet<string> excludeIds = null,
+            Hero hero = null)
         {
             var pool = MBObjectManager.Instance
                 .GetObjectTypeList<ItemObject>()
@@ -311,6 +336,20 @@ namespace BannerlordLink.Actions
                 ?.Where(i => !i.NotMerchandise)
                 ?.ToList();
             if (pool == null || pool.Count == 0) return null;
+
+            // 2026-05-31 (Finding A) — для маунтов оставляем только верховых боевых
+            // животных: исключаем мулов/вьючных (HorseComponent.IsPackAnimal) и
+            // не-верховых. Раньше пул T.Horse тащил мулов → mounted-класс мог
+            // выехать на муле без charge'а. Паттерн из CreatePartyHandler.
+            if (type == T.Horse)
+            {
+                var mounts = pool
+                    .Where(i => i.HorseComponent != null
+                                && i.HorseComponent.IsRideable
+                                && !i.HorseComponent.IsPackAnimal)
+                    .ToList();
+                if (mounts.Count > 0) pool = mounts;
+            }
 
             // Apply name filter (camel/non-camel) если задан.
             if (nameFilter != null)
@@ -323,6 +362,16 @@ namespace BannerlordLink.Actions
                 // (lieber camel-harness-on-horse чем пустой slot).
             }
 
+            // 2026-05-31 (BLT CanUseItem, гендер-часть) — не выдаём гендерно-
+            // залоченный гир не тому полу. Fallback на полный пул если фильтр
+            // опустошает. Skill-гейт НЕ делаем: у свежего героя skill <
+            // Difficulty высокотировой шмотки → отфильтровал бы нужный гир.
+            if (hero != null)
+            {
+                var usable = pool.Where(i => GearGenderOk(i, hero)).ToList();
+                if (usable.Count > 0) pool = usable;
+            }
+
             // Anti-duplicate first pass: исключаем уже надетое в этом проходе.
             if (excludeIds != null && excludeIds.Count > 0)
             {
@@ -332,6 +381,19 @@ namespace BannerlordLink.Actions
                 // deduped пуст (весь пул уже занят) → fall through на full pool.
             }
             return PickNearestTier(pool, engineTier, rng);
+        }
+
+        // 2026-05-31 — гендер-флаги предмета (BLT EquipHero.CanUseItem gender-часть).
+        // true = пол героя может носить предмет.
+        private static bool GearGenderOk(ItemObject item, Hero hero)
+        {
+            try
+            {
+                if (hero.IsFemale && item.ItemFlags.HasFlag(ItemFlags.NotUsableByFemale)) return false;
+                if (!hero.IsFemale && item.ItemFlags.HasFlag(ItemFlags.NotUsableByMale)) return false;
+            }
+            catch { }
+            return true;
         }
 
         // 2026-05-29 — адаптация BLT SelectRandomItemNearestTier

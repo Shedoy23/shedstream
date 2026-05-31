@@ -239,35 +239,21 @@ namespace BannerlordLink.Actions
                     ActionFeedback.PostFailed(actionId, "bad_body_code");
                     return;
                 }
-                // TaleWorlds 1.3.x не имеет public Hero.UpdatePlayerCharacterBodyProperties
-                // (он есть в campaign player flow, но не exposed для arbitrary heroes).
-                // Используем reflection на private field `_staticBodyProperties` /
-                // `_dynamicBodyProperties` чтобы mutate body. Fallback — fail gracefully.
+                // 2026-05-31 (audit) — публичный API живёт на CharacterObject, НЕ на
+                // Hero (отсюда старое заблуждение «нет public метода»). BLT
+                // (FamilyManagement) использует именно его. Старая reflection на
+                // `_staticBodyProperties`/`_bodyProperties` была silent no-op (полей нет).
                 bool applied = false;
                 try
                 {
-                    // Hero has `StaticBodyProperties` (set in ctor) + dynamic (BodyProperties).
-                    // BLT pattern: set both через reflection backing fields.
-                    var staticField = HarmonyLib.AccessTools.Field(
-                        typeof(Hero), "_staticBodyProperties");
-                    if (staticField != null)
-                    {
-                        staticField.SetValue(hero, bp.StaticProperties);
-                        applied = true;
-                    }
-                    // Dynamic body (age/build/weight) — separate field.
-                    var dynamicField = HarmonyLib.AccessTools.Field(
-                        typeof(Hero), "_bodyProperties");
-                    if (dynamicField != null)
-                    {
-                        dynamicField.SetValue(hero, bp);
-                        applied = true;
-                    }
+                    hero.CharacterObject.UpdatePlayerCharacterBodyProperties(
+                        bp, hero.CharacterObject.Race, hero.IsFemale);
+                    applied = true;
                 }
                 catch (Exception rEx)
                 {
                     BannerlordLinkModule.Log(
-                        $"[FAM-looks] reflection warn: {rEx.Message}");
+                        $"[FAM-looks] UpdatePlayerCharacterBodyProperties warn: {rEx.Message}");
                 }
 
                 if (applied)

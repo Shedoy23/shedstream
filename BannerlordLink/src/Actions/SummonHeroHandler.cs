@@ -997,7 +997,10 @@ namespace BannerlordLink.Actions
                 string classKey = (hc?.classKey ?? "").ToLowerInvariant();
                 switch (classKey)
                 {
-                    case "archer":          return FormationClass.Ranged;
+                    case "archer":
+                    case "crossbow":
+                    case "heavy_archer":
+                    case "heavy_crossbow":  return FormationClass.Ranged;
                     case "horse_archer":
                     case "camel_archer":    return FormationClass.HorseArcher;
                     case "cavalry":

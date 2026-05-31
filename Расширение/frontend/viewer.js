@@ -1236,7 +1236,7 @@ const BNR_POWER_LABELS = {
     heal_burst:         { icon: '💊', label: 'Лечение',  desc: '+50 HP' },
     shield_break_burst: { icon: '🛡️', label: 'Разбить щит', desc: 'AoE, мгновенно' },
     rage:               { icon: '🔥', label: 'Ярость',    desc: 'damage ×, 30с' },
-    retribution_toggle: { icon: '↩',  label: 'Возмездие', desc: '+reflect %, 60с' },
+    retribution_toggle: { icon: '🪖', label: 'Стойкость', desc: '−% урона, 60с' },
     // Sprint 5.33 (BLT-parity FX) — character effects.
     poison_dot:         { icon: '☠',  label: 'Яд',        desc: 'Случ. враг DoT 10с' },
     disarm_burst:       { icon: '💥', label: 'Обезоружить', desc: 'Случ. враг роняет оружие' },
@@ -1502,13 +1502,13 @@ async function loadBannerlordFamily() {
                                     background:#0f0f1e;padding:4px 6px;border-radius:3px;">
                             <span style="color:#e9d5ff;font-size:11px;">${escapeHtml(c.name)}</span>
                             <div style="display:flex;gap:3px;">
-                                <button class="bnr-fam-rename small-btn" title="Переименовать (50⦷)"
+                                <button class="bnr-fam-rename small-btn" title="Переименовать (50💎)"
                                         style="font-size:9px;padding:2px 5px;background:#2d2d3f;color:#a78bfa;">✏</button>
-                                <button class="bnr-fam-looks small-btn" title="Изменить внешность (200⦷). Скопируй body_code из in-game character menu"
+                                <button class="bnr-fam-looks small-btn" title="Изменить внешность (200💎). Скопируй body_code из in-game character menu"
                                         style="font-size:9px;padding:2px 5px;background:#2d2d3f;color:#a78bfa;">🎨</button>
-                                <button class="bnr-fam-respec small-btn" title="Респект скиллов (500⦷)"
+                                <button class="bnr-fam-respec small-btn" title="Респект скиллов (500💎)"
                                         style="font-size:9px;padding:2px 5px;background:#2d2d3f;color:#a78bfa;">🎯</button>
-                                <button class="bnr-fam-propose small-btn" title="Предложить брак другому viewer'у (100⦷)"
+                                <button class="bnr-fam-propose small-btn" title="Предложить брак другому viewer'у (100💎)"
                                         style="font-size:9px;padding:2px 5px;background:#4c1d95;color:#fff;">💍</button>
                             </div>
                         </div>
@@ -1587,7 +1587,7 @@ async function _famRenameChild(childId, currentName) {
 
 async function _famRespecChild(childId, name) {
     if (!await _bnrConfirm(
-        `Сбросить все скиллы «${name}» (500⦷)? Hero вернётся к 0 levels.`,
+        `Сбросить все скиллы «${name}» (500💎)? Hero вернётся к 0 levels.`,
         'Респект')) return;
     await _bannerlordBuyAction('hero.respec_child_skills',
         { child_hero_id: childId });
@@ -1599,7 +1599,7 @@ async function _famRespecChild(childId, name) {
 // creator (Profile/Looks menu имеет "Export" button в 1.3.x), pastes здесь.
 async function _famChangeChildLooks(childId, name) {
     const bodyCode = window.prompt(
-        `🎨 Изменить внешность «${name}» (200⦷)\n\n` +
+        `🎨 Изменить внешность «${name}» (200💎)\n\n` +
         `Вставь body_code (скопируй из in-game character menu → Export).\n` +
         `Поддерживается формат TaleWorlds BodyProperties.`,
         ''
@@ -1618,6 +1618,13 @@ async function _famChangeChildLooks(childId, name) {
 }
 
 async function _famProposeMarriage(myChildId, myChildName) {
+    // Дети наследуют клан родителя; у бесклановых детей брак = клейтлесс-краш
+    // беременности. Не даём отправить proposal без клана.
+    const _h = _bannerlordLastHero?.hero || {};
+    if (!_h.clan_name) {
+        showNotification('Нужен клан, чтобы устраивать браки детей — сначала создай или вступи в клан (🏰).', 'warning');
+        return;
+    }
     const targetUser = window.prompt(
         `Предложить брак для «${myChildName}». Введи username другого viewer'а:`);
     if (!targetUser) return;
@@ -1641,7 +1648,7 @@ async function _famProposeMarriage(myChildId, myChildName) {
         if (isNaN(idx) || idx < 0 || idx >= d.children.length) return;
         const targetChild = d.children[idx];
         if (!await _bnrConfirm(
-            `Предложить @${tu}: «${myChildName} ❤ ${targetChild.name}»? (100⦷)`,
+            `Предложить @${tu}: «${myChildName} ❤ ${targetChild.name}»? (100💎)`,
             'Отправить'
         )) return;
         await _bannerlordBuyAction('hero.propose_marriage', {
@@ -1766,7 +1773,7 @@ async function loadBannerlordVassals() {
                                     background:#0f1730;padding:4px 6px;border-radius:3px;">
                             <span style="color:#dbeafe;font-size:11px;">🏰 ${escapeHtml(v.vassal_name)}</span>
                             <button class="bnr-vas-rename small-btn"
-                                    title="Переименовать (100⦷)"
+                                    title="Переименовать (100💎)"
                                     style="font-size:9px;padding:2px 5px;background:#1e3a8a;color:#bfdbfe;">✏</button>
                         </div>
                     `).join('')}
@@ -1915,7 +1922,7 @@ async function loadBannerlordPartyOrders() {
             <div style="background:#2a1a0a;border:1px solid #92400e;border-radius:4px;
                         padding:8px;font-size:11px;color:#fed7aa;">
                 <div style="font-size:12px;font-weight:700;color:#fb923c;margin-bottom:6px;">
-                    ⚔ Приказы моей партии
+                    ⚔ Приказы моего отряда на карте
                 </div>`;
 
         if (active) {
@@ -1945,10 +1952,10 @@ async function loadBannerlordPartyOrders() {
 
         html += `
             <button id="bnr-order-set" class="extra-btn"
-                    title="Назначить новый приказ (500⦷). Заменяет текущий."
+                    title="Назначить новый приказ (500💎). Заменяет текущий."
                     style="width:100%;font-size:11px;padding:6px;background:#92400e;
                            color:#fff;font-weight:700;">
-                ⚔ ${active ? 'Изменить приказ' : 'Назначить приказ'} (500⦷)
+                ⚔ ${active ? 'Изменить приказ' : 'Назначить приказ'} (500💎)
             </button>
             </div>`;
         // FLICKER-FIX: skip rebind при identical HTML.
@@ -1990,7 +1997,7 @@ function _openSetPartyOrderModal(currentActive) {
         <div style="background:#1a1208;border:1px solid #92400e;border-radius:6px;
                     padding:14px;max-width:420px;width:90%;color:#fed7aa;">
             <div style="font-size:14px;font-weight:700;color:#fb923c;margin-bottom:10px;">
-                ⚔ Стратегический приказ (500⦷)
+                ⚔ Стратегический приказ (500💎)
             </div>
             <div style="font-size:11px;color:#9ca3af;margin-bottom:10px;">
                 Партия следует приказу пока активен. Заменяет предыдущий.
@@ -2027,7 +2034,7 @@ function _openSetPartyOrderModal(currentActive) {
                 <button id="bnr-order-confirm" class="extra-btn"
                         style="flex:1;font-size:11px;padding:6px;
                                background:#92400e;color:#fff;font-weight:700;">
-                    ⚔ Выдать приказ (500⦷)
+                    ⚔ Выдать приказ (500💎)
                 </button>
                 <button id="bnr-order-cancel-modal" class="extra-btn"
                         style="flex:1;font-size:11px;padding:6px;
@@ -2149,19 +2156,19 @@ async function loadBannerlordDiplomacy() {
         if (canEnact) {
             html += `
                 <button id="bnr-diplo-policy-btn" class="extra-btn"
-                        title="Активировать/отозвать политику (1500⦷). Toggle — повтор за ту же цену отзывает."
+                        title="Активировать/отозвать политику (1500💎). Toggle — повтор за ту же цену отзывает."
                         style="width:100%;font-size:11px;padding:6px;background:#92400e;
                                color:#fff;font-weight:700;margin-bottom:4px;">
-                    📜 Активировать политику (1500⦷)
+                    📜 Активировать политику (1500💎)
                 </button>`;
         }
         if (canMakePeace) {
             html += `
                 <button id="bnr-diplo-peace-btn" class="extra-btn"
-                        title="Предложить peace одной из вражеских kingdom'ов (2000⦷)"
+                        title="Предложить peace одной из вражеских kingdom'ов (2000💎)"
                         style="width:100%;font-size:11px;padding:6px;background:#1e3a5f;
                                color:#fff;font-weight:700;">
-                    🕊 Предложить peace (2000⦷)
+                    🕊 Предложить peace (2000💎)
                 </button>`;
         }
         // Backlog #1 (BLT-RC22 C.5) — kingdom tax: king задаёт ставку. Вассальные
@@ -2218,7 +2225,7 @@ function _openEnactPolicyModal(state) {
                     padding:14px;max-width:480px;width:90%;color:#fed7aa;
                     max-height:85vh;overflow-y:auto;">
             <div style="font-size:14px;font-weight:700;color:#fb923c;margin-bottom:10px;">
-                📜 Активация политики (1500⦷)
+                📜 Активация политики (1500💎)
             </div>
             <div style="font-size:11px;color:#9ca3af;margin-bottom:10px;">
                 Toggle: если политика активна — отозвать. Иначе — активировать.
@@ -2252,7 +2259,7 @@ function _openEnactPolicyModal(state) {
                 <button id="bnr-policy-confirm" class="extra-btn"
                         style="flex:1;font-size:11px;padding:6px;
                                background:#92400e;color:#fff;font-weight:700;">
-                    📜 Применить (1500⦷)
+                    📜 Применить (1500💎)
                 </button>
                 <button id="bnr-policy-cancel" class="extra-btn"
                         style="flex:1;font-size:11px;padding:6px;
@@ -2283,7 +2290,7 @@ function _openMakePeaceModal(state) {
         <div style="background:#0f1730;border:1px solid #1e40af;border-radius:6px;
                     padding:14px;max-width:400px;width:90%;color:#bfdbfe;">
             <div style="font-size:14px;font-weight:700;color:#60a5fa;margin-bottom:10px;">
-                🕊 Предложить peace (2000⦷)
+                🕊 Предложить peace (2000💎)
             </div>
             <div style="font-size:11px;color:#9ca3af;margin-bottom:10px;">
                 Мод resolve'ит target kingdom по name или StringId.
@@ -2309,7 +2316,7 @@ function _openMakePeaceModal(state) {
                 <button id="bnr-peace-confirm" class="extra-btn"
                         style="flex:1;font-size:11px;padding:6px;
                                background:#1e40af;color:#fff;font-weight:700;">
-                    🕊 Заключить (2000⦷)
+                    🕊 Заключить (2000💎)
                 </button>
                 <button id="bnr-peace-cancel" class="extra-btn"
                         style="flex:1;font-size:11px;padding:6px;
@@ -2368,16 +2375,16 @@ async function loadBannerlordRansomPool() {
                                 </span>
                             </span>
                             <button class="bnr-ransom-pay small-btn"
-                                    title="Внести 500⦷ в pool выкупа"
+                                    title="Внести 500💎 в pool выкупа"
                                     style="font-size:9px;padding:2px 6px;background:#b91c1c;
-                                           color:#fee2e2;">💰 +500⦷</button>
+                                           color:#fee2e2;">💰 +500💎</button>
                         </div>
                         <div style="background:#1a0505;height:5px;border-radius:2px;overflow:hidden;">
                             <div style="background:linear-gradient(90deg,#fb7185,#fbbf24);
                                         height:100%;width:${pct}%;transition:width 0.3s;"></div>
                         </div>
                         <div style="font-size:9px;color:#9ca3af;margin-top:2px;">
-                            ${c.pool_total || 0} / ${c.ransom_cost}⦷ pool
+                            ${c.pool_total || 0} / ${c.ransom_cost}💎 pool
                             ${c.contributors > 0 ? ` · ${c.contributors} участников` : ''}
                         </div>
                     </div>`;
@@ -2405,7 +2412,7 @@ async function loadBannerlordRansomPool() {
 
 // ───────────────────────────────────────────────────────────────────────────
 // Sprint 5.33 (BLT-parity SHOP) — Workshops passive income panel.
-// Viewer покупает workshop в town за 2500⦷ (чистая 💎 — Hero.Gold капитал
+// Viewer покупает workshop в town за 2500💎 (чистая 💎 — Hero.Gold капитал
 // движком НЕ списывается). Мастерская реально создаётся в игре (передача
 // владения через ChangeOwnerOfWorkshopAction) и генерит доход герою.
 
@@ -2415,7 +2422,7 @@ async function loadBannerlordRansomPool() {
 // Sprint 5.33 CURRENCY-1 (2026-05-28) — emoji-clarified price display.
 //
 // Two currencies в Bannerlord:
-//   💎 ⦷ — krustiki (platform — viewer earns watching/chat, spent на actions)
+//   💎     — krustiki (platform — viewer earns watching/chat, spent на actions)
 //   💰     — dinars (Hero.Gold engine in-game gold — earned battles/trade)
 //
 // 2026-05-29 currency re-map: одно действие = одна валюта. Хелперы ниже
@@ -2428,7 +2435,7 @@ async function loadBannerlordRansomPool() {
 //   _bnrAfford(c, d) → {ok, missing: 'crustic'|'dinar'|'both'|null}
 //
 // _bannerlordLastHero.hero.gold = current Hero.Gold (cached).
-// _cachedUserPoints (module) = current ⦷ balance (updated on /api/me poll).
+// _cachedUserPoints (module) = current 💎 balance (updated on /api/me poll).
 // ───────────────────────────────────────────────────────────────────────────
 
 // Sprint 5.33 FLICKER-FIX (2026-05-28) — skip identical innerHTML rewrite.
@@ -2505,7 +2512,7 @@ function _bnrAffordTooltip(crustic, dinars) {
     const a = _bnrAfford(crustic, dinars);
     if (a.ok) return `Стоимость: ${_bnrPrice(crustic, dinars)} — хватает ✓`;
     const missing = [];
-    if (a.lackCrustic) missing.push(`💎 ⦷: нужно ${crustic.toLocaleString('ru-RU')}, есть ${a.haveCrustic.toLocaleString('ru-RU')}`);
+    if (a.lackCrustic) missing.push(`💎: нужно ${crustic.toLocaleString('ru-RU')}, есть ${a.haveCrustic.toLocaleString('ru-RU')}`);
     if (a.lackDinars)  missing.push(`💰 динаров: нужно ${dinars.toLocaleString('ru-RU')}, есть ${a.haveDinars.toLocaleString('ru-RU')}`);
     return 'Не хватает:\n  • ' + missing.join('\n  • ');
 }
@@ -2520,8 +2527,8 @@ function _bnrRenderBalances(targetId) {
         <span style="display:inline-flex;gap:8px;font-size:11px;
                      background:#0a1308;padding:3px 8px;border-radius:3px;
                      border:1px solid #1f2937;">
-            <span title="Крустики — платформенная валюта" style="color:#a5f3fc;">
-                💎 ${c.toLocaleString('ru-RU')}⦷
+            <span title="Крустики — платформенная валюта (зарабатываются за просмотр/чат). 1💎 = 5💰 динаров" style="color:#a5f3fc;">
+                💎 ${c.toLocaleString('ru-RU')}
             </span>
             <span style="color:#374151;">|</span>
             <span title="Динары — in-game Hero.Gold (зарабатывается боями/торговлей)"
@@ -2774,7 +2781,7 @@ function _openBuyWorkshopModal() {
                 </div>
             </div>
             <div style="font-size:10px;color:#9ca3af;margin-bottom:10px;line-height:1.4;">
-                <div>💎 — entry fee, списывается с твоего ⦷ балланса</div>
+                <div>💎 — entry fee, списывается с твоего 💎 балланса</div>
                 <div>💰 — initial capital, списывается с Hero.Gold (engine)</div>
                 <div>📈 Профит копится в Hero.Gold (динары — на gear/smith/marriage)</div>
             </div>
@@ -2852,7 +2859,7 @@ function _openBuyWorkshopModal() {
 // ───────────────────────────────────────────────────────────────────────────
 // Sprint 5.33 (BLT-parity FIEF) — Fief tribute passive income panel.
 // Read-only view (owned fiefs come from in-game ownership). Active feature:
-// tribute_boost — 2000⦷ → 7-day +50% multiplier на один fief.
+// tribute_boost — 2000💎 → 7-day +50% multiplier на один fief.
 
 async function loadBannerlordFiefs() {
     const slot = document.getElementById('bnr-fiefs-slot');
@@ -2912,12 +2919,12 @@ async function loadBannerlordFiefs() {
                             </div>
                         </div>
                         ${/* Sprint 5.33 DECOUPLE-1: Tribute boost deprecated —
-                            бустер ⦷-output смысла не имеет когда ⦷ output = 0. */ ''}
+                            бустер 💎-output смысла не имеет когда 💎 output = 0. */ ''}
                     </div>`;
                 }).join('')}
                 </div>
                 <div style="font-size:9px;color:#6b7280;text-align:center;">
-                    Динары → Hero.Gold (на gear/smith). ⦷ не выдаётся пассивно.
+                    Динары → Hero.Gold (на gear/smith). 💎 не выдаётся пассивно.
                 </div>
             </div>`;
         // FLICKER-FIX: skip rebind при identical HTML.
@@ -2927,7 +2934,7 @@ async function loadBannerlordFiefs() {
             btn.addEventListener('click', async (e) => {
                 const parent = e.target.closest('[data-fief-id]');
                 if (!parent) return;
-                if (!window.confirm(`Купить boost +${boostPct}% на ${boostDays} дней? (2000⦷)`)) return;
+                if (!window.confirm(`Купить boost +${boostPct}% на ${boostDays} дней? (2000💎)`)) return;
                 const fiefRowId = parseInt(parent.dataset.fiefId, 10);
                 await _bannerlordBuyAction('hero.tribute_boost', {
                     fief_id_internal: fiefRowId,
@@ -3076,7 +3083,7 @@ function _openBuyCaravanModal() {
                 </div>
             </div>
             <div style="font-size:10px;color:#9ca3af;margin-bottom:10px;line-height:1.4;">
-                <div>💎 — entry fee, списывается с твоего ⦷ балланса</div>
+                <div>💎 — entry fee, списывается с твоего 💎 балланса</div>
                 <div>💰 — capital (15K), списывается с Hero.Gold (engine)</div>
                 <div>📈 Profit копится в Hero.Gold (динары на gear/smith/marriage)</div>
                 <div style="color:#fb7185;">⚠ Бандиты могут уничтожить — viewers собирают rescue pool</div>
@@ -3166,16 +3173,16 @@ async function loadBannerlordCaravanRescues() {
                                 🐪 @${escapeHtml(rs.owner)} <span style="color:#9ca3af;">— ${escapeHtml(rs.home_name || '?')}</span>
                             </span>
                             <button class="bnr-caravan-rescue-pay small-btn"
-                                    title="Вложить 500⦷ в pool rescue"
+                                    title="Вложить 500💎 в pool rescue"
                                     style="font-size:9px;padding:2px 6px;background:#b91c1c;
-                                           color:#fee2e2;">💰 +500⦷</button>
+                                           color:#fee2e2;">💰 +500💎</button>
                         </div>
                         <div style="background:#1a0505;height:5px;border-radius:2px;overflow:hidden;">
                             <div style="background:linear-gradient(90deg,#fb7185,#a78bfa);
                                         height:100%;width:${pct}%;transition:width 0.3s;"></div>
                         </div>
                         <div style="font-size:9px;color:#9ca3af;margin-top:2px;">
-                            ${rs.pool_total || 0} / ${rs.rescue_cost}⦷ pool
+                            ${rs.pool_total || 0} / ${rs.rescue_cost}💎 pool
                             ${rs.contributors > 0 ? ` · ${rs.contributors} участников` : ''}
                         </div>
                     </div>`;
@@ -3270,10 +3277,10 @@ async function loadBannerlordInheritance() {
     }
 }
 
-// Sprint 5.32 — inner tab switcher. 4 panes: hero / inventory / combat / progression.
+// Sprint 5.32 — inner tab switcher. 4 panes: combat / hero / inventory / dynasty.
 // Состояние persisted в localStorage чтобы при reopen extension вернуться туда же.
 function _setBnrInnerTab(tab) {
-    const valid = ['combat', 'hero', 'inventory', 'progression'];
+    const valid = ['combat', 'hero', 'inventory', 'dynasty'];
     if (!valid.includes(tab)) tab = 'combat';
     document.querySelectorAll('.bnr-tab-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.bnrTab === tab);
@@ -3491,12 +3498,13 @@ function renderBannerlordActivePowers() {
         const disabled = (isActive || onCooldown) ? 'disabled' : '';
         const bgColor = (isActive || onCooldown) ? '#3d3d3f' : '#2d2d2f';
         const suffix = onCooldown
-            ? ` <span style="color:#9ca3af;">${Math.ceil(cdRem)}с</span>`
+            ? ` <span style="color:#9ca3af;">${_bnrCdLabel(Math.ceil(cdRem))}</span>`
             : ` <span style="color:#fbbf24;">${price}💎</span>`;
         return `
             <button class="small-btn"
                     data-bnr-power="${escapeHtml(p.power_key)}"
                     data-bnr-price="${price}"
+                    data-bnr-cost="${price},0"
                     ${disabled}
                     title="${escapeHtml(meta.desc)}"
                     style="background:${bgColor};color:#efeff1;padding:6px 8px;
@@ -3538,12 +3546,13 @@ function renderBannerlordSummonButton() {
     const cdRem = (_bannerlordCooldowns.find(c => c.power_key === 'player.spawn') || {}).remaining_s || 0;
     const onCooldown = cdRem > 0;
     const cdLabel = onCooldown
-        ? `<span style="color:#9ca3af;">${Math.ceil(cdRem)}с</span>`
+        ? `<span style="color:#9ca3af;">${_bnrCdLabel(Math.ceil(cdRem))}</span>`
         : '';
 
     slot.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:4px;margin-top:6px;">
             <button class="modal-btn" id="bnr-summon-ally-btn"
+                    data-bnr-cost="${ALLY_PRICE},0"
                     ${onCooldown ? 'disabled' : ''}
                     title="Призвать героя в бой на сторону стримера"
                     style="width:100%;padding:7px;font-size:12px;
@@ -3552,6 +3561,7 @@ function renderBannerlordSummonButton() {
                 ${onCooldown ? cdLabel : `<span style="color:#fbbf24;">${ALLY_PRICE}💎</span>`}
             </button>
             <button class="modal-btn" id="bnr-summon-enemy-btn"
+                    data-bnr-cost="${ENEMY_PRICE},0"
                     ${onCooldown ? 'disabled' : ''}
                     title="Призвать героя ПРОТИВ стримера (на сторону противника)"
                     style="width:100%;padding:7px;font-size:12px;background:#7c1d1d;
@@ -3846,6 +3856,7 @@ const ADD_SKILL_OPTIONS = [
 function renderBannerlordCurrencyHtml() {
     const goldRows = GIVE_GOLD_OPTIONS.map(o => `
         <button class="extra-btn" data-bnr-givegold="${o.crusticov}"
+                data-bnr-cost="${o.crusticov},0"
                 title="Дать +${o.dinars.toLocaleString('ru-RU')} динаров герою в игре"
                 style="font-size:11px;padding:5px;">
             💰 +${_formatBigGold(o.dinars)}
@@ -3854,6 +3865,7 @@ function renderBannerlordCurrencyHtml() {
 
     const xpRows = ADD_SKILL_OPTIONS.map(o => `
         <button class="extra-btn" data-bnr-skillxp="${o.crusticov}"
+                data-bnr-cost="${o.crusticov},0"
                 title="+${o.xp} XP в случайный skill"
                 style="font-size:11px;padding:5px;">
             📚 +${o.xp} XP (рандом)
@@ -3909,9 +3921,9 @@ const BNR_SKILL_LABELS_RU = {
 };
 const BNR_ATTRIBUTES = ['Vigor', 'Control', 'Endurance', 'Cunning', 'Social', 'Intelligence'];
 const BNR_ATTR_LABELS_RU = {
-    Vigor: 'Vigor (сила)', Control: 'Control (точность)',
-    Endurance: 'Endurance (выносл.)', Cunning: 'Cunning (хитрость)',
-    Social: 'Social (соц.)', Intelligence: 'Intelligence (интелл.)',
+    Vigor: 'Сила', Control: 'Точность',
+    Endurance: 'Выносливость', Cunning: 'Хитрость',
+    Social: 'Социальность', Intelligence: 'Интеллект',
 };
 // Sprint 5.17: vanilla Bannerlord skill→attribute mapping. Атрибут даёт
 // +1 cap к skill за каждое очко (max 30 cap при attr=10).
@@ -4798,6 +4810,7 @@ function _openBannerlordProfileModal() {
     const h = _bannerlordLastHero?.hero || {};
     const isFemale = !!h.is_female;
     const heroGold = h.gold || 0;
+    const hasClan = !!h.clan_name;   // брак/дети требуют клан (см. ниже)
     const GENDER_COST = 50000;
     const canAfford = heroGold >= GENDER_COST;
     const currentLabel = h.is_female === true ? '♀ Женский'
@@ -4853,15 +4866,18 @@ function _openBannerlordProfileModal() {
                 </button>
             ` : `
                 <div style="font-size:11px;color:#adadb8;margin-bottom:8px;">
-                    Не в браке. Engine найдёт случайную подходящую NPC противоположного пола.
+                    ${hasClan
+                        ? 'Не в браке. Engine найдёт случайную подходящую NPC противоположного пола.'
+                        : '⚠️ Брак доступен только герою с кланом — сначала создай или вступи в клан (🏰 Управление кланом). Бесклановый брак ломает игру.'}
                 </div>
                 <button class="extra-btn" id="bnr-marry-btn"
-                        ${heroGold >= 50000 ? '' : 'disabled'}
+                        ${(hasClan && heroGold >= 50000) ? '' : 'disabled'}
+                        title="${hasClan ? 'Engine выберет случайную подходящую NPC. Спишет 50K💰.' : 'Нужен клан: бесклановый замужний герой крашит ванильную модель беременности.'}"
                         style="width:100%;font-size:12px;padding:8px;
-                               background:${heroGold >= 50000 ? '#5b21b6' : '#2d2d2f'};
-                               color:${heroGold >= 50000 ? '#f472b6' : '#6b7280'};
-                               ${heroGold >= 50000 ? '' : 'cursor:not-allowed;'}">
-                    💍 Жениться/выйти замуж (50K💰)
+                               background:${(hasClan && heroGold >= 50000) ? '#5b21b6' : '#2d2d2f'};
+                               color:${(hasClan && heroGold >= 50000) ? '#f472b6' : '#6b7280'};
+                               ${(hasClan && heroGold >= 50000) ? '' : 'cursor:not-allowed;'}">
+                    💍 Жениться/выйти замуж (50K💰)${hasClan ? '' : ' — нужен клан'}
                 </button>
             `}
         </div>
@@ -4923,10 +4939,12 @@ function _renderFamilyTreeHtml(h) {
     const siblings = fi.sibling_count || 0;
     const heroGold = h.gold || 0;
     const BABY_COST = 100000;
+    const hasClan = !!h.clan_name;   // дети рождаются в клан родителя; без клана — краш беременности
     const aliveChildren = children.filter(c => c?.is_alive);
-    const canMakeBaby = !!spouse && spouse.is_alive && aliveChildren.length < 5 && heroGold >= BABY_COST;
+    const canMakeBaby = hasClan && !!spouse && spouse.is_alive && aliveChildren.length < 5 && heroGold >= BABY_COST;
     const noBabyReason =
-        !spouse ? 'нет супруга(и)'
+        !hasClan ? 'нужен клан'
+        : !spouse ? 'нет супруга(и)'
         : !spouse.is_alive ? 'супруг(а) мёртв(а)'
         : aliveChildren.length >= 5 ? 'максимум 5 детей в клане'
         : heroGold < BABY_COST ? 'не хватает 💰'
@@ -5520,37 +5538,37 @@ function _renderBannerlordDetachmentPanel(battleData) {
                     data-det-cost="30"
                     title="Стоять на текущей позиции. Полезно archer'ам — sniper-mode не отступает."
                     style="background:#1e3a8a;color:#bfdbfe;padding:6px;">
-                ⛔ Стоять (30⦷)
+                ⛔ Стоять (30💎)
             </button>
             <button class="extra-btn bnr-det-btn" data-det-act="hero.detach_charge"
                     data-det-cost="30"
                     title="Бежать на ближайшее enemy formation. Berserk'и заходят первыми, ломают фронт."
                     style="background:#7c1d1d;color:#fecaca;padding:6px;">
-                ⚔ В атаку (30⦷)
+                ⚔ В атаку (30💎)
             </button>
             <button class="extra-btn bnr-det-btn" data-det-act="hero.attach"
                     data-det-cost="10"
                     title="Вернуть hero в parent formation стримера. Подчиняется AI commander снова."
                     style="background:#1f4a35;color:#a7f3d0;padding:6px;">
-                🔄 В строй (10⦷)
+                🔄 В строй (10💎)
             </button>
             <button class="extra-btn bnr-det-btn" data-det-act="hero.detach_walls"
                     data-det-cost="30"
                     title="🏰 Siege only: лезть на стены/лестницы/башни. Archer'ам — defense top."
                     style="background:#3d2e0a;color:#fde68a;padding:6px;">
-                🪜 К стенам (30⦷)
+                🪜 К стенам (30💎)
             </button>
             <button class="extra-btn bnr-det-btn" data-det-act="hero.detach_gate"
                     data-det-cost="30"
                     title="🏰 Siege only: к ближайшим воротам / баррикаде. Tank'ам — открыть gate."
                     style="background:#3d1e0a;color:#fdba74;padding:6px;">
-                🚪 К воротам (30⦷)
+                🚪 К воротам (30💎)
             </button>
             <button class="extra-btn bnr-det-btn" data-det-act="hero.detach"
                     data-det-cost="10"
                     title="Выйти из строя в собственный отряд. После — выбери одну из 4 команд выше. Также авто-detach при любой из выше команд."
                     style="background:#2d2d2f;color:#d1d5db;padding:6px;">
-                🚶 Отделиться (10⦷)
+                🚶 Отделиться (10💎)
             </button>
         </div>`;
     // Bind handlers — каждая кнопка POST'ит свой action.
@@ -5685,7 +5703,7 @@ function _renderBannerlordTournament(data) {
         if (myBet) {
             participantsHtml = `
                 <div style="font-size:12px;color:#34d399;padding:6px;background:rgba(52,211,153,0.1);border-radius:4px;margin-bottom:6px;">
-                    ✅ Ставка размещена: <b>${escapeHtml(myBet.target)}</b> на ${myBet.amount}⦷
+                    ✅ Ставка размещена: <b>${escapeHtml(myBet.target)}</b> на ${myBet.amount}💎
                 </div>`;
         } else {
             participantsHtml = `
@@ -5738,7 +5756,7 @@ function _renderBannerlordTournament(data) {
         : `<button class="extra-btn" id="bnr-join-tournament-btn"
                   title="${joinPrice > 0 ? `Списывает ${joinPriceText} крустиков` : 'Бесплатно — ставка на турнир остаётся за крустики'}"
                   style="margin-top:6px;width:100%;font-size:12px;padding:8px;">
-                ⚔️ Вступить в турнир${joinPrice > 0 ? ` (${joinPriceText}⦷)` : ' (бесплатно)'}
+                ⚔️ Вступить в турнир${joinPrice > 0 ? ` (${joinPriceText}💎)` : ' (бесплатно)'}
            </button>`;
 
     body.innerHTML = `
@@ -5755,7 +5773,7 @@ function _renderBannerlordTournament(data) {
     if (joinBtn) {
         joinBtn.dataset.bnrCd = 'hero.join_tournament';   // кулдаун на кнопке
         joinBtn.addEventListener('click', () => {
-            // Sprint 5.28: backend сам ставит price=1000⦷; шлём 0 — он перепишет.
+            // Sprint 5.28: backend сам ставит price=1000💎; шлём 0 — он перепишет.
             _bannerlordBuyAction('hero.join_tournament', { price: 0 });
         });
     }
@@ -5779,7 +5797,7 @@ function _promptBannerlordBet(target) {
                 ${TOURNAMENT_BET_PRESETS.map(amt => `
                     <button class="extra-btn bnr-bet-amount" data-amount="${amt}"
                             style="font-size:12px;padding:8px;">
-                        ${amt}⦷
+                        ${amt}💎
                     </button>
                 `).join('')}
             </div>
@@ -5842,6 +5860,15 @@ async function loadBannerlordHero() {
             kingdom_id:  _h.kingdom_id,
             alive:       _h.is_alive,
             prisoner:    _h.is_prisoner,
+            // 2026-06-01 FIX — экипировка не входила в hash → смена гира
+            // (класс/апгрейд/предмет) не меняла _structChanged → тело не
+            // перерисовывалось → снаряжение залипало. Сигнатура slot:item:tier:value
+            // меняется ТОЛЬКО при смене гира (не каждый poll → flicker не
+            // возвращается; sub-слоты сохраняет _preserveSlots).
+            equip: Object.keys(data.equipment || {}).sort().map(s => {
+                const it = data.equipment[s] || {};
+                return `${s}:${it.item_id || ''}:${it.tier}:${it.item_value || ''}`;
+            }).join('|'),
         });
         const _structChanged = (body._bnrLastStruct !== _structHash);
         body._bnrLastStruct = _structHash;
@@ -5987,7 +6014,7 @@ async function loadBannerlordHero() {
         // Top-5 skills
         const topSkills = (data.skills || []).slice(0, 5).map(s =>
             `<div style="display:flex;justify-content:space-between;font-size:11px;padding:1px 0;">
-                <span>${escapeHtml(s.skill_key)}</span>
+                <span>${escapeHtml(BNR_SKILL_LABELS_RU[s.skill_key] || s.skill_key)}</span>
                 <span style="color:#fbbf24;">${s.level}</span>
             </div>`
         ).join('') || '<div style="font-size:11px;color:#adadb8;">Нет данных по скиллам</div>';
@@ -6044,6 +6071,7 @@ async function loadBannerlordHero() {
             const _cost = HERO_GOLD_TIER_COSTS[_nextTier] || 0;
             _gtierBtn = `<button class="small-btn" id="bnr-inline-upgrade-btn"
                     data-bnr-cd="hero.upgrade_gear"
+                    data-bnr-cost="0,${_cost}"
                     title="Улучшить снаряжение T${gearTier} → T${_nextTier}. Списать ${_cost.toLocaleString('ru-RU')}💰 динаров у героя."
                     style="font-size:10px;padding:2px 8px;margin-left:6px;
                            background:#3d3d3f;color:#fbbf24;">
@@ -6061,7 +6089,7 @@ async function loadBannerlordHero() {
                     title="Переформировать снаряжение: ре-ролл всех слотов на текущем тире (T${gearTier || 0}). Бесплатно — фикс если экипировка кривая/залипла. Турнирные призы и крафт сохраняются."
                     style="font-size:10px;padding:2px 6px;margin-left:4px;
                            background:#2d3a2d;color:#86efac;">
-                🔄
+                🔄 пересбор
             </button>`
             : '';
         const gearTierLabel = _gtierText + _gtierBtn + _reequipBtn;
@@ -6090,7 +6118,7 @@ async function loadBannerlordHero() {
         const armorAvgTier = tierCount > 0 ? Math.round(tierSum / tierCount) + 1 : null;
         const armorLabel = totalArmor === 0
             ? '<span style="color:#9ca3af;">нет</span>'
-            : `<span style="color:#efeff1;">🪖${totalHead} 👕${totalBody} 👢${totalLeg} 💪${totalArm}</span>` +
+            : `<span style="color:#efeff1;" title="Броня по зонам: 🪖 голова · 👕 тело · 👢 ноги · 💪 руки">🪖${totalHead} 👕${totalBody} 👢${totalLeg} 💪${totalArm}</span>` +
               (armorAvgTier ? ` <span style="color:#fbbf24;">~T${armorAvgTier}</span>` : '');
 
         // Sprint 5.32 — content split на 4 panes + always-visible header.
@@ -6133,30 +6161,21 @@ async function loadBannerlordHero() {
                     <div style="padding:6px;">
                         <div id="bnr-pane-hero-stats" style="margin-bottom:10px;"></div>
                         <div id="bnr-daily-slot" style="margin-bottom:8px;"></div>
-                        <div id="bnr-heir-slot" style="margin-bottom:8px;"></div>
-                        <div id="bnr-family-slot" style="margin-bottom:8px;"></div>
-                        <div id="bnr-vassals-slot" style="margin-bottom:8px;"></div>
-                        <div id="bnr-party-orders-slot" style="margin-bottom:8px;"></div>
-                        <div id="bnr-diplo-slot" style="margin-bottom:8px;"></div>
-                        <div id="bnr-ransom-slot" style="margin-bottom:8px;"></div>
-                        <div id="bnr-workshops-slot" style="margin-bottom:8px;"></div>
-                        <div id="bnr-fiefs-slot" style="margin-bottom:8px;"></div>
-                        <div id="bnr-caravans-slot" style="margin-bottom:8px;"></div>
-                        <div id="bnr-caravan-rescue-slot" style="margin-bottom:8px;"></div>
-                        <div id="bnr-inheritance-slot" style="margin-bottom:8px;"></div>
-                        <button class="extra-btn" id="bnr-open-profile-btn"
-                                title="Семейные настройки: смена пола, брак, дети"
-                                style="width:100%;font-size:12px;padding:8px;margin-top:4px;
-                                       background:#1f1a30;color:#c084fc;font-weight:700;
-                                       border:1px solid #5b21b6;">
-                            🧬 Профиль и семья
+                        <div id="hero-class-picker-slot" style="margin-bottom:10px;"></div>
+                        <button class="extra-btn" id="bnr-open-progression-btn"
+                                title="Все скиллы с focus stars + 6 атрибутов"
+                                style="width:100%;font-size:12px;padding:8px;
+                                       background:#1e3a5f;color:#93c5fd;font-weight:700;
+                                       border:1px solid #1e40af;">
+                            🎯 Прогрессия — скиллы / фокусы / атрибуты
                         </button>
                     </div>`;
-                // Profile button живёт в skeleton (recreated только тут) →
-                // bind ОДИН раз. (Раньше биндился в if(_bnrChanged) ниже — мог
-                // терять handler на polls без struct change.)
-                document.getElementById('bnr-open-profile-btn')?.addEventListener('click',
-                    _openBannerlordProfileModal);
+                // 2026-05-31 IA-реорг: класс/прогрессия переехали в «Герой»,
+                // династия/экономика — в отдельную вкладку «Династия» (build-once
+                // skeleton ниже). Кнопка прогрессии в стабильном skeleton → bind
+                // ОДИН раз (не в if(_bnrChanged) — там был бы дубль-handler).
+                document.getElementById('bnr-open-progression-btn')?.addEventListener('click',
+                    _openBannerlordProgressionModal);
             }
             // (2) Volatile stats grid — обновляется каждый poll, но это
             //     ИЗОЛИРОВАННЫЙ под-элемент; sub-slots рядом не трогаются.
@@ -6196,6 +6215,37 @@ async function loadBannerlordHero() {
                     _bannerlordBuyAction('hero.reequip_gear', {});
                 });
             }
+        }
+
+        // 🏰 Династия pane — клан/королевство/семья/экономика/политика.
+        // BUILD-ONCE skeleton (как Hero): 11 sub-slot'ов живут стабильно,
+        // sub-loaders наполняют их каждый poll. НЕ в if(_bnrChanged) — иначе
+        // вернётся flicker (см. FLICKER-FIX v7 выше).
+        const paneDyn = document.getElementById('bnr-pane-dynasty-body');
+        if (paneDyn && !document.getElementById('bnr-dynasty-built')) {
+            paneDyn.innerHTML = `
+                <div id="bnr-dynasty-built" style="padding:6px;">
+                    <div id="bnr-heir-slot" style="margin-bottom:8px;"></div>
+                    <div id="bnr-family-slot" style="margin-bottom:8px;"></div>
+                    <div id="bnr-vassals-slot" style="margin-bottom:8px;"></div>
+                    <div id="bnr-party-orders-slot" style="margin-bottom:8px;"></div>
+                    <div id="bnr-diplo-slot" style="margin-bottom:8px;"></div>
+                    <div id="bnr-ransom-slot" style="margin-bottom:8px;"></div>
+                    <div id="bnr-workshops-slot" style="margin-bottom:8px;"></div>
+                    <div id="bnr-fiefs-slot" style="margin-bottom:8px;"></div>
+                    <div id="bnr-caravans-slot" style="margin-bottom:8px;"></div>
+                    <div id="bnr-caravan-rescue-slot" style="margin-bottom:8px;"></div>
+                    <div id="bnr-inheritance-slot" style="margin-bottom:8px;"></div>
+                    <button class="extra-btn" id="bnr-open-profile-btn"
+                            title="Семейные настройки: смена пола, брак, дети"
+                            style="width:100%;font-size:12px;padding:8px;margin-top:4px;
+                                   background:#1f1a30;color:#c084fc;font-weight:700;
+                                   border:1px solid #5b21b6;">
+                        🧬 Профиль и семья
+                    </button>
+                </div>`;
+            document.getElementById('bnr-open-profile-btn')?.addEventListener('click',
+                _openBannerlordProfileModal);
         }
 
         // FLICKER-FIX v5: structural change wrapped в _preserveSlots — sub-slot
@@ -6241,19 +6291,9 @@ async function loadBannerlordHero() {
                 <div id="bnr-detachment-slot" style="margin-top:10px;"></div>
             </div>`;
 
-        // 💪 Прокачка pane — класс + Прогрессия button (shop card live ниже в HTML).
-        const paneProg = document.getElementById('bnr-pane-progression-body');
-        if (paneProg) paneProg.innerHTML = `
-            <div style="padding:6px;">
-                <div id="hero-class-picker-slot" style="margin-bottom:10px;"></div>
-                <button class="extra-btn" id="bnr-open-progression-btn"
-                        title="Все скиллы с focus stars + 6 атрибутов"
-                        style="width:100%;font-size:12px;padding:8px;
-                               background:#1e3a5f;color:#93c5fd;font-weight:700;
-                               border:1px solid #1e40af;">
-                    🎯 Прогрессия — скиллы / фокусы / атрибуты
-                </button>
-            </div>`;
+        // 2026-05-31 IA-реорг: класс-picker + кнопка прогрессии переехали в Hero
+        // pane (build-once skeleton выше); бывший progression pane стал
+        // «Династией» (build-once skeleton выше). Здесь больше ничего не строим.
         // Sprint M23 — render свита под equipment.
         _bannerlordLastRetinue = data.retinue || [];
         _renderRetinue(_bannerlordLastRetinue);
@@ -6290,9 +6330,8 @@ async function loadBannerlordHero() {
                           //   double-handlers — addEventListener allows duplicates).
         // Sprint 5.5: bind toggle persistence для <details> (skills/equipment/retinue)
         _bnrBindDetailsPersistence();
-        // Sprint 5.8: bind кнопку открытия progression modal
-        document.getElementById('bnr-open-progression-btn')?.addEventListener('click',
-            _openBannerlordProgressionModal);
+        // 2026-05-31: progression-btn теперь в build-once Hero skeleton → биндится
+        // там ОДИН раз (здесь повторно НЕ биндим, иначе дубль-handler).
         // Sprint 5.27a: profile modal — FLICKER-FIX v7: binding перенесён в
         // skeleton-build (paneHero выше). Кнопка живёт в стабильном skeleton,
         // биндится ОДИН раз → здесь повторно НЕ биндим (избегаем дублей).
@@ -6464,10 +6503,43 @@ function _bnrActionCdTick() {
     });
 }
 
-// Один глобальный тикер на страницу.
+// P1 #5 — единый affordance-гейт: дим + tooltip «Не хватает» на priced-кнопках
+// с атрибутом data-bnr-cost="<крустики>,<динары>". Реюзает _bnrAfford /
+// _bnrAffordTooltip. НАМЕРЕННО трогает только title+class (не .disabled и не
+// innerHTML) — поэтому композится с cooldown-тиком и серверной валидацией:
+// клик не ломается, сервер всё равно refuse'нёт неоплатное действие.
+function _bnrAffordTick() {
+    const btns = document.querySelectorAll('[data-bnr-cost]');
+    if (!btns.length) return;
+    btns.forEach(btn => {
+        const m = (btn.getAttribute('data-bnr-cost') || '').split(',');
+        const c = parseInt(m[0], 10) || 0;
+        const d = parseInt(m[1], 10) || 0;
+        if (!c && !d) return;
+        const a = _bnrAfford(c, d);
+        if (!a.ok) {
+            if (btn.dataset.bnrAffOrig === undefined) btn.dataset.bnrAffOrig = btn.getAttribute('title') || '';
+            btn.setAttribute('title', _bnrAffordTooltip(c, d));
+            btn.classList.add('bnr-cant-afford');
+        } else if (btn.dataset.bnrAffOrig !== undefined) {
+            if (btn.dataset.bnrAffOrig) btn.setAttribute('title', btn.dataset.bnrAffOrig);
+            else btn.removeAttribute('title');
+            delete btn.dataset.bnrAffOrig;
+            btn.classList.remove('bnr-cant-afford');
+        }
+    });
+}
+
+// Один глобальный тикер на страницу (cooldown + affordance).
 if (!window._bnrCdTickerStarted) {
     window._bnrCdTickerStarted = true;
-    setInterval(_bnrActionCdTick, 1000);
+    if (!document.getElementById('bnr-afford-style')) {
+        const st = document.createElement('style');
+        st.id = 'bnr-afford-style';
+        st.textContent = '.bnr-cant-afford{opacity:.5!important;filter:grayscale(.4);}';
+        document.head.appendChild(st);
+    }
+    setInterval(() => { _bnrActionCdTick(); _bnrAffordTick(); }, 1000);
 }
 
 async function _bannerlordBuyAction(actionType, data) {

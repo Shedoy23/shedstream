@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Fast pre-commit gate: compile-check STAGED py/js + project consistency lints.
+# Enable once per clone:   git config core.hooksPath .githooks
+# Bypass in a pinch:        git commit --no-verify
+set -uo pipefail
+
+fail=0
+root="$(git rev-parse --show-toplevel)"
+
+PY=python
+command -v python >/dev/null 2>&1 || PY=python3
+
+mapfile -t py_files < <(git diff --cached --name-only --diff-filter=ACM | grep -E '\.py$' || true)
+mapfile -t js_files < <(git diff --cached --name-only --diff-filter=ACM | grep -E '\.js$' || true)
+
+if command -v "$PY" >/dev/null 2>&1; then
+  for f in "${py_files[@]:-}"; do
+    [ -n "$f" ] && [ -f "$f" ] || continue
+    "$PY" -m py_compile "$f" || { echo "[pre-commit] py_compile FAILED: $f"; fail=1; }
+  done
+else
+  echo "[pre-commit] python not found - skipping py checks"
+fi
+
+if command -v node >/dev/null 2>&1; then
+  for f in "${js_files[@]:-}"; do
+    [ -n "$f" ] && [ -f "$f" ] || continue
+    node --check "$f" || { echo "[pre-commit] node --check FAILED: $f"; fail=1; }
+  done
+else
+  echo "[pre-commit] node not found - skipping js checks"
+fi
+
+# Whole-repo consistency lints (fast). Hard errors block the commit.
+if command -v "$PY" >/dev/null 2>&1 && [ -f "$root/scripts/lint_consistency.py" ]; then
+  "$PY" "$root/scripts/lint_consistency.py" || fail=1
+fi
+
+if [ "$fail" -eq 0 ]; then
+  echo "[pre-commit] ok"
+else
+  echo "[pre-commit] BLOCKED - fix the above (or 'git commit --no-verify' to bypass)"
+fi
+exit $fail

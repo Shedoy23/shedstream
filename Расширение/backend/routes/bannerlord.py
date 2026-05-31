@@ -911,6 +911,21 @@ async def _fetch_hero_gold(channel_id: int, username: str) -> int:
     return (row[0] if row else 0) or 0
 
 
+async def _fetch_hero_clan_name(channel_id: int, username: str) -> str:
+    """Возвращает cached clan_name героя ('' если клана/героя нет).
+
+    Гейт для действий, требующих клан (брак/дети): бесклановый замужний
+    герой крашит ванильную DefaultPregnancyModel на дейли-тике — см.
+    BannerlordLink PregnancyModelPatch + crash dump 2026-05-29."""
+    db = get_db()
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT clan_name FROM bannerlord_heroes WHERE channel_id=? AND username=?",
+            (channel_id, username))
+        row = await cur.fetchone()
+    return (row[0] if row else "") or ""
+
+
 # Sprint 5.9: clan creation cost — mirror C# CreateClanHandler.CREATE_COST.
 CLAN_CREATE_COST = 1_000_000   # 1M динаров
 
@@ -1617,6 +1632,14 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
     # Sprint 5.27b: hero.marry — брак с random suitable NPC (50K💰).
     # Mod выбирает подходящую NPC (opposite gender, single, 18+, не [BLink]).
     if action_type == "hero.marry":
+        # 2026-05-29: брак требует клан. Бесклановый замужний герой крашит
+        # ванильную DefaultPregnancyModel на дейли-тике (PregnancyModelPatch).
+        # Фронт уже дизейблит кнопку, но клиент обходим — гейтим и на сервере.
+        if not await _fetch_hero_clan_name(channel_id, username):
+            return {
+                "success": False,
+                "message": "Нужен клан для брака — сначала создай или вступи в клан (🏰).",
+            }
         hero_gold = await _fetch_hero_gold(channel_id, username)
         if hero_gold < MARRIAGE_COST:
             return {
@@ -1636,6 +1659,13 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
     # Sprint 5.27c: hero.make_baby — pregnancy через MakePregnantAction (100K💰).
     # Mod проверяет spouse + age + max children (5).
     if action_type == "hero.make_baby":
+        # 2026-05-29: дети рождаются в клан родителя; бесклановый родитель →
+        # клейтлесс-дети → краш беременности. Требуем клан (как и брак).
+        if not await _fetch_hero_clan_name(channel_id, username):
+            return {
+                "success": False,
+                "message": "Нужен клан, чтобы заводить детей — создай или вступи в клан (🏰).",
+            }
         hero_gold = await _fetch_hero_gold(channel_id, username)
         if hero_gold < BABY_COST:
             return {
@@ -1645,6 +1675,17 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
             }
         data["hero_gold_cost"] = BABY_COST
         data["price"] = 0
+
+    # 2026-05-29: hero.propose_marriage женит ДЕТЕЙ двух viewer'ов. Дети
+    # наследуют клан родителя — у бесклановых детей брак даёт тот же
+    # клейтлесс-краш беременности. Гейтим за клан инициатора (его дети в его
+    # клане). Сам proposal обрабатывается ниже (handle_propose_marriage).
+    if action_type == "hero.propose_marriage":
+        if not await _fetch_hero_clan_name(channel_id, username):
+            return {
+                "success": False,
+                "message": "Нужен клан, чтобы устраивать браки детей — создай или вступи в клан (🏰).",
+            }
 
     # Sprint 5.9: hero.create_clan — БЕСПЛАТНО в крустиках, mod списывает
     # 100K Hero.Gold. Validation clan_name + Hero.Gold pre-check + check

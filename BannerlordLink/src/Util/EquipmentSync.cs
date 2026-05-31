@@ -48,7 +48,7 @@ namespace BannerlordLink.Util
         /// т.к. EquipmentIndex имеет enum-алиасы с общими int-значениями
         /// (Head==NumAllWeaponSlots==ArmorItemBeginSlot, Weapon0==WeaponItemBeginSlot,
         /// Horse==ArmorItemEndSlot) → ToString() даёт неверное имя слота.</summary>
-        private static string SlotName(EquipmentIndex idx)
+        internal static string SlotName(EquipmentIndex idx)
         {
             switch (idx)
             {

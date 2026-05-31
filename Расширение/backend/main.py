@@ -994,6 +994,14 @@ async def run_migrations():
             print(f"❌ M63 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # Лук/арбалет: 1H в ближний бой + второй колчан (catalog витрина)
+        try:
+            from migrations import m64_ranged_loadout_quivers
+            await m64_ranged_loadout_quivers.apply(conn)
+        except Exception as e:
+            print(f"❌ M64 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

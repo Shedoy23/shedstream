@@ -327,7 +327,9 @@ namespace BannerlordLink.Actions
             var backend = BannerlordLinkModule.Backend;
             if (backend == null) return;
 
-            string slotStr = idx.ToString().ToLowerInvariant();
+            // 2026-05-31 (audit) — idx.ToString() врёт для head/body/horse (enum-
+            // алиасы с общими int). Берём явный маппер EquipmentSync.SlotName.
+            string slotStr = BannerlordLink.Util.EquipmentSync.SlotName(idx);
             string itemId = item.StringId;
             string itemName = item.Name?.ToString() ?? itemId;
             string json = string.Format(

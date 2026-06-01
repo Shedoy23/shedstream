@@ -275,7 +275,7 @@ namespace BannerlordLink.Actions
         private static void ActivateRage(string username, float? durationOverride,
             double? valueOverride, Agent agent)
         {
-            float duration = durationOverride ?? 30f;
+            float duration = durationOverride ?? 45f;   // 2026-06-01 — унификация активок: 45с
             double multi = valueOverride
                 ?? PowerCache.GetPowerValue(username, "rage")
                 ?? 1.5;
@@ -291,7 +291,7 @@ namespace BannerlordLink.Actions
         private static void ActivateRetribution(string username, float? durationOverride,
             double? valueOverride, Agent agent)
         {
-            float duration = durationOverride ?? 60f;
+            float duration = durationOverride ?? 45f;   // 2026-06-01 — унификация активок: 45с
             double pct = valueOverride
                 ?? PowerCache.GetPowerValue(username, "retribution_toggle")
                 ?? 30.0;
@@ -315,7 +315,7 @@ namespace BannerlordLink.Actions
         private static void ApplyPoisonDot(Agent caster, string username,
             float? durationOverride, double? valueOverride)
         {
-            float duration = durationOverride ?? 10f;
+            float duration = durationOverride ?? 45f;   // 2026-06-01 — унификация активок: 45с
             double dps = valueOverride
                 ?? PowerCache.GetPowerValue(username, "poison_dot")
                 ?? 5.0;
@@ -412,7 +412,7 @@ namespace BannerlordLink.Actions
         private static void ApplyBerserkerCharge(Agent caster, string username,
             float? durationOverride, double? valueOverride)
         {
-            float duration = durationOverride ?? 8f;
+            float duration = durationOverride ?? 45f;   // 2026-06-01 — унификация активок: 45с
             double bonusPct = valueOverride
                 ?? PowerCache.GetPowerValue(username, "berserker_charge")
                 ?? 50.0;
@@ -443,7 +443,7 @@ namespace BannerlordLink.Actions
         private static void ActivateLifestealBurst(string username, float? durationOverride,
             double? valueOverride, Agent agent)
         {
-            float duration = durationOverride ?? 12f;
+            float duration = durationOverride ?? 45f;   // 2026-06-01 — унификация активок: 45с
             double pct = valueOverride
                 ?? PowerCache.GetPowerValue(username, "lifesteal_burst")
                 ?? 40.0;
@@ -458,7 +458,7 @@ namespace BannerlordLink.Actions
         private static void ActivateIronskin(string username, float? durationOverride,
             double? valueOverride, Agent agent)
         {
-            float duration = durationOverride ?? 12f;
+            float duration = durationOverride ?? 45f;   // 2026-06-01 — унификация активок: 45с
             double pct = valueOverride
                 ?? PowerCache.GetPowerValue(username, "ironskin_toggle")
                 ?? 40.0;
@@ -474,7 +474,7 @@ namespace BannerlordLink.Actions
         private static void ActivateExplosiveArrows(string username, float? durationOverride,
             double? valueOverride, Agent agent)
         {
-            float duration = durationOverride ?? 12f;
+            float duration = durationOverride ?? 45f;   // 2026-06-01 — унификация активок: 45с
             double dmg = valueOverride
                 ?? PowerCache.GetPowerValue(username, "explosive_arrows")
                 ?? 40.0;

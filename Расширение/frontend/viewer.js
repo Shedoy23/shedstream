@@ -1235,16 +1235,16 @@ const _formatBigPrice = n => n >= 1_000_000
 const BNR_POWER_LABELS = {
     heal_burst:         { icon: '💊', label: 'Лечение',  desc: '+50 HP' },
     shield_break_burst: { icon: '🛡️', label: 'Разбить щит', desc: 'AoE, мгновенно' },
-    rage:               { icon: '🔥', label: 'Ярость',    desc: 'damage ×, 30с' },
-    retribution_toggle: { icon: '🪖', label: 'Стойкость', desc: '−% урона, 60с' },
+    rage:               { icon: '🔥', label: 'Ярость',    desc: 'damage ×, 45с' },
+    retribution_toggle: { icon: '🪖', label: 'Стойкость', desc: '−% урона, 45с' },
     // Sprint 5.33 (BLT-parity FX) — character effects.
-    poison_dot:         { icon: '☠',  label: 'Яд',        desc: 'Случ. враг DoT 10с' },
+    poison_dot:         { icon: '☠',  label: 'Яд',        desc: 'Случ. враг DoT 45с' },
     disarm_burst:       { icon: '💥', label: 'Обезоружить', desc: 'Случ. враг роняет оружие' },
-    berserker_charge:   { icon: '💨', label: 'Берсерк-рывок', desc: '+speed 8с (себе)' },
+    berserker_charge:   { icon: '💨', label: 'Берсерк-рывок', desc: '+speed 45с (себе)' },
     // 2026-05-29 (BLT-parity combat powers) — active варианты.
-    lifesteal_burst:    { icon: '🩸', label: 'Вампиризм',   desc: '% урона → хил, 12с' },
-    ironskin_toggle:    { icon: '🛡', label: 'Железная кожа', desc: '−% урона, 12с' },
-    explosive_arrows:   { icon: '🧨', label: 'Взрывные стрелы', desc: 'AoE с попаданий, 12с' },
+    lifesteal_burst:    { icon: '🩸', label: 'Вампиризм',   desc: '% урона → хил, 45с' },
+    ironskin_toggle:    { icon: '🛡', label: 'Железная кожа', desc: '−% урона, 45с' },
+    explosive_arrows:   { icon: '🧨', label: 'Взрывные стрелы', desc: 'AoE с попаданий, 45с' },
 };
 const BNR_POWER_PRICES = {
     heal_burst:         100,

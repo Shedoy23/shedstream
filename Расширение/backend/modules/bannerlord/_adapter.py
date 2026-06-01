@@ -69,25 +69,28 @@ _BATTLE_STATS_TTL = 8.0
 # на mvp scale; рефакторим в админку когда понадобится per-streamer балансинг.
 # Также используется как cooldown для action_types (summon).
 POWER_COOLDOWNS = {
-    "heal_burst":          30,
+    # 2026-06-01 — все активные способности унифицированы: cooldown 90с.
+    # Длительность баффов (45с) задаётся мод-сайдом (ActivatePowerHandler).
+    "heal_burst":          90,
     "shield_break_burst":  90,
-    "rage":                60,
+    "rage":                90,
     "retribution_toggle":  90,
     # Sprint 5.0: player.spawn = summon hero в Mission. Cooldown особо нужен —
     # spawn в идущий бой это серьёзное вмешательство, нельзя спамить.
     # Sprint 5.27i: 120s → 30s (быстрее ротация участников).
     # Sprint 5.29: split per side — player.spawn:player vs player.spawn:enemy.
+    # (summon — НЕ ability, оставляем свои значения.)
     "player.spawn":          30,   # legacy fallback (если side не передан)
     "player.spawn:player":   30,   # ally — viewer на стороне стримера
     "player.spawn:enemy":    45,   # enemy — slightly longer, чтобы не спамили против
     # Sprint 5.33 (BLT-parity FX) — character effects (BLT-Buffet inspired).
-    "poison_dot":          60,    # DoT 10s — нельзя стакать на одного врага каждые 10с
-    "disarm_burst":        45,    # instant disarm — короткий cd, mobile harassment
-    "berserker_charge":    60,    # self speed buff 8s
+    "poison_dot":          90,
+    "disarm_burst":        90,
+    "berserker_charge":    90,
     # 2026-05-29 (BLT-parity combat powers) — active burst-варианты.
-    "lifesteal_burst":     75,    # вампиризм-всплеск ~12s
-    "ironskin_toggle":     90,    # снижение урона ~12s (как retribution)
-    "explosive_arrows":    75,    # AoE-стрелы ~12s (ranged burst)
+    "lifesteal_burst":     90,
+    "ironskin_toggle":     90,
+    "explosive_arrows":    90,
 }
 
 # Sprint 5.29 audit fix #28 — anti-spam cooldowns per (channel, user, action_type).

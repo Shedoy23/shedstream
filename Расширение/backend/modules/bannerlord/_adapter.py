@@ -742,10 +742,19 @@ class BannerlordAdapter(ModuleAdapter):
                 row = await cur.fetchone()
                 prev = (row[0] if row else None)
                 if prev and prev != save_id:
-                    # Save switched — reset all hero data для этого канала.
-                    for table in ("bannerlord_heroes", "bannerlord_skills",
-                                  "bannerlord_attributes", "bannerlord_equipment",
-                                  "bannerlord_hero_class"):
+                    # Save switched — другой playthrough → game-state из старого
+                    # save больше не существует. 2026-06-01 FIX: раньше чистили
+                    # ТОЛЬКО 5 hero-таблиц → fiefs/workshops/caravans/retinue/
+                    # party_orders/heirs/auctions/… висели stale на новом сейве
+                    # («Мои владения» показывали старые деревни). Теперь wipe тот
+                    # же полный набор, что broadcaster-reset (RESETTABLE_TABLES) —
+                    # single source of truth, списки больше не дрейфуют.
+                    # Платформенные крустики (отдельная таблица) и system-каталоги
+                    # (PRESERVED_TABLES) НЕ трогаются.
+                    from routes.bannerlord_admin import RESETTABLE_TABLES
+                    for table in RESETTABLE_TABLES:
+                        if table == "bannerlord_channel_state":
+                            continue  # управляется ниже через UPSERT
                         await conn.execute(
                             f"DELETE FROM {table} WHERE channel_id=?", (channel_id,))
                     reset = True
@@ -1272,6 +1281,15 @@ class BannerlordAdapter(ModuleAdapter):
                               "bannerlord_hero_class"):
                     await conn.execute(
                         f"DELETE FROM {table} WHERE channel_id=? AND username IN ({placeholders})",
+                        [channel_id] + missing)
+                # 2026-06-01 — герой пропал из save → его passive-income game-state
+                # тоже больше не существует. Чистим (column owner_username).
+                # Раньше копилось stale → «Мои владения»/мастерские/караваны
+                # показывали старые данные даже на новом сейве, где ничего нет.
+                for table in ("bannerlord_fiefs", "bannerlord_workshops",
+                              "bannerlord_caravans"):
+                    await conn.execute(
+                        f"DELETE FROM {table} WHERE channel_id=? AND owner_username IN ({placeholders})",
                         [channel_id] + missing)
                 await conn.commit()
             else:

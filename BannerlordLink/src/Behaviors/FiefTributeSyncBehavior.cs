@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using BannerlordLink.Util;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Settlements;
@@ -7,59 +6,34 @@ using TaleWorlds.CampaignSystem.Settlements;
 namespace BannerlordLink.Behaviors
 {
     /// <summary>
-    /// Sprint 5.33 (BLT-parity FIEF) — Daily fief tribute sync.
+    /// Sprint 5.33 (BLT-parity FIEF) — Daily fief tribute REPORT.
     ///
-    /// OnDailyTick scan Settlement.All. Для каждого fief owned by adopted
-    /// [BLink] hero (через Settlement.OwnerClan.Leader || Town.OwnerClan.Leader):
-    ///   town    → diff Town.Gold     vs snapshot
-    ///   castle  → diff Town.Gold     vs snapshot (castles тоже Town instance)
-    ///   village → diff Village.Hearth vs snapshot (×10 multiplier — hearth ≈ income proxy)
+    /// 2026-06-01 — модель дохода переписана на РЕАЛЬНЫЙ налог владельца
+    /// (BLT-parity ClanManagement.cs:826 / CampaignInfo.cs:414):
+    ///   town/castle → SettlementTaxModel.CalculateTownTax(town, false).ResultNumber
+    ///   village     → ClanFinanceModel.CalculateVillageIncome(clan, village, false)
+    /// Раньше брали diff Town.Gold — но казна города ≠ доход владельца и скачет
+    /// ≤0, поэтому города/замки НИКОГДА не появлялись в «Моих владениях»
+    /// (только деревни по Village.Hearth×10 — слабый прокси). Теперь — прямой
+    /// дневной доход, без снапшотов/diff.
     ///
-    /// Push event hero.fief_tribute_sync с net_dinars. Backend конвертирует
-    /// в крустики (200:1) с boost multiplier.
+    /// Деньги владелец получает движком (native tax/tariff → Hero.Gold). Это
+    /// событие — ТОЛЬКО отчёт для UI ("Заработано"); крустики НЕ начисляются
+    /// (credit_fief_tribute → 0, DECOUPLE-1).
     ///
-    /// OnGameLoaded seeds snapshots чтобы не payout'ить historical gold за раз.
+    /// OnDailyTick: для каждого fief, owned by adopted [BLink] hero
+    /// (Settlement.OwnerClan.Leader), пушим дневной доход hero.fief_tribute_sync.
     /// </summary>
     public class FiefTributeSyncBehavior : CampaignBehaviorBase
     {
-        // fiefStringId → last Gold/Hearth snapshot
-        private readonly Dictionary<string, int> _lastSnapshot
-            = new Dictionary<string, int>();
-
-        // Village hearth → dinars conversion proxy (hearth growth = prosperity gain).
-        private const int VILLAGE_HEARTH_TO_DINARS = 10;
-
         public override void RegisterEvents()
         {
             CampaignEvents.DailyTickEvent.AddNonSerializedListener(this, OnDailyTick);
-            CampaignEvents.OnGameLoadFinishedEvent.AddNonSerializedListener(this, OnGameLoaded);
         }
 
         public override void SyncData(IDataStore dataStore)
         {
-            // Stateless — snapshots rebuilt on game load.
-        }
-
-        private void OnGameLoaded()
-        {
-            try
-            {
-                _lastSnapshot.Clear();
-                int seeded = 0;
-                foreach (var s in Settlement.All)
-                {
-                    if (s == null) continue;
-                    if (!IsOwnedByBLink(s)) continue;
-                    _lastSnapshot[s.StringId] = ReadCurrentValue(s);
-                    seeded++;
-                }
-                if (seeded > 0)
-                    BannerlordLinkModule.Log($"[fief-sync] OnGameLoaded seeded {seeded} fief snapshots");
-            }
-            catch (Exception ex)
-            {
-                BannerlordLinkModule.Log($"[fief-sync] OnGameLoaded crash: {ex.Message}");
-            }
+            // Stateless — доход считается напрямую по модели налогов каждый день.
         }
 
         private void OnDailyTick()
@@ -71,42 +45,14 @@ namespace BannerlordLink.Behaviors
                 {
                     if (s == null) continue;
                     if (!IsOwnedByBLink(s, out var ownerLogin)) continue;
-                    int curVal = ReadCurrentValue(s);
-                    int prevVal;
-                    if (!_lastSnapshot.TryGetValue(s.StringId, out prevVal))
-                    {
-                        // First observation — seed and skip.
-                        _lastSnapshot[s.StringId] = curVal;
-                        continue;
-                    }
-                    int diff = curVal - prevVal;
-                    _lastSnapshot[s.StringId] = curVal;
-                    if (diff <= 0) continue;
-
-                    int netDinars;
-                    string fiefType;
-                    if (s.IsVillage)
-                    {
-                        netDinars = diff * VILLAGE_HEARTH_TO_DINARS;
-                        fiefType = "village";
-                    }
-                    else if (s.IsCastle)
-                    {
-                        netDinars = diff;
-                        fiefType = "castle";
-                    }
-                    else if (s.IsTown)
-                    {
-                        netDinars = diff;
-                        fiefType = "town";
-                    }
-                    else continue;
-
-                    PushSync(s, ownerLogin, fiefType, netDinars);
+                    int income = ComputeDailyIncome(s, out var fiefType);
+                    if (income <= 0) continue;   // backend и так скипает net_dinars<=0
+                    PushSync(s, ownerLogin, fiefType, income);
                     synced++;
                 }
                 if (synced > 0)
-                    BannerlordLinkModule.Log($"[fief-sync] OnDailyTick pushed {synced} fief tributes");
+                    BannerlordLinkModule.Log(
+                        $"[fief-sync] OnDailyTick pushed {synced} fief tributes (tax-model)");
             }
             catch (Exception ex)
             {
@@ -116,20 +62,34 @@ namespace BannerlordLink.Behaviors
 
         // ── Helpers ────────────────────────────────────────────────────────────
 
-        private static int ReadCurrentValue(Settlement s)
+        /// <summary>Реальный дневной доход владельца фьефа (BLT-parity).
+        /// town/castle → налог города; village → village income клана.</summary>
+        private static int ComputeDailyIncome(Settlement s, out string fiefType)
         {
+            fiefType = "fief";
             try
             {
-                if (s.IsVillage && s.Village != null) return (int)s.Village.Hearth;
-                if (s.Town != null) return s.Town.Gold;
+                if (s.IsVillage && s.Village != null)
+                {
+                    fiefType = "village";
+                    var clan = s.OwnerClan;
+                    if (clan == null) return 0;
+                    return (int)Campaign.Current.Models.ClanFinanceModel
+                        .CalculateVillageIncome(clan, s.Village, false);
+                }
+                if (s.Town != null)
+                {
+                    fiefType = s.IsCastle ? "castle" : "town";
+                    return (int)Campaign.Current.Models.SettlementTaxModel
+                        .CalculateTownTax(s.Town, false).ResultNumber;
+                }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[fief-sync] income calc warn {s?.StringId}: {ex.Message}");
+            }
             return 0;
-        }
-
-        private static bool IsOwnedByBLink(Settlement s)
-        {
-            return IsOwnedByBLink(s, out _);
         }
 
         private static bool IsOwnedByBLink(Settlement s, out string ownerLogin)
@@ -137,11 +97,8 @@ namespace BannerlordLink.Behaviors
             ownerLogin = null;
             try
             {
-                Hero owner = null;
-                // Town/Castle → OwnerClan.Leader. Village → bound town's owner or Village.Settlement.OwnerClan.
-                if (s.OwnerClan?.Leader != null) owner = s.OwnerClan.Leader;
-                if (owner == null) return false;
-                if (owner.Name == null) return false;
+                Hero owner = s.OwnerClan?.Leader;
+                if (owner?.Name == null) return false;
                 string nm = owner.Name.ToString();
                 if (!HeroNaming.IsAdopted(nm)) return false;
                 ownerLogin = HeroNaming.ExtractUsername(nm)?.ToLowerInvariant();

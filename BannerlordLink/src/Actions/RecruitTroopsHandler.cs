@@ -91,12 +91,13 @@ namespace BannerlordLink.Actions
         {
             try
             {
-                if (Mission.Current != null)
-                {
-                    BannerlordLinkModule.Log(
-                        $"[recruit_troops] @{username}: skip — нельзя нанимать в Mission");
-                    return;
-                }
+                // 2026-06-06 — УБРАН guard `Mission.Current != null`. Раньше он
+                // блокировал рекрут в ЛЮБОЙ миссии, включая город/таверну (там
+                // Mission.Current != null) → стример видел «свита не нанимается».
+                // Рекрут безопасен в любом контексте: только списывает Hero.Gold
+                // и пушит hero.retinue_changed — никакого SpawnTroop в текущем бою
+                // (новые войска появятся при СЛЕДУЮЩЕМ призыве). Был BLT-зеркалом с
+                // campaign-tick контекста, для viewer-действия слишком строго.
 
                 var hero = HeroLookup.FindByUsername(username);
                 if (hero == null || !hero.IsAlive)

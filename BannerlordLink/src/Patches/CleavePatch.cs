@@ -39,9 +39,16 @@ namespace BannerlordLink.Patches
         public static System.Collections.Generic.IEnumerable<System.Reflection.MethodBase>
             TargetMethods()
         {
+            // 2026-06-02 RE-DISABLED — 2 нативных краша за 15 мин в больших боях
+            // ДАЖЕ с предохранителями (agent-cap 500 + chance 20%). Forced
+            // SlicedThrough в плотном мили, видимо, корраптит collision-стейт
+            // движка независимо от частоты → cleave принципиально небезопасен на
+            // 1.3.15. Оставляем выключенным; остальные combat-фичи не затронуты.
+            // (Изоляция: отключаем ТОЛЬКО cleave — detach/powers оставлены, чтобы
+            // подтвердить, что виновник именно он.)
+            yield break;
+#pragma warning disable CS0162
             // 2026-06-01 RE-ENABLED с предохранителями (см. Postfix + константы).
-            // 2026-05-29 был DISABLED после native-краша; теперь cleave срабатывает
-            // только в боях ≤ CLEAVE_MAX_AGENTS и с урезанным шансом.
             var m = AccessTools.Method(typeof(Mission), "MeleeHitCallback");
             if (m == null)
             {

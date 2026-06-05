@@ -46,7 +46,7 @@
 
 ### Detach агента из формации (соло-контроль)
 Реализовать `IDetachment`; `formation.JoinDetachment(d)`, `formation.DetachUnit(agent,bool)`, `agent.SetScriptedPosition(ref WorldPosition, false, AIScriptedFrameFlags)`.
-- BLT: `BLT/Behaviors/BLTHeroDetachmentBehavior.cs` `Detach`. Ours: пока нет (наш detach — через mod-actions hero.detach_*).
+- BLT: `BLT/Behaviors/BLTHeroDetachmentBehavior.cs` `Detach` (formation-detachment). Ours: `Behaviors/HeroDetachmentBehavior.cs` — **agent-scripted** (`SetScriptedPosition`, НЕ formation: TeamAI перебивал ордера формаций), команды через `hero.detach_*`. См. §8.
 - ⚠ `BLTHeroDetachmentBehavior.cs:579` — если `FormationFileIndex == -1` (агент не позиционирован), `DetachUnit` крашит на `_units2D[bad,bad]`; гардить индексы ≥0.
 
 ### Lifecycle-хуки MissionBehavior
@@ -267,6 +267,11 @@ armor: `element.GetModifiedHeadArmor/BodyArmor/ArmArmor/LegArmor()`; weapon: `w.
 | **PatchAll отрубил всё** | один сломанный TargetMethod аборт всего PatchAll | resilient per-type CreateClassProcessor + SKIP_PATCH_NAMES |
 | stale equipment / null-deref | правка `BattleEquipment` во время Mission | гейт `Mission.Current != null` |
 | **DetachUnit crash** | агент с `FormationFileIndex == -1` | гардить индексы ≥0 |
+| detach «behavior null» в hideout | static `Instance` обнулён `OnEndMission`'ом наложенной миссии | резолв `Mission.Current.GetMissionBehavior<T>()` + гард `ReferenceEquals(_instance,this)` (§8) |
+| соло-команда не двигает агента | `DisableScriptedMovement`+`SetTargetFormationIndex` → под стоящей формацией | вести через `SetScriptedPosition`(цель)+re-issue; игрока (`Controller==Player`) не скриптить (§8) |
+| shield_break «не работает» | `ChangeWeaponHitPoints(0)` ломает щит лишь в ударе | инстант — `agent.DropItem(shieldSlot)` (§8) |
+| город/замок не дают трибьют | diff `Town.Gold` (казна ≠ доход, ≤0) | `SettlementTaxModel.CalculateTownTax` / `ClanFinanceModel.CalculateVillageIncome` (§8) |
+| stale game-state на новом сейве | инкрементальный UPSERT-only sync копит данные | reconcile-on-connect (`heroes_snapshot`→DELETE по owner) + save-switch wipe по `UniqueGameId` (§8) |
 
 ---
 
@@ -303,4 +308,38 @@ armor: `element.GetModifiedHeadArmor/BodyArmor/ArmArmor/LegArmor()`; weapon: `w.
 
 ---
 
-*Собрано 2026-05-31 из `reference/BLT_RC22/` (262 .cs) + `docs/BLT_RC22_REFERENCE.md` (88 КБ) + `BannerlordLink/src/`. Глубже — в `BLT_RC22_REFERENCE.md` (по файлам).*
+## 8. Сессия 2026-06-01 — добытые API + готчи (live-debug)
+
+Накоплено при починке боевых команд, дохода фьефов и stale-данных. Сверено с
+движком/BLT **в бою** (live-лог), не теоретически.
+
+### Резолв MissionBehavior — `GetMissionBehavior<T>()` > статик-синглтон
+`Mission.Current?.GetMissionBehavior<T>()` → behavior текущей миссии.
+- Ours: `HeroDetachmentBehavior.Instance` резолвит через `Mission.Current.GetMissionBehavior` (static-поле как fallback).
+- ⚠ **Готча (реальный баг):** static `Instance` (set в `OnBehaviorInitialize`, null в `OnEndMission`) **затирается `OnEndMission`'ом ВЛОЖЕННОЙ/наложенной миссии** — особенно **hideout** (Stealth + sub-миссии): новая init'ит (Instance=B), старая end'ит (Instance=null) пока B жив → команды видят `null` («behavior null»). Фикс: резолв из `Mission.Current` + гард `if (ReferenceEquals(_instance, this)) _instance = null` в OnEndMission.
+
+### Скриптинг ОДИНОЧНОГО агента (соло-команды в бою)
+`agent.SetScriptedPosition(ref WorldPosition pos, false, Agent.AIScriptedFrameFlags.NeverSlowDown)` — вести агента в точку (перебивает формацию для ЭТОГО агента); `agent.SetAutomaticTargetSelection(true)` — авто-атака в упор; `agent.DisableScriptedMovement()`/`DisableScriptedCombatMovement()` — вернуть AI-контроль.
+- Ours: `HeroDetachmentBehavior` — Hold = SetScriptedPosition(текущая поз); Charge = SetScriptedPosition(ближайший враг) + re-issue 0.5с; Attach = DisableScriptedMovement.
+- ⚠ **`SetTargetFormationIndex` сам по себе НЕ двигает агента** (был баг charge: `DisableScriptedMovement`+`SetTargetFormationIndex` → агент возвращался под СТОЯЩУЮ формацию и стоял). Двигает именно `SetScriptedPosition`.
+- ⚠ Игрока скриптить нельзя: `agent.Controller == Agent.ControllerType.Player` / `agent == Agent.Main` → ручное управление перебивает скрипт. Детектить и пропускать.
+
+### Выбить оружие/щит — `DropItem`
+`agent.DropItem(EquipmentIndex)` — роняет предмет слота (надёжно, любой слот). Детект щита: `weapon.Item.ItemType == ItemObject.ItemTypeEnum.Shield`.
+- BLT: `Helpers/AgentHelpers.cs` / BLTBuffet `CharacterEffect` `agent.DropItem(index)` для disarm. Ours: `ActivatePowerHandler` disarm_burst + shield_break.
+- ⚠ **`agent.ChangeWeaponHitPoints(idx, 0)` ломает щит ТОЛЬКО во время удара** (BLT ставит вместе с `collisionData.IsShieldBroken=true` в хите). Инстант-AoE без удара → HP=0, но щит НЕ пропадает = «не работает». Мгновенно — `DropItem`.
+- ⚠ `weapon.CurrentUsageItem` может быть `null` у несвыбранного щита → детект по `WeaponClass` промахивается; брать `Item.ItemType`.
+
+### Доход владельца фьефа (НЕ `Town.Gold`!)
+город/замок: `Campaign.Current.Models.SettlementTaxModel.CalculateTownTax(town, false).ResultNumber`; деревня: `Campaign.Current.Models.ClanFinanceModel.CalculateVillageIncome(clan, village, false)`.
+- BLT: `Actions/ClanManagement.cs:826` / `CampaignInfo.cs:414` (та же связка для дохода клана). Ours: `FiefTributeSyncBehavior` — дневной доход напрямую, без diff/снапшота.
+- ⚠ **`Town.Gold` = казна ГОРОДА, не доход владельца** и скачет ≤0. diff Town.Gold → города/замки НИКОГДА не давали трибьют (были невидимы в «Моих владениях»). `Village.Hearth` — прокси роста, тоже не доход.
+
+### Anti-stale game-state — reconcile-on-connect
+Мод = источник правды; backend-кэш валиден пока мод онлайн (`_last_seen` обновляется на любой event + STALE_THRESHOLD → онлайн-бейдж).
+- Ours: `MainCampaignBehavior.PushSessionStart` шлёт `heroes_snapshot` (живые `[BLink]` usernames сейва) на `OnGameLoadFinished`+`OnSessionLaunched`; backend `_on_heroes_snapshot` DELETE'ит rows для usernames НЕ в снапшоте (heroes+skills+attrs+equip+class по `username`; fiefs+workshops+caravans по `owner_username`). Save-switch (`Campaign.Current.UniqueGameId` ≠ записанного) → wipe всего game-state.
+- ⚠ **Инкрементальный sync (UPSERT-only) копит stale между сейвами** — на новом сейве висели старые fiefs/workshops/caravans. Лечится reconcile'ом по владельцу (мод говорит «кто существует» → backend удаляет остальных), НЕ накоплением.
+
+---
+
+*Собрано 2026-05-31 из `reference/BLT_RC22/` (262 .cs) + `docs/BLT_RC22_REFERENCE.md` (88 КБ) + `BannerlordLink/src/`. Глубже — в `BLT_RC22_REFERENCE.md` (по файлам). Дополнено 2026-06-01 (§8 — live-debug: detach / доход фьефов / anti-stale).*

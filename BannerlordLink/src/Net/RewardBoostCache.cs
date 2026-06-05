@@ -6,9 +6,10 @@ namespace BannerlordLink.Net
     /// <summary>
     /// Sprint 5.30 #42 — per-user reward boost (gold/XP multiplier).
     /// Sprint 5.33 TOS-COMPLIANCE (2026-05-28) — sub-based boosts removed
-    /// (Twitch ToS). Cache теперь хранит boost только для channel-role
-    /// users (broadcaster ×2.0, moderator ×1.5). Подписчики НЕ имеют boost
-    /// (backend пушит reward_boost=1.0 им).
+    /// (Twitch ToS). 2026-06-06 — moderator boost ТОЖЕ убран. Cache хранит boost
+    /// только для broadcaster (×2.0); moderator И подписчики получают
+    /// reward_boost=1.0 (backend пушит). Boost применяется в KillRewardBehavior
+    /// и TournamentMissionBehavior.
     ///
     /// Backend пушит reward_boost в data при каждом action (bannerlord.py
     /// _user_role gate). Mod кэширует значение per-username и применяет в

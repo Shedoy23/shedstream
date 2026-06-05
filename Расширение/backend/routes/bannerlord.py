@@ -2072,7 +2072,9 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
     #   - Boosty Tier 1/2/3 same multipliers (third-party paywall, same spirit)
     # Kept (role-based, NOT subscription-based — OK per ToS):
     #   - broadcaster (channel owner) → 0.5× price, 2.0× rewards
-    #   - moderator (appointed role)  → 0.75× price, 1.5× rewards
+    # Removed 2026-06-06 (по просьбе стримера; Twitch против привилегий по роли):
+    #   - moderator boost (был 0.75× price, 1.5× rewards) → теперь 1.0/1.0.
+    #     role_label="moderator" сохранён ТОЛЬКО для admin-гейта world.trigger_event.
     #
     # Sprint 5.32 fix — `_jwt` был bound в внешнем bannerlord_buy_action,
     # но эта функция (_bannerlord_buy_action_locked) — отдельная scope.
@@ -2084,7 +2086,10 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
     if _user_role == "broadcaster":
         price_mult, reward_mult, role_label = 0.5, 2.0, "broadcaster"
     elif _user_role == "moderator":
-        price_mult, reward_mult, role_label = 0.75, 1.5, "moderator"
+        # 2026-06-06 — boost модераторов УБРАН (Twitch против привилегий-наград
+        # по роли). role_label остаётся "moderator" ТОЛЬКО для admin-гейта
+        # world.trigger_event; скидки на цену и бонуса к награде больше нет.
+        price_mult, reward_mult, role_label = 1.0, 1.0, "moderator"
     else:
         # Sub status (Twitch + Boosty) больше НЕ влияет на price/reward.
         # Detection функции остаются для optional cosmetic UI (badge) если

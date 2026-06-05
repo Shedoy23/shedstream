@@ -81,6 +81,15 @@ namespace BannerlordLink.Actions
                     ActionFeedback.PostFailed(actionId, "hero_not_found");
                     return;
                 }
+                // 2026-06-02 (CLAN-GATE) — мастерская только у ГЛАВЫ клана (в ванили
+                // ими владеют лидеры; бесклановый/участник = engine-edge-кейсы +
+                // источник наших stale-проблем). Фронт прячет вкладку, но он обходим
+                // → авторитетный отказ. action.failed → backend рефандит списанное.
+                if (!hero.IsClanLeader)
+                {
+                    ActionFeedback.PostFailed(actionId, "not_clan_leader");
+                    return;
+                }
 
                 Settlement settlement = null;
                 try { settlement = MBObjectManager.Instance.GetObject<Settlement>(settlementId); }

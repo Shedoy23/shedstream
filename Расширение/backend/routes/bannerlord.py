@@ -2880,29 +2880,23 @@ async def bannerlord_clan_upgrades_buy(request: Request):
                     "message": f"Нужно {total_cost:,}💰 (у тебя {current_gold:,}💰) для {len(validated)} апгрейдов",
                 }
 
-            # Phase 3 — debit + INSERT × N + enqueue mod actions.
+            # Phase 3 — debit + INSERT × N owned records. Эффекты апгрейдов мод
+            # применяет сам (ClanUpgradesBehavior опрашивает clan_upgrades_all_owners
+            # на daily tick) — отдельный enqueue в module_actions НЕ нужен.
             await conn.execute(
                 "UPDATE bannerlord_heroes SET gold = gold - ? "
                 "WHERE channel_id = ? AND username = ?",
                 (total_cost, channel_id, username))
 
-            import uuid as _uuid
             purchased_names = []
             for uid, name, cost in validated:
                 await conn.execute(
                     "INSERT INTO bannerlord_clan_upgrades_owned "
                     "(channel_id, username, upgrade_id, gold_paid) VALUES (?, ?, ?, ?)",
                     (channel_id, username, uid, cost))
-                action_id = _uuid.uuid4().hex
-                await conn.execute("""
-                    INSERT INTO module_actions
-                        (channel_id, module_id, action_id, type, data, status)
-                    VALUES (?, 'bannerlord', ?, 'clan.upgrade_purchased', ?, 'queued')
-                """, (channel_id, action_id,
-                      _bnr_clan_json.dumps({
-                          "username":   username,
-                          "upgrade_id": uid,
-                      }, ensure_ascii=False)))
+                # 2026-06-05 (AUTOTEST fix) — убран мёртвый INSERT INTO module_actions
+                # 'clan.upgrade_purchased': у мода нет хендлера → плодил вечные failed
+                # в очереди (поймано автотестом). Owned-запись выше — источник правды.
                 purchased_names.append(name)
 
             await conn.commit()

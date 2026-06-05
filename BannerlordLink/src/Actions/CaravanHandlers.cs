@@ -72,6 +72,15 @@ namespace BannerlordLink.Actions
                     ActionFeedback.PostFailed(actionId, "hero_not_found");
                     return;
                 }
+                // 2026-06-02 (CLAN-GATE) — караван только у ГЛАВЫ клана (в ванили
+                // ими владеют лидеры; бесклановый/участник = engine-edge-кейсы +
+                // источник наших stale-проблем). Фронт прячет вкладку, но он обходим
+                // → авторитетный отказ. action.failed → backend рефандит списанное.
+                if (!hero.IsClanLeader)
+                {
+                    ActionFeedback.PostFailed(actionId, "not_clan_leader");
+                    return;
+                }
 
                 Settlement home = null;
                 try { home = MBObjectManager.Instance.GetObject<Settlement>(homeId); }
@@ -118,7 +127,7 @@ namespace BannerlordLink.Actions
                     $"[caravan-buy] resolved template id='{template.StringId}'");
 
                 // Create caravan party. Signature 1.3.x:
-                // CreateCaravanParty(owner, home, template, isElite, ownerLeader, itemRoster, isInitial)
+                // CreateCaravanParty(owner, home, template, isInitialSpawn, caravanLeader, itemRoster, isElite)
                 MobileParty caravan = null;
                 try
                 {
@@ -175,7 +184,11 @@ namespace BannerlordLink.Actions
                 if (c == null) return null;
                 try
                 {
-                    var t = CaravanHelper.GetRandomCaravanTemplate(c, false, false);
+                    // 2026-06-05 (AUTOTEST fix) — 3-й арг GetRandomCaravanTemplate =
+                    // isLand, НЕ isElite/isInitial. Было false (=naval-only) → land-
+                    // культуры не имеют naval-template'ов → каждый lookup → null →
+                    // brute-force брал чужую культуру (aserai-template / vlandia-id).
+                    var t = CaravanHelper.GetRandomCaravanTemplate(c, false, true);
                     if (t != null)
                     {
                         BannerlordLinkModule.Log(
@@ -304,18 +317,25 @@ namespace BannerlordLink.Actions
                 var hero = BannerlordLink.Actions.HeroLookup.FindByUsername(username);
                 if (hero == null) { ActionFeedback.PostFailed(actionId, "hero_not_found"); return; }
 
-                MobileParty target = null;
+                // 2026-06-02 — party_id мог ПРОТУХНУТЬ (караван уничтожен бандитами
+                // и пересоздан через rescue → новый StringId, а в БД старый).
+                // Раньше жёсткий фильтр `mp.StringId != partyId → continue` скипал
+                // ВСЁ при stale id → «не найден». Теперь ищем караван ВЛАДЕЛЬЦА;
+                // точный party_id — лишь предпочтение (для тех, у кого несколько).
+                MobileParty target = null, ownedFallback = null;
                 foreach (var mp in MobileParty.AllCaravanParties)
                 {
                     if (mp == null || !mp.IsCaravan) continue;
-                    if (!string.IsNullOrEmpty(partyId) && mp.StringId != partyId) continue;
-                    if (mp.LeaderHero == hero || mp.Owner == hero)
+                    if (mp.LeaderHero != hero && mp.Owner != hero) continue;
+                    if (ownedFallback == null) ownedFallback = mp;
+                    if (!string.IsNullOrEmpty(partyId) && mp.StringId == partyId)
                     { target = mp; break; }
                 }
+                if (target == null) target = ownedFallback;
                 if (target == null)
                 {
                     BannerlordLinkModule.Log(
-                        $"[caravan-sell] REFUSE @{username}: caravan не найден (party_id={partyId})");
+                        $"[caravan-sell] REFUSE @{username}: у героя нет каравана (party_id={partyId})");
                     ActionFeedback.PostFailed(actionId, "not_found");
                     return;
                 }

@@ -2736,7 +2736,7 @@ async function loadBannerlordWorkshops() {
             btn.addEventListener('click', async (e) => {
                 const parent = e.target.closest('[data-workshop-id]');
                 if (!parent) return;
-                if (!window.confirm('Продать мастерскую? Получишь ~50% refund.')) return;
+                if (!await _bnrConfirm('Продать мастерскую? Получишь ~50% refund.')) return;
                 const wsId = parseInt(parent.dataset.workshopId, 10);
                 await _bannerlordBuyAction('hero.sell_workshop', { workshop_id: wsId });
                 setTimeout(loadBannerlordWorkshops, 1500);
@@ -2934,7 +2934,7 @@ async function loadBannerlordFiefs() {
             btn.addEventListener('click', async (e) => {
                 const parent = e.target.closest('[data-fief-id]');
                 if (!parent) return;
-                if (!window.confirm(`Купить boost +${boostPct}% на ${boostDays} дней? (2000💎)`)) return;
+                if (!await _bnrConfirm(`Купить boost +${boostPct}% на ${boostDays} дней? (2000💎)`)) return;
                 const fiefRowId = parseInt(parent.dataset.fiefId, 10);
                 await _bannerlordBuyAction('hero.tribute_boost', {
                     fief_id_internal: fiefRowId,
@@ -3040,7 +3040,7 @@ async function loadBannerlordCaravans() {
             btn.addEventListener('click', async (e) => {
                 const parent = e.target.closest('[data-caravan-id]');
                 if (!parent) return;
-                if (!window.confirm('Продать караван?')) return;
+                if (!await _bnrConfirm('Продать караван?')) return;
                 const cId = parseInt(parent.dataset.caravanId, 10);
                 await _bannerlordBuyAction('hero.sell_caravan', { caravan_id: cId });
                 setTimeout(loadBannerlordCaravans, 1500);
@@ -4806,17 +4806,16 @@ async function _openBannerlordAchievementsModal() {
     });
 }
 
-function _openBannerlordProfileModal() {
+// 2026-06-02 (CLAN-GATE) — смена пола НЕ кланово-зависима → вынесена из
+// профиль-модалки (она в запертой Династии) в Hero-вкладку, доступна всем.
+function _openBannerlordGenderModal() {
     const h = _bannerlordLastHero?.hero || {};
-    const isFemale = !!h.is_female;
     const heroGold = h.gold || 0;
-    const hasClan = !!h.clan_name;   // брак/дети требуют клан (см. ниже)
     const GENDER_COST = 50000;
     const canAfford = heroGold >= GENDER_COST;
     const currentLabel = h.is_female === true ? '♀ Женский'
                        : h.is_female === false ? '♂ Мужской'
                        : '— (не известно)';
-
     const body = `
         <div style="background:#1a1a1c;border:1px solid #3a3a3e;border-radius:6px;
                     padding:10px;margin-bottom:10px;">
@@ -4849,7 +4848,36 @@ function _openBannerlordProfileModal() {
                 Если есть супруг(а) — engine автоматом перевернёт их пол
                 чтоб брак остался валиден.
             </div>
-        </div>
+        </div>`;
+    _bnrShowSimpleModal({
+        title: '⚧ Сменить пол',
+        body,
+        bind: overlay => {
+            overlay.querySelectorAll('[data-gender-set]').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const newGender = btn.dataset.genderSet;
+                    if (!await _bnrConfirm(
+                        `Сменить пол на ${newGender === 'female' ? 'женский ♀' : 'мужской ♂'}? Спишет 50K💰.`,
+                        'Сменить'
+                    )) return;
+                    _bannerlordBuyAction('hero.set_gender', {gender: newGender});
+                    overlay.remove();
+                });
+            });
+        }
+    });
+}
+
+function _openBannerlordProfileModal() {
+    const h = _bannerlordLastHero?.hero || {};
+    const isFemale = !!h.is_female;
+    const heroGold = h.gold || 0;
+    const hasClan = !!h.clan_name;   // брак/дети требуют клан (см. ниже)
+
+    // 2026-06-02 (CLAN-GATE) — секция «смена пола» вынесена в Hero-вкладку
+    // (_openBannerlordGenderModal): она не кланово-зависима, а эта модалка живёт
+    // в запертой Династии. Здесь остаётся только семья (брак/дети — gated hasClan).
+    const body = `
         <div style="background:#1a1a1c;border:1px solid #3a3a3e;border-radius:6px;
                     padding:10px;margin-bottom:8px;">
             <div style="font-size:12px;color:#adadb8;margin-bottom:6px;">
@@ -4888,17 +4916,6 @@ function _openBannerlordProfileModal() {
         title: '🧬 Профиль и семья',
         body,
         bind: overlay => {
-            overlay.querySelectorAll('[data-gender-set]').forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    const newGender = btn.dataset.genderSet;
-                    if (!await _bnrConfirm(
-                        `Сменить пол на ${newGender === 'female' ? 'женский ♀' : 'мужской ♂'}? Спишет 50K💰.`,
-                        'Сменить'
-                    )) return;
-                    _bannerlordBuyAction('hero.set_gender', {gender: newGender});
-                    overlay.remove();
-                });
-            });
             overlay.querySelector('#bnr-marry-btn')?.addEventListener('click', async () => {
                 if (!await _bnrConfirm(
                     'Engine выберет случайную подходящую NPC. Спишет 50K💰. Продолжить?',
@@ -5892,7 +5909,16 @@ async function loadBannerlordHero() {
             // Restore sub-slot innerHTMLs back into fresh DOM.
             for (const id of Object.keys(snapshot)) {
                 const el = document.getElementById(id);
-                if (el && !el.innerHTML) el.innerHTML = snapshot[id];
+                if (el && !el.innerHTML) {
+                    el.innerHTML = snapshot[id];
+                    // 2026-06-02 FIX — innerHTML-restore создаёт НОВЫЙ DOM →
+                    // click-хендлеры суб-лоадеров (sell/buy караванов/мастерских,
+                    // party-orders, daily…) ТЕРЯЮТСЯ. _smartInnerHTML потом
+                    // пропускал rebind (тот же html в кэше + innerHTML.length>0)
+                    // → кнопки мёртвые (продажа не работала). Сбрасываем кэш →
+                    // следующий poll суб-лоадера перерисует И ПЕРЕПРИВЯЖЕТ.
+                    delete _smartHtmlCache[id];
+                }
             }
             return result;
         };
@@ -6169,6 +6195,13 @@ async function loadBannerlordHero() {
                                        border:1px solid #1e40af;">
                             🎯 Прогрессия — скиллы / фокусы / атрибуты
                         </button>
+                        <button class="extra-btn" id="bnr-open-gender-btn"
+                                title="Сменить пол героя (50K💰). Не требует клана."
+                                style="width:100%;font-size:12px;padding:8px;margin-top:6px;
+                                       background:#2a1a30;color:#f472b6;font-weight:700;
+                                       border:1px solid #7c3aed;">
+                            ⚧ Сменить пол
+                        </button>
                     </div>`;
                 // 2026-05-31 IA-реорг: класс/прогрессия переехали в «Герой»,
                 // династия/экономика — в отдельную вкладку «Династия» (build-once
@@ -6176,6 +6209,10 @@ async function loadBannerlordHero() {
                 // ОДИН раз (не в if(_bnrChanged) — там был бы дубль-handler).
                 document.getElementById('bnr-open-progression-btn')?.addEventListener('click',
                     _openBannerlordProgressionModal);
+                // 2026-06-02 (CLAN-GATE) — смена пола вынесена из (запертой) Династии
+                // сюда: не кланово-зависима, доступна всем. Bind once в skeleton.
+                document.getElementById('bnr-open-gender-btn')?.addEventListener('click',
+                    _openBannerlordGenderModal);
             }
             // (2) Volatile stats grid — обновляется каждый poll, но это
             //     ИЗОЛИРОВАННЫЙ под-элемент; sub-slots рядом не трогаются.
@@ -6221,31 +6258,61 @@ async function loadBannerlordHero() {
         // BUILD-ONCE skeleton (как Hero): 11 sub-slot'ов живут стабильно,
         // sub-loaders наполняют их каждый poll. НЕ в if(_bnrChanged) — иначе
         // вернётся flicker (см. FLICKER-FIX v7 выше).
+        // 2026-06-02 (CLAN-GATE) — вся Династия завязана на клане → вкладка
+        // работает ТОЛЬКО у ГЛАВЫ клана. Не лидер (бесклановый ИЛИ участник
+        // чужого клана) → тело заперто с CTA «Создать клан» (ключ от вкладки).
+        // is_leader приходит в clan_info (мод HeroStateSync → clan_info_json →
+        // h.clan_info). Маркеры bnr-dynasty-locked / -built взаимно затирают друг
+        // друга при смене состояния (создал/потерял клан) — innerHTML перезапись.
+        const isClanLeader = !!(h.clan_info && h.clan_info.is_leader);
         const paneDyn = document.getElementById('bnr-pane-dynasty-body');
-        if (paneDyn && !document.getElementById('bnr-dynasty-built')) {
-            paneDyn.innerHTML = `
-                <div id="bnr-dynasty-built" style="padding:6px;">
-                    <div id="bnr-heir-slot" style="margin-bottom:8px;"></div>
-                    <div id="bnr-family-slot" style="margin-bottom:8px;"></div>
-                    <div id="bnr-vassals-slot" style="margin-bottom:8px;"></div>
-                    <div id="bnr-party-orders-slot" style="margin-bottom:8px;"></div>
-                    <div id="bnr-diplo-slot" style="margin-bottom:8px;"></div>
-                    <div id="bnr-ransom-slot" style="margin-bottom:8px;"></div>
-                    <div id="bnr-workshops-slot" style="margin-bottom:8px;"></div>
-                    <div id="bnr-fiefs-slot" style="margin-bottom:8px;"></div>
-                    <div id="bnr-caravans-slot" style="margin-bottom:8px;"></div>
-                    <div id="bnr-caravan-rescue-slot" style="margin-bottom:8px;"></div>
-                    <div id="bnr-inheritance-slot" style="margin-bottom:8px;"></div>
-                    <button class="extra-btn" id="bnr-open-profile-btn"
-                            title="Семейные настройки: смена пола, брак, дети"
-                            style="width:100%;font-size:12px;padding:8px;margin-top:4px;
-                                   background:#1f1a30;color:#c084fc;font-weight:700;
-                                   border:1px solid #5b21b6;">
-                        🧬 Профиль и семья
-                    </button>
-                </div>`;
-            document.getElementById('bnr-open-profile-btn')?.addEventListener('click',
-                _openBannerlordProfileModal);
+        if (paneDyn) {
+            if (!isClanLeader && !document.getElementById('bnr-dynasty-locked')) {
+                paneDyn.innerHTML = `
+                    <div id="bnr-dynasty-locked" style="padding:14px 10px;text-align:center;">
+                        <div style="font-size:30px;margin-bottom:6px;">🏰🔒</div>
+                        <div style="font-size:13px;color:#efeff1;font-weight:700;margin-bottom:6px;">
+                            Династия заперта
+                        </div>
+                        <div style="font-size:11px;color:#adadb8;line-height:1.5;margin-bottom:12px;">
+                            Клан, королевство, отряды, фьефы, караваны и мастерские —
+                            всё это доступно только <b style="color:#fbbf24;">главе клана</b>.
+                            Создай свой клан, чтобы открыть вкладку.
+                        </div>
+                        <button class="extra-btn" id="bnr-dynasty-create-clan-btn"
+                                style="width:100%;font-size:12px;padding:9px;
+                                       background:#7c2d12;color:#fbbf24;font-weight:700;
+                                       border:1px solid #b45309;">
+                            🏰 Создать клан (1M💰)
+                        </button>
+                    </div>`;
+                document.getElementById('bnr-dynasty-create-clan-btn')?.addEventListener('click',
+                    _openBannerlordCreateClanDialog);
+            } else if (isClanLeader && !document.getElementById('bnr-dynasty-built')) {
+                paneDyn.innerHTML = `
+                    <div id="bnr-dynasty-built" style="padding:6px;">
+                        <div id="bnr-heir-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-family-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-vassals-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-party-orders-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-diplo-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-ransom-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-workshops-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-fiefs-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-caravans-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-caravan-rescue-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-inheritance-slot" style="margin-bottom:8px;"></div>
+                        <button class="extra-btn" id="bnr-open-profile-btn"
+                                title="Семейные настройки: брак, дети"
+                                style="width:100%;font-size:12px;padding:8px;margin-top:4px;
+                                       background:#1f1a30;color:#c084fc;font-weight:700;
+                                       border:1px solid #5b21b6;">
+                            🧬 Профиль и семья
+                        </button>
+                    </div>`;
+                document.getElementById('bnr-open-profile-btn')?.addEventListener('click',
+                    _openBannerlordProfileModal);
+            }
         }
 
         // FLICKER-FIX v5: structural change wrapped в _preserveSlots — sub-slot
@@ -6303,26 +6370,31 @@ async function loadBannerlordHero() {
         //   на своих slot'ах. Видят свежие данные даже когда hero pane не сменился.
         // Sprint 5.32 #46 — refill daily slot (recreated на re-render Hero pane).
         loadBannerlordDaily();
-        // Sprint 5.32 (BLT-parity FE-M2) — refill heir slot.
-        loadBannerlordHeirs();
-        // Sprint 5.33 (BLT-parity FAM) — Family section (children + proposals).
-        loadBannerlordFamily();
-        // Sprint 5.33 (BLT-parity VAS) — Vassal sub-clans section.
-        loadBannerlordVassals();
-        // Sprint 5.33 (BLT-parity SIEGE) — Party orders section.
-        loadBannerlordPartyOrders();
-        // Sprint 5.33 (BLT-parity DIPLO) — Kingdom politics + ransom pool.
-        loadBannerlordDiplomacy();
-        loadBannerlordRansomPool();
-        // Sprint 5.33 (BLT-parity SHOP) — Workshops passive income panel.
-        loadBannerlordWorkshops();
-        // Sprint 5.33 (BLT-parity FIEF) — Fief tribute passive income.
-        loadBannerlordFiefs();
-        // Sprint 5.33 (BLT-parity CARAVAN) — Mobile passive income trilogy closer.
-        loadBannerlordCaravans();
-        loadBannerlordCaravanRescues();
-        // Sprint 5.33 (BLT-parity HERITAGE) — Inheritance log.
-        loadBannerlordInheritance();
+        // 2026-06-02 (CLAN-GATE) — sub-loaders Династии грузим ТОЛЬКО у главы
+        // клана (тело вкладки иначе заперто, грузить нечего). loadBannerlordDaily
+        // выше — Hero-pane, НЕ гейтим.
+        if (isClanLeader) {
+            // Sprint 5.32 (BLT-parity FE-M2) — refill heir slot.
+            loadBannerlordHeirs();
+            // Sprint 5.33 (BLT-parity FAM) — Family section (children + proposals).
+            loadBannerlordFamily();
+            // Sprint 5.33 (BLT-parity VAS) — Vassal sub-clans section.
+            loadBannerlordVassals();
+            // Sprint 5.33 (BLT-parity SIEGE) — Party orders section.
+            loadBannerlordPartyOrders();
+            // Sprint 5.33 (BLT-parity DIPLO) — Kingdom politics + ransom pool.
+            loadBannerlordDiplomacy();
+            loadBannerlordRansomPool();
+            // Sprint 5.33 (BLT-parity SHOP) — Workshops passive income panel.
+            loadBannerlordWorkshops();
+            // Sprint 5.33 (BLT-parity FIEF) — Fief tribute passive income.
+            loadBannerlordFiefs();
+            // Sprint 5.33 (BLT-parity CARAVAN) — Mobile passive income trilogy closer.
+            loadBannerlordCaravans();
+            loadBannerlordCaravanRescues();
+            // Sprint 5.33 (BLT-parity HERITAGE) — Inheritance log.
+            loadBannerlordInheritance();
+        }
         // Sprint 5.5: immediately repaint battle banner из cache чтобы
         // не было 0-2s gap'a после hero re-render.
         if (_bannerlordBattle) _renderBannerlordBattleBanner(_bannerlordBattle);

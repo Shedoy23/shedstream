@@ -199,7 +199,7 @@ namespace BannerlordLink.Patches
             var rage = ActiveBuffState.GetValue(user, "rage");
             if (!rage.HasValue) return;
 
-            double multi = Math.Max(1.0, Math.Min(5.0, rage.Value));
+            double multi = Math.Max(1.0, Math.Min(8.0, rage.Value));   // 2026-06-05 кап 5→8 (BLT-parity)
             if (multi <= 1.0) return;
 
             int beforeDmg = b.InflictedDamage;
@@ -233,7 +233,7 @@ namespace BannerlordLink.Patches
 
             float heal = (float)(inflictedDamage * pct / 100.0);
             if (heal <= 0) return;
-            if (heal > 100f) heal = 100f;            // per-hit cap
+            if (heal > 250f) heal = 250f;            // per-hit cap (2026-06-05 100→250, HP теперь 2.5×)
             float before = attackerSrc.Health;
             float after = Math.Min(limit, before + heal);
             attackerSrc.Health = after;
@@ -250,8 +250,8 @@ namespace BannerlordLink.Patches
         // FMOD-safety: НЕ вызываем RegisterBlow inline — кладём в ту же
         // отложенную очередь что reflect (EnqueueReflect → DrainPendingReflects:
         // BlowFlags.NoSound + троттл ≤3/тик). Звуковых событий не плодим.
-        private const float EXPLOSIVE_RADIUS = 3.5f;
-        private const int EXPLOSIVE_MAX_TARGETS = 3;
+        private const float EXPLOSIVE_RADIUS = 5.0f;     // 2026-06-05 3.5→5м
+        private const int EXPLOSIVE_MAX_TARGETS = 4;     // 2026-06-05 3→4 (BLT AoE default)
         private static void ApplyExplosiveArrows(
             string user, Agent attackerSrc, Agent victim, ref AttackCollisionData cd)
         {
@@ -300,7 +300,7 @@ namespace BannerlordLink.Patches
         {
             double passive = ResolvePct(user, "damage_reduction_pct");
             double toggle = ActiveBuffState.GetValue(user, "ironskin_toggle") ?? 0.0;
-            double pct = Math.Min(80.0, passive + toggle);
+            double pct = Math.Min(90.0, passive + toggle);   // 2026-06-05 кап 80→90%
             if (pct <= 0) return;
 
             int reduced = (int)(b.InflictedDamage * pct / 100.0);

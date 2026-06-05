@@ -48,7 +48,7 @@ namespace BannerlordLink.Behaviors
         private const bool BUFF_TICK_PARTICLES_ENABLED = false;
 
         // 2026-06-02 (BLT-parity POWER) — HP-множители в одном месте для тюнинга.
-        private const float BASE_HP_MULT = 2f;       // герой baseline (BLT StartHealthMultiplier=2)
+        private const float BASE_HP_MULT = 2.5f;     // герой baseline (2026-06-05: 2→2.5, BLT-parity)
         public  const float RETINUE_HP_MULT = 2f;     // свита (BLT StartRetinueHealthMultiplier=2)
         // Ставится SummonHeroHandler'ом ВОКРУГ retinue SpawnTroop; применяется
         // в OnAgentBuild (санкционированный тайминг — не крашит, в отличие от

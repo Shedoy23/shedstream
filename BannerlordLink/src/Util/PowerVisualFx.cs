@@ -43,7 +43,17 @@ namespace BannerlordLink.Util
         // DeactivateEffect pattern. Then re-enable selectively.
         //
         // См. Расширение/docs/REFACTOR_PLAN_BLT_RC22.md секцию Phase 1.1.
-        public static bool AudioEnabled = false;
+        public static bool AudioEnabled = true;   // 2026-06-05 on (one-shot per activation only; BUFF_TICK + persistent pfx остаются off → FMOD pressure низкий)
+
+        // 2026-06-05 — persistent AgentPfx (looping particle, прикреплён к агенту
+        // для timed powers rage/retribution/poison/berserker). Зрители видели:
+        // «огонёк» оставался НА ЗЕМЛЕ весь бой и КОПИЛСЯ каждый каст → leak
+        // GameEntity/ParticleSystem (проводка HeroPfxBehaviour+ActiveBuffState на
+        // бумаге верна, но на практике не следует/не чистится) → подозрение на
+        // краши в БОЛЬШИХ боях (много кастов × N зрителей). Отключаем: остаётся
+        // entry-burst (one-shot CreateBurstParticle) + popup — feedback цел, leak
+        // уходит. Re-enable (BLT-корректно: bone attach + надёжный cleanup) — позже.
+        public static bool PersistentPfxEnabled = false;
 
         public class PowerFxConfig
         {
@@ -192,7 +202,8 @@ namespace BannerlordLink.Util
             // 2b. Persistent AgentPfx — только для timed powers.
             //     Replaces старый BuffsTicker re-burst pattern (Stage 0 P1.2
             //     отключил его — теперь активно используем AgentPfx).
-            if (!string.IsNullOrEmpty(username)
+            if (PersistentPfxEnabled
+                && !string.IsNullOrEmpty(username)
                 && TIMED_POWERS.Contains(powerKey)
                 && !string.IsNullOrEmpty(cfg.ParticleName))
             {

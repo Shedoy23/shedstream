@@ -1002,6 +1002,15 @@ async def run_migrations():
             print(f"❌ M64 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        # BLT-parity power BOOST — масштабирует значения способностей в новый
+        # headroom мод-капов (rage 8×, lifesteal 250/hit, reduction 90%, HP 2.5×).
+        try:
+            from migrations import m65_power_boost
+            await m65_power_boost.apply(conn)
+        except Exception as e:
+            print(f"❌ M65 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

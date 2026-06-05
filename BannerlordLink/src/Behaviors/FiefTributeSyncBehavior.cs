@@ -69,19 +69,30 @@ namespace BannerlordLink.Behaviors
             fiefType = "fief";
             try
             {
+                var fin = Campaign.Current.Models.ClanFinanceModel;
                 if (s.IsVillage && s.Village != null)
                 {
                     fiefType = "village";
-                    var clan = s.OwnerClan;
-                    if (clan == null) return 0;
-                    return (int)Campaign.Current.Models.ClanFinanceModel
-                        .CalculateVillageIncome(clan, s.Village, false);
+                    var vclan = s.OwnerClan;
+                    if (vclan == null) return 0;
+                    return (int)fin.CalculateVillageIncome(vclan, s.Village, false);
                 }
                 if (s.Town != null)
                 {
                     fiefType = s.IsCastle ? "castle" : "town";
-                    return (int)Campaign.Current.Models.SettlementTaxModel
-                        .CalculateTownTax(s.Town, false).ResultNumber;
+                    var town = s.Town;
+                    double tax = Campaign.Current.Models.SettlementTaxModel
+                        .CalculateTownTax(town, false).ResultNumber;
+                    var clan = s.OwnerClan;
+                    if (clan == null) return (int)tax;   // тарифы/проекты требуют clan
+                    // 2026-06-01 — нетто-доход владельца (BLT-parity CampaignInfo.cs:413):
+                    // налог + тарифы + проекты − жалование гарнизона. Bound-villages НЕ
+                    // добавляем — они отдельные фьефы и отчитываются сами (иначе двойной счёт).
+                    double income = tax
+                        + fin.CalculateTownIncomeFromTariffs(clan, town, false).ResultNumber
+                        + fin.CalculateTownIncomeFromProjects(town)
+                        - (town.GarrisonParty?.TotalWage ?? 0);
+                    return (int)income;
                 }
             }
             catch (Exception ex)
@@ -105,6 +116,40 @@ namespace BannerlordLink.Behaviors
                 return !string.IsNullOrEmpty(ownerLogin);
             }
             catch { return false; }
+        }
+
+        /// <summary>2026-06-02 (PROPERTIES-MIRROR) — полный список фьефов,
+        /// которыми [BLink]-герои владеют СЕЙЧАС (для snapshot-зеркала на backend).
+        /// В отличие от OnDailyTick — БЕЗ income-фильтра: владение есть = строка
+        /// есть, даже при нулевом/отриц. дневном доходе.</summary>
+        public static System.Collections.Generic.List<object> BuildFiefSnapshot()
+        {
+            var items = new System.Collections.Generic.List<object>();
+            try
+            {
+                if (Campaign.Current == null) return items;
+                foreach (var s in Settlement.All)
+                {
+                    if (s == null) continue;
+                    if (!IsOwnedByBLink(s, out var ownerLogin)) continue;
+                    string fiefType = s.IsVillage ? "village"
+                                    : s.IsCastle ? "castle"
+                                    : s.Town != null ? "town"
+                                    : "fief";
+                    items.Add(new
+                    {
+                        owner     = ownerLogin,
+                        fief_id   = s.StringId,
+                        fief_name = s.Name?.ToString() ?? s.StringId,
+                        fief_type = fiefType,
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[fief-sync] BuildFiefSnapshot crash: {ex.Message}");
+            }
+            return items;
         }
 
         private static void PushSync(Settlement s, string ownerLogin, string fiefType, int netDinars)

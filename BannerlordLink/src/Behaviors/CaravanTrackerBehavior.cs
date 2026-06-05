@@ -139,6 +139,35 @@ namespace BannerlordLink.Behaviors
             catch { return false; }
         }
 
+        /// <summary>2026-06-02 (PROPERTIES-MIRROR) — полный список караванов
+        /// [BLink]-героев, живых в движке СЕЙЧАС (party_id = engine StringId),
+        /// для snapshot-зеркала на backend.</summary>
+        public static System.Collections.Generic.List<object> BuildCaravanSnapshot()
+        {
+            var items = new System.Collections.Generic.List<object>();
+            try
+            {
+                foreach (var mp in MobileParty.AllCaravanParties)
+                {
+                    if (mp == null || !mp.IsCaravan) continue;
+                    if (!IsBLinkOwned(mp, out string ownerLogin)) continue;
+                    var home = mp.HomeSettlement;
+                    items.Add(new
+                    {
+                        owner                = ownerLogin,
+                        party_id             = mp.StringId,
+                        home_settlement_id   = home?.StringId ?? "",
+                        home_settlement_name = home?.Name?.ToString() ?? "",
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[caravan-sync] BuildCaravanSnapshot crash: {ex.Message}");
+            }
+            return items;
+        }
+
         private static void PushSync(MobileParty mp, string ownerLogin, int netDinars)
         {
             try

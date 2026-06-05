@@ -32,6 +32,14 @@ namespace BannerlordLink.Behaviors
         // instance) — для switch save в одной session нужен OnSessionLaunched.
         private string _lastPushedSaveId;
 
+        // 2026-06-02 (PROPERTIES-MIRROR) — real-time каденс снапшота владений.
+        // TickEvent.dt — campaign-scaled (×0.25×speed, 0 на паузе), НЕ wall-clock
+        // (подтверждено рефлексией DLL) → реальное время меряем своим Stopwatch'ем.
+        // _lastPropHash — gate: пушим только когда владения реально изменились
+        // (не спамим прод каждые 30с на всех каналах).
+        private System.Diagnostics.Stopwatch _propTimer;
+        private int _lastPropHash;
+
         public override void RegisterEvents()
         {
             CampaignEvents.HeroKilledEvent.AddNonSerializedListener(this, OnHeroKilled);
@@ -58,6 +66,14 @@ namespace BannerlordLink.Behaviors
             // когда IsWounded transition'ит. Это lightweight: ~50-200 viewers
             // × ~1 HTTP-PUSH per day = ничтожная нагрузка.
             CampaignEvents.DailyTickHeroEvent.AddNonSerializedListener(this, OnDailyTickHero);
+
+            // 2026-06-02 (PROPERTIES-MIRROR) — игра = источник правды по владениям.
+            // Real-time (~30с) пуш полного snapshot'a fiefs/workshops/caravans
+            // ([BLink]-герои сейчас); backend зеркалит (delete отсутствующих).
+            // TickEvent (per-frame на карте) — но каденс меряем Stopwatch'ем
+            // (его dt НЕ wall-clock). Hash-gate: пуш только при реальном
+            // изменении. Connect-time push (+seed hash) — в PushSessionStart.
+            CampaignEvents.TickEvent.AddNonSerializedListener(this, OnPropertiesTick);
 
             // Sprint 5.32 (BLT-parity M2) — heir queue foundation.
             // HeroComesOfAgeEvent fires когда engine продвигает child через 18-летний
@@ -513,6 +529,9 @@ namespace BannerlordLink.Behaviors
                 // чтобы extension мог построить dropdown реальных engine towns —
                 // viewers не вводят fake names → 90% buy REFUND'ов уйдут.
                 PushSettlementsCatalog(saveId);
+                // 2026-06-02 (PROPERTIES-MIRROR) — снапшот владений на коннекте
+                // (новый save / switch / reload) → backend зеркалит игру.
+                PushPropertiesSnapshot(saveId);
             }
             catch (Exception ex)
             {
@@ -567,6 +586,71 @@ namespace BannerlordLink.Behaviors
                 BannerlordLinkModule.Log(
                     $"[CampaignEvent] PushSettlementsCatalog error: {ex.Message}");
             }
+        }
+
+        /// <summary>2026-06-02 (PROPERTIES-MIRROR) — игра = источник правды.
+        /// Один event с полным списком владений [BLink]-героев СЕЙЧАС
+        /// (fiefs/workshops/caravans); backend зеркалит каждую категорию
+        /// (upsert присутствующих + delete отсутствующих, сохраняя накопит.
+        /// статистику). Чинит stale-«призраков». Здесь — БЕЗУСЛОВНЫЙ пуш
+        /// (на коннекте) + seed hash, чтобы tick не пушил то же повторно.</summary>
+        private void PushPropertiesSnapshot(string saveId)
+        {
+            try
+            {
+                if (Campaign.Current == null) return;
+                string json = BuildPropertiesJson(saveId);
+                _lastPropHash = json.GetHashCode();
+                Task.Run(async () => await BannerlordLinkModule.Backend
+                    .PostEventAsync("bannerlord", "hero.properties_snapshot", json));
+                BannerlordLinkModule.Log("[CampaignEvent] properties_snapshot pushed (session_start)");
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[CampaignEvent] PushPropertiesSnapshot error: {ex.Message}");
+            }
+        }
+
+        /// <summary>Real-time (~30 реальных секунд) tick. TickEvent.dt —
+        /// campaign-scaled, поэтому каденс меряем Stopwatch'ем. Пушим ТОЛЬКО
+        /// если JSON владений изменился (hash-gate) → «изменилось в игре →
+        /// видно в extension в пределах 30с», без спама когда ничего не менялось.
+        /// Stopwatch идёт и во время боя (TickEvent молчит) → сразу после боя
+        /// фиксируем захват/потерю фьефа осадой.</summary>
+        private void OnPropertiesTick(float dt)
+        {
+            if (Campaign.Current == null) return;
+            if (_propTimer == null) _propTimer = System.Diagnostics.Stopwatch.StartNew();
+            if (_propTimer.Elapsed.TotalSeconds < 30.0) return;
+            _propTimer.Restart();
+            try
+            {
+                string json = BuildPropertiesJson(Campaign.Current.UniqueGameId ?? "unknown");
+                int hash = json.GetHashCode();
+                if (hash == _lastPropHash) return;   // без изменений — не пушим
+                _lastPropHash = hash;
+                Task.Run(async () => await BannerlordLinkModule.Backend
+                    .PostEventAsync("bannerlord", "hero.properties_snapshot", json));
+                BannerlordLinkModule.Log("[CampaignEvent] properties_snapshot pushed (changed)");
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[CampaignEvent] OnPropertiesTick error: {ex.Message}");
+            }
+        }
+
+        /// <summary>Сериализует текущий snapshot владений [BLink]-героев.
+        /// Общий код для connect-пуша и tick'а (один формат → стабильный hash).</summary>
+        private static string BuildPropertiesJson(string saveId)
+        {
+            return JsonConvert.SerializeObject(new
+            {
+                save_id   = saveId,
+                fiefs     = FiefTributeSyncBehavior.BuildFiefSnapshot(),
+                workshops = WorkshopProfitSyncBehavior.BuildWorkshopSnapshot(),
+                caravans  = CaravanTrackerBehavior.BuildCaravanSnapshot(),
+            });
         }
 
         private void PushHeroesSnapshot(string saveId)

@@ -93,6 +93,7 @@ extensions:
     - hero.caravan_profit_sync   # Sprint 5.33 (BLT-parity CARAVAN): daily diff PartyTradeGold
     - hero.caravan_destroyed     # Sprint 5.33 (BLT-parity CARAVAN): MobilePartyDestroyed event
     - hero.party_order_status    # Sprint 5.33 PORDER: sticky order set/release/expire/complete
+    - hero.properties_snapshot   # 2026-06-02 PROPERTIES-MIRROR: mod пушит полный snapshot fiefs/workshops/caravans → backend зеркалит (reconcile). БЕЗ этой строки бэк реджектил event_not_in_manifest → зеркало было мёртвым (поймано автотестом).
     # world.settlements_catalog объявлен в base events (наверху, поэтому без префикса hero.)
   actions:
     - hero.create        # Adoption flow — spawn fresh wanderer + SetName(viewer)

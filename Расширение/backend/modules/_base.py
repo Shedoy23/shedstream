@@ -61,6 +61,13 @@ class ModuleEnvelope:
     ts: int            # epoch ms на стороне отправителя
     data: Dict[str, Any] = field(default_factory=dict)
 
+    @property
+    def user(self):
+        """2026-06-05 — ModuleEnvelope сам поле user не несёт; код в _adapter
+        звал env.user → AttributeError (падали settlements_catalog + caravan
+        handlers при отсутствии owner). Берём user-идентификатор из payload."""
+        return self.data.get("user") or self.data.get("owner") or self.data.get("username")
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ModuleAdapter — то что core держит в памяти про каждый загруженный модуль.

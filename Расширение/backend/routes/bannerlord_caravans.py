@@ -360,3 +360,82 @@ async def backfill_caravan_party_id(channel_id: int, caravan_id: int, party_id: 
         await conn.commit()
     log.info("[CARAVAN-BACKFILL] ch=%s id=%d party_id=%s",
              channel_id, caravan_id, party_id)
+
+
+async def reconcile_caravans(conn, channel_id: int, items: list) -> dict:
+    """PROPERTIES-MIRROR (2026-06-02) — зеркалим snapshot караванов из игры.
+
+    items: [{owner, party_id, home_settlement_id, home_settlement_name}, ...] —
+    караваны [BLink]-героев, ЖИВЫЕ в движке сейчас (party_id = engine StringId).
+
+    Reconcile затрагивает ТОЛЬКО active+party_id IS NOT NULL — НЕ трогаем:
+      - 'destroyed' (mid-rescue crowdfund), 'sold' (история),
+      - active с party_id IS NULL (свежекупленные 'forming', ждут caravan_created).
+    Логика:
+      - matched party_id → UPDATE owner/home (сохраняя total_collected_dinars/opened_at)
+      - active+party_id ОТСУТСТВУЕТ в snapshot → DELETE ("призрак": продан/уничтожен/
+        re-owned; заодно чистим rescue-pool children, чтоб не было orphan'ов)
+      - snapshot party_id без строки → усыновляем NULL-party active строку того же
+        owner (backfill party_id), иначе INSERT
+    owner → lowercase. conn — shared transaction; коммитит вызывающий.
+    """
+    snap = {}
+    for it in items:
+        pid = (it.get("party_id") or "").strip()
+        if not pid:
+            continue
+        snap[pid] = {
+            "owner": (it.get("owner") or "").strip().lower(),
+            "home_id": (it.get("home_settlement_id") or "").strip(),
+            "home_name": (it.get("home_settlement_name") or "").strip(),
+        }
+    cur = await conn.execute(
+        "SELECT id, party_id, owner_username FROM bannerlord_caravans "
+        "WHERE channel_id=? AND status='active'", (channel_id,))
+    rows = await cur.fetchall()
+    by_party = {r[1]: r[0] for r in rows if r[1]}                       # party_id -> id
+    null_party = [(r[0], (r[2] or "").lower()) for r in rows if not r[1]]  # forming
+
+    removed = 0
+    for pid, rid in by_party.items():
+        if pid not in snap:
+            await conn.execute(
+                "DELETE FROM bannerlord_caravan_rescue_pool "
+                "WHERE channel_id=? AND caravan_id=?", (channel_id, rid))
+            await conn.execute(
+                "DELETE FROM bannerlord_caravans WHERE id=? AND channel_id=?",
+                (rid, channel_id))
+            removed += 1
+    for pid, v in snap.items():
+        if pid in by_party:
+            await conn.execute(
+                "UPDATE bannerlord_caravans SET "
+                "  owner_username=?, "
+                "  home_settlement_id=COALESCE(NULLIF(?,''), home_settlement_id), "
+                "  home_settlement_name=COALESCE(NULLIF(?,''), home_settlement_name), "
+                "  last_synced_at=CURRENT_TIMESTAMP "
+                "WHERE id=? AND channel_id=?",
+                (v["owner"], v["home_id"], v["home_name"], by_party[pid], channel_id))
+        else:
+            adopt_id = None
+            for rid, rowner in null_party:
+                if rowner == v["owner"]:
+                    adopt_id = rid
+                    break
+            if adopt_id is not None:
+                null_party = [(i, o) for (i, o) in null_party if i != adopt_id]
+                await conn.execute(
+                    "UPDATE bannerlord_caravans SET party_id=?, "
+                    "  home_settlement_id=COALESCE(NULLIF(?,''), home_settlement_id), "
+                    "  home_settlement_name=COALESCE(NULLIF(?,''), home_settlement_name), "
+                    "  last_synced_at=CURRENT_TIMESTAMP "
+                    "WHERE id=? AND channel_id=?",
+                    (pid, v["home_id"], v["home_name"], adopt_id, channel_id))
+            else:
+                await conn.execute(
+                    "INSERT INTO bannerlord_caravans "
+                    "(channel_id, owner_username, party_id, home_settlement_id, "
+                    " home_settlement_name, status) "
+                    "VALUES (?, ?, ?, ?, ?, 'active')",
+                    (channel_id, v["owner"], pid, v["home_id"], v["home_name"]))
+    return {"n": len(snap), "removed": removed}

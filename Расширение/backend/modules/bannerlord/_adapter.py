@@ -596,6 +596,12 @@ class BannerlordAdapter(ModuleAdapter):
             await self._on_caravan_destroyed(channel_id, env)
             return
 
+        # 2026-06-02 (PROPERTIES-MIRROR) — игра = источник правды. Полный
+        # snapshot владений ([BLink]-герои сейчас) → backend зеркалит.
+        if et == "hero.properties_snapshot":
+            await self._on_properties_snapshot(channel_id, env)
+            return
+
         if et == "world.event_occurred":
             await self._on_world_event(channel_id, env)
             return
@@ -755,8 +761,17 @@ class BannerlordAdapter(ModuleAdapter):
                     for table in RESETTABLE_TABLES:
                         if table == "bannerlord_channel_state":
                             continue  # управляется ниже через UPSERT
-                        await conn.execute(
-                            f"DELETE FROM {table} WHERE channel_id=?", (channel_id,))
+                        # 2026-06-05 (AUTOTEST fix) — guard: таблица без колонки
+                        # channel_id роняла ВЕСЬ session_start (sqlite3
+                        # OperationalError: no such column: channel_id) → save-switch
+                        # wipe не отрабатывал. Per-table try: битая таблица не ломает
+                        # остальной reset; логируем виновника для точечного фикса.
+                        try:
+                            await conn.execute(
+                                f"DELETE FROM {table} WHERE channel_id=?", (channel_id,))
+                        except Exception as _wipe_ex:
+                            print(f"[bannerlord:{channel_id}] session_start wipe "
+                                  f"SKIP table '{table}': {_wipe_ex}")
                     reset = True
                 # Update channel state regardless
                 await conn.execute("""
@@ -1298,6 +1313,39 @@ class BannerlordAdapter(ModuleAdapter):
         print(f"[bannerlord:{channel_id}] heroes_snapshot: "
               f"{len(snapshot)} alive in save, {len(existing)} in DB, "
               f"removed {len(missing)} stale ({missing[:3]}...)")
+
+    async def _on_properties_snapshot(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """2026-06-02 (PROPERTIES-MIRROR) — игра = источник правды по владениям.
+
+        Mod пушит (на коннекте + раз в game-day) ПОЛНЫЙ список fiefs/workshops/
+        caravans, которыми [BLink]-герои владеют СЕЙЧАС. Backend зеркалит каждую
+        категорию: upsert присутствующих (сохраняя накопит. статистику —
+        total_collected_dinars / total_profit / opened_at) + DELETE отсутствующих.
+
+        Лечит "призраков": проданный/потерянный/уничтоженный фьеф/мастерская/
+        караван больше не висит в «Мои владения». Обобщает _on_heroes_snapshot
+        (тот чистил по owner'у ПРОПАВШЕГО героя; этот — по game-id самой сущности,
+        ловит «герой жив, но продал/потерял конкретный караван/фьеф»).
+        """
+        data = env.data
+        fiefs = data.get("fiefs") or []
+        workshops = data.get("workshops") or []
+        caravans = data.get("caravans") or []
+
+        from routes.bannerlord_fiefs import reconcile_fiefs
+        from routes.bannerlord_workshops import reconcile_workshops
+        from routes.bannerlord_caravans import reconcile_caravans
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            nf = await reconcile_fiefs(conn, channel_id, fiefs)
+            nw = await reconcile_workshops(conn, channel_id, workshops)
+            nc = await reconcile_caravans(conn, channel_id, caravans)
+            await conn.commit()
+
+        print(f"[bannerlord:{channel_id}] properties_snapshot mirror: "
+              f"fiefs n={nf['n']} -{nf['removed']}, "
+              f"workshops n={nw['n']} -{nw['removed']}, "
+              f"caravans n={nc['n']} -{nc['removed']}")
 
     async def _on_retinue_changed(self, channel_id: int, env: ModuleEnvelope) -> None:
         """M23: mod после recruit/upgrade troop пушит обновлённый slot.

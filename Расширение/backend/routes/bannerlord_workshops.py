@@ -240,3 +240,59 @@ async def credit_workshop_profit(channel_id: int, owner: str, workshop_id: int,
     log.info("[SHOP-SYNC] ch=%s @%s workshop=%s +%d dinars (engine; ⦷ payout disabled)",
              channel_id, owner, workshop_id, net_dinars)
     return 0   # 0 ⦷ credited — passive income decoupled from platform currency
+
+
+async def reconcile_workshops(conn, channel_id: int, items: list) -> dict:
+    """PROPERTIES-MIRROR (2026-06-02) — зеркалим snapshot мастерских из игры.
+
+    items: [{owner, settlement_id, settlement_name, workshop_type,
+    workshop_type_name}, ...]. Игровая identity = (settlement_id, workshop_type) —
+    отдельного StringId у Workshop нет. Match active-строк по этой паре: UPDATE
+    owner (НЕ трогая total_profit/opened_at/initial_capital), INSERT новых, DELETE
+    отсутствующих active. Sold/destroyed строки не трогаем (история; GET их и так
+    скрывает). owner → lowercase. conn — shared transaction; коммитит вызывающий.
+    """
+    snap = {}
+    for it in items:
+        sid = (it.get("settlement_id") or "").strip()
+        wtype = (it.get("workshop_type") or "").strip()
+        if not sid or not wtype:
+            continue
+        snap[(sid, wtype)] = {
+            "owner": (it.get("owner") or "").strip().lower(),
+            "settlement_name": (it.get("settlement_name") or "").strip(),
+            "workshop_type_name": (it.get("workshop_type_name") or "").strip(),
+        }
+    cur = await conn.execute(
+        "SELECT id, settlement_id, workshop_type FROM bannerlord_workshops "
+        "WHERE channel_id=? AND status='active'", (channel_id,))
+    rows = await cur.fetchall()
+    existing = {(r[1], r[2]): r[0] for r in rows}
+
+    removed = 0
+    for key, rid in existing.items():
+        if key not in snap:
+            await conn.execute(
+                "DELETE FROM bannerlord_workshops WHERE id=? AND channel_id=?",
+                (rid, channel_id))
+            removed += 1
+    for (sid, wtype), v in snap.items():
+        if (sid, wtype) in existing:
+            await conn.execute(
+                "UPDATE bannerlord_workshops SET "
+                "  owner_username=?, "
+                "  settlement_name=COALESCE(NULLIF(?,''), settlement_name), "
+                "  workshop_type_name=COALESCE(NULLIF(?,''), workshop_type_name), "
+                "  last_synced_at=CURRENT_TIMESTAMP "
+                "WHERE id=? AND channel_id=?",
+                (v["owner"], v["settlement_name"], v["workshop_type_name"],
+                 existing[(sid, wtype)], channel_id))
+        else:
+            await conn.execute(
+                "INSERT INTO bannerlord_workshops "
+                "(channel_id, owner_username, settlement_id, settlement_name, "
+                " workshop_type, workshop_type_name, status) "
+                "VALUES (?, ?, ?, ?, ?, ?, 'active')",
+                (channel_id, v["owner"], sid, v["settlement_name"],
+                 wtype, v["workshop_type_name"]))
+    return {"n": len(snap), "removed": removed}

@@ -145,5 +145,40 @@ namespace BannerlordLink.Behaviors
         {
             return $"{w.Settlement?.StringId}::{w.WorkshopType?.StringId}::{w.Owner?.StringId}";
         }
+
+        /// <summary>2026-06-02 (PROPERTIES-MIRROR) — полный список мастерских
+        /// [BLink]-героев СЕЙЧАС для snapshot-зеркала на backend.</summary>
+        public static System.Collections.Generic.List<object> BuildWorkshopSnapshot()
+        {
+            var items = new System.Collections.Generic.List<object>();
+            try
+            {
+                foreach (var s in Settlement.All)
+                {
+                    if (s?.IsTown != true || s.Town == null) continue;
+                    foreach (var w in s.Town.Workshops)
+                    {
+                        if (w?.Owner == null) continue;
+                        if (!IsBLinkHero(w.Owner)) continue;
+                        string ownerLogin = HeroNaming.ExtractUsername(
+                            w.Owner.Name?.ToString() ?? "")?.ToLowerInvariant();
+                        if (string.IsNullOrEmpty(ownerLogin)) continue;
+                        items.Add(new
+                        {
+                            owner              = ownerLogin,
+                            settlement_id      = w.Settlement?.StringId ?? "",
+                            settlement_name    = w.Settlement?.Name?.ToString() ?? "",
+                            workshop_type      = w.WorkshopType?.StringId ?? "",
+                            workshop_type_name = w.WorkshopType?.Name?.ToString() ?? "",
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[shop-sync] BuildWorkshopSnapshot crash: {ex.Message}");
+            }
+            return items;
+        }
     }
 }

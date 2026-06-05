@@ -198,3 +198,44 @@ async def credit_fief_tribute(channel_id: int, owner: str, fief_id: str,
     log.info("[FIEF-SYNC] ch=%s @%s fief=%s +%d dinars (engine; ⦷ payout disabled)",
              channel_id, owner, fief_name, net_dinars)
     return 0   # 0 ⦷ credited — passive income decoupled from platform currency
+
+
+async def reconcile_fiefs(conn, channel_id: int, items: list) -> dict:
+    """PROPERTIES-MIRROR (2026-06-02) — зеркалим snapshot владений из игры.
+
+    items: [{owner, fief_id, fief_name, fief_type}, ...] — ПОЛНЫЙ список фьефов
+    [BLink]-героев СЕЙЧАС. Upsert присутствующих (НЕ трогая total_collected_dinars/
+    opened_at), DELETE отсутствующих. owner → lowercase (heal casing).
+
+    conn — shared transaction; коммитит вызывающий (_on_properties_snapshot).
+    """
+    snapshot_ids = []
+    for it in items:
+        fief_id = (it.get("fief_id") or "").strip()
+        if not fief_id:
+            continue
+        owner = (it.get("owner") or "").strip().lower()
+        fief_name = (it.get("fief_name") or fief_id).strip()
+        fief_type = (it.get("fief_type") or "fief").strip()
+        snapshot_ids.append(fief_id)
+        await conn.execute(
+            "INSERT INTO bannerlord_fiefs "
+            "(channel_id, owner_username, fief_id, fief_name, fief_type, last_synced_at) "
+            "VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP) "
+            "ON CONFLICT(channel_id, fief_id) DO UPDATE SET "
+            "  owner_username = excluded.owner_username, "
+            "  fief_name = excluded.fief_name, "
+            "  fief_type = excluded.fief_type, "
+            "  last_synced_at = CURRENT_TIMESTAMP",
+            (channel_id, owner, fief_id, fief_name, fief_type))
+    if snapshot_ids:
+        ph = ",".join("?" * len(snapshot_ids))
+        cur = await conn.execute(
+            f"DELETE FROM bannerlord_fiefs "
+            f"WHERE channel_id=? AND fief_id NOT IN ({ph})",
+            [channel_id] + snapshot_ids)
+    else:
+        cur = await conn.execute(
+            "DELETE FROM bannerlord_fiefs WHERE channel_id=?", (channel_id,))
+    removed = cur.rowcount or 0
+    return {"n": len(snapshot_ids), "removed": removed}

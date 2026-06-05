@@ -180,14 +180,25 @@ namespace BannerlordLink.Actions
                 // 3. Reset all skills/attributes to 0 — equal start для всех viewers
                 newHero.HeroDeveloper.ClearHero();
 
-                // BLT discovery: wanderer с 0 skill points dies on save reload.
-                // Даём 1 skill point в первый skill (минимум для survival).
+                // 2026-06-02 (BLT-parity POWER) — раньше сеяли 1 очко в OneHanded
+                // (survival-минимум) → герой махал T6-шмотом с ~0 скилла: мажет,
+                // отскакивает, не наносит урон. BLT инхерит развитого NPC (~100-250).
+                // Сеем БОЕВОЙ флор ~120 во все боевые скиллы → герой компетентен
+                // любым оружием, которое даст класс. Не-боевые остаются 0 (fighter,
+                // не omni-гений). Класс-powers (*_skill_boost) поднимают специализацию
+                // ВЫШЕ флора (SetClassHandler.ApplyClassSkillBoosts, проверка >current).
                 try
                 {
-                    // DefaultSkills.OneHanded — static field, гарантированно
-                    // существует в vanilla 1.3.x. Никаких GetObjectTypeList
-                    // (returns null для SkillObject — Skills register иначе).
-                    newHero.HeroDeveloper.SetInitialSkillLevel(DefaultSkills.OneHanded, 1);
+                    const int BASE_COMBAT_SKILL = 120;   // BLT-parity боевой флор
+                    var combatSkills = new[]
+                    {
+                        DefaultSkills.OneHanded, DefaultSkills.TwoHanded,
+                        DefaultSkills.Polearm,   DefaultSkills.Bow,
+                        DefaultSkills.Crossbow,  DefaultSkills.Throwing,
+                        DefaultSkills.Riding,    DefaultSkills.Athletics,
+                    };
+                    foreach (var sk in combatSkills)
+                        newHero.HeroDeveloper.SetInitialSkillLevel(sk, BASE_COMBAT_SKILL);
                 }
                 catch (Exception ex)
                 {

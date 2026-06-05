@@ -47,6 +47,14 @@ namespace BannerlordLink.Behaviors
         // Phase 3 заменит этот flag на persistent AgentPfx (BLT pattern).
         private const bool BUFF_TICK_PARTICLES_ENABLED = false;
 
+        // 2026-06-02 (BLT-parity POWER) — HP-множители в одном месте для тюнинга.
+        private const float BASE_HP_MULT = 2f;       // герой baseline (BLT StartHealthMultiplier=2)
+        public  const float RETINUE_HP_MULT = 2f;     // свита (BLT StartRetinueHealthMultiplier=2)
+        // Ставится SummonHeroHandler'ом ВОКРУГ retinue SpawnTroop; применяется
+        // в OnAgentBuild (санкционированный тайминг — не крашит, в отличие от
+        // старого inline post-spawn сеттера, dump 28004).
+        public static float PendingRetinueHpMult = 1f;
+
         public override void OnAgentBuild(Agent agent, Banner banner)
         {
             base.OnAgentBuild(agent, banner);
@@ -55,6 +63,21 @@ namespace BannerlordLink.Behaviors
             {
                 BannerlordLinkModule.Log($"[PowersMission] OnAgentBuild error: {ex.Message}");
             }
+            // retinue HP×2 (pending-флаг от SummonHeroHandler) — к человеку-агенту.
+            try { ApplyPendingRetinueHp(agent); }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[PowersMission] retinue HP warn: {ex.Message}");
+            }
+        }
+
+        private static void ApplyPendingRetinueHp(Agent agent)
+        {
+            float m = PendingRetinueHpMult;
+            if (m <= 1f || agent == null || !agent.IsHuman) return;
+            agent.BaseHealthLimit *= m;
+            agent.HealthLimit     *= m;
+            agent.Health          *= m;
         }
 
         public override void OnMissionTick(float dt)
@@ -254,6 +277,14 @@ namespace BannerlordLink.Behaviors
 
             string username = BannerlordLink.Util.HeroNaming.ExtractUsername(hero.Name?.ToString());
             if (string.IsNullOrEmpty(username)) return;
+
+            // 2026-06-02 (BLT-parity POWER) — безусловный baseline HP×2 для КАЖДОГО
+            // [BLink]-героя на спавне (BLT StartHealthMultiplier=2, unconditional).
+            // ДО class-check → даже classless adopted-герой получает живучесть.
+            // Класс-power hp_multiplier (ниже) стэкается сверху (как BLT AddHealthPower).
+            agent.BaseHealthLimit *= BASE_HP_MULT;
+            agent.HealthLimit     *= BASE_HP_MULT;
+            agent.Health          *= BASE_HP_MULT;
 
             var hc = PowerCache.GetHeroClass(username);
             if (hc == null) return;  // adopted hero без выбранного класса

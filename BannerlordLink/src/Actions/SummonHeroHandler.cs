@@ -585,19 +585,33 @@ namespace BannerlordLink.Actions
 
                         try
                         {
-                            var retinueAgent = Mission.Current.SpawnTroop(
-                                new PartyAgentOrigin(originParty, troop),
-                                isPlayerSide:        isPlayerSide,
-                                hasFormation:        true,
-                                spawnWithHorse:      troop.Equipment != null && troop.HasMount(),
-                                isReinforcement:     !spawnPos.HasValue,
-                                formationTroopCount: 1,
-                                formationTroopIndex: 0,
-                                isAlarmed:           true,
-                                wieldInitialWeapons: true,
-                                forceDismounted:     false,
-                                initialPosition:     spawnPos,
-                                initialDirection:    anchorDir);
+                            // 2026-06-02 (BLT-parity POWER) — retinue HP×2 через
+                            // OnAgentBuild: pending-флаг ВОКРУГ SpawnTroop, применит
+                            // PowersMissionBehavior в build-хуке (тайминг не крашит,
+                            // в отличие от старого inline post-spawn сеттера).
+                            BannerlordLink.Behaviors.PowersMissionBehavior.PendingRetinueHpMult =
+                                BannerlordLink.Behaviors.PowersMissionBehavior.RETINUE_HP_MULT;
+                            Agent retinueAgent;
+                            try
+                            {
+                                retinueAgent = Mission.Current.SpawnTroop(
+                                    new PartyAgentOrigin(originParty, troop),
+                                    isPlayerSide:        isPlayerSide,
+                                    hasFormation:        true,
+                                    spawnWithHorse:      troop.Equipment != null && troop.HasMount(),
+                                    isReinforcement:     !spawnPos.HasValue,
+                                    formationTroopCount: 1,
+                                    formationTroopIndex: 0,
+                                    isAlarmed:           true,
+                                    wieldInitialWeapons: true,
+                                    forceDismounted:     false,
+                                    initialPosition:     spawnPos,
+                                    initialDirection:    anchorDir);
+                            }
+                            finally
+                            {
+                                BannerlordLink.Behaviors.PowersMissionBehavior.PendingRetinueHpMult = 1f;
+                            }
                             if (retinueAgent != null)
                             {
                                 // 2026-05-29 (BLT RetinueDeathChance) — регистрируем
@@ -615,38 +629,13 @@ namespace BannerlordLink.Actions
                                 if (t != null && retinueAgent.Team != t)
                                     retinueAgent.SetTeam(t, false);
 
-                                // Sprint 5.32 ROLLBACK M13 — Crash dump 28004 (22:12):
-                                // native crash в Mission tick через 5-10s после
-                                // retinue HP×2 setter на 5 troops. Engine corrupts
-                                // internal state когда BaseHealthLimit мутируется
-                                // ПОСЛЕ Agent creation (Bannerlord 1.3.15).
-                                //
-                                // Disable ×2 multiplier. Retinue spawnится с default
-                                // engine HP — это restoration к pre-M13 behavior
-                                // (раньше работало стабильно). Если streamer хочет
-                                // более прочную свиту — buy elite troops через
-                                // hero.recruit_troops с is_elite=true (×3 cost).
-                                //
-                                // BLT pattern в Randomchair22-fork: BLTSummonBehavior
-                                // делает aналогичный setter, но возможно у них
-                                // другая Agent API surface (1.2.x), либо они setter
-                                // используют ВО ВРЕМЯ SpawnTroop call вместо
-                                // post-spawn mutation.
-                                // try
-                                // {
-                                //     float origLimit = retinueAgent.HealthLimit;
-                                //     if (origLimit > 0f)
-                                //     {
-                                //         retinueAgent.BaseHealthLimit = origLimit * 2f;
-                                //         retinueAgent.HealthLimit = origLimit * 2f;
-                                //         retinueAgent.Health = retinueAgent.HealthLimit;
-                                //     }
-                                // }
-                                // catch (Exception hpEx)
-                                // {
-                                //     BannerlordLinkModule.Log(
-                                //         $"[player.spawn:{sideLabel}] @{username} retinue HP×2 warn: {hpEx.Message}");
-                                // }
+                                // 2026-06-02 (BLT-parity POWER) — retinue HP×2 теперь
+                                // в PowersMissionBehavior.OnAgentBuild через pending-флаг
+                                // (выставлен вокруг SpawnTroop выше). Старый inline
+                                // post-spawn сеттер (M13, dump 28004) удалён: краш был
+                                // от ТАЙМИНГА мутации после build, не от сеттера —
+                                // BLT (BLTSummonBehavior:309) делает идентичный *= и
+                                // стабилен на 1.3.15; OnAgentBuild — санкционированный тайминг.
 
                                 try { retinueAgent.MountAgent?.FadeIn(); retinueAgent.FadeIn(); } catch { }
                                 // Sprint 5.6: register attribution для kill credit

@@ -66,12 +66,20 @@ namespace BannerlordLink.Behaviors
         private const float LEVEL_SCALING_CAP     = 5f;
         private const float MINIMUM_GOLD_PER_KILL = 0.5f;
 
-        // Kill streak milestones (BLT × 0.5): kills → +gold/+xp награда.
+        // Kill streak milestones: kills → +gold/+xp награда. 2026-06-06 — золото ×4
+        // (XP прежний) + добавлены вехи 20/25/30/40/50 по нарастающей. Начисляется
+        // КУМУЛЯТИВНО: проходя каждую веху (KillStreak == kills), зритель получает
+        // её бонус один раз → дойдя до 50, накапливает все пройденные.
         private static readonly (int kills, int gold, int xp)[] KILL_STREAKS =
         {
-            ( 5,  2500,  2500),
-            (10,  5000,  5000),
-            (15, 10000, 10000),
+            ( 5,  10000,  2500),
+            (10,  20000,  5000),
+            (15,  40000, 10000),
+            (20,  75000, 15000),
+            (25, 125000, 20000),
+            (30, 200000, 30000),
+            (40, 350000, 45000),
+            (50, 550000, 60000),
         };
 
         // Participation reward (BLT × 0.5, fires в OnEndMission).

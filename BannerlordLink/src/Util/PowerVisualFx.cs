@@ -50,10 +50,18 @@ namespace BannerlordLink.Util
         // «огонёк» оставался НА ЗЕМЛЕ весь бой и КОПИЛСЯ каждый каст → leak
         // GameEntity/ParticleSystem (проводка HeroPfxBehaviour+ActiveBuffState на
         // бумаге верна, но на практике не следует/не чистится) → подозрение на
-        // краши в БОЛЬШИХ боях (много кастов × N зрителей). Отключаем: остаётся
-        // entry-burst (one-shot CreateBurstParticle) + popup — feedback цел, leak
-        // уходит. Re-enable (BLT-корректно: bone attach + надёжный cleanup) — позже.
+        // краши в БОЛЬШИХ боях (много кастов × N зрителей). Отключаем — leak уходит.
+        // Re-enable (BLT-корректно: bone attach + надёжный cleanup) — позже.
         public static bool PersistentPfxEnabled = false;
+
+        // 2026-06-06 — entry/exit BURST ТОЖЕ оставлял «огонёк» НА ЗЕМЛЕ на месте
+        // активации весь бой и копился каждый каст. Причина: rage/heal/poison/
+        // berserker используют ДОЛГОИГРАЮЩИЙ psys_game_burning_agent как one-shot
+        // CreateBurstParticle (PlayParticle) → частица-пламя не самоуничтожается.
+        // Раньше думали entry-burst безопасен (коммент выше был неверен). Гасим
+        // burst тоже → остаётся popup (+sound при AudioEnabled). NB: shield_break
+        // (ActivatePowerHandler) и OneShotEffect — ДРУГИЕ короткие частицы, не тут.
+        public static bool BurstPfxEnabled = false;
 
         public class PowerFxConfig
         {
@@ -281,6 +289,7 @@ namespace BannerlordLink.Util
 
         private static void PlayParticle(string psysName, MatrixFrame frame)
         {
+            if (!BurstPfxEnabled) return;   // 2026-06-06 leak-fix: пламя на месте каста
             if (string.IsNullOrEmpty(psysName)) return;
             try
             {

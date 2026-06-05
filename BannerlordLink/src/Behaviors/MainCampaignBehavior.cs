@@ -39,6 +39,12 @@ namespace BannerlordLink.Behaviors
         // (не спамим прод каждые 30с на всех каналах).
         private System.Diagnostics.Stopwatch _propTimer;
         private int _lastPropHash;
+        // 2026-06-05 — per-username хэш последнего запушенного hero-state. Тот же
+        // ~30с tick (OnPropertiesTick) шлёт player.state_update только тем [BLink]-
+        // героям, у кого state изменился → gold/level/skills зеркалятся «за 30с»
+        // без действий зрителя и без спама прод.
+        private readonly System.Collections.Generic.Dictionary<string, int> _heroStateHashes
+            = new System.Collections.Generic.Dictionary<string, int>();
 
         public override void RegisterEvents()
         {
@@ -624,6 +630,13 @@ namespace BannerlordLink.Behaviors
             if (_propTimer == null) _propTimer = System.Diagnostics.Stopwatch.StartNew();
             if (_propTimer.Elapsed.TotalSeconds < 30.0) return;
             _propTimer.Restart();
+
+            // 1) Зеркало статов героев (gold/level/skills/clan) — hash-gated per
+            //    hero. ДО properties-блока: его early-return (hash unchanged) не
+            //    должен пропускать пуш hero-state.
+            PushHeroStatesIfChanged();
+
+            // 2) Зеркало владений (fiefs/workshops/caravans) — hash-gated.
             try
             {
                 string json = BuildPropertiesJson(Campaign.Current.UniqueGameId ?? "unknown");
@@ -637,6 +650,37 @@ namespace BannerlordLink.Behaviors
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log($"[CampaignEvent] OnPropertiesTick error: {ex.Message}");
+            }
+        }
+
+        /// <summary>2026-06-05 — периодическое зеркало статов героя. Закрывает
+        /// пробел: gold/level/skills обновлялись ТОЛЬКО событийно (action/levelup/
+        /// kill). Теперь раз в ~30с (тот же tick, что и владения) шлём
+        /// player.state_update каждому [BLink]-герою, чей state ИЗМЕНИЛСЯ
+        /// (hash-gate per username) — «герой меняется в игре → видно в зеркале за
+        /// 30с», без спама прод когда ничего не менялось.</summary>
+        private void PushHeroStatesIfChanged()
+        {
+            try
+            {
+                var heroes = Campaign.Current?.AliveHeroes;
+                if (heroes == null) return;
+                int pushed = 0;
+                foreach (var hero in heroes.ToList())
+                {
+                    if (hero?.Name == null) continue;
+                    if (!BannerlordLink.Util.HeroNaming.IsAdopted(hero.Name.ToString())) continue;
+                    if (BannerlordLink.Util.HeroStateSync.PushIfChanged(hero, _heroStateHashes))
+                        pushed++;
+                }
+                if (pushed > 0)
+                    BannerlordLinkModule.Log(
+                        $"[CampaignEvent] hero-stats mirror: pushed {pushed} changed hero(es)");
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[CampaignEvent] PushHeroStatesIfChanged error: {ex.Message}");
             }
         }
 
@@ -661,24 +705,39 @@ namespace BannerlordLink.Behaviors
                 // Filter ТОЛЬКО adopted heroes ([BLink] prefix). 2000 vanilla
                 // heroes → ~5-50 adopted. Backend ожидает lowercase logins
                 // (без [BLink] prefix) — HeroNaming.ExtractUsername делает это.
-                var usernames = Campaign.Current.AliveHeroes
-                    ?.Where(h => h?.Name != null
+                // 2026-06-05 (SELF-HEAL) — кроме usernames шлём rich `heroes`
+                // [{username, hero_id, display_name, culture}], чтобы backend мог
+                // ПЕРЕСОЗДАТЬ потерянные hero-строки (save-switch wipe/порча БД).
+                // Игра = источник правды. usernames оставлен для backward-compat.
+                var rich = (Campaign.Current.AliveHeroes ?? Enumerable.Empty<Hero>())
+                    .Where(h => h?.Name != null
                         && BannerlordLink.Util.HeroNaming.IsAdopted(h.Name.ToString()))
-                    .Select(h => BannerlordLink.Util.HeroNaming.ExtractUsername(h.Name.ToString()))
-                    .Where(n => !string.IsNullOrEmpty(n))
-                    .Distinct()
-                    .ToArray() ?? new string[0];
+                    .Select(h => new {
+                        u = BannerlordLink.Util.HeroNaming.ExtractUsername(h.Name.ToString()),
+                        hero = h,
+                    })
+                    .Where(x => !string.IsNullOrEmpty(x.u))
+                    .GroupBy(x => x.u).Select(g => g.First())
+                    .Select(x => new {
+                        username = x.u,
+                        hero_id = x.hero.StringId,
+                        display_name = x.u,
+                        culture = x.hero.Culture?.StringId,
+                    })
+                    .ToArray();
+                var usernames = rich.Select(x => x.username).ToArray();
 
                 string evtData = JsonConvert.SerializeObject(new
                 {
                     save_id = saveId,
                     usernames = usernames,
+                    heroes = rich,
                 });
                 Task.Run(async () => await BannerlordLinkModule.Backend
                     .PostEventAsync("bannerlord", "module.heroes_snapshot", evtData));
                 BannerlordLinkModule.Log(
-                    $"[CampaignEvent] heroes_snapshot pushed: {usernames.Length} adopted heroes " +
-                    $"(filter: [BLink] prefix only)");
+                    $"[CampaignEvent] heroes_snapshot pushed: {rich.Length} adopted heroes " +
+                    $"(rich self-heal, [BLink] prefix only)");
             }
             catch (Exception ex)
             {

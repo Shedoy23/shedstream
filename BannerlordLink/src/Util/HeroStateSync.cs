@@ -28,11 +28,68 @@ namespace BannerlordLink.Util
     {
         public static void Push(Hero hero)
         {
-            if (hero == null || hero.Name == null) return;
+            string username;
+            string json = BuildStateJson(hero, out username);
+            if (json == null) return;
+            PostStateUpdate(username, json);
             try
             {
-                string username = HeroNaming.ExtractUsername(hero.Name.ToString());
-                if (string.IsNullOrEmpty(username)) return;
+                BannerlordLinkModule.Log(
+                    $"[HeroStateSync] @{username} L{hero.Level} gold={hero.Gold} " +
+                    $"clan={hero.Clan?.Name?.ToString() ?? "—"} " +
+                    $"kingdom={hero.Clan?.Kingdom?.Name?.ToString() ?? "—"}");
+            }
+            catch { /* лог best-effort */ }
+        }
+
+        /// <summary>2026-06-05 — hash-gated вариант для периодического mirror-
+        /// tick'а (MainCampaignBehavior.OnPropertiesTick). Строит ТОТ ЖЕ payload,
+        /// но пушит ТОЛЬКО если сериализованный state изменился с прошлого раза
+        /// (hashCache keyed by username). Возвращает true если запушили.
+        /// Закрывает пробел: gold/level/skills зеркалятся без действий зрителя.</summary>
+        public static bool PushIfChanged(Hero hero, Dictionary<string, int> hashCache)
+        {
+            string username;
+            string json = BuildStateJson(hero, out username);
+            if (json == null) return false;
+            int hash = json.GetHashCode();
+            int prev;
+            if (hashCache != null && hashCache.TryGetValue(username, out prev) && prev == hash)
+                return false;                 // без изменений — не пушим
+            if (hashCache != null) hashCache[username] = hash;
+            PostStateUpdate(username, json);
+            return true;
+        }
+
+        /// <summary>Fire-and-forget POST player.state_update.</summary>
+        private static void PostStateUpdate(string username, string json)
+        {
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await BannerlordLinkModule.Backend
+                        .PostEventAsync("bannerlord", "player.state_update", json);
+                }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[HeroStateSync] push @{username} failed: {ex.Message}");
+                }
+            });
+        }
+
+        /// <summary>Строит JSON full-state payload для player.state_update.
+        /// Возвращает null (+ username=null) если hero невалиден / не [BLink].
+        /// Общий код для Push (событийный) и PushIfChanged (периодический).</summary>
+        private static string BuildStateJson(Hero hero, out string username)
+        {
+            username = null;
+            if (hero == null || hero.Name == null) return null;
+            try
+            {
+                username = HeroNaming.ExtractUsername(hero.Name.ToString());
+                if (string.IsNullOrEmpty(username)) return null;
 
                 // Clan / Kingdom могут быть null (wanderer без клана / клан вне
                 // королевства). Передаём явно null чтобы backend стёр поле
@@ -78,30 +135,13 @@ namespace BannerlordLink.Util
                     kingdom_info  = kingdomInfo,
                     family_info   = familyInfo,
                 };
-                string json = JsonConvert.SerializeObject(payload);
-
-                Task.Run(async () =>
-                {
-                    try
-                    {
-                        await BannerlordLinkModule.Backend
-                            .PostEventAsync("bannerlord", "player.state_update", json);
-                    }
-                    catch (Exception ex)
-                    {
-                        BannerlordLinkModule.Log(
-                            $"[HeroStateSync] push @{username} failed: {ex.Message}");
-                    }
-                });
-
-                BannerlordLinkModule.Log(
-                    $"[HeroStateSync] @{username} L{hero.Level} " +
-                    $"gold={hero.Gold} clan={clanName ?? "—"} kingdom={kingdomName ?? "—"}");
+                return JsonConvert.SerializeObject(payload);
             }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log(
-                    $"[HeroStateSync] CRASHED: {ex.GetType().Name}: {ex.Message}");
+                    $"[HeroStateSync] BuildStateJson CRASHED: {ex.GetType().Name}: {ex.Message}");
+                return null;
             }
         }
 

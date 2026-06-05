@@ -757,15 +757,29 @@ class BannerlordAdapter(ModuleAdapter):
                     # single source of truth, списки больше не дрейфуют.
                     # Платформенные крустики (отдельная таблица) и system-каталоги
                     # (PRESERVED_TABLES) НЕ трогаются.
+                    # 2026-06-05 (HERO-LOSS fix) — НЕ wipe'аем таблицы, которыми
+                    # владеют snapshot-реконсайлеры: heroes_snapshot (hero-таблицы)
+                    # и properties_snapshot (fief/workshop/caravan). Раньше blanket-
+                    # wipe стирал ЖИВЫХ в игре героев на save-switch → extension
+                    # показывал «Стать героем». Игра — источник правды: snapshot'ы
+                    # сами удаляют то, чего нет в новом сейве, и (с ре-линком мода)
+                    # пересоздают присутствующих. Чистим только НЕ-реконсайлимые
+                    # per-save stale-таблицы (retinue/auctions/heirs/party_orders/…).
+                    SNAPSHOT_OWNED = {
+                        "bannerlord_heroes", "bannerlord_skills",
+                        "bannerlord_attributes", "bannerlord_equipment",
+                        "bannerlord_hero_class",
+                        "bannerlord_fiefs", "bannerlord_workshops",
+                        "bannerlord_caravans",
+                    }
                     from routes.bannerlord_admin import RESETTABLE_TABLES
                     for table in RESETTABLE_TABLES:
                         if table == "bannerlord_channel_state":
                             continue  # управляется ниже через UPSERT
-                        # 2026-06-05 (AUTOTEST fix) — guard: таблица без колонки
-                        # channel_id роняла ВЕСЬ session_start (sqlite3
-                        # OperationalError: no such column: channel_id) → save-switch
-                        # wipe не отрабатывал. Per-table try: битая таблица не ломает
-                        # остальной reset; логируем виновника для точечного фикса.
+                        if table in SNAPSHOT_OWNED:
+                            continue  # реконсайлится snapshot'ом — НЕ wipe'аем
+                        # guard: таблица без колонки channel_id не роняет весь
+                        # reset (sqlite3 OperationalError); логируем виновника.
                         try:
                             await conn.execute(
                                 f"DELETE FROM {table} WHERE channel_id=?", (channel_id,))
@@ -785,7 +799,7 @@ class BannerlordAdapter(ModuleAdapter):
                 await conn.commit()
 
         print(f"[bannerlord:{channel_id}] session_start save_id={save_id} "
-              f"(cleared {cleared} catalogs, hero_reset={reset})")
+              f"(cleared {cleared} catalogs, stale_wipe={reset}, heroes/props PRESERVED)")
 
     async def _on_catalog_update(self, channel_id: int, env: ModuleEnvelope) -> None:
         """Generic catalog write. Catalog types declared в manifest.yaml."""
@@ -1275,21 +1289,57 @@ class BannerlordAdapter(ModuleAdapter):
         Per-hero existence check вместо save_id matching.
         """
         data = env.data
-        usernames = data.get("usernames") or []
-        if not isinstance(usernames, list):
-            return
-        # Lowercase + dedupe для safety (mod уже делает, но defensive)
-        snapshot = {str(u).lower() for u in usernames if u}
+        # 2026-06-05 (SELF-HEAL) — игра = источник правды по героям. Новый мод
+        # шлёт rich `heroes` [{username, hero_id, display_name, culture}] →
+        # backend UPSERT'ит присутствующих (ПЕРЕСОЗДаёт hero-строки, потерянные
+        # из-за save-switch wipe / порчи БД) + удаляет отсутствующих. Старый DLL
+        # шлёт только `usernames` → fallback delete-only (backward-compat).
+        rich: dict = {}
+        heroes_payload = data.get("heroes")
+        if isinstance(heroes_payload, list):
+            for h in heroes_payload:
+                if not isinstance(h, dict):
+                    continue
+                u = str(h.get("username") or "").lower()
+                if u:
+                    rich[u] = h
+        if rich:
+            snapshot = set(rich.keys())
+        else:
+            usernames = data.get("usernames") or []
+            if not isinstance(usernames, list):
+                return
+            snapshot = {str(u).lower() for u in usernames if u}
 
         from dependencies import get_db
+        upserted = 0
         async with get_db()._connect() as conn:
+            # 1. UPSERT присутствующих — пересоздаёт пропавшие hero-строки.
+            #    is_alive=1 на create; на conflict трогаем ТОЛЬКО identity-поля
+            #    (gold/level/clan/is_wounded оставляем _on_player_state_update).
+            for u, h in rich.items():
+                hero_id = h.get("hero_id") or ""
+                if not hero_id:
+                    continue
+                await conn.execute("""
+                    INSERT INTO bannerlord_heroes
+                        (channel_id, username, hero_id, display_name, culture, is_alive)
+                    VALUES (?, ?, ?, ?, ?, 1)
+                    ON CONFLICT(channel_id, username) DO UPDATE SET
+                        hero_id      = excluded.hero_id,
+                        display_name = excluded.display_name,
+                        culture      = COALESCE(excluded.culture, culture)
+                """, (channel_id, u, hero_id,
+                      h.get("display_name") or u, h.get("culture")))
+                upserted += 1
+
+            # 2. DELETE отсутствующих (есть в БД, но не в snapshot текущего сейва).
             cur = await conn.execute(
                 "SELECT username FROM bannerlord_heroes WHERE channel_id=?",
                 (channel_id,))
             existing = [row[0] for row in await cur.fetchall()]
             missing = [u for u in existing if u not in snapshot]
             if missing:
-                # DELETE rows для missing usernames в каждой related table.
                 placeholders = ",".join("?" * len(missing))
                 for table in ("bannerlord_heroes", "bannerlord_skills",
                               "bannerlord_attributes", "bannerlord_equipment",
@@ -1297,21 +1347,17 @@ class BannerlordAdapter(ModuleAdapter):
                     await conn.execute(
                         f"DELETE FROM {table} WHERE channel_id=? AND username IN ({placeholders})",
                         [channel_id] + missing)
-                # 2026-06-01 — герой пропал из save → его passive-income game-state
-                # тоже больше не существует. Чистим (column owner_username).
-                # Раньше копилось stale → «Мои владения»/мастерские/караваны
-                # показывали старые данные даже на новом сейве, где ничего нет.
+                # герой пропал из save → его passive-income game-state тоже больше
+                # не существует (column owner_username): fief/workshop/caravan.
                 for table in ("bannerlord_fiefs", "bannerlord_workshops",
                               "bannerlord_caravans"):
                     await conn.execute(
                         f"DELETE FROM {table} WHERE channel_id=? AND owner_username IN ({placeholders})",
                         [channel_id] + missing)
-                await conn.commit()
-            else:
-                await conn.commit()
+            await conn.commit()
 
         print(f"[bannerlord:{channel_id}] heroes_snapshot: "
-              f"{len(snapshot)} alive in save, {len(existing)} in DB, "
+              f"{len(snapshot)} alive in save, upserted {upserted}, "
               f"removed {len(missing)} stale ({missing[:3]}...)")
 
     async def _on_properties_snapshot(self, channel_id: int, env: ModuleEnvelope) -> None:

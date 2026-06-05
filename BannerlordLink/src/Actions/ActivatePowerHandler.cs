@@ -8,6 +8,7 @@ using TaleWorlds.Core;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
+using SandBox.Tournaments.MissionLogics;
 
 namespace BannerlordLink.Actions
 {
@@ -52,6 +53,30 @@ namespace BannerlordLink.Actions
             return Task.FromResult<(bool, string)>((true, null));
         }
 
+        /// <summary>2026-06-05 — тренировочная арена (town) в ЖИВОМ бою.
+        /// CampaignMission.Current null в pure custom-battle → try/catch → false.</summary>
+        private static bool IsArenaFight()
+        {
+            try
+            {
+                return CampaignMission.Current?.Location?.StringId == "arena"
+                    && Mission.Current?.Mode == MissionMode.Battle;
+            }
+            catch { return false; }
+        }
+
+        /// <summary>2026-06-05 — турнирный бой (живой). TournamentFightMissionController
+        /// драйвит матч; Mode==Battle = идёт сам бой, а не меню/загрузка/зона.</summary>
+        private static bool IsTournamentFight()
+        {
+            try
+            {
+                return Mission.Current?.GetMissionBehavior<TournamentFightMissionController>() != null
+                    && Mission.Current?.Mode == MissionMode.Battle;
+            }
+            catch { return false; }
+        }
+
         private static void Activate(
             string username, string powerKey,
             float? durationOverride, double? valueOverride, string actionId)
@@ -63,6 +88,17 @@ namespace BannerlordLink.Actions
                     BannerlordLinkModule.Log(
                         $"[power.activate] REFUSE @{username}: no active Mission");
                     BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "no_active_mission");
+                    return;
+                }
+
+                // 2026-06-05 — активки ЗАПРЕЩЕНЫ в живом бою арены/турнира: это
+                // честный бой, способности зрителя его ломают. Mode==Battle
+                // отличает сам бой от меню/зоны посещения арены.
+                if (IsArenaFight() || IsTournamentFight())
+                {
+                    BannerlordLinkModule.Log(
+                        $"[power.activate] REFUSE @{username}: powers disabled in arena/tournament");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "arena_or_tournament");
                     return;
                 }
 

@@ -547,7 +547,21 @@ namespace BannerlordLink.Actions
                         $"[player.spawn:{sideLabel}] @{username} hideout detected — " +
                         $"skip retinue ({retinueIds.Count} troops) для 8-limit");
                 }
-                if (retinueIds != null && retinueIds.Count > 0 && agent != null && !inHideout && retinueAllowed)
+
+                // 2026-06-05 (BLT-parity) — свита спавнится ОДИН раз за бой.
+                // Первый summon → герой+свита; повторные в ЭТОМ же бою → только
+                // герой (BLTSummonBehavior: TimesSummoned==0 gate, упрощённо HashSet).
+                bool retinueAlreadySpawned = false;
+                try { retinueAlreadySpawned = BannerlordLink.Behaviors.RetinueSpawnTracker.Instance?.AlreadySpawned(username) ?? false; }
+                catch { }
+                if (retinueAlreadySpawned && retinueIds != null && retinueIds.Count > 0)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[player.spawn:{sideLabel}] @{username} retinue SKIP — " +
+                        $"already spawned this battle (re-summon = hero only)");
+                }
+
+                if (retinueIds != null && retinueIds.Count > 0 && agent != null && !inHideout && retinueAllowed && !retinueAlreadySpawned)
                 {
                     Vec3? anchorPos = null;
                     Vec2? anchorDir = null;
@@ -662,6 +676,13 @@ namespace BannerlordLink.Actions
                     }
                     BannerlordLinkModule.Log(
                         $"[player.spawn:{sideLabel}] @{username} retinue: {spawned}/{retinueIds.Count} spawned");
+                    // 2026-06-05 — отметить ТОЛЬКО при реальном спавне (spawned>0):
+                    // полный провал не блокирует повтор свиты в следующий summon.
+                    if (spawned > 0)
+                    {
+                        try { BannerlordLink.Behaviors.RetinueSpawnTracker.Instance?.MarkSpawned(username); }
+                        catch { }
+                    }
                 }
             }
             catch (Exception ex)
@@ -758,6 +779,26 @@ namespace BannerlordLink.Actions
             {
                 BannerlordLinkModule.Log(
                     $"[player.spawn] tournament-detect warn: {ex.Message}");
+            }
+
+            // 2026-06-06 CRASH FIX — арена-практика (town training arena) ТОЖЕ без
+            // reinforcement zone, но НЕ ловится tournament-гардом выше (другой
+            // контроллер ArenaPracticeFightMissionController, имя без "Tournament").
+            // Призыв туда → engine SpawnTroop кидает "Nullable object must have a
+            // value" → КРАШ игры (managed-catch НЕ спасает: native agent уже частично
+            // создан в SpawnPathFinder до throw). Детект как в retinue-блоке:
+            // CampaignMission Location.StringId == "arena". (Лог: @antitail 20:13:37.)
+            try
+            {
+                if (CampaignMission.Current?.Location?.StringId == "arena")
+                {
+                    reason = "arena practice (нет reinforcement zone → spawn crash)";
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[player.spawn] arena-detect warn: {ex.Message}");
             }
 
             reason = null;

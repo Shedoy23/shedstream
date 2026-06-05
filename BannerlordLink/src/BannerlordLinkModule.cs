@@ -477,6 +477,9 @@ namespace BannerlordLink
                 // commands. MissionBehavior — short-lived (per-mission), Instance
                 // resetся через OnEndMission. Action handlers зовут Instance.X.
                 mission.AddMissionBehavior(new HeroDetachmentBehavior());
+                // 2026-06-05 (BLT-parity) — свита зрителя спавнится ОДИН раз за
+                // бой; повторный summon того же зрителя в этом бою = только герой.
+                mission.AddMissionBehavior(new BannerlordLink.Behaviors.RetinueSpawnTracker());
 
                 // 2026-05-29 Stage 1 (BLT-RC22 pattern) — persistent particle
                 // lifecycle coordinator. Tracks все AgentPfx instances созданные
@@ -493,7 +496,7 @@ namespace BannerlordLink
                 // Killed → Unconscious. Сохраняет saddle/harness equipment.
                 mission.AddMissionBehavior(new BannerlordLink.Behaviors.AdoptedMountTrackerBehavior());
 
-                Log("MissionBehaviors registered: Powers + KillReward + Detachment + HeroPfx + MountTracker");
+                Log("MissionBehaviors registered: Powers + KillReward + Detachment + RetinueOnce + HeroPfx + MountTracker");
             }
             catch (Exception ex)
             {

@@ -28,9 +28,13 @@ async def use_promo(request: Request):
     if not username or not code:
         return {"success": False, "message": "Неверные параметры"}
 
-    await get_bot().touch_viewer(username)
-
+    # 2026-06-06 FIX — резолвим channel_id ДО touch_viewer и передаём явно.
+    # Промо-роут не проходит require_jwt_* → channel ContextVar не выставлен;
+    # touch_viewer(username) делал strict resolve_channel_id(None) → RuntimeError
+    # (вне try ниже → uncaught → 500) → зритель видел ошибку при вводе промокода.
     channel_id = resolve_channel_id_or_default()
+    await get_bot().touch_viewer(username, channel_id)
+
     db = get_db()
     async with db._connect() as conn:
         try:
@@ -66,12 +70,16 @@ async def use_promo(request: Request):
             await conn.execute("ROLLBACK")
             return {"success": False, "message": "Ошибка активации, попробуй ещё раз"}
 
+    # 2026-06-06 FIX — channel_id явно (как в touch_viewer): эти вызовы ВНЕ try,
+    # а add_points/give_item делают strict resolve_channel_id → без channel_id
+    # роняли 500 ПОСЛЕ коммита use → "ошибка", а use уже записан → повтор "уже
+    # использован". (+ give_item: 3-й позиционный арг = quantity, передавали имя.)
     reward_parts = []
     if points > 0:
-        await db.add_points(username, points)
+        await db.add_points(username, points, channel_id=channel_id)
         reward_parts.append(f"{points}💎")
     if item_def:
-        await db.give_item(username, item_def, item_name or item_def)
+        await db.give_item(username, item_def, 1, channel_id=channel_id)
         reward_parts.append(f"предмет «{item_name or item_def}»")
 
     reward_str = " и ".join(reward_parts) if reward_parts else "бонус"

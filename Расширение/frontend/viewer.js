@@ -3698,13 +3698,14 @@ function _computeRetinueDinarCost(slots, isElite, isAdd) {
     return isElite ? base * RETINUE_ELITE_MULT : base;
 }
 // 2026-05-29 (BLT TrainingBehavior) — оценка стоимости bulk-тренировки: сумма
-// цены апгрейда каждого слота (tier<5; tier 5 = вероятно maxed, пропускаем).
-// Мод делает реальную проверку UpgradeTargets/affordability.
+// цены апгрейда каждого НЕ-maxed слота. Потолок ветки зависит от типа: basic-линии
+// топятся на движковом Tier 5, elite/ноблы — на Tier 6 (напр. Battania: фиан T5 ещё
+// апается в чемпиона T6). Мод делает реальную проверку UpgradeTargets/affordability.
 function _computeTrainCost(slots) {
     let total = 0;
     for (const s of (slots || [])) {
         const tier = s.tier || 0;
-        if (tier >= 5) continue;   // T6 — вероятно maxed
+        if (tier >= (s.is_elite ? 6 : 5)) continue;   // вершина ветки — пропускаем
         const base = RETINUE_TIER_DINARS[Math.min(tier, RETINUE_TIER_DINARS.length - 1)];
         total += s.is_elite ? base * RETINUE_ELITE_MULT : base;
     }
@@ -3730,7 +3731,7 @@ function _renderRetinue(retinue) {
             return `
                 <div style="display:flex;justify-content:space-between;font-size:11px;padding:1px 0;">
                     <span>${eliteBadge}${escapeHtml(t.troop_name || t.troop_id)}</span>
-                    <span style="color:#fbbf24;">T${(t.tier || 0) + 1}★</span>
+                    <span style="color:#fbbf24;">T${(t.tier || 0)}★</span>
                 </div>`;
         }).join('');
 
@@ -3738,8 +3739,12 @@ function _renderRetinue(retinue) {
     // separate maxed checks для basic / elite
     const basicSlots = list.filter(t => !t.is_elite);
     const eliteSlots = list.filter(t => t.is_elite);
+    // maxed = слот на вершине своей ветки. Basic-линии топятся на движковом Tier 5,
+    // elite/ноблы — на Tier 6 (Battania: фиан T5 ещё апается в чемпиона T6). Раньше
+    // обе ветки шли с >=5 → фиан ложно считался maxed, кнопка апа гасла → игровой
+    // ТИР 6 был недостижим (репорт 2026-06-06).
     const basicAllMax = basicSlots.length > 0 && basicSlots.every(t => (t.tier || 0) >= 5);
-    const eliteAllMax = eliteSlots.length > 0 && eliteSlots.every(t => (t.tier || 0) >= 5);
+    const eliteAllMax = eliteSlots.length > 0 && eliteSlots.every(t => (t.tier || 0) >= 6);
 
     // Dinar costs (mod-side RecruitTroopsHandler логика).
     const basicCost = _computeRetinueDinarCost(list, false, !isMaxed);

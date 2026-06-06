@@ -260,7 +260,14 @@ AUTO_MESSAGES = [
     '📜 Ежедневные квесты обновляются в 00:00 МСК!',
     '🎁 Кейсы падают каждые 20 минут с шансом 25%!',
     '💬 Пиши в чат и получай бонусные очки!',
-    '⏰ Активные зрители получают больше очков!'
+    '⏰ Активные зрители получают больше очков!',
+    # 2026-06-06 — поддержка + соцсети ФИОЛЕТОВЫМ announce. Префикс
+    # "/announcepurple " auto_message_loop роутит в Helix POST /chat/announcements
+    # (IRC /announce у Twitch deprecated — молча дропается). Бот shedoyrobot —
+    # модер канала + токен имеет scope moderator:manage:announcements (проверено).
+    # Чат однострочный → ссылки в одну строку.
+    '/announcepurple Поддержи стримера, будет крайне благодарен тебе 💜 https://www.donationalerts.com/r/shedoy23 https://boosty.to/shedoy23',
+    '/announcepurple Наш канал в ТГ и чат, ждём тебя 💜 t.me/ttvshedoy23 https://t.me/+x6Di_VyeFMxhZWE6',
 ]
 
 # ===== НАСТРОЙКИ ИВЕНТА =====

@@ -1267,6 +1267,63 @@ class BotCore:
         pass
 
     # ===== ОСТАНОВ =====
+    async def _get_bot_client_id(self) -> str:
+        """Bot-токен может быть выпущен под сторонним client_id (напр.
+        twitchtokengenerator) ≠ TWITCH_CLIENT_ID. Helix требует, чтобы Client-Id
+        совпадал с токеном — берём «родной» client_id через /validate и кэшируем."""
+        cached = getattr(self, "_bot_client_id", None)
+        if cached:
+            return cached
+        token = os.getenv("TWITCH_OAUTH_TOKEN", "")
+        if token.startswith("oauth:"):
+            token = token[6:]
+        if not token:
+            return ""
+        try:
+            async with aiohttp.ClientSession() as s:
+                async with s.get("https://id.twitch.tv/oauth2/validate",
+                                 headers={"Authorization": "OAuth " + token}) as r:
+                    d = await r.json()
+                    self._bot_client_id = d.get("client_id", "") or ""
+        except Exception as e:
+            logger.warning("[announce] validate (client_id) failed: %s", e)
+            self._bot_client_id = ""
+        return getattr(self, "_bot_client_id", "") or ""
+
+    async def send_announcement(self, channel_id: int, message: str,
+                                color: str = "purple") -> bool:
+        """Отправить announce (по умолчанию фиолетовый) через Helix
+        POST /chat/announcements. Бот должен быть МОДЕРОМ канала + токен иметь
+        scope moderator:manage:announcements (проверено для shedoyrobot). IRC-
+        команда /announce у Twitch deprecated (дропается) — поэтому только так.
+        Fire-and-forget; ошибки логируются."""
+        token = os.getenv("TWITCH_OAUTH_TOKEN", "")
+        if token.startswith("oauth:"):
+            token = token[6:]
+        bot_id = os.getenv("TWITCH_BOT_ID", "")
+        client_id = await self._get_bot_client_id()
+        if not (token and bot_id and client_id):
+            logger.warning("[announce] ch=%s skip — нет token/bot_id/client_id", channel_id)
+            return False
+        url = ("https://api.twitch.tv/helix/chat/announcements"
+               f"?broadcaster_id={channel_id}&moderator_id={bot_id}")
+        try:
+            async with aiohttp.ClientSession() as s:
+                async with s.post(url, headers={
+                    "Authorization": "Bearer " + token,
+                    "Client-Id": client_id,
+                    "Content-Type": "application/json",
+                }, json={"message": str(message)[:500], "color": color}) as r:
+                    if r.status in (200, 204):
+                        return True
+                    body = await r.text()
+                    logger.warning("[announce] ch=%s failed %s: %s",
+                                   channel_id, r.status, body[:200])
+                    return False
+        except Exception as e:
+            logger.warning("[announce] ch=%s error: %s", channel_id, e)
+            return False
+
     async def auto_message_loop(self):
         """Цикл автосообщений (multi-tenant): на каждом тике обходим каналы
         и шлём auto-message в те, что в эфире.
@@ -1300,7 +1357,15 @@ class BotCore:
                         continue
                     idx = index_per_channel.get(cid, 0)
                     msg = AUTO_MESSAGES[idx % len(AUTO_MESSAGES)]
-                    await self.send_message(msg, channel_id=cid)
+                    # 2026-06-06 — /announcepurple ... → Helix announce (фиолетовый).
+                    # IRC /announce у Twitch deprecated (молча дропается), поэтому
+                    # шлём через POST /chat/announcements. Обычные сообщения — как раньше.
+                    if msg.startswith("/announcepurple "):
+                        await self.send_announcement(cid, msg[len("/announcepurple "):], color="purple")
+                    elif msg.startswith("/announce "):
+                        await self.send_announcement(cid, msg[len("/announce "):], color="primary")
+                    else:
+                        await self.send_message(msg, channel_id=cid)
                     index_per_channel[cid] = idx + 1
                 except Exception as e:
                     print(f"⚠️ auto_message_loop [ch={cid}]: {e}")

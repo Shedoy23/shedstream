@@ -176,7 +176,19 @@ AFK_PENALTY_TIMEOUT = REDUCED_WINDOW
 
 # Минимальный heartbeat (секунд watch_time) чтобы засчитать сигнал активности.
 # Отсекает пустые/нулевые пинги и осложняет накрутку через сырые POST-ы.
-MIN_HEARTBEAT_SECONDS = 30
+# 2026-06-06 — 30→10: на мобайле Twitch душит heartbeat-таймер расширения,
+# короткие видимые окна (<30с) терялись. 10с всё ещё отсекает пустышки.
+MIN_HEARTBEAT_SECONDS = 10
+
+# 2026-06-06 — PRESENCE-WATCHTIME (фикс мобайл-перекоса уровня/очков). Когда True:
+# reward_points_loop помечает present-зрителей по списку чата Twitch
+# (channel.chatters от twitchio membership) → last_seen + watch_time начисляются
+# СЕРВЕРНО, независимо от клиентского heartbeat (десктоп и мобайл равны). При
+# этом heartbeat перестаёт давать watch_time (анти-дабл уровня на десктопе).
+# Кредитуем ТОЛЬКО существующих юзеров расширения (UPDATE по viewers — без
+# раздувания БД лёркерами). OFF по умолчанию — включай и смотри в логах
+# "presence-watchtime: credited N". Откат мгновенный — флаг обратно в False.
+PRESENCE_WATCHTIME_ENABLED = False
 
 # ===== Chat-bonus антифрод (M7) =====
 # IRC bot ловит каждое сообщение в чате и может выдать бонус (1-10 поинтов)

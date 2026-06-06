@@ -585,6 +585,10 @@ class BotCore:
                             "[ch=%s/%s] Автостарт/возобновление: %s (prev=%s, was_live=%s)",
                             channel_id, login or "?", today_id, prev_sid or "none", prev_live)
                     was_live[channel_id] = True
+                    # 2026-06-06 PRESENCE-WATCHTIME (за флагом) — пометить
+                    # present-зрителей по списку чата Twitch ДО начисления, чтобы
+                    # серверный _reward_points выдал им очки + watch_time (мобайл).
+                    await self._refresh_presence_from_chat(channel_id, login)
                     await self._reward_points(channel_id)
                 else:
                     # Переход live→offline: закрываем сессию.
@@ -701,6 +705,64 @@ class BotCore:
             self._stream_live_cache[cid] = (True, now)   # при ошибке не блокируем
             return True
     
+    async def _refresh_presence_from_chat(self, channel_id: int, login: str):
+        """2026-06-06 PRESENCE-WATCHTIME (за флагом PRESENCE_WATCHTIME_ENABLED).
+
+        Лечит мобайл-перекос: на мобайле Twitch душит heartbeat расширения, и
+        зрители-лёркеры выпадали из last_seen → теряли очки/уровень. Здесь по
+        списку реально присутствующих в чате (channel.chatters от twitchio
+        membership) обновляем last_seen (→ _reward_points даёт очки) + кредитуем
+        watch_time (→ уровень). Кредитуем ТОЛЬКО существующих юзеров расширения
+        (UPDATE по viewers — 0 строк если записи нет). Полностью изолировано:
+        любая ошибка логируется и НЕ роняет reward_points_loop.
+        """
+        try:
+            from config import PRESENCE_WATCHTIME_ENABLED
+        except Exception:
+            return
+        if not PRESENCE_WATCHTIME_ENABLED:
+            return
+        tb = getattr(self, "twitch_bot", None)
+        if tb is None or not login:
+            return
+        try:
+            ch = tb.get_channel(login)
+            if ch is None:
+                return
+            raw = getattr(ch, "chatters", None) or []
+            bot_nick = (getattr(tb, "nick", "") or "").lower()
+            names = set()
+            for c in raw:
+                n = getattr(c, "name", None)
+                if n is None and isinstance(c, str):
+                    n = c
+                if not n:
+                    continue
+                n = str(n).lower().strip()
+                if n and n != bot_nick:
+                    names.add(n)
+            if not names:
+                return
+            credited = 0
+            async with self.db._connect() as conn:
+                for n in names:
+                    cur = await conn.execute(
+                        "UPDATE viewers SET last_seen=datetime('now'), is_afk=0 "
+                        "WHERE channel_id=? AND username=?",
+                        (channel_id, n))
+                    if getattr(cur, "rowcount", 0) and cur.rowcount > 0:
+                        await conn.execute(
+                            "INSERT INTO activity_stats (channel_id, username, watch_time) "
+                            "VALUES (?, ?, ?)",
+                            (channel_id, n, CHECK_INTERVAL))
+                        credited += 1
+                await conn.commit()
+            if credited:
+                logger.info("[ch=%s] presence-watchtime: credited %d/%d chatters",
+                            channel_id, credited, len(names))
+        except Exception as e:
+            logger.warning("[ch=%s] presence-watchtime refresh failed: %s", channel_id, e)
+
     async def _reward_points(self, channel_id: Optional[int] = None):
         """Начислить очки зрителям по статусу активности (per-channel).
 

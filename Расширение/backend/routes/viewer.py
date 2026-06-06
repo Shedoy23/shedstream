@@ -12,6 +12,7 @@ from config import (
     ACTIVITY_CONFIG,
     MIN_HEARTBEAT_SECONDS,
     POINTS_PER_MINUTE,
+    PRESENCE_WATCHTIME_ENABLED,
     QUESTS_CONFIG,
     WATCH_TIME_CAP,
     sanitize_username,
@@ -191,7 +192,11 @@ async def track_activity(body: ActivityRequest, request: Request):
             stream_live = await bot._is_stream_live(channel_id=channel_id)
         except Exception:
             pass
-        if stream_live:
+        # 2026-06-06 — при PRESENCE_WATCHTIME_ENABLED watch_time начисляет
+        # серверный reward_points_loop (по списку чата Twitch), а heartbeat его
+        # НЕ даёт (иначе десктоп считался бы дважды). last_seen выше обновляется
+        # всегда — клиентский сигнал остаётся валиден для очков.
+        if stream_live and not PRESENCE_WATCHTIME_ENABLED:
             await conn.execute("""
                 INSERT INTO activity_stats (channel_id, username, watch_time)
                 VALUES (?, ?, ?)

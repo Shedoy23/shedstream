@@ -264,32 +264,6 @@ async def admin_adjust_points(request: Request, _admin: str = Depends(require_ad
     return {"success": True, "message": msg}
 
 
-@router.post("/api/admin/transfer")
-async def admin_transfer_points(request: Request, _admin: str = Depends(require_admin)):
-    """Перевод очков между пользователями"""
-    data      = await request.json()
-    from_user = data.get("from_user")
-    to_user   = data.get("to_user")
-    amount    = int(data.get("amount", 0))
-    if amount <= 0:
-        return {"success": False, "message": "Сумма должна быть больше 0"}
-
-    db          = get_db()
-    from_points = await db.get_points(from_user)
-    if from_points is None:
-        return {"success": False, "message": f"{from_user} не найден"}
-    to_points = await db.get_points(to_user)
-    if to_points is None:
-        return {"success": False, "message": f"{to_user} не найден"}
-    if from_points < amount:
-        return {"success": False, "message": f"У {from_user} только {from_points}💎"}
-
-    if not await db.remove_points(from_user, amount):
-        return {"success": False, "message": f"У {from_user} недостаточно очков"}
-    await db.add_points(to_user, amount)
-    return {"success": True, "message": f"💸 {from_user} → {to_user}: {amount}💎"}
-
-
 @router.get("/api/admin/items")
 async def admin_get_items(_admin: str = Depends(require_admin)):
     """Список всех предметов"""

@@ -463,6 +463,9 @@
             <div class="nav-item" onclick="showPage('rimworld')">
                 <span class="icon">🌍</span> RimWorld
             </div>
+            <div class="nav-item" onclick="showPage('bannerlord')">
+                <span class="icon">⚔️</span> Bannerlord
+            </div>
         </nav>
 
         <div class="sidebar-footer">
@@ -604,52 +607,9 @@
                     </div>
                 </div>
 
-                <!-- Перевод  -->
-                <div class="card">
-                    <div class="card-header">💸 Перевод очков (!донат)</div>
-                    <div class="card-body">
-                        <div class="form-group" style="margin-bottom:12px;">
-                            <div class="form-label">От кого</div>
-                            <input type="text" class="input" id="transfer-from" placeholder="username">
-                        </div>
-                        <div class="form-group" style="margin-bottom:12px;">
-                            <div class="form-label">Кому</div>
-                            <input type="text" class="input" id="transfer-to" placeholder="username">
-                        </div>
-                        <div class="form-group" style="margin-bottom:12px;">
-                            <div class="form-label">Количество</div>
-                            <input type="number" class="input" id="transfer-amount" placeholder="100" min="1">
-                        </div>
-                        <button class="btn btn-primary" onclick="transferPoints()">💸 Перевести</button>
-                    </div>
-                </div>
-
             </div>
         </div>
 
-
-                <!-- Вкладка POINTS - добавить после блока с переводом -->
-        <div class="card" style="margin-top:20px;">
-            <div class="card-header">💰 Донат (1₽ = 50💎 + предмет за 50+₽)</div>
-            <div class="card-body">
-                <div class="form-row cols-2">
-                    <div class="form-group">
-                        <div class="form-label">Ник зрителя</div>
-                        <input type="text" class="input" id="donate-username" placeholder="username">
-                    </div>
-                    <div class="form-group">
-                        <div class="form-label">Сумма в рублях</div>
-                        <input type="number" class="input" id="donate-amount" placeholder="100" min="1" step="any">
-                    </div>
-                </div>
-                <div style="display:flex; gap:8px; margin-top:8px;">
-                    <button class="btn btn-success" onclick="processDonation()">💸 Зачислить донат</button>
-                    <span style="color:var(--muted); font-size:12px; align-self:center;">
-                        Предмет выпадает при ≥50₽: 🪵(70%) 🪨(20%) 🔮(8%) 👑(2%)
-                    </span>
-                </div>
-            </div>
-        </div>  
 
         <!-- ITEMS -->
         <div id="page-items" class="page">
@@ -797,7 +757,7 @@
                 <div class="page-title">RimWorld <span>//</span></div>
             </div>
 
-            <div class="stats-row" style="grid-template-columns:repeat(3,1fr);">
+            <div class="stats-row" style="grid-template-columns:repeat(2,1fr);">
                 <div class="stat-card green">
                     <div class="stat-label">Статус сервера</div>
                     <div class="stat-value" id="rw-status" style="font-size:18px;">—</div>
@@ -805,10 +765,6 @@
                 <div class="stat-card purple">
                     <div class="stat-label">Активных пешек</div>
                     <div class="stat-value" id="rw-pawns">—</div>
-                </div>
-                <div class="stat-card yellow">
-                    <div class="stat-label">Команд в очереди</div>
-                    <div class="stat-value" id="rw-cmds">—</div>
                 </div>
             </div>
 
@@ -838,6 +794,30 @@
                             <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px;">Загрузка...</td></tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- BANNERLORD -->
+        <div id="page-bannerlord" class="page">
+            <div class="page-header">
+                <div class="page-title">Bannerlord <span>//</span></div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">🧹 Сброс данных канала</div>
+                <div class="card-body">
+                    <p style="color:var(--muted);font-size:13px;margin:0 0 12px;line-height:1.5;">
+                        Стирает ВСЁ игровое состояние Bannerlord этого канала (герои, скиллы,
+                        экипировка, фьефы/мастерские/караваны, наследники, очередь действий мода…).
+                        Каталоги классов/сил и Boosty-список НЕ трогаются. Действие необратимо;
+                        если кампания идёт — рекомендуется рестарт мода после.
+                    </p>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+                        <button class="btn btn-ghost" onclick="loadBannerlord()">🔄 Превью (что будет удалено)</button>
+                        <button class="btn btn-danger" onclick="bannerlordWipe()">🧹 Стереть данные…</button>
+                    </div>
+                    <div id="bnr-preview" style="color:var(--muted);font-size:13px;">Нажми «Превью», чтобы увидеть, сколько строк будет удалено.</div>
                 </div>
             </div>
         </div>
@@ -977,6 +957,42 @@ function showPage(name) {
     if (name === 'items') loadItems();
     if (name === 'rimworld') loadRimworld();
     if (name === 'promo') loadPromos();
+    if (name === 'bannerlord') loadBannerlord();
+}
+
+// ═══════════════════════════════════════
+// BANNERLORD
+// ═══════════════════════════════════════
+async function loadBannerlord() {
+    const box = document.getElementById('bnr-preview');
+    if (!box) return;
+    box.textContent = 'Загрузка…';
+    const d = await apiGet('/api/admin/bannerlord/reset/preview');
+    if (!d || !d.success) { box.textContent = '❌ ' + ((d && d.message) || 'Ошибка'); return; }
+    const rows = Object.entries(d.table_counts || {})
+        .filter(([, c]) => c > 0)
+        .sort((a, b) => b[1] - a[1]);
+    let html = `<div style="margin-bottom:8px;">Канал <b>${d.channel_id}</b> — всего к удалению: `
+        + `<b style="color:var(--danger,#ef4444);">${d.total_rows}</b> строк</div>`;
+    if (rows.length === 0) {
+        html += '<div style="color:var(--muted);">Данных нет — стирать нечего.</div>';
+    } else {
+        html += '<div style="display:grid;grid-template-columns:1fr auto;gap:2px 16px;max-width:540px;">'
+            + rows.map(([t, c]) => `<span style="color:var(--muted);">${t}</span><span style="text-align:right;">${c}</span>`).join('')
+            + '</div>';
+    }
+    box.innerHTML = html;
+}
+
+async function bannerlordWipe() {
+    const d = await apiGet('/api/admin/bannerlord/reset/preview');
+    if (!d || !d.success) { toast('❌ Не удалось получить превью', 'error'); return; }
+    const cid = String(d.channel_id);
+    const phrase = prompt(`⚠️ Сотрёт ВСЕ данные Bannerlord канала (${d.total_rows} строк) БЕЗВОЗВРАТНО.\n\nВведи channel_id для подтверждения:\n${cid}`);
+    if (phrase === null) return;
+    if (phrase.trim() !== cid) { toast('❌ channel_id не совпал — отмена', 'error'); return; }
+    const res = await apiPost('/api/admin/bannerlord/reset', { confirm_phrase: cid });
+    if (res && res.success) { addLog(`Bannerlord wipe: ${res.total_deleted} строк`, 'success'); loadBannerlord(); }
 }
 
 // ═══════════════════════════════════════
@@ -1141,14 +1157,6 @@ async function adjustPointsFor(username, amount, action) {
     if (document.getElementById('page-users').classList.contains('active')) loadUsers();
 }
 
-async function transferPoints() {
-    const from = document.getElementById('transfer-from').value.trim();
-    const to = document.getElementById('transfer-to').value.trim();
-    const amount = parseInt(document.getElementById('transfer-amount').value);
-    if (!from || !to || !amount) { toast('Заполни все поля', 'error'); return; }
-    await apiPost('/api/admin/transfer', { from_user: from, to_user: to, amount },
-        `💸 ${from} → ${to}: ${amount}💎`);
-}
 
 // ═══════════════════════════════════════
 // ITEMS
@@ -1235,7 +1243,6 @@ async function loadRimworld() {
                 <span style="color:var(--warning);">${e.cost}💎</span>
             </button>`
         ).join('');
-        document.getElementById('rw-cmds').textContent = '—';
     } catch(e) {}
 }
 
@@ -1287,14 +1294,6 @@ async function deleteUser(username) {
     const data = await apiPost('/api/admin/user/delete', { username });
     if (data) toast(data.message || '🗑 Удалён', data.success ? 'success' : 'error');
     loadUsers();
-}
-
-// ═══════════════════════════════════════
-// DONATE
-// ═══════════════════════════════════════
-async function processDonation() {
-    // /api/donate удалён 2026-05-10 (Phase 1.D compliance rework — §5.2 + §5.4 + 2026-Bits-tightening)
-    toast('❌ Конвертация донатов в крустики удалена (compliance Twitch)', 'error');
 }
 
 // ═══════════════════════════════════════

@@ -29,9 +29,9 @@ Trash:
 from __future__ import annotations
 
 import logging
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
 
-from dependencies import get_db
+from dependencies import get_db, require_admin, resolve_channel_id_or_default
 # Reuse streamer's session-cookie auth helper — это streamer-dashboard endpoint,
 # не Twitch Extension JWT (different auth flow). Auth = "streamer logged in
 # через OAuth → session cookie set → these endpoints recognize his channel_id".
@@ -105,13 +105,9 @@ def _require_streamer_session(request: Request) -> tuple[bool, int, str]:
     return True, int(cid), ""
 
 
-@router.get("/api/streamer/bannerlord/reset/preview")
-async def bannerlord_reset_preview(request: Request):
-    """Preview row counts per resettable table. Не deletes anything."""
-    ok, channel_id, msg = _require_streamer_session(request)
-    if not ok:
-        return {"success": False, "message": msg}
-
+async def _reset_preview_data(channel_id: int) -> dict:
+    """Preview row counts per resettable table (no delete). Shared by the
+    streamer-dashboard and admin-panel endpoints."""
     db = get_db()
     counts: dict[str, int] = {}
     total = 0
@@ -119,24 +115,20 @@ async def bannerlord_reset_preview(request: Request):
         for table in RESETTABLE_TABLES:
             try:
                 cur = await conn.execute(
-                    f"SELECT COUNT(*) FROM {table} WHERE channel_id=?",
-                    (channel_id,))
+                    f"SELECT COUNT(*) FROM {table} WHERE channel_id=?", (channel_id,))
                 row = await cur.fetchone()
                 count = (row[0] if row else 0) or 0
             except Exception as e:
-                # Table может не существовать (старый schema)
                 log.warning("[BNR-RESET preview] table %s missing: %s", table, e)
                 count = -1   # signals "missing/error"
             counts[table] = count
             if count > 0:
                 total += count
 
-        # module_actions для bannerlord
         try:
             cur = await conn.execute(
                 "SELECT COUNT(*) FROM module_actions "
-                "WHERE channel_id=? AND module_id='bannerlord'",
-                (channel_id,))
+                "WHERE channel_id=? AND module_id='bannerlord'", (channel_id,))
             row = await cur.fetchone()
             counts["module_actions (bannerlord)"] = (row[0] if row else 0) or 0
             total += counts["module_actions (bannerlord)"]
@@ -153,30 +145,34 @@ async def bannerlord_reset_preview(request: Request):
     }
 
 
-@router.post("/api/streamer/bannerlord/reset")
-async def bannerlord_reset(request: Request):
-    """Wipes ALL per-channel Bannerlord game state. Atomic TX.
-
-    Body: {"confirm_phrase": "<channel_id_as_string>"}
-    Streamer'у нужно явно re-type свой channel_id — protection от accidental
-    button click. Если confirm_phrase ≠ channel_id строкой — refuse.
-    """
+@router.get("/api/streamer/bannerlord/reset/preview")
+async def bannerlord_reset_preview(request: Request):
+    """Preview row counts per resettable table. Не deletes anything."""
     ok, channel_id, msg = _require_streamer_session(request)
     if not ok:
         return {"success": False, "message": msg}
+    return await _reset_preview_data(channel_id)
 
-    try:
-        body = await request.json()
-    except Exception:
-        body = {}
-    confirm_phrase = str(body.get("confirm_phrase") or "").strip()
+
+@router.get("/api/admin/bannerlord/reset/preview")
+async def admin_bannerlord_reset_preview(_admin: str = Depends(require_admin)):
+    """Same preview, but via admin-panel Basic auth (default channel)."""
+    return await _reset_preview_data(resolve_channel_id_or_default())
+
+
+def _confirm_phrase_ok(body: dict, channel_id: int) -> tuple[bool, str]:
+    """Destructive-action guard: caller must re-type the channel_id."""
     expected = str(channel_id)
-    if confirm_phrase != expected:
-        return {
-            "success": False,
-            "message": f"Confirm phrase mismatch — expected '{expected}', got '{confirm_phrase}'",
-        }
+    got = str((body or {}).get("confirm_phrase") or "").strip()
+    if got != expected:
+        return False, f"Confirm phrase mismatch — expected '{expected}', got '{got}'"
+    return True, ""
 
+
+async def _reset_wipe_data(channel_id: int) -> dict:
+    """Wipe ALL per-channel Bannerlord state in one atomic TX. Shared by the
+    streamer-dashboard and admin-panel endpoints (each does its own auth +
+    confirm-phrase check before calling)."""
     db = get_db()
     deleted: dict[str, int] = {}
     total_deleted = 0
@@ -220,7 +216,7 @@ async def bannerlord_reset(request: Request):
             }
 
     log.warning(
-        "[BNR-RESET] ch=%s broadcaster-initiated WIPE — %d rows deleted across %d tables",
+        "[BNR-RESET] ch=%s WIPE — %d rows deleted across %d tables",
         channel_id, total_deleted, len([v for v in deleted.values() if v > 0]))
 
     return {
@@ -232,3 +228,38 @@ async def bannerlord_reset(request: Request):
                           f"{len([v for v in deleted.values() if v > 0])} tables. "
                           "Mod restart рекомендован если кампания active.",
     }
+
+
+@router.post("/api/streamer/bannerlord/reset")
+async def bannerlord_reset(request: Request):
+    """Wipes ALL per-channel Bannerlord game state. Atomic TX.
+
+    Body: {"confirm_phrase": "<channel_id_as_string>"} — re-type channel_id
+    (protection от accidental button click).
+    """
+    ok, channel_id, msg = _require_streamer_session(request)
+    if not ok:
+        return {"success": False, "message": msg}
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    cok, cmsg = _confirm_phrase_ok(body, channel_id)
+    if not cok:
+        return {"success": False, "message": cmsg}
+    return await _reset_wipe_data(channel_id)
+
+
+@router.post("/api/admin/bannerlord/reset")
+async def admin_bannerlord_reset(request: Request, _admin: str = Depends(require_admin)):
+    """Same wipe via admin-panel Basic auth (default channel). Body must still
+    contain {"confirm_phrase": "<channel_id>"} — re-type to confirm."""
+    channel_id = resolve_channel_id_or_default()
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    cok, cmsg = _confirm_phrase_ok(body, channel_id)
+    if not cok:
+        return {"success": False, "message": cmsg}
+    return await _reset_wipe_data(channel_id)

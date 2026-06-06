@@ -102,6 +102,10 @@ if ($Frontend) {
 $paths = @()
 if ($Backend)  { $paths += 'backend' }
 if ($Frontend) { $paths += 'frontend' }
+# Admin panel (static, served by backend from ../admin/admin.html). Раньше не
+# деплоился ни backend-, ни frontend-таром → правки админки уезжали только ручным
+# scp. Цепляем к -Frontend (общий случай deploy.ps1 = backend+frontend).
+if ($Frontend) { $paths += 'admin' }
 
 if ($paths.Count -gt 0) {
     $tar = Join-Path $env:TEMP 'shedstream_deploy.tar'

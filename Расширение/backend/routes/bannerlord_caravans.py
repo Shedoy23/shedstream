@@ -265,6 +265,29 @@ async def handle_pay_caravan_rescue(conn, channel_id: int, owner: str, data: dic
     pool_total = pool_row[0] or 0
 
     if pool_total >= CARAVAN_RESCUE_COST:
+        # 2026-06-06 FIX — лимит караванов НЕ проверялся в restore-пути → эксплойт:
+        # караван умер → купил новый (снова на лимите) → восстановил умерший =
+        # БОЛЬШЕ лимита (репорт: 3/2). Проверяем активные караваны ВЛАДЕЛЬЦА
+        # (cara_owner, НЕ contributor) перед respawn'ом.
+        cur = await conn.execute(
+            "SELECT COUNT(*) FROM bannerlord_caravans "
+            "WHERE channel_id=? AND owner_username=? AND status='active'",
+            (channel_id, cara_owner))
+        active_row = await cur.fetchone()
+        if (active_row[0] or 0) >= MAX_CARAVANS_PER_VIEWER:
+            # На лимите — НЕ восстанавливаем. Пул остаётся 'pooled' (вклады не
+            # теряются): restore сработает позже, когда освободится слот
+            # (продал/потерял другой караван).
+            log.info("[CARAVAN-RESCUE] ch=%s caravan=%d HOLD — @%s на лимите (%d/%d)",
+                     channel_id, caravan_id, cara_owner,
+                     active_row[0] or 0, MAX_CARAVANS_PER_VIEWER)
+            return {
+                "success": True,
+                "message": f"💰 Пул собран, но у @{cara_owner} лимит караванов "
+                           f"({MAX_CARAVANS_PER_VIEWER}/{MAX_CARAVANS_PER_VIEWER}) — "
+                           f"восстановится, когда освободится слот.",
+            }
+
         # Mark caravan as rescued + mark pool released.
         await conn.execute(
             "UPDATE bannerlord_caravans SET status='active', destroyed_at=NULL "

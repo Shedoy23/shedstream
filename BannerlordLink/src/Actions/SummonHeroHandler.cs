@@ -747,32 +747,32 @@ namespace BannerlordLink.Actions
             // → [player.spawn:ally] CRASHED: InvalidOperationException.
             try
             {
-                // TournamentBehavior — campaign-level, TournamentFightMissionController
-                // или *TournamentMissionBehavior — mission-level. Сканим MissionBehaviors
-                // по имени типа (надёжнее чем typed generic — namespace может
-                // меняться между версиями TaleWorlds).
-                bool isTournamentMission = false;
+                // 2026-06-06 — расширено: ВСЕ mission-типы БЕЗ reinforcement zone,
+                // где engine SpawnTroop кидает "Nullable object must have a value"
+                // → краш игры (повторялся 2× за день: @antitail/@linewolf51). Детект
+                // по ИМЕНИ behavior'а (надёжнее typed generic — namespace меняется
+                // между версиями TaleWorlds + не нужен лишний assembly-ref). Маркеры
+                // (по BLT MissionHelpers, clean-room — только идея/API):
+                //   Tournament    — TournamentFightMissionController (турнир)
+                //   LordsHall     — LordsHallFightMissionController (штурм донжона)
+                //   TrainingField — TrainingFieldMissionController (полигон)
+                // Арена — отдельно ниже (детект по Location, имя без маркера).
+                string[] noReinforcementMarkers = { "Tournament", "LordsHall", "TrainingField" };
                 foreach (var b in m.MissionBehaviors)
                 {
                     if (b == null) continue;
                     var n = b.GetType().Name;
-                    if (n.IndexOf("Tournament", StringComparison.OrdinalIgnoreCase) >= 0)
+                    foreach (var marker in noReinforcementMarkers)
                     {
-                        // Skip наш собственный TournamentMissionBehavior — он
-                        // используется для tracking, но не блокирует summon.
-                        // Хотя в текущей логике мы вообще НЕ хотим summon во время
-                        // tournament — так что блокируем.
-                        isTournamentMission = true;
-                        BannerlordLinkModule.Log(
-                            $"[player.spawn] tournament detected via behavior: {b.GetType().FullName}");
-                        break;
+                        if (n.IndexOf(marker, StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            BannerlordLinkModule.Log(
+                                $"[player.spawn] blocked: {marker} mission (no reinforcement zone) " +
+                                $"via {b.GetType().FullName}");
+                            reason = $"{marker} mission (нет reinforcement zone → spawn crash)";
+                            return false;
+                        }
                     }
-                }
-                if (isTournamentMission)
-                {
-                    reason = "tournament mission (engine не имеет reinforcement zone, " +
-                             "spawn → InvalidOperationException)";
-                    return false;
                 }
             }
             catch (Exception ex)

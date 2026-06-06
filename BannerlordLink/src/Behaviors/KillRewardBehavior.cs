@@ -336,7 +336,7 @@ namespace BannerlordLink.Behaviors
             public int RetinueKills;     // киллы свиты, кредитятся owner'у
             public int GoldEarned;
             public int XpEarned;
-            public int KillStreak;       // BLT pattern — reset on death/kill
+            public int KillStreak;       // 2026-06-06: per-БОЙ (НЕ reset на смерть; только OnEndMission)
         }
 
         /// <summary>BLT formula: (1 − (killedLvl − killerLvl) / 30) ^ (−10×n).
@@ -628,7 +628,8 @@ namespace BannerlordLink.Behaviors
         }
 
         /// <summary>Если affected это наш hero и его прибили — даём consolation XP
-        /// (BLT XPPerKilled) с level-scaling. Reset kill streak.</summary>
+        /// (BLT XPPerKilled) с level-scaling. 2026-06-06 — KillStreak больше НЕ
+        /// сбрасывается на смерть (per-бой стрик).</summary>
         private void HandleAffectedKilled(Agent affectedAgent, Agent affectorAgent,
             AgentState state, KillingBlow blow)
         {
@@ -641,11 +642,12 @@ namespace BannerlordLink.Behaviors
             Hero victim = (affectedAgent.Character as CharacterObject)?.HeroObject;
             if (victim == null) return;
 
-            // Reset streak
-            if (_participants.TryGetValue(victimUsername, out var vstats))
-            {
-                vstats.KillStreak = 0;
-            }
+            // 2026-06-06 — KillStreak НЕ сбрасываем на смерть (per-БОЙ стрик, по
+            // просьбе стримера): убран `vstats.KillStreak = 0`. Стрик переживает
+            // смерти/ре-вызовы, обнуляется только при очистке _participants в
+            // OnEndMission → вехи 20-50 реально достижимы за бой. vstats всё ещё
+            // объявляем — он нужен ниже (XpEarned += xp), но streak НЕ трогаем.
+            _participants.TryGetValue(victimUsername, out var vstats);
 
             // Consolation XP. Level scaling: убит higher-level → больше xp.
             int killerLevel = victim.Level;

@@ -7128,11 +7128,13 @@ async function usePromo() {
         });
         const d = await r.json();
         showNotification(d.message, d.success ? 'success' : 'error', 5000);
-            if (d.success) {
-                loadUserData();
-                setTimeout(() => openPassionModal(), 2000);
-                startPawnRefresh();
-            }
+        if (d.success) {
+            // 2026-06-06 FIX — промо это просто очки: обновляем баланс и ВСЁ.
+            // Убраны openPassionModal()+startPawnRefresh() — это RimWorld-флоу
+            // пешки («огоньки страсти»), попавший сюда copy-paste'ом и всплывавший
+            // после активации промо в Bannerlord.
+            loadUserData();
+        }
     } catch(e) { showNotification('❌ Ошибка', 'error'); }
 }
 

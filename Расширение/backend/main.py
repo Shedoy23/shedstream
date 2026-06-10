@@ -1046,6 +1046,13 @@ async def run_migrations():
             print(f"❌ M70 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m71_hp_rebalance
+            await m71_hp_rebalance.apply(conn)
+        except Exception as e:
+            print(f"❌ M71 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

@@ -1173,14 +1173,44 @@ async def bannerlord_my_hero(request: Request):
                 pass
         hero["retinue_cap"] = retinue_cap
 
+        # 2026-06-10 — недавние рефанды этого зрителя. Mod отказывает действию
+        # асинхронно (после ACK) → action.failed → крустики возвращаются, НО
+        # зритель не видел ПОЧЕМУ «не сработало» и кликал снова. Отдаём список
+        # причин; фронт тостит (дедуп по action_id). Окно 30s покрывает 8s
+        # hero-poll без пропусков. error_msg формат: "REFUNDED:{price} reason={r}"
+        # (или "REFUNDED:0 (no_price) reason={r}" для бесплатных действий).
+        recent_refunds = []
+        cur = await conn.execute(
+            "SELECT action_id, type, data, error_msg FROM module_actions "
+            "WHERE channel_id=? AND module_id='bannerlord' "
+            "  AND error_msg LIKE 'REFUNDED:%' "
+            "  AND created_at > datetime('now','-30 seconds') "
+            "ORDER BY id DESC LIMIT 20",
+            (channel_id,))
+        _uname = (username or "").lower()
+        for _aid, _atype, _adata, _aerr in await cur.fetchall():
+            try:
+                if (json.loads(_adata or "{}").get("initiated_by") or "").lower() != _uname:
+                    continue
+            except Exception:
+                continue
+            _aerr = _aerr or ""
+            recent_refunds.append({
+                "action_id": _aid,
+                "type":      _atype,
+                "reason":    _aerr.split("reason=", 1)[-1].strip() or "unspecified",
+                "refunded":  not _aerr.startswith("REFUNDED:0"),
+            })
+
     return {
-        "success":    True,
-        "has_hero":   True,
-        "hero":       hero,
-        "skills":     skills,
-        "attributes": attributes,
-        "equipment":  equipment,
-        "retinue":    retinue,
+        "success":        True,
+        "has_hero":       True,
+        "hero":           hero,
+        "skills":         skills,
+        "attributes":     attributes,
+        "equipment":      equipment,
+        "retinue":        retinue,
+        "recent_refunds": recent_refunds,
     }
 
 

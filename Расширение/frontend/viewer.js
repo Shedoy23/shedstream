@@ -1191,6 +1191,66 @@ let _bannerlordLastHero = null;          // last /my-hero snapshot — для pr
 // Sprint 5.5: helper для проверки battle state (для banner / future use).
 function bnrIsInBattle() { return !!(_bannerlordBattle && _bannerlordBattle.in_battle); }
 
+// 2026-06-10 — тосты про отказ действия. Mod отказывает асинхронно (после ACK)
+// → крустики возвращаются, но раньше зритель не видел ПОЧЕМУ «не сработало» и
+// кликал снова. my-hero отдаёт recent_refunds[{action_id,type,reason,refunded}];
+// тут локализуем reason и показываем тост (дедуп по action_id, чтобы 30s-окно
+// бэка не плодило повторы между poll'ами).
+const _bnrShownRefunds = new Set();
+const BNR_REFUSE_REASON_RU = {
+    in_mission:             'Нельзя во время боя или миссии',
+    no_active_mission:      'Сначала вступи в бой',
+    arena_or_tournament:    'Сила недоступна на арене и турнире',
+    hero_not_spawned:       'Твой герой ещё не вышел на поле боя',
+    hero_not_found_or_dead: 'Герой не найден или мёртв',
+    hero_not_found:         'Герой не найден',
+    not_enough_hero_gold:   'Не хватает динаров у героя',
+    attribute_maxed:        'Атрибут уже на максимуме',
+    all_attributes_maxed:   'Все атрибуты прокачаны до максимума',
+    no_attributes_object:   'Нет данных по атрибутам героя',
+    skill_focus_maxed:      'Фокус навыка уже на максимуме',
+    all_skills_focus_maxed: 'Все фокусы прокачаны до максимума',
+    no_skills_object:       'Нет данных по навыкам героя',
+    is_prisoner:            'Твой герой в плену',
+    already_clan_leader:    'Ты уже глава клана',
+    not_clan_leader:        'Только для главы клана',
+    clan_name_exists:       'Клан с таким именем уже существует',
+    no_clan:                'Сначала нужно вступить или создать клан',
+    in_player_clan:         'Недоступно в клане игрока',
+    already_in_party:       'Отряд уже создан',
+    clan_party_limit:       'Достигнут лимит отрядов клана',
+    no_kingdom:             'Сначала нужно вступить в королевство',
+    not_king:               'Только для короля',
+    not_authorized:         'Недостаточно прав',
+    not_at_war:             'Вы не в состоянии войны',
+    self_target:            'Нельзя выбрать себя',
+    target_not_found:       'Цель не найдена',
+    town_not_found:         'Город не найден',
+    no_campaign:            'Действие сейчас недоступно',
+    no_inventory:           'Нет инвентаря',
+    no_matching_item:       'Подходящий предмет не найден',
+};
+function _bnrRefuseReasonRu(reason) {
+    if (!reason || reason === 'unspecified') return 'Сейчас недоступно';
+    if (BNR_REFUSE_REASON_RU[reason]) return BNR_REFUSE_REASON_RU[reason];
+    // prefixed диагностические: unknown_skill:X / bad_state:Y / exception:.. / crashed
+    const base = reason.split(':')[0];
+    if (BNR_REFUSE_REASON_RU[base]) return BNR_REFUSE_REASON_RU[base];
+    if (base === 'unknown') return 'Неизвестный параметр действия';
+    return 'Действие не удалось';
+}
+function _bnrNotifyRefunds(list) {
+    if (!Array.isArray(list) || !list.length) return;
+    if (_bnrShownRefunds.size > 1000) _bnrShownRefunds.clear();   // session safety cap
+    for (const rf of list) {
+        if (!rf || !rf.action_id || _bnrShownRefunds.has(rf.action_id)) continue;
+        _bnrShownRefunds.add(rf.action_id);
+        const msg = _bnrRefuseReasonRu(rf.reason)
+            + (rf.refunded ? ' — крустики возвращены' : '');
+        showNotification('❌ ' + msg, 'warning', 6000);
+    }
+}
+
 // Sprint 5.5: persist open/closed state у <details> элементов (Топ скиллы /
 // Экипировка / Свита) между ре-рендерами hero card. innerHTML replace
 // иначе сбрасывает раскрытое состояние каждые 8s.
@@ -5414,6 +5474,7 @@ async function loadBannerlordHero() {
             return;
         }
         _bannerlordLastHero = data;   // 5.8: cache для progression modal
+        _bnrNotifyRefunds(data.recent_refunds);   // 2026-06-10 — тост причины отказа
 
         // FLICKER-FIX v5 (2026-05-28): MINIMAL struct hash — только truly rare
         // events. Раньше включал location (меняется при движении по карте

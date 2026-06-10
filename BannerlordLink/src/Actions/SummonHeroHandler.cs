@@ -801,6 +801,45 @@ namespace BannerlordLink.Actions
                 BannerlordLinkModule.Log($"[player.spawn] arena-detect warn: {ex.Message}");
             }
 
+            // 2026-06-11 CRASH FIX — catch-all: миссии БЕЗ reinforcement-spawn-логики
+            // (город/деревня walk-around и пр.) проскакивают денилист по именам
+            // (Tournament/Arena), а потом SpawnTroop(isReinforcement) кидает
+            // "Nullable object must have a value" → краш (managed-catch не спасает,
+            // native agent уже частично создан в SpawnPathFinder). Лог 21:29:17:
+            // @slopkom призван в город Лагета. Реальные бои/осады имеют
+            // MissionAgentSpawnLogic; не-боевые миссии — нет → требуем её наличие
+            // (allowlist надёжнее денилиста; worst case — graceful refuse, не краш).
+            // Детект по имени (как tournament-гард — без assembly-ref). Hideout
+            // (Stealth) исключён: мод его явно разрешает (5.27m), его spawn-handling
+            // отдельный — не трогаем.
+            try
+            {
+                if (m.Mode != MissionMode.Stealth)
+                {
+                    bool hasSpawnLogic = false;
+                    foreach (var b in m.MissionBehaviors)
+                    {
+                        if (b != null && b.GetType().Name == "MissionAgentSpawnLogic")
+                        {
+                            hasSpawnLogic = true;
+                            break;
+                        }
+                    }
+                    if (!hasSpawnLogic)
+                    {
+                        BannerlordLinkModule.Log(
+                            "[player.spawn] blocked: миссия без MissionAgentSpawnLogic " +
+                            "(не боевая → нет reinforcement zone → SpawnTroop crash)");
+                        reason = "не боевая миссия (нет зоны подкреплений → краш спавна)";
+                        return false;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[player.spawn] spawn-logic check warn: {ex.Message}");
+            }
+
             reason = null;
             return true;
         }

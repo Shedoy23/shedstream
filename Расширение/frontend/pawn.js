@@ -502,7 +502,7 @@ async function healMyPawn() {
         try {
             const r = await fetch(`${API_URL}/api/rimworld/heal-pawn`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || '' },
                 body: JSON.stringify({ username: userLogin })
             });
             const data = await r.json();
@@ -563,7 +563,7 @@ async function resurrectMyPawn() {
         try {
             const r = await fetch(`${API_URL}/api/rimworld/resurrect-pawn`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || '' },
                 body: JSON.stringify({ username: userLogin })
             });
             const data = await r.json();

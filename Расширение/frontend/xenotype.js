@@ -337,7 +337,7 @@ async function resetPassion(skillDef) {
         try {
             const r = await fetch(`${API_URL}/api/rimworld/reset-passion`, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: {'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || ''},
                 body: JSON.stringify({ username: userLogin, skill_def: skillDef })
             });
             const d = await r.json();

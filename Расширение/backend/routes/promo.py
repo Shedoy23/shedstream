@@ -10,6 +10,7 @@ from dependencies import (
     get_bot,
     get_db,
     require_admin,
+    require_jwt_user,
     require_stream_live,
     resolve_channel_id_or_default,
 )
@@ -22,17 +23,19 @@ async def use_promo(request: Request):
     """Активировать промокод"""
     if err := await require_stream_live():
         return err
-    data     = await request.json()
-    username = sanitize_username(data.get("username", ""))
-    code     = str(data.get("code", "")).strip().upper()
-    if not username or not code:
+    # 2026-06-07 SEC — username/channel из подписанного JWT, НЕ из body.
+    # Раньше брали data["username"] без JWT → любой redeem'ил промо за любого
+    # и сжигал лимит кода. require_jwt_user также выставляет channel ContextVar.
+    auth = require_jwt_user(request)
+    if not auth:
+        return {"success": False, "message": "Авторизуйся через Twitch"}
+    username, channel_id = auth
+
+    data = await request.json()
+    code = str(data.get("code", "")).strip().upper()
+    if not code:
         return {"success": False, "message": "Неверные параметры"}
 
-    # 2026-06-06 FIX — резолвим channel_id ДО touch_viewer и передаём явно.
-    # Промо-роут не проходит require_jwt_* → channel ContextVar не выставлен;
-    # touch_viewer(username) делал strict resolve_channel_id(None) → RuntimeError
-    # (вне try ниже → uncaught → 500) → зритель видел ошибку при вводе промокода.
-    channel_id = resolve_channel_id_or_default()
     await get_bot().touch_viewer(username, channel_id)
 
     db = get_db()

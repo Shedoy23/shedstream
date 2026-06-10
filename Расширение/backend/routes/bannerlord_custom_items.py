@@ -262,56 +262,11 @@ async def viewer_custom_items(request: Request):
     }
 
 
-@router.post("/api/bannerlord/custom-items/smith")
-async def viewer_smith_item(request: Request):
-    """Forge custom item. Type chosen by viewer: weapon|armor|horse.
-
-    Crustic price enforced via standard buy_action flow (вызывайте оттуда).
-    Hero.Gold list deduction — TODO когда mod integration будет готова.
-    Текущая итерация: pure backend trophy generation.
-    """
-    auth = require_jwt_user(request)
-    if not auth:
-        return {"success": False, "message": "auth required"}
-    username, channel_id = auth
-
-    try:
-        body = await request.json()
-    except Exception:
-        body = {}
-    base_type = (body.get("base_type") or "").strip().lower()
-    if base_type not in ("weapon", "armor", "horse"):
-        return {
-            "success": False,
-            "message": "base_type должен быть weapon / armor / horse",
-        }
-
-    # Slot limit check
-    async with get_db()._connect() as conn:
-        cur = await conn.execute(
-            "SELECT COUNT(*) FROM bannerlord_custom_items "
-            "WHERE channel_id=? AND owner_username=?",
-            (channel_id, username))
-        cnt_row = await cur.fetchone()
-        current_count = int(cnt_row[0]) if cnt_row else 0
-        if current_count >= 50:
-            return {
-                "success": False,
-                "message": "Инвентарь полон (50 max). Дискарди что-то.",
-            }
-
-        # Generate + insert (Phase B — persists rolled stats + source='forge')
-        item = _generate_item(base_type)
-        item_id = await insert_custom_item(conn, channel_id, username, item, "forge")
-        await conn.commit()
-
-    log.info("[bannerlord SMITH] ch=%s user=%s base=%s rarity=%s name='%s'",
-             channel_id, username, base_type, item["rarity"], item["custom_name"])
-    return {
-        "success":  True,
-        "message":  f"{item['icon']} Создан: {item['custom_name']} ({item['rarity']})",
-        "item":     {**item, "id": item_id, "color": RARITY_COLORS[item["rarity"]]},
-    }
+# 2026-06-07 SEC — УДАЛЁН эндпоинт POST /api/bannerlord/custom-items/smith.
+# Он ковал предмет БЕЗ списания крустиков и без кулдауна (только cap 50) →
+# зритель в цикле фармил легендарки и сливал через аукцион = инфляция экономики.
+# Ковка во фронте идёт через платный buy_action 'hero.smith_item' (500💎 + cooldown,
+# bannerlord.py); этот standalone-путь фронтом не использовался — чистый бэкдор.
 
 
 @router.post("/api/bannerlord/custom-items/discard")

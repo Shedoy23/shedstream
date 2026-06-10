@@ -257,6 +257,9 @@ namespace BannerlordLink.Behaviors
             DrivenProperty.AIAttackOnDecideChance,
             DrivenProperty.AIDecideOnAttackChance,
         };
+        // разово залогированные за миссию герои (чтобы [CombatAI] applied не спамил каждый тик)
+        private static readonly System.Collections.Generic.HashSet<string> _aiLogged =
+            new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         private static void ApplyCombatAiTick()
         {
@@ -295,6 +298,10 @@ namespace BannerlordLink.Behaviors
                     foreach (var prop in _aiDefProps) p.SetStat(prop, def);
                     foreach (var prop in _aiOffProps) p.SetStat(prop, off);
                     a.UpdateCustomDrivenProperties();
+                    // разовое подтверждение на героя за миссию (диагностика: тик реально применился)
+                    if (_aiLogged.Add(user))
+                        BannerlordLinkModule.Log(
+                            $"[CombatAI] applied @{user} def={def:F2} off={off:F2} stance={stance ?? "balanced"}");
                 }
                 catch (Exception ex)
                 {
@@ -341,6 +348,7 @@ namespace BannerlordLink.Behaviors
         {
             base.OnEndMission();
             ActiveBuffState.Clear();
+            _aiLogged.Clear();
         }
 
         private static void ApplyPassivePowers(Agent agent)

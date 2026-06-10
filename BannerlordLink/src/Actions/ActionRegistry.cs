@@ -31,6 +31,7 @@ namespace BannerlordLink.Actions
             // ── REAL handlers ──────────────────────────────────────────────
             Register(new AdoptHeroHandler());        // hero.create — adoption
             Register(new SetClassHandler());         // hero.set_class — class + equipment
+            Register(new SetCombatStanceHandler());  // hero.set_combat_stance — боевая стойка (2026-06-10)
             Register(new HealHeroHandler());         // player.heal — restore HP
             Register(new GiveGoldHandler());         // player.give_item (gold)
             Register(new AddSkillXpHandler());       // hero.add_skill — XP boost

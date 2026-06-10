@@ -267,7 +267,8 @@ async def bannerlord_class_state(request: Request):
         # DB column stays as legacy/seed (always 1); реальный level — функция
         # от Bow/Riding/etc. См. _compute_class_level выше.
         cur = await conn.execute("""
-            SELECT h.username, h.hero_id, c.class_key
+            SELECT h.username, h.hero_id, c.class_key,
+                   COALESCE(h.combat_stance, 'balanced')
             FROM bannerlord_heroes h
             LEFT JOIN bannerlord_hero_class c
               ON h.channel_id = c.channel_id AND h.username = c.username
@@ -276,13 +277,14 @@ async def bannerlord_class_state(request: Request):
         rows = await cur.fetchall()
         heroes = []
         for r in rows:
-            uname, hero_id, cls_key = r[0], r[1], r[2]
+            uname, hero_id, cls_key, stance = r[0], r[1], r[2], r[3]
             class_level = await _compute_class_level(conn, channel_id, uname, cls_key)
             heroes.append({
-                "username":    uname,
-                "hero_id":     hero_id,
-                "class_key":   cls_key,
-                "class_level": class_level,
+                "username":      uname,
+                "hero_id":       hero_id,
+                "class_key":     cls_key,
+                "class_level":   class_level,
+                "combat_stance": stance,   # 2026-06-10 — мод грузит стойку на рестарте
             })
 
         # Powers catalog (full — mod cache'ит)
@@ -1049,7 +1051,8 @@ async def bannerlord_my_hero(request: Request):
             "       COALESCE(iteration, 1), "
             "       COALESCE(is_wounded, 0), "
             "       COALESCE(tournament_wins, 0), "
-            "       party_info_json "
+            "       party_info_json, "
+            "       COALESCE(combat_stance, 'balanced') "
             "FROM bannerlord_heroes WHERE channel_id=? AND username=?",
             (channel_id, username))
         row = await cur.fetchone()
@@ -1086,6 +1089,7 @@ async def bannerlord_my_hero(request: Request):
             "is_wounded":   bool(row[18]),  # Sprint 5.32 M43 — KO state
             "tournament_wins": int(row[19]) if row[19] is not None else 0,  # Sprint 5.32 H8/FE-H8 veteran badge
             "party_info":   _safe_json(row[20]),  # 2026-06-10 — отряд на карте (size/task/target/in_army)
+            "combat_stance": row[21],             # 2026-06-10 — боевая стойка зрителя
         }
         # Convenience: top-level spouse_name (для profile modal display)
         fi = hero.get("family_info") or {}

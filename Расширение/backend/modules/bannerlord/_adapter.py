@@ -902,6 +902,12 @@ class BannerlordAdapter(ModuleAdapter):
             if k in data:
                 fields.append(f"{k} = ?")
                 params.append(data[k])
+        # 2026-06-10 — боевая стойка (валидируем — приходит от мода). Даёт
+        # непустой fields даже для «голого» {username, combat_stance} апдейта.
+        _stance = data.get("combat_stance")
+        if _stance in ("defensive", "balanced", "aggressive"):
+            fields.append("combat_stance = ?")
+            params.append(_stance)
         if not fields:
             return
         fields.append("last_sync = CURRENT_TIMESTAMP")

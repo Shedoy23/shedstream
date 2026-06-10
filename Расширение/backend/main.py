@@ -1039,6 +1039,13 @@ async def run_migrations():
             print(f"❌ M69 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m70_combat_stance
+            await m70_combat_stance.apply(conn)
+        except Exception as e:
+            print(f"❌ M70 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

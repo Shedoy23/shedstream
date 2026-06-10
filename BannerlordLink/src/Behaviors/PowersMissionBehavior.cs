@@ -238,21 +238,24 @@ namespace BannerlordLink.Behaviors
         }
 
         // 2026-06-10 — «умный боевой ИИ» (BLT StatModifyPower через
-        // AgentDrivenProperties). Поднимаем AI-способности блока/парри/решений
-        // атаки боевым героям, чтобы они реально воевали, а не стояли столбом.
-        // Для мили это бой в гуще; для лучников — самозащита, когда враг
-        // дошёл вплотную (скорострельность/точность НЕ трогаем — иначе лучники
-        // станут ещё сильнее). ai_combat_pct (0..100) → 0..1 ability.
-        // max() — никогда не занижаем естественно высокий навык героя.
-        // Переприменяем на тике: движок пересчитывает driven-свойства.
-        // AgentDrivenProperties — НЕ collision-reaction → безопасно (BLT-паттерн).
-        private static readonly DrivenProperty[] _aiCombatProps = new[]
+        // AgentDrivenProperties). Задаём AI-способности боя боевым героям, чтобы
+        // они реально воевали, а не стояли столбом. Для мили это бой в гуще; для
+        // лучников — самозащита, когда враг дошёл вплотную (скорострельность/
+        // точность НЕ трогаем — иначе лучники станут ещё сильнее).
+        // ai_combat_pct (0..100) → 0..1 ability. Боевая СТОЙКА зрителя сдвигает
+        // баланс защита↔атака. Переприменяем на тике (движок пересчитывает
+        // driven-свойства). AgentDrivenProperties — НЕ collision-reaction →
+        // безопасно (BLT-паттерн).
+        private static readonly DrivenProperty[] _aiDefProps = new[]
         {
             DrivenProperty.AIBlockOnDecideAbility,
             DrivenProperty.AIParryOnDecideAbility,
+            DrivenProperty.AIParryOnAttackAbility,
+        };
+        private static readonly DrivenProperty[] _aiOffProps = new[]
+        {
             DrivenProperty.AIAttackOnDecideChance,
             DrivenProperty.AIDecideOnAttackChance,
-            DrivenProperty.AIParryOnAttackAbility,
         };
 
         private static void ApplyCombatAiTick()
@@ -268,16 +271,30 @@ namespace BannerlordLink.Behaviors
                 var pct = PowerCache.GetPowerValue(user, "ai_combat_pct");
                 if (!pct.HasValue || pct.Value <= 0) continue;
                 float v = (float)Math.Min(1.0, pct.Value / 100.0);
+
+                // Боевая стойка: defensive → крепче блок/парри, меньше инициативы
+                // атаки; aggressive → наоборот; balanced (или нет стойки) → ровно
+                // классовый уровень.
+                float def = v, off = v;
+                string stance = PowerCache.GetHeroStance(user);
+                if (stance == "defensive")
+                {
+                    def = Math.Min(1f, v + 0.15f);
+                    off = Math.Max(0.10f, v - 0.15f);
+                }
+                else if (stance == "aggressive")
+                {
+                    def = Math.Max(0.10f, v - 0.15f);
+                    off = Math.Min(1f, v + 0.15f);
+                }
+
                 try
                 {
                     var p = a.AgentDrivenProperties;
                     if (p == null) continue;
-                    bool changed = false;
-                    foreach (var prop in _aiCombatProps)
-                    {
-                        if (v > p.GetStat(prop)) { p.SetStat(prop, v); changed = true; }
-                    }
-                    if (changed) a.UpdateCustomDrivenProperties();
+                    foreach (var prop in _aiDefProps) p.SetStat(prop, def);
+                    foreach (var prop in _aiOffProps) p.SetStat(prop, off);
+                    a.UpdateCustomDrivenProperties();
                 }
                 catch (Exception ex)
                 {

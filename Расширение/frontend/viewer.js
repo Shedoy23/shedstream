@@ -1187,6 +1187,7 @@ let _bannerlordBattle = null;            // last snapshot {in_battle, my_stats, 
 let _bannerlordWasInBattle = false;      // detect new-battle transition для cooldown UI refresh
 let _bannerlordLastRetinue = [];         // last retinue snapshot — repaint без re-fetch
 let _bannerlordLastHero = null;          // last /my-hero snapshot — для progression modal
+let _bnrOptimisticStance = null;         // 2026-06-10 — оптимистичная боевая стойка до эха мода
 
 // Sprint 5.5: helper для проверки battle state (для banner / future use).
 function bnrIsInBattle() { return !!(_bannerlordBattle && _bannerlordBattle.in_battle); }
@@ -5832,6 +5833,16 @@ async function loadBannerlordHero() {
             }
             // (2) Volatile stats grid — обновляется каждый poll, но это
             //     ИЗОЛИРОВАННЫЙ под-элемент; sub-slots рядом не трогаются.
+            // ⚔ боевая стойка (per-viewer): влияет на боевой ИИ СВОЕГО бойца.
+            // Server-эхо догоняет клик через мод (~сек) → оптимистичная подсветка.
+            if (h.combat_stance && h.combat_stance === _bnrOptimisticStance) _bnrOptimisticStance = null;
+            const _activeStance = _bnrOptimisticStance || h.combat_stance || 'balanced';
+            const _stanceBtn = (key, icon, label, tip) =>
+                `<button class="small-btn bnr-stance-btn" data-stance="${key}" title="${label} — ${tip}" `
+                + `style="font-size:11px;padding:2px 8px;`
+                + `background:${_activeStance === key ? '#3d3d1f' : '#2d2d2f'};`
+                + `color:${_activeStance === key ? '#fbbf24' : '#adadb8'};`
+                + `border:1px solid ${_activeStance === key ? '#fbbf24' : '#3d3d3f'};">${icon} ${label}</button>`;
             const _statsHtml = `
                 <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 10px;
                             font-size:12px;align-items:center;">
@@ -5851,6 +5862,12 @@ async function loadBannerlordHero() {
                         <span style="color:#adadb8;">🏆 Турниры:</span>
                         <span style="color:#fbbf24;font-weight:700;" title="Wins за всю историю канала. Note: ×0.7-0.85 HP penalty в next турнире — анти-сноубол.">${h.tournament_wins}${h.tournament_wins >= 3 ? ' <span style="font-size:10px;color:#fb923c;">ветеран</span>' : ''}</span>
                     ` : ''}
+                </div>
+                <div style="margin-top:8px;display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
+                    <span style="font-size:11px;color:#adadb8;">⚔ Стойка:</span>
+                    ${_stanceBtn('defensive', '🛡', 'Оборона', 'выше блок/парри, меньше атаки')}
+                    ${_stanceBtn('balanced', '⚖', 'Баланс', 'ровно по классу')}
+                    ${_stanceBtn('aggressive', '⚔', 'Натиск', 'выше атака, ниже защита')}
                 </div>`;
             // (3) Rebind clan/kingdom/upgrade ТОЛЬКО когда grid реально
             //     перерисован (новые DOM nodes). _smartInnerHTML returns true
@@ -5862,6 +5879,20 @@ async function loadBannerlordHero() {
                 });
                 document.getElementById('bnr-reequip-btn')?.addEventListener('click', () => {
                     _bannerlordBuyAction('hero.reequip_gear', {});
+                });
+                // ⚔ боевая стойка — клик шлёт действие + мгновенно подсвечивает.
+                document.querySelectorAll('#bnr-pane-hero-stats .bnr-stance-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const st = btn.getAttribute('data-stance');
+                        _bnrOptimisticStance = st;
+                        _bannerlordBuyAction('hero.set_combat_stance', { stance: st });
+                        document.querySelectorAll('#bnr-pane-hero-stats .bnr-stance-btn').forEach(b => {
+                            const on = b.getAttribute('data-stance') === st;
+                            b.style.background = on ? '#3d3d1f' : '#2d2d2f';
+                            b.style.color = on ? '#fbbf24' : '#adadb8';
+                            b.style.border = '1px solid ' + (on ? '#fbbf24' : '#3d3d3f');
+                        });
+                    });
                 });
             }
         }

@@ -23,6 +23,12 @@ namespace BannerlordLink.Net
         private static Dictionary<string, Dictionary<string, double[]>> _powers =
             new Dictionary<string, Dictionary<string, double[]>>(StringComparer.OrdinalIgnoreCase);
 
+        // 2026-06-10 — боевая стойка зрителя (defensive/balanced/aggressive).
+        // username (lowercase) → stance. Per-viewer override стиля боевого ИИ
+        // поверх классового ai_combat_pct (см. PowersMissionBehavior.ApplyCombatAiTick).
+        private static Dictionary<string, string> _heroStance =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
         private static readonly object _lock = new object();
 
         /// <summary>Get power value для hero's current class + level.</summary>
@@ -47,6 +53,17 @@ namespace BannerlordLink.Net
             lock (_lock)
             {
                 return _heroClass.TryGetValue(username, out var hc) ? hc : ((string, int)?)null;
+            }
+        }
+
+        /// <summary>2026-06-10 — боевая стойка зрителя (defensive/balanced/
+        /// aggressive). null если не задана → трактуется как balanced.</summary>
+        public static string GetHeroStance(string username)
+        {
+            if (string.IsNullOrEmpty(username)) return null;
+            lock (_lock)
+            {
+                return _heroStance.TryGetValue(username, out var s) ? s : null;
             }
         }
 
@@ -80,6 +97,7 @@ namespace BannerlordLink.Net
 
                 var newHeroes = new Dictionary<string, (string, int)>(StringComparer.OrdinalIgnoreCase);
                 var newPowers = new Dictionary<string, Dictionary<string, double[]>>(StringComparer.OrdinalIgnoreCase);
+                var newStance = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
                 if (parsed["heroes"] is JArray heroesArr)
                 {
@@ -92,6 +110,10 @@ namespace BannerlordLink.Net
                         {
                             newHeroes[u] = (ck, lvl);
                         }
+                        // 2026-06-10 — боевая стойка (per-viewer) из /class-state.
+                        string st = h["combat_stance"]?.ToString();
+                        if (!string.IsNullOrEmpty(u) && !string.IsNullOrEmpty(st))
+                            newStance[u] = st;
                     }
                 }
 
@@ -123,6 +145,7 @@ namespace BannerlordLink.Net
                 {
                     _heroClass = newHeroes;
                     _powers = newPowers;
+                    _heroStance = newStance;
                 }
                 BannerlordLinkModule.Log(
                     $"PowerCache: refreshed — {newHeroes.Count} heroes, {newPowers.Count} classes");
@@ -140,6 +163,17 @@ namespace BannerlordLink.Net
             lock (_lock)
             {
                 _heroClass[username.ToLowerInvariant()] = (classKey, level);
+            }
+        }
+
+        /// <summary>2026-06-10 — мгновенно обновить стойку (после set_combat_stance),
+        /// чтобы не ждать следующего /class-state refresh.</summary>
+        public static void UpdateHeroStance(string username, string stance)
+        {
+            if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(stance)) return;
+            lock (_lock)
+            {
+                _heroStance[username.ToLowerInvariant()] = stance;
             }
         }
     }

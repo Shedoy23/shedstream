@@ -108,6 +108,14 @@ namespace BannerlordLink.Behaviors
                 BannerlordLinkModule.Log($"[PowersMission] DoT tick error: {ex.Message}");
             }
 
+            // 2026-06-10 — «умный боевой ИИ»: переприменяем AI-способности
+            // блока/парри/атаки боевым героям (движок пересчитывает драйв-свойства).
+            try { ApplyCombatAiTick(); }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[PowersMission] combat-AI tick error: {ex.Message}");
+            }
+
             // Sprint 5.30 #41 — periodic re-burst для timed buffs.
             // 2026-05-29 P1.2 — отключено через BUFF_TICK_PARTICLES_ENABLED flag.
             // CreateBurstParticle каждые 2 сек = FMOD pool pressure. См.
@@ -226,6 +234,55 @@ namespace BannerlordLink.Behaviors
             {
                 BannerlordLinkModule.Log(
                     $"[FX DoT] applied {applied}/{dots.Count} poison ticks this round");
+            }
+        }
+
+        // 2026-06-10 — «умный боевой ИИ» (BLT StatModifyPower через
+        // AgentDrivenProperties). Поднимаем AI-способности блока/парри/решений
+        // атаки боевым героям, чтобы они реально воевали, а не стояли столбом.
+        // Для мили это бой в гуще; для лучников — самозащита, когда враг
+        // дошёл вплотную (скорострельность/точность НЕ трогаем — иначе лучники
+        // станут ещё сильнее). ai_combat_pct (0..100) → 0..1 ability.
+        // max() — никогда не занижаем естественно высокий навык героя.
+        // Переприменяем на тике: движок пересчитывает driven-свойства.
+        // AgentDrivenProperties — НЕ collision-reaction → безопасно (BLT-паттерн).
+        private static readonly DrivenProperty[] _aiCombatProps = new[]
+        {
+            DrivenProperty.AIBlockOnDecideAbility,
+            DrivenProperty.AIParryOnDecideAbility,
+            DrivenProperty.AIAttackOnDecideChance,
+            DrivenProperty.AIDecideOnAttackChance,
+            DrivenProperty.AIParryOnAttackAbility,
+        };
+
+        private static void ApplyCombatAiTick()
+        {
+            if (Mission.Current == null) return;
+            foreach (var a in Mission.Current.Agents)
+            {
+                if (a == null || !a.IsHuman || !a.IsActive()) continue;
+                var hero = (a.Character as CharacterObject)?.HeroObject;
+                if (hero?.Name == null) continue;
+                string user = BannerlordLink.Util.HeroNaming.ExtractUsername(hero.Name.ToString());
+                if (string.IsNullOrEmpty(user)) continue;
+                var pct = PowerCache.GetPowerValue(user, "ai_combat_pct");
+                if (!pct.HasValue || pct.Value <= 0) continue;
+                float v = (float)Math.Min(1.0, pct.Value / 100.0);
+                try
+                {
+                    var p = a.AgentDrivenProperties;
+                    if (p == null) continue;
+                    bool changed = false;
+                    foreach (var prop in _aiCombatProps)
+                    {
+                        if (v > p.GetStat(prop)) { p.SetStat(prop, v); changed = true; }
+                    }
+                    if (changed) a.UpdateCustomDrivenProperties();
+                }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log($"[CombatAI] @{user} warn: {ex.Message}");
+                }
             }
         }
 

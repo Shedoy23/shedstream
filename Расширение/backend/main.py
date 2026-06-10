@@ -1018,6 +1018,13 @@ async def run_migrations():
             print(f"❌ M66 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m67_melee_balance
+            await m67_melee_balance.apply(conn)
+        except Exception as e:
+            print(f"❌ M67 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

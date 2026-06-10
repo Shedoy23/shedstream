@@ -137,9 +137,13 @@ namespace BannerlordLink.Behaviors
                         var agent = FindAgentByUsername(username);
                         if (agent != null && agent.IsActive())
                         {
-                            agent.SetMaximumSpeedLimit(1f, true);
+                            // 2026-06-10 — сбрасываем НЕ в 1.0×, а в пассивную
+                            // скорость милишника (move_speed_pct), иначе berserk
+                            // терял свой пассивный добег после берсерк-чарджа.
+                            float restMult = GetPassiveSpeedMult(username);
+                            agent.SetMaximumSpeedLimit(restMult, true);
                             BannerlordLinkModule.Log(
-                                $"[FX expire] @{username} berserker_charge → speed reset 1.0×");
+                                $"[FX expire] @{username} berserker_charge → speed reset ×{restMult:F2}");
                         }
                     }
                     // poison_dot expire — no agent-side cleanup needed (we don't
@@ -308,9 +312,29 @@ namespace BannerlordLink.Behaviors
                 TrySetAgentScale(agent, (float)scale.Value);
             }
 
+            // ── move_speed_pct (2026-06-10 мили-баланс) — добег / анти-кайт ──
+            // Пеший милишник иначе не догоняет лучников и кайтящих конных.
+            // SetMaximumSpeedLimit(mult, true) — тот же API, что у berserker_charge.
+            var spd = PowerCache.GetPowerValue(username, "move_speed_pct");
+            if (spd.HasValue && spd.Value > 0)
+            {
+                try { agent.SetMaximumSpeedLimit(1f + (float)(spd.Value / 100.0), true); }
+                catch (Exception ex)
+                { BannerlordLinkModule.Log($"[PowersMission] move_speed warn: {ex.Message}"); }
+            }
+
             BannerlordLinkModule.Log(
                 $"[PowersMission] @{username} ({hc.Value.classKey} L{hc.Value.level}): " +
-                $"hp×{hp ?? 1.0:F2} scale×{scale ?? 1.0:F2}");
+                $"hp×{hp ?? 1.0:F2} scale×{scale ?? 1.0:F2} spd+{spd ?? 0.0:F0}%");
+        }
+
+        /// <summary>2026-06-10 (мили-баланс) — «покоящийся» множитель скорости
+        /// героя (пассивный move_speed_pct). Чтобы при истечении berserker_charge
+        /// сбрасывать НЕ в 1.0×, а в пассивную скорость милишника.</summary>
+        public static float GetPassiveSpeedMult(string username)
+        {
+            var spd = PowerCache.GetPowerValue(username, "move_speed_pct");
+            return (spd.HasValue && spd.Value > 0) ? 1f + (float)(spd.Value / 100.0) : 1f;
         }
 
         /// <summary>Reflection call на private Agent.SetInitialAgentScale.

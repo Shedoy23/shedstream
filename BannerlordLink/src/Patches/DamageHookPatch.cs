@@ -104,6 +104,10 @@ namespace BannerlordLink.Patches
                     // хите при активном буффе наносим AoE по ближайшим врагам
                     // через отложенную очередь (FMOD-safe).
                     ApplyExplosiveArrows(attackerUser, attackerSrc, victim, ref collisionData);
+                    // 2026-06-10 (мили-баланс) — рассечение: на МИЛИ-хите по шансу
+                    // splash-AoE по соседним врагам (замена мёртвого CleavePatch),
+                    // через ту же безопасную отложенную очередь, что explosive_arrows.
+                    ApplyMeleeCleave(attackerUser, attackerSrc, victim, ref b, ref collisionData);
                 }
                 // Sprint 5.33 (BLT-parity ITEM) — trophy bonuses.
                 // Attacker damage_bonus + victim armor_bonus как absorption.
@@ -115,6 +119,10 @@ namespace BannerlordLink.Patches
                 }
                 if (victimUser != null)
                 {
+                    // 2026-06-10 (мили-баланс) — анти-стан: по шансу stagger_immunity_pct
+                    // ставим ShrugOff на входящий удар, чтобы милишник не застревал
+                    // в стане. Только флаг (без RegisterBlow) — безопасно.
+                    ApplyStaggerImmunity(victimUser, ref b);
                     // 2026-05-29 (BLT-parity TakeDamagePower) — железная кожа:
                     // снижаем входящий урон ДО reflect (reflect считается от
                     // уже сниженного значения).
@@ -291,6 +299,68 @@ namespace BannerlordLink.Patches
             }
             BannerlordLinkModule.LogVerbose(() =>
                 $"[DamageHook EXPLOSIVE] @{user} AoE center={damageAtCenter:F0} → {n} targets");
+        }
+
+        // 2026-06-10 (мили-баланс) — рассечение. Замена мёртвого CleavePatch
+        // (cut-through через WeaponCollisionReaction крашил 1.3.15): на МИЛИ-хите
+        // по шансу cleave_chance_pct splash'им долю урона ≤3 ближайшим врагам
+        // вокруг жертвы. Через ту же безопасную отложенную очередь
+        // (EnqueueReflect → DrainPendingReflects: BlowFlags.NoSound + троттл ≤3/тик),
+        // что explosive_arrows — НЕ зовём RegisterBlow инлайн (FMOD-safe).
+        // cleave_chance_pct сидится только мили-классам → сам ролл гейтит.
+        private const float CLEAVE_RADIUS = 2.5f;          // мили-дуга вокруг жертвы
+        private const int CLEAVE_MAX_TARGETS = 3;
+        private const double CLEAVE_SPLASH_FRAC = 0.5;     // доля урона по соседям
+        private static void ApplyMeleeCleave(
+            string user, Agent attackerSrc, Agent victim,
+            ref Blow b, ref AttackCollisionData cd)
+        {
+            if (attackerSrc == null || victim == null) return;
+            if (cd.IsMissile) return;                       // только мили-удары
+            if (b.InflictedDamage <= 0) return;
+            double chance = ResolvePct(user, "cleave_chance_pct");
+            if (chance <= 0) return;
+            if (TaleWorlds.Core.MBRandom.RandomFloat * 100.0 >= chance) return;
+            if (Mission.Current == null) return;
+
+            int splash = (int)(b.InflictedDamage * CLEAVE_SPLASH_FRAC);
+            if (splash <= 0) return;
+            var dt = b.DamageType;
+            var pos = victim.Position;
+
+            var hits = new System.Collections.Generic.List<(Agent a, float d)>();
+            foreach (var a in Mission.Current.Agents)
+            {
+                if (a == null || a == attackerSrc || a == victim) continue;
+                if (!a.IsActive() || !a.IsHuman) continue;
+                if (!a.IsEnemyOf(attackerSrc)) continue;
+                float dist = a.Position.Distance(pos);
+                if (dist > CLEAVE_RADIUS) continue;
+                hits.Add((a, dist));
+            }
+            if (hits.Count == 0) return;
+            hits.Sort((x, y) => x.d.CompareTo(y.d));
+            int n = Math.Min(CLEAVE_MAX_TARGETS, hits.Count);
+            for (int i = 0; i < n; i++)
+            {
+                // Семантика как у explosive_arrows: враг ПОЛУЧАЕТ удар (1-й арг),
+                // источник = наш герой (2-й арг). Drain: arg1.RegisterBlow(Blow(arg2)).
+                EnqueueReflect(hits[i].a, attackerSrc, splash, dt);
+            }
+            BannerlordLinkModule.LogVerbose(() =>
+                $"[DamageHook CLEAVE] @{user} splash={splash} → {n} targets");
+        }
+
+        // 2026-06-10 (мили-баланс) — анти-стан. По шансу stagger_immunity_pct
+        // ставим ShrugOff на входящий удар → милишник не прерывает свою атаку
+        // (BLT TakeDamagePower AddHitBehavior=ShrugOff). Только флаг, без
+        // RegisterBlow. stagger_immunity_pct сидится только мили-классам.
+        private static void ApplyStaggerImmunity(string user, ref Blow b)
+        {
+            double pct = ResolvePct(user, "stagger_immunity_pct");
+            if (pct <= 0) return;
+            if (TaleWorlds.Core.MBRandom.RandomFloat * 100.0 >= pct) return;
+            b.BlowFlag |= BlowFlags.ShrugOff;
         }
 
         // 2026-05-29 (BLT-parity TakeDamagePower) — железная кожа. Снижаем

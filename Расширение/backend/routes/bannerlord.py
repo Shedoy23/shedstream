@@ -821,6 +821,7 @@ async def bannerlord_ping():
 _PURCHASABLE_ACTIONS = (
     "hero.create",            # adoption — special: НЕ требует существующего hero
     "hero.set_class",         # Sprint 4.1: класс + equipment apply
+    "hero.set_combat_stance", # 2026-06-10: боевая стойка (defensive/balanced/aggressive)
     "power.activate",         # Sprint 4.3: active power burst
     "hero.upgrade_gear",      # Sprint M20: 6-tier equipment progression
     "hero.reequip_gear",      # 2026-05-29: re-roll снаряги на текущем тире (BLT ReequipInsteadOfUpgrade)
@@ -2053,6 +2054,7 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
         "power.activate":         50,    # standardize crustik price per power use
         "hero.smith_item":       500,    # Sprint 5.29 BLT-parity #6 — trophy crafting
         "hero.equip_trophy":      0,    # Sprint 5.29 BLT-parity #6 phase A — free (viewer уже заплатил smith)
+        "hero.set_combat_stance": 0,    # 2026-06-10: боевая стойка — бесплатно, мгновенно
         # Sprint 5.32 BUGFIX — player.give_item / hero.add_skill убраны
         # отсюда (перенесены в _ACTIONS_WITH_OWN_PRICING выше).
         # Sprint 5.32 (BLT-parity Detachment) — 6 commands управления своим

@@ -360,7 +360,15 @@ namespace BannerlordLink.Patches
             double pct = ResolvePct(user, "stagger_immunity_pct");
             if (pct <= 0) return;
             if (TaleWorlds.Core.MBRandom.RandomFloat * 100.0 >= pct) return;
-            b.BlowFlag |= BlowFlags.ShrugOff;
+            // BLT-парность (HitBehavior.AddFlags): ShrugOff взаимоисключающий с
+            // нокбэком/нокдауном — ставим ShrugOff И гасим их в том же действии.
+            // Раньше было только |= ShrugOff (флаги отброса оставались) → герой
+            // всё равно «станился»/отлетал в толпе. Только флаги на Blow (без
+            // collision-reaction) — безопасно на 1.3.15.
+            b.BlowFlag = (b.BlowFlag & ~(BlowFlags.KnockBack | BlowFlags.KnockDown))
+                         | BlowFlags.ShrugOff;
+            BannerlordLinkModule.LogVerbose(() =>
+                $"[DamageHook SHRUG] @{user} ({pct:F0}%) → ShrugOff (no knockback)");
         }
 
         // 2026-05-29 (BLT-parity TakeDamagePower) — железная кожа. Снижаем

@@ -134,6 +134,7 @@ namespace BannerlordLink.Util
                     clan_info     = clanInfo,
                     kingdom_info  = kingdomInfo,
                     family_info   = familyInfo,
+                    party_info    = BuildPartyInfo(hero),
                 };
                 return JsonConvert.SerializeObject(payload);
             }
@@ -235,6 +236,31 @@ namespace BannerlordLink.Util
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log($"[HeroStateSync] BuildKingdomInfo: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>2026-06-10 — party info для секции «Приказы отряда» в расширении:
+        /// размер отряда + текущая задача движка (DefaultBehavior) + цель + в армии.</summary>
+        private static object BuildPartyInfo(Hero hero)
+        {
+            try
+            {
+                var mp = hero?.PartyBelongedTo;
+                if (mp == null) return null;
+                string task = null;
+                try { task = mp.DefaultBehavior.ToString(); } catch { }
+                return new
+                {
+                    size    = mp.MemberRoster.TotalManCount,
+                    task    = task,          // engine AiBehavior: GoToSettlement / BesiegeSettlement / PatrolAroundPoint / Hold / EngageParty / ...
+                    target  = mp.TargetSettlement?.Name?.ToString(),
+                    in_army = mp.Army != null ? 1 : 0,
+                };
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[HeroStateSync] BuildPartyInfo: {ex.Message}");
                 return null;
             }
         }

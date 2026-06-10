@@ -370,6 +370,9 @@ namespace BannerlordLink.Behaviors
                 case "garrison": mp.SetMoveGoToSettlement(target, navType, false); break;
                 case "patrol":   mp.SetMovePatrolAroundSettlement(target, navType, false); break;
             }
+            // 2026-06-10 FIX — держим AI замороженным на каждом reissue (флаг могут
+            // сбросить движковые события: вступление в армию, бой, плен).
+            try { mp.Ai.SetDoNotMakeNewDecisions(true); } catch { }
         }
 
         // ─── Event-driven auto-release ─────────────────────────────────────
@@ -430,9 +433,27 @@ namespace BannerlordLink.Behaviors
 
         // ─── Status event push (for extension UI) ──────────────────────────
 
+        // 2026-06-10 FIX — снять заморозку AI у партии (по username), чтобы после
+        // снятия/истечения/выполнения приказа партия вернулась к автономному AI,
+        // а не осталась "замороженной" навсегда. No-op если героя/партии нет.
+        private static void TryUnfreezeParty(string username)
+        {
+            try
+            {
+                var hero = BannerlordLink.Actions.HeroLookup.FindByUsername(username);
+                var mp = hero?.PartyBelongedTo;
+                if (mp != null) mp.Ai.SetDoNotMakeNewDecisions(false);
+            }
+            catch { }
+        }
+
         private static void PushStatusEvent(string owner, string orderType,
             Settlement target, float remainingHours)
         {
+            // orderType==null → приказ снят/истёк/выполнен: размораживаем AI партии.
+            // Вызывается из ВСЕХ путей удаления приказа (release/expire/complete/
+            // auto-release) — единая центральная точка разморозки.
+            if (orderType == null) TryUnfreezeParty(owner);
             try
             {
                 string evtData = JsonConvert.SerializeObject(new

@@ -106,10 +106,21 @@ namespace BannerlordLink.Actions
                     return;
                 }
 
+                // 2026-06-10 FIX — кэп свиты = 5 + retinue_size_bonus от clan upgrades.
+                // Раньше MAX_RETINUE был захардкожен 5 → апгрейд «Усиленная свита»
+                // (retinue_size_bonus) не открывал дополнительный слот свиты.
+                int retinueCap = MAX_RETINUE;
+                try
+                {
+                    retinueCap += (int)(BannerlordLink.Behaviors.ClanUpgradesBehavior
+                        .Current?.GetBonusFor(hero, "retinue_size_bonus") ?? 0.0);
+                }
+                catch { }
+
                 // Decide: add new troop OR upgrade existing?
                 // Sprint 5.14: для upgrade pickaем slot нужного типа (elite/basic),
                 // чтобы wantElite=true upgrade'ил elite trooper, не basic.
-                bool addNew = existing.Count < MAX_RETINUE;
+                bool addNew = existing.Count < retinueCap;
                 int tier = 0;
                 if (!addNew)
                 {

@@ -197,6 +197,16 @@ namespace BannerlordLink.Actions
                         ActionFeedback.PostFailed(actionId, "unknown_order");
                         return;
                 }
+                // 2026-06-10 FIX — заморозить автономный AI отряда СРАЗУ после
+                // SetMove*, иначе движок на следующем тике принимает своё решение
+                // и перебивает приказ (зритель видел «приказы игнорируются»).
+                // BLT-паттерн: MobilePartyAi.SetDoNotMakeNewDecisions(true).
+                try { mp.Ai.SetDoNotMakeNewDecisions(true); }
+                catch (Exception aiEx)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[party_order] AI-freeze warn @{username}: {aiEx.Message}");
+                }
                 // Sprint 5.33 PORDER — register sticky order. Behavior takes
                 // over: HourlyTick re-issue если AI drift'нул, auto-release
                 // при completion (siege won / raid done / settlement captured).

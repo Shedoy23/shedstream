@@ -245,6 +245,35 @@ namespace BannerlordLink.Actions
                     $"[leave_clan V] @{username}: pre-setter state " +
                     $"hero.Clan='{hero.Clan?.Name}' clan._heroes.size={hero.Clan?.Heroes?.Count} " +
                     $"hero.IsClanLeader={hero.IsClanLeader} hero.Occupation={hero.Occupation}");
+
+                // 2026-06-11 — компаньон-aware detach (фикс «klut12 застрял в клане
+                // игрока 'Gray'», 5+ попыток). Адоптнутые viewer-герои — wanderer'ы;
+                // при вступлении в клан они становятся КОМПАНЬОНАМИ, и Hero.Clan
+                // завязан на companion-систему (CompanionOf / clan._companions), а
+                // НЕ на поле _clan. Поэтому `Clan=null` setter И reflection на _clan
+                // молча no-op'ят → герой висит в клане навсегда. Канонический способ
+                // убрать компаньона — RemoveCompanionAction.ApplyByFire: он корректно
+                // ставит Clan=null + CompanionOf=null + чистит ссылки в clan/party.
+                // Делаем ДО setter-хака; для обычных лордов (CompanionOf==null) —
+                // skip, дальше идёт старый setter/reflection путь.
+                try
+                {
+                    var compOf = hero.CompanionOf;
+                    if (compOf != null)
+                    {
+                        RemoveCompanionAction.ApplyByFire(compOf, hero);
+                        BannerlordLinkModule.Log(
+                            $"[leave_clan] @{username}: RemoveCompanionAction.ApplyByFire " +
+                            $"(был компаньоном клана '{compOf.Name}') → Clan теперь " +
+                            $"'{hero.Clan?.Name?.ToString() ?? "(null)"}'");
+                    }
+                }
+                catch (Exception cex)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[leave_clan] @{username}: RemoveCompanionAction warn: {cex.Message}");
+                }
+
                 hero.Clan = null;
                 BannerlordLinkModule.LogVerbose(() =>
                     $"[leave_clan V] @{username}: post-setter hero.Clan={hero.Clan?.Name?.ToString() ?? "(null)"}");

@@ -5227,6 +5227,48 @@ function _renderBannerlordDetachmentPanel(battleData) {
     });
 }
 
+// 2026-06-10 — ⚔ боевая стойка (per-viewer): defensive/balanced/aggressive.
+// Живёт во вкладке «Бой» (combat-пейн), наполняется из hero-поллинга
+// (_bannerlordLastHero). Сдвигает боевой ИИ СВОЕГО бойца (блок/парри vs атака).
+// Server-эхо догоняет клик через мод (~сек) → оптимистичная подсветка.
+function _renderBannerlordStance() {
+    const slot = document.getElementById('bnr-combat-stance-slot');
+    if (!slot) return;
+    const h = (_bannerlordLastHero && _bannerlordLastHero.hero) || null;
+    if (!h) return;
+    if (h.combat_stance && h.combat_stance === _bnrOptimisticStance) _bnrOptimisticStance = null;
+    const active = _bnrOptimisticStance || h.combat_stance || 'balanced';
+    const btn = (key, icon, label, tip) =>
+        `<button class="small-btn bnr-stance-btn" data-stance="${key}" title="${label} — ${tip}" `
+        + `style="font-size:11px;padding:3px 9px;`
+        + `background:${active === key ? '#3d3d1f' : '#2d2d2f'};`
+        + `color:${active === key ? '#fbbf24' : '#adadb8'};`
+        + `border:1px solid ${active === key ? '#fbbf24' : '#3d3d3f'};">${icon} ${label}</button>`;
+    const html = `
+        <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;
+                    padding:6px 8px;background:#18181b;border:1px solid #2d2d2f;border-radius:4px;">
+            <span style="font-size:11px;color:#adadb8;font-weight:700;">⚔ Стойка боя:</span>
+            ${btn('defensive', '🛡', 'Оборона', 'выше блок/парри, меньше атаки')}
+            ${btn('balanced', '⚖', 'Баланс', 'ровно по классу')}
+            ${btn('aggressive', '⚔', 'Натиск', 'выше атака, ниже защита')}
+        </div>`;
+    if (_smartInnerHTML(slot, html)) {
+        slot.querySelectorAll('.bnr-stance-btn').forEach(b => {
+            b.addEventListener('click', () => {
+                const st = b.getAttribute('data-stance');
+                _bnrOptimisticStance = st;
+                _bannerlordBuyAction('hero.set_combat_stance', { stance: st });
+                slot.querySelectorAll('.bnr-stance-btn').forEach(x => {
+                    const on = x.getAttribute('data-stance') === st;
+                    x.style.background = on ? '#3d3d1f' : '#2d2d2f';
+                    x.style.color = on ? '#fbbf24' : '#adadb8';
+                    x.style.border = '1px solid ' + (on ? '#fbbf24' : '#3d3d3f');
+                });
+            });
+        });
+    }
+}
+
 function _renderBannerlordBattleBanner(data) {
     const slot = document.getElementById('bnr-battle-banner-slot');
     if (!slot) return;
@@ -5833,16 +5875,6 @@ async function loadBannerlordHero() {
             }
             // (2) Volatile stats grid — обновляется каждый poll, но это
             //     ИЗОЛИРОВАННЫЙ под-элемент; sub-slots рядом не трогаются.
-            // ⚔ боевая стойка (per-viewer): влияет на боевой ИИ СВОЕГО бойца.
-            // Server-эхо догоняет клик через мод (~сек) → оптимистичная подсветка.
-            if (h.combat_stance && h.combat_stance === _bnrOptimisticStance) _bnrOptimisticStance = null;
-            const _activeStance = _bnrOptimisticStance || h.combat_stance || 'balanced';
-            const _stanceBtn = (key, icon, label, tip) =>
-                `<button class="small-btn bnr-stance-btn" data-stance="${key}" title="${label} — ${tip}" `
-                + `style="font-size:11px;padding:2px 8px;`
-                + `background:${_activeStance === key ? '#3d3d1f' : '#2d2d2f'};`
-                + `color:${_activeStance === key ? '#fbbf24' : '#adadb8'};`
-                + `border:1px solid ${_activeStance === key ? '#fbbf24' : '#3d3d3f'};">${icon} ${label}</button>`;
             const _statsHtml = `
                 <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 10px;
                             font-size:12px;align-items:center;">
@@ -5862,12 +5894,6 @@ async function loadBannerlordHero() {
                         <span style="color:#adadb8;">🏆 Турниры:</span>
                         <span style="color:#fbbf24;font-weight:700;" title="Wins за всю историю канала. Note: ×0.7-0.85 HP penalty в next турнире — анти-сноубол.">${h.tournament_wins}${h.tournament_wins >= 3 ? ' <span style="font-size:10px;color:#fb923c;">ветеран</span>' : ''}</span>
                     ` : ''}
-                </div>
-                <div style="margin-top:8px;display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
-                    <span style="font-size:11px;color:#adadb8;">⚔ Стойка:</span>
-                    ${_stanceBtn('defensive', '🛡', 'Оборона', 'выше блок/парри, меньше атаки')}
-                    ${_stanceBtn('balanced', '⚖', 'Баланс', 'ровно по классу')}
-                    ${_stanceBtn('aggressive', '⚔', 'Натиск', 'выше атака, ниже защита')}
                 </div>`;
             // (3) Rebind clan/kingdom/upgrade ТОЛЬКО когда grid реально
             //     перерисован (новые DOM nodes). _smartInnerHTML returns true
@@ -5879,20 +5905,6 @@ async function loadBannerlordHero() {
                 });
                 document.getElementById('bnr-reequip-btn')?.addEventListener('click', () => {
                     _bannerlordBuyAction('hero.reequip_gear', {});
-                });
-                // ⚔ боевая стойка — клик шлёт действие + мгновенно подсвечивает.
-                document.querySelectorAll('#bnr-pane-hero-stats .bnr-stance-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const st = btn.getAttribute('data-stance');
-                        _bnrOptimisticStance = st;
-                        _bannerlordBuyAction('hero.set_combat_stance', { stance: st });
-                        document.querySelectorAll('#bnr-pane-hero-stats .bnr-stance-btn').forEach(b => {
-                            const on = b.getAttribute('data-stance') === st;
-                            b.style.background = on ? '#3d3d1f' : '#2d2d2f';
-                            b.style.color = on ? '#fbbf24' : '#adadb8';
-                            b.style.border = '1px solid ' + (on ? '#fbbf24' : '#3d3d3f');
-                        });
-                    });
                 });
             }
         }
@@ -6011,6 +6023,7 @@ async function loadBannerlordHero() {
         if (paneCombat) paneCombat.innerHTML = `
             <div style="padding:6px;">
                 <div id="bnr-battle-banner-slot"></div>
+                <div id="bnr-combat-stance-slot" style="margin-bottom:8px;"></div>
                 <div id="bnr-buff-hud"></div>
                 <div id="bnr-active-powers-slot"></div>
                 <div id="bnr-summon-slot"></div>
@@ -6029,6 +6042,8 @@ async function loadBannerlordHero() {
         //   на своих slot'ах. Видят свежие данные даже когда hero pane не сменился.
         // Sprint 5.32 #46 — refill daily slot (recreated на re-render Hero pane).
         loadBannerlordDaily();
+        // 2026-06-10 — боевая стойка (в combat-пейне), наполняется из hero-поллинга.
+        _renderBannerlordStance();
         // 2026-06-07 — Прогрессия (скиллы/фокусы/атрибуты) live-секция в Hero pane.
         loadBannerlordProgression();
         // 2026-06-07 — Смена пола — inline-секция в Hero pane.

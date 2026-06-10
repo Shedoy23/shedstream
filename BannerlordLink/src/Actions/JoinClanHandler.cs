@@ -89,6 +89,15 @@ namespace BannerlordLink.Actions
                         $"[join_clan] @{username}: clan '{target.Name}' уничтожен");
                     return;
                 }
+                // 2026-06-10 — нельзя вступить в клан ИГРОКА: движок блокирует выход
+                // (Clan=null) для члена клана игрока → зритель залипает навсегда
+                // (баг klut12 в 'Gray'). Лучше не пускать, чем потом не выпускать.
+                if (target == Clan.PlayerClan)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[join_clan] @{username}: вступление в клан игрока '{target.Name}' запрещено (из него не выйти)");
+                    return;
+                }
                 if ((target.Heroes?.Count ?? 0) >= MAX_HEROES_PER_CLAN)
                 {
                     BannerlordLinkModule.Log(

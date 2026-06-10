@@ -138,7 +138,7 @@ namespace BannerlordLink.Behaviors
             try
             {
                 string resp = await BannerlordLinkModule.Backend.GetAsync(
-                    "bannerlord/recent-tournament-winners?limit=5");
+                    "/api/bannerlord/recent-tournament-winners?limit=5");  // 2026-06-10 FIX: был без /api/ → 404
                 if (string.IsNullOrEmpty(resp)) return;
                 // Lightweight parse без full JSON deserializer — payload простой:
                 // {"success": true, "winners": [{"username": "...", "wins": N}, ...]}

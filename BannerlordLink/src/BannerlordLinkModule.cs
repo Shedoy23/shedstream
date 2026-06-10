@@ -281,7 +281,11 @@ namespace BannerlordLink
                 var SKIP_PATCH_NAMES = new System.Collections.Generic.HashSet<string>(
                     StringComparer.Ordinal)
                 {
-                    // empty — все patches теперь resilient
+                    // 2026-06-10 — CleavePatch намеренно выключен (TargetMethods =
+                    // yield break, нативные краши cleave на 1.3.15). Но пустой
+                    // TargetMethods при живом [HarmonyPatch] давал HarmonyException
+                    // каждый запуск (лог-шум, failed=1). Скипаем явно → чисто.
+                    "CleavePatch",
                 };
                 int ok = 0, failed = 0, skipped = 0;
                 var asm = typeof(BannerlordLinkModule).Assembly;

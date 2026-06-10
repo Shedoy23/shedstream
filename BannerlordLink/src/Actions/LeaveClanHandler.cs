@@ -255,8 +255,24 @@ namespace BannerlordLink.Actions
                         $"(clan still '{hero.Clan.Name}') — fallback к reflection");
                     try
                     {
-                        var clanField = HarmonyLib.AccessTools.Field(typeof(Hero), "_clan");
                         var oldClan = hero.Clan;
+                        // 2026-06-10 FIX — бэкинг-поле Hero.Clan в 1.3.15 — это авто-
+                        // проперти `<Clan>k__BackingField`, а НЕ '_clan'. Старый lookup
+                        // по '_clan' давал null → reflection молча не срабатывал → член
+                        // клана ИГРОКА не мог выйти (напр. klut12 из 'Gray', 5 попыток).
+                        // Ищем поле надёжно: имя авто-проперти, затем '_clan', затем по
+                        // типу+значению (поле типа Clan, которое сейчас держит oldClan).
+                        var clanField = HarmonyLib.AccessTools.Field(typeof(Hero), "<Clan>k__BackingField")
+                                     ?? HarmonyLib.AccessTools.Field(typeof(Hero), "_clan");
+                        if (clanField == null)
+                        {
+                            clanField = typeof(Hero)
+                                .GetFields(System.Reflection.BindingFlags.Instance
+                                    | System.Reflection.BindingFlags.NonPublic
+                                    | System.Reflection.BindingFlags.Public)
+                                .FirstOrDefault(f => f.FieldType == typeof(Clan)
+                                    && ReferenceEquals(f.GetValue(hero), oldClan));
+                        }
                         BannerlordLinkModule.LogVerbose(() =>
                             $"[leave_clan V] @{username}: reflection lookup Hero._clan " +
                             $"field={(clanField != null ? "OK" : "NULL")} " +

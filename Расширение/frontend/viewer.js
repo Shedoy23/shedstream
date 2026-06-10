@@ -3875,13 +3875,13 @@ function _bindBannerlordCurrency() {
 // ===== Sprint 5.8: Focus / Attribute investments (Hero.Gold cost) =====
 const BNR_SKILLS = [
     'OneHanded', 'TwoHanded', 'Polearm', 'Bow', 'Crossbow', 'Throwing',
-    'Athletics', 'Riding', 'Smithing', 'Scouting', 'Tactics', 'Roguery',
+    'Athletics', 'Riding', 'Crafting', 'Scouting', 'Tactics', 'Roguery',
     'Charm', 'Leadership', 'Trade', 'Steward', 'Medicine', 'Engineering',
 ];
 const BNR_SKILL_LABELS_RU = {
     OneHanded: 'Одноручное', TwoHanded: 'Двуручное', Polearm: 'Древковое',
     Bow: 'Лук', Crossbow: 'Арбалет', Throwing: 'Метательное',
-    Athletics: 'Атлетика', Riding: 'Верховая езда', Smithing: 'Кузнечное',
+    Athletics: 'Атлетика', Riding: 'Верховая езда', Crafting: 'Кузнечное',
     Scouting: 'Разведка', Tactics: 'Тактика', Roguery: 'Бесчестие',
     Charm: 'Обаяние', Leadership: 'Лидерство', Trade: 'Торговля',
     Steward: 'Управление', Medicine: 'Медицина', Engineering: 'Инженерия',
@@ -3897,7 +3897,7 @@ const BNR_ATTR_LABELS_RU = {
 const BNR_ATTR_TO_SKILLS = {
     Vigor:        ['OneHanded', 'TwoHanded', 'Polearm'],
     Control:      ['Bow', 'Crossbow', 'Throwing'],
-    Endurance:    ['Riding', 'Athletics', 'Smithing'],
+    Endurance:    ['Riding', 'Athletics', 'Crafting'],
     Cunning:      ['Scouting', 'Tactics', 'Roguery'],
     Social:       ['Charm', 'Leadership', 'Trade'],
     Intelligence: ['Steward', 'Medicine', 'Engineering'],

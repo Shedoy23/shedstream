@@ -250,7 +250,9 @@ namespace BannerlordLink.Actions
                     // эффект (тот же API, что у disarm_burst). HP=0 — как fallback.
                     agent.ChangeWeaponHitPoints(idx, 0);
                     TryTriggerShieldBreakFx(agent);
-                    agent.DropItem(idx);
+                    // 2026-06-10 — guard: не зовём DropItem на невалидном предмете
+                    // (движок: "drop_item: weapon.is_valid_item()!").
+                    if (weapon.Item != null) agent.DropItem(idx);
                     return true;
                 }
             }
@@ -399,6 +401,17 @@ namespace BannerlordLink.Actions
             BannerlordLink.Util.PowerVisualFx.PlayActivation(target, "poison_dot", username, (int)dps);
         }
 
+        // 2026-06-10 — реально-роняемые типы предметов (защита от
+        // "drop_item: weapon.is_valid_item()!" на баннерах / невалидных слотах).
+        private static bool IsDroppableWeapon(ItemObject.ItemTypeEnum t) =>
+            t == ItemObject.ItemTypeEnum.OneHandedWeapon
+            || t == ItemObject.ItemTypeEnum.TwoHandedWeapon
+            || t == ItemObject.ItemTypeEnum.Polearm
+            || t == ItemObject.ItemTypeEnum.Bow
+            || t == ItemObject.ItemTypeEnum.Crossbow
+            || t == ItemObject.ItemTypeEnum.Thrown
+            || t == ItemObject.ItemTypeEnum.Shield;
+
         /// <summary>Disarm burst — random enemy роняет wielded weapon.
         /// Engine API: Agent.DropItem(EquipmentIndex). Instant, no duration.</summary>
         private static void ApplyDisarmBurst(Agent caster, string username)
@@ -418,7 +431,12 @@ namespace BannerlordLink.Actions
                 for (int i = 0; i < 4; i++)
                 {
                     var slot = (EquipmentIndex)i;
-                    if (target.Equipment[slot].IsEmpty) continue;
+                    var w = target.Equipment[slot];
+                    // 2026-06-10 — роняем ТОЛЬКО реальное оружие. Раньше брали
+                    // первый непустой слот → мог попасть баннер/невалидный предмет
+                    // → движок: "SCRIPT ERROR drop_item: weapon.is_valid_item()!".
+                    if (w.IsEmpty || w.Item == null) continue;
+                    if (!IsDroppableWeapon(w.Item.ItemType)) continue;
                     dropSlot = slot;
                     break;
                 }

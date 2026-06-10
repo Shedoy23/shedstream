@@ -1048,7 +1048,8 @@ async def bannerlord_my_hero(request: Request):
             "       is_female, family_info_json, "
             "       COALESCE(iteration, 1), "
             "       COALESCE(is_wounded, 0), "
-            "       COALESCE(tournament_wins, 0) "
+            "       COALESCE(tournament_wins, 0), "
+            "       party_info_json "
             "FROM bannerlord_heroes WHERE channel_id=? AND username=?",
             (channel_id, username))
         row = await cur.fetchone()
@@ -1084,6 +1085,7 @@ async def bannerlord_my_hero(request: Request):
             "iteration":    int(row[17]) if row[17] is not None else 1,  # Sprint 5.29
             "is_wounded":   bool(row[18]),  # Sprint 5.32 M43 — KO state
             "tournament_wins": int(row[19]) if row[19] is not None else 0,  # Sprint 5.32 H8/FE-H8 veteran badge
+            "party_info":   _safe_json(row[20]),  # 2026-06-10 — отряд на карте (size/task/target/in_army)
         }
         # Convenience: top-level spouse_name (для profile modal display)
         fi = hero.get("family_info") or {}
@@ -1154,6 +1156,22 @@ async def bannerlord_my_hero(request: Request):
             }
             for r in await cur.fetchall()
         ]
+
+        # 2026-06-10 — retinue_cap = 5 + clan-upgrade retinue_size_bonus. Фронт
+        # раньше хардкодил 5 → апгрейд «Усиленная свита» не открывал слот свиты.
+        retinue_cap = 5
+        cur = await conn.execute(
+            "SELECT u.effects_json FROM bannerlord_clan_upgrades_owned o "
+            "JOIN bannerlord_clan_upgrades_catalog u ON "
+            "  u.channel_id = o.channel_id AND u.upgrade_id = o.upgrade_id "
+            "WHERE o.channel_id = ? AND o.username = ?",
+            (channel_id, username))
+        for (eff_json,) in await cur.fetchall():
+            try:
+                retinue_cap += int((json.loads(eff_json or '{}')).get("retinue_size_bonus", 0) or 0)
+            except Exception:
+                pass
+        hero["retinue_cap"] = retinue_cap
 
     return {
         "success":    True,

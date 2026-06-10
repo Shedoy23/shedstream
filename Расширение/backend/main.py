@@ -1011,6 +1011,13 @@ async def run_migrations():
             print(f"❌ M65 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m66_party_info
+            await m66_party_info.apply(conn)
+        except Exception as e:
+            print(f"❌ M66 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

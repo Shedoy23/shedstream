@@ -952,7 +952,8 @@ class BannerlordAdapter(ModuleAdapter):
             # Sprint 5.11+5.27c: clan_info / kingdom_info / family_info JSON storage
             for k, col in [("clan_info", "clan_info_json"),
                            ("kingdom_info", "kingdom_info_json"),
-                           ("family_info", "family_info_json")]:
+                           ("family_info", "family_info_json"),
+                           ("party_info", "party_info_json")]:
                 info = data.get(k)
                 if info is not None:
                     try:

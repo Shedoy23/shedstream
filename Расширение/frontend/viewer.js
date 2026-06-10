@@ -675,7 +675,7 @@ async function removeMyGene(geneDef, geneLabel, isOverridden) {
             try {
                 const r = await fetch(`${API_URL}/api/rimworld/remove-gene`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || ''},
                     body: JSON.stringify({ username: userLogin, def_name: geneDef, label: geneLabel })
                 });
                 const d = await r.json();
@@ -1445,19 +1445,27 @@ async function loadBannerlordFamily() {
 
         // Incoming proposals (приоритет внимания)
         if (incoming.length > 0) {
+            // 2026-06-07 — предложения брака inline (принять/отклонить прямо тут,
+            // без модалки).
             html += `
                 <div style="background:#3b0a4a;padding:6px;border-radius:3px;margin-bottom:6px;">
                     <div style="color:#f0abfc;font-weight:700;margin-bottom:4px;">
                         💍 Входящих предложений: ${incoming.length}
                     </div>
-                    <div style="font-size:10px;color:#e9d5ff;">
-                        ${incoming.map(p => `от @${escapeHtml(p.proposer_username)}: «${escapeHtml(p.proposer_child_name)} ❤ ${escapeHtml(p.target_child_name)}»`).join('<br>')}
-                    </div>
-                    <button class="extra-btn" id="bnr-open-proposals-btn"
-                            style="width:100%;font-size:11px;padding:5px;margin-top:6px;
-                                   background:#7c3aed;color:#fff;font-weight:700;">
-                        Рассмотреть предложения
-                    </button>
+                    ${incoming.map(p => `
+                        <div data-proposal-id="${p.id}"
+                             style="background:#0f0a18;padding:5px 6px;border-radius:3px;margin-bottom:4px;">
+                            <div style="font-size:10px;color:#e9d5ff;margin-bottom:4px;">
+                                от @${escapeHtml(p.proposer_username)}: «${escapeHtml(p.proposer_child_name)} ❤ ${escapeHtml(p.target_child_name)}»
+                            </div>
+                            <div style="display:flex;gap:4px;">
+                                <button class="bnr-prop-accept small-btn"
+                                        style="flex:1;font-size:10px;padding:3px;background:#15803d;color:#dcfce7;font-weight:700;">✓ Принять</button>
+                                <button class="bnr-prop-reject small-btn"
+                                        style="flex:1;font-size:10px;padding:3px;background:#7f1d1d;color:#fee2e2;font-weight:700;">✗ Отклонить</button>
+                            </div>
+                        </div>
+                    `).join('')}
                 </div>`;
         }
 
@@ -1525,8 +1533,20 @@ async function loadBannerlordFamily() {
         if (!_smartInnerHTML(slot, html)) return;
 
         // Bind handlers
-        document.getElementById('bnr-open-proposals-btn')?.addEventListener('click',
-            () => _openProposalsModal(incoming));
+        slot.querySelectorAll('.bnr-prop-accept').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const id = parseInt(e.target.closest('[data-proposal-id]').dataset.proposalId, 10);
+                _bannerlordBuyAction('hero.respond_marriage_proposal', { proposal_id: id, accept: true });
+                setTimeout(loadBannerlordFamily, 1500);
+            });
+        });
+        slot.querySelectorAll('.bnr-prop-reject').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const id = parseInt(e.target.closest('[data-proposal-id]').dataset.proposalId, 10);
+                _bannerlordBuyAction('hero.respond_marriage_proposal', { proposal_id: id, accept: false });
+                setTimeout(loadBannerlordFamily, 1500);
+            });
+        });
         slot.querySelectorAll('.bnr-fam-rename').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const parent = e.target.closest('[data-child-id]');
@@ -1664,70 +1684,8 @@ async function _famProposeMarriage(myChildId, myChildName) {
     }
 }
 
-function _openProposalsModal(incoming) {
-    if (!incoming || incoming.length === 0) return;
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `
-        position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;
-        display:flex;align-items:center;justify-content:center;`;
-    overlay.innerHTML = `
-        <div style="background:#1f1a30;border:1px solid #5b21b6;border-radius:6px;
-                    padding:14px;max-width:380px;width:90%;color:#c4b5fd;">
-            <div style="font-size:14px;font-weight:700;color:#a78bfa;margin-bottom:10px;">
-                💍 Входящие предложения брака
-            </div>
-            ${incoming.map(p => `
-                <div data-proposal-id="${p.id}"
-                     style="background:#0f0f1e;padding:8px;border-radius:4px;margin-bottom:6px;
-                            border:1px solid #4c1d95;">
-                    <div style="font-size:11px;margin-bottom:4px;">
-                        от <b style="color:#f0abfc;">@${escapeHtml(p.proposer_username)}</b>:
-                    </div>
-                    <div style="font-size:12px;color:#e9d5ff;margin-bottom:6px;">
-                        «${escapeHtml(p.proposer_child_name)} ❤ ${escapeHtml(p.target_child_name)}»
-                    </div>
-                    <div style="display:flex;gap:4px;">
-                        <button class="bnr-prop-accept extra-btn"
-                                style="flex:1;font-size:11px;padding:5px;
-                                       background:#15803d;color:#dcfce7;font-weight:700;">
-                            ✓ Принять
-                        </button>
-                        <button class="bnr-prop-reject extra-btn"
-                                style="flex:1;font-size:11px;padding:5px;
-                                       background:#7f1d1d;color:#fee2e2;font-weight:700;">
-                            ✗ Отклонить
-                        </button>
-                    </div>
-                </div>
-            `).join('')}
-            <button id="bnr-prop-close" class="extra-btn"
-                    style="width:100%;font-size:11px;padding:6px;margin-top:6px;
-                           background:#2d2d3f;color:#c4b5fd;">
-                Закрыть
-            </button>
-        </div>`;
-    document.body.appendChild(overlay);
-    overlay.querySelectorAll('.bnr-prop-accept').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            const id = parseInt(e.target.closest('[data-proposal-id]').dataset.proposalId, 10);
-            await _bannerlordBuyAction('hero.respond_marriage_proposal',
-                { proposal_id: id, accept: true });
-            overlay.remove();
-            setTimeout(loadBannerlordFamily, 1500);
-        });
-    });
-    overlay.querySelectorAll('.bnr-prop-reject').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            const id = parseInt(e.target.closest('[data-proposal-id]').dataset.proposalId, 10);
-            await _bannerlordBuyAction('hero.respond_marriage_proposal',
-                { proposal_id: id, accept: false });
-            overlay.remove();
-            setTimeout(loadBannerlordFamily, 1500);
-        });
-    });
-    document.getElementById('bnr-prop-close')?.addEventListener('click', () => overlay.remove());
-    overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.remove(); });
-}
+// 2026-06-07 — _openProposalsModal удалена: предложения брака теперь инлайн в
+// секции семьи (принять/отклонить per-proposal, см. loadBannerlordFamily).
 
 // Sprint 5.33 (BLT-parity VAS) — Vassal sub-clan management.
 // Viewer-leader клана может выделить взрослого ребёнка (heir) в собственный
@@ -1780,13 +1738,18 @@ async function loadBannerlordVassals() {
                 </div>`;
         }
         if (eligible.length > 0 && vassals.length < 5) {
+            // 2026-06-07 — создание вассала инлайн (lazy <details>): <select>-наследник
+            // + text-имя переживают 8s-poll (форма рендерится при раскрытии).
             html += `
-                <button id="bnr-vas-create" class="extra-btn"
-                        title="Выделить взрослого ребёнка в собственный sub-clan (250K💰 у героя)"
-                        style="width:100%;font-size:11px;padding:6px;background:#1e3a8a;
-                               color:#fff;font-weight:700;">
-                    🏰 Создать вассала (250K💰) — ${eligible.length} наследников доступно
-                </button>`;
+                <details data-bnr-details="vas-create" ${_bnrDetailsAttr('vas-create')}>
+                    <summary title="Выделить взрослого ребёнка в собственный sub-clan (250K💰 у героя)"
+                             style="list-style:none;cursor:pointer;width:100%;
+                                    font-size:11px;padding:6px;background:#1e3a8a;box-sizing:border-box;
+                                    color:#fff;font-weight:700;border-radius:3px;text-align:center;">
+                        🏰 Создать вассала (250K💰) — ${eligible.length} наследников доступно
+                    </summary>
+                    <div id="bnr-vas-create-slot" style="padding-top:6px;"></div>
+                </details>`;
         } else if (vassals.length >= 5) {
             html += `
                 <div style="font-size:10px;color:#6b7280;text-align:center;">
@@ -1794,6 +1757,9 @@ async function loadBannerlordVassals() {
                 </div>`;
         }
         html += `</div>`;
+        // 2026-06-07 FLICKER — пока форма создания вассала раскрыта, НЕ перерисовываем
+        // секцию (иначе repaint стирает выбор наследника / ввод имени).
+        if (slot.querySelector('[data-bnr-details="vas-create"]')?.open) return;
         // FLICKER-FIX: skip rebind при identical HTML.
         if (!_smartInnerHTML(slot, html)) return;
 
@@ -1814,27 +1780,25 @@ async function loadBannerlordVassals() {
             });
         });
 
-        // Bind create button
-        document.getElementById('bnr-vas-create')?.addEventListener('click', () => {
-            _openCreateVassalModal(eligible);
-        });
+        // Bind create — lazy inline форма (heir select + name) при раскрытии.
+        const _vasDet = slot.querySelector('[data-bnr-details="vas-create"]');
+        if (_vasDet) {
+            _vasDet.addEventListener('toggle', () => { if (_vasDet.open) _renderCreateVassalInline(eligible); });
+            if (_vasDet.open) _renderCreateVassalInline(eligible);
+        }
     } catch (e) {
         console.warn('[FE-VAS] loadVassals failed (keeping last render)', e);
     }
 }
 
-function _openCreateVassalModal(eligibleHeirs) {
-    if (!eligibleHeirs || eligibleHeirs.length === 0) return;
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `
-        position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;
-        display:flex;align-items:center;justify-content:center;`;
-    overlay.innerHTML = `
-        <div style="background:#1a1f2e;border:1px solid #1e40af;border-radius:6px;
-                    padding:14px;max-width:380px;width:90%;color:#bfdbfe;">
-            <div style="font-size:14px;font-weight:700;color:#60a5fa;margin-bottom:10px;">
-                🏰 Создать вассальный клан (250K💰)
-            </div>
+// удалена: инлайн lazy-форма вассала (_renderCreateVassalInline) вместо модалки.
+function _renderCreateVassalInline(eligibleHeirs) {
+    const slot = document.getElementById('bnr-vas-create-slot');
+    if (!slot) return;
+    if (!eligibleHeirs || eligibleHeirs.length === 0) { slot.innerHTML = ''; return; }
+    slot.innerHTML = `
+        <div style="background:#1a1f2e;border:1px solid #1e40af;border-radius:4px;
+                    padding:10px;color:#bfdbfe;">
             <div style="font-size:11px;color:#9ca3af;margin-bottom:8px;">
                 Выдели взрослого наследника в собственный sub-clan.
                 Он станет лидером, ваш клан получает 25% от его доходов.
@@ -1857,22 +1821,12 @@ function _openCreateVassalModal(eligibleHeirs) {
                    style="width:100%;padding:6px;font-size:12px;background:#0f1730;
                           color:#dbeafe;border:1px solid #1e40af;margin-bottom:10px;
                           box-sizing:border-box;">
-            <div style="display:flex;gap:4px;">
-                <button id="bnr-vas-confirm" class="extra-btn"
-                        style="flex:1;font-size:11px;padding:6px;
-                               background:#1e40af;color:#fff;font-weight:700;">
-                    🏰 Создать (250K💰)
-                </button>
-                <button id="bnr-vas-cancel" class="extra-btn"
-                        style="flex:1;font-size:11px;padding:6px;
-                               background:#2d2d3f;color:#bfdbfe;">
-                    Отмена
-                </button>
-            </div>
+            <button id="bnr-vas-confirm" class="extra-btn"
+                    style="width:100%;font-size:11px;padding:6px;
+                           background:#1e40af;color:#fff;font-weight:700;">
+                🏰 Создать (250K💰)
+            </button>
         </div>`;
-    document.body.appendChild(overlay);
-    document.getElementById('bnr-vas-cancel')?.addEventListener('click', () => overlay.remove());
-    overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.remove(); });
     document.getElementById('bnr-vas-confirm')?.addEventListener('click', async () => {
         const heirId = document.getElementById('bnr-vas-heir-pick')?.value;
         const name = document.getElementById('bnr-vas-name-input')?.value?.trim();
@@ -1880,11 +1834,13 @@ function _openCreateVassalModal(eligibleHeirs) {
             showNotification('Выбери наследника и имя (≥2 символа)', 'warning');
             return;
         }
+        // 2026-06-07 FLICKER — закрыть форму ДО refresh (иначе freeze-guard
+        // заблокирует перерисовку) + мгновенный фидбек на клик.
+        document.querySelector('[data-bnr-details="vas-create"]')?.removeAttribute('open');
         await _bannerlordBuyAction('hero.create_vassal_clan', {
             heir_hero_id: heirId,
             vassal_name: name,
         });
-        overlay.remove();
         setTimeout(loadBannerlordVassals, 2000);  // engine apply takes ~1s
     });
 }
@@ -1925,6 +1881,34 @@ async function loadBannerlordPartyOrders() {
                     ⚔ Приказы моего отряда на карте
                 </div>`;
 
+        // 2026-06-10 — текущий отряд (число воинов + задача движка) из hero-state push.
+        const pinfo = (_bannerlordLastHero?.hero?.party_info) || null;
+        const taskLabel = {
+            GoToSettlement: 'идёт в поселение', BesiegeSettlement: 'осаждает',
+            RaidSettlement: 'грабит', DefendSettlement: 'защищает',
+            PatrolAroundPoint: 'патрулирует', Hold: 'стоит на месте',
+            EngageParty: 'преследует отряд', GoToPoint: 'движется',
+            FleeToPoint: 'отступает', GoAroundParty: 'маневрирует',
+            JoinArmy: 'идёт в армию', EscortParty: 'сопровождает',
+        };
+        if (pinfo) {
+            const taskTxt = taskLabel[pinfo.task] || pinfo.task || '—';
+            const tgtTxt  = pinfo.target ? ` → ${escapeHtml(pinfo.target)}` : '';
+            const armyTxt = pinfo.in_army ? ' · <span style="color:#fbbf24;">в армии</span>' : '';
+            html += `
+                <div style="background:#1a0f08;padding:6px 8px;border-radius:3px;margin-bottom:6px;font-size:11px;">
+                    <span style="color:#9ca3af;">Отряд:</span>
+                    <strong style="color:#fed7aa;">${pinfo.size} 🪖</strong>
+                    <span style="color:#9ca3af;"> · задача:</span>
+                    <strong style="color:#fed7aa;">${taskTxt}${tgtTxt}</strong>${armyTxt}
+                </div>`;
+        } else {
+            html += `
+                <div style="font-size:10px;color:#6b7280;margin-bottom:6px;">
+                    Нет отряда на карте (герой без партии — создай отряд в Династии)
+                </div>`;
+        }
+
         if (active) {
             const emoji = orderEmoji[active.order_type] || '⚔';
             const lbl = orderLabel[active.order_type] || active.order_type;
@@ -1950,14 +1934,22 @@ async function loadBannerlordPartyOrders() {
                 </div>`;
         }
 
+        // 2026-06-07 — назначение приказа инлайн (lazy <details>): radio-приказ +
+        // text-поле поселения переживают 8s-poll (форма рендерится при раскрытии,
+        // не на каждом тике — иначе введённый текст стирался бы).
         html += `
-            <button id="bnr-order-set" class="extra-btn"
-                    title="Назначить новый приказ (500💎). Заменяет текущий."
-                    style="width:100%;font-size:11px;padding:6px;background:#92400e;
-                           color:#fff;font-weight:700;">
-                ⚔ ${active ? 'Изменить приказ' : 'Назначить приказ'} (500💎)
-            </button>
+            <details data-bnr-details="party-order" ${_bnrDetailsAttr('party-order')}>
+                <summary style="list-style:none;cursor:pointer;width:100%;
+                           font-size:11px;padding:6px;background:#92400e;box-sizing:border-box;
+                           color:#fff;font-weight:700;border-radius:3px;text-align:center;">
+                    ⚔ ${active ? 'Изменить приказ' : 'Назначить приказ'} (500💎)
+                </summary>
+                <div id="bnr-party-order-slot" style="padding-top:6px;"></div>
+            </details>
             </div>`;
+        // 2026-06-07 FLICKER — пока раскрыта форма приказа (radio + text-поселение),
+        // НЕ перерисовываем секцию: смена active-order между poll'ами стёрла бы ввод.
+        if (slot.querySelector('[data-bnr-details="party-order"]')?.open) return;
         // FLICKER-FIX: skip rebind при identical HTML.
         if (!_smartInnerHTML(slot, html)) return;
 
@@ -1966,9 +1958,11 @@ async function loadBannerlordPartyOrders() {
             await _bannerlordBuyAction('hero.party_order_release', {});
             setTimeout(loadBannerlordPartyOrders, 1500);
         });
-        document.getElementById('bnr-order-set')?.addEventListener('click', () => {
-            _openSetPartyOrderModal(active);
-        });
+        const _poDet = slot.querySelector('[data-bnr-details="party-order"]');
+        if (_poDet) {
+            _poDet.addEventListener('toggle', () => { if (_poDet.open) _renderPartyOrderInline(active); });
+            if (_poDet.open) _renderPartyOrderInline(active);
+        }
     } catch (e) {
         // FLICKER-FIX v6 — НЕ clear на network exception. Last good render
         // остаётся видимым пока poll не recover'нет.
@@ -1976,11 +1970,10 @@ async function loadBannerlordPartyOrders() {
     }
 }
 
-function _openSetPartyOrderModal(currentActive) {
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `
-        position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;
-        display:flex;align-items:center;justify-content:center;`;
+// удалена: инлайн lazy-форма приказа (_renderPartyOrderInline) вместо модалки.
+function _renderPartyOrderInline(currentActive) {
+    const slot = document.getElementById('bnr-party-order-slot');
+    if (!slot) return;
     const preType = currentActive?.order_type || 'siege';
     const preName = currentActive?.target_settlement_name || '';
     const preId = currentActive?.target_settlement_id || '';
@@ -1993,12 +1986,9 @@ function _openSetPartyOrderModal(currentActive) {
         { v: 'patrol',   e: '🐎', l: 'Патруль',   desc: 'Патрулировать вокруг поселения' },
     ];
 
-    overlay.innerHTML = `
-        <div style="background:#1a1208;border:1px solid #92400e;border-radius:6px;
-                    padding:14px;max-width:420px;width:90%;color:#fed7aa;">
-            <div style="font-size:14px;font-weight:700;color:#fb923c;margin-bottom:10px;">
-                ⚔ Стратегический приказ (500💎)
-            </div>
+    slot.innerHTML = `
+        <div style="background:#1a1208;border:1px solid #92400e;border-radius:4px;
+                    padding:10px;color:#fed7aa;">
             <div style="font-size:11px;color:#9ca3af;margin-bottom:10px;">
                 Партия следует приказу пока активен. Заменяет предыдущий.
                 Sieges/raids требуют состояния войны с владельцем цели.
@@ -2030,36 +2020,27 @@ function _openSetPartyOrderModal(currentActive) {
                 Mod ищет по точному ID или fuzzy-name match (≥3 символа).
                 ⚠ Только лидер клана может выдавать приказы своей партии.
             </div>
-            <div style="display:flex;gap:4px;">
-                <button id="bnr-order-confirm" class="extra-btn"
-                        style="flex:1;font-size:11px;padding:6px;
-                               background:#92400e;color:#fff;font-weight:700;">
-                    ⚔ Выдать приказ (500💎)
-                </button>
-                <button id="bnr-order-cancel-modal" class="extra-btn"
-                        style="flex:1;font-size:11px;padding:6px;
-                               background:#2d2d3f;color:#fed7aa;">
-                    Отмена
-                </button>
-            </div>
+            <button id="bnr-order-confirm" class="extra-btn"
+                    style="width:100%;font-size:11px;padding:6px;
+                           background:#92400e;color:#fff;font-weight:700;">
+                ⚔ Выдать приказ (500💎)
+            </button>
         </div>`;
-    document.body.appendChild(overlay);
-    document.getElementById('bnr-order-cancel-modal')?.addEventListener('click',
-        () => overlay.remove());
-    overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.remove(); });
     document.getElementById('bnr-order-confirm')?.addEventListener('click', async () => {
-        const orderType = overlay.querySelector('input[name="bnr-order-type"]:checked')?.value;
+        const orderType = slot.querySelector('input[name="bnr-order-type"]:checked')?.value;
         const tgtRaw = (document.getElementById('bnr-order-target-name')?.value || '').trim();
         if (!orderType || !tgtRaw || tgtRaw.length < 3) {
             showNotification('Выбери приказ и укажи цель (≥3 символа)', 'warning');
             return;
         }
+        // 2026-06-07 FLICKER — закрыть форму ДО refresh (иначе freeze-guard
+        // заблокирует перерисовку) + мгновенный фидбек на клик.
+        document.querySelector('[data-bnr-details="party-order"]')?.removeAttribute('open');
         await _bannerlordBuyAction('hero.party_order_set', {
             order_type:              orderType,
             target_settlement_id:    tgtRaw,
             target_settlement_name:  tgtRaw,
         });
-        overlay.remove();
         setTimeout(loadBannerlordPartyOrders, 2000);
     });
 }
@@ -2154,22 +2135,58 @@ async function loadBannerlordDiplomacy() {
         }
 
         if (canEnact) {
+            // 2026-06-07 — активация политики инлайн (style A): каждая политика —
+            // кликабельная строка, действие срабатывает сразу (toggle add/remove).
+            // Список — внутри lazy <details> чтобы не разворачивать всю секцию.
+            const _enactedIds = new Set((r.policies_enacted || []).map(p => p.policy_id));
+            const _pendingIds = new Set((r.policies_pending || []).map(p => p.policy_id));
             html += `
-                <button id="bnr-diplo-policy-btn" class="extra-btn"
-                        title="Активировать/отозвать политику (1500💎). Toggle — повтор за ту же цену отзывает."
-                        style="width:100%;font-size:11px;padding:6px;background:#92400e;
-                               color:#fff;font-weight:700;margin-bottom:4px;">
-                    📜 Активировать политику (1500💎)
-                </button>`;
+                <details data-bnr-details="diplo-policy" ${_bnrDetailsAttr('diplo-policy')} style="margin-bottom:4px;">
+                    <summary style="list-style:none;cursor:pointer;width:100%;
+                               font-size:11px;padding:6px;background:#92400e;box-sizing:border-box;
+                               color:#fff;font-weight:700;border-radius:3px;text-align:center;">
+                        📜 Активировать политику (1500💎)
+                    </summary>
+                    <div style="font-size:9px;color:#9ca3af;margin:6px 0 4px;">
+                        Клик по политике = toggle (активна → отозвать). 1500💎 за действие.
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:3px;">
+                        ${_BNR_POLICIES.map(p => {
+                            const active = _enactedIds.has(p.id);
+                            const pending = _pendingIds.has(p.id);
+                            return `
+                            <div class="bnr-diplo-policy-row" data-policy-id="${p.id}"
+                                 data-policy-name="${escapeHtml(p.name)}"
+                                 ${pending ? 'data-policy-pending="1"' : ''}
+                                 style="background:${active ? '#1a2008' : '#0f0805'};
+                                        padding:5px 8px;border-radius:3px;
+                                        cursor:${pending ? 'not-allowed' : 'pointer'};
+                                        ${pending ? 'opacity:0.5;' : ''}
+                                        border:1px solid ${active ? '#4ade80' : '#1a1208'};">
+                                ${active ? '<span style="color:#4ade80;">✓ </span>' : ''}
+                                <strong style="color:#fed7aa;font-size:11px;">${escapeHtml(p.name)}</strong>
+                                ${pending ? '<span style="color:#fbbf24;font-size:9px;"> (на обсуждении)</span>' : ''}
+                                <div style="font-size:10px;color:#9ca3af;margin-top:2px;">
+                                    ${escapeHtml(p.desc)}
+                                </div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </details>`;
         }
         if (canMakePeace) {
+            // 2026-06-07 — предложение peace инлайн (lazy <details>): target kingdom
+            // (text) + tribute (number) переживают 8s-poll, форма рендерится при
+            // раскрытии.
             html += `
-                <button id="bnr-diplo-peace-btn" class="extra-btn"
-                        title="Предложить peace одной из вражеских kingdom'ов (2000💎)"
-                        style="width:100%;font-size:11px;padding:6px;background:#1e3a5f;
-                               color:#fff;font-weight:700;">
-                    🕊 Предложить peace (2000💎)
-                </button>`;
+                <details data-bnr-details="diplo-peace" ${_bnrDetailsAttr('diplo-peace')}>
+                    <summary style="list-style:none;cursor:pointer;width:100%;
+                               font-size:11px;padding:6px;background:#1e3a5f;box-sizing:border-box;
+                               color:#fff;font-weight:700;border-radius:3px;text-align:center;">
+                        🕊 Предложить peace (2000💎)
+                    </summary>
+                    <div id="bnr-diplo-peace-slot" style="padding-top:6px;"></div>
+                </details>`;
         }
         // Backlog #1 (BLT-RC22 C.5) — kingdom tax: king задаёт ставку. Вассальные
         // кланы королевства ежедневно платят % дневной прибыли в казну короля.
@@ -2194,13 +2211,30 @@ async function loadBannerlordDiplomacy() {
                 </div>`;
         }
         html += `</div>`;
+        // 2026-06-07 FLICKER — пока раскрыта форма peace (text target + number tribute),
+        // НЕ перерисовываем секцию: смена kingdom-state между poll'ами стёрла бы ввод.
+        // diplo-policy НЕ морозим — это click-list (style A), без in-progress state.
+        if (slot.querySelector('[data-bnr-details="diplo-peace"]')?.open) return;
         // FLICKER-FIX: skip rebind при identical HTML.
         if (!_smartInnerHTML(slot, html)) return;
 
-        document.getElementById('bnr-diplo-policy-btn')?.addEventListener('click',
-            () => _openEnactPolicyModal(r));
-        document.getElementById('bnr-diplo-peace-btn')?.addEventListener('click',
-            () => _openMakePeaceModal(r));
+        // 2026-06-07 — клик по строке политики = toggle enact/revoke сразу (style A).
+        slot.querySelectorAll('.bnr-diplo-policy-row').forEach(row => {
+            row.addEventListener('click', async () => {
+                if (row.dataset.policyPending) return;  // на обсуждении — нельзя
+                await _bannerlordBuyAction('hero.enact_policy', {
+                    policy_id:   row.dataset.policyId,
+                    policy_name: row.dataset.policyName,
+                });
+                setTimeout(loadBannerlordDiplomacy, 2000);
+            });
+        });
+        // 2026-06-07 — peace инлайн lazy-форма (text+tribute переживают poll).
+        const _peaceDet = slot.querySelector('[data-bnr-details="diplo-peace"]');
+        if (_peaceDet) {
+            _peaceDet.addEventListener('toggle', () => { if (_peaceDet.open) _renderMakePeaceInline(); });
+            if (_peaceDet.open) _renderMakePeaceInline();
+        }
         slot.querySelectorAll('.bnr-tax-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const pct = parseInt(btn.dataset.taxPct, 10) || 0;
@@ -2213,85 +2247,15 @@ async function loadBannerlordDiplomacy() {
     }
 }
 
-function _openEnactPolicyModal(state) {
-    const enactedIds = new Set((state.policies_enacted || []).map(p => p.policy_id));
-    const pendingIds = new Set((state.policies_pending || []).map(p => p.policy_id));
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `
-        position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;
-        display:flex;align-items:center;justify-content:center;`;
-    overlay.innerHTML = `
-        <div style="background:#1a1208;border:1px solid #92400e;border-radius:6px;
-                    padding:14px;max-width:480px;width:90%;color:#fed7aa;
-                    max-height:85vh;overflow-y:auto;">
-            <div style="font-size:14px;font-weight:700;color:#fb923c;margin-bottom:10px;">
-                📜 Активация политики (1500💎)
-            </div>
-            <div style="font-size:11px;color:#9ca3af;margin-bottom:10px;">
-                Toggle: если политика активна — отозвать. Иначе — активировать.
-                Эффект применяется мгновенно (король игнорирует совет лордов).
-            </div>
-            <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px;">
-                ${_BNR_POLICIES.map(p => {
-                    const active = enactedIds.has(p.id);
-                    const pending = pendingIds.has(p.id);
-                    return `
-                    <label style="display:flex;align-items:flex-start;gap:6px;
-                                  background:${active ? '#1a2008' : '#0f0805'};
-                                  padding:6px 8px;border-radius:3px;cursor:pointer;
-                                  ${pending ? 'opacity:0.5;cursor:not-allowed;' : ''}
-                                  border:1px solid ${active ? '#4ade80' : '#1a1208'};">
-                        <input type="radio" name="bnr-policy-pick" value="${p.id}"
-                               data-name="${escapeHtml(p.name)}"
-                               ${pending ? 'disabled' : ''}>
-                        <span style="flex:1;">
-                            ${active ? '<span style="color:#4ade80;">✓ </span>' : ''}
-                            <strong style="color:#fed7aa;">${escapeHtml(p.name)}</strong>
-                            ${pending ? '<span style="color:#fbbf24;font-size:9px;"> (на обсуждении)</span>' : ''}
-                            <div style="font-size:10px;color:#9ca3af;margin-top:2px;">
-                                ${escapeHtml(p.desc)}
-                            </div>
-                        </span>
-                    </label>`;
-                }).join('')}
-            </div>
-            <div style="display:flex;gap:4px;">
-                <button id="bnr-policy-confirm" class="extra-btn"
-                        style="flex:1;font-size:11px;padding:6px;
-                               background:#92400e;color:#fff;font-weight:700;">
-                    📜 Применить (1500💎)
-                </button>
-                <button id="bnr-policy-cancel" class="extra-btn"
-                        style="flex:1;font-size:11px;padding:6px;
-                               background:#2d2d3f;color:#fed7aa;">Отмена</button>
-            </div>
-        </div>`;
-    document.body.appendChild(overlay);
-    document.getElementById('bnr-policy-cancel')?.addEventListener('click', () => overlay.remove());
-    overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.remove(); });
-    document.getElementById('bnr-policy-confirm')?.addEventListener('click', async () => {
-        const sel = overlay.querySelector('input[name="bnr-policy-pick"]:checked');
-        if (!sel) { showNotification('Выбери политику', 'warning'); return; }
-        await _bannerlordBuyAction('hero.enact_policy', {
-            policy_id:   sel.value,
-            policy_name: sel.dataset.name,
-        });
-        overlay.remove();
-        setTimeout(loadBannerlordDiplomacy, 2000);
-    });
-}
+// удалена: инлайн-список политик (строки в loadBannerlordDiplomacy, style A).
 
-function _openMakePeaceModal(state) {
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `
-        position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;
-        display:flex;align-items:center;justify-content:center;`;
-    overlay.innerHTML = `
-        <div style="background:#0f1730;border:1px solid #1e40af;border-radius:6px;
-                    padding:14px;max-width:400px;width:90%;color:#bfdbfe;">
-            <div style="font-size:14px;font-weight:700;color:#60a5fa;margin-bottom:10px;">
-                🕊 Предложить peace (2000💎)
-            </div>
+// удалена: инлайн lazy-форма peace (_renderMakePeaceInline) вместо модалки.
+function _renderMakePeaceInline() {
+    const slot = document.getElementById('bnr-diplo-peace-slot');
+    if (!slot) return;
+    slot.innerHTML = `
+        <div style="background:#0f1730;border:1px solid #1e40af;border-radius:4px;
+                    padding:10px;color:#bfdbfe;">
             <div style="font-size:11px;color:#9ca3af;margin-bottom:10px;">
                 Мод resolve'ит target kingdom по name или StringId.
                 Tribute может быть отрицательным (они платят нам).
@@ -2312,20 +2276,12 @@ function _openMakePeaceModal(state) {
                    style="width:100%;padding:6px;font-size:12px;background:#0a0f1a;
                           color:#bfdbfe;border:1px solid #1e40af;margin-bottom:10px;
                           box-sizing:border-box;">
-            <div style="display:flex;gap:4px;">
-                <button id="bnr-peace-confirm" class="extra-btn"
-                        style="flex:1;font-size:11px;padding:6px;
-                               background:#1e40af;color:#fff;font-weight:700;">
-                    🕊 Заключить (2000💎)
-                </button>
-                <button id="bnr-peace-cancel" class="extra-btn"
-                        style="flex:1;font-size:11px;padding:6px;
-                               background:#2d2d3f;color:#bfdbfe;">Отмена</button>
-            </div>
+            <button id="bnr-peace-confirm" class="extra-btn"
+                    style="width:100%;font-size:11px;padding:6px;
+                           background:#1e40af;color:#fff;font-weight:700;">
+                🕊 Заключить (2000💎)
+            </button>
         </div>`;
-    document.body.appendChild(overlay);
-    document.getElementById('bnr-peace-cancel')?.addEventListener('click', () => overlay.remove());
-    overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.remove(); });
     document.getElementById('bnr-peace-confirm')?.addEventListener('click', async () => {
         const tgt = (document.getElementById('bnr-peace-target')?.value || '').trim();
         const trb = parseInt(document.getElementById('bnr-peace-tribute')?.value || '0', 10) || 0;
@@ -2333,12 +2289,14 @@ function _openMakePeaceModal(state) {
             showNotification('Укажи target kingdom (≥2 символа)', 'warning');
             return;
         }
+        // 2026-06-07 FLICKER — закрыть форму ДО refresh (иначе freeze-guard
+        // заблокирует перерисовку) + мгновенный фидбек на клик.
+        document.querySelector('[data-bnr-details="diplo-peace"]')?.removeAttribute('open');
         await _bannerlordBuyAction('hero.make_peace', {
             target_kingdom_id:   tgt,
             target_kingdom_name: tgt,
             offered_tribute:     trb,
         });
-        overlay.remove();
         setTimeout(loadBannerlordDiplomacy, 2000);
     });
 }
@@ -2713,13 +2671,19 @@ async function loadBannerlordWorkshops() {
         if (workshops.length < maxWorkshops) {
             const btnBg = wsAfford.ok ? '#65a30d' : '#3f3f0b';
             const btnOpacity = wsAfford.ok ? '1' : '0.65';
+            // 2026-06-07 — покупка мастерской инлайн (lazy <details>): radio-тип +
+            // <select>-город переживают 8s-poll (форма рендерится при раскрытии).
             html += `
-                <button id="bnr-ws-buy" class="extra-btn"
-                        title="${escapeHtml(_bnrAffordTooltip(WORKSHOP_CRUSTIC, WORKSHOP_DINAR_EST))}"
-                        style="width:100%;font-size:11px;padding:6px;background:${btnBg};
-                               color:#fff;font-weight:700;opacity:${btnOpacity};">
-                    🏭 Купить мастерскую — ${_bnrPriceHtml(WORKSHOP_CRUSTIC, WORKSHOP_DINAR_EST)}
-                </button>`;
+                <details data-bnr-details="ws-buy" ${_bnrDetailsAttr('ws-buy')}>
+                    <summary title="${escapeHtml(_bnrAffordTooltip(WORKSHOP_CRUSTIC, WORKSHOP_DINAR_EST))}"
+                             style="list-style:none;cursor:pointer;width:100%;
+                                    font-size:11px;padding:6px;background:${btnBg};box-sizing:border-box;
+                                    color:#fff;font-weight:700;opacity:${btnOpacity};
+                                    border-radius:3px;text-align:center;">
+                        🏭 Купить мастерскую — ${_bnrPriceHtml(WORKSHOP_CRUSTIC, WORKSHOP_DINAR_EST)}
+                    </summary>
+                    <div id="bnr-ws-buy-slot" style="padding-top:6px;"></div>
+                </details>`;
         } else {
             html += `
                 <div style="font-size:10px;color:#6b7280;text-align:center;">
@@ -2727,6 +2691,9 @@ async function loadBannerlordWorkshops() {
                 </div>`;
         }
         html += `</div>`;
+        // 2026-06-07 FLICKER — пока форма покупки раскрыта, НЕ перерисовываем секцию
+        // (иначе тик дохода стирает выбор/ввод). Возобновится когда юзер закроет форму.
+        if (slot.querySelector('[data-bnr-details="ws-buy"]')?.open) return;
         // FLICKER-FIX: dedupe — skip rebind если HTML identical (избежать
         // double-handlers на sell/buy buttons).
         if (!_smartInnerHTML(slot, html)) return;
@@ -2743,26 +2710,24 @@ async function loadBannerlordWorkshops() {
             });
         });
 
-        document.getElementById('bnr-ws-buy')?.addEventListener('click',
-            _openBuyWorkshopModal);
+        const _wsDet = slot.querySelector('[data-bnr-details="ws-buy"]');
+        if (_wsDet) {
+            _wsDet.addEventListener('toggle', () => { if (_wsDet.open) _renderBuyWorkshopInline(); });
+            if (_wsDet.open) _renderBuyWorkshopInline();
+        }
     } catch (e) {
         // FLICKER-FIX v6 — НЕ clear на exception. Last good render survives.
         console.warn('[FE-SHOP] loadWorkshops failed (keeping last render):', e);
     }
 }
 
-function _openBuyWorkshopModal() {
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `
-        position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;
-        display:flex;align-items:center;justify-content:center;`;
-    overlay.innerHTML = `
-        <div style="background:#1a2008;border:1px solid #65a30d;border-radius:6px;
-                    padding:14px;max-width:440px;width:90%;color:#d9f99d;
-                    max-height:85vh;overflow-y:auto;">
-            <div style="font-size:14px;font-weight:700;color:#84cc16;margin-bottom:6px;">
-                🏭 Купить мастерскую
-            </div>
+// удалена: инлайн lazy-форма покупки мастерской (_renderBuyWorkshopInline).
+function _renderBuyWorkshopInline() {
+    const slot = document.getElementById('bnr-ws-buy-slot');
+    if (!slot) return;
+    slot.innerHTML = `
+        <div style="background:#1a2008;border:1px solid #65a30d;border-radius:4px;
+                    padding:10px;color:#d9f99d;">
             <div style="display:flex;gap:6px;font-size:11px;margin-bottom:10px;
                         background:#0a1308;padding:6px 8px;border-radius:3px;">
                 <div style="flex:1;">
@@ -2807,31 +2772,22 @@ function _openBuyWorkshopModal() {
                     ⏳ Загружается список городов...
                 </div>
             </div>
-            <div style="display:flex;gap:4px;">
-                <button id="bnr-ws-buy-confirm" class="extra-btn"
-                        style="flex:1;font-size:11px;padding:6px;
-                               background:#65a30d;color:#fff;font-weight:700;">
-                    🏭 Купить — ${_bnrPriceHtml(1000, 20000)}
-                </button>
-                <button id="bnr-ws-buy-cancel" class="extra-btn"
-                        style="flex:1;font-size:11px;padding:6px;
-                               background:#2d2d3f;color:#d9f99d;">Отмена</button>
-            </div>
+            <button id="bnr-ws-buy-confirm" class="extra-btn"
+                    style="width:100%;font-size:11px;padding:6px;
+                           background:#65a30d;color:#fff;font-weight:700;">
+                🏭 Купить — ${_bnrPriceHtml(1000, 20000)}
+            </button>
         </div>`;
-    document.body.appendChild(overlay);
-    document.getElementById('bnr-ws-buy-cancel')?.addEventListener('click',
-        () => overlay.remove());
-    overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.remove(); });
     // CATALOG-3: load real engine towns в dropdown
     _bnrFetchSettlements().then(byType => {
-        const slot = document.getElementById('bnr-ws-town-slot');
-        if (slot) {
-            slot.innerHTML = _bnrRenderSettlementSelect(byType.town || [],
+        const townSlot = document.getElementById('bnr-ws-town-slot');
+        if (townSlot) {
+            townSlot.innerHTML = _bnrRenderSettlementSelect(byType.town || [],
                 { id: 'bnr-ws-town' });
         }
     });
     document.getElementById('bnr-ws-buy-confirm')?.addEventListener('click', async () => {
-        const typeSel = overlay.querySelector('input[name="bnr-ws-type"]:checked');
+        const typeSel = slot.querySelector('input[name="bnr-ws-type"]:checked');
         const townSel = document.getElementById('bnr-ws-town');
         const townId = (townSel?.value || '').trim();
         const townName = townSel?.tagName === 'SELECT'
@@ -2845,13 +2801,15 @@ function _openBuyWorkshopModal() {
             showNotification('Выбери town из списка', 'warning');
             return;
         }
+        // 2026-06-07 FLICKER — закрыть форму ДО refresh, иначе freeze-guard
+        // заблокирует перерисовку секции (и даёт мгновенный фидбек на клик).
+        document.querySelector('[data-bnr-details="ws-buy"]')?.removeAttribute('open');
         await _bannerlordBuyAction('hero.buy_workshop', {
             settlement_id:      townId,
             settlement_name:    townName,
             workshop_type:      typeSel.value,
             workshop_type_name: typeSel.dataset.name,
         });
-        overlay.remove();
         setTimeout(loadBannerlordWorkshops, 2000);
     });
 }
@@ -3019,13 +2977,19 @@ async function loadBannerlordCaravans() {
         if (activeCount < maxC) {
             const btnBg = cAfford.ok ? '#7c3aed' : '#2d1b5a';
             const btnOpacity = cAfford.ok ? '1' : '0.65';
+            // 2026-06-07 — покупка каравана инлайн (lazy <details>): <select>-город
+            // переживает 8s-poll (форма рендерится при раскрытии).
             html += `
-                <button id="bnr-caravan-buy" class="extra-btn"
-                        title="${escapeHtml(_bnrAffordTooltip(CARAVAN_CRUSTIC, CARAVAN_DINAR))}"
-                        style="width:100%;font-size:11px;padding:6px;background:${btnBg};
-                               color:#fff;font-weight:700;opacity:${btnOpacity};">
-                    🐪 Купить караван — ${_bnrPriceHtml(CARAVAN_CRUSTIC, CARAVAN_DINAR)}
-                </button>`;
+                <details data-bnr-details="caravan-buy" ${_bnrDetailsAttr('caravan-buy')}>
+                    <summary title="${escapeHtml(_bnrAffordTooltip(CARAVAN_CRUSTIC, CARAVAN_DINAR))}"
+                             style="list-style:none;cursor:pointer;width:100%;
+                                    font-size:11px;padding:6px;background:${btnBg};box-sizing:border-box;
+                                    color:#fff;font-weight:700;opacity:${btnOpacity};
+                                    border-radius:3px;text-align:center;">
+                        🐪 Купить караван — ${_bnrPriceHtml(CARAVAN_CRUSTIC, CARAVAN_DINAR)}
+                    </summary>
+                    <div id="bnr-caravan-buy-slot" style="padding-top:6px;"></div>
+                </details>`;
         } else {
             html += `
                 <div style="font-size:10px;color:#6b7280;text-align:center;">
@@ -3033,6 +2997,9 @@ async function loadBannerlordCaravans() {
                 </div>`;
         }
         html += `</div>`;
+        // 2026-06-07 FLICKER — пока форма покупки раскрыта, НЕ перерисовываем секцию
+        // (иначе тик дохода стирает выбор города). Возобновится при закрытии формы.
+        if (slot.querySelector('[data-bnr-details="caravan-buy"]')?.open) return;
         // FLICKER-FIX: skip rebind при identical HTML.
         if (!_smartInnerHTML(slot, html)) return;
 
@@ -3046,25 +3013,24 @@ async function loadBannerlordCaravans() {
                 setTimeout(loadBannerlordCaravans, 1500);
             });
         });
-        document.getElementById('bnr-caravan-buy')?.addEventListener('click',
-            _openBuyCaravanModal);
+        const _carDet = slot.querySelector('[data-bnr-details="caravan-buy"]');
+        if (_carDet) {
+            _carDet.addEventListener('toggle', () => { if (_carDet.open) _renderBuyCaravanInline(); });
+            if (_carDet.open) _renderBuyCaravanInline();
+        }
     } catch (e) {
         // FLICKER-FIX v6 — НЕ clear на exception. Last good render остаётся.
         console.warn('[FE-CARAVAN] loadCaravans failed (keeping last render):', e);
     }
 }
 
-function _openBuyCaravanModal() {
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `
-        position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;
-        display:flex;align-items:center;justify-content:center;`;
-    overlay.innerHTML = `
-        <div style="background:#1a1820;border:1px solid #7c3aed;border-radius:6px;
-                    padding:14px;max-width:400px;width:90%;color:#ddd6fe;">
-            <div style="font-size:14px;font-weight:700;color:#a78bfa;margin-bottom:6px;">
-                🐪 Купить караван
-            </div>
+// удалена: инлайн lazy-форма покупки каравана (_renderBuyCaravanInline).
+function _renderBuyCaravanInline() {
+    const slot = document.getElementById('bnr-caravan-buy-slot');
+    if (!slot) return;
+    slot.innerHTML = `
+        <div style="background:#1a1820;border:1px solid #7c3aed;border-radius:4px;
+                    padding:10px;color:#ddd6fe;">
             <div style="display:flex;gap:6px;font-size:11px;margin-bottom:10px;
                         background:#0f0d18;padding:6px 8px;border-radius:3px;">
                 <div style="flex:1;">
@@ -3096,26 +3062,17 @@ function _openBuyCaravanModal() {
                     ⏳ Загружается список городов...
                 </div>
             </div>
-            <div style="display:flex;gap:4px;">
-                <button id="bnr-caravan-buy-confirm" class="extra-btn"
-                        style="flex:1;font-size:11px;padding:6px;
-                               background:#7c3aed;color:#fff;font-weight:700;">
-                    🐪 Купить — ${_bnrPriceHtml(1500, 15000)}
-                </button>
-                <button id="bnr-caravan-buy-cancel" class="extra-btn"
-                        style="flex:1;font-size:11px;padding:6px;
-                               background:#2d2d3f;color:#ddd6fe;">Отмена</button>
-            </div>
+            <button id="bnr-caravan-buy-confirm" class="extra-btn"
+                    style="width:100%;font-size:11px;padding:6px;
+                           background:#7c3aed;color:#fff;font-weight:700;">
+                🐪 Купить — ${_bnrPriceHtml(1500, 15000)}
+            </button>
         </div>`;
-    document.body.appendChild(overlay);
-    document.getElementById('bnr-caravan-buy-cancel')?.addEventListener('click',
-        () => overlay.remove());
-    overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.remove(); });
     // CATALOG-3: load real engine towns в caravan home dropdown
     _bnrFetchSettlements().then(byType => {
-        const slot = document.getElementById('bnr-caravan-home-slot');
-        if (slot) {
-            slot.innerHTML = _bnrRenderSettlementSelect(byType.town || [],
+        const homeSlot = document.getElementById('bnr-caravan-home-slot');
+        if (homeSlot) {
+            homeSlot.innerHTML = _bnrRenderSettlementSelect(byType.town || [],
                 { id: 'bnr-caravan-home' });
             // Re-style the <select> для caravan theme
             const sel = document.getElementById('bnr-caravan-home');
@@ -3136,11 +3093,13 @@ function _openBuyCaravanModal() {
             showNotification('Выбери home town из списка', 'warning');
             return;
         }
+        // 2026-06-07 FLICKER — закрыть форму ДО refresh (иначе freeze-guard
+        // заблокирует перерисовку) + мгновенный фидбек на клик.
+        document.querySelector('[data-bnr-details="caravan-buy"]')?.removeAttribute('open');
         await _bannerlordBuyAction('hero.buy_caravan', {
             home_settlement_id:   home,
             home_settlement_name: homeName,
         });
-        overlay.remove();
         setTimeout(loadBannerlordCaravans, 2000);
     });
 }
@@ -3717,7 +3676,10 @@ function _fmtDinars(n) {
 function _renderRetinue(retinue) {
     const slot = document.getElementById('bnr-retinue-slot');
     if (!slot) return;
-    const MAX_SLOTS = 5;
+    // 2026-06-10 — кэп свиты = 5 + retinue_size_bonus от clan-апгрейдов (backend
+    // отдаёт в hero.retinue_cap). Раньше был захардкожен 5 → апгрейд «Усиленная
+    // свита» не открывал слот.
+    const MAX_SLOTS = (_bannerlordLastHero?.hero?.retinue_cap) || 5;
     const list = retinue || [];
     // /my-hero shape: { hero: {gold:N, ...}, retinue: [...] } — gold вложен в .hero
     const heroGold = (_bannerlordLastHero?.hero?.gold) || 0;
@@ -3949,16 +3911,15 @@ const BNR_ATTRIBUTE_COST = 50000;
 
 // Sprint 5.8 → 5.8c: ранее был renderBannerlordProgressionHtml (dropdown в shop)
 // + _bindBannerlordProgression. Удалено в 5.8c — invest-кнопки перенесены
-// внутрь progression modal (per-row + buttons). См. _openBannerlordProgressionModal.
+// внутрь progression-секции (per-row + buttons). См. loadBannerlordProgression.
 
 // Sprint 5.8: Progression modal — отображает все скиллы (level + focus stars)
 // + 6 атрибутов. Открывается по кнопке "🎯 Прогрессия" в hero card.
-function _openBannerlordProgressionModal() {
+function loadBannerlordProgression() {
+    const slot = document.getElementById('bnr-progression-slot');
+    if (!slot) return;
     const data = _bannerlordLastHero;
-    if (!data || !data.has_hero) {
-        showNotification('⚠️ Сначала создай героя', 'warning');
-        return;
-    }
+    if (!data || !data.has_hero) { _smartInnerHTML(slot, ''); return; }
     const skills = data.skills || [];
     const attrs = data.attributes || {};
 
@@ -4049,244 +4010,46 @@ function _openBannerlordProgressionModal() {
             ${childSkills}`;
     }).join('');
 
-    const overlay = document.createElement('div');
-    overlay.id = 'bnr-progression-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);' +
-        'display:flex;align-items:center;justify-content:center;z-index:9999;padding:10px;';
-    overlay.innerHTML = `
-        <div style="background:#18181b;border:1px solid #3d3d3f;border-radius:8px;
-                    padding:14px;max-width:380px;width:100%;max-height:90vh;overflow-y:auto;">
-            <div style="display:flex;justify-content:space-between;align-items:center;
-                        margin-bottom:10px;border-bottom:1px solid #3d3d3f;padding-bottom:6px;">
-                <h3 style="margin:0;font-size:14px;color:#efeff1;">🎯 Прогрессия</h3>
-                <button id="bnr-prog-close" class="small-btn"
-                        style="padding:4px 10px;font-size:11px;background:#3d3d3f;">✕</button>
-            </div>
+    const html = `
+        <div style="font-size:11px;color:#adadb8;margin-bottom:6px;line-height:1.4;">
+            💪 Атрибут (50K💰) — cap трёх скиллов · 🎯 Фокус (30-75K💰) — скорость скилла.
+        </div>
+        <div>${groupedRows}</div>`;
+    if (!_smartInnerHTML(slot, html)) return;   // repaint+rebind лишь при изменении
 
-            <div style="font-size:11px;color:#adadb8;margin-bottom:6px;line-height:1.4;">
-                💪 Атрибут (50K💰) повышает cap трёх связанных скиллов.<br>
-                🎯 Фокус (30-75K💰) ускоряет прокачку конкретного скилла.
-            </div>
-            <div>${groupedRows}</div>
-
-            <div style="margin-top:10px;font-size:10px;color:#9ca3af;text-align:center;">
-                Каждый атрибут даёт +1 cap к 3 скиллам своей категории.
-                Без фокуса можно прокачать до 25-30 уровня.
-            </div>
-        </div>`;
-    document.body.appendChild(overlay);
-
-    document.getElementById('bnr-prog-close')?.addEventListener('click', () => overlay.remove());
-    overlay.addEventListener('click', e => {
-        if (e.target === overlay) overlay.remove();
-    });
-
-    // Per-row "+" buttons — invest в конкретный skill / attribute
-    overlay.querySelectorAll('.bnr-prog-focus-btn').forEach(btn => {
-        btn.dataset.bnrCd = 'hero.add_focus';   // кулдаун на кнопке
+    slot.querySelectorAll('.bnr-prog-focus-btn').forEach(btn => {
+        btn.dataset.bnrCd = 'hero.add_focus';
         btn.addEventListener('click', () => {
-            const skill_key = btn.getAttribute('data-skill');
-            _bannerlordBuyAction('hero.add_focus', { skill_key, amount: 1 });
-            // Re-open модал через ~3.5s чтобы показать новый focus state.
-            // Закрываем сейчас, чтобы UX был чище.
-            overlay.remove();
-            setTimeout(() => {
-                if (typeof loadBannerlordHero === 'function') loadBannerlordHero();
-                setTimeout(_openBannerlordProgressionModal, 600);
-            }, 3500);
+            _bannerlordBuyAction('hero.add_focus', { skill_key: btn.getAttribute('data-skill'), amount: 1 });
+            if (typeof loadBannerlordHero === 'function') loadBannerlordHero();
         });
     });
-    overlay.querySelectorAll('.bnr-prog-attr-btn').forEach(btn => {
-        btn.dataset.bnrCd = 'hero.add_attribute';   // кулдаун на кнопке
+    slot.querySelectorAll('.bnr-prog-attr-btn').forEach(btn => {
+        btn.dataset.bnrCd = 'hero.add_attribute';
         btn.addEventListener('click', () => {
-            const attribute_key = btn.getAttribute('data-attr');
-            // 5.27t: optimistic UI — сразу +1 в модалке + delay reopen больше.
-            // Mod может занять до 5с между poll'ами + event push, 3.5с было мало.
-            const attrCellLabel = btn.closest('div')?.querySelector('span:nth-child(3)');
-            if (attrCellLabel) {
-                const currentMatch = attrCellLabel.textContent.match(/(\d+)\/10/);
-                if (currentMatch) {
-                    const optimistic = Math.min(10, parseInt(currentMatch[1]) + 1);
-                    attrCellLabel.textContent = optimistic + '/10';
-                    attrCellLabel.style.color = '#fbbf24';
-                }
-                btn.disabled = true;
-                btn.style.opacity = '0.3';
-                btn.textContent = '⏳';
-            }
-            _bannerlordBuyAction('hero.add_attribute', { attribute_key, amount: 1 });
-            setTimeout(() => {
-                overlay.remove();
-                if (typeof loadBannerlordHero === 'function') loadBannerlordHero();
-                setTimeout(_openBannerlordProgressionModal, 800);
-            }, 5000);
+            _bannerlordBuyAction('hero.add_attribute', { attribute_key: btn.getAttribute('data-attr'), amount: 1 });
+            if (typeof loadBannerlordHero === 'function') loadBannerlordHero();
         });
     });
 }
 
 // Sprint 5.11: общий helper для открытия modal — clan / kingdom management.
 // Содержит варианты create / join / leave в зависимости от текущего state.
-function _openBannerlordClanModal() {
-    const h = _bannerlordLastHero?.hero || {};
-    const hasClan = !!h.clan_name;
-    const info = h.clan_info || null;
+// 2026-06-07 — модалка управления кланом УДАЛЕНА: всё инлайн во вкладке «Династия»
+// (секция 🏰 Клан для лидера; locked-actions создать/вступить/покинуть для
+// clanless/участника). Имя клана — через _renderCreateClanInline/_renderJoinInline.
 
-    // Info block (если есть clan)
-    const infoBlock = hasClan && info ? `
-        <div style="background:rgba(251,191,36,0.05);border:1px solid #3d3d3f;
-                    border-radius:6px;padding:8px 10px;margin-bottom:10px;">
-            <div style="font-size:13px;color:#fbbf24;font-weight:700;margin-bottom:6px;
-                        text-align:center;">
-                ${escapeHtml(info.name || h.clan_name)}
-            </div>
-            <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:11px;">
-                <span style="color:#adadb8;">👑 Лидер:</span>
-                <span style="color:#efeff1;">
-                    ${escapeHtml(info.leader_name || '?')}
-                    ${info.is_leader ? '<b style="color:#fbbf24;">(это ты!)</b>' : ''}
-                </span>
-                <span style="color:#adadb8;">⭐ Tier:</span>
-                <span style="color:#efeff1;">${info.tier || 0}</span>
-                <span style="color:#adadb8;">🏆 Renown:</span>
-                <span style="color:#efeff1;">${(info.renown || 0).toLocaleString('ru-RU')}</span>
-                <span style="color:#adadb8;">👥 Героев:</span>
-                <span style="color:#efeff1;">${info.members_count || 0}</span>
-                <span style="color:#adadb8;">⚔ Отрядов:</span>
-                <span style="color:#efeff1;">${info.parties_count || 0}</span>
-                <span style="color:#adadb8;">🏰 Поселений:</span>
-                <span style="color:#efeff1;">${info.fiefs_count || 0}</span>
-                ${info.kingdom_name ? `
-                <span style="color:#adadb8;">👑 Королевство:</span>
-                <span style="color:#efeff1;">${escapeHtml(info.kingdom_name)}</span>` : ''}
-            </div>
-        </div>` : '';
-
-    const isLeader = !!info?.is_leader;
-    const hasParties = (info?.parties_count || 0) > 0;
-    const partyBtn = isLeader && !hasParties
-        ? `<button class="extra-btn" id="bnr-clan-modal-create-party"
-                   title="Создать MobileParty на карте — hero роумит как AI lord. Списать 200,000💰 динаров, добавит retinue в roster + стартовый food/horses."
-                   style="width:100%;font-size:12px;padding:8px;
-                          background:#1e3a5f;color:#93c5fd;font-weight:700;">
-                ⚔ Создать отряд (party) (200K💰)
-           </button>`
-        : isLeader && hasParties
-            ? `<div style="font-size:11px;color:#34d399;text-align:center;padding:6px;">
-                ✅ У клана уже есть ${info.parties_count} отряд(ов)
-               </div>`
-            : `<button class="extra-btn" disabled
-                       title="Только clan-leader может создать party"
-                       style="width:100%;font-size:12px;padding:8px;opacity:0.5;cursor:not-allowed;">
-                ⚔ Создать отряд <span style="color:#9ca3af;font-size:10px;">(только для лидеров)</span>
-               </button>`;
-
-    // Sprint 5.26b: кнопка «Апгрейды клана» (BLT-style buffs)
-    const upgradesBtn = hasClan ? `
-        <button class="extra-btn" id="bnr-clan-modal-upgrades"
-                title="Долгосрочные баффы клана: +renown/день, +party size, +retinue size, и т.д."
-                style="width:100%;font-size:12px;padding:8px;margin-bottom:6px;
-                       background:#1f1a30;color:#c084fc;font-weight:700;
-                       border:1px solid #5b21b6;">
-            🏆 Апгрейды клана
-        </button>` : '';
-
-    const actions = hasClan ? `
-        ${infoBlock}
-        ${upgradesBtn}
-        ${isLeader
-            ? `<button class="extra-btn" id="bnr-clan-modal-leave"
-                       title="Лидер: лидерство передастся старшему non-hero, или clan disband'нется если ты единственный."
-                       style="width:100%;font-size:12px;padding:8px;margin-bottom:6px;
-                              background:#7f1d1d;color:#fca5a5;">
-                    🚪 Покинуть клан <span style="color:#fbbf24;font-size:10px;">(передать/disband)</span>
-               </button>`
-            : `<button class="extra-btn" id="bnr-clan-modal-leave"
-                       title="Покинуть клан — бесплатно. Hero станет wanderer'ом."
-                       style="width:100%;font-size:12px;padding:8px;margin-bottom:6px;
-                              background:#7f1d1d;color:#fca5a5;">
-                    🚪 Покинуть клан
-               </button>`}
-        ${partyBtn}` : `
-        <div style="font-size:11px;color:#adadb8;margin-bottom:8px;">
-            У тебя пока нет клана. Можно создать собственный или вступить в существующий.
-        </div>
-        <button class="extra-btn" id="bnr-clan-modal-create"
-                title="Создать собственный клан под лидерством героя. Списать 1,000,000💰 динаров."
-                style="width:100%;font-size:12px;padding:8px;margin-bottom:6px;
-                       background:#7c2d12;color:#fbbf24;font-weight:700;">
-            🏰 Создать свой клан (1M💰)
-        </button>
-        <button class="extra-btn" id="bnr-clan-modal-join"
-                title="Вступить в существующий клан (50K💰). Введёшь имя клана."
-                style="width:100%;font-size:12px;padding:8px;background:#1e3a5f;color:#93c5fd;">
-            🤝 Вступить в клан (50K💰)
-        </button>`;
-
-    _bnrShowSimpleModal({
-        title: '🏰 Управление кланом',
-        body: actions,
-        bind: overlay => {
-            overlay.querySelector('#bnr-clan-modal-create')?.addEventListener('click', () => {
-                overlay.remove();
-                _openBannerlordCreateClanDialog();
-            });
-            overlay.querySelector('#bnr-clan-modal-join')?.addEventListener('click', () => {
-                overlay.remove();
-                _openBannerlordJoinDialog('clan');
-            });
-            overlay.querySelector('#bnr-clan-modal-leave')?.addEventListener('click', async () => {
-                if (!await _bnrConfirm(
-                    'Ты уверен что хочешь покинуть клан? Hero станет wanderer\'ом.',
-                    '🚪 Покинуть'
-                )) return;
-                _bannerlordBuyAction('hero.leave_clan', {});
-                overlay.remove();
-            });
-            overlay.querySelector('#bnr-clan-modal-create-party')?.addEventListener('click', async () => {
-                if (!await _bnrConfirm(
-                    'Создать MobileParty? Hero появится на карте как AI lord. Списать 200K💰 динаров + добавит retinue в roster.',
-                    '⚔ Создать'
-                )) return;
-                _bannerlordBuyAction('hero.create_party', {});
-                overlay.remove();
-            });
-            // Sprint 5.26b: clan upgrades
-            overlay.querySelector('#bnr-clan-modal-upgrades')?.addEventListener('click', () => {
-                overlay.remove();
-                _openBannerlordClanUpgradesModal();
-            });
-        },
-    });
-}
-
-// Sprint 5.26b: Clan upgrades modal (BLT-style buffs)
-async function _openBannerlordClanUpgradesModal() {
-    // Fetch list
-    let data;
-    try {
-        const r = await fetch(`${API_URL}/api/bannerlord/clan-upgrades`, {
-            headers: {'X-Twitch-JWT': authToken || ''},
-        });
-        data = await r.json();
-    } catch (e) {
-        showNotification('Ошибка загрузки апгрейдов', 'error');
-        return;
-    }
-    if (!data.success) {
-        showNotification(data.message || 'Не удалось загрузить', 'error');
-        return;
-    }
-    const upgrades = data.upgrades || [];
-    const heroGold = data.hero_gold || 0;
-
-    // Группируем по tier
+// 2026-06-07 — общий рендер дерева апгрейдов клана (tier-группы + bulk-чекбоксы).
+// Используется ИНЛАЙН-секцией «Династия → 🏆 Апгрейды клана» (_renderClanUpgradesInline).
+// Footer на КЛАССАХ (не id) — чтобы не конфликтовать с id-версией в модалке, если
+// обе в DOM одновременно. Чистый HTML, scoped bind ниже.
+function _clanUpgradesTreeHtml(upgrades, heroGold) {
     const byTier = {};
-    upgrades.forEach(u => {
+    (upgrades || []).forEach(u => {
         if (!byTier[u.tier]) byTier[u.tier] = [];
         byTier[u.tier].push(u);
     });
     const tiers = Object.keys(byTier).map(Number).sort((a, b) => a - b);
-
     const _effectsToStr = (effects) => {
         const labels = {
             renown_daily:       '🏆 +%v славы/день',
@@ -4302,11 +4065,9 @@ async function _openBannerlordClanUpgradesModal() {
             .map(([k, v]) => (labels[k] || `${k}: ${v}`).replace('%v', v))
             .join(' · ');
     };
-
     const tierHtml = tiers.map(tier => {
         const items = byTier[tier].map(u => {
             const canAfford = heroGold >= u.gold_cost;
-            // Sprint 5.33 BULK — non-owned + non-locked + canAfford = selectable for bulk.
             const isSelectable = !u.owned && !u.locked && canAfford;
             const ownedBadge = u.owned
                 ? `<span style="color:#34d399;font-weight:700;font-size:11px;">✓ ВЛАДЕЕШЬ</span>`
@@ -4353,256 +4114,124 @@ async function _openBannerlordClanUpgradesModal() {
                 ${items}
             </div>`;
     }).join('');
-
-    // Sprint 5.33 BULK — sticky footer-bar: "Выбрано: N (M💰) [Купить все]"
     const bulkFooter = `
-        <div id="bnr-bulk-footer" style="
+        <div style="
             position:sticky;bottom:0;background:#0f0f12;padding:8px;margin-top:6px;
             border-top:1px solid #5b21b6;border-radius:0 0 6px 6px;
             display:flex;justify-content:space-between;align-items:center;gap:8px;">
             <div style="font-size:11px;color:#adadb8;">
-                Выбрано: <b id="bnr-bulk-count" style="color:#fbbf24;">0</b> ·
-                Стоимость: <b id="bnr-bulk-total" style="color:#fbbf24;">0💰</b>
+                Выбрано: <b class="bnr-bulk-count" style="color:#fbbf24;">0</b> ·
+                Стоимость: <b class="bnr-bulk-total" style="color:#fbbf24;">0💰</b>
             </div>
-            <button id="bnr-bulk-buy" disabled
+            <button class="bnr-bulk-buy" disabled
                     style="background:#5b21b6;color:#9ca3af;padding:6px 12px;font-size:11px;
                            font-weight:700;border-radius:4px;border:none;cursor:not-allowed;">
                 💰 Купить все выбранные
             </button>
         </div>`;
-
-    _bnrShowSimpleModal({
-        title: `🏆 Апгрейды клана · 💰 ${heroGold.toLocaleString('ru-RU')}`,
-        body: (tierHtml || '<div style="color:#adadb8;text-align:center;">Каталог пуст.</div>')
-              + bulkFooter,
-        bind: overlay => {
-            const recalcBulk = () => {
-                const checked = overlay.querySelectorAll('.bnr-upg-check:checked');
-                let count = 0, total = 0;
-                checked.forEach(cb => {
-                    count++;
-                    total += parseInt(cb.dataset.bnrUpgCost || '0', 10);
-                });
-                const countEl = overlay.querySelector('#bnr-bulk-count');
-                const totalEl = overlay.querySelector('#bnr-bulk-total');
-                const buyBtn = overlay.querySelector('#bnr-bulk-buy');
-                if (countEl) countEl.textContent = count;
-                if (totalEl) totalEl.textContent = total.toLocaleString('ru-RU') + '💰';
-                if (buyBtn) {
-                    const enabled = count > 0 && count <= 10 && total <= heroGold;
-                    buyBtn.disabled = !enabled;
-                    buyBtn.style.cursor = enabled ? 'pointer' : 'not-allowed';
-                    buyBtn.style.color = enabled ? '#fbbf24' : '#9ca3af';
-                    if (count > 10) {
-                        buyBtn.textContent = `❌ Макс 10 за раз (выбрано ${count})`;
-                    } else if (total > heroGold) {
-                        buyBtn.textContent = `❌ Не хватает ${(total - heroGold).toLocaleString('ru-RU')}💰`;
-                    } else if (count === 0) {
-                        buyBtn.textContent = '💰 Купить все выбранные';
-                    } else {
-                        buyBtn.textContent = `💰 Купить ${count} апгрейдов`;
-                    }
-                }
-            };
-
-            overlay.querySelectorAll('.bnr-upg-check').forEach(cb => {
-                cb.addEventListener('change', recalcBulk);
+    return (tierHtml || '<div style="color:#adadb8;text-align:center;font-size:11px;padding:6px;">Каталог апгрейдов пуст.</div>')
+           + bulkFooter;
+}
+// Scoped bind для bulk-чекбоксов + кнопки покупки внутри `root` (overlay ИЛИ slot).
+// onSuccess() вызывается после удачной покупки (модалка → reopen; инлайн → re-render).
+function _clanUpgradesBindBulk(root, heroGold, onSuccess) {
+    const recalc = () => {
+        const checked = root.querySelectorAll('.bnr-upg-check:checked');
+        let count = 0, total = 0;
+        checked.forEach(cb => { count++; total += parseInt(cb.dataset.bnrUpgCost || '0', 10); });
+        const countEl = root.querySelector('.bnr-bulk-count');
+        const totalEl = root.querySelector('.bnr-bulk-total');
+        const buyBtn  = root.querySelector('.bnr-bulk-buy');
+        if (countEl) countEl.textContent = count;
+        if (totalEl) totalEl.textContent = total.toLocaleString('ru-RU') + '💰';
+        if (buyBtn) {
+            const enabled = count > 0 && count <= 10 && total <= heroGold;
+            buyBtn.disabled = !enabled;
+            buyBtn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+            buyBtn.style.color = enabled ? '#fbbf24' : '#9ca3af';
+            if (count > 10)            buyBtn.textContent = `❌ Макс 10 за раз (выбрано ${count})`;
+            else if (total > heroGold) buyBtn.textContent = `❌ Не хватает ${(total - heroGold).toLocaleString('ru-RU')}💰`;
+            else if (count === 0)      buyBtn.textContent = '💰 Купить все выбранные';
+            else                       buyBtn.textContent = `💰 Купить ${count} апгрейдов`;
+        }
+    };
+    root.querySelectorAll('.bnr-upg-check').forEach(cb => cb.addEventListener('change', recalc));
+    const buyBtn = root.querySelector('.bnr-bulk-buy');
+    buyBtn?.addEventListener('click', async () => {
+        const ids = Array.from(root.querySelectorAll('.bnr-upg-check:checked'))
+                         .map(cb => cb.dataset.bnrUpgId);
+        if (ids.length === 0) return;
+        buyBtn.disabled = true;
+        buyBtn.textContent = '⏳ Покупаем ' + ids.length + '...';
+        try {
+            const r = await fetch(`${API_URL}/api/bannerlord/clan-upgrades/buy`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || ''},
+                body: JSON.stringify({upgrade_ids: ids}),
             });
-
-            const buyBtn = overlay.querySelector('#bnr-bulk-buy');
-            buyBtn?.addEventListener('click', async () => {
-                const checked = overlay.querySelectorAll('.bnr-upg-check:checked');
-                const ids = Array.from(checked).map(cb => cb.dataset.bnrUpgId);
-                if (ids.length === 0) return;
-                buyBtn.disabled = true;
-                buyBtn.textContent = '⏳ Покупаем ' + ids.length + '...';
-                try {
-                    const r = await fetch(`${API_URL}/api/bannerlord/clan-upgrades/buy`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json',
-                                  'X-Twitch-JWT': authToken || ''},
-                        body: JSON.stringify({upgrade_ids: ids}),
-                    });
-                    const d = await r.json();
-                    showNotification(d.message, d.success ? 'success' : 'error',
-                                     d.success ? 5000 : 6000);
-                    console.info('[FE-BULK] purchased', ids.length, 'upgrades:',
-                                 d.success ? 'OK' : d.message);
-                    if (d.success) {
-                        overlay.remove();
-                        _openBannerlordClanUpgradesModal();
-                        if (typeof loadBannerlordHero === 'function') loadBannerlordHero();
-                    } else {
-                        buyBtn.disabled = false;
-                        recalcBulk();
-                    }
-                } catch (e) {
-                    showNotification('Ошибка сети', 'error');
-                    buyBtn.disabled = false;
-                    recalcBulk();
-                }
-            });
-        },
+            const d = await r.json();
+            showNotification(d.message, d.success ? 'success' : 'error', d.success ? 5000 : 6000);
+            if (d.success) {
+                if (typeof onSuccess === 'function') onSuccess();
+                if (typeof loadBannerlordHero === 'function') loadBannerlordHero();
+            } else {
+                buyBtn.disabled = false;
+                recalc();
+            }
+        } catch (e) {
+            showNotification('Ошибка сети', 'error');
+            buyBtn.disabled = false;
+            recalc();
+        }
     });
 }
+// Инлайн-дерево апгрейдов во вкладке «Династия». LAZY: вызывается при раскрытии
+// <details data-bnr-details="dyn-upgrades"> (и после покупки), НЕ каждый poll —
+// иначе 8-сек репейнт сбрасывал бы выбор чекбоксов (см. choice пользователя).
+async function _renderClanUpgradesInline() {
+    const slot = document.getElementById('bnr-clan-upgrades-slot');
+    if (!slot) return;
+    slot.innerHTML = '<div style="font-size:11px;color:#adadb8;padding:6px;">⏳ Загрузка апгрейдов…</div>';
+    let data;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/clan-upgrades`, {
+            headers: {'X-Twitch-JWT': authToken || ''},
+        });
+        data = await r.json();
+    } catch (e) {
+        slot.innerHTML = '<div style="font-size:11px;color:#f87171;padding:6px;">Ошибка загрузки</div>';
+        return;
+    }
+    if (!data || !data.success) {
+        slot.innerHTML = `<div style="font-size:11px;color:#f87171;padding:6px;">${escapeHtml(data?.message || 'Не удалось загрузить')}</div>`;
+        return;
+    }
+    const heroGold = data.hero_gold || 0;
+    slot.innerHTML = `
+        <div style="font-size:10px;color:#9ca3af;margin-bottom:6px;">
+            💰 ${heroGold.toLocaleString('ru-RU')} динаров · отметь галочками и купи разом (до 10)
+        </div>
+        ${_clanUpgradesTreeHtml(data.upgrades || [], heroGold)}`;
+    _clanUpgradesBindBulk(slot, heroGold, () => _renderClanUpgradesInline());
+}
+
+// 2026-06-07 — _openBannerlordClanUpgradesModal удалена (orphan): апгрейды теперь инлайн (_renderClanUpgradesInline).
 
 // Sprint 5.27a: profile modal — gender swap (+ marriage/family tree в 5.27b/c).
 // Sprint 5.29 BLT-parity #6 phase B — Auctions modal.
-async function _openBannerlordAuctionsModal() {
-    if (!isAuthUser()) {
-        showNotification('⚠️ Войдите через Twitch', 'warning');
-        return;
-    }
-    let data;
-    try {
-        const r = await fetch(`${API_URL}/api/bannerlord/auctions`, {
-            headers: { 'X-Twitch-JWT': authToken || '' },
-        });
-        data = await r.json();
-        if (!data.success) {
-            showNotification(data.message || 'Не удалось загрузить', 'error');
-            return;
-        }
-    } catch (e) {
-        console.error('[BNR auctions]', e);
-        showNotification(`Ошибка сети: ${e.message || e}`, 'error');
-        return;
-    }
-    const auctions = data.auctions || [];
-    const mine = data.my_username;
-    const fmtTime = (s) => {
-        const m = Math.floor(s/60), sec = s % 60;
-        return m > 0 ? `${m}м ${sec}с` : `${sec}с`;
-    };
-    const auctionsHtml = auctions.length === 0
-        ? '<div style="color:#adadb8;text-align:center;padding:14px;font-size:12px;">Нет активных аукционов. Выстави свой трофей через кузницу!</div>'
-        : auctions.map(a => {
-            const isMine = a.is_mine;
-            const isLeading = a.current_bidder === mine;
-            const bidStr = a.current_bid > 0
-                ? `<span style="color:#fbbf24;">${a.current_bid}💎</span> от @${escapeHtml(a.current_bidder)}`
-                : `<span style="color:#9ca3af;">нет ставок (резерв ${a.reserve_price}💎)</span>`;
-            const actionBtn = isMine
-                ? (a.current_bid > 0
-                    ? '<span style="color:#9ca3af;font-size:10px;">Твой лот — есть бид, нельзя отменить</span>'
-                    : `<button class="extra-btn bnr-auction-cancel" data-auction-id="${a.id}"
-                              style="font-size:10px;padding:4px 8px;color:#f87171;">
-                            ✗ Отменить
-                       </button>`)
-                : `<button class="extra-btn bnr-auction-bid" data-auction-id="${a.id}"
-                          data-current-bid="${a.current_bid}" data-reserve="${a.reserve_price}"
-                          ${isLeading ? 'disabled' : ''}
-                          style="font-size:10px;padding:4px 8px;color:#fbbf24;
-                                 ${isLeading ? 'opacity:0.5;cursor:not-allowed;' : ''}">
-                      ${isLeading ? 'Ты лидер' : '⚖ Bid'}
-                   </button>`;
-            return `
-            <div style="background:rgba(58,58,62,0.3);border:1px solid ${a.item_color};
-                        border-radius:6px;padding:8px 10px;margin-bottom:6px;">
-                <div style="display:flex;align-items:center;gap:8px;">
-                    <div style="font-size:18px;">${escapeHtml(a.item_icon || '')}</div>
-                    <div style="flex:1;min-width:0;">
-                        <div style="font-size:12px;color:${a.item_color};font-weight:700;
-                                    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                            ${escapeHtml(a.item_name || 'Item')}
-                        </div>
-                        <div style="font-size:10px;color:#adadb8;">
-                            ${escapeHtml(a.item_base_type || '?')} / ${escapeHtml(a.item_rarity || 'common')}
-                            / T${a.item_tier} · продаёт @${escapeHtml(a.seller)}
-                        </div>
-                        <div style="font-size:11px;color:#9ca3af;margin-top:2px;">
-                            ${bidStr} · ⏱ ${fmtTime(a.remaining_s)}
-                        </div>
-                    </div>
-                    ${actionBtn}
-                </div>
-            </div>`;
-        }).join('');
-    _bnrShowSimpleModal({
-        title: `⚖ Аукционы (${auctions.length} активн.)`,
-        body: `
-            <div style="margin-bottom:8px;font-size:11px;color:#adadb8;text-align:center;">
-                Бид списывает крустики immediately. Перебили — refund.
-                Победитель забирает трофей, продавец получает 90% от bid'а.
-            </div>
-            <div style="max-height:400px;overflow-y:auto;">${auctionsHtml}</div>
-        `,
-        bind: overlay => {
-            overlay.querySelectorAll('.bnr-auction-bid').forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    const id = parseInt(btn.dataset.auctionId, 10);
-                    const cur = parseInt(btn.dataset.currentBid, 10) || 0;
-                    const reserve = parseInt(btn.dataset.reserve, 10);
-                    const minBid = cur === 0 ? reserve : Math.ceil(cur * 1.05);
-                    const amtStr = prompt(
-                        `Bid (минимум ${minBid}💎):`, String(minBid));
-                    if (!amtStr) return;
-                    const amount = parseInt(amtStr, 10);
-                    if (!amount || amount < minBid) {
-                        showNotification(`Bid должен быть ≥ ${minBid}💎`, 'error');
-                        return;
-                    }
-                    try {
-                        const r = await fetch(`${API_URL}/api/bannerlord/auctions/bid`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-Twitch-JWT': authToken || '',
-                            },
-                            body: JSON.stringify({ auction_id: id, amount }),
-                        });
-                        const res = await r.json();
-                        showNotification(res.message || (res.success ? 'OK' : 'Ошибка'),
-                            res.success ? 'success' : 'error');
-                        if (res.success) {
-                            overlay.remove();
-                            setTimeout(_openBannerlordAuctionsModal, 200);
-                            if (typeof loadUserData === 'function') loadUserData();
-                        }
-                    } catch (e) {
-                        console.error('[BNR auction bid]', e);
-                        showNotification('Ошибка сети', 'error');
-                    }
-                });
-            });
-            overlay.querySelectorAll('.bnr-auction-cancel').forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    const id = parseInt(btn.dataset.auctionId, 10);
-                    if (!await _bnrConfirm('Отменить свой аукцион?', 'Отменить')) return;
-                    try {
-                        const r = await fetch(`${API_URL}/api/bannerlord/auctions/cancel`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-Twitch-JWT': authToken || '',
-                            },
-                            body: JSON.stringify({ auction_id: id }),
-                        });
-                        const res = await r.json();
-                        showNotification(res.message || (res.success ? 'OK' : 'Ошибка'),
-                            res.success ? 'success' : 'error');
-                        if (res.success) {
-                            overlay.remove();
-                            setTimeout(_openBannerlordAuctionsModal, 200);
-                        }
-                    } catch (e) {
-                        console.error('[BNR auction cancel]', e);
-                        showNotification('Ошибка сети', 'error');
-                    }
-                });
-            });
-        }
-    });
-}
+// 2026-06-07 — _openBannerlordAuctionsModal удалена (orphan, аукционы убраны из UI ранее).
 
 // Sprint 5.29 BLT-parity #6 — Smithing forge modal (trophy collection).
 // MVP: backend-only trophies, no in-game ItemObject yet. Future iteration
 // добавит actual Bannerlord equipment integration + auction.
-async function _openBannerlordForgeModal() {
+async function _renderForgeInline() {
+    const slot = document.getElementById('bnr-forge-slot');
+    if (!slot) return;
     if (!isAuthUser()) {
-        showNotification('⚠️ Войдите через Twitch', 'warning');
+        slot.innerHTML = '<div style="font-size:11px;color:#adadb8;padding:6px;">Войдите через Twitch</div>';
         return;
     }
+    slot.innerHTML = '<div style="font-size:11px;color:#adadb8;padding:6px;">⏳ Загрузка…</div>';
     let data;
     try {
         const r = await fetch(`${API_URL}/api/bannerlord/custom-items`, {
@@ -4610,12 +4239,11 @@ async function _openBannerlordForgeModal() {
         });
         data = await r.json();
         if (!data.success) {
-            showNotification(data.message || 'Не удалось загрузить', 'error');
+            slot.innerHTML = `<div style="font-size:11px;color:#f87171;padding:6px;">${escapeHtml(data.message || 'Не удалось загрузить')}</div>`;
             return;
         }
     } catch (e) {
-        console.error('[BNR forge]', e);
-        showNotification(`Ошибка сети: ${e.message || e}`, 'error');
+        slot.innerHTML = '<div style="font-size:11px;color:#f87171;padding:6px;">Ошибка сети</div>';
         return;
     }
     const items = data.items || [];
@@ -4698,68 +4326,51 @@ async function _openBannerlordForgeModal() {
         <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">Инвентарь:</div>
         <div style="max-height:340px;overflow-y:auto;">${itemsHtml}</div>
     `;
-    _bnrShowSimpleModal({
-        title: `🔨 Кузница (${slotsUsed}/${slotsMax})`,
-        body: body,
-        bind: overlay => {
-            overlay.querySelectorAll('.bnr-smith-btn').forEach(btn => {
-                btn.dataset.bnrCd = 'hero.smith_item';   // кулдаун на кнопке
-                btn.addEventListener('click', () => {
-                    const base = btn.dataset.base;
-                    overlay.remove();
-                    _bannerlordBuyAction('hero.smith_item', { base_type: base });
-                    // Re-open modal через 1s чтобы показать новый item
-                    setTimeout(_openBannerlordForgeModal, 1200);
+    slot.innerHTML = body;
+    slot.querySelectorAll('.bnr-smith-btn').forEach(btn => {
+        btn.dataset.bnrCd = 'hero.smith_item';
+        btn.addEventListener('click', () => {
+            _bannerlordBuyAction('hero.smith_item', { base_type: btn.dataset.base });
+            setTimeout(_renderForgeInline, 1200);   // показать новый трофей
+        });
+    });
+    slot.querySelectorAll('.bnr-equip-trophy').forEach(btn => {
+        btn.dataset.bnrCd = 'hero.equip_trophy';
+        btn.addEventListener('click', () => {
+            _bannerlordBuyAction('hero.equip_trophy', { custom_item_id: parseInt(btn.dataset.itemId, 10) });
+            setTimeout(_renderForgeInline, 1200);
+        });
+    });
+    slot.querySelectorAll('.bnr-discard-item').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const id = parseInt(btn.dataset.itemId, 10);
+            if (!await _bnrConfirm('Дискарди трофей? Безвозвратно.', '🗑 Уничтожить')) return;
+            try {
+                const r = await fetch(`${API_URL}/api/bannerlord/custom-items/discard`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || '' },
+                    body: JSON.stringify({ item_id: id }),
                 });
-            });
-            overlay.querySelectorAll('.bnr-equip-trophy').forEach(btn => {
-                btn.dataset.bnrCd = 'hero.equip_trophy';   // кулдаун на кнопке
-                btn.addEventListener('click', () => {
-                    const id = parseInt(btn.dataset.itemId, 10);
-                    overlay.remove();
-                    _bannerlordBuyAction('hero.equip_trophy', { custom_item_id: id });
-                    // Re-open чтобы показать обновлённое состояние "✓ в игре".
-                    setTimeout(_openBannerlordForgeModal, 1200);
-                });
-            });
-            // 2026-05-29 — аукцион (P2P-торговля) убран из UI ради Twitch-
-            // комплаенса (та же категория что удалённый «Маркет», Phase 1.C).
-            overlay.querySelectorAll('.bnr-discard-item').forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    const id = parseInt(btn.dataset.itemId, 10);
-                    if (!await _bnrConfirm('Дискарди трофей? Безвозвратно.', '🗑 Уничтожить')) return;
-                    try {
-                        const r = await fetch(`${API_URL}/api/bannerlord/custom-items/discard`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-Twitch-JWT': authToken || '',
-                            },
-                            body: JSON.stringify({ item_id: id }),
-                        });
-                        const res = await r.json();
-                        showNotification(res.message || (res.success ? 'OK' : 'Не удалось'),
-                            res.success ? 'success' : 'error');
-                        if (res.success) {
-                            overlay.remove();
-                            setTimeout(_openBannerlordForgeModal, 200);
-                        }
-                    } catch (e) {
-                        console.error('[BNR discard]', e);
-                        showNotification('Ошибка сети', 'error');
-                    }
-                });
-            });
-        }
+                const res = await r.json();
+                showNotification(res.message || (res.success ? 'OK' : 'Не удалось'),
+                    res.success ? 'success' : 'error');
+                if (res.success) setTimeout(_renderForgeInline, 200);
+            } catch (e) {
+                showNotification('Ошибка сети', 'error');
+            }
+        });
     });
 }
 
 // Sprint 5.29 BLT-parity #5 — Achievements modal.
-async function _openBannerlordAchievementsModal() {
+async function _renderAchievementsInline() {
+    const slot = document.getElementById('bnr-achievements-slot');
+    if (!slot) return;
     if (!isAuthUser()) {
-        showNotification('⚠️ Войдите через Twitch', 'warning');
+        slot.innerHTML = '<div style="font-size:11px;color:#adadb8;padding:6px;">Войдите через Twitch</div>';
         return;
     }
+    slot.innerHTML = '<div style="font-size:11px;color:#adadb8;padding:6px;">⏳ Загрузка…</div>';
     let data;
     try {
         const r = await fetch(`${API_URL}/api/bannerlord/achievements`, {
@@ -4767,12 +4378,11 @@ async function _openBannerlordAchievementsModal() {
         });
         data = await r.json();
         if (!data.success) {
-            showNotification(data.message || 'Не удалось загрузить', 'error');
+            slot.innerHTML = `<div style="font-size:11px;color:#f87171;padding:6px;">${escapeHtml(data.message || 'Не удалось загрузить')}</div>`;
             return;
         }
     } catch (e) {
-        console.error('[BNR achievements]', e);
-        showNotification(`Ошибка сети: ${e.message || e}`, 'error');
+        slot.innerHTML = '<div style="font-size:11px;color:#f87171;padding:6px;">Ошибка сети</div>';
         return;
     }
     const items = (data.achievements || []).map(a => {
@@ -4805,15 +4415,16 @@ async function _openBannerlordAchievementsModal() {
             <div style="margin-top:5px;">${progressBar}</div>
         </div>`;
     }).join('');
-    _bnrShowSimpleModal({
-        title: `🏆 Достижения (${data.unlocked_count}/${data.total})`,
-        body: items || '<div style="color:#adadb8;text-align:center;padding:12px;">Нет данных</div>',
-    });
+    slot.innerHTML = `
+        <div style="font-size:10px;color:#9ca3af;margin-bottom:6px;">Открыто ${data.unlocked_count}/${data.total}</div>
+        ${items || '<div style="color:#adadb8;text-align:center;padding:12px;">Нет данных</div>'}`;
 }
 
 // 2026-06-02 (CLAN-GATE) — смена пола НЕ кланово-зависима → вынесена из
 // профиль-модалки (она в запертой Династии) в Hero-вкладку, доступна всем.
-function _openBannerlordGenderModal() {
+function loadBannerlordGender() {
+    const slot = document.getElementById('bnr-gender-slot');
+    if (!slot) return;
     const h = _bannerlordLastHero?.hero || {};
     const heroGold = h.gold || 0;
     const GENDER_COST = 50000;
@@ -4821,61 +4432,41 @@ function _openBannerlordGenderModal() {
     const currentLabel = h.is_female === true ? '♀ Женский'
                        : h.is_female === false ? '♂ Мужской'
                        : '— (не известно)';
-    const body = `
-        <div style="background:#1a1a1c;border:1px solid #3a3a3e;border-radius:6px;
-                    padding:10px;margin-bottom:10px;">
-            <div style="font-size:12px;color:#adadb8;margin-bottom:4px;">
-                Текущий пол: <b style="color:#efeff1;">${currentLabel}</b>
-            </div>
-            <div style="font-size:11px;color:#adadb8;margin-bottom:8px;">
-                Стоимость: <b style="color:#fbbf24;">${GENDER_COST.toLocaleString('ru-RU')}💰</b>
-                · у тебя ${heroGold.toLocaleString('ru-RU')}💰
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-                <button class="extra-btn" data-gender-set="male"
-                        ${canAfford ? '' : 'disabled'}
-                        style="font-size:12px;padding:8px;
-                               background:${canAfford ? '#1e3a5f' : '#2d2d2f'};
-                               color:${canAfford ? '#93c5fd' : '#6b7280'};
-                               ${canAfford ? '' : 'cursor:not-allowed;'}">
-                    ♂ Мужской
-                </button>
-                <button class="extra-btn" data-gender-set="female"
-                        ${canAfford ? '' : 'disabled'}
-                        style="font-size:12px;padding:8px;
-                               background:${canAfford ? '#5b21b6' : '#2d2d2f'};
-                               color:${canAfford ? '#f472b6' : '#6b7280'};
-                               ${canAfford ? '' : 'cursor:not-allowed;'}">
-                    ♀ Женский
-                </button>
-            </div>
-            <div style="font-size:10px;color:#6b7280;margin-top:8px;text-align:center;">
-                Если есть супруг(а) — engine автоматом перевернёт их пол
-                чтоб брак остался валиден.
-            </div>
+    const html = `
+        <div style="font-size:11px;color:#adadb8;margin-bottom:6px;">
+            Текущий: <b style="color:#efeff1;">${currentLabel}</b> ·
+            <b style="color:#fbbf24;">${GENDER_COST.toLocaleString('ru-RU')}💰</b>
+            (у тебя ${heroGold.toLocaleString('ru-RU')}💰)
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+            <button class="extra-btn bnr-gender-set" data-gender-set="male" ${canAfford ? '' : 'disabled'}
+                    style="font-size:12px;padding:7px;background:${canAfford ? '#1e3a5f' : '#2d2d2f'};
+                           color:${canAfford ? '#93c5fd' : '#6b7280'};${canAfford ? '' : 'cursor:not-allowed;'}">
+                ♂ Мужской
+            </button>
+            <button class="extra-btn bnr-gender-set" data-gender-set="female" ${canAfford ? '' : 'disabled'}
+                    style="font-size:12px;padding:7px;background:${canAfford ? '#5b21b6' : '#2d2d2f'};
+                           color:${canAfford ? '#f472b6' : '#6b7280'};${canAfford ? '' : 'cursor:not-allowed;'}">
+                ♀ Женский
+            </button>
+        </div>
+        <div style="font-size:10px;color:#6b7280;margin-top:6px;">
+            Есть супруг(а) — engine перевернёт их пол, чтобы брак остался валиден.
         </div>`;
-    _bnrShowSimpleModal({
-        title: '⚧ Сменить пол',
-        body,
-        bind: overlay => {
-            overlay.querySelectorAll('[data-gender-set]').forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    const newGender = btn.dataset.genderSet;
-                    if (!await _bnrConfirm(
-                        `Сменить пол на ${newGender === 'female' ? 'женский ♀' : 'мужской ♂'}? Спишет 50K💰.`,
-                        'Сменить'
-                    )) return;
-                    _bannerlordBuyAction('hero.set_gender', {gender: newGender});
-                    overlay.remove();
-                });
+    if (_smartInnerHTML(slot, html)) {
+        slot.querySelectorAll('.bnr-gender-set').forEach(btn => {
+            btn.dataset.bnrCd = 'hero.set_gender';
+            btn.addEventListener('click', () => {
+                _bannerlordBuyAction('hero.set_gender', { gender: btn.dataset.genderSet });
             });
-        }
-    });
+        });
+    }
 }
 
-function _openBannerlordProfileModal() {
+function loadBannerlordProfileFamily() {
+    const slot = document.getElementById('bnr-profile-slot');
+    if (!slot) return;
     const h = _bannerlordLastHero?.hero || {};
-    const isFemale = !!h.is_female;
     const heroGold = h.gold || 0;
     const hasClan = !!h.clan_name;   // брак/дети требуют клан (см. ниже)
 
@@ -4917,38 +4508,17 @@ function _openBannerlordProfileModal() {
         ${_renderFamilyTreeHtml(h)}
     `;
 
-    _bnrShowSimpleModal({
-        title: '🧬 Профиль и семья',
-        body,
-        bind: overlay => {
-            overlay.querySelector('#bnr-marry-btn')?.addEventListener('click', async () => {
-                if (!await _bnrConfirm(
-                    'Engine выберет случайную подходящую NPC. Спишет 50K💰. Продолжить?',
-                    '💍 Жениться'
-                )) return;
-                // Sprint 5.32 UX — await action чтобы пользователь увидел
-                // backend сообщение (cooldown, "уже в браке" etc) ДО закрытия
-                // модала. Раньше fire-and-forget → notification мог
-                // промелькнуть и пропасть незамеченным.
-                await _bannerlordBuyAction('hero.marry', {});
-                overlay.remove();
-            });
-            overlay.querySelector('#bnr-divorce-btn')?.addEventListener('click', async () => {
-                if (!await _bnrConfirm('Развод бесплатный. Точно?', '💔 Развестись')) return;
-                await _bannerlordBuyAction('hero.divorce', {});
-                overlay.remove();
-            });
-            // Sprint 5.27c: make baby
-            overlay.querySelector('#bnr-make-baby-btn')?.addEventListener('click', async () => {
-                if (!await _bnrConfirm(
-                    'Зачатие — 100K💰. Через ~36 in-game дней появится ребёнок. Продолжить?',
-                    '👶 Зачать'
-                )) return;
-                _bannerlordBuyAction('hero.make_baby', {});
-                overlay.remove();
-            });
-        },
-    });
+    if (_smartInnerHTML(slot, body)) {
+        slot.querySelector('#bnr-marry-btn')?.addEventListener('click', () => {
+            _bannerlordBuyAction('hero.marry', {});
+        });
+        slot.querySelector('#bnr-divorce-btn')?.addEventListener('click', () => {
+            _bannerlordBuyAction('hero.divorce', {});
+        });
+        slot.querySelector('#bnr-make-baby-btn')?.addEventListener('click', () => {
+            _bannerlordBuyAction('hero.make_baby', {});
+        });
+    }
 }
 
 // Sprint 5.27c: рендер family tree section для profile modal
@@ -5034,101 +4604,168 @@ function _renderFamilyTreeHtml(h) {
     `;
 }
 
-function _openBannerlordKingdomModal() {
+// 2026-06-07 — модалка управления королевством УДАЛЕНА: всё инлайн в секции
+// 👑 Королевство вкладки «Династия» (покинуть / создать / вступить). Имя — через
+// _renderCreateKingdomInline / _renderJoinInline('kingdom', ...).
+
+// 2026-06-07 — инлайн-секции «Династия → 🏰 Клан / 👑 Королевство». Live-инфо
+// из _bannerlordLastHero (без сети) + lazy-формы создать/вступить раскрываются
+// прямо в секции (clanless/независимый клан — через _render*Inline).
+// Гейтятся isClanLeader в poll'е (как остальные суб-слоты Династии).
+// 2026-06-07 — locked-state Династии (не-лидер): clanless → создать/вступить;
+// участник чужого клана → инфо + покинуть. Создать/вступить — lazy-формы инлайн
+// (модалки клана/королевства удалены).
+function loadBannerlordDynastyLockedActions() {
+    const slot = document.getElementById('bnr-dynasty-locked-actions');
+    if (!slot) return;
     const h = _bannerlordLastHero?.hero || {};
-    const hasClan = !!h.clan_name;
-    const hasKingdom = !!h.kingdom_name;
-    const info = h.kingdom_info || null;
-
-    let body;
-    if (hasKingdom) {
-        const infoBlock = info ? `
-            <div style="background:rgba(147,197,253,0.05);border:1px solid #3d3d3f;
-                        border-radius:6px;padding:8px 10px;margin-bottom:10px;">
-                <div style="font-size:13px;color:#93c5fd;font-weight:700;margin-bottom:6px;
-                            text-align:center;">
-                    ${escapeHtml(info.name || h.kingdom_name)}
-                </div>
-                <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:11px;">
-                    <span style="color:#adadb8;">👑 Правитель:</span>
-                    <span style="color:#efeff1;">
-                        ${escapeHtml(info.ruler_name || '?')}
-                        ${info.is_ruler ? '<b style="color:#fbbf24;">(это ты!)</b>' : ''}
-                    </span>
-                    <span style="color:#adadb8;">🏰 Кланов:</span>
-                    <span style="color:#efeff1;">${info.clans_count || 0}</span>
-                    <span style="color:#adadb8;">🌆 Поселений:</span>
-                    <span style="color:#efeff1;">${info.fiefs_count || 0}</span>
-                    <span style="color:#adadb8;">⚔ Война с:</span>
-                    <span style="color:${(info.at_war_count || 0) > 0 ? '#f87171' : '#efeff1'};">
-                        ${info.at_war_count || 0} королевств
-                    </span>
-                </div>
-            </div>` : `
-            <div style="font-size:12px;color:#efeff1;margin-bottom:6px;">
-                Текущее королевство: <b style="color:#fbbf24;">${escapeHtml(h.kingdom_name)}</b>
-            </div>`;
-        body = `
-            ${infoBlock}
-            <button class="extra-btn" id="bnr-kingdom-modal-leave"
-                    title="Вывести clan из королевства — бесплатно."
-                    style="width:100%;font-size:12px;padding:8px;
-                           background:#7f1d1d;color:#fca5a5;">
-                🚪 Покинуть королевство
-            </button>`;
-    } else if (!hasClan) {
-        body = `
-            <div style="font-size:11px;color:#fbbf24;margin-bottom:8px;">
-                ⚠️ Сначала создай или вступи в клан — королевства создаются только клан-лидерами.
-            </div>
-            <button class="extra-btn" id="bnr-kingdom-goto-clan"
-                    style="width:100%;font-size:12px;padding:8px;background:#3d3d3f;color:#fbbf24;">
-                🏰 Открыть управление кланом
-            </button>`;
-    } else {
-        body = `
-            <div style="font-size:11px;color:#adadb8;margin-bottom:8px;">
-                Твой клан '${escapeHtml(h.clan_name)}' независим. Можно создать собственное королевство или вступить в существующее.
-            </div>
-            <button class="extra-btn" id="bnr-kingdom-modal-create"
-                    title="Создать собственное королевство (5,000,000💰 динаров). Clan становится правящим кланом."
-                    style="width:100%;font-size:12px;padding:8px;margin-bottom:6px;
-                           background:#7c2d12;color:#fbbf24;font-weight:700;">
-                👑 Создать королевство (5M💰)
-            </button>
-            <button class="extra-btn" id="bnr-kingdom-modal-join"
-                    title="Вступить в существующее королевство (100K💰)."
-                    style="width:100%;font-size:12px;padding:8px;background:#1e3a5f;color:#93c5fd;">
-                🤝 Вступить в королевство (100K💰)
-            </button>`;
+    const inClan = !!h.clan_name;
+    // 2026-06-07 — создать/вступить инлайн (lazy <details>): поле имени переживает
+    // 8s-poll (форма рендерится при раскрытии, не на каждом тике).
+    const html = !inClan
+        ? `<details data-bnr-details="locked-create" ${_bnrDetailsAttr('locked-create')} style="margin-bottom:6px;">
+                <summary style="list-style:none;cursor:pointer;width:100%;box-sizing:border-box;
+                           font-size:12px;padding:9px;border-radius:3px;
+                           background:#7c2d12;color:#fbbf24;font-weight:700;border:1px solid #b45309;">
+                    🏰 Создать клан (1M💰)
+                </summary>
+                <div id="bnr-locked-create-slot" style="padding-top:6px;"></div>
+           </details>
+           <details data-bnr-details="locked-join" ${_bnrDetailsAttr('locked-join')}>
+                <summary style="list-style:none;cursor:pointer;width:100%;box-sizing:border-box;
+                           font-size:12px;padding:9px;border-radius:3px;background:#1e3a5f;color:#93c5fd;">
+                    🤝 Вступить в клан (50K💰)
+                </summary>
+                <div id="bnr-locked-join-slot" style="padding-top:6px;"></div>
+           </details>`
+        : `<div style="font-size:11px;color:#adadb8;margin-bottom:8px;">
+                Ты в клане <b style="color:#fbbf24;">${escapeHtml(h.clan_name)}</b>, но не глава.
+                Полная Династия открыта главе клана.
+           </div>
+           <button class="extra-btn bnr-locked-leave"
+                   style="width:100%;font-size:12px;padding:9px;background:#7f1d1d;color:#fca5a5;">
+                🚪 Покинуть клан
+           </button>`;
+    // 2026-06-07 FLICKER — пока раскрыта форма create/join, НЕ перерисовываем секцию
+    // (html тут стабилен, но guard для единообразия/надёжности — безвреден).
+    if (slot.querySelector('[data-bnr-details="locked-create"]')?.open
+        || slot.querySelector('[data-bnr-details="locked-join"]')?.open) return;
+    if (_smartInnerHTML(slot, html)) {
+        const _lcDet = slot.querySelector('[data-bnr-details="locked-create"]');
+        if (_lcDet) {
+            _lcDet.addEventListener('toggle', () => { if (_lcDet.open) _renderCreateClanInline(); });
+            if (_lcDet.open) _renderCreateClanInline();
+        }
+        const _ljDet = slot.querySelector('[data-bnr-details="locked-join"]');
+        if (_ljDet) {
+            _ljDet.addEventListener('toggle', () => { if (_ljDet.open) _renderJoinInline('clan', 'bnr-locked-join-slot'); });
+            if (_ljDet.open) _renderJoinInline('clan', 'bnr-locked-join-slot');
+        }
+        slot.querySelector('.bnr-locked-leave')?.addEventListener('click', () => _bannerlordBuyAction('hero.leave_clan', {}));
     }
-
-    _bnrShowSimpleModal({
-        title: '👑 Управление королевством',
-        body: body,
-        bind: overlay => {
-            overlay.querySelector('#bnr-kingdom-goto-clan')?.addEventListener('click', () => {
-                overlay.remove();
-                _openBannerlordClanModal();
-            });
-            overlay.querySelector('#bnr-kingdom-modal-create')?.addEventListener('click', () => {
-                overlay.remove();
-                _openBannerlordCreateKingdomDialog();
-            });
-            overlay.querySelector('#bnr-kingdom-modal-join')?.addEventListener('click', () => {
-                overlay.remove();
-                _openBannerlordJoinDialog('kingdom');
-            });
-            overlay.querySelector('#bnr-kingdom-modal-leave')?.addEventListener('click', async () => {
-                if (!await _bnrConfirm(
-                    'Ты уверен что хочешь покинуть королевство? Clan станет независимым.',
-                    '🚪 Покинуть'
-                )) return;
-                _bannerlordBuyAction('hero.leave_kingdom', {});
-                overlay.remove();
-            });
-        },
-    });
+}
+function loadBannerlordClanMgmt() {
+    const slot = document.getElementById('bnr-clan-mgmt-slot');
+    if (!slot) return;
+    const h = _bannerlordLastHero?.hero || {};
+    const info = h.clan_info || null;
+    const infoGrid = info ? `
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:11px;margin-bottom:6px;">
+            <span style="color:#adadb8;">⭐ Tier:</span><span style="color:#efeff1;">${info.tier || 0}</span>
+            <span style="color:#adadb8;">🏆 Renown:</span><span style="color:#efeff1;">${(info.renown || 0).toLocaleString('ru-RU')}</span>
+            <span style="color:#adadb8;">👥 Героев:</span><span style="color:#efeff1;">${info.members_count || 0}</span>
+            <span style="color:#adadb8;">⚔ Отрядов:</span><span style="color:#efeff1;">${info.parties_count || 0}</span>
+            <span style="color:#adadb8;">🏰 Поселений:</span><span style="color:#efeff1;">${info.fiefs_count || 0}</span>
+        </div>`
+        : `<div style="font-size:11px;color:#adadb8;margin-bottom:6px;">Нет данных о клане.</div>`;
+    const isLeader = !!info?.is_leader;
+    const hasParties = (info?.parties_count || 0) > 0;
+    const partyBtn = (isLeader && !hasParties)
+        ? `<button class="extra-btn bnr-clan-party"
+                   title="Hero выйдет на карту как AI-lord. 200K💰 + retinue в roster."
+                   style="width:100%;font-size:12px;padding:7px;margin-bottom:4px;background:#1e3a5f;color:#93c5fd;font-weight:700;">
+                ⚔ Создать отряд (200K💰)
+           </button>`
+        : (isLeader && hasParties)
+            ? `<div style="font-size:11px;color:#34d399;text-align:center;padding:4px;">✅ Отрядов у клана: ${info.parties_count}</div>`
+            : '';
+    const html = `
+        <div style="font-size:12px;color:#fbbf24;font-weight:700;margin-bottom:4px;text-align:center;">
+            ${escapeHtml(info?.name || h.clan_name || '—')}
+        </div>
+        ${infoGrid}
+        ${partyBtn}
+        <button class="extra-btn bnr-clan-leave"
+                title="Покинуть клан. Лидерство передастся старшему non-hero, или клан распустится."
+                style="width:100%;font-size:12px;padding:7px;background:#7f1d1d;color:#fca5a5;">
+            🚪 Покинуть клан
+        </button>`;
+    if (_smartInnerHTML(slot, html)) {
+        slot.querySelector('.bnr-clan-party')?.addEventListener('click', () => _bannerlordBuyAction('hero.create_party', {}));
+        slot.querySelector('.bnr-clan-leave')?.addEventListener('click', () => _bannerlordBuyAction('hero.leave_clan', {}));
+    }
+}
+function loadBannerlordKingdomMgmt() {
+    const slot = document.getElementById('bnr-kingdom-mgmt-slot');
+    if (!slot) return;
+    const h = _bannerlordLastHero?.hero || {};
+    const info = h.kingdom_info || null;
+    const hasKingdom = !!h.kingdom_name;
+    const infoGrid = (hasKingdom && info) ? `
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:11px;margin-bottom:6px;">
+            <span style="color:#adadb8;">👑 Правитель:</span><span style="color:#efeff1;">${escapeHtml(info.ruler_name || '?')}${info.is_ruler ? ' <b style="color:#fbbf24;">(ты)</b>' : ''}</span>
+            <span style="color:#adadb8;">🏰 Кланов:</span><span style="color:#efeff1;">${info.clans_count || 0}</span>
+            <span style="color:#adadb8;">🌆 Поселений:</span><span style="color:#efeff1;">${info.fiefs_count || 0}</span>
+            <span style="color:#adadb8;">⚔ Война с:</span><span style="color:${(info.at_war_count || 0) > 0 ? '#f87171' : '#efeff1'};">${info.at_war_count || 0} корол.</span>
+        </div>`
+        : `<div style="font-size:11px;color:#adadb8;margin-bottom:6px;">Клан независим — без королевства.</div>`;
+    // 2026-06-07 — создать/вступить инлайн (lazy <details>): поле имени переживает
+    // 8s-poll (форма рендерится при раскрытии, не на каждом тике).
+    const actions = hasKingdom
+        ? `<button class="extra-btn bnr-kingdom-leave"
+                   title="Вывести клан из королевства — бесплатно."
+                   style="width:100%;font-size:12px;padding:7px;background:#7f1d1d;color:#fca5a5;">
+                🚪 Покинуть королевство
+           </button>`
+        : `<details data-bnr-details="kingdom-create" ${_bnrDetailsAttr('kingdom-create')} style="margin-bottom:4px;">
+                <summary title="Создать своё королевство (5M💰). Клан становится правящим."
+                         style="list-style:none;cursor:pointer;width:100%;box-sizing:border-box;
+                                font-size:12px;padding:7px;border-radius:3px;background:#7c2d12;color:#fbbf24;font-weight:700;">
+                    👑 Создать королевство (5M💰)
+                </summary>
+                <div id="bnr-kingdom-create-slot" style="padding-top:6px;"></div>
+           </details>
+           <details data-bnr-details="kingdom-join" ${_bnrDetailsAttr('kingdom-join')}>
+                <summary title="Вступить в существующее королевство (100K💰)."
+                         style="list-style:none;cursor:pointer;width:100%;box-sizing:border-box;
+                                font-size:12px;padding:7px;border-radius:3px;background:#1e3a5f;color:#93c5fd;">
+                    🤝 Вступить в королевство (100K💰)
+                </summary>
+                <div id="bnr-kingdom-join-slot" style="padding-top:6px;"></div>
+           </details>`;
+    const html = `
+        <div style="font-size:12px;color:#93c5fd;font-weight:700;margin-bottom:4px;text-align:center;">
+            ${hasKingdom ? escapeHtml(info?.name || h.kingdom_name) : '— нет королевства —'}
+        </div>
+        ${infoGrid}
+        ${actions}`;
+    // 2026-06-07 FLICKER — пока раскрыта форма create/join, НЕ перерисовываем секцию
+    // (иначе repaint стирает ввод имени). Любая из двух форм блокирует repaint.
+    if (slot.querySelector('[data-bnr-details="kingdom-create"]')?.open
+        || slot.querySelector('[data-bnr-details="kingdom-join"]')?.open) return;
+    if (_smartInnerHTML(slot, html)) {
+        slot.querySelector('.bnr-kingdom-leave')?.addEventListener('click', () => _bannerlordBuyAction('hero.leave_kingdom', {}));
+        const _kcDet = slot.querySelector('[data-bnr-details="kingdom-create"]');
+        if (_kcDet) {
+            _kcDet.addEventListener('toggle', () => { if (_kcDet.open) _renderCreateKingdomInline(); });
+            if (_kcDet.open) _renderCreateKingdomInline();
+        }
+        const _kjDet = slot.querySelector('[data-bnr-details="kingdom-join"]');
+        if (_kjDet) {
+            _kjDet.addEventListener('toggle', () => { if (_kjDet.open) _renderJoinInline('kingdom', 'bnr-kingdom-join-slot'); });
+            if (_kjDet.open) _renderJoinInline('kingdom', 'bnr-kingdom-join-slot');
+        }
+    }
 }
 
 // Sprint 5.31 #45b — Boosty admin перенесён на /streamer/dashboard.
@@ -5144,40 +4781,13 @@ function _openBannerlordKingdomModal() {
 // set_gender / leave_clan / create_party / make_baby / heir respawn etc.
 // Этот helper — drop-in замена: показывает HTML-overlay с Да/Нет,
 // resolve'ит promise по клику. Используем await pattern в caller'ах.
+// 2026-06-07 — подтверждения отключены по просьбе («кнопку нажал — сработало»):
+// клик = сразу действие, без попапа да/нет. Пасс-тру всегда resolve(true) — все
+// вызовы `if (!await _bnrConfirm(...)) return;` проходят насквозь. Аргументы
+// (message/labels) игнорируются. Вернуть диалог для конкретного действия —
+// восстановить overlay-реализацию из git-истории этого файла.
 function _bnrConfirm(message, confirmLabel = 'Да', cancelLabel = 'Отмена') {
-    return new Promise(resolve => {
-        const overlay = document.createElement('div');
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);' +
-            'display:flex;align-items:center;justify-content:center;z-index:99999;padding:10px;';
-        overlay.innerHTML = `
-            <div style="background:#18181b;border:1px solid #3d3d3f;border-radius:8px;
-                        padding:18px;max-width:340px;width:100%;">
-                <div style="font-size:13px;color:#efeff1;margin-bottom:14px;line-height:1.4;
-                            white-space:pre-line;">
-                    ${escapeHtml(message)}
-                </div>
-                <div style="display:flex;gap:8px;">
-                    <button id="bnr-confirm-cancel" class="extra-btn"
-                            style="flex:1;font-size:12px;padding:8px;
-                                   background:#3d3d3f;color:#efeff1;">
-                        ${escapeHtml(cancelLabel)}
-                    </button>
-                    <button id="bnr-confirm-ok" class="extra-btn"
-                            style="flex:2;font-size:12px;padding:8px;
-                                   background:#7c2d12;color:#fbbf24;font-weight:700;">
-                        ${escapeHtml(confirmLabel)}
-                    </button>
-                </div>
-            </div>`;
-        document.body.appendChild(overlay);
-        const close = (val) => { try { overlay.remove(); } catch (e) {} resolve(val); };
-        overlay.querySelector('#bnr-confirm-ok')?.addEventListener('click', () => close(true));
-        overlay.querySelector('#bnr-confirm-cancel')?.addEventListener('click', () => close(false));
-        // Click outside dialog = cancel.
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) close(false);
-        });
-    });
+    return Promise.resolve(true);
 }
 
 function _bnrShowSimpleModal({ title, body, bind }) {
@@ -5203,16 +4813,12 @@ function _bnrShowSimpleModal({ title, body, bind }) {
 }
 
 // Sprint 5.12: dialog для ввода имени королевства + confirm "Создать".
-function _openBannerlordCreateKingdomDialog() {
-    const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);' +
-        'display:flex;align-items:center;justify-content:center;z-index:9999;padding:10px;';
-    overlay.innerHTML = `
-        <div style="background:#18181b;border:1px solid #3d3d3f;border-radius:8px;
-                    padding:18px;max-width:340px;width:100%;">
-            <h3 style="margin:0 0 10px 0;font-size:14px;color:#efeff1;">
-                👑 Создать королевство
-            </h3>
+// удалена: инлайн lazy-поле имени королевства (_renderCreateKingdomInline).
+function _renderCreateKingdomInline() {
+    const slot = document.getElementById('bnr-kingdom-create-slot');
+    if (!slot) return;
+    slot.innerHTML = `
+        <div style="background:#18181b;border:1px solid #3d3d3f;border-radius:6px;padding:12px;">
             <div style="font-size:11px;color:#adadb8;margin-bottom:10px;line-height:1.4;">
                 Твой клан станет правящим в новом королевстве. Списывается
                 <b style="color:#fbbf24;">5,000,000💰 динаров</b> + бонус: 2K влияния и
@@ -5224,58 +4830,40 @@ function _openBannerlordCreateKingdomDialog() {
                           border:1px solid #3d3d3f;border-radius:4px;
                           padding:6px 8px;font-size:12px;margin-bottom:12px;
                           box-sizing:border-box;">
-            <div style="display:flex;gap:6px;">
-                <button id="bnr-k-cancel" class="extra-btn"
-                        style="flex:1;font-size:11px;padding:7px;background:#3d3d3f;">
-                    Отмена
-                </button>
-                <button id="bnr-k-confirm" class="extra-btn"
-                        style="flex:2;font-size:12px;padding:7px;background:#7c2d12;
-                               color:#fbbf24;font-weight:700;">
-                    👑 Создать (5M💰)
-                </button>
-            </div>
+            <button id="bnr-k-confirm" class="extra-btn"
+                    style="width:100%;font-size:12px;padding:7px;background:#7c2d12;
+                           color:#fbbf24;font-weight:700;">
+                👑 Создать (5M💰)
+            </button>
         </div>`;
-    document.body.appendChild(overlay);
     const input = document.getElementById('bnr-kingdom-name-input');
-    input?.focus();
-    const close = () => overlay.remove();
     const confirm = () => {
         const kingdom_name = (input?.value || '').trim();
+        // 2026-06-07 FLICKER — закрыть форму ДО действия (иначе freeze-guard
+        // заблокирует следующий repaint секции) + мгновенный фидбек на клик.
+        document.querySelector('[data-bnr-details="kingdom-create"]')?.removeAttribute('open');
         _bannerlordBuyAction('hero.create_kingdom', { kingdom_name });
-        close();
     };
-    document.getElementById('bnr-k-cancel')?.addEventListener('click', close);
     document.getElementById('bnr-k-confirm')?.addEventListener('click', confirm);
-    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
-    input?.addEventListener('keydown', e => {
-        if (e.key === 'Enter') confirm();
-        if (e.key === 'Escape') close();
-    });
+    input?.addEventListener('keydown', e => { if (e.key === 'Enter') confirm(); });
 }
 
-// Sprint 5.12: единый dialog для join — type 'clan' или 'kingdom'.
-function _openBannerlordJoinDialog(type) {
+// удалена: инлайн lazy-поле join (_renderJoinInline) — type 'clan'|'kingdom'.
+function _renderJoinInline(type, slotId) {
+    const slot = document.getElementById(slotId);
+    if (!slot) return;
     const isClan = type === 'clan';
     const config = isClan
-        ? { icon: '🤝', title: 'Вступить в клан', cost: '50K💰',
+        ? { icon: '🤝', cost: '50K💰',
             actionType: 'hero.join_clan', field: 'clan_name',
             placeholder: 'например: Vlandian Royal Clan',
             hint: 'Введи (часть) имя существующего клана. Mod fuzzy-matches.' }
-        : { icon: '🤝', title: 'Вступить в королевство', cost: '100K💰',
+        : { icon: '🤝', cost: '100K💰',
             actionType: 'hero.join_kingdom', field: 'kingdom_name',
             placeholder: 'например: Vlandia',
             hint: 'Введи (часть) имя королевства. Твой clan присоединится как вассал.' };
-
-    const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);' +
-        'display:flex;align-items:center;justify-content:center;z-index:9999;padding:10px;';
-    overlay.innerHTML = `
-        <div style="background:#18181b;border:1px solid #3d3d3f;border-radius:8px;
-                    padding:18px;max-width:340px;width:100%;">
-            <h3 style="margin:0 0 10px 0;font-size:14px;color:#efeff1;">
-                ${config.icon} ${config.title}
-            </h3>
+    slot.innerHTML = `
+        <div style="background:#18181b;border:1px solid #3d3d3f;border-radius:6px;padding:12px;">
             <div style="font-size:11px;color:#adadb8;margin-bottom:10px;line-height:1.4;">
                 ${config.hint} Списать <b style="color:#fbbf24;">${config.cost} динаров</b>.
             </div>
@@ -5285,48 +4873,33 @@ function _openBannerlordJoinDialog(type) {
                           border:1px solid #3d3d3f;border-radius:4px;
                           padding:6px 8px;font-size:12px;margin-bottom:12px;
                           box-sizing:border-box;">
-            <div style="display:flex;gap:6px;">
-                <button id="bnr-j-cancel" class="extra-btn"
-                        style="flex:1;font-size:11px;padding:7px;background:#3d3d3f;">
-                    Отмена
-                </button>
-                <button id="bnr-j-confirm" class="extra-btn"
-                        style="flex:2;font-size:12px;padding:7px;background:#1e3a5f;
-                               color:#93c5fd;font-weight:700;">
-                    ${config.icon} Вступить (${config.cost})
-                </button>
-            </div>
+            <button id="bnr-j-confirm" class="extra-btn"
+                    style="width:100%;font-size:12px;padding:7px;background:#1e3a5f;
+                           color:#93c5fd;font-weight:700;">
+                ${config.icon} Вступить (${config.cost})
+            </button>
         </div>`;
-    document.body.appendChild(overlay);
     const input = document.getElementById('bnr-join-name-input');
-    input?.focus();
-    const close = () => overlay.remove();
+    // 2026-06-07 FLICKER — ключ <details> зависит от контекста: kingdom-join (королевство)
+    // или locked-join (клан). Закрыть форму ДО действия, иначе freeze-guard секции
+    // заблокирует следующий repaint. + мгновенный фидбек на клик.
+    const _joinDetKey = isClan ? 'locked-join' : 'kingdom-join';
     const confirm = () => {
         const name = (input?.value || '').trim();
         if (!name) return;
+        document.querySelector(`[data-bnr-details="${_joinDetKey}"]`)?.removeAttribute('open');
         _bannerlordBuyAction(config.actionType, { [config.field]: name });
-        close();
     };
-    document.getElementById('bnr-j-cancel')?.addEventListener('click', close);
     document.getElementById('bnr-j-confirm')?.addEventListener('click', confirm);
-    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
-    input?.addEventListener('keydown', e => {
-        if (e.key === 'Enter') confirm();
-        if (e.key === 'Escape') close();
-    });
+    input?.addEventListener('keydown', e => { if (e.key === 'Enter') confirm(); });
 }
 
-// Sprint 5.9: dialog для ввода имени клана + confirm "Создать".
-function _openBannerlordCreateClanDialog() {
-    const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);' +
-        'display:flex;align-items:center;justify-content:center;z-index:9999;padding:10px;';
-    overlay.innerHTML = `
-        <div style="background:#18181b;border:1px solid #3d3d3f;border-radius:8px;
-                    padding:18px;max-width:340px;width:100%;">
-            <h3 style="margin:0 0 10px 0;font-size:14px;color:#efeff1;">
-                🏰 Создать собственный клан
-            </h3>
+// удалена: инлайн lazy-поле имени клана (_renderCreateClanInline).
+function _renderCreateClanInline() {
+    const slot = document.getElementById('bnr-locked-create-slot');
+    if (!slot) return;
+    slot.innerHTML = `
+        <div style="background:#18181b;border:1px solid #3d3d3f;border-radius:6px;padding:12px;">
             <div style="font-size:11px;color:#adadb8;margin-bottom:10px;line-height:1.4;">
                 Твой герой станет лидером нового клана и сможет создать отряд
                 (party) на карте. Списывается <b style="color:#fbbf24;">1,000,000💰
@@ -5341,37 +4914,22 @@ function _openBannerlordCreateClanDialog() {
                           border:1px solid #3d3d3f;border-radius:4px;
                           padding:6px 8px;font-size:12px;margin-bottom:12px;
                           box-sizing:border-box;">
-            <div style="display:flex;gap:6px;">
-                <button id="bnr-clan-cancel" class="extra-btn"
-                        style="flex:1;font-size:11px;padding:7px;background:#3d3d3f;">
-                    Отмена
-                </button>
-                <button id="bnr-clan-confirm" class="extra-btn"
-                        style="flex:2;font-size:12px;padding:7px;background:#7c2d12;
-                               color:#fbbf24;font-weight:700;">
-                    🏰 Создать (1M💰)
-                </button>
-            </div>
+            <button id="bnr-clan-confirm" class="extra-btn"
+                    style="width:100%;font-size:12px;padding:7px;background:#7c2d12;
+                           color:#fbbf24;font-weight:700;">
+                🏰 Создать (1M💰)
+            </button>
         </div>`;
-    document.body.appendChild(overlay);
-
     const input = document.getElementById('bnr-clan-name-input');
-    if (input) input.focus();
-
-    const close = () => overlay.remove();
     const confirm = () => {
         const clan_name = (input?.value || '').trim();
+        // 2026-06-07 FLICKER — закрыть форму ДО действия (иначе freeze-guard
+        // заблокирует следующий repaint секции) + мгновенный фидбек на клик.
+        document.querySelector('[data-bnr-details="locked-create"]')?.removeAttribute('open');
         _bannerlordBuyAction('hero.create_clan', { clan_name });
-        close();
     };
-
-    document.getElementById('bnr-clan-cancel')?.addEventListener('click', close);
     document.getElementById('bnr-clan-confirm')?.addEventListener('click', confirm);
-    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
-    input?.addEventListener('keydown', e => {
-        if (e.key === 'Enter') confirm();
-        if (e.key === 'Escape') close();
-    });
+    input?.addEventListener('keydown', e => { if (e.key === 'Enter') confirm(); });
 }
 
 function _bindBannerlordRandomEquip() {
@@ -5904,7 +5462,9 @@ async function loadBannerlordHero() {
             const slotIds = ['bnr-daily-slot','bnr-heir-slot','bnr-family-slot',
                 'bnr-vassals-slot','bnr-party-orders-slot','bnr-diplo-slot',
                 'bnr-ransom-slot','bnr-workshops-slot','bnr-fiefs-slot',
-                'bnr-caravans-slot','bnr-caravan-rescue-slot','bnr-inheritance-slot'];
+                'bnr-caravans-slot','bnr-caravan-rescue-slot','bnr-inheritance-slot',
+                'bnr-clan-mgmt-slot','bnr-kingdom-mgmt-slot','bnr-progression-slot','bnr-gender-slot',
+                'bnr-profile-slot','bnr-dynasty-locked-actions'];
             const snapshot = {};
             for (const id of slotIds) {
                 const el = document.getElementById(id);
@@ -6072,20 +5632,10 @@ async function loadBannerlordHero() {
                                      : '<span style="color:#9ca3af;">не вступил</span>';
         const kingdomName = h.kingdom_name ? escapeHtml(h.kingdom_name)
                                            : '<span style="color:#9ca3af;">не вступил</span>';
-        const clanLabel = `
-            <span class="bnr-clickable-row" id="bnr-clan-row"
-                  title="Управление кланом"
-                  style="cursor:pointer;text-decoration:underline dotted #6b7280;
-                         text-underline-offset:3px;">
-                ${clanName} <span style="font-size:9px;color:#9ca3af;">⚙</span>
-            </span>`;
-        const kingdomLabel = `
-            <span class="bnr-clickable-row" id="bnr-kingdom-row"
-                  title="Управление королевством"
-                  style="cursor:pointer;text-decoration:underline dotted #6b7280;
-                         text-underline-offset:3px;">
-                ${kingdomName} <span style="font-size:9px;color:#9ca3af;">⚙</span>
-            </span>`;
+        // 2026-06-07 — строки-инфо (read-only). Управление кланом/королевством —
+        // во вкладке «Династия» (секции/locked-actions), модалок больше нет.
+        const clanLabel = `<span>${clanName}</span>`;
+        const kingdomLabel = `<span>${kingdomName}</span>`;
         // Sprint M20: gear tier indicator (cached для shop UI)
         // Sprint 5.10: inline "⚒ Улучшить" button рядом с tier label.
         const gearTier = h.gear_tier || 0;
@@ -6193,31 +5743,31 @@ async function loadBannerlordHero() {
                         <div id="bnr-pane-hero-stats" style="margin-bottom:10px;"></div>
                         <div id="bnr-daily-slot" style="margin-bottom:8px;"></div>
                         <div id="hero-class-picker-slot" style="margin-bottom:10px;"></div>
-                        <button class="extra-btn" id="bnr-open-progression-btn"
-                                title="Все скиллы с focus stars + 6 атрибутов"
-                                style="width:100%;font-size:12px;padding:8px;
-                                       background:#1e3a5f;color:#93c5fd;font-weight:700;
-                                       border:1px solid #1e40af;">
-                            🎯 Прогрессия — скиллы / фокусы / атрибуты
-                        </button>
-                        <button class="extra-btn" id="bnr-open-gender-btn"
-                                title="Сменить пол героя (50K💰). Не требует клана."
-                                style="width:100%;font-size:12px;padding:8px;margin-top:6px;
-                                       background:#2a1a30;color:#f472b6;font-weight:700;
-                                       border:1px solid #7c3aed;">
-                            ⚧ Сменить пол
-                        </button>
+                        <details data-bnr-details="hero-progression" ${_bnrDetailsAttr('hero-progression')} style="margin-bottom:6px;">
+                            <summary style="font-size:12px;padding:8px;box-sizing:border-box;cursor:pointer;
+                                       background:#1e3a5f;color:#93c5fd;font-weight:700;list-style:none;
+                                       border:1px solid #1e40af;border-radius:4px;">
+                                🎯 Прогрессия — скиллы / фокусы / атрибуты
+                            </summary>
+                            <div id="bnr-progression-slot" style="padding-top:6px;"></div>
+                        </details>
+                        <details data-bnr-details="hero-gender" ${_bnrDetailsAttr('hero-gender')} style="margin-top:6px;">
+                            <summary style="font-size:12px;padding:8px;box-sizing:border-box;cursor:pointer;
+                                       background:#2a1a30;color:#f472b6;font-weight:700;list-style:none;
+                                       border:1px solid #7c3aed;border-radius:4px;">
+                                ⚧ Сменить пол
+                            </summary>
+                            <div id="bnr-gender-slot" style="padding-top:6px;"></div>
+                        </details>
                     </div>`;
                 // 2026-05-31 IA-реорг: класс/прогрессия переехали в «Герой»,
                 // династия/экономика — в отдельную вкладку «Династия» (build-once
                 // skeleton ниже). Кнопка прогрессии в стабильном skeleton → bind
                 // ОДИН раз (не в if(_bnrChanged) — там был бы дубль-handler).
-                document.getElementById('bnr-open-progression-btn')?.addEventListener('click',
-                    _openBannerlordProgressionModal);
-                // 2026-06-02 (CLAN-GATE) — смена пола вынесена из (запертой) Династии
-                // сюда: не кланово-зависима, доступна всем. Bind once в skeleton.
-                document.getElementById('bnr-open-gender-btn')?.addEventListener('click',
-                    _openBannerlordGenderModal);
+                // 2026-06-07 — Прогрессия теперь inline-секция (loadBannerlordProgression),
+                // наполняется в poll'е (sub-loader ниже). Кнопка-модалка убрана.
+                // 2026-06-07 — смена пола теперь inline-секция (loadBannerlordGender),
+                // наполняется в poll'е (sub-loader ниже). Кнопка-модалка убрана.
             }
             // (2) Volatile stats grid — обновляется каждый poll, но это
             //     ИЗОЛИРОВАННЫЙ под-элемент; sub-slots рядом не трогаются.
@@ -6246,10 +5796,6 @@ async function loadBannerlordHero() {
             //     лишь при изменении → нет дублей listener'ов.
             const _statsSlot = document.getElementById('bnr-pane-hero-stats');
             if (_smartInnerHTML(_statsSlot, _statsHtml)) {
-                document.getElementById('bnr-clan-row')?.addEventListener('click',
-                    _openBannerlordClanModal);
-                document.getElementById('bnr-kingdom-row')?.addEventListener('click',
-                    _openBannerlordKingdomModal);
                 document.getElementById('bnr-inline-upgrade-btn')?.addEventListener('click', () => {
                     _bannerlordBuyAction('hero.upgrade_gear', {});
                 });
@@ -6277,25 +5823,31 @@ async function loadBannerlordHero() {
                     <div id="bnr-dynasty-locked" style="padding:14px 10px;text-align:center;">
                         <div style="font-size:30px;margin-bottom:6px;">🏰🔒</div>
                         <div style="font-size:13px;color:#efeff1;font-weight:700;margin-bottom:6px;">
-                            Династия заперта
+                            Династия — для главы клана
                         </div>
                         <div style="font-size:11px;color:#adadb8;line-height:1.5;margin-bottom:12px;">
                             Клан, королевство, отряды, фьефы, караваны и мастерские —
-                            всё это доступно только <b style="color:#fbbf24;">главе клана</b>.
-                            Создай свой клан, чтобы открыть вкладку.
+                            доступны <b style="color:#fbbf24;">главе клана</b>.
                         </div>
-                        <button class="extra-btn" id="bnr-dynasty-create-clan-btn"
-                                style="width:100%;font-size:12px;padding:9px;
-                                       background:#7c2d12;color:#fbbf24;font-weight:700;
-                                       border:1px solid #b45309;">
-                            🏰 Создать клан (1M💰)
-                        </button>
+                        <div id="bnr-dynasty-locked-actions"></div>
                     </div>`;
-                document.getElementById('bnr-dynasty-create-clan-btn')?.addEventListener('click',
-                    _openBannerlordCreateClanDialog);
+                // 2026-06-07 — действия (создать/вступить/покинуть) наполняет
+                // loadBannerlordDynastyLockedActions в poll'е (clanless vs member).
             } else if (isClanLeader && !document.getElementById('bnr-dynasty-built')) {
                 paneDyn.innerHTML = `
                     <div id="bnr-dynasty-built" style="padding:6px;">
+                        <details data-bnr-details="dyn-clan" open style="margin-bottom:8px;">
+                            <summary style="font-size:12px;color:#fbbf24;font-weight:700;cursor:pointer;padding:2px 0;">🏰 Клан</summary>
+                            <div id="bnr-clan-mgmt-slot" style="padding-top:6px;"></div>
+                        </details>
+                        <details data-bnr-details="dyn-kingdom" open style="margin-bottom:8px;">
+                            <summary style="font-size:12px;color:#93c5fd;font-weight:700;cursor:pointer;padding:2px 0;">👑 Королевство</summary>
+                            <div id="bnr-kingdom-mgmt-slot" style="padding-top:6px;"></div>
+                        </details>
+                        <details data-bnr-details="dyn-upgrades" ${_bnrDetailsAttr('dyn-upgrades')} style="margin-bottom:10px;">
+                            <summary style="font-size:12px;color:#c084fc;font-weight:700;cursor:pointer;padding:2px 0;">🏆 Апгрейды клана</summary>
+                            <div id="bnr-clan-upgrades-slot" style="padding-top:6px;"></div>
+                        </details>
                         <div id="bnr-heir-slot" style="margin-bottom:8px;"></div>
                         <div id="bnr-family-slot" style="margin-bottom:8px;"></div>
                         <div id="bnr-vassals-slot" style="margin-bottom:8px;"></div>
@@ -6307,16 +5859,24 @@ async function loadBannerlordHero() {
                         <div id="bnr-caravans-slot" style="margin-bottom:8px;"></div>
                         <div id="bnr-caravan-rescue-slot" style="margin-bottom:8px;"></div>
                         <div id="bnr-inheritance-slot" style="margin-bottom:8px;"></div>
-                        <button class="extra-btn" id="bnr-open-profile-btn"
-                                title="Семейные настройки: брак, дети"
-                                style="width:100%;font-size:12px;padding:8px;margin-top:4px;
-                                       background:#1f1a30;color:#c084fc;font-weight:700;
-                                       border:1px solid #5b21b6;">
-                            🧬 Профиль и семья
-                        </button>
+                        <details data-bnr-details="dyn-profile" ${_bnrDetailsAttr('dyn-profile')} style="margin-top:4px;">
+                            <summary style="font-size:12px;padding:8px;box-sizing:border-box;cursor:pointer;
+                                       background:#1f1a30;color:#c084fc;font-weight:700;list-style:none;
+                                       border:1px solid #5b21b6;border-radius:4px;">
+                                🧬 Профиль и семья
+                            </summary>
+                            <div id="bnr-profile-slot" style="padding-top:6px;"></div>
+                        </details>
                     </div>`;
-                document.getElementById('bnr-open-profile-btn')?.addEventListener('click',
-                    _openBannerlordProfileModal);
+                // 2026-06-07 — Профиль/семья теперь inline-секция (loadBannerlordProfileFamily),
+                // наполняется в poll'е (sub-loader в isClanLeader-блоке). Кнопка-модалка убрана.
+                // 2026-06-07 — lazy-render дерева апгрейдов при раскрытии секции
+                // (skeleton строится ОДИН раз → bind toggle тоже один раз, без дублей).
+                const _upDet = paneDyn.querySelector('[data-bnr-details="dyn-upgrades"]');
+                if (_upDet) {
+                    _upDet.addEventListener('toggle', () => { if (_upDet.open) _renderClanUpgradesInline(); });
+                    if (_upDet.open) _renderClanUpgradesInline();
+                }
             }
         }
 
@@ -6334,20 +5894,22 @@ async function loadBannerlordHero() {
                 </div>
                 <div style="margin-bottom:10px;">${eqHtml}</div>
                 <div id="bnr-retinue-slot" style="margin-bottom:10px;"></div>
-                <button class="extra-btn" id="bnr-open-achievements-btn"
-                        title="Список достижений: убийства / турниры / прогрессия / семья"
-                        style="width:100%;font-size:12px;padding:8px;margin-bottom:6px;
-                               background:#3a2a0a;color:#fbbf24;font-weight:700;
-                               border:1px solid #92400e;">
-                    🏆 Достижения
-                </button>
-                <button class="extra-btn" id="bnr-open-forge-btn"
-                        title="Куй уникальные трофеи: оружие, броню, коней. Random rarity."
-                        style="width:100%;font-size:12px;padding:8px;margin-bottom:6px;
-                               background:#2a1a0a;color:#fb923c;font-weight:700;
-                               border:1px solid #9a3412;">
-                    🔨 Кузница (трофеи)
-                </button>
+                <details data-bnr-details="inv-achievements" ${_bnrDetailsAttr('inv-achievements')} style="margin-bottom:6px;">
+                    <summary style="font-size:12px;padding:8px;box-sizing:border-box;cursor:pointer;
+                               background:#3a2a0a;color:#fbbf24;font-weight:700;list-style:none;
+                               border:1px solid #92400e;border-radius:4px;">
+                        🏆 Достижения
+                    </summary>
+                    <div id="bnr-achievements-slot" style="padding-top:6px;"></div>
+                </details>
+                <details data-bnr-details="inv-forge" ${_bnrDetailsAttr('inv-forge')} style="margin-bottom:6px;">
+                    <summary style="font-size:12px;padding:8px;box-sizing:border-box;cursor:pointer;
+                               background:#2a1a0a;color:#fb923c;font-weight:700;list-style:none;
+                               border:1px solid #9a3412;border-radius:4px;">
+                        🔨 Кузница (трофеи)
+                    </summary>
+                    <div id="bnr-forge-slot" style="padding-top:6px;"></div>
+                </details>
             </div>`;
 
         // ⚔ Бой pane — battle banner (HP / kills / gold / XP) + buffs + powers + summon.
@@ -6375,10 +5937,19 @@ async function loadBannerlordHero() {
         //   на своих slot'ах. Видят свежие данные даже когда hero pane не сменился.
         // Sprint 5.32 #46 — refill daily slot (recreated на re-render Hero pane).
         loadBannerlordDaily();
+        // 2026-06-07 — Прогрессия (скиллы/фокусы/атрибуты) live-секция в Hero pane.
+        loadBannerlordProgression();
+        // 2026-06-07 — Смена пола — inline-секция в Hero pane.
+        loadBannerlordGender();
         // 2026-06-02 (CLAN-GATE) — sub-loaders Династии грузим ТОЛЬКО у главы
         // клана (тело вкладки иначе заперто, грузить нечего). loadBannerlordDaily
         // выше — Hero-pane, НЕ гейтим.
         if (isClanLeader) {
+            // 2026-06-07 — инлайн-секции клан/королевство (live-инфо + manage-кнопка).
+            loadBannerlordClanMgmt();
+            loadBannerlordKingdomMgmt();
+            // 2026-06-07 — Профиль/семья (брак/дети) — inline-секция в Династии.
+            loadBannerlordProfileFamily();
             // Sprint 5.32 (BLT-parity FE-M2) — refill heir slot.
             loadBannerlordHeirs();
             // Sprint 5.33 (BLT-parity FAM) — Family section (children + proposals).
@@ -6399,6 +5970,10 @@ async function loadBannerlordHero() {
             loadBannerlordCaravanRescues();
             // Sprint 5.33 (BLT-parity HERITAGE) — Inheritance log.
             loadBannerlordInheritance();
+        } else {
+            // 2026-06-07 — не-лидер: locked-state actions (clanless создать/вступить,
+            // участник — покинуть). Заменяет вход через Hero-row модалку.
+            loadBannerlordDynastyLockedActions();
         }
         // Sprint 5.5: immediately repaint battle banner из cache чтобы
         // не было 0-2s gap'a после hero re-render.
@@ -6412,12 +5987,18 @@ async function loadBannerlordHero() {
         // Sprint 5.27a: profile modal — FLICKER-FIX v7: binding перенесён в
         // skeleton-build (paneHero выше). Кнопка живёт в стабильном skeleton,
         // биндится ОДИН раз → здесь повторно НЕ биндим (избегаем дублей).
-        // Sprint 5.29 BLT-parity #5: achievements modal
-        document.getElementById('bnr-open-achievements-btn')?.addEventListener('click',
-            _openBannerlordAchievementsModal);
-        // Sprint 5.29 BLT-parity #6: custom items / smithing modal
-        document.getElementById('bnr-open-forge-btn')?.addEventListener('click',
-            _openBannerlordForgeModal);
+        // 2026-06-07 — Достижения / Кузница теперь inline-секции (lazy-render при
+        // раскрытии <details>). Бинды в if(_bnrChanged) → DOM свежий на каждом rewrite.
+        const _achDet = document.querySelector('[data-bnr-details="inv-achievements"]');
+        if (_achDet) {
+            _achDet.addEventListener('toggle', () => { if (_achDet.open) _renderAchievementsInline(); });
+            if (_achDet.open) _renderAchievementsInline();
+        }
+        const _forgeDet = document.querySelector('[data-bnr-details="inv-forge"]');
+        if (_forgeDet) {
+            _forgeDet.addEventListener('toggle', () => { if (_forgeDet.open) _renderForgeInline(); });
+            if (_forgeDet.open) _renderForgeInline();
+        }
         // 2026-05-29 — аукцион (P2P trade) убран из UI ради Twitch-комплаенса.
         // Sprint 5.31 #45b: Boosty admin перенесён на /streamer/dashboard.
         // Sprint 5.11: clan/kingdom row + upgrade-btn bindings перенесены
@@ -6983,7 +6564,7 @@ async function createPawn(name) {
     try {
         const response = await fetch(`${API_URL}/api/rimworld/create-pawn`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || '' },
             body: JSON.stringify({ username: userLogin, pawn_name: name })
         });
         const data = await response.json();
@@ -7128,8 +6709,8 @@ async function usePromo() {
     try {
         const r = await fetch(`${API_URL}/api/promo/use`, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ username: userLogin, code })
+            headers: {'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || ''},
+            body: JSON.stringify({ code })
         });
         const d = await r.json();
         showNotification(d.message, d.success ? 'success' : 'error', 5000);
@@ -7279,7 +6860,7 @@ async function buyEvent(eventId) {
         try {
             const r = await fetch(`${API_URL}/api/rimworld/trigger-event`, {
                 method: 'POST',
-                headers: {'Content-Type':'application/json'},
+                headers: {'Content-Type':'application/json', 'X-Twitch-JWT': authToken || ''},
                 body: JSON.stringify({ username: userLogin, event_id: eventId })
             });
             const data = await r.json();

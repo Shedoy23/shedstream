@@ -92,7 +92,7 @@ function _renderSeasonEnd(endsAt) {
     try {
         const d = new Date(endsAt);
         const fmt = d.toLocaleDateString('ru-RU', { day:'2-digit', month:'2-digit', year:'numeric' });
-        return `<div style="color:#adadb8;font-size:11px;margin-bottom:8px;">Сезон заканчивается: ${fmt} • Призы: 🥇1 000 000💎 🥈500 000💎 🥉350 000💎</div>`;
+        return `<div style="color:#adadb8;font-size:11px;margin-bottom:8px;">Сезон заканчивается: ${fmt} • Призы: 🥇300 000💎 🥈200 000💎 🥉100 000💎</div>`;
     } catch { return ''; }
 }
 

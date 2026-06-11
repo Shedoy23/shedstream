@@ -40,8 +40,8 @@ namespace BannerlordLink.Behaviors
     ///   - Distance-based scaling (1.0 → 0.5 от 25m → 100m), скрытие за 350m.
     ///
     /// Team colors:
-    ///   - Ally  (same team as Agent.Main / PlayerTeam) → green (#4EE04CF0)
-    ///   - Enemy → red (#ED1C24F0)
+    ///   - Ally  (same team as Agent.Main / PlayerTeam) → green (#46C95AF0)
+    ///   - Enemy → red (#E03A2EF0)
     ///   - Neutral / no main → white (#FFFFFFF0)
     ///
     /// Toggle: hotkey H (default) скрывает все nametag'и до следующего press.
@@ -59,8 +59,8 @@ namespace BannerlordLink.Behaviors
         private const float MIN_SCALE        = 0.5f;
         private const InputKey TOGGLE_KEY    = InputKey.H;
 
-        private static readonly string COLOR_ALLY    = "#4EE04CF0";
-        private static readonly string COLOR_ENEMY   = "#ED1C24F0";
+        private static readonly string COLOR_ALLY    = "#46C95AF0";
+        private static readonly string COLOR_ENEMY   = "#E03A2EF0";
         private static readonly string COLOR_NEUTRAL = "#FFFFFFF0";
 
         // ─── State ─────────────────────────────────────────────────────────
@@ -296,34 +296,28 @@ namespace BannerlordLink.Behaviors
             // Sort by Y ascending (top to bottom).
             visible.Sort((a, b) => a.PositionY.CompareTo(b.PositionY));
 
-            const float MIN_OVERLAP_Y = 4f;
-            const float PADDING_Y     = 2f;
-            const float SLIDE_FACTOR  = 0.5f;
-            const float MAX_LOOK_AHEAD_Y = 50f;
+            const float OVERLAP_EPSILON = 3f;   // ниже этого перекрытие игнорируем
+            const float GAP_PAD         = 3f;   // зазор между метками после раздвижки
+            const float PUSH_RATIO      = 0.6f; // какую долю перекрытия компенсируем
+            const float SCAN_AHEAD      = 45f;  // дальше по Y соседей не проверяем
 
             for (int i = 0; i < visible.Count - 1; i++)
             {
-                var anchor = visible[i];
+                var upper = visible[i];
+                float upperBottom = upper.PositionY + upper.Height;
                 for (int j = i + 1; j < visible.Count; j++)
                 {
-                    var farther = visible[j];
-                    if (!farther.IsVisible) continue;
-                    if (Math.Abs(farther.PositionY - (anchor.PositionY + anchor.Height))
-                        > MAX_LOOK_AHEAD_Y) break;
+                    var lower = visible[j];
+                    if (!lower.IsVisible) continue;
+                    if (lower.PositionY - upperBottom > SCAN_AHEAD) break;
 
-                    bool overlapX = farther.PositionX < anchor.PositionX + anchor.Width * 0.9f
-                                 && farther.PositionX + farther.Width * 0.9f > anchor.PositionX;
-                    bool overlapY = farther.PositionY < anchor.PositionY + anchor.Height
-                                 && farther.PositionY + farther.Height > anchor.PositionY;
+                    bool xClash = lower.PositionX < upper.PositionX + upper.Width * 0.9f
+                               && lower.PositionX + lower.Width * 0.9f > upper.PositionX;
+                    if (!xClash) continue;
 
-                    if (overlapX && overlapY)
-                    {
-                        float overlapAmtY = (anchor.PositionY + anchor.Height) - farther.PositionY;
-                        if (overlapAmtY > MIN_OVERLAP_Y)
-                        {
-                            farther.PositionY -= overlapAmtY * SLIDE_FACTOR + PADDING_Y;
-                        }
-                    }
+                    float overlap = upperBottom - lower.PositionY;
+                    if (overlap <= OVERLAP_EPSILON) continue;
+                    lower.PositionY -= overlap * PUSH_RATIO + GAP_PAD;
                 }
             }
         }

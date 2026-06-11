@@ -406,7 +406,8 @@ namespace BannerlordLink.Actions
         {
             if (pool == null || pool.Count == 0) return null;
             var nearest = pool.GroupBy(i => (int)i.Tier)
-                .OrderBy(g => 100 * Math.Abs(engineTier - g.Key) + g.Key)
+                .OrderBy(g => Math.Abs(engineTier - g.Key))   // ближайший тир
+                .ThenBy(g => g.Key)                            // при равенстве — ниже
                 .FirstOrDefault();
             if (nearest == null) return null;
             var nearestList = nearest.ToList();

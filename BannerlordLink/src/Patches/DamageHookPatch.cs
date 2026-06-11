@@ -252,14 +252,15 @@ namespace BannerlordLink.Patches
 
         // 2026-05-29 (BLT-parity AddDamagePower AoE) — взрывные стрелы.
         // На missile-хите при активном буффе explosive_arrows наносим AoE по
-        // ≤3 ближайшим врагам вокруг точки попадания. Урон в центре = value
-        // буффа, спад center/(dist/R+1)^2 (формула BLT AreaOfEffectDef).
+        // ближайшим врагам вокруг точки попадания. Урон в центре = value буффа,
+        // дальше затухает по обратному квадрату расстояния (наш вариант записан
+        // как center·R²/(d+R)² — стандартный inverse-square falloff).
         //
         // FMOD-safety: НЕ вызываем RegisterBlow inline — кладём в ту же
         // отложенную очередь что reflect (EnqueueReflect → DrainPendingReflects:
         // BlowFlags.NoSound + троттл ≤3/тик). Звуковых событий не плодим.
         private const float EXPLOSIVE_RADIUS = 5.0f;     // 2026-06-05 3.5→5м
-        private const int EXPLOSIVE_MAX_TARGETS = 4;     // 2026-06-05 3→4 (BLT AoE default)
+        private const int EXPLOSIVE_MAX_TARGETS = 4;     // 2026-06-05 3→4 (наш баланс)
         private static void ApplyExplosiveArrows(
             string user, Agent attackerSrc, Agent victim, ref AttackCollisionData cd)
         {
@@ -286,7 +287,9 @@ namespace BannerlordLink.Patches
             int n = Math.Min(EXPLOSIVE_MAX_TARGETS, hits.Count);
             for (int i = 0; i < n; i++)
             {
-                int dmg = (int)(damageAtCenter / Math.Pow(hits[i].d / EXPLOSIVE_RADIUS + 1f, 2f));
+                // inverse-square: center·R²/(d+R)². При d=0 → center; растёт d → спад.
+                float falloffDen = (hits[i].d + EXPLOSIVE_RADIUS) * (hits[i].d + EXPLOSIVE_RADIUS);
+                int dmg = (int)(damageAtCenter * EXPLOSIVE_RADIUS * EXPLOSIVE_RADIUS / falloffDen);
                 if (dmg <= 0) continue;
                 // 2026-05-31 FIX — порядок агентов. Drain делает
                 // req.Attacker.RegisterBlow(Blow(owner=req.Victim)): бьёт

@@ -40,7 +40,7 @@ namespace BannerlordLink.Actions
                 ["berserk"]       = new[] { "TwoHanded", "OneHanded", "Athletics", "Polearm" },
                 ["psycho"]        = new[] { "Athletics", "OneHanded", "TwoHanded" },
             };
-        private const int CLASS_SKILL_WEIGHT = 15;   // BLT pattern
+        private const int CLASS_SKILL_WEIGHT = 12;   // классовые навыки качаются чаще
         private const int OTHER_SKILL_WEIGHT = 1;
 
         public string ActionType => "hero.add_skill";

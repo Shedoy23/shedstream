@@ -42,29 +42,30 @@ namespace BannerlordLink.Behaviors
     /// </summary>
     public class KillRewardBehavior : MissionLogic
     {
-        // ── Sprint 5.27g: BLT defaults × 0.5 ────────────────────────────────
+        // ── Combat economy (наши значения; крустики 1:5 динары) ─────────────
 
         // Personal kill (trooper)
-        private const int   GOLD_PER_KILL = 2500;   // BLT 5000
-        private const int   XP_PER_KILL   = 2500;   // BLT 5000
-        private const float HEAL_PER_KILL = 10f;    // BLT 20
-        private const float HORSE_FACTOR  = 0.25f;  // BLT 0.25 (mount kill multiplier)
+        private const int   GOLD_PER_KILL = 2400;
+        private const int   XP_PER_KILL   = 2400;
+        private const float HEAL_PER_KILL = 12f;
+        private const float HORSE_FACTOR  = 0.30f;  // mount kill multiplier
 
         // Killed (consolation XP за смерть нашего hero)
-        private const int   XP_PER_KILLED = 1000;   // BLT 2000
+        private const int   XP_PER_KILLED = 900;
 
         // Retinue kill — gold owner'у, heal retinue agent'у самому.
-        private const int   RETINUE_GOLD_PER_KILL = 1250;  // BLT 2500
-        private const float RETINUE_HEAL_PER_KILL = 25f;   // BLT 50
+        private const int   RETINUE_GOLD_PER_KILL = 1200;
+        private const float RETINUE_HEAL_PER_KILL = 30f;
 
-        // Relative level scaling (BLT pattern):
-        // levelBoost = (1 - (killedLvl - killerLvl) / 30)^(-10 × n).
-        // n = 1.0 → full BLT effect; cap = 5 → max ×5 boost.
-        // MinGold = 0.5 — gold factor clamp (только для human kills).
-        private const int   MAX_LEVEL_IN_PRACTICE = 30;
-        private const float REL_LEVEL_SCALING_N   = 1f;
-        private const float LEVEL_SCALING_CAP     = 5f;
-        private const float MINIMUM_GOLD_PER_KILL = 0.5f;
+        // Level-gap reward factor (наш дизайн — линейный, клампится):
+        // factor = clamp(1 + perLevel × (killedLvl − killerLvl), floor, cap).
+        // perLevel = 0.18 → +18% за уровень разницы; cap ×4; floor 0.4.
+        // MinGold = 0.4 — отдельный gold-клампинг (только human kills).
+        private const int   MAX_LEVEL_GAP         = 28;
+        private const float LEVEL_GAP_PER_LEVEL   = 0.18f;
+        private const float LEVEL_GAP_CAP         = 4f;
+        private const float LEVEL_GAP_FLOOR       = 0.4f;
+        private const float MINIMUM_GOLD_PER_KILL = 0.4f;
 
         // Kill streak milestones: kills → +gold/+xp награда. 2026-06-06 — золото ×4
         // (XP прежний) + добавлены вехи 20/25/30/40/50 по нарастающей. Начисляется
@@ -82,13 +83,13 @@ namespace BannerlordLink.Behaviors
             (50, 550000, 60000),
         };
 
-        // Participation reward (BLT × 0.5, fires в OnEndMission).
-        // Применяется к каждому BLink-участнику независимо от kill'ов —
-        // награда за факт участия. Newbie-friendly: lose штраф убран.
-        private const int WIN_GOLD  = 5000;   // BLT 10000
-        private const int WIN_XP    = 5000;   // BLT 10000
-        private const int LOSE_GOLD = 0;      // BLT 5000 (штраф) — мы не штрафуем
-        private const int LOSE_XP   = 2500;   // BLT 5000 (consolation)
+        // Participation reward (fires в OnEndMission). Применяется к каждому
+        // BLink-участнику независимо от kill'ов — награда за факт участия.
+        // Newbie-friendly: lose-штраф убран.
+        private const int WIN_GOLD  = 4800;
+        private const int WIN_XP    = 4800;
+        private const int LOSE_GOLD = 0;      // мы не штрафуем за поражение
+        private const int LOSE_XP   = 2400;   // consolation
 
         // Static registry: retinue agent → owner username. Populated
         // SummonHeroHandler'ом при spawn'е retinue. Cleared OnEndMission.
@@ -339,24 +340,20 @@ namespace BannerlordLink.Behaviors
             public int KillStreak;       // 2026-06-06: per-БОЙ (НЕ reset на смерть; только OnEndMission)
         }
 
-        /// <summary>BLT formula: (1 − (killedLvl − killerLvl) / 30) ^ (−10×n).
-        /// killerLvl > killedLvl → factor &lt; 1 (penalty за слабую цель).
-        /// killerLvl &lt; killedLvl → factor &gt; 1 (boost за сильную цель).
-        /// Capped к cap (BLT default 5×).</summary>
-        private static float RelativeLevelScaling(int killerLevel, int killedLevel,
-            float n, float cap)
+        /// <summary>Множитель награды за разницу уровней (наш дизайн — линейный).
+        /// killerLvl &lt; killedLvl → factor &gt; 1 (boost за сильную цель);
+        /// killerLvl &gt; killedLvl → factor &lt; 1 (меньше за слабую). Разница
+        /// клампится ±MAX_LEVEL_GAP, результат — в [floor..cap].</summary>
+        private static float LevelGapRewardFactor(int killerLevel, int killedLevel,
+            float perLevel, float cap)
         {
-            try
-            {
-                int delta = Math.Min(MAX_LEVEL_IN_PRACTICE - 1, killedLevel - killerLevel);
-                float baseFactor = 1f - delta / (float)MAX_LEVEL_IN_PRACTICE;
-                if (baseFactor <= 0f) return cap;  // killed много выше — max boost
-                float exponent = -10f * Math.Max(0f, Math.Min(1f, n));
-                float boost = (float)Math.Pow(baseFactor, exponent);
-                if (float.IsNaN(boost) || float.IsInfinity(boost)) return cap;
-                return Math.Min(boost, cap);
-            }
-            catch { return 1f; }
+            int diff = killedLevel - killerLevel;
+            if (diff >  MAX_LEVEL_GAP) diff =  MAX_LEVEL_GAP;
+            if (diff < -MAX_LEVEL_GAP) diff = -MAX_LEVEL_GAP;
+            float factor = 1f + perLevel * diff;
+            if (factor < LEVEL_GAP_FLOOR) factor = LEVEL_GAP_FLOOR;
+            if (factor > cap)             factor = cap;
+            return factor;
         }
 
         /// <summary>True если agent на team стримера (alliance OK).</summary>
@@ -593,8 +590,8 @@ namespace BannerlordLink.Behaviors
         }
 
         // 2026-05-29 (BLT-parity BLTSummonBehavior) — шанс безвозвратной гибели
-        // войска свиты. BLT default RetinueDeathChance = 0.025 (2.5%).
-        private const float RETINUE_DEATH_CHANCE = 0.025f;
+        // войска свиты — наш шанс безвозвратной гибели за бой (3%).
+        private const float RETINUE_DEATH_CHANCE = 0.03f;
 
         /// <summary>Если убитый агент — наше призванное войско свиты (есть в
         /// RetinueRegistry) и это реальная смерть (Killed), бросаем шанс гибели.
@@ -658,9 +655,9 @@ namespace BannerlordLink.Behaviors
             }
             catch { }
 
-            float levelBoost = RelativeLevelScaling(
+            float levelBoost = LevelGapRewardFactor(
                 victim.Level, killerLevel,
-                REL_LEVEL_SCALING_N, LEVEL_SCALING_CAP);
+                LEVEL_GAP_PER_LEVEL, LEVEL_GAP_CAP);
             int xp = (int)(XP_PER_KILLED * levelBoost);
             if (xp <= 0) return;
 
@@ -748,9 +745,9 @@ namespace BannerlordLink.Behaviors
             }
             catch { }
 
-            float levelBoost = RelativeLevelScaling(
+            float levelBoost = LevelGapRewardFactor(
                 killerLevel, killedLevel,
-                REL_LEVEL_SCALING_N, LEVEL_SCALING_CAP);
+                LEVEL_GAP_PER_LEVEL, LEVEL_GAP_CAP);
 
             // Gold factor: max(levelBoost, MinGold) для human, для mount без clamp.
             float goldBoost = isHumanTarget

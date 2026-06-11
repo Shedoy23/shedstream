@@ -240,13 +240,22 @@ namespace BannerlordLink.Actions
             }
         }
 
-        /// <summary>BLT pattern: добавить food и horses из близких деревень
-        /// чтобы party не голодала в первые дни.</summary>
+        /// <summary>Подкинуть новой партии немного еды и лошадей из ближних
+        /// деревень, чтобы она не голодала в первые дни. Объём ~ производство
+        /// деревни × близость × размер партии (наши веса).</summary>
         private static void BootstrapPartyLoot(MobileParty party)
         {
             if (party == null || Campaign.Current == null) return;
-            float range = 2f * Campaign.Current.EstimatedAverageLordPartySpeed
+            const float SCAN_DAYS       = 1.5f;
+            const float HORSE_WEIGHT    = 6f;
+            const float FOOD_WEIGHT     = 0.12f;
+            const float PARTY_SCALE_DIV = 180f;
+
+            float range = SCAN_DAYS * Campaign.Current.EstimatedAverageLordPartySpeed
                           * (float)CampaignTime.HoursInDay;
+            if (range <= 0f) return;
+            float partyScale = (party.MemberRoster.TotalManCount + 1f) / PARTY_SCALE_DIV;
+
             foreach (var settlement in Campaign.Current.Settlements)
             {
                 if (settlement == null || !settlement.IsVillage) continue;
@@ -259,22 +268,22 @@ namespace BannerlordLink.Actions
                 catch { continue; }
                 if (dist >= range) continue;
                 if (settlement.Village?.VillageType?.Productions == null) continue;
+                float proximity = 1f - dist / range;
 
                 foreach (var (item, prod) in settlement.Village.VillageType.Productions)
                 {
                     if (item == null) continue;
-                    float weight = 0f;
+                    float weight;
                     if (item.ItemType == ItemObject.ItemTypeEnum.Horse
                         && item.HorseComponent != null
                         && item.HorseComponent.IsRideable
                         && !item.HorseComponent.IsPackAnimal)
-                        weight = 7f;
+                        weight = HORSE_WEIGHT;
                     else if (item.IsFood)
-                        weight = 0.1f;
-                    if (weight <= 0) continue;
-                    float sizeF = ((float)party.MemberRoster.TotalManCount + 2f) / 200f;
-                    int n = MBRandom.RoundRandomized(
-                        weight * prod * (1f - dist / range) * sizeF);
+                        weight = FOOD_WEIGHT;
+                    else
+                        continue;
+                    int n = MBRandom.RoundRandomized(weight * prod * proximity * partyScale);
                     if (n > 0 && party.ItemRoster != null)
                     {
                         try { party.ItemRoster.AddToCounts(item, n); } catch { }

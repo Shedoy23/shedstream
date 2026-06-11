@@ -98,6 +98,20 @@ if ($Frontend) {
     Ok "Cache-bust viewer.js?v=$stamp (extension.html + mobile.html)"
 }
 
+# -- 2.5 Test gate (ROADMAP 1.2): critical tenant/security invariants MUST pass
+#        before a backend push. Red = deploy aborts. Game/feature tests are NOT
+#        gating (run them manually via the same script without --critical).
+if ($Backend) {
+    Info "Test gate: critical tenant/security tests (--critical)..."
+    Push-Location (Join-Path $ExtDir 'backend')
+    try { & python tests/test_multi_tenant_isolation.py --critical; $gateRc = $LASTEXITCODE }
+    finally { Pop-Location }
+    if ($gateRc -ne 0) {
+        throw "CRITICAL tests FAILED (exit $gateRc) - deploy ABORTED. Fix the tenant/security regression first."
+    }
+    Ok "Critical tests green - safe to deploy"
+}
+
 # -- 3. Backend/Frontend: tar -> scp -> extract -> restart -> verify -------
 $paths = @()
 if ($Backend)  { $paths += 'backend' }

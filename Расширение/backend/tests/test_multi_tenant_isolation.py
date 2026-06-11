@@ -1039,88 +1039,89 @@ def test_tictactoe_game_logic():
     print("\n[12] TicTacToe game logic (Phase 5.1)")
     from routes.tictactoe import (
         WIN_LINES, _check_winner, _is_full, _elo_update,
-        _initial_state, ELO_START, ELO_K,
+        _initial_state, _current_board, ELO_START, ELO_K,
+        BOARD_SIZE, CELLS_TOTAL, ROUNDS_MAX,
     )
 
-    # 12.1 WIN_LINES охватывает 3 ряда + 3 столбца + 2 диагонали
-    assert_eq(len(WIN_LINES), 8, "8 winning lines (3+3+2)")
-    # Validate каждая line — это набор из 3 индексов 0-8
-    for line in WIN_LINES:
-        assert_eq(len(line), 3, f"win line has 3 cells: {line}")
-        for cell in line:
-            assert_true(0 <= cell <= 8, f"cell index in 0..8: {cell}")
+    # 2026-06-11: тест был захардкожен под 3×3, а игра с Sprint 5.24 — 4×4.
+    # Выводим ожидания из BOARD_SIZE → смена размера доски больше не ломает тест.
+    N = BOARD_SIZE
+    CELLS = CELLS_TOTAL          # N*N
+    empty = [""] * CELLS
 
-    # 12.2 _initial_state
+    # 12.1 WIN_LINES = N рядов + N столбцов + 2 диагонали; каждая длиной N.
+    assert_eq(len(WIN_LINES), 2 * N + 2, f"win lines = 2*N+2 (N={N})")
+    for line in WIN_LINES:
+        assert_eq(len(line), N, f"win line has N={N} cells: {line}")
+        for cell in line:
+            assert_true(0 <= cell < CELLS, f"cell index in 0..{CELLS - 1}: {cell}")
+
+    # 12.2 _initial_state — это BO3-матч (v2): список досок + счёт раундов,
+    # а не одна доска (v1 board/next_turn/moves больше нет на верхнем уровне).
     state = _initial_state()
-    assert_eq(state["board"], ["", "", "", "", "", "", "", "", ""], "empty board")
-    assert_eq(state["next_turn"], "a", "first turn = a")
-    assert_eq(state["moves"], 0, "moves counter = 0")
+    assert_eq(state["board_size"], N, f"board_size = {N}")
+    assert_eq(state["rounds_total"], ROUNDS_MAX, f"BO{ROUNDS_MAX}")
+    assert_eq(state["current_round"], 1, "стартовый раунд = 1")
+    assert_eq(state["wins"], {"a": 0, "b": 0}, "счёт раундов 0:0")
+    assert_eq(state["phase"], "playing", "фаза = playing")
+    assert_eq(len(state["boards"]), 1, "одна доска на старте")
+
+    # 12.2b первая доска матча
+    board = _current_board(state)
+    assert_eq(board["cells"], empty, f"пустая доска ({CELLS} клеток)")
+    assert_eq(board["next_turn"], "a", "первый ход = a")
+    assert_eq(board["moves"], 0, "счётчик ходов = 0")
+    assert_eq(board["winner"], None, "победителя нет")
 
     # 12.3 No winner на пустой доске
-    assert_eq(_check_winner(state["board"]), "", "empty board → no winner")
-    assert_eq(_is_full(state["board"]), False, "empty board not full")
+    assert_eq(_check_winner(empty), "", "empty board → no winner")
+    assert_eq(_is_full(empty), False, "empty board not full")
 
-    # 12.4 Row wins — 3 случая
-    for row_idx, (i, j, k) in enumerate(WIN_LINES[:3]):
-        b = ["", "", "", "", "", "", "", "", ""]
-        b[i] = b[j] = b[k] = "a"
-        assert_eq(_check_winner(b), "a", f"row {row_idx}: a wins on {(i,j,k)}")
+    # 12.4 Row wins — первые N линий
+    for row_idx, line in enumerate(WIN_LINES[:N]):
+        b = list(empty)
+        for cell in line:
+            b[cell] = "a"
+        assert_eq(_check_winner(b), "a", f"row {row_idx}: a wins on {line}")
 
-    # 12.5 Column wins
-    for col_idx, (i, j, k) in enumerate(WIN_LINES[3:6]):
-        b = ["", "", "", "", "", "", "", "", ""]
-        b[i] = b[j] = b[k] = "b"
-        assert_eq(_check_winner(b), "b", f"col {col_idx}: b wins on {(i,j,k)}")
+    # 12.5 Column wins — следующие N линий
+    for col_idx, line in enumerate(WIN_LINES[N:2 * N]):
+        b = list(empty)
+        for cell in line:
+            b[cell] = "b"
+        assert_eq(_check_winner(b), "b", f"col {col_idx}: b wins on {line}")
 
-    # 12.6 Diagonal wins
-    for diag_idx, (i, j, k) in enumerate(WIN_LINES[6:8]):
-        b = ["", "", "", "", "", "", "", "", ""]
-        b[i] = b[j] = b[k] = "a"
-        assert_eq(_check_winner(b), "a", f"diag {diag_idx}: a wins on {(i,j,k)}")
+    # 12.6 Diagonal wins — последние 2 линии
+    for diag_idx, line in enumerate(WIN_LINES[2 * N:2 * N + 2]):
+        b = list(empty)
+        for cell in line:
+            b[cell] = "a"
+        assert_eq(_check_winner(b), "a", f"diag {diag_idx}: a wins on {line}")
 
-    # 12.7 Mixed cells — diagonal 0,4,8 = a win
-    b = ["a", "b", "b", "b", "a", "b", "b", "b", "a"]
-    assert_eq(_check_winner(b), "a", "diagonal 0,4,8 (all a) → a wins")
+    # 12.7 Полная доска без победителя = ничья (сконструирована без N-в-ряд для 4×4)
+    if N == 4:
+        draw = ["a", "a", "b", "b",
+                "b", "b", "a", "a",
+                "a", "a", "b", "b",
+                "b", "b", "a", "a"]
+        assert_eq(_check_winner(draw), "", "full 4x4 mixed: no winner (draw)")
+        assert_eq(_is_full(draw), True, "all cells filled → is_full True")
 
-    # 12.7b — checkerboard with diagonal win
-    b = ["a", "b", "a", "b", "a", "b", "a", "b", "a"]
-    # Diagonals: 0,4,8 = a,a,a → WIN
-    assert_eq(_check_winner(b), "a", "diagonal win even in mixed board")
+    # 12.8 _elo_update — equal ratings: win = +K/2, loss = -K/2, draw = 0
+    half_k = ELO_K // 2
+    assert_eq(_elo_update(1100, 1100, 1.0), 1100 + half_k, f"equal ELO + win = +{half_k}")
+    assert_eq(_elo_update(1100, 1100, 0.0), 1100 - half_k, f"equal ELO + loss = -{half_k}")
+    assert_eq(_elo_update(1100, 1100, 0.5), 1100, "equal ELO + draw = unchanged")
 
-    # 12.8 Full board без winner = draw scenario
-    b = ["a", "b", "a", "b", "a", "b", "b", "a", "b"]
-    # Check: rows (aba/bab/bab) no; cols (abb/bab/aba) no; diags (aab/aab) no
-    assert_eq(_check_winner(b), "", "full board mixed: no winner (draw)")
-    assert_eq(_is_full(b), True, "all cells filled → is_full True")
+    # 12.9 upset > fair > favorite (направление изменения ELO)
+    fair_win = _elo_update(1100, 1100, 1.0) - 1100
+    upset = _elo_update(1000, 1400, 1.0) - 1000
+    fav = _elo_update(1400, 1000, 1.0) - 1400
+    assert_true(upset > fair_win, f"upset win > fair win: {upset} > {fair_win}")
+    assert_true(fav < fair_win, f"favorite win < fair win: {fav} < {fair_win}")
 
-    # 12.9 _elo_update math — equal ratings + win
-    # expected = 1/(1+10^0) = 0.5, result=1.0, change = K*(1-0.5) = 16
-    new_elo = _elo_update(1100, 1100, 1.0)
-    assert_eq(new_elo, 1100 + 16, "equal ELO + win = +16 (K=32, half-K)")
-
-    # 12.10 _elo_update — equal + loss
-    new_elo = _elo_update(1100, 1100, 0.0)
-    assert_eq(new_elo, 1100 - 16, "equal ELO + loss = -16")
-
-    # 12.11 _elo_update — equal + draw
-    new_elo = _elo_update(1100, 1100, 0.5)
-    assert_eq(new_elo, 1100, "equal ELO + draw = unchanged")
-
-    # 12.12 _elo_update — upset (низкий бьёт высокого) даёт больше
-    upset_elo = _elo_update(1000, 1400, 1.0)
-    expected_change = upset_elo - 1000
-    fair_win = _elo_update(1100, 1100, 1.0) - 1100  # = 16
-    assert_true(expected_change > fair_win,
-                f"upset win > fair win: {expected_change} > {fair_win}")
-
-    # 12.13 _elo_update — favorite побеждает (мало ELO change)
-    fav_elo = _elo_update(1400, 1000, 1.0)
-    fav_change = fav_elo - 1400
-    assert_true(fav_change < fair_win,
-                f"favorite win < fair win: {fav_change} < {fair_win}")
-
-    # 12.14 Constants
-    assert_eq(ELO_START, 1100, "ELO_START = 1100")
+    # 12.10 Constants
+    assert_eq(ELO_START, 1000, "ELO_START = 1000")
     assert_eq(ELO_K, 32, "ELO_K = 32 (standard)")
 
 
@@ -1163,43 +1164,33 @@ async def test_tictactoe_match_flow():
             )
             await conn.commit()
 
-            from routes.tictactoe import _check_winner, _initial_state
+            from routes.tictactoe import _check_winner, _initial_state, _current_board
 
-            # 13.1 First move (alice, a, cell 0)
+            # 13.1 First move (alice=a). v2: ходы на ТЕКУЩЕЙ доске матча
+            # (_current_board), а не на state["board"] — в v1 был один board,
+            # сейчас BO3 со списком state["boards"].
             state = _initial_state()
-            assert_eq(state["next_turn"], "a", "initial turn = a")
+            board = _current_board(state)
+            assert_eq(board["next_turn"], "a", "initial turn = a")
 
-            # alice ходит cell 0
-            state["board"][0] = "a"
-            state["moves"] = 1
-            state["next_turn"] = "b"
+            board["cells"][0] = "a"; board["moves"] = 1; board["next_turn"] = "b"
             await conn.execute(
                 "UPDATE match_rooms SET state = ? WHERE room_id = ? AND status = 'active'",
                 (_json.dumps(state), room_id)
             )
             await conn.commit()
-            assert_eq(_check_winner(state["board"]), "", "no winner yet (1 move)")
+            assert_eq(_check_winner(board["cells"]), "", "no winner yet (1 move)")
 
-            # 13.2 bob ходит cell 4
-            state["board"][4] = "b"
-            state["moves"] = 2
-            state["next_turn"] = "a"
-
-            # 13.3 alice cell 1
-            state["board"][1] = "a"
-            state["moves"] = 3
-            state["next_turn"] = "b"
-
-            # 13.4 bob cell 5
-            state["board"][5] = "b"
-            state["moves"] = 4
-            state["next_turn"] = "a"
-
-            # 13.5 alice cell 2 — победа в row 0
-            state["board"][2] = "a"
-            state["moves"] = 5
-            winner_role = _check_winner(state["board"])
-            assert_eq(winner_role, "a", "alice wins row 0")
+            # 13.2-13.5 alice выигрывает row 0 (на 4x4 нужно 4-в-ряд: 0,1,2,3);
+            # bob ходит в ряд 1 (4,5,6) — без своей линии.
+            board["cells"][4] = "b"; board["moves"] = 2; board["next_turn"] = "a"
+            board["cells"][1] = "a"; board["moves"] = 3; board["next_turn"] = "b"
+            board["cells"][5] = "b"; board["moves"] = 4; board["next_turn"] = "a"
+            board["cells"][2] = "a"; board["moves"] = 5; board["next_turn"] = "b"
+            board["cells"][6] = "b"; board["moves"] = 6; board["next_turn"] = "a"
+            board["cells"][3] = "a"; board["moves"] = 7   # row 0 готов: 0,1,2,3
+            winner_role = _check_winner(board["cells"])
+            assert_eq(winner_role, "a", "alice wins row 0 (0,1,2,3)")
 
             # Finalize в БД
             await conn.execute(
@@ -1285,6 +1276,10 @@ def test_dice_game_logic():
       - Lexicon scrub: dice.js НЕ содержит casino/jackpot/lucky/bet
     """
     print("\n[14] Dice game logic + lexicon scrub (Phase 5.2)")
+    # STALE (2026-06-11): dice переработан в v2 (BO3 раунды/фазы, Sprint 5.24).
+    # `_resolve_winner(rollA, rollB)` удалён -> победитель теперь state-based
+    # (_resolve_pvp_winner(state)); ELO_START 1100->1000. Нужен рерайт под v2.
+    # НЕ гейтит (GAME_TESTS) -> падает чистым ImportError ниже. См. ROADMAP 1.2b.
     from routes.dice import (
         _roll_2d6, _resolve_winner, _elo_update,
         ELO_START, ELO_K, GAME_TYPE,
@@ -2532,30 +2527,60 @@ async def test_bannerlord_system():
 # ─────────────────────────────────────────────────────────────────────────────
 # Main runner
 # ─────────────────────────────────────────────────────────────────────────────
-async def run_all_tests():
+# 2026-06-11: тесты разделены на CRITICAL (tenant/security/инфра — ГЕЙТЯТ деплой)
+# и GAMES (мини-игры + соц-фичи — НЕ гейтят: их internals часто меняются при
+# реворках, протухший игровой тест не должен блокировать security-фикс).
+# Каждый тест обёрнут в try/except → один краш не обрывает прогон, видны ВСЕ
+# поломки разом. Гейт деплоя: `python <this> --critical` (см. deploy.ps1).
+# Формат: (callable, is_async).
+CRITICAL_TESTS = [
+    (test_resolve_channel_id, False),
+    (test_module_token, False),
+    (test_channel_isolation, True),
+    (test_action_queue_isolation, True),
+    (test_catalog_replace_semantics, True),
+    (test_in_memory_cache_keys, False),
+    (test_chat_bonus_antifraud, False),
+    (test_current_stream_id_per_channel, False),
+    (test_cases_system, True),
+    (test_drops_distribution, False),
+    (test_matchmaking_infrastructure, True),
+]
+GAME_TESTS = [
+    (test_tictactoe_game_logic, False),
+    (test_tictactoe_match_flow, True),
+    (test_dice_game_logic, False),
+    (test_dice_match_flow, True),
+    (test_guilds_system, True),
+    (test_voting_system, True),
+    (test_pets_system, True),
+    (test_bannerlord_system, True),
+]
+
+
+async def _run_one(test, is_async):
+    """Прогнать один тест, поймав хард-исключения (ImportError и т.п.) — чтобы
+    один протухший тест не обрывал весь прогон (видны все поломки разом)."""
+    try:
+        if is_async:
+            await test()
+        else:
+            test()
+    except Exception as e:
+        msg = f"  ❌ {test.__name__} CRASHED: {type(e).__name__}: {e}"
+        _failures.append(msg)
+        print(msg)
+
+
+async def run_all_tests(critical_only: bool = False):
     print("=" * 70)
-    print("Multi-tenant isolation smoke-tests")
+    label = "CRITICAL only (deploy gate)" if critical_only else "FULL (critical + games)"
+    print(f"Multi-tenant isolation smoke-tests — {label}")
     print("=" * 70)
 
-    test_resolve_channel_id()
-    test_module_token()
-    await test_channel_isolation()
-    await test_action_queue_isolation()
-    await test_catalog_replace_semantics()
-    test_in_memory_cache_keys()
-    test_chat_bonus_antifraud()
-    test_current_stream_id_per_channel()
-    await test_cases_system()
-    test_drops_distribution()
-    await test_matchmaking_infrastructure()
-    test_tictactoe_game_logic()
-    await test_tictactoe_match_flow()
-    test_dice_game_logic()
-    await test_dice_match_flow()
-    await test_guilds_system()
-    await test_voting_system()
-    await test_pets_system()
-    await test_bannerlord_system()
+    suite = CRITICAL_TESTS if critical_only else (CRITICAL_TESTS + GAME_TESTS)
+    for _test, _is_async in suite:
+        await _run_one(_test, _is_async)
 
     print("\n" + "=" * 70)
     print(f"PASSED: {len(_successes)}    FAILED: {len(_failures)}")
@@ -2569,8 +2594,11 @@ async def run_all_tests():
 
 
 if __name__ == "__main__":
+    # `--critical` → только tenant/security инварианты (гейт деплоя, deploy.ps1).
+    # без флага → полный прогон (критичные + игровые, для ручной проверки).
+    _critical_only = "--critical" in sys.argv
     try:
-        rc = asyncio.run(run_all_tests())
+        rc = asyncio.run(run_all_tests(critical_only=_critical_only))
     except Exception as e:
         traceback.print_exc()
         rc = 2

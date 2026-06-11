@@ -1961,22 +1961,14 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
         data["hero_gold_cost"] = 0           # mod больше не списывает динары
         data["price"] = TOURNAMENT_JOIN_PRICE  # 1000 крустиков
 
-    # Sprint 5.3: tournament.bet — крустики ставка на участника turnir'а.
-    # Atomic charge крустиков; запись в bannerlord_tournament_bets.
+    # 1.5 compliance (2026-06-11): tournament.bet → БЕСПЛАТНЫЙ no-loss ПРОГНОЗ
+    # на победителя. Крустики НЕ списываются и НЕ сгорают; верный прогноз даёт
+    # фикс-бонус из платформенного пула (см. _adapter._on_tournament_ended).
+    # Убрали wager-на-исход (дух §6.2.6) — как уже сделали для дуэлей.
     if action_type == "tournament.bet":
         target = (data.get("target") or "").strip().lower()
-        try:
-            amount = int(data.get("amount") or 0)
-        except (TypeError, ValueError):
-            return {"success": False, "message": "Неверная сумма ставки"}
         if not target:
             return {"success": False, "message": "Не указан участник"}
-        if amount < TOURNAMENT_MIN_BET or amount > TOURNAMENT_MAX_BET:
-            return {
-                "success": False,
-                "message": f"Ставка от {TOURNAMENT_MIN_BET} до "
-                           f"{TOURNAMENT_MAX_BET}⦷",
-            }
         # Tournament must be running + target в participants
         db_tmp = get_db()
         async with db_tmp._connect() as conn:
@@ -1997,14 +1989,11 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
                 "message": f"@{target} не участвует в турнире",
             }
         round_index = int(row[1] or 0)
-        # Sprint 5.31 #45e (audit MED-6) — dedup check перенесён ВНУТРЬ
-        # BEGIN IMMEDIATE ниже (см. tournament.bet атомарный блок). Раньше
-        # SELECT был отдельной connection — два concurrent bet'а от того же
-        # юзера проходили оба SELECT'а и оба charge'или.
+        # Sprint 5.31 #45e (audit MED-6) — dedup check внутри BEGIN IMMEDIATE ниже.
         data["target"] = target
-        data["amount"] = amount
+        data["amount"] = 0          # no-loss: ставка не берётся
         data["round_index"] = round_index
-        data["price"] = amount   # списать ставку как price крустиков
+        data["price"] = 0           # бесплатный прогноз — ничего не списываем
 
     # ════════════════════════════════════════════════════════════════════
     # Sprint 5.29 audit fix #32 — server-side ACTION_PRICES enforcement.

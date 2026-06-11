@@ -5378,7 +5378,7 @@ function _renderBannerlordTournament(data) {
     }
 
     if (state.status === 'running') {
-        // RUNNING — показываем участников + ставки
+        // RUNNING — участники + прогноз победителя (бесплатно)
         const participants = state.participants || [];
         const myBet = data.my_bet;
 
@@ -5386,16 +5386,16 @@ function _renderBannerlordTournament(data) {
         if (myBet) {
             participantsHtml = `
                 <div style="font-size:12px;color:#34d399;padding:6px;background:rgba(52,211,153,0.1);border-radius:4px;margin-bottom:6px;">
-                    ✅ Ставка размещена: <b>${escapeHtml(myBet.target)}</b> на ${myBet.amount}💎
+                    🔮 Твой прогноз: <b>${escapeHtml(myBet.target)}</b>
                 </div>`;
         } else {
             participantsHtml = `
-                <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">Поставь крустиков на участника (выигрыш делится пропорционально):</div>
+                <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">🔮 Угадай победителя — бесплатно, за верный прогноз бонус:</div>
                 <div style="display:grid;grid-template-columns:1fr auto;gap:4px;align-items:center;">
                     ${participants.map(p => `
                         <span style="font-size:12px;">⚔️ ${escapeHtml(p)}</span>
-                        <button class="extra-btn bnr-bet-btn" data-target="${escapeHtml(p)}"
-                                style="font-size:11px;padding:3px 8px;">Поставить</button>
+                        <button class="extra-btn bnr-predict-btn" data-target="${escapeHtml(p)}"
+                                style="font-size:11px;padding:3px 8px;">Прогноз</button>
                     `).join('')}
                 </div>`;
         }
@@ -5409,11 +5409,11 @@ function _renderBannerlordTournament(data) {
                 ${state.last_winner ? `<div style="font-size:11px;color:#adadb8;margin-top:6px;">Прошлый победитель: <b>${escapeHtml(state.last_winner)}</b></div>` : ''}
             </div>`;
 
-        // Bind bet buttons
-        body.querySelectorAll('.bnr-bet-btn').forEach(btn => {
+        // Bind prediction buttons
+        body.querySelectorAll('.bnr-predict-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const target = btn.getAttribute('data-target');
-                _promptBannerlordBet(target);
+                _promptBannerlordPredict(target);
             });
         });
         return;
@@ -5437,7 +5437,7 @@ function _renderBannerlordTournament(data) {
                 ✅ Ты в очереди, ждём пока стример запустит турнир
            </div>`
         : `<button class="extra-btn" id="bnr-join-tournament-btn"
-                  title="${joinPrice > 0 ? `Списывает ${joinPriceText} крустиков` : 'Бесплатно — ставка на турнир остаётся за крустики'}"
+                  title="${joinPrice > 0 ? `Списывает ${joinPriceText} крустиков` : 'Бесплатно'}"
                   style="margin-top:6px;width:100%;font-size:12px;padding:8px;">
                 ⚔️ Вступить в турнир${joinPrice > 0 ? ` (${joinPriceText}💎)` : ' (бесплатно)'}
            </button>`;
@@ -5464,41 +5464,29 @@ function _renderBannerlordTournament(data) {
 
 const TOURNAMENT_PRIZE_GOLD = 50000;
 const TOURNAMENT_ROUND_GOLD = 10000;
-const TOURNAMENT_BET_PRESETS = [100, 500, 1000, 5000];
 
-function _promptBannerlordBet(target) {
-    // Modal-like prompt с выбором amount
+function _promptBannerlordPredict(target) {
+    // Подтверждение прогноза победителя — бесплатно, без ставки.
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:9999;';
     overlay.innerHTML = `
         <div style="background:#18181b;border:1px solid #3d3d3f;border-radius:8px;padding:20px;max-width:320px;">
-            <h3 style="margin:0 0 12px 0;font-size:14px;color:#efeff1;">💰 Ставка на @${escapeHtml(target)}</h3>
-            <div style="font-size:11px;color:#adadb8;margin-bottom:10px;">
-                Выбери сумму. Если @${escapeHtml(target)} победит в раунде — получишь долю pot'а.
+            <h3 style="margin:0 0 12px 0;font-size:14px;color:#efeff1;">🔮 Прогноз: победит @${escapeHtml(target)}?</h3>
+            <div style="font-size:11px;color:#adadb8;margin-bottom:12px;">
+                Бесплатно — крустики не тратятся. Угадаешь победителя турнира — получишь бонус.
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
-                ${TOURNAMENT_BET_PRESETS.map(amt => `
-                    <button class="extra-btn bnr-bet-amount" data-amount="${amt}"
-                            style="font-size:12px;padding:8px;">
-                        ${amt}💎
-                    </button>
-                `).join('')}
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+                <button class="extra-btn" id="bnr-predict-confirm" style="font-size:12px;padding:8px;">Сделать прогноз</button>
+                <button class="extra-btn" id="bnr-predict-cancel" style="font-size:12px;padding:8px;background:#3d3d3f;">Отмена</button>
             </div>
-            <button class="extra-btn" id="bnr-bet-cancel"
-                    style="width:100%;font-size:11px;padding:6px;background:#3d3d3f;">
-                Отмена
-            </button>
         </div>`;
     document.body.appendChild(overlay);
 
-    overlay.querySelectorAll('.bnr-bet-amount').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const amount = parseInt(btn.getAttribute('data-amount'), 10);
-            overlay.remove();
-            _bannerlordBuyAction('tournament.bet', { target, amount });
-        });
+    document.getElementById('bnr-predict-confirm').addEventListener('click', () => {
+        overlay.remove();
+        _bannerlordBuyAction('tournament.bet', { target });
     });
-    document.getElementById('bnr-bet-cancel').addEventListener('click', () => overlay.remove());
+    document.getElementById('bnr-predict-cancel').addEventListener('click', () => overlay.remove());
     overlay.addEventListener('click', e => {
         if (e.target === overlay) overlay.remove();
     });

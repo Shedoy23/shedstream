@@ -1921,63 +1921,46 @@ class BannerlordAdapter(ModuleAdapter):
 
         from dependencies import get_db
         async with get_db()._connect() as conn:
-            # Если aborted — refund открытые ставки
+            # Aborted — прогнозы аннулируются (они бесплатные, возвращать нечего).
             if aborted:
-                cur = await conn.execute("""
-                    SELECT bettor, amount FROM bannerlord_tournament_bets
-                    WHERE channel_id=? AND resolved=0
-                """, (channel_id,))
-                open_bets = await cur.fetchall()
-                for bettor, amount in open_bets:
-                    if amount and amount > 0:
-                        await conn.execute(
-                            "UPDATE viewers SET points = points + ? "
-                            "WHERE channel_id=? AND username=?",
-                            (amount, channel_id, bettor))
-                await conn.execute("""
-                    UPDATE bannerlord_tournament_bets
-                    SET resolved=2, payout=amount
-                    WHERE channel_id=? AND resolved=0
-                """, (channel_id,))
-                if open_bets:
+                cur = await conn.execute(
+                    "UPDATE bannerlord_tournament_bets SET resolved=2, payout=0 "
+                    "WHERE channel_id=? AND resolved=0",
+                    (channel_id,))
+                if cur.rowcount:
                     print(f"[bannerlord:{channel_id}] tournament aborted — "
-                          f"refunded {len(open_bets)} open bets")
+                          f"{cur.rowcount} open predictions voided")
             elif winner:
-                # 2026-05-29 FIX — резолв ВСЕХ открытых ставок по ФИНАЛЬНОМУ
-                # победителю (Predictions-style): backers чемпиона делят весь
-                # банк пропорционально ставке, остальные сгорают. Раньше ставки
-                # ошибочно резолвились помачтево в round_ended → сгорали.
+                # 1.5 compliance (2026-06-11): no-loss ПРОГНОЗЫ. Верный прогноз
+                # (target == финальный winner) → фикс-бонус из платформенного
+                # пула; неверный → ничего (зритель ничего не ставил, не теряет).
+                # Без pot/burn — убрали wager-на-исход (дух §6.2.6).
+                TOURNAMENT_PREDICTION_REWARD = 500   # крустиков за верный прогноз
                 cur = await conn.execute("""
-                    SELECT bettor, target, amount, round_index
+                    SELECT bettor, target, round_index
                     FROM bannerlord_tournament_bets
                     WHERE channel_id=? AND resolved=0
                 """, (channel_id,))
-                bets = await cur.fetchall()
-                total_pot = sum((b[2] or 0) for b in bets)
-                total_winning = sum((b[2] or 0) for b in bets
-                                    if (b[1] or "").lower() == winner)
-                paid, n_backers = 0, 0
-                for bettor, target, amount, r_idx in bets:
-                    amount = amount or 0
-                    won = (target or "").lower() == winner
-                    payout = (int(round((amount / total_winning) * total_pot))
-                              if (won and total_winning > 0) else 0)
+                preds = await cur.fetchall()
+                n_correct = 0
+                for bettor, target, r_idx in preds:
+                    correct = (target or "").lower() == winner
+                    reward = TOURNAMENT_PREDICTION_REWARD if correct else 0
                     await conn.execute("""
                         UPDATE bannerlord_tournament_bets
                         SET resolved=?, payout=?
                         WHERE channel_id=? AND bettor=? AND round_index=?
-                    """, (1 if won else 2, payout, channel_id, bettor, r_idx))
-                    if won and payout > 0:
+                    """, (1 if correct else 2, reward, channel_id, bettor, r_idx))
+                    if correct:
                         await conn.execute(
                             "UPDATE viewers SET points = points + ? "
                             "WHERE channel_id=? AND username=?",
-                            (payout, channel_id, bettor))
-                        paid += payout
-                        n_backers += 1
-                if bets:
-                    print(f"[bannerlord:{channel_id}] tournament bets resolved by "
-                          f"winner @{winner}: {n_backers} backers split pot={total_pot}⦷ "
-                          f"(paid {paid}, {len(bets)} bets total)")
+                            (reward, channel_id, bettor))
+                        n_correct += 1
+                if preds:
+                    print(f"[bannerlord:{channel_id}] tournament predictions resolved "
+                          f"by winner @{winner}: {n_correct}/{len(preds)} correct "
+                          f"(+{TOURNAMENT_PREDICTION_REWARD}⦷ each)")
 
             await conn.execute("""
                 UPDATE bannerlord_tournament_state

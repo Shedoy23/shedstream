@@ -49,7 +49,9 @@ actions:
   - player.equip_item
   - player.modify_attribute
   - world.trigger_event
-  - world.broadcast_message
+  # world.broadcast_message — снят 2026-06-11 как dead/drift: handler в моде есть
+  # (BroadcastMessageHandler.cs), но backend его НИКОГДА не диспетчит (нет admin-
+  # триггера). Вернуть строку, когда появится реальный эндпоинт-отправитель.
 
 # Bannerlord-specific extensions (RimWorld имеет pawn.gene_changed etc.):
 extensions:
@@ -102,8 +104,8 @@ extensions:
     - hero.upgrade_gear  # Sprint M20: 6-tier equipment progression
     - hero.reequip_gear  # 2026-05-29: re-roll снаряги на текущем тире (фикс-утилита)
     - hero.add_skill
-    - hero.set_culture
-    - hero.set_faction
+    # hero.set_culture / hero.set_faction — сняты 2026-06-11 как dead/drift:
+    # в моде только stub-хендлеры (LOW priority), в backend не подключены.
     - hero.recruit_troops
     - hero.train_troops      # 2026-05-29 (BLT TrainingBehavior): bulk-upgrade свиты
     - hero.join_tournament   # Sprint 5.3: BLT-style viewer tournament queue

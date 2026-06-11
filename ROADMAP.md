@@ -72,10 +72,12 @@ lint, CONTEXT-доки, привычка «прогнать агентов по 
   guilds/voting/pets/bannerlord оказались зелёными (их не было видно за обрывом).
 - **Бонус:** прогон вскрыл, что весь игровой раздел сгнил со Sprint 5.24 — «мёртвый сигнал».
 
-### [ ] 1.2b Переписать 2 протухших dice-теста (P1, не срочно)
-`test_dice_game_logic` / `test_dice_match_flow` падают `ImportError` — dice
-переработан в v2 (BO3, `_resolve_winner`→state-based `_resolve_pvp_winner`). **НЕ
-гейтят** деплой (помечены STALE). Рерайт под v2-модель — как сделали для tictactoe.
+### [x] 1.2b Переписать 2 протухших dice-теста (СДЕЛАНО 2026-06-11)
+`test_dice_game_logic` / `test_dice_match_flow` падали `ImportError` — dice
+переработан в v2 (BO3, `_resolve_winner`→state-based `_resolve_pvp_winner`).
+Переписаны под v2: фазовая машина (`_new_dice_state`/`_compute_phase`/
+`_recompute_totals`), 3-раундовый прогон, cross-channel + cross-player
+isolation, lexicon-scrub. Полный набор: **PASSED 1335, FAILED 0**.
 
 ### [x] 1.3 Стейджинг на том же VDS (СДЕЛАНО 2026-06-11)
 Чтобы перестать тестировать на живых зрителях. Реализовано on-demand (не ест

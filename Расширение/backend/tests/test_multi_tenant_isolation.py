@@ -1266,69 +1266,105 @@ async def test_tictactoe_match_flow():
 # Test 14: Dice game logic (Phase 5.2) — pure helpers + lexicon scrub
 # ─────────────────────────────────────────────────────────────────────────────
 def test_dice_game_logic():
-    """Phase 5.2: проверяет dice helpers + compliance-lexicon на frontend.
+    """Sprint 5.24a v2: dice pure helpers (3-round / reroll model) + lexicon scrub.
 
     Покрывает:
-      - _roll_2d6 в диапазоне 2..12 (1+1=2 min, 6+6=12 max), 2 values 1..6
-      - _resolve_winner: a/b/draw correct для всех соотношений
-      - _elo_update reuses standard K=32 logic
-      - Distribution на 1000 samples: avg sum ≈ 7 (expected value)
+      - _roll_2d6 / _roll_d6 диапазоны
+      - _new_dice_state: v2 schema (version=2, 3 раунда, phase=rolling)
+      - _player_has_initial / _player_has_decided
+      - _compute_phase: rolling → deciding → advancing
+      - _recompute_totals: сумма final-кубиков по сыгранным раундам
+      - _resolve_pvp_winner: a/b/draw по totals (заменил старый _resolve_winner)
+      - _elo_update K=32
+      - Constants: GAME_TYPE / ELO_START=1000 / ELO_K / ROUNDS_TOTAL
       - Lexicon scrub: dice.js НЕ содержит casino/jackpot/lucky/bet
     """
-    print("\n[14] Dice game logic + lexicon scrub (Phase 5.2)")
-    # STALE (2026-06-11): dice переработан в v2 (BO3 раунды/фазы, Sprint 5.24).
-    # `_resolve_winner(rollA, rollB)` удалён -> победитель теперь state-based
-    # (_resolve_pvp_winner(state)); ELO_START 1100->1000. Нужен рерайт под v2.
-    # НЕ гейтит (GAME_TESTS) -> падает чистым ImportError ниже. См. ROADMAP 1.2b.
+    print("\n[14] Dice v2 game logic + lexicon scrub (Sprint 5.24a)")
     from routes.dice import (
-        _roll_2d6, _resolve_winner, _elo_update,
-        ELO_START, ELO_K, GAME_TYPE,
+        _roll_2d6, _roll_d6, _new_dice_state,
+        _player_has_initial, _player_has_decided,
+        _compute_phase, _recompute_totals, _resolve_pvp_winner, _elo_update,
+        ELO_START, ELO_K, GAME_TYPE, ROUNDS_TOTAL,
     )
 
-    # 14.1 Roll structure: 2 кубика, каждый 1..6
-    import random as _random
-    rng_orig = _random.random
+    # helper: собрать стейт из готовых раундов (keep-решения, final = initial)
+    def _mk_state(a_rounds, b_rounds):
+        s = _new_dice_state()
+        for dice in a_rounds:
+            s["rolls"]["a"].append({"initial": dice, "final": dice, "reroll_index": None})
+        for dice in b_rounds:
+            s["rolls"]["b"].append({"initial": dice, "final": dice, "reroll_index": None})
+        _recompute_totals(s)
+        return s
+
+    # 14.1 Roll structure: 2 кубика 1..6 + одиночный d6
     for _ in range(200):
         roll = _roll_2d6()
         assert_eq(len(roll), 2, "roll имеет 2 кубика")
         for d in roll:
             assert_true(1 <= d <= 6, f"кубик в 1..6: {d}")
+        assert_true(1 <= _roll_d6() <= 6, "_roll_d6 в 1..6")
 
     # 14.2 Sum range 2..12
     for _ in range(200):
-        roll = _roll_2d6()
-        s = sum(roll)
-        assert_true(2 <= s <= 12, f"sum в 2..12: {s}")
+        assert_true(2 <= sum(_roll_2d6()) <= 12, "sum в 2..12")
 
-    # 14.3 _resolve_winner — все возможные исходы
-    assert_eq(_resolve_winner([6, 6], [1, 1]), "a", "12 vs 2 → a")
-    assert_eq(_resolve_winner([1, 1], [6, 6]), "b", "2 vs 12 → b")
-    assert_eq(_resolve_winner([3, 4], [3, 4]), "draw", "7 vs 7 → draw")
-    assert_eq(_resolve_winner([6, 1], [4, 3]), "draw", "7 vs 7 (different rolls)")
-    assert_eq(_resolve_winner([5, 5], [4, 5]), "a", "10 vs 9 → a")
+    # 14.3 Fresh state — v2 schema
+    st = _new_dice_state()
+    assert_eq(st["version"], 2, "state version = 2")
+    assert_eq(st["rounds_total"], ROUNDS_TOTAL, "rounds_total = 3")
+    assert_eq(st["current_round"], 1, "current_round = 1 (1-indexed)")
+    assert_eq(st["rolls"], {"a": [], "b": []}, "rolls пустые на старте")
+    assert_eq(st["phase"], "rolling", "стартовая фаза = rolling")
+    assert_eq(_compute_phase(st), "rolling", "compute_phase пустого = rolling")
 
-    # 14.4 Distribution: average sum ≈ 7 на 1000 samples
-    import random as _r
-    seeded_rng = _r.Random(42)
-    samples = []
-    for _ in range(1000):
-        # Simulate roll using seeded rng (для воспроизводимости)
-        d1, d2 = seeded_rng.randint(1, 6), seeded_rng.randint(1, 6)
-        samples.append(d1 + d2)
-    avg = sum(samples) / len(samples)
-    assert_true(6.7 <= avg <= 7.3, f"avg sum ≈ 7 (got {avg:.2f})")
+    # 14.4 Phase machine на раунде 0: rolling → deciding → advancing
+    st["rolls"]["a"].append({"initial": [6, 5], "final": None, "reroll_index": None})
+    assert_true(_player_has_initial(st, "a", 0), "a has initial")
+    assert_true(not _player_has_initial(st, "b", 0), "b не has initial")
+    assert_eq(_compute_phase(st), "rolling", "один бросил → всё ещё rolling (ждём b)")
+    st["rolls"]["b"].append({"initial": [3, 3], "final": None, "reroll_index": None})
+    assert_eq(_compute_phase(st), "deciding", "оба бросили, никто не решил → deciding")
+    assert_true(not _player_has_decided(st, "a", 0), "a ещё не decided (final=None)")
+    st["rolls"]["a"][0]["final"] = [6, 5]
+    st["rolls"]["b"][0]["final"] = [3, 3]
+    assert_true(_player_has_decided(st, "a", 0), "a decided (final выставлен)")
+    assert_eq(_compute_phase(st), "advancing", "оба decided → advancing")
 
-    # 14.5 _elo_update аналогично TicTacToe (same K=32)
-    assert_eq(_elo_update(1100, 1100, 1.0), 1116, "equal win = +16")
-    assert_eq(_elo_update(1100, 1100, 0.0), 1084, "equal loss = -16")
-    assert_eq(_elo_update(1100, 1100, 0.5), 1100, "equal draw = unchanged")
+    # 14.5 _recompute_totals + _resolve_pvp_winner (заменил _resolve_winner)
+    s_a = _mk_state([[6, 6], [5, 5], [4, 4]], [[1, 1], [2, 2], [3, 3]])   # 30 vs 12
+    assert_eq(s_a["totals"]["a"], 30, "totals.a = 30 (12+10+8)")
+    assert_eq(s_a["totals"]["b"], 12, "totals.b = 12 (2+4+6)")
+    assert_eq(_resolve_pvp_winner(s_a), "a", "30 > 12 → a")
 
-    # 14.6 Constants
+    s_b = _mk_state([[1, 1], [1, 2], [2, 2]], [[6, 6], [5, 5], [4, 4]])   # 9 vs 30
+    assert_eq(_resolve_pvp_winner(s_b), "b", "9 < 30 → b")
+
+    s_d = _mk_state([[3, 4], [2, 2], [6, 1]], [[5, 2], [3, 1], [3, 4]])   # 18 vs 18
+    assert_eq(s_d["totals"]["a"], 18, "totals.a = 18 (draw)")
+    assert_eq(s_d["totals"]["b"], 18, "totals.b = 18 (draw)")
+    assert_eq(_resolve_pvp_winner(s_d), "draw", "18 == 18 → draw")
+
+    # 14.5b Partial totals: только final-кубики считаются (final=None пропускается)
+    s_p = _new_dice_state()
+    s_p["rolls"]["a"].append({"initial": [6, 6], "final": [6, 6], "reroll_index": None})
+    s_p["rolls"]["b"].append({"initial": [2, 2], "final": None, "reroll_index": None})
+    _recompute_totals(s_p)
+    assert_eq(s_p["totals"]["a"], 12, "partial: a final учтён")
+    assert_eq(s_p["totals"]["b"], 0, "partial: b final=None не учтён")
+
+    # 14.6 _elo_update (same K=32, базовое ELO 1000)
+    assert_eq(_elo_update(1000, 1000, 1.0), 1016, "equal win = +16")
+    assert_eq(_elo_update(1000, 1000, 0.0), 984, "equal loss = -16")
+    assert_eq(_elo_update(1000, 1000, 0.5), 1000, "equal draw = unchanged")
+
+    # 14.7 Constants
     assert_eq(GAME_TYPE, "dice", "GAME_TYPE = 'dice'")
-    assert_eq(ELO_START, 1100, "ELO_START = 1100")
+    assert_eq(ELO_START, 1000, "ELO_START = 1000 (Sprint 5.24)")
     assert_eq(ELO_K, 32, "ELO_K = 32")
+    assert_eq(ROUNDS_TOTAL, 3, "ROUNDS_TOTAL = 3")
 
-    # 14.7 LEXICON SCRUB: dice.js НЕ содержит запрещённых слов
+    # 14.8 LEXICON SCRUB: dice.js НЕ содержит запрещённых слов
     import os.path
     # __file__ = .../Расширение/backend/tests/test_multi_tenant_isolation.py
     # tests_dir → backend_dir → extension_dir → frontend/dice.js
@@ -1353,18 +1389,23 @@ def test_dice_game_logic():
 # Test 15: Dice match flow (vs bot endpoint + PvP roll logic)
 # ─────────────────────────────────────────────────────────────────────────────
 async def test_dice_match_flow():
-    """Phase 5.2: full match flow через прямой SQL для PvP rooms.
+    """Sprint 5.24a v2: full 3-round PvP flow через прямой SQL для match_rooms.
 
-    Симулирует PvP-roll сценарий, проверяет:
-      - State machine: rolls.a + rolls.b → finalize
-      - Wait-state: только один игрок roll'ил
-      - Cross-player blocked
+    Проверяет:
+      - State JSON v2 roundtrip в БД
+      - Wait-state: только один игрок бросил в раунде → phase=rolling
+      - 3-раундовый прогон → _resolve_pvp_winner → finalize + ELO
+      - Cross-player blocked (charlie не в комнате)
+      - Cross-channel isolation (room невидим под чужим channel_id)
     """
-    print("\n[15] Dice match flow (Phase 5.2)")
+    print("\n[15] Dice v2 match flow (Sprint 5.24a)")
     import aiosqlite as _aio
     import json as _json
     import uuid as _uuid
-    from routes.dice import _resolve_winner
+    from routes.dice import (
+        _new_dice_state, _recompute_totals, _resolve_pvp_winner,
+        _compute_phase, _elo_update,
+    )
 
     db_path = tempfile.mktemp(suffix="_test.db")
     try:
@@ -1380,13 +1421,15 @@ async def test_dice_match_flow():
             await conn.execute(
                 "INSERT INTO match_rooms (room_id, channel_id, game_type, player_a, player_b, "
                 "player_a_elo, player_b_elo, state, status) "
-                "VALUES (?, ?, 'dice', 'alice', 'bob', 1100, 1100, '{}', 'active')",
-                (room_id, cid)
+                "VALUES (?, ?, 'dice', 'alice', 'bob', 1000, 1000, ?, 'active')",
+                (room_id, cid, _json.dumps(_new_dice_state()))
             )
             await conn.commit()
 
-            # 15.1 Only alice rolled — wait state
-            state = {"rolls": {"a": [6, 5], "b": None}, "phase": "rolling"}
+            # 15.1 Раунд 1: только alice бросила — wait state (phase=rolling), v2 roundtrip
+            state = _new_dice_state()
+            state["rolls"]["a"].append({"initial": [6, 5], "final": None, "reroll_index": None})
+            assert_eq(_compute_phase(state), "rolling", "одна бросила → rolling (ждём bob)")
             await conn.execute(
                 "UPDATE match_rooms SET state = ? WHERE room_id = ? AND status = 'active'",
                 (_json.dumps(state), room_id)
@@ -1396,34 +1439,46 @@ async def test_dice_match_flow():
             cur = await conn.execute("SELECT state, status FROM match_rooms WHERE room_id = ?", (room_id,))
             row = await cur.fetchone()
             saved = _json.loads(row[0])
-            assert_eq(saved["rolls"]["a"], [6, 5], "alice roll [6,5] = 11 stored")
-            assert_eq(saved["rolls"]["b"], None, "bob ещё не roll'ил")
+            assert_eq(saved["version"], 2, "state v2 roundtrip через БД")
+            assert_eq(saved["rolls"]["a"][0]["initial"], [6, 5], "alice initial [6,5] сохранён")
+            assert_eq(len(saved["rolls"]["b"]), 0, "bob ещё не бросил")
             assert_eq(row[1], "active", "status still active (waiting)")
 
-            # 15.2 Bob rolls — resolve winner
-            state["rolls"]["b"] = [4, 3]
-            state["phase"] = "finished"
-            winner_role = _resolve_winner(state["rolls"]["a"], state["rolls"]["b"])
-            assert_eq(winner_role, "a", "alice 11 > bob 7 → a wins")
+            # 15.2 Полный 3-раундовый прогон (keep на всех), детерминированные кубики.
+            # alice 12+10+8=30, bob 2+4+6=12 → alice wins
+            full = _new_dice_state()
+            for d in [[6, 6], [5, 5], [4, 4]]:
+                full["rolls"]["a"].append({"initial": d, "final": d, "reroll_index": None})
+            for d in [[1, 1], [2, 2], [3, 3]]:
+                full["rolls"]["b"].append({"initial": d, "final": d, "reroll_index": None})
+            full["current_round"] = 4   # все 3 сыграны (1-indexed > rounds_total)
+            full["phase"] = "finished"
+            _recompute_totals(full)
+            assert_eq(full["totals"]["a"], 30, "alice total 30")
+            assert_eq(full["totals"]["b"], 12, "bob total 12")
+            assert_eq(_resolve_pvp_winner(full), "a", "alice 30 > bob 12 → a")
 
-            # Finalize
+            new_elo_a = _elo_update(1000, 1000, 1.0)
+            new_elo_b = _elo_update(1000, 1000, 0.0)
             await conn.execute(
                 "UPDATE match_rooms SET state = ?, status = 'finished', "
                 "winner = 'alice', outcome = 'win_a', "
-                "player_a_elo = 1116, player_b_elo = 1084, "
+                "player_a_elo = ?, player_b_elo = ?, "
                 "finished_at = CURRENT_TIMESTAMP WHERE room_id = ? AND status = 'active'",
-                (_json.dumps(state), room_id)
+                (_json.dumps(full), new_elo_a, new_elo_b, room_id)
             )
             await conn.commit()
 
             cur = await conn.execute(
-                "SELECT status, winner, outcome FROM match_rooms WHERE room_id = ?",
+                "SELECT status, winner, outcome, player_a_elo, player_b_elo FROM match_rooms WHERE room_id = ?",
                 (room_id,)
             )
             row = await cur.fetchone()
-            assert_eq(row[0], "finished", "room finished after both rolls")
+            assert_eq(row[0], "finished", "room finished после 3 раундов")
             assert_eq(row[1], "alice", "alice winner")
             assert_eq(row[2], "win_a", "outcome win_a")
+            assert_eq(row[3], 1016, "alice ELO +16")
+            assert_eq(row[4], 984, "bob ELO -16")
 
             # 15.3 Cross-player access блок: charlie не player
             cur = await conn.execute(
@@ -1431,15 +1486,23 @@ async def test_dice_match_flow():
                 "(player_a = 'charlie' OR player_b = 'charlie')",
                 (room_id,)
             )
-            row = await cur.fetchone()
-            assert_true(row is None, "charlie blocked from dice room")
+            assert_true((await cur.fetchone()) is None, "charlie blocked from dice room")
 
-            # 15.4 Draw scenario test
-            assert_eq(_resolve_winner([3, 4], [2, 5]), "draw", "7 vs 7 → draw")
+            # 15.4 Cross-channel isolation: тот же room_id под другим channel_id не виден
+            cur = await conn.execute(
+                "SELECT room_id FROM match_rooms WHERE room_id = ? AND channel_id = ?",
+                (room_id, cid + 1)
+            )
+            assert_true((await cur.fetchone()) is None, "room невидим под чужим channel_id")
 
-            # 15.5 Test extreme cases
-            assert_eq(_resolve_winner([6, 6], [1, 1]), "a", "12 vs 2 → max diff a wins")
-            assert_eq(_resolve_winner([1, 2], [3, 4]), "b", "3 vs 7 → b wins")
+            # 15.5 Draw scenario через _resolve_pvp_winner (18 vs 18)
+            draw = _new_dice_state()
+            for d in [[3, 4], [2, 2], [6, 1]]:
+                draw["rolls"]["a"].append({"initial": d, "final": d, "reroll_index": None})
+            for d in [[5, 2], [3, 1], [3, 4]]:
+                draw["rolls"]["b"].append({"initial": d, "final": d, "reroll_index": None})
+            _recompute_totals(draw)
+            assert_eq(_resolve_pvp_winner(draw), "draw", "18 == 18 → draw")
     finally:
         try:
             os.unlink(db_path)

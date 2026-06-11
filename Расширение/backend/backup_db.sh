@@ -1,8 +1,11 @@
 #!/bin/bash
 # backup_db.sh — ежедневный бэкап БД с ротацией.
 #
-# Использование (из cron):
-#   0 5 * * * /root/twitch-extension/backend/backup_db.sh >> /root/twitch-extension/logs/backup.log 2>&1
+# Использование (из cron) — ВЫЗЫВАТЬ ЧЕРЕЗ bash, не напрямую:
+#   0 5 * * * /bin/bash /root/twitch-extension/backend/backup_db.sh >> /root/twitch-extension/logs/backup.log 2>&1
+# (2026-06-11: деплой пересоздавал файл без флага +x → прямой запуск падал с
+#  "Permission denied", и daily-бэкап тихо встал на 10 дней. Вызов через bash
+#  иммунен к потере +x.)
 #
 # Работает атомарно через .backup команду SQLite — не корраптится даже если бот пишет.
 # Хранит последние 14 ежедневных + 8 еженедельных снимков.

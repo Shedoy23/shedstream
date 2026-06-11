@@ -145,13 +145,13 @@ namespace BannerlordLink.Actions
                     // state, гарантировано unique sequence.
                     var npc = candidates[TaleWorlds.Core.MBRandom.RandomInt(candidates.Count)];
 
-                    // Apply marriage (pattern из BLT)
-                    var oldClan = npc.Clan;
+                    // Apply marriage (engine housekeeping)
+                    var formerClan = npc.Clan;
 
                     npc.Spouse = hero;
                     hero.Spouse = npc;
 
-                    // BLT housekeeping для NPC которая переезжает
+                    // Housekeeping для NPC которая переезжает
                     if (npc.GovernorOf != null)
                     {
                         try { ChangeGovernorAction.RemoveGovernorOf(npc); } catch { }
@@ -160,14 +160,14 @@ namespace BannerlordLink.Actions
                     {
                         try
                         {
-                            var oldParty = npc.PartyBelongedTo;
-                            bool wasLeader = oldParty.LeaderHero == npc;
-                            oldParty.MemberRoster.RemoveTroop(
+                            var formerParty = npc.PartyBelongedTo;
+                            bool heroWasLeader = formerParty.LeaderHero == npc;
+                            formerParty.MemberRoster.RemoveTroop(
                                 npc.CharacterObject, 1, default, 0);
                             MakeHeroFugitiveAction.Apply(npc, false);
-                            if (wasLeader && oldParty.IsLordParty)
+                            if (heroWasLeader && formerParty.IsLordParty)
                             {
-                                DisbandPartyAction.StartDisband(oldParty);
+                                DisbandPartyAction.StartDisband(formerParty);
                             }
                         }
                         catch (Exception ex)
@@ -198,7 +198,7 @@ namespace BannerlordLink.Actions
 
                     BannerlordLinkModule.Log(
                         $"[hero.marry] @{username} ↔ {npc.Name} "
-                        + $"(was clan: {oldClan?.Name}, now: {npc.Clan?.Name})");
+                        + $"(was clan: {formerClan?.Name}, now: {npc.Clan?.Name})");
                 }
                 catch (Exception ex)
                 {

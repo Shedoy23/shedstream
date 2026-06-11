@@ -100,6 +100,8 @@ namespace BannerlordLink.Util
                     int soundId = SoundEvent.GetEventIdFromString(Sound);
                     if (soundId >= 0 && Mission.Current != null)
                     {
+                        // аргументы TaleWorlds MakeSound: playInArea=false,
+                        // isReverbAffected=true, relatedAgentIndex, parentObjectIndex=-1
                         Mission.Current.MakeSound(
                             soundId, location.origin, false, true, relatedAgentIndex, -1);
                     }

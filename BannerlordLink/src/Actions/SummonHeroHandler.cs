@@ -170,37 +170,34 @@ namespace BannerlordLink.Actions
                 // member'а). Каждый повторный summon → ещё +1 → у юзера
                 // накопилось 17 копий kuro_gothic.
                 //
-                // BLT решает это правильно (BLT SummonHero.cs:358-361):
-                //     if (originalParty?.Party != party) {
-                //         originalParty?.Party?.AddMember(hero, -1);
-                //         party.AddMember(hero, 1);
-                //     }
-                // — и `+1`, и `-1` ОБА внутри одного if'а. Если hero уже в
-                // target party — не трогаем roster вообще.
+                // Правильный паттерн: переносить hero между party только если
+                // он реально в другой party — оба AddMember(-1)/(+1) держим
+                // внутри одного if'а. Если hero уже в target party, roster не
+                // трогаем вообще.
                 //
                 // Также проверяем GetTroopCount(target) > 0 как safety:
                 // если engine уже добавил hero как PlayerClan member, мы
                 // не должны его дублировать.
-                PartyBase originalHeroParty = hero.PartyBelongedTo?.Party;
-                bool wasLeader = originalHeroParty?.LeaderHero == hero;
-                int oldHP = hero.HitPoints;
+                PartyBase heroFormerParty = hero.PartyBelongedTo?.Party;
+                bool heroWasLeader = heroFormerParty?.LeaderHero == hero;
+                int hpBefore = hero.HitPoints;
 
                 int alreadyInTarget = 0;
                 try { alreadyInTarget = originParty.MemberRoster?.GetTroopCount(hero.CharacterObject) ?? 0; }
                 catch { }
 
                 bool didRosterTransfer = false;
-                if (originalHeroParty != originParty && alreadyInTarget == 0)
+                if (heroFormerParty != originParty && alreadyInTarget == 0)
                 {
                     // Real transfer: hero не в target. Делаем -1/+1 атомарно.
-                    if (originalHeroParty != null)
+                    if (heroFormerParty != null)
                     {
                         int curOrig = 0;
-                        try { curOrig = originalHeroParty.MemberRoster?.GetTroopCount(hero.CharacterObject) ?? 0; }
+                        try { curOrig = heroFormerParty.MemberRoster?.GetTroopCount(hero.CharacterObject) ?? 0; }
                         catch { }
                         if (curOrig > 0)
                         {
-                            try { originalHeroParty.MemberRoster.AddToCounts(hero.CharacterObject, -1); }
+                            try { heroFormerParty.MemberRoster.AddToCounts(hero.CharacterObject, -1); }
                             catch (Exception ex)
                             {
                                 BannerlordLinkModule.Log(
@@ -224,7 +221,7 @@ namespace BannerlordLink.Actions
                 {
                     BannerlordLinkModule.Log(
                         $"[player.spawn:{sideLabel}] @{username}: hero уже в target party " +
-                        $"(count={alreadyInTarget}, originSame={originalHeroParty == originParty}) " +
+                        $"(count={alreadyInTarget}, originSame={heroFormerParty == originParty}) " +
                         "— skip +1 (BLT pattern, avoid dupe)");
                 }
 
@@ -234,7 +231,7 @@ namespace BannerlordLink.Actions
                 if (didRosterTransfer)
                 {
                     BannerlordLink.Behaviors.KillRewardBehavior.RegisterPartyRestore(
-                        hero, originalHeroParty, wasLeader, oldHP);
+                        hero, heroFormerParty, heroWasLeader, hpBefore);
                 }
 
                 // Sprint 5.7 — formation preference (player side only). BLT:

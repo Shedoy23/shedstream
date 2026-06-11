@@ -7,23 +7,21 @@ using TaleWorlds.CampaignSystem.Actions;
 namespace BannerlordLink.Behaviors
 {
     /// <summary>
-    /// Backlog #1 (BLT-RC22 parity, C.5 KingdomTaxBehavior) — kingdom tax.
+    /// Backlog #1 — kingdom tax (наша реализация).
     ///
-    /// Концепт (адаптация BLT KingdomTaxBehavior + GoldIncomeBehavior collection):
-    ///   Король (RulingClan.Leader) — если это adopted viewer — может задать
+    /// Концепт: король (RulingClan.Leader) — если это adopted viewer — может задать
     ///   налоговую ставку 0-100% для своего королевства. Раз в день каждый
     ///   вассальный клан королевства (кроме самого ruling clan) платит rate% от
     ///   дневной прибыли в казну короля.
     ///
-    /// BLT rules сохранены:
+    /// Правила:
     ///   - rate clamp 0..1
     ///   - НЕ облагаем ruling clan
     ///   - collect только если король = adopted viewer (иначе налог уходит в
     ///     никуда — engine AI king не наш игрок)
     ///
-    /// Отличие от BLT: BLT таксит fiefIncome (внутри GoldIncomeBehavior). У нас
-    /// нет перехвата fief-income distribution, поэтому базой берём дневной
-    /// gold-delta лидера клана (net profit) — тот же робастный приём, что в
+    /// Базой берём дневной gold-delta лидера клана (net profit) — у нас нет
+    /// перехвата fief-income distribution, поэтому это самый робастный приём, что в
     /// VassalAutoFollowBehavior.OnDailyTickClan (без зависимости от
     /// ClanFinanceModel API, который дрейфует по версиям).
     ///
@@ -77,9 +75,9 @@ namespace BannerlordLink.Behaviors
             if (_clanLastGold == null) _clanLastGold = new Dictionary<string, int>();
         }
 
-        // ─── Public API (mirror BLT) ───────────────────────────────────────────────
+        // ─── Public API ─────────────────────────────────────────────────────────────
 
-        /// <summary>Set tax rate 0.0–1.0 для королевства. Clamp как в BLT.</summary>
+        /// <summary>Set tax rate 0.0–1.0 для королевства. Clamp в [0..1].</summary>
         public void SetKingdomTaxRate(Kingdom kingdom, float taxRate)
         {
             if (kingdom == null) return;
@@ -122,7 +120,7 @@ namespace BannerlordLink.Behaviors
 
                 float rate = GetKingdomTaxRate(kingdom);
                 if (rate <= 0f) return;                       // no tax set
-                if (clan == kingdom.RulingClan) return;       // BLT: don't tax ruler
+                if (clan == kingdom.RulingClan) return;       // правящий клан не облагаем
                 if (delta <= 0) return;                       // no profit → no tax
 
                 // King must be an adopted viewer — иначе налог некому платить.

@@ -146,8 +146,8 @@ namespace BannerlordLink.Behaviors
         public static void RegisterPartyRestore(
             Hero hero,
             TaleWorlds.CampaignSystem.Party.PartyBase originalParty,
-            bool wasLeader,
-            int oldHP)
+            bool heroWasLeader,
+            int hpBefore)
         {
             if (hero == null) return;
             _partyRestores.Add(new PartyRestoreEntry
@@ -155,8 +155,8 @@ namespace BannerlordLink.Behaviors
                 Mission       = Mission.Current,   // snapshot текущей миссии
                 Hero          = hero,
                 OriginalParty = originalParty,
-                WasLeader     = wasLeader,
-                OldHP         = oldHP,
+                WasLeader     = heroWasLeader,
+                OldHP         = hpBefore,
             });
         }
 

@@ -193,8 +193,8 @@ namespace BannerlordLink.Actions
                     }
                 }
 
-                var oldParty = hero.PartyBelongedTo;
-                if (oldParty != null && oldParty.MapEvent != null)
+                var formerParty = hero.PartyBelongedTo;
+                if (formerParty != null && formerParty.MapEvent != null)
                 {
                     BannerlordLinkModule.Log(
                         $"[leave_clan] REFUSE @{username}: hero в битве");
@@ -207,15 +207,15 @@ namespace BannerlordLink.Actions
                     try { ChangeGovernorAction.RemoveGovernorOf(hero); } catch { }
                 }
 
-                if (oldParty != null)
+                if (formerParty != null)
                 {
                     try
                     {
-                        bool wasLeader = oldParty.LeaderHero == hero;
-                        oldParty.MemberRoster.RemoveTroop(hero.CharacterObject, 1,
+                        bool heroWasLeader = formerParty.LeaderHero == hero;
+                        formerParty.MemberRoster.RemoveTroop(hero.CharacterObject, 1,
                             default(UniqueTroopDescriptor), 0);
-                        if (wasLeader && oldParty.IsLordParty)
-                            DisbandPartyAction.StartDisband(oldParty);
+                        if (heroWasLeader && formerParty.IsLordParty)
+                            DisbandPartyAction.StartDisband(formerParty);
                     }
                     catch (Exception ex)
                     {
@@ -224,7 +224,7 @@ namespace BannerlordLink.Actions
                     }
                 }
 
-                var oldClanName = hero.Clan.Name?.ToString() ?? "?";
+                var formerClanName = hero.Clan.Name?.ToString() ?? "?";
                 hero.SetNewOccupation(Occupation.Wanderer);
 
                 // Sprint 5.32 LEAVE-CLAN-FIX — гибрид setter + reflection fallback.
@@ -284,13 +284,13 @@ namespace BannerlordLink.Actions
                         $"(clan still '{hero.Clan.Name}') — fallback к reflection");
                     try
                     {
-                        var oldClan = hero.Clan;
+                        var formerClan = hero.Clan;
                         // 2026-06-10 FIX — бэкинг-поле Hero.Clan в 1.3.15 — это авто-
                         // проперти `<Clan>k__BackingField`, а НЕ '_clan'. Старый lookup
                         // по '_clan' давал null → reflection молча не срабатывал → член
                         // клана ИГРОКА не мог выйти (напр. klut12 из 'Gray', 5 попыток).
                         // Ищем поле надёжно: имя авто-проперти, затем '_clan', затем по
-                        // типу+значению (поле типа Clan, которое сейчас держит oldClan).
+                        // типу+значению (поле типа Clan, которое сейчас держит formerClan).
                         var clanField = HarmonyLib.AccessTools.Field(typeof(Hero), "<Clan>k__BackingField")
                                      ?? HarmonyLib.AccessTools.Field(typeof(Hero), "_clan");
                         if (clanField == null)
@@ -300,12 +300,12 @@ namespace BannerlordLink.Actions
                                     | System.Reflection.BindingFlags.NonPublic
                                     | System.Reflection.BindingFlags.Public)
                                 .FirstOrDefault(f => f.FieldType == typeof(Clan)
-                                    && ReferenceEquals(f.GetValue(hero), oldClan));
+                                    && ReferenceEquals(f.GetValue(hero), formerClan));
                         }
                         BannerlordLinkModule.LogVerbose(() =>
                             $"[leave_clan V] @{username}: reflection lookup Hero._clan " +
                             $"field={(clanField != null ? "OK" : "NULL")} " +
-                            $"current_value='{oldClan?.Name}'");
+                            $"current_value='{formerClan?.Name}'");
                         if (clanField != null)
                         {
                             clanField.SetValue(hero, null);
@@ -320,9 +320,9 @@ namespace BannerlordLink.Actions
                         {
                             var heroesField = HarmonyLib.AccessTools.Field(
                                 typeof(TaleWorlds.CampaignSystem.Clan), "_heroes");
-                            if (heroesField != null && oldClan != null)
+                            if (heroesField != null && formerClan != null)
                             {
-                                var heroesList = heroesField.GetValue(oldClan)
+                                var heroesList = heroesField.GetValue(formerClan)
                                     as System.Collections.IList;
                                 if (heroesList != null && heroesList.Contains(hero))
                                 {
@@ -374,12 +374,12 @@ namespace BannerlordLink.Actions
                 WandererHome.PlaceInNearestTavern(hero);
 
                 BannerlordLinkModule.Log(
-                    $"[leave_clan] @{username}: left '{oldClanName}' → wanderer");
+                    $"[leave_clan] @{username}: left '{formerClanName}' → wanderer");
 
                 string evtData = JsonConvert.SerializeObject(new
                 {
                     username = username,
-                    old_clan_name = oldClanName,
+                    old_clan_name = formerClanName,
                 });
                 Task.Run(async () => await BannerlordLinkModule.Backend
                     .PostEventAsync("bannerlord", "hero.clan_left", evtData));

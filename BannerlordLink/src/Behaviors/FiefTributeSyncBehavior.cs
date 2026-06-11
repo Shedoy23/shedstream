@@ -9,7 +9,7 @@ namespace BannerlordLink.Behaviors
     /// Sprint 5.33 (BLT-parity FIEF) — Daily fief tribute REPORT.
     ///
     /// 2026-06-01 — модель дохода переписана на РЕАЛЬНЫЙ налог владельца
-    /// (BLT-parity ClanManagement.cs:826 / CampaignInfo.cs:414):
+    /// (канонический owner-income движка через ClanFinanceModel/SettlementTaxModel):
     ///   town/castle → SettlementTaxModel.CalculateTownTax(town, false).ResultNumber
     ///   village     → ClanFinanceModel.CalculateVillageIncome(clan, village, false)
     /// Раньше брали diff Town.Gold — но казна города ≠ доход владельца и скачет
@@ -85,7 +85,7 @@ namespace BannerlordLink.Behaviors
                         .CalculateTownTax(town, false).ResultNumber;
                     var clan = s.OwnerClan;
                     if (clan == null) return (int)tax;   // тарифы/проекты требуют clan
-                    // 2026-06-01 — нетто-доход владельца (BLT-parity CampaignInfo.cs:413):
+                    // 2026-06-01 — нетто-доход владельца (канонический engine-расчёт):
                     // налог + тарифы + проекты − жалование гарнизона. Bound-villages НЕ
                     // добавляем — они отдельные фьефы и отчитываются сами (иначе двойной счёт).
                     double income = tax

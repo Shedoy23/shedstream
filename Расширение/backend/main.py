@@ -1486,6 +1486,14 @@ async def on_startup():
     except Exception as e:
         print(f"❌ Критическая ошибка при инициализации БД: {e}")
         raise  # Падаем явно — не скрываем проблему
+    # STAGING (ROADMAP 1.3): DISABLE_LIVE_INTEGRATIONS=1 запускает бек БЕЗ
+    # исходящих-в-Twitch интеграций (IRC-чат-бот, auto-message, EventSub-
+    # регистрация, PubSub-drain). Иначе staging-копия зашла бы в ЖИВОЙ канал
+    # и слала дубли в чат/расширение зрителям. БД-циклы (points/drops/voting)
+    # работают как обычно — их и нужно тестить. Прод не задаёт переменную → 8000 + полный режим.
+    _staging = os.getenv("DISABLE_LIVE_INTEGRATIONS", "").lower() in ("1", "true", "yes")
+    if _staging:
+        print("🧪 STAGING MODE: live Twitch integrations DISABLED (no chat-bot / EventSub / PubSub)")
     # Служебные фоновые задачи
     asyncio.create_task(_rate_cleanup_loop())
     # M5: per-channel rate-limit bucket cleanup (раз в 5 мин)
@@ -1502,26 +1510,31 @@ async def on_startup():
     # о победителе не уходит).
     asyncio.create_task(bot.event_manager.event_watcher_loop())
     # IRC бот и семейный доход
-    asyncio.create_task(start_twitch_bot())
-    asyncio.create_task(bot.auto_message_loop())
-    # Safety-net для сообщений, поставленных в очередь до коннекта IRC:
-    # event_ready() флашит один раз, но если что-то поставилось позже (гонка
-    # или transient disconnect), этот цикл каждые 15с добивает хвост.
-    asyncio.create_task(bot.pending_chat_flush_loop())
+    if not _staging:
+        asyncio.create_task(start_twitch_bot())
+        asyncio.create_task(bot.auto_message_loop())
+        # Safety-net для сообщений, поставленных в очередь до коннекта IRC:
+        # event_ready() флашит один раз, но если что-то поставилось позже (гонка
+        # или transient disconnect), этот цикл каждые 15с добивает хвост.
+        asyncio.create_task(bot.pending_chat_flush_loop())
     # run_family_income() удалён 2026-05-10 (Phase 1.G compliance rework)
     # Phase A (2026-05-16): регистрируем три типа подписок (channel_points +
     # stream.online + stream.offline) для всех каналов в реестре.
-    asyncio.create_task(register_eventsub_subscriptions())
+    if not _staging:
+        asyncio.create_task(register_eventsub_subscriptions())
     # TTL cleanup для eventsub_seen — раз в час чистит expired (24h retention).
     from eventsub import cleanup_seen_loop as _eventsub_cleanup
     asyncio.create_task(_eventsub_cleanup())
     # Phase C (2026-05-17): PubSub drain loop — pop'ит per-topic queue с
     # throttle 1msg/sec на (channel, topic) и шлёт в Helix /extensions/pubsub.
     from pubsub import drain_loop as _pubsub_drain
-    asyncio.create_task(_pubsub_drain())
-    # M4 follow-up (б): держим OAuth-токены стримеров свежими.
+    if not _staging:
+        asyncio.create_task(_pubsub_drain())
+    # M4 follow-up (б): держим OAuth-токены стримеров свежими. На staging НЕ
+    # запускаем — рефреш ротирует живой токен стримера и разлогинил бы прод.
     from routes.streamer import oauth_refresh_loop as _oauth_refresh_loop
-    asyncio.create_task(_oauth_refresh_loop())
+    if not _staging:
+        asyncio.create_task(_oauth_refresh_loop())
     # Sprint 5.29 audit fix #38: dispatched-action sweeper. Если mod упал
     # между fetch и ACK, action залипает в status='dispatched' forever.
     # Sweeper раз в 5 мин re-queue'ит rows старше 10 мин. Viewer заплатил
@@ -1640,7 +1653,7 @@ if __name__ == "__main__":
         )
     print(f"🚀 uvicorn workers={workers} limit_concurrency={limit_concurrency} keep_alive={keep_alive}s")
     uvicorn.run(
-        app, host="0.0.0.0", port=8000,
+        app, host="0.0.0.0", port=int(os.getenv("PORT", "8000")),   # staging → PORT=8001
         workers=workers if workers > 1 else None,   # None = single async worker
         limit_concurrency=limit_concurrency,
         timeout_keep_alive=keep_alive,

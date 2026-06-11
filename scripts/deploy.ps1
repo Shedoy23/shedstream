@@ -21,6 +21,7 @@
   ./scripts/deploy.ps1 -All            # mod + backend + frontend
   ./scripts/deploy.ps1 -Mod            # build + copy mod DLL into the game only
   ./scripts/deploy.ps1 -Backend        # backend only
+  ./scripts/deploy.ps1 -Staging        # deploy to on-demand staging app (:8001), NOT prod
   ./scripts/deploy.ps1 -DryRun         # print actions, change nothing
 #>
 [CmdletBinding()]
@@ -29,6 +30,7 @@ param(
     [switch]$Frontend,
     [switch]$Mod,
     [switch]$All,
+    [switch]$Staging,    # ROADMAP 1.3: deploy to the on-demand staging app (:8001), NOT prod
     [switch]$NoRestart,
     [switch]$DryRun
 )
@@ -39,6 +41,8 @@ $ErrorActionPreference = 'Stop'
 $ProdHost = 'root@31.130.132.224'
 $ProdDir  = '/root/twitch-extension'
 $Service  = 'twitchbot'
+$StagingDir     = '/root/twitch-extension-staging'   # ROADMAP 1.3: on-demand staging app
+$StagingService = 'twitchbot-staging'                # supervisor program, autostart=false, :8001
 $GamePath = 'X:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord'
 $ModId    = 'Shedoy23.BannerlordLink'
 
@@ -52,8 +56,9 @@ $ExtDir = Get-ChildItem -LiteralPath $RepoRoot -Directory |
 if (-not $ExtDir) { throw "Could not find extension dir (with backend/) under $RepoRoot" }
 $ModSrc = Join-Path $RepoRoot 'BannerlordLink\src\BannerlordLink.csproj'
 
-# Default: backend + frontend if nothing specified.
-if (-not ($Backend -or $Frontend -or $Mod -or $All)) { $Backend = $true; $Frontend = $true }
+# Default: backend + frontend if nothing specified. -Staging is its own path
+# (deploys to the staging app, never prod) so it must NOT trigger the prod default.
+if (-not ($Backend -or $Frontend -or $Mod -or $All -or $Staging)) { $Backend = $true; $Frontend = $true }
 if ($All) { $Backend = $true; $Frontend = $true; $Mod = $true }
 
 function Info($m){ Write-Host "-> $m" -ForegroundColor Cyan }
@@ -101,7 +106,7 @@ if ($Frontend) {
 # -- 2.5 Test gate (ROADMAP 1.2): critical tenant/security invariants MUST pass
 #        before a backend push. Red = deploy aborts. Game/feature tests are NOT
 #        gating (run them manually via the same script without --critical).
-if ($Backend) {
+if ($Backend -or $Staging) {
     Info "Test gate: critical tenant/security tests (--critical)..."
     Push-Location (Join-Path $ExtDir 'backend')
     try { & python tests/test_multi_tenant_isolation.py --critical; $gateRc = $LASTEXITCODE }
@@ -110,6 +115,42 @@ if ($Backend) {
         throw "CRITICAL tests FAILED (exit $gateRc) - deploy ABORTED. Fix the tenant/security regression first."
     }
     Ok "Critical tests green - safe to deploy"
+}
+
+# -- 2.6 Staging deploy (ROADMAP 1.3) --------------------------------------
+#   Pushes backend+frontend+admin into the SEPARATE staging dir and restarts
+#   the staging service (:8001). Does NOT touch prod. The staging service runs
+#   with DISABLE_LIVE_INTEGRATIONS=1 (its own .env) so it never joins the live
+#   chat / EventSub / PubSub. On-demand: start it for a test, stop when done.
+if ($Staging) {
+    $sTar = Join-Path $env:TEMP 'shedstream_staging.tar'
+    $sExcl = @('--exclude=*.db','--exclude=*.pyc','--exclude=__pycache__','--exclude=.env','--exclude=venv','--exclude=.venv')
+    $sPaths = @('backend','frontend','admin')
+    $sTarArgs = @('-cf', $sTar) + $sExcl + @('-C', $ExtDir) + $sPaths
+    Info "STAGING tar [$($sPaths -join ', ')] (excl db/.env/pycache)..."
+    if ($DryRun) {
+        Write-Host "  [dry] scp staging tar -> ${ProdHost}:/tmp/" -ForegroundColor DarkGray
+        Write-Host "  [dry] ssh extract into $StagingDir" -ForegroundColor DarkGray
+        Write-Host "  [dry] ssh supervisorctl restart $StagingService + health :8001" -ForegroundColor DarkGray
+    }
+    else {
+        & tar @sTarArgs; if ($LASTEXITCODE -ne 0){ throw "staging tar failed" }
+        Info "scp -> staging"
+        & scp $sTar "${ProdHost}:/tmp/shedstream_staging.tar"; if ($LASTEXITCODE -ne 0){ throw "staging scp failed" }
+        Info "extract on staging dir"
+        & ssh $ProdHost "mkdir -p $StagingDir && cd $StagingDir && tar -xf /tmp/shedstream_staging.tar && echo extracted"
+        if ($LASTEXITCODE -ne 0){ throw "staging remote extract failed" }
+        if (-not $NoRestart) {
+            Info "restart $StagingService + health check :8001 (6s)..."
+            $sHealth = & ssh $ProdHost "supervisorctl restart $StagingService >/dev/null 2>&1; sleep 7; supervisorctl status $StagingService; echo '---HTTP---'; curl -s -o /dev/null -w 'http=%{http_code}' http://127.0.0.1:8001/docs; echo; echo '---STAGING-MODE---'; grep -c 'STAGING MODE' /var/log/twitchbot-staging.out.log; echo '---ERR---'; supervisorctl tail -120 $StagingService stderr 2>/dev/null | grep -iE 'Traceback|SyntaxError|ImportError' | tail -5"
+            $sHealth | ForEach-Object { Write-Host "  $_" }
+            if ($sHealth -match 'RUNNING') { Ok "Staging RUNNING (:8001)" } else { Warn "Staging NOT running - check log!" }
+            if ($sHealth -match 'http=200') { Ok "Staging HTTP 200 (/docs)" } else { Warn "Staging HTTP not 200 - check log!" }
+            if ($sHealth -match 'Traceback|SyntaxError|ImportError') { Warn "Errors in staging stderr - check above!" }
+        } else { Warn "-NoRestart: staging tar extracted, service NOT restarted" }
+    }
+    Ok "Staging deploy done. Stop it when finished: ssh $ProdHost 'supervisorctl stop $StagingService'"
+    return
 }
 
 # -- 3. Backend/Frontend: tar -> scp -> extract -> restart -> verify -------

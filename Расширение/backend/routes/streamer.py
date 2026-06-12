@@ -623,7 +623,7 @@ def _dashboard_html(ch: dict) -> str:
 
   // Sprint 5.33 RESET-1 — Bannerlord admin reset tools.
   // GET preview /api/streamer/bannerlord/reset/preview → table_counts
-  // POST /api/streamer/bannerlord/reset с {confirm_phrase: channel_id} → wipe.
+  // POST /api/streamer/bannerlord/reset с {{confirm_phrase: channel_id}} → wipe.
   const bnrResetOut = document.getElementById('bnr-reset-result');
   const bnrResetShow = (txt, isError) => {{
     bnrResetOut.style.display = 'block';

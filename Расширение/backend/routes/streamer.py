@@ -428,6 +428,11 @@ def _dashboard_html(ch: dict) -> str:
   .tok-copy:hover{{background:#9333ea}}
   .tok-show{{background:transparent;color:#adadb8;border:1px solid #3a3a3d;padding:8px 12px;border-radius:5px;cursor:pointer;font-size:13px}}
   .tok-show:hover{{color:#fff;border-color:#fff}}
+  /* Module switcher */
+  .mod-switch{{display:flex;gap:10px}}
+  .mod-btn{{flex:1;background:#0e0e10;color:#adadb8;border:1px solid #3d3d3f;padding:12px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600}}
+  .mod-btn:hover{{border-color:#9147ff;color:#fff}}
+  .mod-btn.active{{background:#7e22ce;color:#fff;border-color:#9147ff}}
 </style></head>
 <body><div class="wrap">
   <div class="header">
@@ -444,6 +449,38 @@ def _dashboard_html(ch: dict) -> str:
     <div class="tile"><div class="lbl">Подключён</div><div class="val">{registered_at}</div></div>
     <div class="tile"><div class="lbl">OAuth токен</div><div class="val">{has_oauth}</div></div>
   </div>
+
+  <!-- Переключатель активного модуля -->
+  <div class="section">
+    <h2>🎮 Активный модуль расширения</h2>
+    <div class="sub">Какую игру видят зрители в расширении. Переключение мгновенное — зритель увидит при следующем обновлении (пара секунд).</div>
+    <div class="mod-switch">
+      <button class="mod-btn" id="mod-btn-bannerlord" onclick="setModule('bannerlord')">⚔️ Bannerlord</button>
+      <button class="mod-btn" id="mod-btn-rimworld" onclick="setModule('rimworld')">🪐 RimWorld</button>
+    </div>
+    <div id="mod-msg" class="boosty-msg"></div>
+  </div>
+  <script>
+  function markActiveModule(mod){{
+    ['bannerlord','rimworld'].forEach(function(m){{
+      var b = document.getElementById('mod-btn-'+m);
+      if(b) b.className = 'mod-btn' + (m === mod ? ' active' : '');
+    }});
+  }}
+  function modMsg(txt, isErr){{
+    var m = document.getElementById('mod-msg');
+    m.textContent = txt; m.className = 'boosty-msg ' + (isErr ? 'err' : 'ok');
+  }}
+  async function setModule(mod){{
+    try{{
+      const r = await fetch('/api/streamer/active-module', {{method:'POST', credentials:'include', headers:{{'Content-Type':'application/json'}}, body: JSON.stringify({{module_id: mod}})}});
+      const d = await r.json();
+      if(d.status === 'ok'){{ markActiveModule(d.active_module); modMsg('✅ Активный модуль: ' + d.active_module, false); }}
+      else {{ modMsg('Ошибка: ' + (d.status || 'не удалось'), true); }}
+    }} catch(e){{ modMsg('Network error: ' + e.message, true); }}
+  }}
+  markActiveModule('{module}');
+  </script>
 
   <!-- Module-токены (для C#-модов) -->
   <div class="section">
@@ -876,6 +913,34 @@ async def streamer_module_token(request: Request):
         "expires_in": _MODULE_TOKEN_TTL,
         "instructions": "Скопируй в config мода как module_token. Без этого connector не сможет слать события.",
     })
+
+
+@router.post("/api/streamer/active-module", include_in_schema=False)
+async def streamer_set_active_module(request: Request):
+    """Стример из dashboard переключает активный модуль расширения — что видят
+    зрители (bannerlord / rimworld). Требует session cookie. Меняет
+    channels.active_module; фронт зрителя подхватывает при следующем опросе."""
+    cid = _read_session_cookie(request)
+    if cid is None:
+        return JSONResponse({"status": "unauthenticated"}, status_code=401)
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    module_id = (body.get("module_id") or "").strip()
+    if not module_id or not module_id.replace("_", "").isalnum():
+        return JSONResponse({"status": "invalid_module_id"}, status_code=400)
+    from modules._loader import get_module
+    if get_module(module_id) is None:
+        return JSONResponse(
+            {"status": "module_not_found", "module_id": module_id}, status_code=404)
+    db = get_db()
+    async with db._connect() as conn:
+        await conn.execute(
+            "UPDATE channels SET active_module=? WHERE channel_id=?",
+            (module_id, cid))
+        await conn.commit()
+    return JSONResponse({"status": "ok", "active_module": module_id, "channel_id": cid})
 
 
 # ── M4 follow-up (б): OAuth refresh ──────────────────────────────────────────

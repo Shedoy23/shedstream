@@ -420,6 +420,14 @@ def _dashboard_html(ch: dict) -> str:
     .boosty-form{{grid-template-columns:1fr;}}
     .boosty-row{{flex-wrap:wrap}}
   }}
+  /* Module tokens */
+  .tok-row{{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}}
+  .tok-name{{width:90px;font-weight:700;color:#c084fc}}
+  .tok-field{{flex:1;min-width:180px;background:#0e0e10;color:#9ca3af;border:1px solid #3d3d3f;border-radius:5px;padding:8px;font-family:monospace;font-size:12px}}
+  .tok-copy{{background:#7e22ce;color:#fff;border:none;padding:8px 14px;border-radius:5px;cursor:pointer;font-size:13px;font-weight:700}}
+  .tok-copy:hover{{background:#9333ea}}
+  .tok-show{{background:transparent;color:#adadb8;border:1px solid #3a3a3d;padding:8px 12px;border-radius:5px;cursor:pointer;font-size:13px}}
+  .tok-show:hover{{color:#fff;border-color:#fff}}
 </style></head>
 <body><div class="wrap">
   <div class="header">
@@ -436,6 +444,51 @@ def _dashboard_html(ch: dict) -> str:
     <div class="tile"><div class="lbl">Подключён</div><div class="val">{registered_at}</div></div>
     <div class="tile"><div class="lbl">OAuth токен</div><div class="val">{has_oauth}</div></div>
   </div>
+
+  <!-- Module-токены (для C#-модов) -->
+  <div class="section">
+    <h2>🔑 Module-токены</h2>
+    <div class="sub">
+      Токен авторизации C#-мода. Вставь его в настройки мода (поле «Module-токен»)
+      один раз — дальше мод авторизуется сам. <b>Не показывай на стриме.</b>
+    </div>
+    <div class="tok-row">
+      <span class="tok-name">Bannerlord</span>
+      <input class="tok-field" id="tok-bannerlord" type="text" readonly placeholder="скрыт — «Копировать» или «Показать»">
+      <button class="tok-copy" onclick="copyTok('bannerlord')">📋 Копировать</button>
+      <button class="tok-show" onclick="showTok('bannerlord')">👁 Показать</button>
+    </div>
+    <div class="tok-row">
+      <span class="tok-name">RimWorld</span>
+      <input class="tok-field" id="tok-rimworld" type="text" readonly placeholder="скрыт — «Копировать» или «Показать»">
+      <button class="tok-copy" onclick="copyTok('rimworld')">📋 Копировать</button>
+      <button class="tok-show" onclick="showTok('rimworld')">👁 Показать</button>
+    </div>
+    <div id="tok-msg" class="boosty-msg"></div>
+  </div>
+  <script>
+  async function fetchTok(mod){{
+    const r = await fetch('/api/streamer/module-token?module_id=' + mod, {{credentials:'include'}});
+    const d = await r.json();
+    if(d.status === 'ok') return d.token;
+    tokMsg('Ошибка: ' + (d.status || 'не удалось получить токен'), true);
+    return null;
+  }}
+  async function copyTok(mod){{
+    const t = await fetchTok(mod);
+    if(!t) return;
+    try{{ await navigator.clipboard.writeText(t); tokMsg('✅ ' + mod + '-токен скопирован в буфер', false); }}
+    catch(e){{ document.getElementById('tok-'+mod).value = t; tokMsg('Буфер недоступен — токен показан, скопируй вручную', true); }}
+  }}
+  async function showTok(mod){{
+    const t = await fetchTok(mod);
+    if(t) document.getElementById('tok-'+mod).value = t;
+  }}
+  function tokMsg(txt, isErr){{
+    const m = document.getElementById('tok-msg');
+    m.textContent = txt; m.className = 'boosty-msg ' + (isErr ? 'err' : 'ok');
+  }}
+  </script>
 
   <!-- Boosty subscribers admin (Sprint 5.31 #45b) -->
   <div class="section" id="boosty-section">

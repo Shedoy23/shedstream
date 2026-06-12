@@ -97,7 +97,9 @@ if ($Frontend) {
         if (-not (Test-Path $p)) { Warn "no $html - skip cache-bust"; continue }
         if ($DryRun) { Write-Host "  [dry] cache-bust $html -> v=$stamp" -ForegroundColor DarkGray; continue }
         $txt = [IO.File]::ReadAllText($p, $utf8)
-        $new = [regex]::Replace($txt, 'viewer\.js\?v=[^"'']+', "viewer.js?v=$stamp")
+        # Кэш-бастим ВСЕ viewer*.js (viewer.js + сплит-модули viewer-rimworld.js /
+        # viewer-bannerlord.js — ROADMAP 2.4) одним штампом, чтобы не было рассинхрона.
+        $new = [regex]::Replace($txt, '(viewer[\w-]*\.js)\?v=[^"'']+', ('$1?v=' + $stamp))
         [IO.File]::WriteAllText($p, $new, $utf8)
     }
     Ok "Cache-bust viewer.js?v=$stamp (extension.html + mobile.html)"

@@ -30,7 +30,7 @@
 #   - aiosqlite.connect(db.db_path) → НЕ копировать pattern, использовать
 #     db._connect() (через pool) в новом коде
 
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from datetime import datetime
 import aiosqlite
@@ -45,6 +45,35 @@ from dependencies import require_jwt_channel, require_jwt_user
 
 router = APIRouter()
 _security = HTTPBasic()
+
+# ── Security 2.1 (2026-06-12): RimWorld mod-ingest auth ──────────────────────
+# 13 mod-side endpoints accepted UNAUTHENTICATED writes (wipe pawns / rig shop
+# catalog / inject pawns). Gate them with the module-token — mirrors Bannerlord
+# (issue_module_token / verify_module_token in routes/streamer.py).
+# Rollout-safe: SOFT mode (default) logs a missing/invalid token but ALLOWS the
+# request, so nothing breaks while the RimLink mod is updated to send it. Set
+# env RIMWORLD_REQUIRE_TOKEN=1 to enforce (401) once the mod is confirmed sending it.
+_RIMWORLD_REQUIRE_TOKEN = os.getenv("RIMWORLD_REQUIRE_TOKEN", "").lower() in ("1", "true", "yes")
+_rimworld_soft_warned = False
+
+async def rimworld_mod_auth(request: Request):
+    """Verify the RimWorld module-token on a mod-ingest request. Returns the
+    token's channel_id when valid; in SOFT mode returns None (allowed) for a
+    missing/invalid token, in STRICT mode raises 401."""
+    from routes.streamer import verify_module_token  # lazy import: avoid cycle
+    auth = request.headers.get("Authorization", "")
+    token = auth[7:].strip() if auth[:7].lower() == "bearer " else ""
+    claims = verify_module_token(token) if token else None
+    if claims and claims.get("module_id") == "rimworld":
+        return claims.get("channel_id")
+    if _RIMWORLD_REQUIRE_TOKEN:
+        raise HTTPException(status_code=401, detail="rimworld module token required")
+    global _rimworld_soft_warned
+    if not _rimworld_soft_warned:
+        print("⚠️ [rimworld-auth] SOFT mode — mod request without valid module-token "
+              "(allowed for now; set RIMWORLD_REQUIRE_TOKEN=1 to enforce after mod update)")
+        _rimworld_soft_warned = True
+    return None
 
 # Маппинг категории → тип команды
 CATEGORY_TO_CMD = {
@@ -247,13 +276,13 @@ async def rimworld_status():
     return {"online": elapsed < RIMWORLD_OFFLINE_TIMEOUT, "last_seen": int(elapsed)}
 
 @router.post("/api/rimworld/heartbeat")
-async def rimworld_heartbeat():
+async def rimworld_heartbeat(_auth=Depends(rimworld_mod_auth)):
     global rimworld_last_heartbeat
     rimworld_last_heartbeat = datetime.utcnow()
     return {"status": "ok"}
 
 @router.post("/api/rimworld/offline")
-async def rimworld_offline():
+async def rimworld_offline(_auth=Depends(rimworld_mod_auth)):
     global rimworld_last_heartbeat
     rimworld_last_heartbeat = None
     return {"status": "ok"}
@@ -262,7 +291,7 @@ async def rimworld_offline():
 # ===== СЕССИЯ =====
 
 @router.post("/api/rimworld/session-start")
-async def rimworld_session_start():
+async def rimworld_session_start(_auth=Depends(rimworld_mod_auth)):
     """Вызывается при загрузке игры — очищает старых пешек"""
     db = get_db()
     async with aiosqlite.connect(db.db_path) as conn:
@@ -284,7 +313,7 @@ async def rimworld_session_start():
 # ===== СИНХРОНИЗАЦИЯ ПЕШКИ =====
 
 @router.post("/api/rimworld/sync-pawn")
-async def sync_pawn(request: Request):
+async def sync_pawn(request: Request, _auth=Depends(rimworld_mod_auth)):
     """Синхронизация одной пешки с детальными данными"""
     db = get_db()
     try:
@@ -661,7 +690,7 @@ async def get_my_pawn(username: str):
 # ===== МАССОВАЯ СИНХРОНИЗАЦИЯ ПЕШЕК =====
 
 @router.post("/api/rimworld/sync-pawns")
-async def sync_pawns_bulk(request: Request):
+async def sync_pawns_bulk(request: Request, _auth=Depends(rimworld_mod_auth)):
     """Массовая синхронизация пешек (правильная версия)"""
     db = get_db()
     from dependencies import resolve_channel_id_or_default  # mod endpoint без JWT — TODO M4.5+: HMAC + явный channel_id из мода
@@ -819,7 +848,7 @@ async def sync_pawns_bulk(request: Request):
 # ===== КОМАНДЫ =====
 
 @router.get("/api/rimworld/commands")
-async def get_commands():
+async def get_commands(_auth=Depends(rimworld_mod_auth)):
     """Мод забирает команды для выполнения"""
     async with get_commands_lock():
         return await _get_commands_inner()
@@ -853,13 +882,13 @@ async def _get_commands_inner():
 
 
 @router.post("/api/rimworld/ack-command")
-async def ack_command(request: Request):
+async def ack_command(request: Request, _auth=Depends(rimworld_mod_auth)):
     data = await request.json()
     print(f"✅ Команда {data.get('command_id')} выполнена: success={data.get('success')}")
     return {"status": "ok"}
 
 @router.post("/api/rimworld/commands-processed")
-async def commands_processed(request: Request):
+async def commands_processed(request: Request, _auth=Depends(rimworld_mod_auth)):
     """Мод уведомляет о завершении обработки пакета команд"""
     data = await request.json()
     count = data.get('processed', 0)
@@ -881,7 +910,7 @@ async def add_command(request: Request):
 # ===== МАГАЗИН / КАТАЛОГ =====
 
 @router.post("/api/rimworld/shop-catalog")
-async def receive_shop_catalog(request: Request):
+async def receive_shop_catalog(request: Request, _auth=Depends(rimworld_mod_auth)):
     """Принимает каталог предметов от мода"""
     db = get_db()
     try:
@@ -1800,7 +1829,7 @@ async def get_colonists_by_user(username: str):
 
 # Список доступных ивентов — берём из config или хардкодим
 @router.post("/api/rimworld/event-catalog")
-async def sync_event_catalog(request: Request):
+async def sync_event_catalog(request: Request, _auth=Depends(rimworld_mod_auth)):
     """Мод отправляет каталог ивентов из игры"""
     db = get_db()
     try:
@@ -1928,7 +1957,7 @@ async def rimworld_command_legacy(request: Request):
     return {"status": "ok"}
 
 @router.get("/api/rimworld/get-commands")
-async def get_commands_legacy():
+async def get_commands_legacy(_auth=Depends(rimworld_mod_auth)):
     """Алиас для /api/rimworld/commands"""
     async with get_commands_lock():
         return await _get_commands_inner()
@@ -1938,7 +1967,7 @@ async def confirm_commands(_admin: str = Depends(require_admin)):
     return {"status": "ok"}
 
 @router.post("/api/rimworld/event-result")
-async def rimworld_event_result(request: Request):
+async def rimworld_event_result(request: Request, _auth=Depends(rimworld_mod_auth)):
     try:
         data = await request.json()
         print(f"🎲 Результат ивента: {data}")
@@ -1967,7 +1996,7 @@ async def sync_pawn_death(request: Request, _admin: str = Depends(require_admin)
         return {"status": "error", "message": str(e)}
 
 @router.post("/api/rimworld/sync-state")
-async def sync_rimworld_state(request: Request):
+async def sync_rimworld_state(request: Request, _auth=Depends(rimworld_mod_auth)):
     """Массовая синхронизация состояния из мода"""
     db = get_db()
     from dependencies import resolve_channel_id_or_default  # mod endpoint без JWT — TODO M4.5+: HMAC + явный channel_id из мода

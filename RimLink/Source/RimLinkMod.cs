@@ -35,6 +35,11 @@ namespace RimLink
             get => Prices?.SyncInterval ?? 30;
             set { if (Prices != null) Prices.SyncInterval = value; }
         }
+        public string ModuleToken
+        {
+            get => Prices?.ModuleToken ?? "";
+            set { if (Prices != null) Prices.ModuleToken = value; }
+        }
 
         private volatile bool _running = true;
         private Thread _syncThread;
@@ -153,6 +158,9 @@ namespace RimLink
 
             ls.Label("URL сервера:");
             ServerUrl = ls.TextEntry(ServerUrl);
+            ls.Gap();
+            ls.Label("Module-токен (вставь из дашборда — авторизация мода):");
+            ModuleToken = ls.TextEntry(ModuleToken);
             ls.Gap();
             ls.Label($"Интервал синхронизации: {SyncInterval} сек");
             SyncInterval = (int)ls.Slider(SyncInterval, 30, 300);

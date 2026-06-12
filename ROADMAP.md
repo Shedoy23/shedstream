@@ -169,14 +169,27 @@ wagering (§6.2.6) — только для Bits; Twitch Predictions разреш
 
 ## 2. P1 — ближайшие 2–4 НЕДЕЛИ
 
-### [ ] 2.1 Закрыть хвост секьюрити
-Главное из отложенного: RimWorld mod-ingest эндпоинты до сих пор UNAUTH
-(нужен shared secret в C#-моде, как module-token у Bannerlord).
-```
-Промпт: «Закрой RimWorld mod-ingest auth (#1 из аудита): добавь module-token
-в RimLink C#-мод и проверку на backend, по образцу Bannerlord. Потом повтори
-быстрый аудит — что осталось из 13 CRITICAL.»
-```
+### [~] 2.1 Закрыть хвост секьюрити — RimWorld auth (КОД ГОТОВ 2026-06-12)
+Было: 13 RimWorld mod-ingest эндпоинтов БЕЗ авторизации (любой по URL мог стереть
+пешки / подменить цены / инжектить пешки). Закрыто module-token'ом по образцу
+Bannerlord (`verify_module_token`).
+
+**Сделано (код + тесты):**
+- Backend (`rimworld.py`): зависимость `rimworld_mod_auth` на всех 13 mod-эндпоинтах.
+  **SOFT-режим по умолчанию** (нет токена → пускает + логирует, НЕ ломает); строгий —
+  по env `RIMWORLD_REQUIRE_TOKEN=1` (тогда 401). Проверено: soft/strict/cross-module.
+- RimLink C# (`PriceSettings`/`RimLinkMod`/`RimLinkAPI`): поле `ModuleToken` в настройках
+  мода + заголовок `Authorization: Bearer` на всех запросах. Build OK.
+
+**Rollout (ручные шаги, по порядку — ничего не ломается):**
+1. Задеплоить backend (soft-режим) — безопасно, RimWorld продолжает работать.
+2. Обновить RimLink-мод в игре (новый `RimLink.dll` из `RimLink/Assemblies/`).
+3. Стримеру: получить rimworld-токен (`GET /api/streamer/module-token?module_id=rimworld`
+   из дашборда, или admin-эндпоинт) → вставить в настройки мода (вкладка «Основные»).
+4. Убедиться по логам, что мод шлёт валидный токен (нет SOFT-warning) → выставить
+   `RIMWORLD_REQUIRE_TOKEN=1` в прод `.env` + рестарт → строгий режим, дыра закрыта.
+
+**Осталось:** деплой + ручные шаги выше; потом — быстрый ре-аудит «что ещё из 13 CRITICAL».
 
 ### [ ] 2.2 Тест восстановления из бэкапа (restore drill, ~30 мин)
 Бэкап, из которого никогда не восстанавливались — это не бэкап, а надежда.

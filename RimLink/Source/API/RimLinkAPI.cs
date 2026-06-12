@@ -44,6 +44,10 @@ namespace RimLink.API
             var c = new TimedWebClient { Encoding = Encoding.UTF8 };
             c.Headers[HttpRequestHeader.ContentType] = "application/json";
             c.Headers[HttpRequestHeader.UserAgent] = "RimLink-Mod/1.0";
+            // Security 2.1: module-токен, если задан в настройках мода.
+            var token = _mod?.ModuleToken;
+            if (!string.IsNullOrEmpty(token))
+                c.Headers[HttpRequestHeader.Authorization] = "Bearer " + token;
             return c;
         }
 

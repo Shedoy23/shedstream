@@ -28,6 +28,9 @@ namespace RimLink
         // Настройки подключения (сохраняются между сессиями)
         public string ServerUrl    = RimLinkConstants.DefaultServerUrl;
         public int    SyncInterval = RimLinkConstants.DefaultSyncInterval;
+        // Security 2.1: Bearer module-токен для авторизации mod-эндпоинтов.
+        // Стример вставляет его из дашборда (как у Bannerlord). Пусто = старый режим.
+        public string ModuleToken  = "";
 
         // Базовые цены прогрессии (1-я покупка = Base, 2-я = Base*2, и т.д.)
         public int ProgressiveBaseTrait = 1000;  // 1000 → 2000 → 3000...
@@ -64,6 +67,7 @@ namespace RimLink
 
             Scribe_Values.Look(ref ServerUrl,    "serverUrl",    RimLinkConstants.DefaultServerUrl);
             Scribe_Values.Look(ref SyncInterval, "syncInterval", RimLinkConstants.DefaultSyncInterval);
+            Scribe_Values.Look(ref ModuleToken, "moduleToken", "");
 
             if (Overrides      == null) Overrides      = new Dictionary<string, int>();
             if (Enabled        == null) Enabled        = new Dictionary<string, bool>();

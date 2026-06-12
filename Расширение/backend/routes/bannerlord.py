@@ -1314,6 +1314,10 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
     if action_type not in _PURCHASABLE_ACTIONS:
         return {"success": False, "message": f"Action '{action_type}' не разрешён"}
 
+    # ROADMAP 2.3 — учёт использования фич (best-effort, не блокирует действие).
+    from feature_usage import record_feature_use
+    await record_feature_use(channel_id, f"bannerlord:{action_type}")
+
     # Sprint 5.1c/5.2: server-side price enforcement.
     # Random equip — БЕСПЛАТНО в крустиках (price=0), mod-side списывает
     # Hero.Gold (in-game динары) — fairness через game economy.

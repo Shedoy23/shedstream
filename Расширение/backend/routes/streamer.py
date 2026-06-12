@@ -943,6 +943,35 @@ async def streamer_set_active_module(request: Request):
     return JSONResponse({"status": "ok", "active_module": module_id, "channel_id": cid})
 
 
+@router.get("/api/streamer/feature-usage", include_in_schema=False)
+async def streamer_feature_usage(request: Request):
+    """ROADMAP 2.3 — топ/анти-топ используемых фич за окно (по умолчанию 7 дней).
+    Для решений «что развивать / что заморозить» от данных. Требует session cookie."""
+    cid = _read_session_cookie(request)
+    if cid is None:
+        return JSONResponse({"status": "unauthenticated"}, status_code=401)
+    try:
+        days = int(request.query_params.get("days") or 7)
+    except (TypeError, ValueError):
+        days = 7
+    days = max(1, min(days, 90))
+    db = get_db()
+    async with db._connect() as conn:
+        rows = await (await conn.execute(
+            "SELECT feature_key, SUM(count) AS total FROM feature_usage "
+            "WHERE channel_id=? AND day >= date('now', ?) "
+            "GROUP BY feature_key ORDER BY total DESC",
+            (cid, f"-{days} days"))).fetchall()
+    ranked = [{"feature": r[0], "count": r[1]} for r in rows]
+    return JSONResponse({
+        "status": "ok",
+        "days": days,
+        "total_features": len(ranked),
+        "top": ranked[:10],
+        "bottom": list(reversed(ranked[-10:])) if len(ranked) > 10 else [],
+    })
+
+
 # ── M4 follow-up (б): OAuth refresh ──────────────────────────────────────────
 
 # Refresh когда до expiry осталось меньше этого окна (60 сек безопаснее

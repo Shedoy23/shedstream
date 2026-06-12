@@ -208,7 +208,16 @@ def _register_extension_routes():
     
     # Объединяем оба словаря маршрутов
     all_routes = {**_EXTENSION_FILES, **_EXTENSION_FILES_PREFIXED}
-    
+
+    # ROADMAP 2.4: split-модули viewer-*.js (viewer-rimworld.js / viewer-bannerlord.js)
+    # авто-регистрируем из папки — чтобы новый кусок сплита не давал 404 без ручного
+    # добавления в словарь (этот класс бага уже один раз поймали).
+    import glob as _glob
+    for _fp in _glob.glob(os.path.join(base, "viewer-*.js")):
+        _fn = os.path.basename(_fp)
+        all_routes.setdefault(f"/{_fn}", _fn)
+        all_routes.setdefault(f"/frontend/{_fn}", _fn)
+
     for route, filename in all_routes.items():
         full = os.path.join(base, filename)
         ext  = os.path.splitext(filename)[1]

@@ -146,12 +146,14 @@ _commands_lock = asyncio.Lock()
 def get_commands_lock():
     return _commands_lock
 
-async def _require_stream_live(channel_id=None):
+async def _require_stream_live(request=None, channel_id=None):
     """Проверка стрима для rimworld эндпоинтов — через bot из main.
 
-    Bug 4 fix (2026-05-10): channel_id опциональный. RimWorld-эндпоинты
-    дёргаются с C# мода через TWITCH_BROADCASTER_ID и из админки —
-    fallback на ContextVar/legacy резолвится внутри _is_stream_live.
+    channel_id резолвится: явный параметр → JWT запроса (require_jwt_channel,
+    он же выставляет ContextVar) → ContextVar/legacy внутри _is_stream_live.
+    ВАЖНО (fix 2026-06-12): передавай request — guard часто зовётся ДО auth в
+    хендлере, и без этого channel_id был «not resolvable» → проверка падала
+    («не удалось проверить статус стрима») на всех RimWorld-действиях.
 
     Возвращает dict с ошибкой если стрим недоступен или проверка упала,
     None — если стрим живой.
@@ -161,6 +163,8 @@ async def _require_stream_live(channel_id=None):
     from config import TESTING_BYPASS_STREAM_LIVE
     if TESTING_BYPASS_STREAM_LIVE:
         return None
+    if channel_id is None and request is not None:
+        channel_id = require_jwt_channel(request)
     try:
         import main as _main
         live = await _main.bot._is_stream_live(channel_id=channel_id)
@@ -1049,7 +1053,7 @@ async def get_catalog(category: str = None, search: str = None, username: str = 
 
 @router.post("/api/rimworld/buy-item")
 async def buy_item(request: Request):
-    if err := await _require_stream_live():
+    if err := await _require_stream_live(request):
         return err
     db = get_db()
 
@@ -1111,7 +1115,7 @@ async def buy_item(request: Request):
 
 @router.post("/api/rimworld/create-pawn")
 async def create_pawn(request: Request):
-    if err := await _require_stream_live():
+    if err := await _require_stream_live(request):
         return err
     db = get_db()
     # JWT-защита: имя зрителя из подписанного JWT, не из body.
@@ -1139,7 +1143,7 @@ async def create_pawn(request: Request):
 
 @router.post("/api/rimworld/heal-pawn")
 async def heal_pawn(request: Request):
-    if err := await _require_stream_live():
+    if err := await _require_stream_live(request):
         return err
     db = get_db()
     # JWT-защита: имя зрителя из подписанного JWT, не из body.
@@ -1186,7 +1190,7 @@ async def get_heal_cooldown(username: str):
 
 @router.post("/api/rimworld/resurrect-pawn")
 async def resurrect_pawn(request: Request):
-    if err := await _require_stream_live():
+    if err := await _require_stream_live(request):
         return err
     db = get_db()
     # JWT-защита: имя зрителя из подписанного JWT, не из body.
@@ -1264,7 +1268,7 @@ async def get_progressive_price(username: str, category: str):
 @router.post("/api/rimworld/buy-gene")
 async def buy_gene(request: Request):
     """Зритель покупает ген — прогрессивная цена: 1-й=1000, 2-й=2000, ..."""
-    if err := await _require_stream_live():
+    if err := await _require_stream_live(request):
         return err
     # JWT-защита: имя зрителя из подписанного JWT (не из body), channel_id тоже.
     auth = require_jwt_user(request)
@@ -1394,7 +1398,7 @@ async def buy_passion(request: Request):
     Цена: 500💎 за ⭐ (0→1), 1500💎 за 🔥 (1→2).
     Нельзя перескочить через уровень (0→2 не работает).
     """
-    if err := await _require_stream_live():
+    if err := await _require_stream_live(request):
         return err
     # JWT-защита: имя зрителя из подписанного JWT (не из body), channel_id тоже.
     auth = require_jwt_user(request)
@@ -1466,7 +1470,7 @@ async def buy_passion(request: Request):
 @router.post("/api/rimworld/reset-passion")
 async def reset_passion(request: Request):
     """Сбросить страсть к навыку до None (0). Стоимость 300💎."""
-    if err := await _require_stream_live():
+    if err := await _require_stream_live(request):
         return err
     db = get_db()
     # JWT-защита: имя зрителя из подписанного JWT, не из body.
@@ -1524,7 +1528,7 @@ async def reset_passion(request: Request):
 @router.post("/api/rimworld/buy-trait")
 async def buy_trait(request: Request):
     """Зритель покупает черту — прогрессивная цена: 1-я=1000, 2-я=2000, ..."""
-    if err := await _require_stream_live():
+    if err := await _require_stream_live(request):
         return err
     # JWT-защита: имя зрителя из подписанного JWT (не из body), channel_id тоже.
     auth = require_jwt_user(request)
@@ -1577,7 +1581,7 @@ async def buy_trait(request: Request):
 
 @router.post("/api/rimworld/remove-trait")
 async def remove_trait(request: Request):
-    if err := await _require_stream_live():
+    if err := await _require_stream_live(request):
         return err
     db = get_db()
     # JWT-защита: имя зрителя из подписанного JWT, не из body.
@@ -1615,7 +1619,7 @@ async def remove_trait(request: Request):
 @router.post("/api/rimworld/remove-gene")
 async def remove_gene(request: Request):
     """Зритель удаляет ксеноген (включая неактивные/подавленные). Стоимость 3000💎."""
-    if err := await _require_stream_live():
+    if err := await _require_stream_live(request):
         return err
     db = get_db()
     # JWT-защита: имя зрителя из подписанного JWT, не из body.
@@ -1663,7 +1667,7 @@ async def remove_gene(request: Request):
 @router.post("/api/rimworld/buy-implant")
 async def buy_implant_alias(request: Request):
     """Установка импланта. part_hint='left'|'right'|'' — выбор стороны для парных."""
-    if err := await _require_stream_live():
+    if err := await _require_stream_live(request):
         return err
     # JWT-защита: имя зрителя из подписанного JWT (не из body), channel_id тоже.
     auth = require_jwt_user(request)
@@ -1726,7 +1730,7 @@ async def buy_implant_alias(request: Request):
 @router.post("/api/rimworld/train-skill")
 async def train_skill_alias(request: Request):
     """Алиас для buy-item с category=neurotrainer"""
-    if err := await _require_stream_live():
+    if err := await _require_stream_live(request):
         return err
     # JWT-защита: имя зрителя из подписанного JWT (не из body), channel_id тоже.
     auth = require_jwt_user(request)
@@ -1898,7 +1902,7 @@ async def get_events():
 
 @router.post("/api/rimworld/trigger-event")
 async def trigger_event(request: Request):
-    if err := await _require_stream_live():
+    if err := await _require_stream_live(request):
         return err
     db = get_db()
     # JWT-защита: имя зрителя из подписанного JWT, не из body.

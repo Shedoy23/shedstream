@@ -275,7 +275,17 @@ viewer.js, до viewer-rimworld.js в обоих шеллах; glob-роут + �
 - **Кусок 7 (battle status):** loadBannerlordBattleStatus + _renderBannerlordDetachmentPanel
   + _renderBannerlordStance + _renderBannerlordBattleBanner. Ноль общих констант. Стейт
   `_bannerlordBattle` остался в core; hero-card + polling зовут перенесённые рендеры
-  кросс-файлово (рантайм). viewer.js: 4796 → **4583**. (Анализ безопасности — субагентом.)
+  кросс-файлово (рантайм). viewer.js: 4796 → 4583. (Анализ безопасности — субагентом.)
+- **Кусок 8 (shop):** loadBannerlordShop. Форвард-зовёт core/cluster-2 рендеры
+  (renderBannerlordRandomEquipHtml/CurrencyHtml/_bind*). viewer.js: 4583 → 4512.
+- **Кусок 9 (classes/active-powers/summon):** loadBannerlordClasses + class-picker +
+  active-powers + summon. ⚠️ Общие символы ОСТАВЛЕНЫ в core (форвард): `_bannerlordClassesCache`
+  (стейт, читают currency+hero-card), `BNR_POWER_LABELS`/`PRICES` (юзает и buffs).
+  viewer.js: 4512 → 4313.
+- **Кусок 10 (buffs HUD):** loadBannerlordBuffs + _renderBannerlordBuffs. Форвард
+  `BNR_POWER_LABELS` (core). viewer.js: 4313 → **4268**.
+  Каждый кусок 7-10: байт-точный mover + node-check + единственность + ноль мохибейка
+  + прод-200 + кросс-файл-callers проверены. **viewer.js: 7141 → 4268 (−40%).**
 
 **Осталось вынести (Bannerlord) — это ЗАПУТАННЫЕ куски, делать осторожно в свежей сессии
 (не в хвосте марафона). Анализ зависимостей — субагентом, см. ниже:**

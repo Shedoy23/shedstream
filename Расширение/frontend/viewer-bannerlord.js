@@ -2632,3 +2632,26 @@ function _renderBannerlordBuffs() {
 
     slot.innerHTML = `<div style="padding:4px 0 6px 0;">${chips}</div>`;
 }
+
+// ===== Status badge (онлайн/оффлайн Bannerlord) — split чанк 11 (2026-06-13) =====
+// loadBannerlordStatus. Только fetch + бейдж. Callers рантайм (polling).
+async function loadBannerlordStatus() {
+    const badge = document.getElementById('bannerlord-status-badge');
+    if (!badge) return;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/status`, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
+        const data = await r.json();
+        if (data.online) {
+            badge.style.color = '#34d399';
+            badge.textContent = '🟢 Онлайн';
+        } else {
+            badge.style.color = '#f87171';
+            badge.textContent = '🔴 Оффлайн';
+        }
+    } catch (e) {
+        // Sprint 5.29 audit fix #36: badge silent OK, но логируем для диагностики
+        console.warn('[BNR loadBannerlordStatus]', e);
+    }
+}

@@ -2844,26 +2844,9 @@ function _bindBannerlordRandomEquip() {
 // Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 10, 2026-06-13).
 // loadBannerlordBuffs + _renderBannerlordBuffs. BNR_POWER_LABELS + стейт остаются в core (форвард).
 
-async function loadBannerlordStatus() {
-    const badge = document.getElementById('bannerlord-status-badge');
-    if (!badge) return;
-    try {
-        const r = await fetch(`${API_URL}/api/bannerlord/status`, {
-            headers: { 'X-Twitch-JWT': authToken || '' },
-        });
-        const data = await r.json();
-        if (data.online) {
-            badge.style.color = '#34d399';
-            badge.textContent = '🟢 Онлайн';
-        } else {
-            badge.style.color = '#f87171';
-            badge.textContent = '🔴 Оффлайн';
-        }
-    } catch (e) {
-        // Sprint 5.29 audit fix #36: badge silent OK, но логируем для диагностики
-        console.warn('[BNR loadBannerlordStatus]', e);
-    }
-}
+// ===== Status badge (онлайн/оффлайн Bannerlord) =====
+// Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 11, 2026-06-13).
+// loadBannerlordStatus. Зовётся из _startBannerlordPolling (рантайм).
 
 function _stopBannerlordPolling() {
     if (_bannerlordPollId) {

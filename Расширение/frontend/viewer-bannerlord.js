@@ -4414,6 +4414,19 @@ async function loadBannerlordHero() {
         _renderRetinue(_bannerlordLastRetinue);
         renderBannerlordClassPicker();
       }  // ← end of `if (_bnrChanged)` for panes + retinue + class picker
+        // Багрепорт (2026-06-13): свита не обновлялась при апгрейде/найме — re-render
+        // был ТОЛЬКО внутри if(_bnrChanged), а апгрейд свиты не меняет struct hash
+        // hero-пейна → UI висел старым до левелапа/смены шмота. Рефрешим свиту при
+        // ЛЮБОМ изменении состава/тира; дедуп сравнением с кэшем (репейнт лишь при
+        // реальном изменении — без мерцания; _renderRetinue само ре-биндит кнопки,
+        // слот #bnr-retinue-slot переживает re-render via _preserveSlots).
+        {
+            const _newRetinue = data.retinue || [];
+            if (JSON.stringify(_newRetinue) !== JSON.stringify(_bannerlordLastRetinue || [])) {
+                _bannerlordLastRetinue = _newRetinue;
+                _renderRetinue(_bannerlordLastRetinue);
+            }
+        }
         // ↓ Sub-loaders ALWAYS run — они дедуплируются сами через _smartInnerHTML
         //   на своих slot'ах. Видят свежие данные даже когда hero pane не сменился.
         // Sprint 5.32 #46 — refill daily slot (recreated на re-render Hero pane).

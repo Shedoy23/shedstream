@@ -560,3 +560,427 @@ function _renderBuyWorkshopInline() {
         setTimeout(loadBannerlordWorkshops, 2000);
     });
 }
+
+// ===== Fiefs / Caravans / Inheritance (пассивный доход) — split чанк 4 (2026-06-13) =====
+// loadBannerlordFiefs, loadBannerlordCaravans(+_renderBuyCaravanInline),
+// loadBannerlordCaravanRescues, loadBannerlordInheritance. Core _bnr* forward; callers рантайм.
+// Sprint 5.33 (BLT-parity FIEF) — Fief tribute passive income panel.
+// Read-only view (owned fiefs come from in-game ownership). Active feature:
+// tribute_boost — 2000💎 → 7-day +50% multiplier на один fief.
+
+async function loadBannerlordFiefs() {
+    const slot = document.getElementById('bnr-fiefs-slot');
+    if (!slot) return;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/my-fiefs`, {
+            headers: { 'X-Twitch-JWT': authToken || '' }
+        }).then(r => r.json()).catch(() => ({success: false}));
+
+        // FLICKER-FIX v6 (2026-05-29): skip update на backend error — last good
+        // render остаётся видимым через transient blips.
+        if (!r || r.success === false) return;
+
+        const fiefs = Array.isArray(r.fiefs) ? r.fiefs : [];
+        // FLICKER-FIX v6: при genuine empty state (0 fiefs) — render stable
+        // placeholder через _smartInnerHTML вместо slot.innerHTML='' (последний
+        // вариант → repaint каждый poll → flicker). _smartInnerHTML dedupe
+        // identical HTML → repaint только при изменении.
+        if (fiefs.length === 0) {
+            _smartInnerHTML(slot, '');  // dedupe even empty
+            return;
+        }
+
+        const typeEmoji = { town: '🏛', castle: '🏰', village: '🏘' };
+        const typeLabel = { town: 'Город', castle: 'Замок', village: 'Деревня' };
+        const boostPct  = Math.round(((r.boost_mult || 1.5) - 1) * 100);
+        const boostDays = r.boost_days || 7;
+
+        // FLICKER-FIX v4: balance strip убран.
+        let html = `
+            <div style="background:#1a1308;border:1px solid #b45309;border-radius:4px;
+                        padding:8px;font-size:11px;color:#fed7aa;">
+                <div style="font-size:12px;font-weight:700;color:#f59e0b;margin-bottom:4px;">
+                    👑 Мои владения
+                </div>
+                <div style="font-size:9px;color:#9ca3af;margin-bottom:6px;">
+                    Tribute passive в 💰 динарах — копятся в Hero.Gold
+                </div>
+                <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">
+                ${fiefs.map(f => {
+                    const emoji = typeEmoji[f.fief_type] || '🏛';
+                    const lbl   = typeLabel[f.fief_type] || f.fief_type;
+                    return `
+                    <div data-fief-id="${f.id}"
+                         style="background:#0f0805;padding:6px 8px;border-radius:3px;
+                                display:flex;justify-content:space-between;align-items:center;
+                                ${f.boost_active ? 'border:1px solid #facc15;' : ''}">
+                        <div style="flex:1;">
+                            <div style="color:#fed7aa;font-size:11px;">
+                                ${emoji} <strong>${escapeHtml(f.fief_name || f.fief_id)}</strong>
+                                <span style="color:#9ca3af;font-size:10px;"> · ${lbl}</span>
+                                ${f.boost_active ? '<span style="color:#facc15;font-size:9px;font-weight:700;"> ⚡ BOOST</span>' : ''}
+                            </div>
+                            <div style="font-size:10px;margin-top:2px;">
+                                <span style="color:#9ca3af;">Заработано:</span>
+                                <span style="color:#fbbf24;font-weight:700;">💰 ${(f.total_collected_dinars || 0).toLocaleString('ru-RU')}</span>
+                            </div>
+                        </div>
+                        ${/* Sprint 5.33 DECOUPLE-1: Tribute boost deprecated —
+                            бустер 💎-output смысла не имеет когда 💎 output = 0. */ ''}
+                    </div>`;
+                }).join('')}
+                </div>
+                <div style="font-size:9px;color:#6b7280;text-align:center;">
+                    Динары → Hero.Gold (на gear/smith). 💎 не выдаётся пассивно.
+                </div>
+            </div>`;
+        // FLICKER-FIX: skip rebind при identical HTML.
+        if (!_smartInnerHTML(slot, html)) return;
+
+        slot.querySelectorAll('.bnr-fief-boost').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const parent = e.target.closest('[data-fief-id]');
+                if (!parent) return;
+                if (!await _bnrConfirm(`Купить boost +${boostPct}% на ${boostDays} дней? (2000💎)`)) return;
+                const fiefRowId = parseInt(parent.dataset.fiefId, 10);
+                await _bannerlordBuyAction('hero.tribute_boost', {
+                    fief_id_internal: fiefRowId,
+                });
+                setTimeout(loadBannerlordFiefs, 1200);
+            });
+        });
+    } catch (e) {
+        // FLICKER-FIX v6 — НЕ clear на exception. Last good render остаётся.
+        console.warn('[FE-FIEF] loadFiefs failed (keeping last render):', e);
+    }
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Sprint 5.33 (BLT-parity CARAVAN) — Mobile passive income trilogy closer.
+// SHOP = static personal | FIEF = territorial | CARAVAN = mobile с риском.
+// Caravan может быть destroyed бандитами → rescue pool (parallel to ransom).
+
+async function loadBannerlordCaravans() {
+    const slot = document.getElementById('bnr-caravans-slot');
+    if (!slot) return;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/my-caravans`, {
+            headers: { 'X-Twitch-JWT': authToken || '' }
+        }).then(r => r.json()).catch(() => ({success: false}));
+
+        // FLICKER-FIX v6 (2026-05-29): skip update на backend error — last good
+        // render остаётся видимым. Иначе section мерцает каждые ~8s при transient blip.
+        if (!r || r.success === false) return;
+
+        const caravans = Array.isArray(r.caravans) ? r.caravans : [];
+        const maxC = r.max_caravans || 2;
+
+        // Sprint 5.33 CURRENCY-1 — clear price display + Hero.Gold visible.
+        const CARAVAN_CRUSTIC = 4000;      // 2026-05-29: чистая 💎 (цена поднята 1500→4000)
+        const CARAVAN_DINAR   = 0;         // 15K капитал НЕ списывался — миф убран
+        const cAfford = _bnrAfford(CARAVAN_CRUSTIC, CARAVAN_DINAR);
+
+        // FLICKER-FIX v4: balance strip убран (см. workshops комментарий).
+        let html = `
+            <div style="background:#1a1820;border:1px solid #7c3aed;border-radius:4px;
+                        padding:8px;font-size:11px;color:#ddd6fe;">
+                <div style="font-size:12px;font-weight:700;color:#a78bfa;margin-bottom:4px;">
+                    🐪 Мои караваны (${caravans.filter(c => c.status === 'active').length}/${maxC})
+                </div>
+                <div style="font-size:9px;color:#9ca3af;margin-bottom:6px;">
+                    Mobile passive в 💰 динарах — копятся в Hero.Gold. ⚠ Бандиты могут уничтожить.
+                </div>`;
+
+        if (caravans.length > 0) {
+            html += `<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">`;
+            for (const c of caravans) {
+                const isDest = c.status === 'destroyed';
+                html += `
+                    <div data-caravan-id="${c.id}"
+                         style="background:${isDest ? '#2a0a0a' : '#0f0d18'};
+                                padding:6px 8px;border-radius:3px;
+                                display:flex;justify-content:space-between;align-items:center;
+                                ${isDest ? 'border:1px solid #b91c1c;' : ''}">
+                        <div style="flex:1;">
+                            <div style="color:${isDest ? '#fecaca' : '#ddd6fe'};font-size:11px;">
+                                ${isDest ? '💀' : '🐪'} <strong>${escapeHtml(c.home_settlement_name || 'Caravan')}</strong>
+                                ${isDest ? '<span style="color:#fb7185;font-size:9px;font-weight:700;"> УНИЧТОЖЕН</span>' : ''}
+                            </div>
+                            <div style="font-size:10px;margin-top:2px;">
+                                <span style="color:#9ca3af;">Заработано:</span>
+                                <span style="color:${isDest ? '#fb7185' : '#fbbf24'};font-weight:700;">💰 ${(c.total_collected_dinars || 0).toLocaleString('ru-RU')}</span>
+                            </div>
+                        </div>
+                        ${!isDest ? `
+                            <button class="bnr-caravan-sell small-btn"
+                                    title="Продать (engine handles refund)"
+                                    style="font-size:9px;padding:2px 6px;background:#5b21b6;
+                                           color:#ddd6fe;">💸 Продать</button>
+                        ` : ''}
+                    </div>`;
+            }
+            html += `</div>`;
+        }
+
+        const activeCount = caravans.filter(c => c.status === 'active').length;
+        if (activeCount < maxC) {
+            const btnBg = cAfford.ok ? '#7c3aed' : '#2d1b5a';
+            const btnOpacity = cAfford.ok ? '1' : '0.65';
+            // 2026-06-07 — покупка каравана инлайн (lazy <details>): <select>-город
+            // переживает 8s-poll (форма рендерится при раскрытии).
+            html += `
+                <details data-bnr-details="caravan-buy" ${_bnrDetailsAttr('caravan-buy')}>
+                    <summary title="${escapeHtml(_bnrAffordTooltip(CARAVAN_CRUSTIC, CARAVAN_DINAR))}"
+                             style="list-style:none;cursor:pointer;width:100%;
+                                    font-size:11px;padding:6px;background:${btnBg};box-sizing:border-box;
+                                    color:#fff;font-weight:700;opacity:${btnOpacity};
+                                    border-radius:3px;text-align:center;">
+                        🐪 Купить караван — ${_bnrPriceHtml(CARAVAN_CRUSTIC, CARAVAN_DINAR)}
+                    </summary>
+                    <div id="bnr-caravan-buy-slot" style="padding-top:6px;"></div>
+                </details>`;
+        } else {
+            html += `
+                <div style="font-size:10px;color:#6b7280;text-align:center;">
+                    Лимит караванов (${maxC}/${maxC})
+                </div>`;
+        }
+        html += `</div>`;
+        // 2026-06-07 FLICKER — пока форма покупки раскрыта, НЕ перерисовываем секцию
+        // (иначе тик дохода стирает выбор города). Возобновится при закрытии формы.
+        if (slot.querySelector('[data-bnr-details="caravan-buy"]')?.open) return;
+        // FLICKER-FIX: skip rebind при identical HTML.
+        if (!_smartInnerHTML(slot, html)) return;
+
+        slot.querySelectorAll('.bnr-caravan-sell').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const parent = e.target.closest('[data-caravan-id]');
+                if (!parent) return;
+                if (!await _bnrConfirm('Продать караван?')) return;
+                const cId = parseInt(parent.dataset.caravanId, 10);
+                await _bannerlordBuyAction('hero.sell_caravan', { caravan_id: cId });
+                setTimeout(loadBannerlordCaravans, 1500);
+            });
+        });
+        const _carDet = slot.querySelector('[data-bnr-details="caravan-buy"]');
+        if (_carDet) {
+            _carDet.addEventListener('toggle', () => { if (_carDet.open) _renderBuyCaravanInline(); });
+            if (_carDet.open) _renderBuyCaravanInline();
+        }
+    } catch (e) {
+        // FLICKER-FIX v6 — НЕ clear на exception. Last good render остаётся.
+        console.warn('[FE-CARAVAN] loadCaravans failed (keeping last render):', e);
+    }
+}
+
+// удалена: инлайн lazy-форма покупки каравана (_renderBuyCaravanInline).
+function _renderBuyCaravanInline() {
+    const slot = document.getElementById('bnr-caravan-buy-slot');
+    if (!slot) return;
+    slot.innerHTML = `
+        <div style="background:#1a1820;border:1px solid #7c3aed;border-radius:4px;
+                    padding:10px;color:#ddd6fe;">
+            <div style="display:flex;gap:6px;font-size:11px;margin-bottom:10px;
+                        background:#0f0d18;padding:6px 8px;border-radius:3px;">
+                <div style="flex:1;">
+                    <div style="color:#9ca3af;font-size:9px;">Стоимость:</div>
+                    <div style="font-size:13px;font-weight:700;">
+                        ${_bnrPriceHtml(1500, 15000)}
+                    </div>
+                </div>
+                <div style="flex:1;border-left:1px solid #1f2937;padding-left:8px;">
+                    <div style="color:#9ca3af;font-size:9px;">У тебя:</div>
+                    <div style="font-size:11px;">
+                        <span style="color:#a5f3fc;">💎 ${(_cachedUserPoints||0).toLocaleString('ru-RU')}</span>
+                        <span style="color:#6b7280;">|</span>
+                        <span style="color:#fbbf24;">💰 ${((_bannerlordLastHero?.hero?.gold)||0).toLocaleString('ru-RU')}</span>
+                    </div>
+                </div>
+            </div>
+            <div style="font-size:10px;color:#9ca3af;margin-bottom:10px;line-height:1.4;">
+                <div>💎 — entry fee, списывается с твоего 💎 балланса</div>
+                <div>💰 — capital (15K), списывается с Hero.Gold (engine)</div>
+                <div>📈 Profit копится в Hero.Gold (динары на gear/smith/marriage)</div>
+                <div style="color:#fb7185;">⚠ Бандиты могут уничтожить — viewers собирают rescue pool</div>
+            </div>
+            <label style="font-size:11px;color:#ddd6fe;display:block;margin-bottom:4px;">
+                Home town (выбери из engine catalog):
+            </label>
+            <div id="bnr-caravan-home-slot" style="margin-bottom:10px;">
+                <div style="font-size:11px;color:#9ca3af;padding:6px;">
+                    ⏳ Загружается список городов...
+                </div>
+            </div>
+            <button id="bnr-caravan-buy-confirm" class="extra-btn"
+                    style="width:100%;font-size:11px;padding:6px;
+                           background:#7c3aed;color:#fff;font-weight:700;">
+                🐪 Купить — ${_bnrPriceHtml(1500, 15000)}
+            </button>
+        </div>`;
+    // CATALOG-3: load real engine towns в caravan home dropdown
+    _bnrFetchSettlements().then(byType => {
+        const homeSlot = document.getElementById('bnr-caravan-home-slot');
+        if (homeSlot) {
+            homeSlot.innerHTML = _bnrRenderSettlementSelect(byType.town || [],
+                { id: 'bnr-caravan-home' });
+            // Re-style the <select> для caravan theme
+            const sel = document.getElementById('bnr-caravan-home');
+            if (sel && sel.tagName === 'SELECT') {
+                sel.style.background = '#0f0d18';
+                sel.style.color = '#ddd6fe';
+                sel.style.borderColor = '#7c3aed';
+            }
+        }
+    });
+    document.getElementById('bnr-caravan-buy-confirm')?.addEventListener('click', async () => {
+        const homeSel = document.getElementById('bnr-caravan-home');
+        const home = (homeSel?.value || '').trim();
+        const homeName = homeSel?.tagName === 'SELECT'
+            ? (homeSel.options[homeSel.selectedIndex]?.dataset?.name || home)
+            : home;
+        if (!home) {
+            showNotification('Выбери home town из списка', 'warning');
+            return;
+        }
+        // 2026-06-07 FLICKER — закрыть форму ДО refresh (иначе freeze-guard
+        // заблокирует перерисовку) + мгновенный фидбек на клик.
+        document.querySelector('[data-bnr-details="caravan-buy"]')?.removeAttribute('open');
+        await _bannerlordBuyAction('hero.buy_caravan', {
+            home_settlement_id:   home,
+            home_settlement_name: homeName,
+        });
+        setTimeout(loadBannerlordCaravans, 2000);
+    });
+}
+
+// ─── Caravan rescue pool ──────────────────────────────────────────────────────
+async function loadBannerlordCaravanRescues() {
+    const slot = document.getElementById('bnr-caravan-rescue-slot');
+    if (!slot) return;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/caravan-rescues`, {
+            headers: { 'X-Twitch-JWT': authToken || '' }
+        }).then(r => r.json()).catch(() => ({success: false}));
+        const rescues = (r.success && Array.isArray(r.rescues)) ? r.rescues : [];
+        if (rescues.length === 0) { slot.innerHTML = ''; return; }
+
+        let html = `
+            <div style="background:#2a0a0a;border:1px solid #b91c1c;border-radius:4px;
+                        padding:8px;font-size:11px;color:#fecaca;">
+                <div style="font-size:12px;font-weight:700;color:#fb7185;margin-bottom:6px;">
+                    💀 Уничтоженные караваны — соберём rescue?
+                </div>
+                <div style="display:flex;flex-direction:column;gap:4px;">
+                ${rescues.map(rs => {
+                    const pct = Math.min(100, Math.floor(100 * (rs.pool_total || 0) / Math.max(1, rs.rescue_cost)));
+                    return `
+                    <div data-caravan-id="${rs.caravan_id}"
+                         style="background:#0f0505;padding:6px 8px;border-radius:3px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+                            <span style="color:#fecaca;font-size:11px;">
+                                🐪 @${escapeHtml(rs.owner)} <span style="color:#9ca3af;">— ${escapeHtml(rs.home_name || '?')}</span>
+                            </span>
+                            <button class="bnr-caravan-rescue-pay small-btn"
+                                    title="Вложить 500💎 в pool rescue"
+                                    style="font-size:9px;padding:2px 6px;background:#b91c1c;
+                                           color:#fee2e2;">💰 +500💎</button>
+                        </div>
+                        <div style="background:#1a0505;height:5px;border-radius:2px;overflow:hidden;">
+                            <div style="background:linear-gradient(90deg,#fb7185,#a78bfa);
+                                        height:100%;width:${pct}%;transition:width 0.3s;"></div>
+                        </div>
+                        <div style="font-size:9px;color:#9ca3af;margin-top:2px;">
+                            ${rs.pool_total || 0} / ${rs.rescue_cost}💎 pool
+                            ${rs.contributors > 0 ? ` · ${rs.contributors} участников` : ''}
+                        </div>
+                    </div>`;
+                }).join('')}
+                </div>
+            </div>`;
+        // FLICKER-FIX: skip rebind при identical HTML.
+        if (!_smartInnerHTML(slot, html)) return;
+
+        slot.querySelectorAll('.bnr-caravan-rescue-pay').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const parent = e.target.closest('[data-caravan-id]');
+                if (!parent) return;
+                const cId = parseInt(parent.dataset.caravanId, 10);
+                await _bannerlordBuyAction('hero.pay_caravan_rescue', { caravan_id: cId });
+                setTimeout(loadBannerlordCaravanRescues, 1200);
+                setTimeout(loadBannerlordCaravans, 1500);
+            });
+        });
+    } catch (e) {
+        console.warn('[FE-CARAVAN-RESCUE] loadRescues failed (keeping last render)', e);
+    }
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Sprint 5.33 (BLT-parity HERITAGE) — Inheritance log section.
+// Когда viewer умирает + heir активируется, parent's workshops/caravans/fiefs
+// transfer'ятся к heir engine-side (mod ActivateHeirHandler). Backend logs
+// каждый asset в bannerlord_inheritance_log — frontend показывает recent
+// inheritance события для transparency + dopamine.
+
+async function loadBannerlordInheritance() {
+    const slot = document.getElementById('bnr-inheritance-slot');
+    if (!slot) return;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/inheritance-log?limit=15`, {
+            headers: { 'X-Twitch-JWT': authToken || '' }
+        }).then(r => r.json()).catch(() => ({success: false}));
+        const items = (r.success && Array.isArray(r.items)) ? r.items : [];
+        if (items.length === 0) { slot.innerHTML = ''; return; }
+
+        const typeEmoji = { workshop: '🏭', caravan: '🐪', fief: '🏛' };
+        const typeColor = { workshop: '#84cc16', caravan: '#a78bfa', fief: '#f59e0b' };
+
+        // Group by inherited_at date (день).
+        const groups = new Map();
+        for (const it of items) {
+            const day = (it.inherited_at || '').substring(0, 10);
+            if (!groups.has(day)) groups.set(day, []);
+            groups.get(day).push(it);
+        }
+
+        let html = `
+            <div style="background:#1a1614;border:1px solid #92400e;border-radius:4px;
+                        padding:8px;font-size:11px;color:#fde68a;">
+                <div style="font-size:12px;font-weight:700;color:#facc15;margin-bottom:6px;">
+                    ⚱ Наследие — переходило к моим heir'ам
+                </div>`;
+        for (const [day, dayItems] of groups) {
+            const totalValue = dayItems.reduce((s, x) => s + (x.total_value || 0), 0);
+            html += `
+                <div style="margin-bottom:6px;">
+                    <div style="font-size:10px;color:#fbbf24;font-weight:700;margin-bottom:3px;">
+                        ${escapeHtml(day || 'recent')}
+                        ${totalValue > 0 ? `<span style="color:#9ca3af;font-weight:normal;">
+                            — ${totalValue.toLocaleString('ru-RU')} дин. total</span>` : ''}
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:2px;">
+                    ${dayItems.map(it => {
+                        const emoji = typeEmoji[it.asset_type] || '⚱';
+                        const color = typeColor[it.asset_type] || '#fde68a';
+                        return `
+                            <div style="background:#0f0c0a;padding:4px 6px;border-radius:3px;
+                                        font-size:10px;border-left:2px solid ${color};">
+                                ${emoji} <span style="color:${color};">${escapeHtml(it.asset_name || it.asset_type)}</span>
+                                ${(it.total_value || 0) > 0 ? `<span style="color:#9ca3af;float:right;">
+                                    ${it.total_value.toLocaleString('ru-RU')} дин.</span>` : ''}
+                            </div>`;
+                    }).join('')}
+                    </div>
+                </div>`;
+        }
+        html += `
+                <div style="font-size:9px;color:#6b7280;text-align:center;margin-top:3px;">
+                    Empire transcends death — assets re-claimed engine-side
+                </div>
+            </div>`;
+        // FLICKER-FIX: dedupe (no bindings here, just paint).
+        _smartInnerHTML(slot, html);
+    } catch (e) {
+        console.warn('[FE-HERITAGE] loadInheritance failed (keeping last render)', e);
+    }
+}

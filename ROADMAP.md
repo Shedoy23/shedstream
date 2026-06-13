@@ -257,6 +257,12 @@ viewer.js, до viewer-rimworld.js в обоих шеллах; glob-роут + �
 - **Кусок 1 (tournament):** loadBannerlordTournament + render + predict + TOURNAMENT_*
   → `viewer-bannerlord.js`. Полностью изолирован. node --check ок, 200, verified.
   viewer.js: 6810 → 6659.
+- **Кусок 2 (progression):** loadBannerlordProgression + BNR_SKILLS/BNR_SKILL_LABELS_RU/
+  BNR_ATTRIBUTES/BNR_ATTR_*/BNR_FOCUS_TIER_COSTS/BNR_ATTRIBUTE_COST → bannerlord.js.
+  ⚠️ `BNR_SKILL_LABELS_RU` теперь шарится кросс-файлово: hero-card (viewer.js:5278, пока
+  в core) ссылается на неё в рантайме. Безопасно (top-level const видна всем скриптам,
+  hero рендерится после загрузки bannerlord.js). Станет внутрифайловой, когда hero-card
+  переедет. viewer.js: 6659 → 6505.
 
 **В CORE остаются (НЕ выносить — зовутся при переключении модуля / диспетчер):**
 `switchIntegrationModule`, `_startBannerlordPolling`/`_stopBannerlordPolling`,

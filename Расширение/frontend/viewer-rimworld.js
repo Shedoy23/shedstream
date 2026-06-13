@@ -69,3 +69,136 @@ function requestTwitchIdentity() {
         // Twitch перезапустит onAuthorized с user_id после согласия
     }
 }
+
+
+// ===== RIMWORLD ИВЕНТЫ (магазин событий) — split чанк 2 (2026-06-13) =====
+let rimworldEvents = [];
+let eventsSearchQuery = '';
+
+async function loadRimworldEvents() {
+    try {
+        const r = await fetch(`${API_URL}/api/rimworld/events`);
+        const data = await r.json();
+        rimworldEvents = data.events || [];
+        renderEvents();
+    } catch(e) {
+        const el = document.getElementById('events-list');
+        if (el) el.innerHTML = '<div class="loading">Ивенты недоступны</div>';
+    }
+}
+
+function onEventsSearch(val) {
+    eventsSearchQuery = val.trim();
+    renderEvents();
+}
+
+function renderEvents() {
+    const container = document.getElementById('events-list');
+    if (!container) return;
+    const userPoints = parseInt((document.getElementById('points')?.textContent || '0').replace(/[^0-9]/g, '')) || 0;
+
+    if (!rimworldEvents.length) {
+        container.innerHTML = '<div class="loading">Список ивентов пуст</div>';
+        return;
+    }
+
+    // Фильтрация по поиску
+    let filtered = rimworldEvents;
+    if (eventsSearchQuery) {
+        const q = eventsSearchQuery.toLowerCase();
+        filtered = rimworldEvents.filter(ev =>
+            (ev.name || '').toLowerCase().includes(q) ||
+            (ev.id || '').toString().toLowerCase().includes(q) ||
+            (ev.category || '').toLowerCase().includes(q)
+        );
+    }
+
+    if (!filtered.length) {
+        container.innerHTML = '<div class="loading">Ничего не найдено</div>';
+        return;
+    }
+
+    const now = Date.now();
+    container.innerHTML = filtered.map(ev => {
+        const canAfford = userPoints >= ev.cost;
+        const cdKey = 'event_all';
+        const cdSince = _cmdCooldowns[cdKey] || 0;
+        const cdLeft = cdSince ? Math.max(0, Math.ceil((EVENT_COOLDOWN_MS - (now - cdSince)) / 1000)) : 0;
+        const onCd = cdLeft > 0;
+        const mins = Math.floor(cdLeft / 60);
+        const secs = cdLeft % 60;
+        const cdLabel = mins > 0 ? `⏱ ${mins}м ${secs}с` : `⏱ ${secs}с`;
+        return `
+            <div class="shop-item">
+                <div class="shop-item-icon" style="font-size:22px;">${escapeHtml((ev.name||'').split(' ')[0])}</div>
+                <div class="shop-item-info">
+                    <div class="shop-item-name">${escapeHtml((ev.name||'').replace(/^\S+\s*/, ''))}</div>
+                </div>
+                <div class="shop-item-buy">
+                    <div class="shop-item-price">${ev.cost}💎</div>
+                    <button class="buy-btn" data-event-id="${escapeHtml(String(ev.id))}" ${(!canAfford || onCd) ? 'disabled' : ''}>
+                        ${onCd ? cdLabel : canAfford ? 'Купить' : 'Мало 💎'}
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // Event delegation для кнопок ивентов
+    container.querySelectorAll('[data-event-id]').forEach(btn => {
+        btn.addEventListener('click', () => buyEvent(btn.dataset.eventId));
+    });
+}
+
+const EVENT_COOLDOWN_MS = 5 * 60 * 1000; // 5 минут на каждый ивент
+
+// Тикаем каждую секунду — обновляем кнопки ивентов если есть активный КД
+window._eventTickInterval = safeInterval(() => {
+    const cdSince = _cmdCooldowns['event_all'] || 0;
+    const hasEventCd = cdSince && Date.now() - cdSince < EVENT_COOLDOWN_MS;
+    if (hasEventCd) {
+        renderEvents();
+    } else if (cdSince) {
+        // КД только что истёк — рендерим ещё раз чтобы разблокировать кнопки, затем сбрасываем
+        delete _cmdCooldowns['event_all'];
+        renderEvents();
+    }
+}, 1000);
+
+async function buyEvent(eventId) {
+    if (!userLogin) return;
+    // ev.id с сервера — число, eventId из data-атрибута — строка; приводим оба к строке
+    const ev = rimworldEvents.find(e => String(e.id) === String(eventId));
+    if (!ev) return;
+    // Берём баланс из кэша если DOM ещё не обновился (например после перезагрузки страницы)
+    const domPoints = parseInt(document.getElementById('points')?.textContent || '0');
+    const userPoints = domPoints > 0 ? domPoints : (_cachedUserPoints || 0);
+    if (userPoints < ev.cost) { showNotification('❌ Недостаточно 💎', 'error'); return; }
+
+    // КД 5 минут per-event, таймер показывается на кнопке
+    const evBtn = document.querySelector(`[data-event-id="${eventId}"]`);
+    if (!checkCooldown('event_all', EVENT_COOLDOWN_MS, evBtn)) return;
+
+    showConfirm(`${escapeHtml(ev.name)}`, `Потратить ${Number(ev.cost)||0}💎?`, async () => {
+        try {
+            const r = await fetch(`${API_URL}/api/rimworld/trigger-event`, {
+                method: 'POST',
+                headers: {'Content-Type':'application/json', 'X-Twitch-JWT': authToken || ''},
+                body: JSON.stringify({ username: userLogin, event_id: eventId })
+            });
+            const data = await r.json();
+            if (data.success) {
+                showNotification(`✅ ${data.message}`, 'success');
+                loadUserData();
+                setTimeout(renderEvents, 1000);
+            } else {
+                // Если сервер отклонил — сбрасываем КД чтобы можно было попробовать снова
+                delete _cmdCooldowns['event_all'];
+                showNotification(`❌ ${data.message}`, 'error');
+            }
+        } catch(e) {
+            delete _cmdCooldowns['event_all'];
+            showNotification('❌ Ошибка соединения', 'error');
+        }
+    });
+}

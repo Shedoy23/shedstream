@@ -252,10 +252,21 @@ buyTrait/buyGene/removeMyGene +_pawnRefreshTimer) → `viewer-rimworld.js`. Вы
 `/api/rimworld/` вызова и ни одной RimWorld-функции — RimWorld полностью вынесен**
 в `viewer-rimworld.js` (~370 строк). viewer.js: 7141 → 6810.
 
-**Дальше:** оставшийся viewer.js (6810) = ядро (платформа) + Bannerlord (~4.8k, главная
-масса). Следующая фаза — вынос Bannerlord в `viewer-bannerlord.js`. Это БОЛЬШАЯ отдельная
-работа (BNR_*, активные/пассивные силы, кланы/королевства, advisor-UI) — пилить так же
-по кускам, начиная с самодостаточных блоков. Гейт цены учитывать (create_kingdom = 5M).
+**Bannerlord-распил начат (2026-06-13).** Новый `viewer-bannerlord.js` (грузится после
+viewer.js, до viewer-rimworld.js в обоих шеллах; glob-роут + кэш-баст уже покрывают его).
+- **Кусок 1 (tournament):** loadBannerlordTournament + render + predict + TOURNAMENT_*
+  → `viewer-bannerlord.js`. Полностью изолирован. node --check ок, 200, verified.
+  viewer.js: 6810 → 6659.
+
+**В CORE остаются (НЕ выносить — зовутся при переключении модуля / диспетчер):**
+`switchIntegrationModule`, `_startBannerlordPolling`/`_stopBannerlordPolling`,
+`_bannerlordBuyAction` (диспетчер всех действий), state-глобалы `_bannerlord*` (1060-1073),
+shared price-хелперы `_bnr*` (пока — много потребителей).
+
+**Следующие куски (по карте, порядок):** progression-модалка (NB: `BNR_SKILL_LABELS_RU`
+шарится с hero-card — решить: оставить в core или тащить) → buffs/battle HUD → shop +
+`_bnr*` хелперы → hero-card (большая) → семья/кланы/королевства/дипломатия → в самом конце
+диспетчер. Гейт цены учитывать (create_kingdom = 5M). Главная масса ещё впереди (~4.6k).
 **При распиле сразу выносить/замораживать анти-топ-фичи** (метрики 2.3), а не тащить
 в новые модули. Учитывать гейт цены (create_kingdom мало юзают из-за 5M, не «не нужно»).
 

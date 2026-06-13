@@ -165,3 +165,168 @@ function _promptBannerlordPredict(target) {
         if (e.target === overlay) overlay.remove();
     });
 }
+
+
+// ===== Sprint 5.8: Focus / Attribute investments (Hero.Gold cost) — split чанк 2 (2026-06-13) =====
+// NB: BNR_SKILL_LABELS_RU также используется hero-card в viewer.js (пока в core) —
+// она ссылается на эту консту кросс-файлово в рантайме (top-level const видна всем
+// классическим скриптам). Когда hero-card переедет сюда — связь станет внутрифайловой.
+const BNR_SKILLS = [
+    'OneHanded', 'TwoHanded', 'Polearm', 'Bow', 'Crossbow', 'Throwing',
+    'Athletics', 'Riding', 'Crafting', 'Scouting', 'Tactics', 'Roguery',
+    'Charm', 'Leadership', 'Trade', 'Steward', 'Medicine', 'Engineering',
+];
+const BNR_SKILL_LABELS_RU = {
+    OneHanded: 'Одноручное', TwoHanded: 'Двуручное', Polearm: 'Древковое',
+    Bow: 'Лук', Crossbow: 'Арбалет', Throwing: 'Метательное',
+    Athletics: 'Атлетика', Riding: 'Верховая езда', Crafting: 'Кузнечное',
+    Scouting: 'Разведка', Tactics: 'Тактика', Roguery: 'Бесчестие',
+    Charm: 'Обаяние', Leadership: 'Лидерство', Trade: 'Торговля',
+    Steward: 'Управление', Medicine: 'Медицина', Engineering: 'Инженерия',
+};
+const BNR_ATTRIBUTES = ['Vigor', 'Control', 'Endurance', 'Cunning', 'Social', 'Intelligence'];
+const BNR_ATTR_LABELS_RU = {
+    Vigor: 'Сила', Control: 'Точность',
+    Endurance: 'Выносливость', Cunning: 'Хитрость',
+    Social: 'Социальность', Intelligence: 'Интеллект',
+};
+// Sprint 5.17: vanilla Bannerlord skill→attribute mapping. Атрибут даёт
+// +1 cap к skill за каждое очко (max 30 cap при attr=10).
+const BNR_ATTR_TO_SKILLS = {
+    Vigor:        ['OneHanded', 'TwoHanded', 'Polearm'],
+    Control:      ['Bow', 'Crossbow', 'Throwing'],
+    Endurance:    ['Riding', 'Athletics', 'Crafting'],
+    Cunning:      ['Scouting', 'Tactics', 'Roguery'],
+    Social:       ['Charm', 'Leadership', 'Trade'],
+    Intelligence: ['Steward', 'Medicine', 'Engineering'],
+};
+const BNR_ATTR_ICONS = {
+    Vigor: '💪', Control: '🎯', Endurance: '⛰️',
+    Cunning: '🦊', Social: '💬', Intelligence: '📚',
+};
+const BNR_FOCUS_TIER_COSTS = [30000, 40000, 50000, 60000, 75000];
+const BNR_ATTRIBUTE_COST = 50000;
+
+// Sprint 5.8 → 5.8c: ранее был renderBannerlordProgressionHtml (dropdown в shop)
+// + _bindBannerlordProgression. Удалено в 5.8c — invest-кнопки перенесены
+// внутрь progression-секции (per-row + buttons). См. loadBannerlordProgression.
+
+// Sprint 5.8: Progression modal — отображает все скиллы (level + focus stars)
+// + 6 атрибутов. Открывается по кнопке "🎯 Прогрессия" в hero card.
+function loadBannerlordProgression() {
+    const slot = document.getElementById('bnr-progression-slot');
+    if (!slot) return;
+    const data = _bannerlordLastHero;
+    if (!data || !data.has_hero) { _smartInnerHTML(slot, ''); return; }
+    const skills = data.skills || [];
+    const attrs = data.attributes || {};
+
+    // Sprint 5.27v: runtime canary — словить contract drift сразу. Если
+    // backend начнёт отдавать другой shape (e.g. изменится capitalization
+    // или ключи), DevTools console сразу покажет проблему вместо тихого
+    // "0/10 везде". Это профилактика для skills/equipment/etc. в будущем.
+    const attrKeys = Object.keys(attrs);
+    if (attrKeys.length > 0 && BNR_ATTRIBUTES.every(k =>
+            attrs[k] === undefined && attrs[k.toLowerCase()] === undefined)) {
+        console.warn('[BNR contract drift] attributes object has keys but ' +
+                     'none match expected:', attrKeys,
+                     'expected one of:', BNR_ATTRIBUTES);
+    }
+
+    // Build skill lookup
+    const skillsByKey = {};
+    for (const s of skills) skillsByKey[s.skill_key] = s;
+
+    // Helper: render одну skill row
+    function _renderSkillRow(key) {
+        const s = skillsByKey[key] || { skill_key: key, level: 0, focus: 0 };
+        const focus = s.focus || 0;
+        const focusStars = '★'.repeat(focus) + '☆'.repeat(5 - focus);
+        const label = BNR_SKILL_LABELS_RU[key] || key;
+        const lvlColor = s.level >= 100 ? '#fbbf24' : (s.level >= 50 ? '#34d399' : '#efeff1');
+        const maxed = focus >= 5;
+        const nextCost = maxed ? 0 : BNR_FOCUS_TIER_COSTS[focus];
+        const btnTitle = maxed
+            ? 'F5 максимум'
+            : `+1 focus в ${label} → F${focus + 1}. Списать ${nextCost.toLocaleString('ru-RU')}💰 динаров.`;
+        return `
+            <div style="display:flex;justify-content:space-between;align-items:center;
+                        padding:3px 6px 3px 14px;font-size:11px;gap:8px;
+                        border-bottom:1px solid rgba(255,255,255,0.05);">
+                <span style="color:#efeff1;flex:1;">└ ${escapeHtml(label)}</span>
+                <span style="color:#fbbf24;font-family:monospace;letter-spacing:1px;">${focusStars}</span>
+                <span style="color:${lvlColor};min-width:30px;text-align:right;
+                             font-family:monospace;font-weight:700;">${s.level || 0}</span>
+                <button class="small-btn bnr-prog-focus-btn"
+                        data-skill="${escapeHtml(key)}"
+                        ${maxed ? 'disabled' : ''}
+                        title="${escapeHtml(btnTitle)}"
+                        style="padding:2px 8px;font-size:11px;background:#3d3d3f;
+                               color:#fbbf24;font-weight:700;
+                               ${maxed ? 'opacity:0.3;cursor:not-allowed;' : ''}">
+                    🎯+
+                </button>
+            </div>`;
+    }
+
+    // Render: attribute header + nested skills (Sprint 5.17 group-by-attribute)
+    // Sprint 5.27u: case-insensitive lookup — backend хранит attribute keys в
+    // lowercase (engine StringId), frontend BNR_ATTRIBUTES в PascalCase.
+    // Без fallback'а на toLowerCase() все viewer'ы видели 0/10 несмотря на
+    // корректные value в БД.
+    const groupedRows = BNR_ATTRIBUTES.map(attrKey => {
+        const val = attrs[attrKey] ?? attrs[attrKey.toLowerCase()] ?? 0;
+        const filled = '●'.repeat(val) + '○'.repeat(10 - val);
+        const attrLabel = BNR_ATTR_LABELS_RU[attrKey] || attrKey;
+        const attrIcon = BNR_ATTR_ICONS[attrKey] || '·';
+        const valColor = val >= 8 ? '#fbbf24' : (val >= 5 ? '#34d399' : '#efeff1');
+        const maxed = val >= 10;
+        const btnTitle = maxed
+            ? '10/10 максимум'
+            : `+1 в ${attrLabel} → ${val + 1}/10. Списать ${BNR_ATTRIBUTE_COST.toLocaleString('ru-RU')}💰 динаров.`;
+
+        const childSkills = (BNR_ATTR_TO_SKILLS[attrKey] || []).map(_renderSkillRow).join('');
+
+        return `
+            <div style="background:rgba(147,197,253,0.06);border-top:1px solid rgba(147,197,253,0.15);
+                        padding:5px 6px;display:flex;justify-content:space-between;
+                        align-items:center;font-size:11px;gap:8px;font-weight:700;">
+                <span style="color:#93c5fd;flex:1;">${attrIcon} ${escapeHtml(attrLabel)}</span>
+                <span style="color:#93c5fd;font-family:monospace;letter-spacing:1px;font-weight:400;">${filled}</span>
+                <span style="color:${valColor};min-width:36px;text-align:right;
+                             font-family:monospace;">${val}/10</span>
+                <button class="small-btn bnr-prog-attr-btn"
+                        data-attr="${escapeHtml(attrKey)}"
+                        ${maxed ? 'disabled' : ''}
+                        title="${escapeHtml(btnTitle)}"
+                        style="padding:2px 8px;font-size:11px;background:#3d3d3f;
+                               color:#93c5fd;font-weight:700;
+                               ${maxed ? 'opacity:0.3;cursor:not-allowed;' : ''}">
+                    💪+
+                </button>
+            </div>
+            ${childSkills}`;
+    }).join('');
+
+    const html = `
+        <div style="font-size:11px;color:#adadb8;margin-bottom:6px;line-height:1.4;">
+            💪 Атрибут (50K💰) — cap трёх скиллов · 🎯 Фокус (30-75K💰) — скорость скилла.
+        </div>
+        <div>${groupedRows}</div>`;
+    if (!_smartInnerHTML(slot, html)) return;   // repaint+rebind лишь при изменении
+
+    slot.querySelectorAll('.bnr-prog-focus-btn').forEach(btn => {
+        btn.dataset.bnrCd = 'hero.add_focus';
+        btn.addEventListener('click', () => {
+            _bannerlordBuyAction('hero.add_focus', { skill_key: btn.getAttribute('data-skill'), amount: 1 });
+            if (typeof loadBannerlordHero === 'function') loadBannerlordHero();
+        });
+    });
+    slot.querySelectorAll('.bnr-prog-attr-btn').forEach(btn => {
+        btn.dataset.bnrCd = 'hero.add_attribute';
+        btn.addEventListener('click', () => {
+            _bannerlordBuyAction('hero.add_attribute', { attribute_key: btn.getAttribute('data-attr'), amount: 1 });
+            if (typeof loadBannerlordHero === 'function') loadBannerlordHero();
+        });
+    });
+}

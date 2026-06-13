@@ -3726,3 +3726,151 @@ function loadBannerlordKingdomMgmt() {
         }
     }
 }
+
+// ===== Part B: create-kingdom/join/create-clan inline + bind-random-equip — split чанк 14 (2026-06-13) =====
+// _renderCreateKingdomInline + _renderJoinInline + _renderCreateClanInline + _bindBannerlordRandomEquip.
+// Зовутся из Part-A (clan/kingdom mgmt) + shop — уже в bannerlord.js (внутрифайл). Callers рантайм.
+// Sprint 5.12: dialog для ввода имени королевства + confirm "Создать".
+// удалена: инлайн lazy-поле имени королевства (_renderCreateKingdomInline).
+function _renderCreateKingdomInline() {
+    const slot = document.getElementById('bnr-kingdom-create-slot');
+    if (!slot) return;
+    slot.innerHTML = `
+        <div style="background:#18181b;border:1px solid #3d3d3f;border-radius:6px;padding:12px;">
+            <div style="font-size:11px;color:#adadb8;margin-bottom:10px;line-height:1.4;">
+                Твой клан станет правящим в новом королевстве. Списывается
+                <b style="color:#fbbf24;">5,000,000💰 динаров</b> + бонус: 2K влияния и
+                2M kingdom wallet. Имя получит префикс <code>[BLink]</code>.
+            </div>
+            <input id="bnr-kingdom-name-input" type="text" maxlength="32"
+                   placeholder="например: Великое Княжество"
+                   style="width:100%;background:#2d2d2f;color:#efeff1;
+                          border:1px solid #3d3d3f;border-radius:4px;
+                          padding:6px 8px;font-size:12px;margin-bottom:12px;
+                          box-sizing:border-box;">
+            <button id="bnr-k-confirm" class="extra-btn"
+                    style="width:100%;font-size:12px;padding:7px;background:#7c2d12;
+                           color:#fbbf24;font-weight:700;">
+                👑 Создать (5M💰)
+            </button>
+        </div>`;
+    const input = document.getElementById('bnr-kingdom-name-input');
+    const confirm = () => {
+        const kingdom_name = (input?.value || '').trim();
+        // 2026-06-07 FLICKER — закрыть форму ДО действия (иначе freeze-guard
+        // заблокирует следующий repaint секции) + мгновенный фидбек на клик.
+        document.querySelector('[data-bnr-details="kingdom-create"]')?.removeAttribute('open');
+        _bannerlordBuyAction('hero.create_kingdom', { kingdom_name });
+    };
+    document.getElementById('bnr-k-confirm')?.addEventListener('click', confirm);
+    input?.addEventListener('keydown', e => { if (e.key === 'Enter') confirm(); });
+}
+
+// удалена: инлайн lazy-поле join (_renderJoinInline) — type 'clan'|'kingdom'.
+function _renderJoinInline(type, slotId) {
+    const slot = document.getElementById(slotId);
+    if (!slot) return;
+    const isClan = type === 'clan';
+    const config = isClan
+        ? { icon: '🤝', cost: '50K💰',
+            actionType: 'hero.join_clan', field: 'clan_name',
+            placeholder: 'например: Vlandian Royal Clan',
+            hint: 'Введи (часть) имя существующего клана. Mod fuzzy-matches.' }
+        : { icon: '🤝', cost: '100K💰',
+            actionType: 'hero.join_kingdom', field: 'kingdom_name',
+            placeholder: 'например: Vlandia',
+            hint: 'Введи (часть) имя королевства. Твой clan присоединится как вассал.' };
+    slot.innerHTML = `
+        <div style="background:#18181b;border:1px solid #3d3d3f;border-radius:6px;padding:12px;">
+            <div style="font-size:11px;color:#adadb8;margin-bottom:10px;line-height:1.4;">
+                ${config.hint} Списать <b style="color:#fbbf24;">${config.cost} динаров</b>.
+            </div>
+            <input id="bnr-join-name-input" type="text" maxlength="64"
+                   placeholder="${config.placeholder}"
+                   style="width:100%;background:#2d2d2f;color:#efeff1;
+                          border:1px solid #3d3d3f;border-radius:4px;
+                          padding:6px 8px;font-size:12px;margin-bottom:12px;
+                          box-sizing:border-box;">
+            <button id="bnr-j-confirm" class="extra-btn"
+                    style="width:100%;font-size:12px;padding:7px;background:#1e3a5f;
+                           color:#93c5fd;font-weight:700;">
+                ${config.icon} Вступить (${config.cost})
+            </button>
+        </div>`;
+    const input = document.getElementById('bnr-join-name-input');
+    // 2026-06-07 FLICKER — ключ <details> зависит от контекста: kingdom-join (королевство)
+    // или locked-join (клан). Закрыть форму ДО действия, иначе freeze-guard секции
+    // заблокирует следующий repaint. + мгновенный фидбек на клик.
+    const _joinDetKey = isClan ? 'locked-join' : 'kingdom-join';
+    const confirm = () => {
+        const name = (input?.value || '').trim();
+        if (!name) return;
+        document.querySelector(`[data-bnr-details="${_joinDetKey}"]`)?.removeAttribute('open');
+        _bannerlordBuyAction(config.actionType, { [config.field]: name });
+    };
+    document.getElementById('bnr-j-confirm')?.addEventListener('click', confirm);
+    input?.addEventListener('keydown', e => { if (e.key === 'Enter') confirm(); });
+}
+
+// удалена: инлайн lazy-поле имени клана (_renderCreateClanInline).
+function _renderCreateClanInline() {
+    const slot = document.getElementById('bnr-locked-create-slot');
+    if (!slot) return;
+    slot.innerHTML = `
+        <div style="background:#18181b;border:1px solid #3d3d3f;border-radius:6px;padding:12px;">
+            <div style="font-size:11px;color:#adadb8;margin-bottom:10px;line-height:1.4;">
+                Твой герой станет лидером нового клана и сможет создать отряд
+                (party) на карте. Списывается <b style="color:#fbbf24;">1,000,000💰
+                динаров</b> у героя в игре. Имя получит префикс <code>[BLink]</code>.
+            </div>
+            <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">
+                Имя клана (опционально, до 32 символов):
+            </div>
+            <input id="bnr-clan-name-input" type="text" maxlength="32"
+                   placeholder="например: Воины Заката"
+                   style="width:100%;background:#2d2d2f;color:#efeff1;
+                          border:1px solid #3d3d3f;border-radius:4px;
+                          padding:6px 8px;font-size:12px;margin-bottom:12px;
+                          box-sizing:border-box;">
+            <button id="bnr-clan-confirm" class="extra-btn"
+                    style="width:100%;font-size:12px;padding:7px;background:#7c2d12;
+                           color:#fbbf24;font-weight:700;">
+                🏰 Создать (1M💰)
+            </button>
+        </div>`;
+    const input = document.getElementById('bnr-clan-name-input');
+    const confirm = () => {
+        const clan_name = (input?.value || '').trim();
+        // 2026-06-07 FLICKER — закрыть форму ДО действия (иначе freeze-guard
+        // заблокирует следующий repaint секции) + мгновенный фидбек на клик.
+        document.querySelector('[data-bnr-details="locked-create"]')?.removeAttribute('open');
+        _bannerlordBuyAction('hero.create_clan', { clan_name });
+    };
+    document.getElementById('bnr-clan-confirm')?.addEventListener('click', confirm);
+    input?.addEventListener('keydown', e => { if (e.key === 'Enter') confirm(); });
+}
+
+function _bindBannerlordRandomEquip() {
+    const MOUNTED = new Set(['cavalry', 'camel_cavalry', 'horse_archer', 'camel_archer', 'knight']);
+    const currentKey = _bannerlordClassesCache?.current?.class_key || '';
+    const isMounted = MOUNTED.has(currentKey);
+
+    // Кулдаун на кнопке (player.equip_item — общий CD на все три).
+    ['bnr-random-weapon', 'bnr-random-armor', 'bnr-random-horse'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.dataset.bnrCd = 'player.equip_item';
+    });
+
+    document.getElementById('bnr-random-weapon')?.addEventListener('click', () => {
+        _bannerlordBuyAction('player.equip_item', { random_category: 'weapon' });
+    });
+    document.getElementById('bnr-random-armor')?.addEventListener('click', () => {
+        _bannerlordBuyAction('player.equip_item', { random_category: 'armor' });
+    });
+    const horseBtn = document.getElementById('bnr-random-horse');
+    if (horseBtn && isMounted) {
+        horseBtn.addEventListener('click', () => {
+            _bannerlordBuyAction('player.equip_item', { random_category: 'horse' });
+        });
+    }
+}

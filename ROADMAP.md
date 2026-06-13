@@ -220,7 +220,7 @@ player.spawn (5086) + detachment-команды. А «династия/экон�
 почти не используется. Прямые кандидаты на заморозку (сократит viewer.js +
 площадь BLT-аудита). RimWorld/платформа — инструментировать тем же хелпером (1 строка).
 
-### [~] 2.4 Распил viewer.js (В РАБОТЕ — куски 1-3 сделаны 2026-06-13)
+### [~] 2.4 Распил viewer.js (В РАБОТЕ — RimWorld вынесен, куски 1-4 готовы 2026-06-13)
 > **Контекст:** фронт уже распилен на 14 feature-файлов (pawn/shop/xenotype/
 > cases/duels/…). `viewer.js` (6952→6866) — это «ядро + Bannerlord (~4.8k) +
 > остаток RimWorld». Куски ниже вытягивают RimWorld из ядра в `viewer-rimworld.js`
@@ -246,9 +246,16 @@ buyTrait/buyGene/removeMyGene +_pawnRefreshTimer) → `viewer-rimworld.js`. Вы
 из shop.js/pawn.js на рантайм-кликах. node --check ок, 1 определение по всему
 фронту, задеплоено (verified: 5 в новом файле, 0 в viewer.js, ?v= бампнут, 200).
 
-**Дальше (следующие куски, в тот же `viewer-rimworld.js` / новый `viewer-bannerlord.js`):**
-остаток RimWorld в viewer.js (createPawn-модалка 6649+, RimWorld rich-text, localizeSkill)
-→ затем Bannerlord (~4.8k строк, главная масса).
+**Кусок 4 (2026-06-13):** остаток RimWorld → `viewer-rimworld.js`: parseRimColor
+(rich-text), SKILL_LABELS_RU+localizeSkill, showCreatePawnModal+createPawn. node --check
+ок, 1 определение по фронту, задеплоено. **После этого в viewer.js НЕТ ни одного
+`/api/rimworld/` вызова и ни одной RimWorld-функции — RimWorld полностью вынесен**
+в `viewer-rimworld.js` (~370 строк). viewer.js: 7141 → 6810.
+
+**Дальше:** оставшийся viewer.js (6810) = ядро (платформа) + Bannerlord (~4.8k, главная
+масса). Следующая фаза — вынос Bannerlord в `viewer-bannerlord.js`. Это БОЛЬШАЯ отдельная
+работа (BNR_*, активные/пассивные силы, кланы/королевства, advisor-UI) — пилить так же
+по кускам, начиная с самодостаточных блоков. Гейт цены учитывать (create_kingdom = 5M).
 **При распиле сразу выносить/замораживать анти-топ-фичи** (метрики 2.3), а не тащить
 в новые модули. Учитывать гейт цены (create_kingdom мало юзают из-за 5M, не «не нужно»).
 

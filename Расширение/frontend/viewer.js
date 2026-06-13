@@ -614,21 +614,8 @@ function escapeHtml(str) {
 }
 
 // ===== RIMWORLD RICH TEXT → HTML =====
-// Конвертирует RimWorld теги <color=#hex>текст</color> в HTML <span style="color:...">
-// Остальные теги (<b>, <i>, <size=N>) тоже поддерживаются
-function parseRimColor(str) {
-    if (!str) return '';
-    // 1. Сначала экранируем ВСЁ для безопасности
-    let safe = escapeHtml(String(str));
-    // 2. Восстанавливаем только разрешённые теги (теперь они экранированы: &lt; и &gt;)
-    safe = safe.replace(/&lt;color=(#[0-9a-fA-F]{3,8}|[a-zA-Z]{1,20})&gt;/g,
-        (_, c) => `<span style="color:${c.replace(/[^a-zA-Z0-9#]/g, '')}">`);
-    safe = safe.replace(/&lt;\/color&gt;/g, '</span>');
-    safe = safe.replace(/&lt;b&gt;/g, '<b>').replace(/&lt;\/b&gt;/g, '</b>');
-    safe = safe.replace(/&lt;i&gt;/g, '<i>').replace(/&lt;\/i&gt;/g, '</i>');
-    safe = safe.replace(/&lt;size=\d+&gt;/g, '').replace(/&lt;\/size&gt;/g, '');
-    return safe;
-}
+// parseRimColor перенесён в viewer-rimworld.js (ROADMAP 2.4, split чанк 4, 2026-06-13).
+// Зовётся из pawn.js при рендере (рантайм).
 const _cmdCooldowns = {};
 const _cdTimers = {}; // активные таймеры обратного отсчёта на кнопках
 
@@ -1002,27 +989,9 @@ function renderLevelBar(data) {
 const MARKET_MIN_PRICES = { "деревяшка": 10, "камень": 60, "амулет": 320, "корона": 2000 };
 
 
-// Русские названия навыков RimWorld (def_name → локализация)
-const SKILL_LABELS_RU = {
-    "Shooting":     "Стрельба",
-    "Melee":        "Ближний бой",
-    "Construction": "Строительство",
-    "Mining":       "Добыча",
-    "Cooking":      "Готовка",
-    "Plants":       "Растениеводство",
-    "Animals":      "Животноводство",
-    "Crafting":     "Ремесло",
-    "Artistic":     "Искусство",
-    "Medicine":     "Медицина",
-    "Social":       "Социальность",
-    "Intellectual": "Интеллект",
-};
-
-/** Возвращает русское название навыка */
-function localizeSkill(skill) {
-    const def = skill.def_name || skill.name || "";
-    return SKILL_LABELS_RU[def] || skill.label || skill.name || def || "?";
-}
+// Русские названия навыков RimWorld (SKILL_LABELS_RU) + localizeSkill —
+// перенесено в viewer-rimworld.js (ROADMAP 2.4, split чанк 4, 2026-06-13).
+// Зовётся из pawn.js/xenotype.js (рантайм).
 
 // CRAFT_RECIPES + craftItem удалены 2026-05-10 (Phase 1.B compliance rework —
 // 3/3 gambling: §6.2.4 + §5.3 Twitch Extension Guidelines).
@@ -6560,33 +6529,8 @@ function showConfirm(title, message, onYes) {
 }
 
 // ===== СОЗДАНИЕ ПЕШКИ =====
-function showCreatePawnModal() {
-    const balance = parseInt(document.getElementById('points')?.textContent || '0');
-    if (balance < 200) {
-        showNotification('❌ Нужно 200💎 для создания пешки!', 'error');
-        return;
-    }
-    showConfirm('✨ Создание пешки', `Создать пешку за <b style="color:#9147ff;">200💎</b>?<br><span style="color:#4ade80;">Ник: ${escapeHtml(userLogin)}</span>`, () => createPawn(userLogin));
-}
-
-async function createPawn(name) {
-    try {
-        const response = await fetch(`${API_URL}/api/rimworld/create-pawn`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || '' },
-            body: JSON.stringify({ username: userLogin, pawn_name: name })
-        });
-        const data = await response.json();
-        showNotification(data.message, data.success ? 'success' : 'error');
-            if (data.success) {
-                loadUserData();
-                showNotification('⏳ Пешка создаётся, данные обновятся через 10 сек...', 'info', 5000);
-                startPawnRefresh(25000, 5000);
-            }
-    } catch (e) {
-        showNotification('❌ Ошибка при создании пешки', 'error');
-    }
-}
+// Перенесено в viewer-rimworld.js (ROADMAP 2.4, split чанк 4, 2026-06-13).
+// showCreatePawnModal + createPawn. Зовётся из create-pawn-btn (рантайм).
 async function loadStats() {
     if (!userLogin) return;
     try {

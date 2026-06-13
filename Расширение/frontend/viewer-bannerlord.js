@@ -2580,3 +2580,55 @@ function renderBannerlordSummonButton() {
         });
     }
 }
+
+// ===== Buffs HUD (активные баффы/кулдауны) — split чанк 10 (2026-06-13) =====
+// loadBannerlordBuffs + _renderBannerlordBuffs. Форвард CORE: BNR_POWER_LABELS,
+// _bannerlordBuffs/_bannerlordCooldowns (стейт). Callers рантайм (polling, cd-ticker).
+// Sprint 5.29 audit fix #37: store absolute expires_at_ms на каждый fetch
+// чтобы ticker мог recompute remaining = (expires_at_ms - Date.now())/1000.
+// Раньше client-side декремент drift'ил когда tab throttled — viewer видел
+// power как "unlocked" пока CD реально active, кликал → backend rejects.
+async function loadBannerlordBuffs() {
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/my-buffs`, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
+        const data = await r.json();
+        if (data.success) {
+            const now = Date.now();
+            _bannerlordBuffs = (data.buffs || []).map(b => ({
+                ...b,
+                expires_at_ms: now + (b.remaining_s || 0) * 1000,
+            }));
+            _bannerlordCooldowns = (data.cooldowns || []).map(c => ({
+                ...c,
+                expires_at_ms: now + (c.remaining_s || 0) * 1000,
+            }));
+            _renderBannerlordBuffs();
+            renderBannerlordActivePowers();
+        }
+    } catch (e) {
+        // Sprint 5.29 audit fix #36: было silent — теперь warn (HUD-poll)
+        console.warn('[BNR loadBannerlordBuffs]', e);
+    }
+}
+
+function _renderBannerlordBuffs() {
+    const slot = document.getElementById('bnr-buff-hud');
+    if (!slot) return;
+    if (!_bannerlordBuffs.length) { slot.innerHTML = ''; return; }
+
+    const chips = _bannerlordBuffs.map(b => {
+        const meta = BNR_POWER_LABELS[b.power_key];
+        const icon = meta?.icon || '✨';
+        const label = meta?.label || b.power_key;
+        const sec = Math.ceil(b.remaining_s);
+        return `<span style="display:inline-block;background:#9147ff;color:#efeff1;
+                              padding:2px 8px;border-radius:10px;font-size:11px;
+                              font-weight:700;margin:0 2px;">
+            ${icon} ${escapeHtml(label)} ${sec}с
+        </span>`;
+    }).join('');
+
+    slot.innerHTML = `<div style="padding:4px 0 6px 0;">${chips}</div>`;
+}

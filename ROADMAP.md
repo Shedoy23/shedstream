@@ -285,7 +285,26 @@ viewer.js, до viewer-rimworld.js в обоих шеллах; glob-роут + �
 - **Кусок 10 (buffs HUD):** loadBannerlordBuffs + _renderBannerlordBuffs. Форвард
   `BNR_POWER_LABELS` (core). viewer.js: 4313 → **4268**.
   Каждый кусок 7-10: байт-точный mover + node-check + единственность + ноль мохибейка
-  + прод-200 + кросс-файл-callers проверены. **viewer.js: 7141 → 4268 (−40%).**
+  + прод-200 + кросс-файл-callers проверены. viewer.js: 7141 → 4268 (−40%).
+- **Куски 11-15 (2026-06-13):** 11 status-badge · 12 random-equip/retinue/currency
+  (`_formatBigGold/Price` оставлены в core) · 13 dynasty A (clan-upgrades/forge/achievements/
+  gender/profile/family/clan+kingdom mgmt — `_bnrConfirm`/`_bnrShowSimpleModal` оставлены) ·
+  14 part-B create-kingdom/join/clan inline + bind-random-equip (`_stopBannerlordPolling` оставлен) ·
+  **15 hero-card (loadBannerlordHero, 611 строк, гигант)** — все саб-рендеры уже в bannerlord.js,
+  `BNR_SKILL_LABELS_RU` кросс-ссылка из чанка 2 РЕЗОЛВИЛАСЬ (внутрифайл). Каждый verified на проде.
+  **viewer.js: 7141 → 2453 (−66%). bannerlord.js: ~3000 строк.**
+
+### Статус 2.4: ВСЕ ФИЧИ Bannerlord+RimWorld вынесены. Осталась только инфра.
+В viewer.js остаётся **связная Bannerlord-инфраструктура** (1060-1824, ~760 строк):
+state-глобалы, `_bnr*` хелперы (price/afford/settlement/balances), `BNR_REFUSE_REASON_RU`+refund,
+`_bnrConfirm`/`_bnrShowSimpleModal`, `HERO_GOLD_TIER_COSTS`, `BNR_POWER_LABELS/PRICES`,
+`_formatBigGold/Price`, cooldown-система (`_bnrInflight`/`_bnrCd*`/`_bnrActionCdTick`/`_bnrAffordTick`
++ **parse-time 1s тикер**), диспетчер `_bannerlordBuyAction`, polling (`_start/_stopBannerlordPolling`),
+`switchIntegrationModule` (роутер — настоящий core). **Это «мост», не фичи.** Дробить дальше —
+самый рискованный шаг (parse-time тикер, двунаправленная связь со всеми фичами, guard для polling
+при выносе из switchIntegrationModule). **Рекомендация: оставить как integration-слой ИЛИ выносить
+отдельной свежей сессией** (`viewer-bannerlord-core.js`), не в хвосте марафона. Диспетчер не зовётся
+из core (только из bannerlord.js-фич) — он выносим первым, если решим продолжить.
 
 **Осталось вынести (Bannerlord) — это ЗАПУТАННЫЕ куски, делать осторожно в свежей сессии
 (не в хвосте марафона). Анализ зависимостей — субагентом, см. ниже:**

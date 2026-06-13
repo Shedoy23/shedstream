@@ -2294,3 +2294,81 @@ function _renderBannerlordBattleBanner(data) {
             </div>
         </div>`;
 }
+
+// ===== Shop (магазин Bannerlord — каталог + random-equip + currency) — split чанк 8 (2026-06-13) =====
+// loadBannerlordShop. Зовёт core/cluster-2 рендеры (renderBannerlordRandomEquipHtml/
+// renderBannerlordCurrencyHtml/_bind*) форвард; callers рантайм (_startBannerlordPolling, dispatcher).
+async function loadBannerlordShop() {
+    const list = document.getElementById('bannerlord-shop-list');
+    const cnt  = document.getElementById('bannerlord-shop-count');
+    if (!list) return;
+    // Sprint M19+M20+M21: random-equip + gear-upgrade + currency (gold/XP) сверху.
+    // Sprint 5.10/5.8c: gear-upgrade перенесён в hero card (inline кнопка);
+    // progression — в modal (per-row + buttons). В shop остались только
+    // randomEquip + currency converters.
+    const randomEquipBlock = renderBannerlordRandomEquipHtml();
+    const currencyBlock = renderBannerlordCurrencyHtml();
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/shop`, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
+        const data = await r.json();
+        if (!data.success) {
+            list.innerHTML = randomEquipBlock + currencyBlock +
+                `<div class="loading">${escapeHtml(data.message || 'Ошибка')}</div>`;
+            _bindBannerlordRandomEquip();
+            _bindBannerlordCurrency();
+            return;
+        }
+        const items = data.items || [];
+        // +3 random-equip + 3 give_gold + 3 add_skill = +9 fixed actions
+        if (cnt) cnt.textContent = items.length + 9;
+        if (items.length === 0) {
+            list.innerHTML = randomEquipBlock + currencyBlock + `
+                <div style="text-align:center;padding:14px;font-size:11px;color:#adadb8;border-top:1px solid #3d3d3f;margin-top:6px;">
+                    Каталог пуст. Мод пришлёт shop-данные когда стример запустит игру.
+                </div>`;
+            _bindBannerlordRandomEquip();
+            _bindBannerlordCurrency();
+            return;
+        }
+        // Каждый item — {catalog_type, entry_id, name?, price?, action_type?, ...}
+        const catalogHtml = items.map(it => {
+            const name = escapeHtml(it.name || it.entry_id || '?');
+            const price = parseInt(it.price || 0, 10);
+            const actionType = it.action_type || it.entry_id;
+            const canBuy = actionType && _cachedUserPoints >= price;
+            return `
+                <div class="shop-item">
+                    <div class="shop-item-info">
+                        <div class="shop-item-name">${name}</div>
+                        <div class="shop-item-cat" style="font-size:11px;color:#adadb8;">
+                            ${escapeHtml(it.catalog_type || '')}${it.description ? ' · ' + escapeHtml(it.description) : ''}
+                        </div>
+                    </div>
+                    <button class="shop-buy-btn"
+                            data-bnr-buy="${escapeHtml(actionType || '')}"
+                            data-bnr-price="${price}"
+                            ${canBuy ? '' : 'disabled style="opacity:.5;cursor:not-allowed;"'}>
+                        ${price.toLocaleString('ru-RU')}💎
+                    </button>
+                </div>`;
+        }).join('');
+        list.innerHTML = randomEquipBlock + currencyBlock + catalogHtml;
+        _bindBannerlordRandomEquip();
+        _bindBannerlordCurrency();
+        // Bind buy handlers для catalog items
+        list.querySelectorAll('[data-bnr-buy]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const actionType = btn.dataset.bnrBuy;
+                const price = parseInt(btn.dataset.bnrPrice || '0', 10);
+                _bannerlordBuyAction(actionType, { price });
+            });
+        });
+    } catch (e) {
+        list.innerHTML = randomEquipBlock + currencyBlock +
+            `<div class="loading" style="color:#f87171;">Ошибка сети</div>`;
+        _bindBannerlordRandomEquip();
+        _bindBannerlordCurrency();
+    }
+}

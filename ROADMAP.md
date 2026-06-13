@@ -220,7 +220,7 @@ player.spawn (5086) + detachment-команды. А «династия/экон�
 почти не используется. Прямые кандидаты на заморозку (сократит viewer.js +
 площадь BLT-аудита). RimWorld/платформа — инструментировать тем же хелпером (1 строка).
 
-### [~] 2.4 Распил viewer.js (В РАБОТЕ — кусок 1 сделан 2026-06-13)
+### [~] 2.4 Распил viewer.js (В РАБОТЕ — куски 1-2 сделаны 2026-06-13)
 7k строк, две игры, один файл. Цель: `viewer-core.js` (платформа) +
 `viewer-bannerlord.js` + `viewer-rimworld.js`. Без изменения поведения, по куску.
 
@@ -230,8 +230,14 @@ player.spawn (5086) + detachment-команды. А «династия/экон�
 Попутно: deploy.ps1 кэш-бастит все `viewer*.js`; main.py авто-регистрирует роуты
 `viewer-*.js` (поймали 404 — фронт раздаётся хардкод-словарём, не статик-маунтом).
 
+**Кусок 2 (2026-06-13):** RimWorld events-блок (магазин ивентов) → тот же
+`viewer-rimworld.js`: loadRimworldEvents/onEventsSearch/renderEvents/buyEvent +
+EVENT_COOLDOWN_MS + event-tick. node --check ок, 1 определение, вызовы в viewer.js
+(234/457/1039) все рантайм. Задеплоено на прод (verified: код в новом файле, из
+viewer.js убран, ?v= бампнут, 200).
+
 **Дальше (следующие куски, в тот же `viewer-rimworld.js` / новый `viewer-bannerlord.js`):**
-RimWorld events-блок → traits/genes/inventory-labels → затем Bannerlord (~4.8k строк).
+RimWorld traits/genes/inventory-labels → затем Bannerlord (~4.8k строк).
 **При распиле сразу выносить/замораживать анти-топ-фичи** (метрики 2.3), а не тащить
 в новые модули. Учитывать гейт цены (create_kingdom мало юзают из-за 5M, не «не нужно»).
 

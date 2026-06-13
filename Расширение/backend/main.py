@@ -1069,6 +1069,13 @@ async def run_migrations():
             print(f"❌ M72 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m73_bug_reports
+            await m73_bug_reports.apply(conn)
+        except Exception as e:
+            print(f"❌ M73 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 
@@ -1155,6 +1162,13 @@ class TwitchChatBot(twitch_commands.Bot):
             chat_login = (getattr(message.channel, 'name', '') or '').lower().lstrip('#')
             channel_id = get_channel_id_by_login(chat_login) or resolve_channel_id_or_default()
             set_request_channel_id(channel_id)
+            # !баг / !bug <текст> — приём багрепорта от зрителя (m73). Перехватываем
+            # ДО bonus/quest: команда не считается за обычное чат-сообщение.
+            _bcmd = text.lstrip().split(maxsplit=1)
+            if _bcmd and _bcmd[0].lower() in ('!баг', '!bug'):
+                await self._handle_bug_report(
+                    channel_id, username, _bcmd[1] if len(_bcmd) > 1 else '')
+                return
             # Сбрасываем AFK — зритель написал в чат (per-channel presence trace)
             bot.update_viewer_chat(username, channel_id)
             async with db._connect() as conn:
@@ -1188,6 +1202,34 @@ class TwitchChatBot(twitch_commands.Bot):
             await bot._update_quest_progress(username, 'chat_messages_100', 1)
         except Exception as e:
             print(f"IRC chat error: {e}")
+
+    async def _handle_bug_report(self, channel_id, username, arg):
+        """!баг <текст> — сохранить багрепорт + ответить зрителю в чат (m73).
+
+        Анти-спам: кулдаун per (channel_id, username). Пустой текст → подсказка.
+        Стример читает багрепорты в дашборде (карточка «🐞 Баг-репорты»).
+        """
+        try:
+            import bug_reports
+            msg = (arg or '').strip()
+            if not msg:
+                await bot.send_message(
+                    f"@{username} напиши описание: !баг <что сломалось>",
+                    channel_id=channel_id)
+                return
+            left = bug_reports.cooldown_left(channel_id, username)
+            if left > 0:
+                await bot.send_message(
+                    f"@{username} подожди {left}с перед следующим багрепортом",
+                    channel_id=channel_id)
+                return
+            await bug_reports.record_bug_report(channel_id, username, msg)
+            bug_reports.mark_reported(channel_id, username)
+            await bot.send_message(
+                f"✅ @{username} баг записан — спасибо! Стример увидит.",
+                channel_id=channel_id)
+        except Exception as e:
+            print(f"!баг handler error: {e}")
 
     async def event_raw_data(self, data: str):
         """Ловим USERNOTICE — стрики просмотров и другие системные события."""

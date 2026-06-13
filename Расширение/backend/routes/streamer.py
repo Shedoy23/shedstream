@@ -527,6 +527,54 @@ def _dashboard_html(ch: dict) -> str:
   }}
   </script>
 
+  <!-- Баг-репорты от зрителей (m73) -->
+  <div class="section">
+    <h2>🐞 Баг-репорты от зрителей</h2>
+    <div class="sub">
+      Зрители пишут в чат <b>!баг &lt;описание&gt;</b> — баг падает сюда (бот отвечает им «записано»).
+      <button class="tok-show" onclick="loadBugs()">🔄 Обновить</button>
+      <label style="margin-left:10px;font-size:13px;"><input type="checkbox" id="bug-open-only" onchange="loadBugs()"> только открытые</label>
+    </div>
+    <div id="bug-list"><div class="sub">Загрузка…</div></div>
+  </div>
+  <script>
+  function bugEsc(s){{
+    return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }}
+  async function setBug(id, status){{
+    try{{
+      await fetch('/api/streamer/bug-reports/status', {{method:'POST', credentials:'include', headers:{{'Content-Type':'application/json'}}, body: JSON.stringify({{id: id, status: status}})}});
+      loadBugs();
+    }} catch(e){{}}
+  }}
+  async function loadBugs(){{
+    const openOnly = document.getElementById('bug-open-only').checked;
+    const url = '/api/streamer/bug-reports?limit=100' + (openOnly ? '&status=open' : '');
+    const list = document.getElementById('bug-list');
+    try{{
+      const r = await fetch(url, {{credentials:'include'}});
+      const d = await r.json();
+      if(d.status !== 'ok'){{ list.innerHTML = '<div class="sub">Ошибка: ' + (d.status||'?') + '</div>'; return; }}
+      if(!d.reports || !d.reports.length){{ list.innerHTML = '<div class="sub">Пока пусто. Зрители ещё не писали !баг.</div>'; return; }}
+      list.innerHTML = d.reports.map(function(b){{
+        const resolved = b.status === 'resolved';
+        const btnCls = resolved ? 'tok-show' : 'tok-copy';
+        const btnTo = resolved ? 'open' : 'resolved';
+        const btnLabel = resolved ? '↩ Вернуть' : '✓ Решено';
+        return '<div style="border-bottom:1px solid #2d2d2f;padding:8px 0;' + (resolved ? 'opacity:0.55;' : '') + '">'
+          + '<div style="font-size:12px;color:#adadb8;">' + bugEsc(b.username) + ' · ' + bugEsc(b.created_at) + (resolved ? ' · ✅ решено' : '') + '</div>'
+          + '<div style="margin:3px 0;white-space:pre-wrap;">' + bugEsc(b.message) + '</div>'
+          + '<button class="' + btnCls + '" data-bug-id="' + b.id + '" data-bug-to="' + btnTo + '">' + btnLabel + '</button>'
+          + '</div>';
+      }}).join('');
+      list.querySelectorAll('[data-bug-id]').forEach(function(btn){{
+        btn.addEventListener('click', function(){{ setBug(btn.getAttribute('data-bug-id'), btn.getAttribute('data-bug-to')); }});
+      }});
+    }} catch(e){{ list.innerHTML = '<div class="sub">Network error: ' + e.message + '</div>'; }}
+  }}
+  loadBugs();
+  </script>
+
   <!-- Boosty subscribers admin (Sprint 5.31 #45b) -->
   <div class="section" id="boosty-section">
     <h2>💜 Boosty-подписчики</h2>
@@ -970,6 +1018,51 @@ async def streamer_feature_usage(request: Request):
         "top": ranked[:10],
         "bottom": list(reversed(ranked[-10:])) if len(ranked) > 10 else [],
     })
+
+
+@router.get("/api/streamer/bug-reports", include_in_schema=False)
+async def streamer_bug_reports(request: Request):
+    """Багрепорты от зрителей (чат-команда !баг, m73). Требует session cookie."""
+    cid = _read_session_cookie(request)
+    if cid is None:
+        return JSONResponse({"status": "unauthenticated"}, status_code=401)
+    status = (request.query_params.get("status") or "").strip() or None
+    try:
+        limit = int(request.query_params.get("limit") or 50)
+    except (TypeError, ValueError):
+        limit = 50
+    import bug_reports
+    reports = await bug_reports.list_bug_reports(cid, limit=limit, status=status)
+    open_count = sum(1 for r in reports if r.get("status") == "open")
+    return JSONResponse({
+        "status": "ok",
+        "channel_id": cid,
+        "open_count": open_count,
+        "reports": reports,
+    })
+
+
+@router.post("/api/streamer/bug-reports/status", include_in_schema=False)
+async def streamer_bug_report_status(request: Request):
+    """Стример помечает багрепорт open/resolved (scoped по своему каналу, m73)."""
+    cid = _read_session_cookie(request)
+    if cid is None:
+        return JSONResponse({"status": "unauthenticated"}, status_code=401)
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    try:
+        report_id = int(body.get("id"))
+    except (TypeError, ValueError):
+        return JSONResponse({"status": "invalid_id"}, status_code=400)
+    new_status = (body.get("status") or "").strip()
+    if new_status not in ("open", "resolved"):
+        return JSONResponse({"status": "invalid_status"}, status_code=400)
+    import bug_reports
+    ok = await bug_reports.set_bug_status(cid, report_id, new_status)
+    return JSONResponse(
+        {"status": "ok" if ok else "not_found", "id": report_id, "new_status": new_status})
 
 
 # ── M4 follow-up (б): OAuth refresh ──────────────────────────────────────────

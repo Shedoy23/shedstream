@@ -2372,3 +2372,211 @@ async function loadBannerlordShop() {
         _bindBannerlordCurrency();
     }
 }
+
+// ===== Classes / active powers / summon — split чанк 9 (2026-06-13) =====
+// loadBannerlordClasses + renderBannerlordClassPicker + renderBannerlordActivePowers
+// + renderBannerlordSummonButton. Форвард-зовёт CORE: BNR_POWER_LABELS/PRICES,
+// _bannerlordClassesCache (общий стейт), _bannerlordBuyAction. Callers рантайм.
+async function loadBannerlordClasses() {
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/classes`, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
+        const data = await r.json();
+        if (data.success) _bannerlordClassesCache = data;
+        // Re-render hero body если он уже отображён — picker появится
+        renderBannerlordClassPicker();
+    } catch (e) {
+        // Sprint 5.29 audit fix #36: silent → warn
+        console.warn('[BNR loadBannerlordClasses]', e);
+    }
+}
+
+function renderBannerlordClassPicker() {
+    const slot = document.getElementById('hero-class-picker-slot');
+    if (!slot || !_bannerlordClassesCache) return;
+    const { classes, current } = _bannerlordClassesCache;
+    const currentKey = current?.class_key || '';
+
+    // Sprint 5.3b — compact dropdown вместо grid кнопок (UX feedback).
+    const optionsHtml = classes.map(c => {
+        const selected = c.class_key === currentKey ? 'selected' : '';
+        return `<option value="${escapeHtml(c.class_key)}" ${selected}>${escapeHtml(c.name)}</option>`;
+    }).join('');
+
+    const placeholderOpt = currentKey
+        ? ''
+        : '<option value="" disabled selected>— выбери класс —</option>';
+
+    // Sprint 5.32 — class progression info (level 1/2/3 from primary skill).
+    // primary_skill_level показывает текущее значение, next_threshold — что
+    // нужно достичь для следующего уровня класса.
+    let progressionHtml = '';
+    if (current && current.class_level) {
+        const cl = current.class_level;
+        const ps = current.primary_skill;
+        const psLevel = current.primary_skill_level || 0;
+        const nextT = current.next_threshold;
+        const stars = '★'.repeat(cl) + '☆'.repeat(3 - cl);
+        const progress = nextT
+            ? `${ps} ${psLevel}/${nextT} → lvl ${cl + 1}`
+            : `${ps} ${psLevel} (MAX)`;
+        progressionHtml = `
+            <div style="margin-top:4px;font-size:10px;color:#adadb8;
+                        background:rgba(251,191,36,0.05);border-radius:4px;
+                        padding:4px 8px;display:flex;justify-content:space-between;
+                        align-items:center;gap:6px;">
+                <span><span style="color:#fbbf24;">${stars}</span> класс lvl ${cl}</span>
+                <span style="color:#9ca3af;font-size:9px;" title="Качай ${ps} чтобы апгрейднуть class lvl и усилить активки. Bow / Riding / OneHanded / TwoHanded / Polearm в зависимости от класса.">
+                    ${escapeHtml(progress)}
+                </span>
+            </div>`;
+    }
+
+    slot.innerHTML = `
+        <div style="display:flex;align-items:center;gap:6px;margin-top:8px;margin-bottom:4px;">
+            <span style="font-size:11px;color:#adadb8;white-space:nowrap;">🎖️ Класс:</span>
+            <select id="bnr-class-select"
+                    style="flex:1;background:#2d2d2f;color:#efeff1;border:1px solid #3d3d3f;
+                           padding:5px 8px;font-size:12px;border-radius:4px;cursor:pointer;
+                           ${currentKey ? '' : 'border-color:#fbbf24;'}">
+                ${placeholderOpt}
+                ${optionsHtml}
+            </select>
+        </div>
+        ${progressionHtml}
+    `;
+
+    const sel = document.getElementById('bnr-class-select');
+    if (sel) {
+        sel.addEventListener('change', () => {
+            const classKey = sel.value;
+            if (!classKey || classKey === currentKey) return;
+            _bannerlordBuyAction('hero.set_class', { price: 0, class_key: classKey });
+        });
+    }
+
+    // Sprint 4.7: render active power buttons под picker'ом (для current class).
+    renderBannerlordActivePowers();
+}
+
+// Sprint 4.7 — active power buttons (heal_burst + class-specific actives).
+function renderBannerlordActivePowers() {
+    const slot = document.getElementById('bnr-active-powers-slot');
+    if (!slot) {
+        dbg('[BNR activePowers] slot не найден в DOM');
+        return;
+    }
+    if (!_bannerlordClassesCache) {
+        dbg('[BNR activePowers] _bannerlordClassesCache не загружен');
+        slot.innerHTML = '';
+        return;
+    }
+    const powers = _bannerlordClassesCache.current_powers || [];
+    dbg('[BNR activePowers] received', powers.length, 'powers:', powers);
+    if (!powers.length) {
+        slot.innerHTML = `<div style="font-size:11px;color:#9ca3af;margin:8px 0;text-align:center;">
+            Способности появятся после выбора класса (Прокачка → Класс)
+        </div>`;
+        return;
+    }
+
+    // Disabled state: если active buff с тем же power_key бежит (4.6) ИЛИ
+    // cooldown ещё не истёк (4.8) — нельзя активировать. UX-only check,
+    // backend всё равно отклонит /action на 4.8 cooldown server-side.
+    const activeKeys = new Set(_bannerlordBuffs.map(b => b.power_key));
+    const cdMap = {};
+    for (const c of _bannerlordCooldowns) cdMap[c.power_key] = c.remaining_s;
+
+    const btnsHtml = powers.map(p => {
+        const meta = BNR_POWER_LABELS[p.power_key];
+        if (!meta) return '';
+        const price = BNR_POWER_PRICES[p.power_key] ?? 0;
+        const isActive = activeKeys.has(p.power_key);
+        const cdRem = cdMap[p.power_key] || 0;
+        const onCooldown = cdRem > 0;
+        const disabled = (isActive || onCooldown) ? 'disabled' : '';
+        const bgColor = (isActive || onCooldown) ? '#3d3d3f' : '#2d2d2f';
+        const suffix = onCooldown
+            ? ` <span style="color:#9ca3af;">${_bnrCdLabel(Math.ceil(cdRem))}</span>`
+            : ` <span style="color:#fbbf24;">${price}💎</span>`;
+        return `
+            <button class="small-btn"
+                    data-bnr-power="${escapeHtml(p.power_key)}"
+                    data-bnr-price="${price}"
+                    data-bnr-cost="${price},0"
+                    ${disabled}
+                    title="${escapeHtml(meta.desc)}"
+                    style="background:${bgColor};color:#efeff1;padding:6px 8px;
+                           margin:2px;font-size:11px;border:1px solid #3d3d3f;
+                           ${(isActive || onCooldown) ? 'opacity:0.5;cursor:not-allowed;' : ''}">
+                ${meta.icon} ${escapeHtml(meta.label)}${suffix}
+            </button>`;
+    }).join('');
+
+    slot.innerHTML = `
+        <div style="font-size:11px;color:#adadb8;margin-top:8px;margin-bottom:4px;">
+            ⚡ Способности
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:2px;margin-bottom:6px;">
+            ${btnsHtml}
+        </div>`;
+
+    slot.querySelectorAll('[data-bnr-power]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const powerKey = btn.dataset.bnrPower;
+            const price = parseInt(btn.dataset.bnrPrice, 10) || 0;
+            _bannerlordBuyAction('power.activate', { price, power_key: powerKey });
+        });
+    });
+
+    // Sprint 5.0: summon button (player.spawn) — отдельно, не active power.
+    renderBannerlordSummonButton();
+    // Sprint 5.1c random-equip перемещён в shop card (loadBannerlordShop рендерит).
+}
+
+// Sprint 5.0 — кнопки призыва (player.spawn).
+// Cooldown ключ на backend'е = "player.spawn" (общий на обе стороны).
+// Цены server-side enforced (SPAWN_PRICES в routes/bannerlord.py).
+function renderBannerlordSummonButton() {
+    const slot = document.getElementById('bnr-summon-slot');
+    if (!slot) return;
+    const ALLY_PRICE = 50;     // 5.27i: 100→50 (×0.5)
+    const ENEMY_PRICE = 100;   // 5.27i: 200→100 (×0.5, 2× тролл-tax сохранён)
+    const cdRem = (_bannerlordCooldowns.find(c => c.power_key === 'player.spawn') || {}).remaining_s || 0;
+    const onCooldown = cdRem > 0;
+    const cdLabel = onCooldown
+        ? `<span style="color:#9ca3af;">${_bnrCdLabel(Math.ceil(cdRem))}</span>`
+        : '';
+
+    slot.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:4px;margin-top:6px;">
+            <button class="modal-btn" id="bnr-summon-ally-btn"
+                    data-bnr-cost="${ALLY_PRICE},0"
+                    ${onCooldown ? 'disabled' : ''}
+                    title="Призвать героя в бой на сторону стримера"
+                    style="width:100%;padding:7px;font-size:12px;
+                           ${onCooldown ? 'opacity:0.5;cursor:not-allowed;' : ''}">
+                📯 Призвать за стримера
+                ${onCooldown ? cdLabel : `<span style="color:#fbbf24;">${ALLY_PRICE}💎</span>`}
+            </button>
+            <button class="modal-btn" id="bnr-summon-enemy-btn"
+                    data-bnr-cost="${ENEMY_PRICE},0"
+                    ${onCooldown ? 'disabled' : ''}
+                    title="Призвать героя ПРОТИВ стримера (на сторону противника)"
+                    style="width:100%;padding:7px;font-size:12px;background:#7c1d1d;
+                           ${onCooldown ? 'opacity:0.5;cursor:not-allowed;' : ''}">
+                ⚔️ Призвать против стримера
+                ${onCooldown ? cdLabel : `<span style="color:#fbbf24;">${ENEMY_PRICE}💎</span>`}
+            </button>
+        </div>`;
+
+    if (!onCooldown) {
+        document.getElementById('bnr-summon-ally-btn')?.addEventListener('click', () => {
+            _bannerlordBuyAction('player.spawn', { price: ALLY_PRICE, side: 'player' });
+        });
+        document.getElementById('bnr-summon-enemy-btn')?.addEventListener('click', () => {
+            _bannerlordBuyAction('player.spawn', { price: ENEMY_PRICE, side: 'enemy' });
+        });
+    }
+}

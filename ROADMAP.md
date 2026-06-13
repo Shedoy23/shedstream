@@ -271,14 +271,33 @@ viewer.js, до viewer-rimworld.js в обоих шеллах; glob-роут + �
     core-хелпер `_smartInnerHTML` корректно ОСТАВЛЕН в core.
   - **6 daily/heirs/family:** loadBannerlordDaily(+claim)/Heirs/Family(+_fam* handlers).
   Все: self-contained, core `_bnr*`/`_smartInnerHTML` forward, callers рантайм
-  (loadBannerlordHero / _startBannerlordPolling). viewer.js: 6505 → **4796**.
+  (loadBannerlordHero / _startBannerlordPolling). viewer.js: 6505 → 4796.
+- **Кусок 7 (battle status):** loadBannerlordBattleStatus + _renderBannerlordDetachmentPanel
+  + _renderBannerlordStance + _renderBannerlordBattleBanner. Ноль общих констант. Стейт
+  `_bannerlordBattle` остался в core; hero-card + polling зовут перенесённые рендеры
+  кросс-файлово (рантайм). viewer.js: 4796 → **4583**. (Анализ безопасности — субагентом.)
 
-**Осталось вынести (Bannerlord, ~остаток):** classes/active-powers/summon/equipment
-(+BNR_POWER_LABELS/PRICES — шарятся с buffs), gender/profile/clan/kingdom mgmt,
-buffs/battle HUD, **hero-card (большая, BNR_SKILL_LABELS_RU станет внутрифайловой)**,
-shop, в самом конце — диспетчер `_bannerlordBuyAction` + cooldown-тикер + polling.
-Инструмент `_autotest/movechunk.py` — переиспользуемый (job-JSON: src/dst/start/end/
-assert_first/last/after/header/pointer).
+**Осталось вынести (Bannerlord) — это ЗАПУТАННЫЕ куски, делать осторожно в свежей сессии
+(не в хвосте марафона). Анализ зависимостей — субагентом, см. ниже:**
+- **shop** (loadBannerlordShop) — зовёт currency/random-equip рендеры; двигать вместе или
+  кросс-файл-ссылкой.
+- **currency / random-equip** — ⚠️ вклинена retinue-секция (часть hero-card) + `_formatBigGold`
+  шарится с hero-card. Исключать аккуратно (как `_smartInnerHTML`).
+- **classes / active-powers / summon  ↔  buffs** — ⚠️ ШАРЯТ `BNR_POWER_LABELS`. Двигать
+  ОБА вместе (и `BNR_POWER_LABELS` с ними), иначе кросс-файл-ссылка. Не по-отдельности.
+- **gender / profile / clan-mgmt / kingdom-mgmt + модалки** — ⚠️ `_bnrConfirm`/`_bnrShowSimpleModal`
+  вклинены и нужны hero-card → оставить в core (как `_smartInnerHTML`).
+- **hero-card (loadBannerlordHero, ~600 строк)** — САМАЯ рискованная: центральный оркестратор,
+  зовёт ~8 саб-рендеров + dialog-хелперы. `BNR_SKILL_LABELS_RU` станет внутрифайловой.
+- **В самом конце** — диспетчер `_bannerlordBuyAction` + cooldown-тикер + polling
+  (`switchIntegrationModule` зовёт `_startBannerlordPolling` — решить guard `typeof===function`).
+
+**В CORE ОСТАЮТСЯ навсегда/пока:** `_bnr*` хелперы, `_smartInnerHTML`, `_bnrConfirm`/
+`_bnrShowSimpleModal`, `_formatBigGold/Price`, state-глобалы, `switchIntegrationModule`.
+
+Инструмент `_autotest/movechunk.py` (НЕ в гите, untracked) — переиспользуемый байт-точный
+mover (job-JSON: src/dst/start/end/assert_first/last/after/header/pointer). Всегда
+перепроверять текущие номера строк грепом перед каждым переносом (сдвигаются).
 
 **В CORE остаются (НЕ выносить — зовутся при переключении модуля / диспетчер):**
 `switchIntegrationModule`, `_startBannerlordPolling`/`_stopBannerlordPolling`,

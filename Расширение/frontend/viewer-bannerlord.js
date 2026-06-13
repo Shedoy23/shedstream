@@ -330,3 +330,233 @@ function loadBannerlordProgression() {
         });
     });
 }
+
+// ===== Workshops (мастерские, пассивный доход) — split чанк 3 (2026-06-13) =====
+// _BNR_WORKSHOP_TYPES + loadBannerlordWorkshops + _renderBuyWorkshopInline.
+// Core-хелперы (_bnr*, _bannerlordBuyAction, _bnrFetchSettlements) — forward; callers рантайм.
+// Sprint 5.33 WORKSHOP-FIX (2026-05-28): IDs aligned с engine spworkshops.xml.
+// Раньше silversmith/wood_workshop возвращали MBObjectManager null →
+// мод REFUSE'нул с refund. Engine использует silversmithy + wood_WorkshopType
+// (последнее — TaleWorlds vanilla typo, не наш). Все ID проверены против
+// SandBox/ModuleData/spworkshops.xml для 1.3.15.
+const _BNR_WORKSHOP_TYPES = [
+    { id: 'brewery',          name: 'Пивоварня',         emoji: '🍺' },
+    { id: 'smithy',           name: 'Кузница',           emoji: '⚒' },
+    { id: 'wool_weavery',     name: 'Шерстяная ткацкая', emoji: '🐑' },
+    { id: 'linen_weavery',    name: 'Льняная ткацкая',   emoji: '🌾' },
+    { id: 'tannery',          name: 'Дубильня',          emoji: '🐄' },
+    { id: 'pottery_shop',     name: 'Гончарня',          emoji: '🏺' },
+    { id: 'olive_press',      name: 'Маслодавильня',     emoji: '🫒' },
+    { id: 'wine_press',       name: 'Винодельня',        emoji: '🍷' },
+    { id: 'velvet_weavery',   name: 'Бархатная ткацкая', emoji: '👘' },
+    { id: 'silversmithy',     name: 'Серебряных дел',    emoji: '🥈' },
+    { id: 'wood_WorkshopType', name: 'Древоделия',       emoji: '🪵' },
+];
+
+async function loadBannerlordWorkshops() {
+    const slot = document.getElementById('bnr-workshops-slot');
+    if (!slot) return;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/my-workshops`, {
+            headers: { 'X-Twitch-JWT': authToken || '' }
+        }).then(r => r.json()).catch(() => ({success: false}));
+
+        // FLICKER-FIX v6 (2026-05-29): skip update на backend error — last good
+        // render остаётся. Иначе section мерцает каждые ~8s при transient blip.
+        if (!r || r.success === false) return;
+
+        const workshops = Array.isArray(r.workshops) ? r.workshops : [];
+        const maxWorkshops = r.max_workshops || 3;
+
+        // Sprint 5.33 CURRENCY-1 — clear price display + Hero.Gold visible.
+        const WORKSHOP_CRUSTIC = 2500;     // 2026-05-29: чистая 💎 (цена поднята 1000→2500)
+        const WORKSHOP_DINAR_EST = 0;      // капитал НЕ списывался — миф убран
+        const wsAfford = _bnrAfford(WORKSHOP_CRUSTIC, WORKSHOP_DINAR_EST);
+
+        // FLICKER-FIX v4: НЕ показываем live balance strip в header.
+        // Balance меняется каждый poll → html string differs → cache miss →
+        // repaint каждые 8s — видимый flicker. Balance виден в buy modal
+        // и в main extension header (там обновляется ниже poll throttle).
+        let html = `
+            <div style="background:#1a2008;border:1px solid #65a30d;border-radius:4px;
+                        padding:8px;font-size:11px;color:#d9f99d;">
+                <div style="font-size:12px;font-weight:700;color:#84cc16;margin-bottom:4px;">
+                    🏭 Мои мастерские (${workshops.length}/${maxWorkshops})
+                </div>
+                <div style="font-size:9px;color:#9ca3af;margin-bottom:6px;">
+                    Пассивный доход в 💰 динарах — копятся в Hero.Gold (на gear/smith/marriage)
+                </div>`;
+
+        if (workshops.length > 0) {
+            html += `<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">`;
+            for (const w of workshops) {
+                const typeEntry = _BNR_WORKSHOP_TYPES.find(t => t.id === w.workshop_type)
+                                  || { emoji: '🏭', name: w.workshop_type_name || w.workshop_type };
+                html += `
+                    <div data-workshop-id="${w.id}"
+                         style="background:#0a1308;padding:6px 8px;border-radius:3px;
+                                display:flex;justify-content:space-between;align-items:center;">
+                        <div style="flex:1;">
+                            <div style="color:#d9f99d;font-size:11px;">
+                                ${typeEntry.emoji} <strong>${escapeHtml(typeEntry.name)}</strong>
+                                <span style="color:#9ca3af;"> · ${escapeHtml(w.settlement_name || w.settlement_id)}</span>
+                            </div>
+                            <div style="font-size:10px;color:#65a30d;margin-top:2px;">
+                                <span style="color:#9ca3af;">Заработано:</span>
+                                <span style="color:#fbbf24;font-weight:700;">💰 ${(w.total_profit || 0).toLocaleString('ru-RU')}</span>
+                            </div>
+                        </div>
+                        <button class="bnr-ws-sell small-btn"
+                                title="Продать (50% refund от engine)"
+                                style="font-size:9px;padding:2px 6px;background:#9a3412;
+                                       color:#fed7aa;">💸 Продать</button>
+                    </div>`;
+            }
+            html += `</div>`;
+        }
+
+        if (workshops.length < maxWorkshops) {
+            const btnBg = wsAfford.ok ? '#65a30d' : '#3f3f0b';
+            const btnOpacity = wsAfford.ok ? '1' : '0.65';
+            // 2026-06-07 — покупка мастерской инлайн (lazy <details>): radio-тип +
+            // <select>-город переживают 8s-poll (форма рендерится при раскрытии).
+            html += `
+                <details data-bnr-details="ws-buy" ${_bnrDetailsAttr('ws-buy')}>
+                    <summary title="${escapeHtml(_bnrAffordTooltip(WORKSHOP_CRUSTIC, WORKSHOP_DINAR_EST))}"
+                             style="list-style:none;cursor:pointer;width:100%;
+                                    font-size:11px;padding:6px;background:${btnBg};box-sizing:border-box;
+                                    color:#fff;font-weight:700;opacity:${btnOpacity};
+                                    border-radius:3px;text-align:center;">
+                        🏭 Купить мастерскую — ${_bnrPriceHtml(WORKSHOP_CRUSTIC, WORKSHOP_DINAR_EST)}
+                    </summary>
+                    <div id="bnr-ws-buy-slot" style="padding-top:6px;"></div>
+                </details>`;
+        } else {
+            html += `
+                <div style="font-size:10px;color:#6b7280;text-align:center;">
+                    Лимит мастерских (${maxWorkshops}/${maxWorkshops})
+                </div>`;
+        }
+        html += `</div>`;
+        // 2026-06-07 FLICKER — пока форма покупки раскрыта, НЕ перерисовываем секцию
+        // (иначе тик дохода стирает выбор/ввод). Возобновится когда юзер закроет форму.
+        if (slot.querySelector('[data-bnr-details="ws-buy"]')?.open) return;
+        // FLICKER-FIX: dedupe — skip rebind если HTML identical (избежать
+        // double-handlers на sell/buy buttons).
+        if (!_smartInnerHTML(slot, html)) return;
+
+        // Bind sell buttons.
+        slot.querySelectorAll('.bnr-ws-sell').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const parent = e.target.closest('[data-workshop-id]');
+                if (!parent) return;
+                if (!await _bnrConfirm('Продать мастерскую? Получишь ~50% refund.')) return;
+                const wsId = parseInt(parent.dataset.workshopId, 10);
+                await _bannerlordBuyAction('hero.sell_workshop', { workshop_id: wsId });
+                setTimeout(loadBannerlordWorkshops, 1500);
+            });
+        });
+
+        const _wsDet = slot.querySelector('[data-bnr-details="ws-buy"]');
+        if (_wsDet) {
+            _wsDet.addEventListener('toggle', () => { if (_wsDet.open) _renderBuyWorkshopInline(); });
+            if (_wsDet.open) _renderBuyWorkshopInline();
+        }
+    } catch (e) {
+        // FLICKER-FIX v6 — НЕ clear на exception. Last good render survives.
+        console.warn('[FE-SHOP] loadWorkshops failed (keeping last render):', e);
+    }
+}
+
+// удалена: инлайн lazy-форма покупки мастерской (_renderBuyWorkshopInline).
+function _renderBuyWorkshopInline() {
+    const slot = document.getElementById('bnr-ws-buy-slot');
+    if (!slot) return;
+    slot.innerHTML = `
+        <div style="background:#1a2008;border:1px solid #65a30d;border-radius:4px;
+                    padding:10px;color:#d9f99d;">
+            <div style="display:flex;gap:6px;font-size:11px;margin-bottom:10px;
+                        background:#0a1308;padding:6px 8px;border-radius:3px;">
+                <div style="flex:1;">
+                    <div style="color:#9ca3af;font-size:9px;">Стоимость:</div>
+                    <div style="font-size:13px;font-weight:700;">
+                        ${_bnrPriceHtml(1000, 20000)}
+                    </div>
+                </div>
+                <div style="flex:1;border-left:1px solid #1f2937;padding-left:8px;">
+                    <div style="color:#9ca3af;font-size:9px;">У тебя:</div>
+                    <div style="font-size:11px;">
+                        <span style="color:#a5f3fc;">💎 ${(_cachedUserPoints||0).toLocaleString('ru-RU')}</span>
+                        <span style="color:#6b7280;">|</span>
+                        <span style="color:#fbbf24;">💰 ${((_bannerlordLastHero?.hero?.gold)||0).toLocaleString('ru-RU')}</span>
+                    </div>
+                </div>
+            </div>
+            <div style="font-size:10px;color:#9ca3af;margin-bottom:10px;line-height:1.4;">
+                <div>💎 — entry fee, списывается с твоего 💎 балланса</div>
+                <div>💰 — initial capital, списывается с Hero.Gold (engine)</div>
+                <div>📈 Профит копится в Hero.Gold (динары — на gear/smith/marriage)</div>
+            </div>
+            <label style="font-size:11px;color:#d9f99d;display:block;margin-bottom:4px;">
+                Тип мастерской:
+            </label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-bottom:10px;">
+                ${_BNR_WORKSHOP_TYPES.map((t, i) => `
+                    <label style="display:flex;align-items:center;gap:4px;
+                                  background:#0a1308;padding:5px 6px;border-radius:3px;
+                                  cursor:pointer;font-size:10px;">
+                        <input type="radio" name="bnr-ws-type" value="${t.id}"
+                               data-name="${escapeHtml(t.name)}" ${i === 0 ? 'checked' : ''}>
+                        <span style="color:#d9f99d;">${t.emoji} ${escapeHtml(t.name)}</span>
+                    </label>
+                `).join('')}
+            </div>
+            <label style="font-size:11px;color:#d9f99d;display:block;margin-bottom:4px;">
+                Town (выбери из engine catalog):
+            </label>
+            <div id="bnr-ws-town-slot" style="margin-bottom:10px;">
+                <div style="font-size:11px;color:#9ca3af;padding:6px;">
+                    ⏳ Загружается список городов...
+                </div>
+            </div>
+            <button id="bnr-ws-buy-confirm" class="extra-btn"
+                    style="width:100%;font-size:11px;padding:6px;
+                           background:#65a30d;color:#fff;font-weight:700;">
+                🏭 Купить — ${_bnrPriceHtml(1000, 20000)}
+            </button>
+        </div>`;
+    // CATALOG-3: load real engine towns в dropdown
+    _bnrFetchSettlements().then(byType => {
+        const townSlot = document.getElementById('bnr-ws-town-slot');
+        if (townSlot) {
+            townSlot.innerHTML = _bnrRenderSettlementSelect(byType.town || [],
+                { id: 'bnr-ws-town' });
+        }
+    });
+    document.getElementById('bnr-ws-buy-confirm')?.addEventListener('click', async () => {
+        const typeSel = slot.querySelector('input[name="bnr-ws-type"]:checked');
+        const townSel = document.getElementById('bnr-ws-town');
+        const townId = (townSel?.value || '').trim();
+        const townName = townSel?.tagName === 'SELECT'
+            ? (townSel.options[townSel.selectedIndex]?.dataset?.name || townId)
+            : townId;
+        if (!typeSel) {
+            showNotification('Выбери тип мастерской', 'warning');
+            return;
+        }
+        if (!townId) {
+            showNotification('Выбери town из списка', 'warning');
+            return;
+        }
+        // 2026-06-07 FLICKER — закрыть форму ДО refresh, иначе freeze-guard
+        // заблокирует перерисовку секции (и даёт мгновенный фидбек на клик).
+        document.querySelector('[data-bnr-details="ws-buy"]')?.removeAttribute('open');
+        await _bannerlordBuyAction('hero.buy_workshop', {
+            settlement_id:      townId,
+            settlement_name:    townName,
+            workshop_type:      typeSel.value,
+            workshop_type_name: typeSel.dataset.name,
+        });
+        setTimeout(loadBannerlordWorkshops, 2000);
+    });
+}

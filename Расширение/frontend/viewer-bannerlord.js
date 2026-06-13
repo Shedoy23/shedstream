@@ -3874,3 +3874,620 @@ function _bindBannerlordRandomEquip() {
         });
     }
 }
+
+// ===== Hero-card (главный рендер героя — loadBannerlordHero) — split чанк 15 (2026-06-13) =====
+// Центральный оркестратор. Зовёт саб-рендеры (все уже в bannerlord.js → внутрифайл).
+// Форвард CORE: _bnrConfirm/_bnrShowSimpleModal, _formatBigGold, _smartInnerHTML,
+// _bannerlordBuyAction (диспетчер), state-глобалы. BNR_SKILL_LABELS_RU теперь внутрифайл.
+// Callers рантайм (_startBannerlordPolling, dispatcher success, refresh-btn).
+async function loadBannerlordHero() {
+    const body = document.getElementById('hero-body');
+    if (!body) return;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/my-hero`, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
+        const data = await r.json();
+        if (!data.success) {
+            body.innerHTML = `<div style="color:#f87171;padding:10px;">${escapeHtml(data.message || 'Ошибка')}</div>`;
+            return;
+        }
+        _bannerlordLastHero = data;   // 5.8: cache для progression modal
+        _bnrNotifyRefunds(data.recent_refunds);   // 2026-06-10 — тост причины отказа
+
+        // FLICKER-FIX v5 (2026-05-28): MINIMAL struct hash — только truly rare
+        // events. Раньше включал location (меняется при движении по карте
+        // → body rewrite → sub-slot DIVs (workshops/caravans/etc.) становятся
+        // empty → sub-loader fetch 100-500ms → 0.2-0.5 сек blank flicker).
+        //
+        // Now hash = ONLY то что реально нужно re-render body:
+        //   - has_hero    (adopted ли)
+        //   - level       (level-up rare)
+        //   - clan_id     (joined/left clan)
+        //   - kingdom_id  (joined/left kingdom)
+        //   - alive       (death/respawn)
+        //   - prisoner    (capture/release)
+        //
+        // Excluded: name (set on adopt + never changes), culture (same),
+        // location (changes constantly), retinue_n (changes часто), gold/hp
+        // (every poll). Эти будут stale в header'е до next struct change —
+        // НО они уже видны актуально в sub-slot панелях или modal'ах.
+        const _h = data.hero || {};
+        const _structHash = JSON.stringify({
+            has_hero:    data.has_hero,
+            level:       _h.level,
+            clan_id:     _h.clan_id,
+            kingdom_id:  _h.kingdom_id,
+            alive:       _h.is_alive,
+            prisoner:    _h.is_prisoner,
+            // 2026-06-01 FIX — экипировка не входила в hash → смена гира
+            // (класс/апгрейд/предмет) не меняла _structChanged → тело не
+            // перерисовывалось → снаряжение залипало. Сигнатура slot:item:tier:value
+            // меняется ТОЛЬКО при смене гира (не каждый poll → flicker не
+            // возвращается; sub-слоты сохраняет _preserveSlots).
+            equip: Object.keys(data.equipment || {}).sort().map(s => {
+                const it = data.equipment[s] || {};
+                return `${s}:${it.item_id || ''}:${it.tier}:${it.item_value || ''}`;
+            }).join('|'),
+        });
+        const _structChanged = (body._bnrLastStruct !== _structHash);
+        body._bnrLastStruct = _structHash;
+
+        // FLICKER-FIX v5 PRESERVE: на body innerHTML rewrite сохраняем
+        // существующее содержимое sub-slot'ов чтобы избежать blank gap
+        // во время sub-loader fetch.
+        const _preserveSlots = (cb) => {
+            if (!_structChanged) return cb(false);
+            // Capture current sub-slot innerHTMLs (если они уже rendered).
+            const slotIds = ['bnr-daily-slot','bnr-heir-slot','bnr-family-slot',
+                'bnr-vassals-slot','bnr-party-orders-slot','bnr-diplo-slot',
+                'bnr-ransom-slot','bnr-workshops-slot','bnr-fiefs-slot',
+                'bnr-caravans-slot','bnr-caravan-rescue-slot','bnr-inheritance-slot',
+                'bnr-clan-mgmt-slot','bnr-kingdom-mgmt-slot','bnr-progression-slot','bnr-gender-slot',
+                'bnr-profile-slot','bnr-dynasty-locked-actions'];
+            const snapshot = {};
+            for (const id of slotIds) {
+                const el = document.getElementById(id);
+                if (el && el.innerHTML) snapshot[id] = el.innerHTML;
+            }
+            const result = cb(true);
+            // Restore sub-slot innerHTMLs back into fresh DOM.
+            for (const id of Object.keys(snapshot)) {
+                const el = document.getElementById(id);
+                if (el && !el.innerHTML) {
+                    el.innerHTML = snapshot[id];
+                    // 2026-06-02 FIX — innerHTML-restore создаёт НОВЫЙ DOM →
+                    // click-хендлеры суб-лоадеров (sell/buy караванов/мастерских,
+                    // party-orders, daily…) ТЕРЯЮТСЯ. _smartInnerHTML потом
+                    // пропускал rebind (тот же html в кэше + innerHTML.length>0)
+                    // → кнопки мёртвые (продажа не работала). Сбрасываем кэш →
+                    // следующий poll суб-лоадера перерисует И ПЕРЕПРИВЯЖЕТ.
+                    delete _smartHtmlCache[id];
+                }
+            }
+            return result;
+        };
+
+        if (!data.has_hero) {
+            const CULTURES = [
+                { key: 'empire',    label: 'Империя',  icon: '🏛️', desc: 'Латифундии, мечи и копья' },
+                { key: 'sturgia',   label: 'Стургия',  icon: '🪓', desc: 'Севера́не, секиры, щиты' },
+                { key: 'vlandia',   label: 'Вландия',  icon: '🛡️', desc: 'Рыцари и арбалетчики' },
+                { key: 'aserai',    label: 'Асерай',   icon: '🐪', desc: 'Пустыня, лёгкая конница' },
+                { key: 'khuzait',   label: 'Хузаит',   icon: '🐎', desc: 'Степные лучники' },
+                { key: 'battania',  label: 'Баттания', icon: '🌲', desc: 'Лесные охотники, луки' },
+            ];
+            const cultureBtns = CULTURES.map(c => `
+                <button class="extra-btn" data-bnr-culture="${c.key}"
+                        title="${escapeHtml(c.desc)}"
+                        style="font-size:12px;padding:6px 8px;display:flex;
+                               flex-direction:column;align-items:center;gap:2px;
+                               min-width:78px;">
+                    <span style="font-size:18px;">${c.icon}</span>
+                    <span>${escapeHtml(c.label)}</span>
+                </button>`).join('');
+
+            body.innerHTML = `
+                <div style="text-align:center;padding:14px;color:#adadb8;font-size:13px;">
+                    <div style="font-size:36px;margin-bottom:8px;">⚔️</div>
+                    <div style="font-weight:700;color:#efeff1;margin-bottom:4px;">
+                        У тебя ещё нет героя в Bannerlord
+                    </div>
+                    <div style="font-size:11px;margin-bottom:12px;">
+                        Выбери культуру — герой родится в её землях.<br>
+                        Имя в игре: <b style="color:#fbbf24;">[BLink] ${escapeHtml((window.userLogin || '').toLowerCase())}</b>
+                    </div>
+                    <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:6px;">
+                        ${cultureBtns}
+                    </div>
+                    <div style="margin-top:10px;font-size:10px;color:#6b7280;">
+                        Можно также выбрать случайную:
+                    </div>
+                    <button class="extra-btn" id="bnr-adopt-random"
+                            style="margin-top:6px;font-size:11px;padding:4px 12px;">
+                        🎲 Случайная культура
+                    </button>
+                </div>`;
+
+            // Bind culture-specific buttons
+            body.querySelectorAll('[data-bnr-culture]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const culture = btn.dataset.bnrCulture;
+                    _bannerlordBuyAction('hero.create', { price: 0, culture });
+                });
+            });
+            // Random button
+            const randomBtn = document.getElementById('bnr-adopt-random');
+            if (randomBtn) {
+                randomBtn.addEventListener('click', () =>
+                    _bannerlordBuyAction('hero.create', { price: 0 }));
+            }
+            return;
+        }
+        const h = data.hero;
+
+        // Sprint 5.29 BLT-parity #7: dead hero → show heir succession UI
+        // вместо stats. Click "Возрождение" → POST hero.create → new wanderer.
+        if (h && h.is_alive === false) {
+            const iter = h.iteration || 1;
+            const nextIter = iter + 1;
+            body.innerHTML = `
+                <div style="text-align:center;padding:14px;color:#adadb8;font-size:13px;">
+                    <div style="font-size:48px;margin-bottom:8px;">💀</div>
+                    <div style="font-weight:700;color:#f87171;margin-bottom:4px;">
+                        Поколение ${iter} мёртв
+                    </div>
+                    <div style="font-size:11px;margin-bottom:14px;color:#9ca3af;">
+                        ${escapeHtml(h.display_name || '[BLink] ' + (window.userLogin || ''))}
+                        ${h.clan_name ? `(${escapeHtml(h.clan_name)})` : ''}
+                    </div>
+                    <div style="font-size:12px;margin-bottom:8px;color:#fbbf24;">
+                        🕯️ Возродиться героем поколения ${nextIter} (бесплатно)
+                    </div>
+                    <div style="font-size:10px;color:#6b7280;margin-bottom:10px;">
+                        Новый герой родится с 0 уровня, без снаряжения. Имя то же.
+                    </div>
+                    <button class="extra-btn" id="bnr-heir-respawn"
+                            style="font-size:12px;padding:8px 14px;
+                                   background:#7c2d12;color:#fbbf24;font-weight:700;">
+                        🕯️ Возродить героя
+                    </button>
+                </div>`;
+            const respawnBtn = document.getElementById('bnr-heir-respawn');
+            if (respawnBtn) {
+                respawnBtn.addEventListener('click', async () => {
+                    if (!await _bnrConfirm(
+                        'Возродить героя? Новый wanderer от 0 уровня (имя то же).',
+                        '🕯️ Возродить'
+                    )) return;
+                    _bannerlordBuyAction('hero.create', { price: 0 });
+                });
+            }
+            return;
+        }
+
+        // Sprint 5.32 — 4-state badge:
+        //   💚 жив        — IsAlive=true, IsWounded=false (active)
+        //   🟡 ранен в бою — IsAlive=true, IsWounded=true (KO'd, восстановится)
+        //   ⛓ в плену     — IsPrisoner=true (orthogonal flag, может быть alive+prisoner)
+        //   💀 мёртв      — IsAlive=false (permanent death, триггер "Создать нового")
+        let aliveBadge;
+        if (!h.is_alive) {
+            aliveBadge = `<span style="color:#f87171;">💀&nbsp;мёртв</span>`;
+        } else if (h.is_wounded) {
+            aliveBadge = `<span style="color:#fbbf24;" title="Ранен в бою — оживёт через несколько дней. Не permanent death.">🟡&nbsp;ранен</span>`;
+        } else {
+            aliveBadge = `<span style="color:#34d399;">●&nbsp;жив</span>`;
+        }
+        const prisonerBadge = h.is_prisoner
+            ? ` <span style="color:#fbbf24;">⛓ в плену</span>` : '';
+
+        // Top-5 skills
+        const topSkills = (data.skills || []).slice(0, 5).map(s =>
+            `<div style="display:flex;justify-content:space-between;font-size:11px;padding:1px 0;">
+                <span>${escapeHtml(BNR_SKILL_LABELS_RU[s.skill_key] || s.skill_key)}</span>
+                <span style="color:#fbbf24;">${s.level}</span>
+            </div>`
+        ).join('') || '<div style="font-size:11px;color:#adadb8;">Нет данных по скиллам</div>';
+
+        // Equipment + M21 stats: tier badge + per-type stat chips.
+        // Sort: weapons → armor → horse чтобы выглядело упорядоченно.
+        const _slotOrder = ['weapon0','weapon1','weapon2','weapon3',
+            'head','body','leg','gloves','cape','horse','horseharness'];
+        const _slotIcon = {
+            weapon0:'⚔', weapon1:'⚔', weapon2:'⚔', weapon3:'⚔',
+            head:'🪖', body:'👕', leg:'👢', gloves:'🧤', cape:'🧥',
+            horse:'🐎', horseharness:'🐎',
+        };
+        const eqEntries = Object.entries(data.equipment || {})
+            .sort((a, b) => (_slotOrder.indexOf(a[0]) + 100) - (_slotOrder.indexOf(b[0]) + 100));
+        const eqHtml = eqEntries.length
+            ? eqEntries.map(([slot, it]) => _renderEquipRow(slot, it, _slotIcon)).join('')
+            : '<div style="font-size:11px;color:#adadb8;">Нет экипировки</div>';
+
+        // Sprint M19: level / clan / kingdom badges
+        // Sprint 5.11: clan/kingdom labels стали clickable — открывают modal
+        // с вариантами create/join/leave (вместо inline-кнопок).
+        const clanName = h.clan_name ? escapeHtml(h.clan_name)
+                                     : '<span style="color:#9ca3af;">не вступил</span>';
+        const kingdomName = h.kingdom_name ? escapeHtml(h.kingdom_name)
+                                           : '<span style="color:#9ca3af;">не вступил</span>';
+        // 2026-06-07 — строки-инфо (read-only). Управление кланом/королевством —
+        // во вкладке «Династия» (секции/locked-actions), модалок больше нет.
+        const clanLabel = `<span>${clanName}</span>`;
+        const kingdomLabel = `<span>${kingdomName}</span>`;
+        // Sprint M20: gear tier indicator (cached для shop UI)
+        // Sprint 5.10: inline "⚒ Улучшить" button рядом с tier label.
+        const gearTier = h.gear_tier || 0;
+        _bannerlordCurrentGearTier = gearTier;
+        const _gtierText = gearTier === 0
+            ? '<span style="color:#9ca3af;">базовое</span>'
+            : `<span style="color:#fbbf24;">T${gearTier} ★</span>`;
+        const _hasClass = !!_bannerlordClassesCache?.current?.class_key;
+        let _gtierBtn = '';
+        if (gearTier >= 6) {
+            _gtierBtn = '<span style="color:#fbbf24;font-size:10px;margin-left:6px;">MAX</span>';
+        } else if (_hasClass) {
+            const _nextTier = gearTier + 1;
+            const _cost = HERO_GOLD_TIER_COSTS[_nextTier] || 0;
+            _gtierBtn = `<button class="small-btn" id="bnr-inline-upgrade-btn"
+                    data-bnr-cd="hero.upgrade_gear"
+                    data-bnr-cost="0,${_cost}"
+                    title="Улучшить снаряжение T${gearTier} → T${_nextTier}. Списать ${_cost.toLocaleString('ru-RU')}💰 динаров у героя."
+                    style="font-size:10px;padding:2px 8px;margin-left:6px;
+                           background:#3d3d3f;color:#fbbf24;">
+                ⚒ T${_nextTier} (${_formatBigGold(_cost)})
+            </button>`;
+        } else {
+            _gtierBtn = '<span style="color:#9ca3af;font-size:10px;margin-left:6px;">сначала класс</span>';
+        }
+        // 2026-05-29 — «переформировать снаряжение» (BLT ReequipInsteadOfUpgrade):
+        // ре-ролл всех слотов на ТЕКУЩЕМ тире (бесплатно), фикс кривой/залипшей
+        // экипировки. Доступно только при выбранном классе, в т.ч. на MAX.
+        const _reequipBtn = _hasClass
+            ? `<button class="small-btn" id="bnr-reequip-btn"
+                    data-bnr-cd="hero.reequip_gear"
+                    title="Переформировать снаряжение: ре-ролл всех слотов на текущем тире (T${gearTier || 0}). Бесплатно — фикс если экипировка кривая/залипла. Турнирные призы и крафт сохраняются."
+                    style="font-size:10px;padding:2px 6px;margin-left:4px;
+                           background:#2d3a2d;color:#86efac;">
+                🔄 пересбор
+            </button>`
+            : '';
+        const gearTierLabel = _gtierText + _gtierBtn + _reequipBtn;
+
+        // Sprint M21: armor summary — sum head/body/leg/arm coverage по
+        // 5 armor slots (head/body/leg/gloves/cape). Engine считает
+        // защиту по hitzone — viewer видит per-zone total.
+        // Также avg tier по filled armor slots.
+        const _armorSlots = ['head', 'body', 'leg', 'gloves', 'cape'];
+        let totalHead = 0, totalBody = 0, totalLeg = 0, totalArm = 0;
+        let tierSum = 0, tierCount = 0;
+        for (const s of _armorSlots) {
+            const eq = (data.equipment || {})[s];
+            if (!eq) continue;
+            const st = eq.stats || {};
+            totalHead += st.head || 0;
+            totalBody += st.body || 0;
+            totalLeg  += st.leg  || 0;
+            totalArm  += st.arm  || 0;
+            if (eq.tier != null && eq.tier >= 0) {
+                tierSum += eq.tier;
+                tierCount++;
+            }
+        }
+        const totalArmor = totalHead + totalBody + totalLeg + totalArm;
+        const armorAvgTier = tierCount > 0 ? Math.round(tierSum / tierCount) + 1 : null;
+        const armorLabel = totalArmor === 0
+            ? '<span style="color:#9ca3af;">нет</span>'
+            : `<span style="color:#efeff1;" title="Броня по зонам: 🪖 голова · 👕 тело · 👢 ноги · 💪 руки">🪖${totalHead} 👕${totalBody} 👢${totalLeg} 💪${totalArm}</span>` +
+              (armorAvgTier ? ` <span style="color:#fbbf24;">~T${armorAvgTier}</span>` : '');
+
+        // Sprint 5.32 — content split на 4 panes + always-visible header.
+        // Header (#hero-body): name + status + culture + location (compact).
+        // Sprint 5.33 FLICKER-FIX (2026-05-28) — _smartInnerHTML skip'ит
+        // identical rewrite; результат используется чтобы не re-bind'ить
+        // listeners на тех же nodes (избегаем double-handlers).
+        const _bnrHeroHtml = `
+            <div style="font-weight:700;font-size:14px;line-height:1.2;
+                        overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                ${escapeHtml(h.display_name || '—')}
+            </div>
+            <div style="font-size:11px;color:#adadb8;margin-top:2px;">
+                ${aliveBadge}${prisonerBadge}${h.culture ? ' · ' + escapeHtml(h.culture) : ''}${h.location ? ' · 📍 ' + escapeHtml(h.location) : ''}
+            </div>`;
+
+        // 🛡 Герой pane — stats grid + daily reward + profile button.
+        // Sprint 5.32 (revised) — battle banner перенесён в Combat pane.
+        // Sprint 5.32 #46 — daily reward slot для виральности.
+        // Render UNCONDITIONAL (gold/HP/level updates каждый poll) — но
+        // bindings для clan-row/kingdom-row/upgrade-btn (внизу) тоже
+        // unconditional, потому что DOM-узлы recreated на каждом poll.
+        // FLICKER-FIX v7 (2026-05-29): РАЗДЕЛЯЕМ volatile stats grid и stable
+        // sub-slots. Раньше `paneHero.innerHTML = ...` переписывался КАЖДЫЙ
+        // poll (gold/level live-updates), что УНИЧТОЖАЛО 12 sub-slot DIV'ов
+        // (workshops/caravans/fiefs/party-orders/heir/...) → они становились
+        // empty → async sub-loader fetch 100-500ms → видимый blank flicker
+        // каждые 8s ("пропадают и снова загружаются"). _preserveSlots не
+        // помогал т.к. он обёрнут вокруг записи в #hero-body (header), а слоты
+        // живут в ОТДЕЛЬНОМ #bnr-pane-hero-body.
+        //
+        // Теперь: skeleton (slots + profile button) строится ОДИН раз и больше
+        // не пересоздаётся; каждый poll обновляется только #bnr-pane-hero-stats
+        // через _smartInnerHTML (dedupe → repaint лишь при изменении gold/etc).
+        const paneHero = document.getElementById('bnr-pane-hero-body');
+        if (paneHero) {
+            // (1) Build stable skeleton ОДИН раз — sub-slots НЕ пересоздаются.
+            if (!document.getElementById('bnr-pane-hero-stats')) {
+                paneHero.innerHTML = `
+                    <div style="padding:6px;">
+                        <div id="bnr-pane-hero-stats" style="margin-bottom:10px;"></div>
+                        <div id="bnr-daily-slot" style="margin-bottom:8px;"></div>
+                        <div id="hero-class-picker-slot" style="margin-bottom:10px;"></div>
+                        <details data-bnr-details="hero-progression" ${_bnrDetailsAttr('hero-progression')} style="margin-bottom:6px;">
+                            <summary style="font-size:12px;padding:8px;box-sizing:border-box;cursor:pointer;
+                                       background:#1e3a5f;color:#93c5fd;font-weight:700;list-style:none;
+                                       border:1px solid #1e40af;border-radius:4px;">
+                                🎯 Прогрессия — скиллы / фокусы / атрибуты
+                            </summary>
+                            <div id="bnr-progression-slot" style="padding-top:6px;"></div>
+                        </details>
+                        <details data-bnr-details="hero-gender" ${_bnrDetailsAttr('hero-gender')} style="margin-top:6px;">
+                            <summary style="font-size:12px;padding:8px;box-sizing:border-box;cursor:pointer;
+                                       background:#2a1a30;color:#f472b6;font-weight:700;list-style:none;
+                                       border:1px solid #7c3aed;border-radius:4px;">
+                                ⚧ Сменить пол
+                            </summary>
+                            <div id="bnr-gender-slot" style="padding-top:6px;"></div>
+                        </details>
+                    </div>`;
+                // 2026-05-31 IA-реорг: класс/прогрессия переехали в «Герой»,
+                // династия/экономика — в отдельную вкладку «Династия» (build-once
+                // skeleton ниже). Кнопка прогрессии в стабильном skeleton → bind
+                // ОДИН раз (не в if(_bnrChanged) — там был бы дубль-handler).
+                // 2026-06-07 — Прогрессия теперь inline-секция (loadBannerlordProgression),
+                // наполняется в poll'е (sub-loader ниже). Кнопка-модалка убрана.
+                // 2026-06-07 — смена пола теперь inline-секция (loadBannerlordGender),
+                // наполняется в poll'е (sub-loader ниже). Кнопка-модалка убрана.
+            }
+            // (2) Volatile stats grid — обновляется каждый poll, но это
+            //     ИЗОЛИРОВАННЫЙ под-элемент; sub-slots рядом не трогаются.
+            const _statsHtml = `
+                <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 10px;
+                            font-size:12px;align-items:center;">
+                    <span style="color:#adadb8;">💰 Динары:</span>
+                    <span style="color:#fbbf24;font-weight:700;">${(h.gold || 0).toLocaleString('ru-RU')}</span>
+                    <span style="color:#adadb8;">⭐ Уровень:</span>
+                    <span style="color:#efeff1;font-weight:700;">${h.level || 1}</span>
+                    <span style="color:#adadb8;">🛡 Снаряжение:</span>
+                    <span style="color:#efeff1;font-weight:700;">${gearTierLabel}</span>
+                    <span style="color:#adadb8;">🏰 Клан:</span>
+                    <span style="color:#efeff1;">${clanLabel}</span>
+                    <span style="color:#adadb8;">👑 Королевство:</span>
+                    <span style="color:#efeff1;">${kingdomLabel}</span>
+                    <span style="color:#adadb8;">🛡 Броня:</span>
+                    <span>${armorLabel}</span>
+                    ${(h.tournament_wins || 0) > 0 ? `
+                        <span style="color:#adadb8;">🏆 Турниры:</span>
+                        <span style="color:#fbbf24;font-weight:700;" title="Wins за всю историю канала. Note: ×0.7-0.85 HP penalty в next турнире — анти-сноубол.">${h.tournament_wins}${h.tournament_wins >= 3 ? ' <span style="font-size:10px;color:#fb923c;">ветеран</span>' : ''}</span>
+                    ` : ''}
+                </div>`;
+            // (3) Rebind clan/kingdom/upgrade ТОЛЬКО когда grid реально
+            //     перерисован (новые DOM nodes). _smartInnerHTML returns true
+            //     лишь при изменении → нет дублей listener'ов.
+            const _statsSlot = document.getElementById('bnr-pane-hero-stats');
+            if (_smartInnerHTML(_statsSlot, _statsHtml)) {
+                document.getElementById('bnr-inline-upgrade-btn')?.addEventListener('click', () => {
+                    _bannerlordBuyAction('hero.upgrade_gear', {});
+                });
+                document.getElementById('bnr-reequip-btn')?.addEventListener('click', () => {
+                    _bannerlordBuyAction('hero.reequip_gear', {});
+                });
+            }
+        }
+
+        // 🏰 Династия pane — клан/королевство/семья/экономика/политика.
+        // BUILD-ONCE skeleton (как Hero): 11 sub-slot'ов живут стабильно,
+        // sub-loaders наполняют их каждый poll. НЕ в if(_bnrChanged) — иначе
+        // вернётся flicker (см. FLICKER-FIX v7 выше).
+        // 2026-06-02 (CLAN-GATE) — вся Династия завязана на клане → вкладка
+        // работает ТОЛЬКО у ГЛАВЫ клана. Не лидер (бесклановый ИЛИ участник
+        // чужого клана) → тело заперто с CTA «Создать клан» (ключ от вкладки).
+        // is_leader приходит в clan_info (мод HeroStateSync → clan_info_json →
+        // h.clan_info). Маркеры bnr-dynasty-locked / -built взаимно затирают друг
+        // друга при смене состояния (создал/потерял клан) — innerHTML перезапись.
+        const isClanLeader = !!(h.clan_info && h.clan_info.is_leader);
+        const paneDyn = document.getElementById('bnr-pane-dynasty-body');
+        if (paneDyn) {
+            if (!isClanLeader && !document.getElementById('bnr-dynasty-locked')) {
+                paneDyn.innerHTML = `
+                    <div id="bnr-dynasty-locked" style="padding:14px 10px;text-align:center;">
+                        <div style="font-size:30px;margin-bottom:6px;">🏰🔒</div>
+                        <div style="font-size:13px;color:#efeff1;font-weight:700;margin-bottom:6px;">
+                            Династия — для главы клана
+                        </div>
+                        <div style="font-size:11px;color:#adadb8;line-height:1.5;margin-bottom:12px;">
+                            Клан, королевство, отряды, фьефы, караваны и мастерские —
+                            доступны <b style="color:#fbbf24;">главе клана</b>.
+                        </div>
+                        <div id="bnr-dynasty-locked-actions"></div>
+                    </div>`;
+                // 2026-06-07 — действия (создать/вступить/покинуть) наполняет
+                // loadBannerlordDynastyLockedActions в poll'е (clanless vs member).
+            } else if (isClanLeader && !document.getElementById('bnr-dynasty-built')) {
+                paneDyn.innerHTML = `
+                    <div id="bnr-dynasty-built" style="padding:6px;">
+                        <details data-bnr-details="dyn-clan" open style="margin-bottom:8px;">
+                            <summary style="font-size:12px;color:#fbbf24;font-weight:700;cursor:pointer;padding:2px 0;">🏰 Клан</summary>
+                            <div id="bnr-clan-mgmt-slot" style="padding-top:6px;"></div>
+                        </details>
+                        <details data-bnr-details="dyn-kingdom" open style="margin-bottom:8px;">
+                            <summary style="font-size:12px;color:#93c5fd;font-weight:700;cursor:pointer;padding:2px 0;">👑 Королевство</summary>
+                            <div id="bnr-kingdom-mgmt-slot" style="padding-top:6px;"></div>
+                        </details>
+                        <details data-bnr-details="dyn-upgrades" ${_bnrDetailsAttr('dyn-upgrades')} style="margin-bottom:10px;">
+                            <summary style="font-size:12px;color:#c084fc;font-weight:700;cursor:pointer;padding:2px 0;">🏆 Апгрейды клана</summary>
+                            <div id="bnr-clan-upgrades-slot" style="padding-top:6px;"></div>
+                        </details>
+                        <div id="bnr-heir-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-family-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-vassals-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-party-orders-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-diplo-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-ransom-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-workshops-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-fiefs-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-caravans-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-caravan-rescue-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-inheritance-slot" style="margin-bottom:8px;"></div>
+                        <details data-bnr-details="dyn-profile" ${_bnrDetailsAttr('dyn-profile')} style="margin-top:4px;">
+                            <summary style="font-size:12px;padding:8px;box-sizing:border-box;cursor:pointer;
+                                       background:#1f1a30;color:#c084fc;font-weight:700;list-style:none;
+                                       border:1px solid #5b21b6;border-radius:4px;">
+                                🧬 Профиль и семья
+                            </summary>
+                            <div id="bnr-profile-slot" style="padding-top:6px;"></div>
+                        </details>
+                    </div>`;
+                // 2026-06-07 — Профиль/семья теперь inline-секция (loadBannerlordProfileFamily),
+                // наполняется в poll'е (sub-loader в isClanLeader-блоке). Кнопка-модалка убрана.
+                // 2026-06-07 — lazy-render дерева апгрейдов при раскрытии секции
+                // (skeleton строится ОДИН раз → bind toggle тоже один раз, без дублей).
+                const _upDet = paneDyn.querySelector('[data-bnr-details="dyn-upgrades"]');
+                if (_upDet) {
+                    _upDet.addEventListener('toggle', () => { if (_upDet.open) _renderClanUpgradesInline(); });
+                    if (_upDet.open) _renderClanUpgradesInline();
+                }
+            }
+        }
+
+        // FLICKER-FIX v5: structural change wrapped в _preserveSlots — sub-slot
+        // content NOT destroyed во время body rewrite.
+        const _bnrChanged = _preserveSlots(() =>
+            _structChanged && _smartInnerHTML(body, _bnrHeroHtml));
+      if (_bnrChanged) {
+        // 🎒 Инвентарь pane — Экипировка + Свита + Достижения + Кузница + Аукционы.
+        const paneInv = document.getElementById('bnr-pane-inventory-body');
+        if (paneInv) paneInv.innerHTML = `
+            <div style="padding:6px;">
+                <div style="font-size:12px;color:#fbbf24;font-weight:700;margin-bottom:6px;">
+                    🎽 Экипировка
+                </div>
+                <div style="margin-bottom:10px;">${eqHtml}</div>
+                <div id="bnr-retinue-slot" style="margin-bottom:10px;"></div>
+                <details data-bnr-details="inv-achievements" ${_bnrDetailsAttr('inv-achievements')} style="margin-bottom:6px;">
+                    <summary style="font-size:12px;padding:8px;box-sizing:border-box;cursor:pointer;
+                               background:#3a2a0a;color:#fbbf24;font-weight:700;list-style:none;
+                               border:1px solid #92400e;border-radius:4px;">
+                        🏆 Достижения
+                    </summary>
+                    <div id="bnr-achievements-slot" style="padding-top:6px;"></div>
+                </details>
+                <details data-bnr-details="inv-forge" ${_bnrDetailsAttr('inv-forge')} style="margin-bottom:6px;">
+                    <summary style="font-size:12px;padding:8px;box-sizing:border-box;cursor:pointer;
+                               background:#2a1a0a;color:#fb923c;font-weight:700;list-style:none;
+                               border:1px solid #9a3412;border-radius:4px;">
+                        🔨 Кузница (трофеи)
+                    </summary>
+                    <div id="bnr-forge-slot" style="padding-top:6px;"></div>
+                </details>
+            </div>`;
+
+        // ⚔ Бой pane — battle banner (HP / kills / gold / XP) + buffs + powers + summon.
+        // Sprint 5.32 (revised) — battle banner здесь (раньше был в Hero pane).
+        // Это первая видимая вкладка → viewer сразу видит боевой статус.
+        const paneCombat = document.getElementById('bnr-pane-combat-body');
+        if (paneCombat) paneCombat.innerHTML = `
+            <div style="padding:6px;">
+                <div id="bnr-battle-banner-slot"></div>
+                <div id="bnr-combat-stance-slot" style="margin-bottom:8px;"></div>
+                <div id="bnr-buff-hud"></div>
+                <div id="bnr-active-powers-slot"></div>
+                <div id="bnr-summon-slot"></div>
+                <div id="bnr-detachment-slot" style="margin-top:10px;"></div>
+            </div>`;
+
+        // 2026-05-31 IA-реорг: класс-picker + кнопка прогрессии переехали в Hero
+        // pane (build-once skeleton выше); бывший progression pane стал
+        // «Династией» (build-once skeleton выше). Здесь больше ничего не строим.
+        // Sprint M23 — render свита под equipment.
+        _bannerlordLastRetinue = data.retinue || [];
+        _renderRetinue(_bannerlordLastRetinue);
+        renderBannerlordClassPicker();
+      }  // ← end of `if (_bnrChanged)` for panes + retinue + class picker
+        // ↓ Sub-loaders ALWAYS run — они дедуплируются сами через _smartInnerHTML
+        //   на своих slot'ах. Видят свежие данные даже когда hero pane не сменился.
+        // Sprint 5.32 #46 — refill daily slot (recreated на re-render Hero pane).
+        loadBannerlordDaily();
+        // 2026-06-10 — боевая стойка (в combat-пейне), наполняется из hero-поллинга.
+        _renderBannerlordStance();
+        // 2026-06-07 — Прогрессия (скиллы/фокусы/атрибуты) live-секция в Hero pane.
+        loadBannerlordProgression();
+        // 2026-06-07 — Смена пола — inline-секция в Hero pane.
+        loadBannerlordGender();
+        // 2026-06-02 (CLAN-GATE) — sub-loaders Династии грузим ТОЛЬКО у главы
+        // клана (тело вкладки иначе заперто, грузить нечего). loadBannerlordDaily
+        // выше — Hero-pane, НЕ гейтим.
+        if (isClanLeader) {
+            // 2026-06-07 — инлайн-секции клан/королевство (live-инфо + manage-кнопка).
+            loadBannerlordClanMgmt();
+            loadBannerlordKingdomMgmt();
+            // 2026-06-07 — Профиль/семья (брак/дети) — inline-секция в Династии.
+            loadBannerlordProfileFamily();
+            // Sprint 5.32 (BLT-parity FE-M2) — refill heir slot.
+            loadBannerlordHeirs();
+            // Sprint 5.33 (BLT-parity FAM) — Family section (children + proposals).
+            loadBannerlordFamily();
+            // Sprint 5.33 (BLT-parity VAS) — Vassal sub-clans section.
+            loadBannerlordVassals();
+            // Sprint 5.33 (BLT-parity SIEGE) — Party orders section.
+            loadBannerlordPartyOrders();
+            // Sprint 5.33 (BLT-parity DIPLO) — Kingdom politics + ransom pool.
+            loadBannerlordDiplomacy();
+            loadBannerlordRansomPool();
+            // Sprint 5.33 (BLT-parity SHOP) — Workshops passive income panel.
+            loadBannerlordWorkshops();
+            // Sprint 5.33 (BLT-parity FIEF) — Fief tribute passive income.
+            loadBannerlordFiefs();
+            // Sprint 5.33 (BLT-parity CARAVAN) — Mobile passive income trilogy closer.
+            loadBannerlordCaravans();
+            loadBannerlordCaravanRescues();
+            // Sprint 5.33 (BLT-parity HERITAGE) — Inheritance log.
+            loadBannerlordInheritance();
+        } else {
+            // 2026-06-07 — не-лидер: locked-state actions (clanless создать/вступить,
+            // участник — покинуть). Заменяет вход через Hero-row модалку.
+            loadBannerlordDynastyLockedActions();
+        }
+        // Sprint 5.5: immediately repaint battle banner из cache чтобы
+        // не было 0-2s gap'a после hero re-render.
+        if (_bannerlordBattle) _renderBannerlordBattleBanner(_bannerlordBattle);
+      if (_bnrChanged) {  // ← bindings ТОЛЬКО при actual DOM rewrite (избежать
+                          //   double-handlers — addEventListener allows duplicates).
+        // Sprint 5.5: bind toggle persistence для <details> (skills/equipment/retinue)
+        _bnrBindDetailsPersistence();
+        // 2026-05-31: progression-btn теперь в build-once Hero skeleton → биндится
+        // там ОДИН раз (здесь повторно НЕ биндим, иначе дубль-handler).
+        // Sprint 5.27a: profile modal — FLICKER-FIX v7: binding перенесён в
+        // skeleton-build (paneHero выше). Кнопка живёт в стабильном skeleton,
+        // биндится ОДИН раз → здесь повторно НЕ биндим (избегаем дублей).
+        // 2026-06-07 — Достижения / Кузница теперь inline-секции (lazy-render при
+        // раскрытии <details>). Бинды в if(_bnrChanged) → DOM свежий на каждом rewrite.
+        const _achDet = document.querySelector('[data-bnr-details="inv-achievements"]');
+        if (_achDet) {
+            _achDet.addEventListener('toggle', () => { if (_achDet.open) _renderAchievementsInline(); });
+            if (_achDet.open) _renderAchievementsInline();
+        }
+        const _forgeDet = document.querySelector('[data-bnr-details="inv-forge"]');
+        if (_forgeDet) {
+            _forgeDet.addEventListener('toggle', () => { if (_forgeDet.open) _renderForgeInline(); });
+            if (_forgeDet.open) _renderForgeInline();
+        }
+        // 2026-05-29 — аукцион (P2P trade) убран из UI ради Twitch-комплаенса.
+        // Sprint 5.31 #45b: Boosty admin перенесён на /streamer/dashboard.
+        // Sprint 5.11: clan/kingdom row + upgrade-btn bindings перенесены
+        // ВЫШЕ за пределы if(_bnrChanged) — DOM пересоздаётся каждый poll.
+      }  // ← end of `if (_bnrChanged)` for bindings
+    } catch (e) {
+        body.innerHTML = `<div style="color:#f87171;padding:10px;">Ошибка сети</div>`;
+    }
+}

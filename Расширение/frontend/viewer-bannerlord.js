@@ -2992,3 +2992,737 @@ function _bindBannerlordCurrency() {
         });
     });
 }
+
+// ===== Dynasty A: clan-upgrades/forge/achievements/gender/profile/family/clan+kingdom mgmt — split чанк 13 (2026-06-13) =====
+// _clanUpgradesTreeHtml/_clanUpgradesBindBulk/_renderClanUpgradesInline, _renderForgeInline,
+// _renderAchievementsInline, loadBannerlordGender/ProfileFamily(+_renderFamilyTreeHtml),
+// loadBannerlordDynastyLockedActions/ClanMgmt/KingdomMgmt. Форвард CORE: _bnrConfirm/_bnrShowSimpleModal,
+// _bnr*, state + Part-B inline-рендеры (пока в core). Callers рантайм (hero-card).
+// 2026-06-07 — общий рендер дерева апгрейдов клана (tier-группы + bulk-чекбоксы).
+// Используется ИНЛАЙН-секцией «Династия → 🏆 Апгрейды клана» (_renderClanUpgradesInline).
+// Footer на КЛАССАХ (не id) — чтобы не конфликтовать с id-версией в модалке, если
+// обе в DOM одновременно. Чистый HTML, scoped bind ниже.
+function _clanUpgradesTreeHtml(upgrades, heroGold) {
+    const byTier = {};
+    (upgrades || []).forEach(u => {
+        if (!byTier[u.tier]) byTier[u.tier] = [];
+        byTier[u.tier].push(u);
+    });
+    const tiers = Object.keys(byTier).map(Number).sort((a, b) => a - b);
+    const _effectsToStr = (effects) => {
+        const labels = {
+            renown_daily:       '🏆 +%v славы/день',
+            influence_daily:    '👑 +%v влияния/день',
+            party_size_bonus:   '⚔️ +%v к отряду',
+            retinue_size_bonus: '🛡️ +%v к свите',
+            party_speed_bonus:  '🐎 +%v скорости отряда',
+            party_amount_bonus: '🪖 +%v к лимиту отрядов',
+            max_vassals_bonus:  '🏰 +%v вассалов',
+            army_speed_bonus:   '⚡ +%v скорости армии',
+        };
+        return Object.entries(effects || {})
+            .map(([k, v]) => (labels[k] || `${k}: ${v}`).replace('%v', v))
+            .join(' · ');
+    };
+    const tierHtml = tiers.map(tier => {
+        const items = byTier[tier].map(u => {
+            const canAfford = heroGold >= u.gold_cost;
+            const isSelectable = !u.owned && !u.locked && canAfford;
+            const ownedBadge = u.owned
+                ? `<span style="color:#34d399;font-weight:700;font-size:11px;">✓ ВЛАДЕЕШЬ</span>`
+                : u.locked
+                    ? `<span style="color:#6b7280;font-size:11px;">🔒 Нужен предыдущий</span>`
+                    : isSelectable
+                        ? `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;
+                                       font-size:11px;color:#fbbf24;font-weight:700;">
+                              <input type="checkbox" class="bnr-upg-check"
+                                     data-bnr-upg-id="${u.upgrade_id}"
+                                     data-bnr-upg-cost="${u.gold_cost}"
+                                     data-bnr-upg-name="${escapeHtml(u.name)}"
+                                     style="cursor:pointer;width:14px;height:14px;">
+                              ${u.gold_cost.toLocaleString('ru-RU')}💰
+                           </label>`
+                        : `<span style="color:#f87171;font-size:11px;">
+                              Нужно ${u.gold_cost.toLocaleString('ru-RU')}💰
+                           </span>`;
+            return `
+                <div style="background:${u.owned ? 'rgba(52,211,153,0.05)' : '#1a1a1c'};
+                            border:1px solid ${u.owned ? 'rgba(52,211,153,0.3)' : '#3a3a3e'};
+                            border-radius:6px;padding:8px 10px;margin-bottom:5px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;
+                                gap:8px;margin-bottom:3px;">
+                        <span style="font-size:13px;font-weight:700;color:${u.owned ? '#34d399' : '#efeff1'};">
+                            ${escapeHtml(u.name)}
+                        </span>
+                        ${ownedBadge}
+                    </div>
+                    <div style="font-size:11px;color:#adadb8;margin-bottom:3px;">
+                        ${escapeHtml(u.description || '')}
+                    </div>
+                    <div style="font-size:10px;color:#c084fc;">
+                        ${_effectsToStr(u.effects)}
+                    </div>
+                </div>`;
+        }).join('');
+        return `
+            <div style="margin-bottom:12px;">
+                <div style="font-size:11px;color:#9147ff;font-weight:700;letter-spacing:1px;
+                            padding-bottom:4px;border-bottom:1px solid #3a3a3e;margin-bottom:6px;">
+                    TIER ${tier}
+                </div>
+                ${items}
+            </div>`;
+    }).join('');
+    const bulkFooter = `
+        <div style="
+            position:sticky;bottom:0;background:#0f0f12;padding:8px;margin-top:6px;
+            border-top:1px solid #5b21b6;border-radius:0 0 6px 6px;
+            display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <div style="font-size:11px;color:#adadb8;">
+                Выбрано: <b class="bnr-bulk-count" style="color:#fbbf24;">0</b> ·
+                Стоимость: <b class="bnr-bulk-total" style="color:#fbbf24;">0💰</b>
+            </div>
+            <button class="bnr-bulk-buy" disabled
+                    style="background:#5b21b6;color:#9ca3af;padding:6px 12px;font-size:11px;
+                           font-weight:700;border-radius:4px;border:none;cursor:not-allowed;">
+                💰 Купить все выбранные
+            </button>
+        </div>`;
+    return (tierHtml || '<div style="color:#adadb8;text-align:center;font-size:11px;padding:6px;">Каталог апгрейдов пуст.</div>')
+           + bulkFooter;
+}
+// Scoped bind для bulk-чекбоксов + кнопки покупки внутри `root` (overlay ИЛИ slot).
+// onSuccess() вызывается после удачной покупки (модалка → reopen; инлайн → re-render).
+function _clanUpgradesBindBulk(root, heroGold, onSuccess) {
+    const recalc = () => {
+        const checked = root.querySelectorAll('.bnr-upg-check:checked');
+        let count = 0, total = 0;
+        checked.forEach(cb => { count++; total += parseInt(cb.dataset.bnrUpgCost || '0', 10); });
+        const countEl = root.querySelector('.bnr-bulk-count');
+        const totalEl = root.querySelector('.bnr-bulk-total');
+        const buyBtn  = root.querySelector('.bnr-bulk-buy');
+        if (countEl) countEl.textContent = count;
+        if (totalEl) totalEl.textContent = total.toLocaleString('ru-RU') + '💰';
+        if (buyBtn) {
+            const enabled = count > 0 && count <= 10 && total <= heroGold;
+            buyBtn.disabled = !enabled;
+            buyBtn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+            buyBtn.style.color = enabled ? '#fbbf24' : '#9ca3af';
+            if (count > 10)            buyBtn.textContent = `❌ Макс 10 за раз (выбрано ${count})`;
+            else if (total > heroGold) buyBtn.textContent = `❌ Не хватает ${(total - heroGold).toLocaleString('ru-RU')}💰`;
+            else if (count === 0)      buyBtn.textContent = '💰 Купить все выбранные';
+            else                       buyBtn.textContent = `💰 Купить ${count} апгрейдов`;
+        }
+    };
+    root.querySelectorAll('.bnr-upg-check').forEach(cb => cb.addEventListener('change', recalc));
+    const buyBtn = root.querySelector('.bnr-bulk-buy');
+    buyBtn?.addEventListener('click', async () => {
+        const ids = Array.from(root.querySelectorAll('.bnr-upg-check:checked'))
+                         .map(cb => cb.dataset.bnrUpgId);
+        if (ids.length === 0) return;
+        buyBtn.disabled = true;
+        buyBtn.textContent = '⏳ Покупаем ' + ids.length + '...';
+        try {
+            const r = await fetch(`${API_URL}/api/bannerlord/clan-upgrades/buy`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || ''},
+                body: JSON.stringify({upgrade_ids: ids}),
+            });
+            const d = await r.json();
+            showNotification(d.message, d.success ? 'success' : 'error', d.success ? 5000 : 6000);
+            if (d.success) {
+                if (typeof onSuccess === 'function') onSuccess();
+                if (typeof loadBannerlordHero === 'function') loadBannerlordHero();
+            } else {
+                buyBtn.disabled = false;
+                recalc();
+            }
+        } catch (e) {
+            showNotification('Ошибка сети', 'error');
+            buyBtn.disabled = false;
+            recalc();
+        }
+    });
+}
+// Инлайн-дерево апгрейдов во вкладке «Династия». LAZY: вызывается при раскрытии
+// <details data-bnr-details="dyn-upgrades"> (и после покупки), НЕ каждый poll —
+// иначе 8-сек репейнт сбрасывал бы выбор чекбоксов (см. choice пользователя).
+async function _renderClanUpgradesInline() {
+    const slot = document.getElementById('bnr-clan-upgrades-slot');
+    if (!slot) return;
+    slot.innerHTML = '<div style="font-size:11px;color:#adadb8;padding:6px;">⏳ Загрузка апгрейдов…</div>';
+    let data;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/clan-upgrades`, {
+            headers: {'X-Twitch-JWT': authToken || ''},
+        });
+        data = await r.json();
+    } catch (e) {
+        slot.innerHTML = '<div style="font-size:11px;color:#f87171;padding:6px;">Ошибка загрузки</div>';
+        return;
+    }
+    if (!data || !data.success) {
+        slot.innerHTML = `<div style="font-size:11px;color:#f87171;padding:6px;">${escapeHtml(data?.message || 'Не удалось загрузить')}</div>`;
+        return;
+    }
+    const heroGold = data.hero_gold || 0;
+    slot.innerHTML = `
+        <div style="font-size:10px;color:#9ca3af;margin-bottom:6px;">
+            💰 ${heroGold.toLocaleString('ru-RU')} динаров · отметь галочками и купи разом (до 10)
+        </div>
+        ${_clanUpgradesTreeHtml(data.upgrades || [], heroGold)}`;
+    _clanUpgradesBindBulk(slot, heroGold, () => _renderClanUpgradesInline());
+}
+
+// 2026-06-07 — _openBannerlordClanUpgradesModal удалена (orphan): апгрейды теперь инлайн (_renderClanUpgradesInline).
+
+// Sprint 5.27a: profile modal — gender swap (+ marriage/family tree в 5.27b/c).
+// Sprint 5.29 BLT-parity #6 phase B — Auctions modal.
+// 2026-06-07 — _openBannerlordAuctionsModal удалена (orphan, аукционы убраны из UI ранее).
+
+// Sprint 5.29 BLT-parity #6 — Smithing forge modal (trophy collection).
+// MVP: backend-only trophies, no in-game ItemObject yet. Future iteration
+// добавит actual Bannerlord equipment integration + auction.
+async function _renderForgeInline() {
+    const slot = document.getElementById('bnr-forge-slot');
+    if (!slot) return;
+    if (!isAuthUser()) {
+        slot.innerHTML = '<div style="font-size:11px;color:#adadb8;padding:6px;">Войдите через Twitch</div>';
+        return;
+    }
+    slot.innerHTML = '<div style="font-size:11px;color:#adadb8;padding:6px;">⏳ Загрузка…</div>';
+    let data;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/custom-items`, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
+        data = await r.json();
+        if (!data.success) {
+            slot.innerHTML = `<div style="font-size:11px;color:#f87171;padding:6px;">${escapeHtml(data.message || 'Не удалось загрузить')}</div>`;
+            return;
+        }
+    } catch (e) {
+        slot.innerHTML = '<div style="font-size:11px;color:#f87171;padding:6px;">Ошибка сети</div>';
+        return;
+    }
+    const items = data.items || [];
+    const slotsUsed = items.length;
+    const slotsMax = data.max_slots || 50;
+    const itemsHtml = items.length === 0
+        ? '<div style="color:#adadb8;text-align:center;padding:14px;font-size:12px;">Пустая кузница. Скуй первый трофей!</div>'
+        : items.map(it => {
+            // Sprint 5.33 (BLT-parity ITEM) — rolled stats display.
+            const statParts = [];
+            if (it.damage_bonus > 0) statParts.push(`⚔ +${it.damage_bonus}`);
+            if (it.armor_bonus > 0)  statParts.push(`🛡 +${it.armor_bonus}`);
+            if (it.weight_factor && Math.abs(it.weight_factor - 1.0) > 0.001) {
+                const pct = ((it.weight_factor - 1.0) * 100).toFixed(0);
+                statParts.push(`⚖ ${pct >= 0 ? '+' : ''}${pct}%`);
+            }
+            if (it.speed_factor && Math.abs(it.speed_factor - 1.0) > 0.001) {
+                const pct = ((it.speed_factor - 1.0) * 100).toFixed(0);
+                statParts.push(`💨 +${pct}%`);
+            }
+            const statsLine = statParts.length
+                ? `<div style="font-size:10px;color:#fbbf24;margin-top:2px;">${statParts.join(' · ')}</div>`
+                : '';
+            // Phase B — источник предмета + состояние "получен в игре".
+            const srcBadge = it.source === 'tournament'
+                ? '<span style="color:#fbbf24;"> · 🏆 турнир</span>'
+                : '<span style="color:#9ca3af;"> · 🔨 кузница</span>';
+            const claimedBadge = it.claimed
+                ? '<span style="color:#34d399;"> · ✓ в игре</span>' : '';
+            const equipBtn = it.claimed
+                ? '<span title="Уже в инвентаре героя" style="font-size:12px;padding:3px 8px;color:#6b7280;">✓</span>'
+                : `<button class="extra-btn bnr-equip-trophy" data-item-id="${it.id}"
+                        title="Получить в игре — реальный предмет в инвентарь героя + бонус в бою"
+                        style="font-size:10px;padding:3px 8px;color:#34d399;">📥</button>`;
+            return `
+            <div style="display:flex;align-items:center;gap:8px;
+                        background:rgba(58,58,62,0.3);border:1px solid ${it.color};
+                        border-radius:6px;padding:6px 10px;margin-bottom:4px;
+                        ${it.claimed ? 'opacity:0.7;' : ''}">
+                <div style="font-size:18px;">${escapeHtml(it.icon || '')}</div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:12px;color:${it.color};font-weight:700;
+                                overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                        ${escapeHtml(it.custom_name)}
+                    </div>
+                    <div style="font-size:10px;color:#adadb8;">
+                        ${escapeHtml(it.base_type)} / ${it.rarity} / T${it.tier}${srcBadge}${claimedBadge}
+                    </div>
+                    ${statsLine}
+                </div>
+                ${equipBtn}
+                <button class="extra-btn bnr-discard-item" data-item-id="${it.id}"
+                        title="Дискарди (удалить безвозвратно)"
+                        style="font-size:10px;padding:3px 8px;color:#f87171;">
+                    ✗
+                </button>
+            </div>
+        `;}).join('');
+    const SMITH_PRICE = 500;   // mirror ACTION_PRICES_DEFAULT
+    const body = `
+        <div style="margin-bottom:10px;font-size:11px;color:#adadb8;text-align:center;">
+            Куй случайные трофеи — оружие / броню / коня. Rarity рандом
+            (common 60% → legendary 1%). Трофеи копятся в инвентаре.
+            Слотов: <b>${slotsUsed}/${slotsMax}</b>.
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;">
+            <button class="extra-btn bnr-smith-btn" data-base="weapon"
+                    style="font-size:12px;padding:8px;background:#3a1a1a;color:#fbbf24;">
+                ⚔ Оружие<br><span style="font-size:10px;">${SMITH_PRICE}💎</span>
+            </button>
+            <button class="extra-btn bnr-smith-btn" data-base="armor"
+                    style="font-size:12px;padding:8px;background:#1a2a3a;color:#93c5fd;">
+                🛡 Броня<br><span style="font-size:10px;">${SMITH_PRICE}💎</span>
+            </button>
+            <button class="extra-btn bnr-smith-btn" data-base="horse"
+                    style="font-size:12px;padding:8px;background:#1a3a1a;color:#86efac;">
+                🐎 Конь<br><span style="font-size:10px;">${SMITH_PRICE}💎</span>
+            </button>
+        </div>
+        <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">Инвентарь:</div>
+        <div style="max-height:340px;overflow-y:auto;">${itemsHtml}</div>
+    `;
+    slot.innerHTML = body;
+    slot.querySelectorAll('.bnr-smith-btn').forEach(btn => {
+        btn.dataset.bnrCd = 'hero.smith_item';
+        btn.addEventListener('click', () => {
+            _bannerlordBuyAction('hero.smith_item', { base_type: btn.dataset.base });
+            setTimeout(_renderForgeInline, 1200);   // показать новый трофей
+        });
+    });
+    slot.querySelectorAll('.bnr-equip-trophy').forEach(btn => {
+        btn.dataset.bnrCd = 'hero.equip_trophy';
+        btn.addEventListener('click', () => {
+            _bannerlordBuyAction('hero.equip_trophy', { custom_item_id: parseInt(btn.dataset.itemId, 10) });
+            setTimeout(_renderForgeInline, 1200);
+        });
+    });
+    slot.querySelectorAll('.bnr-discard-item').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const id = parseInt(btn.dataset.itemId, 10);
+            if (!await _bnrConfirm('Дискарди трофей? Безвозвратно.', '🗑 Уничтожить')) return;
+            try {
+                const r = await fetch(`${API_URL}/api/bannerlord/custom-items/discard`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || '' },
+                    body: JSON.stringify({ item_id: id }),
+                });
+                const res = await r.json();
+                showNotification(res.message || (res.success ? 'OK' : 'Не удалось'),
+                    res.success ? 'success' : 'error');
+                if (res.success) setTimeout(_renderForgeInline, 200);
+            } catch (e) {
+                showNotification('Ошибка сети', 'error');
+            }
+        });
+    });
+}
+
+// Sprint 5.29 BLT-parity #5 — Achievements modal.
+async function _renderAchievementsInline() {
+    const slot = document.getElementById('bnr-achievements-slot');
+    if (!slot) return;
+    if (!isAuthUser()) {
+        slot.innerHTML = '<div style="font-size:11px;color:#adadb8;padding:6px;">Войдите через Twitch</div>';
+        return;
+    }
+    slot.innerHTML = '<div style="font-size:11px;color:#adadb8;padding:6px;">⏳ Загрузка…</div>';
+    let data;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/achievements`, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
+        data = await r.json();
+        if (!data.success) {
+            slot.innerHTML = `<div style="font-size:11px;color:#f87171;padding:6px;">${escapeHtml(data.message || 'Не удалось загрузить')}</div>`;
+            return;
+        }
+    } catch (e) {
+        slot.innerHTML = '<div style="font-size:11px;color:#f87171;padding:6px;">Ошибка сети</div>';
+        return;
+    }
+    const items = (data.achievements || []).map(a => {
+        const pct = a.threshold > 0
+            ? Math.min(100, Math.round(a.current_value / a.threshold * 100))
+            : 0;
+        const cardBg = a.unlocked ? 'rgba(251,191,36,0.10)' : 'rgba(58,58,62,0.4)';
+        const opacity = a.unlocked ? '1' : '0.55';
+        const progressBar = a.unlocked
+            ? `<div style="background:#fbbf24;height:4px;border-radius:2px;width:100%;"></div>`
+            : `<div style="background:#3a3a3e;height:4px;border-radius:2px;position:relative;">
+                   <div style="background:#9ca3af;height:4px;border-radius:2px;width:${pct}%;"></div>
+               </div>`;
+        return `
+        <div style="background:${cardBg};border:1px solid #3d3d3f;border-radius:6px;
+                    padding:8px 10px;margin-bottom:6px;opacity:${opacity};">
+            <div style="display:flex;align-items:center;gap:8px;">
+                <div style="font-size:22px;">${a.icon || '🏆'}</div>
+                <div style="flex:1;">
+                    <div style="font-size:12px;color:${a.unlocked ? '#fbbf24' : '#efeff1'};
+                                font-weight:700;">
+                        ${escapeHtml(a.name)} ${a.unlocked ? '✓' : ''}
+                    </div>
+                    <div style="font-size:10px;color:#adadb8;">${escapeHtml(a.description)}</div>
+                </div>
+                <div style="font-size:10px;color:#9ca3af;text-align:right;min-width:60px;">
+                    ${a.current_value.toLocaleString('ru-RU')} / ${a.threshold.toLocaleString('ru-RU')}
+                </div>
+            </div>
+            <div style="margin-top:5px;">${progressBar}</div>
+        </div>`;
+    }).join('');
+    slot.innerHTML = `
+        <div style="font-size:10px;color:#9ca3af;margin-bottom:6px;">Открыто ${data.unlocked_count}/${data.total}</div>
+        ${items || '<div style="color:#adadb8;text-align:center;padding:12px;">Нет данных</div>'}`;
+}
+
+// 2026-06-02 (CLAN-GATE) — смена пола НЕ кланово-зависима → вынесена из
+// профиль-модалки (она в запертой Династии) в Hero-вкладку, доступна всем.
+function loadBannerlordGender() {
+    const slot = document.getElementById('bnr-gender-slot');
+    if (!slot) return;
+    const h = _bannerlordLastHero?.hero || {};
+    const heroGold = h.gold || 0;
+    const GENDER_COST = 50000;
+    const canAfford = heroGold >= GENDER_COST;
+    const currentLabel = h.is_female === true ? '♀ Женский'
+                       : h.is_female === false ? '♂ Мужской'
+                       : '— (не известно)';
+    const html = `
+        <div style="font-size:11px;color:#adadb8;margin-bottom:6px;">
+            Текущий: <b style="color:#efeff1;">${currentLabel}</b> ·
+            <b style="color:#fbbf24;">${GENDER_COST.toLocaleString('ru-RU')}💰</b>
+            (у тебя ${heroGold.toLocaleString('ru-RU')}💰)
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+            <button class="extra-btn bnr-gender-set" data-gender-set="male" ${canAfford ? '' : 'disabled'}
+                    style="font-size:12px;padding:7px;background:${canAfford ? '#1e3a5f' : '#2d2d2f'};
+                           color:${canAfford ? '#93c5fd' : '#6b7280'};${canAfford ? '' : 'cursor:not-allowed;'}">
+                ♂ Мужской
+            </button>
+            <button class="extra-btn bnr-gender-set" data-gender-set="female" ${canAfford ? '' : 'disabled'}
+                    style="font-size:12px;padding:7px;background:${canAfford ? '#5b21b6' : '#2d2d2f'};
+                           color:${canAfford ? '#f472b6' : '#6b7280'};${canAfford ? '' : 'cursor:not-allowed;'}">
+                ♀ Женский
+            </button>
+        </div>
+        <div style="font-size:10px;color:#6b7280;margin-top:6px;">
+            Есть супруг(а) — engine перевернёт их пол, чтобы брак остался валиден.
+        </div>`;
+    if (_smartInnerHTML(slot, html)) {
+        slot.querySelectorAll('.bnr-gender-set').forEach(btn => {
+            btn.dataset.bnrCd = 'hero.set_gender';
+            btn.addEventListener('click', () => {
+                _bannerlordBuyAction('hero.set_gender', { gender: btn.dataset.genderSet });
+            });
+        });
+    }
+}
+
+function loadBannerlordProfileFamily() {
+    const slot = document.getElementById('bnr-profile-slot');
+    if (!slot) return;
+    const h = _bannerlordLastHero?.hero || {};
+    const heroGold = h.gold || 0;
+    const hasClan = !!h.clan_name;   // брак/дети требуют клан (см. ниже)
+
+    // 2026-06-02 (CLAN-GATE) — секция «смена пола» вынесена в Hero-вкладку
+    // (_openBannerlordGenderModal): она не кланово-зависима, а эта модалка живёт
+    // в запертой Династии. Здесь остаётся только семья (брак/дети — gated hasClan).
+    const body = `
+        <div style="background:#1a1a1c;border:1px solid #3a3a3e;border-radius:6px;
+                    padding:10px;margin-bottom:8px;">
+            <div style="font-size:12px;color:#adadb8;margin-bottom:6px;">
+                💍 <b style="color:#efeff1;">Семейное положение</b>
+            </div>
+            ${h.spouse_name ? `
+                <div style="font-size:11px;color:#adadb8;margin-bottom:8px;">
+                    Супруг(а): <b style="color:#fbbf24;">${escapeHtml(h.spouse_name)}</b>
+                </div>
+                <button class="extra-btn" id="bnr-divorce-btn"
+                        style="width:100%;font-size:11px;padding:8px;
+                               background:#7f1d1d;color:#fca5a5;">
+                    💔 Развестись (бесплатно)
+                </button>
+            ` : `
+                <div style="font-size:11px;color:#adadb8;margin-bottom:8px;">
+                    ${hasClan
+                        ? 'Не в браке. Engine найдёт случайную подходящую NPC противоположного пола.'
+                        : '⚠️ Брак доступен только герою с кланом — сначала создай или вступи в клан (🏰 Управление кланом). Бесклановый брак ломает игру.'}
+                </div>
+                <button class="extra-btn" id="bnr-marry-btn"
+                        ${(hasClan && heroGold >= 50000) ? '' : 'disabled'}
+                        title="${hasClan ? 'Engine выберет случайную подходящую NPC. Спишет 50K💰.' : 'Нужен клан: бесклановый замужний герой крашит ванильную модель беременности.'}"
+                        style="width:100%;font-size:12px;padding:8px;
+                               background:${(hasClan && heroGold >= 50000) ? '#5b21b6' : '#2d2d2f'};
+                               color:${(hasClan && heroGold >= 50000) ? '#f472b6' : '#6b7280'};
+                               ${(hasClan && heroGold >= 50000) ? '' : 'cursor:not-allowed;'}">
+                    💍 Жениться/выйти замуж (50K💰)${hasClan ? '' : ' — нужен клан'}
+                </button>
+            `}
+        </div>
+        ${_renderFamilyTreeHtml(h)}
+    `;
+
+    if (_smartInnerHTML(slot, body)) {
+        slot.querySelector('#bnr-marry-btn')?.addEventListener('click', () => {
+            _bannerlordBuyAction('hero.marry', {});
+        });
+        slot.querySelector('#bnr-divorce-btn')?.addEventListener('click', () => {
+            _bannerlordBuyAction('hero.divorce', {});
+        });
+        slot.querySelector('#bnr-make-baby-btn')?.addEventListener('click', () => {
+            _bannerlordBuyAction('hero.make_baby', {});
+        });
+    }
+}
+
+// Sprint 5.27c: рендер family tree section для profile modal
+function _renderFamilyTreeHtml(h) {
+    const fi = h.family_info || {};
+    const spouse = fi.spouse;
+    const children = Array.isArray(fi.children) ? fi.children : [];
+    const father = fi.father;
+    const mother = fi.mother;
+    const siblings = fi.sibling_count || 0;
+    const heroGold = h.gold || 0;
+    const BABY_COST = 100000;
+    const hasClan = !!h.clan_name;   // дети рождаются в клан родителя; без клана — краш беременности
+    const aliveChildren = children.filter(c => c?.is_alive);
+    const canMakeBaby = hasClan && !!spouse && spouse.is_alive && aliveChildren.length < 5 && heroGold >= BABY_COST;
+    const noBabyReason =
+        !hasClan ? 'нужен клан'
+        : !spouse ? 'нет супруга(и)'
+        : !spouse.is_alive ? 'супруг(а) мёртв(а)'
+        : aliveChildren.length >= 5 ? 'максимум 5 детей в клане'
+        : heroGold < BABY_COST ? 'не хватает 💰'
+        : null;
+
+    const heroEmoji = (p) => p?.is_female ? '♀' : '♂';
+    const heroLine = (p) => p
+        ? `<div style="font-size:11px;color:${p.is_alive ? '#efeff1' : '#6b7280'};">
+              ${heroEmoji(p)} ${escapeHtml(p.name || '?')} · ${p.age || '?'} лет
+              ${p.is_alive ? '' : '☠️'}
+              ${p.is_pregnant ? '🤰' : ''}
+           </div>`
+        : '<div style="font-size:11px;color:#6b7280;">—</div>';
+
+    let childrenHtml;
+    if (children.length === 0) {
+        childrenHtml = '<div style="font-size:11px;color:#6b7280;">Детей пока нет</div>';
+    } else {
+        childrenHtml = children.map(c => `
+            <div style="font-size:11px;color:${c.is_alive ? '#efeff1' : '#6b7280'};
+                        padding:2px 0;">
+                ${heroEmoji(c)} ${escapeHtml(c.name || '?')} · ${c.age || '?'} лет
+                ${c.is_alive ? '' : '☠️'}
+            </div>
+        `).join('');
+    }
+
+    return `
+        <div style="background:#1a1a1c;border:1px solid #3a3a3e;border-radius:6px;
+                    padding:10px;">
+            <div style="font-size:12px;color:#adadb8;margin-bottom:8px;">
+                👨‍👩‍👧 <b style="color:#efeff1;">Семья</b>
+            </div>
+
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 8px;
+                        font-size:11px;margin-bottom:10px;">
+                <span style="color:#adadb8;">👴 Отец:</span> ${heroLine(father)}
+                <span style="color:#adadb8;">👵 Мать:</span> ${heroLine(mother)}
+                ${siblings > 0
+                    ? `<span style="color:#adadb8;">👫 Братья/сёстры:</span>
+                       <span style="color:#efeff1;">${siblings}</span>` : ''}
+            </div>
+
+            <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">
+                👶 Дети (${aliveChildren.length} живых из ${children.length}):
+            </div>
+            <div style="background:#0e0e10;border-radius:4px;padding:6px;margin-bottom:10px;
+                        max-height:120px;overflow-y:auto;">
+                ${childrenHtml}
+            </div>
+
+            <button class="extra-btn" id="bnr-make-baby-btn"
+                    ${canMakeBaby ? '' : 'disabled'}
+                    style="width:100%;font-size:12px;padding:8px;
+                           background:${canMakeBaby ? '#5b21b6' : '#2d2d2f'};
+                           color:${canMakeBaby ? '#f472b6' : '#6b7280'};
+                           ${canMakeBaby ? '' : 'cursor:not-allowed;'}">
+                🤰 Зачать ребёнка (100K💰)
+                ${noBabyReason ? ` — ${noBabyReason}` : ''}
+            </button>
+            <div style="font-size:10px;color:#6b7280;margin-top:6px;text-align:center;">
+                Через ~36 in-game дней появится ребёнок (engine PregnancyCampaignBehavior).
+            </div>
+        </div>
+    `;
+}
+
+// 2026-06-07 — модалка управления королевством УДАЛЕНА: всё инлайн в секции
+// 👑 Королевство вкладки «Династия» (покинуть / создать / вступить). Имя — через
+// _renderCreateKingdomInline / _renderJoinInline('kingdom', ...).
+
+// 2026-06-07 — инлайн-секции «Династия → 🏰 Клан / 👑 Королевство». Live-инфо
+// из _bannerlordLastHero (без сети) + lazy-формы создать/вступить раскрываются
+// прямо в секции (clanless/независимый клан — через _render*Inline).
+// Гейтятся isClanLeader в poll'е (как остальные суб-слоты Династии).
+// 2026-06-07 — locked-state Династии (не-лидер): clanless → создать/вступить;
+// участник чужого клана → инфо + покинуть. Создать/вступить — lazy-формы инлайн
+// (модалки клана/королевства удалены).
+function loadBannerlordDynastyLockedActions() {
+    const slot = document.getElementById('bnr-dynasty-locked-actions');
+    if (!slot) return;
+    const h = _bannerlordLastHero?.hero || {};
+    const inClan = !!h.clan_name;
+    // 2026-06-07 — создать/вступить инлайн (lazy <details>): поле имени переживает
+    // 8s-poll (форма рендерится при раскрытии, не на каждом тике).
+    const html = !inClan
+        ? `<details data-bnr-details="locked-create" ${_bnrDetailsAttr('locked-create')} style="margin-bottom:6px;">
+                <summary style="list-style:none;cursor:pointer;width:100%;box-sizing:border-box;
+                           font-size:12px;padding:9px;border-radius:3px;
+                           background:#7c2d12;color:#fbbf24;font-weight:700;border:1px solid #b45309;">
+                    🏰 Создать клан (1M💰)
+                </summary>
+                <div id="bnr-locked-create-slot" style="padding-top:6px;"></div>
+           </details>
+           <details data-bnr-details="locked-join" ${_bnrDetailsAttr('locked-join')}>
+                <summary style="list-style:none;cursor:pointer;width:100%;box-sizing:border-box;
+                           font-size:12px;padding:9px;border-radius:3px;background:#1e3a5f;color:#93c5fd;">
+                    🤝 Вступить в клан (50K💰)
+                </summary>
+                <div id="bnr-locked-join-slot" style="padding-top:6px;"></div>
+           </details>`
+        : `<div style="font-size:11px;color:#adadb8;margin-bottom:8px;">
+                Ты в клане <b style="color:#fbbf24;">${escapeHtml(h.clan_name)}</b>, но не глава.
+                Полная Династия открыта главе клана.
+           </div>
+           <button class="extra-btn bnr-locked-leave"
+                   style="width:100%;font-size:12px;padding:9px;background:#7f1d1d;color:#fca5a5;">
+                🚪 Покинуть клан
+           </button>`;
+    // 2026-06-07 FLICKER — пока раскрыта форма create/join, НЕ перерисовываем секцию
+    // (html тут стабилен, но guard для единообразия/надёжности — безвреден).
+    if (slot.querySelector('[data-bnr-details="locked-create"]')?.open
+        || slot.querySelector('[data-bnr-details="locked-join"]')?.open) return;
+    if (_smartInnerHTML(slot, html)) {
+        const _lcDet = slot.querySelector('[data-bnr-details="locked-create"]');
+        if (_lcDet) {
+            _lcDet.addEventListener('toggle', () => { if (_lcDet.open) _renderCreateClanInline(); });
+            if (_lcDet.open) _renderCreateClanInline();
+        }
+        const _ljDet = slot.querySelector('[data-bnr-details="locked-join"]');
+        if (_ljDet) {
+            _ljDet.addEventListener('toggle', () => { if (_ljDet.open) _renderJoinInline('clan', 'bnr-locked-join-slot'); });
+            if (_ljDet.open) _renderJoinInline('clan', 'bnr-locked-join-slot');
+        }
+        slot.querySelector('.bnr-locked-leave')?.addEventListener('click', () => _bannerlordBuyAction('hero.leave_clan', {}));
+    }
+}
+function loadBannerlordClanMgmt() {
+    const slot = document.getElementById('bnr-clan-mgmt-slot');
+    if (!slot) return;
+    const h = _bannerlordLastHero?.hero || {};
+    const info = h.clan_info || null;
+    const infoGrid = info ? `
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:11px;margin-bottom:6px;">
+            <span style="color:#adadb8;">⭐ Tier:</span><span style="color:#efeff1;">${info.tier || 0}</span>
+            <span style="color:#adadb8;">🏆 Renown:</span><span style="color:#efeff1;">${(info.renown || 0).toLocaleString('ru-RU')}</span>
+            <span style="color:#adadb8;">👥 Героев:</span><span style="color:#efeff1;">${info.members_count || 0}</span>
+            <span style="color:#adadb8;">⚔ Отрядов:</span><span style="color:#efeff1;">${info.parties_count || 0}</span>
+            <span style="color:#adadb8;">🏰 Поселений:</span><span style="color:#efeff1;">${info.fiefs_count || 0}</span>
+        </div>`
+        : `<div style="font-size:11px;color:#adadb8;margin-bottom:6px;">Нет данных о клане.</div>`;
+    const isLeader = !!info?.is_leader;
+    const hasParties = (info?.parties_count || 0) > 0;
+    const partyBtn = (isLeader && !hasParties)
+        ? `<button class="extra-btn bnr-clan-party"
+                   title="Hero выйдет на карту как AI-lord. 200K💰 + retinue в roster."
+                   style="width:100%;font-size:12px;padding:7px;margin-bottom:4px;background:#1e3a5f;color:#93c5fd;font-weight:700;">
+                ⚔ Создать отряд (200K💰)
+           </button>`
+        : (isLeader && hasParties)
+            ? `<div style="font-size:11px;color:#34d399;text-align:center;padding:4px;">✅ Отрядов у клана: ${info.parties_count}</div>`
+            : '';
+    const html = `
+        <div style="font-size:12px;color:#fbbf24;font-weight:700;margin-bottom:4px;text-align:center;">
+            ${escapeHtml(info?.name || h.clan_name || '—')}
+        </div>
+        ${infoGrid}
+        ${partyBtn}
+        <button class="extra-btn bnr-clan-leave"
+                title="Покинуть клан. Лидерство передастся старшему non-hero, или клан распустится."
+                style="width:100%;font-size:12px;padding:7px;background:#7f1d1d;color:#fca5a5;">
+            🚪 Покинуть клан
+        </button>`;
+    if (_smartInnerHTML(slot, html)) {
+        slot.querySelector('.bnr-clan-party')?.addEventListener('click', () => _bannerlordBuyAction('hero.create_party', {}));
+        slot.querySelector('.bnr-clan-leave')?.addEventListener('click', () => _bannerlordBuyAction('hero.leave_clan', {}));
+    }
+}
+function loadBannerlordKingdomMgmt() {
+    const slot = document.getElementById('bnr-kingdom-mgmt-slot');
+    if (!slot) return;
+    const h = _bannerlordLastHero?.hero || {};
+    const info = h.kingdom_info || null;
+    const hasKingdom = !!h.kingdom_name;
+    const infoGrid = (hasKingdom && info) ? `
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:11px;margin-bottom:6px;">
+            <span style="color:#adadb8;">👑 Правитель:</span><span style="color:#efeff1;">${escapeHtml(info.ruler_name || '?')}${info.is_ruler ? ' <b style="color:#fbbf24;">(ты)</b>' : ''}</span>
+            <span style="color:#adadb8;">🏰 Кланов:</span><span style="color:#efeff1;">${info.clans_count || 0}</span>
+            <span style="color:#adadb8;">🌆 Поселений:</span><span style="color:#efeff1;">${info.fiefs_count || 0}</span>
+            <span style="color:#adadb8;">⚔ Война с:</span><span style="color:${(info.at_war_count || 0) > 0 ? '#f87171' : '#efeff1'};">${info.at_war_count || 0} корол.</span>
+        </div>`
+        : `<div style="font-size:11px;color:#adadb8;margin-bottom:6px;">Клан независим — без королевства.</div>`;
+    // 2026-06-07 — создать/вступить инлайн (lazy <details>): поле имени переживает
+    // 8s-poll (форма рендерится при раскрытии, не на каждом тике).
+    const actions = hasKingdom
+        ? `<button class="extra-btn bnr-kingdom-leave"
+                   title="Вывести клан из королевства — бесплатно."
+                   style="width:100%;font-size:12px;padding:7px;background:#7f1d1d;color:#fca5a5;">
+                🚪 Покинуть королевство
+           </button>`
+        : `<details data-bnr-details="kingdom-create" ${_bnrDetailsAttr('kingdom-create')} style="margin-bottom:4px;">
+                <summary title="Создать своё королевство (5M💰). Клан становится правящим."
+                         style="list-style:none;cursor:pointer;width:100%;box-sizing:border-box;
+                                font-size:12px;padding:7px;border-radius:3px;background:#7c2d12;color:#fbbf24;font-weight:700;">
+                    👑 Создать королевство (5M💰)
+                </summary>
+                <div id="bnr-kingdom-create-slot" style="padding-top:6px;"></div>
+           </details>
+           <details data-bnr-details="kingdom-join" ${_bnrDetailsAttr('kingdom-join')}>
+                <summary title="Вступить в существующее королевство (100K💰)."
+                         style="list-style:none;cursor:pointer;width:100%;box-sizing:border-box;
+                                font-size:12px;padding:7px;border-radius:3px;background:#1e3a5f;color:#93c5fd;">
+                    🤝 Вступить в королевство (100K💰)
+                </summary>
+                <div id="bnr-kingdom-join-slot" style="padding-top:6px;"></div>
+           </details>`;
+    const html = `
+        <div style="font-size:12px;color:#93c5fd;font-weight:700;margin-bottom:4px;text-align:center;">
+            ${hasKingdom ? escapeHtml(info?.name || h.kingdom_name) : '— нет королевства —'}
+        </div>
+        ${infoGrid}
+        ${actions}`;
+    // 2026-06-07 FLICKER — пока раскрыта форма create/join, НЕ перерисовываем секцию
+    // (иначе repaint стирает ввод имени). Любая из двух форм блокирует repaint.
+    if (slot.querySelector('[data-bnr-details="kingdom-create"]')?.open
+        || slot.querySelector('[data-bnr-details="kingdom-join"]')?.open) return;
+    if (_smartInnerHTML(slot, html)) {
+        slot.querySelector('.bnr-kingdom-leave')?.addEventListener('click', () => _bannerlordBuyAction('hero.leave_kingdom', {}));
+        const _kcDet = slot.querySelector('[data-bnr-details="kingdom-create"]');
+        if (_kcDet) {
+            _kcDet.addEventListener('toggle', () => { if (_kcDet.open) _renderCreateKingdomInline(); });
+            if (_kcDet.open) _renderCreateKingdomInline();
+        }
+        const _kjDet = slot.querySelector('[data-bnr-details="kingdom-join"]');
+        if (_kjDet) {
+            _kjDet.addEventListener('toggle', () => { if (_kjDet.open) _renderJoinInline('kingdom', 'bnr-kingdom-join-slot'); });
+            if (_kjDet.open) _renderJoinInline('kingdom', 'bnr-kingdom-join-slot');
+        }
+    }
+}

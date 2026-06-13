@@ -202,3 +202,97 @@ async function buyEvent(eventId) {
         }
     });
 }
+
+
+// ===== ЧЕРТЫ / ГЕНЫ МАРАКЕРА — split чанк 3 (2026-06-13) =====
+// Вызываются из shop.js (buyTrait/buyGene) и pawn.js (removeMyTrait/removeMyGene)
+// через рантайм-клики; viewer-rimworld.js грузится последним, функции доступны.
+async function removeMyTrait(traitDef, degree, label) {
+    showConfirm('🗑️ Удалить черту', `Удалить черту <b>${escapeHtml(label)}</b> за <b style="color:#f87171;">300💎</b>?`, async () => {
+        try {
+            const r = await fetch(`${API_URL}/api/rimworld/remove-trait`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || ''},
+                body: JSON.stringify({ username: userLogin, trait_def: traitDef, degree })
+            });
+            const d = await r.json();
+            showNotification(d.message, d.success ? 'success' : 'error');
+            if (d.success) {
+                loadUserData();
+                setTimeout(() => openPassionModal(), 2000);
+                startPawnRefresh();
+            }
+        } catch(e) { showNotification('❌ Ошибка', 'error'); }
+    });
+}
+
+let _pawnRefreshTimer = null;
+
+function startPawnRefresh(durationMs = 15000, intervalMs = 3000) {
+    if (_pawnRefreshTimer) clearInterval(_pawnRefreshTimer);
+    let elapsed = 0;
+    _pawnRefreshTimer = setInterval(() => {
+        elapsed += intervalMs;
+        if (elapsed >= durationMs) {
+            clearInterval(_pawnRefreshTimer);
+            _pawnRefreshTimer = null;
+            return;
+        }
+        loadMyPawn();
+    }, intervalMs);
+}
+
+async function buyTrait(traitDef, degree, label, price) {
+    if (!checkCooldown('buyTrait', 3000)) return;
+    const displayPrice = price || 500;
+    showConfirm('✨ Купить черту', `Добавить черту <b>${escapeHtml(label)}</b> за <b style="color:#9147ff;">${displayPrice}💎</b>?`, async () => {
+        try {
+            const r = await fetch(`${API_URL}/api/rimworld/buy-trait`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || ''},
+                body: JSON.stringify({ username: userLogin, trait_def: traitDef, degree })
+            });
+            const d = await r.json();
+            showNotification(d.message, d.success ? 'success' : 'error');
+            if (d.success) { loadUserData(); startPawnRefresh(); loadShopCatalog(); }
+        } catch(e) { showNotification('❌ Ошибка', 'error'); }
+    });
+}
+
+async function buyGene(geneDef, geneLabel, price) {
+    if (!checkCooldown('buyGene', 3000)) return;
+    const displayPrice = price || 5000;
+    showConfirm('🧬 Купить ген', `Установить ген <b>${escapeHtml(geneLabel)}</b> за <b style="color:#9147ff;">${displayPrice}💎</b>?`, async () => {
+        try {
+            const r = await fetch(`${API_URL}/api/rimworld/buy-gene`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || ''},
+                body: JSON.stringify({ username: userLogin, def_name: geneDef })
+            });
+            const d = await r.json();
+            showNotification(d.message, d.success ? 'success' : 'error');
+            if (d.success) { loadUserData(); startPawnRefresh(); loadShopCatalog(); }
+        } catch(e) { showNotification('❌ Ошибка', 'error'); }
+    });
+}
+
+async function removeMyGene(geneDef, geneLabel, isOverridden) {
+    const overriddenNote = isOverridden
+        ? '<br><span style="color:#f59e0b;font-size:11px;">⚠️ Ген сейчас подавлен другим геном, но будет удалён из генома.</span>'
+        : '';
+    showConfirm('🗑️ Удалить ген',
+        `Удалить ген <b>${escapeHtml(geneLabel)}</b> за <b style="color:#f87171;">3000💎</b>?${overriddenNote}`,
+        async () => {
+            try {
+                const r = await fetch(`${API_URL}/api/rimworld/remove-gene`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || ''},
+                    body: JSON.stringify({ username: userLogin, def_name: geneDef, label: geneLabel })
+                });
+                const d = await r.json();
+                showNotification(d.message, d.success ? 'success' : 'error');
+            if (d.success) { loadUserData(); startPawnRefresh(); }
+            } catch(e) { showNotification('❌ Ошибка', 'error'); }
+        }
+    );
+}

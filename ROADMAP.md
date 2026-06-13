@@ -259,10 +259,26 @@ viewer.js, до viewer-rimworld.js в обоих шеллах; glob-роут + �
   viewer.js: 6810 → 6659.
 - **Кусок 2 (progression):** loadBannerlordProgression + BNR_SKILLS/BNR_SKILL_LABELS_RU/
   BNR_ATTRIBUTES/BNR_ATTR_*/BNR_FOCUS_TIER_COSTS/BNR_ATTRIBUTE_COST → bannerlord.js.
-  ⚠️ `BNR_SKILL_LABELS_RU` теперь шарится кросс-файлово: hero-card (viewer.js:5278, пока
+  ⚠️ `BNR_SKILL_LABELS_RU` теперь шарится кросс-файлово: hero-card (viewer.js, пока
   в core) ссылается на неё в рантайме. Безопасно (top-level const видна всем скриптам,
   hero рендерится после загрузки bannerlord.js). Станет внутрифайловой, когда hero-card
   переедет. viewer.js: 6659 → 6505.
+- **Куски 3-6 (2026-06-13, через `_autotest/movechunk.py` — байт-точный перенос по
+  line-range с assert границ, ноль ручного воспроизведения кириллицы):**
+  - **3 workshops:** _BNR_WORKSHOP_TYPES + loadBannerlordWorkshops + _renderBuyWorkshopInline.
+  - **4 fiefs/caravans/inheritance:** loadBannerlordFiefs/Caravans(+inline)/CaravanRescues/Inheritance.
+  - **5 vassals/party/diplomacy/ransom:** +_BNR_POLICIES +inline-рендеры. ⚠️ вклиненный
+    core-хелпер `_smartInnerHTML` корректно ОСТАВЛЕН в core.
+  - **6 daily/heirs/family:** loadBannerlordDaily(+claim)/Heirs/Family(+_fam* handlers).
+  Все: self-contained, core `_bnr*`/`_smartInnerHTML` forward, callers рантайм
+  (loadBannerlordHero / _startBannerlordPolling). viewer.js: 6505 → **4796**.
+
+**Осталось вынести (Bannerlord, ~остаток):** classes/active-powers/summon/equipment
+(+BNR_POWER_LABELS/PRICES — шарятся с buffs), gender/profile/clan/kingdom mgmt,
+buffs/battle HUD, **hero-card (большая, BNR_SKILL_LABELS_RU станет внутрифайловой)**,
+shop, в самом конце — диспетчер `_bannerlordBuyAction` + cooldown-тикер + polling.
+Инструмент `_autotest/movechunk.py` — переиспользуемый (job-JSON: src/dst/start/end/
+assert_first/last/after/header/pointer).
 
 **В CORE остаются (НЕ выносить — зовутся при переключении модуля / диспетчер):**
 `switchIntegrationModule`, `_startBannerlordPolling`/`_stopBannerlordPolling`,

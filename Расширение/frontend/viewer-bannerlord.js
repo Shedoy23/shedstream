@@ -1669,3 +1669,406 @@ async function loadBannerlordRansomPool() {
         console.warn('[FE-RANSOM] loadRansom failed (keeping last render)', e);
     }
 }
+
+// ===== Daily rewards / Heirs / Family (брак, дети) — split чанк 6 (2026-06-13) =====
+// loadBannerlordDaily(+_claimDailyReward), loadBannerlordHeirs, loadBannerlordFamily
+// (+_famRenameChild/_famRespecChild/_famChangeChildLooks/_famProposeMarriage).
+// Core forward; daily из _startBannerlordPolling, heirs/family из loadBannerlordHero (рантайм).
+// Sprint 5.32 #46 — daily rewards. 1 раз в день (UTC) viewer выбирает либо
+// 100K💰 динаров либо 50K XP в random skill. Increments engagement (открытие
+// расширения раз в день за бонусом).
+async function loadBannerlordDaily() {
+    const slot = document.getElementById('bnr-daily-slot');
+    if (!slot) return;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/daily-status`, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
+        const d = await r.json();
+        if (!d || !d.success) return;  // AUDIT fix: keep last render on transient fail
+        const goldAmt = (d.reward_amounts?.gold || 100000).toLocaleString('ru-RU');
+        const xpAmt   = (d.reward_amounts?.xp   || 50000).toLocaleString('ru-RU');
+        if (d.can_claim) {
+            slot.innerHTML = `
+                <div style="background:linear-gradient(135deg,#3a2a0a,#2a200a);
+                            border:1px solid #92400e;border-radius:6px;padding:8px 10px;">
+                    <div style="font-size:11px;color:#fbbf24;font-weight:700;margin-bottom:6px;
+                                display:flex;align-items:center;gap:4px;">
+                        🎁 Дейлик доступен! Выбери награду:
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+                        <button class="extra-btn" id="bnr-daily-claim-gold"
+                                title="Получить ${goldAmt}💰 динаров (Hero.Gold)"
+                                style="font-size:11px;padding:8px 4px;
+                                       background:#3a2a0a;color:#fbbf24;font-weight:700;
+                                       border:1px solid #b45309;">
+                            💰 +${goldAmt} динаров
+                        </button>
+                        <button class="extra-btn" id="bnr-daily-claim-xp"
+                                title="Получить ${xpAmt} XP в случайный скилл (class-weighted)"
+                                style="font-size:11px;padding:8px 4px;
+                                       background:#1e3a5f;color:#93c5fd;font-weight:700;
+                                       border:1px solid #1d4ed8;">
+                            📚 +${xpAmt} XP
+                        </button>
+                    </div>
+                </div>`;
+            slot.querySelector('#bnr-daily-claim-gold')?.addEventListener('click',
+                () => _claimDailyReward('gold'));
+            slot.querySelector('#bnr-daily-claim-xp')?.addEventListener('click',
+                () => _claimDailyReward('xp'));
+        } else {
+            const lastRew = d.last_reward_type === 'gold'
+                ? `💰 ${goldAmt} динаров`
+                : `📚 ${xpAmt} XP`;
+            slot.innerHTML = `
+                <div style="background:rgba(58,42,10,0.3);border:1px solid #3d3d3f;
+                            border-radius:6px;padding:7px 10px;font-size:11px;
+                            color:#9ca3af;">
+                    🎁 Сегодня уже забрал: <span style="color:#fbbf24;">${lastRew}</span>.
+                    <span style="font-size:10px;display:block;margin-top:2px;">
+                        Возвращайся завтра в 00:00 UTC за новым дейликом.
+                    </span>
+                </div>`;
+        }
+    } catch (e) { dbg('[BNR daily] failed', e); }
+}
+
+async function _claimDailyReward(rewardType) {
+    const goldBtn = document.getElementById('bnr-daily-claim-gold');
+    const xpBtn   = document.getElementById('bnr-daily-claim-xp');
+    if (goldBtn) goldBtn.disabled = true;
+    if (xpBtn)   xpBtn.disabled = true;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/daily-claim`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Twitch-JWT': authToken || '',
+            },
+            body: JSON.stringify({ reward_type: rewardType }),
+        });
+        const d = await r.json();
+        showNotification(d.message || (d.success ? 'OK' : 'Ошибка'), d.success ? 'success' : 'error');
+    } catch (e) {
+        showNotification('Ошибка сети', 'error');
+    }
+    // Re-load status (показывает "уже забрал" state).
+    loadBannerlordDaily();
+    // Refresh hero для отображения gold/level updates когда мод применит.
+    setTimeout(loadBannerlordHero, 1500);
+}
+
+// Sprint 5.32 (BLT-parity FE-M2) — heir queue display.
+// Backend `hero.heir_came_of_age` event пушит ребёнка adopted hero'я в очередь.
+// На death героя backend auto-pick first alive heir (M2.1 ActivateHeirHandler).
+// Frontend показывает кому-то в очереди наследники — пользователь видит
+// continuity своего рода.
+async function loadBannerlordHeirs() {
+    const slot = document.getElementById('bnr-heir-slot');
+    if (!slot) return;
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/heirs`, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
+        const d = await r.json();
+        if (!d || d.success === false) return;  // AUDIT fix: keep last on transient fail
+        if (!Array.isArray(d.heirs) || d.heirs.length === 0) {
+            _smartInnerHTML(slot, '');  // genuine empty — dedup, no flicker
+            return;
+        }
+        // Sprint 5.32 (LOG-4) — info log при non-empty heirs. Silent на 0
+        // (большинство пользователей без heirs, не спамим).
+        console.info('[FE-HEIR] loaded', d.heirs.length, 'heirs:',
+                     d.heirs.map(h => h.name).join(', '));
+        const names = d.heirs.map(h => escapeHtml(h.name || '?')).join(', ');
+        // Truncate если очень длинный.
+        const namesDisplay = names.length > 80 ? names.slice(0, 78) + '…' : names;
+        slot.innerHTML = `
+            <div style="background:#1a1a2e;border:1px solid #5b21b6;border-radius:4px;
+                        padding:6px 8px;font-size:11px;color:#c084fc;"
+                 title="На смерть героя первый из списка автоматически унаследует имя [BLink] и стартанёт с прокачанным уровнем + clan.">
+                🕯 <b>Наследников: ${d.heirs.length}</b>
+                <span style="color:#a78bfa;">${namesDisplay}</span>
+            </div>`;
+    } catch (e) {
+        console.warn('[FE-M2] loadHeirs failed (keeping last render)', e);
+    }
+}
+
+// Sprint 5.33 (BLT-parity FAM) — Family section: children list + per-child actions +
+// proposals (incoming/outgoing). Главный engagement loop для multi-generation streamов.
+async function loadBannerlordFamily() {
+    const slot = document.getElementById('bnr-family-slot');
+    if (!slot) return;
+    try {
+        const [childrenR, proposalsR] = await Promise.all([
+            fetch(`${API_URL}/api/bannerlord/my-children`, {
+                headers: { 'X-Twitch-JWT': authToken || '' }
+            }).then(r => r.json()).catch(() => ({success: false})),
+            fetch(`${API_URL}/api/bannerlord/proposals`, {
+                headers: { 'X-Twitch-JWT': authToken || '' }
+            }).then(r => r.json()).catch(() => ({success: false})),
+        ]);
+        const children = (childrenR.success && Array.isArray(childrenR.children))
+            ? childrenR.children : [];
+        const incoming = (proposalsR.success && Array.isArray(proposalsR.incoming))
+            ? proposalsR.incoming : [];
+        const outgoing = (proposalsR.success && Array.isArray(proposalsR.outgoing))
+            ? proposalsR.outgoing : [];
+
+        // Если у viewer'а нет ни детей, ни proposals — section скрыта
+        if (children.length === 0 && incoming.length === 0 && outgoing.length === 0) {
+            slot.innerHTML = '';
+            return;
+        }
+        console.info('[FE-FAM] loaded children=%d incoming=%d outgoing=%d',
+                     children.length, incoming.length, outgoing.length);
+
+        let html = `
+            <div style="background:#1a1a2e;border:1px solid #5b21b6;border-radius:4px;
+                        padding:8px;font-size:11px;color:#c4b5fd;">
+                <div style="font-size:12px;font-weight:700;color:#a78bfa;margin-bottom:6px;">
+                    🌳 Семья и потомство
+                </div>`;
+
+        // Incoming proposals (приоритет внимания)
+        if (incoming.length > 0) {
+            // 2026-06-07 — предложения брака inline (принять/отклонить прямо тут,
+            // без модалки).
+            html += `
+                <div style="background:#3b0a4a;padding:6px;border-radius:3px;margin-bottom:6px;">
+                    <div style="color:#f0abfc;font-weight:700;margin-bottom:4px;">
+                        💍 Входящих предложений: ${incoming.length}
+                    </div>
+                    ${incoming.map(p => `
+                        <div data-proposal-id="${p.id}"
+                             style="background:#0f0a18;padding:5px 6px;border-radius:3px;margin-bottom:4px;">
+                            <div style="font-size:10px;color:#e9d5ff;margin-bottom:4px;">
+                                от @${escapeHtml(p.proposer_username)}: «${escapeHtml(p.proposer_child_name)} ❤ ${escapeHtml(p.target_child_name)}»
+                            </div>
+                            <div style="display:flex;gap:4px;">
+                                <button class="bnr-prop-accept small-btn"
+                                        style="flex:1;font-size:10px;padding:3px;background:#15803d;color:#dcfce7;font-weight:700;">✓ Принять</button>
+                                <button class="bnr-prop-reject small-btn"
+                                        style="flex:1;font-size:10px;padding:3px;background:#7f1d1d;color:#fee2e2;font-weight:700;">✗ Отклонить</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>`;
+        }
+
+        // Outgoing (мои pending) — Sprint 5.33 UI-Gap1: добавлена кнопка отзыва
+        // (× cancel) per proposal. Раньше viewer не мог withdraw proposal — теперь может.
+        if (outgoing.length > 0) {
+            html += `
+                <div style="font-size:10px;color:#9ca3af;margin-bottom:4px;">
+                    📤 Отправлено: ${outgoing.length}
+                    <span style="color:#6b7280;">(ждут ответа)</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:6px;">
+                    ${outgoing.map(p => `
+                        <div data-proposal-id="${p.id}"
+                             data-proposal-summary="${escapeHtml(p.proposer_child_name)} ❤ ${escapeHtml(p.target_child_name)}"
+                             style="display:flex;justify-content:space-between;align-items:center;
+                                    background:#0f0a18;padding:4px 6px;border-radius:3px;font-size:10px;">
+                            <span style="color:#c4b5fd;">
+                                к @${escapeHtml(p.target_username)}:
+                                «${escapeHtml(p.proposer_child_name)} ❤ ${escapeHtml(p.target_child_name)}»
+                            </span>
+                            <button class="bnr-fam-cancel small-btn"
+                                    title="Отозвать предложение (бесплатно)"
+                                    style="font-size:9px;padding:2px 5px;background:#2d2d3f;
+                                           color:#fb7185;">✕</button>
+                        </div>
+                    `).join('')}
+                </div>`;
+        }
+
+        // Children list
+        if (children.length > 0) {
+            html += `
+                <div style="font-size:10px;color:#9ca3af;margin-top:4px;margin-bottom:4px;">
+                    👨‍👩‍👧 Взрослых детей: ${children.length}
+                </div>
+                <div style="display:flex;flex-direction:column;gap:3px;">
+                    ${children.map(c => `
+                        <div data-child-id="${escapeHtml(c.hero_id)}"
+                             data-child-name="${escapeHtml(c.name)}"
+                             style="display:flex;justify-content:space-between;align-items:center;
+                                    background:#0f0f1e;padding:4px 6px;border-radius:3px;">
+                            <span style="color:#e9d5ff;font-size:11px;">${escapeHtml(c.name)}</span>
+                            <div style="display:flex;gap:3px;">
+                                <button class="bnr-fam-rename small-btn" title="Переименовать (50💎)"
+                                        style="font-size:9px;padding:2px 5px;background:#2d2d3f;color:#a78bfa;">✏</button>
+                                <button class="bnr-fam-looks small-btn" title="Изменить внешность (200💎). Скопируй body_code из in-game character menu"
+                                        style="font-size:9px;padding:2px 5px;background:#2d2d3f;color:#a78bfa;">🎨</button>
+                                <button class="bnr-fam-respec small-btn" title="Респект скиллов (500💎)"
+                                        style="font-size:9px;padding:2px 5px;background:#2d2d3f;color:#a78bfa;">🎯</button>
+                                <button class="bnr-fam-propose small-btn" title="Предложить брак другому viewer'у (100💎)"
+                                        style="font-size:9px;padding:2px 5px;background:#4c1d95;color:#fff;">💍</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>`;
+        } else {
+            html += `
+                <div style="font-size:10px;color:#6b7280;margin-top:4px;">
+                    Дети взрослеют через ~18 лет после make_baby. Жди.
+                </div>`;
+        }
+        html += `</div>`;
+        // FLICKER-FIX: skip rebind при identical HTML.
+        if (!_smartInnerHTML(slot, html)) return;
+
+        // Bind handlers
+        slot.querySelectorAll('.bnr-prop-accept').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const id = parseInt(e.target.closest('[data-proposal-id]').dataset.proposalId, 10);
+                _bannerlordBuyAction('hero.respond_marriage_proposal', { proposal_id: id, accept: true });
+                setTimeout(loadBannerlordFamily, 1500);
+            });
+        });
+        slot.querySelectorAll('.bnr-prop-reject').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const id = parseInt(e.target.closest('[data-proposal-id]').dataset.proposalId, 10);
+                _bannerlordBuyAction('hero.respond_marriage_proposal', { proposal_id: id, accept: false });
+                setTimeout(loadBannerlordFamily, 1500);
+            });
+        });
+        slot.querySelectorAll('.bnr-fam-rename').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const parent = e.target.closest('[data-child-id]');
+                if (!parent) return;
+                _famRenameChild(parent.dataset.childId, parent.dataset.childName);
+            });
+        });
+        slot.querySelectorAll('.bnr-fam-respec').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const parent = e.target.closest('[data-child-id]');
+                if (!parent) return;
+                _famRespecChild(parent.dataset.childId, parent.dataset.childName);
+            });
+        });
+        slot.querySelectorAll('.bnr-fam-propose').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const parent = e.target.closest('[data-child-id]');
+                if (!parent) return;
+                _famProposeMarriage(parent.dataset.childId, parent.dataset.childName);
+            });
+        });
+        // Sprint 5.33 UI-Gap1: cancel outgoing proposal binding
+        slot.querySelectorAll('.bnr-fam-cancel').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const parent = e.target.closest('[data-proposal-id]');
+                if (!parent) return;
+                const proposalId = parseInt(parent.dataset.proposalId, 10);
+                const summary = parent.dataset.proposalSummary || 'предложение';
+                if (!await _bnrConfirm(
+                    `Отозвать «${summary}»?`,
+                    'Отозвать'
+                )) return;
+                await _bannerlordBuyAction('hero.cancel_proposal',
+                    { proposal_id: proposalId });
+                setTimeout(loadBannerlordFamily, 1500);
+            });
+        });
+        // Sprint 5.33 UI-Gap2: change-looks button binding (per child)
+        slot.querySelectorAll('.bnr-fam-looks').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const parent = e.target.closest('[data-child-id]');
+                if (!parent) return;
+                _famChangeChildLooks(parent.dataset.childId, parent.dataset.childName);
+            });
+        });
+    } catch (e) {
+        console.warn('[FE-FAM] loadFamily failed (keeping last render)', e);
+    }
+}
+
+async function _famRenameChild(childId, currentName) {
+    const newName = window.prompt(`Новое имя для «${currentName}»:`, currentName);
+    if (!newName || newName === currentName) return;
+    await _bannerlordBuyAction('hero.rename_child',
+        { child_hero_id: childId, new_name: newName });
+    setTimeout(loadBannerlordFamily, 1500);
+}
+
+async function _famRespecChild(childId, name) {
+    if (!await _bnrConfirm(
+        `Сбросить все скиллы «${name}» (500💎)? Hero вернётся к 0 levels.`,
+        'Респект')) return;
+    await _bannerlordBuyAction('hero.respec_child_skills',
+        { child_hero_id: childId });
+}
+
+// Sprint 5.33 UI-Gap2 — change child appearance (BLT pattern body_code change).
+// Mod handler expects body_code = TaleWorlds BodyProperties.FromString format —
+// long hex/key string. Easiest UX: viewer copies body_code из in-game character
+// creator (Profile/Looks menu имеет "Export" button в 1.3.x), pastes здесь.
+async function _famChangeChildLooks(childId, name) {
+    const bodyCode = window.prompt(
+        `🎨 Изменить внешность «${name}» (200💎)\n\n` +
+        `Вставь body_code (скопируй из in-game character menu → Export).\n` +
+        `Поддерживается формат TaleWorlds BodyProperties.`,
+        ''
+    );
+    if (!bodyCode || bodyCode.trim().length < 8) {
+        if (bodyCode !== null) {
+            showNotification('body_code слишком короткий или невалидный', 'warning');
+        }
+        return;
+    }
+    await _bannerlordBuyAction('hero.change_child_looks', {
+        child_hero_id: childId,
+        body_code: bodyCode.trim(),
+    });
+    setTimeout(loadBannerlordFamily, 1500);
+}
+
+async function _famProposeMarriage(myChildId, myChildName) {
+    // Дети наследуют клан родителя; у бесклановых детей брак = клейтлесс-краш
+    // беременности. Не даём отправить proposal без клана.
+    const _h = _bannerlordLastHero?.hero || {};
+    if (!_h.clan_name) {
+        showNotification('Нужен клан, чтобы устраивать браки детей — сначала создай или вступи в клан (🏰).', 'warning');
+        return;
+    }
+    const targetUser = window.prompt(
+        `Предложить брак для «${myChildName}». Введи username другого viewer'а:`);
+    if (!targetUser) return;
+    const tu = targetUser.trim().toLowerCase().replace(/^@/, '');
+    if (!tu) return;
+    // Fetch their children
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/public-children?username=${encodeURIComponent(tu)}`, {
+            headers: { 'X-Twitch-JWT': authToken || '' }
+        });
+        const d = await r.json();
+        if (!d.success || !Array.isArray(d.children) || d.children.length === 0) {
+            showNotification(`У @${tu} нет взрослых детей`, 'warning');
+            return;
+        }
+        // UI choice — простой prompt с numbered list (MVP)
+        const list = d.children.map((c, i) => `${i+1}. ${c.name}`).join('\n');
+        const choice = window.prompt(
+            `Дети @${tu}:\n${list}\n\nВведи номер (1-${d.children.length}):`);
+        const idx = parseInt(choice, 10) - 1;
+        if (isNaN(idx) || idx < 0 || idx >= d.children.length) return;
+        const targetChild = d.children[idx];
+        if (!await _bnrConfirm(
+            `Предложить @${tu}: «${myChildName} ❤ ${targetChild.name}»? (100💎)`,
+            'Отправить'
+        )) return;
+        await _bannerlordBuyAction('hero.propose_marriage', {
+            price: 100,
+            proposer_child_hero_id: myChildId,
+            target_username: tu,
+            target_child_hero_id: targetChild.hero_id,
+        });
+        setTimeout(loadBannerlordFamily, 1500);
+    } catch (e) {
+        console.warn('[FE-FAM] propose failed', e);
+        showNotification('Ошибка сети', 'error');
+    }
+}

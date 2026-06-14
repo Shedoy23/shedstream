@@ -1346,10 +1346,13 @@ function _renderPartyOrderInline(currentActive) {
     const _enemySet = Array.isArray(_ki.enemy_settlements) ? _ki.enemy_settlements : null;
     const _haveLists = !!(_ownSet || _enemySet);
     const _targetsFor = (ot) => {
-        if (ot === 'siege')    return (_enemySet || []).filter(s => s && s.type !== 'village');
-        if (ot === 'raid')     return (_enemySet || []).filter(s => s && s.type === 'village');
-        if (ot === 'garrison') return (_ownSet || []).filter(s => s && s.type !== 'village');
-        return (_ownSet || []);   // defend / patrol → свои (все)
+        let l;
+        if (ot === 'siege')         l = (_enemySet || []).filter(s => s && s.type !== 'village');
+        else if (ot === 'raid')     l = (_enemySet || []).filter(s => s && s.type === 'village');
+        else if (ot === 'garrison') l = (_ownSet || []).filter(s => s && s.type !== 'village');
+        else                        l = (_ownSet || []);   // defend / patrol → свои (все)
+        // ближайшие сверху — по примерным дням пути (мод шлёт s.days).
+        return l.slice().sort((a, b) => (a.days ?? 9999) - (b.days ?? 9999));
     };
     const _typeRu = { town: 'город', castle: 'замок', village: 'деревня', other: '' };
 
@@ -1420,7 +1423,7 @@ function _renderPartyOrderInline(currentActive) {
             return;
         }
         sel.innerHTML = list.map(s =>
-            `<option value="${escapeHtml(s.id)}">${escapeHtml(s.name || s.id)}${s.type && _typeRu[s.type] ? ' (' + _typeRu[s.type] + ')' : ''}</option>`
+            `<option value="${escapeHtml(s.id)}">${escapeHtml(s.name || s.id)} (${_typeRu[s.type] || '?'}${(s.days != null && s.days > 0) ? ', ~' + s.days + ' дн' : ''})</option>`
         ).join('');
         if (preId) { const o = [...sel.options].find(x => x.value === preId); if (o) o.selected = true; }
     };

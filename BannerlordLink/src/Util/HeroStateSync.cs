@@ -235,11 +235,31 @@ namespace BannerlordLink.Util
                     // ручного ввода. Защита/гарнизон → СВОИ, осада/грабёж → ВРАЖЕСКИЕ.
                     // {id=StringId, name, type=town/castle/village}. explicit foreach
                     // (надёжнее по типам, чем LINQ SelectMany).
-                    System.Func<TaleWorlds.CampaignSystem.Settlements.Settlement, object> toObj = s => new
+                    // 2026-06-14 — примерные дни пути отряда до цели (прямая дистанция /
+                    // скорость; rough, для «понимания» зрителю + сортировки во фронте).
+                    var mpForDist = hero?.PartyBelongedTo;
+                    System.Func<TaleWorlds.CampaignSystem.Settlements.Settlement, object> toObj = s =>
                     {
-                        id   = s.StringId,
-                        name = s.Name?.ToString(),
-                        type = s.IsTown ? "town" : (s.IsCastle ? "castle" : (s.IsVillage ? "village" : "other")),
+                        int days = 0;
+                        try
+                        {
+                            if (mpForDist != null)
+                            {
+                                var pPos = mpForDist.GetPosition2D;     // рабочий accessor (см. TriggerWorldEventHandler)
+                                var sPos = s.GatePosition.ToVec2();
+                                float d = (pPos - sPos).Length;
+                                float sp = mpForDist.Speed > 0.1f ? mpForDist.Speed : 4f;
+                                days = (int)System.Math.Ceiling(d / sp);
+                            }
+                        }
+                        catch { }
+                        return new
+                        {
+                            id   = s.StringId,
+                            name = s.Name?.ToString(),
+                            type = s.IsTown ? "town" : (s.IsCastle ? "castle" : (s.IsVillage ? "village" : "other")),
+                            days = days,
+                        };
                     };
                     var ownList = new System.Collections.Generic.List<object>();
                     if (kingdom.Settlements != null)

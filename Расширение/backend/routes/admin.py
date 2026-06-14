@@ -160,10 +160,9 @@ async def admin_panel(_admin: str = Depends(require_admin)):
         return "Создайте admin/admin.html"
 
 
-@router.post("/api/admin/drop")
-async def admin_force_drop(_admin: str = Depends(require_admin)):
-    """Принудительный дроп"""
-    return await get_bot().force_drop()
+# 2026-06-14 (audit): POST /api/admin/drop удалён — админка стала read-only
+# (наблюдательной); god-mode «раздать предметы всем» убран.
+# См. docs/SECURITY_AUDIT_2026-06-14.md.
 
 
 @router.get("/api/admin/stats")
@@ -231,37 +230,10 @@ async def admin_get_user(username: str, _admin: str = Depends(require_admin)):
     }
 
 
-@router.post("/api/admin/points")
-async def admin_adjust_points(request: Request, _admin: str = Depends(require_admin)):
-    """Выдать/забрать очки"""
-    data     = await request.json()
-    username = data.get("username")
-    amount   = int(data.get("amount", 0))
-    action   = data.get("action", "add")  # add / remove / set
-
-    db = get_db()
-    async with aiosqlite.connect(db.db_path) as conn:
-        cursor = await conn.execute("SELECT points FROM viewers WHERE username = ?", (username,))
-        row    = await cursor.fetchone()
-        if not row:
-            return {"success": False, "message": "Пользователь не найден"}
-        current = row[0]
-
-    if action == "add":
-        await db.add_points(username, amount)
-        msg = f"+{amount}💎 → {current + amount}💎"
-    elif action == "remove":
-        await db.remove_points(username, amount)
-        msg = f"-{amount}💎 → {max(0, current - amount)}💎"
-    elif action == "set":
-        async with aiosqlite.connect(db.db_path) as conn:
-            await conn.execute("UPDATE viewers SET points = ? WHERE username = ?", (amount, username))
-            await conn.commit()
-        msg = f"Установлено {amount}💎"
-    else:
-        return {"success": False, "message": "Неверный action"}
-
-    return {"success": True, "message": msg}
+# 2026-06-14 (audit): POST /api/admin/points удалён — самый опасный эндпоинт
+# (произвольная правка баланса любого зрителя). Админка read-only; владелец
+# платформы наблюдает, а не влияет на экономику каналов. Редкие исправления —
+# разовым залогированным скриптом. См. docs/SECURITY_AUDIT_2026-06-14.md.
 
 
 @router.get("/api/admin/items")
@@ -276,59 +248,9 @@ async def admin_get_items(_admin: str = Depends(require_admin)):
     return {"items": [dict(r) for r in rows]}
 
 
-@router.post("/api/admin/item/give")
-async def admin_give_item(request: Request, _admin: str = Depends(require_admin)):
-    """Выдать предмет пользователю"""
-    data     = await request.json()
-    username = data.get("username")
-    item_id  = int(data.get("item_id"))
-    quantity = int(data.get("quantity", 1))
-
-    db = get_db()
-    async with aiosqlite.connect(db.db_path) as conn:
-        cursor = await conn.execute("SELECT display_name FROM items WHERE id = ?", (item_id,))
-        item   = await cursor.fetchone()
-        if not item:
-            return {"success": False, "message": "Предмет не найден"}
-        from dependencies import resolve_channel_id_or_default  # admin endpoint без JWT — TODO M4.4: per-channel admin UI
-        channel_id = resolve_channel_id_or_default()
-        await conn.execute("""
-            INSERT INTO inventory (channel_id, username, item_id, quantity)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT(channel_id, username, item_id) DO UPDATE SET quantity = quantity + ?
-        """, (channel_id, username, item_id, quantity, quantity))
-        await conn.commit()
-    return {"success": True, "message": f"Выдано {item[0]} x{quantity} → {username}"}
-
-
-@router.post("/api/admin/item/remove")
-async def admin_remove_item(request: Request, _admin: str = Depends(require_admin)):
-    """Забрать предмет у пользователя"""
-    data     = await request.json()
-    username = data.get("username")
-    item_id  = int(data.get("item_id"))
-    quantity = int(data.get("quantity", 1))
-
-    db = get_db()
-    async with aiosqlite.connect(db.db_path) as conn:
-        cursor = await conn.execute(
-            "SELECT quantity, display_name FROM inventory inv "
-            "JOIN items i ON inv.item_id = i.id "
-            "WHERE inv.username = ? AND inv.item_id = ?",
-            (username, item_id))
-        row = await cursor.fetchone()
-        if not row:
-            return {"success": False, "message": "Предмет не найден в инвентаре"}
-        cur_qty, name = row
-        if cur_qty <= quantity:
-            await conn.execute(
-                "DELETE FROM inventory WHERE username = ? AND item_id = ?", (username, item_id))
-        else:
-            await conn.execute(
-                "UPDATE inventory SET quantity = quantity - ? WHERE username = ? AND item_id = ?",
-                (quantity, username, item_id))
-        await conn.commit()
-    return {"success": True, "message": f"Забрано {name} x{quantity} у {username}"}
+# 2026-06-14 (audit): POST /api/admin/item/give + /api/admin/item/remove удалены —
+# админка read-only; god-mode инвентаря (выдать/забрать предмет) убран.
+# См. docs/SECURITY_AUDIT_2026-06-14.md.
 
 
 # ── Блок 1 архитектурной прокачки: DB health & visibility ────────────────────

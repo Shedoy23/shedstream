@@ -44,7 +44,7 @@
 
 | Severity | Файл:строка | Проблема | [проверка] |
 |---|---|---|---|
-| HIGH | `routes/admin.py:190,196,210,244,258` | `SELECT/UPDATE viewers WHERE username=?` без `channel_id` — админ видит/правит пользователей всех каналов | [проверено: запросы реально без channel_id; но admin-панель = владелец, single-tenant TODO M4.4] |
+| ✅ DONE (writes) | `routes/admin.py` | god-mode денежные/данные действия (`/api/admin/points`, `/item/give`, `/item/remove`, `/drop`, `cases/grant`, `bannerlord/reset`) **удалены** 2026-06-14 — админка стала read-only. Опасный `UPDATE viewers` больше не существует → риск растворён. Остались READ-запросы (users list/detail) без `channel_id` — мелкий multi-tenant пункт, не god-mode | [сделано: см. ниже «Админка → read-only»] |
 | HIGH | `routes/viewer.py:371-383` | `/api/viewer/online-list` — `SELECT … WHERE is_afk=0` без `channel_id`, отдаёт активных всех каналов | [flagged субагентом; проверить наличие JWT перед фиксом] |
 | HIGH | `rimworld.py:566-691` | `/api/rimworld/my-pawn/{username}` — публичный, без JWT/channel_id; пешка читается только по username | [flagged; RimWorld legacy — см. KNOWN ISSUE ниже] |
 | HIGH | `rimworld.py:696+` | `sync-pawns` использует `resolve_channel_id_or_default()` вместо channel_id из мод-токена | [flagged; см. RimWorld known-issue] |
@@ -106,6 +106,21 @@
   диспетчером — снёс бы расширение; удалены только реальные орфаны).
 - ✅ **refund #21 (backend)** — ACK success=false рефандит через idempotent `_on_action_failed`;
   тест 40/40; прод.
+- ✅ **Админка → read-only** (Phase 1) — удалены ВСЕ god-mode действия (правка баланса,
+  выдать/забрать предмет, force-drop, grant кейса, admin-wipe Bannerlord) + их кнопки в
+  `admin/admin.html` + орфан `bot_core.force_drop`. Владелец платформы теперь **наблюдает**
+  (статистика/списки/превью), не влияет на экономику каналов. Растворяет главный Tier 1 риск
+  (нет опасного эндпоинта — нечего скоупить/эксплуатировать). Стримерский self-serve reset
+  (`/api/streamer/bannerlord/reset`) ОСТАВЛЕН. Редкие исправления — разовым залогированным скриптом.
+
+### Админка — оставшееся (НЕ god-mode, отдельно)
+- **Фичи admin-gated за неимением self-serve** (`/api/voting/*` create/start, `/api/admin/promocodes/*`,
+  pets-overlay-toggle) — это стримерские контролы не на своём месте; **перенести в self-serve**
+  стримеру (Phase 2), не удалять. Сейчас работают.
+- **READ-запросы админки без `channel_id`** (users list/detail) — multi-tenant корректность до
+  2-го стримера (read-only, низкий риск).
+- **Витрина статистики** (как дела у стримеров/зрителей) — построить на `/health`+`feature_usage`+
+  `bug_reports`+streamer-dashboard (Phase 2).
 
 ## refund — мод-сторона: разобрано (2026-06-14)
 Проверка «~11 хендлеров без PostFailed» по-хендлерно показала: **угроза почти вся ложная.**

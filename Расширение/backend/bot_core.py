@@ -1073,11 +1073,9 @@ class BotCore:
         except Exception as e:
             print(f"⚠️ Ошибка on_drop: {e}")
 
-    async def force_drop(self, channel_id: Optional[int] = None):
-        """Принудительный дроп (из админки) — на конкретном канале."""
-        await self._process_drop(channel_id=channel_id)
-        return {"success": True, "message": "Принудительный дроп выполнен"}
-    
+    # force_drop() удалён 2026-06-14 (audit) — админка read-only, ручной дроп убран.
+    # Автоматический дроп идёт через _process_drop (drop-loop), он остаётся.
+
     # ===== КАЗИНО =====
 
     async def check_and_unlock_achievements(

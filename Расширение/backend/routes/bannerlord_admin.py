@@ -250,16 +250,6 @@ async def bannerlord_reset(request: Request):
     return await _reset_wipe_data(channel_id)
 
 
-@router.post("/api/admin/bannerlord/reset")
-async def admin_bannerlord_reset(request: Request, _admin: str = Depends(require_admin)):
-    """Same wipe via admin-panel Basic auth (default channel). Body must still
-    contain {"confirm_phrase": "<channel_id>"} — re-type to confirm."""
-    channel_id = resolve_channel_id_or_default()
-    try:
-        body = await request.json()
-    except Exception:
-        body = {}
-    cok, cmsg = _confirm_phrase_ok(body, channel_id)
-    if not cok:
-        return {"success": False, "message": cmsg}
-    return await _reset_wipe_data(channel_id)
+# 2026-06-14 (audit): POST /api/admin/bannerlord/reset (admin Basic-auth wipe) удалён —
+# админка read-only. Стример вайпит СВОИ данные сам через /api/streamer/bannerlord/reset
+# (session-auth, выше). См. docs/SECURITY_AUDIT_2026-06-14.md.

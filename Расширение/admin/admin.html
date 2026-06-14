@@ -451,9 +451,6 @@
             <div class="nav-item" onclick="showPage('users')">
                 <span class="icon">👥</span> Пользователи
             </div>
-            <div class="nav-item" onclick="showPage('points')">
-                <span class="icon">💎</span> Очки
-            </div>
             <div class="nav-item" onclick="showPage('items')">
                 <span class="icon">🎒</span> Предметы
             </div>
@@ -503,11 +500,6 @@
                     <div class="stat-label">Актив сегодня</div>
                     <div class="stat-value" id="stat-today">—</div>
                 </div>
-            </div>
-
-            <div class="quick-actions">
-                <button class="btn btn-primary" onclick="forceDrop()">🎁 Принудительный дроп</button>
-                <!-- Ивенты удалены из админки -->
             </div>
 
             <div class="card">
@@ -579,36 +571,7 @@
             </div>
         </div>
 
-        <!-- POINTS -->
-        <div id="page-points" class="page">
-            <div class="page-header">
-                <div class="page-title">Управление очками <span>//</span></div>
-            </div>
-
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-
-                <!-- Выдать/забрать -->
-                <div class="card">
-                    <div class="card-header">💎 Выдать / Забрать очки</div>
-                    <div class="card-body">
-                        <div class="form-group" style="margin-bottom:12px;">
-                            <div class="form-label">Ник пользователя</div>
-                            <input type="text" class="input" id="pts-username" placeholder="username">
-                        </div>
-                        <div class="form-group" style="margin-bottom:12px;">
-                            <div class="form-label">Количество</div>
-                            <input type="number" class="input" id="pts-amount" placeholder="100" min="1">
-                        </div>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                            <button class="btn btn-success" onclick="adjustPoints('add')">+ Выдать</button>
-                            <button class="btn btn-danger" onclick="adjustPoints('remove')">− Забрать</button>
-                            <button class="btn btn-ghost" onclick="adjustPoints('set')">= Установить</button>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </div>
+        <!-- POINTS page удалён 2026-06-14 (audit) — админка read-only, правка баланса убрана -->
 
 
         <!-- ITEMS -->
@@ -617,51 +580,7 @@
                 <div class="page-title">Предметы <span>//</span></div>
             </div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-                <!-- Выдать предмет -->
-                <div class="card">
-                    <div class="card-header">🎁 Выдать предмет</div>
-                    <div class="card-body">
-                        <div class="form-group" style="margin-bottom:12px;">
-                            <div class="form-label">Пользователь</div>
-                            <input type="text" class="input" id="item-give-user" placeholder="username">
-                        </div>
-                        <div class="form-group" style="margin-bottom:12px;">
-                            <div class="form-label">Предмет</div>
-                            <select class="input" id="item-give-select">
-                                <option value="">Загрузка...</option>
-                            </select>
-                        </div>
-                        <div class="form-group" style="margin-bottom:12px;">
-                            <div class="form-label">Количество</div>
-                            <input type="number" class="input" id="item-give-qty" value="1" min="1">
-                        </div>
-                        <button class="btn btn-success" onclick="giveItem()">🎁 Выдать</button>
-                    </div>
-                </div>
-
-                <!-- Забрать предмет -->
-                <div class="card">
-                    <div class="card-header">🗑 Забрать предмет</div>
-                    <div class="card-body">
-                        <div class="form-group" style="margin-bottom:12px;">
-                            <div class="form-label">Пользователь</div>
-                            <input type="text" class="input" id="item-remove-user" placeholder="username">
-                        </div>
-                        <div class="form-group" style="margin-bottom:12px;">
-                            <div class="form-label">Предмет</div>
-                            <select class="input" id="item-remove-select">
-                                <option value="">Загрузка...</option>
-                            </select>
-                        </div>
-                        <div class="form-group" style="margin-bottom:12px;">
-                            <div class="form-label">Количество</div>
-                            <input type="number" class="input" id="item-remove-qty" value="1" min="1">
-                        </div>
-                        <button class="btn btn-danger" onclick="removeItem()">🗑 Забрать</button>
-                    </div>
-                </div>
-            </div>
+            <!-- give/remove item карточки удалены 2026-06-14 (audit) — админка read-only -->
 
             <!-- Список предметов -->
             <div class="card" style="margin-top:0;">
@@ -814,8 +733,7 @@
                         если кампания идёт — рекомендуется рестарт мода после.
                     </p>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-                        <button class="btn btn-ghost" onclick="loadBannerlord()">🔄 Превью (что будет удалено)</button>
-                        <button class="btn btn-danger" onclick="bannerlordWipe()">🧹 Стереть данные…</button>
+                        <button class="btn btn-ghost" onclick="loadBannerlord()">🔄 Превью (footprint данных)</button>
                     </div>
                     <div id="bnr-preview" style="color:var(--muted);font-size:13px;">Нажми «Превью», чтобы увидеть, сколько строк будет удалено.</div>
                 </div>
@@ -984,17 +902,6 @@ async function loadBannerlord() {
     box.innerHTML = html;
 }
 
-async function bannerlordWipe() {
-    const d = await apiGet('/api/admin/bannerlord/reset/preview');
-    if (!d || !d.success) { toast('❌ Не удалось получить превью', 'error'); return; }
-    const cid = String(d.channel_id);
-    const phrase = prompt(`⚠️ Сотрёт ВСЕ данные Bannerlord канала (${d.total_rows} строк) БЕЗВОЗВРАТНО.\n\nВведи channel_id для подтверждения:\n${cid}`);
-    if (phrase === null) return;
-    if (phrase.trim() !== cid) { toast('❌ channel_id не совпал — отмена', 'error'); return; }
-    const res = await apiPost('/api/admin/bannerlord/reset', { confirm_phrase: cid });
-    if (res && res.success) { addLog(`Bannerlord wipe: ${res.total_deleted} строк`, 'success'); loadBannerlord(); }
-}
-
 // ═══════════════════════════════════════
 // TOASTS & LOG
 // ═══════════════════════════════════════
@@ -1036,11 +943,6 @@ async function loadStats() {
         if (e.message !== 'Unauthorized')
             document.getElementById('server-status').textContent = '🔴 Нет связи';
     }
-}
-
-async function forceDrop() {
-    await apiPost('/api/admin/drop', {}, '🎁 Дроп выполнен!');
-    loadStats();
 }
 
 // ═══════════════════════════════════════
@@ -1093,18 +995,9 @@ async function loadUsers() {
             <td style="color:var(--muted);font-size:11px;">${lastSeen}</td>
             <td>
                 <button class="btn btn-ghost btn-sm" onclick="openUserDetail('${escapeHtml(u.username)}')">Детали</button>
-                <button class="btn btn-success btn-sm" onclick="quickPoints('${escapeHtml(u.username)}', 'add')">+💎</button>
-                <button class="btn btn-danger btn-sm" onclick="quickPoints('${escapeHtml(u.username)}', 'remove')">-💎</button>
-                <button class="btn btn-danger btn-sm" onclick="deleteUser('${escapeHtml(u.username)}')" title="Удалить пользователя">🗑️</button>
             </td>
         </tr>`;
     }).join('');
-}
-
-function quickPoints(username, action) {
-    const amount = prompt(`${action === 'add' ? 'Выдать' : 'Забрать'} сколько очков у ${username}?`, '100');
-    if (!amount || isNaN(amount)) return;
-    adjustPointsFor(username, parseInt(amount), action);
 }
 
 async function openUserDetail(username) {
@@ -1142,23 +1035,6 @@ function closeUserDetail() {
 }
 
 // ═══════════════════════════════════════
-// POINTS
-// ═══════════════════════════════════════
-async function adjustPoints(action) {
-    const username = document.getElementById('pts-username').value.trim();
-    const amount = parseInt(document.getElementById('pts-amount').value);
-    if (!username || !amount) { toast('Заполни все поля', 'error'); return; }
-    await adjustPointsFor(username, amount, action);
-}
-
-async function adjustPointsFor(username, amount, action) {
-    await apiPost('/api/admin/points', { username, amount, action },
-        `${action === 'add' ? '+' : action === 'remove' ? '-' : '='} ${amount}💎 → ${username}`);
-    if (document.getElementById('page-users').classList.contains('active')) loadUsers();
-}
-
-
-// ═══════════════════════════════════════
 // ITEMS
 // ═══════════════════════════════════════
 let allItems = [];
@@ -1181,26 +1057,6 @@ async function loadItems() {
             <td style="color:var(--warning);">💎 ${i.value}</td>
         </tr>`
     ).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px;">Предметов нет</td></tr>';
-
-    const options = allItems.map(i => `<option value="${i.id}">${i.emoji || '📦'} ${i.display_name}</option>`).join('');
-    document.getElementById('item-give-select').innerHTML = options;
-    document.getElementById('item-remove-select').innerHTML = options;
-}
-
-async function giveItem() {
-    const username = document.getElementById('item-give-user').value.trim();
-    const item_id = document.getElementById('item-give-select').value;
-    const quantity = parseInt(document.getElementById('item-give-qty').value);
-    if (!username || !item_id) { toast('Заполни все поля', 'error'); return; }
-    await apiPost('/api/admin/item/give', { username, item_id: parseInt(item_id), quantity }, `🎁 Предмет выдан → ${username}`);
-}
-
-async function removeItem() {
-    const username = document.getElementById('item-remove-user').value.trim();
-    const item_id = document.getElementById('item-remove-select').value;
-    const quantity = parseInt(document.getElementById('item-remove-qty').value);
-    if (!username || !item_id) { toast('Заполни все поля', 'error'); return; }
-    await apiPost('/api/admin/item/remove', { username, item_id: parseInt(item_id), quantity }, `🗑 Предмет забран у ${username}`);
 }
 
 // ═══════════════════════════════════════
@@ -1287,13 +1143,6 @@ async function deletePromo(id, code) {
     const data = await apiDelete('/api/admin/promocodes/' + id);
     if (data) toast(data.message || '🗑 Удалён', data.success ? 'success' : 'error');
     loadPromos();
-}
-
-async function deleteUser(username) {
-    if (!confirm(`Удалить пользователя ${username} из БД? Это необратимо!`)) return;
-    const data = await apiPost('/api/admin/user/delete', { username });
-    if (data) toast(data.message || '🗑 Удалён', data.success ? 'success' : 'error');
-    loadUsers();
 }
 
 // ═══════════════════════════════════════

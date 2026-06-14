@@ -12,7 +12,7 @@ Endpoints:
   POST /api/viewer/case/open                 — открыть кейс (атомарно)
   GET  /api/case/preview/{tier}              — preview reward per tier (public)
 
-  POST /api/admin/case/grant                 — grant вручную (admin only)
+  (POST /api/admin/case/grant удалён 2026-06-14 — админка read-only.)
 """
 from fastapi import APIRouter, Depends, Request
 
@@ -193,52 +193,8 @@ async def case_preview_all(request: Request):
     return {"success": True, "tiers": tiers}
 
 
-# ── Admin endpoints ────────────────────────────────────────────────────────────
-
-@router.post("/api/admin/case/grant")
-async def admin_case_grant(request: Request, _admin: str = Depends(require_admin)):
-    """Admin: выдать кейс юзеру вручную. Audit-trail через source='admin_grant'.
-
-    Используется для тестов, refund'ов, support-кейсов.
-
-    Body: {"username": str, "tier": str, "trigger_key": str (опц)}
-    Auth: require_admin (HTTP Basic)
-    """
-    data = await request.json()
-    username = sanitize_username(data.get("username", ""))
-    tier = (data.get("tier") or "").lower().strip()
-    trigger_key = data.get("trigger_key")  # optional
-
-    if not username:
-        return {"success": False, "message": "Неверный username"}
-    if tier not in CASE_TIER_REWARDS:
-        return {"success": False, "message": f"Тир должен быть один из: {list(CASE_TIER_REWARDS.keys())}"}
-
-    # channel_id из body (cross-channel admin), либо fallback на default.
-    # legacy boundary — admin без JWT, см. ARCHITECTURE.md §3.1
-    from dependencies import resolve_channel_id_or_default, set_request_channel_id
-    try:
-        channel_id = int(data.get("channel_id", 0))
-    except (TypeError, ValueError):
-        channel_id = 0
-    if channel_id <= 0:
-        channel_id = resolve_channel_id_or_default()
-    set_request_channel_id(channel_id)
-
-    db = get_db()
-    result = await db.grant_case(
-        username, tier, source="admin_grant", channel_id=channel_id, trigger_key=trigger_key,
-    )
-
-    if result["granted"]:
-        return {
-            "success":  True,
-            "case_id":  result["case_id"],
-            "message":  f"✅ Кейс {tier} выдан @{username}",
-        }
-    else:
-        return {
-            "success":  False,
-            "reason":   result["reason"],
-            "message":  f"Не удалось выдать: {result['reason']}",
-        }
+# 2026-06-14 (audit): POST /api/admin/case/grant удалён — админка read-only,
+# god-mode «выдать кейс вручную» убран. Автоматическая выдача кейсов
+# (quests/triggers через db.grant_case в bot_core) — игровой флоу, остаётся.
+# Редкие support/refund-кейсы — разовым залогированным скриптом.
+# См. docs/SECURITY_AUDIT_2026-06-14.md.

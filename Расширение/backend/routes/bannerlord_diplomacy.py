@@ -56,7 +56,7 @@ async def my_kingdom_state(request: Request):
         # Мой hero state из cache — нужны kingdom_id + is_king flag.
         cur = await conn.execute(
             "SELECT kingdom_id, kingdom_name, is_clan_leader, is_king, captured, "
-            "       COALESCE(kingdom_tax_pct, 0) "
+            "       COALESCE(kingdom_tax_pct, 0), kingdom_info_json "
             "FROM bannerlord_heroes "
             "WHERE channel_id=? AND username=?",
             (channel_id, username))
@@ -65,6 +65,20 @@ async def my_kingdom_state(request: Request):
             return {"success": True, "has_hero": False}
         kingdom_id, kingdom_name, is_clan_leader, is_king, captured, kingdom_tax_pct = (
             row[0], row[1], bool(row[2]), bool(row[3]), bool(row[4]), int(row[5] or 0))
+        # 2026-06-14 FIX — колонки kingdom_id/is_king/is_clan_leader НИКОГДА не
+        # синкаются (всегда NULL/0 — давний баг Sprint 5.33: синк пишет только
+        # kingdom_info_json). Из-за этого панель политики/дипломатии не активировалась.
+        # Источник правды — kingdom_info_json (мод присылает); деривим оттуда.
+        try:
+            import json as _json
+            ki = _json.loads(row[6]) if row[6] else None
+            if isinstance(ki, dict):
+                kingdom_id     = ki.get("id") or kingdom_id
+                kingdom_name   = ki.get("name") or kingdom_name
+                is_king        = bool(ki.get("is_ruler"))
+                is_clan_leader = bool(ki.get("is_clan_leader"))
+        except Exception:
+            pass
 
         # Active policy requests для моего kingdom'а.
         policies_pending = []

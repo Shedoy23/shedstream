@@ -297,9 +297,11 @@ namespace BannerlordLink.Util
                 catch { }
                 return new
                 {
+                    id                = kingdom.StringId,                 // 2026-06-14: для kingdom-state derive
                     name              = kingdom.Name?.ToString(),
                     ruler_name        = kingdom.Leader?.Name?.ToString(),
                     is_ruler          = kingdom.Leader == hero,
+                    is_clan_leader    = hero?.Clan?.Leader == hero,       // 2026-06-14: гейт политики/дипломатии
                     clans_count       = kingdom.Clans?.Count ?? 0,
                     fiefs_count       = kingdom.Fiefs?.Count ?? 0,
                     at_war_count      = atWarCount,

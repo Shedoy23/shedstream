@@ -216,10 +216,18 @@ namespace BannerlordLink.Util
                 var kingdom = hero?.Clan?.Kingdom;
                 if (kingdom == null) return null;
                 int atWarCount = 0;
+                System.Collections.Generic.List<string> atWarNames = null;
                 try
                 {
-                    atWarCount = Kingdom.All?.Count(k => k != null && k != kingdom
-                        && FactionManager.IsAtWarAgainstFaction(kingdom, k)) ?? 0;
+                    // 2026-06-14: рядом со счётчиком собираем имена враждующих
+                    // королевств — фронт показывает их в скобках («Война с»).
+                    var enemies = Kingdom.All?.Where(k => k != null && k != kingdom
+                        && FactionManager.IsAtWarAgainstFaction(kingdom, k)).ToList();
+                    atWarCount = enemies?.Count ?? 0;
+                    atWarNames = enemies?
+                        .Select(k => k.Name?.ToString())
+                        .Where(n => !string.IsNullOrEmpty(n))
+                        .ToList();
                 }
                 catch { }
                 return new
@@ -230,6 +238,7 @@ namespace BannerlordLink.Util
                     clans_count     = kingdom.Clans?.Count ?? 0,
                     fiefs_count     = kingdom.Fiefs?.Count ?? 0,
                     at_war_count    = atWarCount,
+                    at_war_names    = atWarNames,
                     culture         = kingdom.Culture?.StringId,
                 };
             }

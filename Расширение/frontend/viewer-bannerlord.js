@@ -3675,7 +3675,7 @@ function loadBannerlordKingdomMgmt() {
             <span style="color:#adadb8;">👑 Правитель:</span><span style="color:#efeff1;">${escapeHtml(info.ruler_name || '?')}${info.is_ruler ? ' <b style="color:#fbbf24;">(ты)</b>' : ''}</span>
             <span style="color:#adadb8;">🏰 Кланов:</span><span style="color:#efeff1;">${info.clans_count || 0}</span>
             <span style="color:#adadb8;">🌆 Поселений:</span><span style="color:#efeff1;">${info.fiefs_count || 0}</span>
-            <span style="color:#adadb8;">⚔ Война с:</span><span style="color:${(info.at_war_count || 0) > 0 ? '#f87171' : '#efeff1'};">${info.at_war_count || 0} корол.</span>
+            <span style="color:#adadb8;">⚔ Война с:</span><span style="color:${(info.at_war_count || 0) > 0 ? '#f87171' : '#efeff1'};">${(info.at_war_count || 0) > 0 ? `${info.at_war_count} корол.${(info.at_war_names && info.at_war_names.length) ? ' (' + info.at_war_names.map(escapeHtml).join(', ') + ')' : ''}` : 'нет'}</span>
         </div>`
         : `<div style="font-size:11px;color:#adadb8;margin-bottom:6px;">Клан независим — без королевства.</div>`;
     // 2026-06-07 — создать/вступить инлайн (lazy <details>): поле имени переживает

@@ -44,25 +44,35 @@ namespace BannerlordLink.Actions
                 amount = MAX_GOLD_GRANT;
             }
 
+            // 2026-06-14 audit: give_item ACK'ает success СИНХРОННО (ниже), а
+            // выдаёт async. Если async-применение отказывает после списания
+            // крустиков — без PostFailed зритель теряет деньги (нет рефанда).
+            // PostFailed только на до-применения отказах (флаг applied), иначе
+            // рефанд + уже выданное золото = двойная выгода.
+            string actionId = BannerlordLink.Util.ActionFeedback.GetActionId(data);
             MainThreadDispatcher.Enqueue(() =>
             {
+                bool applied = false;
                 try
                 {
                     var hero = HeroLookup.FindByUsername(username);
                     if (hero == null)
                     {
                         BannerlordLinkModule.Log($"[give_item:gold] @{username}: hero не найден");
+                        BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "hero_not_found");
                         return;
                     }
                     if (!hero.IsAlive)
                     {
                         BannerlordLinkModule.Log($"[give_item:gold] @{username}: dead, skip");
+                        BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "hero_dead");
                         return;
                     }
                     int before = hero.Gold;
                     // ApplyBetweenCharacters(giver, receiver, amount, disableNotification)
                     // — positional т.к. parameter names различаются по версиям 1.x.
                     GiveGoldAction.ApplyBetweenCharacters(null, hero, amount, true);
+                    applied = true;
                     BannerlordLinkModule.Log(
                         $"[give_item:gold] @{username} gold {before} → {hero.Gold} (+{amount})");
 
@@ -78,6 +88,9 @@ namespace BannerlordLink.Actions
                 catch (Exception ex)
                 {
                     BannerlordLinkModule.Log($"[give_item:gold] @{username} CRASHED: {ex.Message}");
+                    // Рефанд только если золото НЕ было выдано (иначе двойная выгода).
+                    if (!applied)
+                        BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "exception");
                 }
             });
 

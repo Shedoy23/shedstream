@@ -107,13 +107,21 @@
 - ✅ **refund #21 (backend)** — ACK success=false рефандит через idempotent `_on_action_failed`;
   тест 40/40; прод.
 
-## refund — остаётся мод-сторона (follow-up, нужен build-цикл мода)
-Бэк закрывает случай «мод синхронно ACK'нул отказ» (редкий) + асинхронный `action.failed`
-(уже работал). НО ~11 C#-хендлеров (`JoinKingdomHandler`, `CreateKingdomHandler`,
-`LeaveKingdomHandler`, `RecruitTroopsHandler`, `MakeBabyHandler`, `GiveGoldHandler` и др.)
-на своих refuse-path **молча `return` без `ActionFeedback.PostFailed`** → зритель заплатил,
-действие не применилось, рефанда нет (это более частый путь — дорогие kingdom-операции).
-Фикс: добавить `PostFailed(actionId, reason)` на refuse-ветки этих хендлеров (+ опц. retry в
-`PostFailed`, сейчас fire-and-forget). Требует пересборки мода (`deploy.ps1 -Mod`) + рестарта
-игры → делать когда игра закрыта. Сначала проверить каждый хендлер — реально ли там
-post-charge silent-fail (часть валидируется server-side в `_prepare_action` ДО списания).
+## refund — мод-сторона: разобрано (2026-06-14)
+Проверка «~11 хендлеров без PostFailed» по-хендлерно показала: **угроза почти вся ложная.**
+Большинство (clan/kingdom/gender/make_baby/recruit/set_combat_stance) — **free в крустиках**
+(цена 0💎, платятся Hero.Gold динарами модом); их отказ теряет внутриигровое золото, НЕ
+платёжную валюту → крустик-рефанд не нужен. «Критичный» `ModifyAttributeHandler`
+(`player.modify_attribute`, 50💎) обслуживает **МЁРТВЫЙ action** — фронт его не зовёт (перешёл
+на `hero.add_attribute`, а тот уже умеет `PostFailed`). Реальный крустик-гэп остался один:
+- ✅ **GiveGoldHandler** (`player.give_item`, 500–5000💎) — ACK'ает success синхронно, выдаёт
+  async; на отказе (hero null/dead/exception до выдачи) не звал `PostFailed`. **Исправлено**
+  (`PostFailed` + флаг `applied` чтобы не рефандить уже выданное). Собирается (0 ошибок).
+  **DLL НЕ задеплоен** — поедет со следующим `deploy.ps1 -Mod` (нужна закрытая игра).
+
+### Побочные находки (не крустики)
+- `player.modify_attribute` + `ModifyAttributeHandler` — **мёртвый action** (фронт не зовёт).
+  Кандидат на удаление (dead code), не денежная дыра.
+- `JoinKingdomHandler.cs` (~L91-109) — Hero.Gold (100K динаров) списывается на L98, и если
+  `ApplyByJoinToKingdom` кидает исключение — золото сгорает без отката. Внутриигровая
+  экономика (НЕ крустики), отдельный класс бага. Зафиксировано на будущее.

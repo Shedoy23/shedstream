@@ -219,6 +219,7 @@ namespace BannerlordLink.Util
                 System.Collections.Generic.List<string> atWarNames = null;
                 System.Collections.Generic.List<object> ownSettlements = null;
                 System.Collections.Generic.List<object> enemySettlements = null;
+                System.Collections.Generic.List<object> allKingdoms = null;
                 try
                 {
                     // 2026-06-14: рядом со счётчиком собираем имена враждующих
@@ -278,6 +279,20 @@ namespace BannerlordLink.Util
                                     enemyList.Add(toObj(s));
                         }
                     enemySettlements = enemyList;
+
+                    // 2026-06-14: все королевства мира (кроме своего/элиминированных) +
+                    // флаг at_war — для dropdown'а дипломатии (война = НЕ воюем, мир = воюем).
+                    var akList = new System.Collections.Generic.List<object>();
+                    if (Kingdom.All != null)
+                        foreach (var k in Kingdom.All)
+                            if (k != null && k != kingdom && !k.IsEliminated)
+                                akList.Add(new
+                                {
+                                    id     = k.StringId,
+                                    name   = k.Name?.ToString(),
+                                    at_war = FactionManager.IsAtWarAgainstFaction(kingdom, k),
+                                });
+                    allKingdoms = akList;
                 }
                 catch { }
                 return new
@@ -291,6 +306,7 @@ namespace BannerlordLink.Util
                     at_war_names      = atWarNames,
                     own_settlements   = ownSettlements,
                     enemy_settlements = enemySettlements,
+                    all_kingdoms      = allKingdoms,
                     culture           = kingdom.Culture?.StringId,
                 };
             }

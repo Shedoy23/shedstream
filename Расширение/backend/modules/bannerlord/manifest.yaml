@@ -156,6 +156,9 @@ extensions:
     - hero.enact_policy        # king-only: propose policy для kingdom'а (1500⦷)
     - hero.make_peace          # king-only: peace offer с enemy kingdom (2000⦷)
     - hero.pay_ransom          # any viewer: chip into ransom pool (500⦷)
+    # 2026-06-14 — дипломатия через голосование кланов (vanilla Kingdom.AddDecision)
+    - kingdom.propose_war      # предложить войну (1000⦷)
+    - kingdom.propose_peace    # предложить мир (1500⦷)
     # Sprint 5.33 (BLT-parity SHOP) — workshops passive income loop
     - hero.buy_workshop        # 1000⦷ entry — viewer покупает workshop в town
     - hero.sell_workshop       # free — engine refund 50% capital

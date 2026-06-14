@@ -84,6 +84,9 @@ namespace BannerlordLink.Actions
             Register(new EnactPolicyHandler());         // hero.enact_policy
             Register(new MakePeaceHandler());           // hero.make_peace
             Register(new PayRansomHandler());           // hero.pay_ransom
+            // 2026-06-14 — дипломатия через голосование кланов (vanilla AddDecision)
+            Register(new ProposeWarHandler());          // kingdom.propose_war
+            Register(new ProposePeaceHandler());        // kingdom.propose_peace
             Register(new SetKingdomTaxHandler());        // kingdom.set_tax_rate (Backlog #1)
             // Sprint 5.33 (BLT-parity SHOP) — workshops passive income
             Register(new BuyWorkshopHandler());         // hero.buy_workshop

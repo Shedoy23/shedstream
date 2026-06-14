@@ -904,6 +904,8 @@ _PURCHASABLE_ACTIONS = (
     "hero.make_peace",           # 2000⦷ king-only — propose peace с врагом
     "hero.pay_ransom",           # 500⦷ — chip into ransom pool captured hero
     "kingdom.set_tax_rate",      # free king-only — set kingdom tax 0-100% (Backlog #1)
+    "kingdom.propose_war",       # 2026-06-14 предложить войну (голосование кланов)
+    "kingdom.propose_peace",     # предложить мир (голосование кланов)
     # Sprint 5.33 (BLT-parity SHOP) — workshops passive income loop
     "hero.buy_workshop",         # 2500⦷ — viewer покупает workshop в town (чистая 💎)
     "hero.sell_workshop",        # free — engine refund 50% capital
@@ -2122,6 +2124,9 @@ def _enforce_price(action_type, data, username, channel_id):
         # Sprint 5.33 (BLT-parity DIPLO) — kingdom politics + ransom
         "hero.enact_policy":           1500,    # king-only major political move
         "hero.make_peace":             2000,    # king-only diplomatic decision
+        # 2026-06-14 — дипломатия через ГОЛОСОВАНИЕ кланов (предложение, может не пройти).
+        "kingdom.propose_war":         1000,    # предложить войну королевству
+        "kingdom.propose_peace":       1500,    # предложить мир королевству
         "hero.pay_ransom":              500,    # crowd-fund tier, any viewer
         "kingdom.set_tax_rate":           0,    # free — king manages own kingdom (Backlog #1)
         # Sprint 5.33 (BLT-parity SHOP) — workshops passive income

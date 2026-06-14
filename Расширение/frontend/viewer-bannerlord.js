@@ -1629,6 +1629,43 @@ async function loadBannerlordDiplomacy() {
                     </div>
                 </div>`;
         }
+        // 2026-06-14 — дипломатия ЧЕРЕЗ ГОЛОСОВАНИЕ кланов (vanilla). Любой лидер
+        // клана предлагает войну/мир; движок собирает голоса и решает сам.
+        // Список королевств — из hero-state (all_kingdoms), как города.
+        const _allK = _bannerlordLastHero?.hero?.kingdom_info?.all_kingdoms;
+        if (canEnact && Array.isArray(_allK) && _allK.length) {
+            const warTargets = _allK.filter(k => k && !k.at_war);
+            const peaceTargets = _allK.filter(k => k && k.at_war);
+            html += `
+                <div style="margin-top:6px;border-top:1px solid #92400e;padding-top:6px;">
+                    <div style="font-size:11px;font-weight:700;color:#fb923c;margin-bottom:3px;">
+                        ⚖ Дипломатия — на голосование кланов
+                    </div>
+                    <div style="font-size:9px;color:#9ca3af;margin-bottom:6px;">
+                        Это ПРЕДЛОЖЕНИЕ — кланы королевства голосуют, может не пройти.
+                    </div>`;
+            if (warTargets.length) {
+                html += `
+                    <div style="display:flex;gap:4px;margin-bottom:5px;">
+                        <select id="bnr-war-target" style="flex:1;padding:5px;font-size:11px;background:#0f0805;color:#fed7aa;border:1px solid #92400e;">
+                            ${warTargets.map(k => `<option value="${escapeHtml(k.id)}">${escapeHtml(k.name || k.id)}</option>`).join('')}
+                        </select>
+                        <button id="bnr-war-propose" class="extra-btn" style="font-size:11px;padding:5px 8px;background:#7f1d1d;color:#fca5a5;font-weight:700;white-space:nowrap;">⚔ Война (1000💎)</button>
+                    </div>`;
+            }
+            if (peaceTargets.length) {
+                html += `
+                    <div style="display:flex;gap:4px;">
+                        <select id="bnr-peace-vote-target" style="flex:1;padding:5px;font-size:11px;background:#0a0f1a;color:#bfdbfe;border:1px solid #1e40af;">
+                            ${peaceTargets.map(k => `<option value="${escapeHtml(k.id)}">${escapeHtml(k.name || k.id)}</option>`).join('')}
+                        </select>
+                        <button id="bnr-peace-vote-propose" class="extra-btn" style="font-size:11px;padding:5px 8px;background:#1e40af;color:#fff;font-weight:700;white-space:nowrap;">🕊 Мир (1500💎)</button>
+                    </div>`;
+            } else {
+                html += `<div style="font-size:9px;color:#6b7280;">Сейчас ни с кем не воюем — мир предлагать некому.</div>`;
+            }
+            html += `</div>`;
+        }
         html += `</div>`;
         // 2026-06-07 FLICKER — пока раскрыта форма peace (text target + number tribute),
         // НЕ перерисовываем секцию: смена kingdom-state между poll'ами стёрла бы ввод.
@@ -1660,6 +1697,27 @@ async function loadBannerlordDiplomacy() {
                 await _bannerlordBuyAction('kingdom.set_tax_rate', { tax_rate_pct: pct });
                 setTimeout(loadBannerlordDiplomacy, 1200);
             });
+        });
+        // 2026-06-14 — предложить войну/мир через голосование кланов.
+        slot.querySelector('#bnr-war-propose')?.addEventListener('click', async () => {
+            const sel = document.getElementById('bnr-war-target');
+            const id = (sel?.value || '').trim();
+            if (!id) return;
+            await _bannerlordBuyAction('kingdom.propose_war', {
+                target_kingdom_id:   id,
+                target_kingdom_name: (sel.selectedOptions?.[0]?.textContent || id).trim(),
+            });
+            setTimeout(loadBannerlordDiplomacy, 2000);
+        });
+        slot.querySelector('#bnr-peace-vote-propose')?.addEventListener('click', async () => {
+            const sel = document.getElementById('bnr-peace-vote-target');
+            const id = (sel?.value || '').trim();
+            if (!id) return;
+            await _bannerlordBuyAction('kingdom.propose_peace', {
+                target_kingdom_id:   id,
+                target_kingdom_name: (sel.selectedOptions?.[0]?.textContent || id).trim(),
+            });
+            setTimeout(loadBannerlordDiplomacy, 2000);
         });
     } catch (e) {
         console.warn('[FE-DIPLO] loadDiplomacy failed (keeping last render)', e);

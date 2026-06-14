@@ -4,6 +4,7 @@ using BannerlordLink.Util;
 using Newtonsoft.Json.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
+using TaleWorlds.CampaignSystem.Election;   // vanilla KingdomDecision (DeclareWar/MakePeace)
 using TaleWorlds.ObjectSystem;
 
 namespace BannerlordLink.Actions
@@ -234,6 +235,129 @@ namespace BannerlordLink.Actions
             {
                 BannerlordLinkModule.Log(
                     $"[diplo-peace] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
+                ActionFeedback.PostFailed(actionId, "crashed");
+            }
+        }
+    }
+
+    // ── ProposeWarHandler — предложить войну ЧЕРЕЗ ГОЛОСОВАНИЕ кланов ──────────
+    // 2026-06-14. Vanilla DeclareWarDecision → Kingdom.AddDecision → движок собирает
+    // голоса кланов королевства и резолвит сам. Зритель платит за ПРЕДЛОЖЕНИЕ, не за
+    // результат (может не пройти). Любой лидер клана в королевстве.
+    public class ProposeWarHandler : IActionHandler
+    {
+        public string ActionType => "kingdom.propose_war";
+
+        public Task<(bool success, string error)> ExecuteAsync(JObject data)
+        {
+            string username = (data["initiated_by"]?.ToString() ?? "").Trim().ToLowerInvariant();
+            string targetKingdomId = (data["target_kingdom_id"]?.ToString() ?? "").Trim();
+            string targetKingdomName = data["target_kingdom_name"]?.ToString() ?? targetKingdomId;
+            string actionId = ActionFeedback.GetActionId(data);
+            BannerlordLinkModule.Log($"[diplo-war ENTRY] @{username} → '{targetKingdomName}' (id={targetKingdomId}) action_id={actionId}");
+            if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(targetKingdomId))
+                return Task.FromResult<(bool, string)>((false, "missing fields"));
+            MainThreadDispatcher.Enqueue(() => Apply(username, targetKingdomId, targetKingdomName, actionId));
+            return Task.FromResult<(bool, string)>((true, null));
+        }
+
+        private static void Apply(string username, string targetKingdomId, string targetKingdomName, string actionId)
+        {
+            try
+            {
+                if (Campaign.Current == null) { ActionFeedback.PostFailed(actionId, "no_campaign"); return; }
+                var hero = HeroLookup.FindByUsername(username);
+                if (hero == null || !hero.IsAlive) { ActionFeedback.PostFailed(actionId, "hero_not_found"); return; }
+                var myKingdom = hero.Clan?.Kingdom;
+                if (myKingdom == null) { BannerlordLinkModule.Log($"[diplo-war] REFUSE @{username}: не в kingdom'е"); ActionFeedback.PostFailed(actionId, "no_kingdom"); return; }
+                if (hero.Clan?.Leader != hero) { BannerlordLinkModule.Log($"[diplo-war] REFUSE @{username}: не лидер клана"); ActionFeedback.PostFailed(actionId, "not_clan_leader"); return; }
+
+                Kingdom target = null;
+                try { target = MBObjectManager.Instance.GetObject<Kingdom>(targetKingdomId); } catch { }
+                if (target == null) { ActionFeedback.PostFailed(actionId, "target_not_found"); return; }
+                if (target == myKingdom) { ActionFeedback.PostFailed(actionId, "self_target"); return; }
+                if (target.IsEliminated) { ActionFeedback.PostFailed(actionId, "target_eliminated"); return; }
+                if (myKingdom.IsAtWarWith(target)) { BannerlordLinkModule.Log($"[diplo-war] REFUSE @{username}: уже воюем с {target.Name}"); ActionFeedback.PostFailed(actionId, "already_at_war"); return; }
+
+                // Дубль: предложение войны против этого таргета уже на голосовании?
+                try
+                {
+                    foreach (var d in myKingdom.UnresolvedDecisions)
+                        if (d is DeclareWarDecision w && w.FactionToDeclareWarOn == target)
+                        {
+                            BannerlordLinkModule.Log($"[diplo-war] REFUSE @{username}: война с {target.Name} уже на голосовании");
+                            ActionFeedback.PostFailed(actionId, "duplicate_decision"); return;
+                        }
+                }
+                catch { }
+
+                var decision = new DeclareWarDecision(hero.Clan, target);
+                myKingdom.AddDecision(decision);
+                BannerlordLinkModule.Log($"[diplo-war OK] @{username} предложил войну: {myKingdom.Name} → {target.Name} (на голосование кланов)");
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[diplo-war] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
+                ActionFeedback.PostFailed(actionId, "crashed");
+            }
+        }
+    }
+
+    // ── ProposePeaceHandler — предложить мир ЧЕРЕЗ ГОЛОСОВАНИЕ кланов ──────────
+    public class ProposePeaceHandler : IActionHandler
+    {
+        public string ActionType => "kingdom.propose_peace";
+
+        public Task<(bool success, string error)> ExecuteAsync(JObject data)
+        {
+            string username = (data["initiated_by"]?.ToString() ?? "").Trim().ToLowerInvariant();
+            string targetKingdomId = (data["target_kingdom_id"]?.ToString() ?? "").Trim();
+            string targetKingdomName = data["target_kingdom_name"]?.ToString() ?? targetKingdomId;
+            string actionId = ActionFeedback.GetActionId(data);
+            BannerlordLinkModule.Log($"[diplo-ppeace ENTRY] @{username} → '{targetKingdomName}' (id={targetKingdomId}) action_id={actionId}");
+            if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(targetKingdomId))
+                return Task.FromResult<(bool, string)>((false, "missing fields"));
+            MainThreadDispatcher.Enqueue(() => Apply(username, targetKingdomId, targetKingdomName, actionId));
+            return Task.FromResult<(bool, string)>((true, null));
+        }
+
+        private static void Apply(string username, string targetKingdomId, string targetKingdomName, string actionId)
+        {
+            try
+            {
+                if (Campaign.Current == null) { ActionFeedback.PostFailed(actionId, "no_campaign"); return; }
+                var hero = HeroLookup.FindByUsername(username);
+                if (hero == null || !hero.IsAlive) { ActionFeedback.PostFailed(actionId, "hero_not_found"); return; }
+                var myKingdom = hero.Clan?.Kingdom;
+                if (myKingdom == null) { ActionFeedback.PostFailed(actionId, "no_kingdom"); return; }
+                if (hero.Clan?.Leader != hero) { BannerlordLinkModule.Log($"[diplo-ppeace] REFUSE @{username}: не лидер клана"); ActionFeedback.PostFailed(actionId, "not_clan_leader"); return; }
+
+                Kingdom target = null;
+                try { target = MBObjectManager.Instance.GetObject<Kingdom>(targetKingdomId); } catch { }
+                if (target == null) { ActionFeedback.PostFailed(actionId, "target_not_found"); return; }
+                if (target == myKingdom) { ActionFeedback.PostFailed(actionId, "self_target"); return; }
+                if (!myKingdom.IsAtWarWith(target)) { BannerlordLinkModule.Log($"[diplo-ppeace] REFUSE @{username}: не воюем с {target.Name}"); ActionFeedback.PostFailed(actionId, "not_at_war"); return; }
+
+                // Дубль
+                try
+                {
+                    foreach (var d in myKingdom.UnresolvedDecisions)
+                        if (d is MakePeaceKingdomDecision p && p.FactionToMakePeaceWith == target)
+                        {
+                            BannerlordLinkModule.Log($"[diplo-ppeace] REFUSE @{username}: мир с {target.Name} уже на голосовании");
+                            ActionFeedback.PostFailed(actionId, "duplicate_decision"); return;
+                        }
+                }
+                catch { }
+
+                // 0 tribute — движок + голосование решают остальное.
+                var decision = new MakePeaceKingdomDecision(hero.Clan, target, 0, 0);
+                myKingdom.AddDecision(decision);
+                BannerlordLinkModule.Log($"[diplo-ppeace OK] @{username} предложил мир: {myKingdom.Name} ↔ {target.Name} (на голосование кланов)");
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[diplo-ppeace] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
                 ActionFeedback.PostFailed(actionId, "crashed");
             }
         }

@@ -51,9 +51,18 @@ TWITCH_OAUTH_REDIRECT_URI = os.getenv(
 #   channel:read:subscriptions  — Sprint 5.29: проверка sub-status зрителей
 #                                 через Helix /subscriptions (для perk-tier
 #                                 system — price discount + reward boost).
+#                                 Также: EventSub channel.subscribe* для
+#                                 sub-greet (бот приветствует подписчиков).
+#   moderator:read:followers    — EventSub channel.follow v2 для follow-greet
+#                                 (бот приветствует новых фолловеров).
+#   user:read:chat              — EventSub channel.chat.notification для
+#                                 watch-streak трекинга (статистика серий
+#                                 просмотров; broadcaster читает свой чат).
 # Existing streamers нужно re-OAuth чтобы scope добавился к их токену
-# (без re-OAuth Helix будет 401 на /subscriptions запросы — handled gracefully).
-TWITCH_OAUTH_SCOPES = 'user:read:email channel:read:redemptions channel:read:subscriptions'
+# (без re-OAuth Helix будет 401 на /subscriptions запросы — handled gracefully;
+#  а EventSub channel.subscribe/channel.follow/channel.chat.notification вернёт
+#  403 при регистрации).
+TWITCH_OAUTH_SCOPES = 'user:read:email channel:read:redemptions channel:read:subscriptions moderator:read:followers user:read:chat'
 
 # ===== Этап 3 step 5: Module API player events feature flag =====
 # При false (default) — `player.linked` / `player.died` / `player.respawned` /

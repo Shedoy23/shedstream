@@ -1065,6 +1065,57 @@ async def streamer_bug_report_status(request: Request):
         {"status": "ok" if ok else "not_found", "id": report_id, "new_status": new_status})
 
 
+@router.get("/api/streamer/greet", include_in_schema=False)
+async def streamer_greet_get(request: Request):
+    """Состояние приветствий ботом в чате: {sub, follow} (m74). Session cookie."""
+    cid = _read_session_cookie(request)
+    if cid is None:
+        return JSONResponse({"status": "unauthenticated"}, status_code=401)
+    settings = await get_db().get_channel_greet_settings(cid)
+    return JSONResponse({"status": "ok", "channel_id": cid, **settings})
+
+
+@router.post("/api/streamer/greet", include_in_schema=False)
+async def streamer_greet_set(request: Request):
+    """Стример вкл/выкл приветствие в чате (m74, scoped по своему каналу).
+    Body: {"kind": "sub"|"follow", "enabled": bool}. Только текст, без наград
+    — Twitch ToS §5.2."""
+    cid = _read_session_cookie(request)
+    if cid is None:
+        return JSONResponse({"status": "unauthenticated"}, status_code=401)
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    kind = (body.get("kind") or "").strip()
+    if kind not in ("sub", "follow"):
+        return JSONResponse({"status": "invalid_kind"}, status_code=400)
+    enabled = bool(body.get("enabled", True))
+    await get_db().set_channel_greet_setting(cid, kind, enabled)
+    settings = await get_db().get_channel_greet_settings(cid)
+    return JSONResponse({"status": "ok", "channel_id": cid, **settings})
+
+
+@router.get("/api/streamer/watch-streaks", include_in_schema=False)
+async def streamer_watch_streaks(request: Request):
+    """Лидерборд серий просмотров (watch streaks, m75): кто смотрит дольше
+    всех подряд. Пассивная статистика лояльности. Требует session cookie."""
+    cid = _read_session_cookie(request)
+    if cid is None:
+        return JSONResponse({"status": "unauthenticated"}, status_code=401)
+    try:
+        limit = int(request.query_params.get("limit") or 20)
+    except (TypeError, ValueError):
+        limit = 20
+    board = await get_db().get_watch_streaks(cid, limit=limit)
+    return JSONResponse({
+        "status": "ok",
+        "channel_id": cid,
+        "count": len(board),
+        "streaks": board,
+    })
+
+
 # ── M4 follow-up (б): OAuth refresh ──────────────────────────────────────────
 
 # Refresh когда до expiry осталось меньше этого окна (60 сек безопаснее

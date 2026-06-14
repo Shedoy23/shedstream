@@ -1095,6 +1095,20 @@ async def run_migrations():
             print(f"❌ M73 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m74_sub_greet_settings
+            await m74_sub_greet_settings.apply(conn)
+        except Exception as e:
+            print(f"❌ M74 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
+        try:
+            from migrations import m75_watch_streaks
+            await m75_watch_streaks.apply(conn)
+        except Exception as e:
+            print(f"❌ M75 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

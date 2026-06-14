@@ -1857,6 +1857,92 @@ class Database:
             )
             await conn.commit()
 
+    async def get_channel_greet_settings(self, channel_id: int) -> dict:
+        """Приветствия ботом в чате: {'sub': bool, 'follow': bool}.
+
+        Default ON для обоих (нет строки → оба True) — новый канал
+        приветствует сразу. m74.
+        """
+        async with self._connect() as conn:
+            cur = await conn.execute(
+                "SELECT sub_enabled, follow_enabled FROM channel_greet_settings "
+                "WHERE channel_id = ?",
+                (channel_id,)
+            )
+            row = await cur.fetchone()
+            if not row:
+                return {"sub": True, "follow": True}  # default ON
+            return {"sub": bool(row[0]), "follow": bool(row[1])}
+
+    async def set_channel_greet_setting(
+        self, channel_id: int, kind: str, enabled: bool
+    ) -> None:
+        """Стример toggle'ит приветствие на своём канале.
+
+        kind: 'sub' (подписки) или 'follow' (фолловы). Upsert: задаём только
+        нужную колонку, вторая берёт default (1) при первой вставке. m74.
+        """
+        col = "sub_enabled" if kind == "sub" else "follow_enabled"
+        async with self._connect() as conn:
+            await conn.execute(
+                f"INSERT INTO channel_greet_settings (channel_id, {col}) "
+                "VALUES (?, ?) "
+                f"ON CONFLICT(channel_id) DO UPDATE SET "
+                f"{col} = excluded.{col}, "
+                "updated_at = CURRENT_TIMESTAMP",
+                (channel_id, 1 if enabled else 0)
+            )
+            await conn.commit()
+
+    async def record_watch_streak(
+        self, channel_id: int, username: str,
+        streak_count: int, points_awarded: int = 0,
+    ) -> None:
+        """Записать watch-streak (серию просмотров) зрителя. m75.
+
+        Upsert по (channel_id, username): streak_count = последнее значение
+        (текущая серия), best_streak = максимум, total_points = накопительно.
+        """
+        async with self._connect() as conn:
+            await conn.execute(
+                "INSERT INTO watch_streaks "
+                "(channel_id, username, streak_count, best_streak, "
+                "total_points, last_streak_at) "
+                "VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP) "
+                "ON CONFLICT(channel_id, username) DO UPDATE SET "
+                "streak_count = excluded.streak_count, "
+                "best_streak = MAX(best_streak, excluded.streak_count), "
+                "total_points = total_points + excluded.total_points, "
+                "last_streak_at = CURRENT_TIMESTAMP",
+                (channel_id, username, streak_count, streak_count,
+                 max(0, points_awarded)),
+            )
+            await conn.commit()
+
+    async def get_watch_streaks(
+        self, channel_id: int, limit: int = 20,
+    ) -> list:
+        """Лидерборд серий просмотров канала (топ по текущей серии). m75."""
+        limit = max(1, min(int(limit), 100))
+        async with self._connect() as conn:
+            cur = await conn.execute(
+                "SELECT username, streak_count, best_streak, total_points, "
+                "last_streak_at FROM watch_streaks WHERE channel_id = ? "
+                "ORDER BY streak_count DESC, best_streak DESC LIMIT ?",
+                (channel_id, limit),
+            )
+            rows = await cur.fetchall()
+        return [
+            {
+                "username": r[0],
+                "streak_count": r[1],
+                "best_streak": r[2],
+                "total_points": r[3],
+                "last_streak_at": r[4],
+            }
+            for r in rows
+        ]
+
     async def get_active_viewers_with_pets(
         self,
         channel_id: int,

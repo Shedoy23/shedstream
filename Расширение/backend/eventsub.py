@@ -38,6 +38,7 @@ import hmac as _hmac
 import json
 import logging
 import time as _time
+from collections import deque
 from datetime import datetime
 from typing import Awaitable, Callable, Optional
 
@@ -478,6 +479,237 @@ async def _on_stream_offline(event: dict, channel_id: int) -> None:
         logger.warning("stream.offline pubsub broadcast failed: %s", e)
 
 
+# ─── Подписки: бот приветствует в чате (ToS §5.2 — только текст, без наград) ──
+
+
+def _plural_subs(n: int) -> str:
+    """Склонение слова 'подписка' по числу: 1/2/5 → подписку/подписки/подписок."""
+    n = abs(n) % 100
+    if 11 <= n <= 14:
+        return "подписок"
+    d = n % 10
+    if d == 1:
+        return "подписку"
+    if 2 <= d <= 4:
+        return "подписки"
+    return "подписок"
+
+
+async def _greet_enabled(channel_id: int, kind: str) -> bool:
+    """Приветствие kind ('sub'|'follow') включено на канале?
+
+    Ошибку чтения трактуем как ON (default) — приветствие важнее идеальной точности.
+    """
+    try:
+        settings = await get_db().get_channel_greet_settings(channel_id)
+        return bool(settings.get(kind, True))
+    except Exception as e:
+        logger.warning(
+            "greet setting read ch=%s kind=%s failed: %s — default ON",
+            channel_id, kind, e,
+        )
+        return True
+
+
+# Sliding-window rate limit на фолоу-приветствия. Фолловы спамнее сабов
+# (фолоу-боты массово фолловят) — без лимита бот зафлудит чат и его самого
+# затаймаутят за спам. Не более N приветствий за окно на канал; превышение
+# логируем и молча скипаем (НЕ копим очередь — это лишь усилит флуд).
+_FOLLOW_GREET_WINDOW_SEC = 60
+_FOLLOW_GREET_MAX_PER_WINDOW = 8
+_follow_greet_times: dict[int, "deque"] = {}
+
+
+def _follow_greet_allowed(channel_id: int) -> bool:
+    now = _time.time()
+    dq = _follow_greet_times.get(channel_id)
+    if dq is None:
+        dq = deque()
+        _follow_greet_times[channel_id] = dq
+    cutoff = now - _FOLLOW_GREET_WINDOW_SEC
+    while dq and dq[0] < cutoff:
+        dq.popleft()
+    if len(dq) >= _FOLLOW_GREET_MAX_PER_WINDOW:
+        return False
+    dq.append(now)
+    return True
+
+
+async def _send_greet(channel_id: int, text: str) -> None:
+    """Приветствие в чат конкретного канала. Ошибку глотаем (не валим webhook)."""
+    try:
+        await get_bot().send_message(text, channel_id=channel_id)
+    except Exception as e:
+        logger.warning("sub-greet send ch=%s failed: %s", channel_id, e)
+
+
+@handler("channel.subscribe")
+async def _on_channel_subscribe(event: dict, channel_id: int) -> None:
+    """Новая подписка → приветствие в чате.
+
+    is_gift=true пропускаем: подарочные подписки приветствуем ОДНИМ сообщением
+    дарителю в channel.subscription.gift (иначе бомба из 50 подарков = 50 спам-
+    строк по получателям). Ресабы сюда НЕ приходят — они в .message.
+    """
+    if event.get("is_gift"):
+        return
+    if not await _greet_enabled(channel_id, "sub"):
+        return
+
+    raw_user = (event.get("user_login") or event.get("user_name") or "").lower()
+    username = sanitize_username(raw_user)
+    if not username or not validate_username(username):
+        logger.warning(
+            "channel.subscribe: bad user '%s' ch=%s", raw_user, channel_id
+        )
+        return
+
+    await _send_greet(
+        channel_id,
+        f"🎉 Спасибо за подписку, @{username}! Добро пожаловать!",
+    )
+    logger.info("🎉 sub-greet ch=%s @%s (new)", channel_id, username)
+
+
+@handler("channel.subscription.message")
+async def _on_subscription_message(event: dict, channel_id: int) -> None:
+    """Ресаб (зритель поделился сообщением о продлении) → приветствие с месяцами."""
+    if not await _greet_enabled(channel_id, "sub"):
+        return
+
+    raw_user = (event.get("user_login") or event.get("user_name") or "").lower()
+    username = sanitize_username(raw_user)
+    if not username or not validate_username(username):
+        logger.warning(
+            "subscription.message: bad user '%s' ch=%s", raw_user, channel_id
+        )
+        return
+
+    try:
+        months = int(event.get("cumulative_months") or 0)
+    except (TypeError, ValueError):
+        months = 0
+
+    if months >= 2:
+        text = f"🔥 @{username} с нами уже {months} мес — спасибо, что остаёшься!"
+    else:
+        text = f"🔥 @{username} продлил подписку — спасибо!"
+    await _send_greet(channel_id, text)
+    logger.info("🔥 sub-greet ch=%s @%s (resub %dмес)", channel_id, username, months)
+
+
+@handler("channel.subscription.gift")
+async def _on_subscription_gift(event: dict, channel_id: int) -> None:
+    """Подарок подписок → ОДНО приветствие дарителю (не по получателям — анти-спам).
+
+    total = сколько подарено в этом событии. is_anonymous → без @ника
+    (Twitch не отдаёт логин анонимного дарителя).
+    """
+    if not await _greet_enabled(channel_id, "sub"):
+        return
+
+    try:
+        total = int(event.get("total") or 1)
+    except (TypeError, ValueError):
+        total = 1
+    word = _plural_subs(total)
+
+    if event.get("is_anonymous"):
+        text = f"🎁 Кто-то подарил {total} {word} — спасибо за щедрость!"
+        logger.info("🎁 sub-greet ch=%s anon gifted %d", channel_id, total)
+    else:
+        raw_user = (
+            event.get("user_login") or event.get("user_name") or ""
+        ).lower()
+        username = sanitize_username(raw_user)
+        if not username or not validate_username(username):
+            logger.warning(
+                "subscription.gift: bad gifter '%s' ch=%s", raw_user, channel_id
+            )
+            return
+        text = f"🎁 @{username} подарил {total} {word} — спасибо за щедрость!"
+        logger.info("🎁 sub-greet ch=%s @%s gifted %d", channel_id, username, total)
+    await _send_greet(channel_id, text)
+
+
+@handler("channel.follow")
+async def _on_channel_follow(event: dict, channel_id: int) -> None:
+    """Новый фолловер → приветствие в чате (если включено + не превышен лимит).
+
+    Анти-флуд: rate-limit на канал (фолоу-боты массово фолловят). Превышение
+    лимита логируем и скипаем — иначе бот зафлудит чат и его затаймаутят.
+    """
+    if not await _greet_enabled(channel_id, "follow"):
+        return
+
+    raw_user = (event.get("user_login") or event.get("user_name") or "").lower()
+    username = sanitize_username(raw_user)
+    if not username or not validate_username(username):
+        logger.warning(
+            "channel.follow: bad user '%s' ch=%s", raw_user, channel_id
+        )
+        return
+
+    if not _follow_greet_allowed(channel_id):
+        logger.info(
+            "👋 follow-greet ch=%s @%s SKIPPED (rate-limit %d/%dс — возможен фолоу-бот)",
+            channel_id, username,
+            _FOLLOW_GREET_MAX_PER_WINDOW, _FOLLOW_GREET_WINDOW_SEC,
+        )
+        return
+
+    await _send_greet(channel_id, f"👋 Спасибо за фолоу, @{username}! Рады видеть!")
+    logger.info("👋 follow-greet ch=%s @%s", channel_id, username)
+
+
+@handler("channel.chat.notification")
+async def _on_chat_notification(event: dict, channel_id: int) -> None:
+    """Чат-уведомления Twitch → ловим ТОЛЬКО watch_streak (серии просмотров).
+
+    Это «общая труба» нотисов (сабы/рейды/анонсы тоже сюда летят, но их мы
+    обрабатываем отдельными подписками) — фильтруем по notice_type. Стрик
+    пишем молча в статистику (НЕ в чат) — лидерборд лояльности для стримера.
+    """
+    if event.get("notice_type") != "watch_streak":
+        return
+
+    streak = event.get("watch_streak") or {}
+    try:
+        streak_count = int(streak.get("streak_count") or 0)
+    except (TypeError, ValueError):
+        streak_count = 0
+    if streak_count <= 0:
+        return
+    try:
+        points = int(streak.get("channel_points_awarded") or 0)
+    except (TypeError, ValueError):
+        points = 0
+
+    raw_user = (
+        event.get("chatter_user_login") or event.get("chatter_user_name") or ""
+    ).lower()
+    username = sanitize_username(raw_user)
+    if not username or not validate_username(username):
+        logger.warning(
+            "watch_streak: bad user '%s' ch=%s", raw_user, channel_id
+        )
+        return
+
+    try:
+        await get_db().record_watch_streak(
+            channel_id, username, streak_count, points
+        )
+        logger.info(
+            "🔥 watch-streak ch=%s @%s стрик=%d (+%d баллов)",
+            channel_id, username, streak_count, points,
+        )
+    except Exception as e:
+        logger.warning(
+            "watch_streak record ch=%s @%s failed: %s",
+            channel_id, username, e,
+        )
+
+
 # ─── TTL cleanup ─────────────────────────────────────────────────────────────
 
 
@@ -535,6 +767,49 @@ PHASE_A_SUBSCRIPTIONS = [
         "type": "stream.offline",
         "version": "1",
         "condition_factory": lambda bid: {"broadcaster_user_id": bid},
+    },
+    # Подписки → бот приветствует в чате (только текст, без наград — ToS §5.2).
+    # Требуют scope channel:read:subscriptions у broadcaster'а (config.py).
+    # Старые токены без этого scope → Twitch вернёт 403 при регистрации
+    # (register_subscription логирует и не валит остальные) — нужен re-auth.
+    {
+        "type": "channel.subscribe",
+        "version": "1",
+        "condition_factory": lambda bid: {"broadcaster_user_id": bid},
+    },
+    {
+        "type": "channel.subscription.message",
+        "version": "1",
+        "condition_factory": lambda bid: {"broadcaster_user_id": bid},
+    },
+    {
+        "type": "channel.subscription.gift",
+        "version": "1",
+        "condition_factory": lambda bid: {"broadcaster_user_id": bid},
+    },
+    # Фоллов → бот приветствует (только текст). v2 требует moderator_user_id
+    # в условии + scope moderator:read:followers. Бродкастер — модератор своего
+    # канала, потому moderator_user_id = broadcaster_user_id (его авторизация
+    # покрывает оба). Старый токен без scope → 403 при регистрации → re-auth.
+    {
+        "type": "channel.follow",
+        "version": "2",
+        "condition_factory": lambda bid: {
+            "broadcaster_user_id": bid,
+            "moderator_user_id": bid,
+        },
+    },
+    # Чат-уведомления → ловим ТОЛЬКО notice_type='watch_streak' (серии
+    # просмотров) для статистики лояльности. v1 требует user_id (кто читает
+    # чат — бродкастер читает свой) + scope user:read:chat. Это «общая труба»
+    # всех нотисов (сабы/рейды/анонсы) — хендлер фильтрует только стрики.
+    {
+        "type": "channel.chat.notification",
+        "version": "1",
+        "condition_factory": lambda bid: {
+            "broadcaster_user_id": bid,
+            "user_id": bid,
+        },
     },
 ]
 

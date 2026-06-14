@@ -35,6 +35,51 @@ SQLite + twitchio bot + vanilla JS frontend. Live на `twitch.tv/shedoy23`,
 
 ## Текущий статус
 
+### 🆕 2026-06-14 — Бот приветствует подписчиков И фолловеров в чате
+
+Бот пишет **текстовое** приветствие в чат при подписке и при фолове (только
+текст, без крустиков/динаров/наград — ToS §5.2, sub-бонусы давно вырезаны).
+Реализация:
+- **EventSub** (`eventsub.py`): 4 новых типа в `PHASE_A_SUBSCRIPTIONS` +
+  хендлеры — `channel.subscribe` (новый саб; `is_gift=true` пропускаем),
+  `channel.subscription.message` (ресаб, с числом месяцев),
+  `channel.subscription.gift` (ОДНО спасибо дарителю, не по получателям —
+  анти-спам на бомбах подарков), `channel.follow` v2 (новый фоллов).
+- **Фоллов-анти-флуд:** sliding-window rate-limit (`_FOLLOW_GREET_MAX_PER_WINDOW`
+  =8 / 60с на канал). Фолловы спамнее сабов (фолоу-боты); превышение лимита
+  логируется и скипается, чтобы бот не зафлудил чат и не словил спам-таймаут.
+- **m74** `channel_greet_settings` (per-channel, `sub_enabled`+`follow_enabled`,
+  оба default ON, раздельные) + `db.get_channel_greet_settings` /
+  `set_channel_greet_setting(kind)`.
+- **Toggle** (стример-self-serve): `GET /api/streamer/greet` → `{sub, follow}`;
+  `POST` body `{kind: 'sub'|'follow', enabled}` (session-cookie scoped). UI-кнопок
+  в дашборде пока НЕТ — фича работает по умолчанию ON, выключается через endpoint.
+- **Требует scopes** `channel:read:subscriptions` (сабы) + `moderator:read:followers`
+  (фоллов, channel.follow v2 — `moderator_user_id`=broadcaster в условии). Оба
+  в `config.py`. Старый OAuth-токен без них → Twitch вернёт 403 при регистрации
+  (логируется, остальные подписки не ломает) → стримеру нужен **re-auth**.
+  EventSub перерегистрируется при рестарте бэка.
+
+### 🆕 2026-06-14 — Статистика watch-стриков (серии просмотров)
+
+Бот **молча** (НЕ в чат) собирает все watch-стрики зрителей («смотрит 50-й
+стрим подряд») в лидерборд лояльности для стримера. Пассивная аналитика —
+зрителям наград/геймплея не даёт (Twitch ToS OK).
+- **EventSub** `channel.chat.notification` v1 (`eventsub.py`) — «общая труба»
+  чат-нотисов; хендлер фильтрует **только** `notice_type='watch_streak'`,
+  остальное (сабы/рейды) игнор. Из payload берём `chatter_user_login` +
+  `watch_streak.streak_count` + `channel_points_awarded`.
+- **m75** `watch_streaks` (upsert по channel_id+username): `streak_count`
+  (текущая серия), `best_streak` (максимум за всё время), `total_points`
+  (сумма начисленных Twitch баллов). `db.record_watch_streak` /
+  `get_watch_streaks`.
+- **Просмотр** (стример-self-serve): `GET /api/streamer/watch-streaks?limit=N`
+  → топ по текущей серии. UI-карточки в дашборде пока НЕТ.
+- **Требует scope** `user:read:chat` (broadcaster читает свой чат; condition
+  `broadcaster_user_id`+`user_id`=bid). В `config.py`. Тот же **re-auth**, что
+  и для сабов/фоллоу — одним заходом. Стрик-данные появятся только для тех, у
+  кого Twitch включил watch-стрики на канале (настройка Channel Points).
+
 ### ✅ Закрыто (с момента 5.16 update)
 
 **UI/UX redesign:**

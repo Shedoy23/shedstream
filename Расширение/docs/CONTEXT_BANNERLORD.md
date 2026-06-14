@@ -400,6 +400,30 @@ community модов, потом upgrade'нуть и пересобрать на
 
 ## Open / pending
 
+**🐞 Баги из репортов зрителей (`!баг`, стрим 2026-06-14, 14 репортов):**
+- ✅ **FIXED (ждёт деплой)** — политики/мир/налог = «Не состоишь в kingdom'е» для всех
+  (#6 ethanenok, #7 kuro_gothic). Root: `handle_enact_policy` / `handle_make_peace` /
+  `handle_set_kingdom_tax` читали мёртвые колонки `kingdom_id`/`is_king` (sync пишет только
+  `kingdom_info_json`). Фикс: `_derive_kingdom()` в `bannerlord_diplomacy.py` деривит из
+  info_json (тот же фикс, что в kingdom-state endpoint). **НЕ задеплоено.**
+- 🔴 **Дипломатия: окно голосования война/мир мелькает и исчезает** (#10 shedoy23) —
+  предложение регистрируется (`diplo-war OK` в мод-логе), но in-game vote popup пропадает за
+  секунду → проголосовать нельзя. Подозрение: `NullReferenceException` в
+  `KingdomVoteNotification` (мод-лог его регистрирует). Мод-сайд, нужен in-game разбор.
+- 🟠 **Хил работает на турнирах → бесконечный бой** (#12 shedoy23) — лечение не гейтится
+  `arena_or_tournament` (часть powers гейтятся, хил просочился). Мод/бэк-гейт.
+- 🟠 **Смена класса в бою сбрасывает кулдаун** (#14 neyrahatomia) — эксплойт: меняешь класс
+  mid-battle → cd проходит → кастуешь спеллы другого класса. Нужна привязка cd к hero, не к классу.
+- 🟠 **Прогрессия уровня отсутствует у части классов** (#8 тяжёлый арбалетчик; #3 лучник был
+  тот же — помечен «resolved», но проблема пер-классовая, не системно). Проверить XP-таблицы классов.
+- 🟡 **Ставка на турнир залипает после «предикта на всё»** (#11 k0r0b14) — ставка навсегда
+  авто-выбирается, не сбросить. Betting UI/state.
+- 🟡 **Свита: при апгрейде не обновляется инфо** (#4 shedoy23) — UI не рефрешится.
+- 🟢 **UX: выбор клана для вступления — дропдаун, не текст-ввод** (#13 neyrahatomia, «не ебу
+  какие кланы есть») — тот же паттерн, что для party-order targets (текст → `<select>`). Фронт.
+
+(Источник: prod `viewers.db.bug_reports` ch=98319857. Шум — #1 тест / #2 трол / #5 «шортс» — уже resolved.)
+
 **🔴 Production blockers:**
 - **Sprint 5.2 — Compliance rebrand** перед public Twitch release
   (audit class_keys / power_keys / numeric values vs BLT LGPL,

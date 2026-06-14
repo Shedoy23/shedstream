@@ -205,6 +205,28 @@ async def ransom_pool_status(request: Request):
 # ─── Action handlers ──────────────────────────────────────────────────────────
 
 
+def _derive_kingdom(kingdom_id, kingdom_name, is_king, is_clan_leader,
+                    kingdom_info_json):
+    """Деривит членство в королевстве из kingdom_info_json.
+
+    Колонки kingdom_id/is_king/is_clan_leader в bannerlord_heroes НИКОГДА не
+    синкаются (всегда NULL/0 — синк пишет только kingdom_info_json). Раньше
+    это чинили лишь в kingdom-state endpoint (панель активировалась), а
+    action-хендлеры политики/мира/налога продолжали читать пустые колонки →
+    «Не состоишь в kingdom'е» для всех. Единый источник правды — info_json.
+    """
+    try:
+        ki = _json.loads(kingdom_info_json) if kingdom_info_json else None
+        if isinstance(ki, dict):
+            kingdom_id     = ki.get("id") or kingdom_id
+            kingdom_name   = ki.get("name") or kingdom_name
+            is_king        = bool(ki.get("is_ruler"))
+            is_clan_leader = bool(ki.get("is_clan_leader"))
+    except Exception:
+        pass
+    return kingdom_id, kingdom_name, bool(is_king), bool(is_clan_leader)
+
+
 async def handle_enact_policy(conn, channel_id: int, owner: str, data: dict) -> dict:
     """King-only: propose policy для своего kingdom'а. Mod применит engine API."""
     policy_id = (data.get("policy_id") or "").strip()
@@ -218,15 +240,15 @@ async def handle_enact_policy(conn, channel_id: int, owner: str, data: dict) -> 
 
     # Check: viewer должен быть king (или хотя бы clan leader в kingdom).
     cur = await conn.execute(
-        "SELECT kingdom_id, kingdom_name, is_king, is_clan_leader "
+        "SELECT kingdom_id, kingdom_name, is_king, is_clan_leader, kingdom_info_json "
         "FROM bannerlord_heroes "
         "WHERE channel_id=? AND username=?",
         (channel_id, owner))
     row = await cur.fetchone()
     if not row:
         return {"success": False, "message": "hero не найден"}
-    kingdom_id, kingdom_name, is_king, is_clan_leader = (
-        row[0], row[1], bool(row[2]), bool(row[3]))
+    kingdom_id, kingdom_name, is_king, is_clan_leader = _derive_kingdom(
+        row[0], row[1], row[2], row[3], row[4])
     if not kingdom_id:
         return {"success": False, "message": "Не состоишь в kingdom'е"}
     if not is_king and not is_clan_leader:
@@ -287,14 +309,15 @@ async def handle_make_peace(conn, channel_id: int, owner: str, data: dict) -> di
 
     # Check: viewer должен быть king.
     cur = await conn.execute(
-        "SELECT kingdom_id, kingdom_name, is_king "
+        "SELECT kingdom_id, kingdom_name, is_king, is_clan_leader, kingdom_info_json "
         "FROM bannerlord_heroes "
         "WHERE channel_id=? AND username=?",
         (channel_id, owner))
     row = await cur.fetchone()
     if not row:
         return {"success": False, "message": "hero не найден"}
-    my_kingdom_id, my_kingdom_name, is_king = row[0], row[1], bool(row[2])
+    my_kingdom_id, my_kingdom_name, is_king, _icl = _derive_kingdom(
+        row[0], row[1], row[2], row[3], row[4])
     if not my_kingdom_id:
         return {"success": False, "message": "Не состоишь в kingdom'е"}
     if not is_king:
@@ -434,13 +457,14 @@ async def handle_set_kingdom_tax(conn, channel_id: int, owner: str, data: dict) 
 
     # King-only check.
     cur = await conn.execute(
-        "SELECT kingdom_id, kingdom_name, is_king "
+        "SELECT kingdom_id, kingdom_name, is_king, is_clan_leader, kingdom_info_json "
         "FROM bannerlord_heroes WHERE channel_id=? AND username=?",
         (channel_id, owner))
     row = await cur.fetchone()
     if not row:
         return {"success": False, "message": "hero не найден"}
-    my_kingdom_id, my_kingdom_name, is_king = row[0], row[1], bool(row[2])
+    my_kingdom_id, my_kingdom_name, is_king, _icl = _derive_kingdom(
+        row[0], row[1], row[2], row[3], row[4])
     if not my_kingdom_id:
         return {"success": False, "message": "Не состоишь в kingdom'е"}
     if not is_king:

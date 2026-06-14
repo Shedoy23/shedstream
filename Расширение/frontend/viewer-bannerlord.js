@@ -1338,6 +1338,21 @@ function _renderPartyOrderInline(currentActive) {
         { v: 'patrol',   e: '🐎', l: 'Патруль',   desc: 'Патрулировать вокруг поселения' },
     ];
 
+    // 2026-06-14 — цель приказа из СПИСКА городов (мод шлёт own/enemy в kingdom_info):
+    // защита/гарнизон/патруль → свои, осада/грабёж → вражеские. Пока мод не обновлён
+    // (списков ещё нет) — graceful fallback на ручной ввод.
+    const _ki = _bannerlordLastHero?.hero?.kingdom_info || {};
+    const _ownSet = Array.isArray(_ki.own_settlements) ? _ki.own_settlements : null;
+    const _enemySet = Array.isArray(_ki.enemy_settlements) ? _ki.enemy_settlements : null;
+    const _haveLists = !!(_ownSet || _enemySet);
+    const _targetsFor = (ot) => {
+        if (ot === 'siege')    return (_enemySet || []).filter(s => s && s.type !== 'village');
+        if (ot === 'raid')     return (_enemySet || []).filter(s => s && s.type === 'village');
+        if (ot === 'garrison') return (_ownSet || []).filter(s => s && s.type !== 'village');
+        return (_ownSet || []);   // defend / patrol → свои (все)
+    };
+    const _typeRu = { town: 'город', castle: 'замок', village: 'деревня', other: '' };
+
     slot.innerHTML = `
         <div style="background:#1a1208;border:1px solid #92400e;border-radius:4px;
                     padding:10px;color:#fed7aa;">
@@ -1359,6 +1374,19 @@ function _renderPartyOrderInline(currentActive) {
                     </label>
                 `).join('')}
             </div>
+            ${_haveLists ? `
+            <label style="font-size:11px;color:#fed7aa;display:block;margin-bottom:4px;">
+                Цель — <span id="bnr-order-target-kind" style="color:#fbbf24;">город</span>:
+            </label>
+            <select id="bnr-order-target-select"
+                    style="width:100%;padding:6px;font-size:12px;background:#0f0805;
+                           color:#fed7aa;border:1px solid #92400e;margin-bottom:6px;
+                           box-sizing:border-box;"></select>
+            <div style="font-size:9px;color:#6b7280;margin-bottom:10px;">
+                Защита/гарнизон/патруль — свои города; осада/грабёж — города врага.
+                ⚠ Только лидер клана может выдавать приказы.
+            </div>
+            ` : `
             <label style="font-size:11px;color:#fed7aa;display:block;margin-bottom:4px;">
                 Поселение (название или ID):
             </label>
@@ -1369,29 +1397,65 @@ function _renderPartyOrderInline(currentActive) {
                           color:#fed7aa;border:1px solid #92400e;margin-bottom:6px;
                           box-sizing:border-box;">
             <div style="font-size:9px;color:#6b7280;margin-bottom:10px;">
-                Mod ищет по точному ID или fuzzy-name match (≥3 символа).
-                ⚠ Только лидер клана может выдавать приказы своей партии.
+                Обнови мод, чтобы выбирать цель из списка. Пока — ввод вручную (≥3 символа).
             </div>
+            `}
             <button id="bnr-order-confirm" class="extra-btn"
                     style="width:100%;font-size:11px;padding:6px;
                            background:#92400e;color:#fff;font-weight:700;">
                 ⚔ Выдать приказ (500💎)
             </button>
         </div>`;
+    // 2026-06-14 — заполнить dropdown целей по выбранному типу приказа + перезаполнять
+    // при смене типа (защита→свои города, осада→вражеские).
+    const _populateTargets = () => {
+        const sel = document.getElementById('bnr-order-target-select');
+        if (!sel) return;
+        const ot = slot.querySelector('input[name="bnr-order-type"]:checked')?.value || 'siege';
+        const kindEl = document.getElementById('bnr-order-target-kind');
+        if (kindEl) kindEl.textContent = (ot === 'siege' || ot === 'raid') ? 'город врага' : 'свой город';
+        const list = _targetsFor(ot);
+        if (!list.length) {
+            sel.innerHTML = `<option value="">— нет доступных целей —</option>`;
+            return;
+        }
+        sel.innerHTML = list.map(s =>
+            `<option value="${escapeHtml(s.id)}">${escapeHtml(s.name || s.id)}${s.type && _typeRu[s.type] ? ' (' + _typeRu[s.type] + ')' : ''}</option>`
+        ).join('');
+        if (preId) { const o = [...sel.options].find(x => x.value === preId); if (o) o.selected = true; }
+    };
+    if (_haveLists) {
+        _populateTargets();
+        slot.querySelectorAll('input[name="bnr-order-type"]').forEach(r =>
+            r.addEventListener('change', _populateTargets));
+    }
+
     document.getElementById('bnr-order-confirm')?.addEventListener('click', async () => {
         const orderType = slot.querySelector('input[name="bnr-order-type"]:checked')?.value;
-        const tgtRaw = (document.getElementById('bnr-order-target-name')?.value || '').trim();
-        if (!orderType || !tgtRaw || tgtRaw.length < 3) {
-            showNotification('Выбери приказ и укажи цель (≥3 символа)', 'warning');
-            return;
+        let tgtId = '', tgtName = '';
+        if (_haveLists) {
+            const sel = document.getElementById('bnr-order-target-select');
+            tgtId = (sel?.value || '').trim();
+            tgtName = (sel?.selectedOptions?.[0]?.textContent || tgtId).trim();
+            if (!orderType || !tgtId) {
+                showNotification('Выбери приказ и цель из списка', 'warning');
+                return;
+            }
+        } else {
+            const tgtRaw = (document.getElementById('bnr-order-target-name')?.value || '').trim();
+            if (!orderType || !tgtRaw || tgtRaw.length < 3) {
+                showNotification('Выбери приказ и укажи цель (≥3 символа)', 'warning');
+                return;
+            }
+            tgtId = tgtRaw; tgtName = tgtRaw;
         }
         // 2026-06-07 FLICKER — закрыть форму ДО refresh (иначе freeze-guard
         // заблокирует перерисовку) + мгновенный фидбек на клик.
         document.querySelector('[data-bnr-details="party-order"]')?.removeAttribute('open');
         await _bannerlordBuyAction('hero.party_order_set', {
             order_type:              orderType,
-            target_settlement_id:    tgtRaw,
-            target_settlement_name:  tgtRaw,
+            target_settlement_id:    tgtId,
+            target_settlement_name:  tgtName,
         });
         setTimeout(loadBannerlordPartyOrders, 2000);
     });

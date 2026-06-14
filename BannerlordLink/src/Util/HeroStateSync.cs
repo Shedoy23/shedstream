@@ -217,6 +217,8 @@ namespace BannerlordLink.Util
                 if (kingdom == null) return null;
                 int atWarCount = 0;
                 System.Collections.Generic.List<string> atWarNames = null;
+                System.Collections.Generic.List<object> ownSettlements = null;
+                System.Collections.Generic.List<object> enemySettlements = null;
                 try
                 {
                     // 2026-06-14: рядом со счётчиком собираем имена враждующих
@@ -228,18 +230,48 @@ namespace BannerlordLink.Util
                         .Select(k => k.Name?.ToString())
                         .Where(n => !string.IsNullOrEmpty(n))
                         .ToList();
+
+                    // 2026-06-14: списки городов для dropdown'а приказов отряда вместо
+                    // ручного ввода. Защита/гарнизон → СВОИ, осада/грабёж → ВРАЖЕСКИЕ.
+                    // {id=StringId, name, type=town/castle/village}. explicit foreach
+                    // (надёжнее по типам, чем LINQ SelectMany).
+                    System.Func<TaleWorlds.CampaignSystem.Settlements.Settlement, object> toObj = s => new
+                    {
+                        id   = s.StringId,
+                        name = s.Name?.ToString(),
+                        type = s.IsTown ? "town" : (s.IsCastle ? "castle" : (s.IsVillage ? "village" : "other")),
+                    };
+                    var ownList = new System.Collections.Generic.List<object>();
+                    if (kingdom.Settlements != null)
+                        foreach (var s in kingdom.Settlements)
+                            if (s != null && (s.IsTown || s.IsCastle || s.IsVillage))
+                                ownList.Add(toObj(s));
+                    ownSettlements = ownList;
+
+                    var enemyList = new System.Collections.Generic.List<object>();
+                    if (enemies != null)
+                        foreach (var k in enemies)
+                        {
+                            if (k?.Settlements == null) continue;
+                            foreach (var s in k.Settlements)
+                                if (s != null && (s.IsTown || s.IsCastle || s.IsVillage))
+                                    enemyList.Add(toObj(s));
+                        }
+                    enemySettlements = enemyList;
                 }
                 catch { }
                 return new
                 {
-                    name            = kingdom.Name?.ToString(),
-                    ruler_name      = kingdom.Leader?.Name?.ToString(),
-                    is_ruler        = kingdom.Leader == hero,
-                    clans_count     = kingdom.Clans?.Count ?? 0,
-                    fiefs_count     = kingdom.Fiefs?.Count ?? 0,
-                    at_war_count    = atWarCount,
-                    at_war_names    = atWarNames,
-                    culture         = kingdom.Culture?.StringId,
+                    name              = kingdom.Name?.ToString(),
+                    ruler_name        = kingdom.Leader?.Name?.ToString(),
+                    is_ruler          = kingdom.Leader == hero,
+                    clans_count       = kingdom.Clans?.Count ?? 0,
+                    fiefs_count       = kingdom.Fiefs?.Count ?? 0,
+                    at_war_count      = atWarCount,
+                    at_war_names      = atWarNames,
+                    own_settlements   = ownSettlements,
+                    enemy_settlements = enemySettlements,
+                    culture           = kingdom.Culture?.StringId,
                 };
             }
             catch (Exception ex)

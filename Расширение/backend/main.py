@@ -292,6 +292,25 @@ from dependencies import set_db, set_bot  # noqa: E402
 set_db(db)
 set_bot(bot)
 
+
+# ROADMAP 2.6 — лёгкий health-check для внешнего мониторинга (UptimeRobot/cron).
+# Без auth, без тяжёлых запросов. 200 = процесс жив + БД отвечает; 503 = БД
+# недоступна; полное падение процесса → монитор увидит connection refused/timeout.
+@app.get("/health", include_in_schema=False)
+@app.head("/health", include_in_schema=False)
+async def health():
+    db_ok = False
+    try:
+        async with db._connect() as conn:
+            await conn.execute("SELECT 1")
+        db_ok = True
+    except Exception:
+        db_ok = False
+    return JSONResponse(
+        {"status": "ok" if db_ok else "degraded", "db": "ok" if db_ok else "fail"},
+        status_code=200 if db_ok else 503,
+    )
+
 # Callback дропа — пишем в overlay state для оверлея
 async def _on_drop_handler(username: str, item_name: str, rarity: str):
     import time as _td

@@ -31,6 +31,11 @@ from dependencies import require_jwt_user
 from dependencies import get_db
 
 log = logging.getLogger(__name__)
+
+# 2026-06-14 — троттл: один диагностический лог derive kingdom-state на (channel,user)
+# за процесс. Эндпоинт поллится часто — без троттла лог бы спамил. Сбрасывается на
+# рестарт сервиса (т.е. после деплоя — первый poll каждого зрителя логируется once).
+_kstate_logged_once: set = set()
 router = APIRouter()
 
 _AUTH_FAIL = {"success": False, "message": "auth required"}
@@ -79,6 +84,18 @@ async def my_kingdom_state(request: Request):
                 is_clan_leader = bool(ki.get("is_clan_leader"))
         except Exception:
             pass
+
+        # Диагностика (once per viewer per process): что вывели + откуда. Ловит
+        # «молча неправильно» — напр. kingdom_info_json есть, но id не пришёл
+        # (старый мод) → kingdom_id пустой → панель политики не активируется.
+        _k = (channel_id, username)
+        if _k not in _kstate_logged_once:
+            _kstate_logged_once.add(_k)
+            log.info(
+                "[kingdom-state] @%s ch=%s: kingdom_id=%r name=%r is_king=%s "
+                "is_clan_leader=%s (info_json=%s)",
+                username, channel_id, kingdom_id, kingdom_name, is_king,
+                is_clan_leader, "yes" if row[6] else "no")
 
         # Active policy requests для моего kingdom'а.
         policies_pending = []

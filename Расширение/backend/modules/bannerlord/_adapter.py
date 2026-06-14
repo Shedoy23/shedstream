@@ -163,6 +163,11 @@ ACTION_COOLDOWNS_SEC = {
     "hero.enact_policy":            300,   # heavy political decision, anti-spam
     "hero.make_peace":              600,   # huge decision, hard cooldown
     "hero.pay_ransom":               20,   # short — many viewers can chip in
+    # 2026-06-14 — дипломатия через голосование кланов. Per-viewer anti-spam:
+    # одно предложение войны/мира раз в 5 мин (движок и так сериализует голоса,
+    # дубль по таргету отсекается отдельно; это против спама одним зрителем).
+    "kingdom.propose_war":          300,
+    "kingdom.propose_peace":        300,
     # Sprint 5.33 (BLT-parity SHOP) — workshops passive income
     "hero.buy_workshop":            120,   # economic decision, no spam
     "hero.sell_workshop":            60,

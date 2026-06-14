@@ -71,6 +71,13 @@ prod-mirror в `Modules/Shedoy23.BannerlordLink/`) ↔ FastAPI backend
   вассалов: X». Нужен backend-event + хранение + рендер. Низкий приоритет.
 
 **Недавно закрыто (чтобы новый чат не переделывал):**
+- **PRICE-FIX power.activate (2026-06-14)** — баг "написано одно, списано другое":
+  `power.activate` сидел в `ACTION_PRICES_DEFAULT` (flat 50💎), бэк списывал 50 за
+  ЛЮБУЮ активку, фронт показывал реальные 100–350 из хардкода `BNR_POWER_PRICES`.
+  Фикс (тонкий фронт): `POWER_PRICES` на бэке = единый источник; per-power цена
+  enforced в `_prepare_action`, бэк отдаёт `price` в `current_powers[]`, фронт читает
+  `p.price` (хардкод удалён из `viewer.js`). Тест-кейс в `test_bannerlord_buy_action.py`
+  (rage=300, heal_burst=100, unknown→refuse), 34/34. Задеплоено прод (бэк+фронт).
 - BLT-RC22 refactor **Stages 0-7** (audio mute, AgentPfx persistent particles,
   centralized DamageHook filter, permadeath prevention, mount protection,
   siege/militia engine fixes, summon mount guards, RetinueAllowed guards,

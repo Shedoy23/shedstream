@@ -2174,7 +2174,6 @@ def _resolve_perks(request, action_type, price, username, channel_id, data):
     from auth import verify_twitch_jwt
     _jwt = verify_twitch_jwt(request)
     _user_role = (_jwt.get("role") or "viewer") if _jwt.get("status") == "valid" else "viewer"
-    _user_twitch_id = (_jwt.get("user_id") or "") if _jwt.get("status") == "valid" else ""
 
     if _user_role == "broadcaster":
         price_mult, reward_mult, role_label = 0.5, 2.0, "broadcaster"

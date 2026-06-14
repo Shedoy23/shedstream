@@ -637,9 +637,9 @@ TWITCH_STREAM_CHANNEL = os.getenv('TWITCH_STREAM_CHANNEL', 'shedoy23')  # Кан
 # (points_per_rub, donation_item_threshold, min_event_donations) — §5.2/§5.4
 # Twitch Extension Guidelines, real-money flow вне Bits недопустим.
 ECONOMY_CONFIG = {
-    'min_transfer': 10,             # Минимум очков для перевода зрителю
+    # 2026-06-14 audit: убраны орфаны min_transfer (P2P transfer вырезан Phase 1.D)
+    # и income_no_items (нигде не читались).
     'min_event_contribute': 100,    # Минимум очков для вклада (voting events)
-    'income_no_items': 5,           # Доход/мин (отображение)
 }
 
 # ===== НАСТРОЙКИ СЕМЬИ =====

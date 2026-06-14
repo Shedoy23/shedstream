@@ -76,7 +76,7 @@ function setupCspSafeHandlers() {
 
     document.addEventListener('click', function(event) {
         // casino-bet-btn / slots-spin-btn / data-bet / data-slots-bet удалены 2026-05-10 (Phase 1.A)
-        const actionEl = event.target.closest('[data-action],[data-open-modal],[data-toggle-target],[data-close-self-modal],[data-accept-family],[data-reject-family],[data-close-modal],[data-cat],#create-pawn-btn,#heal-pawn-btn,#btn-resurrect,#market-refresh-btn,#stats-refresh-btn,#refresh-pawn-btn,#panel-hide-btn,#rulection-contribute-btn,#rulection-bid-btn,#promo-activate-btn,#create-colonist-btn');
+        const actionEl = event.target.closest('[data-action],[data-open-modal],[data-toggle-target],[data-close-self-modal],[data-accept-family],[data-reject-family],[data-close-modal],[data-cat],#create-pawn-btn,#heal-pawn-btn,#btn-resurrect,#stats-refresh-btn,#refresh-pawn-btn,#panel-hide-btn,#rulection-contribute-btn,#rulection-bid-btn,#promo-activate-btn,#create-colonist-btn');
         if (!actionEl) return;
 
         if (actionEl.hasAttribute('data-close-modal')) {
@@ -986,7 +986,7 @@ function renderLevelBar(data) {
 }
 
 // ===== ИНВЕНТАРЬ =====
-const MARKET_MIN_PRICES = { "деревяшка": 10, "камень": 60, "амулет": 320, "корона": 2000 };
+// MARKET_MIN_PRICES удалён 2026-06-14 (audit) — маркет вырезан Phase 1.C (m8), орфан.
 
 
 // Русские названия навыков RimWorld (SKILL_LABELS_RU) + localizeSkill —

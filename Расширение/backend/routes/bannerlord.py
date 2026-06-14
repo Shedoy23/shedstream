@@ -897,6 +897,8 @@ _PURCHASABLE_ACTIONS = (
     # Sprint 5.33 (BLT-parity SIEGE) — party order strategic management
     "hero.party_order_set",      # установить siege/defend/raid/garrison/patrol
     "hero.party_order_release",  # отменить active order
+    "hero.army_create",          # 2026-06-14 Армия MVP — собрать армию королевства
+    "hero.army_disband",         # распустить армию
     # Sprint 5.33 (BLT-parity DIPLO) — kingdom politics + ransom
     "hero.enact_policy",         # 1500⦷ king-only — propose+pass policy
     "hero.make_peace",           # 2000⦷ king-only — propose peace с врагом
@@ -2113,6 +2115,10 @@ def _enforce_price(action_type, data, username, channel_id):
         # Sprint 5.33 (BLT-parity SIEGE) — party strategic orders
         "hero.party_order_set":         500,    # significant strategic decision
         "hero.party_order_release":       0,    # free cancel
+        # 2026-06-14 Армия MVP — собрать армию королевства (vanilla CreateArmy).
+        # Команды армии = существующие party orders (отдельной цены не надо).
+        "hero.army_create":            1000,    # собрать армию (крупное решение)
+        "hero.army_disband":              0,    # распустить — бесплатно
         # Sprint 5.33 (BLT-parity DIPLO) — kingdom politics + ransom
         "hero.enact_policy":           1500,    # king-only major political move
         "hero.make_peace":             2000,    # king-only diplomatic decision

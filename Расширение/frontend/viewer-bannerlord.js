@@ -1152,6 +1152,56 @@ function _renderCreateVassalInline(eligibleHeirs) {
 // Viewer-leader партии может выдать своей MobileParty стратегический приказ:
 // siege / defend / raid / garrison / patrol. Backend хранит active order
 // (UNIQUE per viewer), mod выставляет engine SetMove* API.
+// 2026-06-14 — «Армия» MVP (спека docs/ARMY_MVP_SPEC.md). Армия королевства;
+// команды армии — через «Приказы отряда» выше (партия-лидер ведёт армию).
+// Статус берём из существующего h.party_info.in_army (без правки мода).
+function loadBannerlordArmy() {
+    const slot = document.getElementById('bnr-army-slot');
+    if (!slot) return;
+    const h = _bannerlordLastHero?.hero || {};
+    const inKingdom = !!h.kingdom_name;
+    const inArmy = !!(h.party_info && h.party_info.in_army);
+
+    if (!inKingdom) {
+        slot.innerHTML = `
+            <div style="background:#1a1a0a;border:1px solid #3f3f1f;border-radius:4px;padding:8px;font-size:11px;color:#9ca3af;">
+                <div style="font-size:12px;font-weight:700;color:#a8a060;margin-bottom:4px;">🚩 Армия</div>
+                Собрать армию может только клан <b>в королевстве</b>. Сначала вступи в королевство (выше).
+            </div>`;
+        return;
+    }
+
+    let html = `
+        <div style="background:#0a1a18;border:1px solid #155e63;border-radius:4px;padding:8px;font-size:11px;color:#a7f3d0;">
+            <div style="font-size:12px;font-weight:700;color:#34d399;margin-bottom:6px;">🚩 Армия</div>`;
+    if (inArmy) {
+        html += `
+            <div style="margin-bottom:6px;color:#fbbf24;">Ты в армии. Командуй ей через «Приказы отряда» выше — партия-лидер ведёт армию за собой.</div>
+            <button class="extra-btn" data-bnr-action="army_disband"
+                    title="Распустить армию — бесплатно."
+                    style="width:100%;font-size:12px;padding:7px;background:#7f1d1d;color:#fca5a5;">
+                🏳️ Распустить армию
+            </button>`;
+    } else {
+        html += `
+            <div style="margin-bottom:6px;color:#9ca3af;">Собери армию своего королевства. Командовать — через «Приказы отряда» выше.</div>
+            <button class="extra-btn" data-bnr-action="army_create"
+                    title="Собрать армию королевства. После — отдавай приказы через «Приказы отряда»."
+                    style="width:100%;font-size:12px;padding:7px;background:#064e3b;color:#6ee7b7;">
+                🚩 Собрать армию (1000💎)
+            </button>`;
+    }
+    html += `</div>`;
+    slot.innerHTML = html;
+
+    slot.querySelector('[data-bnr-action="army_create"]')?.addEventListener('click', () => {
+        _bannerlordBuyAction('hero.army_create', {});
+    });
+    slot.querySelector('[data-bnr-action="army_disband"]')?.addEventListener('click', () => {
+        _bannerlordBuyAction('hero.army_disband', {});
+    });
+}
+
 async function loadBannerlordPartyOrders() {
     const slot = document.getElementById('bnr-party-orders-slot');
     if (!slot) return;
@@ -4332,6 +4382,7 @@ async function loadBannerlordHero() {
                         <div id="bnr-family-slot" style="margin-bottom:8px;"></div>
                         <div id="bnr-vassals-slot" style="margin-bottom:8px;"></div>
                         <div id="bnr-party-orders-slot" style="margin-bottom:8px;"></div>
+                        <div id="bnr-army-slot" style="margin-bottom:8px;"></div>
                         <div id="bnr-diplo-slot" style="margin-bottom:8px;"></div>
                         <div id="bnr-ransom-slot" style="margin-bottom:8px;"></div>
                         <div id="bnr-workshops-slot" style="margin-bottom:8px;"></div>
@@ -4454,6 +4505,8 @@ async function loadBannerlordHero() {
             loadBannerlordVassals();
             // Sprint 5.33 (BLT-parity SIEGE) — Party orders section.
             loadBannerlordPartyOrders();
+            // 2026-06-14 — «Армия» MVP (чуть ниже приказов отряда).
+            loadBannerlordArmy();
             // Sprint 5.33 (BLT-parity DIPLO) — Kingdom politics + ransom pool.
             loadBannerlordDiplomacy();
             loadBannerlordRansomPool();

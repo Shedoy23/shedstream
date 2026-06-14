@@ -1,0 +1,167 @@
+using System;
+using System.Linq;
+using System.Threading.Tasks;
+using BannerlordLink.Util;
+using Newtonsoft.Json.Linq;
+using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Actions;
+using TaleWorlds.CampaignSystem.Party;
+using TaleWorlds.CampaignSystem.Settlements;
+
+namespace BannerlordLink.Actions
+{
+    /// <summary>
+    /// 2026-06-14 — «Армия» MVP (спека: docs/ARMY_MVP_SPEC.md). Вариант A:
+    /// армия КОРОЛЕВСТВА на vanilla Kingdom.CreateArmy — движок держит армию сам,
+    /// низкий LGPL-риск (НЕ BLT-независимая армия с патчами рассеивания).
+    /// Приказы армии = существующие party orders (партия-лидер тащит армию за собой,
+    /// отдельных army-команд не делаем). Clean-room: только vanilla TaleWorlds API.
+    /// Первый срез: создание/роспуск + cohesion=100 разово; ежечасный долив cohesion
+    /// — fast-follow после проверки в игре.
+    /// </summary>
+    public class CreateArmyHandler : IActionHandler
+    {
+        public string ActionType => "hero.army_create";
+
+        public Task<(bool success, string error)> ExecuteAsync(JObject data)
+        {
+            string username = (data["initiated_by"]?.ToString() ?? data["target"]?.ToString() ?? "")
+                              .Trim().ToLowerInvariant();
+            string actionId = ActionFeedback.GetActionId(data);
+            if (string.IsNullOrEmpty(username))
+                return Task.FromResult<(bool, string)>((false, "no username"));
+            MainThreadDispatcher.Enqueue(() => Apply(username, actionId));
+            return Task.FromResult<(bool, string)>((true, null));
+        }
+
+        private static void Apply(string username, string actionId)
+        {
+            try
+            {
+                if (Campaign.Current == null) { ActionFeedback.PostFailed(actionId, "no_campaign"); return; }
+
+                var hero = HeroLookup.FindByUsername(username);
+                if (hero == null || !hero.IsAlive)
+                {
+                    BannerlordLinkModule.Log($"[army_create] REFUSE @{username}: hero не найден/мёртв");
+                    ActionFeedback.PostFailed(actionId, "hero_not_found"); return;
+                }
+                var mp = hero.PartyBelongedTo;
+                if (mp == null) { ActionFeedback.PostFailed(actionId, "no_party"); return; }
+                if (mp.LeaderHero != hero)
+                {
+                    BannerlordLinkModule.Log($"[army_create] REFUSE @{username}: не лидер своей партии");
+                    ActionFeedback.PostFailed(actionId, "not_party_leader"); return;
+                }
+                var clan = hero.Clan;
+                if (clan == null || clan.Kingdom == null)
+                {
+                    BannerlordLinkModule.Log($"[army_create] REFUSE @{username}: не в королевстве");
+                    ActionFeedback.PostFailed(actionId, "not_in_kingdom"); return;
+                }
+                if (clan.Leader != hero)
+                {
+                    BannerlordLinkModule.Log($"[army_create] REFUSE @{username}: не лидер клана");
+                    ActionFeedback.PostFailed(actionId, "not_clan_leader"); return;
+                }
+                if (mp.Army != null) { ActionFeedback.PostFailed(actionId, "already_in_army"); return; }
+                if (mp.MapEvent != null) { ActionFeedback.PostFailed(actionId, "in_battle"); return; }
+                if (mp.IsDisbanding) { ActionFeedback.PostFailed(actionId, "party_disbanding"); return; }
+                if (clan.IsUnderMercenaryService) { ActionFeedback.PostFailed(actionId, "mercenary"); return; }
+
+                // Разморозить AI — party-order мог его залочить (SetDoNotMakeNewDecisions).
+                try { mp.Ai.SetDoNotMakeNewDecisions(false); } catch { }
+
+                // Точка сбора: фьеф клана → дом героя → текущее поселение партии.
+                Settlement gather = null;
+                try
+                {
+                    gather = clan.Settlements?.FirstOrDefault()
+                             ?? hero.HomeSettlement
+                             ?? mp.CurrentSettlement;
+                }
+                catch { }
+                if (gather == null)
+                {
+                    BannerlordLinkModule.Log($"[army_create] REFUSE @{username}: нет точки сбора (нет фьефа/дома)");
+                    ActionFeedback.PostFailed(actionId, "no_gather_point"); return;
+                }
+
+                // Влияние — естественная in-game цена создания армии. Зритель заплатил
+                // криптики, поэтому выдаём буфер; при неудаче откатываем точную сумму.
+                float influenceBefore = clan.Influence;
+                try { ChangeClanInfluenceAction.Apply(clan, 200f); } catch { }
+
+                try
+                {
+                    // partiesToCall = null → армия создаётся с одним лидером (vanilla OK).
+                    clan.Kingdom.CreateArmy(hero, gather, Army.ArmyTypes.Patrolling, null);
+                }
+                catch (Exception cEx)
+                {
+                    try { clan.Influence = influenceBefore; } catch { }
+                    BannerlordLinkModule.Log($"[army_create] CreateArmy threw @{username}: {cEx.Message}");
+                    ActionFeedback.PostFailed(actionId, "create_threw"); return;
+                }
+
+                if (mp.Army == null)
+                {
+                    try { clan.Influence = influenceBefore; } catch { }
+                    BannerlordLinkModule.Log($"[army_create] @{username}: армия не создалась (Army==null) — влияние откатил");
+                    ActionFeedback.PostFailed(actionId, "army_creation_failed"); return;
+                }
+
+                // Максимальная стартовая cohesion — чтобы армия жила дольше.
+                try { mp.Army.Cohesion = 100f; } catch { }
+
+                BannerlordLinkModule.Log(
+                    $"[army_create OK] @{username} армия собрана у '{gather.Name}' " +
+                    $"(тип Patrolling, партий={mp.Army.Parties?.Count ?? 1})");
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[army_create] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
+                ActionFeedback.PostFailed(actionId, "crashed");
+            }
+        }
+    }
+
+    // ── DisbandArmyHandler — распустить армию зрителя ──────────────────────────
+    public class DisbandArmyHandler : IActionHandler
+    {
+        public string ActionType => "hero.army_disband";
+
+        public Task<(bool success, string error)> ExecuteAsync(JObject data)
+        {
+            string username = (data["initiated_by"]?.ToString() ?? "").Trim().ToLowerInvariant();
+            string actionId = ActionFeedback.GetActionId(data);
+            if (string.IsNullOrEmpty(username))
+                return Task.FromResult<(bool, string)>((false, "no username"));
+            MainThreadDispatcher.Enqueue(() => Apply(username, actionId));
+            return Task.FromResult<(bool, string)>((true, null));
+        }
+
+        private static void Apply(string username, string actionId)
+        {
+            try
+            {
+                var hero = HeroLookup.FindByUsername(username);
+                if (hero == null) { ActionFeedback.PostFailed(actionId, "hero_not_found"); return; }
+                var mp = hero.PartyBelongedTo;
+                if (mp == null || mp.Army == null) { ActionFeedback.PostFailed(actionId, "no_army"); return; }
+                if (mp.Army.LeaderParty != mp)
+                {
+                    BannerlordLinkModule.Log($"[army_disband] REFUSE @{username}: не лидер армии");
+                    ActionFeedback.PostFailed(actionId, "not_army_leader"); return;
+                }
+                DisbandArmyAction.ApplyByUnknownReason(mp.Army);
+                BannerlordLinkModule.Log($"[army_disband OK] @{username} армия распущена");
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[army_disband] @{username} CRASHED: {ex.Message}");
+                ActionFeedback.PostFailed(actionId, "crashed");
+            }
+        }
+    }
+}

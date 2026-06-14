@@ -77,6 +77,9 @@ namespace BannerlordLink.Actions
             // Sprint 5.33 (BLT-parity SIEGE) — party strategic orders
             Register(new SetPartyOrderHandler());       // hero.party_order_set
             Register(new ReleasePartyOrderHandler());   // hero.party_order_release
+            // 2026-06-14 — «Армия» MVP (kingdom army, vanilla CreateArmy)
+            Register(new CreateArmyHandler());          // hero.army_create
+            Register(new DisbandArmyHandler());         // hero.army_disband
             // Sprint 5.33 (BLT-parity DIPLO) — kingdom politics + ransom
             Register(new EnactPolicyHandler());         // hero.enact_policy
             Register(new MakePeaceHandler());           // hero.make_peace

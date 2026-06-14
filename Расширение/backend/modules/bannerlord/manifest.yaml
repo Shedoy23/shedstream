@@ -148,6 +148,10 @@ extensions:
     # Sprint 5.33 (BLT-parity SIEGE) — party strategic orders
     - hero.party_order_set
     - hero.party_order_release
+    # 2026-06-14 — «Армия» MVP: армия королевства (vanilla CreateArmy).
+    # Команды армии = существующие party orders (отдельных army-команд нет).
+    - hero.army_create
+    - hero.army_disband
     # Sprint 5.33 (BLT-parity DIPLO) — kingdom politics + ransom (Lait fork)
     - hero.enact_policy        # king-only: propose policy для kingdom'а (1500⦷)
     - hero.make_peace          # king-only: peace offer с enemy kingdom (2000⦷)

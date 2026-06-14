@@ -1499,6 +1499,7 @@ const _BNR_POLICIES = [
       desc: 'Town loyalty +1 в same culture. Гражданская честь.' },
 ];
 
+let _bnrDiploCd = {};  // 2026-06-14: локальные таймстемпы кулдауна войны/мира (UX-индикатор)
 async function loadBannerlordDiplomacy() {
     const slot = document.getElementById('bnr-diplo-slot');
     if (!slot) return;
@@ -1564,7 +1565,7 @@ async function loadBannerlordDiplomacy() {
                     <summary style="list-style:none;cursor:pointer;width:100%;
                                font-size:11px;padding:6px;background:#92400e;box-sizing:border-box;
                                color:#fff;font-weight:700;border-radius:3px;text-align:center;">
-                        📜 Активировать политику (1500💎)
+                        📜 Законы королевства (политики, 1500💎)
                     </summary>
                     <div style="font-size:9px;color:#9ca3af;margin:6px 0 4px;">
                         Клик по политике = toggle (активна → отозвать). 1500💎 за действие.
@@ -1644,13 +1645,19 @@ async function loadBannerlordDiplomacy() {
                     <div style="font-size:9px;color:#9ca3af;margin-bottom:6px;">
                         Это ПРЕДЛОЖЕНИЕ — кланы королевства голосуют, может не пройти.
                     </div>`;
+            // 2026-06-14 — кулдаун на кнопках (5 мин/зритель, локальный UX-индикатор;
+            // сервер enforce'ит реально + рефанд при клике в КД). Date.now() — браузер.
+            const _DIPLO_CD = 300;
+            const _warLeft   = Math.max(0, _DIPLO_CD - Math.floor((Date.now() - (_bnrDiploCd.war   || 0)) / 1000));
+            const _peaceLeft = Math.max(0, _DIPLO_CD - Math.floor((Date.now() - (_bnrDiploCd.peace || 0)) / 1000));
+            const _cdTxt = (s) => '⏳ ' + (s >= 60 ? Math.ceil(s / 60) + ' мин' : s + ' с');
             if (warTargets.length) {
                 html += `
                     <div style="display:flex;gap:4px;margin-bottom:5px;">
                         <select id="bnr-war-target" style="flex:1;padding:5px;font-size:11px;background:#0f0805;color:#fed7aa;border:1px solid #92400e;">
                             ${warTargets.map(k => `<option value="${escapeHtml(k.id)}">${escapeHtml(k.name || k.id)}</option>`).join('')}
                         </select>
-                        <button id="bnr-war-propose" class="extra-btn" style="font-size:11px;padding:5px 8px;background:#7f1d1d;color:#fca5a5;font-weight:700;white-space:nowrap;">⚔ Война (1000💎)</button>
+                        <button id="bnr-war-propose" class="extra-btn" ${_warLeft > 0 ? 'disabled' : ''} style="font-size:11px;padding:5px 8px;background:#7f1d1d;color:#fca5a5;font-weight:700;white-space:nowrap;${_warLeft > 0 ? 'opacity:0.5;cursor:not-allowed;' : ''}">${_warLeft > 0 ? _cdTxt(_warLeft) : '⚔ Война (2000💎)'}</button>
                     </div>`;
             }
             if (peaceTargets.length) {
@@ -1659,7 +1666,7 @@ async function loadBannerlordDiplomacy() {
                         <select id="bnr-peace-vote-target" style="flex:1;padding:5px;font-size:11px;background:#0a0f1a;color:#bfdbfe;border:1px solid #1e40af;">
                             ${peaceTargets.map(k => `<option value="${escapeHtml(k.id)}">${escapeHtml(k.name || k.id)}</option>`).join('')}
                         </select>
-                        <button id="bnr-peace-vote-propose" class="extra-btn" style="font-size:11px;padding:5px 8px;background:#1e40af;color:#fff;font-weight:700;white-space:nowrap;">🕊 Мир (1500💎)</button>
+                        <button id="bnr-peace-vote-propose" class="extra-btn" ${_peaceLeft > 0 ? 'disabled' : ''} style="font-size:11px;padding:5px 8px;background:#1e40af;color:#fff;font-weight:700;white-space:nowrap;${_peaceLeft > 0 ? 'opacity:0.5;cursor:not-allowed;' : ''}">${_peaceLeft > 0 ? _cdTxt(_peaceLeft) : '🕊 Мир (3000💎)'}</button>
                     </div>`;
             } else {
                 html += `<div style="font-size:9px;color:#6b7280;">Сейчас ни с кем не воюем — мир предлагать некому.</div>`;
@@ -1707,7 +1714,8 @@ async function loadBannerlordDiplomacy() {
                 target_kingdom_id:   id,
                 target_kingdom_name: (sel.selectedOptions?.[0]?.textContent || id).trim(),
             });
-            setTimeout(loadBannerlordDiplomacy, 2000);
+            _bnrDiploCd.war = Date.now();   // запустить кулдаун (UI), сервер enforce'ит реально
+            loadBannerlordDiplomacy();
         });
         slot.querySelector('#bnr-peace-vote-propose')?.addEventListener('click', async () => {
             const sel = document.getElementById('bnr-peace-vote-target');
@@ -1717,7 +1725,8 @@ async function loadBannerlordDiplomacy() {
                 target_kingdom_id:   id,
                 target_kingdom_name: (sel.selectedOptions?.[0]?.textContent || id).trim(),
             });
-            setTimeout(loadBannerlordDiplomacy, 2000);
+            _bnrDiploCd.peace = Date.now();   // запустить кулдаун (UI), сервер enforce'ит реально
+            loadBannerlordDiplomacy();
         });
     } catch (e) {
         console.warn('[FE-DIPLO] loadDiplomacy failed (keeping last render)', e);

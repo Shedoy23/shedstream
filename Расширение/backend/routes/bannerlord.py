@@ -2125,8 +2125,9 @@ def _enforce_price(action_type, data, username, channel_id):
         "hero.enact_policy":           1500,    # king-only major political move
         "hero.make_peace":             2000,    # king-only diplomatic decision
         # 2026-06-14 — дипломатия через ГОЛОСОВАНИЕ кланов (предложение, может не пройти).
-        "kingdom.propose_war":         1000,    # предложить войну королевству
-        "kingdom.propose_peace":       1500,    # предложить мир королевству
+        # Цена ×2 от стартовой (по просьбе владельца) — серьёзное решение.
+        "kingdom.propose_war":         2000,    # предложить войну королевству
+        "kingdom.propose_peace":       3000,    # предложить мир королевству
         "hero.pay_ransom":              500,    # crowd-fund tier, any viewer
         "kingdom.set_tax_rate":           0,    # free — king manages own kingdom (Backlog #1)
         # Sprint 5.33 (BLT-parity SHOP) — workshops passive income

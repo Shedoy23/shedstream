@@ -240,6 +240,28 @@ namespace BannerlordLink.Actions
         }
     }
 
+    // 2026-06-14 — общий резолвер королевства по StringId/имени. GetObject<Kingdom>
+    // часто возвращает null (kingdoms — campaign-объекты, не в MBObjectManager) →
+    // надёжный путь: Kingdom.All. Был баг «target_not_found» на валидных vlandia/empire.
+    internal static class DiploUtil
+    {
+        public static Kingdom ResolveKingdom(string id, string name)
+        {
+            Kingdom k = null;
+            try { k = MBObjectManager.Instance.GetObject<Kingdom>(id); } catch { }
+            if (k != null) return k;
+            try
+            {
+                foreach (var kk in Kingdom.All)
+                    if (kk != null && (kk.StringId == id ||
+                        string.Equals(kk.Name?.ToString(), name, StringComparison.OrdinalIgnoreCase)))
+                        return kk;
+            }
+            catch { }
+            return null;
+        }
+    }
+
     // ── ProposeWarHandler — предложить войну ЧЕРЕЗ ГОЛОСОВАНИЕ кланов ──────────
     // 2026-06-14. Vanilla DeclareWarDecision → Kingdom.AddDecision → движок собирает
     // голоса кланов королевства и резолвит сам. Зритель платит за ПРЕДЛОЖЕНИЕ, не за
@@ -265,18 +287,19 @@ namespace BannerlordLink.Actions
         {
             try
             {
-                if (Campaign.Current == null) { ActionFeedback.PostFailed(actionId, "no_campaign"); return; }
+                if (Campaign.Current == null) { BannerlordLinkModule.Log($"[diplo-war] REFUSE @{username}: no campaign"); ActionFeedback.PostFailed(actionId, "no_campaign"); return; }
                 var hero = HeroLookup.FindByUsername(username);
-                if (hero == null || !hero.IsAlive) { ActionFeedback.PostFailed(actionId, "hero_not_found"); return; }
+                if (hero == null || !hero.IsAlive) { BannerlordLinkModule.Log($"[diplo-war] REFUSE @{username}: hero не найден/мёртв"); ActionFeedback.PostFailed(actionId, "hero_not_found"); return; }
                 var myKingdom = hero.Clan?.Kingdom;
                 if (myKingdom == null) { BannerlordLinkModule.Log($"[diplo-war] REFUSE @{username}: не в kingdom'е"); ActionFeedback.PostFailed(actionId, "no_kingdom"); return; }
                 if (hero.Clan?.Leader != hero) { BannerlordLinkModule.Log($"[diplo-war] REFUSE @{username}: не лидер клана"); ActionFeedback.PostFailed(actionId, "not_clan_leader"); return; }
 
-                Kingdom target = null;
-                try { target = MBObjectManager.Instance.GetObject<Kingdom>(targetKingdomId); } catch { }
-                if (target == null) { ActionFeedback.PostFailed(actionId, "target_not_found"); return; }
-                if (target == myKingdom) { ActionFeedback.PostFailed(actionId, "self_target"); return; }
-                if (target.IsEliminated) { ActionFeedback.PostFailed(actionId, "target_eliminated"); return; }
+                // Резолв целевого королевства. GetObject<Kingdom> ненадёжен (kingdoms —
+                // campaign-объекты, не всегда в MBObjectManager) → fallback на Kingdom.All.
+                Kingdom target = DiploUtil.ResolveKingdom(targetKingdomId, targetKingdomName);
+                if (target == null) { BannerlordLinkModule.Log($"[diplo-war] REFUSE @{username}: target '{targetKingdomId}'/'{targetKingdomName}' не найден"); ActionFeedback.PostFailed(actionId, "target_not_found"); return; }
+                if (target == myKingdom) { BannerlordLinkModule.Log($"[diplo-war] REFUSE @{username}: self-target"); ActionFeedback.PostFailed(actionId, "self_target"); return; }
+                if (target.IsEliminated) { BannerlordLinkModule.Log($"[diplo-war] REFUSE @{username}: target eliminated"); ActionFeedback.PostFailed(actionId, "target_eliminated"); return; }
                 if (myKingdom.IsAtWarWith(target)) { BannerlordLinkModule.Log($"[diplo-war] REFUSE @{username}: уже воюем с {target.Name}"); ActionFeedback.PostFailed(actionId, "already_at_war"); return; }
 
                 // Дубль: предложение войны против этого таргета уже на голосовании?
@@ -325,17 +348,16 @@ namespace BannerlordLink.Actions
         {
             try
             {
-                if (Campaign.Current == null) { ActionFeedback.PostFailed(actionId, "no_campaign"); return; }
+                if (Campaign.Current == null) { BannerlordLinkModule.Log($"[diplo-ppeace] REFUSE @{username}: no campaign"); ActionFeedback.PostFailed(actionId, "no_campaign"); return; }
                 var hero = HeroLookup.FindByUsername(username);
-                if (hero == null || !hero.IsAlive) { ActionFeedback.PostFailed(actionId, "hero_not_found"); return; }
+                if (hero == null || !hero.IsAlive) { BannerlordLinkModule.Log($"[diplo-ppeace] REFUSE @{username}: hero не найден/мёртв"); ActionFeedback.PostFailed(actionId, "hero_not_found"); return; }
                 var myKingdom = hero.Clan?.Kingdom;
-                if (myKingdom == null) { ActionFeedback.PostFailed(actionId, "no_kingdom"); return; }
+                if (myKingdom == null) { BannerlordLinkModule.Log($"[diplo-ppeace] REFUSE @{username}: не в kingdom'е"); ActionFeedback.PostFailed(actionId, "no_kingdom"); return; }
                 if (hero.Clan?.Leader != hero) { BannerlordLinkModule.Log($"[diplo-ppeace] REFUSE @{username}: не лидер клана"); ActionFeedback.PostFailed(actionId, "not_clan_leader"); return; }
 
-                Kingdom target = null;
-                try { target = MBObjectManager.Instance.GetObject<Kingdom>(targetKingdomId); } catch { }
-                if (target == null) { ActionFeedback.PostFailed(actionId, "target_not_found"); return; }
-                if (target == myKingdom) { ActionFeedback.PostFailed(actionId, "self_target"); return; }
+                Kingdom target = DiploUtil.ResolveKingdom(targetKingdomId, targetKingdomName);
+                if (target == null) { BannerlordLinkModule.Log($"[diplo-ppeace] REFUSE @{username}: target '{targetKingdomId}'/'{targetKingdomName}' не найден"); ActionFeedback.PostFailed(actionId, "target_not_found"); return; }
+                if (target == myKingdom) { BannerlordLinkModule.Log($"[diplo-ppeace] REFUSE @{username}: self-target"); ActionFeedback.PostFailed(actionId, "self_target"); return; }
                 if (!myKingdom.IsAtWarWith(target)) { BannerlordLinkModule.Log($"[diplo-ppeace] REFUSE @{username}: не воюем с {target.Name}"); ActionFeedback.PostFailed(actionId, "not_at_war"); return; }
 
                 // Дубль

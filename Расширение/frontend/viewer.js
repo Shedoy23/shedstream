@@ -1190,20 +1190,9 @@ const BNR_POWER_LABELS = {
     ironskin_toggle:    { icon: '🛡', label: 'Железная кожа', desc: '−% урона, 45с' },
     explosive_arrows:   { icon: '🧨', label: 'Взрывные стрелы', desc: 'AoE с попаданий, 45с' },
 };
-const BNR_POWER_PRICES = {
-    heal_burst:         100,
-    shield_break_burst: 200,
-    rage:               300,
-    retribution_toggle: 300,
-    // Sprint 5.33 FX
-    poison_dot:         350,  // DoT — медленный, но total damage высокий
-    disarm_burst:       250,  // disarm — disruption, не damage
-    berserker_charge:   200,  // mobility self-buff
-    // 2026-05-29 (BLT-parity combat powers)
-    lifesteal_burst:    300,  // sustain burst
-    ironskin_toggle:    300,  // defensive burst (как retribution)
-    explosive_arrows:   350,  // ranged AoE burst (high value)
-};
+// BNR_POWER_PRICES удалён 2026-06-14 — цена активок теперь приходит с бэка
+// (POWER_PRICES в routes/bannerlord.py, в current_powers[].price). Тонкий фронт:
+// не держим display-копию балансового числа, которое enforce'ит бэк.
 
 function switchIntegrationModule(activeModule) {
     const empty   = document.getElementById('integration-empty');

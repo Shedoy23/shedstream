@@ -304,6 +304,53 @@ async def test_free_action_no_charge(db, buy):
     assert_eq(n, 1, "hero.create enqueued (NOT backend-only)")
 
 
+async def test_power_activate_per_power_price(db, buy):
+    """6. power.activate списывает PER-POWER цену (POWER_PRICES), НЕ flat 50.
+
+    Регрессия на баг 2026-06-14: power.activate сидел в ACTION_PRICES_DEFAULT
+    (flat 50) → бэк списывал 50 за ЛЮБУЮ активку, а фронт показывал 100–350
+    ("написано одно, списано другое"). Фикс: per-power цена enforced server-side
+    в _prepare_action из POWER_PRICES; неизвестный power_key → refuse.
+    """
+    print("\n[6] power.activate — per-power price (POWER_PRICES), not flat 50")
+    # power.activate требует живого героя — создаём минимального.
+    async with db._connect() as conn:
+        await conn.execute(
+            "INSERT OR IGNORE INTO bannerlord_heroes "
+            "(channel_id, username, hero_id, display_name) "
+            "VALUES (?, 'alice', 'hero_alice', 'Alice Hero')",
+            (CHANNEL_ID,))
+        await conn.commit()
+    await _set_points(db, CHANNEL_ID, "alice", START_POINTS)
+
+    # rage → 300 (POWER_PRICES["rage"]), НЕ старые flat 50.
+    before = await _get_points(db, CHANNEL_ID, "alice")
+    res = await buy(_make_anon_request(), "alice", CHANNEL_ID, "power.activate",
+                    {"power_key": "rage", "client_action_id": "pow-rage-1"})
+    assert_eq(res.get("success"), True, "power.activate(rage) succeeds")
+    assert_eq(res.get("charged"), 300, "rage charged 300 (per-power, NOT flat 50)")
+    after = await _get_points(db, CHANNEL_ID, "alice")
+    assert_eq(before - after, 300, "points dropped by EXACTLY 300 for rage")
+
+    # heal_burst → 100 (другая цена → доказывает per-power, не константа).
+    before2 = await _get_points(db, CHANNEL_ID, "alice")
+    res2 = await buy(_make_anon_request(), "alice", CHANNEL_ID, "power.activate",
+                     {"power_key": "heal_burst", "client_action_id": "pow-heal-1"})
+    assert_eq(res2.get("charged"), 100, "heal_burst charged 100 (different per-power price)")
+    after2 = await _get_points(db, CHANNEL_ID, "alice")
+    assert_eq(before2 - after2, 100, "points dropped by EXACTLY 100 for heal_burst")
+
+    # Неизвестная активка → refuse, ничего не списано (security gate).
+    before3 = await _get_points(db, CHANNEL_ID, "alice")
+    res3 = await buy(_make_anon_request(), "alice", CHANNEL_ID, "power.activate",
+                     {"power_key": "totally_fake_power", "client_action_id": "pow-fake-1"})
+    assert_eq(res3.get("success"), False, "unknown power_key refused")
+    msg = (res3.get("message") or "").lower()
+    assert_true("не найдена" in msg, "refusal message mentions 'не найдена'")
+    after3 = await _get_points(db, CHANNEL_ID, "alice")
+    assert_eq(after3, before3, "balance untouched for unknown power")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
@@ -319,6 +366,7 @@ async def _run():
         await test_insufficient_funds(db, buy)
         await test_unknown_action_refused(db, buy)
         await test_free_action_no_charge(db, buy)
+        await test_power_activate_per_power_price(db, buy)
     finally:
         # Закрываем пул и удаляем temp-БД (реальную viewers.db НЕ трогаем).
         try:

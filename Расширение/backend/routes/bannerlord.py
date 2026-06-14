@@ -391,10 +391,14 @@ async def bannerlord_classes(request: Request):
                     continue
                 lvl = max(1, min(3, current["class_level"] or 1))
                 val = pr[lvl]  # 1→lvl1_value (idx 1), 2→lvl2_value (idx 2), 3→idx 3
-                current_powers.append({"power_key": pk, "value": val})
+                current_powers.append(
+                    {"power_key": pk, "value": val,
+                     "price": POWER_PRICES.get(pk, 0)})
 
         # heal_burst всегда доступен (не привязан к классу)
-        current_powers.append({"power_key": "heal_burst", "value": 50.0})
+        current_powers.append(
+            {"power_key": "heal_burst", "value": 50.0,
+             "price": POWER_PRICES.get("heal_burst", 0)})
 
     return {
         "success": True,
@@ -723,6 +727,24 @@ async def bannerlord_battle_status(request: Request):
 _power_events: dict[int, list[dict]] = {}
 _power_events_seq: dict[int, int] = {}
 _POWER_EVENTS_TTL_SEC = 30
+
+# 2026-06-14 — per-power цена активки (💎 крустики). ЕДИНЫЙ источник правды:
+# бэк и enforce'ит её при списании (_prepare_action), и отдаёт фронту в
+# current_powers (фронт рисует price из ответа, не хардкодит). До этого фикса
+# power.activate сидел в ACTION_PRICES_DEFAULT (flat 50) → бэк списывал 50 за
+# любую способность, а фронт показывал 100–350 → "написано одно, списано другое".
+POWER_PRICES = {
+    "heal_burst":         100,
+    "shield_break_burst": 200,
+    "rage":               300,
+    "retribution_toggle": 300,
+    "poison_dot":         350,
+    "disarm_burst":       250,
+    "berserker_charge":   200,
+    "lifesteal_burst":    300,
+    "ironskin_toggle":    300,
+    "explosive_arrows":   350,
+}
 
 
 def _push_power_event(channel_id: int, user: str, power_key: str,
@@ -1371,6 +1393,17 @@ async def _prepare_action(username, channel_id, action_type, data):
             return {"success": False, "message": f"Side '{side}' не разрешён"}
         data["side"] = side
         data["price"] = SPAWN_PRICES[side]
+
+    if action_type == "power.activate":
+        # Цена активки — per-power, истина на бэке (POWER_PRICES). Sent price
+        # игнорируется (как и везде — security). Неизвестный power_key → refuse.
+        power_key = (data.get("power_key") or "").strip()
+        if power_key not in POWER_PRICES:
+            return {
+                "success": False,
+                "message": f"Способность '{power_key}' не найдена",
+            }
+        data["price"] = POWER_PRICES[power_key]
 
     # hero.recruit_troops: backend passes current retinue snapshot в data
     # чтобы mod знал какие slots filled (для add vs upgrade decision).
@@ -2035,6 +2068,7 @@ def _enforce_price(action_type, data, username, channel_id):
         "hero.create_party", "hero.set_gender", "hero.marry",
         "hero.divorce", "hero.make_baby",
         "hero.add_focus", "hero.add_attribute",
+        "power.activate",     # 2026-06-14: per-power цена (POWER_PRICES) ставится в _prepare_action
         "hero.equip_trophy",  # Sprint 5.29 BLT-parity #6 phase A
         # Sprint 5.32 BUGFIX — обе currency-conversion actions имеют свои
         # presets; без этого list'а DEFAULT перезатирает их.
@@ -2047,7 +2081,8 @@ def _enforce_price(action_type, data, username, channel_id):
         "player.respawn":        500,    # heir succession (future)
         "player.modify_attribute": 50,
         "world.trigger_event":  1000,    # heavy / admin-style
-        "power.activate":         50,    # standardize crustik price per power use
+        # power.activate — per-power цена (POWER_PRICES), enforced в _prepare_action.
+        # 2026-06-14: убран отсюда (был flat 50 — плющил все активки в одну цену).
         "hero.smith_item":       500,    # Sprint 5.29 BLT-parity #6 — trophy crafting
         "hero.equip_trophy":      0,    # Sprint 5.29 BLT-parity #6 phase A — free (viewer уже заплатил smith)
         "hero.set_combat_stance": 0,    # 2026-06-10: боевая стойка — бесплатно, мгновенно

@@ -2491,7 +2491,7 @@ function renderBannerlordActivePowers() {
     const btnsHtml = powers.map(p => {
         const meta = BNR_POWER_LABELS[p.power_key];
         if (!meta) return '';
-        const price = BNR_POWER_PRICES[p.power_key] ?? 0;
+        const price = p.price ?? 0;  // 2026-06-14: цена приходит с бэка (POWER_PRICES), не хардкод
         const isActive = activeKeys.has(p.power_key);
         const cdRem = cdMap[p.power_key] || 0;
         const onCooldown = cdRem > 0;

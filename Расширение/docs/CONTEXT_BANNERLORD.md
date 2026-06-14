@@ -406,10 +406,15 @@ community модов, потом upgrade'нуть и пересобрать на
   `handle_set_kingdom_tax` читали мёртвые колонки `kingdom_id`/`is_king` (sync пишет только
   `kingdom_info_json`). Фикс: `_derive_kingdom()` в `bannerlord_diplomacy.py` деривит из
   info_json (тот же фикс, что в kingdom-state endpoint). **НЕ задеплоено.**
-- 🔴 **Дипломатия: окно голосования война/мир мелькает и исчезает** (#10 shedoy23) —
-  предложение регистрируется (`diplo-war OK` в мод-логе), но in-game vote popup пропадает за
-  секунду → проголосовать нельзя. Подозрение: `NullReferenceException` в
-  `KingdomVoteNotification` (мод-лог его регистрирует). Мод-сайд, нужен in-game разбор.
+- ✅ **FIXED (ждёт in-game тест)** — **#10 окно голосования война/мир мелькает и исчезает**
+  (shedoy23). Root (декомпиляция ванили): клик `ExecuteAction()→_onInspect→OnInspect()`, а
+  `OnInspect` имеет 2 незащищённых null-разыменования (`_decision.ShouldBeCancelled()` при
+  устаревшем решении + `Clan.PlayerClan.Kingdom` при безклановом игроке). Финализатор раньше
+  просто глотал NRE → попап не открывался. Фикс: prefix на `OnInspect` гардит оба null'а →
+  graceful `ExecuteRemove` вместо NRE; валидные решения идут в ваниль (голосование
+  открывается). Финализатор теперь логирует полный стек (backstop). `KingdomVoteNotificationPatch.cs`,
+  собрано+скопировано в игру. **Проверить:** рестарт Bannerlord → зритель предлагает войну →
+  клик по колокольчику голосования должен ОТКРЫТЬ окно решения, а не исчезнуть.
 - 🟠 **Хил работает на турнирах → бесконечный бой** (#12 shedoy23) — лечение не гейтится
   `arena_or_tournament` (часть powers гейтятся, хил просочился). Мод/бэк-гейт.
 - 🟠 **Смена класса в бою сбрасывает кулдаун** (#14 neyrahatomia) — эксплойт: меняешь класс

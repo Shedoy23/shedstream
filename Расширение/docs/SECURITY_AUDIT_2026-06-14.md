@@ -77,7 +77,7 @@
 ### TODO/долг
 | Приоритет | Где | Суть |
 |---|---|---|
-| HIGH | `routes/module_api.py:~420` | `refund TODO #21` — при сбое action крустики зрителю НЕ возвращаются |
+| ✅ DONE | `routes/module_api.py` | `refund #21` — ACK success=false теперь рефандит (роутит через `_on_action_failed`, idempotent). Backend закрыт + тест 40/40 + прод. **Остаётся мод-сторона** (см. ниже) |
 | MED | дубль season/ELO логики в `duel.py`/`tictactoe.py`/`dice.py`/`rps.py` | фикс бага вносить в 4 места → вынести в общий модуль |
 | MED | `auth.py:84` | subscriber detection не реализован (нужен Helix broadcaster scope) |
 | — | миграции m1–m73 все зарегистрированы в `run_migrations()` | пропусков нет ✅ |
@@ -99,4 +99,21 @@
 3. **Tier 2 thin-front GIVE_GOLD/ADD_SKILL presets** — добить приёмом power.activate.
 4. **Tier 1 multi-tenant scoping** — закрыть ДО онбординга 2-го стримера (проверять каждый
    запрос перед фиксом — у субагента бывали false positive).
-5. **refund TODO #21** — реальная потеря денег зрителя при сбое, проверить и закрыть.
+
+## Сделано в этой сессии
+- ✅ Tier 0 deps — прод.
+- ✅ Tier 2 dead code — закоммичено (субагентовский «4 dead handlers» оказался живым
+  диспетчером — снёс бы расширение; удалены только реальные орфаны).
+- ✅ **refund #21 (backend)** — ACK success=false рефандит через idempotent `_on_action_failed`;
+  тест 40/40; прод.
+
+## refund — остаётся мод-сторона (follow-up, нужен build-цикл мода)
+Бэк закрывает случай «мод синхронно ACK'нул отказ» (редкий) + асинхронный `action.failed`
+(уже работал). НО ~11 C#-хендлеров (`JoinKingdomHandler`, `CreateKingdomHandler`,
+`LeaveKingdomHandler`, `RecruitTroopsHandler`, `MakeBabyHandler`, `GiveGoldHandler` и др.)
+на своих refuse-path **молча `return` без `ActionFeedback.PostFailed`** → зритель заплатил,
+действие не применилось, рефанда нет (это более частый путь — дорогие kingdom-операции).
+Фикс: добавить `PostFailed(actionId, reason)` на refuse-ветки этих хендлеров (+ опц. retry в
+`PostFailed`, сейчас fire-and-forget). Требует пересборки мода (`deploy.ps1 -Mod`) + рестарта
+игры → делать когда игра закрыта. Сначала проверить каждый хендлер — реально ли там
+post-charge silent-fail (часть валидируется server-side в `_prepare_action` ДО списания).

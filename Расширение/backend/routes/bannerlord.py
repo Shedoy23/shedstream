@@ -1308,16 +1308,12 @@ async def bannerlord_buy_action(request: Request):
             request, username, channel_id, action_type, data)
 
 
-async def _bannerlord_buy_action_locked(request, username, channel_id, action_type, data):
-    """Sprint 5.29: extracted body of bannerlord_buy_action — runs под user_lock."""
+async def _prepare_action(username, channel_id, action_type, data):
+    """Phase C — per-action validation + price-prep (extracted verbatim).
 
-    if action_type not in _PURCHASABLE_ACTIONS:
-        return {"success": False, "message": f"Action '{action_type}' не разрешён"}
-
-    # ROADMAP 2.3 — учёт использования фич (best-effort, не блокирует действие).
-    from feature_usage import record_feature_use
-    await record_feature_use(channel_id, f"bannerlord:{action_type}")
-
+    Mutates `data` in place (price / hero_gold_cost / amount / retinue / ...).
+    Returns a refusal-dict to short-circuit the buy, or None to proceed.
+    """
     # Sprint 5.1c/5.2: server-side price enforcement.
     # Random equip — БЕСПЛАТНО в крустиках (price=0), mod-side списывает
     # Hero.Gold (in-game динары) — fairness через game economy.
@@ -1998,7 +1994,14 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
         data["amount"] = 0          # no-loss: ставка не берётся
         data["round_index"] = round_index
         data["price"] = 0           # бесплатный прогноз — ничего не списываем
+    return None
 
+
+def _enforce_price(action_type, data, username, channel_id):
+    """Phase D — server-side price enforcement (extracted verbatim).
+
+    Returns an int `price` on success, or a refusal-dict to short-circuit.
+    """
     # ════════════════════════════════════════════════════════════════════
     # Sprint 5.29 audit fix #32 — server-side ACTION_PRICES enforcement.
     # ════════════════════════════════════════════════════════════════════
@@ -2108,7 +2111,15 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
         return {"success": False, "message": "Неверная цена"}
     if price < 0:
         return {"success": False, "message": "Цена не может быть отрицательной"}
+    return price
 
+
+def _resolve_perks(request, action_type, price, username, channel_id, data):
+    """Phase E — role/perk resolution + role-gate (extracted verbatim).
+
+    Returns (price, price_mult, reward_mult, role_label) on success,
+    or a refusal-dict (role-gate) to short-circuit. Mutates `data`.
+    """
     # Sprint 5.33 TOS-COMPLIANCE (2026-05-28) — REMOVED subscription bonuses.
     # Twitch Extension ToS / Community Guidelines:
     #   - Cannot gate gameplay rewards behind Twitch subscriptions
@@ -2191,7 +2202,15 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
     log.info("[bannerlord PERK RESOLVED] ch=%s user=%s action=%s role=%s "
              "price=%d×%.2f reward×%.2f",
              channel_id, username, action_type, role_label, price, price_mult, reward_mult)
+    return (price, price_mult, reward_mult, role_label)
 
+
+def _resolve_cooldown(action_type, data, username, channel_id):
+    """Phase F — cooldown-key compute + pre-check (extracted verbatim).
+
+    Returns the cooldown_key (str or None) on success, or a refusal-dict
+    if the action is still on cooldown.
+    """
     # Sprint 4.8/5.0: server-side cooldown enforcement.
     # Для power.activate ключ cooldown'а = data.power_key (per-power).
     # Для player.spawn — split per-side (Sprint 5.29: ally и enemy раздельно).
@@ -2221,7 +2240,20 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
                 "message": f"Способность на перезарядке ({int(remaining)}с)",
                 "cooldown_remaining_s": round(remaining, 1),
             }
+    return cooldown_key
 
+
+async def _charge_execute_enqueue(action_type, data, price, username, channel_id):
+    """Phase G — the BEGIN IMMEDIATE cash-register TX (extracted verbatim).
+
+    Opens its own connection. Inside ONE BEGIN IMMEDIATE: idempotency-replay
+    check + per-action dedup (tournament.bet / hero.join_tournament) +
+    atomic charge (UPDATE ... WHERE points >= ?) + enqueue + per-action execute.
+    Ordering is load-bearing and must stay byte-identical (documented past
+    race/double-charge bugs). Returns (action_id, smith_result) on success,
+    or a refusal/idempotent-replay dict to short-circuit. Re-raises on commit
+    failure (same as before — FastAPI handler turns it into a 500).
+    """
     db = get_db()
     async with db._connect() as conn:
         # ── Special case validation: hero.set_class ──
@@ -2657,7 +2689,16 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
                 "action=%s price=%s: %s",
                 channel_id, username, action_type, price, ex)
             raise
+    return (action_id, smith_result)
 
+
+def _post_commit_side_effects(action_type, data, cooldown_key, username, channel_id):
+    """Phase H — post-commit side-effects (extracted verbatim).
+
+    Runs AFTER the TX commits: set_cooldown (a failed commit must not
+    consume cooldown) + overlay power-event broadcast. Returns
+    cooldown_applied_s for the response.
+    """
     # Sprint 4.8/5.0: запустить cooldown ПОСЛЕ commit (если упало — cooldown
     # не считается). Происходит вне TX — cooldown это in-memory state.
     # cooldown_applied_s — длительность запущенного CD; возвращаем frontend'у
@@ -2688,6 +2729,49 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
             )
         except Exception as _pex:
             log.warning("[bannerlord overlay power-event] push failed: %s", _pex)
+    return cooldown_applied_s
+
+
+async def _bannerlord_buy_action_locked(request, username, channel_id, action_type, data):
+    """Sprint 5.29: extracted body of bannerlord_buy_action — runs под user_lock."""
+
+    if action_type not in _PURCHASABLE_ACTIONS:
+        return {"success": False, "message": f"Action '{action_type}' не разрешён"}
+
+    # ROADMAP 2.3 — учёт использования фич (best-effort, не блокирует действие).
+    from feature_usage import record_feature_use
+    await record_feature_use(channel_id, f"bannerlord:{action_type}")
+
+    # Phase C — per-action validation + price-prep.
+    refusal = await _prepare_action(username, channel_id, action_type, data)
+    if refusal is not None:
+        return refusal
+
+    # Phase D — server-side price enforcement.
+    price = _enforce_price(action_type, data, username, channel_id)
+    if isinstance(price, dict):
+        return price
+
+    # Phase E — role/perk resolution + role-gate.
+    _perk = _resolve_perks(request, action_type, price, username, channel_id, data)
+    if isinstance(_perk, dict):
+        return _perk
+    price, price_mult, reward_mult, role_label = _perk
+
+    # Phase F — cooldown-key compute + pre-check.
+    cooldown_key = _resolve_cooldown(action_type, data, username, channel_id)
+    if isinstance(cooldown_key, dict):
+        return cooldown_key
+
+    # Phase G — atomic charge + execute + enqueue (BEGIN IMMEDIATE).
+    _tx = await _charge_execute_enqueue(action_type, data, price, username, channel_id)
+    if isinstance(_tx, dict):
+        return _tx
+    action_id, smith_result = _tx
+
+    # Phase H — post-commit side-effects (cooldown + overlay).
+    cooldown_applied_s = _post_commit_side_effects(
+        action_type, data, cooldown_key, username, channel_id)
 
     # Sprint 5.29 audit fix #34: log enqueued action_id для трассировки.
     # Frontend получает action_id в response — теперь и в логах есть.

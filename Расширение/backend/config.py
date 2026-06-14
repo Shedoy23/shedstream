@@ -58,11 +58,17 @@ TWITCH_OAUTH_REDIRECT_URI = os.getenv(
 #   user:read:chat              — EventSub channel.chat.notification для
 #                                 watch-streak трекинга (статистика серий
 #                                 просмотров; broadcaster читает свой чат).
+#   user:bot + channel:bot      — channel.chat.notification через APP access
+#                                 token (webhook) требует ДОПОЛНИТЕЛЬНО эти два
+#                                 «bot»-скопа сверх user:read:chat (Twitch:
+#                                 "If app access token used, then additionally
+#                                 requires user:bot … and channel:bot …").
+#                                 Без них регистрация чат-подписки → 403.
 # Existing streamers нужно re-OAuth чтобы scope добавился к их токену
 # (без re-OAuth Helix будет 401 на /subscriptions запросы — handled gracefully;
 #  а EventSub channel.subscribe/channel.follow/channel.chat.notification вернёт
 #  403 при регистрации).
-TWITCH_OAUTH_SCOPES = 'user:read:email channel:read:redemptions channel:read:subscriptions moderator:read:followers user:read:chat'
+TWITCH_OAUTH_SCOPES = 'user:read:email channel:read:redemptions channel:read:subscriptions moderator:read:followers user:read:chat user:bot channel:bot'
 
 # ===== Этап 3 step 5: Module API player events feature flag =====
 # При false (default) — `player.linked` / `player.died` / `player.respawned` /

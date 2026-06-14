@@ -171,6 +171,39 @@ async def admin_stats(_admin: str = Depends(require_admin)):
     return await get_db().get_stats()
 
 
+@router.get("/api/admin/bug-reports")
+async def admin_bug_reports(_admin: str = Depends(require_admin)):
+    """Read-only наблюдение: последние баг-репорты (!баг) канала."""
+    from dependencies import resolve_channel_id_or_default
+    channel_id = resolve_channel_id_or_default()
+    db = get_db()
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT id, username, message, status, created_at FROM bug_reports "
+            "WHERE channel_id=? ORDER BY created_at DESC LIMIT 30",
+            (channel_id,))
+        rows = await cur.fetchall()
+    return {"reports": [
+        {"id": r[0], "username": r[1], "message": r[2],
+         "status": r[3], "created_at": r[4]} for r in rows]}
+
+
+@router.get("/api/admin/feature-usage")
+async def admin_feature_usage(_admin: str = Depends(require_admin)):
+    """Read-only наблюдение: топ используемых фич за 7 дней (feature_usage)."""
+    from dependencies import resolve_channel_id_or_default
+    channel_id = resolve_channel_id_or_default()
+    db = get_db()
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT feature_key, SUM(count) AS total FROM feature_usage "
+            "WHERE channel_id=? AND day >= date('now','-7 days') "
+            "GROUP BY feature_key ORDER BY total DESC LIMIT 15",
+            (channel_id,))
+        rows = await cur.fetchall()
+    return {"features": [{"key": r[0], "total": r[1]} for r in rows]}
+
+
 @router.get("/api/admin/users")
 async def admin_get_users(
     search: str = "",

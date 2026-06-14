@@ -351,6 +351,47 @@ async def test_power_activate_per_power_price(db, buy):
     assert_eq(after3, before3, "balance untouched for unknown power")
 
 
+async def test_refund_on_ack_failure(db, buy):
+    """7. Refund на отказ мода (#21): action.failed → крустики назад, idempotent.
+
+    Воспроизводит путь, который теперь дёргает module_ack при success=false:
+    синтетический action.failed → adapter.handle_event → _on_action_failed →
+    atomic refund (idempotent через REFUNDED: маркер). Двойной вызов = ОДИН возврат.
+    """
+    print("\n[7] Refund on mod-refuse (#21) — action.failed returns crustics, idempotent")
+    from modules._loader import discover_modules, get_module
+    from modules._base import ModuleEnvelope
+    discover_modules()
+    adapter = get_module("bannerlord")
+    assert_true(adapter is not None, "bannerlord adapter discovered")
+    if adapter is None:
+        return
+
+    await _set_points(db, CHANNEL_ID, "alice", START_POINTS)
+    before = await _get_points(db, CHANNEL_ID, "alice")
+
+    # Charge: player.respawn (500) → enqueue module_actions row с price+initiated_by.
+    res = await buy(_make_anon_request(), "alice", CHANNEL_ID, "player.respawn",
+                    {"client_action_id": "refund-respawn-1"})
+    action_id = res.get("action_id")
+    assert_eq(res.get("charged"), 500, "charged 500 before refund")
+    mid = await _get_points(db, CHANNEL_ID, "alice")
+    assert_eq(before - mid, 500, "points dropped 500 after charge")
+
+    # Мод отказал → action.failed (ровно то, что роутит module_ack при success=false).
+    env = ModuleEnvelope(id=action_id, kind="event", type="action.failed", ts=0,
+                         data={"action_id": action_id, "reason": "test_refuse"})
+    await adapter.handle_event(CHANNEL_ID, env)
+    after = await _get_points(db, CHANNEL_ID, "alice")
+    assert_eq(after - mid, 500, "refund credited exactly 500")
+    assert_eq(after, before, "points fully restored (back to START)")
+
+    # Idempotent: повторный action.failed (или поздний реальный event) → НЕ двойной refund.
+    await adapter.handle_event(CHANNEL_ID, env)
+    after2 = await _get_points(db, CHANNEL_ID, "alice")
+    assert_eq(after2, after, "second action.failed does NOT double-refund (idempotent)")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
@@ -367,6 +408,7 @@ async def _run():
         await test_unknown_action_refused(db, buy)
         await test_free_action_no_charge(db, buy)
         await test_power_activate_per_power_price(db, buy)
+        await test_refund_on_ack_failure(db, buy)
     finally:
         # Закрываем пул и удаляем temp-БД (реальную viewers.db НЕ трогаем).
         try:

@@ -416,9 +416,23 @@ async def module_ack(module_id: str, request: Request):
                       action_id, channel_id, module_id)
     else:
         _log_ack.warning(
-            "[bannerlord ACK FAIL] action_id=%s ch=%s module=%s reason=%s "
-            "— viewer paid крустики but action not applied (refund TODO #21)",
+            "[bannerlord ACK FAIL] action_id=%s ch=%s module=%s reason=%s — refunding",
             action_id, channel_id, module_id, error_msg)
+        # 2026-06-14 audit (#21 closed): мод синхронно ACK'нул отказ → возвращаем
+        # крустики. Прогоняем синтетический action.failed через тот же handle_event
+        # → _on_action_failed (atomic refund, idempotent через REFUNDED: маркер),
+        # поэтому реальный action.failed event позже НЕ даст двойного возврата.
+        # Гейт по манифесту: только модули, объявившие action.failed.
+        if adapter.manifest.supports_event("action.failed"):
+            try:
+                await adapter.handle_event(channel_id, ModuleEnvelope(
+                    id=action_id, kind="event", type="action.failed", ts=0,
+                    data={"action_id": action_id, "reason": error_msg or "ack_failed"},
+                ))
+            except Exception as _refund_exc:
+                _log_ack.warning(
+                    "[bannerlord ACK refund] action_id=%s refund route failed: %s",
+                    action_id, _refund_exc)
 
     return {"acked": acked, "action_id": action_id, "status": "acked" if success else "failed"}
 

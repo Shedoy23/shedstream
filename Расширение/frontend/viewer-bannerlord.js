@@ -1472,31 +1472,35 @@ function _renderPartyOrderInline(currentActive) {
 
 // Curated set vanilla 1.3.x policies — popular & impactful. Mod валидирует
 // PolicyObject.StringId через MBObjectManager.GetObject<PolicyObject>.
+// 2026-06-14 — StringId исправлены на vanilla (префикс policy_; land_grants →
+// policy_land_grands_for_veteran; state_pilgrims не существует → заменён на
+// council_of_the_commons). Без префикса GetObject<PolicyObject> возвращал null —
+// раньше НИ ОДНА политика не срабатывала (panel был скрыт, не замечали).
 const _BNR_POLICIES = [
-    { id: 'forgiveness_of_debts', name: 'Forgiveness of Debts',
-      desc: 'Loyalty +1, Tax -10%. Дёшево, но кланы недовольны.' },
-    { id: 'land_grants', name: 'Land Grants',
-      desc: 'Clan tier влияет на fief share. Поддержка крупных кланов.' },
-    { id: 'precarial_land_tenure', name: 'Precarial Land Tenure',
-      desc: 'Notables +5 power per fief. Влияние стороннее.' },
-    { id: 'royal_guard', name: 'Royal Guard',
-      desc: 'Король получает +50 кавалерии. Силовая опора трона.' },
-    { id: 'sacred_majesty', name: 'Sacred Majesty',
-      desc: 'King influence +2/day, others -1. Авторитарный режим.' },
-    { id: 'trial_by_jury', name: 'Trial by Jury',
-      desc: 'Loyalty +0.5, Security +1. Народная популярность.' },
-    { id: 'imperial_towns', name: 'Imperial Towns',
-      desc: 'Town prosperity +5%. Городам — вино!' },
-    { id: 'noble_retinues', name: 'Noble Retinues',
-      desc: 'Clan +10 party size. Большие армии.' },
-    { id: 'lords_privy_council', name: 'Lords Privy Council',
-      desc: 'Lords +1 influence/day. Феодальная демократия.' },
-    { id: 'state_pilgrims', name: 'State Pilgrims',
-      desc: 'Town loyalty +1.5 in same culture. Культурный буст.' },
-    { id: 'serfdom', name: 'Serfdom',
-      desc: 'Village hearth +10%. Низшие классы работают за двоих.' },
-    { id: 'citizenship', name: 'Citizenship',
-      desc: 'Town loyalty +1 в same culture. Гражданская честь.' },
+    { id: 'policy_forgiveness_of_debts', name: 'Прощение долгов',
+      desc: 'Лояльность всех городов +1, но налоговый доход королевства −10%. Подарок беднякам: народ доволен, казна беднее.' },
+    { id: 'policy_land_grands_for_veteran', name: 'Земля ветеранам',
+      desc: 'Отряды растут за счёт ветеранов и рекрутов (+5 к размеру партии). Милитаристский курс — у лордов больше войск.' },
+    { id: 'policy_precarial_land_tenure', name: 'Условное землевладение',
+      desc: 'Знать (нотабли) получает +5 влияния за каждый фьеф. Усиливает местную элиту, ослабляет центральную власть короля.' },
+    { id: 'policy_royal_guard', name: 'Королевская гвардия',
+      desc: 'Правитель королевства получает +80 кавалерии в личную дружину. Силовая опора трона.' },
+    { id: 'policy_sacred_majesty', name: 'Священное величие',
+      desc: 'Король: +2 влияния в день. Все остальные лидеры кланов: −1 в день. Жёсткая централизация власти у короля.' },
+    { id: 'policy_trial_by_jury', name: 'Суд присяжных',
+      desc: 'Лояльность во всех фьефах +0.5, безопасность +1. Народная справедливость — в городах спокойнее.' },
+    { id: 'policy_imperial_towns', name: 'Имперские города',
+      desc: 'Доход и процветание (prosperity) городов +5%. Города богатеют.' },
+    { id: 'policy_noble_retinues', name: 'Дружины знати',
+      desc: 'Размер отрядов лидеров кланов +20 бойцов. Твои и союзные лорды водят армии крупнее.' },
+    { id: 'policy_lords_privy_council', name: 'Тайный совет лордов',
+      desc: 'Все лидеры кланов королевства: +1 влияния в день. Феодальная децентрализация — власть лордам.' },
+    { id: 'policy_council_of_the_commons', name: 'Совет общин',
+      desc: 'Горожане получают +0.5 влияния в день и +1 к лояльности. Голос простого народа в политике.' },
+    { id: 'policy_serfdom', name: 'Крепостное право',
+      desc: 'Рост деревень (очаги и процветание) +2 в день, доход с деревень +10%. Крестьяне крепче привязаны к земле.' },
+    { id: 'policy_citizenship', name: 'Гражданство',
+      desc: 'Лояльность в городах своей культуры +1. Культурная интеграция — единоверцы держатся крепче.' },
 ];
 
 let _bnrDiploCd = {};  // 2026-06-14: локальные таймстемпы кулдауна войны/мира (UX-индикатор)

@@ -87,15 +87,31 @@ namespace BannerlordLink.Actions
                     ActionFeedback.PostFailed(actionId, "no_gather_point"); return;
                 }
 
-                // Влияние — естественная in-game цена создания армии. Зритель заплатил
-                // криптики, поэтому выдаём буфер; при неудаче откатываем точную сумму.
+                // Созвать партии королевства в армию — иначе армия = только лидер
+                // (баг 2026-06-14: партий=1). Vanilla-модель даёт кандидатов; передаём
+                // в CreateArmy → движок шлёт им призыв (идут к точке сбора, join со временем).
+                var toCall = new TaleWorlds.Library.MBList<MobileParty>();
+                int callCount = 0;
+                try
+                {
+                    var candidates = Campaign.Current.Models.ArmyManagementCalculationModel
+                        .GetMobilePartiesToCallToArmy(mp);
+                    if (candidates != null) { toCall.AddRange(candidates); callCount = toCall.Count; }
+                }
+                catch (Exception mEx)
+                {
+                    BannerlordLinkModule.Log($"[army_create] GetMobilePartiesToCallToArmy warn @{username}: {mEx.Message}");
+                }
+
+                // Влияние — естественная in-game цена созыва партий. Зритель платит
+                // криптиками, НЕ влиянием: даём большой буфер на время создания, потом
+                // возвращаем влияние клана как было (и на успехе, и на неудаче).
                 float influenceBefore = clan.Influence;
-                try { ChangeClanInfluenceAction.Apply(clan, 200f); } catch { }
+                try { clan.Influence = influenceBefore + 5000f; } catch { }
 
                 try
                 {
-                    // partiesToCall = null → армия создаётся с одним лидером (vanilla OK).
-                    clan.Kingdom.CreateArmy(hero, gather, Army.ArmyTypes.Patrolling, null);
+                    clan.Kingdom.CreateArmy(hero, gather, Army.ArmyTypes.Patrolling, toCall);
                 }
                 catch (Exception cEx)
                 {
@@ -107,16 +123,18 @@ namespace BannerlordLink.Actions
                 if (mp.Army == null)
                 {
                     try { clan.Influence = influenceBefore; } catch { }
-                    BannerlordLinkModule.Log($"[army_create] @{username}: армия не создалась (Army==null) — влияние откатил");
+                    BannerlordLinkModule.Log($"[army_create] @{username}: армия не создалась (Army==null) — влияние вернул");
                     ActionFeedback.PostFailed(actionId, "army_creation_failed"); return;
                 }
 
-                // Максимальная стартовая cohesion — чтобы армия жила дольше.
+                // Влияние клана возвращаем как было (платили криптиками) + max cohesion.
+                try { clan.Influence = influenceBefore; } catch { }
                 try { mp.Army.Cohesion = 100f; } catch { }
 
                 BannerlordLinkModule.Log(
                     $"[army_create OK] @{username} армия собрана у '{gather.Name}' " +
-                    $"(тип Patrolling, партий={mp.Army.Parties?.Count ?? 1})");
+                    $"(созвано партий={callCount}, в армии сейчас={mp.Army.Parties?.Count ?? 1}; " +
+                    $"остальные подойдут к точке сбора)");
             }
             catch (Exception ex)
             {

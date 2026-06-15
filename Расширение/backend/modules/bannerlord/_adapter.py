@@ -500,6 +500,10 @@ class BannerlordAdapter(ModuleAdapter):
             await self._on_restore_profile(channel_id, env)
             return
 
+        if et == "hero.restore_clan_upgrades":
+            await self._on_restore_clan_upgrades(channel_id, env)
+            return
+
         if et == "module.heroes_snapshot":
             await self._on_heroes_snapshot(channel_id, env)
             return
@@ -1595,6 +1599,38 @@ class BannerlordAdapter(ModuleAdapter):
             await conn.commit()
         print(f"[bannerlord:{channel_id}] @{username} profile restored "
               f"(class={class_key}, stance={stance}, gear_tier={gear_tier}, retinue={n_ret})")
+
+    async def _on_restore_clan_upgrades(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """2026-06-15 — мод на загрузке сейва восстанавливает owned clan-upgrades
+        ЭТОГО сейва (из SyncData) после вайпа. MERGE через INSERT OR IGNORE — НЕ
+        удаляет более новые покупки (на смене сейва бэк уже пуст после вайпа; на
+        reload того же сейва — no-op). env.data: {owned: {username: [upgrade_id]}}.
+        gold_paid восстановить неоткуда → 0 (это только accounting; эффект тика
+        зависит только от upgrade_id)."""
+        data = env.data or {}
+        owned = data.get("owned") or {}
+        if not isinstance(owned, dict) or not owned:
+            return
+        from dependencies import get_db
+        n = 0
+        async with get_db()._connect() as conn:
+            for username, ids in owned.items():
+                uname = (username or "").lower()
+                if not uname or not isinstance(ids, list):
+                    continue
+                for uid in ids:
+                    if not uid:
+                        continue
+                    try:
+                        await conn.execute(
+                            "INSERT OR IGNORE INTO bannerlord_clan_upgrades_owned "
+                            "(channel_id, username, upgrade_id, gold_paid) VALUES (?, ?, ?, 0)",
+                            (channel_id, uname, str(uid)))
+                        n += 1
+                    except Exception as _ex:
+                        print(f"[bannerlord:{channel_id}] restore_clan_upgrades skip @{uname}/{uid}: {_ex}")
+            await conn.commit()
+        print(f"[bannerlord:{channel_id}] clan_upgrades restored: {n} row(s), {len(owned)} owner(s)")
 
     # ── Sprint 5.8: Focus / Attribute changes ─────────────────────────────────
 

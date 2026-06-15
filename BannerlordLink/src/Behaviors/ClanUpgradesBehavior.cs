@@ -47,6 +47,10 @@ namespace BannerlordLink.Behaviors
         private volatile Dictionary<string, Dictionary<string, double>> _effectsByUpgrade
             = new Dictionary<string, Dictionary<string, double>>();
         private bool _fetchedThisTick;
+        // 2026-06-15 — per-save persistence owned-апгрейдов (SyncData в файле сейва).
+        // FetchUpgradesAsync зеркалит сюда последний НЕ-пустой owned-список; на
+        // загрузке RestoreOwnedFromSave ре-пушит его на backend (после вайпа сейва).
+        private volatile string _ownedJson = "";
 
         /// <summary>
         /// Суммарный эффект effectKey для конкретного hero. Возвращает 0 если
@@ -90,10 +94,54 @@ namespace BannerlordLink.Behaviors
             CampaignEvents.OnSessionLaunchedEvent.AddNonSerializedListener(this, OnSessionLaunched);
         }
 
-        public override void SyncData(IDataStore dataStore) { /* stateless */ }
+        public override void SyncData(IDataStore dataStore)
+        {
+            try
+            {
+                string s = _ownedJson;
+                dataStore.SyncData("BannerlordLink_ClanUpgrades_v1", ref s);
+                _ownedJson = s ?? "";
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[ClanUpgrades] SyncData warn: {ex.Message}");
+            }
+        }
 
-        private void OnGameLoaded() => _ = FetchUpgradesAsync();
-        private void OnSessionLaunched(CampaignGameStarter starter) => _ = FetchUpgradesAsync();
+        private void OnGameLoaded() => _ = OnEnterCampaignAsync();
+        private void OnSessionLaunched(CampaignGameStarter starter) => _ = OnEnterCampaignAsync();
+
+        // 2026-06-15 — на входе в кампанию: восстанавливаем owned-апгрейды ЭТОГО
+        // сейва из SyncData → backend (после вайпа на смене сейва), затем фетчим
+        // ТОЛЬКО catalog. Owned из backend на загрузке НЕ берём — он post-wipe пустой
+        // и затёр бы restore; новые покупки подхватит дневной тик (fetchOwned=true).
+        private async Task OnEnterCampaignAsync()
+        {
+            RestoreOwnedFromSave();
+            await FetchUpgradesAsync(fetchOwned: false);
+        }
+
+        private void RestoreOwnedFromSave()
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(_ownedJson)) return;
+                var owned = JsonConvert.DeserializeObject<Dictionary<string, List<string>>>(_ownedJson);
+                if (owned == null || owned.Count == 0) return;
+                lock (_cacheLock) { _ownedByUser = owned; }   // tick работает сразу
+                string json = JsonConvert.SerializeObject(new { owned });
+                Task.Run(async () =>
+                {
+                    try { await BannerlordLinkModule.Backend.PostEventAsync("bannerlord", "hero.restore_clan_upgrades", json); }
+                    catch (Exception ex) { BannerlordLinkModule.Log($"[ClanUpgrades] restore push failed: {ex.Message}"); }
+                });
+                BannerlordLinkModule.Log($"[ClanUpgrades] save-load: restored {owned.Count} owner(s) to backend");
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[ClanUpgrades] restore parse warn: {ex.Message}");
+            }
+        }
 
         private void OnDailyTick()
         {
@@ -102,7 +150,7 @@ namespace BannerlordLink.Behaviors
             _ = ApplyDailyTickAsync();
         }
 
-        private async Task FetchUpgradesAsync()
+        private async Task FetchUpgradesAsync(bool fetchOwned = true)
         {
             try
             {
@@ -152,8 +200,14 @@ namespace BannerlordLink.Behaviors
                 // но не половинку. volatile field assignment → нет need в memory barrier.
                 lock (_cacheLock)
                 {
-                    _ownedByUser = newOwned;
+                    if (fetchOwned) _ownedByUser = newOwned;
                     _effectsByUpgrade = newEffects;
+                    // Зеркалим owned в SyncData-поле — но только НЕ-пустой: post-wipe
+                    // пустой фетч не должен затирать сохранённый per-save список.
+                    if (fetchOwned && newOwned.Count > 0)
+                    {
+                        try { _ownedJson = JsonConvert.SerializeObject(newOwned); } catch { }
+                    }
                 }
 
                 _fetchedThisTick = true;

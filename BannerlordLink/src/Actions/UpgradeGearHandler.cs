@@ -188,6 +188,9 @@ namespace BannerlordLink.Actions
                 Task.Run(async () => await BannerlordLinkModule.Backend
                     .PostEventAsync("bannerlord", "hero.gear_tier_changed", evtData));
 
+                // 2026-06-15 — per-save профиль (восстановится на backend при загрузке сейва).
+                BannerlordLink.Behaviors.HeroProfileBehavior.Instance?.SetGearTier(username, targetTier);
+
                 // Full state sync — gold/level/etc. UI refresh.
                 HeroStateSync.Push(hero);
                 // Push equipment snapshot — 11 slots → backend bannerlord_equipment.

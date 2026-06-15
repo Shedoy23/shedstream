@@ -96,6 +96,7 @@ extensions:
     - hero.caravan_destroyed     # Sprint 5.33 (BLT-parity CARAVAN): MobilePartyDestroyed event
     - hero.party_order_status    # Sprint 5.33 PORDER: sticky order set/release/expire/complete
     - hero.properties_snapshot   # 2026-06-02 PROPERTIES-MIRROR: mod пушит полный snapshot fiefs/workshops/caravans → backend зеркалит (reconcile). БЕЗ этой строки бэк реджектил event_not_in_manifest → зеркало было мёртвым (поймано автотестом).
+    - hero.restore_profile       # 2026-06-15: на загрузке сейва мод ре-пушит per-save backend-only стейт (class/stance/gear_tier из SyncData). БЕЗ этой строки бэк реджектит event_not_in_manifest → класс не восстанавливается (тот же грабль, что properties_snapshot выше).
     # world.settlements_catalog объявлен в base events (наверху, поэтому без префикса hero.)
   actions:
     - hero.create        # Adoption flow — spawn fresh wanderer + SetName(viewer)

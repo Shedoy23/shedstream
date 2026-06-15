@@ -496,6 +496,10 @@ class BannerlordAdapter(ModuleAdapter):
             await self._on_gear_tier_changed(channel_id, env)
             return
 
+        if et == "hero.restore_profile":
+            await self._on_restore_profile(channel_id, env)
+            return
+
         if et == "module.heroes_snapshot":
             await self._on_heroes_snapshot(channel_id, env)
             return
@@ -1523,6 +1527,74 @@ class BannerlordAdapter(ModuleAdapter):
             await conn.commit()
         await self._log_event(channel_id, "hero.gear_tier_changed", username, data)
         print(f"[bannerlord:{channel_id}] @{username} gear_tier → T{new_tier}")
+
+    async def _on_restore_profile(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """2026-06-15 — мод восстанавливает per-save backend-only стейт героя при
+        ЗАГРУЗКЕ сейва (class_key / combat_stance / gear_tier / retinue — из SyncData
+        сейва). Перезаписывает backend, чтобы фронт показывал класс/стойку/тир/свиту
+        ИМЕННО загруженного сейва, а не другого playthrough на этом канале. Поля
+        опциональны — пишем присутствующие.
+        """
+        data = env.data or {}
+        username = (data.get("username") or "").lower()
+        if not username:
+            return
+        class_key = data.get("class_key")
+        stance = data.get("stance")
+        gear_tier = data.get("gear_tier")
+        retinue = data.get("retinue")
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            # class — UPSERT (class_level не трогаем; FK на bannerlord_classes —
+            # на всякий случай в try, чтобы битый class_key не ронял весь restore).
+            if class_key:
+                try:
+                    await conn.execute("""
+                        INSERT INTO bannerlord_hero_class (channel_id, username, class_key, class_level)
+                        VALUES (?, ?, ?, 1)
+                        ON CONFLICT(channel_id, username) DO UPDATE SET class_key=excluded.class_key
+                    """, (channel_id, username, class_key))
+                except Exception as _ex:
+                    print(f"[bannerlord:{channel_id}] restore_profile class skip @{username}: {_ex}")
+            # stance + gear_tier — колонки bannerlord_heroes.
+            sets, params = [], []
+            if stance in ("defensive", "balanced", "aggressive"):
+                sets.append("combat_stance = ?")
+                params.append(stance)
+            if isinstance(gear_tier, int) and 0 <= gear_tier <= 6:
+                sets.append("gear_tier = ?")
+                params.append(gear_tier)
+            if sets:
+                params += [channel_id, username]
+                await conn.execute(
+                    f"UPDATE bannerlord_heroes SET {', '.join(sets)}, last_sync=CURRENT_TIMESTAMP "
+                    f"WHERE channel_id=? AND username=?", params)
+            # retinue — полный список из сейва → пересобираем bannerlord_retinue
+            # (на смене сейва таблица wipe'нута session_start'ом; здесь восстанавливаем
+            # свиту ИМЕННО этого сейва). Только если список реально пришёл.
+            n_ret = -1
+            if isinstance(retinue, list):
+                await conn.execute(
+                    "DELETE FROM bannerlord_retinue WHERE channel_id=? AND username=?",
+                    (channel_id, username))
+                n_ret = 0
+                for slot in retinue:
+                    if not isinstance(slot, dict):
+                        continue
+                    try:
+                        await conn.execute("""
+                            INSERT INTO bannerlord_retinue
+                                (channel_id, username, slot_index, troop_id, troop_name, tier, is_elite)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, (channel_id, username, slot.get("slot_index"),
+                              slot.get("troop_id"), slot.get("troop_name"),
+                              slot.get("tier"), 1 if slot.get("is_elite") else 0))
+                        n_ret += 1
+                    except Exception as _ex:
+                        print(f"[bannerlord:{channel_id}] restore_profile retinue slot skip @{username}: {_ex}")
+            await conn.commit()
+        print(f"[bannerlord:{channel_id}] @{username} profile restored "
+              f"(class={class_key}, stance={stance}, gear_tier={gear_tier}, retinue={n_ret})")
 
     # ── Sprint 5.8: Focus / Attribute changes ─────────────────────────────────
 

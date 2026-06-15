@@ -36,6 +36,8 @@ namespace BannerlordLink.Actions
                 return Task.FromResult<(bool, string)>((false, "bad stance"));
 
             PowerCache.UpdateHeroStance(username, stance);
+            // 2026-06-15 — per-save профиль (восстановится на backend при загрузке сейва).
+            BannerlordLink.Behaviors.HeroProfileBehavior.Instance?.SetStance(username, stance);
 
             // Эхо в backend (минимальный state_update — не трогает прочие поля).
             string json = JsonConvert.SerializeObject(new

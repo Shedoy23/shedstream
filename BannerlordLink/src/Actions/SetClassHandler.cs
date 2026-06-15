@@ -121,6 +121,11 @@ namespace BannerlordLink.Actions
                 }
                 var cfg = _classes[classKey];
 
+                // 2026-06-15 — пишем class_key в per-save профиль (SyncData), чтобы на
+                // загрузке этого сейва он восстановился на backend (а не показывался
+                // класс другого playthrough).
+                BannerlordLink.Behaviors.HeroProfileBehavior.Instance?.SetClass(username, classKey);
+
                 // Sprint 5.10c: engine tier = user-tier - 1 (0..5). Tier=0
                 // (user "базовое") → engine tier 0 (cheapest items).
                 int engineTier = Math.Max(0, gearTier - 1);

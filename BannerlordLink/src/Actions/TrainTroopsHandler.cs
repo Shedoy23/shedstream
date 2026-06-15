@@ -154,6 +154,24 @@ namespace BannerlordLink.Actions
                         .PostEventAsync("bannerlord", "hero.retinue_changed", json));
                 }
 
+                // 2026-06-15 — per-save профиль свиты (SyncData): итоговый список
+                // (slots с применёнными апгрейдами) → восстановится на загрузке.
+                try
+                {
+                    var resultSlots = new List<(int, string, int, bool)>();
+                    foreach (var s in slots)
+                    {
+                        var p = planned.FirstOrDefault(x => x.slot == s.slot);
+                        if (p.target != null)
+                            resultSlots.Add((s.slot, p.target.StringId, p.newTier, p.isElite));
+                        else
+                            resultSlots.Add((s.slot, s.troopId, s.tier, s.isElite));
+                    }
+                    BannerlordLink.Behaviors.HeroProfileBehavior.Instance?.SetRetinue(
+                        username, BannerlordLink.Behaviors.HeroProfileBehavior.BuildRetinueJson(resultSlots));
+                }
+                catch { }
+
                 BannerlordLinkModule.Log(
                     $"[train_troops] @{username}: trained {planned.Count} slot(s) " +
                     $"(-{totalCost} dinars, gold={hero.Gold})");

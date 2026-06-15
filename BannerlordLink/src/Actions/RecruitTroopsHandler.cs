@@ -269,6 +269,26 @@ namespace BannerlordLink.Actions
                 Task.Run(async () => await BannerlordLinkModule.Backend
                     .PostEventAsync("bannerlord", "hero.retinue_changed", json));
 
+                // 2026-06-15 — per-save профиль свиты (SyncData): строим ИТОГОВЫЙ
+                // список слотов (existing + это изменение) → восстановится на
+                // загрузке сейва, как класс/стойка/тир.
+                try
+                {
+                    var resultSlots = new List<(int, string, int, bool)>();
+                    foreach (var s in existing)
+                    {
+                        if (!addNew && s.slot == updatedSlot)
+                            resultSlots.Add((updatedSlot, newTroop.StringId, newTier, wantElite));
+                        else
+                            resultSlots.Add((s.slot, s.troopId, s.tier, s.isElite));
+                    }
+                    if (addNew)
+                        resultSlots.Add((updatedSlot, newTroop.StringId, newTier, wantElite));
+                    BannerlordLink.Behaviors.HeroProfileBehavior.Instance?.SetRetinue(
+                        username, BannerlordLink.Behaviors.HeroProfileBehavior.BuildRetinueJson(resultSlots));
+                }
+                catch { }
+
                 // Full state sync — gold updated
                 HeroStateSync.Push(hero);
             }

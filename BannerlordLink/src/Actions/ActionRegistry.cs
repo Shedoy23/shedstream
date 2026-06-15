@@ -58,6 +58,7 @@ namespace BannerlordLink.Actions
             Register(new DivorceHandler());          // hero.divorce — Sprint 5.27b (free divorce)
             Register(new MakeBabyHandler());         // hero.make_baby — Sprint 5.27c (pregnancy)
             Register(new EquipTrophyHandler());      // hero.equip_trophy — Sprint 5.29 BLT-parity #6 phase A
+            Register(new ReforgeQualityHandler());   // hero.reforge_quality — 2026-06-15 «Кузница»: перековка качества надетого предмета
             Register(new ActivateHeirHandler());     // hero.activate_heir — Sprint 5.32 BLT-parity M2.1
             // Sprint 5.32 (BLT-parity Detachment) — 6 viewer commands управления agent'ом in-Mission
             Register(new DetachHandler());           // hero.detach

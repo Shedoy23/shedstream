@@ -1113,6 +1113,12 @@ const BNR_REFUSE_REASON_RU = {
     no_campaign:            'Действие сейчас недоступно',
     no_inventory:           'Нет инвентаря',
     no_matching_item:       'Подходящий предмет не найден',
+    // 2026-06-15 «Кузница» (перековка качества) — отказы ReforgeQualityHandler.
+    already_best:           'Предмет уже наилучшего качества — крустики возвращены',
+    slot_empty:             'В этом слоте ничего не надето',
+    no_quality_group:       'У этого предмета нельзя улучшить качество',
+    no_modifier:            'У этого предмета нет вариантов улучшения качества',
+    unknown_slot:           'Неизвестный слот',
 };
 function _bnrRefuseReasonRu(reason) {
     if (!reason || reason === 'unspecified') return 'Сейчас недоступно';

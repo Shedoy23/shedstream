@@ -878,6 +878,7 @@ _PURCHASABLE_ACTIONS = (
     "hero.make_baby",            # Sprint 5.27c: pregnancy (100K)
     "hero.smith_item",           # Sprint 5.29 BLT-parity #6: trophy crafting
     "hero.equip_trophy",         # Sprint 5.29 BLT-parity #6 phase A: equip into hero inventory
+    "hero.reforge_quality",      # 2026-06-15 «Кузница»: перековка качества надетого предмета (mod)
     # Sprint 5.32 (BLT-parity Detachment) — viewer командует своим hero-agent'ом
     # in-Mission. Detach → hold/charge/walls/gate. Возвращение через attach.
     # Pattern из Randomchair22-fork BLT (BLTHeroDetachmentBehavior, апрель 2026).
@@ -1151,12 +1152,12 @@ async def bannerlord_my_hero(request: Request):
 
         # Equipment + M21 stats
         cur = await conn.execute(
-            "SELECT slot, item_id, item_name, tier, item_value, weight, stats_json "
+            "SELECT slot, item_id, item_name, tier, item_value, weight, stats_json, quality "
             "FROM bannerlord_equipment WHERE channel_id=? AND username=?",
             (channel_id, username))
         equipment = {}
         for r in await cur.fetchall():
-            slot_name, item_id, item_name, tier, item_value, weight, stats_json = r
+            slot_name, item_id, item_name, tier, item_value, weight, stats_json, quality = r
             stats = None
             if stats_json:
                 try:
@@ -1170,6 +1171,7 @@ async def bannerlord_my_hero(request: Request):
                 "item_value": item_value,     # base game price
                 "weight":     weight,
                 "stats":      stats,          # dict с per-type stats
+                "quality":    quality,        # M77: poor..legendary | None (без модификатора)
             }
 
         # Retinue (M23) — BLT-style свита, sorted by slot_index
@@ -2091,6 +2093,7 @@ def _enforce_price(action_type, data, username, channel_id):
         # 2026-06-14: убран отсюда (был flat 50 — плющил все активки в одну цену).
         "hero.smith_item":       500,    # Sprint 5.29 BLT-parity #6 — trophy crafting
         "hero.equip_trophy":      0,    # Sprint 5.29 BLT-parity #6 phase A — free (viewer уже заплатил smith)
+        "hero.reforge_quality": 20000,    # 2026-06-15 «Кузница»: перековка качества надетого (дорого, ендгейм)
         "hero.set_combat_stance": 0,    # 2026-06-10: боевая стойка — бесплатно, мгновенно
         # Sprint 5.32 BUGFIX — player.give_item / hero.add_skill убраны
         # отсюда (перенесены в _ACTIONS_WITH_OWN_PRICING выше).

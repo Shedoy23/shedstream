@@ -1116,6 +1116,13 @@ async def run_migrations():
             print(f"❌ M76 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m77_equipment_quality
+            await m77_equipment_quality.apply(conn)
+        except Exception as e:
+            print(f"❌ M77 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

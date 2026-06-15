@@ -2819,6 +2819,31 @@ function renderBannerlordRandomEquipHtml() {
 
 // Sprint M21 — рендер одного слота экипировки с stats badges.
 // it = {item_id, item_name, tier (0-5), item_value, weight, stats (dict)}
+// 2026-06-15 «Кузница» (M77) — бейдж качества предмета (ItemModifier quality).
+// it.quality приходит из /my-hero equipment: poor/inferior/common/fine/
+// masterwork/legendary | null. common и null → без бейджа (базовое качество).
+const _BNR_QUALITY = {
+    legendary:  { label: 'Легендарное', color: '#fbbf24', icon: '✦' },
+    masterwork: { label: 'Шикарное',    color: '#c084fc', icon: '★' },
+    fine:       { label: 'Хорошее',     color: '#60a5fa', icon: '◆' },
+    inferior:   { label: 'Низкое',      color: '#9ca3af', icon: '▽' },
+    poor:       { label: 'Сломанное',   color: '#f87171', icon: '▽' },
+};
+function _bnrQualityBadge(quality) {
+    const q = _BNR_QUALITY[(quality || '').toLowerCase()];
+    if (!q) return '';
+    return `<span title="Качество: ${q.label}" style="color:${q.color};font-weight:700;` +
+           `margin-left:5px;font-size:10px;white-space:nowrap;">${q.icon} ${q.label}</span>`;
+}
+// 2026-06-15 «Кузница» — перековка поднимает качество на ОДНУ ступень. Следующая
+// цель для текущего качества (null = уже Легендарное, потолок). Базовое/none → Хорошее.
+function _bnrNextQuality(quality) {
+    const q = (quality || '').toLowerCase();
+    if (q === 'fine')       return { label: 'Шикарное',    color: '#c084fc', icon: '★' };
+    if (q === 'masterwork') return { label: 'Легендарное', color: '#fbbf24', icon: '✦' };
+    if (q === 'legendary')  return null;   // уже потолок
+    return { label: 'Хорошее', color: '#60a5fa', icon: '◆' };   // common/none/poor/inferior → Fine
+}
 function _renderEquipRow(slot, it, slotIcons) {
     if (!it || !it.item_id) {
         return `<div style="font-size:11px;padding:1px 0;color:#6b7280;">
@@ -2867,7 +2892,7 @@ function _renderEquipRow(slot, it, slotIcons) {
 
     return `<div style="font-size:11px;padding:2px 0;border-bottom:1px solid #2d2d2f;">
         <div style="display:flex;justify-content:space-between;">
-            <span><span style="color:#adadb8;">${slotIcons[slot] || '·'}</span> ${name}${tierBadge}</span>
+            <span><span style="color:#adadb8;">${slotIcons[slot] || '·'}</span> ${name}${tierBadge}${_bnrQualityBadge(it.quality)}</span>
         </div>
         ${statsHtml ? `<div style="font-size:10px;color:#9ca3af;padding-left:14px;margin-top:1px;">${statsHtml}</div>` : ''}
     </div>`;
@@ -3298,6 +3323,10 @@ async function _renderClanUpgradesInline() {
 // Sprint 5.29 BLT-parity #6 — Smithing forge modal (trophy collection).
 // MVP: backend-only trophies, no in-game ItemObject yet. Future iteration
 // добавит actual Bannerlord equipment integration + auction.
+// 2026-06-15 — «Кузница»: ПЕРЕКОВКА КАЧЕСТВА (hero.reforge_quality). Зритель жмёт
+// слот → НАДЕТЫЙ там предмет получает лучшее качество (Masterwork/Legendary). Не
+// создаёт новых предметов — апается качество реальной экипировки. Заменила фейковую
+// трофей-систему (smith_item/equip_trophy — трофей жил в БД + подбор похожего → «не работало»).
 async function _renderForgeInline() {
     const slot = document.getElementById('bnr-forge-slot');
     if (!slot) return;
@@ -3305,133 +3334,67 @@ async function _renderForgeInline() {
         slot.innerHTML = '<div style="font-size:11px;color:#adadb8;padding:6px;">Войдите через Twitch</div>';
         return;
     }
-    slot.innerHTML = '<div style="font-size:11px;color:#adadb8;padding:6px;">⏳ Загрузка…</div>';
-    let data;
-    try {
-        const r = await fetch(`${API_URL}/api/bannerlord/custom-items`, {
-            headers: { 'X-Twitch-JWT': authToken || '' },
-        });
-        data = await r.json();
-        if (!data.success) {
-            slot.innerHTML = `<div style="font-size:11px;color:#f87171;padding:6px;">${escapeHtml(data.message || 'Не удалось загрузить')}</div>`;
-            return;
-        }
-    } catch (e) {
-        slot.innerHTML = '<div style="font-size:11px;color:#f87171;padding:6px;">Ошибка сети</div>';
-        return;
-    }
-    const items = data.items || [];
-    const slotsUsed = items.length;
-    const slotsMax = data.max_slots || 50;
-    const itemsHtml = items.length === 0
-        ? '<div style="color:#adadb8;text-align:center;padding:14px;font-size:12px;">Пустая кузница. Скуй первый трофей!</div>'
-        : items.map(it => {
-            // Sprint 5.33 (BLT-parity ITEM) — rolled stats display.
-            const statParts = [];
-            if (it.damage_bonus > 0) statParts.push(`⚔ +${it.damage_bonus}`);
-            if (it.armor_bonus > 0)  statParts.push(`🛡 +${it.armor_bonus}`);
-            if (it.weight_factor && Math.abs(it.weight_factor - 1.0) > 0.001) {
-                const pct = ((it.weight_factor - 1.0) * 100).toFixed(0);
-                statParts.push(`⚖ ${pct >= 0 ? '+' : ''}${pct}%`);
-            }
-            if (it.speed_factor && Math.abs(it.speed_factor - 1.0) > 0.001) {
-                const pct = ((it.speed_factor - 1.0) * 100).toFixed(0);
-                statParts.push(`💨 +${pct}%`);
-            }
-            const statsLine = statParts.length
-                ? `<div style="font-size:10px;color:#fbbf24;margin-top:2px;">${statParts.join(' · ')}</div>`
-                : '';
-            // Phase B — источник предмета + состояние "получен в игре".
-            const srcBadge = it.source === 'tournament'
-                ? '<span style="color:#fbbf24;"> · 🏆 турнир</span>'
-                : '<span style="color:#9ca3af;"> · 🔨 кузница</span>';
-            const claimedBadge = it.claimed
-                ? '<span style="color:#34d399;"> · ✓ в игре</span>' : '';
-            const equipBtn = it.claimed
-                ? '<span title="Уже в инвентаре героя" style="font-size:12px;padding:3px 8px;color:#6b7280;">✓</span>'
-                : `<button class="extra-btn bnr-equip-trophy" data-item-id="${it.id}"
-                        title="Получить в игре — реальный предмет в инвентарь героя + бонус в бою"
-                        style="font-size:10px;padding:3px 8px;color:#34d399;">📥</button>`;
-            return `
-            <div style="display:flex;align-items:center;gap:8px;
-                        background:rgba(58,58,62,0.3);border:1px solid ${it.color};
-                        border-radius:6px;padding:6px 10px;margin-bottom:4px;
-                        ${it.claimed ? 'opacity:0.7;' : ''}">
-                <div style="font-size:18px;">${escapeHtml(it.icon || '')}</div>
-                <div style="flex:1;min-width:0;">
-                    <div style="font-size:12px;color:${it.color};font-weight:700;
-                                overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                        ${escapeHtml(it.custom_name)}
-                    </div>
-                    <div style="font-size:10px;color:#adadb8;">
-                        ${escapeHtml(it.base_type)} / ${it.rarity} / T${it.tier}${srcBadge}${claimedBadge}
-                    </div>
-                    ${statsLine}
-                </div>
-                ${equipBtn}
-                <button class="extra-btn bnr-discard-item" data-item-id="${it.id}"
-                        title="Дискарди (удалить безвозвратно)"
-                        style="font-size:10px;padding:3px 8px;color:#f87171;">
-                    ✗
-                </button>
-            </div>
-        `;}).join('');
-    const SMITH_PRICE = 500;   // mirror ACTION_PRICES_DEFAULT
-    const body = `
-        <div style="margin-bottom:10px;font-size:11px;color:#adadb8;text-align:center;">
-            Куй случайные трофеи — оружие / броню / коня. Rarity рандом
-            (common 60% → legendary 1%). Трофеи копятся в инвентаре.
-            Слотов: <b>${slotsUsed}/${slotsMax}</b>.
+    const REFORGE_PRICE = 20000;   // mirror ACTION_PRICES_DEFAULT hero.reforge_quality
+    // 2026-06-15 — перековка КАЧЕСТВА надетого предмета. Показываем РЕАЛЬНУЮ
+    // экипировку (из /my-hero), зритель выбирает свой предмет → он получает
+    // лучший доступный модификатор (Masterwork/Legendary). НЕ крафтит новых
+    // предметов — апает качество существующего, поэтому база (тир) не обесценивается.
+    const eq = _bannerlordLastHero?.equipment || {};
+    // slot → подпись + эмодзи (порядок как в Экипировке).
+    const SLOTS = [
+        { s: 'weapon0', emoji: '🗡', label: 'Оружие 1' },
+        { s: 'weapon1', emoji: '⚔', label: 'Оружие 2' },
+        { s: 'weapon2', emoji: '🏹', label: 'Оружие 3' },
+        { s: 'weapon3', emoji: '🛡', label: 'Оружие 4' },
+        { s: 'head',    emoji: '🪖', label: 'Шлем' },
+        { s: 'body',    emoji: '👕', label: 'Торс' },
+        { s: 'leg',     emoji: '👖', label: 'Ноги' },
+        { s: 'gloves',  emoji: '🧤', label: 'Руки' },
+        { s: 'cape',    emoji: '🧥', label: 'Плащ' },
+        { s: 'horse',   emoji: '🐎', label: 'Конь' },
+    ];
+    const rows = SLOTS.map(x => {
+        const it = eq[x.s];
+        const has = it && it.item_id;
+        const nameHtml = has
+            ? escapeHtml(it.item_name || it.item_id)
+            : '<em style="color:#6b7280;">пусто</em>';
+        const tierBadge = (has && it.tier != null && it.tier >= 0)
+            ? `<span style="color:#fbbf24;font-weight:700;margin-left:4px;">T${it.tier + 1}★</span>`
+            : '';
+        const qBadge = has ? _bnrQualityBadge(it.quality) : '';
+        const nextQ = has ? _bnrNextQuality(it.quality) : null;
+        const btn = !has
+            ? '<span style="font-size:10px;color:#6b7280;flex:0 0 auto;">—</span>'
+            : !nextQ
+            ? '<span title="Уже максимальное качество (Легендарное)" style="font-size:10px;color:#fbbf24;font-weight:700;flex:0 0 auto;white-space:nowrap;">✦ макс</span>'
+            : `<button class="extra-btn bnr-reforge-btn" data-slot="${x.s}"
+                    title="Поднять «${escapeHtml(it.item_name || it.item_id)}» на одну ступень → ${nextQ.label} за ${REFORGE_PRICE}💎. На потолке → крустики вернутся."
+                    style="font-size:11px;padding:5px 10px;background:#2a1a0a;color:${nextQ.color};font-weight:700;white-space:nowrap;flex:0 0 auto;">
+                ⚒ → ${nextQ.icon} ${nextQ.label}
+            </button>`;
+        return `
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;
+                        padding:6px 2px;border-bottom:1px solid #2d2d2f;">
+                <span style="font-size:12px;color:#efeff1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                    <span style="color:#adadb8;">${x.emoji}</span> ${nameHtml}${tierBadge}${qBadge}
+                </span>
+                ${btn}
+            </div>`;
+    }).join('');
+    slot.innerHTML = `
+        <div style="margin-bottom:10px;font-size:11px;color:#adadb8;line-height:1.5;">
+            🔨 Поднимай качество надетой экипировки по ступеням:
+            <b style="color:#60a5fa;">◆ Хорошее</b> → <b style="color:#c084fc;">★ Шикарное</b> →
+            <b style="color:#fbbf24;">✦ Легендарное</b> (буст урона/брони/скорости). Каждое нажатие —
+            <b>+1 ступень</b> за <b style="color:#fbbf24;">${REFORGE_PRICE.toLocaleString('ru-RU')}💎</b>.
+            База (тир) остаётся твоя, апается только качество.
+            <br><span style="font-size:10px;color:#6b7280;">На потолке (Легендарное) → крустики возвращаются. Доступно вне боя.</span>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;">
-            <button class="extra-btn bnr-smith-btn" data-base="weapon"
-                    style="font-size:12px;padding:8px;background:#3a1a1a;color:#fbbf24;">
-                ⚔ Оружие<br><span style="font-size:10px;">${SMITH_PRICE}💎</span>
-            </button>
-            <button class="extra-btn bnr-smith-btn" data-base="armor"
-                    style="font-size:12px;padding:8px;background:#1a2a3a;color:#93c5fd;">
-                🛡 Броня<br><span style="font-size:10px;">${SMITH_PRICE}💎</span>
-            </button>
-            <button class="extra-btn bnr-smith-btn" data-base="horse"
-                    style="font-size:12px;padding:8px;background:#1a3a1a;color:#86efac;">
-                🐎 Конь<br><span style="font-size:10px;">${SMITH_PRICE}💎</span>
-            </button>
-        </div>
-        <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">Инвентарь:</div>
-        <div style="max-height:340px;overflow-y:auto;">${itemsHtml}</div>
-    `;
-    slot.innerHTML = body;
-    slot.querySelectorAll('.bnr-smith-btn').forEach(btn => {
-        btn.dataset.bnrCd = 'hero.smith_item';
+        ${rows}`;
+    slot.querySelectorAll('.bnr-reforge-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            _bannerlordBuyAction('hero.smith_item', { base_type: btn.dataset.base });
-            setTimeout(_renderForgeInline, 1200);   // показать новый трофей
-        });
-    });
-    slot.querySelectorAll('.bnr-equip-trophy').forEach(btn => {
-        btn.dataset.bnrCd = 'hero.equip_trophy';
-        btn.addEventListener('click', () => {
-            _bannerlordBuyAction('hero.equip_trophy', { custom_item_id: parseInt(btn.dataset.itemId, 10) });
-            setTimeout(_renderForgeInline, 1200);
-        });
-    });
-    slot.querySelectorAll('.bnr-discard-item').forEach(btn => {
-        btn.addEventListener('click', async () => {
-            const id = parseInt(btn.dataset.itemId, 10);
-            if (!await _bnrConfirm('Дискарди трофей? Безвозвратно.', '🗑 Уничтожить')) return;
-            try {
-                const r = await fetch(`${API_URL}/api/bannerlord/custom-items/discard`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || '' },
-                    body: JSON.stringify({ item_id: id }),
-                });
-                const res = await r.json();
-                showNotification(res.message || (res.success ? 'OK' : 'Не удалось'),
-                    res.success ? 'success' : 'error');
-                if (res.success) setTimeout(_renderForgeInline, 200);
-            } catch (e) {
-                showNotification('Ошибка сети', 'error');
-            }
+            _bannerlordBuyAction('hero.reforge_quality', { slot: btn.dataset.slot });
         });
     });
 }

@@ -1227,6 +1227,9 @@ class BannerlordAdapter(ModuleAdapter):
         weight = data.get("weight")          # float or None
         stats = data.get("stats")            # dict or None
         stats_json = json.dumps(stats, ensure_ascii=False) if stats is not None else None
+        # M77 (2026-06-15 «Кузница»): качество ItemModifier'а — poor/inferior/
+        # common/fine/masterwork/legendary, либо None (без модификатора).
+        quality = data.get("quality")        # str or None
 
         from dependencies import get_db
         async with get_db()._connect() as conn:
@@ -1234,17 +1237,18 @@ class BannerlordAdapter(ModuleAdapter):
                 await conn.execute("""
                     INSERT INTO bannerlord_equipment
                         (channel_id, username, slot, item_id, item_name,
-                         tier, item_value, weight, stats_json)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         tier, item_value, weight, stats_json, quality)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(channel_id, username, slot) DO UPDATE SET
                         item_id    = excluded.item_id,
                         item_name  = excluded.item_name,
                         tier       = excluded.tier,
                         item_value = excluded.item_value,
                         weight     = excluded.weight,
-                        stats_json = excluded.stats_json
+                        stats_json = excluded.stats_json,
+                        quality    = excluded.quality
                 """, (channel_id, username, slot, item_id, item_name,
-                      tier, item_value, weight, stats_json))
+                      tier, item_value, weight, stats_json, quality))
             else:
                 # Unequipped — удаляем row
                 await conn.execute(

@@ -92,7 +92,7 @@ namespace BannerlordLink.Util
                     if (el.IsEmpty || el.Item == null)
                     {
                         PostEquipmentEvent(username, slotName, null, null,
-                            -1, 0, 0f, null);
+                            -1, 0, 0f, null, null);
                         continue;
                     }
 
@@ -100,11 +100,19 @@ namespace BannerlordLink.Util
                     int tier = (int)item.Tier;
                     int value = item.Value;
                     float weight = item.Weight;
-                    string statsJson = BuildStatsJson(item);
+                    // M77: статы С учётом модификатора (легендарка бустит броню/урон/
+                    // скорость) — иначе расширение показывало базовые цифры, не
+                    // совпадающие с тултипом в игре.
+                    string statsJson = BuildStatsJson(item, el.ItemModifier);
+                    // M77 «Кузница»: качество модификатора (poor..legendary). Без
+                    // модификатора → null (базовое качество, фронт не рисует бейдж).
+                    string quality = el.ItemModifier != null
+                        ? el.ItemModifier.ItemQuality.ToString().ToLowerInvariant()
+                        : null;
 
                     PostEquipmentEvent(username, slotName,
                         item.StringId, item.Name?.ToString() ?? item.StringId,
-                        tier, value, weight, statsJson);
+                        tier, value, weight, statsJson, quality);
                     filled++;
                 }
 
@@ -119,10 +127,12 @@ namespace BannerlordLink.Util
         }
 
         /// <summary>
-        /// Build stats JSON по типу item'а. Compact dict — backend
-        /// сохраняет как-is, frontend парсит и рендерит badges.
+        /// Build stats JSON по типу item'а. mod (nullable) — ItemModifier: легендарка/
+        /// мастерворк бустят броню/урон/скорость. Передаём, чтобы расширение показывало
+        /// те же цифры, что тултип в игре (а не базовые без модификатора). Compact dict —
+        /// backend сохраняет как-is, frontend парсит и рендерит badges.
         /// </summary>
-        private static string BuildStatsJson(ItemObject item)
+        private static string BuildStatsJson(ItemObject item, ItemModifier mod)
         {
             try
             {
@@ -134,27 +144,27 @@ namespace BannerlordLink.Util
                     case ItemObject.ItemTypeEnum.Bow:
                     case ItemObject.ItemTypeEnum.Crossbow:
                     case ItemObject.ItemTypeEnum.Thrown:
-                        return BuildWeaponStats(item);
+                        return BuildWeaponStats(item, mod);
 
                     case ItemObject.ItemTypeEnum.Arrows:
                     case ItemObject.ItemTypeEnum.Bolts:
-                        return BuildAmmoStats(item);
+                        return BuildAmmoStats(item, mod);
 
                     case ItemObject.ItemTypeEnum.Shield:
-                        return BuildShieldStats(item);
+                        return BuildShieldStats(item, mod);
 
                     case ItemObject.ItemTypeEnum.HeadArmor:
                     case ItemObject.ItemTypeEnum.BodyArmor:
                     case ItemObject.ItemTypeEnum.LegArmor:
                     case ItemObject.ItemTypeEnum.HandArmor:
                     case ItemObject.ItemTypeEnum.Cape:
-                        return BuildArmorStats(item);
+                        return BuildArmorStats(item, mod);
 
                     case ItemObject.ItemTypeEnum.Horse:
-                        return BuildHorseStats(item);
+                        return BuildHorseStats(item, mod);
 
                     case ItemObject.ItemTypeEnum.HorseHarness:
-                        return BuildArmorStats(item);  // harness тоже armor
+                        return BuildArmorStats(item, mod);  // harness тоже armor
 
                     default:
                         return "{}";
@@ -168,68 +178,80 @@ namespace BannerlordLink.Util
             }
         }
 
-        private static string BuildWeaponStats(ItemObject item)
+        // Null-safe применение модификатора к базовому стату (mod==null → база без изменений).
+        private static int ModDmg(ItemModifier m, int v)    => m != null ? m.ModifyDamage(v) : v;
+        private static int ModSpd(ItemModifier m, int v)    => m != null ? m.ModifySpeed(v) : v;
+        private static int ModMisSpd(ItemModifier m, int v) => m != null ? m.ModifyMissileSpeed(v) : v;
+        private static int ModArmor(ItemModifier m, int v)  => m != null ? m.ModifyArmor(v) : v;
+        private static int ModHp(ItemModifier m, int v)     => m != null ? m.ModifyHitPoints((short)v) : v;
+        private static int ModStack(ItemModifier m, int v)  => m != null ? m.ModifyStackCount((short)v) : v;
+
+        private static string BuildWeaponStats(ItemObject item, ItemModifier mod)
         {
             var w = item.PrimaryWeapon;
             if (w == null) return "{}";
             var sb = new StringBuilder("{");
-            sb.AppendFormat("\"swing_dmg\":{0},", w.SwingDamage);
-            sb.AppendFormat("\"swing_spd\":{0},", w.SwingSpeed);
+            sb.AppendFormat("\"swing_dmg\":{0},", ModDmg(mod, w.SwingDamage));
+            sb.AppendFormat("\"swing_spd\":{0},", ModSpd(mod, w.SwingSpeed));
             sb.AppendFormat("\"swing_type\":\"{0}\",", w.SwingDamageType);
-            sb.AppendFormat("\"thrust_dmg\":{0},", w.ThrustDamage);
-            sb.AppendFormat("\"thrust_spd\":{0},", w.ThrustSpeed);
+            sb.AppendFormat("\"thrust_dmg\":{0},", ModDmg(mod, w.ThrustDamage));
+            sb.AppendFormat("\"thrust_spd\":{0},", ModSpd(mod, w.ThrustSpeed));
             sb.AppendFormat("\"thrust_type\":\"{0}\",", w.ThrustDamageType);
             sb.AppendFormat("\"length\":{0},", w.WeaponLength);
             sb.AppendFormat("\"accuracy\":{0},", w.Accuracy);
-            sb.AppendFormat("\"missile_spd\":{0}", w.MissileSpeed);
+            sb.AppendFormat("\"missile_spd\":{0}", ModMisSpd(mod, w.MissileSpeed));
             sb.Append("}");
             return sb.ToString();
         }
 
-        private static string BuildAmmoStats(ItemObject item)
+        private static string BuildAmmoStats(ItemObject item, ItemModifier mod)
         {
             var w = item.PrimaryWeapon;
             if (w == null) return "{}";
             return string.Format(
                 "{{\"dmg\":{0},\"stack\":{1}}}",
-                w.MissileDamage, w.MaxDataValue);
+                ModDmg(mod, w.MissileDamage), ModStack(mod, w.MaxDataValue));
         }
 
-        private static string BuildShieldStats(ItemObject item)
+        private static string BuildShieldStats(ItemObject item, ItemModifier mod)
         {
             var w = item.PrimaryWeapon;
             if (w == null) return "{}";
             // Shield-specific: HitPoints (durability), BodyArmor (block coverage)
             return string.Format(
                 "{{\"hp\":{0},\"body\":{1}}}",
-                w.MaxDataValue, w.BodyArmor);
+                ModHp(mod, w.MaxDataValue), w.BodyArmor);
         }
 
-        private static string BuildArmorStats(ItemObject item)
+        private static string BuildArmorStats(ItemObject item, ItemModifier mod)
         {
             var a = item.ArmorComponent;
             if (a == null) return "{}";
             var sb = new StringBuilder("{");
-            sb.AppendFormat("\"head\":{0},", a.HeadArmor);
-            sb.AppendFormat("\"body\":{0},", a.BodyArmor);
-            sb.AppendFormat("\"leg\":{0},", a.LegArmor);
-            sb.AppendFormat("\"arm\":{0}", a.ArmArmor);
+            sb.AppendFormat("\"head\":{0},", ModArmor(mod, a.HeadArmor));
+            sb.AppendFormat("\"body\":{0},", ModArmor(mod, a.BodyArmor));
+            sb.AppendFormat("\"leg\":{0},", ModArmor(mod, a.LegArmor));
+            sb.AppendFormat("\"arm\":{0}", ModArmor(mod, a.ArmArmor));
             sb.Append("}");
             return sb.ToString();
         }
 
-        private static string BuildHorseStats(ItemObject item)
+        private static string BuildHorseStats(ItemObject item, ItemModifier mod)
         {
             var h = item.HorseComponent;
             if (h == null) return "{}";
+            int speed    = mod != null ? mod.ModifyMountSpeed(h.Speed)        : h.Speed;
+            int charge   = mod != null ? mod.ModifyMountCharge(h.ChargeDamage) : h.ChargeDamage;
+            int maneuver = mod != null ? mod.ModifyMountManeuver(h.Maneuver)   : h.Maneuver;
+            int hp       = mod != null ? mod.ModifyMountHitPoints(h.HitPoints) : h.HitPoints;
             return string.Format(
                 "{{\"speed\":{0},\"charge\":{1},\"maneuver\":{2},\"hp\":{3}}}",
-                h.Speed, h.ChargeDamage, h.Maneuver, h.HitPoints);
+                speed, charge, maneuver, hp);
         }
 
         private static void PostEquipmentEvent(string username, string slotName,
             string itemId, string itemName,
-            int tier, int value, float weight, string statsJson)
+            int tier, int value, float weight, string statsJson, string quality)
         {
             var backend = BannerlordLinkModule.Backend;
             if (backend == null) return;
@@ -239,13 +261,14 @@ namespace BannerlordLink.Util
             string nameJson = itemName == null ? "null" : "\"" + EscapeJson(itemName) + "\"";
             string tierJson = tier < 0 ? "null" : tier.ToString();
             string statsField = statsJson ?? "null";
+            string qualityJson = quality == null ? "null" : "\"" + EscapeJson(quality) + "\"";
 
             string json = string.Format(
                 System.Globalization.CultureInfo.InvariantCulture,
                 "{{\"username\":\"{0}\",\"slot\":\"{1}\",\"item_id\":{2},\"item_name\":{3}," +
-                "\"tier\":{4},\"item_value\":{5},\"weight\":{6:F2},\"stats\":{7}}}",
+                "\"tier\":{4},\"item_value\":{5},\"weight\":{6:F2},\"stats\":{7},\"quality\":{8}}}",
                 EscapeJson(username), EscapeJson(slotName),
-                idJson, nameJson, tierJson, value, weight, statsField);
+                idJson, nameJson, tierJson, value, weight, statsField, qualityJson);
 
             Task.Run(async () =>
             {

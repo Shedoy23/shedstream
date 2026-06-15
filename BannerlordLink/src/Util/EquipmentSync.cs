@@ -190,16 +190,25 @@ namespace BannerlordLink.Util
         {
             var w = item.PrimaryWeapon;
             if (w == null) return "{}";
+            // Модификатор применяем ТОЛЬКО к стату, который у оружия реально есть
+            // (base > 0). Иначе аддитивный модификатор делает фантом: у мили-оружия
+            // нет thrust/missile (base=0), а `0 + N` нарисовал бы ▶3 / 💨1, которых
+            // в игре нет (фронт скрывает нули). swing_type/thrust_type — флаги движка.
+            int swingDmg   = w.SwingDamage  > 0 ? ModDmg(mod, w.SwingDamage)     : 0;
+            int swingSpd   = w.SwingSpeed   > 0 ? ModSpd(mod, w.SwingSpeed)      : 0;
+            int thrustDmg  = w.ThrustDamage > 0 ? ModDmg(mod, w.ThrustDamage)    : 0;
+            int thrustSpd  = w.ThrustSpeed  > 0 ? ModSpd(mod, w.ThrustSpeed)     : 0;
+            int missileSpd = w.MissileSpeed > 0 ? ModMisSpd(mod, w.MissileSpeed) : 0;
             var sb = new StringBuilder("{");
-            sb.AppendFormat("\"swing_dmg\":{0},", ModDmg(mod, w.SwingDamage));
-            sb.AppendFormat("\"swing_spd\":{0},", ModSpd(mod, w.SwingSpeed));
+            sb.AppendFormat("\"swing_dmg\":{0},", swingDmg);
+            sb.AppendFormat("\"swing_spd\":{0},", swingSpd);
             sb.AppendFormat("\"swing_type\":\"{0}\",", w.SwingDamageType);
-            sb.AppendFormat("\"thrust_dmg\":{0},", ModDmg(mod, w.ThrustDamage));
-            sb.AppendFormat("\"thrust_spd\":{0},", ModSpd(mod, w.ThrustSpeed));
+            sb.AppendFormat("\"thrust_dmg\":{0},", thrustDmg);
+            sb.AppendFormat("\"thrust_spd\":{0},", thrustSpd);
             sb.AppendFormat("\"thrust_type\":\"{0}\",", w.ThrustDamageType);
             sb.AppendFormat("\"length\":{0},", w.WeaponLength);
             sb.AppendFormat("\"accuracy\":{0},", w.Accuracy);
-            sb.AppendFormat("\"missile_spd\":{0}", ModMisSpd(mod, w.MissileSpeed));
+            sb.AppendFormat("\"missile_spd\":{0}", missileSpd);
             sb.Append("}");
             return sb.ToString();
         }

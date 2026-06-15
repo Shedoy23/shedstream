@@ -1488,3 +1488,59 @@ input[type="number"]::-webkit-inner-spin-button {
     .bnr-tab-btn { font-size: 10px; padding: 6px 2px; }
     .bnr-tab-icon { font-size: 12px; }
 }
+
+/* ===== BANNERLORD — ЕДИНАЯ СВОРАЧИВАЕМАЯ КАРТОЧКА СЕКЦИИ (2026-06-15) =====
+   Один стиль для всех секций «Династии» вместо per-секционной радуги.
+   Карточка = <details class="bnr-card" data-bnr-section="KEY">, заголовок =
+   <summary class="bnr-hdr"> (золото + шеврон), действия = .bnr-btn-primary
+   (синий) / .bnr-btn-danger (красный). Цвет несёт смысл: красный = разрушительное
+   (покинуть/война/распустить), синий = действие. */
+.bnr-card {
+    background: #18181b;
+    border: 1px solid #2e2e33;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+.bnr-card > summary.bnr-hdr {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: #fbbf24;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 10px 12px;
+    user-select: none;
+}
+.bnr-card > summary.bnr-hdr::-webkit-details-marker { display: none; }
+.bnr-card > summary.bnr-hdr::after {
+    content: "\25B8";              /* ▸ */
+    margin-left: auto;
+    color: #6b6b72;
+    font-size: 12px;
+    transition: transform 0.15s;
+}
+.bnr-card[open] > summary.bnr-hdr::after { transform: rotate(90deg); }
+.bnr-card-body {
+    padding: 0 12px 12px 12px;
+    font-size: 11px;
+    color: #adadb8;
+}
+.bnr-btn-primary, .bnr-btn-danger {
+    display: block;
+    width: 100%;
+    border: none;
+    border-radius: 6px;
+    padding: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+    margin-top: 8px;
+}
+.bnr-btn-primary { background: #1e3a5f; color: #93c5fd; }
+.bnr-btn-primary:hover { background: #244a78; }
+.bnr-btn-danger  { background: #7f1d1d; color: #fca5a5; }
+.bnr-btn-danger:hover  { background: #991b1b; }

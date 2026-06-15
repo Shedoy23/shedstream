@@ -4042,6 +4042,18 @@ async function loadBannerlordHero() {
         };
 
         if (!data.has_hero) {
+            // 2026-06-15 — на смене сейва герой может ИСЧЕЗНУТЬ (его нет в новом
+            // сейве). Header (#hero-body) ниже покажет промпт усыновления, НО
+            // контент-вкладки (#bnr-pane-*-body) наполняются только в has-hero
+            // ветке — а мы тут делаем return. Без очистки они держали бы stale
+            // статы/класс/гир прошлого героя (баг: «нет героя» сверху + старая
+            // карточка снизу). Чистим innerHTML — _smartInnerHTML перерисует при
+            // создании героя (его cache-hit требует innerHTML.length>0).
+            ['bnr-pane-hero-body', 'bnr-pane-inventory-body',
+             'bnr-pane-dynasty-body', 'bnr-pane-combat-body'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = '';
+            });
             const CULTURES = [
                 { key: 'empire',    label: 'Империя',  icon: '🏛️', desc: 'Латифундии, мечи и копья' },
                 { key: 'sturgia',   label: 'Стургия',  icon: '🪓', desc: 'Севера́не, секиры, щиты' },

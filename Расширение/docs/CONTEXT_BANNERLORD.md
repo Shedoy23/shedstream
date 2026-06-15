@@ -3,9 +3,48 @@
 **Назначение:** для чата по Bannerlord-модулю. Для общей extension
 работы — см. `CONTEXT.md`. Для RimWorld — `CONTEXT_RIMWORLD.md`.
 
-**Last updated:** 2026-05-29 (BLT-RC22 refactor Stages 0-7 + FLICKER-FIX v7 +
-vassal income share + COMPAT matrix + data-ownership analysis. См.
-«Remaining feature backlog» ниже.)
+**Last updated:** 2026-06-15 (save-load sync + per-save state persistence;
+forge reforge-quality + quality badges. См. «2026-06-15» секцию ниже.)
+
+## 2026-06-15 — Save-load sync + per-save persistence
+
+Проблема: при загрузке сейва (особенно ДРУГОГО на том же канале) фронт показывал
+стейт прошлой сессии — мод не делал полного ре-синка, а backend-only стейт жил по
+ключу (channel, username) без привязки к сейву.
+
+Исправлено:
+- **Полный ре-синк на загрузке** (`MainCampaignBehavior.OnGameLoadFinished` →
+  `ResyncAdoptedHeroes`): чистит hash-кэш зеркала + re-push `HeroStateSync` +
+  `EquipmentSync` для всех [BLink]-героев. Покрывает game-derivable стейт
+  (клан/лидер/король/золото/навыки/гир) — он берётся живьём из игры.
+- **Per-save персистенция backend-only стейта** (`HeroProfileBehavior`, SyncData
+  в файле сейва): class_key / combat_stance / gear_tier / retinue. Хендлеры
+  ловят значение на действии (set_class/set_combat_stance/upgrade_gear/recruit/
+  train; имена троопов резолвятся из troop_id), `OnGameLoadFinished` ре-пушит
+  `hero.restore_profile` → backend `_on_restore_profile` перезаписывает класс +
+  heroes.combat_stance/gear_tier + пересобирает bannerlord_retinue.
+  - **Требует СОХРАНЕНИЯ игры** — SyncData пишет в файл сейва на save (автосейв в
+    реальной игре делает сам; в быстрых тестах без сохранения — не персистится).
+- **Forge → reforge-quality:** перековка надетого предмета на +1 ступень качества
+  (Базовое→Хорошее→Шикарное→Легендарное, 20k💎/шаг), бейджи качества в
+  Экипировке/Кузнице (m77 `quality` колонка + EquipmentSync push с учётом
+  модификатора в статах). Вариант A: апгрейд тира → строго базовая броня.
+- **Frontend no-hero fix:** на сейве без героя чистятся вкладки (#bnr-pane-*-body),
+  иначе залипала старая карточка.
+
+Gotchas (важно):
+- **Новый mod→backend event = объявить в `manifest.yaml` `events:`** (иначе
+  `event_not_in_manifest`, backend дропает до хендлера). Укусило 2× (см. CLAUDE.md).
+- **Load latency:** ре-синк пушит всех героев пачкой + фронт-poll 8с → на загрузке
+  стейт обновляется с лагом ~10с; «Обновить данные» — мгновенно. На одном сейве
+  (обычная игра) незаметно.
+
+Известный гэп (намеренно НЕ делаем):
+- **clan_upgrades НЕ per-save** — сбрасываются при переключении на ДРУГОЙ сейв
+  (на одном сейве не теряются). Мод покупку не видит (чисто бэкендовое действие),
+  per-save потребовал бы backend save_id-скоупинга (правка multi-tenant ядра) ради
+  редкой фичи на edge-сценарии — сочтено не стоящим. casualty свиты самочинится на
+  след. recruit/train.
 
 ## ⚠️ ОБЯЗАТЕЛЬНЫЙ REFERENCE для новых фич
 

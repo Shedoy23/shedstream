@@ -176,7 +176,6 @@ ACTION_COOLDOWNS_SEC = {
     # Sprint 5.33 (BLT-parity CARAVAN) — mobile passive income
     "hero.buy_caravan":             180,   # economic decision, mid cooldown
     "hero.sell_caravan":             60,
-    "hero.pay_caravan_rescue":       20,   # short — chat crowd-fund
 }
 
 
@@ -2245,7 +2244,8 @@ class BannerlordAdapter(ModuleAdapter):
                              channel_id, owner, party_id, ex)
 
     async def _on_caravan_destroyed(self, channel_id: int, env: ModuleEnvelope) -> None:
-        """Caravan party destroyed (bandits / war). Mark + open rescue pool.
+        """Caravan party destroyed (bandits / war). Караван удаляется — слот
+        владельца освобождается, зритель может создать новый.
         Payload: {party_id, captor_name (optional)}."""
         data = env.data
         party_id = (data.get("party_id") or "").strip()

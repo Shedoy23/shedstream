@@ -918,7 +918,6 @@ _PURCHASABLE_ACTIONS = (
     # Sprint 5.33 (BLT-parity CARAVAN) — mobile passive income trilogy closer
     "hero.buy_caravan",          # 4000⦷ — create caravan party (чистая 💎)
     "hero.sell_caravan",         # free — engine transfer к MainHero
-    "hero.pay_caravan_rescue",   # 500⦷ — chip into rescue pool destroyed caravan
 )
 
 # Sprint 5.27a — стоимость gender swap (BLT default: 50k).
@@ -1055,7 +1054,6 @@ _BACKEND_ONLY_ACTIONS = (
     # Sprint 5.33 CARAVAN — caravan lifecycle — backend INSERT/UPDATE + enqueue mod
     "hero.buy_caravan",
     "hero.sell_caravan",
-    "hero.pay_caravan_rescue",
 )
 
 
@@ -2142,7 +2140,6 @@ def _enforce_price(action_type, data, username, channel_id):
         # Sprint 5.33 (BLT-parity CARAVAN) — mobile passive income
         "hero.buy_caravan":            4000,    # 2026-05-29: чистая 💎 (15K Hero.Gold капитал НЕ списывался — миф убран, цена поднята 1500→4000)
         "hero.sell_caravan":              0,    # free — engine handles transfer
-        "hero.pay_caravan_rescue":      500,    # rescue pool chip-in
     }
     if action_type not in _ACTIONS_WITH_OWN_PRICING:
         if action_type not in ACTION_PRICES_DEFAULT:
@@ -2695,12 +2692,6 @@ async def _charge_execute_enqueue(action_type, data, price, username, channel_id
             elif action_type == "hero.sell_caravan":
                 from routes.bannerlord_caravans import handle_sell_caravan
                 caravan_result = await handle_sell_caravan(conn, channel_id, username, data)
-                if not caravan_result.get("success"):
-                    await conn.execute("ROLLBACK")
-                    return caravan_result
-            elif action_type == "hero.pay_caravan_rescue":
-                from routes.bannerlord_caravans import handle_pay_caravan_rescue
-                caravan_result = await handle_pay_caravan_rescue(conn, channel_id, username, data)
                 if not caravan_result.get("success"):
                     await conn.execute("ROLLBACK")
                     return caravan_result

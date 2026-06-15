@@ -12,7 +12,7 @@ bannerlord_smoke.py — HTTP smoke tests для всех new-sprint endpoints.
   DIPLO     — GET /api/bannerlord/kingdom-state, /api/bannerlord/ransom-pool
   SHOP      — GET /api/bannerlord/my-workshops
   FIEF      — GET /api/bannerlord/my-fiefs
-  CARAVAN   — GET /api/bannerlord/my-caravans, /api/bannerlord/caravan-rescues
+  CARAVAN   — GET /api/bannerlord/my-caravans
   HERITAGE  — GET /api/bannerlord/inheritance-log
 
 Без JWT — проверяет что endpoint отвечает {success: False, message: "auth required"}
@@ -167,7 +167,6 @@ ENDPOINTS_BASELINE = [
     ("/api/bannerlord/my-fiefs",             "FIEF my-fiefs"),
     # CARAVAN
     ("/api/bannerlord/my-caravans",          "CARAVAN my-caravans"),
-    ("/api/bannerlord/caravan-rescues",      "CARAVAN caravan-rescues"),
     # HERITAGE
     ("/api/bannerlord/inheritance-log",      "HERITAGE inheritance-log"),
     # Older sprints (sanity check baseline)
@@ -185,7 +184,6 @@ ENDPOINTS_JWT_KEYS = {
     "/api/bannerlord/my-workshops":     ["workshops", "max_workshops"],
     "/api/bannerlord/my-fiefs":         ["fiefs", "boost_mult"],
     "/api/bannerlord/my-caravans":      ["caravans", "max_caravans"],
-    "/api/bannerlord/caravan-rescues":  ["rescues"],
     "/api/bannerlord/inheritance-log":  ["items"],
 }
 

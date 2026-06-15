@@ -1109,6 +1109,13 @@ async def run_migrations():
             print(f"❌ M75 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m76_drop_caravan_rescue_pool
+            await m76_drop_caravan_rescue_pool.apply(conn)
+        except Exception as e:
+            print(f"❌ M76 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

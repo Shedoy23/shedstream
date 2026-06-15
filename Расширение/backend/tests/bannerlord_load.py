@@ -65,7 +65,6 @@ WORKLOAD = [
     ("GET",  "/api/bannerlord/party-orders",    0.8),
     ("GET",  "/api/bannerlord/kingdom-state",   0.8),
     ("GET",  "/api/bannerlord/ransom-pool",     0.5),
-    ("GET",  "/api/bannerlord/caravan-rescues", 0.5),
     ("GET",  "/api/bannerlord/inheritance-log", 0.3),
     ("GET",  "/api/bannerlord/ping",            0.5),
     # POST event push (если token доступен)

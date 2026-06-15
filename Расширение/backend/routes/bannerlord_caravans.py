@@ -1,5 +1,5 @@
 """
-Sprint 5.33 (BLT-parity CARAVAN) — Mobile passive income + rescue events.
+Sprint 5.33 (BLT-parity CARAVAN) — Mobile passive income.
 
 Closes passive trilogy: SHOP (static) + FIEF (territorial) + CARAVAN (mobile risk).
 
@@ -8,17 +8,15 @@ Ratios:
   CARAVAN = 150:1                (mid — mobile, traveling)
   FIEF    = 200:1                (territorial, kingdom-scale)
 
-CARAVAN has emotional capture/destroyed events — when bandits destroy your
-caravan, рассылается чату rescue-pool opportunity (parallel to ransom).
+Бандиты могут уничтожить караван — уничтоженный караван просто исчезает
+(DELETE), слот владельца освобождается, зритель создаёт новый.
 
 Endpoints:
   GET /api/bannerlord/my-caravans
-  GET /api/bannerlord/caravan-rescues  — destroyed caravans waiting rescue
 
 Actions:
   hero.buy_caravan          — create new caravan (1500⦷ + 15K Hero.Gold)
   hero.sell_caravan         — disband / sell к MainHero
-  hero.pay_caravan_rescue   — chip into rescue pool — backend respawns when full
 """
 from __future__ import annotations
 
@@ -38,7 +36,6 @@ _AUTH_FAIL = {"success": False, "message": "auth required"}
 
 DINAR_TO_CRUSTIC_CARAVAN = 150
 MAX_CARAVANS_PER_VIEWER = 2  # tighter than workshops — caravans more powerful
-CARAVAN_RESCUE_COST = 2500     # крустики total to respawn destroyed caravan
 
 
 # ─── GET endpoints ────────────────────────────────────────────────────────────
@@ -59,7 +56,7 @@ async def my_caravans(request: Request):
             "       last_synced_at, opened_at, status, destroyed_at "
             "FROM bannerlord_caravans "
             "WHERE channel_id=? AND owner_username=? "
-            "  AND status IN ('active','destroyed') "
+            "  AND status='active' "
             "ORDER BY opened_at ASC",
             (channel_id, username))
         rows = await cur.fetchall()
@@ -83,48 +80,7 @@ async def my_caravans(request: Request):
         "success":        True,
         "caravans":       caravans,
         "max_caravans":   MAX_CARAVANS_PER_VIEWER,
-        "rescue_cost":    CARAVAN_RESCUE_COST,
     }
-
-
-@router.get("/api/bannerlord/caravan-rescues")
-async def caravan_rescues(request: Request):
-    """Все destroyed caravans на канале + pool status — viewers могут помочь."""
-    auth = require_jwt_user(request)
-    if not auth:
-        return _AUTH_FAIL
-    _username, channel_id = auth
-
-    async with get_db()._connect() as conn:
-        cur = await conn.execute(
-            "SELECT id, owner_username, home_settlement_name, destroyed_at "
-            "FROM bannerlord_caravans "
-            "WHERE channel_id=? AND status='destroyed' "
-            "ORDER BY destroyed_at DESC LIMIT 10",
-            (channel_id,))
-        rows = await cur.fetchall()
-        result = []
-        for r in rows:
-            caravan_id = r[0]
-            cur2 = await conn.execute(
-                "SELECT COALESCE(SUM(amount),0), COUNT(*) "
-                "FROM bannerlord_caravan_rescue_pool "
-                "WHERE channel_id=? AND caravan_id=? AND status='pooled'",
-                (channel_id, caravan_id))
-            pool_row = await cur2.fetchone()
-            pool_total = pool_row[0] or 0
-            contributors = pool_row[1] or 0
-            result.append({
-                "caravan_id":       caravan_id,
-                "owner":            r[1],
-                "home_name":        r[2],
-                "destroyed_at":     r[3],
-                "pool_total":       pool_total,
-                "contributors":     contributors,
-                "rescue_cost":      CARAVAN_RESCUE_COST,
-                "remaining":        max(0, CARAVAN_RESCUE_COST - pool_total),
-            })
-    return {"success": True, "rescues": result}
 
 
 # ─── Action handlers ──────────────────────────────────────────────────────────
@@ -224,105 +180,6 @@ async def handle_sell_caravan(conn, channel_id: int, owner: str, data: dict) -> 
     }
 
 
-async def handle_pay_caravan_rescue(conn, channel_id: int, owner: str, data: dict) -> dict:
-    """Crowd-fund rescue для destroyed caravan. На pool ≥ cost — backend
-    auto-respawns caravan через enqueue hero.buy_caravan action."""
-    raw = data.get("caravan_id")
-    log.info("[CARAVAN-RESCUE ENTRY] ch=%s contributor=@%s caravan_id=%s",
-             channel_id, owner, raw)
-    try:
-        caravan_id = int(raw or 0)
-    except (TypeError, ValueError):
-        log.info("[CARAVAN-RESCUE REFUSE] invalid caravan_id raw=%r", raw)
-        return {"success": False, "message": "caravan_id required"}
-    contribution = 500
-
-    # Verify caravan destroyed + still rescuable.
-    cur = await conn.execute(
-        "SELECT owner_username, home_settlement_id, home_settlement_name, status "
-        "FROM bannerlord_caravans WHERE id=? AND channel_id=?",
-        (caravan_id, channel_id))
-    row = await cur.fetchone()
-    if not row:
-        return {"success": False, "message": "Караван не найден"}
-    cara_owner, home_id, home_name, status = row[0], row[1], row[2], row[3]
-    if status != "destroyed":
-        return {"success": False, "message": f"Караван не destroyed (status={status})"}
-
-    # INSERT contribution.
-    await conn.execute(
-        "INSERT INTO bannerlord_caravan_rescue_pool "
-        "(channel_id, caravan_id, contributor, amount, status) "
-        "VALUES (?, ?, ?, ?, 'pooled')",
-        (channel_id, caravan_id, owner, contribution))
-
-    # Check if pool full.
-    cur = await conn.execute(
-        "SELECT COALESCE(SUM(amount),0) FROM bannerlord_caravan_rescue_pool "
-        "WHERE channel_id=? AND caravan_id=? AND status='pooled'",
-        (channel_id, caravan_id))
-    pool_row = await cur.fetchone()
-    pool_total = pool_row[0] or 0
-
-    if pool_total >= CARAVAN_RESCUE_COST:
-        # 2026-06-06 FIX — лимит караванов НЕ проверялся в restore-пути → эксплойт:
-        # караван умер → купил новый (снова на лимите) → восстановил умерший =
-        # БОЛЬШЕ лимита (репорт: 3/2). Проверяем активные караваны ВЛАДЕЛЬЦА
-        # (cara_owner, НЕ contributor) перед respawn'ом.
-        cur = await conn.execute(
-            "SELECT COUNT(*) FROM bannerlord_caravans "
-            "WHERE channel_id=? AND owner_username=? AND status='active'",
-            (channel_id, cara_owner))
-        active_row = await cur.fetchone()
-        if (active_row[0] or 0) >= MAX_CARAVANS_PER_VIEWER:
-            # На лимите — НЕ восстанавливаем. Пул остаётся 'pooled' (вклады не
-            # теряются): restore сработает позже, когда освободится слот
-            # (продал/потерял другой караван).
-            log.info("[CARAVAN-RESCUE] ch=%s caravan=%d HOLD — @%s на лимите (%d/%d)",
-                     channel_id, caravan_id, cara_owner,
-                     active_row[0] or 0, MAX_CARAVANS_PER_VIEWER)
-            return {
-                "success": True,
-                "message": f"💰 Пул собран, но у @{cara_owner} лимит караванов "
-                           f"({MAX_CARAVANS_PER_VIEWER}/{MAX_CARAVANS_PER_VIEWER}) — "
-                           f"восстановится, когда освободится слот.",
-            }
-
-        # Mark caravan as rescued + mark pool released.
-        await conn.execute(
-            "UPDATE bannerlord_caravans SET status='active', destroyed_at=NULL "
-            "WHERE id=? AND channel_id=?",
-            (caravan_id, channel_id))
-        await conn.execute(
-            "UPDATE bannerlord_caravan_rescue_pool SET status='released' "
-            "WHERE channel_id=? AND caravan_id=? AND status='pooled'",
-            (channel_id, caravan_id))
-
-        # Enqueue mod re-create action — mod создаст fresh CaravanParty.
-        action_id = _uuid.uuid4().hex
-        payload = {
-            "initiated_by":             cara_owner,
-            "target":                   cara_owner,
-            "caravan_id":               caravan_id,
-            "home_settlement_id":       home_id,
-            "home_settlement_name":     home_name,
-        }
-        await conn.execute(
-            "INSERT INTO module_actions "
-            "(channel_id, module_id, action_id, type, data, status) "
-            "VALUES (?, 'bannerlord', ?, 'hero.buy_caravan', ?, 'queued')",
-            (channel_id, action_id, _json.dumps(payload, ensure_ascii=False)))
-        log.info("[CARAVAN-RESCUE] FULL ch=%s caravan=%d → respawn", channel_id, caravan_id)
-        return {
-            "success": True,
-            "message": f"💰 Pool ПОЛНЫЙ! Караван @{cara_owner} respawn'ится",
-        }
-    return {
-        "success": True,
-        "message": f"💰 +{contribution}⦷ → pool {pool_total}/{CARAVAN_RESCUE_COST}",
-    }
-
-
 # ─── Sync helpers (called from adapter event handlers) ────────────────────────
 
 
@@ -358,17 +215,17 @@ async def credit_caravan_profit(channel_id: int, owner: str, party_id: str,
 
 
 async def mark_caravan_destroyed(channel_id: int, party_id: str, captor_name: str = ""):
-    """Called from _on_caravan_destroyed handler."""
+    """Called from _on_caravan_destroyed handler. Уничтоженный караван исчезает
+    (DELETE) — слот владельца освобождается, зритель может создать новый."""
     db = get_db()
     async with db._connect() as conn:
         cur = await conn.execute(
-            "UPDATE bannerlord_caravans SET "
-            "  status='destroyed', destroyed_at=CURRENT_TIMESTAMP "
+            "DELETE FROM bannerlord_caravans "
             "WHERE channel_id=? AND party_id=? AND status='active'",
             (channel_id, party_id))
         affected = cur.rowcount
         await conn.commit()
-    log.info("[CARAVAN-DESTROYED] ch=%s party=%s captor=%s affected=%d",
+    log.info("[CARAVAN-DESTROYED] ch=%s party=%s captor=%s deleted=%d",
              channel_id, party_id, captor_name, affected)
 
 
@@ -422,9 +279,6 @@ async def reconcile_caravans(conn, channel_id: int, items: list) -> dict:
     removed = 0
     for pid, rid in by_party.items():
         if pid not in snap:
-            await conn.execute(
-                "DELETE FROM bannerlord_caravan_rescue_pool "
-                "WHERE channel_id=? AND caravan_id=?", (channel_id, rid))
             await conn.execute(
                 "DELETE FROM bannerlord_caravans WHERE id=? AND channel_id=?",
                 (rid, channel_id))

@@ -81,7 +81,6 @@ RESETTABLE_TABLES = [
     "bannerlord_workshops",
     "bannerlord_fiefs",
     "bannerlord_caravans",
-    "bannerlord_caravan_rescue_pool",
     "bannerlord_inheritance_log",
 ]
 

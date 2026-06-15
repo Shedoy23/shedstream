@@ -395,6 +395,12 @@ namespace BannerlordLink.Behaviors
         {
             RepairNegativeRoster();
             PushSessionStart("game_load_finished");
+            // 2026-06-15 — полный ре-синк стейта+экипировки всех [BLink]-героев на
+            // загрузке сейва. Без него backend держит стейт ПРОШЛОЙ сессии/сейва
+            // (клан/король/лидер/класс/гир), и фронт показывает устаревшее, пока
+            // не сработает action или 30-сек зеркало. Идёт ПОСЛЕ PushSessionStart,
+            // чтобы имена героев уже были healed в [BLink].
+            ResyncAdoptedHeroes();
         }
         private void OnSessionLaunched(CampaignGameStarter starter)
         {
@@ -681,6 +687,39 @@ namespace BannerlordLink.Behaviors
             {
                 BannerlordLinkModule.Log(
                     $"[CampaignEvent] PushHeroStatesIfChanged error: {ex.Message}");
+            }
+        }
+
+        /// <summary>2026-06-15 — полный ре-синк на ЗАГРУЗКЕ сейва. Backend держит
+        /// стейт прошлой сессии/сейва; чистим hash-кэш зеркала (иначе оно решит
+        /// «не изменилось» по старому хэшу) и пушим полный стейт + экипировку всех
+        /// [BLink]-героев, чтобы фронт сразу показал АКТУАЛЬНЫЙ загруженный сейв
+        /// (клан/король/лидер/класс/гир). Разовый burst на загрузку — приемлемо.</summary>
+        private void ResyncAdoptedHeroes()
+        {
+            try
+            {
+                _heroStateHashes.Clear();
+                var heroes = Campaign.Current?.AliveHeroes;
+                if (heroes == null) return;
+                int n = 0;
+                foreach (var hero in heroes.ToList())
+                {
+                    if (hero?.Name == null) continue;
+                    if (!BannerlordLink.Util.HeroNaming.IsAdopted(hero.Name.ToString())) continue;
+                    // PushIfChanged с пустым кэшем = пуш + заполнение кэша (чтобы
+                    // следующий тик зеркала не дублировал). PushAll — экипировка.
+                    try { BannerlordLink.Util.HeroStateSync.PushIfChanged(hero, _heroStateHashes); } catch { }
+                    try { BannerlordLink.Util.EquipmentSync.PushAll(hero); } catch { }
+                    n++;
+                }
+                BannerlordLinkModule.Log(
+                    $"[CampaignEvent] save-load resync: full state+equipment for {n} adopted hero(es)");
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[CampaignEvent] ResyncAdoptedHeroes error: {ex.Message}");
             }
         }
 

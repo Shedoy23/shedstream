@@ -86,13 +86,17 @@ _AUTH_FAIL = {"success": False, "message": "❌ Требуется автори�
 # награждает специализацию: archer'у выгодно качать Bow.
 _CLASS_PRIMARY_SKILL = {
     "archer":         "Bow",
+    "heavy_archer":   "Bow",       # 2026-06-15 (bug #8) — был пропущен
     "horse_archer":   "Bow",
     "camel_archer":   "Bow",
+    "crossbow":       "Crossbow",  # 2026-06-15 (bug #8) — был пропущен → lvl1 навсегда
+    "heavy_crossbow": "Crossbow",  # 2026-06-15 (bug #8) — репорт kuro_gothic
     "cavalry":        "Riding",
     "camel_cavalry":  "Riding",
     "knight":         "Riding",
-    "infantry":       "Polearm",
+    "infantry":       "Polearm",   # legacy ключ (нет такого класса в M15) — безвреден
     "tank":           "OneHanded",
+    "assassin":       "OneHanded", # 2026-06-15 (bug #8) — кинжалы = OneHanded
     "berserk":        "TwoHanded",
     "psycho":         "TwoHanded",
 }

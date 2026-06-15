@@ -364,20 +364,35 @@ namespace BannerlordLink.Behaviors
             string username = BannerlordLink.Util.HeroNaming.ExtractUsername(hero.Name?.ToString());
             if (string.IsNullOrEmpty(username)) return;
 
+            // 2026-06-15 (bug #12) — в честном бою арены/турнира НЕ накладываем
+            // HP-множители: [BLink]-агент с ×2.5+ HP почти неубиваем → бой
+            // становится бесконечным («пассивный хил»). Турнир должен быть
+            // ванильно-честным. body_scale/move_speed ниже не трогаем (не про хил).
+            bool fairFight = BannerlordLink.Util.MissionContext.IsArenaOrTournamentMission();
+
             // 2026-06-02 (BLT-parity POWER) — безусловный baseline HP×2 для КАЖДОГО
             // [BLink]-героя на спавне (BLT StartHealthMultiplier=2, unconditional).
             // ДО class-check → даже classless adopted-герой получает живучесть.
             // Класс-power hp_multiplier (ниже) стэкается сверху (как BLT AddHealthPower).
-            agent.BaseHealthLimit *= BASE_HP_MULT;
-            agent.HealthLimit     *= BASE_HP_MULT;
-            agent.Health          *= BASE_HP_MULT;
+            if (!fairFight)
+            {
+                agent.BaseHealthLimit *= BASE_HP_MULT;
+                agent.HealthLimit     *= BASE_HP_MULT;
+                agent.Health          *= BASE_HP_MULT;
+            }
+            else
+            {
+                BannerlordLinkModule.Log(
+                    $"[PowersMission] @{username} — арена/турнир: HP-buff пропущен (честный бой, bug #12)");
+            }
 
             var hc = PowerCache.GetHeroClass(username);
             if (hc == null) return;  // adopted hero без выбранного класса
 
             // ── hp_multiplier ──────────────────────────────────────────────
+            // Тоже скипаем в честном бою (fairFight выше) — иначе стэк HP сверху.
             var hp = PowerCache.GetPowerValue(username, "hp_multiplier");
-            if (hp.HasValue && Math.Abs(hp.Value - 1.0) > 0.001)
+            if (!fairFight && hp.HasValue && Math.Abs(hp.Value - 1.0) > 0.001)
             {
                 float ratio = (float)hp.Value;
                 agent.BaseHealthLimit *= ratio;

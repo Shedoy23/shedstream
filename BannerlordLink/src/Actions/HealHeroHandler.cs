@@ -39,6 +39,14 @@ namespace BannerlordLink.Actions
                         BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "hero_dead");
                         return;
                     }
+                    // 2026-06-15 (bug #12) — хил запрещён в живом бою арены/турнира:
+                    // честный бой, лечение зрителем ломает его (бесконечный бой).
+                    if (BannerlordLink.Util.MissionContext.IsArenaOrTournamentFight())
+                    {
+                        BannerlordLinkModule.Log($"[player.heal] REFUSE @{username}: heal disabled in arena/tournament");
+                        BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "arena_or_tournament");
+                        return;
+                    }
                     int before = hero.HitPoints;
                     int max = hero.MaxHitPoints;
                     hero.Heal(max - before, addXp: false);

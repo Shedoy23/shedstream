@@ -162,7 +162,10 @@ namespace BannerlordLink.Actions
                 // 2026-05-29 — slot-fill вынесен в ApplyGearLoadout (общий с
                 // ReequipGearHandler). Анти-дубль оружия + ShouldReplaceSlot
                 // (не затираем призы/крафт) внутри.
-                int slotsFilled = ApplyGearLoadout(hero, classKey, engineTier);
+                // Вариант A: апгрейд тира → строго базовая броня (сброс модификатора
+                // равно-/ниже-тирной брони). Качество даёт только форж.
+                int slotsFilled = ApplyGearLoadout(hero, classKey, engineTier,
+                    stripArmorModifiers: true);
 
                 // Списать Hero.Gold ПОСЛЕ apply equipment (atomic в-game).
                 // GiveGoldAction.ApplyBetweenCharacters(giver, receiver, amount):
@@ -202,7 +205,12 @@ namespace BannerlordLink.Actions
         // Анти-дубль оружия (seed уже надетыми + добавляем каждый выбранный) +
         // ShouldReplaceSlot (не затираем призы/крафт). Возвращает кол-во
         // заполненных слотов. Списание золота/синк делает caller.
-        internal static int ApplyGearLoadout(Hero hero, string classKey, int engineTier)
+        // stripArmorModifiers (2026-06-15, вариант A): на АПГРЕЙДЕ тира сбрасываем
+        // модификатор равно-/ниже-тирной БРОНИ → строго базовая броня нового тира.
+        // Тир = базовая мощь (мод), качество = только форж. Пересбор и оружие зовут
+        // с false (бережём крафт/призы/перековку). Higher-tier приз НЕ даунгрейдим.
+        internal static int ApplyGearLoadout(Hero hero, string classKey, int engineTier,
+            bool stripArmorModifiers = false)
         {
             if (hero == null || classKey == null || !_classes.TryGetValue(classKey, out var cfg))
                 return 0;
@@ -253,7 +261,7 @@ namespace BannerlordLink.Actions
             foreach (var (idx, type) in ArmorSlots)
             {
                 var item = FindTieredItem(type, engineTier, rng, null, null, hero);
-                if (item != null && ShouldReplaceSlot(equipment, idx, engineTier))
+                if (item != null && ShouldReplaceSlot(equipment, idx, engineTier, stripArmorModifiers))
                 {
                     equipment[idx] = new EquipmentElement(item);
                     slotsFilled++;
@@ -300,14 +308,18 @@ namespace BannerlordLink.Actions
         // затираем слот если текущий предмет ВЫШЕ target tier'а (турнирный приз)
         // ИЛИ именной/смитованный (ItemModifier — крафтовый трофей, надетый
         // через «одеть»). Пустой слот — всегда заполняем.
-        private static bool ShouldReplaceSlot(Equipment eq, EquipmentIndex idx, int engineTier)
+        private static bool ShouldReplaceSlot(Equipment eq, EquipmentIndex idx, int engineTier,
+            bool stripModifier = false)
         {
             try
             {
                 var cur = eq[idx];
                 if (cur.IsEmpty || cur.Item == null) return true;
-                if (cur.ItemModifier != null) return false;            // crafted/named — keep
-                if ((int)cur.Item.Tier > engineTier) return false;     // higher-tier prize — keep
+                if ((int)cur.Item.Tier > engineTier) return false;     // higher-tier prize — keep (не даунгрейдим)
+                // stripModifier=true (апгрейд брони, вариант A): сбрасываем модификатор
+                // равно-/ниже-тирного предмета → строго базовая броня. false (пересбор/
+                // оружие/конь): бережём крафт/призы/перековку.
+                if (!stripModifier && cur.ItemModifier != null) return false;  // crafted/named — keep
             }
             catch { /* defensive — на сомнении заменяем */ }
             return true;

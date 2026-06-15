@@ -140,7 +140,8 @@ if ($Staging) {
         Info "scp -> staging"
         & scp $sTar "${ProdHost}:/tmp/shedstream_staging.tar"; if ($LASTEXITCODE -ne 0){ throw "staging scp failed" }
         Info "extract on staging dir"
-        & ssh $ProdHost "mkdir -p $StagingDir && cd $StagingDir && tar -xf /tmp/shedstream_staging.tar && echo extracted"
+        # --warning=no-timestamp: same clock-skew guard as the prod extract below.
+        & ssh $ProdHost "mkdir -p $StagingDir && cd $StagingDir && tar --warning=no-timestamp -xf /tmp/shedstream_staging.tar && echo extracted"
         if ($LASTEXITCODE -ne 0){ throw "staging remote extract failed" }
         if (-not $NoRestart) {
             Info "restart $StagingService + health check :8001 (6s)..."
@@ -180,7 +181,12 @@ if ($paths.Count -gt 0) {
         Info "scp -> prod"
         & scp $tar "${ProdHost}:/tmp/shedstream_deploy.tar"; if ($LASTEXITCODE -ne 0){ throw "scp failed" }
         Info "extract on prod"
-        & ssh $ProdHost "cd $ProdDir && tar -xf /tmp/shedstream_deploy.tar && echo extracted"
+        # --warning=no-timestamp: on clock skew (local ahead of prod) GNU tar prints
+        # a non-fatal "time stamp .. in the future" line to stderr; with
+        # $ErrorActionPreference=Stop that stderr line aborts the script even though
+        # extraction succeeded. Silence only that warning class; real tar/ssh errors
+        # still write stderr AND return non-zero (caught by $LASTEXITCODE below).
+        & ssh $ProdHost "cd $ProdDir && tar --warning=no-timestamp -xf /tmp/shedstream_deploy.tar && echo extracted"
         if ($LASTEXITCODE -ne 0){ throw "remote extract failed" }
 
         if (-not $NoRestart) {

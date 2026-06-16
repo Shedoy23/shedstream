@@ -1932,6 +1932,7 @@ async function _bannerlordBuyAction(actionType, data) {
                 }, 3500);
             }
         }
+        return result;
     } catch (e) {
         // Sprint 5.29 audit fix #36: real error в console чтобы можно было
         // диагностировать — раньше «Ошибка сети» без context.

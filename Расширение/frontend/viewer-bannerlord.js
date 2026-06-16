@@ -1573,7 +1573,8 @@ async function loadBannerlordDiplomacy() {
                         ⚖ Дипломатия — на голосование кланов
                     </div>
                     <div style="font-size:9px;color:#9ca3af;margin-bottom:6px;">
-                        Это ПРЕДЛОЖЕНИЕ — кланы королевства голосуют, может не пройти.
+                        Это ЗАЯВКА на голосование кланов королевства — не мгновенно и может не пройти.
+                        Повторно жать не нужно: следи за статусом войн выше.
                     </div>`;
             // 2026-06-14 — кулдаун на кнопках (5 мин/зритель, локальный UX-индикатор;
             // сервер enforce'ит реально + рефанд при клике в КД). Date.now() — браузер.
@@ -1587,7 +1588,7 @@ async function loadBannerlordDiplomacy() {
                         <select id="bnr-war-target" style="flex:1;padding:5px;font-size:11px;background:#0f0805;color:#fed7aa;border:1px solid #92400e;">
                             ${warTargets.map(k => `<option value="${escapeHtml(k.id)}">${escapeHtml(k.name || k.id)}</option>`).join('')}
                         </select>
-                        <button id="bnr-war-propose" class="extra-btn bnr-btn-danger" ${_warLeft > 0 ? 'disabled' : ''} style="flex:0 0 auto;width:auto;margin-top:0;padding:5px 8px;font-size:11px;white-space:nowrap;${_warLeft > 0 ? 'opacity:0.5;cursor:not-allowed;' : ''}">${_warLeft > 0 ? _cdTxt(_warLeft) : '⚔ Война (2000💎)'}</button>
+                        <button id="bnr-war-propose" class="extra-btn bnr-btn-danger" ${_warLeft > 0 ? 'disabled' : ''} style="flex:0 0 auto;width:auto;margin-top:0;padding:5px 8px;font-size:11px;white-space:nowrap;${_warLeft > 0 ? 'opacity:0.5;cursor:not-allowed;' : ''}">${_warLeft > 0 ? _cdTxt(_warLeft) : '⚔ Предложить (2000💎)'}</button>
                     </div>`;
             }
             if (peaceTargets.length) {
@@ -1596,7 +1597,7 @@ async function loadBannerlordDiplomacy() {
                         <select id="bnr-peace-vote-target" style="flex:1;padding:5px;font-size:11px;background:#0a0f1a;color:#bfdbfe;border:1px solid #1e40af;">
                             ${peaceTargets.map(k => `<option value="${escapeHtml(k.id)}">${escapeHtml(k.name || k.id)}</option>`).join('')}
                         </select>
-                        <button id="bnr-peace-vote-propose" class="extra-btn bnr-btn-primary" ${_peaceLeft > 0 ? 'disabled' : ''} style="flex:0 0 auto;width:auto;margin-top:0;padding:5px 8px;font-size:11px;white-space:nowrap;${_peaceLeft > 0 ? 'opacity:0.5;cursor:not-allowed;' : ''}">${_peaceLeft > 0 ? _cdTxt(_peaceLeft) : '🕊 Мир (3000💎)'}</button>
+                        <button id="bnr-peace-vote-propose" class="extra-btn bnr-btn-primary" ${_peaceLeft > 0 ? 'disabled' : ''} style="flex:0 0 auto;width:auto;margin-top:0;padding:5px 8px;font-size:11px;white-space:nowrap;${_peaceLeft > 0 ? 'opacity:0.5;cursor:not-allowed;' : ''}">${_peaceLeft > 0 ? _cdTxt(_peaceLeft) : '🕊 Предложить (3000💎)'}</button>
                     </div>`;
             } else {
                 body += `<div style="font-size:9px;color:#6b7280;">Сейчас ни с кем не воюем — мир предлагать некому.</div>`;
@@ -1641,10 +1642,17 @@ async function loadBannerlordDiplomacy() {
             const sel = document.getElementById('bnr-war-target');
             const id = (sel?.value || '').trim();
             if (!id) return;
-            await _bannerlordBuyAction('kingdom.propose_war', {
+            const _tname = (sel.selectedOptions?.[0]?.textContent || id).trim();
+            const res = await _bannerlordBuyAction('kingdom.propose_war', {
                 target_kingdom_id:   id,
-                target_kingdom_name: (sel.selectedOptions?.[0]?.textContent || id).trim(),
+                target_kingdom_name: _tname,
             });
+            // 2026-06-16 (bug #17) — явный фидбэк: это заявка на голосование кланов,
+            // не мгновенная война. Перетирает generic-тост buyAction (showNotification
+            // replace-style). Раньше зритель не понимал → жал повторно и переплачивал.
+            if (res && res.success) {
+                showNotification(`📜 Заявка на войну с «${_tname}» отправлена на голосование кланов. Войну объявят, только если кланы проголосуют ЗА — это не мгновенно.`, 'success', 7000);
+            }
             _bnrDiploCd.war = Date.now();   // запустить кулдаун (UI), сервер enforce'ит реально
             loadBannerlordDiplomacy();
         });
@@ -1652,10 +1660,16 @@ async function loadBannerlordDiplomacy() {
             const sel = document.getElementById('bnr-peace-vote-target');
             const id = (sel?.value || '').trim();
             if (!id) return;
-            await _bannerlordBuyAction('kingdom.propose_peace', {
+            const _tname = (sel.selectedOptions?.[0]?.textContent || id).trim();
+            const res = await _bannerlordBuyAction('kingdom.propose_peace', {
                 target_kingdom_id:   id,
-                target_kingdom_name: (sel.selectedOptions?.[0]?.textContent || id).trim(),
+                target_kingdom_name: _tname,
             });
+            // 2026-06-16 (bug #16) — явный фидбэк: заявка на голосование кланов,
+            // мир не заключается мгновенно (раньше «не заключается мир» = вотум против).
+            if (res && res.success) {
+                showNotification(`📜 Заявка на мир с «${_tname}» отправлена на голосование кланов. Мир заключат, только если кланы проголосуют ЗА — это не мгновенно.`, 'success', 7000);
+            }
             _bnrDiploCd.peace = Date.now();   // запустить кулдаун (UI), сервер enforce'ит реально
             loadBannerlordDiplomacy();
         });

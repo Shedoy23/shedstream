@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# commit-msg gate: enforce Conventional Commits on the subject line.
+# Active via the same core.hooksPath=.githooks as pre-commit (no extra setup).
+# Bypass in a pinch:  git commit --no-verify
+set -uo pipefail
+
+msg_file="$1"
+
+# Subject = first non-blank, non-comment line of the message.
+subject="$(grep -vE '^[[:space:]]*#' "$msg_file" | grep -vE '^[[:space:]]*$' | head -n1)"
+
+# Skip auto-generated / tooling commits we don't author by hand.
+case "$subject" in
+  "Merge "*|'Revert "'*|"fixup! "*|"squash! "*|"amend! "*)
+    echo "[commit-msg] ok (auto/merge — skipped)"
+    exit 0
+    ;;
+esac
+
+# Conventional Commits: <type>[(scope)][!]: <description>
+pattern='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-zA-Z0-9._/-]+\))?!?: .+'
+
+if printf '%s' "$subject" | grep -qE "$pattern"; then
+  echo "[commit-msg] ok"
+  exit 0
+fi
+
+cat >&2 <<EOF
+[commit-msg] BLOCKED — subject is not a Conventional Commit:
+    "$subject"
+
+Expected:  <type>[(scope)][!]: <description>
+Types:     feat fix docs style refactor perf test build ci chore revert
+Examples:  fix(bannerlord): reconcile tournament queue on load
+           feat(backend): add tournament queue endpoint
+           docs(bannerlord): record reconcile fix
+           feat(api)!: drop legacy field        (! = breaking change)
+
+Bypass once (rare):  git commit --no-verify
+EOF
+exit 1

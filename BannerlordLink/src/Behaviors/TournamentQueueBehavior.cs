@@ -7,6 +7,7 @@ using BannerlordLink.Actions;
 using BannerlordLink.Util;
 using HarmonyLib;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.GameMenus;
 using TaleWorlds.CampaignSystem.Settlements;
@@ -179,6 +180,70 @@ namespace BannerlordLink.Behaviors
             {
                 BannerlordLinkModule.Log(
                     $"[tournament] game menu register FAILED: {ex.Message}");
+            }
+
+            // 2026-06-16 (bug #18) — реконсиляция очереди с backend на загрузке.
+            // In-game очередь — per-save (SyncData); если стример сейв-скамит
+            // (грузит сейв, сделанный ДО записи зрителя), запись молча выпадает,
+            // а расширение всё равно показывает «в очереди» (берёт из backend).
+            // Backend-очередь — durable source of truth «кто записался»; домерджим
+            // тех, кого нет в in-game очереди. Только ДОБАВЛЯЕМ — поэтому откат
+            // сейва за уже прошедший турнир не ломает очередь из того сейва.
+            _ = FetchAndMergeBackendQueueAsync();
+        }
+
+        /// <summary>Фетчит backend-очередь и домерджит на главном потоке (bug #18).</summary>
+        private async Task FetchAndMergeBackendQueueAsync()
+        {
+            try
+            {
+                string json = await BannerlordLinkModule.Backend
+                    .GetAsync("/api/bannerlord/tournament/queue-usernames");
+                if (string.IsNullOrEmpty(json)) return;
+                var parsed = JObject.Parse(json);
+                if (parsed["success"] == null || !(bool)parsed["success"]) return;
+                var arr = parsed["usernames"] as JArray;
+                if (arr == null || arr.Count == 0) return;
+                var users = arr
+                    .Select(t => (t.ToString() ?? "").Trim().ToLowerInvariant())
+                    .Where(u => !string.IsNullOrEmpty(u))
+                    .ToList();
+                // Очередь — main-thread state; мутируем только на главном потоке.
+                MainThreadDispatcher.Enqueue(() => MergeBackendQueue(users));
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[tournament] backend queue fetch error: {ex.Message}");
+            }
+        }
+
+        private void MergeBackendQueue(List<string> backendUsers)
+        {
+            try
+            {
+                int added = 0, skipped = 0;
+                foreach (var username in backendUsers)
+                {
+                    if (_queue.Count >= TOURNAMENT_SIZE) break;
+                    var hero = HeroLookup.FindByUsername(username);
+                    if (hero == null || !hero.IsAlive) { skipped++; continue; }
+                    if (_queue.Any(e => e.Hero == hero)) continue;   // уже в очереди
+                    _queue.Add(new QueueEntry
+                    {
+                        Username = username,
+                        Hero = hero,
+                        EntryFee = 0,
+                    });
+                    added++;
+                }
+                if (added > 0 || skipped > 0)
+                    BannerlordLinkModule.Log(
+                        $"[tournament] backend reconcile: +{added} merged, " +
+                        $"{skipped} skipped (dead/missing)");
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[tournament] merge error: {ex.Message}");
             }
         }
 

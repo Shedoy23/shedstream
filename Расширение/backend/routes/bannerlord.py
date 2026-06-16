@@ -701,6 +701,31 @@ async def bannerlord_tournament(request: Request):
     }
 
 
+@router.get("/api/bannerlord/tournament/queue-usernames")
+async def bannerlord_tournament_queue_usernames(channel_id: int = 0):
+    """Mod-facing: usernames текущей турнирной очереди канала (по joined_at).
+
+    Public-ish (channel_id query — нет JWT, mod вызывает с module token), как
+    clan-upgrades/all-owners. Мод фетчит на загрузке сейва и домерджит тех, кто
+    записался, но выпал из in-game очереди после save-load (savescum) — bug #18:
+    backend-очередь durable source of truth для «кто записался».
+    """
+    from dependencies import resolve_channel_id_or_default
+    if channel_id <= 0:
+        channel_id = resolve_channel_id_or_default()
+
+    db = get_db()
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT username FROM bannerlord_tournament_queue "
+            "WHERE channel_id = ? ORDER BY joined_at ASC",
+            (channel_id,)
+        )
+        usernames = [r[0] for r in await cur.fetchall()]
+
+    return {"success": True, "usernames": usernames}
+
+
 @router.get("/api/bannerlord/battle-status")
 async def bannerlord_battle_status(request: Request):
     """Sprint 5.5: viewer-side battle indicator.

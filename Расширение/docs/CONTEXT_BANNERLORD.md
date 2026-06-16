@@ -3,8 +3,9 @@
 **Назначение:** для чата по Bannerlord-модулю. Для общей extension
 работы — см. `CONTEXT.md`. Для RimWorld — `CONTEXT_RIMWORLD.md`.
 
-**Last updated:** 2026-06-15 (save-load sync + per-save state persistence;
-forge reforge-quality + quality badges. См. «2026-06-15» секцию ниже.)
+**Last updated:** 2026-06-16 (tournament queue reconcile on save-load, bug #18 —
+см. «2026-06-16» секцию ниже. До этого: 2026-06-15 save-load sync + per-save
+state persistence + forge reforge-quality.)
 
 ## 2026-06-15 — Save-load sync + per-save persistence
 
@@ -51,6 +52,31 @@ per-save через SyncData. (Был баг: вайп без restore сноси
 старая свита до 2026-06-15 в SyncData не попадала (на смене сейва уйдёт пока не
 переберётся). Прочие RESETTABLE-таблицы (auctions/heirs/marriage) — транзиентные,
 сброс на смене сейва корректен.
+
+## 2026-06-16 — Tournament queue reconcile (bug #18)
+
+Тот же класс рассинхрона сейв↔backend, что и per-save выше, но с турнирной
+очередью. Симптом (#18): зритель записался в турнир, но не попал в него.
+
+Корень: in-game очередь — per-save (SyncData `blink_tournament_queue_v1`),
+backend-очередь — durable. Стример сейв-скамит (грузит сейв, сделанный ДО записи
+зрителя) → in-game очередь откатывается, зритель молча выпадает; расширение всё
+равно показывает «в очереди» (читает backend-зеркало) → зритель не перезаписывается
+→ турнир идёт без него. Доказано по логу: kuro joined 18:44 → SyncData load 18:46
+restored 2 (pre-join) → турнир 22:37 без него.
+
+Фикс: на `OnSessionLaunched` (после SyncData-restore) мод фетчит backend-очередь
+(новая мод-facing `GET /api/bannerlord/tournament/queue-usernames`, зеркало
+`clan-upgrades/all-owners` — channel_id-query без JWT) и **домерджит** недостающих
+в `_queue` (резолв героя через HeroLookup; dead/missing — skip; dedup по Hero;
+лимит 16). Merge-only, очередь не чистит → откат за уже прошедший турнир не ломает
+очередь из того сейва. Backend — source of truth «кто записался». Не manifest-event
+(это GET-фетч). Код: `TournamentQueueBehavior.FetchAndMergeBackendQueueAsync` +
+`MergeBackendQueue` (мутация `_queue` на main-thread через MainThreadDispatcher).
+
+Статус: задеплоено (backend + мод DLL md5 217B4F88), **в игре не проверено** —
+после рестарта Bannerlord ждёт теста на стриме (лог `[tournament] backend
+reconcile: +N merged`).
 
 ## ⚠️ ОБЯЗАТЕЛЬНЫЙ REFERENCE для новых фич
 

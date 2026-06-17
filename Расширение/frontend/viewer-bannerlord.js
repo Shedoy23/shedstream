@@ -2298,9 +2298,9 @@ function _renderBannerlordDetachmentPanel(battleData) {
             </button>
             <button class="extra-btn bnr-det-btn" data-det-act="hero.detach_charge"
                     data-det-cost="30"
-                    title="Бежать на ближайшее enemy formation. Berserk'и заходят первыми, ломают фронт."
+                    title="Идти в КОНТАКТ к ближайшему врагу (любой класс, даже лучник — сайдармом). Бой с дистанции — кнопка «Перестрелка»."
                     style="background:#7c1d1d;color:#fecaca;padding:6px;">
-                ⚔ В атаку (30💎)
+                ⚔ Вблизи (30💎)
             </button>${_detSkirmishBtn}${_detRaidBtn}
             <button class="extra-btn bnr-det-btn" data-det-act="hero.attach"
                     data-det-cost="10"

@@ -84,10 +84,6 @@ namespace BannerlordLink.Behaviors
 
         private const float REISSUE_INTERVAL = 0.5f;
 
-        // 2026-06-17 (#15 / Bug A) — дистанция выстрела для стрелков в Charge:
-        // лучник по «в бой» идёт на ~RANGED_STANDOFF метров от врага, а не вплотную.
-        private const float RANGED_STANDOFF = 18f;
-
         // 2026-06-17 (рич-приказы) — Skirmish/Raid математика портирована из движковых
         // behaviors (agent-level, без запуска самих behaviors — без крашей):
         //   SKIRMISH_STANDOFF — pull-back дистанция, по BehaviorSkirmish (стоять на
@@ -377,21 +373,10 @@ namespace BannerlordLink.Behaviors
                 var enemy = FindNearestEnemyAgent(agent);
                 if (enemy != null)
                 {
+                    // 2026-06-17 — «вблизи»: ВСЕГДА в КОНТАКТ к врагу, для всех классов
+                    // (дистанционный бой — отдельный приказ Skirmish «издали»). Скриптуем
+                    // на позицию врага + авто-таргет; re-issue 0.5с ведёт за врагом.
                     var pos = enemy.GetWorldPosition();
-                    // 2026-06-17 (#15 / Bug A) — умный «в бой» по классу: стрелок идёт
-                    // на дистанцию выстрела (точка на линии враг→герой в ~RANGED_STANDOFF
-                    // от врага) + авто-таргет, а не вплотную. Мили — прямо на врага.
-                    if (IsRangedAgent(agent))
-                    {
-                        Vec2 ev = pos.AsVec2;
-                        Vec2 dir = agent.Position.AsVec2 - ev;
-                        float dist = dir.Length;
-                        if (dist > 0.01f)
-                        {
-                            dir = dir * (1f / dist);
-                            try { pos.SetVec2(ev + dir * RANGED_STANDOFF); } catch { }
-                        }
-                    }
                     agent.SetScriptedPosition(ref pos, false,
                         Agent.AIScriptedFrameFlags.NeverSlowDown);
                     try { agent.SetAutomaticTargetSelection(true); } catch { }
@@ -548,25 +533,6 @@ namespace BannerlordLink.Behaviors
                 return best;
             }
             catch { return null; }
-        }
-
-        /// <summary>True если у агента есть лук/арбалет — для standoff в Charge (Bug A).</summary>
-        private static bool IsRangedAgent(Agent agent)
-        {
-            try
-            {
-                if (agent == null) return false;
-                for (var i = EquipmentIndex.Weapon0; i <= EquipmentIndex.Weapon3; i++)
-                {
-                    var item = agent.Equipment[i].Item;
-                    if (item == null) continue;
-                    if (item.Type == ItemObject.ItemTypeEnum.Bow
-                        || item.Type == ItemObject.ItemTypeEnum.Crossbow)
-                        return true;
-                }
-            }
-            catch { }
-            return false;
         }
 
         private string ResolveUsername(Agent agent)

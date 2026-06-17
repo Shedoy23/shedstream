@@ -1,6 +1,7 @@
 using System;
 using HarmonyLib;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.Core;
 
 namespace BannerlordLink.Patches
 {
@@ -8,17 +9,18 @@ namespace BannerlordLink.Patches
     /// Sprint 5.32 #48 — Harmony finalizer на TaleWorlds.CampaignSystem.
     /// CampaignBehaviors.BannerCampaignBehavior.DailyTickHero(Hero).
     ///
-    /// Crash dump (TaleWorlds.MountAndBlade.Launcher.exe.24004.dmp) показал
-    /// System.InvalidCastException в этом методе при daily-tick'е adopted
-    /// viewer-героя. Очередной TaleWorlds vanilla bug — пытается cast'нуть
-    /// hero state в конкретный type (вероятно Clan.Banner или PartyBelongedTo
-    /// в SiegeEvent), runtime type не совпадает → process die.
+    /// 2026-06-16 ROOT-CAUSE (декомпиль DailyTickHero, см. CLAUDE.md «decompile
+    /// to root-cause, don't blind-swallow»): единственный каст в методе —
+    /// `(BannerComponent)hero.BannerItem.Item.ItemComponent`. InvalidCast = в
+    /// слот баннера героя попал НЕ-баннер (ItemComponent != BannerComponent).
+    /// Было у @bapah1_1 / @k0r0b14 (23×/день). Раньше finalizer просто ГЛОТАЛ
+    /// → silently broken: баннер не назначался + спам в логе.
     ///
-    /// BLT решает то же самое для всех problematic vanilla campaign behaviors
-    /// — оборачивает в try/catch через Harmony finalizer.
-    ///
-    /// Finalizer runs ПОСЛЕ original, может swallow exception возвратом null.
-    /// Других exceptions не глотаем — пусть всплывают для diagnostics.
+    /// Теперь PREFIX чистит битый BannerItem ДО vanilla → vanilla видит invalid
+    /// → переназначит корректный баннер (self-heal). Валидные/пустые баннеры НЕ
+    /// трогаем — falls through в vanilla без изменений. Finalizer ОСТАВЛЕН как
+    /// backstop, но теперь логирует ПОЛНЫЙ стек любого InvalidCast, который
+    /// prefix не поймал (диагностика будущих источников).
     ///
     /// Reflection-based — если type не найден в текущей версии SandBox, patch
     /// gracefully skip'нется без crash'а на init.
@@ -79,6 +81,35 @@ namespace BannerlordLink.Patches
                 yield return m;
             }
 
+            // 2026-06-16 ROOT-CAUSE FIX — чистим битый BannerItem ДО vanilla,
+            // чтобы каст (BannerComponent)Item.ItemComponent не падал. Валидные
+            // и пустые баннеры не трогаем → fall through в vanilla без изменений.
+            [HarmonyPrefix]
+            public static void Prefix(Hero hero)
+            {
+                try
+                {
+                    if (hero == null) return;
+                    var be = hero.BannerItem;
+                    if (be.IsInvalid()) return;                 // пусто — vanilla ok
+                    var comp = be.Item?.ItemComponent;
+                    if (comp is BannerComponent) return;        // настоящий баннер — vanilla ok
+                    // Не-BannerComponent (или null) в слоте баннера — именно на
+                    // нём падает InvalidCast. Чистим → vanilla переназначит.
+                    string who = "?";
+                    try { who = hero.Name?.ToString() ?? "?"; } catch { }
+                    BannerlordLinkModule.Log(
+                        $"[BannerCampaignBehavior] PREFIX: битый BannerItem у hero='{who}' " +
+                        $"(component={comp?.GetType().Name ?? "null"}) → clear, vanilla переназначит");
+                    hero.BannerItem = new EquipmentElement((ItemObject)null);
+                }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[BannerCampaignBehavior] PREFIX guard error: {ex.Message}");
+                }
+            }
+
             // Sprint 5.32 #48 — Finalizer signature: (Exception __exception, Hero hero)
             // returns Exception. Возврат null = swallow; возврат __exception = re-throw.
             [HarmonyFinalizer]
@@ -101,9 +132,9 @@ namespace BannerlordLink.Patches
                     catch { }
                     BannerlordLinkModule.Log(
                         $"[BannerCampaignBehavior] SWALLOWED InvalidCastException " +
-                        $"для hero='{name}' (viewer=@{username}). " +
-                        $"TaleWorlds vanilla bug; daily tick для этого hero сегодня skip'нется.");
-                    return null;   // swallow → process не падает
+                        $"для hero='{name}' (viewer=@{username}) — prefix-guard НЕ поймал, " +
+                        $"полный стек для диагностики:\n{__exception}");
+                    return null;   // swallow → process не падает (backstop)
                 }
                 // Other exceptions re-throw — пусть diagnostics видит.
                 return __exception;

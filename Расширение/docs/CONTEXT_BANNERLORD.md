@@ -3,9 +3,9 @@
 **Назначение:** для чата по Bannerlord-модулю. Для общей extension
 работы — см. `CONTEXT.md`. Для RimWorld — `CONTEXT_RIMWORLD.md`.
 
-**Last updated:** 2026-06-16 (tournament queue reconcile #18 + diplomacy clan-vote
-UX feedback #16/#17 — см. «2026-06-16» секции ниже. До этого: 2026-06-15 save-load
-sync + per-save state persistence + forge reforge-quality.)
+**Last updated:** 2026-06-17 (cleave → active power #15 + class balance pass m79 +
+earning audit — см. «2026-06-17» секцию ниже. До этого: 2026-06-16 tournament/
+diplomacy/InvalidCast, 2026-06-15 save-load + per-save persistence + forge.)
 
 ## 2026-06-15 — Save-load sync + per-save persistence
 
@@ -122,6 +122,36 @@ v=202606161815), bug_reports #16/#17 → resolved. Панель видна то�
 Статус: собрано + мод DLL `E457EF74` копирован, **в игре не проверено** — на стриме
 ждём `[BannerCampaignBehavior] PREFIX: битый BannerItem … → clear` и отсутствие
 новых `SWALLOWED` строк.
+
+## 2026-06-17 — Cleave → активка (#15) + класс-баланс (m79) + аудит заработка
+
+**Cleave → активка (#15).** Мили splash-AoE (`DamageHookPatch.ApplyMeleeCleave`) был
+ПАССИВОМ (always-on, `cleave_chance_pct` на каждом мили-хите) — ЭТО и был «мили косит
+несколько за удар» (НЕ ванила-cut-through, НЕ выключенный CleavePatch — оба ложные следы,
+которые я сперва назвал; нашлось grep'ом). Лучниковый близнец `explosive_arrows` — активка
+→ асимметрия = «лучники бесполезные». Перевели клив в активку (зеркало explosive_arrows):
+`ApplyMeleeCleave` читает `ActiveBuffState("cleave")` (splash только в окне ~45с); новый
+`ActivateCleave` + `cleave` в ACTIVE_POWER_KEYS / POWER_PRICES(350) / POWER_COOLDOWNS(90);
+**m78** — drop пассив `cleave_chance_pct`, seed активный `cleave` (splash-доля per мили-класс);
+фронт-кнопка «⚔️ Рассечение».
+
+**Класс-баланс m79 (data-only — механики уже были мод-сайд).** По аудиту 14 классов:
+- Мили-бруизеры: урон ОСТАВЛЕН, срезаны защита/сустейн (berserk hp1.5→1.25 / dmg-red18→10 /
+  вамп20.8→12 / стаггер80→60; psycho стаггер85→60; assassin вамп28.6→16; knight −retribution_toggle
+  + pen35→25; tank pen40→25) → бруизеры стали убиваемы (риск/ревард).
+- Стрелки: +`stagger_immunity_pct` (было **0%** → оглушали намертво; добивает #15) + чуть hp/dmg-red.
+  **Оффенс НЕ трогали** — `rage` множит И урон ВЫСТРЕЛА (`ApplyRageOutgoing` без missile-гейта),
+  rage НИГДЕ не удалён (это был мой ошибочный план, отловлено).
+- Конница не трогана. Legacy-призрак `infantry` (нет в M15-каталоге) почищен.
+
+**Аудит заработка (ВАЖНО, держать в уме).** per-kill динары = ~10% дохода; **kill-streak
+бонусы = ~90%** (escalating, class-agnostic, structurally про-мили — кто больше персон-киллов/бой,
+тот забирает; формула без классового рычага). Рынок проголосовал: 9/15 игроков = berserk.
+Боевой баланс (m79) — отдельный слой; **стрик-экономику владелец правит отдельно** (направление:
+текущие награды ×0.5 + расширить вехи до 150 каждые 10 — `KillRewardBehavior.KILL_STREAKS`).
+
+Статус: клив+m79 на проде (мод DLL `1B75AB68`, фронт `v=202606170840`, m78/m79 applied=True).
+Баланс — первый пас, крутится по ощущению на стриме (правка = ещё миграция / мод-ребилд).
 
 ## ⚠️ ОБЯЗАТЕЛЬНЫЙ REFERENCE для новых фич
 

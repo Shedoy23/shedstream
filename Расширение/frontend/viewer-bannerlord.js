@@ -2232,8 +2232,9 @@ async function loadBannerlordBattleStatus() {
 }
 
 // Sprint 5.32 (BLT-parity DET-4) — Detachment-команды для viewer'а в Mission.
-// 6 кнопок: detach/attach + hold/charge + walls/gate. Caller — кнопка → POST
-// `hero.detach_X` action → backend pricing → mod handler → HeroDetachmentBehavior.
+// Кнопки: detach/attach + hold/charge + walls/gate (siege) + 2026-06-17 рич-приказы
+// skirmish/raid (гейт по классу). Caller — кнопка → POST `hero.detach_X` action →
+// backend pricing → mod handler → HeroDetachmentBehavior.
 //
 // Disabled state если viewer не alive в текущей mission (`data.my_stats.alive`).
 function _renderBannerlordDetachmentPanel(battleData) {
@@ -2255,6 +2256,31 @@ function _renderBannerlordDetachmentPanel(battleData) {
     if (wasEmpty) {
         console.info('[FE-DET] panel SHOW (battle started, viewer alive)');
     }
+    // 2026-06-17 рич-приказы — Набег (конная орбита) и Перестрелка (standoff)
+    // гейтятся по классу героя: Набег только конным, Перестрелка только ranged.
+    // Класс берём из _bannerlordClassesCache (грузится с hero); если неизвестен —
+    // прячем оба (база hold/charge/attach всё равно доступна).
+    const _detClassKey = (_bannerlordClassesCache && _bannerlordClassesCache.current
+                          && _bannerlordClassesCache.current.class_key) || '';
+    const _DET_RAID_CLASSES = ['cavalry', 'camel_cavalry', 'horse_archer', 'camel_archer'];
+    const _DET_SKIRMISH_CLASSES = ['archer', 'heavy_archer', 'crossbow',
+                                   'heavy_crossbow', 'horse_archer', 'camel_archer'];
+    const _detShowRaid = _DET_RAID_CLASSES.indexOf(_detClassKey) >= 0;
+    const _detShowSkirmish = _DET_SKIRMISH_CLASSES.indexOf(_detClassKey) >= 0;
+    const _detSkirmishBtn = _detShowSkirmish ? `
+            <button class="extra-btn bnr-det-btn" data-det-act="hero.detach_skirmish"
+                    data-det-cost="30"
+                    title="🏹 Бой на расстоянии: держать дистанцию ~22м и стрелять, не подпуская врага вплотную. Лучникам/арбалетчикам."
+                    style="background:#14532d;color:#bbf7d0;padding:6px;">
+                🏹 Перестрелка (30💎)
+            </button>` : '';
+    const _detRaidBtn = _detShowRaid ? `
+            <button class="extra-btn bnr-det-btn" data-det-act="hero.detach_raid"
+                    data-det-cost="30"
+                    title="🐎 Набег: конный кружит вокруг ближайшего врага, рубя/стреляя на проходе. Только конным классам."
+                    style="background:#4c1d95;color:#ddd6fe;padding:6px;">
+                🐎 Набег (30💎)
+            </button>` : '';
     slot.innerHTML = `
         <div style="font-size:12px;color:#fbbf24;font-weight:700;margin-bottom:6px;
                     border-top:1px solid #3d3d3f;padding-top:8px;">
@@ -2275,7 +2301,7 @@ function _renderBannerlordDetachmentPanel(battleData) {
                     title="Бежать на ближайшее enemy formation. Berserk'и заходят первыми, ломают фронт."
                     style="background:#7c1d1d;color:#fecaca;padding:6px;">
                 ⚔ В атаку (30💎)
-            </button>
+            </button>${_detSkirmishBtn}${_detRaidBtn}
             <button class="extra-btn bnr-det-btn" data-det-act="hero.attach"
                     data-det-cost="10"
                     title="Вернуть hero в parent formation стримера. Подчиняется AI commander снова."

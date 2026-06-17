@@ -304,16 +304,16 @@ namespace BannerlordLink.Patches
                 $"[DamageHook EXPLOSIVE] @{user} AoE center={damageAtCenter:F0} → {n} targets");
         }
 
-        // 2026-06-10 (мили-баланс) — рассечение. Замена мёртвого CleavePatch
-        // (cut-through через WeaponCollisionReaction крашил 1.3.15): на МИЛИ-хите
-        // по шансу cleave_chance_pct splash'им долю урона ≤3 ближайшим врагам
-        // вокруг жертвы. Через ту же безопасную отложенную очередь
-        // (EnqueueReflect → DrainPendingReflects: BlowFlags.NoSound + троттл ≤3/тик),
-        // что explosive_arrows — НЕ зовём RegisterBlow инлайн (FMOD-safe).
-        // cleave_chance_pct сидится только мили-классам → сам ролл гейтит.
+        // 2026-06-10 → 2026-06-17 (#15) — рассечение (мили splash-AoE). Замена
+        // мёртвого CleavePatch (cut-through через WeaponCollisionReaction крашил
+        // 1.3.15): splash'им долю урона ≤3 ближайшим врагам вокруг жертвы через ту
+        // же безопасную отложенную очередь (EnqueueReflect → DrainPendingReflects:
+        // BlowFlags.NoSound + троттл ≤3/тик), что explosive_arrows — НЕ зовём
+        // RegisterBlow инлайн (FMOD-safe). 2026-06-17: переведено из ПАССИВА
+        // (always-on cleave_chance_pct) в АКТИВКУ — splash только в окне буффа
+        // `cleave` (зеркало explosive_arrows), value буффа = доля урона.
         private const float CLEAVE_RADIUS = 2.5f;          // мили-дуга вокруг жертвы
         private const int CLEAVE_MAX_TARGETS = 3;
-        private const double CLEAVE_SPLASH_FRAC = 0.5;     // доля урона по соседям
         private static void ApplyMeleeCleave(
             string user, Agent attackerSrc, Agent victim,
             ref Blow b, ref AttackCollisionData cd)
@@ -321,12 +321,12 @@ namespace BannerlordLink.Patches
             if (attackerSrc == null || victim == null) return;
             if (cd.IsMissile) return;                       // только мили-удары
             if (b.InflictedDamage <= 0) return;
-            double chance = ResolvePct(user, "cleave_chance_pct");
-            if (chance <= 0) return;
-            if (TaleWorlds.Core.MBRandom.RandomFloat * 100.0 >= chance) return;
+            // Активка: splash идёт только пока активен буфф `cleave`; value = доля урона.
+            var frac = ActiveBuffState.GetValue(user, "cleave");
+            if (!frac.HasValue || frac.Value <= 0) return;
             if (Mission.Current == null) return;
 
-            int splash = (int)(b.InflictedDamage * CLEAVE_SPLASH_FRAC);
+            int splash = (int)(b.InflictedDamage * frac.Value);
             if (splash <= 0) return;
             var dt = b.DamageType;
             var pos = victim.Position;

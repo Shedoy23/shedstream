@@ -382,6 +382,8 @@ async def bannerlord_classes(request: Request):
             "lifesteal_burst", "ironskin_toggle",
             # 2026-05-29 взрывные стрелы (ranged AoE active).
             "explosive_arrows",
+            # 2026-06-17 (#15) — рассечение: мили AoE-активка (зеркало explosive_arrows).
+            "cleave",
         )
         current_powers = []
         if current:
@@ -773,6 +775,7 @@ POWER_PRICES = {
     "lifesteal_burst":    300,
     "ironskin_toggle":    300,
     "explosive_arrows":   350,
+    "cleave":             350,   # 2026-06-17 (#15) — мили AoE-активка, как explosive_arrows
 }
 
 

@@ -135,6 +135,10 @@ namespace BannerlordLink.Actions
                     case "explosive_arrows":
                         ActivateExplosiveArrows(username, durationOverride, valueOverride, agent);
                         break;
+                    // 2026-06-17 (#15) — рассечение: мили splash-AoE как активка.
+                    case "cleave":
+                        ActivateCleave(username, durationOverride, valueOverride, agent);
+                        break;
                     default:
                         BannerlordLinkModule.Log(
                             $"[power.activate] REFUSE @{username}: unknown power '{powerKey}'");
@@ -511,6 +515,22 @@ namespace BannerlordLink.Actions
             BannerlordLinkModule.Log(
                 $"[power.explosive_arrows] @{username}: AoE arrows ({dmg:F0} center) for {duration}s");
             BannerlordLink.Util.PowerVisualFx.PlayActivation(agent, "explosive_arrows", username, (int)dmg);
+        }
+
+        // 2026-06-17 (#15) — рассечение как АКТИВКА (мили-зеркало explosive_arrows):
+        // buff, во время которого МИЛИ-хиты дают splash-AoE по соседям (см.
+        // DamageHook.ApplyMeleeCleave). Value = доля урона в splash. Self-buff.
+        private static void ActivateCleave(string username, float? durationOverride,
+            double? valueOverride, Agent agent)
+        {
+            float duration = durationOverride ?? 45f;   // унификация активок: 45с
+            double frac = valueOverride
+                ?? PowerCache.GetPowerValue(username, "cleave")
+                ?? 0.5;
+            ActiveBuffState.Activate(username, "cleave", duration, frac);
+            BannerlordLinkModule.Log(
+                $"[power.cleave] @{username}: splash {frac * 100:F0}% по соседям for {duration}s");
+            BannerlordLink.Util.PowerVisualFx.PlayActivation(agent, "cleave", username, (int)(frac * 100));
         }
 
         /// <summary>Helper — find random active enemy human within radius.

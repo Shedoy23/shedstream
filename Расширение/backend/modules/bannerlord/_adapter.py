@@ -75,6 +75,7 @@ POWER_COOLDOWNS = {
     "shield_break_burst":  90,
     "rage":                90,
     "retribution_toggle":  90,
+    "cleave":              90,   # 2026-06-17 (#15) — мили AoE-активка
     # Sprint 5.0: player.spawn = summon hero в Mission. Cooldown особо нужен —
     # spawn в идущий бой это серьёзное вмешательство, нельзя спамить.
     # Sprint 5.27i: 120s → 30s (быстрее ротация участников).

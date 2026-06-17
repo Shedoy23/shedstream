@@ -1195,6 +1195,7 @@ const BNR_POWER_LABELS = {
     lifesteal_burst:    { icon: '🩸', label: 'Вампиризм',   desc: '% урона → хил, 45с' },
     ironskin_toggle:    { icon: '🛡', label: 'Железная кожа', desc: '−% урона, 45с' },
     explosive_arrows:   { icon: '🧨', label: 'Взрывные стрелы', desc: 'AoE с попаданий, 45с' },
+    cleave:             { icon: '⚔️', label: 'Рассечение', desc: 'AoE по соседям, 45с' },
 };
 // BNR_POWER_PRICES удалён 2026-06-14 — цена активок теперь приходит с бэка
 // (POWER_PRICES в routes/bannerlord.py, в current_powers[].price). Тонкий фронт:

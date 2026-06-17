@@ -105,6 +105,24 @@ reconcile: +N merged`).
 v=202606161815), bug_reports #16/#17 → resolved. Панель видна только лидеру клана —
 визуально проверяется на стриме.
 
+## 2026-06-16 — InvalidCast в ванильном banner daily-tick (триаж follow-up)
+
+Из пост-стрим триажа: `BannerCampaignBehavior.DailyTickHero` падал InvalidCast
+23×/день у @bapah1_1 / @k0r0b14, finalizer глотал → silently broken. Декомпиль:
+единственный каст в методе — `(BannerComponent)hero.BannerItem.Item.ItemComponent`
+→ в слот баннера попал НЕ-баннер (разовая порча сейв-стейта; мод `Hero.BannerItem`
+напрямую не трогает — grep показал только `Clan.Banner`/`Kingdom.Banner`).
+
+Фикс (`BannerCampaignBehaviorPatch.cs`): Harmony **prefix** чистит битый BannerItem
+ДО vanilla → vanilla видит invalid → переназначит корректный баннер (self-heal);
+валидные/пустые не трогаем (fall through). Finalizer оставлен backstop'ом, теперь
+логирует ПОЛНЫЙ стек. **Поправка масштаба:** метод делает ТОЛЬКО логику баннеров,
+НЕ доход/рост — ранний триаж это преувеличил. Эффект бага: нет баннера + спам в логе.
+
+Статус: собрано + мод DLL `E457EF74` копирован, **в игре не проверено** — на стриме
+ждём `[BannerCampaignBehavior] PREFIX: битый BannerItem … → clear` и отсутствие
+новых `SWALLOWED` строк.
+
 ## ⚠️ ОБЯЗАТЕЛЬНЫЙ REFERENCE для новых фич
 
 **Authoritative source-of-truth:**

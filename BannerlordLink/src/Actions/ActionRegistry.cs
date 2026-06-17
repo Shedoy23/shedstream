@@ -76,6 +76,7 @@ namespace BannerlordLink.Actions
             Register(new ChildRespecSkillsHandler());   // hero.respec_child_skills
             // Sprint 5.33 (BLT-parity VAS) — vassal sub-clan management
             Register(new CreateVassalClanHandler());    // hero.create_vassal_clan
+            Register(new RecruitVassalClanHandler());   // hero.recruit_vassal_clan — 2026-06-17 (ruler hires NPC vassal clan, 3M)
             Register(new RenameVassalHandler());        // hero.rename_vassal
             // Sprint 5.33 (BLT-parity SIEGE) — party strategic orders
             Register(new SetPartyOrderHandler());       // hero.party_order_set

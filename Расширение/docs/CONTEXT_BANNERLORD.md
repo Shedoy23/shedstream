@@ -3,8 +3,9 @@
 **Назначение:** для чата по Bannerlord-модулю. Для общей extension
 работы — см. `CONTEXT.md`. Для RimWorld — `CONTEXT_RIMWORLD.md`.
 
-**Last updated:** 2026-06-17 (cleave → active power #15 + class balance pass m79 +
-earning audit — см. «2026-06-17» секцию ниже. До этого: 2026-06-16 tournament/
+**Last updated:** 2026-06-17 (recruit_vassal_clan — нанять NPC-вассальный клан +
+cleave → active power #15 + class balance pass m79 +
+earning audit — см. «2026-06-17» секции ниже. До этого: 2026-06-16 tournament/
 diplomacy/InvalidCast, 2026-06-15 save-load + per-save persistence + forge.)
 
 ## 2026-06-15 — Save-load sync + per-save persistence
@@ -122,6 +123,35 @@ v=202606161815), bug_reports #16/#17 → resolved. Панель видна то�
 Статус: собрано + мод DLL `E457EF74` копирован, **в игре не проверено** — на стриме
 ждём `[BannerCampaignBehavior] PREFIX: битый BannerItem … → clear` и отсутствие
 новых `SWALLOWED` строк.
+
+## 2026-06-17 — Нанять вассальный клан (`hero.recruit_vassal_clan`)
+
+Новое viewer-действие: **правитель королевства** нанимает свежий NPC-вассальный
+клан (tier-1) в СВОЁ королевство за **3 000 000 динаров** (Hero.Gold, списывает мод).
+Лимита нет — цена и есть ограничитель. Без стартовой партии/войск (движок управляет
+кланом сам); без VassalAutoFollow (это настоящий engine-managed вассал, не sub-clan
+зрителя).
+
+Зеркалит `CreateVassalClanHandler`, но 2 отличия: (a) лидер — сгенерированный
+NPC-лорд культуры королевства (`Occupation.Lord`-шаблон → `HeroCreator.CreateSpecialHero`,
+adult 28-45, alive), НЕ heir зрителя; (b) клан сразу `ChangeKingdomAction.
+ApplyByJoinToKingdom` в королевство правителя (+ reconcile HomeSettlement как в
+JoinKingdomHandler — иначе daily-tick NRE у безфиефного клана).
+
+Гейт на 3 слоя (defense-in-depth): фронт прячет кнопку у не-правителя (`kingdom_info.
+is_ruler`), бэк `_prepare_action` refuse'ит (`_derive_kingdom` → `is_king` + clan-leader
++ gold≥3M), мод — финальный арбитр (`kingdom.RulingClan == hero.Clan || kingdom.Leader
+== hero`, gold-check ДО создания сущностей).
+
+Файлы: `BannerlordLink/src/Actions/VassalHandlers.cs` (+`RecruitVassalClanHandler`),
+`ActionRegistry.cs`, `manifest.yaml`, `routes/bannerlord.py` (allow-list + cost
+const + price 0 + pre-check), `modules/bannerlord/_adapter.py` (cooldown 300s),
+`frontend/viewer-bannerlord.js` (ruler-only кнопка в kingdom-секции + confirm + тост).
+
+Статус: собрано (0 ошибок) + backend/frontend compile OK + lint OK; **в игре НЕ
+проверено** — критично: создание NPC/клана edge-case-prone (мод ловил daily-tick
+NRE/InvalidCast на adopted-hero раньше). Проверить: NPC спавнится, клан виден как
+вассал королевства, динары списаны, НЕТ краша на следующем daily-tick / save-load.
 
 ## 2026-06-17 — Cleave → активка (#15) + класс-баланс (m79) + аудит заработка
 

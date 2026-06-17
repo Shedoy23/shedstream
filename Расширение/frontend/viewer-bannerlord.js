@@ -3815,18 +3815,37 @@ function loadBannerlordKingdomMgmt() {
                 </summary>
                 <div id="bnr-kingdom-join-slot" style="padding-top:6px;"></div>
            </details>`;
+    // 2026-06-17 — кнопка «нанять вассальный клан» ТОЛЬКО для правителя королевства
+    // (info.is_ruler из kingdom_info). 3M динаров, лимита нет. Подтверждение обязательно.
+    const rulerActions = (hasKingdom && info && info.is_ruler)
+        ? `<button class="extra-btn bnr-recruit-vassal"
+                   title="Нанять свежий NPC-вассальный клан (tier-1) в своё королевство. Списывается 3 000 000💰 динаров. Лимита нет — цена и есть ограничитель."
+                   style="width:100%;font-size:12px;padding:7px;margin-top:5px;background:#1e3a5f;color:#93c5fd;font-weight:700;">
+                🛡 Нанять вассальный клан (3 000 000💰)
+           </button>`
+        : '';
     const html = `
         <div style="font-size:12px;color:#93c5fd;font-weight:700;margin-bottom:4px;text-align:center;">
             ${hasKingdom ? escapeHtml(info?.name || h.kingdom_name) : '— нет королевства —'}
         </div>
         ${infoGrid}
-        ${actions}`;
+        ${actions}
+        ${rulerActions}`;
     // 2026-06-07 FLICKER — пока раскрыта форма create/join, НЕ перерисовываем секцию
     // (иначе repaint стирает ввод имени). Любая из двух форм блокирует repaint.
     if (slot.querySelector('[data-bnr-details="kingdom-create"]')?.open
         || slot.querySelector('[data-bnr-details="kingdom-join"]')?.open) return;
     if (_smartInnerHTML(slot, html)) {
         slot.querySelector('.bnr-kingdom-leave')?.addEventListener('click', () => _bannerlordBuyAction('hero.leave_kingdom', {}));
+        // 2026-06-17 — нанять NPC-вассальный клан (ruler-only, 3M динаров). Confirm
+        // обязателен (сумма огромная) + action-specific тост «не мгновенно» на успех.
+        slot.querySelector('.bnr-recruit-vassal')?.addEventListener('click', async () => {
+            if (!await _bnrConfirm('Нанять новый вассальный клан за 3 000 000💰 динаров? Это огромная сумма. Клан возглавит NPC-лорд и присоединится к твоему королевству.')) return;
+            const res = await _bannerlordBuyAction('hero.recruit_vassal_clan', {});
+            if (res && res.success) {
+                showNotification('🛡 Заявка принята. NPC-лорд и его клан появятся в твоём королевстве в течение пары секунд (после обработки в игре). Динары спишутся при создании.', 'success', 7000);
+            }
+        });
         const _kcDet = slot.querySelector('[data-bnr-details="kingdom-create"]');
         if (_kcDet) {
             _kcDet.addEventListener('toggle', () => { if (_kcDet.open) _renderCreateKingdomInline(); });

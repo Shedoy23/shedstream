@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using BannerlordLink.Util;
 using Newtonsoft.Json;
@@ -15,13 +16,19 @@ namespace BannerlordLink.Actions
     /// <summary>
     /// Sprint 5.33 (BLT-parity VAS) — Vassal sub-clan management handlers.
     ///
-    /// 2 handlers:
+    /// 3 handlers:
     ///   - CreateVassalClanHandler — hero.create_vassal_clan
     ///     Backend payload: {parent_username, heir_hero_id, heir_name, vassal_name,
     ///                       placeholder_clan_id}.
     ///     Logic: resolve heir → CreateClan(name) → SetInitialHomeSettlement →
     ///            ChangeClanLeader to heir → heir.Clan = newClan → push event
     ///            `hero.vassal_created` с real clan_id для backend backfill.
+    ///
+    ///   - RecruitVassalClanHandler — hero.recruit_vassal_clan (2026-06-17)
+    ///     Backend payload: {initiated_by, [clan_name]}.
+    ///     Logic: RULER-only. Generate fresh NPC lord of kingdom culture →
+    ///            CreateClan → join OWNER's kingdom as vassal → charge 3M dinars.
+    ///            NO party/troops (engine-managed), NO auto-follow (real vassal).
     ///
     ///   - RenameVassalHandler — hero.rename_vassal
     ///     Backend payload: {vassal_clan_id, new_name, old_name}.
@@ -195,6 +202,248 @@ namespace BannerlordLink.Actions
             {
                 BannerlordLinkModule.Log(
                     $"[vassal.create] CRASHED: {ex.GetType().Name}: {ex.Message}");
+                ActionFeedback.PostFailed(actionId, "crashed:" + ex.Message);
+            }
+        }
+    }
+
+    // ── RecruitVassalClanHandler ───────────────────────────────────────────────
+    /// <summary>
+    /// 2026-06-17 — hero.recruit_vassal_clan. Правитель королевства нанимает свежий
+    /// NPC-вассальный клан (tier-1) в СВОЁ королевство за 3M динаров.
+    ///
+    /// MIRROR CreateVassalClanHandler, но 2 отличия:
+    ///   (a) лидер — свежесгенерированный NPC-лорд культуры королевства, НЕ heir;
+    ///   (b) клан сразу вступает вассалом в королевство правителя (не independent).
+    ///
+    /// Без стартовой партии/войск — движок сам управляет кланом дальше. Без
+    /// VassalAutoFollow — это настоящий engine-managed вассал королевства. Лимита
+    /// нет: цена 3M — единственный ограничитель.
+    /// </summary>
+    public class RecruitVassalClanHandler : IActionHandler
+    {
+        public string ActionType => "hero.recruit_vassal_clan";
+
+        // MIRROR backend RECRUIT_VASSAL_COST (routes/bannerlord.py pre-check).
+        // Списывается с инициатора (правителя) ПОСЛЕ успешного создания клана.
+        private const int RECRUIT_VASSAL_COST = 3_000_000;
+
+        public Task<(bool success, string error)> ExecuteAsync(JObject data)
+        {
+            string username = (data["initiated_by"]?.ToString() ?? data["target"]?.ToString() ?? "")
+                              .Trim().ToLowerInvariant();
+            if (string.IsNullOrEmpty(username))
+                return Task.FromResult<(bool, string)>((false, "no username"));
+
+            // optional clan name; пусто → auto-generate из имени NPC-лидера.
+            string clanName = (data["clan_name"]?.ToString() ??
+                               data["vassal_name"]?.ToString() ?? "").Trim();
+
+            string actionId = ActionFeedback.GetActionId(data);
+            MainThreadDispatcher.Enqueue(() => Recruit(username, clanName, actionId));
+            return Task.FromResult<(bool, string)>((true, null));
+        }
+
+        private static void Recruit(string username, string clanName, string actionId)
+        {
+            try
+            {
+                if (Campaign.Current == null)
+                {
+                    ActionFeedback.PostFailed(actionId, "no_campaign");
+                    return;
+                }
+
+                Hero hero;
+                try { hero = HeroLookup.FindByUsername(username); }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[recruit_vassal] FindByUsername('{username}') crashed: {ex.Message}");
+                    ActionFeedback.PostFailed(actionId, "hero_lookup_crash");
+                    return;
+                }
+                if (hero == null || !hero.IsAlive)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[recruit_vassal] REFUSE @{username}: hero not found/alive");
+                    ActionFeedback.PostFailed(actionId, "hero_not_found");
+                    return;
+                }
+                if (hero.IsPrisoner)
+                {
+                    BannerlordLinkModule.Log($"[recruit_vassal] REFUSE @{username}: prisoner");
+                    ActionFeedback.PostFailed(actionId, "hero_prisoner");
+                    return;
+                }
+                if (hero.Clan == null || !hero.IsClanLeader)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[recruit_vassal] REFUSE @{username}: not clan leader");
+                    ActionFeedback.PostFailed(actionId, "not_clan_leader");
+                    return;
+                }
+                Kingdom kingdom = hero.Clan.Kingdom;
+                if (kingdom == null)
+                {
+                    BannerlordLinkModule.Log($"[recruit_vassal] REFUSE @{username}: no kingdom");
+                    ActionFeedback.PostFailed(actionId, "no_kingdom");
+                    return;
+                }
+                // Только ПРАВИТЕЛЬ королевства (ruling clan / kingdom leader).
+                bool isRuler = (kingdom.RulingClan == hero.Clan) || (kingdom.Leader == hero);
+                if (!isRuler)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[recruit_vassal] REFUSE @{username}: not ruler of '{kingdom.Name}'");
+                    ActionFeedback.PostFailed(actionId, "not_ruler");
+                    return;
+                }
+                // Золото — ДО создания NPC/клана (не плодим сущности при нехватке).
+                if (hero.Gold < RECRUIT_VASSAL_COST)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[recruit_vassal] REFUSE @{username}: not enough gold " +
+                        $"({hero.Gold} < {RECRUIT_VASSAL_COST})");
+                    ActionFeedback.PostFailed(actionId, "not_enough_hero_gold");
+                    return;
+                }
+
+                CultureObject culture = kingdom.Culture ?? hero.Culture;
+                var rng = new Random();
+
+                // 1. Culture-appropriate lord template (pattern из AdoptHeroHandler,
+                //    но Occupation.Lord). Fallbacks держат robust на edge/modded культурах.
+                CharacterObject template = null;
+                try
+                {
+                    var allChars = MBObjectManager.Instance.GetObjectTypeList<CharacterObject>();
+                    var pool = allChars.Where(c => c != null && c.Occupation == Occupation.Lord
+                                   && c.Culture == culture).ToList();
+                    if (pool.Count == 0)
+                        pool = allChars.Where(c => c != null && c.Occupation == Occupation.Wanderer
+                                   && c.Culture == culture).ToList();
+                    if (pool.Count == 0)
+                        pool = allChars.Where(c => c != null && c.Occupation == Occupation.Lord).ToList();
+                    if (pool.Count > 0)
+                        template = pool[rng.Next(pool.Count)];
+                }
+                catch (Exception tex)
+                {
+                    BannerlordLinkModule.Log($"[recruit_vassal] template pick warn: {tex.Message}");
+                }
+                if (template == null)
+                {
+                    BannerlordLinkModule.Log($"[recruit_vassal] REFUSE @{username}: no lord template");
+                    ActionFeedback.PostFailed(actionId, "no_lord_template");
+                    return;
+                }
+
+                // 2. NPC-лорд: adult + alive + Lord occupation. Без партии (движок сам).
+                Hero npc = HeroCreator.CreateSpecialHero(template);
+                npc.ChangeState(Hero.CharacterStates.Active);
+                try
+                {
+                    int years = rng.Next(28, 46);
+                    npc.SetBirthDay(CampaignTime.YearsFromNow(-years));
+                }
+                catch (Exception aex)
+                {
+                    BannerlordLinkModule.Log($"[recruit_vassal] age warn: {aex.Message}");
+                }
+                try { npc.SetNewOccupation(Occupation.Lord); } catch { }
+                try { npc.SetHasMet(); } catch { }
+
+                // 3. Имя клана: payload OR авто из имени лидера.
+                string finalName = string.IsNullOrEmpty(clanName)
+                    ? (npc.Name?.ToString() ?? culture?.Name?.ToString() ?? "Vassal Clan")
+                    : clanName;
+
+                // 4. Клан — clan-setup verbatim из CreateVassalClanHandler.
+                var nameObj = new TextObject(finalName);
+                Clan newClan = Clan.CreateClan(finalName);
+                if (newClan == null)
+                {
+                    BannerlordLinkModule.Log("[recruit_vassal] CreateClan returned null");
+                    ActionFeedback.PostFailed(actionId, "clan_create_failed");
+                    return;
+                }
+                newClan.ChangeClanName(nameObj, nameObj);
+                newClan.Culture = culture;
+                if (newClan.Banner == null)
+                {
+                    try { newClan.Banner = Banner.CreateRandomBanner(); }
+                    catch (Exception bex)
+                    {
+                        BannerlordLinkModule.Log($"[recruit_vassal] banner warn: {bex.Message}");
+                    }
+                }
+                newClan.AddRenown(50f, false);          // tier-1 starter
+                newClan.IsNoble = true;
+                try
+                {
+                    var home = hero.Clan?.HomeSettlement ?? hero.HomeSettlement ?? hero.CurrentSettlement;
+                    if (home != null) newClan.SetInitialHomeSettlement(home);
+                }
+                catch { }
+
+                // 5. NPC-лорд — лидер клана.
+                npc.Clan = newClan;
+                try { ChangeClanLeaderAction.ApplyWithSelectedNewLeader(newClan, npc); }
+                catch (Exception lex)
+                {
+                    BannerlordLinkModule.Log($"[recruit_vassal] SetLeader warn: {lex.Message}");
+                }
+
+                // 6. Клан вступает вассалом в королевство правителя.
+                try
+                {
+                    ChangeKingdomAction.ApplyByJoinToKingdom(newClan, kingdom, showNotification: false);
+                }
+                catch (Exception kex)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[recruit_vassal] ApplyByJoinToKingdom failed: {kex.Message}");
+                    ActionFeedback.PostFailed(actionId, "kingdom_join_failed");
+                    return;
+                }
+                // Безфиефный клан → reconcile HomeSettlement (как JoinKingdomHandler),
+                // иначе ванильный daily-tick роняет NRE на null HomeSettlement.
+                try
+                {
+                    if (newClan.Fiefs.Count == 0)
+                    {
+                        newClan.ConsiderAndUpdateHomeSettlement();
+                        foreach (var hh in newClan.Heroes) hh.UpdateHomeSettlement();
+                    }
+                }
+                catch (Exception hsEx)
+                {
+                    BannerlordLinkModule.Log($"[recruit_vassal] home reconcile warn: {hsEx.Message}");
+                }
+
+                // 7. Списываем 3M динаров с правителя (ПОСЛЕ успешного создания).
+                try
+                {
+                    GiveGoldAction.ApplyBetweenCharacters(hero, null, RECRUIT_VASSAL_COST, true);
+                }
+                catch (Exception gex)
+                {
+                    BannerlordLinkModule.Log($"[recruit_vassal] gold deduct warn: {gex.Message}");
+                }
+
+                BannerlordLinkModule.Log(
+                    $"[recruit_vassal] OK: @{username} hired clan '{finalName}' " +
+                    $"(leader='{npc.Name}', clan_id={newClan.StringId}) → kingdom '{kingdom.Name}', " +
+                    $"-{RECRUIT_VASSAL_COST}💰 gold={hero.Gold}");
+
+                // Обновить backend-кэш золота правителя.
+                try { HeroStateSync.Push(hero); } catch { }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[recruit_vassal] CRASHED: {ex.GetType().Name}: {ex.Message}");
                 ActionFeedback.PostFailed(actionId, "crashed:" + ex.Message);
             }
         }

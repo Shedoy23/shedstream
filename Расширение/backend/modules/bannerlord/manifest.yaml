@@ -148,6 +148,7 @@ extensions:
     - hero.activate_heir
     # Sprint 5.33 (BLT-parity VAS) — vassal sub-clan management
     - hero.create_vassal_clan
+    - hero.recruit_vassal_clan   # 2026-06-17: ruler hires fresh NPC vassal clan into kingdom (3M Hero.Gold, mod-charged)
     - hero.rename_vassal
     # Sprint 5.33 (BLT-parity SIEGE) — party strategic orders
     - hero.party_order_set

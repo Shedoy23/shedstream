@@ -928,6 +928,7 @@ _PURCHASABLE_ACTIONS = (
     "hero.respec_child_skills",  # re-init child skills (HeroDeveloper)
     # Sprint 5.33 (BLT-parity VAS) — vassal sub-clan management
     "hero.create_vassal_clan",   # 250K Hero.Gold — выделить heir в новый clan
+    "hero.recruit_vassal_clan",  # 2026-06-17: 3M Hero.Gold — правитель нанимает NPC-вассальный клан
     "hero.rename_vassal",        # 50K Hero.Gold — rename vassal clan
     # Sprint 5.33 (BLT-parity SIEGE) — party order strategic management
     "hero.party_order_set",      # установить siege/defend/raid/garrison/patrol
@@ -997,6 +998,9 @@ KINGDOM_CREATE_COST = 5_000_000   # 5M динаров — premium prestige
 CLAN_JOIN_COST = 50_000           # вступление в clan
 KINGDOM_JOIN_COST = 100_000       # clan вступает в kingdom вассалом
 PARTY_CREATE_COST = 200_000       # MobileParty создание (стартовый loot + морал)
+# 2026-06-17: правитель нанимает свежий NPC-вассальный клан в своё королевство.
+# MIRROR C# RecruitVassalClanHandler.RECRUIT_VASSAL_COST — списывает МОД (динары).
+RECRUIT_VASSAL_COST = 3_000_000   # 3M динаров — единственный ограничитель (лимита нет)
 # leave_clan и leave_kingdom — бесплатно
 
 # Sprint 5.8: focus cost tier-based (mirror C# AddFocusHandler.FOCUS_TIER_COSTS).
@@ -1973,6 +1977,43 @@ async def _prepare_action(username, channel_id, action_type, data):
         data["hero_gold_cost"] = KINGDOM_JOIN_COST
         data["price"] = 0
 
+    # 2026-06-17: hero.recruit_vassal_clan — 3M Hero.Gold, ТОЛЬКО правитель королевства.
+    # Мод — авторитетная проверка (ruler/gold/clan-leader) + списание динаров; здесь
+    # UX pre-check (чистое сообщение вместо тихого refuse мода). Defense-in-depth:
+    # фронт прячет кнопку у не-правителя, бэк refuse'ит, мод — финальный арбитр.
+    if action_type == "hero.recruit_vassal_clan":
+        from routes.bannerlord_diplomacy import _derive_kingdom
+        db_tmp = get_db()
+        async with db_tmp._connect() as conn:
+            cur = await conn.execute(
+                "SELECT gold, clan_name, kingdom_id, kingdom_name, is_king, "
+                "       is_clan_leader, kingdom_info_json "
+                "FROM bannerlord_heroes WHERE channel_id=? AND username=?",
+                (channel_id, username))
+            row = await cur.fetchone()
+        if not row:
+            return {"success": False, "message": "Сначала создай героя"}
+        hero_gold = (row[0] if row else 0) or 0
+        clan_name = (row[1] if len(row) > 1 else None) or ""
+        kingdom_id, kingdom_name_cur, is_king, _is_cl = _derive_kingdom(
+            row[2], row[3], row[4], row[5], row[6])
+        if not clan_name.startswith("[BLink]"):
+            return {"success": False, "message": "Сначала создай свой клан."}
+        if not kingdom_id:
+            return {"success": False, "message": "Сначала создай или вступи в королевство."}
+        if not is_king:
+            return {
+                "success": False,
+                "message": "Только правитель королевства может нанимать вассальные кланы.",
+            }
+        if hero_gold < RECRUIT_VASSAL_COST:
+            return {
+                "success": False,
+                "message": f"Нужно {RECRUIT_VASSAL_COST:,}💰 динаров (у тебя {hero_gold:,}💰).",
+            }
+        data["hero_gold_cost"] = RECRUIT_VASSAL_COST
+        data["price"] = 0
+
     # Sprint 5.29 BLT-parity #6 phase A: hero.equip_trophy — pre-validate
     # ownership + inject trophy details в data для mod handler.
     if action_type == "hero.equip_trophy":
@@ -2150,6 +2191,7 @@ def _enforce_price(action_type, data, username, channel_id):
         # Sprint 5.33 (BLT-parity VAS) — sub-clan progression. High crustic
         # entry barrier — это long-term feature, не impulse-buy.
         "hero.create_vassal_clan":        0,    # 2026-05-29 currency re-map: платится Hero.Gold (как обычный клан), мод списывает 💰
+        "hero.recruit_vassal_clan":       0,    # 2026-06-17: платится 3M Hero.Gold (мод списывает 💰), крустики 0
         "hero.rename_vassal":           100,    # cosmetic
         # Sprint 5.33 (BLT-parity SIEGE) — party strategic orders
         "hero.party_order_set":         500,    # significant strategic decision

@@ -200,6 +200,33 @@ skirmish pull-back из `BehaviorSkirmish`. Движение близко к р�
 (`_adapter`) + manifest `supports_action` + фронт-кнопки + гейт по классу/миссии.
 Тестируется только в игре (итерации на стриме).
 
+**СОБРАНО 2026-06-17 (компилится: dotnet 0-err / py compile / node --check / lint /
+40-0 buy-action тест) — ЖДЁТ in-game теста на стриме:**
+- **Мод** (`HeroDetachmentBehavior`): enum `Skirmish`/`Raid`; `ApplySkirmish` —
+  standoff `SKIRMISH_STANDOFF=22м` (по `BehaviorSkirmish`: target = enemy+dirToMe*22,
+  ближе — отступает, дальше — поджимает) + auto-target; `ApplyRaid` — круговая орбита
+  `RAID_ORBIT_RADIUS=20м` вокруг ближайшего врага, точка-цель на пеленг+`0.4рад` каждый
+  re-issue (по `BehaviorMountedSkirmish`, эллипс схлопнут в круг для одного агента) +
+  auto-target. Публичные `Skirmish()/Raid()`, wired в `ReissueOrder` + stats-лог.
+- **Bug B partial — navmesh-проекция Стена/Ворота**: `FindNearestSiegeTarget` теперь
+  гонит `entity.GlobalPosition` через `ProjectToNavMesh` (`Scene.GetNavigationMeshFor‐
+  Position` → fallback `GetNearestNavigationMeshForPosition(5f)` → `WorldPosition.Get‐
+  NavMesh()` форсит Z-снап) → агент доходит до ОСНОВАНИЯ стены, не торчит в текстуре.
+  Лазить по лестнице agent-скриптом по-прежнему нельзя (потолок agent-level).
+- **Хендлеры**: `SkirmishHandler`/`RaidHandler` (зеркало `ChargeHandler`) + регистрация.
+- **Бэк**: `hero.detach_skirmish`/`_raid` добавлены в `_PURCHASABLE_ACTIONS` +
+  `ACTION_PRICES_DEFAULT` (30💎, как charge) + cooldown 2s (`_adapter`) + manifest
+  `extensions.actions`. (Спека упоминала только cooldown+manifest — но без price/
+  purchasable-записей бэк refuse'ил бы action: дописано для рабочего end-to-end.)
+- **Фронт** (`viewer-bannerlord.js`): кнопки 🏹 Перестрелка / 🐎 Набег в
+  `_renderBannerlordDetachmentPanel`, гейт по классу (`_bannerlordClassesCache.current.
+  class_key`): Набег → cavalry/camel_cavalry/horse_archer/camel_archer; Перестрелка →
+  archer/heavy_archer/crossbow/heavy_crossbow/horse_archer/camel_archer.
+- **КАВЕАТ siege-гейта**: фронт НЕ знает, осада это или нет (`battle-status` не отдаёт
+  siege-флаг, мод его не шлёт) → как и существующие Стена/Ворота, новые приказы
+  показываются всегда (когда alive), а не-siege случай отбивает мод (refuse+refund).
+  Полный FE-гейт по миссии = доп. работа (мод→бэк siege-флаг), не делалась.
+
 ## ⚠️ ОБЯЗАТЕЛЬНЫЙ REFERENCE для новых фич
 
 **Authoritative source-of-truth:**

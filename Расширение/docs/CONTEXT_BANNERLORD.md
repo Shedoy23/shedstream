@@ -157,6 +157,49 @@ v=202606161815), bug_reports #16/#17 → resolved. Панель видна то�
 InvalidCast-гард + фантом-статы + gear_tier), фронт `v=202606170840`, m78/m79 applied=True.
 Баланс — первый пас, крутится по ощущению на стриме (правка = ещё миграция / мод-ребилд).
 
+## 2026-06-17 — Боевые приказы зрителей: research + Bug A фикс + план фокус-сборки
+
+Зритель командует своим hero-агентом в бою через детачмент (`HeroDetachmentBehavior`
++ `DetachmentHandlers`): hold/charge/follow/walls/gate, **agent-скриптом**
+(`SetScriptedPosition`), НЕ через формации (TeamAI перебивал формационные ордера — см.
+коммент в файле).
+
+**Bug A — лучник по «в бой» бежал вплотную — ИСПРАВЛЕНО** (мод DLL `09266747`):
+`ApplyCharge` теперь class-aware (`IsRangedAgent` = лук/арбалет в слотах) → стрелок
+скриптуется на standoff `RANGED_STANDOFF=18м` + авто-таргет; мили — как раньше.
+Проверка в игре на стриме.
+
+**Bug B — «к стене» (осада) упирается в текстуру — НЕ исправлено (TODO):**
+`ApplyNavigate`+`FindNearestSiegeTarget` скриптуют на сырой `entity.GlobalPosition`
+(вне navmesh). Частичный фикс = спроецировать на navmesh (дойдёт до основания, не
+застрянет; лазить по лестнице агент-скриптом нельзя).
+
+**Research — как игра передаёт приказы (декомпиль TaleWorlds.MountAndBlade):** 3 слоя:
+(1) `MovementOrder` (тупые: Charge/Move/Advance/FallBack/Stop — игрок через UI);
+(2) `BehaviorComponent` (47 AI-тактик: Skirmish/MountedSkirmish/TacticalCharge/
+AssaultWalls/ShootFromCastleWalls — это «богатые режимы»); (3) TeamAI раздаёт весами.
+
+**КЛЮЧЕВОЕ ОГРАНИЧЕНИЕ (почему НЕ native-behaviors):** behaviors привязаны к ФОРМАЦИИ
+(per-agent API нет), а у команды ФИКСИРОВАННО 8 обычных формаций (`Team` ctor:
+`MBList<Formation>(8)`, нет `AddFormation`). 15 геройев ≠ 15 формаций. Native-путь
+требовал бы отдельной зрительской команды + режим-формаций + свой TeamAI + форс веса
+каждый тик → ВЫСОКИЙ риск крашей (behaviors NRE'ят на кастомных/разреженных формациях;
+осадные требуют `TeamAISiegeComponent`-инфры, которой у нашей команды нет). **ОТКЛОНЕНО.**
+
+**РЕШЕНИЕ — agent-level, но УМНО:** остаёмся на `SetScriptedPosition` (не крашит), НО
+**портируем МАТЕМАТИКУ движковых behaviors в скрипт**: standoff = `MovementOrderAdvance`
+(ranged стоп на missile-range); набег = эллиптическая орбита `BehaviorMountedSkirmish`;
+skirmish pull-back из `BehaviorSkirmish`. Движение близко к родному AI, без запуска
+самих behaviors → без крашей.
+
+**Спека богатого набора (agent-level, фокус-сессия — киллер-фича «много выбора»):**
+явные приказы Ближний-бой / Бой-на-расстоянии (standoff+autotarget) / Набег (орбита,
+конным) / Держать / Следовать / осадные Стена-Ворота (navmesh). Слои: мод-хендлеры
+(`DetachmentHandlers`) + `ActionRegistry` + методы (ApplySkirmish/ApplyRaid в
+`HeroDetachmentBehavior`) + бэк-экшены `hero.detach_skirmish`/`_raid` + кулдауны
+(`_adapter`) + manifest `supports_action` + фронт-кнопки + гейт по классу/миссии.
+Тестируется только в игре (итерации на стриме).
+
 ## ⚠️ ОБЯЗАТЕЛЬНЫЙ REFERENCE для новых фич
 
 **Authoritative source-of-truth:**

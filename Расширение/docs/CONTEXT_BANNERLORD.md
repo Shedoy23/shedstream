@@ -3,9 +3,9 @@
 **Назначение:** для чата по Bannerlord-модулю. Для общей extension
 работы — см. `CONTEXT.md`. Для RimWorld — `CONTEXT_RIMWORLD.md`.
 
-**Last updated:** 2026-06-16 (tournament queue reconcile on save-load, bug #18 —
-см. «2026-06-16» секцию ниже. До этого: 2026-06-15 save-load sync + per-save
-state persistence + forge reforge-quality.)
+**Last updated:** 2026-06-16 (tournament queue reconcile #18 + diplomacy clan-vote
+UX feedback #16/#17 — см. «2026-06-16» секции ниже. До этого: 2026-06-15 save-load
+sync + per-save state persistence + forge reforge-quality.)
 
 ## 2026-06-15 — Save-load sync + per-save persistence
 
@@ -77,6 +77,33 @@ restored 2 (pre-join) → турнир 22:37 без него.
 Статус: задеплоено (backend + мод DLL md5 217B4F88), **в игре не проверено** —
 после рестарта Bannerlord ждёт теста на стриме (лог `[tournament] backend
 reconcile: +N merged`).
+
+## 2026-06-16 — Diplomacy UX: clan-vote proposals need feedback (#16/#17)
+
+Симптомы: #16 «не заключается мир» (kuro_gothic), #17 «война из чужого королевства —
+нет даже плашки» (slopkom). По логам — **механика работает**: `[diplo-ppeace OK]` /
+`[diplo-war OK]` (kuro предложил мир Стургия↔Хузаит 19:06; slopkom предложил войну на
+королевство стримера Shed **4×** — 19:08/19:19/20:43/20:56).
+
+Корень — НЕ баг механики, а **ноль фидбэка**: `propose_war`/`propose_peace` уходят на
+голосование кланов (vanilla `AddDecision`), исход асинхронный и часто «против». Зритель
+видит пустоту → думает «сломано» → жмёт повторно → переплачивает (slopkom ~2000⦷ × 4 за
+одну войну). Денежной ПОТЕРИ нет (каждая заявка отрабатывала, рефанд не нужен), но UX
+провоцировал переплату. (Агент при разведке ошибочно сказал «нет backend-хендлера» — лог
+опроверг: generic-enqueue доставляет action в мод без отдельного elif.)
+
+Фикс (frontend-only, `viewer.js` + `viewer-bannerlord.js`):
+- Кнопки «⚔ Война»/«🕊 Мир» → «⚔ Предложить»/«🕊 Предложить» (ожидание вотума ДО клика).
+- Усилена подпись секции: заявка на голосование, может не пройти, повторно жать не нужно.
+- На успехе клика — явный тост «📜 Заявка на войну/мир с «X» отправлена на голосование
+  кланов — не мгновенно» (перетирает generic-тост buyAction; `showNotification` replace-style).
+- `_bannerlordBuyAction` теперь возвращает `result` → тост только на успехе charge.
+- Механика НЕ менялась — клан-вотум сам решает исход.
+
+Правило закодифицировано в gotchas (CLAUDE.md): платное+асинхронное действие требует
+подтверждающий тост «не мгновенно». Статус: задеплоено (frontend cache-bust
+v=202606161815), bug_reports #16/#17 → resolved. Панель видна только лидеру клана —
+визуально проверяется на стриме.
 
 ## ⚠️ ОБЯЗАТЕЛЬНЫЙ REFERENCE для новых фич
 

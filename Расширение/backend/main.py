@@ -1130,6 +1130,13 @@ async def run_migrations():
             print(f"❌ M78 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m79_class_balance
+            await m79_class_balance.apply(conn)
+        except Exception as e:
+            print(f"❌ M79 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

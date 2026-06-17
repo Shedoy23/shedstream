@@ -914,6 +914,8 @@ _PURCHASABLE_ACTIONS = (
     "hero.attach",               # Вернуть обратно в parent formation
     "hero.detach_hold",          # Стоять на текущей позиции (sniper-mode)
     "hero.detach_charge",        # Бежать на ближайшее enemy formation
+    "hero.detach_skirmish",      # 2026-06-17 рич-приказ: бой-на-расстоянии (standoff+auto-target)
+    "hero.detach_raid",          # 2026-06-17 рич-приказ: набег — конная орбита вокруг врага
     "hero.detach_walls",         # Siege only: лезть на стены/лестницы/башни
     "hero.detach_gate",          # Siege only: к ближайшим воротам/баррикаде
     # Sprint 5.33 (BLT-parity FAM) — viewer↔viewer семейные интеракции
@@ -2125,13 +2127,15 @@ def _enforce_price(action_type, data, username, channel_id):
         "hero.set_combat_stance": 0,    # 2026-06-10: боевая стойка — бесплатно, мгновенно
         # Sprint 5.32 BUGFIX — player.give_item / hero.add_skill убраны
         # отсюда (перенесены в _ACTIONS_WITH_OWN_PRICING выше).
-        # Sprint 5.32 (BLT-parity Detachment) — 6 commands управления своим
-        # hero-agent'ом в Mission. Цены низкие (10-30⦷) потому что spam-friendly:
-        # в активной битве viewer должен мочь часто переключать команды.
+        # Sprint 5.32 (BLT-parity Detachment) — управление своим hero-agent'ом
+        # в Mission (6 базовых + 2026-06-17 рич-приказы skirmish/raid). Цены низкие
+        # (10-30⦷) потому что spam-friendly: в бою viewer часто переключает команды.
         "hero.detach":            10,
         "hero.attach":            10,
         "hero.detach_hold":       30,
         "hero.detach_charge":     30,
+        "hero.detach_skirmish":   30,    # 2026-06-17 рич-приказ — бой-на-расстоянии
+        "hero.detach_raid":       30,    # 2026-06-17 рич-приказ — конная орбита
         "hero.detach_walls":      30,
         "hero.detach_gate":       30,
         # Sprint 5.33 (BLT-parity FAM) — семейные viewer↔viewer интеракции.

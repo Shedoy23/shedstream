@@ -144,6 +144,8 @@ ACTION_COOLDOWNS_SEC = {
     "hero.attach":                2,
     "hero.detach_hold":           2,
     "hero.detach_charge":         2,
+    "hero.detach_skirmish":       2,    # 2026-06-17 рич-приказ — бой-на-расстоянии
+    "hero.detach_raid":           2,    # 2026-06-17 рич-приказ — конная орбита
     "hero.detach_walls":          3,    # siege — re-issue takes engine моменты
     "hero.detach_gate":           3,
     # Sprint 5.33 (BLT-parity FAM) — anti-spam для семейных интеракций.

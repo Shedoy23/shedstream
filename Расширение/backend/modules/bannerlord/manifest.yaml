@@ -139,6 +139,8 @@ extensions:
     - hero.attach            # Вернуть в parent formation
     - hero.detach_hold       # Стоять (sniper-mode)
     - hero.detach_charge     # Бежать на ближайшее enemy formation
+    - hero.detach_skirmish   # 2026-06-17 рич-приказ: бой-на-расстоянии (standoff+auto-target, ranged)
+    - hero.detach_raid       # 2026-06-17 рич-приказ: набег — конная орбита вокруг врага
     - hero.detach_walls      # Siege: walls/ladders/towers
     - hero.detach_gate       # Siege: nearest gate/barricade
     # Sprint 5.32 (BLT-parity M2.1) — heir auto-activation на death героя.

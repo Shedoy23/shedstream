@@ -387,12 +387,27 @@ namespace BannerlordLink.Actions
                 }
                 catch { }
 
-                // 5. NPC-лорд — лидер клана.
+                // 5. NPC-лорд — лидер клана. 2026-06-17 КРАШ-ФИКС: НЕ использовать
+                // ChangeClanLeaderAction для НОВОГО клана — её ApplyInternal делает
+                // `leader.Gold` у clan.Leader==null → NRE; раньше хендлер глотал этот NRE
+                // и создавал БЕЗЛИДЕРНЫЙ клан, вступавший в королевство → краш движка.
+                // Ставим лидера напрямую clan.SetLeader (public; это и есть то, что
+                // action зовёт в конце) — без NRE и без ненужной нам party-creation.
                 npc.Clan = newClan;
-                try { ChangeClanLeaderAction.ApplyWithSelectedNewLeader(newClan, npc); }
+                try { newClan.SetLeader(npc); }
                 catch (Exception lex)
                 {
-                    BannerlordLinkModule.Log($"[recruit_vassal] SetLeader warn: {lex.Message}");
+                    BannerlordLinkModule.Log($"[recruit_vassal] SetLeader failed: {lex.Message}");
+                    ActionFeedback.PostFailed(actionId, "leader_set_failed");
+                    return;
+                }
+                // Гард: безлидерный клан крашит движок — если лидер не встал, АБОРТ
+                // ДО вступления в королевство и списания 3M (не плодим битый клан).
+                if (newClan.Leader != npc)
+                {
+                    BannerlordLinkModule.Log("[recruit_vassal] REFUSE: лидер не установился → abort");
+                    ActionFeedback.PostFailed(actionId, "leader_not_set");
+                    return;
                 }
 
                 // 6. Клан вступает вассалом в королевство правителя.

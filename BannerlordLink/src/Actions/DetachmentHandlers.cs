@@ -10,8 +10,9 @@ using TaleWorlds.MountAndBlade;
 namespace BannerlordLink.Actions
 {
     /// <summary>
-    /// Sprint 5.32 (BLT-parity Detachment) — 6 viewer commands управления своим
-    /// hero-agent'ом в Mission. Объединены в один файл потому что у всех
+    /// Sprint 5.32 (BLT-parity Detachment) — viewer commands управления своим
+    /// hero-agent'ом в Mission (6 базовых + 2026-06-17 рич-приказы skirmish/raid).
+    /// Объединены в один файл потому что у всех
     /// идентичный shape: resolve agent → call behavior method → refund если REFUSE.
     ///
     /// Каждый handler:
@@ -186,6 +187,54 @@ namespace BannerlordLink.Actions
                     || !HeroDetachmentBehavior.Instance.Charge(agent))
                 {
                     DetachmentHelper.PostRefund(actionId, "charge_failed");
+                }
+            });
+            return Task.FromResult<(bool, string)>((true, null));
+        }
+    }
+
+    // ── 4b. Skirmish (бой-на-расстоянии — standoff + auto-target) ───────────────
+    public class SkirmishHandler : IActionHandler
+    {
+        public string ActionType => "hero.detach_skirmish";
+
+        public Task<(bool success, string error)> ExecuteAsync(JObject data)
+        {
+            string username = (data["target"]?.ToString() ?? data["initiated_by"]?.ToString() ?? "")
+                              .Trim().ToLowerInvariant();
+            string actionId = ActionFeedback.GetActionId(data);
+            MainThreadDispatcher.Enqueue(() =>
+            {
+                var agent = DetachmentHelper.FindViewerAgent(username, out string reason);
+                if (agent == null) { DetachmentHelper.PostRefund(actionId, reason); return; }
+                if (HeroDetachmentBehavior.Instance == null
+                    || !HeroDetachmentBehavior.Instance.Skirmish(agent))
+                {
+                    DetachmentHelper.PostRefund(actionId, "skirmish_failed");
+                }
+            });
+            return Task.FromResult<(bool, string)>((true, null));
+        }
+    }
+
+    // ── 4c. Raid (набег — конная орбита вокруг врага + auto-target) ─────────────
+    public class RaidHandler : IActionHandler
+    {
+        public string ActionType => "hero.detach_raid";
+
+        public Task<(bool success, string error)> ExecuteAsync(JObject data)
+        {
+            string username = (data["target"]?.ToString() ?? data["initiated_by"]?.ToString() ?? "")
+                              .Trim().ToLowerInvariant();
+            string actionId = ActionFeedback.GetActionId(data);
+            MainThreadDispatcher.Enqueue(() =>
+            {
+                var agent = DetachmentHelper.FindViewerAgent(username, out string reason);
+                if (agent == null) { DetachmentHelper.PostRefund(actionId, reason); return; }
+                if (HeroDetachmentBehavior.Instance == null
+                    || !HeroDetachmentBehavior.Instance.Raid(agent))
+                {
+                    DetachmentHelper.PostRefund(actionId, "raid_failed");
                 }
             });
             return Task.FromResult<(bool, string)>((true, null));

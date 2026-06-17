@@ -65,6 +65,8 @@ namespace BannerlordLink.Behaviors
             Follow,     // return to formation AI (loose follow)
             Walls,      // siege: navigate to wall/ladder
             Gate,       // siege: navigate to gate
+            Skirmish,   // harass at standoff range + auto-target (ranged)
+            Raid,       // mounted elliptical orbit around nearest enemy + auto-target
         }
 
         private class DetachmentState
@@ -85,6 +87,17 @@ namespace BannerlordLink.Behaviors
         // 2026-06-17 (#15 / Bug A) — дистанция выстрела для стрелков в Charge:
         // лучник по «в бой» идёт на ~RANGED_STANDOFF метров от врага, а не вплотную.
         private const float RANGED_STANDOFF = 18f;
+
+        // 2026-06-17 (рич-приказы) — Skirmish/Raid математика портирована из движковых
+        // behaviors (agent-level, без запуска самих behaviors — без крашей):
+        //   SKIRMISH_STANDOFF — pull-back дистанция, по BehaviorSkirmish (стоять на
+        //     enemy + dirToMe*standoff: ближе standoff'а — отступает, дальше — поджимает).
+        //   RAID_ORBIT_RADIUS — радиус орбиты, по BehaviorMountedSkirmish (база 20м).
+        //   RAID_ORBIT_STEP_RAD — насколько проворачиваем точку-цель вокруг врага за
+        //     один re-issue (0.5с) → конный кружит CCW вокруг ближайшего врага.
+        private const float SKIRMISH_STANDOFF = 22f;
+        private const float RAID_ORBIT_RADIUS = 20f;
+        private const float RAID_ORBIT_STEP_RAD = 0.4f;
 
         // Sprint 5.32 (LOG-2) — periodic stats snapshot (отличить "никто не
         // запросил" от "behavior сломан").
@@ -252,6 +265,26 @@ namespace BannerlordLink.Behaviors
             return true;
         }
 
+        public bool Skirmish(Agent agent)
+        {
+            if (!EnsureDetached(agent, out var st)) return false;
+            st.Order = DetachOrder.Skirmish;
+            st.NextReissueAt = 0f;
+            ApplySkirmish(st);
+            BannerlordLinkModule.Log($"[DET] SKIRMISH agent={agent.Index}");
+            return true;
+        }
+
+        public bool Raid(Agent agent)
+        {
+            if (!EnsureDetached(agent, out var st)) return false;
+            st.Order = DetachOrder.Raid;
+            st.NextReissueAt = 0f;
+            ApplyRaid(st);
+            BannerlordLinkModule.Log($"[DET] RAID agent={agent.Index}");
+            return true;
+        }
+
         public bool Follow(Agent agent)
         {
             // Follow = просто вернуть AI-контроль (агент следует за своей
@@ -375,6 +408,82 @@ namespace BannerlordLink.Behaviors
             }
         }
 
+        // 2026-06-17 — Skirmish: «бой-на-расстоянии». Standoff к ближайшему врагу
+        // (по BehaviorSkirmish: target = enemy + dirToMe*standoff) → ближе standoff'а
+        // герой отступает, дальше — поджимает; + авто-таргет (стрельба/харас). Re-issue
+        // 0.5с ведёт за движущимся врагом. Отличие от Charge — больший standoff (22 vs
+        // 18) и НЕ только для ranged: сам ордер = держать дистанцию.
+        private void ApplySkirmish(DetachmentState st)
+        {
+            try
+            {
+                var agent = st.Agent;
+                var enemy = FindNearestEnemyAgent(agent);
+                if (enemy != null)
+                {
+                    var pos = enemy.GetWorldPosition();
+                    Vec2 ec = pos.AsVec2;
+                    Vec2 dir = agent.Position.AsVec2 - ec;   // enemy → agent
+                    float dist = dir.Length;
+                    if (dist > 0.01f)
+                    {
+                        dir = dir * (1f / dist);
+                        try { pos.SetVec2(ec + dir * SKIRMISH_STANDOFF); } catch { }
+                    }
+                    agent.SetScriptedPosition(ref pos, false,
+                        Agent.AIScriptedFrameFlags.NeverSlowDown);
+                    try { agent.SetAutomaticTargetSelection(true); } catch { }
+                }
+                else
+                {
+                    try { agent.DisableScriptedMovement(); } catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[DET] ApplySkirmish warn: {ex.Message}");
+            }
+        }
+
+        // 2026-06-17 — Raid: «набег» для конных. Эллиптическая орбита по
+        // BehaviorMountedSkirmish, упрощённая до круга радиуса RAID_ORBIT_RADIUS
+        // вокруг ближайшего врага (для одного агента эллипс схлопывается в круг).
+        // Точку-цель ставим на угол (текущий пеленг агента от врага) + STEP → конный
+        // постоянно догоняет точку чуть впереди по окружности = кружит CCW. Авто-таргет
+        // = рубит/стреляет на проходе. Self-correcting: пеленг берём от ТЕКУЩЕЙ позиции.
+        private void ApplyRaid(DetachmentState st)
+        {
+            try
+            {
+                var agent = st.Agent;
+                var enemy = FindNearestEnemyAgent(agent);
+                if (enemy != null)
+                {
+                    var pos = enemy.GetWorldPosition();
+                    Vec2 ec = pos.AsVec2;
+                    Vec2 toMe = agent.Position.AsVec2 - ec;
+                    float bearing = (toMe.LengthSquared > 0.0001f)
+                        ? (float)Math.Atan2(toMe.y, toMe.x)
+                        : 0f;
+                    float ang = bearing + RAID_ORBIT_STEP_RAD;   // лидируем вперёд → CCW
+                    Vec2 off = new Vec2((float)Math.Cos(ang), (float)Math.Sin(ang))
+                               * RAID_ORBIT_RADIUS;
+                    try { pos.SetVec2(ec + off); } catch { }
+                    agent.SetScriptedPosition(ref pos, false,
+                        Agent.AIScriptedFrameFlags.NeverSlowDown);
+                    try { agent.SetAutomaticTargetSelection(true); } catch { }
+                }
+                else
+                {
+                    try { agent.DisableScriptedMovement(); } catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[DET] ApplyRaid warn: {ex.Message}");
+            }
+        }
+
         private void ApplyNavigate(DetachmentState st)
         {
             if (!st.NavValid) return;
@@ -394,10 +503,12 @@ namespace BannerlordLink.Behaviors
         {
             switch (st.Order)
             {
-                case DetachOrder.Hold:   ApplyHold(st);     break;
-                case DetachOrder.Charge: ApplyCharge(st);   break;
+                case DetachOrder.Hold:     ApplyHold(st);      break;
+                case DetachOrder.Charge:   ApplyCharge(st);    break;
+                case DetachOrder.Skirmish: ApplySkirmish(st);  break;
+                case DetachOrder.Raid:     ApplyRaid(st);      break;
                 case DetachOrder.Walls:
-                case DetachOrder.Gate:   ApplyNavigate(st); break;
+                case DetachOrder.Gate:     ApplyNavigate(st);  break;
                 case DetachOrder.Follow:
                     // AI-controlled — ничего не reissue'им.
                     break;
@@ -484,23 +595,26 @@ namespace BannerlordLink.Behaviors
             {
                 int total = _states.Count;
                 int holdN = 0, chargeN = 0, followN = 0, wallsN = 0, gateN = 0;
+                int skirmishN = 0, raidN = 0;
                 foreach (var st in _states.Values)
                 {
                     if (st == null) continue;
                     switch (st.Order)
                     {
-                        case DetachOrder.Hold:   holdN++;   break;
-                        case DetachOrder.Charge: chargeN++; break;
-                        case DetachOrder.Follow: followN++; break;
-                        case DetachOrder.Walls:  wallsN++;  break;
-                        case DetachOrder.Gate:   gateN++;   break;
+                        case DetachOrder.Hold:     holdN++;     break;
+                        case DetachOrder.Charge:   chargeN++;   break;
+                        case DetachOrder.Skirmish: skirmishN++; break;
+                        case DetachOrder.Raid:     raidN++;     break;
+                        case DetachOrder.Follow:   followN++;   break;
+                        case DetachOrder.Walls:    wallsN++;    break;
+                        case DetachOrder.Gate:     gateN++;     break;
                     }
                 }
                 string sinceFirst = _firstDetachAt >= 0f ? $"{(now - _firstDetachAt):F1}s" : "—";
                 BannerlordLinkModule.Log(
                     $"[DET-STATS] t={now:F1}s active={total} " +
-                    $"(hold:{holdN} charge:{chargeN} follow:{followN} " +
-                    $"walls:{wallsN} gate:{gateN}) since_first={sinceFirst}");
+                    $"(hold:{holdN} charge:{chargeN} skirmish:{skirmishN} raid:{raidN} " +
+                    $"follow:{followN} walls:{wallsN} gate:{gateN}) since_first={sinceFirst}");
             }
             catch (Exception ex)
             {
@@ -586,13 +700,41 @@ namespace BannerlordLink.Behaviors
                 }
 
                 if (bestEntity == null) return WorldPosition.Invalid;
-                return new WorldPosition(Mission.Current.Scene, UIntPtr.Zero,
-                    bestEntity.GlobalPosition, false);
+                // 2026-06-17 (Bug B partial) — entity.GlobalPosition сидит на сетке
+                // стены/ворот (часто вне navmesh / в текстуре) → агент упирался и
+                // застревал. Проецируем на ближайшую navmesh-грань, чтобы scripted-
+                // движение дошло до ОСНОВАНИЯ стены/ворот. (Лазить по лестнице
+                // agent-скриптом всё равно нельзя — это потолок agent-level.)
+                return ProjectToNavMesh(scene, bestEntity.GlobalPosition);
             }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log($"[DET] FindNearestSiegeTarget warn: {ex.Message}");
                 return WorldPosition.Invalid;
+            }
+        }
+
+        /// <summary>Snap raw world position onto nearest navmesh face so a scripted
+        /// agent can actually path to it (вместо «торчать в текстуре»). Fallback —
+        /// сырая позиция (старое поведение), чтобы не падать.</summary>
+        private static WorldPosition ProjectToNavMesh(Scene scene, Vec3 rawPos)
+        {
+            try
+            {
+                UIntPtr navFace = scene.GetNavigationMeshForPosition(rawPos);
+                if (navFace == UIntPtr.Zero)
+                {
+                    // rawPos может быть выше/ниже сетки (на стене) — расширяем поиск.
+                    try { navFace = scene.GetNearestNavigationMeshForPosition(rawPos, 5f, false); }
+                    catch { }
+                }
+                var wp = new WorldPosition(scene, navFace, rawPos, false);
+                try { wp.GetNavMesh(); } catch { }   // форсим re-проекцию Z на navmesh-грань
+                return wp;
+            }
+            catch
+            {
+                return new WorldPosition(scene, UIntPtr.Zero, rawPos, false);
             }
         }
     }

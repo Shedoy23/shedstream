@@ -65,6 +65,8 @@ namespace BannerlordLink.Actions
             Register(new AttachHandler());           // hero.attach
             Register(new HoldHandler());             // hero.detach_hold
             Register(new ChargeHandler());           // hero.detach_charge
+            Register(new SkirmishHandler());         // hero.detach_skirmish — 2026-06-17 рич-приказ (standoff)
+            Register(new RaidHandler());             // hero.detach_raid — 2026-06-17 рич-приказ (конная орбита)
             Register(new WallsHandler());            // hero.detach_walls (siege only)
             Register(new GateHandler());             // hero.detach_gate (siege only)
             // Sprint 5.33 (BLT-parity FAM) — viewer↔viewer семейные интеракции

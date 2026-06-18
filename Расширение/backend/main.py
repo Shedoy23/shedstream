@@ -1151,6 +1151,13 @@ async def run_migrations():
             print(f"❌ M81 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m82_lifesteal_baseline
+            await m82_lifesteal_baseline.apply(conn)
+        except Exception as e:
+            print(f"❌ M82 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

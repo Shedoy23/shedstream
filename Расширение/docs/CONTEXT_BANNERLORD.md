@@ -3,10 +3,42 @@
 **Назначение:** для чата по Bannerlord-модулю. Для общей extension
 работы — см. `CONTEXT.md`. Для RimWorld — `CONTEXT_RIMWORLD.md`.
 
-**Last updated:** 2026-06-17 (recruit_vassal_clan — нанять NPC-вассальный клан +
-cleave → active power #15 + class balance pass m79 +
-earning audit — см. «2026-06-17» секции ниже. До этого: 2026-06-16 tournament/
-diplomacy/InvalidCast, 2026-06-15 save-load + per-save persistence + forge.)
+**Last updated:** 2026-06-18 (class overhaul PLAN — 12 различимых классов, спека
+зафиксирована, НЕ построено — см. ниже. До этого: 2026-06-17 recruit_vassal_clan +
+cleave → active #15 + class balance m79 + earning audit; 2026-06-16 tournament/
+diplomacy/InvalidCast; 2026-06-15 save-load + per-save persistence + forge.)
+
+## 2026-06-18 — SECURITY: cross-user target spoof guard (backend-only)
+
+Дыра: mod-хендлеры резолвят «кто действует» как `data["target"] ?? data["initiated_by"]`
+(target побеждает), а backend форсил только `initiated_by`. Crafted-запрос
+`POST /api/bannerlord/action` с `data.target=<жертва>` на FREE self-action
+(reequip_gear, detach_*, set_class…) заставил бы мод действовать на ЧУЖОГО героя —
+griefing без списания у атакующего.
+
+Фикс (`routes/bannerlord.py` `_charge_execute_enqueue`): перед enqueue форсим
+`payload["target"] = requester` для всех action'ов КРОМЕ `_CROSS_USER_TARGET_ACTIONS`
+(tournament.bet + marriage-proposal flow — легитимный viewer↔viewer, и все backend-only).
+Мутируем КОПИЮ payload, не `data` → backend-логика (запись ставки) цела. Список
+fail-closed: новый кросс-юзер мод-action надо добавить явно. `hero.activate_marriage`
+enqueue'ится отдельно (bannerlord_family.py) с target=сам, не задет.
+
+**Backend-only — рестарт прода, без пересборки DLL мода.** Тест:
+`tests/test_bannerlord_target_spoof.py` (13/13). Регрессы зелёные (касса 40, tenant 1335).
+
+## 2026-06-18 — Class overhaul PLAN (12 классов) — ЗАПЛАНИРОВАНО, не построено
+
+Полная спека: **`docs/CLASS_OVERHAUL_PLAN.md`** (авторитет для фокус-сборки).
+Суть: 12 классов, различимых по 3 осям — **оружие (WeaponClass)** + **броня
+(вес/материал)** + **силы (пассивки/активки, точные числа в доке)**. Все
+power-механики УЖЕ есть; overhaul = данные (лоадауты + сиды сил) + ОДИН новый
+engine-кусок: фильтр `FindTieredItem` по `WeaponClass` + class-aware броня по
+`ArmorComponent.MaterialType` (`SetClassHandler.cs`). 4 фазы (0: движок+берсерк-
+proof → 1: 12 лоадаутов+ремап ключей → 2: powers-миграция → 3: фронт+деплой+
+баланс), каждая — отдельная фокус-сессия, gate = in-game проверка. Ключи: 7
+существующих переиспользуем, +5 новых (legionnaire/spearman/maul/skirmisher/
+lancer), 6 удаляемых ремапятся в `bannerlord_hero_class`. **Статус: ждёт «строй»
+на Фазу 0.**
 
 ## 2026-06-15 — Save-load sync + per-save persistence
 

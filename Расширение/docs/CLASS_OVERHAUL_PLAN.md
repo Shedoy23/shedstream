@@ -1,6 +1,13 @@
 # Class Overhaul Plan — 12 distinct classes (2026-06-17)
 
-**Status:** Phase 0 BUILT (engine + berserk proof, deployed to game, in-game verification pending). Phases 1-3 = spec below.
+**Status:** Phase 0 ✅ verified in-game. Phase 1 ✅ BUILT + DEPLOYED to prod (2026-06-18) — 12-class roster, in-game verification pending. Phase 2 (full power rebalance of all 12) + Phase 3 (picker icons/order) = spec below.
+
+### Phase 1 — implementation notes (2026-06-18, deployed)
+- **12 classes** in `ClassLoadout.Classes` (C#): weapon-by-WeaponClass + armor weight-band + skip-slots + mount. Both formation maps updated (`SummonHeroHandler.ResolveFormationClass` + `RecruitTroopsHandler._classToFormation`) + `MountedClasses`.
+- **`m80_class_overhaul`** (wired in main.py): reseeds `bannerlord_classes` → 12 (FK-safe order: catalog → remap → deprecate), remaps removed keys in `bannerlord_hero_class` (heavy_archer→archer, heavy_crossbow→crossbow, psycho→berserk, cavalry→lancer, camel_cavalry→lancer, camel_archer→horse_archer), soft-deprecates the 6 old rows, seeds **baseline** powers for the 5 new classes (existing power_keys only).
+- **Camel classes folded** (→lancer/horse_archer); revisit as a culture skin later. `Config.UseCamel` kept (reserved) → harmless CS0649 warning.
+- **Phase 2 TODO:** full power rebalance of ALL 12 per the §B numbers (the 5 new currently have baseline bundles, the 7 kept retain pre-overhaul powers).
+- Verified: mod compiles, lint OK, m80 runtime test green (12 active / 6 deprecated / remap psycho→berserk keeps level / 5×6 power rows). Frontend picker is backend-driven → 12 show automatically.
 
 ### Phase 0 — implementation notes (2026-06-18)
 - New engine capability lives in **`BannerlordLink/src/Actions/ClassLoadout.cs`** — the SINGLE source of truth for class→loadout (`Slot{Type,Wc}` + `ArmorBand` + `SkipArmorSlots` + mount) and the tier/WeaponClass/weight-aware `FindTieredItem`/`PickNearestTier`.

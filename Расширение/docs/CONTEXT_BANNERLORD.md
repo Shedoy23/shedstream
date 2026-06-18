@@ -3,10 +3,11 @@
 **Назначение:** для чата по Bannerlord-модулю. Для общей extension
 работы — см. `CONTEXT.md`. Для RimWorld — `CONTEXT_RIMWORLD.md`.
 
-**Last updated:** 2026-06-18 (class overhaul PLAN — 12 различимых классов, спека
-зафиксирована, НЕ построено — см. ниже. До этого: 2026-06-17 recruit_vassal_clan +
-cleave → active #15 + class balance m79 + earning audit; 2026-06-16 tournament/
-diplomacy/InvalidCast; 2026-06-15 save-load + per-save persistence + forge.)
+**Last updated:** 2026-06-18 (class overhaul Фазы 0-1 ПОСТРОЕНЫ+ДЕПЛОЙ — 12 классов
+на проде; + hero.discard_item (❌ выбросить вещь); + security target-spoof фикс. Фаза 2
+(powers-ребаланс) — следующая. До этого: 2026-06-17 recruit_vassal_clan + cleave →
+active #15 + class balance m79; 2026-06-16 tournament/diplomacy/InvalidCast;
+2026-06-15 save-load + per-save persistence + forge.)
 
 ## 2026-06-18 — SECURITY: cross-user target spoof guard (backend-only)
 
@@ -26,19 +27,24 @@ enqueue'ится отдельно (bannerlord_family.py) с target=сам, не 
 **Backend-only — рестарт прода, без пересборки DLL мода.** Тест:
 `tests/test_bannerlord_target_spoof.py` (13/13). Регрессы зелёные (касса 40, tenant 1335).
 
-## 2026-06-18 — Class overhaul PLAN (12 классов) — ЗАПЛАНИРОВАНО, не построено
+## 2026-06-18 — Class overhaul (12 классов) — Фазы 0-1 НА ПРОДЕ
 
-Полная спека: **`docs/CLASS_OVERHAUL_PLAN.md`** (авторитет для фокус-сборки).
-Суть: 12 классов, различимых по 3 осям — **оружие (WeaponClass)** + **броня
-(вес/материал)** + **силы (пассивки/активки, точные числа в доке)**. Все
-power-механики УЖЕ есть; overhaul = данные (лоадауты + сиды сил) + ОДИН новый
-engine-кусок: фильтр `FindTieredItem` по `WeaponClass` + class-aware броня по
-`ArmorComponent.MaterialType` (`SetClassHandler.cs`). 4 фазы (0: движок+берсерк-
-proof → 1: 12 лоадаутов+ремап ключей → 2: powers-миграция → 3: фронт+деплой+
-баланс), каждая — отдельная фокус-сессия, gate = in-game проверка. Ключи: 7
-существующих переиспользуем, +5 новых (legionnaire/spearman/maul/skirmisher/
-lancer), 6 удаляемых ремапятся в `bannerlord_hero_class`. **Статус: ждёт «строй»
-на Фазу 0.**
+Полная спека + impl-заметки: **`docs/CLASS_OVERHAUL_PLAN.md`**. 12 классов, различимых
+по 3 осям: **оружие (WeaponClass)** + **броня (вес/материал)** + **силы**. Единый
+источник экипировки — **`BannerlordLink/src/Actions/ClassLoadout.cs`** (общий для
+set_class И upgrade/reequip — раньше было 2 копии, объединено).
+- **Фаза 0 ✅:** движок (фильтр оружия по WeaponClass + class-aware броня по
+  `ArmorComponent.MaterialType` — Light=ткань/кожа, Heavy=латы — НЕ «лёгкое из тяжёлого
+  тира» + skip-слоты для частичной брони). Берсерк-proof: топоры, голый торс/голова.
+- **Фаза 1 ✅:** 12 классов в `ClassLoadout.Classes` + обе формация-мапы (Summon+Recruit)
+  + **m80**: реседд `bannerlord_classes`→12, ремап удалённых ключей в
+  `bannerlord_hero_class` (psycho→berserk, cavalry→lancer, heavy_archer→archer, …),
+  soft-deprecate 6 старых, базовые силы 5 новым. Верблюды свёрнуты (→lancer/horse_archer).
+- **Фаза 2 (TODO):** полный powers-ребаланс ВСЕХ 12 по числам §B (5 новых пока на
+  базовых бандлах, 7 старых — на до-оверхольных силах). **Фаза 3 (TODO):** иконки/порядок
+  в пикере (сейчас alphabetical, фронт тянет из каталога — кода не трогали).
+- 12 ключей: tank/berserk/legionnaire*/assassin/spearman*/maul*/archer/crossbow/
+  skirmisher*/knight/lancer*/horse_archer (`*`=новые). Gate каждой фазы = in-game.
 
 ## 2026-06-15 — Save-load sync + per-save persistence
 

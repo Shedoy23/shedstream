@@ -879,6 +879,7 @@ _PURCHASABLE_ACTIONS = (
     "power.activate",         # Sprint 4.3: active power burst
     "hero.upgrade_gear",      # Sprint M20: 6-tier equipment progression
     "hero.reequip_gear",      # 2026-05-29: re-roll снаряги на текущем тире (BLT ReequipInsteadOfUpgrade)
+    "hero.discard_item",      # 2026-06-18: выбросить вещь из слота (освободить залоченную/перекованную, free)
     "player.spawn",
     "player.heal",
     "player.respawn",
@@ -1089,6 +1090,24 @@ _BACKEND_ONLY_ACTIONS = (
     # Sprint 5.33 CARAVAN — caravan lifecycle — backend INSERT/UPDATE + enqueue mod
     "hero.buy_caravan",
     "hero.sell_caravan",
+)
+
+# Actions где data["target"] ЛЕГИТИМНО указывает на ДРУГОГО зрителя
+# (viewer↔viewer flows) — сервер НЕ должен затирать target на requester'а.
+# SECURITY (2026-06-18): mod-хендлеры резолвят «кто действует» как
+# data["target"] ?? data["initiated_by"] (target побеждает). Без этой защиты
+# crafted-запрос с data.target=<жертва> на self-action заставил бы мод
+# действовать на ЧУЖОГО героя. Все перечисленные сегодня ещё и backend-only
+# (обрабатываются здесь, в мод по payload'у НЕ уходят), но список держим
+# fail-closed: НОВЫЙ кросс-юзер мод-action надо добавить сюда явно, иначе его
+# target форсится на requester'а (безопасный дефолт). Кросс-юзер мод-action
+# hero.activate_marriage enqueue'ится отдельно в bannerlord_family.py с
+# target=сам отвечающий (партнёр — в target_username), сюда не попадает.
+_CROSS_USER_TARGET_ACTIONS = (
+    "tournament.bet",                  # target = участник, на которого прогноз
+    "hero.propose_marriage",           # target_username = владелец ребёнка-партнёра
+    "hero.respond_marriage_proposal",  # ответ на proposal другого зрителя
+    "hero.cancel_proposal",            # отзыв proposal'а другому зрителю
 )
 
 
@@ -2166,6 +2185,7 @@ def _enforce_price(action_type, data, username, channel_id):
         "hero.equip_trophy":      0,    # Sprint 5.29 BLT-parity #6 phase A — free (viewer уже заплатил smith)
         "hero.reforge_quality": 20000,    # 2026-06-15 «Кузница»: перековка качества надетого (дорого, ендгейм)
         "hero.set_combat_stance": 0,    # 2026-06-10: боевая стойка — бесплатно, мгновенно
+        "hero.discard_item":      0,    # 2026-06-18: выбросить вещь из слота — free utility (свой герой)
         # Sprint 5.32 BUGFIX — player.give_item / hero.add_skill убраны
         # отсюда (перенесены в _ACTIONS_WITH_OWN_PRICING выше).
         # Sprint 5.32 (BLT-parity Detachment) — управление своим hero-agent'ом
@@ -2561,6 +2581,14 @@ async def _charge_execute_enqueue(action_type, data, price, username, channel_id
             action_id = uuid.uuid4().hex
             payload = dict(data)
             payload["initiated_by"] = username
+            # SECURITY (2026-06-18): форсим mod-bound target на requester'а для
+            # всех self-actions — иначе spoofed data.target заставил бы мод
+            # действовать на ЧУЖОГО героя (mod резолвит target ?? initiated_by).
+            # Мутируем КОПИЮ (payload), не data → backend-логика (напр. запись
+            # ставки по data.get("target") ниже) не задета. Исключения —
+            # _CROSS_USER_TARGET_ACTIONS (легитимный viewer↔viewer target).
+            if action_type not in _CROSS_USER_TARGET_ACTIONS:
+                payload["target"] = username
             if action_type not in _BACKEND_ONLY_ACTIONS:
                 # Sprint 5.32 (BLT-parity H1) — записываем client_action_id
                 # для идемпотентности. UNIQUE partial INDEX в m46 блокирует

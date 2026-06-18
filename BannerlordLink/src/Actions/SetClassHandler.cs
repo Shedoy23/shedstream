@@ -277,9 +277,13 @@ namespace BannerlordLink.Actions
                 _ = Task.Run(async () =>
                     await PowerCache.RefreshAsync(BannerlordLinkModule.Backend));
 
-                // Push equipment snapshot — backend bannerlord_equipment +
-                // frontend hero card обновятся.
+                // Push equipment snapshot + full hero-state. PushAll пишет
+                // bannerlord_equipment, а HeroStateSync (player.state_update)
+                // триггерит ре-рендер карточки/инвентаря во фронте. 2026-06-18 fix:
+                // без HeroStateSync set_class обновлял гир в БД, но расширение не
+                // перерисовывало инвентарь до ручного «пересбора» (у него push есть).
                 EquipmentSync.PushAll(hero);
+                HeroStateSync.Push(hero);
             }
             catch (Exception ex)
             {

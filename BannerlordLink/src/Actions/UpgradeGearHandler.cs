@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using BannerlordLink.Util;
 using Newtonsoft.Json;
@@ -9,7 +8,6 @@ using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.Core;
 using TaleWorlds.MountAndBlade;
-using TaleWorlds.ObjectSystem;
 
 namespace BannerlordLink.Actions
 {
@@ -20,81 +18,21 @@ namespace BannerlordLink.Actions
     ///   class_key — текущий class viewer'а (передаётся backend'ом из БД).
     ///   target_tier — 1..6 (user-facing). Engine tier = target_tier - 1.
     ///
+    /// Class spec + item picker живут в ClassLoadout (общие с SetClassHandler/
+    /// ReequipGearHandler) — single source of truth, mirror M15 seed.
+    ///
     /// Flow:
     ///   1. Skip если Mission.Current != null (battle equipment locked).
-    ///   2. Resolve Hero, validate alive.
-    ///   3. Для class.Slots[0..3] (weapons/shield/ammo) — replace на random
-    ///      item типа slot[i] с Tier == engineTier (fallback на lower-tier
-    ///      если пусто на target).
-    ///   4. Armor slots (Head/Body/Leg/Gloves/Cape) — replace на random
-    ///      ItemTypeEnum.*Armor с Tier == engineTier.
-    ///   5. Horse + Harness если class.UseHorse/UseCamel.
-    ///   6. HeroStateSync.Push — backend синкает новое equipment_changed.
+    ///   2. Resolve Hero, validate alive + достаточно Hero.Gold.
+    ///   3. ApplyGearLoadout — weapons (WeaponClass-aware) + armor (вес-band +
+    ///      skip-слоты) + mount по class config на target tier.
+    ///   4. Списать Hero.Gold, push gear_tier_changed + state/equipment sync.
     ///
-    /// BLT inspired (EquipHero.cs UpgradeEquipment) — clean-room re-impl,
-    /// наша class config + tier mapping отдельные.
+    /// BLT inspired (EquipHero.cs UpgradeEquipment) — clean-room re-impl.
     /// </summary>
     public class UpgradeGearHandler : IActionHandler
     {
         public string ActionType => "hero.upgrade_gear";
-
-        // Slot config — параллель SetClassHandler._classes + M15 seed.
-        // Дублирование оправдано — оба handler'а должны знать class spec.
-        private class ClassConfig
-        {
-            public ItemObject.ItemTypeEnum[] Slots;
-            public bool UseHorse;
-            public bool UseCamel;
-        }
-
-        private static readonly Dictionary<string, ClassConfig> _classes =
-            new Dictionary<string, ClassConfig>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["tank"]            = new ClassConfig { Slots = new[] { T.OneHandedWeapon, T.Shield, T.Invalid, T.Invalid } },
-            ["archer"]          = new ClassConfig { Slots = new[] { T.OneHandedWeapon, T.Arrows, T.Arrows, T.Bow } },
-            ["heavy_archer"]    = new ClassConfig { Slots = new[] { T.TwoHandedWeapon, T.Arrows, T.Arrows, T.Bow } },
-            ["crossbow"]        = new ClassConfig { Slots = new[] { T.OneHandedWeapon, T.Bolts, T.Bolts, T.Crossbow } },
-            ["heavy_crossbow"]  = new ClassConfig { Slots = new[] { T.TwoHandedWeapon, T.Bolts, T.Bolts, T.Crossbow } },
-            ["cavalry"]         = new ClassConfig { Slots = new[] { T.OneHandedWeapon, T.Polearm, T.Shield, T.Invalid }, UseHorse = true },
-            ["camel_cavalry"]   = new ClassConfig { Slots = new[] { T.OneHandedWeapon, T.Polearm, T.Shield, T.Invalid }, UseCamel = true },
-            ["horse_archer"]    = new ClassConfig { Slots = new[] { T.Bow, T.Arrows, T.OneHandedWeapon, T.Arrows }, UseHorse = true },
-            ["camel_archer"]    = new ClassConfig { Slots = new[] { T.Bow, T.Arrows, T.OneHandedWeapon, T.Arrows }, UseCamel = true },
-            ["psycho"]          = new ClassConfig { Slots = new[] { T.TwoHandedWeapon, T.Thrown, T.Thrown, T.Invalid } },
-            ["berserk"]         = new ClassConfig { Slots = new[] { T.TwoHandedWeapon, T.TwoHandedWeapon, T.Invalid, T.Invalid } },
-            ["assassin"]        = new ClassConfig { Slots = new[] { T.OneHandedWeapon, T.OneHandedWeapon, T.Thrown, T.Invalid } },
-            ["knight"]          = new ClassConfig { Slots = new[] { T.OneHandedWeapon, T.Shield, T.Polearm, T.Invalid }, UseHorse = true },
-        };
-
-        private static class T
-        {
-            public const ItemObject.ItemTypeEnum OneHandedWeapon = ItemObject.ItemTypeEnum.OneHandedWeapon;
-            public const ItemObject.ItemTypeEnum TwoHandedWeapon = ItemObject.ItemTypeEnum.TwoHandedWeapon;
-            public const ItemObject.ItemTypeEnum Polearm = ItemObject.ItemTypeEnum.Polearm;
-            public const ItemObject.ItemTypeEnum Bow = ItemObject.ItemTypeEnum.Bow;
-            public const ItemObject.ItemTypeEnum Crossbow = ItemObject.ItemTypeEnum.Crossbow;
-            public const ItemObject.ItemTypeEnum Arrows = ItemObject.ItemTypeEnum.Arrows;
-            public const ItemObject.ItemTypeEnum Bolts = ItemObject.ItemTypeEnum.Bolts;
-            public const ItemObject.ItemTypeEnum Thrown = ItemObject.ItemTypeEnum.Thrown;
-            public const ItemObject.ItemTypeEnum Shield = ItemObject.ItemTypeEnum.Shield;
-            public const ItemObject.ItemTypeEnum Horse = ItemObject.ItemTypeEnum.Horse;
-            public const ItemObject.ItemTypeEnum HorseHarness = ItemObject.ItemTypeEnum.HorseHarness;
-            public const ItemObject.ItemTypeEnum BodyArmor = ItemObject.ItemTypeEnum.BodyArmor;
-            public const ItemObject.ItemTypeEnum HeadArmor = ItemObject.ItemTypeEnum.HeadArmor;
-            public const ItemObject.ItemTypeEnum LegArmor = ItemObject.ItemTypeEnum.LegArmor;
-            public const ItemObject.ItemTypeEnum HandArmor = ItemObject.ItemTypeEnum.HandArmor;
-            public const ItemObject.ItemTypeEnum Cape = ItemObject.ItemTypeEnum.Cape;
-            public const ItemObject.ItemTypeEnum Invalid = ItemObject.ItemTypeEnum.Invalid;
-        }
-
-        // EquipmentIndex'ы броневых слотов — порядок armor coverage (BLT pattern).
-        private static readonly (EquipmentIndex idx, ItemObject.ItemTypeEnum type)[] ArmorSlots =
-        {
-            (EquipmentIndex.Head,   T.HeadArmor),
-            (EquipmentIndex.Body,   T.BodyArmor),
-            (EquipmentIndex.Leg,    T.LegArmor),
-            (EquipmentIndex.Gloves, T.HandArmor),
-            (EquipmentIndex.Cape,   T.Cape),
-        };
 
         public Task<(bool success, string error)> ExecuteAsync(JObject data)
         {
@@ -105,7 +43,7 @@ namespace BannerlordLink.Actions
 
             if (string.IsNullOrEmpty(username))
                 return Task.FromResult<(bool, string)>((false, "no target username"));
-            if (string.IsNullOrEmpty(classKey) || !_classes.ContainsKey(classKey))
+            if (string.IsNullOrEmpty(classKey) || !ClassLoadout.Classes.ContainsKey(classKey))
                 return Task.FromResult<(bool, string)>((false, $"unknown class '{classKey}'"));
             if (targetTier < 1 || targetTier > 6)
                 return Task.FromResult<(bool, string)>((false, $"invalid target_tier {targetTier}"));
@@ -212,16 +150,19 @@ namespace BannerlordLink.Actions
         // модификатор равно-/ниже-тирной БРОНИ → строго базовая броня нового тира.
         // Тир = базовая мощь (мод), качество = только форж. Пересбор и оружие зовут
         // с false (бережём крафт/призы/перековку). Higher-tier приз НЕ даунгрейдим.
+        // 2026-06-18 — теперь читает ClassLoadout (WeaponClass-фильтр оружия +
+        // armor weight band + skip-слоты), чтобы upgrade/reequip давали тот же
+        // class-aware результат, что и set_class.
         internal static int ApplyGearLoadout(Hero hero, string classKey, int engineTier,
             bool stripArmorModifiers = false)
         {
-            if (hero == null || classKey == null || !_classes.TryGetValue(classKey, out var cfg))
+            if (hero == null || classKey == null || !ClassLoadout.Classes.TryGetValue(classKey, out var cfg))
                 return 0;
             var rng = new Random();
             var equipment = hero.BattleEquipment;
             int slotsFilled = 0;
 
-            // ── 1. Weapon slots по class config (анти-дубль) ──
+            // ── 1. Weapon slots по class config (WeaponClass-aware, анти-дубль) ──
             var usedWeaponIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             for (int s = 0; s < 4; s++)
             {
@@ -235,8 +176,9 @@ namespace BannerlordLink.Actions
             }
             for (int i = 0; i < 4 && i < cfg.Slots.Length; i++)
             {
-                var slotType = cfg.Slots[i];
-                if (slotType == T.Invalid)
+                var slot = cfg.Slots[i];
+                var slotType = slot.Type;
+                if (slotType == ClassLoadout.Invalid)
                 {
                     // 2026-05-31 FIX — чистим неиспользуемый слот (как в
                     // SetClassHandler). «Пересбор» заодно убирает stale-оружие
@@ -251,7 +193,7 @@ namespace BannerlordLink.Actions
                     continue;
                 }
 
-                var item = FindTieredItem(slotType, engineTier, rng, null, usedWeaponIds, hero);
+                var item = ClassLoadout.FindTieredItem(slotType, engineTier, rng, null, usedWeaponIds, hero, slot.Wc);
                 if (item != null && ShouldReplaceSlot(equipment, (EquipmentIndex)i, engineTier))
                 {
                     equipment[(EquipmentIndex)i] = new EquipmentElement(item);
@@ -260,10 +202,22 @@ namespace BannerlordLink.Actions
                 }
             }
 
-            // ── 2. Armor slots — всегда заполняем все 5 ──
-            foreach (var (idx, type) in ArmorSlots)
+            // ── 2. Armor slots — вес-band из cfg + skip-слоты (частичная броня) ──
+            foreach (var (idx, type) in ClassLoadout.ArmorSlots)
             {
-                var item = FindTieredItem(type, engineTier, rng, null, null, hero);
+                // partial-armor (berserk = no helmet) — skip: чистим non-modifier stale.
+                if (cfg.SkipArmorSlots != null && Array.IndexOf(cfg.SkipArmorSlots, idx) >= 0)
+                {
+                    try
+                    {
+                        var cur = equipment[idx];
+                        if (cur.IsEmpty || cur.ItemModifier == null)
+                            equipment[idx] = EquipmentElement.Invalid;
+                    }
+                    catch { }
+                    continue;
+                }
+                var item = ClassLoadout.FindTieredItem(type, engineTier, rng, null, null, hero, null, cfg.Armor);
                 if (item != null && ShouldReplaceSlot(equipment, idx, engineTier, stripArmorModifiers))
                 {
                     equipment[idx] = new EquipmentElement(item);
@@ -278,13 +232,13 @@ namespace BannerlordLink.Actions
                 System.Func<string, bool> mountFilter = wantCamel
                     ? (System.Func<string, bool>)(name => name.IndexOf("camel", StringComparison.OrdinalIgnoreCase) >= 0)
                     : (name => name.IndexOf("camel", StringComparison.OrdinalIgnoreCase) < 0);
-                var horse = FindTieredItem(T.Horse, engineTier, rng, mountFilter, null, hero);
+                var horse = ClassLoadout.FindTieredItem(ClassLoadout.HorseType, engineTier, rng, mountFilter, null, hero);
                 if (horse != null && ShouldReplaceSlot(equipment, EquipmentIndex.Horse, engineTier))
                 {
                     equipment[EquipmentIndex.Horse] = new EquipmentElement(horse);
                     slotsFilled++;
                 }
-                var harness = FindTieredItem(T.HorseHarness, engineTier, rng, mountFilter, null, hero);
+                var harness = ClassLoadout.FindTieredItem(ClassLoadout.HorseHarnessType, engineTier, rng, mountFilter, null, hero);
                 if (harness != null && ShouldReplaceSlot(equipment, EquipmentIndex.HorseHarness, engineTier))
                 {
                     equipment[EquipmentIndex.HorseHarness] = new EquipmentElement(harness);
@@ -326,107 +280,6 @@ namespace BannerlordLink.Actions
             }
             catch { /* defensive — на сомнении заменяем */ }
             return true;
-        }
-
-        // Tier-aware item lookup — адаптация BLT SelectRandomItemNearestTier:
-        // группируем по tier, берём ближайшую к target группу (см. ниже).
-        //
-        // Sprint 5.32 (BLT-parity M4) — optional nameFilter predicate для
-        // family-type matching (camel vs horse mount/harness).
-        //
-        // 2026-05-29 (anti-duplicate, BLT EquipHero.cs:241/273): optional
-        // excludeIds — StringId'ы предметов уже надетых в этом проходе. Сначала
-        // пытаемся выбрать вне excludeIds (чтобы berserk/assassin не получили 2
-        // одинаковых молота), и только если deduped-пул пуст — fallback на full
-        // pool (BLT тоже допускает дубль как last-resort).
-        private static ItemObject FindTieredItem(
-            ItemObject.ItemTypeEnum type, int engineTier, Random rng,
-            System.Func<string, bool> nameFilter = null,
-            HashSet<string> excludeIds = null,
-            Hero hero = null)
-        {
-            var pool = MBObjectManager.Instance
-                .GetObjectTypeList<ItemObject>()
-                ?.Where(i => i != null && i.ItemType == type)
-                ?.Where(i => !i.NotMerchandise)
-                ?.ToList();
-            if (pool == null || pool.Count == 0) return null;
-
-            // 2026-05-31 (Finding A) — для маунтов оставляем только верховых боевых
-            // животных: исключаем мулов/вьючных (HorseComponent.IsPackAnimal) и
-            // не-верховых. Раньше пул T.Horse тащил мулов → mounted-класс мог
-            // выехать на муле без charge'а. Паттерн из CreatePartyHandler.
-            if (type == T.Horse)
-            {
-                var mounts = pool
-                    .Where(i => i.HorseComponent != null
-                                && i.HorseComponent.IsRideable
-                                && !i.HorseComponent.IsPackAnimal)
-                    .ToList();
-                if (mounts.Count > 0) pool = mounts;
-            }
-
-            // Apply name filter (camel/non-camel) если задан.
-            if (nameFilter != null)
-            {
-                var filtered = pool
-                    .Where(i => nameFilter(i.StringId ?? ""))
-                    .ToList();
-                if (filtered.Count > 0) pool = filtered;
-                // если filter дал empty pool — fall through к unfiltered
-                // (lieber camel-harness-on-horse чем пустой slot).
-            }
-
-            // 2026-05-31 (BLT CanUseItem, гендер-часть) — не выдаём гендерно-
-            // залоченный гир не тому полу. Fallback на полный пул если фильтр
-            // опустошает. Skill-гейт НЕ делаем: у свежего героя skill <
-            // Difficulty высокотировой шмотки → отфильтровал бы нужный гир.
-            if (hero != null)
-            {
-                var usable = pool.Where(i => GearGenderOk(i, hero)).ToList();
-                if (usable.Count > 0) pool = usable;
-            }
-
-            // Anti-duplicate first pass: исключаем уже надетое в этом проходе.
-            if (excludeIds != null && excludeIds.Count > 0)
-            {
-                var deduped = pool.Where(i => !excludeIds.Contains(i.StringId ?? "")).ToList();
-                var pick = PickNearestTier(deduped, engineTier, rng);
-                if (pick != null) return pick;
-                // deduped пуст (весь пул уже занят) → fall through на full pool.
-            }
-            return PickNearestTier(pool, engineTier, rng);
-        }
-
-        // 2026-05-31 — гендер-флаги предмета (BLT EquipHero.CanUseItem gender-часть).
-        // true = пол героя может носить предмет.
-        private static bool GearGenderOk(ItemObject item, Hero hero)
-        {
-            try
-            {
-                if (hero.IsFemale && item.ItemFlags.HasFlag(ItemFlags.NotUsableByFemale)) return false;
-                if (!hero.IsFemale && item.ItemFlags.HasFlag(ItemFlags.NotUsableByMale)) return false;
-            }
-            catch { }
-            return true;
-        }
-
-        // 2026-05-29 — адаптация BLT SelectRandomItemNearestTier
-        // (EquipHero.cs:579). Группируем по tier, сортируем по близости к
-        // target (ключ 100*|target-t| + t — при равной дистанции предпочитаем
-        // НИЖНИЙ tier), берём random из ближайшей группы. Раньше last-resort был
-        // random из всего пула → для T6-стрел (vanilla макс ~T4) выпадал
-        // случайный T1. Теперь — ближайшая группа (T4).
-        private static ItemObject PickNearestTier(List<ItemObject> pool, int engineTier, Random rng)
-        {
-            if (pool == null || pool.Count == 0) return null;
-            var nearest = pool.GroupBy(i => (int)i.Tier)
-                .OrderBy(g => Math.Abs(engineTier - g.Key))   // ближайший тир
-                .ThenBy(g => g.Key)                            // при равенстве — ниже
-                .FirstOrDefault();
-            if (nearest == null) return null;
-            var nearestList = nearest.ToList();
-            return nearestList[rng.Next(nearestList.Count)];
         }
     }
 }

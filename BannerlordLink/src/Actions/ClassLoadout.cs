@@ -81,15 +81,16 @@ namespace BannerlordLink.Actions
             ["horse_archer"]    = new Config { Slots = new Slot[] { T.Bow, T.Arrows, T.OneHandedWeapon, T.Arrows }, UseHorse = true },
             ["camel_archer"]    = new Config { Slots = new Slot[] { T.Bow, T.Arrows, T.OneHandedWeapon, T.Arrows }, UseCamel = true },
             ["psycho"]          = new Config { Slots = new Slot[] { T.TwoHandedWeapon, T.Thrown, T.Thrown, T.Invalid } },
-            // 2026-06-18 (Phase 0 PROOF) — berserk = 2×2H-axe (cleave) + partial light
-            // armor (no helmet, lightest body/legs/gloves). Other 12 unchanged this phase.
+            // 2026-06-18 (Phase 0 PROOF) — berserk = 2×2H-axe (cleave), barechested:
+            // skip Head + Body (no helmet, no chest/нагрудник), light legs/gloves/cape.
+            // Other 12 unchanged this phase.
             ["berserk"]         = new Config {
                                       Slots = new Slot[] {
                                           new Slot(T.TwoHandedWeapon, WeaponClass.TwoHandedAxe),
                                           new Slot(T.TwoHandedWeapon, WeaponClass.TwoHandedAxe),
                                           T.Invalid, T.Invalid },
                                       Armor = ArmorBand.Light,
-                                      SkipArmorSlots = new[] { EquipmentIndex.Head } },
+                                      SkipArmorSlots = new[] { EquipmentIndex.Head, EquipmentIndex.Body } },
             ["assassin"]        = new Config { Slots = new Slot[] { T.OneHandedWeapon, T.OneHandedWeapon, T.Thrown, T.Invalid } },
             ["knight"]          = new Config { Slots = new Slot[] { T.OneHandedWeapon, T.Shield, T.Polearm, T.Invalid }, UseHorse = true },
         };
@@ -163,6 +164,28 @@ namespace BannerlordLink.Actions
                     $"[ClassLoadout] no item of WeaponClass {weaponClass.Value} for {type} — fallback to any {type}");
             }
 
+            // 2026-06-18 — armor weight band → filter by MaterialType so Light classes
+            // get genuinely light gear (cloth/leather), NOT "lightest heavy item in the
+            // tier" (bug: berserk got a T6 chainmail hauberk). Fallback to unfiltered if
+            // the material filter empties the pool. Weapons pass armorBand=Any → no-op.
+            if (armorBand != ArmorBand.Any)
+            {
+                var mats = ArmorMaterialsFor(armorBand);
+                if (mats != null)
+                {
+                    var matPool = pool.Where(i =>
+                    {
+                        try
+                        {
+                            return i.ArmorComponent != null
+                                   && Array.IndexOf(mats, i.ArmorComponent.MaterialType) >= 0;
+                        }
+                        catch { return false; }
+                    }).ToList();
+                    if (matPool.Count > 0) pool = matPool;
+                }
+            }
+
             // Gender-lock (BLT CanUseItem gender part). Fallback to full pool if empties.
             if (hero != null)
             {
@@ -190,6 +213,28 @@ namespace BannerlordLink.Actions
             }
             catch { }
             return true;
+        }
+
+        // 2026-06-18 — armor materials allowed per weight band. Light = cloth/leather
+        // (genuinely light, no mail/plate); Medium = chainmail/leather; Heavy = plate/
+        // chainmail. null = no material constraint (Any).
+        private static ArmorComponent.ArmorMaterialTypes[] ArmorMaterialsFor(ArmorBand band)
+        {
+            switch (band)
+            {
+                case ArmorBand.Light:
+                    return new[] { ArmorComponent.ArmorMaterialTypes.Cloth,
+                                   ArmorComponent.ArmorMaterialTypes.Leather,
+                                   ArmorComponent.ArmorMaterialTypes.None };
+                case ArmorBand.Medium:
+                    return new[] { ArmorComponent.ArmorMaterialTypes.Chainmail,
+                                   ArmorComponent.ArmorMaterialTypes.Leather };
+                case ArmorBand.Heavy:
+                    return new[] { ArmorComponent.ArmorMaterialTypes.Plate,
+                                   ArmorComponent.ArmorMaterialTypes.Chainmail };
+                default:
+                    return null;
+            }
         }
 
         private static ItemObject PickNearestTier(List<ItemObject> pool, int engineTier, Random rng, ArmorBand band = ArmorBand.Any)

@@ -105,6 +105,7 @@ extensions:
     - power.activate     # Sprint 4.3: active power burst (heal_burst MVP)
     - hero.upgrade_gear  # Sprint M20: 6-tier equipment progression
     - hero.reequip_gear  # 2026-05-29: re-roll снаряги на текущем тире (фикс-утилита)
+    - hero.discard_item  # 2026-06-18: выбросить вещь из слота (освободить залоченную/перекованную)
     - hero.add_skill
     # hero.set_culture / hero.set_faction — сняты 2026-06-11 как dead/drift:
     # в моде только stub-хендлеры (LOW priority), в backend не подключены.

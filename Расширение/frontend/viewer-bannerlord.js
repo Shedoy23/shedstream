@@ -2931,8 +2931,11 @@ function _renderEquipRow(slot, it, slotIcons) {
     }
 
     return `<div style="font-size:11px;padding:2px 0;border-bottom:1px solid #2d2d2f;">
-        <div style="display:flex;justify-content:space-between;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
             <span><span style="color:#adadb8;">${slotIcons[slot] || '·'}</span> ${name}${tierBadge}${_bnrQualityBadge(it.quality)}</span>
+            <button class="bnr-discard-btn" data-slot="${slot}" data-item-name="${name}"
+                title="Выбросить — освободить слот"
+                style="flex:none;background:none;border:none;color:#6b7280;cursor:pointer;font-size:11px;padding:0 2px;line-height:1;">❌</button>
         </div>
         ${statsHtml ? `<div style="font-size:10px;color:#9ca3af;padding-left:14px;margin-top:1px;">${statsHtml}</div>` : ''}
     </div>`;
@@ -4531,6 +4534,19 @@ async function loadBannerlordHero() {
                     <div id="bnr-forge-slot" style="padding-top:6px;"></div>
                 </details>
             </div>`;
+
+        // ❌ «Выбросить» на каждой вещи в Экипировке — освобождает слот (в т.ч.
+        // перекованную/«залоченную» вещь). hero.discard_item, бесплатно, свой герой.
+        if (paneInv) paneInv.querySelectorAll('.bnr-discard-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const sl = btn.dataset.slot;
+                const nm = btn.dataset.itemName || 'вещь';
+                if (!await _bnrConfirm(`Выбросить «${nm}»? Слот освободится, без возврата.`)) return;
+                await _bannerlordBuyAction('hero.discard_item', { slot: sl });
+                setTimeout(loadBannerlordHero, 1200);
+            });
+        });
 
         // ⚔ Бой pane — battle banner (HP / kills / gold / XP) + buffs + powers + summon.
         // Sprint 5.32 (revised) — battle banner здесь (раньше был в Hero pane).

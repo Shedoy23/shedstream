@@ -41,6 +41,7 @@ namespace BannerlordLink.Actions
             Register(new EquipItemHandler());        // player.equip_item — equip ItemObject (5.1b)
             Register(new UpgradeGearHandler());      // hero.upgrade_gear — 6-tier progression
             Register(new ReequipGearHandler());      // hero.reequip_gear — re-roll снаряги на текущем тире (BLT ReequipInsteadOfUpgrade)
+            Register(new DiscardItemHandler());      // hero.discard_item — 2026-06-18: выбросить вещь из слота (освободить залоченную)
             Register(new RecruitTroopsHandler());    // hero.recruit_troops — BLT-style свита
             Register(new TrainTroopsHandler());      // hero.train_troops — bulk-upgrade свиты (BLT TrainingBehavior)
             Register(new JoinTournamentHandler());   // hero.join_tournament — Sprint 5.3

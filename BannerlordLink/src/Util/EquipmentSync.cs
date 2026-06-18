@@ -67,6 +67,27 @@ namespace BannerlordLink.Util
             }
         }
 
+        /// <summary>Reverse of SlotName — slot key (frontend/backend) → EquipmentIndex.
+        /// null если имя неизвестно. Используется hero.discard_item.</summary>
+        internal static EquipmentIndex? SlotFromName(string slot)
+        {
+            switch ((slot ?? "").Trim().ToLowerInvariant())
+            {
+                case "weapon0":      return EquipmentIndex.Weapon0;
+                case "weapon1":      return EquipmentIndex.Weapon1;
+                case "weapon2":      return EquipmentIndex.Weapon2;
+                case "weapon3":      return EquipmentIndex.Weapon3;
+                case "head":         return EquipmentIndex.Head;
+                case "body":         return EquipmentIndex.Body;
+                case "leg":          return EquipmentIndex.Leg;
+                case "gloves":       return EquipmentIndex.Gloves;
+                case "cape":         return EquipmentIndex.Cape;
+                case "horse":        return EquipmentIndex.Horse;
+                case "horseharness": return EquipmentIndex.HorseHarness;
+                default:             return null;
+            }
+        }
+
         public static void PushAll(Hero hero)
         {
             if (hero == null || hero.Name == null) return;

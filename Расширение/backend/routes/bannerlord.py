@@ -384,6 +384,11 @@ async def bannerlord_classes(request: Request):
             "explosive_arrows",
             # 2026-06-17 (#15) — рассечение: мили AoE-активка (зеркало explosive_arrows).
             "cleave",
+            # 2026-06-18 — подключаем реализованные, но не выставленные активки (были
+            # seed'нуты на классы, но фильтровались тут → кнопок не было, недоступны):
+            # Яд (assassin DoT) + Берсерк-рывок (berserk speed). disarm_burst НЕ
+            # включаем — выкинут как слабый (m81 чистит его строку).
+            "poison_dot", "berserker_charge",
         )
         current_powers = []
         if current:

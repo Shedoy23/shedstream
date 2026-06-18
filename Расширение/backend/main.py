@@ -1144,6 +1144,13 @@ async def run_migrations():
             print(f"❌ M80 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m81_drop_disarm
+            await m81_drop_disarm.apply(conn)
+        except Exception as e:
+            print(f"❌ M81 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

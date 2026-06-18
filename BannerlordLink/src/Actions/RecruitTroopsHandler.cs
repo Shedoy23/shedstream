@@ -350,19 +350,26 @@ namespace BannerlordLink.Actions
             _classToFormation = new System.Collections.Generic.Dictionary<string, FormationClass>(
                 StringComparer.OrdinalIgnoreCase)
             {
+                // 2026-06-18 (Phase 1) — 12-class roster.
                 ["tank"]            = FormationClass.Infantry,
-                ["knight"]          = FormationClass.Cavalry,
-                ["psycho"]          = FormationClass.Infantry,
                 ["berserk"]         = FormationClass.Infantry,
+                ["legionnaire"]     = FormationClass.Infantry,
                 ["assassin"]        = FormationClass.Infantry,
+                ["spearman"]        = FormationClass.Infantry,
+                ["maul"]            = FormationClass.Infantry,
+                ["skirmisher"]      = FormationClass.Infantry,
                 ["archer"]          = FormationClass.Ranged,
-                ["heavy_archer"]    = FormationClass.Ranged,
                 ["crossbow"]        = FormationClass.Ranged,
+                ["knight"]          = FormationClass.Cavalry,
+                ["lancer"]          = FormationClass.Cavalry,
+                ["horse_archer"]    = FormationClass.HorseArcher,
+                // legacy aliases (pre-overhaul hero_class rows, until m80 remap)
+                ["heavy_archer"]    = FormationClass.Ranged,
                 ["heavy_crossbow"]  = FormationClass.Ranged,
                 ["cavalry"]         = FormationClass.Cavalry,
                 ["camel_cavalry"]   = FormationClass.Cavalry,
-                ["horse_archer"]    = FormationClass.HorseArcher,
                 ["camel_archer"]    = FormationClass.HorseArcher,
+                ["psycho"]          = FormationClass.Infantry,
             };
 
         private static FormationClass? ResolveDesiredFormation(string username)

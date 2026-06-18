@@ -71,28 +71,68 @@ namespace BannerlordLink.Actions
         public static readonly Dictionary<string, Config> Classes =
             new Dictionary<string, Config>(StringComparer.OrdinalIgnoreCase)
         {
-            ["tank"]            = new Config { Slots = new Slot[] { T.OneHandedWeapon, T.Shield, T.Invalid, T.Invalid } },
-            ["archer"]          = new Config { Slots = new Slot[] { T.OneHandedWeapon, T.Arrows, T.Arrows, T.Bow } },
-            ["heavy_archer"]    = new Config { Slots = new Slot[] { T.TwoHandedWeapon, T.Arrows, T.Arrows, T.Bow } },
-            ["crossbow"]        = new Config { Slots = new Slot[] { T.OneHandedWeapon, T.Bolts, T.Bolts, T.Crossbow } },
-            ["heavy_crossbow"]  = new Config { Slots = new Slot[] { T.TwoHandedWeapon, T.Bolts, T.Bolts, T.Crossbow } },
-            ["cavalry"]         = new Config { Slots = new Slot[] { T.OneHandedWeapon, T.Polearm, T.Shield, T.Invalid }, UseHorse = true },
-            ["camel_cavalry"]   = new Config { Slots = new Slot[] { T.OneHandedWeapon, T.Polearm, T.Shield, T.Invalid }, UseCamel = true },
-            ["horse_archer"]    = new Config { Slots = new Slot[] { T.Bow, T.Arrows, T.OneHandedWeapon, T.Arrows }, UseHorse = true },
-            ["camel_archer"]    = new Config { Slots = new Slot[] { T.Bow, T.Arrows, T.OneHandedWeapon, T.Arrows }, UseCamel = true },
-            ["psycho"]          = new Config { Slots = new Slot[] { T.TwoHandedWeapon, T.Thrown, T.Thrown, T.Invalid } },
-            // 2026-06-18 (Phase 0 PROOF) — berserk = 2×2H-axe (cleave), barechested:
-            // skip Head + Body (no helmet, no chest/нагрудник), light legs/gloves/cape.
-            // Other 12 unchanged this phase.
-            ["berserk"]         = new Config {
-                                      Slots = new Slot[] {
-                                          new Slot(T.TwoHandedWeapon, WeaponClass.TwoHandedAxe),
-                                          new Slot(T.TwoHandedWeapon, WeaponClass.TwoHandedAxe),
-                                          T.Invalid, T.Invalid },
-                                      Armor = ArmorBand.Light,
-                                      SkipArmorSlots = new[] { EquipmentIndex.Head, EquipmentIndex.Body } },
-            ["assassin"]        = new Config { Slots = new Slot[] { T.OneHandedWeapon, T.OneHandedWeapon, T.Thrown, T.Invalid } },
-            ["knight"]          = new Config { Slots = new Slot[] { T.OneHandedWeapon, T.Shield, T.Polearm, T.Invalid }, UseHorse = true },
+            // 2026-06-18 (Phase 1) — 12-class overhaul roster. Weapon by WeaponClass +
+            // armor weight band + skip-slots + mount. Mirror m80 catalog reseed.
+            // ── INFANTRY ──
+            ["tank"]        = new Config { Slots = new Slot[] {
+                                  new Slot(T.OneHandedWeapon, WeaponClass.Mace),
+                                  new Slot(T.Shield, WeaponClass.LargeShield),
+                                  T.Invalid, T.Invalid },
+                                  Armor = ArmorBand.Heavy },
+            ["berserk"]     = new Config { Slots = new Slot[] {       // barechested glass-cleaver
+                                  new Slot(T.TwoHandedWeapon, WeaponClass.TwoHandedAxe),
+                                  new Slot(T.TwoHandedWeapon, WeaponClass.TwoHandedAxe),
+                                  T.Invalid, T.Invalid },
+                                  Armor = ArmorBand.Light,
+                                  SkipArmorSlots = new[] { EquipmentIndex.Head, EquipmentIndex.Body } },
+            ["legionnaire"] = new Config { Slots = new Slot[] {       // sword + shield + javelin
+                                  new Slot(T.OneHandedWeapon, WeaponClass.OneHandedSword),
+                                  T.Shield,
+                                  new Slot(T.Thrown, WeaponClass.Javelin),
+                                  T.Invalid },
+                                  Armor = ArmorBand.Medium },
+            ["assassin"]    = new Config { Slots = new Slot[] {       // dagger + throwing knives
+                                  new Slot(T.OneHandedWeapon, WeaponClass.Dagger),
+                                  new Slot(T.Thrown, WeaponClass.ThrowingKnife),
+                                  T.Invalid, T.Invalid },
+                                  Armor = ArmorBand.Light },
+            ["spearman"]    = new Config { Slots = new Slot[] {       // 2H spear + shield (anti-cav)
+                                  new Slot(T.Polearm, WeaponClass.TwoHandedPolearm),
+                                  T.Shield, T.Invalid, T.Invalid },
+                                  Armor = ArmorBand.Medium },
+            ["maul"]        = new Config { Slots = new Slot[] {       // 2H mace (anti-armor crusher)
+                                  new Slot(T.TwoHandedWeapon, WeaponClass.TwoHandedMace),
+                                  T.Invalid, T.Invalid, T.Invalid },
+                                  Armor = ArmorBand.Medium },
+            // ── RANGED (foot) ──
+            ["archer"]      = new Config { Slots = new Slot[] {       // bow + arrows + dagger
+                                  T.Bow, T.Arrows, T.Arrows,
+                                  new Slot(T.OneHandedWeapon, WeaponClass.Dagger) },
+                                  Armor = ArmorBand.Light },
+            ["crossbow"]    = new Config { Slots = new Slot[] {       // crossbow + bolts + 1H
+                                  T.Crossbow, T.Bolts, T.Bolts, T.OneHandedWeapon },
+                                  Armor = ArmorBand.Medium },
+            ["skirmisher"]  = new Config { Slots = new Slot[] {       // 2× javelin + small shield + 1H
+                                  new Slot(T.Thrown, WeaponClass.Javelin),
+                                  new Slot(T.Thrown, WeaponClass.Javelin),
+                                  new Slot(T.Shield, WeaponClass.SmallShield),
+                                  T.OneHandedWeapon },
+                                  Armor = ArmorBand.Light },
+            // ── CAVALRY ──
+            ["knight"]      = new Config { Slots = new Slot[] {       // heavy: lance + 1H + large shield
+                                  new Slot(T.Polearm, WeaponClass.OneHandedPolearm),
+                                  T.OneHandedWeapon,
+                                  new Slot(T.Shield, WeaponClass.LargeShield),
+                                  T.Invalid },
+                                  Armor = ArmorBand.Heavy, UseHorse = true },
+            ["lancer"]      = new Config { Slots = new Slot[] {       // light: lance + javelin + 1H
+                                  new Slot(T.Polearm, WeaponClass.OneHandedPolearm),
+                                  new Slot(T.Thrown, WeaponClass.Javelin),
+                                  T.OneHandedWeapon, T.Invalid },
+                                  Armor = ArmorBand.Medium, UseHorse = true },
+            ["horse_archer"] = new Config { Slots = new Slot[] {      // mounted bow harasser
+                                  T.Bow, T.Arrows, T.OneHandedWeapon, T.Arrows },
+                                  Armor = ArmorBand.Light, UseHorse = true },
         };
 
         // Armor coverage order (BLT pattern). Head first so partial-armor classes

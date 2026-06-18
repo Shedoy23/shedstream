@@ -43,7 +43,9 @@ namespace BannerlordLink.Actions
         private static readonly System.Collections.Generic.HashSet<string> MountedClasses =
             new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                "cavalry", "camel_cavalry", "horse_archer", "camel_archer", "knight",
+                // 2026-06-18 (Phase 1): mounted classes + legacy aliases.
+                "knight", "lancer", "horse_archer",
+                "cavalry", "camel_cavalry", "camel_archer",
             };
 
         public Task<(bool success, string error)> ExecuteAsync(JObject data)
@@ -1063,18 +1065,25 @@ namespace BannerlordLink.Actions
                 string classKey = (hc?.classKey ?? "").ToLowerInvariant();
                 switch (classKey)
                 {
+                    // 2026-06-18 (Phase 1) — 12-class roster + legacy aliases.
                     case "archer":
                     case "crossbow":
-                    case "heavy_archer":
+                    case "heavy_archer":    // legacy
                     case "heavy_crossbow":  return FormationClass.Ranged;
                     case "horse_archer":
                     case "camel_archer":    return FormationClass.HorseArcher;
-                    case "cavalry":
-                    case "camel_cavalry":
-                    case "knight":          return FormationClass.Cavalry;
+                    case "knight":
+                    case "lancer":
+                    case "cavalry":         // legacy
+                    case "camel_cavalry":   return FormationClass.Cavalry;
                     case "tank":
                     case "berserk":
-                    case "psycho":
+                    case "legionnaire":
+                    case "assassin":
+                    case "spearman":
+                    case "maul":
+                    case "skirmisher":
+                    case "psycho":          // legacy
                     case "infantry":
                     default:                return FormationClass.Infantry;
                 }

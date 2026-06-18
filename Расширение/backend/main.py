@@ -1137,6 +1137,13 @@ async def run_migrations():
             print(f"❌ M79 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m80_class_overhaul
+            await m80_class_overhaul.apply(conn)
+        except Exception as e:
+            print(f"❌ M80 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

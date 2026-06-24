@@ -1158,6 +1158,13 @@ async def run_migrations():
             print(f"❌ M82 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m83_shedcolony
+            await m83_shedcolony.apply(conn)
+        except Exception as e:
+            print(f"❌ M83 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

@@ -1,0 +1,39 @@
+# ShedColony module manifest — соответствует docs/MODULE_API.md §5.
+#
+# Зрители как колонисты в живой колонии MineColonies стримера.
+# Game-side connector: NeoForge-мод (D:\sheddev\shedcolony, GPL), ходит в этот
+# backend по REST long-poll (routes/module_api.py), как BannerlordLink.
+#
+# Маппинг на стандартный словарь платформы:
+#   player.linked  = колонист зрителя создан + привязан (citizen_id ↔ viewer_id)
+#   player.died    = колонист зрителя погиб
+#   colonist.spawn = заспавнить+привязать колониста зрителю (платный action)
+
+id: shedcolony
+version: 0.1.0
+core_api_version: ">=1.0.0,<2.0.0"
+display_name: "ShedColony"
+description: "Зрители как колонисты в колонии MineColonies стримера — создают и управляют своим колонистом через расширение, не играя в Minecraft."
+
+# Стандартные events (мод → backend):
+events:
+  - module.heartbeat
+  - module.session_start
+  - module.session_end
+  - player.linked
+  - player.died
+
+# Game-specific extensions:
+extensions:
+  events:
+    - colony.snapshot      # полный список колонистов на старте сессии (reconciliation)
+    - colonist.state       # снимок состояния колониста (hp / работа / скиллы)
+    - action.failed        # отложенный action упал после enqueue (хук рефанда)
+  actions:
+    - colonist.spawn           # создать + привязать колониста зрителю (1000 крустиков)
+    - colonist.assign_job      # нанять в свободную/занятую-NPC хату
+    - colonist.assign_home     # поселить (выселит NPC при нехватке коек)
+    - colonist.add_xp          # прокачать скилл
+    - colonist.fulfill_request # выполнить открытую просьбу колониста (Path C)
+
+catalogs: []

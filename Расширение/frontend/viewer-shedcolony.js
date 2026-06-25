@@ -162,7 +162,9 @@
             + '#shedcolony-content .sc-input{width:100%;padding:7px;margin-bottom:8px;border-radius:8px;box-sizing:border-box;'
             + 'background:rgba(0,0,0,.25);color:inherit;border:1px solid rgba(255,255,255,.15);}'
             + '#shedcolony-content .sc-care-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;}'
-            + '#shedcolony-content .sc-btn-sm{width:auto;padding:7px 8px;font-size:12px;}';
+            + '#shedcolony-content .sc-btn-sm{width:auto;padding:7px 8px;font-size:12px;}'
+            + '#shedcolony-content .sc-reqs{font-size:12px;opacity:.9;margin-bottom:8px;}'
+            + '#shedcolony-content .sc-reqs ul{margin:4px 0 0;padding-left:18px;}';
         var s = document.createElement('style');
         s.id = 'sc-styles';
         s.textContent = css;
@@ -306,9 +308,23 @@
             });
             html += '</select><button class="sc-btn" data-sc="xp">Прокачать (+1000 XP) — 400 💎</button></div>';
 
-            // Fulfill an open request.
-            html += '<div class="sc-card"><div class="sc-section-title">Помочь колонисту</div>'
-                + '<button class="sc-btn" data-sc="fulfill">Выполнить его просьбу — 100 💎</button></div>';
+            // Fulfill — show the colonist's actual open requests + gate the button.
+            // Graceful: if the mod doesn't report requests yet (state.requests undefined), keep the
+            // old always-on button; only claim "nothing needed" when we actually know the list.
+            var hasReqInfo = st && Array.isArray(st.requests);
+            var reqs = hasReqInfo ? st.requests : [];
+            html += '<div class="sc-card"><div class="sc-section-title">Помочь колонисту</div>';
+            if (hasReqInfo && reqs.length === 0) {
+                html += '<p class="sc-muted">Колонисту сейчас ничего не нужно.</p>';
+            } else {
+                if (reqs.length) {
+                    html += '<div class="sc-reqs">Сейчас просит:<ul>';
+                    reqs.forEach(function (rq) { html += '<li>' + escapeHtml(rq) + '</li>'; });
+                    html += '</ul></div>';
+                }
+                html += '<button class="sc-btn" data-sc="fulfill">Выполнить просьбу — 100 💎</button>';
+            }
+            html += '</div>';
 
             // Colony-level sinks (Phase 8) — support the streamer's whole colony.
             html += '<div class="sc-card"><div class="sc-section-title">Колония стримера</div>'

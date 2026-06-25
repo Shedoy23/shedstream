@@ -221,7 +221,7 @@ async def shedcolony_my_colonist(request: Request):
     db = get_db()
     async with db._connect() as conn:
         cur = await conn.execute(
-            "SELECT l.citizen_id, l.status, s.hp, s.job, s.skills_json, s.status "
+            "SELECT l.citizen_id, l.status, s.hp, s.job, s.skills_json, s.status, s.state_json "
             "FROM shedcolony_colony_link l "
             "LEFT JOIN shedcolony_colonist_state s "
             "  ON s.channel_id = l.channel_id AND s.citizen_id = l.citizen_id "
@@ -231,14 +231,18 @@ async def shedcolony_my_colonist(request: Request):
     if not row:
         return {"success": True, "linked": False}
 
-    citizen_id, link_status, hp, job, skills_json, state_status = row
+    citizen_id, link_status, hp, job, skills_json, state_status, state_json = row
     try:
         skills = json.loads(skills_json or "{}")
     except Exception:
         skills = {}
+    try:
+        state = json.loads(state_json) if state_json else None   # full rich blob from the mod
+    except Exception:
+        state = None
     return {"success": True, "linked": True, "citizen_id": citizen_id,
             "name": username, "job": job, "hp": hp, "skills": skills,
-            "status": state_status or link_status}
+            "status": state_status or link_status, "state": state}
 
 
 @router.get("/api/shedcolony/capacity")

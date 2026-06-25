@@ -65,6 +65,37 @@
         return SC_JOB_LABELS[base] || base;
     }
 
+    function _num(v, dflt) {
+        return (typeof v === 'number' && !isNaN(v)) ? v : dflt;
+    }
+
+    // MineColonies happiness is ~0–2 (1.0 = normal) → mood emoji.
+    function _moodEmoji(h) {
+        if (h == null) { return '🙂'; }
+        if (h >= 1.3) { return '😄'; }
+        if (h >= 1.0) { return '🙂'; }
+        if (h >= 0.7) { return '😐'; }
+        if (h >= 0.4) { return '😟'; }
+        return '😣';
+    }
+
+    function _bar(emoji, label, val, max, color) {
+        var pct = max > 0 ? Math.max(0, Math.min(100, Math.round(val / max * 100))) : 0;
+        return '<div class="sc-stat"><div class="sc-stat-top"><span>' + emoji + ' ' + escapeHtml(label)
+            + '</span><span>' + Math.round(val) + ' / ' + Math.round(max) + '</span></div>'
+            + '<div class="sc-bar"><div class="sc-bar-fill" style="width:' + pct + '%;background:' + color + ';"></div></div></div>';
+    }
+
+    function _statusFlags(st) {
+        var f = [];
+        if (st.sick) { f.push('🤒 болеет'); }
+        if (st.hurt) { f.push('🩹 ранен'); }
+        if (st.asleep) { f.push('😴 спит'); }
+        if (st.paused) { f.push('⏸ на паузе'); }
+        if (st.idle) { f.push('💤 простаивает'); }
+        return f;
+    }
+
     function _injectStyles() {
         if (_stylesInjected) { return; }
         _stylesInjected = true;
@@ -82,7 +113,17 @@
             + '#shedcolony-content .sc-btn{width:100%;padding:9px 12px;border:none;border-radius:8px;cursor:pointer;'
             + 'font-weight:600;font-size:13px;background:linear-gradient(135deg,#5b8c3a,#3f6b27);color:#fff;}'
             + '#shedcolony-content .sc-btn:hover{filter:brightness(1.1);}'
-            + '#shedcolony-content .sc-btn:disabled{opacity:.45;cursor:not-allowed;filter:none;}';
+            + '#shedcolony-content .sc-btn:disabled{opacity:.45;cursor:not-allowed;filter:none;}'
+            + '#shedcolony-content .sc-mood{font-size:13px;margin:6px 0 2px;}'
+            + '#shedcolony-content .sc-flags{font-size:12px;opacity:.85;margin:4px 0;}'
+            + '#shedcolony-content .sc-stat{margin-top:8px;}'
+            + '#shedcolony-content .sc-stat-top{display:flex;justify-content:space-between;font-size:11px;opacity:.8;margin-bottom:3px;}'
+            + '#shedcolony-content .sc-bar{height:8px;border-radius:5px;background:rgba(0,0,0,.30);overflow:hidden;}'
+            + '#shedcolony-content .sc-bar-fill{height:100%;border-radius:5px;transition:width .3s;}'
+            + '#shedcolony-content .sc-skills{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;}'
+            + '#shedcolony-content .sc-skill{display:flex;justify-content:space-between;font-size:12px;'
+            + 'padding:2px 0;border-bottom:1px solid rgba(255,255,255,.06);}'
+            + '#shedcolony-content .sc-skill b{font-weight:700;}';
         var s = document.createElement('style');
         s.id = 'sc-styles';
         s.textContent = css;
@@ -136,11 +177,41 @@
                 + '<button class="sc-btn" data-sc="spawn">Создать колониста — 1000 💎</button>'
                 + '</div>';
         } else {
-            html += '<div class="sc-card">'
-                + '<div class="sc-colonist-name">👤 ' + escapeHtml(c.name || 'Мой колонист') + '</div>'
-                + '<div class="sc-colonist-job">Работа: ' + escapeHtml(c.job ? _jobLabel(c.job) : 'без работы') + '</div>'
-                + (c.status ? '<div class="sc-colonist-status">Статус: ' + escapeHtml(String(c.status)) + '</div>' : '')
-                + '</div>';
+            var st = c.state || {};
+            var job = (st.job != null) ? st.job : c.job;
+            var who = escapeHtml(c.name || 'Мой колонист')
+                + (st.child ? ' 👶' : '')
+                + (st.female === true ? ' ♀' : (st.female === false ? ' ♂' : ''));
+
+            html += '<div class="sc-card">';
+            html += '<div class="sc-colonist-name">👤 ' + who + '</div>';
+            html += '<div class="sc-colonist-job">Работа: ' + escapeHtml(job ? _jobLabel(job) : 'без работы')
+                + ' · Дом: ' + (st.has_home ? 'есть' : 'нет') + '</div>';
+            if (st.happiness != null) {
+                html += '<div class="sc-mood">' + _moodEmoji(st.happiness)
+                    + ' Настроение: ' + Number(st.happiness).toFixed(2) + '</div>';
+            }
+            var flags = _statusFlags(st);
+            if (flags.length) { html += '<div class="sc-flags">' + flags.map(escapeHtml).join(' · ') + '</div>'; }
+            if (st.hp != null || c.hp != null) {
+                html += _bar('❤️', 'Здоровье', _num(st.hp, _num(c.hp, 0)), _num(st.max_hp, 20), '#e0556b');
+            }
+            if (st.saturation != null) {
+                html += _bar('🍖', 'Сытость', st.saturation, 60, '#d8923a');
+            }
+            html += '</div>';
+
+            // Characteristics — all skills.
+            var sk = (st.skills && Object.keys(st.skills).length) ? st.skills : (c.skills || {});
+            if (Object.keys(sk).length) {
+                html += '<div class="sc-card"><div class="sc-section-title">Характеристики</div><div class="sc-skills">';
+                SC_SKILLS.forEach(function (pair) {
+                    var lvl = sk[pair[0]];
+                    if (lvl == null) { return; }
+                    html += '<div class="sc-skill"><span>' + escapeHtml(pair[1]) + '</span><b>' + lvl + '</b></div>';
+                });
+                html += '</div></div>';
+            }
 
             // Job — gated by free job slots from capacity.
             var freeJobs = (cap.jobs || []).filter(function (j) { return j.free > 0; });

@@ -93,27 +93,31 @@ class ShedColonyAdapter(ModuleAdapter):
         logger.info("[shedcolony:%s] player.died @%s/%s", channel_id, viewer_id, citizen_id)
 
     async def _on_colonist_state(self, channel_id: int, env: ModuleEnvelope) -> None:
-        """Снимок состояния колониста. UPSERT в state-таблицу."""
+        """Снимок состояния колониста. UPSERT в state-таблицу.
+        Полный блоб (hp/max_hp/saturation/happiness/флаги/job/все скиллы) кладём в state_json —
+        его показывает расширение; hp/job/skills_json дублируем в колонки для back-compat."""
         d = env.data
         citizen_id = str(d.get("citizen_id") or "")
         if not citizen_id:
             return
         skills = d.get("skills")
         skills_json = json.dumps(skills) if skills is not None else None
+        state_json = json.dumps(d, ensure_ascii=False)
         from dependencies import get_db
         async with get_db()._connect() as conn:
             await conn.execute("""
                 INSERT INTO shedcolony_colonist_state
-                    (channel_id, citizen_id, hp, job, skills_json, status, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    (channel_id, citizen_id, hp, job, skills_json, status, state_json, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(channel_id, citizen_id) DO UPDATE SET
                     hp = excluded.hp,
                     job = excluded.job,
                     skills_json = excluded.skills_json,
                     status = excluded.status,
+                    state_json = excluded.state_json,
                     updated_at = CURRENT_TIMESTAMP
             """, (channel_id, citizen_id, d.get("hp"), d.get("job"), skills_json,
-                  d.get("status") or "active"))
+                  d.get("status") or "active", state_json))
             await conn.commit()
 
     async def _on_colony_snapshot(self, channel_id: int, env: ModuleEnvelope) -> None:

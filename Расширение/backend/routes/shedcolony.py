@@ -63,6 +63,11 @@ _PURCHASABLE_ACTIONS = (
     "colonist.give_item",
     "colonist.set_gender",
     "colonist.teleport",
+    # Phase 8 — colony-level sinks (colony-wide, grief-safe; NOT citizen-scoped)
+    "colony.spy_boost",
+    "colony.festival",
+    "colony.spawn_visitor",
+    "colony.quest_unlock",
 )
 
 # Server-side prices — viewer-supplied price is IGNORED (frontend draws what backend sends).
@@ -82,6 +87,10 @@ _ACTION_PRICES: dict[str, int] = {
     "colonist.give_item":        200,
     "colonist.set_gender":       200,
     "colonist.teleport":         150,
+    "colony.spy_boost":         1500,
+    "colony.festival":          3000,
+    "colony.spawn_visitor":     2000,
+    "colony.quest_unlock":      2000,
 }
 
 # give_item — curated food whitelist (no tools/exploit; helps the colonist eat).

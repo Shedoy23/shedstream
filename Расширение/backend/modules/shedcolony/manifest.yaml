@@ -45,5 +45,10 @@ extensions:
     - colonist.give_item       # выдать предмет из whitelist (еда)
     - colonist.set_gender      # сменить пол (имя сохраняется)
     - colonist.teleport        # призвать в центр колонии (расстопор, needs-entity)
+    # Phase 8 — colony-level sinks (colony-wide, grief-safe)
+    - colony.spy_boost         # шпионы во время рейда (раскрыть рейдеров)
+    - colony.festival          # буст счастья всей колонии (3 дня)
+    - colony.spawn_visitor     # призвать визитёра в таверну
+    - colony.quest_unlock      # разблокировать случайный квест колонии
 
 catalogs: []

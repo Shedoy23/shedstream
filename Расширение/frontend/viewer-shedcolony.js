@@ -28,6 +28,10 @@
         give_item:  { type: 'colonist.give_item',     price: 200 },
         set_gender: { type: 'colonist.set_gender',    price: 200 },
         teleport:   { type: 'colonist.teleport',      price: 150 },
+        festival:      { type: 'colony.festival',       price: 3000 },
+        spawn_visitor: { type: 'colony.spawn_visitor',  price: 2000 },
+        quest_unlock:  { type: 'colony.quest_unlock',   price: 2000 },
+        spy_boost:     { type: 'colony.spy_boost',      price: 1500 },
     };
 
     // give_item dropdown — MUST stay a subset of _GIVE_ITEM_WHITELIST in routes/shedcolony.py.
@@ -54,6 +58,10 @@
         'colonist.give_item':        '🎁 Заявка принята — предмет передадим колонисту через пару секунд.',
         'colonist.set_gender':       '🔄 Заявка принята — сменим пол через пару секунд.',
         'colonist.teleport':         '✨ Заявка принята — призовём в центр колонии через пару секунд.',
+        'colony.festival':           '🎉 Заявка принята — фестиваль поднимет настроение колонии через пару секунд.',
+        'colony.spawn_visitor':      '🚶 Заявка принята — гость появится в таверне через пару секунд.',
+        'colony.quest_unlock':       '📜 Заявка принята — новый квест откроется в колонии через пару секунд.',
+        'colony.spy_boost':          '🕵 Заявка принята — шпионы включатся (работает только во время рейда).',
     };
 
     // 11 MineColonies skills (value = enum name the mod expects; label = RU).
@@ -301,6 +309,17 @@
             // Fulfill an open request.
             html += '<div class="sc-card"><div class="sc-section-title">Помочь колонисту</div>'
                 + '<button class="sc-btn" data-sc="fulfill">Выполнить его просьбу — 100 💎</button></div>';
+
+            // Colony-level sinks (Phase 8) — support the streamer's whole colony.
+            html += '<div class="sc-card"><div class="sc-section-title">Колония стримера</div>'
+                + '<div class="sc-care-row">'
+                + '<button class="sc-btn sc-btn-sm" data-sc="festival">🎉 Фестиваль · 3000</button>'
+                + '<button class="sc-btn sc-btn-sm" data-sc="spawn_visitor">🚶 Гость · 2000</button>'
+                + '<button class="sc-btn sc-btn-sm" data-sc="quest_unlock">📜 Квест · 2000</button>'
+                + '<button class="sc-btn sc-btn-sm" data-sc="spy_boost">🕵 Шпионы · 1500</button>'
+                + '</div>'
+                + '<p class="sc-muted" style="margin-top:6px;">Шпионы работают только во время рейда; гость — если есть таверна.</p>'
+                + '</div>';
         }
 
         root.innerHTML = html;

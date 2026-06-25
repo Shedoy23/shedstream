@@ -1205,23 +1205,37 @@ function switchIntegrationModule(activeModule) {
     const empty   = document.getElementById('integration-empty');
     const rim     = document.getElementById('rimworld-content');
     const bnr     = document.getElementById('bannerlord-content');
+    const sc      = document.getElementById('shedcolony-content');
     if (!empty || !rim || !bnr) return;
 
     if (activeModule === 'bannerlord') {
         empty.style.display = 'none';
         rim.style.display = 'none';
         bnr.style.display = '';
+        if (sc) sc.style.display = 'none';
         _startBannerlordPolling();
+        if (window._stopShedcolonyPolling) _stopShedcolonyPolling();
     } else if (activeModule === 'rimworld') {
         empty.style.display = 'none';
         rim.style.display = '';
         bnr.style.display = 'none';
+        if (sc) sc.style.display = 'none';
         _stopBannerlordPolling();
+        if (window._stopShedcolonyPolling) _stopShedcolonyPolling();
+    } else if (activeModule === 'shedcolony') {
+        empty.style.display = 'none';
+        rim.style.display = 'none';
+        bnr.style.display = 'none';
+        if (sc) sc.style.display = '';
+        _stopBannerlordPolling();
+        if (window._startShedcolonyPolling) _startShedcolonyPolling();
     } else {
         empty.style.display = '';
         rim.style.display = 'none';
         bnr.style.display = 'none';
+        if (sc) sc.style.display = 'none';
         _stopBannerlordPolling();
+        if (window._stopShedcolonyPolling) _stopShedcolonyPolling();
     }
 }
 

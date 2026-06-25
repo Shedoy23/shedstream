@@ -457,12 +457,13 @@ def _dashboard_html(ch: dict) -> str:
     <div class="mod-switch">
       <button class="mod-btn" id="mod-btn-bannerlord" onclick="setModule('bannerlord')">⚔️ Bannerlord</button>
       <button class="mod-btn" id="mod-btn-rimworld" onclick="setModule('rimworld')">🪐 RimWorld</button>
+      <button class="mod-btn" id="mod-btn-shedcolony" onclick="setModule('shedcolony')">⛏️ Minecraft</button>
     </div>
     <div id="mod-msg" class="boosty-msg"></div>
   </div>
   <script>
   function markActiveModule(mod){{
-    ['bannerlord','rimworld'].forEach(function(m){{
+    ['bannerlord','rimworld','shedcolony'].forEach(function(m){{
       var b = document.getElementById('mod-btn-'+m);
       if(b) b.className = 'mod-btn' + (m === mod ? ' active' : '');
     }});
@@ -966,7 +967,7 @@ async def streamer_module_token(request: Request):
 @router.post("/api/streamer/active-module", include_in_schema=False)
 async def streamer_set_active_module(request: Request):
     """Стример из dashboard переключает активный модуль расширения — что видят
-    зрители (bannerlord / rimworld). Требует session cookie. Меняет
+    зрители (bannerlord / rimworld / shedcolony). Требует session cookie. Меняет
     channels.active_module; фронт зрителя подхватывает при следующем опросе."""
     cid = _read_session_cookie(request)
     if cid is None:

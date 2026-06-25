@@ -27,6 +27,7 @@ events:
 extensions:
   events:
     - colony.snapshot      # полный список колонистов на старте сессии (reconciliation)
+    - colony.capacity      # снимок свободных слотов (работы по типам + койки) для slot-availability UI
     - colonist.state       # снимок состояния колониста (hp / работа / скиллы)
     - action.failed        # отложенный action упал после enqueue (хук рефанда)
   actions:

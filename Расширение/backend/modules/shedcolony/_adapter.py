@@ -36,8 +36,10 @@ class ShedColonyAdapter(ModuleAdapter):
             await self._on_colonist_state(channel_id, env)
         elif et == "colony.snapshot":
             await self._on_colony_snapshot(channel_id, env)
+        elif et == "colony.capacity":
+            await self._on_colony_capacity(channel_id, env)
         elif et == "action.failed":
-            logger.warning("[shedcolony:%s] action.failed: %s", channel_id, env.data)
+            await self._on_action_failed(channel_id, env)
         else:
             logger.warning("[shedcolony:%s] unhandled event type=%s", channel_id, et)
 
@@ -119,6 +121,70 @@ class ShedColonyAdapter(ModuleAdapter):
         MVP: логируем размер; пер-колонист state придёт отдельными colonist.state."""
         colonists = env.data.get("colonists") or []
         logger.info("[shedcolony:%s] colony.snapshot — %d colonists", channel_id, len(colonists))
+
+    async def _on_colony_capacity(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Снимок свободных слотов колонии (мод шлёт периодически) → slot-availability UI.
+        data: {jobs:[{job, free, total}], free_beds, total_beds}. Полная замена снимка."""
+        d = env.data
+        jobs = d.get("jobs") or []
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            await conn.execute("DELETE FROM shedcolony_capacity WHERE channel_id=?", (channel_id,))
+            for j in jobs:
+                await conn.execute(
+                    "INSERT INTO shedcolony_capacity (channel_id, job_key, free_slots, total_slots) "
+                    "VALUES (?, ?, ?, ?)",
+                    (channel_id, str(j.get("job") or ""),
+                     int(j.get("free") or 0), int(j.get("total") or 0)))
+            await conn.execute(
+                "INSERT INTO shedcolony_capacity_meta (channel_id, free_beds, total_beds, updated_at) "
+                "VALUES (?, ?, ?, CURRENT_TIMESTAMP) "
+                "ON CONFLICT(channel_id) DO UPDATE SET "
+                "    free_beds = excluded.free_beds, total_beds = excluded.total_beds, "
+                "    updated_at = CURRENT_TIMESTAMP",
+                (channel_id, int(d.get("free_beds") or 0), int(d.get("total_beds") or 0)))
+            await conn.commit()
+
+    async def _on_action_failed(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Платный action провалился (ack success=false / action.failed) → РЕФАНД крустиков.
+        Берёт price + initiated_by из сохранённого module_actions.data. Idempotent по 'REFUNDED:'.
+        Зеркалит bannerlord (compliance: зритель не платит за невыполненное действие)."""
+        action_id = env.data.get("action_id") or ""
+        reason = env.data.get("reason") or "failed"
+        if not action_id:
+            return
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            cur = await conn.execute(
+                "SELECT data, error_msg FROM module_actions "
+                "WHERE channel_id=? AND module_id='shedcolony' AND action_id=?",
+                (channel_id, action_id))
+            row = await cur.fetchone()
+            if not row:
+                return
+            data_str, error_msg = row
+            if error_msg and error_msg.startswith("REFUNDED:"):
+                return  # already refunded — idempotent
+            try:
+                parsed = json.loads(data_str or "{}")
+            except Exception:
+                parsed = {}
+            price = int(parsed.get("price") or 0)
+            username = (parsed.get("initiated_by") or "").lower()
+            if price > 0 and username:
+                await conn.execute(
+                    "UPDATE viewers SET points = points + ? WHERE channel_id=? AND username=?",
+                    (price, channel_id, username))
+                marker = f"REFUNDED:{price} reason={reason}"
+            else:
+                marker = f"REFUNDED:0 (no_price) reason={reason}"
+            await conn.execute(
+                "UPDATE module_actions SET status='failed', error_msg=? "
+                "WHERE channel_id=? AND module_id='shedcolony' AND action_id=?",
+                (marker, channel_id, action_id))
+            await conn.commit()
+        logger.info("[shedcolony:%s] action.failed %s reason=%s → refund %s to @%s",
+                    channel_id, action_id, reason, price if price > 0 else 0, username or "?")
 
     # ── action dispatch (→ outbox queue module_actions) ──────────────────────
 

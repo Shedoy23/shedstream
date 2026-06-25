@@ -83,6 +83,7 @@ from routes.pets       import router as pets_router       # Phase 7 (2026-05-12)
 from routes.tts        import router as tts_router        # Sprint 5.23 (2026-05-21)
 from routes.rps        import router as rps_router        # Sprint 5.24b (2026-05-21)
 from routes.bannerlord  import router as bannerlord_router # Sprint 1.3 (2026-05-15)
+from routes.shedcolony  import router as shedcolony_router # ShedColony viewer endpoints (2026-06-25)
 from routes.bannerlord_achievements import router as bannerlord_achievements_router # Sprint 5.29
 from routes.bannerlord_custom_items import router as bannerlord_custom_items_router # Sprint 5.29
 from routes.bannerlord_auctions import router as bannerlord_auctions_router  # Sprint 5.29 phase B
@@ -119,6 +120,7 @@ app.include_router(pets_router)        # Phase 7 (2026-05-12): Pets MVP (cross-c
 app.include_router(tts_router)         # Sprint 5.23 (2026-05-21): TTS «Озвучить сообщение»
 app.include_router(rps_router)         # Sprint 5.24b (2026-05-21): RPS bo3 matchmade
 app.include_router(bannerlord_router)  # Sprint 1.3 (2026-05-15): Bannerlord viewer endpoints
+app.include_router(shedcolony_router)  # ShedColony viewer endpoints (buy / my-colonist / capacity)
 app.include_router(bannerlord_achievements_router)  # Sprint 5.29 BLT-parity #5
 app.include_router(bannerlord_custom_items_router)  # Sprint 5.29 BLT-parity #6
 app.include_router(bannerlord_auctions_router)  # Sprint 5.29 BLT-parity #6 phase B
@@ -1163,6 +1165,13 @@ async def run_migrations():
             await m83_shedcolony.apply(conn)
         except Exception as e:
             print(f"❌ M83 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
+        try:
+            from migrations import m84_shedcolony_capacity
+            await m84_shedcolony_capacity.apply(conn)
+        except Exception as e:
+            print(f"❌ M84 migration FAILED: {type(e).__name__}: {e}")
             raise
 
         print("✅ Migrations complete")

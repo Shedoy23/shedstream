@@ -390,7 +390,7 @@
     window._startShedcolonyPolling = function () {
         _lastSig = '';                 // force a fresh render when the tab is (re)opened
         _refresh();
-        if (_pollId === null) { _pollId = safeInterval(_refresh, 8000); }
+        if (_pollId === null) { _pollId = safeInterval(_refresh, 5000); }
     };
 
     window._stopShedcolonyPolling = function () {

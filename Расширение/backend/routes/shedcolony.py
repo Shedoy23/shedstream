@@ -172,6 +172,12 @@ async def _buy_action_locked(username: str, channel_id: int,
         data["citizen_id"] = citizen_id   # override any client-supplied value (security)
 
     if action_type == "colonist.spawn":
+        # 1 viewer = 1 colonist: refuse a second spawn while one is alive (UI hides the
+        # button, but the request is craftable — without this a re-roll burns 1000💎).
+        async with db._connect() as conn:
+            existing = await _resolve_citizen(conn, channel_id, username)
+        if existing:
+            return {"success": False, "message": "У тебя уже есть колонист в этой колонии"}
         data["name"] = username           # MVP: colonist named after the viewer
     elif action_type == "colonist.add_xp":
         data["amount"] = _XP_AMOUNT        # server-fixed XP per purchase

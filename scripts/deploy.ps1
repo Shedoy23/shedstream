@@ -10,8 +10,10 @@
     a file". Excludes *.db / .env / __pycache__ so prod data is never clobbered.
   - Mod deploy builds Release and copies the DLL+pdb into the game Modules
     folder with an md5 verify.
-  - After a backend/frontend push it restarts the service and verifies health
-    (RUNNING + no fresh Traceback in stderr).
+  - After a backend/frontend push it restarts the service and verifies health:
+    RUNNING + no fresh Traceback in stderr AND the /health endpoint returns 200
+    (with warmup retries). A live process that 502s on a dead DB pool is caught
+    here and FAILS the deploy loud, instead of being waved through as [ok].
 
   ASCII-only on purpose: PowerShell 5.1 reads BOM-less .ps1 as ANSI, so
   non-ASCII text would corrupt. Keep it that way.
@@ -175,7 +177,7 @@ if ($paths.Count -gt 0) {
     if ($DryRun) {
         Write-Host "  [dry] scp tar -> ${ProdHost}:/tmp/" -ForegroundColor DarkGray
         Write-Host "  [dry] ssh extract into $ProdDir" -ForegroundColor DarkGray
-        if (-not $NoRestart) { Write-Host "  [dry] ssh supervisorctl restart $Service + health check" -ForegroundColor DarkGray }
+        if (-not $NoRestart) { Write-Host "  [dry] ssh supervisorctl restart $Service + health check (status RUNNING + HTTP /health 200)" -ForegroundColor DarkGray }
     }
     else {
         Info "scp -> prod"
@@ -190,11 +192,24 @@ if ($paths.Count -gt 0) {
         if ($LASTEXITCODE -ne 0){ throw "remote extract failed" }
 
         if (-not $NoRestart) {
-            Info "restart $Service + health check (6s)..."
-            $health = & ssh $ProdHost "supervisorctl restart $Service >/dev/null 2>&1; sleep 6; supervisorctl status $Service; echo '---ERR---'; supervisorctl tail -120 $Service stderr 2>/dev/null | grep -iE 'Traceback|SyntaxError|ImportError' | tail -5"
+            Info "restart $Service + health check (RUNNING + HTTP /health 200)..."
+            # Real health = the HTTP endpoint answers 200. A bare 'supervisorctl
+            # RUNNING' is NOT enough: uvicorn can stay up as a process while every
+            # request 502s (e.g. a corrupt WAL -> 'database disk image is malformed'
+            # -> 0 DB connections). That exact case took prod down ~15 min on
+            # 2026-06-25 while the old check still printed [ok]. So we curl /health
+            # on prod with a few warmup retries and FAIL LOUD (throw) if it never
+            # returns 200. http_code is always a 3-digit number, so the unquoted
+            # bash test is safe; ` $ are escaped so $code/$( reach the remote shell.
+            $health = & ssh $ProdHost "supervisorctl restart $Service >/dev/null 2>&1; sleep 6; supervisorctl status $Service; echo '---ERR---'; supervisorctl tail -120 $Service stderr 2>/dev/null | grep -iE 'Traceback|SyntaxError|ImportError' | tail -5; echo '---HTTP---'; code=000; for i in 1 2 3 4 5; do code=`$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 http://127.0.0.1:8000/health); [ `$code = 200 ] && break; sleep 3; done; echo http=`$code"
             $health | ForEach-Object { Write-Host "  $_" }
             if ($health -match 'RUNNING') { Ok "Service RUNNING" } else { Warn "Service NOT running - check log!" }
             if ($health -match 'Traceback|SyntaxError|ImportError') { Warn "Errors in stderr - check above!" }
+            if ($health -match 'http=200') { Ok "HTTP /health 200 - backend is live" }
+            else {
+                $hc = "$($health -match 'http=')".Trim()
+                throw "PROD UNHEALTHY after deploy: /health did not return 200 ($hc). Process may be RUNNING but the backend is dead (DB pool / startup error). Inspect: ssh $ProdHost 'supervisorctl tail -200 $Service stderr'"
+            }
         } else { Warn "-NoRestart: tar extracted, service NOT restarted" }
     }
 }

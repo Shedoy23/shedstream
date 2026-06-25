@@ -25,7 +25,19 @@
         cure:    { type: 'colonist.cure_disease',     price: 100 },
         heal:    { type: 'colonist.heal',             price: 100 },
         mourn:   { type: 'colonist.clear_mourn',      price: 50 },
+        give_item:  { type: 'colonist.give_item',     price: 200 },
+        set_gender: { type: 'colonist.set_gender',    price: 200 },
+        teleport:   { type: 'colonist.teleport',      price: 150 },
     };
+
+    // give_item dropdown — MUST stay a subset of _GIVE_ITEM_WHITELIST in routes/shedcolony.py.
+    var SC_GIVE_ITEMS = [
+        ['minecraft:bread', 'Хлеб'], ['minecraft:cooked_beef', 'Стейк'],
+        ['minecraft:cooked_chicken', 'Жареная курица'], ['minecraft:cooked_porkchop', 'Свинина'],
+        ['minecraft:apple', 'Яблоко'], ['minecraft:golden_carrot', 'Золотая морковь'],
+        ['minecraft:golden_apple', 'Золотое яблоко'], ['minecraft:cake', 'Торт'],
+        ['minecraft:pumpkin_pie', 'Тыквенный пирог'], ['minecraft:cookie', 'Печенье'],
+    ];
 
     // Action-specific deferred-success toasts (paid + async → "это заявка, исход в игре").
     var SC_SUCCESS_MSG = {
@@ -39,6 +51,9 @@
         'colonist.cure_disease':     '💊 Заявка принята — вылечим через пару секунд.',
         'colonist.heal':             '❤ Заявка принята — восстановим здоровье через пару секунд.',
         'colonist.clear_mourn':      '🕯 Заявка принята — снимем траур через пару секунд.',
+        'colonist.give_item':        '🎁 Заявка принята — предмет передадим колонисту через пару секунд.',
+        'colonist.set_gender':       '🔄 Заявка принята — сменим пол через пару секунд.',
+        'colonist.teleport':         '✨ Заявка принята — призовём в центр колонии через пару секунд.',
     };
 
     // 11 MineColonies skills (value = enum name the mod expects; label = RU).
@@ -238,6 +253,15 @@
                 + '<button class="sc-btn sc-btn-sm" data-sc="cure">💊 Вылечить · 100</button>'
                 + '<button class="sc-btn sc-btn-sm" data-sc="heal">❤ Исцелить · 100</button>'
                 + '<button class="sc-btn sc-btn-sm" data-sc="mourn">🕯 Снять траур · 50</button>'
+                + '</div>';
+            html += '<select class="sc-select" id="sc-give-select" style="margin-top:8px;">';
+            SC_GIVE_ITEMS.forEach(function (pair) {
+                html += '<option value="' + pair[0] + '">' + escapeHtml(pair[1]) + '</option>';
+            });
+            html += '</select><button class="sc-btn" data-sc="give_item">🎁 Выдать предмет — 200 💎</button>';
+            html += '<div class="sc-care-row">'
+                + '<button class="sc-btn sc-btn-sm" data-sc="set_gender">🔄 Сменить пол · 200</button>'
+                + '<button class="sc-btn sc-btn-sm" data-sc="teleport">✨ Призвать · 150</button>'
                 + '</div></div>';
 
             // Job — gated by free job slots from capacity.
@@ -317,6 +341,10 @@
             var nm = ri && ri.value ? ri.value.trim() : '';
             if (!nm) { showNotification('Введи имя (1–16 символов)', 'error', 3000); return; }
             data.new_name = nm;
+        } else if (kind === 'give_item') {
+            var gs = document.getElementById('sc-give-select');
+            if (!gs || !gs.value) { showNotification('Выбери предмет', 'error', 3000); return; }
+            data.item = gs.value;
         }
         btn.disabled = true;
         _buy(cfg.type, data).then(function (res) {

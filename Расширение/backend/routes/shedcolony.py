@@ -60,6 +60,9 @@ _PURCHASABLE_ACTIONS = (
     "colonist.cure_disease",
     "colonist.heal",
     "colonist.clear_mourn",
+    "colonist.give_item",
+    "colonist.set_gender",
+    "colonist.teleport",
 )
 
 # Server-side prices — viewer-supplied price is IGNORED (frontend draws what backend sends).
@@ -76,6 +79,16 @@ _ACTION_PRICES: dict[str, int] = {
     "colonist.cure_disease":     100,
     "colonist.heal":             100,
     "colonist.clear_mourn":       50,
+    "colonist.give_item":        200,
+    "colonist.set_gender":       200,
+    "colonist.teleport":         150,
+}
+
+# give_item — curated food whitelist (no tools/exploit; helps the colonist eat).
+_GIVE_ITEM_WHITELIST = {
+    "minecraft:bread", "minecraft:cooked_beef", "minecraft:cooked_chicken",
+    "minecraft:cooked_porkchop", "minecraft:apple", "minecraft:golden_carrot",
+    "minecraft:golden_apple", "minecraft:cake", "minecraft:pumpkin_pie", "minecraft:cookie",
 }
 
 # Fixed XP per add_xp purchase (viewer picks the skill, server fixes the amount).
@@ -95,6 +108,9 @@ _NEEDS_CITIZEN = (
     "colonist.cure_disease",
     "colonist.heal",
     "colonist.clear_mourn",
+    "colonist.give_item",
+    "colonist.set_gender",
+    "colonist.teleport",
 )
 
 
@@ -209,6 +225,11 @@ async def _buy_action_locked(username: str, channel_id: int,
             return {"success": False,
                     "message": "Имя: 1–16 символов, только буквы/цифры/пробел"}
         data["new_name"] = new_name        # validated/filtered name → mod trusts it
+    elif action_type == "colonist.give_item":
+        item = (data.get("item") or "").strip()
+        if item not in _GIVE_ITEM_WHITELIST:
+            return {"success": False, "message": "Этот предмет нельзя выдать"}
+        data["item"] = item                # whitelisted id → mod trusts it
 
     result = await _charge_and_enqueue(action_type, data, price, username, channel_id)
     if isinstance(result, dict):

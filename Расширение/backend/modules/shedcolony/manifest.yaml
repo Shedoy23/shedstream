@@ -42,5 +42,8 @@ extensions:
     - colonist.cure_disease    # вылечить болезнь
     - colonist.heal            # восстановить HP (needs-entity)
     - colonist.clear_mourn     # снять траур
+    - colonist.give_item       # выдать предмет из whitelist (еда)
+    - colonist.set_gender      # сменить пол (имя сохраняется)
+    - colonist.teleport        # призвать в центр колонии (расстопор, needs-entity)
 
 catalogs: []

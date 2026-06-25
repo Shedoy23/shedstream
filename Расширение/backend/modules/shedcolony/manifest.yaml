@@ -34,7 +34,13 @@ extensions:
     - colonist.spawn           # создать + привязать колониста зрителю (1000 крустиков)
     - colonist.assign_job      # нанять в свободную/занятую-NPC хату
     - colonist.assign_home     # поселить (выселит NPC при нехватке коек)
-    - colonist.add_xp          # прокачать скилл
+    - colonist.add_xp          # прокачать скилл (+1000 XP)
     - colonist.fulfill_request # выполнить открытую просьбу колониста (Path C)
+    # Phase 7 — colonist care (own colonist, deterministic, grief-safe)
+    - colonist.rename          # переименовать (фильтр имени на бэке)
+    - colonist.feed            # насытить (saturation → 60)
+    - colonist.cure_disease    # вылечить болезнь
+    - colonist.heal            # восстановить HP (needs-entity)
+    - colonist.clear_mourn     # снять траур
 
 catalogs: []

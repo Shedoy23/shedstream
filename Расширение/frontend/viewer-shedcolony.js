@@ -12,12 +12,19 @@
 (function () {
     'use strict';
 
+    // NOTE: prices mirror routes/shedcolony.py _ACTION_PRICES (backend is the source of truth;
+    // it enforces the real price and ignores the client). Keep in sync on a price change.
     var SC = {
         spawn:   { type: 'colonist.spawn',            price: 1000 },
         job:     { type: 'colonist.assign_job',       price: 300 },
         home:    { type: 'colonist.assign_home',      price: 200 },
-        xp:      { type: 'colonist.add_xp',           price: 150 },
+        xp:      { type: 'colonist.add_xp',           price: 400 },
         fulfill: { type: 'colonist.fulfill_request',  price: 100 },
+        rename:  { type: 'colonist.rename',           price: 300 },
+        feed:    { type: 'colonist.feed',             price: 75 },
+        cure:    { type: 'colonist.cure_disease',     price: 100 },
+        heal:    { type: 'colonist.heal',             price: 100 },
+        mourn:   { type: 'colonist.clear_mourn',      price: 50 },
     };
 
     // Action-specific deferred-success toasts (paid + async → "это заявка, исход в игре").
@@ -27,6 +34,11 @@
         'colonist.assign_home':      '🏠 Заявка на дом принята — поселим через пару секунд.',
         'colonist.add_xp':           '📈 Заявка на прокачку принята — скилл вырастет через пару секунд.',
         'colonist.fulfill_request':  '📦 Заявка принята — просьбу колониста выполним через пару секунд.',
+        'colonist.rename':           '✏️ Заявка на переименование принята — применим через пару секунд.',
+        'colonist.feed':             '🍖 Заявка принята — колониста покормят через пару секунд.',
+        'colonist.cure_disease':     '💊 Заявка принята — вылечим через пару секунд.',
+        'colonist.heal':             '❤ Заявка принята — восстановим здоровье через пару секунд.',
+        'colonist.clear_mourn':      '🕯 Заявка принята — снимем траур через пару секунд.',
     };
 
     // 11 MineColonies skills (value = enum name the mod expects; label = RU).
@@ -123,7 +135,11 @@
             + '#shedcolony-content .sc-skills{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;}'
             + '#shedcolony-content .sc-skill{display:flex;justify-content:space-between;font-size:12px;'
             + 'padding:2px 0;border-bottom:1px solid rgba(255,255,255,.06);}'
-            + '#shedcolony-content .sc-skill b{font-weight:700;}';
+            + '#shedcolony-content .sc-skill b{font-weight:700;}'
+            + '#shedcolony-content .sc-input{width:100%;padding:7px;margin-bottom:8px;border-radius:8px;box-sizing:border-box;'
+            + 'background:rgba(0,0,0,.25);color:inherit;border:1px solid rgba(255,255,255,.15);}'
+            + '#shedcolony-content .sc-care-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;}'
+            + '#shedcolony-content .sc-btn-sm{width:auto;padding:7px 8px;font-size:12px;}';
         var s = document.createElement('style');
         s.id = 'sc-styles';
         s.textContent = css;
@@ -213,6 +229,17 @@
                 html += '</div></div>';
             }
 
+            // Care — own-colonist Phase 7 actions (cheap, deterministic, grief-safe).
+            html += '<div class="sc-card"><div class="sc-section-title">Забота о колонисте</div>';
+            html += '<input class="sc-input" id="sc-rename-input" maxlength="16" placeholder="Новое имя (1–16)">';
+            html += '<button class="sc-btn" data-sc="rename">Переименовать — 300 💎</button>';
+            html += '<div class="sc-care-row">'
+                + '<button class="sc-btn sc-btn-sm" data-sc="feed">🍖 Покормить · 75</button>'
+                + '<button class="sc-btn sc-btn-sm" data-sc="cure">💊 Вылечить · 100</button>'
+                + '<button class="sc-btn sc-btn-sm" data-sc="heal">❤ Исцелить · 100</button>'
+                + '<button class="sc-btn sc-btn-sm" data-sc="mourn">🕯 Снять траур · 50</button>'
+                + '</div></div>';
+
             // Job — gated by free job slots from capacity.
             var freeJobs = (cap.jobs || []).filter(function (j) { return j.free > 0; });
             html += '<div class="sc-card"><div class="sc-section-title">Назначить работу — 300 💎</div>';
@@ -241,11 +268,11 @@
             html += '</div>';
 
             // XP — pick a skill.
-            html += '<div class="sc-card"><div class="sc-section-title">Прокачать скилл — 150 💎</div><select class="sc-select" id="sc-skill-select">';
+            html += '<div class="sc-card"><div class="sc-section-title">Прокачать скилл — 400 💎</div><select class="sc-select" id="sc-skill-select">';
             SC_SKILLS.forEach(function (pair) {
                 html += '<option value="' + pair[0] + '">' + escapeHtml(pair[1]) + '</option>';
             });
-            html += '</select><button class="sc-btn" data-sc="xp">Прокачать — 150 💎</button></div>';
+            html += '</select><button class="sc-btn" data-sc="xp">Прокачать (+1000 XP) — 400 💎</button></div>';
 
             // Fulfill an open request.
             html += '<div class="sc-card"><div class="sc-section-title">Помочь колонисту</div>'
@@ -285,6 +312,11 @@
         } else if (kind === 'xp') {
             var ss = document.getElementById('sc-skill-select');
             data.skill = ss && ss.value ? ss.value : 'Strength';
+        } else if (kind === 'rename') {
+            var ri = document.getElementById('sc-rename-input');
+            var nm = ri && ri.value ? ri.value.trim() : '';
+            if (!nm) { showNotification('Введи имя (1–16 символов)', 'error', 3000); return; }
+            data.new_name = nm;
         }
         btn.disabled = true;
         _buy(cfg.type, data).then(function (res) {

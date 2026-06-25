@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import uuid
 
 from fastapi import APIRouter, Request
@@ -53,19 +54,35 @@ _PURCHASABLE_ACTIONS = (
     "colonist.assign_home",
     "colonist.add_xp",
     "colonist.fulfill_request",
+    # Phase 7 — colonist care (own colonist, deterministic, grief-safe)
+    "colonist.rename",
+    "colonist.feed",
+    "colonist.cure_disease",
+    "colonist.heal",
+    "colonist.clear_mourn",
 )
 
 # Server-side prices — viewer-supplied price is IGNORED (frontend draws what backend sends).
+# Model (2026-06-25, SHEDCOLONY_PLAN §0b): care cheap (engagement), progression raised,
+# anchored ~1500 кр/hour passive earning.
 _ACTION_PRICES: dict[str, int] = {
     "colonist.spawn":           1000,
     "colonist.assign_job":       300,
     "colonist.assign_home":      200,
-    "colonist.add_xp":           150,
+    "colonist.add_xp":           400,   # was 150 — +1000 XP is a real progression lever
     "colonist.fulfill_request":  100,
+    "colonist.rename":           300,
+    "colonist.feed":              75,
+    "colonist.cure_disease":     100,
+    "colonist.heal":             100,
+    "colonist.clear_mourn":       50,
 }
 
 # Fixed XP per add_xp purchase (viewer picks the skill, server fixes the amount).
 _XP_AMOUNT = 1000
+
+# rename — the only free-text viewer input → moderation surface (length + charset).
+_RENAME_RE = re.compile(r"^[A-Za-zА-Яа-яЁё0-9 ]{1,16}$")
 
 # Actions that operate on the viewer's EXISTING colonist (need a resolved citizen_id).
 _NEEDS_CITIZEN = (
@@ -73,6 +90,11 @@ _NEEDS_CITIZEN = (
     "colonist.assign_home",
     "colonist.add_xp",
     "colonist.fulfill_request",
+    "colonist.rename",
+    "colonist.feed",
+    "colonist.cure_disease",
+    "colonist.heal",
+    "colonist.clear_mourn",
 )
 
 
@@ -181,6 +203,12 @@ async def _buy_action_locked(username: str, channel_id: int,
         data["name"] = username           # MVP: colonist named after the viewer
     elif action_type == "colonist.add_xp":
         data["amount"] = _XP_AMOUNT        # server-fixed XP per purchase
+    elif action_type == "colonist.rename":
+        new_name = (data.get("new_name") or "").strip()
+        if not new_name or not _RENAME_RE.match(new_name):
+            return {"success": False,
+                    "message": "Имя: 1–16 символов, только буквы/цифры/пробел"}
+        data["new_name"] = new_name        # validated/filtered name → mod trusts it
 
     result = await _charge_and_enqueue(action_type, data, price, username, channel_id)
     if isinstance(result, dict):

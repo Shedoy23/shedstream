@@ -7,7 +7,9 @@
   - Frontend deploy auto-bumps the viewer.js?v= cache-bust SYNCHRONOUSLY in
     extension.html AND mobile.html (no more hand-editing / desync).
   - Backend/frontend are tarred WHOLE (with excludes) so you can never "forget
-    a file". Excludes *.db / .env / __pycache__ so prod data is never clobbered.
+    a file". Excludes *.db AND its -wal/-shm/-journal sidecars (a stray local WAL
+    shipped over the prod DB = "database disk image is malformed"), plus .env /
+    __pycache__, so prod data is never clobbered.
   - Mod deploy builds Release and copies the DLL+pdb into the game Modules
     folder with an md5 verify.
   - After a backend/frontend push it restarts the service and verifies health:
@@ -128,7 +130,7 @@ if ($Backend -or $Staging) {
 #   chat / EventSub / PubSub. On-demand: start it for a test, stop when done.
 if ($Staging) {
     $sTar = Join-Path $env:TEMP 'shedstream_staging.tar'
-    $sExcl = @('--exclude=*.db','--exclude=*.pyc','--exclude=__pycache__','--exclude=.env','--exclude=venv','--exclude=.venv')
+    $sExcl = @('--exclude=*.db','--exclude=*.db-wal','--exclude=*.db-shm','--exclude=*.db-journal','--exclude=*.pyc','--exclude=__pycache__','--exclude=.env','--exclude=venv','--exclude=.venv')
     $sPaths = @('backend','frontend','admin')
     $sTarArgs = @('-cf', $sTar) + $sExcl + @('-C', $ExtDir) + $sPaths
     Info "STAGING tar [$($sPaths -join ', ')] (excl db/.env/pycache)..."
@@ -169,7 +171,7 @@ if ($Frontend) { $paths += 'admin' }
 
 if ($paths.Count -gt 0) {
     $tar = Join-Path $env:TEMP 'shedstream_deploy.tar'
-    $excl = @('--exclude=*.db','--exclude=*.pyc','--exclude=__pycache__','--exclude=.env','--exclude=venv','--exclude=.venv')
+    $excl = @('--exclude=*.db','--exclude=*.db-wal','--exclude=*.db-shm','--exclude=*.db-journal','--exclude=*.pyc','--exclude=__pycache__','--exclude=.env','--exclude=venv','--exclude=.venv')
     $tarArgs = @('-cf', $tar) + $excl + @('-C', $ExtDir) + $paths
     Info "tar [$($paths -join ', ')] (excl db/.env/pycache)..."
     if (-not $DryRun) { & tar @tarArgs; if ($LASTEXITCODE -ne 0){ throw "tar failed" } }

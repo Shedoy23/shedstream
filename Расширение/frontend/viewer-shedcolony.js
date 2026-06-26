@@ -28,6 +28,9 @@
         give_item:  { type: 'colonist.give_item',     price: 200 },
         set_gender: { type: 'colonist.set_gender',    price: 200 },
         teleport:   { type: 'colonist.teleport',      price: 150 },
+        equip_leather: { type: 'colonist.equip_leather', price: 500 },
+        equip_iron:    { type: 'colonist.equip_iron',    price: 1500 },
+        equip_diamond: { type: 'colonist.equip_diamond', price: 3000 },
         festival:      { type: 'colony.festival',       price: 3000 },
         spawn_visitor: { type: 'colony.spawn_visitor',  price: 2000 },
         quest_unlock:  { type: 'colony.quest_unlock',   price: 2000 },
@@ -62,6 +65,9 @@
         'colony.spawn_visitor':      '🚶 Заявка принята — гость появится в таверне через пару секунд.',
         'colony.quest_unlock':       '📜 Заявка принята — новый квест откроется в колонии через пару секунд.',
         'colony.spy_boost':          '🕵 Заявка принята — шпионы включатся (работает только во время рейда).',
+        'colonist.equip_leather':    '🛡 Заявка принята — наденем кожаную броню через пару секунд.',
+        'colonist.equip_iron':       '🛡 Заявка принята — наденем железную броню через пару секунд.',
+        'colonist.equip_diamond':    '💎 Заявка принята — наденем алмазную броню через пару секунд.',
     };
 
     // 11 MineColonies skills (value = enum name the mod expects; label = RU).
@@ -272,6 +278,14 @@
             html += '<div class="sc-care-row">'
                 + '<button class="sc-btn sc-btn-sm" data-sc="set_gender">🔄 Сменить пол · 200</button>'
                 + '<button class="sc-btn sc-btn-sm" data-sc="teleport">✨ Призвать · 150</button>'
+                + '</div></div>';
+
+            // Equipment — armour tiers (visible in-game, raid-survivable, prestige crustic sink).
+            html += '<div class="sc-card"><div class="sc-section-title">Экипировка — броня</div>'
+                + '<div class="sc-care-row">'
+                + '<button class="sc-btn sc-btn-sm" data-sc="equip_leather">🟫 Кожа · 500</button>'
+                + '<button class="sc-btn sc-btn-sm" data-sc="equip_iron">⬜ Железо · 1500</button>'
+                + '<button class="sc-btn sc-btn-sm" data-sc="equip_diamond">💎 Алмаз · 3000</button>'
                 + '</div></div>';
 
             // Job — gated by free job slots from capacity.

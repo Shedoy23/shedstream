@@ -63,6 +63,9 @@ _PURCHASABLE_ACTIONS = (
     "colonist.give_item",
     "colonist.set_gender",
     "colonist.teleport",
+    "colonist.equip_leather",
+    "colonist.equip_iron",
+    "colonist.equip_diamond",
     # Phase 8 — colony-level sinks (colony-wide, grief-safe; NOT citizen-scoped)
     "colony.spy_boost",
     "colony.festival",
@@ -87,6 +90,9 @@ _ACTION_PRICES: dict[str, int] = {
     "colonist.give_item":        200,
     "colonist.set_gender":       200,
     "colonist.teleport":         150,
+    "colonist.equip_leather":    500,   # full armour set — visible, raid-survivable, prestige sink
+    "colonist.equip_iron":      1500,
+    "colonist.equip_diamond":   3000,
     "colony.spy_boost":         1500,
     "colony.festival":          3000,
     "colony.spawn_visitor":     2000,
@@ -120,6 +126,9 @@ _NEEDS_CITIZEN = (
     "colonist.give_item",
     "colonist.set_gender",
     "colonist.teleport",
+    "colonist.equip_leather",
+    "colonist.equip_iron",
+    "colonist.equip_diamond",
 )
 
 

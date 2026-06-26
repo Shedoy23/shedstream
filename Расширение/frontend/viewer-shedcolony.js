@@ -35,7 +35,18 @@
         spawn_visitor: { type: 'colony.spawn_visitor',  price: 2000 },
         quest_unlock:  { type: 'colony.quest_unlock',   price: 2000 },
         spy_boost:     { type: 'colony.spy_boost',      price: 1500 },
+        happiness:     { type: 'colonist.happiness_boost', price: 400 },
+        donate:        { type: 'colony.donate',           price: 1000 },
     };
+
+    // colony.donate dropdown — MUST stay a subset of _DONATE_WHITELIST in routes/shedcolony.py.
+    var SC_DONATE_ITEMS = [
+        ['minecraft:oak_log', 'Брёвна'], ['minecraft:oak_planks', 'Доски'],
+        ['minecraft:cobblestone', 'Булыжник'], ['minecraft:stone', 'Камень'],
+        ['minecraft:dirt', 'Земля'], ['minecraft:sand', 'Песок'], ['minecraft:gravel', 'Гравий'],
+        ['minecraft:torch', 'Факелы'], ['minecraft:bread', 'Хлеб'], ['minecraft:wheat', 'Пшеница'],
+        ['minecraft:carrot', 'Морковь'], ['minecraft:potato', 'Картофель'],
+    ];
 
     // give_item dropdown — MUST stay a subset of _GIVE_ITEM_WHITELIST in routes/shedcolony.py.
     var SC_GIVE_ITEMS = [
@@ -68,6 +79,8 @@
         'colonist.equip_leather':    '🛡 Заявка принята — наденем кожаную броню через пару секунд.',
         'colonist.equip_iron':       '🛡 Заявка принята — наденем железную броню через пару секунд.',
         'colonist.equip_diamond':    '💎 Заявка принята — наденем алмазную броню через пару секунд.',
+        'colonist.happiness_boost':  '😊 Заявка принята — поднимем настроение колонисту через пару секунд.',
+        'colony.donate':             '📦 Заявка принята — ресурсы появятся на складе колонии через пару секунд.',
     };
 
     // 11 MineColonies skills (value = enum name the mod expects; label = RU).
@@ -278,6 +291,7 @@
             html += '<div class="sc-care-row">'
                 + '<button class="sc-btn sc-btn-sm" data-sc="set_gender">🔄 Сменить пол · 200</button>'
                 + '<button class="sc-btn sc-btn-sm" data-sc="teleport">✨ Призвать · 150</button>'
+                + '<button class="sc-btn sc-btn-sm" data-sc="happiness">😊 Настроение · 400</button>'
                 + '</div></div>';
 
             // Equipment — armour tiers (visible in-game, raid-survivable, prestige crustic sink).
@@ -350,6 +364,15 @@
                 + '</div>'
                 + '<p class="sc-muted" style="margin-top:6px;">Шпионы работают только во время рейда; гость — если есть таверна.</p>'
                 + '</div>';
+
+            // Donate — a stack of a basic resource into the warehouse (helps the colony build/eat).
+            html += '<div class="sc-card"><div class="sc-section-title">Донат на склад колонии</div>'
+                + '<select class="sc-select" id="sc-donate-select">';
+            SC_DONATE_ITEMS.forEach(function (pair) {
+                html += '<option value="' + pair[0] + '">' + escapeHtml(pair[1]) + '</option>';
+            });
+            html += '</select><button class="sc-btn" data-sc="donate">📦 Задонатить (стак) — 1000 💎</button>'
+                + '<p class="sc-muted" style="margin-top:6px;">Только базовые материалы — помогаешь колонии строиться.</p></div>';
         }
 
         root.innerHTML = html;
@@ -394,6 +417,10 @@
             var gs = document.getElementById('sc-give-select');
             if (!gs || !gs.value) { showNotification('Выбери предмет', 'error', 3000); return; }
             data.item = gs.value;
+        } else if (kind === 'donate') {
+            var ds = document.getElementById('sc-donate-select');
+            if (!ds || !ds.value) { showNotification('Выбери ресурс', 'error', 3000); return; }
+            data.item = ds.value;
         }
         btn.disabled = true;
         _buy(cfg.type, data).then(function (res) {

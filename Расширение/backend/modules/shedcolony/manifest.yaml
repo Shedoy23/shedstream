@@ -48,10 +48,12 @@ extensions:
     - colonist.equip_leather   # надеть кожаную броню (полный сет, needs-entity)
     - colonist.equip_iron      # надеть железную броню
     - colonist.equip_diamond   # надеть алмазную броню
+    - colonist.happiness_boost # личный буст настроения (3 дня)
     # Phase 8 — colony-level sinks (colony-wide, grief-safe)
     - colony.spy_boost         # шпионы во время рейда (раскрыть рейдеров)
     - colony.festival          # буст счастья всей колонии (3 дня)
     - colony.spawn_visitor     # призвать визитёра в таверну
     - colony.quest_unlock      # разблокировать случайный квест колонии
+    - colony.donate            # стак базового ресурса на склад (whitelist)
 
 catalogs: []

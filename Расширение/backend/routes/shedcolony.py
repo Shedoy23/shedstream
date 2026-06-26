@@ -66,11 +66,13 @@ _PURCHASABLE_ACTIONS = (
     "colonist.equip_leather",
     "colonist.equip_iron",
     "colonist.equip_diamond",
+    "colonist.happiness_boost",
     # Phase 8 — colony-level sinks (colony-wide, grief-safe; NOT citizen-scoped)
     "colony.spy_boost",
     "colony.festival",
     "colony.spawn_visitor",
     "colony.quest_unlock",
+    "colony.donate",
 )
 
 # Server-side prices — viewer-supplied price is IGNORED (frontend draws what backend sends).
@@ -93,10 +95,12 @@ _ACTION_PRICES: dict[str, int] = {
     "colonist.equip_leather":    500,   # full armour set — visible, raid-survivable, prestige sink
     "colonist.equip_iron":      1500,
     "colonist.equip_diamond":   3000,
+    "colonist.happiness_boost":  400,   # personal mood boost (3 game days)
     "colony.spy_boost":         1500,
     "colony.festival":          3000,
     "colony.spawn_visitor":     2000,
     "colony.quest_unlock":      2000,
+    "colony.donate":            1000,   # a stack of a basic resource into the warehouse
 }
 
 # give_item — curated food whitelist (no tools/exploit; helps the colonist eat).
@@ -104,6 +108,14 @@ _GIVE_ITEM_WHITELIST = {
     "minecraft:bread", "minecraft:cooked_beef", "minecraft:cooked_chicken",
     "minecraft:cooked_porkchop", "minecraft:apple", "minecraft:golden_carrot",
     "minecraft:golden_apple", "minecraft:cake", "minecraft:pumpkin_pie", "minecraft:cookie",
+}
+
+# colony.donate — BASIC building/food materials only (NO iron/gold/diamond) so viewer donations
+# help the colony build + eat without trivialising the streamer's precious-resource economy.
+_DONATE_WHITELIST = {
+    "minecraft:oak_log", "minecraft:oak_planks", "minecraft:cobblestone", "minecraft:stone",
+    "minecraft:dirt", "minecraft:sand", "minecraft:gravel", "minecraft:torch",
+    "minecraft:bread", "minecraft:wheat", "minecraft:carrot", "minecraft:potato",
 }
 
 # Fixed XP per add_xp purchase (viewer picks the skill, server fixes the amount).
@@ -129,6 +141,7 @@ _NEEDS_CITIZEN = (
     "colonist.equip_leather",
     "colonist.equip_iron",
     "colonist.equip_diamond",
+    "colonist.happiness_boost",
 )
 
 
@@ -248,6 +261,11 @@ async def _buy_action_locked(username: str, channel_id: int,
         if item not in _GIVE_ITEM_WHITELIST:
             return {"success": False, "message": "Этот предмет нельзя выдать"}
         data["item"] = item                # whitelisted id → mod trusts it
+    elif action_type == "colony.donate":
+        item = (data.get("item") or "").strip()
+        if item not in _DONATE_WHITELIST:
+            return {"success": False, "message": "Этот ресурс нельзя задонатить"}
+        data["item"] = item                # whitelisted basic resource → mod trusts it
 
     result = await _charge_and_enqueue(action_type, data, price, username, channel_id)
     if isinstance(result, dict):

@@ -69,18 +69,38 @@ class DBPool:
                 await self._pool.put(conn)
                 self._active += 1
 
-        logger.info(f"DBPool инициализирован. Соединений: {self._active}")
+        if self._active == 0:
+            logger.error(
+                f"DBPool: НИ ОДНО соединение не открылось (min={self.min_size}) — "
+                f"БД недоступна/повреждена? acquire будет отказывать до восстановления."
+            )
+        else:
+            logger.info(f"DBPool инициализирован. Соединений: {self._active}")
 
-    async def _open_connection(self) -> Optional[aiosqlite.Connection]:
-        """Открывает одно соединение с нужными PRAGMA."""
-        try:
-            conn = await aiosqlite.connect(self.db_path, timeout=self.timeout)
-            await conn.execute("PRAGMA journal_mode=WAL")
-            await conn.execute("PRAGMA busy_timeout=10000")
-            return conn
-        except Exception as e:
-            logger.error(f"DBPool: ошибка создания соединения: {e}")
-            return None
+    async def _open_connection(self, retries: int = 4) -> Optional[aiosqlite.Connection]:
+        """Открывает одно соединение с нужными PRAGMA.
+
+        Ретраит ТРАНЗИЕНТНЫЕ сбои (БД кратко залочена/недоступна — типично в момент
+        рестарта, когда старый процесс ещё дорелизивает файл) с экспоненциальным backoff,
+        чтобы временный сбой не оставлял пул пустым и не ронял сервер. Стойкий сбой
+        (повреждённый файл) переживёт ретраи и вернёт None — это намеренно громко.
+        """
+        delay = 0.25
+        last_err: Optional[Exception] = None
+        for attempt in range(1, retries + 1):
+            try:
+                conn = await aiosqlite.connect(self.db_path, timeout=self.timeout)
+                await conn.execute("PRAGMA journal_mode=WAL")
+                await conn.execute("PRAGMA busy_timeout=10000")
+                return conn
+            except Exception as e:
+                last_err = e
+                logger.error(f"DBPool: ошибка создания соединения (попытка {attempt}/{retries}): {e}")
+                if attempt < retries:
+                    await asyncio.sleep(delay)
+                    delay = min(delay * 2, 2.0)   # 0.25 → 0.5 → 1 → 2
+        logger.error(f"DBPool: соединение не открылось после {retries} попыток: {last_err}")
+        return None
 
     async def acquire(self, timeout: float = 30.0) -> aiosqlite.Connection:
         """
@@ -106,7 +126,13 @@ class DBPool:
                     self._active += 1
                     return conn
 
-        # 3. Лимит достигнут — ждём с таймаутом
+        # 3. Очередь пуста. Если соединений вообще НЕТ (открыть не удалось даже после ретраев) —
+        #    ждать бессмысленно: никто ничего не вернёт в очередь → 30с зависания, затем краш
+        #    бутстрапа. Лучше быстрый явный отказ — supervisor перезапустит, и к тому моменту
+        #    транзиентный сбой обычно уже прошёл.
+        if self._active == 0:
+            raise RuntimeError("DBPool: нет ни одного соединения с БД (открытие не удалось — БД недоступна/повреждена?)")
+        # Иначе все соединения заняты и будут возвращены — ждём освобождения с таймаутом.
         try:
             return await asyncio.wait_for(self._pool.get(), timeout=timeout)
         except asyncio.TimeoutError:

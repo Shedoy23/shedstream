@@ -183,7 +183,9 @@
             + '#shedcolony-content .sc-care-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;}'
             + '#shedcolony-content .sc-btn-sm{width:auto;padding:7px 8px;font-size:12px;}'
             + '#shedcolony-content .sc-reqs{font-size:12px;opacity:.9;margin-bottom:8px;}'
-            + '#shedcolony-content .sc-reqs ul{margin:4px 0 0;padding-left:18px;}';
+            + '#shedcolony-content .sc-reqs ul{margin:4px 0 0;padding-left:18px;}'
+            + '#shedcolony-content .sc-btn-req{margin-bottom:6px;text-align:left;}'
+            + '#shedcolony-content .sc-req-blocked{font-size:12px;opacity:.55;margin:4px 0;}';
         var s = document.createElement('style');
         s.id = 'sc-styles';
         s.textContent = css;
@@ -344,13 +346,31 @@
             html += '<div class="sc-card"><div class="sc-section-title">Помочь колонисту</div>';
             if (hasReqInfo && reqs.length === 0) {
                 html += '<p class="sc-muted">Колонисту сейчас ничего не нужно.</p>';
-            } else {
-                if (reqs.length) {
-                    html += '<div class="sc-reqs">Сейчас просит:<ul>';
-                    reqs.forEach(function (rq) { html += '<li>' + escapeHtml(rq) + '</li>'; });
-                    html += '</ul></div>';
-                }
+            } else if (!hasReqInfo) {
+                // Mod hasn't reported requests yet → keep the legacy single button (closes the top one).
                 html += '<button class="sc-btn" data-sc="fulfill">Выполнить просьбу — 100 💎</button>';
+            } else {
+                // One button per request the viewer can actually close with an item; the rest are shown
+                // greyed ("выполнит сама колония"). Supports both the new object shape {id,text,deliverable}
+                // and the legacy plain-string shape (brief transition while a cached state is replaced).
+                html += '<div class="sc-reqs">Сейчас просит:</div>';
+                var anyDeliverable = false;
+                reqs.forEach(function (rq) {
+                    var isObj = rq && typeof rq === 'object';
+                    var text = isObj ? rq.text : rq;
+                    var rid = isObj ? (rq.id || '') : '';
+                    var canDeliver = isObj ? (rq.deliverable !== false) : true;
+                    if (canDeliver) {
+                        anyDeliverable = true;
+                        html += '<button class="sc-btn sc-btn-req" data-sc="fulfill" data-req-id="'
+                            + escapeHtml(rid) + '">Выполнить: ' + escapeHtml(text) + ' — 100 💎</button>';
+                    } else {
+                        html += '<div class="sc-req-blocked">• ' + escapeHtml(text) + ' — выполнит сама колония</div>';
+                    }
+                });
+                if (!anyDeliverable) {
+                    html += '<p class="sc-muted">Эти просьбы нельзя закрыть предметом.</p>';
+                }
             }
             html += '</div>';
 
@@ -421,6 +441,10 @@
             var ds = document.getElementById('sc-donate-select');
             if (!ds || !ds.value) { showNotification('Выбери ресурс', 'error', 3000); return; }
             data.item = ds.value;
+        } else if (kind === 'fulfill') {
+            // Per-request buttons carry the chosen request token; legacy button has none (mod closes top).
+            var rid = btn.getAttribute('data-req-id');
+            if (rid) { data.request_id = rid; }
         }
         btn.disabled = true;
         _buy(cfg.type, data).then(function (res) {

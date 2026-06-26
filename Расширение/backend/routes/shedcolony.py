@@ -124,6 +124,11 @@ _XP_AMOUNT = 1000
 # rename — the only free-text viewer input → moderation surface (length + charset).
 _RENAME_RE = re.compile(r"^[A-Za-zА-Яа-яЁё0-9 ]{1,16}$")
 
+# fulfill_request — optional selector: which open request to close (MineColonies token, UUID-ish).
+# Not security-sensitive (only picks among the viewer's OWN colonist's requests), but validated
+# so we never store unbounded client junk. Absent → mod closes the colonist's top open request.
+_REQUEST_ID_RE = re.compile(r"^[0-9a-fA-F\-]{1,64}$")
+
 # Actions that operate on the viewer's EXISTING colonist (need a resolved citizen_id).
 _NEEDS_CITIZEN = (
     "colonist.assign_job",
@@ -266,6 +271,14 @@ async def _buy_action_locked(username: str, channel_id: int,
         if item not in _DONATE_WHITELIST:
             return {"success": False, "message": "Этот ресурс нельзя задонатить"}
         data["item"] = item                # whitelisted basic resource → mod trusts it
+    elif action_type == "colonist.fulfill_request":
+        rid = (data.get("request_id") or "").strip()
+        if rid:
+            if not _REQUEST_ID_RE.match(rid):
+                return {"success": False, "message": "Некорректная просьба"}
+            data["request_id"] = rid       # which open request to close; mod matches by token
+        else:
+            data.pop("request_id", None)   # absent → mod closes the top open request
 
     result = await _charge_and_enqueue(action_type, data, price, username, channel_id)
     if isinstance(result, dict):

@@ -124,10 +124,12 @@ _XP_AMOUNT = 1000
 # rename — the only free-text viewer input → moderation surface (length + charset).
 _RENAME_RE = re.compile(r"^[A-Za-zА-Яа-яЁё0-9 ]{1,16}$")
 
-# fulfill_request — optional selector: which open request to close (MineColonies token, UUID-ish).
-# Not security-sensitive (only picks among the viewer's OWN colonist's requests), but validated
-# so we never store unbounded client junk. Absent → mod closes the colonist's top open request.
-_REQUEST_ID_RE = re.compile(r"^[0-9a-fA-F\-]{1,64}$")
+# fulfill_request — optional selector: which open request to close. The value is a MineColonies
+# request token AS THE MOD RENDERS IT, e.g. "StandardToken{id=<uuid>}" — NOT a bare UUID, so the
+# charset must allow letters/braces/'='. Not security-sensitive (only picks among the viewer's OWN
+# colonist's requests; the mod compares it as a string with .equals, never in SQL/shell), just
+# length-bounded so we don't store unbounded client junk. Absent → mod closes the top open request.
+_REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9_.:{}=\-]{1,128}$")
 
 # Actions that operate on the viewer's EXISTING colonist (need a resolved citizen_id).
 _NEEDS_CITIZEN = (

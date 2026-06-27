@@ -1,10 +1,19 @@
 """
 routes/marriage.py — браки между зрителями (создание, развод, семейный счёт).
+
+Мультитенант: `marriages` и `marriage_proposals` имеют channel_id (добавлен M1).
+КАЖДЫЙ запрос обязан скоупиться по channel_id — иначе зритель с тем же ником на
+другом канале виден как «уже в браке» / читает чужие предложения (cross-tenant leak).
+Источник channel_id: JWT (require_jwt_user) для зрительских ручек; resolve_default
+для admin/публичных GET.
 """
 from fastapi import APIRouter, Depends, Request
 
 from config import FAMILY_CONFIG, sanitize_username
-from dependencies import get_db, require_admin, require_jwt_user, require_stream_live
+from dependencies import (
+    get_db, require_admin, require_jwt_user, require_stream_live,
+    resolve_channel_id_or_default,
+)
 from models import MarryRequest
 
 router = APIRouter()
@@ -20,6 +29,7 @@ async def create_marriage(request: MarryRequest, _admin: str = Depends(require_a
     if request.user1 == request.user2:
         return {"success": False, "message": "Нельзя жениться на себе"}
 
+    channel_id = resolve_channel_id_or_default()
     db = get_db()
     async with db._connect() as conn:
         try:
@@ -27,8 +37,8 @@ async def create_marriage(request: MarryRequest, _admin: str = Depends(require_a
             for u in [request.user1, request.user2]:
                 cursor = await conn.execute("""
                     SELECT id FROM marriages
-                    WHERE (user1 = ? OR user2 = ?) AND divorced_at IS NULL
-                """, (u, u))
+                    WHERE channel_id = ? AND (user1 = ? OR user2 = ?) AND divorced_at IS NULL
+                """, (channel_id, u, u))
                 if await cursor.fetchone():
                     await conn.execute("ROLLBACK")
                     return {"success": False, "message": f"@{u} уже в браке"}
@@ -37,8 +47,8 @@ async def create_marriage(request: MarryRequest, _admin: str = Depends(require_a
             # Sprint 5.20 fix (2026-05-20): убран family_balance из INSERT —
             # прод падал с OperationalError: no column named family_balance.
             await conn.execute("""
-                INSERT INTO marriages (user1, user2) VALUES (?, ?)
-            """, (request.user1, request.user2))
+                INSERT INTO marriages (channel_id, user1, user2) VALUES (?, ?, ?)
+            """, (channel_id, request.user1, request.user2))
             await conn.commit()
         except Exception:
             await conn.execute("ROLLBACK")
@@ -51,19 +61,23 @@ async def create_marriage(request: MarryRequest, _admin: str = Depends(require_a
 
 
 @router.get("/api/marriage/status/{username}")
-async def marriage_status(username: str):
-    """Статус брака.
+async def marriage_status(username: str, request: Request):
+    """Статус брака (scoped по channel_id из JWT; без JWT → married:false).
 
     Phase 1.G (2026-05-10): family_balance + bonus_per_min удалены из ответа
     как financial pool (серая зона 2 в COMPLIANCE_REWORK_PLAN.md). Marriage
     теперь чисто social: статус, partner, эмодзи в чате/overlay.
     """
+    auth = require_jwt_user(request)
+    if not auth:
+        return {"married": False}
+    _, channel_id = auth
     db = get_db()
     async with db._connect() as conn:
         cursor = await conn.execute("""
             SELECT user1, user2 FROM marriages
-            WHERE (user1 = ? OR user2 = ?) AND divorced_at IS NULL
-        """, (username, username))
+            WHERE channel_id = ? AND (user1 = ? OR user2 = ?) AND divorced_at IS NULL
+        """, (channel_id, username, username))
         row = await cursor.fetchone()
         if not row:
             return {"married": False}
@@ -102,8 +116,8 @@ async def divorce(request: Request):
     async with db._connect() as conn:
         cursor = await conn.execute("""
             SELECT id FROM marriages
-            WHERE (user1 = ? OR user2 = ?) AND divorced_at IS NULL
-        """, (sender, sender))
+            WHERE channel_id = ? AND (user1 = ? OR user2 = ?) AND divorced_at IS NULL
+        """, (channel_id, sender, sender))
         row = await cursor.fetchone()
     if not row:
         return {"success": False, "message": "Ты не в браке"}
@@ -113,8 +127,8 @@ async def divorce(request: Request):
 
     async with db._connect() as conn:
         await conn.execute("""
-            UPDATE marriages SET divorced_at = CURRENT_TIMESTAMP WHERE id = ?
-        """, (row[0],))
+            UPDATE marriages SET divorced_at = CURRENT_TIMESTAMP WHERE id = ? AND channel_id = ?
+        """, (row[0], channel_id))
         await conn.commit()
 
     return {"success": True, "message": f"💔 Развод оформлен (-{DIVORCE_COST}💎)"}
@@ -148,16 +162,17 @@ async def marriage_propose(request: Request):
     async with db._connect() as conn:
         for u in [sender, target]:
             cursor = await conn.execute("""
-                SELECT id FROM marriages WHERE (user1=? OR user2=?) AND divorced_at IS NULL
-            """, (u, u))
+                SELECT id FROM marriages
+                WHERE channel_id = ? AND (user1=? OR user2=?) AND divorced_at IS NULL
+            """, (channel_id, u, u))
             if await cursor.fetchone():
                 return {"success": False, "message": f"@{u} уже в браке"}
         await conn.execute("""
-            DELETE FROM marriage_proposals WHERE from_user=? AND to_user=?
-        """, (sender, target))
+            DELETE FROM marriage_proposals WHERE channel_id=? AND from_user=? AND to_user=?
+        """, (channel_id, sender, target))
         await conn.execute("""
-            INSERT INTO marriage_proposals (from_user, to_user) VALUES (?, ?)
-        """, (sender, target))
+            INSERT INTO marriage_proposals (channel_id, from_user, to_user) VALUES (?, ?, ?)
+        """, (channel_id, sender, target))
         await conn.commit()
 
     return {"success": True, "message": f"💍 Предложение отправлено @{target}! Ждём ответа..."}
@@ -179,25 +194,28 @@ async def marriage_accept(request: Request):
     db = get_db()
     async with db._connect() as conn:
         cursor = await conn.execute("""
-            SELECT from_user FROM marriage_proposals WHERE to_user=?
+            SELECT from_user FROM marriage_proposals WHERE channel_id=? AND to_user=?
             ORDER BY created_at DESC LIMIT 1
-        """, (sender,))
+        """, (channel_id, sender))
         row = await cursor.fetchone()
         if not row:
             return {"success": False, "message": "Нет входящих предложений"}
         proposer = row[0]
         for u in [sender, proposer]:
             cursor2 = await conn.execute("""
-                SELECT id FROM marriages WHERE (user1=? OR user2=?) AND divorced_at IS NULL
-            """, (u, u))
+                SELECT id FROM marriages
+                WHERE channel_id=? AND (user1=? OR user2=?) AND divorced_at IS NULL
+            """, (channel_id, u, u))
             if await cursor2.fetchone():
                 return {"success": False, "message": f"@{u} уже в браке"}
         # Phase 1.G (2026-05-10): family_balance удалена в M8.
         # Sprint 5.20 fix (2026-05-20): убран family_balance из INSERT.
         await conn.execute("""
-            INSERT INTO marriages (user1, user2) VALUES (?, ?)
-        """, (proposer, sender))
-        await conn.execute("DELETE FROM marriage_proposals WHERE to_user=?", (sender,))
+            INSERT INTO marriages (channel_id, user1, user2) VALUES (?, ?, ?)
+        """, (channel_id, proposer, sender))
+        await conn.execute(
+            "DELETE FROM marriage_proposals WHERE channel_id=? AND to_user=?",
+            (channel_id, sender))
         await conn.commit()
 
     # 🎉 Свадьба — редкое событие, пишем в чат
@@ -243,8 +261,8 @@ async def marriage_reject(request: Request):
     db = get_db()
     async with db._connect() as conn:
         cursor = await conn.execute("""
-            DELETE FROM marriage_proposals WHERE from_user=? AND to_user=?
-        """, (from_user, sender))
+            DELETE FROM marriage_proposals WHERE channel_id=? AND from_user=? AND to_user=?
+        """, (channel_id, from_user, sender))
         await conn.commit()
         deleted = cursor.rowcount
 
@@ -254,14 +272,18 @@ async def marriage_reject(request: Request):
 
 
 @router.get("/api/marriage/proposals/{username}")
-async def get_proposals(username: str):
-    """Входящие предложения"""
+async def get_proposals(username: str, request: Request):
+    """Входящие предложения (scoped по channel_id из JWT)."""
+    auth = require_jwt_user(request)
+    if not auth:
+        return {"proposals": []}
+    _, channel_id = auth
     username = sanitize_username(username)
     db       = get_db()
     async with db._connect() as conn:
         cursor = await conn.execute("""
-            SELECT from_user FROM marriage_proposals WHERE to_user=?
+            SELECT from_user FROM marriage_proposals WHERE channel_id=? AND to_user=?
             ORDER BY created_at DESC
-        """, (username,))
+        """, (channel_id, username))
         rows = await cursor.fetchall()
     return {"proposals": [r[0] for r in rows]}

@@ -9,7 +9,7 @@ async function openFamily() {
     (document.getElementById("overlay-panel") || document.body).appendChild(modal);
 
     try {
-        const r = await fetch(`${API_URL}/api/marriage/status/${userLogin}`);
+        const r = await fetch(`${API_URL}/api/marriage/status/${userLogin}`, { headers: { 'X-Twitch-JWT': authToken || '' } });
         const data = await r.json();
         const content = document.getElementById('family-content');
         
@@ -26,7 +26,7 @@ async function openFamily() {
             // Нет пары — проверяем входящие предложения
             let proposals = [];
             try {
-                const pr = await fetch(`${API_URL}/api/marriage/proposals/${encodeURIComponent(userLogin)}`);
+                const pr = await fetch(`${API_URL}/api/marriage/proposals/${encodeURIComponent(userLogin)}`, { headers: { 'X-Twitch-JWT': authToken || '' } });
                 const pd = await pr.json();
                 proposals = Array.isArray(pd.proposals) ? pd.proposals : [];
             } catch (e) { console.warn('[family] proposals fetch failed:', e); }

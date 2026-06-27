@@ -2342,7 +2342,7 @@ function closeModal() {
     // Закрываем статичные модалы
     document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
     // Удаляем динамические модалы добавленные через appendChild
-    ['duels-modal', 'transfer-modal', 'family-modal', 'create-pawn-confirm-modal', 'permission-modal', 'marriage-modal', 'passion-modal', 'xenotype-modal', 'neuro-modal'].forEach(id => {
+    ['duels-modal', 'family-modal', 'create-pawn-confirm-modal', 'permission-modal', 'marriage-modal', 'passion-modal', 'xenotype-modal', 'neuro-modal'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.remove();
     });

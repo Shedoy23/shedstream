@@ -484,13 +484,7 @@ SOUND_CONFIG = {
 
 # ===== НАСТРОЙКИ ПРОИЗВОДИТЕЛЬНОСТИ =====
 PERFORMANCE_CONFIG = {
-    'db_timeout': 10.0,
-    'db_retry_count': 3,
     'cache_ttl': 30,
-    'stats_update_interval': 5000,
-    'max_log_lines': 1000,
-    'cleanup_temp_files': True,
-    'temp_files_max_age': 3600
 }
 
 # ===== КОНФИГУРАЦИЯ ПРЕДМЕТОВ =====
@@ -641,9 +635,6 @@ QUEST_ORDER = [
 # ===== НАСТРОЙКИ ОТСЛЕЖИВАНИЯ АКТИВНОСТИ =====
 ACTIVITY_CONFIG = {
     'watch_time_update_interval': 60,  # Отправлять статистику каждые 60 секунд
-    'chat_bonus_enabled': True,        # Включить бонусы за сообщения в чате
-    'bonus_per_message': 5,            # Очки за каждое сообщение
-    'max_daily_chat_bonus': 500,       # Максимальный дневной бонус за чат
 }
 
 # ===== TWITCH КАНАЛ ДЛЯ ПРОВЕРКИ ОНЛАЙНА =====

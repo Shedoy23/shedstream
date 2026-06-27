@@ -3,7 +3,7 @@ namespace RimLink
     internal static class RimLinkConstants
     {
         // ── Сеть ──────────────────────────────────────────────────────────────
-        public const string DefaultServerUrl        = "http://31.130.132.224:8000";
+        public const string DefaultServerUrl        = "https://shedoy23.ru";
         public const int    DefaultSyncInterval     = 60;
 
         // ── Фоновый поток синхронизации ────────────────────────────────────────

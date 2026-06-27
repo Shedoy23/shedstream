@@ -44,7 +44,7 @@ def verify_twitch_jwt(request: Request) -> dict:
             import logging as _lg
             _lg.getLogger("rimlink.auth").warning(
                 "[auth] DEV_MODE=true но RIMLINK_ENV=prod — bypass отключён")
-        else:
+        elif _env in ("dev", "development", "local"):
             client_ip = (request.client.host if request.client else "")
             if client_ip in ("127.0.0.1", "::1", "localhost"):
                 return {
@@ -54,6 +54,7 @@ def verify_twitch_jwt(request: Request) -> dict:
                     "role": "broadcaster",   # dev = full role
                 }
             # DEV_MODE + не-localhost → не выдаём bypass, идём по обычному JWT-пути
+        # RIMLINK_ENV не выставлен или неизвестное значение → bypass отключён, идём по JWT
 
     token = request.headers.get("X-Twitch-JWT", "").strip()
     if not token:
@@ -91,5 +92,5 @@ def verify_twitch_jwt(request: Request) -> dict:
             "role": role,
         }
     except Exception as e:
-        print(f"[auth] JWT verify failed: {type(e).__name__}: {e}")
+        print(f"[auth] JWT verify failed: {type(e).__name__}")
         return {"status": "invalid"}

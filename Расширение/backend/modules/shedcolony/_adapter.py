@@ -148,15 +148,31 @@ class ShedColonyAdapter(ModuleAdapter):
         logger.info("[shedcolony:%s] colony.snapshot — %d colonists", channel_id, len(snap))
         if not snap:
             return  # empty roster (colony not loaded yet) — never reconcile against nothing
+        import datetime
         from dependencies import get_db
         async with get_db()._connect() as conn:
             cur = await conn.execute(
-                "SELECT viewer_id, citizen_id FROM shedcolony_colony_link "
+                "SELECT viewer_id, citizen_id, linked_at FROM shedcolony_colony_link "
                 "WHERE channel_id=? AND status='active'", (channel_id,))
-            links = [(row[0], row[1]) for row in await cur.fetchall()]
+            links = [(row[0], row[1], row[2]) for row in await cur.fetchall()]
             tag = "[MCLink] "
-            for viewer_id, citizen_id in links:
+            now = datetime.datetime.utcnow()
+            for viewer_id, citizen_id, linked_at in links:
                 if citizen_id not in snap:
+                    # Grace period: if this link was just created (within 60 s), skip dead-marking
+                    # so a freshly-linked colonist isn't killed when player.linked and colony.snapshot
+                    # arrive in the same burst and the snapshot predates the new link.
+                    if linked_at:
+                        try:
+                            lt = datetime.datetime.fromisoformat(str(linked_at))
+                        except ValueError:
+                            lt = None
+                        if lt and (now - lt).total_seconds() < 60:
+                            logger.info(
+                                "[shedcolony:%s] reconcile: @%s colonist %s absent from snapshot "
+                                "but linked_at=%s (<60s ago) — grace period, skipping dead-mark",
+                                channel_id, viewer_id, citizen_id, linked_at)
+                            continue
                     await conn.execute(
                         "UPDATE shedcolony_colony_link SET status='dead', died_at=CURRENT_TIMESTAMP "
                         "WHERE channel_id=? AND viewer_id=? AND status='active'",
@@ -177,7 +193,7 @@ class ShedColonyAdapter(ModuleAdapter):
         import uuid
         cur = await conn.execute(
             "SELECT 1 FROM module_actions WHERE channel_id=? AND module_id='shedcolony' "
-            "AND type='colonist.set_name' AND status='queued' AND data LIKE ? LIMIT 1",
+            "AND type='colonist.set_name' AND status IN ('queued','dispatched') AND data LIKE ? LIMIT 1",
             (channel_id, f'%"citizen_id": "{citizen_id}"%'))
         if await cur.fetchone():
             return

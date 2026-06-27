@@ -1693,7 +1693,7 @@ function spawnBnrPowerBanner(ev) {
         white-space: nowrap;
     `;
     banner.innerHTML = `
-        ${meta.icon} <span style="color:#fff;">@${(ev.user || '?')}</span>
+        ${meta.icon} <span style="color:#fff;">@${escapeHtmlOL(ev.user || '?')}</span>
         → ${meta.label}${value}${duration}
     `;
     container.appendChild(banner);

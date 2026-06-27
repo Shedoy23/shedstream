@@ -628,18 +628,6 @@ async function loadBannerlordFiefs() {
         if (!_smartInnerHTML(slot, html)) return;
         _bnrBindSectionToggle();
 
-        slot.querySelectorAll('.bnr-fief-boost').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                const parent = e.target.closest('[data-fief-id]');
-                if (!parent) return;
-                if (!await _bnrConfirm(`Купить boost +${boostPct}% на ${boostDays} дней? (2000💎)`)) return;
-                const fiefRowId = parseInt(parent.dataset.fiefId, 10);
-                await _bannerlordBuyAction('hero.tribute_boost', {
-                    fief_id_internal: fiefRowId,
-                });
-                setTimeout(loadBannerlordFiefs, 1200);
-            });
-        });
     } catch (e) {
         // FLICKER-FIX v6 — НЕ clear на exception. Last good render остаётся.
         console.warn('[FE-FIEF] loadFiefs failed (keeping last render):', e);
@@ -2902,31 +2890,31 @@ function _renderEquipRow(slot, it, slotIcons) {
     let statsHtml = '';
     if (isWeapon) {
         const chunks = [];
-        if (stats.swing_dmg)   chunks.push(`<span style="color:#f87171;">⚔ ${stats.swing_dmg}${stats.swing_type ? '/' + stats.swing_type[0].toUpperCase() : ''}</span>`);
-        if (stats.thrust_dmg)  chunks.push(`<span style="color:#fb923c;">▶ ${stats.thrust_dmg}${stats.thrust_type ? '/' + stats.thrust_type[0].toUpperCase() : ''}</span>`);
-        if (stats.swing_spd)   chunks.push(`<span style="color:#60a5fa;">⏱ ${stats.swing_spd}</span>`);
-        if (stats.length)      chunks.push(`<span style="color:#9ca3af;">📏 ${stats.length}</span>`);
-        if (stats.accuracy)    chunks.push(`<span style="color:#a78bfa;">🎯 ${stats.accuracy}</span>`);
-        if (stats.missile_spd) chunks.push(`<span style="color:#34d399;">💨 ${stats.missile_spd}</span>`);
+        if (stats.swing_dmg)   chunks.push(`<span style="color:#f87171;">⚔ ${Number(stats.swing_dmg)||0}${stats.swing_type ? '/' + escapeHtml(stats.swing_type[0].toUpperCase()) : ''}</span>`);
+        if (stats.thrust_dmg)  chunks.push(`<span style="color:#fb923c;">▶ ${Number(stats.thrust_dmg)||0}${stats.thrust_type ? '/' + escapeHtml(stats.thrust_type[0].toUpperCase()) : ''}</span>`);
+        if (stats.swing_spd)   chunks.push(`<span style="color:#60a5fa;">⏱ ${Number(stats.swing_spd)||0}</span>`);
+        if (stats.length)      chunks.push(`<span style="color:#9ca3af;">📏 ${Number(stats.length)||0}</span>`);
+        if (stats.accuracy)    chunks.push(`<span style="color:#a78bfa;">🎯 ${Number(stats.accuracy)||0}</span>`);
+        if (stats.missile_spd) chunks.push(`<span style="color:#34d399;">💨 ${Number(stats.missile_spd)||0}</span>`);
         // shield-specific (hp + body)
-        if (stats.hp)          chunks.push(`<span style="color:#fbbf24;">🛡 hp ${stats.hp}</span>`);
+        if (stats.hp)          chunks.push(`<span style="color:#fbbf24;">🛡 hp ${Number(stats.hp)||0}</span>`);
         // ammo
-        if (stats.stack)       chunks.push(`<span style="color:#94a3b8;">×${stats.stack}</span>`);
+        if (stats.stack)       chunks.push(`<span style="color:#94a3b8;">×${Number(stats.stack)||0}</span>`);
         statsHtml = chunks.join(' ');
     } else if (isArmor) {
         const a = stats || {};
         const chunks = [];
-        if (a.head) chunks.push(`<span style="color:#a78bfa;">🪖${a.head}</span>`);
-        if (a.body) chunks.push(`<span style="color:#fbbf24;">👕${a.body}</span>`);
-        if (a.leg)  chunks.push(`<span style="color:#34d399;">👢${a.leg}</span>`);
-        if (a.arm)  chunks.push(`<span style="color:#60a5fa;">💪${a.arm}</span>`);
+        if (a.head) chunks.push(`<span style="color:#a78bfa;">🪖${Number(a.head)||0}</span>`);
+        if (a.body) chunks.push(`<span style="color:#fbbf24;">👕${Number(a.body)||0}</span>`);
+        if (a.leg)  chunks.push(`<span style="color:#34d399;">👢${Number(a.leg)||0}</span>`);
+        if (a.arm)  chunks.push(`<span style="color:#60a5fa;">💪${Number(a.arm)||0}</span>`);
         statsHtml = chunks.join(' ');
     } else if (isHorse) {
         const chunks = [];
-        if (stats.speed)    chunks.push(`<span style="color:#60a5fa;">💨 ${stats.speed}</span>`);
-        if (stats.charge)   chunks.push(`<span style="color:#f87171;">⚡ ${stats.charge}</span>`);
-        if (stats.maneuver) chunks.push(`<span style="color:#34d399;">🔄 ${stats.maneuver}</span>`);
-        if (stats.hp)       chunks.push(`<span style="color:#fbbf24;">❤ ${stats.hp}</span>`);
+        if (stats.speed)    chunks.push(`<span style="color:#60a5fa;">💨 ${Number(stats.speed)||0}</span>`);
+        if (stats.charge)   chunks.push(`<span style="color:#f87171;">⚡ ${Number(stats.charge)||0}</span>`);
+        if (stats.maneuver) chunks.push(`<span style="color:#34d399;">🔄 ${Number(stats.maneuver)||0}</span>`);
+        if (stats.hp)       chunks.push(`<span style="color:#fbbf24;">❤ ${Number(stats.hp)||0}</span>`);
         statsHtml = chunks.join(' ');
     }
 
@@ -2943,8 +2931,6 @@ function _renderEquipRow(slot, it, slotIcons) {
 
 // Sprint M23/5.14 — render свита (retinue) под Экипировкой в hero card.
 // retinue = [{slot_index, troop_id, troop_name, tier, is_elite}]
-const RECRUIT_PRICE_BASIC = 100;   // крустиков basic
-const RECRUIT_PRICE_ELITE = 300;   // крустиков elite (3×)
 // Sprint 5.27h — TIER_COSTS из mod-side RecruitTroopsHandler.TIER_COSTS.
 // Используется UI чтобы вывести требуемые dinars в кнопке + disable если
 // hero.Gold < cost.

@@ -119,6 +119,19 @@ _DONATE_WHITELIST = {
 # Fixed XP per add_xp purchase (viewer picks the skill, server fixes the amount).
 _XP_AMOUNT = 1000
 
+# colonist.assign_job — job key allowlist (must match what the frontend offers).
+# Validated against ^[a-z_]{1,40}$ as a belt-and-suspenders fallback if the set grows.
+_VALID_JOBS = {
+    "miner", "farmer", "lumberjack", "builder", "deliveryman",
+    "baker", "blacksmith", "cook", "fisherman", "guard",
+    "knight", "archer", "ranger", "druid", "healer",
+    "student", "researcher", "enchanter", "alchemist",
+    "composter", "dyer", "fletcher", "mechanic", "smelter",
+    "sawmill_worker", "stonemason", "concrete_mixer", "planter",
+    "courier",
+}
+_JOB_KEY_RE = re.compile(r"^[a-z_]{1,40}$")
+
 # fulfill_request — optional selector: which open request to close. The value is a MineColonies
 # request token AS THE MOD RENDERS IT, e.g. "StandardToken{id=<uuid>}" — NOT a bare UUID, so the
 # charset must allow letters/braces/'='. Not security-sensitive (only picks among the viewer's OWN
@@ -170,6 +183,9 @@ async def _charge_and_enqueue(action_type: str, data: dict, price: int,
 
             # ── Idempotency replay (client_action_id) ──
             client_action_id = (data.get("client_action_id") or "").strip() or None
+            if client_action_id and len(client_action_id) > 128:
+                await conn.execute("ROLLBACK")
+                return {"success": False, "message": "client_action_id слишком длинный"}
             if client_action_id:
                 cur = await conn.execute(
                     "SELECT action_id FROM module_actions "
@@ -251,6 +267,16 @@ async def _buy_action_locked(username: str, channel_id: int,
         data["name"] = username           # MVP: colonist named after the viewer
     elif action_type == "colonist.add_xp":
         data["amount"] = _XP_AMOUNT        # server-fixed XP per purchase
+    elif action_type == "colonist.assign_job":
+        job = (data.get("job") or "").strip()
+        if job not in _VALID_JOBS or not _JOB_KEY_RE.match(job):
+            return {"success": False, "message": "Недопустимая профессия"}
+        data["job"] = job
+    elif action_type == "colonist.set_gender":
+        gender = (data.get("gender") or "").strip().lower()
+        if gender not in ("male", "female"):
+            return {"success": False, "message": "Пол должен быть 'male' или 'female'"}
+        data["gender"] = gender
     elif action_type == "colonist.give_item":
         item = (data.get("item") or "").strip()
         if item not in _GIVE_ITEM_WHITELIST:

@@ -90,8 +90,9 @@ async def use_promo(request: Request):
 
 
 @router.get("/api/admin/promocodes")
-async def admin_get_promos(_admin: str = Depends(require_admin)):
-    channel_id = resolve_channel_id_or_default()
+async def admin_get_promos(channel_id: int = 0, _admin: str = Depends(require_admin)):
+    if channel_id == 0:
+        channel_id = resolve_channel_id_or_default()
     db = get_db()
     async with db._connect() as conn:
         c = await conn.execute(
@@ -117,7 +118,7 @@ async def admin_create_promo(request: Request, _admin: str = Depends(require_adm
     if not code:
         return {"success": False, "message": "Укажи код"}
 
-    channel_id = resolve_channel_id_or_default()
+    channel_id = data.get("channel_id") or resolve_channel_id_or_default()
     db = get_db()
     async with db._connect() as conn:
         try:
@@ -134,8 +135,9 @@ async def admin_create_promo(request: Request, _admin: str = Depends(require_adm
 
 
 @router.delete("/api/admin/promocodes/{promo_id}")
-async def admin_delete_promo(promo_id: int, _admin: str = Depends(require_admin)):
-    channel_id = resolve_channel_id_or_default()
+async def admin_delete_promo(promo_id: int, channel_id: int = 0, _admin: str = Depends(require_admin)):
+    if channel_id == 0:
+        channel_id = resolve_channel_id_or_default()
     db = get_db()
     async with db._connect() as conn:
         await conn.execute(

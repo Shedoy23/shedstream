@@ -80,6 +80,7 @@ async def admin_issue_module_token(
 
 @router.get("/api/admin/dev/jwt")
 async def admin_dev_jwt(
+    request: Request,
     username: str = Query("shedoy23", description="Логин для preview"),
     minutes: int = Query(60, description="Срок жизни токена в минутах"),
     _admin: str = Depends(require_admin),
@@ -117,11 +118,12 @@ async def admin_dev_jwt(
         secret_b64 += "=" * padding
     secret_bytes = base64.b64decode(secret_b64)
 
+    role = "broadcaster" if request.query_params.get("role") == "broadcaster" else "viewer"
     payload = {
         "channel_id":          broadcaster_id,
         "user_id":             broadcaster_id,
         "sub":                 uname,
-        "role":                "broadcaster",
+        "role":                role,
         "opaque_user_id":      f"U{broadcaster_id}",
         "exp":                 int(time.time()) + max(1, min(minutes, 1440)) * 60,
     }

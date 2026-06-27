@@ -361,6 +361,8 @@ async def module_actions_poll(module_id: str, request: Request):
             return {"actions": actions, "cursor": cursor}
         if time.time() >= deadline:
             return {"actions": [], "cursor": since_id}
+        if await request.is_disconnected():
+            return {"actions": [], "cursor": since_id}
         await asyncio.sleep(_LONG_POLL_INTERVAL_SEC)
 
 

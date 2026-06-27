@@ -694,11 +694,11 @@ async def get_my_pawn(username: str):
 # ===== МАССОВАЯ СИНХРОНИЗАЦИЯ ПЕШЕК =====
 
 @router.post("/api/rimworld/sync-pawns")
-async def sync_pawns_bulk(request: Request, _auth=Depends(rimworld_mod_auth)):
+async def sync_pawns_bulk(request: Request, mod_channel_id=Depends(rimworld_mod_auth)):
     """Массовая синхронизация пешек (правильная версия)"""
     db = get_db()
-    from dependencies import resolve_channel_id_or_default  # mod endpoint без JWT — TODO M4.5+: HMAC + явный channel_id из мода
-    channel_id = resolve_channel_id_or_default()
+    from dependencies import resolve_channel_id_or_default
+    channel_id = resolve_channel_id_or_default(mod_channel_id)
     try:
         pawns_data = await request.json()
         if not isinstance(pawns_data, list):
@@ -2000,11 +2000,11 @@ async def sync_pawn_death(request: Request, _admin: str = Depends(require_admin)
         return {"status": "error", "message": str(e)}
 
 @router.post("/api/rimworld/sync-state")
-async def sync_rimworld_state(request: Request, _auth=Depends(rimworld_mod_auth)):
+async def sync_rimworld_state(request: Request, mod_channel_id=Depends(rimworld_mod_auth)):
     """Массовая синхронизация состояния из мода"""
     db = get_db()
-    from dependencies import resolve_channel_id_or_default  # mod endpoint без JWT — TODO M4.5+: HMAC + явный channel_id из мода
-    channel_id = resolve_channel_id_or_default()
+    from dependencies import resolve_channel_id_or_default
+    channel_id = resolve_channel_id_or_default(mod_channel_id)
     try:
         data = await request.json()
         pawns = data.get('pawns', [])

@@ -537,8 +537,7 @@ _raw_admin_password = os.getenv("ADMIN_PASSWORD", "")
 if not _raw_admin_password:
     _raw_admin_password = secrets.token_hex(16)
     print(
-        "⚠️  ADMIN_PASSWORD не задан в .env — сгенерирован временный: "
-        f"{_raw_admin_password}\n"
+        "⚠️  ADMIN_PASSWORD не задан в .env — сгенерирован временный пароль.\n"
         "    Он поменяется при следующем рестарте. Пропиши ADMIN_PASSWORD в .env, "
         "чтобы не терять доступ к /admin."
     )

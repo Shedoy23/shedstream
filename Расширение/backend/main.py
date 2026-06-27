@@ -357,8 +357,10 @@ async def run_migrations():
             await conn.execute("ALTER TABLE rimworld_pawn_hediffs ADD COLUMN hediff_type TEXT DEFAULT 'injury'")
             await conn.commit()
             print("✅ Migration: hediff_type добавлен")
-        except Exception:
-            pass  # Уже есть
+        except aiosqlite.OperationalError as e:
+            if 'duplicate column name' not in str(e).lower():
+                print(f"⚠️ Migration warning (hediff_type): {e}")
+            # else: already exists — expected
 
         # Миграция: точные данные имплантов (def_name, part_def, is_paired, is_left)
         for col, ddl in [
@@ -371,15 +373,19 @@ async def run_migrations():
                 await conn.execute(f"ALTER TABLE rimworld_pawn_hediffs ADD COLUMN {col} {ddl}")
                 await conn.commit()
                 print(f"✅ Migration: {col} добавлен в rimworld_pawn_hediffs")
-            except Exception:
-                pass  # Уже есть
+            except aiosqlite.OperationalError as e:
+                if 'duplicate column name' not in str(e).lower():
+                    print(f"⚠️ Migration warning ({col}): {e}")
+                # else: already exists — expected
         # Добавляем is_disabled в rimworld_pawn_skills если нет
         try:
             await conn.execute("ALTER TABLE rimworld_pawn_skills ADD COLUMN is_disabled INTEGER DEFAULT 0")
             await conn.commit()
             print("✅ Migration: is_disabled добавлен в rimworld_pawn_skills")
-        except Exception:
-            pass  # Уже есть
+        except aiosqlite.OperationalError as e:
+            if 'duplicate column name' not in str(e).lower():
+                print(f"⚠️ Migration warning (is_disabled): {e}")
+            # else: already exists — expected
 
         # Таблица персистентных команд RimWorld
         await conn.execute("""
@@ -482,8 +488,8 @@ async def run_migrations():
                            WHEN ? THEN ?
                        END WHERE skill_name = ?""",
                     (_rus, _eng, _rus))
-            except Exception:
-                pass
+            except aiosqlite.OperationalError as e:
+                print(f"⚠️ Migration warning (skill_name remap {_rus}): {e}")
         await conn.commit()
         print("✅ Migration: skill_name локализация исправлена")
 

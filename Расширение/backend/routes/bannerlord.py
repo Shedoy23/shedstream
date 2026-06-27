@@ -2290,6 +2290,11 @@ def _resolve_perks(request, action_type, price, username, channel_id, data):
     _jwt = verify_twitch_jwt(request)
     _user_role = (_jwt.get("role") or "viewer") if _jwt.get("status") == "valid" else "viewer"
 
+    # Defense-in-depth: broadcaster JWT must have user_id == channel_id.
+    # If they diverge, the token is anomalous — downgrade to viewer.
+    if _user_role == "broadcaster" and _jwt and str(_jwt.get("user_id", "")) != str(_jwt.get("channel_id", "")):
+        _user_role = "viewer"
+
     if _user_role == "broadcaster":
         price_mult, reward_mult, role_label = 0.5, 2.0, "broadcaster"
     elif _user_role == "moderator":

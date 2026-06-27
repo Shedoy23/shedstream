@@ -177,15 +177,12 @@ async def voting_create_template(
 
 
 @router.get("/api/voting/templates")
-async def voting_list_templates(request: Request, channel_id: int = 0):
-    """Список templates канала. Admin/streamer вызывает с явным channel_id;
-    Viewer's JWT-shortcut работает если channel_id опущен.
-    """
-    if channel_id == 0:
-        auth = require_jwt_user(request)
-        if not auth:
-            return _AUTH_FAIL
-        _, channel_id = auth
+async def voting_list_templates(request: Request):
+    """Список templates канала. Требует JWT; channel_id берётся из токена."""
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    _, channel_id = auth
 
     db = get_db()
     templates = await db.list_voting_templates(channel_id=channel_id)

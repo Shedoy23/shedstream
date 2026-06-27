@@ -1009,6 +1009,7 @@ class Database:
         channel_id = resolve_channel_id(channel_id)
         username = username.lower()
         async with self._connect() as db:
+            await db.execute("BEGIN IMMEDIATE")
             await db.execute("""
                 INSERT INTO stream_attendance (channel_id, username, stream_id, minutes, claimed)
                 VALUES (?, ?, ?, ?, 0)
@@ -1020,7 +1021,6 @@ class Database:
             cur = await db.execute(
                 "UPDATE stream_attendance SET claimed = 1 WHERE channel_id = ? AND username = ? AND stream_id = ? AND claimed = 0 AND minutes >= 15",
                 (channel_id, username, stream_id))
-            await db.commit()
 
             if cur.rowcount == 0:
                 # Либо уже выдавали, либо минут недостаточно

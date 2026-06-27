@@ -1,7 +1,10 @@
 import asyncio
+import logging
 import random
 import uuid
 from datetime import datetime, timedelta
+
+logger = logging.getLogger(__name__)
 
 from config import EVENT_CONFIG, EVENT_ITEMS, EVENT_TYPES
 
@@ -336,4 +339,4 @@ class EventManager:
                 try:
                     await self.finish_event()
                 except Exception as e:
-                    print(f"auto finish error: {e}")
+                    logger.error("event watcher error: %s", e, exc_info=True)

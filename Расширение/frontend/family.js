@@ -39,10 +39,12 @@ async function openFamily() {
                 <div style="text-align:center;">
                     ${proposals.length ? `<div style="margin-bottom:12px;background:#2d2d2f;padding:10px;border-radius:8px;text-align:left;">
                         <div style="font-size:12px;color:#ffd700;margin-bottom:6px;">💌 Входящие предложения:</div>
-                        ${proposals.map(u => `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:4px;">
-                            <span style="font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;">💍 @${escapeHtml(u)}</span>
-                            <button class="modal-btn" style="padding:4px 10px;font-size:11px;margin:0;" data-accept-family="${encodeURIComponent(u)}">Принять</button>
-                            <button class="modal-btn cancel" style="padding:4px 10px;font-size:11px;margin:0;" data-reject-family="${encodeURIComponent(u)}">Отклонить</button>
+                        ${proposals.map(u => `<div style="margin-bottom:8px;">
+                            <div style="font-size:14px;font-weight:600;margin-bottom:5px;word-break:break-all;">💍 @${escapeHtml(u)} <span style="font-weight:400;font-size:11px;color:#adadb8;">— предлагает брак</span></div>
+                            <div style="display:flex;gap:6px;">
+                                <button class="modal-btn" style="flex:1;padding:5px 10px;font-size:12px;margin:0;" data-accept-family="${encodeURIComponent(u)}">Принять</button>
+                                <button class="modal-btn cancel" style="flex:1;padding:5px 10px;font-size:12px;margin:0;" data-reject-family="${encodeURIComponent(u)}">Отклонить</button>
+                            </div>
                         </div>`).join('')}
                     </div>` : ''}
                     <div style="font-size:11px;color:#adadb8;margin-bottom:12px;">Брак — это статус и социальная связь.</div>

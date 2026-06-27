@@ -158,20 +158,17 @@ function _renderPetView() {
         </div>
     `;
 
-    // Equipped slots panel — все 6 slots
-    // Order: head → face → body → accessory → background → aura
+    // Equipped slots panel — показываем ТОЛЬКО занятые слоты (пустые прячем, чтобы
+    // карточка не захламлялась пятью «пусто»; экипировка идёт из инвентаря/магазина).
     const slotOrder = ['head', 'face', 'body', 'accessory', 'background', 'aura'];
-    const slotsHtml = slotOrder.map(slot => {
+    const slotLabels = {
+        head: 'Голова', face: 'Лицо', body: 'Грудь',
+        accessory: 'Сбоку', background: 'Фон', aura: 'Аура'
+    };
+    const equippedSlots = slotOrder.filter(slot => equipped[slot]);
+    const slotsHtml = equippedSlots.map(slot => {
         const item = equipped[slot];
-        const slotLabel = {
-            head: 'Голова', face: 'Лицо', body: 'Грудь',
-            accessory: 'Сбоку', background: 'Фон', aura: 'Аура'
-        }[slot];
-        if (!item) {
-            return `<div style="background:#1a1a1c;border:1px dashed #3a3a3e;border-radius:6px;padding:8px;text-align:center;font-size:11px;color:#adadb8;">
-                ${slotLabel}: пусто
-            </div>`;
-        }
+        const slotLabel = slotLabels[slot];
         return `<div style="background:#1a1a1c;border:1px solid #3a3a3e;border-radius:6px;padding:8px;text-align:center;">
             <div style="font-size:24px;">${item.emoji || '🎁'}</div>
             <div style="font-size:11px;color:#adadb8;margin:2px 0;">${slotLabel}</div>
@@ -180,14 +177,14 @@ function _renderPetView() {
         </div>`;
     }).join('');
 
-    const equippedPanel = `
+    const equippedPanel = equippedSlots.length ? `
         <div style="margin-bottom:12px;">
             <div style="font-size:12px;color:#adadb8;margin-bottom:6px;">Надето:</div>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">
                 ${slotsHtml}
             </div>
         </div>
-    `;
+    ` : '';
 
     // Inventory (owned but not equipped)
     const equippedItemIds = new Set(

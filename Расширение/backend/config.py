@@ -68,7 +68,9 @@ TWITCH_OAUTH_REDIRECT_URI = os.getenv(
 # (без re-OAuth Helix будет 401 на /subscriptions запросы — handled gracefully;
 #  а EventSub channel.subscribe/channel.follow/channel.chat.notification вернёт
 #  403 при регистрации).
-TWITCH_OAUTH_SCOPES = 'user:read:email channel:read:redemptions channel:read:subscriptions moderator:read:followers user:read:chat user:bot channel:bot'
+# NB: user:read:email НЕ запрашиваем — расширение не читает и не хранит email
+# стримера (privacy: меньше доступа = чище для Twitch-review). Убрано 2026-06-27.
+TWITCH_OAUTH_SCOPES = 'channel:read:redemptions channel:read:subscriptions moderator:read:followers user:read:chat user:bot channel:bot'
 
 # ===== Этап 3 step 5: Module API player events feature flag =====
 # При false (default) — `player.linked` / `player.died` / `player.respawned` /

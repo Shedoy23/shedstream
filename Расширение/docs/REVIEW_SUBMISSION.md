@@ -1,176 +1,131 @@
-# Twitch Extension Review — Submission Notes
+# AfterLait — Twitch Extension Review Notes
 
-**Extension name:** RimLink — interactive viewer engagement platform
-**Submission date:** 2026-05-12
-**Repo:** https://github.com/Shedoy23/shedstream
-**Live test channel:** https://twitch.tv/shedoy23
+**Extension name:** AfterLait — interactive viewer engagement platform
+**Type:** Video-overlay + mobile + config view
+**Test/review channel:** https://twitch.tv/shedoy23
+**Contact:** nasulskii6@gmail.com
+**Privacy Policy:** https://shedoy23.ru/privacy.html
+**Terms of Service:** https://shedoy23.ru/terms.html
+**Last updated:** 2026-06-27
 
-Этот документ — для reviewer'а. Короткий тур по compliance-критичным
-точкам, с ссылками на конкретный код. Все номера секций — из текущих
-Twitch Extension Developer Agreement / Extension Guidelines (см.
-`Расширение/docs/COMPLIANCE_REWORK_PLAN.md §1` для выдержек).
-
----
-
-## 1. TL;DR
-
-RimLink — расширение для зрителей RimWorld (и будущих игр, см. §6
-Game Bridge SDK). Зрители получают очки за активность, тратят их на
-**non-wagering** механики: кейсы с фикс-наградой, дуэли (skill, no
-wager), голосование за действие стримера, гильдии, цифровых питомцев.
-
-**Что НЕ делаем:** casino / slots / wagering / mystery boxes за валюту /
-P2P-передача / streamer-uploadable items / utility-бусты за деньги.
-
-Все механики прошли 3-question test из COMPLIANCE_AND_ARCHITECTURE.md
-§5.1 (**consideration / chance / prize** — никогда все три "yes"
-одновременно).
+This document is the reviewer walkthrough: what AfterLait does, how to test it, where
+the backend lives, and a compliance tour with links to the exact code.
 
 ---
 
-## 2. Compliance hot spots (§-by-§)
+## 1. What AfterLait is
 
-### §4.11 NFT
-**NONE.** Никаких токенизированных активов, blockchain, smart contracts.
+AfterLait turns viewers into participants in the streamer's game using an **in-Extension
+virtual currency** ("crustics" / 💎, earned by watching and chatting). It is **multi-tenant**
+(one backend serves many channels) and **game-agnostic** — games plug in as modules:
 
-### §2.1 No Flash, §2.2 No iframes
-Только vanilla HTML/JS — см. `Расширение/frontend/extension.html`.
+- **Bannerlord** — viewers shape their own hero in the streamer's Mount & Blade II: Bannerlord
+  game (passive income, attributes, equipment, family/kingdom actions).
+- **RimWorld** — viewers control a pawn in the streamer's RimWorld colony.
+- **shedcolony** — viewers control a colonist in the streamer's MineColonies (Minecraft) colony.
 
-### §2.4 Audio off by default
-Audio полностью отключён в текущей версии (no `<audio>` autoplay).
-`SOUND_CONFIG['enabled']` в `config.py:399` — defaults true но не
-используется в frontend audio-tag'ах.
+Plus channel-wide engagement features: fixed-reward cases, skill duels (ELO, no wager),
+voting on streamer actions, guilds, and cosmetic pets.
 
-### §2.9 Twitch Helper first
-`extension.html:6` — `<script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js">`
-загружается ДО любого extension-кода.
-
-### §6.1.4 No casino-style mechanics
-Casino полностью вырезан 2026-05-10 (Phase 1.A). Tombstone-комментарии
-в коде помечены `casino_router удалён 2026-05-10 (Phase 1.A)`. См. также:
-- `Расширение/backend/migrations/m8_compliance_cleanup.py` — DROP TABLE
-  для casino_settings / free_spins_daily / craft_stats / market_listings
-- Lexicon scrub: `tests/test_multi_tenant_isolation.py:1336` (Test 14)
-  активно проверяет что dice.js не содержит forbidden words
-
-### §6.2.4 No mystery boxes for currency
-**Кейсы (`routes/cases.py`, `migrations/m9_cases.py`):**
-- Кейсы выдаются ТОЛЬКО за активность (drops по таймеру) или ивент-награды
-- НЕ продаются за крустики/Bits
-- 4 фиксированных tier'а (common/rare/epic/legendary) с **фиксированными**
-  наградами (1k/10k/100k/500k крустиков) — см. `config.py CASE_TIER_REWARDS`
-- Reveal = visual flourish, prize детерминирован при grant — никакого RNG
-  при открытии
-
-**Pets cosmetics (`routes/pets.py`, `migrations/m13_pets.py`):**
-- Каждая покупка = **specific `item_id`** с фиксированной ценой в Bits
-- НЕТ кнопок «открыть случайный» / «mystery»
-- Каталог dev-controlled (`PETS_CATALOG_SEED` в `m13_pets.py:34-41`),
-  streamer НЕ загружает свои items (§6.2.8 защита)
-- См. compliance-комментарии в `routes/pets.py:1-37` docstring
-
-### §6.2.6 No wagering on game outcomes
-- **Duels** (`routes/duel.py`): ELO-only, без ставок крустиков. См.
-  `routes/duel.py:256` — «ставка крустиков убрана (§6.2.6)» комментарий
-- **TicTacToe / Dice** (`routes/tictactoe.py`, `routes/dice.py`):
-  matchmaking без entry fee, награда — ELO-rating only
-
-### §6.2.8 Catalog/items not streamer-uploadable
-- Pets catalog seed зашит в `migrations/m13_pets.py:34` — не имеет UI
-  для streamer'а добавлять items
-- Кейс-tiers зашиты в `config.py` — streamer контролит только включён
-  ли drop, не содержимое
-
-### §7.4 Broadcaster control
-**Phase 7 pets:** broadcaster может выключить отображение pets-overlay
-через `frontend/config.html` toggle → `POST /api/streamer/pets/overlay-toggle`
-(`routes/pets.py:219`). Когда `overlay_enabled=0` — endpoint
-`/api/overlay/pets` возвращает пустой viewers list (`routes/pets.py:209-211`).
-
-### §7.5 Revenue attribution
-Bits-покупки косметик записываются в `pet_purchases` с `channel_id`
-канала где совершена покупка (`migrations/m13_pets.py:127-138`). Это
-audit-trail для revenue split — НЕ scope-фильтр (см. §3.1 в
-`docs/ARCHITECTURE.md` о cross-channel pattern).
-
-### §5.2 Items за loyalty-points OR Bits
-Кейсы — за loyalty-points (channel points / activity). Pets
-косметика — за Bits в production (`PETS_BITS_REQUIRED=true`). Обе
-формы compliant.
-
-### §5.3 Косметика-only digital goods
-Pets cosmetics dont confer game advantage:
-- НЕТ utility (бусты накопления / преимуществ — см. compliance comment
-  `migrations/m13_pets.py:18-19`)
-- Только visual: head/accessory/background slots на pet-card
+The virtual currency has **no monetary value**, cannot be purchased, cannot be cashed out or
+exchanged for money/Bits, and cannot be transferred between users.
 
 ---
 
-## 3. Tests — proof of compliance
+## 2. Reviewer walkthrough
 
-**Isolation tests:** `Расширение/backend/tests/test_multi_tenant_isolation.py`
+**Streamer config** (`frontend/config.html`, Config view): the broadcaster authorizes the
+extension; the config view lets them toggle overlay features. New streamers self-onboard via
+`/streamer` (Twitch OAuth) — see `routes/streamer.py`.
 
-Запуск:
-```bash
-cd Расширение/backend
-python tests/test_multi_tenant_isolation.py
-```
+**Viewer experience** (`frontend/extension.html` panel + `frontend/mobile.html`):
+1. The viewer opens the panel; identity is requested via `Twitch.ext.actions.requestIdShare()`
+   (declined → read-only view).
+2. They earn crustics passively while watching + via chat/quests.
+3. They spend crustics on game actions for the active module (the streamer picks the module in
+   their dashboard). Every action has a **fixed, deterministic** outcome and a server-enforced
+   price — no random "open" / mystery purchases for currency.
 
-Текущий результат: **1073/1073 passing.**
-
-Compliance-релевантные тесты:
-- **Test 14 (dice lexicon scrub, 1265+):** проверяет что dice.js не содержит
-  `casino|jackpot|lucky|gamble|wager|slot|bet|spin|roulette`
-- **Test 9 (cases, 558+):** атомарность grant + idempotency triggers
-- **Test 17 (voting, 1714+):** voting за действие стримера НЕ wagering
-  (см. comment `migrations/m12_voting.py:6`)
-- **Test 18 (pets, 1714-2222):** PRAGMA-guard что cross-channel exception
-  не drift'ит, hatch idempotency, audit-trail `pet_purchases.channel_id`
+To test the game side, the review channel will be **live** with the relevant game running; we
+provide pre-funded test viewer accounts on request (see §6).
 
 ---
 
-## 4. Repo / file map (для reviewer'а)
+## 3. Hosting & technical
 
-| Где смотреть | Что |
-|---|---|
-| `Расширение/docs/COMPLIANCE_REWORK_PLAN.md` | Полный план переработки (6 фаз, verdict-table 16 механик) |
-| `Расширение/docs/ARCHITECTURE.md §3` | Multi-tenant invariants + cross-channel exception (§3.1) |
-| `Расширение/backend/migrations/m8_compliance_cleanup.py` | DROP-таблиц вырезанных gambling-механик |
-| `Расширение/backend/migrations/m9_cases.py` | Cases (fixed rewards, no purchase) |
-| `Расширение/backend/migrations/m13_pets.py` | Pets cross-channel + Bits monetization |
-| `Расширение/backend/routes/pets.py` | Pets endpoints с DEFERRED-секцией post-MVP scope |
-| `Расширение/backend/tests/test_multi_tenant_isolation.py` | 1073 assertions включая compliance-guards |
-
----
-
-## 5. Known DEFERRED (post-launch, документировано)
-
-Эти scope-cuts intentional и не блокируют compliance:
-
-- **[BITS-SIG]** Production-mode (`PETS_BITS_REQUIRED=true`) включит
-  Twitch Bits transaction JWT signature verify. Сейчас MVP в mock-mode
-  для test-канала, receipt-idempotency через UNIQUE-index уже работает.
-  См. `routes/pets.py:33-42` DEFERRED docstring.
-
-- **[BROADCASTER-JWT]** `/api/streamer/pets/overlay-toggle` сейчас под
-  `require_admin` (HTTPBasic). Self-serve через Twitch Extensions
-  broadcaster-JWT (role='broadcaster') — следующая итерация.
+- **Frontend** is the uploaded version `.zip` (served from Twitch CDN).
+- **Backend** (the extension's API + game connectors) is self-hosted at **https://shedoy23.ru**.
+  Add this domain to the version's **URL Fetching Domains** allowlist (the panel fetches state
+  and posts actions there). No other external domains are contacted.
+- **§2.9 Twitch Helper is the first `<script>`** in both shells — `extension.html:8` and
+  `mobile.html:8` load `https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js` before any
+  extension code.
+- **§2.1/§2.2** No Flash, no iframes — vanilla HTML/JS only. JS is human-readable (not minified).
 
 ---
 
-## 6. Test channel для review
+## 4. Compliance tour (§-by-§)
 
-**Канал:** https://twitch.tv/shedoy23
+### §5 / §6 — Virtual currency, no gambling, no wagering
+- Crustics are an **in-Extension loyalty currency** (earned watching/chat/channel-points). **No
+  cash-out, no purchase, no user-to-user transfer, no exchange to Bits or anything of value
+  outside the Extension.** A disclosure footer states this in both shells
+  (`extension.html` + `mobile.html`, `<details id="compliance-disclosure">`).
+- **No casino / slots / mystery-box-for-currency.** Casino was removed (`migrations/m8_compliance_cleanup.py`
+  drops the old tables). A lexicon test (`tests/test_multi_tenant_isolation.py`) asserts the UI
+  contains no `casino|jackpot|bet|wager|slot|spin|roulette` wording.
+- **Cases** (`routes/cases.py`): granted only by activity/event (never bought for currency/Bits),
+  4 fixed tiers with **fixed** rewards — the reveal is visual, the prize is deterministic at grant.
+- **No wagering on outcomes.** Duels are ELO-only (no stake). The Bannerlord tournament feature is
+  a **no-loss prediction**: a correct guess pays a fixed bonus from a platform pool, a wrong guess
+  costs nothing (`routes/bannerlord.py` — `tournament.bet` enqueues with `price=0, amount=0`).
 
-При запросе reviewer-а на стрим — стример выйдет в эфир и предоставит:
-- Активные drops для демонстрации кейсов
-- Pre-funded test viewer accounts для покупки pets cosmetics
-- Pre-seeded guilds для демонстрации гильдий
-- Все механики доступны через extension panel
+### Subscriptions — no pay-/sub-gating
+- Subscription status (Twitch or third-party) does **not** affect prices or rewards. `SUB_BOOSTS`
+  are all `(1.0, 1.0)` (`twitch_subs.py`); sub-only action gates were removed. The only role-based
+  multipliers are **channel roles** (broadcaster/moderator), which is permitted. Sub badges are
+  cosmetic only.
+
+### §4.11 NFT / §4.4 ads / §4.6.3 external payments
+- **None.** No tokenized assets, no advertising/sponsored content, no external payment links or
+  third-party storefronts.
+
+### Data / privacy
+- We store the viewer's Twitch **login** (username), their crustic balance, watch-time and a few
+  gameplay fields. We do **not** collect or store email, IP, real name, or payment info (IP is used
+  only transiently for rate-limiting). The streamer's OAuth scopes are
+  `channel:read:redemptions channel:read:subscriptions moderator:read:followers user:read:chat
+  user:bot channel:bot` (no `user:read:email`). Full detail: the Privacy Policy URL above.
 
 ---
 
-## 7. Контакт
+## 5. Multi-tenant note for the reviewer
 
-Issues / questions — через issues GitHub `Shedoy23/shedstream` или
-напрямую через Twitch DM `@shedoy23`.
+Every tenant query is scoped by `channel_id` (resolved from the Extension JWT / module token).
+A viewer's data and currency are per-channel. The reviewer's test channel sees only its own data.
+
+---
+
+## 6. Test channel & access
+
+**Channel:** https://twitch.tv/shedoy23
+
+On a reviewer's request we will go live and provide:
+- The relevant game running (Bannerlord / RimWorld / MineColonies) so game actions are visible.
+- Pre-funded test viewer account(s) so actions can be exercised.
+- Availability window (please contact us at nasulskii6@gmail.com to schedule; we can be live
+  09:00–17:00 PT on request).
+
+---
+
+## 7. Changelog (this version)
+
+First submission. Multi-game viewer engagement (Bannerlord / RimWorld / shedcolony) on a
+multi-tenant backend; in-Extension virtual currency with no cash-out/transfer/wager; cosmetic
+pets; ELO duels; voting; fixed-reward cases.
+
+---
+
+## 8. Contact
+
+nasulskii6@gmail.com · repo: https://github.com/Shedoy23/shedstream

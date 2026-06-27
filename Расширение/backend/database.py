@@ -1739,14 +1739,14 @@ class Database:
 
                 # Validate item
                 cur = await conn.execute(
-                    "SELECT rarity, deprecated FROM pet_catalog WHERE item_id = ?",
+                    "SELECT rarity, slot, deprecated FROM pet_catalog WHERE item_id = ?",
                     (item_id,)
                 )
                 row = await cur.fetchone()
                 if not row:
                     await conn.execute("ROLLBACK")
                     return {'purchased': False, 'reason': 'item_not_found'}
-                rarity, deprecated = row
+                rarity, slot, deprecated = row
                 if deprecated:
                     await conn.execute("ROLLBACK")
                     return {'purchased': False, 'reason': 'deprecated'}
@@ -1791,6 +1791,15 @@ class Database:
                 await conn.execute(
                     "INSERT INTO pet_inventory (username, item_id) VALUES (?, ?)",
                     (uname, item_id)
+                )
+
+                # Авто-надеваем купленный предмет в его слот (купил → сразу виден,
+                # не нужно отдельно жать «Надеть»). Перетирает прежний скин в слоте.
+                await conn.execute(
+                    "INSERT INTO pet_equipped (username, slot, item_id) VALUES (?, ?, ?) "
+                    "ON CONFLICT(username, slot) DO UPDATE SET "
+                    "item_id = excluded.item_id, equipped_at = CURRENT_TIMESTAMP",
+                    (uname, slot, item_id)
                 )
 
                 hatched = False

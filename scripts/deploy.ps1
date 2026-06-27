@@ -101,9 +101,11 @@ if ($Frontend) {
         if (-not (Test-Path $p)) { Warn "no $html - skip cache-bust"; continue }
         if ($DryRun) { Write-Host "  [dry] cache-bust $html -> v=$stamp" -ForegroundColor DarkGray; continue }
         $txt = [IO.File]::ReadAllText($p, $utf8)
-        # Кэш-бастим ВСЕ viewer*.js (viewer.js + сплит-модули viewer-rimworld.js /
-        # viewer-bannerlord.js — ROADMAP 2.4) одним штампом, чтобы не было рассинхрона.
-        $new = [regex]::Replace($txt, '(viewer[\w-]*\.js)\?v=[^"'']+', ('$1?v=' + $stamp))
+        # Cache-bust ALL *.js?v= modules (viewer*.js + pets/family/cases/duels/voting/...)
+        # with one stamp. Previously only viewer*.js was bumped, so an edit to a non-viewer
+        # module never reached viewers: its ?v= was hardcoded, so the CDN/browser kept
+        # serving the old file. Bit us with pets.js / family.js (2026-06-27).
+        $new = [regex]::Replace($txt, '([\w][\w-]*\.js)\?v=[^"'']+', ('$1?v=' + $stamp))
         [IO.File]::WriteAllText($p, $new, $utf8)
     }
     Ok "Cache-bust viewer.js?v=$stamp (extension.html + mobile.html)"

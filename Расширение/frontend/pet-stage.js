@@ -131,8 +131,14 @@
             `;
         }
 
-        // Post-hatch — full creature stack
-        const creatureImg = _buildCreatureImg(variant, direction);
+        // Post-hatch. Персонаж (PNG-скин) рендерится ТОЛЬКО если надет body-skin
+        // (или явно передан opts.variant — для превью). Иначе пусто: дефолтного
+        // персонажа нет, зритель выбирает в Магазине (2026-06-27).
+        const showCreature = bodySkinOverride || !!opts.variant;
+        const creatureImg = showCreature
+            ? _buildCreatureImg(variant, direction)
+            : '<div class="pet-stage__empty" style="width:62%;height:62%;margin:19% auto;'
+              + 'border:2px dashed rgba(255,255,255,0.18);border-radius:50%;box-sizing:border-box;"></div>';
         // Если body — skin-override, не рендерим его как item-слой (variant уже
         // отражён в creature itself). Иначе обычный body item overlay.
         const bodyItemHtml = (body && !bodySkinOverride)

@@ -45,6 +45,7 @@ log = logging.getLogger("rimlink.streamer")
 
 from config import (
     MODULE_TOKEN_SECRET,
+    SESSION_SECRET,
     TWITCH_CLIENT_ID,
     TWITCH_CLIENT_SECRET,
     TWITCH_EXTENSION_SECRET,
@@ -292,9 +293,9 @@ _SESSION_TTL = 30 * 24 * 3600  # 30 дней
 
 
 def _sign_session(channel_id: int, expires_at: int) -> str:
-    """HMAC-SHA256 подпись `channel_id|expires_at`. Secret: TWITCH_EXTENSION_SECRET."""
+    """HMAC-SHA256 подпись `channel_id|expires_at`. Secret: SESSION_SECRET."""
     msg = f"{channel_id}|{expires_at}"
-    secret = (TWITCH_EXTENSION_SECRET or "").encode() or b"unconfigured-extension-secret"
+    secret = (SESSION_SECRET or "").encode()
     sig = hmac.new(secret, msg.encode(), hashlib.sha256).hexdigest()
     return f"{msg}|{sig}"
 
@@ -308,13 +309,16 @@ def _verify_session(token: str) -> Optional[int]:
     """
     if not token:
         return None  # no cookie — normal anon hit, skip log
+    if not SESSION_SECRET:
+        log.error("[session] SESSION_SECRET/TWITCH_EXTENSION_SECRET не заданы — сессии отключены")
+        return None
     if token.count('|') != 2:
         log.warning("[session] malformed cookie token (bad pipe count)")
         return None
     try:
         cid_str, exp_str, sig = token.split('|', 2)
         msg = f"{cid_str}|{exp_str}"
-        secret = (TWITCH_EXTENSION_SECRET or "").encode() or b"unconfigured-extension-secret"
+        secret = (SESSION_SECRET or "").encode()
         expected = hmac.new(secret, msg.encode(), hashlib.sha256).hexdigest()
         if not hmac.compare_digest(sig, expected):
             log.warning("[session] cookie HMAC mismatch cid=%s — forged or "

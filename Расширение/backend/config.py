@@ -110,6 +110,14 @@ elif not _MODULE_TOKEN_SECRET_ENV:
         "после этого mod-токены не зависят от extension secret rotation."
     )
 
+# Streamer dashboard session cookie signing (routes/streamer.py).
+# Separate secret so a leaked Extension secret can't forge dashboard sessions and
+# rotating the Extension secret doesn't log every streamer out. Falls back to
+# TWITCH_EXTENSION_SECRET when unset → existing cookies stay valid (transition-safe);
+# set SESSION_SECRET in .env (secrets.token_urlsafe(32)) to fully decouple. If BOTH
+# are empty the cookie is refused (the old hardcoded fallback constant was forgeable).
+SESSION_SECRET = os.getenv('SESSION_SECRET', '').strip() or TWITCH_EXTENSION_SECRET
+
 # ===== M5: Per-channel rate limits + tier-based квоты =====
 # Лимит запросов в минуту на канал. Применяется в require_jwt_user/_channel
 # (M5 hook): JWT-аутентифицированный запрос для канала X считается в bucket

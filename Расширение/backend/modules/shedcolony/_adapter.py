@@ -220,6 +220,10 @@ class ShedColonyAdapter(ModuleAdapter):
             return
         from dependencies import get_db
         async with get_db()._connect() as conn:
+            # BEGIN IMMEDIATE: serialize concurrent action.failed events for the same action_id so the
+            # REFUNDED idempotency check + the points credit are one atomic write. Without it a TOCTOU
+            # race lets two events both pass the REFUNDED guard before either writes it → double refund.
+            await conn.execute("BEGIN IMMEDIATE")
             cur = await conn.execute(
                 "SELECT data, error_msg FROM module_actions "
                 "WHERE channel_id=? AND module_id='shedcolony' AND action_id=?",

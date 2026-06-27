@@ -930,6 +930,10 @@ class Database:
         channel_id = resolve_channel_id(channel_id)
         username = username.lower()
         async with self._connect() as db:
+            # BEGIN IMMEDIATE: serialize concurrent unlocks of the same achievement so the dedup
+            # SELECT + the reward credit are atomic. Without it both callers pass the SELECT (no row
+            # yet) and both run the points UPDATE → the reward is credited twice.
+            await db.execute("BEGIN IMMEDIATE")
             cur = await db.execute(
                 "SELECT 1 FROM user_achievements WHERE channel_id = ? AND username = ? AND achievement_key = ?",
                 (channel_id, username, key))

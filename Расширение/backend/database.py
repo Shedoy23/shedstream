@@ -1135,6 +1135,19 @@ class Database:
             return {"rewarded": True, "reward": reward,
                     "current_streak": new_streak, "max_streak": max_streak}
 
+    async def get_active_stream_id(self, channel_id: int) -> str:
+        """ID текущей незакрытой стрим-сессии канала ('' если нет). Нужен чтобы
+        восстановить in-memory current_stream_id после рестарта бэка посреди
+        стрима — иначе минуты посещаемости/стрик молча теряются до след. тика."""
+        async with self._connect() as conn:
+            cur = await conn.execute(
+                "SELECT id FROM stream_sessions "
+                "WHERE channel_id = ? AND ended_at IS NULL "
+                "ORDER BY started_at DESC LIMIT 1",
+                (channel_id,))
+            row = await cur.fetchone()
+        return (row[0] if row and row[0] else "") or ""
+
     async def register_stream_session(self, stream_id: str, channel_id: int = None):
         """Зарегистрировать стрим (старт или возобновление).
 

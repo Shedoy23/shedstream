@@ -1192,6 +1192,14 @@ class BotCore:
         cid = resolve_channel_id(channel_id)
         stream_id = self.current_stream_id.get(cid, "")
         if not stream_id:
+            # Память пуста (напр. бэк рестартанул посреди стрима). Если стрим реально
+            # live — восстановим текущий stream_id из активной сессии в БД; иначе
+            # минуты посещаемости/стрик молча терялись бы до следующего тика reward-loop.
+            if await self._is_stream_live(cid):
+                stream_id = await self.db.get_active_stream_id(cid)
+                if stream_id:
+                    self.set_current_stream_id(cid, stream_id)
+        if not stream_id:
             return {"rewarded": False}
 
         result = await self.db.record_attendance(username, stream_id, minutes, channel_id=cid)

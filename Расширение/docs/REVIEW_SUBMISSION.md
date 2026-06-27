@@ -1,6 +1,6 @@
-# AfterLait — Twitch Extension Review Notes
+# ShedLink — Twitch Extension Review Notes
 
-**Extension name:** AfterLait — interactive viewer engagement platform
+**Extension name:** ShedLink — interactive viewer engagement platform
 **Type:** Video-overlay + mobile + config view
 **Test/review channel:** https://twitch.tv/shedoy23
 **Contact:** nasulskii6@gmail.com
@@ -8,14 +8,14 @@
 **Terms of Service:** https://shedoy23.ru/terms.html
 **Last updated:** 2026-06-27
 
-This document is the reviewer walkthrough: what AfterLait does, how to test it, where
+This document is the reviewer walkthrough: what ShedLink does, how to test it, where
 the backend lives, and a compliance tour with links to the exact code.
 
 ---
 
-## 1. What AfterLait is
+## 1. What ShedLink is
 
-AfterLait turns viewers into participants in the streamer's game using an **in-Extension
+ShedLink turns viewers into participants in the streamer's game using an **in-Extension
 virtual currency** ("crustics" / 💎, earned by watching and chatting). It is **multi-tenant**
 (one backend serves many channels) and **game-agnostic** — games plug in as modules:
 

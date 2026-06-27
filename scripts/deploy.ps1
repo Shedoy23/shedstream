@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  One-command deploy for the AfterLait / shedstream project.
+  One-command deploy for the ShedLink / shedstream project.
 
 .DESCRIPTION
   Replaces the manual tar -> scp -> ssh extract -> restart dance.

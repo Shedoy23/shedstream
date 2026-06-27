@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-**shedstream / AfterLait** — a multi-tenant Twitch Extension platform that turns viewers into participants in the streamer's game. One backend deployment serves many streamer channels. Two game modules exist today: **Bannerlord** (C# mod + backend module) and **RimWorld** (RimLink). The architecture goal is game-agnostic: games plug in via the Module API (`docs/MODULE_API.md`).
+**shedstream / ShedLink** — a multi-tenant Twitch Extension platform that turns viewers into participants in the streamer's game. One backend deployment serves many streamer channels. Two game modules exist today: **Bannerlord** (C# mod + backend module) and **RimWorld** (RimLink). The architecture goal is game-agnostic: games plug in via the Module API (`docs/MODULE_API.md`).
 
 ## Repo layout (only the parts that need explaining)
 

@@ -251,7 +251,11 @@ function _renderCatalogView() {
         return `
             <div style="background:#1a1a1c;border:1px solid ${rarityColor};border-radius:8px;
                         padding:10px;display:flex;align-items:center;gap:10px;margin-bottom:6px;">
-                <div style="font-size:30px;">${it.emoji || '🎁'}</div>
+                <div style="width:46px;height:46px;display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0;">${
+                    it.png_path
+                        ? `<img src="${it.png_path}" style="width:46px;height:46px;object-fit:contain;image-rendering:pixelated;" alt="">`
+                        : (it.emoji || '🎁')
+                }</div>
                 <div style="flex:1;">
                     <div style="font-size:13px;font-weight:700;">
                         ${escapeHtml(it.name)}${newBadge}

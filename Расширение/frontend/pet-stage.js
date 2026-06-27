@@ -103,11 +103,11 @@
         let variant = opts.variant || DEFAULT_VARIANT;
         let bodySkinOverride = false;
         if (body && typeof body.item_id === 'string' && body.item_id.startsWith('skin_')) {
-            const v = body.item_id.slice(5);  // 'skin_kimono' → 'kimono'
-            if (v === 'kimono' || v === 'underwear') {
-                variant = v;
-                bodySkinOverride = true;
-            }
+            // Любой skin_<name> → variant=<name> (PNG из pet-assets/v2/<name>/). Так
+            // владелец добавляет сгенерированного персонажа просто новой папкой + строкой
+            // каталога, без правки этого файла (раньше тут был хардкод kimono/underwear).
+            variant = body.item_id.slice(5);
+            bodySkinOverride = true;
         }
 
         // Sprint 5.22 patch: background теперь = окрас creature'а (CSS-класс

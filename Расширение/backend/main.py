@@ -1201,6 +1201,12 @@ async def run_migrations():
             await m86_pets_reseed_crustics.apply(conn)
         except Exception as e:
             print(f"❌ M86 migration FAILED: {type(e).__name__}: {e}")
+
+        try:
+            from migrations import m87_pets_skins_only
+            await m87_pets_skins_only.apply(conn)
+        except Exception as e:
+            print(f"❌ M87 migration FAILED: {type(e).__name__}: {e}")
             raise
 
         print("✅ Migrations complete")

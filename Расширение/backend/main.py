@@ -1296,7 +1296,7 @@ class TwitchChatBot(twitch_commands.Bot):
                 await conn.execute("""
                     INSERT INTO chat_stats (channel_id, username, message_length, message_text)
                     VALUES (?, ?, ?, ?)
-                """, (channel_id, username, len(text), ''))
+                """, (channel_id, username, len(text), None))  # never store message content (privacy)
                 await conn.commit()
             # M7: Бонус за сообщение через антифрод-helper.
             # Проверяет cooldown (10s) + min length (10ch) + dedup last 10 hashes.

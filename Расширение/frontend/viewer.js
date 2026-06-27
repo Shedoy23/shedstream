@@ -949,6 +949,8 @@ async function loadUserData() {
         
     } catch (e) {
         console.error('Ошибка loadUserData:', e);
+        // #60: явный сигнал зрителю вместо бесконечного «Загрузка…»
+        try { showNotification('⚠️ Сервер недоступен — обновите через пару секунд', 'error', 5000); } catch (_) {}
     }
 }
 

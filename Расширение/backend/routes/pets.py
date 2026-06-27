@@ -31,9 +31,9 @@ DEFERRED post-MVP (известно, по плану):
     Twitch extensions JWT lib (HS256 + extension secret). См. покупку
     в `purchase_pet_item` — receipt-idempotency через UNIQUE уже на месте,
     остаётся только signature verify шаг перед TX.
-  - [BROADCASTER-JWT] /api/streamer/pets/overlay-toggle переведён на
-    broadcaster-JWT (role='broadcaster' в Twitch ext token). Self-serve
-    через Twitch config.html работает без require_admin (HTTPBasic).
+  - [BROADCASTER-JWT] ✅ DONE — /api/streamer/pets/overlay-toggle принимает
+    broadcaster-JWT (role='broadcaster' в Twitch ext token); self-serve через
+    Twitch config.html без require_admin. (Запись о закрытии пункта.)
 """
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse

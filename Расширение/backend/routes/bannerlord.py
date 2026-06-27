@@ -2049,6 +2049,11 @@ async def _prepare_action(username, channel_id, action_type, data):
             return {"success": False, "message": "custom_item_id required"}
         db_tmp = get_db()
         async with db_tmp._connect() as conn:
+            # Атомарный claim: BEGIN IMMEDIATE сериализует SELECT-проверку и
+            # conditional UPDATE (WHERE claimed=0 + rowcount) — иначе два
+            # параллельных equip_trophy могли оба прочитать claimed=0 и
+            # получить один предмет дважды (double-bonus).
+            await conn.execute("BEGIN IMMEDIATE")
             cur = await conn.execute(
                 "SELECT base_type, base_subtype, custom_name, rarity, tier, "
                 "       COALESCE(damage_bonus, 0), COALESCE(armor_bonus, 0), "
@@ -2059,13 +2064,18 @@ async def _prepare_action(username, channel_id, action_type, data):
                 (trophy_id, channel_id, username))
             row = await cur.fetchone()
             if not row:
+                await conn.execute("ROLLBACK")
                 return {"success": False, "message": "Трофей не найден / не твой"}
             # Phase B — нельзя получить один предмет дважды (анти double-bonus).
             if int(row[9] or 0) == 1:
+                await conn.execute("ROLLBACK")
                 return {"success": False, "message": "Этот предмет уже получен в игре"}
-            # Optimistic claim — предмет уходит в инвентарь героя через mod.
-            await conn.execute(
-                "UPDATE bannerlord_custom_items SET claimed=1 WHERE id=?", (trophy_id,))
+            upd = await conn.execute(
+                "UPDATE bannerlord_custom_items SET claimed=1 WHERE id=? AND claimed=0",
+                (trophy_id,))
+            if upd.rowcount == 0:
+                await conn.execute("ROLLBACK")
+                return {"success": False, "message": "Этот предмет уже получен в игре"}
             await conn.commit()
         data["base_type"]    = row[0]
         data["base_subtype"] = row[1]

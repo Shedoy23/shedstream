@@ -228,7 +228,7 @@ async def overlay_pets(channel_id: int = 0):
     if not enabled:
         return {"success": True, "enabled": False, "viewers": []}
 
-    viewers = await db.get_active_viewers_with_pets(channel_id, limit=10)
+    viewers = await db.get_active_viewers_with_pets(channel_id, limit=20)  # ↑ overlay capacity (was 10) — more viewers' pets visible = more activity incentive
     return {"success": True, "enabled": True, "viewers": viewers}
 
 

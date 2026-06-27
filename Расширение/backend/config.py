@@ -225,6 +225,11 @@ PRESENCE_WATCHTIME_ENABLED = False
 CHAT_BONUS_COOLDOWN_SEC = 10
 CHAT_BONUS_MIN_CHARS    = 10
 CHAT_BONUS_DEDUP_WINDOW = 10  # помним последние N хэшей сообщений на (channel, user)
+# Balance dial (2026-06-27 — поднять актив): 1 крустик за каждые N символов, потолок за сообщение.
+# Было 10/10. Делитель ниже = щедрее обычному чату; потолок выше = больше за развёрнутые сообщения.
+# Анти-спам (cooldown/min_chars/dedup выше) НЕ трогаем — иначе стимулируем флуд.
+CHAT_BONUS_PER_CHARS    = 6
+CHAT_BONUS_MAX          = 15
 
 # ===== НАСТРОЙКИ ДРОПОВ =====
 DROP_INTERVAL = 1200     # 20 минут

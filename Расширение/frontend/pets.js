@@ -222,16 +222,9 @@ function _renderCatalogView() {
     const cat = _petsState.catalog;
     if (!cat) return '<div class="loading">…</div>';
     const items = cat.items || [];
-    const bitsRequired = cat.bits_required;
-
-    const headerNote = bitsRequired
-        ? `<div style="background:#1f2937;border:1px solid #3b82f6;border-radius:6px;padding:8px;
-                       margin-bottom:10px;font-size:11px;color:#93c5fd;">
-              💎 Покупка через Twitch Bits. Цены указаны в Bits.
-           </div>`
-        : `<div style="background:#1f1f1f;border:1px solid #fbbf24;border-radius:6px;padding:8px;
-                       margin-bottom:10px;font-size:11px;color:#fbbf24;">
-              ⚙️ Тестовый режим: покупки бесплатные (Bits будут включены при релизе).
+    const headerNote = `<div style="background:#1f1f1f;border:1px solid #2d2d2f;border-radius:6px;padding:8px;
+                       margin-bottom:10px;font-size:11px;color:#adadb8;">
+              Косметика покупается за 💎 крустики — цена зависит от редкости.
            </div>`;
 
     const itemsHtml = items.map(it => {
@@ -241,12 +234,14 @@ function _renderCatalogView() {
             rare:      '#3b82f6',
             epic:      '#a855f7',
             legendary: '#fbbf24',
+            mythic:    '#ef4444',
         }[it.rarity] || '#9ca3af';
 
+        const priceLabel = (it.price_crustics || 0).toLocaleString('ru-RU');
         const cta = owned
             ? `<button class="small-btn" disabled style="opacity:.5;cursor:default;">✅ Уже есть</button>`
             : `<button class="small-btn" data-pet-action="buy" data-item-id="${it.item_id}">
-                   ${bitsRequired ? `💎 ${it.price_bits}` : 'Получить'}
+                   ${priceLabel}💎
                </button>`;
 
         // NEW-badge для never-owned (для эпик/легендарных пометить ярче)

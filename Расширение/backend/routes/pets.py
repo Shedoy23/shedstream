@@ -39,7 +39,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
 from auth import verify_twitch_jwt
-from config import PETS_BITS_REQUIRED, PET_SLOTS
+from config import PET_COSMETIC_PRICES, PET_SLOTS
 from dependencies import (
     get_db, require_admin, require_jwt_user, resolve_channel_id_or_default,
 )
@@ -76,10 +76,12 @@ async def pet_catalog(request: Request):
 
     db = get_db()
     items = await db.list_pet_catalog(include_owned=username)
+    # Цена — backend-истина по редкости (тонкий фронт просто рисует price_crustics).
+    for it in items:
+        it["price_crustics"] = PET_COSMETIC_PRICES.get(it.get("rarity"), PET_COSMETIC_PRICES["common"])
     return {
-        "success":      True,
-        "items":        items,
-        "bits_required": PETS_BITS_REQUIRED,
+        "success": True,
+        "items":   items,
     }
 
 
@@ -104,40 +106,31 @@ async def pet_purchase(request: Request):
 
     data = await request.json()
     item_id = (data.get("item_id") or "").strip()
-    bits_receipt = data.get("bits_receipt")
     if not item_id:
         return {"success": False, "message": "item_id обязателен"}
 
-    mode = "bits" if PETS_BITS_REQUIRED else "mock"
-
     db = get_db()
-    result = await db.purchase_pet_item(
-        username, item_id,
-        channel_id=channel_id,
-        bits_receipt=bits_receipt,
-        mode=mode,
-    )
+    result = await db.purchase_pet_item(username, item_id, channel_id=channel_id)
 
     if result.get("purchased"):
         hatched = result.get("hatched", False)
         return {
-            "success":   True,
-            "item_id":   result["item_id"],
-            "price_bits": result["price_bits"],
-            "mode":      result["mode"],
-            "hatched":   hatched,
-            "message":   (
+            "success":  True,
+            "item_id":  result["item_id"],
+            "price":    result["price"],
+            "hatched":  hatched,
+            "message":  (
                 "🐣 Твой пет ВЫЛУПИЛСЯ! Иди наряжай его!" if hatched
                 else "✨ Куплено! Иди надевай в инвентарь."
             ),
         }
+    price = result.get("price")
+    need = f"{price:,}".replace(",", " ") if price else "?"
     reason_msg = {
-        "item_not_found":      "Item не найден в catalog",
-        "deprecated":          "Item больше не доступен",
-        "already_owned":       "У тебя уже есть этот item",
-        "receipt_already_used": "Этот чек уже использован",
-        "receipt_required":    "Bits-чек обязателен (production mode)",
-        "mock_mode_disabled":  "Mock-mode отключён, нужен реальный Bits чек",
+        "item_not_found":        "Предмет не найден в каталоге",
+        "deprecated":            "Предмет больше не доступен",
+        "already_owned":         "У тебя уже есть этот предмет",
+        "insufficient_crustics": f"Не хватает крустиков (нужно {need}💎)",
     }.get(result.get("reason"), "Не удалось купить")
     return {"success": False, "reason": result.get("reason"), "message": reason_msg}
 

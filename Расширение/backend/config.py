@@ -355,15 +355,20 @@ MATCHMAKING_DEFAULT_ELO_SPREAD = 100
 # Auto-expire queue entries старше N секунд (cleanup от disconnected клиентов).
 MATCHMAKING_QUEUE_TTL_SEC = 300
 
-# ===== PETS MVP (Phase 7, 2026-05-11) =====
+# ===== PETS MVP (Phase 7, 2026-05-11; крустики-pricing 2026-06-27) =====
 # Compliance критично: catalog задаётся ТУТ, не стримером (§6.2.8 protection).
-# Items deterministic, не mystery box за Bits (§6.2.4 ban).
-# Cosmetics-only — НЕТ utility (бустов / преимуществ).
+# Items deterministic, не mystery box (§6.2.4 ban). Cosmetics-only — НЕТ utility.
 
-# Bits integration mode. Когда зарегистрируем Bits products в Twitch
-# Developer Console — flip на True. До этого moments — mock-режим без
-# реальных Bits transactions.
-PETS_BITS_REQUIRED = False                  # ENV override: PETS_BITS_REQUIRED=true
+# Косметика покупается за КРУСТИКИ (внутренняя валюта), не за Bits — цена по
+# редкости. Bits-флоу выпилен 2026-06-27 (упрощает подачу: не нужна регистрация
+# Bits-products + signature verify). Числа крутятся ТУТ одним местом.
+PET_COSMETIC_PRICES = {
+    'common':      500_000,
+    'rare':      1_000_000,
+    'epic':      2_000_000,
+    'legendary': 3_500_000,
+    'mythic':    5_000_000,
+}
 
 # Default pet appearance — 🥚 яичко-маскот (символ начала, см. PROJECT_PLAYBOOK §5.4)
 PET_BASE_TYPE = 'egg'

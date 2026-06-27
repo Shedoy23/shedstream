@@ -1711,8 +1711,6 @@ class Database:
         username: str,
         item_id: str,
         channel_id: int,
-        bits_receipt: Optional[str] = None,
-        mode: str = 'mock',
     ) -> Dict:
         """Купить cosmetic за Bits.
 
@@ -1732,13 +1730,8 @@ class Database:
         Compliance: атомарная транзакция — receipt проверяется UNIQUE,
         item added в inventory + purchase audit в одной TX.
         """
-        from config import PETS_BITS_REQUIRED
+        from config import PET_COSMETIC_PRICES, PET_BASE_TYPE
         uname = username.lower()
-
-        if PETS_BITS_REQUIRED and mode != 'bits':
-            return {'purchased': False, 'reason': 'mock_mode_disabled'}
-        if mode == 'bits' and not bits_receipt:
-            return {'purchased': False, 'reason': 'receipt_required'}
 
         async with self._connect() as conn:
             try:
@@ -1746,17 +1739,18 @@ class Database:
 
                 # Validate item
                 cur = await conn.execute(
-                    "SELECT price_bits, deprecated FROM pet_catalog WHERE item_id = ?",
+                    "SELECT rarity, deprecated FROM pet_catalog WHERE item_id = ?",
                     (item_id,)
                 )
                 row = await cur.fetchone()
                 if not row:
                     await conn.execute("ROLLBACK")
                     return {'purchased': False, 'reason': 'item_not_found'}
-                price, deprecated = row
+                rarity, deprecated = row
                 if deprecated:
                     await conn.execute("ROLLBACK")
                     return {'purchased': False, 'reason': 'deprecated'}
+                price = PET_COSMETIC_PRICES.get(rarity, PET_COSMETIC_PRICES['common'])
 
                 # Already owned?
                 cur = await conn.execute(
@@ -1767,18 +1761,18 @@ class Database:
                     await conn.execute("ROLLBACK")
                     return {'purchased': False, 'reason': 'already_owned'}
 
-                # Receipt-idempotency (only for bits mode)
-                if bits_receipt:
-                    cur = await conn.execute(
-                        "SELECT id FROM pet_purchases WHERE bits_receipt = ?",  # tenant-ok: bits_receipt is a globally-unique Twitch-issued key (cross-channel dedup by design)
-                        (bits_receipt,)
-                    )
-                    if await cur.fetchone():
-                        await conn.execute("ROLLBACK")
-                        return {'purchased': False, 'reason': 'receipt_already_used'}
+                # Списываем крустики атомарно (в той же TX). points >= price, иначе
+                # 0 строк затронуто → не хватает → откат, предмет не выдаём.
+                cur = await conn.execute(
+                    "UPDATE viewers SET points = points - ? "
+                    "WHERE channel_id = ? AND username = ? AND points >= ?",
+                    (price, channel_id, uname, price)
+                )
+                if cur.rowcount == 0:
+                    await conn.execute("ROLLBACK")
+                    return {'purchased': False, 'reason': 'insufficient_crustics', 'price': price}
 
                 # Ensure pet exists (для new юзеров)
-                from config import PET_BASE_TYPE
                 await conn.execute(
                     "INSERT OR IGNORE INTO pets (username, pet_type) VALUES (?, ?)",
                     (uname, PET_BASE_TYPE)
@@ -1809,12 +1803,12 @@ class Database:
                     )
                     hatched = (cur.rowcount > 0)
 
-                # Audit
+                # Audit (bits_amount/mode — legacy-колонки: храним крустик-цену, mode='mock')
                 cur = await conn.execute(
                     "INSERT INTO pet_purchases "
                     "(username, item_id, channel_id, bits_amount, bits_receipt, mode) "
-                    "VALUES (?, ?, ?, ?, ?, ?)",
-                    (uname, item_id, channel_id, price, bits_receipt, mode)
+                    "VALUES (?, ?, ?, ?, NULL, 'mock')",
+                    (uname, item_id, channel_id, price)
                 )
                 purchase_id = cur.lastrowid
                 await conn.commit()
@@ -1822,8 +1816,7 @@ class Database:
                 return {
                     'purchased':   True,
                     'item_id':     item_id,
-                    'price_bits':  price,
-                    'mode':        mode,
+                    'price':       price,
                     'purchase_id': purchase_id,
                     'hatched':     hatched,  # True если egg → 🐣 произошёл
                 }

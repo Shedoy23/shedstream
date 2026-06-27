@@ -369,16 +369,19 @@ async def get_viewer_achievements(username: str, request: Request):
 
 
 @router.get("/api/viewer/online-list")
-async def get_online_users():
-    """Список пользователей онлайн (не AFK) для дропдаунов"""
+async def get_online_users(request: Request):
+    """Список пользователей онлайн (не AFK) для дропдаунов — scoped по каналу из
+    JWT (без JWT → default-канал). Иначе протекает presence между каналами."""
+    auth = require_jwt_user(request)
+    channel_id = auth[1] if auth else resolve_channel_id_or_default()
     db = get_db()
     async with db._connect() as conn:
         cursor = await conn.execute("""
             SELECT username FROM viewers
-            WHERE is_afk = 0
+            WHERE channel_id = ? AND is_afk = 0
             AND last_seen > datetime('now', '-10 minutes')
             ORDER BY username
-        """)
+        """, (channel_id,))
         rows = await cursor.fetchall()
     return {"users": [r[0] for r in rows]}
 

@@ -1740,7 +1740,7 @@ function _playTts(msg) {
             await fetch(`${SERVER}/api/overlay/tts/played`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({id: msg.id}),
+                body: JSON.stringify({id: msg.id, channel_id: PETS_CHANNEL_ID}),
             });
         } catch (e) { /* silent */ }
     };

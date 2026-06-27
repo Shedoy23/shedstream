@@ -86,9 +86,9 @@ async def tts_submit(request: Request):
     async with db._connect() as conn:
         cur = await conn.execute(
             "SELECT (strftime('%s','now') - strftime('%s', created_at)) "
-            "FROM tts_messages WHERE username = ? "
+            "FROM tts_messages WHERE username = ? AND channel_id = ? "
             "ORDER BY created_at DESC LIMIT 1",
-            (username,)
+            (username, channel_id)
         )
         row = await cur.fetchone()
         if row and row[0] is not None and row[0] < TTS_COOLDOWN_S:
@@ -170,24 +170,27 @@ async def tts_pending(channel_id: int = 0):
             "username":   row[1],
             "text":       row[2],
             "created_at": row[3],
-            "audio_url":  f"/api/tts/audio/{row[0]}.mp3",
+            "audio_url":  f"/api/tts/audio/{row[0]}.mp3?channel_id={channel_id}",
         },
     }
 
 
 @router.get("/api/tts/audio/{msg_id}.mp3")
-async def tts_audio(msg_id: int):
+async def tts_audio(msg_id: int, channel_id: int = 0):
     """Раздаёт mp3 для конкретного message id из audio_data BLOB.
 
-    Public — overlay.html без auth. id указан в URL, по нему overlay
-    получает из /api/overlay/tts/pending. Кеширование браузером
-    отключено (Cache-Control: no-cache) — overlay скачивает каждый раз.
+    Public — overlay.html без auth. id + channel_id указаны в URL (overlay
+    берёт готовый audio_url из /api/overlay/tts/pending). Скоуп по channel_id —
+    иначе любой overlay скачивает аудио чужого канала по голому id.
+    Кеширование браузером отключено (Cache-Control: no-cache).
     """
+    if channel_id <= 0:
+        channel_id = resolve_channel_id_or_default()
     db = get_db()
     async with db._connect() as conn:
         cur = await conn.execute(
-            "SELECT audio_data FROM tts_messages WHERE id = ?",
-            (msg_id,)
+            "SELECT audio_data FROM tts_messages WHERE id = ? AND channel_id = ?",
+            (msg_id, channel_id)
         )
         row = await cur.fetchone()
 
@@ -205,7 +208,9 @@ async def tts_audio(msg_id: int):
 async def tts_played(request: Request):
     """Overlay → mark message played после speechSynthesis.onend.
 
-    Body: {"id": int}
+    Body: {"id": int, "channel_id": int}
+    Скоуп по channel_id — иначе overlay чужого канала может пометить
+    played'нутым (и тем самым «проглотить») TTS этого канала.
     """
     data = await request.json()
     try:
@@ -214,14 +219,20 @@ async def tts_played(request: Request):
         return {"success": False, "message": "Неверный id"}
     if msg_id <= 0:
         return {"success": False, "message": "id обязателен"}
+    try:
+        channel_id = int(data.get("channel_id", 0))
+    except (TypeError, ValueError):
+        channel_id = 0
+    if channel_id <= 0:
+        channel_id = resolve_channel_id_or_default()
 
     db = get_db()
     async with db._connect() as conn:
         cur = await conn.execute(
             "UPDATE tts_messages "
             "SET status = 'played', played_at = CURRENT_TIMESTAMP "
-            "WHERE id = ? AND status = 'pending'",
-            (msg_id,)
+            "WHERE id = ? AND channel_id = ? AND status = 'pending'",
+            (msg_id, channel_id)
         )
         await conn.commit()
         updated = cur.rowcount

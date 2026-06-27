@@ -20,7 +20,6 @@
         home:    { type: 'colonist.assign_home',      price: 200 },
         xp:      { type: 'colonist.add_xp',           price: 400 },
         fulfill: { type: 'colonist.fulfill_request',  price: 100 },
-        rename:  { type: 'colonist.rename',           price: 300 },
         feed:    { type: 'colonist.feed',             price: 75 },
         cure:    { type: 'colonist.cure_disease',     price: 100 },
         heal:    { type: 'colonist.heal',             price: 100 },
@@ -64,7 +63,6 @@
         'colonist.assign_home':      '🏠 Заявка на дом принята — поселим через пару секунд.',
         'colonist.add_xp':           '📈 Заявка на прокачку принята — скилл вырастет через пару секунд.',
         'colonist.fulfill_request':  '📦 Заявка принята — просьбу колониста выполним через пару секунд.',
-        'colonist.rename':           '✏️ Заявка на переименование принята — применим через пару секунд.',
         'colonist.feed':             '🍖 Заявка принята — колониста покормят через пару секунд.',
         'colonist.cure_disease':     '💊 Заявка принята — вылечим через пару секунд.',
         'colonist.heal':             '❤ Заявка принята — восстановим здоровье через пару секунд.',
@@ -277,8 +275,6 @@
 
             // Care — own-colonist Phase 7 actions (cheap, deterministic, grief-safe).
             html += '<div class="sc-card"><div class="sc-section-title">Забота о колонисте</div>';
-            html += '<input class="sc-input" id="sc-rename-input" maxlength="16" placeholder="Новое имя (1–16)">';
-            html += '<button class="sc-btn" data-sc="rename">Переименовать — 300 💎</button>';
             html += '<div class="sc-care-row">'
                 + '<button class="sc-btn sc-btn-sm" data-sc="feed">🍖 Покормить · 75</button>'
                 + '<button class="sc-btn sc-btn-sm" data-sc="cure">💊 Вылечить · 100</button>'
@@ -428,11 +424,6 @@
         } else if (kind === 'xp') {
             var ss = document.getElementById('sc-skill-select');
             data.skill = ss && ss.value ? ss.value : 'Strength';
-        } else if (kind === 'rename') {
-            var ri = document.getElementById('sc-rename-input');
-            var nm = ri && ri.value ? ri.value.trim() : '';
-            if (!nm) { showNotification('Введи имя (1–16 символов)', 'error', 3000); return; }
-            data.new_name = nm;
         } else if (kind === 'give_item') {
             var gs = document.getElementById('sc-give-select');
             if (!gs || !gs.value) { showNotification('Выбери предмет', 'error', 3000); return; }

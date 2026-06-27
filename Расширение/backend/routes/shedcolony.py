@@ -55,7 +55,6 @@ _PURCHASABLE_ACTIONS = (
     "colonist.add_xp",
     "colonist.fulfill_request",
     # Phase 7 — colonist care (own colonist, deterministic, grief-safe)
-    "colonist.rename",
     "colonist.feed",
     "colonist.cure_disease",
     "colonist.heal",
@@ -84,7 +83,6 @@ _ACTION_PRICES: dict[str, int] = {
     "colonist.assign_home":      200,
     "colonist.add_xp":           400,   # was 150 — +1000 XP is a real progression lever
     "colonist.fulfill_request":  100,
-    "colonist.rename":           300,
     "colonist.feed":              75,
     "colonist.cure_disease":     100,
     "colonist.heal":             100,
@@ -121,9 +119,6 @@ _DONATE_WHITELIST = {
 # Fixed XP per add_xp purchase (viewer picks the skill, server fixes the amount).
 _XP_AMOUNT = 1000
 
-# rename — the only free-text viewer input → moderation surface (length + charset).
-_RENAME_RE = re.compile(r"^[A-Za-zА-Яа-яЁё0-9 ]{1,16}$")
-
 # fulfill_request — optional selector: which open request to close. The value is a MineColonies
 # request token AS THE MOD RENDERS IT, e.g. "StandardToken{id=<uuid>}" — NOT a bare UUID, so the
 # charset must allow letters/braces/'='. Not security-sensitive (only picks among the viewer's OWN
@@ -137,7 +132,6 @@ _NEEDS_CITIZEN = (
     "colonist.assign_home",
     "colonist.add_xp",
     "colonist.fulfill_request",
-    "colonist.rename",
     "colonist.feed",
     "colonist.cure_disease",
     "colonist.heal",
@@ -257,12 +251,6 @@ async def _buy_action_locked(username: str, channel_id: int,
         data["name"] = username           # MVP: colonist named after the viewer
     elif action_type == "colonist.add_xp":
         data["amount"] = _XP_AMOUNT        # server-fixed XP per purchase
-    elif action_type == "colonist.rename":
-        new_name = (data.get("new_name") or "").strip()
-        if not new_name or not _RENAME_RE.match(new_name):
-            return {"success": False,
-                    "message": "Имя: 1–16 символов, только буквы/цифры/пробел"}
-        data["new_name"] = new_name        # validated/filtered name → mod trusts it
     elif action_type == "colonist.give_item":
         item = (data.get("item") or "").strip()
         if item not in _GIVE_ITEM_WHITELIST:

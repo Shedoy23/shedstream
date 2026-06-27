@@ -37,7 +37,6 @@ extensions:
     - colonist.add_xp          # прокачать скилл (+1000 XP)
     - colonist.fulfill_request # выполнить открытую просьбу колониста (Path C)
     # Phase 7 — colonist care (own colonist, deterministic, grief-safe)
-    - colonist.rename          # переименовать (фильтр имени на бэке)
     - colonist.feed            # насытить (saturation → 60)
     - colonist.cure_disease    # вылечить болезнь
     - colonist.heal            # восстановить HP (needs-entity)

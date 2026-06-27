@@ -24,6 +24,29 @@ from dependencies import (
 
 router = APIRouter()
 
+
+@router.post("/api/bug-report")
+async def submit_bug_report(request: Request):
+    """Зритель шлёт багрепорт из расширения → пишется в bug_reports (та же таблица,
+    что и чат-команда !баг; стример читает в дашборде). Auth: JWT (username+channel_id
+    из токена, никогда из body). Анти-спам: тот же кулдаун, что у !баг."""
+    auth = require_jwt_user(request)
+    if not auth:
+        return {"success": False, "message": "❌ Требуется авторизация Twitch"}
+    username, channel_id = auth
+    body = await request.json()
+    msg = (body.get("message") or "").strip()
+    if len(msg) < 5:
+        return {"success": False, "message": "Опиши проблему подробнее (мин. 5 символов)"}
+    import bug_reports
+    left = bug_reports.cooldown_left(channel_id, username)
+    if left > 0:
+        return {"success": False, "message": f"Подожди {left} сек перед следующим багрепортом"}
+    await bug_reports.record_bug_report(channel_id, username, msg)
+    bug_reports.mark_reported(channel_id, username)
+    return {"success": True, "message": "🐛 Спасибо! Багрепорт отправлен стримеру."}
+
+
 # ── Twitch ID cache ───────────────────────────────────────────────────────────
 _twitch_app_token:    str   = None
 _twitch_token_expires: float = 0

@@ -213,18 +213,16 @@ async function loadRulection() {
             if (prizeEl) prizeEl.textContent = ev.prize.name;
             if (partsEl) partsEl.textContent = ev.participants;
 
-            // Таблица ставок
+            // Таблица участников
             const bidsEl = document.getElementById('rulection-bids-list');
             if (bidsEl) {
                 if (!ev.bids || ev.bids.length === 0) {
-                    bidsEl.innerHTML = '<div style="color:#adadb8;text-align:center;padding:8px;">Ставок пока нет — первым!</div>';
+                    bidsEl.innerHTML = '<div style="color:#adadb8;text-align:center;padding:8px;">Участников пока нет — будь первым!</div>';
                 } else {
                     bidsEl.innerHTML = ev.bids.map((b, i) => {
                         const isMe = b.username === userLogin;
                         const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
-                        const chanceOrLead = ev.type === 'roulette'
-                            ? `<span style="color:#9147ff;">${b.chance}%</span>`
-                            : (i === 0 ? '<span style="color:#ffd700;">лидер</span>' : '');
+                        const chanceOrLead = (i === 0 ? '<span style="color:#ffd700;">лидер</span>' : '');
                         return `<div style="display:flex;justify-content:space-between;padding:4px 6px;border-radius:4px;${isMe?'background:#2d2d2f;font-weight:700;':''}">
                             <span>${medal} ${escapeHtml(b.username)}${isMe?' 👈':''}</span>
                             <span>${b.amount.toLocaleString()}💎 ${chanceOrLead}</span>

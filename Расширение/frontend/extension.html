@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://extension-files.twitch.tv; connect-src 'self' https://api.twitch.tv https://shedoy23.ru http://localhost:* http://127.0.0.1:*; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://extension-files.twitch.tv; connect-src 'self' https://api.twitch.tv https://shedoy23.ru; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:;">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <style>html,body{width:100%;height:100%;margin:0;padding:0;overflow:hidden;}</style>
@@ -13,7 +13,7 @@
 
 <div id="overlay-panel" class="open">
     <div id="panel-close">
-        <span class="panel-title">⚔️ RimLink</span>
+        <span class="panel-title">ShedLink</span>
         <button id="panel-hide-btn" title="Скрыть панель">✕</button>
     </div>
     <div id="panel-content">
@@ -158,11 +158,11 @@
                         <div class="bot-card-sub" id="voting-state">Реши что играет стример</div>
                     </div>
                 </div>
-                <div class="action-card bot-card" data-action="advertisement">
-                    <div class="bot-card-icon">📢</div>
+                <div class="action-card bot-card" data-action="bug_report">
+                    <div class="bot-card-icon">🐛</div>
                     <div class="bot-card-body">
-                        <div class="bot-card-title">Реклама</div>
-                        <div class="bot-card-sub">Ваша реклама здесь</div>
+                        <div class="bot-card-title">Сообщить о баге</div>
+                        <div class="bot-card-sub">Нашёл проблему? Напиши нам</div>
                     </div>
                 </div>
                 <div class="action-card bot-card" data-action="tts">

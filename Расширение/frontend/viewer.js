@@ -194,12 +194,12 @@ function setupCspSafeHandlers() {
         else if (action === 'voting') openVotingModal();
         else if (action === 'pets') openPetsModal();
         else if (action === 'duels') openDuels();
-        else if (action === 'advertisement') openAdvertisement();
         // Sprint 5.19: квесты/промо переехали из inline-блоков в модалки
         else if (action === 'quests') openQuestsModal();
         else if (action === 'promo') openPromoModal();
         // Sprint 5.23: TTS «Озвучить сообщение»
         else if (action === 'tts') openTtsModal();
+        else if (action === 'bug_report') openBugReport();
         // 'transfer' action удалён 2026-05-10 (Phase 1.D compliance rework — P2P transfer)
         else if (action === 'family') openFamily();
         else if (action === 'refresh-shop-catalog') loadShopCatalog();
@@ -1208,6 +1208,11 @@ function switchIntegrationModule(activeModule) {
     const sc      = document.getElementById('shedcolony-content');
     if (!empty || !rim || !bnr) return;
 
+    const _titleEl = document.querySelector('.panel-title');
+    if (_titleEl) {
+        _titleEl.textContent = { bannerlord: '⚔️ Bannerlord', rimworld: '🧬 RimWorld', shedcolony: '⛏️ Колония' }[activeModule] || 'ShedLink';
+    }
+
     if (activeModule === 'bannerlord') {
         empty.style.display = 'none';
         rim.style.display = 'none';
@@ -1864,7 +1869,7 @@ async function _bannerlordBuyAction(actionType, data) {
         // Sprint 5.29 audit fix #36: backend message в console для audit trail.
         // Раньше backend rejections / silent issues — нечем диагностировать без
         // прикладного breakpoint в DevTools.
-        console.log('[BNR action]', actionType,
+        dbg('[BNR action]', actionType,
                     result.success ? '✓' : '✗',
                     result.message || '(no message)',
                     result.perk ? `(perk=${result.perk} ×${result.perk_price_mult})` : '');
@@ -1893,13 +1898,13 @@ async function _bannerlordBuyAction(actionType, data) {
             }[result.required_role] || result.required_role;
             toastMsg = `🔒 ${toastMsg}`;
             // Sprint 5.32 (LOG-4) — categorized prefix [FE-GATE] для grep'а.
-            console.warn('[FE-GATE]', actionType,
+            dbg('[FE-GATE]', actionType,
                          `required=${result.required_role} your=${result.your_role}`);
         }
         // Sprint 5.32 (LOG-4) — log на idempotent_replay (H1) чтобы видно
         // когда retry реально срабатывает (дебаг network blip / proxy issues).
         if (result.idempotent_replay) {
-            console.info('[FE-IDEM] retry hit', actionType,
+            dbg('[FE-IDEM] retry hit', actionType,
                          'action_id=' + result.action_id);
         }
         // 2026-05-29 — кулдаун на кнопке вместо warning-тоста.
@@ -2306,7 +2311,7 @@ function _startAttendanceTracking() {
 }
 
 
-// ===== КАЗИНО =====
+// ===== ПРОМОКОД =====
 /** Возвращает true если пользователь авторизован (не testuser и не opaque ID) */
 async function usePromo() {
     const code = document.getElementById('promo-input')?.value?.trim().toUpperCase();
@@ -2397,40 +2402,50 @@ function restorePanel() {
     if (restoreBtn) restoreBtn.style.display = 'none';
 }
 
-// ===== РЕКЛАМА =====
-function openAdvertisement() {
-    const old = document.getElementById('ad-modal');
+// ===== БАГРЕПОРТ (бывш. реклама — убрана для §9.3, переделана в багрепорт) =====
+function openBugReport() {
+    const old = document.getElementById('bug-modal');
     if (old) old.remove();
 
     const modal = document.createElement('div');
-    modal.id = 'ad-modal';
+    modal.id = 'bug-modal';
     modal.className = 'modal active';
     modal.innerHTML = `
         <div class="modal-content" style="max-width:400px;">
-            <h2>📢 Реклама</h2>
-            <p style="margin-bottom:16px;color:#adadb8;font-size:13px;text-align:center;">
-                Ваша реклама может быть здесь!
+            <h2>🐛 Сообщить о баге</h2>
+            <p style="margin-bottom:10px;color:#adadb8;font-size:13px;">
+                Опиши, что сломалось — отправится напрямую стримеру.
             </p>
-            <a href="https://t.me/ttvshedoy23"
-               target="_blank"
-               rel="noopener noreferrer"
-               style="display:block;background:#0088cc;color:white;padding:14px 20px;border-radius:12px;text-decoration:none;font-weight:700;margin-bottom:12px;text-align:center;">
-                ✈ Перейти в Telegram
-            </a>
-            <p style="text-align:center;font-size:11px;color:#666;margin-top:8px;">
-                Или откройте чат напрямую:
-            </p>
-            <a href="https://t.me/+x6Di_VyeFMxhZWE6"
-               target="_blank"
-               rel="noopener noreferrer"
-               style="display:block;background:#2d2d2f;border:1px solid #3d3d3f;color:#adadb8;padding:10px 16px;border-radius:10px;text-decoration:none;font-size:12px;margin-top:4px;">
-                💬 Открыть чат
-            </a>
+            <textarea id="bug-text" maxlength="500" rows="4" placeholder="Что пошло не так?"
+                style="width:100%;box-sizing:border-box;background:#1f1f23;border:1px solid #3d3d3f;border-radius:10px;color:#efeff1;padding:10px;font-size:13px;resize:vertical;"></textarea>
+            <div id="bug-status" style="font-size:12px;margin:8px 0;min-height:14px;"></div>
+            <button id="bug-send" style="width:100%;background:#12b886;border:none;color:#fff;padding:12px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;">Отправить</button>
         </div>
     `;
     (document.getElementById('overlay-panel') || document.body).appendChild(modal);
-    modal.addEventListener('click', e => {
-        if (e.target === modal) modal.remove();
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+    const status = modal.querySelector('#bug-status');
+    modal.querySelector('#bug-send').addEventListener('click', async () => {
+        const text = (modal.querySelector('#bug-text').value || '').trim();
+        if (text.length < 5) { status.textContent = 'Опиши подробнее (мин. 5 символов)'; status.style.color = '#fbbf24'; return; }
+        status.textContent = 'Отправка…'; status.style.color = '#adadb8';
+        try {
+            const r = await fetch(`${API_URL}/api/bug-report`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || '' },
+                body: JSON.stringify({ message: text }),
+            });
+            const data = await r.json();
+            if (data.success) {
+                status.textContent = data.message || 'Отправлено!'; status.style.color = '#34d399';
+                setTimeout(() => modal.remove(), 1500);
+            } else {
+                status.textContent = data.message || 'Не получилось'; status.style.color = '#f87171';
+            }
+        } catch (e) {
+            status.textContent = 'Сеть недоступна — попробуй ещё раз'; status.style.color = '#f87171';
+        }
     });
 }
 

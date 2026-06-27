@@ -359,7 +359,7 @@ async def expire_old_proposals(channel_id: int = None) -> int:
             cur = await conn.execute(
                 "UPDATE bannerlord_marriage_proposals "
                 "SET status='expired', resolved_at=CURRENT_TIMESTAMP "
-                "WHERE status='pending' AND datetime(expires_at) < datetime('now')")
+                "WHERE status='pending' AND datetime(expires_at) < datetime('now')")  # tenant-ok: channel_id=None = intentional cross-channel expiry sweep; per-channel path below
         else:
             cur = await conn.execute(
                 "UPDATE bannerlord_marriage_proposals "

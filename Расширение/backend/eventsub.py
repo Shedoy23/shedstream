@@ -727,7 +727,7 @@ async def cleanup_seen_loop():
             db = get_db()
             async with db._connect() as conn:
                 cursor = await conn.execute(
-                    "DELETE FROM eventsub_seen WHERE seen_at < ?", (cutoff,)
+                    "DELETE FROM eventsub_seen WHERE seen_at < ?", (cutoff,)  # tenant-ok: hourly TTL maintenance sweep, intentionally all channels
                 )
                 await conn.commit()
                 if cursor.rowcount:

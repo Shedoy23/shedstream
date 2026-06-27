@@ -473,7 +473,7 @@ async def auctions_resolve_loop():
             async with get_db()._connect() as conn:
                 cur = await conn.execute(
                     "SELECT id FROM bannerlord_auctions "
-                    "WHERE status='active' AND datetime('now') >= ends_at"
+                    "WHERE status='active' AND datetime('now') >= ends_at"  # tenant-ok: background resolve loop scans all channels; _resolve_one_auction re-scopes by row channel_id
                 )
                 rows = await cur.fetchall()
                 if not rows:

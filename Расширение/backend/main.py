@@ -488,7 +488,7 @@ async def run_migrations():
                     """UPDATE rimworld_pawn_skills
                        SET skill_name = CASE skill_name
                            WHEN ? THEN ?
-                       END WHERE skill_name = ?""",
+                       END WHERE skill_name = ?""",  # tenant-ok: one-time startup skill_name migration, must touch all channels
                     (_rus, _eng, _rus))
             except aiosqlite.OperationalError as e:
                 print(f"⚠️ Migration warning (skill_name remap {_rus}): {e}")
@@ -1633,7 +1633,7 @@ async def cleanup_test_accounts():
                   'Pedka_Ethanenka', 'Pedka_Sosi', 'HACKED_PAWN']
     async with db._connect() as conn:
         for u in test_users:
-            cursor = await conn.execute("SELECT username FROM viewers WHERE username = ?", (u,))
+            cursor = await conn.execute("SELECT username FROM viewers WHERE username = ?", (u,))  # tenant-ok: startup pentest-account cleanup, cross-channel intentional
             if await cursor.fetchone():
                 for table in _CLEANUP_TABLES:
                     await conn.execute(f"DELETE FROM {table} WHERE username = ?", (u,))

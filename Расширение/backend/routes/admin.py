@@ -1,6 +1,10 @@
 """
 routes/admin.py — администрирование: пользователи, предметы, очки.
 
+tenant-lint: skip-file — admin panel is a single platform-owner surface
+(require_admin = one HTTP-Basic credential, read-only since the 2026-06-14 audit);
+its cross-channel viewer/inventory/pawn reads are intentional, not a tenant leak.
+
 ARCH NOTE (Block 2 audit): этот файл — единственный route'ер использующий
 `aiosqlite.connect(db.db_path)` напрямую (bypass pool). Причина: Row factory
 (`conn.row_factory = aiosqlite.Row`) меняет state соединения, что mутирует

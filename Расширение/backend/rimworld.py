@@ -1,5 +1,10 @@
 # rimworld.py — RimWorld legacy routes (1981 line monolith).
 #
+# tenant-lint: skip-file — RimWorld module is currently OFF; its multi-tenant
+#   scoping misses (queries by username with no channel_id, full-table scans) are
+#   tracked for fix-on-reactivation (task_f2662300, see SUBMIT_AND_REVIEW.md).
+#   Remove this marker when those queries get channel_id so the gate re-arms here.
+#
 # DEPRECATION NOTICE (2026-05-08):
 # Этот файл — исторический monolith с 30+ /api/rimworld/* endpoint'ами.
 # Migration to Module API path в process'е, см. docs/MODULE_MIGRATION.md.

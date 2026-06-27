@@ -1757,7 +1757,7 @@ class Database:
                 # Receipt-idempotency (only for bits mode)
                 if bits_receipt:
                     cur = await conn.execute(
-                        "SELECT id FROM pet_purchases WHERE bits_receipt = ?",
+                        "SELECT id FROM pet_purchases WHERE bits_receipt = ?",  # tenant-ok: bits_receipt is a globally-unique Twitch-issued key (cross-channel dedup by design)
                         (bits_receipt,)
                     )
                     if await cur.fetchone():

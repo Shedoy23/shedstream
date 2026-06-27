@@ -146,23 +146,21 @@ function _renderPetsToggle() {
 }
 
 async function _togglePets() {
-    if (!_channelId) {
-        _setPetsStatus('Нет channel_id', '#f87171');
+    if (!_jwt) {
+        _setPetsStatus('Нет авторизации Twitch', '#f87171');
         return;
     }
     const newState = !_petsEnabled;
     try {
-        // Streamer-toggle endpoint требует admin auth (basic). Для self-serve
-        // через Twitch config UI broadcaster сам себя авторизует — переходник
-        // на бэке (TODO Phase 7.E.1: принимать Twitch JWT с role='broadcaster').
-        // Пока MVP — простой POST с обозначением что это требует admin.
+        // Self-serve через Twitch config view: шлём broadcaster-JWT, бэк берёт
+        // channel_id ИЗ токена (нельзя переключить чужой канал).
         const r = await fetch(`${SERVER}/api/streamer/pets/overlay-toggle`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ channel_id: _channelId, enabled: newState }),
+            headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': _jwt },
+            body: JSON.stringify({ enabled: newState }),
         });
         if (r.status === 401 || r.status === 403) {
-            _setPetsStatus('Требуется логин в админ-панель (пока)', '#fbbf24');
+            _setPetsStatus('Открой настройки от имени бродкастера канала', '#fbbf24');
             return;
         }
         const data = await r.json();

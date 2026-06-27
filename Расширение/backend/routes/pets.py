@@ -37,7 +37,9 @@ DEFERRED post-MVP (известно, по плану):
     До тех пор streamer переключает через /admin или просит саппорт.
 """
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import JSONResponse
 
+from auth import verify_twitch_jwt
 from config import PETS_BITS_REQUIRED, PET_SLOTS
 from dependencies import (
     get_db, require_admin, require_jwt_user, resolve_channel_id_or_default,
@@ -231,26 +233,30 @@ async def overlay_pets(channel_id: int = 0):
     return {"success": True, "enabled": True, "viewers": viewers}
 
 
-# ── Streamer-control (admin auth) ─────────────────────────────────────────────
+# ── Streamer-control (broadcaster-JWT, self-serve from the Twitch config view) ────
 
 @router.post("/api/streamer/pets/overlay-toggle")
-async def streamer_pets_toggle(
-    request: Request,
-    _admin: str = Depends(require_admin),
-):
-    """Стример: вкл/выкл pets-overlay на своём канале.
+async def streamer_pets_toggle(request: Request):
+    """Стример вкл/выкл pets-overlay на СВОЁМ канале — self-serve из Twitch config view.
 
-    Body: {"channel_id": int, "enabled": bool}
+    Auth: broadcaster-JWT (role='broadcaster'). channel_id берётся ТОЛЬКО из токена —
+    бродкастер не может переключать чужой канал (body.channel_id игнорируется).
+    Body: {"enabled": bool}
     """
-    data = await request.json()
+    auth = verify_twitch_jwt(request)
+    if auth.get("status") != "valid" or auth.get("role") != "broadcaster":
+        return JSONResponse(
+            {"success": False, "message": "Доступно только бродкастеру своего канала"},
+            status_code=403)
     try:
-        channel_id = int(data.get("channel_id", 0))
+        channel_id = int(auth.get("channel_id") or 0)
     except (TypeError, ValueError):
-        return {"success": False, "message": "Неверный channel_id"}
-    enabled = bool(data.get("enabled", True))
-
+        channel_id = 0
     if channel_id <= 0:
-        return {"success": False, "message": "channel_id обязателен"}
+        return {"success": False, "message": "В токене нет channel_id"}
+
+    body = await request.json()
+    enabled = bool(body.get("enabled", True))
 
     db = get_db()
     await db.set_channel_pets_setting(channel_id, enabled)

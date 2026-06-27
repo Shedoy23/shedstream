@@ -58,7 +58,18 @@ class ShedColonyAdapter(ModuleAdapter):
             return
         from dependencies import get_db
         async with get_db()._connect() as conn:
-            # ON CONFLICT(channel_id, viewer_id) — пере-привязка (после смерти/реролла).
+            # TAKEOVER: a citizen_id belongs to exactly one viewer (UNIQUE constraint). If ANOTHER
+            # viewer still holds this id, their colonist was recycled away by MineColonies (the id got
+            # reused for this new spawn) — release their stale claim so the new owner can take it.
+            # DELETE (not mark 'dead'): a 'dead' row still occupies UNIQUE(channel_id, citizen_id), so
+            # the recycled id could never be re-linked → the new owner's INSERT would fail silently and
+            # the stale owner would keep controlling the reused colonist. THIS was the 2026-06-27
+            # shedoy23→bapah bug (bapah spawned on shedoy23's recycled citizen 1, INSERT blocked).
+            await conn.execute(
+                "DELETE FROM shedcolony_colony_link "
+                "WHERE channel_id=? AND citizen_id=? AND viewer_id<>?",
+                (channel_id, citizen_id, viewer_id))
+            # ON CONFLICT(channel_id, viewer_id) — пере-привязка того же зрителя (после смерти/реролла).
             await conn.execute("""
                 INSERT INTO shedcolony_colony_link
                     (channel_id, viewer_id, citizen_id, colony_id, colony_dim, status)
@@ -121,10 +132,60 @@ class ShedColonyAdapter(ModuleAdapter):
             await conn.commit()
 
     async def _on_colony_snapshot(self, channel_id: int, env: ModuleEnvelope) -> None:
-        """Полный список колонистов на старте сессии — для reconciliation.
-        MVP: логируем размер; пер-колонист state придёт отдельными colonist.state."""
+        """Session-start reconcile against the live colony roster [{id, name}]. Two jobs:
+        (1) DEAD-DETECTION — mark any active link whose colonist is GONE from the colony as dead
+            (covers a death that never fired player.died → otherwise the link stays active and a
+            recycled id collides). (2) NAME CANONICALIZATION — enqueue an internal set_name so every
+            linked colonist is named "[MCLink] <viewer>" (rolls back the removed rename feature + tags
+            untagged ones). The link table stays the ownership truth (kept correct by player.linked +
+            its takeover); names just follow the link."""
         colonists = env.data.get("colonists") or []
-        logger.info("[shedcolony:%s] colony.snapshot — %d colonists", channel_id, len(colonists))
+        snap: Dict[str, str] = {}
+        for c in colonists:
+            cid = str(c.get("id") or "")
+            if cid:
+                snap[cid] = c.get("name") or ""
+        logger.info("[shedcolony:%s] colony.snapshot — %d colonists", channel_id, len(snap))
+        if not snap:
+            return  # empty roster (colony not loaded yet) — never reconcile against nothing
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            cur = await conn.execute(
+                "SELECT viewer_id, citizen_id FROM shedcolony_colony_link "
+                "WHERE channel_id=? AND status='active'", (channel_id,))
+            links = [(row[0], row[1]) for row in await cur.fetchall()]
+            tag = "[MCLink] "
+            for viewer_id, citizen_id in links:
+                if citizen_id not in snap:
+                    await conn.execute(
+                        "UPDATE shedcolony_colony_link SET status='dead', died_at=CURRENT_TIMESTAMP "
+                        "WHERE channel_id=? AND viewer_id=? AND status='active'",
+                        (channel_id, viewer_id))
+                    logger.info("[shedcolony:%s] reconcile: @%s colonist %s gone → link dead",
+                                channel_id, viewer_id, citizen_id)
+                    continue
+                want = tag + viewer_id
+                if snap.get(citizen_id) != want:
+                    await self._enqueue_set_name(conn, channel_id, citizen_id, want)
+                    logger.info("[shedcolony:%s] reconcile: canonicalize citizen %s '%s' → '%s'",
+                                channel_id, citizen_id, snap.get(citizen_id), want)
+            await conn.commit()
+
+    async def _enqueue_set_name(self, conn, channel_id: int, citizen_id: str, name: str) -> None:
+        """Queue an INTERNAL colonist.set_name (not viewer-buyable) so the mod renames the colonist to
+        its canonical owner name. Skips if one is already queued for this citizen (idempotent)."""
+        import uuid
+        cur = await conn.execute(
+            "SELECT 1 FROM module_actions WHERE channel_id=? AND module_id='shedcolony' "
+            "AND type='colonist.set_name' AND status='queued' AND data LIKE ? LIMIT 1",
+            (channel_id, f'%"citizen_id": "{citizen_id}"%'))
+        if await cur.fetchone():
+            return
+        data = {"citizen_id": citizen_id, "name": name, "internal": True}
+        await conn.execute(
+            "INSERT INTO module_actions (channel_id, module_id, action_id, type, data, status) "
+            "VALUES (?, 'shedcolony', ?, 'colonist.set_name', ?, 'queued')",
+            (channel_id, uuid.uuid4().hex, json.dumps(data, ensure_ascii=False)))
 
     async def _on_colony_capacity(self, channel_id: int, env: ModuleEnvelope) -> None:
         """Снимок свободных слотов колонии (мод шлёт периодически) → slot-availability UI.

@@ -361,11 +361,19 @@ def _read_session_cookie(request: Request) -> Optional[int]:
 
 def _dashboard_html(ch: dict) -> str:
     """Inline dashboard. ch — record из db.get_channel() (без OAuth tokens)."""
-    tier = (ch.get("tier") or "free").upper()
+    import html, json
+    # Escape all channel-derived strings before they hit the HTML f-string — display_name
+    # is attacker-influenced (Twitch profile). HTML contexts get html.escape; the one JS
+    # context (markActiveModule) gets json.dumps + </ guard.
+    tier = html.escape((ch.get("tier") or "free").upper())
     tier_color = {"FREE": "#6e6e73", "PRO": "#9147ff", "VIP": "#f4b740"}.get(tier, "#6e6e73")
-    module = ch.get("active_module") or "—"
-    display = ch.get("display_name") or ch.get("login") or "?"
-    registered_at = ch.get("registered_at") or "?"
+    module_raw = ch.get("active_module") or "—"
+    module = html.escape(str(module_raw))
+    module_js = json.dumps(module_raw).replace("</", "<\\/")
+    display = html.escape(str(ch.get("display_name") or ch.get("login") or "?"))
+    login = html.escape(str(ch.get("login") or "?"))
+    channel_id = html.escape(str(ch.get("channel_id") or "?"))
+    registered_at = html.escape(str(ch.get("registered_at") or "?"))
     has_oauth = "✅" if ch.get("oauth_access_token") else "—"
     return f"""<!DOCTYPE html>
 <html lang="ru"><head><meta charset="utf-8"><title>Dashboard — {display}</title>
@@ -448,8 +456,8 @@ def _dashboard_html(ch: dict) -> str:
   <div class="grid">
     <div class="tile"><div class="lbl">Тариф</div><div class="val"><span class="tier-badge">{tier}</span></div></div>
     <div class="tile"><div class="lbl">Активный модуль</div><div class="val">{module}</div></div>
-    <div class="tile"><div class="lbl">Twitch login</div><div class="val">{ch.get("login","?")}</div></div>
-    <div class="tile"><div class="lbl">Channel ID</div><div class="val">{ch.get("channel_id","?")}</div></div>
+    <div class="tile"><div class="lbl">Twitch login</div><div class="val">{login}</div></div>
+    <div class="tile"><div class="lbl">Channel ID</div><div class="val">{channel_id}</div></div>
     <div class="tile"><div class="lbl">Подключён</div><div class="val">{registered_at}</div></div>
     <div class="tile"><div class="lbl">OAuth токен</div><div class="val">{has_oauth}</div></div>
   </div>
@@ -484,7 +492,7 @@ def _dashboard_html(ch: dict) -> str:
       else {{ modMsg('Ошибка: ' + (d.status || 'не удалось'), true); }}
     }} catch(e){{ modMsg('Network error: ' + e.message, true); }}
   }}
-  markActiveModule('{module}');
+  markActiveModule({module_js});
   </script>
 
   <!-- Module-токены (для C#-модов) -->

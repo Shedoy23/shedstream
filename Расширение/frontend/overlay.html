@@ -1231,7 +1231,7 @@ function announceEvent(typeName, prizeName) {
 function updateEpBids(bids) {
     const el = document.getElementById('ep-bids');
     if (!bids.length) {
-        el.innerHTML = '<div style="font-size:11px;color:rgba(255,255,255,0.25);text-align:center;padding:4px 0;">Ставок пока нет</div>';
+        el.innerHTML = '<div style="font-size:11px;color:rgba(255,255,255,0.25);text-align:center;padding:4px 0;">Участников пока нет</div>';
         return;
     }
     el.innerHTML = bids.slice(0, 6).map((b, i) => {

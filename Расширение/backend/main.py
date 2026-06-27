@@ -254,7 +254,11 @@ if FRONTEND_PATH and os.path.exists(FRONTEND_PATH):
     _pet_assets_path = os.path.join(FRONTEND_PATH, "pet-assets")
     if os.path.exists(_pet_assets_path):
         app.mount("/pet-assets", StaticFiles(directory=_pet_assets_path), name="pet-assets")
-        print(f"✅ Pet-assets mounted: {_pet_assets_path}")
+        # Также под /frontend/ — extension.html/JS отдаются по ОБОИМ путям (root и
+        # /frontend/), а Local Test "Base URI" может быть с хвостом /frontend/. Без
+        # этого зеркала pet-assets 404'ились бы по префиксу → синий «?» вместо спрайта.
+        app.mount("/frontend/pet-assets", StaticFiles(directory=_pet_assets_path), name="pet-assets-frontend")
+        print(f"✅ Pet-assets mounted: {_pet_assets_path} (root + /frontend/)")
     print(f"✅ Frontend папка подключена: {FRONTEND_PATH}")
 app.add_middleware(
     CORSMiddleware,

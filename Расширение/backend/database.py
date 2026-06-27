@@ -8,6 +8,60 @@ from typing import Optional, List, Dict
 from db_pool import DBPool
 from dependencies import resolve_channel_id
 
+import os as _os_db
+
+
+# ── At-rest encryption for stored OAuth tokens (channels table) ───────────────
+# Streamer OAuth access/refresh tokens are HIGH-value secrets (leak = channel
+# takeover). Encrypted at rest with Fernet keyed by DB_ENCRYPTION_KEY (.env).
+# Transition-safe: ciphertext carries an "enc:" prefix, so legacy plaintext rows
+# decrypt as-is and become encrypted on their next write. If the key is unset/
+# invalid, storage falls back to plaintext (current behaviour) with a loud
+# one-time warning — set DB_ENCRYPTION_KEY in prod to actually encrypt.
+_ENC_PREFIX = "enc:"
+_fernet_cached = None
+_fernet_init = False
+
+
+def _get_fernet():
+    global _fernet_cached, _fernet_init
+    if not _fernet_init:
+        _fernet_init = True
+        key = (_os_db.getenv("DB_ENCRYPTION_KEY") or "").strip()
+        if key:
+            try:
+                from cryptography.fernet import Fernet
+                _fernet_cached = Fernet(key.encode())
+            except Exception as e:
+                print(f"⚠️  DB_ENCRYPTION_KEY невалиден — OAuth-токены хранятся БЕЗ шифрования: {e}")
+        else:
+            print("⚠️  DB_ENCRYPTION_KEY не задан — OAuth-токены стримеров хранятся БЕЗ шифрования. "
+                  "Сгенерируй Fernet-ключ и пропиши в .env как DB_ENCRYPTION_KEY=...")
+    return _fernet_cached
+
+
+def _encrypt_secret(plaintext: Optional[str]) -> Optional[str]:
+    """Encrypt a secret for at-rest storage. None/empty/already-encrypted pass through."""
+    if not plaintext or plaintext.startswith(_ENC_PREFIX):
+        return plaintext
+    f = _get_fernet()
+    if not f:
+        return plaintext
+    return _ENC_PREFIX + f.encrypt(plaintext.encode()).decode()
+
+
+def _decrypt_secret(stored: Optional[str]) -> Optional[str]:
+    """Decrypt a stored secret. Legacy plaintext (no prefix) is returned unchanged."""
+    if not stored or not stored.startswith(_ENC_PREFIX):
+        return stored
+    f = _get_fernet()
+    if not f:
+        return stored
+    try:
+        return f.decrypt(stored[len(_ENC_PREFIX):].encode()).decode()
+    except Exception:
+        return stored
+
 
 # 2026-05-17: Guard helper — детектит Twitch opaque user IDs.
 # `u_xxx` / 15+ base64url chars — это значит viewer НЕ нажал Share Identity.
@@ -3516,8 +3570,8 @@ class Database:
                 "active_module":            row[4],
                 "registered_at":            row[5],
                 "last_seen_at":             row[6],
-                "oauth_access_token":       row[7],
-                "oauth_refresh_token":      row[8],
+                "oauth_access_token":       _decrypt_secret(row[7]),
+                "oauth_refresh_token":      _decrypt_secret(row[8]),
                 "oauth_expires_at":         row[9],
                 "eventsub_subscription_id": row[10],
             }
@@ -3569,7 +3623,7 @@ class Database:
                     oauth_expires_at     = COALESCE(excluded.oauth_expires_at, oauth_expires_at)
                 """,
                 (channel_id, login.lower(), display_name or login, tier,
-                 oauth_access_token, oauth_refresh_token, oauth_expires_at),
+                 _encrypt_secret(oauth_access_token), _encrypt_secret(oauth_refresh_token), oauth_expires_at),
             )
             await db.commit()
 
@@ -3597,7 +3651,7 @@ class Database:
                     last_seen_at        = CURRENT_TIMESTAMP
                 WHERE channel_id = ?
                 """,
-                (access_token, refresh_token, expires_at, channel_id),
+                (_encrypt_secret(access_token), _encrypt_secret(refresh_token), expires_at, channel_id),
             )
             await db.commit()
             return cur.rowcount > 0

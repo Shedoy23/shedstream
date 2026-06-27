@@ -370,7 +370,7 @@ async def accept_duel(req: AcceptDuelRequest, request: Request):
         ))
 
     if winner:
-        asyncio.create_task(bot.check_and_unlock_achievements(winner, "duel_win"))
+        asyncio.create_task(bot.check_and_unlock_achievements(winner, "duel_win", channel_id=channel_id))
 
     return {
         "success":      True,

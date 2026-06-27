@@ -76,12 +76,9 @@ ACHIEVEMENTS: List[Dict] = [
     {"id": "king",               "name": "Король",                "icon": "👑",
      "description": "Создай своё королевство",
      "stat_key": "kingdom_created", "threshold": 1},
-    {"id": "patriarch",          "name": "Патриарх",              "icon": "👨‍👩‍👧‍👦",
-     "description": "Имей 3 живых детей",
-     "stat_key": "children_count", "threshold": 3},
-    {"id": "married",            "name": "Семейный",              "icon": "💍",
-     "description": "Женись (или выйди замуж)",
-     "stat_key": "married", "threshold": 1},
+    # 2026-06-27: «Патриарх» (children_count) и «Семейный» (married) убраны из показа —
+    # их статы НИКОГДА не пишутся (family-snapshot из мода не реализован), ачивки
+    # висели невыполнимыми на 0%. Вернуть, когда мод начнёт слать брак/детей в stats.
 ]
 
 

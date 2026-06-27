@@ -1407,9 +1407,9 @@ class TwitchChatBot(twitch_commands.Bot):
             if reward <= 0:
                 return
 
-            # Проверяем что уже не выдавали эту награду за этот стрик (BEGIN IMMEDIATE — атомарно)
-            from dependencies import resolve_channel_id_or_default  # IRC USERNOTICE — TODO M4.5: брать channel.id из twitchio
-            channel_id = resolve_channel_id_or_default()
+            # Проверяем что уже не выдавали эту награду за этот стрик (BEGIN IMMEDIATE — атомарно).
+            # channel_id уже корректно вычислен выше из chat_login (~стр.1393) — НЕ
+            # перетираем его resolve_default'ом (старый multi-tenant баг: уходило на дефолт).
             async with db._connect() as conn:
                 await conn.execute("BEGIN IMMEDIATE")
                 cursor = await conn.execute(

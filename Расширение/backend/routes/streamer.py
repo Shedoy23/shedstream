@@ -514,6 +514,12 @@ def _dashboard_html(ch: dict) -> str:
       <button class="tok-copy" onclick="copyTok('rimworld')">📋 Копировать</button>
       <button class="tok-show" onclick="showTok('rimworld')">👁 Показать</button>
     </div>
+    <div class="tok-row">
+      <span class="tok-name">Minecraft</span>
+      <input class="tok-field" id="tok-shedcolony" type="text" readonly placeholder="скрыт — «Копировать» или «Показать»">
+      <button class="tok-copy" onclick="copyTok('shedcolony')">📋 Копировать</button>
+      <button class="tok-show" onclick="showTok('shedcolony')">👁 Показать</button>
+    </div>
     <div id="tok-msg" class="boosty-msg"></div>
   </div>
   <script>

@@ -368,9 +368,11 @@ function _renderTttBoard(room) {
     if (finished) {
         const newGameBtn = document.getElementById('ttt-new-game-btn');
         if (newGameBtn) {
+            _stopTttPolling();   // финал показан — стоп опроса, чтобы тик не затёр результат в idle (как в dice/duels)
             newGameBtn.addEventListener('click', async () => {
                 _tttCurrentRoomId = null;
                 _renderTttIdle();
+                _startTttPolling();   // вернулись в idle — опрос снова нужен для matchmaking
                 // Refresh leaderboard — обновился после finalize
                 _loadTttLeaderboard();
                 // Refresh balance — если был sезонный prize

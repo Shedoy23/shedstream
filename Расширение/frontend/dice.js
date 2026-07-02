@@ -19,6 +19,10 @@ let _diceCurrentRoomId = null;
 let _diceMoveLocked = false;
 let _diceLastState = null;
 let _diceRealtimeUnsub = null;
+// Vs-Bot: пока показан результат броска, 2-сек. опрос НЕ должен перерисовать
+// окно в idle (комнаты нет → poll видел «ничего не ждём» и стирал результат —
+// «мелькнул и пропал»). Флаг ставится на броске, снимается на возврате в idle.
+let _diceBotResultView = false;
 
 const _DICE_EMOJI = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
 
@@ -126,6 +130,7 @@ async function _diceRefreshStatus() {
 }
 
 function _renderDiceIdle() {
+    _diceBotResultView = false;   // вернулись на стартовый экран — poll снова активен
     const el = document.getElementById('dice-content');
     if (!el) return;
     el.innerHTML = `
@@ -182,6 +187,7 @@ function _renderDiceQueued(data) {
 async function _dicePlayVsBot() {
     if (_diceMoveLocked) return;
     _diceMoveLocked = true;
+    _diceBotResultView = true;   // защищаем анимацию + результат от poll'а
     const el = document.getElementById('dice-content');
 
     // Animation: dice rolling
@@ -571,7 +577,7 @@ function _startDicePolling() {
     _dicePollId = setInterval(async () => {
         if (_diceCurrentRoomId) {
             await _diceRefreshRoom(_diceCurrentRoomId);
-        } else {
+        } else if (!_diceBotResultView) {
             await _diceRefreshStatus();
         }
     }, DICE_POLL_INTERVAL_MS);

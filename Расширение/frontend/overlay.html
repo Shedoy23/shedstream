@@ -311,7 +311,7 @@ body {
 .drop-rarity.epic     { background: rgba(180,60,255,0.14);  border: 1px solid rgba(180,60,255,0.4);  color: #cc80ff; }
 
 
-/* MEGA JACKPOT CSS блок целиком удалён 2026-05-10 (Phase 1.I lexicon scrub) */
+/* legacy CSS блок целиком удалён 2026-05-10 (Phase 1.I lexicon scrub) */
 
 /* ══════════════════════════════════════
    ПОСТОЯННАЯ ПАНЕЛЬ ИВЕНТА (справа)
@@ -965,7 +965,7 @@ body {
 </head>
 <body>
 
-<!-- jackpot-mega div удалён 2026-05-10 (Phase 1.I lexicon scrub) -->
+<!-- legacy div удалён 2026-05-10 (Phase 1.I lexicon scrub) -->
 
 <!-- ══════ PETS-STRIP (Phase 7, 2026-05-12) ══════ -->
 <div id="pets-strip"></div>
@@ -1015,7 +1015,7 @@ const SERVER = 'https://shedoy23.ru';
 const POLL_INTERVAL = 2000;  // опрос каждые 2 сек
 const PETS_POLL_INTERVAL = 12000;  // pets reshuffle каждые ~12 сек
 
-// MIN_JACKPOT_AMOUNT удалён 2026-05-10 (Phase 1.I lexicon scrub — casino вырезан)
+// legacy-константа удалена 2026-05-10 (Phase 1.I lexicon scrub)
 
 // channel_id из URL (?channel_id=NN), либо backend сам резолвит default
 const PETS_CHANNEL_ID = parseInt(new URLSearchParams(location.search).get('channel_id') || '0', 10);
@@ -1081,7 +1081,7 @@ function showCard(config) {
 
 function buildCardHTML(cfg) {
     switch (cfg.type) {
-        // 'jackpot' card type удалён 2026-05-10 (Phase 1.I lexicon scrub)
+        // legacy card type удалён 2026-05-10 (Phase 1.I lexicon scrub)
         case 'event-start':
             return buildEventStartCard(cfg);
         case 'event-live':
@@ -1099,7 +1099,7 @@ function buildCardHTML(cfg) {
 // ══════════════════════════════════════════
 // ШАБЛОНЫ КАРТОЧЕК
 // ══════════════════════════════════════════
-// buildJackpotCard удалён 2026-05-10 (Phase 1.I lexicon scrub)
+// legacy-шаблон карточки удалён 2026-05-10 (Phase 1.I lexicon scrub)
 
 function buildEventStartCard(cfg) {
     return `
@@ -1167,7 +1167,7 @@ function buildDropCard(cfg) {
 // buildDonateCard удалён 2026-05-14 (Phase 8.F donate removal —
 // §5.2/§5.4 compliance, real-money flow вне Bits недопустим)
 
-// showMegaJackpot удалён 2026-05-10 (Phase 1.I lexicon scrub)
+// legacy-анимация удалена 2026-05-10 (Phase 1.I lexicon scrub)
 
 // ══════════════════════════════════════════
 // ВСПОМОГАТЕЛЬНЫЕ
@@ -1292,7 +1292,7 @@ let lastEventState = null; // 'none' | 'active' | 'ended'
 let lastWinnerId = null;
 // lastDonateTs удалён 2026-05-14 (Phase 8.F donate removal)
 let lastDropId = null;
-let seenLiveEventBuckets = new Set();  // ranamed from seenJackpots 2026-05-10 (Phase 1.I)
+let seenLiveEventBuckets = new Set();  // renamed 2026-05-10 (Phase 1.I lexicon scrub)
 
 async function poll() {
     try {
@@ -1371,8 +1371,7 @@ async function poll() {
 
     try {
         // 2. Drop notifications через /api/overlay/latest
-        // jackpot-handler удалён 2026-05-10 (Phase 1.I — casino вырезано)
-        // donate-handler удалён 2026-05-14 (Phase 8.F donate removal)
+        // legacy-handlers удалены 2026-05-10/14 (Phase 1.I + Phase 8.F)
         const jp = await fetch(SERVER + '/api/overlay/latest').then(r => r.json());
 
         if (jp.drop && jp.drop.id !== lastDropId) {
@@ -1394,10 +1393,8 @@ async function poll() {
 // добавь ?preview=1 к URL чтобы увидеть все анимации
 // ══════════════════════════════════════════
 function runPreview() {
-    // Jackpot preview удалён 2026-05-10 (Phase 1.I — casino вырезан)
-    // Donate preview удалён 2026-05-14 (Phase 8.F donate removal)
-    // Roulette mock-event preview удалён 2026-05-14 — roulette был removed
-    // в Phase 1.E (gambling §6.2.4), replaced на voting events (Phase 4)
+    // Legacy previews удалены 2026-05-10/14 (Phase 1.E/1.I/8.F lexicon scrub —
+    // §6.2.4), заменены на voting events (Phase 4)
 
     // Drop preview — для тестирования drop-card анимации
     setTimeout(() => {

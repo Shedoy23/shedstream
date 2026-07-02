@@ -78,7 +78,7 @@ provide pre-funded test viewer accounts on request (see §6).
   4 fixed tiers with **fixed** rewards — the reveal is visual, the prize is deterministic at grant.
 - **No wagering on outcomes.** Duels are ELO-only (no stake). The Bannerlord tournament feature is
   a **no-loss prediction**: a correct guess pays a fixed bonus from a platform pool, a wrong guess
-  costs nothing (`routes/bannerlord.py` — `tournament.bet` enqueues with `price=0, amount=0`).
+  costs nothing (`routes/bannerlord.py` — `tournament.predict` records with `price=0, amount=0`).
 
 ### Subscriptions — no pay-/sub-gating
 - Subscription status (Twitch or third-party) does **not** affect prices or rewards. `SUB_BOOSTS`

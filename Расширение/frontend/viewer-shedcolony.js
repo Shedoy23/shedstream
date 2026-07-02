@@ -35,11 +35,11 @@
         quest_unlock:  { type: 'colony.quest_unlock',   price: 2000 },
         spy_boost:     { type: 'colony.spy_boost',      price: 1500 },
         happiness:     { type: 'colonist.happiness_boost', price: 400 },
-        donate:        { type: 'colony.donate',           price: 1000 },
+        supply:        { type: 'colony.supply',           price: 1000 },
     };
 
-    // colony.donate dropdown — MUST stay a subset of _DONATE_WHITELIST in routes/shedcolony.py.
-    var SC_DONATE_ITEMS = [
+    // colony.supply dropdown — MUST stay a subset of _SUPPLY_WHITELIST in routes/shedcolony.py.
+    var SC_SUPPLY_ITEMS = [
         ['minecraft:oak_log', 'Брёвна'], ['minecraft:oak_planks', 'Доски'],
         ['minecraft:cobblestone', 'Булыжник'], ['minecraft:stone', 'Камень'],
         ['minecraft:dirt', 'Земля'], ['minecraft:sand', 'Песок'], ['minecraft:gravel', 'Гравий'],
@@ -78,7 +78,7 @@
         'colonist.equip_iron':       '🛡 Заявка принята — наденем железную броню через пару секунд.',
         'colonist.equip_diamond':    '💎 Заявка принята — наденем алмазную броню через пару секунд.',
         'colonist.happiness_boost':  '😊 Заявка принята — поднимем настроение колонисту через пару секунд.',
-        'colony.donate':             '📦 Заявка принята — ресурсы появятся на складе колонии через пару секунд.',
+        'colony.supply':             '📦 Заявка принята — ресурсы появятся на складе колонии через пару секунд.',
     };
 
     // 11 MineColonies skills (value = enum name the mod expects; label = RU).
@@ -381,13 +381,13 @@
                 + '<p class="sc-muted" style="margin-top:6px;">Шпионы работают только во время рейда; гость — если есть таверна.</p>'
                 + '</div>';
 
-            // Donate — a stack of a basic resource into the warehouse (helps the colony build/eat).
-            html += '<div class="sc-card"><div class="sc-section-title">Донат на склад колонии</div>'
-                + '<select class="sc-select" id="sc-donate-select">';
-            SC_DONATE_ITEMS.forEach(function (pair) {
+            // Supply — a stack of a basic resource into the warehouse (helps the colony build/eat).
+            html += '<div class="sc-card"><div class="sc-section-title">Снабжение склада колонии</div>'
+                + '<select class="sc-select" id="sc-supply-select">';
+            SC_SUPPLY_ITEMS.forEach(function (pair) {
                 html += '<option value="' + pair[0] + '">' + escapeHtml(pair[1]) + '</option>';
             });
-            html += '</select><button class="sc-btn" data-sc="donate">📦 Задонатить (стак) — 1000 💎</button>'
+            html += '</select><button class="sc-btn" data-sc="supply">📦 Снабдить колонию (стак) — 1000 💎</button>'
                 + '<p class="sc-muted" style="margin-top:6px;">Только базовые материалы — помогаешь колонии строиться.</p></div>';
         }
 
@@ -428,8 +428,8 @@
             var gs = document.getElementById('sc-give-select');
             if (!gs || !gs.value) { showNotification('Выбери предмет', 'error', 3000); return; }
             data.item = gs.value;
-        } else if (kind === 'donate') {
-            var ds = document.getElementById('sc-donate-select');
+        } else if (kind === 'supply') {
+            var ds = document.getElementById('sc-supply-select');
             if (!ds || !ds.value) { showNotification('Выбери ресурс', 'error', 3000); return; }
             data.item = ds.value;
         } else if (kind === 'fulfill') {

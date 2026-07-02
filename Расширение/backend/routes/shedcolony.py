@@ -71,7 +71,7 @@ _PURCHASABLE_ACTIONS = (
     "colony.festival",
     "colony.spawn_visitor",
     "colony.quest_unlock",
-    "colony.donate",
+    "colony.supply",
 )
 
 # Server-side prices — viewer-supplied price is IGNORED (frontend draws what backend sends).
@@ -98,7 +98,7 @@ _ACTION_PRICES: dict[str, int] = {
     "colony.festival":          3000,
     "colony.spawn_visitor":     2000,
     "colony.quest_unlock":      2000,
-    "colony.donate":            1000,   # a stack of a basic resource into the warehouse
+    "colony.supply":            1000,   # a stack of a basic resource into the warehouse
 }
 
 # give_item — curated food whitelist (no tools/exploit; helps the colonist eat).
@@ -108,9 +108,10 @@ _GIVE_ITEM_WHITELIST = {
     "minecraft:golden_apple", "minecraft:cake", "minecraft:pumpkin_pie", "minecraft:cookie",
 }
 
-# colony.donate — BASIC building/food materials only (NO iron/gold/diamond) so viewer donations
+# colony.supply — BASIC building/food materials only (NO iron/gold/diamond) so viewer supplies
 # help the colony build + eat without trivialising the streamer's precious-resource economy.
-_DONATE_WHITELIST = {
+# (renamed from colony.donate 2026-06-29 — Twitch lexicon: «донат» читается как real-money.)
+_SUPPLY_WHITELIST = {
     "minecraft:oak_log", "minecraft:oak_planks", "minecraft:cobblestone", "minecraft:stone",
     "minecraft:dirt", "minecraft:sand", "minecraft:gravel", "minecraft:torch",
     "minecraft:bread", "minecraft:wheat", "minecraft:carrot", "minecraft:potato",
@@ -282,10 +283,10 @@ async def _buy_action_locked(username: str, channel_id: int,
         if item not in _GIVE_ITEM_WHITELIST:
             return {"success": False, "message": "Этот предмет нельзя выдать"}
         data["item"] = item                # whitelisted id → mod trusts it
-    elif action_type == "colony.donate":
+    elif action_type == "colony.supply":
         item = (data.get("item") or "").strip()
-        if item not in _DONATE_WHITELIST:
-            return {"success": False, "message": "Этот ресурс нельзя задонатить"}
+        if item not in _SUPPLY_WHITELIST:
+            return {"success": False, "message": "Этот ресурс нельзя отправить на склад"}
         data["item"] = item                # whitelisted basic resource → mod trusts it
     elif action_type == "colonist.fulfill_request":
         rid = (data.get("request_id") or "").strip()

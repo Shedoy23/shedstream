@@ -54,13 +54,13 @@ function _renderBannerlordTournament(data) {
     if (state.status === 'running') {
         // RUNNING — участники + прогноз победителя (бесплатно)
         const participants = state.participants || [];
-        const myBet = data.my_bet;
+        const myPrediction = data.my_prediction;
 
         let participantsHtml;
-        if (myBet) {
+        if (myPrediction) {
             participantsHtml = `
                 <div style="font-size:12px;color:#34d399;padding:6px;background:rgba(52,211,153,0.1);border-radius:4px;margin-bottom:6px;">
-                    🔮 Твой прогноз: <b>${escapeHtml(myBet.target)}</b>
+                    🔮 Твой прогноз: <b>${escapeHtml(myPrediction.target)}</b>
                 </div>`;
         } else {
             participantsHtml = `
@@ -140,7 +140,7 @@ const TOURNAMENT_PRIZE_GOLD = 50000;
 const TOURNAMENT_ROUND_GOLD = 10000;
 
 function _promptBannerlordPredict(target) {
-    // Подтверждение прогноза победителя — бесплатно, без ставки.
+    // Подтверждение прогноза победителя — бесплатно, крустики не списываются.
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:9999;';
     overlay.innerHTML = `
@@ -158,7 +158,7 @@ function _promptBannerlordPredict(target) {
 
     document.getElementById('bnr-predict-confirm').addEventListener('click', () => {
         overlay.remove();
-        _bannerlordBuyAction('tournament.bet', { target });
+        _bannerlordBuyAction('tournament.predict', { target });
     });
     document.getElementById('bnr-predict-cancel').addEventListener('click', () => overlay.remove());
     overlay.addEventListener('click', e => {
@@ -1526,7 +1526,7 @@ async function loadBannerlordDiplomacy() {
                     <div id="bnr-diplo-peace-slot" style="padding-top:6px;"></div>
                 </details>`;
         }
-        // Backlog #1 (BLT-RC22 C.5) — kingdom tax: king задаёт ставку. Вассальные
+        // Backlog #1 (BLT-RC22 C.5) — kingdom tax: king задаёт процент. Вассальные
         // кланы королевства ежедневно платят % дневной прибыли в казну короля.
         if (r.is_king) {
             const curTax = r.kingdom_tax_pct || 0;

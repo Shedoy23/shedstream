@@ -53,6 +53,6 @@ extensions:
     - colony.festival          # буст счастья всей колонии (3 дня)
     - colony.spawn_visitor     # призвать визитёра в таверну
     - colony.quest_unlock      # разблокировать случайный квест колонии
-    - colony.donate            # стак базового ресурса на склад (whitelist)
+    - colony.supply            # стак базового ресурса на склад (whitelist; ex-colony.donate)
 
 catalogs: []

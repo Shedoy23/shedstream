@@ -75,7 +75,7 @@ function setupCspSafeHandlers() {
     _cspHandlersBound = true;
 
     document.addEventListener('click', function(event) {
-        // casino-bet-btn / slots-spin-btn / data-bet / data-slots-bet удалены 2026-05-10 (Phase 1.A)
+        // legacy-кнопки удалены 2026-05-10 (Phase 1.A compliance rework)
         const actionEl = event.target.closest('[data-action],[data-open-modal],[data-toggle-target],[data-close-self-modal],[data-accept-family],[data-reject-family],[data-close-modal],[data-cat],#create-pawn-btn,#heal-pawn-btn,#btn-resurrect,#stats-refresh-btn,#refresh-pawn-btn,#panel-hide-btn,#rulection-contribute-btn,#rulection-bid-btn,#promo-activate-btn,#create-colonist-btn');
         if (!actionEl) return;
 
@@ -119,7 +119,7 @@ function setupCspSafeHandlers() {
             return;
         }
 
-        // casino/slots handlers удалены 2026-05-10 (Phase 1.A compliance rework)
+        // legacy-handlers удалены 2026-05-10 (Phase 1.A compliance rework)
 
         if (actionEl.id === 'create-pawn-btn') {
             showCreatePawnModal();
@@ -185,8 +185,7 @@ function setupCspSafeHandlers() {
         const action = actionEl.dataset.action;
         if (!action) return;
 
-        // 'mkt-list-item' action удалён 2026-05-10 (Phase 1.C compliance rework)
-        // 'casino' / 'slots' actions удалены 2026-05-10 (Phase 1.A compliance rework)
+        // legacy-actions удалены 2026-05-10 (Phase 1.A/1.C compliance rework)
         if (action === 'cases') openCasesModal();
         else if (action === 'tictactoe') openTicTacToeModal();
         else if (action === 'dice') openDiceModal();
@@ -285,7 +284,7 @@ const debouncedMoveReport = createDebouncedReporter(2000, () => {
     lastActivityTime = now;
 });
 
-// isAuthUser() helper — перенесён из casino.js при его удалении 2026-05-10
+// isAuthUser() helper — перенесён из удалённого legacy-модуля 2026-05-10
 // (Phase 1.A compliance rework). Используется cases/dice/duels/family/
 // guilds/pets/tictactoe/voting/xenotype.js для guard'а перед UI-действиями.
 function isAuthUser() {
@@ -307,8 +306,6 @@ document.addEventListener('DOMContentLoaded', function() {
     setupTabs();
     setupCspSafeHandlers();
     setupActivityTracking();
-    // setupBetInputListener() удалён 2026-05-13 — был в casino.js (Phase 1.A),
-    // вызов забыли убрать. Bet-input UI не существует.
 
     // Кнопка обновления на вкладке RimWorld
     const rimworldTab = document.getElementById('rimworld-tab');
@@ -996,7 +993,7 @@ function renderLevelBar(data) {
 // Зовётся из pawn.js/xenotype.js (рантайм).
 
 // CRAFT_RECIPES + craftItem удалены 2026-05-10 (Phase 1.B compliance rework —
-// 3/3 gambling: §6.2.4 + §5.3 Twitch Extension Guidelines).
+// Twitch Extension Guidelines §6.2.4 + §5.3).
 
 let _cachedInventory = [];
 
@@ -1066,7 +1063,7 @@ let _bannerlordBuffs = [];          // 4.6 — last-known buffs cache; entries {
 let _bannerlordCooldowns = [];      // 4.8 — last-known cooldowns; entries { power_key, remaining_s }
 let _bannerlordCurrentGearTier = 0; // M20 — last seen gear_tier (cached for shop render)
 let _bannerlordTournamentPollId = null;  // Sprint 5.3 — poll /api/bannerlord/tournament (3s)
-let _bannerlordTournament = null;        // last snapshot {queue, state, in_queue, my_bet, config}
+let _bannerlordTournament = null;        // last snapshot {queue, state, in_queue, my_prediction, config}
 let _bannerlordBattlePollId = null;      // Sprint 5.5 — poll /api/bannerlord/battle-status (2s)
 let _bannerlordBattle = null;            // last snapshot {in_battle, my_stats, participant_count}
 let _bannerlordWasInBattle = false;      // detect new-battle transition для cooldown UI refresh

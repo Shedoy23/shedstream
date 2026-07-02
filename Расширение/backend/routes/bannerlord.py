@@ -678,8 +678,8 @@ async def bannerlord_tournament(request: Request):
                 "started_at":    None,
             }
 
-        # My bet (этот раунд)
-        my_bet = None
+        # Мой прогноз (этот раунд)
+        my_prediction = None
         if state["status"] == "running":
             cur = await conn.execute("""
                 SELECT target, amount FROM bannerlord_tournament_bets
@@ -687,7 +687,7 @@ async def bannerlord_tournament(request: Request):
             """, (channel_id, username, state["current_round"]))
             br = await cur.fetchone()
             if br:
-                my_bet = {"target": br[0], "amount": br[1]}
+                my_prediction = {"target": br[0], "amount": br[1]}
 
         # In queue?
         in_queue = any(q["username"] == username for q in queue)
@@ -697,13 +697,11 @@ async def bannerlord_tournament(request: Request):
         "queue":       queue,
         "state":       state,
         "in_queue":    in_queue,
-        "my_bet":      my_bet,
+        "my_prediction": my_prediction,
         "my_username": username,
         "config": {
             "entry_fee_gold": TOURNAMENT_ENTRY_FEE_GOLD,  # legacy 0 — backward-compat
             "join_price":     TOURNAMENT_JOIN_PRICE,      # 5.28: 1000 крустиков
-            "min_bet":        TOURNAMENT_MIN_BET,
-            "max_bet":        TOURNAMENT_MAX_BET,
         },
     }
 
@@ -896,7 +894,7 @@ _PURCHASABLE_ACTIONS = (
     "hero.recruit_troops",
     "hero.train_troops",         # 2026-05-29 (BLT TrainingBehavior): bulk-upgrade свиты за динары
     "hero.join_tournament",      # Sprint 5.3: BLT-style viewer tournament queue
-    "tournament.bet",            # Sprint 5.3: viewer ставит крустики на участника
+    "tournament.predict",        # Sprint 5.3 (renamed 2026-06-29): бесплатный прогноз победителя
     "hero.add_focus",            # Sprint 5.8: focus point в skill (Hero.Gold tier-based)
     "hero.add_attribute",        # Sprint 5.8: attribute point (Hero.Gold flat)
     "hero.create_clan",          # Sprint 5.9: BLT-style clan creation (Hero.Gold 1M)
@@ -1024,12 +1022,10 @@ ALLOWED_ATTRIBUTES = {"Vigor", "Control", "Endurance", "Cunning", "Social", "Int
 # Sprint 5.3: tournament entry fee.
 # 5.28a: было 0 крустиков + 5000 динаров → отказы в моде, крустики не списывались.
 # 5.28b: было 1000 крустиков + 0 динаров → юзер передумал, нужно free.
-# 5.28c: ПОЛНОСТЬЮ БЕСПЛАТНО. Идея: turnover в очереди важнее barrier-to-entry,
-# монетизация остаётся через ставки на участников (TOURNAMENT_MIN/MAX_BET).
+# 5.28c: ПОЛНОСТЬЮ БЕСПЛАТНО. Идея: turnover в очереди важнее barrier-to-entry.
+# (2026-06-29: wager-эпоха закрыта — прогнозы бесплатны, MIN/MAX-лимиты удалены.)
 TOURNAMENT_ENTRY_FEE_GOLD = 0              # in-game динары (deprecated, было 5000)
 TOURNAMENT_JOIN_PRICE     = 0              # крустиков (5.28c: free)
-TOURNAMENT_MIN_BET = 100                   # крустиков
-TOURNAMENT_MAX_BET = 10_000                # крустиков
 
 # Sprint M20: gear upgrade costs в Hero.Gold (in-game динары, не крустики).
 # Mod-side source-of-truth — mod проверяет Hero.Gold ≥ cost и списывает.
@@ -1064,12 +1060,12 @@ ADD_SKILL_XP_PRESETS = {
 _ACTIONS_WITHOUT_HERO_REQUIREMENT = (
     "hero.create",
     "player.respawn",
-    "tournament.bet",     # bettor может ставить и без своего героя
+    "tournament.predict", # прогноз можно сделать и без своего героя
 )
 
 # Actions которые НЕ enqueue'аться в module_actions (pure backend ops).
 _BACKEND_ONLY_ACTIONS = (
-    "tournament.bet", "hero.smith_item",
+    "tournament.predict", "hero.smith_item",
     # Sprint 5.33 (BLT-parity FAM) — proposal flow это backend state machine.
     # На respond accept backend САМ enqueue'ит mod-action hero.activate_marriage.
     # Сам propose/respond/cancel — backend-only.
@@ -1109,7 +1105,7 @@ _BACKEND_ONLY_ACTIONS = (
 # hero.activate_marriage enqueue'ится отдельно в bannerlord_family.py с
 # target=сам отвечающий (партнёр — в target_username), сюда не попадает.
 _CROSS_USER_TARGET_ACTIONS = (
-    "tournament.bet",                  # target = участник, на которого прогноз
+    "tournament.predict",              # target = участник, на которого прогноз
     "hero.propose_marriage",           # target_username = владелец ребёнка-партнёра
     "hero.respond_marriage_proposal",  # ответ на proposal другого зрителя
     "hero.cancel_proposal",            # отзыв proposal'а другому зрителю
@@ -2107,11 +2103,12 @@ async def _prepare_action(username, channel_id, action_type, data):
         data["hero_gold_cost"] = 0           # mod больше не списывает динары
         data["price"] = TOURNAMENT_JOIN_PRICE  # 1000 крустиков
 
-    # 1.5 compliance (2026-06-11): tournament.bet → БЕСПЛАТНЫЙ no-loss ПРОГНОЗ
+    # 1.5 compliance (2026-06-11): tournament.predict — БЕСПЛАТНЫЙ no-loss ПРОГНОЗ
     # на победителя. Крустики НЕ списываются и НЕ сгорают; верный прогноз даёт
     # фикс-бонус из платформенного пула (см. _adapter._on_tournament_ended).
     # Убрали wager-на-исход (дух §6.2.6) — как уже сделали для дуэлей.
-    if action_type == "tournament.bet":
+    # (2026-06-29: action переименован tournament.bet → tournament.predict, лексикон.)
+    if action_type == "tournament.predict":
         target = (data.get("target") or "").strip().lower()
         if not target:
             return {"success": False, "message": "Не указан участник"}
@@ -2158,7 +2155,7 @@ def _enforce_price(action_type, data, username, channel_id):
     #
     # Two categories:
     #   _ACTIONS_WITH_OWN_PRICING — already set data["price"] выше
-    #     (player.spawn → SPAWN_PRICES per-side; tournament.bet → amount;
+    #     (player.spawn → SPAWN_PRICES per-side; tournament.predict → amount;
     #      все *clan/kingdom/party/marry/* → 0 потому что mod использует
     #      Hero.Gold; etc.).
     #   ACTION_PRICES_DEFAULT — fallback для actions БЕЗ branch'а.
@@ -2175,7 +2172,7 @@ def _enforce_price(action_type, data, username, channel_id):
     _ACTIONS_WITH_OWN_PRICING = {
         "player.spawn", "player.equip_item", "hero.set_class",
         "hero.upgrade_gear", "hero.reequip_gear", "hero.recruit_troops", "hero.train_troops",
-        "hero.join_tournament", "tournament.bet",
+        "hero.join_tournament", "tournament.predict",
         "hero.create_clan", "hero.create_kingdom", "hero.leave_clan",
         "hero.leave_kingdom", "hero.join_clan", "hero.join_kingdom",
         "hero.create_party", "hero.set_gender", "hero.marry",
@@ -2411,7 +2408,7 @@ async def _charge_execute_enqueue(action_type, data, price, username, channel_id
     """Phase G — the BEGIN IMMEDIATE cash-register TX (extracted verbatim).
 
     Opens its own connection. Inside ONE BEGIN IMMEDIATE: idempotency-replay
-    check + per-action dedup (tournament.bet / hero.join_tournament) +
+    check + per-action dedup (tournament.predict / hero.join_tournament) +
     atomic charge (UPDATE ... WHERE points >= ?) + enqueue + per-action execute.
     Ordering is load-bearing and must stay byte-identical (documented past
     race/double-charge bugs). Returns (action_id, smith_result) on success,
@@ -2506,11 +2503,11 @@ async def _charge_execute_enqueue(action_type, data, price, username, channel_id
                         "idempotent_replay": True,
                     }
 
-            # Sprint 5.31 #45e (audit MED-6) — tournament.bet dedup
+            # Sprint 5.31 #45e (audit MED-6) — tournament.predict dedup
             # ВНУТРИ TX, защищён BEGIN IMMEDIATE lock'ом. Раньше SELECT был
-            # отдельной connection — два concurrent bet'а от того же юзера
+            # отдельной connection — два concurrent прогноза от того же юзера
             # обходили dedup и оба charge'или.
-            if action_type == "tournament.bet":
+            if action_type == "tournament.predict":
                 cur = await conn.execute(
                     "SELECT 1 FROM bannerlord_tournament_bets "
                     "WHERE channel_id=? AND bettor=? AND round_index=?",
@@ -2597,7 +2594,7 @@ async def _charge_execute_enqueue(action_type, data, price, username, channel_id
             # price=0 → ничего не списываем (freebie actions).
 
             # Enqueue action в outbox (через тот же conn — atomic с charge).
-            # tournament.bet — backend-only (не идёт в mod), пропускаем enqueue.
+            # tournament.predict — backend-only (не идёт в mod), пропускаем enqueue.
             action_id = uuid.uuid4().hex
             payload = dict(data)
             payload["initiated_by"] = username
@@ -2624,8 +2621,9 @@ async def _charge_execute_enqueue(action_type, data, price, username, channel_id
                       json.dumps(payload, ensure_ascii=False),
                       client_action_id))
 
-            # Sprint 5.3: tournament.bet — записываем в bets table.
-            if action_type == "tournament.bet":
+            # Sprint 5.3: tournament.predict — записываем в predictions table
+            # (легаси-имя таблицы bannerlord_tournament_bets — DB-internals, не wire).
+            if action_type == "tournament.predict":
                 await conn.execute("""
                     INSERT INTO bannerlord_tournament_bets
                         (channel_id, bettor, target, amount, round_index)

@@ -133,7 +133,7 @@ ACTION_COOLDOWNS_SEC = {
     "hero.create":              60,    # adoption — viewer спамит /adopt пока не зайдёт «redeem»
     "hero.smith_item":          30,    # crafting — economy-heavy
     "hero.equip_trophy":         5,    # equip/unequip toggle
-    "tournament.bet":            3,    # game-logic уже dedup'ит по round_index; safety-net против multi-target spam
+    "tournament.predict":        3,    # game-logic уже dedup'ит по round_index; safety-net против multi-target spam
     # NB: power.activate cooldown идёт через POWER_COOLDOWNS (per-power_key),
     #     player.spawn — через POWER_COOLDOWNS["player.spawn:<side>"].
     #     Эти actions НЕ нужно дублировать здесь.

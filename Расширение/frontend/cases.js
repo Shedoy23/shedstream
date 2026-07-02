@@ -2,7 +2,7 @@
 //
 // Compliance: §5.3 Twitch Extension Guidelines — loot boxes free, content
 // без monetary value. Превью наград видно ДО открытия (детерминированный prize).
-// Анимация открытия — простое раскрытие сундука, БЕЗ roulette-style spin.
+// Анимация открытия — простое раскрытие сундука (без вращающейся ленты).
 
 const CASE_TIER_META = {
     common: {
@@ -194,7 +194,7 @@ async function openCase(caseId, cardEl) {
     if (_casesOpening.has(caseId)) return;
     _casesOpening.add(caseId);
 
-    // Простая анимация раскрытия (БЕЗ roulette spin):
+    // Простая анимация раскрытия (без вращающейся ленты):
     // 1. Card "вздрагивает" (scale-up)
     // 2. Server отвечает с результатом
     // 3. Cards меняется на reveal-стейт с +N💎

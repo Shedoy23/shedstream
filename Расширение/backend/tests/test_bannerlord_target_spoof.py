@@ -21,8 +21,8 @@ Standalone (без pytest). Запуск:
         → enqueued payload.target == 'alice' (НЕ 'victim'), initiated_by == 'alice'.
     [2] No-target sanity: обычный hero.reequip_gear (без target) → payload.target
         проставлен на requester'а ('alice'), нормальный путь не сломан.
-    [3] Whitelist preserved: tournament.bet (legit viewer↔viewer, backend-only)
-        → НЕ enqueue'ится в mod + запись ставки сохраняет target='victim' (участник).
+    [3] Whitelist preserved: tournament.predict (legit viewer↔viewer, backend-only)
+        → НЕ enqueue'ится в mod + запись прогноза сохраняет target='victim' (участник).
 """
 from __future__ import annotations
 
@@ -248,8 +248,8 @@ async def test_normal_self_action_unbroken(db, buy):
 
 
 async def test_whitelisted_cross_user_preserved(db, buy):
-    """[3] Whitelist: tournament.bet (legit viewer↔viewer) НЕ затирается + backend-only."""
-    print("\n[3] Whitelisted cross-user action (tournament.bet) — target сохранён")
+    """[3] Whitelist: tournament.predict (legit viewer↔viewer) НЕ затирается + backend-only."""
+    print("\n[3] Whitelisted cross-user action (tournament.predict) — target сохранён")
     # Турнир идёт, victim — участник; alice делает no-loss прогноз на victim.
     async with db._connect() as conn:
         await conn.execute(
@@ -260,19 +260,19 @@ async def test_whitelisted_cross_user_preserved(db, buy):
         await conn.commit()
     await _set_points(db, CHANNEL_ID, ATTACKER, START_POINTS)
 
-    actions_before = await _count_actions(db, CHANNEL_ID, "tournament.bet")
+    actions_before = await _count_actions(db, CHANNEL_ID, "tournament.predict")
     res = await buy(
-        _make_anon_request(), ATTACKER, CHANNEL_ID, "tournament.bet",
-        {"target": VICTIM, "client_action_id": "bet-1"})
+        _make_anon_request(), ATTACKER, CHANNEL_ID, "tournament.predict",
+        {"target": VICTIM, "client_action_id": "predict-1"})
 
-    assert_eq(res.get("success"), True, "tournament.bet на участника succeeds")
+    assert_eq(res.get("success"), True, "tournament.predict на участника succeeds")
 
     # Backend-only: НЕ должно быть mod-action в outbox.
-    actions_after = await _count_actions(db, CHANNEL_ID, "tournament.bet")
+    actions_after = await _count_actions(db, CHANNEL_ID, "tournament.predict")
     assert_eq(actions_after - actions_before, 0,
-              "tournament.bet НЕ enqueue'ится в mod (backend-only)")
+              "tournament.predict НЕ enqueue'ится в mod (backend-only)")
 
-    # Кросс-юзер target сохранён в записи ставки (НЕ затёрт на alice).
+    # Кросс-юзер target сохранён в записи прогноза (НЕ затёрт на alice).
     async with db._connect() as conn:
         cur = await conn.execute(
             "SELECT bettor, target FROM bannerlord_tournament_bets "

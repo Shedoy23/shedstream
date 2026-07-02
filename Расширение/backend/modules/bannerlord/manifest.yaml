@@ -112,7 +112,7 @@ extensions:
     - hero.recruit_troops
     - hero.train_troops      # 2026-05-29 (BLT TrainingBehavior): bulk-upgrade свиты
     - hero.join_tournament   # Sprint 5.3: BLT-style viewer tournament queue
-    - tournament.bet         # Sprint 5.3: viewer ставит крустики на участника
+    - tournament.predict     # Sprint 5.3: бесплатный прогноз победителя (renamed 2026-06-29)
     - hero.add_focus         # Sprint 5.8: focus point в skill (Hero.Gold tier-based)
     - hero.add_attribute     # Sprint 5.8: attribute point (Hero.Gold flat 50K)
     - hero.create_clan       # Sprint 5.9: BLT-style clan creation (Hero.Gold 1M)

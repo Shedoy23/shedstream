@@ -398,6 +398,11 @@ async def get_online_users(request: Request):
 async def viewer_perks(request: Request):
     """Return {role, twitch_sub_tier, boosty_tier} для текущего JWT-юзера.
 
+    ⚠️ boosty_tier / twitch_sub_tier здесь — ТОЛЬКО для косметического бейджа
+    в шапке (TS1/BS2). Это НЕ security-граница: ни цена, ни награда, ни доступ
+    к действию НЕ зависят от sub/boosty (ToS — Sprint 5.33). Не вешать на эти
+    поля никакой gameplay-логики.
+
     Sprint 5.31 #45c — каждая ветка отказа логируется чтобы можно было
     дебажить "почему мой бейдж не показывает BS2" без переоткрытия issue.
     """

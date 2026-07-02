@@ -275,7 +275,9 @@ app.add_middleware(
     allow_origin_regex=r"^https://[a-z0-9-]+\.ext-twitch\.tv$",
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["*"],
+    # Public-gate (2026-07-02): было "*". Фронт шлёт только Content-Type +
+    # X-Twitch-JWT; Authorization на будущее. Явный список — меньше поверхность.
+    allow_headers=["Authorization", "Content-Type", "X-Twitch-JWT", "X-Requested-With"],
 )
 
 
@@ -293,6 +295,9 @@ async def security_headers(request, call_next):
     response.headers["Content-Security-Policy"] = (
         "frame-ancestors https://*.twitch.tv https://*.ext-twitch.tv"
     )
+    # Public-gate (2026-07-02): расширению не нужны камера/микрофон/гео —
+    # запрещаем явно (defence-in-depth; браузер откажет любому такому вызову).
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
     return response
 
 # Инициализация

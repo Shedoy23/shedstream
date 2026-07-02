@@ -580,41 +580,8 @@ def _dashboard_html(ch: dict) -> str:
   }}
   </script>
 
-  <!-- Баг-репорты от зрителей (m73) -->
-  <div class="section">
-    <h2>🐞 Баг-репорты от зрителей</h2>
-    <div class="sub">
-      Зрители пишут в чат <b>!баг &lt;описание&gt;</b> — падает сюда <b>для сведения</b>
-      (техбаги расширения чинит разработчик, тебе тут делать ничего не нужно).
-      <button class="tok-show" onclick="loadBugs()">🔄 Обновить</button>
-      <label style="margin-left:10px;font-size:13px;"><input type="checkbox" id="bug-open-only" onchange="loadBugs()"> только открытые</label>
-    </div>
-    <div id="bug-list"><div class="sub">Загрузка…</div></div>
-  </div>
-  <script>
-  function bugEsc(s){{
-    return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  }}
-  async function loadBugs(){{
-    const openOnly = document.getElementById('bug-open-only').checked;
-    const url = '/api/streamer/bug-reports?limit=100' + (openOnly ? '&status=open' : '');
-    const list = document.getElementById('bug-list');
-    try{{
-      const r = await fetch(url, {{credentials:'include'}});
-      const d = await r.json();
-      if(d.status !== 'ok'){{ list.innerHTML = '<div class="sub">Ошибка: ' + (d.status||'?') + '</div>'; return; }}
-      if(!d.reports || !d.reports.length){{ list.innerHTML = '<div class="sub">Пока пусто. Зрители ещё не писали !баг.</div>'; return; }}
-      list.innerHTML = d.reports.map(function(b){{
-        const resolved = b.status === 'resolved';
-        return '<div style="border-bottom:1px solid #2d2d2f;padding:8px 0;' + (resolved ? 'opacity:0.55;' : '') + '">'
-          + '<div style="font-size:12px;color:#adadb8;">' + bugEsc(b.username) + ' · ' + bugEsc(b.created_at) + (resolved ? ' · ✅ решено' : '') + '</div>'
-          + '<div style="margin:3px 0;white-space:pre-wrap;">' + bugEsc(b.message) + '</div>'
-          + '</div>';
-      }}).join('');
-    }} catch(e){{ list.innerHTML = '<div class="sub">Network error: ' + e.message + '</div>'; }}
-  }}
-  loadBugs();
-  </script>
+  <!-- Баг-репорты убраны из дашборда 2026-07-02: техбаги — забота разработчика
+       (см. админку /admin), не стримера. Зритель шлёт !баг → падает разработчику. -->
 
   <!-- Промокоды (self-serve, 2026-07-02) -->
   <div class="section">
@@ -632,6 +599,7 @@ def _dashboard_html(ch: dict) -> str:
     <div id="promo-list" style="margin-top:12px;"><div class="sub">Загрузка…</div></div>
   </div>
   <script>
+  function pEsc(s){{ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }}
   async function loadPromos(){{
     const list = document.getElementById('promo-list');
     try{{
@@ -641,7 +609,7 @@ def _dashboard_html(ch: dict) -> str:
       if(!d.promocodes || !d.promocodes.length){{ list.innerHTML = '<div class="sub">Пока нет промокодов.</div>'; return; }}
       list.innerHTML = d.promocodes.map(function(p){{
         const left = p.max_uses > 0 ? (p.max_uses - p.uses) + ' из ' + p.max_uses : '∞';
-        return '<div class="boosty-row"><span class="u">' + bugEsc(p.code) + '</span>'
+        return '<div class="boosty-row"><span class="u">' + pEsc(p.code) + '</span>'
           + '<span class="t">' + p.points + '💎</span>'
           + '<span class="n">исп. ' + p.uses + ' · осталось ' + left + '</span>'
           + '<button data-promo-del="' + p.id + '">✖ Удалить</button></div>';
@@ -1147,30 +1115,8 @@ async def streamer_feature_usage(request: Request):
     })
 
 
-@router.get("/api/streamer/bug-reports", include_in_schema=False)
-async def streamer_bug_reports(request: Request):
-    """Багрепорты от зрителей (чат-команда !баг, m73). Требует session cookie."""
-    cid = _read_session_cookie(request)
-    if cid is None:
-        return JSONResponse({"status": "unauthenticated"}, status_code=401)
-    status = (request.query_params.get("status") or "").strip() or None
-    try:
-        limit = int(request.query_params.get("limit") or 50)
-    except (TypeError, ValueError):
-        limit = 50
-    import bug_reports
-    reports = await bug_reports.list_bug_reports(cid, limit=limit, status=status)
-    open_count = sum(1 for r in reports if r.get("status") == "open")
-    return JSONResponse({
-        "status": "ok",
-        "channel_id": cid,
-        "open_count": open_count,
-        "reports": reports,
-    })
-
-
-# bug-report триаж (resolve/reopen) переехал в АДМИНКУ 2026-07-02: техбаги чинит
-# разработчик, стример их только видит (read-only). См. /api/admin/bug-reports/status.
+# Баг-репорты полностью убраны со стороны стримера 2026-07-02: техбаги расширения —
+# забота разработчика. Просмотр + триаж — в админке (/api/admin/bug-reports[/status]).
 
 
 # ── Промокоды self-serve (2026-07-02): раньше только админ мог создавать, а это

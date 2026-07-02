@@ -33,6 +33,9 @@ async function _hydrateBnrConfig() {
         if (c.gear_upgrade_costs && typeof HERO_GOLD_TIER_COSTS !== 'undefined') {
             HERO_GOLD_TIER_COSTS = c.gear_upgrade_costs;   // ключи-строки из JSON — доступ по числу коэрсится, ок
         }
+        if (typeof c.tournament_prize_gold === 'number') TOURNAMENT_PRIZE_GOLD = c.tournament_prize_gold;
+        if (typeof c.tournament_round_gold === 'number') TOURNAMENT_ROUND_GOLD = c.tournament_round_gold;
+        // workshop_price / caravan_price читаются из _bnrCfg прямо в местах отрисовки.
     } catch (e) { /* fallback-дефолты остаются в силе */ }
 }
 
@@ -163,8 +166,8 @@ function _renderBannerlordTournament(data) {
     }
 }
 
-const TOURNAMENT_PRIZE_GOLD = 50000;
-const TOURNAMENT_ROUND_GOLD = 10000;
+let TOURNAMENT_PRIZE_GOLD = 50000;   // fallback; гидрируется из /api/bannerlord/config
+let TOURNAMENT_ROUND_GOLD = 10000;   // fallback; гидрируется из /api/bannerlord/config
 
 function _promptBannerlordPredict(target) {
     // Подтверждение прогноза победителя — бесплатно, крустики не списываются.
@@ -396,7 +399,7 @@ async function loadBannerlordWorkshops() {
         const maxWorkshops = r.max_workshops || 3;
 
         // Sprint 5.33 CURRENCY-1 — clear price display + Hero.Gold visible.
-        const WORKSHOP_CRUSTIC = 2500;     // 2026-05-29: чистая 💎 (цена поднята 1000→2500)
+        const WORKSHOP_CRUSTIC = _bnrCfg.workshop_price ?? 2500;  // thin-front: из /config, fallback 2500
         const WORKSHOP_DINAR_EST = 0;      // капитал НЕ списывался — миф убран
         const wsAfford = _bnrAfford(WORKSHOP_CRUSTIC, WORKSHOP_DINAR_EST);
 
@@ -682,7 +685,7 @@ async function loadBannerlordCaravans() {
         const maxC = r.max_caravans || 2;
 
         // Sprint 5.33 CURRENCY-1 — clear price display + Hero.Gold visible.
-        const CARAVAN_CRUSTIC = 4000;      // 2026-05-29: чистая 💎 (цена поднята 1500→4000)
+        const CARAVAN_CRUSTIC = _bnrCfg.caravan_price ?? 4000;   // thin-front: из /config, fallback 4000
         const CARAVAN_DINAR   = 0;         // 15K капитал НЕ списывался — миф убран
         const cAfford = _bnrAfford(CARAVAN_CRUSTIC, CARAVAN_DINAR);
 

@@ -1067,6 +1067,14 @@ SPAWN_PRICES = {
 RECRUIT_TIER_COSTS = [5_000, 10_000, 20_000, 30_000, 50_000, 80_000]
 ELITE_COST_MULTIPLIER = 3
 REFORGE_QUALITY_PRICE = 20_000    # «Кузница»: перековка качества надетого (mod)
+# Passive-income крустик-цены — module-level, чтобы GET /api/bannerlord/config
+# отдавал их фронту (единый источник, thin-front). В ACTION_PRICES_DEFAULT
+# ссылаются ПО ИМЕНИ, не литералом — правишь тут, меняется везде.
+WORKSHOP_PRICE_CRUSTIC = 2_500    # 💎 workshop passive income (2026-05-29: 1000→2500)
+CARAVAN_PRICE_CRUSTIC  = 4_000    # 💎 caravan passive income (2026-05-29: 1500→4000)
+# Турнир — display-only числа (динары приза/раунда). Enforce'ит мод/движок; тут для UI.
+TOURNAMENT_PRIZE_GOLD  = 50_000
+TOURNAMENT_ROUND_GOLD  = 10_000
 
 # Actions которые НЕ требуют existing alive hero (adopt + respawn + bet).
 _ACTIONS_WITHOUT_HERO_REQUIREMENT = (
@@ -1143,6 +1151,10 @@ async def bannerlord_config():
         "spawn_prices":       SPAWN_PRICES,
         "gender_swap_cost":   GENDER_SWAP_COST,
         "baby_cost":          BABY_COST,
+        "workshop_price":        WORKSHOP_PRICE_CRUSTIC,
+        "caravan_price":         CARAVAN_PRICE_CRUSTIC,
+        "tournament_prize_gold": TOURNAMENT_PRIZE_GOLD,
+        "tournament_round_gold": TOURNAMENT_ROUND_GOLD,
     }
 
 
@@ -2272,12 +2284,12 @@ def _enforce_price(action_type, data, username, channel_id):
         "hero.pay_ransom":              500,    # crowd-fund tier, any viewer
         "kingdom.set_tax_rate":           0,    # free — king manages own kingdom (Backlog #1)
         # Sprint 5.33 (BLT-parity SHOP) — workshops passive income
-        "hero.buy_workshop":           2500,    # 2026-05-29: чистая 💎 (Hero.Gold капитал НЕ списывался — миф убран, цена поднята 1000→2500)
+        "hero.buy_workshop": WORKSHOP_PRICE_CRUSTIC,  # module-level const (thin-front) — 2026-05-29: чистая 💎 (капитал НЕ списывался, 1000→2500)
         "hero.sell_workshop":             0,    # free — engine handles refund
         # Sprint 5.33 (BLT-parity FIEF) — fief tribute boost
         "hero.tribute_boost":          2000,    # 7-day +50% multiplier на 1 fief
         # Sprint 5.33 (BLT-parity CARAVAN) — mobile passive income
-        "hero.buy_caravan":            4000,    # 2026-05-29: чистая 💎 (15K Hero.Gold капитал НЕ списывался — миф убран, цена поднята 1500→4000)
+        "hero.buy_caravan": CARAVAN_PRICE_CRUSTIC,  # module-level const (thin-front) — 2026-05-29: чистая 💎 (капитал НЕ списывался, 1500→4000)
         "hero.sell_caravan":              0,    # free — engine handles transfer
     }
     if action_type not in _ACTIONS_WITH_OWN_PRICING:

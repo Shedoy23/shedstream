@@ -986,13 +986,23 @@ async function loadBugReports() {
         const data = await apiGet('/api/admin/bug-reports');
         const tb = document.getElementById('bugreports-tbody');
         const reports = data.reports || [];
-        tb.innerHTML = reports.length ? reports.map(r => `
-            <tr>
+        tb.innerHTML = reports.length ? reports.map(r => {
+            const resolved = r.status === 'resolved';
+            return `<tr style="${resolved ? 'opacity:0.5;' : ''}">
                 <td style="white-space:nowrap;color:var(--muted);font-size:11px;vertical-align:top;">${new Date(r.created_at).toLocaleString('ru')}</td>
                 <td style="font-weight:600;vertical-align:top;">${escapeHtml(r.username)}</td>
                 <td>${escapeHtml(r.message)}</td>
-            </tr>`).join('')
+                <td style="vertical-align:top;white-space:nowrap;"><button class="btn btn-ghost btn-sm" onclick="setBugStatus(${r.id}, '${resolved ? 'open' : 'resolved'}')">${resolved ? '↩' : '✓'}</button></td>
+            </tr>`;
+        }).join('')
             : '<tr><td style="text-align:center;color:var(--muted);padding:20px;">Багов нет 🎉</td></tr>';
+    } catch(e) {}
+}
+
+async function setBugStatus(id, status) {
+    try {
+        await apiPost('/api/admin/bug-reports/status', {id: id, status: status});
+        loadBugReports();
     } catch(e) {}
 }
 

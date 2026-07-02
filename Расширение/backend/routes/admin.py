@@ -194,6 +194,28 @@ async def admin_bug_reports(_admin: str = Depends(require_admin)):
          "status": r[3], "created_at": r[4]} for r in rows]}
 
 
+@router.post("/api/admin/bug-reports/status")
+async def admin_bug_report_status(request: Request, _admin: str = Depends(require_admin)):
+    """Разработчик помечает багрепорт resolved/open. Триаж переехал сюда из
+    стримерского дашборда 2026-07-02 (техбаги расширения чинит разработчик, не стример)."""
+    from dependencies import resolve_channel_id_or_default
+    channel_id = resolve_channel_id_or_default()
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    try:
+        report_id = int(body.get("id"))
+    except (TypeError, ValueError):
+        return {"status": "invalid_id"}
+    new_status = (body.get("status") or "").strip()
+    if new_status not in ("open", "resolved"):
+        return {"status": "invalid_status"}
+    import bug_reports
+    ok = await bug_reports.set_bug_status(channel_id, report_id, new_status)
+    return {"status": "ok" if ok else "not_found", "id": report_id, "new_status": new_status}
+
+
 @router.get("/api/admin/feature-usage")
 async def admin_feature_usage(_admin: str = Depends(require_admin)):
     """Read-only наблюдение: топ используемых фич за 7 дней (feature_usage)."""

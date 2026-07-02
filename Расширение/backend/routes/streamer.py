@@ -584,7 +584,8 @@ def _dashboard_html(ch: dict) -> str:
   <div class="section">
     <h2>🐞 Баг-репорты от зрителей</h2>
     <div class="sub">
-      Зрители пишут в чат <b>!баг &lt;описание&gt;</b> — баг падает сюда (бот отвечает им «записано»).
+      Зрители пишут в чат <b>!баг &lt;описание&gt;</b> — падает сюда <b>для сведения</b>
+      (техбаги расширения чинит разработчик, тебе тут делать ничего не нужно).
       <button class="tok-show" onclick="loadBugs()">🔄 Обновить</button>
       <label style="margin-left:10px;font-size:13px;"><input type="checkbox" id="bug-open-only" onchange="loadBugs()"> только открытые</label>
     </div>
@@ -593,12 +594,6 @@ def _dashboard_html(ch: dict) -> str:
   <script>
   function bugEsc(s){{
     return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  }}
-  async function setBug(id, status){{
-    try{{
-      await fetch('/api/streamer/bug-reports/status', {{method:'POST', credentials:'include', headers:{{'Content-Type':'application/json'}}, body: JSON.stringify({{id: id, status: status}})}});
-      loadBugs();
-    }} catch(e){{}}
   }}
   async function loadBugs(){{
     const openOnly = document.getElementById('bug-open-only').checked;
@@ -611,21 +606,71 @@ def _dashboard_html(ch: dict) -> str:
       if(!d.reports || !d.reports.length){{ list.innerHTML = '<div class="sub">Пока пусто. Зрители ещё не писали !баг.</div>'; return; }}
       list.innerHTML = d.reports.map(function(b){{
         const resolved = b.status === 'resolved';
-        const btnCls = resolved ? 'tok-show' : 'tok-copy';
-        const btnTo = resolved ? 'open' : 'resolved';
-        const btnLabel = resolved ? '↩ Вернуть' : '✓ Решено';
         return '<div style="border-bottom:1px solid #2d2d2f;padding:8px 0;' + (resolved ? 'opacity:0.55;' : '') + '">'
           + '<div style="font-size:12px;color:#adadb8;">' + bugEsc(b.username) + ' · ' + bugEsc(b.created_at) + (resolved ? ' · ✅ решено' : '') + '</div>'
           + '<div style="margin:3px 0;white-space:pre-wrap;">' + bugEsc(b.message) + '</div>'
-          + '<button class="' + btnCls + '" data-bug-id="' + b.id + '" data-bug-to="' + btnTo + '">' + btnLabel + '</button>'
           + '</div>';
       }}).join('');
-      list.querySelectorAll('[data-bug-id]').forEach(function(btn){{
-        btn.addEventListener('click', function(){{ setBug(btn.getAttribute('data-bug-id'), btn.getAttribute('data-bug-to')); }});
-      }});
     }} catch(e){{ list.innerHTML = '<div class="sub">Network error: ' + e.message + '</div>'; }}
   }}
   loadBugs();
+  </script>
+
+  <!-- Промокоды (self-serve, 2026-07-02) -->
+  <div class="section">
+    <h2>🎟 Промокоды</h2>
+    <div class="sub">
+      Создай код — зритель введёт его в расширении и получит крустики. Работает во время стрима.
+    </div>
+    <div class="boosty-form">
+      <input id="promo-code" placeholder="КОД (напр. ЛЕТО2026)" style="text-transform:uppercase;">
+      <input id="promo-points" type="number" placeholder="💎" value="1000">
+      <input id="promo-uses" type="number" placeholder="лимит (0=∞)" value="1">
+      <button onclick="createPromo()">Создать</button>
+    </div>
+    <div id="promo-msg" class="boosty-msg"></div>
+    <div id="promo-list" style="margin-top:12px;"><div class="sub">Загрузка…</div></div>
+  </div>
+  <script>
+  async function loadPromos(){{
+    const list = document.getElementById('promo-list');
+    try{{
+      const r = await fetch('/api/streamer/promocodes', {{credentials:'include'}});
+      const d = await r.json();
+      if(d.status !== 'ok'){{ list.innerHTML = '<div class="sub">Ошибка загрузки</div>'; return; }}
+      if(!d.promocodes || !d.promocodes.length){{ list.innerHTML = '<div class="sub">Пока нет промокодов.</div>'; return; }}
+      list.innerHTML = d.promocodes.map(function(p){{
+        const left = p.max_uses > 0 ? (p.max_uses - p.uses) + ' из ' + p.max_uses : '∞';
+        return '<div class="boosty-row"><span class="u">' + bugEsc(p.code) + '</span>'
+          + '<span class="t">' + p.points + '💎</span>'
+          + '<span class="n">исп. ' + p.uses + ' · осталось ' + left + '</span>'
+          + '<button data-promo-del="' + p.id + '">✖ Удалить</button></div>';
+      }}).join('');
+      list.querySelectorAll('[data-promo-del]').forEach(function(btn){{
+        btn.addEventListener('click', function(){{ deletePromo(btn.getAttribute('data-promo-del')); }});
+      }});
+    }} catch(e){{ list.innerHTML = '<div class="sub">Network error</div>'; }}
+  }}
+  async function createPromo(){{
+    const code = document.getElementById('promo-code').value.trim();
+    const points = parseInt(document.getElementById('promo-points').value || '0', 10);
+    const max_uses = parseInt(document.getElementById('promo-uses').value || '1', 10);
+    const m = document.getElementById('promo-msg');
+    if(!code){{ m.textContent='Укажи код'; m.className='boosty-msg err'; return; }}
+    try{{
+      const r = await fetch('/api/streamer/promocodes/create', {{method:'POST', credentials:'include', headers:{{'Content-Type':'application/json'}}, body: JSON.stringify({{code:code, points:points, max_uses:max_uses}})}});
+      const d = await r.json();
+      m.textContent = d.message || (d.success ? 'OK' : 'Ошибка'); m.className = 'boosty-msg ' + (d.success ? 'ok' : 'err');
+      if(d.success){{ document.getElementById('promo-code').value=''; loadPromos(); }}
+    }} catch(e){{ m.textContent='Сеть недоступна'; m.className='boosty-msg err'; }}
+  }}
+  async function deletePromo(id){{
+    try{{
+      await fetch('/api/streamer/promocodes/' + id, {{method:'DELETE', credentials:'include'}});
+      loadPromos();
+    }} catch(e){{}}
+  }}
+  loadPromos();
   </script>
 
   <!-- Boosty subscribers admin (Sprint 5.31 #45b) -->
@@ -1124,27 +1169,72 @@ async def streamer_bug_reports(request: Request):
     })
 
 
-@router.post("/api/streamer/bug-reports/status", include_in_schema=False)
-async def streamer_bug_report_status(request: Request):
-    """Стример помечает багрепорт open/resolved (scoped по своему каналу, m73)."""
+# bug-report триаж (resolve/reopen) переехал в АДМИНКУ 2026-07-02: техбаги чинит
+# разработчик, стример их только видит (read-only). См. /api/admin/bug-reports/status.
+
+
+# ── Промокоды self-serve (2026-07-02): раньше только админ мог создавать, а это
+# стримерский инструмент вовлечения. Теперь стример делает свои коды сам, scoped
+# по его каналу из session cookie. Админ-эндпоинты в promo.py остались (оверрайд).
+@router.get("/api/streamer/promocodes", include_in_schema=False)
+async def streamer_get_promos(request: Request):
+    cid = _read_session_cookie(request)
+    if cid is None:
+        return JSONResponse({"status": "unauthenticated"}, status_code=401)
+    db = get_db()
+    async with db._connect() as conn:
+        c = await conn.execute(
+            "SELECT id, code, points, item_name, max_uses, uses, created_at "
+            "FROM promocodes WHERE channel_id = ? ORDER BY id DESC", (cid,))
+        rows = await c.fetchall()
+    return JSONResponse({"status": "ok", "promocodes": [
+        {"id": r[0], "code": r[1], "points": r[2], "item_name": r[3],
+         "max_uses": r[4], "uses": r[5], "created_at": r[6]} for r in rows]})
+
+
+@router.post("/api/streamer/promocodes/create", include_in_schema=False)
+async def streamer_create_promo(request: Request):
     cid = _read_session_cookie(request)
     if cid is None:
         return JSONResponse({"status": "unauthenticated"}, status_code=401)
     try:
-        body = await request.json()
+        data = await request.json()
     except Exception:
-        body = {}
+        data = {}
+    code = str(data.get("code", "")).strip().upper()
+    if not code:
+        return {"success": False, "message": "Укажи код"}
     try:
-        report_id = int(body.get("id"))
+        points = int(data.get("points", 0))
+        max_uses = int(data.get("max_uses", 1))
     except (TypeError, ValueError):
-        return JSONResponse({"status": "invalid_id"}, status_code=400)
-    new_status = (body.get("status") or "").strip()
-    if new_status not in ("open", "resolved"):
-        return JSONResponse({"status": "invalid_status"}, status_code=400)
-    import bug_reports
-    ok = await bug_reports.set_bug_status(cid, report_id, new_status)
-    return JSONResponse(
-        {"status": "ok" if ok else "not_found", "id": report_id, "new_status": new_status})
+        return {"success": False, "message": "Очки и лимит — числа"}
+    import sqlite3 as _sqlite3
+    db = get_db()
+    async with db._connect() as conn:
+        try:
+            await conn.execute(
+                "INSERT INTO promocodes (channel_id, code, points, item_def, item_name, max_uses) "
+                "VALUES (?,?,?,?,?,?)", (cid, code, points, None, None, max_uses))
+            await conn.commit()
+        except _sqlite3.IntegrityError:
+            return {"success": False, "message": "Такой промокод уже есть"}
+        except Exception as e:
+            return {"success": False, "message": f"Ошибка: {e}"}
+    return {"success": True, "message": f"✅ Промокод {code} создан"}
+
+
+@router.delete("/api/streamer/promocodes/{promo_id}", include_in_schema=False)
+async def streamer_delete_promo(promo_id: int, request: Request):
+    cid = _read_session_cookie(request)
+    if cid is None:
+        return JSONResponse({"status": "unauthenticated"}, status_code=401)
+    db = get_db()
+    async with db._connect() as conn:
+        await conn.execute(
+            "DELETE FROM promocodes WHERE channel_id = ? AND id = ?", (cid, promo_id))
+        await conn.commit()
+    return {"success": True}
 
 
 @router.get("/api/streamer/greet", include_in_schema=False)

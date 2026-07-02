@@ -39,10 +39,10 @@
 
 | # | Что | Статус |
 |---|-----|--------|
-| D1 | Полный CSP `script-src` — вынести inline-скрипты/стили дашборда (_dashboard_html) в /static, затем добавить директиву. | ☐ |
-| D2 | Проверить dashboard-esc() на DOM-XSS в динамических путях (boosty/bug-report innerHTML). | ☐ |
-| D3 | pubsub: сверить, что broadcast() не тянет cross-channel данные из stale-кэша (denylist полон для m38–m87). | ☐ |
-| D4 | eventsub HMAC replay-window + cross-channel replay в dedup-таблице. | ☐ |
+| D1 | Полный CSP `script-src` для дашборда/оверлея. **ОТЛОЖЕНО осознанно:** требует вынести ВСЕ inline `<script>` + убрать inline `onclick` (огромный рерайт дашборда) ради marginal-выгоды на **admin-only** странице, где XSS не найден (D2). Публичные вьюверские поверхности (extension/mobile.html) **уже имеют строгий CSP** (meta, добавлен в public-gate). | ⏸ deferred (обоснованно) |
+| D2 | dashboard DOM-XSS. **ПРОВЕРЕНО — безопасно:** `bugEsc` (& < >) + `esc` ([&<>"']) экранируют весь ввод; user-данные только в тексте, не в атрибутах; `b.id` — int. Два неэкранир. innerHTML — серверный status / JS-ошибка, не ввод атакующего. | ✅ verified |
+| D3 | pubsub cross-channel. **ПРОВЕРЕНО — безопасно:** очереди/seq/throttle ключ `(channel_id, topic)`; send-JWT bound к каналу; data — параметр вызывающего. Механизм не мешает каналы. | ✅ verified |
+| D4 | eventsub replay. **ПРОВЕРЕНО — безопасно:** HMAC + 10-мин replay-окно + атомарный dedup (24ч TTL, channel_id-scoped) + UNIQUE(channel_id, redemption_id). Cross-channel replay невозможен. | ✅ verified |
 
 ## WAVE E — только владелец [owner] (я готовлю чек-листы)
 

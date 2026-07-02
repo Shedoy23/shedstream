@@ -21,11 +21,14 @@ paths work; below are edge/exploit/crash findings the tests don't cover.
 - marriage-accept deletes all incoming proposals to the now-married user — correct
   cleanup (they can't be accepted anyway); the audit's "fix" would leave stale rows.
 
-## 🔧 Pending — ATOMICITY class (systemic, do as one batch)
+## ✅ Fixed — ATOMICITY class (commit 82ae1df, 2026-07-02)
 Recurring root cause: `add_points`/`remove_points` each open their OWN db connection,
 so they can't be atomic with the surrounding state change. If a crash/DB-error hits
-the exact window → money debited without effect, or reward double-awarded. Low
-probability (needs a crash mid-op) but real. **7 instances:**
+the exact window → money debited without effect, or reward double-awarded. **Fixed**
+via new `Database.add_points_tx(conn,...)` / `remove_points_tx(conn,...)` (operate on
+the caller's connection, no own commit) so the charge joins the same `BEGIN IMMEDIATE`
+transaction as the state change. All 7 sites converted; proven by atomicity test
+(rollback undoes both) + full suite 1335/1335. Was **7 instances:**
 - `routes/duel.py:171` — season prize payout not atomic with season-finish mark → double-award on crash (HIGH)
 - `routes/marriage.py:125` — divorce debit + state-change in separate connections → money lost on crash (HIGH)
 - `routes/tts.py:123` — debit then INSERT tts row separately → 5000💎 lost if INSERT fails (HIGH)

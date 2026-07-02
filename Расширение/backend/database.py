@@ -1064,16 +1064,26 @@ class Database:
         username = username.lower()
         async with self._connect() as db:
             await db.execute("BEGIN IMMEDIATE")
+            # M89: first_seen_at = время ПЕРВОГО пинга (не обновляется на MAX-конфликте;
+            # backfill COALESCE'ом для legacy-строк, у которых оно ещё NULL).
             await db.execute("""
-                INSERT INTO stream_attendance (channel_id, username, stream_id, minutes, claimed)
-                VALUES (?, ?, ?, ?, 0)
-                ON CONFLICT(channel_id, username, stream_id) DO UPDATE SET minutes = MAX(minutes, excluded.minutes)
+                INSERT INTO stream_attendance (channel_id, username, stream_id, minutes, claimed, first_seen_at)
+                VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
+                ON CONFLICT(channel_id, username, stream_id) DO UPDATE SET
+                    minutes = MAX(minutes, excluded.minutes),
+                    first_seen_at = COALESCE(first_seen_at, CURRENT_TIMESTAMP)
             """, (channel_id, username, stream_id, minutes))
 
-            # Атомарно выставляем claimed=1 только если ещё не выдавали и порог достигнут
-            # WHERE claimed=0 защищает от race condition двойной выдачи
+            # Атомарно выставляем claimed=1 только если ещё не выдавали и порог достигнут.
+            # WHERE claimed=0 защищает от race condition двойной выдачи.
+            # SECURITY (аудит 2026-07-02): `minutes` приходит от клиента — по нему одному
+            # выдавать нельзя (crafted-запрос с minutes=15 забирал бы стрик без просмотра).
+            # Гейт по СЕРВЕРНОМУ времени: >= 15 реальных минут с первого пинга (first_seen_at).
+            # first_seen_at IS NULL — legacy-строка до M89, grandfathered.
             cur = await db.execute(
-                "UPDATE stream_attendance SET claimed = 1 WHERE channel_id = ? AND username = ? AND stream_id = ? AND claimed = 0 AND minutes >= 15",
+                "UPDATE stream_attendance SET claimed = 1 "
+                "WHERE channel_id = ? AND username = ? AND stream_id = ? AND claimed = 0 AND minutes >= 15 "
+                "AND (first_seen_at IS NULL OR (strftime('%s','now') - strftime('%s', first_seen_at)) >= 900)",
                 (channel_id, username, stream_id))
 
             if cur.rowcount == 0:
@@ -1683,14 +1693,14 @@ class Database:
         """
         async with self._connect() as conn:
             cur = await conn.execute(
-                "SELECT item_id, name, slot, price_bits, rarity, emoji, svg_path "
+                "SELECT item_id, name, slot, price_bits, rarity, emoji, svg_path, png_path "
                 "FROM pet_catalog WHERE deprecated = 0 "
                 "ORDER BY price_bits, rarity DESC"
             )
             items = [
                 {'item_id': r[0], 'name': r[1], 'slot': r[2],
                  'price_bits': r[3], 'rarity': r[4], 'emoji': r[5],
-                 'svg_path': r[6]}
+                 'svg_path': r[6], 'png_path': r[7]}
                 for r in await cur.fetchall()
             ]
 

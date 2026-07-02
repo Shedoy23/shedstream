@@ -149,7 +149,7 @@ function _renderTttIdle() {
         <div style="text-align:center;padding:30px 10px;">
             <div style="font-size:64px;margin-bottom:14px;">❌⭕</div>
             <div style="font-size:14px;color:#adadb8;margin-bottom:18px;">
-                3×3 grid, два игрока ходят по очереди.<br>
+                4×4 grid, два игрока ходят по очереди.<br>
                 Награды только за ELO + sезонный топ.
             </div>
             <button class="modal-btn" id="ttt-find-btn">⚔️ Найти противника</button>

@@ -1228,6 +1228,13 @@ async def run_migrations():
             print(f"❌ M88 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m89_attendance_first_seen
+            await m89_attendance_first_seen.apply(conn)
+        except Exception as e:
+            print(f"❌ M89 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

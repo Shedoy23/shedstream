@@ -337,6 +337,8 @@ async def viewer_attendance(request: Request):
     if not auth:
         return {"success": False, "message": "❌ Требуется авторизация Twitch"}
     username, channel_id = auth
+    if not check_rate_limit(username, 30):
+        return {"success": False, "message": "rate_limited"}
     data    = await request.json()
     minutes = int(data.get("minutes", 0))
     bot     = get_bot()

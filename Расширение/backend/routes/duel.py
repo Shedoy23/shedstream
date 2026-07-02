@@ -129,7 +129,7 @@ async def _update_stats(conn, username: str, elo: int, streak: int,
     )
 
 
-async def check_season_end(channel_id: int = None):
+async def check_season_end(channel_id: int = None, game_type: str = 'rps'):
     """Проверяет окончание сезона КАНАЛА; начисляет призы и стартует новый.
 
     M4 follow-up (а): channel_id теперь обязательная семантическая величина
@@ -143,12 +143,12 @@ async def check_season_end(channel_id: int = None):
     db = get_db()
     async with db._connect() as conn:
         row = await (await conn.execute(
-            "SELECT id, ends_at FROM duel_seasons WHERE channel_id = ? AND finished = 0 ORDER BY id DESC LIMIT 1",
-            (cid,)
+            "SELECT id, ends_at FROM duel_seasons WHERE channel_id = ? AND game_type = ? AND finished = 0 ORDER BY id DESC LIMIT 1",
+            (cid, game_type)
         )).fetchone()
 
         if not row:
-            await _ensure_season(conn, cid)
+            await _ensure_season(conn, cid, game_type)
             return
 
         season_id, ends_at_str = row
@@ -182,15 +182,15 @@ async def check_season_end(channel_id: int = None):
         now     = datetime.now(timezone.utc)
         new_end = _next_sunday_midnight()
         await conn.execute(
-            "INSERT INTO duel_seasons (channel_id, started_at, ends_at, finished) VALUES (?, ?, ?, 0)",
-            (cid, now.isoformat(), new_end.isoformat())
+            "INSERT INTO duel_seasons (channel_id, game_type, started_at, ends_at, finished) VALUES (?, ?, ?, ?, 0)",
+            (cid, game_type, now.isoformat(), new_end.isoformat())
         )
         new_row = await (await conn.execute("SELECT last_insert_rowid()")).fetchone()
         new_season_id = new_row[0]
 
         await conn.execute(
-            "UPDATE duel_stats SET elo = ?, win_streak = 0, season_id = ? WHERE channel_id = ?",
-            (ELO_START, new_season_id, cid)
+            "UPDATE duel_stats SET elo = ?, win_streak = 0, season_id = ? WHERE channel_id = ? AND game_type = ?",
+            (ELO_START, new_season_id, cid, game_type)
         )
         await conn.commit()
 

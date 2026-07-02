@@ -148,6 +148,8 @@ FRONTEND_PATH = os.getenv("FRONTEND_PATH", "")
 
 # Явные маршруты для файлов расширения — Twitch запрашивает их по точным путям
 _EXTENSION_FILES = {
+    "/":               "index.html",    # публичный лендинг shedoy23.ru (2026-07-02)
+    "/index.html":     "index.html",
     "/extension.html": "extension.html",
     "/overlay.html":   "overlay.html",
     "/mobile.html":    "mobile.html",
@@ -248,6 +250,11 @@ _register_extension_routes()
 # Статические файлы (остальные ресурсы если есть)
 if FRONTEND_PATH and os.path.exists(FRONTEND_PATH):
     app.mount("/static", StaticFiles(directory=FRONTEND_PATH), name="static")
+    # Раздача модов + install-инструкций (2026-07-02): /downloads/<game>/<file>
+    _downloads_path = os.path.join(FRONTEND_PATH, "downloads")
+    if os.path.isdir(_downloads_path):
+        app.mount("/downloads", StaticFiles(directory=_downloads_path), name="downloads")
+        print(f"✅ Downloads подключены: {_downloads_path}")
     # Sprint 5.28: pet-assets/ mount для PixelLab PNG-спрайтов character'а
     # (kimono + underwear × 8 directions). pet-stage.js загружает их по
     # относительному пути "pet-assets/v2/{variant}/{direction}.png".

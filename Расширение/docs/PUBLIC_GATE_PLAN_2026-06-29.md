@@ -8,7 +8,7 @@ ROADMAP, лексикон UI, монетизация/данные, LGPL, пуб�
 | Уровень | Статус | Блокеры |
 |---|---|---|
 | Приватное ревью (Submit for Review) | 🟢 ~95% — подавать после Фазы 1 | «Задонатить»-лейбл, config-toggle live-проверка |
-| Публичный доступ (Released, any-streamer) | 🟡 нужен public-gate батч | 3 auth-дыры чтения, тонкий фронт, CSP, RimWorld-кластер |
+| Публичный доступ (Released, any-streamer) | 🟢 public-gate закрыт (2026-07-02) | остался только замер poll-нагрузки на живом стриме + in-game проверка UI |
 
 Подача ревью и «Released» — разные ворота: ревью приватное, «Released» жмёт владелец
 отдельно. Public-gate можно закрывать, пока Twitch проверяет.
@@ -35,27 +35,30 @@ ROADMAP, лексикон UI, монетизация/данные, LGPL, пуб�
 переименовывать эндпоинты, которые зовёт v1.0 фронт. Добавить смоук «v1.0 контракт»
 в deploy-гейт.
 
-## Фаза 3 — public-gate (~1-2 сессии, ДО «Released»)
-1. **Auth-дыры чтения** (см. surfaces-разведку):
-   - `rimworld.py:571` GET `/api/rimworld/my-pawn/{username}` — вообще без auth,
-     полный профиль пешки. JWT + channel-scope (или killswitch модуля, п.2).
-   - `viewer.py:295` `/api/user/level/{username}` и `viewer.py:371`
-     `/api/viewer/online-list` — fallback на resolve_channel_id_or_default() без JWT
-     → убрать fallback (401 без JWT).
-   - `module_api.py:35/55` `/v1/modules{,/info}` — скрыть или auth (capability-разведка).
-   - `misc.py:189` `/api/user/resolve-twitch-id` — auth/удалить (enumeration-оракул).
-2. **RimWorld-кластер** (5 findings, task_f2662300): починить ИЛИ настоящий
-   kill-switch (эндпоинты 404 при выключенном модуле; RIMWORLD_REQUIRE_TOKEN=1).
-3. **Тонкий фронт** (ROADMAP §5): BNR_FOCUS_TIER_COSTS, BNR_ATTRIBUTE_COST,
-   RETINUE_TIER_DINARS, RECRUIT_PRICE_BASIC, EVENT_COOLDOWN_MS, trait/gene-цены →
-   отдавать с бэка (/my-hero, /config). CDN-фронт замёрзнет — цены живут на бэке.
-4. **CSP/CORS** (`main.py:264-295`): добавить script-src/connect-src/default-src;
-   пересмотреть `null`-origin + allow_credentials (OBS-кейс — сузить).
-5. **Гигиена до 2-го стримера:** DEFAULT_CHANNEL_ID fallback (config.py:695),
-   мёртвые bits-колонки pet_purchases + PETS_BITS_REQUIRED dead-path,
-   boosty_tier в /api/viewer/role — пометить cosmetic-only/убрать.
-6. **Масштаб:** замерить poll-амплификацию (~12-16 req/8с на зрителя) на реальном
-   стриме; прикинуть 50 каналов (SQLite один).
+## Фаза 3 — public-gate ✅ СДЕЛАНО 2026-07-02 (задеплоено, прод-проверено)
+Три волны, каждая — отдельный коммит; деплой-гейт 107/107; прод отвечает верно.
+1. ✅ **Auth-дыры чтения (wave 1, commit 05737fb):**
+   - `my-pawn/{username}` → require JWT + own-login-only → без JWT `{exists:false,
+     auth_required:true}` (вкладка ревьюера рисует «создать пешку», не ломается).
+   - `user/level` / `online-list` → без JWT нейтральные дефолты / пустой список
+     (fallback на default-канал убран). Фронт шлёт X-Twitch-JWT.
+   - `add-command` (был БЕЗ auth, инъекция команд) → под rimworld_mod_auth.
+   - `resolve-twitch-id` → admin-basic (0 вызовов, enumeration-оракул).
+   - `/v1/modules` + `/info` → 404 без `EXPOSE_MODULE_DEBUG=1` (0 вызовов).
+2. ✅ **RimWorld:** my-pawn + add-command закрыты (см. wave 1). Остаток кластера
+   (SOFT mod-ingest, colonists-leak) — под `task_f2662300`, чинить при реактивации
+   RimWorld (модуль сейчас dormant; RIMWORLD_REQUIRE_TOKEN держим 0 до апдейта мода).
+3. ✅ **Тонкий фронт (wave 3, commit 4080cc5):** новый GET `/api/bannerlord/config`
+   отдаёт все ~10 констант; фронт гидрирует их на активации модуля, хардкоды —
+   fallback. CDN-фронт можно морозить: ребаланс на бэке подхватится без ре-ревью.
+4. ✅ **CSP/CORS (wave 2, commit 02b6048):** allow_headers сужен со `*`;
+   Permissions-Policy (camera/mic/geo off). `null`-origin + credentials оставлены
+   (OBS; SameSite=Lax уже защищает). Полный script-src CSP = отдельная задача
+   (вынос inline-скриптов дашборда).
+5. ✅ **Гигиена:** boosty_tier помечен display-only; pets bits — комментарий (без
+   миграции). DEFAULT_CHANNEL_ID fallback убран из viewer-data reads (п.1).
+6. ⏳ **Масштаб (не сделано — нужен живой стрим):** замерить poll-амплификацию
+   (~12-16 req/8с на зрителя), прикинуть 50 каналов (SQLite один). Пост-стрим.
 
 ## Фаза 4 — гейт с доказательствами
 Лексикон-линт (расширить на комменты), tenant-линт, критические тесты (107),

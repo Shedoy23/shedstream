@@ -24,10 +24,10 @@
 
 | # | Sev | Что | Статус |
 |---|-----|-----|--------|
-| B1 | LOW | `donation_total` — мёртвое поле с real-money-лексиконом, светится в API (routes/event.py:59) + рендерится (family.js:256). Убрать/переименовать. | ☐ |
-| B2 | LOW | `/api/duel/leaderboard` + `/api/overlay/tts/pending` — unauth fallback на DEFAULT_CHANNEL_ID (публичные данные, но при 2-м стримере — тихий mis-route). Требовать явный channel_id / пусто без него. | ☐ |
-| B3 | MED | gTTS без refund-on-failure: если Google TTS лёг — зритель теряет 5000💎 без возврата. Circuit-breaker/refund. | ☐ |
-| B4 | LOW | Доки со старыми именами: CONTEXT_BANNERLORD.md `tournament.bet` (стр.493). Обновить. | ☐ |
+| B1 | LOW | `donation_total`/`pool_pct_donations` — мёртвое поле с real-money-лексиконом в API+фронте. Fix: удалён целиком (event_manager donation-путь, event.py response, config-ключ, family.js render — HTML donation-бара не было, рендер был no-op). | ✅ (compile+import; 0 live refs) |
+| B2 | LOW | `/api/duel/leaderboard` unauth→DEFAULT-fallback. Fix: require JWT-channel, пустой борд без JWT (duels.js шлёт JWT). `tts/pending` — accepted-low: оверлей всегда шлёт channel_id (после A2), read публичен by design. | ✅ (leaderboard); tts/pending accepted |
+| B3 | MED | gTTS refund. **ПРОВЕРЕНО — уже безопасно, не был сломан:** debit (`remove_points`) идёт ПОСЛЕ успешной gTTS (tts.py:110-124); упал gTTS → return error БЕЗ списания. Критик пометил «не проверено» → verified. | ✅ (verify, без правок) |
+| B4 | LOW | CONTEXT_BANNERLORD.md `tournament.bet`×3 → `tournament.predict`. | ✅ |
 
 ## WAVE C — RimWorld кластер (код, [me]) — «все косяки»
 

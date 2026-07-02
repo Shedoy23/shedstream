@@ -428,8 +428,12 @@ async def duel_leaderboard(request: Request, game_type: str = "rps"):
 
     Query: ?game_type=rps|tictactoe|dice (default 'rps' для backward compat)
     """
-    from dependencies import resolve_channel_id_or_default, require_jwt_channel
-    cid = require_jwt_channel(request) or resolve_channel_id_or_default()
+    from dependencies import require_jwt_channel
+    cid = require_jwt_channel(request)
+    if cid is None:
+        # B2 (2026-07-02): без JWT не отдаём default-канал (multi-tenant leak);
+        # фронт (duels.js) шлёт JWT. Пустой борд той же формы — UI не ломается.
+        return {"season_id": 1, "ends_at": None, "game_type": game_type, "leaderboard": []}
 
     db = get_db()
     async with db._connect() as conn:

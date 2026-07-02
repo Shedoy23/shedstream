@@ -312,7 +312,8 @@ AUTO_MESSAGES = [
 
 # ===== НАСТРОЙКИ ИВЕНТА =====
 EVENT_CONFIG = {
-    'min_donations_for_event': 500,
+    # min_donations_for_event удалён 2026-07-02 (B1): донаты вырезаны Phase 8.F,
+    # поле было dead + светило real-money-лексикон в API/фронте.
     'min_points_for_event': 100000,
     'event_duration': 180,   # 3 минуты (уменьшено с 5)
     'min_bid': 100,

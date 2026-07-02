@@ -17,7 +17,6 @@ class EventManager:
         self.active_event = None
         self.last_event_time = datetime.min
 
-        self.donation_total = 0
         self.event_pool = 0
         self.event_pool_contributors = {}
 
@@ -61,9 +60,8 @@ class EventManager:
         условия перевыполнены — ивент не запустится до истечения часа.
         """
         ready_reason = None
-        if self.donation_total >= EVENT_CONFIG["min_donations_for_event"]:
-            ready_reason = "donations"
-        elif self.event_pool >= EVENT_CONFIG["min_points_for_event"]:
+        # donation-путь удалён 2026-07-02 (B1) — донаты вырезаны Phase 8.F (был dead).
+        if self.event_pool >= EVENT_CONFIG["min_points_for_event"]:
             ready_reason = "points"
 
         if ready_reason is None:
@@ -114,7 +112,6 @@ class EventManager:
         self._total_extended = 0
         self.event_pool_contributors = {}
 
-        self.donation_total = max(0, self.donation_total - EVENT_CONFIG["min_donations_for_event"])
         self.event_pool = max(0, self.event_pool - EVENT_CONFIG["min_points_for_event"])
         self.last_event_time = now
 

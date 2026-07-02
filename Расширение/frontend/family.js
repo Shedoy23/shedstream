@@ -245,15 +245,12 @@ async function loadRulection() {
 
             // Обновляем прогресс-бары
             const ptsPct = d.pool_pct_points || 0;
-            const donPct = d.pool_pct_donations || 0;
 
             const el = (id) => document.getElementById(id);
             if (el('rulection-pts-bar')) el('rulection-pts-bar').style.width = ptsPct + '%';
             if (el('rulection-pts-pct')) el('rulection-pts-pct').textContent = ptsPct + '%';
             if (el('rulection-pts-val')) el('rulection-pts-val').textContent = (d.pool || 0).toLocaleString();
-            if (el('rulection-don-bar')) el('rulection-don-bar').style.width = donPct + '%';
-            if (el('rulection-don-pct')) el('rulection-don-pct').textContent = donPct + '%';
-            if (el('rulection-don-val')) el('rulection-don-val').textContent = d.donation_total || 0;
+            // donation-бар удалён 2026-07-02 (B1) — донаты вырезаны, поля были dead/no-op.
 
             // Топ контрибьюторов
             const topEl = el('rulection-top-contributors');

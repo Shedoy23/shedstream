@@ -51,15 +51,11 @@ async def event_status():
         # Раньше здесь был хардкод 100000 и ECONOMY_CONFIG["min_event_donations"] — фронт
         # показывал один прогресс, а сервер проверял по другому ключу.
         min_points    = EVENT_CONFIG["min_points_for_event"]
-        min_donations = EVENT_CONFIG["min_donations_for_event"]
 
         result = {
             "pool":               pool,
             "pool_pct_points":    min(100, round(pool / min_points * 100, 1)),
-            "pool_pct_donations": min(100, round((em.donation_total or 0) / min_donations * 100, 1)),
             "min_points":         min_points,
-            "min_donations":      min_donations,
-            "donation_total":     em.donation_total or 0,
             "can_start":          can_start,
             "can_start_reason":   reason,
             "top_contributors":   em.get_top_contributors(5) or [],
@@ -99,10 +95,7 @@ async def event_status():
         return {
             "pool":               0,
             "pool_pct_points":    0,
-            "pool_pct_donations": 0,
             "min_points":         EVENT_CONFIG["min_points_for_event"],
-            "min_donations":      EVENT_CONFIG["min_donations_for_event"],
-            "donation_total":     0,
             "can_start":          False,
             "can_start_reason":   "event_status_error",
             "top_contributors":   [],

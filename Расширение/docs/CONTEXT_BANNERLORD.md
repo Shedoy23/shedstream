@@ -19,7 +19,7 @@ griefing без списания у атакующего.
 
 Фикс (`routes/bannerlord.py` `_charge_execute_enqueue`): перед enqueue форсим
 `payload["target"] = requester` для всех action'ов КРОМЕ `_CROSS_USER_TARGET_ACTIONS`
-(tournament.bet + marriage-proposal flow — легитимный viewer↔viewer, и все backend-only).
+(tournament.predict + marriage-proposal flow — легитимный viewer↔viewer, и все backend-only).
 Мутируем КОПИЮ payload, не `data` → backend-логика (запись ставки) цела. Список
 fail-closed: новый кросс-юзер мод-action надо добавить явно. `hero.activate_marriage`
 enqueue'ится отдельно (bannerlord_family.py) с target=сам, не задет.
@@ -446,7 +446,7 @@ prod-mirror в `Modules/Shedoy23.BannerlordLink/`) ↔ FastAPI backend
   `JsonConvert.SerializeObject` вместо `string.Format`; HeroStateSync
   per-property try/catch; ActionPoller dedup ring (action_id ConcurrentDict
   TTL 10 мин, max 2000 — закрывает sweeper double-debit).
-  *BACKEND:* tournament.bet dedup внутри BEGIN IMMEDIATE; module_api auth
+  *BACKEND:* tournament.predict dedup внутри BEGIN IMMEDIATE; module_api auth
   trio unified `auth_failed` (timing oracle protection); cases.py preview
   endpoints per-IP rate-limit 60/min.
   *FRONTEND:* 5 setInterval → safeInterval; escape `${title}`, `${a.item_icon}`,
@@ -490,7 +490,7 @@ prod-mirror в `Modules/Shedoy23.BannerlordLink/`) ↔ FastAPI backend
     через reflection `AccessTools.Field(typeof(Agent), "_name")`
 - `player.heal` / `player.give_item` / `player.equip_item` / `player.modify_attribute`
 - `power.activate` — 4 active powers (heal_burst/shield_break/rage/retribution)
-- `tournament.bet` — backend-only
+- `tournament.predict` — backend-only
 
 ### Campaign + Mission behaviors
 

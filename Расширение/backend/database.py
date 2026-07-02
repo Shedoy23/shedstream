@@ -546,7 +546,33 @@ class Database:
             )
             await db.commit()
             return cursor.rowcount > 0
-    
+
+    # ── Атомарные варианты на СУЩЕСТВУЮЩЕМ conn ────────────────────────────────
+    # add_points/remove_points открывают своё соединение и коммитят сами → не
+    # атомарны с окружающей логикой (краш в окне = деньги списаны без эффекта /
+    # награда выдана дважды). Эти _tx-версии работают на переданном conn: вызывающий
+    # сам делает BEGIN IMMEDIATE + commit, начисление/списание входит в ту же
+    # транзакцию, что и изменение состояния. channel_id ОБЯЗАТЕЛЕН (не резолвим —
+    # атомарные пути не должны зависеть от ContextVar).
+    async def add_points_tx(self, conn, username: str, amount: int, channel_id: int):
+        """Начислить очки на существующем conn (без commit — на вызывающем)."""
+        if username and _is_opaque_login(username):
+            return
+        await conn.execute("""
+            INSERT INTO viewers (channel_id, username, points, last_seen, join_time, is_afk)
+            VALUES (?, ?, ?, datetime('now'), datetime('now'), 0)
+            ON CONFLICT(channel_id, username) DO UPDATE SET
+                points = points + ?, last_seen = datetime('now')
+        """, (channel_id, username.lower(), amount, amount))
+
+    async def remove_points_tx(self, conn, username: str, amount: int, channel_id: int) -> bool:
+        """Списать очки на существующем conn (без commit). True если хватило."""
+        cur = await conn.execute(
+            "UPDATE viewers SET points = points - ? "
+            "WHERE channel_id = ? AND username = ? AND points >= ?",
+            (amount, channel_id, username.lower(), amount))
+        return cur.rowcount > 0
+
     # ===== ПРОГРЕССИВНЫЕ СЧЁТЧИКИ (черты и гены) =====
 
     async def get_purchase_count(self, username: str, category: str) -> int:

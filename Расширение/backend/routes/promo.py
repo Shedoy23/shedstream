@@ -68,22 +68,25 @@ async def use_promo(request: Request):
             await conn.execute(
                 "INSERT INTO promo_uses (channel_id, code, username) VALUES (?,?,?)",
                 (channel_id, code, username))
+            # Награда — В ТОЙ ЖЕ транзакции, что и запись use (иначе use записан, а
+            # add_points/give_item могли не доехать → "уже использован" без награды).
+            reward_parts = []
+            if points > 0:
+                await db.add_points_tx(conn, username, points, channel_id)
+                reward_parts.append(f"{points}💎")
+            if item_def:
+                icur = await conn.execute("SELECT id FROM items WHERE name = ?", (item_def,))
+                irow = await icur.fetchone()
+                if irow:
+                    await conn.execute(
+                        "INSERT INTO inventory (channel_id, username, item_id, quantity) VALUES (?, ?, ?, 1) "
+                        "ON CONFLICT(channel_id, username, item_id) DO UPDATE SET quantity = quantity + 1",
+                        (channel_id, username.lower(), irow[0]))
+                    reward_parts.append(f"предмет «{item_name or item_def}»")
             await conn.commit()
         except Exception:
             await conn.execute("ROLLBACK")
             return {"success": False, "message": "Ошибка активации, попробуй ещё раз"}
-
-    # 2026-06-06 FIX — channel_id явно (как в touch_viewer): эти вызовы ВНЕ try,
-    # а add_points/give_item делают strict resolve_channel_id → без channel_id
-    # роняли 500 ПОСЛЕ коммита use → "ошибка", а use уже записан → повтор "уже
-    # использован". (+ give_item: 3-й позиционный арг = quantity, передавали имя.)
-    reward_parts = []
-    if points > 0:
-        await db.add_points(username, points, channel_id=channel_id)
-        reward_parts.append(f"{points}💎")
-    if item_def:
-        await db.give_item(username, item_def, 1, channel_id=channel_id)
-        reward_parts.append(f"предмет «{item_name or item_def}»")
 
     reward_str = " и ".join(reward_parts) if reward_parts else "бонус"
     return {"success": True, "message": f"✅ Промокод активирован! Ты получил: {reward_str}"}

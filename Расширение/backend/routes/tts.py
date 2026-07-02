@@ -120,18 +120,35 @@ async def tts_submit(request: Request):
     if not audio_bytes:
         return {"success": False, "message": "❌ Пустой результат TTS"}
 
-    # Debit + queue
-    if not await db.remove_points(username, TTS_COST):
-        return {"success": False, "message": "Не удалось списать"}
-
+    # Debit + queue — атомарно в одной транзакции, с ПОВТОРНОЙ проверкой кулдауна
+    # внутри неё: TOCTOU-фикс (два параллельных запроса иначе оба проходят ранний
+    # чек и оба списывают) + debit-without-effect (списание и INSERT — одна tx).
     async with db._connect() as conn:
-        await conn.execute(
-            "INSERT INTO tts_messages "
-            "(channel_id, username, message, cost, audio_data) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (channel_id, username, message, TTS_COST, audio_bytes)
-        )
-        await conn.commit()
+        try:
+            await conn.execute("BEGIN IMMEDIATE")
+            cur = await conn.execute(
+                "SELECT (strftime('%s','now') - strftime('%s', created_at)) "
+                "FROM tts_messages WHERE username = ? AND channel_id = ? "
+                "ORDER BY created_at DESC LIMIT 1",
+                (username, channel_id))
+            crow = await cur.fetchone()
+            if crow and crow[0] is not None and crow[0] < TTS_COOLDOWN_S:
+                await conn.execute("ROLLBACK")
+                remaining = TTS_COOLDOWN_S - int(crow[0])
+                return {"success": False, "message": f"⏳ Подожди ещё {remaining}s"}
+            if not await db.remove_points_tx(conn, username, TTS_COST, channel_id):
+                await conn.execute("ROLLBACK")
+                return {"success": False, "message": "Не удалось списать"}
+            await conn.execute(
+                "INSERT INTO tts_messages "
+                "(channel_id, username, message, cost, audio_data) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (channel_id, username, message, TTS_COST, audio_bytes)
+            )
+            await conn.commit()
+        except Exception:
+            await conn.execute("ROLLBACK")
+            raise
 
     return {
         "success": True,

@@ -108,28 +108,30 @@ async def divorce(request: Request):
     await get_bot().touch_viewer(sender)
 
     DIVORCE_COST = FAMILY_CONFIG["divorce_cost"]
-    db     = get_db()
-    points = await db.get_points(sender)
-    if points < DIVORCE_COST:
-        return {"success": False, "message": f"Нужно {DIVORCE_COST}💎 для развода"}
-
+    db = get_db()
+    # Атомарно: проверка брака + списание + divorced_at в одной транзакции (иначе
+    # краш между списанием и divorced_at = деньги сняты, но брак не расторгнут).
     async with db._connect() as conn:
-        cursor = await conn.execute("""
-            SELECT id FROM marriages
-            WHERE channel_id = ? AND (user1 = ? OR user2 = ?) AND divorced_at IS NULL
-        """, (channel_id, sender, sender))
-        row = await cursor.fetchone()
-    if not row:
-        return {"success": False, "message": "Ты не в браке"}
-
-    if not await db.remove_points(sender, DIVORCE_COST):
-        return {"success": False, "message": f"Баланс упал — нужно {DIVORCE_COST}💎"}
-
-    async with db._connect() as conn:
-        await conn.execute("""
-            UPDATE marriages SET divorced_at = CURRENT_TIMESTAMP WHERE id = ? AND channel_id = ?
-        """, (row[0], channel_id))
-        await conn.commit()
+        try:
+            await conn.execute("BEGIN IMMEDIATE")
+            cursor = await conn.execute("""
+                SELECT id FROM marriages
+                WHERE channel_id = ? AND (user1 = ? OR user2 = ?) AND divorced_at IS NULL
+            """, (channel_id, sender, sender))
+            row = await cursor.fetchone()
+            if not row:
+                await conn.execute("ROLLBACK")
+                return {"success": False, "message": "Ты не в браке"}
+            if not await db.remove_points_tx(conn, sender, DIVORCE_COST, channel_id):
+                await conn.execute("ROLLBACK")
+                return {"success": False, "message": f"Нужно {DIVORCE_COST}💎 для развода"}
+            await conn.execute("""
+                UPDATE marriages SET divorced_at = CURRENT_TIMESTAMP WHERE id = ? AND channel_id = ?
+            """, (row[0], channel_id))
+            await conn.commit()
+        except Exception:
+            await conn.execute("ROLLBACK")
+            raise
 
     return {"success": True, "message": f"💔 Развод оформлен (-{DIVORCE_COST}💎)"}
 

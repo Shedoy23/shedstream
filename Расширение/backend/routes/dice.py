@@ -229,6 +229,9 @@ async def check_season_end(channel_id: int = None):
     cid = channel_id if channel_id else resolve_channel_id_or_default()
     db = get_db()
     async with db._connect() as conn:
+        # Атомарность: призы + finish + reset + новый сезон — одна транзакция
+        # (иначе краш между add_points и finish = двойная выдача при ретрае).
+        await conn.execute("BEGIN IMMEDIATE")
         row = await (await conn.execute(
             "SELECT id, ends_at FROM duel_seasons "
             "WHERE channel_id = ? AND game_type = ? AND finished = 0 "
@@ -258,7 +261,7 @@ async def check_season_end(channel_id: int = None):
         for rank, (uname, elo) in enumerate(top, 1):
             prize = PRIZES.get(rank, 0)
             if prize:
-                await db.add_points(uname, prize, channel_id=cid)
+                await db.add_points_tx(conn, uname, prize, cid)  # в той же транзакции, что finish+reset
                 prize_parts.append(f"#{rank} @{uname} ({elo} ELO) +{prize:,}💎")
 
         await conn.execute("UPDATE duel_seasons SET finished = 1 WHERE id = ?", (season_id,))

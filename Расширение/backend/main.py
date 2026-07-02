@@ -1467,9 +1467,12 @@ class TwitchChatBot(twitch_commands.Bot):
                     "INSERT INTO streak_rewards (channel_id, username, streak_count, diamonds_given) VALUES (?,?,?,?)",
                     (channel_id, username, matched_streak, reward)
                 )
+                # Начисление В ТОЙ ЖЕ транзакции, что и dedup-запись (иначе награда
+                # могла не доехать после commit'а dedup) + channel_id явно (раньше
+                # add_points без него → resolve на ContextVar/default в bot-контексте).
+                await db.add_points_tx(conn, username, reward, channel_id)
                 await conn.commit()
 
-            await db.add_points(username, reward)
             print(f"🎁 @{username} получил {reward}💎 за {matched_streak} стримов подряд!")
 
             # Поздравление в чат

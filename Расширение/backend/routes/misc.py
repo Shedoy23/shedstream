@@ -11,7 +11,7 @@ import os
 
 import aiohttp
 import jwt
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 
 from auth import verify_twitch_jwt
 from config import sanitize_username, validate_username
@@ -19,6 +19,7 @@ from dependencies import (
     cache_twitch_login,
     get_db,
     get_overlay_state,
+    require_admin,
     require_jwt_user,
 )
 
@@ -187,8 +188,12 @@ async def resolve_twitch_token(request: Request):
 
 
 @router.get("/api/user/resolve-twitch-id")
-async def resolve_twitch_id(twitch_id: str):
-    """Резолв числового Twitch ID → логин."""
+async def resolve_twitch_id(twitch_id: str, _admin=Depends(require_admin)):
+    """Резолв числового Twitch ID → логин.
+
+    Public-gate (2026-07-02): закрыт admin-basic. Ни фронт, ни моды его не зовут
+    (enumeration-оракул: numeric id → login). Оставлен для admin-скриптов.
+    """
     candidate = twitch_id[1:] if twitch_id.startswith("U") else twitch_id
     if not candidate.isdigit():
         return {"login": None, "error": "opaque ID — используй /resolve-twitch-token"}

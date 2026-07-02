@@ -637,7 +637,9 @@ let _onlineUsers = [];
 
 async function fetchOnlineUsers() {
     try {
-        const r = await fetch(`${API_URL}/api/viewer/online-list`);
+        const r = await fetch(`${API_URL}/api/viewer/online-list`, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
         const d = await r.json();
         _onlineUsers = (d.users || []).filter(u => u !== userLogin);
     } catch(e) { console.error('[fetchOnlineUsers]', e); }

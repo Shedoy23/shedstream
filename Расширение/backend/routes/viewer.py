@@ -296,17 +296,19 @@ async def get_viewer_quests(username: str, request: Request):
 async def get_user_level(username: str, request: Request):
     """Получить уровень и EXP пользователя.
 
-    Public-ish: если есть JWT — берём channel_id из него, иначе fallback
-    в DEFAULT (legacy boundary — этот endpoint вызывается без JWT при
-    инициализации viewer.js, до того как X-Twitch-JWT добавится).
+    Public-gate (2026-07-02): требует JWT. Без JWT (до Twitch-авторизации/если
+    зритель не поделился личностью) — возвращаем нейтральные дефолты, НЕ данные
+    default-канала (иначе при multi-tenant любой без JWT читал бы данные
+    стримера 98319857).
     """
     username = sanitize_username(username)
     if not username:
         return {"level": 1, "exp": 0, "total_exp": 0, "exp_needed": 100, "title": "Зритель", "bonus_pct": 0}
 
-    # Set ContextVar — JWT если возможно, иначе default-канал
     auth = require_jwt_user(request)
-    channel_id = auth[1] if auth else resolve_channel_id_or_default()
+    if not auth:
+        return {"level": 1, "exp": 0, "total_exp": 0, "exp_needed": 100, "title": "Зритель", "bonus_pct": 0}
+    channel_id = auth[1]
     set_request_channel_id(channel_id)
 
     db         = get_db()
@@ -371,9 +373,12 @@ async def get_viewer_achievements(username: str, request: Request):
 @router.get("/api/viewer/online-list")
 async def get_online_users(request: Request):
     """Список пользователей онлайн (не AFK) для дропдаунов — scoped по каналу из
-    JWT (без JWT → default-канал). Иначе протекает presence между каналами."""
+    JWT. Public-gate (2026-07-02): без JWT → пустой список (иначе протекает
+    presence между каналами при multi-tenant)."""
     auth = require_jwt_user(request)
-    channel_id = auth[1] if auth else resolve_channel_id_or_default()
+    if not auth:
+        return {"users": []}
+    channel_id = auth[1]
     db = get_db()
     async with db._connect() as conn:
         cursor = await conn.execute("""

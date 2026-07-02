@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import time
 from collections import deque
 from typing import Deque, Set
@@ -32,9 +33,19 @@ from modules._loader import get_module, list_modules
 router = APIRouter()
 
 
+# Public-gate (2026-07-02): debug/info-эндпоинты раскрывают конфигурацию всех
+# модулей (события/действия/каталоги/кол-во каналов) — разведка для атакующего.
+# У них НЕТ вызывающих (ни фронт, ни моды). Прячем за env-флагом (по умолчанию
+# 404). Включить для отладки: EXPOSE_MODULE_DEBUG=1.
+def _module_debug_enabled() -> bool:
+    return os.getenv("EXPOSE_MODULE_DEBUG", "0") == "1"
+
+
 @router.get("/v1/modules", include_in_schema=False)
 async def list_modules_endpoint():
-    """Список зарегистрированных модулей. Полезно для debug + admin UI."""
+    """Список зарегистрированных модулей (debug; gated env EXPOSE_MODULE_DEBUG)."""
+    if not _module_debug_enabled():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not found")
     return {
         "modules": [
             {
@@ -54,6 +65,8 @@ async def list_modules_endpoint():
 
 @router.get("/v1/module/{module_id}/info", include_in_schema=False)
 async def module_info(module_id: str):
+    if not _module_debug_enabled():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not found")
     adapter = get_module(module_id)
     if not adapter:
         raise HTTPException(

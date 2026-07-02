@@ -569,8 +569,21 @@ async def sync_pawn(request: Request, _auth=Depends(rimworld_mod_auth)):
 # ===== ДАННЫЕ ПЕШКИ ДЛЯ РАСШИРЕНИЯ =====
 
 @router.get("/api/rimworld/my-pawn/{username}")
-async def get_my_pawn(username: str):
-    """Получить полную информацию о пешке зрителя"""
+async def get_my_pawn(username: str, request: Request):
+    """Получить полную информацию о пешке зрителя.
+
+    Public-gate (2026-07-02): требует JWT, и зритель может смотреть ТОЛЬКО свою
+    пешку. Раньше endpoint был без auth — любой по логину читал полный профиль
+    чужой пешки (экипировка/раны/трейты/гены). Без JWT или чужой логин →
+    {exists:false, auth_required:true}: фронт рисует состояние «создать пешку»,
+    вкладка «Интеграция» для ревьюера не ломается.
+    """
+    auth = require_jwt_user(request)
+    if not auth:
+        return {"exists": False, "auth_required": True}
+    jwt_login, _channel_id = auth
+    if sanitize_username(username) != jwt_login:
+        return {"exists": False, "auth_required": True}
     db = get_db()
     try:
         async with aiosqlite.connect(db.db_path) as conn:
@@ -905,7 +918,9 @@ async def commands_processed(request: Request, _auth=Depends(rimworld_mod_auth))
     return {"status": "ok"}
 
 @router.post("/api/rimworld/add-command")
-async def add_command(request: Request):
+async def add_command(request: Request, _auth=Depends(rimworld_mod_auth)):
+    # Public-gate (2026-07-02): был без auth вообще — любой мог инжектить команды
+    # в очередь. Теперь под rimworld_mod_auth (как остальные mod-ingest).
     data = await request.json()
     if not data.get("type"):
         print(f"⚠️ add-command: отклонена команда без поля 'type': {data}")

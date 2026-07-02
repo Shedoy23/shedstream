@@ -61,7 +61,9 @@ async function loadMyPawn() {
 
     try {
         const url = `${API_URL}/api/rimworld/my-pawn/${userLogin}`;
-        const response = await fetch(url);
+        const response = await fetch(url, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
         const data = await response.json();
 
         const pawnContainer = document.getElementById('my-pawn-card');

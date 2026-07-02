@@ -1162,7 +1162,9 @@ function _bnrBindDetailsPersistence() {
 }
 // Sprint M21 — gear upgrade costs в Hero.Gold (in-game динары, не крустики).
 // Mirror HERO_GOLD_TIER_COSTS на backend и в UpgradeGearHandler.cs.
-const HERO_GOLD_TIER_COSTS = {
+// let (не const): thin-front гидрирует значениями с /api/bannerlord/config
+// (см. _hydrateBnrConfig в viewer-bannerlord.js). Значения ниже — fallback.
+let HERO_GOLD_TIER_COSTS = {
     1:    50_000,
     2:   100_000,
     3:   200_000,
@@ -1515,6 +1517,8 @@ function _bindBnrInnerTabs() {
 
 function _startBannerlordPolling() {
     if (_bannerlordPollId) return;
+    // Thin-front: подтянуть статические цены с бэка один раз при активации модуля.
+    if (typeof _hydrateBnrConfig === 'function') _hydrateBnrConfig();
     _bindBnrInnerTabs();
     loadBannerlordHero();
     loadBannerlordShop();

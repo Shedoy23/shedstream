@@ -1056,6 +1056,18 @@ ADD_SKILL_XP_PRESETS = {
     5_000:   500,
 }
 
+# Thin-front (2026-07-02): подняты на module-level из _prepare_action, чтобы
+# GET /api/bannerlord/config отдавал их фронту (единый источник цен). Функция
+# читает их read-only — module-scope достаточно.
+SPAWN_PRICES = {
+    "player": 50,     # на сторону стримера (ally) — 5.27i: ×0.5 от 100
+    "enemy":  100,    # против стримера — тролл-tax — 5.27i: ×0.5 от 200
+}
+# MIRROR mod TIER_COSTS из RecruitTroopsHandler.cs — pre-check Hero.Gold.
+RECRUIT_TIER_COSTS = [5_000, 10_000, 20_000, 30_000, 50_000, 80_000]
+ELITE_COST_MULTIPLIER = 3
+REFORGE_QUALITY_PRICE = 20_000    # «Кузница»: перековка качества надетого (mod)
+
 # Actions которые НЕ требуют existing alive hero (adopt + respawn + bet).
 _ACTIONS_WITHOUT_HERO_REQUIREMENT = (
     "hero.create",
@@ -1110,6 +1122,28 @@ _CROSS_USER_TARGET_ACTIONS = (
     "hero.respond_marriage_proposal",  # ответ на proposal другого зрителя
     "hero.cancel_proposal",            # отзыв proposal'а другому зрителю
 )
+
+
+@router.get("/api/bannerlord/config")
+async def bannerlord_config():
+    """Статические балансовые числа (цены/кулдауны) — единый источник для тонкого
+    фронта. Публичный (числа не секретны). Фронт кэширует и рисует ОТСЮДА, а не из
+    своих хардкодов: замороженный на CDN фронт иначе покажет устаревшие цифры после
+    ребаланса на бэке. Бэк по-прежнему сам enforce'ит цену при списании —
+    это только для отображения. См. PUBLIC_GATE_PLAN §Фаза 3."""
+    return {
+        "give_gold_presets":  [{"crusticov": k, "dinars": v} for k, v in sorted(GIVE_GOLD_PRESETS.items())],
+        "add_skill_presets":  [{"crusticov": k, "xp": v}     for k, v in sorted(ADD_SKILL_XP_PRESETS.items())],
+        "focus_tier_costs":   FOCUS_TIER_COSTS,
+        "attribute_cost":     ATTRIBUTE_COST,
+        "recruit_tier_costs": RECRUIT_TIER_COSTS,
+        "recruit_elite_mult": ELITE_COST_MULTIPLIER,
+        "gear_upgrade_costs": HERO_GOLD_TIER_COSTS,
+        "reforge_price":      REFORGE_QUALITY_PRICE,
+        "spawn_prices":       SPAWN_PRICES,
+        "gender_swap_cost":   GENDER_SWAP_COST,
+        "baby_cost":          BABY_COST,
+    }
 
 
 @router.get("/api/bannerlord/my-hero")
@@ -1410,10 +1444,7 @@ async def _prepare_action(username, channel_id, action_type, data):
         "horse":  1_000_000,
     }
     RANDOM_EQUIP_PRICES = RANDOM_EQUIP_HERO_GOLD  # legacy name (some refs ниже)
-    SPAWN_PRICES = {
-        "player": 50,     # на сторону стримера (ally) — 5.27i: ×0.5 от 100
-        "enemy":  100,    # против стримера — 2× as тролл-tax — 5.27i: ×0.5 от 200
-    }
+    # SPAWN_PRICES поднят на module-level (thin-front 2026-07-02) — см. выше.
     MOUNTED_CLASSES = {
         "cavalry", "camel_cavalry", "horse_archer", "camel_archer", "knight"
     }
@@ -1471,9 +1502,8 @@ async def _prepare_action(username, channel_id, action_type, data):
     # чтобы mod знал какие slots filled (для add vs upgrade decision).
     # Also: player.spawn — pass retinue для spawn вместе с hero.
     # Recruit: 100💎 в крустиках за попытку (mod ещё проверяет Hero.Gold).
-    # MIRROR mod TIER_COSTS из RecruitTroopsHandler.cs — для pre-check Hero.Gold.
-    RECRUIT_TIER_COSTS = [5_000, 10_000, 20_000, 30_000, 50_000, 80_000]
-    ELITE_COST_MULTIPLIER = 3
+    # RECRUIT_TIER_COSTS / ELITE_COST_MULTIPLIER подняты на module-level
+    # (thin-front 2026-07-02) — см. блок констант выше.
     if action_type in ("hero.recruit_troops", "player.spawn", "hero.create_party",
                        "hero.train_troops"):
         db_tmp = get_db()
@@ -2195,7 +2225,7 @@ def _enforce_price(action_type, data, username, channel_id):
         # 2026-06-14: убран отсюда (был flat 50 — плющил все активки в одну цену).
         "hero.smith_item":       500,    # Sprint 5.29 BLT-parity #6 — trophy crafting
         "hero.equip_trophy":      0,    # Sprint 5.29 BLT-parity #6 phase A — free (viewer уже заплатил smith)
-        "hero.reforge_quality": 20000,    # 2026-06-15 «Кузница»: перековка качества надетого (дорого, ендгейм)
+        "hero.reforge_quality": REFORGE_QUALITY_PRICE,  # module-level const (thin-front)
         "hero.set_combat_stance": 0,    # 2026-06-10: боевая стойка — бесплатно, мгновенно
         "hero.discard_item":      0,    # 2026-06-18: выбросить вещь из слота — free utility (свой герой)
         # Sprint 5.32 BUGFIX — player.give_item / hero.add_skill убраны

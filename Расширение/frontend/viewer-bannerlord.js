@@ -9,6 +9,33 @@
 //
 // Чанк 1 (2026-06-13): Турнир зрителей (loadBannerlordTournament + render + predict).
 
+// ===== Thin-front (2026-07-02): статические цены/кулдауны с бэка =====
+// Цены/пороги берём из /api/bannerlord/config, а НЕ из хардкодов ниже: фронт
+// замораживается на CDN Twitch, и после ребаланса на бэке хардкод показал бы
+// устаревшие числа. Хардкоды ниже оставлены как fallback-дефолты (совпадают с
+// текущим бэком) — работают, пока конфиг не подъехал или фетч упал. Бэк всё
+// равно сам enforce'ит цену при списании; это только для отображения.
+let _bnrCfg = {};
+async function _hydrateBnrConfig() {
+    try {
+        const r = await fetch(`${API_URL}/api/bannerlord/config`, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
+        if (!r.ok) return;
+        const c = await r.json();
+        _bnrCfg = c || {};
+        if (Array.isArray(c.focus_tier_costs))         BNR_FOCUS_TIER_COSTS = c.focus_tier_costs;
+        if (typeof c.attribute_cost === 'number')      BNR_ATTRIBUTE_COST   = c.attribute_cost;
+        if (Array.isArray(c.recruit_tier_costs))       RETINUE_TIER_DINARS  = c.recruit_tier_costs;
+        if (typeof c.recruit_elite_mult === 'number')  RETINUE_ELITE_MULT   = c.recruit_elite_mult;
+        if (Array.isArray(c.give_gold_presets))        GIVE_GOLD_OPTIONS    = c.give_gold_presets;
+        if (Array.isArray(c.add_skill_presets))        ADD_SKILL_OPTIONS    = c.add_skill_presets;
+        if (c.gear_upgrade_costs && typeof HERO_GOLD_TIER_COSTS !== 'undefined') {
+            HERO_GOLD_TIER_COSTS = c.gear_upgrade_costs;   // ключи-строки из JSON — доступ по числу коэрсится, ок
+        }
+    } catch (e) { /* fallback-дефолты остаются в силе */ }
+}
+
 // ===== Sprint 5.3: Турнир зрителей (BLT-style) =====
 async function loadBannerlordTournament() {
     const body = document.getElementById('bannerlord-tournament-body');
@@ -204,8 +231,8 @@ const BNR_ATTR_ICONS = {
     Vigor: '💪', Control: '🎯', Endurance: '⛰️',
     Cunning: '🦊', Social: '💬', Intelligence: '📚',
 };
-const BNR_FOCUS_TIER_COSTS = [30000, 40000, 50000, 60000, 75000];
-const BNR_ATTRIBUTE_COST = 50000;
+let BNR_FOCUS_TIER_COSTS = [30000, 40000, 50000, 60000, 75000];  // thin-front: hydrated from /config
+let BNR_ATTRIBUTE_COST = 50000;                                   // thin-front: hydrated from /config
 
 // Sprint 5.8 → 5.8c: ранее был renderBannerlordProgressionHtml (dropdown в shop)
 // + _bindBannerlordProgression. Удалено в 5.8c — invest-кнопки перенесены
@@ -2684,8 +2711,8 @@ function renderBannerlordActivePowers() {
 function renderBannerlordSummonButton() {
     const slot = document.getElementById('bnr-summon-slot');
     if (!slot) return;
-    const ALLY_PRICE = 50;     // 5.27i: 100→50 (×0.5)
-    const ENEMY_PRICE = 100;   // 5.27i: 200→100 (×0.5, 2× тролл-tax сохранён)
+    const ALLY_PRICE = _bnrCfg.spawn_prices?.player ?? 50;   // thin-front: /config, fallback 50
+    const ENEMY_PRICE = _bnrCfg.spawn_prices?.enemy ?? 100;  // thin-front: /config, fallback 100
     const cdRem = (_bannerlordCooldowns.find(c => c.power_key === 'player.spawn') || {}).remaining_s || 0;
     const onCooldown = cdRem > 0;
     const cdLabel = onCooldown
@@ -2934,8 +2961,8 @@ function _renderEquipRow(slot, it, slotIcons) {
 // Sprint 5.27h — TIER_COSTS из mod-side RecruitTroopsHandler.TIER_COSTS.
 // Используется UI чтобы вывести требуемые dinars в кнопке + disable если
 // hero.Gold < cost.
-const RETINUE_TIER_DINARS = [5_000, 10_000, 20_000, 30_000, 50_000, 80_000];
-const RETINUE_ELITE_MULT = 3;
+let RETINUE_TIER_DINARS = [5_000, 10_000, 20_000, 30_000, 50_000, 80_000];  // thin-front: hydrated from /config
+let RETINUE_ELITE_MULT = 3;                                                  // thin-front: hydrated from /config
 function _computeRetinueDinarCost(slots, isElite, isAdd) {
     let tier = 0;
     if (!isAdd) {
@@ -3099,12 +3126,13 @@ function _renderRetinue(retinue) {
 
 // Sprint M21 — конверт крустики → in-game динары (1:5) и крустики → skill XP.
 // Цены server-side enforced (GIVE_GOLD_PRESETS / ADD_SKILL_XP_PRESETS).
-const GIVE_GOLD_OPTIONS = [
+// let (не const): thin-front гидрирует из /api/bannerlord/config. Дефолты — fallback.
+let GIVE_GOLD_OPTIONS = [
     { crusticov: 1_000,  dinars:   5_000 },
     { crusticov: 5_000,  dinars:  25_000 },
     { crusticov: 20_000, dinars: 100_000 },
 ];
-const ADD_SKILL_OPTIONS = [
+let ADD_SKILL_OPTIONS = [
     { crusticov:   500, xp:  50 },
     { crusticov: 1_000, xp: 100 },
     { crusticov: 5_000, xp: 500 },
@@ -3363,7 +3391,7 @@ async function _renderForgeInline() {
         slot.innerHTML = '<div style="font-size:11px;color:#adadb8;padding:6px;">Войдите через Twitch</div>';
         return;
     }
-    const REFORGE_PRICE = 20000;   // mirror ACTION_PRICES_DEFAULT hero.reforge_quality
+    const REFORGE_PRICE = _bnrCfg.reforge_price ?? 20000;   // thin-front: /config, fallback 20000
     // 2026-06-15 — перековка КАЧЕСТВА надетого предмета. Показываем РЕАЛЬНУЮ
     // экипировку (из /my-hero), зритель выбирает свой предмет → он получает
     // лучший доступный модификатор (Masterwork/Legendary). НЕ крафтит новых
@@ -3493,7 +3521,7 @@ function loadBannerlordGender() {
     if (!slot) return;
     const h = _bannerlordLastHero?.hero || {};
     const heroGold = h.gold || 0;
-    const GENDER_COST = 50000;
+    const GENDER_COST = _bnrCfg.gender_swap_cost ?? 50000;   // thin-front: /config, fallback 50000
     const canAfford = heroGold >= GENDER_COST;
     const currentLabel = h.is_female === true ? '♀ Женский'
                        : h.is_female === false ? '♂ Мужской'
@@ -3594,7 +3622,7 @@ function _renderFamilyTreeHtml(h) {
     const mother = fi.mother;
     const siblings = fi.sibling_count || 0;
     const heroGold = h.gold || 0;
-    const BABY_COST = 100000;
+    const BABY_COST = _bnrCfg.baby_cost ?? 100000;   // thin-front: /config, fallback 100000
     const hasClan = !!h.clan_name;   // дети рождаются в клан родителя; без клана — краш беременности
     const aliveChildren = children.filter(c => c?.is_alive);
     const canMakeBaby = hasClan && !!spouse && spouse.is_alive && aliveChildren.length < 5 && heroGold >= BABY_COST;

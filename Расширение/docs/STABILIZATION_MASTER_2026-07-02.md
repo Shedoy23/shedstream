@@ -17,8 +17,8 @@
 | A1 | HIGH→МЕД | `/dev` (dev_login.py). УТОЧНЕНО: роль JWT хардкод `viewer` (не broadcaster), логин через реальный OAuth = сам за себя (не импёрс). Fix: **whitelist логинов** (config `DEV_LOGIN_WHITELIST`, default `shedoy23`) — сессия выдаётся только своим, чужой cookie отвергается. | routes/dev_login.py, config.py | ✅ (verify: compile+import; whitelist грузится; owner проверит логин) |
 | A2 | HIGH | `POST /api/overlay/tts/played` без auth — злоумышленник поллит `/tts/pending` (id+channel публичны) → POST played → платное TTS-сообщение (5000💎) удаляется до проигрыша. Нужен overlay-token на мутацию (streamer обновит OBS-URL). | routes/tts.py, overlay.js, streamer.py | ☐ (решено: делаем overlay-token) |
 | A3 | MED | IDOR-свип: `stats/{username}`, `quests/{username}`, `marriage/proposals/{username}` — брали username из пути без сверки с JWT. Fix: отдаём ТОЛЬКО данные JWT-юзера, path-параметр игнор (структурно не читается в теле → IDOR невозможен). | routes/viewer.py, routes/marriage.py | ✅ (verify: path-param unused в теле; compile+import) |
-| A4 | MED | `_duels` — глобальный in-memory dict без channel_id: cross-channel листинг + приём чужой дуэли (ELO-загрязнение между каналами). Скоупить по channel_id. | routes/duel.py | ☐ |
-| A5 | MED | `add-command` SOFT-auth = no-op (мой Wave-1 «фикс» только логирует). Решить с A-RimWorld (kill-switch модуля). | rimworld.py | ☐ |
+| A4 | MED | `_duels` — глобальный in-memory dict без channel_id: cross-channel листинг + приём чужой дуэли. Fix: channel_id в записи; `/list` по JWT+фильтр; `/accept` отвергает чужой канал; фронт duels.js шлёт JWT. | routes/duel.py, duels.js | ✅ (compile+import+node; prod-verify) |
+| A5 | MED | `add-command` SOFT-auth = no-op. Fix: **дефолт RIMWORLD_REQUIRE_TOKEN → STRICT** — закрывает add-command-инъекцию + все 13 mod-ingest разом (модуль dormant, вьюверский таб не задет; реактивация → мод шлёт токен). | rimworld.py | ✅ (strict=True; prod-verify 401) |
 
 ## WAVE B — compliance + гигиена (код, [me])
 
@@ -33,7 +33,7 @@
 
 | # | Sev | Что | Статус |
 |---|-----|-----|--------|
-| C1 | MED | Настоящий **kill-switch** RimWorld: раз модуль dormant — весь router 404 при выключенном флаге (закрывает разом: add-command A5, my-pawn channel_id, SOFT-ingest 13 эндпоинтов, colonists-leak). Реактивация RimWorld → фикс per-endpoint (task_f2662300) + флаг вкл. | ☐ |
+| C1 | MED | RimWorld write-дыры закрыты через **A5 (strict ingest-auth)** — лучше блокового kill-switch: закрывает add-command + 13 ingest, но НЕ ломает вьюверский read-таб (ревьюер видит рабочую вкладку). Остаток (colonists name-leak, my-pawn channel_id) — LOW/known-debt, `task_f2662300` при реактивации. | ✅ (write-часть; reads в task_f2662300) |
 
 ## WAVE D — хардening (код, [me], тяжелее)
 

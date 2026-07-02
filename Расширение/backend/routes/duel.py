@@ -230,7 +230,8 @@ async def create_duel(body: DuelRequest, request: Request):
     await get_bot().touch_viewer(creator)
 
     for d in _duels.values():
-        if d["creator"] == creator and d["status"] == "pending":
+        if (d["creator"] == creator and d["status"] == "pending"
+                and d.get("channel_id") == channel_id):
             return {"success": False, "message": "У тебя уже есть активная дуэль"}
 
     await check_season_end()
@@ -241,6 +242,7 @@ async def create_duel(body: DuelRequest, request: Request):
         "move":       move,
         "status":     "pending",
         "created_ts": time.time(),
+        "channel_id": channel_id,   # A4 (2026-07-02): скоуп по каналу
     }
     return {
         "success":  True,
@@ -272,6 +274,9 @@ async def accept_duel(req: AcceptDuelRequest, request: Request):
         return {"success": False, "message": "Дуэль не найдена"}
 
     duel = _duels[duel_id]
+    if duel.get("channel_id") != channel_id:
+        # A4: нельзя принять дуэль другого канала (ELO-загрязнение между тенантами).
+        return {"success": False, "message": "Дуэль не найдена"}
     if duel["creator"] == username:
         return {"success": False, "message": "Нельзя принять свою дуэль!"}
     # Атомарный захват дуэли: меняем status pending→accepting, если кто-то другой
@@ -383,9 +388,15 @@ async def accept_duel(req: AcceptDuelRequest, request: Request):
 
 
 @router.get("/api/duel/list")
-async def list_duels(username: str = ""):
-    """Список открытых дуэлей (без раскрытия хода создателя)."""
+async def list_duels(request: Request):
+    """Список открытых дуэлей ТЕКУЩЕГО канала (без раскрытия хода создателя).
+    A4 (2026-07-02): scoped по channel_id из JWT + identity из JWT (раньше был
+    публичный ?username= и листались дуэли всех каналов → cross-channel accept)."""
     global _duels
+    auth = require_jwt_user(request)
+    if not auth:
+        return {"duels": []}
+    username, channel_id = auth
     result  = []
     now_ts  = time.time()
     expired = []
@@ -396,6 +407,8 @@ async def list_duels(username: str = ""):
         if now_ts - d.get("created_ts", now_ts) > 300:
             expired.append(duel_id)
             continue
+        if d.get("channel_id") != channel_id:
+            continue   # A4: только свой канал
         result.append({
             "duel_id":    duel_id,
             "creator":    d["creator"],

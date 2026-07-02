@@ -55,10 +55,13 @@ _security = HTTPBasic()
 # 13 mod-side endpoints accepted UNAUTHENTICATED writes (wipe pawns / rig shop
 # catalog / inject pawns). Gate them with the module-token — mirrors Bannerlord
 # (issue_module_token / verify_module_token in routes/streamer.py).
-# Rollout-safe: SOFT mode (default) logs a missing/invalid token but ALLOWS the
-# request, so nothing breaks while the RimLink mod is updated to send it. Set
-# env RIMWORLD_REQUIRE_TOKEN=1 to enforce (401) once the mod is confirmed sending it.
-_RIMWORLD_REQUIRE_TOKEN = os.getenv("RIMWORLD_REQUIRE_TOKEN", "").lower() in ("1", "true", "yes")
+# A5 (public-gate 2026-07-02): DEFAULT теперь STRICT — RimLink dormant, поэтому
+# незачем держать mod-ingest открытым. Все 13 ingest-эндпоинтов + add-command
+# требуют валидный module-token (401 иначе). Это закрывает command-injection и
+# неаутентифицированные записи на проде. При РЕАКТИВАЦИИ RimWorld: мод должен слать
+# Bearer module-token (issue из дашборда), ИЛИ временно RIMWORLD_REQUIRE_TOKEN=0.
+# Влияет ТОЛЬКО на mod→backend ingest; вьюверский RimWorld-таб (read-эндпоинты) не задет.
+_RIMWORLD_REQUIRE_TOKEN = os.getenv("RIMWORLD_REQUIRE_TOKEN", "1").lower() in ("1", "true", "yes")
 _rimworld_soft_warned = False
 
 async def rimworld_mod_auth(request: Request):

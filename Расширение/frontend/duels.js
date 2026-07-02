@@ -38,8 +38,8 @@ async function openDuels() {
 
     try {
         const [listRes, lbRes] = await Promise.all([
-            fetch(`${API_URL}/api/duel/list?username=${userLogin}`),
-            fetch(`${API_URL}/api/duel/leaderboard`),
+            fetch(`${API_URL}/api/duel/list`, { headers: { 'X-Twitch-JWT': authToken || '' } }),
+            fetch(`${API_URL}/api/duel/leaderboard`, { headers: { 'X-Twitch-JWT': authToken || '' } }),
         ]);
         const listData = await listRes.json();
         const lbData   = await lbRes.json();

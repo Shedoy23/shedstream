@@ -2381,14 +2381,14 @@ class Database:
         cid = resolve_channel_id(channel_id)
         async with self._connect() as conn:
             cur = await conn.execute(
-                "SELECT id, template_name, started_at, ends_at, total_pool "
+                "SELECT id, template_name, started_at, ends_at, total_pool, allow_proposals "
                 "FROM voting_events WHERE channel_id = ? AND status = 'active'",
                 (cid,)
             )
             row = await cur.fetchone()
             if not row:
                 return None
-            event_id, tpl_name, started_at, ends_at, total_pool = row
+            event_id, tpl_name, started_at, ends_at, total_pool, allow_proposals = row
 
             cur = await conn.execute(
                 "SELECT id, option_key, label, description, pool "
@@ -2407,6 +2407,7 @@ class Database:
                 'started_at':     started_at,
                 'ends_at':        ends_at,
                 'total_pool':     total_pool,
+                'allow_proposals': bool(allow_proposals),
                 'options':        options,
             }
 
@@ -2446,6 +2447,14 @@ class Database:
                 if status != 'active':
                     await conn.execute("ROLLBACK")
                     return {'finalized': False, 'reason': 'not_active'}
+
+                # M88: pending viewer-предложения при финализации — reject.
+                # Они НЕ были списаны (списание только на approve) → возвращать нечего.
+                await conn.execute(
+                    "UPDATE voting_proposals SET status = 'rejected' "
+                    "WHERE event_id = ? AND status = 'pending'",
+                    (event_id,)
+                )
 
                 if total_pool == 0:
                     # Никто не голосовал — cancel
@@ -2575,6 +2584,281 @@ class Database:
                 {'channel_id': r[0], 'pool_units': r[1], 'default_template_id': r[2]}
                 for r in await cur.fetchall()
             ]
+
+    # ===== «Народный выбор игры» — streamer-triggered open mode (M88) =====
+    # Стример открывает раунд, где зритель может ПРЕДЛОЖИТЬ свою игру (UGC).
+    # Предложение с пледжем → очередь → approve стримера (списание) / reject (ничего).
+    # Compliance: списание строго после approve; отклонённое/pending не списано.
+
+    async def start_open_voting_event(
+        self,
+        channel_id: Optional[int] = None,
+        duration_sec: Optional[int] = None,
+        options: Optional[list] = None,   # [{label} | "label"] pre-seed стримера
+    ) -> Dict:
+        """Стример стартует «открытый» раунд (allow_proposals=1) без шаблона.
+        options — необязательный pre-seed. Защита от двойного active per channel.
+
+        Returns {'started': True, 'event_id', 'ends_at', 'options_count'}
+                | {'started': False, 'reason': 'active_event_exists'}
+        """
+        import re as _re
+        from config import VOTING_EVENT_DURATION_SEC
+        from datetime import datetime as _dt, timedelta as _td
+        cid = resolve_channel_id(channel_id)
+        dur = duration_sec if isinstance(duration_sec, int) and duration_sec > 0 else VOTING_EVENT_DURATION_SEC
+        dur = max(60, min(3600, dur))
+        seed = options if isinstance(options, list) else []
+
+        async with self._connect() as conn:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+                ends_at = (_dt.utcnow() + _td(seconds=dur)).isoformat()
+                try:
+                    cur = await conn.execute(
+                        "INSERT INTO voting_events "
+                        "(channel_id, template_name, ends_at, status, allow_proposals) "
+                        "VALUES (?, ?, ?, 'active', 1)",
+                        (cid, "Народный выбор игры", ends_at)
+                    )
+                    event_id = cur.lastrowid
+                except Exception as e:
+                    await conn.execute("ROLLBACK")
+                    if 'UNIQUE' in str(e):
+                        return {'started': False, 'reason': 'active_event_exists'}
+                    raise
+
+                cnt = 0
+                for opt in seed:
+                    label = (opt.get('label') if isinstance(opt, dict) else str(opt)) or ''
+                    label = label.strip()[:60]
+                    if not label:
+                        continue
+                    key = (_re.sub(r'[^a-z0-9]+', '-', label.lower()).strip('-')[:40]) or 'opt'
+                    await conn.execute(
+                        "INSERT INTO voting_options (event_id, option_key, label, description, pool) "
+                        "VALUES (?, ?, ?, '', 0)",
+                        (event_id, key, label)
+                    )
+                    cnt += 1
+
+                await conn.commit()
+                return {'started': True, 'event_id': event_id, 'ends_at': ends_at,
+                        'options_count': cnt}
+            except Exception:
+                await conn.execute("ROLLBACK")
+                raise
+
+    async def create_voting_proposal(
+        self,
+        channel_id: Optional[int] = None,
+        username: str = "",
+        label: str = "",
+        pledge: int = 0,
+    ) -> Dict:
+        """Зритель предлагает свою игру в открытый раунд (в очередь на approve).
+        Пледж НЕ списывается здесь — только на approve. Проверяем баланс на
+        достоверность + анти-спам капы (мин. пледж, N pending/юзер, общий кап).
+
+        Returns {'created': True, 'proposal_id'} | {'created': False, 'reason': ...}
+        """
+        from config import (VOTING_PROPOSE_MIN_PLEDGE, VOTING_MAX_OPTIONS,
+                             VOTING_MAX_PENDING_PER_USER)
+        cid = resolve_channel_id(channel_id)
+        uname = (username or "").lower()
+        label = (label or '').strip()[:60]
+        if len(label) < 2:
+            return {'created': False, 'reason': 'bad_label'}
+        try:
+            pledge = int(pledge)
+        except (TypeError, ValueError):
+            pledge = 0
+        if pledge < VOTING_PROPOSE_MIN_PLEDGE:
+            return {'created': False, 'reason': 'too_small',
+                    'message': f'Минимальный вклад {VOTING_PROPOSE_MIN_PLEDGE}💎'}
+
+        async with self._connect() as conn:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+                cur = await conn.execute(
+                    "SELECT id, allow_proposals FROM voting_events "
+                    "WHERE channel_id = ? AND status = 'active'",
+                    (cid,)
+                )
+                ev = await cur.fetchone()
+                if not ev:
+                    await conn.execute("ROLLBACK")
+                    return {'created': False, 'reason': 'no_active_event'}
+                if not ev[1]:
+                    await conn.execute("ROLLBACK")
+                    return {'created': False, 'reason': 'proposals_closed'}
+                event_id = ev[0]
+
+                # credibility: у зрителя есть баланс на пледж (не списываем)
+                cur = await conn.execute(
+                    "SELECT points FROM viewers WHERE channel_id = ? AND username = ?",
+                    (cid, uname)
+                )
+                brow = await cur.fetchone()
+                if not brow or (brow[0] or 0) < pledge:
+                    await conn.execute("ROLLBACK")
+                    return {'created': False, 'reason': 'insufficient_funds'}
+
+                # анти-спам: не больше N pending на зрителя
+                cur = await conn.execute(
+                    "SELECT COUNT(*) FROM voting_proposals "
+                    "WHERE channel_id = ? AND event_id = ? AND username = ? AND status = 'pending'",
+                    (cid, event_id, uname)
+                )
+                if (await cur.fetchone())[0] >= VOTING_MAX_PENDING_PER_USER:
+                    await conn.execute("ROLLBACK")
+                    return {'created': False, 'reason': 'too_many_pending'}
+
+                # общий кап: live options + pending предложения < VOTING_MAX_OPTIONS
+                cur = await conn.execute(
+                    "SELECT (SELECT COUNT(*) FROM voting_options WHERE event_id = ?) + "
+                    "(SELECT COUNT(*) FROM voting_proposals "
+                    " WHERE event_id = ? AND status = 'pending')",
+                    (event_id, event_id)
+                )
+                if (await cur.fetchone())[0] >= VOTING_MAX_OPTIONS:
+                    await conn.execute("ROLLBACK")
+                    return {'created': False, 'reason': 'full'}
+
+                cur = await conn.execute(
+                    "INSERT INTO voting_proposals "
+                    "(event_id, channel_id, username, label, pledge, status) "
+                    "VALUES (?, ?, ?, ?, ?, 'pending')",
+                    (event_id, cid, uname, label, pledge)
+                )
+                pid = cur.lastrowid
+                await conn.commit()
+                return {'created': True, 'proposal_id': pid}
+            except Exception:
+                await conn.execute("ROLLBACK")
+                raise
+
+    async def list_voting_proposals(
+        self,
+        channel_id: Optional[int] = None,
+        status: str = 'pending',
+    ) -> list:
+        """Предложения канала для активного события (для дашборда стримера)."""
+        cid = resolve_channel_id(channel_id)
+        async with self._connect() as conn:
+            cur = await conn.execute(
+                "SELECT p.id, p.username, p.label, p.pledge, p.created_at "
+                "FROM voting_proposals p "
+                "JOIN voting_events e ON e.id = p.event_id AND e.status = 'active' "
+                "WHERE p.channel_id = ? AND p.status = ? "
+                "ORDER BY p.created_at ASC",
+                (cid, status)
+            )
+            return [
+                {'id': r[0], 'username': r[1], 'label': r[2], 'pledge': r[3],
+                 'created_at': r[4]}
+                for r in await cur.fetchall()
+            ]
+
+    async def approve_voting_proposal(
+        self,
+        proposal_id: int,
+        channel_id: Optional[int] = None,
+    ) -> Dict:
+        """Стример одобряет предложение → создаёт опцию, списывает пледж
+        (best-effort: если баланс уехал — опция при 0), сеет пул. Атомарно.
+
+        Returns {'approved': True, 'option_id', 'label', 'pool', 'event_id'}
+                | {'approved': False, 'reason': ...}
+        """
+        import re as _re
+        cid = resolve_channel_id(channel_id)
+        async with self._connect() as conn:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+                cur = await conn.execute(
+                    "SELECT event_id, username, label, pledge, status "
+                    "FROM voting_proposals WHERE id = ? AND channel_id = ?",
+                    (proposal_id, cid)
+                )
+                row = await cur.fetchone()
+                if not row:
+                    await conn.execute("ROLLBACK")
+                    return {'approved': False, 'reason': 'not_found'}
+                event_id, uname, label, pledge, status = row
+                if status != 'pending':
+                    await conn.execute("ROLLBACK")
+                    return {'approved': False, 'reason': 'not_pending'}
+
+                cur = await conn.execute(
+                    "SELECT status FROM voting_events WHERE id = ? AND channel_id = ?",
+                    (event_id, cid)
+                )
+                erow = await cur.fetchone()
+                if not erow or erow[0] != 'active':
+                    await conn.execute("ROLLBACK")
+                    return {'approved': False, 'reason': 'event_not_active'}
+
+                key = (_re.sub(r'[^a-z0-9]+', '-', (label or '').lower()).strip('-')[:40]) or 'opt'
+                cur = await conn.execute(
+                    "INSERT INTO voting_options (event_id, option_key, label, description, pool) "
+                    "VALUES (?, ?, ?, '', 0)",
+                    (event_id, key, label)
+                )
+                option_id = cur.lastrowid
+
+                # списать пледж (best-effort) → сеет пул опции
+                charged = 0
+                if pledge and pledge > 0:
+                    ccur = await conn.execute(
+                        "UPDATE viewers SET points = points - ? "
+                        "WHERE channel_id = ? AND username = ? AND points >= ?",
+                        (pledge, cid, uname, pledge)
+                    )
+                    if ccur.rowcount == 1:
+                        charged = pledge
+                        await conn.execute(
+                            "UPDATE voting_options SET pool = pool + ? WHERE id = ?",
+                            (charged, option_id)
+                        )
+                        await conn.execute(
+                            "UPDATE voting_events SET total_pool = total_pool + ? WHERE id = ?",
+                            (charged, event_id)
+                        )
+                        await conn.execute(
+                            "INSERT INTO voting_bids "
+                            "(event_id, option_id, channel_id, username, amount) "
+                            "VALUES (?, ?, ?, ?, ?)",
+                            (event_id, option_id, cid, uname, charged)
+                        )
+
+                await conn.execute(
+                    "UPDATE voting_proposals SET status = 'approved', option_id = ? "
+                    "WHERE id = ?",
+                    (option_id, proposal_id)
+                )
+                await conn.commit()
+                return {'approved': True, 'option_id': option_id, 'label': label,
+                        'pool': charged, 'event_id': event_id}
+            except Exception:
+                await conn.execute("ROLLBACK")
+                raise
+
+    async def reject_voting_proposal(
+        self,
+        proposal_id: int,
+        channel_id: Optional[int] = None,
+    ) -> bool:
+        """Стример отклоняет предложение (ничего не списано — возвращать нечего)."""
+        cid = resolve_channel_id(channel_id)
+        async with self._connect() as conn:
+            cur = await conn.execute(
+                "UPDATE voting_proposals SET status = 'rejected' "
+                "WHERE id = ? AND channel_id = ? AND status = 'pending'",
+                (proposal_id, cid)
+            )
+            await conn.commit()
+            return cur.rowcount > 0
 
     # ===== ГИЛЬДИИ (Phase 3, 2026-05-11) =====
     # Социальная механика per канал. Multi-tenant scope:

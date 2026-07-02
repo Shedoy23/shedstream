@@ -1221,6 +1221,13 @@ async def run_migrations():
             print(f"❌ M87 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m88_game_vote_proposals
+            await m88_game_vote_proposals.apply(conn)
+        except Exception as e:
+            print(f"❌ M88 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

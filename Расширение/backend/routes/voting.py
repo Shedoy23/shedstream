@@ -264,3 +264,163 @@ async def voting_force_finalize(
         "not_active":    "Event уже завершён",
     }.get(result.get("reason"), "Не удалось завершить")
     return {"success": False, "reason": result.get("reason"), "message": reason_msg}
+
+
+# ── «Народный выбор игры» (M88) — viewer предлагает свою игру (open mode) ──────
+# Compliance (docs/COMPLIANCE_GAME_VOTE_2026-07-02.md): вклад списывается ПОСЛЕ
+# одобрения стримером; очередь-одобрение = UGC-модерация §7 (ник автора виден
+# стримеру, любое можно отклонить). Нейтральная лексика: «вклад / народный выбор».
+
+def _bcast(channel_id: int, event_type: str, data: dict) -> None:
+    """Тихий broadcast — фронт на любой vote_* просто перезапрашивает статус."""
+    try:
+        from pubsub import broadcast as _pubsub_broadcast
+        _pubsub_broadcast(channel_id, event_type, data)
+    except Exception as e:
+        import logging
+        logging.getLogger("rimlink.voting").warning(
+            "%s broadcast failed: %s", event_type, e)
+
+
+@router.post("/api/voting/propose")
+async def voting_propose(request: Request):
+    """Зритель предлагает свою игру в открытый раунд → очередь на одобрение.
+    Вклад списывается ПОСЛЕ одобрения стримером (не сейчас).
+
+    Body: {"label": str, "pledge": int}
+    """
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+
+    data = await request.json()
+    label = (data.get("label") or "").strip()
+    try:
+        pledge = int(data.get("pledge", 0))
+    except (TypeError, ValueError):
+        pledge = 0
+
+    db = get_db()
+    result = await db.create_voting_proposal(
+        channel_id=channel_id, username=username, label=label, pledge=pledge,
+    )
+    if result.get("created"):
+        return {
+            "success": True,
+            "proposal_id": result["proposal_id"],
+            # Платно + отложенный исход → явный тост: заявка, спишется если одобрят.
+            "message": "📨 Игра отправлена на одобрение — вклад спишется, только если стример одобрит.",
+        }
+    reason_msg = {
+        "no_active_event":    "Сейчас нет активного голосования",
+        "proposals_closed":   "В этом раунде нельзя предлагать игры",
+        "bad_label":          "Название игры 2–60 символов",
+        "too_small":          result.get("message", "Слишком маленький вклад"),
+        "insufficient_funds": "Недостаточно крустиков на вклад",
+        "too_many_pending":   "У тебя уже есть игра в очереди на одобрение",
+        "full":               "Список игр уже заполнен",
+    }.get(result.get("reason"), "Не удалось предложить игру")
+    return {"success": False, "reason": result.get("reason"), "message": reason_msg}
+
+
+# ── Streamer dashboard endpoints (session cookie) ─────────────────────────────
+# Стример управляет раундом из своего дашборда (сессия), не через admin-basic.
+
+def _streamer_channel(request: Request):
+    """channel_id из dashboard-сессии стримера, или None."""
+    from routes.streamer import _read_session_cookie
+    return _read_session_cookie(request)
+
+
+@router.post("/api/streamer/voting/start")
+async def streamer_voting_start(request: Request):
+    """Стример открывает раунд «Народный выбор игры» (allow_proposals=1).
+    Body: {"duration_sec"?: int, "options"?: [{"label"} | "label"]}
+    """
+    cid = _streamer_channel(request)
+    if cid is None:
+        return {"success": False, "message": "Нет сессии стримера"}
+    data = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
+    duration = data.get("duration_sec")
+    options = data.get("options") or []
+
+    db = get_db()
+    result = await db.start_open_voting_event(
+        channel_id=cid, duration_sec=duration, options=options,
+    )
+    if result.get("started"):
+        _bcast(cid, "vote_started", {"event_id": result["event_id"]})
+        return {"success": True, "event_id": result["event_id"],
+                "ends_at": result["ends_at"], "options_count": result["options_count"],
+                "message": "🗳️ Голосование открыто!"}
+    reason_msg = {"active_event_exists": "Уже идёт голосование"}.get(
+        result.get("reason"), "Не удалось открыть")
+    return {"success": False, "reason": result.get("reason"), "message": reason_msg}
+
+
+@router.post("/api/streamer/voting/finalize")
+async def streamer_voting_finalize(request: Request):
+    """Стример закрывает текущий раунд и объявляет победителя."""
+    cid = _streamer_channel(request)
+    if cid is None:
+        return {"success": False, "message": "Нет сессии стримера"}
+    db = get_db()
+    event = await db.get_active_voting_event(channel_id=cid)
+    if not event:
+        return {"success": False, "reason": "no_active_event",
+                "message": "Нет активного голосования"}
+    result = await db.finalize_voting_event(event["event_id"], channel_id=cid)
+    if result.get("finalized"):
+        winner = result.get("winner_option")
+        _bcast(cid, "vote_ended", {"event_id": event["event_id"],
+                                   "outcome": result["outcome"]})
+        return {"success": True, "outcome": result["outcome"], "winner_option": winner,
+                "message": f"🏆 Победила «{winner['label']}»!" if winner
+                           else "Никто не вложил — раунд отменён"}
+    return {"success": False, "reason": result.get("reason"),
+            "message": "Не удалось закрыть"}
+
+
+@router.get("/api/streamer/voting/status")
+async def streamer_voting_status(request: Request):
+    """Текущее состояние раунда + очередь pending-предложений (для дашборда)."""
+    cid = _streamer_channel(request)
+    if cid is None:
+        return {"success": False, "message": "Нет сессии стримера"}
+    db = get_db()
+    event = await db.get_active_voting_event(channel_id=cid)
+    pending = await db.list_voting_proposals(channel_id=cid, status='pending') if event else []
+    return {"success": True, "active_event": event, "pending": pending}
+
+
+@router.post("/api/streamer/voting/proposals/{proposal_id}/approve")
+async def streamer_voting_approve(proposal_id: int, request: Request):
+    """Стример одобряет предложение → игра появляется в вотуме, пледж списывается."""
+    cid = _streamer_channel(request)
+    if cid is None:
+        return {"success": False, "message": "Нет сессии стримера"}
+    db = get_db()
+    result = await db.approve_voting_proposal(proposal_id, channel_id=cid)
+    if result.get("approved"):
+        _bcast(cid, "vote_tick", {"event_id": result["event_id"]})
+        return {"success": True, "option_id": result["option_id"],
+                "label": result["label"], "pool": result["pool"],
+                "message": f"✅ «{result['label']}» в голосовании"}
+    reason_msg = {
+        "not_found":        "Предложение не найдено",
+        "not_pending":      "Уже обработано",
+        "event_not_active": "Голосование не активно",
+    }.get(result.get("reason"), "Не удалось одобрить")
+    return {"success": False, "reason": result.get("reason"), "message": reason_msg}
+
+
+@router.post("/api/streamer/voting/proposals/{proposal_id}/reject")
+async def streamer_voting_reject(proposal_id: int, request: Request):
+    """Стример отклоняет предложение (ничего не списывается)."""
+    cid = _streamer_channel(request)
+    if cid is None:
+        return {"success": False, "message": "Нет сессии стримера"}
+    db = get_db()
+    ok = await db.reject_voting_proposal(proposal_id, channel_id=cid)
+    return {"success": ok, "message": "Отклонено" if ok else "Не найдено"}

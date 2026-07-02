@@ -18,14 +18,16 @@ ROADMAP, лексикон UI, монетизация/данные, LGPL, пуб�
 монетизация) на дату фикса. Аудит 2026-06-11 мог устареть в деталях.
 
 ## Фаза 1 — полиш перед подачей (~2-3 ч)
-1. `viewer-shedcolony.js:390` — «📦 Задонатить (стак)» → «📦 Снабдить колонию».
-   Внутренний ключ `colony.donate` → `colony.supply` координированно:
-   `modules/shedcolony/manifest.yaml` + `routes/shedcolony.py` + C#-мод (ATM10-сервер
-   `/opt/atm10/mods/shedcolony-0.1.0.jar` — пересборка из D:\sheddev + redeploy).
-2. Казино-tombstone-комменты в viewer.js/overlay.html — вычистить;
-   `tournament.bet` → `tournament.predict` (фронт+бэк), чтобы термин не светился в XHR.
-3. **Владелец:** live-проверка config.html в реальном Twitch config view (частый
-   реджект), скриншот 1024×768, ZIP → Hosted Test → Submit
+1. ✅ 2026-07-02 «Задонатить» → «Снабдить колонию»; `colony.donate` → `colony.supply`
+   по всей цепочке (manifest + routes + frontend + Java-мод, jar пересобран и
+   выложен на ATM10 — применится при следующем рестарте сервера; бэк уже на проде,
+   окно рассинхрона безопасно: refund-on-failure + 0 колоний).
+2. ✅ 2026-07-02 tombstone-комменты вычищены (viewer.js/cases.js/overlay/обе оболочки);
+   `tournament.bet` → `tournament.predict` end-to-end (+ manifest bannerlord,
+   my_bet → my_prediction, min/max_bet удалены); REVIEW_SUBMISSION.md обновлён.
+   Прод проверен: оба манифеста и фронт отдают новые имена. Тесты 107/107 + 13/13.
+3. **Владелец (осталось):** live-проверка config.html в реальном Twitch config view
+   (частый реджект), скриншот 1024×768, ZIP → Hosted Test → Submit
    (гайд: docs/SUBMIT_AND_REVIEW.md).
 
 ## Фаза 2 — окно ревью: freeze контракта v1.0

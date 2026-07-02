@@ -226,6 +226,12 @@ async def tts_played(request: Request):
     if channel_id <= 0:
         channel_id = resolve_channel_id_or_default()
 
+    # A2 (2026-07-02): мутацию гейтим overlay-токеном (id+channel_id публичны →
+    # без токена грифер гасил бы платное TTS). Токен в URL OBS-оверлея.
+    from routes.streamer import verify_overlay_token  # lazy import: avoid cycle
+    if not verify_overlay_token(channel_id, (data.get("overlay_token") or "").strip()):
+        return {"success": False, "message": "overlay token invalid"}
+
     db = get_db()
     async with db._connect() as conn:
         cur = await conn.execute(

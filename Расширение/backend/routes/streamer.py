@@ -546,6 +546,40 @@ def _dashboard_html(ch: dict) -> str:
   }}
   </script>
 
+  <!-- Overlay URL для OBS (A2 2026-07-02) -->
+  <div class="section">
+    <h2>🖥 URL оверлея для OBS</h2>
+    <div class="sub">
+      Вставь как <b>Browser Source</b> в OBS. Содержит токен для защиты TTS —
+      <b>не показывай на стриме</b>. Если менял оверлей раньше — обнови URL, иначе
+      TTS перестанет отмечаться проигранным.
+    </div>
+    <div class="tok-row">
+      <input class="tok-field" id="overlay-url" type="text" readonly placeholder="Нажми «Показать URL»">
+      <button class="tok-copy" onclick="copyOverlayUrl()">📋 Копировать</button>
+      <button class="tok-show" onclick="showOverlayUrl()">👁 Показать URL</button>
+    </div>
+    <div id="overlay-url-msg" class="boosty-msg"></div>
+  </div>
+  <script>
+  async function _fetchOverlayUrl(){{
+    const r = await fetch('/api/streamer/overlay-url', {{credentials:'include'}});
+    const d = await r.json();
+    return d.status === 'ok' ? d.url : null;
+  }}
+  async function showOverlayUrl(){{
+    const u = await _fetchOverlayUrl();
+    if(u) document.getElementById('overlay-url').value = u;
+  }}
+  async function copyOverlayUrl(){{
+    const u = await _fetchOverlayUrl();
+    if(!u) return;
+    const m = document.getElementById('overlay-url-msg');
+    try{{ await navigator.clipboard.writeText(u); m.textContent = '✅ URL скопирован'; m.className = 'boosty-msg ok'; }}
+    catch(e){{ document.getElementById('overlay-url').value = u; m.textContent = 'Буфер недоступен — скопируй вручную'; m.className = 'boosty-msg err'; }}
+  }}
+  </script>
+
   <!-- Баг-репорты от зрителей (m73) -->
   <div class="section">
     <h2>🐞 Баг-репорты от зрителей</h2>
@@ -947,6 +981,35 @@ def verify_module_token(token: str) -> Optional[dict]:
         }
     except (ValueError, IndexError):
         return None
+
+
+# ── Overlay-token (A2, 2026-07-02) ────────────────────────────────────────────
+# /api/overlay/tts/played мутирует очередь TTS, а id+channel_id публичны (видны в
+# /tts/pending) → грифер мог гасить платное TTS (5000💎). Per-channel токен живёт
+# в URL OBS-оверлея (секрет, не на стриме). Мутация требует валидный токен.
+def issue_overlay_token(channel_id: int) -> str:
+    msg = f"overlay|{int(channel_id)}"
+    secret = (MODULE_TOKEN_SECRET or "").encode() or b"unconfigured-module-secret"
+    return hmac.new(secret, msg.encode(), hashlib.sha256).hexdigest()[:32]
+
+
+def verify_overlay_token(channel_id: int, token: str) -> bool:
+    if not token:
+        return False
+    return hmac.compare_digest(token, issue_overlay_token(channel_id))
+
+
+@router.get("/api/streamer/overlay-url", include_in_schema=False)
+async def streamer_overlay_url(request: Request):
+    """Полный URL оверлея для OBS (с overlay_token). Требует session cookie."""
+    cid = _read_session_cookie(request)
+    if cid is None:
+        return JSONResponse({"status": "unauthenticated"}, status_code=401)
+    tok = issue_overlay_token(cid)
+    return JSONResponse({
+        "status": "ok",
+        "url": f"https://shedoy23.ru/overlay.html?channel_id={cid}&overlay_token={tok}",
+    })
 
 
 @router.get("/api/streamer/module-token", include_in_schema=False)

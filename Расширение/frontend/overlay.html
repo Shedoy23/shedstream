@@ -1019,6 +1019,8 @@ const PETS_POLL_INTERVAL = 12000;  // pets reshuffle каждые ~12 сек
 
 // channel_id из URL (?channel_id=NN), либо backend сам резолвит default
 const PETS_CHANNEL_ID = parseInt(new URLSearchParams(location.search).get('channel_id') || '0', 10);
+// A2 (2026-07-02): overlay-токен из URL — нужен для мутации tts/played (защита от грифа).
+const OVERLAY_TOKEN = new URLSearchParams(location.search).get('overlay_token') || '';
 
 // ══════════════════════════════════════════
 // ОЧЕРЕДЬ УВЕДОМЛЕНИЙ
@@ -1737,7 +1739,7 @@ function _playTts(msg) {
             await fetch(`${SERVER}/api/overlay/tts/played`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({id: msg.id, channel_id: PETS_CHANNEL_ID}),
+                body: JSON.stringify({id: msg.id, channel_id: PETS_CHANNEL_ID, overlay_token: OVERLAY_TOKEN}),
             });
         } catch (e) { /* silent */ }
     };

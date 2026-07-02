@@ -63,10 +63,14 @@ async def viewer_online(action: UserAction, request: Request):
 async def viewer_stats(username: str, request: Request):
     """Статистика для зрителя. Multi-tenant scoping через JWT —
     показываем стат именно на канале просмотра, а не cross-channel."""
-    channel_id = require_jwt_channel(request)
-    if channel_id is None:
+    # IDOR-fix (A3, 2026-07-02): отдаём ТОЛЬКО данные самого JWT-юзера. path
+    # {username} игнорируем — раньше любой зритель канала читал чужие очки/
+    # инвентарь/квесты, подставив чужой ник в URL (require_jwt_channel не сверял).
+    auth = require_jwt_user(request)
+    if not auth:
         return {"status": "unauthorized"}
-    uname = username.lower()
+    login, channel_id = auth
+    uname = login
     db    = get_db()
     bot   = get_bot()
 
@@ -278,11 +282,13 @@ async def get_viewer_quests(username: str, request: Request):
     """Получить детальную информацию о квестах. Multi-tenant scoping
     через JWT — viewer может смотреть квесты только в рамках своего
     стримерского канала."""
-    channel_id = require_jwt_channel(request)
-    if channel_id is None:
+    # IDOR-fix (A3, 2026-07-02): только свои квесты — path {username} игнор.
+    auth = require_jwt_user(request)
+    if not auth:
         return {"quests": [], "status": "unauthorized"}
+    login, channel_id = auth
     db     = get_db()
-    quests = await db.get_quests(username, channel_id=channel_id)
+    quests = await db.get_quests(login, channel_id=channel_id)
     for quest in quests:
         quest_config = QUESTS_CONFIG.get(quest["type"])
         if quest_config:

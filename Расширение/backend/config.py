@@ -158,6 +158,15 @@ EVENTSUB_AUTO_REGISTER = os.getenv('EVENTSUB_AUTO_REGISTER', 'false').lower() ==
 DEV_MODE     = os.getenv('DEV_MODE', 'false').lower() == 'true'
 DEV_USERNAME = os.getenv('DEV_USERNAME', 'dev_user').lower().strip()
 
+# /dev preview-страница на проде: белый список Twitch-логинов (lowercase), кому
+# разрешён логин/превью. env DEV_LOGIN_WHITELIST="login1,login2"; default — владелец.
+# Не в списке → /dev не выдаёт сессию (A1 public-gate 2026-07-02).
+DEV_LOGIN_WHITELIST = {
+    x.strip().lower()
+    for x in os.getenv('DEV_LOGIN_WHITELIST', 'shedoy23').split(',')
+    if x.strip()
+}
+
 # Testing-без-стрима. Если True — require_stream_live() всегда возвращает None.
 # Используется для функционального тестирования без необходимости поднимать стрим.
 # WARN: НЕ оставлять True в проде надолго — viewer'ы смогут тратить очки на дуэли

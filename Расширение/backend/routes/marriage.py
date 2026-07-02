@@ -277,13 +277,14 @@ async def get_proposals(username: str, request: Request):
     auth = require_jwt_user(request)
     if not auth:
         return {"proposals": []}
-    _, channel_id = auth
-    username = sanitize_username(username)
+    # IDOR-fix (A3, 2026-07-02): свои входящие предложения — path {username}
+    # игнорируем (раньше _,channel_id отбрасывал логин → читались чужие).
+    login, channel_id = auth
     db       = get_db()
     async with db._connect() as conn:
         cursor = await conn.execute("""
             SELECT from_user FROM marriage_proposals WHERE channel_id=? AND to_user=?
             ORDER BY created_at DESC
-        """, (channel_id, username))
+        """, (channel_id, login))
         rows = await cursor.fetchall()
     return {"proposals": [r[0] for r in rows]}

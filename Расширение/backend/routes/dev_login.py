@@ -35,10 +35,16 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from config import (
     CHANNEL_POINTS_CONFIG,
+    DEV_LOGIN_WHITELIST,
     TWITCH_CLIENT_ID,
     TWITCH_CLIENT_SECRET,
     TWITCH_EXTENSION_SECRET,
 )
+
+
+def _is_dev_allowed(login: str) -> bool:
+    """A1 (2026-07-02): доступ к /dev только логинам из белого списка."""
+    return bool(login) and login.lower() in DEV_LOGIN_WHITELIST
 
 router = APIRouter()
 
@@ -123,8 +129,13 @@ def _read_session_cookie(request: Request) -> Optional[dict]:
         )
         if payload.get("iss") != "rimlink_dev":
             return None
+        login = payload.get("sub", "")
+        # A1: даже валидный cookie — только если логин всё ещё в белом списке
+        # (снятого из списка стримера отрубает мгновенно).
+        if not _is_dev_allowed(login):
+            return None
         return {
-            "login":   payload.get("sub", ""),
+            "login":   login,
             "user_id": payload.get("user_id", ""),
             "token":   token,
         }
@@ -247,6 +258,13 @@ async def handle_dev_callback(request: Request):
         return HTMLResponse(_wrap_html(
             "<h1>Error</h1><p>Twitch не вернул login/id.</p>"
         ), status_code=502)
+
+    # A1 (2026-07-02): доступ к /dev — только по белому списку логинов.
+    if not _is_dev_allowed(login):
+        return HTMLResponse(_wrap_html(
+            f"<h1>Нет доступа</h1><p>@{login} не в списке разрешённых для dev-превью.</p>"
+            "<p><a href='/dev/logout'>← Выйти</a></p>"
+        ), status_code=403)
 
     # Step 3: issue dev session JWT в cookie
     session_jwt = _issue_dev_session_jwt(login, user_id)

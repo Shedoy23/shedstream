@@ -14,9 +14,9 @@
 
 | # | Sev | Что | Файл | Статус |
 |---|-----|-----|------|--------|
-| A1 | HIGH | `/dev` (dev_login.py) зарегистрирован на проде без DEV_MODE-гейта — любой на shedoy23.ru/dev получает подписанный JWT-cookie (возможно broadcaster-role). Гейтить/снять с прода. | routes/dev_login.py, main.py | ☐ |
-| A2 | HIGH | `POST /api/overlay/tts/played` без auth — злоумышленник поллит `/tts/pending` (id+channel публичны) → POST played → платное TTS-сообщение (5000💎) удаляется до проигрыша. Нужен overlay-secret на мутацию. | routes/tts.py | ☐ |
-| A3 | MED | IDOR-свип: `GET /api/viewer/stats/{username}`, `/api/viewer/quests/{username}`, `/api/marriage/proposals/{username}` — берут username из пути, НЕ сверяют с JWT-логином (require_jwt_channel вместо require_jwt_user). Любой зритель канала читает чужие очки/инвентарь/квесты/предложения. Общий фикс: сверять path==JWT-login или отдавать только своё. | routes/viewer.py, routes/marriage.py | ☐ |
+| A1 | HIGH→МЕД | `/dev` (dev_login.py). УТОЧНЕНО: роль JWT хардкод `viewer` (не broadcaster), логин через реальный OAuth = сам за себя (не импёрс). Fix: **whitelist логинов** (config `DEV_LOGIN_WHITELIST`, default `shedoy23`) — сессия выдаётся только своим, чужой cookie отвергается. | routes/dev_login.py, config.py | ✅ (verify: compile+import; whitelist грузится; owner проверит логин) |
+| A2 | HIGH | `POST /api/overlay/tts/played` без auth — злоумышленник поллит `/tts/pending` (id+channel публичны) → POST played → платное TTS-сообщение (5000💎) удаляется до проигрыша. Нужен overlay-token на мутацию (streamer обновит OBS-URL). | routes/tts.py, overlay.js, streamer.py | ☐ (решено: делаем overlay-token) |
+| A3 | MED | IDOR-свип: `stats/{username}`, `quests/{username}`, `marriage/proposals/{username}` — брали username из пути без сверки с JWT. Fix: отдаём ТОЛЬКО данные JWT-юзера, path-параметр игнор (структурно не читается в теле → IDOR невозможен). | routes/viewer.py, routes/marriage.py | ✅ (verify: path-param unused в теле; compile+import) |
 | A4 | MED | `_duels` — глобальный in-memory dict без channel_id: cross-channel листинг + приём чужой дуэли (ELO-загрязнение между каналами). Скоупить по channel_id. | routes/duel.py | ☐ |
 | A5 | MED | `add-command` SOFT-auth = no-op (мой Wave-1 «фикс» только логирует). Решить с A-RimWorld (kill-switch модуля). | rimworld.py | ☐ |
 

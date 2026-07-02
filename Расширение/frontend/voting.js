@@ -173,6 +173,15 @@ function _renderActiveVoting(data) {
         </div>`;
     }).join('');
 
+    // «Народный выбор игры» (open mode): зритель может предложить свою игру.
+    const proposeHtml = event.allow_proposals ? `
+        <button class="modal-btn" id="voting-propose-btn" style="margin-top:10px;width:100%;">➕ Предложить свою игру</button>
+        <div style="font-size:10px;color:#7a7a85;text-align:center;margin-top:4px;">
+            💎 виртуальны. Вклад спишется, только если стример одобрит игру. Возврата нет.
+        </div>` : '';
+    const optsBlock = sortedOpts.length ? optsHtml
+        : `<div style="text-align:center;color:#adadb8;font-size:12px;padding:12px;">Пока нет вариантов${event.allow_proposals ? ' — предложи игру первым!' : ''}</div>`;
+
     el.innerHTML = `
         <div style="background:linear-gradient(135deg,rgba(145,71,255,.18),rgba(251,191,36,.08));
                     border:1px solid rgba(145,71,255,.5);border-radius:10px;padding:12px;margin-bottom:12px;">
@@ -183,7 +192,8 @@ function _renderActiveVoting(data) {
             </div>
         </div>
         <div style="font-size:12px;color:#adadb8;margin-bottom:4px;">Варианты (клик чтобы выбрать):</div>
-        <div id="voting-options-list">${optsHtml}</div>
+        <div id="voting-options-list">${optsBlock}</div>
+        ${proposeHtml}
         ${topBidsHtml ? `
             <details style="margin-top:10px;background:#1a1a1c;border-radius:6px;padding:8px 10px;">
                 <summary style="cursor:pointer;font-size:11px;color:#adadb8;">🏆 Топ-вкладчиков</summary>
@@ -197,6 +207,9 @@ function _renderActiveVoting(data) {
         const optId = parseInt(btn.dataset.voteOption, 10);
         btn.addEventListener('click', () => _promptBidAmount(optId, opts.find(o => o.id === optId)));
     });
+
+    const proposeBtn = document.getElementById('voting-propose-btn');
+    if (proposeBtn) proposeBtn.addEventListener('click', _promptProposeGame);
 }
 
 function _promptBidAmount(optionId, option) {
@@ -257,6 +270,72 @@ async function _placeBid(optionId, amount) {
             if (typeof loadUserData === 'function') loadUserData();
             await _refreshVoting();
         }
+    } catch (e) {
+        showNotification('Ошибка сети', 'error');
+    } finally {
+        setTimeout(() => { _votingBidLocked = false; }, 500);
+    }
+}
+
+// «Народный выбор игры»: зритель предлагает свою игру + вклад. Compliance:
+// вклад спишется ТОЛЬКО если стример одобрит; крустики виртуальны; возврата нет.
+function _promptProposeGame() {
+    let m = document.getElementById('voting-propose-modal');
+    if (m) m.remove();
+    m = document.createElement('div');
+    m.className = 'modal active';
+    m.id = 'voting-propose-modal';
+    m.innerHTML = `
+        <div class="modal-content" style="max-width:340px;">
+            <h2>➕ Предложить игру</h2>
+            <div style="font-size:11px;color:#adadb8;margin-bottom:8px;">
+                Стример решит, добавить ли её в голосование. Вклад спишется, только если одобрит.
+            </div>
+            <input id="voting-propose-label" type="text" class="modal-input" placeholder="Название игры" maxlength="60">
+            <input id="voting-propose-pledge" type="number" class="modal-input" placeholder="Твой вклад (мин. 100💎)" min="100" style="margin-top:6px;">
+            <div style="display:flex;gap:4px;margin:8px 0;">
+                <button class="quick-vote" data-qp="100">100💎</button>
+                <button class="quick-vote" data-qp="500">500💎</button>
+                <button class="quick-vote" data-qp="5000">5k💎</button>
+                <button class="quick-vote" data-qp="50000">50k💎</button>
+            </div>
+            <div style="font-size:10px;color:#7a7a85;margin-bottom:8px;">
+                💎 крустики виртуальны, ценности вне расширения не имеют. Вклад необратим, возврата нет.
+            </div>
+            <button class="modal-btn" id="voting-propose-confirm">📨 Отправить на одобрение</button>
+            <button class="modal-btn cancel" id="voting-propose-cancel" style="margin-top:6px;">Отмена</button>
+        </div>
+    `;
+    (document.getElementById('overlay-panel') || document.body).appendChild(m);
+
+    m.querySelectorAll('[data-qp]').forEach(qb => {
+        qb.addEventListener('click', () => {
+            document.getElementById('voting-propose-pledge').value = qb.dataset.qp;
+        });
+    });
+    document.getElementById('voting-propose-confirm').addEventListener('click', async () => {
+        const label = (document.getElementById('voting-propose-label').value || '').trim();
+        const pledge = parseInt(document.getElementById('voting-propose-pledge').value);
+        if (label.length < 2) { showNotification('Введи название игры', 'error'); return; }
+        if (!pledge || pledge < 100) { showNotification('Минимальный вклад 100💎', 'error'); return; }
+        await _proposeGame(label, pledge);
+        m.remove();
+    });
+    document.getElementById('voting-propose-cancel').addEventListener('click', () => m.remove());
+}
+
+async function _proposeGame(label, pledge) {
+    if (_votingBidLocked) return;
+    _votingBidLocked = true;
+    try {
+        const r = await fetch(`${API_URL}/api/voting/propose`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || '' },
+            body: JSON.stringify({ label, pledge }),
+        });
+        const data = await r.json();
+        // Платно + отложенный исход → тост от бэка («отправлено на одобрение, спишется если одобрят»).
+        showNotification(data.message, data.success ? 'success' : 'error');
     } catch (e) {
         showNotification('Ошибка сети', 'error');
     } finally {

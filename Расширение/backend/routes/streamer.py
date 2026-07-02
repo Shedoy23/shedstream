@@ -641,6 +641,93 @@ def _dashboard_html(ch: dict) -> str:
   loadPromos();
   </script>
 
+  <!-- Народный выбор игры (M88, 2026-07-02) -->
+  <div class="section" id="gamevote-section">
+    <h2>🎮 Народный выбор игры</h2>
+    <div class="sub">
+      Открой раунд — зрители кидают крустики за игры и могут предложить свою.
+      Побеждает игра с наибольшим вкладом. Предложения зрителей приходят сюда на одобрение
+      (виден ник автора; любое можно отклонить). Вклад автора спишется только после одобрения.
+    </div>
+    <div class="boosty-form" style="flex-wrap:wrap;">
+      <input id="gv-seed" type="text" placeholder="свои игры через запятую (необязательно)" style="flex:1 1 100%;">
+      <input id="gv-duration" type="number" placeholder="минут" value="5" style="width:90px;">
+      <button id="gv-start-btn" onclick="gvStart()">▶ Открыть раунд</button>
+      <button id="gv-finalize-btn" onclick="gvFinalize()" style="display:none;">⏹ Закрыть и подвести итог</button>
+    </div>
+    <div id="gv-msg" class="boosty-msg"></div>
+    <div id="gv-standings" style="margin-top:12px;"></div>
+    <div id="gv-pending" style="margin-top:12px;"></div>
+  </div>
+  <script>
+  function gvEsc(s){{ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }}
+  let _gvPollId = null;
+  async function gvLoad(){{
+    const standings = document.getElementById('gv-standings');
+    const pending = document.getElementById('gv-pending');
+    const startBtn = document.getElementById('gv-start-btn');
+    const finBtn = document.getElementById('gv-finalize-btn');
+    try{{
+      const r = await fetch('/api/streamer/voting/status', {{credentials:'include'}});
+      const d = await r.json();
+      if(!d.success){{ standings.innerHTML=''; pending.innerHTML=''; return; }}
+      const ev = d.active_event;
+      if(!ev){{
+        standings.innerHTML = '<div class="sub">Раунд не идёт. Открой новый.</div>';
+        pending.innerHTML = '';
+        startBtn.style.display=''; finBtn.style.display='none';
+        return;
+      }}
+      startBtn.style.display='none'; finBtn.style.display='';
+      const opts = (ev.options||[]).slice().sort(function(a,b){{ return b.pool-a.pool; }});
+      let sh = '<div class="sub">Идёт раунд · всего ' + (ev.total_pool||0) + '💎</div>';
+      sh += opts.length ? opts.map(function(o){{ return '<div class="boosty-row"><span class="u">'+gvEsc(o.label)+'</span><span class="t">'+o.pool+'💎</span></div>'; }}).join('') : '<div class="sub">Пока нет вариантов — зрители предложат.</div>';
+      standings.innerHTML = sh;
+      const pend = d.pending||[];
+      if(!pend.length){{ pending.innerHTML = '<div class="sub">Нет предложений на одобрение.</div>'; }}
+      else{{
+        pending.innerHTML = '<div class="sub">На одобрение:</div>' + pend.map(function(p){{
+          return '<div class="boosty-row"><span class="u">'+gvEsc(p.label)+'</span>'
+            + '<span class="n">от @'+gvEsc(p.username)+' · '+p.pledge+'💎</span>'
+            + '<button data-gv-ok="'+p.id+'">✔ Одобрить</button>'
+            + '<button data-gv-no="'+p.id+'">✖</button></div>';
+        }}).join('');
+        pending.querySelectorAll('[data-gv-ok]').forEach(function(b){{ b.addEventListener('click', function(){{ gvApprove(b.getAttribute('data-gv-ok')); }}); }});
+        pending.querySelectorAll('[data-gv-no]').forEach(function(b){{ b.addEventListener('click', function(){{ gvReject(b.getAttribute('data-gv-no')); }}); }});
+      }}
+    }} catch(e){{}}
+  }}
+  async function gvStart(){{
+    const seed = (document.getElementById('gv-seed').value||'').split(',').map(function(s){{ return s.trim(); }}).filter(function(s){{ return s.length; }});
+    const mins = parseInt(document.getElementById('gv-duration').value||'5',10);
+    const m = document.getElementById('gv-msg');
+    try{{
+      const r = await fetch('/api/streamer/voting/start', {{method:'POST', credentials:'include', headers:{{'Content-Type':'application/json'}}, body: JSON.stringify({{duration_sec: (mins>0?mins:5)*60, options: seed}})}});
+      const d = await r.json();
+      m.textContent = d.message || (d.success?'OK':'Ошибка'); m.className='boosty-msg '+(d.success?'ok':'err');
+      gvLoad();
+    }} catch(e){{ m.textContent='Сеть недоступна'; m.className='boosty-msg err'; }}
+  }}
+  async function gvFinalize(){{
+    const m = document.getElementById('gv-msg');
+    try{{
+      const r = await fetch('/api/streamer/voting/finalize', {{method:'POST', credentials:'include'}});
+      const d = await r.json();
+      m.textContent = d.message || (d.success?'OK':'Ошибка'); m.className='boosty-msg '+(d.success?'ok':'err');
+      gvLoad();
+    }} catch(e){{ m.textContent='Сеть недоступна'; m.className='boosty-msg err'; }}
+  }}
+  async function gvApprove(id){{
+    try{{ await fetch('/api/streamer/voting/proposals/'+id+'/approve', {{method:'POST', credentials:'include'}}); gvLoad(); }} catch(e){{}}
+  }}
+  async function gvReject(id){{
+    try{{ await fetch('/api/streamer/voting/proposals/'+id+'/reject', {{method:'POST', credentials:'include'}}); gvLoad(); }} catch(e){{}}
+  }}
+  gvLoad();
+  if(_gvPollId) clearInterval(_gvPollId);
+  _gvPollId = setInterval(gvLoad, 5000);
+  </script>
+
   <!-- Boosty subscribers admin (Sprint 5.31 #45b) -->
   <div class="section" id="boosty-section">
     <h2>💜 Boosty-подписчики</h2>

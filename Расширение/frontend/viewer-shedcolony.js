@@ -54,6 +54,8 @@
         set_guard_retreat:{ type: 'colonist.set_guard_retreat', price: 300 },
         // Phase D — дёшево-вовлекающее
         auto_work:        { type: 'colonist.auto_work',         price: 1000 },
+        // Phase B — флагман
+        upgrade_building: { type: 'colony.upgrade_building',    price: 50000 },
     };
 
     // colonist.auto_work — job → what its automation does (only these 4 jobs have it; button hidden otherwise).
@@ -136,6 +138,7 @@
         'colonist.set_guard_task':   '🛡 Заявка принята — сменим боевую задачу гвардейца через пару секунд.',
         'colonist.set_guard_retreat':'🛡 Заявка принята — настроим отступление через пару секунд.',
         'colonist.auto_work':        '⚙ Заявка принята — включим авто-режим на работе через пару секунд.',
+        'colony.upgrade_building':   '🏗 Заявка принята — строитель начнёт улучшение здания (не мгновенно, повторно жать не нужно).',
     };
 
     // 11 MineColonies skills (value = enum name the mod expects; label = RU).
@@ -378,6 +381,8 @@
         var researchProg = (tg.researches || []).filter(function (r) { return r.state === 'in_progress'; });
         var backlogBuildings = tg.buildings || [];
         var warehouseOk = !!(tg.min_stock && tg.min_stock.warehouse);
+        var canBuild = !!tg.can_build;                                   // Phase B: streamer online?
+        var upgradeBuildings = (tg.upgradable || []).filter(function (b) { return !b.in_progress; });
         // Phase C gear gating (advisory — mod is authoritative). job key drives guard/worker gates.
         var jobBase = (job || '').indexOf(':') >= 0 ? (job || '').split(':').pop() : (job || '');
         var isGuard = ['knight', 'ranger', 'archer', 'druid'].indexOf(jobBase) >= 0;
@@ -601,6 +606,23 @@
             supplyBody += '<p class="sc-muted">Ни у одного здания сейчас нет очереди заказов.</p>';
         }
         html += _grp('g-supply', '📦 Склад', supplyBody);
+
+        // 🏗 Стройка (Phase B — флагман: апгрейд здания; гейт по онлайну стримера + наличию цели)
+        var buildBody;
+        if (!canBuild) {
+            buildBody = '<p class="sc-muted">Стример сейчас офлайн — строитель не начнёт улучшение. Загляни, когда он в игре.</p>';
+        } else if (upgradeBuildings.length) {
+            buildBody = '<select class="sc-select" id="sc-upgrade-select">';
+            upgradeBuildings.forEach(function (b) {
+                buildBody += '<option value="' + escapeHtml(b.pos) + '">'
+                    + escapeHtml(_buildingLabel(b.type) + ' — ур. ' + b.level + '→' + (b.level + 1)) + '</option>';
+            });
+            buildBody += '</select><button class="sc-btn" data-sc="upgrade_building">🏗 Улучшить здание — 50000 💎</button>'
+                + '<p class="sc-muted" style="margin-top:6px;">Строитель построит следующий уровень на реальных ресурсах — не мгновенно. Главный способ вложиться в колонию стримера.</p>';
+        } else {
+            buildBody = '<p class="sc-muted">Сейчас нечего улучшать — все здания на максимуме или уже строятся.</p>';
+        }
+        html += _grp('g-build', '🏗 Стройка', buildBody);
         html += '</div>';  // /pane colony
 
         root.innerHTML = html;
@@ -681,6 +703,10 @@
             var bl = document.getElementById('sc-backlog-select');
             if (!bl || !bl.value) { showNotification('Выбери здание', 'error', 3000); return; }
             data.building = bl.value;
+        } else if (kind === 'upgrade_building') {
+            var ub = document.getElementById('sc-upgrade-select');
+            if (!ub || !ub.value) { showNotification('Выбери здание', 'error', 3000); return; }
+            data.building = ub.value;
         } else if (kind === 'start_research' || kind === 'finish_research') {
             var rs = document.getElementById(kind === 'start_research'
                 ? 'sc-research-start-select' : 'sc-research-finish-select');

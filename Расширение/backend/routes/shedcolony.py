@@ -86,6 +86,8 @@ _PURCHASABLE_ACTIONS = (
     "colonist.set_guard_retreat",
     # Phase D — cheap engagement (own colonist workplace automation, only-ON, grief-safe)
     "colonist.auto_work",
+    # Phase B — flagship: sponsor a real building upgrade (colony-scope, deterministic)
+    "colony.upgrade_building",
 )
 
 # Server-side prices — viewer-supplied price is IGNORED (frontend draws what backend sends).
@@ -128,6 +130,8 @@ _ACTION_PRICES: dict[str, int] = {
     "colonist.set_guard_retreat": 300,
     # Phase D — cheap engagement (PROVISIONAL price)
     "colonist.auto_work":       1000,
+    # Phase B — flagship building upgrade (the aspirational-floor sink; owner-fixed 50k)
+    "colony.upgrade_building":  50000,
 }
 
 # give_item — curated food whitelist (no tools/exploit; helps the colonist eat).
@@ -369,7 +373,7 @@ async def _buy_action_locked(username: str, channel_id: int,
             return {"success": False, "message": f"Количество должно быть {_MIN_STOCK_QTY_MIN}–{_MIN_STOCK_QTY_MAX}"}
         data["item"] = item
         data["qty"] = qty
-    elif action_type == "colony.clear_backlog":
+    elif action_type in ("colony.clear_backlog", "colony.upgrade_building"):
         building = (data.get("building") or "").strip()
         if not _BUILDING_POS_RE.match(building):
             return {"success": False, "message": "Выбери здание"}

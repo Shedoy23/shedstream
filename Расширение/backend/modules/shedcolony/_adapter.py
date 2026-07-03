@@ -38,6 +38,8 @@ class ShedColonyAdapter(ModuleAdapter):
             await self._on_colony_snapshot(channel_id, env)
         elif et == "colony.capacity":
             await self._on_colony_capacity(channel_id, env)
+        elif et == "colony.targets":
+            await self._on_colony_targets(channel_id, env)
         elif et == "action.failed":
             await self._on_action_failed(channel_id, env)
         else:
@@ -224,6 +226,21 @@ class ShedColonyAdapter(ModuleAdapter):
                 "    free_beds = excluded.free_beds, total_beds = excluded.total_beds, "
                 "    updated_at = CURRENT_TIMESTAMP",
                 (channel_id, int(d.get("free_beds") or 0), int(d.get("total_beds") or 0)))
+            await conn.commit()
+
+    async def _on_colony_targets(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Снимок выбираемых целей для пикеров Фазы A/B (мод шлёт периодически). Полная замена.
+        data: {researches:[{branch,id,name,state}], buildings:[{pos,type,name,backlog}],
+               min_stock:{warehouse,slots_free}}. Храним весь блоб — /capacity отдаёт его фронту."""
+        blob = json.dumps(env.data, ensure_ascii=False)
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            await conn.execute(
+                "INSERT INTO shedcolony_targets (channel_id, data, updated_at) "
+                "VALUES (?, ?, CURRENT_TIMESTAMP) "
+                "ON CONFLICT(channel_id) DO UPDATE SET "
+                "    data = excluded.data, updated_at = CURRENT_TIMESTAMP",
+                (channel_id, blob))
             await conn.commit()
 
     async def _on_action_failed(self, channel_id: int, env: ModuleEnvelope) -> None:

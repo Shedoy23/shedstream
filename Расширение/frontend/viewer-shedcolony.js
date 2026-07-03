@@ -40,6 +40,33 @@
         spy_boost:     { type: 'colony.spy_boost',      price: 1500 },
         happiness:     { type: 'colonist.happiness_boost', price: 400 },
         supply:        { type: 'colony.supply',           price: 1000 },
+        // Phase A — развитие колонии + склад (цены-копии; истина на бэке _ACTION_PRICES)
+        min_stock:      { type: 'colony.set_minimum_stock', price: 75000 },
+        clear_backlog:  { type: 'colony.clear_backlog',     price: 50000 },
+        start_research: { type: 'colony.start_research',     price: 75000 },
+        finish_research:{ type: 'colony.finish_research',    price: 37500 },
+    };
+
+    // set_minimum_stock item picker — MUST stay a subset of _MIN_STOCK_WHITELIST in routes/shedcolony.py.
+    var SC_MIN_STOCK_ITEMS = [
+        ['minecraft:bread', 'Хлеб'], ['minecraft:oak_planks', 'Доски'], ['minecraft:oak_log', 'Брёвна'],
+        ['minecraft:cobblestone', 'Булыжник'], ['minecraft:stone', 'Камень'], ['minecraft:coal', 'Уголь'],
+        ['minecraft:charcoal', 'Древ. уголь'], ['minecraft:torch', 'Факелы'], ['minecraft:stick', 'Палки'],
+        ['minecraft:wheat', 'Пшеница'], ['minecraft:carrot', 'Морковь'], ['minecraft:potato', 'Картофель'],
+        ['minecraft:apple', 'Яблоки'],
+    ];
+    // set_minimum_stock quantity picker — in STACKS (1..16; mirrors _MIN_STOCK_QTY_MAX + mod clamp).
+    var SC_MIN_STOCK_QTYS = [1, 2, 4, 8, 16];
+
+    // RU labels for the common building types (backlog picker; fallback = raw registry path).
+    var SC_BUILDING_LABELS = {
+        builder: 'Строитель', baker: 'Пекарня', cook: 'Кухня', farmer: 'Ферма',
+        fisherman: 'Рыбак', lumberjack: 'Лесопилка', miner: 'Шахта', guardtower: 'Башня стражи',
+        barracks: 'Казармы', warehouse: 'Склад', townhall: 'Ратуша', deliveryman: 'Курьерская',
+        smeltery: 'Плавильня', blacksmith: 'Кузница', stonemason: 'Каменотёс', sawmill: 'Лесопилка',
+        farm: 'Ферма', chickenherder: 'Птичник', cowboy: 'Скотник', shepherd: 'Пастух',
+        swineherder: 'Свинарник', composter: 'Компост', florist: 'Цветовод', university: 'Университет',
+        library: 'Библиотека', hospital: 'Госпиталь', tavern: 'Таверна', mysticalsite: 'Алтарь',
     };
 
     // colony.supply dropdown — MUST stay a subset of _SUPPLY_WHITELIST in routes/shedcolony.py.
@@ -83,6 +110,10 @@
         'colonist.equip_diamond':    '💎 Заявка принята — наденем алмазную броню через пару секунд.',
         'colonist.happiness_boost':  '😊 Заявка принята — поднимем настроение колонисту через пару секунд.',
         'colony.supply':             '📦 Заявка принята — ресурсы появятся на складе колонии через пару секунд.',
+        'colony.set_minimum_stock':  '📦 Заявка принята — неснижаемый запас закрепим на складе через пару секунд.',
+        'colony.clear_backlog':      '🚚 Заявка принята — очередь заказов здания разгребём через пару секунд.',
+        'colony.start_research':     '🔬 Заявка принята — исследование профинансировано, университет им займётся.',
+        'colony.finish_research':    '🔬 Заявка принята — исследование завершится мгновенно (эффект применится).',
     };
 
     // 11 MineColonies skills (value = enum name the mod expects; label = RU).
@@ -105,7 +136,7 @@
 
     var _pollId = null;
     var _inflight = {};            // action_type → true while a buy is in flight (anti-double-click)
-    var _state = { colonist: null, capacity: { jobs: [], free_beds: null } };
+    var _state = { colonist: null, capacity: { jobs: [], free_beds: null }, targets: null };
     var _lastSig = '';
     var _stylesInjected = false;
     var _activeTab = 'me';                                     // persisted across re-renders
@@ -121,6 +152,13 @@
         if (!key) { return key; }
         var base = key.indexOf(':') >= 0 ? key.split(':').pop() : key;
         return SC_JOB_LABELS[base] || base;
+    }
+
+    // Building registry path (e.g. "minecolonies:builder" or "builder") → RU label (fallback = path).
+    function _buildingLabel(type) {
+        if (!type) { return type; }
+        var base = type.indexOf(':') >= 0 ? type.split(':').pop() : type;
+        return SC_BUILDING_LABELS[base] || base;
     }
 
     function _num(v, dflt) {
@@ -312,6 +350,12 @@
         var beds = cap.free_beds;
         var hasReqInfo = st && Array.isArray(st.requests);
         var reqs = hasReqInfo ? st.requests : [];
+        // Phase A picker targets (from the colony.targets snapshot the mod pushes)
+        var tg = _state.targets || {};
+        var researchAvail = (tg.researches || []).filter(function (r) { return r.state === 'available'; });
+        var researchProg = (tg.researches || []).filter(function (r) { return r.state === 'in_progress'; });
+        var backlogBuildings = tg.buildings || [];
+        var warehouseOk = !!(tg.min_stock && tg.min_stock.warehouse);
 
         // ── tab bar ──
         html += '<div class="sc-tabs">'
@@ -432,10 +476,61 @@
             + '</div>'
             + '<p class="sc-muted" style="margin-top:8px;">Шпионы работают только во время рейда; гость — если есть таверна.</p>';
         html += _grp('g-events', '🎉 События колонии', eventsBody);
-        var supplyBody = '<select class="sc-select" id="sc-supply-select">';
+
+        // 🔬 Развитие (research — single-slot; picker discloses what's available/running)
+        var researchBody = '<div class="sc-section-title">Профинансировать исследование — 75000 💎</div>';
+        if (researchAvail.length) {
+            researchBody += '<select class="sc-select" id="sc-research-start-select">';
+            researchAvail.forEach(function (r) {
+                researchBody += '<option value="' + escapeHtml(r.branch + '|' + r.id) + '">'
+                    + escapeHtml(r.name || r.id) + '</option>';
+            });
+            researchBody += '</select><button class="sc-btn" data-sc="start_research">Профинансировать — 75000 💎</button>';
+        } else {
+            researchBody += '<p class="sc-muted">Нет доступных исследований — нужен построенный университет (или всё в ветке уже изучено).</p>';
+        }
+        researchBody += '<div class="sc-section-title" style="margin-top:14px;">Завершить мгновенно — 37500 💎</div>';
+        if (researchProg.length) {
+            researchBody += '<select class="sc-select" id="sc-research-finish-select">';
+            researchProg.forEach(function (r) {
+                researchBody += '<option value="' + escapeHtml(r.branch + '|' + r.id) + '">'
+                    + escapeHtml(r.name || r.id) + '</option>';
+            });
+            researchBody += '</select><button class="sc-btn" data-sc="finish_research">Завершить сейчас — 37500 💎</button>';
+        } else {
+            researchBody += '<p class="sc-muted">Сейчас нет идущих исследований, которые можно ускорить.</p>';
+        }
+        html += _grp('g-research', '🔬 Развитие', researchBody);
+
+        // 📦 Склад — снабжение (стак) + неснижаемый запас + разгрести очередь заказов
+        var supplyBody = '<div class="sc-section-title">Снабдить колонию (стак) — 1000 💎</div>'
+            + '<select class="sc-select" id="sc-supply-select">';
         SC_SUPPLY_ITEMS.forEach(function (pair) { supplyBody += '<option value="' + pair[0] + '">' + escapeHtml(pair[1]) + '</option>'; });
-        supplyBody += '</select><button class="sc-btn" data-sc="supply">📦 Снабдить колонию (стак) — 1000 💎</button>'
-            + '<p class="sc-muted" style="margin-top:8px;">Только базовые материалы — помогаешь колонии строиться.</p>';
+        supplyBody += '</select><button class="sc-btn" data-sc="supply">📦 Снабдить — 1000 💎</button>'
+            + '<p class="sc-muted" style="margin-top:6px;">Только базовые материалы — помогаешь колонии строиться.</p>';
+        supplyBody += '<div class="sc-section-title" style="margin-top:14px;">Неснижаемый запас — 75000 💎</div>';
+        if (warehouseOk) {
+            supplyBody += '<select class="sc-select" id="sc-minstock-item-select">';
+            SC_MIN_STOCK_ITEMS.forEach(function (pair) { supplyBody += '<option value="' + pair[0] + '">' + escapeHtml(pair[1]) + '</option>'; });
+            supplyBody += '</select><select class="sc-select" id="sc-minstock-qty-select">';
+            SC_MIN_STOCK_QTYS.forEach(function (q) { supplyBody += '<option value="' + q + '">' + q + ' стак.</option>'; });
+            supplyBody += '</select><button class="sc-btn" data-sc="min_stock">📌 Закрепить запас — 75000 💎</button>'
+                + '<p class="sc-muted" style="margin-top:6px;">Склад будет держать выбранное количество этого предмета не ниже порога.</p>';
+        } else {
+            supplyBody += '<p class="sc-muted">Нужен построенный склад в колонии.</p>';
+        }
+        supplyBody += '<div class="sc-section-title" style="margin-top:14px;">Разгрести очередь заказов — 50000 💎</div>';
+        if (backlogBuildings.length) {
+            supplyBody += '<select class="sc-select" id="sc-backlog-select">';
+            backlogBuildings.forEach(function (b) {
+                supplyBody += '<option value="' + escapeHtml(b.pos) + '">'
+                    + escapeHtml(_buildingLabel(b.type) + ' (' + b.backlog + ' в очереди)') + '</option>';
+            });
+            supplyBody += '</select><button class="sc-btn" data-sc="clear_backlog">🚚 Разгрести — 50000 💎</button>'
+                + '<p class="sc-muted" style="margin-top:6px;">Выдаст зданию материалы, которые оно ждёт — ускоряет стройку/работу, ничего не отменяет.</p>';
+        } else {
+            supplyBody += '<p class="sc-muted">Ни у одного здания сейчас нет очереди заказов.</p>';
+        }
         html += _grp('g-supply', '📦 Склад', supplyBody);
         html += '</div>';  // /pane colony
 
@@ -507,6 +602,23 @@
             // Per-request buttons carry the chosen request token; legacy button has none (mod closes top).
             var rid = btn.getAttribute('data-req-id');
             if (rid) { data.request_id = rid; }
+        } else if (kind === 'min_stock') {
+            var mi = document.getElementById('sc-minstock-item-select');
+            var mq = document.getElementById('sc-minstock-qty-select');
+            if (!mi || !mi.value) { showNotification('Выбери предмет', 'error', 3000); return; }
+            data.item = mi.value;
+            data.qty = (mq && mq.value) ? parseInt(mq.value, 10) : 1;
+        } else if (kind === 'clear_backlog') {
+            var bl = document.getElementById('sc-backlog-select');
+            if (!bl || !bl.value) { showNotification('Выбери здание', 'error', 3000); return; }
+            data.building = bl.value;
+        } else if (kind === 'start_research' || kind === 'finish_research') {
+            var rs = document.getElementById(kind === 'start_research'
+                ? 'sc-research-start-select' : 'sc-research-finish-select');
+            if (!rs || !rs.value) { showNotification('Выбери исследование', 'error', 3000); return; }
+            var parts = rs.value.split('|');
+            data.branch = parts[0];
+            data.research = parts.slice(1).join('|');   // id itself may contain '/', never '|'
         }
         btn.disabled = true;
         _buy(cfg.type, data).then(function (res) {
@@ -525,7 +637,10 @@
         return Promise.all([mcP, capP]).then(function (res) {
             var mc = res[0], cap = res[1];
             if (mc && mc.success) { _state.colonist = mc; }
-            if (cap && cap.success) { _state.capacity = { jobs: cap.jobs || [], free_beds: cap.free_beds }; }
+            if (cap && cap.success) {
+                _state.capacity = { jobs: cap.jobs || [], free_beds: cap.free_beds };
+                _state.targets = cap.targets || null;
+            }
             _renderIfChanged();
         });
     }

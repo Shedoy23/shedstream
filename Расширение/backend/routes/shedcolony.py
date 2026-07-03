@@ -72,6 +72,11 @@ _PURCHASABLE_ACTIONS = (
     "colony.spawn_visitor",
     "colony.quest_unlock",
     "colony.supply",
+    # Phase A — colony development + warehouse (colony-wide, deterministic, grief-safe)
+    "colony.set_minimum_stock",
+    "colony.clear_backlog",
+    "colony.start_research",
+    "colony.finish_research",
 )
 
 # Server-side prices — viewer-supplied price is IGNORED (frontend draws what backend sends).
@@ -99,6 +104,12 @@ _ACTION_PRICES: dict[str, int] = {
     "colony.spawn_visitor":     2000,
     "colony.quest_unlock":      2000,
     "colony.supply":            1000,   # a stack of a basic resource into the warehouse
+    # Phase A — high-tier "crustic sink" development actions (PROVISIONAL: owner may retune;
+    # backend is the single source of truth, not frozen. start_research fixed by owner §0b).
+    "colony.set_minimum_stock": 75000,
+    "colony.clear_backlog":     50000,
+    "colony.start_research":    75000,
+    "colony.finish_research":   37500,
 }
 
 # give_item — curated food whitelist (no tools/exploit; helps the colonist eat).
@@ -116,6 +127,30 @@ _SUPPLY_WHITELIST = {
     "minecraft:dirt", "minecraft:sand", "minecraft:gravel", "minecraft:torch",
     "minecraft:bread", "minecraft:wheat", "minecraft:carrot", "minecraft:potato",
 }
+
+# colony.set_minimum_stock — items a viewer may pin as never-below-N on the warehouse. Basic
+# consumables/materials only (same grief-safe spirit as supply): forcing the colony to keep a
+# floor of bread/planks/torches is helpful; letting it hoard diamonds would trivialise the economy.
+_MIN_STOCK_WHITELIST = {
+    "minecraft:oak_log", "minecraft:oak_planks", "minecraft:cobblestone", "minecraft:stone",
+    "minecraft:dirt", "minecraft:sand", "minecraft:gravel", "minecraft:torch",
+    "minecraft:bread", "minecraft:wheat", "minecraft:carrot", "minecraft:potato",
+    "minecraft:coal", "minecraft:charcoal", "minecraft:stick", "minecraft:apple",
+}
+# set_minimum_stock quantity bounds — in STACKS (the MineColonies module multiplies by the item's
+# max stack size each tick, so 1 = keep one stack, 16 = keep 16 stacks). The mod clamps to 1..16 too.
+_MIN_STOCK_QTY_MIN = 1
+_MIN_STOCK_QTY_MAX = 16
+
+# colony.clear_backlog — the target building is identified by its BlockPos "x,y,z" (the mod's
+# colony.targets reporter emits it; the viewer picks one). Ints only; not security-sensitive
+# (the mod resolves the building by pos and never trusts it beyond that), just length-bounded.
+_BUILDING_POS_RE = re.compile(r"^-?\d{1,7},-?\d{1,4},-?\d{1,7}$")
+
+# colony.start_research / colony.finish_research — branch + research id are MineColonies
+# ResourceLocations like "minecolonies:technology" / "minecolonies:technology/higher_learning".
+# The mod parses them via ResourceLocation.parse (which validates); we only length/charset-bound.
+_RESEARCH_ID_RE = re.compile(r"^[a-z0-9_./:-]{1,120}$")
 
 # Fixed XP per add_xp purchase (viewer picks the skill, server fixes the amount).
 _XP_AMOUNT = 1000
@@ -296,6 +331,30 @@ async def _buy_action_locked(username: str, channel_id: int,
             data["request_id"] = rid       # which open request to close; mod matches by token
         else:
             data.pop("request_id", None)   # absent → mod closes the top open request
+    elif action_type == "colony.set_minimum_stock":
+        item = (data.get("item") or "").strip()
+        if item not in _MIN_STOCK_WHITELIST:
+            return {"success": False, "message": "Этот предмет нельзя закрепить в запасе"}
+        try:
+            qty = int(data.get("qty"))
+        except (TypeError, ValueError):
+            return {"success": False, "message": "Некорректное количество"}
+        if not (_MIN_STOCK_QTY_MIN <= qty <= _MIN_STOCK_QTY_MAX):
+            return {"success": False, "message": f"Количество должно быть {_MIN_STOCK_QTY_MIN}–{_MIN_STOCK_QTY_MAX}"}
+        data["item"] = item
+        data["qty"] = qty
+    elif action_type == "colony.clear_backlog":
+        building = (data.get("building") or "").strip()
+        if not _BUILDING_POS_RE.match(building):
+            return {"success": False, "message": "Выбери здание"}
+        data["building"] = building
+    elif action_type in ("colony.start_research", "colony.finish_research"):
+        branch = (data.get("branch") or "").strip()
+        research = (data.get("research") or "").strip()
+        if not _RESEARCH_ID_RE.match(branch) or not _RESEARCH_ID_RE.match(research):
+            return {"success": False, "message": "Выбери исследование"}
+        data["branch"] = branch
+        data["research"] = research
 
     result = await _charge_and_enqueue(action_type, data, price, username, channel_id)
     if isinstance(result, dict):
@@ -370,6 +429,7 @@ async def shedcolony_capacity(request: Request):
 
     jobs: list[dict] = []
     free_beds = None
+    targets = None
     db = get_db()
     try:
         async with db._connect() as conn:
@@ -383,6 +443,15 @@ async def shedcolony_capacity(request: Request):
             meta = await cur.fetchone()
             if meta:
                 free_beds = meta[0]
+            # Phase A picker targets (research / building-backlog / warehouse) — mod pushes colony.targets.
+            cur = await conn.execute(
+                "SELECT data FROM shedcolony_targets WHERE channel_id=?", (channel_id,))
+            trow = await cur.fetchone()
+            if trow and trow[0]:
+                try:
+                    targets = json.loads(trow[0])
+                except Exception:
+                    targets = None
     except Exception as ex:
         log.warning("[shedcolony capacity] read failed ch=%s: %s", channel_id, ex)
-    return {"success": True, "jobs": jobs, "free_beds": free_beds}
+    return {"success": True, "jobs": jobs, "free_beds": free_beds, "targets": targets}

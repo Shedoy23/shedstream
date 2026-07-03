@@ -84,6 +84,8 @@ _PURCHASABLE_ACTIONS = (
     "colonist.give_tools",
     "colonist.set_guard_task",
     "colonist.set_guard_retreat",
+    # Phase D — cheap engagement (own colonist workplace automation, only-ON, grief-safe)
+    "colonist.auto_work",
 )
 
 # Server-side prices — viewer-supplied price is IGNORED (frontend draws what backend sends).
@@ -124,6 +126,8 @@ _ACTION_PRICES: dict[str, int] = {
     "colonist.give_tools":      2500,
     "colonist.set_guard_task":   500,
     "colonist.set_guard_retreat": 300,
+    # Phase D — cheap engagement (PROVISIONAL price)
+    "colonist.auto_work":       1000,
 }
 
 # give_item — curated food whitelist (no tools/exploit; helps the colonist eat).
@@ -213,6 +217,7 @@ _NEEDS_CITIZEN = (
     "colonist.give_tools",
     "colonist.set_guard_task",
     "colonist.set_guard_retreat",
+    "colonist.auto_work",
 )
 
 

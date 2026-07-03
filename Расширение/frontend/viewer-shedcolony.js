@@ -52,6 +52,14 @@
         give_tools:       { type: 'colonist.give_tools',        price: 2500 },
         set_guard_task:   { type: 'colonist.set_guard_task',    price: 500 },
         set_guard_retreat:{ type: 'colonist.set_guard_retreat', price: 300 },
+        // Phase D — дёшево-вовлекающее
+        auto_work:        { type: 'colonist.auto_work',         price: 1000 },
+    };
+
+    // colonist.auto_work — job → what its automation does (only these 4 jobs have it; button hidden otherwise).
+    var SC_AUTO_LABELS = {
+        farmer: 'Авто-удобрение поля', lumberjack: 'Авто-пересадка деревьев',
+        shepherd: 'Авто-стрижка овец', composter: 'Авто-компост (земля)',
     };
 
     // set_minimum_stock item picker — MUST stay a subset of _MIN_STOCK_WHITELIST in routes/shedcolony.py.
@@ -127,6 +135,7 @@
         'colonist.give_tools':       '⛏ Заявка принята — выдадим набор инструментов через пару секунд.',
         'colonist.set_guard_task':   '🛡 Заявка принята — сменим боевую задачу гвардейца через пару секунд.',
         'colonist.set_guard_retreat':'🛡 Заявка принята — настроим отступление через пару секунд.',
+        'colonist.auto_work':        '⚙ Заявка принята — включим авто-режим на работе через пару секунд.',
     };
 
     // 11 MineColonies skills (value = enum name the mod expects; label = RU).
@@ -373,6 +382,7 @@
         var jobBase = (job || '').indexOf(':') >= 0 ? (job || '').split(':').pop() : (job || '');
         var isGuard = ['knight', 'ranger', 'archer', 'druid'].indexOf(jobBase) >= 0;
         var hasJob = !!jobBase;
+        var autoLabel = SC_AUTO_LABELS[jobBase];   // Phase D: only farmer/lumberjack/shepherd/composter
 
         // ── tab bar ──
         html += '<div class="sc-tabs">'
@@ -419,6 +429,13 @@
             progBody += '<p class="sc-muted">Нет свободных коек — стример ещё не построил дома.</p>';
         }
         html += _grp('g-progress', '📈 Прокачка и роль', progBody);
+
+        // ⚙️ Авто-режим работы (Phase D — только farmer/lumberjack/shepherd/composter)
+        if (autoLabel) {
+            var autoBody = '<button class="sc-btn" data-sc="auto_work">⚙ ' + escapeHtml(autoLabel) + ' — 1000 💎</button>'
+                + '<p class="sc-muted" style="margin-top:6px;">Включает авто-режим на рабочем месте колониста. Только включает — настройки стримера не трогает.</p>';
+            html += _grp('g-auto', '⚙️ Авто-режим работы', autoBody);
+        }
 
         // 🎁 Просьбы колониста
         var reqBody = '';

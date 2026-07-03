@@ -67,5 +67,7 @@ extensions:
     - colonist.give_tools      # набор инструментов рабочему (лучший тир по уровню хаты)
     - colonist.set_guard_task  # задача гвардейца: guard/patrol (guard-only)
     - colonist.set_guard_retreat # отступление на низком HP: вкл/выкл (guard-only)
+    # Phase D — дёшево-вовлекающее: авто-режим рабочего места своего колониста (только ВКЛ, grief-safe)
+    - colonist.auto_work       # фермер→удобрение / лесник→пересадка / пастух→стрижка / компостер→земля
 
 catalogs: []

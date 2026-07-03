@@ -374,7 +374,8 @@ async def streamer_voting_finalize(request: Request):
     if result.get("finalized"):
         winner = result.get("winner_option")
         _bcast(cid, "vote_ended", {"event_id": event["event_id"],
-                                   "outcome": result["outcome"]})
+                                   "outcome": result["outcome"],
+                                   "winner": winner})  # {id,key,label,pool}|None — фронт покажет победителя
         return {"success": True, "outcome": result["outcome"], "winner_option": winner,
                 "message": f"🏆 Победила «{winner['label']}»!" if winner
                            else "Никто не вложил — раунд отменён"}

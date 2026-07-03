@@ -12,6 +12,9 @@ const VOTING_POLL_INTERVAL_MS = 30000;
 let _votingPollId = null;
 let _votingBidLocked = false;
 let _votingUnsubs = [];  // RealtimeBus unsubscribers — освобождаются при close
+let _votingTimerId = null;       // 1-сек тик обратного отсчёта (иначе таймер «висел»)
+let _votingEndsAt = null;        // Date конца текущего раунда
+let _votingResultActive = false; // показан экран победителя — poll (30с) не затирает
 
 async function openVotingModal() {
     if (!isAuthUser()) {
@@ -30,9 +33,9 @@ function _subscribeVotingRealtime() {
     // Можно было применять envelope.data напрямую (less roundtrip), но
     // _refreshVoting единственный canonical render path — меньше risk
     // дивергенции UI vs server state.
-    _votingUnsubs.push(window.RealtimeBus.subscribe('vote_started', _refreshVoting));
+    _votingUnsubs.push(window.RealtimeBus.subscribe('vote_started', function () { _votingResultActive = false; _refreshVoting(); }));
     _votingUnsubs.push(window.RealtimeBus.subscribe('vote_tick', _refreshVoting));
-    _votingUnsubs.push(window.RealtimeBus.subscribe('vote_ended', _refreshVoting));
+    _votingUnsubs.push(window.RealtimeBus.subscribe('vote_ended', _onVoteEnded));
 }
 
 function _unsubscribeVotingRealtime() {
@@ -58,7 +61,9 @@ function _renderVotingModal() {
     (document.getElementById('overlay-panel') || document.body).appendChild(modal);
     document.getElementById('voting-close-btn').addEventListener('click', () => {
         _stopVotingPolling();
+        _stopVotingTimer();
         _unsubscribeVotingRealtime();
+        _votingResultActive = false;
         modal.remove();
     });
 }
@@ -73,7 +78,10 @@ async function _refreshVoting() {
             return;
         }
         if (data.active_event) {
+            _votingResultActive = false;
             _renderActiveVoting(data);
+        } else if (_votingResultActive) {
+            // держим экран победителя — не затираем копилкой на следующем poll'е
         } else {
             _renderWaitingState(data);
         }
@@ -83,6 +91,7 @@ async function _refreshVoting() {
 }
 
 function _renderWaitingState(data) {
+    _stopVotingTimer();
     const el = document.getElementById('voting-content');
     if (!el) return;
     const pct = data.pool_pct || 0;
@@ -187,7 +196,7 @@ function _renderActiveVoting(data) {
                     border:1px solid rgba(145,71,255,.5);border-radius:10px;padding:12px;margin-bottom:12px;">
             <div style="font-size:15px;font-weight:800;">⚡ «${escapeHtml(event.template_name || 'Голосование')}»</div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:12px;">
-                <span style="color:#adadb8;">⏰ Осталось: <b style="color:#fbbf24;">${remainingMin}:${remainingSecOnly.toString().padStart(2,'0')}</b></span>
+                <span style="color:#adadb8;">⏰ Осталось: <b id="voting-timer" style="color:#fbbf24;">${_fmtRemain(remainingMs)}</b></span>
                 <span style="color:#fbbf24;">💰 ${totalPool.toLocaleString('ru-RU')}💎</span>
             </div>
         </div>
@@ -210,6 +219,9 @@ function _renderActiveVoting(data) {
 
     const proposeBtn = document.getElementById('voting-propose-btn');
     if (proposeBtn) proposeBtn.addEventListener('click', _promptProposeGame);
+
+    _votingEndsAt = endsAt;
+    _startVotingTimer();  // посекундный отсчёт (не ждём 30с-poll / realtime-тик)
 }
 
 function _promptBidAmount(optionId, option) {
@@ -358,6 +370,53 @@ function _stopVotingPolling() {
         clearInterval(_votingPollId);
         _votingPollId = null;
     }
+}
+
+// ── Обратный отсчёт (1с) ──────────────────────────────────────────────────
+function _fmtRemain(ms) {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
+}
+function _votingTick() {
+    const el = document.getElementById('voting-timer');
+    if (!el || !_votingEndsAt) { _stopVotingTimer(); return; }
+    const ms = _votingEndsAt.getTime() - Date.now();
+    el.textContent = _fmtRemain(ms);
+    if (ms <= 0) { _stopVotingTimer(); _refreshVoting(); }  // добьём финал, если realtime потерялся
+}
+function _startVotingTimer() {
+    _stopVotingTimer();
+    _votingTick();
+    _votingTimerId = setInterval(_votingTick, 1000);
+}
+function _stopVotingTimer() {
+    if (_votingTimerId) { clearInterval(_votingTimerId); _votingTimerId = null; }
+}
+
+// ── Экран победителя (vote_ended) ─────────────────────────────────────────
+function _onVoteEnded(data) {
+    _votingResultActive = true;
+    _stopVotingTimer();
+    _renderFinishedState(data && data.winner);
+}
+function _renderFinishedState(winner) {
+    const el = document.getElementById('voting-content');
+    if (!el) return;
+    const body = winner
+        ? `<div style="font-size:56px;margin-bottom:6px;">🏆</div>
+           <div style="font-size:13px;color:#adadb8;margin-bottom:4px;">Победила игра</div>
+           <div style="font-size:20px;font-weight:800;color:#fbbf24;margin-bottom:6px;">${escapeHtml(winner.label)}</div>
+           <div style="font-size:12px;color:#adadb8;">${(winner.pool || 0).toLocaleString('ru-RU')}💎 вложено</div>`
+        : `<div style="font-size:56px;margin-bottom:6px;">🗳️</div>
+           <div style="font-size:15px;font-weight:700;color:#adadb8;">Раунд завершён — никто не вложил</div>`;
+    el.innerHTML = `
+        <div style="text-align:center;padding:22px 10px;">
+            ${body}
+            <button class="modal-btn" id="voting-result-dismiss" style="margin-top:16px;">← К копилке</button>
+        </div>
+    `;
+    const b = document.getElementById('voting-result-dismiss');
+    if (b) b.addEventListener('click', () => { _votingResultActive = false; _refreshVoting(); });
 }
 
 window.openVotingModal = openVotingModal;

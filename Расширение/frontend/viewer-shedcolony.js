@@ -8,6 +8,10 @@
  * Every action is PAID + DEFERRED (enqueued → the mod polls + executes in-game a moment later),
  * so each success shows an action-specific "заявка принята, выполнится в игре" toast — the viewer
  * must not re-click thinking nothing happened (bugs #16/#17 lesson).
+ *
+ * IA (Фаза 0, 2026-07-03): 3 вкладки (👤 Колонист / ⚔️ Экипировка / 🏛 Колония) + аккордеон
+ * внутри — паттерн BLink. Активная вкладка (_activeTab) и открытые группы (_openGroups)
+ * ПЕРСИСТЯТ между перерисовками (иначе тик HP каждые 5с сбрасывал бы выбор). Действия не менялись.
  */
 (function () {
     'use strict';
@@ -104,6 +108,8 @@
     var _state = { colonist: null, capacity: { jobs: [], free_beds: null } };
     var _lastSig = '';
     var _stylesInjected = false;
+    var _activeTab = 'me';                                     // persisted across re-renders
+    var _openGroups = { 'g-care': true, 'g-gear': true, 'g-events': true };  // open accordion ids (first per pane)
 
     function _jwtHeaders(withBody) {
         var h = { 'X-Twitch-JWT': (typeof authToken !== 'undefined' ? authToken : '') || '' };
@@ -148,6 +154,29 @@
         return f;
     }
 
+    // Accordion group wrapper — persists open/closed via _openGroups.
+    function _grp(id, title, body) {
+        var open = _openGroups[id] ? ' open' : '';
+        return '<details class="sc-acc" data-grp="' + id + '"' + open + '>'
+            + '<summary class="sc-acc-h">' + title + '</summary>'
+            + '<div class="sc-acc-body">' + body + '</div></details>';
+    }
+
+    // Show the active pane + highlight its tab (called after every render; also on tab click).
+    function _applyTab() {
+        var root = document.getElementById('shedcolony-content');
+        if (!root) { return; }
+        var panes = root.querySelectorAll('.sc-pane');
+        for (var i = 0; i < panes.length; i++) {
+            panes[i].style.display = (panes[i].getAttribute('data-pane') === _activeTab) ? 'block' : 'none';
+        }
+        var tabs = root.querySelectorAll('.sc-tab');
+        for (var j = 0; j < tabs.length; j++) {
+            if (tabs[j].getAttribute('data-tab') === _activeTab) { tabs[j].classList.add('on'); }
+            else { tabs[j].classList.remove('on'); }
+        }
+    }
+
     function _injectStyles() {
         if (_stylesInjected) { return; }
         _stylesInjected = true;
@@ -183,7 +212,18 @@
             + '#shedcolony-content .sc-reqs{font-size:12px;opacity:.9;margin-bottom:8px;}'
             + '#shedcolony-content .sc-reqs ul{margin:4px 0 0;padding-left:18px;}'
             + '#shedcolony-content .sc-btn-req{margin-bottom:6px;text-align:left;}'
-            + '#shedcolony-content .sc-req-blocked{font-size:12px;opacity:.55;margin:4px 0;}';
+            + '#shedcolony-content .sc-req-blocked{font-size:12px;opacity:.55;margin:4px 0;}'
+            + '#shedcolony-content .sc-tabs{display:flex;gap:4px;margin:2px 0 10px;}'
+            + '#shedcolony-content .sc-tab{flex:1;padding:8px 4px;font-size:12px;font-weight:600;cursor:pointer;color:inherit;'
+            + 'background:rgba(255,255,255,.04);border:none;border-bottom:2px solid transparent;opacity:.55;border-radius:6px 6px 0 0;}'
+            + '#shedcolony-content .sc-tab.on{opacity:1;border-bottom-color:#7bbf4a;background:rgba(123,191,74,.10);}'
+            + '#shedcolony-content .sc-pane{display:none;}'
+            + '#shedcolony-content .sc-acc{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);'
+            + 'border-radius:10px;margin-bottom:8px;overflow:hidden;}'
+            + '#shedcolony-content .sc-acc-h{font-size:13px;font-weight:600;padding:10px 12px;cursor:pointer;list-style:none;}'
+            + '#shedcolony-content .sc-acc-h::-webkit-details-marker{display:none;}'
+            + '#shedcolony-content .sc-acc[open] .sc-acc-h{border-bottom:1px solid rgba(255,255,255,.08);}'
+            + '#shedcolony-content .sc-acc-body{padding:10px 12px 12px;}';
         var s = document.createElement('style');
         s.id = 'sc-styles';
         s.textContent = css;
@@ -236,160 +276,168 @@
                 + 'Создай своего — он появится у стримера в игре.</p>'
                 + '<button class="sc-btn" data-sc="spawn">Создать колониста — 1000 💎</button>'
                 + '</div>';
-        } else {
-            var st = c.state || {};
-            var job = (st.job != null) ? st.job : c.job;
-            var who = escapeHtml(c.name || 'Мой колонист')
-                + (st.child ? ' 👶' : '')
-                + (st.female === true ? ' ♀' : (st.female === false ? ' ♂' : ''));
-
-            html += '<div class="sc-card">';
-            html += '<div class="sc-colonist-name">👤 ' + who + '</div>';
-            html += '<div class="sc-colonist-job">Работа: ' + escapeHtml(job ? _jobLabel(job) : 'без работы')
-                + ' · Дом: ' + (st.has_home ? 'есть' : 'нет') + '</div>';
-            if (st.happiness != null) {
-                html += '<div class="sc-mood">' + _moodEmoji(st.happiness)
-                    + ' Настроение: ' + Number(st.happiness).toFixed(2) + '</div>';
-            }
-            var flags = _statusFlags(st);
-            if (flags.length) { html += '<div class="sc-flags">' + flags.map(escapeHtml).join(' · ') + '</div>'; }
-            if (st.hp != null || c.hp != null) {
-                html += _bar('❤️', 'Здоровье', _num(st.hp, _num(c.hp, 0)), _num(st.max_hp, 20), '#e0556b');
-            }
-            if (st.saturation != null) {
-                html += _bar('🍖', 'Сытость', st.saturation, 60, '#d8923a');
-            }
-            html += '</div>';
-
-            // Characteristics — all skills.
-            var sk = (st.skills && Object.keys(st.skills).length) ? st.skills : (c.skills || {});
-            if (Object.keys(sk).length) {
-                html += '<div class="sc-card"><div class="sc-section-title">Характеристики</div><div class="sc-skills">';
-                SC_SKILLS.forEach(function (pair) {
-                    var lvl = sk[pair[0]];
-                    if (lvl == null) { return; }
-                    html += '<div class="sc-skill"><span>' + escapeHtml(pair[1]) + '</span><b>' + lvl + '</b></div>';
-                });
-                html += '</div></div>';
-            }
-
-            // Care — own-colonist Phase 7 actions (cheap, deterministic, grief-safe).
-            html += '<div class="sc-card"><div class="sc-section-title">Забота о колонисте</div>';
-            html += '<div class="sc-care-row">'
-                + '<button class="sc-btn sc-btn-sm" data-sc="feed">🍖 Покормить · 75</button>'
-                + '<button class="sc-btn sc-btn-sm" data-sc="cure">💊 Вылечить · 100</button>'
-                + '<button class="sc-btn sc-btn-sm" data-sc="heal">❤ Исцелить · 100</button>'
-                + '<button class="sc-btn sc-btn-sm" data-sc="mourn">🕯 Снять траур · 50</button>'
-                + '</div>';
-            html += '<select class="sc-select" id="sc-give-select" style="margin-top:8px;">';
-            SC_GIVE_ITEMS.forEach(function (pair) {
-                html += '<option value="' + pair[0] + '">' + escapeHtml(pair[1]) + '</option>';
-            });
-            html += '</select><button class="sc-btn" data-sc="give_item">🎁 Выдать предмет — 200 💎</button>';
-            html += '<div class="sc-care-row">'
-                + '<button class="sc-btn sc-btn-sm" data-sc="set_gender">🔄 Сменить пол · 200</button>'
-                + '<button class="sc-btn sc-btn-sm" data-sc="teleport">✨ Призвать · 150</button>'
-                + '<button class="sc-btn sc-btn-sm" data-sc="happiness">😊 Настроение · 400</button>'
-                + '</div></div>';
-
-            // Equipment — armour tiers (visible in-game, raid-survivable, prestige crustic sink).
-            html += '<div class="sc-card"><div class="sc-section-title">Экипировка — броня</div>'
-                + '<div class="sc-care-row">'
-                + '<button class="sc-btn sc-btn-sm" data-sc="equip_leather">🟫 Кожа · 500</button>'
-                + '<button class="sc-btn sc-btn-sm" data-sc="equip_iron">⬜ Железо · 1500</button>'
-                + '<button class="sc-btn sc-btn-sm" data-sc="equip_diamond">💎 Алмаз · 3000</button>'
-                + '</div></div>';
-
-            // Job — gated by free job slots from capacity.
-            var freeJobs = (cap.jobs || []).filter(function (j) { return j.free > 0; });
-            html += '<div class="sc-card"><div class="sc-section-title">Назначить работу — 300 💎</div>';
-            if (freeJobs.length) {
-                html += '<select class="sc-select" id="sc-job-select">';
-                freeJobs.forEach(function (j) {
-                    html += '<option value="' + escapeHtml(j.job) + '">'
-                        + escapeHtml(_jobLabel(j.job)) + ' (' + j.free + ' своб.)</option>';
-                });
-                html += '</select><button class="sc-btn" data-sc="job">Нанять — 300 💎</button>';
-            } else {
-                html += '<p class="sc-muted">Нет свободных рабочих мест — стример ещё не построил хаты или все заняты.</p>';
-            }
-            html += '</div>';
-
-            // Home — gated by free beds.
-            var beds = cap.free_beds;
-            html += '<div class="sc-card"><div class="sc-section-title">Дать дом — 200 💎</div>';
-            if (beds == null) {
-                html += '<button class="sc-btn" data-sc="home">Дать дом — 200 💎</button>';
-            } else if (beds > 0) {
-                html += '<button class="sc-btn" data-sc="home">Дать дом (' + beds + ' своб. коек) — 200 💎</button>';
-            } else {
-                html += '<p class="sc-muted">Нет свободных коек — стример ещё не построил дома.</p>';
-            }
-            html += '</div>';
-
-            // XP — pick a skill.
-            html += '<div class="sc-card"><div class="sc-section-title">Прокачать скилл — 400 💎</div><select class="sc-select" id="sc-skill-select">';
-            SC_SKILLS.forEach(function (pair) {
-                html += '<option value="' + pair[0] + '">' + escapeHtml(pair[1]) + '</option>';
-            });
-            html += '</select><button class="sc-btn" data-sc="xp">Прокачать (+1000 XP) — 400 💎</button></div>';
-
-            // Fulfill — show the colonist's actual open requests + gate the button.
-            // Graceful: if the mod doesn't report requests yet (state.requests undefined), keep the
-            // old always-on button; only claim "nothing needed" when we actually know the list.
-            var hasReqInfo = st && Array.isArray(st.requests);
-            var reqs = hasReqInfo ? st.requests : [];
-            html += '<div class="sc-card"><div class="sc-section-title">Помочь колонисту</div>';
-            if (hasReqInfo && reqs.length === 0) {
-                html += '<p class="sc-muted">Колонисту сейчас ничего не нужно.</p>';
-            } else if (!hasReqInfo) {
-                // Mod hasn't reported requests yet → keep the legacy single button (closes the top one).
-                html += '<button class="sc-btn" data-sc="fulfill">Выполнить просьбу — 100 💎</button>';
-            } else {
-                // One button per request the viewer can actually close with an item; the rest are shown
-                // greyed ("выполнит сама колония"). Supports both the new object shape {id,text,deliverable}
-                // and the legacy plain-string shape (brief transition while a cached state is replaced).
-                html += '<div class="sc-reqs">Сейчас просит:</div>';
-                var anyDeliverable = false;
-                reqs.forEach(function (rq) {
-                    var isObj = rq && typeof rq === 'object';
-                    var text = isObj ? rq.text : rq;
-                    var rid = isObj ? (rq.id || '') : '';
-                    var canDeliver = isObj ? (rq.deliverable !== false) : true;
-                    if (canDeliver) {
-                        anyDeliverable = true;
-                        html += '<button class="sc-btn sc-btn-req" data-sc="fulfill" data-req-id="'
-                            + escapeHtml(rid) + '">Выполнить: ' + escapeHtml(text) + ' — 100 💎</button>';
-                    } else {
-                        html += '<div class="sc-req-blocked">• ' + escapeHtml(text) + ' — выполнит сама колония</div>';
-                    }
-                });
-                if (!anyDeliverable) {
-                    html += '<p class="sc-muted">Эти просьбы нельзя закрыть предметом.</p>';
-                }
-            }
-            html += '</div>';
-
-            // Colony-level sinks (Phase 8) — support the streamer's whole colony.
-            html += '<div class="sc-card"><div class="sc-section-title">Колония стримера</div>'
-                + '<div class="sc-care-row">'
-                + '<button class="sc-btn sc-btn-sm" data-sc="festival">🎉 Фестиваль · 3000</button>'
-                + '<button class="sc-btn sc-btn-sm" data-sc="spawn_visitor">🚶 Гость · 2000</button>'
-                + '<button class="sc-btn sc-btn-sm" data-sc="quest_unlock">📜 Квест · 2000</button>'
-                + '<button class="sc-btn sc-btn-sm" data-sc="spy_boost">🕵 Шпионы · 1500</button>'
-                + '</div>'
-                + '<p class="sc-muted" style="margin-top:6px;">Шпионы работают только во время рейда; гость — если есть таверна.</p>'
-                + '</div>';
-
-            // Supply — a stack of a basic resource into the warehouse (helps the colony build/eat).
-            html += '<div class="sc-card"><div class="sc-section-title">Снабжение склада колонии</div>'
-                + '<select class="sc-select" id="sc-supply-select">';
-            SC_SUPPLY_ITEMS.forEach(function (pair) {
-                html += '<option value="' + pair[0] + '">' + escapeHtml(pair[1]) + '</option>';
-            });
-            html += '</select><button class="sc-btn" data-sc="supply">📦 Снабдить колонию (стак) — 1000 💎</button>'
-                + '<p class="sc-muted" style="margin-top:6px;">Только базовые материалы — помогаешь колонии строиться.</p></div>';
+            root.innerHTML = html;
+            _bind(root);
+            return;
         }
+
+        var st = c.state || {};
+        var job = (st.job != null) ? st.job : c.job;
+        var who = escapeHtml(c.name || 'Мой колонист')
+            + (st.child ? ' 👶' : '')
+            + (st.female === true ? ' ♀' : (st.female === false ? ' ♂' : ''));
+
+        // ── colonist card (always visible above the tabs) ──
+        html += '<div class="sc-card">';
+        html += '<div class="sc-colonist-name">👤 ' + who + '</div>';
+        html += '<div class="sc-colonist-job">Работа: ' + escapeHtml(job ? _jobLabel(job) : 'без работы')
+            + ' · Дом: ' + (st.has_home ? 'есть' : 'нет') + '</div>';
+        if (st.happiness != null) {
+            html += '<div class="sc-mood">' + _moodEmoji(st.happiness)
+                + ' Настроение: ' + Number(st.happiness).toFixed(2) + '</div>';
+        }
+        var flags = _statusFlags(st);
+        if (flags.length) { html += '<div class="sc-flags">' + flags.map(escapeHtml).join(' · ') + '</div>'; }
+        if (st.hp != null || c.hp != null) {
+            html += _bar('❤️', 'Здоровье', _num(st.hp, _num(c.hp, 0)), _num(st.max_hp, 20), '#e0556b');
+        }
+        if (st.saturation != null) {
+            html += _bar('🍖', 'Сытость', st.saturation, 60, '#d8923a');
+        }
+        html += '</div>';
+
+        // ── gating data ──
+        var sk = (st.skills && Object.keys(st.skills).length) ? st.skills : (c.skills || {});
+        var freeJobs = (cap.jobs || []).filter(function (j) { return j.free > 0; });
+        var beds = cap.free_beds;
+        var hasReqInfo = st && Array.isArray(st.requests);
+        var reqs = hasReqInfo ? st.requests : [];
+
+        // ── tab bar ──
+        html += '<div class="sc-tabs">'
+            + '<button class="sc-tab" data-tab="me">👤 Колонист</button>'
+            + '<button class="sc-tab" data-tab="gear">⚔️ Экипировка</button>'
+            + '<button class="sc-tab" data-tab="colony">🏛 Колония</button>'
+            + '</div>';
+
+        // ══════════ PANE: Колонист ══════════
+        html += '<div class="sc-pane" data-pane="me">';
+
+        // ❤️ Забота
+        var careBody = '<div class="sc-care-row">'
+            + '<button class="sc-btn sc-btn-sm" data-sc="feed">🍖 Покормить · 75</button>'
+            + '<button class="sc-btn sc-btn-sm" data-sc="cure">💊 Вылечить · 100</button>'
+            + '<button class="sc-btn sc-btn-sm" data-sc="heal">❤ Исцелить · 100</button>'
+            + '<button class="sc-btn sc-btn-sm" data-sc="mourn">🕯 Снять траур · 50</button>'
+            + '</div>'
+            + '<button class="sc-btn" style="margin-top:8px;" data-sc="happiness">😊 Поднять настроение · 400</button>';
+        html += _grp('g-care', '❤️ Забота', careBody);
+
+        // 📈 Прокачка и роль (скилл + работа + дом)
+        var progBody = '<div class="sc-section-title">Прокачать скилл — 400 💎</div>'
+            + '<select class="sc-select" id="sc-skill-select">';
+        SC_SKILLS.forEach(function (pair) { progBody += '<option value="' + pair[0] + '">' + escapeHtml(pair[1]) + '</option>'; });
+        progBody += '</select><button class="sc-btn" data-sc="xp">Прокачать (+1000 XP) — 400 💎</button>';
+        progBody += '<div class="sc-section-title" style="margin-top:14px;">Назначить работу — 300 💎</div>';
+        if (freeJobs.length) {
+            progBody += '<select class="sc-select" id="sc-job-select">';
+            freeJobs.forEach(function (j) {
+                progBody += '<option value="' + escapeHtml(j.job) + '">'
+                    + escapeHtml(_jobLabel(j.job)) + ' (' + j.free + ' своб.)</option>';
+            });
+            progBody += '</select><button class="sc-btn" data-sc="job">Нанять — 300 💎</button>';
+        } else {
+            progBody += '<p class="sc-muted">Нет свободных рабочих мест — стример ещё не построил хаты или все заняты.</p>';
+        }
+        progBody += '<div class="sc-section-title" style="margin-top:14px;">Дать дом — 200 💎</div>';
+        if (beds == null) {
+            progBody += '<button class="sc-btn" data-sc="home">Дать дом — 200 💎</button>';
+        } else if (beds > 0) {
+            progBody += '<button class="sc-btn" data-sc="home">Дать дом (' + beds + ' своб. коек) — 200 💎</button>';
+        } else {
+            progBody += '<p class="sc-muted">Нет свободных коек — стример ещё не построил дома.</p>';
+        }
+        html += _grp('g-progress', '📈 Прокачка и роль', progBody);
+
+        // 🎁 Просьбы колониста
+        var reqBody = '';
+        if (hasReqInfo && reqs.length === 0) {
+            reqBody += '<p class="sc-muted">Колонисту сейчас ничего не нужно.</p>';
+        } else if (!hasReqInfo) {
+            reqBody += '<button class="sc-btn" data-sc="fulfill">Выполнить просьбу — 100 💎</button>';
+        } else {
+            reqBody += '<div class="sc-reqs">Сейчас просит:</div>';
+            var anyDeliverable = false;
+            reqs.forEach(function (rq) {
+                var isObj = rq && typeof rq === 'object';
+                var text = isObj ? rq.text : rq;
+                var rid = isObj ? (rq.id || '') : '';
+                var canDeliver = isObj ? (rq.deliverable !== false) : true;
+                if (canDeliver) {
+                    anyDeliverable = true;
+                    reqBody += '<button class="sc-btn sc-btn-req" data-sc="fulfill" data-req-id="'
+                        + escapeHtml(rid) + '">Выполнить: ' + escapeHtml(text) + ' — 100 💎</button>';
+                } else {
+                    reqBody += '<div class="sc-req-blocked">• ' + escapeHtml(text) + ' — выполнит сама колония</div>';
+                }
+            });
+            if (!anyDeliverable) { reqBody += '<p class="sc-muted">Эти просьбы нельзя закрыть предметом.</p>'; }
+        }
+        html += _grp('g-requests', '🎁 Просьбы колониста', reqBody);
+
+        // 🎭 Кастомизация
+        var custBody = '<select class="sc-select" id="sc-give-select">';
+        SC_GIVE_ITEMS.forEach(function (pair) { custBody += '<option value="' + pair[0] + '">' + escapeHtml(pair[1]) + '</option>'; });
+        custBody += '</select><button class="sc-btn" data-sc="give_item">🎁 Выдать предмет — 200 💎</button>'
+            + '<div class="sc-care-row">'
+            + '<button class="sc-btn sc-btn-sm" data-sc="set_gender">🔄 Сменить пол · 200</button>'
+            + '<button class="sc-btn sc-btn-sm" data-sc="teleport">✨ Призвать · 150</button>'
+            + '</div>';
+        html += _grp('g-custom', '🎭 Кастомизация', custBody);
+
+        // 📊 Характеристики
+        var skillsBody = '';
+        if (Object.keys(sk).length) {
+            skillsBody += '<div class="sc-skills">';
+            SC_SKILLS.forEach(function (pair) {
+                var lvl = sk[pair[0]];
+                if (lvl == null) { return; }
+                skillsBody += '<div class="sc-skill"><span>' + escapeHtml(pair[1]) + '</span><b>' + lvl + '</b></div>';
+            });
+            skillsBody += '</div>';
+        } else {
+            skillsBody = '<p class="sc-muted">Пока нет данных о навыках.</p>';
+        }
+        html += _grp('g-skills', '📊 Характеристики', skillsBody);
+
+        html += '</div>';  // /pane me
+
+        // ══════════ PANE: Экипировка ══════════
+        html += '<div class="sc-pane" data-pane="gear">';
+        var gearBody = '<div class="sc-care-row">'
+            + '<button class="sc-btn sc-btn-sm" data-sc="equip_leather">🟫 Кожа · 500</button>'
+            + '<button class="sc-btn sc-btn-sm" data-sc="equip_iron">⬜ Железо · 1500</button>'
+            + '<button class="sc-btn sc-btn-sm" data-sc="equip_diamond">💎 Алмаз · 3000</button>'
+            + '</div>';
+        html += _grp('g-gear', '🛡 Броня', gearBody);
+        html += '</div>';  // /pane gear
+
+        // ══════════ PANE: Колония ══════════
+        html += '<div class="sc-pane" data-pane="colony">';
+        var eventsBody = '<div class="sc-care-row">'
+            + '<button class="sc-btn sc-btn-sm" data-sc="festival">🎉 Фестиваль · 3000</button>'
+            + '<button class="sc-btn sc-btn-sm" data-sc="spawn_visitor">🚶 Гость · 2000</button>'
+            + '<button class="sc-btn sc-btn-sm" data-sc="quest_unlock">📜 Квест · 2000</button>'
+            + '<button class="sc-btn sc-btn-sm" data-sc="spy_boost">🕵 Шпионы · 1500</button>'
+            + '</div>'
+            + '<p class="sc-muted" style="margin-top:8px;">Шпионы работают только во время рейда; гость — если есть таверна.</p>';
+        html += _grp('g-events', '🎉 События колонии', eventsBody);
+        var supplyBody = '<select class="sc-select" id="sc-supply-select">';
+        SC_SUPPLY_ITEMS.forEach(function (pair) { supplyBody += '<option value="' + pair[0] + '">' + escapeHtml(pair[1]) + '</option>'; });
+        supplyBody += '</select><button class="sc-btn" data-sc="supply">📦 Снабдить колонию (стак) — 1000 💎</button>'
+            + '<p class="sc-muted" style="margin-top:8px;">Только базовые материалы — помогаешь колонии строиться.</p>';
+        html += _grp('g-supply', '📦 Склад', supplyBody);
+        html += '</div>';  // /pane colony
 
         root.innerHTML = html;
         _bind(root);
@@ -404,12 +452,35 @@
     }
 
     function _bind(root) {
+        // action buttons
         var btns = root.querySelectorAll('[data-sc]');
         for (var i = 0; i < btns.length; i++) {
             (function (btn) {
                 btn.addEventListener('click', function () { _onClick(btn); });
             })(btns[i]);
         }
+        // tab switching — pure DOM (no re-render) so the choice survives between polls
+        var tabs = root.querySelectorAll('.sc-tab');
+        for (var t = 0; t < tabs.length; t++) {
+            (function (tab) {
+                tab.addEventListener('click', function () {
+                    _activeTab = tab.getAttribute('data-tab');
+                    _applyTab();
+                });
+            })(tabs[t]);
+        }
+        // accordion open/closed tracking → persists across re-renders via _openGroups
+        var accs = root.querySelectorAll('.sc-acc');
+        for (var a = 0; a < accs.length; a++) {
+            (function (acc) {
+                acc.addEventListener('toggle', function () {
+                    var id = acc.getAttribute('data-grp');
+                    if (!id) { return; }
+                    if (acc.open) { _openGroups[id] = true; } else { delete _openGroups[id]; }
+                });
+            })(accs[a]);
+        }
+        _applyTab();
     }
 
     function _onClick(btn) {

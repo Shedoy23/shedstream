@@ -45,6 +45,13 @@
         clear_backlog:  { type: 'colony.clear_backlog',     price: 50000 },
         start_research: { type: 'colony.start_research',     price: 75000 },
         finish_research:{ type: 'colony.finish_research',    price: 37500 },
+        // Phase C — гир-кластер (свой колонист)
+        equip_netherite:  { type: 'colonist.equip_netherite',   price: 4000 },
+        equip_weapon:     { type: 'colonist.equip_weapon',      price: 2500 },
+        give_shield:      { type: 'colonist.give_shield',       price: 1000 },
+        give_tools:       { type: 'colonist.give_tools',        price: 2500 },
+        set_guard_task:   { type: 'colonist.set_guard_task',    price: 500 },
+        set_guard_retreat:{ type: 'colonist.set_guard_retreat', price: 300 },
     };
 
     // set_minimum_stock item picker — MUST stay a subset of _MIN_STOCK_WHITELIST in routes/shedcolony.py.
@@ -114,6 +121,12 @@
         'colony.clear_backlog':      '🚚 Заявка принята — очередь заказов здания разгребём через пару секунд.',
         'colony.start_research':     '🔬 Заявка принята — исследование профинансировано, университет им займётся.',
         'colony.finish_research':    '🔬 Заявка принята — исследование завершится мгновенно (эффект применится).',
+        'colonist.equip_netherite':  '🖤 Заявка принята — наденем незеритовую броню через пару секунд.',
+        'colonist.equip_weapon':     '⚔ Заявка принята — вооружим гвардейца (лучшим по уровню башни) через пару секунд.',
+        'colonist.give_shield':      '🛡 Заявка принята — выдадим щит через пару секунд.',
+        'colonist.give_tools':       '⛏ Заявка принята — выдадим набор инструментов через пару секунд.',
+        'colonist.set_guard_task':   '🛡 Заявка принята — сменим боевую задачу гвардейца через пару секунд.',
+        'colonist.set_guard_retreat':'🛡 Заявка принята — настроим отступление через пару секунд.',
     };
 
     // 11 MineColonies skills (value = enum name the mod expects; label = RU).
@@ -356,6 +369,10 @@
         var researchProg = (tg.researches || []).filter(function (r) { return r.state === 'in_progress'; });
         var backlogBuildings = tg.buildings || [];
         var warehouseOk = !!(tg.min_stock && tg.min_stock.warehouse);
+        // Phase C gear gating (advisory — mod is authoritative). job key drives guard/worker gates.
+        var jobBase = (job || '').indexOf(':') >= 0 ? (job || '').split(':').pop() : (job || '');
+        var isGuard = ['knight', 'ranger', 'archer', 'druid'].indexOf(jobBase) >= 0;
+        var hasJob = !!jobBase;
 
         // ── tab bar ──
         html += '<div class="sc-tabs">'
@@ -458,12 +475,47 @@
 
         // ══════════ PANE: Экипировка ══════════
         html += '<div class="sc-pane" data-pane="gear">';
+        // 🛡 Броня (любой колонист — force-slot, всегда работает)
         var gearBody = '<div class="sc-care-row">'
             + '<button class="sc-btn sc-btn-sm" data-sc="equip_leather">🟫 Кожа · 500</button>'
             + '<button class="sc-btn sc-btn-sm" data-sc="equip_iron">⬜ Железо · 1500</button>'
             + '<button class="sc-btn sc-btn-sm" data-sc="equip_diamond">💎 Алмаз · 3000</button>'
+            + '<button class="sc-btn sc-btn-sm" data-sc="equip_netherite">🖤 Незерит · 4000</button>'
             + '</div>';
         html += _grp('g-gear', '🛡 Броня', gearBody);
+
+        // ⛏ Инструменты рабочего (нужна работа; тир по уровню хаты)
+        var toolBody;
+        if (hasJob) {
+            toolBody = '<button class="sc-btn" data-sc="give_tools">⛏ Набор инструментов — 2500 💎</button>'
+                + '<p class="sc-muted" style="margin-top:6px;">Кирка/топор/лопата/мотыга — рабочий возьмёт подходящий. Тир — лучший, что тянет его хата.</p>';
+        } else {
+            toolBody = '<p class="sc-muted">Сначала дай колонисту работу — без неё инструменты не нужны.</p>';
+        }
+        html += _grp('g-tools', '⛏ Инструменты', toolBody);
+
+        // 💂 Гвардеец (только гвардейцам — оружие/щит/задача/отступление)
+        var guardBody;
+        if (isGuard) {
+            guardBody = '<div class="sc-care-row">'
+                + '<button class="sc-btn sc-btn-sm" data-sc="equip_weapon">⚔ Оружие · 2500</button>'
+                + '<button class="sc-btn sc-btn-sm" data-sc="give_shield">🛡 Щит · 1000</button>'
+                + '</div>'
+                + '<p class="sc-muted" style="margin-top:6px;">Оружие — лучший меч+лук по уровню башни (боец возьмёт своё).</p>'
+                + '<div class="sc-section-title" style="margin-top:12px;">Боевая задача — 500 💎</div>'
+                + '<select class="sc-select" id="sc-guardtask-select">'
+                + '<option value="guard">Охрана (стоять у башни)</option>'
+                + '<option value="patrol">Патруль</option>'
+                + '</select><button class="sc-btn" data-sc="set_guard_task">Задать задачу — 500 💎</button>'
+                + '<div class="sc-section-title" style="margin-top:12px;">Отступление на низком HP — 300 💎</div>'
+                + '<select class="sc-select" id="sc-retreat-select">'
+                + '<option value="on">Отступать (беречь бойца)</option>'
+                + '<option value="off">Не отступать (стоять насмерть)</option>'
+                + '</select><button class="sc-btn" data-sc="set_guard_retreat">Настроить — 300 💎</button>';
+        } else {
+            guardBody = '<p class="sc-muted">Только для гвардейцев (рыцарь / лучник / друид). Назначь колониста в гвардейскую башню — тогда откроются оружие, щит и боевые настройки.</p>';
+        }
+        html += _grp('g-guard', '💂 Гвардеец', guardBody);
         html += '</div>';  // /pane gear
 
         // ══════════ PANE: Колония ══════════
@@ -619,6 +671,12 @@
             var parts = rs.value.split('|');
             data.branch = parts[0];
             data.research = parts.slice(1).join('|');   // id itself may contain '/', never '|'
+        } else if (kind === 'set_guard_task') {
+            var gt = document.getElementById('sc-guardtask-select');
+            data.task = (gt && gt.value) ? gt.value : 'guard';
+        } else if (kind === 'set_guard_retreat') {
+            var rt = document.getElementById('sc-retreat-select');
+            data.retreat = !(rt && rt.value === 'off');   // default on
         }
         btn.disabled = true;
         _buy(cfg.type, data).then(function (res) {

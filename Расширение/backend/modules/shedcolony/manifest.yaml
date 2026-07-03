@@ -60,5 +60,12 @@ extensions:
     - colony.clear_backlog     # довыдать зданию материалы, которые оно ждёт (по выбранному зданию)
     - colony.start_research    # профинансировать исследование (университет исследует со временем)
     - colony.finish_research   # мгновенно завершить идущее исследование (+применить эффект)
+    # Phase C — гир-кластер (свой колонист: броня/оружие/инструменты/щит/настройки гвардейца)
+    - colonist.equip_netherite # надеть незеритовую броню (полный сет, needs-entity)
+    - colonist.equip_weapon    # вооружить гвардейца (лучший меч + лук по уровню башни; guard-only)
+    - colonist.give_shield     # выдать щит гвардейцу (guard-only)
+    - colonist.give_tools      # набор инструментов рабочему (лучший тир по уровню хаты)
+    - colonist.set_guard_task  # задача гвардейца: guard/patrol (guard-only)
+    - colonist.set_guard_retreat # отступление на низком HP: вкл/выкл (guard-only)
 
 catalogs: []

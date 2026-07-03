@@ -77,6 +77,13 @@ _PURCHASABLE_ACTIONS = (
     "colony.clear_backlog",
     "colony.start_research",
     "colony.finish_research",
+    # Phase C — gear cluster (own colonist, deterministic, best-usable-tier / guard-gated)
+    "colonist.equip_netherite",
+    "colonist.equip_weapon",
+    "colonist.give_shield",
+    "colonist.give_tools",
+    "colonist.set_guard_task",
+    "colonist.set_guard_retreat",
 )
 
 # Server-side prices — viewer-supplied price is IGNORED (frontend draws what backend sends).
@@ -110,6 +117,13 @@ _ACTION_PRICES: dict[str, int] = {
     "colony.clear_backlog":     50000,
     "colony.start_research":    75000,
     "colony.finish_research":   37500,
+    # Phase C — gear cluster (PROVISIONAL prices; backend = source of truth, retune freely)
+    "colonist.equip_netherite": 4000,
+    "colonist.equip_weapon":    2500,
+    "colonist.give_shield":     1000,
+    "colonist.give_tools":      2500,
+    "colonist.set_guard_task":   500,
+    "colonist.set_guard_retreat": 300,
 }
 
 # give_item — curated food whitelist (no tools/exploit; helps the colonist eat).
@@ -192,6 +206,13 @@ _NEEDS_CITIZEN = (
     "colonist.equip_iron",
     "colonist.equip_diamond",
     "colonist.happiness_boost",
+    # Phase C — gear cluster (all act on the viewer's own colonist)
+    "colonist.equip_netherite",
+    "colonist.equip_weapon",
+    "colonist.give_shield",
+    "colonist.give_tools",
+    "colonist.set_guard_task",
+    "colonist.set_guard_retreat",
 )
 
 
@@ -355,6 +376,13 @@ async def _buy_action_locked(username: str, channel_id: int,
             return {"success": False, "message": "Выбери исследование"}
         data["branch"] = branch
         data["research"] = research
+    elif action_type == "colonist.set_guard_task":
+        task = (data.get("task") or "").strip().lower()
+        if task not in ("guard", "patrol"):   # FOLLOW omitted — no player to follow in a backend action
+            return {"success": False, "message": "Задача должна быть 'guard' или 'patrol'"}
+        data["task"] = task
+    elif action_type == "colonist.set_guard_retreat":
+        data["retreat"] = bool(data.get("retreat"))   # normalize to a real bool for the mod
 
     result = await _charge_and_enqueue(action_type, data, price, username, channel_id)
     if isinstance(result, dict):

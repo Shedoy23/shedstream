@@ -88,7 +88,9 @@ class ShedColonyAdapter(ModuleAdapter):
         logger.info("[shedcolony:%s] player.linked @%s → citizen=%s", channel_id, viewer_id, citizen_id)
 
     async def _on_player_died(self, channel_id: int, env: ModuleEnvelope) -> None:
-        """Колонист зрителя погиб. Помечаем link как dead."""
+        """Колонист зрителя погиб. Помечаем link как dead + чистим его state-строку: MineColonies
+        рециклит citizen_id, и без чистки НОВЫЙ владелец рециклнутого id мигал бы hp/скиллами
+        МЁРТВОГО колониста до первого свежего colonist.state (аудит 2026-07-04)."""
         d = env.data
         viewer_id = (d.get("viewer_id") or d.get("username") or "").lower()
         citizen_id = str(d.get("citizen_id") or "")
@@ -97,11 +99,15 @@ class ShedColonyAdapter(ModuleAdapter):
             if viewer_id:
                 await conn.execute(
                     "UPDATE shedcolony_colony_link SET status='dead', died_at=CURRENT_TIMESTAMP "
-                    "WHERE channel_id=? AND viewer_id=?", (channel_id, viewer_id))
+                    "WHERE channel_id=? AND viewer_id=? AND status='active'", (channel_id, viewer_id))
             elif citizen_id:
                 await conn.execute(
                     "UPDATE shedcolony_colony_link SET status='dead', died_at=CURRENT_TIMESTAMP "
-                    "WHERE channel_id=? AND citizen_id=?", (channel_id, citizen_id))
+                    "WHERE channel_id=? AND citizen_id=? AND status='active'", (channel_id, citizen_id))
+            if citizen_id:
+                await conn.execute(
+                    "DELETE FROM shedcolony_colonist_state WHERE channel_id=? AND citizen_id=?",
+                    (channel_id, citizen_id))
             await conn.commit()
         logger.info("[shedcolony:%s] player.died @%s/%s", channel_id, viewer_id, citizen_id)
 

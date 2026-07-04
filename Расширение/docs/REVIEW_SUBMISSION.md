@@ -6,7 +6,7 @@
 **Contact:** nasulskii6@gmail.com
 **Privacy Policy:** https://shedoy23.ru/privacy.html
 **Terms of Service:** https://shedoy23.ru/terms.html
-**Last updated:** 2026-06-27
+**Last updated:** 2026-07-05
 
 This document is the reviewer walkthrough: what ShedLink does, how to test it, where
 the backend lives, and a compliance tour with links to the exact code.
@@ -22,10 +22,12 @@ virtual currency** ("crustics" / 💎, earned by watching and chatting). It is *
 - **Bannerlord** — viewers shape their own hero in the streamer's Mount & Blade II: Bannerlord
   game (passive income, attributes, equipment, family/kingdom actions).
 - **RimWorld** — viewers control a pawn in the streamer's RimWorld colony.
-- **shedcolony** — viewers control a colonist in the streamer's MineColonies (Minecraft) colony.
+- **shedcolony** — viewers control a colonist in the streamer's MineColonies (Minecraft) colony
+  (care, jobs, gear) and sponsor colony development (research, warehouse stock, building upgrades).
 
 Plus channel-wide engagement features: fixed-reward cases, skill duels (ELO, no wager),
-voting on streamer actions, guilds, and cosmetic pets.
+a community game-vote (viewers pledge crustics toward a proposed game; the highest pool wins),
+guilds, and cosmetic pets.
 
 The virtual currency has **no monetary value**, cannot be purchased, cannot be cashed out or
 exchanged for money/Bits, and cannot be transferred between users.
@@ -72,13 +74,22 @@ provide pre-funded test viewer accounts on request (see §6).
   outside the Extension.** A disclosure footer states this in both shells
   (`extension.html` + `mobile.html`, `<details id="compliance-disclosure">`).
 - **No casino / slots / mystery-box-for-currency.** Casino was removed (`migrations/m8_compliance_cleanup.py`
-  drops the old tables). A lexicon test (`tests/test_multi_tenant_isolation.py`) asserts the UI
-  contains no `casino|jackpot|bet|wager|slot|spin|roulette` wording.
+  drops the old tables). A lexicon-scrub test (`tests/test_multi_tenant_isolation.py`, Test 14.8)
+  asserts `frontend/dice.js` contains no `casino/jackpot/lucky/gamble` wording (plus Russian
+  equivalents); manual review confirms the other viewer UI files (`viewer.js`,
+  `viewer-shedcolony.js`, `voting.js`) are likewise free of gambling wording.
 - **Cases** (`routes/cases.py`): granted only by activity/event (never bought for currency/Bits),
   4 fixed tiers with **fixed** rewards — the reveal is visual, the prize is deterministic at grant.
-- **No wagering on outcomes.** Duels are ELO-only (no stake). The Bannerlord tournament feature is
-  a **no-loss prediction**: a correct guess pays a fixed bonus from a platform pool, a wrong guess
-  costs nothing (`routes/bannerlord.py` — `tournament.predict` records with `price=0, amount=0`).
+- **No wagering on outcomes.** Duels and the Dice PvP minigame are ELO-only — no stake, no
+  currency transfer between players (`routes/duel.py`, `routes/dice.py`); the only prizes are
+  platform-funded seasonal top-3 rewards paid from the platform, never from an opponent. The
+  Bannerlord tournament feature is a **no-loss prediction**: a correct guess pays a fixed bonus
+  from a platform pool, a wrong guess costs nothing (`routes/bannerlord.py` — `tournament.predict`
+  records with `price=0, amount=0`).
+- **Game-vote is a pledge, not a wager.** Viewers spend crustics as a contribution toward which
+  game the community wants next; the highest-pool option wins the vote. Contributions are
+  deterministic spends — nothing is returned, paid out, or won by any user
+  (`database.py — place_voting_bid / finalize_voting_event` contain no payout/refund path).
 
 ### Subscriptions — no pay-/sub-gating
 - Subscription status (Twitch or third-party) does **not** affect prices or rewards. `SUB_BOOSTS`
@@ -120,12 +131,13 @@ On a reviewer's request we will go live and provide:
 
 ## 7. Changelog (this version)
 
-First submission. Multi-game viewer engagement (Bannerlord / RimWorld / shedcolony) on a
-multi-tenant backend; in-Extension virtual currency with no cash-out/transfer/wager; cosmetic
-pets; ELO duels; voting; fixed-reward cases.
+First submission. Multi-game viewer engagement (Bannerlord / RimWorld / shedcolony incl. colony
+development: research, warehouse stock, building upgrades) on a multi-tenant backend;
+in-Extension virtual currency with no cash-out/transfer/wager; cosmetic pets; ELO duels & dice;
+community game-vote (pledges); fixed-reward cases.
 
 ---
 
 ## 8. Contact
 
-nasulskii6@gmail.com · repo: https://github.com/Shedoy23/shedstream
+nasulskii6@gmail.com

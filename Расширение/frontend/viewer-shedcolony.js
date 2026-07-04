@@ -75,15 +75,21 @@
     // set_minimum_stock quantity picker — in STACKS (1..16; mirrors _MIN_STOCK_QTY_MAX + mod clamp).
     var SC_MIN_STOCK_QTYS = [1, 2, 4, 8, 16];
 
-    // RU labels for the common building types (backlog picker; fallback = raw registry path).
+    // RU labels for the common building types (backlog + upgrade pickers; fallback = raw registry path).
+    // NB: cook = Ресторан (столовая, где едят), kitchen = Кухня (готовит) — это РАЗНЫЕ здания.
     var SC_BUILDING_LABELS = {
-        builder: 'Строитель', baker: 'Пекарня', cook: 'Кухня', farmer: 'Ферма',
-        fisherman: 'Рыбак', lumberjack: 'Лесопилка', miner: 'Шахта', guardtower: 'Башня стражи',
+        builder: 'Строитель', baker: 'Пекарня', cook: 'Ресторан', kitchen: 'Кухня', farmer: 'Ферма',
+        residence: 'Жилой дом', fisherman: 'Рыбак', lumberjack: 'Лесопилка', miner: 'Шахта',
+        guardtower: 'Башня стражи', barrackstower: 'Башня казарм',
         barracks: 'Казармы', warehouse: 'Склад', townhall: 'Ратуша', deliveryman: 'Курьерская',
         smeltery: 'Плавильня', blacksmith: 'Кузница', stonemason: 'Каменотёс', sawmill: 'Лесопилка',
         farm: 'Ферма', chickenherder: 'Птичник', cowboy: 'Скотник', shepherd: 'Пастух',
         swineherder: 'Свинарник', composter: 'Компост', florist: 'Цветовод', university: 'Университет',
         library: 'Библиотека', hospital: 'Госпиталь', tavern: 'Таверна', mysticalsite: 'Алтарь',
+        school: 'Школа', archery: 'Стрельбище', combatacademy: 'Академия боя', graveyard: 'Кладбище',
+        plantation: 'Плантация', dyer: 'Красильня', fletcher: 'Мастер стрел', glassblower: 'Стеклодув',
+        enchanter: 'Чародейская', apiary: 'Пасека', mechanic: 'Механик', concretemixer: 'Бетонщик',
+        crusher: 'Дробилка', sifter: 'Просеиватель', alchemist: 'Алхимик', netherworker: 'Незер-бригада',
     };
 
     // colony.supply dropdown — MUST stay a subset of _SUPPLY_WHITELIST in routes/shedcolony.py.

@@ -36,7 +36,6 @@
 #     db._connect() (через pool) в новом коде
 
 from fastapi import APIRouter, Request, Depends, HTTPException
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from datetime import datetime
 import aiosqlite
 import asyncio
@@ -46,10 +45,12 @@ import time
 import traceback
 
 from config import sanitize_username, RIMWORLD_OFFLINE_TIMEOUT
-from dependencies import require_jwt_channel, require_jwt_user
+# require_admin живёт в dependencies (брутфорс-защита + ContextVar channel_id) — раньше тут был
+# прокси на main.require_admin, который после переезда падал AttributeError → 500 на всех
+# admin-эндпоинтах модуля (лог-триаж 2026-07-04).
+from dependencies import require_admin, require_jwt_channel, require_jwt_user
 
 router = APIRouter()
-_security = HTTPBasic()
 
 # ── Security 2.1 (2026-06-12): RimWorld mod-ingest auth ──────────────────────
 # 13 mod-side endpoints accepted UNAUTHENTICATED writes (wipe pawns / rig shop
@@ -130,7 +131,7 @@ def _save_tooltip_cache():
 # Загружаем при импорте модуля
 _load_tooltip_cache()
 
-# Импортируем из main контекст (db, bot, pending_commands, require_admin)
+# Импортируем из main контекст (db, bot, pending_commands)
 # Используем late-binding чтобы избежать циклических импортов
 def get_db():
     import main as _main
@@ -139,11 +140,6 @@ def get_db():
 def get_bot():
     import main as _main
     return _main.bot
-
-def require_admin(credentials: HTTPBasicCredentials = Depends(_security)):
-    """Proxy для main.require_admin — делегирует проверку в main."""
-    import main as _main
-    return _main.require_admin(credentials)
 
 def get_pending():
     import main as _main

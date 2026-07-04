@@ -1626,6 +1626,44 @@ async def _dispatched_action_sweeper():
             print(f"❌ Dispatched-action sweeper error: {type(e).__name__}: {e}")
 
 
+async def _queued_action_ttl_sweeper():
+    """Аудит 2026-07-04: заявка, купленная при ОФЛАЙН игровом сервере, висела в status='queued'
+    ВЕЧНО — зритель заплатил, действие не исполнится и не рефандится (_dispatched_action_sweeper
+    ловит только 'dispatched'). TTL: queued дольше 30 мин = мод очевидно офлайн → авто-рефанд
+    штатным action.failed-путём адаптера (идемпотентен по 'REFUNDED:', помечает failed).
+    Пока только shedcolony — bannerlord подключим отдельным решением, не меняя его молча.
+    """
+    sweep_interval_sec = 600       # 10 min
+    ttl_sec = 1800                 # 30 min queued = the mod is clearly offline
+    from modules._loader import get_module
+    from modules._base import ModuleEnvelope
+    print(f"⏳ Queued-action TTL sweeper started (interval={sweep_interval_sec}s, ttl={ttl_sec}s)")
+    while True:
+        try:
+            await asyncio.sleep(sweep_interval_sec)
+            async with db._connect() as conn:
+                cur = await conn.execute(
+                    "SELECT action_id, channel_id, type FROM module_actions "
+                    "WHERE module_id='shedcolony' AND status='queued' "
+                    "  AND created_at < datetime('now', ?)",
+                    (f"-{ttl_sec} seconds",))
+                rows = await cur.fetchall()
+            if not rows:
+                continue
+            adapter = get_module("shedcolony")
+            if not adapter:
+                continue
+            for action_id, channel_id, action_type in rows:
+                env = ModuleEnvelope(id=f"ttl_{action_id}", kind="event", type="action.failed",
+                                     ts=0, data={"action_id": action_id,
+                                                 "reason": "queued_ttl_expired"})
+                await adapter.handle_event(channel_id, env)
+                print(f"⏳ [ttl-sweeper] auto-refunded stale queued action "
+                      f"{action_id} type={action_type} ch={channel_id}")
+        except Exception as e:
+            print(f"❌ Queued-TTL sweeper error: {type(e).__name__}: {e}")
+
+
 async def _wal_checkpoint_loop():
     """Блок 1 архитектурной прокачки: periodic WAL maintenance.
 
@@ -1774,6 +1812,7 @@ async def on_startup():
     # Sweeper раз в 5 мин re-queue'ит rows старше 10 мин. Viewer заплатил
     # — действие либо повторится либо refund'нётся через action.failed.
     asyncio.create_task(_dispatched_action_sweeper())
+    asyncio.create_task(_queued_action_ttl_sweeper())
     # Sprint 5.29 BLT-parity #6 phase B: auctions resolver loop (every 30s).
     from routes.bannerlord_auctions import auctions_resolve_loop as _auctions_resolve
     asyncio.create_task(_auctions_resolve())

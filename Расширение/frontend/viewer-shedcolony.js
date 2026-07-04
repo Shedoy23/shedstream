@@ -161,7 +161,7 @@
 
     var _pollId = null;
     var _inflight = {};            // action_type → true while a buy is in flight (anti-double-click)
-    var _state = { colonist: null, capacity: { jobs: [], free_beds: null }, targets: null };
+    var _state = { colonist: null, capacity: { jobs: [], free_beds: null }, targets: null, stale: false };
     var _lastSig = '';
     var _stylesInjected = false;
     var _activeTab = 'me';                                     // persisted across re-renders
@@ -286,7 +286,9 @@
             + '#shedcolony-content .sc-acc-h{font-size:13px;font-weight:600;padding:10px 12px;cursor:pointer;list-style:none;}'
             + '#shedcolony-content .sc-acc-h::-webkit-details-marker{display:none;}'
             + '#shedcolony-content .sc-acc[open] .sc-acc-h{border-bottom:1px solid rgba(255,255,255,.08);}'
-            + '#shedcolony-content .sc-acc-body{padding:10px 12px 12px;}';
+            + '#shedcolony-content .sc-acc-body{padding:10px 12px 12px;}'
+            + '#shedcolony-content .sc-offline{background:rgba(224,85,107,.15);border:1px solid rgba(224,85,107,.4);'
+            + 'border-radius:8px;padding:8px 10px;font-size:12px;margin-bottom:10px;}';
         var s = document.createElement('style');
         s.id = 'sc-styles';
         s.textContent = css;
@@ -332,6 +334,9 @@
 
         var html = '<div class="sc-header">🏰 Колония стримера</div>';
         if (bal != null) { html += '<div class="sc-balance">Баланс: ' + bal + ' 💎</div>'; }
+        if (_state.stale) {
+            html += '<div class="sc-offline">⚠ Сервер Minecraft сейчас офлайн — покупки временно недоступны, загляни позже.</div>';
+        }
 
         if (!c || !c.linked) {
             html += '<div class="sc-card">'
@@ -399,11 +404,15 @@
         // ══════════ PANE: Колонист ══════════
         html += '<div class="sc-pane" data-pane="me">';
 
-        // ❤️ Забота
+        // ❤️ Забота — кнопки серятся, когда действию нечего менять (бэк на таких путях рефандит;
+        // серая кнопка честнее, чем «купил → вернули»). Данные уже в state: saturation/sick/hp.
+        var satFull = (st.saturation != null && st.saturation >= 60);
+        var notSick = (st.sick === false);
+        var hpFull = (st.hp != null && st.hp >= _num(st.max_hp, 20));
         var careBody = '<div class="sc-care-row">'
-            + '<button class="sc-btn sc-btn-sm" data-sc="feed">🍖 Покормить · 75</button>'
-            + '<button class="sc-btn sc-btn-sm" data-sc="cure">💊 Вылечить · 100</button>'
-            + '<button class="sc-btn sc-btn-sm" data-sc="heal">❤ Исцелить · 100</button>'
+            + '<button class="sc-btn sc-btn-sm" data-sc="feed"' + (satFull ? ' disabled title="Колонист уже сыт"' : '') + '>🍖 Покормить · 75</button>'
+            + '<button class="sc-btn sc-btn-sm" data-sc="cure"' + (notSick ? ' disabled title="Колонист здоров"' : '') + '>💊 Вылечить · 100</button>'
+            + '<button class="sc-btn sc-btn-sm" data-sc="heal"' + (hpFull ? ' disabled title="Здоровье уже полное"' : '') + '>❤ Исцелить · 100</button>'
             + '<button class="sc-btn sc-btn-sm" data-sc="mourn">🕯 Снять траур · 50</button>'
             + '</div>'
             + '<button class="sc-btn" style="margin-top:8px;" data-sc="happiness">😊 Поднять настроение · 400</button>';
@@ -638,10 +647,11 @@
     }
 
     function _bind(root) {
-        // action buttons
+        // action buttons (all greyed while the game server is offline — buys would queue forever)
         var btns = root.querySelectorAll('[data-sc]');
         for (var i = 0; i < btns.length; i++) {
             (function (btn) {
+                if (_state.stale) { btn.disabled = true; }
                 btn.addEventListener('click', function () { _onClick(btn); });
             })(btns[i]);
         }
@@ -741,6 +751,7 @@
             if (cap && cap.success) {
                 _state.capacity = { jobs: cap.jobs || [], free_beds: cap.free_beds };
                 _state.targets = cap.targets || null;
+                _state.stale = !!cap.stale;   // сервер мода молчит >60с → покупки в вечную очередь
             }
             _renderIfChanged();
         });

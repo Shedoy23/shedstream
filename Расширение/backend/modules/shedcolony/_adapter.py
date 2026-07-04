@@ -50,6 +50,13 @@ class ShedColonyAdapter(ModuleAdapter):
     async def _on_player_linked(self, channel_id: int, env: ModuleEnvelope) -> None:
         """Колонист зрителя создан и привязан. UPSERT в link-таблицу."""
         d = env.data
+        # World-guard (аудит 2026-07-04): player.linked буферизуется модом при обрывах и может
+        # приехать ПОСЛЕ смены мира. ДРОПАЕМ событие чужого мира (НЕ _check_world_switch — иначе
+        # опоздавшее событие «переключило» бы канал назад и вайпнуло новый мир).
+        if not await self._world_matches(channel_id, d.get("world_id")):
+            logger.warning("[shedcolony:%s] player.linked from a STALE world dropped: %s",
+                           channel_id, d.get("world_id"))
+            return
         viewer_id = (d.get("viewer_id") or d.get("username") or "").lower()
         citizen_id = str(d.get("citizen_id") or "")
         colony_id = str(d.get("colony_id") or "")
@@ -119,6 +126,8 @@ class ShedColonyAdapter(ModuleAdapter):
         citizen_id = str(d.get("citizen_id") or "")
         if not citizen_id:
             return
+        if not await self._world_matches(channel_id, d.get("world_id")):
+            return   # late state from a previous world — never resurrect stale data
         skills = d.get("skills")
         skills_json = json.dumps(skills) if skills is not None else None
         state_json = json.dumps(d, ensure_ascii=False)
@@ -138,6 +147,21 @@ class ShedColonyAdapter(ModuleAdapter):
             """, (channel_id, citizen_id, d.get("hp"), d.get("job"), skills_json,
                   d.get("status") or "active", state_json))
             await conn.commit()
+
+    async def _world_matches(self, channel_id: int, world_id) -> bool:
+        """True если событие из ТЕКУЩЕГО мира канала (или мир неизвестен / старый jar без world_id).
+        Для линко-образующих событий (player.linked / colonist.state) mismatch = ОПОЗДАВШЕЕ событие
+        старого мира из буфера повторов — его ДРОПАЕМ; переключать мир могут только периодические
+        snapshot/capacity живого мира (_check_world_switch)."""
+        wid = (world_id or "").strip()
+        if not wid:
+            return True
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            cur = await conn.execute(
+                "SELECT world_id FROM shedcolony_world WHERE channel_id=?", (channel_id,))
+            row = await cur.fetchone()
+        return (not row) or row[0] == wid
 
     async def _check_world_switch(self, channel_id: int, world_id) -> None:
         """Мир-коллизия (2026-07-03): colony_id=1 в КАЖДОМ мире MineColonies → соло-мир и сервер
@@ -243,6 +267,13 @@ class ShedColonyAdapter(ModuleAdapter):
                     await self._enqueue_set_name(conn, channel_id, citizen_id, want)
                     logger.info("[shedcolony:%s] reconcile: canonicalize citizen %s '%s' → '%s'",
                                 channel_id, citizen_id, snap.get(citizen_id), want)
+            # Гигиена (аудит 2026-07-04): state-строки граждан, которых нет в ростере, копились вечно
+            # (и на рециклнутом id мигали ЧУЖИМИ данными до первого свежего colonist.state).
+            placeholders = ",".join("?" for _ in snap)
+            await conn.execute(
+                f"DELETE FROM shedcolony_colonist_state "
+                f"WHERE channel_id=? AND citizen_id NOT IN ({placeholders})",
+                (channel_id, *snap.keys()))
             await conn.commit()
 
     async def _enqueue_set_name(self, conn, channel_id: int, citizen_id: str, name: str) -> None:

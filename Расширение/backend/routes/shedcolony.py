@@ -326,10 +326,27 @@ async def _buy_action_locked(username: str, channel_id: int,
     if action_type == "colonist.spawn":
         # 1 viewer = 1 colonist: refuse a second spawn while one is alive (UI hides the
         # button, but the request is craftable — without this a re-roll burns 1000💎).
+        pending_cid = None
         async with db._connect() as conn:
             existing = await _resolve_citizen(conn, channel_id, username)
+            if not existing:
+                # Аудит 2026-07-04: link-строка появляется только ПОСЛЕ исполнения модом — второй
+                # клик в этом окне списывал вторые 1000 и спавнил вечного сироту-колониста. Мы под
+                # per-user lock'ом, так что check-then-charge гонок не имеет. Совпавший
+                # client_action_id пропускаем дальше — им займётся идемпотентный replay.
+                cur = await conn.execute(
+                    "SELECT client_action_id FROM module_actions "
+                    "WHERE channel_id=? AND module_id='shedcolony' AND type='colonist.spawn' "
+                    "AND status IN ('queued','dispatched') AND data LIKE ? LIMIT 1",
+                    (channel_id, f'%"initiated_by": "{username}"%'))
+                row = await cur.fetchone()
+                if row:
+                    pending_cid = row[0] or ""
         if existing:
             return {"success": False, "message": "У тебя уже есть колонист в этой колонии"}
+        if pending_cid is not None and pending_cid != (data.get("client_action_id") or "").strip():
+            return {"success": False,
+                    "message": "Заявка на колониста уже в очереди — подожди пару секунд"}
         data["name"] = username           # MVP: colonist named after the viewer
     elif action_type == "colonist.add_xp":
         data["amount"] = _XP_AMOUNT        # server-fixed XP per purchase
@@ -467,6 +484,7 @@ async def shedcolony_capacity(request: Request):
     jobs: list[dict] = []
     free_beds = None
     targets = None
+    data_age_sec = None
     db = get_db()
     try:
         async with db._connect() as conn:
@@ -474,12 +492,18 @@ async def shedcolony_capacity(request: Request):
                 "SELECT job_key, free_slots, total_slots FROM shedcolony_capacity "
                 "WHERE channel_id=? ORDER BY job_key", (channel_id,))
             jobs = [{"job": r[0], "free": r[1], "total": r[2]} for r in await cur.fetchall()]
+            # Freshness (аудит 2026-07-04): мод пушит capacity каждые ~5с — возраст этой строки =
+            # «жив ли игровой сервер». Без сигнала фронт рисовал протухшие кнопки против мёртвого
+            # сервера, и зритель покупал в вечную очередь.
             cur = await conn.execute(
-                "SELECT free_beds, total_beds FROM shedcolony_capacity_meta WHERE channel_id=?",
+                "SELECT free_beds, total_beds, "
+                "CAST((julianday('now') - julianday(updated_at)) * 86400 AS INTEGER) "
+                "FROM shedcolony_capacity_meta WHERE channel_id=?",
                 (channel_id,))
             meta = await cur.fetchone()
             if meta:
                 free_beds = meta[0]
+                data_age_sec = meta[2]
             # Phase A picker targets (research / building-backlog / warehouse) — mod pushes colony.targets.
             cur = await conn.execute(
                 "SELECT data FROM shedcolony_targets WHERE channel_id=?", (channel_id,))
@@ -491,4 +515,6 @@ async def shedcolony_capacity(request: Request):
                     targets = None
     except Exception as ex:
         log.warning("[shedcolony capacity] read failed ch=%s: %s", channel_id, ex)
-    return {"success": True, "jobs": jobs, "free_beds": free_beds, "targets": targets}
+    stale = data_age_sec is None or data_age_sec > 60   # no snapshot ever, or mod silent > 60s
+    return {"success": True, "jobs": jobs, "free_beds": free_beds, "targets": targets,
+            "stale": stale, "data_age_sec": data_age_sec}

@@ -133,6 +133,55 @@ class ShedColonyAdapter(ModuleAdapter):
                   d.get("status") or "active", state_json))
             await conn.commit()
 
+    async def _check_world_switch(self, channel_id: int, world_id) -> None:
+        """Мир-коллизия (2026-07-03): colony_id=1 в КАЖДОМ мире MineColonies → соло-мир и сервер
+        неразличимы, стейт прошлого мира залипал в расширении. Мод шлёт world_id (имя уровня + сид)
+        в snapshot/capacity; смена мира → авто-сброс: активные линки → dead, стейт/цели/вакансии →
+        wipe → расширение показывает актуальный мир (и «Создать колониста»). Пустой world_id
+        (старый jar) — no-op. Fast-path — обычный SELECT; сброс — re-check под BEGIN IMMEDIATE
+        (TOCTOU: два события одного мира не должны сбросить дважды)."""
+        wid = (world_id or "").strip()
+        if not wid:
+            return
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            cur = await conn.execute(
+                "SELECT world_id FROM shedcolony_world WHERE channel_id=?", (channel_id,))
+            row = await cur.fetchone()
+            if row and row[0] == wid:
+                return  # same world — the common case, no write lock taken
+            await conn.execute("BEGIN IMMEDIATE")
+            cur = await conn.execute(
+                "SELECT world_id FROM shedcolony_world WHERE channel_id=?", (channel_id,))
+            row = await cur.fetchone()
+            if row and row[0] == wid:
+                await conn.execute("ROLLBACK")
+                return  # another event already switched us — idempotent
+            if row:
+                await conn.execute(
+                    "UPDATE shedcolony_colony_link SET status='dead', died_at=CURRENT_TIMESTAMP "
+                    "WHERE channel_id=? AND status='active'", (channel_id,))
+                await conn.execute(
+                    "DELETE FROM shedcolony_colonist_state WHERE channel_id=?", (channel_id,))
+                await conn.execute(
+                    "DELETE FROM shedcolony_capacity WHERE channel_id=?", (channel_id,))
+                await conn.execute(
+                    "DELETE FROM shedcolony_capacity_meta WHERE channel_id=?", (channel_id,))
+                await conn.execute(
+                    "DELETE FROM shedcolony_targets WHERE channel_id=?", (channel_id,))
+                logger.warning("[shedcolony:%s] WORLD SWITCH '%s' → '%s' — links dead + state wiped "
+                               "(если это флаппинг каждые ~5с — запущены ДВА мира с одним токеном!)",
+                               channel_id, row[0], wid)
+            else:
+                logger.info("[shedcolony:%s] world id registered: '%s'", channel_id, wid)
+            await conn.execute(
+                "INSERT INTO shedcolony_world (channel_id, world_id, updated_at) "
+                "VALUES (?, ?, CURRENT_TIMESTAMP) "
+                "ON CONFLICT(channel_id) DO UPDATE SET "
+                "    world_id = excluded.world_id, updated_at = CURRENT_TIMESTAMP",
+                (channel_id, wid))
+            await conn.commit()
+
     async def _on_colony_snapshot(self, channel_id: int, env: ModuleEnvelope) -> None:
         """Session-start reconcile against the live colony roster [{id, name}]. Two jobs:
         (1) DEAD-DETECTION — mark any active link whose colonist is GONE from the colony as dead
@@ -141,6 +190,7 @@ class ShedColonyAdapter(ModuleAdapter):
             linked colonist is named "[MCLink] <viewer>" (rolls back the removed rename feature + tags
             untagged ones). The link table stays the ownership truth (kept correct by player.linked +
             its takeover); names just follow the link."""
+        await self._check_world_switch(channel_id, env.data.get("world_id"))
         colonists = env.data.get("colonists") or []
         snap: Dict[str, str] = {}
         for c in colonists:
@@ -209,6 +259,7 @@ class ShedColonyAdapter(ModuleAdapter):
         """Снимок свободных слотов колонии (мод шлёт периодически) → slot-availability UI.
         data: {jobs:[{job, free, total}], free_beds, total_beds}. Полная замена снимка."""
         d = env.data
+        await self._check_world_switch(channel_id, d.get("world_id"))
         jobs = d.get("jobs") or []
         from dependencies import get_db
         async with get_db()._connect() as conn:

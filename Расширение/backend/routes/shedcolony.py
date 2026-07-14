@@ -355,11 +355,10 @@ async def _buy_action_locked(username: str, channel_id: int,
         if job not in _VALID_JOBS or not _JOB_KEY_RE.match(job):
             return {"success": False, "message": "Недопустимая профессия"}
         data["job"] = job
-    elif action_type == "colonist.set_gender":
-        gender = (data.get("gender") or "").strip().lower()
-        if gender not in ("male", "female"):
-            return {"success": False, "message": "Пол должен быть 'male' или 'female'"}
-        data["gender"] = gender
+    # colonist.set_gender — НЕТ валидации: мод ПЕРЕКЛЮЧАЕТ пол (ColonyOps.toggleGender flips,
+    # target-параметр игнорит), а фронт-кнопка «🔄 Сменить пол» его и не шлёт. Старое требование
+    # data.gender ∈ male/female давало вечный отказ «Пол должен быть male или female» (баг #29,
+    # 2026-07-13). Действие проходит как есть → мод флипает.
     elif action_type == "colonist.give_item":
         item = (data.get("item") or "").strip()
         if item not in _GIVE_ITEM_WHITELIST:

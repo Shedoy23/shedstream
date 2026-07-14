@@ -163,6 +163,14 @@
         forester: 'Лесник', shepherd: 'Пастух', cowboy: 'Скотовод', swineherd: 'Свинопас',
         chickenherd: 'Птичник', composter: 'Компостёр', florist: 'Флорист', healer: 'Лекарь',
         teacher: 'Учитель', archer: 'Лучник', enchanter: 'Чародей', alchemist: 'Алхимик',
+        // добавлено 2026-07-13 (баг #30 «роли на инглише») — недостающие профессии MineColonies
+        ranger: 'Лучник', druid: 'Друид', dyer: 'Красильщик', fletcher: 'Лучных дел мастер',
+        mechanic: 'Механик', planter: 'Плантатор', sawmill: 'Пилорама', stonemason: 'Каменщик',
+        concretemixer: 'Бетонщик', glassblower: 'Стеклодув', netherworker: 'Незер-рабочий',
+        undertaker: 'Гробовщик', quarrier: 'Карьерщик', beekeeper: 'Пчеловод', sifter: 'Просеиватель',
+        crusher: 'Дробильщик', student: 'Ученик', pupil: 'Ученик', researcher: 'Исследователь',
+        swineherder: 'Свинопас', chickenherder: 'Птичник', rabbitherder: 'Кроликовод',
+        cowboyherder: 'Скотовод', stonesmeltery: 'Обжигальщик', cookassistant: 'Помощник повара',
     };
 
     var _pollId = null;
@@ -172,6 +180,7 @@
     var _stylesInjected = false;
     var _activeTab = 'me';                                     // persisted across re-renders
     var _openGroups = { 'g-care': true, 'g-gear': true, 'g-events': true };  // open accordion ids (first per pane)
+    var _selVals = {};                                         // last-picked <select> value by id (survives re-render)
 
     function _jwtHeaders(withBody) {
         var h = { 'X-Twitch-JWT': (typeof authToken !== 'undefined' ? authToken : '') || '' };
@@ -681,6 +690,20 @@
                     if (acc.open) { _openGroups[id] = true; } else { delete _openGroups[id]; }
                 });
             })(accs[a]);
+        }
+        // Persist dropdown choices across the 5s re-render (bug #31: viewer picks Strength, an HP/
+        // saturation tick re-renders, the skill select snaps back to the first option = Athletics,
+        // and «Прокачать» levels the wrong skill). Restore each select's last value, then track changes.
+        var sels = root.querySelectorAll('select');
+        for (var s = 0; s < sels.length; s++) {
+            (function (sel) {
+                if (sel.id && _selVals[sel.id] != null) {
+                    sel.value = _selVals[sel.id];   // no-op if that option no longer exists → stays default
+                }
+                sel.addEventListener('change', function () {
+                    if (sel.id) { _selVals[sel.id] = sel.value; }
+                });
+            })(sels[s]);
         }
         _applyTab();
     }

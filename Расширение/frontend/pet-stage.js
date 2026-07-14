@@ -29,12 +29,18 @@
     // CSS image-rendering: pixelated сохраняет chunky pixels при scaling
     // с 104px source до 64-180px рендера.
     //
-    // Pet-asset path: frontend/pet-assets/v2/{variant}/{direction}.png
+    // Pet-asset path: {backend}/pet-assets/v2/{variant}/{direction}.png
     // где variant = 'kimono' | 'underwear', direction = 'south' | 'east' | ...
+    //
+    // 2026-07-14: базу вынесли на бэк (было относительное 'pet-assets/v2' из
+    // фронт-зипа). Теперь спрайты отдаёт shedoy23.ru → новый питомец = папка на
+    // сервере + строка каталога, БЕЗ пересборки зипа и повторного ревью Twitch.
+    // Требует домен в CSP img-src (оба шелла) + «Allowlist for Image Domains» в
+    // консоли Twitch.
     //
     // Backward-compat: CREATURE_SVG экспорт — старый код может его звать,
     // возвращаем wrapper image вместо SVG.
-    const PET_ASSET_BASE = 'pet-assets/v2';
+    const PET_ASSET_BASE = 'https://shedoy23.ru/pet-assets/v2';
     const DEFAULT_VARIANT = 'kimono';   // default: dressed character (не «голый младенец»)
     const DEFAULT_DIRECTION = 'south';
 

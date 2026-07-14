@@ -1681,7 +1681,9 @@ class Database:
                 "       pc.svg_path, pi.acquired_at "
                 "FROM pet_inventory pi "
                 "JOIN pet_catalog pc ON pc.item_id = pi.item_id "
-                "WHERE pi.username = ? AND pc.deprecated = 0 "
+                # deprecated НЕ фильтруем: снятый с продажи item остаётся в инвентаре
+                # владельца (лимитка/эксклюзив — купивший сохраняет его навсегда).
+                "WHERE pi.username = ? "
                 "ORDER BY pi.acquired_at DESC",
                 (uname,)
             )
@@ -1905,19 +1907,19 @@ class Database:
                     return {'equipped': True, 'slot': slot, 'item_id': None,
                             'action': 'unequip'}
 
-                # Lookup item slot from catalog
+                # Lookup item slot from catalog.
+                # deprecated (снятый с продажи) НЕ блокирует equip у владельца:
+                # лимитка/эксклюзив — купивший свободно переодевает. Новых не
+                # пускает purchase_pet_item; здесь гейт — только ownership (ниже).
                 cur = await conn.execute(
-                    "SELECT slot, deprecated FROM pet_catalog WHERE item_id = ?",
+                    "SELECT slot FROM pet_catalog WHERE item_id = ?",
                     (item_id,)
                 )
                 row = await cur.fetchone()
                 if not row:
                     await conn.execute("ROLLBACK")
                     return {'equipped': False, 'reason': 'item_not_found'}
-                catalog_slot, deprecated = row
-                if deprecated:
-                    await conn.execute("ROLLBACK")
-                    return {'equipped': False, 'reason': 'deprecated'}
+                catalog_slot = row[0]
 
                 # Check ownership
                 cur = await conn.execute(

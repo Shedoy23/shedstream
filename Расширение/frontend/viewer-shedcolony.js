@@ -206,12 +206,14 @@
     }
 
     // MineColonies happiness is ~0–2 (1.0 = normal) → mood emoji.
+    // MineColonies happiness is a 0–10 scale (10 = max). The old thresholds assumed 0–2, so every
+    // real value (7–10) fell into 😄 and the emoji never changed — bug #28 «настроение не меняется».
     function _moodEmoji(h) {
         if (h == null) { return '🙂'; }
-        if (h >= 1.3) { return '😄'; }
-        if (h >= 1.0) { return '🙂'; }
-        if (h >= 0.7) { return '😐'; }
-        if (h >= 0.4) { return '😟'; }
+        if (h >= 8) { return '😄'; }
+        if (h >= 6) { return '🙂'; }
+        if (h >= 4) { return '😐'; }
+        if (h >= 2) { return '😟'; }
         return '😣';
     }
 

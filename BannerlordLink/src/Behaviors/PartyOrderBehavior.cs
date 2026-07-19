@@ -219,6 +219,7 @@ namespace BannerlordLink.Behaviors
 
         private void OnHourlyTick()
         {
+            TopUpViewerArmyCohesion();
             if (_orders.Count == 0) return;
             try
             {
@@ -307,6 +308,47 @@ namespace BannerlordLink.Behaviors
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log($"[party_order] OnHourlyTick crash: {ex.Message}");
+            }
+        }
+
+        // ─── Army MVP fast-follow (2026-07-19) — cohesion-долив ────────────
+        // Армия зрителя (Kingdom.CreateArmy в ArmyHandlers) без долива
+        // рассыпается движком за 1-2 игровых дня (cohesion → 0). Зритель
+        // заплатил крустиками — держим cohesion=100 каждый час, пока армию
+        // не распустят/разобьют. См. docs/ARMY_MVP_SPEC.md.
+        private void TopUpViewerArmyCohesion()
+        {
+            try
+            {
+                if (Campaign.Current == null) return;
+                int topped = 0;
+                foreach (var kingdom in Campaign.Current.Kingdoms)
+                {
+                    var armies = kingdom?.Armies;
+                    if (armies == null) continue;
+                    foreach (var army in armies)
+                    {
+                        var leader = army?.LeaderParty?.LeaderHero;
+                        if (leader == null) continue;
+                        // Viewer-геройность: name prefix ИЛИ persistent dict
+                        // (legacy saves могут иметь только одно из двух).
+                        bool isViewer = HeroNaming.IsAdopted(leader)
+                            || HeroIdentityBehavior.Instance?.GetUsername(leader) != null;
+                        if (!isViewer) continue;
+                        if (army.Cohesion < 100f)
+                        {
+                            army.Cohesion = 100f;
+                            topped++;
+                        }
+                    }
+                }
+                if (topped > 0)
+                    BannerlordLinkModule.Log(
+                        $"[army] cohesion top-up: {topped} viewer army(ies) → 100");
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[army] cohesion top-up crash: {ex.Message}");
             }
         }
 

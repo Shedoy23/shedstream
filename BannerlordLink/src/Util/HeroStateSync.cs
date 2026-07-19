@@ -329,12 +329,21 @@ namespace BannerlordLink.Util
                 if (mp == null) return null;
                 string task = null;
                 try { task = mp.DefaultBehavior.ToString(); } catch { }
+                // Army MVP fast-follow — статус СВОЕЙ армии (лидер = наш герой).
+                // has_army=1 только для лидера армии; в чужой армии in_army=1,
+                // has_army=0. Поля аддитивные — фронт до вердикта Twitch их
+                // не читает (см. ARMY_MVP_SPEC.md).
+                var army = mp.Army;
+                bool leadsArmy = army != null && army.LeaderParty == mp;
                 return new
                 {
                     size    = mp.MemberRoster.TotalManCount,
                     task    = task,          // engine AiBehavior: GoToSettlement / BesiegeSettlement / PatrolAroundPoint / Hold / EngageParty / ...
                     target  = mp.TargetSettlement?.Name?.ToString(),
-                    in_army = mp.Army != null ? 1 : 0,
+                    in_army = army != null ? 1 : 0,
+                    has_army         = leadsArmy ? 1 : 0,
+                    army_party_count = leadsArmy ? (army.Parties?.Count ?? 1) : 0,
+                    cohesion         = leadsArmy ? (int)army.Cohesion : 0,
                 };
             }
             catch (Exception ex)

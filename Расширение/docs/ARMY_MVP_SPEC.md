@@ -5,14 +5,21 @@
 Слот — **НИЖЕ** `bnr-party-orders-slot` (по просьбе владельца «чуть ниже приказов отряда»).
 Статус армии в UI — из существующего `h.party_info.in_army` (без правки мода).
 
-**Проверки пройдены:** мод билд 0 ошибок · бэк compile+тест 40/40+lint · фронт node-check.
-**ОСТАЛОСЬ — проверка В ИГРЕ** (mod-код, авто-теста нет): на тест-сейве собрать армию
-(лидер клана в королевстве) → проверить, что армия формируется, команды через «Приказы
-отряда» ведут армию, роспуск работает, при отказе крустики возвращаются.
+**2026-07-19 — FAST-FOLLOW СДЕЛАН (код), ждёт in-game verify + деплой:**
+- Server-side гейты `hero.army_create` (kingdom + clan leader + not in army) до списания
+  1000💎 — `handle_army_create_gate` в `bannerlord_party_orders.py`, вызов в оркестраторе
+  кассы (`d056aa4`). Тест [8] в `test_bannerlord_buy_action.py`, 54/54 green.
+- Cohesion-долив: `PartyOrderBehavior.TopUpViewerArmyCohesion` в hourly tick — армии
+  viewer-героев держат cohesion=100 (`cad8684`).
+- `HeroStateSync.BuildPartyInfo`: + `has_army`/`army_party_count`/`cohesion` (аддитивно;
+  фронт прочитает ПОСЛЕ вердикта Twitch — до тех пор UI на `in_army`).
+- DLL пересобрана (Release, 0 ошибок), в игру НЕ скопирована; бэк на прод НЕ задеплоен.
 
-**FAST-FOLLOW (после in-game verify):** ежечасный долив `army.Cohesion=100f` в
-`PartyOrderBehavior.OnHourlyTickParty` — чтобы армия жила >1-2 дней (сейчас cohesion=100
-ставится разово при создании). + опц. статус армии (состав/cohesion) через HeroStateSync.
+**Проверки пройдены:** мод билд 0 ошибок · бэк compile+тест 54/54+lint · фронт node-check.
+**ОСТАЛОСЬ — проверка В ИГРЕ** (mod-код, авто-теста нет): чек-лист в CONTEXT_BANNERLORD.md
+(§ Army in-game verify): собрать армию → приказы ведут → cohesion держится → роспуск → рефанды.
+
+**ОСТАЛОСЬ ПОСЛЕ ВЕРДИКТА TWITCH:** UI состав армии + cohesion (фронт заморожен).
 
 ---
 ## Исходная спека (дизайн — для справки / расширения)

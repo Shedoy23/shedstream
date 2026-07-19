@@ -163,3 +163,48 @@ async def handle_release_party_order(conn, channel_id: int, owner: str, data: di
     log.info("[SIEGE-RELEASE] ch=%s user=@%s order cancelled",
              channel_id, owner)
     return {"success": True, "message": "🏳 Приказ отменён"}
+
+
+async def handle_army_create_gate(conn, channel_id: int, owner: str, data: dict) -> dict:
+    """Army MVP — server-side гейты hero.army_create (зеркало C# CreateArmyHandler).
+
+    Защищает списание 1000💎: fail → ROLLBACK в оркестраторе (charge+enqueue
+    откатываются). Сам enqueue остаётся generic-путём — здесь ТОЛЬКО проверка.
+    Гейты: в королевстве + лидер клана (из kingdom_info_json — колонки
+    kingdom_id/is_clan_leader НЕ синкаются, см. _derive_kingdom) + не в армии
+    уже (party_info_json.in_army — свою распусти, из чужой выйди).
+    hero.army_disband НЕ гейтим: price=0, деньги не на кону — гейтит мод.
+    """
+    import json as _json
+
+    from routes.bannerlord_diplomacy import _derive_kingdom
+
+    cur = await conn.execute(
+        "SELECT kingdom_id, kingdom_name, is_king, is_clan_leader, "
+        "       kingdom_info_json, party_info_json "
+        "FROM bannerlord_heroes "
+        "WHERE channel_id=? AND username=?",
+        (channel_id, owner))
+    row = await cur.fetchone()
+    if not row:
+        return {"success": False, "message": "hero не найден"}
+    kingdom_id, _kname, _isk, is_clan_leader = _derive_kingdom(
+        row[0], row[1], row[2], row[3], row[4])
+    if not kingdom_id:
+        log.info("[ARMY-CREATE REFUSE] no kingdom ch=%s @%s", channel_id, owner)
+        return {"success": False,
+                "message": "Армию может собрать только член королевства"}
+    if not is_clan_leader:
+        log.info("[ARMY-CREATE REFUSE] not clan leader ch=%s @%s", channel_id, owner)
+        return {"success": False,
+                "message": "Армию может собрать только лидер клана"}
+    try:
+        pi = _json.loads(row[5]) if row[5] else None
+    except Exception:
+        pi = None
+    if isinstance(pi, dict) and pi.get("in_army"):
+        log.info("[ARMY-CREATE REFUSE] already in army ch=%s @%s", channel_id, owner)
+        return {"success": False,
+                "message": "Ты уже в армии — сначала распусти/покинь её"}
+    log.info("[ARMY-CREATE GATE OK] ch=%s @%s kingdom=%s", channel_id, owner, kingdom_id)
+    return {"success": True}

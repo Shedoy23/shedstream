@@ -2861,6 +2861,16 @@ async def _charge_execute_enqueue(action_type, data, price, username, channel_id
                     await conn.execute("ROLLBACK")
                     return caravan_result
 
+            # Army MVP — server-side гейты hero.army_create (лидер клана +
+            # королевство + не в армии) ДО commit'а charge'а на 1000💎.
+            # НЕ backend-only: generic enqueue выше остаётся, ROLLBACK его откатит.
+            if action_type == "hero.army_create":
+                from routes.bannerlord_party_orders import handle_army_create_gate
+                army_gate = await handle_army_create_gate(conn, channel_id, username, data)
+                if not army_gate.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return army_gate
+
             # Special case в той же TX: UPSERT bannerlord_hero_class.
             # Backend остаётся source-of-truth по class даже если mod offline.
             if action_type == "hero.set_class":

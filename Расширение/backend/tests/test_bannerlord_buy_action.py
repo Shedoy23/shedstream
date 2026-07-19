@@ -392,6 +392,79 @@ async def test_refund_on_ack_failure(db, buy):
     assert_eq(after2, after, "second action.failed does NOT double-refund (idempotent)")
 
 
+async def test_army_create_server_gates(db, buy):
+    """8. hero.army_create — server-side гейты (Army MVP).
+
+    Гейт зеркалит C# CreateArmyHandler: королевство + лидер клана + не в армии.
+    До фикса бэк списывал 1000💎 любому (гейт был только в моде) → зритель
+    без клана платил и ждал mod-refuse+refund роундтрип. Теперь refuse ДО commit.
+    Требует героя alice — создан в тесте [6].
+    """
+    print("\n[8] hero.army_create — server gates (kingdom + clan leader + not in army)")
+    import json as _json
+
+    async def _set_hero_state(kingdom_info, party_info):
+        async with db._connect() as conn:
+            await conn.execute(
+                "UPDATE bannerlord_heroes SET kingdom_info_json=?, party_info_json=? "
+                "WHERE channel_id=? AND username='alice'",
+                (_json.dumps(kingdom_info) if kingdom_info else None,
+                 _json.dumps(party_info) if party_info else None,
+                 CHANNEL_ID))
+            await conn.commit()
+
+    # (a) Нет королевства → refuse, баланс цел, outbox пуст (ROLLBACK).
+    await _set_points(db, CHANNEL_ID, "alice", START_POINTS)
+    await _set_hero_state(None, None)
+    before = await _get_points(db, CHANNEL_ID, "alice")
+    n_before = await _count_actions(db, CHANNEL_ID, "hero.army_create")
+    res = await buy(_make_anon_request(), "alice", CHANNEL_ID, "hero.army_create",
+                    {"client_action_id": "army-nokingdom-1"})
+    assert_eq(res.get("success"), False, "no kingdom → refused")
+    assert_true("королевства" in (res.get("message") or ""),
+                "refusal message mentions королевство")
+    assert_eq(await _get_points(db, CHANNEL_ID, "alice"), before,
+              "balance untouched (no kingdom)")
+    assert_eq(await _count_actions(db, CHANNEL_ID, "hero.army_create"), n_before,
+              "no enqueue on refusal (ROLLBACK reverted outbox row)")
+
+    # (b) Королевство есть, но НЕ лидер клана → refuse.
+    await _set_hero_state(
+        {"id": "vlandia", "name": "Vlandia", "is_clan_leader": False}, None)
+    res = await buy(_make_anon_request(), "alice", CHANNEL_ID, "hero.army_create",
+                    {"client_action_id": "army-notleader-1"})
+    assert_eq(res.get("success"), False, "not clan leader → refused")
+    assert_true("лидер клана" in (res.get("message") or ""),
+                "refusal message mentions лидер клана")
+    assert_eq(await _get_points(db, CHANNEL_ID, "alice"), before,
+              "balance untouched (not clan leader)")
+
+    # (c) Лидер клана, но уже в армии → refuse.
+    await _set_hero_state(
+        {"id": "vlandia", "name": "Vlandia", "is_clan_leader": True},
+        {"in_army": True})
+    res = await buy(_make_anon_request(), "alice", CHANNEL_ID, "hero.army_create",
+                    {"client_action_id": "army-inarmy-1"})
+    assert_eq(res.get("success"), False, "already in army → refused")
+    assert_true("уже в армии" in (res.get("message") or ""),
+                "refusal message mentions уже в армии")
+    assert_eq(await _get_points(db, CHANNEL_ID, "alice"), before,
+              "balance untouched (already in army)")
+
+    # (d) Все гейты пройдены → success, charged 1000, enqueued ровно 1.
+    await _set_hero_state(
+        {"id": "vlandia", "name": "Vlandia", "is_clan_leader": True},
+        {"in_army": False})
+    res = await buy(_make_anon_request(), "alice", CHANNEL_ID, "hero.army_create",
+                    {"client_action_id": "army-ok-1"})
+    assert_eq(res.get("success"), True, "clan leader in kingdom → success")
+    assert_eq(res.get("charged"), 1000, "charged exactly 1000 (ACTION_PRICES_DEFAULT)")
+    after = await _get_points(db, CHANNEL_ID, "alice")
+    assert_eq(before - after, 1000, "points dropped by EXACTLY 1000")
+    assert_eq(await _count_actions(db, CHANNEL_ID, "hero.army_create"), n_before + 1,
+              "exactly 1 hero.army_create enqueued for the mod")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
@@ -409,6 +482,7 @@ async def _run():
         await test_free_action_no_charge(db, buy)
         await test_power_activate_per_power_price(db, buy)
         await test_refund_on_ack_failure(db, buy)
+        await test_army_create_server_gates(db, buy)
     finally:
         # Закрываем пул и удаляем temp-БД (реальную viewers.db НЕ трогаем).
         try:

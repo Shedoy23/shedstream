@@ -102,6 +102,9 @@ namespace BannerlordLink.Behaviors
         private const float SKIRMISH_MAX_STANDOFF = 90f;
         private const float RAID_ORBIT_RADIUS = 20f;
         private const float RAID_ORBIT_STEP_RAD = 0.4f;
+        // #walls: свой боец «выше нас» на столько метров = стоит на забрале, а не на нашем
+        // уровне → его позиция и есть боевая точка на стене, куда вести героя.
+        private const float WALL_MIN_ELEVATION = 2.5f;
 
         // Sprint 5.32 (LOG-2) — periodic stats snapshot (отличить "никто не
         // запросил" от "behavior сломан").
@@ -311,7 +314,14 @@ namespace BannerlordLink.Behaviors
                 BannerlordLinkModule.Log($"[DET] WALLS agent={agent.Index} REFUSE: не siege");
                 return false;
             }
-            var wp = FindNearestSiegeTarget(agent, gateOnly: false);
+            // 2026-07-19 (#walls) — целимся в боевую позицию на забрале: позицию ближайшего
+            // СВОЕГО бойца, стоящего ВЫШЕ нас (движок расставил защитников по стене; их точки
+            // навмеш-валидны и достижимы по внутренним лестницам). Раньше целились в тело
+            // стены/лестницы → герой утыкался в основание. Фолбэк на старую логику, если
+            // своих на стене нет (атакующий / стена пуста).
+            var wp = FindWallFiringPosition(agent);
+            if (!wp.IsValid)
+                wp = FindNearestSiegeTarget(agent, gateOnly: false);
             if (!wp.IsValid)
             {
                 BannerlordLinkModule.Log($"[DET] WALLS agent={agent.Index} REFUSE: target не найден");
@@ -656,6 +666,40 @@ namespace BannerlordLink.Behaviors
             }
             catch { }
             return false;
+        }
+
+        /// <summary>Боевая позиция на забрале для команды «на стену»: позиция ближайшего
+        /// СВОЕГО активного бойца, стоящего ВЫШЕ нас (движок сам расставил защитников по
+        /// стене — их точки навмеш-валидны и достижимы по внутренним лестницам, в отличие от
+        /// тела стены/лестницы). Лучников слегка приоритезируем (они на стрелковых позициях).
+        /// Invalid, если своих на забрале нет (атакующий / стена пуста) → caller делает
+        /// фолбэк на FindNearestSiegeTarget.</summary>
+        private WorldPosition FindWallFiringPosition(Agent agent)
+        {
+            try
+            {
+                if (Mission.Current == null) return WorldPosition.Invalid;
+                Vec3 me = agent.Position;
+                Team team = agent.Team;
+                Agent best = null;
+                float bestScore = float.MaxValue;
+                foreach (var a in Mission.Current.Agents)
+                {
+                    if (a == null || a == agent || !a.IsActive()) continue;
+                    if (a.Team != team) continue;                       // только свои
+                    if (a.Position.z <= me.z + WALL_MIN_ELEVATION) continue;   // выше нас = на забрале
+                    float score = (a.Position - me).LengthSquared;
+                    try { if (a.IsRangedCached) score *= 0.5f; } catch { }   // лёгкий приоритет стрелков
+                    if (score < bestScore) { bestScore = score; best = a; }
+                }
+                if (best == null) return WorldPosition.Invalid;
+                return ProjectToNavMesh(Mission.Current.Scene, best.Position);
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[DET] FindWallFiringPosition warn: {ex.Message}");
+                return WorldPosition.Invalid;
+            }
         }
 
         /// <summary>Find nearest siege navigation target (gate or wall/ladder)

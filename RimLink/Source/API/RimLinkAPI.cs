@@ -16,6 +16,20 @@ namespace RimLink.API
     {
         private string _serverUrl;
         private readonly RimLinkMod _mod;
+        // 2026-07-19: heartbeat-ошибки логируем на СМЕНЕ состояния (не спамим
+        // каждые 30с, но и не молчим как раньше — молчание скрыло мёртвый URL).
+        private volatile bool _heartbeatFailing;
+
+        static RimLinkAPI()
+        {
+            // 2026-07-19: форс TLS 1.2 — бэкенд теперь на https (shedoy23.ru),
+            // а Unity/Mono WebClient без этого может резать handshake.
+            try
+            {
+                ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
+            }
+            catch { /* старый рантайм без Tls12 — оставляем как есть */ }
+        }
 
         // WebClient не поддерживает Timeout напрямую — наследуем и переопределяем GetWebRequest
         private class TimedWebClient : WebClient
@@ -82,20 +96,27 @@ namespace RimLink.API
         /// <summary>Отправляет heartbeat (пинг) каждые 30 секунд, пока игра запущена.</summary>
         public void Heartbeat()
         {
-            try 
-            { 
+            try
+            {
                 Post("/api/rimworld/heartbeat", "{}");
+                if (_heartbeatFailing)
+                {
+                    _heartbeatFailing = false;
+                    Log.Message("[RimLink] Heartbeat restored — сервер снова доступен");
+                }
                 #if DEBUG
                 Log.Message("[RimLink] Heartbeat sent");
                 #endif
             }
-            catch (Exception e) 
-            { 
-                // Не логируем в релизе, чтобы не засорять логи
-                _ = e;
-                #if DEBUG
-                Log.Warning($"[RimLink] Heartbeat failed: {e.Message}");
-                #endif
+            catch (Exception e)
+            {
+                // Логируем ПЕРВУЮ ошибку серии (не спамим каждые 30с). Раньше
+                // Release молчал совсем — мёртвый URL месяц не было видно в логах.
+                if (!_heartbeatFailing)
+                {
+                    _heartbeatFailing = true;
+                    Log.Warning($"[RimLink] Heartbeat failed (дальше молчу до восстановления): {e.Message}");
+                }
             }
         }
 

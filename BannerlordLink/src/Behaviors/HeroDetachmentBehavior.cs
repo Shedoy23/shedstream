@@ -77,6 +77,7 @@ namespace BannerlordLink.Behaviors
             public WorldPosition NavTarget;      // Walls/Gate target
             public bool NavValid;                // NavTarget set?
             public float NextReissueAt;
+            public bool SkirmishHolding;         // Skirmish: запинен на standoff (зона покоя) → не re-issue'им
         }
 
         private readonly ConcurrentDictionary<int, DetachmentState> _states =
@@ -92,6 +93,11 @@ namespace BannerlordLink.Behaviors
         //   RAID_ORBIT_STEP_RAD — насколько проворачиваем точку-цель вокруг врага за
         //     один re-issue (0.5с) → конный кружит CCW вокруг ближайшего врага.
         private const float SKIRMISH_STANDOFF = 22f;
+        // Мёртвая зона против джиттера (принцип BehaviorSkirmish: держать в полосе, а не
+        // дёргаться каждый тик). Пока ближайший враг ДАЛЬШЕ триггера — стоим и стреляем;
+        // как только поджал ближе — отходим на SKIRMISH_STANDOFF. Отход восстанавливает
+        // 22м (>> триггера) → «стою/отхожу» не мигает (гистерезис). Репорт #32.
+        private const float SKIRMISH_KITE_TRIGGER = 14f;   // ~0.64 × standoff
         private const float RAID_ORBIT_RADIUS = 20f;
         private const float RAID_ORBIT_STEP_RAD = 0.4f;
 
@@ -266,6 +272,7 @@ namespace BannerlordLink.Behaviors
             if (!EnsureDetached(agent, out var st)) return false;
             st.Order = DetachOrder.Skirmish;
             st.NextReissueAt = 0f;
+            st.SkirmishHolding = false;   // новый приказ → перепин hold-позиции с нуля
             ApplySkirmish(st);
             BannerlordLinkModule.Log($"[DET] SKIRMISH agent={agent.Index}");
             return true;
@@ -393,36 +400,56 @@ namespace BannerlordLink.Behaviors
             }
         }
 
-        // 2026-06-17 — Skirmish: «бой-на-расстоянии». Standoff к ближайшему врагу
-        // (по BehaviorSkirmish: target = enemy + dirToMe*standoff) → ближе standoff'а
-        // герой отступает, дальше — поджимает; + авто-таргет (стрельба/харас). Re-issue
-        // 0.5с ведёт за движущимся врагом. Отличие от Charge — больший standoff (22 vs
-        // 18) и НЕ только для ranged: сам ордер = держать дистанцию.
+        // 2026-06-17 / 2026-07-19 (#32) — Skirmish: «встал на дистанции и стреляет».
+        // Дэд-зона против джиттера (принцип движкового BehaviorSkirmish: держать позицию
+        // в полосе, не пересчитывать цель каждый тик). Пока ближайший враг ДАЛЬШЕ
+        // SKIRMISH_KITE_TRIGGER — пиним позицию ОДИН раз и стоим (авто-таргет стреляет);
+        // как только враг поджал ближе триггера — отходим на SKIRMISH_STANDOFF. Раньше
+        // точка-цель пересчитывалась от движущегося ближайшего врага каждые 0.5с → герой
+        // бесконечно бегал за прыгающей точкой (репорт #32 «бегает туда-сюда в поиске места»).
         private void ApplySkirmish(DetachmentState st)
         {
             try
             {
                 var agent = st.Agent;
                 var enemy = FindNearestEnemyAgent(agent);
-                if (enemy != null)
-                {
-                    var pos = enemy.GetWorldPosition();
-                    Vec2 ec = pos.AsVec2;
-                    Vec2 dir = agent.Position.AsVec2 - ec;   // enemy → agent
-                    float dist = dir.Length;
-                    if (dist > 0.01f)
-                    {
-                        dir = dir * (1f / dist);
-                        try { pos.SetVec2(ec + dir * SKIRMISH_STANDOFF); } catch { }
-                    }
-                    agent.SetScriptedPosition(ref pos, false,
-                        Agent.AIScriptedFrameFlags.NeverSlowDown);
-                    try { agent.SetAutomaticTargetSelection(true); } catch { }
-                }
-                else
+                if (enemy == null)
                 {
                     try { agent.DisableScriptedMovement(); } catch { }
+                    st.SkirmishHolding = false;
+                    return;
                 }
+                try { agent.SetAutomaticTargetSelection(true); } catch { }
+
+                var epos = enemy.GetWorldPosition();
+                Vec2 ec = epos.AsVec2;
+                Vec2 away = agent.Position.AsVec2 - ec;   // enemy → agent
+                float dist = away.Length;
+
+                if (dist < SKIRMISH_KITE_TRIGGER)
+                {
+                    // Враг поджал ближе триггера → отходим на standoff по линии от врага
+                    // (быстро). Пока ближе — восстанавливаем дистанцию, потом встанем.
+                    if (dist > 0.01f)
+                    {
+                        away = away * (SKIRMISH_STANDOFF / dist);
+                        try { epos.SetVec2(ec + away); } catch { }
+                    }
+                    agent.SetScriptedPosition(ref epos, false,
+                        Agent.AIScriptedFrameFlags.NeverSlowDown);
+                    st.SkirmishHolding = false;
+                }
+                else if (!st.SkirmishHolding)
+                {
+                    // Комфортная дистанция, ещё не «встали» → пиним ТЕКУЩУЮ позицию ОДИН
+                    // раз и переходим в hold. Дальше не трогаем → стоит и стреляет,
+                    // не бегает за прыгающей точкой.
+                    var here = agent.GetWorldPosition();
+                    agent.SetScriptedPosition(ref here, false,
+                        Agent.AIScriptedFrameFlags.NeverSlowDown);
+                    st.SkirmishHolding = true;
+                }
+                // else: держим позицию (не re-issue'им) — стоит на месте, авто-таргет стреляет.
             }
             catch (Exception ex)
             {

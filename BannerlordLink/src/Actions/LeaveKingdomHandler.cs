@@ -57,21 +57,31 @@ namespace BannerlordLink.Actions
                     return;
                 }
                 string oldKingdomName = kingdom.Name?.ToString() ?? "?";
+                // 2026-07-19 — если клан САМ правитель этого королевства, «выйти» через
+                // ApplyByLeaveKingdom НЕЛЬЗЯ: ваниль (ChangeKingdomAction, деталь LeaveKingdom)
+                // лишь ставит clan.Kingdom=null, но королевство НЕ распускает → оно висит
+                // сиротой в мире, а клан потом вступает в другое = «клан в двух королевствах»
+                // (репорт: kuro создал королевство → сразу вышел королём → сирота). Правитель
+                // выходит = королевство распускается штатным DestroyKingdomAction.
+                bool isRuler = kingdom.RulingClan == hero.Clan;
 
                 try
                 {
-                    ChangeKingdomAction.ApplyByLeaveKingdom(hero.Clan, true);
+                    if (isRuler)
+                        DestroyKingdomAction.Apply(kingdom);
+                    else
+                        ChangeKingdomAction.ApplyByLeaveKingdom(hero.Clan, true);
                 }
                 catch (Exception ex)
                 {
                     BannerlordLinkModule.Log(
-                        $"[leave_kingdom] @{username}: ApplyByLeaveKingdom failed: {ex.Message}");
+                        $"[leave_kingdom] @{username}: leave/destroy failed: {ex.Message}");
                     return;
                 }
 
                 BannerlordLinkModule.Log(
-                    $"[leave_kingdom] @{username}: left '{oldKingdomName}', " +
-                    $"clan '{hero.Clan.Name}' независим");
+                    $"[leave_kingdom] @{username}: {(isRuler ? "РАСПУЩЕНО королевство (был правитель)" : "left")} " +
+                    $"'{oldKingdomName}', clan '{hero.Clan.Name}' независим");
 
                 string evtData = JsonConvert.SerializeObject(new
                 {

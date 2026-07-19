@@ -92,12 +92,14 @@ namespace BannerlordLink.Behaviors
         //   RAID_ORBIT_RADIUS — радиус орбиты, по BehaviorMountedSkirmish (база 20м).
         //   RAID_ORBIT_STEP_RAD — насколько проворачиваем точку-цель вокруг врага за
         //     один re-issue (0.5с) → конный кружит CCW вокруг ближайшего врага.
-        private const float SKIRMISH_STANDOFF = 22f;
-        // Мёртвая зона против джиттера (принцип BehaviorSkirmish: держать в полосе, а не
-        // дёргаться каждый тик). Пока ближайший враг ДАЛЬШЕ триггера — стоим и стреляем;
-        // как только поджал ближе — отходим на SKIRMISH_STANDOFF. Отход восстанавливает
-        // 22м (>> триггера) → «стою/отхожу» не мигает (гистерезис). Репорт #32.
-        private const float SKIRMISH_KITE_TRIGGER = 14f;   // ~0.64 × standoff
+        private const float SKIRMISH_STANDOFF = 22f;   // фолбэк, если дальность оружия недоступна
+        // Дистанция «встал и стреляет» = SKIRMISH_RANGE_FRACTION × реальной макс. дальности
+        // выстрела оружия героя (движковый Agent.MaximumMissileRange — считает сам движок по
+        // оружию в руках). ±band вокруг неё = мёртвая зона против джиттера (принцип
+        // BehaviorSkirmish: держать в полосе, двигаться только вне её). Репорт #32.
+        private const float SKIRMISH_RANGE_FRACTION = 0.8f;
+        private const float SKIRMISH_MIN_STANDOFF = 18f;
+        private const float SKIRMISH_MAX_STANDOFF = 90f;
         private const float RAID_ORBIT_RADIUS = 20f;
         private const float RAID_ORBIT_STEP_RAD = 0.4f;
 
@@ -274,7 +276,8 @@ namespace BannerlordLink.Behaviors
             st.NextReissueAt = 0f;
             st.SkirmishHolding = false;   // новый приказ → перепин hold-позиции с нуля
             ApplySkirmish(st);
-            BannerlordLinkModule.Log($"[DET] SKIRMISH agent={agent.Index}");
+            BannerlordLinkModule.Log(
+                $"[DET] SKIRMISH agent={agent.Index} standoff={SkirmishStandoff(agent):F0}m");
             return true;
         }
 
@@ -401,12 +404,13 @@ namespace BannerlordLink.Behaviors
         }
 
         // 2026-06-17 / 2026-07-19 (#32) — Skirmish: «встал на дистанции и стреляет».
-        // Дэд-зона против джиттера (принцип движкового BehaviorSkirmish: держать позицию
-        // в полосе, не пересчитывать цель каждый тик). Пока ближайший враг ДАЛЬШЕ
-        // SKIRMISH_KITE_TRIGGER — пиним позицию ОДИН раз и стоим (авто-таргет стреляет);
-        // как только враг поджал ближе триггера — отходим на SKIRMISH_STANDOFF. Раньше
-        // точка-цель пересчитывалась от движущегося ближайшего врага каждые 0.5с → герой
-        // бесконечно бегал за прыгающей точкой (репорт #32 «бегает туда-сюда в поиске места»).
+        // Дистанция = 0.8 × реальной дальности оружия (движковый Agent.MaximumMissileRange),
+        // мёртвая зона ±band против джиттера (принцип BehaviorSkirmish: держать позицию в
+        // полосе, а не пересчитывать цель каждый тик). Вне полосы (враг слишком близко ИЛИ
+        // слишком далеко) — выходим на standoff; в полосе — пиним позицию ОДИН раз и стоим
+        // (авто-таргет стреляет). Раньше точка-цель пересчитывалась от движущегося ближайшего
+        // врага каждые 0.5с → герой бесконечно бегал за прыгающей точкой («бегает туда-сюда
+        // в поиске места»).
         private void ApplySkirmish(DetachmentState st)
         {
             try
@@ -421,18 +425,22 @@ namespace BannerlordLink.Behaviors
                 }
                 try { agent.SetAutomaticTargetSelection(true); } catch { }
 
+                float standoff = SkirmishStandoff(agent);   // 0.8 × дальности оружия
+                float band = standoff * 0.18f;              // полуширина зоны покоя
+                if (band < 6f) band = 6f;
+
                 var epos = enemy.GetWorldPosition();
                 Vec2 ec = epos.AsVec2;
                 Vec2 away = agent.Position.AsVec2 - ec;   // enemy → agent
                 float dist = away.Length;
 
-                if (dist < SKIRMISH_KITE_TRIGGER)
+                if (dist < standoff - band || dist > standoff + band)
                 {
-                    // Враг поджал ближе триггера → отходим на standoff по линии от врага
-                    // (быстро). Пока ближе — восстанавливаем дистанцию, потом встанем.
+                    // Вне полосы (враг слишком близко ИЛИ слишком далеко для 0.8-дистанции)
+                    // → выходим на standoff по линии от врага. В полосе окажемся — встанем.
                     if (dist > 0.01f)
                     {
-                        away = away * (SKIRMISH_STANDOFF / dist);
+                        away = away * (standoff / dist);
                         try { epos.SetVec2(ec + away); } catch { }
                     }
                     agent.SetScriptedPosition(ref epos, false,
@@ -441,9 +449,8 @@ namespace BannerlordLink.Behaviors
                 }
                 else if (!st.SkirmishHolding)
                 {
-                    // Комфортная дистанция, ещё не «встали» → пиним ТЕКУЩУЮ позицию ОДИН
-                    // раз и переходим в hold. Дальше не трогаем → стоит и стреляет,
-                    // не бегает за прыгающей точкой.
+                    // В полосе, ещё не «встали» → пиним ТЕКУЩУЮ позицию один раз и держим.
+                    // Дальше не трогаем → стоит и стреляет, не бегает за прыгающей точкой.
                     var here = agent.GetWorldPosition();
                     agent.SetScriptedPosition(ref here, false,
                         Agent.AIScriptedFrameFlags.NeverSlowDown);
@@ -455,6 +462,21 @@ namespace BannerlordLink.Behaviors
             {
                 BannerlordLinkModule.Log($"[DET] ApplySkirmish warn: {ex.Message}");
             }
+        }
+
+        // Standoff = SKIRMISH_RANGE_FRACTION × реальной макс. дальности выстрела оружия героя.
+        // Agent.MaximumMissileRange = GetMissileRange() — нативный расчёт движка по оружию в
+        // руках (тот же источник, что у FormationQuerySystem.MaximumMissileRange), без завязки
+        // на формацию (в отличие от MissileRangeAdjusted, которая лезет в Formation и упала бы
+        // у detached-агента). Фолбэк 22м если дальность недоступна (сменил на мили / нет данных).
+        private static float SkirmishStandoff(Agent agent)
+        {
+            float range = 0f;
+            try { range = agent.MaximumMissileRange; } catch { }
+            float s = range > 1f ? range * SKIRMISH_RANGE_FRACTION : SKIRMISH_STANDOFF;
+            if (s < SKIRMISH_MIN_STANDOFF) s = SKIRMISH_MIN_STANDOFF;
+            if (s > SKIRMISH_MAX_STANDOFF) s = SKIRMISH_MAX_STANDOFF;
+            return s;
         }
 
         // 2026-06-17 — Raid: «набег» для конных. Эллиптическая орбита по

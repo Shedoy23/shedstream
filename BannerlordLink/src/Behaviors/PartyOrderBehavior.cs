@@ -431,12 +431,32 @@ namespace BannerlordLink.Behaviors
                 {
                     if (!_orders.TryGetValue(k, out var o)) continue;
                     if (o.TargetSettlementId != s.StringId) continue;
-                    if (o.OrderType == "raid" || o.OrderType == "siege")
+                    if (o.OrderType == "raid")
                     {
                         _orders.Remove(k);
                         BannerlordLinkModule.Log(
-                            $"[party_order] @{k} auto-release — MapEvent ended at {s.Name}");
+                            $"[party_order] @{k} auto-release — raid MapEvent ended at {s.Name}");
                         PushStatusEvent(k, null, null, 0);
+                    }
+                    else if (o.OrderType == "siege")
+                    {
+                        // Осада в движке — долгоживущий SiegeEvent, внутри которого идут
+                        // отдельные MapEvent'ы: штурмы (IsSiegeAssault), вылазки гарнизона
+                        // (IsSallyOut), SiegeOutside/Blockade — у ВСЕХ MapEventSettlement ==
+                        // осаждаемое поселение. Раньше приказ снимался на завершении ЛЮБОГО из
+                        // них → «осада сбрасывается» прямо во время осады (репорт #35; декомпайл
+                        // MapEvent + Settlement подтвердил, движок держит SiegeEvent через
+                        // суб-бои полем _keepSiegeEvent). Снимаем ТОЛЬКО когда осада реально
+                        // кончилась: Settlement.IsUnderSiege==false (SiegeEvent обнулён = осада
+                        // снята). Взятие поселения покрыто отдельно OnSettlementOwnerChanged.
+                        if (!s.IsUnderSiege)
+                        {
+                            _orders.Remove(k);
+                            BannerlordLinkModule.Log(
+                                $"[party_order] @{k} auto-release — siege lifted at {s.Name}");
+                            PushStatusEvent(k, null, null, 0);
+                        }
+                        // иначе осада продолжается → sticky-приказ держим (ничего не делаем)
                     }
                 }
             }

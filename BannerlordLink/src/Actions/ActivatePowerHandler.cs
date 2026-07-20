@@ -216,16 +216,17 @@ namespace BannerlordLink.Actions
                     }
                     if (!isShield) continue;
 
-                    // 2026-06-01 — ChangeWeaponHitPoints(0) ломает щит только ВО
-                    // ВРЕМЯ удара (BLT: collisionData.IsShieldBroken). Наш инстант-
-                    // AoE без удара → щит не пропадал = «не работает». Поэтому
-                    // ВЫБИВАЕМ щит из руки через DropItem — гарантированный видимый
-                    // эффект (тот же API, что у disarm_burst). HP=0 — как fallback.
+                    // 2026-07-20 (#post-стрим) — ChangeWeaponHitPoints(0) ломает щит во
+                    // ВРЕМЯ удара. В новом дизайне (shield_break = бафф, TryBreakShield
+                    // зовётся из DamageHookPatch НА КАЖДОМ мили-попадании) контекст удара
+                    // всегда есть → щит ломается штатно, DropItem не нужен.
+                    // УБРАН форсированный DropItem: он спамил движковый ассерт
+                    // "drop_item: weapon.is_valid_item()!" (12× за стрим) — выбить только
+                    // что обнулённый/невалидный щит нельзя, а guard `Item != null` слабее
+                    // нативного is_valid_item(). Обнуление HP безопасно и идемпотентно
+                    // (повторный удар по уже сломанному щиту — no-op, без ассерта).
                     agent.ChangeWeaponHitPoints(idx, 0);
                     TryTriggerShieldBreakFx(agent);
-                    // 2026-06-10 — guard: не зовём DropItem на невалидном предмете
-                    // (движок: "drop_item: weapon.is_valid_item()!").
-                    if (weapon.Item != null) agent.DropItem(idx);
                     return true;
                 }
             }

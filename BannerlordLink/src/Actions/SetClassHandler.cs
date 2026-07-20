@@ -241,7 +241,7 @@ namespace BannerlordLink.Actions
                             equipment[slot.idx] = EquipmentElement.Invalid;
                             continue;
                         }
-                        var item = ClassLoadout.FindTieredItem(slot.type, engineTier, rng, null, null, hero, null, cfg.Armor);
+                        var item = ClassLoadout.FindTieredItem(slot.type, engineTier, rng, null, null, hero, null, cfg.Armor, cfg.CultureId);
                         if (item != null)
                         {
                             equipment[slot.idx] = new EquipmentElement(item);

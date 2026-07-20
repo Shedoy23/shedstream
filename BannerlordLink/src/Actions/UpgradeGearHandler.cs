@@ -217,7 +217,7 @@ namespace BannerlordLink.Actions
                     catch { }
                     continue;
                 }
-                var item = ClassLoadout.FindTieredItem(type, engineTier, rng, null, null, hero, null, cfg.Armor);
+                var item = ClassLoadout.FindTieredItem(type, engineTier, rng, null, null, hero, null, cfg.Armor, cfg.CultureId);
                 if (item != null && ShouldReplaceSlot(equipment, idx, engineTier, stripArmorModifiers))
                 {
                     equipment[idx] = new EquipmentElement(item);

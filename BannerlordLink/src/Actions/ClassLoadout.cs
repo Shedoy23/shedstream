@@ -43,6 +43,11 @@ namespace BannerlordLink.Actions
             public bool UseCamel;
             public ArmorBand Armor = ArmorBand.Any;          // Any = current behavior
             public EquipmentIndex[] SkipArmorSlots = null;   // null/empty = fill all 5
+            // 2026-07-20 (classes v2) — культурный скин класса: вся броня одной культуры
+            // → узнаваемый силуэт/палитра с одного кадра стрима (Стургия=меха,
+            // Империя=ламелляр, Вландия=латы, Баттания=капюшоны, Асераи=пустыня,
+            // Кузаиты=степь). null = без ограничения. Оружие/кони культурой НЕ фильтруем.
+            public string CultureId = null;
         }
 
         // Alias чтобы класс-лоадауты читались.
@@ -78,13 +83,15 @@ namespace BannerlordLink.Actions
                                   new Slot(T.OneHandedWeapon, WeaponClass.Mace),
                                   new Slot(T.Shield, WeaponClass.LargeShield),
                                   T.Invalid, T.Invalid },
-                                  Armor = ArmorBand.Heavy },
-            ["berserk"]     = new Config { Slots = new Slot[] {       // barechested glass-cleaver
+                                  Armor = ArmorBand.Heavy, CultureId = "empire" },
+            // 2026-07-20 (v2) — броня теперь у ВСЕХ: SkipArmorSlots убран (был Head+Body).
+            // «Стеклянную пушку» держат ЧИСЛА (hp_mult/dmg_reduction/lifesteal), а не голый
+            // торс — иначе зритель платит за класс и умирает за 2 секунды.
+            ["berserk"]     = new Config { Slots = new Slot[] {       // northern two-axe cleaver
                                   new Slot(T.TwoHandedWeapon, WeaponClass.TwoHandedAxe),
                                   new Slot(T.TwoHandedWeapon, WeaponClass.TwoHandedAxe),
                                   T.Invalid, T.Invalid },
-                                  Armor = ArmorBand.Light,
-                                  SkipArmorSlots = new[] { EquipmentIndex.Head, EquipmentIndex.Body } },
+                                  Armor = ArmorBand.Light, CultureId = "sturgia" },
             ["legionnaire"] = new Config { Slots = new Slot[] {       // sword + shield + javelin
                                   new Slot(T.OneHandedWeapon, WeaponClass.OneHandedSword),
                                   T.Shield,
@@ -108,10 +115,10 @@ namespace BannerlordLink.Actions
             ["archer"]      = new Config { Slots = new Slot[] {       // bow + arrows + dagger
                                   T.Bow, T.Arrows, T.Arrows,
                                   new Slot(T.OneHandedWeapon, WeaponClass.Dagger) },
-                                  Armor = ArmorBand.Light },
+                                  Armor = ArmorBand.Light, CultureId = "battania" },
             ["crossbow"]    = new Config { Slots = new Slot[] {       // crossbow + bolts + 1H
                                   T.Crossbow, T.Bolts, T.Bolts, T.OneHandedWeapon },
-                                  Armor = ArmorBand.Medium },
+                                  Armor = ArmorBand.Medium, CultureId = "aserai" },
             ["skirmisher"]  = new Config { Slots = new Slot[] {       // 2× javelin + small shield + 1H
                                   new Slot(T.Thrown, WeaponClass.Javelin),
                                   new Slot(T.Thrown, WeaponClass.Javelin),
@@ -124,7 +131,7 @@ namespace BannerlordLink.Actions
                                   T.OneHandedWeapon,
                                   new Slot(T.Shield, WeaponClass.LargeShield),
                                   T.Invalid },
-                                  Armor = ArmorBand.Heavy, UseHorse = true },
+                                  Armor = ArmorBand.Heavy, UseHorse = true, CultureId = "vlandia" },
             ["lancer"]      = new Config { Slots = new Slot[] {       // light: lance + javelin + 1H
                                   new Slot(T.Polearm, WeaponClass.OneHandedPolearm),
                                   new Slot(T.Thrown, WeaponClass.Javelin),
@@ -132,7 +139,7 @@ namespace BannerlordLink.Actions
                                   Armor = ArmorBand.Medium, UseHorse = true },
             ["horse_archer"] = new Config { Slots = new Slot[] {      // mounted bow harasser
                                   T.Bow, T.Arrows, T.OneHandedWeapon, T.Arrows },
-                                  Armor = ArmorBand.Light, UseHorse = true },
+                                  Armor = ArmorBand.Light, UseHorse = true, CultureId = "khuzait" },
         };
 
         // Armor coverage order (BLT pattern). Head first so partial-armor classes
@@ -160,7 +167,8 @@ namespace BannerlordLink.Actions
             HashSet<string> excludeIds = null,
             Hero hero = null,
             WeaponClass? weaponClass = null,
-            ArmorBand armorBand = ArmorBand.Any)
+            ArmorBand armorBand = ArmorBand.Any,
+            string cultureId = null)
         {
             var pool = MBObjectManager.Instance
                 .GetObjectTypeList<ItemObject>()
@@ -226,12 +234,34 @@ namespace BannerlordLink.Actions
                 }
             }
 
+            // 2026-07-20 (v2) — культурный скин класса. Фильтр по культуре предмета, чтобы
+            // весь комплект читался одним стилем. Фолбэк: пусто → отпускаем культуру (тир и
+            // материал важнее «правильного» стиля; у тонких слотов вроде асерайских поножей
+            // предметов просто нет — см. SPEC_CLASSES_V2 §3.3).
+            if (!string.IsNullOrEmpty(cultureId))
+            {
+                var culPool = pool.Where(i =>
+                {
+                    try
+                    {
+                        return i.Culture != null
+                               && string.Equals(i.Culture.StringId, cultureId, StringComparison.OrdinalIgnoreCase);
+                    }
+                    catch { return false; }
+                }).ToList();
+                if (culPool.Count > 0) pool = culPool;
+            }
+
             // Gender-lock (BLT CanUseItem gender part). Fallback to full pool if empties.
             if (hero != null)
             {
                 var usable = pool.Where(i => GearGenderOk(i, hero)).ToList();
                 if (usable.Count > 0) pool = usable;
             }
+
+            // Броня — свои квантильные ступени вместо движкового тира (см. PickQuantileArmor).
+            // Оружие/кони остаются на движковых тирах: там прогрессия честная.
+            if (IsArmorType(type)) return PickQuantileArmor(pool, engineTier, rng);
 
             // Anti-duplicate first pass.
             if (excludeIds != null && excludeIds.Count > 0)
@@ -275,6 +305,67 @@ namespace BannerlordLink.Actions
                 default:
                     return null;
             }
+        }
+
+        private static bool IsArmorType(ItemObject.ItemTypeEnum t)
+        {
+            return t == ItemObject.ItemTypeEnum.HeadArmor
+                || t == ItemObject.ItemTypeEnum.BodyArmor
+                || t == ItemObject.ItemTypeEnum.LegArmor
+                || t == ItemObject.ItemTypeEnum.HandArmor
+                || t == ItemObject.ItemTypeEnum.Cape;
+        }
+
+        // Очки защиты предмета — тот же вес, что у движковой формулы
+        // (DefaultItemValueModel.CalculateArmorTier: 1.2×head + body + leg + arm).
+        // Слот-множитель и линейный сдвиг движка ПОРЯДОК не меняют → для ранжирования
+        // внутри одного слота достаточно суммы.
+        private static float ArmorScore(ItemObject item)
+        {
+            try
+            {
+                var a = item?.ArmorComponent;
+                if (a == null) return 0f;
+                return 1.2f * a.HeadArmor + a.BodyArmor + a.LegArmor + a.ArmArmor;
+            }
+            catch { return 0f; }
+        }
+
+        /// <summary>
+        /// 2026-07-20 (v2) — броня: 6 СВОИХ ступеней по очкам защиты внутри пула класса
+        /// (культура+материал), вместо движкового Tier.
+        ///
+        /// Зачем: движковый тир брони = сумма очков защиты, поэтому ЛЁГКАЯ броня физически
+        /// кэпится на T1–T3 — у берсерка/лучника «ближайший тир» к 5-6 упирался в ту же
+        /// кожанку, и зритель платил за upgrade_gear T4→T6, не видя разницы (латентный
+        /// платный no-op). Квантили дают каждому классу 6 РЕАЛЬНЫХ шагов «обноски → лучший
+        /// доспех своей культуры», и апгрейд всегда виден глазами.
+        ///
+        /// engineTier здесь 0..5 (вызывающие: gearTier 0..6 → engineTier = max(0, gearTier-1)).
+        /// </summary>
+        private static ItemObject PickQuantileArmor(List<ItemObject> pool, int engineTier, Random rng)
+        {
+            if (pool == null || pool.Count == 0) return null;
+            const int STEPS = 6;
+            int step = engineTier;
+            if (step < 0) step = 0;
+            if (step > STEPS - 1) step = STEPS - 1;
+
+            var ranked = pool.OrderBy(ArmorScore).ToList();
+            int lo = (int)((long)step * ranked.Count / STEPS);
+            int hi = (int)((long)(step + 1) * ranked.Count / STEPS);
+            if (lo >= ranked.Count) lo = ranked.Count - 1;
+            if (hi <= lo) hi = Math.Min(lo + 1, ranked.Count);
+
+            var bandItems = ranked.GetRange(lo, hi - lo);
+            // Внутри ступени отсекаем самые невзрачные (Appearance), но оставляем разброс —
+            // reequip_gear это платный re-roll, он должен давать разные вещи.
+            if (bandItems.Count >= 4)
+            {
+                var byLook = bandItems.OrderByDescending(i => { try { return i.Appearance; } catch { return 0f; } }).ToList();
+                bandItems = byLook.GetRange(0, Math.Max(2, byLook.Count / 2));
+            }
+            return bandItems[rng.Next(bandItems.Count)];
         }
 
         private static ItemObject PickNearestTier(List<ItemObject> pool, int engineTier, Random rng, ArmorBand band = ArmorBand.Any)

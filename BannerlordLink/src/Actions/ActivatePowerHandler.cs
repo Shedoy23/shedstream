@@ -412,11 +412,30 @@ namespace BannerlordLink.Actions
             if (agent == null || !agent.IsActive()) return;
             try
             {
+                // 1) Сброс к БАЗОВЫМ значениям модели. Обязателен: множитель применяем
+                //    поверх базы, иначе при переприменении каждый тик он бы копился
+                //    (×1.5 → ×2.25 → ×3.4…).
+                agent.UpdateAgentProperties();
                 var p = agent.AgentDrivenProperties;
                 if (p == null) return;
-                p.MaxSpeedMultiplier = mult;
-                p.CombatMaxSpeedMultiplier = mult;
-                agent.UpdateAgentProperties();
+
+                // 2) Множитель поверх базы.
+                //    ⚠ UpdateAgentProperties() после этого звать НЕЛЬЗЯ — она пересчитает
+                //    свойства из модели и ЗАТРЁТ правку. Именно это убивало прошлый фикс
+                //    (2026-07-20): значение ставилось и тут же стиралось.
+                if (agent.HasMount)
+                {
+                    // Конный: скорость определяет ЛОШАДЬ — MountSpeed (абсолютная величина).
+                    // MaxSpeedMultiplier всадника на бег коня не влияет вообще, поэтому
+                    // у кавалериста рывок не давал НИЧЕГО (репорт из боя).
+                    p.MountSpeed *= mult;
+                    p.MountDashAccelerationMultiplier *= mult;
+                }
+                else
+                {
+                    p.MaxSpeedMultiplier *= mult;
+                    p.CombatMaxSpeedMultiplier *= mult;
+                }
             }
             catch { }
         }

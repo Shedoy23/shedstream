@@ -65,7 +65,10 @@ namespace BannerlordLink.Behaviors
         public const float DEFAULT_DURATION_HOURS = 168f;   // 7 game-days
 
         // Re-issue throttle — повторять SetMove* не чаще раза в N hours.
-        private const float REISSUE_THROTTLE_HOURS = 4f;
+        // 2026-07-20 — было 4ч. Так как глушить AI нельзя (он же исполняет приказ, см.
+        // LockPartyAi), единственный способ удержать цель — исправлять дрейф БЫСТРО.
+        // 1ч = каждый часовой тик: движок успевает исполнять, но не успевает уехать.
+        private const float REISSUE_THROTTLE_HOURS = 1f;
 
         // Singleton access — handlers вызывают SetOrder/ReleaseOrder через it.
         public static PartyOrderBehavior Instance { get; private set; }
@@ -452,36 +455,52 @@ namespace BannerlordLink.Behaviors
             // 2026-06-10 FIX — держим AI замороженным на каждом reissue (флаг могут
             // сбросить движковые события: вступление в армию, бой, плен).
             LockPartyAi(mp);
+
+            // 2026-07-20 — синхронизируем цель АРМИИ. У армии свой AiBehaviorObject, и он
+            // жил своей жизнью: расширение показывало «осада → Замок Укба», а в игре армия
+            // писала «Цель — осада Кайяза» (скриншот владельца). Пока цели расходятся,
+            // армейская логика (Army.HourlyTick / MoveLeaderToGatheringLocationIfNeeded)
+            // тянет лидера к СВОЕЙ цели и наш приказ перебивается каждый час.
+            // Ставим только если наш герой — лидер армии (иначе не наше дело).
+            try
+            {
+                var army = mp.Army;
+                if (army != null && army.LeaderParty == mp && !ReferenceEquals(army.AiBehaviorObject, target))
+                {
+                    army.AiBehaviorObject = target;
+                    BannerlordLinkModule.Log(
+                        $"[party_order] цель армии синхронизирована → {target.Name}");
+                }
+            }
+            catch (Exception aEx)
+            {
+                BannerlordLinkModule.Log($"[party_order] army target sync warn: {aEx.Message}");
+            }
         }
 
-        // Срок сильного замка AI. Обновляется КАЖДЫЙ часовой тик, пока приказ жив, так
-        // что фактически бессрочен; 8ч — страховка самозаживления: если приказ/мод
-        // умер (краш, снос мода, сейв загружен без мода — _enableAgainAtHour пишется в
-        // сейв!), партия сама оживает максимум через 8 игровых часов, а не остаётся
-        // овощем навечно, как было бы с DisableAi()=Never.
-        private const int AI_LOCK_HOURS = 8;
-
-        /// <summary>2026-07-20 — СИЛЬНЫЙ замок AI партии.
+        /// <summary>Мягкий замок AI партии.
         ///
-        /// Раньше звали только SetDoNotMakeNewDecisions(true) — и осада всё равно
-        /// сбивалась приказами ИИ (репорт владельца). Декомпайл MobilePartyAi показал
-        /// почему: этот флаг проверяется РОВНО В ОДНОМ месте (GetBehaviors, «инициативные»
-        /// решения — погнаться/убежать от соседней партии) и НЕ мешает движку менять
-        /// DefaultBehavior партии. То есть замок был декоративный.
+        /// ⚠️ ИСТОРИЯ ГРАБЕЛЬ (2026-07-20, два круга):
+        /// 1) Сначала тут был только SetDoNotMakeNewDecisions(true). Декомпайл показал,
+        ///    что флаг читается РОВНО в одном месте (GetBehaviors — «инициативные» решения
+        ///    погнаться/сбежать) и не мешает движку пересчитывать DefaultBehavior → осада
+        ///    сбивалась.
+        /// 2) Тогда включили жёсткий DisableForHours() — ветку IsDisabled в TickInternal,
+        ///    которая пропускает расчёт поведения ЦЕЛИКОМ. Приказ перестали сбивать...
+        ///    и перестали ИСПОЛНЯТЬ: партия доезжала до замка и вставала. Причина —
+        ///    MobilePartyAi.GetBesiegeBehavior (переход «доехал → сажусь в осаду») живёт
+        ///    В ЭТОМ ЖЕ тике. AI партии одновременно и ломает наш приказ, и выполняет его.
         ///
-        /// Настоящий рычаг — ветка IsDisabled в MobilePartyAi.TickInternal: она пропускает
-        /// расчёт поведения ЦЕЛИКОМ, и наш SetMoveBesiegeSettlement никто не перебивает.
-        /// Ставим её через DisableForHours(8), НЕ через DisableAi() (=Never, навечно и в
-        /// сейв) — см. AI_LOCK_HOURS. Снимается EnableAi() при отпускании приказа
-        /// (UnlockPartyAi); движок и сам снимет по таймеру, если нас не стало.
-        ///
-        /// DoNotMakeNewDecisions оставляем вторым слоем: гасит инициативу, если движок
-        /// когда-нибудь включит AI сам.</summary>
+        /// Вывод: глушить AI НЕЛЬЗЯ. Держим приказ иначе — частой переотдачей
+        /// (REISSUE_THROTTLE_HOURS=1, см. OnHourlyTick): дрейф исправляется за игровой час,
+        /// а исполнение приказа остаётся за движком.</summary>
         internal static void LockPartyAi(MobileParty mp)
         {
             if (mp == null) return;
+            // Мягкий гейт: гасит «инициативу» (погоня/бегство за соседями), исполнение не трогает.
             try { mp.Ai.SetDoNotMakeNewDecisions(true); } catch { }
-            try { mp.Ai.DisableForHours(AI_LOCK_HOURS); } catch { }
+            // AI НЕ отключаем (DisableAi/DisableForHours) — он исполняет осаду. См. историю выше.
+            try { mp.Ai.EnableAi(); } catch { }   // снять возможный замок от прошлой версии мода
         }
 
         /// <summary>Снять замок — партия возвращается к автономному AI.</summary>

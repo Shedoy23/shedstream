@@ -200,11 +200,9 @@ namespace BannerlordLink.Actions
                 // 2026-06-10 FIX — заморозить автономный AI отряда СРАЗУ после
                 // SetMove*, иначе движок на следующем тике принимает своё решение
                 // и перебивает приказ (зритель видел «приказы игнорируются»).
-                // 2026-07-20 — СИЛЬНЫЙ замок: одного SetDoNotMakeNewDecisions мало (он
-                // гейтит только «инициативные» решения, DefaultBehavior движок всё равно
-                // менял → осада сбивалась). LockPartyAi = DisableForHours(8) с ежечасным
-                // обновлением в PartyOrderBehavior — расчёт поведения пропускается целиком,
-                // а если мод/приказ умрёт, партия сама оживёт (не Never).
+                // 2026-07-20 — МЯГКИЙ замок (глушить AI нельзя: он же исполняет осаду —
+                // см. PartyOrderBehavior.LockPartyAi, там вся история грабель). Приказ
+                // держится частой переотдачей раз в игровой час.
                 BannerlordLink.Behaviors.PartyOrderBehavior.LockPartyAi(mp);
                 try { mp.Ai.SetDoNotMakeNewDecisions(true); }
                 catch (Exception aiEx)

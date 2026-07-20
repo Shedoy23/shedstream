@@ -611,13 +611,13 @@ namespace BannerlordLink.Actions
                                     new PartyAgentOrigin(originParty, troop),
                                     isPlayerSide:        isPlayerSide,
                                     hasFormation:        true,
-                                    spawnWithHorse:      troop.Equipment != null && troop.HasMount(),
+                                    spawnWithHorse:      !SiegeForcesDismount() && troop.Equipment != null && troop.HasMount(),
                                     isReinforcement:     !spawnPos.HasValue,
                                     formationTroopCount: 1,
                                     formationTroopIndex: 0,
                                     isAlarmed:           true,
                                     wieldInitialWeapons: true,
-                                    forceDismounted:     false,
+                                    forceDismounted:     SiegeForcesDismount(),
                                     initialPosition:     spawnPos,
                                     initialDirection:    anchorDir);
                             }
@@ -969,6 +969,20 @@ namespace BannerlordLink.Actions
         ///
         /// Naval check (IsNavalBattle) — для War Sails compat. В Bannerlord
         /// 1.3.15 без War Sails DLC всегда false.</summary>
+        /// <summary>2026-07-20 (#37) — в осаде/на стенах верхом никто не сражается: на
+        /// стены/лестницы на коне не залезть. У ГЕРОЯ это уже гейтил ShouldUseMount, а
+        /// СВИТА спавнилась по troop.HasMount() без проверки → всадники на осаде (репорт).
+        /// Общий гейт для retinue-спавна.</summary>
+        private static bool SiegeForcesDismount()
+        {
+            try
+            {
+                var m = Mission.Current;
+                return m != null && (m.IsSiegeBattle || m.Mode == MissionMode.Stealth);
+            }
+            catch { return false; }
+        }
+
         private static bool ShouldUseMount(string username)
         {
             // Base: check class compatibility (existing logic).

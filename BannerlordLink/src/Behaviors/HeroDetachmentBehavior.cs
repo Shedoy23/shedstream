@@ -444,7 +444,10 @@ namespace BannerlordLink.Behaviors
                 Vec2 away = agent.Position.AsVec2 - ec;   // enemy → agent
                 float dist = away.Length;
 
-                if (dist < standoff - band || dist > standoff + band)
+                bool outOfBand = dist < standoff - band || dist > standoff + band;
+                bool hasLos = HasLineOfSight(agent, enemy);
+
+                if (outOfBand)
                 {
                     // Вне полосы (враг слишком близко ИЛИ слишком далеко для 0.8-дистанции)
                     // → выходим на standoff по линии от врага. В полосе окажемся — встанем.
@@ -457,9 +460,24 @@ namespace BannerlordLink.Behaviors
                         Agent.AIScriptedFrameFlags.NeverSlowDown);
                     st.SkirmishHolding = false;
                 }
+                else if (!hasLos)
+                {
+                    // 2026-07-20 (#36) — в полосе, но цель НЕ видно (укрытие/стена между
+                    // нами). Раньше герой пинил позицию и мёрз, не стреляя. Теперь
+                    // поджимаемся к врагу (до 0.5×standoff) искать линию огня, а не стоим
+                    // столбом. Увидим цель — на след. тике вернёмся в hold.
+                    if (dist > 0.01f)
+                    {
+                        away = away * (standoff * 0.5f / dist);
+                        try { epos.SetVec2(ec + away); } catch { }
+                    }
+                    agent.SetScriptedPosition(ref epos, false,
+                        Agent.AIScriptedFrameFlags.NeverSlowDown);
+                    st.SkirmishHolding = false;
+                }
                 else if (!st.SkirmishHolding)
                 {
-                    // В полосе, ещё не «встали» → пиним ТЕКУЩУЮ позицию один раз и держим.
+                    // В полосе И есть линия огня → пиним ТЕКУЩУЮ позицию один раз и держим.
                     // Дальше не трогаем → стоит и стреляет, не бегает за прыгающей точкой.
                     var here = agent.GetWorldPosition();
                     agent.SetScriptedPosition(ref here, false,
@@ -571,6 +589,29 @@ namespace BannerlordLink.Behaviors
                 if (!_states.TryGetValue(agent.Index, out st)) return false;
             }
             return true;
+        }
+
+        /// <summary>2026-07-20 (#36) — есть ли у стрелка чистая линия огня до цели.
+        /// Луч от «глаз» героя к телу врага через Scene: если упёрся в террейн/статичный
+        /// объект (стена, камень, осадная конструкция) РАНЬШЕ цели — выстрел перекрыт.
+        /// Агенты рейкастом не ловятся (свои/чужие тела луч не блокируют), так что
+        /// проходящий мимо боец ложного «нет ЛОС» не даёт. При любой ошибке → true
+        /// (лучше стрелять, чем мёрзнуть).</summary>
+        private static bool HasLineOfSight(Agent from, Agent to)
+        {
+            try
+            {
+                var scene = Mission.Current?.Scene;
+                if (scene == null || from == null || to == null) return true;
+                Vec3 src = from.Position; src.z += 1.5f;   // ~уровень глаз
+                Vec3 tgt = to.Position;   tgt.z += 1.0f;   // ~корпус цели
+                float hitDist;
+                bool hit = scene.RayCastForClosestEntityOrTerrain(src, tgt, out hitDist);
+                if (!hit) return true;                     // ничего между нами
+                float full = (tgt - src).Length;
+                return hitDist >= full - 1.0f;             // препятствие на цели/за ней = видим
+            }
+            catch { return true; }
         }
 
         /// <summary>Nearest active enemy agent — цель scripted-позиции для Charge.</summary>

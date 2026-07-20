@@ -260,6 +260,30 @@ namespace BannerlordLink.Actions
             catch { }
             return null;
         }
+
+        // 2026-07-20 (#38) — предложение войны/мира «сразу становится неактуальным».
+        // Декомпайл KingdomDecision.ShouldBeCancelled: решение от НЕ-игрока движок
+        // отменяет тем же тиком, если у клана-предлагающего не хватает ВЛИЯНИЯ
+        // спонсировать своё предложение (Influence < 1.5×стоимости → flag=true).
+        // А vanilla AddDecision ещё и СПИСЫВАЕТ влияние (GetInfluenceCost) → у мелкого
+        // viewer-клана оно уходит в минус → мгновенная отмена. Зритель платит крустиками,
+        // влиянием платить не должен.
+        // Фикс: (1) AddDecision(ignoreInfluenceCost:true) — не списываем; (2) даём клану
+        // влияние-буфер, чтобы flag=false и решение дошло до реального голосования (а не
+        // выкидывалось до него). Дальше исход честно решают кланы/король.
+        public static void SubmitDecisionToVote(Kingdom kingdom, Clan proposerClan,
+            TaleWorlds.CampaignSystem.Election.KingdomDecision decision)
+        {
+            try
+            {
+                if (proposerClan != null && proposerClan.Influence < 300f)
+                {
+                    try { proposerClan.Influence = 300f; } catch { }
+                }
+            }
+            catch { }
+            kingdom.AddDecision(decision, ignoreInfluenceCost: true);
+        }
     }
 
     // ── ProposeWarHandler — предложить войну ЧЕРЕЗ ГОЛОСОВАНИЕ кланов ──────────
@@ -315,7 +339,7 @@ namespace BannerlordLink.Actions
                 catch { }
 
                 var decision = new DeclareWarDecision(hero.Clan, target);
-                myKingdom.AddDecision(decision);
+                DiploUtil.SubmitDecisionToVote(myKingdom, hero.Clan, decision);
                 BannerlordLinkModule.Log($"[diplo-war OK] @{username} предложил войну: {myKingdom.Name} → {target.Name} (на голосование кланов)");
             }
             catch (Exception ex)
@@ -374,7 +398,7 @@ namespace BannerlordLink.Actions
 
                 // 0 tribute — движок + голосование решают остальное.
                 var decision = new MakePeaceKingdomDecision(hero.Clan, target, 0, 0);
-                myKingdom.AddDecision(decision);
+                DiploUtil.SubmitDecisionToVote(myKingdom, hero.Clan, decision);
                 BannerlordLinkModule.Log($"[diplo-ppeace OK] @{username} предложил мир: {myKingdom.Name} ↔ {target.Name} (на голосование кланов)");
             }
             catch (Exception ex)

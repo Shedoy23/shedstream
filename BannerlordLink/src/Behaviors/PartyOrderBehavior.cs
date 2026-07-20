@@ -318,10 +318,19 @@ namespace BannerlordLink.Behaviors
                         continue;
                     }
 
-                    // 3b) 2026-07-20 — обновляем сильный замок AI КАЖДЫЙ час (не только на
-                    // троттленной переотдаче): DisableForHours(8) + ежечасный refresh =
-                    // замок непрерывен, пока приказ жив, и самоснимается, если нас не стало.
+                    // 3b) 2026-07-20 — обновляем мягкий замок AI каждый час.
                     LockPartyAi(mp);
+
+                    // 3c) 2026-07-20 — СНАБЖЕНИЕ ОСАДЫ. Лечит корень «осадных качелей»
+                    // (репорт владельца: осаждают → убегают → снова осаждают).
+                    // Механизм ванильной спирали (декомпайл DefaultPartyMoraleModel):
+                    // осаждающие сидят в поле и проедают запас → голод даёт −30 морали
+                    // разово и −5/день, каждый провал штурма/вылазка ещё −20. Мораль
+                    // падает к нулю → CanPartyAttackWithCurrentMorale (Morale > 0) режет
+                    // атаку → стратегия снимает осаду. Отойдя, партия отъедается, мораль
+                    // растёт, оценка цели снова привлекательна → возвращается. Цикл.
+                    // Morale — read-only (считается моделью), поэтому правим ПРИЧИНУ: еду.
+                    if (o.OrderType == "siege") TrySupplySiege(mp, key);
 
                     // 4) Throttled re-issue.
                     double hoursSinceReissue = now - o.LastReissuedHours;
@@ -475,6 +484,50 @@ namespace BannerlordLink.Behaviors
             catch (Exception aEx)
             {
                 BannerlordLinkModule.Log($"[party_order] army target sync warn: {aEx.Message}");
+            }
+        }
+
+        // Снабжение осады: держим запас минимум на столько дней. Осада тянется неделями,
+        // но выдавать много сразу не нужно — доливаем по чуть-чуть каждый час.
+        private const float SIEGE_FOOD_DAYS = 4f;
+
+        /// <summary>2026-07-20 — не даём осаждающей партии зрителя голодать.
+        ///
+        /// Зачем: голод — двигатель ванильных «осадных качелей» (−30 морали разово,
+        /// −5/день; при нуле морали партия не может атаковать и стратегия снимает осаду).
+        /// Кормим — спирали нет, осада стоит.
+        ///
+        /// Честно по игре: «снабжай осаждающую армию» — нормальная механика, а не чит на
+        /// мораль. Доливаем ТОЛЬКО до порога в SIEGE_FOOD_DAYS дней и только пока приказ
+        /// осады активен; лишнего не создаём и в бесконечный склад не превращаем.</summary>
+        private static void TrySupplySiege(MobileParty mp, string username)
+        {
+            try
+            {
+                if (mp?.ItemRoster == null) return;
+
+                // FoodChange — суточный расход (отрицательный). Сколько дней еды осталось?
+                float dailyUse = Math.Abs(mp.FoodChange);
+                if (dailyUse < 0.01f) dailyUse = Math.Max(1f, mp.MemberRoster?.TotalManCount * 0.01f ?? 1f);
+                int have = mp.ItemRoster.TotalFood;
+                float daysLeft = have / dailyUse;
+                if (daysLeft >= SIEGE_FOOD_DAYS) return;   // запас в норме — не трогаем
+
+                int need = (int)Math.Ceiling(SIEGE_FOOD_DAYS * dailyUse) - have;
+                if (need <= 0) return;
+
+                // Зерно — базовая, дешёвая и «неподозрительная» еда для армии в поле.
+                var grain = TaleWorlds.CampaignSystem.DefaultItems.Grain;
+                if (grain == null) return;
+                mp.ItemRoster.AddToCounts(grain, need);
+
+                BannerlordLinkModule.Log(
+                    $"[party_order] @{username} снабжение осады: +{need} зерна "
+                    + $"(было на {daysLeft:F1} дн, стало ~{SIEGE_FOOD_DAYS:F0} дн)");
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[party_order] supply warn @{username}: {ex.Message}");
             }
         }
 

@@ -30,6 +30,10 @@ namespace BannerlordLink.Behaviors
     public class PowersMissionBehavior : MissionLogic
     {
         private const float BUFF_TICK_INTERVAL = 2.0f;
+        // 2026-07-20 — быстрый тик для стоек/скорости (движок сбрасывает эти driven-
+        // properties при смене оружия/ранении; редкое переприменение → мигание).
+        private const float COMBAT_AI_INTERVAL = 0.5f;
+        private float _combatAiAcc = 0f;
         private float _buffTickAcc;
 
         // 2026-05-29 P1.2 (Stage 0 Phase 1) — feature flag для отключения
@@ -83,6 +87,21 @@ namespace BannerlordLink.Behaviors
         public override void OnMissionTick(float dt)
         {
             base.OnMissionTick(dt);
+
+            // 2026-07-20 — боевой ИИ/стойки переприменяем ЧАСТО (0.5с), отдельно от
+            // тяжёлого тика баффов/яда (2с). Движок пересчитывает драйв-свойства при
+            // смене оружия/ранении и сбрасывает стойку к базовой — при редком тике это
+            // давало мигание («натиск то есть, то нет»). Быстрый тик держит стойку плотно.
+            _combatAiAcc += dt;
+            if (_combatAiAcc >= COMBAT_AI_INTERVAL)
+            {
+                _combatAiAcc = 0f;
+                try { ApplyCombatAiTick(); } catch (Exception ex)
+                { BannerlordLinkModule.Log($"[PowersMission] combat-AI tick error: {ex.Message}"); }
+                try { ApplySpeedBuffTick(); } catch (Exception ex)
+                { BannerlordLinkModule.Log($"[PowersMission] speed buff tick error: {ex.Message}"); }
+            }
+
             _buffTickAcc += dt;
             if (_buffTickAcc < BUFF_TICK_INTERVAL) return;
             _buffTickAcc = 0f;
@@ -108,21 +127,8 @@ namespace BannerlordLink.Behaviors
                 BannerlordLinkModule.Log($"[PowersMission] DoT tick error: {ex.Message}");
             }
 
-            // 2026-06-10 — «умный боевой ИИ»: переприменяем AI-способности
-            // блока/парри/атаки боевым героям (движок пересчитывает драйв-свойства).
-            try { ApplyCombatAiTick(); }
-            catch (Exception ex)
-            {
-                BannerlordLinkModule.Log($"[PowersMission] combat-AI tick error: {ex.Message}");
-            }
-
-            // 2026-07-20 — рывок: переприменяем множитель скорости, т.к. движок
-            // пересчитывает AgentDrivenProperties (та же причина, что у combat-AI тика).
-            try { ApplySpeedBuffTick(); }
-            catch (Exception ex)
-            {
-                BannerlordLinkModule.Log($"[PowersMission] speed buff tick error: {ex.Message}");
-            }
+            // 2026-07-20 — ApplyCombatAiTick + ApplySpeedBuffTick ПЕРЕЕХАЛИ в быстрый
+            // тик (0.5с) выше: стойки/скорость движок сбрасывает чаще, чем раз в 2с.
 
             // Sprint 5.30 #41 — periodic re-burst для timed buffs.
             // 2026-05-29 P1.2 — отключено через BUFF_TICK_PARTICLES_ENABLED flag.
@@ -309,17 +315,22 @@ namespace BannerlordLink.Behaviors
                 // Боевая стойка: defensive → крепче блок/парри, меньше инициативы
                 // атаки; aggressive → наоборот; balanced (или нет стойки) → ровно
                 // классовый уровень.
+                // 2026-07-20 — стойки усилены (владелец: «натиск не чувствовался»).
+                // Раньше сдвиг был ±0.15 от классового уровня — умеренно, в свалке терялось.
+                // Теперь стойка ЗАДАЁТ крайние значения напрямую (почти абсолют), а не
+                // «чуть-чуть от базы»: натиск = атака в потолок / блок в пол → герой рубится
+                // безрассудно; оборона = наоборот, глухая защита. Balanced — классовый уровень.
                 float def = v, off = v;
                 string stance = PowerCache.GetHeroStance(user);
                 if (stance == "defensive")
                 {
-                    def = Math.Min(1f, v + 0.15f);
-                    off = Math.Max(0.10f, v - 0.15f);
+                    def = 1.0f;                        // максимум блока/парри
+                    off = Math.Min(v, 0.20f);          // почти не инициирует атаку
                 }
                 else if (stance == "aggressive")
                 {
-                    def = Math.Max(0.10f, v - 0.15f);
-                    off = Math.Min(1f, v + 0.15f);
+                    def = 0.05f;                       // блок/парри почти отключены
+                    off = 1.0f;                        // атакует при любой возможности
                 }
 
                 try

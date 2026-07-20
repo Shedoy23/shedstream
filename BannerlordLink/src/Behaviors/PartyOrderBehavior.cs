@@ -315,6 +315,11 @@ namespace BannerlordLink.Behaviors
                         continue;
                     }
 
+                    // 3b) 2026-07-20 — обновляем сильный замок AI КАЖДЫЙ час (не только на
+                    // троттленной переотдаче): DisableForHours(8) + ежечасный refresh =
+                    // замок непрерывен, пока приказ жив, и самоснимается, если нас не стало.
+                    LockPartyAi(mp);
+
                     // 4) Throttled re-issue.
                     double hoursSinceReissue = now - o.LastReissuedHours;
                     if (hoursSinceReissue >= REISSUE_THROTTLE_HOURS)
@@ -446,7 +451,45 @@ namespace BannerlordLink.Behaviors
             }
             // 2026-06-10 FIX — держим AI замороженным на каждом reissue (флаг могут
             // сбросить движковые события: вступление в армию, бой, плен).
+            LockPartyAi(mp);
+        }
+
+        // Срок сильного замка AI. Обновляется КАЖДЫЙ часовой тик, пока приказ жив, так
+        // что фактически бессрочен; 8ч — страховка самозаживления: если приказ/мод
+        // умер (краш, снос мода, сейв загружен без мода — _enableAgainAtHour пишется в
+        // сейв!), партия сама оживает максимум через 8 игровых часов, а не остаётся
+        // овощем навечно, как было бы с DisableAi()=Never.
+        private const int AI_LOCK_HOURS = 8;
+
+        /// <summary>2026-07-20 — СИЛЬНЫЙ замок AI партии.
+        ///
+        /// Раньше звали только SetDoNotMakeNewDecisions(true) — и осада всё равно
+        /// сбивалась приказами ИИ (репорт владельца). Декомпайл MobilePartyAi показал
+        /// почему: этот флаг проверяется РОВНО В ОДНОМ месте (GetBehaviors, «инициативные»
+        /// решения — погнаться/убежать от соседней партии) и НЕ мешает движку менять
+        /// DefaultBehavior партии. То есть замок был декоративный.
+        ///
+        /// Настоящий рычаг — ветка IsDisabled в MobilePartyAi.TickInternal: она пропускает
+        /// расчёт поведения ЦЕЛИКОМ, и наш SetMoveBesiegeSettlement никто не перебивает.
+        /// Ставим её через DisableForHours(8), НЕ через DisableAi() (=Never, навечно и в
+        /// сейв) — см. AI_LOCK_HOURS. Снимается EnableAi() при отпускании приказа
+        /// (UnlockPartyAi); движок и сам снимет по таймеру, если нас не стало.
+        ///
+        /// DoNotMakeNewDecisions оставляем вторым слоем: гасит инициативу, если движок
+        /// когда-нибудь включит AI сам.</summary>
+        internal static void LockPartyAi(MobileParty mp)
+        {
+            if (mp == null) return;
             try { mp.Ai.SetDoNotMakeNewDecisions(true); } catch { }
+            try { mp.Ai.DisableForHours(AI_LOCK_HOURS); } catch { }
+        }
+
+        /// <summary>Снять замок — партия возвращается к автономному AI.</summary>
+        private static void UnlockPartyAi(MobileParty mp)
+        {
+            if (mp == null) return;
+            try { mp.Ai.EnableAi(); } catch { }
+            try { mp.Ai.SetDoNotMakeNewDecisions(false); } catch { }
         }
 
         // ─── Event-driven auto-release ─────────────────────────────────────
@@ -536,7 +579,9 @@ namespace BannerlordLink.Behaviors
             {
                 var hero = BannerlordLink.Actions.HeroLookup.FindByUsername(username);
                 var mp = hero?.PartyBelongedTo;
-                if (mp != null) mp.Ai.SetDoNotMakeNewDecisions(false);
+                // 2026-07-20 — снимаем СИЛЬНЫЙ замок (DisableAi), иначе партия осталась
+                // бы с выключенным AI навсегда после снятия приказа.
+                UnlockPartyAi(mp);
             }
             catch { }
         }

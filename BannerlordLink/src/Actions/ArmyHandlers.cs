@@ -69,8 +69,17 @@ namespace BannerlordLink.Actions
                 if (mp.IsDisbanding) { ActionFeedback.PostFailed(actionId, "party_disbanding"); return; }
                 if (clan.IsUnderMercenaryService) { ActionFeedback.PostFailed(actionId, "mercenary"); return; }
 
-                // Разморозить AI — party-order мог его залочить (SetDoNotMakeNewDecisions).
-                try { mp.Ai.SetDoNotMakeNewDecisions(false); } catch { }
+                // 2026-07-20 FIX — «армия качается: садится в осаду и уходит».
+                // Раньше AI размораживался БЕЗУСЛОВНО: если у героя был активный
+                // party-order (осада), приказ терял замок, движковый AI уводил партию,
+                // а наш hourly-reissue возвращал → бесконечные качели. Теперь: если
+                // активный приказ ЕСТЬ — замок не снимаем (его вернём после создания
+                // армии), если приказа нет — прежнее поведение.
+                var activeOrder = BannerlordLink.Behaviors.PartyOrderBehavior.GetOrder(username);
+                if (activeOrder == null)
+                {
+                    try { mp.Ai.SetDoNotMakeNewDecisions(false); } catch { }
+                }
 
                 // Точка сбора: фьеф клана → дом героя → текущее поселение партии.
                 Settlement gather = null;
@@ -109,9 +118,23 @@ namespace BannerlordLink.Actions
                 float influenceBefore = clan.Influence;
                 try { clan.Influence = influenceBefore + 5000f; } catch { }
 
+                // 2026-07-20 FIX — тип армии по активному приказу. Patrolling = «патрулируй»,
+                // и ИИ армии тащил её ПРОЧЬ с осады (вторая половина качелей). Логика движка
+                // (Army.cs) сама учитывает BesiegeSettlement у лидера — даём ей верный тип.
+                var armyType = Army.ArmyTypes.Patrolling;
+                if (activeOrder != null)
+                {
+                    switch (activeOrder.Value.orderType)
+                    {
+                        case "siege":  armyType = Army.ArmyTypes.Besieger; break;
+                        case "raid":   armyType = Army.ArmyTypes.Raider;   break;
+                        case "defend": armyType = Army.ArmyTypes.Defender; break;
+                    }
+                }
+
                 try
                 {
-                    clan.Kingdom.CreateArmy(hero, gather, Army.ArmyTypes.Patrolling, toCall);
+                    clan.Kingdom.CreateArmy(hero, gather, armyType, toCall);
                 }
                 catch (Exception cEx)
                 {
@@ -130,6 +153,25 @@ namespace BannerlordLink.Actions
                 // Влияние клана возвращаем как было (платили криптиками) + max cohesion.
                 try { clan.Influence = influenceBefore; } catch { }
                 try { mp.Army.Cohesion = 100f; } catch { }
+
+                // 2026-07-20 FIX — вернуть приказ в силу СРАЗУ. CreateArmy перетирает
+                // цель партии (сбор у gather-точки), а наш hourly-reissue троттлится до
+                // 4 игровых часов → в этом окне партия «уходила с осады». Переотдаём
+                // приказ и возвращаем замок AI немедленно, не дожидаясь тика.
+                if (activeOrder != null)
+                {
+                    try
+                    {
+                        BannerlordLink.Behaviors.PartyOrderBehavior.ReissueNow(username);
+                        BannerlordLinkModule.Log(
+                            $"[army_create] @{username}: приказ '{activeOrder.Value.orderType}' "
+                            + $"переотдан армии (тип={armyType})");
+                    }
+                    catch (Exception rEx)
+                    {
+                        BannerlordLinkModule.Log($"[army_create] reissue warn @{username}: {rEx.Message}");
+                    }
+                }
 
                 BannerlordLinkModule.Log(
                     $"[army_create OK] @{username} армия собрана у '{gather.Name}' " +

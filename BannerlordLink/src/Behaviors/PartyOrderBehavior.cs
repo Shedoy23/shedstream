@@ -215,6 +215,38 @@ namespace BannerlordLink.Behaviors
             catch { return null; }
         }
 
+        /// <summary>2026-07-20 — немедленная переотдача приказа, в обход
+        /// REISSUE_THROTTLE_HOURS. Нужна там, где ЧТО-ТО извне перетёрло цель партии и
+        /// ждать до 4 игровых часов нельзя: создание армии (CreateArmy уводит партию к
+        /// точке сбора → «армия садится в осаду и уходит»). Возвращает и замок AI.
+        /// No-op если приказа нет / герой или партия не найдены.</summary>
+        public static bool ReissueNow(string username)
+        {
+            var inst = Instance;
+            if (inst == null) return false;
+            string key = (username ?? "").ToLowerInvariant();
+            if (!inst._orders.TryGetValue(key, out var o)) return false;
+            try
+            {
+                var hero = BannerlordLink.Actions.HeroLookup.FindByUsername(key);
+                var mp = hero?.PartyBelongedTo;
+                if (mp == null) return false;
+                var target = Settlement.Find(o.TargetSettlementId);
+                if (target == null) return false;
+                Reissue(o.OrderType, mp, target);      // сам ставит и SetDoNotMakeNewDecisions(true)
+                o.LastReissuedHours = CampaignTime.Now.ToHours;
+                inst._orders[key] = o;
+                BannerlordLinkModule.Log(
+                    $"[party_order] @{key} немедленная переотдача '{o.OrderType}' → {target.Name}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[party_order] ReissueNow warn @{key}: {ex.Message}");
+                return false;
+            }
+        }
+
         // ─── Tick — re-issue + completion check ────────────────────────────
 
         private void OnHourlyTick()

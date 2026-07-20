@@ -107,7 +107,7 @@ namespace BannerlordLink.Actions
                         ApplyHealBurst(agent, username);
                         break;
                     case "shield_break_burst":
-                        ApplyShieldBreakBurst(agent, username, valueOverride);
+                        ApplyShieldBreakBurst(agent, username, durationOverride, valueOverride);
                         break;
                     case "rage":
                         ActivateRage(username, durationOverride, valueOverride, agent);
@@ -165,40 +165,34 @@ namespace BannerlordLink.Actions
             BannerlordLink.Util.PowerVisualFx.PlayActivation(agent, "heal_burst", username);
         }
 
-        // shield_break_burst — instant AoE: для всех живых enemy-агентов в
-        // радиусе R от caster ломаем shield слот (ChangeWeaponHitPoints=0).
-        // Radius — из valueOverride > PowerCache > 6m default.
-        private static void ApplyShieldBreakBurst(Agent caster, string username, double? valueOverride)
+        // shield_break_burst — 2026-07-20 РЕДИЗАЙН (решение владельца): было мгновенное
+        // AoE «сломать щиты в радиусе R». Проблема: ломало только тем, у кого щит ЕСТЬ,
+        // мгновенно и без связи с действием игрока → чаще всего «broke 0», зритель платил
+        // и видел ноль («не работает»).
+        // Стало — БАФФ на 45с: пока активен, ТВОЙ удар ломает щит тому, кого ты бьёшь
+        // (та же схема, что cleave/explosive_arrows; исполняется в DamageHookPatch).
+        // Эффект привязан к попаданию → видно глазами, и «пшика» не бывает.
+        private static void ApplyShieldBreakBurst(Agent caster, string username,
+            float? durationOverride, double? valueOverride)
         {
-            float radius = (float)(
-                valueOverride
+            float duration = durationOverride ?? 45f;
+            // value больше не радиус — держим как «силу» для FX/логов (совместимо со
+            // старым посевом: 6..12 просто станет числом в попапе).
+            double v = valueOverride
                 ?? PowerCache.GetPowerValue(username, "shield_break_burst")
-                ?? 6.0);
-            if (radius <= 0f) radius = 6f;
+                ?? 1.0;
 
-            int broken = 0;
-            // Iterate Mission.Current.Agents — no allocation alternative для small N.
-            foreach (var a in Mission.Current.Agents)
-            {
-                if (a == null || a == caster || !a.IsActive() || !a.IsHuman) continue;
-                if (!a.IsEnemyOf(caster)) continue;
-                float dist = a.Position.Distance(caster.Position);
-                if (dist > radius) continue;
-                if (TryBreakShield(a)) broken++;
-            }
-
+            ActiveBuffState.Activate(username, "shield_break_burst", duration, v);
             BannerlordLinkModule.Log(
-                $"[power.shield_break_burst] @{username} radius={radius}m: broke {broken} shield(s)");
-            // Sprint 5.30 #41 — popup (particle/sound на каждом victim уже идёт через
-            // TryTriggerShieldBreakFx; здесь добавляем только activation popup для caster'а).
-            BannerlordLink.Util.PowerVisualFx.PlayActivation(caster, "shield_break_burst", username, broken);
+                $"[power.shield_break_burst] @{username}: удары ломают щиты {duration}s");
+            BannerlordLink.Util.PowerVisualFx.PlayActivation(caster, "shield_break_burst", username);
         }
 
         // Search through weapon slots, find a shield, zero its hitpoints +
         // визуально дёрнуть native shield-break particle effect (4.6).
         // Particle через Mission.Scene.CreateBurstParticle — pure TaleWorlds API.
         // Sound пропускаем (4.6 scope: только particle).
-        private static bool TryBreakShield(Agent agent)
+        internal static bool TryBreakShield(Agent agent)
         {
             try
             {
@@ -337,47 +331,16 @@ namespace BannerlordLink.Actions
                 ?? PowerCache.GetPowerValue(username, "poison_dot")
                 ?? 5.0;
 
-            // Find random enemy в радиусе 15м.
-            Agent target = FindRandomEnemyNearby(caster, 15f);
-            if (target == null)
-            {
-                BannerlordLinkModule.Log(
-                    $"[power.poison_dot] @{username}: no enemy in 15m range");
-                return;
-            }
-            // Apply DoT — initial burst + register для periodic tick.
-            // Store по target.Index — каждый tick через PowersMissionBehavior
-            // будет drain'ить.
-            int initial = (int)dps;
-            try
-            {
-                var blow = new Blow(caster.Index)
-                {
-                    InflictedDamage = initial,
-                    DamageType = DamageTypes.Pierce,
-                    DamageCalculated = true,
-                    BlowFlag = BlowFlags.None,
-                    BoneIndex = target.Monster?.ThoraxLookDirectionBoneIndex ?? (sbyte)0,
-                    GlobalPosition = target.Position,
-                    Direction = caster.LookDirection,
-                    SwingDirection = caster.LookDirection,
-                };
-                AttackCollisionData cd = default;
-                target.RegisterBlow(blow, cd);
-            }
-            catch (Exception ex)
-            {
-                BannerlordLinkModule.Log($"[power.poison_dot] initial blow warn: {ex.Message}");
-            }
-
-            // Register DoT в ActiveBuffState (per-target keyed). PowersMissionBehavior
-            // tick читает и применяет каждую секунду.
-            ActiveBuffState.Activate(
-                $"dot_target_{target.Index}", "poison_dot", duration, dps);
+            // 2026-07-20 РЕДИЗАЙН (решение владельца): было «повесить DoT на СЛУЧАЙНОГО
+            // врага в 15м» — зритель не видел, кого отравил, а без врагов рядом активка
+            // молча уходила в ноль. Стало — БАФФ на 45с: «выстрелил, попал → отравил».
+            // Сам DoT вешает DamageHookPatch на ТОГО, в кого ты попал (мили или стрела);
+            // тикает та же машинерия dot_target_{index} в PowersMissionBehavior.
+            ActiveBuffState.Activate(username, "poison_dot", duration, dps);
             BannerlordLinkModule.Log(
-                $"[power.poison_dot] @{username} → enemy idx={target.Index} " +
-                $"{(int)dps} dmg/s for {duration}s (initial -{initial} HP)");
-            BannerlordLink.Util.PowerVisualFx.PlayActivation(target, "poison_dot", username, (int)dps);
+                $"[power.poison_dot] @{username}: попадания отравляют "
+                + $"({(int)dps} dmg/s) {duration}s");
+            BannerlordLink.Util.PowerVisualFx.PlayActivation(caster, "poison_dot", username, (int)dps);
         }
 
         // 2026-06-10 — реально-роняемые типы предметов (защита от
@@ -439,6 +402,25 @@ namespace BannerlordLink.Actions
             }
         }
 
+        /// <summary>Единая точка применения множителя скорости к агенту.
+        /// AgentDrivenProperties — это то, из чего движок реально считает бег
+        /// (в отличие от SetMaximumSpeedLimit, который лишь ставит потолок).
+        /// UpdateAgentProperties() обязателен — без него движок не подхватит.
+        /// mult = 1.0 → снять бафф.</summary>
+        internal static void ApplySpeedMultiplier(Agent agent, float mult)
+        {
+            if (agent == null || !agent.IsActive()) return;
+            try
+            {
+                var p = agent.AgentDrivenProperties;
+                if (p == null) return;
+                p.MaxSpeedMultiplier = mult;
+                p.CombatMaxSpeedMultiplier = mult;
+                agent.UpdateAgentProperties();
+            }
+            catch { }
+        }
+
         /// <summary>Berserker charge — self movement speed bonus.
         /// Value = % bonus (e.g. 50 → 1.5× speed). Duration default 8s.
         /// Agent.SetMaximumSpeedLimit — engine API.</summary>
@@ -457,8 +439,14 @@ namespace BannerlordLink.Actions
             // Apply immediate speed bonus.
             try
             {
-                // SetMaximumSpeedLimit(speed, isMultiplier=true)
-                caster.SetMaximumSpeedLimit(mult, true);
+                // 2026-07-20 FIX — раньше звали SetMaximumSpeedLimit(mult, true). Декомпайл
+                // движка: это ПОТОЛОК скорости, а не ускорение — агент бежит со скоростью из
+                // AgentDrivenProperties и до потолка обычно не достаёт, поэтому подъём потолка
+                // не давал НИЧЕГО (репорт владельца «рывок не работает»). Реальный рычаг —
+                // AgentDrivenProperties.MaxSpeedMultiplier / CombatMaxSpeedMultiplier.
+                // Движок пересчитывает драйв-свойства → значение переприменяется каждый тик в
+                // PowersMissionBehavior.ApplySpeedBuffTick (как сделано для ai_combat_pct).
+                ApplySpeedMultiplier(caster, mult);
                 BannerlordLinkModule.Log(
                     $"[power.berserker_charge] @{username} speed ×{mult:F2} for {duration}s");
                 BannerlordLink.Util.PowerVisualFx.PlayActivation(

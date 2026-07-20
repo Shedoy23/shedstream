@@ -108,6 +108,10 @@ namespace BannerlordLink.Patches
                     // splash-AoE по соседним врагам (замена мёртвого CleavePatch),
                     // через ту же безопасную отложенную очередь, что explosive_arrows.
                     ApplyMeleeCleave(attackerUser, attackerSrc, victim, ref b, ref collisionData);
+                    // 2026-07-20 (редизайн активок) — «работает от удара»:
+                    // щит ломается у того, кого ударил; яд вешается на того, в кого попал.
+                    ApplyShieldBreakOnHit(attackerUser, attackerSrc, victim, ref collisionData);
+                    ApplyPoisonOnHit(attackerUser, attackerSrc, victim);
                 }
                 // Sprint 5.33 (BLT-parity ITEM) — trophy bonuses.
                 // Attacker damage_bonus + victim armor_bonus как absorption.
@@ -248,6 +252,42 @@ namespace BannerlordLink.Patches
             BannerlordLinkModule.LogVerbose(() =>
                 $"[DamageHook LIFESTEAL] @{user} {pct:F1}% → +{(after - before):F0} hp " +
                 $"({before:F0}→{after:F0})");
+        }
+
+        // 2026-07-20 — «Разбить щит» как БАФФ от удара: пока активен, МИЛИ-попадание
+        // ломает щит жертве. Раньше была мгновенная AoE-вспышка по радиусу, которая
+        // чаще всего ломала 0 щитов (нужны щитоносцы рядом) → зритель платил за ноль.
+        // Теперь эффект привязан к попаданию: ударил щитовика — щит разлетелся, видно.
+        private static void ApplyShieldBreakOnHit(
+            string user, Agent attackerSrc, Agent victim, ref AttackCollisionData cd)
+        {
+            if (attackerSrc == null || victim == null) return;
+            if (cd.IsMissile) return;                  // ломаем щит в ближнем бою
+            var v = ActiveBuffState.GetValue(user, "shield_break_burst");
+            if (!v.HasValue) return;
+            if (BannerlordLink.Actions.ActivatePowerHandler.TryBreakShield(victim))
+            {
+                BannerlordLinkModule.LogVerbose(() =>
+                    $"[DamageHook SHIELD-BREAK] @{user} сломал щит агенту idx={victim.Index}");
+            }
+        }
+
+        // 2026-07-20 — «Яд» как БАФФ от удара: пока активен, ЛЮБОЕ попадание (мили или
+        // стрела) вешает DoT на того, в кого попал. Раньше активка травила СЛУЧАЙНОГО
+        // врага в 15м — зритель не видел кого, а без врагов рядом уходила в ноль.
+        // Тик урона делает PowersMissionBehavior.ApplyDotTicks по ключу dot_target_{idx}.
+        private static void ApplyPoisonOnHit(string user, Agent attackerSrc, Agent victim)
+        {
+            if (attackerSrc == null || victim == null) return;
+            if (!victim.IsActive() || !victim.IsHuman) return;
+            var dps = ActiveBuffState.GetValue(user, "poison_dot");
+            if (!dps.HasValue || dps.Value <= 0) return;
+            // Перевешиваем/обновляем DoT на этой цели (Activate — upsert по ключу).
+            ActiveBuffState.Activate(
+                $"dot_target_{victim.Index}", "poison_dot", 45f, dps.Value);
+            BannerlordLink.Util.PowerVisualFx.PlayBuffTick(victim, "poison_dot");
+            BannerlordLinkModule.LogVerbose(() =>
+                $"[DamageHook POISON] @{user} отравил агента idx={victim.Index} ({(int)dps.Value} dmg/s)");
         }
 
         // 2026-05-29 (BLT-parity AddDamagePower AoE) — взрывные стрелы.

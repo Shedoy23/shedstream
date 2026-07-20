@@ -116,6 +116,14 @@ namespace BannerlordLink.Behaviors
                 BannerlordLinkModule.Log($"[PowersMission] combat-AI tick error: {ex.Message}");
             }
 
+            // 2026-07-20 — рывок: переприменяем множитель скорости, т.к. движок
+            // пересчитывает AgentDrivenProperties (та же причина, что у combat-AI тика).
+            try { ApplySpeedBuffTick(); }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[PowersMission] speed buff tick error: {ex.Message}");
+            }
+
             // Sprint 5.30 #41 — periodic re-burst для timed buffs.
             // 2026-05-29 P1.2 — отключено через BUFF_TICK_PARTICLES_ENABLED flag.
             // CreateBurstParticle каждые 2 сек = FMOD pool pressure. См.
@@ -149,7 +157,10 @@ namespace BannerlordLink.Behaviors
                             // скорость милишника (move_speed_pct), иначе berserk
                             // терял свой пассивный добег после берсерк-чарджа.
                             float restMult = GetPassiveSpeedMult(username);
-                            agent.SetMaximumSpeedLimit(restMult, true);
+                            // 2026-07-20 — тем же рычагом, что и применение (см.
+                            // ApplySpeedMultiplier): SetMaximumSpeedLimit не влиял.
+                            BannerlordLink.Actions.ActivatePowerHandler
+                                .ApplySpeedMultiplier(agent, restMult);
                             BannerlordLinkModule.Log(
                                 $"[FX expire] @{username} berserker_charge → speed reset ×{restMult:F2}");
                         }
@@ -260,6 +271,26 @@ namespace BannerlordLink.Behaviors
         // разово залогированные за миссию герои (чтобы [CombatAI] applied не спамил каждый тик)
         private static readonly System.Collections.Generic.HashSet<string> _aiLogged =
             new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>2026-07-20 — держим множитель скорости у героев с активным
+        /// berserker_charge. Движок пересчитывает AgentDrivenProperties (снаряжение,
+        /// раны, стойка) и затирает разовое применение — поэтому переприменяем каждый
+        /// тик, пока бафф жив. Снятие делает OnBuffExpired (mult → 1.0).</summary>
+        private static void ApplySpeedBuffTick()
+        {
+            if (Mission.Current == null) return;
+            foreach (var a in Mission.Current.Agents)
+            {
+                if (a == null || !a.IsHuman || !a.IsActive()) continue;
+                var hero = (a.Character as CharacterObject)?.HeroObject;
+                if (hero?.Name == null) continue;
+                string user = BannerlordLink.Util.HeroNaming.ExtractUsername(hero.Name.ToString());
+                if (string.IsNullOrEmpty(user)) continue;
+                var mult = ActiveBuffState.GetValue(user, "berserker_charge");
+                if (!mult.HasValue || mult.Value <= 1.0) continue;
+                BannerlordLink.Actions.ActivatePowerHandler.ApplySpeedMultiplier(a, (float)mult.Value);
+            }
+        }
 
         private static void ApplyCombatAiTick()
         {
@@ -411,11 +442,18 @@ namespace BannerlordLink.Behaviors
 
             // ── move_speed_pct (2026-06-10 мили-баланс) — добег / анти-кайт ──
             // Пеший милишник иначе не догоняет лучников и кайтящих конных.
-            // SetMaximumSpeedLimit(mult, true) — тот же API, что у berserker_charge.
+            // 2026-07-20 FIX — раньше тут был SetMaximumSpeedLimit (тот же нерабочий API,
+            // что у berserker_charge): он поднимает ПОТОЛОК скорости, до которого агент и
+            // так не добегает → пассивный добег НИКОГДА не работал. Теперь настоящий
+            // рычаг движка — AgentDrivenProperties (см. ApplySpeedMultiplier).
             var spd = PowerCache.GetPowerValue(username, "move_speed_pct");
             if (spd.HasValue && spd.Value > 0)
             {
-                try { agent.SetMaximumSpeedLimit(1f + (float)(spd.Value / 100.0), true); }
+                try
+                {
+                    BannerlordLink.Actions.ActivatePowerHandler.ApplySpeedMultiplier(
+                        agent, 1f + (float)(spd.Value / 100.0));
+                }
                 catch (Exception ex)
                 { BannerlordLinkModule.Log($"[PowersMission] move_speed warn: {ex.Message}"); }
             }

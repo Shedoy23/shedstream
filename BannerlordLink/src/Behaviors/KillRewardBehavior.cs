@@ -96,6 +96,32 @@ namespace BannerlordLink.Behaviors
             (150, 375000, 210000),
         };
 
+        // 2026-07-21 — ВЕХИ ТЕПЕРЬ ЗА ВКЛАД, А НЕ ТОЛЬКО ЗА ДОБИВАНИЕ.
+        // Замер владельца: берсерк за бой ~4М💰, остальные ~100К. Разбор формулы
+        // подтвердил: 150 киллов = 360К базы + 3 985К вех, т.е. ВЕХИ дают 92%
+        // дохода — и начислялись исключительно за добивающий удар. Разница в
+        // киллах 7.5× превращалась в разницу в деньгах 36×. Лучник, выбивший
+        // врага на 80%, и латник, державший на себе толпу, получали НОЛЬ.
+        //
+        // Теперь по той же лестнице двигают три вклада (порог = kills × LADDER_SCALE):
+        //   убийство         +KILL_POINTS
+        //   нанесённый урон  +1 очко за DAMAGE_PER_POINT единиц
+        //   поглощённый урон +1 очко за ABSORB_PER_POINT единиц — ТОЛЬКО ВЫЖИВШИМ
+        //     (иначе эксплойт «подставься под лучников ради денег»; умер — сгорело)
+        //
+        // Рядовой пехотинец ≈ 100 HP → убить его самому ≈ 10 + 100/12 ≈ 18 очков,
+        // отсюда LADDER_SCALE = 18: убийца доходит до вершины примерно как раньше.
+        // Деньги НЕ печатаются — они перераспределяются к тем, кто получал ноль.
+        // Берсерка сознательно не ослабляем (11 зрителей из 18 сидят на нём).
+        //
+        // ЧИСЛА СТАРТОВЫЕ: счётчик киллов был сломан (844e6ae), замеров не было.
+        // Строка [CONTRIB] в конце боя логирует урон/поглощение/очки по каждому —
+        // по ней калибруем после первого же стрима. См. docs/SPEC_BATTLE_PAYOUT.md.
+        private const int KILL_POINTS      = 10;
+        private const int DAMAGE_PER_POINT = 12;
+        private const int ABSORB_PER_POINT = 8;
+        private const int LADDER_SCALE     = 18;
+
         // Participation reward (fires в OnEndMission). Применяется к каждому
         // BLink-участнику независимо от kill'ов — награда за факт участия.
         // Newbie-friendly: lose-штраф убран.
@@ -351,6 +377,12 @@ namespace BannerlordLink.Behaviors
             public int GoldEarned;
             public int XpEarned;
             public int KillStreak;       // 2026-06-06: per-БОЙ (НЕ reset на смерть; только OnEndMission)
+            // 2026-07-21 — вклад в бой (см. блок констант KILL_POINTS/…).
+            public int DamageDealt;      // суммарный урон по врагам
+            public int DamageAbsorbed;   // суммарный принятый на себя урон
+            public int ContribPoints;    // пересчитанные очки (для лога/оверлея)
+            public int MilestoneIdx;     // сколько вех уже выдано — каждая ровно один раз
+            public bool Died;            // умирал ли за бой → поглощение не засчитываем
         }
 
         /// <summary>Множитель награды за разницу уровней (наш дизайн — линейный).
@@ -658,6 +690,9 @@ namespace BannerlordLink.Behaviors
             // OnEndMission → вехи 20-50 реально достижимы за бой. vstats всё ещё
             // объявляем — он нужен ниже (XpEarned += xp), но streak НЕ трогаем.
             _participants.TryGetValue(victimUsername, out var vstats);
+            // 2026-07-21 — умер за бой → поглощённый урон в очки НЕ пойдёт
+            // (защита от «подставься под лучников ради вех»).
+            if (vstats != null) vstats.Died = true;
 
             // Consolation XP. Level scaling: убит higher-level → больше xp.
             int killerLevel = victim.Level;
@@ -809,9 +844,6 @@ namespace BannerlordLink.Behaviors
             }
 
             // Update stats + kill streak (BLT pattern: streak только за personal)
-            int streakReward = 0;
-            int streakXp = 0;
-            int streakLevel = 0;
             if (_participants.TryGetValue(killerName, out var s))
             {
                 if (isRetinueKill)
@@ -821,69 +853,20 @@ namespace BannerlordLink.Behaviors
                 else
                 {
                     s.Kills++;
-                    if (isHumanTarget)  // streak только за людей
-                    {
-                        s.KillStreak++;
-                        foreach (var ks in KILL_STREAKS)
-                        {
-                            if (s.KillStreak == ks.kills)
-                            {
-                                // Sprint 5.30 #42 — apply sub reward_boost
-                                streakReward = BannerlordLink.Net.RewardBoostCache
-                                    .ApplyToInt(killerName, ks.gold);
-                                streakXp = BannerlordLink.Net.RewardBoostCache
-                                    .ApplyToInt(killerName, ks.xp);
-                                streakLevel  = ks.kills;
-                                break;
-                            }
-                        }
-                    }
+                    // 2026-07-21 — KillStreak остаётся ДЛЯ ОВЕРЛЕЯ (показать «×N
+                    // подряд»), но деньги за вехи он больше НЕ выдаёт: лестница
+                    // переехала на очки вклада (AwardContribMilestones, тик 1.5с),
+                    // иначе добивание оплачивалось бы дважды.
+                    if (isHumanTarget) s.KillStreak++;
                 }
                 s.GoldEarned += gold;
                 s.XpEarned += xp;
                 if (!isRetinueKill) s.Agent = affectorAgent;
             }
 
-            // Apply kill-streak bonus (если milestone reached)
-            if (streakReward > 0 || streakXp > 0)
-            {
-                try
-                {
-                    if (streakReward > 0)
-                        GiveGoldAction.ApplyBetweenCharacters(null, killer, streakReward, true);
-                    if (streakXp > 0)
-                        killer.HeroDeveloper.AddSkillXp(skill, streakXp);
-                    if (s != null)
-                    {
-                        s.GoldEarned += streakReward;
-                        s.XpEarned   += streakXp;
-                    }
-                    BannerlordLinkModule.Log(
-                        $"[KillReward] @{killerName} 🔥 STREAK ×{streakLevel}: " +
-                        $"+{streakReward}💰 +{streakXp} XP ({skill.StringId})");
-
-                    // Sprint 5.29: in-game popup на kill streak (BLT pattern).
-                    // Цвет — gradient от bronze (5) до red (15).
-                    try
-                    {
-                        var col = streakLevel >= 15
-                            ? new TaleWorlds.Library.Color(1f, 0.13f, 0.13f)   // red
-                            : (streakLevel >= 10
-                                ? new TaleWorlds.Library.Color(1f, 0.55f, 0.0f) // orange
-                                : new TaleWorlds.Library.Color(1f, 0.84f, 0.18f)); // gold
-                        TaleWorlds.Library.InformationManager.DisplayMessage(
-                            new TaleWorlds.Library.InformationMessage(
-                                $"🔥 @{killerName} STREAK ×{streakLevel}! +{streakReward}💰",
-                                col));
-                    }
-                    catch { }
-                }
-                catch (Exception ex)
-                {
-                    BannerlordLinkModule.Log(
-                        $"[KillReward] streak award failed: {ex.Message}");
-                }
-            }
+            // 2026-07-21 — блок выдачи веха-бонуса ЗДЕСЬ удалён: вехи переехали на
+            // очки вклада (AwardContribMilestones, тик 1.5с + добор в конце боя),
+            // иначе добивание оплачивалось бы дважды. Осиротел из-за этой же правки.
 
             string targetLabel = isHeroTarget ? "HERO"
                 : (isHumanTarget ? "human" : "mount");
@@ -946,6 +929,115 @@ namespace BannerlordLink.Behaviors
         private int _regenHealedCount = 0;
         private float _regenHpTotal = 0f;
 
+        // 2026-07-21 — инстанс для DamageHookPatch (hot path: дёргается на каждый
+        // удар, GetMissionBehavior там был бы дорог). Чистится в OnEndMission.
+        private static KillRewardBehavior _instance;
+
+        public override void OnBehaviorInitialize()
+        {
+            base.OnBehaviorInitialize();
+            _instance = this;
+        }
+
+        /// <summary>Учёт вклада: урон, нанесённый нашим героем врагу.</summary>
+        public static void NoteDamageDealt(string username, int damage)
+        {
+            if (damage <= 0 || string.IsNullOrEmpty(username)) return;
+            var inst = _instance;
+            if (inst == null) return;
+            if (inst._participants.TryGetValue(username, out var s)) s.DamageDealt += damage;
+        }
+
+        /// <summary>Учёт вклада: урон, принятый нашим героем НА СЕБЯ. В очки
+        /// конвертируется только если он пережил бой (см. SettleAbsorbedContrib) —
+        /// иначе появился бы фарм «подставься под лучников».</summary>
+        public static void NoteDamageAbsorbed(string username, int damage)
+        {
+            if (damage <= 0 || string.IsNullOrEmpty(username)) return;
+            var inst = _instance;
+            if (inst == null) return;
+            if (inst._participants.TryGetValue(username, out var s)) s.DamageAbsorbed += damage;
+        }
+
+        /// <summary>2026-07-21 — выдать все ПРОЙДЕННЫЕ вехи по очкам вклада.
+        /// Именно «все», а не одну: очки могут прыгнуть сразу через несколько
+        /// порогов (удар по площади, зачёт поглощения в конце боя). MilestoneIdx
+        /// гарантирует, что каждая веха выдаётся ровно один раз.</summary>
+        private void AwardContribMilestones(BattleStats s, bool includeAbsorb)
+        {
+            if (s?.Hero == null) return;
+            int pts = s.Kills * KILL_POINTS
+                    + s.DamageDealt / DAMAGE_PER_POINT
+                    + (includeAbsorb ? s.DamageAbsorbed / ABSORB_PER_POINT : 0);
+            s.ContribPoints = pts;
+
+            while (s.MilestoneIdx < KILL_STREAKS.Length
+                   && pts >= KILL_STREAKS[s.MilestoneIdx].kills * LADDER_SCALE)
+            {
+                var ks = KILL_STREAKS[s.MilestoneIdx];
+                s.MilestoneIdx++;
+                try
+                {
+                    int gold = BannerlordLink.Net.RewardBoostCache.ApplyToInt(s.Username, ks.gold);
+                    int xp   = BannerlordLink.Net.RewardBoostCache.ApplyToInt(s.Username, ks.xp);
+                    if (gold > 0)
+                    {
+                        GiveGoldAction.ApplyBetweenCharacters(null, s.Hero, gold, true);
+                        s.GoldEarned += gold;
+                    }
+                    if (xp > 0)
+                    {
+                        DistributeXpAcrossSkills(s.Hero, xp);
+                        s.XpEarned += xp;
+                    }
+                    BannerlordLinkModule.Log(
+                        $"[CONTRIB] @{s.Username} веха {ks.kills} ({ks.kills * LADDER_SCALE} очк.): " +
+                        $"киллы={s.Kills} урон={s.DamageDealt} поглощено={s.DamageAbsorbed} " +
+                        $"→ +{gold}💰 +{xp} XP");
+
+                    // In-game popup (как было у стриков): бронза → красный.
+                    var col = ks.kills >= 15
+                        ? new TaleWorlds.Library.Color(1f, 0.13f, 0.13f)
+                        : (ks.kills >= 10
+                            ? new TaleWorlds.Library.Color(1f, 0.55f, 0.0f)
+                            : new TaleWorlds.Library.Color(1f, 0.84f, 0.18f));
+                    TaleWorlds.Library.InformationManager.DisplayMessage(
+                        new TaleWorlds.Library.InformationMessage(
+                            $"🔥 @{s.Username} вклад ×{ks.kills}! +{gold}💰", col));
+                }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[CONTRIB] @{s.Username} веха {ks.kills} FAILED: {ex.Message}");
+                }
+            }
+        }
+
+        /// <summary>Конец боя: выжившим засчитываем поглощённый урон и добираем
+        /// вехи. Умершим поглощение сгорает — это и есть защита от подставы.</summary>
+        private void SettleAbsorbedContrib()
+        {
+            List<BattleStats> snapshot;
+            try { snapshot = _participants.Values.ToList(); }
+            catch { return; }
+            foreach (var s in snapshot)
+            {
+                if (s?.Hero == null) continue;
+                try
+                {
+                    AwardContribMilestones(s, includeAbsorb: !s.Died);
+                    BannerlordLinkModule.Log(
+                        $"[CONTRIB итог] @{s.Username}: киллы={s.Kills} урон={s.DamageDealt} " +
+                        $"поглощено={s.DamageAbsorbed}{(s.Died ? " (СГОРЕЛО — умирал)" : "")} " +
+                        $"очки={s.ContribPoints} вех={s.MilestoneIdx} заработал={s.GoldEarned}💰");
+                }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log($"[CONTRIB итог] @{s?.Username} crashed: {ex.Message}");
+                }
+            }
+        }
+
         public override void OnMissionTick(float dt)
         {
             base.OnMissionTick(dt);
@@ -961,6 +1053,14 @@ namespace BannerlordLink.Behaviors
                 {
                     _nextStatsPushAt = now + STATS_PUSH_INTERVAL;
                     PushStatsSnapshot();
+                    // 2026-07-21 — вехи по вкладу проверяем здесь, а не на каждый
+                    // удар: очки растут от урона тоже, а хот-пас блоу трогать нельзя.
+                    // Поглощение в ход НЕ идёт — оно считается в конце боя выжившим.
+                    foreach (var st in _participants.Values)
+                    {
+                        try { AwardContribMilestones(st, includeAbsorb: false); }
+                        catch { }
+                    }
                 }
 
                 // Sprint 5.32 (BLT-parity M1) — passive HP regen tick.
@@ -1066,6 +1166,16 @@ namespace BannerlordLink.Behaviors
         protected override void OnEndMission()
         {
             base.OnEndMission();
+            _instance = null;
+            // 2026-07-21 — сначала добираем вехи по вкладу: выжившим засчитывается
+            // поглощённый урон (умершим сгорает). Должно идти ДО participation,
+            // чтобы итоговый лог [CONTRIB итог] показал честный заработок за бой.
+            try { SettleAbsorbedContrib(); }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[KillReward] SettleAbsorbedContrib crashed: {ex.Message}");
+            }
             // Sprint 5.27k: BLT-style participation reward (WinGold/WinXP /
             // LoseXP × 0.5). Применяется за факт участия независимо от kill'ов.
             try { ApplyParticipationRewards(); }

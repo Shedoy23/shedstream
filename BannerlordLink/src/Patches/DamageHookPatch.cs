@@ -125,6 +125,33 @@ namespace BannerlordLink.Patches
                 {
                     ApplyTrophyBonuses(attackerUser, victimUser, ref b, ref collisionData);
                 }
+
+                // 2026-07-21 — учёт ВКЛАДА для лестницы вех (см. KillRewardBehavior:
+                // блок KILL_POINTS/…). Раньше вехи давали 92% дохода и начислялись
+                // только за добивание → лучник и латник получали ноль. Считаем ровно
+                // здесь: это единственная точка, где виден каждый удар и обе стороны.
+                // Урон по СВОИМ не засчитываем (attacker и victim оба наши — своя же
+                // свита/союзник-зритель), иначе появился бы фарм по товарищу.
+                if (attackerUser != null && victimUser == null)
+                {
+                    // Обрезаем ПЕРЕБОЙ: удар на 200 по врагу с 40 HP — это вклад
+                    // на 40, а не на 200. Иначе двуручники с огромным уроном и
+                    // AoE-рассечением копили бы очки на трупах и лестница снова
+                    // стала бы берсерк-эксклюзивом, только другим путём.
+                    int dealt = b.InflictedDamage;
+                    try { dealt = Math.Min(dealt, Math.Max(0, (int)victim.Health)); }
+                    catch { }
+                    BannerlordLink.Behaviors.KillRewardBehavior
+                        .NoteDamageDealt(attackerUser, dealt);
+                }
+                if (victimUser != null && attackerUser == null)
+                {
+                    // Поглощение считаем ДО снижения урона (мы стоим выше
+                    // ApplyDamageReduction): платим за то, что герой принял удар
+                    // на себя, а не за то, насколько хороша его броня.
+                    BannerlordLink.Behaviors.KillRewardBehavior
+                        .NoteDamageAbsorbed(victimUser, b.InflictedDamage);
+                }
                 if (victimUser != null)
                 {
                     // 2026-06-10 (мили-баланс) — анти-стан: по шансу stagger_immunity_pct

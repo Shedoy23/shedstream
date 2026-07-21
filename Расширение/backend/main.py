@@ -1270,6 +1270,13 @@ async def run_migrations():
             print(f"❌ M94 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m95_passives_audit
+            await m95_passives_audit.apply(conn)
+        except Exception as e:
+            print(f"❌ M95 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

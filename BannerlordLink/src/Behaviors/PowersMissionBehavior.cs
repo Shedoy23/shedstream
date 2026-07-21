@@ -36,6 +36,12 @@ namespace BannerlordLink.Behaviors
         private float _combatAiAcc = 0f;
         private float _buffTickAcc;
 
+        // 2026-07-21 — «Невидимость» (docs/SPEC_ASSASSIN_INVIS.md). Ключ силы остался
+        // retribution_toggle: во фронте у него УЖЕ есть ярлык, а фронт заморожен на
+        // ревью Twitch (новый ключ = кнопки у зрителя просто нет). Переименуем в день
+        // разморозки — здесь константа, чтобы поменять в одном месте.
+        private const string STEALTH_KEY = "retribution_toggle";
+
         // 2026-05-29 P1.2 (Stage 0 Phase 1) — feature flag для отключения
         // per-tick particle re-burst. Сравнение с BLT-RC22 показало что они
         // создают particle ОДИН раз (AgentPfx persistent looping) и НЕ дёргают
@@ -100,6 +106,8 @@ namespace BannerlordLink.Behaviors
                 { BannerlordLinkModule.Log($"[PowersMission] combat-AI tick error: {ex.Message}"); }
                 try { ApplySpeedBuffTick(); } catch (Exception ex)
                 { BannerlordLinkModule.Log($"[PowersMission] speed buff tick error: {ex.Message}"); }
+                try { ApplyStealthTick(); } catch (Exception ex)
+                { BannerlordLinkModule.Log($"[PowersMission] stealth tick error: {ex.Message}"); }
             }
 
             _buffTickAcc += dt;
@@ -298,6 +306,64 @@ namespace BannerlordLink.Behaviors
             }
         }
 
+        /// <summary>2026-07-21 — «Невидимость» ассасина (docs/SPEC_ASSASSIN_INVIS.md).
+        /// Готовой невидимости в движке НЕТ, а выбор цели нативный (MBAPI.IMBAgent) —
+        /// Harmony его не перехватывает. Рабочий рычаг — публичный
+        /// <c>Agent.InvalidateTargetAgent</c>: раз в быстрый тик срываем врагам захват
+        /// невидимки, они теряют его и уходят к другим целям.
+        ///
+        /// Это НЕ неуязвимость: сплеш, шальные стрелы, конница на скаку и уже начатый
+        /// замах проходят — ассасина по-прежнему можно убить, его просто не фокусят.
+        /// Пока идёт окно раскрытия после его удара (StealthState) — не срываем.</summary>
+        private static void ApplyStealthTick()
+        {
+            if (Mission.Current == null) return;
+
+            // Дешёвый ранний выход: невидимок в бою почти всегда нет вообще,
+            // а тик горячий (0.5с) — не хотим гонять цикл по агентам впустую.
+            var actives = BannerlordLink.Net.ActiveBuffState.SnapshotActive();
+            if (actives == null || actives.Count == 0) return;
+            bool anyStealth = false;
+            foreach (var (_, key) in actives)
+                if (key == STEALTH_KEY) { anyStealth = true; break; }
+            if (!anyStealth) return;
+
+            float now = Mission.Current.CurrentTime;
+            foreach (var a in Mission.Current.Agents)
+            {
+                if (a == null || !a.IsHuman || !a.IsActive()) continue;
+                var hero = (a.Character as CharacterObject)?.HeroObject;
+                if (hero?.Name == null) continue;
+                string user = BannerlordLink.Util.HeroNaming.ExtractUsername(hero.Name.ToString());
+                if (string.IsNullOrEmpty(user)) continue;
+
+                var reveal = ActiveBuffState.GetValue(user, STEALTH_KEY);
+                if (!reveal.HasValue) continue;
+                // Только что ударил — на окно раскрытия его видно (наказание за жадность).
+                if (BannerlordLink.Net.StealthState.IsRevealed(user, now, (float)reveal.Value)) continue;
+
+                ScrubEnemyTargets(a);
+            }
+        }
+
+        /// <summary>Срывает захват цели у всех врагов, целящихся в <paramref name="hero"/>.
+        /// Возвращает число сброшенных захватов (для лога). Публичный — активка дёргает
+        /// его сразу при нажатии, не дожидаясь тика.</summary>
+        public static int ScrubEnemyTargets(Agent hero)
+        {
+            if (hero == null || !hero.IsActive() || Mission.Current == null) return 0;
+            int dropped = 0;
+            foreach (var e in Mission.Current.Agents)
+            {
+                if (e == null || e == hero || !e.IsHuman || !e.IsActive()) continue;
+                if (!e.IsEnemyOf(hero)) continue;
+                if (e.GetTargetAgent() != hero) continue;
+                e.InvalidateTargetAgent();
+                dropped++;
+            }
+            return dropped;
+        }
+
         private static void ApplyCombatAiTick()
         {
             if (Mission.Current == null) return;
@@ -390,6 +456,7 @@ namespace BannerlordLink.Behaviors
         {
             base.OnEndMission();
             ActiveBuffState.Clear();
+            BannerlordLink.Net.StealthState.Clear();
             _aiLogged.Clear();
         }
 

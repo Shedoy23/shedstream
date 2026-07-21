@@ -20,7 +20,9 @@ namespace BannerlordLink.Actions
     ///   heal_burst         — +50 HP к active agent (Sprint 4.3)
     ///   shield_break_burst — AoE: break shields всех врагов в радиусе (4.5)
     ///   rage               — timed outgoing damage multi, 30s default (4.5)
-    ///   retribution_toggle — timed extra reflect %, 60s default (4.5)
+    ///   retribution_toggle — 2026-07-21: ПЕРЕИСПОЛЬЗОВАН под «Невидимость» ассасина
+    ///                        (был timed reflect). Ключ сохранён, т.к. фронт заморожен
+    ///                        на ревью Twitch. См. docs/SPEC_ASSASSIN_INVIS.md.
     ///
     /// Timed powers держат state в ActiveBuffState (читается из DamageHookPatch).
     /// PowersMissionBehavior.OnMissionTick чистит expired каждые 2 сек.
@@ -113,7 +115,8 @@ namespace BannerlordLink.Actions
                         ActivateRage(username, durationOverride, valueOverride, agent);
                         break;
                     case "retribution_toggle":
-                        ActivateRetribution(username, durationOverride, valueOverride, agent);
+                        // 2026-07-21 — ключ переиспользован под «Невидимость» (фронт заморожен).
+                        ActivateStealth(username, durationOverride, valueOverride, agent);
                         break;
                     // Sprint 5.33 (BLT-parity FX) — 3 new character effects.
                     case "poison_dot":
@@ -300,19 +303,31 @@ namespace BannerlordLink.Actions
                 agent, "rage", username, $"{multi:F1}");
         }
 
-        private static void ActivateRetribution(string username, float? durationOverride,
+        /// <summary>2026-07-21 — «Невидимость» ассасина (docs/SPEC_ASSASSIN_INVIS.md).
+        /// Ключ силы остался `retribution_toggle`: ярлык под него во фронте УЖЕ есть,
+        /// а фронт заморожен на ревью Twitch (новый ключ = кнопки у зрителя просто нет).
+        /// Отражение урона по этому ключу снято (см. DamageHookPatch.ApplyReflect) —
+        /// пассивный damage_reflect_pct не тронут.
+        ///
+        /// value = окно раскрытия после удара в секундах (падает с уровнем: прокачка =
+        /// быстрее растворяешься обратно). Длительность — общие 45с.</summary>
+        private static void ActivateStealth(string username, float? durationOverride,
             double? valueOverride, Agent agent)
         {
             float duration = durationOverride ?? 45f;   // 2026-06-01 — унификация активок: 45с
-            double pct = valueOverride
+            double revealSec = valueOverride
                 ?? PowerCache.GetPowerValue(username, "retribution_toggle")
-                ?? 30.0;
-            ActiveBuffState.Activate(username, "retribution_toggle", duration, pct);
+                ?? 3.0;
+            ActiveBuffState.Activate(username, "retribution_toggle", duration, revealSec);
+            // Сбрасываем захваты СРАЗУ, не дожидаясь тика (0.5с): активку жмут, когда
+            // уже прилетает — задержка ощущалась бы как «не сработало».
+            int dropped = BannerlordLink.Behaviors.PowersMissionBehavior.ScrubEnemyTargets(agent);
             BannerlordLinkModule.Log(
-                $"[power.retribution] @{username}: +{pct:F0}% reflect for {duration}s");
+                $"[power.stealth] @{username}: невидимость {duration}s, окно раскрытия " +
+                $"{revealSec:F1}s, сброшено захватов сразу: {dropped}");
             // Sprint 5.30 #41
             BannerlordLink.Util.PowerVisualFx.PlayActivation(
-                agent, "retribution_toggle", username, (int)pct);
+                agent, "retribution_toggle", username, (int)revealSec);
         }
 
         // ── Sprint 5.33 (BLT-parity FX) — 3 new character effects ────────────

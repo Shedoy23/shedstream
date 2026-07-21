@@ -98,11 +98,17 @@ namespace BannerlordLink.Actions
                                   new Slot(T.Thrown, WeaponClass.Javelin),
                                   T.Invalid },
                                   Armor = ArmorBand.Medium },
+            // 2026-07-21 (v2 return) — ассасин вернулся в ростер с «Невидимостью».
+            // Культура: все 6 королевских скинов заняты шестёркой, поэтому берём
+            // разбойничью — тёмные капюшоны/кожа, силуэт «не из армии», узнаётся с кадра.
+            // Фильтр культуры мягкий (пусто → отпускаем культуру), так что риск только
+            // косметический: если ассортимент бандитской брони окажется бедным, часть
+            // слотов возьмётся любой культурой → проверить вид в игре.
             ["assassin"]    = new Config { Slots = new Slot[] {       // dagger + throwing knives
                                   new Slot(T.OneHandedWeapon, WeaponClass.Dagger),
                                   new Slot(T.Thrown, WeaponClass.ThrowingKnife),
                                   T.Invalid, T.Invalid },
-                                  Armor = ArmorBand.Light },
+                                  Armor = ArmorBand.Light, CultureId = "forest_bandits" },
             ["spearman"]    = new Config { Slots = new Slot[] {       // 2H spear + shield (anti-cav)
                                   new Slot(T.Polearm, WeaponClass.TwoHandedPolearm),
                                   T.Shield, T.Invalid, T.Invalid },

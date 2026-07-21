@@ -112,6 +112,10 @@ namespace BannerlordLink.Patches
                     // щит ломается у того, кого ударил; яд вешается на того, в кого попал.
                     ApplyShieldBreakOnHit(attackerUser, attackerSrc, victim, ref collisionData);
                     ApplyPoisonOnHit(attackerUser, attackerSrc, victim);
+                    // 2026-07-21 — «ударил и растворился»: фиксируем удар невидимки,
+                    // на окно раскрытия тик перестаёт срывать врагам захват (жадность
+                    // в свалке наказуема). См. docs/SPEC_ASSASSIN_INVIS.md.
+                    NoteStealthHit(attackerUser);
                 }
                 // Sprint 5.33 (BLT-parity ITEM) — trophy bonuses.
                 // Attacker damage_bonus + victim armor_bonus как absorption.
@@ -502,14 +506,26 @@ namespace BannerlordLink.Patches
         // 2026-05-29 Stage 2 — victim user (renamed locally от "user")
         // pre-resolved в Prefix. Attacker no longer needed для parameter list
         // т.к. counter-blow disabled (FMOD fix).
+        /// <summary>2026-07-21 — «Невидимость»: помечаем, что невидимка ударил.
+        /// Дешёвый ранний выход — у 99.9% атакующих буффа нет.</summary>
+        private static void NoteStealthHit(string user)
+        {
+            if (ActiveBuffState.GetValue(user, "retribution_toggle") == null) return;
+            var m = Mission.Current;
+            if (m == null) return;
+            BannerlordLink.Net.StealthState.NoteHit(user, m.CurrentTime);
+        }
+
         private static void ApplyReflect(
             string user, ref Blow b, ref AttackCollisionData cd)
         {
+            // 2026-07-21 — активка retribution_toggle переиспользована под «Невидимость»
+            // (docs/SPEC_ASSASSIN_INVIS.md): её value теперь окно раскрытия В СЕКУНДАХ,
+            // а не процент отражения — складывать нельзя. Остаётся только пассивка.
             double passive = ResolvePct(user, "damage_reflect_pct");
-            double retribution = ActiveBuffState.GetValue(user, "retribution_toggle") ?? 0.0;
-            // Suma capped at 95% чтобы не было > 100% (heroes неубиваемые) +
-            // оставить минимальный финальный damage attacker→victim.
-            double pct = Math.Min(95.0, passive + retribution);
+            // Cap 95% чтобы не было > 100% (heroes неубиваемые) + оставить
+            // минимальный финальный damage attacker→victim.
+            double pct = Math.Min(95.0, passive);
             if (pct <= 0) return;
 
             int reflected = (int)(b.InflictedDamage * pct / 100.0);

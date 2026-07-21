@@ -99,8 +99,14 @@ namespace BannerlordLink.Util
                 },
                 ["retribution_toggle"] = new PowerFxConfig
                 {
-                    PopupText      = "↩ {user} возмездие +{value}% reflect",
-                    PopupColor     = new TaleWorlds.Library.Color(0.55f, 0.78f, 1.0f), // blue
+                    // 2026-07-21 — ключ переиспользован под «Невидимость» ассасина.
+                    // В расширении ярлык пока старый («Стойкость») — фронт заморожен на
+                    // ревью Twitch; в ИГРЕ пишем правду, тут заморозки нет.
+                    // Звук/партикл оставлены прежние (заведомо валидные имена ассетов) —
+                    // подбор «дымного» эффекта отдельной правкой, чтобы не рисковать
+                    // несуществующим psys_*. См. docs/SPEC_ASSASSIN_INVIS.md.
+                    PopupText      = "🌫 {user} растворился в тенях",
+                    PopupColor     = new TaleWorlds.Library.Color(0.62f, 0.55f, 0.85f), // dim violet
                     SoundEventPath = "event:/mission/combat/shield/hit",
                     ParticleName   = "psys_game_shield_block_spark",
                 },

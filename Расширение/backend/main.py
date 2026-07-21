@@ -1263,6 +1263,13 @@ async def run_migrations():
             print(f"❌ M93 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m94_assassin_return
+            await m94_assassin_return.apply(conn)
+        except Exception as e:
+            print(f"❌ M94 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

@@ -1852,13 +1852,15 @@ class BannerlordAdapter(ModuleAdapter):
         # incremental delta. Battle.stats_snapshot имеет cumulative kills
         # per username — track previous, increment delta. Only при is_final
         # чтобы избежать race на short snapshot intervals + дешевле DB writes.
-        if is_final and prev and isinstance(prev.get("participants"), list):
+        # 2026-07-21 — ПОЧИНЕНО. Было: delta = финал − ПРЕДЫДУЩИЙ снапшот, и только
+        # если prev вообще есть. Но `kills` в снапшоте кумулятивны В ПРЕДЕЛАХ БОЯ, а
+        # инкремент пишется только на финале → засчитывался лишь последний интервал
+        # (обычно 0-1), всё набитое раньше терялось; короткие бои с единственным
+        # снапшотом (prev=None) не считались вовсе. Результат: за всё время в БД
+        # 1 килл на 26 игроков → ачивки 100/500/1000 недостижимы, и измерить баланс
+        # классов нечем. Теперь на финале засчитываем ВЕСЬ бой целиком.
+        if is_final:
             try:
-                prev_kills = {}
-                for p in prev["participants"]:
-                    u = (p.get("username") or "").lower()
-                    if u:
-                        prev_kills[u] = int(p.get("kills") or 0)
                 import asyncio as _asyncio
                 from routes.bannerlord_achievements import increment_stat as _inc
                 async def _ach_kills_apply():
@@ -1866,11 +1868,10 @@ class BannerlordAdapter(ModuleAdapter):
                         u = (p.get("username") or "").lower()
                         if not u:
                             continue
-                        new_k = int(p.get("kills") or 0)
-                        delta = max(0, new_k - prev_kills.get(u, 0))
-                        if delta > 0:
+                        battle_kills = int(p.get("kills") or 0)
+                        if battle_kills > 0:
                             try:
-                                await _inc(channel_id, u, "kills", delta)
+                                await _inc(channel_id, u, "kills", battle_kills)
                             except Exception:
                                 pass
                 _asyncio.create_task(_ach_kills_apply())

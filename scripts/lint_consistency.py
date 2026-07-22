@@ -297,13 +297,87 @@ def check_tenant_scoping():
             )
 
 
+def _bannerlord_campaign_dll():
+    """Path to TaleWorlds.CampaignSystem.dll, or None if the game isn't here.
+
+    The game path lives in exactly one place already (the mod's csproj), so we
+    read it from there instead of hardcoding it a second time.
+    """
+    csproj = ROOT / "BannerlordLink" / "src" / "BannerlordLink.csproj"
+    if not csproj.is_file():
+        return None
+    m = re.search(r"<BannerlordPath>(.*?)</BannerlordPath>",
+                  csproj.read_text(encoding="utf-8", errors="ignore"))
+    if not m:
+        return None
+    base = m.group(1).replace("&amp;", "&").strip()
+    dll = pathlib.Path(base) / "bin" / "Win64_Shipping_Client" / "TaleWorlds.CampaignSystem.dll"
+    return dll if dll.is_file() else None
+
+
+def check_bannerlord_policies():
+    """Kingdom-law ids hardcoded in the frontend must exist in the game.
+
+    The law catalog is a hand-written array in viewer-bannerlord.js; the game
+    never sends it. So a Bannerlord patch that renames a PolicyObject turns the
+    button into a silent no-op: the mod answers policy_not_found, the viewer is
+    refunded, but from their side an expensive action (1500 crustics) just
+    "does not work". That is exactly how bug report #23 read from the outside.
+
+    The authoritative list lives in code, not XML, so we scan the assembly's
+    UTF-16 string literals -- verified 2026-07-22 to return byte-for-byte the
+    same 32 ids as decompiling DefaultPolicies, with no extra tooling.
+
+    Degrades quietly: no game installed (CI) -> skip. This check is meant to
+    bite on the dev machine, where the pre-commit hook runs.
+    """
+    front = EXT / "frontend" / "viewer-bannerlord.js"
+    if not front.is_file():
+        return
+    ids = sorted(set(re.findall(
+        r"id:\s*'(policy_[a-z_]+)'",
+        front.read_text(encoding="utf-8", errors="ignore"))))
+    if not ids:
+        return
+
+    dll = _bannerlord_campaign_dll()
+    if dll is None:
+        return  # game not on this machine (CI) -- nothing to compare against
+
+    try:
+        blob = dll.read_bytes().decode("utf-16-le", errors="ignore")
+    except OSError:
+        return
+    game = set(re.findall(r"policy_[a-z_]{3,40}", blob))
+    if len(game) < 10:
+        # Scan clearly did not work (packed/obfuscated build?) -- a silent pass
+        # is safer than failing every commit on a bad heuristic.
+        warns.append("policy-catalog: could not read policy ids from the game "
+                     "assembly -- check skipped, not a frontend problem")
+        return
+
+    for pid in ids:
+        if pid not in game:
+            errors.append(
+                f"policy-catalog: '{pid}' is offered in viewer-bannerlord.js but "
+                f"does NOT exist in the game -- the button would charge the viewer "
+                f"and silently do nothing (mod: policy_not_found)")
+
+    unused = len(game) - len(ids)
+    if unused > 0:
+        warns.append(
+            f"policy-catalog: the game has {len(game)} laws, the extension offers "
+            f"{len(ids)} -- {unused} are unreachable for viewers (see DEFERRED.md: "
+            f"serve the catalog from the game instead of hardcoding it)")
+
+
 def main() -> int:
     if EXT is None:
         print("[lint] FAIL: could not locate extension dir (with backend/)")
         return 1
     for fn in (check_version_sync, check_migrations_wired,
                check_manifest_actions, check_currency_glyph,
-               check_tenant_scoping):
+               check_tenant_scoping, check_bannerlord_policies):
         try:
             fn()
         except Exception as e:  # a broken check shouldn't crash CI silently

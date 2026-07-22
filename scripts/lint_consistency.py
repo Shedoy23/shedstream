@@ -297,6 +297,62 @@ def check_tenant_scoping():
             )
 
 
+def check_frontend_global_collisions():
+    """Two frontend scripts must not declare the same top-level name.
+
+    The 7k-line viewer.js was split into pets.js / shop.js / duels.js / ... but
+    they are plain <script> tags, so every top-level `function` and `var` lands
+    in ONE shared global scope. Two files declaring the same name is legal
+    JavaScript: the one loaded last silently replaces the other. No error, no
+    warning -- the code runs, it just runs the wrong function.
+
+    Cost us an hour on 2026-07-22: pets.js and shop.js both declared
+    `async function _buyItem`. pets.js is included later (extension.html:469 vs
+    461), so every RimWorld shop purchase called the PETS version, POSTed to
+    /api/pet/purchase with a URL as item_id, and got back "item not found in
+    catalog" -- while the catalog was perfectly fine. 33 such requests in the
+    nginx log, none to the RimWorld endpoint. Reading either file alone shows
+    nothing wrong, which is why a linter is the right tool here.
+
+    Only files loaded by the SAME shell are compared -- scripts that never share
+    a page cannot collide.
+
+    `const`/`let` are skipped on purpose: redeclaring those across scripts is a
+    loud SyntaxError, so they cannot cause this silent class of bug.
+    """
+    frontend = EXT / "frontend"
+    if not frontend.is_dir():
+        return
+
+    decl_rx = re.compile(r"^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)", re.M)
+    var_rx = re.compile(r"^var\s+([A-Za-z_$][\w$]*)\s*=", re.M)
+
+    for shell in ("extension.html", "mobile.html"):
+        shell_path = frontend / shell
+        if not shell_path.is_file():
+            continue
+        html = shell_path.read_text(encoding="utf-8", errors="ignore")
+        scripts = re.findall(r'<script\s+src="([^"?]+\.js)', html)
+
+        owners: dict[str, list[str]] = {}
+        for js in scripts:
+            f = frontend / js
+            if not f.is_file():
+                continue
+            src = f.read_text(encoding="utf-8", errors="ignore")
+            for name in set(decl_rx.findall(src)) | set(var_rx.findall(src)):
+                owners.setdefault(name, []).append(js)
+
+        for name, files in sorted(owners.items()):
+            if len(files) > 1:
+                # Last one in load order wins -- name the loser explicitly.
+                order = [j for j in scripts if j in files]
+                errors.append(
+                    f"global-collision [{shell}]: '{name}' declared in "
+                    f"{', '.join(order)} -- these share one global scope, so "
+                    f"{order[-1]} silently overwrites {order[0]}; rename one")
+
+
 def _bannerlord_campaign_dll():
     """Path to TaleWorlds.CampaignSystem.dll, or None if the game isn't here.
 
@@ -377,7 +433,8 @@ def main() -> int:
         return 1
     for fn in (check_version_sync, check_migrations_wired,
                check_manifest_actions, check_currency_glyph,
-               check_tenant_scoping, check_bannerlord_policies):
+               check_tenant_scoping, check_bannerlord_policies,
+               check_frontend_global_collisions):
         try:
             fn()
         except Exception as e:  # a broken check shouldn't crash CI silently

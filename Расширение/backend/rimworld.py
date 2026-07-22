@@ -181,14 +181,77 @@ async def _require_stream_live(request=None, channel_id=None):
 
 async def _ensure_pending_commands_table(conn):
     """Создаёт таблицу отложенных команд если её нет."""
+    # 2026-07-22: схема ПРИВЕДЕНА к той, что создаёт мультитенантная миграция m1
+    # (channel_id NOT NULL + UNIQUE(channel_id, cmd_id)). Раньше здесь была
+    # досетевая схема без channel_id: на уже мигрированной базе CREATE TABLE IF
+    # NOT EXISTS не срабатывал, а INSERT из _db_enqueue_command не передавал
+    # channel_id → NOT NULL нарушался и «OR IGNORE» ГЛОТАЛ строку молча.
+    # Итог: очередь не сохранилась НИ РАЗУ с момента m1 (на проде 0 строк),
+    # обещание «переживёт рестарт сервера» не выполнялось, а рефанд-механика
+    # 2026-07-19 физически не могла работать — ей не из чего возвращать.
     await conn.execute("""
         CREATE TABLE IF NOT EXISTS rimworld_pending_commands (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            cmd_id TEXT UNIQUE,
+            channel_id INTEGER NOT NULL,
+            cmd_id TEXT NOT NULL,
             cmd_json TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(channel_id, cmd_id)
         )
     """)
+    # 2026-07-19 refund: строки живут до ack (раньше удалялись при выдаче моду
+    # → цену вернуть было неоткуда). status: queued → delivered → (удаляется
+    # на ack; delivered старше _DELIVERED_STALE_SEC = мод умер → авто-рефанд).
+    cur = await conn.execute("PRAGMA table_info(rimworld_pending_commands)")
+    cols = {r[1] for r in await cur.fetchall()}
+    if "status" not in cols:
+        await conn.execute(
+            "ALTER TABLE rimworld_pending_commands ADD COLUMN status TEXT DEFAULT 'queued'")
+    if "delivered_at" not in cols:
+        await conn.execute(
+            "ALTER TABLE rimworld_pending_commands ADD COLUMN delivered_at REAL")
+
+
+# Доставленная моду команда без ack дольше этого срока считается потерянной
+# (мод крашнулся/закрыт до выполнения) → авто-рефанд. Мод поллит каждые 15с,
+# ack уходит сразу после выполнения — 10 минут это уже труп.
+_DELIVERED_STALE_SEC = 600
+
+
+async def _refund_cmd_row_tx(conn, cmd_id: str, cmd_json: str, reason: str) -> bool:
+    """Возврат очков за невыполненную команду. На переданном conn, БЕЗ commit —
+    вызывающий держит транзакцию (возврат + DELETE строки = атомарно, повторный
+    ack не найдёт строку → двойного возврата нет)."""
+    try:
+        cmd = json.loads(cmd_json)
+    except Exception as _je:
+        print(f"DBG refund json fail: {_je!r} raw={cmd_json!r}")
+        return False
+    price = int(cmd.get("price") or 0)
+    username = (cmd.get("username") or "").strip()
+    channel_id = cmd.get("channel_id")
+    if price <= 0 or not username or not channel_id:
+        # Команды до 2026-07-19 без price/channel_id — вернуть нечего/некому.
+        print(f"DBG refund guard: price={price} user={username!r} ch={channel_id!r} raw={cmd_json[:120]!r}")
+        return False
+    await get_db().add_points_tx(conn, username, price, channel_id)
+    print(f"💸 RimWorld refund: @{username} +{price}💎 (cmd={cmd_id}, reason={reason})")
+    return True
+
+
+async def _refund_stale_delivered(conn):
+    """Авто-рефанд команд, доставленных моду, но не подтверждённых слишком долго
+    (мод крашнулся между выдачей и выполнением). Вызывается под commands_lock."""
+    cutoff = time.time() - _DELIVERED_STALE_SEC
+    cur = await conn.execute(
+        "SELECT cmd_id, cmd_json FROM rimworld_pending_commands "
+        "WHERE status='delivered' AND delivered_at IS NOT NULL AND delivered_at < ?",
+        (cutoff,))
+    rows = await cur.fetchall()
+    for cmd_id, cmd_json in rows:
+        await _refund_cmd_row_tx(conn, cmd_id, cmd_json, "stale_delivered")
+        await conn.execute(
+            "DELETE FROM rimworld_pending_commands WHERE cmd_id=?", (cmd_id,))
 
 async def _db_enqueue_command(cmd: dict):
     """Сохранить команду в БД (переживёт рестарт сервера)"""
@@ -196,13 +259,27 @@ async def _db_enqueue_command(cmd: dict):
     try:
         async with aiosqlite.connect(db.db_path) as conn:
             await _ensure_pending_commands_table(conn)
-            await conn.execute(
-                "INSERT OR IGNORE INTO rimworld_pending_commands (cmd_id, cmd_json) VALUES (?, ?)",
-                (cmd.get('id', ''), json.dumps(cmd, ensure_ascii=False))
+            # 2026-07-22: channel_id обязателен (NOT NULL после m1). Все 12 мест
+            # постановки команд его передают — проверено. Если вдруг нет, лучше
+            # шумно отказаться, чем молча потерять команду, за которую заплатили.
+            channel_id = cmd.get('channel_id')
+            if channel_id is None:
+                print(f"❌ db_enqueue: команда {cmd.get('id')!r} без channel_id — "
+                      f"НЕ сохранена (переживёт только до рестарта сервера)")
+                return
+            # БЕЗ "OR IGNORE": именно оно превращало нарушение NOT NULL в тихую
+            # потерю строки и прятало этот баг с самой миграции m1.
+            cur = await conn.execute(
+                "INSERT INTO rimworld_pending_commands (channel_id, cmd_id, cmd_json) "
+                "VALUES (?, ?, ?)",
+                (channel_id, cmd.get('id', ''), json.dumps(cmd, ensure_ascii=False))
             )
+            if not cur.rowcount:
+                print(f"⚠️ db_enqueue: строка {cmd.get('id')!r} не вставилась")
             await conn.commit()
     except Exception as e:
-        print(f"⚠️ db_enqueue: {e}")
+        # Дубль по UNIQUE(channel_id, cmd_id) — норма при ретрае, остальное — беда.
+        print(f"⚠️ db_enqueue {cmd.get('id')!r}: {type(e).__name__}: {e}")
 
 async def _ensure_heal_cooldowns_table(conn):
     """Создаёт таблицу кулдаунов лечения если её нет."""
@@ -245,23 +322,25 @@ async def _set_last_heal_ts(username: str, ts: float):
         print(f"⚠️ set_heal_ts: {e}")
 
 async def _db_dequeue_commands():
-    """Достать и удалить все команды из БД (восстановление после рестарта)"""
+    """Достать невыданные команды из БД (восстановление после рестарта).
+
+    2026-07-19 refund: строки НЕ удаляем — они помечаются delivered при выдаче
+    моду (_get_commands_inner) и удаляются только на ack/stale-рефанде."""
     db = get_db()
     result = []
     try:
         async with aiosqlite.connect(db.db_path) as conn:
             await _ensure_pending_commands_table(conn)
             cursor = await conn.execute(
-                "SELECT cmd_json FROM rimworld_pending_commands ORDER BY id LIMIT 50")
+                "SELECT cmd_json FROM rimworld_pending_commands "
+                "WHERE status='queued' OR status IS NULL ORDER BY id LIMIT 50")
             rows = await cursor.fetchall()
-            if rows:
-                for row in rows:
-                    try:
-                        result.append(json.loads(row[0]))
-                    except Exception:
-                        pass
-                await conn.execute("DELETE FROM rimworld_pending_commands")
-                await conn.commit()
+            for row in rows:
+                try:
+                    result.append(json.loads(row[0]))
+                except Exception:
+                    pass
+            if result:
                 print(f"♻️ Восстановлено {len(result)} команд из БД после рестарта")
     except Exception as e:
         print(f"⚠️ db_dequeue: {e}")
@@ -885,27 +964,66 @@ async def _get_commands_inner():
     if invalid:
         print(f"⚠️ Отфильтровано {len(invalid)} команд без поля 'type' (игнорируются)")
     cmds = [c for c in all_cmds if c.get('type')]
-    if cmds:
-        db = get_db()
-        try:
+    db = get_db()
+    try:
+        async with aiosqlite.connect(db.db_path) as conn:
+            await _ensure_pending_commands_table(conn)
+            await conn.execute("BEGIN IMMEDIATE")
+            # 2026-07-19 refund: выданное моду помечаем delivered (НЕ удаляем —
+            # строка с ценой нужна для возврата на ack fail / stale).
             cmd_ids = [cmd.get('id', '') for cmd in cmds if cmd.get('id')]
             if cmd_ids:
-                async with aiosqlite.connect(db.db_path) as conn:
-                    placeholders = ','.join('?' * len(cmd_ids))
-                    await conn.execute(
-                        f"DELETE FROM rimworld_pending_commands WHERE cmd_id IN ({placeholders})",
-                        cmd_ids
-                    )
-                    await conn.commit()
-        except Exception as e:
-            print(f"⚠️ Очистка команд из БД: {e}")
+                placeholders = ','.join('?' * len(cmd_ids))
+                await conn.execute(
+                    f"UPDATE rimworld_pending_commands "
+                    f"SET status='delivered', delivered_at=? "
+                    f"WHERE cmd_id IN ({placeholders})",
+                    [time.time()] + cmd_ids
+                )
+            # Заодно рефандим давно доставленное без ack (мод умер до выполнения).
+            await _refund_stale_delivered(conn)
+            await conn.commit()
+    except Exception as e:
+        print(f"⚠️ Пометка delivered/stale-рефанд: {e}")
     return cmds
 
 
 @router.post("/api/rimworld/ack-command")
 async def ack_command(request: Request, _auth=Depends(rimworld_mod_auth)):
+    """2026-07-19 refund: раньше ack только печатался — success=false ничего не
+    делал, зритель молча терял очки за невыполненную команду. Теперь:
+    success=true → строка очереди удаляется; success=false → возврат цены
+    зрителю + удаление, в ОДНОЙ транзакции (повторный ack не найдёт строку →
+    идемпотентно, двойного возврата нет)."""
     data = await request.json()
-    print(f"✅ Команда {data.get('command_id')} выполнена: success={data.get('success')}")
+    cmd_id = (data.get('command_id') or '').strip()
+    success = bool(data.get('success'))
+    message = str(data.get('message') or '')
+    print(f"{'✅' if success else '❌'} Команда {cmd_id}: success={success}"
+          + (f" ({message})" if message else ""))
+    if not cmd_id:
+        return {"status": "ok"}
+
+    db = get_db()
+    try:
+        async with aiosqlite.connect(db.db_path) as conn:
+            await _ensure_pending_commands_table(conn)
+            await conn.execute("BEGIN IMMEDIATE")
+            cur = await conn.execute(
+                "SELECT cmd_json FROM rimworld_pending_commands WHERE cmd_id=?",
+                (cmd_id,))
+            row = await cur.fetchone()
+            if row is None:
+                # Уже обработан (идемпотентный повтор) или древний id — no-op.
+                await conn.execute("ROLLBACK")
+                return {"status": "ok"}
+            if not success:
+                await _refund_cmd_row_tx(conn, cmd_id, row[0], message or "mod_refused")
+            await conn.execute(
+                "DELETE FROM rimworld_pending_commands WHERE cmd_id=?", (cmd_id,))
+            await conn.commit()
+    except Exception as e:
+        print(f"⚠️ ack-command {cmd_id}: {e}")
     return {"status": "ok"}
 
 @router.post("/api/rimworld/commands-processed")
@@ -1116,6 +1234,10 @@ async def buy_item(request: Request):
         "id": f"buy_{username}_{int(time.time())}",
         "username": username,
         "def_name": def_name,
+        # 2026-07-19 refund: цена+канал едут в cmd_json — при ack success=false
+        # бэкенд вернёт очки (см. ack_command). Мод лишние поля игнорирует.
+        "price": price,
+        "channel_id": channel_id,
     }
     async with get_commands_lock():
         get_pending().append(cmd)
@@ -1153,7 +1275,9 @@ async def create_pawn(request: Request):
     cmd = {
         "type": "spawn_pawn",
         "id": f"spawn_{username}_{int(time.time())}",
-        "username": username
+        "username": username,
+        "price": SPAWN_COST,
+        "channel_id": channel_id,
     }
     async with get_commands_lock():
         get_pending().append(cmd)
@@ -1192,7 +1316,9 @@ async def heal_pawn(request: Request):
     cmd = {
         "type": "heal_pawn",
         "id": f"heal_{username}_{int(time.time())}",
-        "username": username
+        "username": username,
+        "price": HEAL_COST,
+        "channel_id": channel_id,
     }
     async with get_commands_lock():
         get_pending().append(cmd)
@@ -1228,7 +1354,9 @@ async def resurrect_pawn(request: Request):
     cmd = {
         "type": "resurrect_pawn",
         "id": f"resurrect_{username}_{int(time.time())}",
-        "username": username
+        "username": username,
+        "price": RESURRECT_COST,
+        "channel_id": channel_id,
     }
     async with get_commands_lock():
         get_pending().append(cmd)
@@ -1328,6 +1456,8 @@ async def buy_gene(request: Request):
         "id": f"gene_{username}_{int(time.time())}",
         "username": username,
         "def_name": def_name,
+        "price": price,
+        "channel_id": channel_id,
     }
     async with get_commands_lock():
         get_pending().append(cmd)
@@ -1479,6 +1609,8 @@ async def buy_passion(request: Request):
         "username":  username,
         "skill_def": skill_def,
         "passion":   passion,
+        "price":     price,
+        "channel_id": channel_id,
     }
     async with get_commands_lock():
         get_pending().append(cmd)
@@ -1535,6 +1667,8 @@ async def reset_passion(request: Request):
         "username":  username,
         "skill_def": skill_def,
         "passion":   0,
+        "price":     PASSION_RESET_PRICE,
+        "channel_id": channel_id,
     }
     async with get_commands_lock():
         get_pending().append(cmd)
@@ -1592,6 +1726,8 @@ async def buy_trait(request: Request):
         "username": username,
         "trait_def": trait_def,
         "degree": degree,
+        "price": trait_cost,
+        "channel_id": channel_id,
     }
     async with get_commands_lock():
         get_pending().append(cmd)
@@ -1624,6 +1760,8 @@ async def remove_trait(request: Request):
         "id": f"rmtrait_{username}_{int(time.time())}",
         "username": username,
         "trait_def": trait_def,
+        "price": REMOVE_COST,
+        "channel_id": channel_id,
     }
     async with get_commands_lock():
         get_pending().append(cmd)
@@ -1675,6 +1813,8 @@ async def remove_gene(request: Request):
         "id": f"rmgene_{username}_{int(time.time())}",
         "username": username,
         "def_name": gene_def,
+        "price": REMOVE_COST,
+        "channel_id": channel_id,
     }
     async with get_commands_lock():
         get_pending().append(cmd)
@@ -1733,6 +1873,8 @@ async def buy_implant_alias(request: Request):
         "username": username,
         "def_name": def_name,
         "part_hint": part_hint,   # '' | 'left' | 'right'
+        "price": price,
+        "channel_id": channel_id,
     }
 
     async with get_commands_lock():
@@ -1784,6 +1926,8 @@ async def train_skill_alias(request: Request):
         "id": f"train_{username}_{int(time.time())}",
         "username": username,
         "def_name": def_name,
+        "price": price,
+        "channel_id": channel_id,
     }
     async with get_commands_lock():
         get_pending().append(cmd)
@@ -1963,6 +2107,10 @@ async def trigger_event(request: Request):
             "username": username,
         }
         pending_cmd.update(params)
+        # 2026-07-19 refund: ПОСЛЕ update(params) — params из каталога не должны
+        # затирать цену/канал.
+        pending_cmd["price"] = cost
+        pending_cmd["channel_id"] = channel_id
         async with get_commands_lock():
             get_pending().append(pending_cmd)
         await _db_enqueue_command(pending_cmd)

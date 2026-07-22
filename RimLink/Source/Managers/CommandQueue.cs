@@ -124,7 +124,20 @@ namespace RimLink.Managers
 
             Log.Message($"[RimLink] Выполняем команду: {type}");
 
-            ICommand command = CommandFactory.Create(type, cmd);
+            // 2026-07-19: конструкторы команд читают поля payload'а напрямую —
+            // битый payload кидал ДО try ниже → ack не уходил вообще (команда
+            // висла на бэке без вердикта). Теперь честный success=false.
+            ICommand command;
+            try
+            {
+                command = CommandFactory.Create(type, cmd);
+            }
+            catch (Exception e)
+            {
+                Log.Error($"[RimLink] Команда {type}: битый payload: {e.Message}");
+                AckCommandAsync(commandId, false, $"bad_payload: {e.Message}");
+                return;
+            }
 
             if (command == null)
             {
@@ -135,8 +148,12 @@ namespace RimLink.Managers
 
             try
             {
-                command.Execute();
-                AckCommandAsync(commandId, true);
+                // 2026-07-19: Execute теперь bool — false = no-op (эффекта не
+                // было) → success=false → бэкенд вернёт зрителю очки.
+                bool ok = command.Execute();
+                if (!ok)
+                    Log.Warning($"[RimLink] Команда {type} без эффекта — шлём success=false (рефанд)");
+                AckCommandAsync(commandId, ok, ok ? "" : "no_effect");
             }
             catch (Exception e)
             {

@@ -17,18 +17,18 @@ namespace RimLink.Actions
             _username = d["username"].ToString();
         }
 
-        public void Execute()
+        public bool Execute()
         {
             if (Find.AnyPlayerHomeMap == null)
             {
                 Log.Warning("[RimLink] SpawnPawn: нет карты колонии");
-                return;
+                return false;
             }
 
             if (RimLinkMod.PawnManager.HasPawn(_username))
             {
                 Log.Message($"[RimLink] SpawnPawn: у {_username} уже есть пешка");
-                return;
+                return false;
             }
 
             Map map = Find.AnyPlayerHomeMap;
@@ -77,6 +77,7 @@ namespace RimLink.Actions
             Messages.Message(
                 $"✨ {_username} присоединился к колонии!",
                 pawn, MessageTypeDefOf.PositiveEvent);
+            return true;
         }
     }
 
@@ -92,10 +93,11 @@ namespace RimLink.Actions
             _username = d["username"].ToString();
         }
 
-        public void Execute()
+        public bool Execute()
         {
             bool ok = RimLinkMod.PawnManager.HealPawn(_username);
             if (!ok) Log.Warning($"[RimLink] HealPawn: пешка {_username} не найдена или мертва");
+            return ok;
         }
     }
 
@@ -111,10 +113,11 @@ namespace RimLink.Actions
             _username = d["username"].ToString();
         }
 
-        public void Execute()
+        public bool Execute()
         {
             bool ok = RimLinkMod.PawnManager.ResurrectPawn(_username);
             if (!ok) Log.Warning($"[RimLink] ResurrectPawn: не удалось воскресить {_username}");
+            return ok;
         }
     }
 
@@ -132,10 +135,11 @@ namespace RimLink.Actions
             _defName  = d["def_name"].ToString();
         }
 
-        public void Execute()
+        public bool Execute()
         {
             bool ok = RimLinkMod.PawnManager.EquipItem(_username, _defName);
             if (!ok) Log.Warning($"[RimLink] EquipItem: не удалось надеть {_defName} на {_username}");
+            return ok;
         }
     }
 
@@ -155,10 +159,11 @@ namespace RimLink.Actions
             _partHint = d.ContainsKey("part_hint") ? d["part_hint"]?.ToString() ?? "" : "";
         }
 
-        public void Execute()
+        public bool Execute()
         {
             bool ok = RimLinkMod.PawnManager.InstallImplant(_username, _defName, _partHint);
             if (!ok) Log.Warning($"[RimLink] InstallImplant: не удалось установить {_defName} для {_username}");
+            return ok;
         }
     }
 
@@ -176,10 +181,11 @@ namespace RimLink.Actions
             _defName  = d["def_name"].ToString();
         }
 
-        public void Execute()
+        public bool Execute()
         {
             bool ok = RimLinkMod.PawnManager.TrainSkill(_username, _defName);
             if (!ok) Log.Warning($"[RimLink] TrainSkill: не удалось применить нейротренер {_defName} для {_username}");
+            return ok;
         }
     }
 
@@ -202,10 +208,11 @@ namespace RimLink.Actions
             _passion  = d.ContainsKey("passion") ? Convert.ToInt32(d["passion"]) : 1;
         }
 
-        public void Execute()
+        public bool Execute()
         {
             bool ok = RimLinkMod.PawnManager.SetPassion(_username, _skillDef, _passion);
             if (!ok) Log.Warning($"[RimLink] SetPassion: не удалось установить страсть {_skillDef} для {_username}");
+            return ok;
         }
     }
 }

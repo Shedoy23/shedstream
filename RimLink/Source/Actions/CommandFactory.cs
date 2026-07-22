@@ -8,7 +8,13 @@ namespace RimLink.Actions
 {
     public interface ICommand
     {
-        void Execute();
+        /// <summary>
+        /// 2026-07-19: возвращает true ТОЛЬКО при наблюдаемом эффекте.
+        /// false = no-op (пешка мертва/дубль/движок отказал) → ack success=false
+        /// → бэкенд вернёт зрителю очки. Раньше был void — все no-op'ы молча
+        /// подтверждались как успех (зритель платил за ноль).
+        /// </summary>
+        bool Execute();
     }
 
     /// <summary>
@@ -151,10 +157,11 @@ namespace RimLink.Actions
             }
         }
 
-        public void Execute()
+        public bool Execute()
         {
-            if (!RimLinkMod.PawnManager.AddTrait(_username, _traitDef, _degree))
-                Log.Warning($"[RimLink] AddTrait: Ошибка добавления {_traitDef}");
+            bool ok = RimLinkMod.PawnManager.AddTrait(_username, _traitDef, _degree);
+            if (!ok) Log.Warning($"[RimLink] AddTrait: Ошибка добавления {_traitDef}");
+            return ok;
         }
     }
 
@@ -171,10 +178,11 @@ namespace RimLink.Actions
                       : "";
         }
 
-        public void Execute()
+        public bool Execute()
         {
-            if (!RimLinkMod.PawnManager.RemoveTrait(_username, _traitDef))
-                Log.Warning($"[RimLink] RemoveTrait: Ошибка удаления {_traitDef}");
+            bool ok = RimLinkMod.PawnManager.RemoveTrait(_username, _traitDef);
+            if (!ok) Log.Warning($"[RimLink] RemoveTrait: Ошибка удаления {_traitDef}");
+            return ok;
         }
     }
 
@@ -189,15 +197,15 @@ namespace RimLink.Actions
             _xenotypeDef = d.ContainsKey("def_name") ? d["def_name"].ToString() : "";
         }
 
-        public void Execute()
+        public bool Execute()
         {
-            if (!ModsConfig.BiotechActive || string.IsNullOrEmpty(_xenotypeDef)) return;
-            
-            if (!RimLinkMod.PawnManager.TryGetPawn(_username, out var pawn) || pawn == null) return;
+            if (!ModsConfig.BiotechActive || string.IsNullOrEmpty(_xenotypeDef)) return false;
+
+            if (!RimLinkMod.PawnManager.TryGetPawn(_username, out var pawn) || pawn == null) return false;
 
             var xeno = DefDatabase<XenotypeDef>.GetNamed(_xenotypeDef, errorOnFail: false);
-            if (xeno == null) return;
-            if (pawn.genes == null) return;
+            if (xeno == null) return false;
+            if (pawn.genes == null) return false;
 
             try
             {
@@ -216,8 +224,9 @@ namespace RimLink.Actions
 
                 Messages.Message($"🧬 {_username} стал {xeno.LabelCap}!", pawn, MessageTypeDefOf.PositiveEvent);
                 RimLinkMod.PawnManager.ForceSyncPawn(_username);
+                return true;
             }
-            catch (Exception e) { Log.Error($"[RimLink] AddXenotype: {e.Message}"); }
+            catch (Exception e) { Log.Error($"[RimLink] AddXenotype: {e.Message}"); return false; }
         }
     }
 
@@ -232,14 +241,19 @@ namespace RimLink.Actions
             _geneDef  = CommandHelpers.GetDefName(d, "def_name", "gene_def");
         }
 
-        public void Execute()
+        public bool Execute()
         {
-            if (!CommandHelpers.TryGetGeneAndPawn(_username, _geneDef, out var pawn, out var def)) return;
-            if (pawn.genes.HasActiveGene(def)) return;
+            if (!CommandHelpers.TryGetGeneAndPawn(_username, _geneDef, out var pawn, out var def)) return false;
+            if (pawn.genes.HasActiveGene(def))
+            {
+                Log.Warning($"[RimLink] AddGene: у {_username} уже есть ген {_geneDef}");
+                return false;
+            }
 
             pawn.genes.AddGene(def, xenogene: true);
             Messages.Message($"🧬 {_username} получил ген {def.LabelCap}!", pawn, MessageTypeDefOf.PositiveEvent);
             RimLinkMod.PawnManager.ForceSyncPawn(_username);
+            return true;
         }
     }
 
@@ -254,15 +268,20 @@ namespace RimLink.Actions
             _geneDef  = CommandHelpers.GetDefName(d, "def_name", "gene_def");
         }
 
-        public void Execute()
+        public bool Execute()
         {
-            if (!CommandHelpers.TryGetGeneAndPawn(_username, _geneDef, out var pawn, out var def)) return;
+            if (!CommandHelpers.TryGetGeneAndPawn(_username, _geneDef, out var pawn, out var def)) return false;
             var gene = pawn.genes.GetGene(def);
-            if (gene == null) return;
+            if (gene == null)
+            {
+                Log.Warning($"[RimLink] RemoveGene: у {_username} нет гена {_geneDef}");
+                return false;
+            }
 
             pawn.genes.RemoveGene(gene);
             Messages.Message($"🧬 {_username} потерял ген {def.LabelCap}!", pawn, MessageTypeDefOf.NeutralEvent);
             RimLinkMod.PawnManager.ForceSyncPawn(_username);
+            return true;
         }
     }
 }

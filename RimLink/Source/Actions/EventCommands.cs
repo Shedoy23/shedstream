@@ -16,7 +16,7 @@ namespace RimLink.Actions
 
         protected BaseEventCommand(Dictionary<string, object> data) { Data = data; }
 
-        public abstract void Execute();
+        public abstract bool Execute();
 
         protected T Get<T>(string key, T fallback = default)
         {
@@ -25,20 +25,22 @@ namespace RimLink.Actions
             catch { return fallback; }
         }
 
-        protected void TryFireIncident(IncidentDef def)
+        // 2026-07-19: возвращаем результат TryExecute — движок может молча
+        // отказать (нет точки высадки/условия воркера), раньше это глоталось.
+        protected bool TryFireIncident(IncidentDef def)
         {
-            if (def == null || HomeMap == null) return;
+            if (def == null || HomeMap == null) return false;
             var parms = StorytellerUtility.DefaultParmsNow(def.category, HomeMap);
             parms.forced = true;
-            def.Worker.TryExecute(parms);
+            return def.Worker.TryExecute(parms);
         }
 
-        protected static void FireGameConditionEvent(string defName, string message, MessageTypeDef messageType)
+        protected static bool FireGameConditionEvent(string defName, string message, MessageTypeDef messageType)
         {
             var def = DefDatabase<GameConditionDef>.GetNamed(defName, errorOnFail: false);
-            if (def == null) return;
+            if (def == null) return false;
             var map = Find.AnyPlayerHomeMap;
-            if (map == null) return;
+            if (map == null) return false;
 
             var conditions = map.gameConditionManager.ActiveConditions;
             for (int i = conditions.Count - 1; i >= 0; i--)
@@ -46,6 +48,7 @@ namespace RimLink.Actions
 
             map.gameConditionManager.RegisterCondition(GameConditionMaker.MakeCondition(def, 60000));
             Messages.Message(message, messageType);
+            return true;
         }
     }
 
@@ -62,34 +65,31 @@ namespace RimLink.Actions
 
         public WeatherEventCommand(Dictionary<string, object> d) : base(d) { }
 
-        public override void Execute()
+        public override bool Execute()
         {
-            if (HomeMap == null) return;
+            if (HomeMap == null) return false;
 
             string key = Get("weather", "Rain");
             string defName = key;
             if (key == "thunderstorm") defName = "RainThunderstorm";
-            
+
             if (GameConditionWeathers.Contains(defName))
-            {
-                FireAsGameCondition(defName);
-                return;
-            }
+                return FireAsGameCondition(defName);
 
             WeatherDef weather = DefDatabase<WeatherDef>.GetNamed(defName, errorOnFail: false);
             if (weather != null)
             {
                 HomeMap.weatherManager.TransitionTo(weather);
                 Messages.Message($"⛈ Погода изменена на: {weather.LabelCap}", MessageTypeDefOf.NeutralEvent);
+                return true;
             }
-            else
-                FireAsGameCondition(defName);
+            return FireAsGameCondition(defName);
         }
 
-        private void FireAsGameCondition(string defName)
+        private bool FireAsGameCondition(string defName)
         {
             var condDef = DefDatabase<GameConditionDef>.GetNamed(defName, errorOnFail: false);
-            if (condDef == null) { Log.Warning($"[RimLink] Weather: '{defName}' не найден"); return; }
+            if (condDef == null) { Log.Warning($"[RimLink] Weather: '{defName}' не найден"); return false; }
 
             var conditions = HomeMap.gameConditionManager.ActiveConditions;
             for (int i = conditions.Count - 1; i >= 0; i--)
@@ -97,6 +97,7 @@ namespace RimLink.Actions
 
             HomeMap.gameConditionManager.RegisterCondition(GameConditionMaker.MakeCondition(condDef, 60000));
             Messages.Message($"☣️ {condDef.LabelCap} начались!", MessageTypeDefOf.ThreatBig);
+            return true;
         }
     }
 
@@ -107,13 +108,13 @@ namespace RimLink.Actions
     {
         public RaidEventCommand(Dictionary<string, object> d) : base(d) { }
 
-        public override void Execute()
+        public override bool Execute()
         {
-            if (HomeMap == null) return;
+            if (HomeMap == null) return false;
 
             int points = Get("points", 500);
             var def = DefDatabase<IncidentDef>.GetNamed("RaidEnemy", errorOnFail: false);
-            if (def == null) return;
+            if (def == null) return false;
 
             var parms = StorytellerUtility.DefaultParmsNow(def.category, HomeMap);
             parms.points = points;
@@ -141,12 +142,16 @@ namespace RimLink.Actions
                 else
                 {
                     Log.Warning("[RimLink] RaidEvent: Не найдено фракций для рейда — отмена");
-                    return;
+                    return false;
                 }
             }
 
-            def.Worker.TryExecute(parms);
-            Messages.Message("🔴 Вражеский рейд начинается!", MessageTypeDefOf.ThreatBig);
+            bool fired = def.Worker.TryExecute(parms);
+            if (fired)
+                Messages.Message("🔴 Вражеский рейд начинается!", MessageTypeDefOf.ThreatBig);
+            else
+                Log.Warning("[RimLink] RaidEvent: движок отказал (TryExecute=false) — рефанд");
+            return fired;
         }
     }
 
@@ -156,13 +161,13 @@ namespace RimLink.Actions
     public class ResourceDropCommand : BaseEventCommand
     {
         public ResourceDropCommand(Dictionary<string, object> d) : base(d) { }
-        public override void Execute()
+        public override bool Execute()
         {
             var def = DefDatabase<IncidentDef>.GetNamed("ResourcePodCrash", errorOnFail: false);
             if (def != null && HomeMap != null)
-                TryFireIncident(def);
-            else
-                Log.Warning("[RimLink] ResourceDrop: Инцидент не найден");
+                return TryFireIncident(def);
+            Log.Warning("[RimLink] ResourceDrop: Инцидент не найден");
+            return false;
         }
     }
 
@@ -172,13 +177,13 @@ namespace RimLink.Actions
     public class WandererJoinCommand : BaseEventCommand
     {
         public WandererJoinCommand(Dictionary<string, object> d) : base(d) { }
-        public override void Execute()
+        public override bool Execute()
         {
             var def = DefDatabase<IncidentDef>.GetNamed("WandererJoin", errorOnFail: false);
             if (def != null && HomeMap != null)
-                TryFireIncident(def);
-            else
-                Log.Warning("[RimLink] Wanderer: Инцидент не найден");
+                return TryFireIncident(def);
+            Log.Warning("[RimLink] Wanderer: Инцидент не найден");
+            return false;
         }
     }
 
@@ -189,9 +194,9 @@ namespace RimLink.Actions
     {
         public AnimalsEventCommand(Dictionary<string, object> d) : base(d) { }
 
-        public override void Execute()
+        public override bool Execute()
         {
-            if (HomeMap == null) return;
+            if (HomeMap == null) return false;
             bool aggressive = Get("aggressive", false);
 
             IncidentDef def = aggressive
@@ -203,12 +208,16 @@ namespace RimLink.Actions
 
             if (def != null)
             {
-                TryFireIncident(def);
-                Messages.Message(aggressive ? "🐺 Животные в ярости!" : "🐾 Животные пришли в колонию!",
-                                 aggressive ? MessageTypeDefOf.ThreatBig : MessageTypeDefOf.PositiveEvent);
+                bool fired = TryFireIncident(def);
+                if (fired)
+                    Messages.Message(aggressive ? "🐺 Животные в ярости!" : "🐾 Животные пришли в колонию!",
+                                     aggressive ? MessageTypeDefOf.ThreatBig : MessageTypeDefOf.PositiveEvent);
+                else
+                    Log.Warning("[RimLink] Animals: движок отказал (TryExecute=false) — рефанд");
+                return fired;
             }
-            else
-                Log.Warning("[RimLink] Animals: Инцидент не найден");
+            Log.Warning("[RimLink] Animals: Инцидент не найден");
+            return false;
         }
     }
 
@@ -220,10 +229,10 @@ namespace RimLink.Actions
         private readonly Dictionary<string, object> _data;
         public FireIncidentCommand(Dictionary<string, object> d) { _data = d; }
 
-        public void Execute()
+        public bool Execute()
         {
             Map map = Find.AnyPlayerHomeMap;
-            if (map == null) { Log.Warning("[RimLink] FireIncident: Нет карты"); return; }
+            if (map == null) { Log.Warning("[RimLink] FireIncident: Нет карты"); return false; }
 
             string defName = "";
             if (_data.TryGetValue("incident_def", out var val1)) defName = val1?.ToString();
@@ -234,10 +243,10 @@ namespace RimLink.Actions
                     defName = v3?.ToString();
             }
 
-            if (string.IsNullOrEmpty(defName)) return;
+            if (string.IsNullOrEmpty(defName)) return false;
 
             var def = DefDatabase<IncidentDef>.GetNamed(defName, errorOnFail: false);
-            if (def == null) return;
+            if (def == null) return false;
 
             try
             {
@@ -289,12 +298,17 @@ namespace RimLink.Actions
                     catch { /* Пропускаем, игра сама найдет точку */ }
                 }
 
-                def.Worker.TryExecute(parms);
-                Messages.Message($"🎲 {def.LabelCap} запущен!", MessageTypeDefOf.NeutralEvent);
+                bool fired = def.Worker.TryExecute(parms);
+                if (fired)
+                    Messages.Message($"🎲 {def.LabelCap} запущен!", MessageTypeDefOf.NeutralEvent);
+                else
+                    Log.Warning($"[RimLink] FireIncident: движок отказал для '{defName}' (TryExecute=false) — рефанд");
+                return fired;
             }
             catch (Exception e)
             {
                 Log.Error($"[RimLink] FireIncident: {e.Message}");
+                return false;
             }
         }
     }

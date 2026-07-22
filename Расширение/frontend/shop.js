@@ -190,7 +190,7 @@ function renderShop(items) {
 }
 
 async function buyShopItem(itemDef) {
-    await _buyItem(`${API_URL}/api/rimworld/buy-item`, { username: userLogin, item_def: itemDef }, 'buyItem', 3000);
+    await _rwBuyItem(`${API_URL}/api/rimworld/buy-item`, { username: userLogin, item_def: itemDef }, 'buyItem', 3000);
 }
 
 
@@ -200,7 +200,7 @@ async function buyImplant(itemDef, itemName, isPaired) {
     // isPaired передаётся из data-атрибута каталога (is_paired из C#)
     if (!isPaired) {
         // Одиночный имплант — сразу покупаем без выбора стороны
-        await _buyItem(`${API_URL}/api/rimworld/buy-implant`, { username: userLogin, item_def: itemDef }, 'buyImplant', 3000);
+        await _rwBuyItem(`${API_URL}/api/rimworld/buy-implant`, { username: userLogin, item_def: itemDef }, 'buyImplant', 3000);
         return;
     }
 
@@ -252,15 +252,20 @@ async function buyImplant(itemDef, itemName, isPaired) {
     document.body.appendChild(modal);
     // Отмена: modal.remove() работает независимо от того, куда был добавлен элемент
     modal.querySelector('#btn-cancel').onclick = () => modal.remove();
-    modal.querySelector('#btn-left').onclick  = async () => { modal.remove(); await _buyItem(`${API_URL}/api/rimworld/buy-implant`, { username: userLogin, item_def: itemDef, part_hint: 'left'  }, 'buyImplant', 3000); };
-    modal.querySelector('#btn-right').onclick = async () => { modal.remove(); await _buyItem(`${API_URL}/api/rimworld/buy-implant`, { username: userLogin, item_def: itemDef, part_hint: 'right' }, 'buyImplant', 3000); };
+    modal.querySelector('#btn-left').onclick  = async () => { modal.remove(); await _rwBuyItem(`${API_URL}/api/rimworld/buy-implant`, { username: userLogin, item_def: itemDef, part_hint: 'left'  }, 'buyImplant', 3000); };
+    modal.querySelector('#btn-right').onclick = async () => { modal.remove(); await _rwBuyItem(`${API_URL}/api/rimworld/buy-implant`, { username: userLogin, item_def: itemDef, part_hint: 'right' }, 'buyImplant', 3000); };
 }
 
 async function buyNeurotrainer(itemDef) {
-    await _buyItem(`${API_URL}/api/rimworld/train-skill`, { username: userLogin, item_def: itemDef }, 'buyNeuro', 3000);
+    await _rwBuyItem(`${API_URL}/api/rimworld/train-skill`, { username: userLogin, item_def: itemDef }, 'buyNeuro', 3000);
 }
 
-async function _buyItem(url, body, cooldownKey = null, cooldownMs = 5000) {
+// 2026-07-22: имя с префиксом _rw* НЕ трогать. Раньше называлась _buyItem и
+// конфликтовала с одноимённой функцией в pets.js: оба файла — обычные скрипты,
+// делят глобальную область, pets.js грузится позже (extension.html:469 против
+// 461) и ЗАТИРАЛ эту функцию. Весь магазин RimWorld уходил в /api/pet/purchase
+// и получал «Предмет не найден в каталоге» — 33 такие покупки в логе прода.
+async function _rwBuyItem(url, body, cooldownKey = null, cooldownMs = 5000) {
     // КД управляется снаружи (cooldownKey=null → без проверки внутри)
     if (cooldownKey) {
         const btn = document.activeElement instanceof HTMLButtonElement ? document.activeElement : null;

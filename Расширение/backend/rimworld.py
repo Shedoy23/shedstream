@@ -1213,6 +1213,11 @@ async def buy_item(request: Request):
         item = await cursor.fetchone()
 
     if not item:
+        # 2026-07-22: отказ платного действия обязан называть причину. Раньше
+        # молчал — и «предмет не найден» нельзя было отличить от опечатки в
+        # def_name, устаревшего каталога или расхождения регистра.
+        print(f"🛒 buy-item: def_name={def_name!r} НЕТ в shop_catalog "
+              f"(@{username}, ch={channel_id})")
         return {"success": False, "message": "Предмет не найден в каталоге"}
 
     price, label, category = item
@@ -1848,6 +1853,8 @@ async def buy_implant_alias(request: Request):
         item = await cursor.fetchone()
 
     if not item:
+        print(f"🛒 buy-implant: def_name={def_name!r} НЕТ в shop_catalog "
+              f"(@{username}, ch={channel_id})")
         return {"success": False, "message": "Предмет не найден в каталоге"}
 
     price, label, extra_json = item

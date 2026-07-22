@@ -97,6 +97,7 @@ extensions:
     - hero.party_order_status    # Sprint 5.33 PORDER: sticky order set/release/expire/complete
     - hero.properties_snapshot   # 2026-06-02 PROPERTIES-MIRROR: mod пушит полный snapshot fiefs/workshops/caravans → backend зеркалит (reconcile). БЕЗ этой строки бэк реджектил event_not_in_manifest → зеркало было мёртвым (поймано автотестом).
     - hero.restore_profile       # 2026-06-15: на загрузке сейва мод ре-пушит per-save backend-only стейт (class/stance/gear_tier из SyncData). БЕЗ этой строки бэк реджектит event_not_in_manifest → класс не восстанавливается (тот же грабль, что properties_snapshot выше).
+    - hero.policy_result       # 2026-07-22 (багрепорт #23): мод сообщает ИТОГ заявки на закон (принят/снят). ACK от ActionPoller приходит ДО реальной работы и ничего не доказывает — без этого события заявка вечно висела 'pending': закон в игре действовал, а расширение показывало «на голосовании» и больше не давало нажать (уникальный индекс по pending).
     - hero.restore_clan_upgrades # 2026-06-15: на загрузке сейва мод ре-пушит owned clan-upgrades ЭТОГО сейва (per-save, SyncData) → backend merge'ит после вайпа.
     # world.settlements_catalog объявлен в base events (наверху, поэтому без префикса hero.)
   actions:

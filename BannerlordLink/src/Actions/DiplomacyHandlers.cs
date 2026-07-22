@@ -100,18 +100,29 @@ namespace BannerlordLink.Actions
                 // "enact" — backend marks status='enacted'. Toggle semantics
                 // даёт viewer'у возможность откатить плохую policy за тот же
                 // прайс. UI можно дальше показать diff состояния.
-                if (kingdom.HasPolicy(policy))
+                bool wantEnact = !kingdom.HasPolicy(policy);
+                if (wantEnact) kingdom.AddPolicy(policy);
+                else           kingdom.RemovePolicy(policy);
+
+                // 2026-07-22 — проверяем ПО ФАКТУ, а не по факту вызова: движковые
+                // «сделай X» умеют молча ничего не делать. Действие платное (1500💎),
+                // поэтому тихий no-op обязан стать провалом → авторефанд.
+                bool nowHas = kingdom.HasPolicy(policy);
+                if (nowHas != wantEnact)
                 {
-                    kingdom.RemovePolicy(policy);
                     BannerlordLinkModule.Log(
-                        $"[diplo-policy] @{username} REMOVED policy '{policyName}' from {kingdom.Name}");
+                        $"[diplo-policy] @{username} NO-OP: '{policyName}' в {kingdom.Name} " +
+                        $"остался {(nowHas ? "принятым" : "непринятым")} — рефанд");
+                    ActionFeedback.PostFailed(actionId, "policy_no_effect");
+                    return;
                 }
-                else
-                {
-                    kingdom.AddPolicy(policy);
-                    BannerlordLinkModule.Log(
-                        $"[diplo-policy] @{username} ENACTED policy '{policyName}' for {kingdom.Name}");
-                }
+
+                BannerlordLinkModule.Log(
+                    $"[diplo-policy] @{username} {(wantEnact ? "ENACTED" : "REMOVED")} " +
+                    $"policy '{policyName}' {(wantEnact ? "for" : "from")} {kingdom.Name}");
+                // Итог наверх: ACK от ActionPoller приходит ДО этой работы и ничего
+                // не доказывает — без этого события заявка вечно висит 'pending'.
+                ActionFeedback.PostPolicyResult(actionId, policyId, wantEnact);
             }
             catch (Exception ex)
             {

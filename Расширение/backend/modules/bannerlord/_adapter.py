@@ -639,8 +639,53 @@ class BannerlordAdapter(ModuleAdapter):
             await self._on_action_failed(channel_id, env)
             return
 
+        # 2026-07-22 (багрепорт #23): итог заявки на закон королевства.
+        if et == "hero.policy_result":
+            await self._on_policy_result(channel_id, env)
+            return
+
         # Unknown — manifest.supports_event уже отверг бы в routes/module_api.py
         logger.warning("[bannerlord:%s] unhandled event type=%s", channel_id, et)
+
+    async def _on_policy_result(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """2026-07-22 (багрепорт #23) — закрыть заявку на закон по факту.
+
+        Было: статус заявки не обновлял НИКТО (ни одного UPDATE в кодовой базе).
+        Все 16 заявок на проде висели 'pending' — при том, что лог игры
+        показывает 16 из 16 применённых законов. Зритель платил 1500💎, закон
+        в игре действовал, а расширение вечно показывало «на голосовании» и
+        больше не давало нажать: уникальный индекс пускает лишь одну pending-
+        заявку на (канал, королевство, закон). Отменить закон тоже было нельзя.
+
+        ACK от ActionPoller здесь не помощник — он приходит success=true ещё до
+        реальной работы. Поэтому мод шлёт отдельный итог.
+
+        env.data: {action_id: str, policy_id: str, enacted: bool}
+        """
+        data = env.data or {}
+        action_id = (data.get("action_id") or "").strip()
+        if not action_id:
+            logger.warning("[bannerlord:%s] policy_result без action_id, skip", channel_id)
+            return
+        enacted = bool(data.get("enacted", True))
+        new_status = "enacted" if enacted else "removed"
+
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            cur = await conn.execute(
+                "UPDATE bannerlord_policy_requests SET status=? "
+                "WHERE channel_id=? AND action_id=? AND status='pending'",
+                (new_status, channel_id, action_id))
+            await conn.commit()
+            if cur.rowcount:
+                logger.info("[bannerlord:%s] policy_result action_id=%s → %s",
+                            channel_id, action_id, new_status)
+            else:
+                # Не ошибка: повторный эвент, или заявка от старого мода без
+                # action_id в строке. Логируем, чтобы не искать молча.
+                logger.info("[bannerlord:%s] policy_result action_id=%s — "
+                            "нечего обновлять (повтор или заявка без action_id)",
+                            channel_id, action_id)
 
     async def _on_action_failed(self, channel_id: int, env: ModuleEnvelope) -> None:
         """Sprint 5.29 / BLT-parity #3 — refund крустиков на refuse мода.

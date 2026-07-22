@@ -254,20 +254,26 @@ async def handle_enact_policy(conn, channel_id: int, owner: str, data: dict) -> 
     if not is_king and not is_clan_leader:
         return {"success": False, "message": "Только король/лидер клана может предлагать политики"}
 
+    # 2026-07-22 (багрепорт #23) — action_id генерим ДО вставки и кладём в строку:
+    # по нему приходящий от мода итог (hero.policy_result) находит свою заявку и
+    # закрывает её. Без этой связи статус оставался 'pending' навсегда, и
+    # уникальный индекс ниже блокировал закон для всех навсегда же.
+    action_id = _uuid.uuid4().hex
+
     # INSERT (UNIQUE partial idx защищает от dupe pending).
     try:
         await conn.execute(
             "INSERT INTO bannerlord_policy_requests "
-            "(channel_id, requester, kingdom_id, policy_id, policy_name, status) "
-            "VALUES (?, ?, ?, ?, ?, 'pending')",
-            (channel_id, owner, kingdom_id, policy_id, policy_name))
+            "(channel_id, requester, kingdom_id, policy_id, policy_name, status, action_id) "
+            "VALUES (?, ?, ?, ?, ?, 'pending', ?)",
+            (channel_id, owner, kingdom_id, policy_id, policy_name, action_id))
     except Exception as e:
         # UNIQUE conflict — already pending.
         log.info("[DIPLO-POL] dupe @%s ch=%s policy=%s: %s", owner, channel_id, policy_id, e)
-        return {"success": False, "message": "Эта политика уже на голосовании"}
+        return {"success": False,
+                "message": "Заявка по этому закону уже обрабатывается — подожди пару секунд"}
 
     # Enqueue mod-action.
-    action_id = _uuid.uuid4().hex
     payload = {
         "initiated_by":   owner,
         "target":         owner,
@@ -283,9 +289,14 @@ async def handle_enact_policy(conn, channel_id: int, owner: str, data: dict) -> 
 
     log.info("[DIPLO-POL] ch=%s king=@%s kingdom=%s policy=%s",
              channel_id, owner, kingdom_name, policy_name)
+    # 2026-07-22 — честный текст. Мод работает ПЕРЕКЛЮЧАТЕЛЕМ: если закон уже
+    # действует, тот же запрос его снимет. Раньше писали «предложена» — зритель
+    # не понимал ни что произойдёт, ни что это не мгновенно.
     return {
         "success": True,
-        "message": f"📜 Политика «{policy_name}» предложена",
+        "message": (f"📜 «{policy_name}» отправлен королю. "
+                    f"Если закон не действовал — будет принят, если действовал — снят. "
+                    f"Применяется в игре в течение нескольких секунд."),
     }
 
 

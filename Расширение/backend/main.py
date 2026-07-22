@@ -1277,6 +1277,13 @@ async def run_migrations():
             print(f"❌ M95 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m96_policy_requests_unstick
+            await m96_policy_requests_unstick.apply(conn)
+        except Exception as e:
+            print(f"❌ M96 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

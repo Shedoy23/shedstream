@@ -72,6 +72,53 @@ namespace BannerlordLink.Util
             }
         }
 
+        /// <summary>2026-07-22 — итог заявки на закон королевства.
+        ///
+        /// Зачем отдельное событие: ActionPoller ACK'ает action success=true СРАЗУ,
+        /// ещё до реальной работы (см. _on_action_failed в адаптере), поэтому по
+        /// module_actions нельзя понять, применился закон или нет. Из-за этого
+        /// заявки висели в статусе 'pending' вечно: зритель платил 1500💎, закон в
+        /// игре принимался, а расширение показывало «на голосовании» и больше не
+        /// давало нажать (уникальный индекс по pending). Багрепорт #23.
+        ///
+        /// enacted=true — закон принят, false — снят (мод работает переключателем).
+        /// ВАЖНО: событие обязано быть объявлено в manifest.yaml, иначе бэкенд
+        /// отбросит его как event_not_in_manifest ещё до хендлера.</summary>
+        public static void PostPolicyResult(string actionId, string policyId, bool enacted)
+        {
+            if (string.IsNullOrEmpty(actionId)) return;
+            try
+            {
+                string json = JsonConvert.SerializeObject(new
+                {
+                    action_id = actionId,
+                    policy_id = policyId ?? "",
+                    enacted = enacted,
+                });
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await BannerlordLinkModule.Backend
+                            .PostEventAsync("bannerlord", "hero.policy_result", json);
+                        BannerlordLinkModule.Log(
+                            $"[ActionFeedback] policy_result action_id={actionId} " +
+                            $"policy={policyId} enacted={enacted}");
+                    }
+                    catch (Exception ex)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[ActionFeedback] policy_result post failed: {ex.Message}");
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[ActionFeedback] PostPolicyResult serialize error: {ex.Message}");
+            }
+        }
+
         /// <summary>Extract action_id из JObject (helper). Возвращает "" если нет.</summary>
         public static string GetActionId(JObject data)
         {

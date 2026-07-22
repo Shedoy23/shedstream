@@ -19,7 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Where the real docs live — read before non-trivial work
 
-Repo root: `OVERVIEW.md` (what the project is — structure, data flow), `ROADMAP.md` (the owner's stabilization plan — current priorities; check it when the owner asks "what should we do next").
+Repo root: **`RUNBOOK.md` — операционная правда: где что лежит на проде, чем проверять, ловушки, «выглядит сломанным, но это не так». Читать ПЕРВЫМ при любой работе с продом, базой, бэкапами, деплоем, публикацией модов — он избавляет от повторного расследования.** Дальше: `OVERVIEW.md` (what the project is — structure, data flow), `ROADMAP.md` (the owner's stabilization plan — current priorities; check it when the owner asks "what should we do next"), `DEFERRED.md` (что отложено сознательно + «решено НЕ делать»).
 
 `Расширение/docs/` is the knowledge base. The **`CONTEXT*.md` files are the living per-area status/handoff docs — read the relevant one first**:
 - `CONTEXT.md` (core/platform), `CONTEXT_BANNERLORD.md`, `CONTEXT_RIMWORLD.md`.

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using BannerlordLink.Util;
 using Newtonsoft.Json;
@@ -68,7 +69,27 @@ namespace BannerlordLink.Actions
                 try
                 {
                     if (isRuler)
-                        DestroyKingdomAction.Apply(kingdom);
+                    {
+                        // 2026-07-24 ИНЦИДЕНТ: DestroyKingdomAction ванильно проходит
+                        // по ВСЕМ кланам королевства и зовёт DestroyClanAction на
+                        // каждом → KillCharacterAction.ApplyByRemove убивает ВСЕХ их
+                        // героев (смерть "Lost"). На стриме роспуск королевства
+                        // slopkom'ом убил ещё двух зрителей (dorongh1, fikoos418) —
+                        // членов его королевства. Подтверждено декомпилем
+                        // DestroyKingdomAction/DestroyClanAction.
+                        // Фикс: сначала вывести ВСЕ кланы (ApplyByLeaveKingdom смертей
+                        // НЕ содержит — проверено), тогда королевство пустое и
+                        // DestroyKingdomAction никого не убивает, лишь деактивирует
+                        // и снимает войны. Прочие зрители становятся независимы, живы.
+                        var rulerClan = hero.Clan;
+                        foreach (var member in kingdom.Clans.ToList())
+                        {
+                            if (member != rulerClan && !member.IsEliminated)
+                                ChangeKingdomAction.ApplyByLeaveKingdom(member, false);
+                        }
+                        ChangeKingdomAction.ApplyByLeaveKingdom(rulerClan, false);
+                        DestroyKingdomAction.Apply(kingdom);   // пустое → без смертей
+                    }
                     else
                         ChangeKingdomAction.ApplyByLeaveKingdom(hero.Clan, true);
                 }

@@ -289,6 +289,45 @@ async def test_whitelisted_cross_user_preserved(db, buy):
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
+async def test_child_action_requires_kinship(db, buy):
+    """[4] 2026-07-24 SECURITY: действия над ребёнком требуют родства.
+
+    Дыра (аудит радиуса поражения): hero_id ЧУЖИХ детей легально отдаётся любому
+    зрителю (эндпоинт детей по ?username= — нужен для сватовства), а
+    hero.respec_child_skills / rename_child / change_child_looks владение НЕ
+    проверяли ни на бэке, ни в моде (FindHeroByStringId резолвит любого героя,
+    сверяя только «жив ли»). Значит атакующий за 500💎 стирал навыки ребёнка
+    жертвы (HeroDeveloper.ClearHero) — необратимо.
+    """
+    print("\n[4] Действие над ЧУЖИМ ребёнком отклоняется (родство обязательно)")
+    async with db._connect() as conn:
+        await conn.execute(
+            "INSERT OR IGNORE INTO bannerlord_heirs "
+            "(channel_id, parent_username, heir_hero_id, heir_name, alive, activated) "
+            "VALUES (?, ?, 'child_of_victim', 'Дитя Жертвы', 1, 0)",
+            (CHANNEL_ID, VICTIM))
+        await conn.execute(
+            "INSERT OR IGNORE INTO bannerlord_heirs "
+            "(channel_id, parent_username, heir_hero_id, heir_name, alive, activated) "
+            "VALUES (?, ?, 'child_of_attacker', 'Дитя Атакующего', 1, 0)",
+            (CHANNEL_ID, ATTACKER))
+        await conn.commit()
+
+    before = await _count_actions(db, CHANNEL_ID, "hero.respec_child_skills")
+
+    # Атака: ребёнок ЖЕРТВЫ
+    res = await buy(_make_anon_request(), ATTACKER, CHANNEL_ID,
+                    "hero.respec_child_skills", {"child_hero_id": "child_of_victim"})
+    assert_eq(res.get("success"), False, "чужой ребёнок — действие ОТКЛОНЕНО")
+    after_attack = await _count_actions(db, CHANNEL_ID, "hero.respec_child_skills")
+    assert_eq(after_attack, before, "в очередь мода НИЧЕГО не ушло")
+
+    # Свой ребёнок — путь не сломан
+    res_ok = await buy(_make_anon_request(), ATTACKER, CHANNEL_ID,
+                       "hero.respec_child_skills", {"child_hero_id": "child_of_attacker"})
+    assert_eq(res_ok.get("success"), True, "свой ребёнок — действие проходит")
+
+
 async def _run():
     db_path = tempfile.mktemp(suffix="_bnr_spoof_test.db")
     db = await _build_db(db_path)
@@ -298,6 +337,7 @@ async def _run():
         await test_spoofed_self_action_targets_requester(db, buy)
         await test_normal_self_action_unbroken(db, buy)
         await test_whitelisted_cross_user_preserved(db, buy)
+        await test_child_action_requires_kinship(db, buy)
     finally:
         try:
             await db._pool.close()

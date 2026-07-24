@@ -1966,6 +1966,34 @@ async def _prepare_action(username, channel_id, action_type, data):
     if action_type in ("hero.leave_clan", "hero.leave_kingdom"):
         data["price"] = 0
 
+    # 2026-07-24 SECURITY (аудит радиуса поражения): действия над РЕБЁНКОМ обязаны
+    # проверять родство. Раньше не проверял НИКТО:
+    #   - здесь валидации не было вовсе (эти три типа встречались только в allowlist
+    #     и в прайсе);
+    #   - мод (FamilyHandlers.FindHeroByStringId) резолвит ЛЮБОГО героя по StringId,
+    #     сверяя только «жив ли».
+    # А hero_id чужих детей ЛЕГАЛЬНО отдаётся любому зрителю (эндпоинт детей по
+    # ?username=<кто угодно> — он нужен для сватовства). Итог: зритель A за 500💎
+    # стирал все навыки ребёнка зрителя B (HeroDeveloper.ClearHero), переименовывал
+    # его или менял внешность. Тот же класс, что фикс подмены target от 2026-06-18:
+    # тогда защитили поле target, но НЕ произвольные id внутри payload.
+    if action_type in ("hero.rename_child", "hero.change_child_looks",
+                       "hero.respec_child_skills"):
+        child_id = (str(data.get("child_hero_id") or "")).strip()
+        if not child_id:
+            return {"success": False, "message": "Нужен child_hero_id"}
+        db_tmp = get_db()
+        async with db_tmp._connect() as conn:
+            cur = await conn.execute(
+                "SELECT 1 FROM bannerlord_heirs "
+                "WHERE channel_id=? AND parent_username=? AND heir_hero_id=?",
+                (channel_id, username, child_id))
+            owns_child = await cur.fetchone()
+        if not owns_child:
+            log.warning("[FAM-SEC] ch=%s @%s пытался %s над ЧУЖИМ ребёнком id=%s",
+                        channel_id, username, action_type, child_id)
+            return {"success": False, "message": "Это не твой ребёнок"}
+
     # Sprint 5.12: hero.join_clan — 50K Hero.Gold, requires clan_name input
     if action_type == "hero.join_clan":
         clan_name_in = (data.get("clan_name") or "").strip()

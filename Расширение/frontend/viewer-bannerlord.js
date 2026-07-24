@@ -475,7 +475,7 @@ async function loadBannerlordWorkshops() {
             btn.addEventListener('click', async (e) => {
                 const parent = e.target.closest('[data-workshop-id]');
                 if (!parent) return;
-                if (!await _bnrConfirm('Продать мастерскую? Получишь ~50% refund.')) return;
+                if (!await _bnrConfirmDanger('Продать мастерскую? Вернётся примерно половина вложенного. Отменить нельзя.')) return;
                 const wsId = parseInt(parent.dataset.workshopId, 10);
                 await _bannerlordBuyAction('hero.sell_workshop', { workshop_id: wsId });
                 setTimeout(loadBannerlordWorkshops, 1500);
@@ -755,7 +755,7 @@ async function loadBannerlordCaravans() {
             btn.addEventListener('click', async (e) => {
                 const parent = e.target.closest('[data-caravan-id]');
                 if (!parent) return;
-                if (!await _bnrConfirm('Продать караван?')) return;
+                if (!await _bnrConfirmDanger('Продать караван? Отменить нельзя.')) return;
                 const cId = parseInt(parent.dataset.caravanId, 10);
                 await _bannerlordBuyAction('hero.sell_caravan', { caravan_id: cId });
                 setTimeout(loadBannerlordCaravans, 1500);
@@ -2142,9 +2142,9 @@ async function _famRenameChild(childId, currentName) {
 }
 
 async function _famRespecChild(childId, name) {
-    if (!await _bnrConfirm(
-        `Сбросить все скиллы «${name}» (500💎)? Hero вернётся к 0 levels.`,
-        'Респект')) return;
+    if (!await _bnrConfirmDanger(
+        `Сбросить все навыки «${name}» за 500💎? Уровни обнулятся, вернуть их нельзя.`,
+        'Да, сбросить')) return;
     await _bannerlordBuyAction('hero.respec_child_skills',
         { child_hero_id: childId });
 }
@@ -3860,7 +3860,7 @@ function loadBannerlordKingdomMgmt() {
         // 2026-06-17 — нанять NPC-вассальный клан (ruler-only, 3M динаров). Confirm
         // обязателен (сумма огромная) + action-specific тост «не мгновенно» на успех.
         slot.querySelector('.bnr-recruit-vassal')?.addEventListener('click', async () => {
-            if (!await _bnrConfirm('Нанять новый вассальный клан за 3 000 000💰 динаров? Это огромная сумма. Клан возглавит NPC-лорд и присоединится к твоему королевству.')) return;
+            if (!await _bnrConfirmDanger('Нанять вассальный клан за 3 000 000💰 динаров? Это огромная сумма, вернуть её нельзя. Клан возглавит NPC-лорд и войдёт в твоё королевство.', 'Да, нанять')) return;
             const res = await _bannerlordBuyAction('hero.recruit_vassal_clan', {});
             if (res && res.success) {
                 showNotification('🛡 Заявка принята. NPC-лорд и его клан появятся в твоём королевстве в течение пары секунд (после обработки в игре). Динары спишутся при создании.', 'success', 7000);
@@ -4561,7 +4561,7 @@ async function loadBannerlordHero() {
                 e.stopPropagation();
                 const sl = btn.dataset.slot;
                 const nm = btn.dataset.itemName || 'вещь';
-                if (!await _bnrConfirm(`Выбросить «${nm}»? Слот освободится, без возврата.`)) return;
+                if (!await _bnrConfirmDanger(`Выбросить «${nm}»? Предмет пропадёт насовсем, крустики не вернутся.`, 'Да, выбросить')) return;
                 await _bannerlordBuyAction('hero.discard_item', { slot: sl });
                 setTimeout(loadBannerlordHero, 1200);
             });

@@ -66,11 +66,36 @@ namespace BannerlordLink.Patches
         {
             try
             {
-                // Forced kills всегда proceed (admin / debug / specific game logic).
-                if (isForced) return true;
-
                 // Не-adopted heroes — vanilla behavior. БЕЗ изменений.
                 if (!HeroNaming.IsAdopted(victim)) return true;
+
+                // 2026-07-24 АУДИТ РАДИУСА ПОРАЖЕНИЯ — дыра в защите.
+                // Раньше первой строкой стояло `if (isForced) return true;` — то есть
+                // ЛЮБАЯ форсированная смерть проходила насквозь. А ванильный
+                // KillCharacterAction.ApplyByRemove объявлен как
+                //     ApplyByRemove(Hero victim, bool showNotification = false,
+                //                   bool isForced = true)   ← forced ПО УМОЛЧАНИЮ
+                // и именно его зовёт DestroyClanAction на каждом герое клана.
+                // Итог 2026-07-24: роспуск королевства уничтожил кланы и убил ДВУХ
+                // посторонних зрителей — защита не сработала вообще. Вчерашний фикс
+                // закрыл ОДИН путь (LeaveKingdomHandler), но к DestroyClanAction ведут
+                // и другие: клан вымер/обанкротился, королевство пало от ИИ, будущие фичи.
+                //
+                // Блокируем узко: detail=Lost («герой вычеркнут из мира» — именно им
+                // ходит уничтожение клана). Герой остаётся жив и становится бесклановым —
+                // это штатное состояние, оно у нас уже поддержано (hero.leave_clan).
+                // Остальные forced-смерти (админские, Executed, сюжетные) — как раньше.
+                if (isForced
+                    && actionDetail == KillCharacterAction.KillCharacterActionDetail.Lost)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[DeathProtect] BLOCKED forced Lost для @{victim?.Name} " +
+                        "(уничтожение клана/королевства не должно убивать зрителя)");
+                    return false;
+                }
+
+                // Прочие forced kills — proceed (admin / debug / specific game logic).
+                if (isForced) return true;
 
                 // Streamer (MainHero) намеренно казнил adopted hero — allow.
                 // Pattern из BLT BLTNoDeathAllowed (line 539):

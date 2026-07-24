@@ -1650,6 +1650,30 @@ function _bnrConfirm(message, confirmLabel = 'Да', cancelLabel = 'Отмена
     return Promise.resolve(true);
 }
 
+// 2026-07-24 — ОТДЕЛЬНАЯ функция ТОЛЬКО для необратимых и очень дорогих действий.
+// Решение «кнопку нажал — сработало» остаётся в силе для всего остального: обычные
+// покупки как были, мгновенные. Но аудит показал край — «Нанять вассальный клан за
+// 3 000 000💰» уходил по ОДНОМУ клику, а написанный текст подтверждения зритель
+// никогда не видел (_bnrConfirm — пасс-тру). Промах мышью = минус три миллиона.
+// Сюда подключены только: наём вассала, продажа мастерской/каравана, выброс предмета.
+function _bnrConfirmDanger(message, confirmLabel = 'Да, я уверен') {
+    return new Promise(resolve => {
+        let answered = false;
+        showConfirm('⚠️ Подтверди', message, () => { answered = true; resolve(true); });
+        // showConfirm зовёт onYes только на «Да»; на «Нет»/закрытие модалка просто
+        // исчезает — ловим это, чтобы промис не висел вечно.
+        const modal = document.getElementById('confirm-dyn-modal');
+        if (!modal) { resolve(true); return; }   // модалка не поднялась → не блокируем
+        const obs = new MutationObserver(() => {
+            if (!document.getElementById('confirm-dyn-modal')) {
+                obs.disconnect();
+                if (!answered) resolve(false);
+            }
+        });
+        obs.observe(modal.parentNode || document.body, { childList: true });
+    });
+}
+
 function _bnrShowSimpleModal({ title, body, bind }) {
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);' +

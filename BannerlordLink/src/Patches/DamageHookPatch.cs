@@ -138,8 +138,18 @@ namespace BannerlordLink.Patches
                     // на 40, а не на 200. Иначе двуручники с огромным уроном и
                     // AoE-рассечением копили бы очки на трупах и лестница снова
                     // стала бы берсерк-эксклюзивом, только другим путём.
+                    // Обрезка ПЕРЕБОЯ по здоровью цели — но ТОЛЬКО если Health
+                    // читается как вменяемое положительное (pre-hit). Этот
+                    // Harmony-prefix иногда видит Health уже ПОСЛЕ применения удара
+                    // (≈0 у добивающего удара) → min(урон,0)=0 обнуляло ВЕСЬ урон
+                    // (2026-07-24: 149/149 боёв с урон=0). Теперь: Health>0 → режем
+                    // перебой; Health<=0 (пост-хит/добивание) → берём урон как есть.
                     int dealt = b.InflictedDamage;
-                    try { dealt = Math.Min(dealt, Math.Max(0, (int)victim.Health)); }
+                    try
+                    {
+                        int hp = (int)victim.Health;
+                        if (hp > 0) dealt = Math.Min(dealt, hp);
+                    }
                     catch { }
                     BannerlordLink.Behaviors.KillRewardBehavior
                         .NoteDamageDealt(attackerUser, dealt);

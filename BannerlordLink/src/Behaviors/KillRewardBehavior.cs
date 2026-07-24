@@ -436,6 +436,14 @@ namespace BannerlordLink.Behaviors
         public override void OnAgentBuild(Agent agent, Banner banner)
         {
             base.OnAgentBuild(agent, banner);
+            // 2026-07-24 — привязываем static _instance к ЖИВОЙ копии поведения
+            // здесь: OnAgentBuild гарантированно выполняется на инстансе, который
+            // держит реальный _participants. Раньше _instance ставился только в
+            // OnBehaviorInitialize — и по факту оставался null/на чужой копии, из-за
+            // чего NoteDamageDealt/NoteDamageAbsorbed тихо ничего не писали (весь
+            // урон/поглощение = 0, оплата за вклад считала только киллы). Киллы
+            // работали, т.к. идут через OnAgentRemoved (прямой вызов, без _instance).
+            _instance = this;
             // Для overlay tracking используем STRICT [BLink] prefix check —
             // НЕ filter'ем по PowerCache (viewer мог адоптнуться, но не
             // выбрать класс — он всё равно должен показаться в overlay).

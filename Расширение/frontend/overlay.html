@@ -1638,11 +1638,15 @@ if (new URLSearchParams(location.search).get('preview') === '1') {
 // сразу когда viewer купил heal/rage/retribution.
 let _bnrPowerSeq = 0;
 
+// ⚠️ ДЕРЖАТЬ В СИНХРОНЕ с BNR_POWER_LABELS в viewer.js — это ВТОРАЯ копия
+// названий сил (оверлей на стриме против панели зрителя). 2026-07-24 они уже
+// разъезжались: в панели «Невидимость», а на стриме всё ещё «Стойкость» —
+// зритель и чат видели РАЗНЫЕ имена одной активки.
 const BNR_POWER_META = {
     heal_burst:         { icon: '💊', label: 'Лечение',  color: '#34d399', glow: 'rgba(52,211,153,0.55)' },
-    shield_break_burst: { icon: '🛡️', label: 'Разбит щит', color: '#fb923c', glow: 'rgba(251,146,60,0.55)' },
+    shield_break_burst: { icon: '🛡️', label: 'Ломать щиты', color: '#fb923c', glow: 'rgba(251,146,60,0.55)' },
     rage:               { icon: '🔥', label: 'Ярость',   color: '#f87171', glow: 'rgba(248,113,113,0.65)' },
-    retribution_toggle: { icon: '🪖', label: 'Стойкость', color: '#93c5fd', glow: 'rgba(147,197,253,0.55)' },
+    retribution_toggle: { icon: '🌫', label: 'Невидимость', color: '#a78bfa', glow: 'rgba(167,139,250,0.55)' },
 };
 
 async function pollBannerlordPowerEvents() {

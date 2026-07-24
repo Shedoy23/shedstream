@@ -219,10 +219,19 @@ namespace BannerlordLink.Actions
                         : null;
 
                     // Find workshop: prefer matching type, else any в town не owned by [BLink].
+                    //
+                    // 2026-07-24 АУДИТ РАДИУСА ПОРАЖЕНИЯ: проверки владельца ЗДЕСЬ НЕ БЫЛО
+                    // ни в одной из веток — комментарий выше обещал «не owned by [BLink]»,
+                    // а код брал первую попавшуюся мастерскую города. Наследник одного
+                    // зрителя мог отобрать РАБОТАЮЩУЮ мастерскую другого живого зрителя
+                    // (тот платил за неё 💰). Тот же класс, что инцидент с роспуском
+                    // королевства: действие зрителя A калечит зрителя B.
+                    // Чиним по задекларированному намерению: чужие [BLink]-мастерские
+                    // пропускаем. Ничьи и NPC-шные — забираем как и раньше (наследство).
                     Workshop target = null;
                     foreach (var w in s.Town.Workshops)
                     {
-                        if (w == null) continue;
+                        if (w == null || IsOwnedByAnotherViewer(w, heir)) continue;
                         if (wsType != null && w.WorkshopType == wsType) { target = w; break; }
                     }
                     if (target == null)
@@ -230,7 +239,7 @@ namespace BannerlordLink.Actions
                         // fallback: first available
                         foreach (var w in s.Town.Workshops)
                         {
-                            if (w == null) continue;
+                            if (w == null || IsOwnedByAnotherViewer(w, heir)) continue;
                             target = w; break;
                         }
                     }
@@ -297,6 +306,23 @@ namespace BannerlordLink.Actions
                         "bannerlord", "hero.heir_died", data));
             }
             catch { }
+        }
+
+        /// <summary>2026-07-24 — мастерская принадлежит ДРУГОМУ зрителю?
+        /// Наследство не должно отбирать чужую собственность: [BLink]-героя
+        /// узнаём по префиксу имени (тот же признак, что во всём моде), плюс
+        /// подстраховка по StringId "blink_" — как в WorkshopHandlers.
+        /// Ничьи и NPC-шные мастерские не считаются чужими: их забирать можно.</summary>
+        private static bool IsOwnedByAnotherViewer(Workshop w, Hero heir)
+        {
+            try
+            {
+                var owner = w?.Owner;
+                if (owner == null || owner == heir) return false;
+                if (HeroNaming.IsAdopted(owner)) return true;
+                return owner.StringId?.StartsWith("blink_") ?? false;
+            }
+            catch { return false; }   // не смогли определить — ведём себя как раньше
         }
     }
 }

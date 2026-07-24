@@ -206,7 +206,7 @@ async function loadMyPawn() {
                             <span style="font-size:12px;">${parseRimColor(t.label)}</span>
                             <button data-remove-trait="${(t.def_name||'').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}" data-degree="${t.degree || 0}" data-label="${escapeHtml(t.label.replace(/<[^>]+>/g,''))}"
                                 style="font-size:10px;padding:2px 8px;background:#3a1a1a;color:#f87171;border:1px solid #f87171;border-radius:4px;cursor:pointer;">
-                                🗑️ 2000💎
+                                🗑️ 300💎
                             </button>
                         </div>`;
                 });

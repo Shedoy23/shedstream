@@ -4206,23 +4206,25 @@ async function loadBannerlordHero() {
                         ${h.clan_name ? `(${escapeHtml(h.clan_name)})` : ''}
                     </div>
                     <div style="font-size:12px;margin-bottom:8px;color:#fbbf24;">
-                        🕯️ Возродиться героем поколения ${nextIter} (бесплатно)
+                        🕯️ Начать заново — поколение ${nextIter} (бесплатно)
                     </div>
                     <div style="font-size:10px;color:#6b7280;margin-bottom:10px;">
-                        Новый герой родится с 0 уровня, без снаряжения. Имя то же.
+                        Прежнего героя вернуть нельзя. Новый начнёт с 0 уровня,
+                        без снаряжения и клана. Имя останется то же.
                     </div>
                     <button class="extra-btn" id="bnr-heir-respawn"
                             style="font-size:12px;padding:8px 14px;
                                    background:#7c2d12;color:#fbbf24;font-weight:700;">
-                        🕯️ Возродить героя
+                        🕯️ Новый герой с 0 уровня
                     </button>
                 </div>`;
             const respawnBtn = document.getElementById('bnr-heir-respawn');
             if (respawnBtn) {
                 respawnBtn.addEventListener('click', async () => {
                     if (!await _bnrConfirm(
-                        'Возродить героя? Новый wanderer от 0 уровня (имя то же).',
-                        '🕯️ Возродить'
+                        'Начать заново? Прежнего героя вернуть нельзя — новый ' +
+                        'начнёт с 0 уровня, без снаряжения и клана.',
+                        '🕯️ Начать заново'
                     )) return;
                     _bannerlordBuyAction('hero.create', { price: 0 });
                 });

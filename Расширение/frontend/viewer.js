@@ -1189,7 +1189,11 @@ const BNR_POWER_LABELS = {
     heal_burst:         { icon: '💊', label: 'Лечение',  desc: '+50 HP' },
     shield_break_burst: { icon: '🛡️', label: 'Разбить щит', desc: 'AoE, мгновенно' },
     rage:               { icon: '🔥', label: 'Ярость',    desc: 'damage ×, 45с' },
-    retribution_toggle: { icon: '🪖', label: 'Стойкость', desc: '−% урона, 45с' },
+    // 2026-07-24: ключ retribution_toggle переиспользован под «Невидимость»
+    // ассасина (docs/SPEC_ASSASSIN_INVIS.md) — отражения урона на нём больше нет.
+    // ⚠️ Ярлык менять ВМЕСТЕ с описанием класса assassin (миграция m94 содержит
+    // оговорку «кнопка пока подписана Стойкость») — иначе бэк и фронт разъедутся.
+    retribution_toggle: { icon: '🌫', label: 'Невидимость', desc: 'враги теряют цель, 45с' },
     // Sprint 5.33 (BLT-parity FX) — character effects.
     poison_dot:         { icon: '☠',  label: 'Яд',        desc: 'Случ. враг DoT 45с' },
     disarm_burst:       { icon: '💥', label: 'Обезоружить', desc: 'Случ. враг роняет оружие' },

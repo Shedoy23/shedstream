@@ -1187,22 +1187,27 @@ const _formatBigPrice = n => n >= 1_000_000
 // Цены rebалансим в админку позже; сейчас просто работающий MVP.
 const BNR_POWER_LABELS = {
     heal_burst:         { icon: '💊', label: 'Лечение',  desc: '+50 HP' },
-    shield_break_burst: { icon: '🛡️', label: 'Разбить щит', desc: 'AoE, мгновенно' },
-    rage:               { icon: '🔥', label: 'Ярость',    desc: 'damage ×, 45с' },
+    // 2026-07-24: описание врало. Механику переделали 2026-07-20 (мгновенный AoE
+    // по радиусу → бафф «твои удары ломают щиты»), а текст остался старый —
+    // зритель платил 200💎 за «мгновенно AoE» и не понимал, почему «ничего не было».
+    shield_break_burst: { icon: '🛡️', label: 'Ломать щиты', desc: 'твои удары ломают щиты, 45с' },
+    rage:               { icon: '🔥', label: 'Ярость',    desc: 'твой урон умножается, 45с' },
     // 2026-07-24: ключ retribution_toggle переиспользован под «Невидимость»
     // ассасина (docs/SPEC_ASSASSIN_INVIS.md) — отражения урона на нём больше нет.
     // ⚠️ Ярлык менять ВМЕСТЕ с описанием класса assassin (миграция m94 содержит
     // оговорку «кнопка пока подписана Стойкость») — иначе бэк и фронт разъедутся.
     retribution_toggle: { icon: '🌫', label: 'Невидимость', desc: 'враги теряют цель, 45с' },
     // Sprint 5.33 (BLT-parity FX) — character effects.
-    poison_dot:         { icon: '☠',  label: 'Яд',        desc: 'Случ. враг DoT 45с' },
+    // 2026-07-24: тоже врало — 2026-07-20 «яд случайному врагу в 15м» заменили на
+    // бафф «попал → отравил», а текст остался про случайного.
+    poison_dot:         { icon: '☠',  label: 'Яд',        desc: 'твои попадания травят, 45с' },
     disarm_burst:       { icon: '💥', label: 'Обезоружить', desc: 'Случ. враг роняет оружие' },
-    berserker_charge:   { icon: '💨', label: 'Берсерк-рывок', desc: '+speed 45с (себе)' },
+    berserker_charge:   { icon: '💨', label: 'Берсерк-рывок', desc: 'бежишь быстрее, 45с' },
     // 2026-05-29 (BLT-parity combat powers) — active варианты.
-    lifesteal_burst:    { icon: '🩸', label: 'Вампиризм',   desc: '% урона → хил, 45с' },
-    ironskin_toggle:    { icon: '🛡', label: 'Железная кожа', desc: '−% урона, 45с' },
-    explosive_arrows:   { icon: '🧨', label: 'Взрывные стрелы', desc: 'AoE с попаданий, 45с' },
-    cleave:             { icon: '⚔️', label: 'Рассечение', desc: 'AoE по соседям, 45с' },
+    lifesteal_burst:    { icon: '🩸', label: 'Вампиризм',   desc: 'часть урона лечит тебя, 45с' },
+    ironskin_toggle:    { icon: '🛡', label: 'Железная кожа', desc: 'входящий урон меньше, 45с' },
+    explosive_arrows:   { icon: '🧨', label: 'Взрывные стрелы', desc: 'попадания взрываются, 45с' },
+    cleave:             { icon: '⚔️', label: 'Рассечение', desc: 'удар задевает соседей, 45с' },
 };
 // BNR_POWER_PRICES удалён 2026-06-14 — цена активок теперь приходит с бэка
 // (POWER_PRICES в routes/bannerlord.py, в current_powers[].price). Тонкий фронт:

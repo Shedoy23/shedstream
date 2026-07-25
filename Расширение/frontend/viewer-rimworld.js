@@ -244,8 +244,11 @@ function startPawnRefresh(durationMs = 15000, intervalMs = 3000) {
 
 async function buyTrait(traitDef, degree, label, price) {
     if (!checkCooldown('buyTrait', 3000)) return;
-    const displayPrice = price || 500;
-    showConfirm('✨ Купить черту', `Добавить черту <b>${escapeHtml(label)}</b> за <b style="color:#9147ff;">${displayPrice}💎</b>?`, async () => {
+    // Цена приходит с бэка. Раньше на пустом ответе подставлялась выдуманная
+    // (500💎) — зритель видел цену, которой не существует, и списывалась другая.
+    // Нет цены → честно говорим «уточняем», а не врём числом.
+    const hasPrice = (price != null && price !== '');
+    showConfirm('✨ Купить черту', `Добавить черту <b>${escapeHtml(label)}</b> ${hasPrice ? `за <b style="color:#9147ff;">${price}💎</b>` : "<b>(цену уточняем)</b>"}?`, async () => {
         try {
             const r = await fetch(`${API_URL}/api/rimworld/buy-trait`, {
                 method: 'POST',
@@ -261,8 +264,11 @@ async function buyTrait(traitDef, degree, label, price) {
 
 async function buyGene(geneDef, geneLabel, price) {
     if (!checkCooldown('buyGene', 3000)) return;
-    const displayPrice = price || 5000;
-    showConfirm('🧬 Купить ген', `Установить ген <b>${escapeHtml(geneLabel)}</b> за <b style="color:#9147ff;">${displayPrice}💎</b>?`, async () => {
+    // Цена приходит с бэка. Раньше на пустом ответе подставлялась выдуманная
+    // (5000💎) — зритель видел цену, которой не существует, и списывалась другая.
+    // Нет цены → честно говорим «уточняем», а не врём числом.
+    const hasPrice = (price != null && price !== '');
+    showConfirm('🧬 Купить ген', `Установить ген <b>${escapeHtml(geneLabel)}</b> ${hasPrice ? `за <b style="color:#9147ff;">${price}💎</b>` : "<b>(цену уточняем)</b>"}?`, async () => {
         try {
             const r = await fetch(`${API_URL}/api/rimworld/buy-gene`, {
                 method: 'POST',

@@ -435,7 +435,10 @@
         <div class="modal-content">
             <h2>✨ Создание пешки</h2>
             <input type="text" id="colonist-name" class="modal-input" placeholder="Имя колониста">
-            <button class="modal-btn" id="create-colonist-btn">Создать (100💎)</button>
+            <!-- Цена НЕ хардкодится: модалка мёртвая (клик только закрывает), но раньше
+                 здесь стояло «100💎» при реальных 200💎 — подключат и соврёт вдвое.
+                 Подключать будут — гидрировать из /api/rimworld/config. -->
+            <button class="modal-btn" id="create-colonist-btn">Создать</button>
             <button class="modal-btn cancel" data-close-modal>Отмена</button>
         </div>
     </div>

@@ -701,7 +701,7 @@ async def bannerlord_tournament(request: Request):
         "my_username": username,
         "config": {
             "entry_fee_gold": TOURNAMENT_ENTRY_FEE_GOLD,  # legacy 0 — backward-compat
-            "join_price":     TOURNAMENT_JOIN_PRICE,      # 5.28: 1000 крустиков
+            "join_price":     TOURNAMENT_JOIN_PRICE,      # 5.28c: 0 — турнир бесплатный
         },
     }
 
@@ -1252,6 +1252,7 @@ async def bannerlord_config():
             "join_kingdom":       KINGDOM_JOIN_COST,
             "create_party":       PARTY_CREATE_COST,
             "recruit_vassal":     RECRUIT_VASSAL_COST,
+            "make_baby":          BABY_COST,
         },
     }
 
@@ -2269,7 +2270,7 @@ async def _prepare_action(username, channel_id, action_type, data):
         # списывали 1000⦷, второй уходил в never-land без refund.
         # Теперь checks под одним IMMEDIATE lock'ом — serialized.
         data["hero_gold_cost"] = 0           # mod больше не списывает динары
-        data["price"] = TOURNAMENT_JOIN_PRICE  # 1000 крустиков
+        data["price"] = TOURNAMENT_JOIN_PRICE  # 5.28c: 0 — турнир бесплатный
 
     # 1.5 compliance (2026-06-11): tournament.predict — БЕСПЛАТНЫЙ no-loss ПРОГНОЗ
     # на победителя. Крустики НЕ списываются и НЕ сгорают; верный прогноз даёт

@@ -274,7 +274,7 @@ async function openPassionModal() {
                     ${nextIcon} ${upPrice}💎</button>`
                 : '';
             const resetBtn = !disabled && rstPrice != null
-                ? `<button data-reset-passion="${skill.def_name}"
+                ? `<button data-reset-passion="${skill.def_name}" data-reset-price="${rstPrice}"
                     style="font-size:10px;padding:2px 6px;background:#2a1a1a;color:#f87171;border:1px solid #f87171;border-radius:4px;cursor:pointer;margin-left:4px;"
                     title="Сбросить страсть">↩ ${rstPrice}💎</button>`
                 : '';
@@ -308,7 +308,7 @@ async function openPassionModal() {
             btn.addEventListener('click', () => buyPassion(btn.dataset.buyPassion, parseInt(btn.dataset.target)));
         });
         list.querySelectorAll('[data-reset-passion]').forEach(btn => {
-            btn.addEventListener('click', () => resetPassion(btn.dataset.resetPassion));
+            btn.addEventListener('click', () => resetPassion(btn.dataset.resetPassion, btn.dataset.resetPrice));
         });
     } catch(e) {
         const list = document.getElementById('passion-skills-list');
@@ -335,8 +335,11 @@ async function buyPassion(skillDef, targetPassion) {
     } catch(e) { showNotification('❌ Ошибка', 'error'); }
 }
 
-async function resetPassion(skillDef) {
-    showConfirm('↩ Сброс страсти', 'Сбросить страсть до нуля? Это стоит <b>300💎</b>.', async () => {
+// price — та же цена, что на кнопке (с бэка). Раньше здесь стояли жёсткие 300💎:
+// кнопка показывала одно, подтверждение другое, списывалось третье.
+async function resetPassion(skillDef, price) {
+    const priceTxt = (price != null && price !== '') ? `${price}💎` : 'текущую цену';
+    showConfirm('↩ Сброс страсти', `Сбросить страсть до нуля? Это стоит <b>${priceTxt}</b>.`, async () => {
         try {
             const r = await fetch(`${API_URL}/api/rimworld/reset-passion`, {
                 method: 'POST',

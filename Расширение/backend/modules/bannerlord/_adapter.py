@@ -483,7 +483,8 @@ class BannerlordAdapter(ModuleAdapter):
             await self._on_equipment_changed(channel_id, env)
             return
 
-        if et in ("hero.relation_changed", "hero.faction_changed"):
+        if et in ("hero.relation_changed", "hero.faction_changed",
+                  "hero.marriage_activated"):
             # Cosmetic-only, log only пока (не влияет на game-state в backend)
             await self._log_event(channel_id, et, env.data.get("username"), env.data)
             return

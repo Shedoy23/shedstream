@@ -102,6 +102,68 @@ def check_manifest_actions():
         )
 
 
+def check_manifest_events():
+    """Mod pushes an event type that manifest.yaml does not declare -> the
+    backend drops it BEFORE the adapter runs (event_not_in_manifest), so the
+    mod logs a successful push and nothing happens in the DB.
+
+    This exact class bit twice by hand (hero.properties_snapshot -> the mirror
+    was dead; hero.restore_profile -> per-save class never restored). It is the
+    dangerous direction and was NOT covered: check_manifest_actions only warns
+    about the harmless opposite (declared but unused). HARD error.
+
+    Only literal `PostEventAsync("bannerlord", "some.event"` call sites are
+    checkable; pushes built from a variable are invisible here and stay on the
+    human.
+    """
+    man = EXT / "backend" / "modules" / "bannerlord" / "manifest.yaml"
+    mod = ROOT / "BannerlordLink" / "src"
+    if not man.exists() or not mod.is_dir():
+        return
+    declared = set(_manifest_event_names(man.read_text(encoding="utf-8")))
+    if not declared:
+        return
+    pushed: dict[str, str] = {}
+    pat = re.compile(r'PostEventAsync\(\s*"bannerlord"\s*,\s*"([^"]+)"')
+    for cs in mod.rglob("*.cs"):
+        try:
+            text = cs.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        for m in pat.finditer(text):
+            pushed.setdefault(m.group(1), cs.relative_to(ROOT).as_posix())
+    missing = sorted(e for e in pushed if e not in declared)
+    if missing:
+        errors.append(
+            "mod pushes event(s) NOT declared in manifest.yaml events: -- the "
+            "backend will silently drop them (event_not_in_manifest): "
+            + ", ".join("%s (%s)" % (e, pushed[e]) for e in missing)
+        )
+
+
+def _manifest_event_names(text: str) -> list[str]:
+    """Same walker as _manifest_action_names, but collecting `events:` blocks
+    (top-level + nested under extensions:)."""
+    names, mode, mode_indent = [], None, -1
+    for line in text.splitlines():
+        s = line.strip()
+        if not s or s.startswith("#"):
+            continue
+        indent = len(line) - len(line.lstrip())
+        item = re.match(r"-\s+(\S+)", s)
+        if item:
+            if mode == "events":
+                names.append(item.group(1))
+            continue
+        key = re.match(r"(\w+):", s)
+        if key:
+            if key.group(1) in ("actions", "events"):
+                mode, mode_indent = key.group(1), indent
+            elif indent <= mode_indent:
+                mode = None
+    return names
+
+
 def check_currency_glyph():
     p = EXT / "frontend" / "viewer.js"
     if not p.exists():
@@ -432,7 +494,8 @@ def main() -> int:
         print("[lint] FAIL: could not locate extension dir (with backend/)")
         return 1
     for fn in (check_version_sync, check_migrations_wired,
-               check_manifest_actions, check_currency_glyph,
+               check_manifest_actions, check_manifest_events,
+               check_currency_glyph,
                check_tenant_scoping, check_bannerlord_policies,
                check_frontend_global_collisions):
         try:

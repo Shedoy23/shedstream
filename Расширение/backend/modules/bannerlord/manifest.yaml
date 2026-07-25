@@ -68,6 +68,10 @@ extensions:
     - hero.retinue_casualty   # 2026-05-29 (BLT RetinueDeathChance): войско свиты погибло навсегда
     - hero.focus_changed      # Sprint 5.8: mod пушит после add_focus
     - hero.attribute_changed  # Sprint 5.8: mod пушит после add_attribute
+    - hero.marriage_activated # 2026-07-25: мод пушил его с Sprint 5.33, но объявлен
+                              # НЕ был → бэк отбрасывал (event_not_in_manifest).
+                              # Брак в игре заключался, а единственное доказательство
+                              # этого терялось. Найден новым check_manifest_events.
     - hero.clan_created       # Sprint 5.9: mod пушит после успешного clan create
     - hero.kingdom_created    # Sprint 5.12: mod пушит после kingdom create
     - hero.clan_left          # Sprint 5.12: mod пушит после leave_clan

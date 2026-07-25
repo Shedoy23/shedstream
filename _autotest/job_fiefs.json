@@ -1,0 +1,20 @@
+{
+  "src": "Расширение/frontend/viewer.js",
+  "dst": "Расширение/frontend/viewer-bannerlord.js",
+  "start": 2539,
+  "end": 2958,
+  "assert_first": "BLT-parity FIEF",
+  "assert_last": "}",
+  "assert_after": "inner tab switcher",
+  "header": [
+    "// ===== Fiefs / Caravans / Inheritance (пассивный доход) — split чанк 4 (2026-06-13) =====",
+    "// loadBannerlordFiefs, loadBannerlordCaravans(+_renderBuyCaravanInline),",
+    "// loadBannerlordCaravanRescues, loadBannerlordInheritance. Core _bnr* forward; callers рантайм."
+  ],
+  "pointer": [
+    "// ===== Fiefs / Caravans / Inheritance =====",
+    "// Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 4, 2026-06-13).",
+    "// loadBannerlordFiefs/Caravans(+_renderBuyCaravanInline)/CaravanRescues/Inheritance.",
+    "// Зовётся из loadBannerlordHero (рантайм)."
+  ]
+}

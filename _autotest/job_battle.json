@@ -1,0 +1,21 @@
+{
+  "src": "Расширение/frontend/viewer.js",
+  "dst": "Расширение/frontend/viewer-bannerlord.js",
+  "start": 3140,
+  "end": 3356,
+  "assert_first": "Battle status indicator",
+  "assert_last": "}",
+  "assert_after": "Турнир зрителей",
+  "header": [
+    "// ===== Battle status / detachment / stance / banner — split чанк 7 (2026-06-13) =====",
+    "// loadBannerlordBattleStatus + _renderBannerlordDetachmentPanel + _renderBannerlordStance",
+    "// + _renderBannerlordBattleBanner. Стейт _bannerlordBattle (core) forward; callers рантайм",
+    "// (_startBannerlordPolling, loadBannerlordHero, loadBannerlordStatus)."
+  ],
+  "pointer": [
+    "// ===== Battle status / detachment / stance / banner =====",
+    "// Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 7, 2026-06-13).",
+    "// loadBannerlordBattleStatus + detachment-panel + stance + battle-banner.",
+    "// Зовётся из _startBannerlordPolling / loadBannerlordHero / loadBannerlordStatus (рантайм)."
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "src": "Расширение/frontend/viewer.js",
+  "dst": "Расширение/frontend/viewer-bannerlord.js",
+  "start": 3763,
+  "end": 3836,
+  "assert_first": "async function loadBannerlordShop",
+  "assert_last": "}",
+  "assert_after": "in-flight guard",
+  "header": [
+    "// ===== Shop (магазин Bannerlord — каталог + random-equip + currency) — split чанк 8 (2026-06-13) =====",
+    "// loadBannerlordShop. Зовёт core/cluster-2 рендеры (renderBannerlordRandomEquipHtml/",
+    "// renderBannerlordCurrencyHtml/_bind*) форвард; callers рантайм (_startBannerlordPolling, dispatcher)."
+  ],
+  "pointer": [
+    "// ===== Shop (магазин Bannerlord) =====",
+    "// Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 8, 2026-06-13).",
+    "// loadBannerlordShop. Зовёт core currency/random-equip рендеры форвард; callers рантайм."
+  ]
+}

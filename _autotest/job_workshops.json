@@ -1,0 +1,19 @@
+{
+  "src": "Расширение/frontend/viewer.js",
+  "dst": "Расширение/frontend/viewer-bannerlord.js",
+  "start": 2534,
+  "end": 2759,
+  "assert_first": "WORKSHOP-FIX",
+  "assert_last": "}",
+  "assert_after": "BLT-parity FIEF",
+  "header": [
+    "// ===== Workshops (мастерские, пассивный доход) — split чанк 3 (2026-06-13) =====",
+    "// _BNR_WORKSHOP_TYPES + loadBannerlordWorkshops + _renderBuyWorkshopInline.",
+    "// Core-хелперы (_bnr*, _bannerlordBuyAction, _bnrFetchSettlements) — forward; callers рантайм."
+  ],
+  "pointer": [
+    "// ===== Workshops (мастерские) =====",
+    "// Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 3, 2026-06-13).",
+    "// _BNR_WORKSHOP_TYPES + loadBannerlordWorkshops + _renderBuyWorkshopInline. Зовётся из loadBannerlordHero (рантайм)."
+  ]
+}

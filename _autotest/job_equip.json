@@ -1,0 +1,22 @@
+{
+  "src": "Расширение/frontend/viewer.js",
+  "dst": "Расширение/frontend/viewer-bannerlord.js",
+  "start": 1579,
+  "end": 1909,
+  "assert_first": "Sprint M23: random-equip",
+  "assert_last": "}",
+  "assert_after": "Focus / Attribute investments",
+  "header": [
+    "// ===== Random-equip / retinue / currency converters — split чанк 12 (2026-06-13) =====",
+    "// renderBannerlordRandomEquipHtml/_renderEquipRow, retinue (RECRUIT/RETINUE consts +",
+    "// _computeRetinueDinarCost/_computeTrainCost/_fmtDinars/_renderRetinue), GIVE_GOLD/ADD_SKILL",
+    "// + renderBannerlordCurrencyHtml/_bindBannerlordCurrency. Форвард CORE: _formatBigGold/Price,",
+    "// _bannerlordClassesCache, _bnr*. Callers рантайм (hero-card _renderEquipRow/_renderRetinue, shop)."
+  ],
+  "pointer": [
+    "// ===== Random-equip / retinue / currency converters =====",
+    "// Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 12, 2026-06-13).",
+    "// renderBannerlordRandomEquipHtml/_renderEquipRow/retinue/currency converters.",
+    "// _formatBigGold/Price + _bannerlordClassesCache ОСТАЮТСЯ в core (форвард). Callers рантайм."
+  ]
+}

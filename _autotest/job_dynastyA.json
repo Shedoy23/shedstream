@@ -1,0 +1,22 @@
+{
+  "src": "Расширение/frontend/viewer.js",
+  "dst": "Расширение/frontend/viewer-bannerlord.js",
+  "start": 1597,
+  "end": 2324,
+  "assert_first": "общий рендер дерева апгрейдов",
+  "assert_last": "}",
+  "assert_after": "Boosty admin",
+  "header": [
+    "// ===== Dynasty A: clan-upgrades/forge/achievements/gender/profile/family/clan+kingdom mgmt — split чанк 13 (2026-06-13) =====",
+    "// _clanUpgradesTreeHtml/_clanUpgradesBindBulk/_renderClanUpgradesInline, _renderForgeInline,",
+    "// _renderAchievementsInline, loadBannerlordGender/ProfileFamily(+_renderFamilyTreeHtml),",
+    "// loadBannerlordDynastyLockedActions/ClanMgmt/KingdomMgmt. Форвард CORE: _bnrConfirm/_bnrShowSimpleModal,",
+    "// _bnr*, state + Part-B inline-рендеры (пока в core). Callers рантайм (hero-card)."
+  ],
+  "pointer": [
+    "// ===== Dynasty A: clan-upgrades/forge/achievements/gender/profile/family/clan+kingdom mgmt =====",
+    "// Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 13, 2026-06-13).",
+    "// clan-upgrades/forge/achievements/gender/profile/family/dynasty-locked/clan-mgmt/kingdom-mgmt.",
+    "// _bnrConfirm/_bnrShowSimpleModal ОСТАЮТСЯ в core (форвард). Callers рантайм (hero-card)."
+  ]
+}

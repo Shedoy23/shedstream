@@ -1,0 +1,21 @@
+{
+  "src": "Расширение/frontend/viewer.js",
+  "dst": "Расширение/frontend/viewer-bannerlord.js",
+  "start": 1574,
+  "end": 1776,
+  "assert_first": "async function loadBannerlordClasses",
+  "assert_last": "}",
+  "assert_after": "random-equip",
+  "header": [
+    "// ===== Classes / active powers / summon — split чанк 9 (2026-06-13) =====",
+    "// loadBannerlordClasses + renderBannerlordClassPicker + renderBannerlordActivePowers",
+    "// + renderBannerlordSummonButton. Форвард-зовёт CORE: BNR_POWER_LABELS/PRICES,",
+    "// _bannerlordClassesCache (общий стейт), _bannerlordBuyAction. Callers рантайм."
+  ],
+  "pointer": [
+    "// ===== Classes / active powers / summon =====",
+    "// Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 9, 2026-06-13).",
+    "// loadBannerlordClasses + class-picker + active-powers + summon-button.",
+    "// BNR_POWER_LABELS/PRICES + _bannerlordClassesCache ОСТАЮТСЯ в core (форвард). Callers рантайм."
+  ]
+}

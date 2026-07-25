@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" x-data="geotargeting">
+  <head>
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Channel Points Acceptable Use Policy</title>
+
+<meta name="description" content="">
+
+<meta property="og:site_name" content="Twitch.tv">
+<meta property="og:description" content="">
+<meta property="og:image" content="">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@twitch">
+<meta name="twitter:creator" content="@twitch">
+<meta name="twitter:title" content="Channel Points Acceptable Use Policy">
+<meta name="twitter:description" content="">
+<meta name="twitter:image" content="">
+
+<link href="/icons/favicon.ico" rel="shortcut icon" type="image/x-icon" data-rewrite-ignore-locale>
+<link rel="icon" type="image/png" href="/icons/favicon-32x32.png" sizes="32x32">
+<link rel="icon" type="image/png" href="/icons/favicon-16x16.png" sizes="16x16">
+
+<meta http-equiv="content-language" content="en">
+
+
+  
+    <link rel="alternate" href="https://legal.twitch.com/bg-bg/legal/channel-points-acceptable-use-policy/" hreflang="bg-bg">
+  
+    <link rel="alternate" href="https://legal.twitch.com/cs-cz/legal/channel-points-acceptable-use-policy/" hreflang="cs-cz">
+  
+    <link rel="alternate" href="https://legal.twitch.com/da-dk/legal/channel-points-acceptable-use-policy/" hreflang="da-dk">
+  
+    <link rel="alternate" href="https://legal.twitch.com/de-de/legal/channel-points-acceptable-use-policy/" hreflang="de-de">
+  
+    <link rel="alternate" href="https://legal.twitch.com/el-gr/legal/channel-points-acceptable-use-policy/" hreflang="el-gr">
+  
+    <link rel="alternate" href="https://legal.twitch.com/es-es/legal/channel-points-acceptable-use-policy/" hreflang="es-es">
+  
+    <link rel="alternate" href="https://legal.twitch.com/es-mx/legal/channel-points-acceptable-use-policy/" hreflang="es-mx">
+  
+    <link rel="alternate" href="https://legal.twitch.com/fi-fi/legal/channel-points-acceptable-use-policy/" hreflang="fi-fi">
+  
+    <link rel="alternate" href="https://legal.twitch.com/fr-fr/legal/channel-points-acceptable-use-policy/" hreflang="fr-fr">
+  
+    <link rel="alternate" href="https://legal.twitch.com/hu-hu/legal/channel-points-acceptable-use-policy/" hreflang="hu-hu">
+  
+    <link rel="alternate" href="https://legal.twitch.com/it-it/legal/channel-points-acceptable-use-policy/" hreflang="it-it">
+  
+    <link rel="alternate" href="https://legal.twitch.com/ja-jp/legal/channel-points-acceptable-use-policy/" hreflang="ja-jp">
+  
+    <link rel="alternate" href="https://legal.twitch.com/ko-kr/legal/channel-points-acceptable-use-policy/" hreflang="ko-kr">
+  
+    <link rel="alternate" href="https://legal.twitch.com/nl-nl/legal/channel-points-acceptable-use-policy/" hreflang="nl-nl">
+  
+    <link rel="alternate" href="https://legal.twitch.com/no-no/legal/channel-points-acceptable-use-policy/" hreflang="no-no">
+  
+    <link rel="alternate" href="https://legal.twitch.com/pl-pl/legal/channel-points-acceptable-use-policy/" hreflang="pl-pl">
+  
+    <link rel="alternate" href="https://legal.twitch.com/pt-br/legal/channel-points-acceptable-use-policy/" hreflang="pt-br">
+  
+    <link rel="alternate" href="https://legal.twitch.com/pt-pt/legal/channel-points-acceptable-use-policy/" hreflang="pt-pt">
+  
+    <link rel="alternate" href="https://legal.twitch.com/ro-ro/legal/channel-points-acceptable-use-policy/" hreflang="ro-ro">
+  
+    <link rel="alternate" href="https://legal.twitch.com/ru-ru/legal/channel-points-acceptable-use-policy/" hreflang="ru-ru">
+  
+    <link rel="alternate" href="https://legal.twitch.com/sk-sk/legal/channel-points-acceptable-use-policy/" hreflang="sk-sk">
+  
+    <link rel="alternate" href="https://legal.twitch.com/sv-se/legal/channel-points-acceptable-use-policy/" hreflang="sv-se">
+  
+    <link rel="alternate" href="https://legal.twitch.com/th-th/legal/channel-points-acceptable-use-policy/" hreflang="th-th">
+  
+    <link rel="alternate" href="https://legal.twitch.com/tr-tr/legal/channel-points-acceptable-use-policy/" hreflang="tr-tr">
+  
+    <link rel="alternate" href="https://legal.twitch.com/vi-vn/legal/channel-points-acceptable-use-policy/" hreflang="vi-vn">
+  
+    <link rel="alternate" href="https://legal.twitch.com/zh-cn/legal/channel-points-acceptable-use-policy/" hreflang="zh-cn">
+  
+    <link rel="alternate" href="https://legal.twitch.com/zh-tw/legal/channel-points-acceptable-use-policy/" hreflang="zh-tw">
+  
+    <link rel="alternate" href="https://legal.twitch.com/ar-sa/legal/channel-points-acceptable-use-policy/" hreflang="ar-sa">
+  
+    <link rel="alternate" href="https://legal.twitch.com/uk-ua/legal/channel-points-acceptable-use-policy/" hreflang="uk-ua">
+  
+
+
+    
+    <script defer src="/js/build.js"></script>
+    
+    
+    
+    <link rel="stylesheet" href="https://legal.twitch.com/css/bookshop.min.343054bb7b6f3846b2cb5bc8747d8376b8ec592f9c5e0dff07e2eb6ea651e44d.css" />
+
+    
+  <link rel="stylesheet" href="/sass/main.css">
+
+
+
+
+    
+    <link rel="stylesheet" href="/css/styles.css">
+
+    <link href="/pagefind/pagefind-modular-ui.css" rel="stylesheet">
+    <script src="/pagefind/pagefind-modular-ui.js" defer></script>
+
+    <script async src="https://analytics.m7g.twitch.tv/270fb0ae91e9890ee407/"></script>
+  </head>
+  
+  
+  
+      
+
+      
+      
+      
+      
+  
+
+  <body class="font-default" x-data='{ geo_targeting: "", redirectUrl: $el.dataset.redirectUrl }' 
+    data-redirect-url='/en/legal/'
+    x-init="init();$watch('isVisible', value => {
+    if (value === false) { // Ensure it only redirects when explicitly false
+        setTimeout(() => {
+            window.location.href = redirectUrl;
+        }, 10000);
+    }
+  });">
+    <header>
+      <nav class="flex justify-center bg-brand-purple">
+  <a id="skip-to-content" href="#table-of-contents" tabindex="0" class="absolute top-0 transition-all focus:translate-y-0 -translate-y-full text-white text-base px-3 flex items-center gap-[10px] border-2 border-white rounded-lg p-[14px_12px] leading-[20px]">
+    Skip to content
+  </a>
+  <div class="max-w-[2000px] w-full px-5 lg:px-8 py-6 max-[479px]:flex-col flex-row flex gap-4 items-center col-start-2" x-data="{mobileSubNavOpen: false, mobileAccountNavOpen: false}">
+    
+    <a href="/en/legal/" class="flex flex-col items-center mr-auto" aria-label="Twitch Legal Home">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1139.43 379.04" height="32px" >
+        <title>Twitch Legal Home</title>
+        <g data-name="Layer 2">
+          <g data-name="Layer 1">
+            <path class="wordmark-logo__bg fill-purple" d="M1119.44 269.32h-80v-99.75h-20v99.75h-80V20h80v69.78h60l40 39.9zm-199.9-99.75h-80v20h80v79.8H799.6l-40-39.9v-99.79l40-39.9h119.94zm-179.91 0h-70v20h70v79.8H629.69l-40-39.9V20h80v69.78h70zM569.72 69.83h-80V20h80zm0 199.49h-80V89.78h80zm-100 0H229.89l-40-39.9V89.78h80v99.74h20V89.78h80v99.74h20V89.78h80zm-299.8-99.75H100v20h70v79.8H60l-40-39.9V20h80v69.78h70zm919.54-99.74h-50V0H929.75l-50.47 69.83h-89.67l-30 29.92V69.83h-70V0H469.77v69.83H160.42L110 0H0v239.4L139.93 379h139.93v-39.9l40 39.9h269.85v-39.9l40 39.9h129.91v-39.9l40 39.9h249.88l90-89.78V119.7z" fill="#9145ff"></path>
+            <path class="wordmark-logo__text fill-white" d="M939.53 269.32h79.96v-99.75h19.99v99.75h79.96V129.68l-39.98-39.9h-59.97V19.96h-79.96v249.36zM589.71 229.42l39.97 39.9h109.95v-79.8h-69.96v-19.95h69.96V89.78h-69.96V19.96h-79.96v209.46zM759.62 229.42l39.98 39.9h119.94v-79.8h-79.96v-19.95h79.96V89.78H799.6l-39.98 39.9v99.74zM489.76 19.96h79.96v49.87h-79.96zM169.92 89.78H99.95V19.96H19.99v209.46l39.98 39.9h109.95v-79.8H99.95v-19.95h69.97V89.78zM189.91 229.42l39.97 39.9h239.89V89.78h-79.96v99.74h-20V89.78h-79.95v99.74h-19.99V89.78h-79.96v139.64zM489.76 89.78h79.96v179.54h-79.96z" fill="#FFF"></path>
+          </g>
+        </g>
+      </svg>
+      <div class="text-white text-base lg:text-2xl mt-[-10px] font-[400]">legal</div>
+    </a>
+
+    <div class="flex  items-center gap-4">
+      
+
+  <div class="relative max-[479px]:w-full" x-data="{languageModalOpen: false}">
+    <button class="max-[479px]:w-full max-[479px]:justify-center text-white text-base px-3 flex items-center gap-[10px] border-2 border-white rounded-lg p-[14px_12px] leading-[20px] " 
+    @click="languageModalOpen = true;$focus.within($refs.language_dropdown).first()" 
+    :aria-expanded="languageModalOpen" 
+    aria-haspopup="true"
+    aria-label="Languages"
+    @keydown.down.prevent="languageModalOpen = true;$focus.within($refs.language_dropdown).first()"
+    @keydown.up.prevent="languageModalOpen = true;$focus.within($refs.language_dropdown).last()"
+    @keydown.escape="languageModalOpen = false;$nextTick(() => $refs.language_button.focus())"
+    x-ref="language_button"
+    >
+        <div>
+          Languages
+        </div>
+        <img src="/images/icons/arrow.svg" alt="" />
+    </button>
+
+    <ul class="max-[479px]:w-full border-brand-purple border rounded-lg bg-white p-2 absolute z-[200] top-[calc(100%+7.5px)]" 
+    role="menu"
+    x-show="languageModalOpen" 
+    x-cloak 
+    @click.outside="languageModalOpen = false" 
+    @keydown.escape="languageModalOpen = false;$nextTick(() => $refs.language_button.focus())" 
+    @keydown.down.prevent="$focus.wrap().next()"
+    @keydown.up.prevent="$focus.wrap().previous()"
+    x-ref="language_dropdown"
+    x-trap.inert="languageModalOpen"
+    >
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/ar-sa/legal/channel-points-acceptable-use-policy" lang="ar">العربية</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/bg-bg/legal/channel-points-acceptable-use-policy" lang="bg">Български</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/cs-cz/legal/channel-points-acceptable-use-policy" lang="cs">Čeština</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/da-dk/legal/channel-points-acceptable-use-policy" lang="da">Dansk</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/de-de/legal/channel-points-acceptable-use-policy" lang="de">Deutsch</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/el-gr/legal/channel-points-acceptable-use-policy" lang="el">Ελληνικά</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/en/legal/channel-points-acceptable-use-policy" lang="en">English</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/es-es/legal/channel-points-acceptable-use-policy" lang="es">Español</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/es-mx/legal/channel-points-acceptable-use-policy" lang="es">Español - Latinoamérica</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/fi-fi/legal/channel-points-acceptable-use-policy" lang="fi">Suomi</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/fr-fr/legal/channel-points-acceptable-use-policy" lang="fr">Français</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/hu-hu/legal/channel-points-acceptable-use-policy" lang="hu">Magyar</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/it-it/legal/channel-points-acceptable-use-policy" lang="it">Italiano</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/ja-jp/legal/channel-points-acceptable-use-policy" lang="ja">日本語</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/ko-kr/legal/channel-points-acceptable-use-policy" lang="ko">한국어</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/nl-nl/legal/channel-points-acceptable-use-policy" lang="nl">Nederlands</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/no-no/legal/channel-points-acceptable-use-policy" lang="no">Norsk</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/pl-pl/legal/channel-points-acceptable-use-policy" lang="pl">Polski</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/pt-br/legal/channel-points-acceptable-use-policy" lang="pt">Português Brasileiro</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/pt-pt/legal/channel-points-acceptable-use-policy" lang="pt">Português</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/ro-ro/legal/channel-points-acceptable-use-policy" lang="ro">Română</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/ru-ru/legal/channel-points-acceptable-use-policy" lang="ru">Русский</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/sk-sk/legal/channel-points-acceptable-use-policy" lang="sk">Slovenčina</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/sv-se/legal/channel-points-acceptable-use-policy" lang="sv">Svenska</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/th-th/legal/channel-points-acceptable-use-policy" lang="th">ภาษาไทย</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/tr-tr/legal/channel-points-acceptable-use-policy" lang="tr">Türkçe</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/uk-ua/legal/channel-points-acceptable-use-policy" lang="uk">Українська</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/vi-vn/legal/channel-points-acceptable-use-policy" lang="vi">Tiếng Việt</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/zh-cn/legal/channel-points-acceptable-use-policy" lang="zh">中文 简体</a>
+          </li>
+          
+      
+          
+          
+          
+          
+          
+          
+          <li role="none" class="flex hover:bg-brand-purple hover:text-white text-base text-brand-black">
+            
+            <a role="menuitem" tabindex="0" class="p-2 w-full whitespace-nowrap" href="/zh-tw/legal/channel-points-acceptable-use-policy" lang="zh">中文 繁體</a>
+          </li>
+          
+      
+    </ul>
+  </div>
+
+    
+
+      <ul class="nav__list--desktop nav__unauthenticated max-[479px]:w-full">
+        
+        
+        
+          
+            <li class="nav__item text-brand-purple bg-brand-white border-2 border-[transparent] p-[14px_12px] text-base rounded-lg leading-[20px] require_logged_out">
+              <a href="https://www.twitch.tv/" class="nav__link flex gap-[10px] max-[479px]:justify-center ">
+                
+                <span data-i18n="menu:back-to-twitch">Back to Twitch</span>
+                <svg width="12" height="15" viewBox="0 0 12 15" fill="none" xmlns="http://www.w3.org/2000/svg" class="rotate-[225deg] stroke-brand-purple">
+                  <path d="M11.0006 8.49963L6.00058 13.4996M6.00058 13.4996L1.00058 8.49963M6.00058 13.4996V1.49963" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </a>
+            </li>
+          
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    </header>
+    <template x-if="isVisible === true">
+      <main>
+        <div class="flex w-full">
+          <div class="flex-grow bg-brand-ice"></div>
+          <div class="grid grid-cols-1 lg:grid-cols-[350px_1fr] w-full max-w-[2000px]">
+            <aside class="lg:sticky top-0 self-start lg:h-[100vh] col-span-2 lg:col-span-1 col-start-1 bg-brand-ice pl-4 lg:pl-8 pt-4 pb-4 lg:pb-0 lg:pt-8 pr-4"><div class="w-full text-base font-[700]" x-data="{mobileSubNavOpen: false}">
+    <div class="relative flex items-center justify-between w-full">
+        <div class="flex items-center lg:hidden">
+            Contents
+            <button aria-label="Site menu" class="flex-none lg:hidden fill-white z-100" id="menu" @click="mobileSubNavOpen = !mobileSubNavOpen">
+                <svg height="32" viewBox="0 0 48 48" width="48"  xmlns="http://www.w3.org/2000/svg"><path d="M0 0h48v48h-48z" fill="none"/><path fill="#8D41F9" d="M6 36h36v-4h-36v4zm0-10h36v-4h-36v4zm0-14v4h36v-4h-36z"/></svg>
+            </button>
+        </div>
+        <script>
+    
+    function initializeSearch() {
+       
+        try {
+            if (typeof PagefindModularUI !== 'undefined') {
+                window.instance = new PagefindModularUI.Instance();
+                let resultContainer = document.getElementById("results");
+
+                window.instance.add(new PagefindModularUI.Input({
+                    containerElement: "#search",
+                    debounceTimeoutMs: 500
+                }));
+
+                window.instance.on("results", async (results) => {
+                    let resultsCount = results.results.length;
+                    resultContainer.innerHTML = "";
+                    let cutDownResults = results.results.slice(0, 5);
+                    let innerContainer = document.createElement("div");
+
+                    for (const result of cutDownResults) {
+                        let data = await result.data();
+                        let content_array = data.excerpt.split(" ");
+                        let idx = 0;
+                        for (let i = 0; i < content_array.length; i++) {
+                            if (content_array[i].indexOf("<mark>") != -1) {
+                                idx = i;
+                                break;
+                            }
+                        }
+                        idx = idx == 0 ? idx : idx - 1;
+                        content_array = content_array.slice(idx, -1);
+                        let excerpt_text = content_array.join(" ");
+
+                        let resultDiv = document.createElement("a");
+                        resultDiv.href = data.url;
+                        let title = document.createElement("div");
+                        title.classList.add("underline");
+                        title.innerText = data.meta.title;
+                        resultDiv.append(title);
+                        let excerpt = document.createElement("div");
+                        excerpt.classList.add("overflow-hidden", "text-ellipsis", "whitespace-nowrap");
+                        excerpt.innerHTML = excerpt_text;
+                        resultDiv.append(excerpt);
+                        resultDiv.classList.add("pagefind-result");
+                        innerContainer.append(resultDiv);
+                    }
+
+                    innerContainer.classList.add("p-6");
+                    resultContainer.append(innerContainer);
+
+                    let bottom = document.createElement("div");
+                    bottom.classList.add("bg-brand-ice", "p-5", "flex", "items-center", "justify-between");
+                    let text = document.createElement("a");
+                    text.classList.add("underline");
+                    text.innerHTML = `See all ${resultsCount} results`;
+                    text.href = "\/en/legal/search?term=" + window.instance.searchTerm;
+                    bottom.append(text);
+
+                    resultContainer.append(bottom);
+                    resultContainer.classList.remove("hidden");
+                });
+
+                
+                setTimeout(() => {
+                    const input = document.querySelector(".pagefind-modular-input");
+                    if (input) {
+                        input.placeholder = "Search legal docs";
+                    }
+                }, 100);
+
+                document.addEventListener("click", e => {
+                    if (e.target.matches("input.pagefind-modular-input") || e.target.matches("#results")) {
+                        if (e.target.value) {
+                            window.instance.triggerSearch(e.target.value);
+                            resultContainer.classList.remove("hidden");
+                        }
+                    } else {
+                        resultContainer.classList.add("hidden");
+                    }
+                });
+
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error("Error initializing search:", error);
+            return false;
+        }
+    }
+
+    
+    function tryInitializeSearch() {
+        
+        if (initializeSearch()) return;
+
+        
+        let attempts = 0;
+        const maxAttempts = 20;
+        const interval = setInterval(function () {
+            attempts++;
+
+            if (initializeSearch() || attempts >= maxAttempts) {
+                clearInterval(interval);
+            }
+        }, 250);
+    }
+
+    
+    tryInitializeSearch();
+
+    
+    document.addEventListener('DOMContentLoaded', tryInitializeSearch);
+
+    
+    window.addEventListener('load', tryInitializeSearch);
+</script>
+
+
+<div id="search" class="w-full max-[479px]:max-w-[55%] max-w-[40%] lg:max-w-full"></div>
+<div id="results"
+    class="hidden absolute mt-4 bg-white border border-[#8D41F9] rounded-lg z-20 overflow-hidden lg:w-[446px] left-0 right-0 lg:left-auto lg:right-auto top-[100%]"
+    role="dialog"
+    aria-label="Search results"></div>
+
+    </div>
+    
+    
+    <ul class="mt-4" :class="mobileSubNavOpen ? 'block lg:block' : 'hidden lg:block'">
+        <li class="pt-[6px] pb-[6px] border-b border-brand-widow flex items-center stroke-black">
+            <svg width="22" height="21" viewBox="0 0 22 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1.25 11L10.204 2.04501C10.644 1.60601 11.356 1.60601 11.795 2.04501L20.75 11M3.5 8.75001V18.875C3.5 19.496 4.004 20 4.625 20H8.75V15.125C8.75 14.504 9.254 14 9.875 14H12.125C12.746 14 13.25 14.504 13.25 15.125V20H17.375C17.996 20 18.5 19.496 18.5 18.875V8.75001M7.25 20H15.5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <a class="p-2 "  href="/en/legal/">
+                All Legal Docs
+            </a>
+        </li>
+        
+        
+        
+        
+        
+            
+            
+            
+    
+        
+        
+            
+                
+                    
+
+                    
+                    
+                    
+                    
+                
+            
+        
+        <li class="pt-[6px] pb-[6px] border-b border-brand-widow flex " data-available-countries="">
+            
+            
+            
+                <a class="p-3  "  href="/en/legal/terms-of-service/" data-i18n="menu:terms-of-service">Terms of Service</a>
+            
+
+            
+        </li>
+    
+
+        
+            
+            
+            
+    
+        
+        
+            
+                
+                    
+
+                    
+                    
+                    
+                    
+                
+            
+        
+        <li class="pt-[6px] pb-[6px] border-b border-brand-widow flex " data-available-countries="">
+            
+            
+            
+                <a class="p-3  "  href="/en/legal/terms-of-sale/" data-i18n="menu:terms-of-sale">Terms of Sale</a>
+            
+
+            
+        </li>
+    
+
+        
+            
+            
+            
+    
+        
+        
+            
+                
+                    
+
+                    
+                    
+                    
+                    
+                
+            
+        
+        <li class="pt-[6px] pb-[6px] border-b border-brand-widow flex " data-available-countries="">
+            
+            
+            
+                <a class="p-3  "  href="/en/legal/privacy-notice/" data-i18n="menu:privacy-notice">Privacy Notice</a>
+            
+
+            
+        </li>
+    
+
+        
+            
+            
+            
+    
+        
+        
+            
+                
+                    
+
+                    
+                    
+                    
+                    
+                
+            
+        
+        <li class="pt-[6px] pb-[6px] border-b border-brand-widow flex " data-available-countries="">
+            
+            
+            
+                <a class="p-3  "  href="/en/legal/privacy-choices/" data-i18n="menu:privacy-choices">Privacy Choices</a>
+            
+
+            
+        </li>
+    
+
+        
+            
+            
+            
+    
+        
+        
+            
+                
+            
+        
+        <li class="pt-[6px] pb-[6px] border-b border-brand-widow flex " data-available-countries="">
+            
+            
+            
+                <a class="p-3  "  href="/en/legal/monetized-streamer-agreement/" data-i18n="menu:monetized-streamer-agreement">Monetized Streamer Agreement</a>
+            
+
+            
+        </li>
+    
+
+        
+            
+            
+            
+    
+
+        
+    </ul>
+</div>
+
+
+</aside>
+            <div id="main-content">
+              
+    
+    
+
+    
+      
+      
+        
+      <div class="grid grid-cols-1 pb-16 xl:grid-cols-[1fr_350px]">
+        
+        
+        
+        
+          
+          
+
+          
+            
+          
+        
+
+        <h1 class="pt-12 pl-5 text-4xl text-brand-purple-dark font-[700] mb-4 xl:col-span-2">Channel Points Acceptable Use Policy</h1>
+        
+        
+        
+        <div class=" xl:sticky top-0 self-start px-4 xl:pl-5 xl:pr-5 pt-8 xl:h-[100vh] xl:overflow-y-scroll xl:col-start-2 xl:row-start-2 xl:max-w-[350px] order-first xl:order-none" x-data="{mobileTOCOpen: false}">
+          <style>
+            @media (max-width: 1279px) {
+              .toc-header {
+                margin-bottom: 13px;
+              }
+            }
+          </style>
+          
+            <div class="bg-brand-ice xl:bg-transparent p-4 xl:p-0 rounded-lg xl:rounded-none">
+              <button 
+                class="text-sm font-[500] flex items-center justify-between xl:border-none xl:toc-header w-full text-left group" 
+                @click="mobileTOCOpen = !mobileTOCOpen"
+                @keydown.enter="mobileTOCOpen = !mobileTOCOpen"
+                @keydown.space.prevent="mobileTOCOpen = !mobileTOCOpen"
+                aria-expanded="false"
+                :aria-expanded="mobileTOCOpen ? 'true' : 'false'"
+                :data-state="mobileTOCOpen ? 'open' : 'closed'"
+                aria-controls="table-of-contents"
+              >
+                <div>ON THIS PAGE</div>
+                <div class="flex items-center justify-end xl:hidden">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" data-slot="icon" class="w-4 h-4 transition-transform duration-300 select-none" :class="mobileTOCOpen ? '-scale-y-100' : ''"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"></path></svg>
+                </div>
+              </button>
+              <div 
+                id="table-of-contents"
+                :class="mobileTOCOpen ? 'block xl:block' : 'hidden xl:block'" 
+                class="xl:px-0"
+                style="background-color: #F0F0FF; border-radius: 0.5rem; padding: 16px;"
+              >
+                <nav id="TableOfContents">
+  <ul>
+    <li><a href="#application">Application</a></li>
+    <li><a href="#key-usage-guidelines">Key Usage Guidelines</a></li>
+    <li><a href="#restrictions">Restrictions</a></li>
+  </ul>
+</nav>
+              </div>
+            </div>
+          
+        </div>
+        
+        <div class="pl-5 pr-5 xl:pr-0 xl:col-start-1 xl:row-start-2">
+          
+            
+              <div class="flex items-center justify-between mb-5">
+                <p class="text-xs">
+                  
+                    
+                    <span data-i18n="legal-enlegalchannel-points-acceptable-use-policy20191209:modified" style="display: block;">
+                        Last modified on 
+                        
+                          12/09/2019
+                        
+                    </span>
+                    
+                  
+                  
+                      <span data-i18n="legal-enlegalchannel-points-acceptable-use-policy20191209:modified" style="display: block;">
+                          <a class="font-bold text-brand-purple" href="/en/legal/channel-points-acceptable-use-policy/archive">See prior versions of Channel Points Acceptable Use Policy</a>
+                      </span>
+                  
+                </p>
+              </div>
+          
+
+          <article 
+            data-pagefind-body
+            data-pagefind-meta="title:Channel Points Acceptable Use Policy"
+            class="prose max-w-none prose-brand-purple prose-base prose-headings:text-brand-purple-dark prose-a:text-brand-black hover:prose-a:underline">
+            <p>Channel Points (“<strong>Points</strong>”) are digital content that can be earned and redeemed by Twitch account holders on certain Twitch channels. Points are channel-specific, meaning they have to be earned and used on the same channel. Points earned on one channel cannot be redeemed on a different channel.<em>**</em></p>
+<hr>
+<p>Points cannot be earned on all channels. Twitch allows creators to decide whether viewers can earn Points on their channels, and if so, how. Creators are also permitted to decide how viewers can redeem Points on their channels, within the parameters set forth in this Channel Points Acceptable Use Policy (“<strong>Policy</strong>”). Points redemption opportunities may vary based on the geography of the creator or the users.</p>
+<h2 id="application" tabindex="-1">
+  Application
+</h2>
+<p>This Policy applies to any Twitch creator or user that offers, earns, obtains, interacts with, redeems, or otherwise uses Points. We may change this Policy from time to time. The most current version of this Policy will be posted on the Twitch website and will supersede all previous versions of this Policy. Any changes will be effective upon posting. We encourage you to review this Policy on a regular basis. If you continue to earn Points, redeem Points, or interact with Points in any other way after this Policy has been changed, you will be deemed to have read, understood and unconditionally consented to and agreed to such changes.</p>
+<p>Your use of Points is further subject to and governed by Twitch’s <a href="https://legal.twitch.com/legal/terms-of-service/">Terms of Service</a>, Twitch’s <a href="https://legal.twitch.com/legal/terms-of-sale/">Terms of Sale</a>, and <a href="https://legal.twitch.com/legal/community-guidelines/">Twitch’s Community Guidelines</a>. If you are a developer, your use of Points in Extensions or other experiences is also subject to Twitch’s <a href="https://legal.twitch.com/legal/developer-agreement/">Developer Services Agreement</a>. Any capitalized terms used in this Policy but not otherwise defined have the meaning given to them in the Terms of Service, Terms of Sale, or Community Guidelines, as applicable. In the event of a conflict or inconsistency between this Policy and those agreements, this Policy shall prevail, govern and control solely with respect to Points.</p>
+<h2 id="key-usage-guidelines" tabindex="-1">
+  Key Usage Guidelines
+</h2>
+<p><strong>Points are not a money instrument</strong></p>
+<p>Points are digital content intended to be acquired and consumed on Twitch. Points have no monetary value (i.e., are not a cash account or equivalent), and do not constitute currency or property of any type.</p>
+<p><strong>Points cannot be purchased or exchanged outside of the Twitch Services</strong></p>
+<p>Points cannot be purchased. This Policy prohibits selling, trading, bartering or transferring Points (or offering to do those things) to other users of Twitch in exchange for money or real currencies. Twitch or creators can offer premiums or other benefits in exchange for Points, but Points cannot otherwise be exchanged for items that have value outside of the website available at <a href="http://www.twitch.tv">http://www.twitch.tv</a>, and its network of websites, software applications, or any other products or services offered by Twitch (the “<strong>Twitch Services</strong>”). Any Points used in activities that are prohibited by this Policy may be confiscated or cancelled</p>
+<p><strong>How to Earn Points</strong></p>
+<p>There are many ways to earn Points. Twitch defines the type of activities that earn Points in general on Twitch; creators decide whether to participate in some or all of these activities on their channels. For example, some creators may only have one or two ways to earn Points on their channels—or none at all—while others may have many different earning opportunities. Some of the ways users can earn Points may include the following (subject to change):</p>
+<ul>
+<li><strong>Viewing</strong> - Earn Points by viewing a stream.</li>
+<li><strong>Watch Streaks</strong> - Earn Points by watching two or more of a creator’s streams in a row.</li>
+<li><strong>Following</strong> - Earn Points by following a channel.</li>
+<li><strong>Raiding</strong> - Earn Points for joining a Raid.</li>
+<li><strong>Twitch Prime</strong> - Earn Points by being a Twitch Prime member.</li>
+</ul>
+<p>The number of Points you can earn for the above activities may vary by channel or time. Twitch reserves the right, in its sole discretion, to determine and modify, at any time, the number of Points that may be earned for any given activity. Users have no tangible or intangible property, proprietary, intellectual property, ownership, or monetary interest in Points, which remain Twitch digital content subject to the Twitch Terms of Service.</p>
+<p><strong>How to Redeem Points</strong></p>
+<p>As with earning opportunities, Points redemption opportunities will vary from channel to channel. Creators define how Points can be used on their channels within the parameters of this Policy and any other guidelines or rules issued by Twitch. Creators can announce unique redemption opportunities on their channels within the parameters of this Policy and any other guidelines or rules issued by Twitch. Twitch expects Creators to announce any limits on the redemption opportunities that they make available to users who visit or participate in their channel. Additional redemption opportunities may be made available through extensions or other third-party integrations, which may be subject to additional terms and conditions. Where applicable, Creators must provide notice to users of additional third-party terms and conditions along with a link to the additional terms. Because of differences in local laws and regulations, not all redemption opportunities will be available to all Twitch users; with respect to redemption opportunities offered by Twitch, any restrictions will be communicated at the time of redemption. Some of the ways that users can redeem Points may include the following (subject to change):</p>
+<ul>
+<li><strong>Starting or Voting in Polls</strong></li>
+<li><strong>Modifying or Unlocking Emotes</strong></li>
+<li><strong>Highlighting Chat Messages</strong></li>
+<li><strong>Submitting “Ask Me Anything” Questions</strong></li>
+<li><strong>Participating in Experiences</strong></li>
+</ul>
+<p>As stated above, Twitch may offer some of these redemption opportunities for creators to use on their channels; others may be offered by the creator themselves or a third-party developer. In all cases, Twitch reserves the right to limit the type of redemption opportunities that are available. For example, Twitch may cancel a Points redemption opportunity that a channel planned to offer. Users, creators, and developers may not rely on a particular redemption opportunity or type of redemption opportunity continuing to be available, or continuing to be available for the previously offered number of Points. In other words, the number of Points required for any redemption opportunity may be substantially increased, any redemption opportunity may be withdrawn, and restrictions may be imposed on any redemption opportunity. Twitch may also impose a limit on the number of redemption opportunities in the aggregate or by type that may redeemed per user, per day, per channel or per any other criteria that may be selected by Twitch from time to time in its sole discretion.</p>
+<p>Once a user has redeemed Points, the Points are gone and there are no refunds, returns or exchanges for additional Points, cash, or other goods and services, even if the redemption opportunity that your Points were redeemed toward is cancelled. To the extent permitted by law, users have no tangible or intangible property, proprietary, intellectual property, ownership, or monetary interest in digital content received through Points redemption opportunities, which remain Twitch digital content subject to the Twitch Terms of Service.</p>
+<p>Points will expire if not used by a date specified by Twitch. Users may view current earned Points and their expiration date by logging onto their account.</p>
+<h2 id="restrictions" tabindex="-1">
+  Restrictions
+</h2>
+<p>Points should only be used in accordance with this Policy. In particular, be sure to follow this exemplary (but not exhaustive) list of guidelines:</p>
+<ul>
+<li>Do not create Points redemption opportunities that constitute gambling.</li>
+<li>Do not create Points redemption opportunities for tobacco, alcohol, pharmaceutical products, imitation currency, infant food and formula, bank operations, or fuel.</li>
+<li>Do not sell, offer to sell, trade, barter, or transfer Points to other users of Twitch in exchange for Bits or in exchange for real or virtual currencies inside or outside the Twitch Services. Any attempted prohibited sale or transfer will be null and void.</li>
+<li>If only a limited number of items are being offered in a Points redemption opportunity, creators should clearly disclose how many items are available. For example, if only one item is available, the creator should disclose that. Creators should also stop promoting the Points redemption opportunity once they learn that all of the available items have been claimed.</li>
+<li>When creating Points redemption opportunities, be sure to follow all applicable tax laws in your jurisdiction. Compliance with local tax laws is your responsibility and Twitch bears no responsibility for ensuring your compliance with these laws.</li>
+<li>Do not use Points to solicit or engage in any fraudulent, criminal or other illegal activity.</li>
+<li>Do not use Points in connection with any activity prohibited by Twitch’s <a href="https://legal.twitch.com/legal/terms-of-service/">Terms of Service</a>, Twitch’s <a href="https://legal.twitch.com/legal/terms-of-sale/">Terms of Sale</a>, Twitch’s <a href="https://legal.twitch.com/legal/community-guidelines/">Community Guidelines</a>, or Twitch’s <a href="https://legal.twitch.com/legal/developer-agreement/">Developer Services Agreement</a>.</li>
+</ul>
+<p><strong>Modification and Termination</strong></p>
+<p>Twitch may modify this Policy in whole or in part, including, but not limited to, how Points can be earned, how Points can be used, the type or “classes” of Points available, and the conditions under which Points may expire or be forfeited at any time, with or without notice, even though these changes may affect a user’s ability to use the Points that he/she has already earned. The Points program has no predetermined termination date and may continue until such time as Twitch decides to terminate the Points program. Twitch may, in its sole discretion, modify or terminate the Points program, in whole or in part, at any time and for any reason or no reason at all. If Twitch decides to terminate the Points program, notice of that decision may be posted on the Twitch website and/or via email to the user’s email address currently on file with Twitch. If Twitch decides in its sole discretion to discontinue Points, users will have approximately thirty (30) days or a different amount of time deemed reasonable by Twitch from the date Points termination is announced to use their remaining Points, subject to the availability of redemption opportunities. Twitch makes no representation or warranty about the number or type of redemption opportunities that may be available while the Points program is in effect or after it announces that the Points program is being terminated, and many redemption opportunities that may have been available prior to termination may quickly become depleted or otherwise unavailable once the Points program termination has been announced. Any Points remaining in a user’s account at the time of termination will be forfeited and no compensation will be provided.</p>
+<p><strong>Violations of this Policy</strong></p>
+<p>Twitch may terminate your license to use the Twitch Services, block or prevent your future access to and use of the Twitch Services, cancel accumulated Points, alter the number of Points in a user’s account or suspend the user’s membership privileges at any time with immediate effect if Twitch determines in its sole discretion that the user (a) has acted in a manner inconsistent with applicable laws or ordinances; (b) acted in a fraudulent or abusive manner; (c) breached this Policy; (d) engaged in any fraud or abuse concerning Points, Points usage or Points redemption; or (e) engaged in any conduct or act that causes Twitch to terminate or suspend the user’s access to Twitch. Twitch may also take appropriate administrative or legal action if any of the things listed above occurs. Nothing contained in this Policy shall limit Twitch in its exercise of any legal or equitable rights or remedies.</p>
+<p>Any violations or attempted violations of this Policy by you (or any third party using your account or acting on your behalf) will constitute a violation of the Terms of Service, including this Policy, by you and a material breach of any other applicable agreement, and/or supplements to any applicable agreement(s), with Twitch.</p>
+<p>Twitch’s failure to enforce this Policy in every instance in which it might apply does not amount to a waiver of Twitch’s rights to enforce this Policy under other similar or identical circumstances.</p>
+
+          </article>
+        </div>
+      </div>
+    
+
+    <script>
+      
+      const io_options = {
+        rootMargin: '0px 0px -80% 0px',
+        threshold: [0.1, 0.5]
+      }
+      
+      
+      const observer = new IntersectionObserver(entries => {
+        
+        const intersectingEntries = entries.filter(entry => entry.isIntersecting);
+        
+        if (intersectingEntries.length > 0) {
+          
+          const entry = intersectingEntries[0];
+          const id = entry.target.getAttribute('id');
+          
+          
+          if (id) {
+            
+            document.querySelectorAll(`nav li`).forEach(li => {
+              li.classList.remove('active');
+            });
+            
+            
+            const activeLink = document.querySelector(`nav li a[href="#${id}"]`);
+            if (activeLink) {
+              activeLink.parentElement.classList.add('active');
+            }
+          }
+        }
+      }, io_options);
+      
+      
+      document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('main h2').forEach((section) => {
+          observer.observe(section);
+        });
+        
+        
+        const tocLinks = document.querySelectorAll('.toc-header + div a');
+        tocLinks.forEach(link => {
+          link.addEventListener('click', function(e) {
+            e.preventDefault(); 
+            const targetId = this.getAttribute('href').substring(1);
+            const targetHeading = document.getElementById(targetId);
+            
+            if (targetHeading) {
+              
+              targetHeading.focus();
+              
+              targetHeading.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          });
+        });
+        
+        
+        if (window.location.hash) {
+          const hash = window.location.hash;
+          const activeLink = document.querySelector(`nav li a[href="${hash}"]`);
+          if (activeLink) {
+            document.querySelectorAll('nav li').forEach(li => {
+              li.classList.remove('active');
+            });
+            activeLink.parentElement.classList.add('active');
+          }
+        }
+      });
+    </script>
+
+            </div>
+          </div>
+          <div class="flex-grow"></div>
+        </div>
+      </main>
+    </template>
+    <template x-if="isVisible === false">
+      <div>
+        <link rel="canonical" href='/en/legal/'>
+
+        <div class="mo__center_content align-center">
+          <h3>…</h3>
+          <p>
+            <span x-show="countryCode">We detected you're in <strong x-text="countryCode.toUpperCase()"></strong>. </span>
+            This document is intended for users in other regions. You will be redirected shortly.
+          </p>
+          <a href='/en/legal/'>Click here if you are not redirected.</a>
+        </div>
+      
+        <script>
+          (function () {
+            var url = Array.prototype.slice.call(document.getElementsByTagName('link')).reduce((url, element) => {
+              if (/canonical/i.test(element.getAttribute('rel'))) {
+                return element.href;
+              }
+              return url;
+            }, null);
+      
+            var search = location.search || '';
+            var hash = location.hash || '';
+            var q = !!~search.indexOf('?') ? '?' : '';
+            var h = !!~hash.indexOf('#') ? '#' : '';
+      
+            if (/twitch\.tv/.test(url)) {
+              location.replace(url + q + location.search + h + location.hash);
+            }
+          })();
+        </script>
+      </div>
+    </template>
+    <footer tw-impression-id="footer" class="bg-black text-white text-sm font-[700] leading-6 pt-12 pb-12 w-full flex justify-center">
+    <div class="grid max-w-[2000px] grid-cols-1 md:grid-cols-[auto_1fr] lg:grid-cols-2 w-full px-8 py-6 gap-8">
+        <div class="flex justify-center pb-6 md:justify-start lg:pb-0">
+            <a href="https://www.twitch.tv/p/en/about" aria-label="About Twitch">
+                <svg width="48" height="53" viewBox="0 0 30 34" fill="none" xmlns="http://www.w3.org/2000/svg" >
+                    <title >About Twitch</title>
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M27.4994 15.3919L22.5006 20.1262H17.4994L13.1233 24.2708V20.1262H7.49939V2.36833H27.4994V15.3919ZM6.24909 0L0 5.91853V27.2289H7.49939V33.1475L13.7485 27.2289H18.7497L30 16.5737V0H6.24909ZM23.7509 6.69873H21.2502V13.8008H23.7509V6.69873ZM14.3766 6.6709H16.8773V13.7739H14.3766V6.6709Z" fill="#FFFFFF"></path>
+                </svg>
+            </a>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-[2fr_2fr]">
+            <div class="flex flex-col col-start-1 pb-6">
+                <a href="/en/legal/" class="pb-2 text-xs">Legal</a>
+                
+                
+                
+                <ul class="list-none">
+                    
+                        
+                        <li><a class="block hover:text-brand-purple hover:underline text-lg leading-[22px] pb-3" href="/en/legal/terms-of-service/"><span data-i18n="menu:terms-of-service">Terms of Service</span></a></li>
+                    
+                        
+                        <li><a class="block hover:text-brand-purple hover:underline text-lg leading-[22px] pb-3" href="/en/legal/terms-of-sale/"><span data-i18n="menu:terms-of-sale">Terms of Sale</span></a></li>
+                    
+                        
+                        <li><a class="block hover:text-brand-purple hover:underline text-lg leading-[22px] pb-3" href="/en/legal/privacy-notice/"><span data-i18n="menu:privacy-notice">Privacy Notice</span></a></li>
+                    
+                        
+                        <li><a class="block hover:text-brand-purple hover:underline text-lg leading-[22px] pb-3" href="/en/legal/privacy-choices/"><span data-i18n="menu:privacy-choices">Privacy Choices</span></a></li>
+                    
+                        
+                        <li><a class="block hover:text-brand-purple hover:underline text-lg leading-[22px] pb-3" href="/en/legal/monetized-streamer-agreement/"><span data-i18n="menu:monetized-streamer-agreement">Monetized Streamer Agreement</span></a></li>
+                    
+                        
+                        <li><a class="block hover:text-brand-purple hover:underline text-lg leading-[22px] pb-3" href="https://www.twitch.tv/oss-attribution"><span data-i18n="menu:open-source-attribution">Open Source Attribution</span></a></li>
+                    
+                </ul>
+            </div>
+            <div class="md:col-start-2">
+                <a href="https://twitch.tv" class="flex gap-1 pb-2 text-xs">
+                    Twitch
+                    <img src="/images/icons/arrow.svg" class="rotate-[225deg] mt-[-5px]" alt="" />
+                </a>
+                <div class="columns-2">
+                    
+                    
+                    
+                    <ul class="list-none">
+                        
+                            
+                            <li><a class="block hover:text-brand-purple hover:underline text-lg leading-[22px] pb-3 w-full" href="https://www.twitch.tv/p/about/"><span data-i18n="menu:about">About</span></a></li>
+                        
+                            
+                            <li><a class="block hover:text-brand-purple hover:underline text-lg leading-[22px] pb-3 w-full" href="https://www.twitch.tv/jobs/"><span data-i18n="menu:careers">Careers</span></a></li>
+                        
+                            
+                            <li><a class="block hover:text-brand-purple hover:underline text-lg leading-[22px] pb-3 w-full" href="https://blog.twitch.tv/"><span data-i18n="menu:blog">Blog</span></a></li>
+                        
+                            
+                            <li><a class="block hover:text-brand-purple hover:underline text-lg leading-[22px] pb-3 w-full" href="https://www.twitch.tv/p/press-center/"><span data-i18n="menu:press">Press</span></a></li>
+                        
+                            
+                            <li><a class="block hover:text-brand-purple hover:underline text-lg leading-[22px] pb-3 w-full" href="https://brand.twitch.com/"><span data-i18n="menu:brand">Brand</span></a></li>
+                        
+                            
+                            <li><a class="block hover:text-brand-purple hover:underline text-lg leading-[22px] pb-3 w-full" href="https://dev.twitch.tv/"><span data-i18n="menu:developers">Developers</span></a></li>
+                        
+                            
+                            <li><a class="block hover:text-brand-purple hover:underline text-lg leading-[22px] pb-3 w-full" href="https://twitch.amazon.com/prime"><span data-i18n="menu:prime">Prime</span></a></li>
+                        
+                            
+                            <li><a class="block hover:text-brand-purple hover:underline text-lg leading-[22px] pb-3 w-full" href="https://twitch.amazon.com/bits"><span data-i18n="menu:bits">Bits</span></a></li>
+                        
+                            
+                            <li><a class="block hover:text-brand-purple hover:underline text-lg leading-[22px] pb-3 w-full" href="https://www.twitch.tv/p/extensions/"><span data-i18n="menu:extensions">Extensions</span></a></li>
+                        
+                            
+                            <li><a class="block hover:text-brand-purple hover:underline text-lg leading-[22px] pb-3 w-full" href="http://twitchadvertising.tv/"><span data-i18n="menu:advertise">Advertise</span></a></li>
+                        
+                            
+                            <li><a class="block hover:text-brand-purple hover:underline text-lg leading-[22px] pb-3 w-full" href="https://www.twitch.tv/p/giftcard/buy/?utm_source=footer"><span data-i18n="menu:gift-card">Gift Card</span></a></li>
+                        
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</footer>
+
+    <div class="hidden">/home/ubuntu/actions-runner/_work/legal-hugo/legal-hugo/content/en/legal/channel-points-acceptable-use-policy.md</div>
+  </body>
+</html>

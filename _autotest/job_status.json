@@ -1,0 +1,18 @@
+{
+  "src": "Расширение/frontend/viewer.js",
+  "dst": "Расширение/frontend/viewer-bannerlord.js",
+  "start": 2847,
+  "end": 2866,
+  "assert_first": "async function loadBannerlordStatus",
+  "assert_last": "}",
+  "assert_after": "_stopBannerlordPolling",
+  "header": [
+    "// ===== Status badge (онлайн/оффлайн Bannerlord) — split чанк 11 (2026-06-13) =====",
+    "// loadBannerlordStatus. Только fetch + бейдж. Callers рантайм (polling)."
+  ],
+  "pointer": [
+    "// ===== Status badge (онлайн/оффлайн Bannerlord) =====",
+    "// Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 11, 2026-06-13).",
+    "// loadBannerlordStatus. Зовётся из _startBannerlordPolling (рантайм)."
+  ]
+}

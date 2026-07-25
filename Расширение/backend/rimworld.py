@@ -52,6 +52,25 @@ from dependencies import require_admin, require_jwt_channel, require_jwt_user
 
 router = APIRouter()
 
+# ── ЦЕНЫ RimWorld (💎 крустики) ─────────────────────────────────────────────
+# 2026-07-24 — ПОДНЯТЫ НА УРОВЕНЬ МОДУЛЯ (были локальными внутри хендлеров).
+# Пока они жили внутри функций, отдать их фронту было нельзя — только сделать
+# вторую копию. Фронт их и хардкодил, и уже начал врать: кнопка удаления черты
+# рисовала 2000💎 при реальных 300 (аудит цен 2026-07-24), а окно сброса страсти
+# показывает динамическую цену на кнопке и «300💎» в подтверждении.
+# Теперь ОДИН источник: бэк списывает отсюда И отдаёт это же в /api/rimworld/config.
+#
+# ВНИМАНИЕ: две цены удаления раньше обе назывались REMOVE_COST в разных
+# функциях (300 и 3000) — при подъёме одна затёрла бы другую. Разведены по именам.
+SPAWN_COST         = 200    # создать пешку
+HEAL_COST          = 150    # вылечить
+RESURRECT_COST     = 500    # воскресить
+TRAIT_REMOVE_COST  = 300    # убрать черту
+GENE_REMOVE_COST   = 3000   # убрать ген
+BASE_GENE_PRICE    = 1000   # база прогрессивной цены гена  (цена = base × (куплено+1))
+BASE_TRAIT_PRICE   = 1000   # база прогрессивной цены черты (та же формула)
+
+
 # ── Security 2.1 (2026-06-12): RimWorld mod-ingest auth ──────────────────────
 # 13 mod-side endpoints accepted UNAUTHENTICATED writes (wipe pawns / rig shop
 # catalog / inject pawns). Gate them with the module-token — mirrors Bannerlord
@@ -1270,7 +1289,6 @@ async def create_pawn(request: Request):
         return {"success": False, "message": "❌ Требуется авторизация Twitch"}
     username, channel_id = auth
 
-    SPAWN_COST = 200
     balance = await db.get_points(username)
     if balance < SPAWN_COST:
         return {"success": False, "message": f"Нужно {SPAWN_COST}💎, у тебя {balance}💎"}
@@ -1310,7 +1328,6 @@ async def heal_pawn(request: Request):
         return {"success": False, "cooldown_left": left,
                 "message": f"⏳ Лечение будет доступно через {mins}:{secs:02d}"}
 
-    HEAL_COST = 150
     balance = await db.get_points(username)
     if balance < HEAL_COST:
         return {"success": False, "message": f"Нужно {HEAL_COST}💎, у тебя {balance}💎"}
@@ -1349,7 +1366,6 @@ async def resurrect_pawn(request: Request):
         return {"success": False, "message": "❌ Требуется авторизация Twitch"}
     username, channel_id = auth
 
-    RESURRECT_COST = 500
     balance = await db.get_points(username)
     if balance < RESURRECT_COST:
         return {"success": False, "message": f"Нужно {RESURRECT_COST}💎, у тебя {balance}💎"}
@@ -1435,7 +1451,6 @@ async def buy_gene(request: Request):
         return {"success": False, "message": "Неверные параметры"}
 
     # Базовая цена из конфига прогрессии (не из shop_catalog)
-    BASE_GENE_PRICE = 1000
     count = await db.get_purchase_count(username, "gene")
     price = db.calc_progressive_price(BASE_GENE_PRICE, count)
     # Берём label из каталога если есть
@@ -1703,7 +1718,6 @@ async def buy_trait(request: Request):
         return {"success": False, "message": "Неверные параметры"}
 
     # Прогрессивная цена — НЕ из каталога, считаем по счётчику зрителя
-    BASE_TRAIT_PRICE = 1000
     count = await db.get_purchase_count(username, "trait")
     trait_cost = db.calc_progressive_price(BASE_TRAIT_PRICE, count)
 
@@ -1753,25 +1767,24 @@ async def remove_trait(request: Request):
     trait_def = data.get('trait_def')
     label     = data.get('label', trait_def)
 
-    REMOVE_COST = 300
     balance = await db.get_points(username)
-    if balance < REMOVE_COST:
-        return {"success": False, "message": f"Нужно {REMOVE_COST}💎"}
+    if balance < TRAIT_REMOVE_COST:
+        return {"success": False, "message": f"Нужно {TRAIT_REMOVE_COST}💎"}
 
-    if not await db.remove_points(username, REMOVE_COST):
+    if not await db.remove_points(username, TRAIT_REMOVE_COST):
         return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
     cmd = {
         "type": "remove_trait",
         "id": f"rmtrait_{username}_{int(time.time())}",
         "username": username,
         "trait_def": trait_def,
-        "price": REMOVE_COST,
+        "price": TRAIT_REMOVE_COST,
         "channel_id": channel_id,
     }
     async with get_commands_lock():
         get_pending().append(cmd)
     await _db_enqueue_command(cmd)
-    return {"success": True, "message": f"🧬 Черта «{label}» удаляется! -{REMOVE_COST}💎"}
+    return {"success": True, "message": f"🧬 Черта «{label}» удаляется! -{TRAIT_REMOVE_COST}💎"}
 
 
 # ===== ВСŠПЕШКИ (для админки) =====
@@ -1796,12 +1809,11 @@ async def remove_gene(request: Request):
     if not username or not gene_def:
         return {"success": False, "message": "Неверные параметры"}
 
-    REMOVE_COST = 3000
     balance = await db.get_points(username)
-    if balance < REMOVE_COST:
-        return {"success": False, "message": f"Нужно {REMOVE_COST}💎 для удаления гена"}
+    if balance < GENE_REMOVE_COST:
+        return {"success": False, "message": f"Нужно {GENE_REMOVE_COST}💎 для удаления гена"}
 
-    if not await db.remove_points(username, REMOVE_COST):
+    if not await db.remove_points(username, GENE_REMOVE_COST):
         return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
 
     # Уменьшаем счётчик покупок генов (не ниже 0) — при удалении следующий ген будет дешевле
@@ -1818,13 +1830,13 @@ async def remove_gene(request: Request):
         "id": f"rmgene_{username}_{int(time.time())}",
         "username": username,
         "def_name": gene_def,
-        "price": REMOVE_COST,
+        "price": GENE_REMOVE_COST,
         "channel_id": channel_id,
     }
     async with get_commands_lock():
         get_pending().append(cmd)
     await _db_enqueue_command(cmd)
-    return {"success": True, "message": f"🧬 Ген «{label}» удаляется! -{REMOVE_COST}💎"}
+    return {"success": True, "message": f"🧬 Ген «{label}» удаляется! -{GENE_REMOVE_COST}💎"}
 
 
 # ===== АЛИАСЫ ДЛЯ СОВМЕСТИМОСТИ =====
@@ -2243,3 +2255,36 @@ async def debug_pawn(username: str, _admin: str = Depends(require_admin)):
             return pawn_dict
         return {"error": "Pawn not found"}
 
+
+@router.get("/api/rimworld/config")
+async def rimworld_config():
+    """Балансовые числа RimWorld — единый источник для тонкого фронта.
+
+    2026-07-24. Раньше эти цены жили ТОЛЬКО локальными константами внутри
+    хендлеров, а фронт держал свои копии — и они начали расходиться: кнопка
+    удаления черты рисовала 2000💎 при реальных 300; окно сброса страсти
+    показывает динамическую цену на кнопке и захардкоженные «300💎» в
+    подтверждении. Теперь фронт обязан рисовать ОТСЮДА, свои константы удалить.
+
+    Публичный: числа не секретны. Бэк по-прежнему сам enforce'ит цену при
+    списании — это только для отображения (аналог /api/bannerlord/config).
+
+    Прогрессивные цены (черта/ген) отдаём базой + формулой, а не готовым числом:
+    итог зависит от того, сколько зритель уже купил (см. calc_progressive_price).
+    """
+    return {
+        "spawn_cost":        SPAWN_COST,
+        "heal_cost":         HEAL_COST,
+        "resurrect_cost":    RESURRECT_COST,
+        "trait_remove_cost": TRAIT_REMOVE_COST,
+        "gene_remove_cost":  GENE_REMOVE_COST,
+        # прогрессивные: цена = base × (уже_куплено + 1)
+        "progressive": {
+            "trait_base": BASE_TRAIT_PRICE,
+            "gene_base":  BASE_GENE_PRICE,
+            "formula":    "base * (owned + 1)",
+        },
+        # страсти: ключ = текущий уровень (0 = нет, 1 = малая)
+        "passion_upgrade_prices": PASSION_PRICES,
+        "passion_reset_price":    PASSION_RESET_PRICE,
+    }

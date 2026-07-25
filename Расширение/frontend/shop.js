@@ -2,7 +2,23 @@ let shopAllItems = [];
 let shopSearchQuery = '';
 let shopCurrentFilter = 'all';
 
+// 2026-07-24 — защита от ДВОЙНОЙ загрузки каталога. Функцию зовут из двух мест
+// (viewer.js:453 при инициализации и viewer.js:788 по условию «каталог пуст»).
+// Второй вызов срабатывал, пока первый ЕЩЁ ЛЕТИТ — условие «пусто» ещё истинно →
+// качались два одинаковых ответа по ~2.2 МБ. В DevTools владельца это видно прямо:
+// 39 запросов / 5.4 МБ, из них два `catalog?username=` по 2245 kB (2.83s и 1.83s).
+// Теперь параллельные вызовы разделяют ОДИН запрос — это ~2.2 МБ и несколько секунд
+// с открытия расширения у КАЖДОГО зрителя (и столько же трафика с сервера).
+let _shopCatalogInFlight = null;
+
 async function loadShopCatalog() {
+    if (_shopCatalogInFlight) return _shopCatalogInFlight;
+    _shopCatalogInFlight = _loadShopCatalogOnce()
+        .finally(() => { _shopCatalogInFlight = null; });
+    return _shopCatalogInFlight;
+}
+
+async function _loadShopCatalogOnce() {
     try {
         const usernameParam = userLogin ? `?username=${encodeURIComponent(userLogin)}` : '';
         const r = await fetch(`${API_URL}/api/rimworld/catalog${usernameParam}`);

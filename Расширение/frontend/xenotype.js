@@ -168,8 +168,11 @@ async function openNeuroModal() {
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 
     try {
-        const usernameParam = userLogin ? `?username=${encodeURIComponent(userLogin)}` : '';
-        const r = await fetch(`${API_URL}/api/rimworld/catalog${usernameParam}`);
+        // 2026-07-24: тянули ВЕСЬ каталог (~2.2 МБ, 2559 позиций), чтобы отобрать
+        // из него 12 нейротренеров. Бэкенд умеет фильтровать по категории —
+        // просим сразу нужное (так же, как строкой 40 для ксенотипов).
+        const usernameParam = userLogin ? `&username=${encodeURIComponent(userLogin)}` : '';
+        const r = await fetch(`${API_URL}/api/rimworld/catalog?category=neurotrainer${usernameParam}`);
         const data = await r.json();
         modal._neuroItems = (data.items || [])
             .filter(i => (i.category || i.type) === 'neurotrainer')

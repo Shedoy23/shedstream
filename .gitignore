@@ -58,3 +58,6 @@ reference/
 # Build artifacts (BLT-RC22 audit housekeeping)
 BannerlordLink/src/obj/
 BannerlordLink/src/bin/
+
+# локальная песочница автотест-прогонов (не для репо)
+_autotest/

@@ -11,7 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `Расширение/backend/` — FastAPI + SQLite (aiosqlite) backend. Multi-tenant: every tenant table is scoped by `channel_id`.
 - `Расширение/backend/modules/<game>/` — per-game adapter (`_adapter.py`) + `manifest.yaml` declaring that game's events/actions/catalogs.
 - `Расширение/backend/migrations/` — `m<N>_*.py` migrations, each `async def apply(conn)`.
-- `Расширение/frontend/` — the Twitch extension UI. `viewer.js` (~7k lines) is **shared** by RimWorld + Bannerlord. `extension.html` and `mobile.html` are parallel shells that must stay in sync.
+- `Расширение/frontend/` — the Twitch extension UI, ~13.5k lines across many plain `<script>` files (they share ONE global namespace — see the collision lint). `viewer.js` (2.5k) is the **shared** shell for RimWorld + Bannerlord; per-game code lives in `viewer-bannerlord.js` (4.7k, the big one) / `viewer-rimworld.js`. It said "viewer.js ~7k lines" here until 2026-07-25 — the split landed 2026-06-13 (ROADMAP 2.4) and this line kept the old number alive for six weeks. `extension.html` and `mobile.html` are parallel shells that must stay in sync.
 - `BannerlordLink/` — C# Bannerlord mod (Harmony patches, `MissionBehavior`, `CampaignBehaviorBase`). Clean-room re-impl using BLT as reference.
 - `RimLink/` — RimWorld module (C# mod + assets).
 - `БЛТ/` — BLT reference checkout. **Read-only, clean-room** (LGPL): ideas/APIs/short idioms only, never copy class bodies.
@@ -81,6 +81,17 @@ The owner is a non-programmer building this solo with Claude; these rules are th
 6b. **Записал отложенное — в `DEFERRED.md`, в ту же сессию.** Любое «сделаем потом / ждём разморозки фронта / решим по данным / решили не делать» уходит строкой в этот файл: причина + что разблокирует. Иначе отложенное либо теряется, либо через месяц всплывает как «а давай обсудим» и обсуждается с нуля. Раздел «Решено НЕ делать» не чистится — он и существует, чтобы не возвращаться к закрытым вопросам (владелец просил завести журнал явно, 2026-07-22).
 7. **End every work session with a plain-language summary**: what changed, what is deployed where (prod / game DLL / not yet), and what the owner must do by hand (restart game, test on stream, click something). The owner can't read diffs — the summary IS the interface.
 8. **Пост-стрим-триаж — предлагать САМ, не ждать просьбы.** Если по датам файлов / контексту видно, что был свежий стрим (новый `bannerlordlink_ГГГГММДД.txt`, свежий `Player.log`, слова владельца «поиграли / стримили»), предложить разбор логов на ошибки — не дожидаясь «сделай триаж». Ловит баги ДО того, как зритель напишет багрепорт. Дешёвыми субагентами по логам, вывод — сам. (Владелец просил проактивность, 2026-07-23.)
+8b. **Факт в документе имеет срок годности — проверяй, прежде чем докладывать.**
+   За 2026-07-25 три утверждения из ЭТОГО файла оказались протухшими и были
+   пересказаны владельцу как текущие: «офсайт-бэкапа нет» (есть с 11 июня, и я
+   повторил это дважды, второй раз владелец разозлился), «viewer.js ~7k строк»
+   (2.5k, распилен 13 июня), «мониторинга нет» (UptimeRobot с 14 июня). Механизм
+   один: CLAUDE.md грузится сам, я ему доверяю больше всех, а закрытые задачи
+   строку в нём не обновляют. Правило: любое утверждение вида «X ещё НЕ сделан» —
+   перед пересказом владельцу подтвердить командой (`Get-ScheduledTaskInfo`, `wc -l`,
+   `curl`), а закрыв задачу — сразу править строку здесь, не только в ROADMAP.
+   Дешевле всего: не писать в CLAUDE.md отрицательных статусов вообще, а держать
+   их в ROADMAP/STATUS, где их и закрывают.
 9. **Обновлять `STATUS.md` в конце сессии** — витрина «что сейчас» (10 строк). Устарела строка — поправить. Это то, с чего начинается следующий заход.
 10. **Перед стримом — тест-план на 5 минут + preflight.** Мод-фиксы систематически зависают «дедуцировано, не проверено» (battle-фиксы 19.07, урон/роспуск 24.07). Перед стримом: (а) выдай владельцу ОДНО сообщение — список непроверенных мод-фиксов с «глянь X, скажи да/нет» (собирать из STATUS/DEFERRED §C); (б) прогони `powershell -File scripts\preflight.ps1` — health/сервис/мод-онлайн/ошибки одним прогоном (перед ревью Twitch — обязательно). После стрима свериться с логом и **закрыть подтверждённые bug_reports на проде сразу** — это часть определения «фикс готов», не отдельный шаг (2026-07-24: #23 висел open при доказанном фиксе).
 11. **Рискованные бэк-правки — сначала staging.** Миграции, меняющие данные, и переделки синка/очередей — через `deploy.ps1 -Staging` (:8001, своя БД), потом прод. Staging поднят в июне и простаивает; сухой прогон на снапшоте — минимум, staging — для правок, где важно поведение живого процесса.

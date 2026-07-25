@@ -1072,6 +1072,79 @@ REFORGE_QUALITY_PRICE = 20_000    # «Кузница»: перековка ка�
 # ссылаются ПО ИМЕНИ, не литералом — правишь тут, меняется везде.
 WORKSHOP_PRICE_CRUSTIC = 2_500    # 💎 workshop passive income (2026-05-29: 1000→2500)
 CARAVAN_PRICE_CRUSTIC  = 4_000    # 💎 caravan passive income (2026-05-29: 1500→4000)
+
+# 2026-07-24 — ПОДНЯТ НА УРОВЕНЬ МОДУЛЯ (был локальным внутри _prepare_action).
+# Причина: это крупнейший словарь цен в крустиках, и пока он жил внутри функции,
+# отдать его фронту было физически нельзя — пришлось бы делать ВТОРУЮ копию.
+# А фронт как раз хардкодил эти же числа у себя (аудит цен 2026-07-24: rename_child,
+# respec_child_skills, party_order, army_create, enact_policy, make_peace, ransom,
+# detach_* — всё дублировалось вручную и уже начинало врать). Теперь ОДИН источник:
+# бэк enforce'ит отсюда И отдаёт это же в /api/bannerlord/config.
+ACTION_PRICES_DEFAULT = {
+    "hero.create":             0,    # adoption — free
+    "player.heal":            50,
+    "player.respawn":        500,    # heir succession (future)
+    "player.modify_attribute": 50,
+    "world.trigger_event":  1000,    # heavy / admin-style
+    # power.activate — per-power цена (POWER_PRICES), enforced в _prepare_action.
+    # 2026-06-14: убран отсюда (был flat 50 — плющил все активки в одну цену).
+    "hero.smith_item":       500,    # Sprint 5.29 BLT-parity #6 — trophy crafting
+    "hero.equip_trophy":      0,    # Sprint 5.29 BLT-parity #6 phase A — free (viewer уже заплатил smith)
+    "hero.reforge_quality": REFORGE_QUALITY_PRICE,  # module-level const (thin-front)
+    "hero.set_combat_stance": 0,    # 2026-06-10: боевая стойка — бесплатно, мгновенно
+    "hero.discard_item":      0,    # 2026-06-18: выбросить вещь из слота — free utility (свой герой)
+    # Sprint 5.32 BUGFIX — player.give_item / hero.add_skill убраны
+    # отсюда (перенесены в _ACTIONS_WITH_OWN_PRICING выше).
+    # Sprint 5.32 (BLT-parity Detachment) — управление своим hero-agent'ом
+    # в Mission (6 базовых + 2026-06-17 рич-приказы skirmish/raid). Цены низкие
+    # (10-30⦷) потому что spam-friendly: в бою viewer часто переключает команды.
+    "hero.detach":            10,
+    "hero.attach":            10,
+    "hero.detach_hold":       30,
+    "hero.detach_charge":     30,
+    "hero.detach_skirmish":   30,    # 2026-06-17 рич-приказ — бой-на-расстоянии
+    "hero.detach_raid":       30,    # 2026-06-17 рич-приказ — конная орбита
+    "hero.detach_walls":      30,
+    "hero.detach_gate":       30,
+    # Sprint 5.33 (BLT-parity FAM) — семейные viewer↔viewer интеракции.
+    # Propose/respond — viral engagement-loop, цены символические.
+    # Rename/looks/respec — cosmetic + customization.
+    "hero.propose_marriage":         100,   # viewer A: «поженим Машу + Петю?»
+    "hero.respond_marriage_proposal": 0,    # accept/reject — free
+    "hero.cancel_proposal":           0,    # withdraw — free
+    "hero.rename_child":             50,    # customize child name
+    "hero.change_child_looks":      200,    # body change (BLT pattern)
+    "hero.respec_child_skills":     500,    # full skill re-roll
+    # Sprint 5.33 (BLT-parity VAS) — sub-clan progression. High crustic
+    # entry barrier — это long-term feature, не impulse-buy.
+    "hero.create_vassal_clan":        0,    # 2026-05-29 currency re-map: платится Hero.Gold (как обычный клан), мод списывает 💰
+    "hero.recruit_vassal_clan":       0,    # 2026-06-17: платится 3M Hero.Gold (мод списывает 💰), крустики 0
+    "hero.rename_vassal":           100,    # cosmetic
+    # Sprint 5.33 (BLT-parity SIEGE) — party strategic orders
+    "hero.party_order_set":         500,    # significant strategic decision
+    "hero.party_order_release":       0,    # free cancel
+    # 2026-06-14 Армия MVP — собрать армию королевства (vanilla CreateArmy).
+    # Команды армии = существующие party orders (отдельной цены не надо).
+    "hero.army_create":            1000,    # собрать армию (крупное решение)
+    "hero.army_disband":              0,    # распустить — бесплатно
+    # Sprint 5.33 (BLT-parity DIPLO) — kingdom politics + ransom
+    "hero.enact_policy":           1500,    # king-only major political move
+    "hero.make_peace":             2000,    # king-only diplomatic decision
+    # 2026-06-14 — дипломатия через ГОЛОСОВАНИЕ кланов (предложение, может не пройти).
+    # Цена ×2 от стартовой (по просьбе владельца) — серьёзное решение.
+    "kingdom.propose_war":         2000,    # предложить войну королевству
+    "kingdom.propose_peace":       3000,    # предложить мир королевству
+    "hero.pay_ransom":              500,    # crowd-fund tier, any viewer
+    "kingdom.set_tax_rate":           0,    # free — king manages own kingdom (Backlog #1)
+    # Sprint 5.33 (BLT-parity SHOP) — workshops passive income
+    "hero.buy_workshop": WORKSHOP_PRICE_CRUSTIC,  # module-level const (thin-front) — 2026-05-29: чистая 💎 (капитал НЕ списывался, 1000→2500)
+    "hero.sell_workshop":             0,    # free — engine handles refund
+    # Sprint 5.33 (BLT-parity FIEF) — fief tribute boost
+    "hero.tribute_boost":          2000,    # 7-day +50% multiplier на 1 fief
+    # Sprint 5.33 (BLT-parity CARAVAN) — mobile passive income
+    "hero.buy_caravan": CARAVAN_PRICE_CRUSTIC,  # module-level const (thin-front) — 2026-05-29: чистая 💎 (капитал НЕ списывался, 1500→4000)
+    "hero.sell_caravan":              0,    # free — engine handles transfer
+}
 # Турнир — display-only числа (динары приза/раунда). Enforce'ит мод/движок; тут для UI.
 TOURNAMENT_PRIZE_GOLD  = 50_000
 TOURNAMENT_ROUND_GOLD  = 10_000
@@ -1155,6 +1228,31 @@ async def bannerlord_config():
         "caravan_price":         CARAVAN_PRICE_CRUSTIC,
         "tournament_prize_gold": TOURNAMENT_PRIZE_GOLD,
         "tournament_round_gold": TOURNAMENT_ROUND_GOLD,
+
+        # ── 2026-07-24: тонкий фронт, шаг 1 ────────────────────────────────
+        # Ниже — ВСЕ остальные цены, которые фронт до сих пор хардкодил у себя.
+        # Аудит 2026-07-24 показал, к чему это ведёт: удаление черты рисовалось
+        # как 2000💎 при реальных 300; «зачать ребёнка» и «женитьба» держали
+        # свои копии мимо конфига; кнопка сброса страсти показывала одну цену,
+        # а подтверждение — другую. Теперь источник один: ЭТИ ЖЕ значения бэк
+        # использует при списании (ACTION_PRICES_DEFAULT / POWER_PRICES).
+        # Фронт обязан рисовать отсюда, свои константы удалить.
+        # Отдаём ЦЕЛИКОМ словарями — новые действия появятся тут сами, без
+        # правки этого эндпоинта (и без новой подачи на ревью Twitch).
+        "action_prices":         ACTION_PRICES_DEFAULT,   # 💎 за действие
+        "power_prices":          POWER_PRICES,            # 💎 за активку
+
+        # 💰 динары: бэк их НЕ списывает (только проверяет баланс), списывает
+        # мод в игре. Для фронта это всё равно «цена», которую надо показать.
+        "hero_gold_costs": {
+            "marry":              MARRIAGE_COST,
+            "create_clan":        CLAN_CREATE_COST,
+            "join_clan":          CLAN_JOIN_COST,
+            "create_kingdom":     KINGDOM_CREATE_COST,
+            "join_kingdom":       KINGDOM_JOIN_COST,
+            "create_party":       PARTY_CREATE_COST,
+            "recruit_vassal":     RECRUIT_VASSAL_COST,
+        },
     }
 
 
@@ -2255,71 +2353,8 @@ def _enforce_price(action_type, data, username, channel_id):
         "player.give_item",   # 1000/5000/20000⦷ → 5K/25K/100K динаров (M21)
         "hero.add_skill",     # 500/1000/5000⦷ → 50/100/500 XP (M21)
     }
-    ACTION_PRICES_DEFAULT = {
-        "hero.create":             0,    # adoption — free
-        "player.heal":            50,
-        "player.respawn":        500,    # heir succession (future)
-        "player.modify_attribute": 50,
-        "world.trigger_event":  1000,    # heavy / admin-style
-        # power.activate — per-power цена (POWER_PRICES), enforced в _prepare_action.
-        # 2026-06-14: убран отсюда (был flat 50 — плющил все активки в одну цену).
-        "hero.smith_item":       500,    # Sprint 5.29 BLT-parity #6 — trophy crafting
-        "hero.equip_trophy":      0,    # Sprint 5.29 BLT-parity #6 phase A — free (viewer уже заплатил smith)
-        "hero.reforge_quality": REFORGE_QUALITY_PRICE,  # module-level const (thin-front)
-        "hero.set_combat_stance": 0,    # 2026-06-10: боевая стойка — бесплатно, мгновенно
-        "hero.discard_item":      0,    # 2026-06-18: выбросить вещь из слота — free utility (свой герой)
-        # Sprint 5.32 BUGFIX — player.give_item / hero.add_skill убраны
-        # отсюда (перенесены в _ACTIONS_WITH_OWN_PRICING выше).
-        # Sprint 5.32 (BLT-parity Detachment) — управление своим hero-agent'ом
-        # в Mission (6 базовых + 2026-06-17 рич-приказы skirmish/raid). Цены низкие
-        # (10-30⦷) потому что spam-friendly: в бою viewer часто переключает команды.
-        "hero.detach":            10,
-        "hero.attach":            10,
-        "hero.detach_hold":       30,
-        "hero.detach_charge":     30,
-        "hero.detach_skirmish":   30,    # 2026-06-17 рич-приказ — бой-на-расстоянии
-        "hero.detach_raid":       30,    # 2026-06-17 рич-приказ — конная орбита
-        "hero.detach_walls":      30,
-        "hero.detach_gate":       30,
-        # Sprint 5.33 (BLT-parity FAM) — семейные viewer↔viewer интеракции.
-        # Propose/respond — viral engagement-loop, цены символические.
-        # Rename/looks/respec — cosmetic + customization.
-        "hero.propose_marriage":         100,   # viewer A: «поженим Машу + Петю?»
-        "hero.respond_marriage_proposal": 0,    # accept/reject — free
-        "hero.cancel_proposal":           0,    # withdraw — free
-        "hero.rename_child":             50,    # customize child name
-        "hero.change_child_looks":      200,    # body change (BLT pattern)
-        "hero.respec_child_skills":     500,    # full skill re-roll
-        # Sprint 5.33 (BLT-parity VAS) — sub-clan progression. High crustic
-        # entry barrier — это long-term feature, не impulse-buy.
-        "hero.create_vassal_clan":        0,    # 2026-05-29 currency re-map: платится Hero.Gold (как обычный клан), мод списывает 💰
-        "hero.recruit_vassal_clan":       0,    # 2026-06-17: платится 3M Hero.Gold (мод списывает 💰), крустики 0
-        "hero.rename_vassal":           100,    # cosmetic
-        # Sprint 5.33 (BLT-parity SIEGE) — party strategic orders
-        "hero.party_order_set":         500,    # significant strategic decision
-        "hero.party_order_release":       0,    # free cancel
-        # 2026-06-14 Армия MVP — собрать армию королевства (vanilla CreateArmy).
-        # Команды армии = существующие party orders (отдельной цены не надо).
-        "hero.army_create":            1000,    # собрать армию (крупное решение)
-        "hero.army_disband":              0,    # распустить — бесплатно
-        # Sprint 5.33 (BLT-parity DIPLO) — kingdom politics + ransom
-        "hero.enact_policy":           1500,    # king-only major political move
-        "hero.make_peace":             2000,    # king-only diplomatic decision
-        # 2026-06-14 — дипломатия через ГОЛОСОВАНИЕ кланов (предложение, может не пройти).
-        # Цена ×2 от стартовой (по просьбе владельца) — серьёзное решение.
-        "kingdom.propose_war":         2000,    # предложить войну королевству
-        "kingdom.propose_peace":       3000,    # предложить мир королевству
-        "hero.pay_ransom":              500,    # crowd-fund tier, any viewer
-        "kingdom.set_tax_rate":           0,    # free — king manages own kingdom (Backlog #1)
-        # Sprint 5.33 (BLT-parity SHOP) — workshops passive income
-        "hero.buy_workshop": WORKSHOP_PRICE_CRUSTIC,  # module-level const (thin-front) — 2026-05-29: чистая 💎 (капитал НЕ списывался, 1000→2500)
-        "hero.sell_workshop":             0,    # free — engine handles refund
-        # Sprint 5.33 (BLT-parity FIEF) — fief tribute boost
-        "hero.tribute_boost":          2000,    # 7-day +50% multiplier на 1 fief
-        # Sprint 5.33 (BLT-parity CARAVAN) — mobile passive income
-        "hero.buy_caravan": CARAVAN_PRICE_CRUSTIC,  # module-level const (thin-front) — 2026-05-29: чистая 💎 (капитал НЕ списывался, 1500→4000)
-        "hero.sell_caravan":              0,    # free — engine handles transfer
-    }
+    # ACTION_PRICES_DEFAULT теперь на уровне модуля (см. определение выше) —
+    # чтобы его можно было отдать фронту без второй копии.
     if action_type not in _ACTIONS_WITH_OWN_PRICING:
         if action_type not in ACTION_PRICES_DEFAULT:
             log.warning(

@@ -48,7 +48,7 @@ Repo root: **`STATUS.md` — витрина «что сейчас»: 10 стро
 
 ## Deploy
 
-Prod = `root@31.130.132.224:/root/twitch-extension/`, run under supervisor as `twitchbot`. Use `scripts/deploy.ps1` (tars `backend`+`frontend` excluding `*.db`/`.env`, scp + extract + `supervisorctl restart twitchbot` + health-check). **Confirm before deploying / restarting prod.** DB backups are already automated (`backend/backup_db.sh` cron + in-process `backend/backup_loop.py`); offsite is the only gap.
+Prod = `root@31.130.132.224:/root/twitch-extension/`, run under supervisor as `twitchbot`. Use `scripts/deploy.ps1` (tars `backend`+`frontend` excluding `*.db`/`.env`, scp + extract + `supervisorctl restart twitchbot` + health-check). **Confirm before deploying / restarting prod.** **Backups are DONE — do not report offsite as a gap** (this line said so until 2026-07-25 and got repeated at the owner for weeks). Three tiers: `backend/backup_db.sh` cron + in-process `backend/backup_loop.py` on prod, and offsite on the owner's PC — Windows task `shedstream-db-backup-pull` runs `%USERPROFILE%\shedstream-backups\pull-backup.ps1` daily 13:00, keeps 14 dailies. Each pull now self-verifies via `scripts/verify-backup.py` (unzip → `integrity_check` → key tables non-empty; exit 0 ok / 1 corrupt / 2 could-not-check). A full restore drill was run 2026-06-13 (`docs/RESTORE_PLAYBOOK.md`). Known limit: the PC must be awake — missed days leave calendar gaps, by design not failure.
 
 ## Conventions & gotchas that actually bite
 

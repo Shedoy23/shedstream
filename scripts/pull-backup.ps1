@@ -59,6 +59,31 @@ try {
 
     $count = (Get-ChildItem $LocalDir -Filter 'viewers.daily.*.db.zst' | Measure-Object).Count
     Log "done: $count local backups in $LocalDir"
+
+    # 2026-07-25 -- self-verify. Until today the only check was "file > 1024 b",
+    # which a half-downloaded archive passes. A backup nobody ever restored is
+    # not a backup; find out now, not on the day the server dies.
+    # Never fails the task: the pull itself already succeeded, and a missing
+    # python/zstandard must not look like "backup broken". Logged either way.
+    $verifier = Join-Path $PSScriptRoot 'verify-backup.py'
+    if (Test-Path $verifier) {
+        $out = & python $verifier 2>&1
+        $rc  = $LASTEXITCODE
+        if ($rc -eq 0) {
+            Log "verify: restorable"
+        } elseif ($rc -eq 2) {
+            # Could not check (e.g. zstandard missing) -- NOT a bad backup.
+            # Keeping these apart matters: a daily false alarm trains everyone
+            # to ignore the log, and then the real failure is ignored too.
+            $tail = ($out | Select-Object -Last 2) -join ' | '
+            Log "verify: SKIPPED, could not check: $tail"
+        } else {
+            $tail = ($out | Select-Object -Last 3) -join ' | '
+            Log "VERIFY FAILED (backup may be unusable): $tail"
+        }
+    } else {
+        Log "verify: skipped (verify-backup.py not next to this script)"
+    }
 }
 catch {
     Log "ERROR: $($_.Exception.Message)"

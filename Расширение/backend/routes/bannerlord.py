@@ -2535,6 +2535,13 @@ async def _charge_execute_enqueue(action_type, data, price, username, channel_id
                 return {"success": False, "message": f"Класс '{class_key}' не существует"}
             # Pass class_key в action data для mod (он применит equipment)
             data["class_key"] = class_key
+            # 2026-07-25 — цену ставит СЕРВЕР, а не клиент. set_class входит в
+            # _ACTIONS_WITH_OWN_PRICING, значит ACTION_PRICES_DEFAULT его не
+            # покрывает, и _enforce_price брал `data.get("price")` ПРЯМО ИЗ ТЕЛА
+            # запроса зрителя. Сейчас это безвредно (действие бесплатное, фронт
+            # шлёт 0), но стоило бы сделать его платным правкой одного фронта —
+            # и зритель смог бы прислать 0. Фиксируем на сервере.
+            data["price"] = 0
             # Sprint 5.10c: pass current gear_tier — иначе SetClassHandler даёт
             # random T0-T2 шмот, viewer теряет прогрессию tier'а.
             cur = await conn.execute(

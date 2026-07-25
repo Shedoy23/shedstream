@@ -385,9 +385,13 @@ async def handle_pay_ransom(conn, channel_id: int, owner: str, data: dict) -> di
                  channel_id, owner)
         return {"success": False, "message": "captured_hero required"}
     # 5.33 — fixed contribution per pay action (UI shows total pool progress).
-    # 500⦷ = ACTION_PRICES_DEFAULT — viewer оплачивает крустиками side-track,
-    # это backend-only side-effect.
-    contribution = 500
+    # 2026-07-25: было `contribution = 500` — ВТОРАЯ независимая копия цены.
+    # Сколько СПИСАЛИ с зрителя, задаёт ACTION_PRICES_DEFAULT["hero.pay_ransom"];
+    # сколько ЗАПИСАЛИ в пул — было вот это число. Поменяли бы одно — прогресс
+    # пула начал бы врать (собирается быстрее/медленнее реальных списаний).
+    # Теперь берём ровно то, что списано.
+    from routes.bannerlord import ACTION_PRICES_DEFAULT
+    contribution = ACTION_PRICES_DEFAULT["hero.pay_ransom"]
 
     # Verify captured hero exists + captured=1.
     cur = await conn.execute(

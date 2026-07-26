@@ -409,6 +409,105 @@ def _read_session_cookie(request: Request) -> Optional[int]:
 
 # ── Dashboard endpoints ──────────────────────────────────────────────────────
 
+@router.get("/api/streamer/setup-status")
+async def streamer_setup_status(request: Request):
+    """Одним ответом: всё ли у стримера работает, а если нет — что делать.
+
+    2026-07-26. Дашборд показывал только технические переключатели — активный
+    модуль, токены, ссылку на оверлей. Это интерфейс для того, кто и так всё
+    знает, то есть для владельца. Новому стримеру нужны ответы на другие
+    вопросы: подключился ли мод, видят ли меня зрители, что осталось сделать,
+    почему ничего не происходит.
+
+    Каждый вопрос, на который страница не отвечает сама, превращается в
+    сообщение владельцу — а его время главный дефицит проекта.
+
+    Требует session cookie (как и сам дашборд).
+    """
+    import time
+
+    channel_id = _read_session_cookie(request)
+    if channel_id is None:
+        return {"success": False, "status": "unauthenticated"}
+
+    db = get_db()
+    ch = await db.get_channel(channel_id)
+    if not ch:
+        return {"success": False, "status": "channel_not_found"}
+    active_module = (ch.get("active_module") or "").strip()
+
+    # Мод на связи сейчас. Держится в памяти процесса, поэтому сразу после
+    # перезапуска бэкенда он пуст — это НЕ поломка у стримера, и путать эти
+    # два состояния нельзя, иначе человек полезет чинить исправное.
+    online, last_seen_age = False, None
+    if active_module:
+        try:
+            mod = __import__("modules.%s._adapter" % active_module,
+                             fromlist=["get_last_seen"])
+            ts = mod.get_last_seen(channel_id)
+            if ts:
+                last_seen_age = int(time.time() - ts)
+                online = last_seen_age < 60
+        except Exception:
+            pass   # у модуля может не быть такого сигнала — не повод падать
+
+    # Подключался ли мод КОГДА-ЛИБО: это переживает перезапуск, в отличие от
+    # сигнала выше. Отличает «ещё ни разу не настроил» от «сейчас не запущен».
+    ever = 0
+    async with db._connect() as conn:
+        try:
+            cur = await conn.execute(
+                "SELECT COUNT(*) FROM bannerlord_heroes WHERE channel_id=?",
+                (channel_id,))
+            ever = (await cur.fetchone())[0]
+        except Exception:
+            pass
+        cur = await conn.execute(
+            "SELECT COUNT(*) FROM viewers WHERE channel_id=?", (channel_id,))
+        viewers_total = (await cur.fetchone())[0]
+        cur = await conn.execute(
+            "SELECT COUNT(*) FROM viewers WHERE channel_id=? "
+            "AND last_seen > datetime('now', '-15 minutes')", (channel_id,))
+        viewers_active = (await cur.fetchone())[0]
+
+    steps = [
+        {"key": "registered", "title": "Канал подключён к платформе",
+         "done": True, "hint": ""},
+        {"key": "approved", "title": "Доступ открыт",
+         "done": bool(ch.get("approved")),
+         "hint": "" if ch.get("approved")
+                 else "Заявка у меня — напиши в телеграм, открою"},
+        {"key": "module", "title": "Выбрана игра",
+         "done": bool(active_module),
+         "hint": "" if active_module
+                 else "Выбери игру кнопкой выше — без неё мод не поймёт, что делать"},
+        {"key": "mod_ever", "title": "Мод установлен и хоть раз выходил на связь",
+         "done": ever > 0,
+         "hint": "" if ever > 0
+                 else "Скопируй токен ниже в настройки мода и запусти игру"},
+        {"key": "mod_now", "title": "Мод на связи прямо сейчас",
+         "done": online,
+         "hint": "" if online else (
+             "Игра не запущена или мод не может достучаться. "
+             "Молчит %d мин." % (last_seen_age // 60)
+             if last_seen_age is not None
+             else "Сигнала пока не было — запусти игру")},
+    ]
+    left = [s for s in steps if not s["done"]]
+
+    return {
+        "success": True,
+        "all_good": not left,
+        "next_step": left[0]["title"] if left else "",
+        "next_hint": left[0]["hint"] if left else "",
+        "steps": steps,
+        "active_module": active_module or None,
+        "mod_online": online,
+        "mod_silent_sec": last_seen_age,
+        "viewers_total": viewers_total,
+        "viewers_active": viewers_active,
+    }
+
 # ── Шаблоны страниц ──────────────────────────────────────────────────────────
 # 2026-07-26. Разметка живёт в `backend/templates/*.html` как обычный HTML, а не
 # внутри Python-строк. Причина не эстетическая: в f-string каждую фигурную

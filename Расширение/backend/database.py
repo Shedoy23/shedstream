@@ -3915,7 +3915,7 @@ class Database:
                 SELECT channel_id, login, display_name, tier, active_module,
                        registered_at, last_seen_at,
                        oauth_access_token, oauth_refresh_token, oauth_expires_at,
-                       eventsub_subscription_id
+                       eventsub_subscription_id, COALESCE(approved, 0)
                 FROM channels WHERE channel_id = ?
                 """,
                 (channel_id,),
@@ -3931,6 +3931,7 @@ class Database:
                 "active_module":            row[4],
                 "registered_at":            row[5],
                 "last_seen_at":             row[6],
+                "approved":                 bool(row[11]),
                 "oauth_access_token":       _decrypt_secret(row[7]),
                 "oauth_refresh_token":      _decrypt_secret(row[8]),
                 "oauth_expires_at":         row[9],

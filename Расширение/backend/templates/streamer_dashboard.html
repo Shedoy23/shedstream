@@ -10,6 +10,23 @@
   .logout{background:transparent;color:#adadb8;border:1px solid #3a3a3d;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px}
   .logout:hover{color:#fff;border-color:#fff}
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:32px}
+  /* Состояние подключения — первое, что видит стример (2026-07-26).
+     Раньше страница начиналась с технических переключателей и не отвечала на
+     единственный вопрос новичка: «у меня вообще работает?» */
+  .status{border-radius:12px;padding:20px 24px;margin-bottom:24px;
+          border:1px solid #2d2d2f;background:#1f1f23}
+  .status.ok{border-color:#2f6f3f;background:linear-gradient(180deg,rgba(63,185,80,.10),transparent)}
+  .status.wait{border-color:#6b5a2a;background:linear-gradient(180deg,rgba(244,183,64,.10),transparent)}
+  .status .head{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:700}
+  .status .why{color:#adadb8;font-size:14px;margin-top:8px;line-height:1.55}
+  .steps{list-style:none;padding:0;margin:16px 0 0}
+  .steps li{display:flex;gap:10px;align-items:flex-start;padding:7px 0;
+            font-size:14px;color:#adadb8;border-top:1px solid #2d2d2f}
+  .steps li:first-child{border-top:0}
+  .steps li.done{color:#efeff1}
+  .steps .mark{flex:0 0 20px;text-align:center}
+  .steps .hint{display:block;color:#f4b740;font-size:13px;margin-top:3px}
+  .counts{display:flex;gap:22px;margin-top:14px;color:#6e6e73;font-size:13px}
   .tile{background:#1f1f23;border-radius:10px;padding:20px}
   .tile .lbl{color:#adadb8;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px}
   .tile .val{font-size:20px;font-weight:600}
@@ -76,6 +93,13 @@
       <button type="submit" class="logout">Выйти</button>
     </form>
   </div>
+  <div class="status" id="setupCard">
+    <div class="head"><span id="setupIcon">⏳</span><span id="setupTitle">Проверяю состояние…</span></div>
+    <div class="why" id="setupWhy"></div>
+    <ul class="steps" id="setupSteps"></ul>
+    <div class="counts" id="setupCounts"></div>
+  </div>
+
   <div class="grid">
     <div class="tile"><div class="lbl">Тариф</div><div class="val"><span class="tier-badge">{{ tier }}</span></div></div>
     <div class="tile"><div class="lbl">Активный модуль</div><div class="val">{{ module }}</div></div>
@@ -612,6 +636,54 @@
       bnrResetShow('❌ Network error: ' + e.message, true);
     }
   });
+})();
+</script>
+
+<script>
+/* Состояние подключения. Опрашиваем раз в 15 секунд: стример держит эту
+   страницу открытой, пока настраивает мод, и должен видеть, что связь
+   появилась, не нажимая обновление. */
+(function(){
+  var card = document.getElementById('setupCard');
+  if (!card) return;
+  function paint(d){
+    var icon = document.getElementById('setupIcon');
+    var title = document.getElementById('setupTitle');
+    var why = document.getElementById('setupWhy');
+    var steps = document.getElementById('setupSteps');
+    var counts = document.getElementById('setupCounts');
+    card.className = 'status ' + (d.all_good ? 'ok' : 'wait');
+    icon.textContent = d.all_good ? '✅' : '⏳';
+    title.textContent = d.all_good ? 'Всё работает' : ('Осталось: ' + d.next_step);
+    why.textContent = d.all_good
+      ? 'Зрители видят расширение, мод на связи.'
+      : (d.next_hint || '');
+    steps.innerHTML = '';
+    (d.steps || []).forEach(function(s){
+      var li = document.createElement('li');
+      if (s.done) li.className = 'done';
+      var m = document.createElement('span');
+      m.className = 'mark'; m.textContent = s.done ? '✓' : '•';
+      var t = document.createElement('span');
+      t.textContent = s.title;
+      if (!s.done && s.hint){
+        var h = document.createElement('span');
+        h.className = 'hint'; h.textContent = s.hint;
+        t.appendChild(h);
+      }
+      li.appendChild(m); li.appendChild(t); steps.appendChild(li);
+    });
+    counts.textContent = 'Зрителей всего: ' + (d.viewers_total || 0)
+      + '   ·   активных за 15 минут: ' + (d.viewers_active || 0);
+  }
+  function tick(){
+    fetch('/api/streamer/setup-status', {credentials:'same-origin'})
+      .then(function(r){ return r.json(); })
+      .then(function(d){ if (d && d.success) paint(d); })
+      .catch(function(){ /* сеть моргнула — покажем на следующем круге */ });
+  }
+  tick();
+  setInterval(tick, 15000);
 })();
 </script>
 </body></html>

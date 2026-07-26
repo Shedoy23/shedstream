@@ -9,3 +9,4 @@ aiohttp>=3.10,<4.0
 pyyaml==6.0.3
 gtts>=2.3.2
 cryptography>=42.0  # OAuth-token at-rest encryption (database.py Fernet helper)
+jinja2>=3.1  # шаблоны страниц стримера (шёл транзитивно с FastAPI, теперь зависим явно)

@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><title>Dashboard — {{ display }}</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#0e0e10;color:#efeff1;margin:0;padding:20px;min-height:100vh;box-sizing:border-box}
+  .wrap{max-width:840px;margin:40px auto}
+  .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+  .header h1{margin:0;font-size:22px}
+  .nick{color:#9147ff}
+  .logout{background:transparent;color:#adadb8;border:1px solid #3a3a3d;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px}
+  .logout:hover{color:#fff;border-color:#fff}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:32px}
+  .tile{background:#1f1f23;border-radius:10px;padding:20px}
+  .tile .lbl{color:#adadb8;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px}
+  .tile .val{font-size:20px;font-weight:600}
+  .tier-badge{display:inline-block;padding:4px 12px;border-radius:6px;font-weight:700;font-size:14px;color:#fff;background:{{ tier_color }}}
+  .section{background:#1f1f23;border-radius:10px;padding:24px;margin-bottom:24px}
+  .section h2{margin:0 0 4px;font-size:18px;color:#c084fc}
+  .section .sub{color:#adadb8;font-size:13px;margin-bottom:16px}
+  .footnote{margin-top:28px;color:#6e6e73;font-size:13px;line-height:1.5}
+  code{background:#1f1f23;padding:2px 8px;border-radius:4px;color:#e0d6ff}
+  /* Boosty admin */
+  .boosty-tier-info{background:rgba(192,132,252,0.07);border:1px solid #3a2a5a;
+                     border-radius:6px;padding:10px 14px;font-size:13px;
+                     color:#adadb8;line-height:1.6;margin-bottom:14px}
+  .boosty-tier-info b{color:#c084fc}
+  .boosty-row{display:flex;align-items:center;gap:10px;padding:8px 12px;
+              background:rgba(192,132,252,0.05);border:1px solid #2d2d2f;
+              border-radius:6px;margin-bottom:6px;font-size:13px}
+  .boosty-row .u{flex:1;color:#efeff1;font-weight:700}
+  .boosty-row .t{color:#c084fc;font-size:12px}
+  .boosty-row .n{color:#9ca3af;font-style:italic;font-size:12px;flex:1;text-align:right}
+  .boosty-row button{background:#7f1d1d;color:#fca5a5;border:none;padding:4px 10px;
+                      border-radius:4px;cursor:pointer;font-size:12px}
+  .boosty-row button:hover{background:#991b1b;color:#fff}
+  .boosty-form{display:grid;grid-template-columns:1fr 90px 1fr auto;gap:8px;
+               margin-top:12px;margin-bottom:8px}
+  .boosty-form input,.boosty-form select{background:#0e0e10;color:#efeff1;
+       border:1px solid #3d3d3f;border-radius:5px;padding:8px;font-size:13px}
+  .boosty-form button{background:#7e22ce;color:#fff;border:none;
+                       padding:8px 16px;border-radius:5px;cursor:pointer;
+                       font-weight:700;font-size:13px}
+  .boosty-form button:hover{background:#9333ea}
+  .boosty-bulk{margin-top:16px;border-top:1px solid #2d2d2f;padding-top:14px}
+  .boosty-bulk textarea{width:100%;box-sizing:border-box;background:#0e0e10;
+      color:#efeff1;border:1px solid #3d3d3f;border-radius:5px;padding:8px;
+      font-family:monospace;font-size:12px;min-height:80px;resize:vertical}
+  .boosty-bulk button{background:#1f1a30;color:#c084fc;border:1px solid #5b21b6;
+       padding:8px 16px;border-radius:5px;cursor:pointer;font-size:13px;margin-top:8px}
+  .boosty-empty{color:#6e6e73;font-style:italic;text-align:center;padding:18px}
+  .boosty-msg{margin-top:10px;padding:8px 12px;border-radius:5px;font-size:13px;display:none}
+  .boosty-msg.ok{background:rgba(52,211,153,0.1);border:1px solid #34d399;color:#34d399;display:block}
+  .boosty-msg.err{background:rgba(248,113,113,0.1);border:1px solid #f87171;color:#f87171;display:block}
+  @media (max-width:640px){
+    .boosty-form{grid-template-columns:1fr;}
+    .boosty-row{flex-wrap:wrap}
+  }
+  /* Module tokens */
+  .tok-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+  .tok-name{width:90px;font-weight:700;color:#c084fc}
+  .tok-field{flex:1;min-width:180px;background:#0e0e10;color:#9ca3af;border:1px solid #3d3d3f;border-radius:5px;padding:8px;font-family:monospace;font-size:12px}
+  .tok-copy{background:#7e22ce;color:#fff;border:none;padding:8px 14px;border-radius:5px;cursor:pointer;font-size:13px;font-weight:700}
+  .tok-copy:hover{background:#9333ea}
+  .tok-show{background:transparent;color:#adadb8;border:1px solid #3a3a3d;padding:8px 12px;border-radius:5px;cursor:pointer;font-size:13px}
+  .tok-show:hover{color:#fff;border-color:#fff}
+  /* Module switcher */
+  .mod-switch{display:flex;gap:10px}
+  .mod-btn{flex:1;background:#0e0e10;color:#adadb8;border:1px solid #3d3d3f;padding:12px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600}
+  .mod-btn:hover{border-color:#9147ff;color:#fff}
+  .mod-btn.active{background:#7e22ce;color:#fff;border-color:#9147ff}
+</style></head>
+<body><div class="wrap">
+  <div class="header">
+    <h1>Привет, <span class="nick">{{ display }}</span></h1>
+    <form action="/streamer/logout" method="post" style="margin:0">
+      <button type="submit" class="logout">Выйти</button>
+    </form>
+  </div>
+  <div class="grid">
+    <div class="tile"><div class="lbl">Тариф</div><div class="val"><span class="tier-badge">{{ tier }}</span></div></div>
+    <div class="tile"><div class="lbl">Активный модуль</div><div class="val">{{ module }}</div></div>
+    <div class="tile"><div class="lbl">Twitch login</div><div class="val">{{ login }}</div></div>
+    <div class="tile"><div class="lbl">Channel ID</div><div class="val">{{ channel_id }}</div></div>
+    <div class="tile"><div class="lbl">Подключён</div><div class="val">{{ registered_at }}</div></div>
+    <div class="tile"><div class="lbl">OAuth токен</div><div class="val">{{ has_oauth }}</div></div>
+  </div>
+
+  <!-- Переключатель активного модуля -->
+  <div class="section">
+    <h2>🎮 Активный модуль расширения</h2>
+    <div class="sub">Какую игру видят зрители в расширении. Переключение мгновенное — зритель увидит при следующем обновлении (пара секунд).</div>
+    <div class="mod-switch">
+      <button class="mod-btn" id="mod-btn-bannerlord" onclick="setModule('bannerlord')">⚔️ Bannerlord</button>
+      <button class="mod-btn" id="mod-btn-rimworld" onclick="setModule('rimworld')">🪐 RimWorld</button>
+      <button class="mod-btn" id="mod-btn-shedcolony" onclick="setModule('shedcolony')">⛏️ Minecraft</button>
+    </div>
+    <div id="mod-msg" class="boosty-msg"></div>
+  </div>
+  <script>
+  function markActiveModule(mod){
+    ['bannerlord','rimworld','shedcolony'].forEach(function(m){
+      var b = document.getElementById('mod-btn-'+m);
+      if(b) b.className = 'mod-btn' + (m === mod ? ' active' : '');
+    });
+  }
+  function modMsg(txt, isErr){
+    var m = document.getElementById('mod-msg');
+    m.textContent = txt; m.className = 'boosty-msg ' + (isErr ? 'err' : 'ok');
+  }
+  async function setModule(mod){
+    try{
+      const r = await fetch('/api/streamer/active-module', {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({module_id: mod})});
+      const d = await r.json();
+      if(d.status === 'ok'){ markActiveModule(d.active_module); modMsg('✅ Активный модуль: ' + d.active_module, false); }
+      else { modMsg('Ошибка: ' + (d.status || 'не удалось'), true); }
+    } catch(e){ modMsg('Network error: ' + e.message, true); }
+  }
+  markActiveModule({{ module_js }});
+  </script>
+
+  <!-- Module-токены (для C#-модов) -->
+  <div class="section">
+    <h2>🔑 Module-токены</h2>
+    <div class="sub">
+      Токен авторизации C#-мода. Вставь его в настройки мода (поле «Module-токен»)
+      один раз — дальше мод авторизуется сам. <b>Не показывай на стриме.</b>
+    </div>
+    <div class="tok-row">
+      <span class="tok-name">Bannerlord</span>
+      <input class="tok-field" id="tok-bannerlord" type="text" readonly placeholder="скрыт — «Копировать» или «Показать»">
+      <button class="tok-copy" onclick="copyTok('bannerlord')">📋 Копировать</button>
+      <button class="tok-show" onclick="showTok('bannerlord')">👁 Показать</button>
+    </div>
+    <div class="tok-row">
+      <span class="tok-name">RimWorld</span>
+      <input class="tok-field" id="tok-rimworld" type="text" readonly placeholder="скрыт — «Копировать» или «Показать»">
+      <button class="tok-copy" onclick="copyTok('rimworld')">📋 Копировать</button>
+      <button class="tok-show" onclick="showTok('rimworld')">👁 Показать</button>
+    </div>
+    <div class="tok-row">
+      <span class="tok-name">Minecraft</span>
+      <input class="tok-field" id="tok-shedcolony" type="text" readonly placeholder="скрыт — «Копировать» или «Показать»">
+      <button class="tok-copy" onclick="copyTok('shedcolony')">📋 Копировать</button>
+      <button class="tok-show" onclick="showTok('shedcolony')">👁 Показать</button>
+    </div>
+    <div id="tok-msg" class="boosty-msg"></div>
+  </div>
+  <script>
+  async function fetchTok(mod){
+    const r = await fetch('/api/streamer/module-token?module_id=' + mod, {credentials:'include'});
+    const d = await r.json();
+    if(d.status === 'ok') return d.token;
+    tokMsg('Ошибка: ' + (d.status || 'не удалось получить токен'), true);
+    return null;
+  }
+  async function copyTok(mod){
+    const t = await fetchTok(mod);
+    if(!t) return;
+    try{ await navigator.clipboard.writeText(t); tokMsg('✅ ' + mod + '-токен скопирован в буфер', false); }
+    catch(e){ document.getElementById('tok-'+mod).value = t; tokMsg('Буфер недоступен — токен показан, скопируй вручную', true); }
+  }
+  async function showTok(mod){
+    const t = await fetchTok(mod);
+    if(t) document.getElementById('tok-'+mod).value = t;
+  }
+  function tokMsg(txt, isErr){
+    const m = document.getElementById('tok-msg');
+    m.textContent = txt; m.className = 'boosty-msg ' + (isErr ? 'err' : 'ok');
+  }
+  </script>
+
+  <!-- Overlay URL для OBS (A2 2026-07-02) -->
+  <div class="section">
+    <h2>🖥 URL оверлея для OBS</h2>
+    <div class="sub">
+      Вставь как <b>Browser Source</b> в OBS. Содержит токен для защиты TTS —
+      <b>не показывай на стриме</b>. Если менял оверлей раньше — обнови URL, иначе
+      TTS перестанет отмечаться проигранным.
+    </div>
+    <div class="tok-row">
+      <input class="tok-field" id="overlay-url" type="text" readonly placeholder="Нажми «Показать URL»">
+      <button class="tok-copy" onclick="copyOverlayUrl()">📋 Копировать</button>
+      <button class="tok-show" onclick="showOverlayUrl()">👁 Показать URL</button>
+    </div>
+    <div id="overlay-url-msg" class="boosty-msg"></div>
+  </div>
+  <script>
+  async function _fetchOverlayUrl(){
+    const r = await fetch('/api/streamer/overlay-url', {credentials:'include'});
+    const d = await r.json();
+    return d.status === 'ok' ? d.url : null;
+  }
+  async function showOverlayUrl(){
+    const u = await _fetchOverlayUrl();
+    if(u) document.getElementById('overlay-url').value = u;
+  }
+  async function copyOverlayUrl(){
+    const u = await _fetchOverlayUrl();
+    if(!u) return;
+    const m = document.getElementById('overlay-url-msg');
+    try{ await navigator.clipboard.writeText(u); m.textContent = '✅ URL скопирован'; m.className = 'boosty-msg ok'; }
+    catch(e){ document.getElementById('overlay-url').value = u; m.textContent = 'Буфер недоступен — скопируй вручную'; m.className = 'boosty-msg err'; }
+  }
+  </script>
+
+  <!-- Баг-репорты убраны из дашборда 2026-07-02: техбаги — забота разработчика
+       (см. админку /admin), не стримера. Зритель шлёт !баг → падает разработчику. -->
+
+  <!-- Промокоды (self-serve, 2026-07-02) -->
+  <div class="section">
+    <h2>🎟 Промокоды</h2>
+    <div class="sub">
+      Создай код — зритель введёт его в расширении и получит крустики. Работает во время стрима.
+    </div>
+    <div class="boosty-form">
+      <input id="promo-code" placeholder="КОД (напр. ЛЕТО2026)" style="text-transform:uppercase;">
+      <input id="promo-points" type="number" placeholder="💎" value="1000">
+      <input id="promo-uses" type="number" placeholder="лимит (0=∞)" value="1">
+      <button onclick="createPromo()">Создать</button>
+    </div>
+    <div id="promo-msg" class="boosty-msg"></div>
+    <div id="promo-list" style="margin-top:12px;"><div class="sub">Загрузка…</div></div>
+  </div>
+  <script>
+  function pEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  async function loadPromos(){
+    const list = document.getElementById('promo-list');
+    try{
+      const r = await fetch('/api/streamer/promocodes', {credentials:'include'});
+      const d = await r.json();
+      if(d.status !== 'ok'){ list.innerHTML = '<div class="sub">Ошибка загрузки</div>'; return; }
+      if(!d.promocodes || !d.promocodes.length){ list.innerHTML = '<div class="sub">Пока нет промокодов.</div>'; return; }
+      list.innerHTML = d.promocodes.map(function(p){
+        const left = p.max_uses > 0 ? (p.max_uses - p.uses) + ' из ' + p.max_uses : '∞';
+        return '<div class="boosty-row"><span class="u">' + pEsc(p.code) + '</span>'
+          + '<span class="t">' + p.points + '💎</span>'
+          + '<span class="n">исп. ' + p.uses + ' · осталось ' + left + '</span>'
+          + '<button data-promo-del="' + p.id + '">✖ Удалить</button></div>';
+      }).join('');
+      list.querySelectorAll('[data-promo-del]').forEach(function(btn){
+        btn.addEventListener('click', function(){ deletePromo(btn.getAttribute('data-promo-del')); });
+      });
+    } catch(e){ list.innerHTML = '<div class="sub">Network error</div>'; }
+  }
+  async function createPromo(){
+    const code = document.getElementById('promo-code').value.trim();
+    const points = parseInt(document.getElementById('promo-points').value || '0', 10);
+    const max_uses = parseInt(document.getElementById('promo-uses').value || '1', 10);
+    const m = document.getElementById('promo-msg');
+    if(!code){ m.textContent='Укажи код'; m.className='boosty-msg err'; return; }
+    try{
+      const r = await fetch('/api/streamer/promocodes/create', {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({code:code, points:points, max_uses:max_uses})});
+      const d = await r.json();
+      m.textContent = d.message || (d.success ? 'OK' : 'Ошибка'); m.className = 'boosty-msg ' + (d.success ? 'ok' : 'err');
+      if(d.success){ document.getElementById('promo-code').value=''; loadPromos(); }
+    } catch(e){ m.textContent='Сеть недоступна'; m.className='boosty-msg err'; }
+  }
+  async function deletePromo(id){
+    try{
+      await fetch('/api/streamer/promocodes/' + id, {method:'DELETE', credentials:'include'});
+      loadPromos();
+    } catch(e){}
+  }
+  loadPromos();
+  </script>
+
+  <!-- Народный выбор игры (M88, 2026-07-02) -->
+  <div class="section" id="gamevote-section">
+    <h2>🎮 Народный выбор игры</h2>
+    <div class="sub">
+      Открой раунд — зрители кидают крустики за игры и могут предложить свою.
+      Побеждает игра с наибольшим вкладом. Предложения зрителей приходят сюда на одобрение
+      (виден ник автора; любое можно отклонить). Вклад автора спишется только после одобрения.
+    </div>
+    <div class="boosty-form" style="flex-wrap:wrap;">
+      <input id="gv-seed" type="text" placeholder="свои игры через запятую (необязательно)" style="flex:1 1 100%;">
+      <input id="gv-duration" type="number" placeholder="минут" value="5" style="width:90px;">
+      <button id="gv-start-btn" onclick="gvStart()">▶ Открыть раунд</button>
+      <button id="gv-finalize-btn" onclick="gvFinalize()" style="display:none;">⏹ Закрыть и подвести итог</button>
+    </div>
+    <div id="gv-msg" class="boosty-msg"></div>
+    <div id="gv-standings" style="margin-top:12px;"></div>
+    <div id="gv-pending" style="margin-top:12px;"></div>
+  </div>
+  <script>
+  function gvEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  let _gvPollId = null;
+  async function gvLoad(){
+    const standings = document.getElementById('gv-standings');
+    const pending = document.getElementById('gv-pending');
+    const startBtn = document.getElementById('gv-start-btn');
+    const finBtn = document.getElementById('gv-finalize-btn');
+    try{
+      const r = await fetch('/api/streamer/voting/status', {credentials:'include'});
+      const d = await r.json();
+      if(!d.success){ standings.innerHTML=''; pending.innerHTML=''; return; }
+      const ev = d.active_event;
+      if(!ev){
+        standings.innerHTML = '<div class="sub">Раунд не идёт. Открой новый.</div>';
+        pending.innerHTML = '';
+        startBtn.style.display=''; finBtn.style.display='none';
+        return;
+      }
+      startBtn.style.display='none'; finBtn.style.display='';
+      const opts = (ev.options||[]).slice().sort(function(a,b){ return b.pool-a.pool; });
+      let sh = '<div class="sub">Идёт раунд · всего ' + (ev.total_pool||0) + '💎</div>';
+      sh += opts.length ? opts.map(function(o){ return '<div class="boosty-row"><span class="u">'+gvEsc(o.label)+'</span><span class="t">'+o.pool+'💎</span></div>'; }).join('') : '<div class="sub">Пока нет вариантов — зрители предложат.</div>';
+      standings.innerHTML = sh;
+      const pend = d.pending||[];
+      if(!pend.length){ pending.innerHTML = '<div class="sub">Нет предложений на одобрение.</div>'; }
+      else{
+        pending.innerHTML = '<div class="sub">На одобрение:</div>' + pend.map(function(p){
+          return '<div class="boosty-row"><span class="u">'+gvEsc(p.label)+'</span>'
+            + '<span class="n">от @'+gvEsc(p.username)+' · '+p.pledge+'💎</span>'
+            + '<button data-gv-ok="'+p.id+'">✔ Одобрить</button>'
+            + '<button data-gv-no="'+p.id+'">✖</button></div>';
+        }).join('');
+        pending.querySelectorAll('[data-gv-ok]').forEach(function(b){ b.addEventListener('click', function(){ gvApprove(b.getAttribute('data-gv-ok')); }); });
+        pending.querySelectorAll('[data-gv-no]').forEach(function(b){ b.addEventListener('click', function(){ gvReject(b.getAttribute('data-gv-no')); }); });
+      }
+    } catch(e){}
+  }
+  async function gvStart(){
+    const seed = (document.getElementById('gv-seed').value||'').split(',').map(function(s){ return s.trim(); }).filter(function(s){ return s.length; });
+    const mins = parseInt(document.getElementById('gv-duration').value||'5',10);
+    const m = document.getElementById('gv-msg');
+    try{
+      const r = await fetch('/api/streamer/voting/start', {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({duration_sec: (mins>0?mins:5)*60, options: seed})});
+      const d = await r.json();
+      m.textContent = d.message || (d.success?'OK':'Ошибка'); m.className='boosty-msg '+(d.success?'ok':'err');
+      gvLoad();
+    } catch(e){ m.textContent='Сеть недоступна'; m.className='boosty-msg err'; }
+  }
+  async function gvFinalize(){
+    const m = document.getElementById('gv-msg');
+    try{
+      const r = await fetch('/api/streamer/voting/finalize', {method:'POST', credentials:'include'});
+      const d = await r.json();
+      m.textContent = d.message || (d.success?'OK':'Ошибка'); m.className='boosty-msg '+(d.success?'ok':'err');
+      gvLoad();
+    } catch(e){ m.textContent='Сеть недоступна'; m.className='boosty-msg err'; }
+  }
+  async function gvApprove(id){
+    try{ await fetch('/api/streamer/voting/proposals/'+id+'/approve', {method:'POST', credentials:'include'}); gvLoad(); } catch(e){}
+  }
+  async function gvReject(id){
+    try{ await fetch('/api/streamer/voting/proposals/'+id+'/reject', {method:'POST', credentials:'include'}); gvLoad(); } catch(e){}
+  }
+  gvLoad();
+  if(_gvPollId) clearInterval(_gvPollId);
+  _gvPollId = setInterval(gvLoad, 5000);
+  </script>
+
+  <!-- Boosty subscribers admin (Sprint 5.31 #45b) -->
+  <div class="section" id="boosty-section">
+    <h2>💜 Boosty-подписчики</h2>
+    <div class="sub">
+      Веди список Twitch-логинов своих Boosty-сабов вручную.
+      <br><br>
+      ⚠ <b>Важно (Sprint 5.33 ToS compliance, 2026-05-28)</b>: после обновления
+      Twitch Extension Developer Agreement, gameplay-бонусы за подписки
+      (Twitch sub OR Boosty) <b>УБРАНЫ</b> — это нарушение правил Twitch.
+      Cписок остаётся для cosmetic UI (badges в extension), без price/reward
+      эффекта.
+    </div>
+    <div class="boosty-tier-info">
+      <b>T1</b> — cosmetic badge (Бакалавр)<br>
+      <b>T2</b> — cosmetic badge (Магистр)<br>
+      <b>T3</b> — cosmetic badge (Жнец)
+    </div>
+    <div id="boosty-list"><div class="boosty-empty">Загрузка…</div></div>
+    <div class="boosty-form">
+      <input id="b-username" type="text" placeholder="twitch_username" autocomplete="off">
+      <select id="b-tier">
+        <option value="1">T1</option>
+        <option value="2">T2</option>
+        <option value="3">T3</option>
+      </select>
+      <input id="b-note" type="text" placeholder="заметка (опционально)" autocomplete="off">
+      <button id="b-add">➕ Добавить / Обновить</button>
+    </div>
+    <div id="boosty-msg" class="boosty-msg"></div>
+    <details class="boosty-bulk">
+      <summary style="cursor:pointer;color:#adadb8;font-size:13px;">
+        📋 Массовая вставка (CSV)
+      </summary>
+      <div style="color:#6e6e73;font-size:12px;margin:8px 0;">
+        Формат: <code>username,tier,note</code> — по одной строке.
+        Пример: <code>bobby,2,Магистр</code>
+      </div>
+      <textarea id="b-bulk-text" placeholder="username,tier,note&#10;another,1,Бакалавр"></textarea>
+      <label style="display:flex;align-items:center;gap:6px;margin-top:8px;
+                    font-size:12px;color:#adadb8;cursor:pointer;">
+        <input id="b-bulk-replace" type="checkbox">
+        Полная замена (удалить тех, кого нет в списке)
+      </label>
+      <button id="b-bulk-apply">📥 Применить</button>
+    </details>
+  </div>
+
+  <!-- Bannerlord admin tools (Sprint 5.33 RESET-1, 2026-05-28) -->
+  <div class="section" id="bnr-admin-section">
+    <h2>⚙ Bannerlord — admin tools</h2>
+    <div class="sub" style="color:#fb7185;">
+      ⚠ <b>Опасные действия.</b> Используй если backend cache десинхронизировался
+      с моей кампанией или нужно начать чисто (тест, новый wipe и т.д.).
+      Reset удаляет ВСЕ per-channel Bannerlord данные: heroes / workshops /
+      fiefs / caravans / heirs / proposals / vassals / party orders / diplomacy /
+      tournament queue / auctions / achievements / pending mod actions.
+      <b>НЕ удаляются</b>: catalog (classes/powers/upgrades), Boosty list (cosmetic),
+      audit events log.
+    </div>
+    <div style="margin-top:10px;">
+      <button id="bnr-reset-preview-btn"
+              style="background:#3d3d3f;color:#efeff1;border:1px solid #5d5d5f;
+                     padding:8px 14px;border-radius:4px;cursor:pointer;">
+        👁 Preview (узнать что будет удалено)
+      </button>
+      <button id="bnr-reset-confirm-btn"
+              style="background:#7f1d1d;color:#fee2e2;border:1px solid #991b1b;
+                     padding:8px 14px;border-radius:4px;cursor:pointer;margin-left:6px;">
+        🧹 Reset Bannerlord data
+      </button>
+    </div>
+    <div id="bnr-reset-result"
+         style="margin-top:12px;padding:8px 12px;background:#0a0a0a;
+                border-radius:4px;font-size:11px;color:#adadb8;
+                display:none;white-space:pre-wrap;font-family:monospace;">
+    </div>
+  </div>
+
+  <div class="footnote">
+    Расширение установи через <a href="https://dashboard.twitch.tv/extensions" style="color:#9147ff">Twitch Dashboard → Extensions</a>.
+    Channel-points и settings (модуль, цены) появятся в следующих релизах M4.5+.
+  </div>
+</div>
+
+<script>
+(function(){
+  const tierLabel = t => t===1?'T1 (cosmetic)' : t===2?'T2 (cosmetic)' : t===3?'T3 (cosmetic)' : '?';
+  const esc = s => String(s||'').replace(/[&<>"']/g, c =>
+      ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+  const msg = (text, ok) => {
+    const el = document.getElementById('boosty-msg');
+    el.textContent = text;
+    el.className = 'boosty-msg ' + (ok ? 'ok' : 'err');
+    setTimeout(() => { el.className = 'boosty-msg'; }, 4000);
+  };
+  async function load() {
+    const r = await fetch('/api/dashboard/boosty/subscribers', {credentials:'include'});
+    const d = await r.json();
+    const list = document.getElementById('boosty-list');
+    if (!d.success) {
+      list.innerHTML = '<div class="boosty-empty">' + esc(d.message || 'Ошибка') + '</div>';
+      return;
+    }
+    if (!d.subscribers || d.subscribers.length === 0) {
+      list.innerHTML = '<div class="boosty-empty">Список пуст — добавь подписчиков ниже ↓</div>';
+      return;
+    }
+    list.innerHTML = d.subscribers.map(s => `
+      <div class="boosty-row">
+        <span class="u">@${esc(s.username)}</span>
+        <span class="t">${tierLabel(s.tier)}</span>
+        ${s.note ? '<span class="n">' + esc(s.note) + '</span>' : '<span class="n"></span>'}
+        <button data-u="${esc(s.username)}">✖ Удалить</button>
+      </div>`).join('');
+    list.querySelectorAll('button[data-u]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const u = btn.getAttribute('data-u');
+        if (!confirm('Удалить @' + u + ' из списка?')) return;
+        const r = await fetch('/api/dashboard/boosty/subscribers', {
+          method: 'POST',
+          credentials: 'include',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({username: u, tier: 0})
+        });
+        const d = await r.json();
+        msg(d.message || (d.success ? 'OK' : 'Ошибка'), !!d.success);
+        load();
+      });
+    });
+  }
+  document.getElementById('b-add').addEventListener('click', async () => {
+    const u = document.getElementById('b-username').value.trim();
+    const t = parseInt(document.getElementById('b-tier').value, 10);
+    const n = document.getElementById('b-note').value.trim();
+    if (!u) { msg('Введи twitch username', false); return; }
+    const r = await fetch('/api/dashboard/boosty/subscribers', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({username: u, tier: t, note: n})
+    });
+    const d = await r.json();
+    msg(d.message || (d.success ? 'OK' : 'Ошибка'), !!d.success);
+    if (d.success) {
+      document.getElementById('b-username').value = '';
+      document.getElementById('b-note').value = '';
+      load();
+    }
+  });
+  document.getElementById('b-bulk-apply').addEventListener('click', async () => {
+    const txt = document.getElementById('b-bulk-text').value.trim();
+    if (!txt) { msg('Вставь CSV', false); return; }
+    const replace = document.getElementById('b-bulk-replace').checked;
+    const entries = [];
+    for (const raw of txt.split(/\r?\n/)) {
+      const line = raw.trim();
+      if (!line) continue;
+      const parts = line.split(',').map(p => p.trim());
+      const u = parts[0] || '';
+      const t = parseInt(parts[1] || '0', 10);
+      const note = parts.slice(2).join(',') || '';
+      if (!u || t < 1 || t > 3) continue;
+      entries.push({username: u, tier: t, note: note});
+    }
+    if (entries.length === 0) {
+      msg('Не распознано ни одной строки', false);
+      return;
+    }
+    if (replace && !confirm('Полная замена: всех текущих, кого нет в списке, удалит. Продолжить?')) return;
+    const r = await fetch('/api/dashboard/boosty/subscribers/bulk', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({entries: entries, replace_all: replace})
+    });
+    const d = await r.json();
+    msg(d.message || (d.success ? 'OK' : 'Ошибка'), !!d.success);
+    if (d.success) {
+      document.getElementById('b-bulk-text').value = '';
+      load();
+    }
+  });
+  load();
+
+  // Sprint 5.33 RESET-1 — Bannerlord admin reset tools.
+  // GET preview /api/streamer/bannerlord/reset/preview → table_counts
+  // POST /api/streamer/bannerlord/reset с {confirm_phrase: channel_id} → wipe.
+  const bnrResetOut = document.getElementById('bnr-reset-result');
+  const bnrResetShow = (txt, isError) => {
+    bnrResetOut.style.display = 'block';
+    bnrResetOut.style.color = isError ? '#fb7185' : '#adadb8';
+    bnrResetOut.textContent = txt;
+  };
+  document.getElementById('bnr-reset-preview-btn')?.addEventListener('click', async () => {
+    bnrResetShow('Loading preview...', false);
+    try {
+      const r = await fetch('/api/streamer/bannerlord/reset/preview', {
+        credentials: 'include',
+      });
+      const d = await r.json();
+      if (!d.success) { bnrResetShow('❌ ' + (d.message || 'Failed'), true); return; }
+      const lines = [];
+      lines.push('Channel #' + d.channel_id + ' — total rows: ' + d.total_rows);
+      lines.push('');
+      lines.push('Per table:');
+      const entries = Object.entries(d.table_counts || {}).sort((a, b) => (b[1] || 0) - (a[1] || 0));
+      for (const [tbl, cnt] of entries) {
+        if (cnt === 0) continue;
+        lines.push('  ' + (cnt === -1 ? '?' : String(cnt).padStart(5)) + '  ' + tbl);
+      }
+      lines.push('');
+      lines.push('Preserved (НЕ удаляются): ' + (d.preserved_tables || []).join(', '));
+      bnrResetShow(lines.join('\n'), false);
+    } catch (e) {
+      bnrResetShow('❌ Network error: ' + e.message, true);
+    }
+  });
+  document.getElementById('bnr-reset-confirm-btn')?.addEventListener('click', async () => {
+    // Get current channel_id from session — fetch /api/streamer/me
+    let channelId = null;
+    try {
+      const meR = await fetch('/api/streamer/me', {credentials: 'include'});
+      const me = await meR.json();
+      channelId = me.id || me.channel_id;
+    } catch (e) {}
+    if (!channelId) {
+      bnrResetShow('❌ Не удалось определить channel_id (re-login?)', true);
+      return;
+    }
+    const phrase = prompt(
+      'Это удалит ВСЁ per-channel Bannerlord state.\n\n' +
+      'Для подтверждения введи свой channel_id: ' + channelId
+    );
+    if (phrase === null) return;
+    if (String(phrase).trim() !== String(channelId)) {
+      bnrResetShow('❌ Confirmation mismatch — ничего не удалено', true);
+      return;
+    }
+    bnrResetShow('Wiping...', false);
+    try {
+      const r = await fetch('/api/streamer/bannerlord/reset', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({confirm_phrase: String(channelId)}),
+      });
+      const d = await r.json();
+      if (!d.success) { bnrResetShow('❌ ' + (d.message || 'Failed'), true); return; }
+      const lines = [];
+      lines.push('✅ ' + (d.message || 'Done'));
+      lines.push('');
+      lines.push('Deleted ' + d.total_deleted + ' rows. Detail:');
+      for (const [tbl, cnt] of Object.entries(d.deleted_by_table || {})) {
+        if (cnt === 0) continue;
+        lines.push('  ' + (cnt === -1 ? '?' : String(cnt).padStart(5)) + '  ' + tbl);
+      }
+      bnrResetShow(lines.join('\n'), false);
+    } catch (e) {
+      bnrResetShow('❌ Network error: ' + e.message, true);
+    }
+  });
+})();
+</script>
+</body></html>

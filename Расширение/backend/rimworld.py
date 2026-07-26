@@ -1364,13 +1364,11 @@ async def buy_item(request: Request):
     if balance < price:
         return {"success": False, "message": f"Недостаточно очков! Нужно {price}💎, у тебя {balance}💎"}
 
-    if not await db.remove_points(username, price):
-        return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
-
+    # Категорию проверяем ДО списания. Раньше сначала списывали, потом
+    # обнаруживали неподдерживаемую категорию и возвращали деньги ОТДЕЛЬНЫМ
+    # коммитом — ещё одна щель, в которой они могли пропасть.
     cmd_type = CATEGORY_TO_CMD.get(category)
     if not cmd_type:
-        # Не даём создать бессмысленную команду — возвращаем очки
-        await db.add_points(username, price)
         return {"success": False, "message": f"Категория '{category}' не поддерживает покупку через этот эндпоинт"}
 
     cmd = {
@@ -1383,9 +1381,8 @@ async def buy_item(request: Request):
         "price": price,
         "channel_id": channel_id,
     }
-    async with get_commands_lock():
-        get_pending().append(cmd)
-    await _db_enqueue_command(cmd)
+    if not await _charge_and_enqueue(username, channel_id, price, cmd):
+        return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
 
     # Достижение за первую покупку в RimWorld
     try:
@@ -1495,8 +1492,6 @@ async def resurrect_pawn(request: Request):
     if balance < RESURRECT_COST:
         return {"success": False, "message": f"Нужно {RESURRECT_COST}💎, у тебя {balance}💎"}
 
-    if not await db.remove_points(username, RESURRECT_COST):
-        return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
     cmd = {
         "type": "resurrect_pawn",
         "id": f"resurrect_{username}_{int(time.time())}",
@@ -1504,9 +1499,8 @@ async def resurrect_pawn(request: Request):
         "price": RESURRECT_COST,
         "channel_id": channel_id,
     }
-    async with get_commands_lock():
-        get_pending().append(cmd)
-    await _db_enqueue_command(cmd)
+    if not await _charge_and_enqueue(username, channel_id, RESURRECT_COST, cmd):
+        return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
     return {"success": True, "message": f"✨ Воскрешение! -{RESURRECT_COST}💎"}
 
 
@@ -1598,11 +1592,6 @@ async def buy_gene(request: Request):
     if balance < price:
         return {"success": False, "message": f"Недостаточно очков! Нужно {price}💎 (ген №{count+1}), у тебя {balance}💎"}
 
-    if not await db.remove_points(username, price):
-        return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
-    # Инкрементируем счётчик ПОСЛЕ списания (атомарность: если remove_points упал — счётчик не трогаем)
-    await db.increment_purchase_count(username, "gene", channel_id)
-
     cmd = {
         "type": "add_gene",
         "id": f"gene_{username}_{int(time.time())}",
@@ -1611,9 +1600,20 @@ async def buy_gene(request: Request):
         "price": price,
         "channel_id": channel_id,
     }
-    async with get_commands_lock():
-        get_pending().append(cmd)
-    await _db_enqueue_command(cmd)
+
+    # Счётчик прогрессивных цен растёт ВНУТРИ той же транзакции. Раньше он был
+    # отдельным коммитом сразу после списания: сбой между ними давал либо
+    # покупку без удорожания, либо удорожание без покупки.
+    async def _bump_gene(conn):
+        await conn.execute(
+            "INSERT INTO purchase_counters (channel_id, username, category, count) "
+            "VALUES (?, ?, 'gene', 1) "
+            "ON CONFLICT(channel_id, username, category) DO UPDATE SET count = count + 1",
+            (channel_id, username.lower()))
+
+    if not await _charge_and_enqueue(username, channel_id, price, cmd,
+                                     on_success=_bump_gene):
+        return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
     return {"success": True, "message": f"🧬 Ген «{label}» добавляется! -{price}💎 (ген №{count+1})"}
 
 

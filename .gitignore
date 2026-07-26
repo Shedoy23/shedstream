@@ -64,3 +64,6 @@ _autotest/
 
 # журнал обходов заморозки деплоя — локальный
 scripts/deploy-freeze-overrides.log
+
+# выжимка для внешнего аудита — генерируется скриптом
+audit-extract.md

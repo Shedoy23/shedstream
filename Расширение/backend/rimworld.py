@@ -1750,9 +1750,6 @@ async def buy_passion(request: Request):
         icons = {1: "⭐", 2: "🔥"}
         return {"success": False, "message": f"Нужно {price}💎 для {icons.get(passion, passion)}, у тебя {balance}💎"}
 
-    if not await db.remove_points(username, price):
-        return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
-
     label = SKILL_LABELS.get(skill_def, skill_def)
     icons = {1: "⭐", 2: "🔥"}
     cmd = {
@@ -1764,9 +1761,8 @@ async def buy_passion(request: Request):
         "price":     price,
         "channel_id": channel_id,
     }
-    async with get_commands_lock():
-        get_pending().append(cmd)
-    await _db_enqueue_command(cmd)
+    if not await _charge_and_enqueue(username, channel_id, price, cmd):
+        return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
     return {"success": True, "message": f"{icons[passion]} {label}: страсть повышена! -{price}💎"}
 
 
@@ -1810,8 +1806,6 @@ async def reset_passion(request: Request):
     if balance < PASSION_RESET_PRICE:
         return {"success": False, "message": f"Нужно {PASSION_RESET_PRICE}💎 для сброса страсти"}
 
-    if not await db.remove_points(username, PASSION_RESET_PRICE):
-        return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
     label = SKILL_LABELS.get(skill_def, skill_def)
     cmd = {
         "type":      "set_passion",
@@ -1822,9 +1816,8 @@ async def reset_passion(request: Request):
         "price":     PASSION_RESET_PRICE,
         "channel_id": channel_id,
     }
-    async with get_commands_lock():
-        get_pending().append(cmd)
-    await _db_enqueue_command(cmd)
+    if not await _charge_and_enqueue(username, channel_id, PASSION_RESET_PRICE, cmd):
+        return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
     return {"success": True, "message": f"— {label}: страсть сброшена! -{PASSION_RESET_PRICE}💎"}
 
 
@@ -1867,11 +1860,6 @@ async def buy_trait(request: Request):
     if balance < trait_cost:
         return {"success": False, "message": f"Нужно {trait_cost}💎 (черта №{count+1}), у тебя {balance}💎"}
 
-    if not await db.remove_points(username, trait_cost):
-        return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
-    # Инкрементируем счётчик ПОСЛЕ успешного списания
-    await db.increment_purchase_count(username, "trait", channel_id)
-
     cmd = {
         "type": "add_trait",
         "id": f"trait_{username}_{int(time.time())}",
@@ -1881,9 +1869,18 @@ async def buy_trait(request: Request):
         "price": trait_cost,
         "channel_id": channel_id,
     }
-    async with get_commands_lock():
-        get_pending().append(cmd)
-    await _db_enqueue_command(cmd)
+
+    # Счётчик — внутри той же транзакции (см. buy_gene).
+    async def _bump_trait(conn):
+        await conn.execute(
+            "INSERT INTO purchase_counters (channel_id, username, category, count) "
+            "VALUES (?, ?, 'trait', 1) "
+            "ON CONFLICT(channel_id, username, category) DO UPDATE SET count = count + 1",
+            (channel_id, username.lower()))
+
+    if not await _charge_and_enqueue(username, channel_id, trait_cost, cmd,
+                                     on_success=_bump_trait):
+        return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
     return {"success": True, "message": f"🧬 Черта «{label}» добавляется! -{trait_cost}💎 (черта №{count+1})"}
 
 @router.post("/api/rimworld/remove-trait")
@@ -1904,8 +1901,6 @@ async def remove_trait(request: Request):
     if balance < TRAIT_REMOVE_COST:
         return {"success": False, "message": f"Нужно {TRAIT_REMOVE_COST}💎"}
 
-    if not await db.remove_points(username, TRAIT_REMOVE_COST):
-        return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
     cmd = {
         "type": "remove_trait",
         "id": f"rmtrait_{username}_{int(time.time())}",
@@ -1914,9 +1909,8 @@ async def remove_trait(request: Request):
         "price": TRAIT_REMOVE_COST,
         "channel_id": channel_id,
     }
-    async with get_commands_lock():
-        get_pending().append(cmd)
-    await _db_enqueue_command(cmd)
+    if not await _charge_and_enqueue(username, channel_id, TRAIT_REMOVE_COST, cmd):
+        return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
     return {"success": True, "message": f"🧬 Черта «{label}» удаляется! -{TRAIT_REMOVE_COST}💎"}
 
 
@@ -1946,18 +1940,14 @@ async def remove_gene(request: Request):
     if balance < GENE_REMOVE_COST:
         return {"success": False, "message": f"Нужно {GENE_REMOVE_COST}💎 для удаления гена"}
 
-    if not await db.remove_points(username, GENE_REMOVE_COST):
-        return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
-
-    # Уменьшаем счётчик покупок генов (не ниже 0) — при удалении следующий ген будет дешевле
-    current_count = await db.get_purchase_count(username, "gene", channel_id)
-    if current_count > 0:
-        async with aiosqlite.connect(db.db_path) as conn:
-            await conn.execute(
-                "UPDATE purchase_counters SET count = count - 1 "
-                "WHERE channel_id = ? AND username = ? AND category = 'gene' AND count > 0",
-                (channel_id, username.lower()))
-            await conn.commit()
+    # Уменьшение счётчика — ВНУТРИ той же транзакции: раньше это был отдельный
+    # коммит, и сбой между ним и списанием давал либо удаление без удешевления,
+    # либо удешевление без удаления.
+    async def _drop_gene_counter(conn):
+        await conn.execute(
+            "UPDATE purchase_counters SET count = count - 1 "
+            "WHERE channel_id = ? AND username = ? AND category = 'gene' AND count > 0",
+            (channel_id, username.lower()))
 
     cmd = {
         "type": "remove_gene",
@@ -1967,9 +1957,9 @@ async def remove_gene(request: Request):
         "price": GENE_REMOVE_COST,
         "channel_id": channel_id,
     }
-    async with get_commands_lock():
-        get_pending().append(cmd)
-    await _db_enqueue_command(cmd)
+    if not await _charge_and_enqueue(username, channel_id, GENE_REMOVE_COST, cmd,
+                                     on_success=_drop_gene_counter):
+        return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
     return {"success": True, "message": f"🧬 Ген «{label}» удаляется! -{GENE_REMOVE_COST}💎"}
 
 
@@ -2009,9 +1999,6 @@ async def buy_implant_alias(request: Request):
     if balance < price:
         return {"success": False, "message": f"Нужно {price}💎, у тебя {balance}💎"}
 
-    if not await db.remove_points(username, price):
-        return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
-
     side_str = ""
     if part_hint == "left":
         side_str = " (левая)"
@@ -2031,9 +2018,8 @@ async def buy_implant_alias(request: Request):
         "channel_id": channel_id,
     }
 
-    async with get_commands_lock():
-        get_pending().append(cmd)
-    await _db_enqueue_command(cmd)
+    if not await _charge_and_enqueue(username, channel_id, price, cmd):
+        return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
     try:
         from main import bot as _bot
         asyncio.create_task(_bot.check_and_unlock_achievements(username, 'rimworld_buy'))
@@ -2074,8 +2060,6 @@ async def train_skill_alias(request: Request):
     if balance < price:
         return {"success": False, "message": f"Нужно {price}💎, у тебя {balance}💎"}
 
-    if not await db.remove_points(username, price):
-        return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
     cmd = {
         "type": "train_skill",
         "id": f"train_{username}_{int(time.time())}",
@@ -2084,9 +2068,8 @@ async def train_skill_alias(request: Request):
         "price": price,
         "channel_id": channel_id,
     }
-    async with get_commands_lock():
-        get_pending().append(cmd)
-    await _db_enqueue_command(cmd)
+    if not await _charge_and_enqueue(username, channel_id, price, cmd):
+        return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
     return {"success": True, "message": f"рџ§  {label} применяется! -{price}💎"}
 
 @router.get("/api/rimworld/all-pawns")
@@ -2270,9 +2253,6 @@ async def trigger_event(request: Request):
         if points < cost:
             return {"success": False, "message": f"Нужно {cost}💎"}
 
-        if not await db.remove_points(username, cost):
-            return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
-
         pending_cmd = {
             "type": cmd,
             "id": f"event_{username}_{int(time.time())}",
@@ -2283,9 +2263,8 @@ async def trigger_event(request: Request):
         # затирать цену/канал.
         pending_cmd["price"] = cost
         pending_cmd["channel_id"] = channel_id
-        async with get_commands_lock():
-            get_pending().append(pending_cmd)
-        await _db_enqueue_command(pending_cmd)
+        if not await _charge_and_enqueue(username, channel_id, cost, pending_cmd):
+            return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
 
         return {"success": True, "message": f"{ev_name} активирован! (-{cost}💎)"}
     except Exception as e:

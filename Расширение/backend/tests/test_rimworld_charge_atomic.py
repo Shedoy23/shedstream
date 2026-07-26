@@ -78,8 +78,17 @@ async def main():
     await db.add_points(USER, START, channel_id=CHANNEL)
 
     def make_cmd(cmd_id):
+        """У каждого сценария СВОЙ предмет.
+
+        Отпечаток для защиты от двойного клика считается по содержимому команды
+        БЕЗ поля `id`. Если у всех сценариев один и тот же предмет, второй и
+        последующие вызовы — это, с точки зрения бэкенда, повторный клик по
+        одной кнопке, и он честно откажется списывать. Раньше здесь стоял общий
+        "TestItem", и тест начал проверять дедупликацию вместо атомарности.
+        """
         return {"type": "equip_item", "id": cmd_id, "username": USER,
-                "def_name": "TestItem", "price": PRICE, "channel_id": CHANNEL}
+                "def_name": "Item_%s" % cmd_id, "price": PRICE,
+                "channel_id": CHANNEL}
 
     # ── 1. Обычная покупка: деньги списаны, команда поставлена ──────────────
     ok = await rw._charge_and_enqueue(USER, CHANNEL, PRICE, make_cmd("cmd_ok_1"))
@@ -152,6 +161,21 @@ async def main():
         pass
     check(len(rw.get_pending()) == 0,
           "в память команда НЕ попала: мод не увидит того, чего нет в базе")
+
+    # ── 6. Повтор ТОЙ ЖЕ покупки не списывает дважды ───────────────────────
+    # Подтверждаем, что защита от двойного клика и атомарность уживаются:
+    # одинаковое содержимое = повтор, разное = отдельные покупки.
+    same = {"type": "equip_item", "id": "twin_a", "username": USER,
+            "def_name": "TwinItem", "price": PRICE, "channel_id": CHANNEL}
+    bal0 = await db.get_points(USER, channel_id=CHANNEL)
+    await rw._charge_and_enqueue(USER, CHANNEL, PRICE, dict(same))
+    bal1 = await db.get_points(USER, channel_id=CHANNEL)
+    same["id"] = "twin_b"
+    await rw._charge_and_enqueue(USER, CHANNEL, PRICE, dict(same))
+    bal2 = await db.get_points(USER, channel_id=CHANNEL)
+    check(bal1 == bal0 - PRICE and bal2 == bal1,
+          "повтор той же покупки списал ОДИН раз (%d -> %d -> %d)"
+          % (bal0, bal1, bal2))
 
     if getattr(db, "_pool", None):
         await db._pool.close()

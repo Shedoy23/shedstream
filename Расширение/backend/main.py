@@ -1298,6 +1298,13 @@ async def run_migrations():
             print(f"❌ M97 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m98_rimworld_dedup_key
+            await m98_rimworld_dedup_key.apply(conn)
+        except Exception as e:
+            print(f"❌ M98 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

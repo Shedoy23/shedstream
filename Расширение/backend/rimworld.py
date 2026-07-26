@@ -39,7 +39,9 @@ from fastapi import APIRouter, Request, Depends, HTTPException
 from datetime import datetime
 import aiosqlite
 import asyncio
+import hashlib
 import json
+import uuid
 import os
 import time
 import traceback
@@ -215,6 +217,7 @@ async def _ensure_pending_commands_table(conn):
             cmd_id TEXT NOT NULL,
             cmd_json TEXT NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            dedup_key TEXT,
             UNIQUE(channel_id, cmd_id)
         )
     """)
@@ -226,6 +229,13 @@ async def _ensure_pending_commands_table(conn):
     if "status" not in cols:
         await conn.execute(
             "ALTER TABLE rimworld_pending_commands ADD COLUMN status TEXT DEFAULT 'queued'")
+    # M98 — отпечаток команды для распознавания двойного клика.
+    if "dedup_key" not in cols:
+        await conn.execute(
+            "ALTER TABLE rimworld_pending_commands ADD COLUMN dedup_key TEXT")
+    await conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_rw_cmds_dedup "
+        "ON rimworld_pending_commands(channel_id, dedup_key, created_at)")
     if "delivered_at" not in cols:
         await conn.execute(
             "ALTER TABLE rimworld_pending_commands ADD COLUMN delivered_at REAL")
@@ -315,6 +325,29 @@ async def _db_enqueue_command(cmd: dict):
         # Дубль по UNIQUE(channel_id, cmd_id) — норма при ретрае, остальное — беда.
         print(f"⚠️ db_enqueue {cmd.get('id')!r}: {type(e).__name__}: {e}")
 
+# Окно, в котором два одинаковых запроса считаются одним кликом. Три секунды —
+# компромисс, выбранный по поведению человека: дабл-клик и повторная отправка
+# укладываются в доли секунды, а осознанная вторая покупка того же предмета
+# требует увидеть подтверждение и снова прицелиться — это дольше. Ставить
+# больше опасно: зритель, который правда хочет купить два одинаковых предмета
+# подряд, не должен упереться в нашу защиту.
+DEDUP_WINDOW_SEC = 3
+
+
+def _dedup_key(cmd: dict) -> str:
+    """Отпечаток команды без служебного поля `id`.
+
+    Два клика по одной кнопке дают побайтово одинаковую команду — отличается
+    только `id` (в нём метка времени). Значит ключ выводится из содержимого, и
+    просить что-либо у фронта не нужно (он заморожен на CDN). Разные покупки
+    дают разные отпечатки сами собой: знать про каждый тип команды не требуется,
+    новый тип защищён с первого дня.
+    """
+    payload = {k: v for k, v in cmd.items() if k != "id"}
+    blob = json.dumps(payload, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha1(blob.encode("utf-8")).hexdigest()
+
+
 async def _charge_and_enqueue(username: str, channel_id: int, price: int,
                               cmd: dict, on_success=None) -> bool:
     """Списать крустики И поставить команду моду — ОДНОЙ транзакцией.
@@ -346,14 +379,43 @@ async def _charge_and_enqueue(username: str, channel_id: int, price: int,
     async with db._connect() as conn:
         await conn.execute("BEGIN IMMEDIATE")
         try:
+            # M98 — двойной клик. Проверка ВНУТРИ транзакции: BEGIN IMMEDIATE
+            # держит запись, поэтому второй запрос дождётся первого и увидит
+            # его строку. Снаружи транзакции здесь была бы гонка.
+            key = _dedup_key(cmd)
+            cur = await conn.execute(
+                "SELECT cmd_id FROM rimworld_pending_commands "
+                "WHERE channel_id = ? AND dedup_key = ? "
+                "  AND created_at > datetime('now', ?)",
+                (channel_id, key, "-%d seconds" % DEDUP_WINDOW_SEC))
+            twin = await cur.fetchone()
+            if twin:
+                # Покупка уже идёт. Откатываем и отвечаем УСПЕХОМ: зритель нажал
+                # дважды на то, что сработало, — показывать ошибку неправильно.
+                # Списания второй раз не происходит.
+                await conn.execute("ROLLBACK")
+                print(f"↩️  RimWorld: повторный клик @{username} "
+                      f"({cmd.get('type')}) — не списываю, уже в очереди "
+                      f"как {twin[0]}")
+                return True
             if not await db.remove_points_tx(conn, username, price, channel_id):
                 await conn.execute("ROLLBACK")
                 return False
+
+            # Идентификатор команды обязан быть уникальным. Вызывающие строят
+            # его как f"gene_{username}_{int(time.time())}" — с точностью до
+            # СЕКУНДЫ, поэтому две РАЗНЫЕ покупки в одну секунду сталкивались на
+            # UNIQUE(channel_id, cmd_id). Раньше это молча съедало команду
+            # (`_db_enqueue_command` глотал исключение), а деньги оставались
+            # списанными. Дописываем короткий уникальный хвост: за повтор клика
+            # теперь отвечает dedup_key, а cmd_id должен просто не повторяться.
+            cmd["id"] = "%s_%s" % (cmd.get("id", "cmd"), uuid.uuid4().hex[:6])
             await conn.execute(
-                "INSERT INTO rimworld_pending_commands (channel_id, cmd_id, cmd_json) "
-                "VALUES (?, ?, ?)",
-                (channel_id, cmd.get("id", ""),
-                 json.dumps(cmd, ensure_ascii=False)))
+                "INSERT INTO rimworld_pending_commands "
+                "(channel_id, cmd_id, cmd_json, dedup_key) "
+                "VALUES (?, ?, ?, ?)",
+                (channel_id, cmd["id"],
+                 json.dumps(cmd, ensure_ascii=False), key))
             if on_success is not None:
                 await on_success(conn)
             await conn.commit()

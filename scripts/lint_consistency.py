@@ -164,6 +164,49 @@ def _manifest_event_names(text: str) -> list[str]:
     return names
 
 
+def check_dashboard_mod_config():
+    """Готовый config.json на дашборде должен совпадать с тем, что читает мод.
+
+    Дашборд собирает файл настроек за стримера, чтобы тот не правил JSON руками
+    (забытая запятая и кавычка-ёлочка из мессенджера — это вечер переписки).
+    Но список полей теперь живёт в ДВУХ местах: `BackendConfig.cs` у мода и
+    шаблон дашборда. Добавят настройку в мод — дашборд молча продолжит отдавать
+    старый файл, стример поставит его и получит поведение по умолчанию, не
+    понимая почему.
+
+    Это ровно тот класс «одна правда, две копии», который мы весь день чинили,
+    поэтому сразу под машинную проверку. HARD error.
+    """
+    cs = ROOT / "BannerlordLink" / "src" / "Net" / "BackendConfig.cs"
+    tpl = EXT / "backend" / "templates" / "streamer_dashboard.html"
+    if not cs.exists() or not tpl.exists():
+        return
+
+    fields = set(re.findall(r"public\s+\w+\s+(\w+)\s*\{\s*get;\s*set;",
+                            cs.read_text(encoding="utf-8")))
+    if not fields:
+        return
+
+    m = re.search(r"box\.value = JSON\.stringify\(\{(.*?)\}, null, 2\)",
+                  tpl.read_text(encoding="utf-8"), re.S)
+    if not m:
+        warns.append("dashboard: не нашёл сборку config.json — проверка полей "
+                     "мода пропущена")
+        return
+    ours = set(re.findall(r"(\w+)\s*:", m.group(1)))
+
+    missing = sorted(fields - ours)
+    if missing:
+        errors.append(
+            "dashboard config.json НЕ содержит поля, которые читает мод "
+            "(BackendConfig.cs): " + ", ".join(missing) +
+            " -- стример получит настройки по умолчанию и не поймёт почему")
+    extra = sorted(ours - fields)
+    if extra:
+        warns.append("dashboard config.json отдаёт поля, которых нет в моде: "
+                     + ", ".join(extra))
+
+
 def check_currency_glyph():
     p = EXT / "frontend" / "viewer.js"
     if not p.exists():
@@ -495,7 +538,7 @@ def main() -> int:
         return 1
     for fn in (check_version_sync, check_migrations_wired,
                check_manifest_actions, check_manifest_events,
-               check_currency_glyph,
+               check_dashboard_mod_config, check_currency_glyph,
                check_tenant_scoping, check_bannerlord_policies,
                check_frontend_global_collisions):
         try:

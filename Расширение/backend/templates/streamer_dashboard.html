@@ -27,6 +27,27 @@
   .steps .mark{flex:0 0 20px;text-align:center}
   .steps .hint{display:block;color:#f4b740;font-size:13px;margin-top:3px}
   .counts{display:flex;gap:22px;margin-top:14px;color:#6e6e73;font-size:13px}
+  /* Установка мода — пошагово (2026-07-26). Раньше дашборд показывал токен и
+     молчал о том, что с ним делать: путь до папки, имя файла и три поля JSON
+     стример должен был узнать у владельца. Каждый такой вопрос — сообщение
+     в личку. */
+  .install ol{margin:0;padding-left:22px;line-height:1.85}
+  .install li{margin-bottom:6px}
+  .install .path{background:#101013;border:1px solid #2d2d2f;border-radius:6px;
+                 padding:8px 12px;margin:6px 0;font-family:Consolas,monospace;
+                 font-size:12.5px;color:#e0d6ff;word-break:break-all}
+  .cfgbox{position:relative;margin-top:10px}
+  .cfgbox textarea{width:100%;box-sizing:border-box;height:132px;background:#101013;
+                   color:#9ef0c0;border:1px solid #2d2d2f;border-radius:8px;
+                   padding:12px;font-family:Consolas,monospace;font-size:12.5px;
+                   line-height:1.5;resize:vertical}
+  .cfgbox .cfgcopy{position:absolute;top:8px;right:8px;background:#3a3a3d;
+                   color:#efeff1;border:0;border-radius:6px;padding:6px 12px;
+                   cursor:pointer;font-size:12px}
+  .cfgbox .cfgcopy:hover{background:#4a4a4d}
+  .warnbox{background:rgba(244,183,64,.08);border:1px solid #6b5a2a;
+           border-radius:8px;padding:12px 14px;margin-top:12px;
+           font-size:13px;color:#d8cfa8;line-height:1.6}
   .tile{background:#1f1f23;border-radius:10px;padding:20px}
   .tile .lbl{color:#adadb8;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px}
   .tile .val{font-size:20px;font-weight:600}
@@ -141,6 +162,38 @@
   }
   markActiveModule({{ module_js }});
   </script>
+
+  <!-- Установка мода -->
+  <div class="section install">
+    <h2>📦 Как поставить мод</h2>
+    <div class="sub">
+      Один раз. Дальше мод подключается сам при каждом запуске игры.
+    </div>
+
+    <ol>
+      <li><b>Взять мод.</b> Пока раздаю вручную —
+          <a href="https://t.me/ttvshedoy23" target="_blank" rel="noopener"
+             style="color:#c084fc">напиши в телеграм</a>, пришлю архив.</li>
+      <li><b>Распаковать</b> в папку модов игры, чтобы получилось так:
+          <div class="path">…\Mount &amp; Blade II Bannerlord\Modules\Shedoy23.BannerlordLink\</div></li>
+      <li><b>Включить</b> мод в лаунчере игры, во вкладке «Модули».</li>
+      <li><b>Положить рядом файл</b> <code>config.json</code> — готовый текст ниже,
+          нажми «Копировать» и сохрани в ту же папку:
+          <div class="path">…\Modules\Shedoy23.BannerlordLink\config.json</div>
+          <div class="cfgbox">
+            <textarea id="cfgText" readonly spellcheck="false">загружаю…</textarea>
+            <button class="cfgcopy" onclick="copyCfg()">📋 Копировать</button>
+          </div></li>
+      <li><b>Запустить игру.</b> Карточка вверху этой страницы сама покажет
+          «Мод на связи» — обновлять не нужно.</li>
+    </ol>
+
+    <div class="warnbox">
+      В файле лежит твой токен. Он равнозначен доступу к твоему каналу в
+      расширении — <b>не показывай config.json на стриме</b> и не выкладывай
+      никуда. Если засветил — напиши мне, выпущу новый.
+    </div>
+  </div>
 
   <!-- Module-токены (для C#-модов) -->
   <div class="section">
@@ -684,6 +737,38 @@
   }
   tick();
   setInterval(tick, 15000);
+})();
+</script>
+
+<script>
+/* Готовый config.json. Стример копирует ЦЕЛИКОМ файл, а не вписывает три поля
+   руками: ручная правка JSON — это забытая запятая, кавычка-ёлочка из
+   мессенджера и вечер переписки. */
+function copyCfg(){
+  var t = document.getElementById('cfgText');
+  t.select(); t.setSelectionRange(0, 99999);
+  try { document.execCommand('copy'); } catch(e){}
+  var b = document.querySelector('.cfgcopy');
+  var old = b.textContent; b.textContent = '✓ Скопировано';
+  setTimeout(function(){ b.textContent = old; }, 1500);
+}
+(function(){
+  var box = document.getElementById('cfgText');
+  if (!box) return;
+  fetch('/api/streamer/module-token?module_id=bannerlord', {credentials:'same-origin'})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var tok = (d && (d.token || d.module_token)) || '';
+      box.value = JSON.stringify({
+        BackendUrl: window.location.origin,
+        ModuleToken: tok,
+        ChannelId: Number({{ channel_id }}),
+        PollIntervalMs: 3000
+      }, null, 2);
+    })
+    .catch(function(){
+      box.value = 'Не удалось получить токен. Обнови страницу.';
+    });
 })();
 </script>
 </body></html>

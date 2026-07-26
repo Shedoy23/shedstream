@@ -36,7 +36,10 @@ param(
     [switch]$All,
     [switch]$Staging,    # ROADMAP 1.3: deploy to the on-demand staging app (:8001), NOT prod
     [switch]$NoRestart,
-    [switch]$DryRun
+    [switch]$DryRun,
+    # Deploy freeze override. Requires a written reason, on purpose: typing it
+    # forces you to name what is actually on fire.
+    [string]$CriticalReason = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -64,6 +67,48 @@ $ModSrc = Join-Path $RepoRoot 'BannerlordLink\src\BannerlordLink.csproj'
 # (deploys to the staging app, never prod) so it must NOT trigger the prod default.
 if (-not ($Backend -or $Frontend -or $Mod -or $All -or $Staging)) { $Backend = $true; $Frontend = $true }
 if ($All) { $Backend = $true; $Frontend = $true; $Mod = $true }
+
+# -- Deploy freeze (owner request 2026-07-26) ------------------------------
+# The Twitch review is a live, scheduled slot: the reviewer opens the channel at
+# a fixed time and a broken prod at that moment costs weeks of waiting for
+# another slot. The owner asked, in his own words, to be stopped from touching
+# prod before it -- a promise is not a mechanism, so this is one.
+#
+# Not a wall, a speed bump: -CriticalReason "..." lets a real emergency through
+# in one flag. Typing the reason is the point -- it makes you name what is
+# actually broken instead of shipping on impulse.
+$FreezeUntil = Get-Date '2026-07-28 23:30'   # right after the review window
+$IsProdTarget = ($Backend -or $Frontend) -and -not $Staging
+if ($IsProdTarget -and -not $DryRun -and (Get-Date) -lt $FreezeUntil) {
+    if ([string]::IsNullOrWhiteSpace($CriticalReason)) {
+        Write-Host ''
+        Write-Host '  DEPLOY BLOCKED -- Twitch review freeze' -ForegroundColor Red
+        Write-Host ''
+        Write-Host ("  Review: 2026-07-28 22:30 Chelyabinsk. Freeze lifts {0}." -f $FreezeUntil)
+        Write-Host '  A broken prod during the live slot = weeks waiting for another one.'
+        Write-Host ''
+        Write-Host '  CRITICAL means: prod is down, money is being lost or double-charged,'
+        Write-Host '  data is leaking between channels, or the review itself cannot run.'
+        Write-Host '  Anything else -- test it locally and ship after the verdict:'
+        Write-Host '      python scripts/local-setup.py'
+        Write-Host ''
+        Write-Host '  Safe right now:'
+        Write-Host '      ./scripts/deploy.ps1 -DryRun      # show what would happen'
+        Write-Host '      ./scripts/deploy.ps1 -Staging     # staging app on :8001'
+        Write-Host '      ./scripts/deploy.ps1 -Mod         # game DLL, prod untouched'
+        Write-Host ''
+        Write-Host '  If it really is critical:'
+        Write-Host '      ./scripts/deploy.ps1 -Backend -CriticalReason "what is on fire"'
+        Write-Host ''
+        exit 1
+    }
+    Write-Host ''
+    Write-Host ("  FREEZE OVERRIDDEN: {0}" -f $CriticalReason) -ForegroundColor Yellow
+    Write-Host '  Logged to deploy-freeze-overrides.log. Proceeding.'
+    Write-Host ''
+    $line = '{0}  {1}  reason: {2}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $env:USERNAME, $CriticalReason
+    Add-Content -Path (Join-Path $PSScriptRoot 'deploy-freeze-overrides.log') -Value $line
+}
 
 function Info($m){ Write-Host "-> $m" -ForegroundColor Cyan }
 function Ok($m){ Write-Host "[ok] $m" -ForegroundColor Green }

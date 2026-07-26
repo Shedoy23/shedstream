@@ -61,3 +61,6 @@ BannerlordLink/src/bin/
 
 # локальная песочница автотест-прогонов (не для репо)
 _autotest/
+
+# журнал обходов заморозки деплоя — локальный
+scripts/deploy-freeze-overrides.log

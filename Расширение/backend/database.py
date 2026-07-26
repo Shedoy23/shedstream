@@ -139,10 +139,11 @@ class Database:
             # Счётчики прогрессивных покупок (черты и гены)
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS purchase_counters (
+                    channel_id INTEGER NOT NULL,
                     username TEXT NOT NULL,
                     category TEXT NOT NULL,
                     count INTEGER DEFAULT 0,
-                    PRIMARY KEY (username, category)
+                    PRIMARY KEY (channel_id, username, category)
                 )
             """)
 
@@ -575,33 +576,38 @@ class Database:
 
     # ===== ПРОГРЕССИВНЫЕ СЧЁТЧИКИ (черты и гены) =====
 
-    async def get_purchase_count(self, username: str, category: str) -> int:
+    async def get_purchase_count(self, username: str, category: str,
+                                 channel_id: int) -> int:
         """Сколько раз зритель купил предметы данной категории (trait/gene)."""
         async with self._connect() as db:
             cursor = await db.execute(
-                "SELECT count FROM purchase_counters WHERE username = ? AND category = ?",
-                (username.lower(), category)
+                "SELECT count FROM purchase_counters "
+                "WHERE channel_id = ? AND username = ? AND category = ?",
+                (channel_id, username.lower(), category)
             )
             row = await cursor.fetchone()
             return row[0] if row else 0
 
-    async def increment_purchase_count(self, username: str, category: str) -> int:
+    async def increment_purchase_count(self, username: str, category: str,
+                                       channel_id: int) -> int:
         """Увеличить счётчик покупок на 1. Возвращает НОВОЕ значение (после инкремента)."""
         async with self._connect() as db:
             await db.execute("""
-                INSERT INTO purchase_counters (username, category, count)
-                VALUES (?, ?, 1)
-                ON CONFLICT(username, category) DO UPDATE SET count = count + 1
-            """, (username.lower(), category))
+                INSERT INTO purchase_counters (channel_id, username, category, count)
+                VALUES (?, ?, ?, 1)
+                ON CONFLICT(channel_id, username, category) DO UPDATE SET count = count + 1
+            """, (channel_id, username.lower(), category))
             await db.commit()
             cursor = await db.execute(
-                "SELECT count FROM purchase_counters WHERE username = ? AND category = ?",
-                (username.lower(), category)
+                "SELECT count FROM purchase_counters "
+                "WHERE channel_id = ? AND username = ? AND category = ?",
+                (channel_id, username.lower(), category)
             )
             row = await cursor.fetchone()
             return row[0] if row else 1
 
-    async def decrement_purchase_count_tx(self, conn, username: str, category: str) -> None:
+    async def decrement_purchase_count_tx(self, conn, username: str, category: str,
+                                          channel_id: int) -> None:
         """Откатить счётчик покупок на 1 — на conn ВЫЗЫВАЮЩЕГО, без commit.
 
         Нужен рефанду: цены на гены/черты прогрессивные, счётчик растёт при
@@ -615,8 +621,8 @@ class Database:
         """
         await conn.execute(
             "UPDATE purchase_counters SET count = MAX(0, count - 1) "
-            "WHERE username = ? AND category = ?",
-            (username.lower(), category),
+            "WHERE channel_id = ? AND username = ? AND category = ?",
+            (channel_id, username.lower(), category),
         )
 
     def calc_progressive_price(self, base_price: int, count: int) -> int:

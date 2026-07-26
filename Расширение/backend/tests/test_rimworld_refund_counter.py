@@ -63,6 +63,10 @@ async def main():
     # следующем старте. Так это и живёт на проде — воспроизводим один в один.
     # Расхождение записано в DEFERRED; чинить перед ревью Twitch не стали.
     await db.init_tables()
+    # M97 привязывает счётчики к каналу.
+    from migrations import m97_rimworld_tenant_scope
+    async with aiosqlite.connect(db_path) as _c:
+        await m97_rimworld_tenant_scope.apply(_c)
 
     CHANNEL = 98319857
     USER = "testviewer"
@@ -71,15 +75,15 @@ async def main():
     await db.add_points(USER, 100_000, channel_id=CHANNEL)   # создаёт зрителя
 
     # ── покупка гена: списание + рост счётчика (как в rimworld.py) ──────────
-    count_before = await db.get_purchase_count(USER, "gene")
+    count_before = await db.get_purchase_count(USER, "gene", CHANNEL)
     price = db.calc_progressive_price(BASE_GENE_PRICE, count_before)
     balance_before = await db.get_points(USER, channel_id=CHANNEL)
 
     ok = await db.remove_points(USER, price, channel_id=CHANNEL)
     check(ok, "списание за ген прошло")
-    await db.increment_purchase_count(USER, "gene")
+    await db.increment_purchase_count(USER, "gene", CHANNEL)
 
-    count_after_buy = await db.get_purchase_count(USER, "gene")
+    count_after_buy = await db.get_purchase_count(USER, "gene", CHANNEL)
     check(count_after_buy == count_before + 1,
           "счётчик вырос после покупки (%d -> %d)" % (count_before, count_after_buy))
 
@@ -110,7 +114,7 @@ async def main():
     check(balance_after == balance_before,
           "баланс вернулся полностью (%d -> %d)" % (balance_before, balance_after))
 
-    count_after_refund = await db.get_purchase_count(USER, "gene")
+    count_after_refund = await db.get_purchase_count(USER, "gene", CHANNEL)
     check(count_after_refund == count_before,
           "СЧЁТЧИК ОТКАЧЕН: покупки не было, значит счётчик не должен был вырасти "
           "(ожидали %d, получили %d)" % (count_before, count_after_refund))
@@ -122,10 +126,10 @@ async def main():
 
     # ── то же для черты ─────────────────────────────────────────────────────
     BASE_TRAIT_PRICE = 1000
-    t_before = await db.get_purchase_count(USER, "trait")
+    t_before = await db.get_purchase_count(USER, "trait", CHANNEL)
     t_price = db.calc_progressive_price(BASE_TRAIT_PRICE, t_before)
     await db.remove_points(USER, t_price, channel_id=CHANNEL)
-    await db.increment_purchase_count(USER, "trait")
+    await db.increment_purchase_count(USER, "trait", CHANNEL)
 
     cmd_json_t = json.dumps({
         "type": "add_trait",
@@ -139,12 +143,12 @@ async def main():
         await rw._refund_cmd_row_tx(conn, "trait_test_1", cmd_json_t, "mod_refused")
         await conn.commit()
 
-    t_after = await db.get_purchase_count(USER, "trait")
+    t_after = await db.get_purchase_count(USER, "trait", CHANNEL)
     check(t_after == t_before,
           "счётчик ЧЕРТ тоже откачен (ожидали %d, получили %d)" % (t_before, t_after))
 
     # ── страховка: рефанд команды БЕЗ счётчика ничего не ломает ─────────────
-    h_before = await db.get_purchase_count(USER, "gene")
+    h_before = await db.get_purchase_count(USER, "gene", CHANNEL)
     cmd_json_h = json.dumps({
         "type": "heal",
         "id": "heal_test_1",
@@ -155,15 +159,15 @@ async def main():
     async with db._connect() as conn:
         await rw._refund_cmd_row_tx(conn, "heal_test_1", cmd_json_h, "mod_refused")
         await conn.commit()
-    check(await db.get_purchase_count(USER, "gene") == h_before,
+    check(await db.get_purchase_count(USER, "gene", CHANNEL) == h_before,
           "рефанд команды без прогрессивной цены (heal) счётчик НЕ трогает")
 
     # ── страховка: счётчик не уходит в минус ───────────────────────────────
     async with db._connect() as conn:
         for _ in range(3):
-            await db.decrement_purchase_count_tx(conn, USER, "gene")
+            await db.decrement_purchase_count_tx(conn, USER, "gene", CHANNEL)
         await conn.commit()
-    check(await db.get_purchase_count(USER, "gene") >= 0,
+    check(await db.get_purchase_count(USER, "gene", CHANNEL) >= 0,
           "счётчик не уходит в минус при лишних откатах")
 
     print("=" * 70)

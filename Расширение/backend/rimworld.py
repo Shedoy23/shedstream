@@ -266,7 +266,7 @@ async def _refund_cmd_row_tx(conn, cmd_id: str, cmd_json: str, reason: str) -> b
     _PROGRESSIVE = {"add_gene": "gene", "add_trait": "trait"}
     category = _PROGRESSIVE.get(cmd.get("type"))
     if category:
-        await get_db().decrement_purchase_count_tx(conn, username, category)
+        await get_db().decrement_purchase_count_tx(conn, username, category, channel_id)
         print(f"↩️  RimWorld refund: счётчик {category} для @{username} откачен")
 
     print(f"💸 RimWorld refund: @{username} +{price}💎 (cmd={cmd_id}, reason={reason})")
@@ -319,20 +319,23 @@ async def _ensure_heal_cooldowns_table(conn):
     """Создаёт таблицу кулдаунов лечения если её нет."""
     await conn.execute("""
         CREATE TABLE IF NOT EXISTS rimworld_heal_cooldowns (
-            username TEXT PRIMARY KEY,
-            last_heal_ts REAL NOT NULL
+            channel_id INTEGER NOT NULL,
+            username TEXT NOT NULL,
+            last_heal_ts REAL NOT NULL,
+            PRIMARY KEY (channel_id, username)
         )
     """)
 
-async def _get_last_heal_ts(username: str) -> float:
+async def _get_last_heal_ts(username: str, channel_id: int) -> float:
     """Получить timestamp последнего лечения (0 если нет данных)."""
     db = get_db()
     try:
         async with aiosqlite.connect(db.db_path) as conn:
             await _ensure_heal_cooldowns_table(conn)
             cur = await conn.execute(
-                "SELECT last_heal_ts FROM rimworld_heal_cooldowns WHERE username = ?",
-                (username.lower(),)
+                "SELECT last_heal_ts FROM rimworld_heal_cooldowns "
+                "WHERE channel_id = ? AND username = ?",
+                (channel_id, username.lower())
             )
             row = await cur.fetchone()
             return float(row[0]) if row else 0.0
@@ -340,17 +343,17 @@ async def _get_last_heal_ts(username: str) -> float:
         print(f"⚠️ get_heal_ts: {e}")
         return 0.0
 
-async def _set_last_heal_ts(username: str, ts: float):
+async def _set_last_heal_ts(username: str, ts: float, channel_id: int):
     """Сохранить timestamp последнего лечения."""
     db = get_db()
     try:
         async with aiosqlite.connect(db.db_path) as conn:
             await _ensure_heal_cooldowns_table(conn)
             await conn.execute("""
-                INSERT INTO rimworld_heal_cooldowns (username, last_heal_ts)
-                VALUES (?, ?)
-                ON CONFLICT(username) DO UPDATE SET last_heal_ts = excluded.last_heal_ts
-            """, (username.lower(), float(ts)))
+                INSERT INTO rimworld_heal_cooldowns (channel_id, username, last_heal_ts)
+                VALUES (?, ?, ?)
+                ON CONFLICT(channel_id, username) DO UPDATE SET last_heal_ts = excluded.last_heal_ts
+            """, (channel_id, username.lower(), float(ts)))
             await conn.commit()
     except Exception as e:
         print(f"⚠️ set_heal_ts: {e}")
@@ -1088,24 +1091,31 @@ async def add_command(request: Request, _auth=Depends(rimworld_mod_auth)):
 async def receive_shop_catalog(request: Request, _auth=Depends(rimworld_mod_auth)):
     """Принимает каталог предметов от мода"""
     db = get_db()
+    from dependencies import resolve_channel_id_or_default
+    channel_id = resolve_channel_id_or_default(_auth)
     try:
         items = await request.json()
         if not isinstance(items, list):
             return {"status": "error", "message": "Expected list"}
 
         async with aiosqlite.connect(db.db_path) as conn:
+            # M97: channel_id + UNIQUE(channel_id, def_name). Раньше def_name был
+            # глобально уникален — каталог второго стримера перезаписывал бы
+            # позиции первого.
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS shop_catalog (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    channel_id INTEGER NOT NULL,
                     category TEXT,
-                    def_name TEXT UNIQUE,
+                    def_name TEXT,
                     label TEXT,
                     description TEXT,
                     price INTEGER,
                     base_price INTEGER DEFAULT 0,
                     tech_level TEXT,
                     extra_json TEXT,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(channel_id, def_name)
                 )
             """)
             # Добавляем колонку base_price если её нет (миграция старых БД)
@@ -1114,7 +1124,10 @@ async def receive_shop_catalog(request: Request, _auth=Depends(rimworld_mod_auth
                 await conn.commit()
             except Exception:
                 pass  # колонка уже существует
-            await conn.execute("DELETE FROM shop_catalog")
+            # M97: БЕЗ WHERE это стирало каталог ВСЕМ стримерам сразу —
+            # второй запустил игру, у первого магазин опустел.
+            await conn.execute("DELETE FROM shop_catalog WHERE channel_id = ?",
+                               (channel_id,))
             for item in items:
                 # tooltip — не храним в БД, кэшируем в памяти
                 def_name_key = item.get('def_name', '')
@@ -1129,9 +1142,10 @@ async def receive_shop_catalog(request: Request, _auth=Depends(rimworld_mod_auth
                 base_price = item.get('base_price', 0)
                 await conn.execute("""
                     INSERT OR REPLACE INTO shop_catalog
-                    (category, def_name, label, description, price, base_price, tech_level, extra_json)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    (channel_id, category, def_name, label, description, price, base_price, tech_level, extra_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
+                    channel_id,
                     item.get('category', 'misc'),
                     item.get('def_name', ''),
                     item.get('display_label') or item.get('label', ''),
@@ -1149,16 +1163,52 @@ async def receive_shop_catalog(request: Request, _auth=Depends(rimworld_mod_auth
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+async def _rimworld_is_active(channel_id: int) -> bool:
+    """Активен ли модуль RimWorld на этом канале.
+
+    2026-07-26. Каталог RimWorld (1.6 МБ) грузился у КАЖДОГО зрителя при
+    открытии расширения — даже когда стример играет в Bannerlord: во фронте
+    `loadShopCatalog()` стоит безусловно на старте, ДО того как он вообще
+    узнаёт активный модуль. Фронт заморожен на CDN до вердикта Twitch, поэтому
+    чиним со стороны бэка: неактивному модулю отдаём пустой каталог.
+
+    Это безопасно ровно потому, что во фронте есть страховка: при переходе на
+    вкладку RimWorld он перезагружает каталог, если тот пуст
+    (`viewer.js`, обработчик вкладки). Стример переключил модуль посреди стрима —
+    зритель откроет вкладку и получит настоящий каталог.
+
+    NULL (модуль не выбран) считаем активным: не ломать каналы, где настройку
+    просто не трогали.
+    """
+    try:
+        ch = await get_db().get_channel(channel_id)
+    except Exception:
+        return True          # не смогли узнать — ведём себя как раньше
+    if not ch:
+        return True
+    active = (ch.get("active_module") or "").strip().lower()
+    return active in ("", "rimworld")
+
+
 @router.get("/api/rimworld/catalog")
-async def get_catalog(category: str = None, search: str = None, username: str = None):
+async def get_catalog(request: Request, category: str = None,
+                      search: str = None, username: str = None):
     """
     Каталог предметов. Если передан username — для черт и генов price заменяется
     на актуальную прогрессивную цену (base_price * (count+1)).
     """
     db = get_db()
+    # M97: каталог — на канал. Без этого зритель одного стримера видел бы
+    # позиции другого (а после заливки — вообще пустой магазин).
+    from dependencies import resolve_channel_id_or_default
+    channel_id = resolve_channel_id_or_default(require_jwt_channel(request))
+    if not await _rimworld_is_active(channel_id):
+        # Стример играет в другую игру — 1.6 МБ каталога ему не нужны.
+        return {"items": [], "total": 0, "skipped": "module_inactive"}
     async with aiosqlite.connect(db.db_path) as conn:
-        query = "SELECT category, def_name, label, description, price, tech_level, extra_json, base_price FROM shop_catalog WHERE 1=1"
-        params = []
+        query = ("SELECT category, def_name, label, description, price, tech_level, "
+                 "extra_json, base_price FROM shop_catalog WHERE channel_id = ?")
+        params = [channel_id]
         if category and category != 'all':
             query += " AND category = ?"
             params.append(category)
@@ -1176,8 +1226,8 @@ async def get_catalog(category: str = None, search: str = None, username: str = 
     trait_count = 0
     gene_count  = 0
     if username:
-        trait_count = await db.get_purchase_count(username, "trait")
-        gene_count  = await db.get_purchase_count(username, "gene")
+        trait_count = await db.get_purchase_count(username, "trait", channel_id)
+        gene_count  = await db.get_purchase_count(username, "gene", channel_id)
 
     items = []
     for r in rows:
@@ -1243,7 +1293,8 @@ async def buy_item(request: Request):
 
     async with aiosqlite.connect(db.db_path) as conn:
         cursor = await conn.execute(
-            "SELECT price, label, category FROM shop_catalog WHERE def_name = ?", (def_name,))
+            "SELECT price, label, category FROM shop_catalog "
+            "WHERE channel_id = ? AND def_name = ?", (channel_id, def_name))
         item = await cursor.fetchone()
 
     if not item:
@@ -1335,7 +1386,7 @@ async def heal_pawn(request: Request):
 
     # Проверяем КД
     now = time.time()
-    last_heal = await _get_last_heal_ts(username)
+    last_heal = await _get_last_heal_ts(username, channel_id)
     elapsed = now - last_heal
     if elapsed < HEAL_COOLDOWN_SECONDS:
         left = int(HEAL_COOLDOWN_SECONDS - elapsed)
@@ -1349,7 +1400,7 @@ async def heal_pawn(request: Request):
 
     if not await db.remove_points(username, HEAL_COST):
         return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
-    await _set_last_heal_ts(username, now)
+    await _set_last_heal_ts(username, now, channel_id)
     cmd = {
         "type": "heal_pawn",
         "id": f"heal_{username}_{int(time.time())}",
@@ -1365,7 +1416,7 @@ async def heal_pawn(request: Request):
 @router.get("/api/rimworld/heal-cooldown/{username}")
 async def get_heal_cooldown(username: str):
     now = time.time()
-    last_heal = await _get_last_heal_ts(username)
+    last_heal = await _get_last_heal_ts(username, channel_id)
     elapsed = now - last_heal
     left = max(0, int(HEAL_COOLDOWN_SECONDS - elapsed))
     return {"cooldown_left": left}
@@ -1406,6 +1457,9 @@ async def resurrect_pawn(request: Request):
 @router.post("/api/rimworld/reset-progressive/{username}/{category}")
 async def reset_progressive_counter(username: str, category: str,
                                     admin=Depends(require_admin)):
+    # M97: админская ручка — канал по умолчанию (админ работает по своему).
+    from dependencies import resolve_channel_id_or_default
+    channel_id = resolve_channel_id_or_default()
     """
     Сбросить счётчик прогрессивных покупок зрителя.
     category: 'trait' | 'gene' | 'all'
@@ -1419,8 +1473,9 @@ async def reset_progressive_counter(username: str, category: str,
     async with aiosqlite.connect(db.db_path) as conn:
         for cat in cats:
             await conn.execute(
-                "DELETE FROM purchase_counters WHERE username = ? AND category = ?",
-                (username.lower(), cat)
+                "DELETE FROM purchase_counters "
+                "WHERE channel_id = ? AND username = ? AND category = ?",
+                (channel_id, username.lower(), cat)
             )
         await conn.commit()
 
@@ -1428,16 +1483,18 @@ async def reset_progressive_counter(username: str, category: str,
 
 
 @router.get("/api/rimworld/progressive-price/{username}/{category}")
-async def get_progressive_price(username: str, category: str):
+async def get_progressive_price(request: Request, username: str, category: str):
     """
     Возвращает текущую прогрессивную цену следующей покупки черты или гена.
     category: 'trait' | 'gene'
     Ответ: { count, next_price, base_price }
     """
     db = get_db()
+    from dependencies import resolve_channel_id_or_default
+    channel_id = resolve_channel_id_or_default(require_jwt_channel(request))
     BASE_PRICES = {"trait": 1000, "gene": 1000}
     base = BASE_PRICES.get(category, 1000)
-    count = await db.get_purchase_count(username, category)
+    count = await db.get_purchase_count(username, category, channel_id)
     next_price = db.calc_progressive_price(base, count)
     return {
         "username": username,
@@ -1466,13 +1523,14 @@ async def buy_gene(request: Request):
         return {"success": False, "message": "Неверные параметры"}
 
     # Базовая цена из конфига прогрессии (не из shop_catalog)
-    count = await db.get_purchase_count(username, "gene")
+    count = await db.get_purchase_count(username, "gene", channel_id)
     price = db.calc_progressive_price(BASE_GENE_PRICE, count)
     # Берём label из каталога если есть
     label = def_name
     async with aiosqlite.connect(db.db_path) as conn:
         cursor = await conn.execute(
-            "SELECT label FROM shop_catalog WHERE def_name = ?", (def_name,))
+            "SELECT label FROM shop_catalog WHERE channel_id = ? AND def_name = ?",
+            (channel_id, def_name))
         row = await cursor.fetchone()
         if row and row[0]:
             label = row[0]
@@ -1484,7 +1542,7 @@ async def buy_gene(request: Request):
     if not await db.remove_points(username, price):
         return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
     # Инкрементируем счётчик ПОСЛЕ списания (атомарность: если remove_points упал — счётчик не трогаем)
-    await db.increment_purchase_count(username, "gene")
+    await db.increment_purchase_count(username, "gene", channel_id)
 
     cmd = {
         "type": "add_gene",
@@ -1733,14 +1791,15 @@ async def buy_trait(request: Request):
         return {"success": False, "message": "Неверные параметры"}
 
     # Прогрессивная цена — НЕ из каталога, считаем по счётчику зрителя
-    count = await db.get_purchase_count(username, "trait")
+    count = await db.get_purchase_count(username, "trait", channel_id)
     trait_cost = db.calc_progressive_price(BASE_TRAIT_PRICE, count)
 
     # Берём label из каталога если есть
     async with aiosqlite.connect(db.db_path) as conn:
         cursor = await conn.execute(
-            "SELECT label FROM shop_catalog WHERE def_name = ? OR def_name = ? LIMIT 1",
-            (f"{trait_def}:{degree}", trait_def))
+            "SELECT label FROM shop_catalog WHERE channel_id = ? "
+            "AND (def_name = ? OR def_name = ?) LIMIT 1",
+            (channel_id, f"{trait_def}:{degree}", trait_def))
         row = await cursor.fetchone()
         if row and row[0]:
             label = row[0]
@@ -1752,7 +1811,7 @@ async def buy_trait(request: Request):
     if not await db.remove_points(username, trait_cost):
         return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
     # Инкрементируем счётчик ПОСЛЕ успешного списания
-    await db.increment_purchase_count(username, "trait")
+    await db.increment_purchase_count(username, "trait", channel_id)
 
     cmd = {
         "type": "add_trait",
@@ -1832,12 +1891,13 @@ async def remove_gene(request: Request):
         return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
 
     # Уменьшаем счётчик покупок генов (не ниже 0) — при удалении следующий ген будет дешевле
-    current_count = await db.get_purchase_count(username, "gene")
+    current_count = await db.get_purchase_count(username, "gene", channel_id)
     if current_count > 0:
         async with aiosqlite.connect(db.db_path) as conn:
             await conn.execute(
-                "UPDATE purchase_counters SET count = count - 1 WHERE username = ? AND category = 'gene' AND count > 0",
-                (username.lower(),))
+                "UPDATE purchase_counters SET count = count - 1 "
+                "WHERE channel_id = ? AND username = ? AND category = 'gene' AND count > 0",
+                (channel_id, username.lower()))
             await conn.commit()
 
     cmd = {
@@ -1876,7 +1936,8 @@ async def buy_implant_alias(request: Request):
 
     async with aiosqlite.connect(db.db_path) as conn:
         cursor = await conn.execute(
-            "SELECT price, label, extra_json FROM shop_catalog WHERE def_name = ?", (def_name,))
+            "SELECT price, label, extra_json FROM shop_catalog "
+            "WHERE channel_id = ? AND def_name = ?", (channel_id, def_name))
         item = await cursor.fetchone()
 
     if not item:
@@ -1942,7 +2003,8 @@ async def train_skill_alias(request: Request):
 
     async with aiosqlite.connect(db.db_path) as conn:
         cursor = await conn.execute(
-            "SELECT price, label FROM shop_catalog WHERE def_name = ?", (def_name,))
+            "SELECT price, label FROM shop_catalog "
+            "WHERE channel_id = ? AND def_name = ?", (channel_id, def_name))
         item = await cursor.fetchone()
 
     if not item:
@@ -2033,6 +2095,8 @@ async def get_colonists_by_user(username: str):
 async def sync_event_catalog(request: Request, _auth=Depends(rimworld_mod_auth)):
     """Мод отправляет каталог ивентов из игры"""
     db = get_db()
+    from dependencies import resolve_channel_id_or_default
+    channel_id = resolve_channel_id_or_default(_auth)
     try:
         events = await request.json()
         if not isinstance(events, list):
@@ -2042,19 +2106,26 @@ async def sync_event_catalog(request: Request, _auth=Depends(rimworld_mod_auth))
             # Пересоздаём таблицу ивентов
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS rimworld_event_catalog (
-                    id TEXT PRIMARY KEY,
+                    channel_id INTEGER NOT NULL,
+                    id TEXT NOT NULL,
                     name TEXT,
                     cost INTEGER,
                     cmd TEXT,
                     params TEXT,
-                    category TEXT
+                    category TEXT,
+                    PRIMARY KEY (channel_id, id)
                 )
             """)
-            await conn.execute("DELETE FROM rimworld_event_catalog")
+            # M97: без канала это стирало каталог событий ВСЕМ стримерам.
+            await conn.execute("DELETE FROM rimworld_event_catalog WHERE channel_id = ?",
+                               (channel_id,))
             for ev in events:
                 await conn.execute(
-                    "INSERT INTO rimworld_event_catalog (id, name, cost, cmd, params, category) VALUES (?, ?, ?, ?, ?, ?)",
+                    "INSERT INTO rimworld_event_catalog "
+                    "(channel_id, id, name, cost, cmd, params, category) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
                     (
+                        channel_id,
                         ev.get("id", ""),
                         ev.get("name", ""),
                         int(ev.get("cost", 100)),
@@ -2073,23 +2144,30 @@ async def sync_event_catalog(request: Request, _auth=Depends(rimworld_mod_auth))
 
 
 @router.get("/api/rimworld/events")
-async def get_events():
+async def get_events(request: Request):
     """Возвращает каталог ивентов из БД (заполняется модом)"""
     db = get_db()
+    from dependencies import resolve_channel_id_or_default
+    channel_id = resolve_channel_id_or_default(require_jwt_channel(request))
+    if not await _rimworld_is_active(channel_id):
+        return {"events": [], "skipped": "module_inactive"}
     try:
         async with aiosqlite.connect(db.db_path) as conn:
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS rimworld_event_catalog (
-                    id TEXT PRIMARY KEY,
+                    channel_id INTEGER NOT NULL,
+                    id TEXT NOT NULL,
                     name TEXT,
                     cost INTEGER,
                     cmd TEXT,
                     params TEXT,
-                    category TEXT
+                    category TEXT,
+                    PRIMARY KEY (channel_id, id)
                 )
             """)
             cursor = await conn.execute(
-                "SELECT id, name, cost, category FROM rimworld_event_catalog ORDER BY category, name"
+                "SELECT id, name, cost, category FROM rimworld_event_catalog "
+                "WHERE channel_id = ? ORDER BY category, name", (channel_id,)
             )
             rows = await cursor.fetchall()
         return {"events": [{"id": r[0], "name": r[1], "cost": r[2], "category": r[3] or ""} for r in rows]}
@@ -2117,8 +2195,9 @@ async def trigger_event(request: Request):
         # Берём ивент из БД
         async with aiosqlite.connect(db.db_path) as conn:
             cursor = await conn.execute(
-                "SELECT name, cost, cmd, params FROM rimworld_event_catalog WHERE id = ?",
-                (event_id,)
+                "SELECT name, cost, cmd, params FROM rimworld_event_catalog "
+                "WHERE channel_id = ? AND id = ?",
+                (channel_id, event_id)
             )
             row = await cursor.fetchone()
 

@@ -117,6 +117,42 @@ _LOGIN_HTML = """<!DOCTYPE html>
 </html>"""
 
 
+def _pending_html(login: str) -> str:
+    """M99: страница для стримера, который зарегистрировался, но ещё не одобрен.
+
+    Тон намеренно не извиняющийся и не технический: человек ничего не сделал
+    неправильно, ему нужно понять, что произошло и чего ждать. Пустой экран или
+    «403» он прочитает как поломку и напишет — то есть ровно та трата времени,
+    ради экономии которой ворота и ставятся.
+    """
+    return f"""
+    <!doctype html><html lang="ru"><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Заявка принята</title>
+    <style>
+      body {{ background:#0e0e10; color:#efeff1; font-family:system-ui,-apple-system,
+             "Segoe UI",Roboto,sans-serif; display:flex; align-items:center;
+             justify-content:center; min-height:100vh; margin:0; padding:24px; }}
+      .card {{ max-width:520px; background:#18181b; border:1px solid #2f2f35;
+              border-radius:14px; padding:32px; line-height:1.6; }}
+      h1 {{ margin:0 0 16px; font-size:22px; }}
+      .who {{ color:#a970ff; font-weight:600; }}
+      p {{ margin:0 0 14px; color:#c8c8d0; }}
+      .tg {{ display:inline-block; margin-top:10px; padding:10px 18px;
+            background:#a970ff; color:#fff; text-decoration:none;
+            border-radius:8px; font-weight:600; }}
+    </style></head><body><div class="card">
+      <h1>Заявка принята</h1>
+      <p>Канал <span class="who">{login}</span> зарегистрирован. Осталось
+         подключение вручную — сейчас я делаю это сам, чтобы помочь с установкой
+         мода и убедиться, что всё завелось.</p>
+      <p>Повторно регистрироваться не нужно: заявка уже у меня.</p>
+      <p>Напиши в телеграм, и подключу — обычно в тот же день.</p>
+      <a class="tg" href="https://t.me/ttvshedoy23">Написать @ttvshedoy23</a>
+    </div></body></html>
+    """
+
+
 def _error_html(message: str) -> str:
     return f"""<!DOCTYPE html>
 <html lang="ru"><head><meta charset="utf-8"><title>Ошибка</title>
@@ -229,7 +265,20 @@ async def auth_callback(request: Request):
         oauth_expires_at=expires_at_iso,
     )
     mark_channel_registered(channel_id, login=login)
-    print(f"✅ Streamer registered: {login} (channel_id={channel_id})")
+
+    # M99 — ворота. Регистрация самообслуживаемая, работа — нет. Новый канал
+    # приходит «ожидающим»: пока путь установки мода не обкатан чужими руками,
+    # каждый неподготовленный стример это вечер переписки вместо разработки.
+    # Существующие каналы миграция M99 одобрила, поэтому владелец не закроет
+    # сам себя.
+    from dependencies import is_channel_approved
+    approved = is_channel_approved(channel_id)
+    if approved:
+        print(f"✅ Streamer registered: {login} (channel_id={channel_id})")
+    else:
+        print(f"⏳ Streamer PENDING: {login} (channel_id={channel_id}) — "
+              f"одобрить: POST /api/admin/approve-channel")
+        return HTMLResponse(_pending_html(login))
 
     # M4.4: signed cookie + redirect на dashboard.
     response = RedirectResponse(url="/streamer/dashboard", status_code=status.HTTP_302_FOUND)

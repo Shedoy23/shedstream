@@ -29,6 +29,56 @@ from dependencies import get_bot, get_db, require_admin
 router = APIRouter()
 
 
+@router.get("/api/admin/channels")
+async def admin_list_channels(_admin: str = Depends(require_admin)):
+    """M99: кто зарегистрировался и кто ждёт подключения.
+
+    Первое, что нужно после одобрения Twitch: увидеть заявки. Без этого
+    «ожидающий» стример виден только в логе, то есть практически невидим.
+    """
+    rows = await get_db().list_channels()
+    pending = [r for r in rows if not r.get("approved")]
+    return {
+        "success": True,
+        "total": len(rows),
+        "pending_count": len(pending),
+        "channels": rows,
+    }
+
+
+@router.post("/api/admin/approve-channel")
+async def admin_approve_channel(
+    request: Request,
+    _admin: str = Depends(require_admin),
+):
+    """M99: открыть каналу ворота (или закрыть обратно).
+
+    Body: {"channel_id": 123, "approved": true}
+
+    Кэш обновляем сразу — иначе одобрение подействовало бы только после
+    рестарта прода, а рестарт посреди стрима рвёт зрителям соединение.
+    """
+    from dependencies import mark_channel_approved
+    try:
+        body = await request.json()
+    except Exception:
+        return {"success": False, "message": "Ожидается JSON"}
+
+    try:
+        channel_id = int(body.get("channel_id"))
+    except (TypeError, ValueError):
+        return {"success": False, "message": "Нужен channel_id (число)"}
+
+    approved = bool(body.get("approved", True))
+    if not await get_db().set_channel_approved(channel_id, approved):
+        return {"success": False,
+                "message": f"Канал {channel_id} не найден в реестре"}
+
+    mark_channel_approved(channel_id, approved)
+    print(f"{'✅ ОДОБРЕН' if approved else '⛔ ЗАКРЫТ'} канал {channel_id} (админ)")
+    return {"success": True, "channel_id": channel_id, "approved": approved}
+
+
 @router.post("/api/admin/module/issue-token")
 async def admin_issue_module_token(
     request: Request,

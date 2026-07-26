@@ -1310,6 +1310,20 @@ async def run_migrations():
             print(f"❌ M98 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m99_channel_approval
+            await m99_channel_approval.apply(conn)
+        except Exception as e:
+            print(f"❌ M99 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
+        try:
+            from migrations import m100_feature_usage_context
+            await m100_feature_usage_context.apply(conn)
+        except Exception as e:
+            print(f"❌ M100 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

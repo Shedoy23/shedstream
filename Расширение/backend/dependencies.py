@@ -53,6 +53,11 @@ _current_channel_id: ContextVar[Optional[int]] = ContextVar('current_channel_id'
 _registered_channels_cache: set = set()
 _channels_cache_initialized: bool = False
 
+# M99: каналы, ПРОШЕДШИЕ одобрение. Держим отдельным множеством, а не флагом
+# внутри регистрации, чтобы «зарегистрирован» и «работает» остались разными
+# состояниями: заявка принята — это уже не «канала нет», но ещё не «поехали».
+_approved_channels_cache: set = set()
+
 # M4 follow-up (в): login (lowercase) → channel_id mapping. Нужно IRC-боту
 # чтобы при входящем чат-сообщении из канала #foo резолвить broadcaster_id
 # для multi-tenant скоупинга. Заполняется одновременно с _registered_*.
@@ -80,6 +85,28 @@ def is_channel_registered(channel_id: int) -> bool:
     if not _channels_cache_initialized:
         return True
     return channel_id in _registered_channels_cache
+
+
+def is_channel_approved(channel_id: int) -> bool:
+    """Прошёл ли канал одобрение владельца (M99).
+
+    До инициализации кэша — True (fail-open), той же логикой, что и
+    `is_channel_registered`: на старте первый запрос может прийти раньше
+    загрузки, и закрывать живой канал из-за гонки хуже, чем на пару секунд
+    пустить незнакомого.
+    """
+    if not _channels_cache_initialized:
+        return True
+    return channel_id in _approved_channels_cache
+
+
+def mark_channel_approved(channel_id: int, approved: bool = True) -> None:
+    """Обновить кэш одобрения без рестарта (админ нажал «одобрить»)."""
+    cid = int(channel_id)
+    if approved:
+        _approved_channels_cache.add(cid)
+    else:
+        _approved_channels_cache.discard(cid)
 
 
 def get_channel_id_by_login(login: str) -> Optional[int]:
@@ -137,6 +164,7 @@ async def init_registered_channels_cache(db) -> None:
     global _channels_cache_initialized
     rows = await db.list_channels()
     _registered_channels_cache.clear()
+    _approved_channels_cache.clear()
     _channel_login_to_id.clear()
     _channel_tier_cache.clear()
     for r in rows:
@@ -147,9 +175,13 @@ async def init_registered_channels_cache(db) -> None:
             _channel_login_to_id[login.lower()] = cid
         tier = (r.get("tier") or RATE_LIMIT_DEFAULT_TIER).lower()
         _channel_tier_cache[cid] = tier
+        if r.get("approved"):
+            _approved_channels_cache.add(cid)
     _channels_cache_initialized = True
+    pending = len(_registered_channels_cache) - len(_approved_channels_cache)
     print(f"✅ Registered channels cache: {len(_registered_channels_cache)} channels loaded "
-          f"(login→id map: {len(_channel_login_to_id)}, tier-cache: {len(_channel_tier_cache)})")
+          f"(одобрено: {len(_approved_channels_cache)}, ожидают: {pending}; "
+          f"login→id map: {len(_channel_login_to_id)}, tier-cache: {len(_channel_tier_cache)})")
 
 
 # ── M5: Per-channel rate limits ──────────────────────────────────────────────
@@ -323,6 +355,24 @@ def resolve_jwt_login(jwt_result: dict) -> str:
     )
 
 
+def _raise_channel_pending(channel_id: int) -> None:
+    """M99: канал зарегистрирован, но ещё не одобрен.
+
+    Ответ намеренно ОТЛИЧАЕТСЯ от «канала нет»: там зритель должен позвать
+    стримера, здесь звать некого — заявка уже подана и ждёт человека. Один и
+    тот же текст на два разных состояния заставил бы стримера регистрироваться
+    повторно и решить, что сломано.
+    """
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail={
+            "status": "channel_pending_approval",
+            "channel_id": channel_id,
+            "message": "Заявка стримера принята и ждёт подключения",
+        },
+    )
+
+
 def _raise_channel_not_registered(channel_id: int) -> None:
     """M4.1: Канал не в реестре — попроси стримера зарегистрироваться.
 
@@ -393,6 +443,8 @@ def require_jwt_user(request: Request) -> Optional[Tuple[str, int]]:
         return None
     if not is_channel_registered(channel_id):
         _raise_channel_not_registered(channel_id)
+    if not is_channel_approved(channel_id):
+        _raise_channel_pending(channel_id)
     # M5: per-channel rate limit. После успешной registration check.
     if not check_channel_rate_limit(channel_id):
         _raise_channel_rate_limited(channel_id)
@@ -429,6 +481,8 @@ def require_jwt_channel(request: Request) -> Optional[int]:
         return None
     if not is_channel_registered(channel_id):
         _raise_channel_not_registered(channel_id)
+    if not is_channel_approved(channel_id):
+        _raise_channel_pending(channel_id)
     # M5: per-channel rate limit.
     if not check_channel_rate_limit(channel_id):
         _raise_channel_rate_limited(channel_id)

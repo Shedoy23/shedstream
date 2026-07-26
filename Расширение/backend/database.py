@@ -3941,15 +3941,32 @@ class Database:
         """Список всех зарегистрированных стримеров (для admin / cross-channel ops)."""
         async with self._connect() as db:
             cur = await db.execute(
-                "SELECT channel_id, login, tier, active_module, registered_at "
+                "SELECT channel_id, login, tier, active_module, registered_at, "
+                "       COALESCE(approved, 0) "
                 "FROM channels ORDER BY registered_at DESC"
             )
             rows = await cur.fetchall()
             return [
                 {"channel_id": r[0], "login": r[1], "tier": r[2],
-                 "active_module": r[3], "registered_at": r[4]}
+                 "active_module": r[3], "registered_at": r[4],
+                 "approved": bool(r[5])}
                 for r in rows
             ]
+
+    async def set_channel_approved(self, channel_id: int, approved: bool) -> bool:
+        """Одобрить канал или снять одобрение. True если строка нашлась.
+
+        M99: ворота для стримеров. Регистрация самообслуживаемая, но работать
+        канал начинает только после одобрения — пока путь установки не обкатан
+        чужими руками, каждый неподготовленный стример это вечер переписки
+        вместо разработки.
+        """
+        async with self._connect() as db:
+            cur = await db.execute(
+                "UPDATE channels SET approved = ? WHERE channel_id = ?",
+                (1 if approved else 0, channel_id))
+            await db.commit()
+            return cur.rowcount > 0
 
     async def upsert_channel(
         self,

@@ -102,7 +102,10 @@ def ensure_env() -> pathlib.Path:
         "MODULE_TOKEN_SECRET=local-module-secret-not-real\n"
         "ADMIN_PASSWORD=local\n"
         # Без неё миграция M1 отказывается стартовать (ей нужен канал для backfill).
-        "TWITCH_BROADCASTER_ID=98319857\n",
+        "TWITCH_BROADCASTER_ID=98319857\n"
+        # Фоновые бэкапы локально не нужны: DB_PATH общий с backup_loop, и он
+        # начал бы копировать рабочую копию (73 МБ) в папку репозитория.
+        "BACKUP_INTERVAL_HOURS=100000\n",
         encoding="utf-8")
     print("Создал %s" % env_path)
     return env_path
@@ -130,7 +133,7 @@ def main() -> int:
     print()
     print("1) Запустить локальный бэкенд (из папки backend):")
     print()
-    print('   $env:SHEDSTREAM_DB = "%s"' % LOCAL_DB)
+    print('   $env:DB_PATH = "%s"' % LOCAL_DB)
     print('   Get-Content "%s" | ForEach-Object {' % env_path)
     print('       if ($_ -and -not $_.StartsWith("#")) {')
     print('           $k,$v = $_ -split "=",2; Set-Item "env:$k" $v } }')

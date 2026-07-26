@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `Расширение/frontend/` — the Twitch extension UI, ~13.5k lines across many plain `<script>` files (they share ONE global namespace — see the collision lint). `viewer.js` (2.5k) is the **shared** shell for RimWorld + Bannerlord; per-game code lives in `viewer-bannerlord.js` (4.7k, the big one) / `viewer-rimworld.js`. It said "viewer.js ~7k lines" here until 2026-07-25 — the split landed 2026-06-13 (ROADMAP 2.4) and this line kept the old number alive for six weeks. `extension.html` and `mobile.html` are parallel shells that must stay in sync.
 - `BannerlordLink/` — C# Bannerlord mod (Harmony patches, `MissionBehavior`, `CampaignBehaviorBase`). Clean-room re-impl using BLT as reference.
 - `RimLink/` — RimWorld module (C# mod + assets).
-- `БЛТ/` — BLT reference checkout. **Read-only, clean-room** (LGPL): ideas/APIs/short idioms only, never copy class bodies.
+- `reference/BLT_RC22` + `reference/BLT_lait` — BLT reference checkouts (~17 МБ каждый, вне git). **Read-only, clean-room** (LGPL): ideas/APIs/short idioms only, never copy class bodies. Здесь до 2026-07-26 значилось `БЛТ/` — такой папки в worktree нет, то есть правило клин-рума указывало на несуществующий путь.
 - `scripts/` — deploy / consistency-lint / crash-triage automation (see Commands).
 
 ## Where the real docs live — read before non-trivial work

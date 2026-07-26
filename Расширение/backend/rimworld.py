@@ -315,6 +315,60 @@ async def _db_enqueue_command(cmd: dict):
         # Дубль по UNIQUE(channel_id, cmd_id) — норма при ретрае, остальное — беда.
         print(f"⚠️ db_enqueue {cmd.get('id')!r}: {type(e).__name__}: {e}")
 
+async def _charge_and_enqueue(username: str, channel_id: int, price: int,
+                              cmd: dict, on_success=None) -> bool:
+    """Списать крустики И поставить команду моду — ОДНОЙ транзакцией.
+
+    2026-07-26 (этап 2 переезда RimWorld). Раньше это были два независимых
+    коммита: `db.remove_points(...)` на своём соединении, потом
+    `_db_enqueue_command(...)` на другом. Падение или ошибка БД между ними =
+    крустики списаны, команды нет, вернуть нечего даже теоретически — в базе не
+    осталось следа, что зритель за что-то платил. У Bannerlord это давно
+    закрыто (`add_points_tx`/`remove_points_tx` на conn вызывающего), у RimWorld
+    оставалось по-старому.
+
+    Теперь: одно `BEGIN IMMEDIATE`, внутри — списание, вставка команды и
+    необязательное действие вызывающего (`on_success(conn)` — например рост
+    счётчика прогрессивных цен). Либо всё, либо ничего.
+
+    Возвращает False, если не хватило баланса (транзакция откатана, зритель не
+    потерял ничего). Исключения пробрасываются — молча терять деньги нельзя.
+
+    В память (`get_pending()`) команда кладётся ТОЛЬКО после успешного commit:
+    иначе мод мог бы получить команду, которой нет в базе, и та потерялась бы
+    на рестарте.
+    """
+    db = get_db()
+    async with aiosqlite.connect(db.db_path) as ddl_conn:
+        await _ensure_pending_commands_table(ddl_conn)
+        await ddl_conn.commit()
+
+    async with db._connect() as conn:
+        await conn.execute("BEGIN IMMEDIATE")
+        try:
+            if not await db.remove_points_tx(conn, username, price, channel_id):
+                await conn.execute("ROLLBACK")
+                return False
+            await conn.execute(
+                "INSERT INTO rimworld_pending_commands (channel_id, cmd_id, cmd_json) "
+                "VALUES (?, ?, ?)",
+                (channel_id, cmd.get("id", ""),
+                 json.dumps(cmd, ensure_ascii=False)))
+            if on_success is not None:
+                await on_success(conn)
+            await conn.commit()
+        except Exception:
+            try:
+                await conn.execute("ROLLBACK")
+            except Exception:
+                pass
+            raise
+
+    async with get_commands_lock():
+        get_pending().append(cmd)
+    return True
+
+
 async def _ensure_heal_cooldowns_table(conn):
     """Создаёт таблицу кулдаунов лечения если её нет."""
     await conn.execute("""
@@ -1359,8 +1413,6 @@ async def create_pawn(request: Request):
     if balance < SPAWN_COST:
         return {"success": False, "message": f"Нужно {SPAWN_COST}💎, у тебя {balance}💎"}
 
-    if not await db.remove_points(username, SPAWN_COST):
-        return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
     cmd = {
         "type": "spawn_pawn",
         "id": f"spawn_{username}_{int(time.time())}",
@@ -1368,9 +1420,8 @@ async def create_pawn(request: Request):
         "price": SPAWN_COST,
         "channel_id": channel_id,
     }
-    async with get_commands_lock():
-        get_pending().append(cmd)
-    await _db_enqueue_command(cmd)
+    if not await _charge_and_enqueue(username, channel_id, SPAWN_COST, cmd):
+        return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
     return {"success": True, "message": f"✨ Пешка создаётся! -{SPAWN_COST}💎"}
 
 @router.post("/api/rimworld/heal-pawn")
@@ -1398,9 +1449,6 @@ async def heal_pawn(request: Request):
     if balance < HEAL_COST:
         return {"success": False, "message": f"Нужно {HEAL_COST}💎, у тебя {balance}💎"}
 
-    if not await db.remove_points(username, HEAL_COST):
-        return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
-    await _set_last_heal_ts(username, now, channel_id)
     cmd = {
         "type": "heal_pawn",
         "id": f"heal_{username}_{int(time.time())}",
@@ -1408,9 +1456,20 @@ async def heal_pawn(request: Request):
         "price": HEAL_COST,
         "channel_id": channel_id,
     }
-    async with get_commands_lock():
-        get_pending().append(cmd)
-    await _db_enqueue_command(cmd)
+
+    # Кулдаун ставим ВНУТРИ той же транзакции: иначе сбой между списанием и
+    # записью кулдауна дал бы бесплатное лечение (или наоборот — кулдаун без
+    # лечения).
+    async def _mark_cooldown(conn):
+        await conn.execute(
+            "INSERT INTO rimworld_heal_cooldowns (channel_id, username, last_heal_ts) "
+            "VALUES (?, ?, ?) "
+            "ON CONFLICT(channel_id, username) DO UPDATE SET last_heal_ts = excluded.last_heal_ts",
+            (channel_id, username.lower(), float(now)))
+
+    if not await _charge_and_enqueue(username, channel_id, HEAL_COST, cmd,
+                                     on_success=_mark_cooldown):
+        return {"success": False, "message": "Баланс изменился, попробуй ещё раз"}
     return {"success": True, "message": f"💊 Лечение! -{HEAL_COST}💎"}
 
 @router.get("/api/rimworld/heal-cooldown/{username}")

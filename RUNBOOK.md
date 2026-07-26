@@ -112,7 +112,50 @@ Get-ScheduledTaskInfo -TaskName "shedstream-db-backup-pull"   # LastTaskResult �
 Get-ChildItem "$env:USERPROFILE\shedstream-backups" | Sort-Object LastWriteTime -Desc | Select -First 3
 ```
 
-### Как доказать, что бэкап рабочий (а не просто лежит)
+### Локальная копия расширения (для работы, пока прод трогать нельзя)
+
+Полный стек на своём ПК: тот же бэкенд, тот же фронт, база — копия боевой из
+вчерашнего бэкапа. Twitch о ней не знает, прод не участвует.
+
+```bash
+python scripts/local-setup.py      # развернуть; печатает команды запуска
+```
+Кладёт базу в `%USERPROFILE%\shedstream-local\` — **вне репозитория, намеренно.**
+Локальная база рядом с кодом 2026-06-25 положила прод (её журнал уехал в архив
+деплоя и затёр боевой). `deploy.ps1` теперь такие файлы исключает, но держать
+базу снаружи — вторая линия защиты, независимая от той строки.
+
+Путь к базе бэкенд берёт из `SHEDSTREAM_DB` (по умолчанию `viewers.db` — на
+проде поведение не меняется). `FRONTEND_PATH` обязателен, иначе статика не
+монтируется и копия открывается пустой (404 на `/static/*`).
+Проверка: `curl http://127.0.0.1:8000/health` → `{"status":"ok","db":"ok"}`,
+`/static/extension.html` → 200.
+
+### Поддельный мод — проверка модуля без запуска игры
+
+`scripts/fake-mod.py` подключается по Module API как настоящий мод: здоровается,
+шлёт события, забирает команды, подтверждает. Нужен потому, что у RimWorld нет
+другого способа себя проверить — владелец в него не играет, и модуль полтора
+месяца тихо расходился с реальностью.
+
+```bash
+python scripts/fake-mod.py --channel <id> --token <module-token>            # обычная работа
+python scripts/fake-mod.py --channel <id> --token <t> --refuse-all          # проверка рефанда
+python scripts/fake-mod.py --channel <id> --token <t> --drop-all            # зависшие команды
+python scripts/fake-mod.py --channel <id> --token <t> --double-ack          # идемпотентность
+python scripts/fake-mod.py --channel <id> --token <t> --send-event <тип>    # одно событие
+```
+Токен: из папки backend —
+`python -c "import sys; sys.path.insert(0,'.'); from routes.streamer import issue_module_token; print(issue_module_token(98319857,'rimworld'))"`
+
+Ловит класс «событие не объявлено в манифесте» мгновенно: отправка неизвестного
+типа печатает `ОТВЕРГНУТО: event_not_in_manifest` и выходит с кодом 1. Этот
+класс дважды жил в проде незамеченным.
+
+**По не-локальному адресу не пойдёт** без явного `--i-know-this-is-prod`: он
+пишет настоящие события в базу.
+
+## Как доказать, что бэкап рабочий (а не просто лежит)
 
 **Проще всего — одной командой, с ПК владельца:**
 ```bash

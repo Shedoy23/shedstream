@@ -601,6 +601,24 @@ class Database:
             row = await cursor.fetchone()
             return row[0] if row else 1
 
+    async def decrement_purchase_count_tx(self, conn, username: str, category: str) -> None:
+        """Откатить счётчик покупок на 1 — на conn ВЫЗЫВАЮЩЕГО, без commit.
+
+        Нужен рефанду: цены на гены/черты прогрессивные, счётчик растёт при
+        покупке. Если команду не выполнили и вернули крустики, а счётчик оставили
+        поднятым — зритель наказан ценой за покупку, которой не было (следующий
+        ген дороже навсегда). Возврат денег и откат счётчика обязаны быть в ОДНОЙ
+        транзакции: иначе падение между ними даёт либо вечную переплату, либо
+        бесплатное удешевление.
+
+        MAX(0, ...) — счётчик не должен уходить в минус даже при повторном ack.
+        """
+        await conn.execute(
+            "UPDATE purchase_counters SET count = MAX(0, count - 1) "
+            "WHERE username = ? AND category = ?",
+            (username.lower(), category),
+        )
+
     def calc_progressive_price(self, base_price: int, count: int) -> int:
         """
         Прогрессивная цена: каждая следующая покупка дороже на base_price.

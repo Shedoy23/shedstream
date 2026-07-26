@@ -254,6 +254,21 @@ async def _refund_cmd_row_tx(conn, cmd_id: str, cmd_json: str, reason: str) -> b
         print(f"DBG refund guard: price={price} user={username!r} ch={channel_id!r} raw={cmd_json[:120]!r}")
         return False
     await get_db().add_points_tx(conn, username, price, channel_id)
+
+    # 2026-07-25 — вернуть НЕ ТОЛЬКО деньги, но и цену.
+    # Гены и черты продаются по прогрессивной цене: счётчик покупок растёт при
+    # покупке (increment_purchase_count) и удорожает следующую. Раньше рефанд
+    # возвращал крустики, а счётчик оставлял поднятым → зритель видел «деньги
+    # вернули, всё честно», но его следующий ген навсегда стоил дороже за
+    # покупку, которой не было. Связать одно с другим он не мог: рефанд сегодня,
+    # переплата через неделю. Откат идёт на ТОМ ЖЕ conn → одна транзакция с
+    # возвратом денег.
+    _PROGRESSIVE = {"add_gene": "gene", "add_trait": "trait"}
+    category = _PROGRESSIVE.get(cmd.get("type"))
+    if category:
+        await get_db().decrement_purchase_count_tx(conn, username, category)
+        print(f"↩️  RimWorld refund: счётчик {category} для @{username} откачен")
+
     print(f"💸 RimWorld refund: @{username} +{price}💎 (cmd={cmd_id}, reason={reason})")
     return True
 

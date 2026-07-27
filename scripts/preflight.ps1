@@ -43,6 +43,55 @@ $errCount = ssh $ProdHost "tail -300 /var/log/twitchbot.out.log 2>/dev/null | gr
 $errN = 0; [void][int]::TryParse(([string]$errCount).Trim(), [ref]$errN)
 Check "no fresh backend errors" ($errN -eq 0) ("errors in last 300 lines: " + $errN)
 
+# 4b. Broadcaster OAuth token is ALIVE (2026-07-27).
+#
+# Why this exists. The channel token died 2026-07-10 and nobody noticed for 2.5
+# weeks: viewers spent Twitch Channel Points and got no crustics, because EventSub
+# subscriptions cannot register without a live token. The backend DID complain --
+# 448 times -- but the line reads:
+#     "WARN-emoji  OAuth refresh failed: 400 Invalid refresh token"
+# It is printed via plain print(), carries no log level, and contains neither
+# 'Traceback' nor '[ERROR]', so check 4 above scored it as ZERO errors. Truthfully:
+# it greps a vocabulary, not a severity. Chasing every possible wording is a losing
+# game -- so we check the FACT instead: ask Twitch whether the token still works.
+#
+# Note it asks the app for the token (get_fresh_oauth_token) rather than reading the
+# column: the value in the DB is encrypted ("enc:..."), and validating the ciphertext
+# returns 401 for a perfectly healthy token. That false alarm cost time on 2026-07-27.
+$tokenProbe = ssh $ProdHost @'
+cd /root/twitch-extension/backend && ../venv/bin/python - <<'PY' 2>/dev/null | tail -1
+import sys, asyncio, json, urllib.request
+sys.path.insert(0, '.')
+from dependencies import set_db
+from database import Database
+db = Database('viewers.db'); set_db(db)
+from routes.streamer import get_fresh_oauth_token
+async def main():
+    await db.init_pool()
+    try:
+        tok = await get_fresh_oauth_token(98319857)
+        if not tok:
+            print('TOKEN=none'); return
+        req = urllib.request.Request('https://id.twitch.tv/oauth2/validate',
+                                     headers={'Authorization': 'OAuth ' + tok})
+        d = json.load(urllib.request.urlopen(req, timeout=15))
+        ok = 'channel:read:redemptions' in (d.get('scopes') or [])
+        print('TOKEN=live' if ok else 'TOKEN=noscope')
+    except Exception:
+        print('TOKEN=dead')
+    finally:
+        try: await db._pool.close()
+        except Exception: pass
+asyncio.run(main())
+PY
+'@ 2>$null
+$tokState = ([string]$tokenProbe).Trim()
+if ($tokState -match 'TOKEN=live') {
+    Check "channel token alive (channel points work)" $true "validated with Twitch"
+} else {
+    Check "channel token alive (channel points work)" $false ($tokState + "  -> re-auth: open https://shedoy23.ru/api/streamer/auth/start as the broadcaster, THEN restart twitchbot (subscriptions register at startup only)")
+}
+
 # 5. Last stream-status line (informational, human-readable; no auto-verdict)
 $streamLine = ssh $ProdHost "grep -a 'rimlink.bot' /var/log/twitchbot.out.log 2>/dev/null | grep -a 'ch=' | tail -1" 2>$null
 Write-Host ""

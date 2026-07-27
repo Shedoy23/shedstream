@@ -240,6 +240,25 @@ if ($paths.Count -gt 0) {
         & ssh $ProdHost "cd $ProdDir && tar --warning=no-timestamp -xf /tmp/shedstream_deploy.tar && echo extracted"
         if ($LASTEXITCODE -ne 0){ throw "remote extract failed" }
 
+        # 2026-07-27: DEPENDENCY SYNC. Deploy used to copy code and restart the
+        # service but NEVER install packages. A new dependency landed in
+        # requirements.txt and never reached prod, so the code paths importing it
+        # returned 500. That is exactly what happened: the streamer dashboard moved
+        # to jinja2 templates, jinja2 was added to requirements on 07-26, prod never
+        # got it, and from the 07-27 deploy every streamer page -- including the
+        # Twitch OAuth return page -- served Internal Server Error. Found only
+        # because the owner opened it by hand. (This file is ASCII-only on purpose:
+        # a .ps1 without BOM is read as ANSI here and Cyrillic breaks the parser.)
+        if ($Backend) {
+            Info "sync deps (pip install -r requirements.txt)..."
+            # Exit code is captured BEFORE the pipe: $? after `| tail` is tail's
+            # status, which always succeeds -- a failed pip would slip through.
+            $pip = & ssh $ProdHost "$ProdDir/venv/bin/pip install -q -r $ProdDir/backend/requirements.txt >/tmp/pipdeploy.log 2>&1; ec=`$?; grep -viE '^\[notice\]' /tmp/pipdeploy.log | tail -5; echo pip_exit=`$ec"
+            $pip | Where-Object { $_ } | ForEach-Object { Write-Host "  $_" }
+            if ("$pip" -notmatch 'pip_exit=0') { throw "pip install failed on prod - deploy aborted before restart. Inspect: ssh $ProdHost '$ProdDir/venv/bin/pip install -r $ProdDir/backend/requirements.txt'" }
+            Ok "Deps in sync"
+        }
+
         if (-not $NoRestart) {
             Info "restart $Service + health check (RUNNING + HTTP /health 200)..."
             # Real health = the HTTP endpoint answers 200. A bare 'supervisorctl
@@ -259,6 +278,20 @@ if ($paths.Count -gt 0) {
                 $hc = "$($health -match 'http=')".Trim()
                 throw "PROD UNHEALTHY after deploy: /health did not return 200 ($hc). Process may be RUNNING but the backend is dead (DB pool / startup error). Inspect: ssh $ProdHost 'supervisorctl tail -200 $Service stderr'"
             }
+
+            # 2026-07-27: /health only proves the DB answers. It stayed green all
+            # day while streamer pages returned 500 over a missing package. So hit
+            # the real pages. privacy/terms are not decoration: those URLs are in
+            # the Twitch extension submission -- if they break, the review fails.
+            Info "smoke: real pages answer (not just /health)..."
+            # SINGLE-quoted PS string: $p/$c are remote bash vars and pass through
+            # untouched. Double quotes would need escaping for both $ and the inner
+            # quotes -- that is what broke the parser on 2026-07-27.
+            $pages = & ssh $ProdHost 'for p in / /extension.html /overlay.html /privacy.html /terms.html; do c=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "http://127.0.0.1:8000$p"); echo "$p=$c"; done'
+            $pages | ForEach-Object { Write-Host "  $_" }
+            $bad = @($pages | Where-Object { $_ -and $_ -notmatch '=200$' })
+            if ($bad.Count -gt 0) { throw ("PAGES BROKEN after deploy: " + ($bad -join ' ') + ". Usual cause: a dependency that never reached prod, or a template error. Inspect: ssh " + $ProdHost + " 'tail -50 /var/log/twitchbot.err.log'") }
+            Ok "Pages OK"
         } else { Warn "-NoRestart: tar extracted, service NOT restarted" }
     }
 }

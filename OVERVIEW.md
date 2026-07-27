@@ -2,6 +2,11 @@
 
 > Точка входа для понимания «что это и как устроено». Инструкции для работы —
 > в [CLAUDE.md](CLAUDE.md). Живой статус по областям — в `Расширение/docs/CONTEXT*.md`.
+> Стратегия, деньги и границы — в [PLATFORM_VISION.md](PLATFORM_VISION.md).
+> Здесь — устройство системы; статуса «что готово / что сломано» здесь нет
+> намеренно, он в `STATUS.md`.
+>
+> **Сверено с кодом 2026-07-27.**
 
 ---
 
@@ -14,12 +19,13 @@
 прокачивать «своего» героя, управлять кланом/королевством, и т.д.
 
 Архитектурная цель — **game-agnostic**: новые игры подключаются как модули через
-**Module API**, не переписывая ядро. Сегодня живут два модуля:
+**Module API**, не переписывая ядро. Сегодня объявлено три модуля:
 
-| Модуль | Что | Код |
+| Модуль | Состояние | Код |
 |---|---|---|
-| **Bannerlord** | C#-мод (Harmony) + backend-адаптер | `BannerlordLink/`, `Расширение/backend/modules/bannerlord/` |
-| **RimWorld** | C#-мод (RimLink) + backend-адаптер | `RimLink/`, `modules/rimworld/` (Module API) + `rimworld.py` (legacy-эндпоинты) |
+| **Bannerlord** | **флагман**, на нём играют на стриме | `BannerlordLink/`, `Расширение/backend/modules/bannerlord/` |
+| **RimWorld** | фактически выключен; legacy-монолит ждёт переезда на Module API | `RimLink/`, `modules/rimworld/` + `rimworld.py` (legacy-эндпоинты) |
+| **shedcolony** | ранний (MineColonies × Twitch); мод в отдельном репо `D:\sheddev` | `modules/shedcolony/` |
 
 ---
 
@@ -99,8 +105,11 @@ shedstream/
 │   │   ├── modules/<game>/    ← _adapter.py (event-handlers) + manifest.yaml
 │   │   ├── migrations/        ← m<N>_*.py (async def apply(conn)), wired в main.py
 │   │   └── tests/             ← standalone-скрипты (НЕ pytest)
+│   │   └── templates/         ← HTML страниц стримера (дашборд); НЕ Python-строки
 │   ├── frontend/              ← Twitch-расширение (static JS/HTML, без сборки)
-│   │   ├── viewer.js          ← ~7k строк, ОБЩИЙ для RimWorld + Bannerlord
+│   │   ├── viewer.js          ← 2.5k строк, ОБЩАЯ оболочка (не 7k — распилен 13.06)
+│   │   ├── viewer-bannerlord.js ← 4.7k, основной объём игровой логики
+│   │   ├── viewer-rimworld.js   ← 0.4k
 │   │   ├── extension.html     ← desktop-shell  ┐ держать в синхроне
 │   │   ├── mobile.html        ← mobile-shell   ┘ (cache-bust ?v= совпадает)
 │   │   └── overlay.html       ← OBS overlay (карточки бойцов, TTS, питомцы)
@@ -115,8 +124,13 @@ shedstream/
 │       ├── Models/            ← подмена движковых моделей (clan upgrades бонусы)
 │       └── Util/              ← HeroNaming, HeroLookup, HeroStateSync, EquipmentSync
 ├── RimLink/                   ← C#-мод RimWorld + ассеты
-├── БЛТ/                       ← BLT reference (read-only, LGPL clean-room — идеи/API)
-└── scripts/                   ← deploy.ps1, lint_consistency.py, triage-crash.ps1
+├── reference/BLT_RC22         ← BLT reference (read-only, LGPL clean-room — идеи/API)
+│   + reference/BLT_lait          вне git; папки `БЛТ/` из старых версий этого файла НЕТ
+└── scripts/                   ← deploy.ps1 · lint_consistency.py · preflight.ps1
+                                  triage-crash.ps1 · pack-extension.py (сборка .zip
+                                  расширения) · local-setup.py (копия прода на ПК)
+                                  fake-mod.py (эмулятор мода) · verify-backup.py
+                                  pull-backup.ps1 (офсайт-бэкап)
 ```
 
 ---
@@ -140,9 +154,15 @@ shedstream/
 
 - **Без сборки** (ограничение Twitch Extension): статический JS/HTML, отдаётся
   бэкендом. Синтаксис-чек: `node --check frontend/viewer.js`.
-- `viewer.js` (~7k строк) — **общий** для RimWorld и Bannerlord; `extension.html`
-  и `mobile.html` — параллельные оболочки, держать в синхроне (cache-bust
-  `viewer.js?v=…` идентичен; `deploy.ps1 -Frontend` синхронит автоматически).
+- **Распилен 13.06:** `viewer.js` (2.5k) — общая оболочка, игровая логика в
+  `viewer-bannerlord.js` (4.7k) и `viewer-rimworld.js` (0.4k). Число «~7k строк
+  в viewer.js» кочевало по документам полтора месяца после распила — это сумма
+  трёх файлов, а не размер одного.
+- Все ~18 JS-файлов грузятся простыми `<script>` в **одно общее пространство
+  имён** — модулей нет. Отсюда класс мин: коллизии глобалей и неявный контракт
+  «порядок подключения». Явные коллизии объявлений стережёт линтер.
+- `extension.html` и `mobile.html` — параллельные оболочки, держать в синхроне
+  (cache-bust `viewer.js?v=…` идентичен; `deploy.ps1 -Frontend` синхронит сам).
 - **Поллинг** (когда панель видима): `/my-hero`, `/status`, классы — ~8с;
   баффы — 2.5с; battle-status — 2с; overlay-питомцы — 1с.
 - Flicker-архитектура: build-once скелеты + per-poll суб-лоадеры через
@@ -150,7 +170,8 @@ shedstream/
 
 ## Игровые модули
 
-- **Bannerlord** (`BannerlordLink/`, .NET Framework 4.8, игра 1.3.15):
+- **Bannerlord** (`BannerlordLink/`, `net472`, игра **v1.3.15** — сверено с
+  `Version.xml` игры 27.07; переезд на 1.4.5 обсуждался, но НЕ сделан):
   - Зритель усыновляет героя, выбирает **культуру** + **класс** (13 классов с
     passive/active powers), тратит валюту на бой/экономику/прогрессию/династию.
   - `ActionPoller` тянет действия, `IActionHandler`'ы применяют на main-thread;
@@ -161,8 +182,14 @@ shedstream/
   - Сборка: `dotnet build BannerlordLink/src/BannerlordLink.csproj -c Release`;
     DLL копируется в `Modules/Shedoy23.BannerlordLink/` (нужна закрытая игра),
     рестарт игры (нет hot-reload). Clean-room re-impl по мотивам **BLT** (LGPL).
-- **RimWorld** (`RimLink/`): пешки/гены/скиллы/ксенотипы; часть эндпоинтов —
-  legacy (UNAUTH), идёт миграция на Module API.
+- **RimWorld** (`RimLink/`): пешки/гены/скиллы/ксенотипы. Модуль фактически
+  выключен. `rimworld.py` — исторический монолит (~2000 строк): часть точек без
+  авторизации и **без привязки к каналу** (помечено в шапке файла
+  `tenant-lint: skip-file`, чинится при реактивации). Переезд на Module API —
+  отдельный этап, единственный, где нужна живая игра.
+- **shedcolony**: зритель управляет своим колонистом в колонии MineColonies.
+  Game-side — NeoForge-мод в отдельном репозитории (`D:\sheddev`), ходит в этот
+  же backend по Module API. Ранняя стадия, не продакшн.
 
 ## Деплой / инфра
 
@@ -172,10 +199,24 @@ shedstream/
   extract → `supervisorctl restart twitchbot` → health-check). Флаги:
   `-Backend` / `-Frontend` / `-Mod` (сборка+копия DLL в игру с md5) / `-All`.
   Перед прод-действиями — подтверждение.
-- Бэкапы БД автоматизированы (`backend/backup_db.sh` cron + `backup_loop.py`).
+- **Бэкапы — три уровня, все работают:** cron на проде (`backend/backup_db.sh`),
+  внутрипроцессный `backup_loop.py`, и **офсайт-забор на ПК владельца** (задача
+  Windows, ежедневно, 14 суточных срезов). Каждый забор сам себя проверяет
+  (`scripts/verify-backup.py`: распаковать → проверить целостность → убедиться,
+  что зрители внутри есть). Восстановление отрепетировано — `docs/RESTORE_PLAYBOOK.md`.
+  Ограничение по устройству: ПК должен быть включён, пропущенный день = дырка
+  в календаре, а не поломка.
+- **Мониторинг:** UptimeRobot пингует `/health` снаружи. Ловит только «прод лёг»;
+  «прод жив, а платная механика молча не работает» — не ловит (см. ROADMAP §7.2).
+- **Перед стримом/ревью:** `scripts/preflight.ps1` — здоровье прода, сервис,
+  мод в сети, свежие ошибки одним прогоном.
 
 ## Где искать детали
 
+- **Что сейчас (первым делом в сессии):** [STATUS.md](STATUS.md).
+- **Стратегия, деньги, границы:** [PLATFORM_VISION.md](PLATFORM_VISION.md).
+- **Операционная правда по проду:** [RUNBOOK.md](RUNBOOK.md).
+- **План и приоритеты:** [ROADMAP.md](ROADMAP.md); отложенное — [DEFERRED.md](DEFERRED.md).
 - **Инструкции / конвенции / гочи:** [CLAUDE.md](CLAUDE.md).
 - **Живой статус по областям:** `Расширение/docs/CONTEXT.md` (ядро/платформа),
   `CONTEXT_BANNERLORD.md`, `CONTEXT_RIMWORLD.md`.

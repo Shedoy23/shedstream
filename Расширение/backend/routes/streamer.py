@@ -571,8 +571,38 @@ def _dashboard_html(ch: dict) -> str:
         login=html.escape(str(ch.get("login") or "?")),
         channel_id=html.escape(str(ch.get("channel_id") or "?")),
         registered_at=html.escape(str(ch.get("registered_at") or "?")),
-        has_oauth="✅" if ch.get("oauth_access_token") else "—",
+        has_oauth=_oauth_badge(ch),
     )
+
+
+def _oauth_badge(ch: dict) -> str:
+    """Состояние токена канала для плитки дашборда.
+
+    2026-07-28. Раньше здесь было `"✅" if ch.get("oauth_access_token") else "—"`,
+    то есть галочка означала «поле в базе не пустое». Токен канала умер 10 июля,
+    поле осталось заполненным (там лежал протухший шифротекст) — и дашборд три
+    недели показывал ✅, пока зрители тратили очки канала и не получали крустики.
+    Классический ложный зелёный: индикатор отвечал не на тот вопрос.
+
+    Живость по-настоящему проверяется запросом к Twitch, но дёргать сеть на
+    каждую отрисовку страницы нельзя. Зато срок годности лежит рядом, в базе, и
+    ничего не стоит: если он в прошлом — продление сломано, потому что исправный
+    цикл обновляет токен заранее. Этого достаточно, чтобы поломка была ВИДНА.
+
+    Полная проверка (с обращением к Twitch) — в `scripts/preflight.ps1`.
+    """
+    if not ch.get("oauth_access_token"):
+        return "— нет, нужна авторизация"
+    exp = ch.get("oauth_expires_at")
+    if not exp:
+        return "⚠️ срок неизвестен"
+    try:
+        import time as _t
+        if _parse_iso_to_epoch(exp) < _t.time():
+            return "⚠️ ИСТЁК — награды за очки канала не работают, нужна повторная авторизация"
+    except Exception:
+        return "⚠️ срок неизвестен"
+    return "✅"
 
 
 @router.get("/streamer/dashboard", include_in_schema=False)

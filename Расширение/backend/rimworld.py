@@ -1533,6 +1533,16 @@ async def heal_pawn(request: Request):
 
 @router.get("/api/rimworld/heal-cooldown/{username}")
 async def get_heal_cooldown(username: str):
+    # 2026-07-27: M97 (c3e3599) добавил channel_id в _get_last_heal_ts, но этот
+    # вызов не поправил — переменной здесь нет, эндпоинт падал бы в NameError/500
+    # на первом же обращении ПОСЛЕ выката (на проде пока старая версия, 200 OK).
+    # Фронт зовёт этот URL БЕЗ авторизации (pawn.js:457,486) и заморожен на CDN,
+    # поэтому require_jwt_user здесь поставить нельзя — сломается у зрителей.
+    # Берём канал так же, как остальные legacy-точки этого файла (16 мест).
+    # Правильный per-viewer канал из JWT — вместе с реактивацией RimWorld,
+    # когда фронт можно будет поменять синхронно (см. tenant-lint skip-file вверху).
+    from dependencies import resolve_channel_id_or_default
+    channel_id = resolve_channel_id_or_default(None)
     now = time.time()
     last_heal = await _get_last_heal_ts(username, channel_id)
     elapsed = now - last_heal

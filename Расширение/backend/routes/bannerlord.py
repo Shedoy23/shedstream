@@ -888,7 +888,16 @@ _PURCHASABLE_ACTIONS = (
     "player.respawn",
     "player.give_item",
     "player.equip_item",
-    "player.modify_attribute",
+    # 2026-07-27 (аудит S-01): "player.modify_attribute" УБРАН из покупаемых.
+    # Цена фиксированная (50💎), а сколько очков атрибута выдать — присылал сам
+    # клиент: ни эта ветка, ни _prepare_action, ни C#-хендлер поле `points` не
+    # ограничивали (AddAttribute(attr, points, checkUnspentPoints: false)).
+    # Кнопки в панели не было, но POST /api/bannerlord/action открыт напрямую с
+    # валидным JWT зрителя → 50💎 за миллион очков. Доказано красным тестом
+    # tests/test_bannerlord_attribute_exploit.py (списание 50, задание в очереди).
+    # Законный путь — "hero.add_attribute" (Sprint 5.8, цена в динарах, своя
+    # ветка с проверкой). Хендлер в моде оставлен: он безвреден, пока бэкенд
+    # не кладёт такое задание в очередь.
     "world.trigger_event",
     "hero.add_skill",
     "hero.recruit_troops",

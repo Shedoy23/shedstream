@@ -532,6 +532,56 @@ def check_bannerlord_policies():
             f"serve the catalog from the game instead of hardcoding it)")
 
 
+def check_undefined_names():
+    """A name that is used but never bound = guaranteed NameError on that line.
+
+    Why this exists (2026-07-27): migration M97 (c3e3599) added a `channel_id`
+    parameter to `_get_last_heal_ts` but left one call site passing a
+    `channel_id` that does not exist in that scope. `compileall` is happy --
+    the syntax is valid -- so nothing caught it, and the bug sat in the
+    ready-to-deploy batch. The endpoint would have returned 500 on the first
+    request after deploy, and the frontend calls it on every panel open.
+    An external audit found it by reading; this check finds it in a second.
+
+    HARD failure: an undefined name is never intentional in this codebase.
+    Soft-skips when pyflakes is absent so a missing dev dependency cannot
+    block the owner's commits.
+    """
+    try:
+        from pyflakes.api import checkPath
+        from pyflakes.reporter import Reporter
+    except ImportError:
+        warns.append("undefined-names: pyflakes not installed "
+                     "(pip install pyflakes) -- check skipped")
+        return
+
+    import io
+    backend = EXT / "backend"
+    if not backend.is_dir():
+        return
+
+    out, err = io.StringIO(), io.StringIO()
+    reporter = Reporter(out, err)
+    for py in sorted(backend.rglob("*.py")):
+        if "__pycache__" in py.parts:
+            continue
+        checkPath(str(py), reporter)
+
+    for line in out.getvalue().splitlines():
+        if "undefined name" in line:
+            # pyflakes prints "<path>:<line>:<col>: message"; the greedy first
+            # group is required so a Windows drive letter ("C:\...") is not
+            # mistaken for the path/line separator.
+            m = re.match(r"^(.*):(\d+):(\d+): (.*)$", line)
+            if m:
+                try:
+                    rel = pathlib.Path(m.group(1)).relative_to(ROOT)
+                except ValueError:
+                    rel = m.group(1)
+                line = f"{rel}:{m.group(2)} -- {m.group(4)}"
+            errors.append(f"undefined name -> NameError at runtime: {line}")
+
+
 def main() -> int:
     if EXT is None:
         print("[lint] FAIL: could not locate extension dir (with backend/)")
@@ -540,7 +590,7 @@ def main() -> int:
                check_manifest_actions, check_manifest_events,
                check_dashboard_mod_config, check_currency_glyph,
                check_tenant_scoping, check_bannerlord_policies,
-               check_frontend_global_collisions):
+               check_frontend_global_collisions, check_undefined_names):
         try:
             fn()
         except Exception as e:  # a broken check shouldn't crash CI silently

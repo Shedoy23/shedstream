@@ -24,12 +24,19 @@ ASCII-only (PowerShell 5.1 читает .ps1 без BOM как ANSI — поэт
 ## lint_consistency.py — консистенси-чеки
 Запускается в CI и pre-commit. Hard-fail (exit 1) на:
 - рассинхрон `viewer.js?v=` между extension.html и mobile.html;
-- миграция `backend/migrations/m*.py` не подключена в `main.py`.
+- миграция `backend/migrations/m*.py` не подключена в `main.py`;
+- **использование несуществующей переменной в бэкенде** (2026-07-27) — гарантированный
+  `NameError` в рантайме. `compileall` такое пропускает: синтаксис-то валидный.
+  Так M97 оставил в пакете на деплой сломанный `heal-cooldown` (падал бы в 500
+  на каждом открытии панели). Нужен `pyflakes`; **без него проверка мягко
+  пропускается** с предупреждением, чтобы отсутствие dev-зависимости не
+  блокировало коммиты.
 
 Soft-warn (exit 0): дрейф manifest actions vs backend; разнобой валютных
 глифов в viewer.js (⦷ vs 💎).
 
 ```bash
+pip install pyflakes
 python scripts/lint_consistency.py
 ```
 

@@ -37,7 +37,12 @@ jobs:
             node --check "$f"
           done
 
-      - name: Consistency lints (version sync / migrations wired / drift)
+      # pyflakes питает check_undefined_names (см. scripts/README.md). Без него
+      # проверка мягко пропускается — в CI ставим явно, чтобы она реально шла.
+      - name: Install lint deps
+        run: pip install pyflakes
+
+      - name: Consistency lints (version sync / migrations wired / drift / undefined names)
         run: python scripts/lint_consistency.py
 
       # ── Informational (promote to blocking once verified green) ─────────

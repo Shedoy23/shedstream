@@ -337,27 +337,42 @@ async def _on_channel_points(event: dict, channel_id: int) -> None:
     diamonds = reward_cfg["diamonds"]
     db = get_db()
 
+    # 2026-07-27 (аудит S-06): дедуп и начисление — ОДНОЙ транзакцией.
+    # Было: INSERT дедуп-строки коммитился сам по себе, а крустики начислял
+    # отдельный add_points() на ВТОРОМ соединении со вторым коммитом. Падение
+    # в этом окне давало худший исход: Channel Points у зрителя Twitch уже
+    # списал, дедуп-строка закоммичена, крустиков нет — а повторная доставка
+    # вебхука видит дедуп и молча выходит. Награда терялась навсегда.
+    # Это тот же класс, что ловили 7× в аудите 2026-07-02 (CLAUDE.md:
+    # «списание/источник и эффект — в одной транзакции»).
+    # Дедуп теперь держит UNIQUE(channel_id, twitch_redemption_id):
+    # INSERT OR IGNORE + rowcount==0 значит «уже начисляли». Сбой откатывает
+    # ОБА действия → повтор вебхука отработает штатно.
+    # Красный тест: tests/test_channel_points_atomic.py
     async with db._connect() as conn:
-        cursor = await conn.execute(
-            "SELECT id FROM channel_points_log "
-            "WHERE channel_id=? AND twitch_redemption_id=?",
-            (channel_id, redemption_id),
-        )
-        if await cursor.fetchone():
-            return
-        await conn.execute(
-            "INSERT INTO channel_points_log "
-            "(channel_id, username, twitch_redemption_id, reward_title, "
-            "channel_points_spent, diamonds_given) "
-            "VALUES (?,?,?,?,?,?)",
-            (
-                channel_id, username, redemption_id, reward_title,
-                reward_cfg["channel_points_cost"], diamonds,
-            ),
-        )
-        await conn.commit()
-
-    await db.add_points(username, diamonds, channel_id=channel_id)
+        try:
+            await conn.execute("BEGIN IMMEDIATE")
+            cur = await conn.execute(
+                "INSERT OR IGNORE INTO channel_points_log "
+                "(channel_id, username, twitch_redemption_id, reward_title, "
+                "channel_points_spent, diamonds_given) "
+                "VALUES (?,?,?,?,?,?)",
+                (
+                    channel_id, username, redemption_id, reward_title,
+                    reward_cfg["channel_points_cost"], diamonds,
+                ),
+            )
+            if cur.rowcount == 0:
+                await conn.execute("ROLLBACK")
+                return
+            await db.add_points_tx(conn, username, diamonds, channel_id)
+            await conn.commit()
+        except Exception:
+            try:
+                await conn.execute("ROLLBACK")
+            except Exception:
+                pass
+            raise
     logger.info(
         "💜 ch=%s @%s обменял '%s' → +%s💎",
         channel_id, username, reward_title, diamonds,

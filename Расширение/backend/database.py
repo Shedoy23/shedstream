@@ -684,8 +684,30 @@ class Database:
         
         
         
+    @staticmethod
+    def level_from_total_exp(total_exp: int) -> tuple:
+        """EXP → (уровень, остаток EXP внутри уровня).
+
+        ЕДИНСТВЕННОЕ место, где живёт эта формула. 2026-07-27 понадобился
+        уровень ещё и в overlay (подпись над питомцем) — вторая копия цикла
+        разъехалась бы с этой при первой же правке баланса, а зритель увидел
+        бы в расширении один уровень, на стриме другой. Это ровно класс
+        «одно число в двух местах» из CLAUDE.md.
+
+        Порог: 1-5 → 100 EXP за уровень, 6-10 → 200, 11-15 → 300 …
+        """
+        level = 1
+        exp_current = int(total_exp)
+        while level < 100:
+            needed = ((level + 4) // 5) * 100
+            if exp_current < needed:
+                break
+            exp_current -= needed
+            level += 1
+        return level, exp_current
+
     async def get_user_level(self, username: str, channel_id: int = None) -> dict:
-        """Расчёт уровня: 1 минута = 1 EXP. Порог растёт каждые 5 уровней."""
+        """Расчёт уровня: 1 минута просмотра = 1 EXP."""
         channel_id = resolve_channel_id(channel_id)
         async with self._connect() as db:
             cur = await db.execute(
@@ -695,17 +717,7 @@ class Database:
             row = await cur.fetchone()
             total_exp = int(row[0] / 60) if row else 0
 
-        level = 1
-        exp_current = total_exp
-
-        # Проходим по уровням до 100, пока хватает EXP
-        while level < 100:
-            # Формула: 1-5 → 100, 5-10 → 200, 10-15 → 300 ...
-            needed = ((level + 4) // 5) * 100
-            if exp_current < needed:
-                break
-            exp_current -= needed
-            level += 1
+        level, exp_current = self.level_from_total_exp(total_exp)
 
         return {
             "level": level,
@@ -2127,6 +2139,23 @@ class Database:
                     'item_id': item_id, 'emoji': emoji, 'svg_path': svg_path,
                 }
 
+            # 2026-07-27: уровень зрителя для подписи над питомцем на overlay.
+            # Тот же уровень, что расширение показывает зрителю («LVL 38»), —
+            # считается из времени просмотра. Берём ОДНИМ агрегатом на всех
+            # сразу: по запросу на зрителя было бы 20 обращений к базе на
+            # каждый тик overlay'я. Формула — общая (level_from_total_exp),
+            # копии здесь намеренно нет.
+            cur = await conn.execute(
+                f"SELECT username, COALESCE(SUM(watch_time), 0) FROM activity_stats "
+                f"WHERE channel_id = ? AND username IN ({placeholders}) "
+                f"GROUP BY username",
+                (channel_id, *active)
+            )
+            level_by_user = {
+                r[0]: self.level_from_total_exp(int(r[1] / 60))[0]
+                for r in await cur.fetchall()
+            }
+
             # Build result
             result = []
             for username in active:
@@ -2135,6 +2164,9 @@ class Database:
                         'username':  username,
                         'pet_type':  pet_types[username],
                         'equipped':  equipped_by_user.get(username, {}),
+                        # 1 — уровень по умолчанию: зритель без записей о просмотре
+                        # (то же, что отдаёт get_user_level на пустой выборке).
+                        'level':     level_by_user.get(username, 1),
                     })
             return result
 

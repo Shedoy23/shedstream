@@ -602,12 +602,22 @@ body {
 /* Sprint 5.22 patch: pets гуляют по всей ширине overlay'а, а не сидят
    фиксированным строем в нижнем левом углу. Strip занимает всю ширину;
    каждая карточка — position:absolute со своим random walk-path. */
+/* 2026-07-27 (просьба владельца): питомцы ходят по САМОМУ низу кадра.
+   Было bottom:40px — они висели над нижней кромкой, будто в воздухе.
+   Высота поднята со 120 до 168px: подпись переехала НАД питомца, и при 120px
+   overflow:hidden срезал бы ей верх. */
 #pets-strip {
     position: absolute;
-    bottom: 40px;
+    bottom: 0;
     left: 0;
     right: 0;
-    height: 120px;
+    height: 168px;
+    /* Питомцы — фоновая жизнь кадра, они НИКОГДА не должны закрывать собой
+       информацию. Раньше z-index не был задан ни им, ни карточкам событий:
+       порядок решался тем, что позже добавилось в DOM, то есть случайностью.
+       Панель бойцов (z-index:6) и так была выше, а вот карточка события —
+       как повезёт. Теперь порядок задан явно. */
+    z-index: 1;
     pointer-events: none;
     overflow: hidden;
     opacity: 0;
@@ -840,16 +850,26 @@ body {
 .pet-stage__slot--face      { z-index: 6; }
 .pet-stage__slot--accessory { z-index: 6; }
 .pet-stage__slot--head      { z-index: 7; }
+/* 2026-07-27: подпись переехала ПОД питомца → НАД питомцем (просьба владельца).
+   margin-top:4px заменён на margin-bottom:2px — иначе подпись прилипала к
+   голове. Порядок в разметке тоже изменён: сначала подпись, потом визуал. */
 .pet-card-name {
     font-size: 11px;
     font-weight: 600;
     color: #efeff1;
-    margin-top: 4px;
+    margin-bottom: 2px;
     white-space: nowrap;
     font-family: 'Unbounded', sans-serif;
     /* Sprint 5.22 patch: без рамки текст должен читаться на любом фоне
        стрима — text-shadow обводка по контуру. Длинные ники не режутся. */
     text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 6px rgba(0,0,0,0.6);
+}
+/* Уровень зрителя — тот же, что расширение показывает ему самому («LVL 38»).
+   Отдельный цвет, чтобы ник читался как ник, а не как часть числа. */
+.pet-card-lvl {
+    color: #a970ff;
+    font-weight: 700;
+    margin-right: 5px;
 }
 .pet-card-user {
     font-size: 9px;
@@ -1443,6 +1463,7 @@ async function pollPets() {
                 eq.background?.item_id || '',
                 v.name || '',
                 v.pet_type || 'egg',
+                v.level || '',      // 2026-07-27: иначе повышение уровня не перерисует подпись
             ].join('|');
         }).sort().join(';');
 
@@ -1456,7 +1477,8 @@ async function pollPets() {
         strip.innerHTML = data.viewers.map(v => {
             const eq = v.equipped || {};
             const pet = {pet_type: v.pet_type, name: v.name};
-            const username = '@' + (v.username || '?');
+            // 2026-07-27: «собака» убрана — владелец задал формат «[38lvl] shedoy23».
+            const username = v.username || '?';
             // Sprint 5.28: pet 2× размер (128px), direction-aware walking.
             // Pet-stage рендерит south creature; на overlay поверх клеим
             // east + west sprites через absolute positioning, opacity
@@ -1480,10 +1502,16 @@ async function pollPets() {
                      class="pet-walk-frame pet-walk-frame--west"
                      alt="" draggable="false"/>
             ` : '';
+            // 2026-07-27: подпись НАД питомцем, с уровнем зрителя: «[38lvl] shedoy23».
+            // Уровень приходит с бэка (тот же, что в расширении — из времени
+            // просмотра). Если его нет (старый бэк / нет записей) — показываем
+            // только ник, а не «[1lvl]»: соврать про уровень хуже, чем промолчать.
+            const lvl = Number(v.level) > 0 ? Number(v.level) : null;
+            const lvlHtml = lvl ? `<span class="pet-card-lvl">[${lvl}lvl]</span>` : '';
             return `
                 <div class="pet-card">
+                    <div class="pet-card-name">${lvlHtml}${escapeHtmlOL(username)}</div>
                     <div class="pet-card-visual">${stageHtml}${walkSprites}</div>
-                    <div class="pet-card-name">${escapeHtmlOL(username)}</div>
                 </div>
             `;
         }).join('');

@@ -626,6 +626,16 @@ body {
 #pets-strip.visible {
     opacity: 1;
 }
+/* 2026-07-27 (решение владельца): в бою низ кадра принадлежит бойцам.
+   Карточки призванных живут по тому же низу (bottom:14px, z-index:6) и
+   вставали поверх питомцев — перекрытие ~100px по всей ширине. Прячем
+   питомцев на время боя, после боя они возвращаются сами (та же плавность
+   .4s, что и при появлении).
+   Селектор из ДВУХ классов специально: у `.visible` opacity:1, и правило с
+   одним классом её бы не перебило. */
+#pets-strip.visible.battle {
+    opacity: 0;
+}
 /* Pet-card frameless (background/border/shadow убраны). Position:absolute
    с random --walk-start (left base). Анимация pet-walk oscillates
    translateX от 0 до --walk-amp + лёгкий bob по Y. */
@@ -858,6 +868,9 @@ body {
     font-weight: 600;
     color: #efeff1;
     margin-bottom: 2px;
+    /* --name-lift ставится из JS: соседние питомцы получают разную высоту
+       подписи, чтобы тексты не наложились при встрече (см. раскладку ниже). */
+    transform: translateY(calc(-1 * var(--name-lift, 0px)));
     white-space: nowrap;
     font-family: 'Unbounded', sans-serif;
     /* Sprint 5.22 patch: без рамки текст должен читаться на любом фоне
@@ -1446,7 +1459,23 @@ async function pollPets() {
         const strip = document.getElementById('pets-strip');
         if (!strip) return;
 
-        if (!data.success || !data.enabled || !data.viewers || data.viewers.length === 0) {
+        // 2026-07-27 (владелец, по скриншоту со стрима): на overlay пускаем
+        // ТОЛЬКО тех, у кого есть что показать — живого персонажа.
+        // Отсеиваются два вида «пустышек», которые на стриме читались как баг:
+        //   • яйцо (pet_type='egg') — просто эмодзи 🥚, гуляющее по кадру;
+        //   • вылупился, но скин НЕ куплен — pet-stage рисует пунктирный
+        //     кружок-заглушку (pet-stage.js: .pet-stage__empty). В панели это
+        //     приглашение купить скин и там уместно; на стриме это выглядит
+        //     как пустой круг с ником над ним.
+        // В расширении зритель по-прежнему видит и яйцо, и заглушку — правило
+        // только для overlay.
+        const shown = (data.viewers || []).filter(v => {
+            if (!v.pet_type || v.pet_type === 'egg') return false;
+            const b = (v.equipped || {}).body;
+            return !!(b && typeof b.item_id === 'string' && b.item_id.startsWith('skin_'));
+        });
+
+        if (!data.success || !data.enabled || shown.length === 0) {
             strip.classList.remove('visible');
             strip.innerHTML = '';
             _lastPetsSnapshot = '';
@@ -1454,7 +1483,7 @@ async function pollPets() {
         }
 
         // Snapshot key: сортированный список (username|head|acc|bg|name)
-        const snapshot = data.viewers.map(v => {
+        const snapshot = shown.map(v => {
             const eq = v.equipped || {};
             return [
                 v.username || '?',
@@ -1474,7 +1503,7 @@ async function pollPets() {
         }
         _lastPetsSnapshot = snapshot;
 
-        strip.innerHTML = data.viewers.map(v => {
+        strip.innerHTML = shown.map(v => {
             const eq = v.equipped || {};
             const pet = {pet_type: v.pet_type, name: v.name};
             // 2026-07-27: «собака» убрана — владелец задал формат «[38lvl] shedoy23».
@@ -1524,7 +1553,21 @@ async function pollPets() {
         // Pets пересекаются и проходят друг через друга — overlap-friendly.
         const cards = strip.querySelectorAll('.pet-card');
         cards.forEach((card, i) => {
-            const startPct = 5 + Math.floor(Math.random() * 76);     // 5-80vw
+            // 2026-07-27: стартовые позиции РАЗВЕДЕНЫ по ширине, а не чисто
+            // случайны. На скриншоте со стрима несколько подписей налезли друг
+            // на друга нечитаемым комом: случайные числа охотно кучкуются, а
+            // теперь подпись ещё и над питомцем, поэтому цена столкновения
+            // выросла. Каждому — своя полоса (5..85vw поделены поровну) плюс
+            // джиттер внутри неё, чтобы строй не выглядел линейкой.
+            // Пересекаться при ходьбе они по-прежнему могут — это задумано.
+            // Замер показал: при 13 питомцах полоса шириной ~118px, а подпись
+            // «[26lvl] kuro_gothic» занимает столько же — соседи всё равно
+            // сталкивались (8 наложений). Поэтому вторым приёмом подписи
+            // разведены ещё и ПО ВЫСОТЕ: чётные выше, нечётные ниже. Теперь,
+            // даже если двое сойдутся в одной точке, тексты не наложатся.
+            const lane = 88 / Math.max(1, cards.length);
+            const startPct = Math.round(3 + i * lane + Math.random() * lane * 0.35);
+            card.style.setProperty('--name-lift', (i % 2) ? '15px' : '0px');
             const ampVw    = 15 + Math.floor(Math.random() * 16);    // 15-30vw
             let dir;
             if      (startPct + ampVw > 90) dir = -1;                // пойдёт влево
@@ -1596,6 +1639,15 @@ async function pollBannerlordSummoned() {
         if (!panel) return;
 
         const participants = (data.participants || []).slice().sort(bnrSortParticipants);
+
+        // 2026-07-27: питомцы прячутся на время боя — карточки бойцов стоят
+        // по тому же низу кадра и перекрывали их. Класс вешаем на полосу,
+        // а не на innerHTML: pollPets перерисовывает содержимое, но не классы.
+        const petsStrip = document.getElementById('pets-strip');
+        if (petsStrip) {
+            petsStrip.classList.toggle('battle', !!data.active && participants.length > 0);
+        }
+
         if (!data.active || participants.length === 0) {
             panel.classList.remove('visible');
             panel.innerHTML = '';

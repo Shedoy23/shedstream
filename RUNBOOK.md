@@ -8,7 +8,7 @@
 `docs/CONTEXT*.md` — статус по областям. **Этот файл — операционная правда:
 пути, команды, ловушки, способы доказать что работает.**
 
-Последняя ревизия: 2026-07-22.
+Последняя ревизия: 2026-07-27.
 
 ---
 
@@ -56,7 +56,7 @@
 
 | Что | Путь | Комментарий |
 |---|---|---|
-| **БОЕВАЯ** | `/root/twitch-extension/backend/viewers.db` | 65 МБ, 106 таблиц (на 2026-07-22) |
+| **БОЕВАЯ** | `/root/twitch-extension/backend/viewers.db` | 71 МБ, 106 таблиц (сверено 2026-07-27) |
 | staging | `/root/twitch-extension-staging/backend/viewers.db` | живая и настоящая, но **не прод** |
 | корзина | `/root/_trash_20260722/` | перенесённый мусор, можно сносить |
 
@@ -98,7 +98,7 @@ ls -l /proc/$PID/fd | grep -oE '/[^ ]*\.db' | sort -u
 |---|---|---|---|---|
 | 1 | cron 05:00, `backup_db.sh` | `/root/twitch-extension/backups/viewers.daily.*.db.zst` | сжатые ~8.8 МБ | 15 дневных + 7 недельных |
 | 2 | in-process `backup_loop.py` | `/root/twitch-extension/backend/backups/backup_*.db` | **несжатые 65 МБ** | ~15 штук = 910 МБ |
-| 3 | **офсайт** | `%USERPROFILE%\shedstream-backups\` на ПК владельца | сжатые | 16 копий |
+| 3 | **офсайт** | `%USERPROFILE%\shedstream-backups\` на ПК владельца | сжатые | 18 копий (сверено 2026-07-27, задача LastTaskResult=0) |
 
 ### Офсайт устроен как ЗАБОР, а не отправка
 
@@ -297,9 +297,22 @@ select id, message, created_at from bug_reports where status='open' order by id 
 но `rimworld.py` из проверки **исключён** (`tenant-lint: skip-file`) — и это
 исключение спрятало реальный баг ровно того класса.
 
-### Дашборд — это f-строка Python
-`routes/streamer.py:_dashboard_html`: любой литеральный `{`/`}` в JS/CSS дублировать.
-Перед деплоем — render-тест, иначе 500 на дашборде.
+### Дашборд — обычный HTML-шаблон (было: f-строка Python)
+**Изменилось 2026-07-26 — старое правило «дублируй каждую `{`/`}`» БОЛЬШЕ НЕ
+ДЕЙСТВУЕТ и вредно:** в шаблоне скобки пишутся один раз, удвоение сломает CSS.
+
+Разметка живёт в `backend/templates/streamer_dashboard.html`, рисуется через
+`_render_template()` (jinja2). Функция `_dashboard_html` осталась, но теперь она
+подставляет данные в шаблон, а не склеивает строку.
+
+**Автоэкранирование Jinja выключено НАМЕРЕННО** — экранирует вызывающий код
+(`html.escape` для HTML, `json.dumps` + защита от `</` для JS). Включить =
+экранировать дважды.
+
+Шаблон кэшируется → правка требует рестарта. Проверка перед деплоем:
+```bash
+python tests/test_dashboard_render.py
+```
 
 ### Windows / оболочки
 - в `cmd` `cd` **не меняет диск** — нужен `cd /d`; амперсанд в «Mount & Blade»

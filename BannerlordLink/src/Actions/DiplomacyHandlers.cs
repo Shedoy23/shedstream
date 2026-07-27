@@ -272,28 +272,42 @@ namespace BannerlordLink.Actions
             return null;
         }
 
-        // 2026-07-20 (#38) — предложение войны/мира «сразу становится неактуальным».
-        // Декомпайл KingdomDecision.ShouldBeCancelled: решение от НЕ-игрока движок
-        // отменяет тем же тиком, если у клана-предлагающего не хватает ВЛИЯНИЯ
-        // спонсировать своё предложение (Influence < 1.5×стоимости → flag=true).
-        // А vanilla AddDecision ещё и СПИСЫВАЕТ влияние (GetInfluenceCost) → у мелкого
-        // viewer-клана оно уходит в минус → мгновенная отмена. Зритель платит крустиками,
-        // влиянием платить не должен.
-        // Фикс: (1) AddDecision(ignoreInfluenceCost:true) — не списываем; (2) даём клану
-        // влияние-буфер, чтобы flag=false и решение дошло до реального голосования (а не
-        // выкидывалось до него). Дальше исход честно решают кланы/король.
-        public static void SubmitDecisionToVote(Kingdom kingdom, Clan proposerClan,
+        // 2026-07-27 (#38) — предложение войны/мира «сразу становится неактуальным».
+        //
+        // КОРЕНЬ (декомпайл KingdomDecision.ShouldBeCancelled): решение от НЕ-игрока
+        // движок снимает, если ИИ клана-предлагающего сам не хочет этого исхода
+        // (клан игрока освобождён явной веткой `ProposerClan == Clan.PlayerClan`).
+        // Ветка отмены достижима ТОЛЬКО при влиянии >= 30:
+        //   flag = ProposerClan.Influence < GetInfluenceCostOfSupport(SlightlyFavor)*1.5f
+        //   (SlightlyFavor = 20 → порог 30); при flag=true метод возвращает false,
+        //   то есть бедный клан НЕ отменяют.
+        //
+        // Правка 2026-07-20 читала это условие наоборот и поднимала влияние до 300 —
+        // ровно этим включала ветку отмены, то есть создавала баг, который лечила.
+        // Побочно раздавала любому viewer-клану 300 бесплатного влияния за заявку.
+        // Хак убран. ignoreInfluenceCost остаётся: зритель платит крустиками, а не
+        // влиянием клана.
+        //
+        // Остаточный случай — клан с влиянием >= 30, чей ИИ против. Движок снял бы
+        // заявку на ближайшем часовом тике (KingdomDecisionProposalBehavior.
+        // UpdateKingdomDecisions), а зритель уже заплатил. Поэтому спрашиваем
+        // ванильный вердикт ДО подачи: ShouldBeCancelled публичный, это логика самого
+        // движка, а не её копия у нас (переживёт апдейт игры). Проверка идёт до
+        // AddDecision, поэтому не путается с состоянием ПОСЛЕ (объявленная война сама
+        // делает ShouldBeCancelledInternal→true и дала бы ложный отказ).
+        //
+        // Возвращает false — заявка НЕ подана; caller обязан сделать PostFailed
+        // (рефанд), иначе зритель платит за ноль.
+        public static bool SubmitDecisionToVote(Kingdom kingdom,
             TaleWorlds.CampaignSystem.Election.KingdomDecision decision)
         {
             try
             {
-                if (proposerClan != null && proposerClan.Influence < 300f)
-                {
-                    try { proposerClan.Influence = 300f; } catch { }
-                }
+                if (decision.ShouldBeCancelled()) return false;
             }
-            catch { }
+            catch { }   // не смогли спросить движок — подаём, как раньше
             kingdom.AddDecision(decision, ignoreInfluenceCost: true);
+            return true;
         }
     }
 
@@ -350,7 +364,11 @@ namespace BannerlordLink.Actions
                 catch { }
 
                 var decision = new DeclareWarDecision(hero.Clan, target);
-                DiploUtil.SubmitDecisionToVote(myKingdom, hero.Clan, decision);
+                if (!DiploUtil.SubmitDecisionToVote(myKingdom, decision))
+                {
+                    BannerlordLinkModule.Log($"[diplo-war] REFUSE @{username}: клан {hero.Clan?.Name} против войны с {target.Name} — движок снял бы заявку, рефанд");
+                    ActionFeedback.PostFailed(actionId, "proposer_clan_against"); return;
+                }
                 BannerlordLinkModule.Log($"[diplo-war OK] @{username} предложил войну: {myKingdom.Name} → {target.Name} (на голосование кланов)");
             }
             catch (Exception ex)
@@ -409,7 +427,11 @@ namespace BannerlordLink.Actions
 
                 // 0 tribute — движок + голосование решают остальное.
                 var decision = new MakePeaceKingdomDecision(hero.Clan, target, 0, 0);
-                DiploUtil.SubmitDecisionToVote(myKingdom, hero.Clan, decision);
+                if (!DiploUtil.SubmitDecisionToVote(myKingdom, decision))
+                {
+                    BannerlordLinkModule.Log($"[diplo-ppeace] REFUSE @{username}: клан {hero.Clan?.Name} против мира с {target.Name} — движок снял бы заявку, рефанд");
+                    ActionFeedback.PostFailed(actionId, "proposer_clan_against"); return;
+                }
                 BannerlordLinkModule.Log($"[diplo-ppeace OK] @{username} предложил мир: {myKingdom.Name} ↔ {target.Name} (на голосование кланов)");
             }
             catch (Exception ex)

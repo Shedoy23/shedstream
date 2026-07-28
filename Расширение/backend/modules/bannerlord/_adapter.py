@@ -756,13 +756,29 @@ class BannerlordAdapter(ModuleAdapter):
                         channel_id, action_id, price, username, reason)
                     return
 
-                # Refund крустики
+                # Refund крустики + ТЕРМИНАЛЬНЫЙ статус одной транзакцией.
+                #
+                # 2026-07-28 (T-02, внешний триаж 27.07). Раньше здесь менялся
+                # только error_msg, а статус оставался 'queued'/'dispatched'.
+                # Дальше приходил поздний `ACK success=true` — мод отвечает
+                # РАНЬШЕ, чем работает, поэтому такой порядок штатен — и
+                # `ack_action` (WHERE status IN ('queued','dispatched'))
+                # перезаписывал error_msg в NULL, а статус в 'acked'.
+                # Маркер `REFUNDED:` — единственная защита от повторного
+                # возврата, и она стиралась: следующий action.failed платил
+                # ВТОРОЙ раз. На проде 27.07 так вышло у четырёх действий.
+                #
+                # Теперь отказ сразу делает строку терминальной, и поздний ACK
+                # становится no-op сам собой: его WHERE больше не совпадает.
+                # Отдельно это закрывает S-10 (повторный ACK success=false
+                # запускает синтетический возврат) — маркер доживает и гасит его.
+                # Красный тест: tests/test_action_ack_refund_order.py
                 await conn.execute(
                     "UPDATE viewers SET points = points + ? "
                     "WHERE channel_id=? AND username=?",
                     (price, channel_id, username))
                 await conn.execute(
-                    "UPDATE module_actions SET error_msg=? "
+                    "UPDATE module_actions SET error_msg=?, status='failed' "
                     "WHERE channel_id=? AND module_id='bannerlord' AND action_id=?",
                     (f"REFUNDED:{price} reason={reason}", channel_id, action_id))
                 await conn.commit()

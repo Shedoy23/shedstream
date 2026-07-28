@@ -74,6 +74,15 @@ The owner is a non-programmer building this solo with Claude; these rules are th
 1. **Check before code.** Before implementing any NEW viewer-facing mechanic: (a) run a Twitch-compliance check (`/twitch-compliance`), (b) if the idea mirrors BLT, flag the license implication, (c) present a 5–10 line spec and get explicit approval. If asked to "just build it", do the checks anyway first — that's cheaper than another casino.
 2. **Done = evidence.** Never report done without proof: test output, log line, prod DB query, screenshot. A red test blocks deploy — no exceptions. (Extends the global "verify before done".)
 2b. **Тест, который никогда не видели красным, не доказывает НИЧЕГО.** Написал тест на баг — покажи его в ДВУХ состояниях: (а) временно убрать фикс → тест падает и НАЗЫВАЕТ проблему; (б) вернуть фикс → зелёный; (в) `git diff` после этого пуст. Зелёный тест, написанный ПОСЛЕ фикса, мог быть зелёным и без него — это известный способ ИИ обмануть и себя, и владельца (владелец спросил прямо, 2026-07-25). Тот же приём для линтеров: подложи исторический баг, покажи exit 1. **Красный тест чиним КОДОМ, а не правкой ожидания.**
+
+2c. **Судить о тесте по КОДУ ВОЗВРАТА, а не по тому, что он напечатал.**
+   28.07 два новых теста печатали «ВСЁ ЗЕЛЁНОЕ» и при этом возвращали ненулевой
+   код: закрытие пула звалось несуществующим методом, исключение глушилось
+   `except`, процесс висел до таймаута. Я дважды прочитал вывод как успех,
+   потому что смотрел на текст через `grep` — а `grep` возвращает СВОЙ код,
+   маскируя код теста. Правило: прогон теста заканчивается проверкой `$?`
+   (`&& echo PASS || echo FAIL exit=$?`), и «зелёная» печать без нулевого кода
+   считается провалом. Класс ошибки: **зелёный вывод ≠ зелёный результат**.
 3. **Prod deploys after stream, not during.** If a stream is live, only hotfix a broken prod; otherwise prepare everything and say "ready to deploy on break". A mid-stream backend restart drops viewer connections; a mod copy needs the game closed anyway.
 4. **Feature in — feature out.** When a new mechanic is requested, ask which low-usage feature gets frozen/removed in exchange (use usage metrics once they exist; until then, ask). The 7k-line viewer.js is what unbounded "yes" looks like.
 5. **Suggest the monthly audit — TWO kinds, don't conflate** (ROADMAP §6). **Код-аудит** reads code for what's wrong in it (security / dead code / debt). **Аудит работы** runs each paid mechanic end-to-end against live data and catches what code-audits structurally cannot: mechanics dead in prod, code-vs-migration/load-order drift, silent no-ops. Propose аудит работы before every Twitch submission (it would have caught the dead RimWorld shop) and either kind after ~a month. The 2026-04 audit (13 CRITICAL) out-earned any feature.

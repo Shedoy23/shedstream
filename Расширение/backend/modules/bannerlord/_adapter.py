@@ -745,8 +745,13 @@ class BannerlordAdapter(ModuleAdapter):
 
                 if price <= 0 or not username:
                     # Не было payment'а (free action) — лог + mark.
+                    # 2026-07-28: статус тоже делаем терминальным. Иначе
+                    # бесплатное действие после отказа остаётся 'queued',
+                    # TTL-сторож будет натыкаться на него КАЖДЫЙ проход, а мод
+                    # при перезапуске (курсор опроса сбрасывается в 0) увидит
+                    # его снова и выполнит уже после отказа.
                     await conn.execute(
-                        "UPDATE module_actions SET error_msg=? "
+                        "UPDATE module_actions SET error_msg=?, status='failed' "
                         "WHERE channel_id=? AND module_id='bannerlord' AND action_id=?",
                         (f"REFUNDED:0 (no_price) reason={reason}", channel_id, action_id))
                     await conn.commit()

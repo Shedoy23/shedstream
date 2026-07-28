@@ -1706,7 +1706,19 @@ async def _queued_action_ttl_sweeper():
     ВЕЧНО — зритель заплатил, действие не исполнится и не рефандится (_dispatched_action_sweeper
     ловит только 'dispatched'). TTL: queued дольше 30 мин = мод очевидно офлайн → авто-рефанд
     штатным action.failed-путём адаптера (идемпотентен по 'REFUNDED:', помечает failed).
-    Пока только shedcolony — bannerlord подключим отдельным решением, не меняя его молча.
+
+    2026-07-28 — BANNERLORD ПОДКЛЮЧЁН (решение владельца, T-01 + S-11).
+    Повод: 27.07 зритель купил призыв за 100 крустиков за полторы минуты до конца
+    стрима; мод команду не забрал, и она осталась 'queued' навсегда — ни эффекта,
+    ни возврата. Раньше сюда попадал только shedcolony.
+
+    ПОЧЕМУ ЭТО БЕЗОПАСНО ТОЛЬКО СЕЙЧАС. Возврат обязан делать строку
+    ТЕРМИНАЛЬНОЙ, иначе получим и деньги назад, и эффект: курсор опроса мода
+    (`ActionPoller._cursor`) сбрасывается в 0 при перезапуске игры, и старую
+    'queued'-строку он увидит снова. До 2026-07-28 `_on_action_failed` статус не
+    менял — подключать было нельзя. Теперь меняет (оба пути: и с ценой, и
+    бесплатный), поэтому просроченное действие выпадает из выдачи
+    `status='queued'` и повторно не исполнится.
     """
     sweep_interval_sec = 600       # 10 min
     ttl_sec = 1800                 # 30 min queued = the mod is clearly offline
@@ -1718,23 +1730,23 @@ async def _queued_action_ttl_sweeper():
             await asyncio.sleep(sweep_interval_sec)
             async with db._connect() as conn:
                 cur = await conn.execute(
-                    "SELECT action_id, channel_id, type FROM module_actions "
-                    "WHERE module_id='shedcolony' AND status='queued' "
+                    "SELECT action_id, channel_id, type, module_id FROM module_actions "
+                    "WHERE module_id IN ('shedcolony', 'bannerlord') AND status='queued' "
                     "  AND created_at < datetime('now', ?)",
                     (f"-{ttl_sec} seconds",))
                 rows = await cur.fetchall()
             if not rows:
                 continue
-            adapter = get_module("shedcolony")
-            if not adapter:
-                continue
-            for action_id, channel_id, action_type in rows:
+            for action_id, channel_id, action_type, module_id in rows:
+                adapter = get_module(module_id)
+                if not adapter:
+                    continue
                 env = ModuleEnvelope(id=f"ttl_{action_id}", kind="event", type="action.failed",
                                      ts=0, data={"action_id": action_id,
                                                  "reason": "queued_ttl_expired"})
                 await adapter.handle_event(channel_id, env)
                 print(f"⏳ [ttl-sweeper] auto-refunded stale queued action "
-                      f"{action_id} type={action_type} ch={channel_id}")
+                      f"{action_id} type={action_type} ch={channel_id} module={module_id}")
         except Exception as e:
             print(f"❌ Queued-TTL sweeper error: {type(e).__name__}: {e}")
 

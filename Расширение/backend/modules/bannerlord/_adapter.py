@@ -2277,7 +2277,17 @@ class BannerlordAdapter(ModuleAdapter):
 
     @staticmethod
     async def _drop_placeholder_rows(conn, channel_id: int, action_id: str) -> None:
-        """Действие не состоялось — снести заготовки, записанные авансом.
+        """Действие не состоялось — закрыть всё, что было записано авансом.
+
+        Два вида таких записей, и обе висли вечно:
+
+        ЗАЯВКА НА МИР (`bannerlord_peace_offers`, статус 'pending'). Уникальный
+        индекс частичный — только по 'pending', — поэтому висящая заявка не
+        мусор, а замок: тот же король больше НИКОГДА не предложит мир той же
+        фракции, вставка падает на UNIQUE и зритель читает «уже отправлен».
+        Терминальный статус снимает замок. Связь по `action_id` появилась
+        миграцией M101; у строк старше неё колонка пустая — их не трогаем,
+        чтобы не закрыть чужое, разбор старых остаётся ручным.
 
         2026-07-28. Создание вассал-клана пишет строку `bannerlord_vassals` ДО
         того, как мод сходит в игру, с `vassal_clan_id = "pending_<action_id>"`.
@@ -2297,6 +2307,20 @@ class BannerlordAdapter(ModuleAdapter):
         if cur.rowcount:
             logger.info("[VAS-CLEANUP] ch=%s action=%s dropped %d placeholder row(s)",
                         channel_id, action_id, cur.rowcount)
+
+        try:
+            cur = await conn.execute(
+                "UPDATE bannerlord_peace_offers SET status='rejected' "
+                "WHERE channel_id=? AND action_id=? AND status='pending'",
+                (channel_id, action_id))
+            if cur.rowcount:
+                logger.info("[PEACE-CLEANUP] ch=%s action=%s closed %d offer(s)",
+                            channel_id, action_id, cur.rowcount)
+        except Exception as ex:
+            # Колонки может не быть, если миграция M101 ещё не прошла —
+            # уборка вассалов из-за этого падать не должна.
+            logger.warning("[PEACE-CLEANUP] ch=%s action=%s skipped: %s",
+                           channel_id, action_id, ex)
 
     async def _on_vassal_created(self, channel_id: int, env: ModuleEnvelope) -> None:
         """Mod пушит после успешного создания vassal-clan'а в-game.

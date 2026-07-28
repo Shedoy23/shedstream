@@ -299,6 +299,28 @@ async def handle_enact_policy(conn, channel_id: int, owner: str, data: dict) -> 
     }
 
 
+async def expire_old_peace_offers() -> int:
+    """Закрыть заявки на мир, зависшие в 'pending' дольше суток.
+
+    Нужна не для чистоты таблицы: уникальный индекс частичный (только по
+    'pending'), поэтому зависшая заявка ЗАПРЕЩАЕТ тому же королю предложить
+    мир той же фракции ещё раз. Обычный путь закрытия — отказ действия по
+    `action_id` (M101); этот сторож добирает строки, созданные до миграции,
+    и те, по которым отказ так и не пришёл.
+
+    Returns affected count. Вызывается фоновым циклом в main.py.
+    """
+    db = get_db()
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "UPDATE bannerlord_peace_offers SET status='expired' "
+            "WHERE status='pending' "
+            "  AND offered_at < datetime('now', '-24 hours')")  # tenant-ok: cross-channel expiry sweep
+        affected = cur.rowcount
+        await conn.commit()
+    return affected
+
+
 async def handle_make_peace(conn, channel_id: int, owner: str, data: dict) -> dict:
     """King-only: peace offer с target kingdom'ом. Mod применит MakePeaceAction."""
     target_kingdom_id = (data.get("target_kingdom_id") or "").strip()
@@ -335,20 +357,23 @@ async def handle_make_peace(conn, channel_id: int, owner: str, data: dict) -> di
     if my_kingdom_id == target_kingdom_id:
         return {"success": False, "message": "Нельзя сделать peace с самим собой"}
 
+    # action_id генерируем ДО вставки: заявка обязана нести ключ действия,
+    # иначе её нечем закрыть по итогу и она навсегда займёт направление
+    # (UNIQUE-индекс частичный, по status='pending' — см. миграцию M101).
+    action_id = _uuid.uuid4().hex
     try:
         await conn.execute(
             "INSERT INTO bannerlord_peace_offers "
             "(channel_id, requester, my_kingdom_id, target_kingdom_id, "
-            " target_kingdom_name, offered_tribute, status) "
-            "VALUES (?, ?, ?, ?, ?, ?, 'pending')",
+            " target_kingdom_name, offered_tribute, status, action_id) "
+            "VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)",
             (channel_id, owner, my_kingdom_id, target_kingdom_id,
-             target_kingdom_name, offered_tribute))
+             target_kingdom_name, offered_tribute, action_id))
     except Exception as e:
         log.info("[DIPLO-PEACE] dupe @%s ch=%s target=%s: %s",
                  owner, channel_id, target_kingdom_id, e)
         return {"success": False, "message": "Peace offer уже отправлен"}
 
-    action_id = _uuid.uuid4().hex
     payload = {
         "initiated_by":         owner,
         "target":               owner,

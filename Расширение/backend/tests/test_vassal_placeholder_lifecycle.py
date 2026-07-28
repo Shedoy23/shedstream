@@ -252,7 +252,7 @@ async def main_async():
         await test_fresh_placeholder_still_blocks_duplicate(db)
     finally:
         try:
-            await db.close_pool()
+            await db._pool.close()
         except Exception:
             pass
 

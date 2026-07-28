@@ -1324,6 +1324,13 @@ async def run_migrations():
             print(f"❌ M100 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m101_peace_offer_action_id
+            await m101_peace_offer_action_id.apply(conn)
+        except Exception as e:
+            print(f"❌ M101 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 
@@ -1928,6 +1935,24 @@ async def on_startup():
                 print(f"[FAM-EXPIRE] loop crashed: {type(e).__name__}: {e}")
             await _asyncio.sleep(60)
     asyncio.create_task(_proposals_expire_loop())
+
+    # 2026-07-28. Заявка на мир, зависшая в 'pending', держит замок: уникальный
+    # индекс частичный (по 'pending'), и тот же король больше не может
+    # предложить мир той же фракции. Отказ действия закрывает такую заявку
+    # сразу (см. _adapter._drop_placeholder_rows), но у строк, созданных ДО
+    # миграции M101, ключа действия нет — их закрываем по возрасту.
+    async def _peace_offers_expire_loop():
+        import asyncio as _asyncio
+        from routes.bannerlord_diplomacy import expire_old_peace_offers
+        while True:
+            try:
+                affected = await expire_old_peace_offers()
+                if affected > 0:
+                    print(f"[PEACE-EXPIRE] marked {affected} peace offers as expired")
+            except Exception as e:
+                print(f"[PEACE-EXPIRE] loop crashed: {type(e).__name__}: {e}")
+            await _asyncio.sleep(3600)
+    asyncio.create_task(_peace_offers_expire_loop())
     # Блок 1 архитектурной прокачки: periodic WAL checkpoint, защита от
     # бесконечного роста WAL-файла. PASSIVE раз в час; раз в сутки —
     # RESTART для более глубокой компактизации.

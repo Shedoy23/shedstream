@@ -21,6 +21,7 @@ from fastapi import APIRouter, Request
 
 from dependencies import require_jwt_user
 from dependencies import get_db
+from routes._mod_queue import enqueue_mod_action
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -73,6 +74,7 @@ async def handle_set_party_order(conn, channel_id: int, owner: str, data: dict) 
     Validation: order_type valid, target_settlement_id present для siege/defend/raid/garrison.
     """
     import json as _json
+
     import uuid as _uuid
 
     order_type = (data.get("order_type") or "").strip().lower()
@@ -117,11 +119,8 @@ async def handle_set_party_order(conn, channel_id: int, owner: str, data: dict) 
         "target_settlement_id":   target_id,
         "target_settlement_name": target_name,
     }
-    await conn.execute(
-        "INSERT INTO module_actions "
-        "(channel_id, module_id, action_id, type, data, status) "
-        "VALUES (?, 'bannerlord', ?, 'hero.party_order_set', ?, 'queued')",
-        (channel_id, action_id, _json.dumps(payload, ensure_ascii=False)))
+    await enqueue_mod_action(conn, channel_id, action_id,
+                             "hero.party_order_set", payload, data)
 
     log.info("[SIEGE-SET] ch=%s user=@%s order=%s → %s (%s)",
              channel_id, owner, order_type, target_name, target_id)
@@ -154,11 +153,8 @@ async def handle_release_party_order(conn, channel_id: int, owner: str, data: di
         "target":       owner,
         "order_type":   "release",
     }
-    await conn.execute(
-        "INSERT INTO module_actions "
-        "(channel_id, module_id, action_id, type, data, status) "
-        "VALUES (?, 'bannerlord', ?, 'hero.party_order_release', ?, 'queued')",
-        (channel_id, action_id, _json.dumps(payload, ensure_ascii=False)))
+    await enqueue_mod_action(conn, channel_id, action_id,
+                             "hero.party_order_release", payload, data)
 
     log.info("[SIEGE-RELEASE] ch=%s user=@%s order cancelled",
              channel_id, owner)

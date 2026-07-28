@@ -23,12 +23,14 @@ from __future__ import annotations
 
 import logging
 import json as _json
+
 import uuid as _uuid
 
 from fastapi import APIRouter, Request
 
 from dependencies import require_jwt_user
 from dependencies import get_db
+from routes._mod_queue import enqueue_mod_action
 
 log = logging.getLogger(__name__)
 
@@ -281,11 +283,8 @@ async def handle_enact_policy(conn, channel_id: int, owner: str, data: dict) -> 
         "policy_id":      policy_id,
         "policy_name":    policy_name,
     }
-    await conn.execute(
-        "INSERT INTO module_actions "
-        "(channel_id, module_id, action_id, type, data, status) "
-        "VALUES (?, 'bannerlord', ?, 'hero.enact_policy', ?, 'queued')",
-        (channel_id, action_id, _json.dumps(payload, ensure_ascii=False)))
+    await enqueue_mod_action(conn, channel_id, action_id,
+                             "hero.enact_policy", payload, data)
 
     log.info("[DIPLO-POL] ch=%s king=@%s kingdom=%s policy=%s",
              channel_id, owner, kingdom_name, policy_name)
@@ -358,11 +357,8 @@ async def handle_make_peace(conn, channel_id: int, owner: str, data: dict) -> di
         "target_kingdom_name":  target_kingdom_name,
         "offered_tribute":      offered_tribute,
     }
-    await conn.execute(
-        "INSERT INTO module_actions "
-        "(channel_id, module_id, action_id, type, data, status) "
-        "VALUES (?, 'bannerlord', ?, 'hero.make_peace', ?, 'queued')",
-        (channel_id, action_id, _json.dumps(payload, ensure_ascii=False)))
+    await enqueue_mod_action(conn, channel_id, action_id,
+                             "hero.make_peace", payload, data)
 
     log.info("[DIPLO-PEACE] ch=%s king=@%s %s → %s tribute=%s",
              channel_id, owner, my_kingdom_name, target_kingdom_name, offered_tribute)
@@ -437,11 +433,8 @@ async def handle_pay_ransom(conn, channel_id: int, owner: str, data: dict) -> di
             "captor_party":  captor_party,
             "pool_total":    pool_total,
         }
-        await conn.execute(
-            "INSERT INTO module_actions "
-            "(channel_id, module_id, action_id, type, data, status) "
-            "VALUES (?, 'bannerlord', ?, 'hero.pay_ransom', ?, 'queued')",
-            (channel_id, action_id, _json.dumps(payload, ensure_ascii=False)))
+        await enqueue_mod_action(conn, channel_id, action_id,
+                             "hero.pay_ransom", payload, data)
         await conn.execute(
             "UPDATE bannerlord_ransom_pool SET status='released' "
             "WHERE channel_id=? AND captured_hero=? AND status='pooled'",
@@ -497,11 +490,8 @@ async def handle_set_kingdom_tax(conn, channel_id: int, owner: str, data: dict) 
         "target":       owner,
         "tax_rate_pct": rate_pct,
     }
-    await conn.execute(
-        "INSERT INTO module_actions "
-        "(channel_id, module_id, action_id, type, data, status) "
-        "VALUES (?, 'bannerlord', ?, 'kingdom.set_tax_rate', ?, 'queued')",
-        (channel_id, action_id, _json.dumps(payload, ensure_ascii=False)))
+    await enqueue_mod_action(conn, channel_id, action_id,
+                             "kingdom.set_tax_rate", payload, data)
 
     log.info("[KINGDOM-TAX] ch=%s @%s kingdom='%s' → %d%%",
              channel_id, owner, my_kingdom_name, rate_pct)

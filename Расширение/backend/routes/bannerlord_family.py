@@ -44,6 +44,7 @@ from fastapi import APIRouter, Request
 
 from dependencies import require_jwt_user
 from dependencies import get_db
+from routes._mod_queue import enqueue_mod_action
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -259,6 +260,7 @@ async def handle_respond_marriage(conn, channel_id: int, responder: str, data: d
     Returns: {success, message, [action_id]} — action_id если accept (enqueue mod activate).
     """
     import json as _json
+
     import uuid as _uuid
 
     try:
@@ -307,11 +309,8 @@ async def handle_respond_marriage(conn, channel_id: int, responder: str, data: d
             "proposer_username": proposer,
             "target_username":   target,
         }
-        await conn.execute(
-            "INSERT INTO module_actions "
-            "(channel_id, module_id, action_id, type, data, status) "
-            "VALUES (?, 'bannerlord', ?, 'hero.activate_marriage', ?, 'queued')",
-            (channel_id, action_id, _json.dumps(payload, ensure_ascii=False)))
+        await enqueue_mod_action(conn, channel_id, action_id,
+                             "hero.activate_marriage", payload, data)
 
     log.info("[FAM-RESPOND] ch=%s responder=@%s proposal=%d %s",
              channel_id, responder, proposal_id, new_status.upper())

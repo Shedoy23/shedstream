@@ -21,6 +21,7 @@ from fastapi import APIRouter, Request
 
 from dependencies import require_jwt_user
 from dependencies import get_db
+from routes._mod_queue import enqueue_mod_action
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -111,6 +112,7 @@ async def handle_create_vassal(conn, channel_id: int, parent_user: str, data: di
     vassal_clan_id (engine assigns на CreateClan), backend updates row.
     """
     import json as _json
+
     import uuid as _uuid
 
     heir_hero_id = (data.get("heir_hero_id") or "").strip()
@@ -188,11 +190,8 @@ async def handle_create_vassal(conn, channel_id: int, parent_user: str, data: di
         "vassal_name":          vassal_name,
         "placeholder_clan_id":  placeholder_clan_id,
     }
-    await conn.execute(
-        "INSERT INTO module_actions "
-        "(channel_id, module_id, action_id, type, data, status) "
-        "VALUES (?, 'bannerlord', ?, 'hero.create_vassal_clan', ?, 'queued')",
-        (channel_id, action_id, _json.dumps(payload, ensure_ascii=False)))
+    await enqueue_mod_action(conn, channel_id, action_id,
+                             "hero.create_vassal_clan", payload, data)
 
     log.info("[VAS-CREATE] ch=%s parent=@%s heir='%s' vassal='%s' placeholder=%s",
              channel_id, parent_user, heir_name, vassal_name, placeholder_clan_id)
@@ -239,11 +238,8 @@ async def handle_rename_vassal(conn, channel_id: int, parent_user: str, data: di
         "new_name":        new_name,
         "old_name":        old_name,
     }
-    await conn.execute(
-        "INSERT INTO module_actions "
-        "(channel_id, module_id, action_id, type, data, status) "
-        "VALUES (?, 'bannerlord', ?, 'hero.rename_vassal', ?, 'queued')",
-        (channel_id, action_id, _json.dumps(payload, ensure_ascii=False)))
+    await enqueue_mod_action(conn, channel_id, action_id,
+                             "hero.rename_vassal", payload, data)
 
     log.info("[VAS-RENAME] ch=%s parent=@%s vassal_id=%d '%s' → '%s'",
              channel_id, parent_user, vassal_id, old_name, new_name)

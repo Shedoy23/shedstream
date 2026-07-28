@@ -22,12 +22,14 @@ from __future__ import annotations
 
 import logging
 import json as _json
+
 import uuid as _uuid
 
 from fastapi import APIRouter, Request
 
 from dependencies import require_jwt_user
 from dependencies import get_db
+from routes._mod_queue import enqueue_mod_action
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -122,11 +124,8 @@ async def handle_buy_caravan(conn, channel_id: int, owner: str, data: dict) -> d
         "home_settlement_id":       home_settlement_id,
         "home_settlement_name":     home_settlement_name,
     }
-    await conn.execute(
-        "INSERT INTO module_actions "
-        "(channel_id, module_id, action_id, type, data, status) "
-        "VALUES (?, 'bannerlord', ?, 'hero.buy_caravan', ?, 'queued')",
-        (channel_id, action_id, _json.dumps(payload, ensure_ascii=False)))
+    await enqueue_mod_action(conn, channel_id, action_id,
+                             "hero.buy_caravan", payload, data)
 
     log.info("[CARAVAN-BUY] ch=%s @%s home=%s caravan_id=%d",
              channel_id, owner, home_settlement_name, caravan_id)
@@ -167,11 +166,8 @@ async def handle_sell_caravan(conn, channel_id: int, owner: str, data: dict) -> 
         "caravan_id":       caravan_id,
         "party_id":         party_id,
     }
-    await conn.execute(
-        "INSERT INTO module_actions "
-        "(channel_id, module_id, action_id, type, data, status) "
-        "VALUES (?, 'bannerlord', ?, 'hero.sell_caravan', ?, 'queued')",
-        (channel_id, action_id, _json.dumps(payload, ensure_ascii=False)))
+    await enqueue_mod_action(conn, channel_id, action_id,
+                             "hero.sell_caravan", payload, data)
 
     log.info("[CARAVAN-SELL] ch=%s @%s caravan_id=%d", channel_id, owner, caravan_id)
     return {

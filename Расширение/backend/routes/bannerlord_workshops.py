@@ -24,12 +24,14 @@ from __future__ import annotations
 
 import logging
 import json as _json
+
 import uuid as _uuid
 
 from fastapi import APIRouter, Request
 
 from dependencies import require_jwt_user
 from dependencies import get_db
+from routes._mod_queue import enqueue_mod_action
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -143,11 +145,8 @@ async def handle_buy_workshop(conn, channel_id: int, owner: str, data: dict) -> 
         "workshop_type":        workshop_type,
         "workshop_type_name":   workshop_type_name,
     }
-    await conn.execute(
-        "INSERT INTO module_actions "
-        "(channel_id, module_id, action_id, type, data, status) "
-        "VALUES (?, 'bannerlord', ?, 'hero.buy_workshop', ?, 'queued')",
-        (channel_id, action_id, _json.dumps(payload, ensure_ascii=False)))
+    await enqueue_mod_action(conn, channel_id, action_id,
+                             "hero.buy_workshop", payload, data)
 
     log.info("[SHOP-BUY] ch=%s @%s → %s in %s",
              channel_id, owner, workshop_type_name, settlement_name)
@@ -197,11 +196,8 @@ async def handle_sell_workshop(conn, channel_id: int, owner: str, data: dict) ->
         "settlement_id":        settlement_id,
         "workshop_type":        workshop_type,
     }
-    await conn.execute(
-        "INSERT INTO module_actions "
-        "(channel_id, module_id, action_id, type, data, status) "
-        "VALUES (?, 'bannerlord', ?, 'hero.sell_workshop', ?, 'queued')",
-        (channel_id, action_id, _json.dumps(payload, ensure_ascii=False)))
+    await enqueue_mod_action(conn, channel_id, action_id,
+                             "hero.sell_workshop", payload, data)
 
     log.info("[SHOP-SELL] ch=%s @%s sold %s in %s",
              channel_id, owner, workshop_type_name or workshop_type, settlement_name)

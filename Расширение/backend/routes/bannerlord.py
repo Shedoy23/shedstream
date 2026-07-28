@@ -2469,7 +2469,14 @@ def _resolve_perks(request, action_type, price, username, channel_id, data):
     if price > 0 and price_mult < 1.0:
         new_price = max(0, int(price * price_mult))
         price = new_price
-        data["price"] = price   # backend uses this in TX
+    # 2026-07-28 (PB-01): цену в data пишем ВСЕГДА, а не только при скидке.
+    # Раньше строка стояла внутри `if` выше, и у зрителя без скидки поля просто
+    # не появлялось. Дальше спец-обработчики (`_BACKEND_ONLY_ACTIONS`) кладут
+    # действие в очередь через `enqueue_mod_action`, который берёт цену отсюда,
+    # а `_on_action_failed` по ней возвращает деньги. Нет поля → возврат 0.
+    # Ровно так на проде 74 отказа вернули ноль вместо списанного.
+    # Пишем ФАКТИЧЕСКУЮ сумму, уже с учётом ролевой скидки.
+    data["price"] = price   # backend uses this in TX
     data["reward_boost"] = reward_mult   # mod использует
     data["_perk_label"] = role_label    # для frontend UI (badge)
     # Sprint 5.31 #45c — UNCONDITIONAL perk-resolve log. Каждая покупка

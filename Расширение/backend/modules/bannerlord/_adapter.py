@@ -754,6 +754,7 @@ class BannerlordAdapter(ModuleAdapter):
                         "UPDATE module_actions SET error_msg=?, status='failed' "
                         "WHERE channel_id=? AND module_id='bannerlord' AND action_id=?",
                         (f"REFUNDED:0 (no_price) reason={reason}", channel_id, action_id))
+                    await self._drop_placeholder_rows(conn, channel_id, action_id)
                     await conn.commit()
                     logger.info(
                         "[bannerlord:%s] action.failed action_id=%s NO_REFUND "
@@ -786,6 +787,7 @@ class BannerlordAdapter(ModuleAdapter):
                     "UPDATE module_actions SET error_msg=?, status='failed' "
                     "WHERE channel_id=? AND module_id='bannerlord' AND action_id=?",
                     (f"REFUNDED:{price} reason={reason}", channel_id, action_id))
+                await self._drop_placeholder_rows(conn, channel_id, action_id)
                 await conn.commit()
                 logger.info(
                     "[bannerlord:%s] REFUND ok action_id=%s user=%s +%s💎 reason=%s",
@@ -2272,6 +2274,29 @@ class BannerlordAdapter(ModuleAdapter):
                     channel_id, heir_hero_id, affected)
 
     # ── Sprint 5.33 (BLT-parity VAS): vassal lifecycle ────────────────────────
+
+    @staticmethod
+    async def _drop_placeholder_rows(conn, channel_id: int, action_id: str) -> None:
+        """Действие не состоялось — снести заготовки, записанные авансом.
+
+        2026-07-28. Создание вассал-клана пишет строку `bannerlord_vassals` ДО
+        того, как мод сходит в игру, с `vassal_clan_id = "pending_<action_id>"`.
+        Подтверждения могло не быть вовсе (мод не нашёл наследника, игра закрыта,
+        действие истекло по TTL) — и тогда строка оставалась навсегда: зритель
+        видел вассала, которого в игре нет, наследник числился занятым, слот из
+        пяти был съеден. На проде 27.07 так осело 5 фантомов.
+
+        Отдельного поля-связи у строки нет, но заготовка сама несёт action_id в
+        своём id — по нему и убираем. Транзакцию не открываем и не коммитим:
+        вызывающий уже внутри своей.
+        """
+        cur = await conn.execute(
+            "DELETE FROM bannerlord_vassals "
+            "WHERE channel_id=? AND vassal_clan_id=?",
+            (channel_id, f"pending_{action_id[:16]}"))
+        if cur.rowcount:
+            logger.info("[VAS-CLEANUP] ch=%s action=%s dropped %d placeholder row(s)",
+                        channel_id, action_id, cur.rowcount)
 
     async def _on_vassal_created(self, channel_id: int, env: ModuleEnvelope) -> None:
         """Mod пушит после успешного создания vassal-clan'а в-game.

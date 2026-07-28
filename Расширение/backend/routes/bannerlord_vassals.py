@@ -29,6 +29,56 @@ router = APIRouter()
 _AUTH_FAIL = {"success": False, "message": "auth required"}
 
 
+# ─── Заготовки («pending_<action_id>») ────────────────────────────────────────
+#
+# Вассал создаётся в два шага: строка-заготовка пишется сразу, мод подтверждает
+# событием `hero.vassal_created` и подменяет id на настоящий. Между шагами
+# строка НЕ описывает ничего существующего в игре.
+#
+# Отсюда два разных вопроса к строке, и путать их нельзя:
+#   • «показать зрителю как вассала?»  — только подтверждённые (_REAL_ONLY);
+#   • «занимает наследника и слот?»    — подтверждённые ПЛЮС свежие заготовки
+#     (_REAL_OR_FRESH), иначе два клика подряд заведут двух вассалов.
+# Протухшая заготовка не значит ни того, ни другого: её сносит отказ действия
+# (см. _adapter._on_action_failed), а `-10 minutes` — страховка на случай, если
+# отказ вообще не придёт.
+_REAL_ONLY = r"vassal_clan_id NOT LIKE 'pending\_%' ESCAPE '\'"
+_REAL_OR_FRESH = (
+    r"(vassal_clan_id NOT LIKE 'pending\_%' ESCAPE '\' "
+    r" OR created_at > datetime('now', '-10 minutes'))"
+)
+# То же самое под алиасом `v` — для подзапроса в списке наследников.
+_REAL_OR_FRESH_V = (
+    r"(v.vassal_clan_id NOT LIKE 'pending\_%' ESCAPE '\' "
+    r" OR v.created_at > datetime('now', '-10 minutes'))"
+)
+
+
+async def list_real_vassals(conn, channel_id: int, username: str) -> list:
+    """Вассалы зрителя. Общая точка для эндпоинта и теста."""
+    cur = await conn.execute(
+        "SELECT id, vassal_clan_id, vassal_leader_hero_id, vassal_name, "
+        "       income_share_pct, banner_code, created_at "
+        "FROM bannerlord_vassals "
+        "WHERE channel_id=? AND parent_username=? "
+        f"  AND {_REAL_ONLY} "
+        "ORDER BY created_at DESC LIMIT 20",
+        (channel_id, username))
+    rows = await cur.fetchall()
+    return [
+        {
+            "id":               r[0],
+            "vassal_clan_id":   r[1],
+            "vassal_leader_hero_id": r[2],
+            "vassal_name":      r[3],
+            "income_share_pct": r[4],
+            "banner_code":      r[5],
+            "created_at":       r[6],
+        }
+        for r in rows
+    ]
+
+
 @router.get("/api/bannerlord/vassals")
 async def my_vassals(request: Request):
     """Список своих вассалов. Returns {success, vassals: [...]}"""
@@ -38,31 +88,10 @@ async def my_vassals(request: Request):
     username, channel_id = auth
 
     async with get_db()._connect() as conn:
-        cur = await conn.execute(
-            "SELECT id, vassal_clan_id, vassal_leader_hero_id, vassal_name, "
-            "       income_share_pct, banner_code, created_at "
-            "FROM bannerlord_vassals "
-            "WHERE channel_id=? AND parent_username=? "
-            "ORDER BY created_at DESC LIMIT 20",
-            (channel_id, username))
-        rows = await cur.fetchall()
+        vassals = await list_real_vassals(conn, channel_id, username)
 
-    log.info("[VAS-LIST] ch=%s user=@%s vassals=%d", channel_id, username, len(rows))
-    return {
-        "success": True,
-        "vassals": [
-            {
-                "id":               r[0],
-                "vassal_clan_id":   r[1],
-                "vassal_leader_hero_id": r[2],
-                "vassal_name":      r[3],
-                "income_share_pct": r[4],
-                "banner_code":      r[5],
-                "created_at":       r[6],
-            }
-            for r in rows
-        ],
-    }
+    log.info("[VAS-LIST] ch=%s user=@%s vassals=%d", channel_id, username, len(vassals))
+    return {"success": True, "vassals": vassals}
 
 
 @router.get("/api/bannerlord/eligible-heirs")
@@ -78,28 +107,35 @@ async def eligible_heirs(request: Request):
     username, channel_id = auth
 
     async with get_db()._connect() as conn:
-        # Exclude heir_hero_ids которые уже vassal-leaders.
-        cur = await conn.execute(
-            "SELECT h.heir_hero_id, h.heir_name, h.came_of_age_at "
-            "FROM bannerlord_heirs h "
-            "WHERE h.channel_id=? AND h.parent_username=? "
-            "AND h.alive=1 AND h.activated=0 "
-            "AND NOT EXISTS ("
-            "    SELECT 1 FROM bannerlord_vassals v "
-            "    WHERE v.channel_id=h.channel_id "
-            "      AND v.vassal_leader_hero_id=h.heir_hero_id"
-            ") "
-            "ORDER BY h.came_of_age_at DESC LIMIT 20",
-            (channel_id, username))
-        rows = await cur.fetchall()
+        heirs = await list_eligible_heirs(conn, channel_id, username)
 
-    return {
-        "success": True,
-        "heirs": [
-            {"hero_id": r[0], "name": r[1], "came_of_age_at": r[2]}
-            for r in rows
-        ],
-    }
+    return {"success": True, "heirs": heirs}
+
+
+async def list_eligible_heirs(conn, channel_id: int, username: str) -> list:
+    """Наследники, которых можно выделить в вассал-лидеры.
+
+    Общая точка для эндпоинта и теста.
+    """
+    # Exclude heir_hero_ids которые уже vassal-leaders.
+    cur = await conn.execute(
+        "SELECT h.heir_hero_id, h.heir_name, h.came_of_age_at "
+        "FROM bannerlord_heirs h "
+        "WHERE h.channel_id=? AND h.parent_username=? "
+        "AND h.alive=1 AND h.activated=0 "
+        "AND NOT EXISTS ("
+        "    SELECT 1 FROM bannerlord_vassals v "
+        "    WHERE v.channel_id=h.channel_id "
+        "      AND v.vassal_leader_hero_id=h.heir_hero_id"
+        f"      AND {_REAL_OR_FRESH_V} "
+        ") "
+        "ORDER BY h.came_of_age_at DESC LIMIT 20",
+        (channel_id, username))
+    rows = await cur.fetchall()
+    return [
+        {"hero_id": r[0], "name": r[1], "came_of_age_at": r[2]}
+        for r in rows
+    ]
 
 
 # ─── Action handlers вызываются из _bannerlord_buy_action_locked ───────────────
@@ -136,7 +172,8 @@ async def handle_create_vassal(conn, channel_id: int, parent_user: str, data: di
     # Check not already vassal-leader.
     cur = await conn.execute(
         "SELECT 1 FROM bannerlord_vassals "
-        "WHERE channel_id=? AND vassal_leader_hero_id=?",
+        "WHERE channel_id=? AND vassal_leader_hero_id=? "
+        f"  AND {_REAL_OR_FRESH}",
         (channel_id, heir_hero_id))
     if await cur.fetchone():
         return {"success": False, "message": f"'{heir_name}' уже лидер вассала"}
@@ -144,7 +181,8 @@ async def handle_create_vassal(conn, channel_id: int, parent_user: str, data: di
     # Vassal limit per parent (anti-spam — viewer должен hard выбирать).
     cur = await conn.execute(
         "SELECT COUNT(*) FROM bannerlord_vassals "
-        "WHERE channel_id=? AND parent_username=?",
+        "WHERE channel_id=? AND parent_username=? "
+        f"  AND {_REAL_OR_FRESH}",
         (channel_id, parent_user))
     cnt_row = await cur.fetchone()
     if cnt_row and cnt_row[0] >= 5:

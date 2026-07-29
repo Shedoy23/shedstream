@@ -1365,6 +1365,13 @@ async def run_migrations():
             print(f"❌ M104 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m105_season_payout_log
+            await m105_season_payout_log.apply(conn)
+        except Exception as e:
+            print(f"❌ M105 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

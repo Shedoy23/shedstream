@@ -163,6 +163,19 @@ async def main_async():
         assert_eq(await _points(db), PRIZES[1],
                   "[2] приз выплачен за последний просроченный")
 
+        # M105: выплата обязана оставить след — иначе через месяц вопрос
+        # «кому и сколько заплатили» неразрешим (на этом уже обожглись).
+        async with db._connect() as conn:
+            cur = await conn.execute(
+                "SELECT username, rank, amount, season_id FROM duel_season_payouts "
+                "WHERE channel_id=?", (CHANNEL_ID,))
+            paid = await cur.fetchall()
+        assert_eq(len(paid), 1, "[6] выплата записана в журнал")
+        if paid:
+            assert_eq(paid[0][0], WINNER, "[6b] в журнале верный получатель")
+            assert_eq(paid[0][2], PRIZES[1], "[6c] в журнале верная сумма")
+            assert_eq(paid[0][3], last, "[6d] в журнале верный сезон")
+
         print("\n[5] Идущий сезон не закрывается досрочно")
         running = left[0]
         await check_season_end(CHANNEL_ID, GAME)

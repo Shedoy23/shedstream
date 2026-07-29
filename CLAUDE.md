@@ -102,6 +102,19 @@ The owner is a non-programmer building this solo with Claude; these rules are th
    считается провалом. Класс ошибки: **зелёный вывод ≠ зелёный результат**.
 3. **Prod deploys after stream, not during.** If a stream is live, only hotfix a broken prod; otherwise prepare everything and say "ready to deploy on break". A mid-stream backend restart drops viewer connections; a mod copy needs the game closed anyway.
 4. **Feature in — feature out.** When a new mechanic is requested, ask which low-usage feature gets frozen/removed in exchange (use usage metrics once they exist; until then, ask). The 7k-line viewer.js is what unbounded "yes" looks like.
+5b. **Заданию внешнему аудитору НЕЛЬЗЯ писать «это я уже проверил, сюда не
+   смотри».** (Прямое требование владельца 2026-07-29: «не пиши в боты то, что
+   ты уже что-то проверил и не нужно там проверять, уже обжигался».) Причина
+   арифметическая: моё «проверено» стоит ровно столько, сколько стоят мои
+   выводы, а за один день 29.07 я трижды выдал догадку за факт. Указание «не
+   трать время на область X» уводит проверяющего ровно оттуда, где я мог
+   ошибиться, и обнуляет смысл независимости. **Можно и нужно:** описывать
+   систему, правила, классы дефектов, карту приоритетов «с чего начать»,
+   формат находок и СВОИ ошибки как калибровку. **Нельзя:** «уже проверено»,
+   «не дублируй», «сюда если останется время», «мы знаем, не смотри».
+   Это же относится к прогонам линтеров и тестов: зелёный прогон — не
+   индульгенция области, он ловит свой класс и молчит про остальные.
+   Канон задания — `Расширение/docs/INDEPENDENT_AUDIT_BRIEF.md`.
 5. **Suggest the monthly audit — TWO kinds, don't conflate** (ROADMAP §6). **Код-аудит** reads code for what's wrong in it (security / dead code / debt). **Аудит работы** runs each paid mechanic end-to-end against live data and catches what code-audits structurally cannot: mechanics dead in prod, code-vs-migration/load-order drift, silent no-ops. Propose аудит работы before every Twitch submission (it would have caught the dead RimWorld shop) and either kind after ~a month. The 2026-04 audit (13 CRITICAL) out-earned any feature.
 6. **Update the CONTEXT doc** (`docs/CONTEXT*.md`) after any significant change — it's the handoff that keeps future sessions from re-discovering everything.
 6c. **НЕ ЗАПИСАНО = ЗАБЫТО (владелец, 2026-07-28).** Правило шире 6b: записывать

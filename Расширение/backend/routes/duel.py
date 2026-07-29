@@ -145,22 +145,46 @@ async def check_season_end(channel_id: int = None, game_type: str = 'rps'):
         # Атомарность: призы + finish + reset + новый сезон — одна транзакция
         # (иначе краш между add_points и finish = двойная выдача при ретрае).
         await conn.execute("BEGIN IMMEDIATE")
-        row = await (await conn.execute(
-            "SELECT id, ends_at FROM duel_seasons WHERE channel_id = ? AND game_type = ? AND finished = 0 ORDER BY id DESC LIMIT 1",
+        # 2026-07-29. Раньше здесь стояло `ORDER BY id DESC LIMIT 1` — то есть
+        # рассматривался ТОЛЬКО самый свежий незакрытый сезон. Если рядом висел
+        # незакрытый старый, он не попадал сюда никогда: ни призов, ни закрытия.
+        # На проде так накопилось три сезона rps (истекли 24.05 и 21.06) и один
+        # tictactoe. Берём ВСЕ незакрытые и разбираем каждый.
+        rows = await (await conn.execute(
+            "SELECT id, ends_at FROM duel_seasons "
+            "WHERE channel_id = ? AND game_type = ? AND finished = 0 "
+            "ORDER BY id ASC",
             (cid, game_type)
-        )).fetchone()
+        )).fetchall()
 
-        if not row:
+        if not rows:
             await _ensure_season(conn, cid, game_type)
             return
 
-        season_id, ends_at_str = row
-        ends_at = datetime.fromisoformat(ends_at_str)
-        if ends_at.tzinfo is None:
-            ends_at = ends_at.replace(tzinfo=timezone.utc)
+        now_utc = datetime.now(timezone.utc)
+        expired = []
+        for r_id, r_ends in rows:
+            r_end = datetime.fromisoformat(r_ends)
+            if r_end.tzinfo is None:
+                r_end = r_end.replace(tzinfo=timezone.utc)
+            if now_utc >= r_end:
+                expired.append(r_id)
 
-        if datetime.now(timezone.utc) < ends_at:
-            return  # Сезон ещё идёт
+        if not expired:
+            return  # Все незакрытые сезоны ещё идут
+
+        # Просроченные, кроме последнего, закрываем БЕЗ призов и молча.
+        # Не жадность: их таблица результатов физически стёрта — ротация
+        # сезона сбрасывает `duel_stats` целиком по (каналу, игре), и строк с
+        # их season_id в базе не осталось. Платить не по чему.
+        for stale_id in expired[:-1]:
+            await conn.execute(
+                "UPDATE duel_seasons SET finished = 1 WHERE channel_id = ? AND id = ?",
+                (cid, stale_id))
+            print(f"[DUEL-SEASON] ch={cid} {game_type}: сезон #{stale_id} закрыт "
+                  f"без призов — результаты не сохранились")
+
+        season_id = expired[-1]
 
         # ── Сезон закончился (Sprint 5.25: prize gate elo >= 1100) ────────
         top = await (await conn.execute(

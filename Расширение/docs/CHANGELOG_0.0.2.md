@@ -1,0 +1,113 @@
+# ShedLink 0.0.2 — состав версии и changelog
+
+**Статус:** в работе, состав НЕ заморожен.
+**Предыдущая публичная версия:** `0.0.1` (Released 2026-07-28).
+**Заведён:** 2026-07-29.
+
+## Как этим пользоваться
+
+Файл живой: пункт вносится сюда **в момент, когда он сделан**, а не в день
+сборки архива. Причина простая — иначе changelog пишется по памяти в последний
+вечер, а память к тому моменту помнит не всё.
+
+Английская часть заполняется вместе с русской, **а не переводится потом**:
+ревьюер англоязычный, и «переведём перед подачей» — ровно тот пункт, который
+съедает вечер и делается хуже всего.
+
+**Дата заморозки состава: НЕ НАЗНАЧЕНА.** Это дыра — назначить и вписать сюда.
+После заморозки новое едет в `0.0.3`, даже если «мелочь и рядом». Обоснование —
+`ROADMAP.md` §5в, слой 1-бис.
+
+---
+
+## ✅ Готово и войдёт в архив
+
+### Магазин RimWorld больше не уходит в эндпоинт питомцев
+
+Два файла объявляли функцию с одним именем в общей глобальной области:
+`shop.js` и `pets.js`. Питомцы грузятся позже и затирали чужую функцию, поэтому
+**любая** покупка в магазине RimWorld уходила в адрес питомцев и отвечала
+«Предмет не найден в каталоге» — то есть магазин был мёртв целиком.
+
+Исправлено 2026-07-22 (`0a58956`), но **в публичную `0.0.1` не попало**: фикс
+сделан уже после подачи, а фронт к тому моменту был заморожен на CDN. Значит на
+выпущенной сейчас версии магазин RimWorld по-прежнему не работает, и починит
+это только выпуск `0.0.2`.
+
+*Практическое следствие до выпуска:* не переключать канал на RimWorld — у
+зрителей его магазин мёртв.
+
+---
+
+## 🔜 Запланировано в эту версию (не сделано)
+
+Полный список — `DEFERRED.md` §A (5 пунктов) и §A0-octies (4 хвоста прогона
+«глазами ревьюера»). Ключевое:
+
+- [ ] **Причина отказа доходит до зрителя.** Сейчас возврат молчаливый: бэкенд
+      причину знает, до панели канала нет. Самый заметный для зрителя пункт.
+- [ ] **Тонкий фронт: цены, кулдауны и лимиты с бэкенда**, а не хардкодом.
+      Принцип из `CLAUDE.md`: с бэка — данные, во фронте — как их показать.
+- [ ] **Блок «о внутренней валюте и шансах» — двуязычный.** Сейчас только
+      по-русски, а раскрытие вероятностей должен понять англоязычный ревьюер.
+- [ ] Уборка мёртвой `requestUserPermissions()` — внутри вызов несуществующего
+      `Twitch.ext.actions.requestFullAccess()`.
+- [ ] Переименования стоек/навыков, каталог законов с игры, ачивки, компенсация
+      погибшим не по своей вине.
+
+## 🔧 Бэкенд этой волны (в архив НЕ входит, ревью не требует)
+
+Указывается в changelog подачи отдельным блоком: ревьюер смотрит diff
+относительно released-версии и должен понимать, что менялось за кадром.
+
+- ✅ **Пять денежных фиксов — на проде с 29.07.** Двойная выплата при отказе,
+      возвраты спец-действий, истечение зависших покупок, фантомные вассалы,
+      замок на заявках о мире.
+- [ ] **Модерация озвучки** (M102) — написана, не выкачена, без интерфейса.
+      Закрывает 5 из 7 требований Twitch к пользовательскому контенту.
+- [ ] **Сторож свободной памяти** — условие публичности (белый список убираем).
+
+---
+
+## Черновик текста для формы подачи (English)
+
+Заполняется по мере готовности пунктов. Формат — по
+`TWITCH_UPDATE_RELEASE_PLAYBOOK.md`, этап G.
+
+```text
+ShedLink 0.0.2
+
+Changes:
+1. Fixed the RimWorld shop: two scripts declared a function with the same name
+   in the shared global scope, so every purchase was routed to the pet-cosmetics
+   endpoint and failed with "item not found in catalog". The shop is functional
+   again.
+2. (pending) Viewers now see WHY a paid action was refused instead of silently
+   getting their currency back.
+3. (pending) Prices, cooldowns and limits are served by the backend instead of
+   being hardcoded in the frontend, so displayed values cannot drift from the
+   values actually enforced.
+4. (pending) The in-panel virtual currency and drop-rate disclosure is now
+   available in English as well as Russian.
+
+Compatibility:
+- No new Twitch permissions or capabilities were added.
+- The backend remains compatible with the currently released 0.0.1: it serves
+  both the old and the new frontend during the transition.
+- Required game/mod version: (fill in before submission)
+
+Verification:
+1. Open the extension on the review channel.
+2. (steps filled in per feature before submission)
+
+Environment:
+- Review channel: https://twitch.tv/shedoy23
+- Backend: https://shedoy23.ru
+- Live game requirement: yes — the extension drives a running Mount & Blade II:
+  Bannerlord session through a streamer-side mod.
+- Availability: (fill in the window before submission)
+```
+
+**Не забыть при подаче:** содержательные изменения поведения и сбора данных
+описывать честно — в том числе добавленную модерацию пользовательского
+контента. Это плюс, а не риск: Twitch прямо требует таких возможностей.

@@ -2138,7 +2138,14 @@ class BannerlordAdapter(ModuleAdapter):
                 # (target == финальный winner) → фикс-бонус из платформенного
                 # пула; неверный → ничего (зритель ничего не ставил, не теряет).
                 # Без pot/burn — убрали wager-на-исход (дух §6.2.6).
-                TOURNAMENT_PREDICTION_REWARD = 500   # крустиков за верный прогноз
+                # 2026-07-29 (решение владельца): награда переведена с крустиков
+                # на ДИНАРЫ. Крустики зарабатываются только в ядре — за просмотр
+                # и активность; внутри игровой интеграции они лишь тратятся
+                # (PLATFORM_VISION §«Граница валют»). Ставка за прогноз
+                # бесплатная, поэтому награда крустиками была чистой эмиссией
+                # изнутри Bannerlord — тем же, за что вырезали ренту с феодов.
+                # Динары начисляет мод в игре, платформенную массу они не трогают.
+                TOURNAMENT_PREDICTION_REWARD_GOLD = 2500   # 💰 динаров за верный прогноз
                 cur = await conn.execute("""
                     SELECT bettor, target, round_index
                     FROM bannerlord_tournament_bets
@@ -2148,22 +2155,36 @@ class BannerlordAdapter(ModuleAdapter):
                 n_correct = 0
                 for bettor, target, r_idx in preds:
                     correct = (target or "").lower() == winner
-                    reward = TOURNAMENT_PREDICTION_REWARD if correct else 0
+                    reward = TOURNAMENT_PREDICTION_REWARD_GOLD if correct else 0
                     await conn.execute("""
                         UPDATE bannerlord_tournament_bets
                         SET resolved=?, payout=?
                         WHERE channel_id=? AND bettor=? AND round_index=?
                     """, (1 if correct else 2, reward, channel_id, bettor, r_idx))
                     if correct:
+                        # Динары выдаёт мод в игре — тем же путём, что и
+                        # ежедневную награду (player.give_item, item_type=gold).
+                        # Ставим в очередь ЭТОЙ же транзакцией: отметка «выдано»
+                        # и заявка на выдачу не должны расходиться.
+                        import uuid as _uuid
                         await conn.execute(
-                            "UPDATE viewers SET points = points + ? "
-                            "WHERE channel_id=? AND username=?",
-                            (reward, channel_id, bettor))
+                            "INSERT INTO module_actions "
+                            "(channel_id, module_id, action_id, type, data, status) "
+                            "VALUES (?, 'bannerlord', ?, 'player.give_item', ?, 'queued')",
+                            (channel_id, _uuid.uuid4().hex,
+                             json.dumps({
+                                 "initiated_by": bettor,
+                                 "target":       bettor,
+                                 "item_type":    "gold",
+                                 "amount":       reward,
+                                 "price":        0,
+                                 "_prediction":  True,
+                             }, ensure_ascii=False)))
                         n_correct += 1
                 if preds:
                     print(f"[bannerlord:{channel_id}] tournament predictions resolved "
                           f"by winner @{winner}: {n_correct}/{len(preds)} correct "
-                          f"(+{TOURNAMENT_PREDICTION_REWARD}⦷ each)")
+                          f"(+{TOURNAMENT_PREDICTION_REWARD_GOLD}💰 each)")
 
             await conn.execute("""
                 UPDATE bannerlord_tournament_state

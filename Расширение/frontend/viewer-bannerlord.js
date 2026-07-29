@@ -114,7 +114,7 @@ function _renderBannerlordTournament(data) {
                 </div>`;
         } else {
             participantsHtml = `
-                <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">🔮 Угадай победителя — бесплатно, за верный прогноз бонус:</div>
+                <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">🔮 Угадай победителя — бесплатно, за верный прогноз бонус динарами:</div>
                 <div style="display:grid;grid-template-columns:1fr auto;gap:4px;align-items:center;">
                     ${participants.map(p => `
                         <span style="font-size:12px;">⚔️ ${escapeHtml(p)}</span>

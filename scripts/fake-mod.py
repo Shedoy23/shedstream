@@ -19,9 +19,24 @@
 на прод, надо явно передать --url И --i-know-this-is-prod: случайный запуск
 против боевого бэкенда добавит настоящим зрителям настоящих событий.
 
+ДВЕ ОЧЕРЕДИ — ЧИТАТЬ ПЕРЕД ЗАПУСКОМ (важно для RimWorld):
+  По умолчанию инструмент говорит по Module API (/v1/module/...). Но платные
+  кнопки RimWorld кладут команду в СТАРУЮ очередь (`rimworld_pending_commands`,
+  выдача через /api/rimworld/commands), потому что адаптер RimWorld пока
+  заглушка. Значит без флага --rimworld-legacy опрос НЕ увидит ни одной
+  покупки — и «проверка» ничего не докажет (эта ловушка стоила ложного плана
+  аудита 29.07). Для RimWorld почти всегда нужен --rimworld-legacy.
+
 ПРИМЕРЫ
   # обычная жизнь мода: слушать команды и выполнять их
   python scripts/fake-mod.py --token <токен> --channel 98319857
+
+  # платные покупки RimWorld: увидеть и подтвердить
+  python scripts/fake-mod.py --token <токен> --channel 98319857 --rimworld-legacy
+
+  # отказать по всем покупкам RimWorld — проверяем возврат крустиков
+  python scripts/fake-mod.py --token <токен> --channel 98319857 \
+      --rimworld-legacy --refuse-all
 
   # всё отклонять — проверяем, что деньги возвращаются
   python scripts/fake-mod.py --token <токен> --channel 98319857 --refuse-all
@@ -50,13 +65,23 @@ def _say(msg):
 
 
 class FakeMod:
-    def __init__(self, base_url, module_id, channel_id, token, timeout=40):
+    def __init__(self, base_url, module_id, channel_id, token, timeout=40,
+                 legacy=False):
         self.base = base_url.rstrip("/")
         self.module = module_id
         self.channel = int(channel_id)
         self.token = token
         self.timeout = timeout
         self.cursor = 0
+        # legacy=True — очередь RimWorld ДО переезда на Module API. Она нужна
+        # обязательно: все платные кнопки RimWorld (пешка, лечение, магазин,
+        # гены, черты, пассии, ивенты) кладут команду в
+        # `rimworld_pending_commands` и отдают её через /api/rimworld/commands,
+        # а вовсе не в generic-outbox Module API. Адаптер RimWorld
+        # (`modules/rimworld/_adapter.py`) до сих пор объявляет dispatch_action
+        # заглушкой, поэтому без этого режима поллинг видел бы пустоту и
+        # «проверка RimWorld» доказывала бы ровно ничего (найдено 29.07).
+        self.legacy = legacy
 
     # ── транспорт ────────────────────────────────────────────────────────────
     def _call(self, method, path, body=None):
@@ -109,6 +134,8 @@ class FakeMod:
         return ok
 
     def poll_actions(self):
+        if self.legacy:
+            return self._poll_actions_legacy()
         code, body = self._call(
             "GET", "/v1/module/%s/actions?since=%d" % (self.module, self.cursor))
         if code != 200:
@@ -119,7 +146,23 @@ class FakeMod:
             self.cursor = max(self.cursor, int(body["cursor"]))
         return actions
 
+    def _poll_actions_legacy(self):
+        """Старая очередь RimWorld: GET /api/rimworld/commands.
+
+        Отдаёт список команд как есть (у каждой своё поле `id`), курсора нет —
+        выдача сама помечает строки delivered. Приводим к тому же виду, что и
+        Module API, чтобы вызывающий код не различал очереди.
+        """
+        code, body = self._call("GET", "/api/rimworld/commands")
+        if code != 200:
+            _say("опрос команд (legacy) -> HTTP %s %s" % (code, body))
+            return []
+        cmds = body if isinstance(body, list) else (body.get("commands") or [])
+        return [dict(c, action_id=c.get("id")) for c in cmds]
+
     def ack(self, action_id, success=True, error=None):
+        if self.legacy:
+            return self._ack_legacy(action_id, success, error)
         payload = {"action_id": action_id, "success": success}
         if error and not success:
             payload["error"] = error
@@ -127,6 +170,20 @@ class FakeMod:
         _say("  подтвердил %s: %s -> %s" % (
             action_id, "выполнено" if success else "ОТКАЗ (%s)" % error, body))
         return body.get("acked")
+
+    def _ack_legacy(self, cmd_id, success=True, error=None):
+        """Старая очередь: POST /api/rimworld/ack-command.
+
+        Поле называется `command_id`, а не `action_id`; отказ (success=false)
+        возвращает зрителю цену и удаляет строку той же транзакцией.
+        """
+        payload = {"command_id": cmd_id, "success": success}
+        if error and not success:
+            payload["message"] = error
+        code, body = self._call("POST", "/api/rimworld/ack-command", payload)
+        _say("  подтвердил %s: %s -> HTTP %s %s" % (
+            cmd_id, "выполнено" if success else "ОТКАЗ (%s)" % error, code, body))
+        return code == 200
 
 
 def run_loop(mod, refuse_all=False, drop_all=False, double_ack=False, once=False):
@@ -178,6 +235,10 @@ def main():
     p.add_argument("--drop-all", action="store_true", help="молча терять команды")
     p.add_argument("--double-ack", action="store_true", help="подтверждать дважды")
     p.add_argument("--once", action="store_true", help="один проход и выход")
+    p.add_argument("--rimworld-legacy", action="store_true",
+                   help="очередь RimWorld до Module API (/api/rimworld/commands "
+                        "+ /ack-command) — ЕДИНСТВЕННЫЙ режим, в котором видно "
+                        "платные покупки RimWorld")
     args = p.parse_args()
 
     local = any(h in args.url for h in ("127.0.0.1", "localhost", "::1"))
@@ -187,10 +248,22 @@ def main():
         print("не-локальный бэкенд, добавь --i-know-this-is-prod.")
         return 2
 
-    mod = FakeMod(args.url, args.module, args.channel, args.token)
-    _say("притворяюсь модом '%s' канала %d на %s" % (args.module, args.channel, args.url))
+    mod = FakeMod(args.url, args.module, args.channel, args.token,
+                  legacy=args.rimworld_legacy)
+    _say("притворяюсь модом '%s' канала %d на %s%s"
+         % (args.module, args.channel, args.url,
+            " [очередь RimWorld до Module API]" if args.rimworld_legacy else ""))
 
-    if not mod.hello():
+    if args.rimworld_legacy:
+        # У старой очереди нет hello — проверяем доступ пробным опросом:
+        # неверный токен даст 401/403, и идти дальше смысла нет.
+        code, body = mod._call("GET", "/api/rimworld/commands")
+        if code != 200:
+            _say("очередь не отвечает (HTTP %s %s) — проверь токен и что бэк запущен"
+                 % (code, body))
+            return 1
+        _say("доступ к очереди есть")
+    elif not mod.hello():
         _say("hello не прошёл — дальше идти смысла нет (проверь токен и что бэк запущен)")
         return 1
 

@@ -138,34 +138,128 @@ class EventManager:
     # =========================
     # Pool
     # =========================
-    async def add_to_pool(self, username, amount):
+    # add_to_pool удалён 2026-07-29 вместе с переездом копилки в базу:
+    # он растил её ТОЛЬКО в памяти и вызывался отдельным шагом после
+    # списания. Замена — charge_and_add_to_pool ниже, одной транзакцией.
+
+    # =========================
+    # Копилка в базе (M104, 2026-07-29)
+    # =========================
+    # До этой правки копилка была полем в памяти процесса: рестарт бэкенда
+    # обнулял её, а крустики зрителей уже были списаны — без возврата и без
+    # следа. Копилка копится днями до порога в 100 000💎, деплой в середине
+    # накопления стирал всё. Теперь истина — в таблице `event_pool`, а поля
+    # `event_pool` / `event_pool_contributors` остаются её зеркалом в памяти
+    # (их читают can_start_event, топ вкладчиков и страница ивента).
+
+    async def load_pool(self, channel_id=None):
+        """Поднять копилку из базы. Зовётся при старте процесса."""
+        from dependencies import resolve_channel_id_or_default
+        cid = channel_id or resolve_channel_id_or_default()
+        try:
+            async with self.db._connect() as conn:
+                cur = await conn.execute(
+                    "SELECT pool FROM event_pool WHERE channel_id=?", (cid,))
+                row = await cur.fetchone()
+                self.event_pool = int(row[0]) if row else 0
+                cur = await conn.execute(
+                    "SELECT username, amount FROM event_pool_contributors "
+                    "WHERE channel_id=?", (cid,))
+                self.event_pool_contributors = {
+                    r[0]: int(r[1]) for r in await cur.fetchall()}
+        except Exception as e:
+            logger.warning("[EVENT-POOL] не удалось поднять копилку: %s", e)
+            return
+        logger.info("[EVENT-POOL] копилка поднята: %s⭘, вкладчиков %s",
+                    self.event_pool, len(self.event_pool_contributors))
+
+    async def charge_and_add_to_pool(self, username, amount, channel_id):
+        """Списать крустики и зачесть взнос ОДНОЙ транзакцией.
+
+        Раньше это были два независимых шага: `remove_points` со своим
+        соединением и коммитом, потом `add_to_pool` в память. Сбой между ними
+        (или рестарт) съедал деньги без взноса.
+
+        Returns (ok: bool, pool: int, reason: str).
+        """
+        username = (username or "").lower()
         if amount <= 0:
-            return self.event_pool, "invalid amount"
+            return False, self.event_pool, "invalid amount"
 
         event_to_announce = None
-
         async with self._lock:
-            self.event_pool += amount
+            async with self.db._connect() as conn:
+                try:
+                    await conn.execute("BEGIN IMMEDIATE")
+                    cur = await conn.execute(
+                        "UPDATE viewers SET points = points - ? "
+                        "WHERE channel_id=? AND username=? AND points >= ?",
+                        (amount, channel_id, username, amount))
+                    if cur.rowcount == 0:
+                        await conn.execute("ROLLBACK")
+                        return False, self.event_pool, "insufficient points"
+                    await conn.execute(
+                        "INSERT INTO event_pool (channel_id, pool, updated_at) "
+                        "VALUES (?, ?, CURRENT_TIMESTAMP) "
+                        "ON CONFLICT(channel_id) DO UPDATE SET "
+                        "  pool = pool + excluded.pool, "
+                        "  updated_at = CURRENT_TIMESTAMP",
+                        (channel_id, amount))
+                    await conn.execute(
+                        "INSERT INTO event_pool_contributors "
+                        "(channel_id, username, amount, updated_at) "
+                        "VALUES (?, ?, ?, CURRENT_TIMESTAMP) "
+                        "ON CONFLICT(channel_id, username) DO UPDATE SET "
+                        "  amount = amount + excluded.amount, "
+                        "  updated_at = CURRENT_TIMESTAMP",
+                        (channel_id, username, amount))
+                    cur = await conn.execute(
+                        "SELECT pool FROM event_pool WHERE channel_id=?", (channel_id,))
+                    new_pool = int((await cur.fetchone())[0])
+                    await conn.commit()
+                except Exception:
+                    try:
+                        await conn.execute("ROLLBACK")
+                    except Exception:
+                        pass
+                    raise
+
+            # Память — зеркало базы, а не отдельная правда.
+            self.event_pool = new_pool
             self.event_pool_contributors[username] = (
-                self.event_pool_contributors.get(username, 0) + amount
-            )
+                self.event_pool_contributors.get(username, 0) + amount)
 
             can_start, _ = self.can_start_event()
             if can_start and not self.active_event:
                 event_to_announce = self._build_event()
-
+                await self._persist_pool_reset(channel_id)
             pool_value = self.event_pool
 
-        # Уведомляем бота вне лока
         if event_to_announce is not None:
             try:
                 await self.bot.on_event_start(
-                    event_to_announce["type"], event_to_announce["prize"]["name"]
-                )
+                    event_to_announce["type"], event_to_announce["prize"]["name"])
             except Exception as e:
-                print(f"add_to_pool start_event notify error: {e}")
+                logger.warning("charge_and_add_to_pool notify error: %s", e)
 
-        return pool_value, "ok"
+        return True, pool_value, "ok"
+
+    async def _persist_pool_reset(self, channel_id):
+        """Записать в базу списание порога из копилки и обнуление вкладчиков.
+
+        Зовётся сразу после `_build_event`, который уже сделал это в памяти.
+        """
+        try:
+            async with self.db._connect() as conn:
+                await conn.execute(
+                    "UPDATE event_pool SET pool=?, updated_at=CURRENT_TIMESTAMP "
+                    "WHERE channel_id=?", (self.event_pool, channel_id))
+                await conn.execute(
+                    "DELETE FROM event_pool_contributors WHERE channel_id=?",
+                    (channel_id,))
+                await conn.commit()
+        except Exception as e:
+            logger.warning("[EVENT-POOL] не удалось записать старт ивента: %s", e)
 
     # =========================
     # Bid

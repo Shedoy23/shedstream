@@ -1354,6 +1354,13 @@ async def run_migrations():
             print(f"❌ M103 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m104_event_pool_persist
+            await m104_event_pool_persist.apply(conn)
+        except Exception as e:
+            print(f"❌ M104 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 
@@ -1889,6 +1896,9 @@ async def on_startup():
     from dependencies import channel_rate_cleanup_loop as _channel_rate_cleanup
     asyncio.create_task(_channel_rate_cleanup())
     # Фоновые задачи бота
+    # M104: копилка ивента лежит в базе — поднять её в память при старте,
+    # иначе рестарт снова покажет зрителям ноль (деньги-то списаны).
+    asyncio.create_task(bot.event_manager.load_pool())
     asyncio.create_task(bot.reward_points_loop())
     asyncio.create_task(bot.drop_loop())
     asyncio.create_task(bot.matchmaking_loop())  # Phase 5.0 (2026-05-11)

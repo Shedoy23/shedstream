@@ -130,15 +130,21 @@ async def event_contribute(request: Request):
     db     = get_db()
     bot    = get_bot()
     await bot.touch_viewer(username)
-    points = await db.get_points(username)
-    if points < amount:
-        return {"success": False, "message": f"Недостаточно очков! У тебя {points}💎"}
 
-    removed = await db.remove_points(username, amount)
-    if not removed:
+    # M104 (2026-07-29): списание и зачёт взноса — одной транзакцией, и с
+    # каналом из JWT. Раньше здесь было три независимых шага: прочитать
+    # баланс, списать (без channel_id — то есть всегда с канала по
+    # умолчанию), потом добавить в копилку, жившую в памяти процесса.
+    # Сбой или рестарт между шагами съедал крустики без взноса.
+    ok, pool, reason = await bot.event_manager.charge_and_add_to_pool(
+        username, amount, channel_id)
+    if not ok:
+        if reason == "insufficient points":
+            points = await db.get_points(username, channel_id)
+            return {"success": False,
+                    "message": f"Недостаточно очков! У тебя {points}💎"}
         return {"success": False, "message": "Не удалось списать очки, попробуй ещё раз"}
 
-    pool, msg    = await bot.event_manager.add_to_pool(username, amount)
     auto_started = bot.event_manager.active_event is not None
     left_points  = max(0, 100000 - pool)
 

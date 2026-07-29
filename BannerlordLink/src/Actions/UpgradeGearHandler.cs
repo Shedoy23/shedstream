@@ -105,6 +105,24 @@ namespace BannerlordLink.Actions
                 int slotsFilled = ApplyGearLoadout(hero, classKey, engineTier,
                     stripArmorModifiers: true);
 
+                // 2026-07-29 (багрепорт #42) — ТИХИЙ ПЛАТНЫЙ NO-OP.
+                // Раньше `slotsFilled` считался, но использовался только в логе:
+                // золото списывалось, `hero.gear_tier_changed` уходил на бэкенд и
+                // тир рос ДАЖЕ ЕСЛИ не заменился ни один слот. Зритель платил до
+                // 1 500 000 динаров и не получал ничего, а тир в базе «убегал»
+                // вперёд — следующая покупка целилась ещё выше и повторяла то же.
+                // Правило CLAUDE.md: платное действие обязано детектить тихий
+                // no-op ДО ack-true, и детект — по НАБЛЮДАЕМОМУ эффекту.
+                // Здесь наблюдаемый эффект и есть число заменённых слотов.
+                if (slotsFilled <= 0)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[upgrade_gear] REFUSE @{username} → T{targetTier} ({classKey}): " +
+                        $"0 слотов заменено — снаряжение не изменилось, деньги НЕ списаны");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "gear_no_change");
+                    return;
+                }
+
                 // Списать Hero.Gold ПОСЛЕ apply equipment (atomic в-game).
                 // GiveGoldAction.ApplyBetweenCharacters(giver, receiver, amount):
                 // если первый аргумент null — взять gold из nowhere, отрицательный

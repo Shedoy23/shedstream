@@ -85,7 +85,6 @@ from routes.rps        import router as rps_router        # Sprint 5.24b (2026-0
 from routes.bannerlord  import router as bannerlord_router # Sprint 1.3 (2026-05-15)
 from routes.shedcolony  import router as shedcolony_router # ShedColony viewer endpoints (2026-06-25)
 from routes.bannerlord_achievements import router as bannerlord_achievements_router # Sprint 5.29
-from routes.bannerlord_custom_items import router as bannerlord_custom_items_router # Sprint 5.29
 from routes.bannerlord_family import router as bannerlord_family_router       # Sprint 5.33 BLT-parity FAM
 from routes.bannerlord_vassals import router as bannerlord_vassals_router     # Sprint 5.33 BLT-parity VAS
 from routes.bannerlord_party_orders import router as bannerlord_party_orders_router  # Sprint 5.33 BLT-parity SIEGE
@@ -126,7 +125,10 @@ app.include_router(rps_router)         # Sprint 5.24b (2026-05-21): RPS bo3 matc
 app.include_router(bannerlord_router)  # Sprint 1.3 (2026-05-15): Bannerlord viewer endpoints
 app.include_router(shedcolony_router)  # ShedColony viewer endpoints (buy / my-colonist / capacity)
 app.include_router(bannerlord_achievements_router)  # Sprint 5.29 BLT-parity #5
-app.include_router(bannerlord_custom_items_router)  # Sprint 5.29 BLT-parity #6
+# Инвентарь кованых трофеев ОТКЛЮЧЁН 2026-07-29 (файл остаётся в репо).
+# Это витрина трофей-системы, а ковку по образцу BLT решено не делать
+# (DEFERRED §D): предметов, которые он показывает, взяться неоткуда.
+# Кнопок во фронте нет — оба маршрута висели без потребителя.
 # Аукцион кованых предметов ОТКЛЮЧЁН 2026-07-29 (routes/bannerlord_auctions.py
 # остаётся в репо). Механики нет с двух сторон: кнопок в панели никогда не было,
 # а торговал он коваными предметами — ковку решено не делать (DEFERRED §D).

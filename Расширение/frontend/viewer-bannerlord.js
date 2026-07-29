@@ -58,6 +58,18 @@ function _fmtK(n) {
 }
 function _bnrGoldLabel(key, fallback) { return _fmtK(_bnrGold(key, fallback)) + '💰'; }
 
+// 2026-07-29 (багрепорт #22): «щит T3★ отображается во втором оружии, а не в
+// щитах». В движке щит ФИЗИЧЕСКИ занимает один из weapon-слотов, поэтому по
+// индексу слота отличить его от оружия нельзя — подписи были статичные
+// («Оружие 2»). Отличаем по статам: щиту мод шлёт {hp, body}
+// (EquipmentSync.BuildShieldStats), ни у одного оружия такой пары нет —
+// у оружия урон/скорость/длина, у боеприпасов stack, у коня свой слот.
+function _bnrIsShield(slot, it) {
+    if (!it || !String(slot || '').startsWith('weapon')) return false;
+    const s = it.stats || {};
+    return s.hp != null && s.body != null;
+}
+
 
 // ===== Sprint 5.3: Турнир зрителей (BLT-style) =====
 async function loadBannerlordTournament() {
@@ -2931,6 +2943,9 @@ function _renderEquipRow(slot, it, slotIcons) {
             ${slotIcons[slot] || '·'} ${slot}: <em>пусто</em>
         </div>`;
     }
+    // Иконка по СОДЕРЖИМОМУ, а не по индексу слота: щит лежит в weapon-слоте и
+    // рисовался мечом, из-за чего читался как «второе оружие» (багрепорт #22).
+    const slotIcon = _bnrIsShield(slot, it) ? '🛡' : (slotIcons[slot] || '·');
     const name = escapeHtml(it.item_name || it.item_id || '—');
     const tierBadge = (it.tier != null && it.tier >= 0)
         ? `<span style="color:#fbbf24;font-weight:700;margin-left:4px;">T${it.tier + 1}★</span>`
@@ -2973,7 +2988,7 @@ function _renderEquipRow(slot, it, slotIcons) {
 
     return `<div style="font-size:11px;padding:2px 0;border-bottom:1px solid #2d2d2f;">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
-            <span><span style="color:#adadb8;">${slotIcons[slot] || '·'}</span> ${name}${tierBadge}${_bnrQualityBadge(it.quality)}</span>
+            <span><span style="color:#adadb8;">${slotIcon}</span> ${name}${tierBadge}${_bnrQualityBadge(it.quality)}</span>
             <button class="bnr-discard-btn" data-slot="${slot}" data-item-name="${name}"
                 title="Выбросить — освободить слот"
                 style="flex:none;background:none;border:none;color:#6b7280;cursor:pointer;font-size:11px;padding:0 2px;line-height:1;">❌</button>
@@ -3424,6 +3439,8 @@ async function _renderForgeInline() {
     // предметов — апает качество существующего, поэтому база (тир) не обесценивается.
     const eq = _bannerlordLastHero?.equipment || {};
     // slot → подпись + эмодзи (порядок как в Экипировке).
+    // Подписи weapon-слотов уточняются по СОДЕРЖИМОМУ ниже: щит лежит в
+    // weapon-слоте, и статичная подпись «Оружие N» вводила в заблуждение (#22).
     const SLOTS = [
         { s: 'weapon0', emoji: '🗡', label: 'Оружие 1' },
         { s: 'weapon1', emoji: '⚔', label: 'Оружие 2' },
@@ -3439,6 +3456,8 @@ async function _renderForgeInline() {
     const rows = SLOTS.map(x => {
         const it = eq[x.s];
         const has = it && it.item_id;
+        // Щит в weapon-слоте: иконка по содержимому, иначе он выглядел мечом (#22).
+        const slotEmoji = _bnrIsShield(x.s, it) ? '🛡' : x.emoji;
         const nameHtml = has
             ? escapeHtml(it.item_name || it.item_id)
             : '<em style="color:#6b7280;">пусто</em>';
@@ -3460,7 +3479,7 @@ async function _renderForgeInline() {
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;
                         padding:6px 2px;border-bottom:1px solid #2d2d2f;">
                 <span style="font-size:12px;color:#efeff1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                    <span style="color:#adadb8;">${x.emoji}</span> ${nameHtml}${tierBadge}${qBadge}
+                    <span style="color:#adadb8;">${slotEmoji}</span> ${nameHtml}${tierBadge}${qBadge}
                 </span>
                 ${btn}
             </div>`;

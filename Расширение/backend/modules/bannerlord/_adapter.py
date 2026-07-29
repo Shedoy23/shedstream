@@ -29,6 +29,8 @@ import logging
 from typing import Any, Dict, Optional
 
 from .._base import ModuleAdapter, ModuleEnvelope
+from notices import add_notice_tx
+from .refusals import describe as describe_refusal
 
 logger = logging.getLogger("rimlink.modules.bannerlord")
 
@@ -755,6 +757,11 @@ class BannerlordAdapter(ModuleAdapter):
                         "WHERE channel_id=? AND module_id='bannerlord' AND action_id=?",
                         (f"REFUNDED:0 (no_price) reason={reason}", channel_id, action_id))
                     await self._drop_placeholder_rows(conn, channel_id, action_id)
+                    # Бесплатное действие тоже не должно проваливаться молча:
+                    # зритель нажал, ничего не произошло, объяснения нет.
+                    await add_notice_tx(
+                        conn, channel_id, username, "refused",
+                        describe_refusal(reason), 0)
                     await conn.commit()
                     logger.info(
                         "[bannerlord:%s] action.failed action_id=%s NO_REFUND "
@@ -788,6 +795,12 @@ class BannerlordAdapter(ModuleAdapter):
                     "WHERE channel_id=? AND module_id='bannerlord' AND action_id=?",
                     (f"REFUNDED:{price} reason={reason}", channel_id, action_id))
                 await self._drop_placeholder_rows(conn, channel_id, action_id)
+                # Объяснение уезжает зрителю ТОЙ ЖЕ транзакцией, что и деньги:
+                # падение между ними дало бы либо молчаливый возврат (то, что
+                # мы и чиним), либо объяснение к невозвращённым крустикам.
+                await add_notice_tx(
+                    conn, channel_id, username, "refund",
+                    describe_refusal(reason), price)
                 await conn.commit()
                 logger.info(
                     "[bannerlord:%s] REFUND ok action_id=%s user=%s +%s💎 reason=%s",

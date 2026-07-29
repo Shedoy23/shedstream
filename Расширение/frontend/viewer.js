@@ -456,6 +456,11 @@ function updateUIAfterAuth() {
     loadRulection(); // загружаем рулекцион сразу при входе
     // Sprint 5.31 #45b: подгрузить role+sub-tier badges под ником.
     loadUserPerksBadge();
+    // M103: причины отказов, накопившиеся пока панель была закрыта.
+    pollNotices();
+    if (!window._intervalNotices) {
+        window._intervalNotices = safeInterval(pollNotices, 20000);
+    }
     if (!window._intervalUserPerks) {
         // Refresh каждые 5 мин (Helix sub cache TTL).
         window._intervalUserPerks = safeInterval(loadUserPerksBadge, 5 * 60 * 1000);
@@ -898,6 +903,67 @@ function showNotification(message, type = 'info', duration = 3500) {
     panel.appendChild(notif);
     
     setTimeout(() => notif.remove(), duration);
+}
+
+// ===== ПОЧТОВЫЙ ЯЩИК ЗРИТЕЛЯ (M103, 2026-07-29) =====
+// Зачем: отказ мода возвращал крустики МОЛЧА. Зритель видел, что баланс
+// вернулся, и не мог отличить «я сделал не то» от «у них сломалось» — отсюда
+// повторные нажатия платных действий (баги #16/#17).
+//
+// Текст причины приходит с бэкенда ГОТОВЫМ. Словаря кодов здесь нет и быть не
+// должно: фронт замерзает на CDN до следующего ревью Twitch, а коды отказа
+// появляются с каждым новым действием мода — держи словарь тут, и новый код
+// показывался бы зрителю сырым неделями.
+let _noticesBusy = false;
+const NOTICES_PER_TICK = 3;      // больше трёх подряд — это уже спам
+const NOTICE_TOAST_MS = 7000;
+
+async function pollNotices() {
+    if (!userLogin || _noticesBusy || document.hidden) return;
+    _noticesBusy = true;
+    try {
+        const resp = await fetch(`${API_URL}/api/notices`, {
+            headers: { 'X-Twitch-JWT': authToken || '' },
+        });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const items = ((data && data.notices) || []).slice(0, NOTICES_PER_TICK);
+        if (!items.length) return;
+
+        let refunded = 0;
+        items.forEach((n, i) => {
+            const amount = Number(n.amount || 0);
+            if (amount > 0) refunded += amount;
+            const tail = amount > 0 ? ` Крустики вернулись: +${amount}💎` : '';
+            // showNotification убирает предыдущий тост — разводим по времени,
+            // иначе из трёх причин зритель увидит только последнюю.
+            safeTimeout(() => showNotification(String(n.text || '') + tail,
+                                               'warning', NOTICE_TOAST_MS),
+                        i * (NOTICE_TOAST_MS + 500));
+        });
+
+        // Баланс уже другой — показать его сразу, а не через минутный цикл.
+        if (refunded > 0) loadUserData();
+
+        // Подтверждаем показ сразу, а не после последнего тоста: иначе
+        // следующий опрос (через 20с) принесёт те же уведомления и покажет их
+        // повторно. Цена решения честная — если зритель закроет панель в
+        // ближайшие секунды, поздний тост он не увидит, хотя тот уже помечен
+        // показанным. Сетевой сбой при этом уведомление НЕ съедает: без
+        // успешного ack оно вернётся в следующий опрос.
+        await fetch(`${API_URL}/api/notices/ack`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Twitch-JWT': authToken || '',
+            },
+            body: JSON.stringify({ ids: items.map(n => n.id) }),
+        });
+    } catch (e) {
+        dbg('notices error:', e);
+    } finally {
+        _noticesBusy = false;
+    }
 }
 
 // ===== ЗАГРУЗКА ДАННЫХ ПОЛЬЗОВАТЕЛЯ (исправленная) =====

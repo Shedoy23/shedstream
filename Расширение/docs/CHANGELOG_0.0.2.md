@@ -37,6 +37,30 @@
 *Практическое следствие до выпуска:* не переключать канал на RimWorld — у
 зрителей его магазин мёртв.
 
+### Зритель узнаёт, ПОЧЕМУ действие не сработало
+
+Раньше отказ игры возвращал крустики молча. Зритель видел только, что баланс
+вернулся к прежнему, и не мог отличить «я выбрал не то» от «у них сломалось» —
+отсюда повторные нажатия платных действий (баги #16/#17: объявление войны
+четыре раза подряд).
+
+Теперь отказ оставляет зрителю короткое объяснение: «Сейчас идёт бой», «Это
+может только глава клана», «Твой герой в плену» — и рядом сумму, которая
+вернулась. Панель показывает это тостом и обновляет баланс сразу, не дожидаясь
+минутного цикла.
+
+Объяснение пишется той же транзакцией, что и возврат денег: сбой между ними не
+может оставить деньги без объяснения или объяснение без денег.
+
+Тексты причин живут **на сервере**, а не в расширении. Причина не косметическая:
+расширение замерзает на CDN до следующего ревью, а коды отказа появляются с
+каждым новым действием мода — держи словарь в расширении, и новая причина
+показывалась бы зрителю сырым техническим кодом неделями. Панель умеет
+отрисовать причину, которой не знает.
+
+*Сделано 2026-07-29.* Бэкенд (M103) + фронт. Тест — 19 проверок, показан
+красным до фикса. На прод не выкачено: едет вместе с фронтом.
+
 ---
 
 ## 🔜 Запланировано в эту версию (не сделано)
@@ -44,8 +68,7 @@
 Полный список — `DEFERRED.md` §A (5 пунктов) и §A0-octies (4 хвоста прогона
 «глазами ревьюера»). Ключевое:
 
-- [ ] **Причина отказа доходит до зрителя.** Сейчас возврат молчаливый: бэкенд
-      причину знает, до панели канала нет. Самый заметный для зрителя пункт.
+- [x] ~~Причина отказа доходит до зрителя~~ — сделано 29.07, см. выше.
 - [ ] **Тонкий фронт: цены, кулдауны и лимиты с бэкенда**, а не хардкодом.
       Принцип из `CLAUDE.md`: с бэка — данные, во фронте — как их показать.
 - [ ] **Блок «о внутренней валюте и шансах» — двуязычный.** Сейчас только
@@ -82,8 +105,13 @@ Changes:
    in the shared global scope, so every purchase was routed to the pet-cosmetics
    endpoint and failed with "item not found in catalog". The shop is functional
    again.
-2. (pending) Viewers now see WHY a paid action was refused instead of silently
-   getting their currency back.
+2. Viewers now see WHY a paid action was refused instead of silently getting
+   their currency back. The game mod reports a machine-readable reason code; the
+   backend turns it into a human sentence and stores it in the same transaction
+   that returns the currency, so a failure cannot leave money refunded without
+   an explanation. The panel polls for these, shows them, and confirms display.
+   The wording lives on the server: the frontend renders reasons it has never
+   seen, so a new reason does not need a new extension release.
 3. (pending) Prices, cooldowns and limits are served by the backend instead of
    being hardcoded in the frontend, so displayed values cannot drift from the
    values actually enforced.

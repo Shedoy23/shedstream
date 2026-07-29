@@ -81,6 +81,7 @@ from routes.guilds     import router as guilds_router     # Phase 3 (2026-05-11)
 from routes.voting     import router as voting_router     # Phase 4 (2026-05-11)
 from routes.pets       import router as pets_router       # Phase 7 (2026-05-12)
 from routes.tts        import router as tts_router        # Sprint 5.23 (2026-05-21)
+from routes.notices    import router as notices_router    # M103 (2026-07-29)
 from routes.rps        import router as rps_router        # Sprint 5.24b (2026-05-21)
 from routes.bannerlord  import router as bannerlord_router # Sprint 1.3 (2026-05-15)
 from routes.shedcolony  import router as shedcolony_router # ShedColony viewer endpoints (2026-06-25)
@@ -118,6 +119,7 @@ app.include_router(guilds_router)      # Phase 3 (2026-05-11): Guilds base
 app.include_router(voting_router)      # Phase 4 (2026-05-11): Voting events
 app.include_router(pets_router)        # Phase 7 (2026-05-12): Pets MVP (cross-channel)
 app.include_router(tts_router)         # Sprint 5.23 (2026-05-21): TTS «Озвучить сообщение»
+app.include_router(notices_router)     # M103 (2026-07-29): причина отказа доходит до зрителя
 app.include_router(rps_router)         # Sprint 5.24b (2026-05-21): RPS bo3 matchmade
 app.include_router(bannerlord_router)  # Sprint 1.3 (2026-05-15): Bannerlord viewer endpoints
 app.include_router(shedcolony_router)  # ShedColony viewer endpoints (buy / my-colonist / capacity)
@@ -1338,6 +1340,13 @@ async def run_migrations():
             print(f"❌ M102 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m103_viewer_notices
+            await m103_viewer_notices.apply(conn)
+        except Exception as e:
+            print(f"❌ M103 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 
@@ -1960,6 +1969,21 @@ async def on_startup():
                 print(f"[PEACE-EXPIRE] loop crashed: {type(e).__name__}: {e}")
             await _asyncio.sleep(3600)
     asyncio.create_task(_peace_offers_expire_loop())
+
+    # M103. Уведомления зрителю — расходник: прочитал и забыл. Без сторожа
+    # таблица растёт на каждом отказе мода и не убывает никогда.
+    async def _notices_purge_loop():
+        import asyncio as _asyncio
+        from notices import purge_old
+        while True:
+            try:
+                affected = await purge_old(db)
+                if affected > 0:
+                    print(f"[NOTICE-PURGE] удалено старых уведомлений: {affected}")
+            except Exception as e:
+                print(f"[NOTICE-PURGE] loop crashed: {type(e).__name__}: {e}")
+            await _asyncio.sleep(6 * 3600)
+    asyncio.create_task(_notices_purge_loop())
     # Блок 1 архитектурной прокачки: periodic WAL checkpoint, защита от
     # бесконечного роста WAL-файла. PASSIVE раз в час; раз в сутки —
     # RESTART для более глубокой компактизации.

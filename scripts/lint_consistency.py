@@ -582,6 +582,61 @@ def check_undefined_names():
             errors.append(f"undefined name -> NameError at runtime: {line}")
 
 
+def check_sold_actions_have_entry():
+    """Every purchasable action must have a way in -- or be tagged service-only.
+
+    Why this exists (2026-07-29). Three cancelled mechanics were found in one
+    day still sitting in the price list: hero.tribute_boost (fief rent switched
+    off 28.05), hero.smith_item and hero.equip_trophy (BLT-style smithing
+    dropped), plus a whole auction router mounted with no UI. Same handwriting
+    every time: the mechanic gets switched off where it RUNS and stays on where
+    it SELLS. No test catches it -- from a test's point of view nothing broke.
+
+    Rule: an action listed in _PURCHASABLE_ACTIONS must appear as a literal in
+    the frontend (i.e. a viewer can reach it), unless its line carries a
+    trailing comment marking it service-only.
+
+    Escape hatch: add `# service-only: <why>` on the tuple line.
+    """
+    bnr = EXT / "backend" / "routes" / "bannerlord.py"
+    if not bnr.exists():
+        return
+    src = bnr.read_text(encoding="utf-8", errors="ignore")
+    lines = src.splitlines()
+
+    tree = ast.parse(src)
+    node = next((n for n in ast.walk(tree)
+                 if isinstance(n, ast.Assign)
+                 and any(getattr(t, "id", "") == "_PURCHASABLE_ACTIONS"
+                         for t in n.targets)), None)
+    if node is None:
+        warns.append("sold-actions: _PURCHASABLE_ACTIONS not found -- check skipped")
+        return
+
+    frontend = EXT / "frontend"
+    parts = []
+    for pattern in ("*.js", "*.html"):
+        for f in frontend.glob(pattern):
+            parts.append(f.read_text(encoding="utf-8", errors="ignore"))
+    blob = "\n".join(parts)
+
+    for elt in getattr(node.value, "elts", []):
+        if not isinstance(elt, ast.Constant) or not isinstance(elt.value, str):
+            continue
+        action = elt.value
+        line = lines[elt.lineno - 1] if elt.lineno <= len(lines) else ""
+        if "service-only" in line:
+            continue
+        if action in blob:
+            continue
+        errors.append(
+            f"sold-action without entry point: '{action}' is in "
+            f"_PURCHASABLE_ACTIONS (bannerlord.py:{elt.lineno}) but no frontend "
+            f"file mentions it -- viewers cannot reach it. Cancelled mechanic "
+            f"left on sale? Remove it, or tag the line '# service-only: <why>'."
+        )
+
+
 def main() -> int:
     if EXT is None:
         print("[lint] FAIL: could not locate extension dir (with backend/)")
@@ -590,7 +645,8 @@ def main() -> int:
                check_manifest_actions, check_manifest_events,
                check_dashboard_mod_config, check_currency_glyph,
                check_tenant_scoping, check_bannerlord_policies,
-               check_frontend_global_collisions, check_undefined_names):
+               check_frontend_global_collisions, check_undefined_names,
+               check_sold_actions_have_entry):
         try:
             fn()
         except Exception as e:  # a broken check shouldn't crash CI silently

@@ -87,7 +87,6 @@ from routes.bannerlord  import router as bannerlord_router # Sprint 1.3 (2026-05
 from routes.shedcolony  import router as shedcolony_router # ShedColony viewer endpoints (2026-06-25)
 from routes.bannerlord_achievements import router as bannerlord_achievements_router # Sprint 5.29
 from routes.bannerlord_custom_items import router as bannerlord_custom_items_router # Sprint 5.29
-from routes.bannerlord_auctions import router as bannerlord_auctions_router  # Sprint 5.29 phase B
 from routes.bannerlord_family import router as bannerlord_family_router       # Sprint 5.33 BLT-parity FAM
 from routes.bannerlord_vassals import router as bannerlord_vassals_router     # Sprint 5.33 BLT-parity VAS
 from routes.bannerlord_party_orders import router as bannerlord_party_orders_router  # Sprint 5.33 BLT-parity SIEGE
@@ -125,7 +124,15 @@ app.include_router(bannerlord_router)  # Sprint 1.3 (2026-05-15): Bannerlord vie
 app.include_router(shedcolony_router)  # ShedColony viewer endpoints (buy / my-colonist / capacity)
 app.include_router(bannerlord_achievements_router)  # Sprint 5.29 BLT-parity #5
 app.include_router(bannerlord_custom_items_router)  # Sprint 5.29 BLT-parity #6
-app.include_router(bannerlord_auctions_router)  # Sprint 5.29 BLT-parity #6 phase B
+# Аукцион кованых предметов ОТКЛЮЧЁН 2026-07-29 (routes/bannerlord_auctions.py
+# остаётся в репо). Механики нет с двух сторон: кнопок в панели никогда не было,
+# а торговал он коваными предметами — ковку решено не делать (DEFERRED §D).
+# Но роутер оставался подключён, и четыре адреса отвечали на проде, из них
+# /auctions/create и /auctions/bid двигают крустики МЕЖДУ ЗРИТЕЛЯМИ по обычному
+# JWT зрителя канала. Прямой перевод очков (/api/points/transfer) вырезали в мае
+# как нарушение правил Twitch — вырезали вместе с эндпоинтом; здесь путь остался
+# открыт. Снято подключение: все четыре адреса → 404.
+# Вернуть = раскомментировать импорт и эту строку.
 app.include_router(bannerlord_family_router)    # Sprint 5.33 BLT-parity FAM — marriage proposals
 app.include_router(bannerlord_vassals_router)   # Sprint 5.33 BLT-parity VAS — vassal sub-clans
 app.include_router(bannerlord_party_orders_router)  # Sprint 5.33 BLT-parity SIEGE — party orders
@@ -1923,9 +1930,12 @@ async def on_startup():
     # — действие либо повторится либо refund'нётся через action.failed.
     asyncio.create_task(_dispatched_action_sweeper())
     asyncio.create_task(_queued_action_ttl_sweeper())
-    # Sprint 5.29 BLT-parity #6 phase B: auctions resolver loop (every 30s).
-    from routes.bannerlord_auctions import auctions_resolve_loop as _auctions_resolve
-    asyncio.create_task(_auctions_resolve())
+    # Резолвер аукционов ОТКЛЮЧЁН 2026-07-29 вместе с роутером (см. выше).
+    # Новых лотов появиться неоткуда, а сам цикл раз в 30с начислял продавцу
+    # крустики — путь, который правило границы валют закрывает.
+    # Вернуть = раскомментировать вместе с роутером.
+    # from routes.bannerlord_auctions import auctions_resolve_loop as _auctions_resolve
+    # asyncio.create_task(_auctions_resolve())
     # Sprint 5.33 IMPROV-1 — stale-channels in-memory cleanup (friend feedback).
     # Раз в 60с проверяет _last_seen и dropит entries из _battle_stats /
     # _active_buffs / _cooldowns / _power_events для каналов offline >10min.

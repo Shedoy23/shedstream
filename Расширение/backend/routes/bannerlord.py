@@ -884,8 +884,14 @@ _PURCHASABLE_ACTIONS = (
     "hero.reequip_gear",      # 2026-05-29: re-roll снаряги на текущем тире (BLT ReequipInsteadOfUpgrade)
     "hero.discard_item",      # 2026-06-18: выбросить вещь из слота (освободить залоченную/перекованную, free)
     "player.spawn",
-    "player.heal",
-    "player.respawn",
+    # player.heal и player.respawn убраны из продажи 2026-07-29 (линтер
+    # sold-action-without-entry поймал их первым же прогоном).
+    #  · player.heal (50⦷) — кнопки нет, и он вытеснен активкой heal_burst
+    #    (power.activate), которая доступна всем классам и имеет свою цену.
+    #  · player.respawn (500⦷) — зарегистрирован на заглушку EchoHandler
+    #    («не реализовано» + отказ). Настоящее воскрешение живёт в
+    #    hero.activate_heir и запускается бэкендом на смерть героя.
+    # Хендлеры в моде не трогаю: они безвредны, пока бэкенд не кладёт задание.
     "player.give_item",
     "player.equip_item",
     # 2026-07-27 (аудит S-01): "player.modify_attribute" УБРАН из покупаемых.
@@ -898,7 +904,7 @@ _PURCHASABLE_ACTIONS = (
     # Законный путь — "hero.add_attribute" (Sprint 5.8, цена в динарах, своя
     # ветка с проверкой). Хендлер в моде оставлен: он безвреден, пока бэкенд
     # не кладёт такое задание в очередь.
-    "world.trigger_event",
+    "world.trigger_event",   # service-only: модератор-онли (role_label), не из панели зрителя
     "hero.add_skill",
     "hero.recruit_troops",
     "hero.train_troops",         # 2026-05-29 (BLT TrainingBehavior): bulk-upgrade свиты за динары
@@ -917,8 +923,12 @@ _PURCHASABLE_ACTIONS = (
     "hero.marry",                # Sprint 5.27b: marriage to random NPC (50K)
     "hero.divorce",              # Sprint 5.27b: free divorce
     "hero.make_baby",            # Sprint 5.27c: pregnancy (100K)
-    "hero.smith_item",           # Sprint 5.29 BLT-parity #6: trophy crafting
-    "hero.equip_trophy",         # Sprint 5.29 BLT-parity #6 phase A: equip into hero inventory
+    # hero.smith_item / hero.equip_trophy убраны из продажи 2026-07-29.
+    # Ковку предметов по образцу BLT решено НЕ делать (владелец: большая
+    # самописная механика; DEFERRED §D). Трофей-система была попыткой и не
+    # заработала — трофей жил записью в БД и подбирался «похожим» предметом,
+    # заменена перековкой качества (hero.reforge_quality, ниже). Кнопок во
+    # фронте нет с 15.06, а цена 500⦷ висела в прайс-листе ещё полтора месяца.
     "hero.reforge_quality",      # 2026-06-15 «Кузница»: перековка качества надетого предмета (mod)
     # Sprint 5.32 (BLT-parity Detachment) — viewer командует своим hero-agent'ом
     # in-Mission. Detach → hold/charge/walls/gate. Возвращение через attach.
@@ -1095,14 +1105,10 @@ CARAVAN_PRICE_CRUSTIC  = 4_000    # 💎 caravan passive income (2026-05-29: 150
 # бэк enforce'ит отсюда И отдаёт это же в /api/bannerlord/config.
 ACTION_PRICES_DEFAULT = {
     "hero.create":             0,    # adoption — free
-    "player.heal":            50,
-    "player.respawn":        500,    # heir succession (future)
     "player.modify_attribute": 50,
     "world.trigger_event":  1000,    # heavy / admin-style
     # power.activate — per-power цена (POWER_PRICES), enforced в _prepare_action.
     # 2026-06-14: убран отсюда (был flat 50 — плющил все активки в одну цену).
-    "hero.smith_item":       500,    # Sprint 5.29 BLT-parity #6 — trophy crafting
-    "hero.equip_trophy":      0,    # Sprint 5.29 BLT-parity #6 phase A — free (viewer уже заплатил smith)
     "hero.reforge_quality": REFORGE_QUALITY_PRICE,  # module-level const (thin-front)
     "hero.set_combat_stance": 0,    # 2026-06-10: боевая стойка — бесплатно, мгновенно
     "hero.discard_item":      0,    # 2026-06-18: выбросить вещь из слота — free utility (свой герой)

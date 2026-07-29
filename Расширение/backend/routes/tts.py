@@ -23,9 +23,22 @@ Endpoints:
     POST /api/overlay/tts/played     — mark played после <audio> ended
     GET  /api/tts/audio/{id}.mp3     — раздаёт mp3 из BLOB'а
 
+  Streamer (session cookie, M102 — модерация UGC):
+    GET  /api/streamer/tts/queue     — очередь + история последних
+    POST /api/streamer/tts/hide      — скрыть сообщение (остаётся в истории)
+    POST /api/streamer/tts/block     — заблокировать/разблокировать зрителя
+
 Compliance:
   • Crystal-burn (no real $) — §5.2 OK.
-  • Без модерации текста (per решение).
+  • **Модерация (M102, 2026-07-29).** Раньше здесь стояло «без модерации текста
+    (per решение)» — для UGC это не проходит: Twitch требует у расширений с
+    пользовательским контентом удаление, блокировку автора и историю, иначе
+    одобрение затягивается. Теперь есть: блок-лист зрителей (отказ ДО оплаты),
+    скрытие сообщения из очереди с сохранением в истории, кто и когда скрыл.
+  • **Чего ещё нет:** синхронизации с банами канала Twitch и AutoMod-проверки —
+    для них нужен scope `moderation:read`, которого у токенов нет; его
+    добавление потребует повторной авторизации от каждого стримера.
+    Решение владельца отдельно, см. DEFERRED.
 """
 import asyncio
 import io
@@ -42,6 +55,75 @@ from dependencies import (
 router = APIRouter()
 
 _AUTH_FAIL = {"success": False, "message": "❌ Требуется авторизация Twitch"}
+
+
+# ─── Модерация (M102) ────────────────────────────────────────────────────────
+
+async def is_tts_blocked(db, channel_id: int, username: str) -> bool:
+    """Заблокирован ли зритель для озвучки на этом канале.
+
+    Общая точка для эндпоинта и теста. Отдельная от Twitch-банов: наши права
+    не позволяют читать баны канала (нужен scope `moderation:read`), поэтому
+    это собственный список стримера.
+    """
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT 1 FROM tts_blocked_users "
+            "WHERE channel_id=? AND username=?",
+            (channel_id, username))
+        return await cur.fetchone() is not None
+
+
+async def hide_tts_message(db, channel_id: int, msg_id: int, by: str) -> bool:
+    """Убрать сообщение из очереди озвучки, сохранив его в истории.
+
+    Возвращает True, если что-то реально скрыли. Идемпотентно: повторный вызов
+    вернёт False, а не «скрыл ещё раз».
+    """
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "UPDATE tts_messages "
+            "SET moderated_by=?, moderated_at=CURRENT_TIMESTAMP "
+            "WHERE channel_id=? AND id=? AND moderated_by IS NULL",
+            (by, channel_id, msg_id))
+        affected = cur.rowcount
+        await conn.commit()
+    return affected > 0
+
+
+async def next_pending_for_overlay(db, channel_id: int):
+    """Следующее сообщение для оверлея, или None.
+
+    Общая точка для эндпоинта и теста — чтобы тест проверял ТОТ ЖЕ запрос,
+    который реально обслуживает оверлей, а не свою копию.
+    """
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            # Скрытое модерацией сообщение остаётся в истории, но не звучит.
+            # Статус не меняем — у таблицы жёсткий CHECK на два значения.
+            "SELECT id, username, message, created_at "
+            "FROM tts_messages "
+            "WHERE channel_id = ? AND status = 'pending' "
+            "  AND moderated_by IS NULL "
+            "ORDER BY created_at ASC LIMIT 1",
+            (channel_id,))
+        return await cur.fetchone()
+
+
+async def set_tts_block(db, channel_id: int, username: str, blocked: bool,
+                        by: str = "", reason: str = "") -> None:
+    """Включить/снять блокировку озвучки для зрителя."""
+    async with db._connect() as conn:
+        if blocked:
+            await conn.execute(
+                "INSERT OR REPLACE INTO tts_blocked_users "
+                "(channel_id, username, blocked_by, reason) VALUES (?, ?, ?, ?)",
+                (channel_id, username, by, reason))
+        else:
+            await conn.execute(
+                "DELETE FROM tts_blocked_users WHERE channel_id=? AND username=?",
+                (channel_id, username))
+        await conn.commit()
 
 
 def _generate_tts_mp3(text: str) -> bytes:
@@ -81,6 +163,14 @@ async def tts_submit(request: Request):
         }
 
     db = get_db()
+
+    # Модерация (M102): заблокированный стримером зритель не озвучивается.
+    # Проверка ДО оплаты — отказ не должен стоить крустиков.
+    if await is_tts_blocked(db, channel_id, username):
+        return {
+            "success": False,
+            "message": "🔇 Стример отключил тебе озвучку",
+        }
 
     # Cooldown check — stateless, читаем последнее сообщение этого юзера
     async with db._connect() as conn:
@@ -167,15 +257,7 @@ async def tts_pending(channel_id: int = 0):
         channel_id = resolve_channel_id_or_default()
 
     db = get_db()
-    async with db._connect() as conn:
-        cur = await conn.execute(
-            "SELECT id, username, message, created_at "
-            "FROM tts_messages "
-            "WHERE channel_id = ? AND status = 'pending' "
-            "ORDER BY created_at ASC LIMIT 1",
-            (channel_id,)
-        )
-        row = await cur.fetchone()
+    row = await next_pending_for_overlay(db, channel_id)
 
     if not row:
         return {"success": True, "message": None}
@@ -261,3 +343,99 @@ async def tts_played(request: Request):
         updated = cur.rowcount
 
     return {"success": True, "updated": updated}
+
+
+# ─── Эндпоинты модерации для дашборда стримера (M102) ────────────────────────
+#
+# Авторизация — та же session cookie, что у остальных /api/streamer/*
+# (стример прошёл OAuth через /streamer). Не JWT зрителя: это действия
+# владельца канала над чужим контентом.
+
+
+@router.get("/api/streamer/tts/queue")
+async def streamer_tts_queue(request: Request):
+    """Очередь озвучки + последняя история. Для дашборда."""
+    from routes.bannerlord_admin import _require_streamer_session
+    ok, channel_id, msg = _require_streamer_session(request)
+    if not ok:
+        return {"success": False, "message": msg}
+
+    db = get_db()
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT id, username, message, status, created_at, moderated_by "
+            "FROM tts_messages WHERE channel_id=? "
+            "ORDER BY created_at DESC LIMIT 50",
+            (channel_id,))
+        rows = await cur.fetchall()
+        cur = await conn.execute(
+            "SELECT username, reason, blocked_at FROM tts_blocked_users "
+            "WHERE channel_id=? ORDER BY blocked_at DESC",
+            (channel_id,))
+        blocked = await cur.fetchall()
+
+    return {
+        "success": True,
+        "messages": [
+            {"id": r[0], "username": r[1], "text": r[2], "status": r[3],
+             "created_at": r[4], "hidden_by": r[5]}
+            for r in rows
+        ],
+        "blocked": [
+            {"username": b[0], "reason": b[1], "blocked_at": b[2]}
+            for b in blocked
+        ],
+    }
+
+
+@router.post("/api/streamer/tts/hide")
+async def streamer_tts_hide(request: Request):
+    """Убрать сообщение из очереди. В истории оно остаётся — Twitch требует
+    хранить историю UGC, а не стирать её."""
+    from routes.bannerlord_admin import _require_streamer_session
+    ok, channel_id, msg = _require_streamer_session(request)
+    if not ok:
+        return {"success": False, "message": msg}
+
+    body = await request.json()
+    try:
+        msg_id = int(body.get("id") or 0)
+    except (TypeError, ValueError):
+        msg_id = 0
+    if msg_id <= 0:
+        return {"success": False, "message": "Нужен id сообщения"}
+
+    hidden = await hide_tts_message(get_db(), channel_id, msg_id,
+                                    by=str(channel_id))
+    return {
+        "success": True,
+        "hidden": hidden,
+        "message": "Сообщение скрыто" if hidden else "Уже было скрыто",
+    }
+
+
+@router.post("/api/streamer/tts/block")
+async def streamer_tts_block(request: Request):
+    """Заблокировать/разблокировать зрителя для озвучки.
+
+    Body: {"username": str, "blocked": bool, "reason": str}
+    """
+    from routes.bannerlord_admin import _require_streamer_session
+    ok, channel_id, msg = _require_streamer_session(request)
+    if not ok:
+        return {"success": False, "message": msg}
+
+    body = await request.json()
+    username = str(body.get("username") or "").strip().lower()
+    if not username:
+        return {"success": False, "message": "Нужен username"}
+    blocked = bool(body.get("blocked", True))
+    reason = str(body.get("reason") or "")[:200]
+
+    await set_tts_block(get_db(), channel_id, username, blocked,
+                        by=str(channel_id), reason=reason)
+    return {
+        "success": True,
+        "blocked": blocked,
+        "message": f"@{username}: озвучка {'выключена' if blocked else 'включена'}",
+    }

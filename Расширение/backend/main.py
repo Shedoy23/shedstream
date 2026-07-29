@@ -1331,6 +1331,13 @@ async def run_migrations():
             print(f"❌ M101 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m102_tts_moderation
+            await m102_tts_moderation.apply(conn)
+        except Exception as e:
+            print(f"❌ M102 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

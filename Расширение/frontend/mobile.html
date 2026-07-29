@@ -386,7 +386,9 @@
          extensions конвертирующих Channel Points в in-extension currency.
          См. также §5.2 Extensions Guidelines — virtual goods без monetary value.
          Sprint 5.33 W2 (2026-05-28): added explicit drop odds disclosure для
-         кейсы + smithed items per industry best-practice. -->
+         кейсы + smithed items per industry best-practice.
+         2026-07-29: smithed items из раскрытия убраны вместе с механикой —
+         осталось раскрытие ТОЛЬКО по кейсам. -->
     <details id="compliance-disclosure" style="margin:14px 8px 8px;padding:8px 12px;background:#1a1a1c;border-radius:6px;font-size:11px;color:#8a8a8e;">
         <summary style="cursor:pointer;color:#adadb8;">ℹ️ О внутренней валюте и шансах &middot; About virtual currency &amp; drop rates</summary>
         <div style="margin-top:8px;line-height:1.5;">
@@ -407,13 +409,34 @@
                 crystals as a reward for supporting the channel. Virtual items (cases,
                 pet cosmetics) are never sold for real money.
             </p>
-            <p style="margin:8px 0 4px;color:#adadb8;"><b>Шансы выпадения для кейсов</b> &middot; <b>Case drop odds</b> (earned for free through activity / milestones):</p>
+            <!-- Точность этих строк проверена по коду 2026-07-29: веса 70/25/4/1 —
+                 это bot_core.DROP_CASE_TIERS, и применяются они ТОЛЬКО к источнику
+                 'drop'. Кейсы за quest/streak/watch_milestone/season_top выдаются
+                 фиксированным тиром (config.CASE_SOURCES), награда внутри кейса
+                 фиксирована по тиру (config.CASE_TIER_REWARDS). Раньше проценты
+                 стояли под подписью «earned through activity / milestones» — то есть
+                 приписывались как раз тем кейсам, где случайности нет. -->
+            <p style="margin:8px 0 4px;color:#adadb8;"><b>Шансы выпадения для кейсов</b> &middot; <b>Case drop odds</b></p>
+            <p style="margin:0 0 6px;">
+                Кейсы всегда бесплатны. Случайность есть ровно в одном месте — какого
+                тира будет кейс, выпавший случайным дропом во время эфира:<br>
+                Cases are always free. The only random element is the tier of a case
+                dropped at random during the stream:
+            </p>
             <ul style="margin:0 0 8px 16px;padding:0;color:#8a8a8e;">
                 <li>Common — 70%</li>
                 <li>Rare — 25%</li>
                 <li>Epic — 4%</li>
                 <li>Legendary — 1%</li>
             </ul>
+            <p style="margin:0 0 8px;">
+                Кейсы за квесты, серии и этапы просмотра выдаются фиксированного тира —
+                случайности в них нет. Награда внутри кейса тоже фиксирована и зависит
+                только от тира: открытие кейса ничего не разыгрывает.<br>
+                Cases granted for quests, streaks and watch-time milestones have a fixed
+                tier — no randomness involved. The reward inside a case is likewise fixed
+                per tier: opening a case does not roll anything.
+            </p>
             <!-- Блок «шансы редкости для кованых предметов» убран 2026-07-29.
                  Ковку предметов решено не делать (DEFERRED §D), а оставшаяся
                  перековка качества случайности НЕ содержит: одна ступень вверх

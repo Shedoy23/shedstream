@@ -73,6 +73,24 @@
 
 *Сделано 2026-07-29.*
 
+### Цены на кнопках больше не могут разойтись с настоящими
+
+Половина кнопок показывала цену строкой в тексте: «Жениться (50K💰)»,
+«Создать клан (1M💰)», призы сезона дуэлей «300 000 / 200 000 / 100 000💎».
+Списывал при этом сервер — по своему числу. Пока числа совпадают, никто не
+замечает; после любого ребаланса кнопка врёт, и врёт **неделями**, потому что
+исправить надпись можно только новой версией расширения через ревью Twitch.
+Ровно так уже было: удаление черты рисовалось как 2000💎 при настоящих 300.
+
+Теперь все эти числа панель берёт с сервера — из того же места, откуда сервер
+берёт их при списании. Затронуто: женитьба (и подпись, и проверка «хватает ли
+динаров» — раньше это были две независимые копии числа), зачатие ребёнка,
+создание и вступление в клан, создание и вступление в королевство, создание
+отряда, создание вассал-клана, стоимость атрибута и фокуса, призы сезона дуэлей.
+
+*Сделано 2026-07-29.* Бэкенд отдаёт две недостающие величины (цену вассал-клана
+и призы сезона); остальное уже отдавал.
+
 ### Мелкая уборка публичной поверхности
 
 - Удалена мёртвая функция запроса разрешений (63 строки). Она нигде не
@@ -92,8 +110,8 @@
 «глазами ревьюера»). Ключевое:
 
 - [x] ~~Причина отказа доходит до зрителя~~ — сделано 29.07, см. выше.
-- [ ] **Тонкий фронт: цены, кулдауны и лимиты с бэкенда**, а не хардкодом.
-      Принцип из `CLAUDE.md`: с бэка — данные, во фронте — как их показать.
+- [x] ~~Тонкий фронт: цены с бэкенда~~ — сделано 29.07 для всех подписей в
+      динарах и призов дуэлей. Остаток класса — кулдауны и лимиты.
 - [x] ~~Блок «о внутренней валюте и шансах» — двуязычный~~ — сделано 29.07.
 - [x] ~~Уборка мёртвой `requestUserPermissions()`~~ — сделано 29.07.
 - [ ] Переименования стоек/навыков, каталог законов с игры, ачивки, компенсация
@@ -133,9 +151,11 @@ Changes:
    an explanation. The panel polls for these, shows them, and confirms display.
    The wording lives on the server: the frontend renders reasons it has never
    seen, so a new reason does not need a new extension release.
-3. (pending) Prices, cooldowns and limits are served by the backend instead of
-   being hardcoded in the frontend, so displayed values cannot drift from the
-   values actually enforced.
+3. Prices are served by the backend instead of being hardcoded in the frontend,
+   so a displayed price cannot drift from the price actually charged. This
+   covers marriage, children, clan and kingdom creation/joining, party creation,
+   vassal clans, attribute and focus costs, and duel season prizes. The
+   affordability checks now read the same value as the label.
 4. The in-panel virtual currency and drop-rate disclosure is now available in
    English as well as Russian (both the desktop and the mobile shell).
 5. Removed a dead permission-request routine that called a Twitch Extension

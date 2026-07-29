@@ -26,6 +26,11 @@ from routes._mod_queue import enqueue_mod_action
 log = logging.getLogger(__name__)
 router = APIRouter()
 
+# MIRROR C# CreateVassalClanHandler.VASSAL_GOLD_COST — списывает МОД (динары).
+# Поднято на уровень модуля 2026-07-29: цену отдаёт /api/bannerlord/config,
+# чтобы подпись кнопки во фронте не была отдельной копией этого числа.
+VASSAL_GOLD_COST = 250_000
+
 _AUTH_FAIL = {"success": False, "message": "auth required"}
 
 
@@ -193,7 +198,6 @@ async def handle_create_vassal(conn, channel_id: int, parent_user: str, data: di
     # как обычный клан (CreateClanHandler — 1M). Pre-check кэшированного
     # Hero.Gold — чистый отказ без orphan-placeholder. Мод спишет ровно
     # VASSAL_GOLD_COST при создании (см. CreateVassalClanHandler.cs).
-    VASSAL_GOLD_COST = 250_000
     cur = await conn.execute(
         "SELECT gold FROM bannerlord_heroes WHERE channel_id=? AND username=?",
         (channel_id, parent_user))

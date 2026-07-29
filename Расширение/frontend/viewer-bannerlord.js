@@ -39,6 +39,26 @@ async function _hydrateBnrConfig() {
     } catch (e) { /* fallback-дефолты остаются в силе */ }
 }
 
+// ── Цены в динарах для подписей кнопок ───────────────────────────────────────
+// Подпись и проверка обязаны читать ОДНО значение. До 2026-07-29 половина
+// кнопок рисовала цену строкой («50K💰»), а бэк списывал из конфига: ребаланс
+// на бэке — и кнопка врёт, пока не выйдет новая версия расширения (а это
+// недели: фронт замерзает на CDN Twitch до следующего ревью).
+// Числа приезжают в /api/bannerlord/config → hero_gold_costs; хардкод остаётся
+// только как fallback на время, пока конфиг не подъехал.
+function _bnrGold(key, fallback) {
+    const v = Number(_bnrCfg.hero_gold_costs?.[key]);
+    return (isFinite(v) && v > 0) ? v : fallback;
+}
+function _fmtK(n) {
+    if (!isFinite(n)) return '?';
+    if (n >= 1000000) return (n / 1000000).toFixed(n % 1000000 ? 1 : 0) + 'M';
+    if (n >= 1000)    return (n / 1000).toFixed(n % 1000 ? 1 : 0) + 'K';
+    return String(n);
+}
+function _bnrGoldLabel(key, fallback) { return _fmtK(_bnrGold(key, fallback)) + '💰'; }
+
+
 // ===== Sprint 5.3: Турнир зрителей (BLT-style) =====
 async function loadBannerlordTournament() {
     const body = document.getElementById('bannerlord-tournament-body');
@@ -340,7 +360,7 @@ function loadBannerlordProgression() {
 
     const html = `
         <div style="font-size:11px;color:#adadb8;margin-bottom:6px;line-height:1.4;">
-            💪 Атрибут (50K💰) — cap трёх скиллов · 🎯 Фокус (30-75K💰) — скорость скилла.
+            💪 Атрибут (${_fmtK(BNR_ATTRIBUTE_COST)}💰) — cap трёх скиллов · 🎯 Фокус (${_fmtK(Math.min(...BNR_FOCUS_TIER_COSTS))}-${_fmtK(Math.max(...BNR_FOCUS_TIER_COSTS))}💰) — скорость скилла.
         </div>
         <div>${groupedRows}</div>`;
     if (!_smartInnerHTML(slot, html)) return;   // repaint+rebind лишь при изменении
@@ -981,11 +1001,11 @@ async function loadBannerlordVassals() {
             // + text-имя переживают 8s-poll (форма рендерится при раскрытии).
             html += `
                 <details data-bnr-details="vas-create" ${_bnrDetailsAttr('vas-create')}>
-                    <summary title="Выделить взрослого ребёнка в собственный sub-clan (250K💰 у героя)"
+                    <summary title="Выделить взрослого ребёнка в собственный sub-clan (${_bnrGoldLabel('create_vassal_clan', 250000)} у героя)"
                              style="list-style:none;cursor:pointer;width:100%;
                                     font-size:11px;padding:6px;background:#1e3a8a;box-sizing:border-box;
                                     color:#fff;font-weight:700;border-radius:3px;text-align:center;">
-                        🏰 Создать вассала (250K💰) — ${eligible.length} наследников доступно
+                        🏰 Создать вассала (${_bnrGoldLabel('create_vassal_clan', 250000)}) — ${eligible.length} наследников доступно
                     </summary>
                     <div id="bnr-vas-create-slot" style="padding-top:6px;"></div>
                 </details>`;
@@ -1063,7 +1083,7 @@ function _renderCreateVassalInline(eligibleHeirs) {
             <button id="bnr-vas-confirm" class="extra-btn"
                     style="width:100%;font-size:11px;padding:6px;
                            background:#1e40af;color:#fff;font-weight:700;">
-                🏰 Создать (250K💰)
+                🏰 Создать (${_bnrGoldLabel('create_vassal_clan', 250000)})
             </button>
         </div>`;
     document.getElementById('bnr-vas-confirm')?.addEventListener('click', async () => {
@@ -3566,6 +3586,8 @@ function loadBannerlordProfileFamily() {
     const h = _bannerlordLastHero?.hero || {};
     const heroGold = h.gold || 0;
     const hasClan = !!h.clan_name;   // брак/дети требуют клан (см. ниже)
+    // Порог и подпись читают одно и то же число (thin-front, 2026-07-29).
+    const MARRY_COST = _bnrGold('marry', 50000);
 
     // 2026-06-02 (CLAN-GATE) — секция «смена пола» вынесена в Hero-вкладку
     // (_openBannerlordGenderModal): она не кланово-зависима, а эта модалка живёт
@@ -3590,13 +3612,13 @@ function loadBannerlordProfileFamily() {
                         : '⚠️ Брак доступен только герою с кланом — сначала создай или вступи в клан (🏰 Управление кланом). Бесклановый брак ломает игру.'}
                 </div>
                 <button class="extra-btn" id="bnr-marry-btn"
-                        ${(hasClan && heroGold >= 50000) ? '' : 'disabled'}
-                        title="${hasClan ? 'Engine выберет случайную подходящую NPC. Спишет 50K💰.' : 'Нужен клан: бесклановый замужний герой крашит ванильную модель беременности.'}"
+                        ${(hasClan && heroGold >= MARRY_COST) ? '' : 'disabled'}
+                        title="${hasClan ? ('Engine выберет случайную подходящую NPC. Спишет ' + _bnrGoldLabel('marry', 50000) + '.') : 'Нужен клан: бесклановый замужний герой крашит ванильную модель беременности.'}"
                         style="width:100%;font-size:12px;padding:8px;
-                               background:${(hasClan && heroGold >= 50000) ? '#5b21b6' : '#2d2d2f'};
-                               color:${(hasClan && heroGold >= 50000) ? '#f472b6' : '#6b7280'};
-                               ${(hasClan && heroGold >= 50000) ? '' : 'cursor:not-allowed;'}">
-                    💍 Жениться/выйти замуж (50K💰)${hasClan ? '' : ' — нужен клан'}
+                               background:${(hasClan && heroGold >= MARRY_COST) ? '#5b21b6' : '#2d2d2f'};
+                               color:${(hasClan && heroGold >= MARRY_COST) ? '#f472b6' : '#6b7280'};
+                               ${(hasClan && heroGold >= MARRY_COST) ? '' : 'cursor:not-allowed;'}">
+                    💍 Жениться/выйти замуж (${_bnrGoldLabel('marry', 50000)})${hasClan ? '' : ' — нужен клан'}
                 </button>
             `}
         </div>
@@ -3686,7 +3708,7 @@ function _renderFamilyTreeHtml(h) {
             <button class="bnr-btn-primary" id="bnr-make-baby-btn"
                     ${canMakeBaby ? '' : 'disabled'}
                     ${canMakeBaby ? '' : 'style="opacity:0.55;cursor:not-allowed;"'}>
-                🤰 Зачать ребёнка (100K💰)
+                🤰 Зачать ребёнка (${_fmtK(BABY_COST)}💰)
                 ${noBabyReason ? ` — ${noBabyReason}` : ''}
             </button>
             <div style="font-size:10px;color:#6b7280;margin-top:6px;text-align:center;">
@@ -3719,14 +3741,14 @@ function loadBannerlordDynastyLockedActions() {
                 <summary style="list-style:none;cursor:pointer;width:100%;box-sizing:border-box;
                            font-size:12px;padding:9px;border-radius:3px;
                            background:#7c2d12;color:#fbbf24;font-weight:700;border:1px solid #b45309;">
-                    🏰 Создать клан (1M💰)
+                    🏰 Создать клан (${_bnrGoldLabel('create_clan', 1000000)})
                 </summary>
                 <div id="bnr-locked-create-slot" style="padding-top:6px;"></div>
            </details>
            <details data-bnr-details="locked-join" ${_bnrDetailsAttr('locked-join')}>
                 <summary style="list-style:none;cursor:pointer;width:100%;box-sizing:border-box;
                            font-size:12px;padding:9px;border-radius:3px;background:#1e3a5f;color:#93c5fd;">
-                    🤝 Вступить в клан (50K💰)
+                    🤝 Вступить в клан (${_bnrGoldLabel('join_clan', 50000)})
                 </summary>
                 <div id="bnr-locked-join-slot" style="padding-top:6px;"></div>
            </details>`
@@ -3774,9 +3796,9 @@ function loadBannerlordClanMgmt() {
     const hasParties = (info?.parties_count || 0) > 0;
     const partyBtn = (isLeader && !hasParties)
         ? `<button class="extra-btn bnr-clan-party"
-                   title="Hero выйдет на карту как AI-lord. 200K💰 + retinue в roster."
+                   title="Hero выйдет на карту как AI-lord. ${_bnrGoldLabel('create_party', 200000)} + retinue в roster."
                    style="width:100%;font-size:12px;padding:7px;margin-bottom:4px;background:#1e3a5f;color:#93c5fd;font-weight:700;">
-                ⚔ Создать отряд (200K💰)
+                ⚔ Создать отряд (${_bnrGoldLabel('create_party', 200000)})
            </button>`
         : (isLeader && hasParties)
             ? `<div style="font-size:11px;color:#34d399;text-align:center;padding:4px;">✅ Отрядов у клана: ${info.parties_count}</div>`
@@ -3823,15 +3845,15 @@ function loadBannerlordKingdomMgmt() {
                 <summary title="Создать своё королевство (5M💰). Клан становится правящим."
                          style="list-style:none;cursor:pointer;width:100%;box-sizing:border-box;
                                 font-size:12px;padding:7px;border-radius:3px;background:#7c2d12;color:#fbbf24;font-weight:700;">
-                    👑 Создать королевство (5M💰)
+                    👑 Создать королевство (${_bnrGoldLabel('create_kingdom', 5000000)})
                 </summary>
                 <div id="bnr-kingdom-create-slot" style="padding-top:6px;"></div>
            </details>
            <details data-bnr-details="kingdom-join" ${_bnrDetailsAttr('kingdom-join')}>
-                <summary title="Вступить в существующее королевство (100K💰)."
+                <summary title="Вступить в существующее королевство (${_bnrGoldLabel('join_kingdom', 100000)})."
                          style="list-style:none;cursor:pointer;width:100%;box-sizing:border-box;
                                 font-size:12px;padding:7px;border-radius:3px;background:#1e3a5f;color:#93c5fd;">
-                    🤝 Вступить в королевство (100K💰)
+                    🤝 Вступить в королевство (${_bnrGoldLabel('join_kingdom', 100000)})
                 </summary>
                 <div id="bnr-kingdom-join-slot" style="padding-top:6px;"></div>
            </details>`;
@@ -3924,11 +3946,11 @@ function _renderJoinInline(type, slotId) {
     if (!slot) return;
     const isClan = type === 'clan';
     const config = isClan
-        ? { icon: '🤝', cost: '50K💰',
+        ? { icon: '🤝', cost: _bnrGoldLabel('join_clan', 50000),
             actionType: 'hero.join_clan', field: 'clan_name',
             placeholder: 'например: Vlandian Royal Clan',
             hint: 'Введи (часть) имя существующего клана. Mod fuzzy-matches.' }
-        : { icon: '🤝', cost: '100K💰',
+        : { icon: '🤝', cost: _bnrGoldLabel('join_kingdom', 100000),
             actionType: 'hero.join_kingdom', field: 'kingdom_name',
             placeholder: 'например: Vlandia',
             hint: 'Введи (часть) имя королевства. Твой clan присоединится как вассал.' };

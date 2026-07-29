@@ -1221,6 +1221,9 @@ async def bannerlord_config():
     своих хардкодов: замороженный на CDN фронт иначе покажет устаревшие цифры после
     ребаланса на бэке. Бэк по-прежнему сам enforce'ит цену при списании —
     это только для отображения. См. PUBLIC_GATE_PLAN §Фаза 3."""
+    # Поздний импорт: bannerlord_vassals импортирует этот модуль, прямой
+    # импорт наверху дал бы цикл.
+    from routes.bannerlord_vassals import VASSAL_GOLD_COST as _VASSAL_GOLD_COST
     return {
         "give_gold_presets":  [{"crusticov": k, "dinars": v} for k, v in sorted(GIVE_GOLD_PRESETS.items())],
         "add_skill_presets":  [{"crusticov": k, "xp": v}     for k, v in sorted(ADD_SKILL_XP_PRESETS.items())],
@@ -1262,6 +1265,8 @@ async def bannerlord_config():
             "create_party":       PARTY_CREATE_COST,
             "recruit_vassal":     RECRUIT_VASSAL_COST,
             "make_baby":          BABY_COST,
+            # Живёт в routes/bannerlord_vassals.py — там же, где проверяется.
+            "create_vassal_clan": _VASSAL_GOLD_COST,
         },
     }
 

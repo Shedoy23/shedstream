@@ -211,14 +211,9 @@ class Database:
                 )
             """)
 
-            # Соответствие twitch_id → username
-            await db.execute("""
-                CREATE TABLE IF NOT EXISTS twitch_ids (
-                    twitch_id TEXT PRIMARY KEY,
-                    username TEXT NOT NULL,
-                    last_seen DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
+            # twitch_ids больше не создаётся (2026-07-29): к таблице не
+            # обращался ни один запрос, на проде она пустая. Сопоставление
+            # twitch_id → username живёт в `viewers`.
 
             # Пешки RimWorld
             await db.execute("""
@@ -310,19 +305,9 @@ class Database:
                 )
             """)
 
-            # Каталог предметов RimWorld
-            await db.execute("""
-                CREATE TABLE IF NOT EXISTS rimworld_catalog (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    item_def TEXT UNIQUE NOT NULL,
-                    item_name TEXT NOT NULL,
-                    item_type TEXT,
-                    slot TEXT,
-                    base_cost INTEGER DEFAULT 0,
-                    description TEXT,
-                    is_available INTEGER DEFAULT 1
-                )
-            """)
+            # rimworld_catalog больше не создаётся (2026-07-29): это
+            # предшественник нынешнего каталога (`shop_catalog`), к нему не
+            # обращался ни один запрос, на проде он пустой.
 
             # Статистика активности (только watch_time — clicks/moves удалены
             # в M7 как никогда не использовавшиеся)

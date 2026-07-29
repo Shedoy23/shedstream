@@ -412,6 +412,9 @@ async def streamer_voting_approve(proposal_id: int, request: Request):
         "not_found":        "Предложение не найдено",
         "not_pending":      "Уже обработано",
         "event_not_active": "Голосование не активно",
+        "pledge_unpaid":    (f"У @{result.get('username','?')} уже нет "
+                             f"{result.get('pledge', 0)}💎 на обещанный взнос — "
+                             f"вариант не добавлен"),
     }.get(result.get("reason"), "Не удалось одобрить")
     return {"success": False, "reason": result.get("reason"), "message": reason_msg}
 

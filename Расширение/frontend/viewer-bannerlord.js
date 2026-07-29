@@ -610,8 +610,11 @@ function _renderBuyWorkshopInline() {
 // loadBannerlordFiefs, loadBannerlordCaravans(+_renderBuyCaravanInline),
 // loadBannerlordInheritance. Core _bnr* forward; callers рантайм.
 // Sprint 5.33 (BLT-parity FIEF) — Fief tribute passive income panel.
-// Read-only view (owned fiefs come from in-game ownership). Active feature:
-// tribute_boost — 2000💎 → 7-day +50% multiplier на один fief.
+// Read-only view (owned fiefs come from in-game ownership).
+// Здесь до 2026-07-29 значилось «активная фича: tribute_boost — 2000💎».
+// Фичи нет с 28.05: пассивный ⦷-доход с владений отключён, boost стал
+// бессмысленным, обработчик отказывает. Кнопки в панели не было и нет;
+// из продажи действие убрано. Панель владений — только просмотр.
 
 async function loadBannerlordFiefs() {
     const slot = document.getElementById('bnr-fiefs-slot');

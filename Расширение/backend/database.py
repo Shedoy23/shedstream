@@ -2901,7 +2901,13 @@ class Database:
                 )
                 option_id = cur.lastrowid
 
-                # списать пледж (best-effort) → сеет пул опции
+                # Списать пледж. 2026-07-29: раньше это было «best-effort» —
+                # если к моменту одобрения крустиков у зрителя уже не было,
+                # списание молча не проходило, а опция ВСЁ РАВНО попадала в
+                # голосование с пулом 0. То есть заявленная цена предложения
+                # обходилась: пообещал 100💎, потратил их до одобрения — и
+                # твой вариант в бюллетене бесплатно. Теперь нехватка средств
+                # отменяет одобрение целиком, и стример видит причину.
                 charged = 0
                 if pledge and pledge > 0:
                     ccur = await conn.execute(
@@ -2909,22 +2915,25 @@ class Database:
                         "WHERE channel_id = ? AND username = ? AND points >= ?",
                         (pledge, cid, uname, pledge)
                     )
-                    if ccur.rowcount == 1:
-                        charged = pledge
-                        await conn.execute(
-                            "UPDATE voting_options SET pool = pool + ? WHERE id = ?",
-                            (charged, option_id)
-                        )
-                        await conn.execute(
-                            "UPDATE voting_events SET total_pool = total_pool + ? WHERE id = ?",
-                            (charged, event_id)
-                        )
-                        await conn.execute(
-                            "INSERT INTO voting_bids "
-                            "(event_id, option_id, channel_id, username, amount) "
-                            "VALUES (?, ?, ?, ?, ?)",
-                            (event_id, option_id, cid, uname, charged)
-                        )
+                    if ccur.rowcount != 1:
+                        await conn.execute("ROLLBACK")
+                        return {'approved': False, 'reason': 'pledge_unpaid',
+                                'username': uname, 'pledge': pledge}
+                    charged = pledge
+                    await conn.execute(
+                        "UPDATE voting_options SET pool = pool + ? WHERE id = ?",
+                        (charged, option_id)
+                    )
+                    await conn.execute(
+                        "UPDATE voting_events SET total_pool = total_pool + ? WHERE id = ?",
+                        (charged, event_id)
+                    )
+                    await conn.execute(
+                        "INSERT INTO voting_bids "
+                        "(event_id, option_id, channel_id, username, amount) "
+                        "VALUES (?, ?, ?, ?, ?)",
+                        (event_id, option_id, cid, uname, charged)
+                    )
 
                 await conn.execute(
                     "UPDATE voting_proposals SET status = 'approved', option_id = ? "

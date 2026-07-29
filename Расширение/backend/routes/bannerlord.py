@@ -958,8 +958,12 @@ _PURCHASABLE_ACTIONS = (
     # Sprint 5.33 (BLT-parity SHOP) — workshops passive income loop
     "hero.buy_workshop",         # 2500⦷ — viewer покупает workshop в town (чистая 💎)
     "hero.sell_workshop",        # free — engine refund 50% capital
-    # Sprint 5.33 (BLT-parity FIEF) — fief tribute boost
-    "hero.tribute_boost",        # 2000⦷ — +50% multiplier on 1 fief for 7 days
+    # hero.tribute_boost убран из продажи 2026-07-29. Механика отключена ещё
+    # 28.05 (DECOUPLE-1: пассивный ⦷-доход с владений выключен, boost стал
+    # бессмысленным), но цена 2000⦷ и место в списке покупаемого остались.
+    # Денег зритель не терял — обработчик отказывал, а отказ откатывал
+    # транзакцию вместе со списанием. Убрано, чтобы платное действие,
+    # которое не может сработать, не числилось продаваемым.
     # Sprint 5.33 (BLT-parity CARAVAN) — mobile passive income trilogy closer
     "hero.buy_caravan",          # 4000⦷ — create caravan party (чистая 💎)
     "hero.sell_caravan",         # free — engine transfer к MainHero
@@ -1149,7 +1153,6 @@ ACTION_PRICES_DEFAULT = {
     "hero.buy_workshop": WORKSHOP_PRICE_CRUSTIC,  # module-level const (thin-front) — 2026-05-29: чистая 💎 (капитал НЕ списывался, 1000→2500)
     "hero.sell_workshop":             0,    # free — engine handles refund
     # Sprint 5.33 (BLT-parity FIEF) — fief tribute boost
-    "hero.tribute_boost":          2000,    # 7-day +50% multiplier на 1 fief
     # Sprint 5.33 (BLT-parity CARAVAN) — mobile passive income
     "hero.buy_caravan": CARAVAN_PRICE_CRUSTIC,  # module-level const (thin-front) — 2026-05-29: чистая 💎 (капитал НЕ списывался, 1500→4000)
     "hero.sell_caravan":              0,    # free — engine handles transfer

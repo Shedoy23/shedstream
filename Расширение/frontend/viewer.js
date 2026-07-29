@@ -62,12 +62,10 @@ let clickCount = 0;
 let moveCount = 0;
 let lastMoveTime = Date.now();
 let uiUpdateInterval = null;     // защита от множественных setInterval
-let _rulectionTimerInterval = null; // таймер обратного отсчёта рулекциона
 const _shownWinners = new Set();    // показанные победители (вместо localStorage)
 let _cachedUserPoints = 0;          // кэш баланса для renderEvents до обновления DOM
 let _cspHandlersBound = false;      // защита от повторного навешивания делегированных обработчиков
 let _authUiInitialized = false;     // защита от повторной инициализации после onAuthorized
-let _lastRulectionErrorTs = 0;      // антиспам ошибок рулекциона
 
 function setupCspSafeHandlers() {
     if (_cspHandlersBound) return;
@@ -75,7 +73,7 @@ function setupCspSafeHandlers() {
 
     document.addEventListener('click', function(event) {
         // legacy-кнопки удалены 2026-05-10 (Phase 1.A compliance rework)
-        const actionEl = event.target.closest('[data-action],[data-open-modal],[data-toggle-target],[data-close-self-modal],[data-accept-family],[data-reject-family],[data-close-modal],[data-cat],#create-pawn-btn,#heal-pawn-btn,#btn-resurrect,#stats-refresh-btn,#refresh-pawn-btn,#panel-hide-btn,#rulection-contribute-btn,#rulection-bid-btn,#promo-activate-btn,#create-colonist-btn');
+        const actionEl = event.target.closest('[data-action],[data-open-modal],[data-toggle-target],[data-close-self-modal],[data-accept-family],[data-reject-family],[data-close-modal],[data-cat],#create-pawn-btn,#heal-pawn-btn,#btn-resurrect,#stats-refresh-btn,#refresh-pawn-btn,#panel-hide-btn,#promo-activate-btn,#create-colonist-btn');
         if (!actionEl) return;
 
         if (actionEl.hasAttribute('data-close-modal')) {
@@ -90,16 +88,6 @@ function setupCspSafeHandlers() {
 
         if (actionEl.id === 'panel-hide-btn') {
             hidePanel();
-            return;
-        }
-
-        if (actionEl.id === 'rulection-contribute-btn') {
-            contributeToPool();
-            return;
-        }
-
-        if (actionEl.id === 'rulection-bid-btn') {
-            placeBidEvent();
             return;
         }
 
@@ -452,7 +440,6 @@ function updateUIAfterAuth() {
     loadShopCatalog();
     loadRimworldEvents();
     checkRimworldStatus();
-    loadRulection(); // загружаем рулекцион сразу при входе
     // Sprint 5.31 #45b: подгрузить role+sub-tier badges под ником.
     loadUserPerksBadge();
     // M103: причины отказов, накопившиеся пока панель была закрыта.
@@ -476,9 +463,6 @@ function updateUIAfterAuth() {
         }, 60000);
     }
 
-    // Глобальный polling рулекциона — работает на любой вкладке
-    // Интервал: 8 сек в режиме копилки, 4 сек во время активного ивента
-    _startRulectionPolling();
     _startAttendanceTracking();
 }
 
@@ -735,8 +719,6 @@ function switchTab(tab) {
         loadMyPawn();
         // Шоп грузим только если ещё не загружен
         if (!shopAllItems || shopAllItems.length === 0) loadShopCatalog();
-        // Немедленный refresh при переходе на вкладку (глобальный poll уже работает)
-        loadRulection();
     }
 
     if (tabId === 'stats') {
@@ -779,7 +761,6 @@ function setupActivityTracking() {
     window.addEventListener('beforeunload', () => {
         reportActivity(true);
         cleanupAllTimers();
-        _stopRulectionPolling();
     });
 }
 

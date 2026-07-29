@@ -67,7 +67,6 @@ from routes.viewer   import router as viewer_router
 from routes.admin    import router as admin_router
 # market_router удалён 2026-05-10 — Phase 1.C compliance rework (P2P trade items, §6.2.8)
 # craft_router удалён 2026-05-10 — Phase 1.B compliance rework (3/3 gambling: §6.2.4 + §5.3)
-from routes.event    import router as event_router
 from routes.promo    import router as promo_router
 from routes.marriage import router as marriage_router
 from routes.misc     import router as misc_router
@@ -104,7 +103,11 @@ app.include_router(viewer_router)
 app.include_router(admin_router)
 # market_router удалён 2026-05-10 (Phase 1.C compliance rework)
 # craft_router удалён 2026-05-10 (Phase 1.B compliance rework)
-app.include_router(event_router)
+# Роутер ивентов («рулекцион»: копилка + аукцион) ВЫРЕЗАН 2026-07-29.
+# Механика переписана в голосование за игру (routes/voting.py) — оно и живёт
+# в панели. От старой версии оставались рабочие эндпоинты /api/event/contribute
+# и /api/event/bid, списывавшие крустики, при том что рисовать их панели было
+# некуда: разметки rulection-* нет ни в одном шелле. Решение владельца — вырезать.
 app.include_router(promo_router)
 app.include_router(marriage_router)
 app.include_router(misc_router)
@@ -1354,13 +1357,6 @@ async def run_migrations():
             print(f"❌ M103 migration FAILED: {type(e).__name__}: {e}")
             raise
 
-        try:
-            from migrations import m104_event_pool_persist
-            await m104_event_pool_persist.apply(conn)
-        except Exception as e:
-            print(f"❌ M104 migration FAILED: {type(e).__name__}: {e}")
-            raise
-
         print("✅ Migrations complete")
 
 
@@ -1896,9 +1892,6 @@ async def on_startup():
     from dependencies import channel_rate_cleanup_loop as _channel_rate_cleanup
     asyncio.create_task(_channel_rate_cleanup())
     # Фоновые задачи бота
-    # M104: копилка ивента лежит в базе — поднять её в память при старте,
-    # иначе рестарт снова покажет зрителям ноль (деньги-то списаны).
-    asyncio.create_task(bot.event_manager.load_pool())
     asyncio.create_task(bot.reward_points_loop())
     asyncio.create_task(bot.drop_loop())
     asyncio.create_task(bot.matchmaking_loop())  # Phase 5.0 (2026-05-11)
@@ -1907,7 +1900,6 @@ async def on_startup():
     # Автозавершение рулекционов по таймеру (иначе ивент висит
     # до следующего опроса /api/event/status — и чат-оповещение
     # о победителе не уходит).
-    asyncio.create_task(bot.event_manager.event_watcher_loop())
     # IRC бот и семейный доход
     if not _staging:
         asyncio.create_task(start_twitch_bot())

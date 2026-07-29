@@ -14,7 +14,6 @@ logger = logging.getLogger('rimlink.bot')
 
 from database import Database
 from dependencies import resolve_channel_id
-from event_manager import EventManager
 from config import (
     ACTIVE_WINDOW,
     REDUCED_WINDOW,
@@ -31,7 +30,6 @@ from config import (
     DROP_BLACKLIST,
     DROP_CHANCE,
     DROP_INTERVAL,
-    EVENT_CONFIG,
     PERFORMANCE_CONFIG,
     POINTS_PER_MINUTE,
     QUEST_ORDER,
@@ -113,7 +111,6 @@ class BotCore:
         self._bonus_cache = Cache(ttl=PERFORMANCE_CONFIG['cache_ttl'])
 
         # Ивент менеджер
-        self.event_manager = EventManager(self, db)
 
         # Розыгрыши
         self.last_raffle = datetime.min
@@ -1234,42 +1231,11 @@ class BotCore:
             "quests": quests,
             "activity": activity,
             "chat": chat,
-            "active_event": self.event_manager.active_event is not None
         }
     
-    # ===== МЕТОДЫ ДЛЯ ИВЕНТОВ =====
-    # Sprint 5.33 TOS WARNING fixes (W1, 2026-05-28):
-    # - Удалён dead roulette branch (event_manager после Phase 1.E type='auction' always)
-    # - Lexicon scrub: "Рулекцион/Рулетка/Ставка" → "Аукцион/Вклад"
-    #   per twitch-compliance skill rules (forbidden: bet, ставка, gambling,
-    #   казино, выигрыш, jackpot, spin в игровом контексте).
-    async def on_event_start(self, event_type: str, prize_name: str):
-        """Вызывается при старте ивента (всегда аукцион после Phase 1.E)."""
-        duration_min = EVENT_CONFIG.get('event_duration', 180) // 60
-        message = (
-            f"⚖️ АУКЦИОН АКТИВИРОВАН! Приз: {prize_name}! "
-            f"У вас {duration_min} мин чтобы сделать свой вклад!"
-        )
-        await self.send_message(message)
+    # Оповещения об аукционе-ивенте («рулекцион») удалены 2026-07-29
+    # вместе с самой механикой: она переписана в голосование за игру.
 
-    async def on_event_end(
-        self,
-        winner: str,
-        event_type: str,
-        prize_name: str,
-        winner_bid: int = 0,
-        total_pool: int = 0,
-        participants: int = 0,
-    ):
-        """Оповещение о победителе аукциона в чат."""
-        text = (
-            f"⚖️💥 АУКЦИОН ЗАВЕРШЁН! 💥⚖️ "
-            f"🏆 Победитель — @{winner}! "
-            f"Победный вклад: {winner_bid:,}💎 | Соперников: {max(0, participants-1)} "
-            f"🎁 Приз: {prize_name}!"
-        )
-        await self.send_message(text)
-    
     async def on_drop(self, username: str, item_name: str, rarity: str):
         """Вызывается при дропе предмета — переопределяется в main.py"""
         pass

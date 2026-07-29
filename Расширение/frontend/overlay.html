@@ -1330,79 +1330,11 @@ let lastDropId = null;
 let seenLiveEventBuckets = new Set();  // renamed 2026-05-10 (Phase 1.I lexicon scrub)
 
 async function poll() {
-    try {
-        // 1. Событие рулекциона
-        const ev = await fetch(SERVER + '/api/event/status').then(r => r.json());
-
-        if (ev.active_event) {
-            const ae = ev.active_event;
-
-            if (lastEventId !== ae.id) {
-                // Новый ивент — анонс + показываем панель
-                lastEventId = ae.id;
-                lastEventState = 'active';
-                // Уведомление в углу
-                queueNotif({
-                    type: 'event-start',
-                    type_name: ae.type_name,
-                    prize_name: ae.prize?.name || '?',
-                    type_desc: ae.type_desc,
-                    event_type: ae.type,
-                    duration: 7000
-                });
-                // Показываем постоянную панель
-                showEventPanel(ae);
-                announceEvent(ae.type_name, ae.prize?.name || '?');
-            } else {
-                // Ивент идёт — обновляем панель
-                updateEventPanel(ae);
-            }
-
-            // live-карточка в углу раз в 45 сек с текущими вкладами
-            if (ae.participants > 0) {
-                const liveKey = `live-${ae.id}-${Math.floor(ae.time_left / 45)}`;
-                if (!seenLiveEventBuckets.has(liveKey)) {
-                    seenLiveEventBuckets.add(liveKey);
-                    queueNotif({
-                        type: 'event-live',
-                        type_name: ae.type_name,
-                        prize_name: ae.prize?.name || '?',
-                        time_left_fmt: ae.time_left_fmt,
-                        participants: ae.participants,
-                        total_pool: ae.total_pool,
-                        bids: ae.bids || [],
-                        duration: 10000
-                    });
-                }
-            }
-
-        } else if (lastEventState === 'active') {
-            // Ивент закончился — скрываем панель
-            lastEventState = 'ended';
-            hideEventPanel();
-        }
-
-        // Победитель
-        if (ev.last_winner && ev.last_winner.has_winner) {
-            const wid = ev.last_winner.ended_at;
-            if (wid !== lastWinnerId) {
-                lastWinnerId = wid;
-                lastEventState = 'none';
-                lastEventId = null;
-
-                queueNotif({
-                    type: 'event-end',
-                    winner: ev.last_winner.winner,
-                    prize_name: ev.last_winner.prize?.name || '?',
-                    message: ev.last_winner.message || '',
-                    duration: 9000
-                });
-
-                fetch(SERVER + '/api/event/ack-winner', { method: 'POST' }).catch(() => {});
-            }
-        }
-
-    } catch(e) {}
+    // Опрос ивента-«рулекциона» удалён 2026-07-29 вместе с механикой:
+    // она переписана в голосование за игру, а эндпоинты /api/event/* вырезаны.
+    // Осиротевшие помощники панели ивента (showEventPanel / updateEventPanel /
+    // hideEventPanel / announceEvent) и их разметка остаются — их снимет
+    // отдельный проход по следам вырезанных механик (AUDIT_REGISTER §Трек D).
 
     try {
         // 2. Drop notifications через /api/overlay/latest

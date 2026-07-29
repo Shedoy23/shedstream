@@ -120,12 +120,6 @@ async def viewer_stats(username: str, request: Request):
     except Exception:
         income_per_min = POINTS_PER_MINUTE
 
-    active_event = False
-    try:
-        active_event = bot.event_manager.active_event is not None
-    except AttributeError:
-        pass
-
     # 2026-05-15 (Sprint 1.5): active_module — для conditional render
     # tab «🔌 Интеграция» в extension.html (rimworld / bannerlord / null).
     active_module = None
@@ -145,7 +139,6 @@ async def viewer_stats(username: str, request: Request):
         "unopened_cases": unopened_cases,    # {common: N, rare: M, epic: K, legendary: L}
         "quests":         quests,
         "income_per_min": income_per_min,
-        "active_event":   active_event,
         "active_module":  active_module,     # 'rimworld' | 'bannerlord' | null
         "stats": {
             "chat_messages_today":  chat_count,

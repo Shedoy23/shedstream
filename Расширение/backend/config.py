@@ -310,39 +310,8 @@ AUTO_MESSAGES = [
     '/announcepurple Наш канал в ТГ и чат, ждём тебя 💜 t.me/ttvshedoy23 https://t.me/+x6Di_VyeFMxhZWE6',
 ]
 
-# ===== НАСТРОЙКИ ИВЕНТА =====
-EVENT_CONFIG = {
-    # min_donations_for_event удалён 2026-07-02 (B1): донаты вырезаны Phase 8.F,
-    # поле было dead + светило real-money-лексикон в API/фронте.
-    'min_points_for_event': 100000,
-    'event_duration': 180,   # 3 минуты (уменьшено с 5)
-    'min_bid': 100,
-    'cooldown_hours': 0.1,     # Минимум 1 час между ивентами (защита экономики)
-    # Продление таймера при смене лидера в аукционе
-    'extend_on_leader_change': True,   # включить продление
-    'extend_threshold': 30,            # если до конца осталось меньше N секунд
-    'extend_duration': 30,             # на сколько секунд продлять
-    'extend_max_total': 600,           # максимум продления за весь ивент (суммарно)
-}
-
-EVENT_ITEMS = [
-    {'name': '🪵 Деревяшка', 'item_id': 'деревяшка', 'chance': 25, 'emoji': '🪵', 'value': 1},
-    {'name': '🪨 Камень', 'item_id': 'камень', 'chance': 25, 'emoji': '🪨', 'value': 6},
-    {'name': '🔮 Амулет', 'item_id': 'амулет', 'chance': 25, 'emoji': '🔮', 'value': 32},
-    {'name': '👑 Корона', 'item_id': 'корона', 'chance': 25, 'emoji': '👑', 'value': 200},
-]
-
-EVENT_TYPES = {
-    # 'roulette' тип удалён 2026-05-10 (Phase 1.E compliance rework — gambling
-    # по §6.2.3 + §6.2.6: взвешенный рандом по сумме ставок = lottery с monetary
-    # value reward). Остался только аукцион (детерминированный max-bid winner).
-    # В Phase 4 переделается полностью в голосование за действие стримера.
-    'auction': {
-        'name': '⚖️ АУКЦИОН',
-        'description': 'Кто больше накидал за 5 минут - тот и победил!',
-        'chance': 100
-    }
-}
+# Настройки ивента-аукциона («рулекцион») удалены 2026-07-29 вместе с
+# механикой: она переписана в голосование за игру (VOTING_* ниже).
 
 # CASINO_CONFIG удалён в Phase 1.A (2026-05-10) — gambling по §6.2.3 Twitch Extension Guidelines.
 # См. COMPLIANCE_REWORK_PLAN.md §4 Phase 1.

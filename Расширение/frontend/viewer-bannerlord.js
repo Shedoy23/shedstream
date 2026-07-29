@@ -3862,11 +3862,14 @@ function loadBannerlordKingdomMgmt() {
            </details>`;
     // 2026-06-17 — кнопка «нанять вассальный клан» ТОЛЬКО для правителя королевства
     // (info.is_ruler из kingdom_info). 3M динаров, лимита нет. Подтверждение обязательно.
+    // Цена — с бэка (hero_gold_costs.recruit_vassal), не литералом: 2026-07-29
+    // аудит 0.0.2 нашёл здесь ровно тот случай, который changelog объявлял
+    // закрытым — «3 000 000💰» стояли текстом и в кнопке, и в подтверждении.
     const rulerActions = (hasKingdom && info && info.is_ruler)
         ? `<button class="extra-btn bnr-recruit-vassal"
-                   title="Нанять свежий NPC-вассальный клан (tier-1) в своё королевство. Списывается 3 000 000💰 динаров. Лимита нет — цена и есть ограничитель."
+                   title="Нанять свежий NPC-вассальный клан (tier-1) в своё королевство. Списывается ${_bnrGoldLabel('recruit_vassal', 3000000)} динаров. Лимита нет — цена и есть ограничитель."
                    style="width:100%;font-size:12px;padding:7px;margin-top:5px;background:#1e3a5f;color:#93c5fd;font-weight:700;">
-                🛡 Нанять вассальный клан (3 000 000💰)
+                🛡 Нанять вассальный клан (${_bnrGoldLabel('recruit_vassal', 3000000)})
            </button>`
         : '';
     const html = `
@@ -3885,7 +3888,11 @@ function loadBannerlordKingdomMgmt() {
         // 2026-06-17 — нанять NPC-вассальный клан (ruler-only, 3M динаров). Confirm
         // обязателен (сумма огромная) + action-specific тост «не мгновенно» на успех.
         slot.querySelector('.bnr-recruit-vassal')?.addEventListener('click', async () => {
-            if (!await _bnrConfirmDanger('Нанять вассальный клан за 3 000 000💰 динаров? Это огромная сумма, вернуть её нельзя. Клан возглавит NPC-лорд и войдёт в твоё королевство.', 'Да, нанять')) return;
+            // Число берём в МОМЕНТ КЛИКА, а не при отрисовке: конфиг мог
+            // обновиться. Развёрнутый формат (не «3M») здесь намеренно —
+            // подтверждение должно показать сумму целиком.
+            const _rvCost = _bnrGold('recruit_vassal', 3000000).toLocaleString('ru-RU');
+            if (!await _bnrConfirmDanger(`Нанять вассальный клан за ${_rvCost}💰 динаров? Это огромная сумма, вернуть её нельзя. Клан возглавит NPC-лорд и войдёт в твоё королевство.`, 'Да, нанять')) return;
             const res = await _bannerlordBuyAction('hero.recruit_vassal_clan', {});
             if (res && res.success) {
                 showNotification('🛡 Заявка принята. NPC-лорд и его клан появятся в твоём королевстве в течение пары секунд (после обработки в игре). Динары спишутся при создании.', 'success', 7000);

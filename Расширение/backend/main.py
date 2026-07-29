@@ -29,7 +29,6 @@ from twitchio.ext import commands as twitch_commands
 
 from bot_core import BotCore
 from config import (
-    ACTIVITY_CONFIG,
     CACHE_EVICTION_INTERVAL,
     CHANNEL_POINTS_CONFIG,
     DEV_MODE,
@@ -1357,6 +1356,13 @@ async def run_migrations():
             await m103_viewer_notices.apply(conn)
         except Exception as e:
             print(f"❌ M103 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
+        try:
+            from migrations import m104_drop_dead_tables
+            await m104_drop_dead_tables.apply(conn)
+        except Exception as e:
+            print(f"❌ M104 migration FAILED: {type(e).__name__}: {e}")
             raise
 
         print("✅ Migrations complete")

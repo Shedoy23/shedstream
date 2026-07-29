@@ -205,7 +205,17 @@ def config_constants_without_users():
 
     blob = []
     for f in sorted(backend.rglob("*.py")):
-        if "__pycache__" in str(f) or f.name == "config.py":
+        if "__pycache__" in str(f):
+            continue
+        if f.name == "config.py":
+            # Сам config.py тоже считается читателем: константа может
+            # использоваться внутри него (REQUIRED_ENV_VARS проверяет .env,
+            # _MODULE_TOKEN_SECRET_ENV участвует в вычислении соседней).
+            # Убираем только строки объявлений, чтобы имя не «нашло само себя».
+            src = _read(f)
+            kept_lines = [l for l in src.splitlines()
+                          if not re.match(r"^[A-Z_][A-Z0-9_]*\s*=", l)]
+            blob.append("\n".join(kept_lines))
             continue
         blob.append(_read(f))
     blob = "\n".join(blob) + "\n" + "\n".join(

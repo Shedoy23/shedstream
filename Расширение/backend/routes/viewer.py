@@ -9,7 +9,6 @@ from datetime import date
 from fastapi import APIRouter, Request
 
 from config import (
-    ACTIVITY_CONFIG,
     MIN_HEARTBEAT_SECONDS,
     POINTS_PER_MINUTE,
     PRESENCE_WATCHTIME_ENABLED,
@@ -254,21 +253,10 @@ async def track_chat_message(body: ChatMessageRequest, request: Request):
     return {"status": "ok", "deduped": True}
 
 
-@router.post("/api/viewer/click")
-async def track_click(request: Request):
-    """Отслеживание кликов"""
-    auth = require_jwt_user(request)
-    if not auth:
-        return _AUTH_FAIL
-    safe_username, channel_id = auth
-    if not check_rate_limit(safe_username, 10):
-        return {"status": "rate_limited"}
-    db = get_db()
-    if ACTIVITY_CONFIG.get("activity_bonus_enabled", True):
-        bonus = ACTIVITY_CONFIG.get("bonus_per_click", 1)
-        await db.add_points(safe_username, bonus)
-    return {"status": "ok"}
-
+# /api/viewer/click удалён 2026-07-29 (решение владельца: «клик точно не нужен»).
+# Он начислял +1💎 за клик по панели, но НИ ОДНОГО вызова из фронта не было —
+# механики для зрителя не существовало. Попутно он начислял очки без канала
+# (`add_points` без channel_id), то есть всегда на канал по умолчанию.
 
 @router.get("/api/viewer/quests/{username}")
 async def get_viewer_quests(username: str, request: Request):

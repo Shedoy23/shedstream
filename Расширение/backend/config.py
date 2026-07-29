@@ -205,8 +205,6 @@ ACTIVE_WINDOW  = 900    # 15 минут
 REDUCED_WINDOW = 1800   # 30 минут
 
 # Backward-compat алиасы — постепенно удалить. Внешние модули могут ещё импортить.
-AFK_TIMEOUT         = ACTIVE_WINDOW
-AFK_PENALTY_TIMEOUT = REDUCED_WINDOW
 
 # Минимальный heartbeat (секунд watch_time) чтобы засчитать сигнал активности.
 # Отсекает пустые/нулевые пинги и осложняет накрутку через сырые POST-ы.
@@ -290,7 +288,6 @@ else:
 # ===== ПРОЧИЕ НАСТРОЙКИ =====
 # DONATION_MULTIPLIER + ECONOMY_CONFIG donation keys удалены 2026-05-14
 # (Phase 8.F donate removal — §5.2/§5.4 compliance).
-RAFFLE_COOLDOWN = 300    # 5 минут
 AUTO_MESSAGES_ENABLED = True
 AUTO_MESSAGE_INTERVAL = 180  # 3 минут
 
@@ -332,7 +329,6 @@ MATCHMAKING_GAME_TYPES = ('rps', 'tictactoe', 'dice')
 MATCHMAKING_DEFAULT_ELO_SPREAD = 100
 
 # Auto-expire queue entries старше N секунд (cleanup от disconnected клиентов).
-MATCHMAKING_QUEUE_TTL_SEC = 300
 
 # ===== PETS MVP (Phase 7, 2026-05-11; крустики-pricing 2026-06-27) =====
 # Compliance критично: catalog задаётся ТУТ, не стримером (§6.2.8 protection).
@@ -458,73 +454,13 @@ CASE_SOURCES = (
 # Разница в 50 раз — идеальная ловушка для того, кто будет «сверять цены».
 
 # ===== НАСТРОЙКИ EVENTSUB =====
-EVENTSUB_CONFIG = {
-    'secret_required': True,      # Требовать секрет всегда (без fallback)
-    'log_errors': True,           # Логировать все ошибки верификации
-}
-
 # ===== НАСТРОЙКИ ЗВУКОВ =====
-SOUND_CONFIG = {
-    'enabled': True,
-    'cooldown': 2.0,
-    'volume': {
-        'default': 0.7,
-        'win': 0.9,
-        # 'jackpot' удалён 2026-05-12 (Phase 8.A.2 lexicon scrub — dead key)
-        'coin': 0.4,
-        'error': 0.3,
-        'gift': 0.8,
-        'wedding': 0.9,
-        'divorce': 0.8,
-        'chat': 0.3  # Звук нового сообщения
-    }
-}
-
 # ===== НАСТРОЙКИ ПРОИЗВОДИТЕЛЬНОСТИ =====
 PERFORMANCE_CONFIG = {
     'cache_ttl': 30,
 }
 
 # ===== КОНФИГУРАЦИЯ ПРЕДМЕТОВ =====
-ITEMS_CONFIG = [
-    {
-        'name': 'деревяшка',
-        'display_name': 'Деревяшка',
-        'value': 1,
-        'rarity': 'common',
-        'craft_level': 1,
-        'description': 'Простая палка. +1 очко/мин',
-        'emoji': '🪵'
-    },
-    {
-        'name': 'камень',
-        'display_name': 'Камень',
-        'value': 6,
-        'rarity': 'uncommon',
-        'craft_level': 2,
-        'description': 'Тяжёлый камень. +6 очков/мин',
-        'emoji': '🪨'
-    },
-    {
-        'name': 'амулет',
-        'display_name': 'Амулет',
-        'value': 32,
-        'rarity': 'rare',
-        'craft_level': 3,
-        'description': 'Магический амулет. +32 очка/мин',
-        'emoji': '🔮'
-    },
-    {
-        'name': 'корона',
-        'display_name': 'Корона',
-        'value': 200,
-        'rarity': 'epic',
-        'craft_level': 4,
-        'description': 'Золотая корона. +200 очков/мин!',
-        'emoji': '👑'
-    }
-]
-
 # ===== НАСТРОЙКИ КВЕСТОВ =====
 QUESTS_CONFIG = {
     # Квесты на время просмотра
@@ -631,9 +567,10 @@ QUEST_ORDER = [
 ]
 
 # ===== НАСТРОЙКИ ОТСЛЕЖИВАНИЯ АКТИВНОСТИ =====
-ACTIVITY_CONFIG = {
-    'watch_time_update_interval': 60,  # Отправлять статистику каждые 60 секунд
-}
+# ACTIVITY_CONFIG удалён 2026-07-29: единственным его читателем был
+# /api/viewer/click, а сам клик убран как несуществующая механика. Ключей
+# про бонус за клик в нём, кстати, и не было — эндпоинт брал 1💎 из
+# умолчания в `.get()`, то есть настройка была фиктивной.
 
 # ===== TWITCH КАНАЛ ДЛЯ ПРОВЕРКИ ОНЛАЙНА =====
 TWITCH_STREAM_CHANNEL = os.getenv('TWITCH_STREAM_CHANNEL', 'shedoy23')  # Канал для проверки онлайна
@@ -739,3 +676,9 @@ if __name__ == '__main__':
     print(f"🎁 Дропы: каждые {DROP_INTERVAL//60} мин, шанс {DROP_CHANCE*100}%")
     print(f"📁 RimWorld путь: {RIMWORLD_BASE_PATH}")
     print(f"📜 Квестов настроено: {len(QUESTS_CONFIG)}")
+
+# Мёртвые константы удалены 2026-07-29 (решение владельца: «мёртвый нахер
+# не нужен, опять кто-то из-за него запутается»): AFK_TIMEOUT,
+# AFK_PENALTY_TIMEOUT, RAFFLE_COOLDOWN, MATCHMAKING_QUEUE_TTL_SEC,
+# EVENTSUB_CONFIG, SOUND_CONFIG, ITEMS_CONFIG — ни одного читателя во всём
+# репозитории, следы вырезанных розыгрышей, звуков оверлея и AFK-логики.

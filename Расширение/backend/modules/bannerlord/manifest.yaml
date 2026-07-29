@@ -189,6 +189,14 @@ extensions:
     - hero.change_child_looks
     - hero.respec_child_skills
     - hero.activate_marriage
+    # 2026-07-29 (аудит работы 0.0.2) — ровно тот же случай, что и блок про
+    # 4 action'а выше: оба живые (кнопка в панели + цена в ACTION_PRICES_DEFAULT
+    # + хендлер в моде), но пишутся в module_actions напрямую из
+    # routes/bannerlord.py, минуя dispatch_action — поэтому manifest про них не
+    # знал. Сегодня безвредно; на переходе к generic dispatch
+    # supports_action() их зарежет, и сломается то, что «всегда работало».
+    - hero.reforge_quality   # 2026-06-15 «Кузница»: перековка качества надетого предмета
+    - hero.set_combat_stance # 2026-06-10: боевая стойка (defensive/balanced/aggressive), free
 
 # Каталоги — те же что RimWorld (универсальный shape entry per MODULE_API.md §9):
 catalogs:

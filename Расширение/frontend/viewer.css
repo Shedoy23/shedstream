@@ -106,6 +106,36 @@ html, body {
 }
 #panel-restore-tab:hover { background: #2d1a4a; color: #bf94ff; }
 
+/* 2026-07-29 (багрепорт #20): «сделать язычок скрытия расширения как и у
+   открытия». Открывалась панель заметным вертикальным язычком у края экрана,
+   а пряталась крестиком в шапке — жест несимметричный, и его надо было
+   искать. Этот язычок — зеркало #panel-restore-tab: та же форма и размер,
+   но у ЛЕВОГО края панели и со стрелкой «убрать вправо».
+   Ширина панели повторена выражением, а не переменной: --panel-width
+   объявлена внутри #overlay-panel и снаружи не видна. */
+#panel-hide-tab {
+    display: flex;
+    position: fixed;
+    top: 35%;
+    right: min(420px, 100vw);
+    transform: translateY(-50%);
+    background: #1f1f23;
+    border: 1px solid #3d3d3f;
+    border-right: none;
+    border-radius: 8px 0 0 8px;
+    color: #9147ff;
+    font-size: 14px;
+    width: 28px;
+    height: 52px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 9997;
+    transition: background 0.15s, color 0.15s;
+    box-shadow: -3px 0 12px rgba(0,0,0,0.5);
+}
+#panel-hide-tab:hover { background: #2d1a4a; color: #bf94ff; }
+
 .panel-title {
     font-size: 13px;
     font-weight: 700;

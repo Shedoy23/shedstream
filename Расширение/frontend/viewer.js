@@ -73,7 +73,7 @@ function setupCspSafeHandlers() {
 
     document.addEventListener('click', function(event) {
         // legacy-кнопки удалены 2026-05-10 (Phase 1.A compliance rework)
-        const actionEl = event.target.closest('[data-action],[data-open-modal],[data-toggle-target],[data-close-self-modal],[data-accept-family],[data-reject-family],[data-close-modal],[data-cat],#create-pawn-btn,#heal-pawn-btn,#btn-resurrect,#stats-refresh-btn,#refresh-pawn-btn,#panel-hide-btn,#promo-activate-btn,#create-colonist-btn');
+        const actionEl = event.target.closest('[data-action],[data-open-modal],[data-toggle-target],[data-close-self-modal],[data-accept-family],[data-reject-family],[data-close-modal],[data-cat],#create-pawn-btn,#heal-pawn-btn,#btn-resurrect,#stats-refresh-btn,#refresh-pawn-btn,#panel-hide-btn,#panel-hide-tab,#promo-activate-btn,#create-colonist-btn');
         if (!actionEl) return;
 
         if (actionEl.hasAttribute('data-close-modal')) {
@@ -86,7 +86,7 @@ function setupCspSafeHandlers() {
             return;
         }
 
-        if (actionEl.id === 'panel-hide-btn') {
+        if (actionEl.id === 'panel-hide-btn' || actionEl.id === 'panel-hide-tab') {
             hidePanel();
             return;
         }
@@ -2412,12 +2412,15 @@ function hidePanel() {
     const panel = document.getElementById('overlay-panel');
     panel.style.transition = 'right 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
     panel.style.right = '-' + panel.offsetWidth + 'px';
+    // Язычок скрытия уезжает вместе с панелью (багрепорт #20).
+    const hideTab = document.getElementById('panel-hide-tab');
+    if (hideTab) hideTab.style.display = 'none';
     let restoreBtn = document.getElementById('panel-restore-tab');
     if (!restoreBtn) {
         restoreBtn = document.createElement('button');
         restoreBtn.id = 'panel-restore-tab';
         restoreBtn.innerHTML = '🌌';
-        restoreBtn.title = 'Открыть RimLink';
+        restoreBtn.title = 'Открыть ShedLink';   // было «RimLink» — старое имя проекта
         restoreBtn.onclick = restorePanel;
         document.body.appendChild(restoreBtn);
     }
@@ -2429,6 +2432,8 @@ function restorePanel() {
     panel.style.right = '0';
     const restoreBtn = document.getElementById('panel-restore-tab');
     if (restoreBtn) restoreBtn.style.display = 'none';
+    const hideTab = document.getElementById('panel-hide-tab');
+    if (hideTab) hideTab.style.display = 'flex';
 }
 
 // ===== БАГРЕПОРТ (бывш. реклама — убрана для §9.3, переделана в багрепорт) =====

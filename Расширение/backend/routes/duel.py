@@ -129,6 +129,15 @@ async def _update_stats(conn, username: str, elo: int, streak: int,
     )
 
 
+# Человеческие названия мини-игр для сообщений в чат (багрепорт #41).
+# Держим здесь, а не во фронте: сообщение уходит ботом в чат Twitch.
+_GAME_LABELS = {
+    'rps':       'Камень-ножницы-бумага',
+    'dice':      'Кости',
+    'tictactoe': 'Крестики-нолики',
+}
+
+
 async def check_season_end(channel_id: int = None, game_type: str = 'rps'):
     """Проверяет окончание сезона КАНАЛА; начисляет призы и стартует новый.
 
@@ -233,12 +242,20 @@ async def check_season_end(channel_id: int = None, game_type: str = 'rps'):
 
         try:
             bot = get_bot()
+            # 2026-07-29 (багрепорт #41): раньше в чат уходило просто «Сезон #10
+            # завершён» — зритель не понимал, о каком сезоне речь. Соседние
+            # мини-игры (dice.py, tictactoe.py) игру называют, эта — нет.
+            game_label = _GAME_LABELS.get(game_type, game_type)
             if prize_parts:
                 await bot.send_message(
-                    f"🏆 Сезон #{season_id} завершён! Призы: {' | '.join(prize_parts)}"
+                    f"🏆 Мини-игры: сезон «{game_label}» #{season_id} завершён! "
+                    f"Призы: {' | '.join(prize_parts)}"
                 )
             else:
-                await bot.send_message(f"🏆 Сезон #{season_id} завершён! Новый сезон начался.")
+                await bot.send_message(
+                    f"🏆 Мини-игры: сезон «{game_label}» #{season_id} завершён! "
+                    f"Новый сезон начался."
+                )
         except Exception:
             pass
 

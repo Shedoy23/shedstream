@@ -66,7 +66,7 @@ async function openDuels() {
                 <!-- Лидерборд -->
                 <div>
                     <h3 style="margin-bottom:6px;">🏆 Сезон #${lbData.season_id || 1} — Топ-5</h3>
-                    ${_renderSeasonEnd(lbData.ends_at, lbData.prizes)}
+                    ${_renderSeasonEnd(lbData.ends_at, lbData.prizes, lbData.elo_gate)}
                     <div>${_renderLeaderboard(lbData.leaderboard || [])}</div>
                 </div>
 
@@ -87,21 +87,38 @@ async function openDuels() {
     }
 }
 
-function _renderSeasonEnd(endsAt, prizes) {
-    if (!endsAt) return '';
+// Общий блок «про сезон» для ВСЕХ мини-игр: дуэли, кости, крестики.
+// Живёт здесь, зовут отовсюду — файлы фронта делят одну глобальную область.
+//
+// Аудит 29.07 показал, зачем это нужно: кости и крестики не сообщали ни даты
+// окончания сезона, ни призов вообще, а ПОРОГ приза не показывался нигде ни
+// в одной игре. При этом на проде за два месяца никто его не перешагнул —
+// то есть зритель играл, не зная ни награды, ни условия её получить.
+//
+// Все числа приходят с бэка: цифра во фронте — это цифра, замороженная на
+// CDN Twitch до следующего ревью.
+function _renderSeasonEnd(endsAt, prizes, eloGate) {
+    const lines = [];
     try {
-        const d = new Date(endsAt);
-        const fmt = d.toLocaleDateString('ru-RU', { day:'2-digit', month:'2-digit', year:'numeric' });
-        // Суммы приходят с бэка (те же, по которым сезон реально платит).
-        // Хардкод был отдельной копией числа: смена наград на бэке — и текст
-        // врал бы до следующей подачи расширения на ревью Twitch.
+        if (endsAt) {
+            const d = new Date(endsAt);
+            const fmt = d.toLocaleDateString('ru-RU',
+                { day:'2-digit', month:'2-digit', year:'numeric' });
+            lines.push(`Сезон заканчивается: ${fmt}`);
+        }
         const medals = ['🥇', '🥈', '🥉'];
         const p = prizes || {};
         const parts = [1, 2, 3]
             .filter(place => Number(p[place]) > 0)
             .map(place => `${medals[place - 1]}${Number(p[place]).toLocaleString('ru-RU').replace(/,/g, ' ')}💎`);
-        const prizeText = parts.length ? ` • Призы: ${parts.join(' ')}` : '';
-        return `<div style="color:#adadb8;font-size:11px;margin-bottom:8px;">Сезон заканчивается: ${fmt}${prizeText}</div>`;
+        if (parts.length) lines.push(`Призы в конце сезона: ${parts.join(' ')}`);
+        const gate = Number(eloGate || 0);
+        if (parts.length && gate > 0) {
+            lines.push(`Приз получают только с ELO ${gate} и выше`);
+        }
+        if (!lines.length) return '';
+        return `<div style="color:#adadb8;font-size:11px;margin-bottom:8px;line-height:1.5;">`
+             + lines.map(escapeHtml).join('<br>') + `</div>`;
     } catch { return ''; }
 }
 

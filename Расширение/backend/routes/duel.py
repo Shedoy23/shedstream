@@ -461,7 +461,7 @@ async def duel_leaderboard(request: Request, game_type: str = "rps"):
         # B2 (2026-07-02): без JWT не отдаём default-канал (multi-tenant leak);
         # фронт (duels.js) шлёт JWT. Пустой борд той же формы — UI не ломается.
         return {"season_id": 1, "ends_at": None, "game_type": game_type,
-                "prizes": PRIZES, "leaderboard": []}
+                "prizes": PRIZES, "elo_gate": PRIZE_ELO_GATE, "leaderboard": []}
 
     db = get_db()
     async with db._connect() as conn:
@@ -485,6 +485,9 @@ async def duel_leaderboard(request: Request, game_type: str = "rps"):
         # duels.js. Отдаём те же PRIZES, по которым сезон реально платит —
         # иначе смена наград требует новой подачи расширения на ревью.
         "prizes":    PRIZES,
+        # Порог приза — то же требование: зритель должен знать, при каком ELO
+        # награда вообще начинает светить (аудит 29.07).
+        "elo_gate":  PRIZE_ELO_GATE,
         "leaderboard": [
             {"rank": i + 1, "username": r[0], "elo": r[1], "win_streak": r[2]}
             for i, r in enumerate(rows)

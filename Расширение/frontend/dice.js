@@ -92,12 +92,17 @@ async function _loadDiceLeaderboard() {
         const el = document.getElementById('dice-leaderboard');
         if (!el || !data.success) return;
         const rows = data.leaderboard || [];
+        // Блок про сезон показываем ВСЕГДА, даже когда играть ещё некому:
+        // зритель должен видеть, ради чего играть, до первой партии.
+        const seasonHtml = (typeof _renderSeasonEnd === 'function')
+            ? _renderSeasonEnd(data.ends_at, data.prizes, data.elo_gate) : '';
         if (!rows.length) {
-            el.innerHTML = '<div style="color:#adadb8;">Никто ещё не играл в PvP</div>';
+            el.innerHTML = seasonHtml
+                + '<div style="color:#adadb8;">Никто ещё не играл в PvP</div>';
             return;
         }
         const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
-        el.innerHTML = rows.map(r => `
+        el.innerHTML = seasonHtml + rows.map(r => `
             <div style="display:flex;justify-content:space-between;padding:3px 0;">
                 <span>${medals[r.rank-1] || r.rank} ${escapeHtml(r.username)}</span>
                 <span style="color:#fbbf24;">${r.elo} ELO${r.win_streak>=2?' 🔥'+r.win_streak:''}</span>

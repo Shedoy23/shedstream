@@ -740,6 +740,13 @@ async def tictactoe_leaderboard(request: Request):
         "game_type":   GAME_TYPE,
         "season_id":   season_row[0] if season_row else 1,
         "ends_at":     season_row[1] if season_row else None,
+        # 2026-07-29 (тонкий фронт + аудит): панель обязана СКАЗАТЬ зрителю,
+        # что за сезон вообще есть награда и при каком условии. Порог
+        # PRIZE_ELO_GATE до сих пор не показывался нигде — а на проде за два
+        # месяца никто его не перешагнул, то есть призы не выплатились ни разу.
+        # Числа отдаём с бэка: менять их во фронте = ждать нового ревью Twitch.
+        "prizes":      PRIZES,
+        "elo_gate":    PRIZE_ELO_GATE,
         "leaderboard": [
             {"rank": i + 1, "username": r[0], "elo": r[1], "win_streak": r[2]}
             for i, r in enumerate(rows)

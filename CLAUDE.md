@@ -24,6 +24,11 @@ Repo root: **`STATUS.md` — витрина «что сейчас»: 10 стро
 `Расширение/docs/` is the knowledge base. The **`CONTEXT*.md` files are the living per-area status/handoff docs — read the relevant one first**:
 - `CONTEXT.md` (core/platform), `CONTEXT_BANNERLORD.md`, `CONTEXT_RIMWORLD.md`.
 - Architecture: `ARCHITECTURE.md`, `MULTITENANT_PLAN.md`, `MODULE_API.md`, `ARCH_DATA_OWNERSHIP.md`.
+- Twitch frontend releases after public `0.0.1`: `Расширение/docs/TWITCH_UPDATE_RELEASE_PLAYBOOK.md`
+  (единственная копия — идентичный дубликат в корне удалён 29.07, чтобы две
+  правды не разъехались)
+  (new version → Local/Hosted Test → Review → owner-approved Release; EBS must
+  support old and new CDN clients during the transition).
 - Bannerlord mod: `BANNERLORD_DEV_ENV.md` (build env), `TESTING_PLAYBOOK.md` (in-game verification), `BANNERLORD_API_CHEATSHEET.md` (Bannerlord/TaleWorlds API by task — fast orientation), `BLT_RC22_REFERENCE.md` (deep BLT file-by-file).
 
 ## Commands

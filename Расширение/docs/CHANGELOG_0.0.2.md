@@ -61,6 +61,29 @@
 *Сделано 2026-07-29.* Бэкенд (M103) + фронт. Тест — 19 проверок, показан
 красным до фикса. На прод не выкачено: едет вместе с фронтом.
 
+### Раскрытие про валюту и шансы — на двух языках
+
+Блок «О внутренней валюте и шансах» (валюта без денежной ценности, вероятности
+выпадения кейсов и ковки) был только по-русски. Ревьюер Twitch англоязычный, и
+раскрытие, которое он не может прочитать, он вправе счесть отсутствующим —
+а его отсутствие это уже основание для отказа, не косметика.
+
+Теперь блок двуязычный в обоих шеллах панели. Цифры вероятностей не
+продублированы — они и так одинаковы на любом языке.
+
+*Сделано 2026-07-29.*
+
+### Мелкая уборка публичной поверхности
+
+- Удалена мёртвая функция запроса разрешений (63 строки). Она нигде не
+  вызывалась, а внутри звала метод Twitch, которого не существует. Ревьюер
+  читает исходники в архиве — обращение к несуществующему методу их же
+  платформы там лишнее.
+- Оверлей назывался «RimLink Overlay» — старым именем проекта. Теперь
+  «ShedLink Overlay».
+
+*Сделано 2026-07-29.*
+
 ---
 
 ## 🔜 Запланировано в эту версию (не сделано)
@@ -71,10 +94,8 @@
 - [x] ~~Причина отказа доходит до зрителя~~ — сделано 29.07, см. выше.
 - [ ] **Тонкий фронт: цены, кулдауны и лимиты с бэкенда**, а не хардкодом.
       Принцип из `CLAUDE.md`: с бэка — данные, во фронте — как их показать.
-- [ ] **Блок «о внутренней валюте и шансах» — двуязычный.** Сейчас только
-      по-русски, а раскрытие вероятностей должен понять англоязычный ревьюер.
-- [ ] Уборка мёртвой `requestUserPermissions()` — внутри вызов несуществующего
-      `Twitch.ext.actions.requestFullAccess()`.
+- [x] ~~Блок «о внутренней валюте и шансах» — двуязычный~~ — сделано 29.07.
+- [x] ~~Уборка мёртвой `requestUserPermissions()`~~ — сделано 29.07.
 - [ ] Переименования стоек/навыков, каталог законов с игры, ачивки, компенсация
       погибшим не по своей вине.
 
@@ -115,8 +136,11 @@ Changes:
 3. (pending) Prices, cooldowns and limits are served by the backend instead of
    being hardcoded in the frontend, so displayed values cannot drift from the
    values actually enforced.
-4. (pending) The in-panel virtual currency and drop-rate disclosure is now
-   available in English as well as Russian.
+4. The in-panel virtual currency and drop-rate disclosure is now available in
+   English as well as Russian (both the desktop and the mobile shell).
+5. Removed a dead permission-request routine that called a Twitch Extension
+   Helper method which does not exist; the live sign-in path (requestIdShare)
+   is unchanged.
 
 Compatibility:
 - No new Twitch permissions or capabilities were added.

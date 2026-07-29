@@ -61,7 +61,6 @@ let sessionStartTime = Date.now();
 let clickCount = 0;
 let moveCount = 0;
 let lastMoveTime = Date.now();
-let permissionsRequested = false; // вместо localStorage
 let uiUpdateInterval = null;     // защита от множественных setInterval
 let _rulectionTimerInterval = null; // таймер обратного отсчёта рулекциона
 const _shownWinners = new Set();    // показанные победители (вместо localStorage)
@@ -694,68 +693,13 @@ async function getUsernameFromTwitchId(twitchId, token, rawOpaqueId = null) {
     }
 }
 
-// ===== ЗАПРОС РАЗРЕШЕНИЯ У ПОЛЬЗОВАТЕЛЯ =====
-function requestUserPermissions() {
-    dbg('🔐 Запрос разрешения у пользователя');
-    
-    // Проверяем, не показывали ли уже
-    if (permissionsRequested) {
-        dbg('⏰ Разрешения уже запрашивались');
-        return;
-    }
-    
-    // Создаём модальное окно
-    const modal = document.createElement('div');
-    modal.className = 'modal active';
-    modal.id = 'permission-modal';
-    modal.innerHTML = `
-        <div class="modal-content" style="max-width: 400px;">
-            <h2>🔐 Требуется доступ</h2>
-            <p style="margin-bottom: 20px; color: #adadb8;">
-                Для загрузки твоего инвентаря, квестов и создания пешки, 
-                пожалуйста, разреши доступ к данным профиля.
-            </p>
-            <p style="margin-bottom: 20px; color: #4ade80; font-size: 14px;">
-                ✅ Твои очки и предметы сохранятся!
-            </p>
-            <button class="modal-btn" id="permission-approve" style="margin-bottom: 10px;">
-                ✅ Разрешить доступ
-            </button>
-            <button class="modal-btn cancel" id="permission-deny">
-                ⏸ Продолжить без доступа
-            </button>
-        </div>
-    `;
-    (document.getElementById("overlay-panel") || document.body).appendChild(modal);
-    
-    permissionsRequested = true;
-    
-    document.getElementById('permission-approve').onclick = () => {
-        modal.remove();
-        showNotification('🔄 Запрашиваем разрешения...', 'info');
-        
-        // Запрашиваем разрешения
-        if (window.Twitch && window.Twitch.ext) {
-            window.Twitch.ext.actions.requestIdShare();
-            window.Twitch.ext.actions.requestFullAccess();
-            
-            // Даём время на получение данных и пробуем снова
-            setTimeout(() => {
-                getUsernameFromTwitchId(userId).then(login => {
-                    userLogin = login;
-                    updateUIAfterAuth();
-                });
-            }, 2000);
-        }
-    };
-    
-    document.getElementById('permission-deny').onclick = () => {
-        modal.remove();
-        userLogin = userId;
-        updateUIAfterAuth();
-        showNotification('⚠️ Работа в ограниченном режиме', 'warning', 5000);
-    };
-}
+// Здесь до 2026-07-29 жила requestUserPermissions() — модалка «разреши
+// доступ», которую никто не вызывал. Внутри она звала
+// Twitch.ext.actions.requestFullAccess(), а такого метода в Extension
+// Helper не существует (есть followChannel, minimize, onFollow,
+// requestIdShare) — то есть оживить её значило получить TypeError.
+// Живой путь входа ниже написан правильно: проверяет наличие метода и
+// зовёт requestIdShare. Мёртвый код убран из ZIP, который читает ревьюер.
 
 // ===== НАСТРОЙКА ВКЛАДОК =====
 function setupTabs() {

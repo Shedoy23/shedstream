@@ -632,6 +632,45 @@ async def test_client_cannot_set_price(db, buy):
               f"ни одно из {len(own)} own-pricing действий не списало присланные {FAKE}")
 
 
+async def test_crash_after_charge_rolls_back(db, buy):
+    """11. Сбой ПОСЛЕ списания не оставляет денег списанными (§1, вопрос «б»).
+
+    Самый дорогой класс ошибок проекта — «списали и не сделали». В `CLAUDE.md` он
+    записан так: `add_points`/`remove_points` открывают своё соединение и
+    коммитят отдельно, поэтому падение между списанием и эффектом = деньги
+    исчезли без следа. Ловили 7 раз.
+
+    Здесь списание и постановка задания в очередь идут ОДНОЙ `BEGIN IMMEDIATE`,
+    то есть атомарность заявлена. Заявку надо проверять падением, а не чтением:
+    падение вызывается честно, без подмены кода — в данные кладётся
+    несериализуемое поле, и `json.dumps(payload)` на записи задания бросает
+    TypeError **уже после** того, как `UPDATE viewers` списал крустики.
+
+    Что должно быть: `ROLLBACK` — ни списания, ни задания.
+    """
+    print("\n[11] Сбой после списания → ROLLBACK (ни денег, ни задания)")
+    await _set_points(db, CHANNEL_ID, "alice", START_POINTS)
+    before = await _get_points(db, CHANNEL_ID, "alice")
+    n_before = await _count_actions(db, CHANNEL_ID, CHARGE_ACTION)
+
+    raised = None
+    try:
+        await buy(_make_anon_request(), "alice", CHANNEL_ID, CHARGE_ACTION,
+                  {"client_action_id": "crash-after-charge-1",
+                   # set не сериализуется в JSON → падение на записи задания
+                   "junk_unserializable": {1, 2, 3}})
+    except Exception as e:      # noqa: BLE001 — тут интересен сам факт падения
+        raised = e
+
+    after = await _get_points(db, CHANNEL_ID, "alice")
+    n_after = await _count_actions(db, CHANNEL_ID, CHARGE_ACTION)
+
+    assert_true(raised is not None, "[11] сбой действительно случился")
+    assert_eq(after, before,
+              f"[11] деньги НЕ списаны при сбое (было {before}, стало {after})")
+    assert_eq(n_after, n_before, "[11] задание в очередь НЕ попало")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
@@ -652,6 +691,7 @@ async def _run():
         await test_army_create_server_gates(db, buy)
         await test_retired_action_not_purchasable(db, buy)
         await test_client_cannot_set_price(db, buy)
+        await test_crash_after_charge_rolls_back(db, buy)
     finally:
         # Закрываем пул и удаляем temp-БД (реальную viewers.db НЕ трогаем).
         try:

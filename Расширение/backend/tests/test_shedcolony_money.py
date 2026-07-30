@@ -152,6 +152,13 @@ async def main() -> None:
         check("insufficient did not charge (still 50)", (await _points()) == 50)
     finally:
         await _cleanup()
+        # 2026-07-30: без этого процесс НЕ ЗАВЕРШАЛСЯ. Проверки печатали
+        # «OK — all ... invariants hold», а прогон висел до ручного убийства:
+        # DBPool держит фоновые соединения, и `asyncio.run` не может закрыть
+        # цикл, пока они живы. Читающий вывод видел «OK» и уходил довольным —
+        # худшая форма класса «зелёная печать ≠ зелёный результат» (CLAUDE.md
+        # §2c), потому что кода возврата не наступало вообще.
+        await db._pool.close()
 
     print()
     if _fails:

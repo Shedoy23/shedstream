@@ -195,12 +195,21 @@ async def marriage_accept(request: Request):
 
     db = get_db()
     async with db._connect() as conn:
+        # 2026-07-31 (внешний аудит S-19). Без BEGIN IMMEDIATE два одновременных
+        # «принять» (двойной клик) читали предложение и проверку «уже в браке»
+        # ДО первой записи — и оба вставляли активный брак. Уникального
+        # ограничения на активного участника в схеме нет, так что вторая строка
+        # оставалась жить. Цена ошибки денежная: развод расторгает РОВНО ОДНУ
+        # строку (`WHERE id = ?`) за 500💎, поэтому выпутаться из двойного брака
+        # стоило зрителю два развода вместо одного.
+        await conn.execute("BEGIN IMMEDIATE")
         cursor = await conn.execute("""
             SELECT from_user FROM marriage_proposals WHERE channel_id=? AND to_user=?
             ORDER BY created_at DESC LIMIT 1
         """, (channel_id, sender))
         row = await cursor.fetchone()
         if not row:
+            await conn.execute("ROLLBACK")
             return {"success": False, "message": "Нет входящих предложений"}
         proposer = row[0]
         for u in [sender, proposer]:
@@ -209,6 +218,7 @@ async def marriage_accept(request: Request):
                 WHERE channel_id=? AND (user1=? OR user2=?) AND divorced_at IS NULL
             """, (channel_id, u, u))
             if await cursor2.fetchone():
+                await conn.execute("ROLLBACK")
                 return {"success": False, "message": f"@{u} уже в браке"}
         # Phase 1.G (2026-05-10): family_balance удалена в M8.
         # Sprint 5.20 fix (2026-05-20): убран family_balance из INSERT.

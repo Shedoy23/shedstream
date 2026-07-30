@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "timeout_seconds": 1200,
+  "max_steps": 6,
+  "claude": {
+    "command": "claude",
+    "max_turns": 20,
+    "permission_mode": "auto",
+    "read_only_tools": [
+      "Read",
+      "Glob",
+      "Grep"
+    ],
+    "allowed_tools": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Edit",
+      "Write",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git ls-files *)",
+      "Bash(rg *)",
+      "Bash(python -m unittest *)",
+      "Bash(python -m pytest *)",
+      "Bash(python -m py_compile *)",
+      "Bash(pytest *)",
+      "Bash(npm test *)",
+      "Bash(npm run test *)",
+      "Bash(dotnet test *)"
+    ]
+  },
+  "codex": {
+    "command": "codex",
+    "sandbox": "read-only",
+    "inherit_environment": "all",
+    "environment_include_only": [
+      "PATH",
+      "PATHEXT",
+      "SYSTEMROOT",
+      "WINDIR",
+      "COMSPEC",
+      "TEMP",
+      "TMP",
+      "USERPROFILE",
+      "APPDATA",
+      "LOCALAPPDATA"
+    ]
+  }
+}

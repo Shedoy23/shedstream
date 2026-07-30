@@ -70,3 +70,5 @@ audit-extract.md
 
 # собранные архивы расширения — пересобираются скриптом
 dist/
+# Local Claude <-> Codex coordination state.
+.agent-loop/

@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Локальный чат для совместной работы Claude и Codex над ShedLink"
+    />
+    <title>ShedLink · Agent Room</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">SL</div>
+          <div>
+            <strong>Agent Room</strong>
+            <span>ShedLink workshop</span>
+          </div>
+        </div>
+
+        <button class="new-task" id="new-task-button" type="button">
+          <span>＋</span> Новая задача
+        </button>
+
+        <div class="sidebar-heading">
+          <span>История</span>
+          <span class="count" id="task-count">0</span>
+        </div>
+        <nav class="task-list" id="task-list" aria-label="Список задач"></nav>
+
+        <section class="usage-card" id="usage-card">
+          <div class="usage-heading">
+            <span>Лимиты</span>
+            <button id="refresh-limits" type="button" aria-label="Обновить лимиты">
+              ↻
+            </button>
+          </div>
+          <div class="usage-provider">
+            <div class="usage-provider-name">
+              <span class="mini-dot codex-dot"></span>
+              <strong>Codex</strong>
+            </div>
+            <div id="codex-limits" class="usage-content">Загрузка…</div>
+          </div>
+          <div class="usage-provider">
+            <div class="usage-provider-name">
+              <span class="mini-dot claude-dot"></span>
+              <strong>Claude</strong>
+            </div>
+            <div id="claude-limits" class="usage-content">Загрузка…</div>
+          </div>
+        </section>
+
+        <div class="safety">
+          <span class="safety-dot"></span>
+          <div>
+            <strong>Локальный режим</strong>
+            <span>Прод и деплой закрыты</span>
+          </div>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">CLAUDE × CODEX</p>
+            <h1 id="task-title">Новая задача</h1>
+          </div>
+          <div class="topbar-actions">
+            <div class="agent-status" id="agent-status">
+              <span class="pulse"></span>
+              <span>Готовы к работе</span>
+            </div>
+            <button class="quiet-button hidden" id="close-task" type="button">
+              Закрыть
+            </button>
+          </div>
+        </header>
+
+        <section class="conversation" id="conversation" aria-live="polite">
+          <div class="welcome" id="welcome">
+            <div class="orbit">
+              <span class="avatar claude">C</span>
+              <span class="link-line"></span>
+              <span class="avatar codex">X</span>
+            </div>
+            <p class="eyebrow">ТВОЯ МАЛЕНЬКАЯ DEV-КОМАНДА</p>
+            <h2>Ставишь задачу — они делают и проверяют</h2>
+            <p>
+              Claude реализует, Codex независимо ревьюит. Если есть замечания,
+              задача автоматически возвращается на доработку.
+            </p>
+            <div class="flow">
+              <span>Ты ставишь задачу</span>
+              <i>→</i>
+              <span>Claude делает</span>
+              <i>→</i>
+              <span>Codex проверяет</span>
+              <i>→</i>
+              <span>Ты получаешь отчёт</span>
+            </div>
+          </div>
+          <div class="messages hidden" id="messages"></div>
+        </section>
+
+        <section class="composer" id="composer">
+          <div class="composer-card">
+            <input
+              id="task-name"
+              maxlength="120"
+              placeholder="Короткое название — можно оставить пустым"
+              aria-label="Название задачи"
+            />
+            <textarea
+              id="task-request"
+              maxlength="200000"
+              rows="3"
+              placeholder="Что нужно сделать?"
+              aria-label="Описание задачи"
+            ></textarea>
+            <div class="mode-row">
+              <label>
+                <span>Режим</span>
+                <select id="task-mode" aria-label="Режим задачи">
+                  <option value="auto" selected>Авто · по тексту задачи</option>
+                  <option value="delivery">Сделать и проверить</option>
+                  <option value="analysis">Анализ / аудит · без изменений</option>
+                </select>
+              </label>
+              <p id="mode-hint">
+                Приложение определит права до запуска; сомнение означает read-only.
+              </p>
+            </div>
+            <div class="model-row">
+              <label>
+                <span>Claude</span>
+                <input
+                  id="claude-model"
+                  list="claude-model-options"
+                  maxlength="80"
+                  placeholder="По умолчанию или точный ID"
+                  aria-label="Модель Claude"
+                  title="Алиас opus выбирает последний доступный Opus. Можно ввести полное имя модели."
+                />
+                <datalist id="claude-model-options"></datalist>
+              </label>
+              <label>
+                <span>Codex</span>
+                <select id="codex-model" aria-label="Модель Codex">
+                  <option value="">По умолчанию</option>
+                </select>
+              </label>
+            </div>
+            <div class="composer-footer">
+              <label>
+                <span>Раундов проверки</span>
+                <select id="max-rounds" aria-label="Максимум раундов проверки">
+                  <option value="1">1</option>
+                  <option value="2" selected>2</option>
+                  <option value="3">3</option>
+                </select>
+              </label>
+              <div class="composer-actions">
+                <span class="hint">Ctrl + Enter</span>
+                <button id="send-task" type="button">
+                  Запустить команду
+                  <span>→</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          <p class="error-message hidden" id="error-message"></p>
+        </section>
+      </main>
+    </div>
+    <script src="/app.js" defer></script>
+  </body>
+</html>

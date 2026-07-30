@@ -1,0 +1,21 @@
+{
+  "owner": {
+    "role": ""
+  },
+  "claude": {
+    "role": "",
+    "guardrails": [
+      "Do not deploy, restart services, mutate production data, or close production bug reports.",
+      "Preserve unrelated worktree changes.",
+      "All conclusions and completed work require evidence."
+    ]
+  },
+  "codex": {
+    "role": "",
+    "guardrails": [
+      "Do not fix findings unless the owner explicitly changes the task scope.",
+      "Do not deploy, restart services, mutate production data, or close production bug reports.",
+      "Reject unsupported findings and unsupported dismissals at the same evidence standard."
+    ]
+  }
+}

@@ -232,22 +232,43 @@ async def check_season_end(channel_id: int = None):
         # Атомарность: призы + finish + reset + новый сезон — одна транзакция
         # (иначе краш между add_points и finish = двойная выдача при ретрае).
         await conn.execute("BEGIN IMMEDIATE")
-        row = await (await conn.execute(
+        # 2026-07-30 (аудит спеки §6). Здесь стояло `ORDER BY id DESC LIMIT 1` —
+        # рассматривался ТОЛЬКО самый свежий незакрытый сезон, и висящий рядом
+        # старый не попадал сюда НИКОГДА: ни призов, ни закрытия. Дыру нашли и
+        # закрыли 29.07 в `duel.py` — и не перенесли в две соседние игры, хотя
+        # файлы близнецы. Логика ниже — та же, что там.
+        rows = await (await conn.execute(
             "SELECT id, ends_at FROM duel_seasons "
             "WHERE channel_id = ? AND game_type = ? AND finished = 0 "
-            "ORDER BY id DESC LIMIT 1",
+            "ORDER BY id ASC",
             (cid, GAME_TYPE)
-        )).fetchone()
-        if not row:
+        )).fetchall()
+        if not rows:
             await _ensure_season(conn, cid)
             await conn.commit()
             return
-        season_id, ends_at_str = row
-        ends_at = datetime.fromisoformat(ends_at_str)
-        if ends_at.tzinfo is None:
-            ends_at = ends_at.replace(tzinfo=timezone.utc)
-        if datetime.now(timezone.utc) < ends_at:
-            return
+
+        now_utc = datetime.now(timezone.utc)
+        expired = []
+        for r_id, r_ends in rows:
+            r_end = datetime.fromisoformat(r_ends)
+            if r_end.tzinfo is None:
+                r_end = r_end.replace(tzinfo=timezone.utc)
+            if now_utc >= r_end:
+                expired.append(r_id)
+        if not expired:
+            return  # все незакрытые сезоны ещё идут
+
+        # Просроченные, кроме последнего, закрываем БЕЗ призов: ротация
+        # сбрасывает `duel_stats` целиком по (каналу, игре), строк с их
+        # season_id не осталось — платить физически не по чему.
+        for stale_id in expired[:-1]:
+            await conn.execute(
+                "UPDATE duel_seasons SET finished = 1 WHERE channel_id = ? AND id = ?",
+                (cid, stale_id))
+            print(f"[DICE-SEASON] ch={cid}: сезон #{stale_id} закрыт "
+                  f"без призов — результаты не сохранились")
+        season_id = expired[-1]
 
         # Sprint 5.25: prize gate — только игроки с ELO >= 1100 получают приз
         # (фильтр free-loaders, кто сел в очередь но никогда не побеждал).

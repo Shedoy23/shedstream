@@ -194,16 +194,30 @@ async def main_async():
             print(f"\n[7] {game}: приз оставляет след и не идёт мимо транзакции")
             mod = __import__(module_name, fromlist=["check_season_end"])
             winner = f"{game}_champ"
+            now = datetime.now(timezone.utc)
             async with db._connect() as conn:
                 await conn.execute(
                     "INSERT INTO viewers (channel_id, username, points) VALUES (?, ?, 0)",
                     (CHANNEL_ID, winner))
+                # Два давно просроченных сезона + один вчерашний. До фикса
+                # ротация брала `ORDER BY id DESC LIMIT 1` и старые не
+                # закрывались никогда — на проде так висел сезон tictactoe
+                # от 21.06. Их результаты уже стёрты, призов им не положено.
+                stale_ids = []
+                for start, end in ((70, 63), (50, 43)):
+                    cur = await conn.execute(
+                        "INSERT INTO duel_seasons (channel_id, game_type, started_at, "
+                        " ends_at, finished) VALUES (?, ?, ?, ?, 0)",
+                        (CHANNEL_ID, game,
+                         (now - timedelta(days=start)).isoformat(),
+                         (now - timedelta(days=end)).isoformat()))
+                    stale_ids.append(cur.lastrowid)
                 cur = await conn.execute(
                     "INSERT INTO duel_seasons (channel_id, game_type, started_at, "
                     " ends_at, finished) VALUES (?, ?, ?, ?, 0)",
                     (CHANNEL_ID, game,
-                     (datetime.now(timezone.utc) - timedelta(days=14)).isoformat(),
-                     (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()))
+                     (now - timedelta(days=14)).isoformat(),
+                     (now - timedelta(days=1)).isoformat()))
                 sid = cur.lastrowid
                 await conn.execute(
                     "INSERT INTO duel_stats (channel_id, username, game_type, elo, "
@@ -236,7 +250,16 @@ async def main_async():
                     "WHERE channel_id=? AND game_type=?", (CHANNEL_ID, game))
                 paid = await cur.fetchall()
 
+            async with db._connect() as conn:
+                cur = await conn.execute(
+                    "SELECT id FROM duel_seasons WHERE channel_id=? AND game_type=? "
+                    "AND finished=0", (CHANNEL_ID, game))
+                still_open = [r[0] for r in await cur.fetchall()]
+
             assert_eq(got_points, PRIZES[1], f"[7] {game}: приз выплачен")
+            assert_eq(len([s for s in still_open if s in stale_ids or s == sid]), 0,
+                      f"[7] {game}: все просроченные сезоны закрыты, не только свежий")
+            assert_eq(len(still_open), 1, f"[7] {game}: открытым остался ровно один — новый")
             assert_eq(len(paid), 1, f"[7] {game}: выплата записана в журнал")
             if paid:
                 assert_eq(paid[0][0], winner, f"[7] {game}: в журнале верный получатель")

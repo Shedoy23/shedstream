@@ -2055,10 +2055,20 @@ async def on_startup():
     # _load_pending_duels удалён 2026-05-17 (T2) — pending_duels table dropped
     # миграцией M10, persistence теперь in-memory only (5min TTL короче рестартов).
     from routes.duel import check_season_end as _duel_season_check
+    from routes.dice import check_season_end as _dice_season_check
+    from routes.tictactoe import check_season_end as _ttt_season_check
 
     async def _check_all_channel_seasons():
         """M4 follow-up (а): итерация check_season_end по реестру каналов.
-        Раньше один cross-tenant SELECT — после M1 стало неверно (per-channel)."""
+        Раньше один cross-tenant SELECT — после M1 стало неверно (per-channel).
+
+        2026-07-30 (аудит спеки §6): сюда входили ТОЛЬКО дуэли. Кости и
+        крестики закрывают сезон лениво — на опросе своего эндпоинта, — то
+        есть у игры, в которую перестали играть, просроченный сезон не
+        закрывается никогда и призы не выдаются. На проде так и висел сезон
+        tictactoe с 21.06. Старт бэка — единственный момент, когда можно
+        разобрать сезоны игры, которую никто не открывает.
+        """
         try:
             channel_rows = await db.list_channels()
         except Exception as e:
@@ -2066,10 +2076,13 @@ async def on_startup():
             return
         for r in channel_rows:
             cid = int(r['channel_id'])
-            try:
-                await _duel_season_check(channel_id=cid)
-            except Exception as e:
-                print(f"⚠️ check_season_end({cid}) failed: {e}")
+            for name, check in (("rps", _duel_season_check),
+                                ("dice", _dice_season_check),
+                                ("tictactoe", _ttt_season_check)):
+                try:
+                    await check(channel_id=cid)
+                except Exception as e:
+                    print(f"⚠️ check_season_end[{name}]({cid}) failed: {e}")
 
     asyncio.create_task(_check_all_channel_seasons())
     print("✅ Сервер запущен")

@@ -762,6 +762,80 @@ def check_partial_index_has_sweeper():
                 f"the CREATE INDEX")
 
 
+_SEASON_PICK_RE = re.compile(
+    r"FROM\s+duel_seasons[^\"']*?finished\s*=\s*0[^\"']*?(?:\"\s*\n\s*\")?[^\"']*?LIMIT\s+1",
+    re.IGNORECASE | re.DOTALL)
+
+# Исторический баг дословно — на нём проверяем, что детектор жив.
+_SEASON_SELFTEST = (
+    '"SELECT id, ends_at FROM duel_seasons "\n'
+    '"WHERE channel_id = ? AND game_type = ? AND finished = 0 "\n'
+    '"ORDER BY id DESC LIMIT 1",\n')
+
+
+def _selftest_season_pick() -> bool:
+    """Детектор обязан узнавать исторический баг, иначе чистый прогон пуст."""
+    return bool(_SEASON_PICK_RE.search(_SEASON_SELFTEST.replace('"\n"', "")))
+
+
+def _func_source(src: str, func_name: str):
+    """Исходник функции `func_name` (по AST). None — если её нет."""
+    import ast as _ast
+    try:
+        tree = _ast.parse(src)
+    except SyntaxError:
+        return None
+    for node in _ast.walk(tree):
+        if isinstance(node, (_ast.AsyncFunctionDef, _ast.FunctionDef)) \
+                and node.name == func_name:
+            return _ast.get_source_segment(src, node)
+    return None
+
+
+def check_season_rotation_sweeps_all():
+    """Ротация сезона обязана разбирать ВСЕ незакрытые сезоны, а не свежий.
+
+    Класс (найден 29.07 в дуэлях, 30.07 — в костях и крестиках): выборка
+    `... finished = 0 ORDER BY id DESC LIMIT 1` видит только последний
+    незакрытый сезон. Висящий рядом старый не закрывается НИКОГДА — ни призов,
+    ни закрытия. На проде так накопились три сезона rps и один tictactoe.
+
+    Файлы трёх мини-игр — близнецы, и фикс дважды оставался в одном из них.
+    Эта проверка и существует затем, чтобы третьего раза не было.
+    """
+    backend = EXT / "backend" / "routes"
+    if not backend.is_dir():
+        return
+    if not _selftest_season_pick():
+        errors.append(
+            "season-rotation: linter SELF-TEST FAILED -- детектор перестал "
+            "узнавать исторический баг, значит чистый прогон ничего не значит; "
+            "чинить lint_consistency.py")
+        return
+
+    for name in ("duel.py", "dice.py", "tictactoe.py"):
+        path = backend / name
+        if not path.is_file():
+            continue
+        try:
+            src = path.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        # Смотрим ТОЛЬКО тело ротации. `finished = 0 ... LIMIT 1` законно там,
+        # где читают «какой сезон идёт сейчас» — ошибка только в разборе.
+        body = _func_source(src, "check_season_end")
+        if body is None:
+            continue
+        # Склеиваем соседние строковые литералы: SQL разбит по строкам.
+        flat = re.sub(r'"\s*\n\s*"', "", body)
+        if _SEASON_PICK_RE.search(flat):
+            errors.append(
+                f"season-rotation: routes/{name} выбирает незакрытый сезон с "
+                f"LIMIT 1 -- висящий рядом просроченный сезон не закроется "
+                f"никогда (ни призов, ни закрытия). Брать ВСЕ строки с "
+                f"finished = 0 и разбирать каждую, как в routes/duel.py")
+
+
 def main() -> int:
     if EXT is None:
         print("[lint] FAIL: could not locate extension dir (with backend/)")
@@ -772,7 +846,8 @@ def main() -> int:
                check_tenant_scoping, check_bannerlord_policies,
                check_frontend_global_collisions, check_undefined_names,
                check_sold_actions_have_entry,
-               check_partial_index_has_sweeper):
+               check_partial_index_has_sweeper,
+               check_season_rotation_sweeps_all):
         try:
             fn()
         except Exception as e:  # a broken check shouldn't crash CI silently

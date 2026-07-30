@@ -14,8 +14,10 @@
     python scripts/pack-extension.py --version 0.0.2
     python scripts/pack-extension.py --version 0.0.2 --check   # только проверить
 
-Архив кладётся в `dist/` (вне git). После вердикта Twitch: загрузить его в
-кабинет как новую версию.
+Архив кладётся в `dist/` (вне git). Для обновления после первого релиза:
+создать новую версию в кабинете, пройти Local Test, загрузить неизменяемый ZIP,
+проверить его в Hosted Test и отправить на Review. Полный порядок:
+`Расширение/docs/TWITCH_UPDATE_RELEASE_PLAYBOOK.md`.
 
 НЕ ДЕПЛОИТ никуда. Только собирает файл, который ты загружаешь руками.
 """
@@ -124,11 +126,14 @@ def main() -> int:
             args.version, datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")))
 
     print("\nГотово: %s (%.1f КБ)" % (out, out.stat().st_size / 1024))
-    print("\nЧто дальше — ВРУЧНУЮ, после вердикта Twitch:")
+    print("\nЧто дальше — ВРУЧНУЮ:")
     print("  1. Кабинет разработчика Twitch → Extensions → ShedLink")
     print("  2. Создать новую версию %s" % args.version)
-    print("  3. Загрузить этот архив в Asset Hosting")
-    print("  4. Прогнать в Local Test, потом Submit for Review")
+    print("  3. Пройти Local Test и сверить настройки версии")
+    print("  4. Загрузить этот архив в Version Assets")
+    print("  5. Прогнать именно его в Hosted Test")
+    print("  6. Submit for Review; после Approved владелец отдельно нажимает Release")
+    print("  Регламент: Расширение/docs/TWITCH_UPDATE_RELEASE_PLAYBOOK.md")
     print("\nСкрипт сам НИЧЕГО не публикует.")
     return 0
 

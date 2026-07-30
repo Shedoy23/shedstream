@@ -571,37 +571,52 @@ class BotCore:
                     logger.warning("is_stream_live(%s) упал: %s", login or channel_id, e)
                     continue
 
-                prev_live = was_live.get(channel_id, False)
-                prev_sid  = self.current_stream_id.get(channel_id, "")
-                if is_live:
-                    # Сценарии регистрации сессии:
-                    #   1. Первый вход в live после старта сервера
-                    #   2. Смена даты (стрим пересёк полночь)
-                    #   3. Возобновление стрима в тот же день (второй стрим)
-                    if not prev_live or prev_sid != today_id:
-                        await self.handle_stream_start(today_id, channel_id=channel_id)
-                        logger.info(
-                            "[ch=%s/%s] Автостарт/возобновление: %s (prev=%s, was_live=%s)",
-                            channel_id, login or "?", today_id, prev_sid or "none", prev_live)
-                    was_live[channel_id] = True
-                    # 2026-06-06 PRESENCE-WATCHTIME (за флагом) — пометить
-                    # present-зрителей по списку чата Twitch ДО начисления, чтобы
-                    # серверный _reward_points выдал им очки + watch_time (мобайл).
-                    await self._refresh_presence_from_chat(channel_id, login)
-                    await self._reward_points(channel_id)
-                else:
-                    # Переход live→offline: закрываем сессию.
-                    if prev_live and prev_sid:
-                        try:
-                            await self.db.end_stream_session(prev_sid, channel_id=channel_id)
-                            logger.info("[ch=%s] Стрим %s завершён (ended_at выставлен)",
-                                        channel_id, prev_sid)
-                        except Exception as e:
-                            logger.warning("end_stream_session(%s,%s) failed: %s",
-                                           channel_id, prev_sid, e)
-                    was_live[channel_id] = False
-                    logger.debug("[ch=%s/%s] не в эфире — пропускаем",
-                                 channel_id, login or "?")
+                # 2026-07-30 (аудит спеки §6). Раньше под try стоял ТОЛЬКО
+                # _is_stream_live, а начисление — нет. Одно исключение из
+                # _reward_points / handle_stream_start / _refresh_presence
+                # вылетало из for, из while и убивало задачу НАВСЕГДА: зрители
+                # переставали получать крустики за просмотр до рестарта бэка, и
+                # ни одного сигнала об этом не появлялось. Ровно так уже
+                # умирали награды за очки Twitch (мертвы с 8 июля, заметили 27-го).
+                # Плохой тик обязан стоить одного тика, а не всей механики.
+                try:
+                    prev_live = was_live.get(channel_id, False)
+                    prev_sid  = self.current_stream_id.get(channel_id, "")
+                    if is_live:
+                        # Сценарии регистрации сессии:
+                        #   1. Первый вход в live после старта сервера
+                        #   2. Смена даты (стрим пересёк полночь)
+                        #   3. Возобновление стрима в тот же день (второй стрим)
+                        if not prev_live or prev_sid != today_id:
+                            await self.handle_stream_start(today_id, channel_id=channel_id)
+                            logger.info(
+                                "[ch=%s/%s] Автостарт/возобновление: %s (prev=%s, was_live=%s)",
+                                channel_id, login or "?", today_id, prev_sid or "none", prev_live)
+                        was_live[channel_id] = True
+                        # 2026-06-06 PRESENCE-WATCHTIME (за флагом) — пометить
+                        # present-зрителей по списку чата Twitch ДО начисления, чтобы
+                        # серверный _reward_points выдал им очки + watch_time (мобайл).
+                        await self._refresh_presence_from_chat(channel_id, login)
+                        await self._reward_points(channel_id)
+                    else:
+                        # Переход live→offline: закрываем сессию.
+                        if prev_live and prev_sid:
+                            try:
+                                await self.db.end_stream_session(prev_sid, channel_id=channel_id)
+                                logger.info("[ch=%s] Стрим %s завершён (ended_at выставлен)",
+                                            channel_id, prev_sid)
+                            except Exception as e:
+                                logger.warning("end_stream_session(%s,%s) failed: %s",
+                                               channel_id, prev_sid, e)
+                        was_live[channel_id] = False
+                        logger.debug("[ch=%s/%s] не в эфире — пропускаем",
+                                     channel_id, login or "?")
+                except Exception:
+                    # exception() — со стеком: молчаливая смерть этого цикла
+                    # стоила бы всей экономики канала, причину надо видеть сразу.
+                    logger.exception(
+                        "[ch=%s/%s] тик начисления упал — цикл продолжает работу",
+                        channel_id, login or "?")
 
     async def _is_stream_live(
         self,

@@ -926,6 +926,65 @@ def check_currency_boundary():
                 f"видно, либо поставь `# {_CURRENCY_WAIVER} <причина>`")
 
 
+def check_declared_gold_is_charged():
+    """Бэкенд объявил цену в динарах — мод обязан её списать.
+
+    Класс найден внешним аудитом 31.07 и ПОДТВЕРЖДЁН прогоном в игре: бэкенд
+    для `hero.set_gender` / `hero.marry` / `hero.make_baby` проверял баланс и
+    клал в задание `hero_gold_cost` (50 000 / 50 000 / 100 000), а мод это поле
+    не читал ВООБЩЕ — ни один обработчик. Действия выполнялись бесплатно.
+
+    Прятал дыру комментарий в `SetGenderHandler`: «backend gold-check уже
+    выполнен, здесь только применение». Звучит как объяснение — а бэкенд лишь
+    проверял, но не списывал.
+
+    Проверяем связку: для каждого действия, которому бэкенд объявляет цену в
+    динарах, C#-обработчик того же типа обязан звать `HeroGoldCharge.TryCharge`
+    (или списывать `GiveGoldAction` сам — так делает `EquipItemHandler`).
+    """
+    backend = EXT / "backend" / "routes" / "bannerlord.py"
+    mod = ROOT / "BannerlordLink" / "src" / "Actions"
+    if not backend.is_file() or not mod.is_dir():
+        return
+
+    src = backend.read_text(encoding="utf-8", errors="ignore")
+    # Действия, у которых в их ветке `_prepare_action` появляется hero_gold_cost.
+    priced: dict[str, int] = {}
+    current = None
+    for i, line in enumerate(src.splitlines(), 1):
+        m = re.search(r'action_type\s*==\s*"([\w.]+)"', line)
+        if m:
+            current = m.group(1)
+        if 'data["hero_gold_cost"]' in line and "= 0" not in line and current:
+            priced.setdefault(current, i)
+    if not priced:
+        warns.append("gold-charge: не нашёл ни одного объявления hero_gold_cost "
+                     "— проверка молчит, посмотри, не переехало ли поле")
+        return
+
+    handlers: dict[str, str] = {}
+    for cs in sorted(mod.rglob("*.cs")):
+        try:
+            text = cs.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        for m in re.finditer(r'ActionType\s*=>\s*"([\w.]+)"', text):
+            handlers[m.group(1)] = text
+
+    for action, line_no in sorted(priced.items()):
+        text = handlers.get(action)
+        if text is None:
+            continue          # backend-only действие, мод его не исполняет
+        if "HeroGoldCharge.TryCharge" in text or "GiveGoldAction" in text:
+            continue
+        errors.append(
+            f"gold-charge: бэкенд объявляет цену в динарах для `{action}` "
+            f"(routes/bannerlord.py:{line_no}), а его C#-обработчик её НЕ "
+            f"списывает — действие выполняется бесплатно. Позови "
+            f"`HeroGoldCharge.TryCharge(hero, data, actionId, \"{action}\")` "
+            f"перед применением эффекта")
+
+
 def main() -> int:
     if EXT is None:
         print("[lint] FAIL: could not locate extension dir (with backend/)")
@@ -938,7 +997,8 @@ def main() -> int:
                check_sold_actions_have_entry,
                check_partial_index_has_sweeper,
                check_season_rotation_sweeps_all,
-               check_currency_boundary):
+               check_currency_boundary,
+               check_declared_gold_is_charged):
         try:
             fn()
         except Exception as e:  # a broken check shouldn't crash CI silently

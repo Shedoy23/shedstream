@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
+using BannerlordLink.Util;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 
@@ -49,6 +50,8 @@ namespace BannerlordLink.Actions
             }
             catch { }
 
+            string actionId = ActionFeedback.GetActionId(data);
+
             MainThreadDispatcher.Enqueue(() =>
             {
                 try
@@ -89,6 +92,12 @@ namespace BannerlordLink.Actions
                             $"[hero.make_baby] @{username}: {target.Name} уже беременна");
                         return;
                     }
+
+                    // 2026-07-31: списываем объявленную бэкендом цену В ДИНАРАХ.
+                    // До этого поле `hero_gold_cost` не читал никто, и действие
+                    // выполнялось бесплатно (подтверждено прогоном в игре).
+                    if (!HeroGoldCharge.TryCharge(hero, data, actionId, "hero.make_baby"))
+                        return;
 
                     MakePregnantAction.Apply(target);
                     BannerlordLinkModule.Log(

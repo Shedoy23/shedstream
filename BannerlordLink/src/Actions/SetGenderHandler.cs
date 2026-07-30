@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
+using BannerlordLink.Util;
 
 namespace BannerlordLink.Actions
 {
@@ -14,8 +15,12 @@ namespace BannerlordLink.Actions
     ///
     /// Clean-room re-impl BLT'шного HeroFeatures.cs "gender" case.
     /// Различия:
-    ///   - Backend gold-check уже выполнен до action'а (extension списывает
-    ///     50k💰 через action-buy flow), здесь только применение
+    ///   - Цену в динарах объявляет бэкенд в `hero_gold_cost`, а СПИСЫВАЕТ
+    ///     ЕЁ ЭТОТ ОБРАБОТЧИК (`HeroGoldCharge.TryCharge`). До 2026-07-31
+    ///     здесь было написано «backend gold-check уже выполнен, здесь только
+    ///     применение» — и это было неправдой: бэкенд лишь ПРОВЕРЯЛ баланс, а
+    ///     не списывал, и смена пола была бесплатной. Комментарий и прятал
+    ///     дыру: он звучал как объяснение, почему списания тут нет.
     ///   - Нет restrict «только created heroes» (наши всех создаём через
     ///     hero.create, native adoption не используется)
     ///
@@ -34,6 +39,8 @@ namespace BannerlordLink.Actions
                 return Task.FromResult<(bool, string)>((false, "no target username"));
             if (gender != "male" && gender != "female")
                 return Task.FromResult<(bool, string)>((false, "gender must be male|female"));
+
+            string actionId = ActionFeedback.GetActionId(data);
 
             MainThreadDispatcher.Enqueue(() =>
             {
@@ -65,6 +72,12 @@ namespace BannerlordLink.Actions
                             $"[hero.set_gender] @{username}: cannot become male while pregnant");
                         return;
                     }
+
+                    // 2026-07-31: списываем объявленную бэкендом цену В ДИНАРАХ.
+                    // До этого поле `hero_gold_cost` не читал никто, и действие
+                    // выполнялось бесплатно (подтверждено прогоном в игре).
+                    if (!HeroGoldCharge.TryCharge(hero, data, actionId, "hero.set_gender"))
+                        return;
 
                     hero.IsFemale = wantFemale;
 

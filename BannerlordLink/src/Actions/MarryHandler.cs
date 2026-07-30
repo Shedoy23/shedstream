@@ -148,6 +148,12 @@ namespace BannerlordLink.Actions
                     // Apply marriage (engine housekeeping)
                     var formerClan = npc.Clan;
 
+                    // 2026-07-31: списываем объявленную бэкендом цену В ДИНАРАХ.
+                    // До этого поле `hero_gold_cost` не читал никто, и действие
+                    // выполнялось бесплатно (подтверждено прогоном в игре).
+                    if (!HeroGoldCharge.TryCharge(hero, data, actionId, "hero.marry"))
+                        return;
+
                     npc.Spouse = hero;
                     hero.Spouse = npc;
 

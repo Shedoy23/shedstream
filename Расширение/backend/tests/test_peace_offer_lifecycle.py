@@ -225,6 +225,72 @@ async def test_fresh_offer_survives(db):
               "[4] свежая заявка пережила проход сторожа")
 
 
+async def test_policy_request_lock_released(db):
+    """5. Заявка на ЗАКОН тоже не должна держать замок вечно.
+
+    Тот же класс, что заявки на мир, и такой же частичный уникальный индекс:
+    `idx_policy_pending_unique(channel_id, kingdom_id, policy_id)
+    WHERE status='pending'`. Пока строка висит, тот же закон в том же
+    королевстве предложить нельзя.
+
+    Найдено ДАННЫМИ 2026-07-30, а не чтением кода: на проде две заявки висели
+    с 24.07 — шесть дней. Обычный путь закрытия (событие `hero.policy_result`)
+    существовал, а вот периодического сторожа НЕ было: только разовая миграция
+    `m96_policy_requests_unstick`, то есть замок держался до следующего деплоя.
+    """
+    print("\n[5] Заявка на закон: замок снимается сторожем по возрасту")
+    from routes.bannerlord_diplomacy import expire_old_policy_requests
+
+    KINGDOM, POLICY = "test_kingdom", "policy_trial_by_jury"
+    async with db._connect() as conn:
+        # свежая заявка + протухшая (как те две на проде)
+        await conn.execute(
+            "INSERT INTO bannerlord_policy_requests "
+            "(channel_id, requester, kingdom_id, policy_id, policy_name, status, requested_at) "
+            "VALUES (?, 'alice', ?, ?, 'Суд присяжных', 'pending', datetime('now'))",
+            (CHANNEL_ID, KINGDOM, POLICY))
+        await conn.execute(
+            "INSERT INTO bannerlord_policy_requests "
+            "(channel_id, requester, kingdom_id, policy_id, policy_name, status, requested_at) "
+            "VALUES (?, 'bob', 'old_kingdom', 'policy_royal_guard', 'Королевская гвардия', "
+            "        'pending', datetime('now', '-48 hours'))",
+            (CHANNEL_ID,))
+        await conn.commit()
+
+    affected = await expire_old_policy_requests()
+    assert_eq(affected, 1, "[5] сторож закрыл РОВНО протухшую заявку")
+
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT status FROM bannerlord_policy_requests "
+            "WHERE channel_id=? AND kingdom_id='old_kingdom'", (CHANNEL_ID,))
+        old_status = (await cur.fetchone())[0]
+        cur = await conn.execute(
+            "SELECT status FROM bannerlord_policy_requests "
+            "WHERE channel_id=? AND kingdom_id=?", (CHANNEL_ID, KINGDOM))
+        fresh_status = (await cur.fetchone())[0]
+    assert_eq(old_status, "expired", "[5] протухшая переведена в 'expired'")
+    assert_eq(fresh_status, "pending",
+              "[5] АНТИ-РЕГРЕСС: свежая заявка НЕ тронута сторожем")
+
+    # Главное: замок снят — тот же закон в том же королевстве снова вставляется.
+    async with db._connect() as conn:
+        try:
+            await conn.execute(
+                "INSERT INTO bannerlord_policy_requests "
+                "(channel_id, requester, kingdom_id, policy_id, policy_name, status, requested_at) "
+                "VALUES (?, 'bob', 'old_kingdom', 'policy_royal_guard', 'Королевская гвардия', "
+                "        'pending', datetime('now'))",
+                (CHANNEL_ID,))
+            await conn.commit()
+            reinserted = True
+        except Exception as e:
+            reinserted = False
+            print(f"      INSERT отклонён: {type(e).__name__}: {str(e)[:70]}")
+    assert_eq(reinserted, True,
+              "[5] после снятия замка тот же закон снова можно предложить")
+
+
 async def main_async():
     tmp = tempfile.mkdtemp(prefix="peace_lc_")
     db_path = os.path.join(tmp, "test.db")
@@ -235,6 +301,7 @@ async def main_async():
         await test_lock_released(db)
         await test_stale_offer_expires(db)
         await test_fresh_offer_survives(db)
+        await test_policy_request_lock_released(db)
     finally:
         try:
             await db._pool.close()

@@ -1997,6 +1997,26 @@ async def on_startup():
             await _asyncio.sleep(3600)
     asyncio.create_task(_peace_offers_expire_loop())
 
+    # 2026-07-30 — тот же сторож для заявок на ЗАКОН. Индекс
+    # idx_policy_pending_unique тоже частичный (WHERE status='pending'), то есть
+    # зависшая заявка ЗАПРЕЩАЕТ предложить тот же закон в том же королевстве
+    # снова. Обычный путь закрытия — событие hero.policy_result от мода; если оно
+    # не пришло, закрыть было нечем: существовала только разовая миграция
+    # m96_policy_requests_unstick, и замок держался до следующего деплоя.
+    # Найдено данными: две заявки висели на проде с 24.07, шесть дней.
+    async def _policy_requests_expire_loop():
+        import asyncio as _asyncio
+        from routes.bannerlord_diplomacy import expire_old_policy_requests
+        while True:
+            try:
+                affected = await expire_old_policy_requests()
+                if affected > 0:
+                    print(f"[POLICY-EXPIRE] снято с 'pending' заявок на законы: {affected}")
+            except Exception as e:
+                print(f"[POLICY-EXPIRE] loop crashed: {type(e).__name__}: {e}")
+            await _asyncio.sleep(3600)
+    asyncio.create_task(_policy_requests_expire_loop())
+
     # M103. Уведомления зрителю — расходник: прочитал и забыл. Без сторожа
     # таблица растёт на каждом отказе мода и не убывает никогда.
     async def _notices_purge_loop():

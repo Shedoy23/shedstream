@@ -321,6 +321,40 @@ async def expire_old_peace_offers() -> int:
     return affected
 
 
+async def expire_old_policy_requests() -> int:
+    """Закрыть заявки на ЗАКОН, зависшие в 'pending' дольше суток.
+
+    Ровно та же беда, что у заявок на мир, и такой же частичный уникальный
+    индекс: `idx_policy_pending_unique(channel_id, kingdom_id, policy_id)
+    WHERE status='pending'`. Пока строка висит, тот же закон в том же
+    королевстве предложить НЕЛЬЗЯ — это замок, а не мусор.
+
+    Найдено данными 2026-07-30: на проде две заявки висели с 24.07 (шесть
+    дней) — `empire_w`/«Суд присяжных» и `new_kingdom8`/«Королевская гвардия».
+    Обычный путь закрытия есть (мод присылает `hero.policy_result`, M96/#23),
+    но если событие не пришло — закрыть было НЕЧЕМ: периодического сторожа не
+    существовало, только разовая миграция-расклейка `m96_policy_requests_unstick`,
+    то есть замок держался до следующего деплоя с ручной миграцией.
+
+    **Деньги здесь намеренно НЕ возвращаются.** Действие уходит модом как
+    `acked` — то есть игра его приняла, и закон мог быть реально принят, а
+    потеряться могло только событие с итогом. Возврат в этом случае был бы
+    выдачей крустиков за сработавшее действие. Снимаем только замок; вопрос
+    компенсации — решение владельца, записан в DEFERRED.
+
+    Returns affected count. Вызывается фоновым циклом в main.py.
+    """
+    db = get_db()
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "UPDATE bannerlord_policy_requests SET status='expired' "
+            "WHERE status='pending' "
+            "  AND requested_at < datetime('now', '-24 hours')")  # tenant-ok: cross-channel expiry sweep
+        affected = cur.rowcount
+        await conn.commit()
+    return affected
+
+
 async def handle_make_peace(conn, channel_id: int, owner: str, data: dict) -> dict:
     """King-only: peace offer с target kingdom'ом. Mod применит MakePeaceAction."""
     target_kingdom_id = (data.get("target_kingdom_id") or "").strip()

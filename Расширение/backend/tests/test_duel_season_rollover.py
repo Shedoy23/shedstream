@@ -135,6 +135,57 @@ async def _points(db) -> int:
         return row[0] if row else -1
 
 
+async def test_live_season_not_duplicated(db):
+    """[8] 2026-07-31, ВЫЯВЛЕНО НА ВЫКАТЕ: просроченный сезон рядом с ЖИВЫМ.
+
+    Ротация создавала новый сезон безусловно. Если рядом с просроченным шёл
+    живой (непросроченный), на выходе получалось ДВА открытых сезона на одну
+    игру — ровно тот «висящий сезон», от которого мы лечились. Плюс сброс
+    `duel_stats` обнулял рейтинги идущего сезона.
+
+    На проде 31.07 это и произошло при первом же выкате: просроченный rps #2
+    закрылся, за #6 выплатили, и поверх живого #11 родился #12.
+    """
+    print("\n[8] Просроченный рядом с живым — новый сезон НЕ создаётся")
+    from routes.duel import check_season_end as _duel_check
+    game = "rps_live_test"
+    now = datetime.now(timezone.utc)
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "INSERT INTO duel_seasons (channel_id, game_type, started_at, ends_at, "
+            " finished) VALUES (?, ?, ?, ?, 0)",
+            (CHANNEL_ID, game, (now - timedelta(days=20)).isoformat(),
+             (now - timedelta(days=1)).isoformat()))
+        stale_id = cur.lastrowid
+        cur = await conn.execute(
+            "INSERT INTO duel_seasons (channel_id, game_type, started_at, ends_at, "
+            " finished) VALUES (?, ?, ?, ?, 0)",
+            (CHANNEL_ID, game, (now - timedelta(days=2)).isoformat(),
+             (now + timedelta(days=7)).isoformat()))
+        live_id = cur.lastrowid
+        await conn.execute(
+            "INSERT INTO duel_stats (channel_id, username, game_type, elo, "
+            " win_streak, season_id) VALUES (?, 'liveplayer', ?, 1234, 3, ?)",
+            (CHANNEL_ID, game, live_id))
+        await conn.commit()
+
+    await _duel_check(CHANNEL_ID, game)
+
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT id FROM duel_seasons WHERE channel_id=? AND game_type=? "
+            "AND finished=0", (CHANNEL_ID, game))
+        open_ids = [r[0] for r in await cur.fetchall()]
+        cur = await conn.execute(
+            "SELECT elo, win_streak, season_id FROM duel_stats "
+            "WHERE channel_id=? AND game_type=?", (CHANNEL_ID, game))
+        stat = await cur.fetchone()
+
+    assert_eq(open_ids, [live_id], "[8] открытым остался ТОЛЬКО живой сезон")
+    assert_eq(stat[0], 1234, "[8] рейтинг игрока живого сезона НЕ обнулён")
+    assert_eq(stat[2], live_id, "[8] статистика по-прежнему на живом сезоне")
+
+
 async def main_async():
     tmp = tempfile.mkdtemp(prefix="duel_season_")
     db = await _build_db(os.path.join(tmp, "test.db"))
@@ -181,6 +232,8 @@ async def main_async():
         await check_season_end(CHANNEL_ID, GAME)
         still = await _unfinished(db)
         assert_eq(still, [running], "[5] идущий сезон остался открытым")
+
+        await test_live_season_not_duplicated(db)
 
         # ── [7] Кости и крестики: тот же инвариант, свой файл ротации ─────
         # Аудит спеки §11 (30.07): журнал выплат завели 29.07 для дуэлей и

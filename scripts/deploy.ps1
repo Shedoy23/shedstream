@@ -123,6 +123,22 @@ if ($Mod) {
     }
     $srcBin = Join-Path $RepoRoot 'BannerlordLink\bin\Win64_Shipping_Client'
     $dstBin = Join-Path $GamePath "Modules\$ModId\bin\Win64_Shipping_Client"
+    # 2026-07-31: snapshot the DLL that is ALREADY in the game before we
+    # overwrite it. Without this the previous build is simply gone: on
+    # 2026-07-31 the 27.07 DLL (md5 E1847C9D, the one that carried the #38
+    # war/peace fix confirmed on stream) was overwritten and the only
+    # "rollback" file left in the folder was two versions old. Rolling back
+    # then means rebuilding from git instead of renaming a file.
+    $liveDll = Join-Path $dstBin 'BannerlordLink.dll'
+    if (-not $DryRun -and (Test-Path $liveDll)) {
+        $liveHash = (Get-FileHash $liveDll -Algorithm MD5).Hash.Substring(0,8)
+        $stamp    = Get-Date -Format 'yyyy-MM-dd'
+        $snap     = Join-Path $dstBin "BannerlordLink.dll.rollback-$stamp-$liveHash"
+        if (-not (Test-Path $snap)) {
+            Copy-Item -LiteralPath $liveDll -Destination $snap -Force
+            Ok "Previous DLL kept as $(Split-Path $snap -Leaf)"
+        }
+    }
     foreach ($f in 'BannerlordLink.dll','BannerlordLink.pdb') {
         $s = Join-Path $srcBin $f; $d = Join-Path $dstBin $f
         if ($DryRun) { Write-Host "  [dry] copy $f -> game" -ForegroundColor DarkGray; continue }

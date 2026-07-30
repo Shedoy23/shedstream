@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import sys
 import tempfile
 import traceback
@@ -564,6 +565,73 @@ async def test_retired_action_not_purchasable(db, buy):
               "команда моду НЕ поставлена")
 
 
+async def test_client_cannot_set_price(db, buy):
+    """10. Цена НЕ приходит из тела запроса (аудит спеки §1, вопрос «в»).
+
+    Как это устроено. Для действий из `ACTION_PRICES_DEFAULT` `_enforce_price`
+    делает жёсткий override — присланное значение игнорируется. А для действий
+    из `_ACTIONS_WITH_OWN_PRICING` override'а НЕТ: цену обязана поставить
+    `_prepare_action`, и если она этого не сделала — берётся `data["price"]`,
+    то есть **то, что прислал зритель**.
+
+    Найдено пробой 30.07: так вели себя ДВА действия.
+      • `hero.set_class` — цена ставилась в `_charge_execute_enqueue`, то есть
+        ПОСЛЕ вычисления. Комментарий там обещал «фиксируем на сервере», но на
+        списание это не влияло: прислал 12345 → списалось 12345.
+      • `player.equip_item` — присваивание стояло ВНУТРИ ветки
+        `if random_category:`; без категории цена не ставилась вовсе.
+
+    Оба сейчас бесплатные, поэтому выгадать себе скидку было нельзя — но
+    (а) зритель мог обнулить свой баланс одним запросом, и это выглядело бы как
+    пропажа крустиков по вине платформы; (б) сделай любое из них платным — и
+    присланный `price: 0` дал бы его бесплатно.
+
+    Тест проверяет ВСЕ действия со своей ценой, а не только два найденных:
+    новое действие в `_ACTIONS_WITH_OWN_PRICING`, забывшее поставить цену,
+    упадёт здесь.
+    """
+    print("\n[10] Цена из тела запроса игнорируется (проверяются ВСЕ own-pricing)")
+    FAKE = 99_999
+
+    # Список берём из кода, а не копией: добавят действие — оно попадёт в проверку.
+    import inspect
+    import routes.bannerlord as B
+    src = inspect.getsource(B._enforce_price)
+    own = sorted(set(re.findall(r'"((?:hero|player|power|tournament)\.[a-z_]+)"', src)))
+    assert_true(len(own) >= 20, f"список own-pricing распознан ({len(own)} действий)")
+
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT class_key FROM bannerlord_classes WHERE deprecated=0 LIMIT 1")
+        row = await cur.fetchone()
+    class_key = row[0] if row else "berserk"
+
+    leaked = []
+    for act in own:
+        await _set_points(db, CHANNEL_ID, "alice", 1_000_000)
+        before = await _get_points(db, CHANNEL_ID, "alice")
+        data = {
+            "price": FAKE, "client_action_id": f"pricefake-{act}",
+            # поля, без которых действие отказало бы раньше проверки цены
+            "class_key": class_key, "power_key": "rage", "skill_key": "Athletics",
+            "amount": 1, "item_type": "gold", "side": "player", "custom_item_id": 1,
+        }
+        try:
+            await buy(_make_anon_request(), "alice", CHANNEL_ID, act, data)
+        except Exception:
+            pass   # падение — не тема этого блока, его ловят другие тесты
+        spent = before - await _get_points(db, CHANNEL_ID, "alice")
+        if spent == FAKE:
+            leaked.append(act)
+
+    if leaked:
+        print("      действия, списавшие ПРИСЛАННУЮ цену:")
+        for a in leaked:
+            print(f"        · {a}")
+    assert_eq(leaked, [],
+              f"ни одно из {len(own)} own-pricing действий не списало присланные {FAKE}")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
@@ -583,6 +651,7 @@ async def _run():
         await test_refund_on_ack_failure(db, buy)
         await test_army_create_server_gates(db, buy)
         await test_retired_action_not_purchasable(db, buy)
+        await test_client_cannot_set_price(db, buy)
     finally:
         # Закрываем пул и удаляем temp-БД (реальную viewers.db НЕ трогаем).
         try:

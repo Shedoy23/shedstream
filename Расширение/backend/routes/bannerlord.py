@@ -1612,7 +1612,14 @@ async def _prepare_action(username, channel_id, action_type, data):
             # крустиками. Frontend показывает 💰 (динары); mod проверяет
             # hero.Gold перед apply.
             data["hero_gold_cost"] = RANDOM_EQUIP_HERO_GOLD[random_category]
-            data["price"] = 0  # крустики free
+        # 2026-07-30 (аудит спеки §1в): цена в крустиках = 0 ВСЕГДА, а не только
+        # внутри ветки random_category. Раньше присваивание стояло на уровень
+        # глубже, и при пустом random_category цена вообще не ставилась — а
+        # player.equip_item входит в _ACTIONS_WITH_OWN_PRICING, значит
+        # _enforce_price не делает override и берёт `data["price"]` ПРЯМО ИЗ
+        # ТЕЛА запроса. Доказано пробой: прислал price=99999 → списалось 99999
+        # за действие, которое оплачивается динарами.
+        data["price"] = 0  # крустики free — оплата идёт Hero.Gold в игре
 
     if action_type == "player.spawn":
         side = (data.get("side") or "player").strip().lower()
@@ -1620,6 +1627,19 @@ async def _prepare_action(username, channel_id, action_type, data):
             return {"success": False, "message": f"Side '{side}' не разрешён"}
         data["side"] = side
         data["price"] = SPAWN_PRICES[side]
+
+    if action_type == "hero.set_class":
+        # 2026-07-30 (аудит спеки §1в) — цена ДОЛЖНА ставиться здесь, до
+        # _enforce_price. Она ставилась в _charge_execute_enqueue, то есть ПОСЛЕ
+        # того, как цена уже вычислена и передана на списание: комментарий там
+        # обещал «фиксируем на сервере», но на списание это не влияло.
+        # Доказано пробой: зритель прислал price=12345 для бесплатной смены
+        # класса → списалось 12345 крустиков. Само действие бесплатное, поэтому
+        # обмануть систему в свою пользу было нельзя, но (а) зритель мог
+        # обнулить себе баланс одним запросом, (б) сделай кто-нибудь смену
+        # класса платной — и присланный 0 дал бы её бесплатно.
+        # Валидация class_key остаётся в кассе (ей нужен conn), здесь только цена.
+        data["price"] = 0
 
     if action_type == "power.activate":
         # Цена активки — per-power, истина на бэке (POWER_PRICES). Sent price

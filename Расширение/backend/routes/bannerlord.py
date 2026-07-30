@@ -1514,7 +1514,11 @@ async def bannerlord_buy_action(request: Request):
         "data": dict,        // action payload (target username, item id, etc.)
     }
 
-    Цена = data.price (рекомендуется из shop catalog, frontend подставляет).
+    Цена — СЕРВЕРНАЯ. `data.price` из тела запроса игнорируется: `_enforce_price`
+    перезаписывает его по `ACTION_PRICES_DEFAULT` / собственному прайсингу
+    действия. (До 2026-07-30 здесь было написано «frontend подставляет» — и это
+    было правдой для двух действий, через которые зритель мог обнулить себе
+    баланс. Аудит спеки §1.)
     Если у viewer'а недостаточно крустиков — отказ. Атомарно: списание +
     enqueue в одной TX, если enqueue упал — откатываем баланс.
 

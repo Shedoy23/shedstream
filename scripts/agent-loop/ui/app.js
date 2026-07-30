@@ -22,6 +22,7 @@ const elements = {
   newTask: document.querySelector("#new-task-button"),
   error: document.querySelector("#error-message"),
   close: document.querySelector("#close-task"),
+  resume: document.querySelector("#resume-task"),
   conversation: document.querySelector("#conversation"),
   claudeModel: document.querySelector("#claude-model"),
   codexModel: document.querySelector("#codex-model"),
@@ -246,6 +247,14 @@ function renderConversation(task) {
   elements.close.classList.toggle(
     "hidden",
     !task || task.status === "closed" || task.current_owner !== "owner",
+  );
+  // Ход остался за агентом, но никто не работает — цикл оборвался.
+  elements.resume.classList.toggle(
+    "hidden",
+    !task ||
+      task.status !== "open" ||
+      Boolean(task.run?.running) ||
+      !["claude", "codex"].includes(task.current_owner),
   );
   if (!task) {
     elements.title.textContent = "Новая задача";
@@ -502,6 +511,26 @@ async function sendTask() {
   }
 }
 
+async function resumeTask() {
+  if (!state.selectedTask) return;
+  elements.resume.disabled = true;
+  setError();
+  try {
+    const payload = await api(
+      `/api/tasks/${encodeURIComponent(state.selectedTask)}/run`,
+      { method: "POST", body: "{}" },
+    );
+    if (!payload.started) {
+      setError("Задача уже выполняется — подожди её завершения.");
+    }
+    await refresh();
+  } catch (error) {
+    setError(error.message);
+  } finally {
+    elements.resume.disabled = false;
+  }
+}
+
 async function closeTask() {
   if (!state.selectedTask) return;
   try {
@@ -518,6 +547,7 @@ async function closeTask() {
 elements.send.addEventListener("click", sendTask);
 elements.newTask.addEventListener("click", newTask);
 elements.close.addEventListener("click", closeTask);
+elements.resume.addEventListener("click", resumeTask);
 elements.refreshLimits.addEventListener("click", () => refreshCapabilities(true));
 elements.taskMode.addEventListener("change", () => {
   const mode = elements.taskMode.value;

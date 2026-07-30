@@ -217,6 +217,89 @@ async def test_no_double_refund(db):
               "[B] failed → ACK → failed НЕ вернул деньги второй раз")
 
 
+async def test_concurrent_failed_single_refund(db):
+    """ОДНОВРЕМЕННЫЕ отказы: возврат ровно один раз (хвост 1 из DEFERRED §C0-bis).
+
+    Зачем отдельно от [B]. Тест выше отправляет отказы ПОСЛЕДОВАТЕЛЬНО — второй
+    начинается, когда первый уже дописал маркер `REFUNDED:`. Такой прогон
+    доказывает только идемпотентность «по факту записи», но НЕ то, что защита
+    держит настоящую гонку: два события приходят одновременно, оба читают строку
+    ДО того, как кто-то успел поставить маркер.
+
+    Защита в коде структурная: `BEGIN IMMEDIATE` берётся ДО `SELECT`, поэтому
+    второй вызов ждёт write-lock и после разблокировки видит уже записанный
+    маркер. Но это была ЗАЯВКА из чтения кода — теста с реальной конкуренцией не
+    существовало. Проверять это важно именно здесь: двойная выплата на этом пути
+    уже случалась на проде с четырьмя действиями (T-02).
+
+    **ЧТО ИМЕННО ДЕРЖИТ `BEGIN IMMEDIATE` — выяснено экспериментом 30.07.**
+    Первая версия этого теста смотрела только на сумму возврата и осталась
+    ЗЕЛЁНОЙ, когда `IMMEDIATE` заменили на обычный `BEGIN`. Разбор показал:
+      • деньги и в этом случае вернулись один раз — их держат маркер `REFUNDED:`
+        и блокировка SQLite, а не выбор режима транзакции;
+      • но один из обработчиков ПАДАЛ с `database is locked`, то есть событие
+        терялось с ошибкой вместо аккуратного «already refunded, skip».
+    Поэтому тест проверяет ДВА инварианта: сумму возврата И отсутствие ошибок
+    в логе обработчика. Без второй проверки он не отличает наличие защиты от её
+    отсутствия — то есть не доказывает ничего.
+    """
+    print("\n[C] Гонка: одновременные отказы возвращают деньги ОДИН раз")
+
+    import logging
+
+    class _ErrorCatcher(logging.Handler):
+        """Собирает ERROR-записи обработчика: упавшее событие = потерянное."""
+
+        def __init__(self):
+            super().__init__(level=logging.ERROR)
+            self.records: list = []
+
+        def emit(self, record):
+            self.records.append(record.getMessage())
+
+    catcher = _ErrorCatcher()
+    mod_logger = logging.getLogger("rimlink.modules.bannerlord")
+    mod_logger.addHandler(catcher)
+
+    # (a) Два одновременных отказа.
+    aid = "order-failed-concurrent-2"
+    await _new_action(db, aid)
+    before = await _points(db)
+    results = await asyncio.gather(_send_failed(aid), _send_failed(aid),
+                                   return_exceptions=True)
+    errors = [r for r in results if isinstance(r, Exception)]
+    assert_eq(errors, [], "[C] ни один из двух одновременных отказов не упал")
+    assert_eq(await _points(db) - before, PRICE,
+              "[C] ДВА ОДНОВРЕМЕННЫХ отказа вернули деньги ровно один раз")
+    status, err = await _row(db, aid)
+    assert_eq(err.startswith("REFUNDED:"), True, "[C] маркер возврата записан")
+
+    # (b) Пять одновременных — если защита держится только на «повезло с
+    # порядком», на пяти это проявится охотнее, чем на двух.
+    aid5 = "order-failed-concurrent-5"
+    await _new_action(db, aid5)
+    before5 = await _points(db)
+    results5 = await asyncio.gather(*[_send_failed(aid5) for _ in range(5)],
+                                    return_exceptions=True)
+    errors5 = [r for r in results5 if isinstance(r, Exception)]
+    assert_eq(errors5, [], "[C] ни один из пяти одновременных отказов не упал")
+    got = await _points(db) - before5
+    assert_eq(got, PRICE,
+              f"[C] ПЯТЬ одновременных отказов вернули ровно {PRICE}, а не кратное")
+
+    # (c) Главная проверка чувствительности: обработчик не должен НИ РАЗУ
+    # свалиться. Именно это ломается, если `BEGIN IMMEDIATE` ослабить до `BEGIN`
+    # — событие теряется с `database is locked`, а сумма при этом остаётся
+    # правильной, поэтому проверка суммы такую регрессию НЕ ловит.
+    mod_logger.removeHandler(catcher)
+    if catcher.records:
+        print("      записи ERROR из обработчика:")
+        for m in catcher.records[:5]:
+            print(f"        · {m[:160]}")
+    assert_eq(catcher.records, [],
+              "[C] обработчик не залогировал ни одной ошибки (нет 'database is locked')")
+
+
 async def _run():
     fd, db_path = tempfile.mkstemp(suffix=".db", prefix="test_ack_order_")
     os.close(fd)
@@ -227,6 +310,7 @@ async def _run():
         await test_normal_ack_then_failed(db)
         await test_failed_then_ack_keeps_marker(db)
         await test_no_double_refund(db)
+        await test_concurrent_failed_single_refund(db)
     finally:
         try:
             await db._pool.close()

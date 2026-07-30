@@ -300,6 +300,148 @@ async def test_concurrent_failed_single_refund(db):
               "[C] обработчик не залогировал ни одной ошибки (нет 'database is locked')")
 
 
+class _AckRequest:
+    """Минимальный Request для маршрутов /v1/module/<id>/ack и /events."""
+
+    def __init__(self, payload, token="test-token"):
+        self._payload = payload
+        self.headers = {"Authorization": f"Bearer {token}"}
+        self.client = None
+
+    async def json(self):
+        return self._payload
+
+
+async def _call_ack_route(action_id: str, success: bool, reason: str = "forged_retry"):
+    """Дёргаем НАСТОЯЩИЙ маршрут ACK, а не адаптер напрямую.
+
+    Именно этого не хватало: тесты ниже ходили в `handle_event`, поэтому
+    повторный запрос К МАРШРУТУ никем не проверялся.
+    """
+    import routes.module_api as api
+    api._verify_module_request = lambda request, module_id: CHANNEL_ID
+    body = {"action_id": action_id, "success": success}
+    if not success:
+        body["error"] = reason
+    return await api.module_ack("bannerlord", _AckRequest(body))
+
+
+async def test_repeat_ack_does_not_refund_done_action(db):
+    """[5] ВНЕШНИЙ АУДИТ 31.07 (КРИТИЧНО): повторный ACK делал выполненное
+    действие бесплатным.
+
+    Маршрут `/ack` не смотрел на результат `ack_action`. Тот возвращает False,
+    когда строка НЕ перешла из queued/dispatched — то есть действие уже
+    завершено. А синтетический `action.failed` запускался всё равно, и зритель
+    получал полную цену обратно, СОХРАНИВ эффект в игре.
+
+    Воспроизведение аудитора: acked=False, points +50, строка → failed
+    с маркером возврата.
+    """
+    print("\n[5] Повторный ACK по выполненному действию НЕ возвращает деньги")
+    aid = "ack-replay-1"
+    await _new_action(db, aid)
+    before = await _points(db)
+
+    first = await _call_ack_route(aid, success=True)
+    assert_eq(first.get("acked"), True, "[5] первый ACK принят")
+
+    second = await _call_ack_route(aid, success=False)
+    assert_eq(second.get("acked"), False, "[5] повторный ACK не принят")
+
+    after = await _points(db)
+    row = await _row(db, aid)
+    assert_eq(after - before, 0, "[5] крустики НЕ возвращены (эффект остаётся)")
+    assert_eq(row[0], "acked", "[5] строка осталась выполненной, не 'failed'")
+    assert_eq((row[1] or "").startswith("REFUNDED:"), False,
+              "[5] маркер возврата не проставлен")
+
+
+async def test_honest_failure_ack_still_refunds(db):
+    """[6] Обратная сторона: честный отказ через тот же маршрут ОБЯЗАН вернуть.
+
+    Без этой проверки фикс [5] мог бы просто выключить возвраты целиком.
+    """
+    print("\n[6] Честный отказ через маршрут ACK по-прежнему возвращает деньги")
+    aid = "ack-honest-fail-1"
+    await _new_action(db, aid)
+    before = await _points(db)
+
+    res = await _call_ack_route(aid, success=False, reason="mod_refused")
+    assert_eq(res.get("acked"), True, "[6] отказ принят маршрутом")
+
+    after = await _points(db)
+    row = await _row(db, aid)
+    assert_eq(after - before, PRICE, f"[6] возвращена полная цена ({PRICE})")
+    assert_eq(row[0], "failed", "[6] строка помечена failed")
+    assert_eq((row[1] or "").startswith("REFUNDED:"), True,
+              "[6] маркер возврата проставлен")
+
+
+async def test_late_async_failure_event_still_refunds(db):
+    """[7] Поздний отказ мода приходит СОБЫТИЕМ, а не в /ack — он должен жить.
+
+    Хендлеры мода часто ACK'ают true сразу, а работу делают в главном потоке и
+    падают позже; тогда `ActionFeedback.PostFailed` шлёт `action.failed`.
+    Фикс [5] обязан этот путь не задеть — иначе зритель платит за не
+    случившееся.
+    """
+    print("\n[7] Поздний отказ событием возвращает деньги и после ACK-успеха")
+    aid = "late-async-fail-1"
+    await _new_action(db, aid)
+    before = await _points(db)
+
+    await _call_ack_route(aid, success=True)
+    await _send_failed(aid, reason="in_mission")
+
+    after = await _points(db)
+    assert_eq(after - before, PRICE,
+              f"[7] поздний отказ вернул цену ({PRICE}) — путь не сломан")
+
+
+async def test_failed_envelope_can_be_retried(db):
+    """[8] ВНЕШНИЙ АУДИТ 31.07 (находка 4): упавший конверт не должен
+    объявляться дубликатом.
+
+    `_is_duplicate_envelope` помечал id увиденным В МОМЕНТ ПРОВЕРКИ, до вызова
+    обработчика. Падение обработчика — и повтор с тем же id получал
+    `duplicate: true, success: true`, то есть НЕ исполнялся. А `action.failed`
+    это заявка на ВОЗВРАТ денег, и мод шлёт её одним запросом без повторов:
+    одного сбоя хватало, чтобы возврат исчез, а списание осталось.
+
+    ЧЕСТНО О ГРАНИЦАХ: тест проверяет книгу учёта конвертов и то, что после
+    «забывания» повтор реально доводит возврат до конца. Полный HTTP-маршрут
+    `/events` он не поднимает (там своя проверка токена) — маршрут вызывает
+    ровно эти же две функции, но это стык, который тестом не покрыт.
+    """
+    print("\n[8] Упавший конверт можно повторить, а не считать дубликатом")
+    import routes.module_api as api
+
+    aid = "envelope-retry-1"
+    await _new_action(db, aid)
+    before = await _points(db)
+
+    # Так делает маршрут: сначала проверка-и-пометка, потом обработчик.
+    assert_eq(api._is_duplicate_envelope(CHANNEL_ID, aid), False,
+              "[8] первый конверт не дубликат")
+
+    # Обработчик упал → маршрут обязан ЗАБЫТЬ конверт.
+    api._forget_envelope(CHANNEL_ID, aid)
+
+    assert_eq(api._is_duplicate_envelope(CHANNEL_ID, aid), False,
+              "[8] повтор упавшего конверта НЕ считается дубликатом")
+
+    # Повтор доводит возврат до конца.
+    await _send_failed(aid, reason="retry_after_failure")
+    assert_eq(await _points(db) - before, PRICE,
+              f"[8] повтор довёл возврат до конца ({PRICE})")
+
+    # А успешно обработанный конверт по-прежнему дедуплицируется.
+    api._is_duplicate_envelope(CHANNEL_ID, "envelope-ok-1")
+    assert_eq(api._is_duplicate_envelope(CHANNEL_ID, "envelope-ok-1"), True,
+              "[8] обычный дедуп не сломан")
+
+
 async def _run():
     fd, db_path = tempfile.mkstemp(suffix=".db", prefix="test_ack_order_")
     os.close(fd)
@@ -311,6 +453,10 @@ async def _run():
         await test_failed_then_ack_keeps_marker(db)
         await test_no_double_refund(db)
         await test_concurrent_failed_single_refund(db)
+        await test_repeat_ack_does_not_refund_done_action(db)
+        await test_honest_failure_ack_still_refunds(db)
+        await test_late_async_failure_event_still_refunds(db)
+        await test_failed_envelope_can_be_retried(db)
     finally:
         try:
             await db._pool.close()

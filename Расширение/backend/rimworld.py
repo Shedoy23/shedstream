@@ -85,11 +85,64 @@ BASE_TRAIT_PRICE   = 1000   # база прогрессивной цены че�
 # Влияет ТОЛЬКО на mod→backend ingest; вьюверский RimWorld-таб (read-эндпоинты) не задет.
 _RIMWORLD_REQUIRE_TOKEN = os.getenv("RIMWORLD_REQUIRE_TOKEN", "1").lower() in ("1", "true", "yes")
 _rimworld_soft_warned = False
+_mc_lockout_cache = None   # (locked: bool, ts: float) — см. _multi_channel_lockout
+
+async def _multi_channel_lockout() -> bool:
+    """True, если каналов больше одного — тогда легаси-RimWorld закрыт.
+
+    Считаем ОДОБРЕННЫЕ каналы: неодобренная заявка мода не имеет. Результат
+    кэшируем на минуту — дверь дёргается на каждый запрос мода (long-poll),
+    а число каналов меняется раз в месяцы.
+    """
+    global _mc_lockout_cache
+    now = time.time()
+    cached = _mc_lockout_cache
+    if cached and now - cached[1] < 60:
+        return cached[0]
+    try:
+        async with get_db()._connect() as conn:
+            cur = await conn.execute(
+                "SELECT COUNT(*) FROM channels WHERE approved = 1")  # tenant-ok: счёт каналов
+            n = (await cur.fetchone())[0] or 0
+    except Exception:
+        return False          # не смогли посчитать — не ломаем работающий канал
+    locked = n > 1
+    _mc_lockout_cache = (locked, now)
+    if locked:
+        print(f"⛔ [rimworld] каналов {n} > 1 — легаси-маршруты закрыты "
+              f"(нет изоляции по каналу, см. DEFERRED C0-novemdecies)")
+    return locked
+
 
 async def rimworld_mod_auth(request: Request):
     """Verify the RimWorld module-token on a mod-ingest request. Returns the
     token's channel_id when valid; in SOFT mode returns None (allowed) for a
     missing/invalid token, in STRICT mode raises 401."""
+    # 2026-07-31 ВНЕШНИЙ АУДИТ (находка 2). Этот файл — легаси-монолит, он
+    # целиком вне tenant-линтера (`tenant-lint: skip-file`), и изоляции по
+    # каналу в нём НЕТ на трёх путях сразу:
+    #   * `/commands` берёт канал из токена в `_auth` и НЕ использует его —
+    #     очередь процесса общая, а восстановление из БД выбирает команды без
+    #     `channel_id`. Мод канала B забирает команду канала A;
+    #   * ACK ищет и удаляет строку только по `cmd_id`, без канала;
+    #   * `/session-start` делает ГЛОБАЛЬНЫЙ `DELETE FROM rimworld_pawns` —
+    #     запуск игры на канале B стирает пешек канала A.
+    # Аудитор воспроизвёл первый пункт: токен канала 222 получил команду
+    # канала 111 (alice, 150💎).
+    #
+    # Чинить это правильно = переписать легаси-монолит, а в RimWorld сейчас
+    # никто не играет и проверить правку в игре нечем. Поэтому ставим ЗАМОК
+    # ровно на условие, при котором дефект становится реальным: больше одного
+    # канала в системе. Пока канал один, перепутать нечего; как только
+    # появится второй — легаси-путь откажет громко, а не испортит данные тихо.
+    # Снять замок можно только вместе с настоящей изоляцией по channel_id.
+    if await _multi_channel_lockout():
+        raise HTTPException(
+            status_code=503,
+            detail="rimworld legacy routes disabled: multi-channel setup "
+                   "detected and these routes are not channel-isolated "
+                   "(see DEFERRED C0-novemdecies)")
+
     from routes.streamer import verify_module_token  # lazy import: avoid cycle
     auth = request.headers.get("Authorization", "")
     token = auth[7:].strip() if auth[:7].lower() == "bearer " else ""

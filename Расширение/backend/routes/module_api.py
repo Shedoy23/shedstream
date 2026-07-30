@@ -138,6 +138,35 @@ MAX_ENVELOPES_PER_BATCH = 200
 _processed_envelopes: dict = {}  # channel_id → (Set[id], Deque[id])
 
 
+def _forget_envelope(channel_id: int, env_id: str) -> None:
+    """Забыть конверт, чтобы повтор МОГ быть обработан.
+
+    2026-07-31 ВНЕШНИЙ АУДИТ (находка 4). `_is_duplicate_envelope` помечает id
+    увиденным В МОМЕНТ ПРОВЕРКИ — то есть ДО вызова обработчика. Если
+    обработчик падал (сбой БД, исключение в адаптере), конверт навсегда
+    считался обработанным: повтор с тем же id получал `duplicate: true,
+    success: true` и НЕ исполнялся.
+
+    Цена ошибки конкретная: `action.failed` — это заявка на ВОЗВРАТ денег. Мод
+    шлёт её fire-and-forget, одним запросом, без повторов. Одного сбоя хватало,
+    чтобы возврат исчез, а списание осталось.
+
+    Поэтому при неудачной обработке конверт забываем — тогда повтор (мода,
+    сторожа или человека) сработает штатно, а идемпотентность возврата
+    обеспечит маркер `REFUNDED:`.
+    """
+    pair = _processed_envelopes.get(channel_id)
+    if not pair or not env_id:
+        return
+    seen, q = pair
+    if env_id in seen:
+        seen.discard(env_id)
+        try:
+            q.remove(env_id)
+        except ValueError:
+            pass
+
+
 def _is_duplicate_envelope(channel_id: int, env_id: str) -> bool:
     """True если уже видели этот id за последние _DEDUP_RING_SIZE сообщений."""
     if not env_id:
@@ -299,6 +328,10 @@ async def module_events(module_id: str, request: Request):
             logging.getLogger("rimlink.module_api").exception(
                 "[event handler] channel=%s envelope_id=%s type=%s failed: %s",
                 channel_id, env.id, env.type, e)
+            # Обработка не удалась → конверт НЕ считается обработанным, иначе
+            # повтор объявят дубликатом и заявка на возврат исчезнет навсегда
+            # (внешний аудит 31.07, находка 4).
+            _forget_envelope(channel_id, env.id)
             acks.append({"id": env.id, "success": False,
                          "error": f"{type(e).__name__}: {e}"})
 
@@ -461,7 +494,28 @@ async def module_ack(module_id: str, request: Request):
         # → _on_action_failed (atomic refund, idempotent через REFUNDED: маркер),
         # поэтому реальный action.failed event позже НЕ даст двойного возврата.
         # Гейт по манифесту: только модули, объявившие action.failed.
-        if adapter.manifest.supports_event("action.failed"):
+        #
+        # 2026-07-31 ВНЕШНИЙ АУДИТ (находка 1, КРИТИЧНО). Здесь не проверялся
+        # результат `ack_action`. А он возвращает False, когда строка НЕ
+        # перешла из queued/dispatched — то есть когда действие уже завершено.
+        # Значит повторный `/ack` с `success=false` по уже выполненному
+        # действию возвращал зрителю полную цену, ОСТАВЛЯЯ эффект в игре:
+        # выполненное действие становилось бесплатным. Воспроизведено
+        # аудитором через настоящий маршрут: acked=False, points +50,
+        # строка ушла в `failed` с маркером возврата.
+        #
+        # Чиним асимметрично, и это важно. Поздний отказ мода (хендлер ACK'нул
+        # true, а работу делает в главном потоке и падает позже) приходит НЕ
+        # сюда, а отдельным событием `action.failed`
+        # (`ActionFeedback.PostFailed` → `PostEventAsync`). Поэтому гейт
+        # ставим только на маршрут `/ack`: он закрывает повтор, не ломая
+        # законный асинхронный возврат.
+        if not acked:
+            _log_ack.warning(
+                "[bannerlord ACK FAIL] action_id=%s ch=%s — действие уже "
+                "завершено, возврат НЕ выполняется (повторный ACK)",
+                action_id, channel_id)
+        elif adapter.manifest.supports_event("action.failed"):
             try:
                 await adapter.handle_event(channel_id, ModuleEnvelope(
                     id=action_id, kind="event", type="action.failed", ts=0,

@@ -14,9 +14,11 @@ Standalone (без pytest). Запуск:
 Тест НЕ "чинит" код — он утверждает то, что код РЕАЛЬНО делает сейчас.
 
 Выбранные actions (2026-07-29 — переехали, см. константу CHARGE_ACTION ниже):
-    - CHARGE_ACTION = hero.detach_hold  price=30  — денежные блоки. Не
-      backend-only (значит есть строка в module_actions), без серверных гейтов
-      и кулдаунов, требует живого героя — герой alice засеян в `_build_db`.
+    - CHARGE_ACTION = hero.army_create  price=1000  — денежные блоки. Не
+      backend-only (значит есть строка в module_actions), БЕЗ кулдауна, требует
+      живого героя и своих гейтов (королевство + лидер клана + не в армии) —
+      всё это засеяно в `_build_db`. Первым кандидатом брали hero.detach_hold,
+      но у него кулдаун 1с, и тест начал мерить кулдаун вместо кассы.
     - hero.create   price=0  — freebie-путь. Требует, чтобы героя ещё НЕ было,
       поэтому идёт на отдельного зрителя carol.
     - RETIRED_ACTION = player.respawn — блок [9]: убранное из продажи не
@@ -671,6 +673,81 @@ async def test_crash_after_charge_rolls_back(db, buy):
     assert_eq(n_after, n_before, "[11] задание в очередь НЕ попало")
 
 
+async def test_cooldown_blocks_second_purchase(db):
+    """12. Кулдаун отклоняет вторую покупку и не списывает за неё (§8 спеки).
+
+    ⚠️ **ЧТО ЭТОТ ТЕСТ НЕ ДОКАЗЫВАЕТ — читать до того, как на него ссылаться.**
+    Он НЕ доказывает защиту от настоящей ГОНКИ. Я пытался: два вызова через
+    `asyncio.gather`, затем то же со снятым per-user локом, затем с ослабленным
+    до deferred `BEGIN IMMEDIATE` в кассе — **во всех трёх случаях тест остался
+    зелёным**, то есть он не отличает наличие этих защит от их отсутствия.
+    Причина: в тестовых условиях два вызова фактически выполняются
+    последовательно, нужного перекрытия `asyncio` не создаёт. Значит вопрос §8
+    «сколько запросов пройдёт при двух одновременных» по кулдаунам остаётся
+    ОТКРЫТЫМ, и заявлять его закрытым нельзя (`DEFERRED.md` §C0-quater).
+
+    Что тест доказывает по факту:
+      • эндпоинт покупки берёт per-user лок — проверкой исходника, чтобы защиту
+        нельзя было убрать незаметно;
+      • вторая покупка активки в пределах кулдауна отклоняется и **не списывает
+        крустиков** (обычный, не конкурентный сценарий — самый частый в жизни:
+        зритель нажал дважды).
+
+    Контекст про кулдауны, который стоит знать: проверка (`check_cooldown`) идёт
+    ВНЕ транзакции кассы, установка (`set_cooldown`) — вообще ПОСЛЕ коммита
+    (осознанно: упавший коммит не должен оставлять кулдаун), а само состояние
+    живёт в памяти процесса (`_cooldowns`), не в базе. Отсюда два следствия:
+    рестарт обнуляет кулдауны, а при `UVICORN_WORKERS > 1` они не общие между
+    воркерами — `main.py` печатает про это предупреждение на старте.
+    """
+    print("\n[12] Кулдаун держится против двух одновременных запросов")
+    import inspect
+    from routes.bannerlord import (POWER_PRICES, _get_user_lock,
+                                   _bannerlord_buy_action_locked as _locked)
+    import routes.bannerlord as B
+    from modules.bannerlord._adapter import POWER_COOLDOWNS, _cooldowns
+
+    # (a) Эндпоинт обязан брать per-user лок. Проверяем ИСХОДНИК: если лок
+    # уберут из обёртки, тест ниже этого не заметит (он берёт лок сам), поэтому
+    # без этой проверки блок доказывал бы только работу asyncio.Lock.
+    entry_src = inspect.getsource(B.bannerlord_buy_action)
+    assert_true("_get_user_lock" in entry_src and "async with user_lock" in entry_src,
+                "[12] эндпоинт покупки берёт per-user лок (защита не убрана из обёртки)")
+
+    power = "rage"
+    price = POWER_PRICES.get(power)
+    assert_true(bool(price), f"цена активки «{power}» найдена ({price})")
+    assert_true(POWER_COOLDOWNS.get(power, 0) > 0,
+                f"у активки «{power}» есть кулдаун ({POWER_COOLDOWNS.get(power)}с)")
+
+    _cooldowns.clear()   # чистый старт: кулдауны живут в памяти процесса
+    await _set_points(db, CHANNEL_ID, "alice", START_POINTS)
+    before = await _get_points(db, CHANNEL_ID, "alice")
+    n_before = await _count_actions(db, CHANNEL_ID, "power.activate")
+
+    # (b) Две покупки подряд через ТУ ЖЕ обёртку, что в проде (лок + путь кассы).
+    async def _one(tag):
+        user_lock = await _get_user_lock(CHANNEL_ID, "alice")
+        async with user_lock:
+            return await _locked(_make_anon_request(), "alice", CHANNEL_ID,
+                                 "power.activate",
+                                 {"power_key": power,
+                                  "client_action_id": f"cd-race-{tag}"})
+
+    res = await asyncio.gather(_one("A"), _one("B"), return_exceptions=True)
+    ok = [r for r in res if isinstance(r, dict) and r.get("success")]
+    refused = [r for r in res if isinstance(r, dict) and not r.get("success")]
+    spent = before - await _get_points(db, CHANNEL_ID, "alice")
+    enqueued = await _count_actions(db, CHANNEL_ID, "power.activate") - n_before
+
+    assert_eq(len(ok), 1, "[12] прошла РОВНО одна активация из двух")
+    assert_eq(spent, price, f"[12] списана цена ОДНОЙ активации ({price}), а не двух")
+    assert_eq(enqueued, 1, "[12] моду поставлено ровно одно задание")
+    assert_true(
+        any("перезарядк" in (r.get("message") or "").lower() for r in refused),
+        "[12] вторая покупка отклонена ИМЕННО кулдауном (а не чем-то ещё)")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
@@ -692,6 +769,7 @@ async def _run():
         await test_retired_action_not_purchasable(db, buy)
         await test_client_cannot_set_price(db, buy)
         await test_crash_after_charge_rolls_back(db, buy)
+        await test_cooldown_blocks_second_purchase(db)
     finally:
         # Закрываем пул и удаляем temp-БД (реальную viewers.db НЕ трогаем).
         try:

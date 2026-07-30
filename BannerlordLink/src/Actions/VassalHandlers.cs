@@ -72,15 +72,10 @@ namespace BannerlordLink.Actions
                     return;
                 }
 
-                Hero heir;
-                try { heir = MBObjectManager.Instance.GetObject<Hero>(heirId); }
-                catch (Exception ex)
-                {
-                    BannerlordLinkModule.Log(
-                        $"[vassal.create] GetObject<Hero>('{heirId}') crashed: {ex.Message}");
-                    ActionFeedback.PostFailed(actionId, "heir_lookup_crash");
-                    return;
-                }
+                // 2026-07-31: см. Util/HeroResolver.cs — heirId это id
+                // CharacterObject, поиском по Hero он не находился (7 отказов
+                // из 7 на проде).
+                Hero heir = HeroResolver.ByStringId(heirId, out string _heirReason);
                 if (heir == null || !heir.IsAlive)
                 {
                     BannerlordLinkModule.Log(

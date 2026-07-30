@@ -37,17 +37,14 @@ namespace BannerlordLink.Actions
                 reason = "no_hero_id";
                 return null;
             }
-            Hero hero;
-            try { hero = MBObjectManager.Instance.GetObject<Hero>(heroStringId); }
-            catch (Exception ex)
-            {
-                BannerlordLinkModule.Log($"[FAM helper] GetObject<Hero>('{heroStringId}') crashed: {ex.Message}");
-                reason = "lookup_crash";
-                return null;
-            }
+            // 2026-07-31: id, который мы храним, — это StringId
+            // CharacterObject (`CharacterObject_9729`), а не Hero. Прямой
+            // GetObject<Hero> по нему всегда возвращал null → `hero_not_found`
+            // на живом наследнике. Разбор — Util/HeroResolver.cs.
+            Hero hero = HeroResolver.ByStringId(heroStringId, out reason);
             if (hero == null)
             {
-                reason = "hero_not_found";
+                if (string.IsNullOrEmpty(reason)) reason = "hero_not_found";
                 return null;
             }
             if (!hero.IsAlive)

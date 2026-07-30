@@ -1,4 +1,5 @@
 using System;
+using BannerlordLink.Util;
 using System.Collections.Generic;
 using System.Linq;
 using TaleWorlds.CampaignSystem;
@@ -132,7 +133,8 @@ namespace BannerlordLink.Behaviors
                 if (!string.Equals(kv.Value, lower, StringComparison.Ordinal)) continue;
                 try
                 {
-                    var hero = MBObjectManager.Instance.GetObject<Hero>(kv.Key);
+                    // 2026-07-31: см. Util/HeroResolver.cs
+                    var hero = HeroResolver.ByStringId(kv.Key, out string _idReason);
                     if (hero != null && hero.IsAlive) return hero;
                 }
                 catch { /* hero может быть GC'нут engine'ом — skip */ }

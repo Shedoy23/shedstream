@@ -85,7 +85,9 @@ namespace BannerlordLink.Actions
                     return;
                 }
 
-                var heir = MBObjectManager.Instance.GetObject<Hero>(heirHeroId);
+                // 2026-07-31: см. Util/HeroResolver.cs — id принадлежит
+                // CharacterObject, прямой поиск героя промахивался.
+                var heir = HeroResolver.ByStringId(heirHeroId, out string _heirReason);
                 if (heir == null)
                 {
                     BannerlordLinkModule.Log(

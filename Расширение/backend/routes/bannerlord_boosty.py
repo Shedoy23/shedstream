@@ -204,6 +204,26 @@ async def dashboard_bulk_set_boosty_subscribers(request: Request):
                     "tier=excluded.tier, note=excluded.note, set_at=CURRENT_TIMESTAMP",
                     (cid, u, t, note))
                 inserted += 1
+            # 2026-07-31 (аудит спеки §17). `replace_all` СНАЧАЛА стирает весь
+            # список канала, а негодные записи ниже просто пропускаются. Значит
+            # присланный целиком, но неверный по формату файл (все tier=0, или
+            # поле названо иначе) молча оставлял стримера БЕЗ списка платных
+            # подписчиков — и ответ при этом был success. Восстановить неоткуда:
+            # список ведётся руками, второго экземпляра нет.
+            # Замена на пустоту допустима, только если её попросили явно —
+            # пустым `entries`, а не сорока негодными записями.
+            if replace_all and entries and inserted == 0:
+                await conn.execute("ROLLBACK")
+                log.warning("[boosty dash] ch=%s bulk replace_all отклонён: "
+                            "%d записей, ни одной годной — список НЕ стёрт",
+                            cid, skipped)
+                return {
+                    "success": False,
+                    "message": (f"Ни одна из {skipped} записей не годится "
+                                f"(нужны username и tier 1-3). Список не тронут — "
+                                f"иначе он был бы стёрт целиком."),
+                    "skipped": skipped,
+                }
             await conn.commit()
         except Exception as ex:
             try: await conn.execute("ROLLBACK")

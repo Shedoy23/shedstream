@@ -130,6 +130,11 @@ async def module_hello(module_id: str, request: Request):
 # connector'а (после reconnect / retry) не приводил к double-processing.
 # Per-channel ring чтобы не блокировать каналы взаимными retry'ями.
 _DEDUP_RING_SIZE = 5000
+# Потолок на число конвертов в одном POST /events. Живой мод присылает единицы
+# за раз; предел нужен не для него, а против запроса по утёкшему токену канала
+# (см. комментарий у проверки). 2026-07-30, аудит §5.
+MAX_ENVELOPES_PER_BATCH = 200
+
 _processed_envelopes: dict = {}  # channel_id → (Set[id], Deque[id])
 
 
@@ -232,6 +237,24 @@ async def module_events(module_id: str, request: Request):
         envelopes_raw = [body] if body.get("type") else []
     if not envelopes_raw:
         return {"status": "ok", "acks": []}
+
+    # 2026-07-30 (аудит спеки §5, вопрос «есть ли ограничение на размер») —
+    # ПОТОЛОК НА ПАКЕТ. Его не было вовсе: каждый конверт проверяется и
+    # дедуплицируется по отдельности, но их число не ограничивалось ничем, кроме
+    # `client_max_body_size 20m` на nginx. То есть один запрос по токену канала
+    # мог принести десятки тысяч конвертов и занять единственное ядро VDS
+    # (1 CPU / 1 ГБ) на всё время обработки — при том что rate-limit к
+    # module-эндпоинтам не применяется (middleware ставит только заголовки).
+    # Живой мод шлёт единицы конвертов за раз; 200 — запас на два порядка.
+    if len(envelopes_raw) > MAX_ENVELOPES_PER_BATCH:
+        log.warning("[module_api] batch_too_large ch=%s module=%s envelopes=%d",
+                    channel_id, module_id, len(envelopes_raw))
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail={"status": "batch_too_large",
+                    "max": MAX_ENVELOPES_PER_BATCH,
+                    "got": len(envelopes_raw)},
+        )
 
     # 3. Dispatch each envelope
     acks: list = []

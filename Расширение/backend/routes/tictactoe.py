@@ -340,7 +340,19 @@ async def check_season_end(channel_id: int = None):
         for rank, (uname, elo) in enumerate(top, 1):
             prize = PRIZES.get(rank, 0)
             if prize:
-                await db.add_points(uname, prize, channel_id=cid)
+                # 2026-07-30 (аудит спеки §11). Было `add_points(...)` — своё
+                # соединение и свой commit, ОТДЕЛЬНО от закрытия сезона. Между
+                # выплатой и `finished = 1` окно: падение там оставляет сезон
+                # незакрытым при уже выданных призах, а следующий тик находит
+                # тот же сезон и тот же топ (`duel_stats` ещё не обнулены) и
+                # платит ВТОРОЙ раз. 300K+200K+100K💎 за проход.
+                await db.add_points_tx(conn, uname, prize, cid)
+                # M105: журнал выплат — той же транзакцией (см. dice.py/duel.py).
+                await conn.execute(
+                    "INSERT INTO duel_season_payouts "
+                    "(channel_id, season_id, game_type, username, rank, elo, amount) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (cid, season_id, GAME_TYPE, uname, rank, elo, prize))
                 prize_parts.append(f"#{rank} @{uname} ({elo} ELO) +{prize:,}💎")
 
         await conn.execute(

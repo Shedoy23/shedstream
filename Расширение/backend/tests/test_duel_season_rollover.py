@@ -181,6 +181,69 @@ async def main_async():
         await check_season_end(CHANNEL_ID, GAME)
         still = await _unfinished(db)
         assert_eq(still, [running], "[5] идущий сезон остался открытым")
+
+        # ── [7] Кости и крестики: тот же инвариант, свой файл ротации ─────
+        # Аудит спеки §11 (30.07): журнал выплат завели 29.07 для дуэлей и
+        # НЕ дошли до двух соседних игр — «сезоны сделаны» прочиталось как все
+        # три. Крестики вдобавок платили через `add_points` (своё соединение,
+        # свой commit) МИМО транзакции, закрывающей сезон: падение в этом окне
+        # оставляет сезон незакрытым при выданных призах, и следующий тик
+        # платит те же 300K/200K/100K💎 второй раз.
+        for module_name, game in (("routes.dice", "dice"),
+                                  ("routes.tictactoe", "tictactoe")):
+            print(f"\n[7] {game}: приз оставляет след и не идёт мимо транзакции")
+            mod = __import__(module_name, fromlist=["check_season_end"])
+            winner = f"{game}_champ"
+            async with db._connect() as conn:
+                await conn.execute(
+                    "INSERT INTO viewers (channel_id, username, points) VALUES (?, ?, 0)",
+                    (CHANNEL_ID, winner))
+                cur = await conn.execute(
+                    "INSERT INTO duel_seasons (channel_id, game_type, started_at, "
+                    " ends_at, finished) VALUES (?, ?, ?, ?, 0)",
+                    (CHANNEL_ID, game,
+                     (datetime.now(timezone.utc) - timedelta(days=14)).isoformat(),
+                     (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()))
+                sid = cur.lastrowid
+                await conn.execute(
+                    "INSERT INTO duel_stats (channel_id, username, game_type, elo, "
+                    " win_streak, season_id) VALUES (?, ?, ?, ?, 0, ?)",
+                    (CHANNEL_ID, winner, game, PRIZE_ELO_GATE + 50, sid))
+                await conn.commit()
+
+            # Ловушка на нетранзакционный путь: если ротация позовёт add_points
+            # (своё соединение), тест это увидит.
+            stray: list = []
+            original = db.add_points
+
+            async def _trap(*a, **kw):
+                stray.append(a)
+                return await original(*a, **kw)
+
+            db.add_points = _trap
+            try:
+                await mod.check_season_end(CHANNEL_ID)
+            finally:
+                db.add_points = original
+
+            async with db._connect() as conn:
+                cur = await conn.execute(
+                    "SELECT points FROM viewers WHERE channel_id=? AND username=?",
+                    (CHANNEL_ID, winner))
+                got_points = (await cur.fetchone())[0]
+                cur = await conn.execute(
+                    "SELECT username, rank, amount, season_id FROM duel_season_payouts "
+                    "WHERE channel_id=? AND game_type=?", (CHANNEL_ID, game))
+                paid = await cur.fetchall()
+
+            assert_eq(got_points, PRIZES[1], f"[7] {game}: приз выплачен")
+            assert_eq(len(paid), 1, f"[7] {game}: выплата записана в журнал")
+            if paid:
+                assert_eq(paid[0][0], winner, f"[7] {game}: в журнале верный получатель")
+                assert_eq(paid[0][2], PRIZES[1], f"[7] {game}: в журнале верная сумма")
+                assert_eq(paid[0][3], sid, f"[7] {game}: в журнале верный сезон")
+            assert_eq(len(stray), 0,
+                      f"[7] {game}: выплата НЕ шла мимо транзакции сезона")
     finally:
         try:
             await db._pool.close()

@@ -262,6 +262,17 @@ async def check_season_end(channel_id: int = None):
             prize = PRIZES.get(rank, 0)
             if prize:
                 await db.add_points_tx(conn, uname, prize, cid)  # в той же транзакции, что finish+reset
+                # M105 (журнал заведён 29.07 для дуэлей, сюда не дошёл —
+                # аудит спеки §11, 30.07). Без записи выплата не оставляет
+                # следа: `duel_stats` обнуляется ЭТОЙ ЖЕ ротацией, и через
+                # месяц «кому и сколько заплатили» неразрешимо. Ровно на этом
+                # я ошибся в аудите 29.07, заявив «призы не платились никогда»
+                # по обнулённой таблице.
+                await conn.execute(
+                    "INSERT INTO duel_season_payouts "
+                    "(channel_id, season_id, game_type, username, rank, elo, amount) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (cid, season_id, GAME_TYPE, uname, rank, elo, prize))
                 prize_parts.append(f"#{rank} @{uname} ({elo} ELO) +{prize:,}💎")
 
         await conn.execute("UPDATE duel_seasons SET finished = 1 WHERE id = ?", (season_id,))

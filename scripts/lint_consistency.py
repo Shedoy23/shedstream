@@ -637,6 +637,131 @@ def check_sold_actions_have_entry():
         )
 
 
+# ── partial unique index == a LOCK, and a lock needs a keyholder ─────────────
+# A partial unique index like
+#     CREATE UNIQUE INDEX ... ON t(...) WHERE status = 'pending'
+# is not tidiness, it is a lock: while the row sits there, the same request
+# cannot be made again. If nobody clears it by age, one lost mod event blocks
+# the viewer FOREVER.
+#
+# This bit twice. Peace offers (fixed June): a stuck row banned that king from
+# ever offering peace to that faction again. Policy requests (found 2026-07-30
+# in prod DATA, not by reading code): two rows had been pending since 24.07 --
+# six days -- because the sweeper existed for peace and was simply forgotten
+# for policies.
+#
+# Rule: a partial unique index whose predicate pins a TRANSIENT status must
+# have code that expires such rows by age, or an explicit waiver.
+_TRANSIENT_STATUS_RE = re.compile(
+    r"""status\s*=\s*['"](pending|queued|requested|offered|waiting|in_progress)['"]""",
+    re.I)
+# Предикат берём до конца строки или до ';': внутри него ЕСТЬ кавычки
+# ('pending'), и первая версия шаблона их исключала — из-за чего группа
+# обрывалась и детектор не видел ни одного замка. Поймал собственный селф-тест.
+_PARTIAL_UNIQUE_RE = re.compile(
+    r"CREATE\s+UNIQUE\s+INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)\s+ON\s+(\w+)\s*\((.*?)\)\s*WHERE\s+([^\n;]+)",
+    re.I | re.S)
+# Waiver: put `partial-lock-ok: <reason>` in a comment near the CREATE INDEX.
+_WAIVER_RE = re.compile(r"partial-lock-ok\s*:", re.I)
+
+
+def _has_age_sweeper(backend, table: str) -> bool:
+    """Is there code that expires rows of `table` by AGE?
+
+    Looks for an UPDATE of that table whose statement also carries a
+    datetime('now', '-...') threshold. Deliberately loose: the point is to
+    catch a table with NO keyholder at all, not to police wording.
+    """
+    upd = re.compile(r"(?:UPDATE|DELETE\s+FROM)\s+" + re.escape(table) + r"\b", re.I)
+    for py in sorted(backend.rglob("*.py")):
+        if {"tests", "__pycache__"} & set(py.parts):
+            continue
+        try:
+            src = py.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        for m in upd.finditer(src):
+            window = src[m.start():m.start() + 600]
+            # Два законных способа задать порог, оба принимаем:
+            #   • сдвиг в запросе      — datetime('now', '-24 hours')
+            #   • порог в колонке      — datetime(expires_at) < datetime('now')
+            # Первая версия требовала запятую и поэтому не признала сторож
+            # предложений брака (он хранит срок в expires_at) — ложное
+            # срабатывание. Ложная тревога в линтере дороже пропуска: после неё
+            # линтеру перестают верить.
+            if re.search(r"datetime\(\s*['\"]now['\"]", window, re.I):
+                return True
+    return False
+
+
+def _selftest_partial_index() -> bool:
+    """The detector must recognise a synthetic locking index.
+
+    Without this, a regex that silently matches nothing would report a clean
+    run and hide exactly the class it was written for.
+    """
+    sample = ("CREATE UNIQUE INDEX idx_fake_lock ON fake_tbl(channel_id, thing) "
+              "WHERE status = 'pending'")
+    m = _PARTIAL_UNIQUE_RE.search(sample)
+    if not m or m.group(2) != "fake_tbl":
+        return False
+    if not _TRANSIENT_STATUS_RE.search(m.group(4)):
+        return False
+    # and it must NOT fire on a non-transient predicate
+    other = ("CREATE UNIQUE INDEX idx_alive ON guilds(channel_id, name) "
+             "WHERE disbanded_at IS NULL")
+    m2 = _PARTIAL_UNIQUE_RE.search(other)
+    return bool(m2) and not _TRANSIENT_STATUS_RE.search(m2.group(4))
+
+
+def check_partial_index_has_sweeper():
+    backend = EXT / "backend"
+    if not backend.is_dir():
+        return
+    if not _selftest_partial_index():
+        errors.append(
+            "partial-lock: linter SELF-TEST FAILED -- the detector no longer "
+            "recognises a locking index, so a clean run means nothing; fix "
+            "lint_consistency.py")
+        return
+
+    sql_sources = []
+    mig = backend / "migrations"
+    if mig.is_dir():
+        sql_sources += sorted(mig.rglob("*.py"))
+    dbpy = backend / "database.py"
+    if dbpy.is_file():
+        sql_sources.append(dbpy)
+
+    seen: dict[str, str] = {}      # index name -> table
+    for path in sql_sources:
+        try:
+            src = path.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        for m in _PARTIAL_UNIQUE_RE.finditer(src):
+            idx_name, table, _cols, predicate = m.group(1), m.group(2), m.group(3), m.group(4)
+            if not _TRANSIENT_STATUS_RE.search(predicate):
+                continue          # not a transient lock (e.g. WHERE deleted_at IS NULL)
+            # waiver in the surrounding lines?
+            around = src[max(0, m.start() - 400):m.start()]
+            if _WAIVER_RE.search(around):
+                continue
+            seen[idx_name] = table
+
+    for idx_name, table in sorted(seen.items()):
+        if not _has_age_sweeper(backend, table):
+            errors.append(
+                f"partial-lock: index '{idx_name}' locks {table} while a row "
+                f"stays in a transient status, but nothing expires those rows "
+                f"by age. One lost mod event blocks the viewer forever (this "
+                f"already happened twice: peace offers, policy requests). Add a "
+                f"sweeper -- an UPDATE {table} ... WHERE <ts> < datetime('now', "
+                f"'-N hours') called from a background loop in main.py -- or "
+                f"waive it with a `partial-lock-ok: <reason>` comment next to "
+                f"the CREATE INDEX")
+
+
 def main() -> int:
     if EXT is None:
         print("[lint] FAIL: could not locate extension dir (with backend/)")
@@ -646,7 +771,8 @@ def main() -> int:
                check_dashboard_mod_config, check_currency_glyph,
                check_tenant_scoping, check_bannerlord_policies,
                check_frontend_global_collisions, check_undefined_names,
-               check_sold_actions_have_entry):
+               check_sold_actions_have_entry,
+               check_partial_index_has_sweeper):
         try:
             fn()
         except Exception as e:  # a broken check shouldn't crash CI silently

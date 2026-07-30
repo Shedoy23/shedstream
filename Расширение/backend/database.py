@@ -3657,6 +3657,34 @@ class Database:
                 return {'cancelled': True, 'queue_id': row[0]}
             return {'cancelled': False, 'reason': 'not_queued'}
 
+    async def expire_stale_queue_entries(self, ttl_minutes: int = 30) -> int:
+        """Снять с очереди тех, кто висит в 'queued' дольше ttl_minutes.
+
+        Найдено линтером 2026-07-30 (проверка `partial-lock`). Индекс
+        `uq_match_queue_active_user(channel_id, username, game_type)
+        WHERE status = 'queued'` — частичный, то есть ЗАМОК: пока строка висит,
+        зритель не может встать в очередь на эту игру снова. Обычных выходов
+        два — нашлась пара (`matched`) или зритель отменил сам (`cancelled`);
+        третьего, «по времени», не было вовсе. `matchmaking_loop` только ищет
+        пары и очередь не чистит, а константа `MATCHMAKING_QUEUE_TTL_SEC` была
+        удалена 29.07 как неиспользуемая — то есть TTL задумывался и не доехал.
+
+        На проде замок пока не сработал (0 строк в 'queued' на 29.07: 101
+        отмена, 66 матчей) — это защита на будущее, а не разбор аварии.
+        Мини-игры бесплатны, поэтому денег такой замок не съедает: он просто
+        не даёт играть.
+
+        Returns affected count. Вызывается фоновым циклом в main.py.
+        """
+        async with self._connect() as conn:
+            cur = await conn.execute(
+                "UPDATE match_queue SET status = 'expired' "
+                "WHERE status = 'queued' "
+                f"  AND queued_at < datetime('now', '-{int(ttl_minutes)} minutes')")  # tenant-ok: cross-channel expiry sweep
+            affected = cur.rowcount
+            await conn.commit()
+        return affected
+
     async def get_queue_status(
         self,
         username: str,

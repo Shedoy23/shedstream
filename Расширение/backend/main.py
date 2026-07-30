@@ -2017,6 +2017,22 @@ async def on_startup():
             await _asyncio.sleep(3600)
     asyncio.create_task(_policy_requests_expire_loop())
 
+    # 2026-07-30 — очередь мини-игр: uq_match_queue_active_user тоже частичный
+    # (WHERE status='queued'), то есть зависшая строка не даёт зрителю встать в
+    # очередь снова. Выходов было два — «нашлась пара» и «отменил сам»; выхода
+    # «по времени» не существовало. Найдено проверкой partial-lock в линтере.
+    async def _match_queue_expire_loop():
+        import asyncio as _asyncio
+        while True:
+            try:
+                affected = await db.expire_stale_queue_entries()
+                if affected > 0:
+                    print(f"[QUEUE-EXPIRE] снято с очереди мини-игр (протухли): {affected}")
+            except Exception as e:
+                print(f"[QUEUE-EXPIRE] loop crashed: {type(e).__name__}: {e}")
+            await _asyncio.sleep(600)
+    asyncio.create_task(_match_queue_expire_loop())
+
     # M103. Уведомления зрителю — расходник: прочитал и забыл. Без сторожа
     # таблица растёт на каждом отказе мода и не убывает никогда.
     async def _notices_purge_loop():

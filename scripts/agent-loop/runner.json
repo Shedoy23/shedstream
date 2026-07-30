@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "timeout_seconds": 1200,
+  "timeout_seconds": 1800,
   "max_steps": 6,
   "claude": {
     "command": "claude",
-    "max_turns": 20,
+    "max_turns": 60,
     "permission_mode": "auto",
     "read_only_tools": [
       "Read",

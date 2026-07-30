@@ -155,6 +155,24 @@ class PromptTests(unittest.TestCase):
         self.assertIn("without changing any file", prompt)
         self.assertNotIn("Primary implementer", prompt)
 
+    def test_turn_budget_is_stated_as_a_number_not_as_advice(self) -> None:
+        class Row(dict):
+            pass
+
+        task = Row(
+            id="SL-TEST",
+            title="Audit money path",
+            request="Audit section 2 of the spec.",
+            mode="analysis",
+        )
+        prompt = orchestrator.render_agent_prompt(task, [], "claude", 0, 45)
+        self.assertIn("45 tool calls", prompt)
+        self.assertIn("discards everything you found", prompt)
+        # Codex has no turn cap, so it must not be told about one.
+        self.assertNotIn("tool calls for this task", orchestrator.render_agent_prompt(
+            task, [], "codex", 0, None
+        ))
+
 
 class ProgressTests(unittest.TestCase):
     def test_claude_tool_event_is_summarized_without_reasoning(self) -> None:

@@ -437,6 +437,7 @@ def render_agent_prompt(
     messages: list[sqlite3.Row],
     agent: str,
     reviews_before: int = 0,
+    turn_budget: int | None = None,
 ) -> str:
     policies = mailbox_store.load_agent_policies()
     mode = task["mode"] if "mode" in task.keys() else "delivery"
@@ -446,6 +447,19 @@ def render_agent_prompt(
         f"You are {agent}, one participant in a bounded two-agent loop.",
     ]
     lines.extend(f"- {item}" for item in policies[agent].get("guardrails", []))
+    if turn_budget:
+        lines.extend(
+            [
+                "",
+                f"You have {turn_budget} tool calls for this task. Running out "
+                "discards everything you found: no partial report reaches the "
+                "owner. Spend at most two thirds of the budget on investigation, "
+                "then write the structured handoff with what you have. If the "
+                "request is too broad to finish, report the part you verified "
+                "and name what is left rather than exploring until you are cut off.",
+                "",
+            ]
+        )
     lines.extend(
         [
             "- Never commit, merge, push, deploy, restart services, or access production.",
@@ -1014,7 +1028,13 @@ def run_one(
         ).fetchall()
         source_message_id = int(messages[-1]["id"])
         reviews_before = count_reviews(conn, task["id"])
-        prompt = render_agent_prompt(task, messages, agent, reviews_before)
+        # Only claude runs under a turn cap; codex is bounded by the timeout.
+        turn_budget = (
+            int(config["claude"].get("max_turns", 20)) if agent == "claude" else None
+        )
+        prompt = render_agent_prompt(
+            task, messages, agent, reviews_before, turn_budget
+        )
         snapshot = {
             "task_id": task["id"],
             "agent": agent,

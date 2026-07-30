@@ -1585,33 +1585,44 @@ async def _prepare_action(username, channel_id, action_type, data):
 
     if action_type == "player.equip_item":
         random_category = (data.get("random_category") or "").strip().lower()
-        if random_category:
-            if random_category not in RANDOM_EQUIP_PRICES:
+        # 2026-07-30 SECURITY (аудит спеки §9): путь по ПРОИЗВОЛЬНОМУ item_id
+        # закрыт. Он остался от Sprint 5.1b, кнопки во фронте не имеет (фронт
+        # шлёт только random_category) — и был БЕСПЛАТНЫМ: крустиков 0 всегда,
+        # а динары мод списывает только в ветке random (`heroGoldCost > 0`,
+        # EquipItemHandler.cs). Итог: зритель одним запросом надевал любой
+        # предмет движка по StringId, пока законный ящик стоит 500K–1M💰.
+        # Тот же класс, что дыра с атрибутами (27.07): кнопки нет, адрес открыт.
+        if not random_category:
+            return {
+                "success": False,
+                "message": "Укажи категорию: weapon / armor / horse",
+            }
+        if random_category not in RANDOM_EQUIP_PRICES:
+            return {
+                "success": False,
+                "message": f"Категория '{random_category}' не разрешена "
+                           "(weapon / armor / horse)",
+            }
+        # Mounted-class gate для horse
+        if random_category == "horse":
+            db_tmp = get_db()
+            async with db_tmp._connect() as conn:
+                cur = await conn.execute(
+                    "SELECT class_key FROM bannerlord_hero_class "
+                    "WHERE channel_id=? AND username=?",
+                    (channel_id, username))
+                row = await cur.fetchone()
+                class_key = (row[0] or "").lower() if row else ""
+            if class_key not in MOUNTED_CLASSES:
                 return {
                     "success": False,
-                    "message": f"Категория '{random_category}' не разрешена "
-                               "(weapon / armor / horse)",
+                    "message": "Конь доступен только для конных классов "
+                               "(cavalry / horse_archer / camel_* / knight)",
                 }
-            # Mounted-class gate для horse
-            if random_category == "horse":
-                db_tmp = get_db()
-                async with db_tmp._connect() as conn:
-                    cur = await conn.execute(
-                        "SELECT class_key FROM bannerlord_hero_class "
-                        "WHERE channel_id=? AND username=?",
-                        (channel_id, username))
-                    row = await cur.fetchone()
-                    class_key = (row[0] or "").lower() if row else ""
-                if class_key not in MOUNTED_CLASSES:
-                    return {
-                        "success": False,
-                        "message": "Конь доступен только для конных классов "
-                                   "(cavalry / horse_archer / camel_* / knight)",
-                    }
-            # Random equip теперь оплачивается Hero.Gold (in-game), не
-            # крустиками. Frontend показывает 💰 (динары); mod проверяет
-            # hero.Gold перед apply.
-            data["hero_gold_cost"] = RANDOM_EQUIP_HERO_GOLD[random_category]
+        # Random equip теперь оплачивается Hero.Gold (in-game), не
+        # крустиками. Frontend показывает 💰 (динары); mod проверяет
+        # hero.Gold перед apply.
+        data["hero_gold_cost"] = RANDOM_EQUIP_HERO_GOLD[random_category]
         # 2026-07-30 (аудит спеки §1в): цена в крустиках = 0 ВСЕГДА, а не только
         # внутри ветки random_category. Раньше присваивание стояло на уровень
         # глубже, и при пустом random_category цена вообще не ставилась — а

@@ -328,6 +328,116 @@ async def test_child_action_requires_kinship(db, buy):
     assert_eq(res_ok.get("success"), True, "свой ребёнок — действие проходит")
 
 
+async def test_backend_only_path_forces_target(db, buy):
+    """[5] 2026-07-30 (аудит спеки §9): затирание target живёт в ОБЩЕЙ кассе, а
+    backend-only действия её ветку enqueue пропускают — строку кладёт их
+    собственный обработчик через `_mod_queue.enqueue_mod_action`. Значит блоки
+    [1]-[2] этот путь НЕ покрывают: у него своя защита (payload собирается с
+    нуля из серверных значений), и её надо проверять отдельно.
+    """
+    print("\n[5] Backend-only путь (свой enqueue) тоже кладёт target=инициатор")
+    async with db._connect() as conn:
+        await conn.execute(
+            "INSERT INTO bannerlord_party_orders "
+            "(channel_id, owner_username, order_type, expires_at, status) "
+            "VALUES (?, ?, 'garrison', datetime('now', '+1 day'), 'active')",
+            (CHANNEL_ID, ATTACKER))
+        await conn.commit()
+
+    res = await buy(_make_anon_request(), ATTACKER, CHANNEL_ID,
+                    "hero.party_order_release",
+                    {"target": VICTIM, "initiated_by": VICTIM})
+    assert_eq(res.get("success"), True, "отмена приказа принята")
+
+    payload = await _latest_action_payload(db, CHANNEL_ID, "hero.party_order_release")
+    assert_true(payload is not None, "строка для мода создана")
+    if payload:
+        assert_eq(payload.get("target"), ATTACKER,
+                  "backend-only: target == инициатор (подделка не прошла)")
+        assert_eq(payload.get("initiated_by"), ATTACKER,
+                  "backend-only: initiated_by == инициатор")
+
+
+async def test_whitelist_contains_no_mod_bound_actions(db, buy):
+    """[6] 2026-07-30 (аудит спеки §9): белый список ведётся руками, и ошибка в
+    нём открывает дыру молча. Mod-bound действие, попавшее в
+    `_CROSS_USER_TARGET_ACTIONS`, уедет моду с ЧУЖИМ target — ровно то, от чего
+    защищались в 2026-06-18. Проверяем структурно, а не перечислением: каждый
+    элемент списка обязан быть ещё и backend-only.
+    """
+    print("\n[6] Белый список кросс-юзерных содержит только backend-only")
+    from routes.bannerlord import (_BACKEND_ONLY_ACTIONS,
+                                   _CROSS_USER_TARGET_ACTIONS)
+    leaked = [a for a in _CROSS_USER_TARGET_ACTIONS
+              if a not in _BACKEND_ONLY_ACTIONS]
+    assert_eq(leaked, [],
+              "ни одно кросс-юзерное действие не уходит в мод с чужим target")
+
+    # Список полезен только если сами эти действия проверяют владение.
+    # Самое опасное — ответить на ЧУЖОЕ предложение о браке.
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "INSERT INTO bannerlord_marriage_proposals "
+            "(channel_id, proposer_username, proposer_child_hero_id, "
+            " proposer_child_name, target_username, target_child_hero_id, "
+            " target_child_name, expires_at) "
+            "VALUES (?, 'carol', 'child_of_carol', 'Дитя Кэрол', ?, "
+            "        'child_of_victim', 'Дитя Жертвы', datetime('now', '+1 day')) "
+            "RETURNING id",
+            (CHANNEL_ID, VICTIM))
+        proposal_id = (await cur.fetchone())[0]
+        await conn.commit()
+
+    res = await buy(_make_anon_request(), ATTACKER, CHANNEL_ID,
+                    "hero.respond_marriage_proposal",
+                    {"proposal_id": proposal_id, "accept": True})
+    assert_eq(res.get("success"), False,
+              "нельзя ответить на предложение, адресованное другому зрителю")
+
+
+async def test_equip_arbitrary_item_refused(db, buy):
+    """[7] 2026-07-30 НАЙДЕНО аудитом спеки §9: `player.equip_item` принимал
+    произвольный `item_id` и отдавал его моду БЕСПЛАТНО.
+
+    Крустиков 0 (действие в `_ACTIONS_WITH_OWN_PRICING`, цена жёстко 0), а
+    динары `EquipItemHandler` списывает только в ветке random_category
+    (`heroGoldCost > 0`). Кнопки во фронте у item_id нет — путь остался от
+    Sprint 5.1b. Итог: зритель одним запросом надевал любой предмет движка по
+    StringId, пока законный «ящик» стоит 500K–1M💰. Класс тот же, что у дыры с
+    атрибутами (27.07): входа нет, адрес открыт.
+    """
+    print("\n[7] player.equip_item — произвольный item_id отклоняется")
+    await _seed_hero(db, CHANNEL_ID, ATTACKER)
+    before_points = None
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT points FROM viewers WHERE channel_id=? AND username=?",
+            (CHANNEL_ID, ATTACKER))
+        before_points = (await cur.fetchone())[0]
+    n_before = await _count_actions(db, CHANNEL_ID, "player.equip_item")
+
+    res = await buy(_make_anon_request(), ATTACKER, CHANNEL_ID,
+                    "player.equip_item", {"item_id": "noble_long_bow"})
+    assert_eq(res.get("success"), False, "equip по произвольному item_id отклонён")
+    assert_eq(await _count_actions(db, CHANNEL_ID, "player.equip_item"), n_before,
+              "моду не поставлено задание на бесплатную вещь")
+
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT points FROM viewers WHERE channel_id=? AND username=?",
+            (CHANNEL_ID, ATTACKER))
+        assert_eq((await cur.fetchone())[0], before_points,
+                  "крустики не списаны (отказ до кассы)")
+
+    # Законный путь цел — иначе «фикс» просто убил бы механику.
+    res_ok = await buy(_make_anon_request(), ATTACKER, CHANNEL_ID,
+                       "player.equip_item", {"random_category": "armor"})
+    assert_eq(res_ok.get("success"), True, "random_category по-прежнему работает")
+    payload = await _latest_action_payload(db, CHANNEL_ID, "player.equip_item")
+    assert_true(bool((payload or {}).get("hero_gold_cost")),
+                "законный путь несёт цену в динарах")
+
+
 async def _run():
     db_path = tempfile.mktemp(suffix="_bnr_spoof_test.db")
     db = await _build_db(db_path)
@@ -338,6 +448,9 @@ async def _run():
         await test_normal_self_action_unbroken(db, buy)
         await test_whitelisted_cross_user_preserved(db, buy)
         await test_child_action_requires_kinship(db, buy)
+        await test_backend_only_path_forces_target(db, buy)
+        await test_whitelist_contains_no_mod_bound_actions(db, buy)
+        await test_equip_arbitrary_item_refused(db, buy)
     finally:
         try:
             await db._pool.close()

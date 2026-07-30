@@ -13,11 +13,20 @@ Standalone (без pytest). Запуск:
 
 Тест НЕ "чинит" код — он утверждает то, что код РЕАЛЬНО делает сейчас.
 
-Выбранные actions (пересечение _PURCHASABLE_ACTIONS ∩ ACTION_PRICES_DEFAULT
-∩ _ACTIONS_WITHOUT_HERO_REQUIREMENT — чтобы не подделывать hero-state):
-    - player.respawn  price=500  (НЕ backend-only → enqueue'ится; НЕТ cooldown'а)
-    - hero.create     price=0    (freebie; НЕ требует hero; но требует чтобы
-                                  hero ещё НЕ существовал)
+Выбранные actions (2026-07-29 — переехали, см. константу CHARGE_ACTION ниже):
+    - CHARGE_ACTION = hero.detach_hold  price=30  — денежные блоки. Не
+      backend-only (значит есть строка в module_actions), без серверных гейтов
+      и кулдаунов, требует живого героя — герой alice засеян в `_build_db`.
+    - hero.create   price=0  — freebie-путь. Требует, чтобы героя ещё НЕ было,
+      поэтому идёт на отдельного зрителя carol.
+    - RETIRED_ACTION = player.respawn — блок [9]: убранное из продажи не
+      покупается. Раньше касса характеризовалась ИМ, и уборка из продажи
+      положила тест на полдня незамеченным.
+
+Пересечение «покупаемое ∩ есть цена ∩ не требует героя» опустело: проверено
+программно 29.07 — из трёх действий без требования героя hero.create бесплатен,
+player.respawn снят с продажи, tournament.predict backend-only. Поэтому герой
+теперь засевается, а не появляется в середине прогона.
 
 Роль: request без X-Twitch-JWT + без client в ASGI-scope → verify_twitch_jwt
 возвращает {"status":"none"} → роль "viewer" → price_mult=1.0 (чистый baseline,
@@ -59,6 +68,36 @@ os.environ.setdefault("TWITCH_BROADCASTER_ID", "98319857")
 
 CHANNEL_ID = 98319857  # == TWITCH_BROADCASTER_ID (совпадение с M1-backfill default)
 START_POINTS = 100_000
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Действие, на котором характеризуется КАССА. Вынесено в константу намеренно.
+#
+# 2026-07-29: тест лежал красным (17 провалов) полдня, потому что здесь был
+# зашит `player.respawn`, а его убрали из продажи — механики нет, решение
+# правильное. Тест этого не заметил и «сломался» вместе с ней, причём имя
+# действия было размазано по 14 местам. Теперь замена — правка одной строки.
+#
+# Требования к кандидату (проверять при замене!):
+#   • в `_PURCHASABLE_ACTIONS` и в `ACTION_PRICES_DEFAULT` с ценой > 0;
+#   • НЕ в `_BACKEND_ONLY_ACTIONS` (иначе не будет строки в module_actions);
+#   • нет своей цены в `_ACTIONS_WITH_OWN_PRICING` (иначе цена не та);
+#   • **нет кулдауна в `ACTION_COOLDOWNS_SEC`** — иначе второй вызов подряд
+#     отказывает «способность на перезарядке», и тест кассы падает на чужой
+#     логике. На это уже наступили: первым кандидатом был `hero.detach_hold`,
+#     у него CD = 1с, и блоки идемпотентности/рефанда легли.
+#   • серверные гейты допустимы, только если тест умеет их удовлетворить.
+#
+# Проверено программно 29.07: покупаемых, платных, не backend-only и БЕЗ
+# кулдауна во всём Bannerlord осталось **два** — `hero.army_create` и
+# `hero.reforge_quality`. Взят первый: его гейты (королевство + лидер клана +
+# не в армии) уже разбираются блоком [8], то есть способ их выставить известен
+# и проверен. Состояние героя под них засевается в `_build_db`.
+CHARGE_ACTION = "hero.army_create"
+CHARGE_PRICE = 1000
+
+# Действие, убранное из продажи. Тест закрепляет, что оно НЕ покупается —
+# чтобы следующая уборка не осталась незамеченной, как случилось с respawn.
+RETIRED_ACTION = "player.respawn"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -174,6 +213,30 @@ async def _build_db(db_path: str):
         await conn.execute(
             "INSERT INTO viewers (channel_id, username, points) VALUES (?, 'alice', ?)",
             (CHANNEL_ID, START_POINTS))
+        # carol — зритель БЕЗ героя. Нужен блоку [5]: `hero.create` требует,
+        # чтобы живого героя ещё не было, а у alice он теперь есть с самого
+        # начала (см. ниже).
+        await conn.execute(
+            "INSERT INTO viewers (channel_id, username, points) VALUES (?, 'carol', ?)",
+            (CHANNEL_ID, START_POINTS))
+        # Герой alice засеян СРАЗУ. Касса требует живого героя для всего, кроме
+        # трёх действий из `_ACTIONS_WITHOUT_HERO_REQUIREMENT`, и среди них не
+        # осталось ни одного ПЛАТНОГО (проверено 29.07: hero.create бесплатен,
+        # player.respawn убран из продажи, tournament.predict backend-only).
+        # Поэтому денежные блоки идут на обычном действии, а герой нужен им
+        # с первой строки — раньше он появлялся только в блоке [6].
+        # Состояние под гейты CHARGE_ACTION (hero.army_create): королевство есть,
+        # alice — лидер клана, в армии не состоит. Блок [8] потом сам гоняет эти
+        # гейты по своим сценариям — он последний из тех, кто их трогает.
+        import json as _json
+        await conn.execute(
+            "INSERT OR IGNORE INTO bannerlord_heroes "
+            "(channel_id, username, hero_id, display_name, is_alive, is_prisoner, gold, "
+            " kingdom_info_json, party_info_json) "
+            "VALUES (?, 'alice', 'test_hero_alice', 'Alice Hero', 1, 0, 500000, ?, ?)",
+            (CHANNEL_ID,
+             _json.dumps({"id": "vlandia", "name": "Vlandia", "is_clan_leader": True}),
+             _json.dumps({"in_army": False})))
         await conn.commit()
 
     return test_db
@@ -183,29 +246,30 @@ async def _build_db(db_path: str):
 # Tests
 # ─────────────────────────────────────────────────────────────────────────────
 async def test_happy_path_charge(db, buy):
-    """1. Happy path: player.respawn (price 500) списывает РОВНО 500 + enqueue."""
-    print("\n[1] Happy path charge — player.respawn (price=500)")
+    """1. Happy path: CHARGE_ACTION списывает РОВНО свою цену + enqueue."""
+    print(f"\n[1] Happy path charge — {CHARGE_ACTION} (price={CHARGE_PRICE})")
     await _set_points(db, CHANNEL_ID, "alice", START_POINTS)
 
     before = await _get_points(db, CHANNEL_ID, "alice")
-    actions_before = await _count_actions(db, CHANNEL_ID, "player.respawn")
+    actions_before = await _count_actions(db, CHANNEL_ID, CHARGE_ACTION)
 
     res = await buy(
-        _make_anon_request(), "alice", CHANNEL_ID, "player.respawn",
-        {"client_action_id": "happy-respawn-1"})
+        _make_anon_request(), "alice", CHANNEL_ID, CHARGE_ACTION,
+        {"client_action_id": "happy-charge-1"})
 
     assert_eq(res.get("success"), True, "result.success is True")
-    assert_eq(res.get("charged"), 500, "result.charged == 500 (server-side price)")
+    assert_eq(res.get("charged"), CHARGE_PRICE,
+              f"result.charged == {CHARGE_PRICE} (server-side price)")
     assert_eq(res.get("perk"), "viewer", "role resolved to 'viewer' (no JWT)")
     assert_eq(res.get("perk_price_mult"), 1.0, "viewer → price_mult 1.0 (no discount)")
     assert_true(bool(res.get("action_id")), "result has an action_id (enqueued)")
 
     after = await _get_points(db, CHANNEL_ID, "alice")
-    assert_eq(before - after, 500, "points dropped by EXACTLY 500")
+    assert_eq(before - after, CHARGE_PRICE, f"points dropped by EXACTLY {CHARGE_PRICE}")
 
-    actions_after = await _count_actions(db, CHANNEL_ID, "player.respawn")
+    actions_after = await _count_actions(db, CHANNEL_ID, CHARGE_ACTION)
     assert_eq(actions_after - actions_before, 1,
-              "exactly 1 module_actions row enqueued (player.respawn NOT backend-only)")
+              "exactly 1 module_actions row enqueued (action NOT backend-only)")
 
 
 async def test_idempotency(db, buy):
@@ -213,19 +277,19 @@ async def test_idempotency(db, buy):
     print("\n[2] Idempotency — same client_action_id twice charges once")
     await _set_points(db, CHANNEL_ID, "alice", START_POINTS)
 
-    cid = "idem-respawn-xyz"
+    cid = "idem-charge-xyz"
     before = await _get_points(db, CHANNEL_ID, "alice")
 
     res1 = await buy(_make_anon_request(), "alice", CHANNEL_ID,
-                     "player.respawn", {"client_action_id": cid})
+                     CHARGE_ACTION, {"client_action_id": cid})
     mid = await _get_points(db, CHANNEL_ID, "alice")
 
     res2 = await buy(_make_anon_request(), "alice", CHANNEL_ID,
-                     "player.respawn", {"client_action_id": cid})
+                     CHARGE_ACTION, {"client_action_id": cid})
     after = await _get_points(db, CHANNEL_ID, "alice")
 
     assert_eq(res1.get("success"), True, "first call succeeds")
-    assert_eq(before - mid, 500, "first call charged 500")
+    assert_eq(before - mid, CHARGE_PRICE, f"first call charged {CHARGE_PRICE}")
 
     assert_eq(res2.get("success"), True, "replay call still success=True")
     assert_eq(res2.get("idempotent_replay"), True,
@@ -233,7 +297,8 @@ async def test_idempotency(db, buy):
     assert_eq(res2.get("action_id"), res1.get("action_id"),
               "replay returns the SAME action_id as the first call")
     assert_eq(mid - after, 0, "second call did NOT charge again (points unchanged)")
-    assert_eq(before - after, 500, "net charge across both calls == 500 (charged once)")
+    assert_eq(before - after, CHARGE_PRICE,
+              f"net charge across both calls == {CHARGE_PRICE} (charged once)")
 
     # И ровно одна строка в outbox для этого client_action_id.
     async with db._connect() as conn:
@@ -248,13 +313,13 @@ async def test_idempotency(db, buy):
 async def test_insufficient_funds(db, buy):
     """3. Insufficient funds: баланс < price → refuse, баланс НЕ меняется."""
     print("\n[3] Insufficient funds — refuse, no partial charge")
-    # Ставим баланс ниже цены respawn (500).
-    await _set_points(db, CHANNEL_ID, "alice", 100)
+    # Баланс строго ниже цены действия.
+    await _set_points(db, CHANNEL_ID, "alice", CHARGE_PRICE - 1)
     before = await _get_points(db, CHANNEL_ID, "alice")
-    actions_before = await _count_actions(db, CHANNEL_ID, "player.respawn")
+    actions_before = await _count_actions(db, CHANNEL_ID, CHARGE_ACTION)
 
-    res = await buy(_make_anon_request(), "alice", CHANNEL_ID, "player.respawn",
-                    {"client_action_id": "poor-respawn-1"})
+    res = await buy(_make_anon_request(), "alice", CHANNEL_ID, CHARGE_ACTION,
+                    {"client_action_id": "poor-charge-1"})
 
     assert_eq(res.get("success"), False, "result.success is False (can't afford)")
     msg = (res.get("message") or "").lower()
@@ -262,7 +327,7 @@ async def test_insufficient_funds(db, buy):
 
     after = await _get_points(db, CHANNEL_ID, "alice")
     assert_eq(after, before, "points UNCHANGED (no partial charge)")
-    actions_after = await _count_actions(db, CHANNEL_ID, "player.respawn")
+    actions_after = await _count_actions(db, CHANNEL_ID, CHARGE_ACTION)
     assert_eq(actions_after, actions_before, "no module_actions row enqueued on refusal")
 
 
@@ -287,18 +352,19 @@ async def test_free_action_no_charge(db, buy):
     """5. Freebie sanity: hero.create (price=0) → success, 0 списано, enqueue.
 
     Характеризует поведение price=0 пути (charge-блок пропускается). hero.create
-    требует, чтобы живого героя ещё НЕ было — у alice его нет, ок.
+    требует, чтобы живого героя ещё НЕ было — поэтому идёт на carol: у alice
+    герой засеян с самого начала (нужен денежным блокам).
     """
-    print("\n[5] Free action sanity — hero.create (price=0)")
-    await _set_points(db, CHANNEL_ID, "alice", START_POINTS)
-    before = await _get_points(db, CHANNEL_ID, "alice")
+    print("\n[5] Free action sanity — hero.create (price=0), зритель carol")
+    await _set_points(db, CHANNEL_ID, "carol", START_POINTS)
+    before = await _get_points(db, CHANNEL_ID, "carol")
 
-    res = await buy(_make_anon_request(), "alice", CHANNEL_ID, "hero.create",
+    res = await buy(_make_anon_request(), "carol", CHANNEL_ID, "hero.create",
                     {"client_action_id": "create-1"})
 
     assert_eq(res.get("success"), True, "hero.create succeeds")
     assert_eq(res.get("charged"), 0, "charged == 0 (free)")
-    after = await _get_points(db, CHANNEL_ID, "alice")
+    after = await _get_points(db, CHANNEL_ID, "carol")
     assert_eq(before - after, 0, "no crustics spent on free action")
     n = await _count_actions(db, CHANNEL_ID, "hero.create")
     assert_eq(n, 1, "hero.create enqueued (NOT backend-only)")
@@ -370,20 +436,20 @@ async def test_refund_on_ack_failure(db, buy):
     await _set_points(db, CHANNEL_ID, "alice", START_POINTS)
     before = await _get_points(db, CHANNEL_ID, "alice")
 
-    # Charge: player.respawn (500) → enqueue module_actions row с price+initiated_by.
-    res = await buy(_make_anon_request(), "alice", CHANNEL_ID, "player.respawn",
-                    {"client_action_id": "refund-respawn-1"})
+    # Charge: CHARGE_ACTION → enqueue module_actions row с price+initiated_by.
+    res = await buy(_make_anon_request(), "alice", CHANNEL_ID, CHARGE_ACTION,
+                    {"client_action_id": "refund-charge-1"})
     action_id = res.get("action_id")
-    assert_eq(res.get("charged"), 500, "charged 500 before refund")
+    assert_eq(res.get("charged"), CHARGE_PRICE, f"charged {CHARGE_PRICE} before refund")
     mid = await _get_points(db, CHANNEL_ID, "alice")
-    assert_eq(before - mid, 500, "points dropped 500 after charge")
+    assert_eq(before - mid, CHARGE_PRICE, f"points dropped {CHARGE_PRICE} after charge")
 
     # Мод отказал → action.failed (ровно то, что роутит module_ack при success=false).
     env = ModuleEnvelope(id=action_id, kind="event", type="action.failed", ts=0,
                          data={"action_id": action_id, "reason": "test_refuse"})
     await adapter.handle_event(CHANNEL_ID, env)
     after = await _get_points(db, CHANNEL_ID, "alice")
-    assert_eq(after - mid, 500, "refund credited exactly 500")
+    assert_eq(after - mid, CHARGE_PRICE, f"refund credited exactly {CHARGE_PRICE}")
     assert_eq(after, before, "points fully restored (back to START)")
 
     # Idempotent: повторный action.failed (или поздний реальный event) → НЕ двойной refund.
@@ -465,6 +531,39 @@ async def test_army_create_server_gates(db, buy):
               "exactly 1 hero.army_create enqueued for the mod")
 
 
+async def test_retired_action_not_purchasable(db, buy):
+    """9. Убранное из продажи НЕ покупается — и это закреплено тестом.
+
+    Этот блок появился из-за самого себя. 2026-07-29 `player.respawn` убрали из
+    продажи (механики нет — за ним была заглушка `EchoHandler`), и тест кассы,
+    который был на нём построен, лёг красным на полдня незамеченным.
+
+    Теперь у уборки есть страховка с двух сторон: действие обязано отсутствовать
+    в списке покупаемого И отказывать в кассе, не списывая ничего. Если кто-то
+    вернёт его в продажу не подумав — упадёт здесь, а не у зрителя в кошельке.
+    """
+    print(f"\n[9] Retired action — {RETIRED_ACTION} снят с продажи и не покупается")
+    from routes.bannerlord import _PURCHASABLE_ACTIONS, ACTION_PRICES_DEFAULT
+
+    assert_true(RETIRED_ACTION not in _PURCHASABLE_ACTIONS,
+                f"{RETIRED_ACTION} НЕ в _PURCHASABLE_ACTIONS")
+    assert_true(RETIRED_ACTION not in ACTION_PRICES_DEFAULT,
+                f"{RETIRED_ACTION} НЕ в ACTION_PRICES_DEFAULT (цены нет)")
+
+    await _set_points(db, CHANNEL_ID, "alice", START_POINTS)
+    before = await _get_points(db, CHANNEL_ID, "alice")
+    actions_before = await _count_actions(db, CHANNEL_ID, RETIRED_ACTION)
+
+    res = await buy(_make_anon_request(), "alice", CHANNEL_ID, RETIRED_ACTION,
+                    {"client_action_id": "retired-1"})
+
+    assert_eq(res.get("success"), False, "покупка снятого действия отклонена")
+    after = await _get_points(db, CHANNEL_ID, "alice")
+    assert_eq(after, before, "баланс не тронут")
+    assert_eq(await _count_actions(db, CHANNEL_ID, RETIRED_ACTION), actions_before,
+              "команда моду НЕ поставлена")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
@@ -483,6 +582,7 @@ async def _run():
         await test_power_activate_per_power_price(db, buy)
         await test_refund_on_ack_failure(db, buy)
         await test_army_create_server_gates(db, buy)
+        await test_retired_action_not_purchasable(db, buy)
     finally:
         # Закрываем пул и удаляем temp-БД (реальную viewers.db НЕ трогаем).
         try:

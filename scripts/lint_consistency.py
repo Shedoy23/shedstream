@@ -836,6 +836,96 @@ def check_season_rotation_sweeps_all():
                 f"finished = 0 и разбирать каждую, как в routes/duel.py")
 
 
+_CREDIT_RE = re.compile(
+    r"(add_points_tx\s*\(|add_points\s*\(|points\s*=\s*points\s*\+)", re.IGNORECASE)
+# Возврат уплаченного — разрешён правилом явно. Узнаём по имени функции.
+_REFUND_FN_RE = re.compile(r"refund|_on_action_failed|expire", re.IGNORECASE)
+_CURRENCY_WAIVER = "currency-ok:"
+
+
+def _selftest_currency_boundary() -> bool:
+    """Детектор обязан узнавать начисление в игровом модуле."""
+    bad = 'await db.add_points(username, 500, channel_id=cid)'
+    good = 'await db.remove_points_tx(conn, username, 500, cid)'
+    return bool(_CREDIT_RE.search(bad)) and not _CREDIT_RE.search(good)
+
+
+def check_currency_boundary():
+    """Крустики начисляются ТОЛЬКО в ядре; в игровых модулях — лишь возврат.
+
+    Решение владельца 2026-07-29 (`PLATFORM_VISION.md` §«Граница валют»):
+    крустики зарабатываются просмотром и активностью, а внутри интеграций
+    только ТРАТЯТСЯ. Причина историческая: рента с феодов уже вырезана в мае за
+    то, что зритель богател, ничего не делая. Возврат уплаченного — не
+    нарушение.
+
+    До 2026-07-31 у правила не было машинной проверки: оно жило в CLAUDE.md и
+    держалось на внимательности. Эта проверка сразу нашла живой пример —
+    отключённый аукцион (`routes/bannerlord_auctions.py`), который двигает
+    крустики между зрителями и вернулся бы к жизни от одной строки
+    `include_router`.
+
+    Исключения помечаются `# currency-ok: <причина>` на строке начисления.
+    """
+    backend = EXT / "backend"
+    if not backend.is_dir():
+        return
+    if not _selftest_currency_boundary():
+        errors.append(
+            "currency-boundary: linter SELF-TEST FAILED -- детектор не узнаёт "
+            "начисление, значит чистый прогон ничего не значит")
+        return
+
+    targets = []
+    mod_dir = backend / "modules"
+    if mod_dir.is_dir():
+        targets += [p for p in sorted(mod_dir.rglob("*.py"))
+                    if p.parent.name not in ("modules",)]
+    routes = backend / "routes"
+    if routes.is_dir():
+        for game in ("bannerlord", "rimworld", "shedcolony"):
+            targets += sorted(routes.glob(f"{game}*.py"))
+    rw = backend / "rimworld.py"
+    if rw.is_file():
+        targets.append(rw)
+
+    for path in targets:
+        try:
+            src = path.read_text(encoding="utf-8", errors="ignore")
+            tree = ast.parse(src)
+        except (OSError, SyntaxError):
+            continue
+        # Карта «строка → имя ближайшей функции», чтобы отличить возврат.
+        owner = {}
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef)):
+                end = getattr(node, "end_lineno", node.lineno)
+                for ln in range(node.lineno, end + 1):
+                    owner[ln] = node.name
+        src_lines = src.splitlines()
+        for i, line in enumerate(src_lines, 1):
+            stripped = line.strip()
+            if stripped.startswith("#"):
+                continue
+            if not _CREDIT_RE.search(line):
+                continue
+            # Оговорка ищется на самой строке и в трёх строках над ней: SQL
+            # часто разбит по строкам, и коммент естественно ставить перед ним.
+            window = src_lines[max(0, i - 4):i]
+            if _CURRENCY_WAIVER in line or any(_CURRENCY_WAIVER in w for w in window):
+                continue
+            fn = owner.get(i, "")
+            if _REFUND_FN_RE.search(fn):
+                continue          # возврат уплаченного — разрешён
+            rel = path.relative_to(EXT / "backend")
+            errors.append(
+                f"currency-boundary: {rel}:{i} начисляет крустики внутри "
+                f"игрового модуля (функция `{fn or '?'}`). Крустики зарабатываются "
+                f"только в ядре; здесь допустим лишь возврат уплаченного. "
+                f"Если это всё-таки возврат — назови функцию так, чтобы это было "
+                f"видно, либо поставь `# {_CURRENCY_WAIVER} <причина>`")
+
+
 def main() -> int:
     if EXT is None:
         print("[lint] FAIL: could not locate extension dir (with backend/)")
@@ -847,7 +937,8 @@ def main() -> int:
                check_frontend_global_collisions, check_undefined_names,
                check_sold_actions_have_entry,
                check_partial_index_has_sweeper,
-               check_season_rotation_sweeps_all):
+               check_season_rotation_sweeps_all,
+               check_currency_boundary):
         try:
             fn()
         except Exception as e:  # a broken check shouldn't crash CI silently

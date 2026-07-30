@@ -251,6 +251,7 @@ async def bid_auction(request: Request):
             if current_bidder and current_bid > 0:
                 # Refund previous bidder
                 await conn.execute(
+                    # currency-ok: возврат ставки предыдущему лидеру. Файл ОТКЛЮЧЁН 29.07 (роутер не подключён, эндпоинты 404).
                     "UPDATE viewers SET points = points + ? "
                     "WHERE channel_id=? AND username=?",
                     (current_bid, channel_id, current_bidder))
@@ -379,6 +380,7 @@ async def cancel_auction(request: Request):
             for bidder, amount in refund_rows:
                 if amount and amount > 0:
                     await conn.execute(
+                        # currency-ok: возврат ставки при отмене лота. Файл ОТКЛЮЧЁН 29.07.
                         "UPDATE viewers SET points = points + ? "
                         "WHERE channel_id=? AND username=?",
                         (amount, channel_id, bidder))
@@ -428,6 +430,7 @@ async def _resolve_one_auction(conn, auction_id: int) -> str:
         # No qualifying bids — refund last bid (if any below reserve)
         if current_bidder and current_bid > 0:
             await conn.execute(
+                # currency-ok: возврат ставки при закрытии лота без победителя. Файл ОТКЛЮЧЁН 29.07.
                 "UPDATE viewers SET points = points + ? "
                 "WHERE channel_id=? AND username=?",
                 (current_bid, channel_id, current_bidder))
@@ -444,6 +447,7 @@ async def _resolve_one_auction(conn, auction_id: int) -> str:
     # Successful sale — transfer item ownership + seller получает 90% bid.
     seller_payout = int(current_bid * (100 - HOUSE_CUT_PCT) / 100)
     await conn.execute(
+        # currency-ok: ВЫПЛАТА ПРОДАВЦУ — это НЕ возврат, а перевод крустиков между зрителями. Нарушает границу валют. Файл отключён 29.07; если механику вернут, правило пересмотреть ЯВНО (DEFERRED §C0-sexdecies).
         "UPDATE viewers SET points = points + ? "
         "WHERE channel_id=? AND username=?",
         (seller_payout, channel_id, seller))

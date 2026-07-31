@@ -1,5 +1,7 @@
 using System;
+using System.Linq;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Settlements;
 
 namespace BannerlordLink.Util
 {
@@ -126,40 +128,15 @@ namespace BannerlordLink.Util
                 BannerlordLinkModule.Log($"[{tag}] OnClanCreated warn: {ex.Message}");
             }
 
-            // Дом клана. Безфиефный клан с пустым HomeSettlement роняет
-            // ванильный дневной тик по NRE — этот урок в проекте уже усвоен в
-            // методе найма NPC-вассала («иначе ванильный daily-tick роняет NRE
-            // на null HomeSettlement»), но в соседние места перенесён не был.
-            // Ставим здесь, чтобы к нему больше не возвращаться.
-            try
+            // Дом и «центр» фракции. Без них ванильный дневной тик роняет игру
+            // — подробности в EnsureHomeAndMid. Клан без центра НЕПРИГОДЕН:
+            // лучше отказать в покупке (зритель получит возврат), чем уронить
+            // игру на стриме.
+            if (!EnsureHomeAndMid(clan, tag))
             {
-                if (clan.HomeSettlement == null)
-                {
-                    clan.ConsiderAndUpdateHomeSettlement();
-                }
-            }
-            catch (Exception ex)
-            {
-                BannerlordLinkModule.Log($"[{tag}] HomeSettlement warn: {ex.Message}");
-            }
-
-            // «Центр» фракции. Ваниль считает его явно при создании клана
-            // (`CreateSettlementRebelClan`: HomeSettlement → CalculateMidSettlement
-            // → OnClanCreated). Мы этот шаг пропускали, и `FactionMidSettlement`
-            // оставался null.
-            //
-            // Цена пропуска — КРАШ ИГРЫ НА СТРИМЕ 31.07 в 21:10. Выборы за
-            // владение (`SettlementClaimantDecision`) читают его без проверки:
-            //     Settlement mid = faction.FactionMidSettlement;
-            //     ... if (faction.FactionMidSettlement.MapFaction != faction)  ← NRE
-            // Падает на дневном тике, то есть у зрителей на глазах.
-            try
-            {
-                clan.CalculateMidSettlement();
-            }
-            catch (Exception ex)
-            {
-                BannerlordLinkModule.Log($"[{tag}] CalculateMidSettlement warn: {ex.Message}");
+                BannerlordLinkModule.Log(
+                    $"[{tag}] не удалось назначить дом/центр — клан непригоден, прерываем");
+                return false;
             }
 
             BannerlordLinkModule.Log(
@@ -167,6 +144,86 @@ namespace BannerlordLink.Util
                 + $"известность {clan.Renown}, дом '{clan.HomeSettlement?.Name?.ToString() ?? "—"}', "
                 + $"центр '{clan.FactionMidSettlement?.Name?.ToString() ?? "—"}'");
             return true;
+        }
+
+        /// <summary>
+        /// Гарантировать клану дом (`HomeSettlement`) и «центр фракции»
+        /// (`FactionMidSettlement`). false → центр назначить не удалось.
+        ///
+        /// ЗАЧЕМ. Выборы за владение читают центр без проверки на null:
+        ///
+        ///     Settlement factionMidSettlement = faction.FactionMidSettlement;
+        ///     ...
+        ///     if (faction.FactionMidSettlement.MapFaction != faction)   ← NRE
+        ///     (DefaultSettlementValueModel.GeographicalAdvantageForFaction)
+        ///
+        /// Вызывается это на ДНЕВНОМ ТИКЕ, когда королевство делит феод, то
+        /// есть падает у зрителей на глазах. Цена — два краша на стриме 31.07.
+        ///
+        /// ПОЧЕМУ ОДНОГО `CalculateMidSettlement()` МАЛО (первая версия этой
+        /// починки была именно такой и дыру не закрывала). Для клана без
+        /// владений движок берёт центр из дома:
+        ///
+        ///     if (faction.Settlements.Count == 0)
+        ///         result = clan.HomeSettlement;      (FactionHelper)
+        ///
+        /// а дом для клана без владений и без королевства он берёт из
+        /// `InitialHomeSettlement`:
+        ///
+        ///     if (... || clan.MapFaction.Settlements.Count == 0)
+        ///         return clan.InitialHomeSettlement; (DefaultSettlementValueModel)
+        ///
+        /// Мы `SetInitialHomeSettlement` не звали никогда — ваниль в своём
+        /// пути (`CreateCompanionToLordClan`) зовёт его явно. Итог: null → null
+        /// → null, и расчёт центра честно возвращает null.
+        ///
+        /// ЭТО ЖЕ ЛЕЧИТ СТАРЫЕ СОХРАНЁНКИ. `Clan.AfterLoad` заканчивается
+        /// вызовом `CalculateMidSettlement()`, но он снова даёт null, пока дом
+        /// пуст — то есть клан, созданный до этой починки, остаётся миной в
+        /// каждой последующей загрузке, а не «чинится сам».
+        ///
+        /// Цепочка запасных вариантов взята у самой ванили (её миграция на
+        /// v1.3.0 в `Clan.AfterLoad`): дом → поселение своей культуры → любое.
+        /// </summary>
+        public static bool EnsureHomeAndMid(Clan clan, string tag)
+        {
+            if (clan == null) return false;
+
+            try
+            {
+                if (clan.HomeSettlement == null)
+                {
+                    clan.ConsiderAndUpdateHomeSettlement();
+                }
+
+                if (clan.HomeSettlement == null)
+                {
+                    Settlement home = clan.Leader?.BornSettlement;
+
+                    if (home == null)
+                        home = Campaign.Current.Settlements
+                            .FirstOrDefault(s => s.IsTown && s.Culture == clan.Culture);
+                    if (home == null)
+                        home = Campaign.Current.Settlements.FirstOrDefault(s => s.IsTown);
+                    if (home == null)
+                        home = Campaign.Current.Settlements.FirstOrDefault();
+
+                    if (home != null)
+                    {
+                        // Ставит InitialHomeSettlement и сам пересчитывает дом.
+                        clan.SetInitialHomeSettlement(home);
+                    }
+                }
+
+                clan.CalculateMidSettlement();
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[{tag}] EnsureHomeAndMid упал: {ex.Message}");
+                return false;
+            }
+
+            return clan.FactionMidSettlement != null;
         }
     }
 }

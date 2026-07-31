@@ -166,38 +166,42 @@ namespace BannerlordLink.Behaviors
         /// Падает на дневном тике, то есть у зрителей на глазах.
         ///
         /// Создание уже починено (`ClanFactory`), но кланы, ЗАВЕДЁННЫЕ РАНЬШЕ,
-        /// сидят в сейве со сломанным полем и продолжают ронять игру. Поэтому
-        /// на каждой загрузке пересчитываем его всем кланам, у кого он пуст —
-        /// операция дешёвая и идемпотентная, ваниль делает ровно это же.
+        /// сидят в сейве со сломанным полем. Сами они НЕ починятся: `AfterLoad`
+        /// пересчитывает центр, но у клана без владений он выводится из дома, а
+        /// дом у наших кланов пуст — значит каждая загрузка даёт тот же null.
+        /// Поэтому чиним через `ClanFactory.EnsureHomeAndMid`, который сначала
+        /// назначает дом. (Первая версия этой процедуры звала голый
+        /// `CalculateMidSettlement()` — то есть повторяла ванильный расчёт и
+        /// чинила ровно ничего.)
+        ///
+        /// Лог пишем ВСЕГДА, даже при нуле: молчание неотличимо от «не
+        /// отработало», а это единственное доказательство, что проход был.
         /// </summary>
         private void RepairClanMidSettlements()
         {
             try
             {
                 int fixedCount = 0;
+                int failedCount = 0;
                 var all = Clan.All;
                 if (all == null) return;
                 foreach (var clan in all)
                 {
                     if (clan == null || clan.IsEliminated) continue;
                     if (clan.FactionMidSettlement != null) continue;
-                    try
+                    if (BannerlordLink.Util.ClanFactory.EnsureHomeAndMid(clan, "mid-repair"))
+                        fixedCount++;
+                    else
                     {
-                        clan.CalculateMidSettlement();
-                        if (clan.FactionMidSettlement != null) fixedCount++;
-                    }
-                    catch (Exception ex)
-                    {
+                        failedCount++;
                         BannerlordLinkModule.Log(
-                            $"[mid-repair] '{clan.Name}': {ex.Message}");
+                            $"[mid-repair] клан '{clan.Name}' остался без центра — "
+                            + "он уронит игру на выборах за владение");
                     }
                 }
-                if (fixedCount > 0)
-                {
-                    BannerlordLinkModule.Log(
-                        $"[mid-repair] восстановлен центр фракции у {fixedCount} клан(ов) — "
-                        + "без него выборы за владение роняют игру");
-                }
+                BannerlordLinkModule.Log(
+                    $"[mid-repair] проход по {all.Count} кланам: починено {fixedCount}, "
+                    + $"не удалось {failedCount}");
             }
             catch (Exception ex)
             {

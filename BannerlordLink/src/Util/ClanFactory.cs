@@ -143,9 +143,29 @@ namespace BannerlordLink.Util
                 BannerlordLinkModule.Log($"[{tag}] HomeSettlement warn: {ex.Message}");
             }
 
+            // «Центр» фракции. Ваниль считает его явно при создании клана
+            // (`CreateSettlementRebelClan`: HomeSettlement → CalculateMidSettlement
+            // → OnClanCreated). Мы этот шаг пропускали, и `FactionMidSettlement`
+            // оставался null.
+            //
+            // Цена пропуска — КРАШ ИГРЫ НА СТРИМЕ 31.07 в 21:10. Выборы за
+            // владение (`SettlementClaimantDecision`) читают его без проверки:
+            //     Settlement mid = faction.FactionMidSettlement;
+            //     ... if (faction.FactionMidSettlement.MapFaction != faction)  ← NRE
+            // Падает на дневном тике, то есть у зрителей на глазах.
+            try
+            {
+                clan.CalculateMidSettlement();
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[{tag}] CalculateMidSettlement warn: {ex.Message}");
+            }
+
             BannerlordLinkModule.Log(
                 $"[{tag}] клан '{clan.Name}' готов: лидер '{leader.Name}', тир {clan.Tier}, "
-                + $"известность {clan.Renown}, дом '{clan.HomeSettlement?.Name?.ToString() ?? "—"}'");
+                + $"известность {clan.Renown}, дом '{clan.HomeSettlement?.Name?.ToString() ?? "—"}', "
+                + $"центр '{clan.FactionMidSettlement?.Name?.ToString() ?? "—"}'");
             return true;
         }
     }

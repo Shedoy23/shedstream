@@ -2619,6 +2619,70 @@ pending_<action_id>` и ждёт подтверждения из игры. От�
   вассалов: чего нет в игре, того не должно быть и в базе. Не делаю сегодня:
   это отдельная механика, а не правка.
 
+## C0-septenvicies. КРАШ НА СТРИМЕ 31.07 21:10 — клан без «центра фракции»
+
+Владелец сообщил про два краша за стрим. Дамп разобран, причина найдена
+точно — и это НЕ то, что мы чинили днём.
+
+### Стек
+
+```
+DefaultSettlementValueModel.GeographicalAdvantageForFaction(...)   ← NRE
+DefaultSettlementValueModel.CalculateSettlementValueForFaction(...)
+SettlementClaimantDecision.DetermineSupport(Clan, ...)
+KingdomElection.Setup()
+Kingdom.AddDecision(...)
+SettlementClaimantCampaignBehavior.DailyTickSettlement(...)
+```
+
+Это **выборы за владение** — кому из кланов достанется поселение. Гоняются
+на дневном тике.
+
+### Точный null
+
+```csharp
+private static float GeographicalAdvantageForFaction(Settlement settlement, IFaction faction)
+{
+    Settlement factionMidSettlement = faction.FactionMidSettlement;
+    float distance = ...GetDistance(settlement, factionMidSettlement, ...);
+    if (faction.FactionMidSettlement.MapFaction != faction)      // ← NRE
+```
+
+`FactionMidSettlement` читается **без проверки на null**.
+
+### Почему у нас он пустой
+
+Ваниль считает его ЯВНО при создании клана
+(`Clan.CreateSettlementRebelClan`):
+
+```csharp
+clan.HomeSettlement = settlement;
+clan.CalculateMidSettlement();                    ← этого шага у нас не было
+CampaignEventDispatcher.Instance.OnClanCreated(clan, false);
+```
+
+Мы этот вызов не делали ни в одном из трёх мест создания клана. Значит у
+КАЖДОГО созданного нами клана поле пустое, и первые же выборы за владение
+роняют игру — у зрителей на глазах.
+
+**Шестой за сутки случай одного класса:** ваниль делает шаг, которого у нас нет.
+
+### Что сделано
+
+1. **`CalculateMidSettlement()` добавлен в общий `ClanFactory`** — покрывает все
+   три пути создания сразу.
+2. **Лечение уже сломанных.** Кланы, заведённые РАНЬШЕ, сидят в сейве с пустым
+   полем и продолжат ронять игру. На каждой загрузке кампании
+   (`OnGameLoadFinished`) пересчитываем центр всем кланам, у кого он пуст.
+   Операция дешёвая и идемпотентная — ваниль делает ровно это же.
+   Пишет в лог `[mid-repair] восстановлен центр фракции у N клан(ов)`.
+
+Сборка `4C82765E`, поставлена в игру.
+
+- [ ] **Проверить: загрузить сейв и убедиться, что в логе есть `[mid-repair]`**,
+  а игра переживает несколько игровых дней подряд. До этого стримить рискованно:
+  выборы за владение идут сами, без участия зрителей.
+
 ## C. Ждёт проверки владельцем в игре
 
 Автотестов у мод-стороны нет — только живая проверка.

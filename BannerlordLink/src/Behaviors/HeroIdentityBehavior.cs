@@ -152,8 +152,62 @@ namespace BannerlordLink.Behaviors
         /// dict для existing [BLink] heroes которые не имеют записи в нашем
         /// dict (старый save до 5.32). One-time миграция: после первого save
         /// dict персистится через SyncData.</summary>
+        /// <summary>
+        /// Лечение кланов без «центра фракции» — по одному разу на загрузку.
+        ///
+        /// 2026-07-31, ПОСЛЕ КРАША НА СТРИМЕ (21:10). Наши кланы создавались без
+        /// `CalculateMidSettlement()`, который ваниль зовёт явно. В итоге
+        /// `FactionMidSettlement` оставался null, а выборы за владение
+        /// (`SettlementClaimantDecision` → `DefaultSettlementValueModel`) читают
+        /// его БЕЗ проверки:
+        ///
+        ///     if (faction.FactionMidSettlement.MapFaction != faction)   ← NRE
+        ///
+        /// Падает на дневном тике, то есть у зрителей на глазах.
+        ///
+        /// Создание уже починено (`ClanFactory`), но кланы, ЗАВЕДЁННЫЕ РАНЬШЕ,
+        /// сидят в сейве со сломанным полем и продолжают ронять игру. Поэтому
+        /// на каждой загрузке пересчитываем его всем кланам, у кого он пуст —
+        /// операция дешёвая и идемпотентная, ваниль делает ровно это же.
+        /// </summary>
+        private void RepairClanMidSettlements()
+        {
+            try
+            {
+                int fixedCount = 0;
+                var all = Clan.All;
+                if (all == null) return;
+                foreach (var clan in all)
+                {
+                    if (clan == null || clan.IsEliminated) continue;
+                    if (clan.FactionMidSettlement != null) continue;
+                    try
+                    {
+                        clan.CalculateMidSettlement();
+                        if (clan.FactionMidSettlement != null) fixedCount++;
+                    }
+                    catch (Exception ex)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[mid-repair] '{clan.Name}': {ex.Message}");
+                    }
+                }
+                if (fixedCount > 0)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[mid-repair] восстановлен центр фракции у {fixedCount} клан(ов) — "
+                        + "без него выборы за владение роняют игру");
+                }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[mid-repair] упал: {ex.Message}");
+            }
+        }
+
         private void OnGameLoadFinished()
         {
+            RepairClanMidSettlements();
             try
             {
                 int bootstrapped = 0;

@@ -2104,11 +2104,16 @@ async def _prepare_action(username, channel_id, action_type, data):
                 "success": False,
                 "message": "Сначала создай свой клан — королевство только для лидеров.",
             }
-        if kingdom_name_cur:
-            return {
-                "success": False,
-                "message": f"Твой клан уже в королевстве '{kingdom_name_cur}'. Сначала покинь.",
-            }
+        # 2026-07-31: убран отказ «сначала покинь королевство». Он и был
+        # причиной жалоб «зрители теряют поселение»: выход из королевства идёт
+        # через движковый ApplyByLeaveKingdom, который ЯВНО отбирает все
+        # владения клана в пользу бывшего короля. Зритель терял замки и
+        # основывал пустую корону за 5 млн.
+        # Движок умеет правильно: KingdomManager.CreateKingdom зовёт
+        # ApplyByCreateKingdom, и та выводит клан из старого королевства НЕ
+        # трогая владения. Проверка «уже в королевстве» нам не нужна — мод
+        # отдаёт действие движку, который разберётся сам.
+        # Разбор: DEFERRED §C0-tervicies.
         if hero_gold < KINGDOM_CREATE_COST:
             return {
                 "success": False,

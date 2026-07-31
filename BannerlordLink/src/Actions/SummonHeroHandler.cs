@@ -393,6 +393,14 @@ namespace BannerlordLink.Actions
                             BannerlordLinkModule.Log(
                                 $"[player.spawn:{sideLabel}] @{username} forced SetTeam → " +
                                 $"{(isPlayerSide ? "PlayerTeam" : "PlayerEnemyTeam")}");
+                            // Учёт боя зафиксировал сторону в OnAgentBuild, то
+                            // есть ДО этой строки. Не сказать ему — награда за
+                            // бой посчитается по стороне «до», и призванный
+                            // врагом получит деньги за победу стримера
+                            // (пост-стрим-триаж 31.07: 43 выплаты не в ту
+                            // сторону за вечер).
+                            BannerlordLink.Behaviors.KillRewardBehavior
+                                .RefreshSide(username);
                         }
                     }
                     catch (Exception ex)

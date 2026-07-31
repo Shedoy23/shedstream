@@ -43,27 +43,52 @@ namespace BannerlordLink.Actions
             if (string.IsNullOrEmpty(clanName))
                 return Task.FromResult<(bool, string)>((false, "clan_name required"));
 
-            MainThreadDispatcher.Enqueue(() => Apply(username, clanName));
+            string actionId = data["_action_id"]?.ToString();
+            MainThreadDispatcher.Enqueue(() => Apply(username, clanName, actionId));
             return Task.FromResult<(bool, string)>((true, null));
         }
 
-        private static void Apply(string username, string clanName)
+        /// <summary>
+        /// 2026-07-31, пост-стрим-триаж. Все отказы здесь были голым `return`.
+        /// Бэкенд ACK'ает успех ещё ДО того, как этот код выполнится (см.
+        /// `ActionFeedback`), поэтому молчаливый отказ = зритель видит «готово»
+        /// и не видит ничего. За вечер один зритель нажал семь раз подряд,
+        /// перебирая названия («Сарацины», «Сараниды», «южная империя» — это
+        /// вообще королевства, а не кланы), и ни разу не узнал, почему не
+        /// вышло. Денег он не потерял (динары списываются последним шагом,
+        /// крустиков у действия нет), но механика для него была мёртвой.
+        /// Теперь каждый отказ называет причину.
+        /// </summary>
+        private static void Apply(string username, string clanName, string actionId)
         {
             try
             {
                 var hero = HeroLookup.FindByUsername(username);
-                if (hero == null || !hero.IsAlive) return;
-                if (hero.IsPrisoner) return;
+                if (hero == null || !hero.IsAlive)
+                {
+                    ActionFeedback.PostFailed(actionId, "hero_not_found_or_dead");
+                    return;
+                }
+                if (hero.IsPrisoner)
+                {
+                    ActionFeedback.PostFailed(actionId, "hero_is_prisoner");
+                    return;
+                }
                 if (hero.IsClanLeader)
                 {
                     BannerlordLinkModule.Log(
                         $"[join_clan] @{username}: ты лидер '{hero.Clan?.Name}', сначала покинь свой clan");
+                    ActionFeedback.PostFailed(actionId, "is_clan_leader");
                     return;
                 }
 
                 // Find target clan — exact match first, then fuzzy contains
                 var all = Clan.All;
-                if (all == null) return;
+                if (all == null)
+                {
+                    ActionFeedback.PostFailed(actionId, "clans_unavailable");
+                    return;
+                }
                 var target = all.FirstOrDefault(c => c != null &&
                     string.Equals(c.Name?.ToString(), clanName, StringComparison.OrdinalIgnoreCase));
                 if (target == null)
@@ -75,18 +100,21 @@ namespace BannerlordLink.Actions
                 {
                     BannerlordLinkModule.Log(
                         $"[join_clan] @{username}: clan '{clanName}' не найден");
+                    ActionFeedback.PostFailed(actionId, "clan_not_found");
                     return;
                 }
                 if (target == hero.Clan)
                 {
                     BannerlordLinkModule.Log(
                         $"[join_clan] @{username}: ты уже в '{target.Name}'");
+                    ActionFeedback.PostFailed(actionId, "already_in_this_clan");
                     return;
                 }
                 if (target.IsEliminated)
                 {
                     BannerlordLinkModule.Log(
                         $"[join_clan] @{username}: clan '{target.Name}' уничтожен");
+                    ActionFeedback.PostFailed(actionId, "clan_eliminated");
                     return;
                 }
                 // 2026-06-10 — нельзя вступить в клан ИГРОКА: движок блокирует выход
@@ -96,18 +124,21 @@ namespace BannerlordLink.Actions
                 {
                     BannerlordLinkModule.Log(
                         $"[join_clan] @{username}: вступление в клан игрока '{target.Name}' запрещено (из него не выйти)");
+                    ActionFeedback.PostFailed(actionId, "player_clan_forbidden");
                     return;
                 }
                 if ((target.Heroes?.Count ?? 0) >= MAX_HEROES_PER_CLAN)
                 {
                     BannerlordLinkModule.Log(
                         $"[join_clan] @{username}: clan '{target.Name}' полный ({MAX_HEROES_PER_CLAN}/{MAX_HEROES_PER_CLAN})");
+                    ActionFeedback.PostFailed(actionId, "clan_full");
                     return;
                 }
                 if (hero.Gold < JOIN_COST)
                 {
                     BannerlordLinkModule.Log(
                         $"[join_clan] @{username}: not enough gold ({hero.Gold} < {JOIN_COST})");
+                    ActionFeedback.PostFailed(actionId, "not_enough_hero_gold");
                     return;
                 }
 

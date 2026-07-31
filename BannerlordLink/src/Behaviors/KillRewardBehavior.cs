@@ -401,17 +401,68 @@ namespace BannerlordLink.Behaviors
             return factor;
         }
 
-        /// <summary>True если agent на team стримера (alliance OK).</summary>
-        private static bool ComputeIsPlayerSide(Agent agent)
+        /// <summary>
+        /// Сторона агента: true — команда стримера (союз тоже считается).
+        ///
+        /// Возвращает false ЕСЛИ СЕЙЧАС ОПРЕДЕЛИТЬ НЕЛЬЗЯ (агента удалили,
+        /// команда ещё не назначена, миссия кончилась) — вызывающий обязан в
+        /// этом случае оставить прежнее значение, а не записывать «свой».
+        ///
+        /// 2026-07-31, пост-стрим-триаж. Раньше метод отдавал bool и на любой
+        /// неопределённости возвращал false — то есть «чужой» и «не знаю» были
+        /// неразличимы. Вместе с защёлкой `if (!s.IsPlayerSide)` это давало
+        /// переворот стороны у всех призванных врагами (разбор — в шапке
+        /// RefreshSide).
+        /// </summary>
+        private static bool TryComputeIsPlayerSide(Agent agent, out bool isPlayerSide)
         {
+            isPlayerSide = false;
             try
             {
-                if (agent?.Team == null) return false;
+                if (agent == null || agent.Team == null) return false;
                 var playerTeam = Mission.Current?.PlayerTeam;
                 if (playerTeam == null) return false;
-                return agent.Team.Side == playerTeam.Side;
+                isPlayerSide = agent.Team.Side == playerTeam.Side;
+                return true;
             }
             catch { return false; }
+        }
+
+        /// <summary>
+        /// Пересчитать сторону зрителя по ЖИВОМУ агенту.
+        ///
+        /// ЗАЧЕМ (пост-стрим-триаж 31.07, 43 неверные выплаты за вечер).
+        /// Призыв «врагом» ставит команду вручную ПОСЛЕ рождения агента
+        /// (`SummonHeroHandler`: forced SetTeam → PlayerEnemyTeam — так же
+        /// делает BLT, движок иначе берёт сторону из партии-источника). А
+        /// сторона фиксировалась в `OnAgentBuild`, то есть ДО этого момента,
+        /// и пересчитывалась только «пока флаг ложный»:
+        ///
+        ///     if (!s.IsPlayerSide) s.IsPlayerSide = Compute(agent);
+        ///
+        /// Условие выполнимо лишь в одну сторону: как только флаг встал в
+        /// «свой», он замерзал навсегда. По логу — 120 случаев из 120, где
+        /// SetTeam шёл ПОСЛЕ фиксации стороны.
+        ///
+        /// Цена: награда за бой считается как `IsPlayerSide == playerVictory`.
+        /// У призванного врагом она переворачивалась — он получал деньги
+        /// победителя, проиграв, и штраф, победив. За вечер 31.07: 43 выплаты
+        /// из 209, ~192 000💰 не в ту сторону.
+        ///
+        /// Липкость нужна и остаётся: после смерти агента команду уже не
+        /// спросить, а награда начисляется в конце боя. Поэтому значение
+        /// обновляется только когда его реально удалось определить.
+        /// </summary>
+        public static void RefreshSide(string username)
+        {
+            var inst = _instance;
+            if (inst == null || string.IsNullOrEmpty(username)) return;
+            if (!inst._participants.TryGetValue(username, out var s) || s == null) return;
+            if (!TryComputeIsPlayerSide(s.Agent, out bool side)) return;
+            if (s.IsPlayerSide == side) return;
+            s.IsPlayerSide = side;
+            BannerlordLinkModule.Log(
+                $"[KillReward] @{username} сторона уточнена → {(side ? "player" : "enemy")}");
         }
 
         /// <summary>Возвращает state string для overlay: active/routed/unconscious/killed.</summary>
@@ -460,10 +511,14 @@ namespace BannerlordLink.Behaviors
                 _participants[username] = s;
             }
             s.Agent = agent;
-            // Side detection sticky (определяем при первом OnAgentBuild)
-            if (!s.IsPlayerSide)
+            // Сторона: пишем только если её удалось определить. Значение здесь
+            // ПРЕДВАРИТЕЛЬНОЕ — призыв врагом переставляет команду сразу после
+            // рождения агента, поэтому дальше её уточняют RefreshSide и
+            // периодический snapshot. Прежняя защёлка `if (!s.IsPlayerSide)`
+            // это уточнение и блокировала.
+            if (TryComputeIsPlayerSide(agent, out bool builtSide))
             {
-                s.IsPlayerSide = ComputeIsPlayerSide(agent);
+                s.IsPlayerSide = builtSide;
             }
             BannerlordLinkModule.Log(
                 $"[KillReward] @{username} entered Mission " +
@@ -1272,12 +1327,15 @@ namespace BannerlordLink.Behaviors
                             if (hpMax <= 0) hpMax = 100;
                             alive = s.Agent.IsActive() && hp > 0;
                             state = ComputeAgentState(s.Agent);
-                            // Refresh side если не определён (mutating one field
-                            // на копии — безопасно)
-                            if (!isPlayerSide)
+                            // Уточняем сторону, пока агент жив и её видно.
+                            // Раньше здесь стояло `if (!isPlayerSide)` — та же
+                            // защёлка, что и в OnAgentBuild: значение могло
+                            // меняться только в одну сторону и намертво
+                            // застревало на «свой».
+                            if (TryComputeIsPlayerSide(s.Agent, out bool liveSide))
                             {
-                                isPlayerSide = ComputeIsPlayerSide(s.Agent);
-                                s.IsPlayerSide = isPlayerSide;
+                                isPlayerSide = liveSide;
+                                s.IsPlayerSide = liveSide;
                             }
                         }
                     }

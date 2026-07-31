@@ -107,8 +107,12 @@ namespace BannerlordLink.Actions
                 }
 
                 // Create new Clan через engine API. Pattern из CreateClanHandler.
-                var nameObj = new TextObject(vassalName);
-                Clan newClan = Clan.CreateClan(vassalName);  // engine assigns StringId
+                // Имя с приставкой сюзерена — чтобы в списке кланов было видно,
+                // чей это вассал (просьба владельца 31.07).
+                string displayName = ClanFactory.BuildVassalName(
+                    parentHero?.Clan?.Name?.ToString(), vassalName);
+                var nameObj = new TextObject(displayName);
+                Clan newClan = Clan.CreateClan(displayName);  // engine assigns StringId
                 if (newClan == null)
                 {
                     BannerlordLinkModule.Log("[vassal.create] CreateClan returned null");
@@ -383,6 +387,10 @@ namespace BannerlordLink.Actions
                     : clanName;
 
                 // 4. Клан — clan-setup verbatim из CreateVassalClanHandler.
+                // Та же приставка сюзерена, что и у создаваемого вассала:
+                // иначе два вида вассалов выглядят в списке по-разному.
+                finalName = ClanFactory.BuildVassalName(
+                    hero?.Clan?.Name?.ToString(), finalName);
                 var nameObj = new TextObject(finalName);
                 Clan newClan = Clan.CreateClan(finalName);
                 if (newClan == null)

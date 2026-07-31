@@ -41,6 +41,35 @@ namespace BannerlordLink.Util
     /// </summary>
     public static class ClanFactory
     {
+
+        /// <summary>
+        /// Имя вассального клана с приставкой, из которой видно сюзерена.
+        ///
+        /// 2026-07-31, по просьбе владельца: в списке кланов вассалы ничем не
+        /// отличались от прочих, и понять, чей это вассал, было нельзя.
+        /// Формат: `[Vassal Седые] Кавиловы`.
+        ///
+        /// Из имени сюзерена убираем наш служебный префикс `[BLink] `, иначе
+        /// получаются вложенные скобки — `[Vassal [BLink] Седые]`.
+        /// </summary>
+        public static string BuildVassalName(string suzerainClanName, string vassalName)
+        {
+            string suzerain = (suzerainClanName ?? "").Trim();
+            const string blink = "[BLink] ";
+            if (suzerain.StartsWith(blink, StringComparison.OrdinalIgnoreCase))
+                suzerain = suzerain.Substring(blink.Length).Trim();
+
+            string own = (vassalName ?? "").Trim();
+            if (string.IsNullOrEmpty(own)) own = "Vassal Clan";
+            if (string.IsNullOrEmpty(suzerain)) return own;
+
+            // Повторный запуск по уже переименованному клану не должен плодить
+            // приставку поверх приставки.
+            if (own.StartsWith("[Vassal ", StringComparison.OrdinalIgnoreCase)) return own;
+
+            return $"[Vassal {suzerain}] {own}";
+        }
+
         /// <summary>
         /// Назначить лидера и довести клан до рабочего состояния.
         /// false → клан НЕПРИГОДЕН, вызывающий обязан прервать действие и не

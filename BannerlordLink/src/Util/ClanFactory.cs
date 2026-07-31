@@ -97,8 +97,26 @@ namespace BannerlordLink.Util
                 BannerlordLinkModule.Log($"[{tag}] OnClanCreated warn: {ex.Message}");
             }
 
+            // Дом клана. Безфиефный клан с пустым HomeSettlement роняет
+            // ванильный дневной тик по NRE — этот урок в проекте уже усвоен в
+            // методе найма NPC-вассала («иначе ванильный daily-tick роняет NRE
+            // на null HomeSettlement»), но в соседние места перенесён не был.
+            // Ставим здесь, чтобы к нему больше не возвращаться.
+            try
+            {
+                if (clan.HomeSettlement == null)
+                {
+                    clan.ConsiderAndUpdateHomeSettlement();
+                }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[{tag}] HomeSettlement warn: {ex.Message}");
+            }
+
             BannerlordLinkModule.Log(
-                $"[{tag}] клан '{clan.Name}' готов: лидер '{leader.Name}', тир {clan.Tier}, известность {clan.Renown}");
+                $"[{tag}] клан '{clan.Name}' готов: лидер '{leader.Name}', тир {clan.Tier}, "
+                + $"известность {clan.Renown}, дом '{clan.HomeSettlement?.Name?.ToString() ?? "—"}'");
             return true;
         }
     }

@@ -125,8 +125,13 @@ namespace BannerlordLink.Actions
                         BannerlordLinkModule.Log($"[vassal.create] banner warn: {bex.Message}");
                     }
                 }
-                // Vassal kingdom = parent's kingdom (если есть). MVP — null (independent).
-                newClan.Kingdom = null;
+                // 2026-07-31: раньше здесь стояло `newClan.Kingdom = null` с
+                // пометкой «MVP — independent». Владелец заметил в игре сразу:
+                // вассальный клан не состоит в государстве своего сюзерена, то
+                // есть вассалом он является только на словах.
+                // Вступление делаем ниже, ПОСЛЕ назначения лидера: движок при
+                // входе в королевство трогает лидера клана.
+                Kingdom parentKingdom = parentHero?.Clan?.Kingdom;
                 // Stand-alone clan; small renown starter
                 newClan.AddRenown(50f, false);
                 // Home settlement — heir's current settlement OR fallback to parent's home.
@@ -146,6 +151,30 @@ namespace BannerlordLink.Actions
                 {
                     ActionFeedback.PostFailed(actionId, "clan_leader_not_set");
                     return;
+                }
+
+                // Вассал обязан состоять в государстве сюзерена — иначе он
+                // «вассал» только по названию (замечено владельцем в игре).
+                // Делаем движковым действием, а не присвоением `Kingdom`:
+                // ApplyByJoinToKingdom правит и дипломатические отношения.
+                // Ровно так же поступает соседний метод найма NPC-вассала.
+                if (parentKingdom != null)
+                {
+                    try
+                    {
+                        ChangeKingdomAction.ApplyByJoinToKingdom(
+                            newClan, parentKingdom, showNotification: false);
+                        BannerlordLinkModule.Log(
+                            $"[vassal.create] '{newClan.Name}' вступил в '{parentKingdom.Name}'");
+                    }
+                    catch (Exception kex)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[vassal.create] вступление в королевство упало: {kex.Message}");
+                        // Не абортим: клан с лидером уже валиден, просто
+                        // остаётся независимым. Зритель получит вассала, но
+                        // вне государства — это лучше, чем откат созданного.
+                    }
                 }
 
                 // Списать стоимость вассал-клана с инициатора (динары).

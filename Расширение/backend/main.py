@@ -434,9 +434,14 @@ async def run_migrations():
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS rimworld_pending_commands (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                cmd_id TEXT UNIQUE,
+                channel_id INTEGER NOT NULL,
+                cmd_id TEXT NOT NULL,
                 cmd_json TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                status TEXT DEFAULT 'queued',
+                dedup_key TEXT,
+                delivered_at REAL,
+                UNIQUE(channel_id, cmd_id)
             )
         """)
 
@@ -1370,6 +1375,13 @@ async def run_migrations():
             await m105_season_payout_log.apply(conn)
         except Exception as e:
             print(f"❌ M105 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
+        try:
+            from migrations import m106_rimworld_pawn_children_scope
+            await m106_rimworld_pawn_children_scope.apply(conn)
+        except Exception as e:
+            print(f"❌ M106 migration FAILED: {type(e).__name__}: {e}")
             raise
 
         print("✅ Migrations complete")

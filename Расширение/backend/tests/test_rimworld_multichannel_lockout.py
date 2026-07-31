@@ -1,34 +1,14 @@
 """
-test_rimworld_multichannel_lockout.py — внешний аудит, находка 2: легаси-RimWorld
-закрывается, как только каналов становится больше одного.
+test_rimworld_multichannel_lockout.py — retirement test for the temporary
+multi-channel lockout.
 
 Standalone (без pytest). Запуск:
     cd Расширение/backend
     python tests/test_rimworld_multichannel_lockout.py
 
-## Что за дыра
-
-`rimworld.py` — легаси-монолит вне tenant-линтера. Изоляции по каналу нет
-сразу на трёх путях:
-
-  * `/api/rimworld/commands` берёт канал из токена и НЕ использует его; очередь
-    процесса общая, восстановление из БД выбирает команды без `channel_id` —
-    мод канала B забирает команду канала A (аудитор воспроизвёл: токен канала
-    222 получил команду канала 111 на 150💎);
-  * ACK ищет и удаляет строку только по `cmd_id`, без канала;
-  * `/api/rimworld/session-start` делает ГЛОБАЛЬНЫЙ `DELETE FROM rimworld_pawns`
-    — запуск игры на канале B стирает пешек канала A.
-
-## Почему замок, а не изоляция
-
-Правильная починка — переписать монолит, но в RimWorld сейчас никто не играет,
-и проверить правку в игре нечем. Поэтому закрываем ровно то условие, при котором
-дефект становится реальным: больше одного канала. Пока канал один — путать
-нечего; появится второй — легаси откажет ГРОМКО (503), а не испортит данные тихо.
-
-## Красный до фикса
-
-    ❌ [2] при двух каналах дверь закрыта: expected 503, got пропустила
+The real isolation assertions live in test_rimworld_multichannel_runtime.py.
+This file proves that adding a second approved channel no longer disables the
+working RimWorld connector now that queue/ACK/session state is channel-scoped.
 """
 from __future__ import annotations
 
@@ -102,9 +82,8 @@ async def _build_db(db_path: str):
 
 
 async def _door_open(rw) -> bool:
-    """True, если дверь пропускает (замок не сработал)."""
+    """True if connector auth is not rejected by an obsolete 503 lockout."""
     from fastapi import HTTPException
-    rw._mc_lockout_cache = None          # сбрасываем кэш между сценариями
     try:
         await rw.rimworld_mod_auth(_Req())
         return True
@@ -124,14 +103,14 @@ async def _run():
         assert_eq(await _door_open(rw), True,
                   "[1] при одном канале дверь открыта (ничего не сломали)")
 
-        print("\n[2] Появился второй канал — легаси закрывается")
+        print("\n[2] Появился второй канал — оба коннектора продолжают работать")
         async with db._connect() as conn:
             await conn.execute(
                 "INSERT OR IGNORE INTO channels (channel_id, login, display_name, "
                 " tier, approved) VALUES (?, 'b', 'B', 'free', 1)", (CHANNEL_B,))
             await conn.commit()
-        assert_eq(await _door_open(rw), False,
-                  "[2] при двух каналах дверь закрыта (503)")
+        assert_eq(await _door_open(rw), True,
+                  "[2] при двух каналах временного 503-замка больше нет")
 
         print("\n[3] Неодобренный канал не считается — заявка мода не имеет")
         async with db._connect() as conn:
@@ -156,7 +135,7 @@ async def _run():
 
 def main():
     print("=" * 70)
-    print("Внешний аудит, находка 2 — замок легаси-RimWorld на мультиканал")
+    print("RimWorld — временный multi-channel lockout снят")
     print("=" * 70)
     try:
         asyncio.run(_run())
@@ -172,7 +151,7 @@ def main():
         for f in _failures:
             print(f)
         sys.exit(1)
-    print("ALL GREEN ✅ — второй канал не сможет тихо испортить данные первого.")
+    print("ALL GREEN ✅ — второй канал не выключает RimWorld.")
     sys.exit(0)
 
 

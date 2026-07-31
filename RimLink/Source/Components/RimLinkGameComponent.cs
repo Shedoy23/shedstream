@@ -158,6 +158,8 @@ namespace RimLink.Components
                         {
                             #if DEBUG
                             Log.Warning($"[RimLink] Heartbeat failed: {ex.Message}");
+                            #else
+                            _ = ex;
                             #endif
                         }
                     });

@@ -140,13 +140,47 @@ namespace BannerlordLink.Actions
 
                 // Transfer heir into new clan as leader.
                 heir.Clan = newClan;
+                // 2026-07-31, ПОСЛЕ КРАША ИГРЫ. Здесь исключение ПРОГЛАТЫВАЛОСЬ, и
+                // код ехал дальше: создавал клан БЕЗ ЛИДЕРА, списывал 250 000💰 и
+                // регистрировал автоследование. Игра падала на следующем тике.
+                //
+                // Почему падало назначение: `ChangeClanLeaderAction` — это СМЕНА
+                // существующего лидера, движок внутри обращается к текущему
+                // (`clan.Leader`). У только что созданного клана его нет → NRE.
+                //
+                // Путь этот до 31.07 вообще не исполнялся: поиск наследника падал
+                // раньше (7 отказов из 7), и поломка была не видна. Починив поиск,
+                // я её и вскрыл — а проглоченное исключение превратило её в краш
+                // вместо честного отказа.
+                //
+                // Теперь: не смогли поставить лидера — откатываем всё и отказываем.
+                // Лучше зритель получит деньги назад, чем сломанный клан в сейве.
+                bool leaderOk = false;
                 try
                 {
                     ChangeClanLeaderAction.ApplyWithSelectedNewLeader(newClan, heir);
+                    leaderOk = newClan.Leader == heir;
                 }
                 catch (Exception lex)
                 {
-                    BannerlordLinkModule.Log($"[vassal.create] SetLeader warn: {lex.Message}");
+                    BannerlordLinkModule.Log($"[vassal.create] SetLeader упал: {lex.Message}");
+                }
+                if (!leaderOk)
+                {
+                    BannerlordLinkModule.Log(
+                        "[vassal.create] ОТКАЗ: лидер клана не назначен — откатываем, "
+                        + "иначе в кампании остаётся клан без лидера (краш 31.07)");
+                    try
+                    {
+                        heir.Clan = parentHero != null ? parentHero.Clan : null;
+                        DestroyClanAction.Apply(newClan);
+                    }
+                    catch (Exception dex)
+                    {
+                        BannerlordLinkModule.Log($"[vassal.create] откат клана: {dex.Message}");
+                    }
+                    ActionFeedback.PostFailed(actionId, "clan_leader_not_set");
+                    return;
                 }
 
                 // Списать стоимость вассал-клана с инициатора (динары).

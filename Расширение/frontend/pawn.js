@@ -5,7 +5,9 @@ async function loadColonists() {
     const deadEl = document.getElementById('colonist-dead');
 
     try {
-        const r = await fetch(`${API_URL}/api/rimworld/colonists`);
+        const r = await fetch(`${API_URL}/api/rimworld/colonists`, {
+            headers: {'X-Twitch-JWT': authToken || ''}
+        });
         const data = await r.json();
         const colonists = data.colonists || [];
 
@@ -454,7 +456,9 @@ async function loadMyPawn() {
             if (resBtn)  resBtn.style.display  = !pawnData.alive ? 'flex' : 'none';
             // Восстанавливаем таймер КД лечения
             try {
-                const cd = await fetch(`${API_URL}/api/rimworld/heal-cooldown/${encodeURIComponent(userLogin)}`);
+                const cd = await fetch(`${API_URL}/api/rimworld/heal-cooldown/${encodeURIComponent(userLogin)}`, {
+                    headers: {'X-Twitch-JWT': authToken || ''}
+                });
                 const cdData = await cd.json();
                 if (cdData.cooldown_left > 0) startBtnCountdown('heal-pawn-btn', cdData.cooldown_left);
             } catch (e) {}
@@ -483,7 +487,9 @@ async function loadMyPawn() {
 async function healMyPawn() {
     // Сначала проверяем КД на сервере
     try {
-        const cd = await fetch(`${API_URL}/api/rimworld/heal-cooldown/${encodeURIComponent(userLogin)}`);
+        const cd = await fetch(`${API_URL}/api/rimworld/heal-cooldown/${encodeURIComponent(userLogin)}`, {
+            headers: {'X-Twitch-JWT': authToken || ''}
+        });
         const cdData = await cd.json();
         if (cdData.cooldown_left > 0) {
             const mins = Math.floor(cdData.cooldown_left / 60);

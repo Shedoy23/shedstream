@@ -37,7 +37,9 @@ async function openXenotypeModal() {
 
     // Загружаем каталог ксенотипов
     try {
-        const r = await fetch(`${API_URL}/api/rimworld/catalog?category=xenotype&username=${encodeURIComponent(userLogin)}`);
+        const r = await fetch(`${API_URL}/api/rimworld/catalog?category=xenotype&username=${encodeURIComponent(userLogin)}`, {
+            headers: {'X-Twitch-JWT': authToken || ''}
+        });
         const d = await r.json();
         window._xenotypeCatalog = d.items || [];
         renderXenotypeList(window._xenotypeCatalog);
@@ -172,7 +174,9 @@ async function openNeuroModal() {
         // из него 12 нейротренеров. Бэкенд умеет фильтровать по категории —
         // просим сразу нужное (так же, как строкой 40 для ксенотипов).
         const usernameParam = userLogin ? `&username=${encodeURIComponent(userLogin)}` : '';
-        const r = await fetch(`${API_URL}/api/rimworld/catalog?category=neurotrainer${usernameParam}`);
+        const r = await fetch(`${API_URL}/api/rimworld/catalog?category=neurotrainer${usernameParam}`, {
+            headers: {'X-Twitch-JWT': authToken || ''}
+        });
         const data = await r.json();
         modal._neuroItems = (data.items || [])
             .filter(i => (i.category || i.type) === 'neurotrainer')
@@ -250,7 +254,9 @@ async function openPassionModal() {
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 
     try {
-        const r = await fetch(`${API_URL}/api/rimworld/pawn-skills/${encodeURIComponent(userLogin)}`);
+        const r = await fetch(`${API_URL}/api/rimworld/pawn-skills/${encodeURIComponent(userLogin)}`, {
+            headers: {'X-Twitch-JWT': authToken || ''}
+        });
         const d = await r.json();
         const list = document.getElementById('passion-skills-list');
         if (!list) return;

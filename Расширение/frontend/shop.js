@@ -21,7 +21,9 @@ async function loadShopCatalog() {
 async function _loadShopCatalogOnce() {
     try {
         const usernameParam = userLogin ? `?username=${encodeURIComponent(userLogin)}` : '';
-        const r = await fetch(`${API_URL}/api/rimworld/catalog${usernameParam}`);
+        const r = await fetch(`${API_URL}/api/rimworld/catalog${usernameParam}`, {
+            headers: {'X-Twitch-JWT': authToken || ''}
+        });
         const data = await r.json();
         // Нормализуем поля: API шлёт label/def_name/category, JS ждёт name/def/type
         // neurotrainer → кнопка 🧠 в карточке пешки
@@ -223,7 +225,9 @@ async function buyImplant(itemDef, itemName, isPaired) {
     // Парный имплант — определяем занятость сторон через implants[] пешки
     let occupiedLeft = false, occupiedRight = false;
     try {
-        const resp = await fetch(`${API_URL}/api/rimworld/my-pawn/${userLogin}`);
+        const resp = await fetch(`${API_URL}/api/rimworld/my-pawn/${userLogin}`, {
+            headers: {'X-Twitch-JWT': authToken || ''}
+        });
         const data = await resp.json();
         if (data.exists) {
             // Импланты хранятся в hediffs (is_paired + is_left)

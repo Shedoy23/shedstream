@@ -169,7 +169,7 @@ namespace RimLink.API
         }
 
         /// <summary>Подтверждает выполнение команды серверу.</summary>
-        public void AckCommand(string commandId, bool success, string message = "")
+        public bool AckCommand(string commandId, bool success, string message, out string error)
         {
             try
             {
@@ -184,10 +184,15 @@ namespace RimLink.API
                 #if DEBUG
                 Log.Message($"[RimLink] Command {commandId} acknowledged (success={success})");
                 #endif
+                error = null;
+                return true;
             }
             catch (Exception e)
             {
-                Log.Warning($"[RimLink] AckCommand failed: {e.Message}");
+                // CommandQueue повторяет ACK в фоне. Не логируем каждый
+                // кратковременный сетевой сбой, иначе один обрыв заспамит лог.
+                error = e.Message;
+                return false;
             }
         }
 

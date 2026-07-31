@@ -105,7 +105,8 @@ async def main():
     })
 
     async with db._connect() as conn:
-        refunded = await rw._refund_cmd_row_tx(conn, "gene_test_1", cmd_json, "mod_refused")
+        refunded = await rw._refund_cmd_row_tx(
+            conn, CHANNEL, "gene_test_1", cmd_json, "mod_refused")
         await conn.commit()
     check(refunded, "рефанд отработал")
 
@@ -140,7 +141,8 @@ async def main():
         "channel_id": CHANNEL,
     })
     async with db._connect() as conn:
-        await rw._refund_cmd_row_tx(conn, "trait_test_1", cmd_json_t, "mod_refused")
+        await rw._refund_cmd_row_tx(
+            conn, CHANNEL, "trait_test_1", cmd_json_t, "mod_refused")
         await conn.commit()
 
     t_after = await db.get_purchase_count(USER, "trait", CHANNEL)
@@ -157,7 +159,8 @@ async def main():
         "channel_id": CHANNEL,
     })
     async with db._connect() as conn:
-        await rw._refund_cmd_row_tx(conn, "heal_test_1", cmd_json_h, "mod_refused")
+        await rw._refund_cmd_row_tx(
+            conn, CHANNEL, "heal_test_1", cmd_json_h, "mod_refused")
         await conn.commit()
     check(await db.get_purchase_count(USER, "gene", CHANNEL) == h_before,
           "рефанд команды без прогрессивной цены (heal) счётчик НЕ трогает")

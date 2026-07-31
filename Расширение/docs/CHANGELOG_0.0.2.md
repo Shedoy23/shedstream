@@ -124,6 +124,27 @@
 *Практическое следствие до выпуска:* не переключать канал на RimWorld — у
 зрителей его магазин мёртв.
 
+### RimWorld больше не смешивает каналы
+
+Независимый аудит нашёл четыре связанных дефекта в старом RimWorld API:
+мод одного стримера мог забрать и подтвердить команду другого; запуск новой
+сессии удалял пешек всех каналов; одинаковый Twitch-логин у двух стримеров
+смешивал пешек и их навыки; online/offline и кулдаун лечения были глобальными.
+
+Теперь очередь, выдача, ACK, возвраты, сессии, пешки со всеми дочерними данными,
+каталоги, кулдауны и heartbeat привязаны к `channel_id` из подписанного
+viewer/module-токена. Чужой ACK является no-op и не может ни удалить команду,
+ни вернуть чужие деньги. Миграция M106 сохраняет существующие данные и
+проставляет канал дочерним строкам из их родительской пешки.
+
+RimLink также повторяет потерянный ACK почти всё десятиминутное окно сервера и
+при повторной доставке воспроизводит исходный результат команды, а не отвечает
+успехом вслепую. Автоматически проверено двумя каналами: 25 runtime-проверок,
+9 RimWorld test scripts и сборка C# без предупреждений. Живой прогон в игре
+перед выкладкой всё ещё обязателен.
+
+*Сделано 2026-07-31.*
+
 ### Зритель узнаёт, ПОЧЕМУ действие не сработало
 
 Раньше отказ игры возвращал крустики молча. Зритель видел только, что баланс
@@ -353,9 +374,9 @@ ShedLink 0.0.2
 
 Changes:
 1. Fixed the RimWorld shop: two scripts declared a function with the same name
-   in the shared global scope, so every purchase was routed to the pet-cosmetics
-   endpoint and failed with "item not found in catalog". The shop is functional
-   again.
+   in the shared global scope, so apparel, weapon, implant and neurotrainer
+   purchases were routed to the pet-cosmetics endpoint and failed with
+   "item not found in catalog". These shop categories are functional again.
 2. Viewers now see WHY a paid action was refused instead of silently getting
    their currency back. The game mod reports a machine-readable reason code; the
    backend turns it into a human sentence and stores it in the same transaction
@@ -384,6 +405,12 @@ Changes:
    it now identifies a shield by its own attributes.
 7. The panel can be collapsed with the same kind of edge tab that opens it,
    instead of only a small close button in the header.
+8. RimWorld state is now isolated per broadcaster. Command polling, ACKs and
+   refunds cannot cross channel boundaries; starting one game session no longer
+   deletes another channel's pawns; pawn details, cooldowns, catalogs and online
+   status use the channel from signed Twitch/module tokens. The RimWorld mod also
+   retries lost ACKs and preserves the original result when a command is
+   delivered more than once.
 
 Compatibility:
 - No new Twitch permissions or capabilities were added.

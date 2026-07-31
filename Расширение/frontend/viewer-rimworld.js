@@ -12,7 +12,9 @@ let rimworldOnline = false;
 
 async function checkRimworldStatus() {
     try {
-        const r = await fetch(`${API_URL}/api/rimworld/status`);
+        const r = await fetch(`${API_URL}/api/rimworld/status`, {
+            headers: {'X-Twitch-JWT': authToken || ''}
+        });
         const data = await r.json();
         rimworldOnline = data.online;
         updateRimworldStatusUI();
@@ -77,7 +79,9 @@ let eventsSearchQuery = '';
 
 async function loadRimworldEvents() {
     try {
-        const r = await fetch(`${API_URL}/api/rimworld/events`);
+        const r = await fetch(`${API_URL}/api/rimworld/events`, {
+            headers: {'X-Twitch-JWT': authToken || ''}
+        });
         const data = await r.json();
         rimworldEvents = data.events || [];
         renderEvents();

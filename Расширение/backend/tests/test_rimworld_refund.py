@@ -100,8 +100,9 @@ async def _row_count(db, cmd_id: str):
     import aiosqlite
     async with aiosqlite.connect(db.db_path) as conn:
         cur = await conn.execute(
-            "SELECT COUNT(*) FROM rimworld_pending_commands WHERE cmd_id=?",
-            (cmd_id,))
+            "SELECT COUNT(*) FROM rimworld_pending_commands "
+            "WHERE channel_id=? AND cmd_id=?",
+            (CHANNEL_ID, cmd_id))
         return (await cur.fetchone())[0]
 
 
@@ -139,11 +140,10 @@ async def _run():
     async def serve_to_mod():
         """Симуляция GET /commands (внутренности, без auth)."""
         async with rw.get_commands_lock():
-            return await rw._get_commands_inner()
+            return await rw._get_commands_inner(CHANNEL_ID)
 
     async def enqueue(cmd):
-        async with rw.get_commands_lock():
-            rw.get_pending().append(cmd)
+        cmd["channel_id"] = CHANNEL_ID
         await rw._db_enqueue_command(cmd)
 
     try:
@@ -156,7 +156,8 @@ async def _run():
         assert_eq(len([c for c in served if c["id"] == "t1"]), 1, "команда выдана моду")
         before = await _get_points(db, "alice")
         await rw.ack_command(_make_json_request(
-            {"command_id": "t1", "success": False, "message": "no_effect"}))
+            {"command_id": "t1", "success": False, "message": "no_effect"}),
+            CHANNEL_ID)
         after = await _get_points(db, "alice")
         assert_eq(after - before, 500, "возврат ровно 500")
         assert_eq(await _row_count(db, "t1"), 0, "строка очереди удалена")
@@ -164,7 +165,8 @@ async def _run():
         # ── [2] повторный fail-ack → идемпотентно ──
         print("\n[2] повторный fail-ack того же cmd_id → двойного возврата НЕТ")
         await rw.ack_command(_make_json_request(
-            {"command_id": "t1", "success": False, "message": "no_effect"}))
+            {"command_id": "t1", "success": False, "message": "no_effect"}),
+            CHANNEL_ID)
         after2 = await _get_points(db, "alice")
         assert_eq(after2, after, "баланс не изменился на повторе")
 
@@ -175,7 +177,9 @@ async def _run():
         await enqueue(cmd)
         await serve_to_mod()
         before = await _get_points(db, "alice")
-        await rw.ack_command(_make_json_request({"command_id": "t3", "success": True}))
+        await rw.ack_command(
+            _make_json_request({"command_id": "t3", "success": True}),
+            CHANNEL_ID)
         assert_eq(await _get_points(db, "alice"), before, "баланс не тронут на успехе")
         assert_eq(await _row_count(db, "t3"), 0, "строка удалена на успехе")
 
@@ -199,12 +203,14 @@ async def _run():
         assert_eq(await _row_count(db, "t4"), 0, "stale-строка удалена")
 
         # ── [5] legacy-команда без price → no-op ──
-        print("\n[5] legacy cmd без price/channel_id → fail-ack не падает и не платит")
+        print("\n[5] legacy cmd без price → fail-ack не падает и не платит")
         cmd = {"type": "heal_pawn", "id": "t5", "username": "alice"}
         await enqueue(cmd)
         await serve_to_mod()
         before = await _get_points(db, "alice")
-        await rw.ack_command(_make_json_request({"command_id": "t5", "success": False}))
+        await rw.ack_command(
+            _make_json_request({"command_id": "t5", "success": False}),
+            CHANNEL_ID)
         assert_eq(await _get_points(db, "alice"), before, "без price возврата нет (0)")
         assert_eq(await _row_count(db, "t5"), 0, "legacy-строка удалена")
 

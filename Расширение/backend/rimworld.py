@@ -1,9 +1,7 @@
 # rimworld.py — RimWorld legacy routes (1981 line monolith).
 #
-# tenant-lint: skip-file — RimWorld module is currently OFF; its multi-tenant
-#   scoping misses (queries by username with no channel_id, full-table scans) are
-#   tracked for fix-on-reactivation (task_f2662300, see SUBMIT_AND_REVIEW.md).
-#   Remove this marker when those queries get channel_id so the gate re-arms here.
+# Multi-tenant invariant: every RimWorld runtime path is scoped by channel_id.
+# The historical tenant-lint skip was removed when the module was reactivated.
 #
 # DEPRECATION NOTICE (2026-05-08):
 # Этот файл — исторический monolith с 30+ /api/rimworld/* endpoint'ами.
@@ -50,7 +48,12 @@ from config import sanitize_username, RIMWORLD_OFFLINE_TIMEOUT
 # require_admin живёт в dependencies (брутфорс-защита + ContextVar channel_id) — раньше тут был
 # прокси на main.require_admin, который после переезда падал AttributeError → 500 на всех
 # admin-эндпоинтах модуля (лог-триаж 2026-07-04).
-from dependencies import require_admin, require_jwt_channel, require_jwt_user
+from dependencies import (
+    require_admin,
+    require_jwt_channel,
+    require_jwt_user,
+    resolve_channel_id_or_default,
+)
 
 router = APIRouter()
 
@@ -85,64 +88,10 @@ BASE_TRAIT_PRICE   = 1000   # база прогрессивной цены че�
 # Влияет ТОЛЬКО на mod→backend ingest; вьюверский RimWorld-таб (read-эндпоинты) не задет.
 _RIMWORLD_REQUIRE_TOKEN = os.getenv("RIMWORLD_REQUIRE_TOKEN", "1").lower() in ("1", "true", "yes")
 _rimworld_soft_warned = False
-_mc_lockout_cache = None   # (locked: bool, ts: float) — см. _multi_channel_lockout
-
-async def _multi_channel_lockout() -> bool:
-    """True, если каналов больше одного — тогда легаси-RimWorld закрыт.
-
-    Считаем ОДОБРЕННЫЕ каналы: неодобренная заявка мода не имеет. Результат
-    кэшируем на минуту — дверь дёргается на каждый запрос мода (long-poll),
-    а число каналов меняется раз в месяцы.
-    """
-    global _mc_lockout_cache
-    now = time.time()
-    cached = _mc_lockout_cache
-    if cached and now - cached[1] < 60:
-        return cached[0]
-    try:
-        async with get_db()._connect() as conn:
-            cur = await conn.execute(
-                "SELECT COUNT(*) FROM channels WHERE approved = 1")  # tenant-ok: счёт каналов
-            n = (await cur.fetchone())[0] or 0
-    except Exception:
-        return False          # не смогли посчитать — не ломаем работающий канал
-    locked = n > 1
-    _mc_lockout_cache = (locked, now)
-    if locked:
-        print(f"⛔ [rimworld] каналов {n} > 1 — легаси-маршруты закрыты "
-              f"(нет изоляции по каналу, см. DEFERRED C0-novemdecies)")
-    return locked
-
-
 async def rimworld_mod_auth(request: Request):
     """Verify the RimWorld module-token on a mod-ingest request. Returns the
     token's channel_id when valid; in SOFT mode returns None (allowed) for a
     missing/invalid token, in STRICT mode raises 401."""
-    # 2026-07-31 ВНЕШНИЙ АУДИТ (находка 2). Этот файл — легаси-монолит, он
-    # целиком вне tenant-линтера (`tenant-lint: skip-file`), и изоляции по
-    # каналу в нём НЕТ на трёх путях сразу:
-    #   * `/commands` берёт канал из токена в `_auth` и НЕ использует его —
-    #     очередь процесса общая, а восстановление из БД выбирает команды без
-    #     `channel_id`. Мод канала B забирает команду канала A;
-    #   * ACK ищет и удаляет строку только по `cmd_id`, без канала;
-    #   * `/session-start` делает ГЛОБАЛЬНЫЙ `DELETE FROM rimworld_pawns` —
-    #     запуск игры на канале B стирает пешек канала A.
-    # Аудитор воспроизвёл первый пункт: токен канала 222 получил команду
-    # канала 111 (alice, 150💎).
-    #
-    # Чинить это правильно = переписать легаси-монолит, а в RimWorld сейчас
-    # никто не играет и проверить правку в игре нечем. Поэтому ставим ЗАМОК
-    # ровно на условие, при котором дефект становится реальным: больше одного
-    # канала в системе. Пока канал один, перепутать нечего; как только
-    # появится второй — легаси-путь откажет громко, а не испортит данные тихо.
-    # Снять замок можно только вместе с настоящей изоляцией по channel_id.
-    if await _multi_channel_lockout():
-        raise HTTPException(
-            status_code=503,
-            detail="rimworld legacy routes disabled: multi-channel setup "
-                   "detected and these routes are not channel-isolated "
-                   "(see DEFERRED C0-novemdecies)")
-
     from routes.streamer import verify_module_token  # lazy import: avoid cycle
     auth = request.headers.get("Authorization", "")
     token = auth[7:].strip() if auth[:7].lower() == "bearer " else ""
@@ -216,6 +165,11 @@ def get_bot():
     return _main.bot
 
 def get_pending():
+    """Deprecated compatibility hook for old tests.
+
+    Runtime delivery is DB-backed and channel-scoped. New code must never append
+    here: a process-global list cannot safely serve more than one streamer.
+    """
     import main as _main
     return _main.pending_commands
 
@@ -300,7 +254,8 @@ async def _ensure_pending_commands_table(conn):
 _DELIVERED_STALE_SEC = 600
 
 
-async def _refund_cmd_row_tx(conn, cmd_id: str, cmd_json: str, reason: str) -> bool:
+async def _refund_cmd_row_tx(conn, channel_id: int, cmd_id: str,
+                             cmd_json: str, reason: str) -> bool:
     """Возврат очков за невыполненную команду. На переданном conn, БЕЗ commit —
     вызывающий держит транзакцию (возврат + DELETE строки = атомарно, повторный
     ack не найдёт строку → двойного возврата нет)."""
@@ -311,8 +266,13 @@ async def _refund_cmd_row_tx(conn, cmd_id: str, cmd_json: str, reason: str) -> b
         return False
     price = int(cmd.get("price") or 0)
     username = (cmd.get("username") or "").strip()
-    channel_id = cmd.get("channel_id")
-    if price <= 0 or not username or not channel_id:
+    cmd_channel_id = int(cmd.get("channel_id") or 0)
+    if cmd_channel_id != int(channel_id):
+        raise RuntimeError(
+            f"RimWorld command {cmd_id!r} channel mismatch: "
+            f"row={channel_id}, payload={cmd_channel_id}"
+        )
+    if price <= 0 or not username:
         # Команды до 2026-07-19 без price/channel_id — вернуть нечего/некому.
         print(f"DBG refund guard: price={price} user={username!r} ch={channel_id!r} raw={cmd_json[:120]!r}")
         return False
@@ -336,19 +296,23 @@ async def _refund_cmd_row_tx(conn, cmd_id: str, cmd_json: str, reason: str) -> b
     return True
 
 
-async def _refund_stale_delivered(conn):
+async def _refund_stale_delivered(conn, channel_id: int):
     """Авто-рефанд команд, доставленных моду, но не подтверждённых слишком долго
     (мод крашнулся между выдачей и выполнением). Вызывается под commands_lock."""
     cutoff = time.time() - _DELIVERED_STALE_SEC
     cur = await conn.execute(
         "SELECT cmd_id, cmd_json FROM rimworld_pending_commands "
-        "WHERE status='delivered' AND delivered_at IS NOT NULL AND delivered_at < ?",
-        (cutoff,))
+        "WHERE channel_id=? AND status='delivered' "
+        "AND delivered_at IS NOT NULL AND delivered_at < ?",
+        (channel_id, cutoff))
     rows = await cur.fetchall()
     for cmd_id, cmd_json in rows:
-        await _refund_cmd_row_tx(conn, cmd_id, cmd_json, "stale_delivered")
+        await _refund_cmd_row_tx(
+            conn, channel_id, cmd_id, cmd_json, "stale_delivered")
         await conn.execute(
-            "DELETE FROM rimworld_pending_commands WHERE cmd_id=?", (cmd_id,))
+            "DELETE FROM rimworld_pending_commands "
+            "WHERE channel_id=? AND cmd_id=?",
+            (channel_id, cmd_id))
 
 async def _db_enqueue_command(cmd: dict):
     """Сохранить команду в БД (переживёт рестарт сервера)"""
@@ -425,6 +389,10 @@ async def _charge_and_enqueue(username: str, channel_id: int, price: int,
     на рестарте.
     """
     db = get_db()
+    channel_id = int(channel_id)
+    # Token/JWT-derived channel is ground truth. Never trust a caller-provided
+    # channel embedded in a command body.
+    cmd["channel_id"] = channel_id
     async with aiosqlite.connect(db.db_path) as ddl_conn:
         await _ensure_pending_commands_table(ddl_conn)
         await ddl_conn.commit()
@@ -479,8 +447,6 @@ async def _charge_and_enqueue(username: str, channel_id: int, price: int,
                 pass
             raise
 
-    async with get_commands_lock():
-        get_pending().append(cmd)
     return True
 
 
@@ -527,7 +493,7 @@ async def _set_last_heal_ts(username: str, ts: float, channel_id: int):
     except Exception as e:
         print(f"⚠️ set_heal_ts: {e}")
 
-async def _db_dequeue_commands():
+async def _db_dequeue_commands(channel_id: int):
     """Достать невыданные команды из БД (восстановление после рестарта).
 
     2026-07-19 refund: строки НЕ удаляем — они помечаются delivered при выдаче
@@ -539,7 +505,9 @@ async def _db_dequeue_commands():
             await _ensure_pending_commands_table(conn)
             cursor = await conn.execute(
                 "SELECT cmd_json FROM rimworld_pending_commands "
-                "WHERE status='queued' OR status IS NULL ORDER BY id LIMIT 50")
+                "WHERE channel_id=? AND (status='queued' OR status IS NULL) "
+                "ORDER BY id LIMIT 50",
+                (channel_id,))
             rows = await cursor.fetchall()
             for row in rows:
                 try:
@@ -553,62 +521,81 @@ async def _db_dequeue_commands():
     return result
 
 # ===== ГЛОБАЛЬНЫЕ =====
-rimworld_last_heartbeat: datetime = None
+# Heartbeat is runtime state, but it is still tenant state. Keying by channel
+# prevents one running colony from making every streamer's RimWorld tab online.
+rimworld_last_heartbeat: dict[int, datetime] = {}
 # RIMWORLD_OFFLINE_TIMEOUT импортируется из config.py
 
 
 # ===== СТАТУС =====
 
+def _require_viewer_channel(request: Request) -> int:
+    """Вернуть tenant из Twitch JWT или честно отклонить публичное чтение."""
+    channel_id = require_jwt_channel(request)
+    if not channel_id:
+        raise HTTPException(status_code=401, detail="Twitch authorization required")
+    return int(channel_id)
+
+
 @router.get("/api/rimworld/status")
-async def rimworld_status():
+async def rimworld_status(request: Request):
     """Статус подключения RimWorld"""
-    global rimworld_last_heartbeat
-    if rimworld_last_heartbeat is None:
+    channel_id = _require_viewer_channel(request)
+    last_heartbeat = rimworld_last_heartbeat.get(channel_id)
+    if last_heartbeat is None:
         return {"online": False}
-    elapsed = (datetime.utcnow() - rimworld_last_heartbeat).total_seconds()
+    elapsed = (datetime.utcnow() - last_heartbeat).total_seconds()
     return {"online": elapsed < RIMWORLD_OFFLINE_TIMEOUT, "last_seen": int(elapsed)}
 
 @router.post("/api/rimworld/heartbeat")
-async def rimworld_heartbeat(_auth=Depends(rimworld_mod_auth)):
-    global rimworld_last_heartbeat
-    rimworld_last_heartbeat = datetime.utcnow()
+async def rimworld_heartbeat(mod_channel_id=Depends(rimworld_mod_auth)):
+    channel_id = resolve_channel_id_or_default(mod_channel_id)
+    rimworld_last_heartbeat[channel_id] = datetime.utcnow()
     return {"status": "ok"}
 
 @router.post("/api/rimworld/offline")
-async def rimworld_offline(_auth=Depends(rimworld_mod_auth)):
-    global rimworld_last_heartbeat
-    rimworld_last_heartbeat = None
+async def rimworld_offline(mod_channel_id=Depends(rimworld_mod_auth)):
+    channel_id = resolve_channel_id_or_default(mod_channel_id)
+    rimworld_last_heartbeat.pop(channel_id, None)
     return {"status": "ok"}
 
 
 # ===== СЕССИЯ =====
 
 @router.post("/api/rimworld/session-start")
-async def rimworld_session_start(_auth=Depends(rimworld_mod_auth)):
+async def rimworld_session_start(mod_channel_id=Depends(rimworld_mod_auth)):
     """Вызывается при загрузке игры — очищает старых пешек"""
+    channel_id = resolve_channel_id_or_default(mod_channel_id)
     db = get_db()
     async with aiosqlite.connect(db.db_path) as conn:
-        cursor = await conn.execute("SELECT COUNT(*) FROM rimworld_pawns")
+        cursor = await conn.execute(
+            "SELECT COUNT(*) FROM rimworld_pawns WHERE channel_id=?",
+            (channel_id,))
         count = (await cursor.fetchone())[0]
-        cursor2 = await conn.execute("SELECT id FROM rimworld_pawns")
+        cursor2 = await conn.execute(
+            "SELECT id FROM rimworld_pawns WHERE channel_id=?",
+            (channel_id,))
         rows = await cursor2.fetchall()
         for row in rows:
             pid = row[0]
             for tbl in ["rimworld_pawn_equipment", "rimworld_pawn_skills",
                         "rimworld_pawn_hediffs", "rimworld_pawn_traits", "rimworld_pawn_genes"]:
                 await conn.execute(f"DELETE FROM {tbl} WHERE pawn_id = ?", (pid,))
-        await conn.execute("DELETE FROM rimworld_pawns")
+        await conn.execute(
+            "DELETE FROM rimworld_pawns WHERE channel_id=?", (channel_id,))
         await conn.commit()
-    print(f"🔄 Session start: очищено {count} пешек")
+    print(f"🔄 [ch={channel_id}] Session start: очищено {count} пешек")
     return {"status": "ok", "cleared": count}
 
 
 # ===== СИНХРОНИЗАЦИЯ ПЕШКИ =====
 
 @router.post("/api/rimworld/sync-pawn")
-async def sync_pawn(request: Request, _auth=Depends(rimworld_mod_auth)):
+async def sync_pawn(request: Request,
+                    mod_channel_id=Depends(rimworld_mod_auth)):
     """Синхронизация одной пешки с детальными данными"""
     db = get_db()
+    channel_id = resolve_channel_id_or_default(mod_channel_id)
     try:
         data = await request.json()
         username  = data.get('username')
@@ -625,12 +612,16 @@ async def sync_pawn(request: Request, _auth=Depends(rimworld_mod_auth)):
         if not pawn_name:
             async with aiosqlite.connect(db.db_path) as conn:
                 cursor = await conn.execute(
-                    "SELECT id FROM rimworld_pawns WHERE username = ?", (username,))
+                    "SELECT id FROM rimworld_pawns "
+                    "WHERE channel_id=? AND username=?",
+                    (channel_id, username))
                 row = await cursor.fetchone()
                 if row:
                     # Помечаем мёртвой, НЕ удаляем — расширение должно показать кнопку воскрешения
                     await conn.execute(
-                        "UPDATE rimworld_pawns SET is_alive=0 WHERE username=?", (username,))
+                        "UPDATE rimworld_pawns SET is_alive=0 "
+                        "WHERE channel_id=? AND username=?",
+                        (channel_id, username))
                     await conn.commit()
             return {"status": "ok", "action": "marked_dead"}
 
@@ -641,18 +632,21 @@ async def sync_pawn(request: Request, _auth=Depends(rimworld_mod_auth)):
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS rimworld_pawns (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username TEXT UNIQUE,
+                    channel_id INTEGER NOT NULL,
+                    username TEXT NOT NULL,
                     pawn_name TEXT,
                     is_alive INTEGER DEFAULT 1,
                     health REAL DEFAULT 1.0,
                     world_id TEXT,
                     world_name TEXT,
-                    last_sync TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    last_sync TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(channel_id, username)
                 )
             """)
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS rimworld_pawn_traits (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    channel_id INTEGER NOT NULL,
                     pawn_id INTEGER,
                     trait_def TEXT,
                     degree INTEGER DEFAULT 0,
@@ -663,6 +657,7 @@ async def sync_pawn(request: Request, _auth=Depends(rimworld_mod_auth)):
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS rimworld_pawn_equipment (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    channel_id INTEGER NOT NULL,
                     pawn_id INTEGER,
                     slot TEXT,
                     item_def TEXT,
@@ -679,6 +674,7 @@ async def sync_pawn(request: Request, _auth=Depends(rimworld_mod_auth)):
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS rimworld_pawn_hediffs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    channel_id INTEGER NOT NULL,
                     pawn_id INTEGER,
                     body_part TEXT,
                     hediff_label TEXT,
@@ -689,7 +685,9 @@ async def sync_pawn(request: Request, _auth=Depends(rimworld_mod_auth)):
 
             # Ищем существующую пешку
             cursor = await conn.execute(
-                "SELECT id FROM rimworld_pawns WHERE username = ?", (username,))
+                "SELECT id FROM rimworld_pawns "
+                "WHERE channel_id=? AND username=?",
+                (channel_id, username))
             old_row = await cursor.fetchone()
 
             if old_row:
@@ -698,16 +696,21 @@ async def sync_pawn(request: Request, _auth=Depends(rimworld_mod_auth)):
                 await conn.execute("""
                     UPDATE rimworld_pawns
                     SET pawn_name=?, is_alive=?, health=?, world_id=?, world_name=?, last_sync=CURRENT_TIMESTAMP
-                    WHERE id=?
-                """, (pawn_name, 1 if is_alive else 0, health, world_id, world_name, pawn_id))
+                    WHERE channel_id=? AND id=?
+                """, (pawn_name, 1 if is_alive else 0, health, world_id,
+                      world_name, channel_id, pawn_id))
             else:
                 # Новая пешка
                 await conn.execute("""
-                    INSERT INTO rimworld_pawns (username, pawn_name, is_alive, health, world_id, world_name)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (username, pawn_name, 1 if is_alive else 0, health, world_id, world_name))
+                    INSERT INTO rimworld_pawns
+                    (channel_id, username, pawn_name, is_alive, health, world_id, world_name)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (channel_id, username, pawn_name, 1 if is_alive else 0,
+                      health, world_id, world_name))
                 cursor = await conn.execute(
-                    "SELECT id FROM rimworld_pawns WHERE username = ?", (username,))
+                    "SELECT id FROM rimworld_pawns "
+                    "WHERE channel_id=? AND username=?",
+                    (channel_id, username))
                 row = await cursor.fetchone()
                 if not row:
                     return {"status": "error", "message": "Failed to get pawn ID"}
@@ -715,7 +718,9 @@ async def sync_pawn(request: Request, _auth=Depends(rimworld_mod_auth)):
 
             # Очищаем старые данные
             for tbl in PAWN_DATA_TABLES:
-                await conn.execute(f"DELETE FROM {tbl} WHERE pawn_id = ?", (pawn_id,))
+                await conn.execute(
+                    f"DELETE FROM {tbl} WHERE channel_id=? AND pawn_id=?",
+                    (channel_id, pawn_id))
 
             # --- Экипировка ---
             for eq in data.get('equipment', []):
@@ -724,9 +729,11 @@ async def sync_pawn(request: Request, _auth=Depends(rimworld_mod_auth)):
                     'weapon_traits', 'psi_abilities', 'is_bladelink'
                 ) if eq.get(k) not in (None, '', [], {})}
                 await conn.execute("""
-                    INSERT INTO rimworld_pawn_equipment (pawn_id, slot, item_def, item_name, hp, meta)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    INSERT INTO rimworld_pawn_equipment
+                    (channel_id, pawn_id, slot, item_def, item_name, hp, meta)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                 """, (
+                    channel_id,
                     pawn_id,
                     eq.get('slot', 'body'),
                     eq.get('def_name', eq.get('item_def', '')),
@@ -739,6 +746,7 @@ async def sync_pawn(request: Request, _auth=Depends(rimworld_mod_auth)):
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS rimworld_pawn_skills (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    channel_id INTEGER NOT NULL,
                     pawn_id INTEGER,
                     skill_name TEXT,
                     skill_level INTEGER DEFAULT 0,
@@ -750,9 +758,10 @@ async def sync_pawn(request: Request, _auth=Depends(rimworld_mod_auth)):
             for skill in data.get('skills', []):
                 await conn.execute("""
                     INSERT INTO rimworld_pawn_skills
-                    (pawn_id, skill_name, skill_level, passion, xp, is_disabled)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    (channel_id, pawn_id, skill_name, skill_level, passion, xp, is_disabled)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                 """, (
+                    channel_id,
                     pawn_id,
                     skill.get('def_name', skill.get('name', skill.get('label', ''))),
                     skill.get('level', 0),
@@ -767,9 +776,11 @@ async def sync_pawn(request: Request, _auth=Depends(rimworld_mod_auth)):
                 if not tdef:
                     continue
                 await conn.execute("""
-                    INSERT INTO rimworld_pawn_traits (pawn_id, trait_def, degree, label, trait_desc)
-                    VALUES (?, ?, ?, ?, ?)
-                """, (pawn_id, tdef, t.get('degree', 0), t.get('label', ''), t.get('desc', '')))
+                    INSERT INTO rimworld_pawn_traits
+                    (channel_id, pawn_id, trait_def, degree, label, trait_desc)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (channel_id, pawn_id, tdef, t.get('degree', 0),
+                      t.get('label', ''), t.get('desc', '')))
 
             # --- Хедиффы (раны, болезни) ---
             for h in data.get('hediffs', []):
@@ -777,9 +788,11 @@ async def sync_pawn(request: Request, _auth=Depends(rimworld_mod_auth)):
                 if not label:
                     continue
                 await conn.execute("""
-                    INSERT INTO rimworld_pawn_hediffs (pawn_id, body_part, hediff_label, severity, age_ticks)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO rimworld_pawn_hediffs
+                    (channel_id, pawn_id, body_part, hediff_label, severity, age_ticks)
+                    VALUES (?, ?, ?, ?, ?, ?)
                 """, (
+                    channel_id,
                     pawn_id,
                     h.get('part', h.get('body_part', 'тело')),
                     label,
@@ -795,8 +808,8 @@ async def sync_pawn(request: Request, _auth=Depends(rimworld_mod_auth)):
                 await conn.execute("""
                     INSERT INTO rimworld_pawn_hediffs
                         (pawn_id, body_part, hediff_label, severity, age_ticks,
-                         hediff_def, part_def, is_paired, is_left)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         hediff_def, part_def, is_paired, is_left, channel_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     pawn_id,
                     h.get('part_label', h.get('part', 'тело')),
@@ -808,12 +821,14 @@ async def sync_pawn(request: Request, _auth=Depends(rimworld_mod_auth)):
                     1 if h.get('is_paired') else 0,
                     # is_left: True→1, False→0, ''→None
                     (1 if h.get('is_left') is True else (0 if h.get('is_left') is False else None)),
+                    channel_id,
                 ))
 
             # --- Гены (Biotech) ---
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS rimworld_pawn_genes (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    channel_id INTEGER NOT NULL,
                     pawn_id INTEGER NOT NULL,
                     def_name TEXT NOT NULL,
                     label TEXT,
@@ -829,9 +844,11 @@ async def sync_pawn(request: Request, _auth=Depends(rimworld_mod_auth)):
                 if not def_n:
                     continue
                 await conn.execute("""
-                    INSERT INTO rimworld_pawn_genes (pawn_id, def_name, label, is_active, xenogene, gene_class)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    INSERT INTO rimworld_pawn_genes
+                    (channel_id, pawn_id, def_name, label, is_active, xenogene, gene_class)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                 """, (
+                    channel_id,
                     pawn_id,
                     def_n,
                     g.get('label', def_n),
@@ -865,7 +882,7 @@ async def get_my_pawn(username: str, request: Request):
     auth = require_jwt_user(request)
     if not auth:
         return {"exists": False, "auth_required": True}
-    jwt_login, _channel_id = auth
+    jwt_login, channel_id = auth
     if sanitize_username(username) != jwt_login:
         return {"exists": False, "auth_required": True}
     db = get_db()
@@ -873,8 +890,8 @@ async def get_my_pawn(username: str, request: Request):
         async with aiosqlite.connect(db.db_path) as conn:
             cursor = await conn.execute("""
                 SELECT id, pawn_name, is_alive, health, world_id, world_name
-                FROM rimworld_pawns WHERE username = ?
-            """, (username,))
+                FROM rimworld_pawns WHERE channel_id=? AND username=?
+            """, (channel_id, username))
             pawn = await cursor.fetchone()
 
             if not pawn:
@@ -885,8 +902,9 @@ async def get_my_pawn(username: str, request: Request):
             # Экипировка (+ meta JSON с weapon_traits/psi/quality/и т.д.)
             cursor = await conn.execute("""
                 SELECT slot, item_def, item_name, hp, meta
-                FROM rimworld_pawn_equipment WHERE pawn_id = ?
-            """, (pawn_id,))
+                FROM rimworld_pawn_equipment
+                WHERE channel_id=? AND pawn_id=?
+            """, (channel_id, pawn_id))
             equipment = await cursor.fetchall()
 
             # Навыки с is_disabled
@@ -895,9 +913,9 @@ async def get_my_pawn(username: str, request: Request):
                        CASE WHEN COALESCE(is_disabled, 0) = 1 THEN 0 ELSE MAX(skill_level, 0) END,
                        passion, xp,
                        COALESCE(is_disabled, 0)
-                FROM rimworld_pawn_skills WHERE pawn_id = ?
+                FROM rimworld_pawn_skills WHERE channel_id=? AND pawn_id=?
                 ORDER BY skill_level DESC
-            """, (pawn_id,))
+            """, (channel_id, pawn_id))
             skills = await cursor.fetchall()
 
             # Черты
@@ -905,8 +923,9 @@ async def get_my_pawn(username: str, request: Request):
             try:
                 cursor = await conn.execute("""
                     SELECT trait_def, degree, label, trait_desc
-                    FROM rimworld_pawn_traits WHERE pawn_id = ?
-                """, (pawn_id,))
+                    FROM rimworld_pawn_traits
+                    WHERE channel_id=? AND pawn_id=?
+                """, (channel_id, pawn_id))
                 traits = await cursor.fetchall()
             except Exception:
                 pass
@@ -916,7 +935,8 @@ async def get_my_pawn(username: str, request: Request):
                 SELECT body_part, hediff_label, severity, age_ticks,
                        hediff_def, part_def, is_paired, is_left
                 FROM rimworld_pawn_hediffs WHERE pawn_id = ?
-            """, (pawn_id,))
+                  AND channel_id=?
+            """, (pawn_id, channel_id))
             hediffs = await cursor.fetchall()
 
             # Гены
@@ -925,6 +945,7 @@ async def get_my_pawn(username: str, request: Request):
                 await conn.execute("""
                     CREATE TABLE IF NOT EXISTS rimworld_pawn_genes (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        channel_id INTEGER NOT NULL,
                         pawn_id INTEGER NOT NULL,
                         def_name TEXT NOT NULL,
                         label TEXT,
@@ -936,9 +957,10 @@ async def get_my_pawn(username: str, request: Request):
                 """)
                 cursor = await conn.execute("""
                     SELECT def_name, label, is_active, xenogene, gene_class
-                    FROM rimworld_pawn_genes WHERE pawn_id = ?
+                    FROM rimworld_pawn_genes
+                    WHERE channel_id=? AND pawn_id=?
                     ORDER BY xenogene DESC, label
-                """, (pawn_id,))
+                """, (channel_id, pawn_id))
                 genes = await cursor.fetchall()
             except Exception:
                 pass
@@ -1042,7 +1064,9 @@ async def sync_pawns_bulk(request: Request, mod_channel_id=Depends(rimworld_mod_
                 
                 # Очищаем старые данные
                 for tbl in PAWN_DATA_TABLES:
-                    await conn.execute(f"DELETE FROM {tbl} WHERE pawn_id = ?", (pawn_id,))
+                    await conn.execute(
+                        f"DELETE FROM {tbl} WHERE channel_id=? AND pawn_id=?",
+                        (channel_id, pawn_id))
                 
                 # Сохраняем экипировку (с meta-JSON для weapon_traits/psi/quality/...)
                 for eq in pawn_data.get('equipment', []):
@@ -1051,9 +1075,11 @@ async def sync_pawns_bulk(request: Request, mod_channel_id=Depends(rimworld_mod_
                         'weapon_traits', 'psi_abilities', 'is_bladelink'
                     ) if eq.get(k) not in (None, '', [], {})}
                     await conn.execute("""
-                        INSERT INTO rimworld_pawn_equipment (pawn_id, slot, item_def, item_name, hp, meta)
-                        VALUES (?, ?, ?, ?, ?, ?)
+                        INSERT INTO rimworld_pawn_equipment
+                        (channel_id, pawn_id, slot, item_def, item_name, hp, meta)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
                     """, (
+                        channel_id,
                         pawn_id,
                         eq.get('slot', 'body'),
                         eq.get('def_name', eq.get('item_def', '')),
@@ -1066,9 +1092,10 @@ async def sync_pawns_bulk(request: Request, mod_channel_id=Depends(rimworld_mod_
                 for skill in pawn_data.get('skills', []):
                     await conn.execute("""
                         INSERT INTO rimworld_pawn_skills
-                        (pawn_id, skill_name, skill_level, passion, xp, is_disabled)
-                        VALUES (?, ?, ?, ?, ?, ?)
+                        (channel_id, pawn_id, skill_name, skill_level, passion, xp, is_disabled)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
                     """, (
+                        channel_id,
                         pawn_id,
                         skill.get('def_name', skill.get('name', skill.get('label', ''))),
                         skill.get('level', 0),
@@ -1080,9 +1107,11 @@ async def sync_pawns_bulk(request: Request, mod_channel_id=Depends(rimworld_mod_
                 # Сохраняем черты
                 for trait in pawn_data.get('traits', []):
                     await conn.execute("""
-                        INSERT INTO rimworld_pawn_traits (pawn_id, trait_def, degree, label, trait_desc)
-                        VALUES (?, ?, ?, ?, ?)
+                        INSERT INTO rimworld_pawn_traits
+                        (channel_id, pawn_id, trait_def, degree, label, trait_desc)
+                        VALUES (?, ?, ?, ?, ?, ?)
                     """, (
+                        channel_id,
                         pawn_id,
                         trait.get('def_name', ''),
                         trait.get('degree', 0),
@@ -1093,9 +1122,11 @@ async def sync_pawns_bulk(request: Request, mod_channel_id=Depends(rimworld_mod_
                 # Сохраняем хедиффы
                 for hediff in pawn_data.get('hediffs', []):
                     await conn.execute("""
-                        INSERT INTO rimworld_pawn_hediffs (pawn_id, body_part, hediff_label, severity, age_ticks)
-                        VALUES (?, ?, ?, ?, ?)
+                        INSERT INTO rimworld_pawn_hediffs
+                        (channel_id, pawn_id, body_part, hediff_label, severity, age_ticks)
+                        VALUES (?, ?, ?, ?, ?, ?)
                     """, (
+                        channel_id,
                         pawn_id,
                         hediff.get('part', hediff.get('body_part', 'тело')),
                         hediff.get('label', hediff.get('hediff_label', '')),
@@ -1111,8 +1142,8 @@ async def sync_pawns_bulk(request: Request, mod_channel_id=Depends(rimworld_mod_
                     await conn.execute("""
                         INSERT INTO rimworld_pawn_hediffs
                             (pawn_id, body_part, hediff_label, severity, age_ticks,
-                             hediff_def, part_def, is_paired, is_left)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                             hediff_def, part_def, is_paired, is_left, channel_id)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, (
                         pawn_id,
                         h.get('part_label', h.get('part_label_full', 'тело')),
@@ -1123,6 +1154,7 @@ async def sync_pawns_bulk(request: Request, mod_channel_id=Depends(rimworld_mod_
                         h.get('part_def', ''),
                         1 if h.get('is_paired') else 0,
                         (1 if h.get('is_left') is True else (0 if h.get('is_left') is False else None)),
+                        channel_id,
                     ))
 
                 # Сохраняем гены (Biotech)
@@ -1131,9 +1163,11 @@ async def sync_pawns_bulk(request: Request, mod_channel_id=Depends(rimworld_mod_
                     if not def_n:
                         continue
                     await conn.execute("""
-                        INSERT INTO rimworld_pawn_genes (pawn_id, def_name, label, is_active, xenogene, gene_class)
-                        VALUES (?, ?, ?, ?, ?, ?)
+                        INSERT INTO rimworld_pawn_genes
+                        (channel_id, pawn_id, def_name, label, is_active, xenogene, gene_class)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
                     """, (
+                        channel_id,
                         pawn_id,
                         def_n,
                         g.get('label', def_n),
@@ -1154,61 +1188,81 @@ async def sync_pawns_bulk(request: Request, mod_channel_id=Depends(rimworld_mod_
 # ===== КОМАНДЫ =====
 
 @router.get("/api/rimworld/commands")
-async def get_commands(_auth=Depends(rimworld_mod_auth)):
+async def get_commands(mod_channel_id=Depends(rimworld_mod_auth)):
     """Мод забирает команды для выполнения"""
+    channel_id = resolve_channel_id_or_default(mod_channel_id)
     async with get_commands_lock():
-        return await _get_commands_inner()
+        return await _get_commands_inner(channel_id)
 
-async def _get_commands_inner():
-    pending = get_pending()
-    if not pending:
-        recovered = await _db_dequeue_commands()
-        pending.extend(recovered)
-    all_cmds = list(pending)
-    pending.clear()
-    invalid = [c for c in all_cmds if not c.get('type')]
-    if invalid:
-        print(f"⚠️ Отфильтровано {len(invalid)} команд без поля 'type' (игнорируются)")
-    cmds = [c for c in all_cmds if c.get('type')]
+async def _get_commands_inner(channel_id: int):
+    """Atomically deliver queued commands for one module-token channel."""
+    channel_id = int(channel_id)
     db = get_db()
-    try:
-        async with aiosqlite.connect(db.db_path) as conn:
-            await _ensure_pending_commands_table(conn)
-            await conn.execute("BEGIN IMMEDIATE")
-            # 2026-07-19 refund: выданное моду помечаем delivered (НЕ удаляем —
-            # строка с ценой нужна для возврата на ack fail / stale).
-            cmd_ids = [cmd.get('id', '') for cmd in cmds if cmd.get('id')]
+    async with aiosqlite.connect(db.db_path) as conn:
+        await _ensure_pending_commands_table(conn)
+        await conn.execute("BEGIN IMMEDIATE")
+        try:
+            # Refund only this channel's abandoned deliveries. A poll by B must
+            # never mutate A's balances or queue.
+            await _refund_stale_delivered(conn, channel_id)
+            cursor = await conn.execute(
+                "SELECT cmd_id, cmd_json FROM rimworld_pending_commands "
+                "WHERE channel_id=? AND (status='queued' OR status IS NULL) "
+                "ORDER BY id LIMIT 50",
+                (channel_id,))
+            rows = await cursor.fetchall()
+            cmds = []
+            cmd_ids = []
+            for cmd_id, raw in rows:
+                try:
+                    cmd = json.loads(raw)
+                except Exception as exc:
+                    raise RuntimeError(
+                        f"invalid queued RimWorld command {cmd_id!r}") from exc
+                if int(cmd.get("channel_id") or 0) != channel_id:
+                    raise RuntimeError(
+                        f"queued RimWorld command {cmd_id!r} has foreign channel")
+                if not cmd.get("type"):
+                    raise RuntimeError(
+                        f"queued RimWorld command {cmd_id!r} has no type")
+                cmds.append(cmd)
+                cmd_ids.append(cmd_id)
+
             if cmd_ids:
-                placeholders = ','.join('?' * len(cmd_ids))
+                placeholders = ",".join("?" for _ in cmd_ids)
                 await conn.execute(
-                    f"UPDATE rimworld_pending_commands "
-                    f"SET status='delivered', delivered_at=? "
-                    f"WHERE cmd_id IN ({placeholders})",
-                    [time.time()] + cmd_ids
-                )
-            # Заодно рефандим давно доставленное без ack (мод умер до выполнения).
-            await _refund_stale_delivered(conn)
+                    "UPDATE rimworld_pending_commands "
+                    "SET status='delivered', delivered_at=? "
+                    f"WHERE channel_id=? AND cmd_id IN ({placeholders})",
+                    [time.time(), channel_id] + cmd_ids)
             await conn.commit()
-    except Exception as e:
-        print(f"⚠️ Пометка delivered/stale-рефанд: {e}")
-    return cmds
+            return cmds
+        except Exception:
+            try:
+                await conn.execute("ROLLBACK")
+            except Exception:
+                pass
+            raise
 
 
 @router.post("/api/rimworld/ack-command")
-async def ack_command(request: Request, _auth=Depends(rimworld_mod_auth)):
+async def ack_command(request: Request,
+                      mod_channel_id=Depends(rimworld_mod_auth)):
     """2026-07-19 refund: раньше ack только печатался — success=false ничего не
     делал, зритель молча терял очки за невыполненную команду. Теперь:
     success=true → строка очереди удаляется; success=false → возврат цены
     зрителю + удаление, в ОДНОЙ транзакции (повторный ack не найдёт строку →
     идемпотентно, двойного возврата нет)."""
     data = await request.json()
+    channel_id = resolve_channel_id_or_default(mod_channel_id)
     cmd_id = (data.get('command_id') or '').strip()
     success = bool(data.get('success'))
     message = str(data.get('message') or '')
     print(f"{'✅' if success else '❌'} Команда {cmd_id}: success={success}"
           + (f" ({message})" if message else ""))
     if not cmd_id:
-        return {"status": "ok"}
+        return {"status": "error", "acked": False, "refunded": False,
+                "message": "command_id required"}
 
     db = get_db()
     try:
@@ -1216,21 +1270,29 @@ async def ack_command(request: Request, _auth=Depends(rimworld_mod_auth)):
             await _ensure_pending_commands_table(conn)
             await conn.execute("BEGIN IMMEDIATE")
             cur = await conn.execute(
-                "SELECT cmd_json FROM rimworld_pending_commands WHERE cmd_id=?",
-                (cmd_id,))
+                "SELECT cmd_json FROM rimworld_pending_commands "
+                "WHERE channel_id=? AND cmd_id=?",
+                (channel_id, cmd_id))
             row = await cur.fetchone()
             if row is None:
                 # Уже обработан (идемпотентный повтор) или древний id — no-op.
                 await conn.execute("ROLLBACK")
-                return {"status": "ok"}
+                return {"status": "ok", "acked": False, "refunded": False}
+            refunded = False
             if not success:
-                await _refund_cmd_row_tx(conn, cmd_id, row[0], message or "mod_refused")
+                refunded = await _refund_cmd_row_tx(
+                    conn, channel_id, cmd_id, row[0],
+                    message or "mod_refused")
             await conn.execute(
-                "DELETE FROM rimworld_pending_commands WHERE cmd_id=?", (cmd_id,))
+                "DELETE FROM rimworld_pending_commands "
+                "WHERE channel_id=? AND cmd_id=?",
+                (channel_id, cmd_id))
             await conn.commit()
+            return {"status": "ok", "acked": True, "refunded": refunded}
     except Exception as e:
         print(f"⚠️ ack-command {cmd_id}: {e}")
-    return {"status": "ok"}
+        return {"status": "error", "acked": False, "refunded": False,
+                "message": "ack failed"}
 
 @router.post("/api/rimworld/commands-processed")
 async def commands_processed(request: Request, _auth=Depends(rimworld_mod_auth)):
@@ -1241,15 +1303,17 @@ async def commands_processed(request: Request, _auth=Depends(rimworld_mod_auth))
     return {"status": "ok"}
 
 @router.post("/api/rimworld/add-command")
-async def add_command(request: Request, _auth=Depends(rimworld_mod_auth)):
+async def add_command(request: Request,
+                      mod_channel_id=Depends(rimworld_mod_auth)):
     # Public-gate (2026-07-02): был без auth вообще — любой мог инжектить команды
     # в очередь. Теперь под rimworld_mod_auth (как остальные mod-ingest).
     data = await request.json()
+    channel_id = resolve_channel_id_or_default(mod_channel_id)
     if not data.get("type"):
         print(f"⚠️ add-command: отклонена команда без поля 'type': {data}")
         return {"status": "error", "message": "Missing 'type' field"}
+    data["channel_id"] = channel_id
     async with get_commands_lock():
-        get_pending().append(data)
         await _db_enqueue_command(data)
     return {"status": "ok"}
 
@@ -1369,8 +1433,15 @@ async def get_catalog(request: Request, category: str = None,
     db = get_db()
     # M97: каталог — на канал. Без этого зритель одного стримера видел бы
     # позиции другого (а после заливки — вообще пустой магазин).
-    from dependencies import resolve_channel_id_or_default
-    channel_id = resolve_channel_id_or_default(require_jwt_channel(request))
+    if username:
+        auth = require_jwt_user(request)
+        if not auth:
+            raise HTTPException(status_code=401, detail="Twitch authorization required")
+        jwt_username, channel_id = auth
+        if jwt_username.lower() != username.lower():
+            raise HTTPException(status_code=403, detail="Cannot read another viewer's prices")
+    else:
+        channel_id = _require_viewer_channel(request)
     if not await _rimworld_is_active(channel_id):
         # Стример играет в другую игру — 1.6 МБ каталога ему не нужны.
         return {"items": [], "total": 0, "skipped": "module_inactive"}
@@ -1585,19 +1656,15 @@ async def heal_pawn(request: Request):
     return {"success": True, "message": f"💊 Лечение! -{HEAL_COST}💎"}
 
 @router.get("/api/rimworld/heal-cooldown/{username}")
-async def get_heal_cooldown(username: str):
-    # 2026-07-27: M97 (c3e3599) добавил channel_id в _get_last_heal_ts, но этот
-    # вызов не поправил — переменной здесь нет, эндпоинт падал бы в NameError/500
-    # на первом же обращении ПОСЛЕ выката (на проде пока старая версия, 200 OK).
-    # Фронт зовёт этот URL БЕЗ авторизации (pawn.js:457,486) и заморожен на CDN,
-    # поэтому require_jwt_user здесь поставить нельзя — сломается у зрителей.
-    # Берём канал так же, как остальные legacy-точки этого файла (16 мест).
-    # Правильный per-viewer канал из JWT — вместе с реактивацией RimWorld,
-    # когда фронт можно будет поменять синхронно (см. tenant-lint skip-file вверху).
-    from dependencies import resolve_channel_id_or_default
-    channel_id = resolve_channel_id_or_default(None)
+async def get_heal_cooldown(username: str, request: Request):
+    auth = require_jwt_user(request)
+    if not auth:
+        raise HTTPException(status_code=401, detail="Twitch authorization required")
+    jwt_username, channel_id = auth
+    if jwt_username.lower() != username.lower():
+        raise HTTPException(status_code=403, detail="Cannot read another viewer's cooldown")
     now = time.time()
-    last_heal = await _get_last_heal_ts(username, channel_id)
+    last_heal = await _get_last_heal_ts(jwt_username, channel_id)
     elapsed = now - last_heal
     left = max(0, int(HEAL_COOLDOWN_SECONDS - elapsed))
     return {"cooldown_left": left}
@@ -1668,8 +1735,12 @@ async def get_progressive_price(request: Request, username: str, category: str):
     Ответ: { count, next_price, base_price }
     """
     db = get_db()
-    from dependencies import resolve_channel_id_or_default
-    channel_id = resolve_channel_id_or_default(require_jwt_channel(request))
+    auth = require_jwt_user(request)
+    if not auth:
+        raise HTTPException(status_code=401, detail="Twitch authorization required")
+    jwt_username, channel_id = auth
+    if jwt_username.lower() != username.lower():
+        raise HTTPException(status_code=403, detail="Cannot read another viewer's prices")
     BASE_PRICES = {"trait": 1000, "gene": 1000}
     base = BASE_PRICES.get(category, 1000)
     count = await db.get_purchase_count(username, category, channel_id)
@@ -1771,20 +1842,25 @@ SKILL_LABELS = {
 
 
 @router.get("/api/rimworld/pawn-skills/{username}")
-async def get_pawn_skills(username: str):
+async def get_pawn_skills(username: str, request: Request):
     """
     Текущие навыки пешки зрителя с уровнями страсти.
     Используется для отображения выбора огонька в UI.
     """
-    from main import sanitize_username as _san
-    username = _san(username)
-    if not username:
+    auth = require_jwt_user(request)
+    if not auth:
+        return {"skills": []}
+    jwt_login, channel_id = auth
+    username = sanitize_username(username)
+    if not username or username != jwt_login:
         return {"skills": []}
 
     async with aiosqlite.connect(get_db().db_path) as conn:
         # Находим pawn_id
         cursor = await conn.execute(
-            "SELECT id FROM rimworld_pawns WHERE username = ? AND is_alive = 1", (username,))
+            "SELECT id FROM rimworld_pawns "
+            "WHERE channel_id=? AND username=? AND is_alive=1",
+            (channel_id, username))
         row = await cursor.fetchone()
         if not row:
             return {"skills": [], "error": "Пешка не найдена"}
@@ -1793,9 +1869,9 @@ async def get_pawn_skills(username: str):
         cursor = await conn.execute("""
             SELECT skill_name, skill_level, passion, is_disabled
             FROM rimworld_pawn_skills
-            WHERE pawn_id = ?
+            WHERE channel_id=? AND pawn_id=?
             ORDER BY skill_level DESC, skill_name
-        """, (pawn_id,))
+        """, (channel_id, pawn_id))
         rows = await cursor.fetchall()
 
     skills = []
@@ -1846,15 +1922,18 @@ async def buy_passion(request: Request):
     # Проверяем текущую страсть у пешки
     async with aiosqlite.connect(db.db_path) as conn:
         cursor = await conn.execute(
-            "SELECT id FROM rimworld_pawns WHERE username = ? AND is_alive = 1", (username,))
+            "SELECT id FROM rimworld_pawns "
+            "WHERE channel_id=? AND username=? AND is_alive=1",
+            (channel_id, username))
         row = await cursor.fetchone()
         if not row:
             return {"success": False, "message": "Пешка не найдена — создай её сначала!"}
         pawn_id = row[0]
 
         cursor = await conn.execute(
-            "SELECT passion, is_disabled FROM rimworld_pawn_skills WHERE pawn_id = ? AND skill_name = ?",
-            (pawn_id, skill_def))
+            "SELECT passion, is_disabled FROM rimworld_pawn_skills "
+            "WHERE channel_id=? AND pawn_id=? AND skill_name=?",
+            (channel_id, pawn_id, skill_def))
         skill_row = await cursor.fetchone()
 
     if not skill_row:
@@ -1911,15 +1990,18 @@ async def reset_passion(request: Request):
 
     async with aiosqlite.connect(db.db_path) as conn:
         cursor = await conn.execute(
-            "SELECT id FROM rimworld_pawns WHERE username = ? AND is_alive = 1", (username,))
+            "SELECT id FROM rimworld_pawns "
+            "WHERE channel_id=? AND username=? AND is_alive=1",
+            (channel_id, username))
         row = await cursor.fetchone()
         if not row:
             return {"success": False, "message": "Пешка не найдена"}
         pawn_id = row[0]
 
         cursor = await conn.execute(
-            "SELECT passion, is_disabled FROM rimworld_pawn_skills WHERE pawn_id = ? AND skill_name = ?",
-            (pawn_id, skill_def))
+            "SELECT passion, is_disabled FROM rimworld_pawn_skills "
+            "WHERE channel_id=? AND pawn_id=? AND skill_name=?",
+            (channel_id, pawn_id, skill_def))
         skill_row = await cursor.fetchone()
 
     if not skill_row or skill_row[0] == 0:
@@ -2198,19 +2280,23 @@ async def train_skill_alias(request: Request):
     return {"success": True, "message": f"рџ§  {label} применяется! -{price}💎"}
 
 @router.get("/api/rimworld/all-pawns")
-async def get_all_pawns(_admin: str = Depends(require_admin)):
+async def get_all_pawns(channel_id: int = None,
+                        _admin: str = Depends(require_admin)):
+    channel_id = resolve_channel_id_or_default(channel_id)
     db = get_db()
     async with aiosqlite.connect(db.db_path) as conn:
         cursor = await conn.execute("""
             SELECT username, pawn_name, is_alive, ROUND(health * 100) as health
-            FROM rimworld_pawns ORDER BY pawn_name
-        """)
+            FROM rimworld_pawns WHERE channel_id=? ORDER BY pawn_name
+        """, (channel_id,))
         rows = await cursor.fetchall()
     return [{"username": r[0], "pawn_name": r[1],
              "is_alive": bool(r[2]), "health": r[3] or 0} for r in rows]
 
 @router.post("/api/rimworld/pawn-gone")
-async def pawn_gone(request: Request, _admin: str = Depends(require_admin)):
+async def pawn_gone(request: Request, channel_id: int = None,
+                    _admin: str = Depends(require_admin)):
+    channel_id = resolve_channel_id_or_default(channel_id)
     db = get_db()
     data = await request.json()
     username = data.get('username')
@@ -2218,14 +2304,20 @@ async def pawn_gone(request: Request, _admin: str = Depends(require_admin)):
         return {"status": "error"}
     async with aiosqlite.connect(db.db_path) as conn:
         cursor = await conn.execute(
-            "SELECT id FROM rimworld_pawns WHERE username = ?", (username,))
+            "SELECT id FROM rimworld_pawns "
+            "WHERE channel_id=? AND username=?",
+            (channel_id, username))
         row = await cursor.fetchone()
         if row:
             pid = row[0]
             for tbl in ["rimworld_pawn_equipment", "rimworld_pawn_skills",
                         "rimworld_pawn_hediffs", "rimworld_pawn_traits", "rimworld_pawn_genes"]:
-                await conn.execute(f"DELETE FROM {tbl} WHERE pawn_id = ?", (pid,))
-            await conn.execute("DELETE FROM rimworld_pawns WHERE id = ?", (pid,))
+                await conn.execute(
+                    f"DELETE FROM {tbl} WHERE channel_id=? AND pawn_id=?",
+                    (channel_id, pid))
+            await conn.execute(
+                "DELETE FROM rimworld_pawns WHERE channel_id=? AND id=?",
+                (channel_id, pid))
             await conn.commit()
     return {"status": "ok"}
 
@@ -2233,14 +2325,18 @@ async def pawn_gone(request: Request, _admin: str = Depends(require_admin)):
 # ===== КОЛОНИСТЫ =====
 
 @router.get("/api/rimworld/colonists")
-async def get_colonists_all():
+async def get_colonists_all(request: Request):
     """Список всех пешек (для блока сверху в расширении)"""
+    channel_id = require_jwt_channel(request)
+    if not channel_id:
+        return {"colonists": []}
     db = get_db()
     async with aiosqlite.connect(db.db_path) as conn:
         cursor = await conn.execute("""
             SELECT username, pawn_name, is_alive, ROUND(health * 100) as health
-            FROM rimworld_pawns ORDER BY is_alive DESC, pawn_name
-        """)
+            FROM rimworld_pawns WHERE channel_id=?
+            ORDER BY is_alive DESC, pawn_name
+        """, (channel_id,))
         rows = await cursor.fetchall()
     return {"colonists": [
         {"username": r[0], "pawn_name": r[1], "is_alive": bool(r[2]), "health": r[3] or 0}
@@ -2248,10 +2344,16 @@ async def get_colonists_all():
     ]}
 
 @router.get("/api/rimworld/colonists/{username}")
-async def get_colonists_by_user(username: str):
+async def get_colonists_by_user(username: str, request: Request):
     """Колонисты для конкретного зрителя"""
+    auth = require_jwt_user(request)
+    if not auth:
+        return {"colonists": []}
+    jwt_login, channel_id = auth
+    if sanitize_username(username) != jwt_login:
+        return {"colonists": []}
     db = get_db()
-    colonists = await db.get_colonists(username)
+    colonists = await db.get_colonists(username, channel_id=channel_id)
     return {"colonists": colonists}
 
 
@@ -2314,8 +2416,7 @@ async def sync_event_catalog(request: Request, _auth=Depends(rimworld_mod_auth))
 async def get_events(request: Request):
     """Возвращает каталог ивентов из БД (заполняется модом)"""
     db = get_db()
-    from dependencies import resolve_channel_id_or_default
-    channel_id = resolve_channel_id_or_default(require_jwt_channel(request))
+    channel_id = _require_viewer_channel(request)
     if not await _rimworld_is_active(channel_id):
         return {"events": [], "skipped": "module_inactive"}
     try:
@@ -2404,10 +2505,11 @@ async def rimworld_command_legacy(request: Request):
     return {"status": "ok"}
 
 @router.get("/api/rimworld/get-commands")
-async def get_commands_legacy(_auth=Depends(rimworld_mod_auth)):
+async def get_commands_legacy(mod_channel_id=Depends(rimworld_mod_auth)):
     """Алиас для /api/rimworld/commands"""
+    channel_id = resolve_channel_id_or_default(mod_channel_id)
     async with get_commands_lock():
-        return await _get_commands_inner()
+        return await _get_commands_inner(channel_id)
 
 @router.post("/api/rimworld/confirm-commands")
 async def confirm_commands(_admin: str = Depends(require_admin)):
@@ -2423,9 +2525,11 @@ async def rimworld_event_result(request: Request, _auth=Depends(rimworld_mod_aut
         return {"status": "error", "message": str(e)}
 
 @router.post("/api/rimworld/sync-pawn-death")
-async def sync_pawn_death(request: Request, _admin: str = Depends(require_admin)):
+async def sync_pawn_death(request: Request, channel_id: int = None,
+                          _admin: str = Depends(require_admin)):
     """Обновление статуса пешки (смерть/здоровье)"""
     db = get_db()
+    channel_id = resolve_channel_id_or_default(channel_id)
     try:
         data = await request.json()
         username = data.get('username')
@@ -2435,8 +2539,8 @@ async def sync_pawn_death(request: Request, _admin: str = Depends(require_admin)
             await conn.execute("""
                 UPDATE rimworld_pawns
                 SET is_alive=?, health=?, last_sync=CURRENT_TIMESTAMP
-                WHERE username=?
-            """, (1 if is_alive else 0, health, username))
+                WHERE channel_id=? AND username=?
+            """, (1 if is_alive else 0, health, channel_id, username))
             await conn.commit()
         return {"status": "ok"}
     except Exception as e:
@@ -2472,40 +2576,47 @@ async def sync_rimworld_state(request: Request, mod_channel_id=Depends(rimworld_
 
 # ===== ОТЛАДОЧНЫЙ ЭНДПОИНТ =====
 @router.get("/api/debug/pawn/{username}")
-async def debug_pawn(username: str, _admin: str = Depends(require_admin)):
+async def debug_pawn(username: str, channel_id: int = None,
+                     _admin: str = Depends(require_admin)):
     """Отладочный endpoint для проверки данных пешки в БД"""
+    channel_id = resolve_channel_id_or_default(channel_id)
     db = get_db()
     async with aiosqlite.connect(db.db_path) as conn:
         conn.row_factory = aiosqlite.Row
         cursor = await conn.execute(
-            "SELECT * FROM rimworld_pawns WHERE username = ?",
-            (username,)
+            "SELECT * FROM rimworld_pawns "
+            "WHERE channel_id=? AND username=?",
+            (channel_id, username)
         )
         pawn = await cursor.fetchone()
         if pawn:
             pawn_dict = dict(pawn)
             # Получаем связанные данные
             cursor = await conn.execute(
-                "SELECT * FROM rimworld_pawn_equipment WHERE pawn_id = ?",
-                (pawn['id'],)
+                "SELECT * FROM rimworld_pawn_equipment "
+                "WHERE channel_id=? AND pawn_id=?",
+                (channel_id, pawn['id'])
             )
             pawn_dict['equipment'] = [dict(r) for r in await cursor.fetchall()]
             
             cursor = await conn.execute(
-                "SELECT * FROM rimworld_pawn_skills WHERE pawn_id = ?",
-                (pawn['id'],)
+                "SELECT * FROM rimworld_pawn_skills "
+                "WHERE channel_id=? AND pawn_id=?",
+                (channel_id, pawn['id'])
             )
             pawn_dict['skills'] = [dict(r) for r in await cursor.fetchall()]
             
             cursor = await conn.execute(
-                "SELECT * FROM rimworld_pawn_hediffs WHERE pawn_id = ?",
-                (pawn['id'],)
+                "SELECT * FROM rimworld_pawn_hediffs "
+                "WHERE channel_id=? AND pawn_id=?",
+                (channel_id, pawn['id'])
             )
             pawn_dict['hediffs'] = [dict(r) for r in await cursor.fetchall()]
             
             cursor = await conn.execute(
-                "SELECT * FROM rimworld_pawn_traits WHERE pawn_id = ?",
-                (pawn['id'],)
+                "SELECT * FROM rimworld_pawn_traits "
+                "WHERE channel_id=? AND pawn_id=?",
+                (channel_id, pawn['id'])
             )
             pawn_dict['traits'] = [dict(r) for r in await cursor.fetchall()]
             

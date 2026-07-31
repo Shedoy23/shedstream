@@ -219,13 +219,15 @@ class Database:
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS rimworld_pawns (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username TEXT UNIQUE NOT NULL,
+                    channel_id INTEGER NOT NULL,
+                    username TEXT NOT NULL,
                     pawn_name TEXT NOT NULL,
                     is_alive INTEGER DEFAULT 1,
                     health REAL DEFAULT 1.0,
                     world_id TEXT DEFAULT '',
                     world_name TEXT DEFAULT '',
-                    last_sync DATETIME DEFAULT CURRENT_TIMESTAMP
+                    last_sync DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(channel_id, username)
                 )
             """)
 
@@ -233,6 +235,7 @@ class Database:
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS rimworld_pawn_equipment (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    channel_id INTEGER NOT NULL,
                     pawn_id INTEGER NOT NULL,
                     slot TEXT,
                     item_def TEXT,
@@ -252,6 +255,7 @@ class Database:
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS rimworld_pawn_skills (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    channel_id INTEGER NOT NULL,
                     pawn_id INTEGER NOT NULL,
                     skill_name TEXT,
                     skill_level INTEGER DEFAULT 0,
@@ -266,6 +270,7 @@ class Database:
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS rimworld_pawn_hediffs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    channel_id INTEGER NOT NULL,
                     pawn_id INTEGER NOT NULL,
                     body_part TEXT,
                     hediff_label TEXT,
@@ -282,6 +287,7 @@ class Database:
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS rimworld_pawn_traits (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    channel_id INTEGER NOT NULL,
                     pawn_id INTEGER NOT NULL,
                     trait_def TEXT NOT NULL,
                     degree INTEGER DEFAULT 0,
@@ -295,6 +301,7 @@ class Database:
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS rimworld_pawn_genes (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    channel_id INTEGER NOT NULL,
                     pawn_id INTEGER NOT NULL,
                     def_name TEXT NOT NULL,
                     label TEXT,
@@ -991,7 +998,8 @@ class Database:
         async with self._connect() as db:
             cursor = await db.execute("""
                 SELECT name, is_alive,
-                       (SELECT COUNT(*) FROM rimworld_skills WHERE colonist_id = c.id) as skill_count
+                       (SELECT COUNT(*) FROM rimworld_skills s
+                        WHERE s.channel_id=c.channel_id AND s.colonist_id=c.id) as skill_count
                 FROM rimworld_colonists c
                 WHERE c.channel_id = ? AND c.owner_username = ?
                 ORDER BY is_alive DESC, name
@@ -4376,18 +4384,45 @@ class Database:
         channel_id: int,
         viewer_id: str,
     ) -> bool:
-        """player.unlinked → DELETE pawn (со всеми зависимыми по FK CASCADE
-        — equipment, skills, hediffs, traits, genes, purchase_counters)."""
+        """player.unlinked → DELETE only this channel's pawn and details."""
         viewer_id = (viewer_id or "").strip().lower()
         if not viewer_id:
             return False
         async with self._connect() as db:
-            cur = await db.execute(
-                "DELETE FROM rimworld_pawns WHERE channel_id = ? AND username = ?",
-                (channel_id, viewer_id),
-            )
-            await db.commit()
-            return cur.rowcount > 0
+            await db.execute("BEGIN IMMEDIATE")
+            try:
+                cur = await db.execute(
+                    "SELECT id FROM rimworld_pawns "
+                    "WHERE channel_id=? AND username=?",
+                    (channel_id, viewer_id),
+                )
+                row = await cur.fetchone()
+                if not row:
+                    await db.execute("ROLLBACK")
+                    return False
+                pawn_id = int(row[0])
+                for table in (
+                    "rimworld_pawn_equipment",
+                    "rimworld_pawn_skills",
+                    "rimworld_pawn_hediffs",
+                    "rimworld_pawn_traits",
+                    "rimworld_pawn_genes",
+                ):
+                    await db.execute(
+                        f"DELETE FROM {table} "
+                        "WHERE channel_id=? AND pawn_id=?",
+                        (channel_id, pawn_id),
+                    )
+                await db.execute(
+                    "DELETE FROM rimworld_pawns "
+                    "WHERE channel_id=? AND id=?",
+                    (channel_id, pawn_id),
+                )
+                await db.commit()
+                return True
+            except Exception:
+                await db.execute("ROLLBACK")
+                raise
 
     # ===== ЭТАП 3 STEP 6.a: PAWN EXTENSION EVENTS HELPERS =====
     #
@@ -4428,10 +4463,12 @@ class Database:
         async with self._connect() as db:
             await db.execute(
                 """
-                INSERT INTO rimworld_pawn_traits (pawn_id, trait_def, degree, label, trait_desc)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO rimworld_pawn_traits
+                    (channel_id, pawn_id, trait_def, degree, label, trait_desc)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (pawn_id, trait_def, int(degree), label or trait_def, description or ""),
+                (channel_id, pawn_id, trait_def, int(degree),
+                 label or trait_def, description or ""),
             )
             await db.commit()
             return True
@@ -4451,8 +4488,9 @@ class Database:
             return False
         async with self._connect() as db:
             cur = await db.execute(
-                "DELETE FROM rimworld_pawn_traits WHERE pawn_id = ? AND trait_def = ?",
-                (pawn_id, trait_def),
+                "DELETE FROM rimworld_pawn_traits "
+                "WHERE channel_id=? AND pawn_id=? AND trait_def=?",
+                (channel_id, pawn_id, trait_def),
             )
             await db.commit()
             return cur.rowcount > 0
@@ -4477,10 +4515,11 @@ class Database:
         async with self._connect() as db:
             await db.execute(
                 """
-                INSERT INTO rimworld_pawn_genes (pawn_id, def_name, label, is_active, xenogene, gene_class)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO rimworld_pawn_genes
+                    (channel_id, pawn_id, def_name, label, is_active, xenogene, gene_class)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                (pawn_id, def_name, label or def_name,
+                (channel_id, pawn_id, def_name, label or def_name,
                  1 if is_active else 0, 1 if xenogene else 0, gene_class or ""),
             )
             await db.commit()
@@ -4501,8 +4540,9 @@ class Database:
             return False
         async with self._connect() as db:
             cur = await db.execute(
-                "DELETE FROM rimworld_pawn_genes WHERE pawn_id = ? AND def_name = ?",
-                (pawn_id, def_name),
+                "DELETE FROM rimworld_pawn_genes "
+                "WHERE channel_id=? AND pawn_id=? AND def_name=?",
+                (channel_id, pawn_id, def_name),
             )
             await db.commit()
             return cur.rowcount > 0
@@ -4530,10 +4570,12 @@ class Database:
             await db.execute(
                 """
                 INSERT INTO rimworld_pawn_hediffs
-                    (pawn_id, body_part, hediff_label, hediff_type, severity, icon, is_permanent, description)
-                VALUES (?, ?, ?, 'implant', ?, ?, ?, ?)
+                    (channel_id, pawn_id, body_part, hediff_label, hediff_type,
+                     severity, icon, is_permanent, description)
+                VALUES (?, ?, ?, ?, 'implant', ?, ?, ?, ?)
                 """,
-                (pawn_id, body_part or "", hediff_label, float(severity), icon,
+                (channel_id, pawn_id, body_part or "", hediff_label,
+                 float(severity), icon,
                  1 if is_permanent else 0, description or ""),
             )
             await db.commit()

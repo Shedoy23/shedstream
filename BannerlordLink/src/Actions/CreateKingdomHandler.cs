@@ -42,11 +42,13 @@ namespace BannerlordLink.Actions
 
             string desiredName = (data["kingdom_name"]?.ToString() ?? "").Trim();
 
-            MainThreadDispatcher.Enqueue(() => Apply(username, desiredName));
+            // actionId нужен, чтобы отказ доехал до зрителя возвратом крустиков
+            string actionId = ActionFeedback.GetActionId(data);
+            MainThreadDispatcher.Enqueue(() => Apply(username, desiredName, actionId));
             return Task.FromResult<(bool, string)>((true, null));
         }
 
-        private static void Apply(string username, string desiredName)
+        private static void Apply(string username, string desiredName, string actionId)
         {
             try
             {
@@ -67,10 +69,37 @@ namespace BannerlordLink.Actions
                         $"[create_kingdom] @{username}: must be clan leader (Clan={hero.Clan?.Name?.ToString() ?? "null"})");
                     return;
                 }
-                if (hero.Clan.Kingdom != null)
+                // ═══ 2026-07-31: ЗДЕСЬ БЫЛ ОТКАЗ «ты уже в королевстве» ═══
+                //
+                // Он и был причиной жалоб «не могу получить поселение».
+                // Цепочка (доказана декомпилем, не догадка):
+                //   1. чтобы основать королевство, зритель был обязан СНАЧАЛА
+                //      выйти из своего;
+                //   2. выход идёт через `ChangeKingdomAction.ApplyByLeaveKingdom`,
+                //      а там движок ЯВНО отбирает всё нажитое:
+                //          foreach (Settlement s in clan.Settlements)
+                //              ChangeOwnerOfSettlementAction.ApplyByLeaveFaction(kingdom.Leader, s);
+                //   3. зритель терял замок в пользу бывшего короля и основывал
+                //      ПУСТОЕ королевство за 5 млн.
+                //
+                // При этом движок УМЕЕТ делать правильно: `KingdomManager.CreateKingdom`
+                // внутри зовёт `ChangeKingdomAction.ApplyByCreateKingdom`, а эта
+                // ветка выводит клан из старого королевства и владений НЕ трогает.
+                // То есть «уходит и забирает своё» — штатное поведение, мы его
+                // сами себе запрещали.
+                //
+                // Теперь основывать королевство можно, НЕ выходя заранее.
+
+                // Зато требуем то, чего требует и здравый смысл, и движок:
+                // королевство складывается из владений кланов-членов, поэтому
+                // корона без единого владения — пустышка.
+                int ownedCount = hero.Clan.Settlements?.Count ?? 0;
+                if (ownedCount == 0)
                 {
                     BannerlordLinkModule.Log(
-                        $"[create_kingdom] @{username}: clan already в kingdom {hero.Clan.Kingdom.Name}");
+                        $"[create_kingdom] @{username}: ОТКАЗ — у клана нет ни одного "
+                        + "владения, королевство было бы пустым");
+                    ActionFeedback.PostFailed(actionId, "no_settlement");
                     return;
                 }
                 if (hero.Gold < CREATE_COST)

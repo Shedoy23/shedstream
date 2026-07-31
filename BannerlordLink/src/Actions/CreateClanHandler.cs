@@ -148,22 +148,16 @@ namespace BannerlordLink.Actions
                     try { newClan.SetInitialHomeSettlement(home); } catch { }
                 }
 
-                hero.Clan = newClan;
                 if (hero.Occupation != Occupation.Lord)
                 {
                     hero.SetNewOccupation(Occupation.Lord);
                 }
-                newClan.SetLeader(hero);
-                newClan.IsNoble = true;
-
-                try
+                // 2026-07-31: доводка клана вынесена в ClanFactory — тот же
+                // порядок, что у движка, плюс Tier, которого здесь не было.
+                if (!ClanFactory.FinalizeNewClan(newClan, hero, "create_clan"))
                 {
-                    CampaignEventDispatcher.Instance.OnClanCreated(newClan, false);
-                }
-                catch (Exception ex)
-                {
-                    BannerlordLinkModule.Log(
-                        $"[create_clan] OnClanCreated dispatcher failed: {ex.Message}");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "clan_leader_not_set");
+                    return;
                 }
 
                 // Deduct cost

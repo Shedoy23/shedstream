@@ -184,10 +184,20 @@ async def test_block_costs_nothing(db):
 
 async def test_hidden_message_not_played(db):
     print("\n[3] Скрытое сообщение не уходит на оверлей, но живёт в истории")
-    from routes.tts import hide_tts_message
+    from routes.tts import approve_tts_message, hide_tts_message
 
     msg_id = await _queue_message(db, "прочитай это вслух")
-    assert_eq(await _overlay_next(db), msg_id, "[3] до скрытия оверлей его берёт")
+
+    # M107 (2026-08-01): появился гейт предварительного одобрения, включённый
+    # по умолчанию. Раньше свежее сообщение оверлей забирал сразу — теперь надо
+    # сначала одобрить. Это не подгонка ожидания под код: смысл проверки ниже
+    # («скрытое НЕ звучит, а неспрятанное звучит») сохранён целиком, изменилось
+    # предусловие «неспрятанное». Сам гейт проверяется отдельно —
+    # tests/test_tts_approval_gate.py.
+    assert_eq(await _overlay_next(db), None,
+              "[3] до одобрения оверлей его НЕ берёт (гейт M107)")
+    await approve_tts_message(db, CHANNEL_ID, msg_id)
+    assert_eq(await _overlay_next(db), msg_id, "[3] после одобрения оверлей его берёт")
 
     hist_before = await _history_count(db)
     hidden = await hide_tts_message(db, CHANNEL_ID, msg_id, by="streamer")

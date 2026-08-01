@@ -23,10 +23,12 @@ Endpoints:
     POST /api/overlay/tts/played     — mark played после <audio> ended
     GET  /api/tts/audio/{id}.mp3     — раздаёт mp3 из BLOB'а
 
-  Streamer (session cookie, M102 — модерация UGC):
-    GET  /api/streamer/tts/queue     — очередь + история последних
+  Streamer (session cookie, M102 — модерация UGC, M107 — гейт одобрения):
+    GET  /api/streamer/tts/queue     — очередь + история + состояние гейта
+    POST /api/streamer/tts/approve   — одобрить (без этого не звучит, M107)
     POST /api/streamer/tts/hide      — скрыть сообщение (остаётся в истории)
     POST /api/streamer/tts/block     — заблокировать/разблокировать зрителя
+    POST /api/streamer/tts/settings  — переключатель гейта
 
 Compliance:
   • Crystal-burn (no real $) — §5.2 OK.
@@ -35,10 +37,24 @@ Compliance:
     пользовательским контентом удаление, блокировку автора и историю, иначе
     одобрение затягивается. Теперь есть: блок-лист зрителей (отказ ДО оплаты),
     скрытие сообщения из очереди с сохранением в истории, кто и когда скрыл.
-  • **Чего ещё нет:** синхронизации с банами канала Twitch и AutoMod-проверки —
-    для них нужен scope `moderation:read`, которого у токенов нет; его
-    добавление потребует повторной авторизации от каждого стримера.
-    Решение владельца отдельно, см. DEFERRED.
+  • **Гейт одобрения (M107, 2026-08-01).** Проверка правил показала, что
+    реактивной модерации МАЛО. Guidelines §7.2 дословно: «Extensions must
+    provide broadcasters with the ability to review, and reject or approve any
+    image or other audio-visual user content». Озвучка на оверлее — это оно и
+    есть, а «reject» после того, как звук прозвучал, — не reject: оверлей
+    опрашивает очередь раз в 3с, стример не успевает. Теперь сообщение не
+    звучит, пока стример не одобрил.
+    Переключатель «пропускать без модерации» есть (решение владельца), и это
+    правилам не противоречит: расширение ПРЕДОСТАВЛЯЕТ возможность, отказ от
+    неё на своём канале — её использование. **Но умолчание = гейт включён, и
+    менять умолчание нельзя:** ревьюер смотрит расширение из коробки, и
+    выключенная по умолчанию модерация — ровно то, что §7.2 запрещает.
+  • §7.3 (имя автора видно) — закрыто: оверлей рисует `🎤 @ник` над текстом.
+  • **Чего ещё нет:** синхронизации с банами канала Twitch и AutoMod-проверки.
+    Submission Best Practices формулируют AutoMod через «must», но нужен scope
+    `moderation:read`, которого у токенов нет; его добавление потребует
+    повторной авторизации от каждого стримера. Решение владельца отдельно,
+    см. DEFERRED. Остаточный риск на ревью — есть.
 """
 import asyncio
 import io
@@ -91,12 +107,62 @@ async def hide_tts_message(db, channel_id: int, msg_id: int, by: str) -> bool:
     return affected > 0
 
 
+async def tts_requires_approval(db, channel_id: int) -> bool:
+    """Включён ли на канале гейт предварительного одобрения (M107).
+
+    Умолчание — ВКЛЮЧЁН, в том числе если строки настроек нет вообще: канал без
+    записи не должен оказаться каналом без модерации. Так же трактует Twitch
+    (Guidelines §7.2 — стример обязан иметь возможность одобрить или отклонить
+    контент ДО эфира).
+    """
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT require_approval FROM channel_tts_settings WHERE channel_id=?",
+            (channel_id,))
+        row = await cur.fetchone()
+    return True if row is None else bool(row[0])
+
+
+async def set_tts_require_approval(db, channel_id: int, required: bool) -> None:
+    """Переключить гейт. Выключение — осознанный выбор стримера на своём канале."""
+    async with db._connect() as conn:
+        await conn.execute(
+            "INSERT INTO channel_tts_settings (channel_id, require_approval, updated_at) "
+            "VALUES (?, ?, CURRENT_TIMESTAMP) "
+            "ON CONFLICT(channel_id) DO UPDATE SET "
+            "  require_approval=excluded.require_approval, "
+            "  updated_at=CURRENT_TIMESTAMP",
+            (channel_id, 1 if required else 0))
+        await conn.commit()
+
+
+async def approve_tts_message(db, channel_id: int, msg_id: int) -> bool:
+    """Одобрить сообщение — после этого оверлей его возьмёт. True если одобрили.
+
+    Скрытое сообщение одобрить нельзя: `moderated_by IS NULL` в условии не даёт
+    отменить собственный отказ кликом мимо.
+    """
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "UPDATE tts_messages SET approved_at=CURRENT_TIMESTAMP "
+            "WHERE channel_id=? AND id=? AND status='pending' "
+            "  AND moderated_by IS NULL AND approved_at IS NULL",
+            (channel_id, msg_id))
+        affected = cur.rowcount
+        await conn.commit()
+    return affected > 0
+
+
 async def next_pending_for_overlay(db, channel_id: int):
     """Следующее сообщение для оверлея, или None.
 
     Общая точка для эндпоинта и теста — чтобы тест проверял ТОТ ЖЕ запрос,
     который реально обслуживает оверлей, а не свою копию.
+
+    M107: если на канале включён гейт, берём только одобренные. Выключенный
+    гейт возвращает прежнее поведение — играем сразу.
     """
+    gated = await tts_requires_approval(db, channel_id)
     async with db._connect() as conn:
         cur = await conn.execute(
             # Скрытое модерацией сообщение остаётся в истории, но не звучит.
@@ -105,6 +171,7 @@ async def next_pending_for_overlay(db, channel_id: int):
             "FROM tts_messages "
             "WHERE channel_id = ? AND status = 'pending' "
             "  AND moderated_by IS NULL "
+            + ("  AND approved_at IS NOT NULL " if gated else "") +
             "ORDER BY created_at ASC LIMIT 1",
             (channel_id,))
         return await cur.fetchone()
@@ -363,7 +430,7 @@ async def streamer_tts_queue(request: Request):
     db = get_db()
     async with db._connect() as conn:
         cur = await conn.execute(
-            "SELECT id, username, message, status, created_at, moderated_by "
+            "SELECT id, username, message, status, created_at, moderated_by, approved_at "
             "FROM tts_messages WHERE channel_id=? "
             "ORDER BY created_at DESC LIMIT 50",
             (channel_id,))
@@ -376,15 +443,78 @@ async def streamer_tts_queue(request: Request):
 
     return {
         "success": True,
+        "require_approval": await tts_requires_approval(db, channel_id),
         "messages": [
             {"id": r[0], "username": r[1], "text": r[2], "status": r[3],
-             "created_at": r[4], "hidden_by": r[5]}
+             "created_at": r[4], "hidden_by": r[5], "approved_at": r[6],
+             # Что показать стримеру одним словом, чтобы он не собирал состояние
+             # из трёх полей глазами.
+             "state": ("скрыто" if r[5] else
+                       "прозвучало" if r[3] == "played" else
+                       "одобрено" if r[6] else "ждёт решения")}
             for r in rows
         ],
         "blocked": [
             {"username": b[0], "reason": b[1], "blocked_at": b[2]}
             for b in blocked
         ],
+    }
+
+
+@router.post("/api/streamer/tts/approve")
+async def streamer_tts_approve(request: Request):
+    """Одобрить сообщение — только после этого оверлей его озвучит.
+
+    Закрывает Twitch Extensions Guidelines §7.2: стример обязан иметь
+    возможность одобрить или отклонить контент, а не только убрать его задним
+    числом (задним числом «отклонить» звук, который уже прозвучал, нельзя).
+    """
+    from routes.bannerlord_admin import _require_streamer_session
+    ok, channel_id, msg = _require_streamer_session(request)
+    if not ok:
+        return {"success": False, "message": msg}
+
+    body = await request.json()
+    try:
+        msg_id = int(body.get("id") or 0)
+    except (TypeError, ValueError):
+        msg_id = 0
+    if msg_id <= 0:
+        return {"success": False, "message": "Нужен id сообщения"}
+
+    approved = await approve_tts_message(get_db(), channel_id, msg_id)
+    return {
+        "success": True,
+        "approved": approved,
+        "message": "Одобрено — прозвучит в течение пары секунд" if approved
+                   else "Нельзя одобрить: уже одобрено, скрыто или прозвучало",
+    }
+
+
+@router.post("/api/streamer/tts/settings")
+async def streamer_tts_settings(request: Request):
+    """Переключатель «пропускать без модерации».
+
+    Body: {"require_approval": bool}
+
+    Выключать МОЖНО — правило Twitch требует, чтобы расширение ПРЕДОСТАВЛЯЛО
+    стримеру возможность одобрять контент; отказ от неё на своём канале и есть
+    её использование. Но умолчание — включено, и менять умолчание нельзя:
+    ревьюер смотрит расширение в состоянии из коробки.
+    """
+    from routes.bannerlord_admin import _require_streamer_session
+    ok, channel_id, msg = _require_streamer_session(request)
+    if not ok:
+        return {"success": False, "message": msg}
+
+    body = await request.json()
+    required = bool(body.get("require_approval", True))
+    await set_tts_require_approval(get_db(), channel_id, required)
+    return {
+        "success": True,
+        "require_approval": required,
+        "message": ("Озвучка ждёт твоего одобрения" if required
+                    else "Озвучка идёт в эфир сразу, без модерации"),
     }
 
 

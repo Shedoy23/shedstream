@@ -280,6 +280,120 @@
   }
   </script>
 
+  <!-- Модерация озвучки (M107, 2026-08-01).
+       Twitch Extensions Guidelines §7.2 требует, чтобы стример мог одобрить ИЛИ
+       отклонить пользовательский аудиоконтент. До этой карточки эндпоинты
+       модерации существовали, но нажать было нечего — для ревьюера это
+       равносильно отсутствию модерации. -->
+  <div class="section" id="tts-mod-section">
+    <h2>🎤 Озвучка — модерация</h2>
+    <div class="sub">
+      Зритель платит 5000💎 и его текст звучит на оверлее. Это пользовательский
+      контент: пока ты не одобришь сообщение, оно не прозвучит.
+    </div>
+
+    <div class="warnbox" id="tts-gate-box">
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">
+        <input type="checkbox" id="tts-skip-mod" style="margin-top:3px;">
+        <span>
+          <b>Пропускать сообщения без модерации — на свой страх и риск.</b><br>
+          <span style="color:#adadb8;font-size:13px;">
+            Сообщения пойдут в эфир сразу, без твоего одобрения. Скрыть и
+            заблокировать автора ты по-прежнему сможешь, но уже после того,
+            как зрители это услышали. Правила Twitch требуют, чтобы у тебя
+            была возможность одобрять контент заранее — выключаешь ты её сам.
+          </span>
+        </span>
+      </label>
+    </div>
+    <div id="tts-mod-msg" class="boosty-msg"></div>
+
+    <div style="margin-top:16px;">
+      <div class="sub" style="margin-bottom:8px;">Ждут решения</div>
+      <div id="tts-pending-list"><div class="sub">Загрузка…</div></div>
+    </div>
+
+    <div style="margin-top:16px;">
+      <div class="sub" style="margin-bottom:8px;">История (последние 50)</div>
+      <div id="tts-history-list"><div class="sub">Загрузка…</div></div>
+    </div>
+
+    <div style="margin-top:16px;">
+      <div class="sub" style="margin-bottom:8px;">Заблокированные зрители</div>
+      <div id="tts-blocked-list"><div class="sub">Загрузка…</div></div>
+    </div>
+  </div>
+  <script>
+  function ttsEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function ttsMsg(text, ok){
+    const m = document.getElementById('tts-mod-msg');
+    m.textContent = text; m.className = 'boosty-msg ' + (ok ? 'ok' : 'err');
+  }
+  async function loadTtsMod(){
+    const pend = document.getElementById('tts-pending-list');
+    const hist = document.getElementById('tts-history-list');
+    const blk  = document.getElementById('tts-blocked-list');
+    try{
+      const r = await fetch('/api/streamer/tts/queue', {credentials:'include'});
+      const d = await r.json();
+      if(!d.success){ pend.innerHTML = '<div class="sub">Ошибка загрузки</div>'; return; }
+
+      document.getElementById('tts-skip-mod').checked = !d.require_approval;
+
+      const msgs = d.messages || [];
+      // «Ждёт решения» — только то, по чему стример ещё может что-то сделать.
+      const waiting = msgs.filter(function(m){ return m.state === 'ждёт решения'; });
+      pend.innerHTML = waiting.length ? waiting.map(function(m){
+        return '<div class="boosty-row"><span class="u">@' + ttsEsc(m.username) + '</span>'
+          + '<span class="t">' + ttsEsc(m.text) + '</span>'
+          + '<button style="background:#065f46;color:#6ee7b7;" data-tts-ok="' + m.id + '">✔ Одобрить</button>'
+          + '<button data-tts-hide="' + m.id + '">✖ Скрыть</button>'
+          + '<button data-tts-block="' + ttsEsc(m.username) + '">🚫 Заблокировать</button></div>';
+      }).join('') : '<div class="sub">Пока нечего решать.</div>';
+
+      hist.innerHTML = msgs.length ? msgs.map(function(m){
+        return '<div class="boosty-row"><span class="u">@' + ttsEsc(m.username) + '</span>'
+          + '<span class="t">' + ttsEsc(m.text) + '</span>'
+          + '<span class="n">' + ttsEsc(m.state) + '</span></div>';
+      }).join('') : '<div class="sub">Пока пусто.</div>';
+
+      const blocked = d.blocked || [];
+      blk.innerHTML = blocked.length ? blocked.map(function(b){
+        return '<div class="boosty-row"><span class="u">@' + ttsEsc(b.username) + '</span>'
+          + '<span class="n">' + ttsEsc(b.reason || '') + '</span>'
+          + '<button data-tts-unblock="' + ttsEsc(b.username) + '">Разблокировать</button></div>';
+      }).join('') : '<div class="sub">Никто не заблокирован.</div>';
+
+      document.querySelectorAll('[data-tts-ok]').forEach(function(b){
+        b.addEventListener('click', function(){ ttsAction('/api/streamer/tts/approve', {id: parseInt(b.getAttribute('data-tts-ok'),10)}); });
+      });
+      document.querySelectorAll('[data-tts-hide]').forEach(function(b){
+        b.addEventListener('click', function(){ ttsAction('/api/streamer/tts/hide', {id: parseInt(b.getAttribute('data-tts-hide'),10)}); });
+      });
+      document.querySelectorAll('[data-tts-block]').forEach(function(b){
+        b.addEventListener('click', function(){ ttsAction('/api/streamer/tts/block', {username: b.getAttribute('data-tts-block'), blocked: true}); });
+      });
+      document.querySelectorAll('[data-tts-unblock]').forEach(function(b){
+        b.addEventListener('click', function(){ ttsAction('/api/streamer/tts/block', {username: b.getAttribute('data-tts-unblock'), blocked: false}); });
+      });
+    } catch(e){ pend.innerHTML = '<div class="sub">Сеть недоступна</div>'; }
+  }
+  async function ttsAction(url, body){
+    try{
+      const r = await fetch(url, {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+      const d = await r.json();
+      ttsMsg(d.message || (d.success ? 'Готово' : 'Ошибка'), !!d.success);
+      loadTtsMod();
+    } catch(e){ ttsMsg('Сеть недоступна', false); }
+  }
+  document.getElementById('tts-skip-mod').addEventListener('change', function(){
+    ttsAction('/api/streamer/tts/settings', {require_approval: !this.checked});
+  });
+  loadTtsMod();
+  // Очередь живая: сообщение может прийти, пока дашборд открыт.
+  setInterval(loadTtsMod, 10000);
+  </script>
+
   <!-- Баг-репорты убраны из дашборда 2026-07-02: техбаги — забота разработчика
        (см. админку /admin), не стримера. Зритель шлёт !баг → падает разработчику. -->
 

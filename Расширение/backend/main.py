@@ -1384,6 +1384,13 @@ async def run_migrations():
             print(f"❌ M106 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m107_tts_approval_gate
+            await m107_tts_approval_gate.apply(conn)
+        except Exception as e:
+            print(f"❌ M107 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

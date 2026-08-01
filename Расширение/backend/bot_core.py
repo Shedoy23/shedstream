@@ -926,16 +926,29 @@ class BotCore:
                 reward_points = config['reward_points']
                 reward_item = config.get('reward_item')
 
-                await conn.execute("""
-                    INSERT INTO quests
-                    (channel_id, username, quest_type, target_value, current_value, reward_points, reward_item_id, day_date)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, (channel_id, username, quest_type, target, increment, reward_points, None, today))
+                # Квест может закрыться первым же событием. Отметка «завершён» и
+                # награда обязаны лечь ОДНИМ коммитом (S-18): раньше строка
+                # вставлялась и коммитилась без completed_at, а награда шла
+                # отдельным соединением — сбой в окне съедал награду, а
+                # незаполненный completed_at, наоборот, платил за тот же квест
+                # повторно на следующем событии.
+                done_now = increment >= target
+                cur = await conn.execute("""
+                    INSERT OR IGNORE INTO quests
+                    (channel_id, username, quest_type, target_value, current_value, reward_points, reward_item_id, day_date, completed_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? THEN CURRENT_TIMESTAMP ELSE NULL END)
+                """, (channel_id, username, quest_type, target, increment, reward_points, None, today, done_now))
+                if cur.rowcount == 0:
+                    # Параллельное событие успело создать строку — его прогресс
+                    # уже учтён там, платить второй раз нельзя.
+                    await conn.commit()
+                    return
+                if done_now and reward_points:
+                    await self.db.add_points_tx(conn, username, reward_points, channel_id)
                 await conn.commit()
 
-                # Проверяем, не завершился ли сразу
-                if increment >= target:
-                    await self._complete_quest(username, quest_type, reward_points, reward_item, channel_id=channel_id)
+                if done_now:
+                    await self._grant_quest_extras(username, quest_type, reward_item, channel_id=channel_id)
                 return
 
             quest_id, current, target, completed = row
@@ -953,21 +966,34 @@ class BotCore:
                 reward_points = config.get('reward_points', 0)
                 reward_item = config.get('reward_item')
 
-                await conn.execute(
-                    "UPDATE quests SET completed_at = CURRENT_TIMESTAMP WHERE id = ?",
+                # Отметка «завершён» и начисление — одной транзакцией (S-18).
+                # `completed_at IS NULL` работает замком от гонки: второй
+                # одновременный обработчик получит rowcount=0 и не заплатит
+                # второй раз (воспроизведено тестом: 8 гонщиков платили дважды).
+                cur = await conn.execute(
+                    "UPDATE quests SET completed_at = CURRENT_TIMESTAMP "
+                    "WHERE id = ? AND completed_at IS NULL",
                     (quest_id,)
                 )
+                if cur.rowcount == 0:
+                    await conn.commit()
+                    return
+                if reward_points:
+                    await self.db.add_points_tx(conn, username, reward_points, channel_id)
                 await conn.commit()
-                await self._complete_quest(username, quest_type, reward_points, reward_item, channel_id=channel_id)
+
+                await self._grant_quest_extras(username, quest_type, reward_item, channel_id=channel_id)
                 logger.info("Квест %s завершён для @%s", quest_type, username)
             else:
                 await conn.commit()
 
-    async def _complete_quest(self, username: str, quest_type: str, reward_points: int, reward_item: Optional[str], channel_id: int = None):
-        """Выдать награду за завершённый квест"""
+    async def _grant_quest_extras(self, username: str, quest_type: str, reward_item: Optional[str], channel_id: int = None):
+        """Неденежные хвосты награды за квест: предмет и кейс.
+
+        Крустики начисляются НЕ здесь, а в одной транзакции с отметкой
+        `completed_at` (S-18) — иначе награда терялась при сбое в окне.
+        """
         channel_id = resolve_channel_id(channel_id)
-        # Начисляем очки
-        await self.db.add_points(username, reward_points, channel_id=channel_id)
 
         # Выдаём предмет, если есть
         if reward_item:

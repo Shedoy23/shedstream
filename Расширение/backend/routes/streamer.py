@@ -653,6 +653,27 @@ async def streamer_logout():
 _MODULE_TOKEN_TTL = 365 * 24 * 3600  # 1 год
 
 
+class ModuleSecretMissing(RuntimeError):
+    """MODULE_TOKEN_SECRET не задан — подписывать нечем."""
+
+
+def _module_secret() -> bytes:
+    """Ключ подписи module/overlay-токенов. Пустой секрет = отказ (S-15).
+
+    Раньше при пустом `MODULE_TOKEN_SECRET` подпись молча падала на константу
+    `unconfigured-module-secret`. Строка лежит в исходниках и в опубликованном
+    отчёте аудита, то есть кто угодно мог собрать валидный токен за чужой канал
+    и говорить с Module API от имени его мода. Теперь пустой секрет — жёсткий
+    отказ: лучше «не работает и видно», чем «работает и открыто всем».
+    """
+    secret = (MODULE_TOKEN_SECRET or "").encode()
+    if not secret:
+        raise ModuleSecretMissing(
+            "MODULE_TOKEN_SECRET пуст — выдача и проверка module/overlay-токенов "
+            "отключены. Задай секрет в .env и перезапусти сервис.")
+    return secret
+
+
 def issue_module_token(channel_id: int, module_id: str,
                         ttl_seconds: int = _MODULE_TOKEN_TTL) -> str:
     """Сгенерировать module-token. Per docs/MODULE_API.md §4.
@@ -661,7 +682,7 @@ def issue_module_token(channel_id: int, module_id: str,
     """
     expires_at = int(time.time()) + max(60, int(ttl_seconds))
     msg = f"{int(channel_id)}|{module_id}|{expires_at}"
-    secret = (MODULE_TOKEN_SECRET or "").encode() or b"unconfigured-module-secret"
+    secret = _module_secret()
     sig = hmac.new(secret, msg.encode(), hashlib.sha256).hexdigest()
     return f"{msg}|{sig}"
 
@@ -678,7 +699,7 @@ def verify_module_token(token: str) -> Optional[dict]:
     try:
         cid_str, module_id, exp_str, sig = token.split('|', 3)
         msg = f"{cid_str}|{module_id}|{exp_str}"
-        secret = (MODULE_TOKEN_SECRET or "").encode() or b"unconfigured-module-secret"
+        secret = _module_secret()
         expected = hmac.new(secret, msg.encode(), hashlib.sha256).hexdigest()
         if not hmac.compare_digest(sig, expected):
             return None
@@ -690,6 +711,11 @@ def verify_module_token(token: str) -> Optional[dict]:
             "module_id": module_id,
             "expires_at": expires_at,
         }
+    except ModuleSecretMissing as e:
+        # Секрета нет — проверить подпись нечем. Отклоняем ВСЕ токены и кричим
+        # в лог: молчаливый пропуск здесь означал бы открытую дверь.
+        log.error("[module-token] %s", e)
+        return None
     except (ValueError, IndexError):
         return None
 
@@ -700,14 +726,19 @@ def verify_module_token(token: str) -> Optional[dict]:
 # в URL OBS-оверлея (секрет, не на стриме). Мутация требует валидный токен.
 def issue_overlay_token(channel_id: int) -> str:
     msg = f"overlay|{int(channel_id)}"
-    secret = (MODULE_TOKEN_SECRET or "").encode() or b"unconfigured-module-secret"
+    secret = _module_secret()
     return hmac.new(secret, msg.encode(), hashlib.sha256).hexdigest()[:32]
 
 
 def verify_overlay_token(channel_id: int, token: str) -> bool:
     if not token:
         return False
-    return hmac.compare_digest(token, issue_overlay_token(channel_id))
+    try:
+        expected = issue_overlay_token(channel_id)
+    except ModuleSecretMissing as e:
+        log.error("[overlay-token] %s", e)
+        return False
+    return hmac.compare_digest(token, expected)
 
 
 @router.get("/api/streamer/overlay-url", include_in_schema=False)

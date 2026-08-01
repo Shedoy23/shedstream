@@ -1184,7 +1184,9 @@ function loadBannerlordArmy() {
     slot.querySelector('[data-bnr-action="army_create"]')?.addEventListener('click', () => {
         _bannerlordBuyAction('hero.army_create', {});
     });
-    slot.querySelector('[data-bnr-action="army_disband"]')?.addEventListener('click', () => {
+    slot.querySelector('[data-bnr-action="army_disband"]')?.addEventListener('click', async () => {
+        // Необратимо: собранная армия распадается, собрать заново — с нуля.
+        if (!await _bnrConfirmDanger('Распустить армию? Собранные отряды разойдутся, и собирать их придётся заново. Отменить это нельзя.', 'Да, распустить')) return;
         _bannerlordBuyAction('hero.army_disband', {});
     });
 }
@@ -3651,7 +3653,9 @@ function loadBannerlordProfileFamily() {
         slot.querySelector('#bnr-marry-btn')?.addEventListener('click', () => {
             _bannerlordBuyAction('hero.marry', {});
         });
-        slot.querySelector('#bnr-divorce-btn')?.addEventListener('click', () => {
+        slot.querySelector('#bnr-divorce-btn')?.addEventListener('click', async () => {
+            // Необратимо: вернуть супруга можно будет только новой свадьбой за деньги.
+            if (!await _bnrConfirmDanger('Развестись? Брак распадётся окончательно — вернуть супруга можно будет только новой свадьбой, и она платная.', 'Да, развестись')) return;
             _bannerlordBuyAction('hero.divorce', {});
         });
         slot.querySelector('#bnr-make-baby-btn')?.addEventListener('click', () => {
@@ -3797,7 +3801,11 @@ function loadBannerlordDynastyLockedActions() {
             _ljDet.addEventListener('toggle', () => { if (_ljDet.open) _renderJoinInline('clan', 'bnr-locked-join-slot'); });
             if (_ljDet.open) _renderJoinInline('clan', 'bnr-locked-join-slot');
         }
-        slot.querySelector('.bnr-locked-leave')?.addEventListener('click', () => _bannerlordBuyAction('hero.leave_clan', {}));
+        slot.querySelector('.bnr-locked-leave')?.addEventListener('click', async () => {
+            // Необратимо: обратно — только новым вступлением, и только если позовут.
+            if (!await _bnrConfirmDanger('Покинуть клан? Место в клане не вернуть — вступать придётся заново, и только если позовут.', 'Да, покинуть')) return;
+            _bannerlordBuyAction('hero.leave_clan', {});
+        });
     }
 }
 function loadBannerlordClanMgmt() {
@@ -3838,7 +3846,11 @@ function loadBannerlordClanMgmt() {
         </button>`;
     if (_smartInnerHTML(slot, html)) {
         slot.querySelector('.bnr-clan-party')?.addEventListener('click', () => _bannerlordBuyAction('hero.create_party', {}));
-        slot.querySelector('.bnr-clan-leave')?.addEventListener('click', () => _bannerlordBuyAction('hero.leave_clan', {}));
+        slot.querySelector('.bnr-clan-leave')?.addEventListener('click', async () => {
+            // Необратимо: лидерство уйдёт другому, а клан может распуститься совсем.
+            if (!await _bnrConfirmDanger('Покинуть клан? Лидерство передастся другому, а клан может распуститься. Вернуться получится только новым вступлением.', 'Да, покинуть')) return;
+            _bannerlordBuyAction('hero.leave_clan', {});
+        });
     }
 }
 function loadBannerlordKingdomMgmt() {
@@ -3903,7 +3915,11 @@ function loadBannerlordKingdomMgmt() {
     if (slot.querySelector('[data-bnr-details="kingdom-create"]')?.open
         || slot.querySelector('[data-bnr-details="kingdom-join"]')?.open) return;
     if (_smartInnerHTML(slot, html)) {
-        slot.querySelector('.bnr-kingdom-leave')?.addEventListener('click', () => _bannerlordBuyAction('hero.leave_kingdom', {}));
+        slot.querySelector('.bnr-kingdom-leave')?.addEventListener('click', async () => {
+            // Необратимо: обратно примут только новым вступлением, и только если согласятся.
+            if (!await _bnrConfirmDanger('Покинуть королевство? Обратно примут только новым вступлением, и только если согласятся принять.', 'Да, покинуть')) return;
+            _bannerlordBuyAction('hero.leave_kingdom', {});
+        });
         // 2026-06-17 — нанять NPC-вассальный клан (ruler-only, 3M динаров). Confirm
         // обязателен (сумма огромная) + action-specific тост «не мгновенно» на успех.
         slot.querySelector('.bnr-recruit-vassal')?.addEventListener('click', async () => {

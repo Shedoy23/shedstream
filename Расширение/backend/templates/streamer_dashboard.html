@@ -3,7 +3,20 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
   body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#0e0e10;color:#efeff1;margin:0;padding:20px;min-height:100vh;box-sizing:border-box}
-  .wrap{max-width:840px;margin:40px auto}
+  /* 840px — ширина «под чтение текста абзацами», и она стояла здесь с тех пор,
+     когда страница была текстовой инструкцией. Сейчас это дашборд: карточки
+     просматривают, а не читают. На мониторе 1920 при 840px пустовала половина
+     экрана, а сетка карточек (`.grid`, auto-fit) умела развернуться шире и
+     просто не получала места. Расширено 2026-08-02 по замечанию владельца.
+     Абзацы текста при этом НЕ растягиваются — им ниже стоит свой потолок
+     (иначе строка в 1400px нечитаема, и лекарство было бы хуже болезни). */
+  .wrap{max-width:1400px;margin:40px auto}
+  /* Потолок строки для сплошного текста внутри секций. 78ch ≈ комфортная
+     длина строки; карточек, таблиц и полей ввода не касается. */
+  .section .sub,
+  .section ol,
+  .section ul,
+  .status .sub{max-width:78ch}
   .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
   .header h1{margin:0;font-size:22px}
   .nick{color:#9147ff}

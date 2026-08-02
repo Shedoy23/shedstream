@@ -358,11 +358,12 @@ RimLink также повторяет потерянный ACK почти всё
       переключатель «пропускать без модерации на свой страх и риск» есть, и
       правилам он не противоречит — расширение предоставляет возможность,
       отказ от неё на своём канале и есть её использование.
-      ⚠️ **Проверено функциями, но не руками (02.08).** На проде с момента
-      включения гейта 0 сообщений и 0 одобрений: путь «зритель отправил →
-      стример увидел в дашборде → нажал Одобрить → оверлей взял» живым
-      человеком не пройден ни разу. Тест бьёт в ту же функцию, что обслуживает
-      оверлей, рендер шаблона зелёный — но кнопки не нажимал никто.
+      ✅ **Прокликано 02.08 на локальной копии прода:** гейт держит (оверлей
+      отдаёт `null`) → клик «Одобрить» → оверлей отдаёт сообщение; «Скрыть»
+      убирает его из эфира; галочка «пропускать без модерации» реально
+      выключает гейт, но скрытие продолжает работать (§7.4 она не отменяет).
+      Граница проверки: клик DOM-событием по реальной кнопке, не физической
+      мышью — попадание курсора не проверено.
       ⚠️ **Не закрыто:** AutoMod-фильтрация текста — нужен scope
       `moderation:read` и повторная авторизация каждого стримера (DEFERRED).
 - ✅ **Награда за квест больше не теряется и не удваивается** (S-18, 01.08,
@@ -560,17 +561,64 @@ Compatibility:
   both the old and the new frontend during the transition.
 - Required game/mod version: (fill in before submission)
 
-Verification:
-1. Open the extension on the review channel.
-2. (steps filled in per feature before submission)
+Verification (no game session required for any step below):
+
+Most of this release is inspectable without the game running. The mod only
+affects whether a purchased action has an in-world effect; the panel, its
+disclosures, its prices and its moderation tools are all reachable on their own.
+
+1. Open the extension on the review channel as an ANONYMOUS viewer.
+   Expected: the panel loads and explains that Twitch identity sharing is
+   required for paid actions. No action buttons are enabled. No errors in the
+   console.
+2. Grant identity sharing and reload.
+   Expected: your Twitch display name appears; the balance shows 0.
+3. Open "About the currency and odds" at the bottom of the panel.
+   Expected: it is available in English; it states that the currency is virtual,
+   earned by watching and chatting, cannot be bought, cannot be cashed out, and
+   has no monetary value. Case odds are listed as 70/25/4/1 with an explicit
+   note that they apply only to cases dropped at random during the stream.
+4. Check that every price shown on a button comes from the server: open
+   https://shedoy23.ru/api/bannerlord/config and compare any figure with the
+   button label. They are read from the same source.
+5. Press any irreversible action (leave clan, leave kingdom, divorce, disband
+   army). Expected: a confirmation dialog naming the consequence appears BEFORE
+   anything is charged. Cancelling charges nothing.
+6. With the streamer's mod offline (its normal state outside a stream), press a
+   paid action. Expected: either a refusal explaining the game is not connected,
+   or a queued request that expires and refunds automatically within 40 minutes.
+   No silent loss.
+7. Resize to the mobile shell. Expected: same content, same disclosure, no
+   horizontal scrolling.
+8. Moderation of user-generated content — streamer side, at
+   https://shedoy23.ru/streamer/dashboard, card "Voice-over — moderation":
+   viewer-submitted text-to-speech messages wait there for explicit approval
+   before they are played on the broadcast; the streamer can approve, remove, or
+   block the author, and every message stays in a history with its state. The
+   overlay always displays the submitter's Twitch username above the text.
+   Approval is required by default.
 
 Environment:
 - Review channel: https://twitch.tv/shedoy23
 - Backend: https://shedoy23.ru
-- Live game requirement: yes — the extension drives a running Mount & Blade II:
-  Bannerlord session through a streamer-side mod.
+- Game session: NOT required to review the extension (see above). The streamer
+  runs a Mount & Blade II: Bannerlord mod so that purchased actions take effect
+  in their game; without it the panel is fully browsable and paid actions are
+  refused or refunded rather than silently lost.
 - Availability: (fill in the window before submission)
 ```
+
+**Почему раздел Verification переписан (02.08).** Он был плейсхолдером, а
+строка «Live game requirement: yes» читалась как «без игры расширение не
+проверить». Это и есть формулировка, за которую Twitch отказывал раньше:
+дословная причина отказа — «overly complex configuration requiring external
+registrations or downloads». Фактически же почти всё в этой версии видно без
+игры, и задача текста — показать ревьюеру дорогу, а не поставить ему условие.
+
+⚠️ **Шаги 1–8 написаны по коду и НЕ прогнаны на живом артефакте.** Прогнать их
+целиком — это и есть Hosted Test (этап E), который не начат. Перед подачей
+пройти их самому и вычеркнуть то, что не сходится: текст, обещающий ревьюеру
+то, чего он не увидит, хуже пустого плейсхолдера.
 
 **Не забыть при подаче:** содержательные изменения поведения и сбора данных
 описывать честно — в том числе добавленную модерацию пользовательского

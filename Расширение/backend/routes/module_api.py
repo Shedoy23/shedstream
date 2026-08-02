@@ -135,10 +135,28 @@ _DEDUP_RING_SIZE = 5000
 # (см. комментарий у проверки). 2026-07-30, аудит §5.
 MAX_ENVELOPES_PER_BATCH = 200
 
-_processed_envelopes: dict = {}  # channel_id → (Set[id], Deque[id])
+# Ключ — (channel_id, module_id), НЕ один channel_id.
+# 2026-08-02, внешний разбор модульного ядра: кольцо было per-channel, поэтому
+# два модуля одного канала, приславшие конверт с одинаковым id, затирали друг
+# друга — второй молча объявлялся дубликатом и НЕ обрабатывался. Сейчас каналов
+# с двумя живыми модулями нет, так что дефект спал; проснулся бы ровно в день,
+# когда рядом с Bannerlord встанет shedcolony или RimWorld, и выглядел бы как
+# «событие пропало без следа». Id конвертов выдаёт коннектор, и требовать от
+# двух независимых модов глобальной уникальности мы не можем.
+#
+# ⚠️ Кольцо живёт В ПАМЯТИ процесса: рестарт его теряет, а при нескольких
+# воркерах у каждого своё. Оба ограничения известны и приняты (UVICORN_WORKERS=1,
+# а после рестарта повтор конверта максимум исполнится второй раз — от этого
+# защищает идемпотентность самих обработчиков). Перенос в БД — в DEFERRED,
+# вместе с lease-моделью.
+_processed_envelopes: dict = {}  # (channel_id, module_id) → (Set[id], Deque[id])
 
 
-def _forget_envelope(channel_id: int, env_id: str) -> None:
+def _dedup_key(channel_id: int, module_id: str) -> tuple:
+    return (channel_id, module_id or "")
+
+
+def _forget_envelope(channel_id: int, env_id: str, module_id: str = "") -> None:
     """Забыть конверт, чтобы повтор МОГ быть обработан.
 
     2026-07-31 ВНЕШНИЙ АУДИТ (находка 4). `_is_duplicate_envelope` помечает id
@@ -155,7 +173,7 @@ def _forget_envelope(channel_id: int, env_id: str) -> None:
     сторожа или человека) сработает штатно, а идемпотентность возврата
     обеспечит маркер `REFUNDED:`.
     """
-    pair = _processed_envelopes.get(channel_id)
+    pair = _processed_envelopes.get(_dedup_key(channel_id, module_id))
     if not pair or not env_id:
         return
     seen, q = pair
@@ -167,14 +185,17 @@ def _forget_envelope(channel_id: int, env_id: str) -> None:
             pass
 
 
-def _is_duplicate_envelope(channel_id: int, env_id: str) -> bool:
-    """True если уже видели этот id за последние _DEDUP_RING_SIZE сообщений."""
+def _is_duplicate_envelope(channel_id: int, env_id: str,
+                           module_id: str = "") -> bool:
+    """True если уже видели этот id ОТ ЭТОГО ЖЕ МОДУЛЯ за последние
+    _DEDUP_RING_SIZE сообщений."""
     if not env_id:
         return False  # пустой id не дедуплицируем — caller'у виднее
-    pair = _processed_envelopes.get(channel_id)
+    key = _dedup_key(channel_id, module_id)
+    pair = _processed_envelopes.get(key)
     if pair is None:
         pair = (set(), deque())
-        _processed_envelopes[channel_id] = pair
+        _processed_envelopes[key] = pair
     seen, q = pair
     if env_id in seen:
         return True
@@ -260,12 +281,30 @@ async def module_events(module_id: str, request: Request):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=_AUTH_FAILED)
     channel_id = body_channel_id
 
+    # Отличаем «пустая пачка» от «тело не распознано». Разница дорогая:
+    # 2026-08-02 я сам отправил конверты под ключом `events` вместо `envelopes`
+    # — бэкенд ответил `status: ok` с пустым acks, конверты молча пропали, а
+    # прогон аудита из-за этого отрапортовал 12 несуществующих денежных
+    # дефектов. Тот, кто пишет коннектор, попадёт в ту же яму: ответ «ок» на
+    # запрос, который ничего не сделал, — худший из возможных.
+    has_key = "envelopes" in body
     envelopes_raw = body.get("envelopes") or []
     if not isinstance(envelopes_raw, list):
         # Fallback: одиночный envelope без wrapper'а
         envelopes_raw = [body] if body.get("type") else []
+        has_key = has_key or bool(body.get("type"))
     if not envelopes_raw:
-        return {"status": "ok", "acks": []}
+        if has_key:
+            return {"status": "ok", "acks": []}   # честно пустая пачка
+        log.warning("[module_api] no_envelopes ch=%s module=%s keys=%s",
+                    channel_id, module_id, sorted(body.keys())[:8])
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"status": "no_envelopes",
+                    "message": "Ожидается поле 'envelopes' (список конвертов) "
+                               "или одиночный конверт с полем 'type'. "
+                               "Ничего не обработано.",
+                    "got_keys": sorted(body.keys())[:8]})
 
     # 2026-07-30 (аудит спеки §5, вопрос «есть ли ограничение на размер») —
     # ПОТОЛОК НА ПАКЕТ. Его не было вовсе: каждый конверт проверяется и
@@ -306,7 +345,7 @@ async def module_events(module_id: str, request: Request):
             acks.append({"id": env.id, "success": False, "error": "event_not_in_manifest"})
             continue
         # Dedup
-        if _is_duplicate_envelope(channel_id, env.id):
+        if _is_duplicate_envelope(channel_id, env.id, module_id):
             acks.append({"id": env.id, "success": True, "duplicate": True})
             continue
         # Lifecycle hooks для module.* events
@@ -331,7 +370,7 @@ async def module_events(module_id: str, request: Request):
             # Обработка не удалась → конверт НЕ считается обработанным, иначе
             # повтор объявят дубликатом и заявка на возврат исчезнет навсегда
             # (внешний аудит 31.07, находка 4).
-            _forget_envelope(channel_id, env.id)
+            _forget_envelope(channel_id, env.id, module_id)
             acks.append({"id": env.id, "success": False,
                          "error": f"{type(e).__name__}: {e}"})
 

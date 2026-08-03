@@ -125,6 +125,14 @@ namespace BannerlordLink.Behaviors
         // Participation reward (fires в OnEndMission). Применяется к каждому
         // BLink-участнику независимо от kill'ов — награда за факт участия.
         // Newbie-friendly: lose-штраф убран.
+        // 2026-08-03 — «помощь отстающим» (решение владельца, спорное — см. развёрнутое
+        // возражение у места применения и в DEFERRED). Числа держим здесь, чтобы после
+        // пост-стрим-триажа крутить в одном месте. Если крутить придётся часто — вынести
+        // в конфиг бэкенда, чтобы не пересобирать мод ради одного числа.
+        private const int UNDERDOG_THRESHOLD = 50000;  // заработал меньше — доплачиваем
+        private const int UNDERDOG_GOLD      = 50000;  // сколько доплачиваем
+        private const int UNDERDOG_XP        = 25000;  // и опыта
+
         private const int WIN_GOLD  = 4800;
         private const int WIN_XP    = 4800;
         private const int LOSE_GOLD = 0;      // мы не штрафуем за поражение
@@ -618,6 +626,50 @@ namespace BannerlordLink.Behaviors
                         $"result={(theirSideWon ? "🏆WIN" : "💀LOSS")}: " +
                         $"{(goldDelta >= 0 ? "+" : "")}{goldDelta}💰 +{xpDelta} XP " +
                         $"[sub ×{subBoost:F2}]");
+
+                    // 2026-08-03 — «помощь отстающим» (решение владельца).
+                    // Победившая сторона: заработал за бой меньше порога — получает
+                    // фиксированную доплату. Заработал больше — ничего.
+                    //
+                    // ⚠️ ВОЗРАЖЕНИЕ ЗАФИКСИРОВАНО (я против такой формы, владелец решил
+                    //    делать так и проверить по триажу — DEFERRED, «помощь отстающим»):
+                    //    1) ОБРЫВ на пороге. Заработал 49 999 → 99 999 на руки.
+                    //       Заработал 50 001 → 50 001. Две тысячи лишнего заработка
+                    //       стоят пятидесяти тысяч, и выгодная стратегия — перестать
+                    //       драться под порогом.
+                    //    2) ПОРОГ ВЫШЕ МЕДИАНЫ В РАЗЫ. По логам: 31.07 медиана 5 760,
+                    //       под порог 194 из 209 участий; 03.08 медиана 14 600, под
+                    //       порог 88 из 122. То есть доплату получает большинство —
+                    //       это не помощь отстающим, а новая базовая выплата.
+                    //    3) Навоевавший 41 720 и не сделавший ничего получают поровну
+                    //       50 000 — система вкладов (вехи, урон, поглощение) при
+                    //       таком пороге перестаёт различать игроков.
+                    //    Что опровергнет возражение: триаж после стрима покажет, что
+                    //    доля доплат невелика и разброс заработков сохранился.
+                    //    Альтернатива, если возражение подтвердится: триггер по
+                    //    БОГАТСТВУ героя (меньше 50к на счету), а не по заработку за
+                    //    бой — тогда помощь адресная и сама выключается.
+                    if (theirSideWon && s.GoldEarned < UNDERDOG_THRESHOLD)
+                    {
+                        try
+                        {
+                            GiveGoldAction.ApplyBetweenCharacters(
+                                null, s.Hero, UNDERDOG_GOLD, true);
+                            s.GoldEarned += UNDERDOG_GOLD;
+                            DistributeXpAcrossSkills(s.Hero, UNDERDOG_XP);
+                            s.XpEarned += UNDERDOG_XP;
+                            BannerlordLinkModule.Log(
+                                $"[Underdog] @{s.Username} заработал за бой " +
+                                $"{s.GoldEarned - UNDERDOG_GOLD}💰 (< {UNDERDOG_THRESHOLD}) " +
+                                $"→ доплата +{UNDERDOG_GOLD}💰 +{UNDERDOG_XP} XP");
+                            HeroStateSyncSafe(s.Hero);
+                        }
+                        catch (Exception ex)
+                        {
+                            BannerlordLinkModule.Log(
+                                $"[Underdog] @{s.Username} доплата failed: {ex.Message}");
+                        }
+                    }
 
                     HeroStateSyncSafe(s.Hero);
                 }

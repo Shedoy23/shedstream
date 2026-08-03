@@ -78,6 +78,7 @@ namespace BannerlordLink.Behaviors
             public bool NavValid;                // NavTarget set?
             public float NextReissueAt;
             public bool SkirmishHolding;         // Skirmish: запинен на standoff (зона покоя) → не re-issue'им
+            public bool ChargeEngaged;           // Charge: враг в упор, управление отдано боевому AI
         }
 
         private readonly ConcurrentDictionary<int, DetachmentState> _states =
@@ -394,16 +395,49 @@ namespace BannerlordLink.Behaviors
                 if (enemy != null)
                 {
                     // 2026-06-17 — «вблизи»: ВСЕГДА в КОНТАКТ к врагу, для всех классов
-                    // (дистанционный бой — отдельный приказ Skirmish «издали»). Скриптуем
-                    // на позицию врага + авто-таргет; re-issue 0.5с ведёт за врагом.
-                    var pos = enemy.GetWorldPosition();
-                    agent.SetScriptedPosition(ref pos, false,
-                        Agent.AIScriptedFrameFlags.NeverSlowDown);
+                    // (дистанционный бой — отдельный приказ Skirmish «издали»).
+                    //
+                    // 2026-08-03 (просьба владельца «чтоб персонаж просто шёл в бой»):
+                    // раньше мы КАЖДЫЕ 0.5с переставляли скриптованную позицию на
+                    // ближайшего врага с флагом NeverSlowDown — и не снимали её никогда.
+                    // Герой из-за этого вечно БЕЖАЛ к точке вместо того, чтобы драться:
+                    // подбежав вплотную, он тут же получал новую точку (враг сместился
+                    // или ближайшим стал другой) и снова разгонялся, вместо замаха.
+                    //
+                    // Теперь скрипт — только чтобы ДОЙТИ. Как только враг в пределах
+                    // удара, управление отдаётся боевому AI движка: он сам выбирает
+                    // цель, бьёт, блокирует и уклоняется. Отпускаем через
+                    // DisableScriptedMovement + SetAutomaticTargetSelection(true).
+                    //
+                    // Гистерезис (ENGAGE < DISENGAGE) — чтобы у самой границы приказ не
+                    // дёргался «отпустил/схватил» каждый тик. Это тот же класс ошибки и
+                    // то же лекарство, что в Skirmish (#32): там пересчёт точки каждые
+                    // 0.5с давал «бегает туда-сюда», и лечилось это зоной покоя.
+                    const float ENGAGE_DIST    = 3.5f;   // ближе — дерись сам
+                    const float DISENGAGE_DIST = 6.0f;   // дальше — снова веду к врагу
+
+                    float dist = agent.Position.Distance(enemy.Position);
+                    if (st.ChargeEngaged && dist > DISENGAGE_DIST) st.ChargeEngaged = false;
+                    else if (!st.ChargeEngaged && dist <= ENGAGE_DIST) st.ChargeEngaged = true;
+
                     try { agent.SetAutomaticTargetSelection(true); } catch { }
+
+                    if (st.ChargeEngaged)
+                    {
+                        // В упор — не мешаем движку драться.
+                        try { agent.DisableScriptedMovement(); } catch { }
+                    }
+                    else
+                    {
+                        var pos = enemy.GetWorldPosition();
+                        agent.SetScriptedPosition(ref pos, false,
+                            Agent.AIScriptedFrameFlags.NeverSlowDown);
+                    }
                 }
                 else
                 {
                     // Врагов не нашли — снимаем скрипт, пусть AI решает сам.
+                    st.ChargeEngaged = false;
                     try { agent.DisableScriptedMovement(); } catch { }
                 }
             }
@@ -444,13 +478,39 @@ namespace BannerlordLink.Behaviors
                 Vec2 away = agent.Position.AsVec2 - ec;   // enemy → agent
                 float dist = away.Length;
 
-                bool outOfBand = dist < standoff - band || dist > standoff + band;
                 bool hasLos = HasLineOfSight(agent, enemy);
 
-                if (outOfBand)
+                // 2026-08-03 (жалоба владельца: «держит дистанцию от врага, который бежит
+                // на него, из-за этого просто бегает туда-сюда, а не атакует»).
+                //
+                // Причина была в том, что «слишком близко» считалось поводом ОТСТУПАТЬ.
+                // Для лука standoff ≈ 0.8 × 80 м ≈ 64 м, зона покоя 52–75 м. Враг бежит
+                // на героя → дистанция падает ниже 52 → его скриптуют назад на 64 м →
+                // враг снова добегает. Цикл не сходится никогда, а стрелять герой не
+                // успевает, потому что постоянно бежит (NeverSlowDown).
+                //
+                // Логическая ошибка: для стрелка «ближе, чем standoff» — НЕ проблема.
+                // С 30 м стрела летит прекрасно. Дистанция нужна, чтобы не оказаться в
+                // ближнем бою, а не чтобы держать рекорд дальности. Поэтому:
+                //   • враг в упор            → не пятимся, дерёмся (AI возьмёт сайдарм);
+                //   • ближе standoff'а, но не в упор → СТОИМ И СТРЕЛЯЕМ;
+                //   • дальше полосы          → поджимаемся, чтобы достать.
+                // Отступление убрано как поведение — оно и порождало «туда-сюда».
+                const float SKIRMISH_MELEE_DIST = 5.0f;   // враг фактически на нас
+
+                if (dist <= SKIRMISH_MELEE_DIST)
                 {
-                    // Вне полосы (враг слишком близко ИЛИ слишком далеко для 0.8-дистанции)
-                    // → выходим на standoff по линии от врага. В полосе окажемся — встанем.
+                    // Пятиться поздно и бессмысленно — отдаём управление боевому AI.
+                    st.SkirmishHolding = false;
+                    try { agent.DisableScriptedMovement(); } catch { }
+                    return;
+                }
+
+                bool tooFar = dist > standoff + band;
+
+                if (tooFar)
+                {
+                    // Слишком далеко, чтобы достать → поджимаемся на standoff.
                     if (dist > 0.01f)
                     {
                         away = away * (standoff / dist);

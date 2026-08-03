@@ -281,6 +281,112 @@ namespace BannerlordLink.Actions
                 // center (heavy, требует Formation iteration).
                 Vec3? heroSpawnPos = null;
                 Vec2? heroSpawnDir = null;
+
+                // 2026-08-02 — формация по КЛАССУ зрителя. Считаем ДО позиции:
+                // к этой же формации привязываемся при спавне за своих (ниже).
+                //
+                // Механизм (декомпиляция `Mission.SpawnTroop`): у метода есть
+                // параметр `formationIndex` со значением по умолчанию
+                // `NumberOfAllFormations` = «не задан». Мы его не передавали, и
+                // движок шёл в `agentTeam.GetFormation(GetAgentTroopClass(...))`
+                // → `agentCharacter.GetFormationClass()`, то есть выводил
+                // формацию из снаряжения героя. Класс зрителя из ShedLink до
+                // спавна не доезжал ВООБЩЕ — лучник вставал в пехоту.
+                //
+                // `SetPlayerFormationPreference` выше не помогала и помочь не
+                // могла: это кампанийная настройка расстановки ПЕРЕД боем, на
+                // `SpawnTroop` посреди боя она не смотрит. Оставлена — на своём
+                // месте она работает.
+                //
+                // Осадная оговорка: `GetAgentTroopClass` сам приводит класс к
+                // пешему через `DismountedClass()` в осаде и в вылазке у
+                // атакующего. Передавая formationIndex явно, мы этот шаг
+                // обходим — значит повторяем его сами, иначе спешенный конник
+                // попадёт в КОННУЮ формацию. Опираемся на уже посчитанный
+                // `withHorse` (ShouldUseMount учитывает осаду, стелс и море).
+                var spawnFormation = ResolveFormationClass(username);
+                if (!withHorse)
+                {
+                    try { spawnFormation = spawnFormation.DismountedClass(); }
+                    catch (Exception ex)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[player.spawn:{sideLabel}] @{username} dismount-class warn: {ex.Message}");
+                    }
+                }
+
+                // 2026-08-02 — спавн за СВОИХ больше не в зоне подкреплений.
+                //
+                // Симптом владельца: «на некоторых картах зрители со свитой
+                // спавнятся очень далеко за спиной, около края карты».
+                // Причина ровно здесь: для союзной стороны позиция оставалась
+                // null (см. ниже «Ally side → null»), поэтому уходило
+                // `isReinforcement: true`, и движок клал агента в зону
+                // подкреплений. На больших картах она у самого края.
+                //
+                // Для вражеской стороны позицию считали давно — по живому
+                // вражескому агенту. Делаем то же для своей, только якорь
+                // выбираем ИЗ ЦЕЛЕВОЙ ФОРМАЦИИ: лучник появится у стрелков, а
+                // не в куче пехоты. Если в его формации ещё никого нет —
+                // берём любого своего; если своих нет вообще — оставляем
+                // прежнее поведение (зона подкреплений), это не хуже, чем было.
+                //
+                // Agent.Main намеренно НЕ используем — он уже был причиной
+                // краша, о чём написано в комментарии выше.
+                if (isPlayerSide)
+                {
+                    try
+                    {
+                        var allyTeam = Mission.Current?.PlayerTeam;
+                        if (allyTeam != null)
+                        {
+                            Agent anchor = null;
+                            Agent anchorSameFormation = null;
+                            foreach (var a in Mission.Current.Agents)
+                            {
+                                if (a == null || !a.IsActive() || !a.IsHuman) continue;
+                                if (a.Team != allyTeam) continue;
+                                if (a == Agent.Main) continue;      // не якоримся на стримере
+                                if (anchor == null) anchor = a;
+                                if (a.Formation != null
+                                    && a.Formation.FormationIndex == spawnFormation)
+                                {
+                                    anchorSameFormation = a;
+                                    break;
+                                }
+                            }
+                            var chosen = anchorSameFormation ?? anchor;
+                            if (chosen != null)
+                            {
+                                var anchorPos = chosen.Position;
+                                var anchorDir = chosen.LookDirection.AsVec2;
+                                var perp = new Vec2(-anchorDir.y, anchorDir.x);
+                                int hash = Math.Abs(username.GetHashCode());
+                                float offsetDist = 2f + (hash % 30) / 15f;   // 2–4 м
+                                float sideSign = (hash % 2 == 0) ? 1f : -1f;
+                                var offset = perp * (offsetDist * sideSign);
+                                heroSpawnPos = new Vec3(
+                                    anchorPos.x + offset.x,
+                                    anchorPos.y + offset.y,
+                                    anchorPos.z);
+                                heroSpawnDir = anchorDir;
+                                BannerlordLinkModule.Log(
+                                    $"[player.spawn:{sideLabel}] @{username} → рядом со своими " +
+                                    $"({(anchorSameFormation != null ? "своя формация " + spawnFormation : "любой союзник")}, " +
+                                    $"offset {offsetDist:F1}м)");
+                            }
+                        }
+                    }
+                    catch (Exception posEx)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[player.spawn:{sideLabel}] @{username} ally-anchor pos calc failed: " +
+                            $"{posEx.Message} — fallback зона подкреплений");
+                        heroSpawnPos = null;
+                        heroSpawnDir = null;
+                    }
+                }
+
                 if (!isPlayerSide)
                 {
                     try
@@ -346,6 +452,11 @@ namespace BannerlordLink.Actions
                 }
                 else
                 {
+                    BannerlordLinkModule.Log(
+                        $"[player.spawn:{sideLabel}] @{username} formation → {spawnFormation} " +
+                        $"(класс зрителя, конь={withHorse}, " +
+                        $"позиция={(heroSpawnPos.HasValue ? "у своих/врага" : "зона подкреплений")})");
+
                     agent = Mission.Current.SpawnTroop(
                         new PartyAgentOrigin(originParty, hero.CharacterObject),
                         isPlayerSide:        isPlayerSide,
@@ -358,7 +469,8 @@ namespace BannerlordLink.Actions
                         wieldInitialWeapons: true,
                         forceDismounted:     !withHorse,
                         initialPosition:     heroSpawnPos,
-                        initialDirection:    heroSpawnDir);
+                        initialDirection:    heroSpawnDir,
+                        formationIndex:      spawnFormation);
                 }
 
                 if (agent != null && !heroAlreadySpawned)

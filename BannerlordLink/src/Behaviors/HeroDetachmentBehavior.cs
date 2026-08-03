@@ -79,6 +79,8 @@ namespace BannerlordLink.Behaviors
             public float NextReissueAt;
             public bool SkirmishHolding;         // Skirmish: запинен на standoff (зона покоя) → не re-issue'им
             public bool ChargeEngaged;           // Charge: враг в упор, управление отдано боевому AI
+            public int  KiteCount;               // Skirmish: сколько раз уже отходил в этой стычке
+            public float KiteReadyAt;            // Skirmish: раньше этого времени отходить нельзя
         }
 
         private readonly ConcurrentDictionary<int, DetachmentState> _states =
@@ -496,13 +498,87 @@ namespace BannerlordLink.Behaviors
                 //   • ближе standoff'а, но не в упор → СТОИМ И СТРЕЛЯЕМ;
                 //   • дальше полосы          → поджимаемся, чтобы достать.
                 // Отступление убрано как поведение — оно и порождало «туда-сюда».
-                const float SKIRMISH_MELEE_DIST = 5.0f;   // враг фактически на нас
+                // 2026-08-03, вторая итерация (владелец: «а как сделать, чтоб когда к
+                // дальнику прям близко подбегают, он отбегал»). Первая правка убрала
+                // отступление ЦЕЛИКОМ — это перебор. Убирать надо было ДАЛЬНЕЕ
+                // отступление: пятиться от врага в 50 м, убегая на 64, бессмысленно и
+                // не сходится. А короткий отход от того, кто уже рядом, — это и есть
+                // работа стрелка.
+                //
+                // Поэтому у отхода теперь КОРОТКИЙ ПОВОДОК:
+                //   • отходим, только если враг ближе KITE_TRIGGER (не «ближе 64 м»);
+                //   • отходим на KITE_RETREAT, а не на полную дальность оружия —
+                //     иначе герой убегает через всю карту и не стреляет;
+                //   • поводок ограничен и самим оружием (min со standoff): дротикам
+                //     незачем пятиться дальше, чем они летят;
+                //   • догнали вплотную — не пятимся, дерёмся (ниже).
+                // Так герой отходит на пару шагов, стреляет, снова отходит — и всё
+                // это заканчивается ближним боем, если враг быстрее. Раньше не
+                // заканчивалось ничем.
+                const float SKIRMISH_MELEE_DIST = 5.0f;    // враг фактически на нас
+                const float KITE_TRIGGER        = 12.0f;   // ближе — пора отходить
+                const float KITE_RETREAT        = 25.0f;   // куда отходим (не дальше)
 
                 if (dist <= SKIRMISH_MELEE_DIST)
                 {
                     // Пятиться поздно и бессмысленно — отдаём управление боевому AI.
                     st.SkirmishHolding = false;
                     try { agent.DisableScriptedMovement(); } catch { }
+                    return;
+                }
+
+                // ЧТОБЫ НЕ ПРЕВРАТИЛОСЬ В ПОБЕГУШКИ (прямое требование владельца).
+                // Одного короткого поводка мало: враг снова добежит до 12 м, и цикл
+                // повторится — просто на меньшей дистанции. Поэтому у отхода есть
+                // бюджет и пауза:
+                //   • между отходами — KITE_COOLDOWN секунд, в которые герой СТОИТ И
+                //     СТРЕЛЯЕТ. Это и есть разница между «стрелок с манёвром» и
+                //     «бегает и не атакует»: выстрелы гарантированы промежутком;
+                //   • всего не больше KITE_MAX отходов на стычку. Дальше держит место,
+                //     и если враг всё-таки добежал — переходит в ближний бой (правило
+                //     выше). Стычка считается законченной, когда враг снова далеко —
+                //     тогда бюджет обнуляется.
+                // Итог: не более трёх коротких отходов, между ними стрельба, финал —
+                // либо враг отстал, либо ближний бой. Бесконечного бега нет.
+                const float KITE_COOLDOWN = 3.0f;   // сек стрельбы между отходами
+                const int   KITE_MAX      = 3;      // отходов на одну стычку
+
+                float nowT;
+                try { nowT = Mission.CurrentTime; } catch { nowT = 0f; }
+
+                if (dist > standoff)
+                {
+                    // Враг отстал — стычка окончена, бюджет отхода восстанавливается.
+                    st.KiteCount = 0;
+                }
+
+                if (dist < KITE_TRIGGER)
+                {
+                    bool mayKite = st.KiteCount < KITE_MAX && nowT >= st.KiteReadyAt;
+                    if (mayKite)
+                    {
+                        // Короткий отход по линии от врага.
+                        float retreatTo = Math.Min(KITE_RETREAT, standoff);
+                        if (retreatTo < KITE_TRIGGER) retreatTo = KITE_TRIGGER;
+                        if (dist > 0.01f)
+                        {
+                            away = away * (retreatTo / dist);
+                            try { epos.SetVec2(ec + away); } catch { }
+                        }
+                        agent.SetScriptedPosition(ref epos, false,
+                            Agent.AIScriptedFrameFlags.NeverSlowDown);
+                        st.SkirmishHolding = false;
+                        st.KiteCount++;
+                        st.KiteReadyAt = nowT + KITE_COOLDOWN;
+                    }
+                    else if (!st.SkirmishHolding)
+                    {
+                        // Отход на паузе или бюджет исчерпан → стоим и стреляем.
+                        var hold = agent.GetWorldPosition();
+                        agent.SetScriptedPosition(ref hold, false,
+                            Agent.AIScriptedFrameFlags.NeverSlowDown);
+                        st.SkirmishHolding = true;
+                    }
                     return;
                 }
 

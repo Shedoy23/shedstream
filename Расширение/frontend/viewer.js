@@ -687,6 +687,24 @@ async function getUsernameFromTwitchId(twitchId, token, rawOpaqueId = null) {
 
 // ===== НАСТРОЙКА ВКЛАДОК =====
 /**
+ * Подписи под кнопками главной вкладки — приходят с бэкенда картой «id → текст».
+ *
+ * ЗАЧЕМ. «Свободен» и «Не состоишь» стояли в разметке намертво и не менялись
+ * никогда: женатый зритель всё равно читал «Свободен». Данные для этих подписей
+ * существуют давно, их просто никто не подставлял.
+ *
+ * Список подписей здесь НЕ хранится специально: добавить новую можно будет с
+ * бэкенда, а фронт до следующего ревью Twitch заморожен на CDN.
+ */
+function applyCardSubtitles(subtitles) {
+    if (!subtitles) return;
+    Object.keys(subtitles).forEach(id => {
+        const el = document.getElementById(id);
+        if (el && typeof subtitles[id] === 'string') el.textContent = subtitles[id];
+    });
+}
+
+/**
  * Приглашение к первому шагу для зрителя без персонажа.
  *
  * ЗАЧЕМ (разбор воронки по боевой базе, 2026-08-05). Из 86 зрителей персонажа
@@ -976,6 +994,7 @@ async function loadUserData() {
         renderQuests(data.quests || []);
         switchIntegrationModule(data.active_module || null);
         renderFirstStep(data.first_step || null);
+        applyCardSubtitles(data.card_subtitles || null);
         loadUserLevel();
         
         // Перерисовываем магазин и ивенты с актуальным балансом (кнопки enabled/disabled)

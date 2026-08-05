@@ -140,6 +140,47 @@ def _first_step_price(module: str, spec: dict) -> int:
     return 0
 
 
+async def _card_subtitles(db, channel_id: int, username: str) -> dict:
+    """Подписи под кнопками главной вкладки: id элемента → текст.
+
+    ЗАЧЕМ (2026-08-05, заметил владелец по скриншоту). Подписи «Свободен» и
+    «Не состоишь» были ЗАШИТЫ в HTML и не менялись никогда: женатый зритель всё
+    равно читал «Свободен», состоящий в гильдии — «Не состоишь». Данные при этом
+    есть (`/api/marriage/status`, `/api/guild/my`), их просто никто не
+    подставлял. Класс знакомый: нарисовано состояние, которого никто не считает.
+
+    Отдаём картой «id → текст», а не отдельными полями: добавить новую подпись
+    можно будет с бэкенда, не трогая замороженный на CDN фронт.
+
+    Молчим при ошибке — тогда останется то, что стоит в разметке. Это хуже
+    правды, но лучше пустоты на месте подписи.
+    """
+    out: dict = {}
+    try:
+        async with db._connect() as conn:
+            cur = await conn.execute(
+                "SELECT user1, user2 FROM marriages "
+                "WHERE channel_id=? AND (user1=? OR user2=?) AND divorced_at IS NULL",
+                (channel_id, username, username))
+            row = await cur.fetchone()
+        if row:
+            partner = row[1] if username == row[0] else row[0]
+            out["family-status-desc"] = f"В браке · @{partner}"
+        else:
+            out["family-status-desc"] = "Свободен"
+    except Exception as ex:
+        logger.warning("[subtitles] брак ch=%s @%s: %s", channel_id, username, ex)
+
+    try:
+        guild = await db.get_my_guild(username, channel_id=channel_id)
+        name = (guild or {}).get("name") if isinstance(guild, dict) else None
+        out["guild-state"] = name if name else "Не состоишь"
+    except Exception as ex:
+        logger.warning("[subtitles] гильдия ch=%s @%s: %s", channel_id, username, ex)
+
+    return out
+
+
 async def _first_step_for(db, channel_id: int, username: str, active_module):
     """Что показать в верхней карточке главной вкладки. None — не показывать.
 
@@ -316,6 +357,7 @@ async def viewer_stats(username: str, request: Request):
         pass
 
     first_step = await _first_step_for(db, channel_id, uname, active_module)
+    card_subtitles = await _card_subtitles(db, channel_id, uname)
 
     return {
         "points":         points,
@@ -325,6 +367,7 @@ async def viewer_stats(username: str, request: Request):
         "income_per_min": income_per_min,
         "active_module":  active_module,     # 'rimworld' | 'bannerlord' | null
         "first_step":     first_step,        # null, если персонаж уже есть
+        "card_subtitles": card_subtitles,    # id элемента → подпись
         "stats": {
             "chat_messages_today":  chat_count,
             "chat_length_today":    chat_length,

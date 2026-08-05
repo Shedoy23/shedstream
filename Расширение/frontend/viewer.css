@@ -143,6 +143,36 @@ html, body {
     letter-spacing: 0.02em;
 }
 
+/* Шапка: название расширения + версия, активная игра — подписью снизу.
+   До 2026-08-05 название игры ЗАТИРАЛО .panel-title, и при переключении
+   интеграции расширение переставало называть себя. */
+.panel-brand {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+.panel-brand-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+.panel-version {
+    font-size: 10px;
+    font-weight: 500;
+    color: #6b6b73;
+    letter-spacing: 0.02em;
+}
+.panel-subtitle {
+    font-size: 11px;
+    line-height: 1.2;
+    color: #adadb8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.panel-subtitle:empty { display: none; }
+
 /* ===== КОНТЕНТ ===== */
 #panel-content {
     padding: 12px;

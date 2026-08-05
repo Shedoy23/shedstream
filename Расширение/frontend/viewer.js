@@ -289,9 +289,26 @@ const ACTIVITY_CONFIG = {
     bonus_per_minute_active: 2
 };
 
+/** Версия сборки в шапку. Единственный источник — метка, которую ставит
+ *  упаковщик (`scripts/pack-extension.py`, `stamp_version`). Своей копии
+ *  номера во фронте нет намеренно: две копии разъедутся, и шапка начнёт
+ *  врать про то, какая версия реально у зрителя. Незапакованный фронт
+ *  (наш сервер, страница /dev) метки не имеет и честно пишет «dev». */
+function showBuildVersion() {
+    const el = document.getElementById('panel-version');
+    if (!el) return;
+    const meta = document.querySelector('meta[name="shedlink-version"]');
+    const version = (meta && meta.getAttribute('content') || '').trim();
+    el.textContent = version ? 'v' + version : 'dev';
+    el.title = version
+        ? 'Версия расширения ' + version
+        : 'Незапакованная сборка (не с Twitch CDN)';
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     dbg('DOM загружен');
-    
+
+    showBuildVersion();
     setupTabs();
     setupCspSafeHandlers();
     setupActivityTracking();
@@ -1203,9 +1220,16 @@ function switchIntegrationModule(activeModule) {
     const sc      = document.getElementById('shedcolony-content');
     if (!empty || !rim || !bnr) return;
 
-    const _titleEl = document.querySelector('.panel-title');
-    if (_titleEl) {
-        _titleEl.textContent = { bannerlord: '⚔️ Bannerlord', rimworld: '🧬 RimWorld', shedcolony: '⛏️ Колония' }[activeModule] || 'ShedLink';
+    // 2026-08-05 — раньше название игры записывалось в .panel-title, то есть
+    // затирало название расширения: переключил интеграцию — и «ShedLink» из
+    // шапки пропал. Теперь игра живёт отдельной подписью под названием.
+    const _moduleNameEl = document.getElementById('panel-module-name');
+    if (_moduleNameEl) {
+        _moduleNameEl.textContent = {
+            bannerlord: '⚔️ Bannerlord',
+            rimworld:   '🧬 RimWorld',
+            shedcolony: '⛏️ Колония',
+        }[activeModule] || '';
     }
 
     if (normalized === 'bannerlord') {

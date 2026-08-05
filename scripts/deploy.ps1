@@ -166,10 +166,14 @@ if ($Frontend) {
         # with one stamp. Previously only viewer*.js was bumped, so an edit to a non-viewer
         # module never reached viewers: its ?v= was hardcoded, so the CDN/browser kept
         # serving the old file. Bit us with pets.js / family.js (2026-06-27).
-        $new = [regex]::Replace($txt, '([\w][\w-]*\.js)\?v=[^"'']+', ('$1?v=' + $stamp))
+        # 2026-08-05: .css попал в тот же regex. До этого правка viewer.css
+        # никак не сбрасывала кэш — её ?v= стоял вручную с 15 июня, то есть
+        # любое изменение стилей просто не доезжало до зрителя. Тот же дефект,
+        # что был с pets.js/family.js, только в соседнем расширении файла.
+        $new = [regex]::Replace($txt, '([\w][\w-]*\.(?:js|css))\?v=[^"'']+', ('$1?v=' + $stamp))
         [IO.File]::WriteAllText($p, $new, $utf8)
     }
-    Ok "Cache-bust viewer.js?v=$stamp (extension.html + mobile.html)"
+    Ok "Cache-bust *.js / *.css ?v=$stamp (extension.html + mobile.html)"
 }
 
 # -- 2.5 Test gate (ROADMAP 1.2): critical tenant/security invariants MUST pass

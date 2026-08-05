@@ -30,6 +30,16 @@ import sys
 import zipfile
 from datetime import datetime, timezone
 
+# Вывод скрипта — русский с рамками. Консоль Windows по умолчанию cp1251, и
+# первая же строка «═══ состав версии ═══» роняла скрипт с UnicodeEncodeError
+# ещё до сборки архива (2026-08-05). Печать переводим в UTF-8 явно, иначе
+# запуск из PowerShell не работает вообще.
+for _stream in ("stdout", "stderr"):
+    try:
+        getattr(sys, _stream).reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 REPO = pathlib.Path(__file__).resolve().parent.parent
 EXT = next((p for p in REPO.iterdir() if (p / "backend").is_dir()), None)
 FRONT = EXT / "frontend" if EXT else None

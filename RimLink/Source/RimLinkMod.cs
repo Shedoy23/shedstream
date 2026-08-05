@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -20,9 +19,7 @@ namespace RimLink
         public static EventManager  EventManager { get; private set; }
         public static CommandQueue  CommandQueue { get; private set; }
         public static PriceSettings Prices       { get; private set; }
-
-        public static readonly ConcurrentQueue<Dictionary<string, object>> PendingCommands
-            = new ConcurrentQueue<Dictionary<string, object>>();
+        internal static volatile bool GameSessionActive;
 
         // Делегируем в Prices — настройки теперь сохраняются между запусками
         public string ServerUrl
@@ -52,6 +49,8 @@ namespace RimLink
         private string  _filterCat      = "all";
         private volatile string  _uploadStatus   = "";
         private volatile bool _uploadBusy     = false;
+        private volatile bool _connectionTestBusy = false;
+        private bool _showModuleToken = false;
         private List<CatalogEntry> _catalogCache = null;
 
         private static readonly string[] FilterCategories = { "all","apparel","weapon","implant","neurotrainer","trait","incident","gene","xenotype" };
@@ -101,7 +100,7 @@ namespace RimLink
 
                     Thread.Sleep(waitMs);
                     if (!_running) break;
-                    if (Current.Game == null) continue;
+                    if (!GameSessionActive) continue;
 
                     var commands = API.GetCommands();
                     if (commands == null)
@@ -123,7 +122,7 @@ namespace RimLink
                     {
                         Log.Message($"[RimLink] Получено команд: {commands.Count}");
                         foreach (var cmd in commands)
-                            PendingCommands.Enqueue(cmd);
+                            CommandQueue.Enqueue(cmd);
                     }
                 }
                 catch (ThreadInterruptedException) { break; }
@@ -160,7 +159,28 @@ namespace RimLink
             ServerUrl = ls.TextEntry(ServerUrl);
             ls.Gap();
             ls.Label("Module-токен (вставь из дашборда — авторизация мода):");
-            ModuleToken = ls.TextEntry(ModuleToken);
+            Rect tokenRect = ls.GetRect(30f);
+            ModuleToken = _showModuleToken
+                ? Widgets.TextField(tokenRect, ModuleToken ?? "")
+                : GUI.PasswordField(tokenRect, ModuleToken ?? "", '•');
+            ls.CheckboxLabeled("Показывать токен", ref _showModuleToken);
+            if (!_connectionTestBusy && ls.ButtonText("🔌 Проверить подключение"))
+            {
+                _connectionTestBusy = true;
+                _uploadStatus = "⏳ Проверяем URL и module-токен...";
+                API.UpdateServerUrl(ServerUrl);
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    try
+                    {
+                        _uploadStatus = API.TestModuleConnection(out string error)
+                            ? "✅ Подключение и module-токен работают"
+                            : $"❌ Подключение отклонено: {error}";
+                    }
+                    catch (Exception ex) { _uploadStatus = $"❌ Ошибка проверки: {ex.Message}"; }
+                    finally { _connectionTestBusy = false; }
+                });
+            }
             ls.Gap();
             ls.Label($"Интервал синхронизации: {SyncInterval} сек");
             SyncInterval = (int)ls.Slider(SyncInterval, 30, 300);
@@ -371,9 +391,15 @@ namespace RimLink
             {
                 try
                 {
-                    RimLinkMod.API.SyncShopCatalog(catalog);
-                    _uploadStatus = $"✅ Выгружено {catalog.Count} предметов!";
-                    Log.Message($"[RimLink] Каталог выгружен: {catalog.Count} шт.");
+                    if (RimLinkMod.API.SyncShopCatalog(catalog))
+                    {
+                        _uploadStatus = $"✅ Выгружено {catalog.Count} предметов!";
+                        Log.Message($"[RimLink] Каталог выгружен: {catalog.Count} шт.");
+                    }
+                    else
+                    {
+                        _uploadStatus = "❌ Сервер отклонил каталог — проверь URL и module-токен";
+                    }
                 }
                 catch (Exception e)
                 {
@@ -426,21 +452,21 @@ namespace RimLink
 
             if (Current.Game != null)
             {
-                // Отправляем каталог событий в фоновом потоке
-                new System.Threading.Thread(() =>
+                // DefDatabase читаем в главном потоке, в фоне оставляем только HTTP.
+                List<object> events;
+                try { events = EventManager.BuildEventCatalog(Prices); }
+                catch (Exception e)
                 {
-                    try
-                    {
-                        var evts = EventManager.BuildEventCatalog(Prices);
-                        API?.SyncEventCatalog(evts);
-                    }
-                    catch (Exception e)
-                    {
-                        Log.Error($"[RimLink] WriteSettings SyncError: {e}");
-                        if (!string.IsNullOrEmpty(e.Message))
-                            _uploadStatus = $"❌ Ошибка синхронизации событий: {e.Message}";
-                    }
-                }) { IsBackground = true }.Start();
+                    Log.Error($"[RimLink] WriteSettings BuildEvents: {e}");
+                    _uploadStatus = $"❌ Ошибка построения событий: {e.Message}";
+                    return;
+                }
+
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    if (!API.SyncEventCatalog(events))
+                        _uploadStatus = "❌ Сервер отклонил события — проверь URL и module-токен";
+                });
             }
         }
 
@@ -451,12 +477,16 @@ namespace RimLink
             // В C# нельзя читать события извне, только += и -=
             Application.quitting -= Stop;
             
+            if (!_running) return;
             _running = false;
+            GameSessionActive = false;
+            CommandQueue?.ClearPending();
             if (_syncThread != null && _syncThread.IsAlive)
             {
                 _syncThread.Interrupt();
                 _syncThread.Join(1000);
             }
+            CommandQueue?.Dispose();
             Log.Message("[RimLink] Фоновый поток остановлен");
         }
 

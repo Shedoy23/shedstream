@@ -1,6 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using Verse;
 using RimLink.Actions;
 
@@ -8,22 +13,34 @@ namespace RimLink.Managers
 {
     /// <summary>
     /// Буфер команд от сервера. Команды добавляются из фонового потока,
-    /// выполняются строго в главном потоке через FlushAll().
+    /// выполняются строго в главном потоке через FlushBudget().
+    /// Результаты сохраняются на диск до отправки ACK, чтобы рестарт игры
+    /// не превращал уже применённый эффект в бесплатный.
     /// </summary>
-    public class CommandQueue
+    public class CommandQueue : IDisposable
     {
-        private readonly Queue<Dictionary<string, object>> _queue = new Queue<Dictionary<string, object>>();
+        private readonly Queue<Dictionary<string, object>> _queue =
+            new Queue<Dictionary<string, object>>();
         private readonly object _lock = new object();
-        private readonly ManualResetEventSlim _processedEvent = new ManualResetEventSlim(true);
         private readonly Dictionary<string, CommandOutcome> _executedResults =
-            new Dictionary<string, CommandOutcome>();
+            new Dictionary<string, CommandOutcome>(StringComparer.Ordinal);
         private readonly Queue<string> _executedOrder = new Queue<string>();
+        private readonly HashSet<string> _acksInFlight =
+            new HashSet<string>(StringComparer.Ordinal);
+        private readonly string _journalPath;
+        private volatile bool _disposed;
+
         private const int MaxQueueSize = RimLinkConstants.MaxCommandQueueSize;
         private const int MaxExecutedIds = 1000;
+        private const string JournalFileName = "RimLink-command-outcomes-v1.txt";
+
+        // WebClient синхронный, поэтому одновременно допускаем не больше четырёх
+        // реальных HTTP-вызовов. Ожидание ретрая использует Task.Delay и не держит
+        // поток ThreadPool заблокированным.
+        private static readonly SemaphoreSlim AckConcurrency = new SemaphoreSlim(4, 4);
 
         // Бэкенд возвращает деньги за доставленную команду, если за 10 минут
-        // не получил ACK. Повторяем почти всё это окно, чтобы короткий обрыв
-        // сети не превращал уже случившийся игровой эффект в бесплатный.
+        // не получил ACK. Повторяем почти всё это окно.
         private static readonly int[] AckRetryDelaysMs =
         {
             0, 500, 1000, 2000, 5000, 10000, 30000, 60000, 120000, 240000
@@ -33,48 +50,66 @@ namespace RimLink.Managers
         {
             public readonly bool Success;
             public readonly string Message;
+            public bool AckPending;
 
-            public CommandOutcome(bool success, string message)
+            public CommandOutcome(bool success, string message, bool ackPending = true)
             {
                 Success = success;
                 Message = message ?? "";
+                AckPending = ackPending;
             }
+        }
+
+        public CommandQueue()
+        {
+            _journalPath = Path.Combine(GenFilePaths.ConfigFolderPath, JournalFileName);
+            LoadOutcomeJournal();
+            RetryPendingAcks();
         }
 
         public void Enqueue(Dictionary<string, object> cmd)
         {
+            string overflowId = null;
             lock (_lock)
             {
                 if (_queue.Count >= MaxQueueSize)
                 {
                     Log.Warning($"[RimLink] Очередь команд переполнена ({MaxQueueSize}), команда отброшена");
                     if (cmd != null && cmd.TryGetValue("id", out var idObj))
-                    {
-                        string overflowId = idObj?.ToString() ?? "";
-                        if (!string.IsNullOrEmpty(overflowId))
-                            AckCommandAsync(overflowId, false, "queue_full");
-                    }
-                    return;
+                        overflowId = idObj?.ToString() ?? "";
                 }
-                _queue.Enqueue(cmd);
-                _processedEvent.Reset();
+                else
+                {
+                    _queue.Enqueue(cmd);
+                }
+            }
+
+            if (!string.IsNullOrEmpty(overflowId))
+            {
+                RememberOutcome(overflowId, false, "queue_full");
+                AckCommandAsync(overflowId, false, "queue_full");
             }
         }
 
-        /// <summary>Выполняет все накопленные команды. Вызывать ТОЛЬКО из главного потока.</summary>
-        public void FlushAll()
+        /// <summary>
+        /// Выполняет ограниченное число команд и не начинает следующую после
+        /// исчерпания временного бюджета. Вызывать только из главного потока.
+        /// </summary>
+        public int FlushBudget(int maxCommands, int maxMilliseconds)
         {
-            List<Dictionary<string, object>> batch;
-            lock (_lock)
-            {
-                if (_queue.Count == 0) return;
-                batch = new List<Dictionary<string, object>>(_queue.Count);
-                while (_queue.Count > 0)
-                    batch.Add(_queue.Dequeue());
-            }
+            if (maxCommands <= 0) return 0;
 
-            foreach (var cmd in batch)
+            int processed = 0;
+            var stopwatch = Stopwatch.StartNew();
+            while (processed < maxCommands)
             {
+                Dictionary<string, object> cmd;
+                lock (_lock)
+                {
+                    if (_queue.Count == 0) break;
+                    cmd = _queue.Dequeue();
+                }
+
                 try
                 {
                     Execute(cmd);
@@ -83,63 +118,109 @@ namespace RimLink.Managers
                 {
                     Log.Error($"[RimLink] Ошибка выполнения команды: {e.Message}");
                 }
+
+                processed++;
+                if (maxMilliseconds > 0 && stopwatch.ElapsedMilliseconds >= maxMilliseconds)
+                    break;
             }
 
-            _processedEvent.Set();
-
-            var count = batch.Count;
-            System.Threading.Tasks.Task.Run(() =>
+            if (processed > 0)
             {
-                try { RimLinkMod.API?.OnCommandsProcessed(count); }
-                catch (Exception ex) { Log.Warning($"[RimLink] OnCommandsProcessed: {ex.Message}"); }
-            });
+                int count = processed;
+                Task.Run(() =>
+                {
+                    try { RimLinkMod.API?.OnCommandsProcessed(count); }
+                    catch (Exception ex) { Log.Warning($"[RimLink] OnCommandsProcessed: {ex.Message}"); }
+                });
+            }
+
+            return processed;
         }
 
-        /// <summary>Количество команд в очереди.</summary>
         public int Count
         {
             get { lock (_lock) return _queue.Count; }
         }
 
-        /// <summary>Очищает ресурсы.</summary>
-        public void Dispose()
+        /// <summary>Удаляет ещё не выполненные команды при смене сохранения.</summary>
+        public void ClearPending()
         {
-            _processedEvent.Dispose();
+            lock (_lock) _queue.Clear();
         }
 
-        /// <summary>
-        /// Отправляет подтверждение выполнения команды в фоновом потоке.
-        /// </summary>
-        private static void AckCommandAsync(string commandId, bool success, string message = null)
+        public void Dispose()
         {
+            _disposed = true;
+            PersistOutcomeJournal();
+        }
+
+        private void RetryPendingAcks()
+        {
+            List<KeyValuePair<string, CommandOutcome>> pending;
+            lock (_lock)
+            {
+                pending = _executedResults
+                    .Where(kv => kv.Value.AckPending)
+                    .ToList();
+            }
+
+            foreach (var kv in pending)
+                AckCommandAsync(kv.Key, kv.Value.Success, kv.Value.Message);
+        }
+
+        private void AckCommandAsync(string commandId, bool success, string message = null)
+        {
+            if (string.IsNullOrEmpty(commandId)) return;
+
+            lock (_lock)
+            {
+                if (!_acksInFlight.Add(commandId)) return;
+            }
+
             var ackId = commandId;
-            var msg = message;
+            var msg = message ?? "";
             var ok = success;
-            System.Threading.Tasks.Task.Run(() =>
+
+            Task.Run(async () =>
             {
                 string lastError = null;
-                for (int attempt = 0; attempt < AckRetryDelaysMs.Length; attempt++)
+                try
                 {
-                    int delay = AckRetryDelaysMs[attempt];
-                    if (delay > 0)
-                        Thread.Sleep(delay);
+                    for (int attempt = 0; attempt < AckRetryDelaysMs.Length; attempt++)
+                    {
+                        int delay = AckRetryDelaysMs[attempt];
+                        if (delay > 0)
+                            await Task.Delay(delay).ConfigureAwait(false);
 
-                    try
-                    {
-                        var api = RimLinkMod.API;
-                        if (api != null && api.AckCommand(ackId, ok, msg ?? "", out lastError))
-                            return;
-                        if (api == null)
-                            lastError = "API is not initialized";
+                        await AckConcurrency.WaitAsync().ConfigureAwait(false);
+                        try
+                        {
+                            var api = RimLinkMod.API;
+                            if (api != null && api.AckCommand(ackId, ok, msg, out lastError))
+                            {
+                                MarkAckDelivered(ackId);
+                                return;
+                            }
+                            if (api == null)
+                                lastError = "API is not initialized";
+                        }
+                        catch (Exception ex)
+                        {
+                            lastError = ex.Message;
+                        }
+                        finally
+                        {
+                            AckConcurrency.Release();
+                        }
                     }
-                    catch (Exception ex)
-                    {
-                        lastError = ex.Message;
-                    }
+
+                    Log.Warning($"[RimLink] ACK {ackId} не доставлен после "
+                                + $"{AckRetryDelaysMs.Length} попыток: {lastError ?? "unknown error"}");
                 }
-
-                Log.Warning($"[RimLink] ACK {ackId} не доставлен после "
-                            + $"{AckRetryDelaysMs.Length} попыток: {lastError ?? "unknown error"}");
+                finally
+                {
+                    lock (_lock) _acksInFlight.Remove(ackId);
+                }
             });
         }
 
@@ -147,14 +228,133 @@ namespace RimLink.Managers
         {
             lock (_lock)
             {
+                if (!_executedResults.ContainsKey(commandId))
+                    _executedOrder.Enqueue(commandId);
                 _executedResults[commandId] = new CommandOutcome(success, message);
-                _executedOrder.Enqueue(commandId);
-                while (_executedOrder.Count > MaxExecutedIds)
+                TrimOutcomesLocked();
+                PersistOutcomeJournalLocked();
+            }
+        }
+
+        private void MarkAckDelivered(string commandId)
+        {
+            lock (_lock)
+            {
+                if (_executedResults.TryGetValue(commandId, out var outcome))
                 {
-                    string oldest = _executedOrder.Dequeue();
-                    _executedResults.Remove(oldest);
+                    outcome.AckPending = false;
+                    PersistOutcomeJournalLocked();
                 }
             }
+        }
+
+        private void TrimOutcomesLocked()
+        {
+            while (_executedOrder.Count > MaxExecutedIds)
+            {
+                string oldest = _executedOrder.Dequeue();
+                // Не выбрасываем недоставленный результат: он важнее лимита и
+                // должен пережить рестарт. ACK-доставленные записи можно удалить.
+                if (_executedResults.TryGetValue(oldest, out var value) && value.AckPending)
+                {
+                    _executedOrder.Enqueue(oldest);
+                    if (_executedOrder.All(id =>
+                        _executedResults.TryGetValue(id, out var item) && item.AckPending))
+                        break;
+                    continue;
+                }
+                _executedResults.Remove(oldest);
+            }
+        }
+
+        private void LoadOutcomeJournal()
+        {
+            try
+            {
+                if (!File.Exists(_journalPath)) return;
+
+                foreach (string line in File.ReadAllLines(_journalPath))
+                {
+                    string[] parts = line.Split('|');
+                    if (parts.Length != 4) continue;
+
+                    string id = Decode(parts[0]);
+                    if (string.IsNullOrEmpty(id)) continue;
+                    bool success = parts[1] == "1";
+                    bool pending = parts[2] == "1";
+                    string message = Decode(parts[3]);
+
+                    if (!_executedResults.ContainsKey(id))
+                        _executedOrder.Enqueue(id);
+                    _executedResults[id] = new CommandOutcome(success, message, pending);
+                }
+
+                lock (_lock) TrimOutcomesLocked();
+                if (_executedResults.Count > 0)
+                    Log.Message($"[RimLink] Загружен журнал команд: {_executedResults.Count}");
+            }
+            catch (Exception ex)
+            {
+                Log.Warning($"[RimLink] Не удалось прочитать журнал команд: {ex.Message}");
+            }
+        }
+
+        private void PersistOutcomeJournal()
+        {
+            lock (_lock) PersistOutcomeJournalLocked();
+        }
+
+        private void PersistOutcomeJournalLocked()
+        {
+            if (_disposed && _executedResults.Count == 0) return;
+
+            try
+            {
+                string directory = Path.GetDirectoryName(_journalPath);
+                if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
+
+                var lines = new List<string>(_executedOrder.Count);
+                foreach (string id in _executedOrder)
+                {
+                    if (!_executedResults.TryGetValue(id, out var outcome)) continue;
+                    lines.Add(string.Join("|",
+                        Encode(id),
+                        outcome.Success ? "1" : "0",
+                        outcome.AckPending ? "1" : "0",
+                        Encode(outcome.Message)));
+                }
+
+                string tempPath = _journalPath + ".tmp";
+                File.WriteAllLines(tempPath, lines.ToArray(), Encoding.UTF8);
+                if (File.Exists(_journalPath))
+                {
+                    try { File.Replace(tempPath, _journalPath, null); }
+                    catch
+                    {
+                        File.Delete(_journalPath);
+                        File.Move(tempPath, _journalPath);
+                    }
+                }
+                else
+                {
+                    File.Move(tempPath, _journalPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning($"[RimLink] Не удалось сохранить журнал команд: {ex.Message}");
+            }
+        }
+
+        private static string Encode(string value)
+        {
+            return Convert.ToBase64String(Encoding.UTF8.GetBytes(value ?? ""));
+        }
+
+        private static string Decode(string value)
+        {
+            try { return Encoding.UTF8.GetString(Convert.FromBase64String(value ?? "")); }
+            catch { return ""; }
         }
 
         private void Execute(Dictionary<string, object> cmd)
@@ -169,15 +369,13 @@ namespace RimLink.Managers
                 return;
             }
 
-            // Повтор должен получить ТОТ ЖЕ вердикт, что и первая попытка.
-            // Старый HashSet отвечал success=true даже после no_effect/error,
-            // из-за чего гонка двух ACK могла съесть положенный refund.
             lock (_lock)
             {
                 if (_executedResults.TryGetValue(commandId, out var previous))
                 {
                     Log.Warning($"[RimLink] Команда {commandId} уже выполнялась — повторяем прежний ACK");
-                    AckCommandAsync(commandId, previous.Success, previous.Message);
+                    if (previous.AckPending)
+                        AckCommandAsync(commandId, previous.Success, previous.Message);
                     return;
                 }
             }
@@ -191,12 +389,8 @@ namespace RimLink.Managers
             }
 
             string type = typeObj.ToString();
-
             Log.Message($"[RimLink] Выполняем команду: {type}");
 
-            // 2026-07-19: конструкторы команд читают поля payload'а напрямую —
-            // битый payload кидал ДО try ниже → ack не уходил вообще (команда
-            // висла на бэке без вердикта). Теперь честный success=false.
             ICommand command;
             try
             {
@@ -222,8 +416,6 @@ namespace RimLink.Managers
 
             try
             {
-                // 2026-07-19: Execute теперь bool — false = no-op (эффекта не
-                // было) → success=false → бэкенд вернёт зрителю очки.
                 bool ok = command.Execute();
                 if (!ok)
                     Log.Warning($"[RimLink] Команда {type} без эффекта — шлём success=false (рефанд)");

@@ -112,7 +112,7 @@ namespace RimLink.Actions
         {
             if (HomeMap == null) return false;
 
-            int points = Get("points", 500);
+            int points = Math.Max(35, Math.Min(Get("points", 500), 3000));
             var def = DefDatabase<IncidentDef>.GetNamed("RaidEnemy", errorOnFail: false);
             if (def == null) return false;
 
@@ -256,13 +256,16 @@ namespace RimLink.Actions
                 // Читаем points из params если переданы; иначе ограничиваем дефолт
                 // чтобы избежать зависания игры при богатой колонии
                 float customPoints = -1f;
+                if (_data.TryGetValue("points", out var topPoints)
+                    && float.TryParse(topPoints?.ToString(), out float parsedTopPoints))
+                    customPoints = parsedTopPoints;
                 if (_data.TryGetValue("params", out var paramsVal) && paramsVal is Dictionary<string, object> pd)
                 {
                     if (pd.TryGetValue("points", out var pv) && float.TryParse(pv?.ToString(), out float pp))
                         customPoints = pp;
                 }
                 if (customPoints > 0f)
-                    parms.points = customPoints;
+                    parms.points = Math.Max(35f, Math.Min(customPoints, 3000f));
                 else
                     // Safety cap — если points не передан в params (старый каталог)
                     // Ограничиваем 3000, чтобы не фризить игру при богатой колонии

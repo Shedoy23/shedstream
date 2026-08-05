@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using RimWorld;
 using Verse;
+using RimLink.Components;
 
 namespace RimLink.Managers
 {
@@ -25,6 +28,20 @@ namespace RimLink.Managers
 
         // Кэш уже известных мёртвых пешек (чтобы не спамить сервер одним и тем же трупом)
         private readonly HashSet<string> _knownDeadPawns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _deathSyncInFlight = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, Dictionary<string, object>> _pendingSyncData =
+            new Dictionary<string, Dictionary<string, object>>(StringComparer.OrdinalIgnoreCase);
+        private readonly object _syncStateLock = new object();
+        private readonly SemaphoreSlim _networkSyncGate = new SemaphoreSlim(1, 1);
+        private int _sessionVersion;
+
+        private sealed class SyncBatch
+        {
+            public readonly Dictionary<string, Dictionary<string, object>> Items =
+                new Dictionary<string, Dictionary<string, object>>(StringComparer.OrdinalIgnoreCase);
+            public readonly Dictionary<string, string> Snapshots =
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
 
         // ── Загрузка при старте ────────────────────────────────────────────────
 
@@ -34,13 +51,14 @@ namespace RimLink.Managers
         /// </summary>
         private static bool IsViewerPawn(Pawn pawn)
         {
+            if (ViewerIdentity.TryGetUsername(pawn, out _)) return true;
             if (pawn.Name is NameTriple t)
                 return t.First == "Twitch" && t.Last == "RimLink";
             return false;
         }
 
         /// <summary>
-        /// Сканирует текущую карту, регистрирует пешки зрителей Twitch, затем запускает
+        /// Сканирует все загруженные карты, регистрирует пешки зрителей Twitch, затем запускает
         /// ОДИН фоновый поток, который последовательно вызывает SessionStart() → SyncPawnsBulk().
         ///
         /// ИСПРАВЛЕНИЕ ГОНКИ ПОТОКОВ:
@@ -55,51 +73,66 @@ namespace RimLink.Managers
         /// </summary>
         public void LoadFromCurrentMap()
         {
-            if (Current.Game?.CurrentMap == null) return;
+            if (Current.Game == null) return;
+            var maps = (Find.Maps ?? new List<Map>())
+                .Where(m => m != null)
+                .Distinct()
+                .ToList();
+            if (maps.Count == 0 && Current.Game.CurrentMap != null)
+                maps.Add(Current.Game.CurrentMap);
 
             _pawns.Clear();
             _corpses.Clear();
-            _lastSentJson.Clear();
-            _knownDeadPawns.Clear();
+            int sessionVersion;
+            lock (_syncStateLock)
+            {
+                sessionVersion = ++_sessionVersion;
+                _lastSentJson.Clear();
+                _knownDeadPawns.Clear();
+                _deathSyncInFlight.Clear();
+                _pendingSyncData.Clear();
+            }
 
             // ── 1. Сканируем карту в главном потоке ──────────────────────────
 
-            int count = 0;
-            foreach (var pawn in Current.Game.CurrentMap.mapPawns.FreeColonistsAndPrisoners)
+            foreach (var pawn in PawnsFinder
+                .AllMapsCaravansAndTravellingTransporters_Alive_FreeColonistsAndPrisoners)
             {
                 if (pawn == null) continue;
                 if (!IsViewerPawn(pawn)) continue;
 
                 string username = PawnDataBuilder.ExtractUsername(pawn);
                 if (string.IsNullOrEmpty(username)) continue;
+                ViewerIdentity.Ensure(pawn, username); // миграция legacy-пешек по имени
 
                 _pawns[username] = pawn;
-                count++;
                 Log.Message($"[RimLink] Зарегистрирована пешка зрителя: {username}");
             }
 
-            int corpseCount = 0;
-            List<Thing> allThings = Current.Game.CurrentMap.listerThings.AllThings;
-            foreach (var thing in allThings)
+            foreach (var map in maps)
             {
-                if (!(thing is Corpse corpse) || corpse.InnerPawn == null || corpse.Destroyed) continue;
-                if (corpse.InnerPawn.Faction != Faction.OfPlayer) continue;
-                if (!IsViewerPawn(corpse.InnerPawn)) continue;
+                foreach (var thing in map.listerThings.AllThings)
+                {
+                    if (!(thing is Corpse corpse) || corpse.InnerPawn == null || corpse.Destroyed) continue;
+                    if (corpse.InnerPawn.Faction != Faction.OfPlayer) continue;
+                    if (!IsViewerPawn(corpse.InnerPawn)) continue;
 
-                string username = PawnDataBuilder.ExtractUsername(corpse.InnerPawn);
-                if (string.IsNullOrEmpty(username)) continue;
+                    string username = PawnDataBuilder.ExtractUsername(corpse.InnerPawn);
+                    if (string.IsNullOrEmpty(username)) continue;
+                    ViewerIdentity.Ensure(corpse.InnerPawn, username);
 
-                _corpses[username] = corpse;
-                corpseCount++;
-                Log.Message($"[RimLink] Зарегистрирован труп: {username}");
+                    _corpses[username] = corpse;
+                    Log.Message($"[RimLink] Зарегистрирован труп: {username}");
+                }
             }
 
-            Log.Message($"[RimLink] Загружено пешек: {count}, трупов: {corpseCount}");
+            Log.Message($"[RimLink] Загружено пешек: {_pawns.Count}, трупов: {_corpses.Count}, карт: {maps.Count}");
 
             // ── 2. Собираем данные синхронно в главном потоке ─────────────────
             //    Это безопасно — читаем игровые объекты до того, как покинем главный поток.
 
             var bulkData = new List<Dictionary<string, object>>();
+            var bulkSnapshots = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var kv in _pawns)
             {
@@ -107,7 +140,7 @@ namespace RimLink.Managers
                 {
                     var data = PawnDataBuilder.BuildPawnData(kv.Key, kv.Value);
                     string json = Utils.SimpleJson.Serialize(data);
-                    _lastSentJson[kv.Key] = json;
+                    bulkSnapshots[kv.Key] = json;
                     bulkData.Add(data);
                 }
                 catch (Exception e)
@@ -122,7 +155,7 @@ namespace RimLink.Managers
                 {
                     var data = PawnDataBuilder.BuildCorpseData(kv.Key, kv.Value);
                     string json = Utils.SimpleJson.Serialize(data);
-                    _lastSentJson[kv.Key] = json;
+                    bulkSnapshots[kv.Key] = json;
                     bulkData.Add(data);
                 }
                 catch (Exception e)
@@ -136,24 +169,32 @@ namespace RimLink.Managers
             //    Никаких параллельных потоков — гонка исключена.
 
             var capturedBulk = bulkData;
-            new System.Threading.Thread(() =>
+            var capturedSnapshots = bulkSnapshots;
+            Task.Run(async () =>
             {
+                await _networkSyncGate.WaitAsync().ConfigureAwait(false);
                 try
                 {
-                    RimLinkMod.API.SessionStart();
+                    if (!IsSessionCurrent(sessionVersion)) return;
+                    if (!RimLinkMod.API.SessionStart())
+                        return;
+                    if (!IsSessionCurrent(sessionVersion)) return;
                     Log.Message("[RimLink] SessionStart выполнен.");
 
-                    if (capturedBulk.Count > 0)
+                    if (capturedBulk.Count == 0 || RimLinkMod.API.SyncPawnsBulk(capturedBulk))
                     {
-                        RimLinkMod.API.SyncPawnsBulk(capturedBulk);
-                        Log.Message($"[RimLink] SyncPawnsBulk: отправлено {capturedBulk.Count} записей.");
+                        if (!IsSessionCurrent(sessionVersion)) return;
+                        ApplySuccessfulSnapshots(capturedSnapshots);
+                        if (capturedBulk.Count > 0)
+                            Log.Message($"[RimLink] SyncPawnsBulk: отправлено {capturedBulk.Count} записей.");
                     }
                 }
                 catch (Exception ex)
                 {
                     Log.Error($"[RimLink] LoadFromCurrentMap bg thread: {ex.Message}");
                 }
-            }) { IsBackground = true, Name = "RimLink-SessionStart" }.Start();
+                finally { _networkSyncGate.Release(); }
+            });
         }
 
         /// <summary>
@@ -165,10 +206,14 @@ namespace RimLink.Managers
             foreach (var kv in _pawns.ToList())
             {
                 var pawn = kv.Value;
-                if (pawn == null || pawn.Destroyed || _knownDeadPawns.Contains(kv.Key) || !pawn.Dead)
+                if (pawn == null || pawn.Destroyed || !pawn.Dead)
                     continue;
 
-                _knownDeadPawns.Add(kv.Key);
+                lock (_syncStateLock)
+                {
+                    if (_knownDeadPawns.Contains(kv.Key) || !_deathSyncInFlight.Add(kv.Key))
+                        continue;
+                }
                 Log.Message($"[RimLink] ⚰️ Поймана смерть: {kv.Key}. Отправка трупа на сервер...");
 
                 Corpse corpse = FindCorpseOnMap(kv.Key);
@@ -179,10 +224,21 @@ namespace RimLink.Managers
                 else
                 {
                     var data = new Dictionary<string, object> { { "username", kv.Key }, { "is_alive", false } };
-                    new System.Threading.Thread(() =>
+                    string username = kv.Key;
+                    string json = Utils.SimpleJson.Serialize(data);
+                    int sessionVersion = GetSessionVersion();
+                    Task.Run(async () =>
                     {
-                        try { RimLinkMod.API.SyncPawn(data); } catch { }
-                    }) { IsBackground = true }.Start();
+                        await _networkSyncGate.WaitAsync().ConfigureAwait(false);
+                        try
+                        {
+                            if (!IsSessionCurrent(sessionVersion)) return;
+                            bool success = RimLinkMod.API.SyncPawn(data);
+                            if (IsSessionCurrent(sessionVersion))
+                                CompleteDeathSync(username, json, success, data);
+                        }
+                        finally { _networkSyncGate.Release(); }
+                    });
                 }
             }
         }
@@ -194,7 +250,12 @@ namespace RimLink.Managers
             if (_corpses.ContainsKey(username))
                 _corpses.Remove(username);
 
-            _lastSentJson.Remove(username);
+            lock (_syncStateLock)
+            {
+                _lastSentJson.Remove(username);
+                _knownDeadPawns.Remove(username);
+                _pendingSyncData.Remove(username);
+            }
             Log.Message($"[RimLink] Зарегистрирована пешка для {username}");
         }
 
@@ -204,7 +265,12 @@ namespace RimLink.Managers
             if (_pawns.ContainsKey(username))
             {
                 _pawns.Remove(username);
-                _lastSentJson.Remove(username);
+                lock (_syncStateLock)
+                {
+                    _lastSentJson.Remove(username);
+                    _knownDeadPawns.Remove(username);
+                    _pendingSyncData.Remove(username);
+                }
                 Log.Message($"[RimLink] Пешка {username} удалена из управления");
             }
 
@@ -220,23 +286,42 @@ namespace RimLink.Managers
         /// <summary>Синхронизирует всех известных пешек. Пропускает тех, данные которых не изменились.</summary>
         public void SyncAll()
         {
-            var pawnDataList = CollectPawnData();
-            if (pawnDataList.Count == 0) return;
+            var batch = CollectPawnData();
+            if (batch.Items.Count == 0) return;
 
-            var captured = pawnDataList;
-            new System.Threading.Thread(() =>
+            var captured = batch.Items.Values.ToList();
+            var capturedSnapshots = batch.Snapshots;
+            int sessionVersion = GetSessionVersion();
+            Task.Run(async () =>
             {
-                try { RimLinkMod.API.SyncPawnsBulk(captured); }
+                await _networkSyncGate.WaitAsync().ConfigureAwait(false);
+                try
+                {
+                    if (IsSessionCurrent(sessionVersion)
+                        && RimLinkMod.API.SyncPawnsBulk(captured)
+                        && IsSessionCurrent(sessionVersion))
+                        ApplySuccessfulSnapshots(capturedSnapshots);
+                }
                 catch (Exception ex) { Log.Warning($"[RimLink] SyncAll bulk: {ex.Message}"); }
-            }) { IsBackground = true, Name = "RimLink-SyncAll" }.Start();
+                finally { _networkSyncGate.Release(); }
+            });
         }
 
         /// <summary>Собирает данные всех пешек для отправки (вызывать из главного потока).</summary>
-        public List<Dictionary<string, object>> CollectPawnData()
+        private SyncBatch CollectPawnData()
         {
-            var result = new List<Dictionary<string, object>>();
+            var result = new SyncBatch();
             var dead = new List<string>();
             var removedCorpses = new List<string>();
+
+            lock (_syncStateLock)
+            {
+                foreach (var kv in _pendingSyncData)
+                {
+                    result.Items[kv.Key] = kv.Value;
+                    result.Snapshots[kv.Key] = Utils.SimpleJson.Serialize(kv.Value);
+                }
+            }
 
             foreach (var kv in _pawns.ToList())
             {
@@ -253,11 +338,14 @@ namespace RimLink.Managers
                     var data = PawnDataBuilder.BuildPawnData(kv.Key, pawn);
                     string json = Utils.SimpleJson.Serialize(data);
 
-                    if (_lastSentJson.TryGetValue(kv.Key, out string prev) && prev == json)
-                        continue;
+                    lock (_syncStateLock)
+                    {
+                        if (_lastSentJson.TryGetValue(kv.Key, out string prev) && prev == json)
+                            continue;
+                    }
 
-                    _lastSentJson[kv.Key] = json;
-                    result.Add(data);
+                    result.Items[kv.Key] = data;
+                    result.Snapshots[kv.Key] = json;
                 }
                 catch (Exception e)
                 {
@@ -280,11 +368,14 @@ namespace RimLink.Managers
                     var data = PawnDataBuilder.BuildCorpseData(kv.Key, corpse);
                     string json = Utils.SimpleJson.Serialize(data);
 
-                    if (_lastSentJson.TryGetValue(kv.Key, out string prev) && prev == json)
-                        continue;
+                    lock (_syncStateLock)
+                    {
+                        if (_lastSentJson.TryGetValue(kv.Key, out string prev) && prev == json)
+                            continue;
+                    }
 
-                    _lastSentJson[kv.Key] = json;
-                    result.Add(data);
+                    result.Items[kv.Key] = data;
+                    result.Snapshots[kv.Key] = json;
                 }
                 catch (Exception e)
                 {
@@ -295,10 +386,13 @@ namespace RimLink.Managers
             foreach (var username in dead)
             {
                 _pawns.Remove(username);
-                _lastSentJson.Remove(username);
+                lock (_syncStateLock) _lastSentJson.Remove(username);
 
-                if (_knownDeadPawns.Contains(username))
-                    continue;
+                lock (_syncStateLock)
+                {
+                    if (_knownDeadPawns.Contains(username))
+                        continue;
+                }
 
                 Corpse corpse = FindCorpseOnMap(username);
                 if (corpse != null)
@@ -308,26 +402,32 @@ namespace RimLink.Managers
                 }
                 else
                 {
-                    result.Add(new Dictionary<string, object>
+                    var data = new Dictionary<string, object>
                     {
                         { "username", username },
                         { "is_alive", false }
-                    });
+                    };
+                    string json = Utils.SimpleJson.Serialize(data);
+                    result.Items[username] = data;
+                    result.Snapshots[username] = json;
+                    lock (_syncStateLock) _pendingSyncData[username] = data;
                     Log.Message($"[RimLink] Пешка {username} больше не на карте (Destroyed=true), снимаем с отслеживания");
                 }
-
-                _knownDeadPawns.Add(username);
             }
 
             foreach (var username in removedCorpses)
             {
                 _corpses.Remove(username);
-                _lastSentJson.Remove(username);
-                result.Add(new Dictionary<string, object>
+                lock (_syncStateLock) _lastSentJson.Remove(username);
+                var data = new Dictionary<string, object>
                 {
                     { "username", username },
                     { "is_alive", false }
-                });
+                };
+                string json = Utils.SimpleJson.Serialize(data);
+                result.Items[username] = data;
+                result.Snapshots[username] = json;
+                lock (_syncStateLock) _pendingSyncData[username] = data;
                 Log.Message($"[RimLink] Труп {username} больше не существует в игре (съеден/сожжён/похоронен), снят с отслеживания");
             }
 
@@ -348,17 +448,27 @@ namespace RimLink.Managers
                 var data = PawnDataBuilder.BuildPawnData(username, pawn);
                 string json = Utils.SimpleJson.Serialize(data);
 
-                if (!force && _lastSentJson.TryGetValue(username, out string prev) && prev == json)
-                    return;
-
-                _lastSentJson[username] = json;
+                lock (_syncStateLock)
+                {
+                    if (!force && _lastSentJson.TryGetValue(username, out string prev) && prev == json)
+                        return;
+                }
 
                 var capturedData = data;
-                new System.Threading.Thread(() =>
+                int sessionVersion = GetSessionVersion();
+                Task.Run(async () =>
                 {
-                    try { RimLinkMod.API.SyncPawn(capturedData); }
+                    await _networkSyncGate.WaitAsync().ConfigureAwait(false);
+                    try
+                    {
+                        if (IsSessionCurrent(sessionVersion)
+                            && RimLinkMod.API.SyncPawn(capturedData)
+                            && IsSessionCurrent(sessionVersion))
+                            ApplySuccessfulSnapshot(username, json);
+                    }
                     catch (Exception ex) { Log.Warning($"[RimLink] SyncPawn bg: {ex.Message}"); }
-                }) { IsBackground = true }.Start();
+                    finally { _networkSyncGate.Release(); }
+                });
             }
             catch (Exception e)
             {
@@ -373,19 +483,77 @@ namespace RimLink.Managers
                 var data = PawnDataBuilder.BuildCorpseData(username, corpse);
                 string json = Utils.SimpleJson.Serialize(data);
 
-                _lastSentJson[username] = json;
-
                 var capturedData = data;
-                new System.Threading.Thread(() =>
+                int sessionVersion = GetSessionVersion();
+                Task.Run(async () =>
                 {
-                    try { RimLinkMod.API.SyncPawn(capturedData); }
+                    await _networkSyncGate.WaitAsync().ConfigureAwait(false);
+                    try
+                    {
+                        if (!IsSessionCurrent(sessionVersion)) return;
+                        bool success = RimLinkMod.API.SyncPawn(capturedData);
+                        if (IsSessionCurrent(sessionVersion))
+                            CompleteDeathSync(username, json, success, capturedData);
+                    }
                     catch (Exception ex) { Log.Warning($"[RimLink] SyncCorpse bg: {ex.Message}"); }
-                }) { IsBackground = true }.Start();
+                    finally { _networkSyncGate.Release(); }
+                });
             }
             catch (Exception e)
             {
+                lock (_syncStateLock) _deathSyncInFlight.Remove(username);
                 Log.Warning($"[RimLink] SendCorpseData({username}): {e.Message}");
             }
+        }
+
+        private void CompleteDeathSync(string username, string json, bool success,
+            Dictionary<string, object> data)
+        {
+            lock (_syncStateLock)
+            {
+                _deathSyncInFlight.Remove(username);
+                if (success)
+                {
+                    _lastSentJson[username] = json;
+                    _knownDeadPawns.Add(username);
+                    _pendingSyncData.Remove(username);
+                }
+                else
+                {
+                    _pendingSyncData[username] = data;
+                }
+            }
+        }
+
+        private void ApplySuccessfulSnapshot(string username, string json)
+        {
+            lock (_syncStateLock)
+            {
+                _lastSentJson[username] = json;
+                if (_pendingSyncData.TryGetValue(username, out var pending)
+                    && Utils.SimpleJson.Serialize(pending) == json)
+                {
+                    _pendingSyncData.Remove(username);
+                    _knownDeadPawns.Add(username);
+                }
+            }
+        }
+
+        private void ApplySuccessfulSnapshots(Dictionary<string, string> snapshots)
+        {
+            if (snapshots == null) return;
+            foreach (var kv in snapshots)
+                ApplySuccessfulSnapshot(kv.Key, kv.Value);
+        }
+
+        private int GetSessionVersion()
+        {
+            lock (_syncStateLock) return _sessionVersion;
+        }
+
+        private bool IsSessionCurrent(int version)
+        {
+            lock (_syncStateLock) return version == _sessionVersion;
         }
 
         // ── Действия ──────────────────────────────────────────────────────────
@@ -396,6 +564,7 @@ namespace RimLink.Managers
             if (!_pawns.TryGetValue(username, out var pawn) || pawn == null || pawn.Dead)
                 return false;
 
+            bool mutated = false;
             try
             {
                 var toRemove = pawn.health.hediffSet.hediffs
@@ -406,23 +575,37 @@ namespace RimLink.Managers
                                 !(h.def.hediffClass == typeof(Hediff_Implant)))
                     .ToList();
 
-                foreach (var h in toRemove)
-                    pawn.health.RemoveHediff(h);
+                var missingParts = pawn.health.hediffSet.GetMissingPartsCommonAncestors()
+                    .Where(part => part.Part != null)
+                    .ToList();
 
-                foreach (var part in pawn.health.hediffSet.GetMissingPartsCommonAncestors())
+                if (toRemove.Count == 0 && missingParts.Count == 0)
+                    return false;
+
+                foreach (var h in toRemove)
                 {
-                    if (part.Part != null)
-                        pawn.health.RestorePart(part.Part);
+                    pawn.health.RemoveHediff(h);
+                    mutated = true;
                 }
 
-                Messages.Message($"💊 {username} полностью исцелён!", pawn, MessageTypeDefOf.PositiveEvent);
+                foreach (var part in missingParts)
+                {
+                    pawn.health.RestorePart(part.Part);
+                    mutated = true;
+                }
+
+                try { Messages.Message($"💊 {username} полностью исцелён!", pawn, MessageTypeDefOf.PositiveEvent); }
+                catch (Exception ex) { Log.Warning($"[RimLink] HealPawn message: {ex.Message}"); }
                 SendPawn(username, pawn, force: true);
                 return true;
             }
             catch (Exception e)
             {
                 Log.Error($"[RimLink] HealPawn: {e.Message}");
-                return false;
+                // Если часть лечения уже применена, рефанд создал бы бесплатный
+                // эффект. Считаем такую команду успешной и синхронизируем итог.
+                if (mutated) SendPawn(username, pawn, force: true);
+                return mutated;
             }
         }
 
@@ -431,6 +614,7 @@ namespace RimLink.Managers
         {
             Pawn pawn = null;
             Corpse corpse = null;
+            bool resurrected = false;
 
             try
             {
@@ -450,6 +634,8 @@ namespace RimLink.Managers
                 }
 
                 Log.Message($"[RimLink] ✨ Воскрешаем {username}...");
+                Map resurrectionMap = corpse?.Map ?? pawn.MapHeld
+                    ?? Current.Game?.CurrentMap ?? Find.AnyPlayerHomeMap;
                 bool success = ResurrectionUtility.TryResurrect(pawn);
 
                 if (!success || pawn.Dead)
@@ -457,28 +643,52 @@ namespace RimLink.Managers
                     Log.Warning($"[RimLink] ⚠️ Не удалось воскресить {username} (высокий урон/гниение).");
                     return false;
                 }
+                resurrected = true;
 
-                var sick = pawn.health.hediffSet.GetFirstHediffOfDef(HediffDefOf.ResurrectionSickness);
-                if (sick != null) pawn.health.RemoveHediff(sick);
+                try
+                {
+                    var sick = pawn.health.hediffSet.GetFirstHediffOfDef(HediffDefOf.ResurrectionSickness);
+                    if (sick != null) pawn.health.RemoveHediff(sick);
+                }
+                catch (Exception ex) { Log.Warning($"[RimLink] ResurrectPawn sickness: {ex.Message}"); }
 
-                if (Current.Game?.CurrentMap != null && !pawn.Spawned)
-                    GenSpawn.Spawn(pawn, DropCellFinder.TradeDropSpot(Current.Game.CurrentMap), Current.Game.CurrentMap);
+                try
+                {
+                    if (resurrectionMap != null && !pawn.Spawned)
+                        GenSpawn.Spawn(pawn, DropCellFinder.TradeDropSpot(resurrectionMap), resurrectionMap);
+                }
+                catch (Exception ex) { Log.Warning($"[RimLink] ResurrectPawn spawn: {ex.Message}"); }
 
-                _knownDeadPawns.Remove(username);
+                lock (_syncStateLock)
+                {
+                    _knownDeadPawns.Remove(username);
+                    _pendingSyncData.Remove(username);
+                }
                 if (_corpses.ContainsKey(username)) _corpses.Remove(username);
 
-                if (corpse != null && !corpse.Destroyed)
-                    corpse.Destroy();
+                try
+                {
+                    if (corpse != null && !corpse.Destroyed)
+                        corpse.Destroy();
+                }
+                catch (Exception ex) { Log.Warning($"[RimLink] ResurrectPawn corpse cleanup: {ex.Message}"); }
 
                 Register(username, pawn);
                 SendPawn(username, pawn, force: true);
 
-                Messages.Message($"✨ {username} воскрешён и вернулся в строй!", pawn, MessageTypeDefOf.PositiveEvent);
+                try { Messages.Message($"✨ {username} воскрешён и вернулся в строй!", pawn, MessageTypeDefOf.PositiveEvent); }
+                catch (Exception ex) { Log.Warning($"[RimLink] ResurrectPawn message: {ex.Message}"); }
                 return true;
             }
             catch (Exception e)
             {
                 Log.Error($"[RimLink] ResurrectPawn: {e.Message}\n{e.StackTrace}");
+                if (resurrected && pawn != null)
+                {
+                    Register(username, pawn);
+                    SendPawn(username, pawn, force: true);
+                    return true;
+                }
                 return false;
             }
         }
@@ -507,9 +717,37 @@ namespace RimLink.Managers
                 if (def.IsWeapon)
                 {
                     var weapon = (ThingWithComps)ThingMaker.MakeThing(def, GenStuff.DefaultStuffFor(def));
-                    pawn.equipment.DestroyAllEquipment();
-                    pawn.equipment.AddEquipment(weapon);
-                    Messages.Message($"⚔️ {username} получил {def.LabelCap.ToString() ?? def.label ?? def.defName}!", pawn, MessageTypeDefOf.PositiveEvent);
+                    ThingWithComps previous = pawn.equipment.Primary;
+                    ThingWithComps dropped = null;
+
+                    if (previous != null && pawn.Spawned
+                        && !pawn.equipment.TryDropEquipment(previous, out dropped, pawn.Position, false))
+                    {
+                        weapon.Destroy();
+                        Log.Warning($"[RimLink] Не удалось безопасно снять старое оружие у {username}");
+                        return false;
+                    }
+                    if (previous != null && !pawn.Spawned)
+                    {
+                        pawn.equipment.Remove(previous);
+                        dropped = previous;
+                    }
+
+                    try
+                    {
+                        pawn.equipment.AddEquipment(weapon);
+                    }
+                    catch
+                    {
+                        if (!weapon.Destroyed) weapon.Destroy();
+                        RestoreEquipment(pawn, dropped);
+                        throw;
+                    }
+
+                    PreserveRemovedThing(pawn, dropped);
+
+                    try { Messages.Message($"⚔️ {username} получил {def.LabelCap.ToString() ?? def.label ?? def.defName}!", pawn, MessageTypeDefOf.PositiveEvent); }
+                    catch (Exception ex) { Log.Warning($"[RimLink] EquipItem message: {ex.Message}"); }
                     SendPawn(username, pawn, force: true);
                     return true;
                 }
@@ -521,12 +759,46 @@ namespace RimLink.Managers
                     var conflicting = pawn.apparel.WornApparel
                         .Where(a => !ApparelUtility.CanWearTogether(def, a.def, pawn.RaceProps.body))
                         .ToList();
+                    var dropped = new List<Apparel>();
 
                     foreach (var c in conflicting)
-                        pawn.apparel.Remove(c);
+                    {
+                        Apparel removed;
+                        bool removedOk;
+                        if (pawn.Spawned)
+                            removedOk = pawn.apparel.TryDrop(c, out removed, pawn.Position, false);
+                        else
+                        {
+                            pawn.apparel.Remove(c);
+                            removed = c;
+                            removedOk = true;
+                        }
 
-                    pawn.apparel.Wear(apparel, false, false);
-                    Messages.Message($"👕 {username} надел {def.LabelCap.ToString() ?? def.label ?? def.defName}!", pawn, MessageTypeDefOf.PositiveEvent);
+                        if (!removedOk)
+                        {
+                            RestoreApparel(pawn, dropped);
+                            apparel.Destroy();
+                            Log.Warning($"[RimLink] Не удалось безопасно снять конфликтующую одежду у {username}");
+                            return false;
+                        }
+                        if (removed != null) dropped.Add(removed);
+                    }
+
+                    try
+                    {
+                        pawn.apparel.Wear(apparel, false, false);
+                    }
+                    catch
+                    {
+                        if (!apparel.Destroyed) apparel.Destroy();
+                        RestoreApparel(pawn, dropped);
+                        throw;
+                    }
+
+                    foreach (var item in dropped) PreserveRemovedThing(pawn, item);
+
+                    try { Messages.Message($"👕 {username} надел {def.LabelCap.ToString() ?? def.label ?? def.defName}!", pawn, MessageTypeDefOf.PositiveEvent); }
+                    catch (Exception ex) { Log.Warning($"[RimLink] EquipItem message: {ex.Message}"); }
                     SendPawn(username, pawn, force: true);
                     return true;
                 }
@@ -538,6 +810,54 @@ namespace RimLink.Managers
             {
                 Log.Error($"[RimLink] EquipItem: {e.Message}");
                 return false;
+            }
+        }
+
+        private static void RestoreEquipment(Pawn pawn, ThingWithComps equipment)
+        {
+            if (pawn?.equipment == null || equipment == null || equipment.Destroyed) return;
+            try
+            {
+                if (equipment.Spawned) equipment.DeSpawn();
+                pawn.equipment.AddEquipment(equipment);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[RimLink] Не удалось вернуть старое оружие: {ex.Message}");
+            }
+        }
+
+        private static void PreserveRemovedThing(Pawn pawn, Thing thing)
+        {
+            if (thing == null || thing.Destroyed || thing.Spawned) return;
+            try
+            {
+                if (pawn?.inventory?.innerContainer != null
+                    && pawn.inventory.innerContainer.TryAdd(thing))
+                    return;
+                Log.Warning($"[RimLink] Снятый предмет {thing.def?.defName} не удалось положить в инвентарь");
+            }
+            catch (Exception ex)
+            {
+                Log.Warning($"[RimLink] Не удалось сохранить снятый предмет: {ex.Message}");
+            }
+        }
+
+        private static void RestoreApparel(Pawn pawn, IEnumerable<Apparel> apparel)
+        {
+            if (pawn?.apparel == null || apparel == null) return;
+            foreach (var item in apparel)
+            {
+                if (item == null || item.Destroyed) continue;
+                try
+                {
+                    if (item.Spawned) item.DeSpawn();
+                    pawn.apparel.Wear(item, false, false);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error($"[RimLink] Не удалось вернуть старую одежду: {ex.Message}");
+                }
             }
         }
 
@@ -599,7 +919,10 @@ namespace RimLink.Managers
                 }
 
                 if (targetPart == null)
-                    targetPart = pawn.RaceProps.body.corePart;
+                {
+                    Log.Warning($"[RimLink] Для импланта {defName} не найдена допустимая часть тела у {username}");
+                    return false;
+                }
 
                 if (pawn.health.hediffSet.hediffs.Any(h => h.def == hediffDef && h.Part == targetPart))
                 {
@@ -716,6 +1039,11 @@ namespace RimLink.Managers
                 }
 
                 passion = System.Math.Max(0, System.Math.Min(2, passion));
+                if ((int)skill.passion == passion)
+                {
+                    Log.Message($"[RimLink] SetPassion: у {username} уже установлен passion={passion} для {skillDefName}");
+                    return false;
+                }
                 skill.passion = (Passion)passion;
 
                 string icon = passion == 2 ? "🔥" : passion == 1 ? "⭐" : "—";
@@ -843,12 +1171,12 @@ namespace RimLink.Managers
         }
 
         /// <summary>
-        /// Находит труп персонажа из фракции игрока на текущей карте по имени.
+        /// Находит труп персонажа из фракции игрока на любой загруженной карте по identity.
         /// Намеренно ограничен фракцией игрока — не итерирует трупы рейдеров/животных.
         /// </summary>
         private Corpse FindCorpseOnMap(string username)
         {
-            if (Current.Game?.CurrentMap == null) return null;
+            if (Current.Game == null) return null;
 
             if (_pawns.TryGetValue(username, out var knownPawn) && knownPawn != null && !knownPawn.Destroyed)
             {
@@ -861,16 +1189,19 @@ namespace RimLink.Managers
                 catch { /* pawn.Corpse недоступен в этой версии — fallback ниже */ }
             }
 
-            List<Thing> allThings = Current.Game.CurrentMap.listerThings.AllThings;
-            foreach (var thing in allThings)
+            foreach (var map in Find.Maps ?? new List<Map>())
             {
-                if (!(thing is Corpse corpse) || corpse.InnerPawn == null || corpse.Destroyed) continue;
-                if (corpse.InnerPawn.Faction != Faction.OfPlayer) continue;
-                if (!IsViewerPawn(corpse.InnerPawn)) continue;
+                if (map == null) continue;
+                foreach (var thing in map.listerThings.AllThings)
+                {
+                    if (!(thing is Corpse corpse) || corpse.InnerPawn == null || corpse.Destroyed) continue;
+                    if (corpse.InnerPawn.Faction != Faction.OfPlayer) continue;
+                    if (!IsViewerPawn(corpse.InnerPawn)) continue;
 
-                string corpseUsername = PawnDataBuilder.ExtractUsername(corpse.InnerPawn);
-                if (string.Equals(corpseUsername, username, StringComparison.OrdinalIgnoreCase))
-                    return corpse;
+                    string corpseUsername = PawnDataBuilder.ExtractUsername(corpse.InnerPawn);
+                    if (string.Equals(corpseUsername, username, StringComparison.OrdinalIgnoreCase))
+                        return corpse;
+                }
             }
 
             return null;
@@ -881,7 +1212,14 @@ namespace RimLink.Managers
         {
             _pawns.Clear();
             _corpses.Clear();
-            _lastSentJson.Clear();
+            lock (_syncStateLock)
+            {
+                _sessionVersion++;
+                _lastSentJson.Clear();
+                _knownDeadPawns.Clear();
+                _deathSyncInFlight.Clear();
+                _pendingSyncData.Clear();
+            }
             Log.Message("[RimLink] PawnManager очищен");
         }
     }

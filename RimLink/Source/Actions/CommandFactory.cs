@@ -207,6 +207,12 @@ namespace RimLink.Actions
             if (xeno == null) return false;
             if (pawn.genes == null) return false;
 
+            var oldDefs = pawn.genes.Xenogenes
+                .Where(g => g?.def != null)
+                .Select(g => g.def)
+                .ToList();
+            string oldXenotypeName = pawn.genes.xenotypeName;
+
             try
             {
                 // Удаляем старые ксеногены
@@ -226,7 +232,24 @@ namespace RimLink.Actions
                 RimLinkMod.PawnManager.ForceSyncPawn(_username);
                 return true;
             }
-            catch (Exception e) { Log.Error($"[RimLink] AddXenotype: {e.Message}"); return false; }
+            catch (Exception e)
+            {
+                try
+                {
+                    foreach (var gene in new List<Gene>(pawn.genes.Xenogenes))
+                        pawn.genes.RemoveGene(gene);
+                    foreach (var geneDef in oldDefs)
+                        pawn.genes.AddGene(geneDef, xenogene: true);
+                    pawn.genes.xenotypeName = oldXenotypeName;
+                }
+                catch (Exception rollbackError)
+                {
+                    Log.Error($"[RimLink] AddXenotype rollback: {rollbackError.Message}");
+                }
+
+                Log.Error($"[RimLink] AddXenotype: {e.Message}");
+                return false;
+            }
         }
     }
 

@@ -29,7 +29,7 @@ namespace RimLink
         public string ServerUrl    = RimLinkConstants.DefaultServerUrl;
         public int    SyncInterval = RimLinkConstants.DefaultSyncInterval;
         // Security 2.1: Bearer module-токен для авторизации mod-эндпоинтов.
-        // Стример вставляет его из дашборда (как у Bannerlord). Пусто = старый режим.
+        // Стример вставляет его из дашборда. На production пустой токен запрещён.
         public string ModuleToken  = "";
 
         // Базовые цены прогрессии (1-я покупка = Base, 2-я = Base*2, и т.д.)

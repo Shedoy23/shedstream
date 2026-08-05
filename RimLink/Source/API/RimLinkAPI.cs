@@ -39,6 +39,7 @@ namespace RimLink.API
             {
                 var r = base.GetWebRequest(uri);
                 if (r != null) r.Timeout = TimeoutMs;
+                if (r is HttpWebRequest http) http.ReadWriteTimeout = TimeoutMs;
                 return r;
             }
         }
@@ -77,20 +78,54 @@ namespace RimLink.API
                 return c.DownloadString(_serverUrl + path);
         }
 
+        private static bool ResponseIsOk(string raw, out string error)
+        {
+            error = null;
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                error = "empty response";
+                return false;
+            }
+
+            var data = SimpleJson.Deserialize(raw);
+            if (data.TryGetValue("status", out var status)
+                && string.Equals(status?.ToString(), "ok", StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (data.TryGetValue("success", out var success) && success is bool b && b)
+                return true;
+
+            if (data.TryGetValue("message", out var message) && message != null)
+                error = message.ToString();
+            else
+                error = "server rejected request";
+            return false;
+        }
+
+        private bool PostAndRequireOk(string path, string json, out string error)
+        {
+            try
+            {
+                return ResponseIsOk(Post(path, json), out error);
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+        }
+
         // ── Сессия и статус ────────────────────────────────────────────────────
 
         /// <summary>Вызывается при старте новой игры — очищает старых пешек на сервере.</summary>
-        public void SessionStart()
+        public bool SessionStart()
         {
-            try 
-            { 
-                Post("/api/rimworld/session-start", "{}");
+            if (PostAndRequireOk("/api/rimworld/session-start", "{}", out string error))
+            {
                 Log.Message("[RimLink] Session started");
+                return true;
             }
-            catch (Exception e) 
-            { 
-                Log.Warning($"[RimLink] SessionStart failed: {e.Message}"); 
-            }
+            Log.Warning($"[RimLink] SessionStart failed: {error}");
+            return false;
         }
 
         /// <summary>Отправляет heartbeat (пинг) каждые 30 секунд, пока игра запущена.</summary>
@@ -171,29 +206,22 @@ namespace RimLink.API
         /// <summary>Подтверждает выполнение команды серверу.</summary>
         public bool AckCommand(string commandId, bool success, string message, out string error)
         {
-            try
+            var d = new Dictionary<string, object>
             {
-                var d = new Dictionary<string, object>
-                {
-                    { "command_id", commandId },
-                    { "success",    success    },
-                    { "message",    message    }
-                };
-                Post("/api/rimworld/ack-command", SimpleJson.Serialize(d));
-                
+                { "command_id", commandId },
+                { "success",    success    },
+                { "message",    message    }
+            };
+            bool delivered = PostAndRequireOk(
+                "/api/rimworld/ack-command", SimpleJson.Serialize(d), out error);
+            if (delivered)
+            {
                 #if DEBUG
                 Log.Message($"[RimLink] Command {commandId} acknowledged (success={success})");
                 #endif
-                error = null;
                 return true;
             }
-            catch (Exception e)
-            {
-                // CommandQueue повторяет ACK в фоне. Не логируем каждый
-                // кратковременный сетевой сбой, иначе один обрыв заспамит лог.
-                error = e.Message;
-                return false;
-            }
+            return false;
         }
 
         /// <summary>Уведомляет сервер о завершении обработки пакета команд.</summary>
@@ -220,64 +248,66 @@ namespace RimLink.API
         // ── Пешки ──────────────────────────────────────────────────────────────
 
         /// <summary>Отправляет полные данные одной пешки.</summary>
-        public void SyncPawn(Dictionary<string, object> pawnData)
+        public bool SyncPawn(Dictionary<string, object> pawnData)
         {
-            try
+            if (PostAndRequireOk("/api/rimworld/sync-pawn",
+                SimpleJson.Serialize(pawnData), out string error))
             {
-                Post("/api/rimworld/sync-pawn", SimpleJson.Serialize(pawnData));
+                return true;
             }
-            catch (Exception e)
-            {
-                Log.Warning($"[RimLink] SyncPawn failed: {e.Message}");
-            }
+            Log.Warning($"[RimLink] SyncPawn failed: {error}");
+            return false;
         }
 
         /// <summary>Отправляет данные нескольких пешек одним запросом.</summary>
-        public void SyncPawnsBulk(List<Dictionary<string, object>> pawns)
+        public bool SyncPawnsBulk(List<Dictionary<string, object>> pawns)
         {
-            try
+            string json = SimpleJson.SerializeList(
+                new List<object>(pawns.ConvertAll(p => (object)p)));
+            if (PostAndRequireOk("/api/rimworld/sync-pawns", json, out string error))
             {
-                Post("/api/rimworld/sync-pawns", SimpleJson.SerializeList(new List<object>(pawns.ConvertAll(p => (object)p))));
+                return true;
             }
-            catch (Exception e)
-            {
-                Log.Warning($"[RimLink] SyncPawnsBulk failed: {e.Message}");
-            }
+            Log.Warning($"[RimLink] SyncPawnsBulk failed: {error}");
+            return false;
         }
 
         // ── Магазин ────────────────────────────────────────────────────────────
 
         /// <summary>Отправляет полный каталог предметов (одежда, оружие, импланты, нейротренеры).</summary>
-        public void SyncShopCatalog(List<object> items)
+        public bool SyncShopCatalog(List<object> items)
         {
-            try
+            if (PostAndRequireOk("/api/rimworld/shop-catalog",
+                SimpleJson.SerializeList(items), out string error))
             {
-                Post("/api/rimworld/shop-catalog", SimpleJson.SerializeList(items));
                 Log.Message($"[RimLink] Shop catalog synced: {items.Count} items");
+                return true;
             }
-            catch (Exception e)
-            {
-                Log.Warning($"[RimLink] SyncShopCatalog failed: {e.Message}");
-            }
+            Log.Warning($"[RimLink] SyncShopCatalog failed: {error}");
+            return false;
         }
 
         // ── Ивенты ────────────────────────────────────────────────────────────
 
         /// <summary>Отправляет каталог ивентов (IncidentDef + WeatherDef) на сервер.</summary>
-        public void SyncEventCatalog(List<object> events)
+        public bool SyncEventCatalog(List<object> events)
         {
-            try
+            if (PostAndRequireOk("/api/rimworld/event-catalog",
+                SimpleJson.SerializeList(events), out string error))
             {
-                Post("/api/rimworld/event-catalog", SimpleJson.SerializeList(events));
                 Log.Message($"[RimLink] Event catalog synced: {events.Count} events");
+                return true;
             }
-            catch (Exception e)
-            {
-                Log.Warning($"[RimLink] SyncEventCatalog failed: {e.Message}");
-            }
+            Log.Warning($"[RimLink] SyncEventCatalog failed: {error}");
+            return false;
         }
 
         // ── Утилиты ────────────────────────────────────────────────────────────
+
+        public bool TestModuleConnection(out string error)
+        {
+            return PostAndRequireOk("/api/rimworld/heartbeat", "{}", out error);
+        }
 
         /// <summary>Проверяет соединение с сервером (ping).</summary>
         public bool Ping()

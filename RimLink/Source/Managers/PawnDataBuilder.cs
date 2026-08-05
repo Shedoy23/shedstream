@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using RimWorld;
 using Verse;
 using RimLink.Utils;
+using RimLink.Components;
 
 namespace RimLink.Managers
 {
@@ -25,6 +26,7 @@ namespace RimLink.Managers
 
         public static string ExtractUsername(Pawn pawn)
         {
+            if (ViewerIdentity.TryGetUsername(pawn, out string username)) return username;
             if (pawn.Name is NameTriple t) return t.Nick;
             if (pawn.Name is NameSingle s) return s.Name;
             return pawn.Name?.ToString()?.Replace("'", "").Trim() ?? "";
@@ -329,6 +331,7 @@ namespace RimLink.Managers
             foreach (var h in pawn.health.hediffSet.hediffs)
             {
                 if (h == null) continue;
+                if (h.def?.defName == ViewerIdentity.MarkerDefName) continue;
                 bool isImplant = h.def.hediffClass == typeof(Hediff_AddedPart)
                               || h.def.hediffClass?.Name == "Hediff_Implant"
                               || h.def.hediffClass == typeof(Hediff_Implant);

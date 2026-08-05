@@ -88,7 +88,9 @@ namespace RimLink.Utils
                     .Replace("\"", "\\\"")
                     .Replace("\n", "\\n")
                     .Replace("\r", "\\r")
-                    .Replace("\t", "\\t");
+                    .Replace("\t", "\\t")
+                    .Replace("\b", "\\b")
+                    .Replace("\f", "\\f");
         }
 
         // ── Десериализация ─────────────────────────────────────────────────────
@@ -97,69 +99,102 @@ namespace RimLink.Utils
         {
             if (string.IsNullOrEmpty(json)) return new Dictionary<string, object>();
             json = json.Trim();
-            if (json.Length < 2 || json[0] != '{') return new Dictionary<string, object>();
+            if (json.Length > 5 * 1024 * 1024) throw new FormatException("JSON payload is too large");
+            if (json.Length < 2 || json[0] != '{') throw new FormatException("Expected JSON object");
             int pos = 0;
-            return ParseObject(json, ref pos);
+            var result = ParseObject(json, ref pos, 0);
+            SkipWs(json, ref pos);
+            if (pos != json.Length) throw new FormatException("Trailing JSON data");
+            return result;
         }
 
         public static List<object> DeserializeList(string json)
         {
             if (string.IsNullOrEmpty(json)) return new List<object>();
             json = json.Trim();
-            if (json.Length < 2 || json[0] != '[') return new List<object>();
+            if (json.Length > 5 * 1024 * 1024) throw new FormatException("JSON payload is too large");
+            if (json.Length < 2 || json[0] != '[') throw new FormatException("Expected JSON array");
             int pos = 0;
-            return ParseArray(json, ref pos);
+            var result = ParseArray(json, ref pos, 0);
+            SkipWs(json, ref pos);
+            if (pos != json.Length) throw new FormatException("Trailing JSON data");
+            return result;
         }
 
         // ── Parser internals ───────────────────────────────────────────────────
 
-        private static Dictionary<string, object> ParseObject(string s, ref int pos)
+        private static Dictionary<string, object> ParseObject(string s, ref int pos, int depth)
         {
+            if (depth > 64) throw new FormatException("JSON nesting is too deep");
+            if (pos >= s.Length || s[pos] != '{') throw new FormatException("Expected '{'");
             var dict = new Dictionary<string, object>();
             pos++; // skip '{'
             SkipWs(s, ref pos);
 
-            while (pos < s.Length && s[pos] != '}')
+            if (pos < s.Length && s[pos] == '}')
+            {
+                pos++;
+                return dict;
+            }
+
+            while (pos < s.Length)
             {
                 SkipWs(s, ref pos);
-                if (pos >= s.Length || s[pos] == '}') break;
+                if (pos >= s.Length || s[pos] != '"') throw new FormatException("Expected object key");
 
                 string key = ParseString(s, ref pos);
                 SkipWs(s, ref pos);
-                if (pos < s.Length && s[pos] == ':') pos++;
+                if (pos >= s.Length || s[pos] != ':') throw new FormatException("Expected ':'");
+                pos++;
                 SkipWs(s, ref pos);
 
-                object val = ParseValue(s, ref pos);
+                object val = ParseValue(s, ref pos, depth + 1);
                 dict[key] = val;
 
                 SkipWs(s, ref pos);
-                if (pos < s.Length && s[pos] == ',') pos++;
-                SkipWs(s, ref pos);
+                if (pos < s.Length && s[pos] == '}')
+                {
+                    pos++;
+                    return dict;
+                }
+                if (pos >= s.Length || s[pos] != ',') throw new FormatException("Expected ',' or '}'");
+                pos++;
             }
 
-            if (pos < s.Length) pos++; // skip '}'
-            return dict;
+            throw new FormatException("Unterminated JSON object");
         }
 
-        private static List<object> ParseArray(string s, ref int pos)
+        private static List<object> ParseArray(string s, ref int pos, int depth)
         {
+            if (depth > 64) throw new FormatException("JSON nesting is too deep");
+            if (pos >= s.Length || s[pos] != '[') throw new FormatException("Expected '['");
             var list = new List<object>();
             pos++; // skip '['
             SkipWs(s, ref pos);
 
-            while (pos < s.Length && s[pos] != ']')
+            if (pos < s.Length && s[pos] == ']')
             {
-                list.Add(ParseValue(s, ref pos));
-                SkipWs(s, ref pos);
-                if (pos < s.Length && s[pos] == ',') pos++;
-                SkipWs(s, ref pos);
+                pos++;
+                return list;
             }
 
-            if (pos < s.Length) pos++; // skip ']'
-            return list;
+            while (pos < s.Length)
+            {
+                list.Add(ParseValue(s, ref pos, depth + 1));
+                SkipWs(s, ref pos);
+                if (pos < s.Length && s[pos] == ']')
+                {
+                    pos++;
+                    return list;
+                }
+                if (pos >= s.Length || s[pos] != ',') throw new FormatException("Expected ',' or ']'");
+                pos++;
+            }
+
+            throw new FormatException("Unterminated JSON array");
         }
 
-        private static object ParseValue(string s, ref int pos)
+        private static object ParseValue(string s, ref int pos, int depth)
         {
             SkipWs(s, ref pos);
             if (pos >= s.Length) return null;
@@ -167,8 +202,8 @@ namespace RimLink.Utils
             char c = s[pos];
 
             if (c == '"') return ParseString(s, ref pos);
-            if (c == '{') return ParseObject(s, ref pos);
-            if (c == '[') return ParseArray(s, ref pos);
+            if (c == '{') return ParseObject(s, ref pos, depth);
+            if (c == '[') return ParseArray(s, ref pos, depth);
 
             // null / true / false / number
             int end = pos;
@@ -182,11 +217,12 @@ namespace RimLink.Utils
             if (long.TryParse(tok, out long lng)) return lng;
             if (double.TryParse(tok, System.Globalization.NumberStyles.Any,
                                 System.Globalization.CultureInfo.InvariantCulture, out double dbl)) return dbl;
-            return tok;
+            throw new FormatException($"Invalid JSON token '{tok}'");
         }
 
         private static string ParseString(string s, ref int pos)
         {
+            if (pos >= s.Length || s[pos] != '"') throw new FormatException("Expected string");
             pos++; // skip opening '"'
             var sb = new StringBuilder();
             while (pos < s.Length && s[pos] != '"')
@@ -201,14 +237,42 @@ namespace RimLink.Utils
                         case 'n':  sb.Append('\n'); break;
                         case 'r':  sb.Append('\r'); break;
                         case 't':  sb.Append('\t'); break;
-                        default:   sb.Append(s[pos]); break;
+                        case 'b':  sb.Append('\b'); break;
+                        case 'f':  sb.Append('\f'); break;
+                        case '/':  sb.Append('/');  break;
+                        case 'u':
+                            if (pos + 4 >= s.Length) throw new FormatException("Invalid unicode escape");
+                            int code = 0;
+                            for (int i = 1; i <= 4; i++)
+                            {
+                                int hex = HexValue(s[pos + i]);
+                                if (hex < 0) throw new FormatException("Invalid unicode escape");
+                                code = (code << 4) | hex;
+                            }
+                            sb.Append((char)code);
+                            pos += 4;
+                            break;
+                        default: throw new FormatException("Invalid string escape");
                     }
                 }
-                else sb.Append(s[pos]);
+                else
+                {
+                    if (s[pos] < 0x20) throw new FormatException("Unescaped control character");
+                    sb.Append(s[pos]);
+                }
                 pos++;
             }
-            if (pos < s.Length) pos++; // skip closing '"'
+            if (pos >= s.Length || s[pos] != '"') throw new FormatException("Unterminated JSON string");
+            pos++; // skip closing '"'
             return sb.ToString();
+        }
+
+        private static int HexValue(char c)
+        {
+            if (c >= '0' && c <= '9') return c - '0';
+            if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+            if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+            return -1;
         }
 
         private static void SkipWs(string s, ref int pos)

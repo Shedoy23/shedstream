@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using RimWorld;
 using Verse;
+using RimLink.Components;
 
 namespace RimLink.Actions
 {
@@ -52,6 +53,7 @@ namespace RimLink.Actions
             // Имя: First='Twitch', Nick=username, Last='RimLink'
             // Это позволяет фильтровать пешек зрителей при синхронизации
             pawn.Name = new NameTriple("Twitch", _username, "RimLink");
+            ViewerIdentity.Ensure(pawn, _username);
             pawn.SetFaction(Faction.OfPlayer);
 
             if (ModsConfig.IdeologyActive)
@@ -74,9 +76,16 @@ namespace RimLink.Actions
             RimLinkMod.PawnManager.Register(_username, pawn);
             RimLinkMod.PawnManager.ForceSyncPawn(_username);
 
-            Messages.Message(
-                $"✨ {_username} присоединился к колонии!",
-                pawn, MessageTypeDefOf.PositiveEvent);
+            try
+            {
+                Messages.Message(
+                    $"✨ {_username} присоединился к колонии!",
+                    pawn, MessageTypeDefOf.PositiveEvent);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning($"[RimLink] SpawnPawn message: {ex.Message}");
+            }
             return true;
         }
     }

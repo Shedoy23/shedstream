@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
 using RimWorld;
 using Verse;
@@ -9,7 +11,7 @@ namespace RimLink.Components
     /// <summary>
     /// Подключается к игровому циклу после полной загрузки карты.
     /// Именно здесь безопасно читать пешки, карту и мир.
-    /// Регистрируется через Defs/GameComponent.xml
+    /// RimWorld создаёт GameComponent автоматически для активной игры.
     /// </summary>
     public class RimLinkGameComponent : GameComponent
     {
@@ -21,6 +23,12 @@ namespace RimLink.Components
             
         private bool _gameLoaded = false;
         private bool _offlineSent = false;
+        private bool _sessionInitialized = false;
+        private bool _quittingSubscribed = false;
+        private int _heartbeatInFlight = 0;
+
+        private const int MAX_COMMANDS_PER_TICK = 5;
+        private const int COMMAND_BUDGET_MS = 8;
 
         // Heartbeat по реальному времени (не игровым тикам) — работает и на паузе
         private float _heartbeatRealTime = 0f;
@@ -49,7 +57,7 @@ namespace RimLink.Components
 
             var capCatalog = catalog;
             var capEvents  = events;
-            new System.Threading.Thread(() =>
+            Task.Run(() =>
             {
                 try
                 {
@@ -57,53 +65,58 @@ namespace RimLink.Components
                     if (capEvents != null)  RimLinkMod.API?.SyncEventCatalog(capEvents);
                 }
                 catch (Exception ex) { Log.Warning($"[RimLink] SyncCatalogs bg: {ex.Message}"); }
-            }) { IsBackground = true, Name = "RimLink-SyncCatalogs" }.Start();
+            });
         }
 
         public override void FinalizeInit()
         {
             base.FinalizeInit();
-            Log.Message("[RimLink] Игра загружена — начинаем синхронизацию");
-
-            UnityEngine.Application.quitting -= OnApplicationQuitting;
-            UnityEngine.Application.quitting += OnApplicationQuitting;
-
-            // SessionStart теперь вызывается внутри LoadFromCurrentMap() в одном фоновом потоке
-            // вместе с SyncPawnsBulk — это исключает гонку, из-за которой мёртвые пешки
-            // без трупа раньше оставались в БД (session-start мог сработать после bulk-sync).
-            RimLinkMod.PawnManager?.LoadFromCurrentMap();
-            SyncCatalogsInBackground();
-
-            _gameLoaded = true;
-            _offlineSent = false;
+            TryInitializeSession("игра загружена");
         }
 
         public override void StartedNewGame()
         {
             base.StartedNewGame();
-            Log.Message("[RimLink] Новая игра — инициализация");
+            TryInitializeSession("новая игра");
+        }
+
+        private void TryInitializeSession(string reason)
+        {
+            if (_sessionInitialized || Current.Game == null) return;
+            bool worldReady = (Find.Maps != null && Find.Maps.Count > 0)
+                || PawnsFinder.AllMapsCaravansAndTravellingTransporters_Alive.Count > 0;
+            if (!worldReady) return;
+
+            _sessionInitialized = true;
+            _gameLoaded = true;
+            RimLinkMod.GameSessionActive = true;
+            _offlineSent = false;
+            _heartbeatRealTime = 0f;
+            Log.Message($"[RimLink] Инициализация сессии ({reason})");
+
+            if (!_quittingSubscribed)
+            {
+                UnityEngine.Application.quitting += OnApplicationQuitting;
+                _quittingSubscribed = true;
+            }
+
             RimLinkMod.PawnManager?.LoadFromCurrentMap();
             SyncCatalogsInBackground();
-            _gameLoaded = true;
-            _offlineSent = false;
         }
 
         public override void GameComponentTick()
         {
             base.GameComponentTick();
-            
+
+            if (!_sessionInitialized)
+                TryInitializeSession("отложенная готовность мира");
             if (!_gameLoaded) return;
-            if (RimLinkMod.CommandQueue == null || RimLinkMod.PendingCommands == null) return;
+            if (RimLinkMod.CommandQueue == null) return;
             
             _syncTicks++;
             _deathCheckTicks++;
 
-            while (RimLinkMod.PendingCommands.TryDequeue(out var cmd))
-            {
-                try { RimLinkMod.CommandQueue.Enqueue(cmd); }
-                catch (Exception ex) { Log.Warning($"[RimLink] Enqueue cmd failed: {ex.Message}"); }
-            }
-            RimLinkMod.CommandQueue.FlushAll();
+            RimLinkMod.CommandQueue.FlushBudget(MAX_COMMANDS_PER_TICK, COMMAND_BUDGET_MS);
 
             // 1. Периодическая полная синхронизация
             if (_syncTicks >= SyncIntervalTicks)
@@ -111,7 +124,7 @@ namespace RimLink.Components
                 _syncTicks = 0;
                 try
                 {
-                    if (Current.Game?.CurrentMap != null)
+                    if (Current.Game != null)
                         RimLinkMod.PawnManager?.SyncAll();
                 }
                 catch (Exception ex)
@@ -151,7 +164,10 @@ namespace RimLink.Components
                 if (_heartbeatRealTime >= HEARTBEAT_REAL_INTERVAL)
                 {
                     _heartbeatRealTime = 0f;
-                    System.Threading.Tasks.Task.Run(() =>
+                    if (Interlocked.CompareExchange(ref _heartbeatInFlight, 1, 0) != 0)
+                        return;
+
+                    Task.Run(() =>
                     {
                         try { RimLinkMod.API?.Heartbeat(); }
                         catch (Exception ex)
@@ -162,6 +178,7 @@ namespace RimLink.Components
                             _ = ex;
                             #endif
                         }
+                        finally { Interlocked.Exchange(ref _heartbeatInFlight, 0); }
                     });
                 }
             }
@@ -174,9 +191,8 @@ namespace RimLink.Components
 
         private void OnApplicationQuitting()
         {
-            UnityEngine.Application.quitting -= OnApplicationQuitting;
-            if (_gameLoaded && !_offlineSent)
-                SendOfflineNotification();
+            UnsubscribeFromQuitting();
+            SendOfflineNotification();
         }
 
         private void SendOfflineNotification()
@@ -184,9 +200,26 @@ namespace RimLink.Components
             if (_offlineSent) return;
             _offlineSent = true;
             _gameLoaded  = false;
+            RimLinkMod.GameSessionActive = false;
+            _sessionInitialized = false;
+            UnsubscribeFromQuitting();
+
+            RimLinkMod.CommandQueue?.ClearPending();
+            RimLinkMod.PawnManager?.Clear();
+
             Log.Message("[RimLink] Игра закрывается — отправляем offline");
-            try { RimLinkMod.API?.SendOffline(); }
-            catch (Exception ex) { Log.Warning($"[RimLink] Offline notification failed: {ex.Message}"); }
+            Task.Run(() =>
+            {
+                try { RimLinkMod.API?.SendOffline(); }
+                catch (Exception ex) { Log.Warning($"[RimLink] Offline notification failed: {ex.Message}"); }
+            });
+        }
+
+        private void UnsubscribeFromQuitting()
+        {
+            if (!_quittingSubscribed) return;
+            UnityEngine.Application.quitting -= OnApplicationQuitting;
+            _quittingSubscribed = false;
         }
 
         public override void ExposeData()

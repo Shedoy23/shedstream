@@ -54,60 +54,113 @@ logger = logging.getLogger("rimlink")
 # заведено). Появится модуль — добавляется строка, фронт не трогаем.
 _FIRST_STEP = {
     "bannerlord": {
-        "sql": ("SELECT 1 FROM bannerlord_heroes "
+        "sql": ("SELECT display_name FROM bannerlord_heroes "
                 "WHERE channel_id=? AND username=? AND is_alive=1 LIMIT 1"),
-        "title": "Создай своего героя",
-        "text":  ("Он будет жить в игре прямо на стриме: воевать, богатеть, "
-                  "заводить семью. Управляешь им отсюда."),
-        "cta":   "Создать героя",
+        "title": "Начни играть вместе со стримером",
+        "own":   "Твой герой",
+        "text":  ("Заведи героя — он будет жить в игре прямо на стриме: "
+                  "воевать, богатеть, заводить семью. Управляешь им отсюда."),
+        "price": 0,
     },
     "shedcolony": {
         # Связь «зритель → колонист» живёт в colony_link (viewer_id), а не в
         # colonist_state: там ключ citizen_id, числовой, и по нему зрителя не
         # найти. Статус 'dead' считаем отсутствием — умерший колонист означает,
         # что нужен новый, и приглашение уместно.
-        "sql": ("SELECT 1 FROM shedcolony_colony_link "
+        "sql": ("SELECT '' FROM shedcolony_colony_link "
                 "WHERE channel_id=? AND viewer_id=? AND status='active' LIMIT 1"),
-        "title": "Заведи своего колониста",
-        "text":  ("Он поселится в колонии на стриме, будет работать и расти. "
-                  "Задания ему раздаёшь ты."),
-        "cta":   "Создать колониста",
+        "title": "Начни играть вместе со стримером",
+        "own":   "Твой колонист",
+        "text":  ("Заведи колониста — он поселится в колонии на стриме, будет "
+                  "работать и расти. Задания ему раздаёшь ты."),
     },
     "rimworld": {
-        "sql": ("SELECT 1 FROM rimworld_pawns "
+        # Без фильтра по жизни намеренно: мёртвую пешку в RimWorld ВОСКРЕШАЮТ,
+        # а не создают заново (кнопка «Воскресить» на вкладке интеграции).
+        # Приглашение создать нового персонажа тому, у кого он есть, только
+        # запутает. У Bannerlord и shedcolony механика обратная — там после
+        # гибели нужен новый, поэтому там фильтр стоит.
+        "sql": ("SELECT pawn_name FROM rimworld_pawns "
                 "WHERE channel_id=? AND username=? LIMIT 1"),
-        "title": "Заведи своего персонажа",
-        "text":  ("Он появится в колонии на стриме. Лечи его, одевай "
-                  "и прокачивай прямо отсюда."),
-        "cta":   "Создать персонажа",
+        "title": "Начни играть вместе со стримером",
+        "own":   "Твой персонаж",
+        "text":  ("Заведи персонажа — он появится в колонии на стриме. Лечи "
+                  "его, одевай и прокачивай прямо отсюда."),
     },
 }
 
 
+def _first_step_price(module: str, spec: dict) -> int:
+    """Цена первого шага — из того же места, где её берёт само действие.
+
+    Копию числа здесь не держим: цена, разошедшаяся с настоящей, — это отказ
+    ровно на том шаге, который мы пытаемся сделать проще. Не смогли выяснить —
+    цену не показываем вовсе (0), это честнее неверной.
+    """
+    if "price" in spec:
+        return int(spec["price"])
+    try:
+        if module == "rimworld":
+            from rimworld import SPAWN_COST
+            return int(SPAWN_COST)
+        if module == "shedcolony":
+            from routes.shedcolony import _ACTION_PRICES
+            return int(_ACTION_PRICES.get("colonist.spawn", 0))
+    except Exception as ex:
+        logger.warning("[first-step] цена для %s недоступна: %s", module, ex)
+    return 0
+
+
 async def _first_step_for(db, channel_id: int, username: str, active_module):
-    """Что показать зрителю, у которого ещё нет персонажа. None — уже есть.
+    """Что показать в верхней карточке главной вкладки. None — не показывать.
+
+    Два состояния одного места (решение владельца 2026-08-05):
+      • персонажа НЕТ → приглашение: зачем он нужен и одна кнопка;
+      • персонаж ЕСТЬ → короткий переход «Твой герой · имя → Открыть».
+    Второе состояние существует потому, что кнопка всё равно лишь открывает
+    вкладку интеграции, а сама вкладка называется техническим словом
+    «Интеграция» — постоянный понятный вход туда полезен и старожилу.
+    Текст приглашения для того, у кого герой уже есть, был бы враньём, поэтому
+    это разные тексты, а не «просто не прятать».
 
     Молчим при любой неожиданности (нет модуля, нет таблицы, ошибка): карточка
-    приглашает, а не управляет доступом, поэтому её отсутствие ничего не ломает,
-    а вот ложное «создай ещё раз» тому, у кого герой есть, — сбивает с толку.
+    приглашает, а не управляет доступом, поэтому её отсутствие ничего не ломает.
     """
-    spec = _FIRST_STEP.get((active_module or "").strip().lower())
+    module = (active_module or "").strip().lower()
+    spec = _FIRST_STEP.get(module)
     if not spec:
         return None
     try:
         async with db._connect() as conn:
             cur = await conn.execute(spec["sql"], (channel_id, username))
-            if await cur.fetchone():
-                return None
+            row = await cur.fetchone()
     except Exception as ex:
         logger.warning("[first-step] проверка персонажа не удалась ch=%s @%s: %s",
                        channel_id, username, ex)
         return None
+
+    if row:
+        name = (row[0] or "").strip() if row[0] is not None else ""
+        return {
+            "module":  active_module,
+            "title":   f"{spec['own']} · {name}" if name else spec["own"],
+            "text":    "",
+            "price":   0,
+            "cta":     "Открыть",
+            "compact": True,
+        }
+
+    # Кнопка называет РЕЗУЛЬТАТ («начать играть»), а не механику («создать
+    # героя»): зритель на этом экране ещё не знает, зачем ему герой. Цена — в
+    # той же кнопке, иначе платный шаг удивляет уже после нажатия.
+    price = _first_step_price(module, spec)
     return {
-        "module": active_module,
-        "title":  spec["title"],
-        "text":   spec["text"],
-        "cta":    spec["cta"],
+        "module":  active_module,
+        "title":   spec["title"],
+        "text":    spec["text"],
+        "price":   price,
+        "cta":     "Начать играть" if price <= 0 else f"Начать играть · {price}💎",
+        "compact": False,
     }
 
 

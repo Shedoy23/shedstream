@@ -710,12 +710,15 @@ function renderFirstStep(step) {
     if (!el) return;
     if (!step || !step.title) { el.innerHTML = ''; return; }
 
+    // Два состояния одного места: приглашение новичку и короткий переход
+    // «Твой герой · имя» тому, у кого персонаж уже есть. Что именно показать,
+    // решает бэкенд — здесь только вёрстка, без знания о конкретных играх.
     el.innerHTML = `
-        <div class="first-step">
+        <div class="first-step${step.compact ? ' first-step-compact' : ''}">
             <h3>${escapeHtml(step.title)}</h3>
-            <p>${escapeHtml(step.text || '')}</p>
+            ${step.text ? `<p>${escapeHtml(step.text)}</p>` : ''}
             <button type="button" id="first-step-go">
-                ${escapeHtml(step.cta || 'Начать')} →
+                ${escapeHtml(step.cta || 'Открыть')} →
             </button>
         </div>`;
 

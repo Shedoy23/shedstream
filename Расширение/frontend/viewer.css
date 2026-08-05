@@ -180,6 +180,32 @@ html, body {
 }
 .first-step button:hover { background: #a970ff; }
 
+/* Тот же блок для зрителя, у которого персонаж уже есть: это не приглашение,
+   а постоянный вход на вкладку интеграции — поэтому одна строка, а не плашка
+   в пол-экрана. */
+.first-step-compact {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+}
+.first-step-compact h3 {
+    margin: 0;
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.first-step-compact button {
+    width: auto;
+    flex: none;
+    padding: 7px 14px;
+    font-size: 12px;
+}
+
 /* Шапка: название расширения + версия, активная игра — подписью снизу.
    До 2026-08-05 название игры ЗАТИРАЛО .panel-title, и при переключении
    интеграции расширение переставало называть себя. */

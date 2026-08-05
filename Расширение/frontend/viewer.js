@@ -713,16 +713,20 @@ function renderFirstStep(step) {
     // Два состояния одного места: приглашение новичку и короткий переход
     // «Твой герой · имя» тому, у кого персонаж уже есть. Что именно показать,
     // решает бэкенд — здесь только вёрстка, без знания о конкретных играх.
+    // `enabled: false` присылается, когда нажимать бессмысленно (игра у
+    // стримера не запущена): купленное действие простояло бы в очереди полчаса
+    // и вернулось возвратом — для новичка это «нажал, ничего не произошло».
+    const disabled = step.enabled === false;
     el.innerHTML = `
         <div class="first-step${step.compact ? ' first-step-compact' : ''}">
             <h3>${escapeHtml(step.title)}</h3>
             ${step.text ? `<p>${escapeHtml(step.text)}</p>` : ''}
-            <button type="button" id="first-step-go">
-                ${escapeHtml(step.cta || 'Открыть')} →
+            <button type="button" id="first-step-go"${disabled ? ' disabled' : ''}>
+                ${escapeHtml(step.cta || 'Открыть')}${disabled ? '' : ' →'}
             </button>
         </div>`;
 
-    const btn = document.getElementById('first-step-go');
+    const btn = disabled ? null : document.getElementById('first-step-go');
     if (btn) {
         btn.addEventListener('click', () => {
             // data-tab="rimworld" — историческое имя вкладки «🔌 Интеграция»

@@ -90,6 +90,35 @@ _FIRST_STEP = {
 }
 
 
+def _module_on_air(module: str, channel_id: int):
+    """Мод на связи прямо сейчас? True / False / None (сигнала не существует).
+
+    ЗАЧЕМ (2026-08-05, вопрос владельца «а если мод не отправил онлайн»).
+    Приглашение зовёт нажать. Если игра закрыта или стример сейчас в другой
+    игре, купленное действие ляжет в очередь, простоит там полчаса и вернётся
+    авто-возвратом (`_queued_action_ttl_sweeper` в main.py). Деньги не пропадут,
+    но для НОВИЧКА это худшее первое впечатление из возможных: нажал единственную
+    зовущую кнопку — не произошло ничего, а деньги вернулись через полчаса без
+    объяснений. Поэтому офлайн показываем честно и кнопку гасим.
+
+    Порог 60 секунд — тот же, что у стримерского дашборда, чтобы два экрана не
+    говорили разное. Сигнал живёт в памяти процесса: сразу после перезапуска
+    бэкенда он пуст, и это НЕ офлайн у стримера — мод вернёт его первым же
+    опросом (в пределах полуминуты).
+    """
+    try:
+        import time as _t
+        mod = __import__("modules.%s._adapter" % module, fromlist=["get_last_seen"])
+        ts = mod.get_last_seen(channel_id)
+    except Exception:
+        # У модуля может не быть такого сигнала (RimWorld — легаси, не модуль).
+        # Тогда не гадаем и не мешаем: приглашение остаётся рабочим.
+        return None
+    if not ts:
+        return None
+    return (_t.time() - ts) < 60
+
+
 def _first_step_price(module: str, spec: dict) -> int:
     """Цена первого шага — из того же места, где её берёт само действие.
 
@@ -140,6 +169,8 @@ async def _first_step_for(db, channel_id: int, username: str, active_module):
         return None
 
     if row:
+        # У кого персонаж есть — просто вход на вкладку. Он безвреден и когда
+        # игра закрыта: посмотреть своего героя можно всегда.
         name = (row[0] or "").strip() if row[0] is not None else ""
         return {
             "module":  active_module,
@@ -148,6 +179,19 @@ async def _first_step_for(db, channel_id: int, username: str, active_module):
             "price":   0,
             "cta":     "Открыть",
             "compact": True,
+            "enabled": True,
+        }
+
+    if _module_on_air(module, channel_id) is False:
+        return {
+            "module":  active_module,
+            "title":   spec["title"],
+            "text":    ("Стример сейчас не в игре — персонажа пока не завести. "
+                        "Загляни, когда игра запустится."),
+            "price":   0,
+            "cta":     "Пока недоступно",
+            "compact": False,
+            "enabled": False,
         }
 
     # Кнопка называет РЕЗУЛЬТАТ («начать играть»), а не механику («создать
@@ -161,6 +205,7 @@ async def _first_step_for(db, channel_id: int, username: str, active_module):
         "price":   price,
         "cta":     "Начать играть" if price <= 0 else f"Начать играть · {price}💎",
         "compact": False,
+        "enabled": True,
     }
 
 

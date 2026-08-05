@@ -179,6 +179,12 @@ html, body {
     transition: background 0.15s;
 }
 .first-step button:hover { background: #a970ff; }
+.first-step button:disabled {
+    background: #3a3a3e;
+    color: #8a8a94;
+    cursor: default;
+}
+.first-step button:disabled:hover { background: #3a3a3e; }
 
 /* Тот же блок для зрителя, у которого персонаж уже есть: это не приглашение,
    а постоянный вход на вкладку интеграции — поэтому одна строка, а не плашка

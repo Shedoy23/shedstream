@@ -3,7 +3,33 @@
 Первое, что открываем в начале сессии. Глубина — в RUNBOOK / DEFERRED / ROADMAP /
 CONTEXT*. Обновляется в конце каждой сессии.
 
-**Обновлено:** 2026-08-01
+**Обновлено:** 2026-08-04
+
+## ✅ 04.08 — постстримовые исправления выкачены
+
+После стрима 03.08 исправлены и задеплоены backend + серверный frontend + DLL
+BannerlordLink:
+
+- requeue action со старым PK снова виден поверх монотонного cursor (S-07);
+- M108 хранит поздний ACK отдельно от terminal failure/refund marker;
+- mod-side dedup покрывает весь retry lifecycle;
+- RimWorld polling запускается только для `active_module='rimworld'`;
+- active powers Bannerlord нельзя купить, пока герой не находится на поле боя;
+- штатная остановка long-poll больше не записывается как `ERROR`.
+
+Прод-проверка: staging 200; deploy gate 107/107; M108 применена
+`2026-08-03 22:06:25 UTC`; DB `integrity=ok`; после рестарта 5xx=0;
+развёрнутые регрессии delivery 9/9, ACK/refund 29/29, TTS 13/13,
+frontend lifecycle 9/9. TTS-гейт канала возвращён в `require_approval=1`.
+
+Rollback БД: `/root/pre-m108-rollback-20260803_220550.db`, integrity ok.
+Предыдущая DLL: `BannerlordLink.dll.rollback-2026-08-04-C6F7B7C8`;
+новая DLL MD5 `2957244B…`, скопирована в игру. Нужен следующий запуск
+Bannerlord — игра во время деплоя была закрыта.
+
+Важно: серверный frontend обновлён (`v=202608032206`), но выпущенный Twitch CDN
+архив этим не меняется — для зрителей на `ext-twitch.tv` правка frontend попадёт
+только с новой версией расширения.
 
 ## 🔨 01.08 — починено по итогам аудита (ЖДЁТ ДЕПЛОЯ НА ПРОД)
 

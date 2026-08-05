@@ -75,6 +75,29 @@ def _is_opaque_login(name: str) -> bool:
     n = name.strip().lower()
     return bool(_OPAQUE_RX.match(n)) or len(n) > 25
 
+def _utc_for_client(ts) -> Optional[str]:
+    """Пометить сохранённое время как UTC, прежде чем отдать его в браузер.
+
+    2026-08-05 (владелец: «не работает таймер автоокончания»). Время окончания
+    голосования пишется как `datetime.utcnow().isoformat()` — без пометки часового
+    пояса. Браузер по стандарту читает такую строку как МЕСТНОЕ время, поэтому
+    зритель из Москвы получал срок на три часа раньше настоящего, и обратный
+    отсчёт показывал 00:00 с первой же секунды.
+
+    Чиним на бэкенде намеренно, а не во фронте: фронт замерзает на CDN до
+    следующего ревью Twitch, а бэкенд доезжает до зрителей за минуты — значит
+    уже опубликованный клиент 0.0.1 получает исправный отсчёт сразу.
+
+    Значения, у которых пояс уже указан, не трогаем.
+    """
+    if not ts:
+        return ts
+    s = str(ts).strip().replace(" ", "T")
+    if s.endswith("Z") or "+" in s[10:] or "-" in s[10:]:
+        return s
+    return s + "Z"
+
+
 class Database:
     def __init__(self, db_path="viewers.db"):
         self.db_path = db_path
@@ -2359,7 +2382,7 @@ class Database:
                     'event_id': event_id,
                     'template_name': tpl_name,
                     'options_count': len(options),
-                    'ends_at': ends_at,
+                    'ends_at': _utc_for_client(ends_at),
                 }
             except Exception:
                 await conn.execute("ROLLBACK")
@@ -2492,7 +2515,7 @@ class Database:
                 'event_id':       event_id,
                 'template_name':  tpl_name,
                 'started_at':     started_at,
-                'ends_at':        ends_at,
+                'ends_at':        _utc_for_client(ends_at),
                 'total_pool':     total_pool,
                 'allow_proposals': bool(allow_proposals),
                 'options':        options,
@@ -2638,11 +2661,21 @@ class Database:
             return row[0] if row else 0
 
     async def find_expired_voting_events(self) -> list:
-        """All active events с ends_at в прошлом — для voting_loop."""
+        """All active events с ends_at в прошлом — для voting_loop.
+
+        2026-08-05 (владелец: «не работает таймер автоокончания»). Здесь было
+        `ends_at <= CURRENT_TIMESTAMP` — сравнение ДВУХ СТРОК в разных форматах.
+        Питон пишет `2026-08-05T09:00:00.123456` (через «T»), а
+        `CURRENT_TIMESTAMP` отдаёт `2026-08-05 11:49:19` (через пробел). Внутри
+        одной даты «T» больше пробела по коду символа, поэтому истёкшее сегодня
+        голосование НЕ находилось — и закрывалось только после смены даты по
+        UTC, то есть после полуночи. `datetime()` приводит обе стороны к одному
+        виду, и сравнение снова про время, а не про порядок символов.
+        """
         async with self._connect() as conn:
             cur = await conn.execute(
                 "SELECT id, channel_id FROM voting_events "
-                "WHERE status = 'active' AND ends_at <= CURRENT_TIMESTAMP"
+                "WHERE status = 'active' AND datetime(ends_at) <= datetime('now')"
             )
             return [{'event_id': r[0], 'channel_id': r[1]}
                     for r in await cur.fetchall()]
@@ -2730,7 +2763,8 @@ class Database:
                     cnt += 1
 
                 await conn.commit()
-                return {'started': True, 'event_id': event_id, 'ends_at': ends_at,
+                return {'started': True, 'event_id': event_id,
+                        'ends_at': _utc_for_client(ends_at),
                         'options_count': cnt}
             except Exception:
                 await conn.execute("ROLLBACK")

@@ -6,7 +6,7 @@
 // Compliance:
 //   - §6.2.4: catalog показывает specific item_id, НЕ mystery box
 //   - §6.2.8: catalog read-only — никакой uploadable UI
-//   - §5.2:   Bits-mode (если PETS_BITS_REQUIRED=true) или mock (dev)
+//   - §5.2:   specific cosmetics are exchanged only for loyalty crystals
 //
 // Tab states: 'pet' | 'catalog'
 
@@ -364,8 +364,7 @@ async function _buyItem(itemId) {
     if (_petsState.buying) return;
     _petsState.buying = true;
     try {
-        // bits_receipt не передаём — backend в mock-mode или
-        // DEFERRED [BITS-SIG] в routes/pets.py docstring
+        // The current release uses loyalty crystals only; no Bits flow exists.
         const r = await fetch(`${API_URL}/api/pet/purchase`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || '' },

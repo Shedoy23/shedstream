@@ -2264,12 +2264,14 @@ async function _famProposeMarriage(myChildId, myChildName) {
 // ===== Sprint 5.5: Battle status indicator (banner only) =====
 async function loadBannerlordBattleStatus() {
     try {
+        const powersWereAvailable = bnrCanUseActivePowers();
         const r = await fetch(`${API_URL}/api/bannerlord/battle-status`, {
             headers: { 'X-Twitch-JWT': authToken || '' },
         });
         const data = await r.json();
         if (!data.success) return;
         _bannerlordBattle = data;
+        const powersAreAvailable = bnrCanUseActivePowers();
         // На transition (старт боя) дёргаем buffs reload — backend сбрасывает
         // cooldowns у participants, frontend должен подхватить.
         if (!!data.in_battle && !_bannerlordWasInBattle) {
@@ -2280,6 +2282,13 @@ async function loadBannerlordBattleStatus() {
         // Sprint 5.32 (BLT-parity DET-4) — render detachment commands если
         // viewer в активном Mission'е (alive=true). Иначе hide secion.
         _renderBannerlordDetachmentPanel(data);
+        // Самая частая причина платного refund на стриме 03.08 —
+        // hero_not_spawned. Перерисовываем active powers только на смене
+        // доступности, чтобы кнопки нельзя было купить вне поля боя и при
+        // этом не дёргать DOM каждые 2 секунды.
+        if (powersWereAvailable !== powersAreAvailable) {
+            renderBannerlordActivePowers();
+        }
     } catch (e) {
         // Sprint 5.29 audit fix #36: silent → warn
         console.warn('[BNR loadBannerlordBattleStatus]', e);
@@ -2697,6 +2706,7 @@ function renderBannerlordActivePowers() {
     const activeKeys = new Set(_bannerlordBuffs.map(b => b.power_key));
     const cdMap = {};
     for (const c of _bannerlordCooldowns) cdMap[c.power_key] = c.remaining_s;
+    const heroReady = bnrCanUseActivePowers();
 
     const btnsHtml = powers.map(p => {
         const meta = BNR_POWER_LABELS[p.power_key];
@@ -2705,8 +2715,9 @@ function renderBannerlordActivePowers() {
         const isActive = activeKeys.has(p.power_key);
         const cdRem = cdMap[p.power_key] || 0;
         const onCooldown = cdRem > 0;
-        const disabled = (isActive || onCooldown) ? 'disabled' : '';
-        const bgColor = (isActive || onCooldown) ? '#3d3d3f' : '#2d2d2f';
+        const unavailable = !heroReady;
+        const disabled = (isActive || onCooldown || unavailable) ? 'disabled' : '';
+        const bgColor = (isActive || onCooldown || unavailable) ? '#3d3d3f' : '#2d2d2f';
         const suffix = onCooldown
             ? ` <span style="color:#9ca3af;">${_bnrCdLabel(Math.ceil(cdRem))}</span>`
             : ` <span style="color:#fbbf24;">${price}💎</span>`;
@@ -2716,10 +2727,12 @@ function renderBannerlordActivePowers() {
                     data-bnr-price="${price}"
                     data-bnr-cost="${price},0"
                     ${disabled}
-                    title="${escapeHtml(meta.desc)}"
+                    title="${escapeHtml(unavailable
+                        ? 'Доступно, когда твой герой находится на поле боя'
+                        : meta.desc)}"
                     style="background:${bgColor};color:#efeff1;padding:6px 8px;
                            margin:2px;font-size:11px;border:1px solid #3d3d3f;
-                           ${(isActive || onCooldown) ? 'opacity:0.5;cursor:not-allowed;' : ''}">
+                           ${(isActive || onCooldown || unavailable) ? 'opacity:0.5;cursor:not-allowed;' : ''}">
                 ${meta.icon} ${escapeHtml(meta.label)}${suffix}
             </button>`;
     }).join('');

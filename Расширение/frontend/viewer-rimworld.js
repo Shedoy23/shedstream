@@ -37,8 +37,33 @@ function updateRimworldStatusUI() {
     if (eventsCard) eventsCard.style.opacity = rimworldOnline ? '1' : '0.4';
 }
 
-// Проверяем статус каждые 30 секунд
-window._intervalRimStatus = window._rimworldStatusInterval = safeInterval(checkRimworldStatus, 30000);
+// Module lifecycle. Раньше интервал запускался сразу при парсе файла, а core
+// безусловно грузил pawn/shop/events после auth. Поэтому Bannerlord-панель весь
+// стрим опрашивала неактивный RimWorld и плодила 401. Теперь RimWorld вообще не
+// делает сетевых запросов, пока backend не вернул active_module='rimworld'.
+window._startRimworldPolling = function _startRimworldPolling() {
+    if (window._rimworldStatusInterval) return;
+
+    checkRimworldStatus();
+    loadColonists();
+    loadMyPawn();
+    loadShopCatalog();
+    loadRimworldEvents();
+    window._intervalRimStatus = window._rimworldStatusInterval =
+        safeInterval(checkRimworldStatus, 30000);
+};
+
+window._stopRimworldPolling = function _stopRimworldPolling() {
+    if (window._rimworldStatusInterval) {
+        clearInterval(window._rimworldStatusInterval);
+        window._rimworldStatusInterval = null;
+        window._intervalRimStatus = null;
+    }
+    if (_pawnRefreshTimer) {
+        clearInterval(_pawnRefreshTimer);
+        _pawnRefreshTimer = null;
+    }
+};
 
 // ===== ЗАПРОС РАЗРЕШЕНИЯ НА IDENTITY =====
 function showLoginBanner() {
@@ -158,6 +183,7 @@ const EVENT_COOLDOWN_MS = 5 * 60 * 1000; // 5 минут на каждый ив�
 
 // Тикаем каждую секунду — обновляем кнопки ивентов если есть активный КД
 window._eventTickInterval = safeInterval(() => {
+    if (_activeIntegrationModule !== 'rimworld') return;
     const cdSince = _cmdCooldowns['event_all'] || 0;
     const hasEventCd = cdSince && Date.now() - cdSince < EVENT_COOLDOWN_MS;
     if (hasEventCd) {

@@ -23,8 +23,10 @@ let userLogin = 'testuser';
 let authToken = '';
 let helixToken = '';
 let clientId = '';
-// Sprint 5.31 #45 — broadcaster JWT role (Boosty admin button gating).
-let _isBroadcaster = false;
+// Единственный источник истины для module-specific загрузок и polling.
+// До первого /api/viewer/stats модуль неизвестен, поэтому игровые endpoints
+// не вызываем вообще.
+let _activeIntegrationModule = null;
 
 // ===== ГЛОБАЛЬНЫЙ МЕНЕДЖЕР ИНТЕРВАЛОВ =====
 // Все таймеры и интервалы регистрируются здесь и очищаются при закрытии страницы
@@ -325,7 +327,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const pad    = 4 - parts[1].length % 4;
             const payload = JSON.parse(atob(parts[1] + '='.repeat(pad % 4)));
             userId       = String(payload.user_id || payload.channel_id || '0');
-            _isBroadcaster = (payload.role === 'broadcaster');
         } catch (e) {}
         updateUIAfterAuth();
         return;  // не идём в Twitch.ext path
@@ -355,8 +356,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 const pad = 4 - parts[1].length % 4;
                 const payload = JSON.parse(atob(parts[1] + '='.repeat(pad % 4)));
                 jwtUserId = payload.user_id || null;
-                // Sprint 5.31 #45 — broadcaster role detect для Boosty admin UI.
-                _isBroadcaster = (payload.role === 'broadcaster');
                 // JWT payload не логируем в продакшене
             } catch(e) {}
 
@@ -403,8 +402,6 @@ document.addEventListener('DOMContentLoaded', function() {
         userLogin = 'testuser';
         document.getElementById('username').textContent = userLogin + ' (тест)';
         loadUserData();
-        loadColonists();
-        loadMyPawn();
     }
 });
 
@@ -435,11 +432,6 @@ function updateUIAfterAuth() {
     
     // Загружаем данные
     loadUserData();
-    loadColonists();
-    loadMyPawn();
-    loadShopCatalog();
-    loadRimworldEvents();
-    checkRimworldStatus();
     // Sprint 5.31 #45b: подгрузить role+sub-tier badges под ником.
     loadUserPerksBadge();
     // M103: причины отказов, накопившиеся пока панель была закрыта.
@@ -456,7 +448,6 @@ function updateUIAfterAuth() {
     if (!uiUpdateInterval) {
         uiUpdateInterval = safeInterval(() => {
             loadUserData();
-            loadColonists();
             // Обновляем стату только если вкладка активна
             const statsTab = document.getElementById('stats-tab');
             if (statsTab && statsTab.classList.contains('active')) loadStats();
@@ -468,9 +459,9 @@ function updateUIAfterAuth() {
 
 
 // Sprint 5.31 #45b — обновить бейдж роли + tier'ов под ником зрителя.
-// Endpoint /api/viewer/perks возвращает {role, twitch_sub_tier, boosty_tier}.
+// Endpoint /api/viewer/perks returns role and Twitch subscription tier.
 // Role: broadcaster → '👑 Стример', moderator → '🛡 Модер', else 'Зритель'.
-// Tier'ы: Twitch sub → TS1/TS2/TS3 (фиолет), Boosty → BS1/BS2/BS3 (фиолет тёмнее).
+// Twitch sub → TS1/TS2/TS3 cosmetic badge.
 // Sprint 5.33 TOS-COMPLIANCE — tier badges = COSMETIC ONLY. Подписки больше
 // НЕ дают discount или reward bonus. Только moderator/broadcaster имеют perks.
 async function loadUserPerksBadge() {
@@ -502,7 +493,6 @@ async function loadUserPerksBadge() {
         if (tierEl) {
             const badges = [];
             const ts = parseInt(d.twitch_sub_tier || 0, 10);
-            const bs = parseInt(d.boosty_tier || 0, 10);
             const badgeStyle = (bg, brd, fg, title) =>
                 `display:inline-block;padding:2px 7px;border-radius:4px;`
               + `font-size:10px;font-weight:700;line-height:1.3;`
@@ -516,13 +506,6 @@ async function loadUserPerksBadge() {
                     `<span title="Twitch Sub Tier ${ts}"
                            style="${badgeStyle('#1f1145','#7e22ce','#c084fc',true)}">
                         TS${ts}
-                    </span>`);
-            }
-            if (bs >= 1 && bs <= 3) {
-                badges.push(
-                    `<span title="Boosty Sub Tier ${bs}"
-                           style="${badgeStyle('#2a0a3a','#a21caf','#e879f9',true)}">
-                        BS${bs}
                     </span>`);
             }
             tierEl.innerHTML = badges.join('');
@@ -927,7 +910,8 @@ async function loadUserData() {
         
         // Перерисовываем магазин и ивенты с актуальным балансом (кнопки enabled/disabled)
         if (shopAllItems && shopAllItems.length > 0) applyShopFilters();
-        if (rimworldEvents && rimworldEvents.length > 0) renderEvents();
+        if (_activeIntegrationModule === 'rimworld'
+            && rimworldEvents && rimworldEvents.length > 0) renderEvents();
         
         // Обновляем счётчик дуэлей
         fetch(`${API_URL}/api/duel/list`, { headers: { 'X-Twitch-JWT': authToken || '' } })
@@ -1066,6 +1050,10 @@ let _bnrOptimisticStance = null;         // 2026-06-10 — оптимистич�
 
 // Sprint 5.5: helper для проверки battle state (для banner / future use).
 function bnrIsInBattle() { return !!(_bannerlordBattle && _bannerlordBattle.in_battle); }
+function bnrCanUseActivePowers() {
+    return !!(_bannerlordBattle && _bannerlordBattle.in_battle
+              && _bannerlordBattle.my_stats && _bannerlordBattle.my_stats.alive);
+}
 
 // 2026-06-10 — тосты про отказ действия. Mod отказывает асинхронно (после ACK)
 // → крустики возвращаются, но раньше зритель не видел ПОЧЕМУ «не сработало» и
@@ -1205,6 +1193,10 @@ const BNR_POWER_LABELS = {
 // не держим display-копию балансового числа, которое enforce'ит бэк.
 
 function switchIntegrationModule(activeModule) {
+    const normalized = ['bannerlord', 'rimworld', 'shedcolony'].includes(activeModule)
+        ? activeModule : null;
+    _activeIntegrationModule = normalized;
+
     const empty   = document.getElementById('integration-empty');
     const rim     = document.getElementById('rimworld-content');
     const bnr     = document.getElementById('bannerlord-content');
@@ -1216,26 +1208,29 @@ function switchIntegrationModule(activeModule) {
         _titleEl.textContent = { bannerlord: '⚔️ Bannerlord', rimworld: '🧬 RimWorld', shedcolony: '⛏️ Колония' }[activeModule] || 'ShedLink';
     }
 
-    if (activeModule === 'bannerlord') {
+    if (normalized === 'bannerlord') {
         empty.style.display = 'none';
         rim.style.display = 'none';
         bnr.style.display = '';
         if (sc) sc.style.display = 'none';
         _startBannerlordPolling();
+        if (window._stopRimworldPolling) window._stopRimworldPolling();
         if (window._stopShedcolonyPolling) _stopShedcolonyPolling();
-    } else if (activeModule === 'rimworld') {
+    } else if (normalized === 'rimworld') {
         empty.style.display = 'none';
         rim.style.display = '';
         bnr.style.display = 'none';
         if (sc) sc.style.display = 'none';
         _stopBannerlordPolling();
+        if (window._startRimworldPolling) window._startRimworldPolling();
         if (window._stopShedcolonyPolling) _stopShedcolonyPolling();
-    } else if (activeModule === 'shedcolony') {
+    } else if (normalized === 'shedcolony') {
         empty.style.display = 'none';
         rim.style.display = 'none';
         bnr.style.display = 'none';
         if (sc) sc.style.display = '';
         _stopBannerlordPolling();
+        if (window._stopRimworldPolling) window._stopRimworldPolling();
         if (window._startShedcolonyPolling) _startShedcolonyPolling();
     } else {
         empty.style.display = '';
@@ -1243,6 +1238,7 @@ function switchIntegrationModule(activeModule) {
         bnr.style.display = 'none';
         if (sc) sc.style.display = 'none';
         _stopBannerlordPolling();
+        if (window._stopRimworldPolling) window._stopRimworldPolling();
         if (window._stopShedcolonyPolling) _stopShedcolonyPolling();
     }
 }
@@ -1619,12 +1615,6 @@ let _bannerlordClassesCache = null;
 // clan-upgrades/forge/achievements/gender/profile/family/dynasty-locked/clan-mgmt/kingdom-mgmt.
 // _bnrConfirm/_bnrShowSimpleModal ОСТАЮТСЯ в core (форвард). Callers рантайм (hero-card).
 
-// Sprint 5.31 #45b — Boosty admin перенесён на /streamer/dashboard.
-// Sprint 5.31 #45f (codegraph dead-code audit) — модал удалён, ~205 строк.
-// История: первый деплой Boosty имел админ-UI внутри расширения, потом
-// перенесли на дашборд (cookie-сессия), а кнопка в расширении тоже убрана.
-// Если нужно вернуть — git log по этому файлу до 2026-05-25.
-
 // Common modal shell — для clan / kingdom management.
 // Sprint 5.32 BUGFIX — `window.confirm()` тихо подавляется в sandboxed Twitch
 // Extension iframe (без allow-modals в sandbox attr) и всегда возвращает false.
@@ -1914,14 +1904,10 @@ async function _bannerlordBuyAction(actionType, data) {
             const icon = perkIcons[result.perk] || '✨';
             toastMsg = `${toastMsg} (${icon} ×${result.perk_price_mult.toFixed(2)} price)`;
         }
-        // Sprint 5.32 (BLT-parity FE-M7) — role-gate refuse с понятным icon.
-        // Backend ROLE_PRIORITY проверка возвращает required_role / your_role
-        // когда viewer'у не хватает прав (e.g. set_gender для не-sub'а).
-        // Показываем 🔒 + клейм роли в toast чтобы это не выглядело как обычная
-        // ошибка ("действие не выполнено") а как **gate** (есть путь — стань sub).
+        // Channel-role gate refusal (moderator/broadcaster administrative actions).
+        // Subscription tiers are cosmetic-only and never enter this path.
         if (!result.success && result.required_role) {
             const roleLabel = {
-                subscriber:   '⭐ Tier 1+ sub',
                 moderator:    '🛡 модераторов',
                 broadcaster:  '👑 стримера',
             }[result.required_role] || result.required_role;

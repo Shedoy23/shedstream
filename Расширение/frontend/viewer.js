@@ -686,6 +686,51 @@ async function getUsernameFromTwitchId(twitchId, token, rawOpaqueId = null) {
 // зовёт requestIdShare. Мёртвый код убран из ZIP, который читает ревьюер.
 
 // ===== НАСТРОЙКА ВКЛАДОК =====
+/**
+ * Приглашение к первому шагу для зрителя без персонажа.
+ *
+ * ЗАЧЕМ (разбор воронки по боевой базе, 2026-08-05). Из 86 зрителей персонажа
+ * завели 18. Среди заведших нет ни одного, кто попробовал пару раз и ушёл:
+ * минимум шесть действий, у большинства — десятки, многие возвращались днями.
+ * И первое действие у всех одно и то же — создать персонажа. Значит теряем
+ * людей не на «непонятном интерфейсе», а ровно на одном шаге, который ничем
+ * не выделен среди дюжины равных кнопок.
+ *
+ * ТОНКИЙ ФРОНТ. Заголовок, текст и надпись на кнопке приходят с бэкенда и
+ * рисуются как есть — здесь нет ни списка модулей, ни switch по ним. Появится
+ * новая игра — карточка заработает без правки фронта, а она бы ждала ревью
+ * Twitch неделями. Здесь только вёрстка и один переход.
+ *
+ * Кнопка НЕ создаёт персонажа сама, а переводит на вкладку интеграции, где
+ * уже живёт выбор культуры и вся проверка условий. Второй путь к тому же
+ * действию — как раз то, на чём проект уже обжигался.
+ */
+function renderFirstStep(step) {
+    const el = document.getElementById('first-step-card');
+    if (!el) return;
+    if (!step || !step.title) { el.innerHTML = ''; return; }
+
+    el.innerHTML = `
+        <div class="first-step">
+            <h3>${escapeHtml(step.title)}</h3>
+            <p>${escapeHtml(step.text || '')}</p>
+            <button type="button" id="first-step-go">
+                ${escapeHtml(step.cta || 'Начать')} →
+            </button>
+        </div>`;
+
+    const btn = document.getElementById('first-step-go');
+    if (btn) {
+        btn.addEventListener('click', () => {
+            // data-tab="rimworld" — историческое имя вкладки «🔌 Интеграция»
+            // (осталось с тех пор, когда игра была одна). Переименование
+            // тронет оба шелла и весь switchTab — отдельной правкой.
+            const tab = document.querySelector('.tab[data-tab="rimworld"]');
+            if (tab) switchTab(tab);
+        });
+    }
+}
+
 function setupTabs() {
     const tabs = document.querySelectorAll('.tab');
     if (!tabs.length) return;
@@ -923,6 +968,7 @@ async function loadUserData() {
         renderInventoryCases(data.unopened_cases || {});
         renderQuests(data.quests || []);
         switchIntegrationModule(data.active_module || null);
+        renderFirstStep(data.first_step || null);
         loadUserLevel();
         
         // Перерисовываем магазин и ивенты с актуальным балансом (кнопки enabled/disabled)

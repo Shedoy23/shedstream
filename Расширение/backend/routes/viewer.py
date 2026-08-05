@@ -34,6 +34,83 @@ router = APIRouter()
 logger = logging.getLogger("rimlink")
 
 
+# ── Первый шаг зрителя ───────────────────────────────────────────────────────
+#
+# ЗАЧЕМ (2026-08-05, разбор воронки по боевой базе). Из 86 зрителей персонажа
+# завели 18. При этом среди заведших НЕТ НИ ОДНОГО, кто попробовал пару раз и
+# ушёл: минимум 6 действий, у 14 из 18 — больше двадцати, восемь возвращались
+# четыре дня и дольше. И первое действие у всех без исключения одно и то же —
+# `hero.create` либо `colonist.spawn`. То есть люди не «не разобрались
+# в расширении», они не делают ровно один первый шаг: кнопка создания стоит
+# в общем ряду на вкладке, куда надо ещё догадаться зайти, и нигде не сказано,
+# что она даёт.
+#
+# Поэтому бэкенд сам говорит фронту, что показать новичку. Тексты здесь, а не
+# во фронте, намеренно: фронт замерзает на CDN до следующего ревью Twitch,
+# а формулировку захочется править по живой реакции — с бэкенда это минуты.
+#
+# Список ниже — про то, ГДЕ у модуля живёт персонаж; это знание бэкендовое и
+# другого места для него сейчас нет (в манифесте модуля такого поля не
+# заведено). Появится модуль — добавляется строка, фронт не трогаем.
+_FIRST_STEP = {
+    "bannerlord": {
+        "sql": ("SELECT 1 FROM bannerlord_heroes "
+                "WHERE channel_id=? AND username=? AND is_alive=1 LIMIT 1"),
+        "title": "Создай своего героя",
+        "text":  ("Он будет жить в игре прямо на стриме: воевать, богатеть, "
+                  "заводить семью. Управляешь им отсюда."),
+        "cta":   "Создать героя",
+    },
+    "shedcolony": {
+        # Связь «зритель → колонист» живёт в colony_link (viewer_id), а не в
+        # colonist_state: там ключ citizen_id, числовой, и по нему зрителя не
+        # найти. Статус 'dead' считаем отсутствием — умерший колонист означает,
+        # что нужен новый, и приглашение уместно.
+        "sql": ("SELECT 1 FROM shedcolony_colony_link "
+                "WHERE channel_id=? AND viewer_id=? AND status='active' LIMIT 1"),
+        "title": "Заведи своего колониста",
+        "text":  ("Он поселится в колонии на стриме, будет работать и расти. "
+                  "Задания ему раздаёшь ты."),
+        "cta":   "Создать колониста",
+    },
+    "rimworld": {
+        "sql": ("SELECT 1 FROM rimworld_pawns "
+                "WHERE channel_id=? AND username=? LIMIT 1"),
+        "title": "Заведи своего персонажа",
+        "text":  ("Он появится в колонии на стриме. Лечи его, одевай "
+                  "и прокачивай прямо отсюда."),
+        "cta":   "Создать персонажа",
+    },
+}
+
+
+async def _first_step_for(db, channel_id: int, username: str, active_module):
+    """Что показать зрителю, у которого ещё нет персонажа. None — уже есть.
+
+    Молчим при любой неожиданности (нет модуля, нет таблицы, ошибка): карточка
+    приглашает, а не управляет доступом, поэтому её отсутствие ничего не ломает,
+    а вот ложное «создай ещё раз» тому, у кого герой есть, — сбивает с толку.
+    """
+    spec = _FIRST_STEP.get((active_module or "").strip().lower())
+    if not spec:
+        return None
+    try:
+        async with db._connect() as conn:
+            cur = await conn.execute(spec["sql"], (channel_id, username))
+            if await cur.fetchone():
+                return None
+    except Exception as ex:
+        logger.warning("[first-step] проверка персонажа не удалась ch=%s @%s: %s",
+                       channel_id, username, ex)
+        return None
+    return {
+        "module": active_module,
+        "title":  spec["title"],
+        "text":   spec["text"],
+        "cta":    spec["cta"],
+    }
+
+
 @router.post("/api/viewer/online")
 async def viewer_online(action: UserAction, request: Request):
     """Зритель открыл расширение"""
@@ -132,6 +209,8 @@ async def viewer_stats(username: str, request: Request):
     except Exception:
         pass
 
+    first_step = await _first_step_for(db, channel_id, uname, active_module)
+
     return {
         "points":         points,
         "inventory":      inventory,         # legacy cosmetic items (без bonus)
@@ -139,6 +218,7 @@ async def viewer_stats(username: str, request: Request):
         "quests":         quests,
         "income_per_min": income_per_min,
         "active_module":  active_module,     # 'rimworld' | 'bannerlord' | null
+        "first_step":     first_step,        # null, если персонаж уже есть
         "stats": {
             "chat_messages_today":  chat_count,
             "chat_length_today":    chat_length,

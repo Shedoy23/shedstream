@@ -143,6 +143,43 @@ html, body {
     letter-spacing: 0.02em;
 }
 
+/* Приглашение к первому шагу — единственное, что видит зритель без персонажа.
+   Разбор воронки 2026-08-05: из 86 зрителей персонажа завели 18, и НИ ОДИН
+   из заведших не бросил. Барьер ровно один — первый шаг, поэтому он выделен
+   из общего ряда кнопок. */
+.first-step {
+    background: linear-gradient(135deg, rgba(145,71,255,0.18), rgba(145,71,255,0.06));
+    border: 1px solid rgba(145,71,255,0.45);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 14px;
+}
+.first-step h3 {
+    margin: 0 0 6px;
+    font-size: 16px;
+    font-weight: 800;
+    color: #efeff1;
+}
+.first-step p {
+    margin: 0 0 12px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #adadb8;
+}
+.first-step button {
+    width: 100%;
+    background: #9147ff;
+    border: none;
+    border-radius: 8px;
+    padding: 11px 14px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.first-step button:hover { background: #a970ff; }
+
 /* Шапка: название расширения + версия, активная игра — подписью снизу.
    До 2026-08-05 название игры ЗАТИРАЛО .panel-title, и при переключении
    интеграции расширение переставало называть себя. */

@@ -82,7 +82,9 @@ async def get_subscription_tier(channel_id: int, user_id: str) -> Optional[int]:
     key = (channel_id, str(user_id))
     cached = _SUB_CACHE.get(key)
     if cached and cached[1] > _now():
-        return cached[0]
+        # -1 is an internal negative-cache sentinel for "Helix unavailable",
+        # never a public subscription tier.
+        return None if cached[0] == -1 else cached[0]
 
     # Lazy import чтобы избежать circular
     from routes.streamer import get_fresh_oauth_token

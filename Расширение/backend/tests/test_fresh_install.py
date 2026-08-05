@@ -104,6 +104,9 @@ async def main():
             ("channels", "approved", "M99 — ворота для стримеров"),
             ("feature_usage", "active_module", "M100 — контекст метрики"),
             ("viewers", "channel_id", "M1 — мультиарендность"),
+            ("module_actions", "ack_received_at", "M108 — время ACK receipt"),
+            ("module_actions", "ack_success", "M108 — результат ACK receipt"),
+            ("module_actions", "ack_error", "M108 — ошибка ACK receipt"),
         ]
         for table, col, why in late:
             if table in tables:

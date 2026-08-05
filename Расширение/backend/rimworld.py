@@ -1291,8 +1291,10 @@ async def ack_command(request: Request,
             return {"status": "ok", "acked": True, "refunded": refunded}
     except Exception as e:
         print(f"⚠️ ack-command {cmd_id}: {e}")
-        return {"status": "error", "acked": False, "refunded": False,
-                "message": "ack failed"}
+        # ACK — часть денежной транзакции. HTTP 200 здесь заставлял старые
+        # коннекторы считать ответ доставленным и прекращать ретраи, после чего
+        # stale-refund возвращал деньги за уже случившийся игровой эффект.
+        raise HTTPException(status_code=503, detail="ack failed")
 
 @router.post("/api/rimworld/commands-processed")
 async def commands_processed(request: Request, _auth=Depends(rimworld_mod_auth)):

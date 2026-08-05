@@ -27,7 +27,10 @@ SCHEMA = """
     created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     dispatched_at TIMESTAMP,
     acked_at      TIMESTAMP,
-    error_msg     TEXT
+    error_msg     TEXT,
+    ack_received_at TIMESTAMP,             -- receipt даже для terminal action
+    ack_success     INTEGER,               -- 1/0 из последнего ACK connector'а
+    ack_error       TEXT                   -- error из последнего ACK
 """
 
 

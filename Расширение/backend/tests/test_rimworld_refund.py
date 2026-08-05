@@ -214,6 +214,26 @@ async def _run():
         assert_eq(await _get_points(db, "alice"), before, "без price возврата нет (0)")
         assert_eq(await _row_count(db, "t5"), 0, "legacy-строка удалена")
 
+        # ── [6] внутренняя ошибка ACK → retryable HTTP 503 ──
+        print("\n[6] внутренняя ошибка ACK → HTTP 503, а не ложный HTTP 200")
+        original_get_db = rw.get_db
+
+        class BrokenDB:
+            db_path = "\0invalid-sqlite-path"
+
+        rw.get_db = lambda: BrokenDB()
+        try:
+            try:
+                await rw.ack_command(
+                    _make_json_request({"command_id": "t6", "success": True}),
+                    CHANNEL_ID)
+                got_503 = False
+            except Exception as exc:
+                got_503 = getattr(exc, "status_code", None) == 503
+            assert_eq(got_503, True, "ошибка ACK возвращается как retryable HTTP 503")
+        finally:
+            rw.get_db = original_get_db
+
     finally:
         try:
             await db._pool.close()

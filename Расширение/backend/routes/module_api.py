@@ -427,7 +427,8 @@ async def module_actions_poll(module_id: str, request: Request):
     их dispatched. Если нет — long-poll ждёт до 25 сек проверяя каждую секунду.
 
     Returns: {actions: [{id, action_id, type, data, created_at}], cursor: int}
-    cursor — max(id) из batch. Connector использует как `since` в next call.
+    cursor — монотонный max(previous cursor, id из batch). Retry может иметь
+    старый PK, поэтому сам по себе его id не должен откатывать cursor.
     Пустой actions+timeout = таймаут long-poll'а; connector ре-запросит.
     """
     adapter = get_module(module_id)
@@ -465,7 +466,7 @@ async def module_actions_poll(module_id: str, request: Request):
             limit=_BATCH_LIMIT,
         )
         if actions:
-            cursor = max(a["id"] for a in actions)
+            cursor = max(since_id, max(a["id"] for a in actions))
             return {"actions": actions, "cursor": cursor}
         if time.time() >= deadline:
             return {"actions": [], "cursor": since_id}
@@ -480,8 +481,9 @@ async def module_ack(module_id: str, request: Request):
 
     Body: {action_id: str, success: bool, error?: str}.
 
-    Returns: {acked: bool}. False если action_id не найден (повторный ACK,
-    чужой канал, или action не существует) — это не ошибка, idempotent.
+    Returns: {acked: bool}. False если ACK не изменил terminal result
+    (повторный/поздний ACK, чужой канал или action не существует). Поздний ACK
+    при этом сохраняется как receipt, но refund/status не переигрывает.
     """
     adapter = get_module(module_id)
     if not adapter:
@@ -504,16 +506,31 @@ async def module_ack(module_id: str, request: Request):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"status": "action_id_required"},
         )
-    success = bool(body.get("success", True))
-    error_msg = body.get("error") if not success else None
+    success_raw = body.get("success", True)
+    if not isinstance(success_raw, bool):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"status": "success_must_be_boolean"},
+        )
+    success = success_raw
+    error_msg = str(body.get("error") or "")[:1000] if not success else None
 
     db = get_db()
+    # A failed ACK for modules with action.failed must not become terminal before
+    # the refund transaction succeeds.  We record the receipt and reserve this
+    # live action, while the adapter atomically refunds + marks it failed below.
+    # On adapter failure the row remains queued/dispatched, so an HTTP retry can
+    # safely attempt the refund again.
+    deferred_failure = (
+        not success and adapter.manifest.supports_event("action.failed")
+    )
     acked = await db.ack_action(
         channel_id=channel_id,
         module_id=module_id,
         action_id=action_id,
         success=success,
         error_msg=error_msg,
+        transition=not deferred_failure,
     )
 
     # Sprint 5.29 audit fix #34: trace action lifecycle. Раньше ACK silent —
@@ -521,13 +538,15 @@ async def module_ack(module_id: str, request: Request):
     # processed». Теперь action_id трэйсится по обоим сторонам.
     import logging
     _log_ack = logging.getLogger("rimlink.module_api")
-    if success:
+    if success and acked:
         _log_ack.info("[bannerlord ACK ok] action_id=%s ch=%s module=%s",
                       action_id, channel_id, module_id)
+    elif success:
+        _log_ack.info(
+            "[bannerlord ACK receipt] action_id=%s ch=%s module=%s — "
+            "terminal action, результат не изменён",
+            action_id, channel_id, module_id)
     else:
-        _log_ack.warning(
-            "[bannerlord ACK FAIL] action_id=%s ch=%s module=%s reason=%s — refunding",
-            action_id, channel_id, module_id, error_msg)
         # 2026-06-14 audit (#21 closed): мод синхронно ACK'нул отказ → возвращаем
         # крустики. Прогоняем синтетический action.failed через тот же handle_event
         # → _on_action_failed (atomic refund, idempotent через REFUNDED: маркер),
@@ -552,18 +571,29 @@ async def module_ack(module_id: str, request: Request):
         if not acked:
             _log_ack.warning(
                 "[bannerlord ACK FAIL] action_id=%s ch=%s — действие уже "
-                "завершено, возврат НЕ выполняется (повторный ACK)",
+                "завершено, receipt записан, возврат НЕ выполняется",
                 action_id, channel_id)
-        elif adapter.manifest.supports_event("action.failed"):
+        elif deferred_failure:
+            _log_ack.warning(
+                "[bannerlord ACK FAIL] action_id=%s ch=%s module=%s "
+                "reason=%s — refunding",
+                action_id, channel_id, module_id, error_msg)
             try:
                 await adapter.handle_event(channel_id, ModuleEnvelope(
                     id=action_id, kind="event", type="action.failed", ts=0,
                     data={"action_id": action_id, "reason": error_msg or "ack_failed"},
                 ))
             except Exception as _refund_exc:
-                _log_ack.warning(
+                _log_ack.exception(
                     "[bannerlord ACK refund] action_id=%s refund route failed: %s",
                     action_id, _refund_exc)
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail={
+                        "status": "refund_retry_required",
+                        "action_id": action_id,
+                    },
+                )
 
     return {"acked": acked, "action_id": action_id, "status": "acked" if success else "failed"}
 

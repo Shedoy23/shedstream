@@ -813,6 +813,9 @@ class BannerlordAdapter(ModuleAdapter):
                 logger.exception(
                     "[bannerlord:%s] action.failed handler crashed action_id=%s: %s",
                     channel_id, action_id, ex)
+                # The transport must see a failure and retry.  Swallowing this
+                # exception acknowledged an unperformed refund as successful.
+                raise
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 

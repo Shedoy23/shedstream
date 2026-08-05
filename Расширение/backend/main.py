@@ -69,6 +69,7 @@ from routes.admin    import router as admin_router
 from routes.promo    import router as promo_router
 from routes.marriage import router as marriage_router
 from routes.misc     import router as misc_router
+from routes.compat   import router as compat_router
 from routes.streamer   import router as streamer_router
 from routes.module_api import router as module_api_router
 from routes.cases      import router as cases_router  # Phase 2 (2026-05-11)
@@ -109,6 +110,7 @@ app.include_router(admin_router)
 app.include_router(promo_router)
 app.include_router(marriage_router)
 app.include_router(misc_router)
+app.include_router(compat_router)      # 0.0.1 read-only compatibility; no legacy money writes
 app.include_router(streamer_router)    # M4.3: OAuth flow для регистрации стримеров
 app.include_router(module_api_router)  # Этап 3: Module API (handshake + module registry)
 app.include_router(cases_router)       # Phase 2 (2026-05-11): cases system
@@ -1391,6 +1393,13 @@ async def run_migrations():
             print(f"❌ M107 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m108_module_action_ack_receipt
+            await m108_module_action_ack_receipt.apply(conn)
+        except Exception as e:
+            print(f"❌ M108 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 
@@ -1756,6 +1765,9 @@ async def _dispatched_action_sweeper():
                     continue
                 ids = [r[0] for r in rows]
                 placeholders = ",".join("?" for _ in ids)
+                # dispatched_at намеренно сохраняем: fetch_pending_actions
+                # отличает retry со старым PK от новой queued-строки и выдаёт
+                # его независимо от монотонного cursor connector'а.
                 await conn.execute(
                     f"UPDATE module_actions SET status='queued' "
                     f"WHERE id IN ({placeholders})",

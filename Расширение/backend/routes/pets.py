@@ -6,16 +6,14 @@ Compliance critical:
     streamer'ом. Endpoint /api/pet/catalog только READS, не accepts
     streamer-uploaded items.
   - §6.2.4: НЕ mystery box. Каждый purchase = specific item_id, не RNG.
-  - §5.2: items за loyalty-points OR Bits. У нас — за Bits (когда
-    PETS_BITS_REQUIRED=True) или mock (development).
-  - §7.5 revenue attribution: pet_purchases.channel_id хранится =
-    канал где совершена покупка (revenue split идёт его стримеру).
+  - §5.2: specific cosmetics are exchanged only for loyalty crystals.  There
+    is no Bits or real-money purchase path in the current release.
 
 Endpoints:
   Viewer (JWT-protected):
     GET  /api/pet/my                  — pet + inventory + equipped
     GET  /api/pet/catalog             — список catalog + owned flag
-    POST /api/pet/purchase            — body {item_id, bits_receipt?}
+    POST /api/pet/purchase            — body {item_id}
     POST /api/pet/equip               — body {item_id} или {slot, item_id:null}
     POST /api/pet/name                — body {name}
 
@@ -26,11 +24,8 @@ Endpoints:
     POST /api/streamer/pets/overlay-toggle — body {enabled: bool}
 
 DEFERRED post-MVP (известно, по плану):
-  - [BITS-SIG] mock-mode default. Production-режим (PETS_BITS_REQUIRED=true)
-    включит проверку Twitch Bits transaction JWT signature через
-    Twitch extensions JWT lib (HS256 + extension secret). См. покупку
-    в `purchase_pet_item` — receipt-idempotency через UNIQUE уже на месте,
-    остаётся только signature verify шаг перед TX.
+  - Bits monetization is intentionally not implemented.  If introduced later,
+    it needs a separate Twitch product-catalog and verified transaction flow.
   - [BROADCASTER-JWT] ✅ DONE — /api/streamer/pets/overlay-toggle принимает
     broadcaster-JWT (role='broadcaster' в Twitch ext token); self-serve через
     Twitch config.html без require_admin. (Запись о закрытии пункта.)
@@ -89,15 +84,7 @@ async def pet_catalog(request: Request):
 async def pet_purchase(request: Request):
     """Купить cosmetic.
 
-    Body: {"item_id": str, "bits_receipt": str (опц для bits mode)}
-
-    Логика:
-      - PETS_BITS_REQUIRED=False → mode='mock', receipt не нужен
-      - PETS_BITS_REQUIRED=True → mode='bits', receipt обязателен,
-        проверяется UNIQUE-индексом (idempotency)
-        Полная signature-verification — см. DEFERRED [BITS-SIG] в docstring модуля
-
-    channel_id из JWT — для revenue attribution (§7.5).
+    Body: {"item_id": str}.  Price and ownership are enforced server-side.
     """
     auth = require_jwt_user(request)
     if not auth:

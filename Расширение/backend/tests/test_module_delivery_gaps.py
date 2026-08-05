@@ -25,20 +25,12 @@ shedcolony или RimWorld, и проявится как «событие про
 Тест видели красным: до фикса `[1] конверт другого модуля не считается
 дубликатом: expected False, got True`.
 
-## [2] Переочередённое задание невидимо для опросчика — ДЕФЕКТ, НЕ чинится здесь
+## [2] Переочередённое задание видно опросчику — РЕГРЕССИЯ S-07
 
-Это S-07. Сторож возвращает потерянное задание из `dispatched` обратно в
-`queued`, но выборка идёт по `PK > since_id`, а курсор мода уже уехал вперёд.
-Пока мод не перезапустится, он этой строки не увидит.
-
-**Тест ниже фиксирует ДЕФЕКТНОЕ поведение как есть** — это характеризационный
-тест, а не одобрение. Так сделано намеренно: держать пачку красной из-за
-известного открытого дефекта нельзя (красный тест блокирует деплой), а
-молчать о нём — значит потерять его при следующем рефакторинге.
-
-**Когда приедет lease-модель** (DEFERRED, первая задача после выката 0.0.2):
-перевернуть утверждение в `[2]` на «мод ПОЛУЧАЕТ переочередённое задание».
-Если после той правки этот тест останется зелёным — правка не работает.
+Это S-07 из стрима 03.08. Сторож возвращает потерянное задание из
+`dispatched` обратно в `queued`, сохраняя ненулевой `dispatched_at`.
+Выборка обязана вернуть такой retry независимо от `PK > since_id`, иначе
+монотонный курсор мода уже уехал вперёд и команда потеряется до рестарта.
 """
 from __future__ import annotations
 
@@ -137,11 +129,8 @@ def test_envelope_id_does_not_collide_across_modules():
               "[1] забыли у bannerlord — у shedcolony запись осталась")
 
 
-async def test_requeued_action_invisible_to_moved_cursor(db):
-    """ХАРАКТЕРИЗАЦИЯ S-07: сторож вернул задание, а мод его не увидит.
-
-    Тест фиксирует дефектное поведение как есть — см. шапку файла.
-    """
+async def test_requeued_action_visible_to_moved_cursor(db):
+    """S-07: retry со старым PK виден даже после продвижения cursor."""
     print("\n[2] S-07: переочередённое задание и уехавший курсор")
 
     pk = await db.enqueue_action(
@@ -161,14 +150,8 @@ async def test_requeued_action_invisible_to_moved_cursor(db):
     # Мод (не перезапускавшийся) опрашивает со своим курсором.
     again = await db.fetch_pending_actions(
         CHANNEL_ID, "bannerlord", since_id=cursor)
-    assert_eq(again, [],
-              "[2] ДЕФЕКТ ЗАФИКСИРОВАН: мод НЕ видит переочередённое задание")
-
-    # А после перезапуска (курсор с нуля) — видит. Это и есть «до рестарта».
-    after_restart = await db.fetch_pending_actions(
-        CHANNEL_ID, "bannerlord", since_id=0)
-    assert_eq([r["id"] for r in after_restart], [pk],
-              "[2] после перезапуска мода задание находится")
+    assert_eq([r["id"] for r in again], [pk],
+              "[2] мод получил retry со старым PK без перезапуска")
 
 
 async def test_unrecognized_body_is_not_silently_ok():
@@ -207,7 +190,7 @@ async def _run():
     db = await _build_db(db_path)
     try:
         test_envelope_id_does_not_collide_across_modules()
-        await test_requeued_action_invisible_to_moved_cursor(db)
+        await test_requeued_action_visible_to_moved_cursor(db)
         await test_unrecognized_body_is_not_silently_ok()
     finally:
         try:
@@ -239,7 +222,7 @@ def main():
         for f in _failures:
             print(f)
         sys.exit(1)
-    print("ALL GREEN ✅ — дедуп per-module; S-07 зафиксирован как известный дефект.")
+    print("ALL GREEN ✅ — дедуп per-module; retry S-07 доставляется поверх cursor.")
     sys.exit(0)
 
 

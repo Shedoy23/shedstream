@@ -4136,9 +4136,14 @@ class Database:
         since_id: int = 0,
         limit: int = 50,
     ) -> List[Dict]:
-        """Достаёт queued actions с PK > since_id. Атомарно помечает их
-        status=dispatched перед возвратом — защита от двойной выдачи если
-        connector long-poll переподключился и снова вызывает с тем же cursor.
+        """Достаёт новые и повторно поставленные в очередь actions.
+
+        Новые строки выбираются по ``PK > since_id``. Повторно поставленная
+        sweeper'ом строка имеет старый PK, но ненулевой ``dispatched_at`` — её
+        тоже необходимо вернуть, иначе монотонный cursor делает retry навсегда
+        невидимым до перезапуска connector'а.
+
+        Перед возвратом строки атомарно помечаются ``status=dispatched``.
 
         Returns list of dicts: {id, action_id, type, data (JSON-парсенный),
         created_at}. Пустой список = нет новых actions (long-poll waits).
@@ -4157,7 +4162,8 @@ class Database:
                 SELECT id, action_id, type, data, created_at
                 FROM module_actions
                 WHERE channel_id = ? AND module_id = ?
-                  AND status = 'queued' AND id > ?
+                  AND status = 'queued'
+                  AND (id > ? OR dispatched_at IS NOT NULL)
                 ORDER BY id ASC
                 LIMIT ?
                 """,
@@ -4198,28 +4204,61 @@ class Database:
         action_id: str,
         success: bool,
         error_msg: Optional[str] = None,
+        transition: bool = True,
     ) -> bool:
-        """Connector подтвердил исполнение action. Status → acked|failed.
+        """Connector подтвердил получение/исполнение action.
 
-        Возвращает False если запись не найдена (повторный ACK или action_id
-        от чужого канала). Идемпотентно: повторный ACK для уже acked записи
-        — no-op (rowcount=0 → False).
+        Возвращает True только если ACK перевёл живую строку из
+        queued/dispatched в acked/failed. Поздний или повторный ACK возвращает
+        False, чтобы маршрут не запускал повторный refund, но сам receipt всё
+        равно сохраняется в ack_received_at/ack_success/ack_error. Terminal
+        status и REFUNDED-маркер при этом никогда не перезаписываются.
         """
         target_status = "acked" if success else "failed"
         async with self._connect() as db:
+            await db.execute("BEGIN IMMEDIATE")
             cur = await db.execute(
                 """
-                UPDATE module_actions
-                SET status     = ?,
-                    acked_at   = CURRENT_TIMESTAMP,
-                    error_msg  = ?
+                SELECT status
+                FROM module_actions
                 WHERE channel_id = ? AND module_id = ? AND action_id = ?
-                  AND status IN ('queued', 'dispatched')
+                LIMIT 1
                 """,
-                (target_status, error_msg, channel_id, module_id, action_id),
+                (channel_id, module_id, action_id),
             )
+            row = await cur.fetchone()
+            if not row:
+                await db.commit()
+                return False
+
+            previous_status = row[0]
+            await db.execute(
+                """
+                UPDATE module_actions
+                SET ack_received_at = CURRENT_TIMESTAMP,
+                    ack_success     = ?,
+                    ack_error       = ?
+                WHERE channel_id = ? AND module_id = ? AND action_id = ?
+                """,
+                (1 if success else 0, error_msg,
+                 channel_id, module_id, action_id),
+            )
+
+            transitioned = previous_status in ("queued", "dispatched")
+            if transitioned and transition:
+                await db.execute(
+                    """
+                    UPDATE module_actions
+                    SET status     = ?,
+                        acked_at   = CURRENT_TIMESTAMP,
+                        error_msg  = ?
+                    WHERE channel_id = ? AND module_id = ? AND action_id = ?
+                      AND status IN ('queued', 'dispatched')
+                    """,
+                    (target_status, error_msg, channel_id, module_id, action_id),
+                )
             await db.commit()
-            return cur.rowcount > 0
+            return transitioned
 
     # ===== ЭТАП 3 STEP 4: MODULE CATALOGS =====
     #

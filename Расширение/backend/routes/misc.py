@@ -105,7 +105,7 @@ async def overlay_latest():
 async def resolve_twitch_token(request: Request):
     """Декодируем JWT → числовой user_id → логин через Helix API.
 
-    user_id берётся ТОЛЬКО из проверенного JWT (или из opaque_id fallback).
+    user_id берётся ТОЛЬКО из проверенного JWT.
     Параметр explicit user_id из body больше не принимается — раньше это позволяло
     кому угодно резолвить логин любого Twitch ID для разведки целей.
     """
@@ -114,10 +114,8 @@ async def resolve_twitch_token(request: Request):
         token_str  = data.get("token", "")
         opaque_id  = data.get("opaque_id", "")
 
-        if opaque_id and opaque_id in _twitch_id_cache:
-            return {"login": _twitch_id_cache[opaque_id], "cached": True}
-
         user_id = None
+        verified_opaque_id = None
 
         if token_str:
             try:
@@ -133,23 +131,28 @@ async def resolve_twitch_token(request: Request):
                         token_str, secret_bytes, algorithms=["HS256"],
                         options={"verify_exp": True, "leeway": 60})
                     user_id = _jwt_payload.get("user_id")
+                    verified_opaque_id = (
+                        _jwt_payload.get("opaque_user_id")
+                        or _jwt_payload.get("sub")
+                    )
             except Exception as e:
                 print(f"JWT verified decode failed: {e}")
-
-        # Fallback: извлекаем числовой ID из opaque_id
-        # До sharing: "U12345678", после sharing: "12345678" (без U)
-        if not user_id and opaque_id:
-            candidate = opaque_id[1:] if opaque_id.startswith("U") else opaque_id
-            if candidate.isdigit():
-                user_id = candidate
 
         if not user_id:
             return {"login": None, "error": "Не удалось определить user_id"}
 
+        user_id = str(user_id)
+        # Never trust an alias supplied by the client.  Old and new frontends
+        # both send auth.userId here; cache it only when the signed token proves
+        # that it belongs to this viewer (or it is the same numeric user_id).
+        cache_alias = None
+        if opaque_id and opaque_id in {user_id, str(verified_opaque_id or "")}:
+            cache_alias = opaque_id
+
         if user_id in _twitch_id_cache:
             login = _twitch_id_cache[user_id]
-            if opaque_id:
-                _twitch_id_cache[opaque_id] = login
+            if cache_alias:
+                _twitch_id_cache[cache_alias] = login
             return {"login": login, "cached": True}
 
         client_id = os.getenv("TWITCH_CLIENT_ID", "")
@@ -177,9 +180,9 @@ async def resolve_twitch_token(request: Request):
                 if resp.get("data"):
                     login = resp["data"][0]["login"]
                     _twitch_id_cache[user_id] = login
-                    if opaque_id:
-                        _twitch_id_cache[opaque_id] = login
-                    cache_twitch_login(user_id, opaque_id, login)
+                    if cache_alias:
+                        _twitch_id_cache[cache_alias] = login
+                    cache_twitch_login(user_id, cache_alias, login)
                     return {"login": login}
                 return {"login": None, "error": f"Helix не нашёл user_id={user_id}"}
     except Exception as e:

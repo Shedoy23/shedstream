@@ -108,6 +108,16 @@ async def _row(db, action_id):
         return await cur.fetchone()
 
 
+async def _receipt(db, action_id):
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT ack_received_at, ack_success, ack_error "
+            "FROM module_actions "
+            "WHERE channel_id=? AND module_id='bannerlord' AND action_id=?",
+            (CHANNEL_ID, action_id))
+        return await cur.fetchone()
+
+
 async def _new_action(db, action_id, price=PRICE):
     """Кладём оплаченное действие в очередь (как это делает касса)."""
     import json
@@ -192,6 +202,9 @@ async def test_failed_then_ack_keeps_marker(db):
     status, err = await _row(db, aid)
     assert_eq(err.startswith("REFUNDED:"), True, "[A] маркер возврата ПЕРЕЖИЛ ACK")
     assert_eq(status, "failed", "[A] статус после отказа терминальный (не acked)")
+    receipt = await _receipt(db, aid)
+    assert_eq(receipt[0] is not None, True, "[A] поздний ACK записан как receipt")
+    assert_eq(receipt[1], 1, "[A] receipt сохранил success=true")
 
 
 async def test_no_double_refund(db):
@@ -442,6 +455,51 @@ async def test_failed_envelope_can_be_retried(db):
               "[8] обычный дедуп не сломан")
 
 
+async def test_refund_crash_is_retryable(db):
+    """[9] A crashed refund must not be acknowledged or made terminal."""
+    print("\n[9] Сбой refund отвечает 503 и оставляет действие для безопасного retry")
+    import routes.module_api as api
+    from fastapi import HTTPException
+    from modules._loader import discover_modules, get_module
+
+    aid = "ack-refund-crash-retry-1"
+    await _new_action(db, aid)
+    before = await _points(db)
+    adapter = get_module("bannerlord") or discover_modules().get("bannerlord")
+    original = adapter.handle_event
+
+    async def crash_refund(channel_id, envelope):
+        raise RuntimeError("injected refund failure")
+
+    adapter.handle_event = crash_refund
+    status_code = None
+    try:
+        await _call_ack_route(aid, success=False, reason="retry_me")
+    except HTTPException as exc:
+        status_code = exc.status_code
+    finally:
+        adapter.handle_event = original
+
+    row = await _row(db, aid)
+    assert_eq(status_code, 503, "[9] connector получает retryable HTTP 503")
+    assert_eq(row[0], "queued", "[9] действие не стало terminal до возврата")
+    assert_eq(await _points(db) - before, 0, "[9] частичного возврата не было")
+
+    retry = await _call_ack_route(aid, success=False, reason="retry_me")
+    row = await _row(db, aid)
+    assert_eq(retry.get("acked"), True, "[9] повтор ACK принят после восстановления")
+    assert_eq(row[0], "failed", "[9] успешный retry завершил действие")
+    assert_eq(await _points(db) - before, PRICE, "[9] успешный retry вернул цену ровно один раз")
+
+    malformed = _AckRequest({"action_id": aid, "success": "false"})
+    malformed_code = None
+    try:
+        await api.module_ack("bannerlord", malformed)
+    except HTTPException as exc:
+        malformed_code = exc.status_code
+    assert_eq(malformed_code, 400, "[9] строка 'false' не трактуется как boolean true")
+
+
 async def _run():
     fd, db_path = tempfile.mkstemp(suffix=".db", prefix="test_ack_order_")
     os.close(fd)
@@ -457,6 +515,7 @@ async def _run():
         await test_honest_failure_ack_still_refunds(db)
         await test_late_async_failure_event_still_refunds(db)
         await test_failed_envelope_can_be_retried(db)
+        await test_refund_crash_is_retryable(db)
     finally:
         try:
             await db._pool.close()

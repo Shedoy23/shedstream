@@ -43,32 +43,50 @@ namespace BannerlordLink.Actions
             if (string.IsNullOrEmpty(kingdomName))
                 return Task.FromResult<(bool, string)>((false, "kingdom_name required"));
 
-            MainThreadDispatcher.Enqueue(() => Apply(username, kingdomName));
+            string actionId = ActionFeedback.GetActionId(data);
+            MainThreadDispatcher.Enqueue(() => Apply(username, kingdomName, actionId));
             return Task.FromResult<(bool, string)>((true, null));
         }
 
-        private static void Apply(string username, string kingdomName)
+        private static void Apply(string username, string kingdomName, string actionId)
         {
+            Hero chargedHero = null;
+            bool charged = false;
+            bool committed = false;
             try
             {
                 var hero = HeroLookup.FindByUsername(username);
-                if (hero == null || !hero.IsAlive) return;
-                if (hero.IsPrisoner) return;
+                if (hero == null || !hero.IsAlive)
+                {
+                    ActionFeedback.PostFailed(actionId, "hero_not_found_or_dead");
+                    return;
+                }
+                if (hero.IsPrisoner)
+                {
+                    ActionFeedback.PostFailed(actionId, "hero_prisoner");
+                    return;
+                }
                 if (hero.Clan == null || !hero.IsClanLeader)
                 {
                     BannerlordLinkModule.Log(
                         $"[join_kingdom] @{username}: must be clan leader");
+                    ActionFeedback.PostFailed(actionId, "not_clan_leader");
                     return;
                 }
                 if (hero.Clan.Kingdom != null)
                 {
                     BannerlordLinkModule.Log(
                         $"[join_kingdom] @{username}: уже в kingdom '{hero.Clan.Kingdom.Name}'");
+                    ActionFeedback.PostFailed(actionId, "already_in_kingdom");
                     return;
                 }
 
                 var all = Kingdom.All;
-                if (all == null) return;
+                if (all == null)
+                {
+                    ActionFeedback.PostFailed(actionId, "kingdom_list_unavailable");
+                    return;
+                }
                 var target = all.FirstOrDefault(k => k != null &&
                     string.Equals(k.Name?.ToString(), kingdomName, StringComparison.OrdinalIgnoreCase));
                 if (target == null)
@@ -80,22 +98,27 @@ namespace BannerlordLink.Actions
                 {
                     BannerlordLinkModule.Log(
                         $"[join_kingdom] @{username}: kingdom '{kingdomName}' не найден");
+                    ActionFeedback.PostFailed(actionId, "kingdom_not_found");
                     return;
                 }
                 if (target.IsEliminated)
                 {
                     BannerlordLinkModule.Log(
                         $"[join_kingdom] @{username}: kingdom '{target.Name}' уничтожен");
+                    ActionFeedback.PostFailed(actionId, "kingdom_eliminated");
                     return;
                 }
                 if (hero.Gold < JOIN_COST)
                 {
                     BannerlordLinkModule.Log(
                         $"[join_kingdom] @{username}: not enough gold ({hero.Gold} < {JOIN_COST})");
+                    ActionFeedback.PostFailed(actionId, "not_enough_gold");
                     return;
                 }
 
                 GiveGoldAction.ApplyBetweenCharacters(hero, null, JOIN_COST, true);
+                chargedHero = hero;
+                charged = true;
                 try
                 {
                     ChangeKingdomAction.ApplyByJoinToKingdom(hero.Clan, target,
@@ -105,8 +128,25 @@ namespace BannerlordLink.Actions
                 {
                     BannerlordLinkModule.Log(
                         $"[join_kingdom] @{username}: ApplyByJoinToKingdom failed: {ex.Message}");
+                    RefundCharge(chargedHero, JOIN_COST, username);
+                    charged = false;
+                    ActionFeedback.PostFailed(actionId, "join_engine_failed");
                     return;
                 }
+
+                if (hero.Clan?.Kingdom != target)
+                {
+                    RefundCharge(chargedHero, JOIN_COST, username);
+                    charged = false;
+                    ActionFeedback.PostFailed(actionId, "join_postcondition_failed");
+                    return;
+                }
+
+                // The game mutation is committed once the postcondition holds.
+                // Telemetry/home-settlement cleanup must never turn a successful
+                // join into a refund.
+                charged = false;
+                committed = true;
 
                 // 2026-05-31 (audit) — после join у безфиефного клана HomeSettlement
                 // остаётся null → роняет ванильный daily-tick. Пешим вьюхам почти
@@ -141,8 +181,27 @@ namespace BannerlordLink.Actions
             }
             catch (Exception ex)
             {
+                if (charged) RefundCharge(chargedHero, JOIN_COST, username);
                 BannerlordLinkModule.Log(
                     $"[join_kingdom] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
+                if (!committed)
+                    ActionFeedback.PostFailed(actionId, "crashed:" + ex.GetType().Name);
+            }
+        }
+
+        private static void RefundCharge(Hero hero, int amount, string username)
+        {
+            if (hero == null || amount <= 0) return;
+            try
+            {
+                GiveGoldAction.ApplyBetweenCharacters(null, hero, amount, true);
+                BannerlordLinkModule.Log(
+                    $"[join_kingdom] @{username}: compensated +{amount} gold after failed join");
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[join_kingdom] @{username}: GOLD COMPENSATION FAILED: {ex.Message}");
             }
         }
     }

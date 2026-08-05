@@ -46,6 +46,10 @@ namespace BannerlordLink.Actions
             {
                 BannerlordLinkModule.Log(
                     $"[hero.marry] @{username}: handler called, processing...");
+                Hero chargedHero = null;
+                Hero selectedNpc = null;
+                int chargedAmount = 0;
+                bool marriageCommitted = false;
                 try
                 {
                     var hero = HeroLookup.FindByUsername(username);
@@ -144,6 +148,7 @@ namespace BannerlordLink.Actions
                     // одинаковый seed → одинаковый pick. MBRandom — engine-grade, shared
                     // state, гарантировано unique sequence.
                     var npc = candidates[TaleWorlds.Core.MBRandom.RandomInt(candidates.Count)];
+                    selectedNpc = npc;
 
                     // Apply marriage (engine housekeeping)
                     var formerClan = npc.Clan;
@@ -151,11 +156,16 @@ namespace BannerlordLink.Actions
                     // 2026-07-31: списываем объявленную бэкендом цену В ДИНАРАХ.
                     // До этого поле `hero_gold_cost` не читал никто, и действие
                     // выполнялось бесплатно (подтверждено прогоном в игре).
-                    if (!HeroGoldCharge.TryCharge(hero, data, actionId, "hero.marry"))
+                    if (!HeroGoldCharge.TryCharge(
+                        hero, data, actionId, "hero.marry", out chargedAmount))
                         return;
+                    chargedHero = hero;
 
                     npc.Spouse = hero;
                     hero.Spouse = npc;
+                    if (hero.Spouse != npc || npc.Spouse != hero)
+                        throw new InvalidOperationException("marriage postcondition failed");
+                    marriageCommitted = true;
 
                     // Housekeeping для NPC которая переезжает
                     if (npc.GovernorOf != null)
@@ -208,7 +218,19 @@ namespace BannerlordLink.Actions
                 }
                 catch (Exception ex)
                 {
+                    if (!marriageCommitted && chargedHero != null)
+                    {
+                        try
+                        {
+                            if (chargedHero.Spouse == selectedNpc) chargedHero.Spouse = null;
+                            if (selectedNpc?.Spouse == chargedHero) selectedNpc.Spouse = null;
+                        }
+                        catch { }
+                        HeroGoldCharge.Refund(chargedHero, chargedAmount, "hero.marry");
+                    }
                     BannerlordLinkModule.Log($"[hero.marry] @{username} CRASHED: {ex.Message}");
+                    if (!marriageCommitted)
+                        ActionFeedback.PostFailed(actionId, "crashed:" + ex.GetType().Name);
                 }
             });
 

@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
+using TaleWorlds.CampaignSystem;
 using BannerlordLink.Util;
 
 namespace BannerlordLink.Actions
@@ -44,17 +45,25 @@ namespace BannerlordLink.Actions
 
             MainThreadDispatcher.Enqueue(() =>
             {
+                Hero chargedHero = null;
+                Hero spouse = null;
+                bool oldHeroFemale = false;
+                bool oldSpouseFemale = false;
+                int chargedAmount = 0;
+                bool committed = false;
                 try
                 {
                     var hero = HeroLookup.FindByUsername(username);
                     if (hero == null)
                     {
                         BannerlordLinkModule.Log($"[hero.set_gender] @{username}: hero не найден");
+                        ActionFeedback.PostFailed(actionId, "hero_not_found");
                         return;
                     }
                     if (!hero.IsAlive)
                     {
                         BannerlordLinkModule.Log($"[hero.set_gender] @{username}: hero мёртв");
+                        ActionFeedback.PostFailed(actionId, "hero_dead");
                         return;
                     }
 
@@ -62,6 +71,7 @@ namespace BannerlordLink.Actions
                     if (hero.IsFemale == wantFemale)
                     {
                         BannerlordLinkModule.Log($"[hero.set_gender] @{username}: уже {gender}");
+                        ActionFeedback.PostFailed(actionId, "already_gender");
                         return;
                     }
 
@@ -70,15 +80,21 @@ namespace BannerlordLink.Actions
                     {
                         BannerlordLinkModule.Log(
                             $"[hero.set_gender] @{username}: cannot become male while pregnant");
+                        ActionFeedback.PostFailed(actionId, "pregnant_cannot_become_male");
                         return;
                     }
 
                     // 2026-07-31: списываем объявленную бэкендом цену В ДИНАРАХ.
                     // До этого поле `hero_gold_cost` не читал никто, и действие
                     // выполнялось бесплатно (подтверждено прогоном в игре).
-                    if (!HeroGoldCharge.TryCharge(hero, data, actionId, "hero.set_gender"))
+                    if (!HeroGoldCharge.TryCharge(
+                        hero, data, actionId, "hero.set_gender", out chargedAmount))
                         return;
 
+                    chargedHero = hero;
+                    spouse = hero.Spouse;
+                    oldHeroFemale = hero.IsFemale;
+                    oldSpouseFemale = spouse?.IsFemale ?? false;
                     hero.IsFemale = wantFemale;
 
                     // Auto-flip супруги чтобы избежать same-sex marriage
@@ -91,12 +107,24 @@ namespace BannerlordLink.Actions
                             + $"{hero.Spouse.Name} → {(!wantFemale ? "female" : "male")}");
                     }
 
+                    if (hero.IsFemale != wantFemale)
+                        throw new InvalidOperationException("gender postcondition failed");
+                    committed = true;
+
                     BannerlordLinkModule.Log(
                         $"[hero.set_gender] @{username}: → {gender}");
                 }
                 catch (Exception ex)
                 {
+                    if (!committed && chargedHero != null)
+                    {
+                        try { chargedHero.IsFemale = oldHeroFemale; } catch { }
+                        try { if (spouse != null) spouse.IsFemale = oldSpouseFemale; } catch { }
+                        HeroGoldCharge.Refund(chargedHero, chargedAmount, "hero.set_gender");
+                    }
                     BannerlordLinkModule.Log($"[hero.set_gender] @{username} CRASHED: {ex.Message}");
+                    if (!committed)
+                        ActionFeedback.PostFailed(actionId, "crashed:" + ex.GetType().Name);
                 }
             });
 

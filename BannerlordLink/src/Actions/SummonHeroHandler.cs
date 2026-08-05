@@ -161,80 +161,12 @@ namespace BannerlordLink.Actions
                     return;
                 }
 
-                // Sprint 5.7 — track original party for restoration on OnEndMission.
-                // BLT pattern: hero временно добавляется в spawn party (для proper
-                // engine integration — formations, reinforcement counts), затем на
-                // mission end восстанавливается обратно в свою vanilla party.
-                //
-                // Sprint 5.28 fix (дубли в отряде): раньше +1 шёл БЕЗУСЛОВНО
-                // даже когда hero уже в target party (e.g. re-summon того же
-                // viewer'а во время боя, или engine auto-spawn'нул как clan-
-                // member'а). Каждый повторный summon → ещё +1 → у юзера
-                // накопилось 17 копий kuro_gothic.
-                //
-                // Правильный паттерн: переносить hero между party только если
-                // он реально в другой party — оба AddMember(-1)/(+1) держим
-                // внутри одного if'а. Если hero уже в target party, roster не
-                // трогаем вообще.
-                //
-                // Также проверяем GetTroopCount(target) > 0 как safety:
-                // если engine уже добавил hero как PlayerClan member, мы
-                // не должны его дублировать.
-                PartyBase heroFormerParty = hero.PartyBelongedTo?.Party;
-                bool heroWasLeader = heroFormerParty?.LeaderHero == hero;
-                int hpBefore = hero.HitPoints;
-
-                int alreadyInTarget = 0;
-                try { alreadyInTarget = originParty.MemberRoster?.GetTroopCount(hero.CharacterObject) ?? 0; }
-                catch { }
-
-                bool didRosterTransfer = false;
-                if (heroFormerParty != originParty && alreadyInTarget == 0)
-                {
-                    // Real transfer: hero не в target. Делаем -1/+1 атомарно.
-                    if (heroFormerParty != null)
-                    {
-                        int curOrig = 0;
-                        try { curOrig = heroFormerParty.MemberRoster?.GetTroopCount(hero.CharacterObject) ?? 0; }
-                        catch { }
-                        if (curOrig > 0)
-                        {
-                            try { heroFormerParty.MemberRoster.AddToCounts(hero.CharacterObject, -1); }
-                            catch (Exception ex)
-                            {
-                                BannerlordLinkModule.Log(
-                                    $"[player.spawn:{sideLabel}] @{username}: remove from " +
-                                    $"original party failed: {ex.Message}");
-                            }
-                        }
-                    }
-                    try
-                    {
-                        originParty.MemberRoster.AddToCounts(hero.CharacterObject, 1);
-                        didRosterTransfer = true;
-                    }
-                    catch (Exception ex)
-                    {
-                        BannerlordLinkModule.Log(
-                            $"[player.spawn:{sideLabel}] @{username}: add to spawn party failed: {ex.Message}");
-                    }
-                }
-                else
-                {
-                    BannerlordLinkModule.Log(
-                        $"[player.spawn:{sideLabel}] @{username}: hero уже в target party " +
-                        $"(count={alreadyInTarget}, originSame={heroFormerParty == originParty}) " +
-                        "— skip +1 (BLT pattern, avoid dupe)");
-                }
-
-                // Sprint 5.28: register restore ТОЛЬКО если мы реально
-                // transfer'или hero. Иначе на OnEndMission делать нечего —
-                // hero остаётся где был.
-                if (didRosterTransfer)
-                {
-                    BannerlordLink.Behaviors.KillRewardBehavior.RegisterPartyRestore(
-                        hero, heroFormerParty, heroWasLeader, hpBefore);
-                }
+                // Summoned units are mission-only. Mutating MemberRoster while
+                // its party participates in an active MapEvent invalidates the
+                // engine's UniqueTroopDescriptor indices and was the root cause
+                // of MapEventParty.OnTroopWounded/OnTroopKilled crashes. A
+                // SimpleAgentOrigin deliberately has no campaign-party removal
+                // side effect, so the campaign roster remains untouched.
 
                 // Sprint 5.7 — formation preference (player side only). BLT:
                 //   Campaign.SetPlayerFormationPreference(char, formationClass)
@@ -472,7 +404,7 @@ namespace BannerlordLink.Actions
                         $"позиция={(heroSpawnPos.HasValue ? "у своих/врага" : "зона подкреплений")})");
 
                     agent = Mission.Current.SpawnTroop(
-                        new PartyAgentOrigin(originParty, hero.CharacterObject),
+                        new SimpleAgentOrigin(hero.CharacterObject),
                         isPlayerSide:        isPlayerSide,
                         hasFormation:        true,
                         spawnWithHorse:      withHorse,
@@ -742,7 +674,7 @@ namespace BannerlordLink.Actions
                             try
                             {
                                 retinueAgent = Mission.Current.SpawnTroop(
-                                    new PartyAgentOrigin(originParty, troop),
+                                    new SimpleAgentOrigin(troop),
                                     isPlayerSide:        isPlayerSide,
                                     hasFormation:        true,
                                     spawnWithHorse:      !SiegeForcesDismount() && troop.Equipment != null && troop.HasMount(),

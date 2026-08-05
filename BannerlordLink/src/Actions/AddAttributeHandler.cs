@@ -50,6 +50,7 @@ namespace BannerlordLink.Actions
 
         private static void Apply(string username, string attrKey, int amount, string actionId)
         {
+            bool committed = false;
             try
             {
                 if (TaleWorlds.MountAndBlade.Mission.Current != null)
@@ -130,10 +131,29 @@ namespace BannerlordLink.Actions
                     return;
                 }
 
-                // Deduct + apply
+                // Charge first, but compensate if the engine mutation fails or
+                // does not satisfy its postcondition.
                 GiveGoldAction.ApplyBetweenCharacters(hero, null, totalCost, true);
-                hero.HeroDeveloper.AddAttribute(attribute, amount, checkUnspentPoints: false);
+                try
+                {
+                    hero.HeroDeveloper.AddAttribute(attribute, amount, checkUnspentPoints: false);
+                }
+                catch (Exception mutationEx)
+                {
+                    HeroGoldCharge.Refund(hero, totalCost, "add_attribute");
+                    ActionFeedback.PostFailed(actionId, "attribute_apply_failed");
+                    BannerlordLinkModule.Log(
+                        $"[add_attribute] @{username} mutation failed: {mutationEx.Message}");
+                    return;
+                }
                 int newVal = hero.GetAttributeValue(attribute);
+                if (newVal <= currentVal)
+                {
+                    HeroGoldCharge.Refund(hero, totalCost, "add_attribute");
+                    ActionFeedback.PostFailed(actionId, "attribute_postcondition_failed");
+                    return;
+                }
+                committed = true;
 
                 BannerlordLinkModule.Log(
                     $"[add_attribute] @{username}: +{amount} в {attribute.StringId} " +
@@ -157,6 +177,8 @@ namespace BannerlordLink.Actions
             {
                 BannerlordLinkModule.Log(
                     $"[add_attribute] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
+                if (!committed)
+                    ActionFeedback.PostFailed(actionId, "crashed:" + ex.GetType().Name);
             }
         }
     }

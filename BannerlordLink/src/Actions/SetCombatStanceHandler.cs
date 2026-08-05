@@ -35,31 +35,35 @@ namespace BannerlordLink.Actions
             if (!IsValid(stance))
                 return Task.FromResult<(bool, string)>((false, "bad stance"));
 
-            PowerCache.UpdateHeroStance(username, stance);
-            // 2026-06-15 — per-save профиль (восстановится на backend при загрузке сейва).
-            BannerlordLink.Behaviors.HeroProfileBehavior.Instance?.SetStance(username, stance);
-
-            // Эхо в backend (минимальный state_update — не трогает прочие поля).
-            string json = JsonConvert.SerializeObject(new
+            MainThreadDispatcher.Enqueue(() =>
             {
-                username = username,
-                combat_stance = stance,
-            });
-            Task.Run(async () =>
-            {
-                try
-                {
-                    await BannerlordLinkModule.Backend
-                        .PostEventAsync("bannerlord", "player.state_update", json);
-                }
-                catch (Exception ex)
-                {
-                    BannerlordLinkModule.Log(
-                        $"[set_combat_stance] echo @{username} failed: {ex.Message}");
-                }
-            });
+                PowerCache.UpdateHeroStance(username, stance);
+                // HeroProfileBehavior owns a normal Dictionary read by SyncData;
+                // keep all profile writes on the game thread.
+                BannerlordLink.Behaviors.HeroProfileBehavior.Instance
+                    ?.SetStance(username, stance);
 
-            BannerlordLinkModule.Log($"[set_combat_stance] @{username} → {stance}");
+                string json = JsonConvert.SerializeObject(new
+                {
+                    username = username,
+                    combat_stance = stance,
+                });
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await BannerlordLinkModule.Backend
+                            .PostEventAsync("bannerlord", "player.state_update", json);
+                    }
+                    catch (Exception ex)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[set_combat_stance] echo @{username} failed: {ex.Message}");
+                    }
+                });
+
+                BannerlordLinkModule.Log($"[set_combat_stance] @{username} → {stance}");
+            });
             return Task.FromResult<(bool, string)>((true, null));
         }
     }

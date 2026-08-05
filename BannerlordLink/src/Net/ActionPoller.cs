@@ -36,6 +36,7 @@ namespace BannerlordLink.Net
         private readonly BackendClient _backend;
         private readonly string _moduleId;
         private readonly Action<string> _log;
+        private readonly ActionOutcomeStore _outcomeStore;
 
         private CancellationTokenSource _cts;
         private Task _loopTask;
@@ -46,6 +47,15 @@ namespace BannerlordLink.Net
             _backend = backend;
             _moduleId = moduleId;
             _log = log;
+            string outcomePath = System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                "Mount and Blade II Bannerlord", "Configs", "ModState",
+                $"bannerlordlink_action_outcomes_{backend.ChannelId}.jsonl");
+            _outcomeStore = new ActionOutcomeStore(
+                outcomePath,
+                log,
+                TimeSpan.FromMinutes(PROCESSED_IDS_TTL_MIN),
+                PROCESSED_IDS_MAX);
         }
 
         public void Start()
@@ -58,9 +68,29 @@ namespace BannerlordLink.Net
 
         public void Stop()
         {
-            try { _cts?.Cancel(); } catch { }
-            _cts = null;
-            _loopTask = null;
+            var cts = _cts;
+            var task = _loopTask;
+            try { cts?.Cancel(); } catch { }
+            try
+            {
+                if (task != null && !task.IsCompleted
+                    && !task.Wait(TimeSpan.FromSeconds(2)))
+                {
+                    _log("ActionPoller stop timeout — loop still exiting in background");
+                }
+            }
+            catch (AggregateException ex)
+            {
+                var flat = ex.Flatten();
+                if (flat.InnerExceptions.Any(x => !(x is OperationCanceledException)))
+                    _log($"ActionPoller stop warning: {flat.InnerException?.Message}");
+            }
+            finally
+            {
+                if (ReferenceEquals(_cts, cts)) _cts = null;
+                if (ReferenceEquals(_loopTask, task)) _loopTask = null;
+                try { cts?.Dispose(); } catch { }
+            }
         }
 
         private async Task LoopAsync(CancellationToken ct)
@@ -71,9 +101,10 @@ namespace BannerlordLink.Net
                 try
                 {
                     string path = $"/v1/module/{_moduleId}/actions?since={_cursor}";
-                    string body = await _backend.GetAsync(path);
+                    string body = await _backend.GetAsync(path, ct);
                     if (body == null)
                     {
+                        if (ct.IsCancellationRequested) break;
                         consecutiveFails++;
                         // Backoff: 5s × min(fails, 6) → max 30s.
                         // Sprint 5.33 IMPROV-2 (friend feedback) — adaptive:
@@ -109,7 +140,7 @@ namespace BannerlordLink.Net
                         _log($"poll got {actions.Count} action(s), processing...");
                         foreach (JObject action in actions)
                         {
-                            await ProcessActionAsync(action);
+                            await ProcessActionAsync(action, ct);
                         }
                     }
                     if (cursor > _cursor) _cursor = cursor;
@@ -131,56 +162,36 @@ namespace BannerlordLink.Net
             _log("ActionPoller loop exited");
         }
 
-        // Sprint 5.31 #45e (audit MED-7) — idempotency ring против двойного
-        // применения. Если backend dispatched-sweeper re-queue'ит action
-        // (потому что ACK потерян), мод видит тот же action_id второй раз
-        // и BLT-style apply: гольд debit'ится в игре дважды для viewer'а.
-        // Ring: первые N запомненных action_id (или TTL 10 мин) — repeat'ы
-        // skip'аются с ACK-success (чтобы backend пометил applied).
-        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTime>
-            _processedActionIds = new System.Collections.Concurrent.ConcurrentDictionary<string, DateTime>();
-        private const int PROCESSED_IDS_TTL_MIN = 10;
-        private const int PROCESSED_IDS_MAX = 2000;   // memory cap
+        // Durable terminal outcomes protect against a lost ACK. A redelivery
+        // repeats the original success/error result without invoking gameplay
+        // code again. TTL/cap cover the backend retry lifecycle with margin.
+        private const int PROCESSED_IDS_TTL_MIN = 180;
+        private const int PROCESSED_IDS_MAX = 10000;   // session memory cap
 
-        private static bool MarkProcessedOnce(string actionId)
-        {
-            if (string.IsNullOrEmpty(actionId)) return true;
-            var now = DateTime.UtcNow;
-            // Lazy cleanup при превышении cap.
-            if (_processedActionIds.Count >= PROCESSED_IDS_MAX)
-            {
-                var cutoff = now.AddMinutes(-PROCESSED_IDS_TTL_MIN);
-                foreach (var kv in _processedActionIds)
-                {
-                    if (kv.Value < cutoff)
-                        _processedActionIds.TryRemove(kv.Key, out _);
-                }
-            }
-            // TryAdd — атомарный insert-if-absent. Returns true если успешно
-            // вставили (= это первый раз); false если уже был.
-            return _processedActionIds.TryAdd(actionId, now);
-        }
-
-        private async Task ProcessActionAsync(JObject action)
+        private async Task ProcessActionAsync(JObject action, CancellationToken ct)
         {
             string actionId = action["action_id"]?.ToString() ?? "";
             string actionType = action["type"]?.ToString() ?? "";
 
-            // Sprint 5.31 #45e (audit MED-7) — dedup re-delivered actions.
-            if (!MarkProcessedOnce(actionId))
+            // A re-delivery after a lost ACK must repeat the original terminal
+            // outcome. A failed action must never become success on retry.
+            if (_outcomeStore.TryGet(actionId, out var previousOutcome))
             {
-                _log($"action[{actionId}] type={actionType} ALREADY PROCESSED — " +
-                     "ACK success without re-apply (backend sweeper re-queue?)");
+                _log($"action[{actionId}] type={actionType} ALREADY COMPLETED — " +
+                     $"repeat ACK success={previousOutcome.Success} without re-apply");
                 try
                 {
                     string dedupAckBody = Newtonsoft.Json.JsonConvert.SerializeObject(new
                     {
                         action_id = actionId,
-                        success = true,
-                        error = (string)null,
-                        note = "mod-side dedup: already applied",
+                        success = previousOutcome.Success,
+                        error = previousOutcome.Error,
+                        note = "mod-side dedup: repeated terminal outcome",
                     });
-                    await _backend.PostJsonAsync($"/v1/module/{_moduleId}/ack", dedupAckBody);
+                    string ackResponse = await _backend.PostJsonAsync(
+                        $"/v1/module/{_moduleId}/ack", dedupAckBody);
+                    if (ackResponse == null)
+                        _log($"  ↳ repeated-outcome ACK not delivered for action[{actionId}]");
                 }
                 catch (Exception ex)
                 {
@@ -266,7 +277,10 @@ namespace BannerlordLink.Net
                 }
                 else
                 {
-                    var result = await handler.ExecuteAsync(data);
+                    var result = await MainThreadDispatcher.ExecuteTrackedAsync(
+                        actionId,
+                        () => handler.ExecuteAsync(data),
+                        ct);
                     success = result.success;
                     error = result.error;
                     BannerlordLink.BannerlordLinkModule.LogVerbose(() =>
@@ -291,6 +305,17 @@ namespace BannerlordLink.Net
                 _log($"  ↳ handler crashed: {error}");
             }
 
+            // Store the outcome before ACK. A lost ACK can now be answered with
+            // this exact result without applying the gameplay mutation twice.
+            bool outcomePersisted = _outcomeStore.Record(actionId, success, error);
+            if (!outcomePersisted)
+            {
+                // The in-memory guard still protects this process. We still ACK
+                // the completed action; otherwise a prolonged disk fault would
+                // eventually refund an effect that was already applied.
+                _log($"  ↳ terminal outcome persistence FAILED action[{actionId}]");
+            }
+
             // ACK назад
             string ackBody = JsonConvert.SerializeObject(new
             {
@@ -298,7 +323,10 @@ namespace BannerlordLink.Net
                 success = success,
                 error = error,
             });
-            await _backend.PostJsonAsync($"/v1/module/{_moduleId}/ack", ackBody);
+            string response = await _backend.PostJsonAsync(
+                $"/v1/module/{_moduleId}/ack", ackBody);
+            if (response == null)
+                _log($"  ↳ ACK not delivered for action[{actionId}] — outcome retained for retry");
         }
     }
 }

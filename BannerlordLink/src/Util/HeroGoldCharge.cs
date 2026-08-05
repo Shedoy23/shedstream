@@ -35,6 +35,18 @@ namespace BannerlordLink.Util
         /// </summary>
         public static bool TryCharge(Hero hero, JObject data, string actionId, string tag)
         {
+            return TryCharge(hero, data, actionId, tag, out _);
+        }
+
+        /// <summary>Charge variant which returns the exact debited amount for compensation.</summary>
+        public static bool TryCharge(
+            Hero hero,
+            JObject data,
+            string actionId,
+            string tag,
+            out int chargedAmount)
+        {
+            chargedAmount = 0;
             int cost = 0;
             try { cost = (int?)data["hero_gold_cost"] ?? 0; }
             catch { cost = 0; }
@@ -59,9 +71,30 @@ namespace BannerlordLink.Util
 
             int before = hero.Gold;
             GiveGoldAction.ApplyBetweenCharacters(hero, null, cost, true);
+            chargedAmount = cost;
             BannerlordLinkModule.Log(
                 $"[{tag}] @{hero.Name}: gold {before} → {hero.Gold} (-{cost})");
             return true;
+        }
+
+        /// <summary>Compensates a charge after a failed engine mutation.</summary>
+        public static bool Refund(Hero hero, int amount, string tag)
+        {
+            if (hero == null || amount <= 0) return true;
+            try
+            {
+                int before = hero.Gold;
+                GiveGoldAction.ApplyBetweenCharacters(null, hero, amount, true);
+                BannerlordLinkModule.Log(
+                    $"[{tag}] compensation: gold {before} → {hero.Gold} (+{amount})");
+                return true;
+            }
+            catch (System.Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[{tag}] GOLD COMPENSATION FAILED (+{amount}): {ex.Message}");
+                return false;
+            }
         }
     }
 }

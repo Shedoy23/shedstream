@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace BannerlordLink.Net
@@ -29,6 +30,9 @@ namespace BannerlordLink.Net
         private readonly BackendConfig _config;
         private readonly Action<string> _log;
         private readonly HttpClient _http;
+        private readonly DurableEventOutbox _outbox;
+
+        internal long ChannelId => _config.ChannelId;
 
         public BackendClient(BackendConfig config, Action<string> log)
         {
@@ -61,7 +65,66 @@ namespace BannerlordLink.Net
             {
                 _http.DefaultRequestHeaders.Authorization =
                     new AuthenticationHeaderValue("Bearer", _config.ModuleToken);
+
+                string outboxPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                    "Mount and Blade II Bannerlord", "Configs", "ModState",
+                    $"bannerlordlink_outbox_{_config.ChannelId}.jsonl");
+                _outbox = new DurableEventOutbox(
+                    outboxPath, SendDurableItemAsync, _log);
             }
+        }
+
+        /// <summary>
+        /// Persists a money/state-critical event before any network attempt.
+        /// Returns true once the event is safely on disk; delivery continues in
+        /// the background with the same envelope id until the backend ACKs it.
+        /// </summary>
+        public bool EnqueueDurableEvent(
+            string moduleId, string eventType, string dataJson = "{}")
+        {
+            if (_outbox == null)
+            {
+                _log($"durable event {eventType} rejected — module_token/outbox unavailable");
+                return false;
+            }
+            return _outbox.Enqueue(moduleId, eventType, dataJson);
+        }
+
+        private async Task<bool> SendDurableItemAsync(DurableEventOutbox.Item item)
+        {
+            Newtonsoft.Json.Linq.JToken parsedData;
+            try { parsedData = Newtonsoft.Json.Linq.JToken.Parse(item.DataJson ?? "{}"); }
+            catch (Exception ex)
+            {
+                _log($"[outbox] corrupt payload {item.EventType}: {ex.Message}");
+                return false;
+            }
+
+            string body = Newtonsoft.Json.JsonConvert.SerializeObject(new
+            {
+                channel_id = _config.ChannelId,
+                envelopes = new[]
+                {
+                    new
+                    {
+                        id = item.Id,
+                        kind = "event",
+                        type = item.EventType,
+                        ts = item.TimestampMs,
+                        data = parsedData,
+                    },
+                },
+            });
+
+            string response = await PostJsonAsync(
+                $"/v1/module/{item.ModuleId}/events", body).ConfigureAwait(false);
+            if (response == null) return false;
+            bool ok = response.Contains("\"status\":\"ok\"")
+                || response.Contains("\"status\": \"ok\"");
+            if (!ok)
+                _log($"[outbox] backend rejected {item.EventType}: {Truncate(response, 200)}");
+            return ok;
         }
 
         /// <summary>Health check — GET /api/bannerlord/ping (public, no auth).
@@ -182,12 +245,15 @@ namespace BannerlordLink.Net
             }
         }
 
-        /// <summary>GET arbitrary path. Возвращает body или null.</summary>
-        public async Task<string> GetAsync(string path)
+        /// <summary>GET arbitrary path. Возвращает body или null.
+        /// Cancellation вызывающего кода — штатная остановка, не ERROR.</summary>
+        public async Task<string> GetAsync(
+            string path,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             try
             {
-                var response = await _http.GetAsync(path);
+                var response = await _http.GetAsync(path, cancellationToken);
                 string body = await response.Content.ReadAsStringAsync();
                 if (!response.IsSuccessStatusCode)
                 {
@@ -195,6 +261,18 @@ namespace BannerlordLink.Net
                     return null;
                 }
                 return body;
+            }
+            catch (OperationCanceledException)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                    return null;
+
+                // HttpClient timeout наследуется от TaskCanceledException.
+                // Это транспортный таймаут, а не падение мода; не маркируем
+                // как ERROR, чтобы один эпизод не считался дважды вместе с
+                // сообщением poller'а о retry.
+                _log($"GET {path} TIMEOUT (>{_http.Timeout.TotalSeconds:0}s)");
+                return null;
             }
             catch (Exception ex)
             {
@@ -205,6 +283,7 @@ namespace BannerlordLink.Net
 
         public void Dispose()
         {
+            try { _outbox?.Dispose(); } catch { }
             _http?.Dispose();
         }
 

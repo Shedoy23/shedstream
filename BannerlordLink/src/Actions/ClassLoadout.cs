@@ -40,7 +40,7 @@ namespace BannerlordLink.Actions
         {
             public Slot[] Slots;
             public bool UseHorse;
-            public bool UseCamel;
+            public bool UseCamel = false;
             public ArmorBand Armor = ArmorBand.Any;          // Any = current behavior
             public EquipmentIndex[] SkipArmorSlots = null;   // null/empty = fill all 5
             // 2026-07-20 (classes v2) — культурный скин класса: вся броня одной культуры

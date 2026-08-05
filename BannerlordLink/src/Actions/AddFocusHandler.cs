@@ -59,6 +59,7 @@ namespace BannerlordLink.Actions
 
         private static void Apply(string username, string skillKey, int amount, string actionId)
         {
+            bool committed = false;
             try
             {
                 if (TaleWorlds.MountAndBlade.Mission.Current != null)
@@ -144,10 +145,29 @@ namespace BannerlordLink.Actions
                     return;
                 }
 
-                // Deduct + apply
+                // Charge first, but compensate if the engine mutation fails or
+                // does not satisfy its postcondition.
                 GiveGoldAction.ApplyBetweenCharacters(hero, null, totalCost, true);
-                hero.HeroDeveloper.AddFocus(skill, amount, checkUnspentFocusPoints: false);
+                try
+                {
+                    hero.HeroDeveloper.AddFocus(skill, amount, checkUnspentFocusPoints: false);
+                }
+                catch (Exception mutationEx)
+                {
+                    HeroGoldCharge.Refund(hero, totalCost, "add_focus");
+                    ActionFeedback.PostFailed(actionId, "focus_apply_failed");
+                    BannerlordLinkModule.Log(
+                        $"[add_focus] @{username} mutation failed: {mutationEx.Message}");
+                    return;
+                }
                 int newFocus = hero.HeroDeveloper.GetFocus(skill);
+                if (newFocus <= currentFocus)
+                {
+                    HeroGoldCharge.Refund(hero, totalCost, "add_focus");
+                    ActionFeedback.PostFailed(actionId, "focus_postcondition_failed");
+                    return;
+                }
+                committed = true;
 
                 BannerlordLinkModule.Log(
                     $"[add_focus] @{username}: +{amount} focus в {skill.StringId} " +
@@ -172,6 +192,8 @@ namespace BannerlordLink.Actions
             {
                 BannerlordLinkModule.Log(
                     $"[add_focus] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
+                if (!committed)
+                    ActionFeedback.PostFailed(actionId, "crashed:" + ex.GetType().Name);
             }
         }
     }

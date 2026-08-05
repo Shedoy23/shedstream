@@ -90,16 +90,18 @@ namespace BannerlordLink.Behaviors
                             _lastKnownCapital[key] = currentCap;
                             continue;
                         }
-                        _lastKnownCapital[key] = currentCap;
-
                         // Push event с {workshop_id (engine StringId), owner, net_dinars}.
                         // Backend matches engine StringId через workshop_id_mod field.
                         string ownerLogin = HeroNaming.ExtractUsername(
                             w.Owner.Name?.ToString() ?? "")?.ToLowerInvariant();
                         if (string.IsNullOrEmpty(ownerLogin)) continue;
 
-                        PushSync(w, ownerLogin, netDinars);
-                        synced++;
+                        if (PushSync(w, ownerLogin, netDinars))
+                        {
+                            // Advance only after the payout is safely persisted.
+                            _lastKnownCapital[key] = currentCap;
+                            synced++;
+                        }
                     }
                 }
                 if (synced > 0)
@@ -111,7 +113,7 @@ namespace BannerlordLink.Behaviors
             }
         }
 
-        private static void PushSync(Workshop w, string ownerLogin, int netDinars)
+        private static bool PushSync(Workshop w, string ownerLogin, int netDinars)
         {
             try
             {
@@ -125,13 +127,19 @@ namespace BannerlordLink.Behaviors
                     net_dinars       = netDinars,
                     capital_now      = w.Capital,
                 });
-                System.Threading.Tasks.Task.Run(async () =>
-                    await BannerlordLinkModule.Backend.PostEventAsync(
-                        "bannerlord", "hero.workshop_profit_sync", evtData));
+                bool queued = BannerlordLinkModule.Backend != null
+                    && BannerlordLinkModule.Backend.EnqueueDurableEvent(
+                        "bannerlord", "hero.workshop_profit_sync", evtData);
+                if (!queued)
+                    BannerlordLinkModule.Log(
+                        $"[shop-sync] durable queue FAILED @{ownerLogin} " +
+                        $"{w.Settlement?.StringId}/{w.WorkshopType?.StringId}");
+                return queued;
             }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log($"[shop-sync] push crash: {ex.Message}");
+                return false;
             }
         }
 

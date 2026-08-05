@@ -74,11 +74,18 @@ namespace BannerlordLink.Behaviors
                         continue;
                     }
                     int diff = currentGold - prev;
-                    _lastGoldSnap[mp.StringId] = currentGold;
-                    if (diff <= 0) continue;  // losses or no change, skip
+                    if (diff <= 0)
+                    {
+                        _lastGoldSnap[mp.StringId] = currentGold;
+                        continue;  // losses or no change, skip
+                    }
 
-                    PushSync(mp, ownerLogin, diff);
-                    synced++;
+                    if (PushSync(mp, ownerLogin, diff))
+                    {
+                        // Advance only after the payout is safely persisted.
+                        _lastGoldSnap[mp.StringId] = currentGold;
+                        synced++;
+                    }
                 }
                 if (synced > 0)
                     BannerlordLinkModule.Log($"[caravan-sync] OnDailyTick pushed {synced} caravan syncs");
@@ -105,9 +112,12 @@ namespace BannerlordLink.Behaviors
                     party_id    = mp.StringId,
                     captor_name = captorName,
                 });
-                System.Threading.Tasks.Task.Run(async () =>
-                    await BannerlordLinkModule.Backend.PostEventAsync(
-                        "bannerlord", "hero.caravan_destroyed", evtData));
+                bool queued = BannerlordLinkModule.Backend != null
+                    && BannerlordLinkModule.Backend.EnqueueDurableEvent(
+                        "bannerlord", "hero.caravan_destroyed", evtData);
+                if (!queued)
+                    BannerlordLinkModule.Log(
+                        $"[caravan-destroyed] durable queue FAILED @{ownerLogin} {mp.StringId}");
 
                 // Clear snapshot so если caravan respawned same StringId — fresh start.
                 _lastGoldSnap.Remove(mp.StringId);
@@ -168,7 +178,7 @@ namespace BannerlordLink.Behaviors
             return items;
         }
 
-        private static void PushSync(MobileParty mp, string ownerLogin, int netDinars)
+        private static bool PushSync(MobileParty mp, string ownerLogin, int netDinars)
         {
             try
             {
@@ -178,13 +188,18 @@ namespace BannerlordLink.Behaviors
                     party_id   = mp.StringId,
                     net_dinars = netDinars,
                 });
-                System.Threading.Tasks.Task.Run(async () =>
-                    await BannerlordLinkModule.Backend.PostEventAsync(
-                        "bannerlord", "hero.caravan_profit_sync", evtData));
+                bool queued = BannerlordLinkModule.Backend != null
+                    && BannerlordLinkModule.Backend.EnqueueDurableEvent(
+                        "bannerlord", "hero.caravan_profit_sync", evtData);
+                if (!queued)
+                    BannerlordLinkModule.Log(
+                        $"[caravan-sync] durable queue FAILED @{ownerLogin} {mp.StringId}");
+                return queued;
             }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log($"[caravan-sync] push crash: {ex.Message}");
+                return false;
             }
         }
     }

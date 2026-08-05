@@ -33,26 +33,37 @@ namespace BannerlordLink.Actions
             if (string.IsNullOrEmpty(username))
                 return Task.FromResult<(bool, string)>((false, "no username"));
 
-            MainThreadDispatcher.Enqueue(() => Apply(username));
+            string actionId = ActionFeedback.GetActionId(data);
+            MainThreadDispatcher.Enqueue(() => Apply(username, actionId));
             return Task.FromResult<(bool, string)>((true, null));
         }
 
-        private static void Apply(string username)
+        private static void Apply(string username, string actionId)
         {
             try
             {
                 var hero = HeroLookup.FindByUsername(username);
-                if (hero == null || !hero.IsAlive) return;
-                if (hero.IsPrisoner) return;
+                if (hero == null || !hero.IsAlive)
+                {
+                    ActionFeedback.PostFailed(actionId, "hero_not_found_or_dead");
+                    return;
+                }
+                if (hero.IsPrisoner)
+                {
+                    ActionFeedback.PostFailed(actionId, "hero_prisoner");
+                    return;
+                }
                 if (hero.Clan == null || !hero.IsClanLeader)
                 {
                     BannerlordLinkModule.Log(
                         $"[leave_kingdom] @{username}: must be clan leader");
+                    ActionFeedback.PostFailed(actionId, "not_clan_leader");
                     return;
                 }
                 var kingdom = hero.Clan.Kingdom;
                 if (kingdom == null)
                 {
+                    ActionFeedback.PostFailed(actionId, "not_in_kingdom");
                     BannerlordLinkModule.Log(
                         $"[leave_kingdom] @{username}: clan не в королевстве");
                     return;
@@ -97,6 +108,13 @@ namespace BannerlordLink.Actions
                 {
                     BannerlordLinkModule.Log(
                         $"[leave_kingdom] @{username}: leave/destroy failed: {ex.Message}");
+                    ActionFeedback.PostFailed(actionId, "leave_engine_failed");
+                    return;
+                }
+
+                if (hero.Clan?.Kingdom != null)
+                {
+                    ActionFeedback.PostFailed(actionId, "leave_postcondition_failed");
                     return;
                 }
 
@@ -118,6 +136,7 @@ namespace BannerlordLink.Actions
             {
                 BannerlordLinkModule.Log(
                     $"[leave_kingdom] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
+                ActionFeedback.PostFailed(actionId, "crashed:" + ex.GetType().Name);
             }
         }
     }

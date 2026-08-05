@@ -55,7 +55,7 @@ namespace BannerlordLink.Behaviors
         // на ~5-10%.
         //
         // Phase 3 заменит этот flag на persistent AgentPfx (BLT pattern).
-        private const bool BUFF_TICK_PARTICLES_ENABLED = false;
+        private static readonly bool BUFF_TICK_PARTICLES_ENABLED = false;
 
         // 2026-06-02 (BLT-parity POWER) — HP-множители в одном месте для тюнинга.
         private const float BASE_HP_MULT = 2.5f;     // герой baseline (2026-06-05: 2→2.5, BLT-parity)

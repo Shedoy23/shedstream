@@ -57,20 +57,27 @@ namespace BannerlordLink.Actions
                 try
                 {
                     var hero = HeroLookup.FindByUsername(username);
-                    if (hero == null) return;
+                    if (hero == null)
+                    {
+                        ActionFeedback.PostFailed(actionId, "hero_not_found");
+                        return;
+                    }
                     if (!hero.IsAlive)
                     {
                         BannerlordLinkModule.Log($"[hero.make_baby] @{username}: hero мёртв");
+                        ActionFeedback.PostFailed(actionId, "hero_dead");
                         return;
                     }
                     if (hero.Age < 18)
                     {
                         BannerlordLinkModule.Log($"[hero.make_baby] @{username}: too young");
+                        ActionFeedback.PostFailed(actionId, "too_young");
                         return;
                     }
                     if (hero.Spouse == null)
                     {
                         BannerlordLinkModule.Log($"[hero.make_baby] @{username}: no spouse");
+                        ActionFeedback.PostFailed(actionId, "no_spouse");
                         return;
                     }
 
@@ -81,6 +88,7 @@ namespace BannerlordLink.Actions
                     {
                         BannerlordLinkModule.Log(
                             $"[hero.make_baby] @{username}: уже {childCount} детей в клане, лимит {maxAliveChildren}");
+                        ActionFeedback.PostFailed(actionId, "children_limit");
                         return;
                     }
 
@@ -90,16 +98,31 @@ namespace BannerlordLink.Actions
                     {
                         BannerlordLinkModule.Log(
                             $"[hero.make_baby] @{username}: {target.Name} уже беременна");
+                        ActionFeedback.PostFailed(actionId, "already_pregnant");
                         return;
                     }
 
                     // 2026-07-31: списываем объявленную бэкендом цену В ДИНАРАХ.
                     // До этого поле `hero_gold_cost` не читал никто, и действие
                     // выполнялось бесплатно (подтверждено прогоном в игре).
-                    if (!HeroGoldCharge.TryCharge(hero, data, actionId, "hero.make_baby"))
+                    if (!HeroGoldCharge.TryCharge(
+                        hero, data, actionId, "hero.make_baby", out int chargedAmount))
                         return;
 
-                    MakePregnantAction.Apply(target);
+                    try
+                    {
+                        MakePregnantAction.Apply(target);
+                        if (!target.IsPregnant)
+                            throw new InvalidOperationException("pregnancy postcondition is false");
+                    }
+                    catch (Exception mutationEx)
+                    {
+                        HeroGoldCharge.Refund(hero, chargedAmount, "hero.make_baby");
+                        BannerlordLinkModule.Log(
+                            $"[hero.make_baby] @{username} apply failed: {mutationEx.Message}");
+                        ActionFeedback.PostFailed(actionId, "pregnancy_apply_failed");
+                        return;
+                    }
                     BannerlordLinkModule.Log(
                         $"[hero.make_baby] @{username}: {target.Name} забеременела "
                         + $"(текущих детей: {childCount}/{maxAliveChildren})");
@@ -107,6 +130,7 @@ namespace BannerlordLink.Actions
                 catch (Exception ex)
                 {
                     BannerlordLinkModule.Log($"[hero.make_baby] @{username} CRASHED: {ex.Message}");
+                    ActionFeedback.PostFailed(actionId, "crashed:" + ex.GetType().Name);
                 }
             });
 

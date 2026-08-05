@@ -28,6 +28,8 @@ namespace BannerlordLink
         );
 
         private Harmony _harmony;
+        private UnhandledExceptionEventHandler _unhandledExceptionHandler;
+        private EventHandler<UnobservedTaskExceptionEventArgs> _unobservedTaskHandler;
 
         // Sprint 2.2: shared между all subscribers моду. Public static чтобы
         // CampaignBehavior'ы и action handlers могли его дёргать.
@@ -118,6 +120,7 @@ namespace BannerlordLink
         protected override void OnSubModuleLoad()
         {
             base.OnSubModuleLoad();
+            MainThreadDispatcher.StartSession();
             Log($"v{MOD_VERSION} OnSubModuleLoad");
             Log($"[VERBOSE] verbose logging = {(_verboseLog ? "ON (детальные logs включены)" : "OFF (стандартное)")}. " +
                 $"Toggle via env BANNERLORDLINK_VERBOSE=1 или файл bannerlordlink_verbose.flag в Configs/");
@@ -134,7 +137,7 @@ namespace BannerlordLink
             // но явно подстраховываемся).
             try
             {
-                AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
+                _unhandledExceptionHandler = (sender, e) =>
                 {
                     try
                     {
@@ -146,7 +149,7 @@ namespace BannerlordLink
                     }
                     catch { }
                 };
-                TaskScheduler.UnobservedTaskException += (sender, e) =>
+                _unobservedTaskHandler = (sender, e) =>
                 {
                     try
                     {
@@ -156,6 +159,8 @@ namespace BannerlordLink
                     }
                     catch { }
                 };
+                AppDomain.CurrentDomain.UnhandledException += _unhandledExceptionHandler;
+                TaskScheduler.UnobservedTaskException += _unobservedTaskHandler;
                 Log("Global crash hooks installed (AppDomain.UnhandledException + UnobservedTaskException)");
             }
             catch (Exception ex)
@@ -342,7 +347,21 @@ namespace BannerlordLink
         protected override void OnSubModuleUnloaded()
         {
             base.OnSubModuleUnloaded();
+            // Cancel gameplay callbacks before stopping the poller. This wakes
+            // any handler currently awaiting a main-thread completion and makes
+            // it exit without a misleading failure ACK.
+            try { MainThreadDispatcher.Shutdown(); } catch { }
             try { Poller?.Stop(); } catch { }
+            try
+            {
+                if (_unhandledExceptionHandler != null)
+                    AppDomain.CurrentDomain.UnhandledException -= _unhandledExceptionHandler;
+                if (_unobservedTaskHandler != null)
+                    TaskScheduler.UnobservedTaskException -= _unobservedTaskHandler;
+                _unhandledExceptionHandler = null;
+                _unobservedTaskHandler = null;
+            }
+            catch { }
             try { _harmony?.UnpatchAll(HARMONY_ID); } catch { }
             try { Backend?.Dispose(); } catch { }
             Log("unloaded");

@@ -81,14 +81,20 @@ namespace BannerlordLink.Actions
                 }
             }
 
-            MainThreadDispatcher.Enqueue(() => Recruit(username, existingSlots, isElite));
+            string actionId = ActionFeedback.GetActionId(data);
+            MainThreadDispatcher.Enqueue(() => Recruit(
+                username, existingSlots, isElite, actionId));
             return Task.FromResult<(bool, string)>((true, null));
         }
 
         private static void Recruit(string username,
             List<(int slot, string troopId, int tier, bool isElite)> existing,
-            bool wantElite)
+            bool wantElite,
+            string actionId)
         {
+            Hero chargedHero = null;
+            int chargedAmount = 0;
+            bool committed = false;
             try
             {
                 // 2026-06-06 — УБРАН guard `Mission.Current != null`. Раньше он
@@ -103,6 +109,7 @@ namespace BannerlordLink.Actions
                 if (hero == null || !hero.IsAlive)
                 {
                     BannerlordLinkModule.Log($"[recruit_troops] @{username}: hero не найден или мёртв");
+                    ActionFeedback.PostFailed(actionId, "hero_not_found_or_dead");
                     return;
                 }
 
@@ -131,6 +138,7 @@ namespace BannerlordLink.Actions
                             $"[recruit_troops] @{username}: " +
                             $"нет {(wantElite ? "elite" : "basic")} troop'ов для upgrade " +
                             "(только противоположный тип)");
+                        ActionFeedback.PostFailed(actionId, "no_matching_troop_to_upgrade");
                         return;
                     }
                     tier = sameTypeSlots.OrderBy(s => s.tier).First().tier;
@@ -144,6 +152,7 @@ namespace BannerlordLink.Actions
                         $"[recruit_troops] @{username}: not enough gold ({hero.Gold} < {cost}) " +
                         $"для {(addNew ? "recruit" : $"upgrade T{tier}")} " +
                         $"{(wantElite ? "[ELITE 3×]" : "")}");
+                    ActionFeedback.PostFailed(actionId, "not_enough_gold");
                     return;
                 }
 
@@ -158,6 +167,7 @@ namespace BannerlordLink.Actions
                     {
                         BannerlordLinkModule.Log(
                             $"[recruit_troops] @{username}: hero.Culture == null");
+                        ActionFeedback.PostFailed(actionId, "hero_culture_missing");
                         return;
                     }
                     // Sprint 5.14: pick basic OR elite troop по wantElite
@@ -176,6 +186,7 @@ namespace BannerlordLink.Actions
                             BannerlordLinkModule.Log(
                                 $"[recruit_troops] @{username}: no T0 " +
                                 $"{(wantElite ? "elite" : "basic")} troop для {culture.StringId}");
+                            ActionFeedback.PostFailed(actionId, "culture_recruit_not_found");
                             return;
                         }
                     }
@@ -225,6 +236,7 @@ namespace BannerlordLink.Actions
                         BannerlordLinkModule.Log(
                             $"[recruit_troops] @{username}: troop {slot.troopId} has no UpgradeTargets " +
                             "(уже maxed)");
+                        ActionFeedback.PostFailed(actionId, "troop_maxed");
                         return;
                     }
                     // Safety: предпочитаем upgrade targets совпадающие с hero.Culture.
@@ -249,6 +261,8 @@ namespace BannerlordLink.Actions
 
                 // Deduct gold + push event
                 GiveGoldAction.ApplyBetweenCharacters(hero, null, cost, true);
+                chargedHero = hero;
+                chargedAmount = cost;
                 BannerlordLinkModule.Log(
                     $"[recruit_troops] @{username}: {(addNew ? "recruited" : "upgraded")} " +
                     $"slot {updatedSlot} → {newTroop.StringId} T{newTier + 1} " +
@@ -266,8 +280,17 @@ namespace BannerlordLink.Actions
                     action = addNew ? "recruit" : "upgrade",
                 };
                 string json = JsonConvert.SerializeObject(payload);
-                Task.Run(async () => await BannerlordLinkModule.Backend
-                    .PostEventAsync("bannerlord", "hero.retinue_changed", json));
+                bool queued = BannerlordLinkModule.Backend != null
+                    && BannerlordLinkModule.Backend.EnqueueDurableEvent(
+                        "bannerlord", "hero.retinue_changed", json);
+                if (!queued)
+                {
+                    HeroGoldCharge.Refund(hero, cost, "recruit_troops");
+                    chargedHero = null;
+                    ActionFeedback.PostFailed(actionId, "retinue_event_queue_failed");
+                    return;
+                }
+                committed = true;
 
                 // 2026-06-15 — per-save профиль свиты (SyncData): строим ИТОГОВЫЙ
                 // список слотов (existing + это изменение) → восстановится на
@@ -294,8 +317,12 @@ namespace BannerlordLink.Actions
             }
             catch (Exception ex)
             {
+                if (!committed && chargedHero != null)
+                    HeroGoldCharge.Refund(chargedHero, chargedAmount, "recruit_troops");
                 BannerlordLinkModule.Log(
                     $"[recruit_troops] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
+                if (!committed)
+                    ActionFeedback.PostFailed(actionId, "crashed:" + ex.GetType().Name);
             }
         }
 

@@ -1,26 +1,15 @@
 using System;
-using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace BannerlordLink.Util
 {
     /// <summary>
-    /// Sprint 5.29 / BLT-parity #3 — feedback channel для refund.
-    ///
-    /// Проблема:
-    ///   IActionHandler.ExecuteAsync возвращает (success, error) синхронно ДО
-    ///   реального Apply (Apply идёт через MainThreadDispatcher.Enqueue на main
-    ///   thread). ActionPoller ACK'ает success=true сразу. Когда Apply на main
-    ///   thread обнаруживает что нельзя (Mission active, dead hero, нет gold)
-    ///   и тихо return'ит — backend уже думает что всё хорошо, viewer уже
-    ///   списал крустики, refund не происходит.
-    ///
-    /// Решение:
-    ///   Handler в refuse path вызывает `ActionFeedback.PostFailed(actionId, reason)`.
-    ///   Это пушит event `action.failed { action_id, reason }` на backend.
-    ///   Backend handler ищет original module_actions row, refund'ит price
-    ///   обратно в viewers.points, marks action as refunded.
+    /// Bridges handler refusal paths into the tracked action result. While a
+    /// game-thread callback is executing, PostFailed marks that callback's
+    /// terminal outcome and ActionPoller sends a failure ACK only after Apply
+    /// has returned. Calls made later, outside the action scope, fall back to a
+    /// durable `action.failed` event for backend compensation.
     ///
     /// Action_id передаётся handler'у через скрытое поле `_action_id` в data dict
     /// (inject'ится в ActionPoller.ProcessActionAsync перед handler call).
@@ -38,10 +27,23 @@ namespace BannerlordLink.Util
     /// </summary>
     public static class ActionFeedback
     {
-        /// <summary>Push action.failed event для refund. Fire-and-forget.</summary>
+        /// <summary>Capture a tracked failure, or durably queue delayed compensation.</summary>
         public static void PostFailed(string actionId, string reason)
         {
             if (string.IsNullOrEmpty(actionId)) return;
+
+            // Normal path: Apply is currently running inside a tracked
+            // MainThreadDispatcher scope. Fold the refusal into the handler
+            // result so ActionPoller sends one authoritative failure ACK.
+            // The HTTP event remains only for genuinely delayed failures which
+            // occur after the original action scope has already completed.
+            if (MainThreadDispatcher.TryReportActionFailure(actionId, reason))
+            {
+                BannerlordLinkModule.Log(
+                    $"[ActionFeedback] action failure captured action_id={actionId} reason={reason}");
+                return;
+            }
+
             try
             {
                 string json = JsonConvert.SerializeObject(new
@@ -49,21 +51,13 @@ namespace BannerlordLink.Util
                     action_id = actionId,
                     reason = reason ?? "unspecified",
                 });
-                Task.Run(async () =>
-                {
-                    try
-                    {
-                        await BannerlordLinkModule.Backend
-                            .PostEventAsync("bannerlord", "action.failed", json);
-                        BannerlordLinkModule.Log(
-                            $"[ActionFeedback] REFUND request action_id={actionId} reason={reason}");
-                    }
-                    catch (Exception ex)
-                    {
-                        BannerlordLinkModule.Log(
-                            $"[ActionFeedback] post failed: {ex.Message}");
-                    }
-                });
+                bool queued = BannerlordLinkModule.Backend != null
+                    && BannerlordLinkModule.Backend.EnqueueDurableEvent(
+                        "bannerlord", "action.failed", json);
+                BannerlordLinkModule.Log(
+                    $"[ActionFeedback] delayed REFUND request " +
+                    $"{(queued ? "queued durably" : "QUEUE FAILED")} " +
+                    $"action_id={actionId} reason={reason}");
             }
             catch (Exception ex)
             {
@@ -95,22 +89,13 @@ namespace BannerlordLink.Util
                     policy_id = policyId ?? "",
                     enacted = enacted,
                 });
-                Task.Run(async () =>
-                {
-                    try
-                    {
-                        await BannerlordLinkModule.Backend
-                            .PostEventAsync("bannerlord", "hero.policy_result", json);
-                        BannerlordLinkModule.Log(
-                            $"[ActionFeedback] policy_result action_id={actionId} " +
-                            $"policy={policyId} enacted={enacted}");
-                    }
-                    catch (Exception ex)
-                    {
-                        BannerlordLinkModule.Log(
-                            $"[ActionFeedback] policy_result post failed: {ex.Message}");
-                    }
-                });
+                bool queued = BannerlordLinkModule.Backend != null
+                    && BannerlordLinkModule.Backend.EnqueueDurableEvent(
+                        "bannerlord", "hero.policy_result", json);
+                BannerlordLinkModule.Log(
+                    $"[ActionFeedback] policy_result " +
+                    $"{(queued ? "queued durably" : "QUEUE FAILED")} " +
+                    $"action_id={actionId} policy={policyId} enacted={enacted}");
             }
             catch (Exception ex)
             {

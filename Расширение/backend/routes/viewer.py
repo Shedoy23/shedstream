@@ -90,7 +90,7 @@ _FIRST_STEP = {
 }
 
 
-def _module_on_air(module: str, channel_id: int):
+async def _module_on_air(db, module: str, channel_id: int):
     """Мод на связи прямо сейчас? True / False / None (сигнала не существует).
 
     ЗАЧЕМ (2026-08-05, вопрос владельца «а если мод не отправил онлайн»).
@@ -106,17 +106,21 @@ def _module_on_air(module: str, channel_id: int):
     бэкенда он пуст, и это НЕ офлайн у стримера — мод вернёт его первым же
     опросом (в пределах полуминуты).
     """
+    # 2026-08-06: источник — тот же `module_liveness`, что и у гейта на покупки.
+    # До этой правки карточка спрашивала адаптер, а тот держит отметку В ПАМЯТИ
+    # процесса: после каждого деплоя она пуста, и карточка отвечала «сигнала
+    # нет» даже посреди эфира. Получалось, что два места в одном коде судят о
+    # живой игре по-разному — поймал `tests/test_first_step_card.py`.
     try:
-        import time as _t
-        mod = __import__("modules.%s._adapter" % module, fromlist=["get_last_seen"])
-        ts = mod.get_last_seen(channel_id)
+        import module_liveness
+        ts = await module_liveness.last_seen(db, channel_id, module)
     except Exception:
-        # У модуля может не быть такого сигнала (RimWorld — легаси, не модуль).
-        # Тогда не гадаем и не мешаем: приглашение остаётся рабочим.
         return None
     if not ts:
+        # Сигнала не было НИ РАЗУ (свежий канал, легаси-модуль без heartbeat).
+        # Не гадаем и не мешаем: приглашение остаётся рабочим.
         return None
-    return (_t.time() - ts) < 60
+    return await module_liveness.is_on_air(db, channel_id, module)
 
 
 def _first_step_price(module: str, spec: dict) -> int:
@@ -223,7 +227,7 @@ async def _first_step_for(db, channel_id: int, username: str, active_module):
             "enabled": True,
         }
 
-    if _module_on_air(module, channel_id) is False:
+    if await _module_on_air(db, module, channel_id) is False:
         # Кнопку НЕ гасим, и это исправление ошибки того же дня. Первой версией
         # она гасилась «чтобы зритель не купил впустую» — но карточка ничего не
         # покупает, она открывает вкладку. Настоящая покупка живёт на вкладке

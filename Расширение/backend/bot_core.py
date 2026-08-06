@@ -133,6 +133,9 @@ class BotCore:
         # — это означало, что проверка одного канала "пробивала" кэш всем.
         # Теперь key = channel_id, value = (is_live: bool, checked_ts: float).
         self._stream_live_cache: Dict[int, Tuple[bool, float]] = {}
+        # Настоящий id стрима из Helix, по каналам. Нужен, чтобы опросчик и
+        # EventSub заводили ОДНУ сессию, а не две (см. _session_id_for).
+        self._stream_ext_id: Dict[int, str] = {}
 
         # ── Chat-bonus антифрод (M7) ─────────────────────────────────────────
         # State per (channel_id, username):
@@ -582,16 +585,20 @@ class BotCore:
                 try:
                     prev_live = was_live.get(channel_id, False)
                     prev_sid  = self.current_stream_id.get(channel_id, "")
+                    # 2026-08-06: id сессии — НАСТОЯЩИЙ id стрима, если Helix
+                    # его дал. Дата остаётся запасным вариантом. Почему это
+                    # важно — см. _session_id_for.
+                    session_id = self._session_id_for(channel_id, today_id)
                     if is_live:
                         # Сценарии регистрации сессии:
                         #   1. Первый вход в live после старта сервера
                         #   2. Смена даты (стрим пересёк полночь)
                         #   3. Возобновление стрима в тот же день (второй стрим)
-                        if not prev_live or prev_sid != today_id:
-                            await self.handle_stream_start(today_id, channel_id=channel_id)
+                        if not prev_live or prev_sid != session_id:
+                            await self.handle_stream_start(session_id, channel_id=channel_id)
                             logger.info(
                                 "[ch=%s/%s] Автостарт/возобновление: %s (prev=%s, was_live=%s)",
-                                channel_id, login or "?", today_id, prev_sid or "none", prev_live)
+                                channel_id, login or "?", session_id, prev_sid or "none", prev_live)
                         was_live[channel_id] = True
                         # 2026-06-06 PRESENCE-WATCHTIME (за флагом) — пометить
                         # present-зрителей по списку чата Twitch ДО начисления, чтобы
@@ -694,6 +701,12 @@ class BotCore:
             # сейчас стал True → fire TG notify (Phase 8.G).
             was_live = cached[0] if cached is not None else None
             self._stream_live_cache[cid] = (is_live, now)
+            # Запоминаем настоящий id стрима: под ним же сессию заводит
+            # EventSub, и только совпадение id не даёт появиться второй.
+            if is_live and stream_info and stream_info.get("id"):
+                self._stream_ext_id[cid] = str(stream_info["id"])
+            elif not is_live:
+                self._stream_ext_id.pop(cid, None)
             logger.info("Стрим [ch=%s] %s: %s", cid, channel,
                         'В ЭФИРЕ' if is_live else 'офлайн')
 
@@ -1203,6 +1216,39 @@ class BotCore:
             if max_s >= 10:   await _try('max_streak_10')
 
         return unlocked
+
+    def _session_id_for(self, channel_id: int, today_id: str) -> str:
+        """Под каким id заводить сессию стрима.
+
+        ЗАЧЕМ (2026-08-06, жалоба владельца «стрики сбрасываются»).
+
+        Сессию писали ДВА независимых места, и каждое своим способом:
+        EventSub по `stream.online` — настоящим id стрима от Twitch, а этот
+        опросчик — СЕГОДНЯШНЕЙ ДАТОЙ. Получалось две сессии на один эфир:
+        короткий огрызок на секунды с нулём зрителей и рядом настоящая
+        многочасовая.
+
+        Цена ошибки — не косметика. Серия «N стримов подряд» считается как
+        «сколько сессий началось между прошлой посещённой и этой»
+        (`record_attendance`). Фантомная сессия попадала в этот счёт как
+        ПРОПУЩЕННЫЙ стрим, поэтому серия обнулялась после каждого эфира.
+        В базе на 06.08 это выглядело так: у всех `current_streak = 1` при
+        5–15 посещённых стримах, и ни одного достижения за серию за всю
+        историю (для первого нужно всего три подряд).
+
+        Поэтому берём тот же id, что и EventSub: `register_stream_session`
+        идемпотентен по (channel_id, id), и на один эфир остаётся одна строка.
+        Дата — запасной вариант на случай, когда Helix id не отдал (тогда
+        поведение прежнее, не хуже).
+        """
+        # Читаем через getattr намеренно. Цикл начислений ловит исключение
+        # каждого тика и идёт дальше — значит `AttributeError` здесь не упал бы
+        # громко, а тихо отменял бы НАЧИСЛЕНИЕ КРУСТИКОВ на каждом тике, и
+        # заметили бы это по жалобам зрителей через недели. Ровно этот класс
+        # ловит `tests/test_background_loops_survive.py`, и он поймал: первая
+        # версия правки обращалась к полю напрямую и уронила все три сценария.
+        ext = getattr(self, "_stream_ext_id", None) or {}
+        return ext.get(int(channel_id)) or today_id
 
     async def handle_stream_start(self, stream_id: str, channel_id: Optional[int] = None):
         """Вызывается при старте стрима — регистрирует сессию для канала.

@@ -25,6 +25,30 @@ from dependencies import get_db, require_jwt_user
 
 router = APIRouter()
 
+
+async def _require_live_mod(db, channel_id: int) -> bool:
+    """Мод Bannerlord на связи? Ставится перед тратой чего-либо невозвратного.
+
+    2026-08-06, фаза 1 (решение владельца после разбора 05.08). Пока стример
+    играл в другую игру, расширение продолжало принимать заявки: они ложились
+    в очередь, никто их не исполнял, и через 30 минут сторож помечал их
+    провалом. Для платных действий деньги возвращались, а вот для ежедневного
+    бонуса возвращать было нечего — «ценой» там было само право забрать его
+    сегодня, и оно сгорало.
+
+    Если сигнала не было НИ РАЗУ (свежий канал, только что перезапущенный
+    бэкенд, у которого мод ещё не успел постучаться), не блокируем: ложный
+    отказ на ровном месте хуже, чем редкая заявка в очередь.
+    """
+    try:
+        import module_liveness
+        ts = await module_liveness.last_seen(db, channel_id, "bannerlord")
+        if not ts:
+            return True
+        return await module_liveness.is_on_air(db, channel_id, "bannerlord")
+    except Exception:
+        return True
+
 # Sprint 5.29 audit fix #39 — per-(channel,user) asyncio.Lock для serializing
 # actions того же viewer'а. Закрывает race condition:
 #   1. Viewer spam'нул 2× hero.create_clan (1M динаров)
@@ -515,6 +539,20 @@ async def bannerlord_daily_claim(request: Request):
         return {"success": False, "message": "reward_type должен быть 'gold' или 'xp'"}
 
     db = get_db()
+
+    # 2026-08-06. Тратой здесь является не валюта, а САМ ДЕЙЛИК: отметка «сегодня
+    # забрал» ставится в той же транзакции, что и заявка моду. Если мода нет,
+    # заявка через 30 минут протухнет, вернёт «REFUNDED:0» (верно — бонус
+    # бесплатный), и зритель останется без награды И без права забрать её снова.
+    # Ровно это случилось 05.08 с пятью зрителями, пока стример играл в другую
+    # игру. Поэтому не даём начать: отказ дешевле отката.
+    if not await _require_live_mod(db, channel_id):
+        return {
+            "success": False,
+            "message": "Игра сейчас не запущена — бонус можно будет забрать, "
+                       "когда стример вернётся в игру. Твой сегодняшний "
+                       "бонус никуда не денется.",
+        }
     async with db._connect() as conn:
         try:
             await conn.execute("BEGIN IMMEDIATE")
@@ -1552,6 +1590,18 @@ async def bannerlord_buy_action(request: Request):
     _client_id = (data.get("client_action_id") or "").strip() or "?"
     log.info("[BNR-ACTION enter] ch=%s user=@%s role=%s action=%s client_id=%s",
              channel_id, username, user_role, action_type, _client_id[:12])
+
+    # 2026-08-06, фаза 1: не принимаем заявку, если игры нет на связи. Раньше
+    # она ложилась в очередь, полчаса ждала и возвращалась авто-возвратом —
+    # деньги не терялись, но зритель полчаса не понимал, что произошло, и жал
+    # ещё раз. Отказ приходит текстом: фронт 0.0.2 умеет показать причину,
+    # которую не знает заранее.
+    if not await _require_live_mod(get_db(), channel_id):
+        return {
+            "success": False,
+            "message": "Игра сейчас не запущена — действие некому выполнить. "
+                       "Попробуй, когда стример вернётся в игру.",
+        }
 
     # Sprint 5.29 audit fix #39 — per-user serialization (double-spend prevention).
     # Wrap entire handler в asyncio.Lock keyed (channel, username).

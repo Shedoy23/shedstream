@@ -324,6 +324,14 @@ async def module_events(module_id: str, request: Request):
                     "got": len(envelopes_raw)},
         )
 
+    # Присланное событие — тоже признак живого мода. Для модулей без опроса
+    # заданий (не Bannerlord) это единственный сигнал, поэтому он здесь.
+    try:
+        import module_liveness
+        await module_liveness.touch(get_db(), channel_id, module_id)
+    except Exception:
+        pass
+
     # 3. Dispatch each envelope
     acks: list = []
     for raw in envelopes_raw:
@@ -443,6 +451,16 @@ async def module_actions_poll(module_id: str, request: Request):
     # last_seen на каждый poll start (как heartbeat) — UI badge не будет
     # пугать "оффлайн" между event'ами. Только для bannerlord — обобщить
     # позже (нужен generic last_seen helper в _base).
+    # 2026-08-06 (фаза 1, решение владельца): отметка теперь для ЛЮБОГО модуля
+    # и переживает перезапуск бэкенда. Раньше здесь стоял `if module_id ==
+    # "bannerlord"` с припиской «обобщить позже» — из-за него тихий мод другой
+    # игры считался бы мёртвым, а по этой отметке теперь решается, предлагать
+    # ли зрителю платные действия.
+    try:
+        import module_liveness
+        await module_liveness.touch(get_db(), channel_id, module_id)
+    except Exception:
+        pass
     if module_id == "bannerlord":
         try:
             from modules.bannerlord._adapter import update_last_seen

@@ -1400,6 +1400,13 @@ async def run_migrations():
             print(f"❌ M108 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m109_module_last_seen
+            await m109_module_last_seen.apply(conn)
+        except Exception as e:
+            print(f"❌ M109 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

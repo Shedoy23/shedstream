@@ -130,14 +130,16 @@ async def test_queue_contract_carries_cash_fields(db):
                                  "hero.party_order_set", payload, src)
         await conn.commit()
         cur = await conn.execute(
-            "SELECT data, client_action_id FROM module_actions "
+            "SELECT action_id, data, client_action_id, status FROM module_actions "
             "WHERE channel_id=? AND action_id=?", (CHANNEL_ID, aid))
         row = await cur.fetchone()
 
-    stored = json.loads(row[0])
+    stored = json.loads(row[1])
+    assert_eq(row[0], aid, "[1] исходный action_id сохранён")
     assert_eq(stored.get("price"), PRICE, "[1] цена сохранена в задании")
-    assert_eq(bool(row[1]), True, "[1] ключ идемпотентности сохранён")
+    assert_eq(bool(row[2]), True, "[1] ключ идемпотентности сохранён")
     assert_eq(stored.get("order_type"), "siege", "[1] доменные поля не потерялись")
+    assert_eq(row[3], "queued", "[1] начальный статус queued")
 
 
 async def test_refusal_refunds_exact_amount(db):
@@ -173,9 +175,12 @@ async def test_refusal_refunds_exact_amount(db):
 
     async with db._connect() as conn:
         cur = await conn.execute(
-            "SELECT COALESCE(error_msg,'') FROM module_actions "
+            "SELECT action_id, status, COALESCE(error_msg,'') FROM module_actions "
             "WHERE channel_id=? AND action_id=?", (CHANNEL_ID, aid))
-        err = (await cur.fetchone())[0]
+        row = await cur.fetchone()
+    assert_eq(row[0], aid, "[2] terminal result относится к исходному action_id")
+    assert_eq(row[1], "failed", "[2] отказ сохраняет terminal status failed")
+    err = row[2]
     assert_eq(err.startswith(f"REFUNDED:{PRICE}"), True,
               "[2] в журнале записана реальная сумма, не ноль")
 

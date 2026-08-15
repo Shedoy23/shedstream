@@ -618,26 +618,29 @@ class MyAdapter(ModuleAdapter):
 
 ---
 
-## 9. Testing strategy (текущее состояние и план)
+## 9. Testing strategy (текущее состояние)
 
-**Сейчас:** automated tests НЕТ. Полагаемся на:
-- `python -m py_compile` после каждого изменения
-- Inline smoke-тесты (raw SQL replicating helpers) при добавлении новых helpers
-- Manual prod smoke после scp-deploy
+Backend имеет standalone regression suite в `backend/tests/`. Канонический
+запуск из корня repository:
 
-**План (Block 2 в архитектурной прокачке):**
-- `tests/` папка с pytest setup
-- `test_multi_tenant_isolation.py` — 2 канала, операции, проверка изоляции
-- `test_module_api_lifecycle.py` — handshake → events → actions → ack
-- `test_migrations_idempotent.py` — M1-M6 двойной запуск без поломок
-- CI hook (если будет github actions)
+```text
+python scripts/run-backend-tests.py
+```
 
-**Что точно стоит покрыть тестами в первую очередь:**
-1. `resolve_channel_id` strict-режим (raise при пустом ContextVar)
-2. Module token round-trip (issue → verify → tampered reject)
-3. `replace_module_catalog` replace-семантика (DELETE old + INSERT new)
-4. `ack_action` idempotency + cross-channel guard
-5. M1 миграция на live-копии прод-БД (нерегресс)
+На 2026-08-15 suite содержит 45 сценариев и проверяет, среди прочего:
+
+- fresh install и migration ledger;
+- multi-tenant isolation и channel approval;
+- atomic charge, dedup, ACK/refund ordering и queued TTL;
+- Module API delivery gaps и offline gate;
+- Bannerlord, RimWorld и ShedColony денежные контракты;
+- TTS moderation/approval;
+- stream-session identity и устойчивость background loops.
+
+Standalone suite не заменяет игровые smoke-тесты: engine API, установка,
+совместимость версий, restart/reconnect и lost ACK должны дополнительно
+проверяться в реальной игре. Production smoke выполняется после отдельного
+preflight и не должен подменять локальные regression tests.
 
 ---
 

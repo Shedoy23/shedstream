@@ -63,8 +63,8 @@ Manager. Однако R0 release gate пока **не пройден**: перв
 
 | Integration | Runtime manifest | Game artefact / версия | Текущее доказательство | Статус для Manager |
 |---|---|---|---|---|
-| Bannerlord | `0.1.0-scaffold` — метка устарела | `SubModule.xml` `v0.1.0`; target игры 1.3.15 по документации | Рабочий C# connector и исторический prod E2E | Не выбран: сложнее packaging/dependencies, нет канонического install archive |
-| RimWorld | `0.1.0` с устаревшей пометкой pre-migration | `RimLink-2026-08-04-hardening.zip`; About заявляет 1.5/1.6 | Build и backend regressions есть; in-game hardening smoke не завершён | Условный первый кандидат |
+| Bannerlord | `0.1.0` | `SubModule.xml` `v0.1.0`; target игры 1.3.15 по документации | Рабочий C# connector и исторический prod E2E | Не выбран: сложнее packaging/dependencies, нет канонического install archive |
+| RimWorld | `0.1.0` | `RimLink-2026-08-04-hardening.zip`; About заявляет 1.5/1.6 | Build и backend regressions есть; in-game hardening smoke не завершён | Условный первый кандидат |
 | ShedColony | `0.1.0` | `shedcolony-0.1.0.jar`, Minecraft 1.21.1 + NeoForge + MineColonies | Есть checksum и ручная инструкция; source connector находится вне repo | Не выбран: сборка не воспроизводится из этого repository |
 
 Номера runtime manifest сейчас нельзя использовать как надёжный источник версии
@@ -118,10 +118,10 @@ Windows credential storage, а не в своём manifest.
 2. Добавить install/upgrade/rollback инструкции для Bannerlord и RimWorld.
 3. Вернуть ShedColony source/build pipeline в канонический repository либо
    документировать отдельный versioned upstream.
-4. Усилить special-action regression явной проверкой сохранения исходного
-   `action_id` и terminal status, а не только косвенной проверкой через refund.
-5. Обновить устаревший раздел testing strategy в `ARCHITECTURE.md`, где всё ещё
-   написано, что автоматических тестов нет.
+4. ~~Усилить special-action regression проверкой исходного `action_id` и
+   terminal status.~~ Выполнено локально после аудита.
+5. ~~Обновить устаревший testing strategy в `ARCHITECTURE.md`.~~ Выполнено
+   локально после аудита.
 
 ## Минимальная telemetry для Manager
 

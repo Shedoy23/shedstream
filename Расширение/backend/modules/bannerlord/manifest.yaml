@@ -1,21 +1,14 @@
 # Bannerlord module manifest — соответствует docs/MODULE_API.md §5.
 #
-# СТАТУС: scaffold для архитектурной валидации (этап 3 step 6.c).
-# Это НЕ полноценный модуль — это «второй модуль» который тестирует что
-# Game Bridge SDK (modules/_base.py + routes/module_api.py) game-agnostic.
-# Если Bannerlord scaffold загружается без core-кодовых правок — значит
-# архитектура корректна. Иначе — реcfactor.
-#
-# Полноценный Bannerlord-модуль:
-#   - C# submodule в самой Bannerlord (BLT-based, ~3-5 недель работы)
-#   - Реальные events/actions в _adapter.py (~200-400 строк)
-#   - См. memory/project_bannerlord_module.md для полного плана MVP
+# Рабочий runtime-контракт для C# connector `BannerlordLink/` и backend adapter.
+# Installation/version metadata для будущего Manager намеренно будет отдельным
+# контрактом: этот manifest описывает только Module API capabilities.
 
 id: bannerlord
-version: 0.1.0-scaffold
+version: 0.1.0
 core_api_version: ">=1.0.0,<2.0.0"
 display_name: "Mount & Blade II: Bannerlord"
-description: "Параллельная вселенная — зрители как герои в свите стримера. SCAFFOLD ONLY (этап 3 step 6.c) — функциональный модуль придёт когда напишется C# submodule."
+description: "Зрители живут в кампании стримера как герои: развиваются, сражаются, создают семьи, отряды и владения."
 icon: "icon.png"
 
 # Стандартные events (см. MODULE_API.md §7) — Bannerlord замапит свои

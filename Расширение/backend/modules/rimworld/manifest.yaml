@@ -5,7 +5,7 @@
 # (~1981 строк) и существующего C# мода `RimLink/Source/`.
 
 id: rimworld
-version: 0.1.0                         # Pre-migration baseline. После полной миграции → 1.0.0.
+version: 0.1.0
 core_api_version: ">=1.0.0,<2.0.0"
 display_name: "RimWorld"
 description: "Двусторонняя интеграция с RimWorld колонией стримера: пешки, ивенты, магазин гена-черта-импланта."

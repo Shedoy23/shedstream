@@ -207,6 +207,13 @@ async def main() -> int:
             request("GET", "/v1/module/rimworld/actions", authorization=module_bearer),
             "rimworld",
         ) == CHANNEL_ID
+        auth_check = await module_api.module_auth_check(
+            "rimworld",
+            request("POST", "/v1/module/rimworld/auth-check", authorization=module_bearer),
+        )
+        assert auth_check.status_code == 200
+        assert payload(auth_check) == {"status": "ok", "module_id": "rimworld"}
+        assert "no-store" in auth_check.headers.get("cache-control", "")
         assert await rimworld.rimworld_mod_auth(
             request("POST", "/api/rimworld/pawns", authorization=module_bearer)
         ) == CHANNEL_ID

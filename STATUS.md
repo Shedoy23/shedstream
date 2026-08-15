@@ -62,6 +62,8 @@
   download, SHA-256 и trusted RSA-PSS publisher signature до распаковки.
   Offline signer готов и требует внешний RSA 3072+ PEM. Production signing key
   и конечный URL ещё не созданы, CTA остаётся выключен.
+- Module credential теперь можно проверить отдельным side-effect-free auth-check:
+  он не создаёт ложный heartbeat и не меняет liveness игры.
 - Активная игра определяется по heartbeat мода; действия выключенной integration
   отклоняются безопасно.
 - Релиз 0.0.2 зафиксирован тегом `submit/0.0.2`; канонический архив хранится в

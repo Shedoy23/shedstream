@@ -70,6 +70,17 @@ public sealed class ManagerApiClient
             accessToken,
             cancellationToken);
 
+    public Task<ModuleAuthCheck> VerifyModuleCredentialAsync(
+        string moduleToken,
+        string moduleId,
+        CancellationToken cancellationToken = default) =>
+        SendAsync<ModuleAuthCheck>(
+            HttpMethod.Post,
+            $"/v1/module/{Uri.EscapeDataString(moduleId)}/auth-check",
+            null,
+            moduleToken,
+            cancellationToken);
+
     public Task LogoutAsync(
         string accessToken,
         CancellationToken cancellationToken = default) =>

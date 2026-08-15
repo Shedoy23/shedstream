@@ -101,6 +101,14 @@ session и разрешённого manifest module. Secret возвращает
 Статус: реализовано локально. Ответ помечен `Cache-Control: no-store`; raw secret
 не хранится в БД и повторно не показывается.
 
+### `POST /v1/module/{module_id}/auth-check`
+
+Проверяет module credential и его точный module scope без записи heartbeat или
+изменения liveness. Manager вызывает endpoint после атомарной записи game config:
+успех подтверждает доступность backend и валидность ключа, но не означает, что
+игра запущена. `Technical Ready` по-прежнему требует отдельный реальный heartbeat
+мода. Ответ помечен `Cache-Control: no-store`.
+
 ### `POST /v1/manager/session/refresh`
 
 Принимает текущий refresh token и атомарно заменяет его новой Manager session в

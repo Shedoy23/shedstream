@@ -30,6 +30,10 @@ public sealed record ModuleCredential(
     [property: JsonPropertyName("expires_at")] double ExpiresAt,
     [property: JsonPropertyName("overlap_until")] double? OverlapUntil = null);
 
+public sealed record ModuleAuthCheck(
+    [property: JsonPropertyName("status")] string Status,
+    [property: JsonPropertyName("module_id")] string ModuleId);
+
 internal sealed record PairingCreateRequest(
     string InstallationId,
     string ModuleId,

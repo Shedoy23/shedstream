@@ -124,6 +124,25 @@ async def module_hello(module_id: str, request: Request):
     return JSONResponse({"status": "welcome", **welcome})
 
 
+@router.post("/v1/module/{module_id}/auth-check", include_in_schema=False)
+async def module_auth_check(module_id: str, request: Request):
+    """Validate connector credentials without creating heartbeat/liveness state.
+
+    Manager uses this after writing game config. A successful response proves
+    only backend reachability and token scope; the real game must still produce
+    its own heartbeat before Technical Ready.
+    """
+    if not get_module(module_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"status": "module_not_found", "module_id": module_id},
+        )
+    await _verify_module_request(request, module_id)
+    response = JSONResponse({"status": "ok", "module_id": module_id})
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 # ── Этап 3 step 2: events endpoint ───────────────────────────────────────────
 
 # In-memory dedup ring. Хранит последние N envelope id'ов чтобы повтор от

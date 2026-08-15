@@ -228,6 +228,9 @@ Test action acknowledged
   atomic swap, rollback и crash-journal recovery проходят Windows self-test;
 - managed XML writer сохраняет неизвестные поля, атомарно меняет только
   manifest selectors и ставит user-only ACL до замены config;
+- отдельный authenticated `auth-check` подтверждает module credential без
+  ложной записи heartbeat/liveness; реальный heartbeat остаётся самостоятельным
+  условием `Technical Ready`;
 - manifest пока использует локальный `source.kind=repository` и честно помечен
   `unsigned`: policy уже требует signed HTTPS, но production key/URL ещё не созданы;
 - production Manager orchestration `package → config → verify` ещё не завершена.

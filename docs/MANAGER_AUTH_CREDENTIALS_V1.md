@@ -1,6 +1,7 @@
 # Manager auth and credential lifecycle v1
 
-Статус: design contract; M110 ledger реализован локально, API ещё не реализован
+Статус: design contract; M110 ledger и auth core реализованы локально, HTTP API
+ещё не подключён
 
 Дата: 2026-08-15
 
@@ -140,6 +141,13 @@ family. Все выборки credential обязательно scoped по `cha
 ограничивает pairing status, добавляет scope/expiry indexes и регистрируется
 идемпотентно. Она пока не подключает issuance/verification API и не меняет legacy
 connector auth.
+
+Локальный `manager_auth.py` реализует persistent approve/deny/expire,
+одноразовый exchange по device secret, hash-only refresh storage и короткий
+подписанный Manager access token. Negative tests проверяют wrong/weak secret,
+pending/denied/expired/duplicate exchange, tampering, expiry, restart persistence
+и fail-closed при отсутствии отдельного pepper. HTTP endpoints и browser approval
+ещё не экспонированы.
 
 ## Token formats
 

@@ -43,5 +43,5 @@ round-trip временного секрета через настоящий Win
 
 ## Следующий шаг
 
-WPF shell состояния `login → detect → install → configure → verify`, затем
-перенос conformance-tested installation transaction в Core.
+Перенос conformance-tested installation transaction в Core, затем подключение
+к уже работающему WPF shell состояний `login → detect → install → configure → verify`.

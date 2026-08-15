@@ -71,5 +71,8 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
-      - name: Manager core security and restart self-test
+      - name: Build Manager WPF app
+        run: dotnet build ShedLink.Manager/src/ShedLink.Manager.App/ShedLink.Manager.App.csproj -c Release
+
+      - name: Manager security, detection and restart self-test
         run: dotnet run --project ShedLink.Manager/tests/ShedLink.Manager.Core.SelfTest/ShedLink.Manager.Core.SelfTest.csproj -c Release

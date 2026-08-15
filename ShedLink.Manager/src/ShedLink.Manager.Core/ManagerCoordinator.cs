@@ -92,6 +92,11 @@ public sealed class ManagerCoordinator
         _pairingId = null;
         _deviceSecret = null;
 
+        var existingToken = _vault.Read(ModuleKey(state.InstallationId, session.ModuleId));
+        if (!string.IsNullOrEmpty(existingToken) && !string.IsNullOrEmpty(state.CredentialId))
+        {
+            return Ready(session, state.CredentialId);
+        }
         var credential = await _api.IssueCredentialAsync(
             session.AccessToken, session.ModuleId, label, cancellationToken);
         _vault.Write(ModuleKey(state.InstallationId, session.ModuleId), credential.ModuleToken);

@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using ShedLink.Manager.Core;
 using ShedLink.Manager.Core.Api;
+using ShedLink.Manager.Core.Detection;
 using ShedLink.Manager.Core.Security;
 using ShedLink.Manager.Core.State;
 
@@ -10,6 +11,7 @@ Directory.CreateDirectory(root);
 try
 {
     await TestCoordinatorAsync(root);
+    TestRimWorldDetection(root);
     TestWindowsVault();
     Console.WriteLine("ALL GREEN — Manager core keeps secrets out of local state and survives restart.");
     return 0;
@@ -78,6 +80,39 @@ static void TestWindowsVault()
         vault.Delete(key);
     }
     Assert(vault.Read(key) is null, "native vault cleanup");
+}
+
+static void TestRimWorldDetection(string root)
+{
+    var steam = Path.Combine(root, "steam");
+    var library = Path.Combine(root, "library");
+    var game = Path.Combine(library, "steamapps", "common", "RimWorld");
+    Directory.CreateDirectory(Path.Combine(steam, "steamapps"));
+    Directory.CreateDirectory(Path.Combine(game, "Mods"));
+    File.WriteAllText(Path.Combine(game, "RimWorldWin64.exe"), string.Empty);
+    File.WriteAllText(
+        Path.Combine(library, "steamapps", "appmanifest_294100.acf"),
+        "\"AppState\" { \"appid\" \"294100\" }");
+    var escapedLibrary = library.Replace("\\", "\\\\");
+    File.WriteAllText(
+        Path.Combine(steam, "steamapps", "libraryfolders.vdf"),
+        $"\"libraryfolders\" {{ \"1\" {{ \"path\" \"{escapedLibrary}\" }} }}");
+
+    var detector = new RimWorldDetectionService();
+    var detected = detector.Detect(new[] { steam });
+    Assert(detected?.RootPath == Path.GetFullPath(game), "Steam library detection");
+    Assert(detected?.Source == DetectionSource.Steam, "Steam detection source");
+    var manual = detector.ValidateManual(game);
+    Assert(manual.Source == DetectionSource.Manual, "manual path validation");
+    try
+    {
+        detector.ValidateManual(root);
+        throw new InvalidOperationException("FAILED: invalid manual path rejected");
+    }
+    catch (InvalidDataException)
+    {
+        Console.WriteLine("  OK  invalid manual path rejected");
+    }
 }
 
 static void Assert(bool condition, string label)

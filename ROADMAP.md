@@ -315,23 +315,27 @@ refresh без неявного отзыва установленных module c
 - restart восстанавливает Manager session через обязательную refresh rotation;
 - Windows self-test проверяет fake-backend flow и реальный Credential Manager
   round-trip; добавлен отдельный CI gate;
-- WPF shell, game detection и production installer ещё не реализованы.
+- WPF shell подключает pairing/resume и показывает account/game/integration
+  stages без отображения secrets;
+- RimWorld находится в основной или дополнительной Steam library; ручная папка
+  принимается только при наличии `RimWorldWin64.exe` и `Mods`;
+- production installer ещё не реализован, поэтому install CTA пока отключён.
 
 ### Scope v1
 
 #### Account
 
-- [ ] Twitch login через системный browser и безопасный OAuth flow.
-- [ ] Определение channel identity.
-- [ ] Получение channel-bound module credential.
-- [ ] Безопасное локальное хранение credential.
+- [x] Twitch login через системный browser и безопасный OAuth flow.
+- [x] Определение channel identity.
+- [x] Получение channel-bound module credential.
+- [x] Безопасное локальное хранение credential.
 - [ ] Logout, revoke и credential rotation.
 
 #### Detection
 
-- [ ] Autodetect выбранной игры.
-- [ ] Ручной выбор path при неудаче.
-- [ ] Проверка, что path действительно относится к нужной игре.
+- [x] Autodetect выбранной игры.
+- [x] Ручной выбор path при неудаче.
+- [x] Проверка, что path действительно относится к нужной игре.
 
 #### Lifecycle
 

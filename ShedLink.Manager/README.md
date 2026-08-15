@@ -15,10 +15,16 @@ browser и использует штатный Windows Credential Manager.
 - восстановление Manager session после перезапуска с обязательной refresh rotation;
 - явный logout с отдельным выбором revoke установленного module credential.
 
+WPF shell уже показывает account/game/integration stages, открывает pairing в
+системном browser, восстанавливает сессию после перезапуска, ищет RimWorld во
+всех Steam libraries и проверяет вручную выбранную папку. Кнопка установки пока
+честно отключена до переноса installation transaction в Core.
+
 Проверка:
 
 ```powershell
 dotnet run --project ShedLink.Manager/tests/ShedLink.Manager.Core.SelfTest
+dotnet run --project ShedLink.Manager/src/ShedLink.Manager.App
 ```
 
 Self-test использует поддельный HTTP backend и временную запись в Windows

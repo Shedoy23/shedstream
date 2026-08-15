@@ -32,12 +32,35 @@ public static partial class InstallationManifestLoader
             throw new InvalidDataException("Manager v1 requires exactly one artifact.");
         }
         var artifact = manifest.Artifacts[0];
-        if (artifact.Source.Kind != "repository" || artifact.Format != "zip" ||
-            artifact.SizeBytes <= 0 || !Sha256Regex().IsMatch(artifact.Sha256))
+        if (artifact.Format != "zip" || artifact.SizeBytes <= 0 ||
+            !Sha256Regex().IsMatch(artifact.Sha256))
         {
             throw new InvalidDataException("Unsupported or invalid artifact contract.");
         }
-        PathBoundary.ValidateRelative(artifact.Source.Path);
+        if (artifact.Source.Kind == "repository")
+        {
+            if (artifact.Source.Path is null || artifact.Source.Url is not null)
+            {
+                throw new InvalidDataException("Repository artifact source is invalid.");
+            }
+            PathBoundary.ValidateRelative(artifact.Source.Path);
+        }
+        else if (artifact.Source.Kind == "https")
+        {
+            if (!IsSafeHttpsUri(artifact.Source.Url) || artifact.Source.Path is not null ||
+                manifest.Security.SignatureStatus != "signed" || artifact.Signature is null ||
+                artifact.Signature.Algorithm != "rsa-pss-sha256" ||
+                !IdentifierRegex().IsMatch(artifact.Signature.KeyId) ||
+                string.IsNullOrWhiteSpace(artifact.Signature.Value))
+            {
+                throw new InvalidDataException(
+                    "HTTPS artifacts require a valid publisher signature contract.");
+            }
+        }
+        else
+        {
+            throw new InvalidDataException("Unsupported artifact source.");
+        }
         PathBoundary.ValidateRelative(artifact.ArchiveRoot);
         if (manifest.Installation.Target.Base != "game_root")
         {
@@ -60,9 +83,15 @@ public static partial class InstallationManifestLoader
         }
     }
 
-    [GeneratedRegex("^[a-z][a-z0-9_]{1,63}$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex("^[a-z][a-z0-9_-]{0,63}$", RegexOptions.CultureInvariant)]
     private static partial Regex IdentifierRegex();
 
     [GeneratedRegex("^[a-f0-9]{64}$", RegexOptions.CultureInvariant)]
     private static partial Regex Sha256Regex();
+
+    private static bool IsSafeHttpsUri(Uri? uri) =>
+        uri is { IsAbsoluteUri: true } &&
+        uri.Scheme == Uri.UriSchemeHttps &&
+        string.IsNullOrEmpty(uri.UserInfo) &&
+        !string.IsNullOrWhiteSpace(uri.Host);
 }

@@ -27,7 +27,15 @@ journal. Managed XML writer сохраняет неизвестные настр
 только объявленные поля и ограничивает ACL файла текущим Windows user.
 
 Install CTA остаётся отключён не из-за transaction engine, а до появления
-Manager-доступного HTTPS release artifact и принятой signature policy.
+Manager-доступного подписанного HTTPS release artifact.
+
+HTTPS download и signature verification уже реализованы fail-closed: redirects,
+HTTP downgrade, размер, SHA-256, неизвестный publisher key и RSA-PSS mismatch
+отклоняются до распаковки. Для включения CTA остаётся создать production key,
+встроить его public half и опубликовать подписанный RimLink archive.
+
+Offline signer находится в `tools/ShedLink.Manager.SignArtifact`; он не создаёт
+и не хранит private key, а принимает внешний PEM только на время запуска.
 
 Проверка:
 

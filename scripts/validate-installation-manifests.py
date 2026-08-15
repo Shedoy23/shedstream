@@ -64,6 +64,13 @@ def validate_manifest(path: Path, schema: dict) -> None:
 
     for artifact in manifest["artifacts"]:
         source = artifact["source"]
+        if source["kind"] == "https":
+            if manifest["security"]["signature_status"] != "signed":
+                fail(f"{path.name}: HTTPS artefact must have signature_status=signed")
+            signature = artifact.get("signature") or {}
+            if signature.get("algorithm") != "rsa-pss-sha256":
+                fail(f"{path.name}: HTTPS artefact must use rsa-pss-sha256")
+            continue
         if source["kind"] != "repository":
             continue
         artifact_path = repository_path(source["path"])

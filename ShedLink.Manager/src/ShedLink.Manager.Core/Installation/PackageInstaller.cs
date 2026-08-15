@@ -15,7 +15,59 @@ public sealed class PackageInstaller
     {
         var manifest = InstallationManifestLoader.Load(manifestPath);
         var artifact = manifest.Artifacts[0];
+        if (artifact.Source.Kind != "repository" || artifact.Source.Path is null)
+        {
+            throw new InvalidDataException("Manifest does not contain a repository artifact.");
+        }
         var archivePath = PathBoundary.CombineWithin(repositoryRoot, artifact.Source.Path);
+        ArtifactVerifier.Verify(archivePath, artifact);
+        return InstallVerifiedArchive(manifest, archivePath, gameRoot, failpoint);
+    }
+
+    public async Task<InstallationResult> InstallHttpsArtifactAsync(
+        string manifestPath,
+        string gameRoot,
+        SecureArtifactDownloader downloader,
+        ArtifactSignatureVerifier signatureVerifier,
+        Action<string>? failpoint = null,
+        CancellationToken cancellationToken = default)
+    {
+        var manifest = InstallationManifestLoader.Load(manifestPath);
+        var artifact = manifest.Artifacts[0];
+        if (artifact.Source.Kind != "https" || artifact.Source.Url is null)
+        {
+            throw new InvalidDataException("Manifest does not contain an HTTPS artifact.");
+        }
+        var downloadRoot = Path.Combine(
+            Path.GetTempPath(), "ShedLink", "Manager", Guid.NewGuid().ToString("N"));
+        var archivePath = Path.Combine(downloadRoot, "artifact.zip");
+        try
+        {
+            await downloader.DownloadAsync(
+                artifact.Source.Url,
+                manifest,
+                artifact,
+                signatureVerifier,
+                archivePath,
+                cancellationToken);
+            return InstallVerifiedArchive(manifest, archivePath, gameRoot, failpoint);
+        }
+        finally
+        {
+            if (Directory.Exists(downloadRoot))
+            {
+                Directory.Delete(downloadRoot, recursive: true);
+            }
+        }
+    }
+
+    private static InstallationResult InstallVerifiedArchive(
+        InstallationManifest manifest,
+        string archivePath,
+        string gameRoot,
+        Action<string>? failpoint)
+    {
+        var artifact = manifest.Artifacts[0];
         ArtifactVerifier.Verify(archivePath, artifact);
         var target = PathBoundary.CombineWithin(
             gameRoot, manifest.Installation.Target.RelativePath);

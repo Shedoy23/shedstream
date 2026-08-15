@@ -59,6 +59,40 @@ def main() -> int:
         jsonschema.ValidationError,
     )
 
+    https_without_signature = copy.deepcopy(manifest)
+    https_without_signature["artifacts"][0]["source"] = {
+        "kind": "https",
+        "url": "https://downloads.example/rimlink.zip",
+    }
+    expect_failure(
+        "HTTPS source without publisher signature is rejected by schema",
+        lambda: schema_validator.validate(https_without_signature),
+        jsonschema.ValidationError,
+    )
+
+    https_unsigned = copy.deepcopy(https_without_signature)
+    https_unsigned["artifacts"][0]["signature"] = {
+        "algorithm": "rsa-pss-sha256",
+        "key_id": "test-release-key",
+        "value": "A" * 344,
+    }
+    schema_validator.validate(https_unsigned)
+    fd, https_unsigned_path = tempfile.mkstemp(
+        suffix=".json", prefix="manifest-https-unsigned-"
+    )
+    os.close(fd)
+    try:
+        Path(https_unsigned_path).write_text(
+            json.dumps(https_unsigned), encoding="utf-8"
+        )
+        expect_failure(
+            "HTTPS source with unsigned security status is rejected",
+            lambda: validator.validate_manifest(Path(https_unsigned_path), schema),
+            ValueError,
+        )
+    finally:
+        Path(https_unsigned_path).unlink(missing_ok=True)
+
     wrong_hash = copy.deepcopy(manifest)
     wrong_hash["artifacts"][0]["sha256"] = "0" * 64
     fd, wrong_hash_path = tempfile.mkstemp(suffix=".json", prefix="manifest-bad-hash-")

@@ -74,5 +74,8 @@ jobs:
       - name: Build Manager WPF app
         run: dotnet build ShedLink.Manager/src/ShedLink.Manager.App/ShedLink.Manager.App.csproj -c Release
 
+      - name: Build offline release signer
+        run: dotnet build ShedLink.Manager/tools/ShedLink.Manager.SignArtifact/ShedLink.Manager.SignArtifact.csproj -c Release
+
       - name: Manager security, detection and restart self-test
         run: dotnet run --project ShedLink.Manager/tests/ShedLink.Manager.Core.SelfTest/ShedLink.Manager.Core.SelfTest.csproj -c Release

@@ -24,6 +24,9 @@ public sealed record InstallationManifest
 
     [JsonPropertyName("health")]
     public required IReadOnlyList<HealthProbe> Health { get; init; }
+
+    [JsonPropertyName("security")]
+    public required ManifestSecurity Security { get; init; }
 }
 
 public sealed record InstallationArtifact
@@ -45,6 +48,9 @@ public sealed record InstallationArtifact
 
     [JsonPropertyName("archive_root")]
     public required string ArchiveRoot { get; init; }
+
+    [JsonPropertyName("signature")]
+    public ArtifactSignature? Signature { get; init; }
 }
 
 public sealed record ArtifactSource
@@ -53,7 +59,31 @@ public sealed record ArtifactSource
     public required string Kind { get; init; }
 
     [JsonPropertyName("path")]
-    public required string Path { get; init; }
+    public string? Path { get; init; }
+
+    [JsonPropertyName("url")]
+    public Uri? Url { get; init; }
+}
+
+public sealed record ArtifactSignature
+{
+    [JsonPropertyName("algorithm")]
+    public required string Algorithm { get; init; }
+
+    [JsonPropertyName("key_id")]
+    public required string KeyId { get; init; }
+
+    [JsonPropertyName("value")]
+    public required string Value { get; init; }
+}
+
+public sealed record ManifestSecurity
+{
+    [JsonPropertyName("publisher")]
+    public required string Publisher { get; init; }
+
+    [JsonPropertyName("signature_status")]
+    public required string SignatureStatus { get; init; }
 }
 
 public sealed record InstallationRules

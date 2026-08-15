@@ -124,8 +124,36 @@
           "size_bytes": { "type": "integer", "minimum": 1 },
           "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
           "format": { "enum": ["zip"] },
-          "archive_root": { "$ref": "#/$defs/relative_path" }
-        }
+          "archive_root": { "$ref": "#/$defs/relative_path" },
+          "signature": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["algorithm", "key_id", "value"],
+            "properties": {
+              "algorithm": { "const": "rsa-pss-sha256" },
+              "key_id": { "$ref": "#/$defs/id" },
+              "value": {
+                "type": "string",
+                "minLength": 344,
+                "maxLength": 1024,
+                "pattern": "^[A-Za-z0-9+/]+={0,2}$"
+              }
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "source": {
+                  "properties": { "kind": { "const": "https" } },
+                  "required": ["kind"]
+                }
+              }
+            },
+            "then": { "required": ["signature"] }
+          }
+        ]
       }
     },
     "installation": {

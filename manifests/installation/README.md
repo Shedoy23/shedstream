@@ -24,5 +24,9 @@ atomic directory swap и recovery. Он фиксирует требуемое п
 
 `source.kind=repository` означает, что artefact пока локальный и manifest ещё не
 готов для внешнего Manager. Перед alpha source должен стать HTTPS URL, а
-`signature_status=unsigned` — либо получить подпись, либо остаться явно принятым
-риском при обязательной SHA-256 проверке.
+`signature_status=unsigned` обязан стать `signed`.
+
+Для внешнего Manager unsigned HTTPS больше не допускается: v1 schema требует
+artifact signature, validator требует `signature_status=signed`, а Manager Core
+проверяет RSA-PSS publisher key. Точный payload и release process:
+`docs/MANAGER_RELEASE_SIGNATURE_POLICY_V1.md`.

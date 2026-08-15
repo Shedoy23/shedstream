@@ -18,6 +18,7 @@ try
     await TestCoordinatorAsync(root);
     TestRimWorldDetection(root);
     TestInstallation(root);
+    await TestHttpsDistributionAsync(root);
     TestWindowsVault();
     Console.WriteLine("ALL GREEN — Manager core keeps secrets out of local state and survives restart.");
     return 0;
@@ -170,7 +171,8 @@ static void TestInstallation(string root)
           {"name": "module_token", "selector": "/SettingsBlock/ModSettings/moduleToken", "value_source": "channel_module_token", "secret": true}
         ]
       },
-      "health": [{"id": "assembly_present", "kind": "path_exists", "path": "Assemblies/RimLink.dll", "required": true}]
+      "health": [{"id": "assembly_present", "kind": "path_exists", "path": "Assemblies/RimLink.dll", "required": true}],
+      "security": {"publisher": "shedoy23", "signature_status": "unsigned"}
     }
     """);
 
@@ -258,6 +260,139 @@ static void TestInstallation(string root)
         "secret config ACL limited to current user");
 }
 
+static async Task TestHttpsDistributionAsync(string root)
+{
+    var repository = Path.Combine(root, "repository");
+    var archivePath = Path.Combine(repository, "artifact.zip");
+    var repositoryManifest = File.ReadAllText(Path.Combine(repository, "manifest.json"));
+    var remoteText = repositoryManifest
+        .Replace(
+            "\"source\": {\"kind\": \"repository\", \"path\": \"artifact.zip\"}",
+            "\"source\": {\"kind\": \"https\", \"url\": \"https://downloads.test/rimlink.zip\"}",
+            StringComparison.Ordinal)
+        .Replace(
+            "\"archive_root\": \"RimLink\"",
+            "\"archive_root\": \"RimLink\", \"signature\": {\"algorithm\": \"rsa-pss-sha256\", \"key_id\": \"test_release_key\", \"value\": \"AA==\"}",
+            StringComparison.Ordinal)
+        .Replace(
+            "\"signature_status\": \"unsigned\"",
+            "\"signature_status\": \"signed\"",
+            StringComparison.Ordinal);
+    var remoteManifestPath = Path.Combine(repository, "remote-manifest.json");
+    File.WriteAllText(remoteManifestPath, remoteText);
+    var unsignedManifest = InstallationManifestLoader.Load(remoteManifestPath);
+    using var signingKey = RSA.Create(2048);
+    var signature = signingKey.SignData(
+        ArtifactSignatureVerifier.SigningPayload(
+            unsignedManifest, unsignedManifest.Artifacts[0]),
+        HashAlgorithmName.SHA256,
+        RSASignaturePadding.Pss);
+    remoteText = remoteText.Replace(
+        "\"value\": \"AA==\"",
+        "\"value\": \"" + Convert.ToBase64String(signature) + "\"",
+        StringComparison.Ordinal);
+    File.WriteAllText(remoteManifestPath, remoteText);
+    var signedManifest = InstallationManifestLoader.Load(remoteManifestPath);
+    var verifier = new ArtifactSignatureVerifier(new Dictionary<string, string>
+    {
+        ["test_release_key"] = signingKey.ExportSubjectPublicKeyInfoPem(),
+    });
+    verifier.Verify(signedManifest, signedManifest.Artifacts[0]);
+    Console.WriteLine("  OK  publisher RSA-PSS signature verified");
+
+    var archiveBytes = File.ReadAllBytes(archivePath);
+    var remoteGame = Path.Combine(root, "remote-game");
+    Directory.CreateDirectory(Path.Combine(remoteGame, "Mods"));
+    using (var downloader = new SecureArtifactDownloader(
+        new ArtifactDownloadHandler(archiveBytes, HttpStatusCode.OK)))
+    {
+        var installed = await new PackageInstaller().InstallHttpsArtifactAsync(
+            remoteManifestPath, remoteGame, downloader, verifier);
+        Assert(File.Exists(Path.Combine(installed.TargetPath, "Assemblies", "RimLink.dll")),
+            "signed HTTPS artifact installed");
+    }
+
+    var redirectTarget = Path.Combine(root, "redirect-download.zip");
+    using (var downloader = new SecureArtifactDownloader(
+        new ArtifactDownloadHandler(Array.Empty<byte>(), HttpStatusCode.Redirect)))
+    {
+        try
+        {
+            await downloader.DownloadAsync(
+                signedManifest.Artifacts[0].Source.Url!,
+                signedManifest,
+                signedManifest.Artifacts[0],
+                verifier,
+                redirectTarget);
+            throw new InvalidOperationException("FAILED: HTTPS redirect rejected");
+        }
+        catch (InvalidDataException)
+        {
+            Assert(!File.Exists(redirectTarget), "HTTPS redirect rejected and temp removed");
+        }
+    }
+
+    var tampered = archiveBytes.ToArray();
+    tampered[0] ^= 0x01;
+    var tamperedTarget = Path.Combine(root, "tampered-download.zip");
+    using (var downloader = new SecureArtifactDownloader(
+        new ArtifactDownloadHandler(tampered, HttpStatusCode.OK)))
+    {
+        try
+        {
+            await downloader.DownloadAsync(
+                signedManifest.Artifacts[0].Source.Url!,
+                signedManifest,
+                signedManifest.Artifacts[0],
+                verifier,
+                tamperedTarget);
+            throw new InvalidOperationException("FAILED: tampered download rejected");
+        }
+        catch (InvalidDataException)
+        {
+            Assert(!File.Exists(tamperedTarget), "tampered download rejected and temp removed");
+        }
+    }
+
+    var existingTarget = Path.Combine(root, "existing-download.zip");
+    File.WriteAllText(existingTarget, "owner-data");
+    using (var downloader = new SecureArtifactDownloader(
+        new ArtifactDownloadHandler(archiveBytes, HttpStatusCode.OK)))
+    {
+        try
+        {
+            await downloader.DownloadAsync(
+                signedManifest.Artifacts[0].Source.Url!,
+                signedManifest,
+                signedManifest.Artifacts[0],
+                verifier,
+                existingTarget);
+            throw new InvalidOperationException("FAILED: existing download target preserved");
+        }
+        catch (IOException)
+        {
+            Assert(File.ReadAllText(existingTarget) == "owner-data",
+                "existing download target preserved");
+        }
+    }
+
+    File.WriteAllText(
+        remoteManifestPath,
+        remoteText.Replace(
+            "\"signature_status\": \"signed\"",
+            "\"signature_status\": \"unsigned\"",
+            StringComparison.Ordinal));
+    try
+    {
+        InstallationManifestLoader.Load(remoteManifestPath);
+        throw new InvalidOperationException("FAILED: unsigned HTTPS manifest rejected");
+    }
+    catch (InvalidDataException)
+    {
+        Console.WriteLine("  OK  unsigned HTTPS manifest rejected");
+    }
+}
+
 static void Assert(bool condition, string label)
 {
     if (!condition)
@@ -339,4 +474,35 @@ sealed class FakeManagerHandler : HttpMessageHandler
     {
         Content = new StringContent(value, Encoding.UTF8, "application/json"),
     };
+}
+
+sealed class ArtifactDownloadHandler : HttpMessageHandler
+{
+    private readonly byte[] _payload;
+    private readonly HttpStatusCode _status;
+
+    public ArtifactDownloadHandler(byte[] payload, HttpStatusCode status)
+    {
+        _payload = payload;
+        _status = status;
+    }
+
+    protected override Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        if (request.RequestUri?.Scheme != Uri.UriSchemeHttps)
+        {
+            throw new InvalidOperationException("Downloader attempted a non-HTTPS request.");
+        }
+        var response = new HttpResponseMessage(_status)
+        {
+            Content = new ByteArrayContent(_payload),
+        };
+        if ((int)_status is >= 300 and <= 399)
+        {
+            response.Headers.Location = new Uri("http://downgrade.test/artifact.zip");
+        }
+        return Task.FromResult(response);
+    }
 }

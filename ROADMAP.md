@@ -229,8 +229,8 @@ Test action acknowledged
 - managed XML writer сохраняет неизвестные поля, атомарно меняет только
   manifest selectors и ставит user-only ACL до замены config;
 - manifest пока использует локальный `source.kind=repository` и честно помечен
-  `unsigned`: до внешней alpha нужны HTTPS distribution и решение по подписи;
-- production Manager installer ещё не реализован.
+  `unsigned`: policy уже требует signed HTTPS, но production key/URL ещё не созданы;
+- production Manager orchestration `package → config → verify` ещё не завершена.
 
 Auth/credential contract зафиксирован в
 `docs/MANAGER_AUTH_CREDENTIALS_V1.md`: system-browser pairing, отсутствие Twitch
@@ -327,6 +327,11 @@ refresh без неявного отзыва установленных module c
 - production installation engine реализован в Core и проверяет реальный
   manifest; install CTA пока отключён до HTTPS distribution/signature policy и
   orchestration шага `package → config → verify`.
+- HTTPS downloader и publisher verifier реализованы fail-closed: redirect/HTTP
+  downgrade, wrong/truncated/oversized bytes, SHA mismatch, unknown key и
+  RSA-PSS mismatch не доходят до staging. Policy зафиксирована в
+  `docs/MANAGER_RELEASE_SIGNATURE_POLICY_V1.md`; offline signer проверяет ZIP,
+  требует RSA 3072+ и атомарно обновляет manifest. Production key/URL ещё не созданы.
 
 ### Scope v1
 

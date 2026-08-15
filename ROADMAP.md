@@ -5,10 +5,8 @@
 Горизонт: от текущего рабочего продукта до подтверждённого self-service SaaS
 Статус: новый roadmap; заменяет завершённый предыдущий roadmap
 
-> Важно: roadmap составлен по audit-снимку `dist/audit`, который отстаёт от
-> актуального source tree. Первая задача — сверить baseline с текущим HEAD.
-> Статус задачи нельзя считать `Done` только потому, что похожая реализация
-> присутствует в audit-снимке.
+> Baseline актуального HEAD и production повторно проверен 2026-08-15.
+> Результаты и evidence: `docs/R0_GAP_ANALYSIS_2026-08-15.md`.
 
 ---
 
@@ -162,19 +160,31 @@ Test action acknowledged
 
 ### Работы
 
-- [ ] Повторить gap analysis в актуальном HEAD, не в `dist/audit`.
-- [ ] Составить список реально поддерживаемых integrations и их release-версий.
-- [ ] Зафиксировать текущую ручную установку каждой интеграции.
-- [ ] Инвентаризировать credentials, secrets, config files и update process.
-- [ ] Проверить все специальные платные Bannerlord handlers на сохранение
+- [x] Повторить gap analysis в актуальном HEAD, не в `dist/audit`.
+- [x] Составить список реально поддерживаемых integrations и их release-версий.
+- [x] Зафиксировать текущую ручную установку каждой интеграции.
+- [x] Инвентаризировать credentials, secrets, config files и update process.
+- [x] Проверить специальные платные Bannerlord handlers на сохранение
       `price`, `client_action_id`, исходного `action_id` и terminal result.
-- [ ] Проверить tenant scope во всех queue/poll/ACK/state путях.
-- [ ] Проверить lifecycle:
+- [x] Проверить tenant scope в queue/poll/ACK/state путях по текущему
+      автоматическому покрытию.
+- [x] Проверить lifecycle:
       `charge → enqueue → deliver → apply/refuse → ACK → refund`.
-- [ ] Проверить duplicate request, duplicate ACK, lost ACK, restart и reconnect.
+- [x] Проверить duplicate request, duplicate ACK, lost ACK, restart и reconnect;
+      live RimWorld smoke остаётся release-gate задачей.
 - [ ] Выбрать первую Manager integration. Предпочтительный кандидат — RimWorld,
-      если актуальный HEAD подтверждает её live E2E готовность.
-- [ ] Зафиксировать минимальный набор telemetry для Manager и воронки.
+      после подтверждения её live E2E готовности.
+- [x] Зафиксировать минимальный набор telemetry для Manager и воронки.
+
+### Результат baseline 2026-08-15
+
+- полный backend suite: 44/44 green;
+- production healthy, DB `quick_check=ok`, незавершённых module actions нет;
+- денежных и tenant P0 в проверенных путях не найдено;
+- RimWorld выбран условным кандидатом, но не утверждён до live smoke;
+- release gate остаётся открытым из-за live restart/lost-ACK проверки, restore
+  drill свежего backup и отсутствующего installation/version contract;
+- отдельно обнаружен P2: M109 не регистрируется в `migrations_applied`.
 
 ### Release gate
 

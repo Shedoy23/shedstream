@@ -4,7 +4,7 @@
 
 ## Источник истины
 
-- Активная ветка: `afterlait-main`.
+- Активный checkout: `main`.
 - Канонический remote: `afterlait/main`.
 - Текущий продуктовый план: `ROADMAP.md`.
 - Эксплуатационные процедуры: `RUNBOOK.md`.
@@ -26,9 +26,12 @@
 
 ## Последнее подтверждённое состояние продукта
 
-- Ветка `afterlait-main` синхронизирована с `afterlait/main` на 2026-08-06.
-- Исправлено создание двух `stream_sessions` на один эфир; live-подтверждение
-  одной строки на следующем реальном стриме ещё требуется.
+- R0 baseline проверен на source commit `03b1fa9` и на production; полный отчёт:
+  `docs/R0_GAP_ANALYSIS_2026-08-15.md`.
+- Production healthy: публичные страницы отвечают HTTP 200, база проходит
+  `quick_check`, незавершённых module actions и отрицательных балансов нет.
+- Исправление двух `stream_sessions` live-подтверждено на эфирах 11, 13 и
+  14 августа: один Twitch stream ID на непрерывный эфир.
 - Активная игра определяется по heartbeat мода; действия выключенной integration
   отклоняются безопасно.
 - Релиз 0.0.2 зафиксирован тегом `submit/0.0.2`; канонический архив хранится в
@@ -39,16 +42,17 @@
 
 `R0 — Current HEAD Baseline and Release Gate` из `ROADMAP.md`.
 
-Ближайший результат — достоверный baseline актуального HEAD и выбор первой игры
-для Manager vertical slice.
+Baseline актуального HEAD завершён. RimWorld — условный кандидат для Manager
+vertical slice, но R0 release gate ещё не пройден.
 
 ## Следующие действия
 
-1. Сверить открытые P0/P1 из исторических документов с актуальным HEAD.
-2. На ближайшем реальном стриме подтвердить одну `stream_sessions` на эфир.
-3. Зафиксировать ручную установку и configuration/secrets matrix интеграций.
-4. Выбрать первую Manager integration.
-5. Описать Installation Manifest v1 отдельно от runtime manifest.
+1. Исправить отсутствие M109 marker в `migrations_applied` и добавить regression.
+2. Выполнить RimWorld live smoke: apply/refuse, lost ACK, restart и reconnect.
+3. Провести restore drill свежего production compressed backup в изоляции.
+4. После live smoke окончательно утвердить первую Manager integration.
+5. Описать Installation Manifest v1 и единый version ledger отдельно от runtime
+   manifest.
 
 ## Правило обновления
 

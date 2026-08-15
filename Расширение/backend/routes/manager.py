@@ -45,6 +45,10 @@ def _auth_error(exc: Exception) -> JSONResponse:
         "module_scope_mismatch": 403,
         "credential_not_found": 404,
         "credential_not_active": 409,
+        "invalid_refresh_token": 401,
+        "refresh_reuse_detected": 401,
+        "manager_session_expired": 401,
+        "invalid_manager_session": 401,
     }
     return JSONResponse({"status": code}, status_code=statuses.get(code, 400))
 
@@ -131,6 +135,36 @@ async def manager_pairing_exchange(pairing_id: str, request: Request):
                 conn, pairing_id, str(body.get("device_secret") or "")
             )
         return JSONResponse({"status": "ok", **result})
+    except (manager_auth.ManagerAuthError, manager_auth.ManagerAuthUnavailable) as exc:
+        return _auth_error(exc)
+
+
+@router.post("/v1/manager/session/refresh", include_in_schema=False)
+async def manager_session_refresh(request: Request):
+    if not check_rate_limit(_client_key(request, "session_refresh"), limit=30):
+        return JSONResponse({"status": "rate_limited"}, status_code=429)
+    try:
+        body = await _json_body(request)
+        db = get_db()
+        async with db._connect() as conn:
+            result = await manager_auth.refresh_manager_session(
+                conn, str(body.get("refresh_token") or "")
+            )
+        return _secret_response({"status": "ok", **result})
+    except (manager_auth.ManagerAuthError, manager_auth.ManagerAuthUnavailable) as exc:
+        return _auth_error(exc)
+
+
+@router.post("/v1/manager/logout", include_in_schema=False)
+async def manager_session_logout(request: Request):
+    if not check_rate_limit(_client_key(request, "session_logout"), limit=30):
+        return JSONResponse({"status": "rate_limited"}, status_code=429)
+    try:
+        claims = await _manager_claims(request)
+        db = get_db()
+        async with db._connect() as conn:
+            await manager_auth.revoke_manager_session(conn, claims)
+        return _secret_response({"status": "ok", "logged_out": True})
     except (manager_auth.ManagerAuthError, manager_auth.ManagerAuthUnavailable) as exc:
         return _auth_error(exc)
 

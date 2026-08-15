@@ -241,6 +241,9 @@ request/rate limits. Manager API выдаёт, ротирует и немедл�
 хранится. Общий Module API и RimWorld ingest принимают новый credential с
 точным scope `channel_id + module_id`, одновременно сохраняя legacy token на
 период миграции. Rotation overlap ограничен 10 минутами и переживает restart.
+Manager refresh token теперь одноразово ротируется; повтор использованного
+token отзывает всю session family, а logout немедленно закрывает access и
+refresh без неявного отзыва установленных module credentials.
 Полный backend suite после подключения: 48/48 green.
 
 ### Разделение контрактов

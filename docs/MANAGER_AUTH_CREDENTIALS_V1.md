@@ -1,7 +1,7 @@
 # Manager auth and credential lifecycle v1
 
-Статус: M110/M111 ledger, pairing и opaque module credential lifecycle
-реализованы локально; refresh rotation/logout и desktop storage ещё впереди
+Статус: M110/M111 ledger, pairing, refresh/logout и opaque module credential
+lifecycle реализованы локально; desktop storage/installer ещё впереди
 
 Дата: 2026-08-15
 
@@ -101,6 +101,14 @@ session и разрешённого manifest module. Secret возвращает
 Статус: реализовано локально. Ответ помечен `Cache-Control: no-store`; raw secret
 не хранится в БД и повторно не показывается.
 
+### `POST /v1/manager/session/refresh`
+
+Принимает текущий refresh token и атомарно заменяет его новой Manager session в
+той же family. Старые access/refresh немедленно перестают работать. Повторное
+использование уже заменённого refresh token считается replay и отзывает всю
+family, включая session, выигравшую конкурентную гонку. Абсолютный 30-дневный
+срок family не продлевается.
+
 ### `POST /v1/manager/module-credentials/{id}/rotate`
 
 Создаёт replacement с overlap ровно до 10 минут. Старый credential работает
@@ -117,6 +125,8 @@ session и разрешённого manifest module. Secret возвращает
 
 Отзывает manager session/refresh family. Module credentials не отзываются молча:
 UI отдельно спрашивает, нужно ли отключить установленные integrations.
+
+Статус: backend endpoint реализован локально; desktop UI ещё не реализован.
 
 ## Server-side ledger
 
@@ -164,6 +174,12 @@ overlap, revoke идемпотентен. Общий Module API и RimWorld inge
 `slmod_v1`; missing, tampered, expired, revoked и wrong-module token получают
 одинаковый `401 auth_failed`. Legacy HMAC verification сохранена на переходный
 период.
+
+Refresh endpoint хранит только peppered hash текущего token. Каждая успешная
+ротация создаёт новый session ID и отзывает предыдущий; replay старой строки
+отзывает все строки с тем же `refresh_family_id`. Logout использует короткий
+access token и отзывает family, но не меняет отдельно управляемые module
+credentials.
 
 Новые production settings:
 
@@ -225,14 +241,15 @@ Server-side revoke действует сразу и переживает restart
 | Утечка БД | В ledger только peppered hashes |
 | Утечка diagnostic bundle | Central redaction + negative fixtures |
 | Потеря сети при rotation | Overlap + handshake-before-finalize + rollback |
-| Refresh token replay | Rotating family; reuse отзывает всю family |
+| Refresh token replay | Реализованная rotating family; reuse отзывает всю family |
 | Legacy token после revoke | V1 revoke работает только для opaque token; legacy отключается отдельным migration gate |
 
 Automated tests уже покрывают approve/deny/expire, duplicate exchange, wrong
 device secret, cross-module request, rotate success и ограничение overlap,
 немедленный повторяемый revoke, tampering, hash-only storage, общий Module API,
-RimWorld auth и restart persistence. Ещё нужны refresh replay, desktop
-rotate-rollback и central diagnostic redaction.
+RimWorld auth, restart persistence, refresh expiry/logout и конкурентный refresh
+replay с family revoke. Ещё нужны desktop rotate-rollback и central diagnostic
+redaction.
 
 ## Переход с legacy HMAC token
 

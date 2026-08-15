@@ -305,6 +305,111 @@ async def verify_access_token(conn, token: str, now: Optional[float] = None) -> 
     }
 
 
+async def refresh_manager_session(
+    conn,
+    refresh_token: str,
+    now: Optional[float] = None,
+) -> dict:
+    now = float(time.time() if now is None else now)
+    parts = (refresh_token or "").split(".")
+    if len(parts) != 3 or parts[0] != "slmgrr_v1" or not parts[1] or not parts[2]:
+        raise ManagerAuthError("invalid_refresh_token")
+    session_id = parts[1]
+    await conn.execute("BEGIN IMMEDIATE")
+    try:
+        cur = await conn.execute(
+            "SELECT channel_id,installation_id_hash,refresh_hash,refresh_family_id,"
+            "expires_at,revoked_at,module_id FROM manager_sessions WHERE id=?",
+            (session_id,),
+        )
+        row = await cur.fetchone()
+        supplied_hash = _hash("refresh", refresh_token)
+        if not row or not hmac.compare_digest(
+            row[2] if row else ("0" * 64), supplied_hash
+        ):
+            raise ManagerAuthError("invalid_refresh_token")
+        if row[5] is not None:
+            await conn.execute(
+                "UPDATE manager_sessions SET revoked_at=COALESCE(revoked_at,?) "
+                "WHERE refresh_family_id=?",
+                (now, row[3]),
+            )
+            await conn.commit()
+            raise ManagerAuthError("refresh_reuse_detected")
+        if row[4] <= now or int(row[4]) <= now or not row[6]:
+            await conn.execute(
+                "UPDATE manager_sessions SET revoked_at=COALESCE(revoked_at,?) "
+                "WHERE refresh_family_id=?",
+                (now, row[3]),
+            )
+            await conn.commit()
+            raise ManagerAuthError("manager_session_expired")
+
+        new_session_id = secrets.token_urlsafe(16)
+        new_secret = secrets.token_urlsafe(32)
+        new_refresh_token = f"slmgrr_v1.{new_session_id}.{new_secret}"
+        access_expires = int(min(now + ACCESS_TTL_SECONDS, row[4]))
+        await conn.execute(
+            "INSERT INTO manager_sessions "
+            "(id,channel_id,installation_id_hash,refresh_hash,refresh_family_id,"
+            "created_at,expires_at,module_id) VALUES (?,?,?,?,?,?,?,?)",
+            (
+                new_session_id,
+                int(row[0]),
+                row[1],
+                _hash("refresh", new_refresh_token),
+                row[3],
+                now,
+                row[4],
+                row[6],
+            ),
+        )
+        await conn.execute(
+            "UPDATE manager_sessions SET revoked_at=?,last_used_at=? WHERE id=?",
+            (now, now, session_id),
+        )
+        await conn.commit()
+        return {
+            "access_token": _access_token(
+                new_session_id, int(row[0]), access_expires
+            ),
+            "access_expires_at": access_expires,
+            "refresh_token": new_refresh_token,
+            "session_expires_at": row[4],
+            "channel_id": int(row[0]),
+            "module_id": row[6],
+        }
+    except ManagerAuthError:
+        if conn.in_transaction:
+            await conn.rollback()
+        raise
+    except Exception:
+        if conn.in_transaction:
+            await conn.rollback()
+        raise
+
+
+async def revoke_manager_session(
+    conn,
+    session_claims: dict,
+    now: Optional[float] = None,
+) -> None:
+    now = float(time.time() if now is None else now)
+    session_id = str(session_claims.get("session_id") or "")
+    cur = await conn.execute(
+        "SELECT refresh_family_id FROM manager_sessions WHERE id=?", (session_id,)
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ManagerAuthError("invalid_manager_session")
+    await conn.execute(
+        "UPDATE manager_sessions SET revoked_at=COALESCE(revoked_at,?) "
+        "WHERE refresh_family_id=?",
+        (now, row[0]),
+    )
+    await conn.commit()
+
+
 def _credential_scope(session_claims: dict, module_id: str) -> tuple[int, str]:
     module_id = (module_id or "").strip()
     if not module_id or session_claims.get("module_id") != module_id:

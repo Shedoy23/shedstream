@@ -228,6 +228,27 @@ async def main() -> int:
                 conn, rotated_body["module_token"], "rimworld"
             ) is None
 
+        refreshed = await routes.manager_session_refresh(json_request(
+            "/v1/manager/session/refresh",
+            {"refresh_token": exchanged_body["refresh_token"]},
+        ))
+        assert refreshed.status_code == 200, refreshed.body
+        assert "no-store" in refreshed.headers.get("cache-control", "")
+        refreshed_body = payload(refreshed)
+        assert refreshed_body["refresh_token"] != exchanged_body["refresh_token"]
+        assert refreshed_body["access_token"] != exchanged_body["access_token"]
+        logged_out = await routes.manager_session_logout(request(
+            "POST", "/v1/manager/logout",
+            authorization="Bearer " + refreshed_body["access_token"],
+        ))
+        assert logged_out.status_code == 200
+        after_logout = await routes.manager_session_refresh(json_request(
+            "/v1/manager/session/refresh",
+            {"refresh_token": refreshed_body["refresh_token"]},
+        ))
+        assert after_logout.status_code == 401
+        assert payload(after_logout)["status"] == "refresh_reuse_detected"
+
         duplicate = await routes.manager_pairing_exchange(
             created["pairing_id"],
             json_request("/exchange", {"device_secret": secret}),
@@ -252,6 +273,8 @@ async def main() -> int:
         assert ("/v1/manager/pairings", ("POST",)) in route_paths
         assert any(path == "/manager/pair" and "POST" in methods for path, methods in route_paths)
         assert any(path == "/v1/manager/module-credentials" for path, _ in route_paths)
+        assert any(path == "/v1/manager/session/refresh" for path, _ in route_paths)
+        assert any(path == "/v1/manager/logout" for path, _ in route_paths)
     finally:
         routes._read_session_cookie = original_cookie
         routes.check_rate_limit = original_rate

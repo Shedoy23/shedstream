@@ -176,6 +176,51 @@ async def main() -> int:
                 "pairing_expired",
             )
 
+            logout_secret = "logout-device-secret-with-32-plus-characters"
+            logout_pairing = await manager_auth.create_pairing(
+                conn, "installation-logout", "rimworld",
+                manager_auth.device_challenge(logout_secret), now=4000,
+            )
+            await manager_auth.decide_pairing(
+                conn, logout_pairing["pairing_id"], 98319857, True, now=4001,
+            )
+            logout_tokens = await manager_auth.exchange_pairing(
+                conn, logout_pairing["pairing_id"], logout_secret, now=4002,
+            )
+            logout_claims = await manager_auth.verify_access_token(
+                conn, logout_tokens["access_token"], now=4003,
+            )
+            await manager_auth.revoke_manager_session(conn, logout_claims, now=4004)
+            assert await manager_auth.verify_access_token(
+                conn, logout_tokens["access_token"], now=4005,
+            ) is None
+            await expect_code(
+                manager_auth.refresh_manager_session(
+                    conn, logout_tokens["refresh_token"], now=4005
+                ),
+                "refresh_reuse_detected",
+            )
+
+            expiry_secret = "expiry-device-secret-with-32-plus-characters"
+            expiry_pairing = await manager_auth.create_pairing(
+                conn, "installation-expiry", "rimworld",
+                manager_auth.device_challenge(expiry_secret), now=5000,
+            )
+            await manager_auth.decide_pairing(
+                conn, expiry_pairing["pairing_id"], 98319857, True, now=5001,
+            )
+            expiry_tokens = await manager_auth.exchange_pairing(
+                conn, expiry_pairing["pairing_id"], expiry_secret, now=5002,
+            )
+            await expect_code(
+                manager_auth.refresh_manager_session(
+                    conn,
+                    expiry_tokens["refresh_token"],
+                    now=expiry_tokens["session_expires_at"] + 1,
+                ),
+                "manager_session_expired",
+            )
+
         # Persistence: access validation still works after reopening the DB.
         async with aiosqlite.connect(path) as reopened:
             claims = await manager_auth.verify_access_token(
@@ -188,6 +233,29 @@ async def main() -> int:
                 "rimworld",
                 now=1016,
             )
+
+            # Two simultaneous refreshes: one rotates, reuse of the old token
+            # revokes the complete family, including the winner's new session.
+            async with aiosqlite.connect(path) as competitor:
+                results = await asyncio.gather(
+                    manager_auth.refresh_manager_session(
+                        reopened, tokens["refresh_token"], now=1007
+                    ),
+                    manager_auth.refresh_manager_session(
+                        competitor, tokens["refresh_token"], now=1007
+                    ),
+                    return_exceptions=True,
+                )
+            rotations = [item for item in results if isinstance(item, dict)]
+            reuses = [
+                item for item in results
+                if isinstance(item, manager_auth.ManagerAuthError)
+                and item.code == "refresh_reuse_detected"
+            ]
+            assert len(rotations) == 1 and len(reuses) == 1, results
+            assert await manager_auth.verify_access_token(
+                reopened, rotations[0]["access_token"], now=1008,
+            ) is None
 
             pepper = os.environ.pop("MANAGER_CREDENTIAL_PEPPER")
             try:

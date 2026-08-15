@@ -221,9 +221,11 @@ Test action acknowledged
 - создан первый RimWorld manifest с реальным archive size/SHA-256, detection,
   install/update/repair/uninstall, rollback, managed config и health probes;
 - validator проверяет schema, границы repository path, size/hash и ZIP traversal;
+- reference transaction проверяет staging, atomic directory swap, rollback и
+  recovery после имитации жёсткого обрыва, не фиксируя будущую UI-технологию;
 - manifest пока использует локальный `source.kind=repository` и честно помечен
   `unsigned`: до внешней alpha нужны HTTPS distribution и решение по подписи;
-- installer и failure/rollback tests ещё не реализованы.
+- production Manager installer ещё не реализован.
 
 ### Разделение контрактов
 
@@ -257,11 +259,11 @@ Test action acknowledged
 
 ### Обязательные свойства installer
 
-- [ ] Manifest и release artefacts проверяются по подписи/hash.
-- [ ] Файлы сначала скачиваются/собираются во временной папке.
-- [ ] Замена выполняется атомарно, где это позволяет игра.
-- [ ] При неудаче доступен rollback к предыдущей рабочей версии.
-- [ ] Manager не пишет за пределами разрешённого game/config path.
+- [x] Manifest и локальный release artefact проверяются по schema/size/SHA-256.
+- [x] Reference core сначала собирает и проверяет staging-копию.
+- [x] Reference core выполняет atomic directory swap.
+- [x] Reference core восстанавливает предыдущую версию после сбоя/обрыва.
+- [x] Reference core отклоняет target за пределами разрешённого game path.
 - [ ] Пользовательские файлы не удаляются без явного подтверждения.
 - [ ] Secrets не включаются в manifest и diagnostic bundle.
 - [ ] Повторный `install()` и `repair()` идемпотентны.
@@ -270,7 +272,8 @@ Test action acknowledged
 
 - [x] JSON Schema или эквивалентная строгая схема Installation Manifest существует;
 - [x] Одна integration описана без hard-coded game lifecycle в core Manager;
-- [ ] Invalid path, hash mismatch, interrupted install и rollback покрыты тестами;
+- [x] Invalid path, hash mismatch, interrupted install и rollback покрыты
+      conformance-тестами;
 - [x] Runtime manifest не перегружен deployment-деталями.
 
 ---

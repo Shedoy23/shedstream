@@ -40,6 +40,9 @@
 - Начат R1: создана Installation Manifest v1 schema и проверяемый RimWorld
   manifest, привязанный к release archive по размеру и SHA-256. Installer ещё
   не реализован; artefact пока локальный и unsigned.
+- Добавлен независимый installation transaction contract: staging verification,
+  path boundary, atomic replace, rollback и recovery после жёсткого обрыва
+  проходят автоматические conformance-тесты. UI stack этим не зафиксирован.
 - Активная игра определяется по heartbeat мода; действия выключенной integration
   отклоняются безопасно.
 - Релиз 0.0.2 зафиксирован тегом `submit/0.0.2`; канонический архив хранится в
@@ -57,10 +60,11 @@ vertical slice, но R0 release gate ещё не пройден.
 
 1. Выполнить RimWorld live smoke: apply/refuse, lost ACK, restart и reconnect.
 2. После live smoke окончательно утвердить первую Manager integration.
-3. Реализовать parser/staging/atomic replace для Installation Manifest и тесты
-   invalid path, hash mismatch, interrupted install и rollback.
-4. Подготовить HTTPS distribution/signature policy для RimLink archive.
-5. Включить M109 repair и обновлённые runtime manifests в следующий штатный
+3. Спроектировать Manager/backend auth и безопасный credential lifecycle.
+4. Перенести проверенный installation transaction contract в production Manager
+   core после выбора desktop stack.
+5. Подготовить HTTPS distribution/signature policy для RimLink archive.
+6. Включить M109 repair и обновлённые runtime manifests в следующий штатный
    production deploy.
 
 ## Правило обновления

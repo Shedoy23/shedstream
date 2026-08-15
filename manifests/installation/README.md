@@ -14,7 +14,13 @@
 ```text
 python -m pip install -r scripts/requirements-manifest.txt
 python scripts/validate-installation-manifests.py
+python scripts/test-installation-manifests.py
+python scripts/test-installation-transaction.py
 ```
+
+`scripts/installation_transaction.py` — platform-neutral reference для staging,
+atomic directory swap и recovery. Он фиксирует требуемое поведение core Manager,
+но не выбирает будущую UI-технологию.
 
 `source.kind=repository` означает, что artefact пока локальный и manifest ещё не
 готов для внешнего Manager. Перед alpha source должен стать HTTPS URL, а

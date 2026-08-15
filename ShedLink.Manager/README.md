@@ -18,7 +18,16 @@ browser и использует штатный Windows Credential Manager.
 WPF shell уже показывает account/game/integration stages, открывает pairing в
 системном browser, восстанавливает сессию после перезапуска, ищет RimWorld во
 всех Steam libraries и проверяет вручную выбранную папку. Кнопка установки пока
-честно отключена до переноса installation transaction в Core.
+честно отключена до готовности безопасной доставки release artifact.
+
+Installation Core уже читает production manifest, проверяет размер/SHA-256,
+безопасно распаковывает ZIP, отклоняет traversal/reparse points, выполняет
+staging + atomic directory swap и восстанавливает прежнюю версию по crash
+journal. Managed XML writer сохраняет неизвестные настройки, атомарно меняет
+только объявленные поля и ограничивает ACL файла текущим Windows user.
+
+Install CTA остаётся отключён не из-за transaction engine, а до появления
+Manager-доступного HTTPS release artifact и принятой signature policy.
 
 Проверка:
 

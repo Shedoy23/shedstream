@@ -55,6 +55,9 @@
   несекретным state и restart recovery. RimWorld определяется в Steam libraries
   либо проверяется по ручному path. Windows build/self-test зелёные и добавлены
   в CI. Install CTA пока отключён; production не обновлён.
+- Installation transaction перенесён в .NET Core: production manifest parsing,
+  artifact size/SHA-256, safe ZIP, reparse guard, atomic swap, rollback и crash
+  recovery зелёные. XML writer сохраняет чужие поля и ставит user-only ACL.
 - Активная игра определяется по heartbeat мода; действия выключенной integration
   отклоняются безопасно.
 - Релиз 0.0.2 зафиксирован тегом `submit/0.0.2`; канонический архив хранится в
@@ -72,10 +75,11 @@ vertical slice, но R0 release gate ещё не пройден.
 
 1. Выполнить RimWorld live smoke: apply/refuse, lost ACK, restart и reconnect.
 2. После live smoke окончательно утвердить первую Manager integration.
-3. Перенести проверенный installation transaction contract в Manager Core.
-4. Подключить install/repair/uninstall к WPF shell.
-5. Реализовать безопасную запись RimWorld XML config с сохранением чужих полей.
-6. Подготовить HTTPS distribution/signature policy для RimLink archive.
+3. Подготовить HTTPS distribution/signature policy для RimLink archive.
+4. Соединить package install + XML config + authenticated verify в одну
+   recoverable Manager operation и включить WPF CTA.
+5. Подключить repair/uninstall к WPF shell с сохранением config по умолчанию.
+6. Добавить heartbeat/test-action diagnostics для `Technical Ready`.
 7. Включить M109 repair, Manager API и обновлённые runtime manifests в следующий штатный
    production deploy.
 

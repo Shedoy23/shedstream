@@ -223,6 +223,11 @@ Test action acknowledged
 - validator проверяет schema, границы repository path, size/hash и ZIP traversal;
 - reference transaction проверяет staging, atomic directory swap, rollback и
   recovery после имитации жёсткого обрыва, не фиксируя будущую UI-технологию;
+- тот же контракт перенесён в production `.NET` Manager Core: production
+  manifest parsing, size/SHA-256, ZIP traversal/reparse rejection, staging,
+  atomic swap, rollback и crash-journal recovery проходят Windows self-test;
+- managed XML writer сохраняет неизвестные поля, атомарно меняет только
+  manifest selectors и ставит user-only ACL до замены config;
 - manifest пока использует локальный `source.kind=repository` и честно помечен
   `unsigned`: до внешней alpha нужны HTTPS distribution и решение по подписи;
 - production Manager installer ещё не реализован.
@@ -319,7 +324,9 @@ refresh без неявного отзыва установленных module c
   stages без отображения secrets;
 - RimWorld находится в основной или дополнительной Steam library; ручная папка
   принимается только при наличии `RimWorldWin64.exe` и `Mods`;
-- production installer ещё не реализован, поэтому install CTA пока отключён.
+- production installation engine реализован в Core и проверяет реальный
+  manifest; install CTA пока отключён до HTTPS distribution/signature policy и
+  orchestration шага `package → config → verify`.
 
 ### Scope v1
 

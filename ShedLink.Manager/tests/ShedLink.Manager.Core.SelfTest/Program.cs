@@ -1,8 +1,13 @@
 using System.Net;
+using System.IO.Compression;
+using System.Security.Cryptography;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Text;
 using ShedLink.Manager.Core;
 using ShedLink.Manager.Core.Api;
 using ShedLink.Manager.Core.Detection;
+using ShedLink.Manager.Core.Installation;
 using ShedLink.Manager.Core.Security;
 using ShedLink.Manager.Core.State;
 
@@ -12,6 +17,7 @@ try
 {
     await TestCoordinatorAsync(root);
     TestRimWorldDetection(root);
+    TestInstallation(root);
     TestWindowsVault();
     Console.WriteLine("ALL GREEN — Manager core keeps secrets out of local state and survives restart.");
     return 0;
@@ -113,6 +119,143 @@ static void TestRimWorldDetection(string root)
     {
         Console.WriteLine("  OK  invalid manual path rejected");
     }
+}
+
+static void TestInstallation(string root)
+{
+    var productionManifest = InstallationManifestLoader.Load(Path.Combine(
+        Environment.CurrentDirectory,
+        "manifests",
+        "installation",
+        "rimworld-0.1.0.json"));
+    Assert(productionManifest.IntegrationId == "rimworld" &&
+        productionManifest.Installation.Target.RelativePath == "Mods/RimLink",
+        "production installation manifest parsed");
+
+    var repository = Path.Combine(root, "repository");
+    var archive = Path.Combine(repository, "artifact.zip");
+    var game = Path.Combine(root, "install-game");
+    var target = Path.Combine(game, "Mods", "RimLink");
+    Directory.CreateDirectory(repository);
+    Directory.CreateDirectory(target);
+    File.WriteAllText(Path.Combine(target, "old-version.txt"), "old");
+    using (var zip = ZipFile.Open(archive, ZipArchiveMode.Create))
+    {
+        var assembly = zip.CreateEntry("RimLink/Assemblies/RimLink.dll");
+        using var writer = new StreamWriter(assembly.Open());
+        writer.Write("new-version");
+    }
+    var size = new FileInfo(archive).Length;
+    var hash = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(archive)))
+        .ToLowerInvariant();
+    var manifestPath = Path.Combine(repository, "manifest.json");
+    File.WriteAllText(manifestPath, $$$"""
+    {
+      "schema_version": 1,
+      "integration_id": "rimworld",
+      "release_version": "test-1",
+      "artifacts": [{
+        "id": "rimlink_mod",
+        "source": {"kind": "repository", "path": "artifact.zip"},
+        "size_bytes": {{{size}}},
+        "sha256": "{{{hash}}}",
+        "format": "zip",
+        "archive_root": "RimLink"
+      }],
+      "installation": {"target": {"base": "game_root", "relative_path": "Mods/RimLink"}},
+      "configuration": {
+        "store": {"kind": "xml", "known_folder": "windows_local_low", "relative_path": "RimLink/settings.xml"},
+        "managed_fields": [
+          {"name": "server_url", "selector": "/SettingsBlock/ModSettings/serverUrl", "value_source": "backend_url", "secret": false},
+          {"name": "module_token", "selector": "/SettingsBlock/ModSettings/moduleToken", "value_source": "channel_module_token", "secret": true}
+        ]
+      },
+      "health": [{"id": "assembly_present", "kind": "path_exists", "path": "Assemblies/RimLink.dll", "required": true}]
+    }
+    """);
+
+    var installer = new PackageInstaller();
+    var installed = installer.InstallRepositoryArtifact(manifestPath, repository, game);
+    Assert(File.Exists(Path.Combine(installed.TargetPath, "Assemblies", "RimLink.dll")),
+        "verified package installed");
+    Assert(!File.Exists(Path.Combine(target, "old-version.txt")),
+        "old package atomically replaced");
+
+    Directory.Delete(target, recursive: true);
+    Directory.CreateDirectory(target);
+    File.WriteAllText(Path.Combine(target, "rollback-marker.txt"), "keep");
+    try
+    {
+        installer.InstallRepositoryArtifact(
+            manifestPath,
+            repository,
+            game,
+            phase =>
+            {
+                if (phase == "installed")
+                {
+                    throw new IOException("simulated interruption");
+                }
+            });
+        throw new InvalidOperationException("FAILED: interrupted install rolled back");
+    }
+    catch (IOException exception) when (exception.Message == "simulated interruption")
+    {
+        Assert(File.Exists(Path.Combine(target, "rollback-marker.txt")),
+            "interrupted install rolled back");
+    }
+
+    var backup = Path.Combine(game, "Mods", ".RimLink.shedlink-backup");
+    var journal = Path.Combine(game, "Mods", ".RimLink.shedlink-transaction.json");
+    Directory.Move(target, backup);
+    Directory.CreateDirectory(target);
+    File.WriteAllText(Path.Combine(target, "partial.txt"), "partial");
+    File.WriteAllText(journal, "{\"phase\":\"installed\"}");
+    Assert(AtomicDirectoryTransaction.Recover(target, game), "crash journal detected");
+    Assert(File.Exists(Path.Combine(target, "rollback-marker.txt")),
+        "crash recovery restored previous version");
+
+    var badArchive = Path.Combine(repository, "traversal.zip");
+    using (var zip = ZipFile.Open(badArchive, ZipArchiveMode.Create))
+    {
+        using var writer = new StreamWriter(zip.CreateEntry("../escape.txt").Open());
+        writer.Write("escape");
+    }
+    try
+    {
+        SafeZipExtractor.Extract(badArchive, Path.Combine(root, "bad-extract"));
+        throw new InvalidOperationException("FAILED: ZIP traversal rejected");
+    }
+    catch (InvalidDataException)
+    {
+        Console.WriteLine("  OK  ZIP traversal rejected");
+    }
+
+    var config = Path.Combine(root, "config", "rimlink.xml");
+    Directory.CreateDirectory(Path.GetDirectoryName(config)!);
+    File.WriteAllText(config,
+        "<SettingsBlock><ModSettings><customValue>keep-me</customValue>" +
+        "<moduleToken>old</moduleToken></ModSettings></SettingsBlock>");
+    ManagedXmlConfiguration.Write(config, new Dictionary<string, string>
+    {
+        ["/SettingsBlock/ModSettings/serverUrl"] = "https://shedoy23.ru",
+        ["/SettingsBlock/ModSettings/moduleToken"] = "slmod_v1.test.secret",
+    });
+    var configured = File.ReadAllText(config);
+    Assert(configured.Contains("keep-me", StringComparison.Ordinal),
+        "unmanaged XML field preserved");
+    Assert(configured.Contains("slmod_v1.test.secret", StringComparison.Ordinal),
+        "managed module credential written");
+    Assert(!File.Exists(config + ".tmp"), "config atomic temp cleaned");
+    var access = new FileInfo(config).GetAccessControl();
+    var currentUser = WindowsIdentity.GetCurrent().User!;
+    var rules = access.GetAccessRules(
+        includeExplicit: true,
+        includeInherited: true,
+        typeof(SecurityIdentifier)).Cast<FileSystemAccessRule>().ToArray();
+    Assert(access.AreAccessRulesProtected && rules.Length > 0 &&
+        rules.All(rule => currentUser.Equals(rule.IdentityReference)),
+        "secret config ACL limited to current user");
 }
 
 static void Assert(bool condition, string label)

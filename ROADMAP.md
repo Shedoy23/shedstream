@@ -232,6 +232,10 @@ Auth/credential contract зафиксирован в
 tokens в desktop app, revocable opaque module credentials, Windows Credential
 Manager, rotation overlap и legacy migration.
 
+M110 локально добавляет persistent ledger pairing/session/module credentials с
+hash-only secrets и strict constraints. Pairing API и opaque verification ещё не
+подключены; legacy connector auth не менялся.
+
 ### Разделение контрактов
 
 #### Runtime Manifest — существующий слой

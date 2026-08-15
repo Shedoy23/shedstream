@@ -627,7 +627,7 @@ Backend имеет standalone regression suite в `backend/tests/`. Канони
 python scripts/run-backend-tests.py
 ```
 
-На 2026-08-15 suite содержит 45 сценариев и проверяет, среди прочего:
+На 2026-08-15 suite содержит 46 сценариев и проверяет, среди прочего:
 
 - fresh install и migration ledger;
 - multi-tenant isolation и channel approval;

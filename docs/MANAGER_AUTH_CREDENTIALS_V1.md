@@ -1,6 +1,7 @@
 # Manager auth and credential lifecycle v1
 
-Статус: design contract, реализация не начата  
+Статус: design contract; M110 ledger реализован локально, API ещё не реализован
+
 Дата: 2026-08-15
 
 ## Решение
@@ -134,6 +135,11 @@ DB хранит hashes, не исходные bearer secrets. Для hash исп
 pepper, отдельный от Twitch OAuth encryption key и legacy HMAC signing key.
 Индексы и uniqueness обеспечивают один exchange pairing и безопасную rotation
 family. Все выборки credential обязательно scoped по `channel_id + module_id`.
+
+Локальная migration `M110.manager_credentials` уже создаёт эти три таблицы,
+ограничивает pairing status, добавляет scope/expiry indexes и регистрируется
+идемпотентно. Она пока не подключает issuance/verification API и не меняет legacy
+connector auth.
 
 ## Token formats
 

@@ -1407,6 +1407,13 @@ async def run_migrations():
             print(f"❌ M109 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m110_manager_credentials
+            await m110_manager_credentials.apply(conn)
+        except Exception as e:
+            print(f"❌ M110 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

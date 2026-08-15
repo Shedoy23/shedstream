@@ -331,8 +331,9 @@ refresh без неявного отзыва установленных module c
   принимается только при наличии `RimWorldWin64.exe` и `Mods`;
 - production installation engine реализован в Core и проверяет реальный
   manifest; repository и signed HTTPS sources проходят единую recoverable
-  orchestration `package → config → auth-check`. Install CTA пока отключён до
-  production signing key и конечного HTTPS release URL.
+  orchestration `package → config → auth-check`. WPF CTA подключён к этой
+  операции, но fail-closed остаётся отключён до production signing key и
+  конечного HTTPS release URL; причина видна в интерфейсе.
 - HTTPS downloader и publisher verifier реализованы fail-closed: redirect/HTTP
   downgrade, wrong/truncated/oversized bytes, SHA mismatch, unknown key и
   RSA-PSS mismatch не доходят до staging. Policy зафиксирована в

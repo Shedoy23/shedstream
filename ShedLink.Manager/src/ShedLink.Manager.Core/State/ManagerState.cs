@@ -9,4 +9,5 @@ public sealed record ManagerState
     public long? ChannelId { get; init; }
     public string? CredentialId { get; init; }
     public string? GameRoot { get; init; }
+    public string? InstalledReleaseVersion { get; init; }
 }

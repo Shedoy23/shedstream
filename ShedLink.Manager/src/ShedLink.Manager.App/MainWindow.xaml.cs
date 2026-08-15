@@ -5,6 +5,7 @@ using Microsoft.Win32;
 using ShedLink.Manager.Core;
 using ShedLink.Manager.Core.Api;
 using ShedLink.Manager.Core.Detection;
+using ShedLink.Manager.Core.Installation;
 using ShedLink.Manager.Core.Security;
 using ShedLink.Manager.Core.State;
 
@@ -15,10 +16,15 @@ public partial class MainWindow : Window
     private readonly ManagerStateStore _stateStore = new();
     private readonly RimWorldDetectionService _detector = new();
     private readonly HttpClient _http;
+    private readonly ManagerApiClient _api;
+    private readonly WindowsCredentialVault _vault;
     private readonly ManagerCoordinator _coordinator;
+    private readonly IntegrationInstallationService _installationService;
     private CancellationTokenSource? _pairingCancellation;
+    private CancellationTokenSource? _installationCancellation;
     private ReadySession? _session;
     private GameInstallation? _game;
+    private bool _installing;
 
     public MainWindow()
     {
@@ -26,21 +32,38 @@ public partial class MainWindow : Window
         var state = _stateStore.LoadOrCreate();
         _http = new HttpClient { BaseAddress = state.BackendUrl };
         _http.Timeout = TimeSpan.FromSeconds(15);
+        _api = new ManagerApiClient(_http);
+        _vault = new WindowsCredentialVault();
         _coordinator = new ManagerCoordinator(
-            new ManagerApiClient(_http),
-            new WindowsCredentialVault(),
+            _api,
+            _vault,
             _stateStore);
+        _installationService = new IntegrationInstallationService(
+            _api, _vault, _stateStore);
         Loaded += MainWindow_Loaded;
         Closed += (_, _) =>
         {
             _pairingCancellation?.Cancel();
             _pairingCancellation?.Dispose();
+            _installationCancellation?.Cancel();
+            _installationCancellation?.Dispose();
             _http.Dispose();
         };
     }
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
+        try
+        {
+            if (_installationService.RecoverPending())
+            {
+                OverallStatusText.Text = "Незавершённая установка безопасно восстановлена.";
+            }
+        }
+        catch (InvalidDataException exception)
+        {
+            OverallStatusText.Text = "Не удалось восстановить установку: " + exception.Message;
+        }
         DetectGame();
         var state = _stateStore.LoadOrCreate();
         if (state.ChannelId is null)
@@ -157,6 +180,70 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void InstallButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_session is null || _game is null)
+        {
+            UpdateInstallAvailability();
+            return;
+        }
+        if (!ReleaseConfiguration.TryLoad(out _, out var verifier, out var reason))
+        {
+            IntegrationStatusText.Text = reason;
+            UpdateInstallAvailability();
+            return;
+        }
+        if (_detector.IsGameRunning())
+        {
+            IntegrationStatusText.Text = "Закрой RimWorld перед установкой RimLink.";
+            return;
+        }
+
+        _installing = true;
+        _installationCancellation?.Cancel();
+        _installationCancellation?.Dispose();
+        _installationCancellation = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+        UpdateInstallAvailability();
+        IntegrationStatusText.Text = "Скачиваем, проверяем и настраиваем RimLink…";
+        OverallStatusText.Text = "Не закрывай Manager до завершения проверки.";
+        try
+        {
+            using var downloader = new SecureArtifactDownloader();
+            var installed = await _installationService.InstallHttpsAsync(
+                ReleaseConfiguration.ManifestPath,
+                _game.RootPath,
+                downloader,
+                verifier!,
+                cancellationToken: _installationCancellation.Token);
+            var state = _stateStore.LoadOrCreate();
+            _stateStore.Save(state with
+            {
+                GameRoot = _game.RootPath,
+                InstalledReleaseVersion = installed.ReleaseVersion,
+            });
+            IntegrationStatusText.Text =
+                $"RimLink {installed.ReleaseVersion} установлен и ключ проверен.";
+            OverallStatusText.Text =
+                "Запусти RimWorld: Technical Ready подтвердит heartbeat мода.";
+        }
+        catch (Exception exception) when (
+            exception is ManagerApiException or HttpRequestException or
+                TaskCanceledException or InvalidOperationException or
+                InvalidDataException or IOException)
+        {
+            IntegrationStatusText.Text =
+                "Установка не выполнена; прежняя версия восстановлена.";
+            OverallStatusText.Text = FriendlyError(exception);
+        }
+        finally
+        {
+            _installing = false;
+            _installationCancellation?.Dispose();
+            _installationCancellation = null;
+            UpdateInstallAvailability();
+        }
+    }
+
     private void DetectGame()
     {
         var state = _stateStore.LoadOrCreate();
@@ -201,11 +288,28 @@ public partial class MainWindow : Window
 
     private void UpdateInstallAvailability()
     {
-        // Installation transaction enters the next slice; keep the CTA honest.
-        InstallButton.IsEnabled = false;
-        InstallButton.ToolTip = _session is null || _game is null
-            ? "Сначала подключи Twitch и найди RimWorld."
-            : "Установщик будет подключён следующим этапом.";
+        if (_installing)
+        {
+            InstallButton.IsEnabled = false;
+            InstallButton.ToolTip = "Установка уже выполняется.";
+            return;
+        }
+        if (_session is null || _game is null)
+        {
+            InstallButton.IsEnabled = false;
+            InstallButton.ToolTip = "Сначала подключи Twitch и найди RimWorld.";
+            return;
+        }
+        var releaseReady = ReleaseConfiguration.TryLoad(
+            out _, out _, out var releaseReason);
+        InstallButton.IsEnabled = releaseReady;
+        InstallButton.ToolTip = releaseReady
+            ? "Установить и настроить RimLink."
+            : releaseReason;
+        if (!releaseReady)
+        {
+            IntegrationStatusText.Text = releaseReason;
+        }
     }
 
     private void SaveGameRoot(string gameRoot)

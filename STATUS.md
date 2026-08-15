@@ -54,7 +54,9 @@
   browser pairing/session resume, Windows Credential Manager vault, атомарным
   несекретным state и restart recovery. RimWorld определяется в Steam libraries
   либо проверяется по ручному path. Windows build/self-test зелёные и добавлены
-  в CI. Install CTA пока отключён; production не обновлён.
+  в CI. Install CTA вызывает recoverable signed-HTTPS operation, но текущий
+  unsigned manifest и пустой production trust store держат кнопку отключённой;
+  production не обновлён.
 - Installation transaction перенесён в .NET Core: production manifest parsing,
   artifact size/SHA-256, safe ZIP, reparse guard, atomic swap, rollback и crash
   recovery зелёные. XML writer сохраняет чужие поля и ставит user-only ACL.
@@ -67,6 +69,9 @@
   и конечный URL ещё не созданы, CTA остаётся выключен.
 - Module credential теперь можно проверить отдельным side-effect-free auth-check:
   он не создаёт ложный heartbeat и не меняет liveness игры.
+- Read-only production check 2026-08-16: `/health` отвечает 200 (`db=ok`),
+  новый `/v1/module/rimworld/auth-check` ещё не развёрнут и отвечает 404.
+  Локальный Manager поэтому не считается production-ready до штатного deploy.
 - Активная игра определяется по heartbeat мода; действия выключенной integration
   отклоняются безопасно.
 - Релиз 0.0.2 зафиксирован тегом `submit/0.0.2`; канонический архив хранится в
@@ -86,8 +91,8 @@ vertical slice, но R0 release gate ещё не пройден.
 2. После live smoke окончательно утвердить первую Manager integration.
 3. Создать offline production signing key, встроить public key и опубликовать
    RimLink archive по конечному HTTPS URL.
-4. Подключить готовую recoverable install operation к WPF CTA после появления
-   production signing key и конечного HTTPS release URL.
+4. Создать production signing key, добавить public key и конечный HTTPS URL:
+   после этого уже подключённый WPF CTA станет доступен без изменения policy.
 5. Подключить repair/uninstall к WPF shell с сохранением config по умолчанию.
 6. Добавить heartbeat/test-action diagnostics для `Technical Ready`.
 7. Включить M109 repair, Manager API и обновлённые runtime manifests в следующий штатный

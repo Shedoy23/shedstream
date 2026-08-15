@@ -303,6 +303,20 @@ refresh без неявного отзыва установленных module c
 
 Довести одну игру от первого запуска Manager до `Technical Ready`.
 
+### Прогресс 2026-08-16
+
+- выбран Windows-native стек .NET 8 + WPF; решение и границы зафиксированы в
+  `docs/ADR_MANAGER_DESKTOP_STACK_2026-08-16.md`;
+- создан независимый `ShedLink.Manager.Core` без UI-зависимостей;
+- API client проходит pairing pending/approve, credential issuance, refresh,
+  logout и revoke без сохранения access token;
+- refresh и module credential хранятся в Windows Credential Manager, атомарный
+  `state.json` содержит только несекретные идентификаторы и пути;
+- restart восстанавливает Manager session через обязательную refresh rotation;
+- Windows self-test проверяет fake-backend flow и реальный Credential Manager
+  round-trip; добавлен отдельный CI gate;
+- WPF shell, game detection и production installer ещё не реализованы.
+
 ### Scope v1
 
 #### Account

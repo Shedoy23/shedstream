@@ -61,3 +61,15 @@ jobs:
   # NOTE: C# mod (BannerlordLink) is NOT built in CI — it needs the Bannerlord
   # game DLLs which aren't available on the runner. Build it locally via
   # scripts/deploy.ps1 -Mod. (Future: Bannerlord.ReferenceAssemblies NuGet.)
+
+  manager-core:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Manager core security and restart self-test
+        run: dotnet run --project ShedLink.Manager/tests/ShedLink.Manager.Core.SelfTest/ShedLink.Manager.Core.SelfTest.csproj -c Release

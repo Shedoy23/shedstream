@@ -1416,6 +1416,13 @@ async def run_migrations():
             print(f"❌ M110 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m111_manager_session_scope
+            await m111_manager_session_scope.apply(conn)
+        except Exception as e:
+            print(f"❌ M111 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

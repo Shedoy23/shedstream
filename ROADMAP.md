@@ -178,7 +178,7 @@ Test action acknowledged
 
 ### Результат baseline 2026-08-15
 
-- полный backend suite: 44/44 green;
+- текущий полный backend suite: 48/48 green;
 - production healthy, DB `quick_check=ok`, незавершённых module actions нет;
 - денежных и tenant P0 в проверенных путях не найдено;
 - RimWorld выбран условным кандидатом, но не утверждён до live smoke;
@@ -233,11 +233,15 @@ tokens в desktop app, revocable opaque module credentials, Windows Credential
 Manager, rotation overlap и legacy migration.
 
 M110 локально добавляет persistent ledger pairing/session/module credentials с
-hash-only secrets и strict constraints. Auth core реализует одноразовый exchange,
-deny/expire, tamper/expiry checks и restart persistence. Pairing HTTP/browser
-flow подключён с safe OAuth return, approved-channel gate, CSRF, request/rate
-limits и one-time exchange. Opaque module verification ещё не подключена;
-legacy connector auth не менялся.
+hash-only secrets и strict constraints; M111 жёстко связывает Manager session с
+одобренным `module_id`. Auth core и HTTP/browser flow реализуют одноразовый
+exchange, deny/expire, safe OAuth return, approved-channel gate, CSRF и
+request/rate limits. Manager API выдаёт, ротирует и немедленно отзывает opaque
+`slmod_v1` credential; исходный secret возвращается только один раз и в БД не
+хранится. Общий Module API и RimWorld ingest принимают новый credential с
+точным scope `channel_id + module_id`, одновременно сохраняя legacy token на
+период миграции. Rotation overlap ограничен 10 минутами и переживает restart.
+Полный backend suite после подключения: 48/48 green.
 
 ### Разделение контрактов
 

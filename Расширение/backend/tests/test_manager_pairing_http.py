@@ -29,7 +29,14 @@ os.environ["MANAGER_PUBLIC_BASE_URL"] = "https://testserver"
 CHANNEL_ID = 98319857
 
 
-def request(method: str, path: str, body: bytes = b"", query: str = "", content_type: str = ""):
+def request(
+    method: str,
+    path: str,
+    body: bytes = b"",
+    query: str = "",
+    content_type: str = "",
+    authorization: str = "",
+):
     delivered = False
 
     async def receive():
@@ -42,6 +49,8 @@ def request(method: str, path: str, body: bytes = b"", query: str = "", content_
     headers = []
     if content_type:
         headers.append((b"content-type", content_type.encode("ascii")))
+    if authorization:
+        headers.append((b"authorization", authorization.encode("ascii")))
     return Request({
         "type": "http",
         "http_version": "1.1",
@@ -56,10 +65,10 @@ def request(method: str, path: str, body: bytes = b"", query: str = "", content_
     }, receive)
 
 
-def json_request(path: str, payload: dict) -> Request:
+def json_request(path: str, payload: dict, authorization: str = "") -> Request:
     return request(
         "POST", path, json.dumps(payload).encode("utf-8"),
-        content_type="application/json",
+        content_type="application/json", authorization=authorization,
     )
 
 
@@ -78,10 +87,12 @@ async def main() -> int:
     import dependencies
     import manager_auth
     from database import Database
-    from migrations import m110_manager_credentials
+    from migrations import m110_manager_credentials, m111_manager_session_scope
     from modules._loader import discover_modules
     from routes import manager as routes
+    from routes import module_api
     from routes import streamer
+    import rimworld
 
     fd, db_path = tempfile.mkstemp(suffix=".db", prefix="test_manager_http_")
     os.close(fd)
@@ -93,6 +104,7 @@ async def main() -> int:
         await db.init_tables()
         async with db._connect() as conn:
             await m110_manager_credentials.apply(conn)
+            await m111_manager_session_scope.apply(conn)
             columns = await (await conn.execute("PRAGMA table_info(channels)")).fetchall()
             if "approved" not in {row[1] for row in columns}:
                 await conn.execute(
@@ -172,6 +184,49 @@ async def main() -> int:
         assert exchanged_body["channel_id"] == CHANNEL_ID
         assert exchanged_body["module_id"] == "rimworld"
         assert exchanged_body["access_token"].startswith("slmgr_v1.")
+        manager_bearer = "Bearer " + exchanged_body["access_token"]
+
+        wrong_scope = await routes.manager_credential_issue(json_request(
+            "/v1/manager/module-credentials",
+            {"module_id": "bannerlord", "label": "Wrong scope"},
+            manager_bearer,
+        ))
+        assert wrong_scope.status_code == 403
+
+        issued = await routes.manager_credential_issue(json_request(
+            "/v1/manager/module-credentials",
+            {"module_id": "rimworld", "label": "Test connector"},
+            manager_bearer,
+        ))
+        assert issued.status_code == 201, issued.body
+        assert "no-store" in issued.headers.get("cache-control", "")
+        issued_body = payload(issued)
+        module_token = issued_body["module_token"]
+        module_bearer = "Bearer " + module_token
+        assert await module_api._verify_module_request(
+            request("GET", "/v1/module/rimworld/actions", authorization=module_bearer),
+            "rimworld",
+        ) == CHANNEL_ID
+        assert await rimworld.rimworld_mod_auth(
+            request("POST", "/api/rimworld/pawns", authorization=module_bearer)
+        ) == CHANNEL_ID
+
+        rotated = await routes.manager_credential_rotate(
+            issued_body["credential_id"],
+            json_request("/rotate", {}, manager_bearer),
+        )
+        assert rotated.status_code == 201, rotated.body
+        rotated_body = payload(rotated)
+        assert rotated_body["module_token"] != module_token
+        revoked = await routes.manager_credential_revoke(
+            rotated_body["credential_id"],
+            request("DELETE", "/credential", authorization=manager_bearer),
+        )
+        assert revoked.status_code == 200
+        async with db._connect() as conn:
+            assert await manager_auth.verify_module_credential(
+                conn, rotated_body["module_token"], "rimworld"
+            ) is None
 
         duplicate = await routes.manager_pairing_exchange(
             created["pairing_id"],
@@ -196,6 +251,7 @@ async def main() -> int:
         route_paths = {(route.path, tuple(route.methods or ())) for route in routes.router.routes}
         assert ("/v1/manager/pairings", ("POST",)) in route_paths
         assert any(path == "/manager/pair" and "POST" in methods for path, methods in route_paths)
+        assert any(path == "/v1/manager/module-credentials" for path, _ in route_paths)
     finally:
         routes._read_session_cookie = original_cookie
         routes.check_rate_limit = original_rate

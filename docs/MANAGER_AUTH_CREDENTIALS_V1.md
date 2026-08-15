@@ -1,7 +1,7 @@
 # Manager auth and credential lifecycle v1
 
-Статус: M110 ledger, auth core и pairing HTTP/browser flow реализованы локально;
-module credential issuance/rotation ещё не подключены
+Статус: M110/M111 ledger, pairing и opaque module credential lifecycle
+реализованы локально; refresh rotation/logout и desktop storage ещё впереди
 
 Дата: 2026-08-15
 
@@ -98,13 +98,15 @@ deny/expiry — terminal error, после approve один раз выдаёт 
 Требует manager access token. Создаёт credential только для channel manager
 session и разрешённого manifest module. Secret возвращается один раз.
 
-Статус: следующий implementation slice.
+Статус: реализовано локально. Ответ помечен `Cache-Control: no-store`; raw secret
+не хранится в БД и повторно не показывается.
 
 ### `POST /v1/manager/module-credentials/{id}/rotate`
 
-Создаёт replacement с overlap до 10 минут. Manager атомарно обновляет config и
-делает authenticated handshake. Только после успеха вызывает finalize; backend
-отзывает старый credential. При неудаче старый остаётся рабочим.
+Создаёт replacement с overlap ровно до 10 минут. Старый credential работает
+только внутри этого окна и затем автоматически становится недействительным,
+поэтому crash Manager не оставляет два бессрочных ключа. Manager должен атомарно
+обновить config и проверить authenticated handshake до истечения окна.
 
 ### `DELETE /v1/manager/module-credentials/{id}`
 
@@ -139,10 +141,10 @@ pepper, отдельный от Twitch OAuth encryption key и legacy HMAC signi
 Индексы и uniqueness обеспечивают один exchange pairing и безопасную rotation
 family. Все выборки credential обязательно scoped по `channel_id + module_id`.
 
-Локальная migration `M110.manager_credentials` уже создаёт эти три таблицы,
+Локальная migration `M110.manager_credentials` создаёт эти три таблицы,
 ограничивает pairing status, добавляет scope/expiry indexes и регистрируется
-идемпотентно. Она пока не подключает issuance/verification API и не меняет legacy
-connector auth.
+идемпотентно. M111 добавляет обязательный для новых сессий `module_id`; старые
+экспериментальные строки с `NULL` fail closed.
 
 Локальный `manager_auth.py` реализует persistent approve/deny/expire,
 одноразовый exchange по device secret, hash-only refresh storage и короткий
@@ -156,6 +158,13 @@ approved streamer session, channel-bound CSRF и явное Approve/Deny. OAuth 
 невозможен. JSON/form payload имеют жёсткий размер; verification URL строится из
 канонического `MANAGER_PUBLIC_BASE_URL`, а не недоверенного Host header.
 
+Opaque credential endpoints также экспонированы локально: issuance ограничен
+scope Manager session, rotation создаёт hash-only replacement с десятиминутным
+overlap, revoke идемпотентен. Общий Module API и RimWorld ingest распознают
+`slmod_v1`; missing, tampered, expired, revoked и wrong-module token получают
+одинаковый `401 auth_failed`. Legacy HMAC verification сохранена на переходный
+период.
+
 Новые production settings:
 
 - `MANAGER_CREDENTIAL_PEPPER` — отдельный secret минимум 32 символа; без него
@@ -168,7 +177,8 @@ approved streamer session, channel-bound CSRF и явное Approve/Deny. OAuth 
 Opaque prefixes нужны только для безопасного routing/versioning:
 
 ```text
-slmgr_v1.<session_id>.<secret>
+slmgr_v1.<session_id>.<expires_at>.<signature>
+slmgrr_v1.<session_id>.<secret>
 slmod_v1.<credential_id>.<secret>
 ```
 
@@ -196,10 +206,10 @@ constant-time.
 2. Сохранить предыдущий config как rollback copy.
 3. Атомарно записать replacement.
 4. Дождаться authenticated handshake нового credential.
-5. Finalize rotation и удалить rollback copy.
-6. Если шаг 3–4 неуспешен, вернуть старый config; старый credential ещё валиден.
+5. Удалить rollback copy; старый credential автоматически истечёт по overlap.
+6. Если шаг 3–4 неуспешен, вернуть старый config до истечения overlap.
 7. Если Manager упал, transaction journal на следующем старте завершает либо
-   откатывает config update до истечения overlap.
+   откатывает config update, пока старый credential ещё валиден.
 
 Server-side revoke действует сразу и переживает restart. Expired/revoked token не
 может быть восстановлен локальным rollback.
@@ -218,10 +228,11 @@ Server-side revoke действует сразу и переживает restart
 | Refresh token replay | Rotating family; reuse отзывает всю family |
 | Legacy token после revoke | V1 revoke работает только для opaque token; legacy отключается отдельным migration gate |
 
-До реализации обязательны automated tests: approve/deny/expire, duplicate
-exchange, wrong device secret, cross-channel/module request, rotate success,
-rotate rollback, revoke immediate, refresh replay, restart persistence и secret
-redaction.
+Automated tests уже покрывают approve/deny/expire, duplicate exchange, wrong
+device secret, cross-module request, rotate success и ограничение overlap,
+немедленный повторяемый revoke, tampering, hash-only storage, общий Module API,
+RimWorld auth и restart persistence. Ещё нужны refresh replay, desktop
+rotate-rollback и central diagnostic redaction.
 
 ## Переход с legacy HMAC token
 

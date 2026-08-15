@@ -332,7 +332,10 @@ async def _call_ack_route(action_id: str, success: bool, reason: str = "forged_r
     повторный запрос К МАРШРУТУ никем не проверялся.
     """
     import routes.module_api as api
-    api._verify_module_request = lambda request, module_id: CHANNEL_ID
+    async def _verified_channel(request, module_id):
+        return CHANNEL_ID
+
+    api._verify_module_request = _verified_channel
     body = {"action_id": action_id, "success": success}
     if not success:
         body["error"] = reason

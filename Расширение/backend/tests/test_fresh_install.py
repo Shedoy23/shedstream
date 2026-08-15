@@ -109,6 +109,7 @@ async def main():
             ("module_actions", "ack_received_at", "M108 — время ACK receipt"),
             ("module_actions", "ack_success", "M108 — результат ACK receipt"),
             ("module_actions", "ack_error", "M108 — ошибка ACK receipt"),
+            ("manager_sessions", "module_id", "M111 — scope Manager session"),
         ]
         for table, col, why in late:
             if table in tables:
@@ -125,6 +126,11 @@ async def main():
             "WHERE name='M110.manager_credentials'")
         check((await cur.fetchone())[0] == 1,
               "M110 зарегистрирована в migrations_applied ровно один раз")
+        cur = await conn.execute(
+            "SELECT COUNT(*) FROM migrations_applied "
+            "WHERE name='M111.manager_session_scope'")
+        check((await cur.fetchone())[0] == 1,
+              "M111 зарегистрирована в migrations_applied ровно один раз")
 
     if getattr(db, "_pool", None):
         await db._pool.close()

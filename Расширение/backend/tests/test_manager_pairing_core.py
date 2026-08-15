@@ -26,7 +26,7 @@ async def expect_code(awaitable, expected: str) -> None:
 async def main() -> int:
     import aiosqlite
     import manager_auth
-    from migrations import m110_manager_credentials
+    from migrations import m110_manager_credentials, m111_manager_session_scope
 
     fd, path = tempfile.mkstemp(suffix=".db", prefix="test_manager_pairing_")
     os.close(fd)
@@ -34,6 +34,7 @@ async def main() -> int:
         secret = "device-secret-with-enough-entropy-for-test"
         async with aiosqlite.connect(path) as conn:
             await m110_manager_credentials.apply(conn)
+            await m111_manager_session_scope.apply(conn)
 
             csrf = manager_auth.issue_approval_csrf("pairing-csrf", 11, now=100)
             assert manager_auth.verify_approval_csrf(csrf, "pairing-csrf", 11, now=101)
@@ -68,6 +69,59 @@ async def main() -> int:
                 conn, tokens["access_token"], now=1005,
             )
             assert claims and claims["channel_id"] == 98319857
+            assert claims["module_id"] == "rimworld"
+            await expect_code(
+                manager_auth.issue_module_credential(
+                    conn, claims, "bannerlord", now=1005
+                ),
+                "module_scope_mismatch",
+            )
+            credential = await manager_auth.issue_module_credential(
+                conn, claims, "rimworld", "Living room PC", now=1005,
+            )
+            assert credential["module_token"].startswith("slmod_v1.")
+            verified_credential = await manager_auth.verify_module_credential(
+                conn, credential["module_token"], "rimworld", now=1006,
+            )
+            assert verified_credential and verified_credential["channel_id"] == 98319857
+            assert await manager_auth.verify_module_credential(
+                conn, credential["module_token"], "bannerlord", now=1006,
+            ) is None
+            module_tampered = credential["module_token"][:-1] + (
+                "0" if credential["module_token"][-1] != "0" else "1"
+            )
+            assert await manager_auth.verify_module_credential(
+                conn, module_tampered, "rimworld", now=1006,
+            ) is None
+
+            rotated = await manager_auth.rotate_module_credential(
+                conn, claims, credential["credential_id"], now=1010,
+            )
+            assert rotated["module_token"] != credential["module_token"]
+            assert await manager_auth.verify_module_credential(
+                conn, credential["module_token"], "rimworld", now=1011,
+            )
+            assert await manager_auth.verify_module_credential(
+                conn,
+                credential["module_token"],
+                "rimworld",
+                now=1010 + manager_auth.ROTATION_OVERLAP_SECONDS + 1,
+            ) is None
+            assert await manager_auth.verify_module_credential(
+                conn, rotated["module_token"], "rimworld", now=1011,
+            )
+            await manager_auth.revoke_module_credential(
+                conn, claims, rotated["credential_id"], now=1012,
+            )
+            await manager_auth.revoke_module_credential(
+                conn, claims, rotated["credential_id"], now=1013,
+            )
+            assert await manager_auth.verify_module_credential(
+                conn, rotated["module_token"], "rimworld", now=1014,
+            ) is None
+            persistent_credential = await manager_auth.issue_module_credential(
+                conn, claims, "rimworld", "Restart test", now=1015,
+            )
             tampered = tokens["access_token"][:-1] + (
                 "0" if tokens["access_token"][-1] != "0" else "1"
             )
@@ -90,6 +144,11 @@ async def main() -> int:
             assert secret not in stored and created["user_code"] not in stored
             cur = await conn.execute("SELECT refresh_hash FROM manager_sessions")
             assert tokens["refresh_token"] != (await cur.fetchone())[0]
+            cur = await conn.execute(
+                "SELECT secret_hash FROM module_credentials WHERE id=?",
+                (persistent_credential["credential_id"],),
+            )
+            assert persistent_credential["module_token"] != (await cur.fetchone())[0]
 
             denied_secret = "second-device-secret-with-32-plus-characters"
             denied = await manager_auth.create_pairing(
@@ -123,6 +182,12 @@ async def main() -> int:
                 reopened, tokens["access_token"], now=1006,
             )
             assert claims and claims["channel_id"] == 98319857
+            assert await manager_auth.verify_module_credential(
+                reopened,
+                persistent_credential["module_token"],
+                "rimworld",
+                now=1016,
+            )
 
             pepper = os.environ.pop("MANAGER_CREDENTIAL_PEPPER")
             try:
@@ -144,7 +209,7 @@ async def main() -> int:
             except OSError:
                 pass
 
-    print("ALL GREEN — pairing transitions, one-time exchange and sessions are safe.")
+    print("ALL GREEN — pairing, scoped sessions and revocable module credentials are safe.")
     return 0
 
 

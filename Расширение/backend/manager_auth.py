@@ -20,6 +20,8 @@ from typing import Optional
 PAIRING_TTL_SECONDS = 10 * 60
 ACCESS_TTL_SECONDS = 15 * 60
 SESSION_TTL_SECONDS = 30 * 24 * 60 * 60
+MODULE_CREDENTIAL_TTL_SECONDS = 90 * 24 * 60 * 60
+ROTATION_OVERLAP_SECONDS = 10 * 60
 APPROVAL_CSRF_TTL_SECONDS = 5 * 60
 _CHALLENGE_RE = re.compile(r"^[A-Za-z0-9_-]{43}$")
 _USER_CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
@@ -233,8 +235,8 @@ async def exchange_pairing(
         access_expires = int(now + ACCESS_TTL_SECONDS)
         await conn.execute(
             "INSERT INTO manager_sessions "
-            "(id,channel_id,installation_id_hash,refresh_hash,refresh_family_id,created_at,expires_at) "
-            "VALUES (?,?,?,?,?,?,?)",
+            "(id,channel_id,installation_id_hash,refresh_hash,refresh_family_id,created_at,expires_at,module_id) "
+            "VALUES (?,?,?,?,?,?,?,?)",
             (
                 session_id,
                 int(row[3]),
@@ -243,6 +245,7 @@ async def exchange_pairing(
                 secrets.token_urlsafe(16),
                 now,
                 session_expires,
+                row[2],
             ),
         )
         cur = await conn.execute(
@@ -284,7 +287,7 @@ async def verify_access_token(conn, token: str, now: Optional[float] = None) -> 
     if access_expires <= now:
         return None
     cur = await conn.execute(
-        "SELECT channel_id,expires_at,revoked_at FROM manager_sessions WHERE id=?",
+        "SELECT channel_id,expires_at,revoked_at,module_id FROM manager_sessions WHERE id=?",
         (session_id,),
     )
     row = await cur.fetchone()
@@ -293,4 +296,190 @@ async def verify_access_token(conn, token: str, now: Optional[float] = None) -> 
     expected = _access_token(session_id, int(row[0]), access_expires)
     if not hmac.compare_digest(token, expected):
         return None
-    return {"session_id": session_id, "channel_id": int(row[0])}
+    if not row[3]:
+        return None
+    return {
+        "session_id": session_id,
+        "channel_id": int(row[0]),
+        "module_id": row[3],
+    }
+
+
+def _credential_scope(session_claims: dict, module_id: str) -> tuple[int, str]:
+    module_id = (module_id or "").strip()
+    if not module_id or session_claims.get("module_id") != module_id:
+        raise ManagerAuthError("module_scope_mismatch")
+    try:
+        channel_id = int(session_claims["channel_id"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ManagerAuthError("invalid_manager_session") from exc
+    return channel_id, module_id
+
+
+def _credential_label(label: str) -> str:
+    label = " ".join((label or "").strip().split())
+    if len(label) > 80:
+        raise ManagerAuthError("invalid_credential_label")
+    return label
+
+
+async def _insert_module_credential(
+    conn,
+    channel_id: int,
+    module_id: str,
+    label: str,
+    now: float,
+    rotated_from_id: Optional[str] = None,
+) -> dict:
+    expires_at = now + MODULE_CREDENTIAL_TTL_SECONDS
+    for _attempt in range(5):
+        credential_id = secrets.token_urlsafe(18)
+        token = f"slmod_v1.{credential_id}.{secrets.token_urlsafe(32)}"
+        try:
+            await conn.execute(
+                "INSERT INTO module_credentials "
+                "(id,channel_id,module_id,secret_hash,label,created_at,expires_at,rotated_from_id) "
+                "VALUES (?,?,?,?,?,?,?,?)",
+                (
+                    credential_id,
+                    channel_id,
+                    module_id,
+                    _hash("module_credential", token),
+                    label,
+                    now,
+                    expires_at,
+                    rotated_from_id,
+                ),
+            )
+            return {
+                "credential_id": credential_id,
+                "module_token": token,
+                "module_id": module_id,
+                "channel_id": channel_id,
+                "label": label,
+                "expires_at": expires_at,
+            }
+        except sqlite3.IntegrityError:
+            continue
+    raise ManagerAuthError("credential_id_collision")
+
+
+async def issue_module_credential(
+    conn,
+    session_claims: dict,
+    module_id: str,
+    label: str = "",
+    now: Optional[float] = None,
+) -> dict:
+    now = float(time.time() if now is None else now)
+    channel_id, module_id = _credential_scope(session_claims, module_id)
+    try:
+        result = await _insert_module_credential(
+            conn, channel_id, module_id, _credential_label(label), now
+        )
+        await conn.commit()
+        return result
+    except Exception:
+        if conn.in_transaction:
+            await conn.rollback()
+        raise
+
+
+async def verify_module_credential(
+    conn,
+    token: str,
+    expected_module_id: str,
+    now: Optional[float] = None,
+) -> Optional[dict]:
+    now = float(time.time() if now is None else now)
+    parts = (token or "").split(".")
+    if len(parts) != 3 or parts[0] != "slmod_v1" or not parts[1] or not parts[2]:
+        return None
+    cur = await conn.execute(
+        "SELECT channel_id,module_id,secret_hash,expires_at,last_used_at,overlap_until,revoked_at "
+        "FROM module_credentials WHERE id=?",
+        (parts[1],),
+    )
+    row = await cur.fetchone()
+    if not row or row[1] != expected_module_id or row[6] is not None or row[3] <= now:
+        return None
+    if row[5] is not None and row[5] <= now:
+        return None
+    if not hmac.compare_digest(row[2], _hash("module_credential", token)):
+        return None
+    if row[4] is None or row[4] <= now - 300:
+        await conn.execute(
+            "UPDATE module_credentials SET last_used_at=? WHERE id=?",
+            (now, parts[1]),
+        )
+        await conn.commit()
+    return {
+        "credential_id": parts[1],
+        "channel_id": int(row[0]),
+        "module_id": row[1],
+    }
+
+
+async def rotate_module_credential(
+    conn,
+    session_claims: dict,
+    credential_id: str,
+    label: str = "",
+    now: Optional[float] = None,
+) -> dict:
+    now = float(time.time() if now is None else now)
+    channel_id, module_id = _credential_scope(
+        session_claims, str(session_claims.get("module_id") or "")
+    )
+    await conn.execute("BEGIN IMMEDIATE")
+    try:
+        cur = await conn.execute(
+            "SELECT label,expires_at,revoked_at,overlap_until FROM module_credentials "
+            "WHERE id=? AND channel_id=? AND module_id=?",
+            (credential_id, channel_id, module_id),
+        )
+        row = await cur.fetchone()
+        if not row:
+            raise ManagerAuthError("credential_not_found")
+        if row[2] is not None or row[1] <= now or row[3] is not None:
+            raise ManagerAuthError("credential_not_active")
+        overlap_until = now + ROTATION_OVERLAP_SECONDS
+        await conn.execute(
+            "UPDATE module_credentials SET overlap_until=? WHERE id=?",
+            (overlap_until, credential_id),
+        )
+        new_label = _credential_label(label) if label else row[0]
+        result = await _insert_module_credential(
+            conn, channel_id, module_id, new_label, now, credential_id
+        )
+        await conn.commit()
+        result["overlap_until"] = overlap_until
+        return result
+    except Exception:
+        if conn.in_transaction:
+            await conn.rollback()
+        raise
+
+
+async def revoke_module_credential(
+    conn,
+    session_claims: dict,
+    credential_id: str,
+    now: Optional[float] = None,
+) -> None:
+    now = float(time.time() if now is None else now)
+    channel_id, module_id = _credential_scope(
+        session_claims, str(session_claims.get("module_id") or "")
+    )
+    cur = await conn.execute(
+        "SELECT 1 FROM module_credentials WHERE id=? AND channel_id=? AND module_id=?",
+        (credential_id, channel_id, module_id),
+    )
+    if not await cur.fetchone():
+        raise ManagerAuthError("credential_not_found")
+    await conn.execute(
+        "UPDATE module_credentials SET revoked_at=COALESCE(revoked_at,?) "
+        "WHERE id=? AND channel_id=? AND module_id=?",
+        (now, credential_id, channel_id, module_id),
+    )
+    await conn.commit()

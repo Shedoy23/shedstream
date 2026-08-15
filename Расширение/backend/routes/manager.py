@@ -41,6 +41,10 @@ def _auth_error(exc: Exception) -> JSONResponse:
         "pairing_already_exchanged": 409,
         "pairing_not_found": 404,
         "invalid_device_secret": 401,
+        "invalid_manager_access": 401,
+        "module_scope_mismatch": 403,
+        "credential_not_found": 404,
+        "credential_not_active": 409,
     }
     return JSONResponse({"status": code}, status_code=statuses.get(code, 400))
 
@@ -66,6 +70,25 @@ async def _json_body(request: Request) -> dict:
     if not isinstance(body, dict):
         raise manager_auth.ManagerAuthError("invalid_json")
     return body
+
+
+def _secret_response(payload: dict, status_code: int = 200) -> JSONResponse:
+    response = JSONResponse(payload, status_code=status_code)
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+async def _manager_claims(request: Request) -> dict:
+    auth = request.headers.get("Authorization", "")
+    token = auth[7:].strip() if auth[:7].lower() == "bearer " else ""
+    if not token:
+        raise manager_auth.ManagerAuthError("invalid_manager_access")
+    db = get_db()
+    async with db._connect() as conn:
+        claims = await manager_auth.verify_access_token(conn, token)
+    if not claims:
+        raise manager_auth.ManagerAuthError("invalid_manager_access")
+    return claims
 
 
 @router.post("/v1/manager/pairings", include_in_schema=False)
@@ -108,6 +131,63 @@ async def manager_pairing_exchange(pairing_id: str, request: Request):
                 conn, pairing_id, str(body.get("device_secret") or "")
             )
         return JSONResponse({"status": "ok", **result})
+    except (manager_auth.ManagerAuthError, manager_auth.ManagerAuthUnavailable) as exc:
+        return _auth_error(exc)
+
+
+@router.post("/v1/manager/module-credentials", include_in_schema=False)
+async def manager_credential_issue(request: Request):
+    if not check_rate_limit(_client_key(request, "credential_issue"), limit=20):
+        return JSONResponse({"status": "rate_limited"}, status_code=429)
+    try:
+        claims = await _manager_claims(request)
+        body = await _json_body(request)
+        db = get_db()
+        async with db._connect() as conn:
+            result = await manager_auth.issue_module_credential(
+                conn,
+                claims,
+                str(body.get("module_id") or ""),
+                str(body.get("label") or ""),
+            )
+        return _secret_response({"status": "ok", **result}, status_code=201)
+    except (manager_auth.ManagerAuthError, manager_auth.ManagerAuthUnavailable) as exc:
+        return _auth_error(exc)
+
+
+@router.post(
+    "/v1/manager/module-credentials/{credential_id}/rotate",
+    include_in_schema=False,
+)
+async def manager_credential_rotate(credential_id: str, request: Request):
+    if not check_rate_limit(_client_key(request, "credential_rotate"), limit=20):
+        return JSONResponse({"status": "rate_limited"}, status_code=429)
+    try:
+        claims = await _manager_claims(request)
+        body = await _json_body(request)
+        db = get_db()
+        async with db._connect() as conn:
+            result = await manager_auth.rotate_module_credential(
+                conn, claims, credential_id, str(body.get("label") or "")
+            )
+        return _secret_response({"status": "ok", **result}, status_code=201)
+    except (manager_auth.ManagerAuthError, manager_auth.ManagerAuthUnavailable) as exc:
+        return _auth_error(exc)
+
+
+@router.delete(
+    "/v1/manager/module-credentials/{credential_id}",
+    include_in_schema=False,
+)
+async def manager_credential_revoke(credential_id: str, request: Request):
+    if not check_rate_limit(_client_key(request, "credential_revoke"), limit=40):
+        return JSONResponse({"status": "rate_limited"}, status_code=429)
+    try:
+        claims = await _manager_claims(request)
+        db = get_db()
+        async with db._connect() as conn:
+            await manager_auth.revoke_module_credential(conn, claims, credential_id)
+        return _secret_response({"status": "ok", "revoked": True})
     except (manager_auth.ManagerAuthError, manager_auth.ManagerAuthUnavailable) as exc:
         return _auth_error(exc)
 

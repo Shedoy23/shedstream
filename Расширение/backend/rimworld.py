@@ -92,10 +92,23 @@ async def rimworld_mod_auth(request: Request):
     """Verify the RimWorld module-token on a mod-ingest request. Returns the
     token's channel_id when valid; in SOFT mode returns None (allowed) for a
     missing/invalid token, in STRICT mode raises 401."""
-    from routes.streamer import verify_module_token  # lazy import: avoid cycle
     auth = request.headers.get("Authorization", "")
     token = auth[7:].strip() if auth[:7].lower() == "bearer " else ""
-    claims = verify_module_token(token) if token else None
+    claims = None
+    if token.startswith("slmod_v1."):
+        import manager_auth
+        from dependencies import get_db
+        try:
+            async with get_db()._connect() as conn:
+                claims = await manager_auth.verify_module_credential(
+                    conn, token, "rimworld"
+                )
+        except manager_auth.ManagerAuthUnavailable:
+            claims = None
+    elif token:
+        # Legacy short-lived HMAC token remains valid during Manager rollout.
+        from routes.streamer import verify_module_token  # lazy import: avoid cycle
+        claims = verify_module_token(token)
     if claims and claims.get("module_id") == "rimworld":
         return claims.get("channel_id")
     if _RIMWORLD_REQUIRE_TOKEN:

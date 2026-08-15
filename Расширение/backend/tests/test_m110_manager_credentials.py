@@ -15,7 +15,7 @@ sys.path.insert(0, str(BACKEND))
 
 async def main() -> int:
     import aiosqlite
-    from migrations import m110_manager_credentials
+    from migrations import m110_manager_credentials, m111_manager_session_scope
 
     fd, path = tempfile.mkstemp(suffix=".db", prefix="test_m110_manager_")
     os.close(fd)
@@ -25,6 +25,8 @@ async def main() -> int:
             await conn.execute("PRAGMA foreign_keys=ON")
             await m110_manager_credentials.apply(conn)
             await m110_manager_credentials.apply(conn)
+            await m111_manager_session_scope.apply(conn)
+            await m111_manager_session_scope.apply(conn)
 
             expected = {"manager_pairings", "manager_sessions", "module_credentials"}
             cur = await conn.execute(
@@ -40,6 +42,17 @@ async def main() -> int:
             )
             if (await cur.fetchone())[0] != 1:
                 failures.append("M110 marker must exist exactly once")
+            cur = await conn.execute(
+                "SELECT COUNT(*) FROM migrations_applied "
+                "WHERE name='M111.manager_session_scope'"
+            )
+            if (await cur.fetchone())[0] != 1:
+                failures.append("M111 marker must exist exactly once")
+            columns = await (await conn.execute(
+                "PRAGMA table_info(manager_sessions)"
+            )).fetchall()
+            if "module_id" not in {row[1] for row in columns}:
+                failures.append("Manager session module scope column missing")
 
             await conn.execute(
                 "INSERT INTO manager_pairings "

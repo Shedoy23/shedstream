@@ -110,7 +110,7 @@ async def module_hello(module_id: str, request: Request):
     # AUDIT 2026-05-29 (FULL_AUDIT fix #2): раньше hello НЕ требовал auth и
     # доверял body.channel_id → любой мог спуфить online-статус / session
     # side-effects чужого канала. Теперь channel_id authoritative из module-token.
-    channel_id = _verify_module_request(request, module_id)
+    channel_id = await _verify_module_request(request, module_id)
 
     try:
         body = await request.json()
@@ -243,22 +243,7 @@ async def module_events(module_id: str, request: Request):
     # логируется внутрь для debugging.
     _AUTH_FAILED = {"status": "auth_failed",
                     "message": "Module-token missing, expired or wrong channel"}
-    token = _extract_bearer_token(request)
-    if not token:
-        log.warning("[module_api] auth_failed: missing Bearer (module=%s ip=%s)",
-                    module_id, request.client.host if request.client else "?")
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=_AUTH_FAILED)
-    # Late-import чтобы избежать циклической зависимости routes ↔ streamer.
-    from routes.streamer import verify_module_token
-    claims = verify_module_token(token)
-    if not claims:
-        log.warning("[module_api] auth_failed: invalid/expired token (module=%s)",
-                    module_id)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=_AUTH_FAILED)
-    if claims["module_id"] != module_id:
-        log.warning("[module_api] auth_failed: module_id mismatch "
-                    "(token=%s, route=%s)", claims["module_id"], module_id)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=_AUTH_FAILED)
+    token_channel_id = await _verify_module_request(request, module_id)
 
     # 2. Body
     try:
@@ -273,11 +258,11 @@ async def module_events(module_id: str, request: Request):
         body_channel_id = int(raw_cid)
     except (TypeError, ValueError):
         body_channel_id = 0
-    if body_channel_id != claims["channel_id"]:
+    if body_channel_id != token_channel_id:
         # Sprint 5.31 #45e (audit MED-8) — same _AUTH_FAILED response для
         # неотличимости от прочих auth fails (timing oracle protection).
         log.warning("[module_api] auth_failed: body channel_id=%s ≠ token=%s",
-                    body_channel_id, claims["channel_id"])
+                    body_channel_id, token_channel_id)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=_AUTH_FAILED)
     channel_id = body_channel_id
 
@@ -399,7 +384,7 @@ _LONG_POLL_INTERVAL_SEC = 0.3
 _BATCH_LIMIT = 50
 
 
-def _verify_module_request(request: Request, module_id: str) -> int:
+async def _verify_module_request(request: Request, module_id: str) -> int:
     """Helper: validate Authorization + module match. Возвращает channel_id из
     токена или поднимает HTTPException. Используется actions/ack endpoints'ами.
 
@@ -411,12 +396,23 @@ def _verify_module_request(request: Request, module_id: str) -> int:
     _AUTH_FAILED = {"status": "auth_failed",
                     "message": "Module-token missing, expired or wrong channel"}
     auth = request.headers.get("Authorization", "")
-    if not auth.startswith("Bearer "):
+    if auth[:7].lower() != "bearer ":
         log.warning("[module_api] auth_failed: missing Bearer (module=%s)", module_id)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=_AUTH_FAILED)
     token = auth[7:].strip()
-    from routes.streamer import verify_module_token
-    claims = verify_module_token(token)
+    if token.startswith("slmod_v1."):
+        import manager_auth
+        try:
+            async with get_db()._connect() as conn:
+                claims = await manager_auth.verify_module_credential(
+                    conn, token, module_id
+                )
+        except manager_auth.ManagerAuthUnavailable:
+            claims = None
+    else:
+        # Legacy short-lived HMAC token remains valid during Manager rollout.
+        from routes.streamer import verify_module_token
+        claims = verify_module_token(token)
     if not claims:
         log.warning("[module_api] auth_failed: invalid/expired token (module=%s)",
                     module_id)
@@ -445,7 +441,7 @@ async def module_actions_poll(module_id: str, request: Request):
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"status": "module_not_found", "module_id": module_id},
         )
-    channel_id = _verify_module_request(request, module_id)
+    channel_id = await _verify_module_request(request, module_id)
 
     # Online status flicker fix: mod active = long-poll keeps coming. Mark
     # last_seen на каждый poll start (как heartbeat) — UI badge не будет
@@ -509,7 +505,7 @@ async def module_ack(module_id: str, request: Request):
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"status": "module_not_found", "module_id": module_id},
         )
-    channel_id = _verify_module_request(request, module_id)
+    channel_id = await _verify_module_request(request, module_id)
 
     try:
         body = await request.json()

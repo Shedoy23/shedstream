@@ -1,7 +1,10 @@
 # R0 gap analysis — current HEAD and production
 
 Дата проверки: 2026-08-15  
-Проверенный source baseline: `03b1fa944d0634007dcb9224f84f7f3597e1a149`  
+Проверенный source baseline: `03b1fa944d0634007dcb9224f84f7f3597e1a149`
+
+Follow-up fix: `f236ee4` (`M109.module_last_seen` ledger regression)
+
 Production: `https://shedoy23.ru`, read-only проверка
 
 ## Итог
@@ -9,8 +12,8 @@ Production: `https://shedoy23.ru`, read-only проверка
 Критических P0 в проверенных денежных, tenant и delivery-путях не найдено.
 Backend baseline достаточно устойчив, чтобы не переписывать runtime platform перед
 Manager. Однако R0 release gate пока **не пройден**: первая Manager integration не
-имеет полного live E2E доказательства, installation/version contract отсутствует,
-а restore свежего production backup не репетировался.
+имеет полного live E2E доказательства. Installation/version contract отсутствует,
+но его реализация относится к R1, а не к оставшемуся R0 gate.
 
 Решение по первой Manager integration: **RimWorld — условный кандидат**. У неё
 есть воспроизводимая .NET-сборка, готовый release archive, стандартный путь мода,
@@ -51,8 +54,10 @@ Manager. Однако R0 release gate пока **не пройден**: перв
   на непрерывный эфир. Исправление duplicate `stream_sessions` live-подтверждено.
 - Critical backend files и три runtime manifest совпадают с текущим source tree.
   `database.py` отличается только переводами строк: построчное содержимое равно.
-- Свежие compressed backup-файлы существуют; доступный plain backup прошёл
-  `quick_check`. Полное восстановление свежего `.zst` в отдельную БД не выполнялось.
+- Самый свежий compressed backup `viewers.daily.2026-08-15.db.zst` восстановлен
+  в изолированный временный файл: 86 130 688 bytes, `quick_check=ok`, 108 tables,
+  143 migration markers, 96 viewers, 9314 module actions. Временный файл удалён;
+  живая БД не открывалась на запись.
 
 ## Реально существующие integrations
 
@@ -89,7 +94,7 @@ Windows credential storage, а не в своём manifest.
 | Cross-channel isolation | general + per-integration multi-tenant tests | PASS в покрытых путях |
 | Restart не теряет оплаченное действие | backend requeue + RimLink durable outcome design | PARTIAL: нужен live restart/reconnect smoke |
 | Moderируемый контент не играет автоматически | TTS approval/moderation tests | PASS |
-| Fresh migrations и backup/restore | fresh-install test; production DB/old plain backup healthy | PARTIAL: свежий compressed restore drill отсутствует |
+| Fresh migrations и backup/restore | fresh-install test; restore свежего production `.zst`, `quick_check=ok` | PASS |
 
 ## Найденные gaps
 
@@ -98,9 +103,10 @@ Windows credential storage, а не в своём manifest.
 1. Выполнить RimWorld in-game E2E: apply/refuse, lost ACK, restart с pending ACK,
    reconnect, save switch и burst. До этого RimWorld — кандидат, не утверждённая
    первая integration.
-2. Провести restore drill свежего production `.zst` в изолированный временный
-   файл и проверить `quick_check` и ключевые counts.
-3. Ввести Installation Manifest v1 и канонический version ledger. Текущие
+
+### P1 — следующий этап R1, не блокирует закрытие R0
+
+1. Ввести Installation Manifest v1 и канонический version ledger. Текущие
    runtime manifest содержат устаревшие статусы/версии.
 
 ### P2 — исправить до внешней alpha либо явно вынести из M1
@@ -133,9 +139,7 @@ test_action_completed → technical_ready`.
 
 ## Следующий исполнимый порядок
 
-1. Закрыть M109 ledger defect и добавить regression.
-2. Выполнить и сохранить RimWorld live smoke evidence.
-3. Провести fresh compressed-backup restore drill.
-4. После этих двух gate-проверок окончательно утвердить RimWorld либо переключить
+1. Выполнить и сохранить RimWorld live smoke evidence.
+2. После этой gate-проверки окончательно утвердить RimWorld либо переключить
    M1 vertical slice на Bannerlord.
-5. Начать R1 с Installation Manifest schema и одного RimWorld package.
+3. Начать R1 с Installation Manifest schema и одного RimWorld package.

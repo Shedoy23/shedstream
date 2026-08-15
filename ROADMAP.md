@@ -182,8 +182,8 @@ Test action acknowledged
 - production healthy, DB `quick_check=ok`, незавершённых module actions нет;
 - денежных и tenant P0 в проверенных путях не найдено;
 - RimWorld выбран условным кандидатом, но не утверждён до live smoke;
-- release gate остаётся открытым из-за live restart/lost-ACK проверки, restore
-  drill свежего backup и отсутствующего installation/version contract;
+- restore свежего production backup проверен в изоляции, `quick_check=ok`;
+- release gate остаётся открытым из-за live RimWorld restart/lost-ACK проверки;
 - обнаруженный P2 с M109 исправлен локально и покрыт regression; production ещё
   не обновлён.
 

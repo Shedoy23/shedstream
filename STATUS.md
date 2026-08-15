@@ -35,6 +35,8 @@
 - M109 теперь регистрируется в migration ledger, безопасно ремонтирует уже
   существующую таблицу и покрыта regression; полный backend suite 45/45 green.
   Исправление ещё не deployed.
+- Свежий production backup за 15 августа успешно восстановлен в изолированный
+  временный файл и прошёл `quick_check`; живая БД не изменялась.
 - Активная игра определяется по heartbeat мода; действия выключенной integration
   отклоняются безопасно.
 - Релиз 0.0.2 зафиксирован тегом `submit/0.0.2`; канонический архив хранится в
@@ -51,11 +53,10 @@ vertical slice, но R0 release gate ещё не пройден.
 ## Следующие действия
 
 1. Выполнить RimWorld live smoke: apply/refuse, lost ACK, restart и reconnect.
-2. Провести restore drill свежего production compressed backup в изоляции.
-3. После live smoke окончательно утвердить первую Manager integration.
-4. Описать Installation Manifest v1 и единый version ledger отдельно от runtime
+2. После live smoke окончательно утвердить первую Manager integration.
+3. Описать Installation Manifest v1 и единый version ledger отдельно от runtime
    manifest.
-5. Включить M109 repair в следующий штатный production deploy.
+4. Включить M109 repair в следующий штатный production deploy.
 
 ## Правило обновления
 

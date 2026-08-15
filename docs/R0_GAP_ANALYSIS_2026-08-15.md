@@ -106,8 +106,9 @@ Windows credential storage, а не в своём manifest.
 
 ### P1 — следующий этап R1, не блокирует закрытие R0
 
-1. Ввести Installation Manifest v1 и канонический version ledger. Текущие
-   runtime manifest содержат устаревшие статусы/версии.
+1. ~~Ввести Installation Manifest v1 и канонический version ledger.~~ Schema и
+   первый RimWorld manifest созданы локально после аудита; installer, HTTPS
+   distribution и signature policy ещё не готовы.
 
 ### P2 — исправить до внешней alpha либо явно вынести из M1
 

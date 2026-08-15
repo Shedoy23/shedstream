@@ -1,0 +1,306 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shedoy23.ru/schemas/installation-manifest-v1.json",
+  "title": "ShedLink Installation Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "integration_id",
+    "release_version",
+    "runtime",
+    "game",
+    "prerequisites",
+    "artifacts",
+    "installation",
+    "configuration",
+    "health",
+    "compatibility_messages",
+    "security"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "integration_id": { "$ref": "#/$defs/id" },
+    "release_version": { "$ref": "#/$defs/version" },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manifest_version", "core_api_version"],
+      "properties": {
+        "manifest_version": { "$ref": "#/$defs/version" },
+        "core_api_version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "game": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "display_name", "supported_versions", "detection"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "display_name": { "type": "string", "minLength": 1 },
+        "supported_versions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "detection": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["kind", "app_id"],
+                "properties": {
+                  "kind": { "const": "steam" },
+                  "app_id": { "type": "integer", "minimum": 1 }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["kind", "required_paths"],
+                "properties": {
+                  "kind": { "const": "manual" },
+                  "required_paths": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": { "$ref": "#/$defs/relative_path" }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "prerequisites": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "requirement", "required"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "kind": { "enum": ["os", "game", "framework", "game_mod"] },
+          "requirement": { "type": "string", "minLength": 1 },
+          "required": { "type": "boolean" }
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "source", "size_bytes", "sha256", "format", "archive_root"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "source": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["kind", "path"],
+                "properties": {
+                  "kind": { "const": "repository" },
+                  "path": { "$ref": "#/$defs/relative_path" }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["kind", "url"],
+                "properties": {
+                  "kind": { "const": "https" },
+                  "url": { "type": "string", "pattern": "^https://" }
+                }
+              }
+            ]
+          },
+          "size_bytes": { "type": "integer", "minimum": 1 },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "format": { "enum": ["zip"] },
+          "archive_root": { "$ref": "#/$defs/relative_path" }
+        }
+      }
+    },
+    "installation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target", "staging", "replace", "rollback", "update", "repair", "uninstall"],
+      "properties": {
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["base", "relative_path"],
+          "properties": {
+            "base": { "enum": ["game_root"] },
+            "relative_path": { "$ref": "#/$defs/relative_path" }
+          }
+        },
+        "staging": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["base", "verify_before_replace"],
+          "properties": {
+            "base": { "enum": ["manager_temp"] },
+            "verify_before_replace": { "const": true }
+          }
+        },
+        "replace": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "require_game_stopped"],
+          "properties": {
+            "mode": { "enum": ["atomic_directory_swap"] },
+            "require_game_stopped": { "type": "boolean" }
+          }
+        },
+        "rollback": { "$ref": "#/$defs/preserve_operation" },
+        "update": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "preserve"],
+          "properties": {
+            "mode": { "enum": ["verify_then_replace"] },
+            "preserve": { "$ref": "#/$defs/string_array" }
+          }
+        },
+        "repair": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "preserve"],
+          "properties": {
+            "mode": { "enum": ["verify_then_replace"] },
+            "preserve": { "$ref": "#/$defs/string_array" }
+          }
+        },
+        "uninstall": { "$ref": "#/$defs/preserve_operation" }
+      }
+    },
+    "configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["store", "create_if_missing", "preserve_unmanaged", "managed_fields"],
+      "properties": {
+        "store": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "known_folder", "relative_path"],
+          "properties": {
+            "kind": { "enum": ["xml"] },
+            "known_folder": { "enum": ["windows_local_low"] },
+            "relative_path": { "$ref": "#/$defs/relative_path" }
+          }
+        },
+        "create_if_missing": { "type": "boolean" },
+        "preserve_unmanaged": { "const": true },
+        "managed_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "selector", "value_source", "secret"],
+            "properties": {
+              "name": { "$ref": "#/$defs/id" },
+              "selector": { "type": "string", "minLength": 1 },
+              "value_source": {
+                "enum": ["backend_url", "channel_module_token", "channel_id"]
+              },
+              "secret": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "health": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "required"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "kind": { "enum": ["path_exists", "backend_handshake", "module_heartbeat", "test_action"] },
+          "path": { "$ref": "#/$defs/relative_path" },
+          "module_id": { "$ref": "#/$defs/id" },
+          "action_type": { "type": "string", "minLength": 1 },
+          "required": { "type": "boolean" }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "kind": { "const": "path_exists" } } },
+            "then": { "required": ["path"] }
+          },
+          {
+            "if": {
+              "properties": {
+                "kind": { "enum": ["backend_handshake", "module_heartbeat", "test_action"] }
+              }
+            },
+            "then": { "required": ["module_id"] }
+          },
+          {
+            "if": { "properties": { "kind": { "const": "test_action" } } },
+            "then": { "required": ["action_type"] }
+          }
+        ]
+      }
+    },
+    "compatibility_messages": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invalid_game_path", "unsupported_game_version", "game_running"],
+      "properties": {
+        "invalid_game_path": { "type": "string", "minLength": 1 },
+        "unsupported_game_version": { "type": "string", "minLength": 1 },
+        "game_running": { "type": "string", "minLength": 1 }
+      }
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["publisher", "signature_status", "allowed_write_roots", "redact_fields"],
+      "properties": {
+        "publisher": { "type": "string", "minLength": 1 },
+        "signature_status": { "enum": ["unsigned", "signed"] },
+        "allowed_write_roots": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": ["game_root", "manager_temp", "windows_local_low"] }
+        },
+        "redact_fields": { "$ref": "#/$defs/string_array" }
+      }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$" },
+    "relative_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z]:)(?![/\\\\])(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$)).+$"
+    },
+    "string_array": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "preserve_operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "preserve"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "preserve": { "$ref": "#/$defs/string_array" }
+      }
+    }
+  }
+}

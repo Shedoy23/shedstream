@@ -215,6 +215,16 @@ Test action acknowledged
 Создать стабильный контракт между Manager и каждой устанавливаемой интеграцией,
 не ломая существующий runtime Module API.
 
+### Прогресс 2026-08-15
+
+- создана строгая JSON Schema `manifests/installation/v1.schema.json`;
+- создан первый RimWorld manifest с реальным archive size/SHA-256, detection,
+  install/update/repair/uninstall, rollback, managed config и health probes;
+- validator проверяет schema, границы repository path, size/hash и ZIP traversal;
+- manifest пока использует локальный `source.kind=repository` и честно помечен
+  `unsigned`: до внешней alpha нужны HTTPS distribution и решение по подписи;
+- installer и failure/rollback tests ещё не реализованы.
+
 ### Разделение контрактов
 
 #### Runtime Manifest — существующий слой
@@ -258,10 +268,10 @@ Test action acknowledged
 
 ### Definition of Done
 
-- JSON Schema или эквивалентная строгая схема Installation Manifest существует;
-- одна integration полностью описана без hard-coded game lifecycle в core Manager;
-- invalid path, hash mismatch, interrupted install и rollback покрыты тестами;
-- runtime manifest не перегружен deployment-деталями.
+- [x] JSON Schema или эквивалентная строгая схема Installation Manifest существует;
+- [x] Одна integration описана без hard-coded game lifecycle в core Manager;
+- [ ] Invalid path, hash mismatch, interrupted install и rollback покрыты тестами;
+- [x] Runtime manifest не перегружен deployment-деталями.
 
 ---
 

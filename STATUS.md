@@ -48,8 +48,11 @@
   локальное хранение, rotation/revoke и переход с legacy HMAC token.
 - Добавлена M110 с persistent pairing/session/credential ledger и strict
   constraints. Auth core покрывает approve/deny/expire, одноразовый exchange,
-  tamper/expiry и restart persistence; полный backend suite 47/47 green. HTTP API
-  ещё не подключён, legacy connector auth не изменён, production не обновлён.
+  tamper/expiry и restart persistence.
+- Pairing HTTP/browser flow подключён локально: create, safe OAuth return,
+  approved-channel page, CSRF Approve/Deny, one-time exchange, request limits и
+  rate limits; полный backend suite 48/48 green. Legacy connector auth не
+  изменён, production не обновлён.
 - Активная игра определяется по heartbeat мода; действия выключенной integration
   отклоняются безопасно.
 - Релиз 0.0.2 зафиксирован тегом `submit/0.0.2`; канонический архив хранится в
@@ -67,12 +70,13 @@ vertical slice, но R0 release gate ещё не пройден.
 
 1. Выполнить RimWorld live smoke: apply/refuse, lost ACK, restart и reconnect.
 2. После live smoke окончательно утвердить первую Manager integration.
-3. Подключить pairing create/browser approve/exchange HTTP API к проверенному
-   auth core, включая CSRF и rate limit.
-4. Перенести проверенный installation transaction contract в production Manager
+3. Реализовать выдачу/revoke/rotation opaque module credentials и подключить их
+   проверку к Module API параллельно с legacy HMAC transition.
+4. Реализовать refresh rotation/logout Manager session family.
+5. Перенести проверенный installation transaction contract в production Manager
    core после выбора desktop stack.
-5. Подготовить HTTPS distribution/signature policy для RimLink archive.
-6. Включить M109 repair и обновлённые runtime manifests в следующий штатный
+6. Подготовить HTTPS distribution/signature policy для RimLink archive.
+7. Включить M109 repair и обновлённые runtime manifests в следующий штатный
    production deploy.
 
 ## Правило обновления

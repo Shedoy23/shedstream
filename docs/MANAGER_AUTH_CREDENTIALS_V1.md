@@ -1,7 +1,7 @@
 # Manager auth and credential lifecycle v1
 
-Статус: design contract; M110 ledger и auth core реализованы локально, HTTP API
-ещё не подключён
+Статус: M110 ledger, auth core и pairing HTTP/browser flow реализованы локально;
+module credential issuance/rotation ещё не подключены
 
 Дата: 2026-08-15
 
@@ -98,6 +98,8 @@ deny/expiry — terminal error, после approve один раз выдаёт 
 Требует manager access token. Создаёт credential только для channel manager
 session и разрешённого manifest module. Secret возвращается один раз.
 
+Статус: следующий implementation slice.
+
 ### `POST /v1/manager/module-credentials/{id}/rotate`
 
 Создаёт replacement с overlap до 10 минут. Manager атомарно обновляет config и
@@ -146,8 +148,20 @@ connector auth.
 одноразовый exchange по device secret, hash-only refresh storage и короткий
 подписанный Manager access token. Negative tests проверяют wrong/weak secret,
 pending/denied/expired/duplicate exchange, tampering, expiry, restart persistence
-и fail-closed при отсутствии отдельного pepper. HTTP endpoints и browser approval
-ещё не экспонированы.
+и fail-closed при отсутствии отдельного pepper.
+
+Pairing HTTP/browser flow теперь экспонирован локально. Browser approval требует
+approved streamer session, channel-bound CSRF и явное Approve/Deny. OAuth state
+принимает только allowlisted local `return_to`, поэтому внешний open redirect
+невозможен. JSON/form payload имеют жёсткий размер; verification URL строится из
+канонического `MANAGER_PUBLIC_BASE_URL`, а не недоверенного Host header.
+
+Новые production settings:
+
+- `MANAGER_CREDENTIAL_PEPPER` — отдельный secret минимум 32 символа; без него
+  Manager endpoints fail closed, существующий backend продолжает работать;
+- `MANAGER_PUBLIC_BASE_URL` — канонический HTTPS origin, default
+  `https://shedoy23.ru`.
 
 ## Token formats
 

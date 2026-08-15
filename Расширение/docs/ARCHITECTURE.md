@@ -604,6 +604,9 @@ class MyAdapter(ModuleAdapter):
 - `TWITCH_BROADCASTER_ID` — для backfill при первом старте M4 миграции
 - `TWITCH_CHANNEL_NAME` — fallback для IRC bot если registry пуст
 - `MODULE_TOKEN_SECRET` — fallback на TWITCH_EXTENSION_SECRET если не задан
+- `MANAGER_CREDENTIAL_PEPPER` — отдельный pepper для hash-only Manager ledger;
+  без него Manager auth fail closed, минимум 32 символа
+- `MANAGER_PUBLIC_BASE_URL` — канонический HTTPS origin для browser pairing URL
 - `ADMIN_USERNAME` / `ADMIN_PASSWORD` — для /api/admin/*
 - `EVENTSUB_CALLBACK_URL` — публичный URL для Twitch EventSub webhook
 - `TWITCH_OAUTH_REDIRECT_URI` — для /streamer OAuth flow
@@ -627,7 +630,7 @@ Backend имеет standalone regression suite в `backend/tests/`. Канони
 python scripts/run-backend-tests.py
 ```
 
-На 2026-08-15 suite содержит 47 сценариев и проверяет, среди прочего:
+На 2026-08-15 suite содержит 48 сценариев и проверяет, среди прочего:
 
 - fresh install и migration ledger;
 - multi-tenant isolation и channel approval;

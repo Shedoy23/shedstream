@@ -35,6 +35,11 @@ async def main() -> int:
         async with aiosqlite.connect(path) as conn:
             await m110_manager_credentials.apply(conn)
 
+            csrf = manager_auth.issue_approval_csrf("pairing-csrf", 11, now=100)
+            assert manager_auth.verify_approval_csrf(csrf, "pairing-csrf", 11, now=101)
+            assert not manager_auth.verify_approval_csrf(csrf, "pairing-csrf", 12, now=101)
+            assert not manager_auth.verify_approval_csrf(csrf, "pairing-csrf", 11, now=401)
+
             created = await manager_auth.create_pairing(
                 conn, "installation-0001", "rimworld",
                 manager_auth.device_challenge(secret), now=1000,
@@ -63,8 +68,11 @@ async def main() -> int:
                 conn, tokens["access_token"], now=1005,
             )
             assert claims and claims["channel_id"] == 98319857
+            tampered = tokens["access_token"][:-1] + (
+                "0" if tokens["access_token"][-1] != "0" else "1"
+            )
             assert await manager_auth.verify_access_token(
-                conn, tokens["access_token"][:-1] + "0", now=1005
+                conn, tampered, now=1005
             ) is None
             assert await manager_auth.verify_access_token(
                 conn, tokens["access_token"], now=2000

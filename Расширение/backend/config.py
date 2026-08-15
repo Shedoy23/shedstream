@@ -118,6 +118,16 @@ elif not _MODULE_TOKEN_SECRET_ENV:
 # are empty the cookie is refused (the old hardcoded fallback constant was forgeable).
 SESSION_SECRET = os.getenv('SESSION_SECRET', '').strip() or TWITCH_EXTENSION_SECRET
 
+# ShedLink Manager pairing/opaque credentials. Pepper must be independent from
+# legacy module-token and Twitch secrets so rotation/revoke domains stay split.
+# Missing/short pepper does not break the existing backend: Manager endpoints
+# fail closed with 503 until configured.
+MANAGER_CREDENTIAL_PEPPER = os.getenv('MANAGER_CREDENTIAL_PEPPER', '').strip()
+MANAGER_PUBLIC_BASE_URL = (
+    os.getenv('MANAGER_PUBLIC_BASE_URL', 'https://shedoy23.ru').strip().rstrip('/')
+    or 'https://shedoy23.ru'
+)
+
 # ===== M5: Per-channel rate limits + tier-based квоты =====
 # Лимит запросов в минуту на канал. Применяется в require_jwt_user/_channel
 # (M5 hook): JWT-аутентифицированный запрос для канала X считается в bucket

@@ -234,8 +234,10 @@ Manager, rotation overlap и legacy migration.
 
 M110 локально добавляет persistent ledger pairing/session/module credentials с
 hash-only secrets и strict constraints. Auth core реализует одноразовый exchange,
-deny/expire, tamper/expiry checks и restart persistence. HTTP API и opaque module
-verification ещё не подключены; legacy connector auth не менялся.
+deny/expire, tamper/expiry checks и restart persistence. Pairing HTTP/browser
+flow подключён с safe OAuth return, approved-channel gate, CSRF, request/rate
+limits и one-time exchange. Opaque module verification ещё не подключена;
+legacy connector auth не менялся.
 
 ### Разделение контрактов
 

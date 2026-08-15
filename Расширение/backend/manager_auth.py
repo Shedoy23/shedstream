@@ -12,14 +12,15 @@ import hmac
 import os
 import re
 import secrets
+import sqlite3
 import time
 from dataclasses import dataclass
 from typing import Optional
 
-
 PAIRING_TTL_SECONDS = 10 * 60
 ACCESS_TTL_SECONDS = 15 * 60
 SESSION_TTL_SECONDS = 30 * 24 * 60 * 60
+APPROVAL_CSRF_TTL_SECONDS = 5 * 60
 _CHALLENGE_RE = re.compile(r"^[A-Za-z0-9_-]{43}$")
 _USER_CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
 
@@ -65,6 +66,42 @@ def _access_token(session_id: str, channel_id: int, expires_at: int) -> str:
     return f"slmgr_v1.{session_id}.{expires_at}.{signature}"
 
 
+def issue_approval_csrf(
+    pairing_id: str,
+    channel_id: int,
+    now: Optional[float] = None,
+) -> str:
+    now = float(time.time() if now is None else now)
+    expires_at = int(now + APPROVAL_CSRF_TTL_SECONDS)
+    message = f"{pairing_id}|{int(channel_id)}|{expires_at}"
+    signature = hmac.new(
+        _pepper(), f"approval_csrf|{message}".encode(), hashlib.sha256
+    ).hexdigest()
+    return f"{expires_at}.{signature}"
+
+
+def verify_approval_csrf(
+    token: str,
+    pairing_id: str,
+    channel_id: int,
+    now: Optional[float] = None,
+) -> bool:
+    now = float(time.time() if now is None else now)
+    parts = (token or "").split(".")
+    if len(parts) != 2:
+        return False
+    try:
+        expires_at = int(parts[0])
+    except ValueError:
+        return False
+    if expires_at <= now:
+        return False
+    expected = issue_approval_csrf(
+        pairing_id, channel_id, now=expires_at - APPROVAL_CSRF_TTL_SECONDS
+    )
+    return hmac.compare_digest(token, expected)
+
+
 async def create_pairing(
     conn,
     installation_id: str,
@@ -82,23 +119,31 @@ async def create_pairing(
     if not _CHALLENGE_RE.fullmatch(challenge or ""):
         raise ManagerAuthError("invalid_device_challenge")
 
-    pairing_id = secrets.token_urlsafe(24)
-    user_code = _new_user_code()
     expires_at = now + PAIRING_TTL_SECONDS
-    await conn.execute(
-        "INSERT INTO manager_pairings "
-        "(id,device_challenge,user_code_hash,installation_id_hash,module_id,status,created_at,expires_at) "
-        "VALUES (?,?,?,?,?,'pending',?,?)",
-        (
-            pairing_id,
-            challenge,
-            _hash("user_code", user_code),
-            _hash("installation", installation_id),
-            module_id,
-            now,
-            expires_at,
-        ),
-    )
+    for _attempt in range(5):
+        pairing_id = secrets.token_urlsafe(24)
+        user_code = _new_user_code()
+        try:
+            await conn.execute(
+                "INSERT INTO manager_pairings "
+                "(id,device_challenge,user_code_hash,installation_id_hash,module_id,status,created_at,expires_at) "
+                "VALUES (?,?,?,?,?,'pending',?,?)",
+                (
+                    pairing_id,
+                    challenge,
+                    _hash("user_code", user_code),
+                    _hash("installation", installation_id),
+                    module_id,
+                    now,
+                    expires_at,
+                ),
+            )
+            break
+        except sqlite3.IntegrityError:
+            continue
+    else:
+        await conn.rollback()
+        raise ManagerAuthError("pairing_id_collision")
     await conn.commit()
     return {
         "pairing_id": pairing_id,

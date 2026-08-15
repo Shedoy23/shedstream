@@ -33,6 +33,7 @@ import hashlib
 import hmac
 import logging
 import pathlib as _pathlib
+import re
 import secrets
 import time
 from typing import Dict, Optional
@@ -58,31 +59,43 @@ from dependencies import get_db, mark_channel_registered
 router = APIRouter()
 
 # ── State store (CSRF-защита OAuth flow) ──────────────────────────────────────
-# state → expiry timestamp. Очищается lazy при каждом start/callback.
+# state → (expiry timestamp, safe return path). Очищается lazy при start/callback.
 # В одиночном-инстанс прод-сетапе in-memory достаточно.
 _STATE_TTL = 300  # 5 минут на завершение OAuth flow
-_oauth_states: Dict[str, float] = {}
+_oauth_states: Dict[str, tuple[float, Optional[str]]] = {}
 
 
 def _cleanup_expired_states() -> None:
     now = time.time()
-    expired = [s for s, exp in _oauth_states.items() if exp < now]
+    expired = [s for s, value in _oauth_states.items() if value[0] < now]
     for s in expired:
         _oauth_states.pop(s, None)
 
 
-def _issue_state() -> str:
+def _safe_return_to(value: str) -> Optional[str]:
+    value = (value or "").strip()
+    if not value:
+        return None
+    if re.fullmatch(r"/manager/pair\?code=[A-Z0-9]{4}-[A-Z0-9]{4}", value):
+        return value
+    return None
+
+
+def _issue_state(return_to: Optional[str] = None) -> str:
     _cleanup_expired_states()
     state = secrets.token_urlsafe(32)
-    _oauth_states[state] = time.time() + _STATE_TTL
+    _oauth_states[state] = (time.time() + _STATE_TTL, return_to)
     return state
 
 
-def _consume_state(state: str) -> bool:
-    """Проверить и удалить state. True если валиден и не expired."""
+def _consume_state(state: str) -> tuple[bool, Optional[str]]:
+    """Проверить и удалить state; вернуть validity + safe post-OAuth path."""
     _cleanup_expired_states()
-    expiry = _oauth_states.pop(state, None)
-    return expiry is not None and expiry >= time.time()
+    value = _oauth_states.pop(state, None)
+    if value is None:
+        return False, None
+    expiry, return_to = value
+    return expiry >= time.time(), return_to
 
 
 # ── HTML pages ────────────────────────────────────────────────────────────────
@@ -175,11 +188,12 @@ async def streamer_landing(request: Request):
 
 
 @router.get("/api/streamer/auth/start", include_in_schema=False)
-async def auth_start():
+async def auth_start(request: Request):
     """Начало OAuth flow — генерируем state, редирект на Twitch."""
     if not TWITCH_CLIENT_ID:
         return HTMLResponse(_error_html("OAuth не настроен на сервере (нет TWITCH_CLIENT_ID)."), status_code=503)
-    state = _issue_state()
+    return_to = _safe_return_to(request.query_params.get("return_to", ""))
+    state = _issue_state(return_to)
     params = {
         'client_id':     TWITCH_CLIENT_ID,
         'redirect_uri':  TWITCH_OAUTH_REDIRECT_URI,
@@ -219,7 +233,8 @@ async def auth_callback(request: Request):
     if not code:
         return HTMLResponse(_error_html("Нет authorization code в запросе."), status_code=400)
 
-    if not _consume_state(state):
+    state_valid, return_to = _consume_state(state)
+    if not state_valid:
         return HTMLResponse(
             _error_html("CSRF state не валиден или истёк — открой /streamer заново."),
             status_code=400,
@@ -282,7 +297,10 @@ async def auth_callback(request: Request):
         return HTMLResponse(_pending_html(login))
 
     # M4.4: signed cookie + redirect на dashboard.
-    response = RedirectResponse(url="/streamer/dashboard", status_code=status.HTTP_302_FOUND)
+    response = RedirectResponse(
+        url=return_to or "/streamer/dashboard",
+        status_code=status.HTTP_302_FOUND,
+    )
     _set_session_cookie(response, channel_id)
     return response
 

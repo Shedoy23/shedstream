@@ -71,6 +71,7 @@ from routes.marriage import router as marriage_router
 from routes.misc     import router as misc_router
 from routes.compat   import router as compat_router
 from routes.streamer   import router as streamer_router
+from routes.manager    import router as manager_router
 from routes.module_api import router as module_api_router
 from routes.cases      import router as cases_router  # Phase 2 (2026-05-11)
 from routes.match      import router as match_router  # Phase 5.0 (2026-05-11)
@@ -112,6 +113,7 @@ app.include_router(marriage_router)
 app.include_router(misc_router)
 app.include_router(compat_router)      # 0.0.1 read-only compatibility; no legacy money writes
 app.include_router(streamer_router)    # M4.3: OAuth flow для регистрации стримеров
+app.include_router(manager_router)     # Manager browser pairing + one-time exchange
 app.include_router(module_api_router)  # Этап 3: Module API (handshake + module registry)
 app.include_router(cases_router)       # Phase 2 (2026-05-11): cases system
 app.include_router(match_router)       # Phase 5.0 (2026-05-11): matchmaking base

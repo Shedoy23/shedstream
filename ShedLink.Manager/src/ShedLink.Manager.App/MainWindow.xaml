@@ -74,9 +74,14 @@
                                    Foreground="{StaticResource TextMuted}" Margin="0,7,0,0"
                                    TextWrapping="Wrap" MaxWidth="500" />
                     </StackPanel>
-                    <Button x:Name="InstallButton" Grid.Column="1" Content="Установить"
-                            IsEnabled="False" Click="InstallButton_Click"
-                            VerticalAlignment="Center" Margin="18,0,0,0" />
+                    <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                VerticalAlignment="Center" Margin="18,0,0,0">
+                        <Button x:Name="RemoveButton" Content="Удалить"
+                                IsEnabled="False" Click="RemoveButton_Click"
+                                Background="#343B4C" Margin="0,0,8,0" />
+                        <Button x:Name="InstallButton" Content="Установить"
+                                IsEnabled="False" Click="InstallButton_Click" />
+                    </StackPanel>
                 </Grid>
             </Border>
 

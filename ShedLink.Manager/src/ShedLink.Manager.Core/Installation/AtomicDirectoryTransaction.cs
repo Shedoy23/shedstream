@@ -67,6 +67,39 @@ public static class AtomicDirectoryTransaction
         }
     }
 
+    public static AtomicDirectoryReplacement? PrepareRemoval(
+        string target,
+        string allowedRoot,
+        Action<string>? failpoint = null)
+    {
+        target = PathBoundary.Within(target, allowedRoot);
+        Recover(target, allowedRoot);
+        if (!Directory.Exists(target))
+        {
+            return null;
+        }
+        if (IsReparsePoint(target))
+        {
+            throw new InvalidDataException("Installation target cannot be a reparse point.");
+        }
+        var (stage, backup, journal) = TransactionPaths(target, allowedRoot);
+        DeleteTree(stage);
+        DeleteTree(backup);
+        try
+        {
+            WritePhase(journal, "prepared");
+            Directory.Move(target, backup);
+            WritePhase(journal, "backed_up");
+            failpoint?.Invoke("removed");
+            return new AtomicDirectoryReplacement(target, allowedRoot);
+        }
+        catch
+        {
+            Recover(target, allowedRoot);
+            throw;
+        }
+    }
+
     public static bool Complete(string target, string allowedRoot)
     {
         target = PathBoundary.Within(target, allowedRoot);

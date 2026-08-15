@@ -20,20 +20,13 @@ internal static class ReleaseConfiguration
         out ArtifactSignatureVerifier? verifier,
         out string reason)
     {
-        manifest = null;
         verifier = null;
-        try
+        if (!TryLoadManifest(out manifest, out reason))
         {
-            manifest = InstallationManifestLoader.Load(ManifestPath);
-        }
-        catch (Exception exception) when (
-            exception is IOException or JsonException or InvalidDataException)
-        {
-            reason = "Release-манифест Manager недоступен или повреждён.";
             return false;
         }
 
-        var artifact = manifest.Artifacts[0];
+        var artifact = manifest!.Artifacts[0];
         if (artifact.Source.Kind != "https" || artifact.Source.Url is null ||
             manifest.Security.SignatureStatus != "signed" || artifact.Signature is null)
         {
@@ -46,6 +39,25 @@ internal static class ReleaseConfiguration
             return false;
         }
         verifier = new ArtifactSignatureVerifier(TrustedPublisherKeys);
+        reason = string.Empty;
+        return true;
+    }
+
+    public static bool TryLoadManifest(
+        out InstallationManifest? manifest,
+        out string reason)
+    {
+        manifest = null;
+        try
+        {
+            manifest = InstallationManifestLoader.Load(ManifestPath);
+        }
+        catch (Exception exception) when (
+            exception is IOException or JsonException or InvalidDataException)
+        {
+            reason = "Release-манифест Manager недоступен или повреждён.";
+            return false;
+        }
         reason = string.Empty;
         return true;
     }

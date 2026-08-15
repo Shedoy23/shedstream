@@ -1,6 +1,6 @@
 namespace ShedLink.Manager.Core.Installation;
 
-internal static class PathBoundary
+public static class PathBoundary
 {
     public static void ValidateRelative(string value)
     {

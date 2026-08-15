@@ -364,6 +364,56 @@ static async Task TestInstallationAsync(string root)
                 "slmod_v1.operation.secret", StringComparison.Ordinal),
             "verified crash completed on restart");
     }
+
+    File.WriteAllText(Path.Combine(operationResult.TargetPath, "uninstall-marker.txt"), "keep");
+    try
+    {
+        AtomicDirectoryTransaction.PrepareRemoval(
+            operationResult.TargetPath,
+            operationGame,
+            phase =>
+            {
+                if (phase == "removed")
+                {
+                    throw new IOException("simulated removal failure");
+                }
+            });
+        throw new InvalidOperationException("FAILED: interrupted removal rolled back");
+    }
+    catch (IOException exception) when (exception.Message == "simulated removal failure")
+    {
+        Assert(File.Exists(Path.Combine(operationResult.TargetPath, "uninstall-marker.txt")),
+            "interrupted removal rolled back");
+    }
+
+    var preservedConfig = File.ReadAllText(operationConfig);
+    try
+    {
+        operationService.Uninstall(
+            manifestPath,
+            operationGame,
+            operationConfigRoot,
+            phase =>
+            {
+                if (phase == "verified")
+                {
+                    throw new IOException("simulated uninstall crash");
+                }
+            });
+        throw new InvalidOperationException("FAILED: uninstall crash journal retained");
+    }
+    catch (IOException exception) when (exception.Message == "simulated uninstall crash")
+    {
+        var restartedUninstall = new IntegrationInstallationService(
+            operationApi, operationVault, operationStore);
+        Assert(restartedUninstall.RecoverPending() &&
+            !Directory.Exists(operationResult.TargetPath) &&
+            File.ReadAllText(operationConfig) == preservedConfig,
+            "verified uninstall completed and config preserved after restart");
+        Assert(!restartedUninstall.Uninstall(
+            manifestPath, operationGame, operationConfigRoot),
+            "repeated uninstall is idempotent");
+    }
 }
 
 static async Task TestHttpsDistributionAsync(string root)

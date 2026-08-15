@@ -63,6 +63,9 @@
 - Package install, managed XML и side-effect-free auth-check объединены в одну
   recoverable Core operation для repository и signed HTTPS. Auth failure
   откатывает обе части; verified crash безопасно завершается после restart.
+- WPF умеет атомарно удалить RimLink после подтверждения, сохраняя config и
+  module credential для восстановления. Interrupted removal откатывается,
+  verified crash завершается после restart, повторное удаление идемпотентно.
 - HTTPS distribution verifier готов локально: no redirects/downgrade, bounded
   download, SHA-256 и trusted RSA-PSS publisher signature до распаковки.
   Offline signer готов и требует внешний RSA 3072+ PEM. Production signing key
@@ -93,7 +96,7 @@ vertical slice, но R0 release gate ещё не пройден.
    RimLink archive по конечному HTTPS URL.
 4. Создать production signing key, добавить public key и конечный HTTPS URL:
    после этого уже подключённый WPF CTA станет доступен без изменения policy.
-5. Подключить repair/uninstall к WPF shell с сохранением config по умолчанию.
+5. Довести repair UX и показать установленную/доступную версии RimLink.
 6. Добавить heartbeat/test-action diagnostics для `Technical Ready`.
 7. Включить M109 repair, Manager API и обновлённые runtime manifests в следующий штатный
    production deploy.

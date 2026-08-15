@@ -75,6 +75,54 @@ public sealed class IntegrationInstallationService
             cancellationToken);
     }
 
+    public bool Uninstall(
+        string manifestPath,
+        string gameRoot,
+        string? windowsLocalLowOverride = null,
+        Action<string>? failpoint = null)
+    {
+        RecoverPending();
+        var manifest = InstallationManifestLoader.Load(manifestPath);
+        var state = _stateStore.LoadOrCreate();
+        ValidateScope(manifest, state);
+        var configPath = ConfigurationPathResolver.Resolve(
+            manifest.Configuration.Store, windowsLocalLowOverride);
+        var targetPath = PathBoundary.CombineWithin(
+            gameRoot, manifest.Installation.Target.RelativePath);
+        var journal = new InstallationOperationJournal(
+            "applying", Path.GetFullPath(gameRoot), targetPath, configPath);
+        WriteJournal(journal);
+        AtomicDirectoryReplacement? removal = null;
+        var verified = false;
+        try
+        {
+            removal = AtomicDirectoryTransaction.PrepareRemoval(targetPath, gameRoot);
+            if (removal is null)
+            {
+                File.Delete(_journalPath);
+                File.Delete(_journalPath + ".tmp");
+                return false;
+            }
+            verified = true;
+            WriteJournal(journal with { Phase = "verified" });
+            failpoint?.Invoke("verified");
+            removal.Commit();
+            File.Delete(_journalPath);
+            File.Delete(_journalPath + ".tmp");
+            return true;
+        }
+        catch
+        {
+            if (!verified)
+            {
+                removal?.Rollback();
+                File.Delete(_journalPath);
+                File.Delete(_journalPath + ".tmp");
+            }
+            throw;
+        }
+    }
+
     private async Task<InstallationResult> InstallPreparedAsync(
         string manifestPath,
         string gameRoot,

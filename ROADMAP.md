@@ -363,11 +363,12 @@ refresh без неявного отзыва установленных module c
 - [ ] Verify.
 - [ ] Update.
 - [ ] Repair.
-- [ ] Uninstall с сохранением пользовательских данных по умолчанию.
+- [x] Uninstall с сохранением пользовательских данных по умолчанию.
 
 Core-реализация первых трёх пунктов завершена и покрыта success, auth failure и
-verified-crash recovery тестами; пункты остаются открытыми до подключения WPF
-CTA и проверки реального release source.
+verified-crash recovery тестами; пункты остаются открытыми до проверки реального
+release source. Uninstall подключён к WPF, атомарен, идемпотентен и сохраняет
+managed XML/credential по умолчанию.
 
 #### Diagnostics
 

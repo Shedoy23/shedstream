@@ -244,6 +244,58 @@ public partial class MainWindow : Window
         }
     }
 
+    private void RemoveButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_game is null)
+        {
+            UpdateInstallAvailability();
+            return;
+        }
+        if (!ReleaseConfiguration.TryLoadManifest(out _, out var reason))
+        {
+            IntegrationStatusText.Text = reason;
+            return;
+        }
+        if (_detector.IsGameRunning())
+        {
+            IntegrationStatusText.Text = "Закрой RimWorld перед удалением RimLink.";
+            return;
+        }
+        if (MessageBox.Show(
+            this,
+            "Удалить мод RimLink? Настройки и защищённый ключ останутся, чтобы его можно было восстановить.",
+            "Удаление RimLink",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question) != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        _installing = true;
+        UpdateInstallAvailability();
+        try
+        {
+            _installationService.Uninstall(
+                ReleaseConfiguration.ManifestPath, _game.RootPath);
+            var state = _stateStore.LoadOrCreate();
+            _stateStore.Save(state with { InstalledReleaseVersion = null });
+            IntegrationStatusText.Text =
+                "RimLink удалён. Настройки сохранены для восстановления.";
+            OverallStatusText.Text = "Интеграция отключена локально; ключ не отозван.";
+        }
+        catch (Exception exception) when (
+            exception is InvalidOperationException or InvalidDataException or IOException)
+        {
+            IntegrationStatusText.Text = "Удаление не выполнено; мод восстановлен.";
+            OverallStatusText.Text = FriendlyError(exception);
+        }
+        finally
+        {
+            _installing = false;
+            UpdateInstallAvailability(updateReleaseMessage: false);
+        }
+    }
+
     private void DetectGame()
     {
         var state = _stateStore.LoadOrCreate();
@@ -286,14 +338,21 @@ public partial class MainWindow : Window
         UpdateInstallAvailability();
     }
 
-    private void UpdateInstallAvailability()
+    private void UpdateInstallAvailability(bool updateReleaseMessage = true)
     {
         if (_installing)
         {
             InstallButton.IsEnabled = false;
+            RemoveButton.IsEnabled = false;
             InstallButton.ToolTip = "Установка уже выполняется.";
             return;
         }
+        var installed = IsIntegrationInstalled();
+        InstallButton.Content = installed ? "Восстановить" : "Установить";
+        RemoveButton.IsEnabled = _game is not null && installed;
+        RemoveButton.ToolTip = installed
+            ? "Удалить мод, сохранив настройки и ключ."
+            : "RimLink не установлен в выбранной игре.";
         if (_session is null || _game is null)
         {
             InstallButton.IsEnabled = false;
@@ -306,10 +365,22 @@ public partial class MainWindow : Window
         InstallButton.ToolTip = releaseReady
             ? "Установить и настроить RimLink."
             : releaseReason;
-        if (!releaseReady)
+        if (!releaseReady && updateReleaseMessage)
         {
             IntegrationStatusText.Text = releaseReason;
         }
+    }
+
+    private bool IsIntegrationInstalled()
+    {
+        if (_game is null ||
+            !ReleaseConfiguration.TryLoadManifest(out var manifest, out _))
+        {
+            return false;
+        }
+        var target = PathBoundary.CombineWithin(
+            _game.RootPath, manifest!.Installation.Target.RelativePath);
+        return Directory.Exists(target);
     }
 
     private void SaveGameRoot(string gameRoot)

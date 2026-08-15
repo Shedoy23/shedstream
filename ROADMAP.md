@@ -233,7 +233,9 @@ Test action acknowledged
   условием `Technical Ready`;
 - manifest пока использует локальный `source.kind=repository` и честно помечен
   `unsigned`: policy уже требует signed HTTPS, но production key/URL ещё не созданы;
-- production Manager orchestration `package → config → verify` ещё не завершена.
+- production Manager Core объединяет `package → config → auth-check` в одну
+  recoverable operation: до verify сохраняются обе rollback-копии, отказ
+  откатывает пакет и XML, а verified crash завершается при следующем запуске.
 
 Auth/credential contract зафиксирован в
 `docs/MANAGER_AUTH_CREDENTIALS_V1.md`: system-browser pairing, отсутствие Twitch
@@ -328,8 +330,9 @@ refresh без неявного отзыва установленных module c
 - RimWorld находится в основной или дополнительной Steam library; ручная папка
   принимается только при наличии `RimWorldWin64.exe` и `Mods`;
 - production installation engine реализован в Core и проверяет реальный
-  manifest; install CTA пока отключён до HTTPS distribution/signature policy и
-  orchestration шага `package → config → verify`.
+  manifest; repository и signed HTTPS sources проходят единую recoverable
+  orchestration `package → config → auth-check`. Install CTA пока отключён до
+  production signing key и конечного HTTPS release URL.
 - HTTPS downloader и publisher verifier реализованы fail-closed: redirect/HTTP
   downgrade, wrong/truncated/oversized bytes, SHA mismatch, unknown key и
   RSA-PSS mismatch не доходят до staging. Policy зафиксирована в
@@ -360,6 +363,10 @@ refresh без неявного отзыва установленных module c
 - [ ] Update.
 - [ ] Repair.
 - [ ] Uninstall с сохранением пользовательских данных по умолчанию.
+
+Core-реализация первых трёх пунктов завершена и покрыта success, auth failure и
+verified-crash recovery тестами; пункты остаются открытыми до подключения WPF
+CTA и проверки реального release source.
 
 #### Diagnostics
 

@@ -87,19 +87,22 @@ public sealed class ManagerCoordinator
             ModuleId = session.ModuleId,
             ChannelId = session.ChannelId,
         };
-        _vault.Write(RefreshKey(state.InstallationId), session.RefreshToken);
+        _vault.Write(CredentialKeys.ManagerRefresh(state.InstallationId), session.RefreshToken);
         _stateStore.Save(state);
         _pairingId = null;
         _deviceSecret = null;
 
-        var existingToken = _vault.Read(ModuleKey(state.InstallationId, session.ModuleId));
+        var existingToken = _vault.Read(
+            CredentialKeys.ModuleToken(state.InstallationId, session.ModuleId));
         if (!string.IsNullOrEmpty(existingToken) && !string.IsNullOrEmpty(state.CredentialId))
         {
             return Ready(session, state.CredentialId);
         }
         var credential = await _api.IssueCredentialAsync(
             session.AccessToken, session.ModuleId, label, cancellationToken);
-        _vault.Write(ModuleKey(state.InstallationId, session.ModuleId), credential.ModuleToken);
+        _vault.Write(
+            CredentialKeys.ModuleToken(state.InstallationId, session.ModuleId),
+            credential.ModuleToken);
         state = state with { CredentialId = credential.CredentialId };
         _stateStore.Save(state);
         return Ready(session, credential.CredentialId);
@@ -110,24 +113,25 @@ public sealed class ManagerCoordinator
         CancellationToken cancellationToken = default)
     {
         var state = _stateStore.LoadOrCreate();
-        var refreshToken = _vault.Read(RefreshKey(state.InstallationId));
+        var refreshToken = _vault.Read(CredentialKeys.ManagerRefresh(state.InstallationId));
         if (string.IsNullOrEmpty(refreshToken))
         {
             throw new InvalidOperationException("Manager is not paired.");
         }
         var session = await _api.RefreshAsync(refreshToken, cancellationToken);
-        _vault.Write(RefreshKey(state.InstallationId), session.RefreshToken);
+        _vault.Write(CredentialKeys.ManagerRefresh(state.InstallationId), session.RefreshToken);
         state = state with { ModuleId = session.ModuleId, ChannelId = session.ChannelId };
         _stateStore.Save(state);
 
         var credentialId = state.CredentialId;
-        var moduleToken = _vault.Read(ModuleKey(state.InstallationId, session.ModuleId));
+        var moduleToken = _vault.Read(
+            CredentialKeys.ModuleToken(state.InstallationId, session.ModuleId));
         if (string.IsNullOrEmpty(moduleToken) || string.IsNullOrEmpty(credentialId))
         {
             var credential = await _api.IssueCredentialAsync(
                 session.AccessToken, session.ModuleId, label, cancellationToken);
             _vault.Write(
-                ModuleKey(state.InstallationId, session.ModuleId),
+                CredentialKeys.ModuleToken(state.InstallationId, session.ModuleId),
                 credential.ModuleToken);
             credentialId = credential.CredentialId;
             state = state with { CredentialId = credentialId };
@@ -146,10 +150,10 @@ public sealed class ManagerCoordinator
         {
             await _api.RevokeCredentialAsync(
                 session.AccessToken, session.CredentialId, cancellationToken);
-            _vault.Delete(ModuleKey(state.InstallationId, session.ModuleId));
+            _vault.Delete(CredentialKeys.ModuleToken(state.InstallationId, session.ModuleId));
         }
         await _api.LogoutAsync(session.AccessToken, cancellationToken);
-        _vault.Delete(RefreshKey(state.InstallationId));
+        _vault.Delete(CredentialKeys.ManagerRefresh(state.InstallationId));
         _stateStore.Save(state with
         {
             ChannelId = null,
@@ -163,12 +167,6 @@ public sealed class ManagerCoordinator
         session.ChannelId,
         session.ModuleId,
         credentialId);
-
-    private static string RefreshKey(string installationId) =>
-        $"{installationId}.manager-refresh";
-
-    private static string ModuleKey(string installationId, string moduleId) =>
-        $"{installationId}.{moduleId}.module-token";
 
     private static string Base64Url(byte[] value) =>
         Convert.ToBase64String(value).TrimEnd('=').Replace('+', '-').Replace('/', '_');

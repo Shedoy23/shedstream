@@ -58,6 +58,9 @@
 - Installation transaction перенесён в .NET Core: production manifest parsing,
   artifact size/SHA-256, safe ZIP, reparse guard, atomic swap, rollback и crash
   recovery зелёные. XML writer сохраняет чужие поля и ставит user-only ACL.
+- Package install, managed XML и side-effect-free auth-check объединены в одну
+  recoverable Core operation для repository и signed HTTPS. Auth failure
+  откатывает обе части; verified crash безопасно завершается после restart.
 - HTTPS distribution verifier готов локально: no redirects/downgrade, bounded
   download, SHA-256 и trusted RSA-PSS publisher signature до распаковки.
   Offline signer готов и требует внешний RSA 3072+ PEM. Production signing key
@@ -83,8 +86,8 @@ vertical slice, но R0 release gate ещё не пройден.
 2. После live smoke окончательно утвердить первую Manager integration.
 3. Создать offline production signing key, встроить public key и опубликовать
    RimLink archive по конечному HTTPS URL.
-4. Соединить package install + XML config + authenticated verify в одну
-   recoverable Manager operation и включить WPF CTA.
+4. Подключить готовую recoverable install operation к WPF CTA после появления
+   production signing key и конечного HTTPS release URL.
 5. Подключить repair/uninstall к WPF shell с сохранением config по умолчанию.
 6. Добавить heartbeat/test-action diagnostics для `Technical Ready`.
 7. Включить M109 repair, Manager API и обновлённые runtime manifests в следующий штатный

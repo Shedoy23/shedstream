@@ -17,7 +17,7 @@ try
 {
     await TestCoordinatorAsync(root);
     TestRimWorldDetection(root);
-    TestInstallation(root);
+    await TestInstallationAsync(root);
     await TestHttpsDistributionAsync(root);
     TestWindowsVault();
     Console.WriteLine("ALL GREEN — Manager core keeps secrets out of local state and survives restart.");
@@ -126,7 +126,7 @@ static void TestRimWorldDetection(string root)
     }
 }
 
-static void TestInstallation(string root)
+static async Task TestInstallationAsync(string root)
 {
     var productionManifest = InstallationManifestLoader.Load(Path.Combine(
         Environment.CurrentDirectory,
@@ -252,7 +252,10 @@ static void TestInstallation(string root)
         "unmanaged XML field preserved");
     Assert(configured.Contains("slmod_v1.test.secret", StringComparison.Ordinal),
         "managed module credential written");
-    Assert(!File.Exists(config + ".tmp"), "config atomic temp cleaned");
+    Assert(!File.Exists(config + ".shedlink-write.tmp") &&
+        !File.Exists(config + ".shedlink-backup") &&
+        !File.Exists(config + ".shedlink-transaction.json"),
+        "config transaction artifacts cleaned");
     var access = new FileInfo(config).GetAccessControl();
     var currentUser = WindowsIdentity.GetCurrent().User!;
     var rules = access.GetAccessRules(
@@ -262,6 +265,105 @@ static void TestInstallation(string root)
     Assert(access.AreAccessRulesProtected && rules.Length > 0 &&
         rules.All(rule => currentUser.Equals(rule.IdentityReference)),
         "secret config ACL limited to current user");
+
+    File.WriteAllText(Path.Combine(target, "transaction-marker.txt"), "stable");
+    using (var prepared = installer.PrepareRepositoryArtifact(
+        manifestPath, repository, game))
+    {
+        Assert(!File.Exists(Path.Combine(target, "transaction-marker.txt")),
+            "prepared package visible before final commit");
+    }
+    Assert(File.Exists(Path.Combine(target, "transaction-marker.txt")),
+        "uncommitted package preparation rolled back");
+
+    var beforeConfig = File.ReadAllText(config);
+    using (ManagedXmlConfiguration.PrepareWrite(config, new Dictionary<string, string>
+    {
+        ["/SettingsBlock/ModSettings/serverUrl"] = "https://rollback.test",
+        ["/SettingsBlock/ModSettings/moduleToken"] = "slmod_v1.rollback.secret",
+    }))
+    {
+        Assert(File.ReadAllText(config).Contains("slmod_v1.rollback.secret", StringComparison.Ordinal),
+            "prepared config visible before final commit");
+    }
+    Assert(File.ReadAllText(config) == beforeConfig,
+        "uncommitted config preparation rolled back");
+
+    var operationRoot = Path.Combine(root, "operation");
+    var operationGame = Path.Combine(operationRoot, "game");
+    var operationConfigRoot = Path.Combine(operationRoot, "local-low");
+    var operationStatePath = Path.Combine(operationRoot, "manager", "state.json");
+    Directory.CreateDirectory(Path.Combine(operationGame, "Mods", "RimLink"));
+    var operationStore = new ManagerStateStore(operationStatePath);
+    var operationState = operationStore.LoadOrCreate() with
+    {
+        ModuleId = "rimworld",
+        BackendUrl = new Uri("https://manager.test"),
+    };
+    operationStore.Save(operationState);
+    var operationVault = new MemoryVault();
+    operationVault.Write(
+        CredentialKeys.ModuleToken(operationState.InstallationId, "rimworld"),
+        "slmod_v1.operation.secret");
+    var operationHandler = new FakeManagerHandler();
+    var operationApi = new ManagerApiClient(new HttpClient(operationHandler)
+    {
+        BaseAddress = operationState.BackendUrl,
+    });
+    var operationService = new IntegrationInstallationService(
+        operationApi, operationVault, operationStore);
+    var operationResult = await operationService.InstallRepositoryAsync(
+        manifestPath, repository, operationGame, operationConfigRoot);
+    var operationConfig = ConfigurationPathResolver.Resolve(
+        InstallationManifestLoader.Load(manifestPath).Configuration.Store,
+        operationConfigRoot);
+    Assert(File.Exists(Path.Combine(operationResult.TargetPath, "Assemblies", "RimLink.dll")) &&
+        File.ReadAllText(operationConfig).Contains("slmod_v1.operation.secret", StringComparison.Ordinal),
+        "package and config committed after authenticated verify");
+
+    File.WriteAllText(Path.Combine(operationResult.TargetPath, "stable-marker.txt"), "keep");
+    var stableConfig = File.ReadAllText(operationConfig);
+    operationHandler.RejectAuthCheck = true;
+    try
+    {
+        await operationService.InstallRepositoryAsync(
+            manifestPath, repository, operationGame, operationConfigRoot);
+        throw new InvalidOperationException("FAILED: auth-check failure rolls back operation");
+    }
+    catch (ManagerApiException)
+    {
+        Assert(File.Exists(Path.Combine(operationResult.TargetPath, "stable-marker.txt")) &&
+            File.ReadAllText(operationConfig) == stableConfig,
+            "auth-check failure rolls back package and config");
+    }
+
+    operationHandler.RejectAuthCheck = false;
+    try
+    {
+        await operationService.InstallRepositoryAsync(
+            manifestPath,
+            repository,
+            operationGame,
+            operationConfigRoot,
+            phase =>
+            {
+                if (phase == "verified")
+                {
+                    throw new IOException("simulated verified crash");
+                }
+            });
+        throw new InvalidOperationException("FAILED: verified crash journal retained");
+    }
+    catch (IOException exception) when (exception.Message == "simulated verified crash")
+    {
+        var restartedOperation = new IntegrationInstallationService(
+            operationApi, operationVault, operationStore);
+        Assert(restartedOperation.RecoverPending() &&
+            !File.Exists(Path.Combine(operationResult.TargetPath, "stable-marker.txt")) &&
+            File.ReadAllText(operationConfig).Contains(
+                "slmod_v1.operation.secret", StringComparison.Ordinal),
+            "verified crash completed on restart");
+    }
 }
 
 static async Task TestHttpsDistributionAsync(string root)
@@ -314,6 +416,38 @@ static async Task TestHttpsDistributionAsync(string root)
             remoteManifestPath, remoteGame, downloader, verifier);
         Assert(File.Exists(Path.Combine(installed.TargetPath, "Assemblies", "RimLink.dll")),
             "signed HTTPS artifact installed");
+    }
+
+    var httpsOperationRoot = Path.Combine(root, "https-operation");
+    var httpsOperationGame = Path.Combine(httpsOperationRoot, "game");
+    var httpsOperationState = new ManagerStateStore(
+        Path.Combine(httpsOperationRoot, "manager", "state.json"));
+    var httpsState = httpsOperationState.LoadOrCreate() with
+    {
+        ModuleId = "rimworld",
+        BackendUrl = new Uri("https://manager.test"),
+    };
+    httpsOperationState.Save(httpsState);
+    var httpsVault = new MemoryVault();
+    httpsVault.Write(
+        CredentialKeys.ModuleToken(httpsState.InstallationId, "rimworld"),
+        "slmod_v1.https.secret");
+    var httpsApi = new ManagerApiClient(new HttpClient(new FakeManagerHandler())
+    {
+        BaseAddress = httpsState.BackendUrl,
+    });
+    using (var downloader = new SecureArtifactDownloader(
+        new ArtifactDownloadHandler(archiveBytes, HttpStatusCode.OK)))
+    {
+        var installed = await new IntegrationInstallationService(
+            httpsApi, httpsVault, httpsOperationState).InstallHttpsAsync(
+                remoteManifestPath,
+                httpsOperationGame,
+                downloader,
+                verifier,
+                Path.Combine(httpsOperationRoot, "local-low"));
+        Assert(File.Exists(Path.Combine(installed.TargetPath, "Assemblies", "RimLink.dll")),
+            "signed HTTPS package, config and auth-check committed together");
     }
 
     var redirectTarget = Path.Combine(root, "redirect-download.zip");
@@ -420,6 +554,7 @@ sealed class FakeManagerHandler : HttpMessageHandler
     public string LastCreateBody { get; private set; } = string.Empty;
     public bool SawCredentialRevoke { get; private set; }
     public bool SawLogout { get; private set; }
+    public bool RejectAuthCheck { get; set; }
 
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
@@ -460,6 +595,11 @@ sealed class FakeManagerHandler : HttpMessageHandler
         }
         if (path == "/v1/module/rimworld/auth-check")
         {
+            if (RejectAuthCheck)
+            {
+                return Json(HttpStatusCode.Unauthorized,
+                    """{"detail":{"status":"auth_failed"}}""");
+            }
             return Json(HttpStatusCode.OK, """{"status":"ok","module_id":"rimworld"}""");
         }
         if (request.Method == HttpMethod.Delete && path.Contains("module-credentials"))

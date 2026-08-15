@@ -5,9 +5,39 @@ public sealed record InstallationResult(
     string ReleaseVersion,
     string TargetPath);
 
+public sealed class PreparedInstallation : IDisposable
+{
+    private readonly AtomicDirectoryReplacement _replacement;
+
+    internal PreparedInstallation(
+        InstallationResult result,
+        AtomicDirectoryReplacement replacement)
+    {
+        Result = result;
+        _replacement = replacement;
+    }
+
+    public InstallationResult Result { get; }
+    public void Commit() => _replacement.Commit();
+    public void Rollback() => _replacement.Rollback();
+    public void Dispose() => _replacement.Dispose();
+}
+
 public sealed class PackageInstaller
 {
     public InstallationResult InstallRepositoryArtifact(
+        string manifestPath,
+        string repositoryRoot,
+        string gameRoot,
+        Action<string>? failpoint = null)
+    {
+        using var prepared = PrepareRepositoryArtifact(
+            manifestPath, repositoryRoot, gameRoot, failpoint);
+        prepared.Commit();
+        return prepared.Result;
+    }
+
+    public PreparedInstallation PrepareRepositoryArtifact(
         string manifestPath,
         string repositoryRoot,
         string gameRoot,
@@ -21,10 +51,29 @@ public sealed class PackageInstaller
         }
         var archivePath = PathBoundary.CombineWithin(repositoryRoot, artifact.Source.Path);
         ArtifactVerifier.Verify(archivePath, artifact);
-        return InstallVerifiedArchive(manifest, archivePath, gameRoot, failpoint);
+        return PrepareVerifiedArchive(manifest, archivePath, gameRoot, failpoint);
     }
 
     public async Task<InstallationResult> InstallHttpsArtifactAsync(
+        string manifestPath,
+        string gameRoot,
+        SecureArtifactDownloader downloader,
+        ArtifactSignatureVerifier signatureVerifier,
+        Action<string>? failpoint = null,
+        CancellationToken cancellationToken = default)
+    {
+        using var prepared = await PrepareHttpsArtifactAsync(
+            manifestPath,
+            gameRoot,
+            downloader,
+            signatureVerifier,
+            failpoint,
+            cancellationToken);
+        prepared.Commit();
+        return prepared.Result;
+    }
+
+    public async Task<PreparedInstallation> PrepareHttpsArtifactAsync(
         string manifestPath,
         string gameRoot,
         SecureArtifactDownloader downloader,
@@ -50,7 +99,7 @@ public sealed class PackageInstaller
                 signatureVerifier,
                 archivePath,
                 cancellationToken);
-            return InstallVerifiedArchive(manifest, archivePath, gameRoot, failpoint);
+            return PrepareVerifiedArchive(manifest, archivePath, gameRoot, failpoint);
         }
         finally
         {
@@ -61,7 +110,7 @@ public sealed class PackageInstaller
         }
     }
 
-    private static InstallationResult InstallVerifiedArchive(
+    private static PreparedInstallation PrepareVerifiedArchive(
         InstallationManifest manifest,
         string archivePath,
         string gameRoot,
@@ -81,16 +130,18 @@ public sealed class PackageInstaller
             {
                 throw new InvalidDataException("Archive root is missing.");
             }
-            AtomicDirectoryTransaction.Replace(
+            var replacement = AtomicDirectoryTransaction.Prepare(
                 source,
                 target,
                 gameRoot,
                 staged => VerifyRequiredPaths(staged, manifest.Health),
                 failpoint);
-            return new InstallationResult(
-                manifest.IntegrationId,
-                manifest.ReleaseVersion,
-                target);
+            return new PreparedInstallation(
+                new InstallationResult(
+                    manifest.IntegrationId,
+                    manifest.ReleaseVersion,
+                    target),
+                replacement);
         }
         finally
         {

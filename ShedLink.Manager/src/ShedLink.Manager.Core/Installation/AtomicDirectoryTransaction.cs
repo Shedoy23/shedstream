@@ -11,6 +11,17 @@ public static class AtomicDirectoryTransaction
         Action<string> verify,
         Action<string>? failpoint = null)
     {
+        using var replacement = Prepare(source, target, allowedRoot, verify, failpoint);
+        replacement.Commit();
+    }
+
+    public static AtomicDirectoryReplacement Prepare(
+        string source,
+        string target,
+        string allowedRoot,
+        Action<string> verify,
+        Action<string>? failpoint = null)
+    {
         source = Path.GetFullPath(source);
         if (!Directory.Exists(source) || IsReparsePoint(source))
         {
@@ -44,9 +55,7 @@ public static class AtomicDirectoryTransaction
             Directory.Move(stage, target);
             WritePhase(journal, "installed");
             failpoint?.Invoke("installed");
-
-            File.Delete(journal);
-            DeleteTree(backup);
+            return new AtomicDirectoryReplacement(target, allowedRoot);
         }
         catch
         {
@@ -56,6 +65,21 @@ public static class AtomicDirectoryTransaction
             }
             throw;
         }
+    }
+
+    public static bool Complete(string target, string allowedRoot)
+    {
+        target = PathBoundary.Within(target, allowedRoot);
+        var (stage, backup, journal) = TransactionPaths(target, allowedRoot);
+        if (!File.Exists(journal))
+        {
+            return false;
+        }
+        DeleteTree(stage);
+        DeleteTree(backup);
+        File.Delete(journal);
+        File.Delete(journal + ".tmp");
+        return true;
     }
 
     public static bool Recover(string target, string allowedRoot)
@@ -146,4 +170,39 @@ public static class AtomicDirectoryTransaction
 
     private sealed record TransactionJournal(
         [property: System.Text.Json.Serialization.JsonPropertyName("phase")] string Phase);
+}
+
+public sealed class AtomicDirectoryReplacement : IDisposable
+{
+    private readonly string _target;
+    private readonly string _allowedRoot;
+    private bool _finished;
+
+    internal AtomicDirectoryReplacement(string target, string allowedRoot)
+    {
+        _target = target;
+        _allowedRoot = allowedRoot;
+    }
+
+    public void Commit()
+    {
+        if (_finished)
+        {
+            return;
+        }
+        AtomicDirectoryTransaction.Complete(_target, _allowedRoot);
+        _finished = true;
+    }
+
+    public void Rollback()
+    {
+        if (_finished)
+        {
+            return;
+        }
+        AtomicDirectoryTransaction.Recover(_target, _allowedRoot);
+        _finished = true;
+    }
+
+    public void Dispose() => Rollback();
 }

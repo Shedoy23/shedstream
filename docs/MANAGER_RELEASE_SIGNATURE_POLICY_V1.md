@@ -78,3 +78,9 @@ dotnet run --project ShedLink.Manager/tools/ShedLink.Manager.SignArtifact -- `
 Publication и nginx/CDN change требуют отдельного подтверждения владельца и
 обычного production runbook. Текущий repository manifest остаётся unsigned и
 не выдаётся внешнему Manager как release source.
+
+После проверки подписи Manager не фиксирует пакет отдельно: package swap,
+managed XML и side-effect-free module auth-check входят в одну recoverable
+operation. До успешного auth-check сохраняются обе rollback-копии. Ошибка
+возвращает прежние пакет и config; crash после verify завершается по локальному
+несекретному journal при следующем запуске.

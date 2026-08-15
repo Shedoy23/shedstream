@@ -227,6 +227,11 @@ Test action acknowledged
   `unsigned`: до внешней alpha нужны HTTPS distribution и решение по подписи;
 - production Manager installer ещё не реализован.
 
+Auth/credential contract зафиксирован в
+`docs/MANAGER_AUTH_CREDENTIALS_V1.md`: system-browser pairing, отсутствие Twitch
+tokens в desktop app, revocable opaque module credentials, Windows Credential
+Manager, rotation overlap и legacy migration.
+
 ### Разделение контрактов
 
 #### Runtime Manifest — существующий слой

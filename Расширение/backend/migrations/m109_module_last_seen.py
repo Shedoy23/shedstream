@@ -15,6 +15,17 @@
 
 
 async def apply(conn):
+    name = "M109.module_last_seen"
+    await conn.execute(
+        "CREATE TABLE IF NOT EXISTS migrations_applied "
+        "(name TEXT PRIMARY KEY, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
+    )
+    cur = await conn.execute(
+        "SELECT 1 FROM migrations_applied WHERE name = ?", (name,)
+    )
+    if await cur.fetchone():
+        return
+
     await conn.execute("""
         CREATE TABLE IF NOT EXISTS module_last_seen (
             channel_id   INTEGER NOT NULL,
@@ -26,6 +37,9 @@ async def apply(conn):
     await conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_module_last_seen_ch "
         "ON module_last_seen(channel_id, last_seen_ts)"
+    )
+    await conn.execute(
+        "INSERT OR IGNORE INTO migrations_applied (name) VALUES (?)", (name,)
     )
     await conn.commit()
     print("✅ M109: module_last_seen table created")

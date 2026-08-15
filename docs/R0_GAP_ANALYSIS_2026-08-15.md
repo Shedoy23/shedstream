@@ -105,9 +105,10 @@ Windows credential storage, а не в своём manifest.
 
 ### P2 — исправить до внешней alpha либо явно вынести из M1
 
-1. `M109 module_last_seen` создаёт таблицу, но не пишет marker в
-   `migrations_applied`. На production таблица есть, marker отсутствует, поэтому
-   migration идемпотентно выполняется при каждом startup и audit ledger неполон.
+1. ~~`M109 module_last_seen` не пишет marker в `migrations_applied`.~~ Исправлено
+   локально после аудита: migration ремонтирует существующую production-схему,
+   сохраняет heartbeat и регистрируется ровно один раз. Production ещё не
+   обновлён.
 2. Добавить install/upgrade/rollback инструкции для Bannerlord и RimWorld.
 3. Вернуть ShedColony source/build pipeline в канонический repository либо
    документировать отдельный versioned upstream.

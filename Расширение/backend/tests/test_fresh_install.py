@@ -88,7 +88,8 @@ async def main():
 
     # Таблицы, без которых расширение не работает вообще.
     critical = ["viewers", "channels", "bannerlord_heroes", "module_actions",
-                "purchase_counters", "feature_usage", "migrations_applied"]
+                "purchase_counters", "feature_usage", "module_last_seen",
+                "migrations_applied"]
     missing = [t for t in critical if t not in tables]
     check(not missing,
           "ключевые таблицы на месте%s"
@@ -112,6 +113,12 @@ async def main():
             if table in tables:
                 check(col in await cols(table),
                       "%s.%s есть на свежей установке (%s)" % (table, col, why))
+
+        cur = await conn.execute(
+            "SELECT COUNT(*) FROM migrations_applied "
+            "WHERE name='M109.module_last_seen'")
+        check((await cur.fetchone())[0] == 1,
+              "M109 зарегистрирована в migrations_applied ровно один раз")
 
     if getattr(db, "_pool", None):
         await db._pool.close()

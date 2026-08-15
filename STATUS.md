@@ -32,6 +32,9 @@
   `quick_check`, незавершённых module actions и отрицательных балансов нет.
 - Исправление двух `stream_sessions` live-подтверждено на эфирах 11, 13 и
   14 августа: один Twitch stream ID на непрерывный эфир.
+- M109 теперь регистрируется в migration ledger, безопасно ремонтирует уже
+  существующую таблицу и покрыта regression; полный backend suite 45/45 green.
+  Исправление ещё не deployed.
 - Активная игра определяется по heartbeat мода; действия выключенной integration
   отклоняются безопасно.
 - Релиз 0.0.2 зафиксирован тегом `submit/0.0.2`; канонический архив хранится в
@@ -47,12 +50,12 @@ vertical slice, но R0 release gate ещё не пройден.
 
 ## Следующие действия
 
-1. Исправить отсутствие M109 marker в `migrations_applied` и добавить regression.
-2. Выполнить RimWorld live smoke: apply/refuse, lost ACK, restart и reconnect.
-3. Провести restore drill свежего production compressed backup в изоляции.
-4. После live smoke окончательно утвердить первую Manager integration.
-5. Описать Installation Manifest v1 и единый version ledger отдельно от runtime
+1. Выполнить RimWorld live smoke: apply/refuse, lost ACK, restart и reconnect.
+2. Провести restore drill свежего production compressed backup в изоляции.
+3. После live smoke окончательно утвердить первую Manager integration.
+4. Описать Installation Manifest v1 и единый version ledger отдельно от runtime
    manifest.
+5. Включить M109 repair в следующий штатный production deploy.
 
 ## Правило обновления
 

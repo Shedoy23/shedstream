@@ -184,7 +184,8 @@ Test action acknowledged
 - RimWorld выбран условным кандидатом, но не утверждён до live smoke;
 - release gate остаётся открытым из-за live restart/lost-ACK проверки, restore
   drill свежего backup и отсутствующего installation/version contract;
-- отдельно обнаружен P2: M109 не регистрируется в `migrations_applied`.
+- обнаруженный P2 с M109 исправлен локально и покрыт regression; production ещё
+  не обновлён.
 
 ### Release gate
 

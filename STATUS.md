@@ -134,6 +134,11 @@
   production HTTPS archive; содержимое исходной папки RimLink не изменилось,
   временная копия и transaction artifacts очищены. Evidence:
   `docs/MANAGER_LIFECYCLE_REHEARSAL_2026-08-16.md`.
+- Собран передаваемый `ShedLink Manager 0.1.0-alpha.1`: self-contained single-file
+  Windows x64 EXE, production manifest, `START-HERE.txt` и `RELEASE.json` без
+  debug-файлов и secrets. ZIP распакован и успешно запущен вне repository;
+  SHA-256 `ee065338...a8433e`. Evidence:
+  `docs/MANAGER_ALPHA_0.1.0_ALPHA1_2026-08-16.md`.
 - Активная игра определяется по heartbeat мода; действия выключенной integration
   отклоняются безопасно.
 - Релиз 0.0.2 зафиксирован тегом `submit/0.0.2`; канонический архив хранится в
@@ -147,18 +152,16 @@ production vertical slice, reliability и локальный Update/Repair gate 
 Текущая работа перешла к подготовке handoff-пакета для `R3 — Internal Clean
 Install and M1`.
 
-RimWorld утверждён первой Manager integration. Следующий продуктовый результат —
-versioned alpha-архив, который запускается вне repository и понятен первому
-тестировщику без исходников и инструментов разработчика. Clean Windows matrix
-остаётся evidence для M1, но не требует покупки оборудования и не блокирует
-подготовку пакета.
+RimWorld утверждён первой Manager integration. Versioned alpha-архив уже собран
+и запускается вне repository. Следующий продуктовый результат — первый
+независимый clean-install с измерением TTTR и фиксацией непонятных шагов. Clean
+Windows matrix остаётся evidence для M1, но не требует покупки оборудования.
 
 ## Следующие действия
 
-1. Собрать versioned alpha-пакет Manager с manifests и короткой инструкцией.
-2. Проверить опубликованный EXE вне repository без dev tools и зафиксировать hash.
+1. Передать alpha-пакет первому внешнему тестировщику и измерить TTTR.
+2. Зафиксировать все непонятные шаги и исправить только реальные blockers.
 3. При доступной чистой Windows-среде провести matrix и три clean-install.
-4. Передать пакет первому внешнему тестировщику и измерить TTTR.
 
 Offline backup production private key остаётся рекомендуемой операционной
 защитой, но переносится до появления подходящего отдельного носителя и не

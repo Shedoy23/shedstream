@@ -312,10 +312,7 @@ public partial class MainWindow : Window
             OverallStatusText.Text =
                 "Запусти RimWorld: Technical Ready подтвердит heartbeat мода.";
         }
-        catch (Exception exception) when (
-            exception is ManagerApiException or HttpRequestException or
-                TaskCanceledException or InvalidOperationException or
-                InvalidDataException or IOException)
+        catch (Exception exception) when (ManagerFailureMessage.IsExpected(exception))
         {
             IntegrationStatusText.Text =
                 "Установка не выполнена; прежняя версия восстановлена.";
@@ -369,8 +366,7 @@ public partial class MainWindow : Window
                 "RimLink удалён. Настройки сохранены для восстановления.";
             OverallStatusText.Text = "Интеграция отключена локально; ключ не отозван.";
         }
-        catch (Exception exception) when (
-            exception is InvalidOperationException or InvalidDataException or IOException)
+        catch (Exception exception) when (ManagerFailureMessage.IsExpected(exception))
         {
             IntegrationStatusText.Text = "Удаление не выполнено; мод восстановлен.";
             OverallStatusText.Text = FriendlyError(exception);
@@ -424,9 +420,7 @@ public partial class MainWindow : Window
             IntegrationStatusText.Text = "Ключ RimLink заменён и проверен.";
             OverallStatusText.Text = "Новый ключ активен. RimWorld можно запускать.";
         }
-        catch (Exception exception) when (
-            exception is ManagerApiException or HttpRequestException or
-                TaskCanceledException or InvalidOperationException or InvalidDataException)
+        catch (Exception exception) when (ManagerFailureMessage.IsExpected(exception))
         {
             OverallStatusText.Text = FriendlyError(exception) +
                 " Если новый ключ уже был выдан, Manager продолжит замену при следующем запуске.";
@@ -933,16 +927,11 @@ public partial class MainWindow : Window
         }
     }
 
-    private static string FriendlyError(Exception exception) => exception switch
-    {
-        ManagerApiException api when api.ErrorCode == "manager_auth_unavailable" =>
-            "Manager API пока не включён на сервере.",
-        ManagerApiException api => $"Сервер отклонил запрос: {api.ErrorCode}.",
-        TaskCanceledException => "Сервер не ответил вовремя.",
-        HttpRequestException => "Не удалось связаться с ShedLink backend.",
-        InvalidOperationException invalid => invalid.Message,
-        _ => "Неожиданная ошибка Manager.",
-    };
+    // Тексты живут в Core (`ManagerFailureMessage`), чтобы их проверял тест:
+    // критерий M1 требует, чтобы у КАЖДОЙ ошибки матрицы было понятное
+    // объяснение и следующее действие, а глазами это не проверяется.
+    private static string FriendlyError(Exception exception) =>
+        ManagerFailureMessage.For(exception);
 
     private static bool IsTerminalSessionError(ManagerApiException exception) =>
         exception.ErrorCode is

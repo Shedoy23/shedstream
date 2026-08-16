@@ -22,6 +22,7 @@ try
     TestRimWorldDetection(root);
     TestManifestDrivenDetection(root);
     TestJsonConfigurationStore(root);
+    TestFailureMessages();
     await TestInstallationAsync(root);
     await TestHttpsDistributionAsync(root);
     await TestManagerUpdateAsync(root);
@@ -838,6 +839,52 @@ static void TestJsonConfigurationStore(string root)
     {
         Assert(true, "integration needing a channel id refuses a session without one");
     }
+}
+
+static void TestFailureMessages()
+{
+    // Матрица R3 (ROADMAP): каждая ошибка обязана объясниться человеку и
+    // назвать следующее действие. Сбои приходят этими типами.
+    var matrix = new (string Case, Exception Error)[]
+    {
+        ("недостаточно прав на запись", new UnauthorizedAccessException("denied")),
+        ("диск/файл занят",             new IOException("locked")),
+        ("повреждённая установка",      new InvalidDataException("hash mismatch")),
+        ("backend недоступен",          new HttpRequestException("no route")),
+        ("сервер молчит",               new TaskCanceledException("timeout")),
+        ("отозванная credential",       new ManagerApiException(
+                                            System.Net.HttpStatusCode.Unauthorized,
+                                            "invalid_module_credential")),
+        ("сервер отклонил запрос",      new ManagerApiException(
+                                            System.Net.HttpStatusCode.BadRequest,
+                                            "module_scope_not_approved")),
+    };
+
+    // «Следующее действие» проверяем по глаголу в повелительном наклонении.
+    // Признак грубый и намеренно такой: он ловит ровно тот случай, ради
+    // которого критерий и написан, — сообщение, которое называет проблему и
+    // молчит о том, что теперь делать.
+    var imperatives = new[]
+    {
+        "повтори", "проверь", "закрой", "войди", "смени", "напиши",
+        "собери", "попробуй", "перенеси", "освободи",
+    };
+    var fallback = ManagerFailureMessage.For(new NotSupportedException("unknown"));
+
+    foreach (var (name, error) in matrix)
+    {
+        var message = ManagerFailureMessage.For(error);
+        Assert(ManagerFailureMessage.IsExpected(error),
+            $"обработчик ловит сбой «{name}», а не роняет Manager");
+        Assert(message != fallback,
+            $"у сбоя «{name}» есть свой текст, а не общая отговорка");
+        Assert(imperatives.Any(verb =>
+                message.Contains(verb, StringComparison.OrdinalIgnoreCase)),
+            $"текст сбоя «{name}» называет следующее действие");
+    }
+
+    Assert(fallback.Contains("диагностическ", StringComparison.OrdinalIgnoreCase),
+        "даже неизвестный сбой отправляет за диагностикой, а не в тупик");
 }
 
 static void TestManifestDrivenDetection(string root)

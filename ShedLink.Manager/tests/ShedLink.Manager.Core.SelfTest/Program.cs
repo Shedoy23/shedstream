@@ -456,6 +456,30 @@ static async Task TestInstallationAsync(string root)
         File.ReadAllText(operationConfig).Contains("slmod_v1.operation.secret", StringComparison.Ordinal),
         "package and config committed after authenticated verify");
 
+    var installedFiles = SnapshotDirectory(operationResult.TargetPath);
+    var installedConfig = File.ReadAllText(operationConfig);
+    var repeatedResult = await operationService.InstallRepositoryAsync(
+        manifestPath, repository, operationGame, operationConfigRoot);
+    Assert(repeatedResult.TargetPath == operationResult.TargetPath &&
+        repeatedResult.ReleaseVersion == operationResult.ReleaseVersion &&
+        SnapshotDirectory(repeatedResult.TargetPath) == installedFiles &&
+        File.ReadAllText(operationConfig) == installedConfig,
+        "repeated install leaves identical files and config");
+
+    var operationMods = Path.Combine(operationGame, "Mods");
+    Assert(!Directory.Exists(Path.Combine(operationMods, ".RimLink.shedlink-stage")) &&
+        !Directory.Exists(Path.Combine(operationMods, ".RimLink.shedlink-backup")) &&
+        !File.Exists(Path.Combine(operationMods, ".RimLink.shedlink-transaction.json")),
+        "repeated install leaves no transaction artifacts");
+
+    File.Delete(Path.Combine(operationResult.TargetPath, "Assemblies", "RimLink.dll"));
+    File.WriteAllText(Path.Combine(operationResult.TargetPath, "damaged-leftover.txt"), "junk");
+    var repairResult = await operationService.InstallRepositoryAsync(
+        manifestPath, repository, operationGame, operationConfigRoot);
+    Assert(SnapshotDirectory(repairResult.TargetPath) == installedFiles &&
+        File.ReadAllText(operationConfig) == installedConfig,
+        "repair after damage restores the same installation");
+
     File.WriteAllText(Path.Combine(operationResult.TargetPath, "stable-marker.txt"), "keep");
     var stableConfig = File.ReadAllText(operationConfig);
     operationHandler.RejectAuthCheck = true;
@@ -714,6 +738,15 @@ static async Task TestHttpsDistributionAsync(string root)
     {
         Console.WriteLine("  OK  unsigned HTTPS manifest rejected");
     }
+}
+
+static string SnapshotDirectory(string root)
+{
+    var entries = Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
+        .Select(path => Path.GetRelativePath(root, path) + "=" +
+            Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))))
+        .OrderBy(entry => entry, StringComparer.Ordinal);
+    return string.Join("\n", entries);
 }
 
 static void Assert(bool condition, string label)

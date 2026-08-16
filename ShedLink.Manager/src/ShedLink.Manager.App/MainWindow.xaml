@@ -69,11 +69,11 @@
             <Border Grid.Row="3" Background="{StaticResource CardBackground}"
                     CornerRadius="14" Padding="22" Margin="0,0,0,14">
                 <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <StackPanel>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0">
                         <TextBlock Text="3. Интеграция RimLink" FontSize="18" FontWeight="SemiBold" />
                         <TextBlock x:Name="IntegrationStatusText"
                                    Text="Проверяем доступность безопасного релиза…"
@@ -84,8 +84,7 @@
                                    Foreground="{StaticResource TextMuted}" Margin="0,6,0,0"
                                    TextWrapping="Wrap" MaxWidth="500" />
                     </StackPanel>
-                    <StackPanel Grid.Column="1" Orientation="Horizontal"
-                                VerticalAlignment="Center" Margin="18,0,0,0">
+                    <WrapPanel Grid.Row="1" HorizontalAlignment="Right" Margin="0,16,0,0">
                         <Button x:Name="TestReadyButton" Content="Проверить готовность"
                                 IsEnabled="False" Click="TestReadyButton_Click"
                                 Background="#343B4C" Margin="0,0,8,0" />
@@ -97,7 +96,7 @@
                                 Background="#343B4C" Margin="0,0,8,0" />
                         <Button x:Name="InstallButton" Content="Установить"
                                 IsEnabled="False" Click="InstallButton_Click" />
-                    </StackPanel>
+                    </WrapPanel>
                 </Grid>
             </Border>
 

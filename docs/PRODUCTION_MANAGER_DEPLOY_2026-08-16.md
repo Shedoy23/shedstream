@@ -59,9 +59,22 @@ DB backup был скачан и реально восстановлен лок�
 - `module_actions`: только terminal `acked=8088`, `failed=1226`, pending нет;
 - Manager pairings/sessions/credentials/diagnostics после проверки пусты.
 
-## Что ещё требует ручной проверки
+## Реальный Manager-прогон после deploy
 
-Открыть актуальный EXE, пройти Twitch pairing, установить RimLink в найденную
-RimWorld, затем запустить игру. Успех — Manager видит свежий heartbeat и получает
-ACK безопасного diagnostic action. Это одновременно закроет signed-install
-проверку на реальной машине и оставшийся live-gate.
+Пользовательский прогон 2026-08-16 подтвердил production vertical slice:
+
+- Twitch channel `98319857` подключён через browser pairing;
+- вручную выбранная Steam installation RimWorld определена как
+  `1.6.4871 rev590`;
+- signed RimLink `0.1.1` установлен и настроен, health files исправны;
+- Manager получил свежий heartbeat мода;
+- безопасный diagnostic action прошёл настоящую очередь и получил ACK;
+- итоговый экран показал `Technical Ready`.
+
+Read-only DB audit сразу после прогона подтвердил одну выданную module
+credential и одну diagnostic record, при этом `quick_check=ok`, отрицательных
+viewer points нет, а `module_actions` содержат только terminal statuses.
+
+Тем самым реальный signed install/configure/verify закрыт. Оставшийся live-gate —
+обычное зрительское действие с apply/refuse и контролируемые lost ACK,
+backend/game restart и reconnect.

@@ -375,6 +375,13 @@ refresh без неявного отзыва установленных module c
   запись. База после миграций: `quick_check=ok`, M109–M112 и пять новых таблиц
   на месте, отрицательных points и незавершённых module actions нет. Evidence:
   `docs/PRODUCTION_MANAGER_DEPLOY_2026-08-16.md`.
+- На реальной RimWorld `1.6.4871 rev590` Manager самостоятельно завершил Twitch
+  pairing, signed install/configuration RimLink `0.1.1`, получил свежий heartbeat
+  и ACK безопасного diagnostic action. UI показал `Technical Ready`; install,
+  configure и verify production vertical slice подтверждены.
+- Первый реальный UI feedback исправлен: действия integration перенесены под
+  status-блок и адаптивно переносятся, поэтому заголовок и состояние больше не
+  сжимаются на минимальной ширине окна.
 
 ### Scope v1
 
@@ -394,19 +401,19 @@ refresh без неявного отзыва установленных module c
 
 #### Lifecycle
 
-- [ ] Install.
-- [ ] Configure без ручного JSON и копирования ID/token/API URL.
-- [ ] Verify.
+- [x] Install.
+- [x] Configure без ручного JSON и копирования ID/token/API URL.
+- [x] Verify.
 - [ ] Update.
-- [ ] Repair — Core/UI готовы, end-to-end gate ждёт signed release source.
+- [ ] Repair — Core/UI и signed source готовы; нужен реальный прогон на намеренно
+      повреждённой установке.
 - [x] Uninstall с сохранением пользовательских данных по умолчанию.
 
-Core-реализация первых трёх пунктов завершена и покрыта success, auth failure и
-verified-crash recovery тестами; signed production source и backend готовы, но
-пункты остаются открытыми до прогона на реальной установленной RimWorld.
-Uninstall подключён к WPF, атомарен, идемпотентен и сохраняет managed
-XML/credential по умолчанию. Repair/update decision покрыт отдельным inspection
-test для missing, broken, outdated и healthy installation.
+Первые три пункта подтверждены реальным production-прогоном до `Technical Ready`
+и покрыты success, auth failure и verified-crash recovery тестами. Uninstall
+подключён к WPF, атомарен, идемпотентен и сохраняет managed XML/credential по
+умолчанию. Repair/update decision покрыт отдельным inspection test для missing,
+broken, outdated и healthy installation.
 
 #### Diagnostics
 
@@ -900,18 +907,17 @@ Definition of Done
 
 ## 10. Ближайшая очередь работ
 
-Строгий порядок ближайшего этапа с учётом завершённого local vertical slice:
+Строгий порядок ближайшего этапа после подтверждённого production
+`Technical Ready`:
 
 1. Выполнить RimWorld live smoke: apply/refuse, lost ACK, restart и reconnect.
 2. Закрыть release-gate и окончательно утвердить RimWorld первой integration.
-3. Создать offline production signing key и подписанный HTTPS release RimLink.
-4. Штатно развернуть M109 repair, M110–M112 и Manager/runtime API.
-5. Подтвердить signed install и `Technical Ready` на реальной RimWorld.
-6. Провести clean Windows VM matrix.
-7. Достичь M1 Self Service и провести five-streamer alpha.
-8. Исправить измеренные onboarding blockers.
-9. Провести 10–20 streamer beta и capacity test.
-10. Проверить retention и только затем расширять integrations/monetization.
+3. Сделать offline backup production signing key на отдельный носитель.
+4. Провести clean Windows VM matrix.
+5. Достичь M1 Self Service и провести five-streamer alpha.
+6. Исправить измеренные onboarding blockers.
+7. Провести 10–20 streamer beta и capacity test.
+8. Проверить retention и только затем расширять integrations/monetization.
 
 ---
 

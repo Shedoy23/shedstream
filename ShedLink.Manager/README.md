@@ -37,8 +37,9 @@ journal. Managed XML writer сохраняет неизвестные настр
 только объявленные поля и ограничивает ACL файла текущим Windows user.
 
 Signed HTTPS delivery gate закрыт: RimLink `0.1.1` опубликован, проверен и имеет
-встроенный trusted public key. Полный production install flow пока блокируется
-не release-доставкой, а отсутствующим production deploy Manager API.
+встроенный trusted public key. Manager API и migrations M109–M112 развёрнуты.
+Реальный production flow `login → detect → signed install → configure → game
+heartbeat → diagnostic ACK → Technical Ready` подтверждён 2026-08-16.
 
 HTTPS download и signature verification уже реализованы fail-closed: redirects,
 HTTP downgrade, размер, SHA-256, неизвестный publisher key и RSA-PSS mismatch

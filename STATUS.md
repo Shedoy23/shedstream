@@ -112,6 +112,10 @@
   запись. M109–M112 и новые таблицы подтверждены, `quick_check=ok`, отрицательных
   points и незавершённых действий нет. Тестовая pairing-запись удалена. Полный
   evidence: `docs/PRODUCTION_MANAGER_DEPLOY_2026-08-16.md`.
+- Реальный Manager-прогон 2026-08-16 дошёл до `Technical Ready`: Twitch channel
+  подключён, RimWorld `1.6.4871 rev590` найдена, signed RimLink `0.1.1`
+  установлен и настроен, файлы здоровы, heartbeat свежий, production diagnostic
+  action получил ACK. Ручной JSON, token или API URL не потребовались.
 - Активная игра определяется по heartbeat мода; действия выключенной integration
   отклоняются безопасно.
 - Релиз 0.0.2 зафиксирован тегом `submit/0.0.2`; канонический архив хранится в
@@ -129,9 +133,8 @@ vertical slice, но R0 release gate ещё не пройден.
 
 1. Выполнить RimWorld live smoke: apply/refuse, lost ACK, restart и reconnect.
 2. После live smoke окончательно утвердить первую Manager integration.
-3. Открыть актуальный Manager EXE и пройти signed install на реальной RimWorld.
-4. Запустить игру и подтвердить heartbeat + diagnostic ACK (`Technical Ready`).
-5. Сделать offline backup production private key на отдельный носитель.
+3. Сделать offline backup production private key на отдельный носитель.
+4. Провести clean Windows VM matrix и три последовательных clean-install.
 
 ## Правило обновления
 

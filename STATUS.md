@@ -123,7 +123,11 @@
 - Production backend поддерживает бесплатные Manager reliability diagnostics:
   безопасный mod refusal и контролируемую потерю ACK с TTL-очисткой. Новый EXE
   показывает отдельную кнопку `Проверить отказы`; автоматические backend и
-  Manager tests зелёные, live-клик остаётся последним evidence-gate.
+  Manager tests зелёные. Production live-прогон подтвердил ожидаемый refuse,
+  lost-ACK expiry/cleanup и поздний идемпотентный retry без списаний.
+- R0 release gate закрыт. Реальные RimWorld-команды применились; backend restart
+  и heartbeat reconnect пережиты; отказ и потерянный ACK завершились безопасно.
+  После проверки очередь `0`, отрицательных points `0`, `quick_check=ok`.
 - Активная игра определяется по heartbeat мода; действия выключенной integration
   отклоняются безопасно.
 - Релиз 0.0.2 зафиксирован тегом `submit/0.0.2`; канонический архив хранится в
@@ -132,17 +136,17 @@
 
 ## Текущий этап
 
-`R2 — ShedLink Manager MVP: One Game` из `ROADMAP.md`, при открытом live-gate R0.
+`R2 — ShedLink Manager MVP: One Game` завершает оставшиеся lifecycle-проверки;
+R0 release gate закрыт.
 
-Baseline актуального HEAD завершён. RimWorld — условный кандидат для Manager
-vertical slice, но R0 release gate ещё не пройден.
+RimWorld утверждён первой Manager integration. Production vertical slice и
+reliability gate доказаны; следующий продуктовый барьер — чистая Windows-среда.
 
 ## Следующие действия
 
-1. Выполнить RimWorld live smoke: apply/refuse, lost ACK, restart и reconnect.
-2. После live smoke окончательно утвердить первую Manager integration.
-3. Сделать offline backup production private key на отдельный носитель.
-4. Провести clean Windows VM matrix и три последовательных clean-install.
+1. Сделать offline backup production private key на отдельный носитель.
+2. Проверить Update и Repair на отдельной копии реальной установки.
+3. Провести clean Windows VM matrix и три последовательных clean-install.
 
 ## Правило обновления
 

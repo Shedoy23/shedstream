@@ -172,8 +172,8 @@ Test action acknowledged
       `charge → enqueue → deliver → apply/refuse → ACK → refund`.
 - [x] Проверить duplicate request, duplicate ACK, lost ACK, restart и reconnect;
       live RimWorld smoke остаётся release-gate задачей.
-- [ ] Выбрать первую Manager integration. Предпочтительный кандидат — RimWorld,
-      после подтверждения её live E2E готовности.
+- [x] Выбрать первую Manager integration — RimWorld; live E2E, отказ, lost ACK
+      и reconnect подтверждены на production 2026-08-16.
 - [x] Зафиксировать минимальный набор telemetry для Manager и воронки.
 
 ### Результат baseline 2026-08-15
@@ -181,9 +181,10 @@ Test action acknowledged
 - текущий полный backend suite: 48/48 green;
 - production healthy, DB `quick_check=ok`, незавершённых module actions нет;
 - денежных и tenant P0 в проверенных путях не найдено;
-- RimWorld выбран условным кандидатом, но не утверждён до live smoke;
+- RimWorld утверждён первой Manager integration после production live smoke;
 - restore свежего production backup проверен в изоляции, `quick_check=ok`;
-- release gate остаётся открытым из-за live RimWorld restart/lost-ACK проверки;
+- R0 release gate закрыт: apply/refuse, backend restart/reconnect и lost ACK
+  подтверждены на реальной игре и production backend;
 - обнаруженный P2 с M109 исправлен локально и покрыт regression; production ещё
   не обновлён.
 
@@ -382,6 +383,12 @@ refresh без неявного отзыва установленных module c
 - Первый реальный UI feedback исправлен: действия integration перенесены под
   status-блок и адаптивно переносятся, поэтому заголовок и состояние больше не
   сжимаются на минимальной ширине окна.
+- Production reliability smoke закрыт: 11 игровых команд получили успешный ACK;
+  backend restart восстановился автоматически; намеренный `diagnostic_refuse`
+  завершился `failed` без списаний; намеренно потерянный ACK через 120 секунд
+  стал `expired`, команда удалена, поздний RimLink retry идемпотентно снял
+  локальный `AckPending`. Итог: очередь `0`, отрицательных points `0`, DB
+  `quick_check=ok`.
 
 ### Scope v1
 
@@ -907,17 +914,15 @@ Definition of Done
 
 ## 10. Ближайшая очередь работ
 
-Строгий порядок ближайшего этапа после подтверждённого production
-`Technical Ready`:
+Строгий порядок после закрытия R0 и production `Technical Ready`:
 
-1. Выполнить RimWorld live smoke: apply/refuse, lost ACK, restart и reconnect.
-2. Закрыть release-gate и окончательно утвердить RimWorld первой integration.
-3. Сделать offline backup production signing key на отдельный носитель.
-4. Провести clean Windows VM matrix.
-5. Достичь M1 Self Service и провести five-streamer alpha.
-6. Исправить измеренные onboarding blockers.
-7. Провести 10–20 streamer beta и capacity test.
-8. Проверить retention и только затем расширять integrations/monetization.
+1. Сделать offline backup production signing key на отдельный носитель.
+2. Проверить Update и Repair на реальной намеренно устаревшей/повреждённой копии.
+3. Провести clean Windows VM matrix.
+4. Достичь M1 Self Service и провести five-streamer alpha.
+5. Исправить измеренные onboarding blockers.
+6. Провести 10–20 streamer beta и capacity test.
+7. Проверить retention и только затем расширять integrations/monetization.
 
 ---
 

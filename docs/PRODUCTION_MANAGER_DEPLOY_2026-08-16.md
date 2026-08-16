@@ -75,6 +75,29 @@ Read-only DB audit сразу после прогона подтвердил о�
 credential и одну diagnostic record, при этом `quick_check=ok`, отрицательных
 viewer points нет, а `module_actions` содержат только terminal statuses.
 
-Тем самым реальный signed install/configure/verify закрыт. Оставшийся live-gate —
-обычное зрительское действие с apply/refuse и контролируемые lost ACK,
-backend/game restart и reconnect.
+## Production reliability smoke
+
+Позднее 2026-08-16 закрыт оставшийся live-gate:
+
+- 11 обычных viewer/game commands выполнились с `success=true`; очередь стала
+  пустой, пешка осталась жива и синхронизирована;
+- RimLink пережил backend restart: краткий `502` сменился автоматическим
+  восстановлением heartbeat, после чего команды продолжили выполняться;
+- бесплатный `diagnostic_refuse` был реально получен игрой и отклонён как
+  неизвестная no-op команда; backend записал `failed`, error сохранился, points
+  не менялись;
+- бесплатный `diagnostic_ping` выполнился в игре, но его ACK намеренно получал
+  `503` только для помеченной проверки. Через 120 секунд Manager записал
+  `expired / simulated_ack_timeout` и удалил pending row;
+- следующий RimLink retry получил идемпотентный no-op ответ и снял локальный
+  `AckPending` в дисковом outcome journal;
+- финально: `pending=0`, `negative_points=0`, `quick_check=ok`, backend healthy.
+
+Тем самым real signed install/configure/verify, apply/refuse, restart/reconnect и
+lost ACK доказаны на production. R0 release gate закрыт.
+
+Во время проверки открытое developer log window RimWorld несколько раз выдало
+`LudeonTK.EditWindow_Log: Collection was modified`. Stacktrace полностью
+находится в UI-перечислении очереди сообщений LudeonTK; RimWorld, RimLink,
+Manager и backend продолжили работу. Закрытие только окна журнала устраняет
+повторение; к command lifecycle ошибка не относится.

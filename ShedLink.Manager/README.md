@@ -36,6 +36,8 @@ RimLink release и использует его во всей install/config/repa
 отклоняет только помеченный диагностический ACK, затем удаляет команду по TTL;
 поздний retry RimLink завершается идемпотентно. Состояние колонии и viewer points
 не меняются.
+Production-прогон обоих сценариев завершён успешно 2026-08-16: refusal записан,
+lost ACK очищен по TTL, а поздний retry завершился идемпотентно.
 
 Installation Core уже читает production manifest, проверяет размер/SHA-256,
 безопасно распаковывает ZIP, отклоняет traversal/reparse points, выполняет

@@ -50,6 +50,8 @@ Offline signer находится в `tools/ShedLink.Manager.SignArtifact`; он
 Бесплатный безопасный generator RSA 4096 находится в
 `tools/ShedLink.Manager.GenerateReleaseKey`; настоящий production key создаётся
 только после выбора владельцем внешнего места хранения и backup.
+`tools/ShedLink.Manager.VerifyRelease` независимо проверяет подписанный manifest,
+ZIP bytes, RSA fingerprint, безопасную распаковку и обязательные health probes.
 
 Проверка:
 

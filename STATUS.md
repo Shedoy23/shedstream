@@ -74,6 +74,11 @@
   запрещает путь внутри repository и ограничивает private PEM текущим Windows
   user. Генерация и подпись RimLink бесплатны; настоящий production key ещё не
   создан до выбора владельцем external storage и backup.
+- Независимый release verifier готов: проверяет signed HTTPS manifest, локальные
+  или заново скачанные ZIP bytes, size/SHA-256/RSA-PSS, безопасную распаковку и
+  обязательные health probes до публикации или встраивания manifest в Manager.
+  Полный локальный rehearsal `generate → sign → verify` на RimLink `0.1.1`
+  прошёл; все временные ключи и подписанная копия после проверки удалены.
 - Installation transaction перенесён в .NET Core: production manifest parsing,
   artifact size/SHA-256, safe ZIP, reparse guard, atomic swap, rollback и crash
   recovery зелёные. XML writer сохраняет чужие поля и ставит user-only ACL.

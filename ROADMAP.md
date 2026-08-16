@@ -361,6 +361,8 @@ refresh без неявного отзыва установленных module c
 - Offline RSA 4096 key generator и signer готовы; artifact signing не требует
   платного сертификата. Настоящий production key создаётся только после выбора
   внешнего места хранения и backup, отдельно от будущей Windows EXE signing.
+- Independent verifier и полный local release rehearsal подтверждают
+  `generate → sign → size/SHA/RSA/ZIP/health verify` без production mutation.
 - локальный RimLink/installation manifest поднят до `0.1.1`; deterministic ZIP
   связан с манифестом точными size/SHA, но остаётся unsigned и не опубликован.
 

@@ -103,6 +103,22 @@ Publication и nginx/CDN change требуют отдельного подтве
 обычного production runbook. Текущий repository manifest остаётся unsigned и
 не выдаётся внешнему Manager как release source.
 
+Независимая проверка локального либо заново скачанного ZIP проверяет manifest,
+size, SHA-256, RSA-PSS signature, безопасную распаковку и обязательные health
+probe paths:
+
+```powershell
+dotnet run --project ShedLink.Manager/tools/ShedLink.Manager.VerifyRelease -- `
+  --manifest <signed-manifest.json> `
+  --artifact <downloaded-release.zip> `
+  --public-key C:\<secure-external-location>\shedlink-release-2026.public.pem
+```
+
+Локальный rehearsal 2026-08-16 прошёл полную цепочку на копии production
+manifest и актуальном RimLink `0.1.1` ZIP: temporary RSA 4096 generation →
+signer → independent verifier. Совпали size, SHA-256, key fingerprint и health
+probes; временные private/public keys и подписанная копия manifest удалены.
+
 После проверки подписи Manager не фиксирует пакет отдельно: package swap,
 managed XML и side-effect-free module auth-check входят в одну recoverable
 operation. До успешного auth-check сохраняются обе rollback-копии. Ошибка

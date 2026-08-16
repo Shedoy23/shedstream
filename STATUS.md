@@ -142,16 +142,27 @@
 
 ## Текущий этап
 
-`R2 — ShedLink Manager MVP: One Game` проходит проверку на чистой Windows;
-R0 release gate и локальный Update/Repair gate закрыты.
+`R2 — ShedLink Manager MVP: One Game` функционально завершён для RimWorld:
+production vertical slice, reliability и локальный Update/Repair gate закрыты.
+Текущая работа перешла к подготовке handoff-пакета для `R3 — Internal Clean
+Install and M1`.
 
-RimWorld утверждён первой Manager integration. Production vertical slice и
-reliability gate доказаны; следующий продуктовый барьер — чистая Windows-среда.
+RimWorld утверждён первой Manager integration. Следующий продуктовый результат —
+versioned alpha-архив, который запускается вне repository и понятен первому
+тестировщику без исходников и инструментов разработчика. Clean Windows matrix
+остаётся evidence для M1, но не требует покупки оборудования и не блокирует
+подготовку пакета.
 
 ## Следующие действия
 
-1. Сделать offline backup production private key на отдельный носитель.
-2. Провести clean Windows VM matrix и три последовательных clean-install.
+1. Собрать versioned alpha-пакет Manager с manifests и короткой инструкцией.
+2. Проверить опубликованный EXE вне repository без dev tools и зафиксировать hash.
+3. При доступной чистой Windows-среде провести matrix и три clean-install.
+4. Передать пакет первому внешнему тестировщику и измерить TTTR.
+
+Offline backup production private key остаётся рекомендуемой операционной
+защитой, но переносится до появления подходящего отдельного носителя и не
+блокирует alpha-подготовку.
 
 ## Правило обновления
 

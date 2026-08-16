@@ -1,7 +1,7 @@
 # ShedLink Product Roadmap
 
-Версия: 1.0
-Дата: 2026-08-15
+Версия: 1.1
+Дата: 2026-08-16
 Горизонт: от текущего рабочего продукта до подтверждённого self-service SaaS
 Статус: новый roadmap; заменяет завершённый предыдущий roadmap
 
@@ -475,6 +475,18 @@ download → login → detect → install → configure → run → test action
 
 Доказать self-service технически до приглашения внешних пользователей.
 
+### Текущий практический шаг
+
+- [ ] Собрать единый versioned alpha-архив, пригодный для передачи пользователю.
+- [ ] Включить только необходимые runtime-файлы, manifests и короткую инструкцию.
+- [ ] Проверить запуск опубликованного EXE без repository и dev tools.
+- [ ] Зафиксировать контрольные SHA-256 и известное предупреждение Windows для
+      пока не подписанного EXE.
+
+Clean Windows остаётся обязательным evidence для M1, но не требует прямо сейчас
+покупки отдельного компьютера или платных инструментов. Проверка выполняется,
+когда доступна VM, Windows Sandbox либо второй чистый Windows-компьютер.
+
 ### Матрица проверки
 
 - [ ] Чистая поддерживаемая Windows VM.
@@ -915,14 +927,18 @@ Definition of Done
 
 ## 10. Ближайшая очередь работ
 
-Строгий порядок после закрытия R0 и production `Technical Ready`:
+Практический порядок после закрытия R0, production `Technical Ready` и
+Update/Repair rehearsal:
 
-1. Сделать offline backup production signing key на отдельный носитель.
-2. Провести clean Windows VM matrix.
-3. Достичь M1 Self Service и провести five-streamer alpha.
-4. Исправить измеренные onboarding blockers.
-5. Провести 10–20 streamer beta и capacity test.
-6. Проверить retention и только затем расширять integrations/monetization.
+1. Подготовить versioned alpha-пакет Manager и короткую инструкцию.
+2. Проверить пакет вне repository без установленных dev tools.
+3. При доступной чистой Windows-среде провести matrix и три clean-install.
+4. Передать пакет первому внешнему тестировщику и измерить TTTR.
+5. Исправить измеренные onboarding blockers, затем провести five-streamer alpha.
+6. Сделать offline backup production signing key на имеющийся отдельный носитель;
+   это операционная защита, но не блокер текущей alpha-подготовки.
+7. Провести 10–20 streamer beta и capacity test.
+8. Проверить retention и только затем расширять integrations/monetization.
 
 ---
 

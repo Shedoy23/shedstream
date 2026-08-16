@@ -10,8 +10,14 @@
     "id": "rimworld",
     "display_name": "RimWorld",
     "supported_versions": ["1.5", "1.6"],
+    "process_names": ["RimWorldWin64"],
+    "version": {
+      "kind": "text_file",
+      "path": "Version.txt",
+      "compatibility_pattern": "^\\d+\\.\\d+"
+    },
     "detection": [
-      { "kind": "steam", "app_id": 294100 },
+      { "kind": "steam", "app_id": 294100, "install_dir": "RimWorld" },
       {
         "kind": "manual",
         "required_paths": ["RimWorldWin64.exe", "Mods"]

@@ -1,119 +1,46 @@
-using System.Diagnostics;
-using System.Text.RegularExpressions;
-using Microsoft.Win32;
+using ShedLink.Manager.Core.Installation;
 
 namespace ShedLink.Manager.Core.Detection;
 
-public sealed partial class RimWorldDetectionService
+/// <summary>
+/// Temporary shim: the detection logic now lives in <see cref="GameDetectionService"/>
+/// and is driven by the installation manifest. This keeps the current single-game
+/// UI compiling until it passes the manifest itself, and it is the last place in
+/// Core that names RimWorld. Delete it with that change.
+/// </summary>
+public sealed class RimWorldDetectionService
 {
-    private const string SteamAppId = "294100";
-
-    public GameInstallation? Detect(IEnumerable<string>? steamRoots = null)
+    internal static readonly ManifestGame Descriptor = new()
     {
-        var roots = steamRoots ?? DiscoverSteamRoots();
-        foreach (var library in ExpandLibraryRoots(roots))
+        Id = "rimworld",
+        DisplayName = "RimWorld",
+        SupportedVersions = new[] { "1.5", "1.6" },
+        ProcessNames = new[] { "RimWorldWin64" },
+        Version = new GameVersionSource
         {
-            var manifest = Path.Combine(
-                library, "steamapps", $"appmanifest_{SteamAppId}.acf");
-            var candidate = Path.Combine(library, "steamapps", "common", "RimWorld");
-            if (File.Exists(manifest) && IsValidGameRoot(candidate))
-            {
-                return new GameInstallation("rimworld", Path.GetFullPath(candidate), DetectionSource.Steam);
-            }
-        }
-        return null;
-    }
-
-    public GameInstallation ValidateManual(string path)
-    {
-        if (!IsValidGameRoot(path))
+            Kind = "text_file",
+            Path = "Version.txt",
+            CompatibilityPattern = @"^\d+\.\d+",
+        },
+        Detection = new GameDetectionRule[]
         {
-            throw new InvalidDataException(
-                "В выбранной папке не найдены RimWorldWin64.exe и папка Mods.");
-        }
-        return new GameInstallation(
-            "rimworld", Path.GetFullPath(path), DetectionSource.Manual);
-    }
-
-    public bool IsGameRunning() =>
-        Process.GetProcessesByName("RimWorldWin64").Length > 0;
-
-    public static bool IsValidGameRoot(string? path) =>
-        !string.IsNullOrWhiteSpace(path) &&
-        File.Exists(Path.Combine(path, "RimWorldWin64.exe")) &&
-        Directory.Exists(Path.Combine(path, "Mods"));
-
-    private static IEnumerable<string> DiscoverSteamRoots()
-    {
-        var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        AddRegistryValue(found, Registry.CurrentUser, @"SOFTWARE\Valve\Steam", "SteamPath");
-        AddRegistryValue(found, Registry.LocalMachine, @"SOFTWARE\WOW6432Node\Valve\Steam", "InstallPath");
-        var conventional = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Steam");
-        if (Directory.Exists(conventional))
-        {
-            found.Add(conventional);
-        }
-        return found;
-    }
-
-    private static void AddRegistryValue(
-        HashSet<string> target,
-        RegistryKey hive,
-        string subkey,
-        string valueName)
-    {
-        try
-        {
-            using var key = hive.OpenSubKey(subkey);
-            if (key?.GetValue(valueName) is string value && Directory.Exists(value))
+            new() { Kind = "steam", AppId = 294100, InstallDir = "RimWorld" },
+            new()
             {
-                target.Add(value);
-            }
-        }
-        catch (Exception exception) when (
-            exception is UnauthorizedAccessException or IOException or System.Security.SecurityException)
-        {
-            // Missing/locked registry data is a normal detection miss; manual selection remains available.
-        }
-    }
+                Kind = "manual",
+                RequiredPaths = new[] { "RimWorldWin64.exe", "Mods" },
+            },
+        },
+    };
 
-    private static IEnumerable<string> ExpandLibraryRoots(IEnumerable<string> roots)
-    {
-        var libraries = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var rootValue in roots)
-        {
-            if (string.IsNullOrWhiteSpace(rootValue))
-            {
-                continue;
-            }
-            var root = Path.GetFullPath(rootValue);
-            libraries.Add(root);
-            var vdf = Path.Combine(root, "steamapps", "libraryfolders.vdf");
-            if (!File.Exists(vdf))
-            {
-                continue;
-            }
-            try
-            {
-                var text = File.ReadAllText(vdf);
-                foreach (Match match in LibraryPathRegex().Matches(text))
-                {
-                    var path = match.Groups[1].Value.Replace("\\\\", "\\");
-                    if (Directory.Exists(path))
-                    {
-                        libraries.Add(Path.GetFullPath(path));
-                    }
-                }
-            }
-            catch (IOException)
-            {
-                // Steam can rewrite the VDF while Manager reads it; this root is simply skipped.
-            }
-        }
-        return libraries;
-    }
+    private static readonly GameDetectionService Service = new(Descriptor);
 
-    [GeneratedRegex("\\\"path\\\"\\s+\\\"([^\\\"]+)\\\"", RegexOptions.IgnoreCase)]
-    private static partial Regex LibraryPathRegex();
+    public GameInstallation? Detect(IEnumerable<string>? steamRoots = null) =>
+        Service.Detect(steamRoots);
+
+    public GameInstallation ValidateManual(string path) => Service.ValidateManual(path);
+
+    public bool IsGameRunning() => Service.IsGameRunning();
+
+    public static bool IsValidGameRoot(string? path) => Service.IsValidGameRoot(path);
 }

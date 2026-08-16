@@ -42,6 +42,42 @@ public sealed record ManifestGame
 
     [JsonPropertyName("supported_versions")]
     public required IReadOnlyList<string> SupportedVersions { get; init; }
+
+    [JsonPropertyName("detection")]
+    public IReadOnlyList<GameDetectionRule>? Detection { get; init; }
+
+    [JsonPropertyName("process_names")]
+    public IReadOnlyList<string>? ProcessNames { get; init; }
+
+    [JsonPropertyName("version")]
+    public GameVersionSource? Version { get; init; }
+}
+
+public sealed record GameDetectionRule
+{
+    [JsonPropertyName("kind")]
+    public required string Kind { get; init; }
+
+    [JsonPropertyName("app_id")]
+    public long? AppId { get; init; }
+
+    [JsonPropertyName("install_dir")]
+    public string? InstallDir { get; init; }
+
+    [JsonPropertyName("required_paths")]
+    public IReadOnlyList<string>? RequiredPaths { get; init; }
+}
+
+public sealed record GameVersionSource
+{
+    [JsonPropertyName("kind")]
+    public required string Kind { get; init; }
+
+    [JsonPropertyName("path")]
+    public required string Path { get; init; }
+
+    [JsonPropertyName("compatibility_pattern")]
+    public required string CompatibilityPattern { get; init; }
 }
 
 public sealed record InstallationArtifact

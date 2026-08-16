@@ -1,30 +1,15 @@
-using System.Text.RegularExpressions;
-
 namespace ShedLink.Manager.Core.Detection;
 
 public sealed record DetectedGameVersion(string FullVersion, string CompatibilityVersion);
 
-public static partial class GameVersionDetector
+public static class GameVersionDetector
 {
-    public static DetectedGameVersion? DetectRimWorld(string gameRoot)
-    {
-        var path = Path.Combine(gameRoot, "Version.txt");
-        if (!File.Exists(path))
-        {
-            return null;
-        }
-        var fullVersion = File.ReadLines(path)
-            .Select(line => line.Trim())
-            .FirstOrDefault(line => line.Length > 0);
-        if (fullVersion is null)
-        {
-            return null;
-        }
-        var match = MajorMinorRegex().Match(fullVersion);
-        return match.Success
-            ? new DetectedGameVersion(fullVersion, match.Value)
-            : null;
-    }
+    /// <summary>
+    /// Temporary shim over the manifest-driven detector; see
+    /// <see cref="RimWorldDetectionService"/>.
+    /// </summary>
+    public static DetectedGameVersion? DetectRimWorld(string gameRoot) =>
+        new GameDetectionService(RimWorldDetectionService.Descriptor).DetectVersion(gameRoot);
 
     public static string Compatibility(
         DetectedGameVersion? version,
@@ -39,7 +24,4 @@ public static partial class GameVersionDetector
             ? "supported"
             : "unsupported";
     }
-
-    [GeneratedRegex(@"^\d+\.\d+", RegexOptions.CultureInvariant)]
-    private static partial Regex MajorMinorRegex();
 }

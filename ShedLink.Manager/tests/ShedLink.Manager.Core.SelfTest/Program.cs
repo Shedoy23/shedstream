@@ -19,6 +19,7 @@ try
 {
     await TestCoordinatorAsync(root);
     TestRimWorldDetection(root);
+    TestManifestDrivenDetection(root);
     await TestInstallationAsync(root);
     await TestHttpsDistributionAsync(root);
     await TestManagerUpdateAsync(root);
@@ -740,6 +741,74 @@ static async Task TestHttpsDistributionAsync(string root)
     {
         Console.WriteLine("  OK  unsigned HTTPS manifest rejected");
     }
+}
+
+static void TestManifestDrivenDetection(string root)
+{
+    // A second game the code has never heard of, described only by a manifest.
+    var bannerlordLike = new ManifestGame
+    {
+        Id = "testgame",
+        DisplayName = "Test Game",
+        SupportedVersions = new[] { "1.2" },
+        ProcessNames = new[] { "TestGameNeverRunning" },
+        Version = new GameVersionSource
+        {
+            Kind = "text_file",
+            Path = "bin/version.dat",
+            CompatibilityPattern = @"^\d+\.\d+",
+        },
+        Detection = new GameDetectionRule[]
+        {
+            new() { Kind = "steam", AppId = 777777, InstallDir = "TestGame" },
+            new()
+            {
+                Kind = "manual",
+                RequiredPaths = new[] { "TestGame.exe", "Modules" },
+            },
+        },
+    };
+    var service = new GameDetectionService(bannerlordLike);
+
+    var library = Path.Combine(root, "second-game-library");
+    var installed = Path.Combine(library, "steamapps", "common", "TestGame");
+    Directory.CreateDirectory(Path.Combine(installed, "Modules"));
+    Directory.CreateDirectory(Path.Combine(installed, "bin"));
+    File.WriteAllText(Path.Combine(installed, "TestGame.exe"), "game");
+    File.WriteAllText(Path.Combine(library, "steamapps", "appmanifest_777777.acf"), "steam");
+    File.WriteAllText(Path.Combine(installed, "bin", "version.dat"), "\n1.2.3 rev42\n");
+
+    var detected = service.Detect(new[] { library });
+    Assert(detected is { GameId: "testgame", Source: DetectionSource.Steam } &&
+        Path.GetFullPath(detected.RootPath) == Path.GetFullPath(installed),
+        "manifest describes a game the code does not know");
+
+    var version = service.DetectVersion(installed);
+    Assert(version is { FullVersion: "1.2.3 rev42", CompatibilityVersion: "1.2" } &&
+        GameVersionDetector.Compatibility(version, bannerlordLike.SupportedVersions) == "supported",
+        "manifest describes where the game version is written");
+
+    File.Delete(Path.Combine(installed, "TestGame.exe"));
+    Assert(!service.IsValidGameRoot(installed) && service.Detect(new[] { library }) is null,
+        "missing required file rejects the folder for that game");
+
+    var blind = new GameDetectionService(bannerlordLike with { Detection = null });
+    Assert(!blind.IsValidGameRoot(root),
+        "game without declared evidence accepts no folder at all");
+
+    // The shipped RimWorld manifest must carry the same facts the code used to hold.
+    var shipped = InstallationManifestLoader.Load(Path.Combine(
+        Environment.CurrentDirectory, "manifests", "installation", "rimworld-0.1.1.json"));
+    var rimworld = new GameDetectionService(shipped.Game!);
+    var rimworldRoot = Path.Combine(root, "manifest-rimworld");
+    Directory.CreateDirectory(Path.Combine(rimworldRoot, "Mods"));
+    File.WriteAllText(Path.Combine(rimworldRoot, "RimWorldWin64.exe"), "game");
+    File.WriteAllText(Path.Combine(rimworldRoot, "Version.txt"), "1.6.4871 rev590\n");
+    var rimworldVersion = rimworld.DetectVersion(rimworldRoot);
+    Assert(rimworld.IsValidGameRoot(rimworldRoot) &&
+        rimworldVersion?.CompatibilityVersion == "1.6" &&
+        rimworldVersion.FullVersion == "1.6.4871 rev590",
+        "shipped RimWorld manifest detects the game without hardcoded knowledge");
 }
 
 static async Task TestManagerUpdateAsync(string root)

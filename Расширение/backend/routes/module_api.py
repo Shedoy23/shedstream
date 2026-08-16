@@ -143,6 +143,31 @@ async def module_auth_check(module_id: str, request: Request):
     return response
 
 
+@router.get("/v1/module/{module_id}/status", include_in_schema=False)
+async def module_runtime_status(module_id: str, request: Request):
+    """Read real connector liveness without creating a heartbeat."""
+    if not get_module(module_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"status": "module_not_found", "module_id": module_id},
+        )
+    channel_id = await _verify_module_request(request, module_id)
+    import module_liveness
+    last_seen = await module_liveness.last_seen(get_db(), channel_id, module_id)
+    age_seconds = max(0, int(time.time() - last_seen)) if last_seen else None
+    response = JSONResponse({
+        "status": "ok",
+        "module_id": module_id,
+        "online": age_seconds is not None
+        and age_seconds < module_liveness.ONLINE_WINDOW_SEC,
+        "last_seen_at": last_seen or None,
+        "age_seconds": age_seconds,
+        "online_window_seconds": module_liveness.ONLINE_WINDOW_SEC,
+    })
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 # ── Этап 3 step 2: events endpoint ───────────────────────────────────────────
 
 # In-memory dedup ring. Хранит последние N envelope id'ов чтобы повтор от

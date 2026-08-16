@@ -81,6 +81,17 @@ public sealed class ManagerApiClient
             moduleToken,
             cancellationToken);
 
+    public Task<ModuleRuntimeStatus> GetModuleStatusAsync(
+        string moduleToken,
+        string moduleId,
+        CancellationToken cancellationToken = default) =>
+        SendAsync<ModuleRuntimeStatus>(
+            HttpMethod.Get,
+            $"/v1/module/{Uri.EscapeDataString(moduleId)}/status",
+            null,
+            moduleToken,
+            cancellationToken);
+
     public Task LogoutAsync(
         string accessToken,
         CancellationToken cancellationToken = default) =>

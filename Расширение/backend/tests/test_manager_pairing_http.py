@@ -214,6 +214,22 @@ async def main() -> int:
         assert auth_check.status_code == 200
         assert payload(auth_check) == {"status": "ok", "module_id": "rimworld"}
         assert "no-store" in auth_check.headers.get("cache-control", "")
+        runtime_status = await module_api.module_runtime_status(
+            "rimworld",
+            request("GET", "/v1/module/rimworld/status", authorization=module_bearer),
+        )
+        assert runtime_status.status_code == 200
+        assert payload(runtime_status)["online"] is False
+        assert payload(runtime_status)["last_seen_at"] is None
+        import module_liveness
+        await module_liveness.touch(db, CHANNEL_ID, "rimworld")
+        runtime_status = await module_api.module_runtime_status(
+            "rimworld",
+            request("GET", "/v1/module/rimworld/status", authorization=module_bearer),
+        )
+        assert payload(runtime_status)["online"] is True
+        assert payload(runtime_status)["age_seconds"] == 0
+        assert "no-store" in runtime_status.headers.get("cache-control", "")
         assert await rimworld.rimworld_mod_auth(
             request("POST", "/api/rimworld/pawns", authorization=module_bearer)
         ) == CHANNEL_ID

@@ -22,6 +22,7 @@ public partial class MainWindow : Window
     private readonly IntegrationInstallationService _installationService;
     private CancellationTokenSource? _pairingCancellation;
     private CancellationTokenSource? _installationCancellation;
+    private CancellationTokenSource? _diagnosticsCancellation;
     private ReadySession? _session;
     private GameInstallation? _game;
     private bool _installing;
@@ -47,6 +48,8 @@ public partial class MainWindow : Window
             _pairingCancellation?.Dispose();
             _installationCancellation?.Cancel();
             _installationCancellation?.Dispose();
+            _diagnosticsCancellation?.Cancel();
+            _diagnosticsCancellation?.Dispose();
             _http.Dispose();
         };
     }
@@ -336,6 +339,83 @@ public partial class MainWindow : Window
         ConnectButton.IsEnabled = false;
         OverallStatusText.Text = "Аккаунт защищённо подключён. Проверяем игру и integration.";
         UpdateInstallAvailability();
+        StartDiagnostics();
+    }
+
+    private void StartDiagnostics()
+    {
+        _diagnosticsCancellation?.Cancel();
+        _diagnosticsCancellation?.Dispose();
+        _diagnosticsCancellation = new CancellationTokenSource();
+        _ = RunDiagnosticsLoopAsync(_diagnosticsCancellation.Token);
+    }
+
+    private async Task RunDiagnosticsLoopAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                var state = _stateStore.LoadOrCreate();
+                var token = _vault.Read(
+                    CredentialKeys.ModuleToken(state.InstallationId, state.ModuleId));
+                if (string.IsNullOrWhiteSpace(token))
+                {
+                    RuntimeStatusText.Text = "Защищённый ключ мода отсутствует.";
+                }
+                else
+                {
+                    var runtime = await _api.GetModuleStatusAsync(
+                        token, state.ModuleId, cancellationToken);
+                    RuntimeStatusText.Text = RuntimeMessage(runtime);
+                }
+            }
+            catch (ManagerApiException exception) when (
+                exception.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                RuntimeStatusText.Text =
+                    "Диагностика heartbeat станет доступна после обновления backend.";
+            }
+            catch (ManagerApiException exception)
+            {
+                RuntimeStatusText.Text =
+                    $"Диагностика отклонена сервером: {exception.ErrorCode}.";
+            }
+            catch (HttpRequestException)
+            {
+                RuntimeStatusText.Text = "Backend сейчас недоступен.";
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(15), cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+        }
+    }
+
+    private static string RuntimeMessage(ModuleRuntimeStatus runtime)
+    {
+        if (runtime.Online)
+        {
+            return runtime.AgeSeconds is > 0
+                ? $"Мод на связи · heartbeat {runtime.AgeSeconds} сек. назад."
+                : "Мод на связи · heartbeat только что получен.";
+        }
+        if (runtime.AgeSeconds is int age)
+        {
+            return age < 120
+                ? $"Мод не на связи · последний heartbeat {age} сек. назад."
+                : $"Мод не на связи · последний heartbeat {age / 60} мин. назад.";
+        }
+        return "Настоящий heartbeat мода ещё не получен. Запусти RimWorld.";
     }
 
     private void UpdateInstallAvailability(bool updateReleaseMessage = true)

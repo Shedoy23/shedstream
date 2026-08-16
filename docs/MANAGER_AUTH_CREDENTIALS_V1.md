@@ -109,6 +109,14 @@ session и разрешённого manifest module. Secret возвращает
 игра запущена. `Technical Ready` по-прежнему требует отдельный реальный heartbeat
 мода. Ответ помечен `Cache-Control: no-store`.
 
+### `GET /v1/module/{module_id}/status`
+
+Требует тот же module credential и возвращает реальный `last_seen`, возраст
+сигнала, online window и вычисленный online state. Endpoint только читает
+`module_last_seen`: запрос Manager не создаёт и не продлевает heartbeat. WPF
+обновляет состояние раз в 15 секунд и отдельно показывает отсутствие сигнала,
+устаревший heartbeat или живой мод. Ответ помечен `Cache-Control: no-store`.
+
 ### `POST /v1/manager/session/refresh`
 
 Принимает текущий refresh token и атомарно заменяет его новой Manager session в

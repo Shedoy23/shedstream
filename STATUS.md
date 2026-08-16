@@ -68,6 +68,8 @@
   verified crash завершается после restart, повторное удаление идемпотентно.
 - Manager различает missing/broken/outdated/healthy RimLink, показывает
   установленную и доступную версии и меняет CTA на install/update/repair/reinstall.
+- Authenticated runtime status читает реальный heartbeat без изменения liveness;
+  WPF показывает online/offline и возраст последнего сигнала каждые 15 секунд.
 - HTTPS distribution verifier готов локально: no redirects/downgrade, bounded
   download, SHA-256 и trusted RSA-PSS publisher signature до распаковки.
   Offline signer готов и требует внешний RSA 3072+ PEM. Production signing key
@@ -97,7 +99,7 @@ vertical slice, но R0 release gate ещё не пройден.
 3. Создать offline production signing key, встроить public key и опубликовать
    RimLink archive по конечному HTTPS URL; после этого уже подключённый WPF CTA
    станет доступен без изменения policy.
-4. Добавить heartbeat/test-action diagnostics для `Technical Ready`.
+4. Добавить безопасный test-action и итоговый `Technical Ready` verdict.
 5. Включить M109 repair, Manager API и обновлённые runtime manifests в следующий штатный
    production deploy.
 

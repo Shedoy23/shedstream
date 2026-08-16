@@ -34,6 +34,14 @@ public sealed record ModuleAuthCheck(
     [property: JsonPropertyName("status")] string Status,
     [property: JsonPropertyName("module_id")] string ModuleId);
 
+public sealed record ModuleRuntimeStatus(
+    [property: JsonPropertyName("status")] string Status,
+    [property: JsonPropertyName("module_id")] string ModuleId,
+    [property: JsonPropertyName("online")] bool Online,
+    [property: JsonPropertyName("last_seen_at")] double? LastSeenAt,
+    [property: JsonPropertyName("age_seconds")] int? AgeSeconds,
+    [property: JsonPropertyName("online_window_seconds")] int OnlineWindowSeconds);
+
 internal sealed record PairingCreateRequest(
     string InstallationId,
     string ModuleId,

@@ -73,6 +73,10 @@
                                    Text="Проверяем доступность безопасного релиза…"
                                    Foreground="{StaticResource TextMuted}" Margin="0,7,0,0"
                                    TextWrapping="Wrap" MaxWidth="500" />
+                        <TextBlock x:Name="RuntimeStatusText"
+                                   Text="Heartbeat мода ещё не проверен."
+                                   Foreground="{StaticResource TextMuted}" Margin="0,6,0,0"
+                                   TextWrapping="Wrap" MaxWidth="500" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal"
                                 VerticalAlignment="Center" Margin="18,0,0,0">

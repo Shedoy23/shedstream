@@ -55,6 +55,10 @@ static async Task TestCoordinatorAsync(string root)
         "slmod_v1.credential-one.secret", "rimworld");
     Assert(checkedCredential is { Status: "ok", ModuleId: "rimworld" },
         "module credential auth-check does not require heartbeat");
+    var runtimeStatus = await api.GetModuleStatusAsync(
+        "slmod_v1.credential-one.secret", "rimworld");
+    Assert(runtimeStatus is { Online: false, LastSeenAt: null, AgeSeconds: null },
+        "module status reports real missing heartbeat");
 
     var stateJson = File.ReadAllText(statePath);
     Assert(!stateJson.Contains("refresh-one", StringComparison.Ordinal),
@@ -674,6 +678,11 @@ sealed class FakeManagerHandler : HttpMessageHandler
                     """{"detail":{"status":"auth_failed"}}""");
             }
             return Json(HttpStatusCode.OK, """{"status":"ok","module_id":"rimworld"}""");
+        }
+        if (path == "/v1/module/rimworld/status")
+        {
+            return Json(HttpStatusCode.OK,
+                """{"status":"ok","module_id":"rimworld","online":false,"last_seen_at":null,"age_seconds":null,"online_window_seconds":60}""");
         }
         if (request.Method == HttpMethod.Delete && path.Contains("module-credentials"))
         {

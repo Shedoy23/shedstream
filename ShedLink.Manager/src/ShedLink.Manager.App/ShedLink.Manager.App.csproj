@@ -10,8 +10,8 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\ShedLink.Manager.Core\ShedLink.Manager.Core.csproj" />
-    <Content Include="..\..\..\manifests\installation\rimworld-0.1.1.json"
-             Link="Release\rimworld-0.1.1.json"
+    <Content Include="..\..\..\manifests\installation\rimworld-*.json"
+             Link="Release\%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

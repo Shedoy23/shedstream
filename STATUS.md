@@ -67,6 +67,9 @@
   удаление module tokens, authorization, приватного URL и Windows profile path.
   Версия RimWorld читается из `Version.txt`; отчёт отдельно объясняет unmanaged
   installation, а неподдерживаемая версия блокирует install и `Technical Ready`.
+- Встроенный release-каталог выбирает самый новый RimLink manifest, совместимый
+  с найденной версией RimWorld. Install/repair/config/rotation используют один
+  выбранный manifest; отсутствие подходящей версии даёт безопасный отказ.
 - Installation transaction перенесён в .NET Core: production manifest parsing,
   artifact size/SHA-256, safe ZIP, reparse guard, atomic swap, rollback и crash
   recovery зелёные. XML writer сохраняет чужие поля и ставит user-only ACL.

@@ -355,6 +355,9 @@ refresh без неявного отзыва установленных module c
 - RimWorld version читается из игрового `Version.txt` и сверяется с
   `game.supported_versions` installation manifest. Unknown/unsupported version
   fail-closed блокирует install и итоговый `Technical Ready`.
+- EXE загружает встроенный каталог RimLink manifests и выбирает самый новый
+  совместимый release; отсутствие совместимого релиза завершается безопасным
+  отказом без установки случайной версии.
 - локальный RimLink/installation manifest поднят до `0.1.1`; deterministic ZIP
   связан с манифестом точными size/SHA, но остаётся unsigned и не опубликован.
 

@@ -214,6 +214,24 @@ static async Task TestInstallationAsync(string root)
     Assert(productionManifest.IntegrationId == "rimworld" &&
         productionManifest.Installation.Target.RelativePath == "Mods/RimLink",
         "production installation manifest parsed");
+    var releases = new[]
+    {
+        new InstallationRelease("rimworld-0.1.1.json", productionManifest),
+        new InstallationRelease("rimworld-0.2.0.json",
+            productionManifest with { ReleaseVersion = "0.2.0" }),
+        new InstallationRelease("rimworld-0.3.0.json", productionManifest with
+        {
+            ReleaseVersion = "0.3.0",
+            Game = productionManifest.Game! with { SupportedVersions = new[] { "1.7" } },
+        }),
+    };
+    var selectedRelease = InstallationReleaseSelector.SelectCompatible(
+        releases, "rimworld", "1.6");
+    Assert(selectedRelease?.Manifest.ReleaseVersion == "0.2.0",
+        "release catalog selects newest compatible integration");
+    Assert(InstallationReleaseSelector.SelectCompatible(
+            releases, "rimworld", "1.4") is null,
+        "release catalog fails closed without compatible integration");
 
     var inspectionGame = Path.Combine(root, "inspection-game");
     var missingInspection = InstallationInspector.Inspect(

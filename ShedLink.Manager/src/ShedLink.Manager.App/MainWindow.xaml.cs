@@ -88,8 +88,16 @@ public partial class MainWindow : Window
         {
             SetBusy(true, "Восстанавливаем защищённую сессию…");
             _session = await _coordinator.ResumeAsync();
-            var recovered = await _rotationService.RecoverPendingAsync(
-                _session, ReleaseConfiguration.ManifestPath);
+            CredentialRotationResult? recovered = null;
+            if (_rotationService.HasPending)
+            {
+                if (!TrySelectManifestForCurrentGame(out var recoveryRelease, out var reason))
+                {
+                    throw new InvalidOperationException(reason);
+                }
+                recovered = await _rotationService.RecoverPendingAsync(
+                    _session, recoveryRelease!.ManifestPath);
+            }
             if (recovered is not null)
             {
                 _session = _session with { CredentialId = recovered.CredentialId };
@@ -262,7 +270,9 @@ public partial class MainWindow : Window
             UpdateInstallAvailability();
             return;
         }
-        if (!ReleaseConfiguration.TryLoad(out _, out var verifier, out var reason))
+        var gameVersion = GameVersionDetector.DetectRimWorld(_game.RootPath);
+        if (!ReleaseConfiguration.TrySelect(
+                gameVersion, out var release, out var verifier, out var reason))
         {
             IntegrationStatusText.Text = reason;
             UpdateInstallAvailability();
@@ -285,7 +295,7 @@ public partial class MainWindow : Window
         {
             using var downloader = new SecureArtifactDownloader();
             var installed = await _installationService.InstallHttpsAsync(
-                ReleaseConfiguration.ManifestPath,
+                release!.ManifestPath,
                 _game.RootPath,
                 downloader,
                 verifier!,
@@ -326,7 +336,7 @@ public partial class MainWindow : Window
             UpdateInstallAvailability();
             return;
         }
-        if (!ReleaseConfiguration.TryLoadManifest(out _, out var reason))
+        if (!ReleaseConfiguration.TrySelectLatestManifest(out var release, out var reason))
         {
             IntegrationStatusText.Text = reason;
             return;
@@ -351,7 +361,7 @@ public partial class MainWindow : Window
         try
         {
             _installationService.Uninstall(
-                ReleaseConfiguration.ManifestPath, _game.RootPath);
+                release!.ManifestPath, _game.RootPath);
             var state = _stateStore.LoadOrCreate();
             _stateStore.Save(state with { InstalledReleaseVersion = null });
             IntegrationStatusText.Text =
@@ -403,8 +413,12 @@ public partial class MainWindow : Window
         try
         {
             SetBusy(true, "Безопасно меняем ключ RimLink…");
+            if (!TrySelectManifestForCurrentGame(out var release, out var reason))
+            {
+                throw new InvalidOperationException(reason);
+            }
             var result = await _rotationService.RotateAsync(
-                _session, ReleaseConfiguration.ManifestPath);
+                _session, release!.ManifestPath);
             _session = _session with { CredentialId = result.CredentialId };
             IntegrationStatusText.Text = "Ключ RimLink заменён и проверен.";
             OverallStatusText.Text = "Новый ключ активен. RimWorld можно запускать.";
@@ -430,7 +444,8 @@ public partial class MainWindow : Window
         var gameVersion = _game is null
             ? null
             : GameVersionDetector.DetectRimWorld(_game.RootPath);
-        ReleaseConfiguration.TryLoadManifest(out var manifest, out _);
+        ReleaseConfiguration.TrySelectLatestManifest(out var diagnosticRelease, out _);
+        var manifest = diagnosticRelease?.Manifest;
         var integrationVersion = inspection?.Condition == InstallationCondition.NotInstalled
             ? "not installed"
             : inspection?.InstalledVersion ?? state.InstalledReleaseVersion;
@@ -742,8 +757,9 @@ public partial class MainWindow : Window
             InstallButton.ToolTip = "Сначала подключи Twitch и найди RimWorld.";
             return;
         }
-        var releaseReady = ReleaseConfiguration.TryLoad(
-            out _, out _, out var releaseReason);
+        var gameVersion = GameVersionDetector.DetectRimWorld(_game.RootPath);
+        var releaseReady = ReleaseConfiguration.TrySelect(
+            gameVersion, out _, out _, out var releaseReason);
         var compatible = TryGetGameCompatibility(out var compatibilityReason);
         InstallButton.IsEnabled = releaseReady && compatible &&
             inspection?.Condition != InstallationCondition.UnsafeTarget;
@@ -773,16 +789,16 @@ public partial class MainWindow : Window
             reason = "Не удалось определить версию RimWorld из Version.txt.";
             return false;
         }
-        if (!ReleaseConfiguration.TryLoadManifest(out var manifest, out reason) ||
-            manifest?.Game is null)
+        if (!ReleaseConfiguration.TrySelectManifest(
+                version, out var release, out reason) || release?.Manifest.Game is null)
         {
             return false;
         }
         if (GameVersionDetector.Compatibility(
-                version, manifest.Game.SupportedVersions) != "supported")
+                version, release.Manifest.Game.SupportedVersions) != "supported")
         {
             reason = $"RimWorld {version.FullVersion} не поддерживается. Поддерживаются: " +
-                string.Join(", ", manifest.Game.SupportedVersions) + ".";
+                string.Join(", ", release.Manifest.Game.SupportedVersions) + ".";
             return false;
         }
         reason = $"RimWorld {version.FullVersion} поддерживается.";
@@ -792,13 +808,23 @@ public partial class MainWindow : Window
     private InstallationInspection? InspectIntegration()
     {
         if (_game is null ||
-            !ReleaseConfiguration.TryLoadManifest(out var manifest, out _))
+            !ReleaseConfiguration.TrySelectLatestManifest(out var release, out _))
         {
             return null;
         }
         var state = _stateStore.LoadOrCreate();
         return InstallationInspector.Inspect(
-            manifest!, _game.RootPath, state.InstalledReleaseVersion);
+            release!.Manifest, _game.RootPath, state.InstalledReleaseVersion);
+    }
+
+    private bool TrySelectManifestForCurrentGame(
+        out InstallationRelease? release,
+        out string reason)
+    {
+        var version = _game is null
+            ? null
+            : GameVersionDetector.DetectRimWorld(_game.RootPath);
+        return ReleaseConfiguration.TrySelectManifest(version, out release, out reason);
     }
 
     private static string InspectionMessage(InstallationInspection inspection) =>

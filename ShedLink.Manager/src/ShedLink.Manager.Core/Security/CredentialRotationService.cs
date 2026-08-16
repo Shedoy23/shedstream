@@ -20,6 +20,8 @@ public sealed class CredentialRotationService
     private readonly ManagerStateStore _stateStore;
     private readonly string _journalPath;
 
+    public bool HasPending => File.Exists(_journalPath);
+
     public CredentialRotationService(
         ManagerApiClient api,
         ICredentialVault vault,

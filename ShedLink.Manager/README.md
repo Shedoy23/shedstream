@@ -28,6 +28,8 @@ heartbeat и последние сообщения; credentials, authorization, 
 профиля Windows автоматически удаляются. Версия RimWorld читается из игрового
 `Version.txt`; отчёт отличает unmanaged installation от повреждённых файлов.
 Unsupported/unknown game version блокирует install и `Technical Ready`.
+Из встроенного каталога manifests Manager выбирает самый новый совместимый
+RimLink release и использует его во всей install/config/repair операции.
 
 Installation Core уже читает production manifest, проверяет размер/SHA-256,
 безопасно распаковывает ZIP, отклоняет traversal/reparse points, выполняет

@@ -985,6 +985,54 @@ def check_declared_gold_is_charged():
             f"перед применением эффекта")
 
 
+# Цены, вписанные во фронт числом, — известный долг. Пока фронт заморожен под
+# ревью, чинить их нельзя, поэтому известные места перечислены здесь и дают
+# предупреждение, а всякое НОВОЕ место — ошибку. Убрав последнее, удалить и
+# список, и эту ветку: проверка станет просто жёсткой.
+FROZEN_PRICE_LITERALS = {
+    ("viewer-bannerlord.js", "1000", "20000"),   # мастерская, сервер берёт 2500 крустиков
+    ("viewer-bannerlord.js", "1500", "15000"),   # караван, сервер берёт 4000 крустиков
+}
+
+
+def check_frontend_price_literals():
+    """Цена крустиками, вписанная во фронт числом, разъедется с бэкендом.
+
+    Класс всплыл дважды. Июль: `recruit_vassal_clan` (3M динаров) держал цену
+    числом в кнопке и попал в changelog как переведённый на бэкенд. Август:
+    кнопки мастерской и каравана показывали `1000`/`1500` крустиков, тогда как
+    бэкенд с 2026-05-29 берёт `2500`/`4000` и объявленные на кнопке динары не
+    берёт вовсе. Три месяца обе стороны по отдельности выглядели правильными.
+
+    Ловит ровно правило проекта: с бэкенда — числа, во фронте — только показ.
+    Поэтому проверяется не совпадение с сервером (фронт может считать цену как
+    угодно), а сам факт числового литерала в цене: его там быть не должно.
+    """
+    fe = EXT / "frontend"
+    if not fe.is_dir():
+        return
+    call = re.compile(r"_bnrPrice(?:Html)?\(\s*([\w.]+)\s*,\s*([\w.]+)\s*\)")
+    for path in sorted(fe.glob("viewer*.js")):
+        for line_no, line in enumerate(
+                path.read_text(encoding="utf-8").splitlines(), 1):
+            for m in call.finditer(line):
+                left, right = m.group(1), m.group(2)
+                literals = [a for a in (left, right) if a.isdigit() and int(a)]
+                if not literals:
+                    continue
+                where = f"{path.name}:{line_no}"
+                message = (
+                    f"price-literal: {where} `_bnrPrice({left}, {right})` "
+                    f"hardcodes a price in the frontend -- it must come from "
+                    f"the backend, or it drifts silently and the viewer pays "
+                    f"something other than the button shows")
+                if (path.name, left, right) in FROZEN_PRICE_LITERALS:
+                    warns.append(message + " [known debt, frontend frozen for "
+                                 "review -- fix lands in 0.0.3]")
+                else:
+                    errors.append(message)
+
+
 def main() -> int:
     if EXT is None:
         print("[lint] FAIL: could not locate extension dir (with backend/)")
@@ -998,6 +1046,7 @@ def main() -> int:
                check_partial_index_has_sweeper,
                check_season_rotation_sweeps_all,
                check_currency_boundary,
+               check_frontend_price_literals,
                check_declared_gold_is_charged):
         try:
             fn()

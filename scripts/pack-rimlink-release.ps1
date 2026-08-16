@@ -4,6 +4,10 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+if ($PSVersionTable.PSEdition -ne 'Core' -or $PSVersionTable.PSVersion.Major -lt 7) {
+    throw 'Deterministic RimLink releases require PowerShell 7 (pwsh).'
+}
+Add-Type -AssemblyName System.IO.Compression
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $releaseRoot = [IO.Path]::GetFullPath((Join-Path $repoRoot 'dist\releases'))
 $output = [IO.Path]::GetFullPath((Join-Path $repoRoot $OutputPath))

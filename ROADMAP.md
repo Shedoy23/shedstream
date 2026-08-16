@@ -363,6 +363,9 @@ refresh без неявного отзыва установленных module c
   внешнего места хранения и backup, отдельно от будущей Windows EXE signing.
 - Independent verifier и полный local release rehearsal подтверждают
   `generate → sign → size/SHA/RSA/ZIP/health verify` без production mutation.
+- Publication runbook фиксирует будущий immutable HTTPS URL, atomic upload,
+  nginx preflight/external verification и rollback. Read-only audit подтвердил,
+  что production `/releases/` пока отсутствует и не изменялся.
 - локальный RimLink/installation manifest поднят до `0.1.1`; deterministic ZIP
   связан с манифестом точными size/SHA, но остаётся unsigned и не опубликован.
 

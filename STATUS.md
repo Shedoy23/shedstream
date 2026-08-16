@@ -79,6 +79,12 @@
   обязательные health probes до публикации или встраивания manifest в Manager.
   Полный локальный rehearsal `generate → sign → verify` на RimLink `0.1.1`
   прошёл; все временные ключи и подписанная копия после проверки удалены.
+- Read-only nginx audit подтвердил: production пока не имеет `/releases/`.
+  Подготовлен отдельный publication runbook с immutable URL, atomic upload,
+  nginx validation, external verification и rollback; сервер не изменялся.
+- Канонический `RimLink-0.1.1.zip` пересобран PowerShell 7 и совпадает с manifest:
+  `63673` bytes, SHA-256 `4e9656cb...ed42381`. Упаковщик теперь fail-closed
+  отклоняет Windows PowerShell 5, который создаёт другие ZIP bytes.
 - Installation transaction перенесён в .NET Core: production manifest parsing,
   artifact size/SHA-256, safe ZIP, reparse guard, atomic swap, rollback и crash
   recovery зелёные. XML writer сохраняет чужие поля и ставит user-only ACL.

@@ -83,6 +83,10 @@ ls -l /proc/$PID/fd | grep -oE '/[^ ]*\.db' | sort -u
 `systemctl reload nginx`. 2026-07-22 моя же правка сломала синтаксис, и поймала
 это именно проверка перед перезагрузкой.
 
+План публикации подписанных Manager/RimLink artifacts вынесен отдельно:
+`docs/MANAGER_RELEASE_PUBLICATION_RUNBOOK.md`. Пока в production нет
+`/releases/`; любые nginx/upload действия требуют отдельного подтверждения.
+
 ### Логи
 
 - бэкенд: `/var/log/twitchbot.out.log`, `/root/twitch-extension/logs/`

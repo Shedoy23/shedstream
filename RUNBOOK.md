@@ -84,8 +84,19 @@ ls -l /proc/$PID/fd | grep -oE '/[^ ]*\.db' | sort -u
 это именно проверка перед перезагрузкой.
 
 План публикации подписанных Manager/RimLink artifacts вынесен отдельно:
-`docs/MANAGER_RELEASE_PUBLICATION_RUNBOOK.md`. Пока в production нет
-`/releases/`; любые nginx/upload действия требуют отдельного подтверждения.
+`docs/MANAGER_RELEASE_PUBLICATION_RUNBOOK.md`. Любые nginx/upload действия
+требуют отдельного подтверждения.
+
+`/releases/` в production **есть** (проверено 2026-08-16: артефакт по адресу из
+манифеста отвечает `200`, листинг каталога — `403`, как и задумано):
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" https://shedoy23.ru/releases/RimLink-0.1.1.zip
+```
+
+Здесь до 16.08 стояло «пока в production нет `/releases/`» — строка пережила
+настройку каталога. Отрицательные статусы в этом файле проверять командой,
+прежде чем на них ссылаться.
 
 ### Логи
 
@@ -615,6 +626,28 @@ DLL подхватывается **только при старте игры**, 
 |---|---|---|
 | Mass Upgrade | 3724776428 | github.com/Shedoy23/Mass-Upgrade |
 | Siege Sanity | 3769206755 | github.com/Shedoy23/Siege-Sanity |
+
+### Архив мода Bannerlord собирать ТОЛЬКО по списку файлов
+
+У RimLink секрет лежит вне папки мода (`LocalLow`), поэтому упаковщик физически
+не может его захватить. У Bannerlord секрет лежит ВНУТРИ папки мода:
+`Modules/Shedoy23.BannerlordLink/config.json` содержит `module_token` и
+`channel_id`, и Manager с 16.08 пишет туда настоящий рабочий токен.
+
+Отсюда правило: `scripts/pack-rimlink-release.ps1` перечисляет файлы явным
+списком и падает, если файла нет. Упаковщик Bannerlord делать так же. Упаковка
+«взять папку целиком» отправит токен владельца каждому, кто скачает архив, —
+и заметить это по самому архиву нельзя, он выглядит нормальным.
+
+Проверка перед публикацией:
+
+```bash
+python -c "import zipfile,sys; n=[x for x in zipfile.ZipFile(sys.argv[1]).namelist() if x.endswith(('config.json','settings.xml'))]; print('SECRET FOUND:',n) if n else print('clean')" dist/releases/RimLink-0.1.1.zip
+```
+
+Вывод по-английски намеренно: консоль здесь ломает кириллицу. `clean` — архив
+чист, `SECRET FOUND` — не публиковать. На `RimLink-0.1.1.zip` проверено 16.08,
+ответ `clean`.
 
 ---
 

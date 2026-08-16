@@ -47,6 +47,9 @@ HTTP downgrade, размер, SHA-256, неизвестный publisher key и R
 
 Offline signer находится в `tools/ShedLink.Manager.SignArtifact`; он не создаёт
 и не хранит private key, а принимает внешний PEM только на время запуска.
+Бесплатный безопасный generator RSA 4096 находится в
+`tools/ShedLink.Manager.GenerateReleaseKey`; настоящий production key создаётся
+только после выбора владельцем внешнего места хранения и backup.
 
 Проверка:
 

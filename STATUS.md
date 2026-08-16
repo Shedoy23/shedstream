@@ -70,6 +70,10 @@
 - Встроенный release-каталог выбирает самый новый RimLink manifest, совместимый
   с найденной версией RimWorld. Install/repair/config/rotation используют один
   выбранный manifest; отсутствие подходящей версии даёт безопасный отказ.
+- Локальный RSA 4096 key generator готов и проверен: не перезаписывает файлы,
+  запрещает путь внутри repository и ограничивает private PEM текущим Windows
+  user. Генерация и подпись RimLink бесплатны; настоящий production key ещё не
+  создан до выбора владельцем external storage и backup.
 - Installation transaction перенесён в .NET Core: production manifest parsing,
   artifact size/SHA-256, safe ZIP, reparse guard, atomic swap, rollback и crash
   recovery зелёные. XML writer сохраняет чужие поля и ставит user-only ACL.

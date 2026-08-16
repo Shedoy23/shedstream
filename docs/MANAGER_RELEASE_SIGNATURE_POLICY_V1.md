@@ -1,7 +1,16 @@
 # Manager release signature policy v1
 
 Дата: 2026-08-16  
-Статус: verifier реализован; production signing key и HTTPS publication ещё не созданы
+Статус: verifier, signer и безопасный key generator реализованы; production
+signing key и HTTPS publication ещё не созданы
+
+## Две разные подписи
+
+- Подпись RimLink release artifact — собственная RSA-PSS подпись ShedLink.
+  Она бесплатна и обязательна для Manager install flow.
+- Authenticode-подпись Windows EXE — отдельный механизм доверия Windows.
+  Она не требуется для проверки RimLink и может быть отложена до внешней beta;
+  без доверенного сертификата Windows может показывать SmartScreen warning.
 
 ## Правило допуска
 
@@ -52,6 +61,21 @@ integration/version/artifact identity. Подпись проверяется т�
 - утрата private key означает выпуск нового key pair и Manager update;
 - компрометация требует удалить старый public key из новой Manager build и
   остановить публикацию manifest'ов со старым `key_id`.
+
+Production key pair создаётся бесплатным локальным generator только по явно
+заданным абсолютным путям вне repository. Generator отказывается перезаписывать
+существующие файлы, создаёт RSA 4096 и ограничивает ACL private PEM текущим
+Windows user:
+
+```powershell
+dotnet run --project ShedLink.Manager/tools/ShedLink.Manager.GenerateReleaseKey -- `
+  --private C:\<secure-external-location>\shedlink-release-2026.private.pem `
+  --public C:\<secure-external-location>\shedlink-release-2026.public.pem `
+  --key-id shedlink-release-2026
+```
+
+Перед настоящим запуском владелец выбирает external location и backup. Private
+PEM не переносится в Git, production server или обычную cloud-sync папку.
 
 ## Порядок публикации
 

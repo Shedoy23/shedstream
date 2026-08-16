@@ -45,14 +45,16 @@ public sealed record ModuleRuntimeStatus(
 public sealed record DiagnosticStarted(
     [property: JsonPropertyName("status")] string Status,
     [property: JsonPropertyName("diagnostic_id")] string DiagnosticId,
-    [property: JsonPropertyName("expires_in")] int ExpiresIn);
+    [property: JsonPropertyName("expires_in")] int ExpiresIn,
+    [property: JsonPropertyName("mode")] string? Mode = null);
 
 public sealed record DiagnosticResult(
     [property: JsonPropertyName("status")] string Status,
     [property: JsonPropertyName("diagnostic_id")] string DiagnosticId,
     [property: JsonPropertyName("created_at")] double CreatedAt,
     [property: JsonPropertyName("completed_at")] double? CompletedAt,
-    [property: JsonPropertyName("error")] string? Error);
+    [property: JsonPropertyName("error")] string? Error,
+    [property: JsonPropertyName("mode")] string? Mode = null);
 
 internal sealed record PairingCreateRequest(
     string InstallationId,
@@ -66,5 +68,7 @@ internal sealed record RefreshRequest(string RefreshToken);
 internal sealed record CredentialRequest(string ModuleId, string Label);
 
 internal sealed record CredentialRotateRequest(string Label);
+
+internal sealed record DiagnosticStartRequest(string Mode);
 
 internal sealed record ApiError(string? Status);

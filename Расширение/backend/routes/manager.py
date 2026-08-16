@@ -79,6 +79,22 @@ async def _json_body(request: Request) -> dict:
     return body
 
 
+async def _optional_json_body(request: Request) -> dict:
+    """Accept an empty body for compatibility with Manager builds before modes."""
+    raw = await request.body()
+    if not raw:
+        return {}
+    if len(raw) > 8192:
+        raise manager_auth.ManagerAuthError("request_too_large")
+    try:
+        body = json.loads(raw.decode("utf-8"))
+    except Exception as exc:
+        raise manager_auth.ManagerAuthError("invalid_json") from exc
+    if not isinstance(body, dict):
+        raise manager_auth.ManagerAuthError("invalid_json")
+    return body
+
+
 def _secret_response(payload: dict, status_code: int = 200) -> JSONResponse:
     response = JSONResponse(payload, status_code=status_code)
     response.headers["Cache-Control"] = "no-store"
@@ -182,19 +198,24 @@ async def manager_diagnostic_start(request: Request):
         module_id = str(claims.get("module_id") or "")
         if module_id != "rimworld":
             return JSONResponse({"status": "diagnostic_not_supported"}, status_code=409)
+        body = await _optional_json_body(request)
+        mode = str(body.get("mode") or "ready").strip().lower()
+        if mode not in {"ready", "refuse", "lost_ack"}:
+            return JSONResponse({"status": "invalid_diagnostic_mode"}, status_code=400)
         import module_liveness
         db = get_db()
         if not await module_liveness.is_on_air(db, channel_id, module_id):
             return JSONResponse({"status": "module_offline"}, status_code=409)
 
-        diagnostic_id = "diag_" + uuid.uuid4().hex
-        command_id = "manager_" + uuid.uuid4().hex
+        diagnostic_id = f"diag_{mode}_" + uuid.uuid4().hex
+        command_id = f"manager_{mode}_" + uuid.uuid4().hex
         now = time.time()
         command = {
             "id": command_id,
-            "type": "diagnostic_ping",
+            "type": "diagnostic_refuse" if mode == "refuse" else "diagnostic_ping",
             "channel_id": channel_id,
             "diagnostic_id": diagnostic_id,
+            "diagnostic_mode": mode,
             "price": 0,
         }
         import rimworld
@@ -216,6 +237,7 @@ async def manager_diagnostic_start(request: Request):
         return _secret_response({
             "status": "queued",
             "diagnostic_id": diagnostic_id,
+            "mode": mode,
             "expires_in": DIAGNOSTIC_TTL_SECONDS,
         }, status_code=201)
     except (manager_auth.ManagerAuthError, manager_auth.ManagerAuthUnavailable) as exc:
@@ -250,10 +272,13 @@ async def manager_diagnostic_result(diagnostic_id: str, request: Request):
             ):
                 result_status = "expired"
                 completed_at = time.time()
+                if str(command_id).startswith("manager_lost_ack_"):
+                    error = "simulated_ack_timeout"
                 await conn.execute(
                     "UPDATE manager_diagnostic_actions "
-                    "SET status='expired',completed_at=? WHERE diagnostic_id=?",
-                    (completed_at, diagnostic_id),
+                    "SET status='expired',completed_at=?,error=? "
+                    "WHERE diagnostic_id=?",
+                    (completed_at, error, diagnostic_id),
                 )
                 await conn.execute(
                     "DELETE FROM rimworld_pending_commands "
@@ -261,9 +286,15 @@ async def manager_diagnostic_result(diagnostic_id: str, request: Request):
                     (channel_id, command_id),
                 )
                 await conn.commit()
+        diagnostic_mode = "ready"
+        for candidate in ("refuse", "lost_ack"):
+            if str(command_id).startswith(f"manager_{candidate}_"):
+                diagnostic_mode = candidate
+                break
         return _secret_response({
             "status": result_status,
             "diagnostic_id": diagnostic_id,
+            "mode": diagnostic_mode,
             "created_at": created_at,
             "completed_at": completed_at,
             "error": error,

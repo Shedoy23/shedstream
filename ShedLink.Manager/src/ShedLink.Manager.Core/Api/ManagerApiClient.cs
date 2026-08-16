@@ -107,10 +107,16 @@ public sealed class ManagerApiClient
     public Task<DiagnosticStarted> StartDiagnosticAsync(
         string accessToken,
         CancellationToken cancellationToken = default) =>
+        StartDiagnosticAsync(accessToken, "ready", cancellationToken);
+
+    public Task<DiagnosticStarted> StartDiagnosticAsync(
+        string accessToken,
+        string mode,
+        CancellationToken cancellationToken = default) =>
         SendAsync<DiagnosticStarted>(
             HttpMethod.Post,
             "/v1/manager/diagnostics/test-action",
-            null,
+            new DiagnosticStartRequest(mode),
             accessToken,
             cancellationToken);
 

@@ -120,6 +120,10 @@
   Twitch-эфира (`RIMWORLD_REQUIRE_STREAM_LIVE=false`). Общий testing bypass
   остаётся выключен, поэтому Bannerlord, дуэли, TTS и остальные stream gates не
   ослаблены. Отдельный regression и внешний API probe пройдены.
+- Production backend поддерживает бесплатные Manager reliability diagnostics:
+  безопасный mod refusal и контролируемую потерю ACK с TTL-очисткой. Новый EXE
+  показывает отдельную кнопку `Проверить отказы`; автоматические backend и
+  Manager tests зелёные, live-клик остаётся последним evidence-gate.
 - Активная игра определяется по heartbeat мода; действия выключенной integration
   отклоняются безопасно.
 - Релиз 0.0.2 зафиксирован тегом `submit/0.0.2`; канонический архив хранится в

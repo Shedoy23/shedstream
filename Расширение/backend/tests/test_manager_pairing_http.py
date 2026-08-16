@@ -265,6 +265,82 @@ async def main() -> int:
             request("GET", "/diagnostic", authorization=manager_bearer),
         )
         assert payload(completed)["status"] == "acked"
+
+        refused = await routes.manager_diagnostic_start(json_request(
+            "/v1/manager/diagnostics/test-action",
+            {"mode": "refuse"},
+            manager_bearer,
+        ))
+        assert refused.status_code == 201
+        refused_body = payload(refused)
+        assert refused_body["mode"] == "refuse"
+        commands = await rimworld._get_commands_inner(CHANNEL_ID)
+        refused_command = next(
+            command for command in commands
+            if command.get("diagnostic_id") == refused_body["diagnostic_id"]
+        )
+        assert refused_command["type"] == "diagnostic_refuse"
+        refused_ack = await rimworld.ack_command(
+            json_request("/api/rimworld/ack-command", {
+                "command_id": refused_command["id"],
+                "success": False,
+                "message": "Unknown command: diagnostic_refuse",
+            }),
+            CHANNEL_ID,
+        )
+        assert refused_ack["acked"] is True and refused_ack["refunded"] is False
+        refused_result = await routes.manager_diagnostic_result(
+            refused_body["diagnostic_id"],
+            request("GET", "/diagnostic", authorization=manager_bearer),
+        )
+        assert payload(refused_result)["status"] == "failed"
+        assert "diagnostic_refuse" in payload(refused_result)["error"]
+
+        lost = await routes.manager_diagnostic_start(json_request(
+            "/v1/manager/diagnostics/test-action",
+            {"mode": "lost_ack"},
+            manager_bearer,
+        ))
+        assert lost.status_code == 201
+        lost_body = payload(lost)
+        assert lost_body["mode"] == "lost_ack"
+        commands = await rimworld._get_commands_inner(CHANNEL_ID)
+        lost_command = next(
+            command for command in commands
+            if command.get("diagnostic_id") == lost_body["diagnostic_id"]
+        )
+        try:
+            await rimworld.ack_command(
+                json_request("/api/rimworld/ack-command", {
+                    "command_id": lost_command["id"],
+                    "success": True,
+                }),
+                CHANNEL_ID,
+            )
+            raise AssertionError("simulated lost ACK unexpectedly succeeded")
+        except Exception as exc:
+            assert getattr(exc, "status_code", None) == 503
+        async with db._connect() as conn:
+            await conn.execute(
+                "UPDATE manager_diagnostic_actions SET created_at=? "
+                "WHERE diagnostic_id=?",
+                (0, lost_body["diagnostic_id"]),
+            )
+            await conn.commit()
+        lost_result = await routes.manager_diagnostic_result(
+            lost_body["diagnostic_id"],
+            request("GET", "/diagnostic", authorization=manager_bearer),
+        )
+        assert payload(lost_result)["status"] == "expired"
+        assert payload(lost_result)["error"] == "simulated_ack_timeout"
+        late_ack = await rimworld.ack_command(
+            json_request("/api/rimworld/ack-command", {
+                "command_id": lost_command["id"],
+                "success": True,
+            }),
+            CHANNEL_ID,
+        )
+        assert late_ack["acked"] is False and late_ack["refunded"] is False
         await rimworld.rimworld_offline(CHANNEL_ID)
         offline_status = await module_api.module_runtime_status(
             "rimworld",

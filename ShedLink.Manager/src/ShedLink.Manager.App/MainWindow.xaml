@@ -88,6 +88,9 @@
                         <Button x:Name="TestReadyButton" Content="Проверить готовность"
                                 IsEnabled="False" Click="TestReadyButton_Click"
                                 Background="#343B4C" Margin="0,0,8,0" />
+                        <Button x:Name="ReliabilityButton" Content="Проверить отказы"
+                                IsEnabled="False" Click="ReliabilityButton_Click"
+                                Background="#343B4C" Margin="0,0,8,0" />
                         <Button x:Name="RotateButton" Content="Сменить ключ"
                                 IsEnabled="False" Click="RotateButton_Click"
                                 Background="#343B4C" Margin="0,0,8,0" />

@@ -1306,6 +1306,17 @@ async def ack_command(request: Request,
                 command = json.loads(row[0])
             except Exception:
                 command = {}
+            if command.get("diagnostic_mode") == "lost_ack":
+                # Controlled reliability probe: the no-op was executed by the
+                # real game, but this boundary behaves like an unavailable ACK
+                # receiver. Manager expires and removes it after 120 seconds;
+                # a later connector retry then receives an idempotent no-op ACK.
+                await conn.execute("ROLLBACK")
+                print(f"🧪 RimWorld diagnostic: намеренно теряем ACK {cmd_id}")
+                raise HTTPException(
+                    status_code=503,
+                    detail="simulated diagnostic ACK loss",
+                )
             refunded = False
             if not success:
                 refunded = await _refund_cmd_row_tx(

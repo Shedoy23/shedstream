@@ -30,6 +30,13 @@ Unsupported/unknown game version блокирует install и `Technical Ready`
 Из встроенного каталога manifests Manager выбирает самый новый совместимый
 RimLink release и использует его во всей install/config/repair операции.
 
+Кнопка `Проверить отказы` выполняет два бесплатных production reliability
+сценария через настоящую игровую очередь: ожидаемый отказ неизвестной no-op
+команды и контролируемую потерю ACK. Во втором случае backend 120 секунд
+отклоняет только помеченный диагностический ACK, затем удаляет команду по TTL;
+поздний retry RimLink завершается идемпотентно. Состояние колонии и viewer points
+не меняются.
+
 Installation Core уже читает production manifest, проверяет размер/SHA-256,
 безопасно распаковывает ZIP, отклоняет traversal/reparse points, выполняет
 staging + atomic directory swap и восстанавливает прежнюю версию по crash

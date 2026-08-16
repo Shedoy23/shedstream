@@ -67,6 +67,22 @@ static async Task TestCoordinatorAsync(string root)
     Assert(diagnostic is { Status: "queued", ExpiresIn: 120 } &&
         diagnosticResult is { Status: "acked", Error: null },
         "safe diagnostic follows real queue and ACK contract");
+    var refusedDiagnostic = await api.StartDiagnosticAsync(
+        ready.AccessToken, "refuse");
+    var refusedResult = await api.GetDiagnosticResultAsync(
+        ready.AccessToken, refusedDiagnostic.DiagnosticId);
+    Assert(refusedDiagnostic.Mode == "refuse" &&
+        refusedResult is { Status: "failed", Mode: "refuse" } &&
+        refusedResult.Error!.Contains("diagnostic_refuse", StringComparison.Ordinal),
+        "reliability diagnostic records safe module refusal");
+    var lostAckDiagnostic = await api.StartDiagnosticAsync(
+        ready.AccessToken, "lost_ack");
+    var lostAckResult = await api.GetDiagnosticResultAsync(
+        ready.AccessToken, lostAckDiagnostic.DiagnosticId);
+    Assert(lostAckDiagnostic.Mode == "lost_ack" &&
+        lostAckResult is
+        { Status: "expired", Mode: "lost_ack", Error: "simulated_ack_timeout" },
+        "reliability diagnostic records and cleans lost ACK");
 
     var rotation = new CredentialRotationService(api, vault, store);
     var manifestPath = Path.Combine(
@@ -783,13 +799,33 @@ sealed class FakeManagerHandler : HttpMessageHandler
         }
         if (path == "/v1/manager/diagnostics/test-action")
         {
+            if (body.Contains("lost_ack", StringComparison.Ordinal))
+            {
+                return Json(HttpStatusCode.Created,
+                    """{"status":"queued","diagnostic_id":"diag-test-lost","expires_in":120,"mode":"lost_ack"}""");
+            }
+            if (body.Contains("refuse", StringComparison.Ordinal))
+            {
+                return Json(HttpStatusCode.Created,
+                    """{"status":"queued","diagnostic_id":"diag-test-refuse","expires_in":120,"mode":"refuse"}""");
+            }
             return Json(HttpStatusCode.Created,
-                """{"status":"queued","diagnostic_id":"diag-test-one","expires_in":120}""");
+                """{"status":"queued","diagnostic_id":"diag-test-one","expires_in":120,"mode":"ready"}""");
         }
         if (path == "/v1/manager/diagnostics/test-action/diag-test-one")
         {
             return Json(HttpStatusCode.OK,
                 """{"status":"acked","diagnostic_id":"diag-test-one","created_at":1,"completed_at":2,"error":null}""");
+        }
+        if (path == "/v1/manager/diagnostics/test-action/diag-test-refuse")
+        {
+            return Json(HttpStatusCode.OK,
+                """{"status":"failed","diagnostic_id":"diag-test-refuse","created_at":1,"completed_at":2,"error":"Unknown command: diagnostic_refuse","mode":"refuse"}""");
+        }
+        if (path == "/v1/manager/diagnostics/test-action/diag-test-lost")
+        {
+            return Json(HttpStatusCode.OK,
+                """{"status":"expired","diagnostic_id":"diag-test-lost","created_at":1,"completed_at":121,"error":"simulated_ack_timeout","mode":"lost_ack"}""");
         }
         if (request.Method == HttpMethod.Delete && path.Contains("module-credentials"))
         {

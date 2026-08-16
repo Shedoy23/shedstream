@@ -30,6 +30,7 @@ public partial class MainWindow : Window
     private GameInstallation? _game;
     private bool _installing;
     private bool _testingReady;
+    private bool _testingReliability;
     private ModuleRuntimeStatus? _runtimeStatus;
 
     public MainWindow()
@@ -648,29 +649,14 @@ public partial class MainWindow : Window
         {
             var started = await _api.StartDiagnosticAsync(
                 _session.AccessToken, _testCancellation.Token);
-            var deadline = DateTime.UtcNow.AddSeconds(Math.Max(1, started.ExpiresIn));
-            while (DateTime.UtcNow < deadline)
+            var result = await WaitForDiagnosticAsync(started, _testCancellation.Token);
+            OverallStatusText.Text = result?.Status switch
             {
-                var result = await _api.GetDiagnosticResultAsync(
-                    _session.AccessToken,
-                    started.DiagnosticId,
-                    _testCancellation.Token);
-                if (result.Status == "acked")
-                {
-                    OverallStatusText.Text =
-                        "Technical Ready ✓ Backend, очередь, RimLink и ACK работают.";
-                    return;
-                }
-                if (result.Status is "failed" or "expired")
-                {
-                    OverallStatusText.Text = result.Status == "expired"
-                        ? "Проверка истекла: RimLink не подтвердил команду вовремя."
-                        : $"RimLink отклонил проверку: {result.Error ?? "unknown"}.";
-                    return;
-                }
-                await Task.Delay(TimeSpan.FromSeconds(2), _testCancellation.Token);
-            }
-            OverallStatusText.Text = "Проверка истекла без подтверждения RimLink.";
+                "acked" => "Technical Ready ✓ Backend, очередь, RimLink и ACK работают.",
+                "failed" => $"RimLink отклонил проверку: {result.Error ?? "unknown"}.",
+                "expired" => "Проверка истекла: RimLink не подтвердил команду вовремя.",
+                _ => "Проверка истекла без подтверждения RimLink.",
+            };
         }
         catch (ManagerApiException exception)
         {
@@ -689,6 +675,82 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void ReliabilityButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_session is null || _runtimeStatus?.Online != true)
+        {
+            UpdateTechnicalReadyAvailability();
+            return;
+        }
+        _testCancellation?.Cancel();
+        _testCancellation?.Dispose();
+        _testCancellation = new CancellationTokenSource(TimeSpan.FromMinutes(4));
+        _testingReliability = true;
+        UpdateTechnicalReadyAvailability();
+        try
+        {
+            OverallStatusText.Text = "Проверяем безопасный отказ RimLink…";
+            var refused = await _api.StartDiagnosticAsync(
+                _session.AccessToken, "refuse", _testCancellation.Token);
+            var refusedResult = await WaitForDiagnosticAsync(
+                refused, _testCancellation.Token);
+            if (refusedResult?.Status != "failed" ||
+                !(refusedResult.Error ?? "").Contains(
+                    "diagnostic_refuse", StringComparison.Ordinal))
+            {
+                OverallStatusText.Text =
+                    "Проверка отказа не дала ожидаемый безопасный результат.";
+                return;
+            }
+
+            OverallStatusText.Text =
+                "Отказ обработан ✓ Имитируем потерю ACK (до 2 минут)…";
+            var lost = await _api.StartDiagnosticAsync(
+                _session.AccessToken, "lost_ack", _testCancellation.Token);
+            var lostResult = await WaitForDiagnosticAsync(
+                lost, _testCancellation.Token);
+            OverallStatusText.Text = lostResult is
+                { Status: "expired", Error: "simulated_ack_timeout" }
+                ? "Reliability Ready ✓ Отказ и потерянный ACK обработаны безопасно."
+                : "Потерянный ACK не завершился ожидаемой безопасной очисткой.";
+        }
+        catch (ManagerApiException exception)
+        {
+            OverallStatusText.Text = FriendlyError(exception);
+        }
+        catch (OperationCanceledException)
+        {
+            OverallStatusText.Text = "Проверка отказов остановлена.";
+        }
+        finally
+        {
+            _testingReliability = false;
+            _testCancellation?.Dispose();
+            _testCancellation = null;
+            UpdateTechnicalReadyAvailability();
+        }
+    }
+
+    private async Task<DiagnosticResult?> WaitForDiagnosticAsync(
+        DiagnosticStarted started,
+        CancellationToken cancellationToken)
+    {
+        if (_session is null)
+            return null;
+        var deadline = DateTime.UtcNow.AddSeconds(Math.Max(1, started.ExpiresIn + 5));
+        while (DateTime.UtcNow < deadline)
+        {
+            var result = await _api.GetDiagnosticResultAsync(
+                _session.AccessToken,
+                started.DiagnosticId,
+                cancellationToken);
+            if (result.Status is "acked" or "failed" or "expired")
+                return result;
+            await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
+        }
+        return null;
+    }
+
     private void UpdateTechnicalReadyAvailability()
     {
         var inspection = InspectIntegration();
@@ -697,8 +759,11 @@ public partial class MainWindow : Window
                 and not InstallationCondition.UnsafeTarget &&
             inspection.FailedProbeIds.Count == 0;
         var compatible = TryGetGameCompatibility(out var compatibilityReason);
-        TestReadyButton.IsEnabled = !_installing && !_testingReady && _session is not null &&
+        var canTest = !_installing && !_testingReady && !_testingReliability &&
+            _session is not null &&
             _runtimeStatus?.Online == true && filesReady && compatible;
+        TestReadyButton.IsEnabled = canTest;
+        ReliabilityButton.IsEnabled = canTest;
         TestReadyButton.ToolTip = _testingReady
             ? "Проверка уже выполняется."
             : !compatible
@@ -708,6 +773,11 @@ public partial class MainWindow : Window
                     : !filesReady
                         ? "Сначала установи или восстанови RimLink."
                         : "Проверить реальную очередь и ACK без изменения игры.";
+        ReliabilityButton.ToolTip = _testingReliability
+            ? "Проверка отказов уже выполняется."
+            : !canTest
+                ? TestReadyButton.ToolTip
+                : "Проверить безопасный отказ и очистку потерянного ACK без списаний.";
     }
 
     private void UpdateInstallAvailability(bool updateReleaseMessage = true)

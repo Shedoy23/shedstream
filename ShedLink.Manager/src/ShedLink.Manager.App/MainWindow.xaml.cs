@@ -20,6 +20,7 @@ public partial class MainWindow : Window
     private readonly WindowsCredentialVault _vault;
     private readonly ManagerCoordinator _coordinator;
     private readonly IntegrationInstallationService _installationService;
+    private readonly CredentialRotationService _rotationService;
     private CancellationTokenSource? _pairingCancellation;
     private CancellationTokenSource? _installationCancellation;
     private CancellationTokenSource? _diagnosticsCancellation;
@@ -43,6 +44,8 @@ public partial class MainWindow : Window
             _vault,
             _stateStore);
         _installationService = new IntegrationInstallationService(
+            _api, _vault, _stateStore);
+        _rotationService = new CredentialRotationService(
             _api, _vault, _stateStore);
         Loaded += MainWindow_Loaded;
         Closed += (_, _) =>
@@ -84,7 +87,17 @@ public partial class MainWindow : Window
         {
             SetBusy(true, "Восстанавливаем защищённую сессию…");
             _session = await _coordinator.ResumeAsync();
+            var recovered = await _rotationService.RecoverPendingAsync(
+                _session, ReleaseConfiguration.ManifestPath);
+            if (recovered is not null)
+            {
+                _session = _session with { CredentialId = recovered.CredentialId };
+            }
             ShowConnected(_session);
+            if (recovered is not null)
+            {
+                OverallStatusText.Text = "Незавершённая смена ключа безопасно завершена.";
+            }
         }
         catch (Exception exception) when (
             exception is ManagerApiException or HttpRequestException or TaskCanceledException or InvalidOperationException)
@@ -156,6 +169,59 @@ public partial class MainWindow : Window
             exception is ManagerApiException or HttpRequestException or InvalidOperationException)
         {
             AccountStatusText.Text = "Подключение не выполнено";
+            OverallStatusText.Text = FriendlyError(exception);
+        }
+        finally
+        {
+            SetBusy(false);
+        }
+    }
+
+    private async void DisconnectButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_session is null)
+        {
+            return;
+        }
+        var decision = MessageBox.Show(
+            this,
+            "Выйти из Manager?\n\n" +
+            "Да — выйти и отозвать ключ RimLink (интеграция сразу отключится).\n" +
+            "Нет — выйти только из Manager, оставив установленный RimLink подключённым.\n" +
+            "Отмена — ничего не менять.",
+            "Выход из ShedLink Manager",
+            MessageBoxButton.YesNoCancel,
+            MessageBoxImage.Question);
+        if (decision == MessageBoxResult.Cancel)
+        {
+            return;
+        }
+        var revokeModuleCredential = decision == MessageBoxResult.Yes;
+        try
+        {
+            SetBusy(true, revokeModuleCredential
+                ? "Отзываем ключ RimLink и завершаем сессию…"
+                : "Завершаем сессию Manager…");
+            _diagnosticsCancellation?.Cancel();
+            _testCancellation?.Cancel();
+            await _coordinator.LogoutAsync(_session, revokeModuleCredential);
+            _session = null;
+            _runtimeStatus = null;
+            AccountStatusText.Text = "Не подключён";
+            PairingCodeText.Text = string.Empty;
+            ConnectButton.Content = "Войти через Twitch";
+            RuntimeStatusText.Text = revokeModuleCredential
+                ? "Ключ RimLink отозван. Для продолжения подключись заново."
+                : "Manager отключён; установленный RimLink продолжает работать.";
+            OverallStatusText.Text = revokeModuleCredential
+                ? "Сессия и ключ отозваны. Конфигурация сохранена для восстановления."
+                : "Сессия Manager завершена без отключения интеграции.";
+            UpdateInstallAvailability(updateReleaseMessage: false);
+        }
+        catch (Exception exception) when (
+            exception is ManagerApiException or HttpRequestException or
+                TaskCanceledException or InvalidOperationException)
+        {
             OverallStatusText.Text = FriendlyError(exception);
         }
         finally
@@ -304,6 +370,58 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void RotateButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_session is null)
+        {
+            UpdateInstallAvailability();
+            return;
+        }
+        if (_detector.IsGameRunning())
+        {
+            MessageBox.Show(
+                "Закрой RimWorld перед сменой ключа, чтобы мод не продолжил использовать старый ключ.",
+                "RimWorld запущен", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        var inspection = InspectIntegration();
+        if (inspection?.Condition is InstallationCondition.NotInstalled or
+            InstallationCondition.UnsafeTarget || inspection is null)
+        {
+            IntegrationStatusText.Text = "Сначала установи или восстанови RimLink.";
+            UpdateInstallAvailability(updateReleaseMessage: false);
+            return;
+        }
+        if (MessageBox.Show(
+                "Создать новый ключ RimLink и заменить старый? Настройки будут обновлены автоматически.",
+                "Смена ключа RimLink", MessageBoxButton.YesNo,
+                MessageBoxImage.Question) != MessageBoxResult.Yes)
+        {
+            return;
+        }
+        try
+        {
+            SetBusy(true, "Безопасно меняем ключ RimLink…");
+            var result = await _rotationService.RotateAsync(
+                _session, ReleaseConfiguration.ManifestPath);
+            _session = _session with { CredentialId = result.CredentialId };
+            IntegrationStatusText.Text = "Ключ RimLink заменён и проверен.";
+            OverallStatusText.Text = "Новый ключ активен. RimWorld можно запускать.";
+        }
+        catch (Exception exception) when (
+            exception is ManagerApiException or HttpRequestException or
+                TaskCanceledException or InvalidOperationException or InvalidDataException)
+        {
+            OverallStatusText.Text = FriendlyError(exception) +
+                " Если новый ключ уже был выдан, Manager продолжит замену при следующем запуске.";
+        }
+        finally
+        {
+            SetBusy(false);
+            UpdateInstallAvailability(updateReleaseMessage: false);
+        }
+    }
+
     private void DetectGame()
     {
         var state = _stateStore.LoadOrCreate();
@@ -342,6 +460,7 @@ public partial class MainWindow : Window
         AccountStatusText.Text = $"Подключён канал {session.ChannelId}";
         ConnectButton.Content = "Подключено";
         ConnectButton.IsEnabled = false;
+        DisconnectButton.IsEnabled = true;
         OverallStatusText.Text = "Аккаунт защищённо подключён. Проверяем игру и integration.";
         UpdateInstallAvailability();
         StartDiagnostics();
@@ -514,6 +633,7 @@ public partial class MainWindow : Window
         {
             InstallButton.IsEnabled = false;
             RemoveButton.IsEnabled = false;
+            RotateButton.IsEnabled = false;
             InstallButton.ToolTip = "Установка уже выполняется.";
             return;
         }
@@ -537,6 +657,12 @@ public partial class MainWindow : Window
                 "Удалить мод, сохранив настройки и ключ.",
             _ => "RimLink не установлен в выбранной игре.",
         };
+        var canRotate = _session is not null && installed &&
+            inspection?.Condition != InstallationCondition.UnsafeTarget;
+        RotateButton.IsEnabled = canRotate;
+        RotateButton.ToolTip = canRotate
+            ? "Заменить ключ RimLink с проверкой и безопасным восстановлением."
+            : "Сначала подключи аккаунт и установи RimLink.";
         if (inspection is not null && updateReleaseMessage)
         {
             IntegrationStatusText.Text = InspectionMessage(inspection);
@@ -599,6 +725,11 @@ public partial class MainWindow : Window
     private void SetBusy(bool busy, string? message = null)
     {
         ConnectButton.IsEnabled = !busy && _session is null;
+        DisconnectButton.IsEnabled = !busy && _session is not null;
+        if (busy)
+        {
+            RotateButton.IsEnabled = false;
+        }
         if (message is not null)
         {
             OverallStatusText.Text = message;

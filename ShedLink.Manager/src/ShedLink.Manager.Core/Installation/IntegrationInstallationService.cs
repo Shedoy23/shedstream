@@ -157,7 +157,8 @@ public sealed class IntegrationInstallationService
             package = await preparePackage();
             configuration = ManagedXmlConfiguration.PrepareWrite(
                 configPath,
-                ConfigurationValues(manifest, state.BackendUrl, moduleToken));
+                ConfigurationValueResolver.Resolve(
+                    manifest, state.BackendUrl, moduleToken));
             var auth = await _api.VerifyModuleCredentialAsync(
                 moduleToken, manifest.IntegrationId, cancellationToken);
             if (auth.Status != "ok" || auth.ModuleId != manifest.IntegrationId)
@@ -230,25 +231,6 @@ public sealed class IntegrationInstallationService
         {
             throw new InvalidDataException("Manifest and Manager session module do not match.");
         }
-    }
-
-    private static IReadOnlyDictionary<string, string> ConfigurationValues(
-        InstallationManifest manifest,
-        Uri backendUrl,
-        string moduleToken)
-    {
-        var values = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var field in manifest.Configuration.ManagedFields)
-        {
-            values[field.Selector] = field.ValueSource switch
-            {
-                "backend_url" => backendUrl.AbsoluteUri.TrimEnd('/'),
-                "channel_module_token" => moduleToken,
-                _ => throw new InvalidDataException(
-                    $"Unsupported configuration value source: {field.ValueSource}."),
-            };
-        }
-        return values;
     }
 
     private void WriteJournal(InstallationOperationJournal journal)

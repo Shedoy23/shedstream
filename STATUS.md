@@ -57,6 +57,10 @@
   в CI. Install CTA вызывает recoverable signed-HTTPS operation, но текущий
   unsigned manifest и пустой production trust store держат кнопку отключённой;
   production не обновлён.
+- Manager получил явный выход с опциональным немедленным отзывом ключа RimLink.
+  Смена ключа запрещена при запущенной игре, проверяет новый ключ до активации и
+  после сбоя восстанавливает согласованное состояние XML, Credential Manager и
+  несекретного state при следующем запуске.
 - Installation transaction перенесён в .NET Core: production manifest parsing,
   artifact size/SHA-256, safe ZIP, reparse guard, atomic swap, rollback и crash
   recovery зелёные. XML writer сохраняет чужие поля и ставит user-only ACL.

@@ -65,4 +65,6 @@ internal sealed record RefreshRequest(string RefreshToken);
 
 internal sealed record CredentialRequest(string ModuleId, string Label);
 
+internal sealed record CredentialRotateRequest(string Label);
+
 internal sealed record ApiError(string? Status);

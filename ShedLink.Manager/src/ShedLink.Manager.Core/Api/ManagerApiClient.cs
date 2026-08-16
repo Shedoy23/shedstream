@@ -70,6 +70,18 @@ public sealed class ManagerApiClient
             accessToken,
             cancellationToken);
 
+    public Task<ModuleCredential> RotateCredentialAsync(
+        string accessToken,
+        string credentialId,
+        string label,
+        CancellationToken cancellationToken = default) =>
+        SendAsync<ModuleCredential>(
+            HttpMethod.Post,
+            $"/v1/manager/module-credentials/{Uri.EscapeDataString(credentialId)}/rotate",
+            new CredentialRotateRequest(label),
+            accessToken,
+            cancellationToken);
+
     public Task<ModuleAuthCheck> VerifyModuleCredentialAsync(
         string moduleToken,
         string moduleId,

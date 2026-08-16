@@ -14,6 +14,8 @@ browser и использует штатный Windows Credential Manager.
 - атомарный JSON только с несекретным installation state;
 - восстановление Manager session после перезапуска с обязательной refresh rotation;
 - явный logout с отдельным выбором revoke установленного module credential.
+- crash-safe смена module credential с проверкой нового ключа и автоматическим
+  продолжением после перезапуска.
 
 WPF shell уже показывает account/game/integration stages, открывает pairing в
 системном browser, восстанавливает сессию после перезапуска, ищет RimWorld во

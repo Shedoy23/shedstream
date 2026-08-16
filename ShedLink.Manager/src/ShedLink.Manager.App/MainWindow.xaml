@@ -36,8 +36,14 @@
                         <TextBlock x:Name="PairingCodeText" Foreground="#C9BBFF"
                                    FontSize="16" FontWeight="Bold" Margin="0,7,0,0" />
                     </StackPanel>
-                    <Button x:Name="ConnectButton" Grid.Column="1" Content="Войти через Twitch"
-                            Click="ConnectButton_Click" VerticalAlignment="Center" Margin="18,0,0,0" />
+                    <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                VerticalAlignment="Center" Margin="18,0,0,0">
+                        <Button x:Name="DisconnectButton" Content="Выйти"
+                                IsEnabled="False" Click="DisconnectButton_Click"
+                                Background="#343B4C" Margin="0,0,8,0" />
+                        <Button x:Name="ConnectButton" Content="Войти через Twitch"
+                                Click="ConnectButton_Click" />
+                    </StackPanel>
                 </Grid>
             </Border>
 
@@ -82,6 +88,9 @@
                                 VerticalAlignment="Center" Margin="18,0,0,0">
                         <Button x:Name="TestReadyButton" Content="Проверить готовность"
                                 IsEnabled="False" Click="TestReadyButton_Click"
+                                Background="#343B4C" Margin="0,0,8,0" />
+                        <Button x:Name="RotateButton" Content="Сменить ключ"
+                                IsEnabled="False" Click="RotateButton_Click"
                                 Background="#343B4C" Margin="0,0,8,0" />
                         <Button x:Name="RemoveButton" Content="Удалить"
                                 IsEnabled="False" Click="RemoveButton_Click"

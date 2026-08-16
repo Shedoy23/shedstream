@@ -349,6 +349,9 @@ refresh без неявного отзыва установленных module c
 - M112 и `diagnostic_ping` проводят бесплатный no-op через настоящую RimWorld
   command queue, игровой main thread и ACK. WPF показывает `Technical Ready`
   только после свежего heartbeat, целых файлов и успешного сквозного ACK.
+- WPF теперь выполняет явный logout с отдельным выбором отзыва ключа RimLink.
+  Credential rotation меняет XML, vault и несекретный state как одну
+  восстанавливаемую операцию; незавершённая смена продолжается после restart.
 - локальный RimLink/installation manifest поднят до `0.1.1`; deterministic ZIP
   связан с манифестом точными size/SHA, но остаётся unsigned и не опубликован.
 
@@ -360,7 +363,7 @@ refresh без неявного отзыва установленных module c
 - [x] Определение channel identity.
 - [x] Получение channel-bound module credential.
 - [x] Безопасное локальное хранение credential.
-- [ ] Logout, revoke и credential rotation.
+- [x] Logout, revoke и credential rotation.
 
 #### Detection
 

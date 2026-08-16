@@ -66,12 +66,42 @@ static async Task TestCoordinatorAsync(string root)
         diagnosticResult is { Status: "acked", Error: null },
         "safe diagnostic follows real queue and ACK contract");
 
+    var rotation = new CredentialRotationService(api, vault, store);
+    var manifestPath = Path.Combine(
+        Environment.CurrentDirectory,
+        "manifests",
+        "installation",
+        "rimworld-0.1.1.json");
+    var rotationConfigRoot = Path.Combine(root, "rotation-local-low");
+    handler.RejectAuthCheck = true;
+    try
+    {
+        await rotation.RotateAsync(ready, manifestPath,
+            windowsLocalLowOverride: rotationConfigRoot);
+        throw new InvalidOperationException("FAILED: failed rotation remains recoverable");
+    }
+    catch (ManagerApiException)
+    {
+        Assert(vault.Values.Values.Contains("slmod_v1.credential-one.secret") &&
+            vault.Values.Values.Contains("slmod_v1.credential-two.secret"),
+            "failed rotation keeps current and pending credentials in vault");
+    }
+    handler.RejectAuthCheck = false;
+    var recoveredRotation = await rotation.RecoverPendingAsync(
+        ready, manifestPath, rotationConfigRoot);
+    Assert(recoveredRotation?.CredentialId == "credential-two" &&
+        vault.Values.Values.Contains("slmod_v1.credential-two.secret") &&
+        !vault.Values.Values.Contains("slmod_v1.credential-one.secret") &&
+        File.ReadAllText(recoveredRotation.ConfigPath).Contains(
+            "slmod_v1.credential-two.secret", StringComparison.Ordinal),
+        "credential rotation recovers config, vault and state");
+
     var stateJson = File.ReadAllText(statePath);
     Assert(!stateJson.Contains("refresh-one", StringComparison.Ordinal),
         "refresh absent from JSON state");
     Assert(!stateJson.Contains("slmod_v1", StringComparison.Ordinal),
         "module token absent from JSON state");
-    Assert(stateJson.Contains("credential-one", StringComparison.Ordinal),
+    Assert(stateJson.Contains("credential-two", StringComparison.Ordinal),
         "non-secret credential id persisted");
 
     var restarted = new ManagerCoordinator(api, vault, new ManagerStateStore(statePath));
@@ -675,6 +705,11 @@ sealed class FakeManagerHandler : HttpMessageHandler
             }
             return Json(HttpStatusCode.Created,
                 """{"status":"ok","credential_id":"credential-one","module_token":"slmod_v1.credential-one.secret","module_id":"rimworld","channel_id":98319857,"label":"test","expires_at":999999}""");
+        }
+        if (path == "/v1/manager/module-credentials/credential-one/rotate")
+        {
+            return Json(HttpStatusCode.Created,
+                """{"status":"ok","credential_id":"credential-two","module_token":"slmod_v1.credential-two.secret","module_id":"rimworld","channel_id":98319857,"label":"test","expires_at":999999,"overlap_until":999}""");
         }
         if (path == "/v1/module/rimworld/auth-check")
         {

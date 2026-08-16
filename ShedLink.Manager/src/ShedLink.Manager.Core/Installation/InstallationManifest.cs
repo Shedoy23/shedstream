@@ -166,8 +166,8 @@ public sealed record ConfigurationStore
     [JsonPropertyName("kind")]
     public required string Kind { get; init; }
 
-    [JsonPropertyName("known_folder")]
-    public required string KnownFolder { get; init; }
+    [JsonPropertyName("base")]
+    public required string Base { get; init; }
 
     [JsonPropertyName("relative_path")]
     public required string RelativePath { get; init; }

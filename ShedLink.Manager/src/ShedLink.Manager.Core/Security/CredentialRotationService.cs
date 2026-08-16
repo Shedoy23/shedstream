@@ -40,12 +40,13 @@ public sealed class CredentialRotationService
         string manifestPath,
         string label = "ShedLink Manager",
         string? windowsLocalLowOverride = null,
+        string? gameRoot = null,
         CancellationToken cancellationToken = default)
     {
         if (File.Exists(_journalPath))
         {
             return await RecoverPendingAsync(
-                session, manifestPath, windowsLocalLowOverride, cancellationToken)
+                session, manifestPath, windowsLocalLowOverride, gameRoot, cancellationToken)
                 ?? throw new InvalidOperationException("Credential rotation recovery failed.");
         }
         var state = _stateStore.LoadOrCreate();
@@ -68,7 +69,7 @@ public sealed class CredentialRotationService
         _vault.Write(pendingKey, replacement.ModuleToken);
         var manifest = InstallationManifestLoader.Load(manifestPath);
         var configPath = ConfigurationPathResolver.Resolve(
-            manifest.Configuration.Store, windowsLocalLowOverride);
+            manifest.Configuration.Store, windowsLocalLowOverride, gameRoot);
         var journal = new RotationJournal(
             "issued",
             session.ModuleId,
@@ -84,6 +85,7 @@ public sealed class CredentialRotationService
         ReadySession session,
         string manifestPath,
         string? windowsLocalLowOverride = null,
+        string? gameRoot = null,
         CancellationToken cancellationToken = default)
     {
         if (!File.Exists(_journalPath))
@@ -95,7 +97,7 @@ public sealed class CredentialRotationService
         ValidateSession(state, session, journal.ModuleId);
         var manifest = InstallationManifestLoader.Load(manifestPath);
         var expectedConfig = ConfigurationPathResolver.Resolve(
-            manifest.Configuration.Store, windowsLocalLowOverride);
+            manifest.Configuration.Store, windowsLocalLowOverride, gameRoot);
         if (!string.Equals(
             expectedConfig, journal.ConfigPath, StringComparison.OrdinalIgnoreCase))
         {
@@ -110,7 +112,7 @@ public sealed class CredentialRotationService
         }
         if (journal.Phase == "verified")
         {
-            ManagedXmlConfiguration.Complete(journal.ConfigPath);
+            ManagedConfiguration.Complete(journal.ConfigPath);
             return Activate(journal, state, pendingToken);
         }
         if (journal.Phase != "issued")
@@ -128,14 +130,15 @@ public sealed class CredentialRotationService
         string pendingToken,
         CancellationToken cancellationToken)
     {
-        ManagedXmlUpdate? update = null;
+        ManagedConfigurationUpdate? update = null;
         try
         {
             var state = _stateStore.LoadOrCreate();
-            update = ManagedXmlConfiguration.PrepareWrite(
+            update = ManagedConfigurationWriter.PrepareWrite(
+                manifest.Configuration.Store.Kind,
                 journal.ConfigPath,
                 ConfigurationValueResolver.Resolve(
-                    manifest, state.BackendUrl, pendingToken));
+                    manifest, state.BackendUrl, pendingToken, state.ChannelId));
             var auth = await _api.VerifyModuleCredentialAsync(
                 pendingToken, journal.ModuleId, cancellationToken);
             if (auth.Status != "ok" || auth.ModuleId != journal.ModuleId)

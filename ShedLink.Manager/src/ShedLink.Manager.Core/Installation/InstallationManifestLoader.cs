@@ -67,8 +67,8 @@ public static partial class InstallationManifestLoader
             throw new InvalidDataException("Manager v1 supports only game_root targets.");
         }
         PathBoundary.ValidateRelative(manifest.Installation.Target.RelativePath);
-        if (manifest.Configuration.Store.Kind != "xml" ||
-            manifest.Configuration.Store.KnownFolder != "windows_local_low")
+        if (manifest.Configuration.Store.Kind is not ("xml" or "json") ||
+            manifest.Configuration.Store.Base is not ("windows_local_low" or "game_root"))
         {
             throw new InvalidDataException("Unsupported configuration store.");
         }

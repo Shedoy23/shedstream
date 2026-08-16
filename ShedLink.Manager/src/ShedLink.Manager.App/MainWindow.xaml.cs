@@ -97,7 +97,7 @@ public partial class MainWindow : Window
                     throw new InvalidOperationException(reason);
                 }
                 recovered = await _rotationService.RecoverPendingAsync(
-                    _session, recoveryRelease!.ManifestPath);
+                    _session, recoveryRelease!.ManifestPath, gameRoot: _game?.RootPath);
             }
             if (recovered is not null)
             {
@@ -419,7 +419,7 @@ public partial class MainWindow : Window
                 throw new InvalidOperationException(reason);
             }
             var result = await _rotationService.RotateAsync(
-                _session, release!.ManifestPath);
+                _session, release!.ManifestPath, gameRoot: _game?.RootPath);
             _session = _session with { CredentialId = result.CredentialId };
             IntegrationStatusText.Text = "Ключ RimLink заменён и проверен.";
             OverallStatusText.Text = "Новый ключ активен. RimWorld можно запускать.";

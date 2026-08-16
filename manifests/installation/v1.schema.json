@@ -434,22 +434,24 @@
           "additionalProperties": false,
           "required": [
             "kind",
-            "known_folder",
+            "base",
             "relative_path"
           ],
           "properties": {
             "kind": {
               "enum": [
-                "xml"
-              ]
-            },
-            "known_folder": {
-              "enum": [
-                "windows_local_low"
+                "xml",
+                "json"
               ]
             },
             "relative_path": {
               "$ref": "#/$defs/relative_path"
+            },
+            "base": {
+              "enum": [
+                "windows_local_low",
+                "game_root"
+              ]
             }
           }
         },

@@ -4,13 +4,16 @@ public static class ConfigurationPathResolver
 {
     public static string Resolve(
         ConfigurationStore store,
-        string? windowsLocalLowOverride = null)
+        string? windowsLocalLowOverride = null,
+        string? gameRoot = null)
     {
-        if (store.Kind != "xml" || store.KnownFolder != "windows_local_low")
+        var root = store.Base switch
         {
-            throw new InvalidDataException("Unsupported integration configuration store.");
-        }
-        var root = windowsLocalLowOverride ?? WindowsLocalLow();
+            "windows_local_low" => windowsLocalLowOverride ?? WindowsLocalLow(),
+            "game_root" => gameRoot ?? throw new InvalidDataException(
+                "Configuration lives in the game folder, but no game folder is known."),
+            _ => throw new InvalidDataException("Unsupported integration configuration store."),
+        };
         return PathBoundary.CombineWithin(root, store.RelativePath);
     }
 

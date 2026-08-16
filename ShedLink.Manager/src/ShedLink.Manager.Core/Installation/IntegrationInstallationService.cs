@@ -86,7 +86,7 @@ public sealed class IntegrationInstallationService
         var state = _stateStore.LoadOrCreate();
         ValidateScope(manifest, state);
         var configPath = ConfigurationPathResolver.Resolve(
-            manifest.Configuration.Store, windowsLocalLowOverride);
+            manifest.Configuration.Store, windowsLocalLowOverride, gameRoot);
         var targetPath = PathBoundary.CombineWithin(
             gameRoot, manifest.Installation.Target.RelativePath);
         var journal = new InstallationOperationJournal(
@@ -142,7 +142,7 @@ public sealed class IntegrationInstallationService
             throw new InvalidOperationException("Module credential is unavailable.");
         }
         var configPath = ConfigurationPathResolver.Resolve(
-            manifest.Configuration.Store, windowsLocalLowOverride);
+            manifest.Configuration.Store, windowsLocalLowOverride, gameRoot);
         var targetPath = PathBoundary.CombineWithin(
             gameRoot, manifest.Installation.Target.RelativePath);
         var journal = new InstallationOperationJournal(
@@ -150,15 +150,16 @@ public sealed class IntegrationInstallationService
         WriteJournal(journal);
 
         PreparedInstallation? package = null;
-        ManagedXmlUpdate? configuration = null;
+        ManagedConfigurationUpdate? configuration = null;
         var verified = false;
         try
         {
             package = await preparePackage();
-            configuration = ManagedXmlConfiguration.PrepareWrite(
+            configuration = ManagedConfigurationWriter.PrepareWrite(
+                manifest.Configuration.Store.Kind,
                 configPath,
                 ConfigurationValueResolver.Resolve(
-                    manifest, state.BackendUrl, moduleToken));
+                    manifest, state.BackendUrl, moduleToken, state.ChannelId));
             var auth = await _api.VerifyModuleCredentialAsync(
                 moduleToken, manifest.IntegrationId, cancellationToken);
             if (auth.Status != "ok" || auth.ModuleId != manifest.IntegrationId)
@@ -209,11 +210,11 @@ public sealed class IntegrationInstallationService
         if (journal.Phase == "verified")
         {
             AtomicDirectoryTransaction.Complete(journal.TargetPath, journal.GameRoot);
-            ManagedXmlConfiguration.Complete(journal.ConfigPath);
+            ManagedConfiguration.Complete(journal.ConfigPath);
         }
         else if (journal.Phase == "applying")
         {
-            ManagedXmlConfiguration.Recover(journal.ConfigPath);
+            ManagedConfiguration.Recover(journal.ConfigPath);
             AtomicDirectoryTransaction.Recover(journal.TargetPath, journal.GameRoot);
         }
         else

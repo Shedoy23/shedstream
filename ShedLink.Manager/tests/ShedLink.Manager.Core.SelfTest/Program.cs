@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text;
+using System.Text.Json;
 using ShedLink.Manager.Core;
 using ShedLink.Manager.Core.Api;
 using ShedLink.Manager.Core.Detection;
@@ -20,6 +21,7 @@ try
     await TestCoordinatorAsync(root);
     TestRimWorldDetection(root);
     TestManifestDrivenDetection(root);
+    TestJsonConfigurationStore(root);
     await TestInstallationAsync(root);
     await TestHttpsDistributionAsync(root);
     await TestManagerUpdateAsync(root);
@@ -307,7 +309,7 @@ static async Task TestInstallationAsync(string root)
       }],
       "installation": {"target": {"base": "game_root", "relative_path": "Mods/RimLink"}},
       "configuration": {
-        "store": {"kind": "xml", "known_folder": "windows_local_low", "relative_path": "RimLink/settings.xml"},
+        "store": {"kind": "xml", "base": "windows_local_low", "relative_path": "RimLink/settings.xml"},
         "managed_fields": [
           {"name": "server_url", "selector": "/SettingsBlock/ModSettings/serverUrl", "value_source": "backend_url", "secret": false},
           {"name": "module_token", "selector": "/SettingsBlock/ModSettings/moduleToken", "value_source": "channel_module_token", "secret": true}
@@ -740,6 +742,101 @@ static async Task TestHttpsDistributionAsync(string root)
     catch (InvalidDataException)
     {
         Console.WriteLine("  OK  unsigned HTTPS manifest rejected");
+    }
+}
+
+static void TestJsonConfigurationStore(string root)
+{
+    // Bannerlord-shaped: flat config.json inside the mod folder in the game.
+    var gameRoot = Path.Combine(root, "json-config-game");
+    var store = new ConfigurationStore
+    {
+        Kind = "json",
+        Base = "game_root",
+        RelativePath = "Modules/Shedoy23.BannerlordLink/config.json",
+    };
+    var configPath = ConfigurationPathResolver.Resolve(store, null, gameRoot);
+    Assert(configPath == Path.GetFullPath(Path.Combine(gameRoot, store.RelativePath)),
+        "configuration can live inside the game folder");
+    try
+    {
+        ConfigurationPathResolver.Resolve(store);
+        throw new InvalidOperationException("FAILED: game-root config needs a game folder");
+    }
+    catch (InvalidDataException)
+    {
+        Assert(true, "game-root configuration without a known game folder fails safely");
+    }
+
+    Directory.CreateDirectory(Path.GetDirectoryName(configPath)!);
+    File.WriteAllText(configPath,
+        "{\n  \"backend_url\": \"https://old.test\",\n  \"poll_interval_ms\": 3000\n}\n");
+    ManagedConfigurationWriter.PrepareWrite(store.Kind, configPath,
+        new Dictionary<string, string>
+        {
+            ["/backend_url"] = "https://manager.test",
+            ["/module_token"] = "slmod_v1.bannerlord.secret",
+            ["/channel_id"] = "123456",
+        }).Commit();
+
+    var written = File.ReadAllText(configPath);
+    using var document = JsonDocument.Parse(written);
+    var rootElement = document.RootElement;
+    string? Text(string key) => rootElement.TryGetProperty(key, out var value) &&
+        value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+    long? Number(string key) => rootElement.TryGetProperty(key, out var value) &&
+        value.ValueKind == JsonValueKind.Number ? value.GetInt64() : null;
+    Assert(Text("backend_url") == "https://manager.test" &&
+        Text("module_token") == "slmod_v1.bannerlord.secret" &&
+        Number("channel_id") == 123456,
+        "json configuration writes the managed fields");
+    Assert(Number("poll_interval_ms") == 3000,
+        "json configuration keeps settings it does not manage");
+    Assert(!File.Exists(configPath + ".shedlink-write.tmp") &&
+        !File.Exists(configPath + ".shedlink-backup") &&
+        !File.Exists(configPath + ".shedlink-transaction.json"),
+        "json configuration transaction artifacts cleaned");
+
+    var before = File.ReadAllText(configPath);
+    using (ManagedConfigurationWriter.PrepareWrite(store.Kind, configPath,
+        new Dictionary<string, string> { ["/module_token"] = "slmod_v1.rollback" }))
+    {
+        Assert(File.ReadAllText(configPath).Contains("slmod_v1.rollback", StringComparison.Ordinal),
+            "prepared json configuration visible before commit");
+    }
+    Assert(File.ReadAllText(configPath) == before,
+        "uncommitted json configuration rolled back");
+
+    var manifestForValues = InstallationManifestLoader.Load(Path.Combine(
+        Environment.CurrentDirectory, "manifests", "installation", "rimworld-0.1.1.json"));
+    var channelManifest = manifestForValues with
+    {
+        Configuration = manifestForValues.Configuration with
+        {
+            ManagedFields = new[]
+            {
+                new ManagedField
+                {
+                    Name = "channel_id",
+                    Selector = "/channel_id",
+                    ValueSource = "channel_id",
+                    Secret = false,
+                },
+            },
+        },
+    };
+    Assert(ConfigurationValueResolver.Resolve(
+            channelManifest, new Uri("https://manager.test"), "token", 4242)["/channel_id"] == "4242",
+        "channel id is available to integrations that need it");
+    try
+    {
+        ConfigurationValueResolver.Resolve(
+            channelManifest, new Uri("https://manager.test"), "token");
+        throw new InvalidOperationException("FAILED: missing channel id fails safely");
+    }
+    catch (InvalidDataException)
+    {
+        Assert(true, "integration needing a channel id refuses a session without one");
     }
 }
 

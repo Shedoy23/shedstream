@@ -20,7 +20,7 @@ try
     TestRimWorldDetection(root);
     await TestInstallationAsync(root);
     await TestHttpsDistributionAsync(root);
-    TestDiagnosticReport();
+    TestDiagnosticReport(root);
     TestWindowsVault();
     Console.WriteLine("ALL GREEN — Manager core keeps secrets out of local state and survives restart.");
     return 0;
@@ -117,11 +117,23 @@ static async Task TestCoordinatorAsync(string root)
     Assert(handler.SawCredentialRevoke && handler.SawLogout, "server revoke and logout called");
 }
 
-static void TestDiagnosticReport()
+static void TestDiagnosticReport(string root)
 {
+    var gameRoot = Path.Combine(root, "diagnostic-game");
+    Directory.CreateDirectory(gameRoot);
+    File.WriteAllText(Path.Combine(gameRoot, "Version.txt"), "1.6.4871 rev590\n");
+    var gameVersion = GameVersionDetector.DetectRimWorld(gameRoot);
+    Assert(gameVersion is { FullVersion: "1.6.4871 rev590", CompatibilityVersion: "1.6" } &&
+        GameVersionDetector.Compatibility(gameVersion, new[] { "1.5", "1.6" }) == "supported",
+        "diagnostic reads real RimWorld version and compatibility");
+    Assert(GameVersionDetector.Compatibility(
+            gameVersion, new[] { "1.4", "1.5" }) == "unsupported",
+        "unsupported RimWorld version fails compatibility gate");
     var report = DiagnosticReportBuilder.Build(new DiagnosticReportInput(
         "1.0.0", "manager-v1", "https://manager.test/private?token=hidden",
-        "1.5", "0.1.1", "Healthy", Array.Empty<string>(), true, 3,
+        gameVersion!.FullVersion, "supported", null, "RepairRequired",
+        "existing integration was not installed by this Manager",
+        Array.Empty<string>(), true, 3,
         new[]
         {
             @"Config C:\Users\Edward\AppData token=refresh-secret",
@@ -134,7 +146,10 @@ static void TestDiagnosticReport()
         !report.Contains("/private", StringComparison.Ordinal),
         "diagnostic report redacts secrets and private paths");
     Assert(report.Contains("RimLink готов", StringComparison.Ordinal) &&
-        report.Contains("manager.test", StringComparison.Ordinal),
+        report.Contains("manager.test", StringComparison.Ordinal) &&
+        report.Contains("1.6.4871 rev590", StringComparison.Ordinal) &&
+        report.Contains("unknown/unmanaged", StringComparison.Ordinal) &&
+        report.Contains("existing integration was not installed", StringComparison.Ordinal),
         "diagnostic report preserves useful health context");
 }
 

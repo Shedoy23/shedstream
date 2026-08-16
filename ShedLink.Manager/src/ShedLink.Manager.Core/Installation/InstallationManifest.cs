@@ -13,6 +13,9 @@ public sealed record InstallationManifest
     [JsonPropertyName("release_version")]
     public required string ReleaseVersion { get; init; }
 
+    [JsonPropertyName("game")]
+    public ManifestGame? Game { get; init; }
+
     [JsonPropertyName("artifacts")]
     public required IReadOnlyList<InstallationArtifact> Artifacts { get; init; }
 
@@ -27,6 +30,18 @@ public sealed record InstallationManifest
 
     [JsonPropertyName("security")]
     public required ManifestSecurity Security { get; init; }
+}
+
+public sealed record ManifestGame
+{
+    [JsonPropertyName("id")]
+    public required string Id { get; init; }
+
+    [JsonPropertyName("display_name")]
+    public required string DisplayName { get; init; }
+
+    [JsonPropertyName("supported_versions")]
+    public required IReadOnlyList<string> SupportedVersions { get; init; }
 }
 
 public sealed record InstallationArtifact

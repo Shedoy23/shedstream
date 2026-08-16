@@ -25,7 +25,9 @@ WPF shell уже показывает account/game/integration stages, откр�
 Кнопка диагностического отчёта сначала показывает пользователю итоговый JSON и
 только затем разрешает сохранить его. В отчёт входят версии, health probes,
 heartbeat и последние сообщения; credentials, authorization, cookies и путь
-профиля Windows автоматически удаляются.
+профиля Windows автоматически удаляются. Версия RimWorld читается из игрового
+`Version.txt`; отчёт отличает unmanaged installation от повреждённых файлов.
+Unsupported/unknown game version блокирует install и `Technical Ready`.
 
 Installation Core уже читает production manifest, проверяет размер/SHA-256,
 безопасно распаковывает ZIP, отклоняет traversal/reparse points, выполняет

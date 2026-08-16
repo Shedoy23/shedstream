@@ -1,6 +1,6 @@
 # ShedLink — текущее состояние
 
-Обновлено: 2026-08-15
+Обновлено: 2026-08-16
 
 ## Источник истины
 
@@ -42,7 +42,8 @@
   локальный и unsigned; внешний distribution ещё не опубликован.
 - Добавлен независимый installation transaction contract: staging verification,
   path boundary, atomic replace, rollback и recovery после жёсткого обрыва
-  проходят автоматические conformance-тесты; перенос в .NET Core — следующий шаг.
+  проходят автоматические conformance-тесты; этот контракт уже перенесён в .NET
+  Core и используется Manager.
 - M110/M111 создают persistent pairing/session/credential ledger и связывают
   Manager session с одобренным module scope. Browser pairing не передаёт Twitch
   tokens в desktop app; тесты покрывают approve/deny/expire, одноразовый exchange,
@@ -64,6 +65,8 @@
 - Диагностический JSON-отчёт показывает версии, health probes, heartbeat и
   последние сообщения только после явного предпросмотра. Автотест подтверждает
   удаление module tokens, authorization, приватного URL и Windows profile path.
+  Версия RimWorld читается из `Version.txt`; отчёт отдельно объясняет unmanaged
+  installation, а неподдерживаемая версия блокирует install и `Technical Ready`.
 - Installation transaction перенесён в .NET Core: production manifest parsing,
   artifact size/SHA-256, safe ZIP, reparse guard, atomic swap, rollback и crash
   recovery зелёные. XML writer сохраняет чужие поля и ставит user-only ACL.

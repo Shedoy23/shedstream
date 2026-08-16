@@ -9,8 +9,10 @@ public sealed record DiagnosticReportInput(
     string ApiVersion,
     string BackendOrigin,
     string? GameVersion,
+    string GameCompatibility,
     string? IntegrationVersion,
     string InstallationCondition,
+    string InstallationReason,
     IReadOnlyList<string> FailedHealthProbes,
     bool? ModuleOnline,
     int? HeartbeatAgeSeconds,
@@ -28,19 +30,21 @@ public static class DiagnosticReportBuilder
     {
         var report = new
         {
-            schema_version = 1,
+            schema_version = 2,
             generated_at_utc = DateTimeOffset.UtcNow,
             versions = new
             {
                 manager = Redact(input.ManagerVersion),
                 api = Redact(input.ApiVersion),
-                game = Redact(input.GameVersion),
-                integration = Redact(input.IntegrationVersion),
+                game = DisplayValue(input.GameVersion),
+                integration = DisplayValue(input.IntegrationVersion),
             },
             backend_origin = SafeOrigin(input.BackendOrigin),
             installation = new
             {
                 condition = Redact(input.InstallationCondition),
+                reason = Redact(input.InstallationReason),
+                game_compatibility = Redact(input.GameCompatibility),
                 failed_health_probes = input.FailedHealthProbes.Select(Redact).ToArray(),
             },
             runtime = new
@@ -53,6 +57,9 @@ public static class DiagnosticReportBuilder
         };
         return JsonSerializer.Serialize(report, Json);
     }
+
+    private static string DisplayValue(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "unknown/unmanaged" : Redact(value);
 
     public static string Redact(string? value)
     {

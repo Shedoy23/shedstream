@@ -293,8 +293,8 @@ refresh без неявного отзыва установленных module c
 - [x] Reference core выполняет atomic directory swap.
 - [x] Reference core восстанавливает предыдущую версию после сбоя/обрыва.
 - [x] Reference core отклоняет target за пределами разрешённого game path.
-- [ ] Пользовательские файлы не удаляются без явного подтверждения.
-- [ ] Secrets не включаются в manifest и diagnostic bundle.
+- [x] Пользовательские файлы не удаляются без явного подтверждения.
+- [x] Secrets не включаются в manifest и diagnostic bundle.
 - [ ] Повторный `install()` и `repair()` идемпотентны.
 
 ### Definition of Done
@@ -352,6 +352,9 @@ refresh без неявного отзыва установленных module c
 - WPF теперь выполняет явный logout с отдельным выбором отзыва ключа RimLink.
   Credential rotation меняет XML, vault и несекретный state как одну
   восстанавливаемую операцию; незавершённая смена продолжается после restart.
+- RimWorld version читается из игрового `Version.txt` и сверяется с
+  `game.supported_versions` installation manifest. Unknown/unsupported version
+  fail-closed блокирует install и итоговый `Technical Ready`.
 - локальный RimLink/installation manifest поднят до `0.1.1`; deterministic ZIP
   связан с манифестом точными size/SHA, но остаётся unsigned и не опубликован.
 
@@ -878,24 +881,18 @@ Definition of Done
 
 ## 10. Ближайшая очередь работ
 
-Строгий порядок ближайшего этапа:
+Строгий порядок ближайшего этапа с учётом завершённого local vertical slice:
 
-1. Сверить roadmap и gap analysis с актуальным HEAD.
-2. Закрыть release-gate P0 выбранной первой integration.
-3. Зафиксировать ручной install flow и secrets/config matrix.
-4. Описать Runtime Manifest vCurrent без переписывания.
-5. Спроектировать Installation Manifest v1.
-6. Спроектировать Manager/backend auth и credential lifecycle.
-7. Реализовать Manager vertical slice для одной игры.
-8. Провести clean Windows VM matrix.
-9. Достичь M1 Self Service.
-10. Провести five-streamer alpha.
-11. Исправить измеренные onboarding blockers.
-12. Провести 10–20 streamer beta и capacity test.
-13. Проверить retention.
-14. Подключить вторую существующую integration к Manager.
-15. Принять решение по CK3 на основании данных.
-16. Запустить первый Pro experiment после retention signal.
+1. Выполнить RimWorld live smoke: apply/refuse, lost ACK, restart и reconnect.
+2. Закрыть release-gate и окончательно утвердить RimWorld первой integration.
+3. Создать offline production signing key и подписанный HTTPS release RimLink.
+4. Штатно развернуть M109 repair, M110–M112 и Manager/runtime API.
+5. Подтвердить signed install и `Technical Ready` на реальной RimWorld.
+6. Провести clean Windows VM matrix.
+7. Достичь M1 Self Service и провести five-streamer alpha.
+8. Исправить измеренные onboarding blockers.
+9. Провести 10–20 streamer beta и capacity test.
+10. Проверить retention и только затем расширять integrations/monetization.
 
 ---
 

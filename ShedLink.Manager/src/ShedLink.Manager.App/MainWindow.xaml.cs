@@ -1,6 +1,5 @@
 using System.Net.Http;
 using System.IO;
-using System.Diagnostics;
 using System.Windows;
 using Microsoft.Win32;
 using ShedLink.Manager.Core;
@@ -428,22 +427,23 @@ public partial class MainWindow : Window
     {
         var state = _stateStore.LoadOrCreate();
         var inspection = InspectIntegration();
-        string? gameVersion = null;
-        if (_game is not null)
-        {
-            var executable = Path.Combine(_game.RootPath, "RimWorldWin64.exe");
-            if (File.Exists(executable))
-            {
-                gameVersion = FileVersionInfo.GetVersionInfo(executable).FileVersion;
-            }
-        }
+        var gameVersion = _game is null
+            ? null
+            : GameVersionDetector.DetectRimWorld(_game.RootPath);
+        ReleaseConfiguration.TryLoadManifest(out var manifest, out _);
+        var integrationVersion = inspection?.Condition == InstallationCondition.NotInstalled
+            ? "not installed"
+            : inspection?.InstalledVersion ?? state.InstalledReleaseVersion;
         var report = DiagnosticReportBuilder.Build(new DiagnosticReportInput(
             typeof(MainWindow).Assembly.GetName().Version?.ToString() ?? "unknown",
             "manager-v1 / module-v1",
             state.BackendUrl.ToString(),
-            gameVersion,
-            inspection?.InstalledVersion ?? state.InstalledReleaseVersion,
+            gameVersion?.FullVersion,
+            GameVersionDetector.Compatibility(
+                gameVersion, manifest?.Game?.SupportedVersions),
+            integrationVersion,
             inspection?.Condition.ToString() ?? "Unknown",
+            InstallationReason(inspection),
             inspection?.FailedProbeIds ?? Array.Empty<string>(),
             _runtimeStatus?.Online,
             _runtimeStatus?.AgeSeconds,
@@ -460,6 +460,30 @@ public partial class MainWindow : Window
         {
             OverallStatusText.Text = "Диагностический отчёт сохранён после предпросмотра.";
         }
+    }
+
+    private static string InstallationReason(InstallationInspection? inspection)
+    {
+        if (inspection is null)
+        {
+            return "game or release manifest is unavailable";
+        }
+        return inspection.Condition switch
+        {
+            InstallationCondition.NotInstalled => "integration is not installed",
+            InstallationCondition.UnsafeTarget => "installation target is an unsafe link",
+            InstallationCondition.UpdateAvailable => "a newer integration release is available",
+            InstallationCondition.Healthy => "managed installation and required files are healthy",
+            InstallationCondition.RepairRequired when
+                inspection.FailedProbeIds.Count > 0 &&
+                string.IsNullOrWhiteSpace(inspection.InstalledVersion) =>
+                "installation is unmanaged and required files are missing",
+            InstallationCondition.RepairRequired when inspection.FailedProbeIds.Count > 0 =>
+                "required integration files are missing",
+            InstallationCondition.RepairRequired =>
+                "existing integration was not installed by this Manager",
+            _ => "installation state is unknown",
+        };
     }
 
     private void DetectGame()
@@ -491,7 +515,9 @@ public partial class MainWindow : Window
     {
         var source = game.Source == DetectionSource.Steam ? "Steam" : "выбрано вручную";
         var running = _detector.IsGameRunning() ? " · игра сейчас запущена" : string.Empty;
-        GameStatusText.Text = $"Найдено ({source}): {game.RootPath}{running}";
+        var version = GameVersionDetector.DetectRimWorld(game.RootPath);
+        var versionText = version is null ? string.Empty : $" · версия {version.FullVersion}";
+        GameStatusText.Text = $"Найдено ({source}): {game.RootPath}{versionText}{running}";
         UpdateInstallAvailability();
     }
 
@@ -655,15 +681,18 @@ public partial class MainWindow : Window
             inspection.Condition is not InstallationCondition.NotInstalled
                 and not InstallationCondition.UnsafeTarget &&
             inspection.FailedProbeIds.Count == 0;
+        var compatible = TryGetGameCompatibility(out var compatibilityReason);
         TestReadyButton.IsEnabled = !_installing && !_testingReady && _session is not null &&
-            _runtimeStatus?.Online == true && filesReady;
+            _runtimeStatus?.Online == true && filesReady && compatible;
         TestReadyButton.ToolTip = _testingReady
             ? "Проверка уже выполняется."
-            : _runtimeStatus?.Online != true
-                ? "Сначала запусти RimWorld и дождись heartbeat."
-                : !filesReady
-                    ? "Сначала установи или восстанови RimLink."
-                    : "Проверить реальную очередь и ACK без изменения игры.";
+            : !compatible
+                ? compatibilityReason
+                : _runtimeStatus?.Online != true
+                    ? "Сначала запусти RimWorld и дождись heartbeat."
+                    : !filesReady
+                        ? "Сначала установи или восстанови RimLink."
+                        : "Проверить реальную очередь и ACK без изменения игры.";
     }
 
     private void UpdateInstallAvailability(bool updateReleaseMessage = true)
@@ -715,9 +744,12 @@ public partial class MainWindow : Window
         }
         var releaseReady = ReleaseConfiguration.TryLoad(
             out _, out _, out var releaseReason);
-        InstallButton.IsEnabled = releaseReady &&
+        var compatible = TryGetGameCompatibility(out var compatibilityReason);
+        InstallButton.IsEnabled = releaseReady && compatible &&
             inspection?.Condition != InstallationCondition.UnsafeTarget;
-        InstallButton.ToolTip = releaseReady
+        InstallButton.ToolTip = !compatible
+            ? compatibilityReason
+            : releaseReady
             ? "Установить и настроить RimLink."
             : releaseReason;
         if (!releaseReady && updateReleaseMessage)
@@ -726,6 +758,35 @@ public partial class MainWindow : Window
                 ? releaseReason
                 : $"{InspectionMessage(inspection)} {releaseReason}";
         }
+    }
+
+    private bool TryGetGameCompatibility(out string reason)
+    {
+        if (_game is null)
+        {
+            reason = "Сначала найди установленный RimWorld.";
+            return false;
+        }
+        var version = GameVersionDetector.DetectRimWorld(_game.RootPath);
+        if (version is null)
+        {
+            reason = "Не удалось определить версию RimWorld из Version.txt.";
+            return false;
+        }
+        if (!ReleaseConfiguration.TryLoadManifest(out var manifest, out reason) ||
+            manifest?.Game is null)
+        {
+            return false;
+        }
+        if (GameVersionDetector.Compatibility(
+                version, manifest.Game.SupportedVersions) != "supported")
+        {
+            reason = $"RimWorld {version.FullVersion} не поддерживается. Поддерживаются: " +
+                string.Join(", ", manifest.Game.SupportedVersions) + ".";
+            return false;
+        }
+        reason = $"RimWorld {version.FullVersion} поддерживается.";
+        return true;
     }
 
     private InstallationInspection? InspectIntegration()

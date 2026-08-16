@@ -1169,6 +1169,125 @@ def command_run(args: argparse.Namespace) -> None:
     print(json.dumps(results, ensure_ascii=False, indent=2))
 
 
+def watcher_paths(workspace: Path) -> tuple[Path, Path, Path]:
+    state = workspace / ".agent-loop"
+    return (state / "watcher.stop", state / "watcher.log", state / "waiting-owner.json")
+
+
+def pick_watch_task(db_path: Path, skip: set[str]) -> str | None:
+    """Задача, чей ход сейчас за агентом. Пропущенные не возвращаем никогда.
+
+    Без явного исключения пропущенных сторож бесконечно выбирал бы одну и ту
+    же падающую задачу: `select_task` всегда отдаёт самую старую.
+    """
+    with mailbox_store.open_db(db_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT id FROM tasks
+            WHERE status='open' AND current_owner IN ('claude','codex')
+            ORDER BY created_at
+            """
+        ).fetchall()
+    for row in rows:
+        if row["id"] not in skip:
+            return row["id"]
+    return None
+
+
+def watcher_note(log_path: Path, payload: dict[str, Any]) -> None:
+    payload = {"at": mailbox_store.utc_now(), **payload}
+    line = json.dumps(payload, ensure_ascii=False)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with log_path.open("a", encoding="utf-8") as handle:
+        handle.write(line + "\n")
+    print(line, flush=True)
+
+
+def command_watch(args: argparse.Namespace) -> None:
+    """Ждёт появления хода агента и делает его — без участия владельца.
+
+    ЗАЧЕМ. Цикл задачи и раньше шёл сам, но запускал его владелец: между его
+    заходами не происходило ничего. Держать ради этого две живые сессии
+    моделей, ждущие друг друга, нельзя — они бы либо ждали обе (никто не
+    ходит), либо жгли бы вызов модели на каждую проверку почты. Поэтому ждёт
+    один дешёвый процесс: пока ходов нет, он делает запрос к SQLite и спит,
+    ни одна модель при этом не вызывается.
+
+    Границы не меняются: лимит раундов задачи, запрет коммитов и деплоя и
+    правило «закрыть задачу может только владелец» остаются, как были.
+    """
+    config = load_json(args.config)
+    stop_path, log_path, waiting_path = watcher_paths(args.workspace)
+    if stop_path.exists():
+        stop_path.unlink()
+    failures: dict[str, int] = {}
+    skip: set[str] = set()
+    watcher_note(log_path, {"event": "started", "interval_seconds": args.interval})
+    try:
+        while True:
+            if stop_path.exists():
+                watcher_note(log_path, {"event": "stopped", "reason": "stop file"})
+                stop_path.unlink()
+                return
+            task_id = pick_watch_task(args.db, skip)
+            if task_id is None:
+                time.sleep(args.interval)
+                continue
+            try:
+                # Замок берётся НА ШАГ, а не на всю жизнь сторожа: иначе
+                # владелец не смог бы запустить ничего вручную, пока тот жив.
+                with runner_lock(args.workspace):
+                    result = run_one(args.db, config, args.workspace, task_id, False)
+            except RunnerError as exc:
+                failures[task_id] = failures.get(task_id, 0) + 1
+                watcher_note(log_path, {
+                    "event": "step failed",
+                    "task": task_id,
+                    "attempt": failures[task_id],
+                    "error": str(exc),
+                })
+                if failures[task_id] >= args.max_failures:
+                    skip.add(task_id)
+                    watcher_note(log_path, {
+                        "event": "task set aside",
+                        "task": task_id,
+                        "reason": "repeated failures; owner needed",
+                    })
+                time.sleep(args.interval)
+                continue
+            failures.pop(task_id, None)
+            if result["state"] == "idle":
+                time.sleep(args.interval)
+                continue
+            watcher_note(log_path, {
+                "event": "step done",
+                "task": task_id,
+                "next": result.get("next"),
+            })
+            if result.get("next") == "owner":
+                with mailbox_store.open_db(args.db) as conn:
+                    rows = conn.execute(
+                        "SELECT id, title FROM tasks WHERE current_owner='owner' "
+                        "AND status='open' ORDER BY created_at"
+                    ).fetchall()
+                waiting_path.write_text(
+                    json.dumps(
+                        {
+                            "at": mailbox_store.utc_now(),
+                            "waiting_owner": [
+                                {"id": r["id"], "title": r["title"]} for r in rows
+                            ],
+                        },
+                        ensure_ascii=False,
+                        indent=2,
+                    ),
+                    encoding="utf-8",
+                )
+                watcher_note(log_path, {"event": "owner needed", "task": task_id})
+    except KeyboardInterrupt:
+        watcher_note(log_path, {"event": "stopped", "reason": "interrupt"})
+
+
 def command_start(args: argparse.Namespace) -> None:
     request = mailbox_store.load_text(args.request, args.request_file)
     task_id = args.id or f"SL-{time.strftime('%Y%m%d')}-{uuid.uuid4().hex[:8]}"
@@ -1276,6 +1395,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="Show the next invocation without calling a model.",
     )
     run.set_defaults(func=command_run)
+
+    watch = sub.add_parser(
+        "watch",
+        help="Wait for an agent's turn and take it, without the owner.",
+    )
+    watch.add_argument(
+        "--interval",
+        type=float,
+        default=5.0,
+        help="Seconds to sleep when there is nothing to do (no model calls).",
+    )
+    watch.add_argument(
+        "--max-failures",
+        type=int,
+        default=3,
+        help="Consecutive failures before a task is set aside for the owner.",
+    )
+    watch.set_defaults(func=command_watch)
 
     start = sub.add_parser(
         "start", help="Create a task and run its bounded loop."

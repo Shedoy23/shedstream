@@ -19,8 +19,7 @@ browser и использует штатный Windows Credential Manager.
 
 WPF shell уже показывает account/game/integration stages, открывает pairing в
 системном browser, восстанавливает сессию после перезапуска, ищет RimWorld во
-всех Steam libraries и проверяет вручную выбранную папку. Кнопка установки пока
-честно отключена до готовности безопасной доставки release artifact.
+всех Steam libraries и проверяет вручную выбранную папку.
 
 Кнопка диагностического отчёта сначала показывает пользователю итоговый JSON и
 только затем разрешает сохранить его. В отчёт входят версии, health probes,
@@ -37,19 +36,20 @@ staging + atomic directory swap и восстанавливает прежнюю
 journal. Managed XML writer сохраняет неизвестные настройки, атомарно меняет
 только объявленные поля и ограничивает ACL файла текущим Windows user.
 
-Install CTA остаётся отключён не из-за transaction engine, а до появления
-Manager-доступного подписанного HTTPS release artifact.
+Signed HTTPS delivery gate закрыт: RimLink `0.1.1` опубликован, проверен и имеет
+встроенный trusted public key. Полный production install flow пока блокируется
+не release-доставкой, а отсутствующим production deploy Manager API.
 
 HTTPS download и signature verification уже реализованы fail-closed: redirects,
 HTTP downgrade, размер, SHA-256, неизвестный publisher key и RSA-PSS mismatch
-отклоняются до распаковки. Для включения CTA остаётся создать production key,
-встроить его public half и опубликовать подписанный RimLink archive.
+отклоняются до распаковки. Production key/public half и immutable RimLink URL
+созданы и независимо проверены.
 
 Offline signer находится в `tools/ShedLink.Manager.SignArtifact`; он не создаёт
 и не хранит private key, а принимает внешний PEM только на время запуска.
 Бесплатный безопасный generator RSA 4096 находится в
-`tools/ShedLink.Manager.GenerateReleaseKey`; настоящий production key создаётся
-только после выбора владельцем внешнего места хранения и backup.
+`tools/ShedLink.Manager.GenerateReleaseKey`; production key создан вне repository
+с user-only ACL. Внешняя резервная копия на отдельный носитель ещё требуется.
 `tools/ShedLink.Manager.VerifyRelease` независимо проверяет подписанный manifest,
 ZIP bytes, RSA fingerprint, безопасную распаковку и обязательные health probes.
 

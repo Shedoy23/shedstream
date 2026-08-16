@@ -36,13 +36,18 @@
     {
       "id": "rimlink_mod",
       "source": {
-        "kind": "repository",
-        "path": "dist/releases/RimLink-2026-08-16-manager-diagnostics.zip"
+        "kind": "https",
+        "url": "https://shedoy23.ru/releases/RimLink-0.1.1.zip"
       },
       "size_bytes": 63673,
       "sha256": "4e9656cb84b574691482938967928b0c50ad3cafd3cb7e41e79a12cb7ed42381",
       "format": "zip",
-      "archive_root": "RimLink"
+      "archive_root": "RimLink",
+      "signature": {
+        "algorithm": "rsa-pss-sha256",
+        "key_id": "shedlink-release-2026",
+        "value": "q+SNLzFNqfmkzHoI3ct3YxUPRSAcHWkbk+JYHirb3etbiskue+23O9IUutJJrop21dV28NQovwmQaKigN4SPazjSOb1Lmac7DVPYkupDPeKyCpqFMDd8YGU0JlxE1Fy2QC3/aZ5VTc2RpHWiKhusg/eNsHkOpZVOu9oKUJXhxBvHJhVn/kW49dTP+2aTu0/1ogdEujZEGoecLkYClhxn4epWYJ8WpDuV887+FWy4VAwtzvVDjTmmcXxyHrZaJZpV5CayjPLJInZBx4GY8OlMBw5aCxTRMfgD5iQD1DPLsB/dR9XeBmt2X8luMn/T1FpkrNFxwVPFEIC4OT0XwDs5kdsXzyCulkQHU57dgkA90xZXNrjPwf5REPTU2feK9/aigCN6emuVBlhoThofLEfcCZkGx4rEKa45b6vMN1cneYO//5DX7786/nSKmEXPLVSvDluEvaK+NoSqcHS11qHsA0eAQxNF3NAZ6dWrsHJtJF/KzvVwFoila6m3pX95SU8yo0CPTFlE270nLQAL8fx3lNlegFNWY/FK9XnE/2JmOaG3YB5ZF8cFZK2qdL9Ck5WYChRIXkN2zO60sSESSVDEiJSok4cHv3xEf14qFJ0Mslq/haq6xlGyOq7kZ+JwTweUkMY/kE+EaJcot9BsxyUBavqiFVCQIcoGy0UkUZw/PGg="
+      }
     }
   ],
   "installation": {
@@ -104,7 +109,7 @@
   },
   "security": {
     "publisher": "shedoy23",
-    "signature_status": "unsigned",
+    "signature_status": "signed",
     "allowed_write_roots": ["game_root", "manager_temp", "windows_local_low"],
     "redact_fields": ["module_token", "authorization", "cookie"]
   }

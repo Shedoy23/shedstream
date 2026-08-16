@@ -1,8 +1,8 @@
 # Manager release signature policy v1
 
 Дата: 2026-08-16  
-Статус: verifier, signer и безопасный key generator реализованы; production
-signing key и HTTPS publication ещё не созданы
+Статус: production RSA key создан вне repository; RimLink `0.1.1` подписан,
+опубликован по immutable HTTPS URL и независимо проверен
 
 ## Две разные подписи
 
@@ -99,9 +99,9 @@ dotnet run --project ShedLink.Manager/tools/ShedLink.Manager.SignArtifact -- `
   --url https://<final-host>/releases/RimLink-0.1.0.zip
 ```
 
-Publication и nginx/CDN change требуют отдельного подтверждения владельца и
-обычного production runbook. Текущий repository manifest остаётся unsigned и
-не выдаётся внешнему Manager как release source.
+Publication и nginx change выполнены 2026-08-16 по отдельному подтверждению
+владельца и `docs/MANAGER_RELEASE_PUBLICATION_RUNBOOK.md`. Canonical manifest
+теперь signed HTTPS; production public key встроен в Manager.
 
 Независимая проверка локального либо заново скачанного ZIP проверяет manifest,
 size, SHA-256, RSA-PSS signature, безопасную распаковку и обязательные health

@@ -231,8 +231,8 @@ Test action acknowledged
 - отдельный authenticated `auth-check` подтверждает module credential без
   ложной записи heartbeat/liveness; реальный heartbeat остаётся самостоятельным
   условием `Technical Ready`;
-- manifest пока использует локальный `source.kind=repository` и честно помечен
-  `unsigned`: policy уже требует signed HTTPS, но production key/URL ещё не созданы;
+- production manifest использует immutable signed HTTPS source; RSA 4096 public
+  key встроен в Manager, опубликованные bytes независимо проверены;
 - production Manager Core объединяет `package → config → auth-check` в одну
   recoverable operation: до verify сохраняются обе rollback-копии, отказ
   откатывает пакет и XML, а verified crash завершается при следующем запуске.
@@ -332,13 +332,14 @@ refresh без неявного отзыва установленных module c
 - production installation engine реализован в Core и проверяет реальный
   manifest; repository и signed HTTPS sources проходят единую recoverable
   orchestration `package → config → auth-check`. WPF CTA подключён к этой
-  операции, но fail-closed остаётся отключён до production signing key и
-  конечного HTTPS release URL; причина видна в интерфейсе.
+  операции; release delivery gate закрыт, production Manager API deploy остаётся
+  отдельным блокером полного flow.
 - HTTPS downloader и publisher verifier реализованы fail-closed: redirect/HTTP
   downgrade, wrong/truncated/oversized bytes, SHA mismatch, unknown key и
   RSA-PSS mismatch не доходят до staging. Policy зафиксирована в
   `docs/MANAGER_RELEASE_SIGNATURE_POLICY_V1.md`; offline signer проверяет ZIP,
-  требует RSA 3072+ и атомарно обновляет manifest. Production key/URL ещё не созданы.
+  требует RSA 3072+ и атомарно обновляет manifest. Production RSA 4096 key и URL
+  созданы, public key встроен в Manager.
 - installation inspector различает отсутствующий, повреждённый, устаревший и
   актуальный RimLink; WPF показывает установленную/доступную версии и выбирает
   честный CTA `Установить / Обновить / Восстановить / Переустановить`.
@@ -359,15 +360,15 @@ refresh без неявного отзыва установленных module c
   совместимый release; отсутствие совместимого релиза завершается безопасным
   отказом без установки случайной версии.
 - Offline RSA 4096 key generator и signer готовы; artifact signing не требует
-  платного сертификата. Настоящий production key создаётся только после выбора
-  внешнего места хранения и backup, отдельно от будущей Windows EXE signing.
+  платного сертификата. Production key создан вне repository с user-only ACL;
+  отдельная offline backup и будущая Windows EXE signing остаются независимыми.
 - Independent verifier и полный local release rehearsal подтверждают
   `generate → sign → size/SHA/RSA/ZIP/health verify` без production mutation.
-- Publication runbook фиксирует будущий immutable HTTPS URL, atomic upload,
-  nginx preflight/external verification и rollback. Read-only audit подтвердил,
-  что production `/releases/` пока отсутствует и не изменялся.
-- локальный RimLink/installation manifest поднят до `0.1.1`; deterministic ZIP
-  связан с манифестом точными size/SHA, но остаётся unsigned и не опубликован.
+- Publication runbook применён: immutable HTTPS URL опубликован через atomic
+  upload, nginx backup/preflight/reload и external verification. HTTP/listing/
+  POST закрыты, backend health не изменился.
+- RimLink/installation manifest `0.1.1` signed и опубликован; deterministic ZIP
+  связан с манифестом точными size/SHA и RSA-PSS signature.
 
 ### Scope v1
 

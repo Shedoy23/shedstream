@@ -52,7 +52,12 @@ def main() -> int:
     )
 
     escaping = copy.deepcopy(manifest)
-    escaping["artifacts"][0]["source"]["path"] = "../outside.zip"
+    escaping["artifacts"][0]["source"] = {
+        "kind": "repository",
+        "path": "../outside.zip",
+    }
+    escaping["artifacts"][0].pop("signature", None)
+    escaping["security"]["signature_status"] = "unsigned"
     expect_failure(
         "repository path traversal is rejected by schema",
         lambda: schema_validator.validate(escaping),
@@ -64,6 +69,7 @@ def main() -> int:
         "kind": "https",
         "url": "https://downloads.example/rimlink.zip",
     }
+    https_without_signature["artifacts"][0].pop("signature", None)
     expect_failure(
         "HTTPS source without publisher signature is rejected by schema",
         lambda: schema_validator.validate(https_without_signature),
@@ -76,6 +82,7 @@ def main() -> int:
         "key_id": "test-release-key",
         "value": "A" * 344,
     }
+    https_unsigned["security"]["signature_status"] = "unsigned"
     schema_validator.validate(https_unsigned)
     fd, https_unsigned_path = tempfile.mkstemp(
         suffix=".json", prefix="manifest-https-unsigned-"
@@ -93,8 +100,20 @@ def main() -> int:
     finally:
         Path(https_unsigned_path).unlink(missing_ok=True)
 
+    artifact_dir = ROOT / "_autotest"
+    artifact_dir.mkdir(exist_ok=True)
+    bad_hash_artifact = artifact_dir / "manifest-bad-hash.zip"
+    with zipfile.ZipFile(bad_hash_artifact, "w") as archive:
+        archive.writestr("RimLink/Assemblies/RimLink.dll", "test")
     wrong_hash = copy.deepcopy(manifest)
+    wrong_hash["artifacts"][0]["source"] = {
+        "kind": "repository",
+        "path": bad_hash_artifact.relative_to(ROOT).as_posix(),
+    }
+    wrong_hash["artifacts"][0].pop("signature", None)
+    wrong_hash["artifacts"][0]["size_bytes"] = bad_hash_artifact.stat().st_size
     wrong_hash["artifacts"][0]["sha256"] = "0" * 64
+    wrong_hash["security"]["signature_status"] = "unsigned"
     fd, wrong_hash_path = tempfile.mkstemp(suffix=".json", prefix="manifest-bad-hash-")
     os.close(fd)
     try:
@@ -108,6 +127,11 @@ def main() -> int:
         )
     finally:
         Path(wrong_hash_path).unlink(missing_ok=True)
+        bad_hash_artifact.unlink(missing_ok=True)
+        try:
+            artifact_dir.rmdir()
+        except OSError:
+            pass
 
     fd, unsafe_zip_path = tempfile.mkstemp(suffix=".zip", prefix="manifest-unsafe-")
     os.close(fd)

@@ -1,17 +1,18 @@
 # Manager release publication runbook
 
 Дата: 2026-08-16  
-Статус: local release готов; production publication не выполнялась
+Статус: RimLink `0.1.1` опубликован и независимо проверен 2026-08-16
 
 ## Подтверждённая исходная точка
 
-- production nginx `/etc/nginx/sites-enabled/twitchbot` обслуживает только
-  reverse proxy `/` и `/frontend/`;
-- отдельного `/releases/` и release directory сейчас нет;
+- production nginx `/etc/nginx/sites-enabled/twitchbot` обслуживает reverse
+  proxy и отдельный статический `/releases/`;
 - канонический local artifact `RimLink-0.1.1.zip` имеет size `63673` и SHA-256
   `4e9656cb84b574691482938967928b0c50ad3cafd3cb7e41e79a12cb7ed42381`;
-- эти значения совпадают с unsigned installation manifest;
-- production key, public URL и trusted Manager key ещё не созданы.
+- эти значения совпадают с signed installation manifest;
+- public key `shedlink-release-2026` встроен в Manager; private PEM хранится вне
+  repository с user-only ACL;
+- nginx backup: `/root/twitchbot.nginx.bak.20260816T123624Z`.
 
 ## Неизменяемый URL
 
@@ -38,9 +39,7 @@ pwsh -File scripts/pack-rimlink-release.ps1 `
 manifest выполняются generator/signer/verifier из
 `docs/MANAGER_RELEASE_SIGNATURE_POLICY_V1.md`.
 
-## Предлагаемая production-схема
-
-Требует отдельного явного подтверждения владельца.
+## Production-схема
 
 - directory: `/srv/shedlink/releases/`;
 - owner: `root:root`;
@@ -78,6 +77,10 @@ SHA-256 и только потом атомарно переименовывае
 
 Только после этого signed manifest и public key встраиваются в Manager build и
 становится доступен Install CTA.
+
+Проверка 2026-08-16 завершена: HTTPS 200 без redirect, `Content-Length=63673`,
+HTTP 404, listing 403, POST 403, server/local SHA-256 и RSA fingerprint совпали,
+independent verifier зелёный, backend `/health` остался 200.
 
 ## Rollback
 

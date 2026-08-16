@@ -12,7 +12,22 @@ internal static class ReleaseConfiguration
     private static readonly IReadOnlyDictionary<string, string> TrustedPublisherKeys =
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            // Production public keys are added only through the release runbook.
+            ["shedlink-release-2026"] = """
+                -----BEGIN PUBLIC KEY-----
+                MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEA8JTva5enwqL4b4Qpf8Je
+                5DvuG4ofsuItJ8TM4pLqNfYp8E6/oUuL4lCtYVBwkVWhX0SXB60qjJ3qHT3tnljz
+                zL0G1jWgPm3R9WMGcMc2uQvgeoHZniqB/j+hX2mIr+Lri3YOhh8c//zJddeB46gc
+                usNY5JXFzEyQxN3v1WXpItY98paqOLnAX6N89w7lfIA20YRuwvPmA8/51Rjj7Trw
+                hjN5gtJBuC0Zag2VXQxwMeQ0hpPDIAMMtoAt9pyMLKj5HbOVVC9S5ciQ3lBU++ow
+                OlCFYADzhv7+91czVGEvDe27Dht1RstZOlUA1p/X7xSJcjXKvm43QpR/G4P771nf
+                HIA3O+X9ZTAxc0dtIMiKRUrMNvQHwgP2UeDQphl6VGoDIk89uZBX4JGMvG/KrFZ/
+                fulsHTOyEfmhopKdEG4XW9I0q9vrH42j8xotKYan5p1IXuxY3iDmMgBIxsoWE9+N
+                GMIWG5RiP5n/2kZVeON2E8XG/lWIs1SG4dMybZLpgQA4gGER9PHu5X/BJFlkwh72
+                grpSSGuLdXr5F8BDdl+bkDLiJaECYtC4UbdQhsj9P6wraxs93+6PFhued0XdT6w2
+                CAhrWI/or+gbEyxITEvJH/4+3UkXF8ykecDeTviazW0CJ0DoyT9m6Tt6uh78Tglr
+                7swButTf+RKEsmKYHN1tGJkCAwEAAQ==
+                -----END PUBLIC KEY-----
+                """,
         };
 
     public static bool TrySelect(
@@ -40,6 +55,16 @@ internal static class ReleaseConfiguration
             return false;
         }
         verifier = new ArtifactSignatureVerifier(TrustedPublisherKeys);
+        try
+        {
+            verifier.Verify(manifest, artifact);
+        }
+        catch (InvalidDataException)
+        {
+            verifier = null;
+            reason = "Подпись совместимого RimLink-релиза недействительна.";
+            return false;
+        }
         reason = string.Empty;
         return true;
     }

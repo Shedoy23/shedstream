@@ -62,6 +62,9 @@ Offline signer находится в `tools/ShedLink.Manager.SignArtifact`; он
 с user-only ACL. Внешняя резервная копия на отдельный носитель ещё требуется.
 `tools/ShedLink.Manager.VerifyRelease` независимо проверяет подписанный manifest,
 ZIP bytes, RSA fingerprint, безопасную распаковку и обязательные health probes.
+`tools/ShedLink.Manager.VerifyLifecycle` копирует существующую integration во
+временный game root и проверяет реальные Repair/Update через подписанный HTTPS
+source, одновременно доказывая, что исходная установка не изменилась.
 
 Проверка:
 

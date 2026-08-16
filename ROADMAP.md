@@ -411,9 +411,10 @@ refresh без неявного отзыва установленных module c
 - [x] Install.
 - [x] Configure без ручного JSON и копирования ID/token/API URL.
 - [x] Verify.
-- [ ] Update.
-- [ ] Repair — Core/UI и signed source готовы; нужен реальный прогон на намеренно
-      повреждённой установке.
+- [x] Update — отдельная копия реальной установки обновлена из подписанного
+      production HTTPS source; полный atomic replace и очистка подтверждены.
+- [x] Repair — на отдельной копии удалён обязательный DLL, Manager определил
+      `RepairRequired` и восстановил его из подписанного production source.
 - [x] Uninstall с сохранением пользовательских данных по умолчанию.
 
 Первые три пункта подтверждены реальным production-прогоном до `Technical Ready`
@@ -917,12 +918,11 @@ Definition of Done
 Строгий порядок после закрытия R0 и production `Technical Ready`:
 
 1. Сделать offline backup production signing key на отдельный носитель.
-2. Проверить Update и Repair на реальной намеренно устаревшей/повреждённой копии.
-3. Провести clean Windows VM matrix.
-4. Достичь M1 Self Service и провести five-streamer alpha.
-5. Исправить измеренные onboarding blockers.
-6. Провести 10–20 streamer beta и capacity test.
-7. Проверить retention и только затем расширять integrations/monetization.
+2. Провести clean Windows VM matrix.
+3. Достичь M1 Self Service и провести five-streamer alpha.
+4. Исправить измеренные onboarding blockers.
+5. Провести 10–20 streamer beta и capacity test.
+6. Проверить retention и только затем расширять integrations/monetization.
 
 ---
 

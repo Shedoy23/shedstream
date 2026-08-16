@@ -128,6 +128,12 @@
 - R0 release gate закрыт. Реальные RimWorld-команды применились; backend restart
   и heartbeat reconnect пережиты; отказ и потерянный ACK завершились безопасно.
   После проверки очередь `0`, отрицательных points `0`, `quick_check=ok`.
+- Update/Repair rehearsal выполнен на отдельной копии реально установленного
+  RimLink: состояния прошли `Healthy → RepairRequired → Healthy →
+  UpdateAvailable → Healthy`. Оба восстановления использовали подписанный
+  production HTTPS archive; содержимое исходной папки RimLink не изменилось,
+  временная копия и transaction artifacts очищены. Evidence:
+  `docs/MANAGER_LIFECYCLE_REHEARSAL_2026-08-16.md`.
 - Активная игра определяется по heartbeat мода; действия выключенной integration
   отклоняются безопасно.
 - Релиз 0.0.2 зафиксирован тегом `submit/0.0.2`; канонический архив хранится в
@@ -136,8 +142,8 @@
 
 ## Текущий этап
 
-`R2 — ShedLink Manager MVP: One Game` завершает оставшиеся lifecycle-проверки;
-R0 release gate закрыт.
+`R2 — ShedLink Manager MVP: One Game` проходит проверку на чистой Windows;
+R0 release gate и локальный Update/Repair gate закрыты.
 
 RimWorld утверждён первой Manager integration. Production vertical slice и
 reliability gate доказаны; следующий продуктовый барьер — чистая Windows-среда.
@@ -145,8 +151,7 @@ reliability gate доказаны; следующий продуктовый б�
 ## Следующие действия
 
 1. Сделать offline backup production private key на отдельный носитель.
-2. Проверить Update и Repair на отдельной копии реальной установки.
-3. Провести clean Windows VM matrix и три последовательных clean-install.
+2. Провести clean Windows VM matrix и три последовательных clean-install.
 
 ## Правило обновления
 

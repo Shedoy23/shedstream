@@ -77,5 +77,8 @@ jobs:
       - name: Build offline release signer
         run: dotnet build ShedLink.Manager/tools/ShedLink.Manager.SignArtifact/ShedLink.Manager.SignArtifact.csproj -c Release
 
+      - name: Build Manager lifecycle verifier
+        run: dotnet build ShedLink.Manager/tools/ShedLink.Manager.VerifyLifecycle/ShedLink.Manager.VerifyLifecycle.csproj -c Release
+
       - name: Manager security, detection and restart self-test
         run: dotnet run --project ShedLink.Manager/tests/ShedLink.Manager.Core.SelfTest/ShedLink.Manager.Core.SelfTest.csproj -c Release

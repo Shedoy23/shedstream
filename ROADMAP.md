@@ -404,11 +404,11 @@ Recommended action          Rotate credential
 
 #### Diagnostic bundle
 
-- [ ] Версии Manager/game/integration/API.
-- [ ] Результаты health probes.
-- [ ] Последние релевантные логи.
-- [ ] Автоматическая redaction tokens, cookies, usernames при необходимости.
-- [ ] Явный preview содержимого перед экспортом.
+- [x] Версии Manager/game/integration/API.
+- [x] Результаты health probes.
+- [x] Последние релевантные сообщения состояния.
+- [x] Автоматическая redaction tokens, cookies, usernames и Windows profile path.
+- [x] Явный preview содержимого перед экспортом.
 
 ### Не входит в MVP
 

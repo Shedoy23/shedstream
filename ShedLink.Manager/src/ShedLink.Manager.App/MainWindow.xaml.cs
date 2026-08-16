@@ -1,10 +1,12 @@
 using System.Net.Http;
 using System.IO;
+using System.Diagnostics;
 using System.Windows;
 using Microsoft.Win32;
 using ShedLink.Manager.Core;
 using ShedLink.Manager.Core.Api;
 using ShedLink.Manager.Core.Detection;
+using ShedLink.Manager.Core.Diagnostics;
 using ShedLink.Manager.Core.Installation;
 using ShedLink.Manager.Core.Security;
 using ShedLink.Manager.Core.State;
@@ -419,6 +421,44 @@ public partial class MainWindow : Window
         {
             SetBusy(false);
             UpdateInstallAvailability(updateReleaseMessage: false);
+        }
+    }
+
+    private void DiagnosticReportButton_Click(object sender, RoutedEventArgs e)
+    {
+        var state = _stateStore.LoadOrCreate();
+        var inspection = InspectIntegration();
+        string? gameVersion = null;
+        if (_game is not null)
+        {
+            var executable = Path.Combine(_game.RootPath, "RimWorldWin64.exe");
+            if (File.Exists(executable))
+            {
+                gameVersion = FileVersionInfo.GetVersionInfo(executable).FileVersion;
+            }
+        }
+        var report = DiagnosticReportBuilder.Build(new DiagnosticReportInput(
+            typeof(MainWindow).Assembly.GetName().Version?.ToString() ?? "unknown",
+            "manager-v1 / module-v1",
+            state.BackendUrl.ToString(),
+            gameVersion,
+            inspection?.InstalledVersion ?? state.InstalledReleaseVersion,
+            inspection?.Condition.ToString() ?? "Unknown",
+            inspection?.FailedProbeIds ?? Array.Empty<string>(),
+            _runtimeStatus?.Online,
+            _runtimeStatus?.AgeSeconds,
+            new[]
+            {
+                AccountStatusText.Text,
+                GameStatusText.Text,
+                IntegrationStatusText.Text,
+                RuntimeStatusText.Text,
+                OverallStatusText.Text,
+            }));
+        var preview = new DiagnosticPreviewWindow(report) { Owner = this };
+        if (preview.ShowDialog() == true)
+        {
+            OverallStatusText.Text = "Диагностический отчёт сохранён после предпросмотра.";
         }
     }
 

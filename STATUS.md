@@ -61,6 +61,9 @@
   Смена ключа запрещена при запущенной игре, проверяет новый ключ до активации и
   после сбоя восстанавливает согласованное состояние XML, Credential Manager и
   несекретного state при следующем запуске.
+- Диагностический JSON-отчёт показывает версии, health probes, heartbeat и
+  последние сообщения только после явного предпросмотра. Автотест подтверждает
+  удаление module tokens, authorization, приватного URL и Windows profile path.
 - Installation transaction перенесён в .NET Core: production manifest parsing,
   artifact size/SHA-256, safe ZIP, reparse guard, atomic swap, rollback и crash
   recovery зелёные. XML writer сохраняет чужие поля и ставит user-only ACL.

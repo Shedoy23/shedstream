@@ -22,6 +22,11 @@ WPF shell уже показывает account/game/integration stages, откр�
 всех Steam libraries и проверяет вручную выбранную папку. Кнопка установки пока
 честно отключена до готовности безопасной доставки release artifact.
 
+Кнопка диагностического отчёта сначала показывает пользователю итоговый JSON и
+только затем разрешает сохранить его. В отчёт входят версии, health probes,
+heartbeat и последние сообщения; credentials, authorization, cookies и путь
+профиля Windows автоматически удаляются.
+
 Installation Core уже читает production manifest, проверяет размер/SHA-256,
 безопасно распаковывает ZIP, отклоняет traversal/reparse points, выполняет
 staging + atomic directory swap и восстанавливает прежнюю версию по crash

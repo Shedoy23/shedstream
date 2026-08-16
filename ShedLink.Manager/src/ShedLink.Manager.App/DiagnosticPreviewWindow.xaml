@@ -1,0 +1,30 @@
+<Window x:Class="ShedLink.Manager.App.DiagnosticPreviewWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Предпросмотр диагностического отчёта"
+        Width="760" Height="620" MinWidth="620" MinHeight="420"
+        Background="{StaticResource WindowBackground}"
+        Foreground="{StaticResource TextPrimary}"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <TextBlock Text="Проверь содержимое перед сохранением. Ключи, cookies и путь профиля удаляются автоматически."
+                   TextWrapping="Wrap" Margin="0,0,0,14" />
+        <TextBox x:Name="ReportText" Grid.Row="1" IsReadOnly="True"
+                 FontFamily="Consolas" FontSize="13" TextWrapping="NoWrap"
+                 VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                 Background="#151A24" Foreground="{StaticResource TextPrimary}"
+                 BorderBrush="#343B4C" Padding="12" />
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right"
+                    Margin="0,14,0,0">
+            <Button Content="Отмена" IsCancel="True" Background="#343B4C"
+                    Margin="0,0,8,0" />
+            <Button Content="Сохранить отчёт" IsDefault="True"
+                    Click="SaveButton_Click" />
+        </StackPanel>
+    </Grid>
+</Window>

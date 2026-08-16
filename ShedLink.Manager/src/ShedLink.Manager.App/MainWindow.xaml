@@ -102,8 +102,18 @@
             </Border>
 
             <Border Grid.Row="4" Background="#151A24" CornerRadius="10" Padding="16">
-                <TextBlock x:Name="OverallStatusText" Text="Подготавливаем Manager…"
-                           Foreground="{StaticResource TextMuted}" TextWrapping="Wrap" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="OverallStatusText" Text="Подготавливаем Manager…"
+                               Foreground="{StaticResource TextMuted}" TextWrapping="Wrap"
+                               VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Content="Диагностический отчёт"
+                            Click="DiagnosticReportButton_Click" Background="#343B4C"
+                            Margin="14,0,0,0" />
+                </Grid>
             </Border>
         </Grid>
     </ScrollViewer>

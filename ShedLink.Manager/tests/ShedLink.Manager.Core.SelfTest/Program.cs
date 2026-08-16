@@ -7,6 +7,7 @@ using System.Text;
 using ShedLink.Manager.Core;
 using ShedLink.Manager.Core.Api;
 using ShedLink.Manager.Core.Detection;
+using ShedLink.Manager.Core.Diagnostics;
 using ShedLink.Manager.Core.Installation;
 using ShedLink.Manager.Core.Security;
 using ShedLink.Manager.Core.State;
@@ -19,6 +20,7 @@ try
     TestRimWorldDetection(root);
     await TestInstallationAsync(root);
     await TestHttpsDistributionAsync(root);
+    TestDiagnosticReport();
     TestWindowsVault();
     Console.WriteLine("ALL GREEN — Manager core keeps secrets out of local state and survives restart.");
     return 0;
@@ -113,6 +115,27 @@ static async Task TestCoordinatorAsync(string root)
     await restarted.LogoutAsync(resumed, revokeModuleCredential: true);
     Assert(vault.Values.Count == 0, "logout removes local credentials");
     Assert(handler.SawCredentialRevoke && handler.SawLogout, "server revoke and logout called");
+}
+
+static void TestDiagnosticReport()
+{
+    var report = DiagnosticReportBuilder.Build(new DiagnosticReportInput(
+        "1.0.0", "manager-v1", "https://manager.test/private?token=hidden",
+        "1.5", "0.1.1", "Healthy", Array.Empty<string>(), true, 3,
+        new[]
+        {
+            @"Config C:\Users\Edward\AppData token=refresh-secret",
+            "Authorization: Bearer slmod_v1.credential.secret",
+            "RimLink готов",
+        }));
+    Assert(!report.Contains("refresh-secret", StringComparison.Ordinal) &&
+        !report.Contains("slmod_v1", StringComparison.Ordinal) &&
+        !report.Contains("Edward", StringComparison.Ordinal) &&
+        !report.Contains("/private", StringComparison.Ordinal),
+        "diagnostic report redacts secrets and private paths");
+    Assert(report.Contains("RimLink готов", StringComparison.Ordinal) &&
+        report.Contains("manager.test", StringComparison.Ordinal),
+        "diagnostic report preserves useful health context");
 }
 
 static void TestWindowsVault()

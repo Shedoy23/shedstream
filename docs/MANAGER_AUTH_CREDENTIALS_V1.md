@@ -116,6 +116,21 @@ session и разрешённого manifest module. Secret возвращает
 `module_last_seen`: запрос Manager не создаёт и не продлевает heartbeat. WPF
 обновляет состояние раз в 15 секунд и отдельно показывает отсутствие сигнала,
 устаревший heartbeat или живой мод. Ответ помечен `Cache-Control: no-store`.
+Legacy RimLink heartbeat/offline синхронизированы с тем же M109 ledger, поэтому
+Manager и viewer gate читают один источник истины.
+
+### `POST /v1/manager/diagnostics/test-action`
+
+Требует Manager access token и свежий настоящий heartbeat. Для RimWorld кладёт
+бесплатную `diagnostic_ping` в ту же persistent command queue, которую читает
+мод. Команда выполняется на игровом main thread и не меняет колонию; её единственный
+эффект — реальный ACK. Результат хранится в M112 ledger и истекает через 120 секунд.
+
+### `GET /v1/manager/diagnostics/test-action/{id}`
+
+Возвращает только результат текущего channel/module scope: `queued`, `delivered`,
+`acked`, `failed` или `expired`. Успешный `acked` вместе с auth-check, целыми
+файлами и свежим heartbeat даёт Manager право показать `Technical Ready`.
 
 ### `POST /v1/manager/session/refresh`
 

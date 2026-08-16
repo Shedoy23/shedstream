@@ -564,12 +564,16 @@ async def rimworld_status(request: Request):
 async def rimworld_heartbeat(mod_channel_id=Depends(rimworld_mod_auth)):
     channel_id = resolve_channel_id_or_default(mod_channel_id)
     rimworld_last_heartbeat[channel_id] = datetime.utcnow()
+    import module_liveness
+    await module_liveness.touch(get_db(), channel_id, "rimworld")
     return {"status": "ok"}
 
 @router.post("/api/rimworld/offline")
 async def rimworld_offline(mod_channel_id=Depends(rimworld_mod_auth)):
     channel_id = resolve_channel_id_or_default(mod_channel_id)
     rimworld_last_heartbeat.pop(channel_id, None)
+    import module_liveness
+    await module_liveness.clear(get_db(), channel_id, "rimworld")
     return {"status": "ok"}
 
 
@@ -1248,6 +1252,11 @@ async def _get_commands_inner(channel_id: int):
                     "SET status='delivered', delivered_at=? "
                     f"WHERE channel_id=? AND cmd_id IN ({placeholders})",
                     [time.time(), channel_id] + cmd_ids)
+                await conn.execute(
+                    "UPDATE manager_diagnostic_actions SET status='delivered' "
+                    f"WHERE channel_id=? AND command_id IN ({placeholders}) "
+                    "AND status='queued'",
+                    [channel_id] + cmd_ids)
             await conn.commit()
             return cmds
         except Exception:
@@ -1291,11 +1300,30 @@ async def ack_command(request: Request,
                 # Уже обработан (идемпотентный повтор) или древний id — no-op.
                 await conn.execute("ROLLBACK")
                 return {"status": "ok", "acked": False, "refunded": False}
+            try:
+                command = json.loads(row[0])
+            except Exception:
+                command = {}
             refunded = False
             if not success:
                 refunded = await _refund_cmd_row_tx(
                     conn, channel_id, cmd_id, row[0],
                     message or "mod_refused")
+            diagnostic_id = str(command.get("diagnostic_id") or "")
+            if diagnostic_id:
+                await conn.execute(
+                    "UPDATE manager_diagnostic_actions "
+                    "SET status=?,completed_at=?,error=? "
+                    "WHERE diagnostic_id=? AND channel_id=? AND command_id=?",
+                    (
+                        "acked" if success else "failed",
+                        time.time(),
+                        None if success else (message or "mod_refused")[:512],
+                        diagnostic_id,
+                        channel_id,
+                        cmd_id,
+                    ),
+                )
             await conn.execute(
                 "DELETE FROM rimworld_pending_commands "
                 "WHERE channel_id=? AND cmd_id=?",

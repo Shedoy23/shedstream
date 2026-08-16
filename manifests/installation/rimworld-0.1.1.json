@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "integration_id": "rimworld",
-  "release_version": "0.1.0",
+  "release_version": "0.1.1",
   "runtime": {
-    "manifest_version": "0.1.0",
+    "manifest_version": "0.1.1",
     "core_api_version": ">=1.0.0,<2.0.0"
   },
   "game": {
@@ -37,10 +37,10 @@
       "id": "rimlink_mod",
       "source": {
         "kind": "repository",
-        "path": "dist/releases/RimLink-2026-08-04-hardening.zip"
+        "path": "dist/releases/RimLink-2026-08-16-manager-diagnostics.zip"
       },
-      "size_bytes": 62827,
-      "sha256": "596dc394eae42e26dac140c9a98aaf0491b46f1abb8f2f5f611222dc6e3ef8c3",
+      "size_bytes": 63673,
+      "sha256": "4e9656cb84b574691482938967928b0c50ad3cafd3cb7e41e79a12cb7ed42381",
       "format": "zip",
       "archive_root": "RimLink"
     }

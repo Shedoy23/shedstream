@@ -70,6 +70,10 @@
   установленную и доступную версии и меняет CTA на install/update/repair/reinstall.
 - Authenticated runtime status читает реальный heartbeat без изменения liveness;
   WPF показывает online/offline и возраст последнего сигнала каждые 15 секунд.
+  Legacy RimLink heartbeat/offline подключены к общему M109 ledger.
+- M112 хранит результат безопасного diagnostic action. RimLink `0.1.1` выполняет
+  `diagnostic_ping` без изменения игры и возвращает реальный ACK; только тогда
+  WPF показывает итоговый `Technical Ready`.
 - HTTPS distribution verifier готов локально: no redirects/downgrade, bounded
   download, SHA-256 и trusted RSA-PSS publisher signature до распаковки.
   Offline signer готов и требует внешний RSA 3072+ PEM. Production signing key
@@ -99,9 +103,9 @@ vertical slice, но R0 release gate ещё не пройден.
 3. Создать offline production signing key, встроить public key и опубликовать
    RimLink archive по конечному HTTPS URL; после этого уже подключённый WPF CTA
    станет доступен без изменения policy.
-4. Добавить безопасный test-action и итоговый `Technical Ready` verdict.
-5. Включить M109 repair, Manager API и обновлённые runtime manifests в следующий штатный
-   production deploy.
+4. Проверить `Technical Ready` на реальной RimWorld после signed release/deploy.
+5. Включить M109 repair, M110–M112 Manager migrations/API и обновлённые runtime
+   manifests в следующий штатный production deploy.
 
 ## Правило обновления
 

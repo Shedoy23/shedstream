@@ -23,9 +23,12 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _pairingCancellation;
     private CancellationTokenSource? _installationCancellation;
     private CancellationTokenSource? _diagnosticsCancellation;
+    private CancellationTokenSource? _testCancellation;
     private ReadySession? _session;
     private GameInstallation? _game;
     private bool _installing;
+    private bool _testingReady;
+    private ModuleRuntimeStatus? _runtimeStatus;
 
     public MainWindow()
     {
@@ -50,6 +53,8 @@ public partial class MainWindow : Window
             _installationCancellation?.Dispose();
             _diagnosticsCancellation?.Cancel();
             _diagnosticsCancellation?.Dispose();
+            _testCancellation?.Cancel();
+            _testCancellation?.Dispose();
             _http.Dispose();
         };
     }
@@ -367,23 +372,31 @@ public partial class MainWindow : Window
                 {
                     var runtime = await _api.GetModuleStatusAsync(
                         token, state.ModuleId, cancellationToken);
+                    _runtimeStatus = runtime;
                     RuntimeStatusText.Text = RuntimeMessage(runtime);
+                    UpdateTechnicalReadyAvailability();
                 }
             }
             catch (ManagerApiException exception) when (
                 exception.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
+                _runtimeStatus = null;
                 RuntimeStatusText.Text =
                     "Диагностика heartbeat станет доступна после обновления backend.";
+                UpdateTechnicalReadyAvailability();
             }
             catch (ManagerApiException exception)
             {
+                _runtimeStatus = null;
                 RuntimeStatusText.Text =
                     $"Диагностика отклонена сервером: {exception.ErrorCode}.";
+                UpdateTechnicalReadyAvailability();
             }
             catch (HttpRequestException)
             {
+                _runtimeStatus = null;
                 RuntimeStatusText.Text = "Backend сейчас недоступен.";
+                UpdateTechnicalReadyAvailability();
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -418,8 +431,85 @@ public partial class MainWindow : Window
         return "Настоящий heartbeat мода ещё не получен. Запусти RimWorld.";
     }
 
+    private async void TestReadyButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_session is null || _runtimeStatus?.Online != true)
+        {
+            UpdateTechnicalReadyAvailability();
+            return;
+        }
+        _testCancellation?.Cancel();
+        _testCancellation?.Dispose();
+        _testCancellation = new CancellationTokenSource(TimeSpan.FromMinutes(3));
+        _testingReady = true;
+        UpdateTechnicalReadyAvailability();
+        OverallStatusText.Text = "Отправляем безопасную проверку через игровую очередь…";
+        try
+        {
+            var started = await _api.StartDiagnosticAsync(
+                _session.AccessToken, _testCancellation.Token);
+            var deadline = DateTime.UtcNow.AddSeconds(Math.Max(1, started.ExpiresIn));
+            while (DateTime.UtcNow < deadline)
+            {
+                var result = await _api.GetDiagnosticResultAsync(
+                    _session.AccessToken,
+                    started.DiagnosticId,
+                    _testCancellation.Token);
+                if (result.Status == "acked")
+                {
+                    OverallStatusText.Text =
+                        "Technical Ready ✓ Backend, очередь, RimLink и ACK работают.";
+                    return;
+                }
+                if (result.Status is "failed" or "expired")
+                {
+                    OverallStatusText.Text = result.Status == "expired"
+                        ? "Проверка истекла: RimLink не подтвердил команду вовремя."
+                        : $"RimLink отклонил проверку: {result.Error ?? "unknown"}.";
+                    return;
+                }
+                await Task.Delay(TimeSpan.FromSeconds(2), _testCancellation.Token);
+            }
+            OverallStatusText.Text = "Проверка истекла без подтверждения RimLink.";
+        }
+        catch (ManagerApiException exception)
+        {
+            OverallStatusText.Text = FriendlyError(exception);
+        }
+        catch (OperationCanceledException)
+        {
+            OverallStatusText.Text = "Проверка готовности остановлена.";
+        }
+        finally
+        {
+            _testingReady = false;
+            _testCancellation?.Dispose();
+            _testCancellation = null;
+            UpdateTechnicalReadyAvailability();
+        }
+    }
+
+    private void UpdateTechnicalReadyAvailability()
+    {
+        var inspection = InspectIntegration();
+        var filesReady = inspection is not null &&
+            inspection.Condition is not InstallationCondition.NotInstalled
+                and not InstallationCondition.UnsafeTarget &&
+            inspection.FailedProbeIds.Count == 0;
+        TestReadyButton.IsEnabled = !_installing && !_testingReady && _session is not null &&
+            _runtimeStatus?.Online == true && filesReady;
+        TestReadyButton.ToolTip = _testingReady
+            ? "Проверка уже выполняется."
+            : _runtimeStatus?.Online != true
+                ? "Сначала запусти RimWorld и дождись heartbeat."
+                : !filesReady
+                    ? "Сначала установи или восстанови RimLink."
+                    : "Проверить реальную очередь и ACK без изменения игры.";
+    }
+
     private void UpdateInstallAvailability(bool updateReleaseMessage = true)
     {
+        UpdateTechnicalReadyAvailability();
         if (_installing)
         {
             InstallButton.IsEnabled = false;

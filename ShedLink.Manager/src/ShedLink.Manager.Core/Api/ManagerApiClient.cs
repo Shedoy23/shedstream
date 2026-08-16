@@ -92,6 +92,27 @@ public sealed class ManagerApiClient
             moduleToken,
             cancellationToken);
 
+    public Task<DiagnosticStarted> StartDiagnosticAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default) =>
+        SendAsync<DiagnosticStarted>(
+            HttpMethod.Post,
+            "/v1/manager/diagnostics/test-action",
+            null,
+            accessToken,
+            cancellationToken);
+
+    public Task<DiagnosticResult> GetDiagnosticResultAsync(
+        string accessToken,
+        string diagnosticId,
+        CancellationToken cancellationToken = default) =>
+        SendAsync<DiagnosticResult>(
+            HttpMethod.Get,
+            $"/v1/manager/diagnostics/test-action/{Uri.EscapeDataString(diagnosticId)}",
+            null,
+            accessToken,
+            cancellationToken);
+
     public Task LogoutAsync(
         string accessToken,
         CancellationToken cancellationToken = default) =>

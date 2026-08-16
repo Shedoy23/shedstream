@@ -59,6 +59,12 @@ static async Task TestCoordinatorAsync(string root)
         "slmod_v1.credential-one.secret", "rimworld");
     Assert(runtimeStatus is { Online: false, LastSeenAt: null, AgeSeconds: null },
         "module status reports real missing heartbeat");
+    var diagnostic = await api.StartDiagnosticAsync(ready!.AccessToken);
+    var diagnosticResult = await api.GetDiagnosticResultAsync(
+        ready.AccessToken, diagnostic.DiagnosticId);
+    Assert(diagnostic is { Status: "queued", ExpiresIn: 120 } &&
+        diagnosticResult is { Status: "acked", Error: null },
+        "safe diagnostic follows real queue and ACK contract");
 
     var stateJson = File.ReadAllText(statePath);
     Assert(!stateJson.Contains("refresh-one", StringComparison.Ordinal),
@@ -136,7 +142,7 @@ static async Task TestInstallationAsync(string root)
         Environment.CurrentDirectory,
         "manifests",
         "installation",
-        "rimworld-0.1.0.json"));
+        "rimworld-0.1.1.json"));
     Assert(productionManifest.IntegrationId == "rimworld" &&
         productionManifest.Installation.Target.RelativePath == "Mods/RimLink",
         "production installation manifest parsed");
@@ -683,6 +689,16 @@ sealed class FakeManagerHandler : HttpMessageHandler
         {
             return Json(HttpStatusCode.OK,
                 """{"status":"ok","module_id":"rimworld","online":false,"last_seen_at":null,"age_seconds":null,"online_window_seconds":60}""");
+        }
+        if (path == "/v1/manager/diagnostics/test-action")
+        {
+            return Json(HttpStatusCode.Created,
+                """{"status":"queued","diagnostic_id":"diag-test-one","expires_in":120}""");
+        }
+        if (path == "/v1/manager/diagnostics/test-action/diag-test-one")
+        {
+            return Json(HttpStatusCode.OK,
+                """{"status":"acked","diagnostic_id":"diag-test-one","created_at":1,"completed_at":2,"error":null}""");
         }
         if (request.Method == HttpMethod.Delete && path.Contains("module-credentials"))
         {

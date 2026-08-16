@@ -96,6 +96,24 @@ async def is_on_air(db, channel_id: int, module_id: str) -> bool:
     return bool(ts) and (time.time() - ts) < ONLINE_WINDOW_SEC
 
 
+async def clear(db, channel_id: int, module_id: str) -> None:
+    """Mark an explicit connector shutdown without waiting for the TTL."""
+    key = (int(channel_id), module_id)
+    _cache.pop(key, None)
+    _last_write.pop(key, None)
+    try:
+        async with db._connect() as conn:
+            await conn.execute(
+                "DELETE FROM module_last_seen WHERE channel_id=? AND module_id=?",
+                (int(channel_id), module_id),
+            )
+            await conn.commit()
+    except Exception:
+        # Keep an in-memory stale tombstone so an explicit shutdown cannot look
+        # online merely because the delete hit a transient DB failure.
+        _cache[key] = time.time() - ONLINE_WINDOW_SEC - 1
+
+
 async def live_module(db, channel_id: int):
     """Какая игра на связи прямо сейчас. None — ни одна.
 

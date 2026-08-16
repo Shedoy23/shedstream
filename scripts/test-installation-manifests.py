@@ -39,7 +39,7 @@ def expect_failure(label: str, function, exception=Exception) -> None:
 
 def main() -> int:
     schema = json.loads(validator.SCHEMA_PATH.read_text(encoding="utf-8"))
-    manifest_path = validator.MANIFEST_DIR / "rimworld-0.1.0.json"
+    manifest_path = validator.MANIFEST_DIR / "rimworld-0.1.1.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     schema_validator = jsonschema.Draft202012Validator(schema)
 

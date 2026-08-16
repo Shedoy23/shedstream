@@ -42,6 +42,18 @@ public sealed record ModuleRuntimeStatus(
     [property: JsonPropertyName("age_seconds")] int? AgeSeconds,
     [property: JsonPropertyName("online_window_seconds")] int OnlineWindowSeconds);
 
+public sealed record DiagnosticStarted(
+    [property: JsonPropertyName("status")] string Status,
+    [property: JsonPropertyName("diagnostic_id")] string DiagnosticId,
+    [property: JsonPropertyName("expires_in")] int ExpiresIn);
+
+public sealed record DiagnosticResult(
+    [property: JsonPropertyName("status")] string Status,
+    [property: JsonPropertyName("diagnostic_id")] string DiagnosticId,
+    [property: JsonPropertyName("created_at")] double CreatedAt,
+    [property: JsonPropertyName("completed_at")] double? CompletedAt,
+    [property: JsonPropertyName("error")] string? Error);
+
 internal sealed record PairingCreateRequest(
     string InstallationId,
     string ModuleId,

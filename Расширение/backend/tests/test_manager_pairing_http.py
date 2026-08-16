@@ -87,7 +87,11 @@ async def main() -> int:
     import dependencies
     import manager_auth
     from database import Database
-    from migrations import m110_manager_credentials, m111_manager_session_scope
+    from migrations import (
+        m110_manager_credentials,
+        m111_manager_session_scope,
+        m112_manager_diagnostics,
+    )
     from modules._loader import discover_modules
     from routes import manager as routes
     from routes import module_api
@@ -105,6 +109,7 @@ async def main() -> int:
         async with db._connect() as conn:
             await m110_manager_credentials.apply(conn)
             await m111_manager_session_scope.apply(conn)
+            await m112_manager_diagnostics.apply(conn)
             columns = await (await conn.execute("PRAGMA table_info(channels)")).fetchall()
             if "approved" not in {row[1] for row in columns}:
                 await conn.execute(
@@ -221,8 +226,8 @@ async def main() -> int:
         assert runtime_status.status_code == 200
         assert payload(runtime_status)["online"] is False
         assert payload(runtime_status)["last_seen_at"] is None
-        import module_liveness
-        await module_liveness.touch(db, CHANNEL_ID, "rimworld")
+        rimworld.get_db = lambda: db
+        await rimworld.rimworld_heartbeat(CHANNEL_ID)
         runtime_status = await module_api.module_runtime_status(
             "rimworld",
             request("GET", "/v1/module/rimworld/status", authorization=module_bearer),
@@ -230,6 +235,42 @@ async def main() -> int:
         assert payload(runtime_status)["online"] is True
         assert payload(runtime_status)["age_seconds"] == 0
         assert "no-store" in runtime_status.headers.get("cache-control", "")
+        diagnostic = await routes.manager_diagnostic_start(request(
+            "POST", "/v1/manager/diagnostics/test-action",
+            authorization=manager_bearer,
+        ))
+        assert diagnostic.status_code == 201, diagnostic.body
+        diagnostic_body = payload(diagnostic)
+        commands = await rimworld._get_commands_inner(CHANNEL_ID)
+        assert commands, diagnostic_body
+        diagnostic_command = next(
+            command for command in commands
+            if command.get("diagnostic_id") == diagnostic_body["diagnostic_id"]
+        )
+        delivered = await routes.manager_diagnostic_result(
+            diagnostic_body["diagnostic_id"],
+            request("GET", "/diagnostic", authorization=manager_bearer),
+        )
+        assert payload(delivered)["status"] == "delivered"
+        acked = await rimworld.ack_command(
+            json_request("/api/rimworld/ack-command", {
+                "command_id": diagnostic_command["id"],
+                "success": True,
+            }),
+            CHANNEL_ID,
+        )
+        assert acked["acked"] is True and acked["refunded"] is False
+        completed = await routes.manager_diagnostic_result(
+            diagnostic_body["diagnostic_id"],
+            request("GET", "/diagnostic", authorization=manager_bearer),
+        )
+        assert payload(completed)["status"] == "acked"
+        await rimworld.rimworld_offline(CHANNEL_ID)
+        offline_status = await module_api.module_runtime_status(
+            "rimworld",
+            request("GET", "/v1/module/rimworld/status", authorization=module_bearer),
+        )
+        assert payload(offline_status)["online"] is False
         assert await rimworld.rimworld_mod_auth(
             request("POST", "/api/rimworld/pawns", authorization=module_bearer)
         ) == CHANNEL_ID

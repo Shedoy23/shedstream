@@ -4,7 +4,8 @@
 `Расширение/backend/modules/*/manifest.yaml`.
 
 - `v1.schema.json` — строгая JSON Schema; неизвестные поля запрещены.
-- `rimworld-0.1.0.json` — первый manifest, привязанный к существующему release
+- `rimworld-0.1.1.json` — актуальный Manager manifest с безопасной diagnostic
+  command, привязанный к локальному release
   archive и его SHA-256.
 - `scripts/validate-installation-manifests.py` проверяет schema, локальные
   artefacts, размер/hash и безопасность путей внутри ZIP.

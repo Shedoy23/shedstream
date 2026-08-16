@@ -13,7 +13,7 @@ internal static class ReleaseConfiguration
         };
 
     public static string ManifestPath => Path.Combine(
-        AppContext.BaseDirectory, "Release", "rimworld-0.1.0.json");
+        AppContext.BaseDirectory, "Release", "rimworld-0.1.1.json");
 
     public static bool TryLoad(
         out InstallationManifest? manifest,

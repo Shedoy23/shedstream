@@ -91,6 +91,10 @@ namespace RimLink.Actions
         {
             switch (type)
             {
+                // Диагностика Manager: проходит реальную очередь/main thread/ACK,
+                // но намеренно не меняет состояние колонии.
+                case "diagnostic_ping": return new DiagnosticPingCommand();
+
                 // ── Пешки ──────────────────────────────────────────────
                 case "spawn_pawn":     return new SpawnPawnCommand(data);
                 case "heal_pawn":      return new HealPawnCommand(data);
@@ -128,6 +132,15 @@ namespace RimLink.Actions
                     Log.Warning($"[RimLink] Неизвестная команда: '{type}'");
                     return null;
             }
+        }
+    }
+
+    public sealed class DiagnosticPingCommand : ICommand
+    {
+        public bool Execute()
+        {
+            Log.Message("[RimLink] Manager diagnostic ping processed");
+            return true;
         }
     }
 

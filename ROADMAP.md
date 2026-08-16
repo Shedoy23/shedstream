@@ -344,7 +344,13 @@ refresh без неявного отзыва установленных module c
   честный CTA `Установить / Обновить / Восстановить / Переустановить`.
 - side-effect-free runtime status читает настоящий `module_last_seen`; WPF раз
   в 15 секунд показывает отсутствие, возраст или свежесть heartbeat, не
-  изображая Manager запущенной игрой.
+  изображая Manager запущенной игрой. Legacy RimLink heartbeat/offline теперь
+  обновляют тот же M109 ledger, а не отдельный process-local словарь.
+- M112 и `diagnostic_ping` проводят бесплатный no-op через настоящую RimWorld
+  command queue, игровой main thread и ACK. WPF показывает `Technical Ready`
+  только после свежего heartbeat, целых файлов и успешного сквозного ACK.
+- локальный RimLink/installation manifest поднят до `0.1.1`; deterministic ZIP
+  связан с манифестом точными size/SHA, но остаётся unsigned и не опубликован.
 
 ### Scope v1
 

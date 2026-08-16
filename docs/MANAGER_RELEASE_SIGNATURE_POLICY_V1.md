@@ -68,7 +68,7 @@ source/status/signature атомарно и сам перепроверяет р
 
 ```powershell
 dotnet run --project ShedLink.Manager/tools/ShedLink.Manager.SignArtifact -- `
-  --manifest manifests/installation/rimworld-0.1.0.json `
+  --manifest manifests/installation/rimworld-0.1.1.json `
   --artifact <path-to-release.zip> `
   --key <path-outside-repository/private.pem> `
   --key-id shedlink-release-2026 `

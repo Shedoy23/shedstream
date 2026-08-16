@@ -90,6 +90,7 @@ async def main():
     critical = ["viewers", "channels", "bannerlord_heroes", "module_actions",
                 "purchase_counters", "feature_usage", "module_last_seen",
                 "manager_pairings", "manager_sessions", "module_credentials",
+                "manager_diagnostic_actions",
                 "migrations_applied"]
     missing = [t for t in critical if t not in tables]
     check(not missing,
@@ -131,6 +132,11 @@ async def main():
             "WHERE name='M111.manager_session_scope'")
         check((await cur.fetchone())[0] == 1,
               "M111 зарегистрирована в migrations_applied ровно один раз")
+        cur = await conn.execute(
+            "SELECT COUNT(*) FROM migrations_applied "
+            "WHERE name='M112.manager_diagnostics'")
+        check((await cur.fetchone())[0] == 1,
+              "M112 зарегистрирована в migrations_applied ровно один раз")
 
     if getattr(db, "_pool", None):
         await db._pool.close()

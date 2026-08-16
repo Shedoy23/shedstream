@@ -9,6 +9,8 @@ from __future__ import annotations
 import html
 import json
 import logging
+import time
+import uuid
 from urllib.parse import parse_qs, quote
 
 from fastapi import APIRouter, Request
@@ -22,6 +24,7 @@ from routes.streamer import _read_session_cookie
 
 log = logging.getLogger("rimlink.manager")
 router = APIRouter()
+DIAGNOSTIC_TTL_SECONDS = 120
 
 
 def _client_key(request: Request, action: str) -> str:
@@ -165,6 +168,106 @@ async def manager_session_logout(request: Request):
         async with db._connect() as conn:
             await manager_auth.revoke_manager_session(conn, claims)
         return _secret_response({"status": "ok", "logged_out": True})
+    except (manager_auth.ManagerAuthError, manager_auth.ManagerAuthUnavailable) as exc:
+        return _auth_error(exc)
+
+
+@router.post("/v1/manager/diagnostics/test-action", include_in_schema=False)
+async def manager_diagnostic_start(request: Request):
+    if not check_rate_limit(_client_key(request, "diagnostic_start"), limit=10):
+        return JSONResponse({"status": "rate_limited"}, status_code=429)
+    try:
+        claims = await _manager_claims(request)
+        channel_id = int(claims["channel_id"])
+        module_id = str(claims.get("module_id") or "")
+        if module_id != "rimworld":
+            return JSONResponse({"status": "diagnostic_not_supported"}, status_code=409)
+        import module_liveness
+        db = get_db()
+        if not await module_liveness.is_on_air(db, channel_id, module_id):
+            return JSONResponse({"status": "module_offline"}, status_code=409)
+
+        diagnostic_id = "diag_" + uuid.uuid4().hex
+        command_id = "manager_" + uuid.uuid4().hex
+        now = time.time()
+        command = {
+            "id": command_id,
+            "type": "diagnostic_ping",
+            "channel_id": channel_id,
+            "diagnostic_id": diagnostic_id,
+            "price": 0,
+        }
+        import rimworld
+        async with db._connect() as conn:
+            await rimworld._ensure_pending_commands_table(conn)
+            await conn.execute("BEGIN IMMEDIATE")
+            await conn.execute(
+                "INSERT INTO manager_diagnostic_actions "
+                "(diagnostic_id,channel_id,module_id,command_id,status,created_at) "
+                "VALUES (?,?,?,?,?,?)",
+                (diagnostic_id, channel_id, module_id, command_id, "queued", now),
+            )
+            await conn.execute(
+                "INSERT INTO rimworld_pending_commands "
+                "(channel_id,cmd_id,cmd_json,status) VALUES (?,?,?,'queued')",
+                (channel_id, command_id, json.dumps(command, ensure_ascii=False)),
+            )
+            await conn.commit()
+        return _secret_response({
+            "status": "queued",
+            "diagnostic_id": diagnostic_id,
+            "expires_in": DIAGNOSTIC_TTL_SECONDS,
+        }, status_code=201)
+    except (manager_auth.ManagerAuthError, manager_auth.ManagerAuthUnavailable) as exc:
+        return _auth_error(exc)
+
+
+@router.get(
+    "/v1/manager/diagnostics/test-action/{diagnostic_id}",
+    include_in_schema=False,
+)
+async def manager_diagnostic_result(diagnostic_id: str, request: Request):
+    if not check_rate_limit(_client_key(request, "diagnostic_result"), limit=180):
+        return JSONResponse({"status": "rate_limited"}, status_code=429)
+    try:
+        claims = await _manager_claims(request)
+        channel_id = int(claims["channel_id"])
+        module_id = str(claims.get("module_id") or "")
+        db = get_db()
+        async with db._connect() as conn:
+            cur = await conn.execute(
+                "SELECT status,created_at,completed_at,error,command_id "
+                "FROM manager_diagnostic_actions "
+                "WHERE diagnostic_id=? AND channel_id=? AND module_id=?",
+                (diagnostic_id, channel_id, module_id),
+            )
+            row = await cur.fetchone()
+            if not row:
+                return JSONResponse({"status": "diagnostic_not_found"}, status_code=404)
+            result_status, created_at, completed_at, error, command_id = row
+            if result_status in ("queued", "delivered") and (
+                time.time() - float(created_at) >= DIAGNOSTIC_TTL_SECONDS
+            ):
+                result_status = "expired"
+                completed_at = time.time()
+                await conn.execute(
+                    "UPDATE manager_diagnostic_actions "
+                    "SET status='expired',completed_at=? WHERE diagnostic_id=?",
+                    (completed_at, diagnostic_id),
+                )
+                await conn.execute(
+                    "DELETE FROM rimworld_pending_commands "
+                    "WHERE channel_id=? AND cmd_id=?",
+                    (channel_id, command_id),
+                )
+                await conn.commit()
+        return _secret_response({
+            "status": result_status,
+            "diagnostic_id": diagnostic_id,
+            "created_at": created_at,
+            "completed_at": completed_at,
+            "error": error,
+        })
     except (manager_auth.ManagerAuthError, manager_auth.ManagerAuthUnavailable) as exc:
         return _auth_error(exc)
 

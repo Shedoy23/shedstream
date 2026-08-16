@@ -134,11 +134,21 @@
   production HTTPS archive; содержимое исходной папки RimLink не изменилось,
   временная копия и transaction artifacts очищены. Evidence:
   `docs/MANAGER_LIFECYCLE_REHEARSAL_2026-08-16.md`.
-- Собран передаваемый `ShedLink Manager 0.1.0-alpha.1`: self-contained single-file
+- Готов передаваемый `ShedLink Manager 0.1.0-alpha.2`: self-contained single-file
   Windows x64 EXE, production manifest, `START-HERE.txt` и `RELEASE.json` без
-  debug-файлов и secrets. ZIP распакован и успешно запущен вне repository;
-  SHA-256 `ee065338...a8433e`. Evidence:
-  `docs/MANAGER_ALPHA_0.1.0_ALPHA1_2026-08-16.md`.
+  debug-файлов и secrets. ZIP распакован и запущен вне repository; SHA-256
+  `09238fe1...65a6d18c`. Заменил alpha.1, у которого инструкция отправляла
+  тестировщика к файлу вне архива, не давала команды проверки, описывала
+  SmartScreen без двух обязательных кликов, а `RELEASE.json` записал commit,
+  не содержавший сборки. Упаковщик теперь отказывается работать с грязным
+  деревом и проверяет кодировку инструкции. Артефакты alpha.1 удалены, чтобы
+  их нельзя было отправить по ошибке. Evidence:
+  `docs/MANAGER_ALPHA_0.1.0_ALPHA2_2026-08-16.md`.
+- Повторные install и repair доказаны идемпотентными: двойная установка и
+  установка поверх повреждённой дают тот же состав файлов, ту же managed
+  config и не оставляют служебных копий в папке `Mods`. Тест сначала показан
+  красным на намеренно сломанной очистке. Manager Core self-test: 70 проверок,
+  код возврата `0`.
 - Активная игра определяется по heartbeat мода; действия выключенной integration
   отклоняются безопасно.
 - Релиз 0.0.2 зафиксирован тегом `submit/0.0.2`; канонический архив хранится в

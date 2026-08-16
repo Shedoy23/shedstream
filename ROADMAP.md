@@ -296,7 +296,7 @@ refresh без неявного отзыва установленных module c
 - [x] Reference core отклоняет target за пределами разрешённого game path.
 - [x] Пользовательские файлы не удаляются без явного подтверждения.
 - [x] Secrets не включаются в manifest и diagnostic bundle.
-- [ ] Повторный `install()` и `repair()` идемпотентны.
+- [x] Повторный `install()` и `repair()` идемпотентны.
 
 ### Definition of Done
 

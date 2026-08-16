@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [string]$Version = '0.1.0-alpha.1',
     [string]$Runtime = 'win-x64'
@@ -6,6 +6,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+
 
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $project = Join-Path $repositoryRoot 'ShedLink.Manager/src/ShedLink.Manager.App/ShedLink.Manager.App.csproj'
@@ -51,30 +52,61 @@ if ($unexpected) {
     throw "Published package contains debug/development files: $($unexpected.FullName -join ', ')"
 }
 
-$startHere = @'
+$startHere = @"
 ShedLink Manager — alpha
 
-1. Полностью распакуйте ZIP в отдельную папку.
-2. Закройте RimWorld перед установкой, обновлением или восстановлением RimLink.
-3. Запустите ShedLink.Manager.App.exe.
-4. Подключите Twitch. Если RimWorld не найдена автоматически — выберите её папку.
-5. Нажмите установку RimLink, затем запустите игру и дождитесь свежего heartbeat.
-6. Нажмите «Проверить готовность». Итог должен стать Technical Ready.
+КАК ЗАПУСТИТЬ
 
-Если Windows предупредит о неизвестном издателе: проверьте SHA-256 архива по
-файлу .sha256 рядом с ZIP. Alpha EXE пока не подписан платным Windows-сертификатом.
+1. Распакуйте архив целиком в отдельную папку. Не запускайте программу прямо
+   из окна архива: рядом с ней должна лежать папка Release.
+2. Запустите ShedLink.Manager.App.exe.
+3. Windows покажет синее окно «Система Windows защитила ваш компьютер».
+   Так и должно быть: программа пока не подписана платным сертификатом.
+   Нажмите «Подробнее», затем «Выполнить в любом случае».
+4. Подключите Twitch. Если RimWorld не нашлась сама — укажите её папку вручную.
+5. Закройте RimWorld и нажмите установку RimLink.
+6. Запустите игру, дождитесь связи с модом и нажмите «Проверить готовность».
+   Итог должен стать Technical Ready.
 
-Если что-то не получилось, сохраните «Диагностический отчёт» и передайте JSON
-разработчику. Manager автоматически удаляет из отчёта ключи и приватные пути.
-'@
-[IO.File]::WriteAllText(
-    (Join-Path $packageDirectory 'START-HERE.txt'),
-    $startHere,
-    [Text.UTF8Encoding]::new($true))
+RimWorld должна быть закрыта при установке, обновлении и восстановлении мода.
+
+ПРОВЕРКА АРХИВА — необязательно
+
+Контрольную сумму разработчик присылает отдельным сообщением. Сравните её с
+результатом команды в PowerShell, подставив свой путь к архиву:
+
+    Get-FileHash "C:\путь\$packageName.zip" -Algorithm SHA256
+
+ЕСЛИ ЧТО-ТО НЕ РАБОТАЕТ
+
+Нажмите «Диагностический отчёт» и пришлите разработчику полученный JSON.
+Ключи и личные пути программа вырезает из отчёта сама. Обязательно напишите,
+на каком шаге вы остановились и что увидели на экране, — это важнее файла.
+"@
+$startHerePath = Join-Path $packageDirectory 'START-HERE.txt'
+[IO.File]::WriteAllText($startHerePath, $startHere, [Text.UTF8Encoding]::new($true))
+
+# A shell that reads this script as ANSI silently mangles the Russian text above.
+# This canary is built from code points, so it survives any misreading of the
+# file and stops matching as soon as the instructions themselves are mangled.
+$canary = -join ([int[]](
+    0x041F, 0x043E, 0x0434, 0x0440, 0x043E, 0x0431, 0x043D, 0x0435, 0x0435) |
+    ForEach-Object { [char]$_ })
+if (-not [IO.File]::ReadAllText($startHerePath).Contains($canary)) {
+    throw "START-HERE.txt is corrupted by the shell encoding: $startHerePath"
+}
 
 $commit = (git -C $repositoryRoot rev-parse --short=12 HEAD).Trim()
 if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($commit)) {
     throw 'Cannot determine source commit.'
+}
+# Without this the metadata names a commit that does not contain what was built.
+$dirty = git -C $repositoryRoot status --porcelain
+if ($LASTEXITCODE -ne 0) {
+    throw 'Cannot determine repository state.'
+}
+if ($dirty) {
+    throw "Commit or stash changes before packaging; $commit would not describe this build."
 }
 $metadata = [ordered]@{
     product = 'ShedLink Manager'

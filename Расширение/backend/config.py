@@ -182,6 +182,14 @@ DEV_LOGIN_WHITELIST = {
 # WARN: НЕ оставлять True в проде надолго — viewer'ы смогут тратить очки на дуэли
 # / события когда канал офлайн. Включать только на test-канале или коротко.
 TESTING_BYPASS_STREAM_LIVE = os.getenv('TESTING_BYPASS_STREAM_LIVE', 'false').lower() == 'true'
+
+# RimWorld может использоваться для закрытого технического прогона при
+# запущенной игре, но без активного Twitch-эфира. Это отдельный production flag:
+# общий TESTING_BYPASS_STREAM_LIVE затрагивает дуэли, TTS и остальные модули.
+# Default остаётся безопасным — viewer actions разрешены только во время стрима.
+RIMWORLD_REQUIRE_STREAM_LIVE = (
+    os.getenv('RIMWORLD_REQUIRE_STREAM_LIVE', 'true').lower() == 'true'
+)
 if DEV_MODE:
     print(f"⚠️  DEV_MODE включён — JWT верификация отключена, пользователь: '{DEV_USERNAME}'")
 

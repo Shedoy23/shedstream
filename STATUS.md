@@ -116,6 +116,10 @@
   подключён, RimWorld `1.6.4871 rev590` найдена, signed RimLink `0.1.1`
   установлен и настроен, файлы здоровы, heartbeat свежий, production diagnostic
   action получил ACK. Ручной JSON, token или API URL не потребовались.
+- По решению владельца production RimWorld разрешает viewer actions без активного
+  Twitch-эфира (`RIMWORLD_REQUIRE_STREAM_LIVE=false`). Общий testing bypass
+  остаётся выключен, поэтому Bannerlord, дуэли, TTS и остальные stream gates не
+  ослаблены. Отдельный regression и внешний API probe пройдены.
 - Активная игра определяется по heartbeat мода; действия выключенной integration
   отклоняются безопасно.
 - Релиз 0.0.2 зафиксирован тегом `submit/0.0.2`; канонический архив хранится в

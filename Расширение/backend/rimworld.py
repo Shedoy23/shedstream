@@ -203,10 +203,12 @@ async def _require_stream_live(request=None, channel_id=None):
     Возвращает dict с ошибкой если стрим недоступен или проверка упала,
     None — если стрим живой.
 
-    Testing bypass (2026-05-14): TESTING_BYPASS_STREAM_LIVE=true в .env
-    отключает проверку — для функционального теста без стрима."""
-    from config import TESTING_BYPASS_STREAM_LIVE
-    if TESTING_BYPASS_STREAM_LIVE:
+    RimWorld-only production switch: RIMWORLD_REQUIRE_STREAM_LIVE=false
+    разрешает технический прогон с запущенной игрой без Twitch-эфира, не снимая
+    stream gate с остальных модулей. Общий TESTING_BYPASS_STREAM_LIVE остаётся
+    только тестовым аварийным bypass."""
+    from config import RIMWORLD_REQUIRE_STREAM_LIVE, TESTING_BYPASS_STREAM_LIVE
+    if TESTING_BYPASS_STREAM_LIVE or not RIMWORLD_REQUIRE_STREAM_LIVE:
         return None
     if channel_id is None and request is not None:
         channel_id = require_jwt_channel(request)

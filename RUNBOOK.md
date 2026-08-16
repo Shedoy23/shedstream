@@ -215,6 +215,12 @@ read-only скриптом `ops/production/postdeploy_db_audit.py`. Архив �
 - перед `-Mod` **закрыть игру** — иначе DLL занят;
 - прод-деплой во время стрима — только хотфикс падающего.
 
+RimWorld можно отдельно открыть для технических viewer-action прогонов без
+активного Twitch-эфира через `RIMWORLD_REQUIRE_STREAM_LIVE=false` в production
+`.env`. Не использовать для этого `TESTING_BYPASS_STREAM_LIVE=true`: общий флаг
+снимает gate также с дуэлей, TTS и других модулей. Возврат безопасного поведения:
+поставить RimWorld-флаг в `true` и перезапустить `twitchbot`.
+
 **Безвредный транзиент:** `tar: timestamp … in the future` — локальные часы впереди
 серверных, файлы уже распакованы. Проверить curl'ом и жить дальше.
 

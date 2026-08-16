@@ -164,7 +164,11 @@ public sealed class CredentialRotationService
         _vault.Write(
             CredentialKeys.ModuleToken(state.InstallationId, journal.ModuleId),
             pendingToken);
-        _stateStore.Save(state with { CredentialId = journal.NewCredentialId });
+        var integration = state.Integration(journal.ModuleId) with
+        {
+            CredentialId = journal.NewCredentialId,
+        };
+        _stateStore.Save(state.WithIntegration(journal.ModuleId, integration));
         _vault.Delete(CredentialKeys.PendingModuleToken(
             state.InstallationId, journal.ModuleId));
         File.Delete(_journalPath);

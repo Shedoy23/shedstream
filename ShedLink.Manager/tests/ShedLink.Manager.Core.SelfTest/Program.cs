@@ -49,7 +49,7 @@ static async Task TestCoordinatorAsync(string root)
     var store = new ManagerStateStore(statePath);
     var coordinator = new ManagerCoordinator(api, vault, store);
 
-    var launch = await coordinator.BeginPairingAsync();
+    var launch = await coordinator.BeginPairingAsync("rimworld");
     Assert(launch.UserCode == "ABCD-EFGH", "pairing user code");
     Assert(launch.VerificationUri.Scheme == "https", "pairing HTTPS URL");
     Assert(!handler.LastCreateBody.Contains("device-secret", StringComparison.Ordinal),
@@ -129,8 +129,27 @@ static async Task TestCoordinatorAsync(string root)
     Assert(stateJson.Contains("credential-two", StringComparison.Ordinal),
         "non-secret credential id persisted");
 
+    var multiGame = store.LoadOrCreate();
+    var rimworldState = multiGame.Integration("rimworld");
+    multiGame = multiGame.WithIntegration("bannerlord", new IntegrationState
+    {
+        CredentialId = "bannerlord-credential",
+        GameRoot = @"D:\Games\Bannerlord",
+        InstalledReleaseVersion = "0.1.0",
+    });
+    store.Save(multiGame);
+    var reloadedMultiGame = store.LoadOrCreate();
+    Assert(reloadedMultiGame.Integration("rimworld").CredentialId == "credential-two" &&
+        reloadedMultiGame.Integration("bannerlord").GameRoot == @"D:\Games\Bannerlord",
+        "each integration keeps its own game path, release and credential");
+    Assert(CredentialKeys.ManagerRefresh(
+            reloadedMultiGame.InstallationId, "rimworld") !=
+        CredentialKeys.ManagerRefresh(reloadedMultiGame.InstallationId, "bannerlord"),
+        "each integration keeps its own protected Manager session");
+    store.Save(reloadedMultiGame.WithIntegration("rimworld", rimworldState));
+
     var restarted = new ManagerCoordinator(api, vault, new ManagerStateStore(statePath));
-    var resumed = await restarted.ResumeAsync();
+    var resumed = await restarted.ResumeAsync("rimworld");
     Assert(resumed.AccessToken == "access-two", "session refreshed after restart");
     Assert(vault.Values.Values.Contains("refresh-two"), "rotated refresh stored");
     Assert(!vault.Values.Values.Contains("refresh-one"), "old refresh replaced");
@@ -145,7 +164,9 @@ static void TestDiagnosticReport(string root)
     var gameRoot = Path.Combine(root, "diagnostic-game");
     Directory.CreateDirectory(gameRoot);
     File.WriteAllText(Path.Combine(gameRoot, "Version.txt"), "1.6.4871 rev590\n");
-    var gameVersion = GameVersionDetector.DetectRimWorld(gameRoot);
+    var manifest = InstallationManifestLoader.Load(Path.Combine(
+        Environment.CurrentDirectory, "manifests", "installation", "rimworld-0.1.1.json"));
+    var gameVersion = new GameDetectionService(manifest.Game!).DetectVersion(gameRoot);
     Assert(gameVersion is { FullVersion: "1.6.4871 rev590", CompatibilityVersion: "1.6" } &&
         GameVersionDetector.Compatibility(gameVersion, new[] { "1.5", "1.6" }) == "supported",
         "diagnostic reads real RimWorld version and compatibility");
@@ -210,7 +231,9 @@ static void TestRimWorldDetection(string root)
         Path.Combine(steam, "steamapps", "libraryfolders.vdf"),
         $"\"libraryfolders\" {{ \"1\" {{ \"path\" \"{escapedLibrary}\" }} }}");
 
-    var detector = new RimWorldDetectionService();
+    var manifest = InstallationManifestLoader.Load(Path.Combine(
+        Environment.CurrentDirectory, "manifests", "installation", "rimworld-0.1.1.json"));
+    var detector = new GameDetectionService(manifest.Game!);
     var detected = detector.Detect(new[] { steam });
     Assert(detected?.RootPath == Path.GetFullPath(game), "Steam library detection");
     Assert(detected?.Source == DetectionSource.Steam, "Steam detection source");
@@ -1037,6 +1060,23 @@ static void TestManifestDrivenDetection(string root)
         GameVersionDetector.Compatibility(version, bannerlordLike.SupportedVersions) == "supported",
         "manifest describes where the game version is written");
 
+    var xmlVersionGame = bannerlordLike with
+    {
+        Version = new GameVersionSource
+        {
+            Kind = "text_file",
+            Path = "bin/version.xml",
+            CompatibilityPattern = "Value=\"v(\\d+\\.\\d+)\\.\\d+\"",
+        },
+    };
+    File.WriteAllText(
+        Path.Combine(installed, "bin", "version.xml"),
+        "<?xml version='1.0' encoding='utf-8'?>\n<Version Value=\"v1.3.15\" />\n");
+    var xmlVersion = new GameDetectionService(xmlVersionGame).DetectVersion(installed);
+    Assert(xmlVersion is
+        { FullVersion: "<Version Value=\"v1.3.15\" />", CompatibilityVersion: "1.3" },
+        "version detection searches the whole file and uses the first capture group");
+
     File.Delete(Path.Combine(installed, "TestGame.exe"));
     Assert(!service.IsValidGameRoot(installed) && service.Detect(new[] { library }) is null,
         "missing required file rejects the folder for that game");
@@ -1058,6 +1098,30 @@ static void TestManifestDrivenDetection(string root)
         rimworldVersion?.CompatibilityVersion == "1.6" &&
         rimworldVersion.FullVersion == "1.6.4871 rev590",
         "shipped RimWorld manifest detects the game without hardcoded knowledge");
+
+    var bannerlordManifest = InstallationManifestLoader.Load(Path.Combine(
+        Environment.CurrentDirectory, "manifests", "installation", "bannerlord-0.1.0.json"));
+    var bannerlord = new GameDetectionService(bannerlordManifest.Game!);
+    var bannerlordRoot = Path.Combine(root, "manifest-bannerlord");
+    Directory.CreateDirectory(Path.Combine(
+        bannerlordRoot, "bin", "Win64_Shipping_Client"));
+    Directory.CreateDirectory(Path.Combine(bannerlordRoot, "Modules", "Native"));
+    File.WriteAllText(
+        Path.Combine(bannerlordRoot, "bin", "Win64_Shipping_Client", "Version.xml"),
+        "<Version>\n  <Singleplayer Value=\"v1.3.15\" />\n</Version>\n");
+    File.WriteAllText(
+        Path.Combine(bannerlordRoot, "Modules", "Native", "SubModule.xml"), "game");
+    var bannerlordVersion = bannerlord.DetectVersion(bannerlordRoot);
+    Assert(bannerlord.IsValidGameRoot(bannerlordRoot) &&
+        bannerlordVersion?.CompatibilityVersion == "1.3",
+        "shipped Bannerlord manifest detects the game without hardcoded knowledge");
+
+    var catalog = InstallationReleaseCatalog.LoadDirectory(Path.Combine(
+        Environment.CurrentDirectory, "manifests", "installation"));
+    var integrations = catalog.LatestIntegrations();
+    Assert(integrations.Any(item => item.Manifest.IntegrationId == "rimworld") &&
+        integrations.Any(item => item.Manifest.IntegrationId == "bannerlord"),
+        "release catalog discovers integrations without a hardcoded game list");
 }
 
 static async Task TestManagerUpdateAsync(string root)

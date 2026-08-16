@@ -4,13 +4,6 @@ public sealed record DetectedGameVersion(string FullVersion, string Compatibilit
 
 public static class GameVersionDetector
 {
-    /// <summary>
-    /// Temporary shim over the manifest-driven detector; see
-    /// <see cref="RimWorldDetectionService"/>.
-    /// </summary>
-    public static DetectedGameVersion? DetectRimWorld(string gameRoot) =>
-        new GameDetectionService(RimWorldDetectionService.Descriptor).DetectVersion(gameRoot);
-
     public static string Compatibility(
         DetectedGameVersion? version,
         IReadOnlyList<string>? supportedVersions)

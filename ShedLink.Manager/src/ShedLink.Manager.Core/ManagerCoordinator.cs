@@ -34,7 +34,7 @@ public sealed class ManagerCoordinator
     }
 
     public async Task<PairingLaunch> BeginPairingAsync(
-        string moduleId = "rimworld",
+        string moduleId,
         CancellationToken cancellationToken = default)
     {
         var state = _stateStore.LoadOrCreate();
@@ -87,43 +87,58 @@ public sealed class ManagerCoordinator
             ModuleId = session.ModuleId,
             ChannelId = session.ChannelId,
         };
-        _vault.Write(CredentialKeys.ManagerRefresh(state.InstallationId), session.RefreshToken);
+        _vault.Write(
+            CredentialKeys.ManagerRefresh(state.InstallationId, session.ModuleId),
+            session.RefreshToken);
         _stateStore.Save(state);
         _pairingId = null;
         _deviceSecret = null;
 
         var existingToken = _vault.Read(
             CredentialKeys.ModuleToken(state.InstallationId, session.ModuleId));
-        if (!string.IsNullOrEmpty(existingToken) && !string.IsNullOrEmpty(state.CredentialId))
+        var integration = state.Integration(session.ModuleId);
+        if (!string.IsNullOrEmpty(existingToken) &&
+            !string.IsNullOrEmpty(integration.CredentialId))
         {
-            return Ready(session, state.CredentialId);
+            return Ready(session, integration.CredentialId);
         }
         var credential = await _api.IssueCredentialAsync(
             session.AccessToken, session.ModuleId, label, cancellationToken);
         _vault.Write(
             CredentialKeys.ModuleToken(state.InstallationId, session.ModuleId),
             credential.ModuleToken);
-        state = state with { CredentialId = credential.CredentialId };
+        state = state.WithIntegration(
+            session.ModuleId,
+            integration with { CredentialId = credential.CredentialId });
         _stateStore.Save(state);
         return Ready(session, credential.CredentialId);
     }
 
     public async Task<ReadySession> ResumeAsync(
+        string moduleId,
         string label = "ShedLink Manager",
         CancellationToken cancellationToken = default)
     {
         var state = _stateStore.LoadOrCreate();
-        var refreshToken = _vault.Read(CredentialKeys.ManagerRefresh(state.InstallationId));
+        var refreshToken = _vault.Read(
+            CredentialKeys.ManagerRefresh(state.InstallationId, moduleId));
         if (string.IsNullOrEmpty(refreshToken))
         {
             throw new InvalidOperationException("Manager is not paired.");
         }
         var session = await _api.RefreshAsync(refreshToken, cancellationToken);
-        _vault.Write(CredentialKeys.ManagerRefresh(state.InstallationId), session.RefreshToken);
+        if (session.ModuleId != moduleId)
+        {
+            throw new InvalidOperationException("Manager session belongs to another integration.");
+        }
+        _vault.Write(
+            CredentialKeys.ManagerRefresh(state.InstallationId, moduleId),
+            session.RefreshToken);
         state = state with { ModuleId = session.ModuleId, ChannelId = session.ChannelId };
         _stateStore.Save(state);
 
-        var credentialId = state.CredentialId;
+        var integration = state.Integration(moduleId);
+        var credentialId = integration.CredentialId;
         var moduleToken = _vault.Read(
             CredentialKeys.ModuleToken(state.InstallationId, session.ModuleId));
         if (string.IsNullOrEmpty(moduleToken) || string.IsNullOrEmpty(credentialId))
@@ -134,7 +149,8 @@ public sealed class ManagerCoordinator
                 CredentialKeys.ModuleToken(state.InstallationId, session.ModuleId),
                 credential.ModuleToken);
             credentialId = credential.CredentialId;
-            state = state with { CredentialId = credentialId };
+            state = state.WithIntegration(
+                moduleId, integration with { CredentialId = credentialId });
             _stateStore.Save(state);
         }
         return Ready(session, credentialId);
@@ -153,12 +169,17 @@ public sealed class ManagerCoordinator
             _vault.Delete(CredentialKeys.ModuleToken(state.InstallationId, session.ModuleId));
         }
         await _api.LogoutAsync(session.AccessToken, cancellationToken);
-        _vault.Delete(CredentialKeys.ManagerRefresh(state.InstallationId));
-        _stateStore.Save(state with
-        {
-            ChannelId = null,
-            CredentialId = revokeModuleCredential ? null : state.CredentialId,
-        });
+        _vault.Delete(CredentialKeys.ManagerRefresh(
+            state.InstallationId, session.ModuleId));
+        var integration = state.Integration(session.ModuleId);
+        _stateStore.Save(state.WithIntegration(
+            session.ModuleId,
+            integration with
+            {
+                CredentialId = revokeModuleCredential
+                    ? null
+                    : integration.CredentialId,
+            }) with { ChannelId = null });
     }
 
     private static ReadySession Ready(ManagerSession session, string credentialId) => new(

@@ -1,7 +1,8 @@
 # Manager release publication runbook
 
 Дата: 2026-08-16  
-Статус: RimLink `0.1.1` опубликован и независимо проверен 2026-08-16
+Статус: RimLink `0.1.1` и BannerlordLink `0.1.0` опубликованы и независимо
+проверены 2026-08-16
 
 ## Подтверждённая исходная точка
 
@@ -81,6 +82,11 @@ SHA-256 и только потом атомарно переименовывае
 Проверка 2026-08-16 завершена: HTTPS 200 без redirect, `Content-Length=63673`,
 HTTP 404, listing 403, POST 403, server/local SHA-256 и RSA fingerprint совпали,
 independent verifier зелёный, backend `/health` остался 200.
+
+BannerlordLink `0.1.0` выпущен тем же контрактом: `218775` bytes, SHA-256
+`2f5e431e…cf43416a`, HTTPS 200 без redirect, HTTP 404, listing/POST 403,
+независимый verifier зелёный, `/health` 200. Evidence:
+`docs/BANNERLORD_MANAGER_RELEASE_2026-08-16.md`.
 
 ## Rollback
 

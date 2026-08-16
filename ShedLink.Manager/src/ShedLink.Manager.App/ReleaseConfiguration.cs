@@ -7,8 +7,6 @@ namespace ShedLink.Manager.App;
 
 internal static class ReleaseConfiguration
 {
-    private const string GameId = "rimworld";
-
     private static readonly IReadOnlyDictionary<string, string> TrustedPublisherKeys =
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -31,13 +29,14 @@ internal static class ReleaseConfiguration
         };
 
     public static bool TrySelect(
+        string integrationId,
         DetectedGameVersion? gameVersion,
         out InstallationRelease? release,
         out ArtifactSignatureVerifier? verifier,
         out string reason)
     {
         verifier = null;
-        if (!TrySelectManifest(gameVersion, out release, out reason))
+        if (!TrySelectManifest(integrationId, gameVersion, out release, out reason))
         {
             return false;
         }
@@ -46,7 +45,7 @@ internal static class ReleaseConfiguration
         if (artifact.Source.Kind != "https" || artifact.Source.Url is null ||
             manifest.Security.SignatureStatus != "signed" || artifact.Signature is null)
         {
-            reason = "Совместимый безопасный HTTPS-релиз RimLink ещё не опубликован.";
+            reason = "Совместимый безопасный HTTPS-релиз интеграции ещё не опубликован.";
             return false;
         }
         if (!TrustedPublisherKeys.ContainsKey(artifact.Signature.KeyId))
@@ -62,7 +61,7 @@ internal static class ReleaseConfiguration
         catch (InvalidDataException)
         {
             verifier = null;
-            reason = "Подпись совместимого RimLink-релиза недействительна.";
+            reason = "Подпись совместимого релиза интеграции недействительна.";
             return false;
         }
         reason = string.Empty;
@@ -70,6 +69,7 @@ internal static class ReleaseConfiguration
     }
 
     public static bool TrySelectManifest(
+        string integrationId,
         DetectedGameVersion? gameVersion,
         out InstallationRelease? release,
         out string reason)
@@ -77,7 +77,7 @@ internal static class ReleaseConfiguration
         release = null;
         if (gameVersion is null)
         {
-            reason = "Не удалось определить совместимую версию RimWorld.";
+            reason = "Не удалось определить совместимую версию выбранной игры.";
             return false;
         }
         if (!TryLoadReleases(out var releases, out reason))
@@ -85,10 +85,10 @@ internal static class ReleaseConfiguration
             return false;
         }
         release = InstallationReleaseSelector.SelectCompatible(
-            releases!, GameId, gameVersion.CompatibilityVersion);
+            releases!, integrationId, gameVersion.CompatibilityVersion);
         if (release is null)
         {
-            reason = $"Для RimWorld {gameVersion.FullVersion} нет совместимого релиза RimLink.";
+            reason = $"Для версии {gameVersion.FullVersion} нет совместимого релиза интеграции.";
             return false;
         }
         reason = string.Empty;
@@ -96,6 +96,7 @@ internal static class ReleaseConfiguration
     }
 
     public static bool TrySelectLatestManifest(
+        string integrationId,
         out InstallationRelease? release,
         out string reason)
     {
@@ -104,13 +105,26 @@ internal static class ReleaseConfiguration
         {
             return false;
         }
-        release = InstallationReleaseSelector.SelectLatest(releases!, GameId);
+        release = InstallationReleaseSelector.SelectLatest(releases!, integrationId);
         if (release is null)
         {
-            reason = "Release-каталог не содержит RimLink.";
+            reason = "Release-каталог не содержит выбранную интеграцию.";
             return false;
         }
         reason = string.Empty;
+        return true;
+    }
+
+    public static bool TryListLatest(
+        out IReadOnlyList<InstallationRelease>? releases,
+        out string reason)
+    {
+        releases = null;
+        if (!TryLoadReleases(out var loaded, out reason))
+        {
+            return false;
+        }
+        releases = new InstallationReleaseCatalog(loaded!).LatestIntegrations();
         return true;
     }
 

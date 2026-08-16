@@ -16,7 +16,8 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\ShedLink.Manager.Core\ShedLink.Manager.Core.csproj" />
-    <Content Include="..\..\..\manifests\installation\rimworld-*.json"
+    <Content Include="..\..\..\manifests\installation\*.json"
+             Exclude="..\..\..\manifests\installation\v1.schema.json"
              Link="Release\%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

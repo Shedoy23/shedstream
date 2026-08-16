@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "integration_id": "bannerlord",
+  "release_version": "0.1.0",
+  "game": {
+    "id": "bannerlord",
+    "display_name": "Mount \u0026 Blade II: Bannerlord",
+    "supported_versions": [
+      "1.3"
+    ],
+    "process_names": [
+      "Bannerlord",
+      "TaleWorlds.MountAndBlade.Launcher"
+    ],
+    "version": {
+      "kind": "text_file",
+      "path": "bin/Win64_Shipping_Client/Version.xml",
+      "compatibility_pattern": "Value=\u0022v(\\d\u002B\\.\\d\u002B)\\.\\d\u002B\u0022"
+    },
+    "detection": [
+      {
+        "kind": "steam",
+        "app_id": 261550,
+        "install_dir": "Mount \u0026 Blade II Bannerlord"
+      },
+      {
+        "kind": "manual",
+        "required_paths": [
+          "bin/Win64_Shipping_Client/Version.xml",
+          "Modules/Native/SubModule.xml"
+        ]
+      }
+    ]
+  },
+  "artifacts": [
+    {
+      "id": "bannerlordlink_mod",
+      "source": {
+        "kind": "https",
+        "url": "https://shedoy23.ru/releases/BannerlordLink-0.1.0.zip"
+      },
+      "size_bytes": 218775,
+      "sha256": "2f5e431ed0f2d30c14ef684544dc316b11870109b55bbd3ac815e92ccf43416a",
+      "format": "zip",
+      "archive_root": "Shedoy23.BannerlordLink",
+      "signature": {
+        "algorithm": "rsa-pss-sha256",
+        "key_id": "shedlink-release-2026",
+        "value": "Gefu2SAvM3lVKquYd\u002BVf2yuqa1tpB5LyqRPE39r9MqbEHOppd96n1xm7Pz9j0nMGgUZRIYR7dDEkHU9sCsB3WNG\u002BcwDJDPhLdP5xR4fScXwo\u002BYL/IIJYwqclg7oKdi2\u002BYxOhW0s4cYXSAmpcFHOSMcdI/yY5igPeDQmrm9I2FO3\u002BvRjirodLaUgRrIE0SRvi76ze0mQwZf4WkyH4cK8nk3KbtSXfsWFokuMGbRVwd26X4NGNiuCReEWTWHzKjIhRT0ROdSg7QF8nL\u002BLOQ7wUCSHCgCod0ORJ\u002BelyzjsM6DeyXewqRS0GjYvznIgWW1YPhIQTC2E3WcahQxckUVil/BC7jymKJy/ADcIcPyY\u002BuZQCgzPE9nR0su/ACkNs3u8v6xZQJluBGex10s6h6vXZFkrwvxptbwCP8/ugaJbOfMygGkRn9NmCSuDnlQfjF4o/9IlbGhkT/DDFtlV0c4d8dgxTC9EaUNQofG4RQwILkJyNaWVAYOlAyXBp98bfqdTHOS8sxjq\u002BlRbMtoSljBqdw\u002BCuOJUka\u002BN1VOYaL6BIf54r\u002BfXGeCHH3UYoZSn7P9C6ij70A5Mr2plmdJhe56z6me9gVXZ5RoV2oUYvlp7EoNoML1VHCqhw0pr2hM03TlyuHvYdQ9v7N2fvPEySVf1Ob2gAbP\u002BFRHzFBXIlvNI4goc="
+      }
+    }
+  ],
+  "installation": {
+    "target": {
+      "base": "game_root",
+      "relative_path": "Modules/Shedoy23.BannerlordLink"
+    }
+  },
+  "configuration": {
+    "store": {
+      "kind": "json",
+      "base": "game_root",
+      "relative_path": "Modules/Shedoy23.BannerlordLink/config.json"
+    },
+    "managed_fields": [
+      {
+        "name": "backend_url",
+        "selector": "/backend_url",
+        "value_source": "backend_url",
+        "secret": false
+      },
+      {
+        "name": "module_token",
+        "selector": "/module_token",
+        "value_source": "channel_module_token",
+        "secret": true
+      },
+      {
+        "name": "channel_id",
+        "selector": "/channel_id",
+        "value_source": "channel_id",
+        "secret": false
+      }
+    ]
+  },
+  "health": [
+    {
+      "id": "assembly_present",
+      "kind": "path_exists",
+      "path": "bin/Win64_Shipping_Client/BannerlordLink.dll",
+      "required": true
+    },
+    {
+      "id": "submodule_present",
+      "kind": "path_exists",
+      "path": "SubModule.xml",
+      "required": true
+    }
+  ],
+  "security": {
+    "publisher": "shedoy23",
+    "signature_status": "signed"
+  }
+}

@@ -89,18 +89,12 @@ public sealed partial class GameDetectionService
         {
             return null;
         }
-        string? fullVersion;
+        string contents;
         try
         {
-            fullVersion = File.ReadLines(path)
-                .Select(line => line.Trim())
-                .FirstOrDefault(line => line.Length > 0);
+            contents = File.ReadAllText(path);
         }
         catch (IOException)
-        {
-            return null;
-        }
-        if (fullVersion is null)
         {
             return null;
         }
@@ -108,9 +102,9 @@ public sealed partial class GameDetectionService
         try
         {
             match = Regex.Match(
-                fullVersion,
+                contents,
                 source.CompatibilityPattern,
-                RegexOptions.CultureInvariant,
+                RegexOptions.CultureInvariant | RegexOptions.Multiline,
                 TimeSpan.FromSeconds(1));
         }
         catch (Exception exception) when (
@@ -118,9 +112,19 @@ public sealed partial class GameDetectionService
         {
             return null;
         }
-        return match.Success
-            ? new DetectedGameVersion(fullVersion, match.Value)
-            : null;
+        if (!match.Success)
+        {
+            return null;
+        }
+        var compatibilityVersion = match.Groups.Count > 1
+            ? match.Groups[1].Value
+            : match.Value;
+        var lineStart = contents.LastIndexOf('\n', Math.Max(0, match.Index - 1));
+        lineStart = lineStart < 0 ? 0 : lineStart + 1;
+        var lineEnd = contents.IndexOf('\n', match.Index + match.Length);
+        lineEnd = lineEnd < 0 ? contents.Length : lineEnd;
+        var fullVersion = contents[lineStart..lineEnd].Trim();
+        return new DetectedGameVersion(fullVersion, compatibilityVersion);
     }
 
     private IReadOnlyList<string> RequiredPaths() =>

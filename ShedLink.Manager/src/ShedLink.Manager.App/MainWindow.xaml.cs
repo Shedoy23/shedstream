@@ -1,6 +1,7 @@
 using System.Net.Http;
 using System.IO;
 using System.Windows;
+using System.Windows.Controls;
 using Microsoft.Win32;
 using ShedLink.Manager.Core;
 using ShedLink.Manager.Core.Api;
@@ -15,7 +16,8 @@ namespace ShedLink.Manager.App;
 public partial class MainWindow : Window
 {
     private readonly ManagerStateStore _stateStore = new();
-    private readonly RimWorldDetectionService _detector = new();
+    private GameDetectionService _detector = null!;
+    private InstallationRelease _activeRelease = null!;
     private readonly HttpClient _http;
     private readonly ManagerApiClient _api;
     private readonly WindowsCredentialVault _vault;
@@ -37,6 +39,12 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         var state = _stateStore.LoadOrCreate();
+        LoadIntegrations(state.ModuleId);
+        if (state.ModuleId != IntegrationId)
+        {
+            state = state.WithIntegration(IntegrationId, state.Integration(IntegrationId));
+            _stateStore.Save(state);
+        }
         _http = new HttpClient { BaseAddress = state.BackendUrl };
         _http.Timeout = TimeSpan.FromSeconds(15);
         _api = new ManagerApiClient(_http);
@@ -49,6 +57,7 @@ public partial class MainWindow : Window
             _api, _vault, _stateStore);
         _rotationService = new CredentialRotationService(
             _api, _vault, _stateStore);
+        IntegrationPicker.SelectionChanged += IntegrationPicker_SelectionChanged;
         Loaded += MainWindow_Loaded;
         Closed += (_, _) =>
         {
@@ -62,6 +71,66 @@ public partial class MainWindow : Window
             _testCancellation?.Dispose();
             _http.Dispose();
         };
+    }
+
+    private string IntegrationId => _activeRelease.Manifest.IntegrationId;
+    private ManifestGame ActiveGame => _activeRelease.Manifest.Game
+        ?? throw new InvalidDataException("Integration manifest has no game descriptor.");
+    private string GameName => ActiveGame.DisplayName;
+    private string IntegrationName => _activeRelease.Manifest.IntegrationId;
+
+    private void LoadIntegrations(string preferredIntegrationId)
+    {
+        if (!ReleaseConfiguration.TryListLatest(out var releases, out var reason) ||
+            releases is null || releases.Count == 0)
+        {
+            throw new InvalidDataException(reason);
+        }
+        var choices = releases
+            .Where(release => release.Manifest.Game is not null)
+            .Select(release => new IntegrationChoice(release))
+            .ToArray();
+        IntegrationPicker.ItemsSource = choices;
+        IntegrationPicker.SelectedItem = choices.FirstOrDefault(choice =>
+            choice.Release.Manifest.IntegrationId == preferredIntegrationId) ?? choices[0];
+        Activate(((IntegrationChoice)IntegrationPicker.SelectedItem).Release);
+    }
+
+    private void Activate(InstallationRelease release)
+    {
+        _activeRelease = release;
+        _detector = new GameDetectionService(ActiveGame);
+        GameHeadingText.Text = $"2. {GameName}";
+        IntegrationHeadingText.Text = $"3. Интеграция {IntegrationName}";
+    }
+
+    private void IntegrationPicker_SelectionChanged(
+        object sender,
+        SelectionChangedEventArgs e)
+    {
+        if (IntegrationPicker.SelectedItem is not IntegrationChoice choice ||
+            choice.Release.Manifest.IntegrationId == IntegrationId)
+        {
+            return;
+        }
+        _diagnosticsCancellation?.Cancel();
+        _session = null;
+        _runtimeStatus = null;
+        Activate(choice.Release);
+        var state = _stateStore.LoadOrCreate();
+        _stateStore.Save(state.WithIntegration(IntegrationId, state.Integration(IntegrationId)));
+        AccountStatusText.Text = "Подключи Twitch для выбранной игры";
+        ConnectButton.Content = "Войти через Twitch";
+        ConnectButton.IsEnabled = true;
+        DisconnectButton.IsEnabled = false;
+        RuntimeStatusText.Text = "Heartbeat мода ещё не проверен.";
+        DetectGame();
+    }
+
+    private sealed record IntegrationChoice(InstallationRelease Release)
+    {
+        public override string ToString() =>
+            Release.Manifest.Game?.DisplayName ?? Release.Manifest.IntegrationId;
     }
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -82,13 +151,13 @@ public partial class MainWindow : Window
         if (state.ChannelId is null)
         {
             AccountStatusText.Text = "Не подключён";
-            OverallStatusText.Text = "Войди через Twitch и проверь папку RimWorld.";
+            OverallStatusText.Text = $"Войди через Twitch и проверь папку {GameName}.";
             return;
         }
         try
         {
             SetBusy(true, "Восстанавливаем защищённую сессию…");
-            _session = await _coordinator.ResumeAsync();
+            _session = await _coordinator.ResumeAsync(state.ModuleId);
             CredentialRotationResult? recovered = null;
             if (_rotationService.HasPending)
             {
@@ -135,6 +204,7 @@ public partial class MainWindow : Window
                 {
                     SetBusy(true, "Повторяем защищённое подключение…");
                     _session = await _coordinator.ResumeAsync(
+                        stored.ModuleId,
                         cancellationToken: _pairingCancellation.Token);
                     ShowConnected(_session);
                     return;
@@ -151,6 +221,7 @@ public partial class MainWindow : Window
             }
             SetBusy(true, "Создаём безопасное подключение…");
             var launch = await _coordinator.BeginPairingAsync(
+                stored.ModuleId,
                 cancellationToken: _pairingCancellation.Token);
             PairingCodeText.Text = "Код: " + launch.UserCode;
             AccountStatusText.Text = "Подтверди подключение в открывшемся браузере";
@@ -196,8 +267,8 @@ public partial class MainWindow : Window
         var decision = MessageBox.Show(
             this,
             "Выйти из Manager?\n\n" +
-            "Да — выйти и отозвать ключ RimLink (интеграция сразу отключится).\n" +
-            "Нет — выйти только из Manager, оставив установленный RimLink подключённым.\n" +
+            $"Да — выйти и отозвать ключ {IntegrationName} (интеграция сразу отключится).\n" +
+            $"Нет — выйти только из Manager, оставив {IntegrationName} подключённым.\n" +
             "Отмена — ничего не менять.",
             "Выход из ShedLink Manager",
             MessageBoxButton.YesNoCancel,
@@ -210,7 +281,7 @@ public partial class MainWindow : Window
         try
         {
             SetBusy(true, revokeModuleCredential
-                ? "Отзываем ключ RimLink и завершаем сессию…"
+                ? $"Отзываем ключ {IntegrationName} и завершаем сессию…"
                 : "Завершаем сессию Manager…");
             _diagnosticsCancellation?.Cancel();
             _testCancellation?.Cancel();
@@ -221,8 +292,8 @@ public partial class MainWindow : Window
             PairingCodeText.Text = string.Empty;
             ConnectButton.Content = "Войти через Twitch";
             RuntimeStatusText.Text = revokeModuleCredential
-                ? "Ключ RimLink отозван. Для продолжения подключись заново."
-                : "Manager отключён; установленный RimLink продолжает работать.";
+                ? $"Ключ {IntegrationName} отозван. Для продолжения подключись заново."
+                : $"Manager отключён; установленный {IntegrationName} продолжает работать.";
             OverallStatusText.Text = revokeModuleCredential
                 ? "Сессия и ключ отозваны. Конфигурация сохранена для восстановления."
                 : "Сессия Manager завершена без отключения интеграции.";
@@ -244,7 +315,7 @@ public partial class MainWindow : Window
     {
         var dialog = new OpenFolderDialog
         {
-            Title = "Выбери папку RimWorld",
+            Title = $"Выбери папку {GameName}",
             Multiselect = false,
         };
         if (dialog.ShowDialog(this) != true)
@@ -259,7 +330,7 @@ public partial class MainWindow : Window
         }
         catch (InvalidDataException exception)
         {
-            MessageBox.Show(this, exception.Message, "Это не папка RimWorld",
+            MessageBox.Show(this, exception.Message, $"Это не папка {GameName}",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
@@ -271,9 +342,9 @@ public partial class MainWindow : Window
             UpdateInstallAvailability();
             return;
         }
-        var gameVersion = GameVersionDetector.DetectRimWorld(_game.RootPath);
+        var gameVersion = _detector.DetectVersion(_game.RootPath);
         if (!ReleaseConfiguration.TrySelect(
-                gameVersion, out var release, out var verifier, out var reason))
+                IntegrationId, gameVersion, out var release, out var verifier, out var reason))
         {
             IntegrationStatusText.Text = reason;
             UpdateInstallAvailability();
@@ -281,7 +352,7 @@ public partial class MainWindow : Window
         }
         if (_detector.IsGameRunning())
         {
-            IntegrationStatusText.Text = "Закрой RimWorld перед установкой RimLink.";
+            IntegrationStatusText.Text = $"Закрой {GameName} перед установкой {IntegrationName}.";
             return;
         }
 
@@ -290,7 +361,7 @@ public partial class MainWindow : Window
         _installationCancellation?.Dispose();
         _installationCancellation = new CancellationTokenSource(TimeSpan.FromMinutes(5));
         UpdateInstallAvailability();
-        IntegrationStatusText.Text = "Скачиваем, проверяем и настраиваем RimLink…";
+        IntegrationStatusText.Text = $"Скачиваем, проверяем и настраиваем {IntegrationName}…";
         OverallStatusText.Text = "Не закрывай Manager до завершения проверки.";
         try
         {
@@ -302,15 +373,16 @@ public partial class MainWindow : Window
                 verifier!,
                 cancellationToken: _installationCancellation.Token);
             var state = _stateStore.LoadOrCreate();
-            _stateStore.Save(state with
+            var integration = state.Integration(IntegrationId) with
             {
                 GameRoot = _game.RootPath,
                 InstalledReleaseVersion = installed.ReleaseVersion,
-            });
+            };
+            _stateStore.Save(state.WithIntegration(IntegrationId, integration));
             IntegrationStatusText.Text =
-                $"RimLink {installed.ReleaseVersion} установлен и ключ проверен.";
+                $"{IntegrationName} {installed.ReleaseVersion} установлен и ключ проверен.";
             OverallStatusText.Text =
-                "Запусти RimWorld: Technical Ready подтвердит heartbeat мода.";
+                $"Запусти {GameName}: Technical Ready подтвердит heartbeat мода.";
         }
         catch (Exception exception) when (ManagerFailureMessage.IsExpected(exception))
         {
@@ -334,20 +406,21 @@ public partial class MainWindow : Window
             UpdateInstallAvailability();
             return;
         }
-        if (!ReleaseConfiguration.TrySelectLatestManifest(out var release, out var reason))
+        if (!ReleaseConfiguration.TrySelectLatestManifest(
+                IntegrationId, out var release, out var reason))
         {
             IntegrationStatusText.Text = reason;
             return;
         }
         if (_detector.IsGameRunning())
         {
-            IntegrationStatusText.Text = "Закрой RimWorld перед удалением RimLink.";
+            IntegrationStatusText.Text = $"Закрой {GameName} перед удалением {IntegrationName}.";
             return;
         }
         if (MessageBox.Show(
             this,
-            "Удалить мод RimLink? Настройки и защищённый ключ останутся, чтобы его можно было восстановить.",
-            "Удаление RimLink",
+            $"Удалить мод {IntegrationName}? Настройки и защищённый ключ останутся для восстановления.",
+            $"Удаление {IntegrationName}",
             MessageBoxButton.YesNo,
             MessageBoxImage.Question) != MessageBoxResult.Yes)
         {
@@ -361,9 +434,13 @@ public partial class MainWindow : Window
             _installationService.Uninstall(
                 release!.ManifestPath, _game.RootPath);
             var state = _stateStore.LoadOrCreate();
-            _stateStore.Save(state with { InstalledReleaseVersion = null });
+            var integration = state.Integration(IntegrationId) with
+            {
+                InstalledReleaseVersion = null,
+            };
+            _stateStore.Save(state.WithIntegration(IntegrationId, integration));
             IntegrationStatusText.Text =
-                "RimLink удалён. Настройки сохранены для восстановления.";
+                $"{IntegrationName} удалён. Настройки сохранены для восстановления.";
             OverallStatusText.Text = "Интеграция отключена локально; ключ не отозван.";
         }
         catch (Exception exception) when (ManagerFailureMessage.IsExpected(exception))
@@ -388,28 +465,28 @@ public partial class MainWindow : Window
         if (_detector.IsGameRunning())
         {
             MessageBox.Show(
-                "Закрой RimWorld перед сменой ключа, чтобы мод не продолжил использовать старый ключ.",
-                "RimWorld запущен", MessageBoxButton.OK, MessageBoxImage.Information);
+                $"Закрой {GameName} перед сменой ключа, чтобы мод не использовал старый ключ.",
+                $"{GameName} запущена", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
         var inspection = InspectIntegration();
         if (inspection?.Condition is InstallationCondition.NotInstalled or
             InstallationCondition.UnsafeTarget || inspection is null)
         {
-            IntegrationStatusText.Text = "Сначала установи или восстанови RimLink.";
+            IntegrationStatusText.Text = $"Сначала установи или восстанови {IntegrationName}.";
             UpdateInstallAvailability(updateReleaseMessage: false);
             return;
         }
         if (MessageBox.Show(
-                "Создать новый ключ RimLink и заменить старый? Настройки будут обновлены автоматически.",
-                "Смена ключа RimLink", MessageBoxButton.YesNo,
+                $"Создать новый ключ {IntegrationName} и заменить старый? Настройки обновятся автоматически.",
+                $"Смена ключа {IntegrationName}", MessageBoxButton.YesNo,
                 MessageBoxImage.Question) != MessageBoxResult.Yes)
         {
             return;
         }
         try
         {
-            SetBusy(true, "Безопасно меняем ключ RimLink…");
+            SetBusy(true, $"Безопасно меняем ключ {IntegrationName}…");
             if (!TrySelectManifestForCurrentGame(out var release, out var reason))
             {
                 throw new InvalidOperationException(reason);
@@ -417,8 +494,8 @@ public partial class MainWindow : Window
             var result = await _rotationService.RotateAsync(
                 _session, release!.ManifestPath, gameRoot: _game?.RootPath);
             _session = _session with { CredentialId = result.CredentialId };
-            IntegrationStatusText.Text = "Ключ RimLink заменён и проверен.";
-            OverallStatusText.Text = "Новый ключ активен. RimWorld можно запускать.";
+            IntegrationStatusText.Text = $"Ключ {IntegrationName} заменён и проверен.";
+            OverallStatusText.Text = $"Новый ключ активен. {GameName} можно запускать.";
         }
         catch (Exception exception) when (ManagerFailureMessage.IsExpected(exception))
         {
@@ -438,12 +515,14 @@ public partial class MainWindow : Window
         var inspection = InspectIntegration();
         var gameVersion = _game is null
             ? null
-            : GameVersionDetector.DetectRimWorld(_game.RootPath);
-        ReleaseConfiguration.TrySelectLatestManifest(out var diagnosticRelease, out _);
+            : _detector.DetectVersion(_game.RootPath);
+        ReleaseConfiguration.TrySelectLatestManifest(
+            IntegrationId, out var diagnosticRelease, out _);
         var manifest = diagnosticRelease?.Manifest;
         var integrationVersion = inspection?.Condition == InstallationCondition.NotInstalled
             ? "not installed"
-            : inspection?.InstalledVersion ?? state.InstalledReleaseVersion;
+            : inspection?.InstalledVersion ??
+                state.Integration(IntegrationId).InstalledReleaseVersion;
         var report = DiagnosticReportBuilder.Build(new DiagnosticReportInput(
             typeof(MainWindow).Assembly.GetName().Version?.ToString() ?? "unknown",
             "manager-v1 / module-v1",
@@ -499,10 +578,11 @@ public partial class MainWindow : Window
     private void DetectGame()
     {
         var state = _stateStore.LoadOrCreate();
-        if (RimWorldDetectionService.IsValidGameRoot(state.GameRoot))
+        var integration = state.Integration(IntegrationId);
+        if (_detector.IsValidGameRoot(integration.GameRoot))
         {
             _game = new GameInstallation(
-                "rimworld", state.GameRoot!, DetectionSource.Manual);
+                IntegrationId, integration.GameRoot!, DetectionSource.Manual);
         }
         else
         {
@@ -525,7 +605,7 @@ public partial class MainWindow : Window
     {
         var source = game.Source == DetectionSource.Steam ? "Steam" : "выбрано вручную";
         var running = _detector.IsGameRunning() ? " · игра сейчас запущена" : string.Empty;
-        var version = GameVersionDetector.DetectRimWorld(game.RootPath);
+        var version = _detector.DetectVersion(game.RootPath);
         var versionText = version is null ? string.Empty : $" · версия {version.FullVersion}";
         GameStatusText.Text = $"Найдено ({source}): {game.RootPath}{versionText}{running}";
         UpdateInstallAvailability();
@@ -609,7 +689,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private static string RuntimeMessage(ModuleRuntimeStatus runtime)
+    private string RuntimeMessage(ModuleRuntimeStatus runtime)
     {
         if (runtime.Online)
         {
@@ -623,7 +703,7 @@ public partial class MainWindow : Window
                 ? $"Мод не на связи · последний heartbeat {age} сек. назад."
                 : $"Мод не на связи · последний heartbeat {age / 60} мин. назад.";
         }
-        return "Настоящий heartbeat мода ещё не получен. Запусти RimWorld.";
+        return $"Настоящий heartbeat мода ещё не получен. Запусти {GameName}.";
     }
 
     private async void TestReadyButton_Click(object sender, RoutedEventArgs e)
@@ -646,10 +726,10 @@ public partial class MainWindow : Window
             var result = await WaitForDiagnosticAsync(started, _testCancellation.Token);
             OverallStatusText.Text = result?.Status switch
             {
-                "acked" => "Technical Ready ✓ Backend, очередь, RimLink и ACK работают.",
-                "failed" => $"RimLink отклонил проверку: {result.Error ?? "unknown"}.",
-                "expired" => "Проверка истекла: RimLink не подтвердил команду вовремя.",
-                _ => "Проверка истекла без подтверждения RimLink.",
+                "acked" => $"Technical Ready ✓ Backend, очередь, {IntegrationName} и ACK работают.",
+                "failed" => $"{IntegrationName} отклонил проверку: {result.Error ?? "unknown"}.",
+                "expired" => $"Проверка истекла: {IntegrationName} не подтвердил команду вовремя.",
+                _ => $"Проверка истекла без подтверждения {IntegrationName}.",
             };
         }
         catch (ManagerApiException exception)
@@ -683,7 +763,7 @@ public partial class MainWindow : Window
         UpdateTechnicalReadyAvailability();
         try
         {
-            OverallStatusText.Text = "Проверяем безопасный отказ RimLink…";
+            OverallStatusText.Text = $"Проверяем безопасный отказ {IntegrationName}…";
             var refused = await _api.StartDiagnosticAsync(
                 _session.AccessToken, "refuse", _testCancellation.Token);
             var refusedResult = await WaitForDiagnosticAsync(
@@ -763,9 +843,9 @@ public partial class MainWindow : Window
             : !compatible
                 ? compatibilityReason
                 : _runtimeStatus?.Online != true
-                    ? "Сначала запусти RimWorld и дождись heartbeat."
+                    ? $"Сначала запусти {GameName} и дождись heartbeat."
                     : !filesReady
-                        ? "Сначала установи или восстанови RimLink."
+                        ? $"Сначала установи или восстанови {IntegrationName}."
                         : "Проверить реальную очередь и ACK без изменения игры.";
         ReliabilityButton.ToolTip = _testingReliability
             ? "Проверка отказов уже выполняется."
@@ -803,14 +883,14 @@ public partial class MainWindow : Window
                 "Автоматическое удаление небезопасной ссылки запрещено.",
             not InstallationCondition.NotInstalled when installed =>
                 "Удалить мод, сохранив настройки и ключ.",
-            _ => "RimLink не установлен в выбранной игре.",
+            _ => $"{IntegrationName} не установлен в выбранной игре.",
         };
         var canRotate = _session is not null && installed &&
             inspection?.Condition != InstallationCondition.UnsafeTarget;
         RotateButton.IsEnabled = canRotate;
         RotateButton.ToolTip = canRotate
-            ? "Заменить ключ RimLink с проверкой и безопасным восстановлением."
-            : "Сначала подключи аккаунт и установи RimLink.";
+            ? $"Заменить ключ {IntegrationName} с проверкой и безопасным восстановлением."
+            : $"Сначала подключи аккаунт и установи {IntegrationName}.";
         if (inspection is not null && updateReleaseMessage)
         {
             IntegrationStatusText.Text = InspectionMessage(inspection);
@@ -818,19 +898,19 @@ public partial class MainWindow : Window
         if (_session is null || _game is null)
         {
             InstallButton.IsEnabled = false;
-            InstallButton.ToolTip = "Сначала подключи Twitch и найди RimWorld.";
+            InstallButton.ToolTip = $"Сначала подключи Twitch и найди {GameName}.";
             return;
         }
-        var gameVersion = GameVersionDetector.DetectRimWorld(_game.RootPath);
+        var gameVersion = _detector.DetectVersion(_game.RootPath);
         var releaseReady = ReleaseConfiguration.TrySelect(
-            gameVersion, out _, out _, out var releaseReason);
+            IntegrationId, gameVersion, out _, out _, out var releaseReason);
         var compatible = TryGetGameCompatibility(out var compatibilityReason);
         InstallButton.IsEnabled = releaseReady && compatible &&
             inspection?.Condition != InstallationCondition.UnsafeTarget;
         InstallButton.ToolTip = !compatible
             ? compatibilityReason
             : releaseReady
-            ? "Установить и настроить RimLink."
+            ? $"Установить и настроить {IntegrationName}."
             : releaseReason;
         if (!releaseReady && updateReleaseMessage)
         {
@@ -844,41 +924,45 @@ public partial class MainWindow : Window
     {
         if (_game is null)
         {
-            reason = "Сначала найди установленный RimWorld.";
+            reason = $"Сначала найди установленную игру {GameName}.";
             return false;
         }
-        var version = GameVersionDetector.DetectRimWorld(_game.RootPath);
+        var version = _detector.DetectVersion(_game.RootPath);
         if (version is null)
         {
-            reason = "Не удалось определить версию RimWorld из Version.txt.";
+            reason = $"Не удалось определить версию {GameName}.";
             return false;
         }
         if (!ReleaseConfiguration.TrySelectManifest(
-                version, out var release, out reason) || release?.Manifest.Game is null)
+                IntegrationId, version, out var release, out reason) ||
+            release?.Manifest.Game is null)
         {
             return false;
         }
         if (GameVersionDetector.Compatibility(
                 version, release.Manifest.Game.SupportedVersions) != "supported")
         {
-            reason = $"RimWorld {version.FullVersion} не поддерживается. Поддерживаются: " +
+            reason = $"{GameName} {version.FullVersion} не поддерживается. Поддерживаются: " +
                 string.Join(", ", release.Manifest.Game.SupportedVersions) + ".";
             return false;
         }
-        reason = $"RimWorld {version.FullVersion} поддерживается.";
+        reason = $"{GameName} {version.FullVersion} поддерживается.";
         return true;
     }
 
     private InstallationInspection? InspectIntegration()
     {
         if (_game is null ||
-            !ReleaseConfiguration.TrySelectLatestManifest(out var release, out _))
+            !ReleaseConfiguration.TrySelectLatestManifest(
+                IntegrationId, out var release, out _))
         {
             return null;
         }
         var state = _stateStore.LoadOrCreate();
         return InstallationInspector.Inspect(
-            release!.Manifest, _game.RootPath, state.InstalledReleaseVersion);
+            release!.Manifest,
+            _game.RootPath,
+            state.Integration(IntegrationId).InstalledReleaseVersion);
     }
 
     private bool TrySelectManifestForCurrentGame(
@@ -887,30 +971,32 @@ public partial class MainWindow : Window
     {
         var version = _game is null
             ? null
-            : GameVersionDetector.DetectRimWorld(_game.RootPath);
-        return ReleaseConfiguration.TrySelectManifest(version, out release, out reason);
+            : _detector.DetectVersion(_game.RootPath);
+        return ReleaseConfiguration.TrySelectManifest(
+            IntegrationId, version, out release, out reason);
     }
 
-    private static string InspectionMessage(InstallationInspection inspection) =>
+    private string InspectionMessage(InstallationInspection inspection) =>
         inspection.Condition switch
         {
             InstallationCondition.NotInstalled =>
-                $"RimLink не установлен. Доступна версия {inspection.AvailableVersion}.",
+                $"{IntegrationName} не установлен. Доступна версия {inspection.AvailableVersion}.",
             InstallationCondition.Healthy =>
-                $"RimLink {inspection.InstalledVersion} установлен, обязательные файлы на месте.",
+                $"{IntegrationName} {inspection.InstalledVersion} установлен, обязательные файлы на месте.",
             InstallationCondition.UpdateAvailable =>
                 $"Установлена версия {inspection.InstalledVersion}; доступна {inspection.AvailableVersion}.",
             InstallationCondition.RepairRequired =>
-                "RimLink найден, но версия неизвестна или обязательные файлы повреждены.",
+                $"{IntegrationName} найден, но версия неизвестна или файлы повреждены.",
             InstallationCondition.UnsafeTarget =>
-                "Папка RimLink является небезопасной ссылкой; автоматические операции заблокированы.",
-            _ => "Состояние RimLink неизвестно.",
+                $"Папка {IntegrationName} является небезопасной ссылкой; операции заблокированы.",
+            _ => $"Состояние {IntegrationName} неизвестно.",
         };
 
     private void SaveGameRoot(string gameRoot)
     {
         var state = _stateStore.LoadOrCreate();
-        _stateStore.Save(state with { GameRoot = gameRoot });
+        var integration = state.Integration(IntegrationId) with { GameRoot = gameRoot };
+        _stateStore.Save(state.WithIntegration(IntegrationId, integration));
     }
 
     private void SetBusy(bool busy, string? message = null)

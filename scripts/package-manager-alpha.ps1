@@ -39,8 +39,11 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $executable = Join-Path $packageDirectory 'ShedLink.Manager.App.exe'
-$manifest = Join-Path $packageDirectory 'Release/rimworld-0.1.1.json'
-foreach ($required in @($executable, $manifest)) {
+$manifests = @(
+    (Join-Path $packageDirectory 'Release/rimworld-0.1.1.json'),
+    (Join-Path $packageDirectory 'Release/bannerlord-0.1.0.json')
+)
+foreach ($required in @($executable) + $manifests) {
     if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
         throw "Published package is missing required file: $required"
     }
@@ -63,12 +66,14 @@ ShedLink Manager — alpha
 3. Windows покажет синее окно «Система Windows защитила ваш компьютер».
    Так и должно быть: программа пока не подписана платным сертификатом.
    Нажмите «Подробнее», затем «Выполнить в любом случае».
-4. Подключите Twitch. Если RimWorld не нашлась сама — укажите её папку вручную.
-5. Закройте RimWorld и нажмите установку RimLink.
-6. Запустите игру, дождитесь связи с модом и нажмите «Проверить готовность».
+4. Выберите игру, которую хотите подключить к стриму, и войдите через Twitch.
+5. Если игра не нашлась сама — укажите её папку вручную.
+6. Закройте игру и нажмите «Установить».
+7. Manager сам скачает, проверит, установит и настроит нужный мод.
+8. Запустите игру, дождитесь связи с модом и нажмите «Проверить готовность».
    Итог должен стать Technical Ready.
 
-RimWorld должна быть закрыта при установке, обновлении и восстановлении мода.
+Игра должна быть закрыта при установке, обновлении и восстановлении мода.
 
 ПРОВЕРКА АРХИВА — необязательно
 
@@ -108,6 +113,11 @@ if ($LASTEXITCODE -ne 0) {
 if ($dirty) {
     throw "Commit or stash changes before packaging; $commit would not describe this build."
 }
+$catalog = [ordered]@{}
+foreach ($manifest in $manifests) {
+    $catalog[(Split-Path $manifest -Leaf)] =
+        (Get-FileHash -LiteralPath $manifest -Algorithm SHA256).Hash.ToLowerInvariant()
+}
 $metadata = [ordered]@{
     product = 'ShedLink Manager'
     version = $Version
@@ -115,7 +125,7 @@ $metadata = [ordered]@{
     source_commit = $commit
     built_at_utc = [DateTime]::UtcNow.ToString('O')
     executable_sha256 = (Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash.ToLowerInvariant()
-    manifest_sha256 = (Get-FileHash -LiteralPath $manifest -Algorithm SHA256).Hash.ToLowerInvariant()
+    release_catalog_sha256 = $catalog
 }
 [IO.File]::WriteAllText(
     (Join-Path $packageDirectory 'RELEASE.json'),

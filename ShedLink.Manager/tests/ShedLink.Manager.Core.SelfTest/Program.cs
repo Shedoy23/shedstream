@@ -137,6 +137,29 @@ static async Task TestInstallationAsync(string root)
         productionManifest.Installation.Target.RelativePath == "Mods/RimLink",
         "production installation manifest parsed");
 
+    var inspectionGame = Path.Combine(root, "inspection-game");
+    var missingInspection = InstallationInspector.Inspect(
+        productionManifest, inspectionGame, null);
+    Assert(missingInspection.Condition == InstallationCondition.NotInstalled,
+        "installation inspector detects missing integration");
+    Directory.CreateDirectory(missingInspection.TargetPath);
+    var brokenInspection = InstallationInspector.Inspect(
+        productionManifest, inspectionGame, productionManifest.ReleaseVersion);
+    Assert(brokenInspection.Condition == InstallationCondition.RepairRequired &&
+        brokenInspection.FailedProbeIds.Contains("assembly_present"),
+        "installation inspector detects repair requirement");
+    Directory.CreateDirectory(Path.Combine(missingInspection.TargetPath, "Assemblies"));
+    File.WriteAllText(
+        Path.Combine(missingInspection.TargetPath, "Assemblies", "RimLink.dll"), "test");
+    var updateInspection = InstallationInspector.Inspect(
+        productionManifest, inspectionGame, "0.0.9");
+    Assert(updateInspection.Condition == InstallationCondition.UpdateAvailable,
+        "installation inspector detects available update");
+    var healthyInspection = InstallationInspector.Inspect(
+        productionManifest, inspectionGame, productionManifest.ReleaseVersion);
+    Assert(healthyInspection.Condition == InstallationCondition.Healthy,
+        "installation inspector detects healthy current version");
+
     var repository = Path.Combine(root, "repository");
     var archive = Path.Combine(repository, "artifact.zip");
     var game = Path.Combine(root, "install-game");

@@ -347,12 +347,30 @@ public partial class MainWindow : Window
             InstallButton.ToolTip = "Установка уже выполняется.";
             return;
         }
-        var installed = IsIntegrationInstalled();
-        InstallButton.Content = installed ? "Восстановить" : "Установить";
-        RemoveButton.IsEnabled = _game is not null && installed;
-        RemoveButton.ToolTip = installed
-            ? "Удалить мод, сохранив настройки и ключ."
-            : "RimLink не установлен в выбранной игре.";
+        var inspection = InspectIntegration();
+        var installed = inspection is not null &&
+            inspection.Condition != InstallationCondition.NotInstalled;
+        InstallButton.Content = inspection?.Condition switch
+        {
+            InstallationCondition.UpdateAvailable => "Обновить",
+            InstallationCondition.RepairRequired => "Восстановить",
+            InstallationCondition.Healthy => "Переустановить",
+            _ => "Установить",
+        };
+        RemoveButton.IsEnabled = installed &&
+            inspection?.Condition != InstallationCondition.UnsafeTarget;
+        RemoveButton.ToolTip = inspection?.Condition switch
+        {
+            InstallationCondition.UnsafeTarget =>
+                "Автоматическое удаление небезопасной ссылки запрещено.",
+            not InstallationCondition.NotInstalled when installed =>
+                "Удалить мод, сохранив настройки и ключ.",
+            _ => "RimLink не установлен в выбранной игре.",
+        };
+        if (inspection is not null && updateReleaseMessage)
+        {
+            IntegrationStatusText.Text = InspectionMessage(inspection);
+        }
         if (_session is null || _game is null)
         {
             InstallButton.IsEnabled = false;
@@ -361,27 +379,46 @@ public partial class MainWindow : Window
         }
         var releaseReady = ReleaseConfiguration.TryLoad(
             out _, out _, out var releaseReason);
-        InstallButton.IsEnabled = releaseReady;
+        InstallButton.IsEnabled = releaseReady &&
+            inspection?.Condition != InstallationCondition.UnsafeTarget;
         InstallButton.ToolTip = releaseReady
             ? "Установить и настроить RimLink."
             : releaseReason;
         if (!releaseReady && updateReleaseMessage)
         {
-            IntegrationStatusText.Text = releaseReason;
+            IntegrationStatusText.Text = inspection is null
+                ? releaseReason
+                : $"{InspectionMessage(inspection)} {releaseReason}";
         }
     }
 
-    private bool IsIntegrationInstalled()
+    private InstallationInspection? InspectIntegration()
     {
         if (_game is null ||
             !ReleaseConfiguration.TryLoadManifest(out var manifest, out _))
         {
-            return false;
+            return null;
         }
-        var target = PathBoundary.CombineWithin(
-            _game.RootPath, manifest!.Installation.Target.RelativePath);
-        return Directory.Exists(target);
+        var state = _stateStore.LoadOrCreate();
+        return InstallationInspector.Inspect(
+            manifest!, _game.RootPath, state.InstalledReleaseVersion);
     }
+
+    private static string InspectionMessage(InstallationInspection inspection) =>
+        inspection.Condition switch
+        {
+            InstallationCondition.NotInstalled =>
+                $"RimLink не установлен. Доступна версия {inspection.AvailableVersion}.",
+            InstallationCondition.Healthy =>
+                $"RimLink {inspection.InstalledVersion} установлен, обязательные файлы на месте.",
+            InstallationCondition.UpdateAvailable =>
+                $"Установлена версия {inspection.InstalledVersion}; доступна {inspection.AvailableVersion}.",
+            InstallationCondition.RepairRequired =>
+                "RimLink найден, но версия неизвестна или обязательные файлы повреждены.",
+            InstallationCondition.UnsafeTarget =>
+                "Папка RimLink является небезопасной ссылкой; автоматические операции заблокированы.",
+            _ => "Состояние RimLink неизвестно.",
+        };
 
     private void SaveGameRoot(string gameRoot)
     {

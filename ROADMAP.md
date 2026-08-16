@@ -339,6 +339,9 @@ refresh без неявного отзыва установленных module c
   RSA-PSS mismatch не доходят до staging. Policy зафиксирована в
   `docs/MANAGER_RELEASE_SIGNATURE_POLICY_V1.md`; offline signer проверяет ZIP,
   требует RSA 3072+ и атомарно обновляет manifest. Production key/URL ещё не созданы.
+- installation inspector различает отсутствующий, повреждённый, устаревший и
+  актуальный RimLink; WPF показывает установленную/доступную версии и выбирает
+  честный CTA `Установить / Обновить / Восстановить / Переустановить`.
 
 ### Scope v1
 
@@ -362,13 +365,14 @@ refresh без неявного отзыва установленных module c
 - [ ] Configure без ручного JSON и копирования ID/token/API URL.
 - [ ] Verify.
 - [ ] Update.
-- [ ] Repair.
+- [ ] Repair — Core/UI готовы, end-to-end gate ждёт signed release source.
 - [x] Uninstall с сохранением пользовательских данных по умолчанию.
 
 Core-реализация первых трёх пунктов завершена и покрыта success, auth failure и
 verified-crash recovery тестами; пункты остаются открытыми до проверки реального
 release source. Uninstall подключён к WPF, атомарен, идемпотентен и сохраняет
-managed XML/credential по умолчанию.
+managed XML/credential по умолчанию. Repair/update decision покрыт отдельным
+inspection test для missing, broken, outdated и healthy installation.
 
 #### Diagnostics
 

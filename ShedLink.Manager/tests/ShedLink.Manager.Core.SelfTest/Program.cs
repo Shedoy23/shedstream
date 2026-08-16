@@ -23,6 +23,7 @@ try
     TestManifestDrivenDetection(root);
     TestJsonConfigurationStore(root);
     TestFailureMessages();
+    TestDeniedWriteScenario(root);
     await TestInstallationAsync(root);
     await TestHttpsDistributionAsync(root);
     await TestManagerUpdateAsync(root);
@@ -838,6 +839,110 @@ static void TestJsonConfigurationStore(string root)
     catch (InvalidDataException)
     {
         Assert(true, "integration needing a channel id refuses a session without one");
+    }
+}
+
+static void TestDeniedWriteScenario(string root)
+{
+    // Матрица R3, строка «недостаточно прав на запись». Проверка текста живёт
+    // в TestFailureMessages; здесь проверяется другое — что установка в папку
+    // без прав ДОХОДИТ до этого текста, а не до чего-то третьего. Именно этот
+    // разрыв прятал дефект: тип исключения не совпадал ни с одним фильтром
+    // обработчиков, и вместо сообщения приложение закрывалось.
+    var repository = Path.Combine(root, "denied-repository");
+    var game = Path.Combine(root, "denied-game");
+    Directory.CreateDirectory(repository);
+    Directory.CreateDirectory(game);
+    var archive = Path.Combine(repository, "artifact.zip");
+    using (var zip = ZipFile.Open(archive, ZipArchiveMode.Create))
+    {
+        using var writer = new StreamWriter(
+            zip.CreateEntry("RimLink/Assemblies/RimLink.dll").Open());
+        writer.Write("payload");
+    }
+    var size = new FileInfo(archive).Length;
+    var hash = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(archive)))
+        .ToLowerInvariant();
+    var manifestPath = Path.Combine(repository, "manifest.json");
+    File.WriteAllText(manifestPath, $$$"""
+    {
+      "schema_version": 1,
+      "integration_id": "rimworld",
+      "release_version": "denied-1",
+      "artifacts": [{
+        "id": "rimlink_mod",
+        "source": {"kind": "repository", "path": "artifact.zip"},
+        "size_bytes": {{{size}}},
+        "sha256": "{{{hash}}}",
+        "format": "zip",
+        "archive_root": "RimLink"
+      }],
+      "installation": {"target": {"base": "game_root", "relative_path": "Mods/RimLink"}},
+      "configuration": {
+        "store": {"kind": "xml", "base": "windows_local_low", "relative_path": "RimLink/settings.xml"},
+        "managed_fields": [
+          {"name": "server_url", "selector": "/SettingsBlock/ModSettings/serverUrl", "value_source": "backend_url", "secret": false}
+        ]
+      },
+      "health": [{"id": "assembly_present", "kind": "path_exists", "path": "Assemblies/RimLink.dll", "required": true}],
+      "security": {"publisher": "shedoy23", "signature_status": "unsigned"}
+    }
+    """);
+
+    using var identity = WindowsIdentity.GetCurrent();
+    var user = identity.User!;
+    var directory = new DirectoryInfo(game);
+    var security = directory.GetAccessControl();
+    var deny = new FileSystemAccessRule(
+        user,
+        FileSystemRights.CreateDirectories | FileSystemRights.CreateFiles |
+            FileSystemRights.Write,
+        InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+        PropagationFlags.None,
+        AccessControlType.Deny);
+    security.AddAccessRule(deny);
+    directory.SetAccessControl(security);
+    try
+    {
+        // Запрет мог не примениться (процесс под особым токеном) — тогда
+        // сценарий не воспроизведён, и молчать об этом нельзя.
+        var blocked = false;
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(game, "probe"));
+        }
+        catch (UnauthorizedAccessException)
+        {
+            blocked = true;
+        }
+        if (!blocked)
+        {
+            Console.WriteLine("  SKIP  denied-write scenario: ACL not enforced for this token");
+            return;
+        }
+
+        Exception? caught = null;
+        try
+        {
+            new PackageInstaller().InstallRepositoryArtifact(manifestPath, repository, game);
+        }
+        catch (Exception exception)
+        {
+            caught = exception;
+        }
+        Assert(caught is not null,
+            "установка в папку без прав не выдаёт себя за успешную");
+        Assert(ManagerFailureMessage.IsExpected(caught!),
+            "сбой прав доходит до обработчика, а не роняет Manager");
+        Assert(ManagerFailureMessage.For(caught!).Contains(
+                "Windows не дал записать", StringComparison.Ordinal),
+            "сбой прав объясняется человеку именно как отказ Windows");
+    }
+    finally
+    {
+        security = directory.GetAccessControl();
+        security.RemoveAccessRule(deny);
+        directory.SetAccessControl(security);
     }
 }
 

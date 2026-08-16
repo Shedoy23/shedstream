@@ -34,7 +34,7 @@
   14 августа: один Twitch stream ID на непрерывный эфир.
 - M109 теперь регистрируется в migration ledger, безопасно ремонтирует уже
   существующую таблицу и покрыта regression; полный backend suite 48/48 green.
-  Исправление ещё не deployed.
+  Исправление развёрнуто 2026-08-16 вместе с M110–M112.
 - Свежий production backup за 15 августа успешно восстановлен в изолированный
   временный файл и прошёл `quick_check`; живая БД не изменялась.
 - Начат R1: создана Installation Manifest v1 schema и проверяемый RimWorld
@@ -55,8 +55,8 @@
   browser pairing/session resume, Windows Credential Manager vault, атомарным
   несекретным state и restart recovery. RimWorld определяется в Steam libraries
   либо проверяется по ручному path. Windows build/self-test зелёные и добавлены
-  в CI. Install CTA вызывает recoverable signed-HTTPS operation, а
-  production Manager API ещё не deployed; release delivery и trust gate закрыты.
+  в CI. Install CTA вызывает recoverable signed-HTTPS operation; production
+  Manager API, release delivery и trust gate развёрнуты и проверены.
 - Manager получил явный выход с опциональным немедленным отзывом ключа RimLink.
   Смена ключа запрещена при запущенной игре, проверяет новый ключ до активации и
   после сбоя восстанавливает согласованное состояние XML, Credential Manager и
@@ -106,9 +106,12 @@
   созданы; downloaded production bytes прошли independent verifier.
 - Module credential теперь можно проверить отдельным side-effect-free auth-check:
   он не создаёт ложный heartbeat и не меняет liveness игры.
-- Read-only production check 2026-08-16: `/health` отвечает 200 (`db=ok`),
-  новый `/v1/module/rimworld/auth-check` ещё не развёрнут и отвечает 404.
-  Локальный Manager поэтому не считается production-ready до штатного deploy.
+- Штатный production deploy 2026-08-16 завершён: `/health` и публичные страницы
+  отвечают 200, `/v1/module/rimworld/auth-check` отвечает ожидаемым 401 без
+  credential вместо прежнего 404, pairing API выполнил тестовую защищённую
+  запись. M109–M112 и новые таблицы подтверждены, `quick_check=ok`, отрицательных
+  points и незавершённых действий нет. Тестовая pairing-запись удалена. Полный
+  evidence: `docs/PRODUCTION_MANAGER_DEPLOY_2026-08-16.md`.
 - Активная игра определяется по heartbeat мода; действия выключенной integration
   отклоняются безопасно.
 - Релиз 0.0.2 зафиксирован тегом `submit/0.0.2`; канонический архив хранится в
@@ -126,9 +129,8 @@ vertical slice, но R0 release gate ещё не пройден.
 
 1. Выполнить RimWorld live smoke: apply/refuse, lost ACK, restart и reconnect.
 2. После live smoke окончательно утвердить первую Manager integration.
-3. Включить M109 repair, M110–M112 Manager migrations/API и обновлённые runtime
-   manifests в следующий штатный production deploy.
-4. Проверить signed install и `Technical Ready` на реальной RimWorld.
+3. Открыть актуальный Manager EXE и пройти signed install на реальной RimWorld.
+4. Запустить игру и подтвердить heartbeat + diagnostic ACK (`Technical Ready`).
 5. Сделать offline backup production private key на отдельный носитель.
 
 ## Правило обновления

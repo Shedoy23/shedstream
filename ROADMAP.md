@@ -332,8 +332,8 @@ refresh без неявного отзыва установленных module c
 - production installation engine реализован в Core и проверяет реальный
   manifest; repository и signed HTTPS sources проходят единую recoverable
   orchestration `package → config → auth-check`. WPF CTA подключён к этой
-  операции; release delivery gate закрыт, production Manager API deploy остаётся
-  отдельным блокером полного flow.
+  операции; release delivery gate закрыт, production Manager API и migrations
+  M109–M112 развёрнуты и проверены 2026-08-16.
 - HTTPS downloader и publisher verifier реализованы fail-closed: redirect/HTTP
   downgrade, wrong/truncated/oversized bytes, SHA mismatch, unknown key и
   RSA-PSS mismatch не доходят до staging. Policy зафиксирована в
@@ -369,6 +369,12 @@ refresh без неявного отзыва установленных module c
   POST закрыты, backend health не изменился.
 - RimLink/installation manifest `0.1.1` signed и опубликован; deterministic ZIP
   связан с манифестом точными size/SHA и RSA-PSS signature.
+- Production deploy прошёл с проверенным backup/restore и отдельной точкой
+  отката кода. `/v1/module/rimworld/auth-check` отвечает 401 без credential
+  вместо прежнего 404; pairing API успешно создал и удалил тестовую pending
+  запись. База после миграций: `quick_check=ok`, M109–M112 и пять новых таблиц
+  на месте, отрицательных points и незавершённых module actions нет. Evidence:
+  `docs/PRODUCTION_MANAGER_DEPLOY_2026-08-16.md`.
 
 ### Scope v1
 
@@ -396,10 +402,11 @@ refresh без неявного отзыва установленных module c
 - [x] Uninstall с сохранением пользовательских данных по умолчанию.
 
 Core-реализация первых трёх пунктов завершена и покрыта success, auth failure и
-verified-crash recovery тестами; пункты остаются открытыми до проверки реального
-release source. Uninstall подключён к WPF, атомарен, идемпотентен и сохраняет
-managed XML/credential по умолчанию. Repair/update decision покрыт отдельным
-inspection test для missing, broken, outdated и healthy installation.
+verified-crash recovery тестами; signed production source и backend готовы, но
+пункты остаются открытыми до прогона на реальной установленной RimWorld.
+Uninstall подключён к WPF, атомарен, идемпотентен и сохраняет managed
+XML/credential по умолчанию. Repair/update decision покрыт отдельным inspection
+test для missing, broken, outdated и healthy installation.
 
 #### Diagnostics
 

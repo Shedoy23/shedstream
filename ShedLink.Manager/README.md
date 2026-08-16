@@ -73,5 +73,14 @@ dotnet run --project ShedLink.Manager/tests/ShedLink.Manager.Core.SelfTest
 dotnet run --project ShedLink.Manager/src/ShedLink.Manager.App
 ```
 
+Передаваемый автономный alpha-пакет собирается одной командой:
+
+```powershell
+pwsh -File scripts/package-manager-alpha.ps1
+```
+
+Скрипт публикует self-contained single-file EXE, добавляет `START-HERE.txt` и
+`RELEASE.json`, исключает debug-файлы и создаёт ZIP с отдельным SHA-256.
+
 Self-test использует поддельный HTTP backend и временную запись в Windows
 Credential Manager, которую удаляет даже при ошибке.

@@ -16,15 +16,39 @@ public sealed class ArtifactSignatureVerifier
     {
         var signature = artifact.Signature
             ?? throw new InvalidDataException("Artifact signature is missing.");
-        if (signature.Algorithm != "rsa-pss-sha256" ||
-            !_publicKeys.TryGetValue(signature.KeyId, out var publicKeyPem))
+        Verify(
+            SigningPayload(manifest, artifact),
+            signature.Algorithm,
+            signature.KeyId,
+            signature.Value);
+    }
+
+    /// <summary>Same trust rules for artifacts described outside an installation manifest.</summary>
+    public void Verify(
+        string integrationId,
+        string releaseVersion,
+        string artifactId,
+        long sizeBytes,
+        string sha256,
+        string algorithm,
+        string keyId,
+        string signatureValue) => Verify(
+            SigningPayload(integrationId, releaseVersion, artifactId, sizeBytes, sha256),
+            algorithm,
+            keyId,
+            signatureValue);
+
+    private void Verify(byte[] payload, string algorithm, string keyId, string signatureValue)
+    {
+        if (algorithm != "rsa-pss-sha256" ||
+            !_publicKeys.TryGetValue(keyId, out var publicKeyPem))
         {
             throw new InvalidDataException("Artifact publisher key is not trusted.");
         }
         byte[] signatureBytes;
         try
         {
-            signatureBytes = Convert.FromBase64String(signature.Value);
+            signatureBytes = Convert.FromBase64String(signatureValue);
         }
         catch (FormatException exception)
         {
@@ -35,7 +59,7 @@ public sealed class ArtifactSignatureVerifier
             using var rsa = RSA.Create();
             rsa.ImportFromPem(publicKeyPem);
             if (!rsa.VerifyData(
-                SigningPayload(manifest, artifact),
+                payload,
                 signatureBytes,
                 HashAlgorithmName.SHA256,
                 RSASignaturePadding.Pss))

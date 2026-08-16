@@ -11,6 +11,7 @@ using ShedLink.Manager.Core.Diagnostics;
 using ShedLink.Manager.Core.Installation;
 using ShedLink.Manager.Core.Security;
 using ShedLink.Manager.Core.State;
+using ShedLink.Manager.Core.Update;
 
 var root = Path.Combine(Path.GetTempPath(), "shedlink-manager-test-" + Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
@@ -20,6 +21,7 @@ try
     TestRimWorldDetection(root);
     await TestInstallationAsync(root);
     await TestHttpsDistributionAsync(root);
+    await TestManagerUpdateAsync(root);
     TestDiagnosticReport(root);
     TestWindowsVault();
     Console.WriteLine("ALL GREEN — Manager core keeps secrets out of local state and survives restart.");
@@ -740,6 +742,169 @@ static async Task TestHttpsDistributionAsync(string root)
     }
 }
 
+static async Task TestManagerUpdateAsync(string root)
+{
+    Assert(ManagerVersion.Compare("0.2.0", "0.1.0") > 0 &&
+        ManagerVersion.Compare("0.1.0", "0.1.0-alpha.1") > 0 &&
+        ManagerVersion.Compare("0.1.0-alpha.10", "0.1.0-alpha.2") > 0 &&
+        ManagerVersion.Compare("0.1.0-alpha.2", "0.1.0-alpha.2+build") == 0,
+        "manager version ordering handles pre-release numbers");
+
+    var updateRoot = Path.Combine(root, "manager-update");
+    var packageDirectory = Path.Combine(updateRoot, "installed");
+    var executableName = "ShedLink.Manager.App.exe";
+    var executable = Path.Combine(packageDirectory, executableName);
+    Directory.CreateDirectory(Path.Combine(packageDirectory, "Release"));
+    File.WriteAllText(executable, "old-manager");
+    File.WriteAllText(
+        Path.Combine(packageDirectory, "Release", "rimworld-0.1.1.json"), "old-catalog");
+
+    var archiveRoot = "ShedLink.Manager-0.2.0-win-x64";
+    var archivePath = Path.Combine(updateRoot, "manager.zip");
+    using (var zip = ZipFile.Open(archivePath, ZipArchiveMode.Create))
+    {
+        using (var writer = new StreamWriter(
+            zip.CreateEntry($"{archiveRoot}/{executableName}").Open()))
+        {
+            writer.Write("new-manager");
+        }
+        using (var writer = new StreamWriter(
+            zip.CreateEntry($"{archiveRoot}/Release/rimworld-0.1.1.json").Open()))
+        {
+            writer.Write("new-catalog");
+        }
+    }
+    var archiveBytes = File.ReadAllBytes(archivePath);
+    var sha = Convert.ToHexString(SHA256.HashData(archiveBytes)).ToLowerInvariant();
+    using var signingKey = RSA.Create(2048);
+    var signature = Convert.ToBase64String(signingKey.SignData(
+        ArtifactSignatureVerifier.SigningPayload(
+            "shedlink-manager", "0.2.0", "manager_package", archiveBytes.Length, sha),
+        HashAlgorithmName.SHA256,
+        RSASignaturePadding.Pss));
+    var manifestJson = $$"""
+    {
+      "schema_version": 1,
+      "product": "shedlink-manager",
+      "version": "0.2.0",
+      "artifact": {
+        "id": "manager_package",
+        "url": "https://downloads.test/manager.zip",
+        "size_bytes": {{archiveBytes.Length}},
+        "sha256": "{{sha}}",
+        "format": "zip",
+        "archive_root": "{{archiveRoot}}",
+        "signature": {
+          "algorithm": "rsa-pss-sha256",
+          "key_id": "test_release_key",
+          "value": "{{signature}}"
+        }
+      }
+    }
+    """;
+    var trusted = new ArtifactSignatureVerifier(new Dictionary<string, string>
+    {
+        ["test_release_key"] = signingKey.ExportSubjectPublicKeyInfoPem(),
+    });
+    var manifestUrl = new Uri("https://downloads.test/manager-latest.json");
+
+    using (var service = new ManagerUpdateService(
+        trusted, packageDirectory, executableName,
+        new ManagerUpdateHandler(manifestJson, archiveBytes)))
+    {
+        var current = await service.CheckAsync(manifestUrl, "0.2.0");
+        Assert(!current.UpdateAvailable, "manager update check accepts the current version");
+        var newer = await service.CheckAsync(manifestUrl, "0.1.0-alpha.2");
+        Assert(newer.UpdateAvailable && newer.AvailableVersion == "0.2.0",
+            "manager update check offers a newer version");
+        try
+        {
+            await service.StageAsync(manifestUrl, "0.2.0");
+            throw new InvalidOperationException("FAILED: manager update refuses a downgrade");
+        }
+        catch (InvalidDataException)
+        {
+            Assert(File.ReadAllText(executable) == "old-manager",
+                "manager update refuses a replayed older manifest");
+        }
+    }
+
+    var tampered = archiveBytes.ToArray();
+    tampered[^1] ^= 0xFF;
+    using (var service = new ManagerUpdateService(
+        trusted, packageDirectory, executableName,
+        new ManagerUpdateHandler(manifestJson, tampered)))
+    {
+        try
+        {
+            await service.StageAsync(manifestUrl, "0.1.0");
+            throw new InvalidOperationException("FAILED: manager update rejects tampered bytes");
+        }
+        catch (InvalidDataException)
+        {
+            Assert(File.ReadAllText(executable) == "old-manager",
+                "manager update rejects tampered download");
+        }
+    }
+
+    using var otherKey = RSA.Create(2048);
+    var untrusted = new ArtifactSignatureVerifier(new Dictionary<string, string>
+    {
+        ["test_release_key"] = otherKey.ExportSubjectPublicKeyInfoPem(),
+    });
+    using (var service = new ManagerUpdateService(
+        untrusted, packageDirectory, executableName,
+        new ManagerUpdateHandler(manifestJson, archiveBytes)))
+    {
+        try
+        {
+            await service.StageAsync(manifestUrl, "0.1.0");
+            throw new InvalidOperationException("FAILED: manager update rejects a foreign key");
+        }
+        catch (InvalidDataException)
+        {
+            Assert(File.ReadAllText(executable) == "old-manager",
+                "manager update rejects a package signed by another key");
+        }
+    }
+
+    using (var service = new ManagerUpdateService(
+        trusted, packageDirectory, executableName,
+        new ManagerUpdateHandler(manifestJson, archiveBytes, redirectManifest: true)))
+    {
+        try
+        {
+            await service.CheckAsync(manifestUrl, "0.1.0");
+            throw new InvalidOperationException("FAILED: manager update rejects redirects");
+        }
+        catch (InvalidDataException)
+        {
+            Assert(true, "manager update rejects a redirected manifest");
+        }
+    }
+
+    using (var service = new ManagerUpdateService(
+        trusted, packageDirectory, executableName,
+        new ManagerUpdateHandler(manifestJson, archiveBytes)))
+    {
+        var staged = await service.StageAsync(manifestUrl, "0.1.0-alpha.2");
+        Assert(staged.Version == "0.2.0" && File.ReadAllText(executable) == "old-manager",
+            "staged manager update does not touch the running package");
+        var relaunch = service.Apply(staged);
+        Assert(relaunch == executable &&
+            File.ReadAllText(executable) == "new-manager" &&
+            File.ReadAllText(Path.Combine(
+                packageDirectory, "Release", "rimworld-0.1.1.json")) == "new-catalog",
+            "applied manager update replaced executable and catalog");
+        var displaced = executable + ".shedlink-previous";
+        Assert(File.Exists(displaced) && File.ReadAllText(displaced) == "old-manager",
+            "previous manager executable kept aside for the running process");
+        Assert(service.CleanupPrevious() && !File.Exists(displaced) &&
+            !service.CleanupPrevious(),
+            "previous manager executable removed on the next start");
+    }
+}
+
 static string SnapshotDirectory(string root)
 {
     var entries = Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
@@ -756,6 +921,44 @@ static void Assert(bool condition, string label)
         throw new InvalidOperationException("FAILED: " + label);
     }
     Console.WriteLine("  OK  " + label);
+}
+
+sealed class ManagerUpdateHandler : HttpMessageHandler
+{
+    private readonly string _manifest;
+    private readonly byte[] _package;
+    private readonly bool _redirectManifest;
+
+    public ManagerUpdateHandler(string manifest, byte[] package, bool redirectManifest = false)
+    {
+        _manifest = manifest;
+        _package = package;
+        _redirectManifest = redirectManifest;
+    }
+
+    protected override Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        var path = request.RequestUri!.AbsolutePath;
+        if (path.EndsWith(".json", StringComparison.Ordinal))
+        {
+            if (_redirectManifest)
+            {
+                var moved = new HttpResponseMessage(HttpStatusCode.Found);
+                moved.Headers.Location = new Uri("https://elsewhere.test/manager-latest.json");
+                return Task.FromResult(moved);
+            }
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(_manifest),
+            });
+        }
+        return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(_package),
+        });
+    }
 }
 
 sealed class MemoryVault : ICredentialVault

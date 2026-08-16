@@ -28,6 +28,30 @@ public sealed class SecureArtifactDownloader : IDisposable
         string destination,
         CancellationToken cancellationToken = default)
     {
+        await DownloadVerifiedAsync(
+            source, artifact.SizeBytes, artifact.Sha256, destination, cancellationToken);
+        try
+        {
+            signatureVerifier.Verify(manifest, artifact);
+        }
+        catch
+        {
+            File.Delete(destination);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Transport and integrity only: HTTPS without redirects, exact declared size
+    /// and SHA-256. Publisher signature is the caller's responsibility.
+    /// </summary>
+    public async Task DownloadVerifiedAsync(
+        Uri source,
+        long sizeBytes,
+        string sha256,
+        string destination,
+        CancellationToken cancellationToken = default)
+    {
         if (source.Scheme != Uri.UriSchemeHttps || !source.IsAbsoluteUri ||
             !string.IsNullOrEmpty(source.UserInfo))
         {
@@ -49,7 +73,7 @@ public sealed class SecureArtifactDownloader : IDisposable
             }
             response.EnsureSuccessStatusCode();
             if (response.Content.Headers.ContentLength is long contentLength &&
-                contentLength != artifact.SizeBytes)
+                contentLength != sizeBytes)
             {
                 throw new InvalidDataException("Artifact Content-Length does not match manifest.");
             }
@@ -70,25 +94,24 @@ public sealed class SecureArtifactDownloader : IDisposable
                     break;
                 }
                 total += read;
-                if (total > artifact.SizeBytes)
+                if (total > sizeBytes)
                 {
                     throw new InvalidDataException("Artifact exceeds manifest size.");
                 }
                 hash.AppendData(buffer, 0, read);
                 await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
             }
-            if (total != artifact.SizeBytes)
+            if (total != sizeBytes)
             {
                 throw new InvalidDataException("Artifact is truncated.");
             }
             var digest = Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
             if (!CryptographicOperations.FixedTimeEquals(
                 System.Text.Encoding.ASCII.GetBytes(digest),
-                System.Text.Encoding.ASCII.GetBytes(artifact.Sha256)))
+                System.Text.Encoding.ASCII.GetBytes(sha256)))
             {
                 throw new InvalidDataException("Downloaded artifact SHA-256 does not match.");
             }
-            signatureVerifier.Verify(manifest, artifact);
         }
         catch
         {

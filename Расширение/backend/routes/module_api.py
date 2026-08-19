@@ -591,6 +591,22 @@ async def module_ack(module_id: str, request: Request):
         transition=not deferred_failure,
     )
 
+    # Manager's Technical Ready check is a zero-effect action travelling over
+    # the same generic outbox as real game actions. Mirror its terminal ACK into
+    # the Manager-owned diagnostic row; normal actions never match this prefix.
+    if action_id.startswith("manager_"):
+        async with db._connect() as conn:
+            diagnostic_status = "acked" if success else "failed"
+            await conn.execute(
+                "UPDATE manager_diagnostic_actions "
+                "SET status=?,completed_at=?,error=? "
+                "WHERE channel_id=? AND module_id=? AND command_id=? "
+                "AND status IN ('queued','delivered')",
+                (diagnostic_status, time.time(), error_msg,
+                 channel_id, module_id, action_id),
+            )
+            await conn.commit()
+
     # Sprint 5.29 audit fix #34: trace action lifecycle. Раньше ACK silent —
     # никаких логов; нельзя было сопоставить «buy_action enqueue» c «mod
     # processed». Теперь action_id трэйсится по обоим сторонам.

@@ -29,6 +29,7 @@ namespace BannerlordLink.Actions
         public static void RegisterDefaults()
         {
             // ── REAL handlers ──────────────────────────────────────────────
+            Register(new DiagnosticPingHandler());   // Manager Technical Ready; no game mutation
             Register(new AdoptHeroHandler());        // hero.create — adoption
             Register(new SetClassHandler());         // hero.set_class — class + equipment
             Register(new SetCombatStanceHandler());  // hero.set_combat_stance — боевая стойка (2026-06-10)

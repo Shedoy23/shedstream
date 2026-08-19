@@ -196,12 +196,14 @@ async def manager_diagnostic_start(request: Request):
         claims = await _manager_claims(request)
         channel_id = int(claims["channel_id"])
         module_id = str(claims.get("module_id") or "")
-        if module_id != "rimworld":
+        if module_id not in {"rimworld", "bannerlord"}:
             return JSONResponse({"status": "diagnostic_not_supported"}, status_code=409)
         body = await _optional_json_body(request)
         mode = str(body.get("mode") or "ready").strip().lower()
         if mode not in {"ready", "refuse", "lost_ack"}:
             return JSONResponse({"status": "invalid_diagnostic_mode"}, status_code=400)
+        if module_id != "rimworld" and mode != "ready":
+            return JSONResponse({"status": "diagnostic_mode_not_supported"}, status_code=409)
         import module_liveness
         db = get_db()
         if not await module_liveness.is_on_air(db, channel_id, module_id):
@@ -218,9 +220,10 @@ async def manager_diagnostic_start(request: Request):
             "diagnostic_mode": mode,
             "price": 0,
         }
-        import rimworld
         async with db._connect() as conn:
-            await rimworld._ensure_pending_commands_table(conn)
+            if module_id == "rimworld":
+                import rimworld
+                await rimworld._ensure_pending_commands_table(conn)
             await conn.execute("BEGIN IMMEDIATE")
             await conn.execute(
                 "INSERT INTO manager_diagnostic_actions "
@@ -228,11 +231,20 @@ async def manager_diagnostic_start(request: Request):
                 "VALUES (?,?,?,?,?,?)",
                 (diagnostic_id, channel_id, module_id, command_id, "queued", now),
             )
-            await conn.execute(
-                "INSERT INTO rimworld_pending_commands "
-                "(channel_id,cmd_id,cmd_json,status) VALUES (?,?,?,'queued')",
-                (channel_id, command_id, json.dumps(command, ensure_ascii=False)),
-            )
+            if module_id == "rimworld":
+                await conn.execute(
+                    "INSERT INTO rimworld_pending_commands "
+                    "(channel_id,cmd_id,cmd_json,status) VALUES (?,?,?,'queued')",
+                    (channel_id, command_id, json.dumps(command, ensure_ascii=False)),
+                )
+            else:
+                await conn.execute(
+                    "INSERT INTO module_actions "
+                    "(channel_id,module_id,action_id,type,data,status) "
+                    "VALUES (?,?,?,?,?,'queued')",
+                    (channel_id, module_id, command_id, command["type"],
+                     json.dumps(command, ensure_ascii=False)),
+                )
             await conn.commit()
         return _secret_response({
             "status": "queued",
@@ -280,11 +292,19 @@ async def manager_diagnostic_result(diagnostic_id: str, request: Request):
                     "WHERE diagnostic_id=?",
                     (completed_at, error, diagnostic_id),
                 )
-                await conn.execute(
-                    "DELETE FROM rimworld_pending_commands "
-                    "WHERE channel_id=? AND cmd_id=?",
-                    (channel_id, command_id),
-                )
+                if module_id == "rimworld":
+                    await conn.execute(
+                        "DELETE FROM rimworld_pending_commands "
+                        "WHERE channel_id=? AND cmd_id=?",
+                        (channel_id, command_id),
+                    )
+                else:
+                    await conn.execute(
+                        "DELETE FROM module_actions "
+                        "WHERE channel_id=? AND module_id=? AND action_id=? "
+                        "AND status IN ('queued','dispatched')",
+                        (channel_id, module_id, command_id),
+                    )
                 await conn.commit()
         diagnostic_mode = "ready"
         for candidate in ("refuse", "lost_ack"):

@@ -108,7 +108,10 @@ public static class ManagedConfiguration
         var user = identity.User
             ?? throw new InvalidOperationException("Current Windows user SID is unavailable.");
         var security = new FileSecurity();
-        security.SetOwner(user);
+        // A file created by this process is already owned by the current user.
+        // Re-applying the owner asks Windows for SeRestorePrivilege, which a
+        // normal (non-admin) streamer does not have on some Steam libraries.
+        // The owner can still replace the DACL below without elevation.
         security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
         security.AddAccessRule(new FileSystemAccessRule(
             user,

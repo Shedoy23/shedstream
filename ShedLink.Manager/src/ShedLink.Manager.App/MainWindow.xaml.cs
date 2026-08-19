@@ -386,6 +386,7 @@ public partial class MainWindow : Window
         }
         catch (Exception exception) when (ManagerFailureMessage.IsExpected(exception))
         {
+            RecordFailure("install", exception);
             IntegrationStatusText.Text =
                 "Установка не выполнена; прежняя версия восстановлена.";
             OverallStatusText.Text = FriendlyError(exception);
@@ -1018,6 +1019,28 @@ public partial class MainWindow : Window
     // объяснение и следующее действие, а глазами это не проверяется.
     private static string FriendlyError(Exception exception) =>
         ManagerFailureMessage.For(exception);
+
+    private static void RecordFailure(string operation, Exception exception)
+    {
+        try
+        {
+            var directory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "ShedLink",
+                "Manager");
+            Directory.CreateDirectory(directory);
+            var path = Path.Combine(directory, "last-failure.log");
+            File.WriteAllText(
+                path,
+                $"{DateTimeOffset.UtcNow:O} operation={operation}{Environment.NewLine}" +
+                exception + Environment.NewLine);
+        }
+        catch (Exception logException) when (
+            logException is IOException or UnauthorizedAccessException)
+        {
+            // Failure reporting must never replace the original user-facing error.
+        }
+    }
 
     private static bool IsTerminalSessionError(ManagerApiException exception) =>
         exception.ErrorCode is

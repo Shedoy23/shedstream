@@ -65,6 +65,14 @@ window._stopRimworldPolling = function _stopRimworldPolling() {
     }
 };
 
+// 2026-08-19: игра объявляет себя ядру сама (viewer-registry.js).
+ShedLink.registerGame('rimworld', {
+    rootId: 'rimworld-content',
+    title:  '🧬 RimWorld',
+    start:  function () { window._startRimworldPolling(); },
+    stop:   function () { window._stopRimworldPolling(); },
+});
+
 // ===== ЗАПРОС РАЗРЕШЕНИЯ НА IDENTITY =====
 function showLoginBanner() {
     const banner = document.createElement('div');

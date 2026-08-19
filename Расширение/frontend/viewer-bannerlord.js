@@ -9,6 +9,16 @@
 //
 // Чанк 1 (2026-06-13): Турнир зрителей (loadBannerlordTournament + render + predict).
 
+// 2026-08-19 (шаг 2 плана «ядро + игровые модули»): игра объявляет себя сама.
+// start/stop обёрнуты в функции намеренно — сами они живут в viewer.js, и
+// ссылка берётся в момент вызова, а не при разборе этого файла.
+ShedLink.registerGame('bannerlord', {
+    rootId: 'bannerlord-content',
+    title:  '⚔️ Bannerlord',
+    start:  function () { _startBannerlordPolling(); },
+    stop:   function () { _stopBannerlordPolling(); },
+});
+
 // ===== Thin-front (2026-07-02): статические цены/кулдауны с бэка =====
 // Цены/пороги берём из /api/bannerlord/config, а НЕ из хардкодов ниже: фронт
 // замораживается на CDN Twitch, и после ребаланса на бэке хардкод показал бы

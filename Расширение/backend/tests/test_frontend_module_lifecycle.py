@@ -61,15 +61,29 @@ check("safeInterval(checkRimworldStatus, 30000)" in rimworld,
 check("if (_activeIntegrationModule !== 'rimworld') return;" in rimworld,
       "локальный UI tick тоже gated по активному модулю")
 
+# 2026-08-19: цепочка if/else заменена реестром (frontend/viewer-registry.js).
+# Проверка «останови всех, кроме активной» переехала из строк исходника в
+# ПОВЕДЕНЧЕСКИЙ тест tests/test_game_registry.js — строковая проверка зеленела
+# бы и тогда, когда до этих строк не доходит управление. Здесь остаётся только
+# проводка: ядро делегирует в реестр, каждая игра объявляет себя сама.
 switcher = between(
     viewer,
     "function switchIntegrationModule(activeModule) {",
     "// ===== Daily rewards / Heirs / Family",
 )
-check("window._startRimworldPolling" in switcher,
-      "switcher запускает RimWorld только в его ветке")
-check(switcher.count("window._stopRimworldPolling") >= 3,
-      "switcher останавливает RimWorld во всех остальных ветках")
+check("ShedLink.switchGame" in switcher,
+      "ядро переключает игры через реестр, а не через свой if/else")
+check("bannerlord" not in switcher and "rimworld" not in switcher,
+      "ядро больше не знает имён игр внутри переключателя")
+
+shedcolony = (FRONTEND / "viewer-shedcolony.js").read_text(encoding="utf-8")
+for name, src, root in (
+    ("Bannerlord", bannerlord, "bannerlord-content"),
+    ("RimWorld", rimworld, "rimworld-content"),
+    ("ShedColony", shedcolony, "shedcolony-content"),
+):
+    check("ShedLink.registerGame(" in src and root in src,
+          "%s объявляет себя реестру и называет свой корневой блок" % name)
 # 2026-08-19: список модулей больше не перечисляется руками. Раньше регулярка
 # знала только viewer.js / -bannerlord / -rimworld, поэтому ShedColony (добавлен
 # 25.06) в проверку не попадал: его версия могла разъехаться между оболочками, а

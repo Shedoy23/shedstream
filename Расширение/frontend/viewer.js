@@ -1281,64 +1281,14 @@ const BNR_POWER_LABELS = {
 // (POWER_PRICES в routes/bannerlord.py, в current_powers[].price). Тонкий фронт:
 // не держим display-копию балансового числа, которое enforce'ит бэк.
 
+// 2026-08-19 (шаг 2 плана «ядро + игровые модули»): цепочка if/else на три
+// игры заменена реестром (viewer-registry.js). Ядро больше не знает ни имён
+// игр, ни id их блоков, ни имён их функций опроса — игра объявляет это сама.
+// Инвариант «активна не более одной, остальные остановлены» теперь записан
+// один раз в реестре, а не повторяется в каждой ветке.
 function switchIntegrationModule(activeModule) {
-    const normalized = ['bannerlord', 'rimworld', 'shedcolony'].includes(activeModule)
-        ? activeModule : null;
-    _activeIntegrationModule = normalized;
-
-    const empty   = document.getElementById('integration-empty');
-    const rim     = document.getElementById('rimworld-content');
-    const bnr     = document.getElementById('bannerlord-content');
-    const sc      = document.getElementById('shedcolony-content');
-    if (!empty || !rim || !bnr) return;
-
-    // 2026-08-05 — раньше название игры записывалось в .panel-title, то есть
-    // затирало название расширения: переключил интеграцию — и «ShedLink» из
-    // шапки пропал. Теперь игра живёт отдельной подписью под названием.
-    const _moduleNameEl = document.getElementById('panel-module-name');
-    if (_moduleNameEl) {
-        _moduleNameEl.textContent = {
-            bannerlord: '⚔️ Bannerlord',
-            rimworld:   '🧬 RimWorld',
-            shedcolony: '⛏️ Колония',
-        }[activeModule] || '';
-    }
-
-    if (normalized === 'bannerlord') {
-        empty.style.display = 'none';
-        rim.style.display = 'none';
-        bnr.style.display = '';
-        if (sc) sc.style.display = 'none';
-        _startBannerlordPolling();
-        if (window._stopRimworldPolling) window._stopRimworldPolling();
-        if (window._stopShedcolonyPolling) _stopShedcolonyPolling();
-    } else if (normalized === 'rimworld') {
-        empty.style.display = 'none';
-        rim.style.display = '';
-        bnr.style.display = 'none';
-        if (sc) sc.style.display = 'none';
-        _stopBannerlordPolling();
-        if (window._startRimworldPolling) window._startRimworldPolling();
-        if (window._stopShedcolonyPolling) _stopShedcolonyPolling();
-    } else if (normalized === 'shedcolony') {
-        empty.style.display = 'none';
-        rim.style.display = 'none';
-        bnr.style.display = 'none';
-        if (sc) sc.style.display = '';
-        _stopBannerlordPolling();
-        if (window._stopRimworldPolling) window._stopRimworldPolling();
-        if (window._startShedcolonyPolling) _startShedcolonyPolling();
-    } else {
-        empty.style.display = '';
-        rim.style.display = 'none';
-        bnr.style.display = 'none';
-        if (sc) sc.style.display = 'none';
-        _stopBannerlordPolling();
-        if (window._stopRimworldPolling) window._stopRimworldPolling();
-        if (window._stopShedcolonyPolling) _stopShedcolonyPolling();
-    }
+    _activeIntegrationModule = ShedLink.switchGame(activeModule);
 }
-
 // ===== Daily rewards / Heirs / Family (брак, дети) =====
 // Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 6, 2026-06-13).
 // daily(+claim)/heirs/family(+rename/respec/looks/propose-marriage).

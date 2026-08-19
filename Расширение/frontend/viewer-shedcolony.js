@@ -786,4 +786,12 @@
     window._stopShedcolonyPolling = function () {
         if (_pollId !== null) { clearInterval(_pollId); _pollId = null; }
     };
+
+    // 2026-08-19: игра объявляет себя ядру сама (viewer-registry.js).
+    ShedLink.registerGame('shedcolony', {
+        rootId: 'shedcolony-content',
+        title:  '⛏️ Колония',
+        start:  function () { window._startShedcolonyPolling(); },
+        stop:   function () { window._stopShedcolonyPolling(); },
+    });
 })();

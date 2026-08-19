@@ -526,6 +526,9 @@
     <script src="xenotype.js?v=202608051239"></script>
     <!-- Общий платный путь всех игровых модулей (ShedLink.buyAction).
          Грузится ПЕРЕД viewer.js: им пользуются и ядро, и игры. -->
+    <!-- Реестр игровых модулей (ShedLink.registerGame / switchGame).
+         Грузится ПЕРЕД viewer.js: ядро переключает игры через него. -->
+    <script src="viewer-registry.js?v=202608051239"></script>
     <script src="viewer-actions.js?v=202608051239"></script>
     <script src="viewer.js?v=202608051239"></script>
     <!-- ROADMAP 2.4: Bannerlord-код вынесен из viewer.js. Грузится ПОСЛЕ viewer.js. -->

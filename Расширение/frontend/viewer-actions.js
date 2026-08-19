@@ -16,9 +16,13 @@
  * При загрузке НЕ трогает document — поэтому тестируется в node без браузера:
  * `node tests/test_buy_action.js` рядом с этим файлом.
  *
- * Зависимости берутся из global в момент вызова (showNotification, loadUserData,
- * isAuthUser, API_URL, authToken, fetch), а не при загрузке — чтобы порядок
- * <script> не имел значения и чтобы тест мог их подменить.
+ * Зависимости (API_URL, authToken, showNotification, loadUserData, isAuthUser,
+ * dbg) берутся по ИМЕНИ в момент вызова, а не через window.* и не при загрузке.
+ * Это важно: `const API_URL` / `let authToken` в viewer.js НЕ становятся
+ * свойствами window — они живут в общей лексической области классических
+ * <script>. Через window.API_URL получается undefined, и покупка уходит на
+ * `undefined/api/...` (поймано в браузере 19.08 — в node-тесте это не видно,
+ * поэтому тест теперь гоняет оба файла в одном vm-контексте).
  */
 (function (global) {
     'use strict';
@@ -32,22 +36,22 @@
     var _inflight = {};
 
     function _notify(msg, type, ms) {
-        if (typeof global.showNotification === 'function') {
-            global.showNotification(msg, type, ms);
+        if (typeof showNotification === 'function') {
+            showNotification(msg, type, ms);
         }
     }
 
     function _dbg() {
-        if (typeof global.dbg === 'function') {
-            global.dbg.apply(null, arguments);
+        if (typeof dbg === 'function') {
+            dbg.apply(null, arguments);
         }
     }
 
     // crypto.randomUUID есть на HTTPS (Twitch Extension всегда HTTPS).
     // Fallback — время+random, для локальной отладки по http.
     ShedLink.newClientActionId = function () {
-        if (global.crypto && typeof global.crypto.randomUUID === 'function') {
-            return global.crypto.randomUUID();
+        if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+            return crypto.randomUUID();
         }
         return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
     };
@@ -78,7 +82,7 @@
     ShedLink.buyAction = async function (game, actionType, data, opts) {
         opts = opts || {};
 
-        if (typeof global.isAuthUser === 'function' && !global.isAuthUser()) {
+        if (typeof isAuthUser === 'function' && !isAuthUser()) {
             _notify('⚠️ Войдите через Twitch', 'warning');
             return null;
         }
@@ -97,11 +101,11 @@
         var payload = Object.assign({}, data || {}, { client_action_id: clientActionId });
 
         try {
-            var r = await global.fetch(global.API_URL + '/api/' + game + '/action', {
+            var r = await fetch(API_URL + '/api/' + game + '/action', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Twitch-JWT': global.authToken || '',
+                    'X-Twitch-JWT': (typeof authToken !== 'undefined' && authToken) || '',
                 },
                 body: JSON.stringify({ action_type: actionType, data: payload }),
             });
@@ -151,9 +155,9 @@
                 }
             }
             var hasCdBtn = false;
-            if (opts.cooldownAttr && global.document) {
+            if (opts.cooldownAttr && typeof document !== 'undefined') {
                 try {
-                    hasCdBtn = !!global.document.querySelector(
+                    hasCdBtn = !!document.querySelector(
                         '[' + opts.cooldownAttr + '="' + actionType + '"]');
                 } catch (_) { hasCdBtn = false; }
             }
@@ -171,7 +175,7 @@
                 // не было у ShedColony: панель рисовала баланс из кэша, который
                 // обновлялся раз в 60 с, зритель видел непотраченные крустики и
                 // жал покупку второй раз.
-                if (typeof global.loadUserData === 'function') global.loadUserData();
+                if (typeof loadUserData === 'function') loadUserData();
                 if (typeof opts.onSuccess === 'function') opts.onSuccess(result);
             }
 

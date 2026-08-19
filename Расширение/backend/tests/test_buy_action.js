@@ -4,19 +4,30 @@
  * уезжает в prod-тар и в ZIP на ревью Twitch (RUNBOOK §сборка релиза).
  * Прецедент рядом: test_frontend_module_lifecycle.py тоже проверяет фронт.
  *
- * Запуск:  node ../../backend/tests/test_buy_action.js
- *   или из backend:  node tests/test_buy_action.js
- * Код возврата: 0 — всё зелёное, 1 — есть падения. Судить по КОДУ, не по печати.
+ * Запуск:  node tests/test_buy_action.js   (из папки backend)
+ *          python scripts/run-backend-tests.py buy_action
+ * Код возврата: 0 — зелёное, 1 — есть падения. Судить по КОДУ, не по печати.
  *
- * Тест намеренно не поднимает браузер: viewer-actions.js при загрузке не
- * трогает document, а зависимости берёт из global в момент вызова.
+ * ПОЧЕМУ ЧЕРЕЗ vm, А НЕ require. 19.08 первая версия теста грузила файл через
+ * require и клала зависимости на globalThis — 22 проверки были зелёными, а в
+ * настоящем браузере покупка уходила на `undefined/api/shedcolony/action`.
+ * Причина: в viewer.js `const API_URL` и `let authToken` объявлены на верхнем
+ * уровне классического <script>, а такие объявления НЕ становятся свойствами
+ * window — они живут в общей лексической области скриптов. Через `window.X`
+ * их не видно, через имя — видно. require-тест этой разницы не воспроизводит:
+ * у модулей Node своя область.
+ *
+ * vm.createContext + два runInContext воспроизводят браузер точно: `const`/`let`
+ * из второго скрипта видны первому по имени и отсутствуют как свойства
+ * контекста. Тест теперь падает ровно на том, на чём падал браузер.
  */
 'use strict';
 
+const fs = require('fs');
+const vm = require('vm');
 const path = require('path');
 
 const FRONTEND = path.resolve(__dirname, '..', '..', 'frontend');
-const ShedLink = require(path.join(FRONTEND, 'viewer-actions.js'));
 
 let passed = 0;
 let failed = 0;
@@ -26,45 +37,79 @@ function check(cond, msg) {
     else { failed++; console.log('  FAIL ' + msg); }
 }
 
-// ── стенд ────────────────────────────────────────────────────────────────────
+// ── стенд: браузероподобный контекст ─────────────────────────────────────────
 let calls;
+let ctx;
+let ShedLink;
+
+function makeContext() {
+    const sandbox = {
+        console,
+        // Ниже — то, что в браузере действительно является свойством window.
+        fetch: null,
+        document: null,
+        crypto: { randomUUID: () => 'uuid-' + (sandbox.__n = (sandbox.__n || 0) + 1) },
+        __calls: null,
+        __authed: true,
+        __cooldownButton: false,
+    };
+    const context = vm.createContext(sandbox);
+
+    vm.runInContext(fs.readFileSync(path.join(FRONTEND, 'viewer-actions.js'), 'utf8'),
+                    context, { filename: 'viewer-actions.js' });
+
+    // Ровно как в viewer.js: const/let/function на верхнем уровне скрипта.
+    // const и let НЕ становятся свойствами контекста — это и есть суть теста.
+    vm.runInContext(`
+        const API_URL = 'https://example.test';
+        let authToken = 'jwt-123';
+        const dbg = function () {};
+        function showNotification(m, t, ms) { __calls.toasts.push({ m: m, t: t, ms: ms }); }
+        function loadUserData() { __calls.loadUserData++; }
+        function isAuthUser() { return __authed; }
+    `, context, { filename: 'viewer-core-stub.js' });
+
+    return context;
+}
 
 function reset(response, opts) {
     opts = opts || {};
     calls = { fetch: [], toasts: [], loadUserData: 0, cooldown: [], onSuccess: 0 };
-    ShedLink._resetInflight();
-
-    global.API_URL = 'https://example.test';
-    global.authToken = 'jwt-123';
-    global.isAuthUser = () => (opts.authed !== false);
-    global.showNotification = (m, t, ms) => calls.toasts.push({ m, t, ms });
-    global.loadUserData = () => { calls.loadUserData++; };
-    global.dbg = () => {};
-    global.document = {
-        querySelector: (sel) => (opts.cooldownButton ? { sel } : null),
-    };
-    global.fetch = async (url, init) => {
+    ctx.__calls = calls;
+    ctx.__authed = (opts.authed !== false);
+    ctx.document = { querySelector: () => (opts.cooldownButton ? {} : null) };
+    ctx.fetch = async (url, init) => {
         calls.fetch.push({ url, init, body: JSON.parse(init.body) });
         if (opts.networkError) throw new Error('boom');
         return { json: async () => response };
     };
+    ShedLink._resetInflight();
 }
 
 // ── кейсы ────────────────────────────────────────────────────────────────────
 async function main() {
+    ctx = makeContext();
+    ShedLink = ctx.ShedLink;
+
+    check(typeof ShedLink === 'object' && typeof ShedLink.buyAction === 'function',
+          'ShedLink.buyAction виден как свойство window');
+    check(!Object.prototype.hasOwnProperty.call(ctx, 'API_URL'),
+          'стенд честный: API_URL НЕ свойство window (как в viewer.js)');
+
     // 1. Успешная покупка
     reset({ success: true, message: 'Готово' });
     let res = await ShedLink.buyAction('bannerlord', 'hero.heal', { amount: 1 });
     check(res && res.success === true, 'успех возвращает ответ бэкенда');
     check(calls.fetch.length === 1
           && calls.fetch[0].url === 'https://example.test/api/bannerlord/action',
-          'POST уходит на /api/<игра>/action');
-    check(calls.fetch[0].init.headers['X-Twitch-JWT'] === 'jwt-123',
+          'POST уходит на /api/<игра>/action по НАСТОЯЩЕМУ адресу '
+          + '(получено: ' + (calls.fetch[0] ? calls.fetch[0].url : 'запроса не было') + ')');
+    check(calls.fetch[0] && calls.fetch[0].init.headers['X-Twitch-JWT'] === 'jwt-123',
           'JWT уходит в заголовке');
-    check(calls.fetch[0].body.action_type === 'hero.heal'
+    check(calls.fetch[0] && calls.fetch[0].body.action_type === 'hero.heal'
           && calls.fetch[0].body.data.amount === 1,
           'тип действия и данные не потеряны');
-    check(typeof calls.fetch[0].body.data.client_action_id === 'string'
+    check(calls.fetch[0] && typeof calls.fetch[0].body.data.client_action_id === 'string'
           && calls.fetch[0].body.data.client_action_id.length > 0,
           'client_action_id проставлен — защита от двойного списания при ретрае');
 
@@ -74,10 +119,10 @@ async function main() {
     check(calls.toasts.length === 1 && calls.toasts[0].t === 'success',
           'на успехе показан success-тост');
 
-    // 3. Идемпотентность: два клика подряд не дают двух запросов
+    // 3. Дабл-клик не даёт второго запроса
     reset({ success: true, message: 'Готово' });
     let slowResolve;
-    global.fetch = (url, init) => {
+    ctx.fetch = (url, init) => {
         calls.fetch.push({ url, init, body: JSON.parse(init.body) });
         return new Promise((r) => { slowResolve = () => r({ json: async () => ({ success: true }) }); });
     };
@@ -130,7 +175,7 @@ async function main() {
         successMessage: 'Заявка принята — строители возьмутся в игре',
         onSuccess: () => { calls.onSuccess++; },
     });
-    check(calls.toasts[0].m === 'Заявка принята — строители возьмутся в игре',
+    check(calls.toasts[0] && calls.toasts[0].m === 'Заявка принята — строители возьмутся в игре',
           'successMessage перекрывает result.message (баги #16/#17)');
     check(calls.onSuccess === 1, 'onSuccess зовётся после успеха');
 
@@ -140,7 +185,7 @@ async function main() {
     check(res === null, 'сетевая ошибка возвращает null');
     check(calls.toasts.length === 1 && calls.toasts[0].t === 'error',
           'сетевая ошибка показана зрителю');
-    global.fetch = async (url, init) => {
+    ctx.fetch = async (url, init) => {
         calls.fetch.push({ url, init, body: JSON.parse(init.body) });
         return { json: async () => ({ success: true }) };
     };

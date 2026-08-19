@@ -355,6 +355,23 @@ public partial class MainWindow : Window
             IntegrationStatusText.Text = $"Закрой {GameName} перед установкой {IntegrationName}.";
             return;
         }
+        var missing = InstallationPrerequisiteChecker.FirstMissing(
+            release!.Manifest, _game.RootPath);
+        if (missing is not null)
+        {
+            IntegrationStatusText.Text = missing.Message;
+            var answer = MessageBox.Show(
+                this,
+                missing.Message + "\n\nОткрыть официальную страницу загрузки?",
+                "Нужен обязательный мод",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Information);
+            if (answer == MessageBoxResult.Yes)
+            {
+                ManagerCoordinator.OpenSystemBrowser(missing.HelpUrl);
+            }
+            return;
+        }
 
         _installing = true;
         _installationCancellation?.Cancel();
@@ -904,11 +921,17 @@ public partial class MainWindow : Window
         }
         var gameVersion = _detector.DetectVersion(_game.RootPath);
         var releaseReady = ReleaseConfiguration.TrySelect(
-            IntegrationId, gameVersion, out _, out _, out var releaseReason);
+            IntegrationId, gameVersion, out var selectedRelease, out _, out var releaseReason);
         var compatible = TryGetGameCompatibility(out var compatibilityReason);
+        var missing = releaseReady
+            ? InstallationPrerequisiteChecker.FirstMissing(
+                selectedRelease!.Manifest, _game.RootPath)
+            : null;
         InstallButton.IsEnabled = releaseReady && compatible &&
             inspection?.Condition != InstallationCondition.UnsafeTarget;
-        InstallButton.ToolTip = !compatible
+        InstallButton.ToolTip = missing is not null
+            ? missing.Message + " Нажми, чтобы открыть официальную страницу."
+            : !compatible
             ? compatibilityReason
             : releaseReady
             ? $"Установить и настроить {IntegrationName}."

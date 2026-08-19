@@ -6,19 +6,19 @@ public static class InstallationReleaseSelector
 {
     public static InstallationRelease? SelectCompatible(
         IEnumerable<InstallationRelease> releases,
-        string gameId,
+        string integrationId,
         string compatibilityVersion) =>
         Order(releases.Where(release => release.Manifest.Game is not null &&
-            string.Equals(release.Manifest.Game.Id, gameId, StringComparison.Ordinal) &&
+            string.Equals(release.Manifest.IntegrationId, integrationId, StringComparison.Ordinal) &&
             release.Manifest.Game.SupportedVersions.Contains(
                 compatibilityVersion, StringComparer.Ordinal)))
         .FirstOrDefault();
 
     public static InstallationRelease? SelectLatest(
         IEnumerable<InstallationRelease> releases,
-        string gameId) =>
-        Order(releases.Where(release => release.Manifest.Game is null ||
-            string.Equals(release.Manifest.Game.Id, gameId, StringComparison.Ordinal)))
+        string integrationId) =>
+        Order(releases.Where(release =>
+            string.Equals(release.Manifest.IntegrationId, integrationId, StringComparison.Ordinal)))
         .FirstOrDefault();
 
     private static IOrderedEnumerable<InstallationRelease> Order(

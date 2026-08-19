@@ -25,7 +25,8 @@ public static class InstallationInspector
     {
         var target = PathBoundary.CombineWithin(
             gameRoot, manifest.Installation.Target.RelativePath);
-        if (!Directory.Exists(target))
+        var fileTarget = manifest.Installation.Target.Kind == "file";
+        if (fileTarget ? !File.Exists(target) : !Directory.Exists(target))
         {
             return Result(InstallationCondition.NotInstalled, Array.Empty<string>());
         }
@@ -34,7 +35,7 @@ public static class InstallationInspector
             return Result(InstallationCondition.UnsafeTarget, Array.Empty<string>());
         }
 
-        var failed = manifest.Health
+        var failed = fileTarget ? Array.Empty<string>() : manifest.Health
             .Where(probe => probe.Required && probe.Kind == "path_exists")
             .Where(probe => string.IsNullOrWhiteSpace(probe.Path) ||
                 !ExistsWithin(target, probe.Path!))

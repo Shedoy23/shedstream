@@ -205,7 +205,13 @@ public static class AtomicDirectoryTransaction
         [property: System.Text.Json.Serialization.JsonPropertyName("phase")] string Phase);
 }
 
-public sealed class AtomicDirectoryReplacement : IDisposable
+public interface IAtomicReplacement : IDisposable
+{
+    void Commit();
+    void Rollback();
+}
+
+public sealed class AtomicDirectoryReplacement : IAtomicReplacement
 {
     private readonly string _target;
     private readonly string _allowedRoot;

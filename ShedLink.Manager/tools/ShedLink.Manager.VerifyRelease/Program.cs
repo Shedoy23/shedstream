@@ -28,6 +28,14 @@ try
     {
         SafeZipExtractor.Extract(artifactPath, extractionRoot);
         var archiveRoot = PathBoundary.CombineWithin(extractionRoot, artifact.ArchiveRoot);
+        if (manifest.Installation.Target.Kind == "file")
+        {
+            if (!File.Exists(archiveRoot))
+            {
+                throw new InvalidDataException("Release archive root file is missing.");
+            }
+        }
+        else
         foreach (var probe in manifest.Health.Where(
                      probe => probe.Required && probe.Kind == "path_exists"))
         {

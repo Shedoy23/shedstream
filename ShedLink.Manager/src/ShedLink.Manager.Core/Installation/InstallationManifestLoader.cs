@@ -67,6 +67,23 @@ public static partial class InstallationManifestLoader
             throw new InvalidDataException("Manager v1 supports only game_root targets.");
         }
         PathBoundary.ValidateRelative(manifest.Installation.Target.RelativePath);
+        if (manifest.Installation.Target.Kind is not ("directory" or "file"))
+        {
+            throw new InvalidDataException("Unsupported installation target kind.");
+        }
+        foreach (var prerequisite in manifest.Prerequisites)
+        {
+            if (string.IsNullOrWhiteSpace(prerequisite.PathPattern))
+            {
+                continue; // Legacy descriptive prerequisites are display-only.
+            }
+            PathBoundary.ValidateRelative(prerequisite.PathPattern);
+            if (!IsSafeHttpsUri(prerequisite.HelpUrl) ||
+                string.IsNullOrWhiteSpace(prerequisite.Message))
+            {
+                throw new InvalidDataException("Invalid installation prerequisite.");
+            }
+        }
         if (manifest.Configuration.Store.Kind is not ("xml" or "json") ||
             manifest.Configuration.Store.Base is not ("windows_local_low" or "game_root"))
         {

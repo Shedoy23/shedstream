@@ -90,13 +90,16 @@ public sealed class IntegrationInstallationService
         var targetPath = PathBoundary.CombineWithin(
             gameRoot, manifest.Installation.Target.RelativePath);
         var journal = new InstallationOperationJournal(
-            "applying", Path.GetFullPath(gameRoot), targetPath, configPath);
+            "applying", Path.GetFullPath(gameRoot), targetPath, configPath,
+            manifest.Installation.Target.Kind);
         WriteJournal(journal);
-        AtomicDirectoryReplacement? removal = null;
+        IAtomicReplacement? removal = null;
         var verified = false;
         try
         {
-            removal = AtomicDirectoryTransaction.PrepareRemoval(targetPath, gameRoot);
+            removal = manifest.Installation.Target.Kind == "file"
+                ? AtomicFileTransaction.PrepareRemoval(targetPath, gameRoot)
+                : AtomicDirectoryTransaction.PrepareRemoval(targetPath, gameRoot);
             if (removal is null)
             {
                 File.Delete(_journalPath);
@@ -146,7 +149,8 @@ public sealed class IntegrationInstallationService
         var targetPath = PathBoundary.CombineWithin(
             gameRoot, manifest.Installation.Target.RelativePath);
         var journal = new InstallationOperationJournal(
-            "applying", Path.GetFullPath(gameRoot), targetPath, configPath);
+            "applying", Path.GetFullPath(gameRoot), targetPath, configPath,
+            manifest.Installation.Target.Kind);
         WriteJournal(journal);
 
         PreparedInstallation? package = null;
@@ -209,13 +213,19 @@ public sealed class IntegrationInstallationService
 
         if (journal.Phase == "verified")
         {
-            AtomicDirectoryTransaction.Complete(journal.TargetPath, journal.GameRoot);
+            if (journal.TargetKind == "file")
+                AtomicFileTransaction.Complete(journal.TargetPath, journal.GameRoot);
+            else
+                AtomicDirectoryTransaction.Complete(journal.TargetPath, journal.GameRoot);
             ManagedConfiguration.Complete(journal.ConfigPath);
         }
         else if (journal.Phase == "applying")
         {
             ManagedConfiguration.Recover(journal.ConfigPath);
-            AtomicDirectoryTransaction.Recover(journal.TargetPath, journal.GameRoot);
+            if (journal.TargetKind == "file")
+                AtomicFileTransaction.Recover(journal.TargetPath, journal.GameRoot);
+            else
+                AtomicDirectoryTransaction.Recover(journal.TargetPath, journal.GameRoot);
         }
         else
         {
@@ -246,5 +256,6 @@ public sealed class IntegrationInstallationService
         [property: JsonPropertyName("phase")] string Phase,
         [property: JsonPropertyName("game_root")] string GameRoot,
         [property: JsonPropertyName("target_path")] string TargetPath,
-        [property: JsonPropertyName("config_path")] string ConfigPath);
+        [property: JsonPropertyName("config_path")] string ConfigPath,
+        [property: JsonPropertyName("target_kind")] string TargetKind = "directory");
 }

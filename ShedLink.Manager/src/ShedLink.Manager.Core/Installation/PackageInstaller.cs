@@ -7,11 +7,11 @@ public sealed record InstallationResult(
 
 public sealed class PreparedInstallation : IDisposable
 {
-    private readonly AtomicDirectoryReplacement _replacement;
+    private readonly IAtomicReplacement _replacement;
 
     internal PreparedInstallation(
         InstallationResult result,
-        AtomicDirectoryReplacement replacement)
+        IAtomicReplacement replacement)
     {
         Result = result;
         _replacement = replacement;
@@ -126,16 +126,19 @@ public sealed class PackageInstaller
         {
             SafeZipExtractor.Extract(archivePath, temporary);
             var source = PathBoundary.CombineWithin(temporary, artifact.ArchiveRoot);
-            if (!Directory.Exists(source))
+            var fileTarget = manifest.Installation.Target.Kind == "file";
+            if (fileTarget ? !File.Exists(source) : !Directory.Exists(source))
             {
                 throw new InvalidDataException("Archive root is missing.");
             }
-            var replacement = AtomicDirectoryTransaction.Prepare(
-                source,
-                target,
-                gameRoot,
-                staged => VerifyRequiredPaths(staged, manifest.Health),
-                failpoint);
+            IAtomicReplacement replacement = fileTarget
+                ? AtomicFileTransaction.Prepare(source, target, gameRoot, failpoint)
+                : AtomicDirectoryTransaction.Prepare(
+                    source,
+                    target,
+                    gameRoot,
+                    staged => VerifyRequiredPaths(staged, manifest.Health),
+                    failpoint);
             return new PreparedInstallation(
                 new InstallationResult(
                     manifest.IntegrationId,

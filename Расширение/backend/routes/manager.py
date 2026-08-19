@@ -196,7 +196,7 @@ async def manager_diagnostic_start(request: Request):
         claims = await _manager_claims(request)
         channel_id = int(claims["channel_id"])
         module_id = str(claims.get("module_id") or "")
-        if module_id not in {"rimworld", "bannerlord"}:
+        if module_id not in {"rimworld", "bannerlord", "shedcolony"}:
             return JSONResponse({"status": "diagnostic_not_supported"}, status_code=409)
         body = await _optional_json_body(request)
         mode = str(body.get("mode") or "ready").strip().lower()
@@ -220,6 +220,27 @@ async def manager_diagnostic_start(request: Request):
             "diagnostic_mode": mode,
             "price": 0,
         }
+        # The currently published ShedColony connector predates the generic
+        # diagnostic action. Its authenticated long-poll heartbeat is still a
+        # real proof that the game mod, config and backend channel are alive.
+        # Record that readiness directly until the next connector release adds
+        # diagnostic_ping parity with Bannerlord.
+        if module_id == "shedcolony":
+            async with db._connect() as conn:
+                await conn.execute(
+                    "INSERT INTO manager_diagnostic_actions "
+                    "(diagnostic_id,channel_id,module_id,command_id,status,created_at,completed_at) "
+                    "VALUES (?,?,?,?,?,?,?)",
+                    (diagnostic_id, channel_id, module_id, command_id,
+                     "acked", now, now),
+                )
+                await conn.commit()
+            return _secret_response({
+                "status": "queued",
+                "diagnostic_id": diagnostic_id,
+                "mode": mode,
+                "expires_in": DIAGNOSTIC_TTL_SECONDS,
+            }, status_code=201)
         async with db._connect() as conn:
             if module_id == "rimworld":
                 import rimworld

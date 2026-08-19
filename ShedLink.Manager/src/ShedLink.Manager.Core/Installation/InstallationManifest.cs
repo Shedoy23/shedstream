@@ -16,6 +16,10 @@ public sealed record InstallationManifest
     [JsonPropertyName("game")]
     public ManifestGame? Game { get; init; }
 
+    [JsonPropertyName("prerequisites")]
+    public IReadOnlyList<InstallationPrerequisite> Prerequisites { get; init; } =
+        Array.Empty<InstallationPrerequisite>();
+
     [JsonPropertyName("artifacts")]
     public required IReadOnlyList<InstallationArtifact> Artifacts { get; init; }
 
@@ -30,6 +34,21 @@ public sealed record InstallationManifest
 
     [JsonPropertyName("security")]
     public required ManifestSecurity Security { get; init; }
+}
+
+public sealed record InstallationPrerequisite
+{
+    [JsonPropertyName("id")]
+    public required string Id { get; init; }
+
+    [JsonPropertyName("path_pattern")]
+    public string? PathPattern { get; init; }
+
+    [JsonPropertyName("message")]
+    public string? Message { get; init; }
+
+    [JsonPropertyName("help_url")]
+    public Uri? HelpUrl { get; init; }
 }
 
 public sealed record ManifestGame
@@ -150,6 +169,9 @@ public sealed record InstallationTarget
 
     [JsonPropertyName("relative_path")]
     public required string RelativePath { get; init; }
+
+    [JsonPropertyName("kind")]
+    public string Kind { get; init; } = "directory";
 }
 
 public sealed record ConfigurationRules

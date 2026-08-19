@@ -25,6 +25,7 @@ try
     TestFailureMessages();
     TestDeniedWriteScenario(root);
     await TestInstallationAsync(root);
+    TestAtomicFileInstallation(root);
     await TestHttpsDistributionAsync(root);
     await TestManagerUpdateAsync(root);
     TestDiagnosticReport(root);
@@ -32,9 +33,45 @@ try
     Console.WriteLine("ALL GREEN — Manager core keeps secrets out of local state and survives restart.");
     return 0;
 }
+
 finally
 {
     Directory.Delete(root, recursive: true);
+}
+
+static void TestAtomicFileInstallation(string root)
+{
+    var game = Path.Combine(root, "minecraft-file-install");
+    var mods = Path.Combine(game, "mods");
+    var source = Path.Combine(root, "shedcolony-new.jar");
+    var target = Path.Combine(mods, "shedcolony.jar");
+    Directory.CreateDirectory(mods);
+    File.WriteAllText(Path.Combine(mods, "minecolonies.jar"), "keep-neighbour");
+    File.WriteAllText(target, "old");
+    File.WriteAllText(source, "new");
+
+    using (var replacement = AtomicFileTransaction.Prepare(source, target, game))
+    {
+        replacement.Commit();
+    }
+    Assert(File.ReadAllText(target) == "new" &&
+        File.ReadAllText(Path.Combine(mods, "minecolonies.jar")) == "keep-neighbour",
+        "single-file mod install preserves neighbouring Minecraft mods");
+
+    File.WriteAllText(source, "interrupted");
+    try
+    {
+        AtomicFileTransaction.Prepare(source, target, game, phase =>
+        {
+            if (phase == "installed") throw new IOException("simulated file interruption");
+        });
+        throw new InvalidOperationException("FAILED: interrupted file install rolled back");
+    }
+    catch (IOException exception) when (exception.Message == "simulated file interruption")
+    {
+        Assert(File.ReadAllText(target) == "new",
+            "interrupted single-file mod install rolls back");
+    }
 }
 
 static async Task TestCoordinatorAsync(string root)
@@ -1120,8 +1157,23 @@ static void TestManifestDrivenDetection(string root)
         Environment.CurrentDirectory, "manifests", "installation"));
     var integrations = catalog.LatestIntegrations();
     Assert(integrations.Any(item => item.Manifest.IntegrationId == "rimworld") &&
-        integrations.Any(item => item.Manifest.IntegrationId == "bannerlord"),
+        integrations.Any(item => item.Manifest.IntegrationId == "bannerlord") &&
+        integrations.Any(item => item.Manifest.IntegrationId == "shedcolony"),
         "release catalog discovers integrations without a hardcoded game list");
+
+    var shedcolony = integrations.Single(item =>
+        item.Manifest.IntegrationId == "shedcolony").Manifest;
+    var minecraftRoot = Path.Combine(root, "manifest-minecraft");
+    Directory.CreateDirectory(Path.Combine(minecraftRoot, "mods"));
+    var missingMineColonies = InstallationPrerequisiteChecker.FirstMissing(
+        shedcolony, minecraftRoot);
+    Assert(missingMineColonies?.Id == "minecolonies" &&
+        missingMineColonies.HelpUrl.Scheme == "https",
+        "Minecraft integration explains missing MineColonies with an official HTTPS link");
+    File.WriteAllText(
+        Path.Combine(minecraftRoot, "mods", "minecolonies-test.jar"), "dependency");
+    Assert(InstallationPrerequisiteChecker.FirstMissing(shedcolony, minecraftRoot) is null,
+        "Minecraft integration accepts an existing MineColonies installation");
 }
 
 static async Task TestManagerUpdateAsync(string root)

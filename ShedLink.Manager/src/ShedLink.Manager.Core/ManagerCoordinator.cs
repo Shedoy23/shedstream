@@ -156,6 +156,26 @@ public sealed class ManagerCoordinator
         return Ready(session, credentialId);
     }
 
+    /// <summary>
+    /// Revokes the module credential without ending the Manager session.
+    ///
+    /// Revocation already existed, but only as part of logging out. Someone who
+    /// removes an integration because they are done with it never reaches that
+    /// dialog, so the key outlived the thing it was issued for.
+    /// </summary>
+    public async Task RevokeModuleCredentialAsync(
+        ReadySession session,
+        CancellationToken cancellationToken = default)
+    {
+        var state = _stateStore.LoadOrCreate();
+        await _api.RevokeCredentialAsync(
+            session.AccessToken, session.CredentialId, cancellationToken);
+        _vault.Delete(CredentialKeys.ModuleToken(state.InstallationId, session.ModuleId));
+        var integration = state.Integration(session.ModuleId);
+        _stateStore.Save(state.WithIntegration(
+            session.ModuleId, integration with { CredentialId = null }));
+    }
+
     public async Task LogoutAsync(
         ReadySession session,
         bool revokeModuleCredential,

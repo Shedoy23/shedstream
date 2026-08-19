@@ -422,7 +422,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void RemoveButton_Click(object sender, RoutedEventArgs e)
+    private async void RemoveButton_Click(object sender, RoutedEventArgs e)
     {
         if (_game is null)
         {
@@ -440,15 +440,30 @@ public partial class MainWindow : Window
             IntegrationStatusText.Text = $"Закрой {GameName} перед удалением {IntegrationName}.";
             return;
         }
-        if (MessageBox.Show(
+        // 2026-08-20. Раньше здесь был Да/Нет и одна строка «настройки и ключ
+        // останутся для восстановления». Это удобно при переустановке и опасно
+        // при настоящем удалении: ключ — обычный файл ВНУТРИ папки игры, а папку
+        // инстанса Minecraft принято архивировать и передавать друзьям. Отзыв
+        // ключа в продукте уже был, но только внутри «Выйти», куда человек,
+        // удаляющий интеграцию, не заходит. Теперь спрашиваем здесь же — тем же
+        // Да/Нет/Отмена, что и при выходе.
+        var removalDecision = MessageBox.Show(
             this,
-            $"Удалить мод {IntegrationName}? Настройки и защищённый ключ останутся для восстановления.",
+            $"Удалить мод {IntegrationName}?\n\n" +
+            $"Да — удалить мод, отозвать ключ и стереть его настройки.\n" +
+            "Нет — удалить только мод, оставив ключ и настройки для переустановки.\n" +
+            "Отмена — ничего не менять.\n\n" +
+            "Ключ лежит файлом внутри папки игры. Если планируешь делиться этой " +
+            "папкой (архивом инстанса, сборкой) — выбирай «Да», иначе ключ уедет " +
+            "вместе с ней.",
             $"Удаление {IntegrationName}",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Question) != MessageBoxResult.Yes)
+            MessageBoxButton.YesNoCancel,
+            MessageBoxImage.Question);
+        if (removalDecision == MessageBoxResult.Cancel)
         {
             return;
         }
+        var revokeOnRemoval = removalDecision == MessageBoxResult.Yes;
 
         _installing = true;
         UpdateInstallAvailability();
@@ -462,9 +477,48 @@ public partial class MainWindow : Window
                 InstalledReleaseVersion = null,
             };
             _stateStore.Save(state.WithIntegration(IntegrationId, integration));
-            IntegrationStatusText.Text =
-                $"{IntegrationName} удалён. Настройки сохранены для восстановления.";
-            OverallStatusText.Text = "Интеграция отключена локально; ключ не отозван.";
+            if (revokeOnRemoval)
+            {
+                var configRemoved = _installationService.RemoveConfiguration(
+                    release!.ManifestPath, _game.RootPath);
+                var keyRevoked = false;
+                if (_session is not null)
+                {
+                    try
+                    {
+                        await _coordinator.RevokeModuleCredentialAsync(_session);
+                        keyRevoked = true;
+                        _session = null;
+                        _runtimeStatus = null;
+                    }
+                    catch (Exception exception) when (
+                        exception is ManagerApiException or HttpRequestException or
+                            TaskCanceledException or InvalidOperationException)
+                    {
+                        OverallStatusText.Text =
+                            "Мод и настройки удалены, но ключ отозвать не вышло: " +
+                            FriendlyError(exception) +
+                            " Отзови его кнопкой «Сменить ключ» или при выходе.";
+                    }
+                }
+                IntegrationStatusText.Text = keyRevoked
+                    ? $"{IntegrationName} удалён, ключ отозван, настройки стёрты."
+                    : $"{IntegrationName} удалён; настройки " +
+                      (configRemoved ? "стёрты" : "не найдены") + ".";
+                if (keyRevoked)
+                {
+                    OverallStatusText.Text =
+                        "Интеграция отключена: ключ больше не действует, файла с ним нет.";
+                }
+            }
+            else
+            {
+                IntegrationStatusText.Text =
+                    $"{IntegrationName} удалён. Настройки сохранены для восстановления.";
+                OverallStatusText.Text =
+                    "Интеграция отключена локально; ключ не отозван и лежит файлом " +
+                    "в папке игры.";
+            }
         }
         catch (Exception exception) when (ManagerFailureMessage.IsExpected(exception))
         {

@@ -22,6 +22,7 @@ try
     TestRimWorldDetection(root);
     TestManifestDrivenDetection(root);
     TestLauncherAgnosticDetection(root);
+    TestConfigurationRemoval(root);
     TestJsonConfigurationStore(root);
     TestFailureMessages();
     TestDeniedWriteScenario(root);
@@ -1468,6 +1469,46 @@ static void TestLauncherAgnosticDetection(string root)
         "инстанс без MineColonies принимается как папка игры");
     Assert(service.DetectVersion(noMineColonies) is null,
         "без MineColonies версия не выдумывается");
+}
+
+static void TestConfigurationRemoval(string root)
+{
+    // Removing an integration used to leave its config -- with a working module
+    // token -- inside the game folder, and the key stayed valid server-side.
+    // Convenient for a reinstall, wrong for a real removal: a Minecraft instance
+    // folder is the unit modded players zip and share, so the key travels.
+    var manifestPath = Path.Combine(
+        Environment.CurrentDirectory,
+        "manifests",
+        "installation",
+        "shedcolony-0.1.0.json");
+    var gameRoot = Path.Combine(root, "removal-instance");
+    var configDir = Path.Combine(gameRoot, "config");
+    Directory.CreateDirectory(configDir);
+    Directory.CreateDirectory(Path.Combine(gameRoot, "mods"));
+    var neighbour = Path.Combine(configDir, "minecolonies-server.toml");
+    File.WriteAllText(neighbour, "colony settings the player tuned by hand");
+    var neighbourHash = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(neighbour)));
+    var ours = Path.Combine(configDir, "shedcolony.json");
+    File.WriteAllText(ours, "{\"module_token\": \"slmod_v1.secret\"}");
+
+    var store = new ManagerStateStore(Path.Combine(root, "removal-state.json"));
+    var service = new IntegrationInstallationService(
+        new ManagerApiClient(new HttpClient(new FakeManagerHandler())
+        {
+            BaseAddress = new Uri("https://manager.test"),
+        }),
+        new MemoryVault(),
+        store);
+
+    Assert(service.RemoveConfiguration(manifestPath, gameRoot),
+        "удаление с ключом стирает конфиг интеграции");
+    Assert(!File.Exists(ours), "файла с токеном больше нет в папке игры");
+    Assert(File.Exists(neighbour) &&
+        Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(neighbour))) == neighbourHash,
+        "чужие настройки в config/ не тронуты");
+    Assert(!service.RemoveConfiguration(manifestPath, gameRoot),
+        "повторное удаление конфига не падает и честно говорит, что стирать нечего");
 }
 
 static void Assert(bool condition, string label)

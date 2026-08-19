@@ -75,6 +75,32 @@ public sealed class IntegrationInstallationService
             cancellationToken);
     }
 
+    /// <summary>
+    /// Deletes the configuration file this integration owns, and nothing else.
+    ///
+    /// Uninstall deliberately keeps it so a reinstall picks the settings back up.
+    /// That is fine while the folder stays on one machine, and wrong the moment
+    /// it does not: a Minecraft instance folder is the unit modded players zip
+    /// and hand to friends, and the file holds a working module token. So the
+    /// caller has to be able to say "take the key with it" -- which is what the
+    /// removal dialog now asks.
+    /// </summary>
+    public bool RemoveConfiguration(
+        string manifestPath,
+        string gameRoot,
+        string? windowsLocalLowOverride = null)
+    {
+        var manifest = InstallationManifestLoader.Load(manifestPath);
+        var configPath = ConfigurationPathResolver.Resolve(
+            manifest.Configuration.Store, windowsLocalLowOverride, gameRoot);
+        if (!File.Exists(configPath))
+        {
+            return false;
+        }
+        File.Delete(configPath);
+        return true;
+    }
+
     public bool Uninstall(
         string manifestPath,
         string gameRoot,

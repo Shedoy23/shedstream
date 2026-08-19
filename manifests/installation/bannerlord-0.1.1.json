@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "integration_id": "bannerlord",
-  "release_version": "0.1.0",
+  "release_version": "0.1.1",
   "game": {
     "id": "bannerlord",
     "display_name": "Mount \u0026 Blade II: Bannerlord",
@@ -37,16 +37,16 @@
       "id": "bannerlordlink_mod",
       "source": {
         "kind": "https",
-        "url": "https://shedoy23.ru/releases/BannerlordLink-0.1.0.zip"
+        "url": "https://shedoy23.ru/releases/BannerlordLink-0.1.1.zip"
       },
-      "size_bytes": 218775,
-      "sha256": "2f5e431ed0f2d30c14ef684544dc316b11870109b55bbd3ac815e92ccf43416a",
+      "size_bytes": 218885,
+      "sha256": "58ce59857731273c64d4555c958876bef98fd77aeb3207f33a8080c926747c92",
       "format": "zip",
       "archive_root": "Shedoy23.BannerlordLink",
       "signature": {
         "algorithm": "rsa-pss-sha256",
         "key_id": "shedlink-release-2026",
-        "value": "Gefu2SAvM3lVKquYd\u002BVf2yuqa1tpB5LyqRPE39r9MqbEHOppd96n1xm7Pz9j0nMGgUZRIYR7dDEkHU9sCsB3WNG\u002BcwDJDPhLdP5xR4fScXwo\u002BYL/IIJYwqclg7oKdi2\u002BYxOhW0s4cYXSAmpcFHOSMcdI/yY5igPeDQmrm9I2FO3\u002BvRjirodLaUgRrIE0SRvi76ze0mQwZf4WkyH4cK8nk3KbtSXfsWFokuMGbRVwd26X4NGNiuCReEWTWHzKjIhRT0ROdSg7QF8nL\u002BLOQ7wUCSHCgCod0ORJ\u002BelyzjsM6DeyXewqRS0GjYvznIgWW1YPhIQTC2E3WcahQxckUVil/BC7jymKJy/ADcIcPyY\u002BuZQCgzPE9nR0su/ACkNs3u8v6xZQJluBGex10s6h6vXZFkrwvxptbwCP8/ugaJbOfMygGkRn9NmCSuDnlQfjF4o/9IlbGhkT/DDFtlV0c4d8dgxTC9EaUNQofG4RQwILkJyNaWVAYOlAyXBp98bfqdTHOS8sxjq\u002BlRbMtoSljBqdw\u002BCuOJUka\u002BN1VOYaL6BIf54r\u002BfXGeCHH3UYoZSn7P9C6ij70A5Mr2plmdJhe56z6me9gVXZ5RoV2oUYvlp7EoNoML1VHCqhw0pr2hM03TlyuHvYdQ9v7N2fvPEySVf1Ob2gAbP\u002BFRHzFBXIlvNI4goc="
+        "value": "u1RGblRiAHsdwSxv84sURFB/64aFt1TQAjfxWX65M6U0wDkRfljUO\u002B\u002Bje2tO8QabJ0UwtakrmW/VpkMEuiGhgda1pyBHdorqS6EixJ56TKqyCHsb47ojwKOpboSmieDPNG99evpTne3VuM6H7ZxXl1hQvz3R23NpU3YY2sYDqT7hsBfOpTz/M8HTGa6gTpwc74YjfLiwqu4wAF2seC0qOKmeg1SY7J4FfdRGSWAaw/XCoUzb3c3q\u002BNupKJ8YXf7VQTUTCWzmfWRIR/7tB/\u002BeLgLsa/EcKbSWD4e1s6zZtlbt2fQwiONT3G4PXUtWvHgwg4ejo5/CXcM5kcNq7R8Q/M85Wf0D2XHF7Bgy7hPnxB90JwoixonPkjpreos7S99elEFbomFdtz0/HkafXIa3iOw2fnGyqa55ymyrHjD85PHTSldZAeqoe5YwCn7XRgyAR1iWedaTq476KJKg7Ua4DIapVPJMYrouvhcic85aQaslFQsDglVCxptWMss/pYquoipdwXRSWpf6tXnx8SEtp/gafWHdR4uNCW09upaIOyUAhmomkUCJlPcW8QrrSHZZbcREHnyfg3zvJE4JKmkqkNhr\u002BvwCgBi7x5BEYP6vxsXu049N5tyr76ZjU/ZYcJWeHARkNW23TAw6hJCV/3WQ4fx76ut/9lsR\u002B/lmZoQkh6A="
       }
     }
   ],

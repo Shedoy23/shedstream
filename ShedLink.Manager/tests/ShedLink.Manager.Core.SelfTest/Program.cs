@@ -1100,7 +1100,7 @@ static void TestManifestDrivenDetection(string root)
         "shipped RimWorld manifest detects the game without hardcoded knowledge");
 
     var bannerlordManifest = InstallationManifestLoader.Load(Path.Combine(
-        Environment.CurrentDirectory, "manifests", "installation", "bannerlord-0.1.0.json"));
+        Environment.CurrentDirectory, "manifests", "installation", "bannerlord-0.1.1.json"));
     var bannerlord = new GameDetectionService(bannerlordManifest.Game!);
     var bannerlordRoot = Path.Combine(root, "manifest-bannerlord");
     Directory.CreateDirectory(Path.Combine(

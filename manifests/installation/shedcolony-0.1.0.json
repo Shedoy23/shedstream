@@ -12,15 +12,16 @@
       "MinecraftLauncher"
     ],
     "version": {
-      "kind": "text_file",
-      "path": "versions/1.21.1/1.21.1.json",
-      "compatibility_pattern": "\\\u0022id\\\u0022\\s*:\\s*\\\u0022(1\\.21\\.1)\\\u0022"
+      "kind": "file_name",
+      "path": "mods/minecolonies-*.jar",
+      "compatibility_pattern": "(?<![\\d.])(1\\.21\\.1)(?!\\d)(?!\\.\\d)"
     },
     "detection": [
       {
         "kind": "manual",
+        "hint": "Укажи папку самого инстанса игры — ту, внутри которой лежит mods. У Prism и MultiMC это .minecraft внутри папки инстанса. Корень лаунчера не подойдёт.",
         "required_paths": [
-          "versions/1.21.1/1.21.1.json"
+          "mods"
         ]
       }
     ]
@@ -29,7 +30,7 @@
     {
       "id": "minecolonies",
       "path_pattern": "mods/minecolonies-*.jar",
-      "message": "\u0421\u043D\u0430\u0447\u0430\u043B\u0430 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438 MineColonies \u0434\u043B\u044F Minecraft 1.21.1 (NeoForge). Manager \u043D\u0435 \u0440\u0430\u0441\u043F\u0440\u043E\u0441\u0442\u0440\u0430\u043D\u044F\u0435\u0442 \u0447\u0443\u0436\u043E\u0439 \u043C\u043E\u0434.",
+      "message": "Сначала установи MineColonies для Minecraft 1.21.1 (NeoForge). Manager не распространяет чужой мод.",
       "help_url": "https://www.curseforge.com/minecraft/mc-mods/minecolonies/files/all"
     }
   ],
@@ -47,7 +48,7 @@
       "signature": {
         "algorithm": "rsa-pss-sha256",
         "key_id": "shedlink-release-2026",
-        "value": "aGnIPvaqQp6aoEjoBUMpeMhKEaibsMm1qbHsKDuRbWbsFwESW8hx4gzKFy4otaPTGcqzPXGj6vJF\u002BJhkc7/m72\u002B2osA3zYOMV/Q39Z58ZatOuGjAeugstopOxvLe3I/Z\u002B\u002BBlgXqaHn1kVqN1l/Y/8ny3vHPKDEnsaozmS442DKvfFpKpP2iSeDaFKxQ\u002Bo8Iq2DllwpY6DLz\u002BFnWpgrfQbK8UBP/psp0C4MQJJPzrvduIHlwM5BBLuVIsQVVPKZOfAyL/KQ6ZMAmYOtyijxEvsZlKdvHASgsFjoI427ex7Iibt3Wh0POBtTAnel6eeVyRszidn5Gk0lOezI2uhUM8mnnKC8gHQSAgIu3fZzCqKxdWRuXsO\u002BsdtO354AfTG1Wg\u002BMZmEJ6L7DtHqYxSdQYnQhj9y6JdBbWsVrqvMrYBZd5d54IOMkrgf2bQ5p15XXJKw8eB9DVgQoRJIOLT\u002BOMJPQ9WeTVV11Jg2JcSUi8HESjSFZXM5z3ch48LB7hvXrx6YwOwxdYg05NZt4iYvyGStLknkMimZL\u002B/3\u002BjMeeQF8crik3coiaPQWebDS8kUtRSZP\u002BS5uFtTcq6s/7yaGyF04s4Z/eh6qPs3J2RVsJOREeWTuDkFx5DXX7Ygin1zTLP/2m3RUMdOms8L8Rjt2l\u002B0uvxImi6dqolCpED59r1phWA="
+        "value": "aGnIPvaqQp6aoEjoBUMpeMhKEaibsMm1qbHsKDuRbWbsFwESW8hx4gzKFy4otaPTGcqzPXGj6vJF+Jhkc7/m72+2osA3zYOMV/Q39Z58ZatOuGjAeugstopOxvLe3I/Z++BlgXqaHn1kVqN1l/Y/8ny3vHPKDEnsaozmS442DKvfFpKpP2iSeDaFKxQ+o8Iq2DllwpY6DLz+FnWpgrfQbK8UBP/psp0C4MQJJPzrvduIHlwM5BBLuVIsQVVPKZOfAyL/KQ6ZMAmYOtyijxEvsZlKdvHASgsFjoI427ex7Iibt3Wh0POBtTAnel6eeVyRszidn5Gk0lOezI2uhUM8mnnKC8gHQSAgIu3fZzCqKxdWRuXsO+sdtO354AfTG1Wg+MZmEJ6L7DtHqYxSdQYnQhj9y6JdBbWsVrqvMrYBZd5d54IOMkrgf2bQ5p15XXJKw8eB9DVgQoRJIOLT+OMJPQ9WeTVV11Jg2JcSUi8HESjSFZXM5z3ch48LB7hvXrx6YwOwxdYg05NZt4iYvyGStLknkMimZL+/3+jMeeQF8crik3coiaPQWebDS8kUtRSZP+S5uFtTcq6s/7yaGyF04s4Z/eh6qPs3J2RVsJOREeWTuDkFx5DXX7Ygin1zTLP/2m3RUMdOms8L8Rjt2l+0uvxImi6dqolCpED59r1phWA="
       }
     }
   ],

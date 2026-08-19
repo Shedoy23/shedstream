@@ -46,9 +46,13 @@ public sealed partial class GameDetectionService
     {
         if (!IsValidGameRoot(path))
         {
+            var hint = Rules("manual")
+                .Select(rule => rule.Hint)
+                .FirstOrDefault(text => !string.IsNullOrWhiteSpace(text));
             throw new InvalidDataException(
                 $"В выбранной папке не найдены обязательные файлы {_game.DisplayName}: " +
-                string.Join(", ", RequiredPaths()) + ".");
+                string.Join(", ", RequiredPaths()) + "." +
+                (string.IsNullOrWhiteSpace(hint) ? string.Empty : " " + hint));
         }
         return new GameInstallation(
             _game.Id, Path.GetFullPath(path), DetectionSource.Manual);
@@ -77,13 +81,91 @@ public sealed partial class GameDetectionService
         });
     }
 
+    /// <summary>
+    /// Reads the game version the way the manifest declares it.
+    ///
+    /// "text_file" reads a file the launcher writes. That is enough for a game
+    /// with one canonical layout, and wrong for one without: Minecraft's
+    /// versions/&lt;v&gt;/&lt;v&gt;.json exists only under the official launcher, while
+    /// modded players run Prism, CurseForge, MultiMC, Lexplosion and friends,
+    /// each with its own instance layout. 2026-08-20 that rule matched nothing
+    /// on the owner's machine at all.
+    ///
+    /// "file_name" takes the version from the name of a file matched by a glob
+    /// instead. Mod file names carry the game version by convention in every
+    /// launcher, because the launcher never renames them.
+    /// </summary>
     public DetectedGameVersion? DetectVersion(string gameRoot)
     {
         var source = _game.Version;
-        if (source is null || source.Kind != "text_file")
+        return source?.Kind switch
+        {
+            "text_file" => DetectVersionFromTextFile(gameRoot, source),
+            "file_name" => DetectVersionFromFileName(gameRoot, source),
+            _ => null,
+        };
+    }
+
+    private DetectedGameVersion? DetectVersionFromFileName(
+        string gameRoot, GameVersionSource source)
+    {
+        var relative = source.Path.Replace('/', Path.DirectorySeparatorChar);
+        var directory = Path.GetDirectoryName(relative) ?? string.Empty;
+        var pattern = Path.GetFileName(relative);
+        if (string.IsNullOrWhiteSpace(pattern))
         {
             return null;
         }
+        var searchRoot = Path.Combine(gameRoot, directory);
+        string[] candidates;
+        try
+        {
+            candidates = Directory.Exists(searchRoot)
+                ? Directory.GetFiles(searchRoot, pattern)
+                : Array.Empty<string>();
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return null;
+        }
+        // Deterministic order: two matching files must not give different answers
+        // on two runs.
+        Array.Sort(candidates, StringComparer.OrdinalIgnoreCase);
+        foreach (var candidate in candidates)
+        {
+            var name = Path.GetFileName(candidate);
+            Match nameMatch;
+            try
+            {
+                nameMatch = Regex.Match(
+                    name,
+                    source.CompatibilityPattern,
+                    RegexOptions.CultureInvariant,
+                    TimeSpan.FromSeconds(1));
+            }
+            catch (Exception exception) when (
+                exception is ArgumentException or RegexMatchTimeoutException)
+            {
+                return null;
+            }
+            if (!nameMatch.Success)
+            {
+                continue;
+            }
+            var version = nameMatch.Groups.Count > 1
+                ? nameMatch.Groups[1].Value
+                : nameMatch.Value;
+            // Пользователю показывают FullVersion — это должна быть версия,
+            // а не имя jar'а, из которого мы её прочитали.
+            return new DetectedGameVersion(version, version);
+        }
+        return null;
+    }
+
+    private DetectedGameVersion? DetectVersionFromTextFile(
+        string gameRoot, GameVersionSource source)
+    {
         var path = Path.Combine(gameRoot, source.Path);
         if (!File.Exists(path))
         {

@@ -124,6 +124,11 @@ public partial class MainWindow : Window
         ConnectButton.IsEnabled = true;
         DisconnectButton.IsEnabled = false;
         RuntimeStatusText.Text = "Heartbeat мода ещё не проверен.";
+        // 2026-08-20: без этой строки в разделе 3 оставалась сводка ПРЕДЫДУЩЕЙ
+        // игры («bannerlord 0.1.1 установлен…») — при выбранном Minecraft она
+        // читается как «Bannerlord имеет к нему отношение». Если новая игра не
+        // найдена, обновлять сводку будет некому, поэтому чистим сразу.
+        IntegrationStatusText.Text = $"Интеграция {IntegrationName} ещё не проверена.";
         DetectGame();
     }
 

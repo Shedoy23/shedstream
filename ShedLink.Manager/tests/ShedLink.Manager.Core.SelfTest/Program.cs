@@ -21,6 +21,7 @@ try
     await TestCoordinatorAsync(root);
     TestRimWorldDetection(root);
     TestManifestDrivenDetection(root);
+    TestLauncherAgnosticDetection(root);
     TestJsonConfigurationStore(root);
     TestFailureMessages();
     TestDeniedWriteScenario(root);
@@ -1346,6 +1347,127 @@ static string SnapshotDirectory(string root)
             Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))))
         .OrderBy(entry => entry, StringComparer.Ordinal);
     return string.Join("\n", entries);
+}
+
+static void TestLauncherAgnosticDetection(string root)
+{
+    // 2026-08-20. Detection for Minecraft required versions/1.21.1/1.21.1.json --
+    // a file only the OFFICIAL launcher writes. Modded players run Prism,
+    // MultiMC, CurseForge, GDLauncher, Lexplosion; each keeps the game in its own
+    // instance folder and none of them writes that path. On the owner's machine
+    // the rule matched nothing at all, so Minecraft could not be installed
+    // anywhere. The evidence a launcher cannot take away is the mods folder and
+    // the names of the jars inside it.
+    var manifest = InstallationManifestLoader.Load(Path.Combine(
+        Environment.CurrentDirectory,
+        "manifests",
+        "installation",
+        "shedcolony-0.1.0.json"));
+    Assert(manifest.Game is not null, "манифест ShedColony описывает игру");
+    var game = manifest.Game!;
+    var service = new GameDetectionService(game);
+
+    string Instance(string name, string modJar, params string[] extraDirs)
+    {
+        var dir = Path.Combine(root, "launchers", name);
+        Directory.CreateDirectory(Path.Combine(dir, "mods"));
+        foreach (var extra in extraDirs)
+        {
+            Directory.CreateDirectory(Path.Combine(dir, extra));
+        }
+        File.WriteAllText(Path.Combine(dir, "mods", modJar), "jar");
+        File.WriteAllText(Path.Combine(dir, "mods", "structurize-1.0.830-1.21.1.jar"), "jar");
+        return dir;
+    }
+
+    // Lexplosion: instances/<name>/{mods,config,version/client.jar}
+    var lexplosion = Instance(
+        "lexplosion-instance", "minecolonies-1.1.1320-1.21.1-snapshot.jar",
+        "config", "version");
+    // Prism/MultiMC: the game lives in .minecraft INSIDE the instance folder.
+    var prismInstance = Path.Combine(root, "launchers", "prism-instance");
+    Directory.CreateDirectory(prismInstance);
+    File.WriteAllText(Path.Combine(prismInstance, "mmc-pack.json"), "{}");
+    var prismGame = Instance(
+        Path.Combine("prism-instance", ".minecraft"),
+        "minecolonies-1.1.900-1.21.1.jar", "config");
+    // CurseForge: Instances/<name>/{minecraftinstance.json,mods}
+    var curseforge = Instance(
+        "curseforge-instance", "minecolonies-1.1.1320-1.21.1-snapshot.jar", "config");
+    File.WriteAllText(Path.Combine(curseforge, "minecraftinstance.json"), "{}");
+    // Official launcher: .minecraft with versions/ AND mods/
+    var official = Instance("dot-minecraft", "minecolonies-1.1.1320-1.21.1.jar", "config");
+    Directory.CreateDirectory(Path.Combine(official, "versions", "1.21.1"));
+    File.WriteAllText(
+        Path.Combine(official, "versions", "1.21.1", "1.21.1.json"), "{\"id\": \"1.21.1\"}");
+
+    foreach (var (label, dir) in new[]
+             {
+                 ("Lexplosion", lexplosion),
+                 ("Prism/MultiMC (.minecraft внутри инстанса)", prismGame),
+                 ("CurseForge", curseforge),
+                 ("официальный лаунчер", official),
+             })
+    {
+        Assert(service.IsValidGameRoot(dir), $"инстанс принимается: {label}");
+        var detected = service.DetectVersion(dir);
+        Assert(detected is { CompatibilityVersion: "1.21.1" } &&
+            GameVersionDetector.Compatibility(detected, game.SupportedVersions)
+                == "supported",
+            $"версия 1.21.1 определена без файлов лаунчера: {label}");
+    }
+
+    // Корень лаунчера (папка с instances/, но без mods/) — отказ с подсказкой.
+    var launcherRoot = Path.Combine(root, "launchers");
+    Assert(!service.IsValidGameRoot(launcherRoot),
+        "корень лаунчера НЕ принимается за папку игры");
+    var refusal = string.Empty;
+    try
+    {
+        service.ValidateManual(launcherRoot);
+    }
+    catch (InvalidDataException exception)
+    {
+        refusal = exception.Message;
+    }
+    Assert(refusal.Contains("mods") && refusal.Contains("инстанса"),
+        "отказ называет и что искали, и какую папку выбирать");
+
+    // Инстанс на ДРУГОЙ версии Minecraft не должен считаться совместимым.
+    var wrongVersion = Instance(
+        "wrong-version-instance", "minecolonies-1.1.500-1.20.1.jar", "config");
+    File.Delete(Path.Combine(wrongVersion, "mods", "structurize-1.0.830-1.21.1.jar"));
+    var wrongDetected = service.DetectVersion(wrongVersion);
+    Assert(wrongDetected is null ||
+        GameVersionDetector.Compatibility(wrongDetected, game.SupportedVersions)
+            != "supported",
+        "инстанс на 1.20.1 не выдаётся за поддерживаемый");
+
+    // Живая проверка на НАСТОЯЩЕЙ папке, если её передали. Синтетика доказывает
+    // логику, но не то, что реальный лаунчер раскладывает файлы так, как мы
+    // думаем. Запуск:
+    //   $env:SHEDLINK_SELFTEST_GAME_ROOT = "E:\lexplosion\instances\<инстанс>"
+    var realRoot = Environment.GetEnvironmentVariable("SHEDLINK_SELFTEST_GAME_ROOT");
+    if (!string.IsNullOrWhiteSpace(realRoot))
+    {
+        Assert(service.IsValidGameRoot(realRoot),
+            $"НАСТОЯЩАЯ папка принимается: {realRoot}");
+        var realVersion = service.DetectVersion(realRoot);
+        Assert(realVersion is not null &&
+            GameVersionDetector.Compatibility(realVersion, game.SupportedVersions)
+                == "supported",
+            "НАСТОЯЩАЯ папка: версия определена и поддерживается " +
+            $"(получено: {realVersion?.CompatibilityVersion ?? "ничего"})");
+    }
+
+    // Пустой инстанс без MineColonies: папка валидна (mods есть), но версии нет —
+    // дальше сработает prerequisite со ссылкой на CurseForge, а не тихий отказ.
+    var noMineColonies = Path.Combine(root, "launchers", "empty-instance");
+    Directory.CreateDirectory(Path.Combine(noMineColonies, "mods"));
+    Assert(service.IsValidGameRoot(noMineColonies),
+        "инстанс без MineColonies принимается как папка игры");
+    Assert(service.DetectVersion(noMineColonies) is null,
+        "без MineColonies версия не выдумывается");
 }
 
 static void Assert(bool condition, string label)

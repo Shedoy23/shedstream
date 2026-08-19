@@ -83,6 +83,14 @@ public sealed record GameDetectionRule
     [JsonPropertyName("install_dir")]
     public string? InstallDir { get; init; }
 
+    /// <summary>
+    /// Optional one-line help shown when manual selection fails. A layout-free
+    /// game (Minecraft under any launcher) needs to say WHICH folder to pick,
+    /// and that sentence belongs to the game's manifest, not to the app.
+    /// </summary>
+    [JsonPropertyName("hint")]
+    public string? Hint { get; init; }
+
     [JsonPropertyName("required_paths")]
     public IReadOnlyList<string>? RequiredPaths { get; init; }
 }

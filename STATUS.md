@@ -245,6 +245,11 @@
   `0.1.0` установлен, JSON с URL/channel/token создан автоматически, секрет не
   выводился, transaction-хвостов нет, state записан. Evidence:
   `docs/MANAGER_BANNERLORD_LIVE_INSTALL_2026-08-19.md`.
+- Собран исправленный multi-game пакет `0.1.0-alpha.5` из коммита
+  `444a7d8e54b7`; SHA-256 `f51580c3…526b14be`. Состав, записанный commit,
+  отсутствие секретов/debug-файлов и полный Core self-test повторно сверены.
+  Для любых следующих проверок использовать `alpha.5`, не `alpha.4`.
+  Evidence: `docs/MANAGER_ALPHA_0.1.0_ALPHA5_2026-08-19.md`.
 - Twitch Extension `0.0.2` отправлена в Review 2026-08-16; ждём решение Twitch.
   Релиз зафиксирован тегом `submit/0.0.2`, канонический неизменяемый архив
   хранится в `dist/releases/`, SHA-256 начинается с `E5A2B411`. До вердикта

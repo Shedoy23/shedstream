@@ -174,7 +174,6 @@
     };
 
     var _pollId = null;
-    var _inflight = {};            // action_type → true while a buy is in flight (anti-double-click)
     var _state = { colonist: null, capacity: { jobs: [], free_beds: null }, targets: null, stale: false };
     var _lastSig = '';
     var _stylesInjected = false;
@@ -312,31 +311,21 @@
         document.head.appendChild(s);
     }
 
-    // ── buy: POST /api/shedcolony/action (charge crustics + enqueue) ──────────
+    // ── buy: общий платный путь ядра (ShedLink.buyAction, viewer-actions.js) ──
+    // 2026-08-19: раньше здесь была своя копия. Она не перечитывала баланс после
+    // успеха, поэтому панель показывала непотраченные крустики до минуты и
+    // дольше — зритель жал покупку второй раз. Переезд на общий путь чинит это
+    // и заодно даёт кулдаун/role-gate, если бэк начнёт их присылать.
+    // Отложенный характер действий (заявка исполнится в игре) по-прежнему
+    // объясняется своим текстом тоста — SC_SUCCESS_MSG (баги #16/#17).
     function _buy(actionType, data) {
-        if (_inflight[actionType]) { return Promise.resolve(null); }
-        _inflight[actionType] = true;
-        var clientActionId = 'sc_' + (typeof Date !== 'undefined' ? Date.now() : '')
-            + '_' + Math.random().toString(36).slice(2, 8);
-        var body = JSON.stringify({
-            action_type: actionType,
-            data: Object.assign({}, data || {}, { client_action_id: clientActionId }),
-        });
-        return fetch(API_URL + '/api/shedcolony/action', {
-            method: 'POST', headers: _jwtHeaders(true), body: body,
-        }).then(function (r) { return r.json(); }).then(function (result) {
-            if (result && result.success) {
-                showNotification(SC_SUCCESS_MSG[actionType] || result.message || 'Готово', 'success', 6000);
-            } else {
-                showNotification((result && result.message) || 'Не получилось', 'error', 4500);
-            }
-            return result;
-        }).catch(function () {
-            showNotification('Сеть недоступна — попробуй ещё раз', 'error', 4000);
-            return null;
-        }).then(function (res) {
-            delete _inflight[actionType];
-            return res;
+        return ShedLink.buyAction('shedcolony', actionType, data, {
+            successMessage:      SC_SUCCESS_MSG[actionType],
+            failMessage:         'Не получилось',
+            successToastMs:      6000,
+            errorToastMs:        4500,
+            networkErrorMessage: 'Сеть недоступна — попробуй ещё раз',
+            networkToastMs:      4000,
         });
     }
 

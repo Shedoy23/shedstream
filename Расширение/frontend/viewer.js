@@ -1835,13 +1835,6 @@ function _stopBannerlordPolling() {
 // Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 8, 2026-06-13).
 // loadBannerlordShop. Зовёт core currency/random-equip рендеры форвард; callers рантайм.
 
-// Sprint 5.29 audit fix #35: in-flight guard per actionType. Раньше rapid
-// double-click → 2 POSTs → 2 charges → 2 actions enqueued. Mod может оба
-// выполнить или один отказать, но backend оба раза charged. Двойная оплата
-// крустиков. Single-flight per actionType блокирует второй click пока первый
-// не завершится. Если в полёте — silent return (toast уже видит первый).
-const _bnrInflight = new Set();
-
 // ===== КУЛДАУН НА КНОПКЕ (data-bnr-cd) =====
 // 2026-05-29: вместо warning-тоста «способность на перезарядке» показываем
 // тикающий отсчёт прямо на кнопке (как у кнопок способностей/призыва).
@@ -1951,105 +1944,19 @@ if (!window._bnrCdTickerStarted) {
     setInterval(() => { _bnrActionCdTick(); _bnrAffordTick(); }, 1000);
 }
 
+// 2026-08-19: тело переехало в viewer-actions.js (ShedLink.buyAction) —
+// общий платный путь для всех игровых модулей. Здесь остались только
+// Bannerlord-специфичные хвосты: где живёт отсчёт кулдауна и что перечитать
+// после успеха. Причина переезда — docs/FRONTEND_MODULE_ARCH_PLAN.md §1:
+// каждая игра писала покупку заново и теряла часть защит.
 async function _bannerlordBuyAction(actionType, data) {
-    if (!isAuthUser()) {
-        showNotification('⚠️ Войдите через Twitch', 'warning');
-        return;
-    }
-    if (_bnrInflight.has(actionType)) {
-        console.warn('[BNR action] duplicate-click guarded', actionType);
-        return;
-    }
-    _bnrInflight.add(actionType);
-    // Sprint 5.32 (BLT-parity H1) — idempotency client_action_id. Backend
-    // m46 UNIQUE partial index на (channel_id, module_id, client_action_id)
-    // блокирует двойной charge крустиков при retry (network blip, proxy
-    // replay, multi-click обходящий _bnrInflight). crypto.randomUUID
-    // доступен на HTTPS (Twitch Extension всегда грузится через HTTPS),
-    // fallback — Date.now() + Math.random для совместимости.
-    const clientActionId = (window.crypto && window.crypto.randomUUID)
-        ? window.crypto.randomUUID()
-        : (Date.now().toString(36) + '-' + Math.random().toString(36).slice(2));
-    const payload = { ...data, client_action_id: clientActionId };
-    try {
-        const r = await fetch(`${API_URL}/api/bannerlord/action`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Twitch-JWT': authToken || '',
-            },
-            body: JSON.stringify({ action_type: actionType, data: payload }),
-        });
-        const result = await r.json();
-        // Sprint 5.29 audit fix #36: backend message в console для audit trail.
-        // Раньше backend rejections / silent issues — нечем диагностировать без
-        // прикладного breakpoint в DevTools.
-        dbg('[BNR action]', actionType,
-                    result.success ? '✓' : '✗',
-                    result.message || '(no message)',
-                    result.perk ? `(perk=${result.perk} ×${result.perk_price_mult})` : '');
-        // Sprint 5.30 #40: append perk-badge к toast если discount применён.
-        // Sprint 5.33 TOS-COMPLIANCE: sub-based perks removed. Только
-        // channel-role perks (broadcaster/moderator) дают discount.
-        let toastMsg = result.message || (result.success ? 'OK' : 'Действие не выполнено');
-        if (result.success && result.perk && result.perk_price_mult < 1.0) {
-            const perkIcons = {
-                broadcaster: '👑',
-                moderator:   '🛡️',
-            };
-            const icon = perkIcons[result.perk] || '✨';
-            toastMsg = `${toastMsg} (${icon} ×${result.perk_price_mult.toFixed(2)} price)`;
-        }
-        // Channel-role gate refusal (moderator/broadcaster administrative actions).
-        // Subscription tiers are cosmetic-only and never enter this path.
-        if (!result.success && result.required_role) {
-            const roleLabel = {
-                moderator:    '🛡 модераторов',
-                broadcaster:  '👑 стримера',
-            }[result.required_role] || result.required_role;
-            toastMsg = `🔒 ${toastMsg}`;
-            // Sprint 5.32 (LOG-4) — categorized prefix [FE-GATE] для grep'а.
-            dbg('[FE-GATE]', actionType,
-                         `required=${result.required_role} your=${result.your_role}`);
-        }
-        // Sprint 5.32 (LOG-4) — log на idempotent_replay (H1) чтобы видно
-        // когда retry реально срабатывает (дебаг network blip / proxy issues).
-        if (result.idempotent_replay) {
-            dbg('[FE-IDEM] retry hit', actionType,
-                         'action_id=' + result.action_id);
-        }
-        // 2026-05-29 — кулдаун на кнопке вместо warning-тоста.
-        // На успехе с CD — запускаем отсчёт сразу (cooldown_applied_s).
-        // На отказе по CD — синхронизируем remaining и НЕ показываем тост,
-        // если для этого действия есть помеченная кнопка (она покажет отсчёт).
-        const isCdReject = !result.success
-            && typeof result.cooldown_remaining_s === 'number'
-            && result.cooldown_remaining_s > 0;
-        if (result.success
-            && typeof result.cooldown_applied_s === 'number'
-            && result.cooldown_applied_s > 0) {
-            _bnrSetLocalCooldown(actionType, result.cooldown_applied_s);
-        }
-        if (isCdReject) {
-            _bnrSetLocalCooldown(actionType, result.cooldown_remaining_s);
-        }
-        let _hasCdBtn = false;
-        try {
-            _hasCdBtn = !!document.querySelector(`[data-bnr-cd="${actionType}"]`);
-        } catch (_) { _hasCdBtn = false; }
-
-        // Sprint 5.32 UX — errors longer (6s) чтобы юзер успел прочесть
-        // cooldown / refuse сообщения. Success short (3.5s default).
-        if (!(isCdReject && _hasCdBtn)) {
-            showNotification(toastMsg, result.success ? 'success' : 'error',
-                             result.success ? 3500 : 6000);
-        }
-        if (result.success) {
-            if (typeof loadUserData === 'function') loadUserData();
-            // Sprint 5.3d: ускоряем UI feedback для bannerlord actions —
-            // вместо ожидания 8s polling cycle, дёргаем reload через ~3.5s
-            // (после mod poll + apply). Особенно важно для recruit_troops
-            // и upgrade_gear — viewer видит результат почти сразу.
+    return await ShedLink.buyAction('bannerlord', actionType, data, {
+        cooldownAttr: 'data-bnr-cd',
+        onCooldown: _bnrSetLocalCooldown,
+        onSuccess: () => {
+            // Sprint 5.3d: ускоряем UI feedback — вместо ожидания 8s polling
+            // цикла дёргаем reload через ~3.5s (после mod poll + apply).
+            // Особенно важно для recruit_troops и upgrade_gear.
             const isBannerlord = actionType.startsWith('hero.')
                 || actionType.startsWith('player.')
                 || actionType.startsWith('power.')
@@ -2062,16 +1969,8 @@ async function _bannerlordBuyAction(actionType, data) {
                     }
                 }, 3500);
             }
-        }
-        return result;
-    } catch (e) {
-        // Sprint 5.29 audit fix #36: real error в console чтобы можно было
-        // диагностировать — раньше «Ошибка сети» без context.
-        console.error('[BNR action] network/json error', actionType, e);
-        showNotification(`Ошибка сети: ${e.message || e}`, 'error');
-    } finally {
-        _bnrInflight.delete(actionType);
-    }
+        },
+    });
 }
 
 // Refresh button

@@ -35,8 +35,13 @@ if sys.platform == "win32":
 
 def main() -> int:
     needle = (sys.argv[1] if len(sys.argv) > 1 else "").lower()
-    files = sorted(p for p in TESTS_DIR.glob("test_*.py")
-                   if needle in p.name.lower())
+    # 2026-08-19: .js тоже. Тест общего платного пути фронта написан на node
+    # (viewer-actions.js грузится без браузера), а раньше сюда попадали только
+    # test_*.py — то есть тест существовал бы, но его никто бы не запускал.
+    files = sorted((p for p in TESTS_DIR.iterdir()
+                    if p.name.startswith("test_") and p.suffix in (".py", ".js")
+                    and needle in p.name.lower()),
+                   key=lambda p: p.name)
     if not files:
         print(f"Нет тестов по фильтру '{needle}'")
         return 2
@@ -46,7 +51,8 @@ def main() -> int:
 
     for path in files:
         try:
-            proc = subprocess.run([sys.executable, f"tests/{path.name}"],
+            runner = "node" if path.suffix == ".js" else sys.executable
+            proc = subprocess.run([runner, f"tests/{path.name}"],
                                   cwd=str(TESTS_DIR.parent), env=env,
                                   capture_output=True, timeout=TIMEOUT_SEC)
             code = proc.returncode

@@ -77,28 +77,40 @@ if ($All) { $Backend = $true; $Frontend = $true; $Mod = $true }
 # Not a wall, a speed bump: -CriticalReason "..." lets a real emergency through
 # in one flag. Typing the reason is the point -- it makes you name what is
 # actually broken instead of shipping on impulse.
-$FreezeUntil = Get-Date '2026-07-28 23:30'   # right after the review window
-$IsProdTarget = ($Backend -or $Frontend) -and -not $Staging
-if ($IsProdTarget -and -not $DryRun -and (Get-Date) -lt $FreezeUntil) {
+# 2026-08-19: the 2026-07-28 date-based freeze expired on its own while a NEW
+# review (0.0.2, submitted 2026-08-16) is open -- the guard was inert exactly
+# when it was needed. A date goes stale in the UNSAFE direction; a flag goes
+# stale in the safe one. So this is a flag now: flip it to $false the day Twitch
+# answers, and say so in STATUS.md.
+#
+# Scope is FRONTEND ONLY. ROADMAP section 9: backend deploys continue during the
+# review and must serve public 0.0.1 and submitted 0.0.2 at the same time.
+# What this stops: the default `deploy.ps1` (backend+frontend) shipping a
+# half-refactored frontend to prod AND auto-bumping the cache-bust while the
+# submitted ZIP is pinned at tag submit/0.0.2.
+$FrontendReviewOpen = $true                  # Twitch Extension 0.0.2 in Review
+$FreezeUntil = Get-Date '2026-07-28 23:30'   # expired; kept for the log below
+$IsProdTarget = $Frontend -and -not $Staging
+if ($IsProdTarget -and -not $DryRun -and $FrontendReviewOpen) {
     if ([string]::IsNullOrWhiteSpace($CriticalReason)) {
         Write-Host ''
-        Write-Host '  DEPLOY BLOCKED -- Twitch review freeze' -ForegroundColor Red
+        Write-Host '  FRONTEND DEPLOY BLOCKED -- Twitch review of 0.0.2 is open' -ForegroundColor Red
         Write-Host ''
-        Write-Host ("  Review: 2026-07-28 22:30 Chelyabinsk. Freeze lifts {0}." -f $FreezeUntil)
-        Write-Host '  A broken prod during the live slot = weeks waiting for another one.'
+        Write-Host '  Submitted 2026-08-16, pinned at tag submit/0.0.2. Deploying the'
+        Write-Host '  frontend now would also auto-bump the cache-bust in both shells,'
+        Write-Host '  so our server and the CDN copy under review stop matching.'
         Write-Host ''
-        Write-Host '  CRITICAL means: prod is down, money is being lost or double-charged,'
-        Write-Host '  data is leaking between channels, or the review itself cannot run.'
-        Write-Host '  Anything else -- test it locally and ship after the verdict:'
-        Write-Host '      python scripts/local-setup.py'
+        Write-Host '  Lift it by setting $FrontendReviewOpen = $false in this script'
+        Write-Host '  the day Twitch answers (and note the verdict in STATUS.md).'
         Write-Host ''
         Write-Host '  Safe right now:'
+        Write-Host '      ./scripts/deploy.ps1 -Backend     # backend only, allowed during review'
         Write-Host '      ./scripts/deploy.ps1 -DryRun      # show what would happen'
         Write-Host '      ./scripts/deploy.ps1 -Staging     # staging app on :8001'
         Write-Host '      ./scripts/deploy.ps1 -Mod         # game DLL, prod untouched'
         Write-Host ''
         Write-Host '  If it really is critical:'
-        Write-Host '      ./scripts/deploy.ps1 -Backend -CriticalReason "what is on fire"'
+        Write-Host '      ./scripts/deploy.ps1 -Frontend -CriticalReason "what is on fire"'
         Write-Host ''
         exit 1
     }

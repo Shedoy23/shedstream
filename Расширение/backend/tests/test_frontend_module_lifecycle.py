@@ -70,20 +70,36 @@ check("window._startRimworldPolling" in switcher,
       "switcher запускает RimWorld только в его ветке")
 check(switcher.count("window._stopRimworldPolling") >= 3,
       "switcher останавливает RimWorld во всех остальных ветках")
+# 2026-08-19: список модулей больше не перечисляется руками. Раньше регулярка
+# знала только viewer.js / -bannerlord / -rimworld, поэтому ShedColony (добавлен
+# 25.06) в проверку не попадал: его версия могла разъехаться между оболочками, а
+# тест оставался зелёным. Каждая следующая игра унаследовала бы ту же слепоту.
+# Теперь имена берутся из самих оболочек и с диска.
 def module_versions(shell):
     return {
         name: version
         for name, version in re.findall(
-            r'(viewer(?:-bannerlord|-rimworld)?\.js)\?v=([0-9]{12})', shell)
+            r'(viewer(?:-[\w-]+)?\.js)\?v=([0-9]{12})', shell)
     }
 
 
 ext_versions = module_versions(html)
 mobile_versions = module_versions(mobile)
-check(set(ext_versions) == {"viewer.js", "viewer-bannerlord.js", "viewer-rimworld.js"}
-      and ext_versions == mobile_versions
-      and len(set(ext_versions.values())) == 1,
-      "cache-bust трёх модулей синхронен в extension и mobile")
+on_disk = {f.name for f in FRONTEND.glob("viewer*.js")}
+
+check(bool(ext_versions) and set(ext_versions) == set(mobile_versions),
+      "обе оболочки грузят один и тот же набор viewer-модулей "
+      "(ext=%s mobile=%s)" % (sorted(ext_versions), sorted(mobile_versions)))
+check(ext_versions == mobile_versions,
+      "версия каждого viewer-модуля одинакова в extension и mobile "
+      "(расходятся: %s)" % sorted(
+          n for n in set(ext_versions) & set(mobile_versions)
+          if ext_versions[n] != mobile_versions[n]))
+check(len(set(ext_versions.values()) | set(mobile_versions.values())) == 1,
+      "cache-bust всех viewer-модулей — одна метка")
+check(on_disk == set(ext_versions),
+      "каждый viewer*.js с диска подключён в оболочках "
+      "(не подключены: %s)" % sorted(on_disk - set(ext_versions)))
 check("const unavailable = !heroReady;" in bannerlord
       and "bnrCanUseActivePowers()" in bannerlord,
       "платные active powers выключены, пока герой не на поле боя")

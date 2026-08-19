@@ -66,11 +66,14 @@ check("if (_activeIntegrationModule !== 'rimworld') return;" in rimworld,
 # ПОВЕДЕНЧЕСКИЙ тест tests/test_game_registry.js — строковая проверка зеленела
 # бы и тогда, когда до этих строк не доходит управление. Здесь остаётся только
 # проводка: ядро делегирует в реестр, каждая игра объявляет себя сама.
-switcher = between(
-    viewer,
-    "function switchIntegrationModule(activeModule) {",
-    "// ===== Daily rewards / Heirs / Family",
-)
+# 2026-08-20: конец функции ищем по её закрывающей скобке, а не по соседнему
+# заголовку. Прежний маркер «// ===== Daily rewards…» уехал вместе с
+# Bannerlord-кодом в его файл, и проверка молча начала читать ВЕСЬ остаток
+# ядра — то есть проверяла не то, что написано в её же названии.
+switcher = viewer.split(
+    "function switchIntegrationModule(activeModule) {", 1)[1].split(
+        "\n}", 1)[0]
+
 check("ShedLink.switchGame" in switcher,
       "ядро переключает игры через реестр, а не через свой if/else")
 check("bannerlord" not in switcher and "rimworld" not in switcher,

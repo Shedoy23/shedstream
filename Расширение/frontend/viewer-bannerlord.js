@@ -9,6 +9,816 @@
 //
 // Чанк 1 (2026-06-13): Турнир зрителей (loadBannerlordTournament + render + predict).
 
+// ===== Перенесено из viewer.js 2026-08-20 (шаг 3) =====
+// Стейт, кулдауны, аффорданс, модалки, поллинг и диспетчер Bannerlord. Ядро
+// этого больше не видит и не должно. Порядок внутри файла сохранён как был.
+
+// ===== ИНТЕГРАЦИЯ (Sprint 1.5, 2026-05-15) =====
+// Switcher tab «🔌 Интеграция» по channel.active_module:
+//   'rimworld'   → существующий pawn UI
+//   'bannerlord' → bannerlord hero UI + покупка actions
+//   null         → подсказка «Подключи модуль игры»
+let _bannerlordPollId = null;
+let _bannerlordBuffPollId = null;   // 4.6 — periodic GET /api/bannerlord/my-buffs (2.5s)
+let _bannerlordBuffTickId = null;   // 4.6 — client-side decrement (1s) для smooth countdown
+let _bannerlordBuffs = [];          // 4.6 — last-known buffs cache; entries { power_key, remaining_s }
+let _bannerlordCooldowns = [];      // 4.8 — last-known cooldowns; entries { power_key, remaining_s }
+let _bannerlordCurrentGearTier = 0; // M20 — last seen gear_tier (cached for shop render)
+let _bannerlordTournamentPollId = null;  // Sprint 5.3 — poll /api/bannerlord/tournament (3s)
+let _bannerlordTournament = null;        // last snapshot {queue, state, in_queue, my_prediction, config}
+let _bannerlordBattlePollId = null;      // Sprint 5.5 — poll /api/bannerlord/battle-status (2s)
+let _bannerlordBattle = null;            // last snapshot {in_battle, my_stats, participant_count}
+let _bannerlordWasInBattle = false;      // detect new-battle transition для cooldown UI refresh
+let _bannerlordLastRetinue = [];         // last retinue snapshot — repaint без re-fetch
+let _bannerlordLastHero = null;          // last /my-hero snapshot — для progression modal
+let _bnrOptimisticStance = null;         // 2026-06-10 — оптимистичная боевая стойка до эха мода
+
+// Sprint 5.5: helper для проверки battle state (для banner / future use).
+function bnrIsInBattle() { return !!(_bannerlordBattle && _bannerlordBattle.in_battle); }
+function bnrCanUseActivePowers() {
+    return !!(_bannerlordBattle && _bannerlordBattle.in_battle
+              && _bannerlordBattle.my_stats && _bannerlordBattle.my_stats.alive);
+}
+
+// 2026-06-10 — тосты про отказ действия. Mod отказывает асинхронно (после ACK)
+// → крустики возвращаются, но раньше зритель не видел ПОЧЕМУ «не сработало» и
+// кликал снова. my-hero отдаёт recent_refunds[{action_id,type,reason,refunded}];
+// тут локализуем reason и показываем тост (дедуп по action_id, чтобы 30s-окно
+// бэка не плодило повторы между poll'ами).
+const _bnrShownRefunds = new Set();
+const BNR_REFUSE_REASON_RU = {
+    in_mission:             'Нельзя во время боя или миссии',
+    no_active_mission:      'Сначала вступи в бой',
+    arena_or_tournament:    'Сила недоступна на арене и турнире',
+    hero_not_spawned:       'Твой герой ещё не вышел на поле боя',
+    hero_not_found_or_dead: 'Герой не найден или мёртв',
+    hero_not_found:         'Герой не найден',
+    not_enough_hero_gold:   'Не хватает динаров у героя',
+    attribute_maxed:        'Атрибут уже на максимуме',
+    all_attributes_maxed:   'Все атрибуты прокачаны до максимума',
+    no_attributes_object:   'Нет данных по атрибутам героя',
+    skill_focus_maxed:      'Фокус навыка уже на максимуме',
+    all_skills_focus_maxed: 'Все фокусы прокачаны до максимума',
+    no_skills_object:       'Нет данных по навыкам героя',
+    is_prisoner:            'Твой герой в плену',
+    already_clan_leader:    'Ты уже глава клана',
+    not_clan_leader:        'Только для главы клана',
+    clan_name_exists:       'Клан с таким именем уже существует',
+    no_clan:                'Сначала нужно вступить или создать клан',
+    in_player_clan:         'Недоступно в клане игрока',
+    already_in_party:       'Отряд уже создан',
+    clan_party_limit:       'Достигнут лимит отрядов клана',
+    no_kingdom:             'Сначала нужно вступить в королевство',
+    not_king:               'Только для короля',
+    not_authorized:         'Недостаточно прав',
+    not_at_war:             'Вы не в состоянии войны',
+    self_target:            'Нельзя выбрать себя',
+    target_not_found:       'Цель не найдена',
+    town_not_found:         'Город не найден',
+    no_campaign:            'Действие сейчас недоступно',
+    no_inventory:           'Нет инвентаря',
+    no_matching_item:       'Подходящий предмет не найден',
+    // 2026-06-15 «Кузница» (перековка качества) — отказы ReforgeQualityHandler.
+    already_best:           'Предмет уже наилучшего качества — крустики возвращены',
+    slot_empty:             'В этом слоте ничего не надето',
+    no_quality_group:       'У этого предмета нельзя улучшить качество',
+    no_modifier:            'У этого предмета нет вариантов улучшения качества',
+    unknown_slot:           'Неизвестный слот',
+};
+function _bnrRefuseReasonRu(reason) {
+    if (!reason || reason === 'unspecified') return 'Сейчас недоступно';
+    if (BNR_REFUSE_REASON_RU[reason]) return BNR_REFUSE_REASON_RU[reason];
+    // prefixed диагностические: unknown_skill:X / bad_state:Y / exception:.. / crashed
+    const base = reason.split(':')[0];
+    if (BNR_REFUSE_REASON_RU[base]) return BNR_REFUSE_REASON_RU[base];
+    if (base === 'unknown') return 'Неизвестный параметр действия';
+    return 'Действие не удалось';
+}
+function _bnrNotifyRefunds(list) {
+    if (!Array.isArray(list) || !list.length) return;
+    if (_bnrShownRefunds.size > 1000) _bnrShownRefunds.clear();   // session safety cap
+    for (const rf of list) {
+        if (!rf || !rf.action_id || _bnrShownRefunds.has(rf.action_id)) continue;
+        _bnrShownRefunds.add(rf.action_id);
+        const msg = _bnrRefuseReasonRu(rf.reason)
+            + (rf.refunded ? ' — крустики возвращены' : '');
+        showNotification('❌ ' + msg, 'warning', 6000);
+    }
+}
+
+// Sprint 5.5: persist open/closed state у <details> элементов (Топ скиллы /
+// Экипировка / Свита) между ре-рендерами hero card. innerHTML replace
+// иначе сбрасывает раскрытое состояние каждые 8s.
+const _bannerlordDetailsOpen = new Set();
+function _bnrDetailsAttr(key) {
+    return _bannerlordDetailsOpen.has(key) ? 'open' : '';
+}
+function _bnrBindDetailsPersistence() {
+    document.querySelectorAll('[data-bnr-details]').forEach(el => {
+        const key = el.getAttribute('data-bnr-details');
+        if (!key || el.dataset.bnrBound === '1') return;
+        el.dataset.bnrBound = '1';
+        el.addEventListener('toggle', () => {
+            if (el.open) _bannerlordDetailsOpen.add(key);
+            else _bannerlordDetailsOpen.delete(key);
+        });
+    });
+}
+// Sprint M21 — gear upgrade costs в Hero.Gold (in-game динары, не крустики).
+// Mirror HERO_GOLD_TIER_COSTS на backend и в UpgradeGearHandler.cs.
+// let (не const): thin-front гидрирует значениями с /api/bannerlord/config
+// (см. _hydrateBnrConfig в viewer-bannerlord.js). Значения ниже — fallback.
+let HERO_GOLD_TIER_COSTS = {
+    1:    50_000,
+    2:   100_000,
+    3:   200_000,
+    4:   400_000,
+    5:   800_000,
+    6: 1_500_000,
+};
+const _formatBigGold = n => n >= 1_000_000
+    ? `${(n / 1_000_000).toFixed(2).replace(/\.?0+$/, '')}М💰`
+    : n >= 1_000
+        ? `${Math.round(n / 1_000)}К💰`
+        : `${n}💰`;
+const _formatBigPrice = n => n >= 1_000_000
+    ? `${(n / 1_000_000).toFixed(2).replace(/\.?0+$/, '')}М💎`
+    : n >= 1_000
+        ? `${Math.round(n / 1_000)}К💎`
+        : `${n}💎`;
+
+// Sprint 4.7 — UI labels + hardcoded prices для active power buttons.
+// Цены rebалансим в админку позже; сейчас просто работающий MVP.
+const BNR_POWER_LABELS = {
+    heal_burst:         { icon: '💊', label: 'Лечение',  desc: '+50 HP' },
+    // 2026-07-24: описание врало. Механику переделали 2026-07-20 (мгновенный AoE
+    // по радиусу → бафф «твои удары ломают щиты»), а текст остался старый —
+    // зритель платил 200💎 за «мгновенно AoE» и не понимал, почему «ничего не было».
+    shield_break_burst: { icon: '🛡️', label: 'Ломать щиты', desc: 'твои удары ломают щиты, 45с' },
+    rage:               { icon: '🔥', label: 'Ярость',    desc: 'твой урон умножается, 45с' },
+    // 2026-07-24: ключ retribution_toggle переиспользован под «Невидимость»
+    // ассасина (docs/SPEC_ASSASSIN_INVIS.md) — отражения урона на нём больше нет.
+    // ⚠️ Ярлык менять ВМЕСТЕ с описанием класса assassin (миграция m94 содержит
+    // оговорку «кнопка пока подписана Стойкость») — иначе бэк и фронт разъедутся.
+    retribution_toggle: { icon: '🌫', label: 'Невидимость', desc: 'враги теряют цель, 45с' },
+    // Sprint 5.33 (BLT-parity FX) — character effects.
+    // 2026-07-24: тоже врало — 2026-07-20 «яд случайному врагу в 15м» заменили на
+    // бафф «попал → отравил», а текст остался про случайного.
+    poison_dot:         { icon: '☠',  label: 'Яд',        desc: 'твои попадания травят, 45с' },
+    disarm_burst:       { icon: '💥', label: 'Обезоружить', desc: 'Случ. враг роняет оружие' },
+    berserker_charge:   { icon: '💨', label: 'Берсерк-рывок', desc: 'бежишь быстрее, 45с' },
+    // 2026-05-29 (BLT-parity combat powers) — active варианты.
+    lifesteal_burst:    { icon: '🩸', label: 'Вампиризм',   desc: 'часть урона лечит тебя, 45с' },
+    ironskin_toggle:    { icon: '🛡', label: 'Железная кожа', desc: 'входящий урон меньше, 45с' },
+    explosive_arrows:   { icon: '🧨', label: 'Взрывные стрелы', desc: 'попадания взрываются, 45с' },
+    cleave:             { icon: '⚔️', label: 'Рассечение', desc: 'удар задевает соседей, 45с' },
+};
+// BNR_POWER_PRICES удалён 2026-06-14 — цена активок теперь приходит с бэка
+// (POWER_PRICES в routes/bannerlord.py, в current_powers[].price). Тонкий фронт:
+// не держим display-копию балансового числа, которое enforce'ит бэк.
+
+// ===== Daily rewards / Heirs / Family (брак, дети) =====
+// Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 6, 2026-06-13).
+// daily(+claim)/heirs/family(+rename/respec/looks/propose-marriage).
+// daily — из _startBannerlordPolling; heirs/family — из loadBannerlordHero (рантайм).
+
+// 2026-06-07 — _openProposalsModal удалена: предложения брака теперь инлайн в
+// секции семьи (принять/отклонить per-proposal, см. loadBannerlordFamily).
+
+// ===== Vassals / Party orders / Diplomacy / Ransom (династия лидера клана) =====
+// Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 5, 2026-06-13).
+// vassals(+create-inline)/party-orders(+inline)/_BNR_POLICIES+diplomacy(+make-peace)/ransom.
+// Зовётся из loadBannerlordHero (рантайм, только у clan-leader).
+
+// ───────────────────────────────────────────────────────────────────────────
+// Sprint 5.33 (BLT-parity SHOP) — Workshops passive income panel.
+// Viewer покупает workshop в town за 2500💎 (чистая 💎 — Hero.Gold капитал
+// движком НЕ списывается). Мастерская реально создаётся в игре (передача
+// владения через ChangeOwnerOfWorkshopAction) и генерит доход герою.
+
+// Curated vanilla 1.3.x workshop types. Mod валидирует через
+// MBObjectManager.GetObject<WorkshopType>(stringId).
+// ───────────────────────────────────────────────────────────────────────────
+// Sprint 5.33 CURRENCY-1 (2026-05-28) — emoji-clarified price display.
+//
+// Two currencies в Bannerlord:
+//   💎     — krustiki (platform — viewer earns watching/chat, spent на actions)
+//   💰     — dinars (Hero.Gold engine in-game gold — earned battles/trade)
+//
+// 2026-05-29 currency re-map: одно действие = одна валюта. Хелперы ниже
+// принимают (crustic, dinars) и для нулевого компонента просто скрывают его
+// (см. _bnrPriceHtml/_bnrAfford), так что одновалютные вызовы рендерятся чисто.
+//
+// Helpers:
+//   _bnrPrice(c, d) → HTML span "💎 1000 + 💰 20K" (или одну если другая 0)
+//   _bnrCanAfford(c, d) → bool — есть ли у viewer'а обе суммы
+//   _bnrAfford(c, d) → {ok, missing: 'crustic'|'dinar'|'both'|null}
+//
+// _bannerlordLastHero.hero.gold = current Hero.Gold (cached).
+// _cachedUserPoints (module) = current 💎 balance (updated on /api/me poll).
+// ───────────────────────────────────────────────────────────────────────────
+
+// Sprint 5.33 FLICKER-FIX (2026-05-28) — skip identical innerHTML rewrite.
+// Раньше каждый 8s poll re-render'ил весь hero pane + sub-loaders, даже
+// если данные не изменились. Browser discard'ил/recreate'ил DOM tree →
+// visible flicker.
+//
+// FLICKER-FIX v2: module-scoped cache keyed by element ID. Раньше cache
+// жил на DOM element (`el._lastSmartHtml`). Когда hero body innerHTML
+// rewrite'ился (gold/HP change), все sub-slot DIVs (workshops, caravans,
+// etc.) re-created → их per-element cache пропадал → cascading flicker.
+// Теперь keyed cache survives parent re-render.
+const _smartHtmlCache = {};
+function _smartInnerHTML(el, html) {
+    if (!el) return false;
+    const key = el.id;
+    // Same html string AND element has content → cache hit, no paint.
+    // (Если parent re-rendered и el — fresh empty node, length=0 → paint.)
+    if (key && _smartHtmlCache[key] === html && el.innerHTML.length > 0) {
+        return false;
+    }
+    el.innerHTML = html;
+    if (key) _smartHtmlCache[key] = html;
+    return true;
+}
+
+function _bnrFmtN(n) {
+    // Compact format: 12345 → "12.3K", 1234 → "1.2K", 999 → "999".
+    if (n == null || isNaN(n)) return '0';
+    n = Math.abs(Math.round(n));
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (n >= 1_000)     return (n / 1_000).toFixed(1).replace(/\.0$/, '') + 'K';
+    return String(n);
+}
+
+function _bnrPrice(crustic, dinars) {
+    // Returns plain text "💎 1000 + 💰 20K". For inline button text.
+    const parts = [];
+    if (crustic && crustic > 0) parts.push(`💎 ${_bnrFmtN(crustic)}`);
+    if (dinars && dinars > 0)   parts.push(`💰 ${_bnrFmtN(dinars)}`);
+    return parts.length ? parts.join(' + ') : '💎 0';
+}
+
+function _bnrAfford(crustic, dinars) {
+    const haveCrustic = (_cachedUserPoints || 0);
+    const haveDinars  = (_bannerlordLastHero?.hero?.gold) || 0;
+    const lackCrustic = crustic > haveCrustic;
+    const lackDinars  = dinars  > haveDinars;
+    return {
+        ok:      !lackCrustic && !lackDinars,
+        lackCrustic, lackDinars,
+        haveCrustic, haveDinars,
+        needCrustic: crustic || 0,
+        needDinars:  dinars  || 0,
+    };
+}
+
+function _bnrPriceHtml(crustic, dinars) {
+    // Color-coded HTML: red на любой компонент которого не хватает.
+    const a = _bnrAfford(crustic, dinars);
+    const parts = [];
+    if (crustic && crustic > 0) {
+        const color = a.lackCrustic ? '#f87171' : '#a5f3fc';
+        parts.push(`<span style="color:${color};">💎 ${_bnrFmtN(crustic)}</span>`);
+    }
+    if (dinars && dinars > 0) {
+        const color = a.lackDinars ? '#f87171' : '#fbbf24';
+        parts.push(`<span style="color:${color};">💰 ${_bnrFmtN(dinars)}</span>`);
+    }
+    return parts.length ? parts.join(' <span style="color:#6b7280;">+</span> ') : '💎 0';
+}
+
+function _bnrAffordTooltip(crustic, dinars) {
+    const a = _bnrAfford(crustic, dinars);
+    if (a.ok) return `Стоимость: ${_bnrPrice(crustic, dinars)} — хватает ✓`;
+    const missing = [];
+    if (a.lackCrustic) missing.push(`💎: нужно ${crustic.toLocaleString('ru-RU')}, есть ${a.haveCrustic.toLocaleString('ru-RU')}`);
+    if (a.lackDinars)  missing.push(`💰 динаров: нужно ${dinars.toLocaleString('ru-RU')}, есть ${a.haveDinars.toLocaleString('ru-RU')}`);
+    return 'Не хватает:\n  • ' + missing.join('\n  • ');
+}
+
+// Header strip — current balances. Renders into element by id.
+function _bnrRenderBalances(targetId) {
+    const el = document.getElementById(targetId);
+    if (!el) return;
+    const c = window.userPoints || 0;
+    const d = (_bannerlordLastHero?.hero?.gold) || 0;
+    el.innerHTML = `
+        <span style="display:inline-flex;gap:8px;font-size:11px;
+                     background:#0a1308;padding:3px 8px;border-radius:3px;
+                     border:1px solid #1f2937;">
+            <span title="Крустики — платформенная валюта (зарабатываются за просмотр/чат). 1💎 = 5💰 динаров" style="color:#a5f3fc;">
+                💎 ${c.toLocaleString('ru-RU')}
+            </span>
+            <span style="color:#374151;">|</span>
+            <span title="Динары — in-game Hero.Gold (зарабатывается боями/торговлей)"
+                  style="color:#fbbf24;">
+                💰 ${d.toLocaleString('ru-RU')} дин.
+            </span>
+        </span>`;
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Sprint 5.33 CATALOG-3 (2026-05-28) — live settlements catalog from mod.
+//
+// Mod пушит /v1/module/bannerlord/event:world.settlements_catalog со списком
+// всех engine settlements. Backend кэширует per-channel. Endpoint:
+//   GET /api/bannerlord/settlements?type=town
+//
+// Cached на frontend в _bnrSettlementsCache (refresh при первом fetch +
+// при open модала). Filtered by type для каждого use case.
+// ───────────────────────────────────────────────────────────────────────────
+
+let _bnrSettlementsCache = null;   // { ts, by_type: {town: [...], castle: [...]}}
+let _bnrSettlementsFetching = null; // promise если уже в полёте
+
+async function _bnrFetchSettlements(force = false) {
+    if (!force && _bnrSettlementsCache &&
+        Date.now() - _bnrSettlementsCache.ts < 60_000) {
+        return _bnrSettlementsCache.by_type;
+    }
+    if (_bnrSettlementsFetching) return _bnrSettlementsFetching;
+    _bnrSettlementsFetching = (async () => {
+        try {
+            const r = await fetch(`${API_URL}/api/bannerlord/settlements`, {
+                headers: { 'X-Twitch-JWT': authToken || '' },
+            }).then(r => r.json()).catch(() => ({success: false}));
+            const all = (r.success && Array.isArray(r.settlements))
+                        ? r.settlements : [];
+            const by_type = { town: [], castle: [], village: [], other: [] };
+            for (const s of all) {
+                const t = (s.type || 'other');
+                if (!by_type[t]) by_type[t] = [];
+                by_type[t].push(s);
+            }
+            // Sort each by name для предсказуемого UX
+            for (const t of Object.keys(by_type)) {
+                by_type[t].sort((a, b) =>
+                    (a.name || '').localeCompare(b.name || '', 'ru'));
+            }
+            _bnrSettlementsCache = { ts: Date.now(), by_type };
+            return by_type;
+        } catch (e) {
+            console.warn('[FE-CATALOG] fetch failed', e);
+            return { town: [], castle: [], village: [], other: [] };
+        } finally {
+            _bnrSettlementsFetching = null;
+        }
+    })();
+    return _bnrSettlementsFetching;
+}
+
+// Renders a <select> с группировкой по culture/faction.
+function _bnrRenderSettlementSelect(settlements, opts) {
+    opts = opts || {};
+    const inputId = opts.id || 'bnr-settlement-select';
+    if (!settlements || settlements.length === 0) {
+        return `
+            <div style="font-size:11px;color:#fb7185;padding:6px;background:#2a0a0a;
+                        border-radius:3px;">
+                ⚠ Мод не передал список settlements (game не запущена или
+                устаревший mod). Перезагрузи save в игре.
+            </div>
+            <input type="hidden" id="${inputId}" value="">
+            <input type="hidden" id="${inputId}-name" value="">`;
+    }
+    // Group by faction name
+    const byFaction = {};
+    for (const s of settlements) {
+        const k = s.faction_n || s.faction || '— нейтральные —';
+        if (!byFaction[k]) byFaction[k] = [];
+        byFaction[k].push(s);
+    }
+    const factionNames = Object.keys(byFaction).sort((a, b) =>
+        a.localeCompare(b, 'ru'));
+    const optgroups = factionNames.map(fn => {
+        const items = byFaction[fn].map(s => `
+            <option value="${escapeHtml(s.id)}"
+                    data-name="${escapeHtml(s.name)}">
+                ${escapeHtml(s.name)}
+            </option>`).join('');
+        return `<optgroup label="${escapeHtml(fn)}">${items}</optgroup>`;
+    }).join('');
+    return `
+        <select id="${inputId}"
+                style="width:100%;padding:6px;font-size:12px;
+                       background:#0a1308;color:#d9f99d;
+                       border:1px solid #65a30d;box-sizing:border-box;">
+            <option value="">— выбери из списка —</option>
+            ${optgroups}
+        </select>`;
+}
+
+// ===== Workshops (мастерские) =====
+// Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 3, 2026-06-13).
+// _BNR_WORKSHOP_TYPES + loadBannerlordWorkshops + _renderBuyWorkshopInline. Зовётся из loadBannerlordHero (рантайм).
+
+// ───────────────────────────────────────────────────────────────────────────
+// ===== Fiefs / Caravans / Inheritance =====
+// Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 4, 2026-06-13).
+// loadBannerlordFiefs/Caravans(+_renderBuyCaravanInline)/CaravanRescues/Inheritance.
+// Зовётся из loadBannerlordHero (рантайм).
+
+// Sprint 5.32 — inner tab switcher. 4 panes: combat / hero / inventory / dynasty.
+// Состояние persisted в localStorage чтобы при reopen extension вернуться туда же.
+function _setBnrInnerTab(tab) {
+    const valid = ['combat', 'hero', 'inventory', 'dynasty'];
+    if (!valid.includes(tab)) tab = 'combat';
+    document.querySelectorAll('.bnr-tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.bnrTab === tab);
+    });
+    document.querySelectorAll('.bnr-tab-pane').forEach(pane => {
+        pane.classList.toggle('active', pane.dataset.bnrPane === tab);
+    });
+    try { localStorage.setItem('bnr_active_tab', tab); } catch (e) {}
+}
+
+function _bindBnrInnerTabs() {
+    document.querySelectorAll('.bnr-tab-btn').forEach(btn => {
+        if (btn.dataset.bnrBound) return;  // idempotent
+        btn.dataset.bnrBound = '1';
+        btn.addEventListener('click', () => _setBnrInnerTab(btn.dataset.bnrTab));
+    });
+    // Restore tab из last session. Sprint 5.32 (revised): default = combat.
+    let saved = 'combat';
+    try { saved = localStorage.getItem('bnr_active_tab') || 'combat'; } catch (e) {}
+    _setBnrInnerTab(saved);
+}
+
+function _startBannerlordPolling() {
+    if (_bannerlordPollId) return;
+    // Thin-front: подтянуть статические цены с бэка один раз при активации модуля.
+    if (typeof _hydrateBnrConfig === 'function') _hydrateBnrConfig();
+    _bindBnrInnerTabs();
+    loadBannerlordHero();
+    loadBannerlordShop();
+    loadBannerlordStatus();
+    loadBannerlordClasses();
+    loadBannerlordBuffs();
+    loadBannerlordTournament();
+    loadBannerlordBattleStatus();
+    // Sprint 5.32 #46 — daily reward status. Один раз на startup + после
+    // каждого re-render hero pane (через chain inside renderBannerlordHero).
+    loadBannerlordDaily();
+    // Sprint 5.31 #45e (audit MED-10) — все 4 интервала обёрнуты в
+    // safeInterval. Раньше использовали raw setInterval — на cleanupAllTimers()
+    // (закрытие страницы / Twitch helper teardown) эти 4 ID не были
+    // зарегистрированы в _globalIntervals и оставались висеть до natural GC.
+    // AUDIT 2026-05-29 (fix #5): back off ВСЕ Bannerlord-поллеры когда панель
+    // не видна (зритель свернул панель / переключил вкладку). Раньше ~16 req/8с
+    // уходили на бэк даже для невидимой панели × N зрителей = доминирующая
+    // нагрузка. document.hidden=true → skip; на re-show следующий tick подхватит.
+    _bannerlordPollId = safeInterval(() => {
+        if (document.hidden) return;
+        loadBannerlordHero();
+        loadBannerlordShop();
+        loadBannerlordStatus();
+        loadBannerlordClasses();
+    }, 8000);
+    // Buff HUD: faster poll (2.5s) для смены состояния, плюс client-side
+    // decrement (1s) чтобы countdown был smooth между poll'ами.
+    _bannerlordBuffPollId = safeInterval(() => { if (!document.hidden) loadBannerlordBuffs(); }, 2500);
+    // Tournament: 3s poll — отображает queue / running state / bets
+    _bannerlordTournamentPollId = safeInterval(() => { if (!document.hidden) loadBannerlordTournament(); }, 3000);
+    // Battle status: 2s poll — banner "идёт бой" + my HP/kills/gold/xp
+    _bannerlordBattlePollId = safeInterval(() => { if (!document.hidden) loadBannerlordBattleStatus(); }, 2000);
+    // Sprint 5.29 audit fix #37: clock-based recompute вместо decrement.
+    // Раньше client-side -1/sec drift'ил когда browser tab throttled (background
+    // / mobile sleep). Теперь — каждый tick читает Date.now() и computes
+    // remaining_s из expires_at_ms. No drift, выживает throttling и suspend.
+    _bannerlordBuffTickId = safeInterval(() => {
+        const now = Date.now();
+        let buffsChanged = false, cdsChanged = false;
+        for (const b of _bannerlordBuffs) {
+            const newRem = b.expires_at_ms
+                ? Math.max(0, (b.expires_at_ms - now) / 1000)
+                : Math.max(0, (b.remaining_s || 0) - 1);
+            if (Math.abs(newRem - (b.remaining_s || 0)) >= 0.5) {
+                b.remaining_s = newRem;
+                buffsChanged = true;
+            } else if (newRem === 0 && b.remaining_s !== 0) {
+                b.remaining_s = 0;
+                buffsChanged = true;
+            }
+        }
+        _bannerlordBuffs = _bannerlordBuffs.filter(b => b.remaining_s > 0);
+        for (const c of _bannerlordCooldowns) {
+            const newRem = c.expires_at_ms
+                ? Math.max(0, (c.expires_at_ms - now) / 1000)
+                : Math.max(0, (c.remaining_s || 0) - 1);
+            if (Math.abs(newRem - (c.remaining_s || 0)) >= 0.5) {
+                c.remaining_s = newRem;
+                cdsChanged = true;
+            } else if (newRem === 0 && c.remaining_s !== 0) {
+                c.remaining_s = 0;
+                cdsChanged = true;
+            }
+        }
+        _bannerlordCooldowns = _bannerlordCooldowns.filter(c => c.remaining_s > 0);
+        if (buffsChanged) _renderBannerlordBuffs();
+        if (cdsChanged || buffsChanged) renderBannerlordActivePowers();
+    }, 1000);
+}
+
+let _bannerlordClassesCache = null;
+// ===== Classes / active powers / summon =====
+// Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 9, 2026-06-13).
+// loadBannerlordClasses + class-picker + active-powers + summon-button.
+// BNR_POWER_LABELS/PRICES + _bannerlordClassesCache ОСТАЮТСЯ в core (форвард). Callers рантайм.
+
+// ===== Random-equip / retinue / currency converters =====
+// Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 12, 2026-06-13).
+// renderBannerlordRandomEquipHtml/_renderEquipRow/retinue/currency converters.
+// _formatBigGold/Price + _bannerlordClassesCache ОСТАЮТСЯ в core (форвард). Callers рантайм.
+
+// ===== Sprint 5.8: Focus / Attribute investments (Hero.Gold cost) =====
+// Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 2, 2026-06-13).
+// loadBannerlordProgression + консты BNR_SKILLS / BNR_SKILL_LABELS_RU / BNR_ATTRIBUTES /
+// BNR_ATTR_* / BNR_FOCUS_TIER_COSTS / BNR_ATTRIBUTE_COST. Зовётся из _startBannerlordPolling.
+// NB: BNR_SKILL_LABELS_RU используется hero-card НИЖЕ (кросс-файловая ссылка в рантайме,
+// пока hero-card в core; переедет — связь станет внутрифайловой).
+
+// Sprint 5.11: общий helper для открытия modal — clan / kingdom management.
+// Содержит варианты create / join / leave в зависимости от текущего state.
+// 2026-06-07 — модалка управления кланом УДАЛЕНА: всё инлайн во вкладке «Династия»
+// (секция 🏰 Клан для лидера; locked-actions создать/вступить/покинуть для
+// clanless/участника). Имя клана — через _renderCreateClanInline/_renderJoinInline.
+
+// ===== Dynasty A: clan-upgrades/forge/achievements/gender/profile/family/clan+kingdom mgmt =====
+// Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 13, 2026-06-13).
+// clan-upgrades/forge/achievements/gender/profile/family/dynasty-locked/clan-mgmt/kingdom-mgmt.
+// _bnrConfirm/_bnrShowSimpleModal ОСТАЮТСЯ в core (форвард). Callers рантайм (hero-card).
+
+// Common modal shell — для clan / kingdom management.
+// Sprint 5.32 BUGFIX — `window.confirm()` тихо подавляется в sandboxed Twitch
+// Extension iframe (без allow-modals в sandbox attr) и всегда возвращает false.
+// Каждый `if (!confirm(...)) return;` блокировал hero.marry / divorce /
+// set_gender / leave_clan / create_party / make_baby / heir respawn etc.
+// Этот helper — drop-in замена: показывает HTML-overlay с Да/Нет,
+// resolve'ит promise по клику. Используем await pattern в caller'ах.
+// 2026-06-07 — подтверждения отключены по просьбе («кнопку нажал — сработало»):
+// клик = сразу действие, без попапа да/нет. Пасс-тру всегда resolve(true) — все
+// вызовы `if (!await _bnrConfirm(...)) return;` проходят насквозь. Аргументы
+// (message/labels) игнорируются. Вернуть диалог для конкретного действия —
+// восстановить overlay-реализацию из git-истории этого файла.
+function _bnrConfirm(message, confirmLabel = 'Да', cancelLabel = 'Отмена') {
+    return Promise.resolve(true);
+}
+
+// 2026-07-24 — ОТДЕЛЬНАЯ функция ТОЛЬКО для необратимых и очень дорогих действий.
+// Решение «кнопку нажал — сработало» остаётся в силе для всего остального: обычные
+// покупки как были, мгновенные. Но аудит показал край — «Нанять вассальный клан за
+// 3 000 000💰» уходил по ОДНОМУ клику, а написанный текст подтверждения зритель
+// никогда не видел (_bnrConfirm — пасс-тру). Промах мышью = минус три миллиона.
+// Сюда подключены только: наём вассала, продажа мастерской/каравана, выброс предмета.
+function _bnrConfirmDanger(message, confirmLabel = 'Да, я уверен') {
+    return new Promise(resolve => {
+        let answered = false;
+        showConfirm('⚠️ Подтверди', message, () => { answered = true; resolve(true); });
+        // showConfirm зовёт onYes только на «Да»; на «Нет»/закрытие модалка просто
+        // исчезает — ловим это, чтобы промис не висел вечно.
+        const modal = document.getElementById('confirm-dyn-modal');
+        if (!modal) { resolve(true); return; }   // модалка не поднялась → не блокируем
+        const obs = new MutationObserver(() => {
+            if (!document.getElementById('confirm-dyn-modal')) {
+                obs.disconnect();
+                if (!answered) resolve(false);
+            }
+        });
+        obs.observe(modal.parentNode || document.body, { childList: true });
+    });
+}
+
+function _bnrShowSimpleModal({ title, body, bind }) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);' +
+        'display:flex;align-items:center;justify-content:center;z-index:9999;padding:10px;';
+    overlay.innerHTML = `
+        <div style="background:#18181b;border:1px solid #3d3d3f;border-radius:8px;
+                    padding:18px;max-width:340px;width:100%;">
+            <div style="display:flex;justify-content:space-between;align-items:center;
+                        margin-bottom:12px;border-bottom:1px solid #3d3d3f;padding-bottom:8px;">
+                <h3 style="margin:0;font-size:14px;color:#efeff1;">${title}</h3>
+                <button class="small-btn bnr-modal-close-btn"
+                        style="padding:4px 10px;font-size:11px;background:#3d3d3f;">✕</button>
+            </div>
+            ${body}
+        </div>`;
+    document.body.appendChild(overlay);
+    const close = () => overlay.remove();
+    overlay.querySelector('.bnr-modal-close-btn')?.addEventListener('click', close);
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+    if (typeof bind === 'function') bind(overlay);
+}
+
+// ===== Part B: create-kingdom/join/create-clan inline + bind-random-equip =====
+// Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 14, 2026-06-13).
+// _renderCreateKingdomInline/_renderJoinInline/_renderCreateClanInline/_bindBannerlordRandomEquip.
+// Зовутся из Part-A + shop (bannerlord.js). Callers рантайм.
+
+// Sprint 4.6 — buff HUD: chip-list с current remaining time.
+// ===== Buffs HUD (активные баффы/кулдауны) =====
+// Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 10, 2026-06-13).
+// loadBannerlordBuffs + _renderBannerlordBuffs. BNR_POWER_LABELS + стейт остаются в core (форвард).
+
+// ===== Status badge (онлайн/оффлайн Bannerlord) =====
+// Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 11, 2026-06-13).
+// loadBannerlordStatus. Зовётся из _startBannerlordPolling (рантайм).
+
+function _stopBannerlordPolling() {
+    if (_bannerlordPollId) {
+        clearInterval(_bannerlordPollId);
+        _bannerlordPollId = null;
+    }
+    if (_bannerlordBuffPollId) {
+        clearInterval(_bannerlordBuffPollId);
+        _bannerlordBuffPollId = null;
+    }
+    if (_bannerlordBuffTickId) {
+        clearInterval(_bannerlordBuffTickId);
+        _bannerlordBuffTickId = null;
+    }
+    if (_bannerlordTournamentPollId) {
+        clearInterval(_bannerlordTournamentPollId);
+        _bannerlordTournamentPollId = null;
+    }
+    if (_bannerlordBattlePollId) {
+        clearInterval(_bannerlordBattlePollId);
+        _bannerlordBattlePollId = null;
+    }
+    _bannerlordBuffs = [];
+    _bannerlordCooldowns = [];
+    _bannerlordTournament = null;
+    _bannerlordBattle = null;
+    _bannerlordWasInBattle = false;
+}
+
+// ===== Battle status / detachment / stance / banner =====
+// Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 7, 2026-06-13).
+// loadBannerlordBattleStatus + detachment-panel + stance + battle-banner.
+// Зовётся из _startBannerlordPolling / loadBannerlordHero / loadBannerlordStatus (рантайм).
+
+// ===== Sprint 5.3: Турнир зрителей (BLT-style) =====
+// Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 1, 2026-06-13).
+// loadBannerlordTournament + _renderBannerlordTournament + _promptBannerlordPredict
+// + TOURNAMENT_PRIZE_GOLD/ROUND_GOLD. Зовётся из _startBannerlordPolling +
+// _bannerlordBuyAction (рантайм); viewer-bannerlord.js грузится после viewer.js.
+
+// ===== Hero-card (loadBannerlordHero) =====
+// Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 15, 2026-06-13).
+// Центральный рендер героя. Зовёт саб-рендеры (bannerlord.js). _bnrConfirm/_formatBigGold/
+// _smartInnerHTML/диспетчер/стейт остаются в core (форвард). Callers рантайм.
+
+// ===== Shop (магазин Bannerlord) =====
+// Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 8, 2026-06-13).
+// loadBannerlordShop. Зовёт core currency/random-equip рендеры форвард; callers рантайм.
+
+// ===== КУЛДАУН НА КНОПКЕ (data-bnr-cd) =====
+// 2026-05-29: вместо warning-тоста «способность на перезарядке» показываем
+// тикающий отсчёт прямо на кнопке (как у кнопок способностей/призыва).
+// Источник истины — _bannerlordCooldowns (poll /my-buffs обновляет, ключ =
+// power_key, для action-level CD ключ = сам action_type). Кнопка помечается
+// атрибутом data-bnr-cd="<action_type>". Глобальный 1s-тикер сканирует все
+// такие кнопки и синхронизирует их состояние. Подход data-driven →
+// переживает перерисовку панели (после re-render тикер заново применит CD).
+
+// Сколько секунд осталось по cooldown-ключу (0 = не на CD). Берём абсолютный
+// expires_at_ms чтобы не было drift'а при throttled-табе.
+function _bnrCdRemaining(key) {
+    if (!key) return 0;
+    const c = _bannerlordCooldowns.find(x => x.power_key === key);
+    if (!c) return 0;
+    if (typeof c.expires_at_ms === 'number') {
+        return Math.max(0, (c.expires_at_ms - Date.now()) / 1000);
+    }
+    return c.remaining_s || 0;
+}
+
+// Локально проставить/обновить CD (до следующего poll'а). Вызывается из
+// dispatcher'а сразу после ответа backend'а — кнопка реагирует мгновенно.
+function _bnrSetLocalCooldown(key, seconds) {
+    if (!key || !(seconds > 0)) return;
+    const expires_at_ms = Date.now() + seconds * 1000;
+    const existing = _bannerlordCooldowns.find(c => c.power_key === key);
+    if (existing) {
+        existing.expires_at_ms = expires_at_ms;
+        existing.remaining_s = seconds;
+    } else {
+        _bannerlordCooldowns.push({ power_key: key, remaining_s: seconds, expires_at_ms });
+    }
+    _bnrActionCdTick();   // применить немедленно, не ждать тика
+}
+
+function _bnrCdLabel(rem) {
+    return rem >= 60
+        ? `⏳ ${Math.floor(rem / 60)}:${(rem % 60).toString().padStart(2, '0')}`
+        : `⏳ ${rem}с`;
+}
+
+// Глобальный тик: синхронизирует все [data-bnr-cd] кнопки с _bannerlordCooldowns.
+function _bnrActionCdTick() {
+    const btns = document.querySelectorAll('[data-bnr-cd]');
+    if (!btns.length) return;
+    btns.forEach(btn => {
+        const key = btn.getAttribute('data-bnr-cd');
+        const rem = Math.ceil(_bnrCdRemaining(key));
+        if (rem > 0) {
+            // Входим/обновляем CD-состояние. Сохраняем оригинальный HTML один раз.
+            if (btn.dataset.bnrCdOrig === undefined) {
+                btn.dataset.bnrCdOrig = btn.innerHTML;
+                btn.dataset.bnrCdWasDisabled = btn.disabled ? '1' : '0';
+            }
+            btn.disabled = true;
+            btn.classList.add('bnr-on-cd');
+            const label = _bnrCdLabel(rem);
+            if (btn.textContent !== label) btn.textContent = label;
+        } else if (btn.dataset.bnrCdOrig !== undefined) {
+            // CD истёк — восстанавливаем кнопку.
+            btn.innerHTML = btn.dataset.bnrCdOrig;
+            btn.disabled = btn.dataset.bnrCdWasDisabled === '1';
+            btn.classList.remove('bnr-on-cd');
+            delete btn.dataset.bnrCdOrig;
+            delete btn.dataset.bnrCdWasDisabled;
+        }
+    });
+}
+
+// P1 #5 — единый affordance-гейт: дим + tooltip «Не хватает» на priced-кнопках
+// с атрибутом data-bnr-cost="<крустики>,<динары>". Реюзает _bnrAfford /
+// _bnrAffordTooltip. НАМЕРЕННО трогает только title+class (не .disabled и не
+// innerHTML) — поэтому композится с cooldown-тиком и серверной валидацией:
+// клик не ломается, сервер всё равно refuse'нёт неоплатное действие.
+function _bnrAffordTick() {
+    const btns = document.querySelectorAll('[data-bnr-cost]');
+    if (!btns.length) return;
+    btns.forEach(btn => {
+        const m = (btn.getAttribute('data-bnr-cost') || '').split(',');
+        const c = parseInt(m[0], 10) || 0;
+        const d = parseInt(m[1], 10) || 0;
+        if (!c && !d) return;
+        const a = _bnrAfford(c, d);
+        if (!a.ok) {
+            if (btn.dataset.bnrAffOrig === undefined) btn.dataset.bnrAffOrig = btn.getAttribute('title') || '';
+            btn.setAttribute('title', _bnrAffordTooltip(c, d));
+            btn.classList.add('bnr-cant-afford');
+        } else if (btn.dataset.bnrAffOrig !== undefined) {
+            if (btn.dataset.bnrAffOrig) btn.setAttribute('title', btn.dataset.bnrAffOrig);
+            else btn.removeAttribute('title');
+            delete btn.dataset.bnrAffOrig;
+            btn.classList.remove('bnr-cant-afford');
+        }
+    });
+}
+
+// Один глобальный тикер на страницу (cooldown + affordance).
+if (!window._bnrCdTickerStarted) {
+    window._bnrCdTickerStarted = true;
+    if (!document.getElementById('bnr-afford-style')) {
+        const st = document.createElement('style');
+        st.id = 'bnr-afford-style';
+        st.textContent = '.bnr-cant-afford{opacity:.5!important;filter:grayscale(.4);}';
+        document.head.appendChild(st);
+    }
+    setInterval(() => { _bnrActionCdTick(); _bnrAffordTick(); }, 1000);
+}
+
+// 2026-08-19: тело переехало в viewer-actions.js (ShedLink.buyAction) —
+// общий платный путь для всех игровых модулей. Здесь остались только
+// Bannerlord-специфичные хвосты: где живёт отсчёт кулдауна и что перечитать
+// после успеха. Причина переезда — docs/FRONTEND_MODULE_ARCH_PLAN.md §1:
+// каждая игра писала покупку заново и теряла часть защит.
+async function _bannerlordBuyAction(actionType, data) {
+    return await ShedLink.buyAction('bannerlord', actionType, data, {
+        cooldownAttr: 'data-bnr-cd',
+        onCooldown: _bnrSetLocalCooldown,
+        onSuccess: () => {
+            // Sprint 5.3d: ускоряем UI feedback — вместо ожидания 8s polling
+            // цикла дёргаем reload через ~3.5s (после mod poll + apply).
+            // Особенно важно для recruit_troops и upgrade_gear.
+            const isBannerlord = actionType.startsWith('hero.')
+                || actionType.startsWith('player.')
+                || actionType.startsWith('power.')
+                || actionType.startsWith('tournament.');
+            if (isBannerlord && typeof loadBannerlordHero === 'function') {
+                setTimeout(() => {
+                    loadBannerlordHero();
+                    if (typeof loadBannerlordTournament === 'function') {
+                        loadBannerlordTournament();
+                    }
+                }, 3500);
+            }
+        },
+    });
+}
+
+// Refresh button
+document.addEventListener('click', (ev) => {
+    if (ev.target && ev.target.id === 'refresh-hero-btn') {
+        loadBannerlordHero();
+        loadBannerlordShop();
+    }
+});
+
 // 2026-08-19 (шаг 2 плана «ядро + игровые модули»): игра объявляет себя сама.
 // start/stop обёрнуты в функции намеренно — сами они живут в viewer.js, и
 // ссылка берётся в момент вызова, а не при разборе этого файла.

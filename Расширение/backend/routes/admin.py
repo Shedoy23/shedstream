@@ -501,6 +501,14 @@ async def admin_onboarding_funnel(_admin: str = Depends(require_admin)):
             "SELECT COUNT(*), MIN(created_at), MAX(created_at) FROM onboarding_events")
         total, first_at, last_at = await cur.fetchone()
 
+        # Скачивания — отдельной строкой и отдельной шкалой: у них нет
+        # installation_id, это «сколько раз», а не «сколько людей». Сложить их
+        # с остальными ступенями значило бы получить красивое неверное число.
+        cur = await conn.execute(
+            "SELECT COUNT(*) FROM onboarding_events WHERE event=?",
+            (onboarding.DOWNLOAD_EVENT,))
+        downloads = (await cur.fetchone())[0]
+
     return {
         "success": True,
         "events_total": total,
@@ -511,7 +519,14 @@ async def admin_onboarding_funnel(_admin: str = Depends(require_admin)):
         "tttr_median_sec": tttr_median,
         "tttr_samples": len(durations),
         "install_failures": failures,
-        # Честно про дыру: первую ступень собрать нечем, пока Manager не
-        # опубликован по постоянному адресу.
-        "not_collectible": sorted(onboarding.NOT_YET_COLLECTIBLE),
+        "downloads_total": downloads,
+        # Разрыв между «скачали» и «запустили» — первая точка отвала, и там
+        # стоит неподписанный exe с предупреждением Windows.
+        "downloads_vs_starts": (
+            None if not downloads
+            else downloads - (install_rows[0]["reached"] if install_rows else 0)),
+        "scale_note": (
+            "Скачивания считаются по журналу веб-сервера: это «сколько раз», "
+            "а не «сколько людей» — идентификатор установки появляется только "
+            "при первом запуске."),
     }

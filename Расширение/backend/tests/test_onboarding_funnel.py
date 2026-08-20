@@ -335,8 +335,23 @@ async def main() -> int:
         check(any(row["lost_here"] for row in summary["install_steps"]
                   if row["lost_here"]),
               "потери между ступенями считаются, а не всегда ноль")
-        check("manager_downloaded" in summary["not_collectible"],
-              "сводка честно называет ступень, которую собрать нечем")
+        # Скачивания: своя шкала, потому что installation_id у них нет.
+        async with db._connect() as conn:
+            for i in range(5):
+                await ob.record(conn, ob.DOWNLOAD_EVENT,
+                                integration_version="ShedLink.Manager-x.zip",
+                                source_step="nginx", now=base - 100 + i)
+            await conn.commit()
+        summary = await admin_routes.admin_onboarding_funnel(_admin="test")
+        starts = summary["install_steps"][0]["reached"]
+        check(summary["downloads_total"] == 5,
+              "скачивания считаются отдельно (%d)" % summary["downloads_total"])
+        check(summary["downloads_vs_starts"] == 5 - starts,
+              "разрыв «скачали, но не запустили» = %d − %d"
+              % (5, starts))
+        check("сколько раз" in (summary["scale_note"] or ""),
+              "сводка предупреждает, что скачивания — это «сколько раз», "
+              "а не «сколько людей»")
 
         print("=" * 70)
         print("PASSED: %d   FAILED: %d" % (passed, failed))

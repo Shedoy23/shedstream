@@ -995,12 +995,17 @@ async function loadFunnel() {
             <td style="text-align:right;font-weight:700;">${step.reached}</td>
         </tr>`).join('');
 
-    const missing = (d.not_collectible || []).join(', ');
+    const gap = d.downloads_vs_starts;
     document.getElementById('funnel-tttr').innerHTML =
         `<div style="font-size:22px;color:var(--text);font-weight:700;">${_fmtDuration(d.tttr_median_sec)}</div>
          <div style="margin-top:4px;">медиана по ${d.tttr_samples} установк(ам). Цель M1 — меньше 10 минут.</div>
-         <div style="margin-top:10px;">Всего событий: ${d.events_total}.</div>
-         ${missing ? `<div style="margin-top:10px;color:#fbbf24;">Не собирается: ${missing} — Manager нигде не опубликован, скачивания считать неоткуда. Поэтому воронка начинается со второй ступени.</div>` : ''}`;
+         <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--surface2);">
+           Скачиваний: <b style="color:var(--text);">${d.downloads_total ?? 0}</b>
+           ${(gap !== null && gap !== undefined && gap > 0)
+              ? `<span style="color:#fbbf24;"> · скачали, но не запустили: ${gap}</span>` : ''}
+         </div>
+         <div style="margin-top:6px;font-size:12px;">${d.scale_note || ''}</div>
+         <div style="margin-top:10px;">Всего событий: ${d.events_total}.</div>`;
 
     const fails = d.install_failures || [];
     document.getElementById('funnel-fail-tbody').innerHTML = fails.length

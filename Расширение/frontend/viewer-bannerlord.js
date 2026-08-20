@@ -1349,6 +1349,16 @@ async function loadBannerlordWorkshops() {
 function _renderBuyWorkshopInline() {
     const slot = document.getElementById('bnr-ws-buy-slot');
     if (!slot) return;
+    // 2026-08-20. Форма покупки показывала «💎1000 + 💰20000», пока кнопка над
+    // ней — правильные «💎2500». Одна покупка, один экран, две разные цены:
+    // числа разъехались 29.05, когда цену подняли на бэкенде, а здесь оставили
+    // старую. Бэк при этом берёт 2500💎 и динары НЕ трогает вовсе — то есть
+    // зритель платил в 2.5 раза больше показанного и видел выдуманную строку
+    // про динары.
+    // Берём то же значение, что и кнопка: из /api/bannerlord/config,
+    // fallback — текущая настоящая цена, а не историческая.
+    const WS_CRUSTIC = _bnrCfg.workshop_price ?? 2500;
+    const WS_DINAR = 0;    // капитал движком не списывается
     slot.innerHTML = `
         <div style="background:#1a2008;border:1px solid #65a30d;border-radius:4px;
                     padding:10px;color:#d9f99d;">
@@ -1357,7 +1367,7 @@ function _renderBuyWorkshopInline() {
                 <div style="flex:1;">
                     <div style="color:var(--muted);font-size:9px;">Стоимость:</div>
                     <div style="font-size:13px;font-weight:700;">
-                        ${_bnrPriceHtml(1000, 20000)}
+                        ${_bnrPriceHtml(WS_CRUSTIC, WS_DINAR)}
                     </div>
                 </div>
                 <div style="flex:1;border-left:1px solid #1f2937;padding-left:8px;">
@@ -1399,7 +1409,7 @@ function _renderBuyWorkshopInline() {
             <button id="bnr-ws-buy-confirm" class="extra-btn"
                     style="width:100%;font-size:11px;padding:6px;
                            background:#65a30d;color:#fff;font-weight:700;">
-                🏭 Купить — ${_bnrPriceHtml(1000, 20000)}
+                🏭 Купить — ${_bnrPriceHtml(WS_CRUSTIC, WS_DINAR)}
             </button>
         </div>`;
     // CATALOG-3: load real engine towns в dropdown
@@ -1631,6 +1641,10 @@ async function loadBannerlordCaravans() {
 function _renderBuyCaravanInline() {
     const slot = document.getElementById('bnr-caravan-buy-slot');
     if (!slot) return;
+    // То же, что и с мастерской: форма показывала «💎1500 + 💰15000», кнопка
+    // над ней — «💎4000», бэк берёт 4000💎 и динары не трогает.
+    const CV_CRUSTIC = _bnrCfg.caravan_price ?? 4000;
+    const CV_DINAR = 0;
     slot.innerHTML = `
         <div style="background:#1a1820;border:1px solid #7c3aed;border-radius:4px;
                     padding:10px;color:#ddd6fe;">
@@ -1639,7 +1653,7 @@ function _renderBuyCaravanInline() {
                 <div style="flex:1;">
                     <div style="color:var(--muted);font-size:9px;">Стоимость:</div>
                     <div style="font-size:13px;font-weight:700;">
-                        ${_bnrPriceHtml(1500, 15000)}
+                        ${_bnrPriceHtml(CV_CRUSTIC, CV_DINAR)}
                     </div>
                 </div>
                 <div style="flex:1;border-left:1px solid #1f2937;padding-left:8px;">
@@ -1668,7 +1682,7 @@ function _renderBuyCaravanInline() {
             <button id="bnr-caravan-buy-confirm" class="extra-btn"
                     style="width:100%;font-size:11px;padding:6px;
                            background:#7c3aed;color:#fff;font-weight:700;">
-                🐪 Купить — ${_bnrPriceHtml(1500, 15000)}
+                🐪 Купить — ${_bnrPriceHtml(CV_CRUSTIC, CV_DINAR)}
             </button>
         </div>`;
     // CATALOG-3: load real engine towns в caravan home dropdown

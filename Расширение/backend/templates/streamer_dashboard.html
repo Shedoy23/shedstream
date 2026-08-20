@@ -178,34 +178,57 @@
 
   <!-- Установка мода -->
   <div class="section install">
-    <h2>📦 Как поставить мод</h2>
+    <h2>📦 Как подключить игру</h2>
     <div class="sub">
       Один раз. Дальше мод подключается сам при каждом запуске игры.
     </div>
 
     <ol>
-      <li><b>Взять мод.</b> Пока раздаю вручную —
-          <a href="https://t.me/ttvshedoy23" target="_blank" rel="noopener"
-             style="color:#c084fc">напиши в телеграм</a>, пришлю архив.</li>
-      <li><b>Распаковать</b> в папку модов игры, чтобы получилось так:
-          <div class="path">…\Mount &amp; Blade II Bannerlord\Modules\Shedoy23.BannerlordLink\</div></li>
-      <li><b>Включить</b> мод в лаунчере игры, во вкладке «Модули».</li>
-      <li><b>Положить рядом файл</b> <code>config.json</code> — готовый текст ниже,
-          нажми «Копировать» и сохрани в ту же папку:
-          <div class="path">…\Modules\Shedoy23.BannerlordLink\config.json</div>
-          <div class="cfgbox">
-            <textarea id="cfgText" readonly spellcheck="false">загружаю…</textarea>
-            <button class="cfgcopy" onclick="copyCfg()">📋 Копировать</button>
-          </div></li>
-      <li><b>Запустить игру.</b> Карточка вверху этой страницы сама покажет
-          «Мод на связи» — обновлять не нужно.</li>
+      <li><b>Скачать ShedLink Manager</b> —
+          <a href="{{ manager_url }}" style="color:#c084fc">приложение для Windows</a>
+          (версия {{ manager_version }}).</li>
+      <li><b>Запустить и войти через Twitch.</b> Кнопка в самом приложении,
+          пароль оно не спрашивает и не видит.</li>
+      <li><b>Выбрать игру и нажать «Установить».</b> Manager сам найдёт папку
+          игры, скачает мод, проверит подпись, положит его на место и пропишет
+          твой токен. Руками ничего копировать не нужно.</li>
+      <li><b>Запустить игру</b> и нажать в Manager «Проверить готовность».
+          Карточка вверху этой страницы покажет «Мод на связи» — обновлять не
+          нужно.</li>
     </ol>
 
     <div class="warnbox">
-      В файле лежит твой токен. Он равнозначен доступу к твоему каналу в
-      расширении — <b>не показывай config.json на стриме</b> и не выкладывай
-      никуда. Если засветил — напиши мне, выпущу новый.
+      При первом запуске Windows покажет предупреждение SmartScreen: приложение
+      пока не подписано сертификатом. Это ожидаемо — нажми «Подробнее» →
+      «Выполнить в любом случае». Подпись появится позже.
     </div>
+
+    <details style="margin-top:14px;">
+      <summary style="cursor:pointer;color:#c084fc;">Поставить вручную, без Manager</summary>
+      <div style="margin-top:10px;">
+        <ol>
+          <li><b>Взять мод.</b> Напиши в
+              <a href="https://t.me/ttvshedoy23" target="_blank" rel="noopener"
+                 style="color:#c084fc">телеграм</a>, пришлю архив.</li>
+          <li><b>Распаковать</b> в папку модов игры:
+              <div class="path">…\Mount &amp; Blade II Bannerlord\Modules\Shedoy23.BannerlordLink\</div></li>
+          <li><b>Включить</b> мод в лаунчере игры, во вкладке «Модули».</li>
+          <li><b>Положить рядом</b> <code>config.json</code>:
+              <div class="path">…\Modules\Shedoy23.BannerlordLink\config.json</div>
+              <div class="cfgbox">
+                <textarea id="cfgText" readonly spellcheck="false">нажми «Показать конфиг»</textarea>
+                <button class="cfgcopy" onclick="copyCfg()">📋 Копировать</button>
+              </div>
+              <button class="tok-show" onclick="revealCfg()">👁 Показать конфиг</button></li>
+          <li><b>Запустить игру.</b></li>
+        </ol>
+        <div class="warnbox">
+          В конфиге лежит твой токен — он равнозначен доступу к каналу в
+          расширении. <b>Не показывай его на стриме</b> и не выкладывай никуда.
+          Засветил — напиши, выпущу новый.
+        </div>
+      </div>
+    </details>
   </div>
 
   <!-- Module-токены (для C#-модов) -->
@@ -879,9 +902,18 @@ function copyCfg(){
   var old = b.textContent; b.textContent = '✓ Скопировано';
   setTimeout(function(){ b.textContent = old; }, 1500);
 }
-(function(){
+/* 2026-08-20. Раньше конфиг с ТОКЕНОМ подтягивался при загрузке страницы и
+   стоял на экране открытым текстом. Дашборд открывают во время стрима — чтобы
+   посмотреть, на связи ли мод, — и токен оказывался в кадре без единого клика.
+   Предупреждение «не показывай на стриме» есть, но полагаться на внимательность
+   там, где можно просто не показывать, — плохая защита.
+
+   Теперь токен запрашивается ТОЛЬКО по кнопке, и весь ручной путь спрятан под
+   спойлер: основной способ — Manager, ему конфиг руками не нужен вовсе. */
+function revealCfg(){
   var box = document.getElementById('cfgText');
   if (!box) return;
+  box.value = 'загружаю…';
   fetch('/api/streamer/module-token?module_id=bannerlord', {credentials:'same-origin'})
     .then(function(r){ return r.json(); })
     .then(function(d){
@@ -896,6 +928,6 @@ function copyCfg(){
     .catch(function(){
       box.value = 'Не удалось получить токен. Обнови страницу.';
     });
-})();
+}
 </script>
 </body></html>

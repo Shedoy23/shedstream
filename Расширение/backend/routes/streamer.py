@@ -591,7 +591,35 @@ def _dashboard_html(ch: dict) -> str:
         channel_id=html.escape(str(ch.get("channel_id") or "?")),
         registered_at=html.escape(str(ch.get("registered_at") or "?")),
         has_oauth=_oauth_badge(ch),
+        manager_url=MANAGER_DOWNLOAD_PATH,
+        manager_version=html.escape(MANAGER_RELEASE_VERSION),
     )
+
+
+# ── Текущая сборка Manager ───────────────────────────────────────────────────
+# ОДНО место, где живёт имя файла. Ссылки в дашборде и на лендинге ведут на
+# постоянный `/download/manager`, который редиректит сюда, — иначе номер версии
+# пришлось бы править в трёх местах, а это ровно тот способ, каким одно число
+# разъезжается и начинает врать (в проекте уже было с ценами).
+#
+# При выпуске новой сборки менять ТОЛЬКО эту строку.
+MANAGER_RELEASE_FILE = "ShedLink.Manager-0.1.0-alpha.11-win-x64.zip"
+MANAGER_RELEASE_VERSION = "0.1.0-alpha.11"
+MANAGER_DOWNLOAD_PATH = "/download/manager"
+
+
+@router.get("/download/manager", include_in_schema=False)
+async def download_manager():
+    """Постоянный адрес свежего Manager.
+
+    Опубликованные файлы неизменяемы (у каждой сборки своё имя), поэтому прямой
+    ссылки «latest» быть не может. Этот редирект и есть постоянный адрес: его
+    можно печатать в инструкциях и на странице, не переписывая их с каждым
+    выпуском.
+    """
+    from fastapi.responses import RedirectResponse
+
+    return RedirectResponse("/releases/" + MANAGER_RELEASE_FILE, status_code=302)
 
 
 def _oauth_badge(ch: dict) -> str:

@@ -33,6 +33,7 @@ param(
     [switch]$Backend,
     [switch]$Frontend,
     [switch]$Admin,
+    [switch]$Site,
     [switch]$Mod,
     [switch]$All,
     [switch]$Staging,    # ROADMAP 1.3: deploy to the on-demand staging app (:8001), NOT prod
@@ -66,8 +67,8 @@ $ModSrc = Join-Path $RepoRoot 'BannerlordLink\src\BannerlordLink.csproj'
 
 # Default: backend + frontend if nothing specified. -Staging is its own path
 # (deploys to the staging app, never prod) so it must NOT trigger the prod default.
-if (-not ($Backend -or $Frontend -or $Admin -or $Mod -or $All -or $Staging)) { $Backend = $true; $Frontend = $true; $Admin = $true }
-if ($All) { $Backend = $true; $Frontend = $true; $Admin = $true; $Mod = $true }
+if (-not ($Backend -or $Frontend -or $Admin -or $Site -or $Mod -or $All -or $Staging)) { $Backend = $true; $Frontend = $true; $Admin = $true; $Site = $true }
+if ($All) { $Backend = $true; $Frontend = $true; $Admin = $true; $Site = $true; $Mod = $true }
 
 # -- Deploy freeze (owner request 2026-07-26) ------------------------------
 # The Twitch review is a live, scheduled slot: the reviewer opens the channel at
@@ -238,6 +239,24 @@ if ($Staging) {
     }
     Ok "Staging deploy done. Stop it when finished: ssh $ProdHost 'supervisorctl stop $StagingService'"
     return
+}
+
+# -- 2.7 Публичные страницы сайта (НЕ входят в ZIP расширения) -------------
+# index.html, privacy.html и terms.html лежат рядом с фронтом расширения, но в
+# поданный на ревью архив НЕ попадают — проверено списком файлов ZIP. Значит
+# заморозка фронта их не касается, а везти их вместе с -Frontend нельзя: тот
+# тащит и viewer*.js, которые как раз заморожены. Поэтому отдельный флаг и
+# точечная отправка ровно трёх файлов.
+if ($Site) {
+    $siteFiles = @('index.html', 'privacy.html', 'terms.html')
+    foreach ($f in $siteFiles) {
+        $src = Join-Path $ExtDir "frontend\$f"
+        if (-not (Test-Path $src)) { Warn "no $f - skip"; continue }
+        if ($DryRun) { Write-Host "  [dry] scp $f -> prod frontend/" -ForegroundColor DarkGray; continue }
+        & scp $src "${ProdHost}:/root/twitch-extension/frontend/$f"
+        if ($LASTEXITCODE -ne 0) { throw "scp $f failed" }
+    }
+    if (-not $DryRun) { Ok "Site pages updated ($($siteFiles -join ', '))" }
 }
 
 # -- 3. Backend/Frontend: tar -> scp -> extract -> restart -> verify -------

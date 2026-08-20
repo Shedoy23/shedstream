@@ -285,7 +285,7 @@ function _bnrPriceHtml(crustic, dinars) {
         const color = a.lackDinars ? '#f87171' : '#fbbf24';
         parts.push(`<span style="color:${color};">💰 ${_bnrFmtN(dinars)}</span>`);
     }
-    return parts.length ? parts.join(' <span style="color:#6b7280;">+</span> ') : '💎 0';
+    return parts.length ? parts.join(' <span style="color:var(--dim);">+</span> ') : '💎 0';
 }
 
 function _bnrAffordTooltip(crustic, dinars) {
@@ -930,7 +930,7 @@ function _renderBannerlordTournament(data) {
         badge.style.color = '#fbbf24';
     } else {
         badge.textContent = `idle (${queue.length})`;
-        badge.style.color = '#9ca3af';
+        badge.style.color = 'var(--muted)';
     }
 
     if (state.status === 'running') {
@@ -979,13 +979,13 @@ function _renderBannerlordTournament(data) {
     const inQueue = !!data.in_queue;
 
     const queueHtml = queue.length === 0
-        ? '<div style="font-size:11px;color:#9ca3af;padding:4px 0;">очередь пуста</div>'
+        ? '<div style="font-size:11px;color:var(--muted);padding:4px 0;">очередь пуста</div>'
         : `<div style="font-size:11px;color:#adadb8;margin:4px 0 2px 0;">В очереди (${queue.length}/16):</div>` +
           queue.map((q, i) => `
             <div style="display:flex;justify-content:space-between;font-size:11px;padding:1px 6px;
                         ${q.username === data.my_username ? 'background:rgba(251,191,36,0.1);' : ''}">
                 <span>${i + 1}. ${escapeHtml(q.username)}</span>
-                <span style="color:#9ca3af;">${q.class_key || ''}</span>
+                <span style="color:var(--muted);">${q.class_key || ''}</span>
             </div>`).join('');
 
     const joinBtnHtml = inQueue
@@ -1260,7 +1260,7 @@ async function loadBannerlordWorkshops() {
         // repaint каждые 8s — видимый flicker. Balance виден в buy modal
         // и в main extension header (там обновляется ниже poll throttle).
         let body = `
-                <div style="font-size:9px;color:#9ca3af;margin-bottom:6px;">
+                <div style="font-size:9px;color:var(--muted);margin-bottom:6px;">
                     Пассивный доход в 💰 динарах — копятся в Hero.Gold (на gear/smith/marriage)
                 </div>`;
 
@@ -1276,10 +1276,10 @@ async function loadBannerlordWorkshops() {
                         <div style="flex:1;">
                             <div style="color:#d9f99d;font-size:11px;">
                                 ${typeEntry.emoji} <strong>${escapeHtml(typeEntry.name)}</strong>
-                                <span style="color:#9ca3af;"> · ${escapeHtml(w.settlement_name || w.settlement_id)}</span>
+                                <span style="color:var(--muted);"> · ${escapeHtml(w.settlement_name || w.settlement_id)}</span>
                             </div>
                             <div style="font-size:10px;color:#65a30d;margin-top:2px;">
-                                <span style="color:#9ca3af;">Заработано:</span>
+                                <span style="color:var(--muted);">Заработано:</span>
                                 <span style="color:#fbbf24;font-weight:700;">💰 ${(w.total_profit || 0).toLocaleString('ru-RU')}</span>
                             </div>
                         </div>
@@ -1309,7 +1309,7 @@ async function loadBannerlordWorkshops() {
                 </details>`;
         } else {
             body += `
-                <div style="font-size:10px;color:#6b7280;text-align:center;">
+                <div style="font-size:10px;color:var(--dim);text-align:center;">
                     Лимит мастерских (${maxWorkshops}/${maxWorkshops})
                 </div>`;
         }
@@ -1355,21 +1355,21 @@ function _renderBuyWorkshopInline() {
             <div style="display:flex;gap:6px;font-size:11px;margin-bottom:10px;
                         background:#0a1308;padding:6px 8px;border-radius:3px;">
                 <div style="flex:1;">
-                    <div style="color:#9ca3af;font-size:9px;">Стоимость:</div>
+                    <div style="color:var(--muted);font-size:9px;">Стоимость:</div>
                     <div style="font-size:13px;font-weight:700;">
                         ${_bnrPriceHtml(1000, 20000)}
                     </div>
                 </div>
                 <div style="flex:1;border-left:1px solid #1f2937;padding-left:8px;">
-                    <div style="color:#9ca3af;font-size:9px;">У тебя:</div>
+                    <div style="color:var(--muted);font-size:9px;">У тебя:</div>
                     <div style="font-size:11px;">
                         <span style="color:#a5f3fc;">💎 ${(_cachedUserPoints||0).toLocaleString('ru-RU')}</span>
-                        <span style="color:#6b7280;">|</span>
+                        <span style="color:var(--dim);">|</span>
                         <span style="color:#fbbf24;">💰 ${((_bannerlordLastHero?.hero?.gold)||0).toLocaleString('ru-RU')}</span>
                     </div>
                 </div>
             </div>
-            <div style="font-size:10px;color:#9ca3af;margin-bottom:10px;line-height:1.4;">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:10px;line-height:1.4;">
                 <div>💎 — entry fee, списывается с твоего 💎 балланса</div>
                 <div>💰 — initial capital, списывается с Hero.Gold (engine)</div>
                 <div>📈 Профит копится в Hero.Gold (динары — на gear/smith/marriage)</div>
@@ -1392,7 +1392,7 @@ function _renderBuyWorkshopInline() {
                 Town (выбери из engine catalog):
             </label>
             <div id="bnr-ws-town-slot" style="margin-bottom:10px;">
-                <div style="font-size:11px;color:#9ca3af;padding:6px;">
+                <div style="font-size:11px;color:var(--muted);padding:6px;">
                     ⏳ Загружается список городов...
                 </div>
             </div>
@@ -1477,7 +1477,7 @@ async function loadBannerlordFiefs() {
 
         // FLICKER-FIX v4: balance strip убран.
         const body = `
-                <div style="font-size:9px;color:#9ca3af;margin-bottom:6px;">
+                <div style="font-size:9px;color:var(--muted);margin-bottom:6px;">
                     Tribute passive в 💰 динарах — копятся в Hero.Gold
                 </div>
                 <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">
@@ -1492,11 +1492,11 @@ async function loadBannerlordFiefs() {
                         <div style="flex:1;">
                             <div style="color:#fed7aa;font-size:11px;">
                                 ${emoji} <strong>${escapeHtml(f.fief_name || f.fief_id)}</strong>
-                                <span style="color:#9ca3af;font-size:10px;"> · ${lbl}</span>
+                                <span style="color:var(--muted);font-size:10px;"> · ${lbl}</span>
                                 ${f.boost_active ? '<span style="color:#facc15;font-size:9px;font-weight:700;"> ⚡ BOOST</span>' : ''}
                             </div>
                             <div style="font-size:10px;margin-top:2px;">
-                                <span style="color:#9ca3af;">Заработано:</span>
+                                <span style="color:var(--muted);">Заработано:</span>
                                 <span style="color:#fbbf24;font-weight:700;">💰 ${(f.total_collected_dinars || 0).toLocaleString('ru-RU')}</span>
                             </div>
                         </div>
@@ -1505,7 +1505,7 @@ async function loadBannerlordFiefs() {
                     </div>`;
                 }).join('')}
                 </div>
-                <div style="font-size:9px;color:#6b7280;text-align:center;">
+                <div style="font-size:9px;color:var(--dim);text-align:center;">
                     Динары → Hero.Gold (на gear/smith). 💎 не выдаётся пассивно.
                 </div>`;
         const html = _bnrCard('fiefs', '👑 Мои владения', body);
@@ -1546,7 +1546,7 @@ async function loadBannerlordCaravans() {
 
         // FLICKER-FIX v4: balance strip убран (см. workshops комментарий).
         let body = `
-                <div style="font-size:9px;color:#9ca3af;margin-bottom:6px;">
+                <div style="font-size:9px;color:var(--muted);margin-bottom:6px;">
                     Mobile passive в 💰 динарах — копятся в Hero.Gold. ⚠ Бандиты могут уничтожить.
                 </div>`;
 
@@ -1563,7 +1563,7 @@ async function loadBannerlordCaravans() {
                                 🐪 <strong>${escapeHtml(c.home_settlement_name || 'Caravan')}</strong>
                             </div>
                             <div style="font-size:10px;margin-top:2px;">
-                                <span style="color:#9ca3af;">Заработано:</span>
+                                <span style="color:var(--muted);">Заработано:</span>
                                 <span style="color:#fbbf24;font-weight:700;">💰 ${(c.total_collected_dinars || 0).toLocaleString('ru-RU')}</span>
                             </div>
                         </div>
@@ -1594,7 +1594,7 @@ async function loadBannerlordCaravans() {
                 </details>`;
         } else {
             body += `
-                <div style="font-size:10px;color:#6b7280;text-align:center;">
+                <div style="font-size:10px;color:var(--dim);text-align:center;">
                     Лимит караванов (${maxC}/${maxC})
                 </div>`;
         }
@@ -1637,21 +1637,21 @@ function _renderBuyCaravanInline() {
             <div style="display:flex;gap:6px;font-size:11px;margin-bottom:10px;
                         background:#0f0d18;padding:6px 8px;border-radius:3px;">
                 <div style="flex:1;">
-                    <div style="color:#9ca3af;font-size:9px;">Стоимость:</div>
+                    <div style="color:var(--muted);font-size:9px;">Стоимость:</div>
                     <div style="font-size:13px;font-weight:700;">
                         ${_bnrPriceHtml(1500, 15000)}
                     </div>
                 </div>
                 <div style="flex:1;border-left:1px solid #1f2937;padding-left:8px;">
-                    <div style="color:#9ca3af;font-size:9px;">У тебя:</div>
+                    <div style="color:var(--muted);font-size:9px;">У тебя:</div>
                     <div style="font-size:11px;">
                         <span style="color:#a5f3fc;">💎 ${(_cachedUserPoints||0).toLocaleString('ru-RU')}</span>
-                        <span style="color:#6b7280;">|</span>
+                        <span style="color:var(--dim);">|</span>
                         <span style="color:#fbbf24;">💰 ${((_bannerlordLastHero?.hero?.gold)||0).toLocaleString('ru-RU')}</span>
                     </div>
                 </div>
             </div>
-            <div style="font-size:10px;color:#9ca3af;margin-bottom:10px;line-height:1.4;">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:10px;line-height:1.4;">
                 <div>💎 — entry fee, списывается с твоего 💎 балланса</div>
                 <div>💰 — capital (15K), списывается с Hero.Gold (engine)</div>
                 <div>📈 Profit копится в Hero.Gold (динары на gear/smith/marriage)</div>
@@ -1661,7 +1661,7 @@ function _renderBuyCaravanInline() {
                 Home town (выбери из engine catalog):
             </label>
             <div id="bnr-caravan-home-slot" style="margin-bottom:10px;">
-                <div style="font-size:11px;color:#9ca3af;padding:6px;">
+                <div style="font-size:11px;color:var(--muted);padding:6px;">
                     ⏳ Загружается список городов...
                 </div>
             </div>
@@ -1747,7 +1747,7 @@ async function loadBannerlordInheritance() {
                 <div style="margin-bottom:6px;">
                     <div style="font-size:10px;color:#fbbf24;font-weight:700;margin-bottom:3px;">
                         ${escapeHtml(day || 'recent')}
-                        ${totalValue > 0 ? `<span style="color:#9ca3af;font-weight:normal;">
+                        ${totalValue > 0 ? `<span style="color:var(--muted);font-weight:normal;">
                             — ${totalValue.toLocaleString('ru-RU')} дин. total</span>` : ''}
                     </div>
                     <div style="display:flex;flex-direction:column;gap:2px;">
@@ -1758,7 +1758,7 @@ async function loadBannerlordInheritance() {
                             <div style="background:#0f0c0a;padding:4px 6px;border-radius:3px;
                                         font-size:10px;border-left:2px solid ${color};">
                                 ${emoji} <span style="color:${color};">${escapeHtml(it.asset_name || it.asset_type)}</span>
-                                ${(it.total_value || 0) > 0 ? `<span style="color:#9ca3af;float:right;">
+                                ${(it.total_value || 0) > 0 ? `<span style="color:var(--muted);float:right;">
                                     ${it.total_value.toLocaleString('ru-RU')} дин.</span>` : ''}
                             </div>`;
                     }).join('')}
@@ -1766,7 +1766,7 @@ async function loadBannerlordInheritance() {
                 </div>`;
         }
         html += `
-                <div style="font-size:9px;color:#6b7280;text-align:center;margin-top:3px;">
+                <div style="font-size:9px;color:var(--dim);text-align:center;margin-top:3px;">
                     Empire transcends death — assets re-claimed engine-side
                 </div>
             </div>`;
@@ -1846,7 +1846,7 @@ async function loadBannerlordVassals() {
                 </details>`;
         } else if (vassals.length >= 5) {
             html += `
-                <div style="font-size:10px;color:#6b7280;text-align:center;">
+                <div style="font-size:10px;color:var(--dim);text-align:center;">
                     Максимум вассалов (5/5)
                 </div>`;
         }
@@ -1893,7 +1893,7 @@ function _renderCreateVassalInline(eligibleHeirs) {
     slot.innerHTML = `
         <div style="background:#1a1f2e;border:1px solid #1e40af;border-radius:4px;
                     padding:10px;color:#bfdbfe;">
-            <div style="font-size:11px;color:#9ca3af;margin-bottom:8px;">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">
                 Выдели взрослого наследника в собственный sub-clan.
                 Он станет лидером, ваш клан получает 25% от его доходов.
             </div>
@@ -1995,7 +1995,7 @@ function loadBannerlordArmy() {
                     title="Распустить армию — бесплатно.">🏳️ Распустить армию</button>`;
     } else {
         body = `
-            <div style="margin-bottom:6px;color:#9ca3af;">Собери армию своего королевства. Командовать — через «Приказы отряда» выше.</div>
+            <div style="margin-bottom:6px;color:var(--muted);">Собери армию своего королевства. Командовать — через «Приказы отряда» выше.</div>
             <button class="bnr-btn-primary" data-bnr-action="army_create"
                     title="Собрать армию королевства. После — отдавай приказы через «Приказы отряда».">🚩 Собрать армию (1000💎)</button>`;
     }
@@ -2053,14 +2053,14 @@ async function loadBannerlordPartyOrders() {
             const armyTxt = pinfo.in_army ? ' · <span style="color:#fbbf24;">в армии</span>' : '';
             body += `
                 <div style="background:#1a0f08;padding:6px 8px;border-radius:3px;margin-bottom:6px;font-size:11px;">
-                    <span style="color:#9ca3af;">Отряд:</span>
+                    <span style="color:var(--muted);">Отряд:</span>
                     <strong style="color:#fed7aa;">${pinfo.size} 🪖</strong>
-                    <span style="color:#9ca3af;"> · задача:</span>
+                    <span style="color:var(--muted);"> · задача:</span>
                     <strong style="color:#fed7aa;">${taskTxt}${tgtTxt}</strong>${armyTxt}
                 </div>`;
         } else {
             body += `
-                <div style="font-size:10px;color:#6b7280;margin-bottom:6px;">
+                <div style="font-size:10px;color:var(--dim);margin-bottom:6px;">
                     Нет отряда на карте (герой без партии — создай отряд в Династии)
                 </div>`;
         }
@@ -2074,7 +2074,7 @@ async function loadBannerlordPartyOrders() {
                             align-items:center;">
                     <span style="color:#fed7aa;font-size:11px;">
                         ${emoji} <strong>${lbl}</strong>
-                        <span style="color:#9ca3af;"> →
+                        <span style="color:var(--muted);"> →
                             ${escapeHtml(active.target_settlement_name || active.target_settlement_id)}
                         </span>
                     </span>
@@ -2085,7 +2085,7 @@ async function loadBannerlordPartyOrders() {
                 </div>`;
         } else {
             body += `
-                <div style="font-size:10px;color:#9ca3af;margin-bottom:6px;text-align:center;">
+                <div style="font-size:10px;color:var(--muted);margin-bottom:6px;text-align:center;">
                     Партия действует автономно
                 </div>`;
         }
@@ -2164,7 +2164,7 @@ function _renderPartyOrderInline(currentActive) {
     slot.innerHTML = `
         <div style="background:#1a1208;border:1px solid #92400e;border-radius:4px;
                     padding:10px;color:#fed7aa;">
-            <div style="font-size:11px;color:#9ca3af;margin-bottom:10px;">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">
                 Партия следует приказу пока активен. Заменяет предыдущий.
                 Sieges/raids требуют состояния войны с владельцем цели.
             </div>
@@ -2177,7 +2177,7 @@ function _renderPartyOrderInline(currentActive) {
                                ${o.v === preType ? 'checked' : ''}>
                         <span style="color:#fed7aa;">
                             ${o.e} <strong>${o.l}</strong>
-                            <span style="color:#6b7280;font-size:10px;"> — ${o.desc}</span>
+                            <span style="color:var(--dim);font-size:10px;"> — ${o.desc}</span>
                         </span>
                     </label>
                 `).join('')}
@@ -2190,7 +2190,7 @@ function _renderPartyOrderInline(currentActive) {
                     style="width:100%;padding:6px;font-size:12px;background:#0f0805;
                            color:#fed7aa;border:1px solid #92400e;margin-bottom:6px;
                            box-sizing:border-box;"></select>
-            <div style="font-size:9px;color:#6b7280;margin-bottom:10px;">
+            <div style="font-size:9px;color:var(--dim);margin-bottom:10px;">
                 Защита/гарнизон/патруль — свои города; осада/грабёж — города врага.
                 ⚠ Только лидер клана может выдавать приказы.
             </div>
@@ -2204,7 +2204,7 @@ function _renderPartyOrderInline(currentActive) {
                    style="width:100%;padding:6px;font-size:12px;background:#0f0805;
                           color:#fed7aa;border:1px solid #92400e;margin-bottom:6px;
                           box-sizing:border-box;">
-            <div style="font-size:9px;color:#6b7280;margin-bottom:10px;">
+            <div style="font-size:9px;color:var(--dim);margin-bottom:10px;">
                 Обнови мод, чтобы выбирать цель из списка. Пока — ввод вручную (≥3 символа).
             </div>
             `}
@@ -2321,7 +2321,7 @@ async function loadBannerlordDiplomacy() {
         if (!r.kingdom_id) {
             slot.innerHTML = `
                 <div style="background:#1a1208;border:1px solid #92400e;border-radius:4px;
-                            padding:6px;font-size:10px;color:#9ca3af;text-align:center;">
+                            padding:6px;font-size:10px;color:var(--muted);text-align:center;">
                     🏛 Политика kingdom'а доступна когда герой вступит в королевство
                 </div>`;
             return;
@@ -2335,7 +2335,7 @@ async function loadBannerlordDiplomacy() {
 
         if ((r.policies_enacted || []).length > 0) {
             body += `
-                <div style="font-size:10px;color:#9ca3af;margin-bottom:3px;">Активные политики:</div>
+                <div style="font-size:10px;color:var(--muted);margin-bottom:3px;">Активные политики:</div>
                 <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;">
                     ${r.policies_enacted.map(p => `
                         <span style="background:#0f0805;padding:2px 5px;border-radius:3px;
@@ -2372,7 +2372,7 @@ async function loadBannerlordDiplomacy() {
                                color:#93c5fd;font-weight:700;border-radius:3px;text-align:center;">
                         📜 Законы королевства (политики, 1500💎)
                     </summary>
-                    <div style="font-size:9px;color:#9ca3af;margin:6px 0 4px;">
+                    <div style="font-size:9px;color:var(--muted);margin:6px 0 4px;">
                         Клик по политике = toggle (активна → отозвать). 1500💎 за действие.
                     </div>
                     <div style="display:flex;flex-direction:column;gap:3px;">
@@ -2391,7 +2391,7 @@ async function loadBannerlordDiplomacy() {
                                 ${active ? '<span style="color:#4ade80;">✓ </span>' : ''}
                                 <strong style="color:#fed7aa;font-size:11px;">${escapeHtml(p.name)}</strong>
                                 ${pending ? '<span style="color:#fbbf24;font-size:9px;"> (на обсуждении)</span>' : ''}
-                                <div style="font-size:10px;color:#9ca3af;margin-top:2px;">
+                                <div style="font-size:10px;color:var(--muted);margin-top:2px;">
                                     ${escapeHtml(p.desc)}
                                 </div>
                             </div>`;
@@ -2422,7 +2422,7 @@ async function loadBannerlordDiplomacy() {
                 <div style="margin-top:6px;border-top:1px solid #3d2a0a;padding-top:6px;">
                     <div style="font-size:10px;color:#fbbf24;margin-bottom:3px;">
                         👑 Налог королевства: <b>${curTax}%</b>
-                        <span style="color:#9ca3af;font-size:9px;"> — % дневной прибыли вассалов → тебе</span>
+                        <span style="color:var(--muted);font-size:9px;"> — % дневной прибыли вассалов → тебе</span>
                     </div>
                     <div style="display:flex;gap:3px;">
                         ${presets.map(p => `
@@ -2447,7 +2447,7 @@ async function loadBannerlordDiplomacy() {
                     <div style="font-size:11px;font-weight:700;color:#fb923c;margin-bottom:3px;">
                         ⚖ Дипломатия — на голосование кланов
                     </div>
-                    <div style="font-size:9px;color:#9ca3af;margin-bottom:6px;">
+                    <div style="font-size:9px;color:var(--muted);margin-bottom:6px;">
                         Это ЗАЯВКА на голосование кланов королевства — не мгновенно и может не пройти.
                         Повторно жать не нужно: следи за статусом войн выше.
                     </div>`;
@@ -2475,7 +2475,7 @@ async function loadBannerlordDiplomacy() {
                         <button id="bnr-peace-vote-propose" class="extra-btn bnr-btn-primary" ${_peaceLeft > 0 ? 'disabled' : ''} style="flex:0 0 auto;width:auto;margin-top:0;padding:5px 8px;font-size:11px;white-space:nowrap;${_peaceLeft > 0 ? 'opacity:0.5;cursor:not-allowed;' : ''}">${_peaceLeft > 0 ? _cdTxt(_peaceLeft) : '🕊 Предложить (3000💎)'}</button>
                     </div>`;
             } else {
-                body += `<div style="font-size:9px;color:#6b7280;">Сейчас ни с кем не воюем — мир предлагать некому.</div>`;
+                body += `<div style="font-size:9px;color:var(--dim);">Сейчас ни с кем не воюем — мир предлагать некому.</div>`;
             }
             body += `</div>`;
         }
@@ -2562,7 +2562,7 @@ function _renderMakePeaceInline() {
     slot.innerHTML = `
         <div style="background:#0f1730;border:1px solid #1e40af;border-radius:4px;
                     padding:10px;color:#bfdbfe;">
-            <div style="font-size:11px;color:#9ca3af;margin-bottom:10px;">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">
                 Мод resolve'ит target kingdom по name или StringId.
                 Tribute может быть отрицательным (они платят нам).
             </div>
@@ -2634,7 +2634,7 @@ async function loadBannerlordRansomPool() {
                                     align-items:center;margin-bottom:3px;">
                             <span style="color:#fecaca;font-size:11px;">
                                 ⛓ @${escapeHtml(c.captured_hero)}
-                                <span style="color:#9ca3af;font-size:10px;">
+                                <span style="color:var(--muted);font-size:10px;">
                                     T${c.gear_tier || 1} · lvl ${c.level || 0}
                                 </span>
                             </span>
@@ -2647,7 +2647,7 @@ async function loadBannerlordRansomPool() {
                             <div style="background:linear-gradient(90deg,#fb7185,#fbbf24);
                                         height:100%;width:${pct}%;transition:width 0.3s;"></div>
                         </div>
-                        <div style="font-size:9px;color:#9ca3af;margin-top:2px;">
+                        <div style="font-size:9px;color:var(--muted);margin-top:2px;">
                             ${c.pool_total || 0} / ${c.ransom_cost}💎 pool
                             ${c.contributors > 0 ? ` · ${c.contributors} участников` : ''}
                         </div>
@@ -2728,7 +2728,7 @@ async function loadBannerlordDaily() {
             slot.innerHTML = `
                 <div style="background:rgba(58,42,10,0.3);border:1px solid #3d3d3f;
                             border-radius:6px;padding:7px 10px;font-size:11px;
-                            color:#9ca3af;">
+                            color:var(--muted);">
                     🎁 Сегодня уже забрал: <span style="color:#fbbf24;">${lastRew}</span>.
                     <span style="font-size:10px;display:block;margin-top:2px;">
                         Возвращайся завтра в 00:00 UTC за новым дейликом.
@@ -2866,9 +2866,9 @@ async function loadBannerlordFamily() {
         // (× cancel) per proposal. Раньше viewer не мог withdraw proposal — теперь может.
         if (outgoing.length > 0) {
             html += `
-                <div style="font-size:10px;color:#9ca3af;margin-bottom:4px;">
+                <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">
                     📤 Отправлено: ${outgoing.length}
-                    <span style="color:#6b7280;">(ждут ответа)</span>
+                    <span style="color:var(--dim);">(ждут ответа)</span>
                 </div>
                 <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:6px;">
                     ${outgoing.map(p => `
@@ -2892,7 +2892,7 @@ async function loadBannerlordFamily() {
         // Children list
         if (children.length > 0) {
             html += `
-                <div style="font-size:10px;color:#9ca3af;margin-top:4px;margin-bottom:4px;">
+                <div style="font-size:10px;color:var(--muted);margin-top:4px;margin-bottom:4px;">
                     👨‍👩‍👧 Взрослых детей: ${children.length}
                 </div>
                 <div style="display:flex;flex-direction:column;gap:3px;">
@@ -2917,7 +2917,7 @@ async function loadBannerlordFamily() {
                 </div>`;
         } else {
             html += `
-                <div style="font-size:10px;color:#6b7280;margin-top:4px;">
+                <div style="font-size:10px;color:var(--dim);margin-top:4px;">
                     Дети взрослеют через ~18 лет после make_baby. Жди.
                 </div>`;
         }
@@ -3169,7 +3169,7 @@ function _renderBannerlordDetachmentPanel(battleData) {
         <div style="font-size:12px;color:#fbbf24;font-weight:700;margin-bottom:6px;
                     border-top:1px solid #3d3d3f;padding-top:8px;">
             🎯 Команды отряда
-            <span style="font-size:10px;color:#9ca3af;font-weight:normal;
+            <span style="font-size:10px;color:var(--muted);font-weight:normal;
                          margin-left:6px;">(управляй своим героем в бою)</span>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;
@@ -3316,7 +3316,7 @@ function _renderBannerlordBattleBanner(data) {
                 <span style="font-size:12px;color:${stateColor};font-weight:700;">
                     ${stateLabel}
                 </span>
-                <span style="font-size:10px;color:#9ca3af;">${cnt}</span>
+                <span style="font-size:10px;color:var(--muted);">${cnt}</span>
             </div>
             <div style="background:rgba(0,0,0,0.4);border-radius:4px;
                         height:8px;overflow:hidden;margin-bottom:6px;">
@@ -3466,7 +3466,7 @@ function renderBannerlordClassPicker() {
                         padding:4px 8px;display:flex;justify-content:space-between;
                         align-items:center;gap:6px;">
                 <span><span style="color:#fbbf24;">${stars}</span> класс lvl ${cl}</span>
-                <span style="color:#9ca3af;font-size:9px;" title="Качай ${ps} чтобы апгрейднуть class lvl и усилить активки. Bow / Riding / OneHanded / TwoHanded / Polearm в зависимости от класса.">
+                <span style="color:var(--muted);font-size:9px;" title="Качай ${ps} чтобы апгрейднуть class lvl и усилить активки. Bow / Riding / OneHanded / TwoHanded / Polearm в зависимости от класса.">
                     ${escapeHtml(progress)}
                 </span>
             </div>`;
@@ -3514,7 +3514,7 @@ function renderBannerlordActivePowers() {
     const powers = _bannerlordClassesCache.current_powers || [];
     dbg('[BNR activePowers] received', powers.length, 'powers:', powers);
     if (!powers.length) {
-        slot.innerHTML = `<div style="font-size:11px;color:#9ca3af;margin:8px 0;text-align:center;">
+        slot.innerHTML = `<div style="font-size:11px;color:var(--muted);margin:8px 0;text-align:center;">
             Способности появятся после выбора класса (Прокачка → Класс)
         </div>`;
         return;
@@ -3539,7 +3539,7 @@ function renderBannerlordActivePowers() {
         const disabled = (isActive || onCooldown || unavailable) ? 'disabled' : '';
         const bgColor = (isActive || onCooldown || unavailable) ? '#3d3d3f' : '#2d2d2f';
         const suffix = onCooldown
-            ? ` <span style="color:#9ca3af;">${_bnrCdLabel(Math.ceil(cdRem))}</span>`
+            ? ` <span style="color:var(--muted);">${_bnrCdLabel(Math.ceil(cdRem))}</span>`
             : ` <span style="color:#fbbf24;">${price}💎</span>`;
         return `
             <button class="small-btn"
@@ -3589,7 +3589,7 @@ function renderBannerlordSummonButton() {
     const cdRem = (_bannerlordCooldowns.find(c => c.power_key === 'player.spawn') || {}).remaining_s || 0;
     const onCooldown = cdRem > 0;
     const cdLabel = onCooldown
-        ? `<span style="color:#9ca3af;">${_bnrCdLabel(Math.ceil(cdRem))}</span>`
+        ? `<span style="color:var(--muted);">${_bnrCdLabel(Math.ceil(cdRem))}</span>`
         : '';
 
     slot.innerHTML = `
@@ -3754,7 +3754,7 @@ const _BNR_QUALITY = {
     legendary:  { label: 'Легендарное', color: '#fbbf24', icon: '✦' },
     masterwork: { label: 'Шикарное',    color: '#c084fc', icon: '★' },
     fine:       { label: 'Хорошее',     color: '#60a5fa', icon: '◆' },
-    inferior:   { label: 'Низкое',      color: '#9ca3af', icon: '▽' },
+    inferior:   { label: 'Низкое',      color: 'var(--muted)', icon: '▽' },
     poor:       { label: 'Сломанное',   color: '#f87171', icon: '▽' },
 };
 function _bnrQualityBadge(quality) {
@@ -3774,7 +3774,7 @@ function _bnrNextQuality(quality) {
 }
 function _renderEquipRow(slot, it, slotIcons) {
     if (!it || !it.item_id) {
-        return `<div style="font-size:11px;padding:1px 0;color:#6b7280;">
+        return `<div style="font-size:11px;padding:1px 0;color:var(--dim);">
             ${slotIcons[slot] || '·'} ${slot}: <em>пусто</em>
         </div>`;
     }
@@ -3796,7 +3796,7 @@ function _renderEquipRow(slot, it, slotIcons) {
         if (stats.swing_dmg)   chunks.push(`<span style="color:#f87171;">⚔ ${Number(stats.swing_dmg)||0}${stats.swing_type ? '/' + escapeHtml(stats.swing_type[0].toUpperCase()) : ''}</span>`);
         if (stats.thrust_dmg)  chunks.push(`<span style="color:#fb923c;">▶ ${Number(stats.thrust_dmg)||0}${stats.thrust_type ? '/' + escapeHtml(stats.thrust_type[0].toUpperCase()) : ''}</span>`);
         if (stats.swing_spd)   chunks.push(`<span style="color:#60a5fa;">⏱ ${Number(stats.swing_spd)||0}</span>`);
-        if (stats.length)      chunks.push(`<span style="color:#9ca3af;">📏 ${Number(stats.length)||0}</span>`);
+        if (stats.length)      chunks.push(`<span style="color:var(--muted);">📏 ${Number(stats.length)||0}</span>`);
         if (stats.accuracy)    chunks.push(`<span style="color:#a78bfa;">🎯 ${Number(stats.accuracy)||0}</span>`);
         if (stats.missile_spd) chunks.push(`<span style="color:#34d399;">💨 ${Number(stats.missile_spd)||0}</span>`);
         // shield-specific (hp + body)
@@ -3826,9 +3826,9 @@ function _renderEquipRow(slot, it, slotIcons) {
             <span><span style="color:#adadb8;">${slotIcon}</span> ${name}${tierBadge}${_bnrQualityBadge(it.quality)}</span>
             <button class="bnr-discard-btn" data-slot="${slot}" data-item-name="${name}"
                 title="Выбросить — освободить слот"
-                style="flex:none;background:none;border:none;color:#6b7280;cursor:pointer;font-size:11px;padding:0 2px;line-height:1;">❌</button>
+                style="flex:none;background:none;border:none;color:var(--dim);cursor:pointer;font-size:11px;padding:0 2px;line-height:1;">❌</button>
         </div>
-        ${statsHtml ? `<div style="font-size:10px;color:#9ca3af;padding-left:14px;margin-top:1px;">${statsHtml}</div>` : ''}
+        ${statsHtml ? `<div style="font-size:10px;color:var(--muted);padding-left:14px;margin-top:1px;">${statsHtml}</div>` : ''}
     </div>`;
 }
 
@@ -3878,7 +3878,7 @@ function _renderRetinue(retinue) {
     const heroGold = (_bannerlordLastHero?.hero?.gold) || 0;
 
     const rows = list.length === 0
-        ? '<div style="font-size:11px;color:#9ca3af;padding:2px 0;">пусто</div>'
+        ? '<div style="font-size:11px;color:var(--muted);padding:2px 0;">пусто</div>'
         : list.map(t => {
             const eliteBadge = t.is_elite
                 ? '<span style="color:#fbbf24;font-size:9px;margin-right:4px;" title="Elite troop (EliteBasicTroop chain)">★</span>'
@@ -4104,7 +4104,7 @@ function _clanUpgradesTreeHtml(upgrades, heroGold) {
             const ownedBadge = u.owned
                 ? `<span style="color:#34d399;font-weight:700;font-size:11px;">✓ ВЛАДЕЕШЬ</span>`
                 : u.locked
-                    ? `<span style="color:#6b7280;font-size:11px;">🔒 Нужен предыдущий</span>`
+                    ? `<span style="color:var(--dim);font-size:11px;">🔒 Нужен предыдущий</span>`
                     : isSelectable
                         ? `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;
                                        font-size:11px;color:#fbbf24;font-weight:700;">
@@ -4156,7 +4156,7 @@ function _clanUpgradesTreeHtml(upgrades, heroGold) {
                 Стоимость: <b class="bnr-bulk-total" style="color:#fbbf24;">0💰</b>
             </div>
             <button class="bnr-bulk-buy" disabled
-                    style="background:#5b21b6;color:#9ca3af;padding:6px 12px;font-size:11px;
+                    style="background:#5b21b6;color:var(--muted);padding:6px 12px;font-size:11px;
                            font-weight:700;border-radius:4px;border:none;cursor:not-allowed;">
                 💰 Купить все выбранные
             </button>
@@ -4180,7 +4180,7 @@ function _clanUpgradesBindBulk(root, heroGold, onSuccess) {
             const enabled = count > 0 && count <= 10 && total <= heroGold;
             buyBtn.disabled = !enabled;
             buyBtn.style.cursor = enabled ? 'pointer' : 'not-allowed';
-            buyBtn.style.color = enabled ? '#fbbf24' : '#9ca3af';
+            buyBtn.style.color = enabled ? '#fbbf24' : 'var(--muted)';
             if (count > 10)            buyBtn.textContent = `❌ Макс 10 за раз (выбрано ${count})`;
             else if (total > heroGold) buyBtn.textContent = `❌ Не хватает ${(total - heroGold).toLocaleString('ru-RU')}💰`;
             else if (count === 0)      buyBtn.textContent = '💰 Купить все выбранные';
@@ -4240,7 +4240,7 @@ async function _renderClanUpgradesInline() {
     }
     const heroGold = data.hero_gold || 0;
     slot.innerHTML = `
-        <div style="font-size:10px;color:#9ca3af;margin-bottom:6px;">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:6px;">
             💰 ${heroGold.toLocaleString('ru-RU')} динаров · отметь галочками и купи разом (до 10)
         </div>
         ${_clanUpgradesTreeHtml(data.upgrades || [], heroGold)}`;
@@ -4295,14 +4295,14 @@ async function _renderForgeInline() {
         const slotEmoji = _bnrIsShield(x.s, it) ? '🛡' : x.emoji;
         const nameHtml = has
             ? escapeHtml(it.item_name || it.item_id)
-            : '<em style="color:#6b7280;">пусто</em>';
+            : '<em style="color:var(--dim);">пусто</em>';
         const tierBadge = (has && it.tier != null && it.tier >= 0)
             ? `<span style="color:#fbbf24;font-weight:700;margin-left:4px;">T${it.tier + 1}★</span>`
             : '';
         const qBadge = has ? _bnrQualityBadge(it.quality) : '';
         const nextQ = has ? _bnrNextQuality(it.quality) : null;
         const btn = !has
-            ? '<span style="font-size:10px;color:#6b7280;flex:0 0 auto;">—</span>'
+            ? '<span style="font-size:10px;color:var(--dim);flex:0 0 auto;">—</span>'
             : !nextQ
             ? '<span title="Уже максимальное качество (Легендарное)" style="font-size:10px;color:#fbbf24;font-weight:700;flex:0 0 auto;white-space:nowrap;">✦ макс</span>'
             : `<button class="extra-btn bnr-reforge-btn" data-slot="${x.s}"
@@ -4326,7 +4326,7 @@ async function _renderForgeInline() {
             <b style="color:#fbbf24;">✦ Легендарное</b> (буст урона/брони/скорости). Каждое нажатие —
             <b>+1 ступень</b> за <b style="color:#fbbf24;">${REFORGE_PRICE.toLocaleString('ru-RU')}💎</b>.
             База (тир) остаётся твоя, апается только качество.
-            <br><span style="font-size:10px;color:#6b7280;">На потолке (Легендарное) → крустики возвращаются. Доступно вне боя.</span>
+            <br><span style="font-size:10px;color:var(--dim);">На потолке (Легендарное) → крустики возвращаются. Доступно вне боя.</span>
         </div>
         ${rows}`;
     slot.querySelectorAll('.bnr-reforge-btn').forEach(btn => {
@@ -4368,7 +4368,7 @@ async function _renderAchievementsInline() {
         const progressBar = a.unlocked
             ? `<div style="background:#fbbf24;height:4px;border-radius:2px;width:100%;"></div>`
             : `<div style="background:#3a3a3e;height:4px;border-radius:2px;position:relative;">
-                   <div style="background:#9ca3af;height:4px;border-radius:2px;width:${pct}%;"></div>
+                   <div style="background:var(--muted);height:4px;border-radius:2px;width:${pct}%;"></div>
                </div>`;
         return `
         <div style="background:${cardBg};border:1px solid #3d3d3f;border-radius:6px;
@@ -4382,7 +4382,7 @@ async function _renderAchievementsInline() {
                     </div>
                     <div style="font-size:10px;color:#adadb8;">${escapeHtml(a.description)}</div>
                 </div>
-                <div style="font-size:10px;color:#9ca3af;text-align:right;min-width:60px;">
+                <div style="font-size:10px;color:var(--muted);text-align:right;min-width:60px;">
                     ${a.current_value.toLocaleString('ru-RU')} / ${a.threshold.toLocaleString('ru-RU')}
                 </div>
             </div>
@@ -4390,7 +4390,7 @@ async function _renderAchievementsInline() {
         </div>`;
     }).join('');
     slot.innerHTML = `
-        <div style="font-size:10px;color:#9ca3af;margin-bottom:6px;">Открыто ${data.unlocked_count}/${data.total}</div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:6px;">Открыто ${data.unlocked_count}/${data.total}</div>
         ${items || '<div style="color:#adadb8;text-align:center;padding:12px;">Нет данных</div>'}`;
 }
 
@@ -4415,16 +4415,16 @@ function loadBannerlordGender() {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
             <button class="extra-btn bnr-gender-set" data-gender-set="male" ${canAfford ? '' : 'disabled'}
                     style="font-size:12px;padding:7px;background:${canAfford ? '#1e3a5f' : '#2d2d2f'};
-                           color:${canAfford ? '#93c5fd' : '#6b7280'};${canAfford ? '' : 'cursor:not-allowed;'}">
+                           color:${canAfford ? '#93c5fd' : 'var(--dim)'};${canAfford ? '' : 'cursor:not-allowed;'}">
                 ♂ Мужской
             </button>
             <button class="extra-btn bnr-gender-set" data-gender-set="female" ${canAfford ? '' : 'disabled'}
                     style="font-size:12px;padding:7px;background:${canAfford ? '#5b21b6' : '#2d2d2f'};
-                           color:${canAfford ? '#f472b6' : '#6b7280'};${canAfford ? '' : 'cursor:not-allowed;'}">
+                           color:${canAfford ? '#f472b6' : 'var(--dim)'};${canAfford ? '' : 'cursor:not-allowed;'}">
                 ♀ Женский
             </button>
         </div>
-        <div style="font-size:10px;color:#6b7280;margin-top:6px;">
+        <div style="font-size:10px;color:var(--dim);margin-top:6px;">
             Есть супруг(а) — engine перевернёт их пол, чтобы брак остался валиден.
         </div>`;
     if (_smartInnerHTML(slot, html)) {
@@ -4473,7 +4473,7 @@ function loadBannerlordProfileFamily() {
                         title="${hasClan ? ('Engine выберет случайную подходящую NPC. Спишет ' + _bnrGoldLabel('marry', 50000) + '.') : 'Нужен клан: бесклановый замужний герой крашит ванильную модель беременности.'}"
                         style="width:100%;font-size:12px;padding:8px;
                                background:${(hasClan && heroGold >= MARRY_COST) ? '#5b21b6' : '#2d2d2f'};
-                               color:${(hasClan && heroGold >= MARRY_COST) ? '#f472b6' : '#6b7280'};
+                               color:${(hasClan && heroGold >= MARRY_COST) ? '#f472b6' : 'var(--dim)'};
                                ${(hasClan && heroGold >= MARRY_COST) ? '' : 'cursor:not-allowed;'}">
                     💍 Жениться/выйти замуж (${_bnrGoldLabel('marry', 50000)})${hasClan ? '' : ' — нужен клан'}
                 </button>
@@ -4520,19 +4520,19 @@ function _renderFamilyTreeHtml(h) {
 
     const heroEmoji = (p) => p?.is_female ? '♀' : '♂';
     const heroLine = (p) => p
-        ? `<div style="font-size:11px;color:${p.is_alive ? '#efeff1' : '#6b7280'};">
+        ? `<div style="font-size:11px;color:${p.is_alive ? '#efeff1' : 'var(--dim)'};">
               ${heroEmoji(p)} ${escapeHtml(p.name || '?')} · ${p.age || '?'} лет
               ${p.is_alive ? '' : '☠️'}
               ${p.is_pregnant ? '🤰' : ''}
            </div>`
-        : '<div style="font-size:11px;color:#6b7280;">—</div>';
+        : '<div style="font-size:11px;color:var(--dim);">—</div>';
 
     let childrenHtml;
     if (children.length === 0) {
-        childrenHtml = '<div style="font-size:11px;color:#6b7280;">Детей пока нет</div>';
+        childrenHtml = '<div style="font-size:11px;color:var(--dim);">Детей пока нет</div>';
     } else {
         childrenHtml = children.map(c => `
-            <div style="font-size:11px;color:${c.is_alive ? '#efeff1' : '#6b7280'};
+            <div style="font-size:11px;color:${c.is_alive ? '#efeff1' : 'var(--dim)'};
                         padding:2px 0;">
                 ${heroEmoji(c)} ${escapeHtml(c.name || '?')} · ${c.age || '?'} лет
                 ${c.is_alive ? '' : '☠️'}
@@ -4570,7 +4570,7 @@ function _renderFamilyTreeHtml(h) {
                 🤰 Зачать ребёнка (${_fmtK(BABY_COST)}💰)
                 ${noBabyReason ? ` — ${noBabyReason}` : ''}
             </button>
-            <div style="font-size:10px;color:#6b7280;margin-top:6px;text-align:center;">
+            <div style="font-size:10px;color:var(--dim);margin-top:6px;text-align:center;">
                 Через ~36 in-game дней появится ребёнок (engine PregnancyCampaignBehavior).
             </div>
         </div>
@@ -5064,7 +5064,7 @@ async function loadBannerlordHero() {
                     <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:6px;">
                         ${cultureBtns}
                     </div>
-                    <div style="margin-top:10px;font-size:10px;color:#6b7280;">
+                    <div style="margin-top:10px;font-size:10px;color:var(--dim);">
                         Можно также выбрать случайную:
                     </div>
                     <button class="extra-btn" id="bnr-adopt-random"
@@ -5101,14 +5101,14 @@ async function loadBannerlordHero() {
                     <div style="font-weight:700;color:#f87171;margin-bottom:4px;">
                         Поколение ${iter} мёртв
                     </div>
-                    <div style="font-size:11px;margin-bottom:14px;color:#9ca3af;">
+                    <div style="font-size:11px;margin-bottom:14px;color:var(--muted);">
                         ${escapeHtml(h.display_name || '[BLink] ' + (window.userLogin || ''))}
                         ${h.clan_name ? `(${escapeHtml(h.clan_name)})` : ''}
                     </div>
                     <div style="font-size:12px;margin-bottom:8px;color:#fbbf24;">
                         🕯️ Начать заново — поколение ${nextIter} (бесплатно)
                     </div>
-                    <div style="font-size:10px;color:#6b7280;margin-bottom:10px;">
+                    <div style="font-size:10px;color:var(--dim);margin-bottom:10px;">
                         Прежнего героя вернуть нельзя. Новый начнёт с 0 уровня,
                         без снаряжения и клана. Имя останется то же.
                     </div>
@@ -5175,9 +5175,9 @@ async function loadBannerlordHero() {
         // Sprint 5.11: clan/kingdom labels стали clickable — открывают modal
         // с вариантами create/join/leave (вместо inline-кнопок).
         const clanName = h.clan_name ? escapeHtml(h.clan_name)
-                                     : '<span style="color:#9ca3af;">не вступил</span>';
+                                     : '<span style="color:var(--muted);">не вступил</span>';
         const kingdomName = h.kingdom_name ? escapeHtml(h.kingdom_name)
-                                           : '<span style="color:#9ca3af;">не вступил</span>';
+                                           : '<span style="color:var(--muted);">не вступил</span>';
         // 2026-06-07 — строки-инфо (read-only). Управление кланом/королевством —
         // во вкладке «Династия» (секции/locked-actions), модалок больше нет.
         const clanLabel = `<span>${clanName}</span>`;
@@ -5187,7 +5187,7 @@ async function loadBannerlordHero() {
         const gearTier = h.gear_tier || 0;
         _bannerlordCurrentGearTier = gearTier;
         const _gtierText = gearTier === 0
-            ? '<span style="color:#9ca3af;">базовое</span>'
+            ? '<span style="color:var(--muted);">базовое</span>'
             : `<span style="color:#fbbf24;">T${gearTier} ★</span>`;
         const _hasClass = !!_bannerlordClassesCache?.current?.class_key;
         let _gtierBtn = '';
@@ -5205,7 +5205,7 @@ async function loadBannerlordHero() {
                 ⚒ T${_nextTier} (${_formatBigGold(_cost)})
             </button>`;
         } else {
-            _gtierBtn = '<span style="color:#9ca3af;font-size:10px;margin-left:6px;">сначала класс</span>';
+            _gtierBtn = '<span style="color:var(--muted);font-size:10px;margin-left:6px;">сначала класс</span>';
         }
         // 2026-05-29 — «переформировать снаряжение» (BLT ReequipInsteadOfUpgrade):
         // ре-ролл всех слотов на ТЕКУЩЕМ тире (бесплатно), фикс кривой/залипшей
@@ -5244,7 +5244,7 @@ async function loadBannerlordHero() {
         const totalArmor = totalHead + totalBody + totalLeg + totalArm;
         const armorAvgTier = tierCount > 0 ? Math.round(tierSum / tierCount) + 1 : null;
         const armorLabel = totalArmor === 0
-            ? '<span style="color:#9ca3af;">нет</span>'
+            ? '<span style="color:var(--muted);">нет</span>'
             : `<span style="color:#efeff1;" title="Броня по зонам: 🪖 голова · 👕 тело · 👢 ноги · 💪 руки">🪖${totalHead} 👕${totalBody} 👢${totalLeg} 💪${totalArm}</span>` +
               (armorAvgTier ? ` <span style="color:#fbbf24;">~T${armorAvgTier}</span>` : '');
 

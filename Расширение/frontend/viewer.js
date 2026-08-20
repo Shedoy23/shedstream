@@ -1077,7 +1077,7 @@ function renderInventoryCases(unopenedCounts) {
         { key: 'legendary', emoji: '👑', label: 'Легендарный', color: '#fbbf24' },
         { key: 'epic',      emoji: '💠', label: 'Эпический',   color: '#a855f7' },
         { key: 'rare',      emoji: '💎', label: 'Редкий',      color: '#3b82f6' },
-        { key: 'common',    emoji: '🎁', label: 'Обычный',     color: '#9ca3af' },
+        { key: 'common',    emoji: '🎁', label: 'Обычный',     color: 'var(--muted)' },
     ];
 
     const total = tiers.reduce((s, t) => s + (unopenedCounts[t.key] || 0), 0);
@@ -1431,15 +1431,15 @@ function renderAchievements(achievements) {
             </div>`).join('');
     }
     if (locked.length) {
-        html += `<div style="font-size:11px;font-weight:700;color:#6b7280;margin:10px 0 6px;">🔒 ЗАБЛОКИРОВАНО (${locked.length})</div>`;
+        html += `<div style="font-size:11px;font-weight:700;color:var(--dim);margin:10px 0 6px;">🔒 ЗАБЛОКИРОВАНО (${locked.length})</div>`;
         html += locked.map(a => `
             <div style="display:flex;align-items:center;gap:10px;background:#1a1a1c;border:1px solid #2d2d2f;border-radius:8px;padding:8px 10px;margin-bottom:5px;opacity:0.55;">
                 <div style="font-size:22px;flex-shrink:0;filter:grayscale(1);">${a.emoji}</div>
                 <div style="flex:1;min-width:0;">
-                    <div style="font-size:12px;font-weight:700;color:#6b7280;">${escapeHtml(a.name)}</div>
+                    <div style="font-size:12px;font-weight:700;color:var(--dim);">${escapeHtml(a.name)}</div>
                     <div style="font-size:10px;color:#4d4d4f;margin-top:1px;">${escapeHtml(a.description)}</div>
                 </div>
-                <div style="font-size:11px;color:#6b7280;flex-shrink:0;">+${a.reward}💎</div>
+                <div style="font-size:11px;color:var(--dim);flex-shrink:0;">+${a.reward}💎</div>
             </div>`).join('');
     }
     container.innerHTML = html;

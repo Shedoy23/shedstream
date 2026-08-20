@@ -26,7 +26,7 @@ async function loadColonists() {
         container.innerHTML = colonists.map(c => {
             const hc = c.is_alive
                 ? (c.health > 60 ? '#4ade80' : c.health > 30 ? '#fbbf24' : '#f87171')
-                : '#6b7280';
+                : 'var(--dim)';
             const isMyPawn = c.username === userLogin;
             const resurrectBtn = (!c.is_alive && isMyPawn)
                 ? `<button data-resurrect-pawn style="font-size:10px;padding:2px 8px;background:#1a1a3a;color:#9147ff;border:1px solid #9147ff;border-radius:4px;cursor:pointer;margin-top:4px;">✨ Воскресить 500💎</button>`

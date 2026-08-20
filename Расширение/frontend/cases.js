@@ -7,10 +7,10 @@
 const CASE_TIER_META = {
     common: {
         label: 'Обычный',
-        color: '#9ca3af',
+        color: 'var(--muted)',
         emoji: '🎁',
-        bgGradient: 'linear-gradient(135deg, rgba(156,163,175,.18), rgba(156,163,175,.06))',
-        borderColor: 'rgba(156,163,175,.45)',
+        bgGradient: 'linear-gradient(135deg, rgba(173,173,184,.18), rgba(173,173,184,.06))',
+        borderColor: 'rgba(173,173,184,.45)',
     },
     rare: {
         label: 'Редкий',

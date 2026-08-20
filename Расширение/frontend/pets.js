@@ -230,12 +230,12 @@ function _renderCatalogView() {
     const itemsHtml = items.map(it => {
         const owned = it.owned;
         const rarityColor = {
-            common:    '#9ca3af',
+            common:    'var(--muted)',
             rare:      '#3b82f6',
             epic:      '#a855f7',
             legendary: '#fbbf24',
             mythic:    '#ef4444',
-        }[it.rarity] || '#9ca3af';
+        }[it.rarity] || 'var(--muted)';
 
         const priceLabel = (it.price_crustics || 0).toLocaleString('ru-RU');
         const cta = owned

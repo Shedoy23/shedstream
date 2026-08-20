@@ -253,6 +253,41 @@ async def main() -> int:
               "длинные значения обрезаются (получено %d символов)"
               % (len(done[0][3]) if done else -1))
 
+        # ── 9. Выводимые события: их никто не шлёт, их замечает бэкенд ───────
+        # Сначала — проверка готовности Manager. Она едет по ТОЙ ЖЕ очереди
+        # действий, и если её не исключить, «первое действие зрителя»
+        # отметится на кнопке, которую нажал сам стример.
+        await db.enqueue_action(CHANNEL_ID, "bannerlord",
+                                 "manager_ready_deadbeef", "diagnostic_ping", {})
+        check(not await rows(db, event="first_viewer_action"),
+              "проверка готовности Manager НЕ считается действием зрителя — "
+              "иначе прибор соврёт в самом важном месте")
+
+        await db.enqueue_action(CHANNEL_ID, "bannerlord",
+                                 "act-1", "hero.add_skill", {"price": 100})
+        first = await rows(db, event="first_viewer_action")
+        check(len(first) == 1 and first[0][2] == CHANNEL_ID,
+              "первая покупка зрителя отмечена")
+
+        await db.enqueue_action(CHANNEL_ID, "bannerlord",
+                                 "act-2", "hero.add_skill", {"price": 100})
+        check(len(await rows(db, event="first_viewer_action")) == 1,
+              "вторая покупка НЕ отмечается — в воронке нужен момент, а не счётчик")
+
+        await db.register_stream_session("stream-777", CHANNEL_ID)
+        await db.register_stream_session("stream-777", CHANNEL_ID)   # возобновление
+        check(len(await rows(db, event="stream_session_started")) == 1,
+              "повторная регистрация того же стрима не плодит события")
+
+        await db.end_stream_session("stream-777", CHANNEL_ID)
+        await db.end_stream_session("stream-777", CHANNEL_ID)        # уже закрыт
+        check(len(await rows(db, event="stream_session_ended")) == 1,
+              "конец стрима отмечается один раз")
+
+        await db.register_stream_session("stream-888", CHANNEL_ID)
+        check(len(await rows(db, event="stream_session_started")) == 2,
+              "следующий стрим — отдельное событие")
+
         print("=" * 70)
         print("PASSED: %d   FAILED: %d" % (passed, failed))
         print("ALL GREEN — воронка принимает только то, что должна."

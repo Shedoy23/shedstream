@@ -63,6 +63,16 @@ async def touch(db, channel_id: int, module_id: str) -> None:
                 "VALUES (?, ?, ?) "
                 "ON CONFLICT(channel_id, module_id) DO UPDATE SET last_seen_ts=excluded.last_seen_ts",
                 (int(channel_id), module_id, now))
+            # Воронка (R4): первый heartbeat канала — это момент, когда мод в
+            # игре впервые заговорил с бэкендом. Отмечаем один раз; проверка
+            # стоит внутри троттла, то есть не чаще одной на окно записи.
+            try:
+                import onboarding
+                await onboarding.note_once(
+                    conn, "mod_heartbeat_received", int(channel_id),
+                    integration_id=module_id)
+            except Exception:
+                pass
             await conn.commit()
     except Exception:
         # Отметка — вспомогательный сигнал. Если диск занят, кэш в памяти всё

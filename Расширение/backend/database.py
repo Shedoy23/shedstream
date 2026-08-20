@@ -1251,11 +1251,25 @@ class Database:
                 "UPDATE stream_sessions SET ended_at = datetime('now') "
                 "WHERE channel_id = ? AND id != ? AND ended_at IS NULL",
                 (channel_id, stream_id))
+            # Воронка (R4): «стрим начался» отмечаем ТОЛЬКО для по-настоящему
+            # новой сессии. Ниже UPSERT, который зовётся и при возобновлении, —
+            # без этой проверки одно событие превратилось бы в счётчик опросов.
+            cur = await db.execute(
+                "SELECT 1 FROM stream_sessions WHERE channel_id=? AND id=? LIMIT 1",
+                (channel_id, stream_id))
+            is_new_session = not await cur.fetchone()
             # UPSERT: новая запись ИЛИ сброс ended_at у существующей.
             await db.execute(
                 "INSERT INTO stream_sessions (channel_id, id, ended_at) VALUES (?, ?, NULL) "
                 "ON CONFLICT(channel_id, id) DO UPDATE SET ended_at = NULL",
                 (channel_id, stream_id))
+            if is_new_session:
+                try:
+                    import onboarding
+                    await onboarding.record(
+                        db, "stream_session_started", channel_id=channel_id)
+                except Exception:
+                    pass    # телеметрия не имеет права сорвать регистрацию стрима
             await db.commit()
 
     async def end_stream_session(self, stream_id: str, channel_id: int = None):
@@ -1266,10 +1280,17 @@ class Database:
             return
         channel_id = resolve_channel_id(channel_id)
         async with self._connect() as db:
-            await db.execute(
+            cur = await db.execute(
                 "UPDATE stream_sessions SET ended_at = datetime('now') "
                 "WHERE channel_id = ? AND id = ? AND ended_at IS NULL",
                 (channel_id, stream_id))
+            if cur.rowcount:
+                try:
+                    import onboarding
+                    await onboarding.record(
+                        db, "stream_session_ended", channel_id=channel_id)
+                except Exception:
+                    pass
             await db.commit()
 
     async def end_active_stream_sessions(self, channel_id: int = None) -> int:
@@ -4160,6 +4181,19 @@ class Database:
                 (channel_id, module_id, action_id, action_type,
                  _json.dumps(data or {}, ensure_ascii=False)),
             )
+            # Воронка (R4): момент, когда зритель впервые что-то сделал в игре
+            # этого канала. Диагностика Manager идёт по той же очереди с
+            # префиксом manager_ — её надо исключить, иначе «первое действие
+            # зрителя» отметится на проверке готовности, которую нажал сам
+            # стример, и прибор соврёт в самом важном месте.
+            if not str(action_id).startswith("manager_"):
+                try:
+                    import onboarding
+                    await onboarding.note_once(
+                        db, "first_viewer_action", channel_id,
+                        integration_id=module_id)
+                except Exception:
+                    pass    # покупка зрителя важнее метрики
             await db.commit()
             return cur.lastrowid
 

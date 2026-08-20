@@ -495,3 +495,78 @@ async def manager_pair_decide(request: Request):
             f"<p>{html.escape(_browser_error(exc))}</p>",
             _auth_error(exc).status_code,
         )
+
+
+# ── Воронка онбординга (ROADMAP §R4) ────────────────────────────────────────
+# Manager шлёт сюда шаги установки. До входа в Twitch токена ещё нет, поэтому
+# ранние шаги принимаются без него — иначе самая интересная часть воронки, «где
+# люди отваливаются ДО входа», осталась бы невидимой. Защита от мусора: закрытый
+# список имён, лимит частоты, ограничение длины полей и channel_id ТОЛЬКО из
+# токена, никогда из тела.
+@router.post("/v1/manager/onboarding", include_in_schema=False)
+async def manager_onboarding_events(request: Request):
+    if not check_rate_limit(_client_key(request, "onboarding"), limit=120):
+        return JSONResponse({"status": "rate_limited"}, status_code=429)
+    import onboarding
+
+    body = await _optional_json_body(request)
+    events = body.get("events")
+    if not isinstance(events, list) or not events:
+        return JSONResponse({"status": "no_events"}, status_code=400)
+    if len(events) > 50:
+        return JSONResponse({"status": "too_many_events"}, status_code=400)
+
+    channel_id = None
+    try:
+        claims = await _manager_claims(request)
+        channel_id = int(claims["channel_id"])
+    except (manager_auth.ManagerAuthError, manager_auth.ManagerAuthUnavailable):
+        channel_id = None      # ранние шаги идут без токена, это законно
+
+    accepted, ignored, rejected = 0, 0, []
+    db = get_db()
+    async with db._connect() as conn:
+        for item in events:
+            if not isinstance(item, dict):
+                rejected.append("not_an_object")
+                continue
+            name = str(item.get("event") or "").strip()
+            if name not in onboarding.KNOWN_EVENTS:
+                rejected.append("unknown_event")
+                continue
+            if name in onboarding.DERIVED_EVENTS:
+                # Эти события бэкенд выводит сам. Принимать их снаружи значило
+                # бы позволить нарисовать себе успешную воронку.
+                rejected.append("derived_event_not_accepted")
+                continue
+            if name not in onboarding.PRE_AUTH_EVENTS and channel_id is None:
+                rejected.append("auth_required")
+                continue
+            try:
+                written = await onboarding.record(
+                    conn,
+                    name,
+                    installation_id=item.get("installation_id"),
+                    channel_id=channel_id,
+                    integration_id=item.get("integration_id"),
+                    integration_version=item.get("integration_version"),
+                    manager_version=item.get("manager_version"),
+                    elapsed_ms=item.get("elapsed_ms"),
+                    result=item.get("result"),
+                    source_step=item.get("source_step"),
+                    client_event_id=item.get("client_event_id"),
+                )
+            except (ValueError, TypeError):
+                rejected.append("bad_field")
+                continue
+            if written:
+                accepted += 1
+            else:
+                ignored += 1        # повтор по client_event_id
+        await conn.commit()
+    return _secret_response({
+        "status": "ok",
+        "accepted": accepted,
+        "ignored_duplicates": ignored,
+        "rejected": rejected[:10],
+    })

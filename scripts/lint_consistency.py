@@ -1035,11 +1035,78 @@ def check_frontend_price_literals():
                     errors.append(message)
 
 
+# Сколько цен, вписанных числом, сейчас во фронте — по файлам. Это НЕ цель, а
+# исходная отметка храповика: расти нельзя, уменьшать нужно.
+#
+# Откуда взялось. 2026-08-20 нашли, что форма покупки мастерской показывала
+# 💎1000 при списании 2500, и починили. Заодно посчитали остальное: 90 мест в
+# девяти файлах. Разом их не перенести — это девять панелей и три игры, — но и
+# оставлять без присмотра нельзя: класс уже кусал трижды (вассальный клан в
+# июле, мастерская с караваном в августе, и в extension.html до сих пор висит
+# комментарий про «100💎 при реальных 200💎»).
+#
+# Правило простое: добавил во фронт ещё одну цену числом — линтер падает.
+# Перенёс цену на /config — уменьши отметку в этой таблице.
+PRICE_LITERAL_BASELINE = {
+    "family.js": 1,
+    "guilds.js": 2,
+    "pawn.js": 7,
+    "viewer-bannerlord.js": 28,
+    "viewer-rimworld.js": 4,
+    "viewer-shedcolony.js": 28,
+    "voting.js": 8,
+    "extension.html": 6,
+    "mobile.html": 6,
+}
+
+_PRICE_TEXT = re.compile(r"(\d[\d\s_]{1,9})\s*(💎|💰|крустик|дина)", re.IGNORECASE)
+
+
+def check_frontend_price_literal_growth():
+    """Храповик: число цен, вписанных во фронт вручную, не должно расти.
+
+    Полный перенос на `/config` — работа на несколько заходов, и пока она идёт,
+    единственное, что нельзя допустить, — чтобы свалка пополнялась. Проверка
+    считает по файлам и падает на любом приросте.
+
+    Почему не «запретить совсем»: тогда линтер был бы красным с первого дня и
+    его бы отключили. Храповик даёт двигаться в одну сторону.
+    """
+    frontend = EXT / "frontend"
+    if not frontend.is_dir():
+        return
+    for name, allowed in sorted(PRICE_LITERAL_BASELINE.items()):
+        path = frontend / name
+        if not path.is_file():
+            continue
+        count = 0
+        for line in path.read_text(encoding="utf-8", errors="ignore").split("\n"):
+            stripped = line.strip()
+            if stripped.startswith("//") or stripped.startswith("*"):
+                continue
+            for m in _PRICE_TEXT.finditer(line):
+                digits = m.group(1).replace(" ", "").replace("_", "")
+                if digits.isdigit() and int(digits) >= 50:
+                    count += 1
+        if count > allowed:
+            errors.append(
+                f"price-literal-growth: {name} — цен, вписанных числом, стало "
+                f"{count} вместо {allowed}. Новую цену брать из /config, а не "
+                f"вписывать: числа во фронте расходятся с бэкендом молча, "
+                f"и это уже трижды доходило до зрителя")
+        elif count < allowed:
+            warns.append(
+                f"price-literal-baseline: {name} — теперь {count} вместо "
+                f"{allowed}, отметку в PRICE_LITERAL_BASELINE пора опустить, "
+                f"иначе храповик перестанет держать достигнутое")
+
+
 def main() -> int:
     if EXT is None:
         print("[lint] FAIL: could not locate extension dir (with backend/)")
         return 1
-    for fn in (check_version_sync, check_migrations_wired,
+    for fn in (check_frontend_price_literal_growth,
+               check_version_sync, check_migrations_wired,
                check_manifest_actions, check_manifest_events,
                check_dashboard_mod_config, check_currency_glyph,
                check_tenant_scoping, check_bannerlord_policies,

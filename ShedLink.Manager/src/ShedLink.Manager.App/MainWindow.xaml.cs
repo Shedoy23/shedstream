@@ -10,6 +10,7 @@ using ShedLink.Manager.Core.Diagnostics;
 using ShedLink.Manager.Core.Installation;
 using ShedLink.Manager.Core.Security;
 using ShedLink.Manager.Core.State;
+using ShedLink.Manager.Core.Telemetry;
 
 namespace ShedLink.Manager.App;
 
@@ -34,6 +35,7 @@ public partial class MainWindow : Window
     private bool _testingReady;
     private bool _testingReliability;
     private ModuleRuntimeStatus? _runtimeStatus;
+    private readonly OnboardingReporter _onboarding;
 
     public MainWindow()
     {
@@ -55,6 +57,10 @@ public partial class MainWindow : Window
             _stateStore);
         _installationService = new IntegrationInstallationService(
             _api, _vault, _stateStore);
+        // Воронка онбординга (ROADMAP §R4). Пишет шаги установки; ничего не
+        // ждёт и ничего не ломает, если бэкенд недоступен.
+        _onboarding = new OnboardingReporter(
+            _api, state.InstallationId, ManagerVersion());
         _rotationService = new CredentialRotationService(
             _api, _vault, _stateStore);
         IntegrationPicker.SelectionChanged += IntegrationPicker_SelectionChanged;
@@ -129,7 +135,34 @@ public partial class MainWindow : Window
         // читается как «Bannerlord имеет к нему отношение». Если новая игра не
         // найдена, обновлять сводку будет некому, поэтому чистим сразу.
         IntegrationStatusText.Text = $"Интеграция {IntegrationName} ещё не проверена.";
+        _onboarding.Record("integration_selected", integrationId: IntegrationId);
         DetectGame();
+    }
+
+    /// <summary>
+    /// Версия Manager для телеметрии. RELEASE.json кладётся упаковщиком рядом
+    /// с exe и содержит настоящую версию пакета; в csproj она отстаёт, потому
+    /// что задаётся при сборке параметром.
+    /// </summary>
+    private static string ManagerVersion()
+    {
+        try
+        {
+            var path = Path.Combine(AppContext.BaseDirectory, "RELEASE.json");
+            if (File.Exists(path))
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(path));
+                if (doc.RootElement.TryGetProperty("version", out var version))
+                {
+                    return version.GetString() ?? "unknown";
+                }
+            }
+        }
+        catch
+        {
+            // Версия — не повод падать при старте.
+        }
+        return typeof(MainWindow).Assembly.GetName().Version?.ToString() ?? "unknown";
     }
 
     private sealed record IntegrationChoice(InstallationRelease Release)
@@ -140,6 +173,8 @@ public partial class MainWindow : Window
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
+        _onboarding.Record("manager_started");
+        _ = _onboarding.FlushAsync();
         try
         {
             if (_installationService.RecoverPending())
@@ -242,6 +277,10 @@ public partial class MainWindow : Window
                 if (_session is not null)
                 {
                     PairingCodeText.Text = string.Empty;
+                    _onboarding.Record("manager_authenticated", integrationId: IntegrationId);
+                    // Первый момент, когда есть токен: доотправляем всё, что
+                    // накопилось до входа.
+                    _ = _onboarding.FlushAsync(_session.AccessToken);
                     ShowConnected(_session);
                     return;
                 }
@@ -385,6 +424,8 @@ public partial class MainWindow : Window
         UpdateInstallAvailability();
         IntegrationStatusText.Text = $"Скачиваем, проверяем и настраиваем {IntegrationName}…";
         OverallStatusText.Text = "Не закрывай Manager до завершения проверки.";
+        _onboarding.Record("install_started", integrationId: IntegrationId);
+        var installStartedAt = Environment.TickCount64;
         try
         {
             using var downloader = new SecureArtifactDownloader();
@@ -401,6 +442,19 @@ public partial class MainWindow : Window
                 InstalledReleaseVersion = installed.ReleaseVersion,
             };
             _stateStore.Save(state.WithIntegration(IntegrationId, integration));
+            _onboarding.Record(
+                "install_completed",
+                integrationId: IntegrationId,
+                integrationVersion: installed.ReleaseVersion,
+                elapsedMs: Environment.TickCount64 - installStartedAt,
+                result: "ok");
+            // Пакет и конфиг кладутся одной транзакцией: успех установки и есть
+            // успех настройки, отдельного момента между ними не существует.
+            _onboarding.Record(
+                "configuration_completed",
+                integrationId: IntegrationId,
+                integrationVersion: installed.ReleaseVersion);
+            _ = _onboarding.FlushAsync(_session.AccessToken);
             IntegrationStatusText.Text =
                 $"{IntegrationName} {installed.ReleaseVersion} установлен и ключ проверен.";
             OverallStatusText.Text =
@@ -408,6 +462,14 @@ public partial class MainWindow : Window
         }
         catch (Exception exception) when (ManagerFailureMessage.IsExpected(exception))
         {
+            // В воронку идёт КОД класса сбоя, а не сообщение: сообщение несёт
+            // путь на диске, а путь — это личное.
+            _onboarding.Record(
+                "install_completed",
+                integrationId: IntegrationId,
+                elapsedMs: Environment.TickCount64 - installStartedAt,
+                result: FailureCode(exception));
+            _ = _onboarding.FlushAsync(_session?.AccessToken);
             RecordFailure("install", exception);
             IntegrationStatusText.Text =
                 "Установка не выполнена; прежняя версия восстановлена.";
@@ -654,6 +716,7 @@ public partial class MainWindow : Window
 
     private void DetectGame()
     {
+        _onboarding.Record("game_detection_started", integrationId: IntegrationId);
         var state = _stateStore.LoadOrCreate();
         var integration = state.Integration(IntegrationId);
         if (_detector.IsValidGameRoot(integration.GameRoot))
@@ -673,8 +736,14 @@ public partial class MainWindow : Window
         {
             GameStatusText.Text = "Не нашли автоматически. Выбери папку игры вручную.";
             InstallButton.IsEnabled = false;
+            _onboarding.Record(
+                "game_detected", integrationId: IntegrationId, result: "not_found");
             return;
         }
+        _onboarding.Record(
+            "game_detected",
+            integrationId: IntegrationId,
+            result: _game.Source == DetectionSource.Manual ? "manual" : "auto");
         ShowGame(_game);
     }
 
@@ -796,6 +865,7 @@ public partial class MainWindow : Window
         _testingReady = true;
         UpdateTechnicalReadyAvailability();
         OverallStatusText.Text = "Отправляем безопасную проверку через игровую очередь…";
+        var readyStartedAt = Environment.TickCount64;
         try
         {
             var started = await _api.StartDiagnosticAsync(
@@ -808,6 +878,22 @@ public partial class MainWindow : Window
                 "expired" => $"Проверка истекла: {IntegrationName} не подтвердил команду вовремя.",
                 _ => $"Проверка истекла без подтверждения {IntegrationName}.",
             };
+            var readyStatus = result?.Status ?? "no_result";
+            _onboarding.Record(
+                "test_action_completed",
+                integrationId: IntegrationId,
+                elapsedMs: Environment.TickCount64 - readyStartedAt,
+                result: readyStatus);
+            if (readyStatus == "acked")
+            {
+                // Момент, ради которого существует вся воронка: с этого места
+                // стример технически готов принимать зрителей.
+                _onboarding.Record(
+                    "technical_ready",
+                    integrationId: IntegrationId,
+                    elapsedMs: Environment.TickCount64 - readyStartedAt);
+            }
+            _ = _onboarding.FlushAsync(_session.AccessToken);
         }
         catch (ManagerApiException exception)
         {
@@ -1101,6 +1187,21 @@ public partial class MainWindow : Window
     // объяснение и следующее действие, а глазами это не проверяется.
     private static string FriendlyError(Exception exception) =>
         ManagerFailureMessage.For(exception);
+
+    /// <summary>
+    /// Короткий код класса сбоя для воронки. Не сообщение: сообщения содержат
+    /// пути и имена файлов, а воронка не должна собирать личное.
+    /// </summary>
+    private static string FailureCode(Exception exception) => exception switch
+    {
+        UnauthorizedAccessException => "denied_write",
+        IOException => "io_error",
+        InvalidDataException => "integrity_failed",
+        ManagerApiException api => "api_" + (api.ErrorCode ?? "error"),
+        TaskCanceledException => "timeout",
+        HttpRequestException => "backend_unreachable",
+        _ => "unexpected",
+    };
 
     private static void RecordFailure(string operation, Exception exception)
     {

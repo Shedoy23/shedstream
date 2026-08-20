@@ -71,4 +71,22 @@ internal sealed record CredentialRotateRequest(string Label);
 
 internal sealed record DiagnosticStartRequest(string Mode);
 
+/// <summary>
+/// Один шаг воронки онбординга. Namespace бэкенда — ROADMAP R4.
+/// Здесь НЕТ путей, логинов и текстов ошибок: Result — это код
+/// (ok / denied_write / backend_down), потому что сообщение несёт путь.
+/// </summary>
+public sealed record OnboardingEvent(
+    string Event,
+    string? InstallationId = null,
+    string? IntegrationId = null,
+    string? IntegrationVersion = null,
+    string? ManagerVersion = null,
+    long? ElapsedMs = null,
+    string? Result = null,
+    string? SourceStep = null,
+    string? ClientEventId = null);
+
+internal sealed record OnboardingBatch(IReadOnlyList<OnboardingEvent> Events);
+
 internal sealed record ApiError(string? Status);

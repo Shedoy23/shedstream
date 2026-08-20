@@ -152,6 +152,22 @@ public sealed class ManagerApiClient
             accessToken,
             cancellationToken);
 
+    /// <summary>
+    /// Отправить пачку шагов воронки. accessToken может быть null: шаги до
+    /// входа в Twitch принимаются без него, иначе мы никогда не узнаем,
+    /// сколько людей отвалилось ДО логина.
+    /// </summary>
+    public Task PostOnboardingAsync(
+        IReadOnlyList<OnboardingEvent> events,
+        string? accessToken = null,
+        CancellationToken cancellationToken = default) =>
+        SendAsync<object>(
+            HttpMethod.Post,
+            "/v1/manager/onboarding",
+            new OnboardingBatch(events),
+            accessToken,
+            cancellationToken);
+
     private async Task<T> SendAsync<T>(
         HttpMethod method,
         string path,

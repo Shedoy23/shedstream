@@ -1,3 +1,4 @@
+using ShedLink.Manager.Core.Telemetry;
 using System.Net;
 using System.IO.Compression;
 using System.Security.Cryptography;
@@ -23,6 +24,7 @@ try
     TestManifestDrivenDetection(root);
     TestLauncherAgnosticDetection(root);
     TestConfigurationRemoval(root);
+    TestOnboardingReporter(root).GetAwaiter().GetResult();
     TestJsonConfigurationStore(root);
     TestFailureMessages();
     TestDeniedWriteScenario(root);
@@ -1511,6 +1513,62 @@ static void TestConfigurationRemoval(string root)
         "повторное удаление конфига не падает и честно говорит, что стирать нечего");
 }
 
+static async Task TestOnboardingReporter(string root)
+{
+    // Воронка нужна ровно там, где всё плохо: нет сети, лежит бэкенд, человек
+    // не дошёл до входа. Значит события обязаны переживать неудачную отправку,
+    // а сама телеметрия — никогда не мешать продукту.
+    var buffer = Path.Combine(root, "onboarding", "queue.json");
+    var handler = new OnboardingHandler();
+    var api = new ManagerApiClient(new HttpClient(handler)
+    {
+        BaseAddress = new Uri("https://manager.test"),
+    });
+    var reporter = new OnboardingReporter(api, "install-0001", "0.1.0-alpha.10", buffer);
+
+    reporter.Record("manager_started");
+    reporter.Record("game_detection_started");
+    Assert(reporter.PendingCount() == 2 && File.Exists(buffer),
+        "шаги ложатся на диск до отправки — иначе потеряем ровно тех, у кого нет сети");
+
+    handler.Fail = true;
+    await reporter.FlushAsync();
+    Assert(reporter.PendingCount() == 2,
+        "неудачная отправка НЕ теряет события, они ждут следующего раза");
+
+    handler.Fail = false;
+    await reporter.FlushAsync();
+    Assert(reporter.PendingCount() == 0 && handler.Received == 2,
+        $"после успешной отправки очередь пуста (отправлено: {handler.Received})");
+
+    // Долгая работа без сети не должна раздувать файл. Выбрасываем САМЫЕ
+    // СТАРЫЕ: свежий отрезок пути важнее давнего.
+    handler.Fail = true;
+    for (var i = 0; i < 260; i++)
+    {
+        reporter.Record("install_started", result: "attempt-" + i);
+    }
+    Assert(reporter.PendingCount() == 200, "буфер ограничен и не растёт бесконечно");
+    var kept = File.ReadAllText(buffer);
+    Assert(!kept.Contains("attempt-0\"", StringComparison.Ordinal)
+        && kept.Contains("attempt-259", StringComparison.Ordinal),
+        "при переполнении выброшены старые события, свежие сохранены");
+
+    // Битый файл не должен блокировать запись новых событий.
+    File.WriteAllText(buffer, "{ это не json");
+    reporter.Record("technical_ready");
+    Assert(reporter.PendingCount() == 1,
+        "испорченный буфер не мешает писать дальше");
+
+    // И главное: телеметрия не имеет права уронить продукт.
+    var unwritable = new OnboardingReporter(
+        api, "install-0002", "0.1.0",
+        Path.Combine(root, "no-such-dir bad", "queue.json"));
+    unwritable.Record("manager_started");
+    await unwritable.FlushAsync();
+    Assert(true, "запись и отправка по неверному пути не бросают исключение");
+}
+
 static void Assert(bool condition, string label)
 {
     if (!condition)
@@ -1564,6 +1622,32 @@ sealed class MemoryVault : ICredentialVault
     public void Write(string key, string secret) => Values[key] = secret;
     public string? Read(string key) => Values.GetValueOrDefault(key);
     public bool Delete(string key) => Values.Remove(key);
+}
+
+sealed class OnboardingHandler : HttpMessageHandler
+{
+    public bool Fail { get; set; }
+    public int Received { get; private set; }
+
+    protected override async Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        if (Fail)
+        {
+            throw new HttpRequestException("backend down");
+        }
+        var body = request.Content is null
+            ? string.Empty
+            : await request.Content.ReadAsStringAsync(cancellationToken);
+        Received += System.Text.RegularExpressions.Regex.Matches(body, "\"event\"").Count;
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                "{\"status\":\"ok\",\"accepted\":1}",
+                System.Text.Encoding.UTF8, "application/json"),
+        };
+    }
 }
 
 sealed class FakeManagerHandler : HttpMessageHandler

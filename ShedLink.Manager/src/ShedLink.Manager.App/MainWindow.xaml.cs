@@ -174,6 +174,13 @@ public partial class MainWindow : Window
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
         _onboarding.Record("manager_started");
+        // 2026-08-20, по первым живым данным. Раньше «выбрал игру» писалось
+        // ТОЛЬКО при переключении в списке. У человека, которому игра уже
+        // выбрана (а это первый запуск и все последующие), ступень оставалась
+        // пустой — и воронка рисовала отвал там, где никто не отваливался, а
+        // на следующей ступени люди «воскресали». Прибор врал в мелочи, но
+        // ровно тем способом, каким приборы врут по-крупному.
+        _onboarding.Record("integration_selected", integrationId: IntegrationId);
         _ = _onboarding.FlushAsync();
         try
         {

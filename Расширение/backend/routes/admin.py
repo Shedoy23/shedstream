@@ -431,9 +431,12 @@ async def admin_onboarding_funnel(_admin: str = Depends(require_admin)):
 
     INSTALL_STEPS = [
         ("manager_started",         "Запустил Manager"),
+        # Порядок как в приложении: игра выбрана ДО поиска её папки. Раньше
+        # «выбрал игру» стояло после «игра найдена», и воронка показывала
+        # отрицательный отвал — люди «терялись» и появлялись снова.
+        ("integration_selected",    "Выбрал игру"),
         ("game_detection_started",  "Начал поиск игры"),
         ("game_detected",           "Игра найдена"),
-        ("integration_selected",    "Выбрал игру"),
         ("manager_authenticated",   "Вошёл через Twitch"),
         ("install_started",         "Начал установку"),
         ("install_completed",       "Установка завершена"),

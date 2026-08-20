@@ -463,6 +463,9 @@
             <div class="nav-item" onclick="showPage('bannerlord')">
                 <span class="icon">⚔️</span> Bannerlord
             </div>
+            <div class="nav-item" onclick="showPage('funnel')">
+                <span class="icon">🪜</span> Воронка
+            </div>
         </nav>
 
         <div class="sidebar-footer">
@@ -773,6 +776,39 @@
             </div>
         </div>
 
+        <div class="page" id="page-funnel">
+            <div class="card" style="margin-top:0;">
+                <div class="card-header">
+                    <span>🪜 Путь установки — по анонимным установкам</span>
+                    <button class="btn btn-ghost btn-sm" onclick="loadFunnel()">🔄</button>
+                </div>
+                <div class="card-body" style="padding:0;">
+                    <table class="table"><tbody id="funnel-install-tbody">
+                        <tr><td style="text-align:center;color:var(--muted);padding:20px;">Загрузка…</td></tr>
+                    </tbody></table>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><span>📡 Дальше — по каналам</span></div>
+                <div class="card-body" style="padding:0;">
+                    <table class="table"><tbody id="funnel-channel-tbody"></tbody></table>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><span>⏱ Время до технической готовности</span></div>
+                <div class="card-body" id="funnel-tttr" style="font-size:13px;color:var(--muted);"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><span>💥 На чём спотыкается установка</span></div>
+                <div class="card-body" style="padding:0;">
+                    <table class="table"><tbody id="funnel-fail-tbody"></tbody></table>
+                </div>
+            </div>
+        </div>
+
     </main>
 </div>
 
@@ -909,6 +945,67 @@ function showPage(name) {
     if (name === 'rimworld') loadRimworld();
     if (name === 'promo') loadPromos();
     if (name === 'bannerlord') loadBannerlord();
+    if (name === 'funnel') loadFunnel();
+}
+
+
+// ═══════════════════════════════════════
+// ВОРОНКА ОНБОРДИНГА
+// ═══════════════════════════════════════
+function _fmtDuration(sec) {
+    if (sec === null || sec === undefined) return '—';
+    const m = Math.floor(sec / 60), s = Math.round(sec % 60);
+    return m > 0 ? `${m} мин ${s} с` : `${s} с`;
+}
+
+async function loadFunnel() {
+    const install = document.getElementById('funnel-install-tbody');
+    install.innerHTML = '<tr><td style="padding:20px;color:var(--muted);">Загрузка…</td></tr>';
+    let d;
+    try {
+        d = await apiGet('/api/admin/onboarding-funnel');
+    } catch (e) {
+        install.innerHTML = '<tr><td style="padding:20px;color:#f87171;">Не удалось загрузить воронку</td></tr>';
+        return;
+    }
+    if (!d || !d.success) {
+        install.innerHTML = '<tr><td style="padding:20px;color:#f87171;">Воронка недоступна</td></tr>';
+        return;
+    }
+
+    const top = (d.install_steps[0] || {}).reached || 0;
+    install.innerHTML = d.install_steps.map(step => {
+        const share = top ? Math.round(step.reached / top * 100) : 0;
+        const lost = (step.lost_here === null || step.lost_here === undefined)
+            ? '' : (step.lost_here > 0
+                ? `<span style="color:#f87171;">−${step.lost_here}</span>` : '—');
+        return `<tr>
+            <td style="width:46%;">${step.title}</td>
+            <td style="width:12%;text-align:right;font-weight:700;">${step.reached}</td>
+            <td style="width:10%;text-align:right;color:var(--muted);">${share}%</td>
+            <td style="width:10%;text-align:right;">${lost}</td>
+            <td><div style="height:6px;background:var(--surface2);border-radius:999px;overflow:hidden;">
+                <div style="height:100%;width:${share}%;background:var(--accent);"></div></div></td>
+        </tr>`;
+    }).join('');
+
+    document.getElementById('funnel-channel-tbody').innerHTML =
+        d.channel_steps.map(step => `<tr>
+            <td>${step.title}</td>
+            <td style="text-align:right;font-weight:700;">${step.reached}</td>
+        </tr>`).join('');
+
+    const missing = (d.not_collectible || []).join(', ');
+    document.getElementById('funnel-tttr').innerHTML =
+        `<div style="font-size:22px;color:var(--text);font-weight:700;">${_fmtDuration(d.tttr_median_sec)}</div>
+         <div style="margin-top:4px;">медиана по ${d.tttr_samples} установк(ам). Цель M1 — меньше 10 минут.</div>
+         <div style="margin-top:10px;">Всего событий: ${d.events_total}.</div>
+         ${missing ? `<div style="margin-top:10px;color:#fbbf24;">Не собирается: ${missing} — Manager нигде не опубликован, скачивания считать неоткуда. Поэтому воронка начинается со второй ступени.</div>` : ''}`;
+
+    const fails = d.install_failures || [];
+    document.getElementById('funnel-fail-tbody').innerHTML = fails.length
+        ? fails.map(f => `<tr><td>${f.code}</td><td style="text-align:right;font-weight:700;">${f.count}</td></tr>`).join('')
+        : '<tr><td style="padding:16px;color:var(--muted);">Неуспешных установок пока не было</td></tr>';
 }
 
 // ═══════════════════════════════════════

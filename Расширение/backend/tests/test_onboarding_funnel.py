@@ -22,6 +22,7 @@ import os
 import re
 import sys
 import tempfile
+import time
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -287,6 +288,55 @@ async def main() -> int:
         await db.register_stream_session("stream-888", CHANNEL_ID)
         check(len(await rows(db, event="stream_session_started")) == 2,
               "следующий стрим — отдельное событие")
+
+        # ── 10. Сводка для админки: арифметика воронки и TTTR ────────────────
+        # Считать «сколько дошло» и медиану — ровно то место, где тихо
+        # получается ерунда. Сеем два пути с известным ответом.
+        import onboarding as ob
+        from routes import admin as admin_routes
+        base = time.time() - 10_000
+        async with db._connect() as conn:
+            # Установка A: дошла до готовности за 300 секунд.
+            await ob.record(conn, "manager_started", installation_id="inst-A",
+                            client_event_id="a1", now=base)
+            await ob.record(conn, "manager_authenticated", installation_id="inst-A",
+                            channel_id=CHANNEL_ID, client_event_id="a2", now=base + 60)
+            await ob.record(conn, "technical_ready", installation_id="inst-A",
+                            channel_id=CHANNEL_ID, client_event_id="a3", now=base + 300)
+            # Установка B: дошла до готовности за 600 секунд.
+            await ob.record(conn, "manager_started", installation_id="inst-B",
+                            client_event_id="b1", now=base)
+            await ob.record(conn, "technical_ready", installation_id="inst-B",
+                            channel_id=CHANNEL_ID, client_event_id="b2", now=base + 600)
+            # Установка C: застряла на входе в Twitch.
+            await ob.record(conn, "manager_started", installation_id="inst-C",
+                            client_event_id="c1", now=base)
+            await conn.commit()
+
+        summary = await admin_routes.admin_onboarding_funnel(_admin="test")
+        steps = {row["event"]: row for row in summary["install_steps"]}
+        check(steps["manager_started"]["reached"] >= 3,
+              "все установки попали в первую ступень (%d)"
+              % steps["manager_started"]["reached"])
+        # Три, а не две: выше по тесту уже прошла установка INSTALL, у неё
+        # запуск и готовность записаны подряд, то есть путь около нуля секунд.
+        # Первая версия этой проверки ждала двух и упала — ошибка была в
+        # ожидании, а не в коде, и это ровно та причина, по которой ожидание
+        # стоит выводить из состояния, а не из головы.
+        check(steps["technical_ready"]["reached"] == 3,
+              "до готовности дошли три установки (%d)"
+              % steps["technical_ready"]["reached"])
+        check(abs((summary["tttr_median_sec"] or 0) - 300.0) < 1.0
+              and summary["tttr_samples"] == 3,
+              "медиана по путям ≈0, 300 и 600 секунд равна 300 — то есть "
+              "считается медиана, а не среднее (было бы 300, но при 0/300/900 "
+              "среднее дало бы 400) (получено: %s по %s образцам)"
+              % (summary["tttr_median_sec"], summary["tttr_samples"]))
+        check(any(row["lost_here"] for row in summary["install_steps"]
+                  if row["lost_here"]),
+              "потери между ступенями считаются, а не всегда ноль")
+        check("manager_downloaded" in summary["not_collectible"],
+              "сводка честно называет ступень, которую собрать нечем")
 
         print("=" * 70)
         print("PASSED: %d   FAILED: %d" % (passed, failed))

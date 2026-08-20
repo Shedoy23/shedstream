@@ -411,3 +411,107 @@ async def admin_db_checkpoint(
     Использовать осторожно — RESTART/TRUNCATE могут блокировать writers.
     """
     return {"checkpoint": await get_db().wal_checkpoint(mode)}
+
+
+@router.get("/api/admin/onboarding-funnel")
+async def admin_onboarding_funnel(_admin: str = Depends(require_admin)):
+    """Воронка онбординга: где люди останавливаются и сколько занимает путь.
+
+    Отвечает на три вопроса, ради которых воронку и заводили (ROADMAP §R4-R5):
+    сколько установок дошло до каждой ступени, сколько времени занял путь до
+    технической готовности (TTTR, §5.2) и на каких кодах ошибок отваливаются.
+
+    ДВЕ ШКАЛЫ, и путать их нельзя. Шаги Manager считаются по анонимной
+    УСТАНОВКЕ: один человек, одна машина. Всё, что после — heartbeat мода,
+    первое действие зрителя, стримы — по КАНАЛУ, потому что установка к тому
+    моменту уже привязана к каналу, а событий с installation_id там нет.
+    Показывать их одной колонкой значило бы сравнивать разные вещи.
+    """
+    import onboarding
+
+    INSTALL_STEPS = [
+        ("manager_started",         "Запустил Manager"),
+        ("game_detection_started",  "Начал поиск игры"),
+        ("game_detected",           "Игра найдена"),
+        ("integration_selected",    "Выбрал игру"),
+        ("manager_authenticated",   "Вошёл через Twitch"),
+        ("install_started",         "Начал установку"),
+        ("install_completed",       "Установка завершена"),
+        ("configuration_completed", "Настройка записана"),
+        ("test_action_completed",   "Прогнал проверку"),
+        ("technical_ready",         "Технически готов"),
+    ]
+    CHANNEL_STEPS = [
+        ("mod_heartbeat_received",  "Мод вышел на связь"),
+        ("first_viewer_action",     "Первое действие зрителя"),
+        ("stream_session_started",  "Стрим с ShedLink"),
+    ]
+
+    db = get_db()
+    async with db._connect() as conn:
+        async def distinct(event, column):
+            cur = await conn.execute(
+                "SELECT COUNT(DISTINCT %s) FROM onboarding_events "
+                "WHERE event=? AND %s IS NOT NULL" % (column, column), (event,))
+            return (await cur.fetchone())[0]
+
+        install_rows, previous = [], None
+        for event, title in INSTALL_STEPS:
+            reached = await distinct(event, "installation_id")
+            lost = None if previous is None else max(0, previous - reached)
+            install_rows.append({
+                "event": event, "title": title,
+                "reached": reached, "lost_here": lost,
+            })
+            previous = reached
+
+        channel_rows = []
+        for event, title in CHANNEL_STEPS:
+            channel_rows.append({
+                "event": event, "title": title,
+                "reached": await distinct(event, "channel_id"),
+            })
+
+        # TTTR: от запуска Manager до технической готовности, по установкам, у
+        # которых есть обе отметки. Медиана, а не среднее: один человек,
+        # ушедший пить чай на два часа, не должен красить картину.
+        cur = await conn.execute(
+            "SELECT r.installation_id, MIN(r.created_at) - MIN(s.created_at) "
+            "FROM onboarding_events r "
+            "JOIN onboarding_events s ON s.installation_id = r.installation_id "
+            "                        AND s.event = 'manager_started' "
+            "WHERE r.event = 'technical_ready' AND r.installation_id IS NOT NULL "
+            "GROUP BY r.installation_id")
+        durations = sorted(float(row[1]) for row in await cur.fetchall()
+                           if row[1] is not None and float(row[1]) >= 0)
+        tttr_median = None
+        if durations:
+            middle = len(durations) // 2
+            tttr_median = (durations[middle] if len(durations) % 2
+                           else (durations[middle - 1] + durations[middle]) / 2)
+
+        # На чём спотыкаются: коды неуспешных установок.
+        cur = await conn.execute(
+            "SELECT result, COUNT(*) FROM onboarding_events "
+            "WHERE event='install_completed' AND result IS NOT NULL AND result <> 'ok' "
+            "GROUP BY result ORDER BY COUNT(*) DESC LIMIT 10")
+        failures = [{"code": r[0], "count": r[1]} for r in await cur.fetchall()]
+
+        cur = await conn.execute(
+            "SELECT COUNT(*), MIN(created_at), MAX(created_at) FROM onboarding_events")
+        total, first_at, last_at = await cur.fetchone()
+
+    return {
+        "success": True,
+        "events_total": total,
+        "first_event_at": first_at,
+        "last_event_at": last_at,
+        "install_steps": install_rows,
+        "channel_steps": channel_rows,
+        "tttr_median_sec": tttr_median,
+        "tttr_samples": len(durations),
+        "install_failures": failures,
+        # Честно про дыру: первую ступень собрать нечем, пока Manager не
+        # опубликован по постоянному адресу.
+        "not_collectible": sorted(onboarding.NOT_YET_COLLECTIBLE),
+    }

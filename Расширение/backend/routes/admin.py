@@ -485,13 +485,39 @@ async def admin_onboarding_funnel(_admin: str = Depends(require_admin)):
             "                        AND s.event = 'manager_started' "
             "WHERE r.event = 'technical_ready' AND r.installation_id IS NOT NULL "
             "GROUP BY r.installation_id")
-        durations = sorted(float(row[1]) for row in await cur.fetchall()
-                           if row[1] is not None and float(row[1]) >= 0)
-        tttr_median = None
-        if durations:
-            middle = len(durations) // 2
-            tttr_median = (durations[middle] if len(durations) % 2
-                           else (durations[middle - 1] + durations[middle]) / 2)
+        def _median(values):
+            values = sorted(values)
+            if not values:
+                return None
+            middle = len(values) // 2
+            return (values[middle] if len(values) % 2
+                    else (values[middle - 1] + values[middle]) / 2)
+
+        durations = [float(row[1]) for row in await cur.fetchall()
+                     if row[1] is not None and float(row[1]) >= 0]
+        tttr_median = _median(durations)
+
+        # 2026-08-20, по первому живому прогону. TTTR по определению ROADMAP
+        # §5.2 идёт до успешного тест-действия, а значит ВКЛЮЧАЕТ загрузку
+        # игры и паузу, пока человек дойдёт до кнопки. У владельца из 8 мин
+        # 52 с на сам Manager ушло 14 секунд, остальное — Bannerlord грузился
+        # и ждал нажатия. Ворота M1 «меньше 10 минут» в таком виде меряют
+        # скорее игру и терпение, чем продукт.
+        #
+        # Поэтому рядом считаем то, чем продукт УПРАВЛЯЕТ: от запуска Manager
+        # до записанной конфигурации. Обе цифры вместе отвечают на разные
+        # вопросы, и подменять одну другой нельзя.
+        cur = await conn.execute(
+            "SELECT c.installation_id, MIN(c.created_at) - MIN(s.created_at) "
+            "FROM onboarding_events c "
+            "JOIN onboarding_events s ON s.installation_id = c.installation_id "
+            "                        AND s.event = 'manager_started' "
+            "WHERE c.event = 'configuration_completed' "
+            "  AND c.installation_id IS NOT NULL "
+            "GROUP BY c.installation_id")
+        manager_work = [float(row[1]) for row in await cur.fetchall()
+                        if row[1] is not None and float(row[1]) >= 0]
+        manager_work_median = _median(manager_work)
 
         # На чём спотыкаются: коды неуспешных установок.
         cur = await conn.execute(
@@ -521,6 +547,8 @@ async def admin_onboarding_funnel(_admin: str = Depends(require_admin)):
         "channel_steps": channel_rows,
         "tttr_median_sec": tttr_median,
         "tttr_samples": len(durations),
+        "manager_work_median_sec": manager_work_median,
+        "manager_work_samples": len(manager_work),
         "install_failures": failures,
         "downloads_total": downloads,
         # Разрыв между «скачали» и «запустили» — первая точка отвала, и там

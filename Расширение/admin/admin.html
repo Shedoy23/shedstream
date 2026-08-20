@@ -997,8 +997,17 @@ async function loadFunnel() {
 
     const gap = d.downloads_vs_starts;
     document.getElementById('funnel-tttr').innerHTML =
-        `<div style="font-size:22px;color:var(--text);font-weight:700;">${_fmtDuration(d.tttr_median_sec)}</div>
-         <div style="margin-top:4px;">медиана по ${d.tttr_samples} установк(ам). Цель M1 — меньше 10 минут.</div>
+        `<div style="display:flex;gap:28px;flex-wrap:wrap;">
+           <div>
+             <div style="font-size:22px;color:var(--text);font-weight:700;">${_fmtDuration(d.manager_work_median_sec)}</div>
+             <div style="margin-top:2px;">работа самого Manager<br><span style="font-size:11px;">запуск → конфиг записан, по ${d.manager_work_samples} установк(ам)</span></div>
+           </div>
+           <div>
+             <div style="font-size:22px;color:var(--text);font-weight:700;">${_fmtDuration(d.tttr_median_sec)}</div>
+             <div style="margin-top:2px;">TTTR до готовности<br><span style="font-size:11px;">включает загрузку игры и паузу до нажатия · цель M1 &lt; 10 мин · по ${d.tttr_samples}</span></div>
+           </div>
+         </div>
+         <div style="margin-top:10px;font-size:12px;">Разница между цифрами — это игра и человек, а не продукт. Ворота M1 меряют обе вместе.</div>
          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--surface2);">
            Скачиваний: <b style="color:var(--text);">${d.downloads_total ?? 0}</b>
            ${(gap !== null && gap !== undefined && gap > 0)

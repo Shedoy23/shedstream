@@ -454,32 +454,33 @@ async def streamer_setup_status(request: Request):
         return {"success": False, "status": "channel_not_found"}
     active_module = (ch.get("active_module") or "").strip()
 
-    # Мод на связи сейчас. Держится в памяти процесса, поэтому сразу после
-    # перезапуска бэкенда он пуст — это НЕ поломка у стримера, и путать эти
-    # два состояния нельзя, иначе человек полезет чинить исправное.
-    online, last_seen_age = False, None
-    if active_module:
-        try:
-            mod = __import__("modules.%s._adapter" % active_module,
-                             fromlist=["get_last_seen"])
-            ts = mod.get_last_seen(channel_id)
-            if ts:
-                last_seen_age = int(time.time() - ts)
-                online = last_seen_age < 60
-        except Exception:
-            pass   # у модуля может не быть такого сигнала — не повод падать
-
-    # Подключался ли мод КОГДА-ЛИБО: это переживает перезапуск, в отличие от
-    # сигнала выше. Отличает «ещё ни разу не настроил» от «сейчас не запущен».
-    ever = 0
+    # 2026-08-20. Обе строки ниже раньше врали, и по-разному.
+    #
+    # «На связи сейчас» бралось из памяти процесса модуля. После КАЖДОГО
+    # перезапуска бэкенда там пусто, и дашборд говорил «мод молчит» исправно
+    # работающему стримеру. Таблица `module_last_seen` (M109) заведена ровно
+    # для этого и переживает перезапуск — она и есть источник.
+    #
+    # «Хоть раз выходил на связь» считалось по числу героев Bannerlord —
+    # независимо от того, какая игра выбрана. У стримера на RimWorld галочка
+    # стояла потому, что когда-то играли в Bannerlord. Один и тот же вопрос
+    # для трёх игр должен отвечаться одинаково: есть ли отметка о связи
+    # ИМЕННО этого модуля.
+    online, last_seen_age, ever = False, None, 0
     async with db._connect() as conn:
-        try:
-            cur = await conn.execute(
-                "SELECT COUNT(*) FROM bannerlord_heroes WHERE channel_id=?",
-                (channel_id,))
-            ever = (await cur.fetchone())[0]
-        except Exception:
-            pass
+        if active_module:
+            try:
+                cur = await conn.execute(
+                    "SELECT last_seen_ts FROM module_last_seen "
+                    "WHERE channel_id=? AND module_id=?",
+                    (channel_id, active_module))
+                row = await cur.fetchone()
+                if row and row[0]:
+                    ever = 1
+                    last_seen_age = int(time.time() - float(row[0]))
+                    online = last_seen_age < 60
+            except Exception:
+                pass   # таблицы может не быть на очень старой базе
         cur = await conn.execute(
             "SELECT COUNT(*) FROM viewers WHERE channel_id=?", (channel_id,))
         viewers_total = (await cur.fetchone())[0]

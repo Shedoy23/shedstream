@@ -32,6 +32,7 @@
 param(
     [switch]$Backend,
     [switch]$Frontend,
+    [switch]$Admin,
     [switch]$Mod,
     [switch]$All,
     [switch]$Staging,    # ROADMAP 1.3: deploy to the on-demand staging app (:8001), NOT prod
@@ -65,8 +66,8 @@ $ModSrc = Join-Path $RepoRoot 'BannerlordLink\src\BannerlordLink.csproj'
 
 # Default: backend + frontend if nothing specified. -Staging is its own path
 # (deploys to the staging app, never prod) so it must NOT trigger the prod default.
-if (-not ($Backend -or $Frontend -or $Mod -or $All -or $Staging)) { $Backend = $true; $Frontend = $true }
-if ($All) { $Backend = $true; $Frontend = $true; $Mod = $true }
+if (-not ($Backend -or $Frontend -or $Admin -or $Mod -or $All -or $Staging)) { $Backend = $true; $Frontend = $true; $Admin = $true }
+if ($All) { $Backend = $true; $Frontend = $true; $Admin = $true; $Mod = $true }
 
 # -- Deploy freeze (owner request 2026-07-26) ------------------------------
 # The Twitch review is a live, scheduled slot: the reviewer opens the channel at
@@ -245,8 +246,12 @@ if ($Backend)  { $paths += 'backend' }
 if ($Frontend) { $paths += 'frontend' }
 # Admin panel (static, served by backend from ../admin/admin.html). Раньше не
 # деплоился ни backend-, ни frontend-таром → правки админки уезжали только ручным
-# scp. Цепляем к -Frontend (общий случай deploy.ps1 = backend+frontend).
-if ($Frontend) { $paths += 'admin' }
+# scp. Теперь у неё свой флаг -Admin, и она входит в набор по умолчанию.
+# 2026-08-20: админка больше НЕ едет вместе с фронтом расширения. Она не
+# входит в ZIP, поданный в Twitch, и ревью её не касается — а связка означала,
+# что заморозка фронта на время ревью морозила и наблюдательную панель, которой
+# как раз в это время и пользуешься. Свой флаг: -Admin.
+if ($Admin) { $paths += 'admin' }
 
 if ($paths.Count -gt 0) {
     $tar = Join-Path $env:TEMP 'shedstream_deploy.tar'

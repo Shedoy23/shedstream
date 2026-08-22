@@ -1463,6 +1463,21 @@ static void TestLauncherAgnosticDetection(string root)
             $"(получено: {realVersion?.CompatibilityVersion ?? "ничего"})");
     }
 
+    // Обратная проверка для стенда матрицы R3: папка, которая ДОЛЖНА быть
+    // отвергнута. Без неё стенд проверяется только наполовину — видно, что
+    // годная папка принимается, и не видно, что негодная отбрасывается.
+    var rejectRoot = Environment.GetEnvironmentVariable("SHEDLINK_SELFTEST_REJECT_ROOT");
+    if (!string.IsNullOrWhiteSpace(rejectRoot))
+    {
+        var stillValid = service.IsValidGameRoot(rejectRoot);
+        var version = stillValid ? service.DetectVersion(rejectRoot) : null;
+        var supported = version is not null &&
+            GameVersionDetector.Compatibility(version, game.SupportedVersions) == "supported";
+        Assert(!supported,
+            $"НАСТОЯЩАЯ папка отвергнута как несовместимая: {rejectRoot} " +
+            $"(валидна={stillValid}, версия={version?.CompatibilityVersion ?? "нет"})");
+    }
+
     // Пустой инстанс без MineColonies: папка валидна (mods есть), но версии нет —
     // дальше сработает prerequisite со ссылкой на CurseForge, а не тихий отказ.
     var noMineColonies = Path.Combine(root, "launchers", "empty-instance");

@@ -197,6 +197,38 @@ rm -f /tmp/rc.db
 
 ---
 
+### Ключ подписи релизов — резерв (2026-08-22)
+
+Приватный ключ `shedlink-release-2026` подписывает манифесты установки. Если он
+пропадёт, **старые релизы останутся валидными, но новый подписать будет нечем**:
+уже установленные Manager'ы перестанут принимать обновления, и лечится это
+только выпуском нового ключа и новой сборки для всех.
+
+До 22.08 копия была ровно одна — `%LOCALAPPDATA%\ShedLinkelease-keys\`, на
+системном NVMe. Это опасно вдвойне: та же папка хранит состояние Manager, и
+любая чистка «снесём ShedLink» уносит ключ вместе с мусором.
+
+| Где | Диск | Что там |
+|---|---|---|
+| `%LOCALAPPDATA%\ShedLinkelease-keys\` | disk 1, NVMe (C:) | рабочая копия |
+| `D:\shedlink-release-keys\` | **disk 0, отдельный HDD** | резерв, доступ только у владельца |
+
+**Как убедиться, что резерв рабочий** (не «файл лежит», а «им можно подписать»):
+из копии выводится публичный ключ, его отпечаток обязан совпасть с зашитым в
+Manager `17e6043cca11dcb9f4230d5a91325e9d5d52ba9a29bb4cc4a6ffb51618001541`.
+
+```bash
+python -c "
+from cryptography.hazmat.primitives import serialization; import hashlib
+k = serialization.load_pem_private_key(open('D:/shedlink-release-keys/shedlink-release-2026.private.pem','rb').read(), password=None)
+pub = k.public_key().public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
+print(hashlib.sha256(pub).hexdigest())"
+```
+
+**Чего этот резерв НЕ закрывает:** обе копии в одной квартире. Настоящий офсайт
+(флешка в другом месте либо менеджер паролей) — ручной шаг владельца, машина его
+сделать не может. Ключ в git не кладём никогда.
+
 ## 4. Деплой
 
 ```powershell

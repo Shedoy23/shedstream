@@ -454,7 +454,8 @@ async def _on_channel_points(event: dict, channel_id: int) -> None:
         bot = get_bot()
         await bot.send_message(
             f"💜 @{username} обменял баллы канала на {diamonds}💎! "
-            f"Спасибо за поддержку! monkaHmm"
+            f"Спасибо за поддержку! monkaHmm",
+            channel_id=channel_id,
         )
     except Exception as e:
         logger.warning("channel_points chat-notify failed: %s", e)

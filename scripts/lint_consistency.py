@@ -1101,6 +1101,99 @@ def check_frontend_price_literal_growth():
                 f"иначе храповик перестанет держать достигнутое")
 
 
+
+def check_chat_channel_scoping():
+    """Функция знает channel_id — обязана передать его при отправке в чат.
+
+    Почему это важнее, чем выглядит. Если канал не указан, BotCore берёт его из
+    ContextVar запроса, а когда контекста нет (фоновая задача, стартовый job) —
+    из «канала по умолчанию», то есть ПЕРВОГО в реестре. С одним стримером это
+    невидимо. Со вторым его объявление уходит в чужой чат, а свой молчит.
+
+    Ровно так и было найдено 2026-08-22: `routes/duel.py:check_season_end`
+    закрывал сезон из стартовой задачи и слал «сезон завершён» без канала,
+    хотя соседние мини-игры (dice, tictactoe) канал передают. Проверка ловит
+    именно этот признак — «функция знает канал, но не воспользовалась им».
+    """
+    import ast
+
+    backend = EXT / "backend"
+    offenders = []
+    for path in backend.rglob("*.py"):
+        rel = path.relative_to(ROOT).as_posix()
+        if "/tests/" in rel or "/migrations/" in rel:
+            continue
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8", errors="replace"))
+        except SyntaxError:
+            continue
+        for fn in ast.walk(tree):
+            if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            params = {a.arg for a in fn.args.args + fn.args.kwonlyargs}
+            if "channel_id" not in params:
+                continue
+            for node in ast.walk(fn):
+                if not isinstance(node, ast.Call):
+                    continue
+                f = node.func
+                name = f.attr if isinstance(f, ast.Attribute) else getattr(f, "id", "")
+                if name not in ("send_message", "send_announcement"):
+                    continue
+                kw = {k.arg for k in node.keywords}
+                if "channel_id" in kw or "channel_login" in kw:
+                    continue
+                if name == "send_announcement" and node.args:
+                    continue          # send_announcement(cid, text) — канал позиционно
+                offenders.append(f"{rel}:{node.lineno} внутри {fn.name}()")
+
+    for o in offenders:
+        errors.append(
+            "chat-scoping: отправка в чат без channel_id, хотя функция его знает "
+            f"({o}). Без канала сообщение уйдёт в чат первого стримера в реестре."
+        )
+
+
+
+def check_auto_messages_neutral():
+    """Общие автосообщения не должны содержать ничего про конкретный канал.
+
+    `AUTO_MESSAGES` уходит в чат КАЖДОГО канала реестра. До 2026-08-22 в нём
+    жили DonationAlerts, Boosty и Telegram владельца — второму стримеру бот
+    рекламировал бы чужие донаты в его собственном чате. Это тот же класс, что
+    захардкоженные цены во фронте: данные одного арендатора в общем месте.
+
+    Признак, который ловим: ссылка в общем сообщении. Личное живёт в таблице
+    `channel_auto_messages` (m114) и подмешивается per-channel.
+    """
+    import ast
+
+    cfg = EXT / "backend" / "config.py"
+    tree = ast.parse(cfg.read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        names = [t.id for t in node.targets if isinstance(t, ast.Name)]
+        if "AUTO_MESSAGES" not in names:
+            continue
+        if not isinstance(node.value, ast.List):
+            continue
+        for item in node.value.elts:
+            if not isinstance(item, ast.Constant) or not isinstance(item.value, str):
+                continue
+            text = item.value
+            marker = next(
+                (m for m in ("http://", "https://", "t.me/", "www.") if m in text),
+                None,
+            )
+            if marker:
+                errors.append(
+                    "auto-messages: общее автосообщение содержит ссылку "
+                    f"({marker!r}, строка {item.lineno}). Оно уйдёт в чат КАЖДОГО "
+                    "стримера — личные ссылки держать в channel_auto_messages."
+                )
+
+
 def main() -> int:
     if EXT is None:
         print("[lint] FAIL: could not locate extension dir (with backend/)")
@@ -1116,7 +1209,9 @@ def main() -> int:
                check_season_rotation_sweeps_all,
                check_currency_boundary,
                check_frontend_price_literals,
-               check_declared_gold_is_charged):
+               check_declared_gold_is_charged,
+               check_chat_channel_scoping,
+               check_auto_messages_neutral):
         try:
             fn()
         except Exception as e:  # a broken check shouldn't crash CI silently

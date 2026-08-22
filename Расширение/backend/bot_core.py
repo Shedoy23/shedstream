@@ -1416,8 +1416,15 @@ class BotCore:
                 try:
                     if not await self._is_stream_live(channel_id=cid, login=login):
                         continue
+                    # Нейтральные сообщения (одинаковы для всех) + личные
+                    # сообщения ИМЕННО этого канала. До m114 личные ссылки
+                    # владельца лежали в общем списке и ушли бы в чат чужого
+                    # стримера — см. комментарий у AUTO_MESSAGES.
+                    messages = list(AUTO_MESSAGES) + await self._channel_auto_messages(cid)
+                    if not messages:
+                        continue
                     idx = index_per_channel.get(cid, 0)
-                    msg = AUTO_MESSAGES[idx % len(AUTO_MESSAGES)]
+                    msg = messages[idx % len(messages)]
                     # 2026-06-06 — /announcepurple ... → Helix announce (фиолетовый).
                     # IRC /announce у Twitch deprecated (молча дропается), поэтому
                     # шлём через POST /chat/announcements. Обычные сообщения — как раньше.
@@ -1430,6 +1437,27 @@ class BotCore:
                     index_per_channel[cid] = idx + 1
                 except Exception as e:
                     print(f"⚠️ auto_message_loop [ch={cid}]: {e}")
+
+    async def _channel_auto_messages(self, channel_id: int) -> list:
+        """Личные автосообщения конкретного канала (ссылки, соцсети, награды).
+
+        Пустой список — норма: у нового стримера персональных сообщений нет,
+        он видит только нейтральные. Ошибку чтения трактуем как «личных нет»:
+        лучше показать меньше, чем уронить рассылку всем каналам.
+        """
+        try:
+            async with self.db._connect() as conn:
+                cur = await conn.execute(
+                    "SELECT text FROM channel_auto_messages "
+                    "WHERE channel_id = ? AND enabled = 1 ORDER BY position",
+                    (channel_id,),
+                )
+                return [r[0] for r in await cur.fetchall()]
+        except Exception as e:
+            logger.warning(
+                "channel_auto_messages ch=%s недоступны: %s", channel_id, e
+            )
+            return []
 
     async def shutdown(self):
         """Остановка бота"""

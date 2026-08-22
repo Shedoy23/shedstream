@@ -262,15 +262,23 @@ async def check_season_end(channel_id: int = None, game_type: str = 'rps'):
             # завершён» — зритель не понимал, о каком сезоне речь. Соседние
             # мини-игры (dice.py, tictactoe.py) игру называют, эта — нет.
             game_label = _GAME_LABELS.get(game_type, game_type)
+            # channel_id ОБЯЗАТЕЛЕН: сезоны закрывает и фоновая задача на старте
+            # (main.py:_check_all_channel_seasons), а там контекста канала нет —
+            # без явного канала объявление ушло бы в «канал по умолчанию», то
+            # есть в чат ПЕРВОГО стримера в реестре. Соседние мини-игры
+            # (dice.py, tictactoe.py) канал передают; эта — единственная, кто
+            # забыл. Найдено 2026-08-22.
             if prize_parts:
                 await bot.send_message(
                     f"🏆 Мини-игры: сезон «{game_label}» #{season_id} завершён! "
-                    f"Призы: {' | '.join(prize_parts)}"
+                    f"Призы: {' | '.join(prize_parts)}",
+                    channel_id=cid,
                 )
             else:
                 await bot.send_message(
                     f"🏆 Мини-игры: сезон «{game_label}» #{season_id} завершён! "
-                    f"Новый сезон начался."
+                    f"Новый сезон начался.",
+                    channel_id=cid,
                 )
         except Exception:
             pass

@@ -1433,6 +1433,9 @@ async def run_migrations():
         try:
             from migrations import m113_onboarding_events
             await m113_onboarding_events.apply(conn)
+
+            from migrations import m114_channel_auto_messages
+            await m114_channel_auto_messages.apply(conn)
         except Exception as e:
             print(f"❌ M113 migration FAILED: {type(e).__name__}: {e}")
             raise

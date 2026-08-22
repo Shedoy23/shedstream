@@ -92,6 +92,25 @@ if ($tokState -match 'TOKEN=live') {
     Check "channel token alive (channel points work)" $false ($tokState + "  -> re-auth: open https://shedoy23.ru/api/streamer/auth/start as the broadcaster, THEN restart twitchbot (subscriptions register at startup only)")
 }
 
+# 4b. Is Twitch still delivering follow events?
+#
+# 2026-08-05 Twitch quietly stopped sending channel.follow while still sending
+# everything else. The subscription kept reporting "enabled", nothing errored,
+# and the gap was found 17 days later only because the owner asked. A liveness
+# probe cannot catch that -- only comparing fact against expectation can.
+# Exit codes: 0 in sync (or nothing to compare), 1 mismatch, 2 could not check.
+$esOut = ssh $ProdHost "cd /root/twitch-extension && /root/twitch-extension/venv/bin/python scripts/check-eventsub-delivery.py --db backend/viewers.db 2>&1; echo EXIT=`$?" 2>$null
+$esText = (($esOut | Where-Object { $_ -notmatch '^EXIT=' }) -join ' ').Trim()
+$esCode = ([string]($esOut | Where-Object { $_ -match '^EXIT=' })) -replace 'EXIT=',''
+if ($esCode -eq '0') {
+    Check "twitch follow events delivered" $true $esText
+} elseif ($esCode -eq '2') {
+    # Unknown is not success: say so, but do not fail preflight on it.
+    Write-Host ("[????] twitch follow events delivered  " + $esText)
+} else {
+    Check "twitch follow events delivered" $false ($esText + "  -> see DEFERRED.md")
+}
+
 # 5. Last stream-status line (informational, human-readable; no auto-verdict)
 $streamLine = ssh $ProdHost "grep -a 'rimlink.bot' /var/log/twitchbot.out.log 2>/dev/null | grep -a 'ch=' | tail -1" 2>$null
 Write-Host ""

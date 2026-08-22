@@ -256,6 +256,16 @@ async def _process_eventsub_request(request: Request):
         )
         return JSONResponse({"status": "duplicate"})
 
+    # 7-бис. Одна строка на КАЖДОЕ принятое уведомление.
+    #
+    # Зачем: часть обработчиков молчит по делу (chat.notification без
+    # watch_streak, приветствие при выключенной настройке), и такое событие
+    # раньше не оставляло следа вообще. Из-за этого пропажу channel.follow
+    # (5→20 августа) пришлось искать по логам nginx, а eventsub_seen живёт
+    # сутки и как журнал не годится. Теперь «пришло ли оно вообще» видно
+    # прямо здесь.
+    logger.info("eventsub: принято type=%s ch=%s", event_type, channel_id)
+
     # 8. Dispatch
     fn = _handlers.get(event_type)
     if fn is None:

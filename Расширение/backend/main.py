@@ -1999,6 +1999,13 @@ async def on_startup():
     # TTL cleanup для eventsub_seen — раз в час чистит expired (24h retention).
     from eventsub import cleanup_seen_loop as _eventsub_cleanup
     asyncio.create_task(_eventsub_cleanup())
+    # Раз в сутки сверяем: столько ли фолловов Twitch прислал, сколько их было.
+    # 2026-08-05 он тихо перестал слать channel.follow при живой подписке —
+    # проверка «сервис жив» такое не ловит, ловит только сверка с фактом.
+    # На staging НЕ запускаем: он ходил бы в Helix живым токеном стримера.
+    if not _staging:
+        from eventsub import follow_delivery_watch_loop as _follow_watch
+        asyncio.create_task(_follow_watch())
     # Phase C (2026-05-17): PubSub drain loop — pop'ит per-topic queue с
     # throttle 1msg/sec на (channel, topic) и шлёт в Helix /extensions/pubsub.
     from pubsub import drain_loop as _pubsub_drain

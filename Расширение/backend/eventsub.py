@@ -37,6 +37,7 @@ import hashlib
 import hmac as _hmac
 import json
 import logging
+import os
 import time as _time
 from collections import deque
 from datetime import datetime
@@ -308,6 +309,41 @@ async def eventsub_channel_points_alias(request: Request):
 
 # ─── Handler implementations ─────────────────────────────────────────────────
 
+async def _on_tester_request(
+    channel_id: int, username: str, reward_title: str, redemption_id: str,
+) -> None:
+    """Зритель купил за баллы заявку в тестеры расширения.
+
+    Записываем в тот же журнал наград (0 крустиков — это не обмен, это заявка),
+    дедуп по redemption_id. Пишем в чат ДВА адресата в одной строке: зрителю —
+    что заявка принята и доступ не мгновенный, стримеру — ник, который надо
+    добавить в консоли. Без этого заявка живёт только в логе, которого владелец
+    не читает.
+    """
+    db = get_db()
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "INSERT OR IGNORE INTO channel_points_log "
+            "(channel_id, username, twitch_redemption_id, reward_title, "
+            "channel_points_spent, diamonds_given) VALUES (?,?,?,?,?,?)",
+            (channel_id, username, redemption_id, reward_title, 0, 0),
+        )
+        if cur.rowcount == 0:
+            return          # повторная доставка того же вебхука
+        await conn.commit()
+
+    logger.info(
+        "🧪 tester-request ch=%s @%s ('%s') — нужен ручной доступ в консоли",
+        channel_id, username, reward_title,
+    )
+    await _send_greet(
+        channel_id,
+        f"🧪 @{username}, заявка в тестеры принята! Доступ выдаётся вручную — "
+        f"стример добавит тебя в настройках расширения, это не мгновенно. "
+        f"Стример, ник для списка тестеров: {username}",
+    )
+
+
 @handler("channel.channel_points_custom_reward_redemption.add")
 async def _on_channel_points(event: dict, channel_id: int) -> None:
     """Channel point redemption → начисление крустиков.
@@ -330,6 +366,15 @@ async def _on_channel_points(event: dict, channel_id: int) -> None:
 
     reward_title = event.get("reward", {}).get("title", "")
     redemption_id = event.get("id", "")
+
+    # Заявка «хочу в тестеры расширения». Крустиков не даёт: доступ выдаёт
+    # владелец руками в консоли Twitch, публичного API для этого нет. Наша
+    # задача — не потерять заявку и ответить зрителю, иначе он платит баллы
+    # в пустоту (так и вышло 20.08 с @zerohomes).
+    if reward_title in CHANNEL_POINTS_CONFIG.get("tester_request_titles", ()):
+        await _on_tester_request(channel_id, username, reward_title,
+                                 event.get("id", ""))
+        return
 
     rewards_cfg = CHANNEL_POINTS_CONFIG.get("rewards", {})
     reward_cfg = rewards_cfg.get(reward_title)
@@ -687,6 +732,73 @@ async def _on_channel_follow(event: dict, channel_id: int) -> None:
     logger.info("👋 follow-greet ch=%s @%s", channel_id, username)
 
 
+@handler("channel.raid")
+async def _on_channel_raid(event: dict, channel_id: int) -> None:
+    """Входящий рейд → приветствие рейдерам в чате.
+
+    Условие подписки — `to_broadcaster_user_id` (мы цель рейда), его и
+    резолвит общий разбор выше. Scope не требуется: рейды публичны.
+    """
+    raw_user = (
+        event.get("from_broadcaster_user_login")
+        or event.get("from_broadcaster_user_name") or ""
+    ).lower()
+    username = sanitize_username(raw_user)
+    if not username or not validate_username(username):
+        logger.warning("channel.raid: bad raider '%s' ch=%s", raw_user, channel_id)
+        return
+    try:
+        viewers = int(event.get("viewers") or 0)
+    except (TypeError, ValueError):
+        viewers = 0
+
+    # Рейд редок, лимитом не защищаем — но текст без числа, если оно нулевое:
+    # «рейд на 0 зрителей» выглядит как поломка, хотя это просто пустое поле.
+    if viewers > 0:
+        text = f"🚀 Рейд от @{username} — {viewers} чел. на борту! Добро пожаловать!"
+    else:
+        text = f"🚀 Рейд от @{username}! Добро пожаловать!"
+    await _send_greet(channel_id, text)
+    logger.info("🚀 raid-greet ch=%s от @%s (%d зрителей)", channel_id, username, viewers)
+
+
+@handler("channel.cheer")
+async def _on_channel_cheer(event: dict, channel_id: int) -> None:
+    """Биты → благодарность в чате. ТОЛЬКО ТЕКСТ, никакой игровой выгоды.
+
+    Дать за биты крустики/динары/предметы нельзя: это продажа игрового
+    преимущества мимо платёжной системы Twitch — тот же класс нарушения, из-за
+    которого в мае вырезали казино. Здесь только «спасибо».
+
+    Анонимный чир приходит с is_anonymous=true и БЕЗ ника — благодарим
+    безымянно, а не роняем обработчик на пустом поле.
+    """
+    try:
+        bits = int(event.get("bits") or 0)
+    except (TypeError, ValueError):
+        bits = 0
+    if bits <= 0:
+        return
+
+    if not _follow_greet_allowed(channel_id):
+        logger.info("💜 cheer-greet ch=%s SKIPPED (rate-limit)", channel_id)
+        return
+
+    if event.get("is_anonymous"):
+        await _send_greet(channel_id, f"💎 Спасибо за {bits} бит(ов), аноним!")
+        logger.info("💎 cheer-greet ch=%s аноним %d бит", channel_id, bits)
+        return
+
+    raw_user = (event.get("user_login") or event.get("user_name") or "").lower()
+    username = sanitize_username(raw_user)
+    if not username or not validate_username(username):
+        await _send_greet(channel_id, f"💎 Спасибо за {bits} бит(ов)!")
+        logger.warning("channel.cheer: bad user '%s' ch=%s", raw_user, channel_id)
+        return
+    await _send_greet(channel_id, f"💎 @{username}, спасибо за {bits} бит(ов)!")
+    logger.info("💎 cheer-greet ch=%s @%s %d бит", channel_id, username, bits)
+
+
 @handler("channel.chat.notification")
 async def _on_chat_notification(event: dict, channel_id: int) -> None:
     """Чат-уведомления Twitch → ловим ТОЛЬКО watch_streak (серии просмотров).
@@ -769,6 +881,109 @@ async def cleanup_seen_loop():
             )
 
 
+async def _followers_gained_24h(channel_id: int) -> Optional[int]:
+    """Сколько человек зафолловили канал за сутки ПО ДАННЫМ TWITCH.
+
+    None — «узнать не удалось». Неизвестность НЕ приравниваем к нулю: иначе
+    сломанный токен выглядел бы как «всё сходится», а это ровно тот способ
+    обмануть себя, из-за которого пропажу фолловов не замечали 17 дней.
+    """
+    import aiohttp as _aiohttp
+
+    try:
+        row = await get_db().get_channel(channel_id)
+        token = (row or {}).get("oauth_access_token") or ""
+    except Exception as e:
+        logger.warning("follow-watch: токен канала %s недоступен: %s", channel_id, e)
+        return None
+    if not token:
+        return None
+
+    client_id = os.getenv("TWITCH_CLIENT_ID", "")
+    url = "https://api.twitch.tv/helix/channels/followers"
+    try:
+        async with _aiohttp.ClientSession() as s:
+            async with s.get(
+                url,
+                params={"broadcaster_id": str(channel_id), "first": "100"},
+                headers={"Client-Id": client_id, "Authorization": "Bearer " + token},
+                timeout=_aiohttp.ClientTimeout(total=20),
+            ) as r:
+                if r.status != 200:
+                    logger.warning("follow-watch: Helix ответил %s", r.status)
+                    return None
+                data = await r.json()
+    except Exception as e:
+        logger.warning("follow-watch: Helix недоступен: %s: %s", type(e).__name__, e)
+        return None
+
+    cutoff = _time.time() - DEDUPE_TTL_SEC
+    gained = 0
+    for item in data.get("data", []):
+        stamp = (item.get("followed_at") or "").replace("Z", "+00:00")
+        try:
+            if datetime.fromisoformat(stamp).timestamp() >= cutoff:
+                gained += 1
+        except (ValueError, TypeError):
+            continue
+    return gained
+
+
+async def follow_delivery_watch_loop():
+    """Раз в сутки: столько ли фолловов нам прислали, сколько их было на самом деле.
+
+    Зачем отдельный сторож. 2026-08-05 Twitch тихо перестал слать
+    `channel.follow`, продолжая слать всё остальное: подписка числилась
+    `enabled`, ошибок не было, ничего не упало. Проверка «сервис жив» такое
+    не ловит в принципе — ловит только сверка ФАКТА (сколько людей
+    зафолловило по данным Twitch) с ОЖИДАНИЕМ (сколько событий мы приняли).
+
+    Окно ровно сутки, потому что считаем по `eventsub_seen`, а её чистит
+    TTL — на большем окне сравнение врало бы в сторону «всё пропало».
+
+    Отчитывается в чат канала: это единственное место, куда владелец смотрит
+    каждый день (его решение 2026-08-22). Не чаще раза в сутки на канал.
+    """
+    while True:
+        try:
+            await asyncio.sleep(DEDUPE_TTL_SEC)
+            try:
+                channels = await get_db().list_channels()
+            except Exception as e:
+                logger.warning("follow-watch: список каналов недоступен: %s", e)
+                continue
+            for ch in channels:
+                channel_id = int(ch.get("channel_id") or 0)
+                if channel_id <= 0:
+                    continue
+                gained = await _followers_gained_24h(channel_id)
+                if not gained:
+                    continue        # нечего сверять либо проверить не вышло
+                async with get_db()._connect() as conn:
+                    cur = await conn.execute(
+                        "SELECT count(*) FROM eventsub_seen WHERE event_type=? "
+                        "AND channel_id=? AND seen_at >= ?",
+                        ("channel.follow", channel_id, _time.time() - DEDUPE_TTL_SEC),
+                    )
+                    seen = int((await cur.fetchone())[0])
+                if seen >= gained:
+                    continue
+                logger.warning(
+                    "follow-watch ch=%s: фолловеров %d, событий принято %d",
+                    channel_id, gained, seen,
+                )
+                await _send_greet(
+                    channel_id,
+                    f"⚠️ Служебное: за сутки фолловеров {gained}, а событий от "
+                    f"Twitch пришло {seen}. Приветствия могут не работать — "
+                    f"нужно пересоздать подписку channel.follow.",
+                )
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            logger.warning("follow-watch error: %s: %s", type(e).__name__, e)
+
+
 # ─── Subscription registration helpers ───────────────────────────────────────
 
 # Phase A типы подписок которые регистрируем для каждого зарегистрированного
@@ -823,6 +1038,22 @@ PHASE_A_SUBSCRIPTIONS = [
             "broadcaster_user_id": bid,
             "moderator_user_id": bid,
         },
+    },
+    # Рейд → приветствие рейдерам. Условие — to_broadcaster_user_id (мы цель).
+    # Scope НЕ требуется, поэтому подписка встаёт сразу, без re-OAuth.
+    {
+        "type": "channel.raid",
+        "version": "1",
+        "condition_factory": lambda bid: {"to_broadcaster_user_id": bid},
+    },
+    # Биты → благодарность текстом (никакой игровой выгоды, см. обработчик).
+    # Требует scope bits:read у бродкастера. Старый токен без него → 403 при
+    # регистрации, register_subscription залогирует и пойдёт дальше: рейды и
+    # остальное от этого не пострадают.
+    {
+        "type": "channel.cheer",
+        "version": "1",
+        "condition_factory": lambda bid: {"broadcaster_user_id": bid},
     },
     # Чат-уведомления → ловим ТОЛЬКО notice_type='watch_streak' (серии
     # просмотров) для статистики лояльности. v1 требует user_id (кто читает

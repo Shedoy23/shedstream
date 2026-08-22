@@ -70,7 +70,11 @@ TWITCH_OAUTH_REDIRECT_URI = os.getenv(
 #  403 при регистрации).
 # NB: user:read:email НЕ запрашиваем — расширение не читает и не хранит email
 # стримера (privacy: меньше доступа = чище для Twitch-review). Убрано 2026-06-27.
-TWITCH_OAUTH_SCOPES = 'channel:read:redemptions channel:read:subscriptions moderator:read:followers user:read:chat user:bot channel:bot'
+#   bits:read                   — channel.cheer (биты). Добавлен 2026-08-22.
+#                                 Рейды (channel.raid) scope НЕ требуют, они
+#                                 приходят и без него — поэтому рейды работают
+#                                 сразу, а биты только после re-OAuth стримера.
+TWITCH_OAUTH_SCOPES = 'channel:read:redemptions channel:read:subscriptions moderator:read:followers user:read:chat user:bot channel:bot bits:read'
 
 # ===== Этап 3 step 5: Module API player events feature flag =====
 # При false (default) — `player.linked` / `player.died` / `player.respawned` /
@@ -675,6 +679,20 @@ CHANNEL_POINTS_CONFIG = {
         'Награда: 5000 алмазов':  {'channel_points_cost': 5000,  'diamonds': 5000},
         'Награда: 12000 алмазов': {'channel_points_cost': 10000, 'diamonds': 12000},
         'Награда: 35000 алмазов': {'channel_points_cost': 25000, 'diamonds': 35000},
+    },
+    # Награды, которые НЕ дают крустиков, а означают заявку «хочу в тестеры
+    # расширения». Выдать доступ может только владелец руками в консоли Twitch
+    # (публичного API для списка тест-аккаунтов у Twitch нет), поэтому бэкенд
+    # делает единственное, что может: подтверждает зрителю, что заявка принята,
+    # и называет ник в чате, чтобы стример не пропустил.
+    #
+    # Заведено 2026-08-22: 20.08 зритель @zerohomes потратил баллы на награду
+    # 'ПОЛУЧИТЬ ДОСТУП К РАСШИРЕНЮ', её не было в конфиге, и он не получил
+    # НИЧЕГО — ни доступа, ни ответа. Список ключей тут обязан совпадать с
+    # названиями наград в Twitch Dashboard посимвольно (включая опечатки).
+    'tester_request_titles': {
+        'ПОЛУЧИТЬ ДОСТУП К РАСШИРЕНЮ',
+        'ПОЛУЧИТЬ ДОСТУП К РАСШИРЕНИЮ',
     },
     # Секрет для верификации EventSub вебхука (32+ url-safe bytes).
     # Ротирован 2026-05-16 на secrets.token_urlsafe(32).

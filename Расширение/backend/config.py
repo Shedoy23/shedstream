@@ -311,7 +311,10 @@ else:
 # DONATION_MULTIPLIER + ECONOMY_CONFIG donation keys удалены 2026-05-14
 # (Phase 8.F donate removal — §5.2/§5.4 compliance).
 AUTO_MESSAGES_ENABLED = True
-AUTO_MESSAGE_INTERVAL = 180  # 3 минут
+# Как часто цикл ПРОВЕРЯЕТ, не пора ли что-то отправить. Сам интервал теперь
+# у каждого сообщения свой (channel_auto_messages.interval_min, m115), а
+# прежний общий AUTO_MESSAGE_INTERVAL удалён — он больше ничего не значил.
+AUTO_MESSAGE_TICK_SEC = 60
 
 # ЭТОТ СПИСОК УХОДИТ В ЧАТ КАЖДОГО КАНАЛА — держать нейтральным.
 #

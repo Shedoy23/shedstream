@@ -990,6 +990,56 @@ async def streamer_greet_set(request: Request):
     return JSONResponse({"status": "ok", "channel_id": cid, **settings})
 
 
+@router.get("/api/streamer/auto-messages", include_in_schema=False)
+async def streamer_auto_messages_get(request: Request):
+    """Автосообщения канала + допустимые интервалы для выпадающего списка."""
+    cid = _read_session_cookie(request)
+    if cid is None:
+        return JSONResponse({"status": "unauthenticated"}, status_code=401)
+    db = get_db()
+    # Канал, зарегистрированный до m115, мог остаться без строк — выдаём
+    # нейтральный шаблон, чтобы страница не встречала стримера пустотой.
+    await db.seed_channel_auto_messages(cid)
+    return JSONResponse({
+        "status": "ok",
+        "channel_id": cid,
+        "messages": await db.get_channel_auto_messages(cid),
+        "intervals": list(db.AUTO_MSG_INTERVALS),
+        "max_count": db.AUTO_MSG_MAX_COUNT,
+        "max_len": db.AUTO_MSG_MAX_LEN,
+    })
+
+
+@router.post("/api/streamer/auto-messages", include_in_schema=False)
+async def streamer_auto_messages_set(request: Request):
+    """Сохранить набор автосообщений канала целиком.
+
+    Body: {"messages": [{"text": str, "interval_min": int, "enabled": bool}, …]}
+
+    Ограничения (количество, длина, допустимые интервалы) проверяет БД-слой, а
+    не только страница: страницу можно обойти запросом, а пишет-то в чужой чат
+    наш бот — и таймаут за спам прилетит ему.
+    """
+    cid = _read_session_cookie(request)
+    if cid is None:
+        return JSONResponse({"status": "unauthenticated"}, status_code=401)
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    items = body.get("messages")
+    if not isinstance(items, list):
+        return JSONResponse({"status": "invalid_body"}, status_code=400)
+    db = get_db()
+    if len(items) > db.AUTO_MSG_MAX_COUNT:
+        return JSONResponse(
+            {"status": "too_many", "max_count": db.AUTO_MSG_MAX_COUNT},
+            status_code=400,
+        )
+    saved = await db.set_channel_auto_messages(cid, items)
+    return JSONResponse({"status": "ok", "channel_id": cid, "messages": saved})
+
+
 @router.get("/api/streamer/watch-streaks", include_in_schema=False)
 async def streamer_watch_streaks(request: Request):
     """Лидерборд серий просмотров (watch streaks, m75): кто смотрит дольше

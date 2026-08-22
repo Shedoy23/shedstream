@@ -2058,6 +2058,128 @@ class Database:
                 return {"sub": True, "follow": True}  # default ON
             return {"sub": bool(row[0]), "follow": bool(row[1])}
 
+    # ── Автосообщения канала ────────────────────────────────────────────────
+    # Ограничения живут ЗДЕСЬ, а не только во фронте: страницу можно обойти
+    # запросом напрямую, а бот пишет от нашего имени в чужой чат. Слишком
+    # частые сообщения = спам, за который таймаутят бота, а не стримера.
+    AUTO_MSG_MAX_COUNT = 10
+    AUTO_MSG_MAX_LEN = 400          # лимит чата Twitch 500, оставляем запас
+    AUTO_MSG_INTERVALS = (10, 15, 20, 30, 45, 60, 90, 120)
+
+    async def get_channel_auto_messages(self, channel_id: int) -> list:
+        """Автосообщения канала по порядку. Пустой список — норма."""
+        async with self._connect() as conn:
+            cur = await conn.execute(
+                "SELECT position, text, enabled, interval_min, last_sent_at "
+                "FROM channel_auto_messages WHERE channel_id = ? "
+                "ORDER BY position",
+                (channel_id,),
+            )
+            return [
+                {
+                    "position": r[0],
+                    "text": r[1],
+                    "enabled": bool(r[2]),
+                    "interval_min": r[3],
+                    "last_sent_at": r[4],
+                }
+                for r in await cur.fetchall()
+            ]
+
+    async def set_channel_auto_messages(self, channel_id: int, items: list) -> list:
+        """Заменить набор автосообщений канала целиком.
+
+        Полная замена, а не построчная правка: страница отдаёт список как есть,
+        и это единственный способ не расходиться с ней по порядку строк.
+
+        `last_sent_at` СОХРАНЯЕТСЯ для строк с прежним текстом — иначе правка
+        интервала у одного сообщения обнуляла бы расписание всех остальных, и
+        после каждого сохранения канал получал бы пачку сообщений подряд.
+        """
+        cleaned = []
+        for item in items[: self.AUTO_MSG_MAX_COUNT]:
+            text = str(item.get("text") or "").strip()
+            if not text:
+                continue
+            interval = item.get("interval_min")
+            try:
+                interval = int(interval)
+            except (TypeError, ValueError):
+                interval = self.AUTO_MSG_INTERVALS[2]
+            if interval not in self.AUTO_MSG_INTERVALS:
+                interval = min(self.AUTO_MSG_INTERVALS,
+                               key=lambda v: abs(v - interval))
+            cleaned.append({
+                "text": text[: self.AUTO_MSG_MAX_LEN],
+                "enabled": 1 if item.get("enabled", True) else 0,
+                "interval_min": interval,
+            })
+
+        async with self._connect() as conn:
+            await conn.execute("BEGIN IMMEDIATE")
+            try:
+                cur = await conn.execute(
+                    "SELECT text, last_sent_at FROM channel_auto_messages "
+                    "WHERE channel_id = ?",
+                    (channel_id,),
+                )
+                previous = {r[0]: r[1] for r in await cur.fetchall()}
+                await conn.execute(
+                    "DELETE FROM channel_auto_messages WHERE channel_id = ?",
+                    (channel_id,),
+                )
+                for position, item in enumerate(cleaned):
+                    await conn.execute(
+                        "INSERT INTO channel_auto_messages "
+                        "(channel_id, position, text, enabled, interval_min, "
+                        " last_sent_at) VALUES (?,?,?,?,?,?)",
+                        (channel_id, position, item["text"], item["enabled"],
+                         item["interval_min"], previous.get(item["text"])),
+                    )
+                await conn.commit()
+            except Exception:
+                try:
+                    await conn.execute("ROLLBACK")
+                except Exception:
+                    pass
+                raise
+        return await self.get_channel_auto_messages(channel_id)
+
+    async def seed_channel_auto_messages(self, channel_id: int) -> None:
+        """Выдать новому каналу нейтральный набор из шаблона config.AUTO_MESSAGES.
+
+        Только если у канала НЕТ ни одной строки: пустой набор у существующего
+        канала означает «стример удалил всё сам», и навязывать ему шаблон
+        заново нельзя.
+        """
+        from config import AUTO_MESSAGES
+
+        async with self._connect() as conn:
+            cur = await conn.execute(
+                "SELECT 1 FROM channel_auto_messages WHERE channel_id = ? LIMIT 1",
+                (channel_id,),
+            )
+            if await cur.fetchone():
+                return
+            for position, text in enumerate(AUTO_MESSAGES):
+                await conn.execute(
+                    "INSERT OR IGNORE INTO channel_auto_messages "
+                    "(channel_id, position, text) VALUES (?,?,?)",
+                    (channel_id, position, text),
+                )
+            await conn.commit()
+
+    async def mark_auto_message_sent(
+        self, channel_id: int, position: int, when: float
+    ) -> None:
+        async with self._connect() as conn:
+            await conn.execute(
+                "UPDATE channel_auto_messages SET last_sent_at = ? "
+                "WHERE channel_id = ? AND position = ?",
+                (when, channel_id, position),
+            )
+            await conn.commit()
+
     async def set_channel_greet_setting(
         self, channel_id: int, kind: str, enabled: bool
     ) -> None:

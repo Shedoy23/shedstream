@@ -84,6 +84,28 @@
   .boosty-row button{background:#7f1d1d;color:#fca5a5;border:none;padding:4px 10px;
                       border-radius:4px;cursor:pointer;font-size:12px}
   .boosty-row button:hover{background:#991b1b;color:#fff}
+  .automsg-row{display:grid;grid-template-columns:1fr 110px auto 130px 32px;gap:8px;
+               align-items:center;margin-bottom:6px}
+  .automsg-row input.am-text,.automsg-row select{background:#0e0e10;color:#efeff1;
+       border:1px solid #3d3d3f;border-radius:5px;padding:8px;font-size:13px;min-width:0}
+  .automsg-row .am-on{color:#adadb8;font-size:12px;white-space:nowrap;
+                      display:flex;align-items:center;gap:5px}
+  .automsg-row .am-next{color:#9ca3af;font-size:12px;font-style:italic;
+                        text-align:right;white-space:nowrap;overflow:hidden;
+                        text-overflow:ellipsis}
+  .automsg-row .am-del{background:#7f1d1d;color:#fca5a5;border:none;border-radius:4px;
+                       cursor:pointer;font-size:12px;padding:6px 0}
+  .automsg-row .am-del:hover{background:#991b1b;color:#fff}
+  .automsg-actions{display:flex;gap:8px;margin-top:12px}
+  .automsg-actions button{background:#0e0e10;color:#efeff1;border:1px solid #3d3d3f;
+                          border-radius:5px;padding:8px 14px;font-size:13px;cursor:pointer}
+  .automsg-actions button.primary{background:#772ce8;border-color:#772ce8;font-weight:700}
+  .automsg-actions button:hover{border-color:#772ce8}
+  @media(max-width:720px){
+    .automsg-row{grid-template-columns:1fr 1fr;grid-auto-rows:auto}
+    .automsg-row input.am-text{grid-column:1 / -1}
+    .automsg-row .am-next{text-align:left}
+  }
   .boosty-form{display:grid;grid-template-columns:1fr 90px 1fr auto;gap:8px;
                margin-top:12px;margin-bottom:8px}
   .boosty-form input,.boosty-form select{background:#0e0e10;color:#efeff1;
@@ -489,6 +511,120 @@
     } catch(e){}
   }
   loadPromos();
+  </script>
+
+  <!-- Автосообщения (2026-08-22): у каждого свой таймер.
+       До m114/m115 список был один на всю платформу и содержал личные ссылки
+       владельца — второму стримеру бот рекламировал бы чужие донаты. Теперь
+       набор принадлежит каналу, и стример правит его сам. -->
+  <div class="section" id="automsg-section">
+    <h2>💬 Автосообщения в чат</h2>
+    <div class="sub">
+      Бот пишет их в твой чат, пока идёт стрим. У каждого сообщения свой таймер.
+      Строка начинает отсчёт с момента сохранения, поэтому первое появление —
+      через выбранный интервал, а не сразу. За один раз уходит только одно
+      сообщение: пачкой Twitch считает спамом и выдаёт таймаут боту.
+      <br>Начни строку с <b>/announcepurple</b> — она уйдёт выделенным
+      объявлением, а не обычным сообщением.
+    </div>
+    <div id="automsg-list"><div class="sub">Загрузка…</div></div>
+    <div class="automsg-actions">
+      <button id="automsg-add" type="button">+ Добавить сообщение</button>
+      <button id="automsg-save" type="button" class="primary">Сохранить</button>
+    </div>
+    <div id="automsg-msg" class="boosty-msg"></div>
+  </div>
+  <script>
+  var _automsgCfg = {intervals:[10,15,20,30,45,60,90,120], max_count:10, max_len:400};
+
+  function amEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  function amRow(m){
+    var opts = _automsgCfg.intervals.map(function(v){
+      return '<option value="' + v + '"' + (v === m.interval_min ? ' selected' : '') + '>' + v + ' мин</option>';
+    }).join('');
+    // Когда сообщение прозвучит в следующий раз — считаем на клиенте, чтобы
+    // стример видел эффект таймера, а не только цифру в списке.
+    var when = 'после сохранения';
+    if (m.last_sent_at) {
+      var left = Math.round((m.last_sent_at + m.interval_min * 60 - Date.now() / 1000) / 60);
+      when = left > 0 ? ('через ~' + left + ' мин') : 'на ближайшей проверке';
+    }
+    return '<div class="automsg-row">'
+      + '<input class="am-text" type="text" maxlength="' + _automsgCfg.max_len + '" value="' + amEsc(m.text) + '">'
+      + '<select class="am-interval">' + opts + '</select>'
+      + '<label class="am-on"><input class="am-enabled" type="checkbox"' + (m.enabled ? ' checked' : '') + '> вкл</label>'
+      + '<span class="am-next">' + amEsc(when) + '</span>'
+      + '<button type="button" class="am-del">✖</button>'
+      + '</div>';
+  }
+
+  function amBind(){
+    document.querySelectorAll('#automsg-list .am-del').forEach(function(b){
+      b.addEventListener('click', function(){ b.closest('.automsg-row').remove(); });
+    });
+  }
+
+  async function loadAutoMessages(){
+    var list = document.getElementById('automsg-list');
+    try{
+      var r = await fetch('/api/streamer/auto-messages', {credentials:'include'});
+      var d = await r.json();
+      if(d.status !== 'ok'){ list.innerHTML = '<div class="sub">Ошибка загрузки</div>'; return; }
+      _automsgCfg = {intervals:d.intervals, max_count:d.max_count, max_len:d.max_len};
+      list.innerHTML = d.messages.length
+        ? d.messages.map(amRow).join('')
+        : '<div class="sub">Пока пусто — добавь первое сообщение.</div>';
+      amBind();
+    } catch(e){ list.innerHTML = '<div class="sub">Network error</div>'; }
+  }
+
+  document.getElementById('automsg-add').addEventListener('click', function(){
+    var list = document.getElementById('automsg-list');
+    var rows = list.querySelectorAll('.automsg-row');
+    var box = document.getElementById('automsg-msg');
+    if(rows.length >= _automsgCfg.max_count){
+      box.textContent = 'Больше ' + _automsgCfg.max_count + ' сообщений не даём — чат не рекламная тумба.';
+      return;
+    }
+    if(!rows.length){ list.innerHTML = ''; }
+    list.insertAdjacentHTML('beforeend', amRow({text:'', interval_min:20, enabled:true, last_sent_at:null}));
+    amBind();
+    box.textContent = '';
+  });
+
+  document.getElementById('automsg-save').addEventListener('click', async function(){
+    var box = document.getElementById('automsg-msg');
+    var messages = [];
+    document.querySelectorAll('#automsg-list .automsg-row').forEach(function(row){
+      var text = row.querySelector('.am-text').value.trim();
+      if(!text){ return; }
+      messages.push({
+        text: text,
+        interval_min: parseInt(row.querySelector('.am-interval').value, 10),
+        enabled: row.querySelector('.am-enabled').checked
+      });
+    });
+    box.textContent = 'Сохраняю…';
+    try{
+      var r = await fetch('/api/streamer/auto-messages', {
+        method:'POST', credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({messages: messages})
+      });
+      var d = await r.json();
+      if(d.status === 'ok'){
+        box.textContent = 'Сохранено: ' + d.messages.length + ' шт.';
+        await loadAutoMessages();
+      } else if(d.status === 'too_many'){
+        box.textContent = 'Слишком много сообщений (максимум ' + d.max_count + ').';
+      } else {
+        box.textContent = 'Не сохранилось. Попробуй ещё раз.';
+      }
+    } catch(e){ box.textContent = 'Network error'; }
+  });
+
+  loadAutoMessages();
   </script>
 
   <!-- Народный выбор игры (M88, 2026-07-02) -->

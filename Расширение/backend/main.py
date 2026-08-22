@@ -1444,6 +1444,13 @@ async def run_migrations():
             print(f"❌ M114 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m115_auto_message_timers
+            await m115_auto_message_timers.apply(conn)
+        except Exception as e:
+            print(f"❌ M115 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

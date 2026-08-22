@@ -5,6 +5,7 @@ import aiohttp
 import hashlib
 import logging
 import random
+import time
 from collections import deque
 from datetime import datetime, timedelta, date
 from typing import Dict, Optional, Tuple
@@ -17,8 +18,7 @@ from dependencies import resolve_channel_id
 from config import (
     ACTIVE_WINDOW,
     REDUCED_WINDOW,
-    AUTO_MESSAGE_INTERVAL,
-    AUTO_MESSAGES,
+    AUTO_MESSAGE_TICK_SEC,
     AUTO_MESSAGES_ENABLED,
     CACHE_EVICTION_INTERVAL,
     CHAT_BONUS_COOLDOWN_SEC,
@@ -1395,14 +1395,13 @@ class BotCore:
         автосообщений тоже per-channel (разные каналы — разные «места»
         в плейлисте).
         """
-        if not AUTO_MESSAGES_ENABLED or not AUTO_MESSAGES:
-            print("ℹ️ Автосообщения отключены или список пуст")
+        if not AUTO_MESSAGES_ENABLED:
+            print("ℹ️ Автосообщения отключены")
             return
 
-        print(f"💬 Цикл автосообщений запущен (каждые {AUTO_MESSAGE_INTERVAL//60} мин, multi-tenant)")
-        index_per_channel: Dict[int, int] = {}
+        print(f"💬 Цикл автосообщений запущен (тик {AUTO_MESSAGE_TICK_SEC}с, таймер у каждого сообщения свой)")
         while self.running:
-            await asyncio.sleep(AUTO_MESSAGE_INTERVAL)
+            await asyncio.sleep(AUTO_MESSAGE_TICK_SEC)
             if not self.running:
                 break
             try:
@@ -1416,15 +1415,10 @@ class BotCore:
                 try:
                     if not await self._is_stream_live(channel_id=cid, login=login):
                         continue
-                    # Нейтральные сообщения (одинаковы для всех) + личные
-                    # сообщения ИМЕННО этого канала. До m114 личные ссылки
-                    # владельца лежали в общем списке и ушли бы в чат чужого
-                    # стримера — см. комментарий у AUTO_MESSAGES.
-                    messages = list(AUTO_MESSAGES) + await self._channel_auto_messages(cid)
-                    if not messages:
+                    due = await self._due_auto_message(cid)
+                    if due is None:
                         continue
-                    idx = index_per_channel.get(cid, 0)
-                    msg = messages[idx % len(messages)]
+                    msg = due["text"]
                     # 2026-06-06 — /announcepurple ... → Helix announce (фиолетовый).
                     # IRC /announce у Twitch deprecated (молча дропается), поэтому
                     # шлём через POST /chat/announcements. Обычные сообщения — как раньше.
@@ -1434,30 +1428,45 @@ class BotCore:
                         await self.send_announcement(cid, msg[len("/announce "):], color="primary")
                     else:
                         await self.send_message(msg, channel_id=cid)
-                    index_per_channel[cid] = idx + 1
+                    await self.db.mark_auto_message_sent(cid, due["position"], time.time())
                 except Exception as e:
                     print(f"⚠️ auto_message_loop [ch={cid}]: {e}")
 
-    async def _channel_auto_messages(self, channel_id: int) -> list:
-        """Личные автосообщения конкретного канала (ссылки, соцсети, награды).
+    async def _due_auto_message(self, channel_id: int) -> Optional[dict]:
+        """Какое автосообщение канала пора отправить прямо сейчас (или None).
 
-        Пустой список — норма: у нового стримера персональных сообщений нет,
-        он видит только нейтральные. Ошибку чтения трактуем как «личных нет»:
-        лучше показать меньше, чем уронить рассылку всем каналам.
+        У каждого сообщения свой интервал, поэтому «очередь» — не круговой
+        список, а «кто дольше всех просрочен».
+
+        ВАЖНО про первый тик. У нового сообщения `last_sent_at` пуст, и если
+        считать пустоту «просрочено давно», то на старте эфира разом станут
+        готовы все сообщения и канал получит их пачкой — выглядит как спам, за
+        это таймаутят бота. Поэтому пустое время мы не шлём, а ЗАВОДИМ: строка
+        начинает отсчёт от текущего момента и прозвучит через свой интервал.
+
+        За один тик уходит максимум ОДНО сообщение на канал — тот же запрет
+        на пачку, но уже для случая, когда просрочено несколько.
         """
         try:
-            async with self.db._connect() as conn:
-                cur = await conn.execute(
-                    "SELECT text FROM channel_auto_messages "
-                    "WHERE channel_id = ? AND enabled = 1 ORDER BY position",
-                    (channel_id,),
-                )
-                return [r[0] for r in await cur.fetchall()]
+            rows = await self.db.get_channel_auto_messages(channel_id)
         except Exception as e:
-            logger.warning(
-                "channel_auto_messages ch=%s недоступны: %s", channel_id, e
-            )
-            return []
+            logger.warning("автосообщения ch=%s недоступны: %s", channel_id, e)
+            return None
+
+        now = time.time()
+        best = None
+        for row in rows:
+            if not row["enabled"]:
+                continue
+            if row["last_sent_at"] is None:
+                await self.db.mark_auto_message_sent(channel_id, row["position"], now)
+                continue
+            overdue = now - float(row["last_sent_at"]) - int(row["interval_min"]) * 60
+            if overdue < 0:
+                continue
+            if best is None or overdue > best[0]:
+                best = (overdue, row)
+        return best[1] if best else None
 
     async def shutdown(self):
         """Остановка бота"""

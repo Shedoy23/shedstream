@@ -60,13 +60,14 @@ async def run() -> int:
     from bot_core import BotCore
     from config import AUTO_MESSAGES
     from database import Database
-    from migrations import m114_channel_auto_messages
+    from migrations import m114_channel_auto_messages, m115_auto_message_timers
 
     db_path = tempfile.mktemp(suffix="_automsg.db")
     db = Database(db_path=db_path)
     await db.init_pool()
     async with db._connect() as conn:
         await m114_channel_auto_messages.apply(conn)
+        await m115_auto_message_timers.apply(conn)
         await conn.commit()
 
     bot = BotCore(db)
@@ -77,24 +78,20 @@ async def run() -> int:
     check(not linky, f"в общем списке нет ссылок (нашлось: {linky})")
 
     print("\n[2] Канал владельца")
-    owner = await bot._channel_auto_messages(OWNER_CH)
+    owner = [m["text"] for m in await db.get_channel_auto_messages(OWNER_CH)]
     check(len(owner) >= 1, f"личные сообщения на месте ({len(owner)} шт.)")
     check(any("boosty" in m.lower() for m in owner),
           "личная ссылка на поддержку перенесена, а не потеряна")
 
     print("\n[3] Другой стример")
-    other = await bot._channel_auto_messages(OTHER_CH)
+    other = [m["text"] for m in await db.get_channel_auto_messages(OTHER_CH)]
     check(other == [],
           f"у чужого канала личных сообщений НЕТ (получено: {other})")
 
-    # Самое главное: то, что реально уйдёт в чат каждому.
-    owner_feed = list(AUTO_MESSAGES) + owner
-    other_feed = list(AUTO_MESSAGES) + other
-    leaked = [m for m in other_feed if "shedoy" in m.lower() or "boosty" in m.lower()]
+    # Главное: в набор чужого канала не попало ничего личного.
+    leaked = [m for m in other if "shedoy" in m.lower() or "boosty" in m.lower()]
     check(not leaked,
           f"в чат чужого стримера не уходит ничего личного (утечка: {leaked})")
-    check(len(owner_feed) > len(other_feed),
-          "у владельца лента шире — значит личное подмешивается именно ему")
 
     print("\n[4] Миграция отметилась в журнале")
     # Без этой записи миграция гоняется на каждом старте, а её INSERT'ы не
@@ -109,8 +106,90 @@ async def run() -> int:
     async with db._connect() as conn:
         await m114_channel_auto_messages.apply(conn)
         await conn.commit()
-    again = await bot._channel_auto_messages(OWNER_CH)
+    again = [m["text"] for m in await db.get_channel_auto_messages(OWNER_CH)]
     check(len(again) == len(owner), "миграция идемпотентна — дублей не появилось")
+
+    # ── Таймеры (m115) ──────────────────────────────────────────────────────
+    import time as _t
+
+    print("\n[6] У каждого сообщения свой таймер")
+    async with db._connect() as conn:
+        from migrations import m115_auto_message_timers
+        await m115_auto_message_timers.apply(conn)
+        await conn.commit()
+
+    saved = await db.set_channel_auto_messages(OTHER_CH, [
+        {"text": "часто", "interval_min": 10, "enabled": True},
+        {"text": "редко", "interval_min": 120, "enabled": True},
+        {"text": "выключено", "interval_min": 10, "enabled": False},
+    ])
+    check(len(saved) == 3, f"сохранились все три строки ({len(saved)})")
+    check([m["interval_min"] for m in saved] == [10, 120, 10],
+          "интервалы сохранились каждый свой")
+
+    bot_other = BotCore(db)
+    print("\n[7] Первый тик заводит отсчёт, но НЕ шлёт")
+    # Иначе на старте эфира разом «просрочены» все строки и канал получает
+    # пачку — Twitch считает это спамом и таймаутит бота.
+    first = await bot_other._due_auto_message(OTHER_CH)
+    check(first is None, f"на первом тике ничего не отправлено (получено: {first})")
+    rows = await db.get_channel_auto_messages(OTHER_CH)
+    check(all(r["last_sent_at"] is not None for r in rows if r["enabled"]),
+          "но отсчёт заведён у всех ВКЛЮЧЁННЫХ строк")
+    # Выключенная строка отсчёта не получает — и это правильно: её включат
+    # позже, и считать интервал надо с момента включения, а не с давнего
+    # прошлого, иначе она выстрелит в ту же секунду.
+    off = next(r for r in rows if not r["enabled"])
+    check(off["last_sent_at"] is None, "выключенная строка отсчёт не начинает")
+
+    print("\n[8] Срабатывает только то, чей срок вышел")
+    now = _t.time()
+    await db.mark_auto_message_sent(OTHER_CH, 0, now - 11 * 60)   # «часто» просрочено
+    await db.mark_auto_message_sent(OTHER_CH, 1, now - 11 * 60)   # «редко» ещё нет
+    due = await bot_other._due_auto_message(OTHER_CH)
+    check(due is not None and due["text"] == "часто",
+          f"выбрано сообщение с истёкшим таймером (получено: {due and due['text']})")
+
+    await db.mark_auto_message_sent(OTHER_CH, 0, now)             # «часто» отправлено
+    due = await bot_other._due_auto_message(OTHER_CH)
+    check(due is None, "после отправки очередь пуста — пачкой не сыпем")
+
+    print("\n[9] Выключенное не уходит никогда")
+    await db.mark_auto_message_sent(OTHER_CH, 2, now - 999 * 60)
+    due = await bot_other._due_auto_message(OTHER_CH)
+    check(due is None or due["text"] != "выключено",
+          "выключенное сообщение не отправляется, как бы ни было просрочено")
+
+    print("\n[10] Границы держит бэкенд, а не только страница")
+    many = [{"text": f"msg{i}", "interval_min": 20} for i in range(30)]
+    saved = await db.set_channel_auto_messages(OTHER_CH, many)
+    check(len(saved) <= db.AUTO_MSG_MAX_COUNT,
+          f"больше {db.AUTO_MSG_MAX_COUNT} сообщений не сохраняется ({len(saved)})")
+
+    saved = await db.set_channel_auto_messages(OTHER_CH, [
+        {"text": "x" * 5000, "interval_min": 1},
+    ])
+    check(len(saved[0]["text"]) <= db.AUTO_MSG_MAX_LEN,
+          f"длина обрезана до {db.AUTO_MSG_MAX_LEN} ({len(saved[0]['text'])})")
+    check(saved[0]["interval_min"] in db.AUTO_MSG_INTERVALS,
+          f"недопустимый интервал 1 мин приведён к разрешённому "
+          f"({saved[0]['interval_min']}) — иначе бот спамил бы чат")
+
+    print("\n[11] Правка одного сообщения не сбивает расписание остальных")
+    await db.set_channel_auto_messages(OTHER_CH, [
+        {"text": "стабильное", "interval_min": 30},
+        {"text": "меняемое", "interval_min": 30},
+    ])
+    stamp = _t.time() - 5 * 60
+    await db.mark_auto_message_sent(OTHER_CH, 0, stamp)
+    await db.set_channel_auto_messages(OTHER_CH, [
+        {"text": "стабильное", "interval_min": 30},
+        {"text": "меняемое", "interval_min": 60},
+    ])
+    rows = await db.get_channel_auto_messages(OTHER_CH)
+    keep = next(r for r in rows if r["text"] == "стабильное")
+    check(keep["last_sent_at"] is not None and abs(keep["last_sent_at"] - stamp) < 1,
+          "отсчёт нетронутой строки сохранился — после сохранения не будет пачки")
 
     await db._pool.close()
     try:

@@ -93,6 +93,13 @@ def main() -> int:
         ("1-frontend.zip", EXT / "frontend", ("*.html", "*.js", "*.css", "*.json")),
         ("2-backend.zip", EXT / "backend", ("*.py", "*.yaml", "*.html", "*.sh")),
         ("3-bannerlord-mod.zip", ROOT / "BannerlordLink" / "src", ("*.cs", "*.csproj")),
+        # Manager и манифесты установки добавлены 2026-08-22: бриф просит их
+        # проверить (установка в папку игры, подпись манифеста, выдача ключей),
+        # а в пакет они не попадали вовсе — аудитор получил бы задание без кода.
+        # Приватного ключа подписи здесь нет и быть не может: он живёт вне git.
+        ("4-manager.zip", ROOT / "ShedLink.Manager" / "src",
+         ("*.cs", "*.csproj", "*.xaml", "*.json")),
+        ("5-install-manifests.zip", ROOT / "manifests", ("*.json", "*.md")),
     ]
     rows = []
     for name, src, pats in jobs:

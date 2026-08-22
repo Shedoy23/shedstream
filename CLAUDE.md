@@ -58,6 +58,26 @@ Prod = `root@31.130.132.224:/root/twitch-extension/`, run under supervisor as `t
 ## Conventions & gotchas that actually bite
 
 - **Multi-tenant scoping is mandatory.** Every query/insert on a tenant table must include `channel_id` — via `resolve_channel_id_or_default()` (admin/legacy) or the JWT ContextVar (`require_jwt_user` / `require_jwt_channel`). Omitting it = cross-channel leak or `NOT NULL` failure. **Lint-gated:** `lint_consistency.py:check_tenant_scoping` fails CI/pre-commit on DML against a scoped table without `channel_id` or a globally-unique id/FK filter. Escape hatches: trailing `# tenant-ok: <reason>` (or `-- tenant-ok` in the SQL) for admin cross-channel / global-id lookups; `tenant-lint: skip-file` for known debt (rimworld.py is parked there).
+- **Арендатор — не только строка в таблице. Изоляция ВЫХОДА наружу (2026-08-22).**
+  Правило выше закрывает данные: у каждой записи есть `channel_id`, и линтер это
+  держит. Но за один день нашлось ТРИ дефекта, которых оно не касается, потому
+  что там ничего не пишется в БД — там что-то **уходит наружу от имени канала**:
+  список автосообщений был один на платформу и содержал донат-ссылки владельца;
+  объявление о конце сезона уходило в «канал по умолчанию»; анонс старта эфира
+  любого канала летел в Telegram владельца. Формулировка владельца, и она точная:
+  *«мы начали делать платформу, а не проектик под одного стримера»*.
+  **Проверка для любой новой функции:** что она отправляет наружу — в чат,
+  в Telegram, в оверлей, в почту — и откуда берёт адресата и содержимое? Если
+  адресат берётся из умолчания, а содержимое из общего конфига, это дефект,
+  который не видно, пока канал один.
+  **Почему такое доживает до прода:** при одном стримере платформа и проект
+  под одного человека НЕРАЗЛИЧИМЫ в наблюдении — всё работает правильно по
+  случайности. Поэтому дешёвый первый шаг не «переписать на per-channel», а
+  **сделать умолчание шумным** (`channel-default:` в логе) и завести в тесте
+  ВТОРОЙ канал: он играет роль отсутствующего коллеги, который спросит
+  «а у меня почему так?». Гейт `test_multi_tenant_isolation.py` проверяет
+  изоляцию СТРОК; изоляцию побочных эффектов проверяет
+  `test_auto_messages_per_channel.py`.
 - **Migrations must be wired.** Add `m<N>_*.py` AND register it in `main.py:run_migrations()` (sequential, idempotent via the `migrations_applied` table). `lint_consistency.py` fails CI/commit if a migration file isn't wired. Never edit an already-applied migration — add a new one. The seed in a migration only affects fresh DBs; to change existing prod rows, write an `UPDATE` migration.
 - **New mod→backend event MUST be declared in `manifest.yaml` `events:`.** The backend drops unknown types (`event_not_in_manifest`, `routes/module_api.py`) BEFORE the adapter runs, so a fresh `PostEventAsync("bannerlord", "hero.X", …)` silently no-ops. Symptom: mod logs the push, DB unchanged. **Now lint-gated:** `check_manifest_events` scans literal push sites in `BannerlordLink/src` and hard-fails on any undeclared type (it caught a 3rd live case, `hero.marriage_activated`, the day it was written). Pushes built from a *variable* stay invisible to it — those are still on you. Declaring the event only makes the backend accept it; route it in `_adapter.handle_event` too, or it lands nowhere. Same rule for new actions (`manifest.supports_action`).
 - **Two currencies, never conflate.** 💎 crustics = platform points (`userPoints`, earned watching/chat); 💰 dinars = in-game `Hero.Gold`. 1 💎 = 5 dinars. An action charges ONE currency by meaning. **Крустики зарабатываются ТОЛЬКО в ядре (просмотр/активность); внутри `modules/<игра>/` и `routes/<игра>_*.py` они только СПИСЫВАЮТСЯ** (решение владельца 2026-07-29, `PLATFORM_VISION.md` §«Граница валют»). Начисление крустиков в игровом модуле = нарушение; возврат уплаченного (рефанд) — не нарушение. Причина: рента с феодов уже вырезана в мае за то, что зритель богател без участия. (Frontend currently shows crustics with two glyphs, `💎` and `⦷` — unify if you touch that area.)

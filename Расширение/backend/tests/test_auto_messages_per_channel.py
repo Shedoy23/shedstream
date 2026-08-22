@@ -191,6 +191,41 @@ async def run() -> int:
     check(keep["last_sent_at"] is not None and abs(keep["last_sent_at"] - stamp) < 1,
           "отсчёт нетронутой строки сохранился — после сохранения не будет пачки")
 
+    print("\n[12] Чужой эфир не анонсируется в Telegram владельца")
+    # Telegram в конфиге ОДИН на платформу, а функция зовётся для любого
+    # вышедшего в эфир канала. Без гейта аудитория владельца получала бы
+    # анонсы чужих стримов.
+    import notifications
+
+    os.environ["TELEGRAM_NOTIFICATIONS_ENABLED"] = "true"
+    os.environ["TELEGRAM_BOT_TOKEN"] = "test-token"
+    os.environ["TELEGRAM_CHAT_ID"] = "@test"
+    os.environ["TELEGRAM_NOTIFY_CHANNEL_ID"] = str(OWNER_CH)
+
+    posted = []
+
+    class _StubSession:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        def post(self, url, **kw):
+            posted.append(url)
+            raise RuntimeError("сюда доходить не должно")
+
+    real_session = notifications.aiohttp.ClientSession
+    notifications.aiohttp.ClientSession = _StubSession
+    try:
+        await notifications.notify_stream_online(OTHER_CH, "otherstreamer")
+        check(not posted, f"эфир чужого канала в Telegram НЕ ушёл (запросов: {len(posted)})")
+    finally:
+        notifications.aiohttp.ClientSession = real_session
+        for key in ("TELEGRAM_NOTIFICATIONS_ENABLED", "TELEGRAM_BOT_TOKEN",
+                    "TELEGRAM_CHAT_ID", "TELEGRAM_NOTIFY_CHANNEL_ID"):
+            os.environ.pop(key, None)
+
     await db._pool.close()
     try:
         os.unlink(db_path)

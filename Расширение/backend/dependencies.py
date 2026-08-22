@@ -6,6 +6,7 @@ dependencies.py — общие зависимости для всех роуте
 """
 
 import asyncio
+import logging
 import os
 import secrets
 import time as _time
@@ -25,6 +26,8 @@ from config import (
     sanitize_username,
     validate_username,
 )
+
+logger = logging.getLogger("rimlink.dependencies")
 
 # ── Multi-tenant request context ──────────────────────────────────────────────
 # ContextVar автоматически пропагируется через `await` в рамках одной asyncio-task'и
@@ -277,7 +280,45 @@ def resolve_channel_id_or_default(channel_id: Optional[int] = None) -> int:
     ctx_value = _current_channel_id.get()
     if ctx_value is not None and ctx_value > 0:
         return ctx_value
+    _warn_default_channel_used()
     return DEFAULT_CHANNEL_ID
+
+
+# Как часто напоминать про одну и ту же точку подстановки (сек). Раз в 5 минут
+# на место вызова: цель — заметить, а не залить лог.
+_DEFAULT_CHANNEL_WARN_EVERY = 300
+_default_channel_warned: dict = {}
+
+
+def _warn_default_channel_used() -> None:
+    """Сказать в лог, что канал не был известен и подставился дефолтный.
+
+    Пока стример один, подстановка безобидна — дефолт и есть единственный
+    канал. Со вторым она означает, что чужие данные записались владельцу (или
+    наоборот), и молча. Именно молчание делает такие дефекты неубиваемыми:
+    ровно так пропажу channel.follow не замечали 17 дней.
+
+    Эти строки — рабочий список того, что обязано получить явный channel_id
+    ДО прихода второго стримера.
+    """
+    import sys
+    import time as _t
+
+    try:
+        frame = sys._getframe(2)          # кто вызвал resolve_*_or_default
+        site = f"{frame.f_code.co_filename.rsplit('/', 1)[-1].rsplit(chr(92), 1)[-1]}:{frame.f_lineno}"
+    except Exception:
+        site = "?"
+    now = _t.time()
+    last = _default_channel_warned.get(site, 0)
+    if now - last < _DEFAULT_CHANNEL_WARN_EVERY:
+        return
+    _default_channel_warned[site] = now
+    logger.warning(
+        "channel-default: канал не определён, подставлен DEFAULT_CHANNEL_ID=%s "
+        "(вызов из %s). Со вторым стримером это будет запись в ЧУЖОЙ канал.",
+        DEFAULT_CHANNEL_ID, site,
+    )
 
 # ── Shared state ──────────────────────────────────────────────────────────────
 _db  = None

@@ -24,6 +24,8 @@ from typing import Optional
 
 import aiohttp
 
+from config import DEFAULT_CHANNEL_ID
+
 logger = logging.getLogger("rimlink.notifications")
 
 # Cooldown между «стрим начался» нотификациями (сек). Если стрим flap'нул —
@@ -60,6 +62,24 @@ async def notify_stream_online(
     import time
 
     if not _enabled():
+        return
+
+    # Telegram-канал в конфиге ОДИН на всю платформу, а функция зовётся для
+    # любого канала, вышедшего в эфир. Значит без этой проверки эфир чужого
+    # стримера анонсировался бы в Telegram владельца — его же аудитории.
+    # Это тот же класс, что личные автосообщения в общем списке (m114).
+    # Пока настройки TG не стали per-channel, оповещаем ровно один канал:
+    # тот, кому этот Telegram принадлежит.
+    owner_channel = os.getenv("TELEGRAM_NOTIFY_CHANNEL_ID", "").strip()
+    try:
+        owner_channel_id = int(owner_channel) if owner_channel else DEFAULT_CHANNEL_ID
+    except ValueError:
+        owner_channel_id = DEFAULT_CHANNEL_ID
+    if int(channel_id) != int(owner_channel_id):
+        logger.info(
+            "TG notify skip: канал %s — не владелец этого Telegram (%s)",
+            channel_id, owner_channel_id,
+        )
         return
 
     # Anti-spam: ещё в cooldown?

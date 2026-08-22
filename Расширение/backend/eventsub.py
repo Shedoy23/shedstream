@@ -309,6 +309,23 @@ async def eventsub_channel_points_alias(request: Request):
 
 # ─── Handler implementations ─────────────────────────────────────────────────
 
+def _is_tester_request(reward_title: str) -> bool:
+    """Похоже ли название награды на «хочу в тестеры расширения».
+
+    Регистр и лишние пробелы игнорируем: название редактируется руками в
+    панели Twitch, и лишний пробел не должен стоить зрителю баллов.
+    """
+    from config import CHANNEL_POINTS_CONFIG
+
+    normalized = " ".join((reward_title or "").upper().split())
+    if not normalized:
+        return False
+    return any(
+        p in normalized
+        for p in CHANNEL_POINTS_CONFIG.get("tester_request_patterns", ())
+    )
+
+
 async def _on_tester_request(
     channel_id: int, username: str, reward_title: str, redemption_id: str,
 ) -> None:
@@ -371,7 +388,7 @@ async def _on_channel_points(event: dict, channel_id: int) -> None:
     # владелец руками в консоли Twitch, публичного API для этого нет. Наша
     # задача — не потерять заявку и ответить зрителю, иначе он платит баллы
     # в пустоту (так и вышло 20.08 с @zerohomes).
-    if reward_title in CHANNEL_POINTS_CONFIG.get("tester_request_titles", ()):
+    if _is_tester_request(reward_title):
         await _on_tester_request(channel_id, username, reward_title,
                                  event.get("id", ""))
         return

@@ -172,9 +172,18 @@ async def run() -> int:
 
     # ── Заявка в тестеры ────────────────────────────────────────────────────
     print("\n[3] Заявка в тестеры расширения")
-    from config import CHANNEL_POINTS_CONFIG
-    title = next(iter(CHANNEL_POINTS_CONFIG.get("tester_request_titles", ())), None)
-    check(title is not None, "в конфиге есть хотя бы одно название заявки")
+    from eventsub import _is_tester_request
+    title = "ПОЛУЧИТЬ ДОСТУП К РАСШИРЕНЮ"          # как оно названо сейчас, с опечаткой
+    check(_is_tester_request(title), "текущее название награды опознаётся")
+    # Названия наград редактируются руками, и опечатку в нём захочется
+    # исправить. Точное сравнение сломалось бы молча — как 20.08.
+    check(_is_tester_request("Получить доступ к расширению"),
+          "исправленная опечатка и другой регистр — по-прежнему заявка")
+    check(_is_tester_request("  СТАТЬ   ТЕСТЕРОМ  "),
+          "переименование и лишние пробелы не ломают опознание")
+    check(not _is_tester_request("Награда: 5000 алмазов"),
+          "обычная награда заявкой НЕ считается")
+    check(not _is_tester_request(""), "пустое название не считается заявкой")
 
     bot.sent.clear()
     before = await _points(db, USER)

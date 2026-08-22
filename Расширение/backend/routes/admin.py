@@ -75,6 +75,22 @@ async def admin_approve_channel(
                 "message": f"Канал {channel_id} не найден в реестре"}
 
     mark_channel_approved(channel_id, approved)
+
+    # Одобрили — бот заходит в чат СЕЙЧАС, а не после рестарта бэкенда.
+    # Периодический цикл сверки подхватил бы канал и сам, но его минута
+    # приходится ровно на те первые минуты, когда новый стример смотрит на
+    # молчащий чат и решает, что продукт не работает.
+    if approved:
+        row = await get_db().get_channel(channel_id)
+        login = (row or {}).get("login")
+        if login:
+            try:
+                from main import join_channel_now
+                await join_channel_now(login)
+            except Exception as e:
+                # Не роняем одобрение из-за чата: цикл сверки догонит.
+                print(f"⚠️ join_channel_now({login}) при одобрении: {e}")
+
     print(f"{'✅ ОДОБРЕН' if approved else '⛔ ЗАКРЫТ'} канал {channel_id} (админ)")
     return {"success": True, "channel_id": channel_id, "approved": approved}
 

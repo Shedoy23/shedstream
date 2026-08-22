@@ -1456,6 +1456,25 @@ async def run_migrations():
 
 # ===== TWITCH IRC БОТ (отслеживание чата) =====
 
+def channels_to_join(registry_logins, joined_logins) -> list:
+    """Кого из реестра бот ещё не джойнил. Чистая функция — её и проверяет тест.
+
+    Нормализуем регистр и `#`: Twitch логины регистронезависимы, а в реестре и
+    в twitchio они приходят по-разному. Без нормализации бот заходил бы в один
+    и тот же чат повторно на каждом тике.
+    """
+    have = {str(x or "").lower().lstrip("#") for x in (joined_logins or [])}
+    want = []
+    seen = set()
+    for raw in (registry_logins or []):
+        login = str(raw or "").lower().strip().lstrip("#")
+        if not login or login in have or login in seen:
+            continue
+        seen.add(login)
+        want.append(login)
+    return want
+
+
 class TwitchChatBot(twitch_commands.Bot):
     """Multi-channel IRC бот (M4 follow-up в).
 
@@ -1497,6 +1516,41 @@ class TwitchChatBot(twitch_commands.Bot):
             await bot.flush_pending_chat()
         except Exception as e:
             print(f"flush_pending_chat error: {e}")
+
+    async def sync_channels(self, registry_logins: list) -> list:
+        """Дозайти в чаты каналов, которые появились после старта бота.
+
+        БЫЛО (до 2026-08-22): каналы джойнились ОДИН раз на старте. Новый
+        стример регистрировался — и бот не приходил к нему до перезапуска
+        бэкенда. Со стороны новичка это выглядит не как «подождите», а как
+        «ничего не работает»: расширение стоит, чат молчит. Для онбординга
+        незнакомого человека это блокер.
+
+        Возвращает список логинов, в которые зашли (пустой — значит всё уже
+        на месте). Ошибки не пробрасываем: не сумели дозайти сейчас —
+        попробуем на следующем тике, ронять из-за этого живой бот нельзя.
+        """
+        to_join = channels_to_join(registry_logins, self._joined_logins())
+        if not to_join:
+            return []
+        try:
+            await self.join_channels(to_join)
+        except Exception as e:
+            print(f"⚠️ join_channels {to_join} не удался: {type(e).__name__}: {e}")
+            return []
+        self._channel_logins = sorted(set(self._channel_logins) | set(to_join))
+        if not self._default_channel and self._channel_logins:
+            self._default_channel = self._channel_logins[0]
+        print(f"✅ IRC бот дозашёл в каналы: {to_join}")
+        return to_join
+
+    def _joined_logins(self) -> list:
+        """Логины каналов, в которых бот сидит ПРЯМО СЕЙЧАС (по данным twitchio)."""
+        try:
+            return [c.name.lower() for c in (self.connected_channels or []) if c and c.name]
+        except Exception:
+            # Нет доступа к списку — считаем join'нутыми те, что помним сами.
+            return list(self._channel_logins)
 
     async def send_message(self, message: str, channel_login: Optional[str] = None):
         """Отправить сообщение в указанный канал (или default = первый из join'нутых).
@@ -1905,6 +1959,49 @@ async def _wal_checkpoint_loop():
             print(f"WAL checkpoint loop error: {type(e).__name__}: {e}")
 
 
+async def channel_join_sync_loop():
+    """Раз в минуту сверяем реестр каналов с тем, где бот реально сидит.
+
+    Почему циклом, а не только из OAuth-колбэка: колбэк можно не дождаться
+    (регистрация прошла на другом процессе, бот в этот момент переподключался,
+    сеть моргнула). Цикл делает состояние САМОВОСПРАВЛЯЮЩИМСЯ — а именно этого
+    не хватало: новый стример ждал рестарта бэкенда, чтобы к нему пришёл бот.
+
+    Минута — компромисс: новичок не успевает решить, что «не работает», а
+    нагрузки нет никакой (один SELECT и сравнение множеств).
+    """
+    while True:
+        try:
+            await asyncio.sleep(60)
+            bot_ref = _twitch_chat_bot
+            if bot_ref is None or not hasattr(bot_ref, "_channel_logins"):
+                continue
+            rows = await db.list_channels()
+            logins = [r["login"] for r in rows
+                      if r.get("login") and r.get("approved")]
+            await bot_ref.sync_channels(logins)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            print(f"⚠️ channel_join_sync_loop: {type(e).__name__}: {e}")
+
+
+async def join_channel_now(login: str) -> None:
+    """Дозайти в чат конкретного канала немедленно (из OAuth-колбэка).
+
+    Цикл выше подхватил бы его и сам, но минута ожидания приходится ровно на
+    те первые минуты, когда новый стример смотрит на пустой чат и решает, что
+    продукт не работает.
+    """
+    bot_ref = _twitch_chat_bot
+    if bot_ref is None or not hasattr(bot_ref, "_channel_logins"):
+        return
+    try:
+        await bot_ref.sync_channels([login])
+    except Exception as e:
+        print(f"⚠️ join_channel_now({login}): {type(e).__name__}: {e}")
+
+
 async def start_twitch_bot():
     global _twitch_chat_bot
     # M4 follow-up (в): тянем список каналов из реестра channels (M4.0).
@@ -1912,7 +2009,12 @@ async def start_twitch_bot():
     # (хотя миграция M4.0 backfill'ит этот канал; defensive belt-and-suspenders).
     try:
         rows = await db.list_channels()
-        channel_logins = [r['login'] for r in rows if r.get('login')]
+        # ТОЛЬКО одобренные. Ворота одобрения (M99) существуют ровно затем,
+        # чтобы неподготовленный канал не получал обслуживания, — а бот,
+        # сидящий в чате, это обслуживание. До 2026-08-22 старт джойнил всех
+        # подряд, включая тех, кого владелец ещё не пустил.
+        channel_logins = [r['login'] for r in rows
+                          if r.get('login') and r.get('approved')]
     except Exception as e:
         print(f"⚠️  IRC bot: не удалось прочитать channels из БД: {e}")
         channel_logins = []
@@ -2000,6 +2102,9 @@ async def on_startup():
     # IRC бот и семейный доход
     if not _staging:
         asyncio.create_task(start_twitch_bot())
+        # Дозаход в чаты каналов, одобренных уже ПОСЛЕ старта: без этого
+        # новый стример ждал бы рестарта бэкенда, глядя на молчащий чат.
+        asyncio.create_task(channel_join_sync_loop())
         asyncio.create_task(bot.auto_message_loop())
         # Safety-net для сообщений, поставленных в очередь до коннекта IRC:
         # event_ready() флашит один раз, но если что-то поставилось позже (гонка

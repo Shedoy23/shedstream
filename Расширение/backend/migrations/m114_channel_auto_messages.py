@@ -33,6 +33,11 @@ _OWNER_MESSAGES = [
 
 
 async def apply(conn):
+    name = "M114.channel_auto_messages"
+    await conn.execute(
+        "CREATE TABLE IF NOT EXISTS migrations_applied "
+        "(name TEXT PRIMARY KEY, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
+    )
     await conn.execute("""
         CREATE TABLE IF NOT EXISTS channel_auto_messages (
             channel_id  INTEGER NOT NULL,
@@ -56,3 +61,9 @@ async def apply(conn):
             "(channel_id, position, text) VALUES (?,?,?)",
             (_OWNER_CHANNEL_ID, position, text),
         )
+
+    await conn.execute(
+        "INSERT OR IGNORE INTO migrations_applied (name) VALUES (?)", (name,)
+    )
+    await conn.commit()
+    print("✅ M114: автосообщения стали per-channel")

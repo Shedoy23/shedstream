@@ -1194,6 +1194,42 @@ def check_auto_messages_neutral():
                 )
 
 
+
+def check_migrations_self_register():
+    """Миграция обязана записать себя в migrations_applied и закоммитить.
+
+    Ledger ведут сами миграции (конвенция всех m1..m113), а не вызывающий код.
+    Миграция, которая этого не делает, во-первых прогоняется заново на каждом
+    старте, во-вторых — и это хуже — её собственные INSERT'ы остаются
+    незакоммиченными, потому что коммит идёт той же строкой. Ровно так
+    2026-08-22 m114 создала таблицу, но не перенесла в неё ни одного
+    сообщения: выглядело как успешный деплой, а данных не было.
+    """
+    mig_dir = EXT / "backend" / "migrations"
+    if not mig_dir.is_dir():
+        return
+    for path in sorted(mig_dir.glob("m*_*.py")):
+        text = path.read_text(encoding="utf-8", errors="replace")
+        if "async def apply" not in text:
+            continue
+        rel = path.relative_to(ROOT).as_posix()
+        # Ищем именно ЗАПИСЬ в ledger, а не любое упоминание таблицы: почти
+        # каждая миграция начинается с CREATE TABLE IF NOT EXISTS
+        # migrations_applied, и проверка на подстроку проходила бы всегда.
+        # Первая редакция этого правила так и не поймала свой же баг —
+        # обнаружено обязательным прогоном «красным».
+        if "INTO migrations_applied" not in text:
+            errors.append(
+                f"migration-ledger: {rel} не пишет себя в migrations_applied — "
+                "будет прогоняться на каждом старте."
+            )
+        elif "conn.commit()" not in text:
+            errors.append(
+                f"migration-ledger: {rel} не делает conn.commit() — её записи "
+                "не сохранятся (так m114 потеряла сид 2026-08-22)."
+            )
+
+
 def main() -> int:
     if EXT is None:
         print("[lint] FAIL: could not locate extension dir (with backend/)")
@@ -1211,7 +1247,8 @@ def main() -> int:
                check_frontend_price_literals,
                check_declared_gold_is_charged,
                check_chat_channel_scoping,
-               check_auto_messages_neutral):
+               check_auto_messages_neutral,
+               check_migrations_self_register):
         try:
             fn()
         except Exception as e:  # a broken check shouldn't crash CI silently

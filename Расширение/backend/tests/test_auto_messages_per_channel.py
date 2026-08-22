@@ -96,7 +96,16 @@ async def run() -> int:
     check(len(owner_feed) > len(other_feed),
           "у владельца лента шире — значит личное подмешивается именно ему")
 
-    print("\n[4] Повторное применение миграции")
+    print("\n[4] Миграция отметилась в журнале")
+    # Без этой записи миграция гоняется на каждом старте, а её INSERT'ы не
+    # коммитятся — именно так 22.08 таблица приехала на прод пустой.
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT 1 FROM migrations_applied WHERE name LIKE 'M114%'")
+        recorded = await cur.fetchone()
+    check(recorded is not None, "M114 записана в migrations_applied")
+
+    print("\n[5] Повторное применение миграции")
     async with db._connect() as conn:
         await m114_channel_auto_messages.apply(conn)
         await conn.commit()

@@ -24,6 +24,7 @@ from config import (
     CACHE_EVICTION_INTERVAL,
     CHAT_BONUS_COOLDOWN_SEC,
     CHAT_BONUS_DEDUP_WINDOW,
+    CHAT_BONUS_BASE,
     CHAT_BONUS_MAX,
     CHAT_BONUS_MIN_CHARS,
     CHAT_BONUS_PER_CHARS,
@@ -222,7 +223,7 @@ class BotCore:
           - hash(text) уже видели в последних CHAT_BONUS_DEDUP_WINDOW (10) сообщениях
             этого user'а на этом канале — анти copy-paste
 
-        Иначе: возвращает min(len(text) // CHAT_BONUS_PER_CHARS, CHAT_BONUS_MAX)
+        Иначе: min(CHAT_BONUS_BASE + len(text) // CHAT_BONUS_PER_CHARS, CHAT_BONUS_MAX)
         и обновляет state. State per (channel_id, username), in-memory.
         """
         if not text or not username or not channel_id:
@@ -252,7 +253,12 @@ class BotCore:
         # Bonus eligible — записываем state и возвращаем сумму.
         recent.append(msg_hash)
         self._chat_bonus_last_at[key] = now
-        return min(len(text) // CHAT_BONUS_PER_CHARS, CHAT_BONUS_MAX)
+        # База за сам факт реплики + плата за длину, с общим потолком.
+        # База нужна потому, что живой разговор состоит и из коротких реплик:
+        # без неё «ага» и «жёстко» стоили почти ничего, и экономика поощряла
+        # писать длинно, а не говорить.
+        return min(CHAT_BONUS_BASE + len(text) // CHAT_BONUS_PER_CHARS,
+                   CHAT_BONUS_MAX)
 
     def _twitch_bot_ready(self) -> bool:
         """IRC-бот подключён и умеет слать? Используется как гейт для send."""

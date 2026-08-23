@@ -141,19 +141,34 @@ async def run() -> int:
     check(req.active_clicks == 4 and req.mouse_moves == 9,
           "active_clicks и mouse_moves больше не выбрасываются молча")
 
-    print("\n[5] Баланс чата поднят осознанно")
-    from config import CHAT_BONUS_PER_CHARS, CHAT_BONUS_MAX, CHAT_BONUS_DAILY_CAP
+    print("\n[5] Болтун обгоняет молчуна")
+    from config import (CHAT_BONUS_BASE, CHAT_BONUS_PER_CHARS, CHAT_BONUS_MAX,
+                        CHAT_BONUS_DAILY_CAP)
     avg_len = 29          # средняя длина сообщения на эфире 20.08
-    per_msg = min(avg_len // CHAT_BONUS_PER_CHARS, CHAT_BONUS_MAX)
-    check(per_msg >= 25,
-          f"среднее сообщение стоит ощутимо ({per_msg}💎 против ~9💎 раньше)")
-    check(CHAT_BONUS_DAILY_CAP >= 3 * 900,
-          f"дневной потолок втрое выше живого рекорда ({CHAT_BONUS_DAILY_CAP}💎)")
-    # Кулдаун 10с → 360 сообщений в час. Потолок обязан быть НИЖЕ того, что
-    # даёт флуд за час, иначе спамить выгоднее, чем разговаривать.
-    flood_hour = 360 * per_msg
-    check(CHAT_BONUS_DAILY_CAP < flood_hour,
-          f"потолок ниже часового флуда ({CHAT_BONUS_DAILY_CAP} < {flood_hour})")
+    per_msg = min(CHAT_BONUS_BASE + avg_len // CHAT_BONUS_PER_CHARS, CHAT_BONUS_MAX)
+
+    # Прямое требование владельца: «болтуны нужны, болтуны мне важны», и «за
+    # стрим человек и 500 сообщений выдать может». Значит разговор обязан
+    # ОБГОНЯТЬ пассивный просмотр, а не догонять его — иначе экономика говорит
+    # зрителю «сиди молча», что противоположно цели продукта.
+    heavy_chatter = 500 * per_msg
+    full_stream_passive = POINTS_PER_MINUTE * 60 * 10
+    check(heavy_chatter > full_stream_passive,
+          f"500 сообщений выгоднее полного эфира молчком "
+          f"({heavy_chatter}💎 > {full_stream_passive}💎)")
+
+    # Короткая живая реплика тоже обязана что-то стоить: разговор состоит и из
+    # «ага». При делителе без базы она давала 3💎, то есть практически ноль.
+    short = min(CHAT_BONUS_BASE + 10 // CHAT_BONUS_PER_CHARS, CHAT_BONUS_MAX)
+    check(short >= 15, f"короткая реплика (10 симв.) стоит ощутимо ({short}💎)")
+
+    # Потолок существует ТОЛЬКО против флуда и не должен резать собеседника.
+    check(CHAT_BONUS_DAILY_CAP > heavy_chatter,
+          f"потолок не режет болтуна ({CHAT_BONUS_DAILY_CAP}💎 > {heavy_chatter}💎)")
+    flood_hour = 360 * short          # кулдаун 10с, минимальные сообщения
+    check(CHAT_BONUS_DAILY_CAP < flood_hour * 5,
+          f"но флуд упирается в него за разумное время "
+          f"({CHAT_BONUS_DAILY_CAP}💎 против {flood_hour}💎/час)")
 
     await db._pool.close()
     try:

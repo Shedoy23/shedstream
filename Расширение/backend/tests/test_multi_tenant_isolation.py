@@ -453,9 +453,17 @@ def test_chat_bonus_antifraud():
     # First long message → bonus
     bonus1 = bot.compute_chat_bonus(cid_a, "alice", "Hello chat folks!")
     assert_true(bonus1 > 0, "first 17-char msg → bonus")
-    from config import CHAT_BONUS_PER_CHARS, CHAT_BONUS_MAX
-    expected = min(len("Hello chat folks!") // CHAT_BONUS_PER_CHARS, CHAT_BONUS_MAX)
-    assert_eq(bonus1, expected, f"bonus = min(len/{CHAT_BONUS_PER_CHARS}, {CHAT_BONUS_MAX}) = {expected}")
+    # Формула: база за сам факт реплики + плата за длину, общий потолок
+    # (2026-08-23 — «болтуны нужны»). Базы раньше не было, и короткая живая
+    # реплика стоила почти ноль.
+    from config import CHAT_BONUS_BASE, CHAT_BONUS_PER_CHARS, CHAT_BONUS_MAX
+    expected = min(
+        CHAT_BONUS_BASE + len("Hello chat folks!") // CHAT_BONUS_PER_CHARS,
+        CHAT_BONUS_MAX,
+    )
+    assert_eq(bonus1, expected,
+              f"bonus = min({CHAT_BONUS_BASE} + len/{CHAT_BONUS_PER_CHARS}, "
+              f"{CHAT_BONUS_MAX}) = {expected}")
 
     # Cooldown: same user, immediately → 0
     assert_eq(bot.compute_chat_bonus(cid_a, "alice", "Different message text"), 0,

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
 using BannerlordLink.Util;
@@ -56,17 +56,20 @@ namespace BannerlordLink.Actions
                 if (hero == null || !hero.IsAlive)
                 {
                     BannerlordLinkModule.Log($"[create_kingdom] @{username}: hero не найден / мёртв");
+                    ActionFeedback.PostFailed(actionId, "hero_not_found_or_dead");
                     return;
                 }
                 if (hero.IsPrisoner)
                 {
                     BannerlordLinkModule.Log($"[create_kingdom] @{username}: пленник, отказ");
+                    ActionFeedback.PostFailed(actionId, "prisoner");
                     return;
                 }
                 if (hero.Clan == null || !hero.IsClanLeader)
                 {
                     BannerlordLinkModule.Log(
                         $"[create_kingdom] @{username}: must be clan leader (Clan={hero.Clan?.Name?.ToString() ?? "null"})");
+                    ActionFeedback.PostFailed(actionId, "not_clan_leader");
                     return;
                 }
                 // ═══ 2026-07-31: ЗДЕСЬ БЫЛ ОТКАЗ «ты уже в королевстве» ═══
@@ -106,6 +109,7 @@ namespace BannerlordLink.Actions
                 {
                     BannerlordLinkModule.Log(
                         $"[create_kingdom] @{username}: not enough gold ({hero.Gold} < {CREATE_COST})");
+                    ActionFeedback.PostFailed(actionId, "not_enough_gold");
                     return;
                 }
 
@@ -122,6 +126,7 @@ namespace BannerlordLink.Actions
                 {
                     BannerlordLinkModule.Log(
                         $"[create_kingdom] @{username}: kingdom '{fullName}' уже существует");
+                    ActionFeedback.PostFailed(actionId, "kingdom_name_taken");
                     return;
                 }
 
@@ -179,11 +184,17 @@ namespace BannerlordLink.Actions
                     .PostEventAsync("bannerlord", "hero.kingdom_created", evtData));
 
                 HeroStateSync.Push(hero);
+
+                // Явный успех: королевство создано и проверено выше по коду.
+                // Без этого вызова исход был бы «успех по умолчанию» — то же
+                // самое, что видел бы зритель при молчаливом отказе.
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log(
                     $"[create_kingdom] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
+                ActionFeedback.PostFailed(actionId, "crashed");
             }
         }
     }

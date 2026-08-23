@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
@@ -27,6 +27,21 @@ namespace BannerlordLink
             private bool _handlerSuccess = true;
             private bool _cancelled;
             private string _error;
+
+            // Явно ли обработчик СКАЗАЛ, чем всё кончилось (Fail или Applied).
+            //
+            // Зачем. Успех здесь — значение по умолчанию: обработчик, который
+            // ничего не сообщил, считается успешным. Из-за этого рождается
+            // класс «зритель заплатил, движок молча ничего не сделал, ядру
+            // ушёл успех» — аудит модов 2026-08-23 нашёл шесть таких выходов
+            // в одном только CreateKingdomHandler.
+            //
+            // Поведение НЕ меняем: переключить умолчание на отказ разом для 64
+            // обработчиков без запущенной игры нельзя. Вместо этого делаем
+            // умолчание ВИДИМЫМ — как с channel-default: на бэкенде. Строки
+            // «БЕЗ ЯВНОГО ИСХОДА» в логе стримера = рабочий список того, что
+            // осталось перевести на явный контракт.
+            private bool _outcomeStated;
 
             public TrackedAction(string actionId)
             {
@@ -66,8 +81,19 @@ namespace BannerlordLink
                 lock (_gate)
                 {
                     if (_cancelled) return;
+                    _outcomeStated = true;
                     _handlerSuccess = false;
                     if (string.IsNullOrEmpty(_error)) _error = error ?? "apply_failed";
+                }
+            }
+
+            /// <summary>Обработчик ЯВНО сообщил, что эффект применён.</summary>
+            public void Applied()
+            {
+                lock (_gate)
+                {
+                    if (_cancelled) return;
+                    _outcomeStated = true;
                 }
             }
 
@@ -93,6 +119,15 @@ namespace BannerlordLink
             private void TryCompleteLocked()
             {
                 if (_cancelled || !_handlerFinished || _pendingWork != 0) return;
+                if (_handlerSuccess && !_outcomeStated && ActionId.Length > 0)
+                {
+                    // Успех получен по умолчанию, а не потому, что обработчик
+                    // проверил эффект. Может быть и правдой, и тихим нулём —
+                    // отличить отсюда нельзя, поэтому просто называем вслух.
+                    BannerlordLinkModule.Log(
+                        $"[action] БЕЗ ЯВНОГО ИСХОДА action_id={ActionId} — успех " +
+                        "проставлен умолчанием; обработчик не подтвердил эффект");
+                }
                 _completion.TrySetResult((_handlerSuccess, _error));
             }
         }
@@ -197,6 +232,25 @@ namespace BannerlordLink
                 return false;
 
             tracked.Fail(reason);
+            return true;
+        }
+
+        /// <summary>
+        /// Обработчик ЯВНО подтверждает, что эффект применён.
+        ///
+        /// Парная к TryReportActionFailure. Нужна, чтобы отличить «успех,
+        /// потому что проверили» от «успех, потому что никто ничего не сказал»:
+        /// второй и есть тихий ноль, за который зритель платит.
+        /// </summary>
+        public static bool TryReportActionApplied(string actionId)
+        {
+            var tracked = _executing ?? _ambient.Value;
+            if (tracked == null) return false;
+            if (!string.IsNullOrEmpty(actionId)
+                && !string.Equals(tracked.ActionId, actionId, StringComparison.Ordinal))
+                return false;
+
+            tracked.Applied();
             return true;
         }
 

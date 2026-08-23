@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -27,6 +27,26 @@ namespace BannerlordLink.Util
     /// </summary>
     public static class ActionFeedback
     {
+        /// <summary>
+        /// Подтвердить, что эффект ДЕЙСТВИТЕЛЬНО применён.
+        ///
+        /// Зачем это отдельным вызовом. Успех в трекере — значение по
+        /// умолчанию, поэтому «ничего не сказал» и «проверил и получилось»
+        /// сейчас неотличимы. Аудит модов 2026-08-23 показал, что за этой
+        /// неотличимостью живёт целый класс: шесть путей отказа в
+        /// CreateKingdomHandler молча возвращают успех.
+        ///
+        /// Контракт, к которому идём (как в shedcolony): обработчик обязан
+        /// назвать исход — либо PostApplied, либо PostFailed. Пока переход не
+        /// закончен, отсутствие исхода не меняет поведения, но пишется в лог
+        /// строкой «БЕЗ ЯВНОГО ИСХОДА».
+        /// </summary>
+        public static void PostApplied(string actionId)
+        {
+            if (string.IsNullOrEmpty(actionId)) return;
+            MainThreadDispatcher.TryReportActionApplied(actionId);
+        }
+
         /// <summary>Capture a tracked failure, or durably queue delayed compensation.</summary>
         public static void PostFailed(string actionId, string reason)
         {

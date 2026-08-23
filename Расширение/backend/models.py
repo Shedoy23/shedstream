@@ -17,6 +17,12 @@ class ActivityRequest(BaseModel):
     username: str
     watch_time: int   # секунд просмотрено
     total_time: int = 0
+    # Признаки того, что зритель ДЕЙСТВУЕТ, а не держит вкладку открытой.
+    # Фронт слал их с самого первого коммита, а модель не объявляла — и
+    # Pydantic молча выбрасывал. То есть данные для различения «смотрит» и
+    # «ушёл» долетали до сервера и терялись (найдено 2026-08-23).
+    active_clicks: int = 0
+    mouse_moves: int = 0
 
 class ChatMessageRequest(BaseModel):
     username: str

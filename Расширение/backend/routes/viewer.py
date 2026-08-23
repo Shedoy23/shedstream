@@ -410,12 +410,22 @@ async def track_activity(body: ActivityRequest, request: Request):
     except Exception:
         level_before = 0
 
+    # Взаимодействовал ли зритель, или просто держит панель открытой. Полную
+    # ставку даёт только первое; подробности — в `bot_core._reward_points`.
+    interacted = (body.active_clicks or 0) > 0 or (body.mouse_moves or 0) > 0
+
     async with db._connect() as conn:
         await conn.execute("""
             INSERT INTO viewers (channel_id, username, last_seen, is_afk)
             VALUES (?, ?, datetime('now'), 0)
             ON CONFLICT(channel_id, username) DO UPDATE SET last_seen = datetime('now'), is_afk = 0
         """, (channel_id, username))
+        if interacted:
+            await conn.execute(
+                "UPDATE viewers SET last_interaction_at = datetime('now') "
+                "WHERE channel_id = ? AND username = ?",
+                (channel_id, username),
+            )
         stream_live = False
         try:
             stream_live = await bot._is_stream_live(channel_id=channel_id)

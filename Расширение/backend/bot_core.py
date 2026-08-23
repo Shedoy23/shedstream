@@ -17,6 +17,7 @@ from database import Database
 from dependencies import resolve_channel_id
 from config import (
     ACTIVE_WINDOW,
+    ENGAGED_WINDOW,
     REDUCED_WINDOW,
     AUTO_MESSAGE_TICK_SEC,
     AUTO_MESSAGES_ENABLED,
@@ -815,7 +816,10 @@ class BotCore:
                 cursor = await conn.execute(
                     """
                     SELECT username,
-                           CAST((julianday('now') - julianday(last_seen)) * 86400 AS INTEGER) AS age_sec
+                           CAST((julianday('now') - julianday(last_seen)) * 86400 AS INTEGER) AS age_sec,
+                           CASE WHEN last_interaction_at IS NULL THEN NULL
+                                ELSE CAST((julianday('now') - julianday(last_interaction_at)) * 86400 AS INTEGER)
+                           END AS interact_age_sec
                     FROM   viewers
                     WHERE  channel_id = ?
                        AND last_seen >= datetime('now', ?)
@@ -839,7 +843,7 @@ class BotCore:
         # = active_count units per minute (1 unit/min/active viewer).
         from config import VOTING_POOL_PER_WATCH_MIN
         active_count = reduced_count = 0
-        for username, age_sec in rows:
+        for username, age_sec, interact_age_sec in rows:
             if age_sec >= REDUCED_WINDOW:
                 continue
 
@@ -851,7 +855,16 @@ class BotCore:
 
             total_points = int(POINTS_PER_MINUTE * (1 + level_pct / 100))
 
-            if age_sec < ACTIVE_WINDOW:
+            # 2026-08-23. Полная ставка требует ДВУХ вещей: панель на связи
+            # (свежий last_seen) И недавнее действие зрителя — клик/движение в
+            # панели либо сообщение в чат. Раньше хватало первого, то есть
+            # открытая вкладка приносила столько же, сколько просмотр.
+            #
+            # Половина, а НЕ ноль, — намеренно: на мобильном мышью не двигают,
+            # и честный лёркер не должен быть наказан за устройство. Ровно из-за
+            # этого перекоса в июне заводили PRESENCE_WATCHTIME_ENABLED.
+            engaged = interact_age_sec is not None and interact_age_sec < ENGAGED_WINDOW
+            if age_sec < ACTIVE_WINDOW and engaged:
                 status = "active"
                 active_count += 1
             else:

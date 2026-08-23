@@ -1451,6 +1451,13 @@ async def run_migrations():
             print(f"❌ M115 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m116_engagement_watchtime
+            await m116_engagement_watchtime.apply(conn)
+        except Exception as e:
+            print(f"❌ M116 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 
@@ -1607,14 +1614,44 @@ class TwitchChatBot(twitch_commands.Bot):
                     ON CONFLICT(channel_id, username) DO UPDATE SET
                         last_seen = datetime('now'), is_afk = 0
                 """, (channel_id, username))
-                await conn.execute("""
-                    INSERT INTO chat_stats (channel_id, username, message_length, message_text)
-                    VALUES (?, ?, ?, ?)
-                """, (channel_id, username, len(text), None))  # never store message content (privacy)
+                # Сообщение в чат — это взаимодействие. Именно оно держит на
+                # полной ставке мобильных зрителей, которые мышью не двигают.
+                await conn.execute(
+                    "UPDATE viewers SET last_interaction_at = datetime('now') "
+                    "WHERE channel_id = ? AND username = ?",
+                    (channel_id, username))
                 await conn.commit()
             # M7: Бонус за сообщение через антифрод-helper.
             # Проверяет cooldown (10s) + min length (10ch) + dedup last 10 hashes.
             bonus = bot.compute_chat_bonus(channel_id, username, text)
+            # Дневной потолок (2026-08-23). Бонус подняли втрое, а кулдаун 10с
+            # допускает 360 бонусов в час — без потолка флудить стало бы
+            # выгоднее, чем смотреть. Считаем по ФАКТИЧЕСКИ выданному за
+            # сегодня, а не по счётчику в памяти: счётчик обнуляется рестартом,
+            # и ограничение обходилось бы само (так живут кулдауны Bannerlord,
+            # см. DEFERRED).
+            if bonus > 0:
+                from config import CHAT_BONUS_DAILY_CAP
+                async with db._connect() as conn:
+                    cur = await conn.execute(
+                        "SELECT COALESCE(SUM(bonus_points), 0) FROM chat_stats "
+                        "WHERE channel_id = ? AND username = ? "
+                        "AND date(created_at) = date('now')",
+                        (channel_id, username))
+                    given_today = int((await cur.fetchone())[0])
+                left = max(0, CHAT_BONUS_DAILY_CAP - given_today)
+                if bonus > left:
+                    bonus = left
+                    if left == 0:
+                        print(f"💬 [ch={channel_id}] @{username}: дневной потолок "
+                              f"бонуса за чат исчерпан ({CHAT_BONUS_DAILY_CAP}💎)")
+            async with db._connect() as conn:
+                await conn.execute("""
+                    INSERT INTO chat_stats (channel_id, username, message_length,
+                                            message_text, bonus_points)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (channel_id, username, len(text), None, bonus))  # never store message content (privacy)
+                await conn.commit()
             if bonus > 0:
                 await db.add_points(username, bonus, channel_id=channel_id)
             # Phase 4: voting pool += VOTING_POOL_PER_CHAT_MSG за каждое

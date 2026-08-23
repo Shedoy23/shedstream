@@ -789,9 +789,11 @@ class Database:
                         WHEN 'chat_messages_25' THEN 8
                         WHEN 'chat_messages_50' THEN 9
                         WHEN 'chat_messages_100' THEN 10
-                        WHEN 'activity_points_100' THEN 11
-                        WHEN 'activity_points_500' THEN 12
-                        WHEN 'active_viewer' THEN 13
+                        WHEN 'chat_messages_200' THEN 11
+                        WHEN 'chat_messages_300' THEN 12
+                        WHEN 'activity_points_100' THEN 13
+                        WHEN 'activity_points_500' THEN 14
+                        WHEN 'active_viewer' THEN 15
                     END
             """, (channel_id, username.lower(), today))
             
@@ -812,6 +814,8 @@ class Database:
                 'chat_messages_25': {'name': '25 сообщений в чате', 'emoji': '🗣️'},
                 'chat_messages_50': {'name': '50 сообщений в чате', 'emoji': '💎'},
                 'chat_messages_100': {'name': '100 сообщений в чате', 'emoji': '👑'},
+                'chat_messages_200': {'name': '200 сообщений в чате', 'emoji': '🔥'},
+                'chat_messages_300': {'name': '300 сообщений в чате', 'emoji': '🏆'},
                 
                 # Квесты активности
                 'activity_points_100': {'name': '100 очков активности', 'emoji': '🎮'},
@@ -2065,6 +2069,33 @@ class Database:
     AUTO_MSG_MAX_COUNT = 10
     AUTO_MSG_MAX_LEN = 400          # лимит чата Twitch 500, оставляем запас
     AUTO_MSG_INTERVALS = (10, 15, 20, 30, 45, 60, 90, 120)
+
+    async def record_income(self, channel_id: int, username: str,
+                            source: str, points: int) -> None:
+        """Запомнить, ОТКУДА зритель взял крустики (m117).
+
+        Только учёт: на сам баланс не влияет и падать наружу не должен —
+        сломанная статистика не повод отменять зрителю награду. Поэтому
+        ошибки глотаем с логом.
+
+        Источники: watch_full | watch_half | chat | quest.
+        """
+        if not username or not points:
+            return
+        try:
+            async with self._connect() as conn:
+                await conn.execute(
+                    "INSERT INTO points_income (channel_id, username, day, source, "
+                    " points, events) VALUES (?,?,date('now'),?,?,1) "
+                    "ON CONFLICT(channel_id, username, day, source) DO UPDATE SET "
+                    "  points = points + excluded.points, "
+                    "  events = events + 1",
+                    (int(channel_id), username.lower(), source, int(points)),
+                )
+                await conn.commit()
+        except Exception as e:
+            # В этом файле логгера нет — пишем как весь остальной код, print'ом.
+            print(f"⚠️  record_income({source}/{username}) не записан: {e}")
 
     async def get_channel_auto_messages(self, channel_id: int) -> list:
         """Автосообщения канала по порядку. Пустой список — норма."""

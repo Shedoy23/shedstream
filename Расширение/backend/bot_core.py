@@ -879,6 +879,12 @@ class BotCore:
                 reduced_count += 1
 
             await self.db.add_points(username, total_points, channel_id=cid)
+            # Учёт источника (m117): на триаже видно, сколько дал просмотр
+            # «со вниманием», а сколько — открытая вкладка.
+            await self.db.record_income(
+                cid, username,
+                "watch_full" if status == "active" else "watch_half",
+                total_points)
 
             # Квесты watch_time — только для активных.
             if status == "active":
@@ -1013,6 +1019,12 @@ class BotCore:
                 if reward_points:
                     await self.db.add_points_tx(conn, username, reward_points, channel_id)
                 await conn.commit()
+
+                # Учёт источника (m117) — ПОСЛЕ коммита: статистика не должна
+                # ни держать замок кассы, ни отменять уже выданную награду.
+                if reward_points:
+                    await self.db.record_income(
+                        channel_id, username, "quest", reward_points)
 
                 await self._grant_quest_extras(username, quest_type, reward_item, channel_id=channel_id)
                 logger.info("Квест %s завершён для @%s", quest_type, username)

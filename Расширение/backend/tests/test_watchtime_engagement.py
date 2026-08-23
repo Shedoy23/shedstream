@@ -76,7 +76,8 @@ async def run() -> int:
     from bot_core import BotCore
     from config import POINTS_PER_MINUTE
     from database import Database
-    from migrations import m1_multitenant, m116_engagement_watchtime
+    from migrations import (m1_multitenant, m116_engagement_watchtime,
+                            m117_income_ledger)
 
     db_path = tempfile.mktemp(suffix="_engage.db")
     db = Database(db_path=db_path)
@@ -87,6 +88,7 @@ async def run() -> int:
         # без неё тест проверял бы не ту таблицу, что живёт на проде.
         await m1_multitenant.apply(conn)
         await m116_engagement_watchtime.apply(conn)
+        await m117_income_ledger.apply(conn)
         await conn.commit()
     dependencies.set_db(db)
     bot = BotCore(db)
@@ -169,6 +171,21 @@ async def run() -> int:
     check(CHAT_BONUS_DAILY_CAP < flood_hour * 5,
           f"но флуд упирается в него за разумное время "
           f"({CHAT_BONUS_DAILY_CAP}💎 против {flood_hour}💎/час)")
+
+    print("\n[6] Источник дохода записан — на триаже будет что смотреть")
+    # Без этого учёта числа баланса подбираются по памяти, а не по факту:
+    # 23.08 так дважды промахнулись мимо реального разговора.
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT source, points FROM points_income WHERE channel_id=? "
+            "ORDER BY source", (CH,))
+        income = dict(await cur.fetchall())
+    check("watch_full" in income and income["watch_full"] > 0,
+          f"полная ставка записана как watch_full ({income.get('watch_full')})")
+    check("watch_half" in income and income["watch_half"] > 0,
+          f"половинная — как watch_half ({income.get('watch_half')})")
+    check(income.get("watch_full", 0) != income.get("watch_half", 0),
+          "источники не слиплись в один")
 
     await db._pool.close()
     try:

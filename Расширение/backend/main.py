@@ -1458,6 +1458,13 @@ async def run_migrations():
             print(f"❌ M116 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m117_income_ledger
+            await m117_income_ledger.apply(conn)
+        except Exception as e:
+            print(f"❌ M117 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 
@@ -1654,6 +1661,7 @@ class TwitchChatBot(twitch_commands.Bot):
                 await conn.commit()
             if bonus > 0:
                 await db.add_points(username, bonus, channel_id=channel_id)
+                await db.record_income(channel_id, username, "chat", bonus)
             # Phase 4: voting pool += VOTING_POOL_PER_CHAT_MSG за каждое
             # сообщение (антифрод уже отсеял дубли в bonus check)
             try:
@@ -1666,6 +1674,8 @@ class TwitchChatBot(twitch_commands.Bot):
             await bot._update_quest_progress(username, 'chat_messages_25', 1)
             await bot._update_quest_progress(username, 'chat_messages_50', 1)
             await bot._update_quest_progress(username, 'chat_messages_100', 1)
+            await bot._update_quest_progress(username, 'chat_messages_200', 1)
+            await bot._update_quest_progress(username, 'chat_messages_300', 1)
         except Exception as e:
             print(f"IRC chat error: {e}")
 

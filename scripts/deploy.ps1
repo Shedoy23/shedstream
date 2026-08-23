@@ -248,7 +248,13 @@ if ($Staging) {
 # тащит и viewer*.js, которые как раз заморожены. Поэтому отдельный флаг и
 # точечная отправка ровно трёх файлов.
 if ($Site) {
-    $siteFiles = @('index.html', 'privacy.html', 'terms.html')
+    # overlay.html + pet-layout.js добавлены 2026-08-23. Оверлей — это виджет
+    # для OBS, а НЕ Twitch video-overlay: в поданный архив он намеренно не
+    # кладётся (см. pack-extension.py), поэтому заморозка фронта его не
+    # касается. pet-layout.js подключён только оверлеем, в оболочки расширения
+    # не входит и в ZIP не попадает — сборщик берёт скрипты из шеллов.
+    $siteFiles = @('index.html', 'privacy.html', 'terms.html',
+                   'overlay.html', 'pet-layout.js')
     foreach ($f in $siteFiles) {
         $src = Join-Path $ExtDir "frontend\$f"
         if (-not (Test-Path $src)) { Warn "no $f - skip"; continue }

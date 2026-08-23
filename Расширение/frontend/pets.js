@@ -59,6 +59,23 @@ let _petsState = {
     document.head.appendChild(style);
 })();
 
+// Значок вещи: спрайт, если он есть, иначе emoji, иначе подарок.
+//
+// До 2026-08-23 здесь стояло просто `item.emoji || '🎁'`, а у двух
+// единственных живых вещей (Кимоно, Голый торс) поле emoji пустое — они
+// рисовались одинаковыми коробками, и зритель не понимал, что покупает.
+// Спрайт приходит с бэкенда уже абсолютным адресом: относительный путь
+// работает только на оверлее, потому что тот отдаётся с нашего сервера,
+// а расширение живёт на CDN Twitch.
+function _petItemIcon(item, size) {
+    const px = size || 24;
+    if (item && item.png_path) {
+        return `<img src="${item.png_path}" alt="" style="width:${px}px;height:${px}px;`
+            + `object-fit:contain;image-rendering:pixelated;">`;
+    }
+    return (item && item.emoji) || '🎁';
+}
+
 async function openPetsModal() {
     if (!isAuthUser()) {
         showNotification('⚠️ Войдите через Twitch', 'warning');
@@ -170,7 +187,7 @@ function _renderPetView() {
         const item = equipped[slot];
         const slotLabel = slotLabels[slot];
         return `<div style="background:#1a1a1c;border:1px solid #3a3a3e;border-radius:6px;padding:8px;text-align:center;">
-            <div style="font-size:24px;">${item.emoji || '🎁'}</div>
+            <div style="font-size:24px;">${_petItemIcon(item, 28)}</div>
             <div style="font-size:11px;color:#adadb8;margin:2px 0;">${slotLabel}</div>
             <div style="font-size:11px;font-weight:600;">${escapeHtml(item.name)}</div>
             <button class="small-btn" data-pet-action="unequip" data-slot="${slot}" style="margin-top:4px;font-size:10px;">🗑️ Снять</button>
@@ -195,7 +212,7 @@ function _renderPetView() {
     const invHtml = unequippedOwned.length ? unequippedOwned.map(it => `
         <div style="background:#1a1a1c;border:1px solid #3a3a3e;border-radius:6px;padding:8px;
                     display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-            <div style="font-size:22px;">${it.emoji || '🎁'}</div>
+            <div style="font-size:22px;">${_petItemIcon(it, 26)}</div>
             <div style="flex:1;">
                 <div style="font-size:13px;font-weight:600;">${escapeHtml(it.name)}</div>
                 <div style="font-size:11px;color:#adadb8;">${_slotRu(it.slot)} · ${_rarityRu(it.rarity)}</div>

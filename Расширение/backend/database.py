@@ -23,6 +23,29 @@ _fernet_cached = None
 _fernet_init = False
 
 
+def _abs_asset(path):
+    """Относительный путь к спрайту → абсолютный URL.
+
+    ЗАЧЕМ. В каталоге пути лежат как `pet-assets/v2/kimono/south.png`.
+    Оверлей отдаётся с нашего же сервера, поэтому там относительный путь
+    работает. А расширение живёт на CDN Twitch: тот же путь превращается в
+    `https://<cdn-twitch>/pet-assets/...` и даёт 404 — зритель видит битую
+    картинку вместо вещи, которую покупает (найдено 2026-08-23).
+
+    Абсолютный адрес обязан приезжать С БЭКЕНДА, а не собираться во фронте:
+    фронт замерзает на CDN до следующего ревью Twitch, бэкенд деплоится за
+    минуты (правило «тонкий фронт» в CLAUDE.md).
+    """
+    if not path:
+        return path
+    if path.startswith(('http://', 'https://', '//')):
+        return path
+    import os as _os
+    base = (_os.getenv('PUBLIC_BASE_URL')
+            or _os.getenv('MANAGER_PUBLIC_BASE_URL')
+            or 'https://shedoy23.ru').strip().rstrip('/')
+    return f"{base}/{path.lstrip('/')}"
+
 def _get_fernet():
     global _fernet_cached, _fernet_init
     if not _fernet_init:
@@ -1755,7 +1778,7 @@ class Database:
             # Sprint 5.21: добавлен svg_path для items с inline SVG art
             cur = await conn.execute(
                 "SELECT pi.item_id, pc.name, pc.slot, pc.rarity, pc.emoji, "
-                "       pc.svg_path, pi.acquired_at "
+                "       pc.svg_path, pi.acquired_at, pc.png_path "
                 "FROM pet_inventory pi "
                 "JOIN pet_catalog pc ON pc.item_id = pi.item_id "
                 # deprecated НЕ фильтруем: снятый с продажи item остаётся в инвентаре
@@ -1766,14 +1789,15 @@ class Database:
             )
             inventory = [
                 {'item_id': r[0], 'name': r[1], 'slot': r[2], 'rarity': r[3],
-                 'emoji': r[4], 'svg_path': r[5], 'acquired_at': r[6]}
+                 'emoji': r[4], 'svg_path': r[5], 'acquired_at': r[6],
+                 'png_path': _abs_asset(r[7])}
                 for r in await cur.fetchall()
             ]
 
             # Equipped slots
             cur = await conn.execute(
                 "SELECT pe.slot, pe.item_id, pc.name, pc.emoji, pc.rarity, "
-                "       pc.svg_path "
+                "       pc.svg_path, pc.png_path "
                 "FROM pet_equipped pe "
                 "JOIN pet_catalog pc ON pc.item_id = pe.item_id "
                 "WHERE pe.username = ?",
@@ -1781,7 +1805,8 @@ class Database:
             )
             equipped = {
                 r[0]: {'item_id': r[1], 'name': r[2], 'emoji': r[3],
-                       'rarity': r[4], 'svg_path': r[5]}
+                       'rarity': r[4], 'svg_path': r[5],
+                       'png_path': _abs_asset(r[6])}
                 for r in await cur.fetchall()
             }
 
@@ -1805,7 +1830,7 @@ class Database:
             items = [
                 {'item_id': r[0], 'name': r[1], 'slot': r[2],
                  'price_bits': r[3], 'rarity': r[4], 'emoji': r[5],
-                 'svg_path': r[6], 'png_path': r[7]}
+                 'svg_path': r[6], 'png_path': _abs_asset(r[7])}
                 for r in await cur.fetchall()
             ]
 

@@ -186,6 +186,11 @@ _EXTENSION_FILES = {
     "/voting.js":      "voting.js",
     "/pets.js":        "pets.js",
     "/pet-stage.js":   "pet-stage.js",  # Sprint 5.21: shared SVG creature renderer
+    # 2026-08-23: раскладка питомцев на оверлее. Файл был выкачен, лежал на
+    # диске — и отдавался 404, потому что маршруты перечислены здесь ЯВНО, а
+    # не сканируются. Деплой при этом отрапортовал успех. Новый файл фронта
+    # обязан появиться в этой таблице, иначе его просто нет для браузера.
+    "/pet-layout.js":  "pet-layout.js",
     "/realtime.js":    "realtime.js",   # Phase C: PubSub realtime bus
     "/privacy.html":   "privacy.html",  # Twitch submission: Privacy Policy URL
     "/terms.html":     "terms.html",    # Twitch submission: Terms of Service URL
@@ -212,6 +217,7 @@ _EXTENSION_FILES_PREFIXED = {
     "/frontend/voting.js":      "voting.js",
     "/frontend/pets.js":        "pets.js",
     "/frontend/pet-stage.js":   "pet-stage.js",  # Sprint 5.21
+    "/frontend/pet-layout.js":  "pet-layout.js",
     "/frontend/realtime.js":    "realtime.js",   # Phase C
     "/frontend/privacy.html":   "privacy.html",
     "/frontend/terms.html":     "terms.html",

@@ -886,10 +886,21 @@ class BotCore:
                 "watch_full" if status == "active" else "watch_half",
                 total_points)
 
-            # Квесты watch_time — только для активных.
-            if status == "active":
-                for quest in WATCH_TIME_QUESTS:
-                    await self._update_quest_progress(username, quest, 1, channel_id=cid)
+            # Квесты watch_time идут по ПРИСУТСТВИЮ, а не по вовлечённости.
+            #
+            # 2026-08-23. Раньше здесь стояло `status == "active"`, и это
+            # было верно, пока «активный» значило просто «панель на связи».
+            # В тот день я поменял смысл слова — полная ставка стала требовать
+            # взаимодействия — и эта строка молча превратилась во второе
+            # наказание: зритель с открытой вкладкой терял не половину ставки,
+            # а ещё и все квесты на просмотр. За 5-часовой эфир это 3 600💎
+            # вместо 45 000, то есть падение в 12 раз вместо обещанного вдвое.
+            #
+            # Класс ошибки: поменял значение флага, а читателя в другом месте
+            # не проверил. Ставка зависит от вовлечённости, цели дня — от того,
+            # что человек всё-таки был на эфире.
+            for quest in WATCH_TIME_QUESTS:
+                await self._update_quest_progress(username, quest, 1, channel_id=cid)
 
         # 4. Voting pool increment: active viewers × VOTING_POOL_PER_WATCH_MIN
         #    (1 unit/min/viewer). Auto-start подхватит voting_loop когда threshold.

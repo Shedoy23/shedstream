@@ -13,6 +13,17 @@
 active #15 + class balance m79; 2026-06-16 tournament/diplomacy/InvalidCast;
 2026-06-15 save-load + per-save persistence + forge.)
 
+## Контракт исхода действия (2026-08-23)
+
+Перед правкой любого обработчика в `BannerlordLink/src/Actions/` — читать
+`MOD_CONTRACT.md`. Коротко: успех в `MainThreadDispatcher` проставляется по
+умолчанию, поэтому забытый путь отказа = ложный успех и невозврат денег.
+Обработчик обязан назвать исход на каждом выходе: `ActionFeedback.PostFailed`
+или `PostApplied`. Образцы правильного кода — `DiplomacyHandlers.cs` (отказ на
+каждом пути) и `AddAttributeHandler.cs` (проверка эффекта + возврат динаров).
+
+Аудит модов, откуда это взялось: `AUDIT_MODS_2026-08-23.md`.
+
 ## 2026-07-30 — аудит по спеке: §1, §3, §5 закрыты, три находки
 
 Ветка `fix/release-gate-money`, **не выкачено**. Метод: пробы против настоящего

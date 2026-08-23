@@ -207,11 +207,6 @@ function setupCspSafeHandlers() {
         }
     });
 
-    document.addEventListener('change', function(event) {
-        const target = event.target;
-        if (!(target instanceof HTMLElement)) return;
-        if (target.id === 'mkt-sel') onMktSelChange();
-    });
 
     document.addEventListener('input', function(event) {
         const target = event.target;
@@ -237,15 +232,6 @@ function setupCspSafeHandlers() {
     });
 }
 
-// CRITICAL FIX #5: Debouncing for activity tracking to reduce excessive network requests
-function debounceActivityReport() {
-    const now = Date.now();
-    if (now - lastReportTime < ACTIVITY_CONFIG.watch_time_update_interval * 1000) return;
-    
-    // Send accumulated activity data
-    sendActivityData();
-    lastReportTime = now;
-}
 
 // CRITICAL FIX #5: Debounce function for click/move counters
 function createDebouncedReporter(thresholdMs = 5000, callback) {

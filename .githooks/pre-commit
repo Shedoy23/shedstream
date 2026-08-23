@@ -31,6 +31,23 @@ else
   echo "[pre-commit] node not found - skipping js checks"
 fi
 
+# no-undef по фронту расширения: ловит вызов функции, которой нигде нет.
+# Класс дорогой — так магазин RimWorld был мёртв месяцами (переименовали в
+# одном месте, вызов остался в другом, ошибка молчит внутри обработчика).
+# Гоняем только когда в коммите есть js фронта — иначе не тормозим коммит.
+front_js=0
+for f in "${js_files[@]:-}"; do
+  case "$f" in */frontend/*.js) front_js=1 ;; esac
+done
+if [ "$front_js" -eq 1 ]; then
+  if [ -x "$root/node_modules/.bin/eslint" ]; then
+    (cd "$root" && ./node_modules/.bin/eslint "Расширение/frontend") || {
+      echo "[pre-commit] eslint no-undef FAILED"; fail=1; }
+  else
+    echo "[pre-commit] eslint не установлен - пропускаю (npm install)"
+  fi
+fi
+
 # Whole-repo consistency lints (fast). Hard errors block the commit.
 if command -v "$PY" >/dev/null 2>&1 && [ -f "$root/scripts/lint_consistency.py" ]; then
   "$PY" "$root/scripts/lint_consistency.py" || fail=1

@@ -1,0 +1,30 @@
+{
+  "name": "shedstream-tooling",
+  "version": "1.0.0",
+  "description": "Инструменты проверки фронта расширения (eslint no-undef). Сборки у фронта нет — это только линт.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "lint:js": "eslint \"Расширение/frontend\"",
+    "globals:selftest": "node scripts/frontend-globals.mjs --self-test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Shedoy23/shedstream.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Shedoy23/shedstream/issues"
+  },
+  "homepage": "https://github.com/Shedoy23/shedstream#readme",
+  "devDependencies": {
+    "eslint": "^10.9.0",
+    "globals": "^17.11.0"
+  },
+  "private": true
+}

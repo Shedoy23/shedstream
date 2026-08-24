@@ -72,11 +72,40 @@ outcome» без оговорки: `dice.py:295` действительно вы
 > 3. Is it sufficient to remove the flagged elements from the Mobile view while
 >    keeping them in the desktop panel, or must they be removed from the
 >    Extension entirely?
+> 4. Is the Streamer Allowlist requirement permanent for an Extension of this
+>    type, or is it tied to something we can change? If the latter, what would
+>    have to change for the Extension to be eligible for public release?
 >
 > We will resubmit using the Streamer Allowlist on the Access tab, as instructed.
 >
 > Thank you,
 > Edward — ShedLink
+
+## Что такое Streamer Allowlist и почему без него не выйдет (проверено по доке 24.08)
+
+Список ID стримеров на вкладке **Access**. Пустой — расширение публичное и
+видно в каталоге Twitch; заполненный — установить могут ТОЛЬКО перечисленные,
+через вкладку «Invite Only» в своём менеджере расширений.
+
+> «Account IDs in this list are the only Twitch streamers who can install this
+> Extension after release»
+> «If your Extension has allowlisted streamers when you submit it for review,
+> the approved Extension is visible only to those streamers.»
+
+Требование «due to the nature of your Extension» значит: в текущем виде
+расширение не годится для публичного каталога. Наши очевидные причины —
+установка мода на ПК стримера (софт вне Twitch), привязка к игровой
+интеграции, мини-игры со случайным исходом. Отказаться от списка нельзя,
+не поменяв саму природу расширения; что именно им мешает — вопрос 4 письма.
+
+**Цена ошибки при заполнении:** добавить стримера позже = новая подача и полный
+цикл ревью (Грабля №1). Вносить сразу всех, кто нужен на месяцы вперёд:
+владельца, друга-ревьюера, первого тестировщика M1, запасных.
+
+**Непроверенное:** Testing Account Allowlist — по доке его аккаунты могут
+ставить расширение и не будучи в основном списке; правится ли он без ревью,
+дока не разделяет. Проверить фактом в консоли: если правится — это законный
+способ подключить человека без новой подачи.
 
 ## Два пути, пока ответа нет
 

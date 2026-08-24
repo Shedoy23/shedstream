@@ -11,7 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `Расширение/backend/` — FastAPI + SQLite (aiosqlite) backend. Multi-tenant: every tenant table is scoped by `channel_id`.
 - `Расширение/backend/modules/<game>/` — per-game adapter (`_adapter.py`) + `manifest.yaml` declaring that game's events/actions/catalogs.
 - `Расширение/backend/migrations/` — `m<N>_*.py` migrations, each `async def apply(conn)`.
-- `Расширение/frontend/` — the Twitch extension UI, ~13.5k lines across many plain `<script>` files (they share ONE global namespace — see the collision lint). `viewer.js` (2.5k) is the **shared** shell for RimWorld + Bannerlord; per-game code lives in `viewer-bannerlord.js` (4.7k, the big one) / `viewer-rimworld.js`. It said "viewer.js ~7k lines" here until 2026-07-25 — the split landed 2026-06-13 (ROADMAP 2.4) and this line kept the old number alive for six weeks. `extension.html` and `mobile.html` are parallel shells that must stay in sync.
+- `Расширение/frontend/` — the Twitch extension UI: много обычных `<script>`-файлов в ОДНОМ глобальном пространстве имён (см. линтер коллизий и `no-undef`). `viewer.js` — общая оболочка для RimWorld и Bannerlord, игровой код в `viewer-bannerlord.js` (самый большой файл фронта) и `viewer-rimworld.js`. `extension.html` и `mobile.html` — параллельные оболочки, обязаны совпадать. **Числа строк здесь намеренно не пишем:** они протухают молча — строка «viewer.js ~7k» прожила тут полтора месяца после распила файла, и её дважды пересказали владельцу как факт (→ `LESSONS.md`, «Факт в документе имеет срок годности»).
 - `BannerlordLink/` — C# Bannerlord mod (Harmony patches, `MissionBehavior`, `CampaignBehaviorBase`). Clean-room re-impl using BLT as reference.
 - `RimLink/` — RimWorld module (C# mod + assets).
 - `reference/BLT_RC22` + `reference/BLT_lait` — BLT reference checkouts (~17 МБ каждый, вне git). **Read-only, clean-room** (LGPL): ideas/APIs/short idioms only, never copy class bodies. Здесь до 2026-07-26 значилось `БЛТ/` — такой папки в worktree нет, то есть правило клин-рума указывало на несуществующий путь.
@@ -19,7 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Where the real docs live — read before non-trivial work
 
-Repo root: **`STATUS.md` — витрина «что сейчас»: 10 строк, что на проде / что ждёт деплоя / что горит / ближайшая дата. Открывать ПЕРВОЙ в начале сессии, обновлять в КОНЦЕ каждой.** Дальше: **`RUNBOOK.md` — операционная правда: где что лежит на проде, чем проверять, ловушки, «выглядит сломанным, но это не так». Читать при любой работе с продом, базой, бэкапами, деплоем, публикацией модов — он избавляет от повторного расследования.** `OVERVIEW.md` (what the project is — structure, data flow), `ROADMAP.md` (the owner's stabilization plan — current priorities; check it when the owner asks "what should we do next"), `DEFERRED.md` (что отложено сознательно + «решено НЕ делать»). **`RUNBOOK.md` §11 — вопросы, которыми владелец сокращает лишнюю работу; часть из них я обязан задавать себе сам.**
+Repo root: **`STATUS.md` — витрина «что сейчас»: 10 строк, что на проде / что ждёт деплоя / что горит / ближайшая дата. Открывать ПЕРВОЙ в начале сессии, обновлять в КОНЦЕ каждой.** Дальше: **`RUNBOOK.md` — операционная правда: где что лежит на проде, чем проверять, ловушки, «выглядит сломанным, но это не так». Читать при любой работе с продом, базой, бэкапами, деплоем, публикацией модов — он избавляет от повторного расследования.** `OVERVIEW.md` (what the project is — structure, data flow), `ROADMAP.md` (the owner's stabilization plan — current priorities; check it when the owner asks "what should we do next"), `DEFERRED.md` (что отложено сознательно + «решено НЕ делать»), **`LESSONS.md` — истории инцидентов, из которых выросли правила ниже; открывать, когда правило кажется неверным.** **`RUNBOOK.md` §11 — вопросы, которыми владелец сокращает лишнюю работу; часть из них я обязан задавать себе сам.**
 
 `Расширение/docs/` is the knowledge base. The **`CONTEXT*.md` files are the living per-area status/handoff docs — read the relevant one first**:
 - `CONTEXT.md` (core/platform), `CONTEXT_BANNERLORD.md`, `CONTEXT_RIMWORLD.md`.
@@ -57,93 +57,124 @@ Prod = `root@31.130.132.224:/root/twitch-extension/`, run under supervisor as `t
 
 ## Conventions & gotchas that actually bite
 
-- **Multi-tenant scoping is mandatory.** Every query/insert on a tenant table must include `channel_id` — via `resolve_channel_id_or_default()` (admin/legacy) or the JWT ContextVar (`require_jwt_user` / `require_jwt_channel`). Omitting it = cross-channel leak or `NOT NULL` failure. **Lint-gated:** `lint_consistency.py:check_tenant_scoping` fails CI/pre-commit on DML against a scoped table without `channel_id` or a globally-unique id/FK filter. Escape hatches: trailing `# tenant-ok: <reason>` (or `-- tenant-ok` in the SQL) for admin cross-channel / global-id lookups; `tenant-lint: skip-file` for known debt (rimworld.py is parked there).
-- **Арендатор — не только строка в таблице. Изоляция ВЫХОДА наружу (2026-08-22).**
-  Правило выше закрывает данные: у каждой записи есть `channel_id`, и линтер это
-  держит. Но за один день нашлось ТРИ дефекта, которых оно не касается, потому
-  что там ничего не пишется в БД — там что-то **уходит наружу от имени канала**:
-  список автосообщений был один на платформу и содержал донат-ссылки владельца;
-  объявление о конце сезона уходило в «канал по умолчанию»; анонс старта эфира
-  любого канала летел в Telegram владельца. Формулировка владельца, и она точная:
-  *«мы начали делать платформу, а не проектик под одного стримера»*.
-  **Проверка для любой новой функции:** что она отправляет наружу — в чат,
-  в Telegram, в оверлей, в почту — и откуда берёт адресата и содержимое? Если
-  адресат берётся из умолчания, а содержимое из общего конфига, это дефект,
-  который не видно, пока канал один.
-  **Почему такое доживает до прода:** при одном стримере платформа и проект
-  под одного человека НЕРАЗЛИЧИМЫ в наблюдении — всё работает правильно по
-  случайности. Поэтому дешёвый первый шаг не «переписать на per-channel», а
-  **сделать умолчание шумным** (`channel-default:` в логе) и завести в тесте
-  ВТОРОЙ канал: он играет роль отсутствующего коллеги, который спросит
-  «а у меня почему так?». Гейт `test_multi_tenant_isolation.py` проверяет
-  изоляцию СТРОК; изоляцию побочных эффектов проверяет
-  `test_auto_messages_per_channel.py`.
-- **Migrations must be wired.** Add `m<N>_*.py` AND register it in `main.py:run_migrations()` (sequential, idempotent via the `migrations_applied` table). `lint_consistency.py` fails CI/commit if a migration file isn't wired. Never edit an already-applied migration — add a new one. The seed in a migration only affects fresh DBs; to change existing prod rows, write an `UPDATE` migration.
-- **New mod→backend event MUST be declared in `manifest.yaml` `events:`.** The backend drops unknown types (`event_not_in_manifest`, `routes/module_api.py`) BEFORE the adapter runs, so a fresh `PostEventAsync("bannerlord", "hero.X", …)` silently no-ops. Symptom: mod logs the push, DB unchanged. **Now lint-gated:** `check_manifest_events` scans literal push sites in `BannerlordLink/src` and hard-fails on any undeclared type (it caught a 3rd live case, `hero.marriage_activated`, the day it was written). Pushes built from a *variable* stay invisible to it — those are still on you. Declaring the event only makes the backend accept it; route it in `_adapter.handle_event` too, or it lands nowhere. Same rule for new actions (`manifest.supports_action`).
-- **Two currencies, never conflate.** 💎 crustics = platform points (`userPoints`, earned watching/chat); 💰 dinars = in-game `Hero.Gold`. 1 💎 = 5 dinars. An action charges ONE currency by meaning. **Крустики зарабатываются ТОЛЬКО в ядре (просмотр/активность); внутри `modules/<игра>/` и `routes/<игра>_*.py` они только СПИСЫВАЮТСЯ** (решение владельца 2026-07-29, `PLATFORM_VISION.md` §«Граница валют»). Начисление крустиков в игровом модуле = нарушение; возврат уплаченного (рефанд) — не нарушение. Причина: рента с феодов уже вырезана в мае за то, что зритель богател без участия. (Frontend currently shows crustics with two glyphs, `💎` and `⦷` — unify if you touch that area.)
-- **Charge + effect in ONE transaction.** `add_points`/`remove_points` open their own connection and commit alone — never pair them with a separate state change: a crash in that window = money debited without effect, or a double reward. Use `Database.add_points_tx(conn,…)` / `remove_points_tx(conn,…)`, which run on the CALLER's `conn` and join the same `BEGIN IMMEDIATE` → one commit, all-or-nothing. Same for TOCTOU: re-check the guard (cooldown/dedup) INSIDE that transaction. (Found 7× — `docs/AUDIT_CORE_MECHANICS_2026-07-02.md`.)
-- **Платное действие обязано детектить тихий no-op ДО ack-true (иначе зритель платит за ноль).** Движковый API «сделай X» часто молча ничего не делает (кап / дубль / нет цели / оффлайн), хендлер отдаёт success → списание без эффекта и без рефанда. У каждого НОВОГО платного действия найти его no-op пути и возвращать на них fail → авто-рефанд. Детект — по НАБЛЮДАЕМОМУ эффекту (before/after публичными геттерами, или «WorkOrder появился» для void-API), НЕ по копии внутренней формулы движка — она сломается на апдейте игры. (Класс всплыл 3× подряд в shedcolony 2026-07-04.) **4-й случай, 2026-07-29, багрепорт #42:** `UpgradeGearHandler` СЧИТАЛ число заменённых слотов и использовал его только в строке лога — золото (до 1.5M💰) списывалось, тир рос и уходил на бэкенд при нуле замен. Признак класса: наблюдаемый эффект уже посчитан, но не проверен. Если функция возвращает «сколько сделано» — это условие, а не украшение лога.
-- **Пользователь ОДИН. Метрики — дневник его недели, а не сигнал о продукте.**
-  Ноль покупок/пешек/действий на модуле значит одно из трёх, и числом их не
-  различить: владелец сейчас играет в другую игру · механика сломана · механика
-  не нужна. Третье при одном пользователе **не измеряется в принципе**.
-  Повод (владелец поправил 2026-08-23, не впервые): ноль пешек RimWorld я
-  прочитал как «модуль не нужен» и предложил отключить роутер — а магазин был
-  сломан НАМИ при подаче 0.0.1 (коллизия `_buyItem` между `pets.js` и
-  `shop.js`), владелец не захотел это стримить, и модуль стоял месяцами. Ещё
-  чуть-чуть, и собственная поломка была бы оформлена как продуктовое решение.
-  **Правило:** увидел ноль — сначала проверь кодом и логами, РАБОТАЛ ли этот
-  путь в тот период; потом спроси «ты в это играл?»; и только потом думай про
-  спрос. Выводов «не пользуются / можно убрать» из счётчиков не делать, пока
-  каналов меньше пяти. Обратное тоже верно: всплеск — это стрим, а не рост.
-- **Убрал механику — прогони тесты и линтеры, а не только проверь, что вход исчез.** 2026-07-29 `player.respawn` убрали из продажи (правильно: механики нет), и вместе с ним молча лёг `test_bannerlord_buy_action` — характеризационный тест КАССЫ, 17 провалов. Красным он пролежал весь день: после уборки его никто не прогнал. Зеркало класса «выключили, но продаём»: там код пережил механику, здесь тест пережил механику. Уборка не считается законченной, пока не зелёные тесты.
-- **Проверять ДЕЙСТВИЕ поимённо, а не «механику».** 2026-07-29: `create_vassal_clan` (250K, выделить наследника) перевели на цену с бэкенда, и «вассал-кланы сделаны» прочиталось как оба действия — а `recruit_vassal_clan` (3M, нанять NPC-клан) остался с числом, зашитым в кнопку, и попал в changelog для ревьюера Twitch как уже сделанный. Два похожих имени в одной области = два разных пути; отмечать сделанным можно только то, что открыл и увидел.
-- **Cache-bust both shells.** `viewer.js?v=...` must be identical in `extension.html` and `mobile.html`; `deploy.ps1` keeps them in sync. Desync = part of the audience runs stale JS.
-- **Mod crash protection pattern.** Vanilla Bannerlord daily-tick code (e.g. `PregnancyCampaignBehavior`, `BannerCampaignBehavior`) throws NPE/InvalidCast on the mod's clanless or edge-case viewer heroes. Чинится Harmony-патчем — но КАКИМ именно, решает следующее правило («Vanilla NRE: decompile to root-cause»): сначала prefix, который чинит вход и пускает ванильный код работать, и только если это невозможно — finalizer, глотающий КОНКРЕТНОЕ исключение. Примеры: `BannerlordLink/src/Patches/PregnancyModelPatch.cs`, `BannerCampaignBehaviorPatch.cs`. (До 2026-08-23 здесь стояло «шаблон — finalizer, который глотает», и это противоречило следующему пункту, где проглатывание названо крайней мерой, дважды скрывшей поломку. Нашло внешнее ревью.) `BannerlordLinkModule.cs` has a resilient `PatchAll` with a `SKIP_PATCH_NAMES` kill-switch.
-- **Правишь обработчик действия в моде — сначала `Расширение/docs/MOD_CONTRACT.md`.**
-  Там единый контракт исхода для всех модов: обработчик обязан НАЗВАТЬ исход
-  на каждом пути выхода (`ActionFeedback.PostApplied` / `PostFailed`), успех
-  утверждается только после наблюдения эффекта, ноль эффекта = отказ, `catch`
-  заканчивается отказом. Причина: в `MainThreadDispatcher` успех — значение по
-  умолчанию (`_handlerSuccess = true`), поэтому забытый путь отказа даёт ложный
-  успех и невозврат денег. Класс всплывал 5×; аудит —
-  `Расширение/docs/AUDIT_MODS_2026-08-23.md`. Пока идёт перевод, действие без
-  явного исхода пишет в лог `БЕЗ ЯВНОГО ИСХОДА` — это и есть список работ.
-- **Vanilla NRE: decompile to root-cause, don't blind-swallow.** A finalizer that only swallows trades a crash for a *silently broken feature*. Decompile the vanilla method to find the exact null first: `& "$env:USERPROFILE\.dotnet\tools\ilspycmd.exe" "X:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\bin\Win64_Shipping_Client\<Assembly>.dll" -t "<Full.Type.Name>"` (ilspycmd is a dotnet global tool, NOT on PATH). Then write a **prefix that guards that specific null** and lets the valid case fall through to vanilla — better still, one that **repairs the input** so vanilla does the right thing (self-heal) instead of skipping. See `Patches/KingdomVoteNotificationPatch.cs` and `BannerCampaignBehaviorPatch.cs`. Keep a finalizer backstop logging the full stack (`__exception.ToString()`). Swallowing is the LAST resort — bit twice (bug #10 kingdom-vote popup; 2026-06-16 banner InvalidCast), both times the swallow hid a dead feature for weeks. Mod fixes have no auto-test: a decompile-grounded fix is *plausible*, not *proven*, until played.
-- **Gate viewer actions by game state, both ends.** Actions requiring a clan/kingdom/leader/ruler (marriage, children, party, kingdom ops) are gated in `viewer.js` (disabled + reason tooltip) AND refused server-side in `routes/bannerlord.py` — the frontend is bypassable.
-- **CodeGraph MCP** (`codegraph_*` tools) indexes this repo — prefer it for "what calls X / where is X / impact of changing X" over grep (details in the global CLAUDE.md).
-- **Страницы стримера — обычный HTML в `backend/templates/`, не Python-строки.** Дашборд был f-string на 616 строк с 374 удвоенными скобками: каждый `{`/`}` в CSS и JS надо было писать дважды, забытая скобка роняла страницу в 500 на проде, и проверить файл заранее не мог ни один инструмент. Вынесен 2026-07-26 в `templates/streamer_dashboard.html`, рисуется через `_render_template()` (jinja2, **autoescape ВЫКЛЮЧЕН намеренно** — вызывающий код экранирует сам: `html.escape` для HTML, `json.dumps` + `</`-guard для JS; включить = экранировать дважды). Шаблон кэшируется, правка требует рестарта. Новые страницы делать так же, а не строкой в Python. Проверка: `python tests/test_dashboard_render.py`.
-- **Тонкий фронт: балансовые числа — истина на бэке, не display-копия во фронте.** Цены/кулдауны/лимиты, которые enforce'ит бэк, НЕ дублировать хардкодом во фронте: одно число в 2-3 местах (JS / backend / C#-мод) = после релиза замёрзший на CDN фронт покажет старую цену и разойдётся с бэком. Вёрстка и статичные подписи — ок во фронте. **Статус 2026-07-25:** бэк уже отдаёт всё через `/api/bannerlord/config` и `/api/rimworld/config`; выпилить хардкоды во фронте — фаза 2, после разморозки (список в DEFERRED §A0).
-  **Усилено 2026-07-29 (решение владельца, после релиза 0.0.1):** правило стало
-  главным принципом фронта, а не частным случаем про цены. Причина проверена по
-  доке Twitch: фронт замерзает на CDN до СЛЕДУЮЩЕГО РЕВЬЮ, бэк деплоится за
-  минуты. Значит любое значение, зашитое во фронт, чинится неделями, а то же
-  значение на бэке — сразу. **С бэка — данные (цены, лимиты, кулдауны, тексты
-  причин отказа, каталоги, доступность действий). Во фронте — как их показать.**
-  Практический критерий: фронт обязан корректно отрисовать причину отказа или
-  элемент каталога, которых он НЕ знает — без `switch` по захардкоженному списку.
-  **Граница, за которую не заходим:** фронт не получает с бэка разметку и не
-  исполняет присланную логику. Причина не техническая, а регуляторная — Twitch
-  проверяет содержимое ZIP; если поведение целиком прилетает с сервера,
-  ревьюер не может проверить, что расширение делает, и это повод для отказа.
-- **Платное + асинхронное действие → обязателен подтверждающий тост «не мгновенно».** Если операция тратит крустики И имеет отложенный/неопределённый исход (клан-вотум, ставка, отложенный эффект), на успехе нужен action-specific тост: это заявка, исход позже, жать снова не надо. Иначе зритель видит «ничего не произошло» и переплачивает (bugs #16/#17: зритель объявил войну 4× подряд). Generic-тост charge'а не считается. Реализация: тост в хендлере ПОСЛЕ `await _bannerlordBuyAction` — replace-style `showNotification` перетирает generic.
+Каждое правило — действие, условие и одна строка причины. Полные истории, из
+которых они выросли, лежат в `LESSONS.md`; приходить туда, когда правило кажется
+неверным и хочется проверить, откуда оно.
 
-## Session workflow rules (2026-06-11 — rationale in ROADMAP.md §0)
+- **Multi-tenant scoping is mandatory.** Любой запрос/вставка в арендаторскую
+  таблицу несёт `channel_id` — через `resolve_channel_id_or_default()` или JWT
+  ContextVar (`require_jwt_user` / `require_jwt_channel`). Пропуск = утечка между
+  каналами либо падение по `NOT NULL`. **Держит линтер** `check_tenant_scoping`;
+  лазейки — `# tenant-ok: <причина>`, `tenant-lint: skip-file` (там припаркован
+  `rimworld.py`). → `LESSONS.md`, «Multi-tenant scoping».
+- **Арендатор — не только строка в таблице; изолируй и ВЫХОД наружу.** У любой
+  новой функции спросить: что она отправляет наружу (чат, Telegram, оверлей) и
+  откуда берёт адресата и текст. Адресат из умолчания + текст из общего конфига
+  = дефект, невидимый пока канал один. Причина: 22.08 нашлось три таких за день,
+  и правило выше их не касалось — в БД они ничего не писали. Дешёвый первый шаг
+  — сделать умолчание шумным (`channel-default:` в логе) и завести в тесте ВТОРОЙ
+  канал. Гейты: `test_multi_tenant_isolation.py` (строки),
+  `test_auto_messages_per_channel.py` (побочные эффекты).
+  → `LESSONS.md`, «Изоляция ВЫХОДА наружу».
+- **Migrations must be wired.** Добавил `m<N>_*.py` — зарегистрируй в
+  `main.py:run_migrations()`; линтер валит коммит, если нет. Применённую миграцию
+  не редактировать, писать новую. Сид действует только на свежих базах: менять
+  прод-строки — отдельным `UPDATE`. Миграция сама пишет себя в
+  `migrations_applied` и делает `commit` — иначе её INSERT'ы не сохранятся.
+  → `LESSONS.md`, «Migrations must be wired».
+- **Новое событие мод→бэкенд обязано быть объявлено в `manifest.yaml`.** Иначе
+  бэкенд молча его отбрасывает (`event_not_in_manifest`): мод пишет в лог, БД не
+  меняется. Объявить мало — ещё разрулить в `_adapter.handle_event`. Линтер
+  `check_manifest_events` ловит литеральные пуши; собранные из переменной — на
+  тебе. То же для новых действий. → `LESSONS.md`, «New mod→backend event».
+- **Две валюты, не смешивать.** 💎 крустики = очки платформы, 💰 динары =
+  `Hero.Gold` в игре, 1💎 = 5💰. Действие берёт ОДНУ валюту по смыслу. Крустики
+  **начисляются только в ядре**; в `modules/<игра>/` и `routes/<игра>_*.py` они
+  только списываются (рефанд не нарушение). Причина: рента с феодов вырезана за
+  то, что зритель богател без участия. → `LESSONS.md`, «Two currencies».
+- **Списание и эффект — в ОДНОЙ транзакции.** `add_points`/`remove_points`
+  открывают своё соединение и коммитят отдельно: краш в этом окне = деньги без
+  эффекта либо двойная награда. Использовать `add_points_tx` / `remove_points_tx`
+  на соединении вызывающего, в том же `BEGIN IMMEDIATE`. Проверку кулдауна/дедупа
+  перечитывать ВНУТРИ транзакции. Класс найден 7×.
+  → `LESSONS.md`, «Charge + effect in ONE transaction».
+- **Платное действие обязано детектить тихий no-op ДО ack-true.** Движковый API
+  часто молча ничего не делает (кап, дубль, нет цели, оффлайн) — успех без
+  эффекта и без возврата. Детект по НАБЛЮДАЕМОМУ эффекту (before/after, «объект
+  появился»), не по копии внутренней формулы движка. Признак: результат посчитан,
+  но не проверен — если функция вернула «сколько сделано», это условие, а не
+  украшение лога. Класс всплывал 5×. → `LESSONS.md`, «Платное действие обязано детектить тихий no-op».
+- **Пользователь ОДИН — метрики не сигнал о продукте.** Ноль значит «он сейчас в
+  это не играет», «сломано» или «не нужно», и числом их не различить; третье при
+  одном канале не измеряется в принципе. Увидел ноль — проверь кодом и логами,
+  работал ли путь; потом спроси владельца. Выводов «не пользуются, можно убрать»
+  не делать, пока каналов меньше пяти. Всплеск — это стрим, а не рост.
+  → `LESSONS.md`, «Пользователь ОДИН».
+- **Убрал механику — прогони тесты и линтеры.** Уборка не закончена, пока не
+  зелёные: 29.07 снятие `player.respawn` с продажи молча положило
+  характеризационный тест кассы на весь день.
+  → `LESSONS.md`, «Убрал механику».
+- **Проверять ДЕЙСТВИЕ поимённо, а не «механику».** Два похожих имени в одной
+  области = два разных пути; сделанным отмечать только то, что открыл и увидел.
+  → `LESSONS.md`, «Проверять ДЕЙСТВИЕ поимённо».
+- **Cache-bust обеих оболочек.** `viewer.js?v=...` идентичен в `extension.html` и
+  `mobile.html` (`deploy.ps1` синхронизирует). Рассинхрон = часть аудитории на
+  старом JS.
+- **Патч против краша мода: сначала prefix, потом finalizer.** Ванильный
+  daily-tick падает на клановых edge-case героях. Чинить патчем, который
+  ПОЧИНИТ вход и пустит ванильный код работать; глотать конкретное исключение —
+  крайняя мера, дважды скрывшая мёртвую фичу. Kill-switch:
+  `SKIP_PATCH_NAMES` в `BannerlordLinkModule.cs`.
+  → `LESSONS.md`, «Mod crash protection».
+- **Vanilla NRE: декомпилируй до причины, не глуши вслепую.** Найти конкретный
+  null (`ilspycmd`, путь в `LESSONS.md`), написать prefix, который его чинит;
+  finalizer оставить бэкстопом с полным стеком. Фикс мода без прогона в игре —
+  правдоподобен, но не доказан. → `LESSONS.md`, «Vanilla NRE».
+- **Правишь обработчик действия в моде — сначала `docs/MOD_CONTRACT.md`.**
+  Обработчик обязан НАЗВАТЬ исход на каждом выходе (`PostApplied` / `PostFailed`),
+  успех — только после наблюдения эффекта, `catch` заканчивается отказом. Причина:
+  в `MainThreadDispatcher` успех это значение по умолчанию, поэтому забытый путь
+  даёт ложный успех и невозврат денег. Пока идёт перевод, действие без исхода
+  пишет в лог `БЕЗ ЯВНОГО ИСХОДА` — это и есть список работ.
+- **Действия зрителя гейтить состоянием игры с ОБЕИХ сторон.** Требующие клана,
+  королевства, лидерства — заблокированы во фронте с причиной И отклоняются на
+  бэкенде: фронт обходится.
+- **CodeGraph MCP** индексирует репозиторий — «что вызывает X / где X / что
+  сломается» спрашивать у него, а не грепом (детали в личном `CLAUDE.md`).
+- **Страницы стримера — HTML в `backend/templates/`, не строки в Python.**
+  Рисовать через `_render_template()` (jinja2, autoescape ВЫКЛЮЧЕН намеренно —
+  экранирует вызывающий код). Шаблон кэшируется, правка требует рестарта.
+  Проверка: `tests/test_dashboard_render.py`. → `LESSONS.md`, «Страницы стримера».
+- **Тонкий фронт: с бэка данные, во фронте только показ.** Цены, лимиты,
+  кулдауны, тексты отказов, каталоги, доступность действий приходят с сервера.
+  Причина: фронт замерзает на CDN Twitch до следующего ревью, бэкенд деплоится за
+  минуты. Критерий: фронт обязан корректно отрисовать причину отказа, которой не
+  знает. Граница: разметку и логику с сервера НЕ присылаем — ревьюер Twitch
+  должен видеть, что делает расширение. → `LESSONS.md`, «Тонкий фронт».
+- **Платное + асинхронное действие → свой подтверждающий тост.** Если исход
+  отложенный (вотум, ставка), на успехе нужен тост «это заявка, исход позже».
+  Иначе зритель жмёт снова и переплачивает — так объявляли войну 4 раза подряд.
+  → `LESSONS.md`, «Платное + асинхронное».
 
-The owner is a non-programmer building this solo with Claude; these rules are the project's guardrails — **enforce them proactively, don't wait to be asked**. They exist because every expensive past mistake (casino built → cut for Twitch compliance; BLT-modeled mechanics → LGPL audit still blocking release; 13 CRITICAL security findings) shares one root: *build first, check constraints later*.
+## Session workflow rules
 
-1. **Check before code.** Before implementing any NEW viewer-facing mechanic: (a) run a Twitch-compliance check (`/twitch-compliance`), (b) if the idea mirrors BLT, flag the license implication, (c) present a 5–10 line spec and get explicit approval. If asked to "just build it", do the checks anyway first — that's cheaper than another casino.
-2. **Done = evidence.** Never report done without proof: test output, log line, prod DB query, screenshot. A red test blocks deploy — no exceptions. (Extends the global "verify before done".)
-3. **Тест, который никогда не видели красным, не доказывает НИЧЕГО.** Написал тест на баг — покажи его в ДВУХ состояниях: (а) временно убрать фикс → тест падает и НАЗЫВАЕТ проблему; (б) вернуть фикс → зелёный; (в) `git diff` после этого пуст. Зелёный тест, написанный ПОСЛЕ фикса, мог быть зелёным и без него — это известный способ ИИ обмануть и себя, и владельца (владелец спросил прямо, 2026-07-25). Тот же приём для линтеров: подложи исторический баг, покажи exit 1. **Красный тест чиним КОДОМ, а не правкой ожидания.**
+Правила процесса. Причина каждого — в `LESSONS.md`; здесь только что делать.
+**Соблюдать проактивно, не дожидаясь просьбы.**
 
-4. **Судить о тесте по КОДУ ВОЗВРАТА, а не по тому, что он напечатал.**
-   28.07 два новых теста печатали «ВСЁ ЗЕЛЁНОЕ» и при этом возвращали ненулевой
-   код: закрытие пула звалось несуществующим методом, исключение глушилось
-   `except`, процесс висел до таймаута. Я дважды прочитал вывод как успех,
-   потому что смотрел на текст через `grep` — а `grep` возвращает СВОЙ код,
-   маскируя код теста. Правило: прогон теста заканчивается проверкой кода
-   возврата, и «зелёная» печать без нулевого кода считается провалом.
-   Класс ошибки: **зелёный вывод ≠ зелёный результат**.
+1. **Check before code.** Перед НОВОЙ зрительской механикой: проверка правил
+   Twitch (`/twitch-compliance`), отметка про лицензию если идея зеркалит BLT,
+   спека на 5–10 строк и явное одобрение. Просят «просто сделай» — проверки всё
+   равно сначала. Причина: каждая дорогая ошибка проекта — «построили, потом
+   узнали, что нельзя». → `LESSONS.md`, «Check before code».
+2. **Done = evidence.** Не докладывать «готово» без доказательства: вывод теста,
+   строка лога, запрос к прод-БД, скриншот. Красный тест блокирует деплой.
+3. **Тест, который не видели красным, не доказывает ничего.** Показать в двух
+   состояниях: убрать фикс → падает и НАЗЫВАЕТ проблему; вернуть → зелёный;
+   `git diff` пуст. То же для линтеров: подложить исторический баг, показать
+   exit 1. Красный тест чинить КОДОМ, а не правкой ожидания.
+   → `LESSONS.md`, «Тест, который никогда не видели красным».
+4. **Судить о тесте по КОДУ ВОЗВРАТА, а не по печати.** «Зелёная» печать без
+   нулевого кода — провал. Класс: **зелёный вывод ≠ зелёный результат**.
    ```bash
    python tests/test_x.py && echo PASS || echo "FAIL exit=$?"   # git-bash
    ```
@@ -151,48 +182,47 @@ The owner is a non-programmer building this solo with Claude; these rules are th
    python tests/test_x.py
    if ($LASTEXITCODE -eq 0) { "PASS" } else { "FAIL exit=$LASTEXITCODE" }
    ```
-   Два варианта не для красоты: в PowerShell 5.1 нет `&&`/`||`, и первый
-   пример там молча не сработает (найдено внешним ревью 2026-08-23 — правило
-   противоречило личному CLAUDE.md, где это ограничение и записано).
-5. **Prod deploys after stream, not during.** If a stream is live, only hotfix a broken prod; otherwise prepare everything and say "ready to deploy on break". A mid-stream backend restart drops viewer connections; a mod copy needs the game closed anyway.
-6. **Feature in — feature out.** When a new mechanic is requested, ask which low-usage feature gets frozen/removed in exchange (use usage metrics once they exist; until then, ask). Фронт, разросшийся до ~13.5k строк суммарно, — это и есть вид бесконтрольного «да». (До 2026-08-23 здесь стояло «7k-line viewer.js» — число устарело 13 июня, когда файл распилили до 2.5k. Нашло внешнее ревью: устаревший факт лежал в двух строках от правила не держать устаревших фактов.)
-7. **Заданию внешнему аудитору НЕЛЬЗЯ писать «это я уже проверил, сюда не
-   смотри».** (Прямое требование владельца 2026-07-29: «не пиши в боты то, что
-   ты уже что-то проверил и не нужно там проверять, уже обжигался».) Причина
-   арифметическая: моё «проверено» стоит ровно столько, сколько стоят мои
-   выводы, а за один день 29.07 я трижды выдал догадку за факт. Указание «не
-   трать время на область X» уводит проверяющего ровно оттуда, где я мог
-   ошибиться, и обнуляет смысл независимости. **Можно и нужно:** описывать
-   систему, правила, классы дефектов, карту приоритетов «с чего начать»,
-   формат находок и СВОИ ошибки как калибровку. **Нельзя:** «уже проверено»,
-   «не дублируй», «сюда если останется время», «мы знаем, не смотри».
-   Это же относится к прогонам линтеров и тестов: зелёный прогон — не
-   индульгенция области, он ловит свой класс и молчит про остальные.
-   Канон задания — `Расширение/docs/INDEPENDENT_AUDIT_BRIEF.md`.
-8. **Suggest the monthly audit — TWO kinds, don't conflate** (ROADMAP §6). **Код-аудит** reads code for what's wrong in it (security / dead code / debt). **Аудит работы** runs each paid mechanic end-to-end against live data and catches what code-audits structurally cannot: mechanics dead in prod, code-vs-migration/load-order drift, silent no-ops. Propose аудит работы before every Twitch submission (it would have caught the dead RimWorld shop) and either kind after ~a month. The 2026-04 audit (13 CRITICAL) out-earned any feature.
-9. **Update the CONTEXT doc** (`docs/CONTEXT*.md`) after any significant change — it's the handoff that keeps future sessions from re-discovering everything.
-10. **НЕ ЗАПИСАНО = ЗАБЫТО (владелец, 2026-07-28).** Правило шире 6b: записывать
-   надо не только отложенное, а всё значимое — найденную поломку (даже если чиню
-   сразу), причину, решение владельца и его мотив, моё возражение при работе
-   вопреки ему, класс ошибки и способ ловить его впредь, ручной шаг, который
-   придётся повторять. **Сводка в чате записью НЕ считается**: мой контекст
-   кончается с сессией, память владельца — через неделю. Повод: поломка
-   OAuth-токена жила «известной» 448 строк в логе и три недели, потому что
-   нигде не была записана. Куда писать — см. 6b и `RUNBOOK.md`.
-11. **Записал отложенное — в `DEFERRED.md`, в ту же сессию.** Любое «сделаем потом / ждём разморозки фронта / решим по данным / решили не делать» уходит строкой в этот файл: причина + что разблокирует. Иначе отложенное либо теряется, либо через месяц всплывает как «а давай обсудим» и обсуждается с нуля. Раздел «Решено НЕ делать» не чистится — он и существует, чтобы не возвращаться к закрытым вопросам (владелец просил завести журнал явно, 2026-07-22).
-12. **End every work session with a plain-language summary**: what changed, what is deployed where (prod / game DLL / not yet), and what the owner must do by hand (restart game, test on stream, click something). The owner can't read diffs — the summary IS the interface.
-13. **Пост-стрим-триаж — предлагать САМ, не ждать просьбы.** Если по датам файлов / контексту видно, что был свежий стрим (новый `bannerlordlink_ГГГГММДД.txt`, свежий `Player.log`, слова владельца «поиграли / стримили»), предложить разбор логов на ошибки — не дожидаясь «сделай триаж». Ловит баги ДО того, как зритель напишет багрепорт. Дешёвыми субагентами по логам, вывод — сам. (Владелец просил проактивность, 2026-07-23.)
-14. **Факт в документе имеет срок годности — проверяй, прежде чем докладывать.**
-   За 2026-07-25 три утверждения из ЭТОГО файла оказались протухшими и были
-   пересказаны владельцу как текущие: «офсайт-бэкапа нет» (есть с 11 июня, и я
-   повторил это дважды, второй раз владелец разозлился), «viewer.js ~7k строк»
-   (2.5k, распилен 13 июня), «мониторинга нет» (UptimeRobot с 14 июня). Механизм
-   один: CLAUDE.md грузится сам, я ему доверяю больше всех, а закрытые задачи
-   строку в нём не обновляют. Правило: любое утверждение вида «X ещё НЕ сделан» —
-   перед пересказом владельцу подтвердить командой (`Get-ScheduledTaskInfo`, `wc -l`,
-   `curl`), а закрыв задачу — сразу править строку здесь, не только в ROADMAP.
-   Дешевле всего: не писать в CLAUDE.md отрицательных статусов вообще, а держать
-   их в ROADMAP/STATUS, где их и закрывают.
-15. **Обновлять `STATUS.md` в конце сессии** — витрина «что сейчас» (10 строк). Устарела строка — поправить. Это то, с чего начинается следующий заход.
-16. **Перед стримом — тест-план на 5 минут + preflight.** Мод-фиксы систематически зависают «дедуцировано, не проверено» (battle-фиксы 19.07, урон/роспуск 24.07). Перед стримом: (а) выдай владельцу ОДНО сообщение — список непроверенных мод-фиксов с «глянь X, скажи да/нет» (собирать из STATUS/DEFERRED §C); (б) прогони `powershell -File scripts\preflight.ps1` — health/сервис/мод-онлайн/ошибки одним прогоном (перед ревью Twitch — обязательно). После стрима свериться с логом и **закрыть подтверждённые bug_reports на проде сразу** — это часть определения «фикс готов», не отдельный шаг (2026-07-24: #23 висел open при доказанном фиксе).
-17. **Рискованные бэк-правки — сначала staging.** Миграции, меняющие данные, и переделки синка/очередей — через `deploy.ps1 -Staging` (:8001, своя БД), потом прод. Staging поднят в июне и простаивает; сухой прогон на снапшоте — минимум, staging — для правок, где важно поведение живого процесса.
+   Два примера не для красоты: в PowerShell 5.1 нет `&&`/`||`.
+   → `LESSONS.md`, «Судить о тесте по КОДУ ВОЗВРАТА».
+5. **Прод-деплой после стрима, не во время.** Идёт эфир — только хотфикс
+   падающего; иначе подготовить и сказать «готово к выкату на перерыве».
+   Рестарт рвёт зрителям соединение, копия мода требует закрытой игры.
+6. **Фича входит — фича выходит.** На просьбу о новой механике спросить, какую
+   малоиспользуемую замораживаем. Причина: разросшийся фронт — это и есть вид
+   бесконтрольного «да».
+7. **Заданию внешнему аудитору НЕЛЬЗЯ писать «это я уже проверил».** Можно:
+   описание системы, правила, классы дефектов, карту приоритетов, свои ошибки как
+   калибровку. Нельзя: «уже проверено», «не дублируй», «сюда если останется
+   время». Зелёный прогон линтера — не индульгенция области. Канон —
+   `docs/INDEPENDENT_AUDIT_BRIEF.md`. → `LESSONS.md`, «Заданию внешнему аудитору».
+8. **Предлагать месячный аудит — ДВУХ видов, не путать.** Код-аудит читает код;
+   **аудит работы** прогоняет каждую платную механику вживую и ловит то, что
+   чтение не ловит: мёртвую в проде механику, дрейф кода и миграций, тихие no-op.
+   Аудит работы — перед каждой подачей в Twitch. → `LESSONS.md`, «Suggest the monthly audit».
+9. **Обновлять `docs/CONTEXT*.md`** после значимого изменения — это передача
+   следующей сессии.
+10. **НЕ ЗАПИСАНО = ЗАБЫТО.** Записывать в ту же сессию: найденную поломку,
+    причину, решение владельца и его мотив, своё возражение при работе вопреки,
+    класс ошибки, ручной шаг. Сводка в чате записью НЕ считается. Куда: статус
+    дня → `STATUS.md`, отложенное → `DEFERRED.md`, операционное → `RUNBOOK.md`,
+    правило → `CLAUDE.md`, история → `LESSONS.md`.
+    → `LESSONS.md`, «НЕ ЗАПИСАНО = ЗАБЫТО».
+11. **Отложенное — в `DEFERRED.md`, в ту же сессию.** Любое «потом / ждём / решим
+    по данным / решили не делать» — строкой: причина + что разблокирует. Раздел
+    «Решено НЕ делать» не чистится.
+12. **Заканчивать сессию сводкой простым языком:** что изменилось, что где
+    задеплоено, что владельцу сделать руками. Он не читает диффы — сводка и есть
+    интерфейс.
+13. **Пост-стрим-триаж предлагать САМ.** Видно по датам файлов, что был эфир —
+    предложить разбор логов, не дожидаясь просьбы.
+14. **Факт в документе имеет срок годности.** Любое «X ещё НЕ сделан» перед
+    пересказом владельцу подтвердить командой. Закрыл задачу — сразу правь строку
+    здесь. Лучше вообще не держать отрицательных статусов в `CLAUDE.md`.
+    → `LESSONS.md`, «Факт в документе имеет срок годности».
+15. **Обновлять `STATUS.md` в конце сессии** — витрина «что сейчас», 10 строк.
+16. **Перед стримом — тест-план на 5 минут + preflight.** Одним сообщением список
+    непроверенных мод-фиксов и `powershell -File scripts\preflight.ps1`. После
+    стрима закрыть подтверждённые `bug_reports` сразу — это часть определения
+    «фикс готов». → `LESSONS.md`, «Перед стримом».
+17. **Рискованные бэк-правки — сначала staging** (`deploy.ps1 -Staging`, :8001,
+    своя БД): миграции, меняющие данные, и переделки синка/очередей.

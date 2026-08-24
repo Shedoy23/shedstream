@@ -1230,6 +1230,51 @@ def check_migrations_self_register():
             )
 
 
+def check_rule_links():
+    """Ссылка из правила в LESSONS.md обязана находить свой текст.
+
+    24.08 правила в CLAUDE.md сократили, а истории, из которых они выросли,
+    вынесли в LESSONS.md. Ссылка «→ LESSONS.md, «имя правила»» — единственное,
+    что связывает правило с его причиной; правило без причины через полгода
+    читается как догма, и с ним начинают спорить вместо того, чтобы соблюдать.
+
+    Почему это ловим машиной: до сокращения правила ссылались друг на друга по
+    НОМЕРАМ (§2c, §5b). Перенумерация ломала ссылки молча — они оставались
+    синтаксически валидными и указывали не туда. Проверять ссылки глазами
+    оказалось невозможно ровно потому, что сломанная ссылка выглядит как целая.
+    """
+    lessons = ROOT / "LESSONS.md"
+    if not lessons.is_file():
+        errors.append(
+            "rule-links: нет LESSONS.md — правила в CLAUDE.md ссылаются на "
+            "истории, которых больше нет в репозитории."
+        )
+        return
+    text = lessons.read_text(encoding="utf-8", errors="replace")
+
+    targets = [ROOT / "CLAUDE.md"]
+    personal = pathlib.Path.home() / ".claude" / "CLAUDE.md"
+    if personal.is_file():
+        targets.append(personal)
+
+    for path in targets:
+        if not path.is_file():
+            continue
+        src = path.read_text(encoding="utf-8", errors="replace")
+        for name in re.findall(r"`LESSONS\.md`,\s*[«\"']([^»\"']+)[»\"']", src):
+            if name.strip() not in text:
+                errors.append(
+                    f"rule-links: {path.name} ссылается на «{name}» в "
+                    "LESSONS.md, а такого текста там нет."
+                )
+        # Ссылка на правило по НОМЕРУ — та самая мина, которую мы разминировали:
+        # номер меняется при любой вставке правила выше по списку.
+        for num in re.findall(r"CLAUDE\.md\s*§\s*\d", src):
+            errors.append(
+                f"rule-links: {path.name} ссылается на правило по номеру "
+                f"({num.strip()}) — ссылаться надо по названию."
+            )
+
 def main() -> int:
     if EXT is None:
         print("[lint] FAIL: could not locate extension dir (with backend/)")
@@ -1248,7 +1293,8 @@ def main() -> int:
                check_declared_gold_is_charged,
                check_chat_channel_scoping,
                check_auto_messages_neutral,
-               check_migrations_self_register):
+               check_migrations_self_register,
+               check_rule_links):
         try:
             fn()
         except Exception as e:  # a broken check shouldn't crash CI silently

@@ -57,7 +57,7 @@ def verdict(followers_gained: int, events_seen: int) -> tuple[int, str]:
     return 1, (
         "фолловеров %d, а событий принято только %d — Twitch не досылает "
         "channel.follow. Пересоздать подписку и проверить живым фолловом "
-        "(см. DEFERRED.md и RUNBOOK §5)." % (followers_gained, events_seen)
+        "(см. DEFERRED.md и RUNBOOK §6 «Проверки»)." % (followers_gained, events_seen)
     )
 
 

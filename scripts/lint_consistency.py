@@ -1306,6 +1306,100 @@ def check_status_is_a_window():
         errors.append("status-window: в STATUS.md нет строки «Обновлено:» — "
                       "витрина без даты не отличается от протухшей.")
 
+def check_runbook_health():
+    """RUNBOOK: оглавление совпадает с разделами, ссылки резолвятся, дата честная.
+
+    Рунбук — справочник: его метрика не «короче», а «находится за десять
+    секунд». К 24.08 в нём было два раздела, которых НЕ БЫЛО в оглавлении, и
+    один из них — «что проверять, когда всё сломалось», то есть самый нужный в
+    кризис. Плюс шапка месяц утверждала «последняя ревизия 2026-07-29», хотя
+    файл правили в августе десяток раз.
+
+    Три проверки:
+      1. каждый `## N.` раздел присутствует в оглавлении и наоборот;
+      2. ссылки вида `RUNBOOK.md §N «Название»` из других файлов ведут в
+         существующий раздел с ТЕМ ЖЕ названием (номер без названия — мина:
+         перенумерация ломает его молча);
+      3. «Последняя ревизия» не старше даты последнего коммита, тронувшего файл.
+    """
+    path = ROOT / "RUNBOOK.md"
+    if not path.is_file():
+        errors.append("runbook: нет RUNBOOK.md — операционная правда пропала.")
+        return
+    text = path.read_text(encoding="utf-8", errors="replace")
+
+    heads = re.findall(r"^## (\d+)\. (.+)$", text, flags=re.M)
+    toc_block = text.split("## Содержание", 1)[-1].split("\n---\n", 1)[0]
+    toc = re.findall(r"^(\d+)\. \[(.+?)\]", toc_block, flags=re.M)
+    if [(n, t_) for n, t_ in heads] != [(n, t_) for n, t_ in toc]:
+        in_heads = {f"{n}. {t_}" for n, t_ in heads}
+        in_toc = {f"{n}. {t_}" for n, t_ in toc}
+        for miss in sorted(in_heads - in_toc):
+            errors.append(f"runbook: раздел «{miss}» есть в файле, но не в оглавлении — "
+                          "в кризис его никто не найдёт.")
+        for extra in sorted(in_toc - in_heads):
+            errors.append(f"runbook: оглавление обещает «{extra}», а такого раздела нет.")
+
+    known = {n: t_ for n, t_ in heads}
+    # Обходим ТОЛЬКО файлы под git: rglob спотыкается о битые junction-точки в
+    # .claude/ и валит проверку целиком (поймано на первом же прогоне).
+    import subprocess
+    listed = subprocess.run(["git", "-C", str(ROOT), "ls-files"],
+                            capture_output=True, timeout=30)
+    for rel in listed.stdout.decode("utf-8", "replace").splitlines():
+        if not rel.endswith((".md", ".py", ".ps1", ".js")):
+            continue
+        if rel.startswith(("dist/", "docs/archive/")) or rel == "RUNBOOK.md":
+            continue
+        src = ROOT / rel
+        if not src.is_file():
+            continue
+        body = src.read_text(encoding="utf-8", errors="replace")
+        for num, name in re.findall(r"RUNBOOK(?:\.md)?`?\s*§\s*(\d+)\s*«([^»]+)»", body):
+            # Достаточно, чтобы ссылка называла НАЧАЛО заголовка: «§6 «Проверки»»
+            # для «6. Проверки: как доказать, что работает» — законно, а вот
+            # уехавший номер так не пройдёт, ради чего проверка и заводилась.
+            actual = known.get(num, "")
+            if not actual.lower().startswith(name.strip().lower()):
+                errors.append(
+                    f"runbook: {rel} ссылается на §{num} «{name}», а там "
+                    f"«{actual or 'раздела нет'}»."
+                )
+        for bare in re.findall(r"RUNBOOK(?:\.md)?`?\s*§\s*\d+\b(?!\s*«)", body):
+            errors.append(f"runbook: {rel} — ссылка «{bare.strip()}» без названия "
+                          "раздела; перенумерация сломает её молча.")
+
+    # Внутренние ссылки «см. §N» — тот же класс: 24.08 перенумерация оставила
+    # в кризисном разделе ссылку «см. §2», которая после перестановки указывала
+    # на сам этот раздел. Снаружи проверка их не видела: перед § нет слова
+    # RUNBOOK. Поэтому требуем название и здесь.
+    for bare in re.findall(r"§\s*\d+\b(?!\s*«)", text):
+        errors.append(f"runbook: внутренняя ссылка «{bare.strip()}» без названия "
+                      "раздела — перенумерация переставит её молча.")
+    for num, name in re.findall(r"§\s*(\d+)\s*«([^»]+)»", text):
+        actual = known.get(num, "")
+        if not actual.lower().startswith(name.strip().lower()):
+            errors.append(f"runbook: внутренняя ссылка §{num} «{name}» ведёт в "
+                          f"«{actual or 'раздел, которого нет'}».")
+
+    m = re.search(r"Последняя ревизия:\s*(\d{4}-\d{2}-\d{2})", text)
+    if not m:
+        errors.append("runbook: нет строки «Последняя ревизия» — нечем отличить "
+                      "свежий файл от протухшего.")
+        return
+    try:
+        out = subprocess.run(["git", "-C", str(ROOT), "log", "-1", "--format=%ad",
+                              "--date=short", "--", "RUNBOOK.md"],
+                             capture_output=True, timeout=20)
+        last = out.stdout.decode().strip()
+    except Exception:
+        return
+    if last and m.group(1) < last:
+        errors.append(
+            f"runbook: «Последняя ревизия: {m.group(1)}», а файл правили {last} — "
+            "строка врёт (так она врала месяц)."
+        )
+
 def main() -> int:
     if EXT is None:
         print("[lint] FAIL: could not locate extension dir (with backend/)")
@@ -1326,7 +1420,8 @@ def main() -> int:
                check_auto_messages_neutral,
                check_migrations_self_register,
                check_rule_links,
-               check_status_is_a_window):
+               check_status_is_a_window,
+               check_runbook_health):
         try:
             fn()
         except Exception as e:  # a broken check shouldn't crash CI silently

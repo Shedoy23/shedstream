@@ -52,6 +52,16 @@ function New-FakeInstance {
     Set-Content -Path (Join-Path $Path 'mods\structurize-1.0.830-1.21.1.jar') -Value 'not a real jar' -Encoding ascii
 }
 
+function Reset-SandboxAcl {
+    # icacls /T обходит ВСЕ вложенные папки и файлы, /C не останавливается на
+    # первой ошибке. .NET-вариант в первой редакции смотрел только верхний
+    # уровень и потому не видел запрет на mods\.
+    if (Test-Path $Sandbox) {
+        Assert-Sandboxed $Sandbox
+        & icacls "$Sandbox" /reset /T /C /Q 2>&1 | Out-Null
+    }
+}
+
 function Assert-Sandboxed([string]$Path) {
     $full = [IO.Path]::GetFullPath($Path)
     if (-not $full.StartsWith([IO.Path]::GetFullPath($Sandbox), [StringComparison]::OrdinalIgnoreCase)) {
@@ -96,20 +106,17 @@ if ($Status) {
 if ($Disarm) {
     if (-not (Test-Path $Sandbox)) { Ok 'nothing to remove'; exit 0 }
     Assert-Sandboxed $Sandbox
-    # Row 5 leaves a deny rule; strip it first or Remove-Item cannot delete.
-    Get-ChildItem $Sandbox -Directory -ErrorAction SilentlyContinue | ForEach-Object {
-        try {
-            $acl = Get-Acl $_.FullName
-            $me = [Security.Principal.WindowsIdentity]::GetCurrent().Name
-            $acl.Access | Where-Object { $_.AccessControlType -eq 'Deny' -and $_.IdentityReference -eq $me } |
-                ForEach-Object { $acl.RemoveAccessRule($_) | Out-Null }
-            Set-Acl $_.FullName $acl
-        } catch { }
-    }
+    # Row 5 leaves a deny rule -- strip it first or Remove-Item cannot delete.
+    # It sits on the mods SUBfolder, so walking only the top level missed it and
+    # -Disarm failed on its own sandbox (found 2026-08-24, the script was a
+    # one-shot: after the first arm it could neither clean up nor re-arm).
+    Reset-SandboxAcl
     Remove-Item $Sandbox -Recurse -Force
     Ok "removed $Sandbox"
     exit 0
 }
+
+Reset-SandboxAcl   # повторный -Arm не должен спотыкаться о прошлый прогон
 
 if (-not $Arm) {
     Write-Host ''

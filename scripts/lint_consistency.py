@@ -1275,6 +1275,37 @@ def check_rule_links():
                 f"({num.strip()}) — ссылаться надо по названию."
             )
 
+def check_status_is_a_window():
+    """STATUS.md обязан остаться витриной, а не дневником.
+
+    Правило «STATUS.md — 10 строк, что сейчас» стояло в CLAUDE.md с самого
+    начала, а сам файл к 24.08 разросся до 448 строк: копились доказанные
+    факты, история заморозки фронта, план работ. Разрослась витрина — значит,
+    содержимое уехало не в свой файл, и его не найдёт тот, кто пойдёт за ним
+    в RUNBOOK или ROADMAP.
+
+    Проверяем не «строк меньше N» (перенос строк — вопрос ширины), а число
+    пунктов витрины: их должно быть не больше десяти.
+    """
+    path = ROOT / "STATUS.md"
+    if not path.is_file():
+        errors.append("status-window: нет STATUS.md — витрина «что сейчас» пропала.")
+        return
+    text = path.read_text(encoding="utf-8", errors="replace")
+    # Витрина = маркированные пункты до раздела «Правило обновления».
+    head = text.split("## Правило обновления")[0]
+    bullets = [ln for ln in head.splitlines() if ln.startswith("- ")]
+    if len(bullets) > 10:
+        errors.append(
+            f"status-window: в STATUS.md {len(bullets)} пунктов витрины при "
+            "пределе 10 — содержимое уехало не в свой файл (история -> "
+            "docs/archive/, операционка -> RUNBOOK.md, план -> ROADMAP.md, "
+            "отложенное -> DEFERRED.md)."
+        )
+    if "Обновлено:" not in head:
+        errors.append("status-window: в STATUS.md нет строки «Обновлено:» — "
+                      "витрина без даты не отличается от протухшей.")
+
 def main() -> int:
     if EXT is None:
         print("[lint] FAIL: could not locate extension dir (with backend/)")
@@ -1294,7 +1325,8 @@ def main() -> int:
                check_chat_channel_scoping,
                check_auto_messages_neutral,
                check_migrations_self_register,
-               check_rule_links):
+               check_rule_links,
+               check_status_is_a_window):
         try:
             fn()
         except Exception as e:  # a broken check shouldn't crash CI silently

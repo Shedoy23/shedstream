@@ -383,7 +383,7 @@ ssh root@31.130.132.224 'sqlite3 /root/twitch-extension/backend/viewers.db \
   "SELECT name FROM migrations_applied ORDER BY applied_at DESC LIMIT 10"'
 
 # Preview URL
-curl -u shedoy23:33133313 "https://shedoy23.ru/api/admin/dev/jwt?username=shedoy23"
+curl -u shedoy23:$ADMIN_PASSWORD "https://shedoy23.ru/api/admin/dev/jwt?username=shedoy23"
 
 # Bannerlord-specific
 ssh root@31.130.132.224 'sqlite3 /root/twitch-extension/backend/viewers.db \

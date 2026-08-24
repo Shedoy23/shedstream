@@ -72,9 +72,13 @@ outcome» без оговорки: `dice.py:295` действительно вы
 > 3. Is it sufficient to remove the flagged elements from the Mobile view while
 >    keeping them in the desktop panel, or must they be removed from the
 >    Extension entirely?
-> 4. Is the Streamer Allowlist requirement permanent for an Extension of this
->    type, or is it tied to something we can change? If the latter, what would
->    have to change for the Extension to be eligible for public release?
+> 4. Regarding the Streamer Allowlist: we notice that several game-integration
+>    Extensions which also require the broadcaster to install a companion
+>    application are listed publicly, and section 4.7 permits requiring
+>    third-party software. Could you clarify what specifically about our
+>    Extension requires the allowlist? In particular, would resolving the 3.5
+>    item above also make the Extension eligible for public release, or is the
+>    requirement independent of it?
 >
 > We will resubmit using the Streamer Allowlist on the Access tab, as instructed.
 >
@@ -93,10 +97,25 @@ outcome» без оговорки: `dice.py:295` действительно вы
 > the approved Extension is visible only to those streamers.»
 
 Требование «due to the nature of your Extension» значит: в текущем виде
-расширение не годится для публичного каталога. Наши очевидные причины —
-установка мода на ПК стримера (софт вне Twitch), привязка к игровой
-интеграции, мини-игры со случайным исходом. Отказаться от списка нельзя,
-не поменяв саму природу расширения; что именно им мешает — вопрос 4 письма.
+расширение не годится для публичного каталога. **Почему именно — неизвестно, и
+первая моя версия была неверной.**
+
+Я написал, что причина очевидна: мод на ПК стримера. Владелец возразил
+скриншотом каталога — Crowd Control, 7 Days to Die Integration, GTA RP
+Companion висят в ОБЩЕМ каталоге, и все требуют компаньон-софт; RimConnect
+(RimWorld) тоже ставит мод. Проверка по доке подтвердила возражение: §4.7
+прямо разрешает «Extensions may require broadcasters to download third-party
+software in order to function», а правила, обязывающего кого-либо в белый
+список, в политике нет вообще.
+
+Значит остаются гипотезы, и они гипотезы:
+- то же, что в пункте 3.5 — механики со случайным исходом и внутренняя
+  экономика; тогда список снимется вместе с исправлением;
+- пользовательский контент: тексты зрителей, попадающие в эфир;
+- новый разработчик без истории — практика, а не правило.
+
+Вывод для работы: **не принимать ограничение как неизбежное**. Спросить прямо
+(вопрос 4 письма) и планировать платформу от их ответа, а не от догадки.
 
 **Цена ошибки при заполнении:** добавить стримера позже = новая подача и полный
 цикл ревью (Грабля №1). Вносить сразу всех, кто нужен на месяцы вперёд:

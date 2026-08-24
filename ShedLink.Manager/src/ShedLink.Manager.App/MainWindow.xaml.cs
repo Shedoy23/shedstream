@@ -225,8 +225,7 @@ public partial class MainWindow : Window
                 OverallStatusText.Text = "Незавершённая смена ключа безопасно завершена.";
             }
         }
-        catch (Exception exception) when (
-            exception is ManagerApiException or HttpRequestException or TaskCanceledException or InvalidOperationException)
+        catch (Exception exception) when (ManagerFailureMessage.IsExpected(exception))
         {
             AccountStatusText.Text = "Нужно войти заново";
             OverallStatusText.Text = FriendlyError(exception);
@@ -297,8 +296,7 @@ public partial class MainWindow : Window
         {
             AccountStatusText.Text = "Время подключения истекло — попробуй ещё раз";
         }
-        catch (Exception exception) when (
-            exception is ManagerApiException or HttpRequestException or InvalidOperationException)
+        catch (Exception exception) when (ManagerFailureMessage.IsExpected(exception))
         {
             AccountStatusText.Text = "Подключение не выполнено";
             OverallStatusText.Text = FriendlyError(exception);
@@ -350,9 +348,7 @@ public partial class MainWindow : Window
                 : "Сессия Manager завершена без отключения интеграции.";
             UpdateInstallAvailability(updateReleaseMessage: false);
         }
-        catch (Exception exception) when (
-            exception is ManagerApiException or HttpRequestException or
-                TaskCanceledException or InvalidOperationException)
+        catch (Exception exception) when (ManagerFailureMessage.IsExpected(exception))
         {
             OverallStatusText.Text = FriendlyError(exception);
         }
@@ -560,9 +556,7 @@ public partial class MainWindow : Window
                         _session = null;
                         _runtimeStatus = null;
                     }
-                    catch (Exception exception) when (
-                        exception is ManagerApiException or HttpRequestException or
-                            TaskCanceledException or InvalidOperationException)
+                    catch (Exception exception) when (ManagerFailureMessage.IsExpected(exception))
                     {
                         OverallStatusText.Text =
                             "Мод и настройки удалены, но ключ отозвать не вышло: " +
@@ -1225,6 +1219,9 @@ public partial class MainWindow : Window
                 $"{DateTimeOffset.UtcNow:O} operation={operation}{Environment.NewLine}" +
                 exception + Environment.NewLine);
         }
+        // catch-ok: узко намеренно. Это запись лога о ЧУЖОМ сбое; она обязана
+        // глотать только ошибки файла и никогда не подменять собой исходную
+        // ошибку, которую увидит человек.
         catch (Exception logException) when (
             logException is IOException or UnauthorizedAccessException)
         {

@@ -148,6 +148,9 @@ internal static class ReleaseConfiguration
             }
             releases = loaded;
         }
+        // catch-ok: список шире общего — сюда входит JsonException, которого
+        // в ManagerFailureMessage.IsExpected нет и быть не должно: битый JSON
+        // каталога это не сбой операции пользователя, а негодный каталог.
         catch (Exception exception) when (
             exception is IOException or UnauthorizedAccessException or
                 JsonException or InvalidDataException)

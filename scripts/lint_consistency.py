@@ -1400,6 +1400,50 @@ def check_runbook_health():
             "строка врёт (так она врала месяц)."
         )
 
+def check_manager_catch_filters():
+    """Обработчики Manager ловят сбои через IsExpected, а не списком типов.
+
+    16.08 установка в защищённую папку закрывала приложение молча:
+    UnauthorizedAccessException наследуется от SystemException и не подходил
+    под фильтр, который перечислял типы руками. Список типов живёт в
+    ManagerFailureMessage.IsExpected — фильтр, который его дублирует, молча
+    разъезжается с ним. 24.08 нашлось ещё четыре таких фильтра на путях входа
+    и подключения (внутри них пишется состояние на диск).
+
+    Пустой список типов в самом IsExpected тоже ошибка: тогда проверка
+    проходит, а ловить перестаёт всё.
+    """
+    app = EXT.parent / "ShedLink.Manager" / "src" / "ShedLink.Manager.App" if EXT else None
+    root_app = ROOT / "ShedLink.Manager" / "src" / "ShedLink.Manager.App"
+    app = root_app if root_app.is_dir() else app
+    if not app or not app.is_dir():
+        return
+    for path in sorted(app.rglob("*.cs")):
+        rel = path.relative_to(ROOT).as_posix()
+        if "/bin/" in rel or "/obj/" in rel:
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        pattern = "catch \(Exception \w+\) when \(([^{]*?)\)"
+        for m in re.finditer(pattern, text):
+            cond = " ".join(m.group(1).split())
+            if "IsExpected" in cond:
+                continue
+            # Лазейка как у tenant-lint: узкий фильтр бывает намеренным
+            # (лог сбоя обязан глотать только ошибки записи; загрузка каталога
+            # ловит ещё и JsonException, которого в общем списке нет).
+            # Причину писать обязательно — молчаливое исключение вернёт класс.
+            head = text[: m.start()].rsplit(chr(10), 3)[0] if m.start() else ""
+            near = text[max(0, m.start() - 260): m.start()]
+            if "catch-ok:" in near:
+                continue
+            if " or " in cond and "Exception" in cond:
+                line = text[: m.start()].count(chr(10)) + 1
+                errors.append(
+                    f"manager-catch: {rel}:{line} перечисляет типы исключений "
+                    "руками вместо ManagerFailureMessage.IsExpected — так "
+                    "16.08 отказ Windows в правах закрыл приложение молча."
+                )
+
 def main() -> int:
     if EXT is None:
         print("[lint] FAIL: could not locate extension dir (with backend/)")
@@ -1421,7 +1465,8 @@ def main() -> int:
                check_migrations_self_register,
                check_rule_links,
                check_status_is_a_window,
-               check_runbook_health):
+               check_runbook_health,
+               check_manager_catch_filters):
         try:
             fn()
         except Exception as e:  # a broken check shouldn't crash CI silently

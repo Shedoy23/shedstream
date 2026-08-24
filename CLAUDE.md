@@ -99,7 +99,7 @@ Prod = `root@31.130.132.224:/root/twitch-extension/`, run under supervisor as `t
 - **Убрал механику — прогони тесты и линтеры, а не только проверь, что вход исчез.** 2026-07-29 `player.respawn` убрали из продажи (правильно: механики нет), и вместе с ним молча лёг `test_bannerlord_buy_action` — характеризационный тест КАССЫ, 17 провалов. Красным он пролежал весь день: после уборки его никто не прогнал. Зеркало класса «выключили, но продаём»: там код пережил механику, здесь тест пережил механику. Уборка не считается законченной, пока не зелёные тесты.
 - **Проверять ДЕЙСТВИЕ поимённо, а не «механику».** 2026-07-29: `create_vassal_clan` (250K, выделить наследника) перевели на цену с бэкенда, и «вассал-кланы сделаны» прочиталось как оба действия — а `recruit_vassal_clan` (3M, нанять NPC-клан) остался с числом, зашитым в кнопку, и попал в changelog для ревьюера Twitch как уже сделанный. Два похожих имени в одной области = два разных пути; отмечать сделанным можно только то, что открыл и увидел.
 - **Cache-bust both shells.** `viewer.js?v=...` must be identical in `extension.html` and `mobile.html`; `deploy.ps1` keeps them in sync. Desync = part of the audience runs stale JS.
-- **Mod crash protection pattern.** Vanilla Bannerlord daily-tick code (e.g. `PregnancyCampaignBehavior`, `BannerCampaignBehavior`) throws NPE/InvalidCast on the mod's clanless or edge-case viewer heroes. The fix pattern is a defensive Harmony finalizer/prefix that swallows the *specific* exception and lets the engine continue — see `BannerlordLink/src/Patches/PregnancyModelPatch.cs` and `BannerCampaignBehaviorPatch.cs`. `BannerlordLinkModule.cs` has a resilient `PatchAll` with a `SKIP_PATCH_NAMES` kill-switch.
+- **Mod crash protection pattern.** Vanilla Bannerlord daily-tick code (e.g. `PregnancyCampaignBehavior`, `BannerCampaignBehavior`) throws NPE/InvalidCast on the mod's clanless or edge-case viewer heroes. Чинится Harmony-патчем — но КАКИМ именно, решает следующее правило («Vanilla NRE: decompile to root-cause»): сначала prefix, который чинит вход и пускает ванильный код работать, и только если это невозможно — finalizer, глотающий КОНКРЕТНОЕ исключение. Примеры: `BannerlordLink/src/Patches/PregnancyModelPatch.cs`, `BannerCampaignBehaviorPatch.cs`. (До 2026-08-23 здесь стояло «шаблон — finalizer, который глотает», и это противоречило следующему пункту, где проглатывание названо крайней мерой, дважды скрывшей поломку. Нашло внешнее ревью.) `BannerlordLinkModule.cs` has a resilient `PatchAll` with a `SKIP_PATCH_NAMES` kill-switch.
 - **Правишь обработчик действия в моде — сначала `Расширение/docs/MOD_CONTRACT.md`.**
   Там единый контракт исхода для всех модов: обработчик обязан НАЗВАТЬ исход
   на каждом пути выхода (`ActionFeedback.PostApplied` / `PostFailed`), успех
@@ -134,19 +134,29 @@ The owner is a non-programmer building this solo with Claude; these rules are th
 
 1. **Check before code.** Before implementing any NEW viewer-facing mechanic: (a) run a Twitch-compliance check (`/twitch-compliance`), (b) if the idea mirrors BLT, flag the license implication, (c) present a 5–10 line spec and get explicit approval. If asked to "just build it", do the checks anyway first — that's cheaper than another casino.
 2. **Done = evidence.** Never report done without proof: test output, log line, prod DB query, screenshot. A red test blocks deploy — no exceptions. (Extends the global "verify before done".)
-2b. **Тест, который никогда не видели красным, не доказывает НИЧЕГО.** Написал тест на баг — покажи его в ДВУХ состояниях: (а) временно убрать фикс → тест падает и НАЗЫВАЕТ проблему; (б) вернуть фикс → зелёный; (в) `git diff` после этого пуст. Зелёный тест, написанный ПОСЛЕ фикса, мог быть зелёным и без него — это известный способ ИИ обмануть и себя, и владельца (владелец спросил прямо, 2026-07-25). Тот же приём для линтеров: подложи исторический баг, покажи exit 1. **Красный тест чиним КОДОМ, а не правкой ожидания.**
+3. **Тест, который никогда не видели красным, не доказывает НИЧЕГО.** Написал тест на баг — покажи его в ДВУХ состояниях: (а) временно убрать фикс → тест падает и НАЗЫВАЕТ проблему; (б) вернуть фикс → зелёный; (в) `git diff` после этого пуст. Зелёный тест, написанный ПОСЛЕ фикса, мог быть зелёным и без него — это известный способ ИИ обмануть и себя, и владельца (владелец спросил прямо, 2026-07-25). Тот же приём для линтеров: подложи исторический баг, покажи exit 1. **Красный тест чиним КОДОМ, а не правкой ожидания.**
 
-2c. **Судить о тесте по КОДУ ВОЗВРАТА, а не по тому, что он напечатал.**
+4. **Судить о тесте по КОДУ ВОЗВРАТА, а не по тому, что он напечатал.**
    28.07 два новых теста печатали «ВСЁ ЗЕЛЁНОЕ» и при этом возвращали ненулевой
    код: закрытие пула звалось несуществующим методом, исключение глушилось
    `except`, процесс висел до таймаута. Я дважды прочитал вывод как успех,
    потому что смотрел на текст через `grep` — а `grep` возвращает СВОЙ код,
-   маскируя код теста. Правило: прогон теста заканчивается проверкой `$?`
-   (`&& echo PASS || echo FAIL exit=$?`), и «зелёная» печать без нулевого кода
-   считается провалом. Класс ошибки: **зелёный вывод ≠ зелёный результат**.
-3. **Prod deploys after stream, not during.** If a stream is live, only hotfix a broken prod; otherwise prepare everything and say "ready to deploy on break". A mid-stream backend restart drops viewer connections; a mod copy needs the game closed anyway.
-4. **Feature in — feature out.** When a new mechanic is requested, ask which low-usage feature gets frozen/removed in exchange (use usage metrics once they exist; until then, ask). The 7k-line viewer.js is what unbounded "yes" looks like.
-5b. **Заданию внешнему аудитору НЕЛЬЗЯ писать «это я уже проверил, сюда не
+   маскируя код теста. Правило: прогон теста заканчивается проверкой кода
+   возврата, и «зелёная» печать без нулевого кода считается провалом.
+   Класс ошибки: **зелёный вывод ≠ зелёный результат**.
+   ```bash
+   python tests/test_x.py && echo PASS || echo "FAIL exit=$?"   # git-bash
+   ```
+   ```powershell
+   python tests/test_x.py
+   if ($LASTEXITCODE -eq 0) { "PASS" } else { "FAIL exit=$LASTEXITCODE" }
+   ```
+   Два варианта не для красоты: в PowerShell 5.1 нет `&&`/`||`, и первый
+   пример там молча не сработает (найдено внешним ревью 2026-08-23 — правило
+   противоречило личному CLAUDE.md, где это ограничение и записано).
+5. **Prod deploys after stream, not during.** If a stream is live, only hotfix a broken prod; otherwise prepare everything and say "ready to deploy on break". A mid-stream backend restart drops viewer connections; a mod copy needs the game closed anyway.
+6. **Feature in — feature out.** When a new mechanic is requested, ask which low-usage feature gets frozen/removed in exchange (use usage metrics once they exist; until then, ask). Фронт, разросшийся до ~13.5k строк суммарно, — это и есть вид бесконтрольного «да». (До 2026-08-23 здесь стояло «7k-line viewer.js» — число устарело 13 июня, когда файл распилили до 2.5k. Нашло внешнее ревью: устаревший факт лежал в двух строках от правила не держать устаревших фактов.)
+7. **Заданию внешнему аудитору НЕЛЬЗЯ писать «это я уже проверил, сюда не
    смотри».** (Прямое требование владельца 2026-07-29: «не пиши в боты то, что
    ты уже что-то проверил и не нужно там проверять, уже обжигался».) Причина
    арифметическая: моё «проверено» стоит ровно столько, сколько стоят мои
@@ -159,9 +169,9 @@ The owner is a non-programmer building this solo with Claude; these rules are th
    Это же относится к прогонам линтеров и тестов: зелёный прогон — не
    индульгенция области, он ловит свой класс и молчит про остальные.
    Канон задания — `Расширение/docs/INDEPENDENT_AUDIT_BRIEF.md`.
-5. **Suggest the monthly audit — TWO kinds, don't conflate** (ROADMAP §6). **Код-аудит** reads code for what's wrong in it (security / dead code / debt). **Аудит работы** runs each paid mechanic end-to-end against live data and catches what code-audits structurally cannot: mechanics dead in prod, code-vs-migration/load-order drift, silent no-ops. Propose аудит работы before every Twitch submission (it would have caught the dead RimWorld shop) and either kind after ~a month. The 2026-04 audit (13 CRITICAL) out-earned any feature.
-6. **Update the CONTEXT doc** (`docs/CONTEXT*.md`) after any significant change — it's the handoff that keeps future sessions from re-discovering everything.
-6c. **НЕ ЗАПИСАНО = ЗАБЫТО (владелец, 2026-07-28).** Правило шире 6b: записывать
+8. **Suggest the monthly audit — TWO kinds, don't conflate** (ROADMAP §6). **Код-аудит** reads code for what's wrong in it (security / dead code / debt). **Аудит работы** runs each paid mechanic end-to-end against live data and catches what code-audits structurally cannot: mechanics dead in prod, code-vs-migration/load-order drift, silent no-ops. Propose аудит работы before every Twitch submission (it would have caught the dead RimWorld shop) and either kind after ~a month. The 2026-04 audit (13 CRITICAL) out-earned any feature.
+9. **Update the CONTEXT doc** (`docs/CONTEXT*.md`) after any significant change — it's the handoff that keeps future sessions from re-discovering everything.
+10. **НЕ ЗАПИСАНО = ЗАБЫТО (владелец, 2026-07-28).** Правило шире 6b: записывать
    надо не только отложенное, а всё значимое — найденную поломку (даже если чиню
    сразу), причину, решение владельца и его мотив, моё возражение при работе
    вопреки ему, класс ошибки и способ ловить его впредь, ручной шаг, который
@@ -169,10 +179,10 @@ The owner is a non-programmer building this solo with Claude; these rules are th
    кончается с сессией, память владельца — через неделю. Повод: поломка
    OAuth-токена жила «известной» 448 строк в логе и три недели, потому что
    нигде не была записана. Куда писать — см. 6b и `RUNBOOK.md`.
-6b. **Записал отложенное — в `DEFERRED.md`, в ту же сессию.** Любое «сделаем потом / ждём разморозки фронта / решим по данным / решили не делать» уходит строкой в этот файл: причина + что разблокирует. Иначе отложенное либо теряется, либо через месяц всплывает как «а давай обсудим» и обсуждается с нуля. Раздел «Решено НЕ делать» не чистится — он и существует, чтобы не возвращаться к закрытым вопросам (владелец просил завести журнал явно, 2026-07-22).
-7. **End every work session with a plain-language summary**: what changed, what is deployed where (prod / game DLL / not yet), and what the owner must do by hand (restart game, test on stream, click something). The owner can't read diffs — the summary IS the interface.
-8. **Пост-стрим-триаж — предлагать САМ, не ждать просьбы.** Если по датам файлов / контексту видно, что был свежий стрим (новый `bannerlordlink_ГГГГММДД.txt`, свежий `Player.log`, слова владельца «поиграли / стримили»), предложить разбор логов на ошибки — не дожидаясь «сделай триаж». Ловит баги ДО того, как зритель напишет багрепорт. Дешёвыми субагентами по логам, вывод — сам. (Владелец просил проактивность, 2026-07-23.)
-8b. **Факт в документе имеет срок годности — проверяй, прежде чем докладывать.**
+11. **Записал отложенное — в `DEFERRED.md`, в ту же сессию.** Любое «сделаем потом / ждём разморозки фронта / решим по данным / решили не делать» уходит строкой в этот файл: причина + что разблокирует. Иначе отложенное либо теряется, либо через месяц всплывает как «а давай обсудим» и обсуждается с нуля. Раздел «Решено НЕ делать» не чистится — он и существует, чтобы не возвращаться к закрытым вопросам (владелец просил завести журнал явно, 2026-07-22).
+12. **End every work session with a plain-language summary**: what changed, what is deployed where (prod / game DLL / not yet), and what the owner must do by hand (restart game, test on stream, click something). The owner can't read diffs — the summary IS the interface.
+13. **Пост-стрим-триаж — предлагать САМ, не ждать просьбы.** Если по датам файлов / контексту видно, что был свежий стрим (новый `bannerlordlink_ГГГГММДД.txt`, свежий `Player.log`, слова владельца «поиграли / стримили»), предложить разбор логов на ошибки — не дожидаясь «сделай триаж». Ловит баги ДО того, как зритель напишет багрепорт. Дешёвыми субагентами по логам, вывод — сам. (Владелец просил проактивность, 2026-07-23.)
+14. **Факт в документе имеет срок годности — проверяй, прежде чем докладывать.**
    За 2026-07-25 три утверждения из ЭТОГО файла оказались протухшими и были
    пересказаны владельцу как текущие: «офсайт-бэкапа нет» (есть с 11 июня, и я
    повторил это дважды, второй раз владелец разозлился), «viewer.js ~7k строк»
@@ -183,6 +193,6 @@ The owner is a non-programmer building this solo with Claude; these rules are th
    `curl`), а закрыв задачу — сразу править строку здесь, не только в ROADMAP.
    Дешевле всего: не писать в CLAUDE.md отрицательных статусов вообще, а держать
    их в ROADMAP/STATUS, где их и закрывают.
-9. **Обновлять `STATUS.md` в конце сессии** — витрина «что сейчас» (10 строк). Устарела строка — поправить. Это то, с чего начинается следующий заход.
-10. **Перед стримом — тест-план на 5 минут + preflight.** Мод-фиксы систематически зависают «дедуцировано, не проверено» (battle-фиксы 19.07, урон/роспуск 24.07). Перед стримом: (а) выдай владельцу ОДНО сообщение — список непроверенных мод-фиксов с «глянь X, скажи да/нет» (собирать из STATUS/DEFERRED §C); (б) прогони `powershell -File scripts\preflight.ps1` — health/сервис/мод-онлайн/ошибки одним прогоном (перед ревью Twitch — обязательно). После стрима свериться с логом и **закрыть подтверждённые bug_reports на проде сразу** — это часть определения «фикс готов», не отдельный шаг (2026-07-24: #23 висел open при доказанном фиксе).
-11. **Рискованные бэк-правки — сначала staging.** Миграции, меняющие данные, и переделки синка/очередей — через `deploy.ps1 -Staging` (:8001, своя БД), потом прод. Staging поднят в июне и простаивает; сухой прогон на снапшоте — минимум, staging — для правок, где важно поведение живого процесса.
+15. **Обновлять `STATUS.md` в конце сессии** — витрина «что сейчас» (10 строк). Устарела строка — поправить. Это то, с чего начинается следующий заход.
+16. **Перед стримом — тест-план на 5 минут + preflight.** Мод-фиксы систематически зависают «дедуцировано, не проверено» (battle-фиксы 19.07, урон/роспуск 24.07). Перед стримом: (а) выдай владельцу ОДНО сообщение — список непроверенных мод-фиксов с «глянь X, скажи да/нет» (собирать из STATUS/DEFERRED §C); (б) прогони `powershell -File scripts\preflight.ps1` — health/сервис/мод-онлайн/ошибки одним прогоном (перед ревью Twitch — обязательно). После стрима свериться с логом и **закрыть подтверждённые bug_reports на проде сразу** — это часть определения «фикс готов», не отдельный шаг (2026-07-24: #23 висел open при доказанном фиксе).
+17. **Рискованные бэк-правки — сначала staging.** Миграции, меняющие данные, и переделки синка/очередей — через `deploy.ps1 -Staging` (:8001, своя БД), потом прод. Staging поднят в июне и простаивает; сухой прогон на снапшоте — минимум, staging — для правок, где важно поведение живого процесса.

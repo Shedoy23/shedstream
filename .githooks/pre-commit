@@ -48,6 +48,15 @@ if [ "$front_js" -eq 1 ]; then
   fi
 fi
 
+# Дубли в документации: копия утверждения не имеет владельца — правят одну,
+# вторая продолжает выглядеть верной. Гоняем только когда в коммите есть .md
+# (0.65с, но незачем дёргать на каждом коммите кода).
+md_files="$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.md$' || true)"
+if [ -n "$md_files" ] && command -v "$PY" >/dev/null 2>&1    && [ -f "$root/scripts/check-doc-duplication.py" ]; then
+  "$PY" "$root/scripts/check-doc-duplication.py" >/dev/null || {
+    "$PY" "$root/scripts/check-doc-duplication.py" | tail -6; fail=1; }
+fi
+
 # Whole-repo consistency lints (fast). Hard errors block the commit.
 if command -v "$PY" >/dev/null 2>&1 && [ -f "$root/scripts/lint_consistency.py" ]; then
   "$PY" "$root/scripts/lint_consistency.py" || fail=1

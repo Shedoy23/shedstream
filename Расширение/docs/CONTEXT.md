@@ -232,7 +232,7 @@ SQLite + twitchio bot + vanilla JS frontend. Live на `twitch.tv/shedoy23`,
 - [BROADCASTER-JWT] streamer toggle через role='broadcaster'
 - Generic UI renderer (overkill пока для 2 модулей)
 - TTL для queued module_actions (сейчас лежат вечно если mod не applied,
-  нет refund при skip/expire)
+  нет refund при skip/expire; наблюдаемый случай — summon куплен вне Mission)
 
 ---
 

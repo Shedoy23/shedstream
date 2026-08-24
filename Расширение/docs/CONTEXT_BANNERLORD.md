@@ -1040,8 +1040,8 @@ community модов, потом upgrade'нуть и пересобрать на
 
 **🟡 Tech debt / polish:**
 - **Sprint 4.10 Balancing** — после live data: cooldowns + active power values + tier costs
-- **TTL для queued module_actions** — сейчас лежат вечно если mod не applied;
-  нет refund при skip/expire (e.g. summon купил но вне Mission)
+- **TTL для queued module_actions** — платформенный пункт, живёт в
+  `CONTEXT.md`; здесь только частный случай: summon куплен вне Mission
 - 20+ handlers share username-extract pattern → `ActionHandlerBase`
 - `KillRewardBehavior` accumulates 2 static registries (`_retinueOwners`,
   `_partyRestores`) — split на `MissionStateBehavior`?

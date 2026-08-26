@@ -2369,19 +2369,19 @@ async def _prepare_action(username, channel_id, action_type, data):
         data["speed_factor"]  = row[8]
         data["price"] = 0
 
-    # Sprint 5.3 / 5.28 update: hero.join_tournament — 1000 крустиков, 0 динаров.
-    # Раньше было: 0 крустиков + 5000 динаров in-game → adopted viewer'ы часто
-    # без денег → отказы в моде, крустики уже потрачены (не было).
-    # Теперь: 1000 крустиков списываются на backend ДО enqueue (universal
-    # buy-action price path), мод гарантированно ставит в очередь.
+    # Sprint 5.28c: hero.join_tournament полностью бесплатен — 0 крустиков и
+    # 0 динаров. Раньше пробовали 5000 динаров, затем 1000 крустиков; оба
+    # варианта создавали ненужный barrier-to-entry и gambling-read на mobile.
+    # Backend всё равно принудительно перезаписывает обе цены нулями: клиент не
+    # может вернуть входной взнос своим payload'ом.
     # mod = source-of-truth для очереди (event tournament.joined → INSERT).
     if action_type == "hero.join_tournament":
         # Sprint 5.31 #45d (audit HIGH-5) — checks перенесены ВНУТРЬ BEGIN
         # IMMEDIATE ниже (см. _tournament_join_atomic_check). Раньше SELECT
         # status + SELECT queue делались отдельной connection ВНЕ TX —
-        # два одновременных POST'а могли пройти оба SELECT'а, оба
-        # списывали 1000⦷, второй уходил в never-land без refund.
-        # Теперь checks под одним IMMEDIATE lock'ом — serialized.
+        # два одновременных POST'а могли пройти оба SELECT'а и создать два
+        # задания. Checks остаются под одним IMMEDIATE lock'ом — serialized,
+        # даже несмотря на нулевую цену.
         data["hero_gold_cost"] = 0           # mod больше не списывает динары
         data["price"] = TOURNAMENT_JOIN_PRICE  # 5.28c: 0 — турнир бесплатный
 

@@ -373,6 +373,51 @@ async def test_free_action_no_charge(db, buy):
     assert_eq(n, 1, "hero.create enqueued (NOT backend-only)")
 
 
+async def test_tournament_join_is_free_and_enqueued(db, buy):
+    """5b. Tournament entry stays free server-side and still reaches the mod.
+
+    This is a Twitch 3.5 / submission-letter invariant: the client sends zero,
+    but the server is the price authority and must force both currencies to zero.
+    """
+    print("\n[5b] Tournament join — server-enforced free entry, enqueue intact")
+    import json as _json
+    import routes.bannerlord as B
+
+    await _set_points(db, CHANNEL_ID, "alice", START_POINTS)
+    async with db._connect() as conn:
+        await conn.execute(
+            "INSERT OR REPLACE INTO bannerlord_tournament_state "
+            "(channel_id, status, participants) VALUES (?, 'idle', '[]')",
+            (CHANNEL_ID,))
+        await conn.commit()
+
+    before = await _get_points(db, CHANNEL_ID, "alice")
+    n_before = await _count_actions(db, CHANNEL_ID, "hero.join_tournament")
+    res = await buy(
+        _make_anon_request(), "alice", CHANNEL_ID, "hero.join_tournament",
+        {"price": 999999, "hero_gold_cost": 999999,
+         "client_action_id": "tournament-free-1"})
+
+    assert_eq(B.TOURNAMENT_JOIN_PRICE, 0, "server tournament price constant == 0")
+    assert_eq(res.get("success"), True, "free tournament join succeeds")
+    assert_eq(res.get("charged"), 0, "tournament join charged == 0")
+    assert_eq(await _get_points(db, CHANNEL_ID, "alice"), before,
+              "tournament join leaves crustics unchanged")
+    assert_eq(await _count_actions(db, CHANNEL_ID, "hero.join_tournament"),
+              n_before + 1, "free tournament join enqueues exactly one action")
+
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT data FROM module_actions WHERE channel_id=? "
+            "AND module_id='bannerlord' AND type='hero.join_tournament' "
+            "AND client_action_id='tournament-free-1'",
+            (CHANNEL_ID,))
+        payload = _json.loads((await cur.fetchone())[0])
+    assert_eq(payload.get("price"), 0, "enqueued payload crustic price forced to 0")
+    assert_eq(payload.get("hero_gold_cost"), 0,
+              "enqueued payload in-game gold cost forced to 0")
+
+
 async def test_power_activate_per_power_price(db, buy):
     """6. power.activate списывает PER-POWER цену (POWER_PRICES), НЕ flat 50.
 
@@ -763,6 +808,7 @@ async def _run():
         await test_insufficient_funds(db, buy)
         await test_unknown_action_refused(db, buy)
         await test_free_action_no_charge(db, buy)
+        await test_tournament_join_is_free_and_enqueued(db, buy)
         await test_power_activate_per_power_price(db, buy)
         await test_refund_on_ack_failure(db, buy)
         await test_army_create_server_gates(db, buy)

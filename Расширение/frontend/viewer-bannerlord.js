@@ -920,8 +920,9 @@ function _renderBannerlordTournament(data) {
     const state = data.state || {};
     const queue = data.queue || [];
     const cfg = data.config || {};
-    // Sprint 5.28: цена в крустиках. Backend шлёт config.join_price (default 1000).
-    const joinPrice = (cfg.join_price ?? 1000);
+    // Sprint 5.28c: backend шлёт config.join_price=0. Fail-safe тоже 0: при
+    // старом/неполном ответе нельзя снова нарисовать несуществующий взнос.
+    const joinPrice = (cfg.join_price ?? 0);
     const joinPriceText = joinPrice.toLocaleString('ru-RU');
 
     // Status badge
@@ -1012,7 +1013,8 @@ function _renderBannerlordTournament(data) {
     if (joinBtn) {
         joinBtn.dataset.bnrCd = 'hero.join_tournament';   // кулдаун на кнопке
         joinBtn.addEventListener('click', () => {
-            // Sprint 5.28: backend сам ставит price=1000💎; шлём 0 — он перепишет.
+            // Backend принудительно держит вход бесплатным; 0 не доверяется
+            // клиенту, а повторно выставляется server-side.
             _bannerlordBuyAction('hero.join_tournament', { price: 0 });
         });
     }

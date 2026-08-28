@@ -333,6 +333,32 @@ select name, applied_at from migrations_applied where name like 'M9%'
 Главное из него в одну строку: **ищи не сообщения об ошибках, а несостоявшиеся
 события** — «когда эта механика работала последний раз».
 
+### Доказать, что возврат крустиков реально начислен (2026-08-28)
+
+Раньше ответа не было: `points_income` пишет только приход, а по балансу не
+сверить — во время эфира параллельно капает watchtime. С M118 движение денег
+пишет триггер на `viewers.points`, поэтому в журнал попадает и то, что идёт
+мимо `add_points`/`remove_points` (а мимо идёт 22 места из 39).
+
+```bash
+ssh root@31.130.132.224 "cd /root/twitch-extension && sqlite3 -header backend/viewers.db \"select id, username, delta, balance_before, balance_after, created_at from points_ledger where username='НИК' order by id desc limit 20;\""
+```
+
+Списание и возврат — две строки с противоположными дельтами. За что именно —
+журнал не знает (см. `DEFERRED.md`); причина берётся сопоставлением по времени
+с `module_actions`, где есть тип действия, цена и статус.
+
+**Проверка, что учёт не дырявый:** у соседних строк одного зрителя
+`balance_after` предыдущей обязан равняться `balance_before` следующей. Разрыв
+означает, что баланс поменяли в обход триггера — или что триггеры снесла
+миграция, пересоздавшая `viewers`.
+
+```bash
+ssh root@31.130.132.224 "cd /root/twitch-extension && sqlite3 backend/viewers.db \"select count(*) from (select balance_before - lag(balance_after) over (partition by channel_id, username order by id) as gap from points_ledger) where gap is not null and gap <> 0;\""
+```
+
+Ноль — учёт сходится.
+
 ### Открытые баг-репорты зрителей
 ```sql
 select id, message, created_at from bug_reports where status='open' order by id desc

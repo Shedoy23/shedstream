@@ -32,6 +32,7 @@ from config import (
     DROP_BLACKLIST,
     DROP_CHANCE,
     DROP_INTERVAL,
+    DROP_LURKER_WEIGHT,
     PERFORMANCE_CONFIG,
     POINTS_PER_MINUTE,
     QUEST_ORDER,
@@ -1119,24 +1120,46 @@ class BotCore:
             return
 
         cutoff = datetime.now() - timedelta(seconds=ACTIVE_WINDOW)
+        # Свежий last_seen = «панель на связи», и только. Взаимодействие —
+        # отдельный признак, иначе брошенная вкладка тянет кейсы у зрителя
+        # (замер 28.08 — комментарий к DROP_LURKER_WEIGHT в config.py).
+        weights: list = []
         try:
             async with self.db._connect() as conn:
                 cursor = await conn.execute(
-                    "SELECT username FROM viewers WHERE channel_id = ? AND last_seen >= datetime('now', ?)",
+                    "SELECT username, "
+                    "CASE WHEN last_interaction_at IS NULL THEN NULL "
+                    "     ELSE CAST((julianday('now') - julianday(last_interaction_at)) * 86400 AS INTEGER) "
+                    "END AS interact_age_sec "
+                    "FROM viewers "
+                    "WHERE channel_id = ? AND last_seen >= datetime('now', ?)",
                     (cid, f"-{ACTIVE_WINDOW} seconds"),
                 )
                 rows = await cursor.fetchall()
-            active = [r[0] for r in rows if r[0].lower() not in DROP_BLACKLIST]
+            active = []
+            for uname, interact_age_sec in rows:
+                if uname.lower() in DROP_BLACKLIST:
+                    continue
+                active.append(uname)
+                engaged = (interact_age_sec is not None
+                           and interact_age_sec < ENGAGED_WINDOW)
+                weights.append(1.0 if engaged else DROP_LURKER_WEIGHT)
         except Exception as e:
             logger.warning("[ch=%s] Drop: чтение активных из БД упало: %s", cid, e)
+            # Память не хранит взаимодействие — на запасном пути все равны.
             active = [
                 u for (k_cid, u), t in self.viewers_last_active.items()
                 if k_cid == cid and t > cutoff and u.lower() not in DROP_BLACKLIST
             ]
+            weights = [1.0] * len(active)
         if not active:
             return
 
-        recipient = random.choice(active)  # rename из 'lucky' 2026-05-12 (Phase 8.A.2 lexicon hygiene)
+        # rename из 'lucky' 2026-05-12 (Phase 8.A.2 lexicon hygiene)
+        recipient = random.choices(active, weights=weights)[0]
+        engaged_n = sum(1 for w in weights if w == 1.0)
+        logger.info("[ch=%s] Drop pool: %d на связи, из них %d взаимодействовали",
+                    cid, len(active), engaged_n)
 
         # Выбор тира кейса по весам 70/25/4/1
         tier = random.choices(

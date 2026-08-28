@@ -761,6 +761,37 @@ asyncio.run(m())"
 python tests/test_dashboard_render.py
 ```
 
+### Мод отгружён, но jar старше исходников (2026-08-28)
+
+**Что видно:** платное действие возвращается с `unknown_action` и возвратом
+денег; либо снимок (`targets`, `capacity`) не обновляется при живом
+heartbeat.
+**Что на самом деле:** в релизном ZIP лежит jar, собранный раньше, чем были
+дописаны действия. `pack-shedcolony-release.ps1` берёт файл из
+`Расширение/frontend/downloads/minecraft/` — туда его кладут РУКАМИ, со
+сборкой он не связан ничем, а номер версии у старого и нового одинаковый.
+28.08 так уехали 12 мёртвых кнопок на 299 300 крустиков и молчащий
+`colony.targets`.
+**Как проверить за минуту — по байтам jar, а не по рассуждению:**
+
+```bash
+python scripts/check-shedcolony-jar.py
+python scripts/check-shedcolony-jar.py "D:/sheddev/shedcolony/build/libs/shedcolony-0.1.0.jar"
+```
+
+Имя действия попадает в jar только если упомянуто в коде, поэтому поиск
+подстроки в `.class` даёт точный ответ без запуска игры. Тем же приёмом
+проверяются и события мода (`colony.targets`, `colony.capacity`).
+**Ворота:** та же проверка стоит внутри `pack-shedcolony-release.ps1` и
+отказывается паковать неполный jar.
+**Пересборка мода:**
+
+```bash
+JAVA_HOME=D:/sheddev/jdk-21 GRADLE_USER_HOME=D:/sheddev/gradle-home "D:/sheddev/shedcolony/gradlew" build --offline
+```
+
+Собирается офлайн за ~2 минуты, результат — `build/libs/shedcolony-0.1.0.jar`.
+
 ### Manager, запущенный ПРЯМО ИЗ ОКНА АРХИВА, врёт «каталог повреждён» (2026-08-28)
 
 **Что видно:** «Release-каталог Manager недоступен или повреждён», кнопка

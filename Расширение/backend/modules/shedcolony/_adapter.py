@@ -229,7 +229,16 @@ class ShedColonyAdapter(ModuleAdapter):
                 snap[cid] = c.get("name") or ""
         logger.info("[shedcolony:%s] colony.snapshot — %d colonists", channel_id, len(snap))
         if not snap:
-            return  # empty roster (colony not loaded yet) — never reconcile against nothing
+            # Мод НЕ шлёт снимок для незагруженной колонии: postSnapshot
+            # вызывается только после `targetColony() != null` (ShedReporter.java).
+            # Значит пустой ростер = колония ЗАГРУЖЕНА и пуста, а не
+            # «ещё не прогрузилась». До 28.08 здесь стоял ранний выход с
+            # обратным допущением — и после создания новой колонии четверо
+            # зрителей остались привязаны к колонистам, которых нет.
+            # Грейс в 60с ниже по-прежнему бережёт только что созданный линк.
+            logger.warning(
+                "[shedcolony:%s] colony.snapshot пуст — колония загружена и пуста; "
+                "сверяю линки против пустого ростера", channel_id)
         import datetime
         from dependencies import get_db
         async with get_db()._connect() as conn:
@@ -269,11 +278,17 @@ class ShedColonyAdapter(ModuleAdapter):
                                 channel_id, citizen_id, snap.get(citizen_id), want)
             # Гигиена (аудит 2026-07-04): state-строки граждан, которых нет в ростере, копились вечно
             # (и на рециклнутом id мигали ЧУЖИМИ данными до первого свежего colonist.state).
-            placeholders = ",".join("?" for _ in snap)
-            await conn.execute(
-                f"DELETE FROM shedcolony_colonist_state "
-                f"WHERE channel_id=? AND citizen_id NOT IN ({placeholders})",
-                (channel_id, *snap.keys()))
+            # Пустой snap дал бы `NOT IN ()` — синтаксическая ошибка SQLite.
+            if snap:
+                placeholders = ",".join("?" for _ in snap)
+                await conn.execute(
+                    f"DELETE FROM shedcolony_colonist_state "
+                    f"WHERE channel_id=? AND citizen_id NOT IN ({placeholders})",
+                    (channel_id, *snap.keys()))
+            else:
+                await conn.execute(
+                    "DELETE FROM shedcolony_colonist_state WHERE channel_id=?",
+                    (channel_id,))
             await conn.commit()
 
     async def _enqueue_set_name(self, conn, channel_id: int, citizen_id: str, name: str) -> None:

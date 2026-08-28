@@ -613,13 +613,13 @@ async def module_ack(module_id: str, request: Request):
     import logging
     _log_ack = logging.getLogger("rimlink.module_api")
     if success and acked:
-        _log_ack.info("[bannerlord ACK ok] action_id=%s ch=%s module=%s",
-                      action_id, channel_id, module_id)
+        _log_ack.info("[%s ACK ok] action_id=%s ch=%s",
+                      module_id, action_id, channel_id)
     elif success:
         _log_ack.info(
-            "[bannerlord ACK receipt] action_id=%s ch=%s module=%s — "
+            "[%s ACK receipt] action_id=%s ch=%s — "
             "terminal action, результат не изменён",
-            action_id, channel_id, module_id)
+            module_id, action_id, channel_id)
     else:
         # 2026-06-14 audit (#21 closed): мод синхронно ACK'нул отказ → возвращаем
         # крустики. Прогоняем синтетический action.failed через тот же handle_event
@@ -644,14 +644,14 @@ async def module_ack(module_id: str, request: Request):
         # законный асинхронный возврат.
         if not acked:
             _log_ack.warning(
-                "[bannerlord ACK FAIL] action_id=%s ch=%s — действие уже "
+                "[%s ACK FAIL] action_id=%s ch=%s — действие уже "
                 "завершено, receipt записан, возврат НЕ выполняется",
-                action_id, channel_id)
+                module_id, action_id, channel_id)
         elif deferred_failure:
             _log_ack.warning(
-                "[bannerlord ACK FAIL] action_id=%s ch=%s module=%s "
+                "[%s ACK FAIL] action_id=%s ch=%s "
                 "reason=%s — refunding",
-                action_id, channel_id, module_id, error_msg)
+                module_id, action_id, channel_id, error_msg)
             try:
                 await adapter.handle_event(channel_id, ModuleEnvelope(
                     id=action_id, kind="event", type="action.failed", ts=0,
@@ -659,8 +659,8 @@ async def module_ack(module_id: str, request: Request):
                 ))
             except Exception as _refund_exc:
                 _log_ack.exception(
-                    "[bannerlord ACK refund] action_id=%s refund route failed: %s",
-                    action_id, _refund_exc)
+                    "[%s ACK refund] action_id=%s refund route failed: %s",
+                    module_id, action_id, _refund_exc)
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                     detail={

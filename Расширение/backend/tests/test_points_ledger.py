@@ -83,14 +83,43 @@ async def _balance(db, username: str = USER) -> int:
 
 
 async def run() -> int:
-    import dependencies
     from database import Database
-    from migrations import m1_multitenant, m118_points_ledger
 
     db_path = tempfile.mktemp(suffix="_ledger.db")
     db = Database(db_path=db_path)
     await db.init_pool()
-    await db.init_tables()
+    try:
+        await _checks(db)
+    except Exception as exc:                       # noqa: BLE001
+        # Падение проверки — тоже результат, но только если о нём УЗНАЮТ.
+        print(f"  FAIL исключение в проверках: {type(exc).__name__}: {exc}")
+        _failures.append(f"{type(exc).__name__}: {exc}")
+    finally:
+        # Пул закрываем ВСЕГДА. Без finally первое же исключение — а прилетает
+        # оно ровно тогда, когда журнал сломан и строк нет, — оставляет
+        # соединения открытыми: тест не падает, а ВИСИТ, кода возврата не
+        # наступает, деплой-гейт ждёт вечно. Ловушка описана в
+        # RUNBOOK.md §7 «Ловушки»; поймана на своём же красном прогоне 28.08.
+        await db._pool.close()
+        try:
+            os.unlink(db_path)
+        except OSError:
+            pass
+
+    print("\n" + "=" * 58)
+    if _failures:
+        print(f"ПРОВАЛЕНО: {len(_failures)}")
+        for f in _failures:
+            print("  -", f)
+        return 1
+    print("Все проверки прошли")
+    return 0
+
+
+async def _checks(db) -> None:
+    import dependencies
+    from migrations import m1_multitenant, m118_points_ledger
+
     async with db._connect() as conn:
         # m1 ПЕРЕСОЗДАЁТ viewers — триггеры ставим после неё, иначе они
         # отвалились бы вместе со старой таблицей и тест проверял бы пустоту.
@@ -177,21 +206,6 @@ async def run() -> int:
         names = sorted(r[0] for r in await cur.fetchall())
     check(names == ["trg_points_ledger_insert", "trg_points_ledger_update"],
           f"оба триггера существуют: {names}")
-
-    await db._pool.close()
-    try:
-        os.unlink(db_path)
-    except OSError:
-        pass
-
-    print("\n" + "=" * 58)
-    if _failures:
-        print(f"ПРОВАЛЕНО: {len(_failures)}")
-        for f in _failures:
-            print("  -", f)
-        return 1
-    print("Все проверки прошли")
-    return 0
 
 
 if __name__ == "__main__":

@@ -1471,6 +1471,13 @@ async def run_migrations():
             print(f"❌ M117 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m118_points_ledger
+            await m118_points_ledger.apply(conn)
+        except Exception as e:
+            print(f"❌ M118 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

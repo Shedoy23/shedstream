@@ -72,3 +72,12 @@ audit-extract.md
 dist/
 # Local Claude <-> Codex coordination state.
 .agent-loop/
+
+# Munder Difflin (E:\MunderDiffin) — рабочее состояние харнесса агентов.
+# Пишется приложением прямо в корень проекта; в репо не место (hive/ — вообще
+# свой отдельный git-репозиторий, palace/ — векторная БД на мегабайты).
+hive/
+palace/
+roster.json
+roster-backups/
+hallways.json

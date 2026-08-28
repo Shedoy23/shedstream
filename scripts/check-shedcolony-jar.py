@@ -31,7 +31,7 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_JAR = ROOT / "Расширение" / "frontend" / "downloads" / "minecraft" / "shedcolony-0.1.0.jar"
+SHIP_DIR = ROOT / "Расширение" / "frontend" / "downloads" / "minecraft"
 PRICES_SRC = ROOT / "Расширение" / "backend" / "routes" / "shedcolony.py"
 
 
@@ -47,7 +47,15 @@ def jar_actions(path: Path) -> bytes:
 
 
 def main() -> int:
-    jar = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_JAR
+    if len(sys.argv) > 1:
+        jar = Path(sys.argv[1])
+    else:
+        # Версию не зашиваем: берём самый свежий jar из папки отгрузки.
+        found = sorted(SHIP_DIR.glob("shedcolony-*.jar"))
+        if not found:
+            print(f"[shedcolony-jar] НЕ ПРОВЕРЕНО: в {SHIP_DIR} нет ни одного jar")
+            return 2
+        jar = found[-1]
     if not jar.is_file():
         print(f"[shedcolony-jar] НЕ ПРОВЕРЕНО: файла нет — {jar}")
         return 2

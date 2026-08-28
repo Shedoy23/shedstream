@@ -1,6 +1,12 @@
 param(
     [Parameter(Mandatory = $true)]
-    [string] $OutputPath
+    [string] $OutputPath,
+
+    # Версия зашивалась в двух местах (путь к jar и имя записи в zip). 28.08
+    # при выпуске 0.1.1 стало ясно, что это ровно та связка, где одно место
+    # правят, а второе забывают, — поэтому параметр один на оба.
+    [ValidatePattern('^\d+\.\d+\.\d+$')]
+    [string] $Version = '0.1.1'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -18,7 +24,8 @@ if (-not $output.StartsWith($releasePrefix, [StringComparison]::OrdinalIgnoreCas
 }
 if (Test-Path -LiteralPath $output) { throw "Release archive already exists: $output" }
 
-$source = Join-Path $repoRoot 'Расширение\frontend\downloads\minecraft\shedcolony-0.1.0.jar'
+$jarName = "shedcolony-$Version.jar"
+$source = Join-Path (Join-Path (Join-Path (Join-Path (Join-Path $repoRoot 'Расширение') 'frontend') 'downloads') 'minecraft') $jarName
 if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
     throw "Required ShedColony JAR is missing: $source"
 }
@@ -41,7 +48,7 @@ try {
         $stream, [IO.Compression.ZipArchiveMode]::Create, $false)
     try {
         $entry = $archive.CreateEntry(
-            'shedcolony-0.1.0.jar', [IO.Compression.CompressionLevel]::Optimal)
+            $jarName, [IO.Compression.CompressionLevel]::Optimal)
         $entry.LastWriteTime = [DateTimeOffset]::new(
             2020, 1, 1, 0, 0, 0, [TimeSpan]::Zero)
         $input = [IO.File]::OpenRead($source)

@@ -42,7 +42,12 @@ $executable = Join-Path $packageDirectory 'ShedLink.Manager.App.exe'
 $manifests = @(
     (Join-Path $packageDirectory 'Release/rimworld-0.1.1.json'),
     (Join-Path $packageDirectory 'Release/bannerlord-0.1.1.json')
-    (Join-Path $packageDirectory 'Release/shedcolony-0.1.0.json')
+    (Join-Path $packageDirectory 'Release/shedcolony-0.1.0.json'),
+    # 0.1.0 остаётся рядом с 0.1.1 намеренно: по манифесту установленной
+    # версии Manager находит путь старого jar, а без него кнопка «Удалить»
+    # не знает, что убирать. Уберём, когда у владельца не останется
+    # установленного 0.1.0.
+    (Join-Path $packageDirectory 'Release/shedcolony-0.1.1.json')
 )
 foreach ($required in @($executable) + $manifests) {
     if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {

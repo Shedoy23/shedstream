@@ -1,7 +1,7 @@
 name: CI
 
-# Cheap, fast safety net for a solo dev: compile-check + consistency lints
-# block; tests run informationally until verified green in CI.
+# Cheap, fast safety net for a solo dev: compile-check, consistency lints,
+# and the canonical backend suite are blocking gates.
 on:
   push:
   pull_request:
@@ -45,18 +45,14 @@ jobs:
       - name: Consistency lints (version sync / migrations wired / drift / undefined names)
         run: python scripts/lint_consistency.py
 
-      # ── Informational (promote to blocking once verified green) ─────────
       - name: Install backend deps
-        continue-on-error: true
         run: |
           if [ -f "$EXT/backend/requirements.txt" ]; then
             pip install -r "$EXT/backend/requirements.txt"
           fi
 
-      - name: Pytest (informational)
-        continue-on-error: true
-        run: |
-          cd "$EXT/backend" && python -m pytest -q || true
+      - name: Backend standalone tests (blocking)
+        run: python scripts/run-backend-tests.py
 
   # NOTE: C# mod (BannerlordLink) is NOT built in CI — it needs the Bannerlord
   # game DLLs which aren't available on the runner. Build it locally via

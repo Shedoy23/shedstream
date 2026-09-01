@@ -528,7 +528,7 @@ let _bannerlordClassesCache = null;
 
 // ===== Random-equip / retinue / currency converters =====
 // Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 12, 2026-06-13).
-// renderBannerlordRandomEquipHtml/_renderEquipRow/retinue/currency converters.
+// _renderEquipRow/retinue/currency converters.
 // _formatBigGold/Price + _bannerlordClassesCache ОСТАЮТСЯ в core (форвард). Callers рантайм.
 
 // ===== Sprint 5.8: Focus / Attribute investments (Hero.Gold cost) =====
@@ -613,7 +613,7 @@ function _bnrShowSimpleModal({ title, body, bind }) {
 
 // ===== Part B: create-kingdom/join/create-clan inline + bind-random-equip =====
 // Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 14, 2026-06-13).
-// _renderCreateKingdomInline/_renderJoinInline/_renderCreateClanInline/_bindBannerlordRandomEquip.
+// _renderCreateKingdomInline/_renderJoinInline/_renderCreateClanInline.
 // Зовутся из Part-A + shop (bannerlord.js). Callers рантайм.
 
 // Sprint 4.6 — buff HUD: chip-list с current remaining time.
@@ -2725,7 +2725,7 @@ async function loadBannerlordDaily() {
                             💰 +${goldAmt} динаров
                         </button>
                         <button class="extra-btn" id="bnr-daily-claim-xp"
-                                title="Получить ${xpAmt} XP в случайный скилл (class-weighted)"
+                                title="Получить ${xpAmt} XP навыкам героя (с учётом класса)"
                                 style="font-size:11px;padding:8px 4px;
                                        background:#1e3a5f;color:#93c5fd;font-weight:700;
                                        border:1px solid #1d4ed8;">
@@ -3350,9 +3350,8 @@ function _renderBannerlordBattleBanner(data) {
         </div>`;
 }
 
-// ===== Shop (магазин Bannerlord — каталог + random-equip + currency) — split чанк 8 (2026-06-13) =====
-// loadBannerlordShop. Зовёт core/cluster-2 рендеры (renderBannerlordRandomEquipHtml/
-// renderBannerlordCurrencyHtml/_bind*) форвард; callers рантайм (_startBannerlordPolling, dispatcher).
+// ===== Shop (магазин Bannerlord — каталог + currency) — split чанк 8 (2026-06-13) =====
+// loadBannerlordShop. Зовёт core/cluster-2 рендеры (renderBannerlordCurrencyHtml/_bind*) форвард; callers рантайм (_startBannerlordPolling, dispatcher).
 async function loadBannerlordShop() {
     const list = document.getElementById('bannerlord-shop-list');
     const cnt  = document.getElementById('bannerlord-shop-count');
@@ -3361,7 +3360,6 @@ async function loadBannerlordShop() {
     // Sprint 5.10/5.8c: gear-upgrade перенесён в hero card (inline кнопка);
     // progression — в modal (per-row + buttons). В shop остались только
     // randomEquip + currency converters.
-    const randomEquipBlock = renderBannerlordRandomEquipHtml();
     const currencyBlock = renderBannerlordCurrencyHtml();
     try {
         const r = await fetch(`${API_URL}/api/bannerlord/shop`, {
@@ -3369,9 +3367,8 @@ async function loadBannerlordShop() {
         });
         const data = await r.json();
         if (!data.success) {
-            list.innerHTML = randomEquipBlock + currencyBlock +
+            list.innerHTML = currencyBlock +
                 `<div class="loading">${escapeHtml(data.message || 'Ошибка')}</div>`;
-            _bindBannerlordRandomEquip();
             _bindBannerlordCurrency();
             return;
         }
@@ -3379,11 +3376,10 @@ async function loadBannerlordShop() {
         // +3 random-equip + 3 give_gold + 3 add_skill = +9 fixed actions
         if (cnt) cnt.textContent = items.length + 9;
         if (items.length === 0) {
-            list.innerHTML = randomEquipBlock + currencyBlock + `
+            list.innerHTML = currencyBlock + `
                 <div style="text-align:center;padding:14px;font-size:11px;color:#adadb8;border-top:1px solid #3d3d3f;margin-top:6px;">
                     Каталог пуст. Мод пришлёт shop-данные когда стример запустит игру.
                 </div>`;
-            _bindBannerlordRandomEquip();
             _bindBannerlordCurrency();
             return;
         }
@@ -3409,8 +3405,7 @@ async function loadBannerlordShop() {
                     </button>
                 </div>`;
         }).join('');
-        list.innerHTML = randomEquipBlock + currencyBlock + catalogHtml;
-        _bindBannerlordRandomEquip();
+        list.innerHTML = currencyBlock + catalogHtml;
         _bindBannerlordCurrency();
         // Bind buy handlers для catalog items
         list.querySelectorAll('[data-bnr-buy]').forEach(btn => {
@@ -3421,9 +3416,8 @@ async function loadBannerlordShop() {
             });
         });
     } catch (e) {
-        list.innerHTML = randomEquipBlock + currencyBlock +
+        list.innerHTML = currencyBlock +
             `<div class="loading" style="color:#f87171;">Ошибка сети</div>`;
-        _bindBannerlordRandomEquip();
         _bindBannerlordCurrency();
     }
 }
@@ -3715,8 +3709,8 @@ async function loadBannerlordStatus() {
     }
 }
 
-// ===== Random-equip / retinue / currency converters — split чанк 12 (2026-06-13) =====
-// renderBannerlordRandomEquipHtml/_renderEquipRow, retinue (RECRUIT/RETINUE consts +
+// ===== Retinue / currency converters — split чанк 12 (2026-06-13) =====
+// _renderEquipRow, retinue (RECRUIT/RETINUE consts +
 // _computeRetinueDinarCost/_computeTrainCost/_fmtDinars/_renderRetinue), GIVE_GOLD/ADD_SKILL
 // + renderBannerlordCurrencyHtml/_bindBannerlordCurrency. Форвард CORE: _formatBigGold/Price,
 // _bannerlordClassesCache, _bnr*. Callers рантайм (hero-card _renderEquipRow/_renderRetinue, shop).
@@ -3724,42 +3718,11 @@ async function loadBannerlordStatus() {
 // Mod-side enforced (hero.Gold check + deduct). Backend price=0 в крустиках.
 // Fairness через игровую экономику — viewer сначала копит динары
 // (give_gold или внутри игры), потом тратит на random box.
-function renderBannerlordRandomEquipHtml() {
-    const currentKey = _bannerlordClassesCache?.current?.class_key || '';
-    const MOUNTED = new Set(['cavalry', 'camel_cavalry', 'horse_archer', 'camel_archer', 'knight']);
-    const isMounted = MOUNTED.has(currentKey);
-
-    const horseDisabled = !isMounted ? 'disabled' : '';
-    const horseStyle = !isMounted ? 'opacity:0.5;cursor:not-allowed;' : '';
-    const horseTitle = !isMounted
-        ? 'Только для конных классов (cavalry / horse_archer / camel_* / knight). 1 000 000💰 у героя в игре (T5–T6 конь).'
-        : 'Случайный скакун из high-tier пула (T5–T6). Списывается 1 000 000💰 у героя в игре.';
-
-    return `
-        <div style="padding:6px 10px 10px 10px;">
-            <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">
-                🎁 Случайный товар — оплата in-game динарами героя
-            </div>
-            <div style="display:flex;flex-direction:column;gap:4px;">
-                <button class="extra-btn" id="bnr-random-weapon"
-                        title="Случайное оружие из high-tier пула (T5–T6). Списывается 1 000 000💰 у героя в игре."
-                        style="font-size:12px;padding:6px;">
-                    🗡 Купить оружие <span style="color:#fbbf24;">1 000 000💰</span>
-                </button>
-                <button class="extra-btn" id="bnr-random-armor"
-                        title="Случайная броня (любой slot) из high-tier пула (T5–T6). Списывается 500 000💰 у героя в игре."
-                        style="font-size:12px;padding:6px;">
-                    🛡 Купить броню <span style="color:#fbbf24;">500 000💰</span>
-                </button>
-                <button class="extra-btn" id="bnr-random-horse"
-                        ${horseDisabled}
-                        title="${horseTitle}"
-                        style="font-size:12px;padding:6px;${horseStyle}">
-                    🐎 Купить коня <span style="color:#fbbf24;">1 000 000💰</span>
-                </button>
-            </div>
-        </div>`;
-}
+// 2026-09-01 — блок «🎁 Случайный товар» убран (решение владельца).
+// Оружие/броня/конь из high-tier пула за 500K–1M динаров: категорию выбирал
+// зритель, конкретный предмет катал мод. Прогрессия снаряжения остаётся
+// детерминированной — «⚒ Улучшить» качает тир T1→T6 за фиксированную цену
+// (hero.upgrade_gear). Действие снято с продажи и на бэкенде.
 
 // Sprint M21 — рендер одного слота экипировки с stats badges.
 // it = {item_id, item_name, tier (0-5), item_value, weight, stats (dict)}
@@ -4043,9 +4006,9 @@ function renderBannerlordCurrencyHtml() {
     const xpRows = ADD_SKILL_OPTIONS.map(o => `
         <button class="extra-btn" data-bnr-skillxp="${o.crusticov}"
                 data-bnr-cost="${o.crusticov},0"
-                title="+${o.xp} XP в случайный skill"
+                title="+${o.xp} XP навыкам героя (с учётом класса)"
                 style="font-size:11px;padding:5px;">
-            📚 +${o.xp} XP (рандом)
+            📚 +${o.xp} XP
             <span style="color:#fbbf24;">${_formatBigPrice(o.crusticov)}</span>
         </button>`).join('');
 
@@ -4481,12 +4444,12 @@ function loadBannerlordProfileFamily() {
             ` : `
                 <div style="font-size:11px;color:#adadb8;margin-bottom:8px;">
                     ${hasClan
-                        ? 'Не в браке. Engine найдёт случайную подходящую NPC противоположного пола.'
+                        ? 'Не в браке. Движок подберёт подходящую NPC противоположного пола.'
                         : '⚠️ Брак доступен только герою с кланом — сначала создай или вступи в клан (🏰 Управление кланом). Бесклановый брак ломает игру.'}
                 </div>
                 <button class="extra-btn" id="bnr-marry-btn"
                         ${(hasClan && heroGold >= MARRY_COST) ? '' : 'disabled'}
-                        title="${hasClan ? ('Engine выберет случайную подходящую NPC. Спишет ' + _bnrGoldLabel('marry', 50000) + '.') : 'Нужен клан: бесклановый замужний герой крашит ванильную модель беременности.'}"
+                        title="${hasClan ? ('Движок подберёт подходящую NPC. Спишет ' + _bnrGoldLabel('marry', 50000) + '.') : 'Нужен клан: бесклановый замужний герой крашит ванильную модель беременности.'}"
                         style="width:100%;font-size:12px;padding:8px;
                                background:${(hasClan && heroGold >= MARRY_COST) ? '#5b21b6' : '#2d2d2f'};
                                color:${(hasClan && heroGold >= MARRY_COST) ? '#f472b6' : 'var(--dim)'};
@@ -4795,8 +4758,8 @@ function loadBannerlordKingdomMgmt() {
     }
 }
 
-// ===== Part B: create-kingdom/join/create-clan inline + bind-random-equip — split чанк 14 (2026-06-13) =====
-// _renderCreateKingdomInline + _renderJoinInline + _renderCreateClanInline + _bindBannerlordRandomEquip.
+// ===== Part B: create-kingdom/join/create-clan inline — split чанк 14 (2026-06-13) =====
+// _renderCreateKingdomInline + _renderJoinInline + _renderCreateClanInline.
 // Зовутся из Part-A (clan/kingdom mgmt) + shop — уже в bannerlord.js (внутрифайл). Callers рантайм.
 // Sprint 5.12: dialog для ввода имени королевства + confirm "Создать".
 // удалена: инлайн lazy-поле имени королевства (_renderCreateKingdomInline).
@@ -4918,30 +4881,7 @@ function _renderCreateClanInline() {
     input?.addEventListener('keydown', e => { if (e.key === 'Enter') confirm(); });
 }
 
-function _bindBannerlordRandomEquip() {
-    const MOUNTED = new Set(['cavalry', 'camel_cavalry', 'horse_archer', 'camel_archer', 'knight']);
-    const currentKey = _bannerlordClassesCache?.current?.class_key || '';
-    const isMounted = MOUNTED.has(currentKey);
-
-    // Кулдаун на кнопке (player.equip_item — общий CD на все три).
-    ['bnr-random-weapon', 'bnr-random-armor', 'bnr-random-horse'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.dataset.bnrCd = 'player.equip_item';
-    });
-
-    document.getElementById('bnr-random-weapon')?.addEventListener('click', () => {
-        _bannerlordBuyAction('player.equip_item', { random_category: 'weapon' });
-    });
-    document.getElementById('bnr-random-armor')?.addEventListener('click', () => {
-        _bannerlordBuyAction('player.equip_item', { random_category: 'armor' });
-    });
-    const horseBtn = document.getElementById('bnr-random-horse');
-    if (horseBtn && isMounted) {
-        horseBtn.addEventListener('click', () => {
-            _bannerlordBuyAction('player.equip_item', { random_category: 'horse' });
-        });
-    }
-}
+// 2026-09-01 — _bindBannerlordRandomEquip удалён вместе с блоком «Случайный товар».
 
 // ===== Hero-card (главный рендер героя — loadBannerlordHero) — split чанк 15 (2026-06-13) =====
 // Центральный оркестратор. Зовёт саб-рендеры (все уже в bannerlord.js → внутрифайл).
@@ -5081,11 +5021,11 @@ async function loadBannerlordHero() {
                         ${cultureBtns}
                     </div>
                     <div style="margin-top:10px;font-size:10px;color:var(--dim);">
-                        Можно также выбрать случайную:
+                        Можно доверить выбор игре:
                     </div>
                     <button class="extra-btn" id="bnr-adopt-random"
                             style="margin-top:6px;font-size:11px;padding:4px 12px;">
-                        🎲 Случайная культура
+                        🎭 Пусть выберет игра
                     </button>
                 </div>`;
 

@@ -1051,7 +1051,7 @@ PRICE_LITERAL_BASELINE = {
     "family.js": 1,
     "guilds.js": 2,
     "pawn.js": 7,
-    "viewer-bannerlord.js": 28,
+    "viewer-bannerlord.js": 21,   # 2026-09-01: -7 вместе с блоком «Случайный товар»
     "viewer-rimworld.js": 4,
     "viewer-shedcolony.js": 28,
     "voting.js": 8,

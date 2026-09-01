@@ -406,7 +406,7 @@ async def test_equip_arbitrary_item_refused(db, buy):
     StringId, пока законный «ящик» стоит 500K–1M💰. Класс тот же, что у дыры с
     атрибутами (27.07): входа нет, адрес открыт.
     """
-    print("\n[7] player.equip_item — произвольный item_id отклоняется")
+    print("\n[7] player.equip_item — снят с продажи целиком (item_id и random_category)")
     await _seed_hero(db, CHANNEL_ID, ATTACKER)
     before_points = None
     async with db._connect() as conn:
@@ -429,13 +429,24 @@ async def test_equip_arbitrary_item_refused(db, buy):
         assert_eq((await cur.fetchone())[0], before_points,
                   "крустики не списаны (отказ до кассы)")
 
-    # Законный путь цел — иначе «фикс» просто убил бы механику.
-    res_ok = await buy(_make_anon_request(), ATTACKER, CHANNEL_ID,
-                       "player.equip_item", {"random_category": "armor"})
-    assert_eq(res_ok.get("success"), True, "random_category по-прежнему работает")
-    payload = await _latest_action_payload(db, CHANNEL_ID, "player.equip_item")
-    assert_true(bool((payload or {}).get("hero_gold_cost")),
-                "законный путь несёт цену в динарах")
+    # 2026-09-01: механику «Случайный товар» сняли с продажи целиком (решение
+    # владельца: снаряжение качается тирами через hero.upgrade_gear). Раньше
+    # здесь проверялось, что законный путь `random_category` ЖИВ — теперь
+    # проверяем сильнее: закрыт и он. Кнопки во фронте нет, но адрес открытым
+    # оставлять нельзя — ровно этим и был баг выше.
+    res_closed = await buy(_make_anon_request(), ATTACKER, CHANNEL_ID,
+                           "player.equip_item", {"random_category": "armor"})
+    assert_eq(res_closed.get("success"), False,
+              "random_category тоже отклонён — действие снято с продажи")
+    assert_eq(await _count_actions(db, CHANNEL_ID, "player.equip_item"), n_before,
+              "моду не поставлено задание на снятую с продажи вещь")
+
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT points FROM viewers WHERE channel_id=? AND username=?",
+            (CHANNEL_ID, ATTACKER))
+        assert_eq((await cur.fetchone())[0], before_points,
+                  "крустики не списаны и на снятом пути")
 
 
 async def _run():

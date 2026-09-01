@@ -756,3 +756,30 @@ sponsors of and are not involved in the contests. Separately, the in-game
 tournament no longer generates a random-rarity, random-stat trophy for its
 winner: the prize is now a fixed amount of in-game gold plus experience, so no
 random outcome exists on any prize path outside the free case tier.
+
+### Дополнение того же дня — подача вместо механик
+
+- **Механика «🎁 Случайный товар» убрана целиком** (решение владельца). Оружие,
+  броня и конь из high-tier пула за 500 000–1 000 000 внутриигровых динаров:
+  категорию выбирал зритель, конкретный предмет катал мод. Снаряжение теперь
+  качается только тирами — «⚒ Улучшить», T1→T6, фиксированная цена. Действие
+  снято и с бэкенда, не только из интерфейса: кнопки нет, но адрес остался бы
+  открыт, а это ровно тот класс дыры, который мы уже ловили 27.07 на атрибутах.
+
+- **Слово «рандом»/«случайный» убрано из видимых надписей.** Платный XP,
+  ежедневная награда, женитьба, выбор культуры (заодно убрана игральная кость
+  🎲), подпись про выпадение кейсов. Механики при этом не менялись: правило
+  Twitch 3.5, по которому пришёл отказ, говорит про ориентацию поверхности, а
+  не про наличие случайности как таковой.
+
+- **Заявление о случайности сужено до кейсов.** Раньше блок раскрытия утверждал
+  «случайность есть ровно в одном месте — тир кейса». Это было неточно и до
+  правок, а после снятия слов стало бы прямым обманом: теперь там «внутри
+  кейсов случайность ровно одна». Правка сделана в обеих оболочках.
+
+**English.** The random-item purchase (weapon/armour/horse from a high-tier pool
+for in-game gold) has been removed entirely, from the UI and from the set of
+purchasable actions on the server; equipment now progresses only through
+deterministic tier upgrades. Wording that advertised randomness was removed from
+the visible labels, and the odds-disclosure statement was narrowed so that it
+speaks about cases only, which is what it can truthfully claim.

@@ -1077,7 +1077,7 @@ function renderInventoryCases(unopenedCounts) {
         container.innerHTML = `
             <div style="font-size:12px;color:#adadb8;text-align:center;padding:14px 8px;">
                 Нет закрытых кейсов.<br>
-                <span style="font-size:11px;">Они выпадают рандомно за активность.</span>
+                <span style="font-size:11px;">Они выпадают за активность на стриме.</span>
             </div>`;
         return;
     }

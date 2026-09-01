@@ -931,7 +931,14 @@ _PURCHASABLE_ACTIONS = (
     #    hero.activate_heir и запускается бэкендом на смерть героя.
     # Хендлеры в моде не трогаю: они безвредны, пока бэкенд не кладёт задание.
     "player.give_item",
-    "player.equip_item",
+    # 2026-09-01: "player.equip_item" УБРАН из покупаемых (решение владельца).
+    #   Это был «🎁 Случайный товар» — оружие/броня/конь из high-tier пула за
+    #   500K–1M динаров, категорию выбирал зритель, конкретный предмет катал
+    #   мод (MBRandom). Прогрессия снаряжения остаётся детерминированной:
+    #   hero.upgrade_gear качает тир T1→T6 за фиксированную цену.
+    #   Снят и на бэкенде, а не только во фронте: фронт обходится, а адрес
+    #   без кнопки — тот же класс, что дыра с атрибутами (27.07).
+    #   Хендлер в моде не трогаю: он безвреден, пока бэкенд не кладёт задание.
     # 2026-07-27 (аудит S-01): "player.modify_attribute" УБРАН из покупаемых.
     # Цена фиксированная (50💎), а сколько очков атрибута выдать — присылал сам
     # клиент: ни эта ветка, ни _prepare_action, ни C#-хендлер поле `points` не
@@ -1620,71 +1627,9 @@ async def _prepare_action(username, channel_id, action_type, data):
     Mutates `data` in place (price / hero_gold_cost / amount / retinue / ...).
     Returns a refusal-dict to short-circuit the buy, or None to proceed.
     """
-    # Sprint 5.1c/5.2: server-side price enforcement.
-    # Random equip — БЕСПЛАТНО в крустиках (price=0), mod-side списывает
-    # Hero.Gold (in-game динары) — fairness через game economy.
-    # Mirror HERO_GOLD_RANDOM_PRICES в C# EquipItemHandler.
-    RANDOM_EQUIP_HERO_GOLD = {
-        # 5.27o: повышены до T5–T6 уровня (random equip даёт high-tier
-        # items, baseline должен соответствовать ценности).
-        "weapon": 1_000_000,
-        "armor":    500_000,
-        "horse":  1_000_000,
-    }
-    RANDOM_EQUIP_PRICES = RANDOM_EQUIP_HERO_GOLD  # legacy name (some refs ниже)
-    # SPAWN_PRICES поднят на module-level (thin-front 2026-07-02) — см. выше.
-    MOUNTED_CLASSES = {
-        "cavalry", "camel_cavalry", "horse_archer", "camel_archer", "knight"
-    }
-
-    if action_type == "player.equip_item":
-        random_category = (data.get("random_category") or "").strip().lower()
-        # 2026-07-30 SECURITY (аудит спеки §9): путь по ПРОИЗВОЛЬНОМУ item_id
-        # закрыт. Он остался от Sprint 5.1b, кнопки во фронте не имеет (фронт
-        # шлёт только random_category) — и был БЕСПЛАТНЫМ: крустиков 0 всегда,
-        # а динары мод списывает только в ветке random (`heroGoldCost > 0`,
-        # EquipItemHandler.cs). Итог: зритель одним запросом надевал любой
-        # предмет движка по StringId, пока законный ящик стоит 500K–1M💰.
-        # Тот же класс, что дыра с атрибутами (27.07): кнопки нет, адрес открыт.
-        if not random_category:
-            return {
-                "success": False,
-                "message": "Укажи категорию: weapon / armor / horse",
-            }
-        if random_category not in RANDOM_EQUIP_PRICES:
-            return {
-                "success": False,
-                "message": f"Категория '{random_category}' не разрешена "
-                           "(weapon / armor / horse)",
-            }
-        # Mounted-class gate для horse
-        if random_category == "horse":
-            db_tmp = get_db()
-            async with db_tmp._connect() as conn:
-                cur = await conn.execute(
-                    "SELECT class_key FROM bannerlord_hero_class "
-                    "WHERE channel_id=? AND username=?",
-                    (channel_id, username))
-                row = await cur.fetchone()
-                class_key = (row[0] or "").lower() if row else ""
-            if class_key not in MOUNTED_CLASSES:
-                return {
-                    "success": False,
-                    "message": "Конь доступен только для конных классов "
-                               "(cavalry / horse_archer / camel_* / knight)",
-                }
-        # Random equip теперь оплачивается Hero.Gold (in-game), не
-        # крустиками. Frontend показывает 💰 (динары); mod проверяет
-        # hero.Gold перед apply.
-        data["hero_gold_cost"] = RANDOM_EQUIP_HERO_GOLD[random_category]
-        # 2026-07-30 (аудит спеки §1в): цена в крустиках = 0 ВСЕГДА, а не только
-        # внутри ветки random_category. Раньше присваивание стояло на уровень
-        # глубже, и при пустом random_category цена вообще не ставилась — а
-        # player.equip_item входит в _ACTIONS_WITH_OWN_PRICING, значит
-        # _enforce_price не делает override и берёт `data["price"]` ПРЯМО ИЗ
-        # ТЕЛА запроса. Доказано пробой: прислал price=99999 → списалось 99999
-        # за действие, которое оплачивается динарами.
-        data["price"] = 0  # крустики free — оплата идёт Hero.Gold в игре
+    # 2026-09-01: ценовая ветка player.equip_item удалена вместе с механикой
+    #   «Случайный товар», а с ней RANDOM_EQUIP_HERO_GOLD и MOUNTED_CLASSES —
+    #   их больше никто не читает. SPAWN_PRICES живёт на module-level.
 
     if action_type == "player.spawn":
         side = (data.get("side") or "player").strip().lower()
@@ -2452,7 +2397,7 @@ def _enforce_price(action_type, data, username, channel_id):
     # → viewer платит 100 крустиков за 5000 динаров (вместо 1000⦷). Это
     # security/exploit гэп — sub'ы с Boosty tier3 ×0.5 платили 50 за 5K динаров.
     _ACTIONS_WITH_OWN_PRICING = {
-        "player.spawn", "player.equip_item", "hero.set_class",
+        "player.spawn", "hero.set_class",
         "hero.upgrade_gear", "hero.reequip_gear", "hero.recruit_troops", "hero.train_troops",
         "hero.join_tournament", "tournament.predict",
         "hero.create_clan", "hero.create_kingdom", "hero.leave_clan",

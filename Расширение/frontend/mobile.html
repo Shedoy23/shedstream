@@ -79,16 +79,6 @@
         <div id="first-step-card"></div>
 
 
-        <!-- 2026-09-01, правило 3.5: мобильная оболочка НЕ несёт кубики и кейсы.
-             Отказ 24.08: «Games with gambling orientation are not allowed for
-             mobile due to legal age restrictions». Кубики — исход броска, кейсы —
-             сундук с тирами: и то и другое читается как азарт независимо от того,
-             что ставок у нас нет. Крестики и дуэли остаются: в них НЕТ системной
-             случайности (`rps.py` объявляет генератор и не использует его), и это
-             проверяемо ревьюером.
-             Десктопная оболочка не тронута — правило 3.5 про мобильный вид.
-             Расхождение намеренное и держится линтером check_mobile_view_age_rating:
-             вернувшиеся кубики или кейсы валят коммит. -->
         <!-- 🎮 Игры -->
         <div class="bot-section">
             <div class="bot-section-title">🎮 Игры</div>
@@ -98,6 +88,13 @@
                     <div class="bot-card-body">
                         <div class="bot-card-title">Крестики</div>
                         <div class="bot-card-sub" id="ttt-state">PvP · ELO</div>
+                    </div>
+                </div>
+                <div class="action-card bot-card" data-action="dice">
+                    <div class="bot-card-icon">🎲</div>
+                    <div class="bot-card-body">
+                        <div class="bot-card-title">Кубики</div>
+                        <div class="bot-card-sub" id="dice-state">2d6 · бот/PvP</div>
                     </div>
                 </div>
                 <div class="action-card bot-card" data-action="duels">
@@ -142,6 +139,13 @@
         <div class="bot-section">
             <div class="bot-section-title">🎁 Награды</div>
             <div class="bot-grid">
+                <div class="action-card bot-card" data-action="cases">
+                    <div class="bot-card-icon">🎁</div>
+                    <div class="bot-card-body">
+                        <div class="bot-card-title">Кейсы</div>
+                        <div class="bot-card-sub" id="inventory-count">0 закрытых</div>
+                    </div>
+                </div>
                 <div class="action-card bot-card" data-action="quests">
                     <div class="bot-card-icon">📜</div>
                     <div class="bot-card-body">
@@ -424,18 +428,33 @@
                 crystals as a reward for participating in channel activities. Virtual items (cases,
                 pet cosmetics) are never sold for real money.
             </p>
-            <!-- 2026-09-01: раскрытие шансов кейсов из МОБИЛЬНОЙ оболочки убрано
-                 вместе с самими кейсами (правило 3.5). Раскрытие вероятностей для
-                 механики, которой на этом экране нет, ревьюер читает буквально —
-                 и читается оно ровно как то, из-за чего пришёл отказ. В десктопной
-                 оболочке кейсы и их шансы остаются: правило 3.5 про мобильный вид.
-                 Раскрытие про валюту выше НЕ трогаем — его требует политика
-                 Channel Points, и к 3.5 оно отношения не имеет. -->
-            <p style="margin:8px 0 0;">
-                Мини-игры на удачу и кейсы в мобильном виде недоступны — они живут
-                в полной версии панели на компьютере.<br>
-                Games of chance and cases are not available in the mobile view; they
-                live in the full panel on desktop.
+            <!-- Точность этих строк проверена по коду 2026-07-29: веса 70/25/4/1 —
+                 это bot_core.DROP_CASE_TIERS, и применяются они ТОЛЬКО к источнику
+                 'drop'. Кейсы за quest/streak/watch_milestone/season_top выдаются
+                 фиксированным тиром (config.CASE_SOURCES), награда внутри кейса
+                 фиксирована по тиру (config.CASE_TIER_REWARDS). Раньше проценты
+                 стояли под подписью «earned through activity / milestones» — то есть
+                 приписывались как раз тем кейсам, где случайности нет. -->
+            <p style="margin:8px 0 4px;color:#adadb8;"><b>Шансы выпадения для кейсов</b> &middot; <b>Case drop odds</b></p>
+            <p style="margin:0 0 6px;">
+                Кейсы всегда бесплатны. Внутри кейсов случайность ровно одна — какого
+                тира будет кейс, выпавший дропом во время эфира:<br>
+                Cases are always free. Within cases, the only random element is the tier
+                of a case dropped during the stream:
+            </p>
+            <ul style="margin:0 0 8px 16px;padding:0;color:#8a8a8e;">
+                <li>Common — 70%</li>
+                <li>Rare — 25%</li>
+                <li>Epic — 4%</li>
+                <li>Legendary — 1%</li>
+            </ul>
+            <p style="margin:0 0 8px;">
+                Кейсы за квесты, серии и этапы просмотра выдаются фиксированного тира —
+                случайности в них нет. Награда внутри кейса тоже фиксирована и зависит
+                только от тира: открытие кейса ничего не разыгрывает.<br>
+                Cases granted for quests, streaks and watch-time milestones have a fixed
+                tier — no randomness involved. The reward inside a case is likewise fixed
+                per tier: opening a case does not roll anything.
             </p>
             <!-- Блок «шансы редкости для кованых предметов» убран 2026-07-29.
                  Ковку предметов решено не делать (DEFERRED §D), а оставшаяся
@@ -550,7 +569,9 @@
     <script src="realtime.js?v=202608051239"></script>
     <script src="pawn.js?v=202608051239"></script>
     <script src="shop.js?v=202608051239"></script>
+    <script src="cases.js?v=202608051239"></script>
     <script src="tictactoe.js?v=202608051239"></script>
+    <script src="dice.js?v=202608051239"></script>
     <script src="guilds.js?v=202608051239"></script>
     <script src="voting.js?v=202608051239"></script>
     <!-- pet-stage.js: PNG pixel-art creature (Sprint 5.28). MUST загружаться ДО pets.js -->

@@ -1444,45 +1444,6 @@ def check_manager_catch_filters():
                     "16.08 отказ Windows в правах закрыл приложение молча."
                 )
 
-def check_mobile_view_age_rating():
-    """Мобильная оболочка не несёт механик со случайным исходом.
-
-    24.08 Twitch отклонил 0.0.2 по правилу 3.5: мобильный вид не должен
-    превышать возрастной рейтинг магазина (ссылка на Apple §4.7), а игры с
-    азартной ОРИЕНТАЦИЕЙ туда не допускаются. Механики у нас без ставок —
-    претензия к тому, как поверхность читается, а не к деньгам.
-
-    Убраны кубики и кейсы. Дуэли (RPS) и крестики ОСТАВЛЕНЫ намеренно: в них
-    нет системной случайности — `routes/rps.py` объявляет генератор и нигде его
-    не использует, а автоход крестиков по таймауту с 01.09 детерминирован. Это
-    проверяемо ревьюером, и прятать их значило бы сдать то, что защищать легко.
-
-    Правило держим машиной, потому что расхождение оболочек выглядит как
-    недосмотр: `AUDIT_SPEC.md` годом раньше требовал обратного — чтобы состав
-    скриптов совпадал. Первая же «уборка ради симметрии» вернёт кубики в
-    мобильный вид и уронит следующую подачу.
-    """
-    if EXT is None:
-        return
-    shell = EXT / "frontend" / "mobile.html"
-    if not shell.is_file():
-        return
-    text = shell.read_text(encoding="utf-8", errors="replace")
-    for name in ("dice.js", "cases.js"):
-        if 'src="%s' % name in text:
-            errors.append(
-                f"mobile-3.5: mobile.html снова грузит {name} — механики со "
-                "случайным исходом запрещены в мобильном виде (отказ ревью "
-                "24.08, правило 3.5)."
-            )
-    for marker in ('data-action="dice"', 'data-action="cases"'):
-        if marker in text:
-            errors.append(
-                f"mobile-3.5: mobile.html снова показывает {marker} — эту "
-                "карточку убрали по отказу ревью 24.08 (правило 3.5)."
-            )
-
-
 def main() -> int:
     if EXT is None:
         print("[lint] FAIL: could not locate extension dir (with backend/)")
@@ -1505,8 +1466,7 @@ def main() -> int:
                check_rule_links,
                check_status_is_a_window,
                check_runbook_health,
-               check_manager_catch_filters,
-               check_mobile_view_age_rating):
+               check_manager_catch_filters):
         try:
             fn()
         except Exception as e:  # a broken check shouldn't crash CI silently

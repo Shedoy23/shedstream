@@ -1491,6 +1491,13 @@ async def run_migrations():
             print(f"❌ M118 migration FAILED: {type(e).__name__}: {e}")
             raise
 
+        try:
+            from migrations import m119_actions_pause
+            await m119_actions_pause.apply(conn)
+        except Exception as e:
+            print(f"❌ M119 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
         print("✅ Migrations complete")
 
 

@@ -517,12 +517,14 @@ async def module_actions_poll(module_id: str, request: Request):
     db = get_db()
     deadline = time.time() + _LONG_POLL_TIMEOUT_SEC
     while True:
-        actions = await db.fetch_pending_actions(
-            channel_id=channel_id,
-            module_id=module_id,
-            since_id=since_id,
-            limit=_BATCH_LIMIT,
-        )
+        # 2026-09-01 — аварийная пауза стримера: пока она взведена, мод не
+        # получает НИЧЕГО, включая задания, поставленные до нажатия кнопки.
+        # Долгий опрос при этом не рвём: мод продолжает ждать как обычно и не
+        # начинает долбить сервер в цикле. Снятие паузы вернёт очередь моду —
+        # молча выбрасывать оплаченное хуже, чем задержать (см. m119).
+        from actions_pause import pending_actions_unless_paused
+        actions = await pending_actions_unless_paused(
+            db, channel_id, module_id, since_id, _BATCH_LIMIT)
         if actions:
             cursor = max(since_id, max(a["id"] for a in actions))
             return {"actions": actions, "cursor": cursor}

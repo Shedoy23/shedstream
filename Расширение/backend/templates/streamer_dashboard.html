@@ -165,6 +165,56 @@
     <div class="tile"><div class="lbl">OAuth токен</div><div class="val">{{ has_oauth }}</div></div>
   </div>
 
+  <!-- Аварийная остановка (2026-09-01). Стоит ПЕРВОЙ секцией намеренно: её
+       ищут в тот момент, когда в эфире что-то идёт не так, и искать её надо
+       не глазами по странице. -->
+  <div class="section">
+    <h2>🛑 Аварийная остановка</h2>
+    <div class="sub">
+      Пока пауза взведена: платные действия зрителей отклоняются <b>до списания</b>
+      (деньги не уходят), и мод не получает заданий — включая те, что уже стояли
+      в очереди. Снятие паузы вернёт очередь моду: выбрасывать оплаченное молча
+      хуже, чем задержать.
+    </div>
+    <button class="mod-btn" id="pause-btn" onclick="togglePause()">Загрузка…</button>
+    <div id="pause-msg" class="boosty-msg"></div>
+  </div>
+  <script>
+  var _paused = null;
+  function renderPause(p){
+    _paused = p;
+    var b = document.getElementById('pause-btn');
+    if(!b) return;
+    b.textContent = p ? '▶️ Снять паузу — вернуть действия зрителям'
+                      : '🛑 Остановить всё — пауза интеграции';
+    b.className = 'mod-btn' + (p ? ' active' : '');
+  }
+  function pauseMsg(txt, isErr){
+    var m = document.getElementById('pause-msg');
+    m.textContent = txt; m.className = 'boosty-msg ' + (isErr ? 'err' : 'ok');
+  }
+  async function loadPause(){
+    try{
+      const r = await fetch('/api/streamer/actions-pause', {credentials:'include'});
+      const d = await r.json();
+      if(d.status === 'ok'){ renderPause(!!d.paused); pauseMsg(d.paused ? '⏸ Интеграция на паузе.' : '', false); }
+    } catch(e){ pauseMsg('Не удалось узнать статус: ' + e.message, true); }
+  }
+  async function togglePause(){
+    var next = !_paused;
+    try{
+      const r = await fetch('/api/streamer/actions-pause', {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({paused: next})});
+      const d = await r.json();
+      if(d.status === 'ok'){
+        renderPause(!!d.paused);
+        pauseMsg(d.paused ? '⏸ Пауза взведена — действия зрителей не выполняются и не оплачиваются.'
+                          : '▶️ Пауза снята — очередь вернулась моду.', false);
+      } else { pauseMsg('Ошибка: ' + (d.status || 'не удалось'), true); }
+    } catch(e){ pauseMsg('Network error: ' + e.message, true); }
+  }
+  loadPause();
+  </script>
+
   <!-- Переключатель активного модуля -->
   <div class="section">
     <h2>🎮 Активный модуль расширения</h2>

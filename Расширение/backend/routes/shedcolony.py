@@ -306,6 +306,16 @@ async def _charge_and_enqueue(action_type: str, data: dict, price: int,
 
 async def _buy_action_locked(username: str, channel_id: int,
                              action_type: str, data: dict) -> dict:
+    # 2026-09-01 — аварийная пауза стримера. Стоит ВНУТРИ кассы, а не во
+    # внешней HTTP-ручке: ручка не единственный вход, и тесты кассы бьют именно
+    # сюда. Проверка ДО списания — денег не взяли, значит и возвращать нечего.
+    # Второй затвор — выдача заданий моду (routes/module_api.py): без него уже
+    # стоящее в очереди уехало бы в игру.
+    from actions_pause import is_paused as _is_paused, PAUSED_MESSAGE as _PAUSED_MSG
+    async with get_db()._connect() as _conn_pause:
+        if await _is_paused(_conn_pause, channel_id):
+            return {"success": False, "message": _PAUSED_MSG, "paused": True}
+
     # Allowlist + server-side price
     if action_type not in _PURCHASABLE_ACTIONS:
         return {"success": False, "message": f"Действие '{action_type}' не разрешено"}

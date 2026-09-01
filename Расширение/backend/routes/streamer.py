@@ -862,6 +862,46 @@ async def streamer_set_active_module(request: Request):
     return JSONResponse({"status": "ok", "active_module": module_id, "channel_id": cid})
 
 
+@router.get("/api/streamer/actions-pause", include_in_schema=False)
+async def streamer_get_actions_pause(request: Request):
+    """Взведена ли аварийная пауза интеграции. Требует session cookie."""
+    cid = _read_session_cookie(request)
+    if cid is None:
+        return JSONResponse({"status": "unauthenticated"}, status_code=401)
+    from actions_pause import is_paused
+    db = get_db()
+    async with db._connect() as conn:
+        paused = await is_paused(conn, cid)
+    return JSONResponse({"status": "ok", "paused": paused})
+
+
+@router.post("/api/streamer/actions-pause", include_in_schema=False)
+async def streamer_set_actions_pause(request: Request):
+    """Аварийная остановка воздействий зрителей на игру.
+
+    Взведена — платные действия отклоняются ДО кассы (деньги не списываются), а
+    мод перестаёт получать задания, включая уже стоящие в очереди. Снятие
+    возвращает очередь моду: молча выбрасывать оплаченное хуже, чем задержать.
+    Кнопка нужна ровно тогда, когда в эфире что-то идёт не так, поэтому флаг
+    читается из базы без кэша (см. `actions_pause.py`).
+    """
+    cid = _read_session_cookie(request)
+    if cid is None:
+        return JSONResponse({"status": "unauthenticated"}, status_code=401)
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    paused = bool(body.get("paused"))
+    from actions_pause import set_paused
+    db = get_db()
+    async with db._connect() as conn:
+        await set_paused(conn, cid, paused)
+        await conn.commit()
+    log.info("[PAUSE] ch=%s actions_paused=%s (кабинет стримера)", cid, paused)
+    return JSONResponse({"status": "ok", "paused": paused})
+
+
 @router.get("/api/streamer/feature-usage", include_in_schema=False)
 async def streamer_feature_usage(request: Request):
     """ROADMAP 2.3 — топ/анти-топ используемых фич за окно (по умолчанию 7 дней).

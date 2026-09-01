@@ -3086,6 +3086,16 @@ def _post_commit_side_effects(action_type, data, cooldown_key, username, channel
 
 async def _bannerlord_buy_action_locked(request, username, channel_id, action_type, data):
     """Sprint 5.29: extracted body of bannerlord_buy_action — runs под user_lock."""
+    # 2026-09-01 — аварийная пауза стримера. Стоит ВНУТРИ кассы, а не во
+    # внешней HTTP-ручке: ручка не единственный вход, и тесты кассы бьют именно
+    # сюда. Проверка ДО списания — денег не взяли, значит и возвращать нечего.
+    # Второй затвор — выдача заданий моду (routes/module_api.py): без него уже
+    # стоящее в очереди уехало бы в игру.
+    from actions_pause import is_paused as _is_paused, PAUSED_MESSAGE as _PAUSED_MSG
+    async with get_db()._connect() as _conn_pause:
+        if await _is_paused(_conn_pause, channel_id):
+            return {"success": False, "message": _PAUSED_MSG, "paused": True}
+
 
     if action_type not in _PURCHASABLE_ACTIONS:
         return {"success": False, "message": f"Action '{action_type}' не разрешён"}

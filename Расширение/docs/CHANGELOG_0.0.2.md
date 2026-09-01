@@ -783,3 +783,35 @@ purchasable actions on the server; equipment now progresses only through
 deterministic tier upgrades. Wording that advertised randomness was removed from
 the visible labels, and the odds-disclosure statement was narrowed so that it
 speaks about cases only, which is what it can truthfully claim.
+
+## Собрано 2026-09-01 как версия 0.0.3 — ответ на отказ
+
+Владелец 01.09: собрать новую версию фронта и подать, не дожидаясь ответа
+ревьюера. Номер новый, потому что архив с именем `0.0.2` уже существует с другой
+контрольной суммой. Полный состав, SHA-256 и проверки внутри самого архива —
+`RELEASE_RECORD.md`, раздел 0.0.3.
+
+Сверх правок этого дня, описанных выше, в 0.0.3 вошло:
+
+- **Мобильная оболочка больше не несёт кубики и кейсы** — убраны и плитки, и
+  скрипты. Это прямой ответ на названную причину отказа: «Games with gambling
+  orientation are not allowed for mobile». Заодно из мобильного раскрытия ушли
+  проценты выпадения кейсов: раскрытие вероятностей для механики, которой на
+  этом экране нет, ревьюер читает буквально, и читается оно ровно как повод для
+  отказа. Десктопная оболочка не тронута — правило про мобильный вид.
+
+- **Крестики и дуэли на мобиле оставлены, и это позиция, а не недосмотр.** В
+  `rps.py` генератор случайных чисел объявлен и нигде не используется; в
+  `tictactoe.py` с 01.09 нет ни одного обращения к случайности — автоход по
+  таймауту делает первую свободную клетку вместо броска. Оба факта ревьюер
+  проверяет грепом за минуту. Прятать то, что защищается проверяемым фактом,
+  значит остаться без аргументов и без механик одновременно.
+
+**English (for the submission form).** The mobile view no longer offers dice or
+cases: both the cards and their scripts are gone, and the case drop-odds
+disclosure was removed from that shell along with them. Tic-tac-toe and the
+rock-paper-scissors duel remain on mobile because neither involves any system
+randomness — `rps.py` never calls its RNG, and as of this version `tictactoe.py`
+contains no randomness at all: the turn-timeout auto-move now takes the first
+free cell instead of a random one. The desktop view is unchanged, as rule 3.5
+concerns the mobile view.

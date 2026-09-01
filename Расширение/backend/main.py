@@ -259,6 +259,15 @@ def _register_extension_routes():
         full = os.path.join(base, filename)
         ext  = os.path.splitext(filename)[1]
         mime = _MIME.get(ext, "text/plain")
+        # 2026-09-01: starlette (0.27, responses.py:92) БЕЗУСЛОВНО дописывает
+        # "; charset=utf-8" любому типу, начинающемуся с text/. Наши записи в
+        # _MIME несут charset сами, поэтому наружу уходило
+        # "text/html; charset=utf-8; charset=utf-8" — с мая, у всех страниц.
+        # Браузер лишний параметр игнорирует, но заголовок формально битый.
+        # Отдаём тип без charset и позволяем фреймворку добавить ровно один:
+        # это верно и для версий starlette, которые проверяют его наличие.
+        if mime.startswith("text/"):
+            mime = mime.split(";", 1)[0]
         exists = os.path.exists(full)
         print(f"  Route: {route} -> {full} (exists: {exists})")
         # closure capture

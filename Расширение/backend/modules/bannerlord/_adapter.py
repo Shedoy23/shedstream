@@ -2227,21 +2227,15 @@ class BannerlordAdapter(ModuleAdapter):
                 logger.warning("[bannerlord:%s] tournament_wins UPDATE failed for @%s: %s",
                                channel_id, winner, e)
 
-            # Phase B (inventory unification) — победитель получает предмет в
-            # тот же инвентарь, что и кузница (source='tournament').
-            try:
-                from routes.bannerlord_custom_items import (
-                    generate_prize_item, insert_custom_item)
-                from dependencies import get_db as _get_db
-                prize = generate_prize_item()
-                async with _get_db()._connect() as conn3:
-                    await insert_custom_item(conn3, channel_id, winner, prize, "tournament")
-                    await conn3.commit()
-                logger.info("[bannerlord:%s] tournament prize → @%s: %s (%s)",
-                            channel_id, winner, prize["custom_name"], prize["rarity"])
-            except Exception as e:
-                logger.warning("[bannerlord:%s] tournament prize failed for @%s: %s",
-                               channel_id, winner, e)
+            # 2026-09-01 — случайный трофей победителю УБРАН (аудит 002, B6).
+            # Он катал редкость 50/30/15/5 и характеристики, то есть турнир
+            # раздавал приз броском кубика, и наше же заявление ревьюеру
+            # «единственная случайность — тир кейса» было неверным. Показать
+            # предмет было негде: /api/bannerlord/custom-items во фронте не
+            # зовётся, а hero.equip_trophy снят с продажи 29.07 вместе с
+            # кузницей. Победитель получает то, что обещает интерфейс:
+            # TOURNAMENT_PRIZE_GOLD золотом и опыт — обе величины фиксированы.
+            # Гейт: tests/test_contest_rules_and_prize.py.
 
         status_str = "ABORTED" if aborted else f"winner=@{winner}"
         print(f"[bannerlord:{channel_id}] tournament ended ({status_str})")

@@ -1,6 +1,12 @@
 """
 Sprint 5.29 / BLT-parity #6 MVP — Custom items (Smithing trophies).
 
+ВНИМАНИЕ, описание ниже устарело: `hero.smith_item` снят с продажи 29.07
+(кузница заменена перековкой качества), а турнирный приз перестал
+генерироваться 01.09 (аудит 002, B6). Живых путей к генерации предметов
+в проде не осталось; endpoint'ы инвентаря сохранены для уже выданных
+предметов.
+
 Текущая итерация — backend-only trophy collection. Viewer покупает
 `hero.smith_item` action (100K💰 Hero.Gold + 500 крустиков), backend
 генерирует random custom item с уникальным именем и rarity, кладёт в
@@ -173,41 +179,12 @@ def _generate_item(base_type: str) -> Dict:
     }
 
 
-def generate_prize_item() -> Dict:
-    """Tournament prize — random type, rarity biased вверх (награда не должна
-    быть мусором). Common апгрейдится до uncommon+. Phase B."""
-    base_type = random.choice(["weapon", "armor", "horse"])
-    item = _generate_item(base_type)
-    if item["rarity"] == "common":
-        prize_rarity = random.choices(
-            ["uncommon", "rare", "epic", "legendary"],
-            weights=[50, 30, 15, 5])[0]
-        tier = {"uncommon": 2, "rare": 3, "epic": 4, "legendary": 5}[prize_rarity]
-        item["rarity"] = prize_rarity
-        item["tier"] = tier
-        item["icon"] = RARITY_ICONS[prize_rarity]
-        adj = random.choice(ADJ_BY_RARITY[prize_rarity])
-        item["custom_name"] = f"{adj} {item['base_subtype']}"
-        item.update(_roll_stats(base_type, prize_rarity))
-    return item
-
-
-async def insert_custom_item(conn, channel_id: int, username: str,
-                             item: Dict, source: str) -> int:
-    """Insert a generated item into the unified inventory (persists rolled
-    stats + source). Returns new id (0 on fail). Caller commits. Phase B."""
-    cur = await conn.execute(
-        "INSERT INTO bannerlord_custom_items "
-        "(channel_id, owner_username, base_type, base_subtype, custom_name, "
-        " rarity, tier, icon, damage_bonus, armor_bonus, weight_factor, "
-        " speed_factor, source, claimed) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0) RETURNING id",
-        (channel_id, username, item["base_type"], item["base_subtype"],
-         item["custom_name"], item["rarity"], item["tier"], item["icon"],
-         item.get("damage_bonus", 0), item.get("armor_bonus", 0),
-         item.get("weight_factor", 1.0), item.get("speed_factor", 1.0), source))
-    row = await cur.fetchone()
-    return row[0] if row else 0
+# 2026-09-01 — generate_prize_item() и insert_custom_item() удалены
+# (аудит 002, B6). Единственным их пользователем был турнирный приз в
+# modules/bannerlord/_adapter.py, а он катал редкость и характеристики
+# победителю бесплатного турнира. Предмет при этом нигде не
+# показывался. Ковка (_generate_item выше) снята с продажи 29.07 и
+# сюда не относится.
 
 
 # ── API ──────────────────────────────────────────────────────────────────────

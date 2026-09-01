@@ -1002,7 +1002,7 @@ function _renderBannerlordTournament(data) {
     body.innerHTML = `
         <div style="padding:8px;">
             <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">
-                Когда стример запустит — все из очереди дерутся, победитель получает ${TOURNAMENT_PRIZE_GOLD.toLocaleString('ru-RU')}💰 + XP + приз. Раундовые победители получают ${TOURNAMENT_ROUND_GOLD.toLocaleString('ru-RU')}💰.
+                Когда стример запустит — все из очереди дерутся, победитель получает ${TOURNAMENT_PRIZE_GOLD.toLocaleString('ru-RU')}💰 + опыт. Раундовые победители получают ${TOURNAMENT_ROUND_GOLD.toLocaleString('ru-RU')}💰.
             </div>
             ${queueHtml}
             ${joinBtnHtml}

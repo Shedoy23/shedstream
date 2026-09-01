@@ -100,6 +100,13 @@ Two themes recur across dimensions:
 2. **"Frozen frontend as a single point of drift"** — Dwight's hardcoded prices + refund dict, Oscar's 18-file shipped-vs-HEAD gap, and the fact both shells are identical (Jim §0) are the same weakness: the thin-front rule isn't enforced and there's no gate keeping shipped == source == compliant.
 
 ### MUST-FIX before any 0.0.2 submission (cheap, no feature loss)
+
+> **Статус 2026-09-01: M1, M2 и M4 сделаны.** M1 — блок «Официальные правила
+> конкурсов» в обеих оболочках; M2 — генерация случайного турнирного трофея
+> удалена, описание турнира больше не обещает приз; M4 — CI перестал маскировать
+> падения тестов (коммит 29.08). Гейт M1+M2 — `backend/tests/test_contest_rules_and_prize.py`
+> (показан красным до правки, зелёным после). Остаётся **M3** — письмо ревьюеру
+> с аргументом «биты не используются» и оговоркой про кубики; и весь DE-GAMBLE набор.
 - **M1** Add **official contest-rules text** in-app (Apple 5.3.2) — static block, no code. (Jim R1)
 - **M2** **Close B6** — stop the tournament from advertising/generating a random-stat trophy (drop the generator call or fix the prize to deterministic). Restores "only random element is X" truthfully. (Jim B6)
 - **M3** Lead the reviewer reply with the **"no Bits" argument** (Jim) + the dice-prize nuance (B2). Free, strongest lever.

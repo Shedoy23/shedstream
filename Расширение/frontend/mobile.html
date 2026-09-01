@@ -466,6 +466,76 @@
         </div>
     </details>
 
+    <!-- ===== ОФИЦИАЛЬНЫЕ ПРАВИЛА КОНКУРСОВ (2026-09-01) =====
+         App Store Review 5.3.2 требует, чтобы официальные правила конкурса были
+         показаны В САМОМ приложении и чтобы там прямо стояло, что Apple не
+         спонсор и в конкурсе не участвует. Расширение объявляет окончание
+         сезона, три призовых места и порог рейтинга — то есть это конкурс, а
+         правил у него не было (аудит 002, R1). Это основание для отказа,
+         отдельное от правила 3.5, и закрывается статическим текстом.
+
+         Текст СТАТИЧЕН намеренно, вопреки правилу «тонкий фронт»: суммы и даты
+         по-прежнему приходят с сервера и здесь не дублируются, а вот сами
+         правила обязаны отрисоваться даже если бэкенд недоступен — пустой
+         блок правил ревьюер читает как их отсутствие.
+
+         ОБЕ оболочки обязаны нести идентичный текст: расходятся они молча.
+         Гейт — backend/tests/test_contest_rules_and_prize.py. -->
+    <details id="contest-rules" style="margin:8px;padding:8px 12px;background:#1a1a1c;border-radius:6px;font-size:11px;color:#8a8a8e;">
+        <summary style="cursor:pointer;color:#adadb8;">📜 Официальные правила конкурсов &middot; Official contest rules</summary>
+        <div style="margin-top:8px;line-height:1.5;">
+            <p style="margin:0 0 8px;">
+                <b>Организатор:</b> стример этого канала. <b>Участие бесплатное:</b> покупка не требуется
+                ни для участия, ни для победы. <b>Кто может участвовать:</b> зрители канала с аккаунтом
+                Twitch, отвечающие требованиям Условий использования Twitch.
+            </p>
+            <p style="margin:0 0 8px;">
+                <b>Как участвовать:</b> сыграть матч в мини-игре расширения или встать в очередь турнира —
+                и то и другое бесплатно. <b>Как определяется победитель:</b> по рейтингу, набранному
+                в матчах за сезон (призовые места достаются верхним строчкам таблицы на момент
+                окончания сезона при рейтинге не ниже указанного порога); в турнире — по исходу боёв.
+                <b>Сроки, размеры призов и порог рейтинга</b> показаны в разделе мини-игр и приходят
+                с сервера, поэтому здесь не дублируются.
+            </p>
+            <p style="margin:0 0 8px;">
+                <b>Призы:</b> только внутренняя валюта расширения и внутриигровые ценности. Они
+                <b>не имеют денежной ценности</b>, не обмениваются на реальные деньги, Bits или
+                товары и не передаются между пользователями. Начисляются автоматически при закрытии
+                сезона. Вопросы — в чат канала.
+            </p>
+            <p style="margin:0 0 8px;">
+                <b>Apple не является спонсором</b> этих конкурсов и никак в них не участвует.
+                <b>Twitch не является спонсором</b> этих конкурсов и никак в них не участвует.
+            </p>
+            <!-- Английская версия — не украшение: правила читает англоязычный
+                 ревьюер, и правила только по-русски он вправе счесть
+                 отсутствующими (тот же вывод, что и по раскрытию валюты 28.07). -->
+            <p style="margin:0 0 8px;">
+                <b>Sponsor:</b> the streamer of this channel. <b>No purchase</b> or payment of any kind
+                is necessary to enter or win. <b>Eligibility:</b> viewers of this channel holding a
+                Twitch account in good standing under the Twitch Terms of Service.
+            </p>
+            <p style="margin:0 0 8px;">
+                <b>How to enter:</b> play a match in one of the extension's mini-games, or join the
+                tournament queue — both are free. <b>How winners are determined:</b> by the rating
+                earned in matches during the season (top places on the leaderboard at season end,
+                subject to the stated rating threshold); for the tournament, by the outcome of the
+                fights. <b>Dates, prize amounts and the rating threshold</b> are shown in the
+                mini-games section and are served by our backend, so they are not duplicated here.
+            </p>
+            <p style="margin:0 0 8px;">
+                <b>Prizes:</b> the extension's virtual currency and in-game virtual goods only. They have
+                <b>no monetary value</b>, cannot be exchanged for real money, Bits or goods, and cannot
+                be transferred between users. They are granted automatically when a season closes.
+                Questions: ask in the channel chat.
+            </p>
+            <p style="margin:0;">
+                <b>Apple is not a sponsor of, and is not involved in, these contests in any way.</b>
+                <b>Twitch is not a sponsor of, and is not involved in, these contests in any way.</b>
+            </p>
+        </div>
+    </details>
+
     <!-- ===== МОДАЛКИ ===== -->
 
     <div id="colonist-modal" class="modal">

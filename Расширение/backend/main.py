@@ -194,6 +194,9 @@ _EXTENSION_FILES = {
     "/realtime.js":    "realtime.js",   # Phase C: PubSub realtime bus
     "/privacy.html":   "privacy.html",  # Twitch submission: Privacy Policy URL
     "/terms.html":     "terms.html",    # Twitch submission: Terms of Service URL
+    # 2026-09-01: записка для краулеров. Без неё поисковики качали 67-МБ архивы
+    # Manager и попадали в воронку как «скачивания» (см. ingest-download-events).
+    "/robots.txt":     "robots.txt",
 }
 
 # Также поддерживаем префикс /frontend/ для совместимости
@@ -227,6 +230,7 @@ _MIME = {
     ".html": "text/html; charset=utf-8",
     ".js":   "application/javascript; charset=utf-8",
     ".css":  "text/css; charset=utf-8",
+    ".txt":  "text/plain; charset=utf-8",
 }
 
 def _register_extension_routes():

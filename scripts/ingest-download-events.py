@@ -17,8 +17,19 @@
   ступень воронки считается «сколько раз», а не «сколько людей», и складывать
   её с остальными как одну шкалу нельзя.
 
+РОБОТЫ (2026-09-01). Из десяти последних скачиваний девять сделали краулеры:
+Amazonbot, MJ12bot, LohiSoftBot и сканеры с подставным iPhone-User-Agent. Раньше
+скрипт брал только время, путь и код ответа — отличить робота от человека он не
+мог в принципе, и первая ступень воронки врала в плюс. Теперь известные роботы
+отсеиваются по подписи браузера, а сколько их было — печатается: **число
+отсеянных и есть мера доверия к этой ступени**. Сканеры, притворяющиеся
+браузером, проходят и будут проходить — по подписи их не отличить. Строка без
+подписи засчитывается: потерять живого человека хуже, чем пропустить робота.
+Гейт — `backend/tests/test_download_ingest_bots.py`.
+
 ПРИВАТНОСТЬ. IP-адреса не сохраняются и вообще не покидают эту функцию: из
-строки журнала берутся только факт успешной отдачи и время.
+строки журнала берутся только факт успешной отдачи и время. Подпись браузера
+читается для отсева роботов и тоже никуда не пишется.
 
 ЗАПУСК (на сервере):
     python3 scripts/ingest-download-events.py --db /root/twitch-extension/backend/viewers.db
@@ -46,6 +57,29 @@ LINE = re.compile(
 
 TIME_FORMAT = "%d/%b/%Y:%H:%M:%S %z"
 
+# Подпись браузера — последнее поле в кавычках. Отсутствует в укороченных
+# форматах журнала; тогда строку засчитываем (см. докстринг).
+USER_AGENT = re.compile(r'"([^"]*)"\s*$')
+
+# Отсев по подписи. Список из того, что реально приходило на shedoy23.ru, плюс
+# общие маркеры. Сравнение по вхождению в нижнем регистре: подписи роботов
+# меняют версии, но не самоназвание.
+BOT_MARKERS = (
+    "bot", "crawler", "spider", "slurp", "scrapy", "curl", "wget",
+    "python-requests", "libwww", "httpclient", "headlesschrome",
+    "ahrefs", "semrush", "mj12", "dataprovider", "lohisoft",
+    "facebookexternalhit", "petalbot", "bytespider", "gptbot",
+)
+
+# Сколько отсеяно за прогон. Печатается в конце: это мера того, насколько
+# верхней ступени воронки вообще можно верить.
+bots_skipped = 0
+
+
+def looks_like_bot(agent: str) -> bool:
+    low = (agent or "").lower()
+    return any(marker in low for marker in BOT_MARKERS)
+
 
 def parse_line(line: str):
     m = LINE.search(line)
@@ -58,6 +92,11 @@ def parse_line(line: str):
     path = m.group("path").split("?", 1)[0]
     if not path.startswith("/releases/") or "Manager" not in path:
         return None
+    ua = USER_AGENT.search(line.rstrip())
+    if ua and looks_like_bot(ua.group(1)):
+        global bots_skipped
+        bots_skipped += 1
+        return None                      # краулер — это не «до нас дошли»
     try:
         when = datetime.strptime(m.group("when"), TIME_FORMAT)
     except ValueError:
@@ -106,11 +145,13 @@ def main() -> int:
 
     found.sort()
     if not found:
-        print("новых скачиваний нет (последняя обработанная отметка: %s)"
-              % (datetime.fromtimestamp(last_seen) if last_seen else "нет"))
+        print("новых скачиваний нет (последняя обработанная отметка: %s); "
+              "роботов отсеяно: %d"
+              % ((datetime.fromtimestamp(last_seen) if last_seen else "нет"),
+                 bots_skipped))
         return 0
 
-    print("новых скачиваний: %d" % len(found))
+    print("новых скачиваний: %d (роботов отсеяно: %d)" % (len(found), bots_skipped))
     if args.dry_run:
         for when, name in found[:10]:
             print("  %s  %s" % (datetime.fromtimestamp(when), name))

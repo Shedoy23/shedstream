@@ -26,7 +26,7 @@ State JSON v2:
   }
 
 Move endpoint логика:
-  1. Lazy-expire: если deadline истёк → auto-play random valid cell
+  1. Lazy-expire: если deadline истёк → автоход в первую свободную клетку
      для current player
   2. Apply move
   3. Check winner of current board
@@ -37,7 +37,6 @@ ELO/season общие с предыдущей TTT 3×3 (game_type='tictactoe').
 Compliance: skill-based PvP без ставок, §5.x OK.
 """
 import json
-import random
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Request
 
@@ -66,7 +65,10 @@ WINS_TO_TAKE   = 2
 TURN_TIMEOUT_S = 10
 CELLS_TOTAL    = BOARD_SIZE * BOARD_SIZE  # 16
 
-_rng = random.Random()
+# 2026-09-01: генератор случайных чисел УДАЛЁН вместе с последним его
+# использованием (автоход по таймауту). Теперь в файле нет ни одного вызова
+# случайности — ровно как в `routes/rps.py`, и это проверяется грепом, а не
+# обещанием. Крестики — игра на навык буквально, а не по нашему описанию.
 
 
 # ─── Game logic helpers ───────────────────────────────────────────────────────
@@ -176,7 +178,18 @@ def _advance_after_board(state):
 
 
 def _maybe_expire_phase(state):
-    """Lazy expiration: auto-play random valid cell для current player."""
+    """Lazy expiration: за просрочившего ход делает ПЕРВАЯ свободная клетка.
+
+    2026-09-01: раньше клетка выбиралась броском (`_rng.choice`). Партия при
+    этом призовая — крестики кормят сезонный рейтинг, а мы называем их игрой на
+    навык, в том числе ревьюеру Twitch. Одна случайная клетка на весь матч
+    исход почти не меняет, но делает утверждение неверным, а неверное
+    утверждение платформе дороже любой механики (аудит 002, R3).
+
+    Первая свободная клетка — выбор произвольный, зато ПРЕДСКАЗУЕМЫЙ: соперник
+    видит доску и знает, что произойдёт при просрочке. Это и есть разница между
+    «навык» и «удача».
+    """
     if state.get("phase") == "finished":
         return False
     if not _deadline_expired(state.get("deadline_at")):
@@ -186,7 +199,7 @@ def _maybe_expire_phase(state):
     if board.get("winner"):
         return False  # already resolved, advance handled elsewhere
 
-    # Auto-play random empty cell
+    # Автоход: первая свободная клетка по порядку. Детерминировано — см. докстринг.
     empty_cells = [i for i, c in enumerate(board["cells"]) if not c]
     if not empty_cells:
         # Draw
@@ -194,7 +207,7 @@ def _maybe_expire_phase(state):
         _advance_after_board(state)
         return True
 
-    cell = _rng.choice(empty_cells)
+    cell = empty_cells[0]
     board["cells"][cell] = board["next_turn"]
     board["moves"] += 1
     winner = _check_winner(board["cells"])
@@ -658,7 +671,7 @@ async def tictactoe_poll(request: Request, room_id: str):
 
     Sprint 5.24c: /api/match/room/{id}/state не знает про game-specific
     deadline. Этот endpoint проверяет expiration на каждый poll и
-    auto-играет random cell если кто-то завис.
+    автоходит в первую свободную клетку, если кто-то завис.
     """
     auth = require_jwt_user(request)
     if not auth:

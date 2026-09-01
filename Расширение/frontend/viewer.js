@@ -175,9 +175,13 @@ function setupCspSafeHandlers() {
         if (!action) return;
 
         // legacy-actions удалены 2026-05-10 (Phase 1.A/1.C compliance rework)
-        if (action === 'cases') openCasesModal();
+        // 2026-09-01: мобильная оболочка не грузит cases.js/dice.js (правило 3.5),
+        // поэтому имена там не существуют. Плиток тоже нет, но проверка типа стоит
+        // копейку и закрывает класс «функцию переименовали в одном файле, вызов
+        // остался в другом» — он уже убивал магазин RimWorld на месяцы.
+        if (action === 'cases') { if (typeof openCasesModal === 'function') openCasesModal(); }
         else if (action === 'tictactoe') openTicTacToeModal();
-        else if (action === 'dice') openDiceModal();
+        else if (action === 'dice') { if (typeof openDiceModal === 'function') openDiceModal(); }
         else if (action === 'guilds') openGuildsModal();
         else if (action === 'voting') openVotingModal();
         else if (action === 'pets') openPetsModal();

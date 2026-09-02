@@ -3,13 +3,23 @@
 // Устроен по принципу остальных игр: общая очередь подбора (game_type='tug'),
 // комната на двоих, ELO, сезонные призы топ-3.
 //
-// Что здесь важно:
-//  * ВСЕ числа и тексты правил приходят с сервера (`rules` в ответе статуса).
-//    Копий во фронте нет намеренно: фронт замерзает на CDN Twitch до следующего
-//    ревью, а правила матча ревьюер обязан увидеть точными.
-//  * Исход не считается на клиенте. Клиент шлёт КОЛИЧЕСТВО тапов, цену им
-//    назначает сервер по опубликованной формуле — иначе правленый клиент решал
-//    бы матч.
+// ## Почему модалка разделена на ОБОЛОЧКУ и #tug-content
+//
+// 2026-09-02, найдено владельцем на телефоне: раскрытые «Правила» закрывались
+// сами через секунду. Причина не в «details», а в том, что опрос раз в 2 секунды
+// переписывал innerHTML ВСЕГО тела модалки — вместе с блоками правил и рейтинга,
+// и они возвращались в свёрнутое состояние.
+//
+// Крестики этого не делают: у них меняется только `#ttt-content`, а лидерборд
+// живёт в оболочке рядом и не перерисовывается. Здесь теперь так же:
+//   * оболочка (заголовок, правила, рейтинг, «Закрыть») рисуется ОДИН раз;
+//   * `#tug-content` — единственное, что трогает опрос.
+// Это не косметика: блок правил — наш ответ на требование ревью показывать
+// правила ДО входа в матч. Правила, которые закрываются сами, — это правила,
+// которых ревьюер не прочитал.
+//
+// Остальное как везде: ВСЕ числа и тексты правил приходят с сервера, исход
+// считает сервер, клиент шлёт только количество тапов.
 
 const TUG_GAME_TYPE = 'tug';
 
@@ -36,6 +46,7 @@ function _stopTugPolling() {
     if (_tugPoll) { clearInterval(_tugPoll); _tugPoll = null; }
 }
 
+// ── Оболочка. Рисуется ОДИН раз за открытие: всё, что здесь, переживает опрос.
 function _renderTugModal() {
     let modal = document.getElementById('tug-modal');
     if (modal) modal.remove();
@@ -43,10 +54,27 @@ function _renderTugModal() {
     modal.className = 'modal active';
     modal.id = 'tug-modal';
     modal.innerHTML = `
-        <div class="modal-content" style="max-width:420px;">
-            <h2>🪢 Канат — дуэль</h2>
-            <div id="tug-body"><div class="loading">Загрузка…</div></div>
-            <button class="modal-btn cancel" id="tug-close">Закрыть</button>
+        <div class="modal-content" style="max-width:400px;">
+            <h2 style="display:flex;align-items:center;justify-content:space-between;">
+                <span>🪢 Канат</span>
+                <span id="tug-elo-badge" style="font-size:12px;color:#adadb8;font-weight:500;">—</span>
+            </h2>
+            <div id="tug-content" style="min-height:280px;">
+                <div class="loading">Загрузка...</div>
+            </div>
+            <details style="margin-top:10px;background:#1a1a1c;border-radius:6px;padding:8px 12px;">
+                <summary style="cursor:pointer;font-size:12px;color:#adadb8;">📜 Правила</summary>
+                <div id="tug-rules" style="margin-top:8px;font-size:11px;color:#8a8a8e;line-height:1.5;">
+                    <div class="loading">Загрузка...</div>
+                </div>
+            </details>
+            <details style="margin-top:8px;background:#1a1a1c;border-radius:6px;padding:8px 12px;">
+                <summary style="cursor:pointer;font-size:12px;color:#adadb8;">🏆 Рейтинг сезона</summary>
+                <div id="tug-leaderboard" style="margin-top:8px;font-size:12px;">
+                    <div class="loading">Загрузка...</div>
+                </div>
+            </details>
+            <button class="modal-btn cancel" id="tug-close" style="margin-top:10px;">Закрыть</button>
         </div>`;
     document.body.appendChild(modal);
     document.getElementById('tug-close').addEventListener('click', () => {
@@ -65,7 +93,8 @@ async function _tugRefresh() {
         _tugState = await sr.json();
         const q = await qr.json();
         _tugQueued = !!(q && (q.in_queue || q.queued));
-        _renderTugBody();
+        _renderTugContent();
+        _renderTugSideBlocks();
     } catch (e) {
         console.warn('[TUG refresh]', e);
     }
@@ -90,55 +119,60 @@ function _tugRopeHtml(pos, limit, me) {
         </div>`;
 }
 
-function _tugRulesHtml(rules) {
-    if (!rules) return '';
-    return `
-        <details style="margin:8px 0;padding:8px;background:#1a1a1c;border-radius:6px;
-                        font-size:11px;color:#8a8a8e;">
-            <summary style="cursor:pointer;color:#adadb8;">📜 Правила</summary>
-            <div style="margin-top:6px;line-height:1.5;">
-                <p style="margin:0 0 6px;">${escapeHtml(rules.formula_ru || '')}</p>
-                <p style="margin:0 0 6px;">${escapeHtml(rules.reward_ru || '')}</p>
-                <p style="margin:0;">Организатор — стример этого канала. Apple и Twitch
-                не являются спонсорами и в конкурсе не участвуют.</p>
-            </div>
-        </details>`;
-}
+// ── Блоки, которые НЕ перерисовываются целиком: обновляем только их нутро,
+//    сами <details> остаются теми же элементами и не схлопываются.
+function _renderTugSideBlocks() {
+    if (!_tugState) return;
+    const rules = _tugState.rules || {};
 
-function _tugBoardHtml(rows, endsAt) {
-    if (!rows || !rows.length) return '';
-    const items = rows.map((r, i) =>
-        `<li>${['🥇', '🥈', '🥉'][i] || (i + 1) + '.'} ${escapeHtml(r.username)} — ${r.elo}</li>`).join('');
-    let ends = '';
-    if (endsAt) {
-        try {
-            ends = `<div style="font-size:10px;color:#8a8a8e;margin-top:4px;">Сезон до ${
-                new Date(endsAt).toLocaleDateString('ru-RU')}</div>`;
-        } catch (e) { ends = ''; }
+    const r = document.getElementById('tug-rules');
+    if (r) {
+        r.innerHTML = `
+            <p style="margin:0 0 6px;">${escapeHtml(rules.formula_ru || '')}</p>
+            <p style="margin:0 0 6px;">${escapeHtml(rules.reward_ru || '')}</p>
+            <p style="margin:0;">Организатор — стример этого канала. Apple и Twitch
+            не являются спонсорами и в конкурсе не участвуют.</p>`;
     }
-    return `
-        <details style="margin-top:8px;font-size:11px;color:#adadb8;">
-            <summary style="cursor:pointer;">🏆 Рейтинг сезона</summary>
-            <ol style="margin:6px 0 0 16px;padding:0;">${items}</ol>${ends}
-        </details>`;
+
+    const lb = document.getElementById('tug-leaderboard');
+    if (lb) {
+        const rows = _tugState.leaderboard || [];
+        let ends = '';
+        if (_tugState.season_ends_at) {
+            try {
+                ends = `<div style="font-size:10px;color:#8a8a8e;margin-top:4px;">Сезон до ${
+                    new Date(_tugState.season_ends_at).toLocaleDateString('ru-RU')}</div>`;
+            } catch (e) { ends = ''; }
+        }
+        lb.innerHTML = rows.length
+            ? `<ol style="margin:0 0 0 16px;padding:0;color:#adadb8;">${
+                rows.map((x, i) => `<li>${['🥇', '🥈', '🥉'][i] || (i + 1) + '.'} ${
+                    escapeHtml(x.username)} — ${x.elo} ELO</li>`).join('')}</ol>${ends}`
+            : `<div style="color:#8a8a8e;">Пока никто не играл.</div>${ends}`;
+    }
+
+    const badge = document.getElementById('tug-elo-badge');
+    if (badge) {
+        const me = (_tugState.leaderboard || []).find(
+            x => x.username === (window.userLogin || '').toLowerCase());
+        badge.textContent = me ? me.elo + ' ELO' : '—';
+    }
 }
 
-function _renderTugBody() {
-    const body = document.getElementById('tug-body');
-    if (!body || !_tugState) return;
+// ── Меняющаяся часть. Только она переписывается опросом.
+function _renderTugContent() {
+    const el = document.getElementById('tug-content');
+    if (!el || !_tugState) return;
     const rules = _tugState.rules || {};
     const room = _tugState.room;
-    const tail = _tugRulesHtml(rules) +
-                 _tugBoardHtml(_tugState.leaderboard, _tugState.season_ends_at);
 
     if (room && room.status === 'active') {
-        body.innerHTML = `
+        el.innerHTML = `
             <div style="font-size:12px;color:#adadb8;">Соперник:
                 <b>${escapeHtml(room.opponent || '?')}</b> · осталось ${room.seconds_left}с</div>
             ${_tugRopeHtml(room.pos, rules.rope_limit || 10000, room.my_side)}
             <button class="modal-btn" id="tug-pull" style="width:100%;font-size:15px;padding:12px;">🪢 Тяни!</button>
-            <div style="font-size:11px;color:#adadb8;margin-top:4px;">Твои тапы: ${room.my_taps}</div>
-            ${tail}`;
+            <div style="font-size:11px;color:#adadb8;margin-top:4px;">Твои тапы: ${room.my_taps}</div>`;
         const pullBtn = document.getElementById('tug-pull');
         if (pullBtn) pullBtn.addEventListener('click', _tugPull);
         return;
@@ -149,30 +183,39 @@ function _renderTugBody() {
         const text = room.outcome === 'draw' ? '🤝 Ничья'
             : ((room.outcome === 'win_a' && mine === 'a') || (room.outcome === 'win_b' && mine === 'b')
                 ? '🏆 Ты победил' : '😐 Соперник оказался упорнее');
-        body.innerHTML = `
-            <div style="font-size:14px;margin-bottom:6px;">${text}</div>
-            <button class="modal-btn" id="tug-find" style="width:100%;">Найти нового соперника</button>
-            ${tail}`;
+        el.innerHTML = `
+            <div style="text-align:center;padding:30px 10px;">
+                <div style="font-size:48px;margin-bottom:10px;">🪢</div>
+                <div style="font-size:16px;margin-bottom:18px;">${text}</div>
+                <button class="modal-btn" id="tug-find">⚔️ Найти противника</button>
+            </div>`;
         const f = document.getElementById('tug-find');
         if (f) f.addEventListener('click', _tugFindOpponent);
         return;
     }
 
     if (_tugQueued) {
-        body.innerHTML = `
-            <div style="font-size:12px;color:#adadb8;">⏳ Ищем соперника…</div>
-            <button class="modal-btn cancel" id="tug-cancel" style="width:100%;margin-top:8px;">Отменить</button>
-            ${tail}`;
+        el.innerHTML = `
+            <div style="text-align:center;padding:30px 10px;">
+                <div style="font-size:48px;margin-bottom:10px;">⏳</div>
+                <div style="font-size:16px;font-weight:700;color:#fbbf24;margin-bottom:6px;">
+                    Ищем противника...</div>
+                <button class="modal-btn cancel" id="tug-cancel">Отменить</button>
+            </div>`;
         const c = document.getElementById('tug-cancel');
         if (c) c.addEventListener('click', _tugCancelQueue);
         return;
     }
 
-    body.innerHTML = `
-        <div style="font-size:12px;color:#adadb8;">Дуэль на канате: кто перетянет за
-            ${rules.match_sec || 45} секунд. Участие бесплатное.</div>
-        <button class="modal-btn" id="tug-find" style="width:100%;margin-top:8px;">Найти соперника</button>
-        ${tail}`;
+    el.innerHTML = `
+        <div style="text-align:center;padding:30px 10px;">
+            <div style="font-size:64px;margin-bottom:14px;">🪢</div>
+            <div style="font-size:14px;color:#adadb8;margin-bottom:18px;">
+                Двое тянут канат ${rules.match_sec || 45} секунд.<br>
+                Награды только за ELO + сезонный топ.
+            </div>
+            <button class="modal-btn" id="tug-find">⚔️ Найти противника</button>
+        </div>`;
     const f = document.getElementById('tug-find');
     if (f) f.addEventListener('click', _tugFindOpponent);
 }

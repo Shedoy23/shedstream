@@ -51,26 +51,35 @@ async function openDuels() {
         // + лидерборд сезона. Старые endpoints (create/accept) живут
         // для backward-compat с висящими invite'ами через бот в чате.
         modal.innerHTML = `
-            <div class="modal-content" style="max-width:460px;">
+            <div class="modal-content" style="max-width:400px;">
+                <!-- 2026-09-02: форма приведена к общей для всех мини-игр
+                     (крестики, канат, дуэли): крупный знак, две строки описания,
+                     одна кнопка поиска, свёрнутый рейтинг сезона, «Закрыть».
+                     Владелец заметил на телефоне, что каждая игра открывалась
+                     по-своему; разнобой в трёх экранах одного расширения
+                     ревьюер читает как незаконченность. -->
                 <h2>⚔️ Дуэли</h2>
 
-                <p style="color:#adadb8;font-size:13px;margin-bottom:14px;text-align:center;">
-                    Камень/ножницы/бумага. Best-of-3. Победа добавляет ELO.
-                </p>
-
-                <button class="modal-btn" id="duel-find-btn"
-                        style="margin-bottom:16px;font-size:15px;padding:14px;background:#5a2c9d;border-color:#9147ff;">
-                    🔎 Найти соперника
-                </button>
-
-                <!-- Лидерборд -->
-                <div>
-                    <h3 style="margin-bottom:6px;">🏆 Сезон #${lbData.season_id || 1} — Топ-5</h3>
-                    ${_renderSeasonEnd(lbData.ends_at, lbData.prizes, lbData.elo_gate)}
-                    <div>${_renderLeaderboard(lbData.leaderboard || [])}</div>
+                <div id="duels-content" style="min-height:280px;">
+                    <div style="text-align:center;padding:30px 10px;">
+                        <div style="font-size:64px;margin-bottom:14px;">⚔️</div>
+                        <div style="font-size:14px;color:#adadb8;margin-bottom:18px;">
+                            Камень/ножницы/бумага, best-of-3.<br>
+                            Награды только за ELO + сезонный топ.
+                        </div>
+                        <button class="modal-btn" id="duel-find-btn">⚔️ Найти противника</button>
+                    </div>
                 </div>
 
-                <button class="modal-btn cancel" data-action="close-modal" style="margin-top:14px;">Закрыть</button>
+                <details style="margin-top:10px;background:#1a1a1c;border-radius:6px;padding:8px 12px;">
+                    <summary style="cursor:pointer;font-size:12px;color:#adadb8;">🏆 Рейтинг сезона</summary>
+                    <div style="margin-top:8px;font-size:12px;">
+                        ${_renderSeasonEnd(lbData.ends_at, lbData.prizes, lbData.elo_gate)}
+                        <div>${_renderLeaderboard(lbData.leaderboard || [])}</div>
+                    </div>
+                </details>
+
+                <button class="modal-btn cancel" data-action="close-modal" style="margin-top:10px;">Закрыть</button>
             </div>
         `;
 

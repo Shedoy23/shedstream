@@ -177,7 +177,11 @@ function setupCspSafeHandlers() {
         // legacy-actions удалены 2026-05-10 (Phase 1.A/1.C compliance rework)
         if (action === 'cases') openCasesModal();
         else if (action === 'tictactoe') openTicTacToeModal();
-        else if (action === 'dice') openDiceModal();
+        // 2026-09-01: ветка кубиков УДАЛЕНА вместе с заморозкой механики —
+        // dice.js больше не грузится ни одной оболочкой, и линтер no-undef
+        // справедливо ловил обращение к несуществующей функции. Это тот же
+        // класс, что месяцами держал мёртвым магазин RimWorld.
+        else if (action === 'tug') openTugModal();
         else if (action === 'guilds') openGuildsModal();
         else if (action === 'voting') openVotingModal();
         else if (action === 'pets') openPetsModal();

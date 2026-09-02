@@ -398,7 +398,12 @@ MATCHMAKING_INTERVAL = 5
 # 'rps'       — legacy дуэли (Phase 1.F убрала ставки, остался ELO-only)
 # 'tictactoe' — Phase 5.1 MVP
 # 'dice'      — Phase 5.2 (vs bot + PvP)
-MATCHMAKING_GAME_TYPES = ('rps', 'tictactoe', 'dice')
+# 2026-09-01: 'dice' УБРАН — кубики заморожены, их место занял канат
+# (`routes/tugofwar.py`). Убирать надо здесь, а не только кнопку во фронте:
+# очередь матчей общая, и без этой строки зритель встал бы в очередь на
+# кубики прямым запросом. Разморозка = вернуть строку и карточку в обе
+# оболочки одновременно.
+MATCHMAKING_GAME_TYPES = ('rps', 'tictactoe')
 
 # ELO-spread по умолчанию (если юзер не указал свой).
 MATCHMAKING_DEFAULT_ELO_SPREAD = 100

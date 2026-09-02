@@ -832,3 +832,38 @@ randomness — `rps.py` never calls its RNG, and as of this version `tictactoe.p
 contains no randomness at all: the turn-timeout auto-move now takes the first
 free cell instead of a random one. The desktop view is unchanged, as rule 3.5
 concerns the mobile view.
+
+## Добавлено 2026-09-01 (вечер) — канат вместо кубиков
+
+- **Новая механика «🪢 Перетягивание каната»** в обеих оболочках. Зритель
+  выбирает сторону и тянет канат одной кнопкой; позиция каната считается
+  опубликованной целочисленной формулой, вклад каждого тапа затухает, вклад
+  команды нормируется на её размер, а размер фиксируется в момент закрытия
+  приёма. Случайности в механике нет ни одной — ни в распределении по командам,
+  ни в разрешении ничьей.
+
+- **Крустики за участие, а не за победу.** Каждый, кто набрал минимум тапов,
+  получает одинаковый фиксированный кредит — победитель, проигравший и при
+  ничьей. Победа даёт только статус. Это прямое требование комплаенс-ревью:
+  цепочка «выбрал сторону → исход зависит не от тебя → получил валюту» читается
+  как ставка, и после отказа по правилу 3.5 нам она не нужна.
+
+- **Правила раунда показываются ДО выбора стороны**, прямо в модалке, и все их
+  числа приходят с сервера — во фронте копий нет.
+
+- **Кубики заморожены.** Карточка и скрипт убраны из обеих оболочек, старт
+  партии против бота отвечает отказом, `dice` убран из общей очереди матчей.
+  Сезонная таблица и история остаются читаемыми. Сборка при этом похудела на
+  26 КБ — запас под лимитом правила 3.2 стал больше.
+
+**English (for the submission form).** A new mechanic, Tug of War, replaces the
+dice game in both views. Viewers pick a side and pull a rope with a single
+button; the rope position is computed by a published integer formula, each tap's
+value decays, and a team's contribution is normalised by a team size frozen when
+the join window closes. There is no randomness anywhere in the mechanic: sides
+are chosen by the viewer, and a draw stays a draw. Currency is granted for
+participation — the same fixed amount for winners and losers alike — while
+winning grants status only. The round rules, including the exact formula, are
+shown in the extension before a viewer joins. The dice game has been frozen: its
+card and script are gone from both views and the backend refuses new dice
+matches.

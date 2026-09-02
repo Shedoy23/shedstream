@@ -215,6 +215,45 @@
   loadPause();
   </script>
 
+  <!-- Канат (2026-09-01). Раунд запускает стример: авто-старта по таймеру нет
+       намеренно — механика шумная, и решать, когда её включать, должен человек. -->
+  <div class="section">
+    <h2>🪢 Перетягивание каната</h2>
+    <div class="sub">
+      Зрители выбирают сторону и тянут канат. Крустики выдаются <b>за участие</b>,
+      одинаково победителям и проигравшим; победа даёт только статус. Приём заявок
+      идёт первые секунды раунда, дальше тяга. Заменило кубики.
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <input id="tug-a" placeholder="Синие" style="flex:1;min-width:120px;padding:6px;">
+      <input id="tug-b" placeholder="Красные" style="flex:1;min-width:120px;padding:6px;">
+      <button class="mod-btn" onclick="startTug()">Запустить раунд</button>
+    </div>
+    <div id="tug-msg" class="boosty-msg"></div>
+  </div>
+  <script>
+  async function startTug(){
+    var a = (document.getElementById('tug-a').value || '').trim();
+    var b = (document.getElementById('tug-b').value || '').trim();
+    var m = document.getElementById('tug-msg');
+    try{
+      const r = await fetch('/api/streamer/tugofwar/start', {method:'POST', credentials:'include',
+        headers:{'Content-Type':'application/json'}, body: JSON.stringify({side_a:a, side_b:b})});
+      const d = await r.json();
+      if(d.status === 'ok'){
+        m.textContent = '✅ Раунд запущен: «' + d.side_a + '» против «' + d.side_b + '»';
+        m.className = 'boosty-msg ok';
+      } else if(d.status === 'already_running'){
+        m.textContent = 'Раунд уже идёт — дождись его конца.';
+        m.className = 'boosty-msg err';
+      } else {
+        m.textContent = 'Ошибка: ' + (d.status || 'не удалось');
+        m.className = 'boosty-msg err';
+      }
+    } catch(e){ m.textContent = 'Network error: ' + e.message; m.className = 'boosty-msg err'; }
+  }
+  </script>
+
   <!-- Переключатель активного модуля -->
   <div class="section">
     <h2>🎮 Активный модуль расширения</h2>

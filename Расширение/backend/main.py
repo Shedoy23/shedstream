@@ -79,6 +79,7 @@ from routes.tictactoe  import router as tictactoe_router  # Phase 5.1 (2026-05-1
 from routes.dice       import router as dice_router       # Phase 5.2 (2026-05-11)
 from routes.guilds     import router as guilds_router     # Phase 3 (2026-05-11)
 from routes.voting     import router as voting_router     # Phase 4 (2026-05-11)
+from routes.tugofwar   import router as tugofwar_router   # 2026-09-01: канат вместо кубиков
 from routes.pets       import router as pets_router       # Phase 7 (2026-05-12)
 from routes.tts        import router as tts_router        # Sprint 5.23 (2026-05-21)
 from routes.notices    import router as notices_router    # M103 (2026-07-29)
@@ -121,6 +122,7 @@ app.include_router(tictactoe_router)   # Phase 5.1 (2026-05-11): TicTacToe MVP
 app.include_router(dice_router)        # Phase 5.2 (2026-05-11): Dice match
 app.include_router(guilds_router)      # Phase 3 (2026-05-11): Guilds base
 app.include_router(voting_router)      # Phase 4 (2026-05-11): Voting events
+app.include_router(tugofwar_router)    # 2026-09-01: «Перетягивание каната»
 app.include_router(pets_router)        # Phase 7 (2026-05-12): Pets MVP (cross-channel)
 app.include_router(tts_router)         # Sprint 5.23 (2026-05-21): TTS «Озвучить сообщение»
 app.include_router(notices_router)     # M103 (2026-07-29): причина отказа доходит до зрителя
@@ -192,6 +194,7 @@ _EXTENSION_FILES = {
     # обязан появиться в этой таблице, иначе его просто нет для браузера.
     "/pet-layout.js":  "pet-layout.js",
     "/realtime.js":    "realtime.js",   # Phase C: PubSub realtime bus
+    "/tugofwar.js":    "tugofwar.js",  # 2026-09-01: канат вместо кубиков
     "/privacy.html":   "privacy.html",  # Twitch submission: Privacy Policy URL
     "/terms.html":     "terms.html",    # Twitch submission: Terms of Service URL
     # 2026-09-01: записка для краулеров. Без неё поисковики качали 67-МБ архивы
@@ -222,6 +225,7 @@ _EXTENSION_FILES_PREFIXED = {
     "/frontend/pet-stage.js":   "pet-stage.js",  # Sprint 5.21
     "/frontend/pet-layout.js":  "pet-layout.js",
     "/frontend/realtime.js":    "realtime.js",   # Phase C
+    "/frontend/tugofwar.js":    "tugofwar.js",   # 2026-09-01
     "/frontend/privacy.html":   "privacy.html",
     "/frontend/terms.html":     "terms.html",
 }
@@ -1496,6 +1500,13 @@ async def run_migrations():
             await m119_actions_pause.apply(conn)
         except Exception as e:
             print(f"❌ M119 migration FAILED: {type(e).__name__}: {e}")
+            raise
+
+        try:
+            from migrations import m120_tug_of_war
+            await m120_tug_of_war.apply(conn)
+        except Exception as e:
+            print(f"❌ M120 migration FAILED: {type(e).__name__}: {e}")
             raise
 
         print("✅ Migrations complete")

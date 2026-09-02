@@ -92,11 +92,16 @@
                         <div class="bot-card-sub" id="ttt-state">PvP · ELO</div>
                     </div>
                 </div>
-                <div class="action-card bot-card" data-action="dice">
-                    <div class="bot-card-icon">🎲</div>
+                <!-- 2026-09-01: канат ЗАМЕНИЛ кубики (решение владельца, правило
+                     «фича входит — фича выходит»). В кубиках случайность
+                     неустранима, и именно они стоят первыми в претензии Twitch
+                     по правилу 3.5. Здесь исход считает опубликованная формула,
+                     а крустики выдаются за участие, а не за победу. -->
+                <div class="action-card bot-card" data-action="tug">
+                    <div class="bot-card-icon">🪢</div>
                     <div class="bot-card-body">
-                        <div class="bot-card-title">Кубики</div>
-                        <div class="bot-card-sub" id="dice-state">2d6 · бот/PvP</div>
+                        <div class="bot-card-title">Канат</div>
+                        <div class="bot-card-sub" id="tug-state">Командная тяга</div>
                     </div>
                 </div>
                 <div class="action-card bot-card" data-action="duels">
@@ -585,7 +590,7 @@
     <script src="shop.js?v=202608051239"></script>
     <script src="cases.js?v=202608051239"></script>
     <script src="tictactoe.js?v=202608051239"></script>
-    <script src="dice.js?v=202608051239"></script>
+    <script src="tugofwar.js?v=202608051239"></script>
     <script src="guilds.js?v=202608051239"></script>
     <script src="voting.js?v=202608051239"></script>
     <!-- pet-stage.js: PNG pixel-art creature (Sprint 5.28). MUST загружаться ДО pets.js -->

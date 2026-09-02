@@ -37,12 +37,31 @@ namespace BannerlordLink.Patches
         public static System.Collections.Generic.IEnumerable<System.Reflection.MethodBase>
             TargetMethods()
         {
-            var t = AccessTools.TypeByName(
-                "TaleWorlds.MountAndBlade.MissionAgentSpawnLogic");
+            // 2026-09-02 (1.4.8): класс ПЕРЕИМЕНОВАН —
+            // MissionAgentSpawnLogic → DefaultBattleMissionAgentSpawnLogic.
+            // Метод и смысл те же: IsSideDepleted(BattleSideEnum).
+            // Проверено списком классов сборки, а не догадкой: grep по бинарнику
+            // находил старое имя как ПОДСТРОКУ нового и уводил в сторону.
+            //
+            // Имена перебираем по порядку — новое первым. Так мод остаётся
+            // рабочим и на 1.3.15, если придётся откатить игру: откат мы держим
+            // как реальный вариант (`BANNERLORD_COMPAT_MATRIX.md`).
+            System.Type t = null;
+            string resolvedName = null;
+            foreach (var candidate in new[]
+                     {
+                         "TaleWorlds.MountAndBlade.DefaultBattleMissionAgentSpawnLogic", // 1.4.8+
+                         "TaleWorlds.MountAndBlade.MissionAgentSpawnLogic",              // 1.3.15
+                     })
+            {
+                t = AccessTools.TypeByName(candidate);
+                if (t != null) { resolvedName = candidate; break; }
+            }
             if (t == null)
             {
                 BannerlordLinkModule.Log(
-                    "[IsSideDepleted] MissionAgentSpawnLogic type не найден — patch skip");
+                    "[IsSideDepleted] ни DefaultBattleMissionAgentSpawnLogic, ни "
+                    + "MissionAgentSpawnLogic не найдены — patch skip");
                 yield break;
             }
             var m = AccessTools.Method(t, "IsSideDepleted");
@@ -53,7 +72,8 @@ namespace BannerlordLink.Patches
                 yield break;
             }
             BannerlordLinkModule.Log(
-                "[IsSideDepleted] postfix registered (anti-depletion для adopted heroes)");
+                "[IsSideDepleted] postfix registered на " + resolvedName
+                + " (anti-depletion для adopted heroes)");
             yield return m;
         }
 

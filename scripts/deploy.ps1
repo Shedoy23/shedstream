@@ -130,6 +130,24 @@ function Warn($m){ Write-Host "[!] $m" -ForegroundColor Yellow }
 
 # -- 1. Mod: build + copy DLL into game ------------------------------------
 if ($Mod) {
+    # 2026-09-02: guard against a running game OR LAUNCHER holding the DLL.
+    # CLAUDE.md has warned about this since day one ("game may be running -
+    # holds the mod DLL, the copy will fail"), but nothing checked it. That day
+    # the copy failed with "file in use" while Bannerlord.exe was NOT running:
+    # the launcher (TaleWorlds.MountAndBlade.Launcher) and Watchdog held it.
+    # A name mask of 'Bannerlord*' misses both, so match on the game PATH.
+    $holders = Get-Process -ErrorAction SilentlyContinue |
+        Where-Object { $_.Path -and $_.Path.StartsWith($GamePath, 'OrdinalIgnoreCase') }
+    if ($holders -and -not $DryRun) {
+        Write-Host ''
+        Write-Host '  MOD COPY BLOCKED -- the game folder is in use' -ForegroundColor Red
+        foreach ($h in $holders) { Write-Host ("    {0} (pid {1})" -f $h.ProcessName, $h.Id) }
+        Write-Host ''
+        Write-Host '  Close the game AND the launcher, then run again.'
+        Write-Host '  (The launcher alone is enough to lock BannerlordLink.dll.)'
+        Write-Host ''
+        throw "Mod copy aborted: game/launcher running"
+    }
     Info "Building mod (Release)..."
     if (-not $DryRun) {
         & dotnet build $ModSrc -c Release -v minimal

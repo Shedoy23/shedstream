@@ -246,6 +246,18 @@ async def check_season_end(channel_id: int = None):
             "INSERT INTO duel_seasons (channel_id, game_type, started_at, ends_at, finished) "
             "VALUES (?, ?, ?, ?, 0)",
             (cid, GAME_TYPE, now.isoformat(), _next_season_end().isoformat()))
+        new_season_id = (await (await conn.execute("SELECT last_insert_rowid()")).fetchone())[0]
+
+        # 2026-09-02: СБРОС рейтингов на новый сезон. Строки не было — я
+        # «дословно копировал» логику крестиков и потерял ровно её. Без сброса
+        # рейтинг копится через сезоны: топ-3 замирает на первых игроках, и приз
+        # каждый сезон уходит одним и тем же, а новичок не догонит никогда.
+        # Тест этого не поймал, потому что проверял ОДНО закрытие сезона, а не
+        # следующий за ним. Класс: «скопировал форму, потерял часть содержимого».
+        await conn.execute(
+            "UPDATE duel_stats SET elo = ?, win_streak = 0, season_id = ? "
+            "WHERE channel_id = ? AND game_type = ?",
+            (ELO_START, new_season_id, cid, GAME_TYPE))
         await conn.commit()
 
 

@@ -232,6 +232,39 @@ async def test_season_pays_top_and_only_once(db, tug):
               "повторные проходы не платят второй раз")
 
 
+async def test_new_season_resets_ratings(db, tug):
+    print("")
+    print("[5] Новый сезон начинается с чистых рейтингов")
+    # Найти сезон, который открылся после выплаты в тесте [4], и просрочить его.
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT id FROM duel_seasons WHERE channel_id=? AND game_type=? AND finished=0 "
+            "ORDER BY id DESC LIMIT 1", (CHANNEL_ID, tug.GAME_TYPE))
+        season_id = (await cur.fetchone())[0]
+        # Игрок унёс рейтинг из прошлого сезона — так и копится «вечный топ».
+        await conn.execute(
+            "UPDATE duel_stats SET elo=?, season_id=? WHERE channel_id=? AND username='alice' "
+            "AND game_type=?", (1500, season_id, CHANNEL_ID, tug.GAME_TYPE))
+        past = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+        await conn.execute("UPDATE duel_seasons SET ends_at=? WHERE id=?", (past, season_id))
+        await conn.commit()
+
+    await tug.check_season_end(CHANNEL_ID)
+
+    assert_eq(await _elo(db, CHANNEL_ID, "alice", tug), tug.ELO_START,
+              "рейтинг сброшен на стартовый")
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT s.id FROM duel_seasons s WHERE s.channel_id=? AND s.game_type=? "
+            "AND s.finished=0 ORDER BY s.id DESC LIMIT 1", (CHANNEL_ID, tug.GAME_TYPE))
+        new_season = (await cur.fetchone())[0]
+        cur2 = await conn.execute(
+            "SELECT season_id FROM duel_stats WHERE channel_id=? AND username='alice' "
+            "AND game_type=?", (CHANNEL_ID, tug.GAME_TYPE))
+        assert_eq((await cur2.fetchone())[0], new_season,
+                  "статистика привязана к НОВОМУ сезону")
+
+
 async def test_channel_isolation(db, tug):
     print("\n[5] Каналы изолированы")
     await _make_room(db, tug, "room-3", channel_id=OTHER_CHANNEL)
@@ -261,6 +294,7 @@ async def _run():
         await test_draw_stays_draw(db, tug)
         await test_decay_and_determinism(tug)
         await test_season_pays_top_and_only_once(db, tug)
+        await test_new_season_resets_ratings(db, tug)
         await test_channel_isolation(db, tug)
         test_no_randomness(tug)
     finally:

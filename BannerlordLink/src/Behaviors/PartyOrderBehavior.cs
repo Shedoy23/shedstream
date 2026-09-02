@@ -456,7 +456,10 @@ namespace BannerlordLink.Behaviors
                 case "siege":    mp.SetMoveBesiegeSettlement(target, navType); break;
                 case "defend":   mp.SetMoveDefendSettlement(target, false, navType); break;
                 case "raid":
-                    if (target.IsVillage) mp.SetMoveRaidSettlement(target, navType);
+                    // 2026-09-02 (1.4.8): у SetMoveRaidSettlement появился третий параметр
+                    // isTargetingPort — это морское расширение. Деревня целью
+                    // порта не бывает, поэтому false.
+                    if (target.IsVillage) mp.SetMoveRaidSettlement(target, navType, false);
                     break;
                 case "garrison": mp.SetMoveGoToSettlement(target, navType, false); break;
                 case "patrol":   mp.SetMovePatrolAroundSettlement(target, navType, false); break;

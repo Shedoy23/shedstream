@@ -1,6 +1,6 @@
 # BannerlordLink — матрица совместимости (COMPAT-3)
 
-> Дата: 2026-05-29 · Mod `Shedoy23.BannerlordLink` v0.1.0
+> Дата: 2026-05-29, переезд на 1.4.8 — 2026-09-02 · Mod `Shedoy23.BannerlordLink` v0.1.1
 > Назначение: что мы патчим, на какой версии игры это валидно, с чем
 > конфликтуем, и как мы защищаемся от version-drift.
 
@@ -10,11 +10,25 @@
 
 | Параметр | Значение |
 |---|---|
-| **Поддерживаемая версия** | Bannerlord **1.3.15.x** (build 110062) |
+| **Поддерживаемая версия** | Bannerlord **1.4.8** (с 2026-09-02; до этого 1.3.15.x build 110062) |
 | **Сборка против** | `X:\SteamLibrary\...\bin\Win64_Shipping_Client\TaleWorlds.*.dll` (1.3.15) |
 | **Runtime** | net472, x64, `Win64_Shipping_Client` |
 | **Почему 1.3.15** | Baseline = BLT-RC22 (Randomchair22 BT 5.2.4) — стабильная ветка для 1.3.15. Все паттерны адаптированы из неё. См. `BLT_RC22_REFERENCE.md`. |
-| **1.4.5+** | ⚠️ Не поддерживается. Naval-расширение сдвинуло сигнатуры; engine-fix-патчи (siege/militia) и DamageHook требуют ре-аудита перед апгрейдом. |
+| **1.4.8** | 🔄 **Переезд 2026-09-02.** Игра обновилась сама, папка мода при этом исчезла. Собирается против 1.4.8 без ошибок после четырёх правок (ниже). **Собирается ≠ работает:** сколько Harmony-патчей не найдёт цель в рантайме, покажет `scripts/triage-mod-log.py` при первом запуске (норма 19 записана с 1.3.15). |
+| **1.3.15** | ✅ Работало. Откат возможен: мод восстанавливается из `dist/releases/BannerlordLink-0.1.1.zip`. |
+
+### Что сдвинулось в 1.4.8 (найдено компилятором, исправлено по декомпиляции)
+
+| API | Было | Стало | Наш файл |
+|---|---|---|---|
+| Кандидаты в армию | `ArmyManagementCalculationModel.GetMobilePartiesToCallToArmy(mp)` | `CanLordCreateArmy(mp, out MBList<MobileParty>)` — тот же список, но за булевым ответом | `ArmyHandlers.cs:107` |
+| Приказ «рейд» | `SetMoveRaidSettlement(settlement, navType)` | `SetMoveRaidSettlement(settlement, navType, bool isTargetingPort)` — **морское расширение**, ровно то, чего опасалась эта матрица | `PartyOrderBehavior.cs:459`, `PartyOrderHandlers.cs:170` |
+| Лимит отрядов клана | `Clan.CommanderLimit` | `Clan.WarPartyLimit` (`ClanTierModel.GetPartyLimitForTier`) | `CreatePartyHandler.cs:113,117` |
+| Спавн бойца | `SpawnTroop(..., forceDismounted:)` | параметра нет; он дублировал `spawnWithHorse`, удалён без изменения смысла | `SummonHeroHandler.cs:416,686` |
+
+**Как чинилось:** каждая замена найдена декомпиляцией игровых сборок
+(`ilspycmd`), а не подбором. Правило `LESSONS.md` «декомпилируй до причины»
+работает и на переезде версий, не только на крашах.
 
 ### Обязательные зависимости (`SubModule.xml`, все `LoadBeforeThis`)
 - `Bannerlord.Harmony` — обязательно (весь patch-слой)

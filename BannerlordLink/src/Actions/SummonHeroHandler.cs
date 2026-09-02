@@ -413,7 +413,9 @@ namespace BannerlordLink.Actions
                         formationTroopIndex: 0,
                         isAlarmed:           true,
                         wieldInitialWeapons: true,
-                        forceDismounted:     !withHorse,
+                        // 2026-09-02 (1.4.8): параметра forceDismounted в SpawnTroop
+                        // больше нет. Смысл он дублировал: стоял `!withHorse` при
+                        // `spawnWithHorse: withHorse`. Удаление ничего не меняет.
                         initialPosition:     heroSpawnPos,
                         initialDirection:    heroSpawnDir,
                         formationIndex:      spawnFormation);
@@ -683,7 +685,9 @@ namespace BannerlordLink.Actions
                                     formationTroopIndex: 0,
                                     isAlarmed:           true,
                                     wieldInitialWeapons: true,
-                                    forceDismounted:     SiegeForcesDismount(),
+                                    // 2026-09-02 (1.4.8): forceDismounted убран из
+                                    // сигнатуры. Дублировал spawnWithHorse выше:
+                                    // при SiegeForcesDismount()==true тот уже false.
                                     initialPosition:     spawnPos,
                                     initialDirection:    anchorDir);
                             }

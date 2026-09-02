@@ -103,13 +103,18 @@ namespace BannerlordLink.Actions
                 int callCount = 0;
                 try
                 {
-                    var candidates = Campaign.Current.Models.ArmyManagementCalculationModel
-                        .GetMobilePartiesToCallToArmy(mp);
-                    if (candidates != null) { toCall.AddRange(candidates); callCount = toCall.Count; }
+                    // 2026-09-02 (1.4.8): GetMobilePartiesToCallToArmy из модели
+                    // исчез. Кандидатов теперь отдаёт CanLordCreateArmy через out —
+                    // тот же список, только за булевым ответом «а может ли вообще».
+                    // Проверено по декомпиляции ArmyManagementCalculationModel.
+                    TaleWorlds.Library.MBList<MobileParty> candidates;
+                    if (Campaign.Current.Models.ArmyManagementCalculationModel
+                            .CanLordCreateArmy(mp, out candidates) && candidates != null)
+                    { toCall.AddRange(candidates); callCount = toCall.Count; }
                 }
                 catch (Exception mEx)
                 {
-                    BannerlordLinkModule.Log($"[army_create] GetMobilePartiesToCallToArmy warn @{username}: {mEx.Message}");
+                    BannerlordLinkModule.Log($"[army_create] CanLordCreateArmy warn @{username}: {mEx.Message}");
                 }
 
                 // Влияние — естественная in-game цена созыва партий. Зритель платит

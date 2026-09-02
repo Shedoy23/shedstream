@@ -167,7 +167,9 @@ namespace BannerlordLink.Actions
                     case "raid":
                         if (target.IsVillage)
                         {
-                            mp.SetMoveRaidSettlement(target, navType);
+                            // 2026-09-02 (1.4.8): третий параметр isTargetingPort — морское
+                            // расширение; деревня портом не бывает.
+                            mp.SetMoveRaidSettlement(target, navType, false);
                             BannerlordLinkModule.Log(
                                 $"[party_order] @{username} → RAID '{targetName}'");
                         }

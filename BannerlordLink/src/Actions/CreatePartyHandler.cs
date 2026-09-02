@@ -109,12 +109,16 @@ namespace BannerlordLink.Actions
                     BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "already_in_party");
                     return;
                 }
+                // 2026-09-02 (1.4.8): Clan.CommanderLimit больше нет. Тот же смысл
+                // теперь у WarPartyLimit — «сколько отрядов клану позволено по
+                // тиру» (ClanTierModel.GetPartyLimitForTier). Проверено по
+                // декомпиляции Clan.
                 if (!hero.IsClanLeader &&
-                    (hero.Clan.WarPartyComponents?.Count ?? 0) >= hero.Clan.CommanderLimit)
+                    (hero.Clan.WarPartyComponents?.Count ?? 0) >= hero.Clan.WarPartyLimit)
                 {
                     BannerlordLinkModule.Log(
                         $"[create_party] REFUSE @{username}: clan party limit " +
-                        $"({hero.Clan.WarPartyComponents.Count}/{hero.Clan.CommanderLimit})");
+                        $"({hero.Clan.WarPartyComponents.Count}/{hero.Clan.WarPartyLimit})");
                     BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "clan_party_limit");
                     return;
                 }

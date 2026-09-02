@@ -1,106 +1,100 @@
 # -*- coding: utf-8 -*-
-"""routes/tugofwar.py — «Перетягивание каната»: массовая механика без случайности.
+"""routes/tugofwar.py — «Канат»: дуэль 1 на 1 с рейтингом и сезоном.
 
-Заменяет кубики (решение владельца 2026-09-01). Кубики морозим: в них
-случайность неустранима, и именно они стоят первыми в претензии Twitch по
-правилу 3.5. Здесь броска нет НИ ОДНОГО — модуль не импортирует `random`, и это
-проверяется тестом грепом, а не обещанием.
+Заменяет кубики (решение владельца 2026-09-01). Устроена ПО ПРИНЦИПУ ОСТАЛЬНЫХ
+игр — крестиков и дуэлей: очередь подбора, комната на двоих, ELO, сезон и призы
+топ-3. Командный вариант был написан в тот же день и по решению владельца убран:
+«не нужен командный, по принципу остальных с сезонами».
 
-## Правила, которые видит зритель (и почему они именно такие)
+## Почему 1v1 важен именно для наград
 
-Разбор комплаенса — `docs/specs/SPEC_TUG_OF_WAR_COMPLIANCE_JIM_2026-08-26.md`,
-вердикт PASS-WITH-CHANGES. Четыре его блокера закрыты так:
+В командном канате приз нельзя было вешать на исход: «выбрал сторону → исход
+зависит не от тебя → получил валюту» читается как ставка
+(`docs/specs/SPEC_TUG_OF_WAR_COMPLIANCE_JIM_2026-08-26.md`, блокер №1). В дуэли
+исход целиком в руках двоих, поэтому сезонный приз по рейтингу стоит ровно на
+той же почве, что у крестиков и дуэлей, — и это ровно тот довод, по которому
+владелец выбирал путь ещё 26.08.
 
-1. **Награда не зависит от исхода.** Каждый, кто набрал минимум эффективных
-   тапов, получает ОДИН И ТОТ ЖЕ фиксированный кредит за участие — и победитель,
-   и проигравший, и ничья. Победившей стороне достаётся только статус (строка
-   результата). Цепочка «выбрал сторону → исход зависит не от тебя → получил
-   валюту» — это то, что читается как ставка, и её здесь нет.
-2. **Случайности нет нигде.** Стороны выбирает зритель сам, авто-распределения
-   нет; ничья остаётся ничьёй и не разыгрывается монеткой.
-3. **Правила показываются ДО входа в раунд.** Все числа отдаёт `GET status` в
-   поле `rules` — фронт их только печатает (CLAUDE.md, «Тонкий фронт»).
-4. **Нормировка детерминирована и заморожена.** Размер команды фиксируется на
-   закрытии приёма и дальше не меняется, вся математика целочисленная.
+## Механика
 
-## Формула вклада (опубликована зрителю целиком)
+Двое тянут один канат MATCH_SEC секунд. Цена n-го тапа — `max(TAP_MIN, TAP_BASE
+− (n−1)×TAP_DECAY)`: долбить кнопку быстро смысла мало, выигрывает ровный темп и
+терпение. Позиция каната — отношение `(A−B)÷(A+B)` в пределах ±ROPE_LIMIT, всё
+целочисленно. По истечении времени сильнее натянувший побеждает, равенство —
+ничья. **Случайности нет ни одной**: ни в подборе исхода, ни в разрешении
+ничьей. Проверяется тестом грепом по модулю.
 
-n-й тап зрителя за раунд стоит `max(TAP_MIN, TAP_BASE - (n-1) * TAP_DECAY)`
-очков. То есть частое долбление кнопки быстро упирается в пол, а спокойный темп
-двигает канат почти так же — «без напряга» из спеки это не лозунг, а затухание.
+За отдельный матч крустики НЕ платятся — как и в крестиках. Платит только сезон:
+топ-3 по рейтингу на закрытии, порог ELO тот же.
 
-Позиция каната: `pos = eff_a * SCALE / team_a - eff_b * SCALE / team_b`, целочисленно,
-где `team_*` — замороженные размеры команд, а сама позиция — ОТНОШЕНИЕ
-`(A−B)÷(A+B)` в пределах ±`ROPE_LIMIT`. Деление на размер команды и есть
-«нормировка»: команда из двух человек не проигрывает автоматически команде из
-двадцати. Досрочной победы нет — раунд всегда идёт до таймера.
+## Почему сезонные функции скопированы, а не «вынесены в общее»
 
-## Жизненный цикл
-
-`join` (приём) → `pull` (тяга) → `finished`. Переходы ЛЕНИВЫЕ — считаются при
-любом чтении статуса, фонового цикла нет. Причина простая: фоновый цикл может
-умереть молча, и мы это уже проходили (`tests/test_background_loops_survive.py`),
-а ленивый переход не может — он либо посчитался, либо статус никто и не читал.
+В `check_season_end` крестиков сидят три исправленных инцидента: двойная выплата
+без транзакции, незакрывающийся старый сезон и рождение второго живого сезона
+поверх идущего. Общий модуль для четырёх игр — правильная уборка, но делать её
+заодно с новой механикой значит рисковать всеми четырьмя сезонами сразу.
+Копия сохраняет исправления дословно; вынос — отдельной задачей (`DEFERRED.md`).
 """
 from __future__ import annotations
 
+import json
 import logging
 import time
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Request
 
-from dependencies import get_db, require_jwt_user
+from dependencies import get_db, require_jwt_user, resolve_channel_id_or_default
 
 router = APIRouter()
-log = logging.getLogger("rimlink.tugofwar")
+log = logging.getLogger("rimlink.tug")
 
 _AUTH_FAIL = {"success": False, "message": "❌ Требуется авторизация Twitch"}
 
-# ── Параметры. Здесь, а не во фронте: фронт замерзает на CDN Twitch до
-#    следующего ревью, а эти числа входят в ОПУБЛИКОВАННЫЕ правила раунда.
-JOIN_SEC = 20            # приём заявок
-PULL_SEC = 90            # сама тяга
+GAME_TYPE = "tug"
+
+# ── Параметры. На сервере, а не во фронте: фронт замерзает на CDN Twitch до
+#    следующего ревью, а эти числа входят в опубликованные правила матча.
+MATCH_SEC = 45           # длительность дуэли
 TAP_BASE = 100           # цена первого тапа
 TAP_DECAY = 4            # насколько дешевеет каждый следующий
 TAP_MIN = 20             # пол: ниже этого тап не опускается
 TAPS_PER_REQUEST = 10    # больше за один запрос не принимаем
 PULL_COOLDOWN_SEC = 0.8  # и не чаще, чем раз в столько секунд
-SCALE = 1000             # множитель целочисленной нормировки
 ROPE_LIMIT = 10_000      # края каната: ±10000 = одна сторона тянет всё
-QUALIFY_TAPS = 5         # минимум тапов для кредита за участие
-PARTICIPATION_CREDIT = 200   # крустиков КАЖДОМУ квалифицированному, независимо от исхода
 
-MAX_SIDE_NAME = 24
+ELO_START = 1000
+ELO_K = 32
+PRIZES = {1: 300_000, 2: 200_000, 3: 100_000}
+PRIZE_ELO_GATE = 1100
 
 
 def _rules() -> dict:
-    """Правила раунда одним объектом — фронт печатает, не вычисляет."""
+    """Правила матча одним объектом — фронт печатает, не вычисляет."""
     return {
-        "join_sec": JOIN_SEC,
-        "pull_sec": PULL_SEC,
+        "match_sec": MATCH_SEC,
         "tap_base": TAP_BASE,
         "tap_decay": TAP_DECAY,
         "tap_min": TAP_MIN,
         "rope_limit": ROPE_LIMIT,
-        "scale": SCALE,
-        "qualify_taps": QUALIFY_TAPS,
-        "participation_credit": PARTICIPATION_CREDIT,
-        "outcome_reward": 0,
+        "prizes": PRIZES,
+        "prize_elo_gate": PRIZE_ELO_GATE,
+        "match_reward": 0,
         "formula_ru": (
-            f"n-й тап стоит max({TAP_MIN}, {TAP_BASE} − (n−1)×{TAP_DECAY}) очков. "
-            f"Позиция каната = насколько вклад одной команды больше другой: "
-            f"(A−B)÷(A+B), где вклад команды нормирован на её размер "
-            f"(×{SCALE} ÷ размер). Размер команды фиксируется в момент закрытия "
-            "приёма и дальше не меняется. Раунд идёт до конца таймера — "
-            "досрочной победы нет."
+            f"Дуэль длится {MATCH_SEC} секунд. n-й тап стоит "
+            f"max({TAP_MIN}, {TAP_BASE} − (n−1)×{TAP_DECAY}) очков — долбить "
+            "быстро смысла мало, выигрывает ровный темп. Канат показывает, "
+            "насколько один вклад больше другого: (A−B)÷(A+B). Кто натянул "
+            "сильнее к концу времени, тот и выиграл; поровну — ничья, "
+            "победитель не разыгрывается."
         ),
         "reward_ru": (
-            f"Каждый, кто сделал хотя бы {QUALIFY_TAPS} тапов, получает "
-            f"{PARTICIPATION_CREDIT}💎 — одинаково для победившей и проигравшей "
-            "стороны и при ничьей. За победу команды крустики НЕ начисляются: "
-            "победа даёт только статус."
-        ),
+            "Участие бесплатное, за отдельный матч крустики не начисляются. "
+            f"Платит сезон: топ-3 по рейтингу получают {PRIZES[1]:,}💎 / "
+            f"{PRIZES[2]:,}💎 / {PRIZES[3]:,}💎 при рейтинге не ниже "
+            f"{PRIZE_ELO_GATE}."
+        ).replace(",", " "),
     }
 
 
@@ -114,208 +108,254 @@ def _batch_value(already: int, taps: int) -> int:
     return sum(_tap_value(already + i + 1) for i in range(taps))
 
 
-def _rope_pos(eff_a: int, eff_b: int, team_a: int, team_b: int) -> int:
+def _rope_pos(eff_a: int, eff_b: int) -> int:
     """Позиция каната: ОТНОСИТЕЛЬНОЕ преимущество, ±ROPE_LIMIT.
 
-    Первая редакция считала просто разницу нормированных вкладов — и канат
-    улетал за отметку от первой же пачки тапов, потому что нормированный вклад
-    не ограничен ничем. Позиция обязана быть отношением, а не разностью: она
-    показывает, НАСКОЛЬКО одна сторона сильнее другой, а не сколько всего
-    натянули. Иначе раунд заканчивался на первом же участнике.
-
-    Целочисленно и симметрично: `(a−b) × LIMIT ÷ (a+b)`. Пусто с обеих сторон —
-    канат посередине.
+    Отношение, а не разность. Первая (командная) редакция считала разность, и
+    канат улетал за отметку от первой же пачки тапов: разность нормированного
+    вклада ничем не ограничена. Позиция обязана показывать, НАСКОЛЬКО один
+    сильнее другого, а не сколько всего натянули.
     """
-    norm_a = (eff_a * SCALE) // max(1, team_a)
-    norm_b = (eff_b * SCALE) // max(1, team_b)
-    total = norm_a + norm_b
+    total = eff_a + eff_b
     if total <= 0:
         return 0
-    pos = ((norm_a - norm_b) * ROPE_LIMIT) // total
+    pos = ((eff_a - eff_b) * ROPE_LIMIT) // total
     return max(-ROPE_LIMIT, min(ROPE_LIMIT, pos))
 
 
-async def _current_round(conn, channel_id: int) -> Optional[dict]:
-    cur = await conn.execute(
-        "SELECT id, status, side_a, side_b, join_until, pull_until, "
-        "       team_a_size, team_b_size, eff_a, eff_b, pos, result "
-        "FROM tug_rounds WHERE channel_id=? AND status != 'finished' "
-        "ORDER BY id DESC LIMIT 1",
-        (channel_id,))
-    row = await cur.fetchone()
-    if not row:
-        return None
-    keys = ("id", "status", "side_a", "side_b", "join_until", "pull_until",
-            "team_a_size", "team_b_size", "eff_a", "eff_b", "pos", "result")
-    return dict(zip(keys, row))
+def _elo_update(rating: int, opp_rating: int, result: float) -> int:
+    expected = 1 / (1 + 10 ** ((opp_rating - rating) / 400))
+    return round(rating + ELO_K * (result - expected))
 
 
-async def _advance(conn, channel_id: int, rnd: dict) -> dict:
-    """Ленивые переходы фаз. Возвращает раунд в актуальном состоянии.
+# ─── Сезон: копия проверенной логики крестиков под game_type='tug' ────────────
 
-    Здесь же замораживаются размеры команд — ровно один раз, на закрытии
-    приёма. Поздние участники делитель не меняют: иначе ценность уже сделанных
-    чужих тапов задним числом поехала бы, а это непрозрачная переоценка.
-    """
-    now = time.time()
-
-    if rnd["status"] == "join" and now >= rnd["join_until"]:
-        cur = await conn.execute(
-            "SELECT side, COUNT(*) FROM tug_participants "
-            "WHERE channel_id=? AND round_id=? GROUP BY side",
-            (channel_id, rnd["id"]))
-        sizes = {side: n for side, n in await cur.fetchall()}
-        team_a = int(sizes.get("a", 0))
-        team_b = int(sizes.get("b", 0))
-        await conn.execute(
-            "UPDATE tug_rounds SET status='pull', team_a_size=?, team_b_size=? "
-            "WHERE channel_id=? AND id=?",
-            (team_a, team_b, channel_id, rnd["id"]))
-        rnd.update(status="pull", team_a_size=team_a, team_b_size=team_b)
-
-    if rnd["status"] == "pull":
-        pos = _rope_pos(rnd["eff_a"], rnd["eff_b"],
-                        rnd["team_a_size"], rnd["team_b_size"])
-        # Досрочного конца нет намеренно: раунд всегда идёт до таймера.
-        # Ранняя победа означала бы, что исход решает первый успевший, а
-        # опоздавшие тянут вхолостую — и каждое такое правило надо было бы
-        # отдельно объяснять в опубликованных правилах раунда.
-        if now >= rnd["pull_until"]:
-            result = "a" if pos > 0 else ("b" if pos < 0 else "draw")
-            await conn.execute(
-                "UPDATE tug_rounds SET status='finished', result=?, pos=?, "
-                "finished_at=CURRENT_TIMESTAMP WHERE channel_id=? AND id=?",
-                (result, pos, channel_id, rnd["id"]))
-            rnd.update(status="finished", result=result, pos=pos)
-            await _credit_participants(conn, channel_id, rnd["id"])
-    return rnd
+def _next_season_end():
+    now = datetime.now(timezone.utc)
+    days_ahead = (6 - now.weekday()) % 7
+    days_ahead = 14 if days_ahead == 0 else days_ahead + 7
+    target = now + timedelta(days=days_ahead)
+    return target.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
-async def _credit_participants(conn, channel_id: int, round_id: int) -> int:
-    """Фиксированный кредит КАЖДОМУ квалифицированному участнику.
-
-    Не зависит от того, кто победил — в этом весь смысл (блокер №1 ревью).
-    `credited` защищает от повторной выдачи: статус читают многие, а начислить
-    обязаны один раз. Начисление идёт в транзакции вызывающего через
-    `add_points_tx` — по правилу «эффект и деньги в одной транзакции».
-    """
-    cur = await conn.execute(
-        "SELECT username FROM tug_participants "
-        "WHERE channel_id=? AND round_id=? AND credited=0 AND taps >= ?",
-        (channel_id, round_id, QUALIFY_TAPS))
-    winners = [r[0] for r in await cur.fetchall()]
-    if not winners:
-        return 0
-    db = get_db()
-    for username in winners:
-        await db.add_points_tx(conn, username, PARTICIPATION_CREDIT, channel_id)
+async def _ensure_season(conn, channel_id: int) -> int:
+    row = await (await conn.execute(
+        "SELECT id FROM duel_seasons WHERE channel_id = ? AND game_type = ? "
+        "AND finished = 0 ORDER BY id DESC LIMIT 1",
+        (channel_id, GAME_TYPE))).fetchone()
+    if row:
+        return row[0]
+    now = datetime.now(timezone.utc)
     await conn.execute(
-        "UPDATE tug_participants SET credited=1 "
-        "WHERE channel_id=? AND round_id=? AND credited=0 AND taps >= ?",
-        (channel_id, round_id, QUALIFY_TAPS))
-    log.info("[TUG] ch=%s round=%s кредит за участие %s💎 × %d человек",
-             channel_id, round_id, PARTICIPATION_CREDIT, len(winners))
-    return len(winners)
+        "INSERT INTO duel_seasons (channel_id, game_type, started_at, ends_at, finished) "
+        "VALUES (?, ?, ?, ?, 0)",
+        (channel_id, GAME_TYPE, now.isoformat(), _next_season_end().isoformat()))
+    return (await (await conn.execute("SELECT last_insert_rowid()")).fetchone())[0]
 
 
-async def _me(conn, channel_id: int, round_id: int, username: str) -> Optional[dict]:
-    cur = await conn.execute(
-        "SELECT side, taps, effective, credited FROM tug_participants "
-        "WHERE channel_id=? AND round_id=? AND username=?",
-        (channel_id, round_id, username))
-    row = await cur.fetchone()
-    if not row:
-        return None
-    return {"side": row[0], "taps": row[1], "effective": row[2],
-            "credited": bool(row[3])}
+async def _get_or_init_stats(conn, channel_id: int, username: str, season_id: int):
+    row = await (await conn.execute(
+        "SELECT elo, win_streak FROM duel_stats "
+        "WHERE channel_id = ? AND username = ? AND game_type = ?",
+        (channel_id, username.lower(), GAME_TYPE))).fetchone()
+    if row:
+        return row[0], row[1]
+    await conn.execute(
+        "INSERT OR IGNORE INTO duel_stats "
+        "(channel_id, username, game_type, elo, win_streak, season_id) "
+        "VALUES (?, ?, ?, ?, 0, ?)",
+        (channel_id, username.lower(), GAME_TYPE, ELO_START, season_id))
+    return ELO_START, 0
 
 
-def _public(rnd: dict, me: Optional[dict]) -> dict:
-    now = time.time()
-    return {
-        "round_id":   rnd["id"],
-        "status":     rnd["status"],
-        "side_a":     rnd["side_a"],
-        "side_b":     rnd["side_b"],
-        "pos":        rnd["pos"] if rnd["status"] == "finished" else _rope_pos(
-            rnd["eff_a"], rnd["eff_b"], rnd["team_a_size"], rnd["team_b_size"]),
-        "team_a":     rnd["team_a_size"],
-        "team_b":     rnd["team_b_size"],
-        "result":     rnd["result"],
-        "seconds_left": max(0, int((rnd["join_until"] if rnd["status"] == "join"
-                                    else rnd["pull_until"]) - now)),
-        "me":         me,
-    }
+async def _update_stats(conn, channel_id: int, username: str, elo: int, streak: int):
+    await conn.execute(
+        "UPDATE duel_stats SET elo = ?, win_streak = ?, updated_at = CURRENT_TIMESTAMP "
+        "WHERE channel_id = ? AND username = ? AND game_type = ?",
+        (elo, streak, channel_id, username.lower(), GAME_TYPE))
 
 
-async def status_for(username: str, channel_id: int) -> dict:
-    """Состояние раунда + ПОЛНЫЕ правила. Правила отдаём всегда, даже когда
-    раунда нет: зритель обязан прочитать их ДО того, как войдёт (блокер №3).
+async def check_season_end(channel_id: int = None):
+    """Закрыть просроченный сезон, выдать призы топ-3, начать новый.
 
-    Отделено от HTTP-обёртки намеренно: тесты бьют сюда, как в кассу
-    Bannerlord. Гейт, который нельзя прогнать тестом, — это гейт, про который мы
-    узнаём в эфире.
+    Копия `routes/tictactoe.py:check_season_end` с game_type='tug'. В ней три
+    исправленных инцидента, и переписывать их «покрасивее» здесь нельзя:
+    транзакция против двойной выплаты, разбор ВСЕХ незакрытых сезонов и запрет
+    рождать новый сезон поверх живого.
     """
+    cid = channel_id if channel_id else resolve_channel_id_or_default()
     db = get_db()
     async with db._connect() as conn:
-        rnd = await _current_round(conn, channel_id)
-        if rnd:
-            rnd = await _advance(conn, channel_id, rnd)
-            me = await _me(conn, channel_id, rnd["id"], username)
+        await conn.execute("BEGIN IMMEDIATE")
+        rows = await (await conn.execute(
+            "SELECT id, ends_at FROM duel_seasons "
+            "WHERE channel_id = ? AND game_type = ? AND finished = 0 ORDER BY id ASC",
+            (cid, GAME_TYPE))).fetchall()
+        if not rows:
+            await _ensure_season(conn, cid)
             await conn.commit()
-            return {"success": True, "active": rnd["status"] != "finished",
-                    "round": _public(rnd, me), "rules": _rules()}
-        cur = await conn.execute(
-            "SELECT side_a, side_b, result, pos FROM tug_rounds "
-            "WHERE channel_id=? AND status='finished' ORDER BY id DESC LIMIT 1",
-            (channel_id,))
-        last = await cur.fetchone()
-    return {
-        "success": True, "active": False, "round": None, "rules": _rules(),
-        "last": ({"side_a": last[0], "side_b": last[1],
-                  "result": last[2], "pos": last[3]} if last else None),
-    }
+            return
 
-
-async def join_side(username: str, channel_id: int, side: str) -> dict:
-    """Выбрать сторону. Бесплатно. Сторона фиксируется и не меняется."""
-    side = (side or "").strip().lower()
-    if side not in ("a", "b"):
-        return {"success": False, "message": "Выбери сторону: a или b"}
-
-    db = get_db()
-    async with db._connect() as conn:
-        rnd = await _current_round(conn, channel_id)
-        if not rnd:
-            return {"success": False, "message": "Раунд ещё не запущен"}
-        rnd = await _advance(conn, channel_id, rnd)
-        if rnd["status"] != "join":
+        now_utc = datetime.now(timezone.utc)
+        expired = []
+        for r_id, r_ends in rows:
+            r_end = datetime.fromisoformat(r_ends)
+            if r_end.tzinfo is None:
+                r_end = r_end.replace(tzinfo=timezone.utc)
+            if now_utc >= r_end:
+                expired.append(r_id)
+        if not expired:
             await conn.commit()
-            return {"success": False,
-                    "message": "Приём в этом раунде уже закрыт — дождись следующего"}
-        me = await _me(conn, channel_id, rnd["id"], username)
-        if me:
+            return
+
+        live = [r_id for r_id, _ in rows if r_id not in expired]
+        for stale_id in expired[:-1]:
+            await conn.execute(
+                "UPDATE duel_seasons SET finished = 1 WHERE channel_id = ? AND id = ?",
+                (cid, stale_id))
+            log.info("[TUG-SEASON] ch=%s: сезон #%s закрыт без призов", cid, stale_id)
+        season_id = expired[-1]
+
+        top = await (await conn.execute(
+            "SELECT username, elo FROM duel_stats "
+            "WHERE channel_id = ? AND game_type = ? AND season_id = ? AND elo >= ? "
+            "ORDER BY elo DESC LIMIT 3",
+            (cid, GAME_TYPE, season_id, PRIZE_ELO_GATE))).fetchall()
+        for rank, (uname, elo) in enumerate(top, 1):
+            prize = PRIZES.get(rank, 0)
+            if not prize:
+                continue
+            # Выплата и закрытие сезона — ОДНОЙ транзакцией. Иначе падение между
+            # ними оставляет сезон незакрытым при выданных призах, и следующий
+            # проход платит второй раз (инцидент 2026-07-30 в крестиках).
+            await db.add_points_tx(conn, uname, prize, cid)
+            await conn.execute(
+                "INSERT INTO duel_season_payouts "
+                "(channel_id, season_id, game_type, username, rank, elo, amount) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (cid, season_id, GAME_TYPE, uname, rank, elo, prize))
+            log.info("[TUG-SEASON] ch=%s #%s @%s (%s ELO) +%s💎",
+                     cid, rank, uname, elo, prize)
+
+        await conn.execute("UPDATE duel_seasons SET finished = 1 WHERE id = ?", (season_id,))
+        if live:
             await conn.commit()
-            return {"success": False, "side": me["side"],
-                    "message": f"Ты уже за «{rnd['side_a'] if me['side'] == 'a' else rnd['side_b']}» — "
-                               "перебегать нельзя"}
+            return
+        now = datetime.now(timezone.utc)
         await conn.execute(
-            "INSERT INTO tug_participants (channel_id, round_id, username, side) "
-            "VALUES (?, ?, ?, ?)",
-            (channel_id, rnd["id"], username, side))
+            "INSERT INTO duel_seasons (channel_id, game_type, started_at, ends_at, finished) "
+            "VALUES (?, ?, ?, ?, 0)",
+            (cid, GAME_TYPE, now.isoformat(), _next_season_end().isoformat()))
         await conn.commit()
-    return {"success": True, "side": side,
-            "message": f"Ты за «{rnd['side_a'] if side == 'a' else rnd['side_b']}». Тяни!"}
 
 
-async def pull_rope(username: str, channel_id: int, taps: int) -> dict:
-    """Тянуть канат. Бесплатно, крустики не списываются.
+# ─── Комната дуэли ────────────────────────────────────────────────────────────
 
-    Сервер сам считает цену тапов по опубликованной формуле — клиент присылает
-    только их количество, и оно урезается до `TAPS_PER_REQUEST`. Плюс окно между
-    запросами: автокликер не должен решать исход, а затухание и так съедает
-    выгоду от долбления.
+def _fresh_state() -> dict:
+    return {"ends_at": time.time() + MATCH_SEC,
+            "taps": {"a": 0, "b": 0}, "eff": {"a": 0, "b": 0}, "last": {"a": 0.0, "b": 0.0}}
+
+
+def _public_room(room_id: str, p_a: str, p_b: str, state: dict, status: str,
+                 uname: str, outcome: Optional[str]) -> dict:
+    side = "a" if uname == p_a else "b"
+    return {
+        "room_id": room_id,
+        "opponent": p_b if side == "a" else p_a,
+        "my_side": side,
+        "pos": _rope_pos(state["eff"]["a"], state["eff"]["b"]),
+        "my_taps": state["taps"][side],
+        "seconds_left": max(0, int(state["ends_at"] - time.time())),
+        "status": status,
+        "outcome": outcome,
+    }
+
+
+async def _load_active_room(conn, channel_id: int, uname: str):
+    cur = await conn.execute(
+        "SELECT room_id, player_a, player_b, player_a_elo, player_b_elo, state, status, outcome "
+        "FROM match_rooms WHERE channel_id = ? AND game_type = ? "
+        "AND (player_a = ? OR player_b = ?) ORDER BY rowid DESC LIMIT 1",
+        (channel_id, GAME_TYPE, uname, uname))
+    return await cur.fetchone()
+
+
+async def _finalize(conn, db, channel_id: int, room_id: str, p_a: str, p_b: str,
+                    elo_a: int, elo_b: int, state: dict) -> str:
+    """Подвести итог матча: победитель, ELO, серия. Ничья остаётся ничьёй."""
+    eff_a, eff_b = state["eff"]["a"], state["eff"]["b"]
+    if eff_a > eff_b:
+        outcome, winner, res_a = "win_a", p_a, 1.0
+    elif eff_b > eff_a:
+        outcome, winner, res_a = "win_b", p_b, 0.0
+    else:
+        outcome, winner, res_a = "draw", None, 0.5
+
+    new_elo_a = _elo_update(elo_a, elo_b, res_a)
+    new_elo_b = _elo_update(elo_b, elo_a, 1.0 - res_a)
+    await conn.execute(
+        "UPDATE match_rooms SET state = ?, status = 'finished', winner = ?, "
+        "outcome = ?, player_a_elo = ?, player_b_elo = ?, "
+        "finished_at = CURRENT_TIMESTAMP WHERE room_id = ?",
+        (json.dumps(state), winner, outcome, new_elo_a, new_elo_b, room_id))
+
+    season_id = await _ensure_season(conn, channel_id)
+    _, a_streak = await _get_or_init_stats(conn, channel_id, p_a, season_id)
+    _, b_streak = await _get_or_init_stats(conn, channel_id, p_b, season_id)
+    if outcome == "win_a":
+        a_streak, b_streak = a_streak + 1, 0
+    elif outcome == "win_b":
+        a_streak, b_streak = 0, b_streak + 1
+    await _update_stats(conn, channel_id, p_a, new_elo_a, a_streak)
+    await _update_stats(conn, channel_id, p_b, new_elo_b, b_streak)
+    log.info("[TUG] ch=%s room=%s итог=%s (%s против %s)",
+             channel_id, room_id, outcome, eff_a, eff_b)
+    return outcome
+
+
+async def status_for(uname: str, channel_id: int) -> dict:
+    """Состояние моего матча + правила + таблица сезона.
+
+    Отделено от HTTP-обёртки намеренно: тесты бьют сюда. Гейт, который нельзя
+    прогнать тестом, — это гейт, про который узнают в эфире.
     """
+    db = get_db()
+    async with db._connect() as conn:
+        row = await _load_active_room(conn, channel_id, uname)
+        room = None
+        if row:
+            room_id, p_a, p_b, elo_a, elo_b, state_json, status, outcome = row
+            try:
+                state = json.loads(state_json) if state_json else {}
+            except Exception:
+                state = {}
+            if status == "active":
+                if not state.get("ends_at"):
+                    state = _fresh_state()
+                    await conn.execute("UPDATE match_rooms SET state = ? WHERE room_id = ?",
+                                       (json.dumps(state), room_id))
+                if time.time() >= state["ends_at"]:
+                    outcome = await _finalize(conn, db, channel_id, room_id,
+                                              p_a, p_b, elo_a, elo_b, state)
+                    status = "finished"
+                await conn.commit()
+            if state.get("ends_at"):
+                room = _public_room(room_id, p_a, p_b, state, status, uname, outcome)
+
+        cur = await conn.execute(
+            "SELECT username, elo FROM duel_stats WHERE channel_id = ? AND game_type = ? "
+            "ORDER BY elo DESC LIMIT 10", (channel_id, GAME_TYPE))
+        board = [{"username": u, "elo": e} for u, e in await cur.fetchall()]
+        cur2 = await conn.execute(
+            "SELECT ends_at FROM duel_seasons WHERE channel_id = ? AND game_type = ? "
+            "AND finished = 0 ORDER BY id DESC LIMIT 1", (channel_id, GAME_TYPE))
+        srow = await cur2.fetchone()
+    return {"success": True, "room": room, "rules": _rules(),
+            "leaderboard": board, "season_ends_at": srow[0] if srow else None}
+
+
+async def pull_rope(uname: str, channel_id: int, taps: int) -> dict:
+    """Тянуть канат в своём матче. Бесплатно, крустики не списываются."""
     try:
         taps = int(taps)
     except (TypeError, ValueError):
@@ -327,95 +367,57 @@ async def pull_rope(username: str, channel_id: int, taps: int) -> dict:
     now = time.time()
     db = get_db()
     async with db._connect() as conn:
-        rnd = await _current_round(conn, channel_id)
-        if not rnd:
-            return {"success": False, "message": "Раунд ещё не запущен"}
-        rnd = await _advance(conn, channel_id, rnd)
-        if rnd["status"] != "pull":
-            await conn.commit()
-            msg = ("Идёт приём — тяга начнётся, когда он закончится"
-                   if rnd["status"] == "join" else "Раунд закончился")
-            return {"success": False, "message": msg}
-        me = await _me(conn, channel_id, rnd["id"], username)
-        if not me:
-            await conn.commit()
-            return {"success": False,
-                    "message": "Ты не выбрал сторону до закрытия приёма"}
-        cur = await conn.execute(
-            "SELECT last_pull_at FROM tug_participants "
-            "WHERE channel_id=? AND round_id=? AND username=?",
-            (channel_id, rnd["id"], username))
-        last_at = float((await cur.fetchone())[0] or 0)
-        if now - last_at < PULL_COOLDOWN_SEC:
-            await conn.commit()
+        row = await _load_active_room(conn, channel_id, uname)
+        if not row:
+            return {"success": False, "message": "У тебя нет активного матча"}
+        room_id, p_a, p_b, elo_a, elo_b, state_json, status, outcome = row
+        if status != "active":
+            return {"success": False, "message": "Матч уже завершён"}
+        try:
+            state = json.loads(state_json) if state_json else {}
+        except Exception:
+            state = {}
+        if not state.get("ends_at"):
+            state = _fresh_state()
+
+        side = "a" if uname == p_a else "b"
+        if now - float(state["last"].get(side) or 0) < PULL_COOLDOWN_SEC:
             return {"success": False, "message": "Слишком часто — тяни спокойнее"}
 
-        gained = _batch_value(me["taps"], taps)
-        await conn.execute(
-            "UPDATE tug_participants SET taps=taps+?, effective=effective+?, "
-            "last_pull_at=? WHERE channel_id=? AND round_id=? AND username=?",
-            (taps, gained, now, channel_id, rnd["id"], username))
-        col = "eff_a" if me["side"] == "a" else "eff_b"
-        await conn.execute(
-            f"UPDATE tug_rounds SET {col} = {col} + ? WHERE channel_id=? AND id=?",
-            (gained, channel_id, rnd["id"]))
-        rnd[col] += gained
-        rnd = await _advance(conn, channel_id, rnd)
-        me = await _me(conn, channel_id, rnd["id"], username)
+        if now >= state["ends_at"]:
+            outcome = await _finalize(conn, db, channel_id, room_id,
+                                      p_a, p_b, elo_a, elo_b, state)
+            await conn.commit()
+            return {"success": False, "message": "Время матча вышло",
+                    "room": _public_room(room_id, p_a, p_b, state, "finished", uname, outcome)}
+
+        gained = _batch_value(state["taps"][side], taps)
+        state["taps"][side] += taps
+        state["eff"][side] += gained
+        state["last"][side] = now
+        await conn.execute("UPDATE match_rooms SET state = ? WHERE room_id = ?",
+                           (json.dumps(state), room_id))
         await conn.commit()
-    return {"success": True, "gained": gained, "round": _public(rnd, me)}
-
-
-async def start_round(cid: int, side_a: str = "", side_b: str = "") -> dict:
-    """Запустить раунд на канале. Вызывается кабинетом стримера."""
-    side_a = (side_a or "Синие").strip()[:MAX_SIDE_NAME] or "Синие"
-    side_b = (side_b or "Красные").strip()[:MAX_SIDE_NAME] or "Красные"
-
-    now = time.time()
-    db = get_db()
-    async with db._connect() as conn:
-        rnd = await _current_round(conn, cid)
-        if rnd:
-            rnd = await _advance(conn, cid, rnd)
-            if rnd["status"] != "finished":
-                await conn.commit()
-                return {"status": "already_running", "round_id": rnd["id"]}
-        cur = await conn.execute(
-            "INSERT INTO tug_rounds (channel_id, status, side_a, side_b, "
-            " join_until, pull_until) VALUES (?, 'join', ?, ?, ?, ?) RETURNING id",
-            (cid, side_a, side_b, now + JOIN_SEC, now + JOIN_SEC + PULL_SEC))
-        row = await cur.fetchone()
-        await conn.commit()
-    log.info("[TUG] ch=%s раунд запущен: «%s» против «%s»", cid, side_a, side_b)
-    return {"status": "ok", "round_id": row[0] if row else 0,
-            "side_a": side_a, "side_b": side_b}
+    return {"success": True, "gained": gained,
+            "room": _public_room(room_id, p_a, p_b, state, "active", uname, None)}
 
 
 # ── HTTP-обёртки. Тонкие намеренно: тут только авторизация и разбор тела. ──
 
-@router.get("/api/tugofwar/status")
+@router.get("/api/tug/status")
 async def http_status(request: Request):
     auth = require_jwt_user(request)
     if not auth:
         return _AUTH_FAIL
     username, channel_id = auth
+    try:
+        await check_season_end(channel_id)
+    except Exception as e:
+        log.warning("[TUG] check_season_end ch=%s: %s", channel_id, e)
     return await status_for(username, channel_id)
 
 
-@router.post("/api/tugofwar/join")
-async def http_join(request: Request):
-    auth = require_jwt_user(request)
-    if not auth:
-        return _AUTH_FAIL
-    username, channel_id = auth
-    try:
-        body = await request.json()
-    except Exception:
-        body = {}
-    return await join_side(username, channel_id, body.get("side") or "")
-
-
-@router.post("/api/tugofwar/pull")
+@router.post("/api/tug/pull")
 async def http_pull(request: Request):
     auth = require_jwt_user(request)
     if not auth:
@@ -426,16 +428,3 @@ async def http_pull(request: Request):
     except Exception:
         body = {}
     return await pull_rope(username, channel_id, body.get("taps") or 0)
-
-
-@router.post("/api/streamer/tugofwar/start")
-async def http_start(request: Request):
-    from routes.streamer import _read_session_cookie
-    cid = _read_session_cookie(request)
-    if cid is None:
-        return {"status": "unauthenticated"}
-    try:
-        body = await request.json()
-    except Exception:
-        body = {}
-    return await start_round(cid, body.get("side_a") or "", body.get("side_b") or "")

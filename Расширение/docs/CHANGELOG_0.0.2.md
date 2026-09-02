@@ -833,7 +833,7 @@ contains no randomness at all: the turn-timeout auto-move now takes the first
 free cell instead of a random one. The desktop view is unchanged, as rule 3.5
 concerns the mobile view.
 
-## Добавлено 2026-09-01 (вечер) — канат вместо кубиков
+## Добавлено 2026-09-01 (вечер) — канат вместо кубиков (итоговая редакция: дуэль 1×1)
 
 - **Новая механика «🪢 Перетягивание каната»** в обеих оболочках. Зритель
   выбирает сторону и тянет канат одной кнопкой; позиция каната считается
@@ -867,3 +867,34 @@ winning grants status only. The round rules, including the exact formula, are
 shown in the extension before a viewer joins. The dice game has been frozen: its
 card and script are gone from both views and the backend refuses new dice
 matches.
+
+### Поправка того же вечера: канат стал дуэлью 1×1
+
+Первая редакция каната была командной — раунд на весь канал, фикс за участие,
+статус за победу. Владелец: «не нужен командный, по принципу остальных с
+сезонами и т.д надо 1х1». Переделано.
+
+Итоговый канат устроен как крестики и дуэли: общая очередь подбора, комната на
+двоих, рейтинг ELO, сезон и призы топ-3 при рейтинге не ниже порога. **За
+отдельный матч крустики не начисляются** — платит только сезон.
+
+Почему так вышло даже лучше: в командном варианте комплаенс-ревью запрещало
+привязывать валюту к исходу (исход зависит не от тебя одного). В дуэли исход
+целиком в руках двоих, поэтому сезонный приз стоит ровно на той же почве, что у
+остальных игр. Заморозив кубики, мы выключили третью сезонную лестницу — дуэль на
+канате её вернула.
+
+Механика внутри осталась прежней: цена тапа затухает, всё целочисленно, позиция
+каната — отношение вкладов, случайности нет ни одной, правила показываются до
+начала.
+
+**English (for the submission form).** The dice game has been replaced by Tug of
+War, and the mechanic is a 1-versus-1 duel built exactly like the existing
+tic-tac-toe and rock-paper-scissors games: shared matchmaking queue, a two-player
+room, an ELO rating and a season with prizes for the top three. No currency is
+paid for an individual match; only the season pays, subject to a rating
+threshold. Because the outcome of a duel rests entirely with the two players, the
+seasonal prize sits on the same footing as our other skill games. Inside the
+match, each tap's value decays, all arithmetic is integer, the rope position is a
+ratio of the two contributions, the round rules are shown before the match, and
+there is no randomness anywhere in the mechanic.

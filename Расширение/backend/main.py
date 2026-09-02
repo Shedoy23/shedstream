@@ -1502,13 +1502,6 @@ async def run_migrations():
             print(f"❌ M119 migration FAILED: {type(e).__name__}: {e}")
             raise
 
-        try:
-            from migrations import m120_tug_of_war
-            await m120_tug_of_war.apply(conn)
-        except Exception as e:
-            print(f"❌ M120 migration FAILED: {type(e).__name__}: {e}")
-            raise
-
         print("✅ Migrations complete")
 
 
@@ -2342,6 +2335,7 @@ async def on_startup():
     from routes.duel import check_season_end as _duel_season_check
     from routes.dice import check_season_end as _dice_season_check
     from routes.tictactoe import check_season_end as _ttt_season_check
+    from routes.tugofwar  import check_season_end as _tug_season_check
 
     async def _check_all_channel_seasons():
         """M4 follow-up (а): итерация check_season_end по реестру каналов.
@@ -2363,7 +2357,8 @@ async def on_startup():
             cid = int(r['channel_id'])
             for name, check in (("rps", _duel_season_check),
                                 ("dice", _dice_season_check),
-                                ("tictactoe", _ttt_season_check)):
+                                ("tictactoe", _ttt_season_check),
+                                ("tug", _tug_season_check)):
                 try:
                     await check(channel_id=cid)
                 except Exception as e:

@@ -403,7 +403,7 @@ MATCHMAKING_INTERVAL = 5
 # очередь матчей общая, и без этой строки зритель встал бы в очередь на
 # кубики прямым запросом. Разморозка = вернуть строку и карточку в обе
 # оболочки одновременно.
-MATCHMAKING_GAME_TYPES = ('rps', 'tictactoe')
+MATCHMAKING_GAME_TYPES = ('rps', 'tictactoe', 'tug')
 
 # ELO-spread по умолчанию (если юзер не указал свой).
 MATCHMAKING_DEFAULT_ELO_SPREAD = 100

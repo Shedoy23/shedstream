@@ -1,37 +1,38 @@
 """
-test_tugofwar.py — «Перетягивание каната»: награда не за исход, случайности нет.
+test_tugofwar.py — «Канат» 1×1: рейтинг, сезон, ноль случайности.
 
 Standalone (без pytest). Запуск из backend/:
     python tests/test_tugofwar.py
 
-ЗАЧЕМ. Канат заменяет кубики (решение владельца 2026-09-01). Механику до
-написания кода прогнали через комплаенс-ревью
-(`docs/specs/SPEC_TUG_OF_WAR_COMPLIANCE_JIM_2026-08-26.md`, вердикт
-PASS-WITH-CHANGES). Ревью назвало четыре блокера, и каждый из них здесь —
-проверка, а не обещание в докстринге:
+ЗАЧЕМ. Канат заменил кубики (решение владельца 2026-09-01) и устроен ПО ПРИНЦИПУ
+остальных игр: очередь подбора, комната на двоих, ELO, сезон, призы топ-3.
+Командный вариант, написанный в тот же день, убран по решению владельца.
 
-1. **Крустики не зависят от исхода.** Иначе получается цепочка «выбрал сторону →
-   исход зависит не от тебя → получил валюту», а она читается как ставка —
-   особенно после того, как это же расширение уже щёлкнули по правилу 3.5.
-2. **Случайности нет нигде.** Ни в распределении по командам, ни в разрешении
-   ничьей. Проверяем грепом по модулю: обещаниям тут веры нет.
-3. **Сторона фиксируется, приём закрывается.** Перебежать в выигрывающую
-   команду нельзя, войти после закрытия приёма нельзя.
-4. **Нормировка заморожена.** Размер команды фиксируется на закрытии приёма;
-   поздний участник не меняет задним числом ценность чужих тапов.
+Почему 1×1 важен не только для интереса: в командном варианте комплаенс-ревью
+запретило вешать крустики на исход — «выбрал сторону → исход зависит не от тебя →
+получил валюту» читается как ставка. В дуэли исход целиком в руках двоих,
+поэтому сезонный приз стоит на той же почве, что у крестиков и дуэлей.
 
-Плюс две вещи, которые ревью не называло, но которые ломаются тихо:
+Тест держит:
 
-5. Кредит выдаётся ОДИН раз, сколько бы раз ни прочитали статус.
-6. Раунд одного канала не виден другому.
+1. **За матч крустики не платятся.** Платит только сезон — как в крестиках.
+2. **Рейтинг двигается в правильную сторону** и сумма ELO сохраняется.
+3. **Ничья остаётся ничьёй** — победитель не разыгрывается.
+4. **Затухание и детерминизм**: тот же вход даёт тот же результат, тап не падает
+   ниже пола, канат — отношение, а не разность.
+5. **Сезон платит топ-3 и только выше порога ELO**, и платит РОВНО ОДИН РАЗ.
+6. **Каналы изолированы.**
+7. **В модуле нет ни одного обращения к случайности.**
 """
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import sys
 import tempfile
 import time
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 if sys.platform == "win32":
@@ -86,7 +87,7 @@ async def _build_db(db_path: str):
             await conn.execute(
                 "INSERT OR IGNORE INTO channels (channel_id, login, display_name, tier) "
                 "VALUES (?, ?, ?, 'free')", (cid, login, login))
-            for who in ("alice", "bob", "carol"):
+            for who in ("alice", "bob"):
                 await conn.execute(
                     "INSERT INTO viewers (channel_id, username, points) VALUES (?, ?, 0)",
                     (cid, who))
@@ -103,153 +104,149 @@ async def _points(db, channel_id, username):
     return row[0] if row else None
 
 
-async def _close_join(db, channel_id):
-    """Сдвинуть окно приёма в прошлое — фаза перейдёт при первом же чтении."""
-    async with db._connect() as conn:
-        await conn.execute(
-            "UPDATE tug_rounds SET join_until=? WHERE channel_id=? AND status='join'",
-            (time.time() - 1, channel_id))
-        await conn.commit()
-
-
-async def _end_pull(db, channel_id):
-    async with db._connect() as conn:
-        await conn.execute(
-            "UPDATE tug_rounds SET pull_until=? WHERE channel_id=? AND status='pull'",
-            (time.time() - 1, channel_id))
-        await conn.commit()
-
-
-async def _reset_cooldown(db, channel_id):
-    async with db._connect() as conn:
-        await conn.execute(
-            "UPDATE tug_participants SET last_pull_at=0 WHERE channel_id=?",
-            (channel_id,))
-        await conn.commit()
-
-
-async def test_reward_is_not_outcome_contingent(db, tug):
-    print("\n[1] Крустики за участие, а не за победу")
-    await tug.start_round(CHANNEL_ID, "Синие", "Красные")
-    await tug.join_side("alice", CHANNEL_ID, "a")
-    await tug.join_side("bob", CHANNEL_ID, "b")
-    await _close_join(db, CHANNEL_ID)
-
-    # alice тянет много, bob — ровно минимум. Победа достанется alice.
-    for _ in range(3):
-        await tug.pull_rope("alice", CHANNEL_ID, 10)
-        await _reset_cooldown(db, CHANNEL_ID)
-    await tug.pull_rope("bob", CHANNEL_ID, tug.QUALIFY_TAPS)
-    await _reset_cooldown(db, CHANNEL_ID)
-
-    await _end_pull(db, CHANNEL_ID)
-    res = await tug.status_for("alice", CHANNEL_ID)
-
-    assert_eq(res["round"]["result"], "a", "победила сторона, которая тянула сильнее")
-    assert_eq(await _points(db, CHANNEL_ID, "alice"), tug.PARTICIPATION_CREDIT,
-              "победитель получил фиксированный кредит за участие")
-    assert_eq(await _points(db, CHANNEL_ID, "bob"), tug.PARTICIPATION_CREDIT,
-              "ПРОИГРАВШИЙ получил РОВНО СТОЛЬКО ЖЕ")
-    assert_eq(res["rules"]["outcome_reward"], 0,
-              "в правилах прямо сказано: за исход крустики не начисляются")
-
-
-async def test_below_floor_gets_nothing(db, tug):
-    print("\n[2] Открыл панель и ушёл — кредита нет")
-    await tug.start_round(CHANNEL_ID, "Синие", "Красные")
-    await tug.join_side("carol", CHANNEL_ID, "a")
-    await _close_join(db, CHANNEL_ID)
-    await tug.pull_rope("carol", CHANNEL_ID, tug.QUALIFY_TAPS - 1)
-    await _end_pull(db, CHANNEL_ID)
-    await tug.status_for("carol", CHANNEL_ID)
-    assert_eq(await _points(db, CHANNEL_ID, "carol"), 0,
-              "ниже порога участия — ноль")
-
-
-async def test_no_double_credit(db, tug):
-    print("\n[3] Кредит выдаётся один раз, сколько статус ни читай")
-    before = await _points(db, CHANNEL_ID, "alice")
-    for _ in range(3):
-        await tug.status_for("alice", CHANNEL_ID)
-    assert_eq(await _points(db, CHANNEL_ID, "alice"), before,
-              "повторные чтения статуса не начисляют ещё раз")
-
-
-async def test_side_locked_and_join_closes(db, tug):
-    print("\n[4] Сторону не поменять, после закрытия приёма не войти")
-    await tug.start_round(CHANNEL_ID, "Синие", "Красные")
-    await tug.join_side("alice", CHANNEL_ID, "a")
-    again = await tug.join_side("alice", CHANNEL_ID, "b")
-    assert_eq(again.get("success"), False, "перебежать в другую команду нельзя")
-    assert_eq(again.get("side"), "a", "сторона осталась прежней")
-
-    await _close_join(db, CHANNEL_ID)
-    late = await tug.join_side("bob", CHANNEL_ID, "b")
-    assert_eq(late.get("success"), False, "после закрытия приёма войти нельзя")
-
-
-async def test_team_size_frozen(db, tug):
-    print("\n[5] Размер команды заморожен на закрытии приёма")
+async def _elo(db, channel_id, username, tug):
     async with db._connect() as conn:
         cur = await conn.execute(
-            "SELECT team_a_size, team_b_size FROM tug_rounds "
-            "WHERE channel_id=? ORDER BY id DESC LIMIT 1", (CHANNEL_ID,))
-        team_a, team_b = await cur.fetchone()
-    assert_eq(team_a, 1, "в команде A зафиксирован один участник")
-    assert_eq(team_b, 0, "опоздавший в команду B не попал и делитель не изменил")
-    await _end_pull(db, CHANNEL_ID)
-    await tug.status_for("alice", CHANNEL_ID)
+            "SELECT elo FROM duel_stats WHERE channel_id=? AND username=? AND game_type=?",
+            (channel_id, username, tug.GAME_TYPE))
+        row = await cur.fetchone()
+    return row[0] if row else None
 
 
-async def test_decay_and_determinism(db, tug):
-    print("\n[6] Затухание есть, и оно детерминировано")
-    ten = tug._batch_value(0, 10)
-    assert_eq(ten < tug.TAP_BASE * 10, True,
-              "десять тапов стоят дешевле десяти базовых — затухание работает")
-    assert_eq(tug._batch_value(0, 10), ten, "тот же расчёт даёт тот же результат")
-    assert_eq(tug._tap_value(10_000), tug.TAP_MIN,
-              "цена тапа не падает ниже пола")
-    assert_eq(tug._rope_pos(1000, 1000, 5, 5), 0,
-              "равный вклад равных команд — канат посередине")
-    assert_eq(tug._rope_pos(1000, 1000, 1, 10) > 0, True,
-              "нормировка защищает малую команду")
+async def _make_room(db, tug, room_id: str, channel_id=CHANNEL_ID,
+                     a="alice", b="bob", elo_a=1000, elo_b=1000):
+    """Комната, какой её создаёт общий подбор. Состояние пустое — модуль сам
+    инициализирует его при первом чтении, как в проде."""
+    async with db._connect() as conn:
+        await conn.execute(
+            "INSERT INTO match_rooms (room_id, channel_id, game_type, player_a, player_b, "
+            " player_a_elo, player_b_elo, state, status) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, '{}', 'active')",
+            (room_id, channel_id, tug.GAME_TYPE, a, b, elo_a, elo_b))
+        await conn.commit()
+
+
+async def _expire_match(db, room_id):
+    async with db._connect() as conn:
+        cur = await conn.execute("SELECT state FROM match_rooms WHERE room_id=?", (room_id,))
+        state = json.loads((await cur.fetchone())[0])
+        state["ends_at"] = time.time() - 1
+        state["last"] = {"a": 0.0, "b": 0.0}
+        await conn.execute("UPDATE match_rooms SET state=? WHERE room_id=?",
+                           (json.dumps(state), room_id))
+        await conn.commit()
+
+
+async def _reset_cooldown(db, room_id):
+    async with db._connect() as conn:
+        cur = await conn.execute("SELECT state FROM match_rooms WHERE room_id=?", (room_id,))
+        state = json.loads((await cur.fetchone())[0])
+        state["last"] = {"a": 0.0, "b": 0.0}
+        await conn.execute("UPDATE match_rooms SET state=? WHERE room_id=?",
+                           (json.dumps(state), room_id))
+        await conn.commit()
+
+
+async def test_match_pays_nothing_but_moves_elo(db, tug):
+    print("\n[1] За матч крустики не платятся, рейтинг двигается")
+    await _make_room(db, tug, "room-1")
+    await tug.status_for("alice", CHANNEL_ID)          # инициализация состояния
+    for _ in range(3):
+        await tug.pull_rope("alice", CHANNEL_ID, 10)
+        await _reset_cooldown(db, "room-1")
+    await tug.pull_rope("bob", CHANNEL_ID, 3)
+    await _expire_match(db, "room-1")
+    res = await tug.status_for("alice", CHANNEL_ID)
+
+    assert_eq(res["room"]["outcome"], "win_a", "победил тот, кто натянул сильнее")
+    assert_eq(await _points(db, CHANNEL_ID, "alice"), 0,
+              "победителю за МАТЧ крустики не начислены")
+    assert_eq(await _points(db, CHANNEL_ID, "bob"), 0, "проигравшему тоже ноль")
+    assert_eq(res["rules"]["match_reward"], 0,
+              "в правилах прямо сказано: за матч не платят")
+
+    elo_a = await _elo(db, CHANNEL_ID, "alice", tug)
+    elo_b = await _elo(db, CHANNEL_ID, "bob", tug)
+    assert_eq(elo_a > 1000, True, "рейтинг победителя вырос")
+    assert_eq(elo_b < 1000, True, "рейтинг проигравшего упал")
+    assert_eq(elo_a + elo_b, 2000, "сумма рейтингов сохранилась")
 
 
 async def test_draw_stays_draw(db, tug):
-    print("\n[7] Ничья остаётся ничьёй — никакой монетки")
-    await tug.start_round(OTHER_CHANNEL, "Синие", "Красные")
-    await tug.join_side("alice", OTHER_CHANNEL, "a")
-    await tug.join_side("bob", OTHER_CHANNEL, "b")
-    await _close_join(db, OTHER_CHANNEL)
-    await tug.pull_rope("alice", OTHER_CHANNEL, 6)
-    await tug.pull_rope("bob", OTHER_CHANNEL, 6)
-    await _end_pull(db, OTHER_CHANNEL)
-    res = await tug.status_for("alice", OTHER_CHANNEL)
-    assert_eq(res["round"]["result"], "draw", "равный вклад — ничья, а не победитель")
-    assert_eq(await _points(db, OTHER_CHANNEL, "alice"), tug.PARTICIPATION_CREDIT,
-              "при ничьей кредит всё равно выдан")
-    assert_eq(await _points(db, OTHER_CHANNEL, "bob"), tug.PARTICIPATION_CREDIT,
-              "обоим одинаково")
+    print("\n[2] Ничья остаётся ничьёй, монетку не бросаем")
+    await _make_room(db, tug, "room-2", a="alice", b="bob", elo_a=1200, elo_b=1200)
+    await tug.status_for("alice", CHANNEL_ID)
+    await tug.pull_rope("alice", CHANNEL_ID, 7)
+    await tug.pull_rope("bob", CHANNEL_ID, 7)
+    await _expire_match(db, "room-2")
+    res = await tug.status_for("bob", CHANNEL_ID)
+    assert_eq(res["room"]["outcome"], "draw", "равный вклад — ничья")
+    async with db._connect() as conn:
+        cur = await conn.execute("SELECT winner FROM match_rooms WHERE room_id='room-2'")
+        assert_eq((await cur.fetchone())[0], None, "победитель не назначен")
+
+
+async def test_decay_and_determinism(tug):
+    print("\n[3] Затухание, пол и детерминизм")
+    ten = tug._batch_value(0, 10)
+    assert_eq(ten < tug.TAP_BASE * 10, True, "десять тапов дешевле десяти базовых")
+    assert_eq(tug._batch_value(0, 10), ten, "тот же вход — тот же результат")
+    assert_eq(tug._tap_value(10_000), tug.TAP_MIN, "цена тапа не ниже пола")
+    assert_eq(tug._rope_pos(500, 500), 0, "равный вклад — канат посередине")
+    assert_eq(tug._rope_pos(1000, 0), tug.ROPE_LIMIT, "односторонняя тяга — край")
+    assert_eq(tug._rope_pos(2000, 1000), tug._rope_pos(200, 100),
+              "позиция — отношение, а не разность")
+
+
+async def test_season_pays_top_and_only_once(db, tug):
+    print("\n[4] Сезон платит топ-3 выше порога и ровно один раз")
+    async with db._connect() as conn:
+        season_id = await tug._ensure_season(conn, CHANNEL_ID)
+        past = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+        await conn.execute("UPDATE duel_seasons SET ends_at=? WHERE id=?", (past, season_id))
+        # alice выше порога, bob — ниже: он не должен получить ничего.
+        await conn.execute(
+            "INSERT OR REPLACE INTO duel_stats "
+            "(channel_id, username, game_type, elo, win_streak, season_id) "
+            "VALUES (?, 'alice', ?, ?, 0, ?)",
+            (CHANNEL_ID, tug.GAME_TYPE, tug.PRIZE_ELO_GATE + 50, season_id))
+        await conn.execute(
+            "INSERT OR REPLACE INTO duel_stats "
+            "(channel_id, username, game_type, elo, win_streak, season_id) "
+            "VALUES (?, 'bob', ?, ?, 0, ?)",
+            (CHANNEL_ID, tug.GAME_TYPE, tug.PRIZE_ELO_GATE - 50, season_id))
+        await conn.commit()
+
+    before_a = await _points(db, CHANNEL_ID, "alice")
+    before_b = await _points(db, CHANNEL_ID, "bob")
+    await tug.check_season_end(CHANNEL_ID)
+    assert_eq(await _points(db, CHANNEL_ID, "alice") - before_a, tug.PRIZES[1],
+              "первое место получило приз")
+    assert_eq(await _points(db, CHANNEL_ID, "bob") - before_b, 0,
+              "рейтинг ниже порога — приза нет")
+
+    after = await _points(db, CHANNEL_ID, "alice")
+    await tug.check_season_end(CHANNEL_ID)
+    await tug.check_season_end(CHANNEL_ID)
+    assert_eq(await _points(db, CHANNEL_ID, "alice"), after,
+              "повторные проходы не платят второй раз")
 
 
 async def test_channel_isolation(db, tug):
-    print("\n[8] Раунды каналов не видят друг друга")
-    await tug.start_round(CHANNEL_ID, "Наши", "Ваши")
+    print("\n[5] Каналы изолированы")
+    await _make_room(db, tug, "room-3", channel_id=OTHER_CHANNEL)
     mine = await tug.status_for("alice", CHANNEL_ID)
     other = await tug.status_for("alice", OTHER_CHANNEL)
-    assert_eq(mine["round"]["side_a"], "Наши", "свой канал видит свой раунд")
-    assert_eq(other.get("active"), False,
-              "на соседнем канале активного раунда нет")
+    assert_eq(other["room"]["room_id"], "room-3", "свой канал видит свою комнату")
+    assert_eq(mine["room"]["room_id"] if mine["room"] else None, "room-2",
+              "чужая комната в свой канал не протекла")
 
 
-def test_no_randomness_in_module(tug):
-    print("\n[9] В модуле нет ни одного обращения к случайности")
+def test_no_randomness(tug):
+    print("\n[6] В модуле нет обращений к случайности")
     src = Path(tug.__file__).read_text(encoding="utf-8")
     code = " ".join(line.split("#", 1)[0] for line in src.splitlines())
-    # Ищем ИМПОРТ и ВЫЗОВ, а не слово: в докстринге модуля слово стоит
-    # намеренно — там объясняется, почему случайности здесь нет.
-    assert_eq("import random" not in code, True,
-              "модуль каната не импортирует random")
+    assert_eq("import random" not in code, True, "модуль не импортирует random")
     for call in ("random.", "randint(", "choice(", "shuffle(", "sample("):
         assert_eq(call not in code, True, f"нет вызова {call}")
 
@@ -260,15 +257,12 @@ async def _run():
     db = await _build_db(db_path)
     from routes import tugofwar as tug
     try:
-        await test_reward_is_not_outcome_contingent(db, tug)
-        await test_below_floor_gets_nothing(db, tug)
-        await test_no_double_credit(db, tug)
-        await test_side_locked_and_join_closes(db, tug)
-        await test_team_size_frozen(db, tug)
-        await test_decay_and_determinism(db, tug)
+        await test_match_pays_nothing_but_moves_elo(db, tug)
         await test_draw_stays_draw(db, tug)
+        await test_decay_and_determinism(tug)
+        await test_season_pays_top_and_only_once(db, tug)
         await test_channel_isolation(db, tug)
-        test_no_randomness_in_module(tug)
+        test_no_randomness(tug)
     finally:
         try:
             await db._pool.close()
@@ -286,7 +280,7 @@ async def _run():
         for f in _failures:
             print(f)
         return 1
-    print("ВСЁ ЗЕЛЁНОЕ — награда за участие, случайности нет, нормировка заморожена")
+    print("ВСЁ ЗЕЛЁНОЕ — матч без выплат, сезон платит топ-3, случайности нет")
     return 0
 
 

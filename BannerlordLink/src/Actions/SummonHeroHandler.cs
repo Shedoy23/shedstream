@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
 using BannerlordLink.Net;
@@ -111,15 +111,50 @@ namespace BannerlordLink.Actions
                 }
 
                 // Sprint 5.15: если hero уже в Mission (auto-spawned engine'ом
-                // как клан-член), НЕ пропускаем — spawn только retinue + heal.
+                // как клан-член), НЕ пропускаем — spawn только retinue.
                 // Свита фантомная (только в нашем backend), engine её не знает.
                 Agent existingAgent = FindExistingHeroAgent(hero);
                 bool heroAlreadySpawned = existingAgent != null;
                 if (heroAlreadySpawned)
                 {
+                    // 2026-09-03 — раньше строка обещала "спавним только retinue
+                    // + heal", но и лечение, и перевод стороны стоят ниже под
+                    // гейтом `!heroAlreadySpawned`. Обещание было ложным и увело
+                    // разбор в сторону: heal здесь не происходит.
                     BannerlordLinkModule.Log(
                         $"[player.spawn:{sideLabel}] @{username}: hero уже в Mission " +
-                        "(engine auto-spawn) — спавним только retinue + heal");
+                        "(engine auto-spawn) — спавнить можно только свиту");
+
+                    // 2026-09-03 — платный тихий no-op. Герой уже на поле: спавнить
+                    // его не нужно, сторону не переводим и не лечим (оба под гейтом
+                    // ниже). Если и свите выходить некуда — действие не сделает
+                    // РОВНО НИЧЕГО, поэтому отказ с возвратом ДО работы, а не
+                    // PostApplied в конце. Найдено живым прогоном 03.09: "призвать
+                    // против стримера" списал 100💎 вчистую и отчитался успехом.
+                    bool retinueCanSpawn = retinueIds != null && retinueIds.Count > 0;
+                    if (retinueCanSpawn && isHideoutMission)
+                    {
+                        // в убежище свита не выходит (лимит 8 агентов) — ниже skip
+                        retinueCanSpawn = false;
+                    }
+                    if (retinueCanSpawn)
+                    {
+                        try
+                        {
+                            retinueCanSpawn = !(BannerlordLink.Behaviors.RetinueSpawnTracker
+                                .Instance?.AlreadySpawned(username) ?? false);
+                        }
+                        catch { }
+                    }
+                    if (!retinueCanSpawn)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[player.spawn:{sideLabel}] REFUSE @{username}: hero уже в бою, " +
+                            "свите выходить некуда — эффекта не будет, возврат");
+                        BannerlordLink.Util.ActionFeedback.PostFailed(
+                            actionId, "already_in_battle_nothing_to_do");
+                        return;
+                    }
                 }
 
                 // Sprint 5.7 — BLT-aligned party selection:
@@ -753,11 +788,14 @@ namespace BannerlordLink.Actions
                         catch { }
                     }
                 }
+                BannerlordLink.Util.ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log(
                     $"[player.spawn:{sideLabel}] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
+                BannerlordLink.Util.ActionFeedback.PostFailed(
+                    actionId, "crashed:" + ex.GetType().Name);
             }
         }
 
@@ -888,7 +926,13 @@ namespace BannerlordLink.Actions
                     bool hasSpawnLogic = false;
                     foreach (var b in m.MissionBehaviors)
                     {
-                        if (b != null && b.GetType().Name == "MissionAgentSpawnLogic")
+                        // Bannerlord <=1.3.x used MissionAgentSpawnLogic directly;
+                        // 1.4.8 registers DefaultBattleMissionAgentSpawnLogic.
+                        // Accept both concrete names so real battles are not
+                        // mistaken for town/arena walk-around missions.
+                        string behaviorName = b?.GetType().Name;
+                        if (behaviorName == "MissionAgentSpawnLogic"
+                            || behaviorName == "DefaultBattleMissionAgentSpawnLogic")
                         {
                             hasSpawnLogic = true;
                             break;
@@ -897,7 +941,7 @@ namespace BannerlordLink.Actions
                     if (!hasSpawnLogic)
                     {
                         BannerlordLinkModule.Log(
-                            "[player.spawn] blocked: миссия без MissionAgentSpawnLogic " +
+                            "[player.spawn] blocked: миссия без battle spawn logic " +
                             "(не боевая → нет reinforcement zone → SpawnTroop crash)");
                         reason = "не боевая миссия (нет зоны подкреплений → краш спавна)";
                         return false;

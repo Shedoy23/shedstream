@@ -1444,6 +1444,87 @@ def check_manager_catch_filters():
                     "16.08 отказ Windows в правах закрыл приложение молча."
                 )
 
+
+def check_refusal_codes_have_text():
+    """Kazhdyy kod otkaza mods PostFailed() imeet frazu v refusals.py.
+
+    Mod otkazyvaet kodom (`hero_not_found`, `no_origin_party`), a viewer
+    dolzhen uvidet frazu. Neizvestnyy kod ne lomaetsya -- describe() otdaet
+    obshchee "Igra otkazala v etom deystvii", i imenno poetomu drift tikhiy:
+    otkaz vyglyadit rabochim, a prichinu viewer ne uznaet nikogda.
+
+    03.09 novyy otkaz already_in_battle_nothing_to_do dobavlen vmeste s
+    frazoy; bez etoy proverki sleduyushchiy uedet bez neyo.
+
+    Proverka zovet nastoyashchuyu describe() -- vtoroy kopii pravil net.
+    Nelinteralnyy reason (peremennaya) propuskaetsya: ego ne razreshit
+    staticheski.
+    """
+    if EXT is None:
+        return
+    refusals_py = EXT / "backend" / "modules" / "bannerlord" / "refusals.py"
+    mod_src = ROOT / "BannerlordLink" / "src"
+    if not refusals_py.is_file() or not mod_src.is_dir():
+        return
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("_refusals", refusals_py)
+    refusals = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(refusals)
+    fallback = getattr(refusals, "_FALLBACK", None)
+    describe = getattr(refusals, "describe", None)
+    if fallback is None or describe is None:
+        warns.append("refusal-codes: refusals.py has no describe/_FALLBACK -- check skipped")
+        return
+
+    # Dolg, unasledovannyy na 03.09: 33 koda uzhe ezdyat bez frazy. Gate
+    # stavim srazu strogim na NOVYE kody, a staryy dolg derzhim spiskom --
+    # inache libo linter krasnyy vsegda, libo 33 viewer-teksta uezzhayut
+    # nerevyuennymi v sessii pro drugoe. Spisok obyazan tolko umenshatsya:
+    # kod, dlya kotorogo fraza poyavilas, linter trebuet otsyuda ubrat.
+    LEGACY_NO_PHRASE = frozenset((
+        "already_adopted", "already_gender", "already_in_kingdom",
+        "already_in_this_clan", "already_pregnant", "attribute_not_found",
+        "campaign_not_started", "children_limit", "clan_eliminated",
+        "clan_full", "clans_unavailable", "culture_recruit_not_found",
+        "gold_not_applied", "heir_dead", "hero_is_prisoner", "is_clan_leader",
+        "kingdom_eliminated", "kingdom_list_unavailable", "kingdom_name_taken",
+        "kingdom_not_found", "no_matching_troop_to_upgrade", "no_settlement",
+        "no_spouse", "no_wanderer_templates", "not_enough_gold", "not_married",
+        "peace_no_effect", "player_clan_forbidden", "pregnant_cannot_become_male",
+        "prisoner", "skill_cap_reached", "skill_xp_not_applied", "troop_maxed",
+    ))
+    seen_legacy = set()
+
+    pattern = re.compile(r'PostFailed\(\s*[^,()]+,\s*"([^"]*)"')
+    for path in sorted(mod_src.rglob("*.cs")):
+        rel = path.relative_to(ROOT).as_posix()
+        if "/bin/" in rel or "/obj/" in rel:
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        for m in pattern.finditer(text):
+            code = m.group(1)
+            if not code:
+                continue
+            head = code.split(":", 1)[0].strip().lower()
+            if describe(code) == fallback:
+                if head in LEGACY_NO_PHRASE:
+                    seen_legacy.add(head)
+                    continue
+                line = text[: m.start()].count(chr(10)) + 1
+                errors.append(
+                    "refusal-codes: %s:%d PostFailed(\"%s\") has no phrase in "
+                    "backend/modules/bannerlord/refusals.py -- viewer gets the "
+                    "generic fallback and never learns the reason." % (rel, line, code)
+                )
+            elif head in LEGACY_NO_PHRASE and head not in seen_legacy:
+                seen_legacy.add(head)
+                errors.append(
+                    "refusal-codes: \"%s\" now HAS a phrase -- remove it from "
+                    "LEGACY_NO_PHRASE in scripts/lint_consistency.py so the debt "
+                    "list keeps shrinking." % head
+                )
+
+
 def main() -> int:
     if EXT is None:
         print("[lint] FAIL: could not locate extension dir (with backend/)")
@@ -1466,7 +1547,8 @@ def main() -> int:
                check_rule_links,
                check_status_is_a_window,
                check_runbook_health,
-               check_manager_catch_filters):
+               check_manager_catch_filters,
+               check_refusal_codes_have_text):
         try:
             fn()
         except Exception as e:  # a broken check shouldn't crash CI silently

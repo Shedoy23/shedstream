@@ -6,10 +6,11 @@
 ## Нужно
 - Minecraft **1.21.1** + **NeoForge**
 - Мод **MineColonies** (той же версии)
-- `shedcolony-0.1.0.jar` (кнопка «Скачать» на shedoy23.ru)
+- `shedcolony-0.1.1.jar` — https://shedoy23.ru/downloads/minecraft/shedcolony-0.1.1.jar
+  (кнопки на сайте нет: качается по прямой ссылке либо ставится через Manager)
 
 ## Шаги
-1. Скачай `shedcolony-0.1.0.jar` и положи в папку `mods/` своего **сервера** (или клиента)
+1. Скачай `shedcolony-0.1.1.jar` и положи в папку `mods/` своего **сервера** (или клиента)
    рядом с MineColonies.
 2. Запусти сервер один раз — мод создаст файл `config/shedcolony.json`.
 3. Открой `config/shedcolony.json` и впиши два значения из своего дашборда
@@ -27,9 +28,9 @@
    из расширения на твоём канале.
 
 ## Целостность
-Сверь скачанный файл: он должен совпасть с `shedcolony-0.1.0.jar.sha256`.
+Сверь скачанный файл: он должен совпасть с `shedcolony-0.1.1.jar.sha256`.
 ```
-sha256sum shedcolony-0.1.0.jar
+sha256sum shedcolony-0.1.1.jar
 ```
 
 ## Помощь

@@ -14,6 +14,7 @@ dispatch_action остаётся stub'ом до Step 3 (action queue).
 """
 from __future__ import annotations
 
+import json
 from typing import Any, Dict
 
 from .._base import ModuleAdapter, ModuleEnvelope
@@ -31,6 +32,10 @@ class RimWorldAdapter(ModuleAdapter):
         бизнес-логика, не lifecycle.
         """
         et = env.type
+        if et == "action.failed":
+            await self._on_action_failed(channel_id, env)
+            return
+
         if et == "module.heartbeat":
             return  # no-op, ping для liveness check'а
 
@@ -67,6 +72,51 @@ class RimWorldAdapter(ModuleAdapter):
         # Unknown тип, не покрыт в manifest'е — manifest.supports_event уже
         # отверг бы это в routes/module_api.py. Сюда попасть не должно.
         print(f"[rimworld:{channel_id}] WARN unhandled event type={et}")
+
+    async def _on_action_failed(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Atomically refund a paid generic action, including progressive price state."""
+        action_id = str(env.data.get("action_id") or "")
+        reason = str(env.data.get("reason") or "failed")[:500]
+        if not action_id:
+            return
+        from dependencies import get_db
+        db = get_db()
+        async with db._connect() as conn:
+            await conn.execute("BEGIN IMMEDIATE")
+            cur = await conn.execute(
+                "SELECT data,error_msg,type FROM module_actions "
+                "WHERE channel_id=? AND module_id='rimworld' AND action_id=?",
+                (channel_id, action_id))
+            row = await cur.fetchone()
+            if not row:
+                await conn.execute("ROLLBACK")
+                return
+            data_raw, previous_error, action_type = row
+            if previous_error and str(previous_error).startswith("REFUNDED:"):
+                await conn.execute("ROLLBACK")
+                return
+            try:
+                data = json.loads(data_raw or "{}")
+            except (TypeError, ValueError):
+                data = {}
+            price = int(data.get("price") or 0)
+            username = str(data.get("initiated_by") or data.get("username") or "").lower()
+            if price > 0 and username:
+                await db.add_points_tx(conn, username, price, channel_id)
+                category = {"add_gene": "gene", "add_trait": "trait"}.get(action_type)
+                if category:
+                    await db.decrement_purchase_count_tx(
+                        conn, username, category, channel_id)
+                marker = f"REFUNDED:{price} reason={reason}"
+            else:
+                marker = f"REFUNDED:0 (no_price) reason={reason}"
+            await conn.execute(
+                "UPDATE module_actions SET status='failed',error_msg=?,acked_at=CURRENT_TIMESTAMP "
+                "WHERE channel_id=? AND module_id='rimworld' AND action_id=?",
+                (marker, channel_id, action_id))
+            await conn.commit()
+        print(f"[rimworld:{channel_id}] action.failed {action_id} reason={reason} "
+              f"refund={price if price > 0 else 0} user=@{username or '?'}")
 
     async def _on_session_start_business(self, channel_id: int, env: ModuleEnvelope) -> None:
         """Session-scoped catalog cleanup per docs/MULTITENANT_PLAN.md §H.

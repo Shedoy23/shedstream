@@ -3,15 +3,15 @@
 **Назначение:** для чата по RimWorld-модулю (legacy + Module API rework).
 Общее — см. `CONTEXT.md`. Bannerlord — `CONTEXT_BANNERLORD.md`.
 
-**Last updated:** 2026-07-29 (трек C аудита работы прогнан впервые: 6 из 8
-механик доказаны прогоном, а не чтением кода)
+**Last updated:** 2026-09-04 (команды и ACK переведены на общий Module API;
+legacy оставлен как автоматический fallback для старого DLL)
 
 ## TL;DR
 
 **Первый** gaming-модуль платформы. **Legacy** code из эпохи single-tenant
 (до multi-tenant refactor). Большая часть прошла через Phase 1-7
-compliance rework — сейчас стабильна, но имеет долг по миграции на
-**Module API** generic pattern (как Bannerlord).
+compliance rework. Команды и ACK уже идут по **Module API** generic pattern
+(как Bannerlord); каталоги и состояние пешек пока остаются на legacy routes.
 
 ## 2026-07-29 — трек C прогнан. И сначала выяснилось, что прогнать его было НЕЧЕМ
 
@@ -261,12 +261,14 @@ TLS на больших телах / другой код-путь отправк
 - `extension.html` tab «🔌 Интеграция» когда active_module='rimworld'
 - Pawn card, equipment, skills, shop, events panel
 
-### 🟡 Pending — Module API migration
+### 🟡 Pending — остаток Module API migration
 
 См. `docs/MODULE_MIGRATION.md` план. Текущий status (примерно):
 - **Step 2 ✓** lifecycle hooks реализованы в adapter
-- **Step 3** ⏳ HTTP transport (mod должен POST events на
-  `/v1/module/rimworld/events` вместо file polling)
+- **Step 3 ✓ (04.09)** новый DLL long-poll'ит `/v1/module/rimworld/actions`
+  и ACK'ает `/v1/module/rimworld/ack`; backend выбирает generic outbox по
+  свежему liveness-сигналу, поэтому старый DLL продолжает legacy без дублей.
+  Отказ атомарно возвращает цену и счётчик прогрессивной покупки.
 - **Step 4-6** ⏳ player events → upsert в rimworld_pawns через adapter
   (вместо legacy /api/rimworld/sync_pawns_bulk)
 

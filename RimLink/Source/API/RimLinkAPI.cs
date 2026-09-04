@@ -34,7 +34,8 @@ namespace RimLink.API
         // WebClient не поддерживает Timeout напрямую — наследуем и переопределяем GetWebRequest
         private class TimedWebClient : WebClient
         {
-            private const int TimeoutMs = 8000; // 8 секунд — достаточно для LAN/VPS
+            // Module API holds an action poll for up to 25 seconds.
+            private const int TimeoutMs = 30000;
             protected override WebRequest GetWebRequest(Uri uri)
             {
                 var r = base.GetWebRequest(uri);
@@ -178,6 +179,45 @@ namespace RimLink.API
         /// </summary>
         public List<Dictionary<string, object>> GetCommands()
         {
+            // New Module API is a long-poll: normally the command reaches the
+            // game within a fraction of a second.  Keep the legacy fetch as a
+            // compatibility drain for commands queued by an older backend.
+            if (!string.IsNullOrEmpty(_mod?.ModuleToken))
+            {
+                try
+                {
+                    string moduleRaw = Get("/v1/module/rimworld/actions?since=0");
+                    var envelope = SimpleJson.Deserialize(moduleRaw);
+                    var result = new List<Dictionary<string, object>>();
+                    if (envelope.TryGetValue("actions", out var actionsObj)
+                        && actionsObj is System.Collections.IEnumerable actions)
+                    {
+                        foreach (var item in actions)
+                        {
+                            var action = item as Dictionary<string, object>;
+                            if (action == null && item is IDictionary<string, object> dict)
+                                action = new Dictionary<string, object>(dict);
+                            if (action == null) continue;
+
+                            var command = new Dictionary<string, object>();
+                            if (action.TryGetValue("data", out var dataObj)
+                                && dataObj is IDictionary<string, object> data)
+                                foreach (var pair in data) command[pair.Key] = pair.Value;
+                            command["id"] = action.TryGetValue("action_id", out var actionId)
+                                ? actionId?.ToString() ?? "" : "";
+                            command["type"] = action.TryGetValue("type", out var actionType)
+                                ? actionType?.ToString() ?? "" : "";
+                            result.Add(command);
+                        }
+                    }
+                    if (result.Count > 0) return result;
+                }
+                catch (Exception e)
+                {
+                    Log.Warning($"[RimLink] Module API unavailable, using legacy queue: {e.Message}");
+                }
+            }
+
             try
             {
                 string raw = Get("/api/rimworld/commands");
@@ -212,6 +252,28 @@ namespace RimLink.API
                 { "success",    success    },
                 { "message",    message    }
             };
+            // A generic ACK for a legacy id returns acked=false, so it is safe
+            // to probe the new endpoint first and fall back to the old one.
+            if (!string.IsNullOrEmpty(_mod?.ModuleToken))
+            {
+                try
+                {
+                    var generic = new Dictionary<string, object>
+                    {
+                        { "action_id", commandId }, { "success", success },
+                        { "error", success ? "" : (message ?? "") }
+                    };
+                    var raw = Post("/v1/module/rimworld/ack", SimpleJson.Serialize(generic));
+                    var response = SimpleJson.Deserialize(raw);
+                    if (response.TryGetValue("acked", out var acked) && acked is bool b && b)
+                    {
+                        error = null;
+                        return true;
+                    }
+                }
+                catch (Exception e) { error = e.Message; }
+            }
+
             bool delivered = PostAndRequireOk(
                 "/api/rimworld/ack-command", SimpleJson.Serialize(d), out error);
             if (delivered)

@@ -13,6 +13,7 @@ icon: "icon.png"
 
 # Стандартные events которые модуль может слать (см. MODULE_API.md §7)
 events:
+  - action.failed
   - module.heartbeat
   - module.session_start
   - module.session_end

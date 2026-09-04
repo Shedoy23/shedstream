@@ -95,7 +95,7 @@ namespace RimLink
                 {
                     // Exponential backoff: 5s → 10s → 20s → 40s → 60s (max) при ошибках
                     int waitMs = _consecutiveErrors == 0
-                        ? COMMAND_POLL_INTERVAL_MS
+                        ? (!string.IsNullOrEmpty(ModuleToken) ? 100 : COMMAND_POLL_INTERVAL_MS)
                         : Math.Min(COMMAND_POLL_INTERVAL_MS * (1 << Math.Min(_consecutiveErrors - 1, 4)), MAX_BACKOFF_MS);
 
                     Thread.Sleep(waitMs);

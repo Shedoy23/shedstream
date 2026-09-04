@@ -419,11 +419,22 @@ async def _charge_and_enqueue(username: str, channel_id: int, price: int,
             # держит запись, поэтому второй запрос дождётся первого и увидит
             # его строку. Снаружи транзакции здесь была бы гонка.
             key = _dedup_key(cmd)
-            cur = await conn.execute(
-                "SELECT cmd_id FROM rimworld_pending_commands "
-                "WHERE channel_id = ? AND dedup_key = ? "
-                "  AND created_at > datetime('now', ?)",
-                (channel_id, key, "-%d seconds" % DEDUP_WINDOW_SEC))
+            import module_liveness
+            use_module_api = await module_liveness.is_on_air(
+                db, channel_id, "rimworld")
+            if use_module_api:
+                cur = await conn.execute(
+                    "SELECT action_id FROM module_actions "
+                    "WHERE channel_id=? AND module_id='rimworld' "
+                    "AND json_extract(data, '$._dedup_key')=? "
+                    "AND created_at > datetime('now', ?)",
+                    (channel_id, key, "-%d seconds" % DEDUP_WINDOW_SEC))
+            else:
+                cur = await conn.execute(
+                    "SELECT cmd_id FROM rimworld_pending_commands "
+                    "WHERE channel_id = ? AND dedup_key = ? "
+                    "  AND created_at > datetime('now', ?)",
+                    (channel_id, key, "-%d seconds" % DEDUP_WINDOW_SEC))
             twin = await cur.fetchone()
             if twin:
                 # Покупка уже идёт. Откатываем и отвечаем УСПЕХОМ: зритель нажал
@@ -446,12 +457,25 @@ async def _charge_and_enqueue(username: str, channel_id: int, price: int,
             # списанными. Дописываем короткий уникальный хвост: за повтор клика
             # теперь отвечает dedup_key, а cmd_id должен просто не повторяться.
             cmd["id"] = "%s_%s" % (cmd.get("id", "cmd"), uuid.uuid4().hex[:6])
-            await conn.execute(
-                "INSERT INTO rimworld_pending_commands "
-                "(channel_id, cmd_id, cmd_json, dedup_key) "
-                "VALUES (?, ?, ?, ?)",
-                (channel_id, cmd["id"],
-                 json.dumps(cmd, ensure_ascii=False), key))
+            if use_module_api:
+                action_data = dict(cmd)
+                action_data.pop("id", None)
+                action_data["price"] = int(price)
+                action_data["initiated_by"] = username.lower()
+                action_data["_dedup_key"] = key
+                await conn.execute(
+                    "INSERT INTO module_actions "
+                    "(channel_id,module_id,action_id,type,data,status) "
+                    "VALUES (?,'rimworld',?,?,?,'queued')",
+                    (channel_id, cmd["id"], cmd.get("type", ""),
+                     json.dumps(action_data, ensure_ascii=False)))
+            else:
+                await conn.execute(
+                    "INSERT INTO rimworld_pending_commands "
+                    "(channel_id, cmd_id, cmd_json, dedup_key) "
+                    "VALUES (?, ?, ?, ?)",
+                    (channel_id, cmd["id"],
+                     json.dumps(cmd, ensure_ascii=False), key))
             if on_success is not None:
                 await on_success(conn)
             await conn.commit()

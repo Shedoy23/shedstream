@@ -41,6 +41,7 @@ if ($LASTEXITCODE -ne 0) {
 $executable = Join-Path $packageDirectory 'ShedLink.Manager.App.exe'
 $manifests = @(
     (Join-Path $packageDirectory 'Release/rimworld-0.1.1.json'),
+    (Join-Path $packageDirectory 'Release/rimworld-0.1.2.json'),
     (Join-Path $packageDirectory 'Release/bannerlord-0.1.1.json')
     (Join-Path $packageDirectory 'Release/shedcolony-0.1.0.json'),
     # 0.1.0 остаётся рядом с 0.1.1 намеренно: по манифесту установленной

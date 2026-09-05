@@ -28,6 +28,10 @@ Standalone (без pytest). Запуск:
 6. Подтверждение чужим зрителем не закрывает чужое уведомление.
 7. Неизвестный код отказа не показывается зрителю сырым и не даёт пустоту.
 8. Известный код переводится в текст, где нет самого кода.
+9. То же для ShedColony: мод шлёт причину строкой `op_failed: <текст>`,
+   зритель получает человеческое объяснение, а не «op_failed». До
+   2026-09-05 модуль ShedColony уведомлений не писал вовсе — возврат
+   крустиков был молчаливым.
 
 Пункт 4 — анти-регресс: соблазнительно писать уведомление до проверки
 идемпотентности, и тогда поздний повтор события даёт второй тост.
@@ -171,6 +175,53 @@ async def test_free_refusal_also_speaks(db):
         assert_eq(rows[1][3], 0, "[3b] у бесплатного отказа сумма ноль")
 
 
+async def test_shedcolony_refusal_speaks(db):
+    print("\n[9] ShedColony: причина от мода доходит до зрителя")
+    import json
+    from modules._loader import get_module, discover_modules
+    from modules._base import ModuleEnvelope
+
+    user = "colony_viewer"
+    price = 2000
+    async with db._connect() as conn:
+        await conn.execute(
+            "INSERT OR IGNORE INTO viewers (channel_id, username, points) VALUES (?, ?, 0)",
+            (CHANNEL_ID, user))
+        await conn.execute(
+            "INSERT INTO module_actions "
+            "(channel_id, module_id, action_id, type, data, status) "
+            "VALUES (?, 'shedcolony', 'sc00000000000001', 'colony.spawn_visitor', ?, 'queued')",
+            (CHANNEL_ID, json.dumps({"initiated_by": user, "price": price})))
+        await conn.commit()
+
+    adapter = get_module("shedcolony") or discover_modules().get("shedcolony")
+    await adapter.handle_event(CHANNEL_ID, ModuleEnvelope(
+        id="ev-sc", kind="event", type="action.failed", ts=0,
+        data={"action_id": "sc00000000000001",
+              "reason": "op_failed: no tavern in the colony"}))
+
+    rows = await _notices_of(db, user)
+    assert_eq(len(rows), 1, "[9] отказ ShedColony оставляет уведомление")
+    if not rows:
+        return
+    _id, kind, text, amount = rows[0]
+    print(f"     (текст: {text!r})")
+    assert_eq(amount, price, "[9b] сумма возврата в уведомлении")
+    assert_eq("op_failed" in text, False, "[9c] код мода зрителю не показываем")
+    assert_eq("таверн" in text.lower(), True, "[9d] названа настоящая причина")
+
+
+def test_shedcolony_refusal_dictionary():
+    print("\n[10] ShedColony: незнакомая причина не теряется")
+    from modules.shedcolony.refusals import describe
+    known = describe("op_failed: no raid right now — spies only help during a raid")
+    assert_eq("рейд" in known.lower(), True, "[10] известная причина переведена")
+    unknown = describe("op_failed: brand new failure from the mod")
+    assert_eq("brand new failure from the mod" in unknown, True,
+              "[10b] незнакомая причина показана как есть, а не проглочена")
+    assert_eq(bool(describe("").strip()), True, "[10c] пустая причина даёт текст")
+
+
 async def test_repeat_event_no_second_notice(db):
     print("\n[4] АНТИ-РЕГРЕСС: повтор события не плодит второе уведомление")
     before = len(await _notices_of(db))
@@ -237,6 +288,8 @@ async def main_async():
         await test_paid_refusal_leaves_notice(db)
         await test_free_refusal_also_speaks(db)
         await test_repeat_event_no_second_notice(db)
+        await test_shedcolony_refusal_speaks(db)
+        test_shedcolony_refusal_dictionary()
         await test_fetch_and_ack(db)
         await test_ack_is_scoped_to_owner(db)
         test_refusal_dictionary()

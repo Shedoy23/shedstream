@@ -15,6 +15,8 @@ import logging
 from typing import Any, Dict
 
 from .._base import ModuleAdapter, ModuleEnvelope
+from notices import add_notice_tx
+from .refusals import describe as describe_refusal
 
 logger = logging.getLogger("rimlink.modules.shedcolony")
 
@@ -387,6 +389,15 @@ class ShedColonyAdapter(ModuleAdapter):
                 "UPDATE module_actions SET status='failed', error_msg=? "
                 "WHERE channel_id=? AND module_id='shedcolony' AND action_id=?",
                 (marker, channel_id, action_id))
+            # Объяснение уходит зрителю ТОЙ ЖЕ транзакцией, что и деньги: падение
+            # между ними дало бы либо молчаливый возврат, либо объяснение к
+            # невозвращённым крустикам (та же схема, что у Bannerlord).
+            # До 2026-09-05 отказа зритель не видел вовсе: приходило только
+            # «заявка принята», а потом молча возвращались крустики.
+            await add_notice_tx(
+                conn, channel_id, username,
+                "refund" if price > 0 else "refused",
+                describe_refusal(reason), price if price > 0 else 0)
             await conn.commit()
         logger.info("[shedcolony:%s] action.failed %s reason=%s → refund %s to @%s",
                     channel_id, action_id, reason, price if price > 0 else 0, username or "?")

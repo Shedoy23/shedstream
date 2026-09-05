@@ -106,7 +106,11 @@ namespace BannerlordLink.Actions
                 switch (powerKey)
                 {
                     case "heal_burst":
-                        ApplyHealBurst(agent, username);
+                        if (!ApplyHealBurst(agent, username))
+                        {
+                            BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "health_full");
+                            return;
+                        }
                         break;
                     case "shield_break_burst":
                         ApplyShieldBreakBurst(agent, username, durationOverride, valueOverride);
@@ -146,26 +150,46 @@ namespace BannerlordLink.Actions
                         BannerlordLinkModule.Log(
                             $"[power.activate] REFUSE @{username}: unknown power '{powerKey}'");
                         BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "unknown_power:" + powerKey);
-                        break;
+                        return;
                 }
+                BannerlordLink.Util.ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log(
                     $"[power.activate] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
+                BannerlordLink.Util.ActionFeedback.PostFailed(
+                    actionId, "crashed:" + ex.GetType().Name);
             }
         }
 
-        private static void ApplyHealBurst(Agent agent, string username)
+        private static bool ApplyHealBurst(Agent agent, string username)
         {
             const float BURST_AMOUNT = 50f;
             float before = agent.Health;
             float max = agent.HealthLimit;
+
+            // Платная мгновенная способность не должна подтверждать успех, если
+            // лечить уже нечего. Отказ уйдёт в стандартный refund-flow бэкенда.
+            // Небольшой epsilon защищает от дробных лимитов Bannerlord (например,
+            // 287.5 HP), которые в панели отображаются целым числом.
+            if (max <= 0f || before >= max - 0.01f)
+            {
+                // Заодно нормализуем редкое engine-состояние Health > HealthLimit.
+                if (max > 0f && before > max)
+                    agent.Health = max;
+                BannerlordLinkModule.Log(
+                    $"[power.heal_burst] REFUSE @{username}: health already full " +
+                    $"({before:F1}/{max:F1})");
+                return false;
+            }
+
             agent.Health = Math.Min(max, agent.Health + BURST_AMOUNT);
             BannerlordLinkModule.Log(
                 $"[power.heal_burst] @{username}: HP {before:F0} → {agent.Health:F0} / {max:F0}");
             // Sprint 5.30 #41 — visible cue
             BannerlordLink.Util.PowerVisualFx.PlayActivation(agent, "heal_burst", username);
+            return true;
         }
 
         // shield_break_burst — 2026-07-20 РЕДИЗАЙН (решение владельца): было мгновенное

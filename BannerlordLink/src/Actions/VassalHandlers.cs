@@ -224,6 +224,7 @@ namespace BannerlordLink.Actions
                 });
                 Task.Run(async () => await BannerlordLinkModule.Backend
                     .PostEventAsync("bannerlord", "hero.vassal_created", evtData));
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {
@@ -478,6 +479,7 @@ namespace BannerlordLink.Actions
 
                 // Обновить backend-кэш золота правителя.
                 try { HeroStateSync.Push(hero); } catch { }
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {
@@ -529,6 +531,7 @@ namespace BannerlordLink.Actions
                 clan.ChangeClanName(nameObj, nameObj);
                 BannerlordLinkModule.Log(
                     $"[vassal.rename] OK: '{oldName}' → '{newName}' ({clanId})");
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {

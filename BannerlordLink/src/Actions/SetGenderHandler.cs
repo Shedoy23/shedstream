@@ -113,6 +113,12 @@ namespace BannerlordLink.Actions
 
                     BannerlordLinkModule.Log(
                         $"[hero.set_gender] @{username}: → {gender}");
+                    // Gender and the charged gold are both part of the unified
+                    // player state consumed by the extension. Without this push
+                    // the game changed correctly while the panel kept showing
+                    // the pre-action values until a later periodic sync.
+                    HeroStateSync.Push(hero);
+                    ActionFeedback.PostApplied(actionId);
                 }
                 catch (Exception ex)
                 {

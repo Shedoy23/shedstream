@@ -227,6 +227,7 @@ namespace BannerlordLink.Actions
                     BannerlordLinkModule.Log(
                         $"[equip_trophy] @{username} HeroStateSync push failed: {syncEx.Message}");
                 }
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {

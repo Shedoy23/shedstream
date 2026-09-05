@@ -37,7 +37,13 @@ namespace BannerlordLink
                     "action-success",
                     () =>
                     {
-                        MainThreadDispatcher.Enqueue(() => applied = true);
+                        MainThreadDispatcher.Enqueue(() =>
+                        {
+                            applied = true;
+                            bool captured = MainThreadDispatcher.TryReportActionApplied(
+                                "action-success");
+                            Assert(captured, "explicit apply was not captured");
+                        });
                         return Task.FromResult<(bool, string)>((true, null));
                     },
                     CancellationToken.None);
@@ -47,6 +53,10 @@ namespace BannerlordLink
             var result = await action;
             Assert(applied, "main-thread callback was not applied");
             Assert(result.success, "successful apply returned failure");
+            Assert(!BannerlordLinkModule.Messages.Any(x =>
+                    x.Contains("action_id=action-success") &&
+                    x.Contains("БЕЗ ЯВНОГО ИСХОДА")),
+                "explicit apply was still reported as unstated");
         }
 
         private static async Task TestDispatcherCapturesFailureAsync()

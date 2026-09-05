@@ -56,16 +56,18 @@ namespace BannerlordLink.Actions
             // Optional culture choice: data.culture = empire/sturgia/vlandia/
             // aserai/khuzait/battania (lowercase). Null/empty = random.
             string culture = (data["culture"]?.ToString() ?? "").Trim().ToLowerInvariant();
+            string actionId = ActionFeedback.GetActionId(data);
 
             // Enqueue creation на main thread — НЕ ждём.
             // ACK backend'у уйдёт success=true сейчас (action accepted),
             // финальный результат — через player.linked event позже.
-            MainThreadDispatcher.Enqueue(() => CreateHeroOnMainThread(username, culture));
+            MainThreadDispatcher.Enqueue(() => CreateHeroOnMainThread(username, culture, actionId));
 
             return Task.FromResult<(bool, string)>((true, null));
         }
 
-        private static void CreateHeroOnMainThread(string username, string requestedCulture)
+        private static void CreateHeroOnMainThread(string username, string requestedCulture,
+            string actionId)
         {
             try
             {
@@ -74,6 +76,7 @@ namespace BannerlordLink.Actions
                 {
                     BannerlordLinkModule.Log($"[hero.create] @{username}: Campaign не started, skip");
                     PostCreateFailedEvent(username, "campaign_not_started");
+                    ActionFeedback.PostFailed(actionId, "campaign_not_started");
                     return;
                 }
 
@@ -94,6 +97,7 @@ namespace BannerlordLink.Actions
                         $"[BLink]-hero (id={existing.StringId}, clan={existing.Clan?.Name?.ToString() ?? "—"}). " +
                         $"Используй существующего или /leave_clan для retire.");
                     PostCreateFailedEvent(username, "already_adopted");
+                    ActionFeedback.PostFailed(actionId, "already_adopted");
                     // Re-push state — frontend может быть рассинхронизирован
                     // (например, потерял linked event раньше). Push гарантирует
                     // UI снова видит существующего hero.
@@ -113,6 +117,7 @@ namespace BannerlordLink.Actions
                 {
                     BannerlordLinkModule.Log($"[hero.create] @{username}: no wanderer templates found");
                     PostCreateFailedEvent(username, "no_wanderer_templates");
+                    ActionFeedback.PostFailed(actionId, "no_wanderer_templates");
                     return;
                 }
 
@@ -301,12 +306,14 @@ namespace BannerlordLink.Actions
                 // 7. Push equipment snapshot — wanderer template имеет starting
                 //    equipment, UI должен показать в hero card.
                 EquipmentSync.PushAll(newHero);
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log(
                     $"[hero.create] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
                 PostCreateFailedEvent(username, ex.Message);
+                ActionFeedback.PostFailed(actionId, "crashed:" + ex.GetType().Name);
             }
         }
 

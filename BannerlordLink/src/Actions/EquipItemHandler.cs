@@ -201,11 +201,13 @@ namespace BannerlordLink.Actions
                 {
                     BannerlordLink.Util.HeroStateSync.Push(hero);
                 }
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log(
                     $"[player.equip_item] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
+                ActionFeedback.PostFailed(actionId, "crashed:" + ex.GetType().Name);
             }
         }
 

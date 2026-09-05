@@ -38,6 +38,10 @@ namespace BannerlordLink.Behaviors
         // _lastPropHash — gate: пушим только когда владения реально изменились
         // (не спамим прод каждые 30с на всех каналах).
         private System.Diagnostics.Stopwatch _propTimer;
+        // Backend keeps the settlements catalog in memory. A backend restart
+        // used to leave every dropdown empty until the streamer reloaded the
+        // save. Refresh it periodically so the running game self-heals.
+        private System.Diagnostics.Stopwatch _catalogTimer;
         private int _lastPropHash;
         // 2026-06-05 — per-username хэш последнего запушенного hero-state. Тот же
         // ~30с tick (OnPropertiesTick) шлёт player.state_update только тем [BLink]-
@@ -276,6 +280,9 @@ namespace BannerlordLink.Behaviors
 
         private void OnHeroLevelledUp(Hero hero, bool shouldNotify)
         {
+            if (hero?.Name == null
+                || !BannerlordLink.Util.HeroNaming.IsAdopted(hero.Name.ToString()))
+                return;
             // Sprint M19: вместо inline {username, level} пушим полный snapshot —
             // backend получит level + случайно изменившийся clan/kingdom/gold/etc.
             HeroStateSync.Push(hero);
@@ -634,6 +641,7 @@ namespace BannerlordLink.Behaviors
         {
             if (Campaign.Current == null) return;
             if (_propTimer == null) _propTimer = System.Diagnostics.Stopwatch.StartNew();
+            if (_catalogTimer == null) _catalogTimer = System.Diagnostics.Stopwatch.StartNew();
             if (_propTimer.Elapsed.TotalSeconds < 30.0) return;
             _propTimer.Restart();
 
@@ -641,6 +649,14 @@ namespace BannerlordLink.Behaviors
             //    hero. ДО properties-блока: его early-return (hash unchanged) не
             //    должен пропускать пуш hero-state.
             PushHeroStatesIfChanged();
+
+            // The backend cache is intentionally in-memory, therefore a
+            // deploy/restart loses it while this campaign keeps running.
+            if (_catalogTimer.Elapsed.TotalMinutes >= 5.0)
+            {
+                _catalogTimer.Restart();
+                PushSettlementsCatalog(Campaign.Current.UniqueGameId ?? "unknown");
+            }
 
             // 2) Зеркало владений (fiefs/workshops/caravans) — hash-gated.
             try

@@ -221,6 +221,7 @@ namespace BannerlordLink.Actions
                 BannerlordLinkModule.Log(
                     $"[party_order EXIT-OK] @{username} order={orderType} → '{targetName}' applied " +
                     $"(party leader={mp.LeaderHero?.Name}, target faction={target.MapFaction?.Name})");
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {
@@ -254,9 +255,17 @@ namespace BannerlordLink.Actions
             try
             {
                 var hero = BannerlordLink.Actions.HeroLookup.FindByUsername(username);
-                if (hero == null) return;
+                if (hero == null || !hero.IsAlive)
+                {
+                    ActionFeedback.PostFailed(actionId, "hero_not_found");
+                    return;
+                }
                 var mp = hero.PartyBelongedTo;
-                if (mp == null) return;
+                if (mp == null)
+                {
+                    ActionFeedback.PostFailed(actionId, "no_party");
+                    return;
+                }
                 try
                 {
                     // Sprint 5.33 PORDER — drop sticky order ПЕРЕД hold, иначе
@@ -267,15 +276,18 @@ namespace BannerlordLink.Actions
                     mp.SetMoveModeHold();
                     BannerlordLinkModule.Log(
                         $"[party_order] @{username} → RELEASE (AI default)");
+                    ActionFeedback.PostApplied(actionId);
                 }
                 catch (Exception ex)
                 {
                     BannerlordLinkModule.Log($"[party_order.release] warn: {ex.Message}");
+                    ActionFeedback.PostFailed(actionId, "release_failed");
                 }
             }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log($"[party_order.release] crash: {ex.Message}");
+                ActionFeedback.PostFailed(actionId, "crashed");
             }
         }
     }

@@ -123,6 +123,7 @@ namespace BannerlordLink.Actions
                 // Итог наверх: ACK от ActionPoller приходит ДО этой работы и ничего
                 // не доказывает — без этого события заявка вечно висит 'pending'.
                 ActionFeedback.PostPolicyResult(actionId, policyId, wantEnact);
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {
@@ -239,8 +240,14 @@ namespace BannerlordLink.Actions
                 {
                     MakePeaceAction.Apply(myKingdom, target);
                 }
+                if (myKingdom.IsAtWarWith(target))
+                {
+                    ActionFeedback.PostFailed(actionId, "peace_no_effect");
+                    return;
+                }
                 BannerlordLinkModule.Log(
                     $"[diplo-peace] @{username} PEACE: {myKingdom.Name} ↔ {target.Name} (tribute={tribute})");
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {
@@ -370,6 +377,7 @@ namespace BannerlordLink.Actions
                     ActionFeedback.PostFailed(actionId, "proposer_clan_against"); return;
                 }
                 BannerlordLinkModule.Log($"[diplo-war OK] @{username} предложил войну: {myKingdom.Name} → {target.Name} (на голосование кланов)");
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {
@@ -433,6 +441,7 @@ namespace BannerlordLink.Actions
                     ActionFeedback.PostFailed(actionId, "proposer_clan_against"); return;
                 }
                 BannerlordLinkModule.Log($"[diplo-ppeace OK] @{username} предложил мир: {myKingdom.Name} ↔ {target.Name} (на голосование кланов)");
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {
@@ -488,6 +497,7 @@ namespace BannerlordLink.Actions
                     BannerlordLinkModule.Log(
                         $"[diplo-ransom] @{capturedUser} не в плену (уже освобождён?)");
                     // Not a failure — pool was paid before mod synced.
+                    ActionFeedback.PostApplied(actionId);
                     return;
                 }
 
@@ -497,6 +507,7 @@ namespace BannerlordLink.Actions
                 EndCaptivityAction.ApplyByRansom(hero, payer);
                 BannerlordLinkModule.Log(
                     $"[diplo-ransom] RELEASED @{capturedUser} by ransom (payer={payer?.Name})");
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {
@@ -571,6 +582,7 @@ namespace BannerlordLink.Actions
                 beh.SetKingdomTaxRate(kingdom, ratePct / 100f);
                 BannerlordLinkModule.Log(
                     $"[kingdom-tax] @{username} set {kingdom.Name} tax → {ratePct}%");
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {

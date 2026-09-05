@@ -75,6 +75,7 @@ namespace BannerlordLink.Actions
                 // трогаем — бесплатно.
                 EquipmentSync.PushAll(hero);
                 HeroStateSync.Push(hero);
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {

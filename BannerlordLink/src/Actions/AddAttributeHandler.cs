@@ -172,6 +172,7 @@ namespace BannerlordLink.Actions
                     .PostEventAsync("bannerlord", "hero.attribute_changed", evtData));
 
                 HeroStateSync.Push(hero);
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {

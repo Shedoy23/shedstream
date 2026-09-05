@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Http;
@@ -220,6 +221,64 @@ namespace BannerlordLink.Net
             bool ok = response.Contains("\"status\":\"ok\"") || response.Contains("\"status\": \"ok\"");
             _log($"event {eventType} → {(ok ? "ACK" : "REJECTED")}: {Truncate(response, 200)}");
             return ok;
+        }
+
+        /// <summary>POST нескольких событий одного типа одним HTTP-запросом.</summary>
+        public async Task<bool> PostEventsAsync(
+            string moduleId, string eventType, IEnumerable<string> dataJsonItems)
+        {
+            if (string.IsNullOrEmpty(_config.ModuleToken)) return false;
+
+            var envelopes = new Newtonsoft.Json.Linq.JArray();
+            try
+            {
+                foreach (string dataJson in dataJsonItems ?? new string[0])
+                {
+                    envelopes.Add(new Newtonsoft.Json.Linq.JObject
+                    {
+                        ["id"] = Guid.NewGuid().ToString("N"),
+                        ["kind"] = "event",
+                        ["type"] = eventType,
+                        ["ts"] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                        ["data"] = Newtonsoft.Json.Linq.JToken.Parse(
+                            string.IsNullOrEmpty(dataJson) ? "{}" : dataJson),
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _log($"PostEvents {eventType} — bad dataJson, skipping batch: {ex.Message}");
+                return false;
+            }
+            if (envelopes.Count == 0) return true;
+
+            string body = new Newtonsoft.Json.Linq.JObject
+            {
+                ["channel_id"] = _config.ChannelId,
+                ["envelopes"] = envelopes,
+            }.ToString(Newtonsoft.Json.Formatting.None);
+            string response = await PostJsonAsync($"/v1/module/{moduleId}/events", body);
+            if (response == null) return false;
+
+            try
+            {
+                var parsed = Newtonsoft.Json.Linq.JObject.Parse(response);
+                var acks = parsed["acks"] as Newtonsoft.Json.Linq.JArray;
+                bool ok = parsed["status"]?.ToString() == "ok"
+                          && acks != null
+                          && acks.Count == envelopes.Count;
+                if (ok)
+                    foreach (var ack in acks)
+                        if ((bool?)ack["success"] != true) { ok = false; break; }
+                _log($"events {eventType} batch={envelopes.Count} → " +
+                     (ok ? "ACK ALL" : "PARTIAL/REJECTED"));
+                return ok;
+            }
+            catch (Exception ex)
+            {
+                _log($"PostEvents {eventType} — bad ACK: {ex.Message}");
+                return false;
+            }
         }
 
         /// <summary>POST произвольного JSON-payload'а. Для будущих event-передач.

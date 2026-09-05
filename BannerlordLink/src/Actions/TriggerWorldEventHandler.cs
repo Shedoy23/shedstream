@@ -128,6 +128,7 @@ namespace BannerlordLink.Actions
                 BannerlordLinkModule.Log(
                     $"[trigger_event EXIT-OK] spawned {spawned.StringId} (kind={kind}) " +
                     $"near @{anchor.Name?.ToString()} at pos=({spawnPos.x:F1},{spawnPos.y:F1})");
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {

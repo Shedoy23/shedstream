@@ -121,7 +121,7 @@ namespace BannerlordLink
         {
             base.OnSubModuleLoad();
             MainThreadDispatcher.StartSession();
-            Log($"v{MOD_VERSION} OnSubModuleLoad");
+            Log($"v{MOD_VERSION} OnSubModuleLoad · Bannerlord {ResolveGameVersion()}");
             Log($"[VERBOSE] verbose logging = {(_verboseLog ? "ON (детальные logs включены)" : "OFF (стандартное)")}. " +
                 $"Toggle via env BANNERLORDLINK_VERBOSE=1 или файл bannerlordlink_verbose.flag в Configs/");
 
@@ -215,6 +215,28 @@ namespace BannerlordLink
             catch (Exception ex)
             {
                 Log($"Backend init FAILED: {ex.Message}");
+            }
+        }
+
+        private static string ResolveGameVersion()
+        {
+            try
+            {
+                // TaleWorlds binaries intentionally carry the generic Windows
+                // file version 1.0.0.0. The authoritative installed game version
+                // is next to them in Version.xml.
+                string binDir = Path.GetDirectoryName(typeof(MBSubModuleBase).Assembly.Location);
+                string xml = File.ReadAllText(Path.Combine(binDir, "Version.xml"));
+                const string marker = "<Singleplayer Value=\"";
+                int start = xml.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+                if (start < 0) return "unknown (Singleplayer missing)";
+                start += marker.Length;
+                int end = xml.IndexOf('"', start);
+                return end > start ? xml.Substring(start, end - start) : "unknown (bad Version.xml)";
+            }
+            catch (Exception ex)
+            {
+                return "unknown (" + ex.GetType().Name + ")";
             }
         }
 

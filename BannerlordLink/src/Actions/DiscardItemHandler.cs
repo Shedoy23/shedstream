@@ -81,6 +81,7 @@ namespace BannerlordLink.Actions
 
                 // Re-sync: пустой слот → backend DELETE row → фронт показывает «пусто».
                 EquipmentSync.PushAll(hero);
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {

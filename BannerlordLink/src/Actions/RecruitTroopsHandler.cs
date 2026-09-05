@@ -314,6 +314,7 @@ namespace BannerlordLink.Actions
 
                 // Full state sync — gold updated
                 HeroStateSync.Push(hero);
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {

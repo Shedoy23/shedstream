@@ -236,6 +236,7 @@ namespace BannerlordLink.Actions
                     .PostEventAsync("bannerlord", "hero.party_created", evtData));
 
                 HeroStateSync.Push(hero);
+                BannerlordLink.Util.ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {

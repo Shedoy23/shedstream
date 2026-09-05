@@ -67,14 +67,15 @@ namespace BannerlordLink.Actions
                 return Task.FromResult<(bool, string)>((false, "no heir_hero_id"));
             }
 
+            string actionId = ActionFeedback.GetActionId(data);
             MainThreadDispatcher.Enqueue(() =>
                 Activate(parentUsername, heirHeroId, heirName,
-                         inheritedWorkshops, inheritedCaravans));
+                         inheritedWorkshops, inheritedCaravans, actionId));
             return Task.FromResult<(bool, string)>((true, null));
         }
 
         private static void Activate(string parentUsername, string heirHeroId, string heirName,
-            JArray inheritedWorkshops, JArray inheritedCaravans)
+            JArray inheritedWorkshops, JArray inheritedCaravans, string actionId)
         {
             try
             {
@@ -82,6 +83,7 @@ namespace BannerlordLink.Actions
                 {
                     BannerlordLinkModule.Log(
                         $"[heir.activate] @{parentUsername}: Campaign не active, skip");
+                    ActionFeedback.PostFailed(actionId, "no_campaign");
                     return;
                 }
 
@@ -94,6 +96,7 @@ namespace BannerlordLink.Actions
                         $"[heir.activate] @{parentUsername}: heir {heirHeroId} " +
                         $"не найден в ObjectManager (heir killed/GC'd ДО activation?)");
                     PushHeirDied(heirHeroId);
+                    ActionFeedback.PostFailed(actionId, "heir_not_found");
                     return;
                 }
                 if (!heir.IsAlive)
@@ -102,6 +105,7 @@ namespace BannerlordLink.Actions
                         $"[heir.activate] @{parentUsername}: heir '{heirName}' " +
                         $"уже мёртв в момент activation");
                     PushHeirDied(heirHeroId);
+                    ActionFeedback.PostFailed(actionId, "heir_dead");
                     return;
                 }
 
@@ -187,11 +191,13 @@ namespace BannerlordLink.Actions
                         $"[heir.heritage] @{parentUsername} → heir reclaimed " +
                         $"{wsRestored} workshops + {caRestored} caravans engine-side");
                 }
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log(
                     $"[heir.activate] @{parentUsername} CRASHED: {ex.GetType().Name}: {ex.Message}");
+                ActionFeedback.PostFailed(actionId, "crashed:" + ex.GetType().Name);
             }
         }
 

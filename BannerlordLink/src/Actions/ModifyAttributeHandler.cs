@@ -34,6 +34,7 @@ namespace BannerlordLink.Actions
             if (points == 0)
                 return Task.FromResult<(bool, string)>((false, "points must be non-zero"));
 
+            string actionId = BannerlordLink.Util.ActionFeedback.GetActionId(data);
             MainThreadDispatcher.Enqueue(() =>
             {
                 try
@@ -45,6 +46,7 @@ namespace BannerlordLink.Actions
                         BannerlordLinkModule.Log(
                             $"[modify_attribute] @{username}: skip — нельзя во " +
                             "время Mission (engine crash risk)");
+                        BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "in_mission");
                         return;
                     }
 
@@ -53,6 +55,7 @@ namespace BannerlordLink.Actions
                     {
                         BannerlordLinkModule.Log(
                             $"[modify_attribute] @{username}: hero не найден или мёртв");
+                        BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "hero_not_found_or_dead");
                         return;
                     }
 
@@ -83,6 +86,7 @@ namespace BannerlordLink.Actions
                         BannerlordLinkModule.Log(
                             $"[modify_attribute] @{username}: attribute '{attrKey}' не найден " +
                             "(пробуй: Vigor / Control / Endurance / Cunning / Social / Intelligence)");
+                        BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "attribute_not_found");
                         return;
                     }
 
@@ -91,11 +95,15 @@ namespace BannerlordLink.Actions
                     int after = hero.GetAttributeValue(attr);
                     BannerlordLinkModule.Log(
                         $"[modify_attribute] @{username} {attr.StringId} {before} → {after} (+{points})");
+                    BannerlordLink.Util.HeroStateSync.Push(hero);
+                    BannerlordLink.Util.ActionFeedback.PostApplied(actionId);
                 }
                 catch (Exception ex)
                 {
                     BannerlordLinkModule.Log(
                         $"[modify_attribute] @{username} CRASHED: {ex.Message}");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(
+                        actionId, "crashed:" + ex.GetType().Name);
                 }
             });
 

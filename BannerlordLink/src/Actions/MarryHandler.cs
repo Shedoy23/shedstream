@@ -215,6 +215,8 @@ namespace BannerlordLink.Actions
                     BannerlordLinkModule.Log(
                         $"[hero.marry] @{username} ↔ {npc.Name} "
                         + $"(was clan: {formerClan?.Name}, now: {npc.Clan?.Name})");
+                    HeroStateSync.Push(hero);
+                    ActionFeedback.PostApplied(actionId);
                 }
                 catch (Exception ex)
                 {
@@ -254,15 +256,21 @@ namespace BannerlordLink.Actions
             if (string.IsNullOrEmpty(username))
                 return Task.FromResult<(bool, string)>((false, "no target username"));
 
+            string actionId = ActionFeedback.GetActionId(data);
             MainThreadDispatcher.Enqueue(() =>
             {
                 try
                 {
                     var hero = HeroLookup.FindByUsername(username);
-                    if (hero == null) return;
+                    if (hero == null)
+                    {
+                        ActionFeedback.PostFailed(actionId, "hero_not_found");
+                        return;
+                    }
                     if (hero.Spouse == null)
                     {
                         BannerlordLinkModule.Log($"[hero.divorce] @{username}: не в браке");
+                        ActionFeedback.PostFailed(actionId, "not_married");
                         return;
                     }
 
@@ -271,10 +279,13 @@ namespace BannerlordLink.Actions
                     hero.Spouse = null;
                     BannerlordLinkModule.Log(
                         $"[hero.divorce] @{username} разведён с {spouse.Name}");
+                    HeroStateSync.Push(hero);
+                    ActionFeedback.PostApplied(actionId);
                 }
                 catch (Exception ex)
                 {
                     BannerlordLinkModule.Log($"[hero.divorce] @{username} CRASHED: {ex.Message}");
+                    ActionFeedback.PostFailed(actionId, "crashed:" + ex.GetType().Name);
                 }
             });
 

@@ -97,12 +97,15 @@ namespace BannerlordLink.Actions
 
                 BannerlordLinkModule.Log(
                     $"[join_tournament] @{username} joined queue ({message})");
+                BannerlordLink.Util.ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log(
                     $"[join_tournament] @{username} CRASHED: " +
                     $"{ex.GetType().Name}: {ex.Message}");
+                BannerlordLink.Util.ActionFeedback.PostFailed(
+                    actionId, "exception:" + ex.GetType().Name);
             }
         }
     }

@@ -318,8 +318,14 @@ namespace BannerlordLink.Actions
                         // может попытаться bind hero обратно.
                         try
                         {
+                            // 1.4.8 renamed the internal collection from
+                            // `_heroes` to `_heroesCache`. Keep the old name
+                            // as a fallback so the rollback build remains
+                            // compatible with 1.3.x saves/assemblies.
                             var heroesField = HarmonyLib.AccessTools.Field(
-                                typeof(TaleWorlds.CampaignSystem.Clan), "_heroes");
+                                typeof(TaleWorlds.CampaignSystem.Clan), "_heroesCache")
+                                ?? HarmonyLib.AccessTools.Field(
+                                    typeof(TaleWorlds.CampaignSystem.Clan), "_heroes");
                             if (heroesField != null && formerClan != null)
                             {
                                 var heroesList = heroesField.GetValue(formerClan)
@@ -329,7 +335,7 @@ namespace BannerlordLink.Actions
                                     heroesList.Remove(hero);
                                     BannerlordLinkModule.Log(
                                         $"[leave_clan] @{username}: removed from " +
-                                        $"Clan._heroes (size={heroesList.Count})");
+                                        $"Clan.{heroesField.Name} (size={heroesList.Count})");
                                 }
                             }
                         }
@@ -385,11 +391,13 @@ namespace BannerlordLink.Actions
                     .PostEventAsync("bannerlord", "hero.clan_left", evtData));
 
                 HeroStateSync.Push(hero);
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log(
                     $"[leave_clan] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
+                ActionFeedback.PostFailed(actionId, "crashed:" + ex.GetType().Name);
             }
         }
     }

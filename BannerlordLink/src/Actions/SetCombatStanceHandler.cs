@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using BannerlordLink.Net;
+using BannerlordLink.Util;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -35,34 +36,45 @@ namespace BannerlordLink.Actions
             if (!IsValid(stance))
                 return Task.FromResult<(bool, string)>((false, "bad stance"));
 
+            string actionId = ActionFeedback.GetActionId(data);
             MainThreadDispatcher.Enqueue(() =>
             {
-                PowerCache.UpdateHeroStance(username, stance);
-                // HeroProfileBehavior owns a normal Dictionary read by SyncData;
-                // keep all profile writes on the game thread.
-                BannerlordLink.Behaviors.HeroProfileBehavior.Instance
-                    ?.SetStance(username, stance);
-
-                string json = JsonConvert.SerializeObject(new
+                try
                 {
-                    username = username,
-                    combat_stance = stance,
-                });
-                Task.Run(async () =>
-                {
-                    try
-                    {
-                        await BannerlordLinkModule.Backend
-                            .PostEventAsync("bannerlord", "player.state_update", json);
-                    }
-                    catch (Exception ex)
-                    {
-                        BannerlordLinkModule.Log(
-                            $"[set_combat_stance] echo @{username} failed: {ex.Message}");
-                    }
-                });
+                    PowerCache.UpdateHeroStance(username, stance);
+                    // HeroProfileBehavior owns a normal Dictionary read by SyncData;
+                    // keep all profile writes on the game thread.
+                    BannerlordLink.Behaviors.HeroProfileBehavior.Instance
+                        ?.SetStance(username, stance);
 
-                BannerlordLinkModule.Log($"[set_combat_stance] @{username} → {stance}");
+                    string json = JsonConvert.SerializeObject(new
+                    {
+                        username = username,
+                        combat_stance = stance,
+                    });
+                    Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await BannerlordLinkModule.Backend
+                                .PostEventAsync("bannerlord", "player.state_update", json);
+                        }
+                        catch (Exception ex)
+                        {
+                            BannerlordLinkModule.Log(
+                                $"[set_combat_stance] echo @{username} failed: {ex.Message}");
+                        }
+                    });
+
+                    BannerlordLinkModule.Log($"[set_combat_stance] @{username} → {stance}");
+                    ActionFeedback.PostApplied(actionId);
+                }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[set_combat_stance] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
+                    ActionFeedback.PostFailed(actionId, "exception:" + ex.GetType().Name);
+                }
             });
             return Task.FromResult<(bool, string)>((true, null));
         }

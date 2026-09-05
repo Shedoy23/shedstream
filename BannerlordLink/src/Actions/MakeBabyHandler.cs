@@ -126,6 +126,8 @@ namespace BannerlordLink.Actions
                     BannerlordLinkModule.Log(
                         $"[hero.make_baby] @{username}: {target.Name} забеременела "
                         + $"(текущих детей: {childCount}/{maxAliveChildren})");
+                    HeroStateSync.Push(hero);
+                    ActionFeedback.PostApplied(actionId);
                 }
                 catch (Exception ex)
                 {

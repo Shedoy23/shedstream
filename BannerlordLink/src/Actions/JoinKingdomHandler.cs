@@ -87,13 +87,12 @@ namespace BannerlordLink.Actions
                     ActionFeedback.PostFailed(actionId, "kingdom_list_unavailable");
                     return;
                 }
-                var target = all.FirstOrDefault(k => k != null &&
-                    string.Equals(k.Name?.ToString(), kingdomName, StringComparison.OrdinalIgnoreCase));
-                if (target == null)
-                {
-                    target = all.FirstOrDefault(k => k != null && k.Name != null
-                        && k.Name.ToString().IndexOf(kingdomName, StringComparison.OrdinalIgnoreCase) >= 0);
-                }
+                // UI historically suggested English culture names ("Aserai",
+                // "Vlandia"), while a localized game exposes kingdom.Name as
+                // e.g. "Султанат асераев". Match stable engine ids and culture
+                // names as well as the localized kingdom title.
+                var target = all.FirstOrDefault(k => MatchesKingdom(k, kingdomName, exact: true))
+                             ?? all.FirstOrDefault(k => MatchesKingdom(k, kingdomName, exact: false));
                 if (target == null)
                 {
                     BannerlordLinkModule.Log(
@@ -178,6 +177,7 @@ namespace BannerlordLink.Actions
                     .PostEventAsync("bannerlord", "hero.kingdom_joined", evtData));
 
                 HeroStateSync.Push(hero);
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {
@@ -187,6 +187,24 @@ namespace BannerlordLink.Actions
                 if (!committed)
                     ActionFeedback.PostFailed(actionId, "crashed:" + ex.GetType().Name);
             }
+        }
+
+        private static bool MatchesKingdom(Kingdom kingdom, string query, bool exact)
+        {
+            if (kingdom == null || string.IsNullOrWhiteSpace(query)) return false;
+
+            string[] candidates =
+            {
+                kingdom.StringId,
+                kingdom.Name?.ToString(),
+                kingdom.Culture?.StringId,
+                kingdom.Culture?.Name?.ToString(),
+            };
+
+            return candidates.Any(candidate => !string.IsNullOrWhiteSpace(candidate) &&
+                (exact
+                    ? string.Equals(candidate, query, StringComparison.OrdinalIgnoreCase)
+                    : candidate.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0));
         }
 
         private static void RefundCharge(Hero hero, int amount, string username)

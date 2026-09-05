@@ -162,11 +162,13 @@ namespace BannerlordLink.Actions
                     .PostEventAsync("bannerlord", "hero.clan_joined", evtData));
 
                 HeroStateSync.Push(hero);
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log(
                     $"[join_clan] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
+                ActionFeedback.PostFailed(actionId, "crashed:" + ex.GetType().Name);
             }
         }
     }

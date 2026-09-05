@@ -149,6 +149,7 @@ namespace BannerlordLink.Actions
                 });
                 Task.Run(async () => await BannerlordLinkModule.Backend
                     .PostEventAsync("bannerlord", "hero.marriage_activated", evtData));
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {
@@ -191,6 +192,7 @@ namespace BannerlordLink.Actions
                              new TaleWorlds.Localization.TextObject(newName));
                 BannerlordLinkModule.Log(
                     $"[FAM-rename] '{oldName}' → '{newName}' ({childId})");
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {
@@ -256,6 +258,7 @@ namespace BannerlordLink.Actions
                 if (applied)
                 {
                     BannerlordLinkModule.Log($"[FAM-looks] OK: '{hero.Name}' body updated");
+                    ActionFeedback.PostApplied(actionId);
                 }
                 else
                 {
@@ -310,6 +313,7 @@ namespace BannerlordLink.Actions
                 hero.HeroDeveloper.InitializeHeroDeveloper();
 
                 BannerlordLinkModule.Log($"[FAM-respec] OK: '{hero.Name}' skills reset");
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {

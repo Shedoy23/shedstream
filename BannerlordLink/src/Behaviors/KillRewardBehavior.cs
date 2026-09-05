@@ -1374,9 +1374,12 @@ namespace BannerlordLink.Behaviors
                     {
                         if (s.Agent != null)
                         {
-                            hp = (int)s.Agent.Health;
-                            hpMax = (int)s.Agent.HealthLimit;
+                            // Bannerlord keeps fractional HP limits (e.g. 287.5).
+                            // Truncating hp_max while another layer rounded hp made
+                            // the viewer panel show impossible values like 288/287.
+                            hpMax = (int)Math.Round(s.Agent.HealthLimit);
                             if (hpMax <= 0) hpMax = 100;
+                            hp = Math.Min(hpMax, (int)Math.Round(s.Agent.Health));
                             alive = s.Agent.IsActive() && hp > 0;
                             state = ComputeAgentState(s.Agent);
                             // Уточняем сторону, пока агент жив и её видно.

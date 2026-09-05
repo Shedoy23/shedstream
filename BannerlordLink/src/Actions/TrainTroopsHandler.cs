@@ -176,11 +176,13 @@ namespace BannerlordLink.Actions
                     $"[train_troops] @{username}: trained {planned.Count} slot(s) " +
                     $"(-{totalCost} dinars, gold={hero.Gold})");
                 HeroStateSync.Push(hero);
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log(
                     $"[train_troops] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
+                ActionFeedback.PostFailed(actionId, "crashed:" + ex.GetType().Name);
             }
         }
     }

@@ -36,6 +36,7 @@ namespace BannerlordLink.Actions
 
         private static void Apply(string username, string actionId)
         {
+            bool applied = false;
             try
             {
                 if (Campaign.Current == null) { ActionFeedback.PostFailed(actionId, "no_campaign"); return; }
@@ -158,6 +159,8 @@ namespace BannerlordLink.Actions
                 // Влияние клана возвращаем как было (платили криптиками) + max cohesion.
                 try { clan.Influence = influenceBefore; } catch { }
                 try { mp.Army.Cohesion = 100f; } catch { }
+                applied = true;
+                ActionFeedback.PostApplied(actionId);
 
                 // 2026-07-20 FIX — вернуть приказ в силу СРАЗУ. CreateArmy перетирает
                 // цель партии (сбор у gather-точки), а наш hourly-reissue троттлится до
@@ -186,7 +189,10 @@ namespace BannerlordLink.Actions
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log($"[army_create] @{username} CRASHED: {ex.GetType().Name}: {ex.Message}");
-                ActionFeedback.PostFailed(actionId, "crashed");
+                // Созданную армию нельзя совместить с возвратом: поздний сбой
+                // переотдачи приказа или логирования не отменяет основной эффект.
+                if (!applied)
+                    ActionFeedback.PostFailed(actionId, "crashed");
             }
         }
     }
@@ -221,6 +227,7 @@ namespace BannerlordLink.Actions
                 }
                 DisbandArmyAction.ApplyByUnknownReason(mp.Army);
                 BannerlordLinkModule.Log($"[army_disband OK] @{username} армия распущена");
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {

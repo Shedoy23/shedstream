@@ -52,10 +52,13 @@ namespace BannerlordLink.Actions
                     hero.Heal(max - before, addXp: false);
                     BannerlordLinkModule.Log(
                         $"[player.heal] @{username} HP {before} → {hero.HitPoints}/{max}");
+                    BannerlordLink.Util.ActionFeedback.PostApplied(actionId);
                 }
                 catch (Exception ex)
                 {
                     BannerlordLinkModule.Log($"[player.heal] @{username} CRASHED: {ex.Message}");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(
+                        actionId, "crashed:" + ex.GetType().Name);
                 }
             });
 

@@ -114,6 +114,7 @@ namespace BannerlordLink.Actions
                 // шлёт hero-stats, но НЕ экипировку — нужны оба.
                 try { EquipmentSync.PushAll(hero); } catch { }
                 try { HeroStateSync.Push(hero); } catch { }
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {

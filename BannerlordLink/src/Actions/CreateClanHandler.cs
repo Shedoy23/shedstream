@@ -181,6 +181,7 @@ namespace BannerlordLink.Actions
                     .PostEventAsync("bannerlord", "hero.clan_created", evtData));
 
                 HeroStateSync.Push(hero);
+                BannerlordLink.Util.ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {

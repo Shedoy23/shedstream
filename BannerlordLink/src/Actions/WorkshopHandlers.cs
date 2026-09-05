@@ -195,6 +195,12 @@ namespace BannerlordLink.Actions
 
                 BannerlordLinkModule.Log(
                     $"[shop-buy] @{username} → «{wsType.Name}» в {settlement.Name} (capital={initialCapital})");
+                if (target.Owner != hero || target.WorkshopType != wsType)
+                {
+                    ActionFeedback.PostFailed(actionId, "workshop_postcondition_failed");
+                    return;
+                }
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {
@@ -369,11 +375,19 @@ namespace BannerlordLink.Actions
                     }
                     BannerlordLinkModule.Log(
                         $"[shop-sell] @{username} sold workshop в {target.Settlement?.Name}");
+                    if (target.Owner == hero)
+                    {
+                        ActionFeedback.PostFailed(actionId, "sell_postcondition_failed");
+                        return;
+                    }
+                    ActionFeedback.PostApplied(actionId);
                 }
                 catch (Exception sx)
                 {
                     BannerlordLinkModule.Log(
                         $"[shop-sell] sell crashed: {sx.Message}");
+                    ActionFeedback.PostFailed(actionId, "sell_failed");
+                    return;
                 }
             }
             catch (Exception ex)

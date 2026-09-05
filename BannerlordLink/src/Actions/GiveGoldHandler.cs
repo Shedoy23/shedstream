@@ -72,15 +72,25 @@ namespace BannerlordLink.Actions
                     // ApplyBetweenCharacters(giver, receiver, amount, disableNotification)
                     // — positional т.к. parameter names различаются по версиям 1.x.
                     GiveGoldAction.ApplyBetweenCharacters(null, hero, amount, true);
+                    int after = hero.Gold;
+                    if (after <= before)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[give_item:gold] REFUSE @{username}: gold не изменился ({before} → {after})");
+                        BannerlordLink.Util.ActionFeedback.PostFailed(
+                            actionId, "gold_not_applied");
+                        return;
+                    }
                     applied = true;
+                    BannerlordLink.Util.ActionFeedback.PostApplied(actionId);
                     BannerlordLinkModule.Log(
-                        $"[give_item:gold] @{username} gold {before} → {hero.Gold} (+{amount})");
+                        $"[give_item:gold] @{username} gold {before} → {after} (+{after - before})");
 
                     // Push state update event так backend знает о gold change.
                     string evtData = JsonConvert.SerializeObject(new
                     {
                         username = username,
-                        gold = hero.Gold,
+                        gold = after,
                     });
                     Task.Run(async () => await BannerlordLinkModule.Backend
                         .PostEventAsync("bannerlord", "player.state_update", evtData));

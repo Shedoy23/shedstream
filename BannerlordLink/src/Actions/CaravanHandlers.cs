@@ -160,6 +160,7 @@ namespace BannerlordLink.Actions
                 System.Threading.Tasks.Task.Run(async () =>
                     await BannerlordLinkModule.Backend.PostEventAsync(
                         "bannerlord", "hero.caravan_created", evtData));
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {
@@ -348,12 +349,14 @@ namespace BannerlordLink.Actions
                         target, Hero.MainHero, homeS);
                     BannerlordLinkModule.Log(
                         $"[caravan-sell] @{username} → transfer to MainHero (home={homeS?.Name})");
+                    ActionFeedback.PostApplied(actionId);
                 }
                 catch (Exception sx)
                 {
                     BannerlordLinkModule.Log(
                         $"[caravan-sell] crashed: {sx.Message}");
                     ActionFeedback.PostFailed(actionId, "transfer_failed");
+                    return;
                 }
             }
             catch (Exception ex)

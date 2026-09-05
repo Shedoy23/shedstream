@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
@@ -98,6 +99,7 @@ namespace BannerlordLink.Util
 
                 var eq = hero.BattleEquipment;
                 int filled = 0;
+                var events = new List<string>(SLOTS_TO_SYNC.Length);
                 foreach (var idx in SLOTS_TO_SYNC)
                 {
                     var el = eq[idx];
@@ -112,8 +114,8 @@ namespace BannerlordLink.Util
 
                     if (el.IsEmpty || el.Item == null)
                     {
-                        PostEquipmentEvent(username, slotName, null, null,
-                            -1, 0, 0f, null, null);
+                        events.Add(BuildEquipmentEvent(username, slotName, null, null,
+                            -1, 0, 0f, null, null));
                         continue;
                     }
 
@@ -131,14 +133,28 @@ namespace BannerlordLink.Util
                         ? el.ItemModifier.ItemQuality.ToString().ToLowerInvariant()
                         : null;
 
-                    PostEquipmentEvent(username, slotName,
+                    events.Add(BuildEquipmentEvent(username, slotName,
                         item.StringId, item.Name?.ToString() ?? item.StringId,
-                        tier, value, weight, statsJson, quality);
+                        tier, value, weight, statsJson, quality));
                     filled++;
                 }
 
+                var backend = BannerlordLinkModule.Backend;
+                if (backend != null)
+                {
+                    Task.Run(async () =>
+                    {
+                        bool ok = await backend.PostEventsAsync(
+                            "bannerlord", "hero.equipment_changed", events);
+                        if (!ok)
+                            BannerlordLinkModule.Log(
+                                $"[EquipmentSync] batch @{username} failed ({events.Count} slots)");
+                    });
+                }
+
                 BannerlordLinkModule.Log(
-                    $"[EquipmentSync] @{username}: pushed snapshot, {filled}/{SLOTS_TO_SYNC.Length} slots filled");
+                    $"[EquipmentSync] @{username}: queued 1 batch/{events.Count} slots, " +
+                    $"{filled}/{SLOTS_TO_SYNC.Length} filled");
             }
             catch (Exception ex)
             {
@@ -279,13 +295,10 @@ namespace BannerlordLink.Util
                 speed, charge, maneuver, hp);
         }
 
-        private static void PostEquipmentEvent(string username, string slotName,
+        private static string BuildEquipmentEvent(string username, string slotName,
             string itemId, string itemName,
             int tier, int value, float weight, string statsJson, string quality)
         {
-            var backend = BannerlordLinkModule.Backend;
-            if (backend == null) return;
-
             // item_id=null → backend DELETE row. Передаём null literal для cleanup.
             string idJson = itemId == null ? "null" : "\"" + EscapeJson(itemId) + "\"";
             string nameJson = itemName == null ? "null" : "\"" + EscapeJson(itemName) + "\"";
@@ -300,18 +313,7 @@ namespace BannerlordLink.Util
                 EscapeJson(username), EscapeJson(slotName),
                 idJson, nameJson, tierJson, value, weight, statsField, qualityJson);
 
-            Task.Run(async () =>
-            {
-                try
-                {
-                    await backend.PostEventAsync("bannerlord", "hero.equipment_changed", json);
-                }
-                catch (Exception ex)
-                {
-                    BannerlordLinkModule.Log(
-                        $"[EquipmentSync] push @{username} slot={slotName} failed: {ex.Message}");
-                }
-            });
+            return json;
         }
 
         private static string EscapeJson(string s)

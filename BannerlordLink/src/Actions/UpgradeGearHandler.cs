@@ -151,6 +151,7 @@ namespace BannerlordLink.Actions
                 HeroStateSync.Push(hero);
                 // Push equipment snapshot — 11 slots → backend bannerlord_equipment.
                 EquipmentSync.PushAll(hero);
+                BannerlordLink.Util.ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {

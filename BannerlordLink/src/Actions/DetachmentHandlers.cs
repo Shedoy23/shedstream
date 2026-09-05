@@ -104,7 +104,11 @@ namespace BannerlordLink.Actions
                     return;
                 }
                 if (!HeroDetachmentBehavior.Instance.Detach(agent))
+                {
                     DetachmentHelper.PostRefund(actionId, "detach_failed");
+                    return;
+                }
+                ActionFeedback.PostApplied(actionId);
             });
             return Task.FromResult<(bool, string)>((true, null));
         }
@@ -140,6 +144,7 @@ namespace BannerlordLink.Actions
                     return;
                 }
                 HeroDetachmentBehavior.Instance.Attach(agent);
+                ActionFeedback.PostApplied(actionId);
             });
             return Task.FromResult<(bool, string)>((true, null));
         }
@@ -163,7 +168,9 @@ namespace BannerlordLink.Actions
                     || !HeroDetachmentBehavior.Instance.Hold(agent))
                 {
                     DetachmentHelper.PostRefund(actionId, "hold_failed");
+                    return;
                 }
+                ActionFeedback.PostApplied(actionId);
             });
             return Task.FromResult<(bool, string)>((true, null));
         }
@@ -187,7 +194,9 @@ namespace BannerlordLink.Actions
                     || !HeroDetachmentBehavior.Instance.Charge(agent))
                 {
                     DetachmentHelper.PostRefund(actionId, "charge_failed");
+                    return;
                 }
+                ActionFeedback.PostApplied(actionId);
             });
             return Task.FromResult<(bool, string)>((true, null));
         }
@@ -211,7 +220,9 @@ namespace BannerlordLink.Actions
                     || !HeroDetachmentBehavior.Instance.Skirmish(agent))
                 {
                     DetachmentHelper.PostRefund(actionId, "skirmish_failed");
+                    return;
                 }
+                ActionFeedback.PostApplied(actionId);
             });
             return Task.FromResult<(bool, string)>((true, null));
         }
@@ -235,7 +246,9 @@ namespace BannerlordLink.Actions
                     || !HeroDetachmentBehavior.Instance.Raid(agent))
                 {
                     DetachmentHelper.PostRefund(actionId, "raid_failed");
+                    return;
                 }
+                ActionFeedback.PostApplied(actionId);
             });
             return Task.FromResult<(bool, string)>((true, null));
         }
@@ -261,7 +274,9 @@ namespace BannerlordLink.Actions
                     // Walls REFUSE специфичный — обычно siege_not_active / no_target.
                     // Точнее причину behavior уже залогировал.
                     DetachmentHelper.PostRefund(actionId, "walls_failed");
+                    return;
                 }
+                ActionFeedback.PostApplied(actionId);
             });
             return Task.FromResult<(bool, string)>((true, null));
         }
@@ -285,7 +300,9 @@ namespace BannerlordLink.Actions
                     || !HeroDetachmentBehavior.Instance.Gate(agent))
                 {
                     DetachmentHelper.PostRefund(actionId, "gate_failed");
+                    return;
                 }
+                ActionFeedback.PostApplied(actionId);
             });
             return Task.FromResult<(bool, string)>((true, null));
         }

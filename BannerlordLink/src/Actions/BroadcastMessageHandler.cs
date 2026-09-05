@@ -41,6 +41,7 @@ namespace BannerlordLink.Actions
             // Anti-spam: cap message length (engine может обрезать иначе).
             if (text.Length > 240) text = text.Substring(0, 240) + "...";
 
+            string actionId = ActionFeedback.GetActionId(data);
             MainThreadDispatcher.Enqueue(() =>
             {
                 try
@@ -50,11 +51,13 @@ namespace BannerlordLink.Actions
                     InformationManager.DisplayMessage(new InformationMessage(full, color));
                     BannerlordLinkModule.Log(
                         $"[broadcast EXIT-OK] '{Truncate(full, 80)}' color={colorKey}");
+                    ActionFeedback.PostApplied(actionId);
                 }
                 catch (Exception ex)
                 {
                     BannerlordLinkModule.Log(
                         $"[broadcast] CRASHED: {ex.GetType().Name}: {ex.Message}");
+                    ActionFeedback.PostFailed(actionId, "crashed:" + ex.GetType().Name);
                 }
             });
             return Task.FromResult<(bool, string)>((true, null));

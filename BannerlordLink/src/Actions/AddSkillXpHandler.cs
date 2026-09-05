@@ -69,6 +69,7 @@ namespace BannerlordLink.Actions
 
             MainThreadDispatcher.Enqueue(() =>
             {
+                bool applied = false;
                 try
                 {
                     var hero = HeroLookup.FindByUsername(username);
@@ -195,6 +196,7 @@ namespace BannerlordLink.Actions
                     int boostedXp = (int)Math.Round(xp * rewardBoost);
 
                     int before = hero.GetSkillValue(skill);
+                    int xpBefore = (int)hero.HeroDeveloper.GetSkillXpProgress(skill);
 
                     // Sprint 5.32 (BLT-parity M6) — skill cap 330.
                     // BLT default (BLTAdoptAHero MaxSkillLevel = 330). Без cap'а
@@ -222,6 +224,19 @@ namespace BannerlordLink.Actions
                     // = реальный эффект на XP-throughput. BLT default (BLTAdoptAHero
                     // AddSkillXpAction calls with affected=true).
                     hero.HeroDeveloper.AddSkillXp(skill, boostedXp, isAffectedByFocusFactor: true);
+                    int levelAfterMutation = hero.GetSkillValue(skill);
+                    int xpAfterMutation = (int)hero.HeroDeveloper.GetSkillXpProgress(skill);
+                    if (levelAfterMutation == before && xpAfterMutation == xpBefore)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[hero.add_skill] REFUSE @{username}: {skill.StringId} " +
+                            $"XP не изменился (level={before}, xp={xpBefore})");
+                        BannerlordLink.Util.ActionFeedback.PostFailed(
+                            actionId, "skill_xp_not_applied:" + skill.StringId);
+                        return;
+                    }
+                    applied = true;
+                    BannerlordLink.Util.ActionFeedback.PostApplied(actionId);
                     // 2026-05-31 (audit) — применяем level/derived-статы СРАЗУ, не ждём
                     // daily-tick (BLT SkillXP делает так же). Иначе level лагает день.
                     hero.HeroDeveloper.DevelopCharacterStats();
@@ -268,6 +283,11 @@ namespace BannerlordLink.Actions
                 catch (Exception ex)
                 {
                     BannerlordLinkModule.Log($"[hero.add_skill] @{username} CRASHED: {ex.Message}");
+                    // После AddSkillXp эффект уже выдан: возврат создал бы двойную
+                    // выгоду. До этой точки любой сбой обязан вернуть крустики.
+                    if (!applied)
+                        BannerlordLink.Util.ActionFeedback.PostFailed(
+                            actionId, "exception:" + ex.GetType().Name);
                 }
             });
 

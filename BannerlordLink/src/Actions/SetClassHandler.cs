@@ -284,6 +284,7 @@ namespace BannerlordLink.Actions
                 // перерисовывало инвентарь до ручного «пересбора» (у него push есть).
                 EquipmentSync.PushAll(hero);
                 HeroStateSync.Push(hero);
+                ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)
             {

@@ -68,6 +68,9 @@ async function openCasesModal() {
                 <span id="cases-badge-total" style="font-size:13px;color:#adadb8;font-weight:500;">—</span>
             </h2>
             <div id="cases-tier-summary" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;font-size:11px;"></div>
+            <button class="modal-btn" id="cases-open-all-btn" style="display:none;margin-bottom:12px;">
+                🎁 Открыть все
+            </button>
             <div id="cases-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:14px;">
                 <div class="loading" style="grid-column:1/-1;">Загрузка кейсов...</div>
             </div>
@@ -132,6 +135,22 @@ function renderCases() {
             : '<span style="color:#adadb8;">Нет закрытых кейсов</span>';
     }
 
+    // «Открыть все» — потому что по одному до конца никто не досиживает:
+    // 05.09 у зрителей лежало 923 неоткрытых кейса на 1.1 млн крустиков,
+    // у одного 139 штук с мая. Награда, до которой не дотянуться, ничем не
+    // отличается от невыданной.
+    const openAllBtn = document.getElementById('cases-open-all-btn');
+    if (openAllBtn) {
+        if (total > 1) {
+            openAllBtn.style.display = '';
+            openAllBtn.textContent = `🎁 Открыть все (${total})`;
+            openAllBtn.disabled = false;
+            openAllBtn.onclick = openAllCases;
+        } else {
+            openAllBtn.style.display = 'none';
+        }
+    }
+
     const cases = _casesData.cases || [];
     if (!cases.length) {
         // Sprint 5.28: backend теперь шлёт только закрытые. Empty-state
@@ -188,6 +207,32 @@ function renderCaseCard(c) {
             <div style="font-size:10px;color:${meta.color};margin-top:6px;font-weight:600;">▸ Открыть</div>
         </div>
     `;
+}
+
+async function openAllCases() {
+    const btn = document.getElementById('cases-open-all-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Открываем…'; }
+    try {
+        const r = await fetch(`${API_URL}/api/viewer/cases/open-all`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || '' },
+        });
+        const data = await r.json();
+        if (!data.success) {
+            showNotification(data.message || 'Не удалось открыть кейсы', 'error');
+            return;
+        }
+        showNotification(data.message, 'success', 6000);
+        // Тем же способом, что и открытие одного кейса: баланс перечитываем с
+        // сервера, а не рисуем из ответа — иначе две вкладки разойдутся.
+        if (typeof loadUserData === 'function') setTimeout(loadUserData, 400);
+        await loadCases();
+    } catch (e) {
+        console.error('[cases] openAllCases error:', e);
+        showNotification('Ошибка сети при открытии кейсов', 'error');
+    } finally {
+        if (btn) { btn.disabled = false; }
+    }
 }
 
 async function openCase(caseId, cardEl) {

@@ -1573,6 +1573,93 @@ class Database:
                 await conn.execute("ROLLBACK")
                 raise
 
+    async def open_all_cases(
+        self,
+        username: str,
+        channel_id: Optional[int] = None,
+        limit: int = 200,
+    ) -> Dict:
+        """Открыть все неоткрытые кейсы зрителя одной транзакцией.
+
+        ЗАЧЕМ. На 2026-09-05 у зрителей лежало 923 неоткрытых кейса на 1.1 млн
+        крустиков — у одного 139 штук с мая. Открывать их по одному через модалку
+        физически утомительно, поэтому награда просто не доходила: зритель при
+        этом считал, что крустиков не хватает.
+
+        Начисление одной суммой и одним UPDATE: открытие кейса — это перевод
+        денег, и дробить его на 139 транзакций значит 139 шансов оборваться
+        посередине. `limit` защищает от блокировки базы на гигантской пачке;
+        остаток открывается следующим нажатием.
+
+        Returns: {'opened': N, 'total_reward': M, 'by_tier': {...},
+                  'new_balance': B, 'left': сколько ещё осталось}
+        """
+        from config import CASE_TIER_REWARDS
+        cid = resolve_channel_id(channel_id)
+        uname = username.lower()
+
+        async with self._connect() as conn:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+                cur = await conn.execute(
+                    "SELECT id, tier FROM cases "
+                    "WHERE channel_id = ? AND username = ? AND opened_at IS NULL "
+                    "ORDER BY id LIMIT ?",
+                    (cid, uname, int(limit)))
+                rows = await cur.fetchall()
+
+                ids, by_tier, total = [], {}, 0
+                for case_id, tier in rows:
+                    reward = CASE_TIER_REWARDS.get(tier, 0)
+                    if reward <= 0:
+                        continue          # тир удалён из config — не трогаем
+                    ids.append((case_id, reward))
+                    by_tier[tier] = by_tier.get(tier, 0) + 1
+                    total += reward
+
+                if not ids:
+                    await conn.execute("ROLLBACK")
+                    return {'opened': 0, 'total_reward': 0, 'by_tier': {},
+                            'new_balance': None, 'left': 0}
+
+                for case_id, reward in ids:
+                    await conn.execute(
+                        "UPDATE cases SET opened_at = CURRENT_TIMESTAMP, reward_points = ? "
+                        "WHERE id = ? AND opened_at IS NULL",
+                        (reward, case_id))
+
+                await conn.execute("""
+                    INSERT INTO viewers (channel_id, username, points, last_seen, join_time, is_afk)
+                    VALUES (?, ?, ?, datetime('now'), datetime('now'), 0)
+                    ON CONFLICT(channel_id, username) DO UPDATE SET
+                        points = points + excluded.points,
+                        last_seen = datetime('now'),
+                        is_afk = 0
+                """, (cid, uname, total))
+
+                cur = await conn.execute(
+                    "SELECT points FROM viewers WHERE channel_id = ? AND username = ?",
+                    (cid, uname))
+                balance_row = await cur.fetchone()
+
+                cur = await conn.execute(
+                    "SELECT COUNT(*) FROM cases "
+                    "WHERE channel_id = ? AND username = ? AND opened_at IS NULL",
+                    (cid, uname))
+                left_row = await cur.fetchone()
+
+                await conn.commit()
+                return {
+                    'opened': len(ids),
+                    'total_reward': total,
+                    'by_tier': by_tier,
+                    'new_balance': balance_row[0] if balance_row else 0,
+                    'left': left_row[0] if left_row else 0,
+                }
+            except Exception:
+                await conn.execute("ROLLBACK")
+                raise
+
     async def list_cases(
         self,
         username: str,

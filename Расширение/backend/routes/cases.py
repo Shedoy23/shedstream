@@ -127,6 +127,45 @@ async def viewer_case_open(request: Request):
         }
 
 
+@router.post("/api/viewer/cases/open-all")
+async def viewer_cases_open_all(request: Request):
+    """Открыть все свои кейсы разом.
+
+    Причина появления (2026-09-05): 923 кейса лежали неоткрытыми на 1.1 млн
+    крустиков — открывать по одному через модалку никто не досиживал, и зритель
+    при этом жаловался, что крустиков не хватает. Награда, до которой нельзя
+    дотянуться, ничем не отличается от невыданной.
+
+    Body: не нужен. Открывает пачкой (лимит на вызов), остаток — следующим
+    нажатием, чтобы не держать базу на гигантской транзакции.
+    """
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+
+    result = await get_db().open_all_cases(username, channel_id=channel_id)
+    if not result["opened"]:
+        return {"success": False, "opened": 0, "message": "Нет неоткрытых кейсов"}
+
+    parts = []
+    for tier, emoji in (("common", "🎁"), ("rare", "💎"), ("epic", "💠"), ("legendary", "👑")):
+        n = result["by_tier"].get(tier)
+        if n:
+            parts.append(f"{emoji}×{n}")
+    tail = f" Осталось {result['left']} — нажми ещё раз." if result["left"] else ""
+    return {
+        "success": True,
+        "opened": result["opened"],
+        "total_reward": result["total_reward"],
+        "by_tier": result["by_tier"],
+        "new_balance": result["new_balance"],
+        "left": result["left"],
+        "message": (f"Открыто {result['opened']} кейсов ({' '.join(parts)}): "
+                    f"+{result['total_reward']:,}💎".replace(",", " ") + tail),
+    }
+
+
 # ── Public preview endpoint ────────────────────────────────────────────────────
 
 @router.get("/api/case/preview/{tier}")

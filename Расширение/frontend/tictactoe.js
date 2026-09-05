@@ -21,6 +21,7 @@ const TTT_BOARD_SIZE = 4;
 const TTT_CELLS_TOTAL = TTT_BOARD_SIZE * TTT_BOARD_SIZE;
 
 let _tttPollId = null;
+let _tttCountdownId = null;
 let _tttCurrentRoomId = null;
 let _tttMoveLocked = false;
 let _tttLastState = null;
@@ -293,7 +294,8 @@ function _renderTttBoard(room) {
     if (!finished && state.deadline_at) {
         const ms = new Date(state.deadline_at).getTime() - Date.now();
         const sec = Math.max(0, Math.ceil(ms / 1000));
-        timerHtml = `<div style="text-align:center;font-size:11px;color:${sec<=3?'#f87171':'#adadb8'};margin-top:4px;">⏱️ ${sec}с</div>`;
+        timerHtml = `<div id="ttt-countdown" data-deadline="${escapeHtml(state.deadline_at)}"
+            style="text-align:center;font-size:13px;font-weight:700;color:${sec<=3?'#f87171':'#adadb8'};margin-top:4px;">⏱️ ${sec}с</div>`;
     }
 
     // ─── Round indicator boxes (3) ──────────────────────────────────────────
@@ -430,6 +432,7 @@ async function _tttMakeMove(cell) {
 
 function _startTttPolling() {
     _stopTttPolling();
+    _tttCountdownId = setInterval(_tickTttCountdown, 200);
     _tttPollId = setInterval(async () => {
         if (_tttCurrentRoomId) {
             // В матче — poll'имся за state (для увидеть opponent's ходы)
@@ -446,6 +449,19 @@ function _stopTttPolling() {
         clearInterval(_tttPollId);
         _tttPollId = null;
     }
+    if (_tttCountdownId) {
+        clearInterval(_tttCountdownId);
+        _tttCountdownId = null;
+    }
+}
+
+function _tickTttCountdown() {
+    const el = document.getElementById('ttt-countdown');
+    if (!el) return;
+    const ms = new Date(el.dataset.deadline).getTime() - Date.now();
+    const sec = Math.max(0, Math.ceil(ms / 1000));
+    el.textContent = sec ? `⏱️ ${sec}с` : '⏳ Засчитываем таймаут…';
+    el.style.color = sec <= 3 ? '#f87171' : '#adadb8';
 }
 
 // Global

@@ -239,6 +239,7 @@ async function acceptDuel(duelId) {
 const RPS_POLL_INTERVAL_MS = 2000;
 const RPS_GAME_TYPE = 'rps';
 let _rpsPollId = null;
+let _rpsCountdownId = null;
 let _rpsRoomId = null;
 let _rpsMoveLock = false;
 
@@ -399,8 +400,16 @@ function _renderRpsMatch(room) {
         const isDraw = !room.winner;
         const color  = youWon ? '#4ade80' : isDraw ? '#fbbf24' : '#f87171';
         const text   = youWon ? '🎉 Победа!' : isDraw ? '🤝 Ничья' : '😢 Поражение';
+        const rating = state.rating || null;
+        const before = rating?.before?.[youAre];
+        const after = rating?.after?.[youAre];
+        const delta = rating?.delta?.[youAre];
+        const ratingHtml = Number.isFinite(before) && Number.isFinite(after) && Number.isFinite(delta)
+            ? `<div style="font-size:12px;color:#c4b5fd;margin-top:7px;">ELO: ${before} → ${after} (${delta >= 0 ? '+' : ''}${delta})</div>
+               <div style="font-size:10px;color:#777;margin-top:2px;">ELO K=32 · сильного соперника победить выгоднее</div>`
+            : '';
         headerHtml = `<div style="font-size:22px;font-weight:800;color:${color};">${text}</div>
-            <div style="font-size:13px;color:#adadb8;margin-top:4px;">${yourWins} : ${oppWins}</div>`;
+            <div style="font-size:13px;color:#adadb8;margin-top:4px;">${yourWins} : ${oppWins}</div>${ratingHtml}`;
     } else {
         headerHtml = `
             <div style="font-size:13px;color:#9147ff;font-weight:700;letter-spacing:1px;">
@@ -446,7 +455,8 @@ function _renderRpsMatch(room) {
     if (!finished && state.deadline_at) {
         const ms = new Date(state.deadline_at).getTime() - Date.now();
         const sec = Math.max(0, Math.ceil(ms / 1000));
-        timerHtml = `<div style="text-align:center;font-size:11px;color:${sec<=3?'#f87171':'#adadb8'};margin-top:4px;">⏱️ ${sec}с</div>`;
+        timerHtml = `<div id="rps-countdown" data-deadline="${escapeHtml(state.deadline_at)}"
+            style="text-align:center;font-size:13px;font-weight:700;color:${sec<=3?'#f87171':'#adadb8'};margin-top:4px;">⏱️ ${sec}с</div>`;
     }
 
     // Action area
@@ -514,6 +524,7 @@ async function _rpsMakeMove(move) {
 
 function _startRpsPolling() {
     _stopRpsPolling();
+    _rpsCountdownId = setInterval(_tickRpsCountdown, 200);
     _rpsPollId = setInterval(async () => {
         if (_rpsRoomId) await _rpsRefreshRoom(_rpsRoomId);
         else await _rpsRefreshStatus();
@@ -522,6 +533,16 @@ function _startRpsPolling() {
 
 function _stopRpsPolling() {
     if (_rpsPollId) { clearInterval(_rpsPollId); _rpsPollId = null; }
+    if (_rpsCountdownId) { clearInterval(_rpsCountdownId); _rpsCountdownId = null; }
+}
+
+function _tickRpsCountdown() {
+    const el = document.getElementById('rps-countdown');
+    if (!el) return;
+    const ms = new Date(el.dataset.deadline).getTime() - Date.now();
+    const sec = Math.max(0, Math.ceil(ms / 1000));
+    el.textContent = sec ? `⏱️ ${sec}с` : '⏳ Засчитываем таймаут…';
+    el.style.color = sec <= 3 ? '#f87171' : '#adadb8';
 }
 
 window.openRpsMatchmaking = openRpsMatchmaking;

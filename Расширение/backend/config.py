@@ -177,7 +177,7 @@ DEV_USERNAME = os.getenv('DEV_USERNAME', 'dev_user').lower().strip()
 # Не в списке → /dev не выдаёт сессию (A1 public-gate 2026-07-02).
 DEV_LOGIN_WHITELIST = {
     x.strip().lower()
-    for x in os.getenv('DEV_LOGIN_WHITELIST', 'shedoy23').split(',')
+    for x in os.getenv('DEV_LOGIN_WHITELIST', 'shedoy23,shedoyrobot').split(',')
     if x.strip()
 }
 

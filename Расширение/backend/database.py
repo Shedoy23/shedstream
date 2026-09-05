@@ -3959,9 +3959,12 @@ class Database:
 
             # В очереди?
             cur = await conn.execute(
-                "SELECT id, status, queued_at, elo_at_queue, room_id FROM match_queue "
-                "WHERE channel_id = ? AND username = ? AND game_type = ? "
-                "AND status IN ('queued', 'matched') ORDER BY queued_at DESC LIMIT 1",
+                "SELECT q.id, q.status, q.queued_at, q.elo_at_queue, q.room_id "
+                "FROM match_queue q "
+                "LEFT JOIN match_rooms r ON r.room_id = q.room_id "
+                "WHERE q.channel_id = ? AND q.username = ? AND q.game_type = ? "
+                "AND (q.status = 'queued' OR (q.status = 'matched' AND r.status = 'active')) "
+                "ORDER BY q.queued_at DESC LIMIT 1",
                 (cid, uname, game_type)
             )
             q_row = await cur.fetchone()

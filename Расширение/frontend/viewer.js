@@ -1576,10 +1576,12 @@ function openBugReport() {
                 style="width:100%;box-sizing:border-box;background:#1f1f23;border:1px solid #3d3d3f;border-radius:10px;color:#efeff1;padding:10px;font-size:13px;resize:vertical;"></textarea>
             <div id="bug-status" style="font-size:12px;margin:8px 0;min-height:14px;"></div>
             <button id="bug-send" style="width:100%;background:#12b886;border:none;color:#fff;padding:12px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;">Отправить</button>
+            <button id="bug-close" type="button" style="width:100%;margin-top:8px;background:#3d3d3f;border:none;color:#efeff1;padding:10px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;">Отмена</button>
         </div>
     `;
     (document.getElementById('overlay-panel') || document.body).appendChild(modal);
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    modal.querySelector('#bug-close').addEventListener('click', () => modal.remove());
 
     const status = modal.querySelector('#bug-status');
     modal.querySelector('#bug-send').addEventListener('click', async () => {

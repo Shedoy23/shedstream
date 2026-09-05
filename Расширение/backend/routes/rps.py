@@ -180,20 +180,15 @@ def _maybe_expire_phase(state):
         return False
 
     idx = state["current_round"] - 1
-    changed = False
-    # Forfeit для тех кто не сходил — оставляем None (resolve_round
-    # обработает как loss для того, у кого None против non-None)
-    if state["moves"]["a"][idx] is None and state["moves"]["b"][idx] is None:
-        # Оба silent → форсим оба None forfeit → draw, advance
-        pass
-
-    if _check_round_complete(state, idx):
-        # round resolved (хотя бы один сходил, а второй forfeit'нул)
-        changed = True
-    else:
-        # Оба None → пометим раунд как draw, advance
-        state["round_outcomes"][idx] = "draw"
-        changed = True
+    # Обычный helper ждёт два непустых хода, поэтому для таймаута считаем
+    # исход напрямую. Раньше один сделавший выбор + один молчащий ошибочно
+    # попадали в ветку draw, то есть просрочка не была поражением.
+    outcome = _resolve_round(state["moves"]["a"][idx], state["moves"]["b"][idx])
+    state["round_outcomes"][idx] = outcome
+    if outcome == "a":
+        state["wins"]["a"] += 1
+    elif outcome == "b":
+        state["wins"]["b"] += 1
 
     # Advance round
     state["current_round"] += 1
@@ -203,7 +198,7 @@ def _maybe_expire_phase(state):
     else:
         state["phase"] = "moving"
         state["deadline_at"] = _deadline_at()
-    return changed
+    return True
 
 
 async def _finalize_pvp_match(conn, room_id, state, channel_id, p_a, p_b, elo_a, elo_b):
@@ -222,6 +217,16 @@ async def _finalize_pvp_match(conn, room_id, state, channel_id, p_a, p_b, elo_a,
         winner_user, outcome = None, "draw"
         new_elo_a = _elo_update(elo_a, elo_b, 0.5)
         new_elo_b = _elo_update(elo_b, elo_a, 0.5)
+
+    # Клиенту нужен не только итог, но и объяснимое изменение рейтинга.
+    # До этого в room сохранялись лишь новые числа, поэтому зритель видел
+    # загадочное «1004 ELO» без исходного значения и дельты.
+    state["rating"] = {
+        "before": {"a": elo_a, "b": elo_b},
+        "after": {"a": new_elo_a, "b": new_elo_b},
+        "delta": {"a": new_elo_a - elo_a, "b": new_elo_b - elo_b},
+        "system": "ELO K=32",
+    }
 
     await conn.execute(
         "UPDATE match_rooms SET state = ?, status = 'finished', "

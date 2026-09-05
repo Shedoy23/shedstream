@@ -1383,7 +1383,7 @@ function _renderBuyWorkshopInline() {
             </div>
             <div style="font-size:10px;color:var(--muted);margin-bottom:10px;line-height:1.4;">
                 <div>💎 — entry fee, списывается с твоего 💎 балланса</div>
-                <div>💰 — initial capital, списывается с Hero.Gold (engine)</div>
+                <div>💰 — динары героя не списываются; покупка оплачивается только крустиками</div>
                 <div>📈 Профит копится в Hero.Gold (динары — на gear/smith/marriage)</div>
             </div>
             <label style="font-size:11px;color:#d9f99d;display:block;margin-bottom:4px;">
@@ -1669,7 +1669,7 @@ function _renderBuyCaravanInline() {
             </div>
             <div style="font-size:10px;color:var(--muted);margin-bottom:10px;line-height:1.4;">
                 <div>💎 — entry fee, списывается с твоего 💎 балланса</div>
-                <div>💰 — capital (15K), списывается с Hero.Gold (engine)</div>
+                <div>💰 — динары героя не списываются; покупка оплачивается только крустиками</div>
                 <div>📈 Profit копится в Hero.Gold (динары на gear/smith/marriage)</div>
                 <div style="color:#fb7185;">⚠ Бандиты могут уничтожить — viewers собирают rescue pool</div>
             </div>
@@ -3356,10 +3356,11 @@ async function loadBannerlordShop() {
     const list = document.getElementById('bannerlord-shop-list');
     const cnt  = document.getElementById('bannerlord-shop-count');
     if (!list) return;
-    // Sprint M19+M20+M21: random-equip + gear-upgrade + currency (gold/XP) сверху.
+    // Currency converters (gold/XP) are always shown above the optional catalog.
     // Sprint 5.10/5.8c: gear-upgrade перенесён в hero card (inline кнопка);
     // progression — в modal (per-row + buttons). В shop остались только
-    // randomEquip + currency converters.
+    // Random equipment was removed from sale; the optional engine catalog may
+    // legitimately be empty.
     const currencyBlock = renderBannerlordCurrencyHtml();
     try {
         const r = await fetch(`${API_URL}/api/bannerlord/shop`, {
@@ -3373,13 +3374,10 @@ async function loadBannerlordShop() {
             return;
         }
         const items = data.items || [];
-        // +3 random-equip + 3 give_gold + 3 add_skill = +9 fixed actions
-        if (cnt) cnt.textContent = items.length + 9;
+        // 3 give_gold + 3 add_skill = 6 fixed actions.
+        if (cnt) cnt.textContent = items.length + 6;
         if (items.length === 0) {
-            list.innerHTML = currencyBlock + `
-                <div style="text-align:center;padding:14px;font-size:11px;color:#adadb8;border-top:1px solid #3d3d3f;margin-top:6px;">
-                    Каталог пуст. Мод пришлёт shop-данные когда стример запустит игру.
-                </div>`;
+            list.innerHTML = currencyBlock;
             _bindBannerlordCurrency();
             return;
         }
@@ -4309,8 +4307,15 @@ async function _renderForgeInline() {
         </div>
         ${rows}`;
     slot.querySelectorAll('.bnr-reforge-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            _bannerlordBuyAction('hero.reforge_quality', { slot: btn.dataset.slot });
+        btn.addEventListener('click', async () => {
+            await _bannerlordBuyAction('hero.reforge_quality', { slot: btn.dataset.slot });
+            // Keep an already-open forge panel in sync. The action is applied by
+            // the mod's poll loop, so refresh after that window and re-render the
+            // panel from the new equipment snapshot.
+            setTimeout(async () => {
+                await loadBannerlordHero();
+                await _renderForgeInline();
+            }, 3500);
         });
     });
 }
@@ -4930,12 +4935,12 @@ async function loadBannerlordHero() {
             prisoner:    _h.is_prisoner,
             // 2026-06-01 FIX — экипировка не входила в hash → смена гира
             // (класс/апгрейд/предмет) не меняла _structChanged → тело не
-            // перерисовывалось → снаряжение залипало. Сигнатура slot:item:tier:value
-            // меняется ТОЛЬКО при смене гира (не каждый poll → flicker не
+            // перерисовывалось → снаряжение залипало. Сигнатура slot:item:tier:value:quality
+            // меняется ТОЛЬКО при смене гира/качества (не каждый poll → flicker не
             // возвращается; sub-слоты сохраняет _preserveSlots).
             equip: Object.keys(data.equipment || {}).sort().map(s => {
                 const it = data.equipment[s] || {};
-                return `${s}:${it.item_id || ''}:${it.tier}:${it.item_value || ''}`;
+                return `${s}:${it.item_id || ''}:${it.tier}:${it.item_value || ''}:${it.quality || ''}`;
             }).join('|'),
         });
         const _structChanged = (body._bnrLastStruct !== _structHash);
@@ -5419,7 +5424,11 @@ async function loadBannerlordHero() {
                 const nm = btn.dataset.itemName || 'вещь';
                 if (!await _bnrConfirmDanger(`Выбросить «${nm}»? Предмет пропадёт насовсем, крустики не вернутся.`, 'Да, выбросить')) return;
                 await _bannerlordBuyAction('hero.discard_item', { slot: sl });
+                // The mod polls queued actions; 1.2s often refreshed before it
+                // had applied the discard, leaving a deleted item visible until
+                // the next full reload. Refresh once after the poll window too.
                 setTimeout(loadBannerlordHero, 1200);
+                setTimeout(loadBannerlordHero, 3500);
             });
         });
 

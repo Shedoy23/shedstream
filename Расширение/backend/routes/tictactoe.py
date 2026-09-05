@@ -26,8 +26,7 @@ State JSON v2:
   }
 
 Move endpoint логика:
-  1. Lazy-expire: если deadline истёк → автоход в первую свободную клетку
-     для current player
+  1. Lazy-expire: если deadline истёк → просрочивший проигрывает раунд
   2. Apply move
   3. Check winner of current board
   4. If winner → increment wins, advance round (or finish if 2 wins / 3 rounds)
@@ -178,18 +177,7 @@ def _advance_after_board(state):
 
 
 def _maybe_expire_phase(state):
-    """Lazy expiration: за просрочившего ход делает ПЕРВАЯ свободная клетка.
-
-    2026-09-01: раньше клетка выбиралась броском (`_rng.choice`). Партия при
-    этом призовая — крестики кормят сезонный рейтинг, а мы называем их игрой на
-    навык, в том числе ревьюеру Twitch. Одна случайная клетка на весь матч
-    исход почти не меняет, но делает утверждение неверным, а неверное
-    утверждение платформе дороже любой механики (аудит 002, R3).
-
-    Первая свободная клетка — выбор произвольный, зато ПРЕДСКАЗУЕМЫЙ: соперник
-    видит доску и знает, что произойдёт при просрочке. Это и есть разница между
-    «навык» и «удача».
-    """
+    """Lazy expiration: просрочивший ход проигрывает текущий раунд."""
     if state.get("phase") == "finished":
         return False
     if not _deadline_expired(state.get("deadline_at")):
@@ -199,27 +187,9 @@ def _maybe_expire_phase(state):
     if board.get("winner"):
         return False  # already resolved, advance handled elsewhere
 
-    # Автоход: первая свободная клетка по порядку. Детерминировано — см. докстринг.
-    empty_cells = [i for i, c in enumerate(board["cells"]) if not c]
-    if not empty_cells:
-        # Draw
-        board["winner"] = "draw"
-        _advance_after_board(state)
-        return True
-
-    cell = empty_cells[0]
-    board["cells"][cell] = board["next_turn"]
-    board["moves"] += 1
-    winner = _check_winner(board["cells"])
-    if winner:
-        board["winner"] = winner
-        _advance_after_board(state)
-    elif _is_full(board["cells"]):
-        board["winner"] = "draw"
-        _advance_after_board(state)
-    else:
-        board["next_turn"] = "b" if board["next_turn"] == "a" else "a"
-        state["deadline_at"] = _deadline_at()
+    board["winner"] = "b" if board["next_turn"] == "a" else "a"
+    board["timeout_loser"] = board["next_turn"]
+    _advance_after_board(state)
     return True
 
 

@@ -56,7 +56,7 @@ GAME_TYPE = "tug"
 
 # ── Параметры. На сервере, а не во фронте: фронт замерзает на CDN Twitch до
 #    следующего ревью, а эти числа входят в опубликованные правила матча.
-MATCH_SEC = 45           # длительность дуэли
+MATCH_SEC = 20           # короткий раунд: 45 секунд закликивания утомляли
 TAP_BASE = 100           # цена первого тапа
 TAP_DECAY = 4            # насколько дешевеет каждый следующий
 TAP_MIN = 20             # пол: ниже этого тап не опускается
@@ -271,12 +271,16 @@ def _fresh_state() -> dict:
 def _public_room(room_id: str, p_a: str, p_b: str, state: dict, status: str,
                  uname: str, outcome: Optional[str]) -> dict:
     side = "a" if uname == p_a else "b"
+    other = "b" if side == "a" else "a"
     return {
         "room_id": room_id,
         "opponent": p_b if side == "a" else p_a,
         "my_side": side,
         "pos": _rope_pos(state["eff"]["a"], state["eff"]["b"]),
         "my_taps": state["taps"][side],
+        "my_eff": state["eff"][side],
+        "opponent_eff": state["eff"][other],
+        "next_tap_value": _tap_value(state["taps"][side] + 1),
         "seconds_left": max(0, int(state["ends_at"] - time.time())),
         "status": status,
         "outcome": outcome,

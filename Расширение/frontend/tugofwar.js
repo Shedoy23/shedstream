@@ -171,10 +171,20 @@ function _renderTugContent() {
             <div style="font-size:12px;color:#adadb8;">Соперник:
                 <b>${escapeHtml(room.opponent || '?')}</b> · осталось ${room.seconds_left}с</div>
             ${_tugRopeHtml(room.pos, rules.rope_limit || 10000, room.my_side)}
-            <button class="modal-btn" id="tug-pull" style="width:100%;font-size:15px;padding:12px;">🪢 Тяни!</button>
-            <div style="font-size:11px;color:#adadb8;margin-top:4px;">Твои тапы: ${room.my_taps}</div>`;
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0;font-size:11px;text-align:center;">
+                <div style="background:#18251d;border-radius:6px;padding:7px;color:#4ade80;">Твоя сила<br><b>${room.my_eff || 0}</b></div>
+                <div style="background:#291b1b;border-radius:6px;padding:7px;color:#f87171;">Сила соперника<br><b>${room.opponent_eff || 0}</b></div>
+            </div>
+            <button class="modal-btn" id="tug-pull" style="width:100%;font-size:17px;padding:14px;transition:transform .08s;">🪢 РЫВОК!</button>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#adadb8;margin-top:5px;">
+                <span>Рывков: ${room.my_taps}</span><span>следующий: +${room.next_tap_value || 0}</span>
+            </div>`;
         const pullBtn = document.getElementById('tug-pull');
-        if (pullBtn) pullBtn.addEventListener('click', _tugPull);
+        if (pullBtn) pullBtn.addEventListener('click', () => {
+            pullBtn.style.transform = 'scale(.96)';
+            setTimeout(() => { if (pullBtn) pullBtn.style.transform = ''; }, 80);
+            _tugPull();
+        });
         return;
     }
 

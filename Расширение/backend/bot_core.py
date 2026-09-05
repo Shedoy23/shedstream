@@ -32,6 +32,10 @@ from config import (
     DROP_BLACKLIST,
     DROP_CHANCE,
     DROP_INTERVAL,
+    CASE_TIER_REWARDS,
+    HOURLY_CASE_INTERVAL,
+    HOURLY_CASE_LURKER_TIER,
+    HOURLY_CASE_TIERS,
     DROP_LURKER_WEIGHT,
     PERFORMANCE_CONFIG,
     POINTS_PER_MINUTE,
@@ -1082,6 +1086,105 @@ class BotCore:
     # Если потребуется bulk-tick по типу — лучше создать pure helper иммутабельно.
 
     # ===== ДРОПЫ =====
+    async def hourly_case_loop(self):
+        """Раз в час каждому активному зрителю — кейс (решение владельца 05.09).
+
+        Отдельно от drop_loop: тот выдаёт ОДНОМУ случайному и умеет легендарку,
+        этот выдаёт ВСЕМ и легендарку не выдаёт (иначе она перестала бы быть
+        событием — расчёт в config.HOURLY_CASE_TIERS).
+        """
+        logger.info("Цикл часовых кейсов запущен (каждые %d мин)",
+                    HOURLY_CASE_INTERVAL // 60)
+        while self.running:
+            await asyncio.sleep(HOURLY_CASE_INTERVAL)
+            try:
+                channels = await self.db.list_channels()
+            except Exception as e:
+                logger.warning("hourly_case_loop: list_channels упал: %s", e)
+                continue
+            for ch in channels:
+                try:
+                    await self._process_hourly_cases(channel_id=ch["channel_id"])
+                except Exception as e:
+                    logger.warning("hourly cases [ch=%s] failed: %s",
+                                   ch.get("channel_id"), e)
+
+    async def _process_hourly_cases(self, channel_id: Optional[int] = None):
+        """Выдать всем активным по кейсу и отчитаться в чат одной строкой.
+
+        Идемпотентность через trigger_key `hourly_<ГГГГММДДЧЧ>`: перезапуск
+        сервиса или второй проход в тот же час НЕ выдаст кейс повторно —
+        кейс это деньги, а не уведомление.
+        """
+        cid = resolve_channel_id(channel_id)
+        if not await self._is_stream_live(channel_id=cid):
+            return
+
+        # Те же два признака, что и у дропа: свежий last_seen — «панель на
+        # связи», взаимодействие — отдельная колонка. Смешивать их нельзя,
+        # иначе брошенная вкладка фармит редкие кейсы (28.08).
+        try:
+            async with self.db._connect() as conn:
+                cursor = await conn.execute(
+                    "SELECT username, "
+                    "CASE WHEN last_interaction_at IS NULL THEN NULL "
+                    "     ELSE CAST((julianday('now') - julianday(last_interaction_at)) * 86400 AS INTEGER) "
+                    "END AS interact_age_sec "
+                    "FROM viewers "
+                    "WHERE channel_id = ? AND last_seen >= datetime('now', ?)",
+                    (cid, f"-{ACTIVE_WINDOW} seconds"),
+                )
+                rows = await cursor.fetchall()
+        except Exception as e:
+            logger.warning("[ch=%s] Часовые кейсы: чтение активных упало: %s", cid, e)
+            return
+
+        stamp = datetime.now().strftime("%Y%m%d%H")
+        tiers = [t[0] for t in HOURLY_CASE_TIERS]
+        weights = [t[1] for t in HOURLY_CASE_TIERS]
+        granted: dict = {}
+        lucky: list = []
+
+        for uname, interact_age_sec in rows:
+            if uname.lower() in DROP_BLACKLIST:
+                continue
+            engaged = (interact_age_sec is not None
+                       and interact_age_sec < ENGAGED_WINDOW)
+            tier = (random.choices(tiers, weights=weights)[0]
+                    if engaged else HOURLY_CASE_LURKER_TIER)
+            try:
+                result = await self.db.grant_case(
+                    uname, tier=tier, source='drop', channel_id=cid,
+                    trigger_key=f"hourly_{stamp}")
+            except Exception as e:
+                logger.warning("[ch=%s] Часовой кейс @%s не выдан: %s", cid, uname, e)
+                continue
+            if result.get('granted'):
+                granted[tier] = granted.get(tier, 0) + 1
+                if tier == 'legendary':
+                    lucky.append(uname)
+
+        if not granted:
+            return
+
+        # Легендарка — отдельной строкой и с ником: она выпадает примерно раз в
+        # месяц, и потеряться в общей сводке ей нельзя (владелец: «тому, кому
+        # выпала, — прям праздник»).
+        for uname in lucky:
+            await self.send_message(
+                f"👑 @{uname} ЛЕГЕНДАРНЫЙ кейс! "
+                f"{CASE_TIER_REWARDS['legendary']:,}💎 внутри — такое выпадает раз в месяц!"
+                .replace(",", " "), channel_id=cid)
+
+        labels = (('common', 'обычных'), ('rare', 'редких'),
+                  ('epic', 'эпических'), ('legendary', 'ЛЕГЕНДАРНЫХ'))
+        parts = [f"{name} {granted[key]}" for key, name in labels if granted.get(key)]
+        await self.send_message(
+            "🎁 Часовые кейсы: выдано " + ", ".join(parts)
+            + ". Открывай в расширении!", channel_id=cid)
+        logger.info("[ch=%s] Часовые кейсы: %s (всего %d)",
+                    cid, granted, sum(granted.values()))
+
     async def drop_loop(self):
         """Цикл дропов (multi-tenant): каждый канал в эфире — свой dice-roll."""
         logger.info("Цикл дропов запущен (каждые %d мин, multi-tenant)",

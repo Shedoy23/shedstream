@@ -2177,6 +2177,7 @@ async def on_startup():
     # Фоновые задачи бота
     asyncio.create_task(bot.reward_points_loop())
     asyncio.create_task(bot.drop_loop())
+    asyncio.create_task(bot.hourly_case_loop())   # 2026-09-05: кейс всем активным раз в час
     asyncio.create_task(bot.matchmaking_loop())  # Phase 5.0 (2026-05-11)
     asyncio.create_task(bot.voting_loop())       # Phase 4 (2026-05-11)
     # market_expiry_loop удалён 2026-05-10 (Phase 1.C compliance rework)

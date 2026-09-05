@@ -3,8 +3,8 @@
 **Назначение:** для чата по RimWorld-модулю (legacy + Module API rework).
 Общее — см. `CONTEXT.md`. Bannerlord — `CONTEXT_BANNERLORD.md`.
 
-**Last updated:** 2026-09-04 (команды и ACK переведены на общий Module API;
-legacy оставлен как автоматический fallback для старого DLL)
+**Last updated:** 2026-09-05 (у мода появился свой файл лога; команды и ACK
+на общем Module API, legacy — автоматический fallback для старого DLL)
 
 ## TL;DR
 
@@ -12,6 +12,30 @@ legacy оставлен как автоматический fallback для ст
 (до multi-tenant refactor). Большая часть прошла через Phase 1-7
 compliance rework. Команды и ACK уже идут по **Module API** generic pattern
 (как Bannerlord); каталоги и состояние пешек пока остаются на legacy routes.
+
+## 2026-09-05 — у мода свой файл лога, Player.log больше не единственный
+
+**Что было.** RimLink писал только через `Verse.Log`, то есть в `Player.log`.
+Движок выключает этот файл после `Reached max messages limit. Stopping logging
+to avoid spam`, и мод замолкает вместе с ним. 05.09 лимит выбрал чужой
+`AutoPriorities` (4144 исключения за сессию): в логе осталось 298 команд из 630,
+вторая половина эфира по игровой стороне стала непроверяемой.
+
+**Что стало.** `RimLink/Source/RimLinkLog.cs` пишет в
+`AppData\LocalLow\Ludeon Studios\RimWorld by Ludeon Studios\ModLogs\rimlink_ГГГГММДД.txt`
+напрямую через `File.AppendAllText`; счётчик движка на это не влияет. Все 165
+вызовов `Log.Message/Warning/Error` в моде переведены на `RimLinkLog.Msg/Warn/Err`.
+Порядок внутри намеренный: **сначала файл, потом `Verse.Log`** — движок вправе
+отказать, строка к этому моменту уже записана. Дублирование в `Verse.Log`
+сохранено, чтобы сообщения по-прежнему были видны в игре.
+
+**Чем держится.** `RimLink/tests/LogFileHarness` (в CI рядом с `PausedSyncHarness`):
+стаб движка отказывает, а харнес требует, чтобы строка всё равно оказалась в
+файле. Видел красным — при перестановке `Verse.Log` вперёд падает с
+«В файле 2 строк вместо 3».
+
+**Где читать в триаже.** Теперь `rimlink_ГГГГММДД.txt`; `Player.log` остаётся
+нужен только ради чужих модов и стектрейсов движка.
 
 ## 2026-07-29 — трек C прогнан. И сначала выяснилось, что прогнать его было НЕЧЕМ
 

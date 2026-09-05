@@ -30,7 +30,8 @@
 | Лог бэкенда | прод: `/var/log/twitchbot.out.log` | обычный поток; **время в UTC** |
 | Лог ошибок бэкенда | прод: `/var/log/twitchbot.err.log` | **трассировки только здесь**, в основной лог они не попадают |
 | Боевая база | прод: `/root/twitch-extension/backend/viewers.db` | единственный источник правды про деньги |
-| Лог RimWorld (если играли) | `AppData\LocalLow\Ludeon Studios\...\Player.log` | |
+| Лог мода RimWorld | `AppData\LocalLow\Ludeon Studios\...\ModLogs\rimlink_ГГГГММДД.txt` | своя запись мода с 05.09, лимит движка на неё не действует |
+| Лог RimWorld (если играли) | `AppData\LocalLow\Ludeon Studios\...\Player.log` | чужие моды и стектрейсы движка; **замолкает** по `Reached max messages limit` |
 
 **Если доступа к проду нет** — владелец выполняет команды и присылает вывод.
 Каждая команда ниже даёт короткий ответ, пригодный для копирования.

@@ -612,9 +612,14 @@ grep -c "Обработано команд" /tmp/evening.log                 # �
 ```
 
 Сверка последовательностей типов (лог мода против БД по порядку `id`) покажет
-точку обрыва: до неё они совпадают символ в символ. У `RimLink` своего файла
-лога нет (в отличие от Bannerlord) — пока не появится, вторая половина длинного
-эфира по игровой стороне непроверяема.
+точку обрыва: до неё они совпадают символ в символ.
+
+**Закрыто 2026-09-05:** у RimLink появился свой файл
+`…\RimWorld by Ludeon Studios\ModLogs\rimlink_ГГГГММДД.txt`. Он пишется
+напрямую, лимит движка на него не действует, и в триаже читать надо ЕГО, а
+`Player.log` — только ради чужих модов и стектрейсов движка. Держит
+`RimLink/tests/LogFileHarness` (в CI): проверяет, что строка уходит в файл
+даже когда лог движка отказывает.
 
 ### Время без пометки: одна запись — две разные поломки
 Найдено 2026-08-05 по жалобе «не работает таймер автоокончания голосования».
@@ -1043,7 +1048,7 @@ python -c "import io,sys; d=io.open(sys.argv[1],'rb').read(); print(sys.argv[2].
 | BannerlordLink | `Документы\...\Configs\ModLogs\bannerlordlink_ГГГГММДД.txt` |
 | Siege Sanity | `Документы\...\Configs\SiegeSanity.log` |
 | Mass Upgrade | `Документы\...\Configs\MassUpgrade.log` |
-| RimLink | `AppData\LocalLow\Ludeon Studios\RimWorld by Ludeon Studios\Player.log` |
+| RimLink | `AppData\LocalLow\Ludeon Studios\RimWorld by Ludeon Studios\ModLogs\rimlink_ГГГГММДД.txt` — свой файл с 2026-09-05; `Player.log` рядом остаётся дублем и глохнет по лимиту движка |
 
 ### Публикация в Steam Workshop — три способа тихого провала
 
@@ -1493,7 +1498,7 @@ Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -match 'VID_0D8C|VID_0
 Проверка перед эфиром — сверить device_id активной сцены с живыми endpoint'ами:
 
 ```powershell
-$j=Get-Content "$env:APPDATA\obs-studioasic\scenes\*.json" -Raw -Encoding UTF8 | ConvertFrom-Json
+$j=Get-Content "$env:APPDATA\obs-studio\basic\scenes\*.json" -Raw -Encoding UTF8 | ConvertFrom-Json
 $j.PSObject.Properties | Where-Object Name -match 'AudioDevice' | ForEach-Object { $_.Name + ' -> ' + $_.Value.settings.device_id }
 Get-PnpDevice -Class AudioEndpoint -Status OK | Where-Object InstanceId -match '0\.0\.1' | Select-Object FriendlyName,InstanceId
 ```

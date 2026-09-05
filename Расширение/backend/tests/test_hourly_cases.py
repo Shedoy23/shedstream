@@ -144,6 +144,47 @@ async def main() -> int:
         check("повторный проход не выдал второй кейс", total == 2, f"кейсов {total}")
         check("и промолчал в чате", not sent, str(sent))
 
+        # Перезапуск сервиса: цикл начинается заново, но срок выдачи лежит в базе.
+        # Раньше здесь было sleep(3600) первым делом — деплой на 59-й минуте
+        # отодвигал кейсы почти на два часа, а при частых деплоях они не
+        # выдавались бы вообще (нашёл внешний обзор 05.09).
+        sent.clear()
+        async with db._connect() as conn:
+            # Состояние «прошлая выдача была два часа назад»: чистим триггеры и
+            # кладём одну запись из того часа. Иначе проверялась бы
+            # идемпотентность внутри часа, а не поведение после перерыва.
+            await conn.execute("DELETE FROM case_triggers_fired WHERE channel_id=?", (CH,))
+            await conn.execute("DELETE FROM cases WHERE channel_id=?", (CH,))
+            await conn.execute(
+                "INSERT INTO case_triggers_fired (channel_id, username, trigger_key, case_id, fired_at) "
+                "VALUES (?, ?, 'hourly_' || strftime('%Y%m%d%H','now','-2 hours'), 0, datetime('now','-2 hours'))",
+                (CH, ACTIVE))
+            await conn.commit()
+        await bot._process_hourly_cases(channel_id=CH)
+        async with db._connect() as conn:
+            cur = await conn.execute("SELECT COUNT(*) FROM cases WHERE channel_id=?", (CH,))
+            after_restart = (await cur.fetchone())[0]
+        check("после перерыва выдача идёт сразу, а не через час", after_restart == 2,
+              f"выдано {after_restart}")
+
+        # А если прошлая выдача была только что — молчим, даже если цикл перезапущен.
+        sent.clear()
+        async with db._connect() as conn:
+            # Состояние «выдавали пять минут назад»: гейт обязан промолчать по
+            # времени, а не потому, что ключ этого часа израсходован.
+            await conn.execute("DELETE FROM case_triggers_fired WHERE channel_id=?", (CH,))
+            await conn.execute(
+                "INSERT INTO case_triggers_fired (channel_id, username, trigger_key, case_id, fired_at) "
+                "VALUES (?, ?, 'hourly_' || strftime('%Y%m%d%H','now','-1 hours'), 0, datetime('now','-5 minutes'))",
+                (CH, ACTIVE))
+            await conn.execute("DELETE FROM cases WHERE channel_id=?", (CH,))
+            await conn.commit()
+        await bot._process_hourly_cases(channel_id=CH)
+        async with db._connect() as conn:
+            cur = await conn.execute("SELECT COUNT(*) FROM cases WHERE channel_id=?", (CH,))
+            too_soon = (await cur.fetchone())[0]
+        check("раньше срока не выдаёт", too_soon == 0, f"выдано {too_soon}")
+
         weights = dict(HOURLY_CASE_TIERS)
         check("легендарка есть, но дробным весом",
               0 < weights.get("legendary", 0) <= 0.2,

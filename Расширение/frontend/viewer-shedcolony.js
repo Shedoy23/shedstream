@@ -420,12 +420,12 @@
         var notSick = (st.sick === false);
         var hpFull = (st.hp != null && st.hp >= _num(st.max_hp, 20));
         var careBody = '<div class="sc-care-row">'
-            + '<button class="sc-btn sc-btn-sm" data-sc="feed"' + (satFull ? ' disabled title="Колонист уже сыт"' : '') + '>🍖 Покормить · 75</button>'
-            + '<button class="sc-btn sc-btn-sm" data-sc="cure"' + (notSick ? ' disabled title="Колонист здоров"' : '') + '>💊 Вылечить · 100</button>'
-            + '<button class="sc-btn sc-btn-sm" data-sc="heal"' + (hpFull ? ' disabled title="Здоровье уже полное"' : '') + '>❤ Исцелить · 100</button>'
-            + '<button class="sc-btn sc-btn-sm" data-sc="mourn">🕯 Снять траур · 50</button>'
+            + '<button class="sc-btn sc-btn-sm" data-sc="feed"' + (satFull ? ' disabled title="Колонист уже сыт"' : '') + '>🍖 Покормить · ' + SC.feed.price + '</button>'
+            + '<button class="sc-btn sc-btn-sm" data-sc="cure"' + (notSick ? ' disabled title="Колонист здоров"' : '') + '>💊 Вылечить · ' + SC.cure.price + '</button>'
+            + '<button class="sc-btn sc-btn-sm" data-sc="heal"' + (hpFull ? ' disabled title="Здоровье уже полное"' : '') + '>❤ Исцелить · ' + SC.heal.price + '</button>'
+            + '<button class="sc-btn sc-btn-sm" data-sc="mourn">🕯 Снять траур · ' + SC.mourn.price + '</button>'
             + '</div>'
-            + '<button class="sc-btn" style="margin-top:8px;" data-sc="happiness">😊 Поднять настроение · 400</button>';
+            + '<button class="sc-btn" style="margin-top:8px;" data-sc="happiness">😊 Поднять настроение · ' + SC.happiness.price + '</button>';
         html += _grp('g-care', '❤️ Забота', careBody);
 
         // 📈 Прокачка и роль (скилл + работа + дом)
@@ -492,8 +492,8 @@
         SC_GIVE_ITEMS.forEach(function (pair) { custBody += '<option value="' + pair[0] + '">' + escapeHtml(pair[1]) + '</option>'; });
         custBody += '</select><button class="sc-btn" data-sc="give_item">🎁 Выдать предмет — ' + SC.give_item.price + ' 💎</button>'
             + '<div class="sc-care-row">'
-            + '<button class="sc-btn sc-btn-sm" data-sc="set_gender">🔄 Сменить пол · 200</button>'
-            + '<button class="sc-btn sc-btn-sm" data-sc="teleport">✨ Призвать · 150</button>'
+            + '<button class="sc-btn sc-btn-sm" data-sc="set_gender">🔄 Сменить пол · ' + SC.set_gender.price + '</button>'
+            + '<button class="sc-btn sc-btn-sm" data-sc="teleport">✨ Призвать · ' + SC.teleport.price + '</button>'
             + '</div>';
         html += _grp('g-custom', '🎭 Кастомизация', custBody);
 
@@ -518,10 +518,10 @@
         html += '<div class="sc-pane" data-pane="gear">';
         // 🛡 Броня (любой колонист — force-slot, всегда работает)
         var gearBody = '<div class="sc-care-row">'
-            + '<button class="sc-btn sc-btn-sm" data-sc="equip_leather">🟫 Кожа · 500</button>'
-            + '<button class="sc-btn sc-btn-sm" data-sc="equip_iron">⬜ Железо · 1500</button>'
-            + '<button class="sc-btn sc-btn-sm" data-sc="equip_diamond">💎 Алмаз · 3000</button>'
-            + '<button class="sc-btn sc-btn-sm" data-sc="equip_netherite">🖤 Незерит · 4000</button>'
+            + '<button class="sc-btn sc-btn-sm" data-sc="equip_leather">🟫 Кожа · ' + SC.equip_leather.price + '</button>'
+            + '<button class="sc-btn sc-btn-sm" data-sc="equip_iron">⬜ Железо · ' + SC.equip_iron.price + '</button>'
+            + '<button class="sc-btn sc-btn-sm" data-sc="equip_diamond">💎 Алмаз · ' + SC.equip_diamond.price + '</button>'
+            + '<button class="sc-btn sc-btn-sm" data-sc="equip_netherite">🖤 Незерит · ' + SC.equip_netherite.price + '</button>'
             + '</div>';
         html += _grp('g-gear', '🛡 Броня', gearBody);
 
@@ -539,8 +539,8 @@
         var guardBody;
         if (isGuard) {
             guardBody = '<div class="sc-care-row">'
-                + '<button class="sc-btn sc-btn-sm" data-sc="equip_weapon">⚔ Оружие · 2500</button>'
-                + '<button class="sc-btn sc-btn-sm" data-sc="give_shield">🛡 Щит · 1000</button>'
+                + '<button class="sc-btn sc-btn-sm" data-sc="equip_weapon">⚔ Оружие · ' + SC.equip_weapon.price + '</button>'
+                + '<button class="sc-btn sc-btn-sm" data-sc="give_shield">🛡 Щит · ' + SC.give_shield.price + '</button>'
                 + '</div>'
                 + '<p class="sc-muted" style="margin-top:6px;">Оружие — лучший меч+лук по уровню башни (боец возьмёт своё).</p>'
                 + '<div class="sc-section-title" style="margin-top:12px;">Боевая задача — ' + SC.set_guard_task.price + ' 💎</div>'
@@ -562,10 +562,10 @@
         // ══════════ PANE: Колония ══════════
         html += '<div class="sc-pane" data-pane="colony">';
         var eventsBody = '<div class="sc-care-row">'
-            + '<button class="sc-btn sc-btn-sm" data-sc="festival">🎉 Фестиваль · 3000</button>'
-            + '<button class="sc-btn sc-btn-sm" data-sc="spawn_visitor">🚶 Гость · 2000</button>'
-            + '<button class="sc-btn sc-btn-sm" data-sc="quest_unlock">📜 Квест · 2000</button>'
-            + '<button class="sc-btn sc-btn-sm" data-sc="spy_boost">🕵 Шпионы · 1500</button>'
+            + '<button class="sc-btn sc-btn-sm" data-sc="festival">🎉 Фестиваль · ' + SC.festival.price + '</button>'
+            + '<button class="sc-btn sc-btn-sm" data-sc="spawn_visitor">🚶 Гость · ' + SC.spawn_visitor.price + '</button>'
+            + '<button class="sc-btn sc-btn-sm" data-sc="quest_unlock">📜 Квест · ' + SC.quest_unlock.price + '</button>'
+            + '<button class="sc-btn sc-btn-sm" data-sc="spy_boost">🕵 Шпионы · ' + SC.spy_boost.price + '</button>'
             + '</div>'
             + '<p class="sc-muted" style="margin-top:8px;">Шпионы работают только во время рейда; гость — если есть таверна.</p>';
         html += _grp('g-events', '🎉 События колонии', eventsBody);

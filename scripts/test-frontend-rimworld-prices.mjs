@@ -67,5 +67,15 @@ const pawn = readFileSync(path.join(frontend, 'pawn.js'), 'utf8');
 const hardcoded = [...pawn.matchAll(/(\d+)\s*💎/g)].map((m) => m[0]);
 check('в pawn.js нет числовых цен', hardcoded.length === 0, hardcoded.join(', '));
 
+// ── 3. у кнопок ShedColony нет цен числом ─────────────────────────
+// Линтер цен ищет число рядом со значком, а тут формат другой — «Покормить · 75».
+// Из-за этого 17 кнопок считались перенесёнными, хотя показывали копию цены
+// (нашёл внешний обзор 05.09).
+const colony = readFileSync(path.join(frontend, 'viewer-shedcolony.js'), 'utf8');
+const colonyHardcoded = [...colony.matchAll(/data-sc="([a-z_]+)"[^>]*>[^<]*?[·—-]\s*(\d{2,})/g)]
+    .map((m) => `${m[1]}=${m[2]}`);
+check('у кнопок ShedColony цена не вписана числом', colonyHardcoded.length === 0,
+      colonyHardcoded.join(', '));
+
 console.log(fails.length ? `\nПРОВАЛЕНО: ${fails.join('; ')}` : '\nВСЁ ЗЕЛЁНОЕ');
 process.exit(fails.length ? 1 : 0);

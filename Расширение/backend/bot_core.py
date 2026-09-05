@@ -34,6 +34,7 @@ from config import (
     DROP_INTERVAL,
     CASE_TIER_REWARDS,
     HOURLY_CASE_INTERVAL,
+    HOURLY_CASE_TICK,
     HOURLY_CASE_LURKER_TIER,
     HOURLY_CASE_TIERS,
     DROP_LURKER_WEIGHT,
@@ -1093,10 +1094,14 @@ class BotCore:
         этот выдаёт ВСЕМ и легендарку не выдаёт (иначе она перестала бы быть
         событием — расчёт в config.HOURLY_CASE_TIERS).
         """
-        logger.info("Цикл часовых кейсов запущен (каждые %d мин)",
-                    HOURLY_CASE_INTERVAL // 60)
+        logger.info("Цикл часовых кейсов запущен (выдача раз в %d мин, тик %d с)",
+                    HOURLY_CASE_INTERVAL // 60, HOURLY_CASE_TICK)
         while self.running:
-            await asyncio.sleep(HOURLY_CASE_INTERVAL)
+            # Тик короткий, а срок выдачи лежит в базе: перезапуск сервиса не
+            # должен отодвигать раздачу. Со «сначала sleep(3600)» деплой на 59-й
+            # минуте отодвигал кейсы почти на два часа, а при частых деплоях они
+            # не выдавались бы никогда.
+            await asyncio.sleep(HOURLY_CASE_TICK)
             try:
                 channels = await self.db.list_channels()
             except Exception as e:
@@ -1118,6 +1123,23 @@ class BotCore:
         """
         cid = resolve_channel_id(channel_id)
         if not await self._is_stream_live(channel_id=cid):
+            return
+
+        # Когда выдавали в прошлый раз — берём из базы, а не из памяти цикла:
+        # память умирает вместе с процессом, а деплой во время эфира штатен.
+        try:
+            async with self.db._connect() as conn:
+                cur = await conn.execute(
+                    "SELECT CAST((julianday('now') - julianday(MAX(fired_at))) * 86400 AS INTEGER) "
+                    "FROM case_triggers_fired "
+                    "WHERE channel_id = ? AND trigger_key LIKE 'hourly_%'",
+                    (cid,))
+                row = await cur.fetchone()
+            age_sec = row[0] if row else None
+        except Exception as e:
+            logger.warning("[ch=%s] Часовые кейсы: срок прошлой выдачи не прочитан: %s", cid, e)
+            return
+        if age_sec is not None and age_sec < HOURLY_CASE_INTERVAL:
             return
 
         # Те же два признака, что и у дропа: свежий last_seen — «панель на

@@ -1159,6 +1159,25 @@ static void TestManifestDrivenDetection(string root)
 
     var catalog = InstallationReleaseCatalog.LoadDirectory(Path.Combine(
         Environment.CurrentDirectory, "manifests", "installation"));
+    var currentBannerlord = catalog.SelectLatest("bannerlord")!;
+    var currentDetector = new GameDetectionService(currentBannerlord.Manifest.Game!);
+    var versionPath = Path.Combine(
+        bannerlordRoot, "bin", "Win64_Shipping_Client", "Version.xml");
+    foreach (var (gameVersion, expectedRelease) in new[]
+    {
+        ("1.4.8", "0.1.2"),
+        ("1.3.15", "0.1.1"),
+        ("1.5.0", (string?)null),
+    })
+    {
+        File.WriteAllText(versionPath,
+            $"<Version><Singleplayer Value=\"v{gameVersion}\"/></Version>");
+        var detectedBannerlord = currentDetector.DetectVersion(bannerlordRoot);
+        Assert(detectedBannerlord is not null &&
+            catalog.SelectCompatible("bannerlord", detectedBannerlord.CompatibilityVersion)
+                ?.Manifest.ReleaseVersion == expectedRelease,
+            $"shipped Bannerlord catalog selects {expectedRelease ?? "no release"} for {gameVersion}");
+    }
     var integrations = catalog.LatestIntegrations();
     Assert(integrations.Any(item => item.Manifest.IntegrationId == "rimworld") &&
         integrations.Any(item => item.Manifest.IntegrationId == "bannerlord") &&

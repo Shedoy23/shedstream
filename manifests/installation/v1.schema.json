@@ -116,6 +116,10 @@
                     "items": {
                       "$ref": "#/$defs/relative_path"
                     }
+                  },
+                  "hint": {
+                    "type": "string",
+                    "minLength": 1
                   }
                 }
               }
@@ -141,7 +145,10 @@
           ],
           "properties": {
             "kind": {
-              "const": "text_file"
+              "enum": [
+                "text_file",
+                "file_name"
+              ]
             },
             "path": {
               "$ref": "#/$defs/relative_path"
@@ -161,10 +168,7 @@
         "type": "object",
         "additionalProperties": false,
         "required": [
-          "id",
-          "kind",
-          "requirement",
-          "required"
+          "id"
         ],
         "properties": {
           "id": {
@@ -184,8 +188,35 @@
           },
           "required": {
             "type": "boolean"
+          },
+          "path_pattern": {
+            "$ref": "#/$defs/relative_path"
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1
+          },
+          "help_url": {
+            "type": "string",
+            "pattern": "^https://[^/@\\s]+(?:/[^\\s]*)?$"
           }
-        }
+        },
+        "oneOf": [
+          {
+            "required": [
+              "kind",
+              "requirement",
+              "required"
+            ]
+          },
+          {
+            "required": [
+              "path_pattern",
+              "message",
+              "help_url"
+            ]
+          }
+        ]
       }
     },
     "artifacts": {
@@ -336,6 +367,12 @@
             },
             "relative_path": {
               "$ref": "#/$defs/relative_path"
+            },
+            "kind": {
+              "enum": [
+                "directory",
+                "file"
+              ]
             }
           }
         },
@@ -367,7 +404,8 @@
           "properties": {
             "mode": {
               "enum": [
-                "atomic_directory_swap"
+                "atomic_directory_swap",
+                "atomic_file_swap"
               ]
             },
             "require_game_stopped": {

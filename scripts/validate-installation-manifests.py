@@ -57,7 +57,9 @@ def validate_manifest(path: Path, schema: dict) -> None:
     manifest = json.loads(path.read_text(encoding="utf-8"))
     jsonschema.Draft202012Validator(schema).validate(manifest)
 
-    if manifest["integration_id"] != manifest["game"]["id"]:
+    expected_game = {"shedcolony": "minecraft"}.get(
+        manifest["integration_id"], manifest["integration_id"])
+    if expected_game != manifest["game"]["id"]:
         fail(f"{path.name}: integration_id and game.id differ")
     if manifest["release_version"] != manifest["runtime"]["manifest_version"]:
         fail(f"{path.name}: release/runtime versions differ")

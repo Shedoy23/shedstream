@@ -45,6 +45,12 @@ jobs:
       - name: Consistency lints (version sync / migrations wired / drift / undefined names)
         run: python scripts/lint_consistency.py
 
+      - name: Validate complete installation catalog and rejection cases
+        run: |
+          pip install -r scripts/requirements-manifest.txt
+          python scripts/validate-installation-manifests.py
+          python scripts/test-installation-manifests.py
+
       - name: Install backend deps
         run: |
           if [ -f "$EXT/backend/requirements.txt" ]; then
@@ -78,3 +84,6 @@ jobs:
 
       - name: Manager security, detection and restart self-test
         run: dotnet run --project ShedLink.Manager/tests/ShedLink.Manager.Core.SelfTest/ShedLink.Manager.Core.SelfTest.csproj -c Release
+
+      - name: RimLink paused game synchronization regression
+        run: dotnet run --project RimLink/tests/PausedSyncHarness -c Release

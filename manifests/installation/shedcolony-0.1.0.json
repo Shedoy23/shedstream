@@ -19,7 +19,7 @@
     "detection": [
       {
         "kind": "manual",
-        "hint": "Укажи папку самого инстанса игры — ту, внутри которой лежит mods. У Prism и MultiMC это .minecraft внутри папки инстанса. Корень лаунчера не подойдёт.",
+        "hint": "Укажи папку инстанса игры, внутри которой лежит mods. У Prism и MultiMC это .minecraft внутри папки инстанса.",
         "required_paths": [
           "mods"
         ]
@@ -30,7 +30,7 @@
     {
       "id": "minecolonies",
       "path_pattern": "mods/minecolonies-*.jar",
-      "message": "Сначала установи MineColonies для Minecraft 1.21.1 (NeoForge). Manager не распространяет чужой мод.",
+      "message": "Сначала установи MineColonies для Minecraft 1.21.1 (NeoForge). Manager не устанавливает этот мод.",
       "help_url": "https://www.curseforge.com/minecraft/mc-mods/minecolonies/files/all"
     }
   ],
@@ -57,6 +57,38 @@
       "base": "game_root",
       "relative_path": "mods/shedcolony-0.1.0.jar",
       "kind": "file"
+    },
+    "staging": {
+      "base": "manager_temp",
+      "verify_before_replace": true
+    },
+    "replace": {
+      "mode": "atomic_file_swap",
+      "require_game_stopped": true
+    },
+    "rollback": {
+      "enabled": true,
+      "preserve": [
+        "configuration_store"
+      ]
+    },
+    "update": {
+      "mode": "verify_then_replace",
+      "preserve": [
+        "configuration_store"
+      ]
+    },
+    "repair": {
+      "mode": "verify_then_replace",
+      "preserve": [
+        "configuration_store"
+      ]
+    },
+    "uninstall": {
+      "enabled": true,
+      "preserve": [
+        "configuration_store"
+      ]
     }
   },
   "configuration": {
@@ -84,7 +116,9 @@
         "value_source": "channel_id",
         "secret": false
       }
-    ]
+    ],
+    "create_if_missing": true,
+    "preserve_unmanaged": true
   },
   "health": [
     {
@@ -96,6 +130,24 @@
   ],
   "security": {
     "publisher": "shedoy23",
-    "signature_status": "signed"
+    "signature_status": "signed",
+    "allowed_write_roots": [
+      "game_root",
+      "manager_temp"
+    ],
+    "redact_fields": [
+      "module_token",
+      "authorization",
+      "cookie"
+    ]
+  },
+  "runtime": {
+    "manifest_version": "0.1.0",
+    "core_api_version": ">=1.0.0,<2.0.0"
+  },
+  "compatibility_messages": {
+    "invalid_game_path": "Выбери папку инстанса Minecraft с каталогом mods.",
+    "unsupported_game_version": "Нужна Minecraft 1.21.1 с MineColonies для NeoForge.",
+    "game_running": "Закрой игру перед изменением установки."
   }
 }

@@ -10,7 +10,12 @@ implementations:
 pawn.*) — пока залогированы как received-but-not-handled. Имплементация
 в Step 3-4 миграции (см. docs/MODULE_MIGRATION.md).
 
-dispatch_action остаётся stub'ом до Step 3 (action queue).
+dispatch_action РЕАЛИЗОВАН (Step 3): кладёт в module_actions, мод забирает
+long-poll'ом GET /v1/module/rimworld/actions и подтверждает POST .../ack.
+Проверено эфиром 2026-09-05: 630 команд, 630 ACK через Module API, ни одного
+через legacy /api/rimworld/ack-command, очередь rimworld_pending_commands пуста.
+На legacy пока остаются: покупки (/api/rimworld/<действие>), состояние пешек
+(sync-pawn/sync-pawns), каталоги, heartbeat/status/session-start/offline.
 """
 from __future__ import annotations
 

@@ -74,7 +74,7 @@ namespace RimLink.Managers
             {
                 if (_queue.Count >= MaxQueueSize)
                 {
-                    Log.Warning($"[RimLink] Очередь команд переполнена ({MaxQueueSize}), команда отброшена");
+                    RimLinkLog.Warn($"[RimLink] Очередь команд переполнена ({MaxQueueSize}), команда отброшена");
                     if (cmd != null && cmd.TryGetValue("id", out var idObj))
                         overflowId = idObj?.ToString() ?? "";
                 }
@@ -116,7 +116,7 @@ namespace RimLink.Managers
                 }
                 catch (Exception e)
                 {
-                    Log.Error($"[RimLink] Ошибка выполнения команды: {e.Message}");
+                    RimLinkLog.Err($"[RimLink] Ошибка выполнения команды: {e.Message}");
                 }
 
                 processed++;
@@ -130,7 +130,7 @@ namespace RimLink.Managers
                 Task.Run(() =>
                 {
                     try { RimLinkMod.API?.OnCommandsProcessed(count); }
-                    catch (Exception ex) { Log.Warning($"[RimLink] OnCommandsProcessed: {ex.Message}"); }
+                    catch (Exception ex) { RimLinkLog.Warn($"[RimLink] OnCommandsProcessed: {ex.Message}"); }
                 });
             }
 
@@ -214,7 +214,7 @@ namespace RimLink.Managers
                         }
                     }
 
-                    Log.Warning($"[RimLink] ACK {ackId} не доставлен после "
+                    RimLinkLog.Warn($"[RimLink] ACK {ackId} не доставлен после "
                                 + $"{AckRetryDelaysMs.Length} попыток: {lastError ?? "unknown error"}");
                 }
                 finally
@@ -291,11 +291,11 @@ namespace RimLink.Managers
 
                 lock (_lock) TrimOutcomesLocked();
                 if (_executedResults.Count > 0)
-                    Log.Message($"[RimLink] Загружен журнал команд: {_executedResults.Count}");
+                    RimLinkLog.Msg($"[RimLink] Загружен журнал команд: {_executedResults.Count}");
             }
             catch (Exception ex)
             {
-                Log.Warning($"[RimLink] Не удалось прочитать журнал команд: {ex.Message}");
+                RimLinkLog.Warn($"[RimLink] Не удалось прочитать журнал команд: {ex.Message}");
             }
         }
 
@@ -342,7 +342,7 @@ namespace RimLink.Managers
             }
             catch (Exception ex)
             {
-                Log.Warning($"[RimLink] Не удалось сохранить журнал команд: {ex.Message}");
+                RimLinkLog.Warn($"[RimLink] Не удалось сохранить журнал команд: {ex.Message}");
             }
         }
 
@@ -365,7 +365,7 @@ namespace RimLink.Managers
 
             if (string.IsNullOrEmpty(commandId))
             {
-                Log.Warning("[RimLink] Команда без поля 'id' отклонена: её нельзя безопасно подтвердить");
+                RimLinkLog.Warn("[RimLink] Команда без поля 'id' отклонена: её нельзя безопасно подтвердить");
                 return;
             }
 
@@ -373,7 +373,7 @@ namespace RimLink.Managers
             {
                 if (_executedResults.TryGetValue(commandId, out var previous))
                 {
-                    Log.Warning($"[RimLink] Команда {commandId} уже выполнялась — повторяем прежний ACK");
+                    RimLinkLog.Warn($"[RimLink] Команда {commandId} уже выполнялась — повторяем прежний ACK");
                     if (previous.AckPending)
                         AckCommandAsync(commandId, previous.Success, previous.Message);
                     return;
@@ -382,14 +382,14 @@ namespace RimLink.Managers
 
             if (!cmd.TryGetValue("type", out var typeObj))
             {
-                Log.Warning("[RimLink] Команда без поля 'type'");
+                RimLinkLog.Warn("[RimLink] Команда без поля 'type'");
                 RememberOutcome(commandId, false, "missing_type");
                 AckCommandAsync(commandId, false, "missing_type");
                 return;
             }
 
             string type = typeObj.ToString();
-            Log.Message($"[RimLink] Выполняем команду: {type}");
+            RimLinkLog.Msg($"[RimLink] Выполняем команду: {type}");
 
             ICommand command;
             try
@@ -398,7 +398,7 @@ namespace RimLink.Managers
             }
             catch (Exception e)
             {
-                Log.Error($"[RimLink] Команда {type}: битый payload: {e.Message}");
+                RimLinkLog.Err($"[RimLink] Команда {type}: битый payload: {e.Message}");
                 string message = $"bad_payload: {e.Message}";
                 RememberOutcome(commandId, false, message);
                 AckCommandAsync(commandId, false, message);
@@ -407,7 +407,7 @@ namespace RimLink.Managers
 
             if (command == null)
             {
-                Log.Warning($"[RimLink] Неизвестный тип команды: {type}");
+                RimLinkLog.Warn($"[RimLink] Неизвестный тип команды: {type}");
                 string message = $"Unknown command: {type}";
                 RememberOutcome(commandId, false, message);
                 AckCommandAsync(commandId, false, message);
@@ -418,14 +418,14 @@ namespace RimLink.Managers
             {
                 bool ok = command.Execute();
                 if (!ok)
-                    Log.Warning($"[RimLink] Команда {type} без эффекта — шлём success=false (рефанд)");
+                    RimLinkLog.Warn($"[RimLink] Команда {type} без эффекта — шлём success=false (рефанд)");
                 string message = ok ? "" : "no_effect";
                 RememberOutcome(commandId, ok, message);
                 AckCommandAsync(commandId, ok, message);
             }
             catch (Exception e)
             {
-                Log.Error($"[RimLink] Команда {type} завершилась ошибкой: {e.Message}");
+                RimLinkLog.Err($"[RimLink] Команда {type} завершилась ошибкой: {e.Message}");
                 RememberOutcome(commandId, false, e.Message);
                 AckCommandAsync(commandId, false, e.Message);
             }

@@ -75,7 +75,7 @@ namespace RimLink.Managers
                         }
                     ));
                 }
-                catch (Exception ex) { Log.Warning($"[RimLink] Catalog apparel skip '{def?.defName}': {ex.Message}"); }
+                catch (Exception ex) { RimLinkLog.Warn($"[RimLink] Catalog apparel skip '{def?.defName}': {ex.Message}"); }
             }
 
             // 2. Оружие (ближнее и дальнобойное)
@@ -130,7 +130,7 @@ namespace RimLink.Managers
                         }
                     ));
                 }
-                catch (Exception ex) { Log.Warning($"[RimLink] Catalog weapon skip '{def?.defName}': {ex.Message}"); }
+                catch (Exception ex) { RimLinkLog.Warn($"[RimLink] Catalog weapon skip '{def?.defName}': {ex.Message}"); }
             }
 
             // 3. Импланты — ищем рецепты хирургии (RecipeDef) которые устанавливают импланты
@@ -187,7 +187,7 @@ namespace RimLink.Managers
                         }
                     ));
                 }
-                catch (Exception ex) { Log.Warning($"[RimLink] Catalog implant skip '{recipe?.addsHediff?.defName}': {ex.Message}"); }
+                catch (Exception ex) { RimLinkLog.Warn($"[RimLink] Catalog implant skip '{recipe?.addsHediff?.defName}': {ex.Message}"); }
             }
 
             // 4. Нейротренеры — ThingDef с comps содержащим CompUseEffect_LearnSkill
@@ -372,7 +372,7 @@ namespace RimLink.Managers
                 result.Add(copy);
             }
 
-            Log.Message($"[RimLink] BuildCatalogWithPrices: {result.Count} предметов (из {raw.Count})");
+            RimLinkLog.Msg($"[RimLink] BuildCatalogWithPrices: {result.Count} предметов (из {raw.Count})");
             return result;
         }
 

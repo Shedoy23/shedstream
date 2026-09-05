@@ -488,11 +488,11 @@ namespace RimLink.Managers
                 }
                 catch (Exception ex)
                 {
-                    Log.Warning($"[RimLink] BuildEventCatalog: пропущен IncidentDef '{def?.defName}' — {ex.Message}");
+                    RimLinkLog.Warn($"[RimLink] BuildEventCatalog: пропущен IncidentDef '{def?.defName}' — {ex.Message}");
                 }
             }
 
-            Log.Message($"[RimLink] EventCatalog: {result.Count} ивентов");
+            RimLinkLog.Msg($"[RimLink] EventCatalog: {result.Count} ивентов");
             return result;
         }
     }

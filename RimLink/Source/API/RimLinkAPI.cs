@@ -122,10 +122,10 @@ namespace RimLink.API
         {
             if (PostAndRequireOk("/api/rimworld/session-start", "{}", out string error))
             {
-                Log.Message("[RimLink] Session started");
+                RimLinkLog.Msg("[RimLink] Session started");
                 return true;
             }
-            Log.Warning($"[RimLink] SessionStart failed: {error}");
+            RimLinkLog.Warn($"[RimLink] SessionStart failed: {error}");
             return false;
         }
 
@@ -138,10 +138,10 @@ namespace RimLink.API
                 if (_heartbeatFailing)
                 {
                     _heartbeatFailing = false;
-                    Log.Message("[RimLink] Heartbeat restored — сервер снова доступен");
+                    RimLinkLog.Msg("[RimLink] Heartbeat restored — сервер снова доступен");
                 }
                 #if DEBUG
-                Log.Message("[RimLink] Heartbeat sent");
+                RimLinkLog.Msg("[RimLink] Heartbeat sent");
                 #endif
             }
             catch (Exception e)
@@ -151,7 +151,7 @@ namespace RimLink.API
                 if (!_heartbeatFailing)
                 {
                     _heartbeatFailing = true;
-                    Log.Warning($"[RimLink] Heartbeat failed (дальше молчу до восстановления): {e.Message}");
+                    RimLinkLog.Warn($"[RimLink] Heartbeat failed (дальше молчу до восстановления): {e.Message}");
                 }
             }
         }
@@ -162,11 +162,11 @@ namespace RimLink.API
             try 
             { 
                 Post("/api/rimworld/offline", "{}");
-                Log.Message("[RimLink] Offline notification sent");
+                RimLinkLog.Msg("[RimLink] Offline notification sent");
             }
             catch (Exception e) 
             { 
-                Log.Warning($"[RimLink] SendOffline failed: {e.Message}"); 
+                RimLinkLog.Warn($"[RimLink] SendOffline failed: {e.Message}"); 
             }
         }
 
@@ -214,7 +214,7 @@ namespace RimLink.API
                 }
                 catch (Exception e)
                 {
-                    Log.Warning($"[RimLink] Module API unavailable, using legacy queue: {e.Message}");
+                    RimLinkLog.Warn($"[RimLink] Module API unavailable, using legacy queue: {e.Message}");
                 }
             }
 
@@ -238,7 +238,7 @@ namespace RimLink.API
             }
             catch (Exception e)
             {
-                Log.Warning($"[RimLink] GetCommands failed: {e.Message}");
+                RimLinkLog.Warn($"[RimLink] GetCommands failed: {e.Message}");
                 return null; // null = сетевая ошибка, SyncLoop включит backoff
             }
         }
@@ -279,7 +279,7 @@ namespace RimLink.API
             if (delivered)
             {
                 #if DEBUG
-                Log.Message($"[RimLink] Command {commandId} acknowledged (success={success})");
+                RimLinkLog.Msg($"[RimLink] Command {commandId} acknowledged (success={success})");
                 #endif
                 return true;
             }
@@ -298,12 +298,12 @@ namespace RimLink.API
                 Post("/api/rimworld/commands-processed", SimpleJson.Serialize(d));
                 
                 #if DEBUG
-                Log.Message($"[RimLink] Commands processed: {count}");
+                RimLinkLog.Msg($"[RimLink] Commands processed: {count}");
                 #endif
             }
             catch (Exception e)
             {
-                Log.Warning($"[RimLink] OnCommandsProcessed failed: {e.Message}");
+                RimLinkLog.Warn($"[RimLink] OnCommandsProcessed failed: {e.Message}");
             }
         }
 
@@ -317,7 +317,7 @@ namespace RimLink.API
             {
                 return true;
             }
-            Log.Warning($"[RimLink] SyncPawn failed: {error}");
+            RimLinkLog.Warn($"[RimLink] SyncPawn failed: {error}");
             return false;
         }
 
@@ -330,7 +330,7 @@ namespace RimLink.API
             {
                 return true;
             }
-            Log.Warning($"[RimLink] SyncPawnsBulk failed: {error}");
+            RimLinkLog.Warn($"[RimLink] SyncPawnsBulk failed: {error}");
             return false;
         }
 
@@ -342,10 +342,10 @@ namespace RimLink.API
             if (PostAndRequireOk("/api/rimworld/shop-catalog",
                 SimpleJson.SerializeList(items), out string error))
             {
-                Log.Message($"[RimLink] Shop catalog synced: {items.Count} items");
+                RimLinkLog.Msg($"[RimLink] Shop catalog synced: {items.Count} items");
                 return true;
             }
-            Log.Warning($"[RimLink] SyncShopCatalog failed: {error}");
+            RimLinkLog.Warn($"[RimLink] SyncShopCatalog failed: {error}");
             return false;
         }
 
@@ -357,10 +357,10 @@ namespace RimLink.API
             if (PostAndRequireOk("/api/rimworld/event-catalog",
                 SimpleJson.SerializeList(events), out string error))
             {
-                Log.Message($"[RimLink] Event catalog synced: {events.Count} events");
+                RimLinkLog.Msg($"[RimLink] Event catalog synced: {events.Count} events");
                 return true;
             }
-            Log.Warning($"[RimLink] SyncEventCatalog failed: {error}");
+            RimLinkLog.Warn($"[RimLink] SyncEventCatalog failed: {error}");
             return false;
         }
 

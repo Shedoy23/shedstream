@@ -1,4 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
-  <ItemGroup><Compile Include="../../Source/Components/RimLinkGameComponent.cs" Link="RimLinkGameComponent.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../../Source/Components/RimLinkGameComponent.cs" Link="RimLinkGameComponent.cs" /><Compile Include="../../Source/RimLinkLog.cs" Link="RimLinkLog.cs" /></ItemGroup>
 </Project>

@@ -129,7 +129,7 @@ namespace RimLink.Managers
                 }
                 catch (Exception wex)
                 {
-                    Log.Warning($"[RimLink] BuildEquipmentData weapon ({pawn?.equipment?.Primary?.def?.defName ?? "?"}): {wex.Message}");
+                    RimLinkLog.Warn($"[RimLink] BuildEquipmentData weapon ({pawn?.equipment?.Primary?.def?.defName ?? "?"}): {wex.Message}");
                 }
             }
 
@@ -221,7 +221,7 @@ namespace RimLink.Managers
                     if (result.Count > 0) break;
                 }
             }
-            catch (Exception ex) { Log.Warning($"[RimLink] GetWeaponTraits: {ex.Message}"); }
+            catch (Exception ex) { RimLinkLog.Warn($"[RimLink] GetWeaponTraits: {ex.Message}"); }
             return result;
         }
 
@@ -273,7 +273,7 @@ namespace RimLink.Managers
                     }
                 }
             }
-            catch (Exception ex) { Log.Warning($"[RimLink] GetWeaponPsiAbilities: {ex.Message}"); }
+            catch (Exception ex) { RimLinkLog.Warn($"[RimLink] GetWeaponPsiAbilities: {ex.Message}"); }
             return result;
         }
 
@@ -469,7 +469,7 @@ namespace RimLink.Managers
             }
             catch (Exception e)
             {
-                Log.Warning($"[RimLink] BuildXenotypeData: {e.Message}");
+                RimLinkLog.Warn($"[RimLink] BuildXenotypeData: {e.Message}");
                 return new Dictionary<string, object>();
             }
         }
@@ -562,7 +562,7 @@ namespace RimLink.Managers
             }
             catch (Exception e)
             {
-                Log.Warning($"[RimLink] BuildPsylinkData: {e.Message}");
+                RimLinkLog.Warn($"[RimLink] BuildPsylinkData: {e.Message}");
                 return new Dictionary<string, object> { { "level", 0 }, { "abilities", new List<object>() } };
             }
         }

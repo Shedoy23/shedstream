@@ -46,14 +46,14 @@ namespace RimLink.Components
                 if (RimLinkMod.ShopManager != null && RimLinkMod.Prices != null)
                     catalog = RimLinkMod.ShopManager.BuildCatalogWithPrices(RimLinkMod.Prices);
             }
-            catch (Exception ex) { Log.Warning($"[RimLink] BuildShopCatalog: {ex.Message}"); }
+            catch (Exception ex) { RimLinkLog.Warn($"[RimLink] BuildShopCatalog: {ex.Message}"); }
 
             try
             {
                 if (RimLinkMod.EventManager != null && RimLinkMod.Prices != null)
                     events = RimLinkMod.EventManager.BuildEventCatalog(RimLinkMod.Prices);
             }
-            catch (Exception ex) { Log.Warning($"[RimLink] BuildEventCatalog: {ex.Message}"); }
+            catch (Exception ex) { RimLinkLog.Warn($"[RimLink] BuildEventCatalog: {ex.Message}"); }
 
             var capCatalog = catalog;
             var capEvents  = events;
@@ -64,7 +64,7 @@ namespace RimLink.Components
                     if (capCatalog != null) RimLinkMod.API?.SyncShopCatalog(capCatalog);
                     if (capEvents != null)  RimLinkMod.API?.SyncEventCatalog(capEvents);
                 }
-                catch (Exception ex) { Log.Warning($"[RimLink] SyncCatalogs bg: {ex.Message}"); }
+                catch (Exception ex) { RimLinkLog.Warn($"[RimLink] SyncCatalogs bg: {ex.Message}"); }
             });
         }
 
@@ -94,7 +94,7 @@ namespace RimLink.Components
             _heartbeatRealTime = 0f;
             _deathCheckRealTime = 0f;
             _syncRealTime = 0f;
-            Log.Message($"[RimLink] Инициализация сессии ({reason})");
+            RimLinkLog.Msg($"[RimLink] Инициализация сессии ({reason})");
 
             if (!_quittingSubscribed)
             {
@@ -139,7 +139,7 @@ namespace RimLink.Components
                 {
                     _deathCheckRealTime = 0f;
                     try { RimLinkMod.PawnManager?.CheckAndSyncDeaths(); }
-                    catch (Exception ex) { Log.Warning($"[RimLink] Death sync: {ex.Message}"); }
+                    catch (Exception ex) { RimLinkLog.Warn($"[RimLink] Death sync: {ex.Message}"); }
                 }
                 // Retry snapshots even while paused; network I/O remains in PawnManager's worker.
                 _syncRealTime += Time.unscaledDeltaTime;
@@ -147,7 +147,7 @@ namespace RimLink.Components
                 {
                     _syncRealTime = 0f;
                     try { RimLinkMod.PawnManager?.SyncAll(); }
-                    catch (Exception ex) { Log.Warning($"[RimLink] Snapshot sync: {ex.Message}"); }
+                    catch (Exception ex) { RimLinkLog.Warn($"[RimLink] Snapshot sync: {ex.Message}"); }
                 }
                 _heartbeatRealTime += Time.unscaledDeltaTime;
                 if (_heartbeatRealTime >= HEARTBEAT_REAL_INTERVAL)
@@ -162,7 +162,7 @@ namespace RimLink.Components
                         catch (Exception ex)
                         {
                             #if DEBUG
-                            Log.Warning($"[RimLink] Heartbeat failed: {ex.Message}");
+                            RimLinkLog.Warn($"[RimLink] Heartbeat failed: {ex.Message}");
                             #else
                             _ = ex;
                             #endif
@@ -196,11 +196,11 @@ namespace RimLink.Components
             RimLinkMod.CommandQueue?.ClearPending();
             RimLinkMod.PawnManager?.Clear();
 
-            Log.Message("[RimLink] Игра закрывается — отправляем offline");
+            RimLinkLog.Msg("[RimLink] Игра закрывается — отправляем offline");
             Task.Run(() =>
             {
                 try { RimLinkMod.API?.SendOffline(); }
-                catch (Exception ex) { Log.Warning($"[RimLink] Offline notification failed: {ex.Message}"); }
+                catch (Exception ex) { RimLinkLog.Warn($"[RimLink] Offline notification failed: {ex.Message}"); }
             });
         }
 

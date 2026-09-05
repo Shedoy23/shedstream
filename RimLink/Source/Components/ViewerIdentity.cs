@@ -79,7 +79,7 @@ namespace RimLink.Components
             }
             catch (Exception ex)
             {
-                Log.Warning($"[RimLink] Не удалось сохранить identity пешки: {ex.Message}");
+                RimLinkLog.Warn($"[RimLink] Не удалось сохранить identity пешки: {ex.Message}");
                 return false;
             }
         }

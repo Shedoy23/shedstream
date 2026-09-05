@@ -87,3 +87,6 @@ jobs:
 
       - name: RimLink paused game synchronization regression
         run: dotnet run --project RimLink/tests/PausedSyncHarness -c Release
+
+      - name: RimLink writes its own log even when the engine log is silenced
+        run: dotnet run --project RimLink/tests/LogFileHarness -c Release

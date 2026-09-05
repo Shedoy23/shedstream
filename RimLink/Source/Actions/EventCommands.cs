@@ -89,7 +89,7 @@ namespace RimLink.Actions
         private bool FireAsGameCondition(string defName)
         {
             var condDef = DefDatabase<GameConditionDef>.GetNamed(defName, errorOnFail: false);
-            if (condDef == null) { Log.Warning($"[RimLink] Weather: '{defName}' не найден"); return false; }
+            if (condDef == null) { RimLinkLog.Warn($"[RimLink] Weather: '{defName}' не найден"); return false; }
 
             var conditions = HomeMap.gameConditionManager.ActiveConditions;
             for (int i = conditions.Count - 1; i >= 0; i--)
@@ -141,7 +141,7 @@ namespace RimLink.Actions
                     parms.faction = fallback;
                 else
                 {
-                    Log.Warning("[RimLink] RaidEvent: Не найдено фракций для рейда — отмена");
+                    RimLinkLog.Warn("[RimLink] RaidEvent: Не найдено фракций для рейда — отмена");
                     return false;
                 }
             }
@@ -150,7 +150,7 @@ namespace RimLink.Actions
             if (fired)
                 Messages.Message("🔴 Вражеский рейд начинается!", MessageTypeDefOf.ThreatBig);
             else
-                Log.Warning("[RimLink] RaidEvent: движок отказал (TryExecute=false) — рефанд");
+                RimLinkLog.Warn("[RimLink] RaidEvent: движок отказал (TryExecute=false) — рефанд");
             return fired;
         }
     }
@@ -166,7 +166,7 @@ namespace RimLink.Actions
             var def = DefDatabase<IncidentDef>.GetNamed("ResourcePodCrash", errorOnFail: false);
             if (def != null && HomeMap != null)
                 return TryFireIncident(def);
-            Log.Warning("[RimLink] ResourceDrop: Инцидент не найден");
+            RimLinkLog.Warn("[RimLink] ResourceDrop: Инцидент не найден");
             return false;
         }
     }
@@ -182,7 +182,7 @@ namespace RimLink.Actions
             var def = DefDatabase<IncidentDef>.GetNamed("WandererJoin", errorOnFail: false);
             if (def != null && HomeMap != null)
                 return TryFireIncident(def);
-            Log.Warning("[RimLink] Wanderer: Инцидент не найден");
+            RimLinkLog.Warn("[RimLink] Wanderer: Инцидент не найден");
             return false;
         }
     }
@@ -213,10 +213,10 @@ namespace RimLink.Actions
                     Messages.Message(aggressive ? "🐺 Животные в ярости!" : "🐾 Животные пришли в колонию!",
                                      aggressive ? MessageTypeDefOf.ThreatBig : MessageTypeDefOf.PositiveEvent);
                 else
-                    Log.Warning("[RimLink] Animals: движок отказал (TryExecute=false) — рефанд");
+                    RimLinkLog.Warn("[RimLink] Animals: движок отказал (TryExecute=false) — рефанд");
                 return fired;
             }
-            Log.Warning("[RimLink] Animals: Инцидент не найден");
+            RimLinkLog.Warn("[RimLink] Animals: Инцидент не найден");
             return false;
         }
     }
@@ -232,7 +232,7 @@ namespace RimLink.Actions
         public bool Execute()
         {
             Map map = Find.AnyPlayerHomeMap;
-            if (map == null) { Log.Warning("[RimLink] FireIncident: Нет карты"); return false; }
+            if (map == null) { RimLinkLog.Warn("[RimLink] FireIncident: Нет карты"); return false; }
 
             string defName = "";
             if (_data.TryGetValue("incident_def", out var val1)) defName = val1?.ToString();
@@ -305,12 +305,12 @@ namespace RimLink.Actions
                 if (fired)
                     Messages.Message($"🎲 {def.LabelCap} запущен!", MessageTypeDefOf.NeutralEvent);
                 else
-                    Log.Warning($"[RimLink] FireIncident: движок отказал для '{defName}' (TryExecute=false) — рефанд");
+                    RimLinkLog.Warn($"[RimLink] FireIncident: движок отказал для '{defName}' (TryExecute=false) — рефанд");
                 return fired;
             }
             catch (Exception e)
             {
-                Log.Error($"[RimLink] FireIncident: {e.Message}");
+                RimLinkLog.Err($"[RimLink] FireIncident: {e.Message}");
                 return false;
             }
         }

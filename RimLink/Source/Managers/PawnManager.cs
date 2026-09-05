@@ -106,7 +106,7 @@ namespace RimLink.Managers
                 ViewerIdentity.Ensure(pawn, username); // миграция legacy-пешек по имени
 
                 _pawns[username] = pawn;
-                Log.Message($"[RimLink] Зарегистрирована пешка зрителя: {username}");
+                RimLinkLog.Msg($"[RimLink] Зарегистрирована пешка зрителя: {username}");
             }
 
             foreach (var map in maps)
@@ -122,11 +122,11 @@ namespace RimLink.Managers
                     ViewerIdentity.Ensure(corpse.InnerPawn, username);
 
                     _corpses[username] = corpse;
-                    Log.Message($"[RimLink] Зарегистрирован труп: {username}");
+                    RimLinkLog.Msg($"[RimLink] Зарегистрирован труп: {username}");
                 }
             }
 
-            Log.Message($"[RimLink] Загружено пешек: {_pawns.Count}, трупов: {_corpses.Count}, карт: {maps.Count}");
+            RimLinkLog.Msg($"[RimLink] Загружено пешек: {_pawns.Count}, трупов: {_corpses.Count}, карт: {maps.Count}");
 
             // ── 2. Собираем данные синхронно в главном потоке ─────────────────
             //    Это безопасно — читаем игровые объекты до того, как покинем главный поток.
@@ -145,7 +145,7 @@ namespace RimLink.Managers
                 }
                 catch (Exception e)
                 {
-                    Log.Warning($"[RimLink] LoadFromCurrentMap BuildPawnData({kv.Key}): {e.Message}");
+                    RimLinkLog.Warn($"[RimLink] LoadFromCurrentMap BuildPawnData({kv.Key}): {e.Message}");
                 }
             }
 
@@ -160,7 +160,7 @@ namespace RimLink.Managers
                 }
                 catch (Exception e)
                 {
-                    Log.Warning($"[RimLink] LoadFromCurrentMap BuildCorpseData({kv.Key}): {e.Message}");
+                    RimLinkLog.Warn($"[RimLink] LoadFromCurrentMap BuildCorpseData({kv.Key}): {e.Message}");
                 }
             }
 
@@ -179,19 +179,19 @@ namespace RimLink.Managers
                     if (!RimLinkMod.API.SessionStart())
                         return;
                     if (!IsSessionCurrent(sessionVersion)) return;
-                    Log.Message("[RimLink] SessionStart выполнен.");
+                    RimLinkLog.Msg("[RimLink] SessionStart выполнен.");
 
                     if (capturedBulk.Count == 0 || RimLinkMod.API.SyncPawnsBulk(capturedBulk))
                     {
                         if (!IsSessionCurrent(sessionVersion)) return;
                         ApplySuccessfulSnapshots(capturedSnapshots);
                         if (capturedBulk.Count > 0)
-                            Log.Message($"[RimLink] SyncPawnsBulk: отправлено {capturedBulk.Count} записей.");
+                            RimLinkLog.Msg($"[RimLink] SyncPawnsBulk: отправлено {capturedBulk.Count} записей.");
                     }
                 }
                 catch (Exception ex)
                 {
-                    Log.Error($"[RimLink] LoadFromCurrentMap bg thread: {ex.Message}");
+                    RimLinkLog.Err($"[RimLink] LoadFromCurrentMap bg thread: {ex.Message}");
                 }
                 finally { _networkSyncGate.Release(); }
             });
@@ -216,7 +216,7 @@ namespace RimLink.Managers
                     if (_knownDeadPawns.Contains(kv.Key) || !_deathSyncInFlight.Add(kv.Key))
                         continue;
                 }
-                Log.Message($"[RimLink] ⚰️ Поймана смерть: {kv.Key}. Отправка трупа на сервер...");
+                RimLinkLog.Msg($"[RimLink] ⚰️ Поймана смерть: {kv.Key}. Отправка трупа на сервер...");
 
                 Corpse corpse = _corpses.TryGetValue(kv.Key, out var cached)
                     && cached != null && !cached.Destroyed ? cached : FindCorpseOnMap(kv.Key);
@@ -245,7 +245,7 @@ namespace RimLink.Managers
                         {
                             if (IsSessionCurrent(sessionVersion))
                                 CompleteDeathSync(username, json, false, data);
-                            Log.Warning($"[RimLink] SyncDeath bg: {ex.Message}");
+                            RimLinkLog.Warn($"[RimLink] SyncDeath bg: {ex.Message}");
                         }
                         finally { _networkSyncGate.Release(); }
                     });
@@ -266,7 +266,7 @@ namespace RimLink.Managers
                 _knownDeadPawns.Remove(username);
                 _pendingSyncData.Remove(username);
             }
-            Log.Message($"[RimLink] Зарегистрирована пешка для {username}");
+            RimLinkLog.Msg($"[RimLink] Зарегистрирована пешка для {username}");
         }
 
         /// <summary>Удаляет пешку из управления.</summary>
@@ -281,13 +281,13 @@ namespace RimLink.Managers
                     _knownDeadPawns.Remove(username);
                     _pendingSyncData.Remove(username);
                 }
-                Log.Message($"[RimLink] Пешка {username} удалена из управления");
+                RimLinkLog.Msg($"[RimLink] Пешка {username} удалена из управления");
             }
 
             if (_corpses.ContainsKey(username))
             {
                 _corpses.Remove(username);
-                Log.Message($"[RimLink] Труп {username} удален из управления");
+                RimLinkLog.Msg($"[RimLink] Труп {username} удален из управления");
             }
         }
 
@@ -312,7 +312,7 @@ namespace RimLink.Managers
                         && IsSessionCurrent(sessionVersion))
                         ApplySuccessfulSnapshots(capturedSnapshots);
                 }
-                catch (Exception ex) { Log.Warning($"[RimLink] SyncAll bulk: {ex.Message}"); }
+                catch (Exception ex) { RimLinkLog.Warn($"[RimLink] SyncAll bulk: {ex.Message}"); }
                 finally { _networkSyncGate.Release(); }
             });
         }
@@ -359,7 +359,7 @@ namespace RimLink.Managers
                 }
                 catch (Exception e)
                 {
-                    Log.Warning($"[RimLink] CollectPawnData({kv.Key}): {e.Message}");
+                    RimLinkLog.Warn($"[RimLink] CollectPawnData({kv.Key}): {e.Message}");
                 }
             }
 
@@ -389,7 +389,7 @@ namespace RimLink.Managers
                 }
                 catch (Exception e)
                 {
-                    Log.Warning($"[RimLink] CollectPawnData corpse({kv.Key}): {e.Message}");
+                    RimLinkLog.Warn($"[RimLink] CollectPawnData corpse({kv.Key}): {e.Message}");
                 }
             }
 
@@ -416,7 +416,7 @@ namespace RimLink.Managers
                     result.Items[username] = data;
                     result.Snapshots[username] = Utils.SimpleJson.Serialize(data);
                     lock (_syncStateLock) _pendingSyncData[username] = data;
-                    Log.Message($"[RimLink] Пешка {username} умерла, труп зарегистрирован");
+                    RimLinkLog.Msg($"[RimLink] Пешка {username} умерла, труп зарегистрирован");
                 }
                 else
                 {
@@ -429,7 +429,7 @@ namespace RimLink.Managers
                     result.Items[username] = data;
                     result.Snapshots[username] = json;
                     lock (_syncStateLock) _pendingSyncData[username] = data;
-                    Log.Message($"[RimLink] Пешка {username} больше не на карте (Destroyed=true), снимаем с отслеживания");
+                    RimLinkLog.Msg($"[RimLink] Пешка {username} больше не на карте (Destroyed=true), снимаем с отслеживания");
                 }
             }
 
@@ -446,7 +446,7 @@ namespace RimLink.Managers
                 result.Items[username] = data;
                 result.Snapshots[username] = json;
                 lock (_syncStateLock) _pendingSyncData[username] = data;
-                Log.Message($"[RimLink] Труп {username} больше не существует в игре (съеден/сожжён/похоронен), снят с отслеживания");
+                RimLinkLog.Msg($"[RimLink] Труп {username} больше не существует в игре (съеден/сожжён/похоронен), снят с отслеживания");
             }
 
             return result;
@@ -484,13 +484,13 @@ namespace RimLink.Managers
                             && IsSessionCurrent(sessionVersion))
                             ApplySuccessfulSnapshot(username, json);
                     }
-                    catch (Exception ex) { Log.Warning($"[RimLink] SyncPawn bg: {ex.Message}"); }
+                    catch (Exception ex) { RimLinkLog.Warn($"[RimLink] SyncPawn bg: {ex.Message}"); }
                     finally { _networkSyncGate.Release(); }
                 });
             }
             catch (Exception e)
             {
-                Log.Warning($"[RimLink] SendPawn({username}): {e.Message}");
+                RimLinkLog.Warn($"[RimLink] SendPawn({username}): {e.Message}");
             }
         }
 
@@ -517,7 +517,7 @@ namespace RimLink.Managers
                     {
                         if (IsSessionCurrent(sessionVersion))
                             CompleteDeathSync(username, json, false, capturedData);
-                        Log.Warning($"[RimLink] SyncCorpse bg: {ex.Message}");
+                        RimLinkLog.Warn($"[RimLink] SyncCorpse bg: {ex.Message}");
                     }
                     finally { _networkSyncGate.Release(); }
                 });
@@ -525,7 +525,7 @@ namespace RimLink.Managers
             catch (Exception e)
             {
                 lock (_syncStateLock) _deathSyncInFlight.Remove(username);
-                Log.Warning($"[RimLink] SendCorpseData({username}): {e.Message}");
+                RimLinkLog.Warn($"[RimLink] SendCorpseData({username}): {e.Message}");
             }
         }
 
@@ -618,13 +618,13 @@ namespace RimLink.Managers
                 }
 
                 try { Messages.Message($"💊 {username} полностью исцелён!", pawn, MessageTypeDefOf.PositiveEvent); }
-                catch (Exception ex) { Log.Warning($"[RimLink] HealPawn message: {ex.Message}"); }
+                catch (Exception ex) { RimLinkLog.Warn($"[RimLink] HealPawn message: {ex.Message}"); }
                 SendPawn(username, pawn, force: true);
                 return true;
             }
             catch (Exception e)
             {
-                Log.Error($"[RimLink] HealPawn: {e.Message}");
+                RimLinkLog.Err($"[RimLink] HealPawn: {e.Message}");
                 // Если часть лечения уже применена, рефанд создал бы бесплатный
                 // эффект. Считаем такую команду успешной и синхронизируем итог.
                 if (mutated) SendPawn(username, pawn, force: true);
@@ -652,18 +652,18 @@ namespace RimLink.Managers
 
                 if (pawn == null || !pawn.Dead)
                 {
-                    Log.Message($"[RimLink] 👤 {username} не мёртв или не найден.");
+                    RimLinkLog.Msg($"[RimLink] 👤 {username} не мёртв или не найден.");
                     return false;
                 }
 
-                Log.Message($"[RimLink] ✨ Воскрешаем {username}...");
+                RimLinkLog.Msg($"[RimLink] ✨ Воскрешаем {username}...");
                 Map resurrectionMap = corpse?.Map ?? pawn.MapHeld
                     ?? Current.Game?.CurrentMap ?? Find.AnyPlayerHomeMap;
                 bool success = ResurrectionUtility.TryResurrect(pawn);
 
                 if (!success || pawn.Dead)
                 {
-                    Log.Warning($"[RimLink] ⚠️ Не удалось воскресить {username} (высокий урон/гниение).");
+                    RimLinkLog.Warn($"[RimLink] ⚠️ Не удалось воскресить {username} (высокий урон/гниение).");
                     return false;
                 }
                 resurrected = true;
@@ -673,14 +673,14 @@ namespace RimLink.Managers
                     var sick = pawn.health.hediffSet.GetFirstHediffOfDef(HediffDefOf.ResurrectionSickness);
                     if (sick != null) pawn.health.RemoveHediff(sick);
                 }
-                catch (Exception ex) { Log.Warning($"[RimLink] ResurrectPawn sickness: {ex.Message}"); }
+                catch (Exception ex) { RimLinkLog.Warn($"[RimLink] ResurrectPawn sickness: {ex.Message}"); }
 
                 try
                 {
                     if (resurrectionMap != null && !pawn.Spawned)
                         GenSpawn.Spawn(pawn, DropCellFinder.TradeDropSpot(resurrectionMap), resurrectionMap);
                 }
-                catch (Exception ex) { Log.Warning($"[RimLink] ResurrectPawn spawn: {ex.Message}"); }
+                catch (Exception ex) { RimLinkLog.Warn($"[RimLink] ResurrectPawn spawn: {ex.Message}"); }
 
                 lock (_syncStateLock)
                 {
@@ -694,18 +694,18 @@ namespace RimLink.Managers
                     if (corpse != null && !corpse.Destroyed)
                         corpse.Destroy();
                 }
-                catch (Exception ex) { Log.Warning($"[RimLink] ResurrectPawn corpse cleanup: {ex.Message}"); }
+                catch (Exception ex) { RimLinkLog.Warn($"[RimLink] ResurrectPawn corpse cleanup: {ex.Message}"); }
 
                 Register(username, pawn);
                 SendPawn(username, pawn, force: true);
 
                 try { Messages.Message($"✨ {username} воскрешён и вернулся в строй!", pawn, MessageTypeDefOf.PositiveEvent); }
-                catch (Exception ex) { Log.Warning($"[RimLink] ResurrectPawn message: {ex.Message}"); }
+                catch (Exception ex) { RimLinkLog.Warn($"[RimLink] ResurrectPawn message: {ex.Message}"); }
                 return true;
             }
             catch (Exception e)
             {
-                Log.Error($"[RimLink] ResurrectPawn: {e.Message}\n{e.StackTrace}");
+                RimLinkLog.Err($"[RimLink] ResurrectPawn: {e.Message}\n{e.StackTrace}");
                 if (resurrected && pawn != null)
                 {
                     Register(username, pawn);
@@ -727,13 +727,13 @@ namespace RimLink.Managers
                 ThingDef def = DefDatabase<ThingDef>.GetNamed(defName, errorOnFail: false);
                 if (def == null)
                 {
-                    Log.Warning($"[RimLink] DefName не найден: {defName}");
+                    RimLinkLog.Warn($"[RimLink] DefName не найден: {defName}");
                     return false;
                 }
 
                 if (def.building != null || typeof(Building).IsAssignableFrom(def.thingClass))
                 {
-                    Log.Warning($"[RimLink] {defName} — это здание/структура, пропускаем EquipItem");
+                    RimLinkLog.Warn($"[RimLink] {defName} — это здание/структура, пропускаем EquipItem");
                     return false;
                 }
 
@@ -747,7 +747,7 @@ namespace RimLink.Managers
                         && !pawn.equipment.TryDropEquipment(previous, out dropped, pawn.Position, false))
                     {
                         weapon.Destroy();
-                        Log.Warning($"[RimLink] Не удалось безопасно снять старое оружие у {username}");
+                        RimLinkLog.Warn($"[RimLink] Не удалось безопасно снять старое оружие у {username}");
                         return false;
                     }
                     if (previous != null && !pawn.Spawned)
@@ -770,7 +770,7 @@ namespace RimLink.Managers
                     PreserveRemovedThing(pawn, dropped);
 
                     try { Messages.Message($"⚔️ {username} получил {def.LabelCap.ToString() ?? def.label ?? def.defName}!", pawn, MessageTypeDefOf.PositiveEvent); }
-                    catch (Exception ex) { Log.Warning($"[RimLink] EquipItem message: {ex.Message}"); }
+                    catch (Exception ex) { RimLinkLog.Warn($"[RimLink] EquipItem message: {ex.Message}"); }
                     SendPawn(username, pawn, force: true);
                     return true;
                 }
@@ -801,7 +801,7 @@ namespace RimLink.Managers
                         {
                             RestoreApparel(pawn, dropped);
                             apparel.Destroy();
-                            Log.Warning($"[RimLink] Не удалось безопасно снять конфликтующую одежду у {username}");
+                            RimLinkLog.Warn($"[RimLink] Не удалось безопасно снять конфликтующую одежду у {username}");
                             return false;
                         }
                         if (removed != null) dropped.Add(removed);
@@ -821,17 +821,17 @@ namespace RimLink.Managers
                     foreach (var item in dropped) PreserveRemovedThing(pawn, item);
 
                     try { Messages.Message($"👕 {username} надел {def.LabelCap.ToString() ?? def.label ?? def.defName}!", pawn, MessageTypeDefOf.PositiveEvent); }
-                    catch (Exception ex) { Log.Warning($"[RimLink] EquipItem message: {ex.Message}"); }
+                    catch (Exception ex) { RimLinkLog.Warn($"[RimLink] EquipItem message: {ex.Message}"); }
                     SendPawn(username, pawn, force: true);
                     return true;
                 }
 
-                Log.Warning($"[RimLink] {defName} — не оружие и не одежда");
+                RimLinkLog.Warn($"[RimLink] {defName} — не оружие и не одежда");
                 return false;
             }
             catch (Exception e)
             {
-                Log.Error($"[RimLink] EquipItem: {e.Message}");
+                RimLinkLog.Err($"[RimLink] EquipItem: {e.Message}");
                 return false;
             }
         }
@@ -846,7 +846,7 @@ namespace RimLink.Managers
             }
             catch (Exception ex)
             {
-                Log.Error($"[RimLink] Не удалось вернуть старое оружие: {ex.Message}");
+                RimLinkLog.Err($"[RimLink] Не удалось вернуть старое оружие: {ex.Message}");
             }
         }
 
@@ -858,11 +858,11 @@ namespace RimLink.Managers
                 if (pawn?.inventory?.innerContainer != null
                     && pawn.inventory.innerContainer.TryAdd(thing))
                     return;
-                Log.Warning($"[RimLink] Снятый предмет {thing.def?.defName} не удалось положить в инвентарь");
+                RimLinkLog.Warn($"[RimLink] Снятый предмет {thing.def?.defName} не удалось положить в инвентарь");
             }
             catch (Exception ex)
             {
-                Log.Warning($"[RimLink] Не удалось сохранить снятый предмет: {ex.Message}");
+                RimLinkLog.Warn($"[RimLink] Не удалось сохранить снятый предмет: {ex.Message}");
             }
         }
 
@@ -879,7 +879,7 @@ namespace RimLink.Managers
                 }
                 catch (Exception ex)
                 {
-                    Log.Error($"[RimLink] Не удалось вернуть старую одежду: {ex.Message}");
+                    RimLinkLog.Err($"[RimLink] Не удалось вернуть старую одежду: {ex.Message}");
                 }
             }
         }
@@ -901,7 +901,7 @@ namespace RimLink.Managers
                 HediffDef hediffDef = DefDatabase<HediffDef>.GetNamed(defName, errorOnFail: false);
                 if (hediffDef == null)
                 {
-                    Log.Warning($"[RimLink] HediffDef не найден: {defName}");
+                    RimLinkLog.Warn($"[RimLink] HediffDef не найден: {defName}");
                     return false;
                 }
 
@@ -920,7 +920,7 @@ namespace RimLink.Managers
                         .Where(p => p.def == bodyPartDef)
                         .ToList();
 
-                    Log.Message($"[RimLink] Имплант {defName}: часть={bodyPartDef.defName}, кандидатов={candidates.Count}, hint={partHint}");
+                    RimLinkLog.Msg($"[RimLink] Имплант {defName}: часть={bodyPartDef.defName}, кандидатов={candidates.Count}, hint={partHint}");
 
                     if (candidates.Count == 1)
                     {
@@ -943,13 +943,13 @@ namespace RimLink.Managers
 
                 if (targetPart == null)
                 {
-                    Log.Warning($"[RimLink] Для импланта {defName} не найдена допустимая часть тела у {username}");
+                    RimLinkLog.Warn($"[RimLink] Для импланта {defName} не найдена допустимая часть тела у {username}");
                     return false;
                 }
 
                 if (pawn.health.hediffSet.hediffs.Any(h => h.def == hediffDef && h.Part == targetPart))
                 {
-                    Log.Message($"[RimLink] Имплант {defName} уже стоит на {targetPart.Label} у {username}");
+                    RimLinkLog.Msg($"[RimLink] Имплант {defName} уже стоит на {targetPart.Label} у {username}");
                     return false;
                 }
 
@@ -963,7 +963,7 @@ namespace RimLink.Managers
             }
             catch (Exception e)
             {
-                Log.Error($"[RimLink] InstallImplant: {e.Message}\n{e.StackTrace}");
+                RimLinkLog.Err($"[RimLink] InstallImplant: {e.Message}\n{e.StackTrace}");
                 return false;
             }
         }
@@ -982,7 +982,7 @@ namespace RimLink.Managers
                 ThingDef def = DefDatabase<ThingDef>.GetNamed(neurotrainerDefName, errorOnFail: false);
                 if (def == null)
                 {
-                    Log.Warning($"[RimLink] TrainSkill: нейротренер '{neurotrainerDefName}' не найден");
+                    RimLinkLog.Warn($"[RimLink] TrainSkill: нейротренер '{neurotrainerDefName}' не найден");
                     return false;
                 }
 
@@ -1007,7 +1007,7 @@ namespace RimLink.Managers
 
                 if (!applied)
                 {
-                    Log.Warning($"[RimLink] TrainSkill: не удалось применить нейротренер {neurotrainerDefName}");
+                    RimLinkLog.Warn($"[RimLink] TrainSkill: не удалось применить нейротренер {neurotrainerDefName}");
                     return false;
                 }
 
@@ -1019,7 +1019,7 @@ namespace RimLink.Managers
             }
             catch (Exception e)
             {
-                Log.Error($"[RimLink] TrainSkill: {e.Message}");
+                RimLinkLog.Err($"[RimLink] TrainSkill: {e.Message}");
                 return false;
             }
         }
@@ -1035,7 +1035,7 @@ namespace RimLink.Managers
 
             if (pawn.skills == null)
             {
-                Log.Warning($"[RimLink] SetPassion: у пешки {username} нет компонента навыков");
+                RimLinkLog.Warn($"[RimLink] SetPassion: у пешки {username} нет компонента навыков");
                 return false;
             }
 
@@ -1044,27 +1044,27 @@ namespace RimLink.Managers
                 SkillDef def = DefDatabase<SkillDef>.GetNamed(skillDefName, errorOnFail: false);
                 if (def == null)
                 {
-                    Log.Warning($"[RimLink] SetPassion: SkillDef '{skillDefName}' не найден");
+                    RimLinkLog.Warn($"[RimLink] SetPassion: SkillDef '{skillDefName}' не найден");
                     return false;
                 }
 
                 SkillRecord skill = pawn.skills.GetSkill(def);
                 if (skill == null)
                 {
-                    Log.Warning($"[RimLink] SetPassion: навык {skillDefName} не найден у {username}");
+                    RimLinkLog.Warn($"[RimLink] SetPassion: навык {skillDefName} не найден у {username}");
                     return false;
                 }
 
                 if (skill.TotallyDisabled)
                 {
-                    Log.Warning($"[RimLink] SetPassion: навык {skillDefName} отключён у {username} (несовместимая черта)");
+                    RimLinkLog.Warn($"[RimLink] SetPassion: навык {skillDefName} отключён у {username} (несовместимая черта)");
                     return false;
                 }
 
                 passion = System.Math.Max(0, System.Math.Min(2, passion));
                 if ((int)skill.passion == passion)
                 {
-                    Log.Message($"[RimLink] SetPassion: у {username} уже установлен passion={passion} для {skillDefName}");
+                    RimLinkLog.Msg($"[RimLink] SetPassion: у {username} уже установлен passion={passion} для {skillDefName}");
                     return false;
                 }
                 skill.passion = (Passion)passion;
@@ -1074,13 +1074,13 @@ namespace RimLink.Managers
                 Messages.Message(
                     $"{icon} {username}: {def.LabelCap} — {name}!",
                     pawn, MessageTypeDefOf.PositiveEvent);
-                Log.Message($"[RimLink] SetPassion: {skillDefName} → passion={passion} ({name}) для {username}");
+                RimLinkLog.Msg($"[RimLink] SetPassion: {skillDefName} → passion={passion} ({name}) для {username}");
                 SendPawn(username, pawn, force: true);
                 return true;
             }
             catch (Exception e)
             {
-                Log.Error($"[RimLink] SetPassion: {e.Message}");
+                RimLinkLog.Err($"[RimLink] SetPassion: {e.Message}");
                 return false;
             }
         }
@@ -1096,13 +1096,13 @@ namespace RimLink.Managers
                 TraitDef def = DefDatabase<TraitDef>.GetNamed(traitDefName, errorOnFail: false);
                 if (def == null)
                 {
-                    Log.Warning($"[RimLink] TraitDef не найден: {traitDefName}");
+                    RimLinkLog.Warn($"[RimLink] TraitDef не найден: {traitDefName}");
                     return false;
                 }
 
                 if (pawn.story.traits.HasTrait(def))
                 {
-                    Log.Message($"[RimLink] Черта {traitDefName} уже есть у {username}");
+                    RimLinkLog.Msg($"[RimLink] Черта {traitDefName} уже есть у {username}");
                     return false;
                 }
 
@@ -1113,7 +1113,7 @@ namespace RimLink.Managers
             }
             catch (Exception e)
             {
-                Log.Error($"[RimLink] AddTrait: {e.Message}");
+                RimLinkLog.Err($"[RimLink] AddTrait: {e.Message}");
                 return false;
             }
         }
@@ -1129,14 +1129,14 @@ namespace RimLink.Managers
                 TraitDef def = DefDatabase<TraitDef>.GetNamed(traitDefName, errorOnFail: false);
                 if (def == null)
                 {
-                    Log.Warning($"[RimLink] TraitDef не найден: {traitDefName}");
+                    RimLinkLog.Warn($"[RimLink] TraitDef не найден: {traitDefName}");
                     return false;
                 }
 
                 var trait = pawn.story.traits.GetTrait(def);
                 if (trait == null)
                 {
-                    Log.Message($"[RimLink] Черта {traitDefName} не найдена у {username}");
+                    RimLinkLog.Msg($"[RimLink] Черта {traitDefName} не найдена у {username}");
                     return false;
                 }
 
@@ -1147,7 +1147,7 @@ namespace RimLink.Managers
             }
             catch (Exception e)
             {
-                Log.Error($"[RimLink] RemoveTrait: {e.Message}");
+                RimLinkLog.Err($"[RimLink] RemoveTrait: {e.Message}");
                 return false;
             }
         }
@@ -1243,7 +1243,7 @@ namespace RimLink.Managers
                 _deathSyncInFlight.Clear();
                 _pendingSyncData.Clear();
             }
-            Log.Message("[RimLink] PawnManager очищен");
+            RimLinkLog.Msg("[RimLink] PawnManager очищен");
         }
     }
 }

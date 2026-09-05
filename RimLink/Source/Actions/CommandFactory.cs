@@ -45,23 +45,23 @@ namespace RimLink.Actions
 
             if (!ModsConfig.BiotechActive)
             {
-                Log.Warning("[RimLink] Biotech DLC не активен");
+                RimLinkLog.Warn("[RimLink] Biotech DLC не активен");
                 return false;
             }
             if (!RimLinkMod.PawnManager.TryGetPawn(username, out pawn) || pawn == null)
             {
-                Log.Warning($"[RimLink] Пешка {username} не найдена");
+                RimLinkLog.Warn($"[RimLink] Пешка {username} не найдена");
                 return false;
             }
             geneDef = DefDatabase<GeneDef>.GetNamed(geneDefName, errorOnFail: false);
             if (geneDef == null)
             {
-                Log.Warning($"[RimLink] GeneDef '{geneDefName}' не найден");
+                RimLinkLog.Warn($"[RimLink] GeneDef '{geneDefName}' не найден");
                 return false;
             }
             if (pawn.genes == null)
             {
-                Log.Warning($"[RimLink] У пешки {username} нет генома");
+                RimLinkLog.Warn($"[RimLink] У пешки {username} нет генома");
                 return false;
             }
             return true;
@@ -129,7 +129,7 @@ namespace RimLink.Actions
                 case "fire_incident":  return new FireIncidentCommand(data);
 
                 default:
-                    Log.Warning($"[RimLink] Неизвестная команда: '{type}'");
+                    RimLinkLog.Warn($"[RimLink] Неизвестная команда: '{type}'");
                     return null;
             }
         }
@@ -139,7 +139,7 @@ namespace RimLink.Actions
     {
         public bool Execute()
         {
-            Log.Message("[RimLink] Manager diagnostic ping processed");
+            RimLinkLog.Msg("[RimLink] Manager diagnostic ping processed");
             return true;
         }
     }
@@ -173,7 +173,7 @@ namespace RimLink.Actions
         public bool Execute()
         {
             bool ok = RimLinkMod.PawnManager.AddTrait(_username, _traitDef, _degree);
-            if (!ok) Log.Warning($"[RimLink] AddTrait: Ошибка добавления {_traitDef}");
+            if (!ok) RimLinkLog.Warn($"[RimLink] AddTrait: Ошибка добавления {_traitDef}");
             return ok;
         }
     }
@@ -194,7 +194,7 @@ namespace RimLink.Actions
         public bool Execute()
         {
             bool ok = RimLinkMod.PawnManager.RemoveTrait(_username, _traitDef);
-            if (!ok) Log.Warning($"[RimLink] RemoveTrait: Ошибка удаления {_traitDef}");
+            if (!ok) RimLinkLog.Warn($"[RimLink] RemoveTrait: Ошибка удаления {_traitDef}");
             return ok;
         }
     }
@@ -257,10 +257,10 @@ namespace RimLink.Actions
                 }
                 catch (Exception rollbackError)
                 {
-                    Log.Error($"[RimLink] AddXenotype rollback: {rollbackError.Message}");
+                    RimLinkLog.Err($"[RimLink] AddXenotype rollback: {rollbackError.Message}");
                 }
 
-                Log.Error($"[RimLink] AddXenotype: {e.Message}");
+                RimLinkLog.Err($"[RimLink] AddXenotype: {e.Message}");
                 return false;
             }
         }
@@ -282,7 +282,7 @@ namespace RimLink.Actions
             if (!CommandHelpers.TryGetGeneAndPawn(_username, _geneDef, out var pawn, out var def)) return false;
             if (pawn.genes.HasActiveGene(def))
             {
-                Log.Warning($"[RimLink] AddGene: у {_username} уже есть ген {_geneDef}");
+                RimLinkLog.Warn($"[RimLink] AddGene: у {_username} уже есть ген {_geneDef}");
                 return false;
             }
 
@@ -310,7 +310,7 @@ namespace RimLink.Actions
             var gene = pawn.genes.GetGene(def);
             if (gene == null)
             {
-                Log.Warning($"[RimLink] RemoveGene: у {_username} нет гена {_geneDef}");
+                RimLinkLog.Warn($"[RimLink] RemoveGene: у {_username} нет гена {_geneDef}");
                 return false;
             }
 

@@ -1,5 +1,8 @@
 using RimLink.Components;
 using Verse;
+
+// Лог мода в этом харнесе уводим в temp: сам логгер проверяется в LogFileHarness.
+RimLink.RimLinkLog.DirectoryOverride = Path.Combine(Path.GetTempPath(), "rimlink-paused-harness");
 var component = new RimLinkGameComponent(Current.Game);
 component.FinalizeInit();
 // Paused game: frame updates continue, GameComponentTick is never called.
@@ -30,7 +33,8 @@ namespace Verse {
  public static class Current { public static Game Game = new(); public static ProgramState ProgramState; }
  public static class Find { public static List<int> Maps = new() { 1 }; }
  public static class PawnsFinder { public static List<int> AllMapsCaravansAndTravellingTransporters_Alive = new(); }
- public static class Log { public static void Message(string s) {} public static void Warning(string s) { throw new Exception(s); } }
+ public static class Log { public static void Message(string s) {} public static void Warning(string s) { throw new Exception(s); } public static void Error(string s) { throw new Exception(s); } }
+ public static class GenFilePaths { public static string ConfigFolderPath => Path.GetTempPath(); }
 }
 public static class RimLinkMod {
  public static Settings Instance = new(); public static object Prices = new();

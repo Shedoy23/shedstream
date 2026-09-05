@@ -74,8 +74,8 @@ namespace RimLink
             EventManager = new EventManager();
             CommandQueue = new CommandQueue();
 
-            Log.Message("[RimLink] Инициализация мода...");
-            Log.Message($"[RimLink] Сервер: {ServerUrl}");
+            RimLinkLog.Msg("[RimLink] Инициализация мода...");
+            RimLinkLog.Msg($"[RimLink] Сервер: {ServerUrl}");
 
             _syncThread = new Thread(SyncLoop) { Name = "RimLink-Sync", IsBackground = true };
             _syncThread.Start();
@@ -108,25 +108,25 @@ namespace RimLink
                         // null = сетевая ошибка
                         _consecutiveErrors++;
                         if (_consecutiveErrors == 1 || _consecutiveErrors % 5 == 0)
-                            Log.Warning($"[RimLink] Сервер недоступен (попытка #{_consecutiveErrors}), следующий опрос через {Math.Min(COMMAND_POLL_INTERVAL_MS * (1 << Math.Min(_consecutiveErrors, 4)), MAX_BACKOFF_MS) / 1000}с");
+                            RimLinkLog.Warn($"[RimLink] Сервер недоступен (попытка #{_consecutiveErrors}), следующий опрос через {Math.Min(COMMAND_POLL_INTERVAL_MS * (1 << Math.Min(_consecutiveErrors, 4)), MAX_BACKOFF_MS) / 1000}с");
                         continue;
                     }
 
                     if (_consecutiveErrors > 0)
                     {
-                        Log.Message("[RimLink] Соединение восстановлено");
+                        RimLinkLog.Msg("[RimLink] Соединение восстановлено");
                         _consecutiveErrors = 0;
                     }
 
                     if (commands.Count > 0)
                     {
-                        Log.Message($"[RimLink] Получено команд: {commands.Count}");
+                        RimLinkLog.Msg($"[RimLink] Получено команд: {commands.Count}");
                         foreach (var cmd in commands)
                             CommandQueue.Enqueue(cmd);
                     }
                 }
                 catch (ThreadInterruptedException) { break; }
-                catch (Exception ex) { Log.Error($"[RimLink] SyncLoop: {ex.Message}"); }
+                catch (Exception ex) { RimLinkLog.Err($"[RimLink] SyncLoop: {ex.Message}"); }
             }
         }
 
@@ -337,7 +337,7 @@ namespace RimLink
             }
             catch (Exception ex)
             {
-                Log.Error($"[RimLink] DrawPriceList: {ex}");
+                RimLinkLog.Err($"[RimLink] DrawPriceList: {ex}");
             }
         }
 
@@ -359,7 +359,7 @@ namespace RimLink
                         result.Add(new CatalogEntry { DefName = def, Label = lbl, Category = cat, DefaultPrice = pr });
                 }
             }
-            catch (Exception e) { Log.Warning($"[RimLink] BuildCatalogEntries: {e.Message}"); }
+            catch (Exception e) { RimLinkLog.Warn($"[RimLink] BuildCatalogEntries: {e.Message}"); }
             return result.OrderBy(e => e.Category).ThenBy(e => e.Label).ToList();
         }
 
@@ -379,7 +379,7 @@ namespace RimLink
             catch (Exception e)
             {
                 _uploadStatus = $"❌ Ошибка построения: {e.Message}";
-                Log.Warning($"[RimLink] UploadCatalog Build: {e.Message}");
+                RimLinkLog.Warn($"[RimLink] UploadCatalog Build: {e.Message}");
                 _uploadBusy = false;
                 return;
             }
@@ -394,7 +394,7 @@ namespace RimLink
                     if (RimLinkMod.API.SyncShopCatalog(catalog))
                     {
                         _uploadStatus = $"✅ Выгружено {catalog.Count} предметов!";
-                        Log.Message($"[RimLink] Каталог выгружен: {catalog.Count} шт.");
+                        RimLinkLog.Msg($"[RimLink] Каталог выгружен: {catalog.Count} шт.");
                     }
                     else
                     {
@@ -404,7 +404,7 @@ namespace RimLink
                 catch (Exception e)
                 {
                     _uploadStatus = $"❌ Ошибка: {e.Message}";
-                    Log.Warning($"[RimLink] UploadCatalog: {e.Message}");
+                    RimLinkLog.Warn($"[RimLink] UploadCatalog: {e.Message}");
                 }
                 finally { _uploadBusy = false; }
             }) { IsBackground = true, Name = "RimLink-Upload" }.Start();
@@ -457,7 +457,7 @@ namespace RimLink
                 try { events = EventManager.BuildEventCatalog(Prices); }
                 catch (Exception e)
                 {
-                    Log.Error($"[RimLink] WriteSettings BuildEvents: {e}");
+                    RimLinkLog.Err($"[RimLink] WriteSettings BuildEvents: {e}");
                     _uploadStatus = $"❌ Ошибка построения событий: {e.Message}";
                     return;
                 }
@@ -487,7 +487,7 @@ namespace RimLink
                 _syncThread.Join(1000);
             }
             CommandQueue?.Dispose();
-            Log.Message("[RimLink] Фоновый поток остановлен");
+            RimLinkLog.Msg("[RimLink] Фоновый поток остановлен");
         }
 
         public void Dispose()

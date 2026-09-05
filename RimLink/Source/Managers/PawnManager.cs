@@ -831,7 +831,11 @@ namespace RimLink.Managers
             }
             catch (Exception e)
             {
-                RimLinkLog.Err($"[RimLink] EquipItem: {e.Message}");
+                // Стек, а не одно сообщение: 05.09 «Object reference not set» пять
+                // раз подряд не дало сказать, ГДЕ падает — в нашем коде или в чужом
+                // моде, который патчит экипировку. Одно сообщение — это симптом,
+                // разбирать можно только по стеку.
+                RimLinkLog.Err($"[RimLink] EquipItem {defName} → {e}");
                 return false;
             }
         }

@@ -295,8 +295,35 @@ function showBuildVersion() {
         : 'Незапакованная сборка (не с Twitch CDN)';
 }
 
+// ===== ЦЕНЫ ЯДРА — С СЕРВЕРА =====
+// Голосование, гильдии и семья держали свои копии цен, пока у Bannerlord и
+// RimWorld источник на бэке был с июля. Фронт замерзает на CDN Twitch до
+// следующего ревью, поэтому цену, изменённую на сервере, интерфейс показал бы
+// правильно только через недели. Зашитые числа остаются запасными.
+let coreConfig = {};
+
+function corePrice(key, fallback) {
+    const v = Number(coreConfig[key]);
+    return Number.isFinite(v) ? v : fallback;
+}
+
+async function loadCoreConfig() {
+    try {
+        const r = await fetch(`${API_URL}/api/core/config`);
+        if (!r.ok) return;
+        coreConfig = await r.json() || {};
+        // Подписи, которые лежат в разметке обеих оболочек, перерисовываем сами:
+        // в HTML остаётся только запасное число.
+        const ttsSub = document.getElementById('tts-price-sub');
+        if (ttsSub) ttsSub.textContent = `${corePrice('tts_cost', 5000)}💎 на оверлей`;
+    } catch (e) {
+        // Остаёмся на запасных числах: панель без цен бесполезнее, чем со старыми.
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     dbg('DOM загружен');
+    loadCoreConfig();
 
     showBuildVersion();
     setupTabs();

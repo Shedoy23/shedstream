@@ -16,8 +16,12 @@
 (function () {
     'use strict';
 
-    // NOTE: prices mirror routes/shedcolony.py _ACTION_PRICES (backend is the source of truth;
-    // it enforces the real price and ignores the client). Keep in sync on a price change.
+    // Цены ниже — ЗАПАСНЫЕ. Настоящие приезжают с бэка (/api/shedcolony/config →
+    // action_prices, тот же словарь _ACTION_PRICES, по которому он списывает) и
+    // перетирают эту таблицу при открытии вкладки. Держать копии было нельзя:
+    // расширение замерзает на CDN Twitch до следующего ревью, а цену меняют на
+    // сервере за минуты — до 2026-09-05 тут лежало 28 чисел, которые молча
+    // разъехались бы с первым же ребалансом.
     var SC = {
         spawn:   { type: 'colonist.spawn',            price: 1000 },
         job:     { type: 'colonist.assign_job',       price: 300 },
@@ -348,7 +352,7 @@
             html += '<div class="sc-card">'
                 + '<p class="sc-muted" style="margin-bottom:10px;">У тебя ещё нет колониста в этой колонии. '
                 + 'Создай своего — он появится у стримера в игре.</p>'
-                + '<button class="sc-btn" data-sc="spawn">Создать колониста — 1000 💎</button>'
+                + '<button class="sc-btn" data-sc="spawn">Создать колониста — ' + SC.spawn.price + ' 💎</button>'
                 + '</div>';
             root.innerHTML = html;
             _bind(root);
@@ -425,26 +429,26 @@
         html += _grp('g-care', '❤️ Забота', careBody);
 
         // 📈 Прокачка и роль (скилл + работа + дом)
-        var progBody = '<div class="sc-section-title">Прокачать скилл — 400 💎</div>'
+        var progBody = '<div class="sc-section-title">Прокачать скилл — ' + SC.xp.price + ' 💎</div>'
             + '<select class="sc-select" id="sc-skill-select">';
         SC_SKILLS.forEach(function (pair) { progBody += '<option value="' + pair[0] + '">' + escapeHtml(pair[1]) + '</option>'; });
-        progBody += '</select><button class="sc-btn" data-sc="xp">Прокачать (+1000 XP) — 400 💎</button>';
-        progBody += '<div class="sc-section-title" style="margin-top:14px;">Назначить работу — 300 💎</div>';
+        progBody += '</select><button class="sc-btn" data-sc="xp">Прокачать (+1000 XP) — ' + SC.xp.price + ' 💎</button>';
+        progBody += '<div class="sc-section-title" style="margin-top:14px;">Назначить работу — ' + SC.job.price + ' 💎</div>';
         if (freeJobs.length) {
             progBody += '<select class="sc-select" id="sc-job-select">';
             freeJobs.forEach(function (j) {
                 progBody += '<option value="' + escapeHtml(j.job) + '">'
                     + escapeHtml(_jobLabel(j.job)) + ' (' + j.free + ' своб.)</option>';
             });
-            progBody += '</select><button class="sc-btn" data-sc="job">Нанять — 300 💎</button>';
+            progBody += '</select><button class="sc-btn" data-sc="job">Нанять — ' + SC.job.price + ' 💎</button>';
         } else {
             progBody += '<p class="sc-muted">Нет свободных рабочих мест — стример ещё не построил хаты или все заняты.</p>';
         }
-        progBody += '<div class="sc-section-title" style="margin-top:14px;">Дать дом — 200 💎</div>';
+        progBody += '<div class="sc-section-title" style="margin-top:14px;">Дать дом — ' + SC.home.price + ' 💎</div>';
         if (beds == null) {
-            progBody += '<button class="sc-btn" data-sc="home">Дать дом — 200 💎</button>';
+            progBody += '<button class="sc-btn" data-sc="home">Дать дом — ' + SC.home.price + ' 💎</button>';
         } else if (beds > 0) {
-            progBody += '<button class="sc-btn" data-sc="home">Дать дом (' + beds + ' своб. коек) — 200 💎</button>';
+            progBody += '<button class="sc-btn" data-sc="home">Дать дом (' + beds + ' своб. коек) — ' + SC.home.price + ' 💎</button>';
         } else {
             progBody += '<p class="sc-muted">Нет свободных коек — стример ещё не построил дома.</p>';
         }
@@ -452,7 +456,7 @@
 
         // ⚙️ Авто-режим работы (Phase D — только farmer/lumberjack/shepherd/composter)
         if (autoLabel) {
-            var autoBody = '<button class="sc-btn" data-sc="auto_work">⚙ ' + escapeHtml(autoLabel) + ' — 1000 💎</button>'
+            var autoBody = '<button class="sc-btn" data-sc="auto_work">⚙ ' + escapeHtml(autoLabel) + ' — ' + SC.auto_work.price + ' 💎</button>'
                 + '<p class="sc-muted" style="margin-top:6px;">Включает авто-режим на рабочем месте колониста. Только включает — настройки стримера не трогает.</p>';
             html += _grp('g-auto', '⚙️ Авто-режим работы', autoBody);
         }
@@ -462,7 +466,7 @@
         if (hasReqInfo && reqs.length === 0) {
             reqBody += '<p class="sc-muted">Колонисту сейчас ничего не нужно.</p>';
         } else if (!hasReqInfo) {
-            reqBody += '<button class="sc-btn" data-sc="fulfill">Выполнить просьбу — 100 💎</button>';
+            reqBody += '<button class="sc-btn" data-sc="fulfill">Выполнить просьбу — ' + SC.fulfill.price + ' 💎</button>';
         } else {
             reqBody += '<div class="sc-reqs">Сейчас просит:</div>';
             var anyDeliverable = false;
@@ -474,7 +478,7 @@
                 if (canDeliver) {
                     anyDeliverable = true;
                     reqBody += '<button class="sc-btn sc-btn-req" data-sc="fulfill" data-req-id="'
-                        + escapeHtml(rid) + '">Выполнить: ' + escapeHtml(text) + ' — 100 💎</button>';
+                        + escapeHtml(rid) + '">Выполнить: ' + escapeHtml(text) + ' — ' + SC.fulfill.price + ' 💎</button>';
                 } else {
                     reqBody += '<div class="sc-req-blocked">• ' + escapeHtml(text) + ' — выполнит сама колония</div>';
                 }
@@ -486,7 +490,7 @@
         // 🎭 Кастомизация
         var custBody = '<select class="sc-select" id="sc-give-select">';
         SC_GIVE_ITEMS.forEach(function (pair) { custBody += '<option value="' + pair[0] + '">' + escapeHtml(pair[1]) + '</option>'; });
-        custBody += '</select><button class="sc-btn" data-sc="give_item">🎁 Выдать предмет — 200 💎</button>'
+        custBody += '</select><button class="sc-btn" data-sc="give_item">🎁 Выдать предмет — ' + SC.give_item.price + ' 💎</button>'
             + '<div class="sc-care-row">'
             + '<button class="sc-btn sc-btn-sm" data-sc="set_gender">🔄 Сменить пол · 200</button>'
             + '<button class="sc-btn sc-btn-sm" data-sc="teleport">✨ Призвать · 150</button>'
@@ -524,7 +528,7 @@
         // ⛏ Инструменты рабочего (нужна работа; тир по уровню хаты)
         var toolBody;
         if (hasJob) {
-            toolBody = '<button class="sc-btn" data-sc="give_tools">⛏ Набор инструментов — 2500 💎</button>'
+            toolBody = '<button class="sc-btn" data-sc="give_tools">⛏ Набор инструментов — ' + SC.give_tools.price + ' 💎</button>'
                 + '<p class="sc-muted" style="margin-top:6px;">Кирка/топор/лопата/мотыга — рабочий возьмёт подходящий. Тир — лучший, что тянет его хата.</p>';
         } else {
             toolBody = '<p class="sc-muted">Сначала дай колонисту работу — без неё инструменты не нужны.</p>';
@@ -539,16 +543,16 @@
                 + '<button class="sc-btn sc-btn-sm" data-sc="give_shield">🛡 Щит · 1000</button>'
                 + '</div>'
                 + '<p class="sc-muted" style="margin-top:6px;">Оружие — лучший меч+лук по уровню башни (боец возьмёт своё).</p>'
-                + '<div class="sc-section-title" style="margin-top:12px;">Боевая задача — 500 💎</div>'
+                + '<div class="sc-section-title" style="margin-top:12px;">Боевая задача — ' + SC.set_guard_task.price + ' 💎</div>'
                 + '<select class="sc-select" id="sc-guardtask-select">'
                 + '<option value="guard">Охрана (стоять у башни)</option>'
                 + '<option value="patrol">Патруль</option>'
-                + '</select><button class="sc-btn" data-sc="set_guard_task">Задать задачу — 500 💎</button>'
-                + '<div class="sc-section-title" style="margin-top:12px;">Отступление на низком HP — 300 💎</div>'
+                + '</select><button class="sc-btn" data-sc="set_guard_task">Задать задачу — ' + SC.set_guard_task.price + ' 💎</button>'
+                + '<div class="sc-section-title" style="margin-top:12px;">Отступление на низком HP — ' + SC.set_guard_retreat.price + ' 💎</div>'
                 + '<select class="sc-select" id="sc-retreat-select">'
                 + '<option value="on">Отступать (беречь бойца)</option>'
                 + '<option value="off">Не отступать (стоять насмерть)</option>'
-                + '</select><button class="sc-btn" data-sc="set_guard_retreat">Настроить — 300 💎</button>';
+                + '</select><button class="sc-btn" data-sc="set_guard_retreat">Настроить — ' + SC.set_guard_retreat.price + ' 💎</button>';
         } else {
             guardBody = '<p class="sc-muted">Только для гвардейцев (рыцарь / лучник / друид). Назначь колониста в гвардейскую башню — тогда откроются оружие, щит и боевые настройки.</p>';
         }
@@ -567,55 +571,55 @@
         html += _grp('g-events', '🎉 События колонии', eventsBody);
 
         // 🔬 Развитие (research — single-slot; picker discloses what's available/running)
-        var researchBody = '<div class="sc-section-title">Профинансировать исследование — 75000 💎</div>';
+        var researchBody = '<div class="sc-section-title">Профинансировать исследование — ' + SC.start_research.price + ' 💎</div>';
         if (researchAvail.length) {
             researchBody += '<select class="sc-select" id="sc-research-start-select">';
             researchAvail.forEach(function (r) {
                 researchBody += '<option value="' + escapeHtml(r.branch + '|' + r.id) + '">'
                     + escapeHtml(r.name || r.id) + '</option>';
             });
-            researchBody += '</select><button class="sc-btn" data-sc="start_research">Профинансировать — 75000 💎</button>';
+            researchBody += '</select><button class="sc-btn" data-sc="start_research">Профинансировать — ' + SC.start_research.price + ' 💎</button>';
         } else {
             researchBody += '<p class="sc-muted">Нет доступных исследований — нужен построенный университет (или всё в ветке уже изучено).</p>';
         }
-        researchBody += '<div class="sc-section-title" style="margin-top:14px;">Завершить мгновенно — 37500 💎</div>';
+        researchBody += '<div class="sc-section-title" style="margin-top:14px;">Завершить мгновенно — ' + SC.finish_research.price + ' 💎</div>';
         if (researchProg.length) {
             researchBody += '<select class="sc-select" id="sc-research-finish-select">';
             researchProg.forEach(function (r) {
                 researchBody += '<option value="' + escapeHtml(r.branch + '|' + r.id) + '">'
                     + escapeHtml(r.name || r.id) + '</option>';
             });
-            researchBody += '</select><button class="sc-btn" data-sc="finish_research">Завершить сейчас — 37500 💎</button>';
+            researchBody += '</select><button class="sc-btn" data-sc="finish_research">Завершить сейчас — ' + SC.finish_research.price + ' 💎</button>';
         } else {
             researchBody += '<p class="sc-muted">Сейчас нет идущих исследований, которые можно ускорить.</p>';
         }
         html += _grp('g-research', '🔬 Развитие', researchBody);
 
         // 📦 Склад — снабжение (стак) + неснижаемый запас + разгрести очередь заказов
-        var supplyBody = '<div class="sc-section-title">Снабдить колонию (стак) — 1000 💎</div>'
+        var supplyBody = '<div class="sc-section-title">Снабдить колонию (стак) — ' + SC.supply.price + ' 💎</div>'
             + '<select class="sc-select" id="sc-supply-select">';
         SC_SUPPLY_ITEMS.forEach(function (pair) { supplyBody += '<option value="' + pair[0] + '">' + escapeHtml(pair[1]) + '</option>'; });
-        supplyBody += '</select><button class="sc-btn" data-sc="supply">📦 Снабдить — 1000 💎</button>'
+        supplyBody += '</select><button class="sc-btn" data-sc="supply">📦 Снабдить — ' + SC.supply.price + ' 💎</button>'
             + '<p class="sc-muted" style="margin-top:6px;">Только базовые материалы — помогаешь колонии строиться.</p>';
-        supplyBody += '<div class="sc-section-title" style="margin-top:14px;">Неснижаемый запас — 75000 💎</div>';
+        supplyBody += '<div class="sc-section-title" style="margin-top:14px;">Неснижаемый запас — ' + SC.min_stock.price + ' 💎</div>';
         if (warehouseOk) {
             supplyBody += '<select class="sc-select" id="sc-minstock-item-select">';
             SC_MIN_STOCK_ITEMS.forEach(function (pair) { supplyBody += '<option value="' + pair[0] + '">' + escapeHtml(pair[1]) + '</option>'; });
             supplyBody += '</select><select class="sc-select" id="sc-minstock-qty-select">';
             SC_MIN_STOCK_QTYS.forEach(function (q) { supplyBody += '<option value="' + q + '">' + q + ' стак.</option>'; });
-            supplyBody += '</select><button class="sc-btn" data-sc="min_stock">📌 Закрепить запас — 75000 💎</button>'
+            supplyBody += '</select><button class="sc-btn" data-sc="min_stock">📌 Закрепить запас — ' + SC.min_stock.price + ' 💎</button>'
                 + '<p class="sc-muted" style="margin-top:6px;">Склад будет держать выбранное количество этого предмета не ниже порога.</p>';
         } else {
             supplyBody += '<p class="sc-muted">Нужен построенный склад в колонии.</p>';
         }
-        supplyBody += '<div class="sc-section-title" style="margin-top:14px;">Разгрести очередь заказов — 50000 💎</div>';
+        supplyBody += '<div class="sc-section-title" style="margin-top:14px;">Разгрести очередь заказов — ' + SC.clear_backlog.price + ' 💎</div>';
         if (backlogBuildings.length) {
             supplyBody += '<select class="sc-select" id="sc-backlog-select">';
             backlogBuildings.forEach(function (b) {
                 supplyBody += '<option value="' + escapeHtml(b.pos) + '">'
                     + escapeHtml(_buildingLabel(b.type) + ' (' + b.backlog + ' в очереди)') + '</option>';
             });
-            supplyBody += '</select><button class="sc-btn" data-sc="clear_backlog">🚚 Разгрести — 50000 💎</button>'
+            supplyBody += '</select><button class="sc-btn" data-sc="clear_backlog">🚚 Разгрести — ' + SC.clear_backlog.price + ' 💎</button>'
                 + '<p class="sc-muted" style="margin-top:6px;">Выдаст зданию материалы, которые оно ждёт — ускоряет стройку/работу, ничего не отменяет.</p>';
         } else {
             supplyBody += '<p class="sc-muted">Ни у одного здания сейчас нет очереди заказов.</p>';
@@ -632,7 +636,7 @@
                 buildBody += '<option value="' + escapeHtml(b.pos) + '">'
                     + escapeHtml(_buildingLabel(b.type) + ' — ур. ' + b.level + '→' + (b.level + 1)) + '</option>';
             });
-            buildBody += '</select><button class="sc-btn" data-sc="upgrade_building">🏗 Улучшить здание — 50000 💎</button>'
+            buildBody += '</select><button class="sc-btn" data-sc="upgrade_building">🏗 Улучшить здание — ' + SC.upgrade_building.price + ' 💎</button>'
                 + '<p class="sc-muted" style="margin-top:6px;">Строитель построит следующий уровень на реальных ресурсах — не мгновенно. Главный способ вложиться в колонию стримера.</p>';
         } else {
             buildBody = '<p class="sc-muted">Сейчас нечего улучшать — все здания на максимуме или уже строятся.</p>';
@@ -777,8 +781,24 @@
         });
     }
 
+    // Цены с бэка перетирают запасные в SC. Ошибку глотаем: со старыми ценами
+    // панель работает, без панели — нет.
+    async function _hydratePrices() {
+        try {
+            var r = await fetch(API_URL + '/api/shedcolony/config');
+            if (!r.ok) return;
+            var cfg = await r.json();
+            var prices = (cfg && cfg.action_prices) || {};
+            Object.keys(SC).forEach(function (k) {
+                var v = Number(prices[SC[k].type]);
+                if (isFinite(v)) SC[k].price = v;
+            });
+        } catch (e) { /* остаёмся на запасных */ }
+    }
+
     window._startShedcolonyPolling = function () {
         _lastSig = '';                 // force a fresh render when the tab is (re)opened
+        _hydratePrices().then(function () { _lastSig = ''; _refresh(); });
         _refresh();
         if (_pollId === null) { _pollId = safeInterval(_refresh, 5000); }
     };

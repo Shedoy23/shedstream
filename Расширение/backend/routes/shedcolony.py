@@ -482,6 +482,20 @@ async def shedcolony_my_colonist(request: Request):
             "status": state_status or link_status, "state": state}
 
 
+@router.get("/api/shedcolony/config")
+async def shedcolony_config():
+    """Цены действий ShedColony — единый источник для фронта.
+
+    ЗАЧЕМ. Тот же словарь, по которому бэкенд списывает крустики. До 2026-09-05
+    фронт держал свои копии (28 чисел в подписях кнопок), и поменять цену было
+    нельзя: расширение замерзает на CDN Twitch до следующего ревью, а бэкенд
+    деплоится за минуты. Публичный — числа не секретны, панель показывает их
+    всем зрителям. Отдаём словарь целиком: новое действие появится здесь само,
+    без правки этого эндпоинта и без новой подачи на ревью.
+    """
+    return {"action_prices": _ACTION_PRICES}
+
+
 @router.get("/api/shedcolony/capacity")
 async def shedcolony_capacity(request: Request):
     """Свободные слоты колонии (для slot-availability UI). Мод пушит снимок (colony.capacity)."""

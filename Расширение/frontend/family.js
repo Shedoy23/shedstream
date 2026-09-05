@@ -107,7 +107,7 @@ window.rejectFamilyProposal = async function(fromUser) {
 // withdrawFamily удалён 2026-05-10 (Phase 1.G compliance rework)
 
 window.divorceFamily = async function() {
-    showConfirm('💔 Развод', 'Подача заявления стоит 500💎. Продолжить?', async () => {
+    showConfirm('💔 Развод', `Подача заявления стоит ${corePrice('divorce_cost', 500)}💎. Продолжить?`, async () => {
         try {
             const r = await fetch(`${API_URL}/api/marriage/divorce`, {
                 method: 'POST', headers: {'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || ''},

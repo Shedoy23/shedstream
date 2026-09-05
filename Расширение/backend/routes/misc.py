@@ -26,6 +26,39 @@ from dependencies import (
 router = APIRouter()
 
 
+@router.get("/api/core/config")
+async def core_config():
+    """Балансовые числа ядра (не игрового модуля) — единый источник для фронта.
+
+    ЗАЧЕМ. У Bannerlord и RimWorld такие эндпоинты есть с июля, а ядро осталось
+    без: минимальная ставка в голосовании, минимальный вклад, цена гильдии и
+    развода жили копиями в voting.js / guilds.js / family.js. Фронт замерзает на
+    CDN Twitch до следующего ревью, бэкенд деплоится за минуты — значит любая
+    правка цены расходилась бы с интерфейсом на недели. Бэк по-прежнему сам
+    проверяет суммы при списании; это только для отображения.
+
+    Публичный: числа не секретны и нужны панели до авторизации.
+    """
+    from config import (
+        FAMILY_CONFIG,
+        GUILD_CREATE_COST,
+        TTS_COST,
+        VOTING_BID_PRESETS,
+        VOTING_MIN_BID,
+        VOTING_PLEDGE_PRESETS,
+        VOTING_PROPOSE_MIN_PLEDGE,
+    )
+    return {
+        "voting_min_bid":        VOTING_MIN_BID,
+        "voting_min_pledge":     VOTING_PROPOSE_MIN_PLEDGE,
+        "voting_bid_presets":    VOTING_BID_PRESETS,
+        "voting_pledge_presets": VOTING_PLEDGE_PRESETS,
+        "guild_create_cost":     GUILD_CREATE_COST,
+        "divorce_cost":          FAMILY_CONFIG["divorce_cost"],
+        "tts_cost":              TTS_COST,
+    }
+
+
 @router.post("/api/bug-report")
 async def submit_bug_report(request: Request):
     """Зритель шлёт багрепорт из расширения → пишется в bug_reports (та же таблица,

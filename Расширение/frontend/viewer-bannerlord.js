@@ -866,6 +866,18 @@ async function _hydrateBnrConfig() {
 // недели: фронт замерзает на CDN Twitch до следующего ревью).
 // Числа приезжают в /api/bannerlord/config → hero_gold_costs; хардкод остаётся
 // только как fallback на время, пока конфиг не подъехал.
+// ── Цены в крустиках для подписей кнопок ─────────────────────────────────────
+// Тот же принцип, что и у динаров ниже: подпись и проверка читают ОДНО
+// значение, и это значение приходит с бэка (/api/bannerlord/config →
+// action_prices, тот же словарь ACTION_PRICES_DEFAULT, по которому бэк
+// списывает). Хардкод остаётся только запасным на время, пока конфиг не
+// подъехал: цену меняют на сервере за минуты, а фронт замерзает на CDN Twitch
+// до следующего ревью.
+function _bnrPrice(actionType, fallback) {
+    const v = Number(_bnrCfg.action_prices?.[actionType]);
+    return isFinite(v) ? v : fallback;
+}
+
 function _bnrGold(key, fallback) {
     const v = Number(_bnrCfg.hero_gold_costs?.[key]);
     return (isFinite(v) && v > 0) ? v : fallback;
@@ -1841,7 +1853,7 @@ async function loadBannerlordVassals() {
                                     background:#0f1730;padding:4px 6px;border-radius:3px;">
                             <span style="color:#dbeafe;font-size:11px;">🏰 ${escapeHtml(v.vassal_name)}</span>
                             <button class="bnr-vas-rename small-btn"
-                                    title="Переименовать (100💎)"
+                                    title="Переименовать (${_bnrPrice('hero.rename_vassal', 100)}💎)"
                                     style="font-size:9px;padding:2px 5px;background:#1e3a8a;color:#bfdbfe;">✏</button>
                         </div>
                     `).join('')}
@@ -2013,7 +2025,7 @@ function loadBannerlordArmy() {
         body = `
             <div style="margin-bottom:6px;color:var(--muted);">Собери армию своего королевства. Командовать — через «Приказы отряда» выше.</div>
             <button class="bnr-btn-primary" data-bnr-action="army_create"
-                    title="Собрать армию королевства. После — отдавай приказы через «Приказы отряда».">🚩 Собрать армию (1000💎)</button>`;
+                    title="Собрать армию королевства. После — отдавай приказы через «Приказы отряда».">🚩 Собрать армию (${_bnrPrice('hero.army_create', 1000)}💎)</button>`;
     }
     slot.innerHTML = _bnrCard('army', _title, body);
 
@@ -2114,7 +2126,7 @@ async function loadBannerlordPartyOrders() {
                 <summary style="list-style:none;cursor:pointer;width:100%;
                            font-size:11px;padding:6px;background:#1e3a5f;box-sizing:border-box;
                            color:#93c5fd;font-weight:700;border-radius:3px;text-align:center;">
-                    ⚔ ${active ? 'Изменить приказ' : 'Назначить приказ'} (500💎)
+                    ⚔ ${active ? 'Изменить приказ' : 'Назначить приказ'} (${_bnrPrice('hero.party_order_set', 500)}💎)
                 </summary>
                 <div id="bnr-party-order-slot" style="padding-top:6px;"></div>
             </details>`;
@@ -2227,7 +2239,7 @@ function _renderPartyOrderInline(currentActive) {
             <button id="bnr-order-confirm" class="extra-btn"
                     style="width:100%;font-size:11px;padding:6px;
                            background:#92400e;color:#fff;font-weight:700;">
-                ⚔ Выдать приказ (500💎)
+                ⚔ Выдать приказ (${_bnrPrice('hero.party_order_set', 500)}💎)
             </button>
         </div>`;
     // 2026-06-14 — заполнить dropdown целей по выбранному типу приказа + перезаполнять
@@ -2386,10 +2398,10 @@ async function loadBannerlordDiplomacy() {
                     <summary style="list-style:none;cursor:pointer;width:100%;
                                font-size:11px;padding:6px;background:#1e3a5f;box-sizing:border-box;
                                color:#93c5fd;font-weight:700;border-radius:3px;text-align:center;">
-                        📜 Законы королевства (политики, 1500💎)
+                        📜 Законы королевства (политики, ${_bnrPrice('hero.enact_policy', 1500)}💎)
                     </summary>
                     <div style="font-size:9px;color:var(--muted);margin:6px 0 4px;">
-                        Клик по политике = toggle (активна → отозвать). 1500💎 за действие.
+                        Клик по политике = toggle (активна → отозвать). ${_bnrPrice('hero.enact_policy', 1500)}💎 за действие.
                     </div>
                     <div style="display:flex;flex-direction:column;gap:3px;">
                         ${_BNR_POLICIES.map(p => {
@@ -2424,7 +2436,7 @@ async function loadBannerlordDiplomacy() {
                     <summary style="list-style:none;cursor:pointer;width:100%;
                                font-size:11px;padding:6px;background:#1e3a5f;box-sizing:border-box;
                                color:#93c5fd;font-weight:700;border-radius:3px;text-align:center;">
-                        🕊 Предложить peace (2000💎)
+                        🕊 Предложить peace (${_bnrPrice('hero.make_peace', 2000)}💎)
                     </summary>
                     <div id="bnr-diplo-peace-slot" style="padding-top:6px;"></div>
                 </details>`;
@@ -2479,7 +2491,7 @@ async function loadBannerlordDiplomacy() {
                         <select id="bnr-war-target" style="flex:1;padding:5px;font-size:11px;background:#0f0805;color:#fed7aa;border:1px solid #92400e;">
                             ${warTargets.map(k => `<option value="${escapeHtml(k.id)}">${escapeHtml(k.name || k.id)}</option>`).join('')}
                         </select>
-                        <button id="bnr-war-propose" class="extra-btn bnr-btn-danger" ${_warLeft > 0 ? 'disabled' : ''} style="flex:0 0 auto;width:auto;margin-top:0;padding:5px 8px;font-size:11px;white-space:nowrap;${_warLeft > 0 ? 'opacity:0.5;cursor:not-allowed;' : ''}">${_warLeft > 0 ? _cdTxt(_warLeft) : '⚔ Предложить (2000💎)'}</button>
+                        <button id="bnr-war-propose" class="extra-btn bnr-btn-danger" ${_warLeft > 0 ? 'disabled' : ''} style="flex:0 0 auto;width:auto;margin-top:0;padding:5px 8px;font-size:11px;white-space:nowrap;${_warLeft > 0 ? 'opacity:0.5;cursor:not-allowed;' : ''}">${_warLeft > 0 ? _cdTxt(_warLeft) : `⚔ Предложить (${_bnrPrice('kingdom.propose_war', 2000)}💎)`}</button>
                     </div>`;
             }
             if (peaceTargets.length) {
@@ -2488,7 +2500,7 @@ async function loadBannerlordDiplomacy() {
                         <select id="bnr-peace-vote-target" style="flex:1;padding:5px;font-size:11px;background:#0a0f1a;color:#bfdbfe;border:1px solid #1e40af;">
                             ${peaceTargets.map(k => `<option value="${escapeHtml(k.id)}">${escapeHtml(k.name || k.id)}</option>`).join('')}
                         </select>
-                        <button id="bnr-peace-vote-propose" class="extra-btn bnr-btn-primary" ${_peaceLeft > 0 ? 'disabled' : ''} style="flex:0 0 auto;width:auto;margin-top:0;padding:5px 8px;font-size:11px;white-space:nowrap;${_peaceLeft > 0 ? 'opacity:0.5;cursor:not-allowed;' : ''}">${_peaceLeft > 0 ? _cdTxt(_peaceLeft) : '🕊 Предложить (3000💎)'}</button>
+                        <button id="bnr-peace-vote-propose" class="extra-btn bnr-btn-primary" ${_peaceLeft > 0 ? 'disabled' : ''} style="flex:0 0 auto;width:auto;margin-top:0;padding:5px 8px;font-size:11px;white-space:nowrap;${_peaceLeft > 0 ? 'opacity:0.5;cursor:not-allowed;' : ''}">${_peaceLeft > 0 ? _cdTxt(_peaceLeft) : `🕊 Предложить (${_bnrPrice('kingdom.propose_peace', 3000)}💎)`}</button>
                     </div>`;
             } else {
                 body += `<div style="font-size:9px;color:var(--dim);">Сейчас ни с кем не воюем — мир предлагать некому.</div>`;
@@ -2601,7 +2613,7 @@ function _renderMakePeaceInline() {
             <button id="bnr-peace-confirm" class="extra-btn"
                     style="width:100%;font-size:11px;padding:6px;
                            background:#1e40af;color:#fff;font-weight:700;">
-                🕊 Заключить (2000💎)
+                🕊 Заключить (${_bnrPrice('hero.make_peace', 2000)}💎)
             </button>
         </div>`;
     document.getElementById('bnr-peace-confirm')?.addEventListener('click', async () => {
@@ -2655,9 +2667,9 @@ async function loadBannerlordRansomPool() {
                                 </span>
                             </span>
                             <button class="bnr-ransom-pay small-btn"
-                                    title="Внести 500💎 в pool выкупа"
+                                    title="Внести ${_bnrPrice('hero.pay_ransom', 500)}💎 в pool выкупа"
                                     style="font-size:9px;padding:2px 6px;background:#b91c1c;
-                                           color:#fee2e2;">💰 +500💎</button>
+                                           color:#fee2e2;">💰 +${_bnrPrice('hero.pay_ransom', 500)}💎</button>
                         </div>
                         <div style="background:#1a0505;height:5px;border-radius:2px;overflow:hidden;">
                             <div style="background:linear-gradient(90deg,#fb7185,#fbbf24);
@@ -2919,13 +2931,13 @@ async function loadBannerlordFamily() {
                                     background:#0f0f1e;padding:4px 6px;border-radius:3px;">
                             <span style="color:#e9d5ff;font-size:11px;">${escapeHtml(c.name)}</span>
                             <div style="display:flex;gap:3px;">
-                                <button class="bnr-fam-rename small-btn" title="Переименовать (50💎)"
+                                <button class="bnr-fam-rename small-btn" title="Переименовать (${_bnrPrice('hero.rename_child', 50)}💎)"
                                         style="font-size:9px;padding:2px 5px;background:#2d2d3f;color:#a78bfa;">✏</button>
-                                <button class="bnr-fam-looks small-btn" title="Изменить внешность (200💎). Скопируй body_code из in-game character menu"
+                                <button class="bnr-fam-looks small-btn" title="Изменить внешность (${_bnrPrice('hero.change_child_looks', 200)}💎). Скопируй body_code из in-game character menu"
                                         style="font-size:9px;padding:2px 5px;background:#2d2d3f;color:#a78bfa;">🎨</button>
-                                <button class="bnr-fam-respec small-btn" title="Респект скиллов (500💎)"
+                                <button class="bnr-fam-respec small-btn" title="Респект скиллов (${_bnrPrice('hero.respec_child_skills', 500)}💎)"
                                         style="font-size:9px;padding:2px 5px;background:#2d2d3f;color:#a78bfa;">🎯</button>
-                                <button class="bnr-fam-propose small-btn" title="Предложить брак другому viewer'у (100💎)"
+                                <button class="bnr-fam-propose small-btn" title="Предложить брак другому viewer'у (${_bnrPrice('hero.propose_marriage', 100)}💎)"
                                         style="font-size:9px;padding:2px 5px;background:#4c1d95;color:#fff;">💍</button>
                             </div>
                         </div>
@@ -3016,7 +3028,7 @@ async function _famRenameChild(childId, currentName) {
 
 async function _famRespecChild(childId, name) {
     if (!await _bnrConfirmDanger(
-        `Сбросить все навыки «${name}» за 500💎? Уровни обнулятся, вернуть их нельзя.`,
+        `Сбросить все навыки «${name}» за ${_bnrPrice('hero.respec_child_skills', 500)}💎? Уровни обнулятся, вернуть их нельзя.`,
         'Да, сбросить')) return;
     await _bannerlordBuyAction('hero.respec_child_skills',
         { child_hero_id: childId });
@@ -3028,7 +3040,7 @@ async function _famRespecChild(childId, name) {
 // creator (Profile/Looks menu имеет "Export" button в 1.3.x), pastes здесь.
 async function _famChangeChildLooks(childId, name) {
     const bodyCode = window.prompt(
-        `🎨 Изменить внешность «${name}» (200💎)\n\n` +
+        `🎨 Изменить внешность «${name}» (${_bnrPrice('hero.change_child_looks', 200)}💎)\n\n` +
         `Вставь body_code (скопируй из in-game character menu → Export).\n` +
         `Поддерживается формат TaleWorlds BodyProperties.`,
         ''
@@ -3077,7 +3089,7 @@ async function _famProposeMarriage(myChildId, myChildName) {
         if (isNaN(idx) || idx < 0 || idx >= d.children.length) return;
         const targetChild = d.children[idx];
         if (!await _bnrConfirm(
-            `Предложить @${tu}: «${myChildName} ❤ ${targetChild.name}»? (100💎)`,
+            `Предложить @${tu}: «${myChildName} ❤ ${targetChild.name}»? (${_bnrPrice('hero.propose_marriage', 100)}💎)`,
             'Отправить'
         )) return;
         await _bannerlordBuyAction('hero.propose_marriage', {
@@ -3169,17 +3181,17 @@ function _renderBannerlordDetachmentPanel(battleData) {
     const _detShowSkirmish = _DET_SKIRMISH_CLASSES.indexOf(_detClassKey) >= 0;
     const _detSkirmishBtn = _detShowSkirmish ? `
             <button class="extra-btn bnr-det-btn" data-det-act="hero.detach_skirmish"
-                    data-det-cost="30"
+                    data-det-cost="${_bnrPrice('hero.detach_skirmish', 30)}"
                     title="🏹 Бой на расстоянии: держать дистанцию ~22м и стрелять, не подпуская врага вплотную. Лучникам/арбалетчикам."
                     style="background:#14532d;color:#bbf7d0;padding:6px;">
-                🏹 Перестрелка (30💎)
+                🏹 Перестрелка (${_bnrPrice('hero.detach_skirmish', 30)}💎)
             </button>` : '';
     const _detRaidBtn = _detShowRaid ? `
             <button class="extra-btn bnr-det-btn" data-det-act="hero.detach_raid"
-                    data-det-cost="30"
+                    data-det-cost="${_bnrPrice('hero.detach_raid', 30)}"
                     title="🐎 Набег: конный кружит вокруг ближайшего врага, рубя/стреляя на проходе. Только конным классам."
                     style="background:#4c1d95;color:#ddd6fe;padding:6px;">
-                🐎 Набег (30💎)
+                🐎 Набег (${_bnrPrice('hero.detach_raid', 30)}💎)
             </button>` : '';
     slot.innerHTML = `
         <div style="font-size:12px;color:#fbbf24;font-weight:700;margin-bottom:6px;
@@ -3191,40 +3203,40 @@ function _renderBannerlordDetachmentPanel(battleData) {
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;
                     font-size:11px;">
             <button class="extra-btn bnr-det-btn" data-det-act="hero.detach_hold"
-                    data-det-cost="30"
+                    data-det-cost="${_bnrPrice('hero.detach_hold', 30)}"
                     title="Стоять на текущей позиции. Полезно archer'ам — sniper-mode не отступает."
                     style="background:#1e3a8a;color:#bfdbfe;padding:6px;">
-                ⛔ Стоять (30💎)
+                ⛔ Стоять (${_bnrPrice('hero.detach_hold', 30)}💎)
             </button>
             <button class="extra-btn bnr-det-btn" data-det-act="hero.detach_charge"
-                    data-det-cost="30"
+                    data-det-cost="${_bnrPrice('hero.detach_charge', 30)}"
                     title="Идти в КОНТАКТ к ближайшему врагу (любой класс, даже лучник — сайдармом). Бой с дистанции — кнопка «Перестрелка»."
                     style="background:#7c1d1d;color:#fecaca;padding:6px;">
-                ⚔ Вблизи (30💎)
+                ⚔ Вблизи (${_bnrPrice('hero.detach_charge', 30)}💎)
             </button>${_detSkirmishBtn}${_detRaidBtn}
             <button class="extra-btn bnr-det-btn" data-det-act="hero.attach"
-                    data-det-cost="10"
+                    data-det-cost="${_bnrPrice('hero.attach', 10)}"
                     title="Вернуть hero в parent formation стримера. Подчиняется AI commander снова."
                     style="background:#1f4a35;color:#a7f3d0;padding:6px;">
-                🔄 В строй (10💎)
+                🔄 В строй (${_bnrPrice('hero.attach', 10)}💎)
             </button>
             <button class="extra-btn bnr-det-btn" data-det-act="hero.detach_walls"
-                    data-det-cost="30"
+                    data-det-cost="${_bnrPrice('hero.detach_walls', 30)}"
                     title="🏰 Siege only: лезть на стены/лестницы/башни. Archer'ам — defense top."
                     style="background:#3d2e0a;color:#fde68a;padding:6px;">
-                🪜 К стенам (30💎)
+                🪜 К стенам (${_bnrPrice('hero.detach_walls', 30)}💎)
             </button>
             <button class="extra-btn bnr-det-btn" data-det-act="hero.detach_gate"
-                    data-det-cost="30"
+                    data-det-cost="${_bnrPrice('hero.detach_gate', 30)}"
                     title="🏰 Siege only: к ближайшим воротам / баррикаде. Tank'ам — открыть gate."
                     style="background:#3d1e0a;color:#fdba74;padding:6px;">
-                🚪 К воротам (30💎)
+                🚪 К воротам (${_bnrPrice('hero.detach_gate', 30)}💎)
             </button>
             <button class="extra-btn bnr-det-btn" data-det-act="hero.detach"
-                    data-det-cost="10"
+                    data-det-cost="${_bnrPrice('hero.detach', 10)}"
                     title="Выйти из строя в собственный отряд. После — выбери одну из 4 команд выше. Также авто-detach при любой из выше команд."
                     style="background:#2d2d2f;color:#d1d5db;padding:6px;">
-                🚶 Отделиться (10💎)
+                🚶 Отделиться (${_bnrPrice('hero.detach', 10)}💎)
             </button>
         </div>`;
     // Bind handlers — каждая кнопка POST'ит свой action.
@@ -4013,7 +4025,7 @@ function renderBannerlordCurrencyHtml() {
     return `
         <div style="padding:6px 10px;border-top:1px solid #3d3d3f;margin-top:4px;">
             <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">
-                💰 Динары (1000💎 → 5000 динаров)
+                💰 Динары (${GIVE_GOLD_OPTIONS[0] ? `${GIVE_GOLD_OPTIONS[0].crusticov}💎 → ${GIVE_GOLD_OPTIONS[0].dinars} динаров` : 'цены грузятся…'})
             </div>
             <div style="display:flex;flex-direction:column;gap:3px;">${goldRows}</div>
         </div>

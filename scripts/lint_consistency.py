@@ -1047,14 +1047,21 @@ def check_frontend_price_literals():
 #
 # Правило простое: добавил во фронт ещё одну цену числом — линтер падает.
 # Перенёс цену на /config — уменьши отметку в этой таблице.
+# 2026-09-05: все игровые и ядровые цены переехали на серверные конфиги
+# (/api/rimworld/config, /api/bannerlord/config, /api/shedcolony/config,
+# /api/core/config). Ноли ниже — не «пока чисто», а инвариант: число во фронте
+# означает копию, которая разъедется с бэком и будет врать неделями, пока
+# расширение не пройдёт новое ревью Twitch.
+# В оболочках остаются ЗАПАСНЫЕ числа (их перерисовывает JS после загрузки
+# конфига) и числа внутри HTML-комментариев — отсюда 6, а не 0.
 PRICE_LITERAL_BASELINE = {
-    "family.js": 1,
-    "guilds.js": 2,
-    "pawn.js": 0,               # 2026-09-05: цены переехали в /api/rimworld/config
-    "viewer-bannerlord.js": 21,   # 2026-09-01: -7 вместе с блоком «Случайный товар»
-    "viewer-rimworld.js": 4,
-    "viewer-shedcolony.js": 28,
-    "voting.js": 8,
+    "family.js": 0,
+    "guilds.js": 0,
+    "pawn.js": 0,
+    "viewer-bannerlord.js": 0,
+    "viewer-rimworld.js": 4,      # fallback-подписи heal/resurrect/spawn
+    "viewer-shedcolony.js": 0,
+    "voting.js": 0,
     "extension.html": 6,
     "mobile.html": 6,
 }

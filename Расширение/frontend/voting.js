@@ -8,6 +8,17 @@
 // Phase C (2026-05-17): PubSub realtime push покрывает vote_started/tick/ended.
 // Polling остаётся как fallback на случай потери delivery: 4s → 30s
 // (Twitch PubSub не гарантирует доставку, но 99%+ обычно proходит).
+// Быстрые суммы приходят с бэка (/api/core/config): ступеньки — такие же
+// «числа, которые захочется поменять», как и минимум, а фронт до правки живёт
+// на CDN Twitch неделями.
+function _votingPresetButtons(attr, presets, fallback) {
+    const list = Array.isArray(presets) && presets.length ? presets : fallback;
+    return list.map((n) => {
+        const label = n >= 1000 ? `${(n / 1000).toFixed(n % 1000 ? 1 : 0)}k💎` : `${n}💎`;
+        return `<button class="quick-vote" data-${attr}="${n}">${label}</button>`;
+    }).join('');
+}
+
 const VOTING_POLL_INTERVAL_MS = 30000;
 let _votingPollId = null;
 let _votingBidLocked = false;
@@ -237,12 +248,9 @@ function _promptBidAmount(optionId, option) {
                 <div style="font-weight:700;">${escapeHtml(option?.label || '?')}</div>
                 ${option?.description ? `<div style="font-size:11px;color:#adadb8;margin-top:2px;">${escapeHtml(option.description)}</div>` : ''}
             </div>
-            <input id="voting-bid-amount" type="number" class="modal-input" placeholder="Сумма (мин. 50💎)" min="50">
+            <input id="voting-bid-amount" type="number" class="modal-input" placeholder="Сумма (мин. ${corePrice('voting_min_bid', 50)}💎)" min="${corePrice('voting_min_bid', 50)}">
             <div style="display:flex;gap:4px;margin-bottom:10px;">
-                <button class="quick-vote" data-quick="50">50💎</button>
-                <button class="quick-vote" data-quick="500">500💎</button>
-                <button class="quick-vote" data-quick="5000">5k💎</button>
-                <button class="quick-vote" data-quick="50000">50k💎</button>
+                ${_votingPresetButtons('quick', coreConfig.voting_bid_presets, [50, 500, 5000, 50000])}
             </div>
             <button class="modal-btn" id="voting-bid-confirm-btn">✅ Голосовать</button>
             <button class="modal-btn cancel" id="voting-bid-cancel-btn" style="margin-top:6px;">Отмена</button>
@@ -258,7 +266,7 @@ function _promptBidAmount(optionId, option) {
     document.getElementById('voting-bid-confirm-btn').addEventListener('click', async () => {
         const amt = parseInt(document.getElementById('voting-bid-amount').value);
         if (!amt || amt < 50) {
-            showNotification('Минимум 50💎', 'error');
+            showNotification(`Минимум ${corePrice('voting_min_bid', 50)}💎`, 'error');
             return;
         }
         await _placeBid(optionId, amt);
@@ -304,12 +312,9 @@ function _promptProposeGame() {
                 Стример решит, добавить ли её в голосование. Вклад спишется, только если одобрит.
             </div>
             <input id="voting-propose-label" type="text" class="modal-input" placeholder="Название игры" maxlength="60">
-            <input id="voting-propose-pledge" type="number" class="modal-input" placeholder="Твой вклад (мин. 100💎)" min="100" style="margin-top:6px;">
+            <input id="voting-propose-pledge" type="number" class="modal-input" placeholder="Твой вклад (мин. ${corePrice('voting_min_pledge', 100)}💎)" min="${corePrice('voting_min_pledge', 100)}" style="margin-top:6px;">
             <div style="display:flex;gap:4px;margin:8px 0;">
-                <button class="quick-vote" data-qp="100">100💎</button>
-                <button class="quick-vote" data-qp="500">500💎</button>
-                <button class="quick-vote" data-qp="5000">5k💎</button>
-                <button class="quick-vote" data-qp="50000">50k💎</button>
+                ${_votingPresetButtons('qp', coreConfig.voting_pledge_presets, [100, 500, 5000, 50000])}
             </div>
             <div style="font-size:10px;color:#7a7a85;margin-bottom:8px;">
                 💎 крустики виртуальны, ценности вне расширения не имеют. Вклад необратим, возврата нет.
@@ -329,7 +334,8 @@ function _promptProposeGame() {
         const label = (document.getElementById('voting-propose-label').value || '').trim();
         const pledge = parseInt(document.getElementById('voting-propose-pledge').value);
         if (label.length < 2) { showNotification('Введи название игры', 'error'); return; }
-        if (!pledge || pledge < 100) { showNotification('Минимальный вклад 100💎', 'error'); return; }
+        const minPledge = corePrice('voting_min_pledge', 100);
+        if (!pledge || pledge < minPledge) { showNotification(`Минимальный вклад ${minPledge}💎`, 'error'); return; }
         await _proposeGame(label, pledge);
         m.remove();
     });

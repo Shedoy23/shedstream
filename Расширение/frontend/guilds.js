@@ -92,7 +92,7 @@ async function _renderBrowseGuilds() {
 
     el.innerHTML = `
         <details open style="margin-bottom:14px;background:#1a1a1c;border-radius:8px;padding:10px 12px;">
-            <summary style="cursor:pointer;font-weight:700;">⚔️ Создать свою гильдию (100,000💎)</summary>
+            <summary style="cursor:pointer;font-weight:700;">⚔️ Создать свою гильдию (${corePrice('guild_create_cost', 100000).toLocaleString('ru-RU')}💎)</summary>
             <div style="margin-top:10px;">
                 <input id="guild-create-name" class="modal-input" placeholder="Имя гильдии (3-30 символов)" maxlength="30">
                 <input id="guild-create-tagline" class="modal-input" placeholder="Девиз (до 80 символов, опц.)" maxlength="80" style="margin-top:6px;">
@@ -258,7 +258,7 @@ function _renderMyGuild(g) {
         <details style="margin-bottom:10px;background:#1a1a1c;border-radius:6px;padding:8px 10px;">
             <summary style="cursor:pointer;font-weight:600;font-size:12px;">💰 Внести в общую копилку</summary>
             <div style="margin-top:8px;display:flex;gap:6px;">
-                <input id="guild-contrib-amt" type="number" class="modal-input" style="flex:1;margin:0;" placeholder="Сумма (мин. 100💎)" min="100">
+                <input id="guild-contrib-amt" type="number" class="modal-input" style="flex:1;margin:0;" placeholder="Сумма (мин. ${corePrice('voting_min_pledge', 100)}💎)" min="${corePrice('voting_min_pledge', 100)}">
                 <button class="modal-btn" style="width:auto;padding:8px 14px;margin:0;" id="guild-contrib-btn">📥</button>
             </div>
         </details>
@@ -293,7 +293,7 @@ function _renderMyGuild(g) {
 async function _contributeToGuild() {
     const amt = parseInt(document.getElementById('guild-contrib-amt').value);
     if (!amt || amt < 100) {
-        showNotification('Минимум 100💎', 'error');
+        showNotification(`Минимум ${corePrice('voting_min_pledge', 100)}💎`, 'error');
         return;
     }
     try {

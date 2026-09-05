@@ -96,7 +96,7 @@ async function _renderBrowseGuilds() {
             <div style="margin-top:10px;">
                 <input id="guild-create-name" class="modal-input" placeholder="Имя гильдии (3-30 символов)" maxlength="30">
                 <input id="guild-create-tagline" class="modal-input" placeholder="Девиз (до 80 символов, опц.)" maxlength="80" style="margin-top:6px;">
-                <button class="modal-btn" id="guild-create-btn" style="margin-top:8px;">⚔️ Создать (100k💎)</button>
+                <button class="modal-btn" id="guild-create-btn" style="margin-top:8px;">⚔️ Создать (${corePrice('guild_create_cost', 100000).toLocaleString('ru-RU')}💎)</button>
             </div>
         </details>
         <div style="font-size:12px;color:#adadb8;margin-bottom:6px;">🏆 Топ гильдий канала</div>
@@ -292,8 +292,9 @@ function _renderMyGuild(g) {
 
 async function _contributeToGuild() {
     const amt = parseInt(document.getElementById('guild-contrib-amt').value);
-    if (!amt || amt < 100) {
-        showNotification(`Минимум ${corePrice('voting_min_pledge', 100)}💎`, 'error');
+    const minContrib = corePrice('voting_min_pledge', 100);
+    if (!amt || amt < minContrib) {
+        showNotification(`Минимум ${minContrib}💎`, 'error');
         return;
     }
     try {

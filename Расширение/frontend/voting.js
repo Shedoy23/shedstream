@@ -265,8 +265,9 @@ function _promptBidAmount(optionId, option) {
     });
     document.getElementById('voting-bid-confirm-btn').addEventListener('click', async () => {
         const amt = parseInt(document.getElementById('voting-bid-amount').value);
-        if (!amt || amt < 50) {
-            showNotification(`Минимум ${corePrice('voting_min_bid', 50)}💎`, 'error');
+        const minBid = corePrice('voting_min_bid', 50);
+        if (!amt || amt < minBid) {
+            showNotification(`Минимум ${minBid}💎`, 'error');
             return;
         }
         await _placeBid(optionId, amt);

@@ -1062,11 +1062,16 @@ PRICE_LITERAL_BASELINE = {
     "viewer-rimworld.js": 4,      # fallback-подписи heal/resurrect/spawn
     "viewer-shedcolony.js": 0,
     "voting.js": 0,
-    "extension.html": 6,
-    "mobile.html": 6,
+    "extension.html": 4,          # запасные подписи RimWorld + озвучка, их перерисовывает JS
+    "mobile.html": 4,
 }
 
-_PRICE_TEXT = re.compile(r"(\d[\d\s_]{1,9})\s*(💎|💰|крустик|дина)", re.IGNORECASE)
+# 2026-09-05: регулярка ловила только цифры впритык к значку, поэтому мимо неё
+# проходили «100k💎» и «5,000,000💰» — ровно те огрехи, которые нашёл внешний
+# обзор, когда всё остальное уже считалось перенесённым. Разделители и
+# суффиксы k/M теперь тоже считаются ценой.
+_PRICE_TEXT = re.compile(
+    r"(\d[\d\s_,.]{0,12})\s*([kKкК]|[mMмМ])?\s*(💎|💰|крустик|дина)", re.IGNORECASE)
 
 
 def check_frontend_price_literal_growth():
@@ -1087,13 +1092,31 @@ def check_frontend_price_literal_growth():
         if not path.is_file():
             continue
         count = 0
+        in_html_comment = False
         for line in path.read_text(encoding="utf-8", errors="ignore").split("\n"):
             stripped = line.strip()
-            if stripped.startswith("//") or stripped.startswith("*"):
+            # HTML-комментарии — тоже комментарии: пояснение «здесь стояло
+            # 100💎 при реальных 200💎» считалось живой ценой и держало
+            # отметку оболочек завышенной.
+            if in_html_comment:
+                if "-->" in line:
+                    in_html_comment = False
+                continue
+            if "<!--" in line and "-->" not in line:
+                in_html_comment = True
+                continue
+            if (stripped.startswith("//") or stripped.startswith("*")
+                    or stripped.startswith("<!--")):
                 continue
             for m in _PRICE_TEXT.finditer(line):
-                digits = m.group(1).replace(" ", "").replace("_", "")
-                if digits.isdigit() and int(digits) >= 50:
+                digits = (m.group(1).replace(" ", "").replace("_", "")
+                          .replace(",", "").rstrip("."))
+                if not digits.isdigit():
+                    continue
+                value = int(digits)
+                if m.group(2):        # 100k💎 / 5M💰 — суффикс это тоже цена
+                    value *= 1000 if m.group(2).lower() in ("k", "к") else 1000000
+                if value >= 50:
                     count += 1
         if count > allowed:
             errors.append(

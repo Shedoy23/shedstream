@@ -4705,7 +4705,7 @@ function loadBannerlordKingdomMgmt() {
                 🚪 Покинуть королевство
            </button>`
         : `<details data-bnr-details="kingdom-create" ${_bnrDetailsAttr('kingdom-create')} style="margin-bottom:4px;">
-                <summary title="Создать своё королевство (5M💰). Клан становится правящим."
+                <summary title="Создать своё королевство (${_bnrGoldLabel('create_kingdom', 5000000)}). Клан становится правящим."
                          style="list-style:none;cursor:pointer;width:100%;box-sizing:border-box;
                                 font-size:12px;padding:7px;border-radius:3px;background:#7c2d12;color:#fbbf24;font-weight:700;">
                     👑 Создать королевство (${_bnrGoldLabel('create_kingdom', 5000000)})
@@ -4787,7 +4787,7 @@ function _renderCreateKingdomInline() {
         <div style="background:#18181b;border:1px solid #3d3d3f;border-radius:6px;padding:12px;">
             <div style="font-size:11px;color:#adadb8;margin-bottom:10px;line-height:1.4;">
                 Твой клан станет правящим в новом королевстве. Списывается
-                <b style="color:#fbbf24;">5,000,000💰 динаров</b> + бонус: 2K влияния и
+                <b style="color:#fbbf24;">${_bnrGoldLabel('create_kingdom', 5000000)} динаров</b> + бонус: 2K влияния и
                 2M kingdom wallet. Имя получит префикс <code>[BLink]</code>.
             </div>
             <input id="bnr-kingdom-name-input" type="text" maxlength="32"
@@ -4799,7 +4799,7 @@ function _renderCreateKingdomInline() {
             <button id="bnr-k-confirm" class="extra-btn"
                     style="width:100%;font-size:12px;padding:7px;background:#7c2d12;
                            color:#fbbf24;font-weight:700;">
-                👑 Создать (5M💰)
+                👑 Создать (${_bnrGoldLabel('create_kingdom', 5000000)})
             </button>
         </div>`;
     const input = document.getElementById('bnr-kingdom-name-input');
@@ -4868,7 +4868,7 @@ function _renderCreateClanInline() {
         <div style="background:#18181b;border:1px solid #3d3d3f;border-radius:6px;padding:12px;">
             <div style="font-size:11px;color:#adadb8;margin-bottom:10px;line-height:1.4;">
                 Твой герой станет лидером нового клана и сможет создать отряд
-                (party) на карте. Списывается <b style="color:#fbbf24;">1,000,000💰
+                (party) на карте. Списывается <b style="color:#fbbf24;">${_bnrGoldLabel('create_clan', 1000000)}
                 динаров</b> у героя в игре. Имя получит префикс <code>[BLink]</code>.
             </div>
             <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">
@@ -4883,7 +4883,7 @@ function _renderCreateClanInline() {
             <button id="bnr-clan-confirm" class="extra-btn"
                     style="width:100%;font-size:12px;padding:7px;background:#7c2d12;
                            color:#fbbf24;font-weight:700;">
-                🏰 Создать (1M💰)
+                🏰 Создать (${_bnrGoldLabel('create_clan', 1000000)})
             </button>
         </div>`;
     const input = document.getElementById('bnr-clan-name-input');

@@ -3599,45 +3599,54 @@ function renderBannerlordActivePowers() {
 }
 
 // Sprint 5.0 — кнопки призыва (player.spawn).
-// Cooldown ключ на backend'е = "player.spawn" (общий на обе стороны).
+// Cooldown на backend'е РАЗДЕЛЬНЫЙ по сторонам: ключи "player.spawn:player"
+// и "player.spawn:enemy" (routes/bannerlord.py, _resolve_cooldown). Здесь
+// стояло «общий на обе стороны», и фронт искал ключ "player.spawn" —
+// такого не существует, поэтому отсчёт не показывался НИ РАЗУ, а зритель
+// узнавал о кулдауне только отказом после списания (найдено 06.09).
 // Цены server-side enforced (SPAWN_PRICES в routes/bannerlord.py).
 function renderBannerlordSummonButton() {
     const slot = document.getElementById('bnr-summon-slot');
     if (!slot) return;
     const ALLY_PRICE = _bnrCfg.spawn_prices?.player ?? 50;   // thin-front: /config, fallback 50
     const ENEMY_PRICE = _bnrCfg.spawn_prices?.enemy ?? 100;  // thin-front: /config, fallback 100
-    const cdRem = (_bannerlordCooldowns.find(c => c.power_key === 'player.spawn') || {}).remaining_s || 0;
-    const onCooldown = cdRem > 0;
-    const cdLabel = onCooldown
-        ? `<span style="color:var(--muted);">${_bnrCdLabel(Math.ceil(cdRem))}</span>`
-        : '';
+    const _cdFor = (side) => (_bannerlordCooldowns
+        .find(c => c.power_key === `player.spawn:${side}`) || {}).remaining_s || 0;
+    const allyCd = _cdFor('player');
+    const enemyCd = _cdFor('enemy');
+    const allyOn = allyCd > 0;
+    const enemyOn = enemyCd > 0;
+    const _cdLabel = (rem) => `<span style="color:var(--muted);">${_bnrCdLabel(Math.ceil(rem))}</span>`;
 
     slot.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:4px;margin-top:6px;">
             <button class="modal-btn" id="bnr-summon-ally-btn"
                     data-bnr-cost="${ALLY_PRICE},0"
-                    ${onCooldown ? 'disabled' : ''}
+                    ${allyOn ? 'disabled' : ''}
                     title="Призвать героя в бой на сторону стримера"
                     style="width:100%;padding:7px;font-size:12px;
-                           ${onCooldown ? 'opacity:0.5;cursor:not-allowed;' : ''}">
+                           ${allyOn ? 'opacity:0.5;cursor:not-allowed;' : ''}">
                 📯 Призвать за стримера
-                ${onCooldown ? cdLabel : `<span style="color:#fbbf24;">${ALLY_PRICE}💎</span>`}
+                ${allyOn ? _cdLabel(allyCd) : `<span style="color:#fbbf24;">${ALLY_PRICE}💎</span>`}
             </button>
             <button class="modal-btn" id="bnr-summon-enemy-btn"
                     data-bnr-cost="${ENEMY_PRICE},0"
-                    ${onCooldown ? 'disabled' : ''}
+                    ${enemyOn ? 'disabled' : ''}
                     title="Призвать героя ПРОТИВ стримера (на сторону противника)"
                     style="width:100%;padding:7px;font-size:12px;background:#7c1d1d;
-                           ${onCooldown ? 'opacity:0.5;cursor:not-allowed;' : ''}">
+                           ${enemyOn ? 'opacity:0.5;cursor:not-allowed;' : ''}">
                 ⚔️ Призвать против стримера
-                ${onCooldown ? cdLabel : `<span style="color:#fbbf24;">${ENEMY_PRICE}💎</span>`}
+                ${enemyOn ? _cdLabel(enemyCd) : `<span style="color:#fbbf24;">${ENEMY_PRICE}💎</span>`}
             </button>
         </div>`;
 
-    if (!onCooldown) {
+    // Стороны включаются независимо: кулдаун одной больше не глушит другую.
+    if (!allyOn) {
         document.getElementById('bnr-summon-ally-btn')?.addEventListener('click', () => {
             _bannerlordBuyAction('player.spawn', { price: ALLY_PRICE, side: 'player' });
         });
+    }
+    if (!enemyOn) {
         document.getElementById('bnr-summon-enemy-btn')?.addEventListener('click', () => {
             _bannerlordBuyAction('player.spawn', { price: ENEMY_PRICE, side: 'enemy' });
         });

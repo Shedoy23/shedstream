@@ -1511,18 +1511,10 @@ def check_refusal_codes_have_text():
     # inache libo linter krasnyy vsegda, libo 33 viewer-teksta uezzhayut
     # nerevyuennymi v sessii pro drugoe. Spisok obyazan tolko umenshatsya:
     # kod, dlya kotorogo fraza poyavilas, linter trebuet otsyuda ubrat.
-    LEGACY_NO_PHRASE = frozenset((
-        "already_adopted", "already_gender", "already_in_kingdom",
-        "already_in_this_clan", "already_pregnant", "attribute_not_found",
-        "campaign_not_started", "children_limit", "clan_eliminated",
-        "clan_full", "clans_unavailable", "culture_recruit_not_found",
-        "gold_not_applied", "heir_dead", "hero_is_prisoner", "is_clan_leader",
-        "kingdom_eliminated", "kingdom_list_unavailable", "kingdom_name_taken",
-        "kingdom_not_found", "no_matching_troop_to_upgrade", "no_settlement",
-        "no_spouse", "no_wanderer_templates", "not_enough_gold", "not_married",
-        "peace_no_effect", "player_clan_forbidden", "pregnant_cannot_become_male",
-        "prisoner", "skill_cap_reached", "skill_xp_not_applied", "troop_maxed",
-    ))
+    # 2026-09-06: долг закрыт целиком — всем 31 коду написаны фразы
+    # (modules/bannerlord/refusals.py). Список пуст намеренно: любой новый
+    # код мода без фразы теперь сразу красный, без периода послаблений.
+    LEGACY_NO_PHRASE = frozenset()
     seen_legacy = set()
 
     pattern = re.compile(r'PostFailed\(\s*[^,()]+,\s*"([^"]*)"')

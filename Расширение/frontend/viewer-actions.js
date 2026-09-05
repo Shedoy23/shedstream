@@ -79,6 +79,21 @@
      * @returns {Promise<object|null>} ответ бэкенда; null — не отправляли
      *          (не авторизован / дубль клика) или сеть/JSON упали.
      */
+    // Отпечаток параметров действия: то, чем один клик отличается от другого.
+    // Ключи сортируем — иначе один и тот же выбор дал бы разные строки в
+    // зависимости от порядка полей, и замок бы не срабатывал.
+    function _lockSuffix(data) {
+        if (!data || typeof data !== 'object') return '';
+        try {
+            return Object.keys(data).sort()
+                .filter(function (k) { return k !== 'client_action_id'; })
+                .map(function (k) { return k + '=' + String(data[k]); })
+                .join('&');
+        } catch (e) {
+            return '';
+        }
+    }
+
     ShedLink.buyAction = async function (game, actionType, data, opts) {
         opts = opts || {};
 
@@ -87,8 +102,18 @@
             return null;
         }
 
-        var key = game + ':' + actionType;
+        // Ключ замка включает САМО действие вместе с его параметрами. Раньше он
+        // был game+actionType, и это склеивало то, что сервер намеренно
+        // разделяет: оба призыва Bannerlord — «player.spawn», но за стримера и
+        // против него это разные цены и разные кулдауны. Купил один, через
+        // секунду жмёшь другой — второй клик пропадал молча (найдено 03.09).
+        // Та же беда была у любых действий с выбором: два разных предмета в
+        // equip_item тоже делили один замок.
+        var key = game + ':' + actionType + ':' + _lockSuffix(data);
         if (_inflight[key]) {
+            // Молчать нельзя: для зрителя это неотличимо от «кнопка сломана»,
+            // и он идёт писать багрепорт.
+            _notify('⏳ Предыдущее действие ещё выполняется — секунду', 'warning');
             console.warn('[buyAction] duplicate-click guarded', key);
             return null;
         }

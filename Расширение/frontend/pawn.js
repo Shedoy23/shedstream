@@ -29,7 +29,7 @@ async function loadColonists() {
                 : 'var(--dim)';
             const isMyPawn = c.username === userLogin;
             const resurrectBtn = (!c.is_alive && isMyPawn)
-                ? `<button data-resurrect-pawn style="font-size:10px;padding:2px 8px;background:#1a1a3a;color:#9147ff;border:1px solid #9147ff;border-radius:4px;cursor:pointer;margin-top:4px;">✨ Воскресить 500💎</button>`
+                ? `<button data-resurrect-pawn style="font-size:10px;padding:2px 8px;background:#1a1a3a;color:#9147ff;border:1px solid #9147ff;border-radius:4px;cursor:pointer;margin-top:4px;">✨ Воскресить ${rimworldPrice('resurrect_cost', 500)}💎</button>`
                 : '';
             return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;background:#1a1a1c;margin-bottom:4px;">
                 <span style="font-size:16px;">${c.is_alive ? '❤️' : '💀'}</span>
@@ -208,7 +208,7 @@ async function loadMyPawn() {
                             <span style="font-size:12px;">${parseRimColor(t.label)}</span>
                             <button data-remove-trait="${(t.def_name||'').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}" data-degree="${t.degree || 0}" data-label="${escapeHtml(t.label.replace(/<[^>]+>/g,''))}"
                                 style="font-size:10px;padding:2px 8px;background:#3a1a1a;color:#f87171;border:1px solid #f87171;border-radius:4px;cursor:pointer;">
-                                🗑️ 300💎
+                                🗑️ ${rimworldPrice('trait_remove_cost', 300)}💎
                             </button>
                         </div>`;
                 });
@@ -238,7 +238,7 @@ async function loadMyPawn() {
                         ${canRemove
                             ? `<button data-remove-gene="${(defName||'').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}" data-gene-label="${lbl.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}" data-overridden="${isOverridden}"
                                 style="font-size:10px;padding:2px 8px;background:#3a1a1a;color:#f87171;border:1px solid #f87171;border-radius:4px;cursor:pointer;flex-shrink:0;"
-                                title="${isOverridden ? 'Ген подавлен, но будет удалён' : 'Удалить ксеноген'}">🗑️ 3000💎</button>`
+                                title="${isOverridden ? 'Ген подавлен, но будет удалён' : 'Удалить ксеноген'}">🗑️ ${rimworldPrice('gene_remove_cost', 3000)}💎</button>`
                             : ''}
                     </div>`;
                 });
@@ -501,12 +501,13 @@ async function healMyPawn() {
     } catch (e) { /* если эндпоинт недоступен — разрешаем попытку */ }
 
     const points = parseInt(document.getElementById('points')?.textContent || '0');
-    if (points < 150) {
-        showNotification('❌ Нужно 150💎 для лечения!', 'error');
+    const healCost = rimworldPrice('heal_cost', 150);
+    if (points < healCost) {
+        showNotification(`❌ Нужно ${healCost}💎 для лечения!`, 'error');
         return;
     }
 
-    showConfirm('💊 Лечение пешки', `Потратить 150💎 на лечение пешки?`, async () => {
+    showConfirm('💊 Лечение пешки', `Потратить ${healCost}💎 на лечение пешки?`, async () => {
         try {
             const r = await fetch(`${API_URL}/api/rimworld/heal-pawn`, {
                 method: 'POST',
@@ -562,12 +563,13 @@ function startBtnCountdown(btnOrId, seconds) {
 // ===== ВОСКРЕШЕНИЕ ПЕШКИ =====
 async function resurrectMyPawn() {
     const points = parseInt(document.getElementById('points')?.textContent || '0');
-    if (points < 500) {
-        showNotification('❌ Нужно 500💎 для воскрешения!', 'error');
+    const resurrectCost = rimworldPrice('resurrect_cost', 500);
+    if (points < resurrectCost) {
+        showNotification(`❌ Нужно ${resurrectCost}💎 для воскрешения!`, 'error');
         return;
     }
 
-    showConfirm('✨ Воскрешение', `Потратить 500💎 на воскрешение пешки?`, async () => {
+    showConfirm('✨ Воскрешение', `Потратить ${resurrectCost}💎 на воскрешение пешки?`, async () => {
         try {
             const r = await fetch(`${API_URL}/api/rimworld/resurrect-pawn`, {
                 method: 'POST',

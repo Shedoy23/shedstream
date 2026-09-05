@@ -7,6 +7,42 @@
 //
 // Чанк 1 (2026-06-13): RimWorld online-status + identity-запрос.
 
+// ===== ЦЕНЫ RIMWORLD — ТОЛЬКО С СЕРВЕРА =====
+// Цены жили копиями во фронте, и 24.07 копии разошлись: кнопка удаления черты
+// рисовала 2000 крустиков при реальных 300. Бэкенд с тех пор отдаёт их одним
+// местом — /api/rimworld/config — но фронт эндпоинт так и не подключил, и все
+// числа оставались зашитыми в разметке и в pawn.js (найдено владельцем 05.09).
+// Фронт замерзает на CDN Twitch до следующего ревью, поэтому менять цену можно
+// только на сервере, а рисовать — только то, что он прислал. Зашитые значения
+// остаются лишь как запасные, если конфиг не доехал.
+let rimworldPrices = null;
+
+function rimworldPrice(key, fallback) {
+    const v = rimworldPrices ? Number(rimworldPrices[key]) : NaN;
+    return Number.isFinite(v) ? v : fallback;
+}
+
+async function loadRimworldPrices() {
+    try {
+        const r = await fetch(`${API_URL}/api/rimworld/config`);
+        if (!r.ok) return;
+        rimworldPrices = await r.json();
+        applyRimworldPriceLabels();
+    } catch (e) {
+        // Молча остаёмся на запасных числах: без цен панель полезнее, чем пустая.
+    }
+}
+
+// Подписи кнопок, которые лежат в разметке обеих оболочек, а не рисуются JS.
+function applyRimworldPriceLabels() {
+    const heal = document.getElementById('heal-pawn-btn');
+    if (heal) heal.innerHTML = `<span>💊</span> Лечить (${rimworldPrice('heal_cost', 150)}💎)`;
+    const res = document.getElementById('btn-resurrect');
+    if (res) res.innerHTML = `<span>✨</span> Воскресить (${rimworldPrice('resurrect_cost', 500)}💎)`;
+    const create = document.getElementById('create-pawn-btn');
+    if (create) create.textContent = `✨ Создать пешку (${rimworldPrice('spawn_cost', 200)}💎)`;
+}
+
 // ===== RIMWORLD ONLINE STATUS =====
 let rimworldOnline = false;
 
@@ -45,6 +81,7 @@ window._startRimworldPolling = function _startRimworldPolling() {
     if (window._rimworldStatusInterval) return;
 
     checkRimworldStatus();
+    loadRimworldPrices();
     loadColonists();
     loadMyPawn();
     loadShopCatalog();

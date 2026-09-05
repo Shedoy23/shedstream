@@ -296,6 +296,11 @@
         <!-- Лечение и воскрешение стоят ВЫШЕ карточки пешки: под карточкой их
              закрывали навыки, экипировка и черты — до кнопок приходилось
              скроллить весь профиль (просьба владельца 2026-09-05). -->
+        <!-- Числа в подписях — ЗАПАСНЫЕ: настоящие цены приходят с сервера
+             (/api/rimworld/config) и перерисовывают эти кнопки, см.
+             applyRimworldPriceLabels() в viewer-rimworld.js. Менять цену
+             здесь бесполезно — фронт живёт на CDN Twitch, сервер деплоится
+             за минуты. -->
         <div id="pawn-actions" style="gap:6px;margin-bottom:10px;display:none;">
             <button class="extra-btn" id="heal-pawn-btn"><span>💊</span> Лечить (150💎)</button>
             <button class="extra-btn" id="btn-resurrect" style="display:none;"><span>✨</span> Воскресить (500💎)</button>

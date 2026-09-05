@@ -90,7 +90,9 @@ if ($All) { $Backend = $true; $Frontend = $true; $Admin = $true; $Site = $true; 
 # What this stops: the default `deploy.ps1` (backend+frontend) shipping a
 # half-refactored frontend to prod AND auto-bumping the cache-bust while the
 # submitted ZIP is pinned at tag submit/0.0.2.
-$FrontendReviewOpen = $true                  # Twitch Extension 0.0.2 in Review
+$FrontendReviewOpen = $false                 # 2026-09-05: Review НЕ идёт — 0.0.3 и 0.0.4
+                                             # обе в Hosted Test (RELEASE_RECORD.md).
+                                             # Взводить обратно в день подачи на Review.
 $FreezeUntil = Get-Date '2026-07-28 23:30'   # expired; kept for the log below
 $IsProdTarget = $Frontend -and -not $Staging
 if ($IsProdTarget -and -not $DryRun -and $FrontendReviewOpen) {

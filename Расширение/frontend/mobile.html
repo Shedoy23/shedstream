@@ -293,6 +293,14 @@
             <span id="rimworld-status-badge" style="font-size:11px;font-weight:700;color:#f87171;">🔴 Оффлайн</span>
         </div>
 
+        <!-- Лечение и воскрешение стоят ВЫШЕ карточки пешки: под карточкой их
+             закрывали навыки, экипировка и черты — до кнопок приходилось
+             скроллить весь профиль (просьба владельца 2026-09-05). -->
+        <div id="pawn-actions" style="gap:6px;margin-bottom:10px;display:none;">
+            <button class="extra-btn" id="heal-pawn-btn"><span>💊</span> Лечить (150💎)</button>
+            <button class="extra-btn" id="btn-resurrect" style="display:none;"><span>✨</span> Воскресить (500💎)</button>
+        </div>
+
         <div class="card" id="my-pawn-card">
             <div class="card-header">
                 <h3>👤 Моя пешка</h3>
@@ -304,11 +312,6 @@
         <button class="modal-btn" id="create-pawn-btn" style="display:none;margin-top:10px;">
             ✨ Создать пешку (200💎)
         </button>
-
-        <div id="pawn-actions" style="gap:6px;margin-top:10px;display:none;">
-            <button class="extra-btn" id="heal-pawn-btn"><span>💊</span> Лечить (150💎)</button>
-            <button class="extra-btn" id="btn-resurrect" style="display:none;"><span>✨</span> Воскресить (500💎)</button>
-        </div>
 
         <div class="card" id="shop-card" style="margin-top:10px;">
             <div class="card-header">

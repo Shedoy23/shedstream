@@ -662,7 +662,7 @@ async def sync_pawn(request: Request,
                 if row:
                     # Помечаем мёртвой, НЕ удаляем — расширение должно показать кнопку воскрешения
                     await conn.execute(
-                        "UPDATE rimworld_pawns SET is_alive=0 "
+                        "UPDATE rimworld_pawns SET is_alive=0, health=0, last_sync=CURRENT_TIMESTAMP "
                         "WHERE channel_id=? AND username=?",
                         (channel_id, username))
                     await conn.commit()
@@ -1077,6 +1077,15 @@ async def sync_pawns_bulk(request: Request, mod_channel_id=Depends(rimworld_mod_
             for pawn_data in pawns_data:
                 username = pawn_data.get('username')
                 if not username:
+                    continue
+
+                # A tombstone is a partial update, not an empty full snapshot.
+                # Preserve identity and child tables so resurrection keeps its data.
+                if not pawn_data.get('pawn_name') and pawn_data.get('is_alive') is False:
+                    await conn.execute(
+                        "UPDATE rimworld_pawns SET is_alive=0, health=0, "
+                        "last_sync=CURRENT_TIMESTAMP WHERE channel_id=? AND username=?",
+                        (channel_id, username))
                     continue
 
                 pawn_name = pawn_data.get('pawn_name', '')

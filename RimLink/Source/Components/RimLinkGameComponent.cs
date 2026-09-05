@@ -15,11 +15,11 @@ namespace RimLink.Components
     /// </summary>
     public class RimLinkGameComponent : GameComponent
     {
-        private int _syncTicks = 0;
-        private int _deathCheckTicks = 0; // <-- ИСПРАВЛЕНИЕ: объявлена переменная
+        private float _syncRealTime = 0f;
+        private float _deathCheckRealTime = 0f;
         
-        private int SyncIntervalTicks =>
-            RimLinkMod.Instance != null ? RimLinkMod.Instance.SyncInterval * 60 : 3000;
+        private float SyncIntervalSeconds =>
+            RimLinkMod.Instance != null ? Math.Max(1, RimLinkMod.Instance.SyncInterval) : 50;
             
         private bool _gameLoaded = false;
         private bool _offlineSent = false;
@@ -92,6 +92,8 @@ namespace RimLink.Components
             RimLinkMod.GameSessionActive = true;
             _offlineSent = false;
             _heartbeatRealTime = 0f;
+            _deathCheckRealTime = 0f;
+            _syncRealTime = 0f;
             Log.Message($"[RimLink] Инициализация сессии ({reason})");
 
             if (!_quittingSubscribed)
@@ -113,39 +115,10 @@ namespace RimLink.Components
             if (!_gameLoaded) return;
             if (RimLinkMod.CommandQueue == null) return;
             
-            _syncTicks++;
-            _deathCheckTicks++;
 
             RimLinkMod.CommandQueue.FlushBudget(MAX_COMMANDS_PER_TICK, COMMAND_BUDGET_MS);
 
-            // 1. Периодическая полная синхронизация
-            if (_syncTicks >= SyncIntervalTicks)
-            {
-                _syncTicks = 0;
-                try
-                {
-                    if (Current.Game != null)
-                        RimLinkMod.PawnManager?.SyncAll();
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning($"[RimLink] GameComponentTick SyncAll: {ex.Message}");
-                }
-            }
 
-            // 2. МОМЕНТАЛЬНАЯ ПРОВЕРКА СМЕРТИ (~1 раз в секунду)
-            if (_deathCheckTicks >= 60)
-            {
-                _deathCheckTicks = 0;
-                try
-                {
-                    RimLinkMod.PawnManager?.CheckAndSyncDeaths();
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning($"[RimLink] GameComponentTick death check: {ex.Message}");
-                }
-            }
         }
 
         public override void GameComponentUpdate()
@@ -160,6 +133,22 @@ namespace RimLink.Components
 
             if (_gameLoaded)
             {
+                // Unity main thread, real time: death must reach the UI on pause too.
+                _deathCheckRealTime += Time.unscaledDeltaTime;
+                if (_deathCheckRealTime >= 1f)
+                {
+                    _deathCheckRealTime = 0f;
+                    try { RimLinkMod.PawnManager?.CheckAndSyncDeaths(); }
+                    catch (Exception ex) { Log.Warning($"[RimLink] Death sync: {ex.Message}"); }
+                }
+                // Retry snapshots even while paused; network I/O remains in PawnManager's worker.
+                _syncRealTime += Time.unscaledDeltaTime;
+                if (_syncRealTime >= SyncIntervalSeconds)
+                {
+                    _syncRealTime = 0f;
+                    try { RimLinkMod.PawnManager?.SyncAll(); }
+                    catch (Exception ex) { Log.Warning($"[RimLink] Snapshot sync: {ex.Message}"); }
+                }
                 _heartbeatRealTime += Time.unscaledDeltaTime;
                 if (_heartbeatRealTime >= HEARTBEAT_REAL_INTERVAL)
                 {

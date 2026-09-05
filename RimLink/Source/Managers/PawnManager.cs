@@ -203,10 +203,12 @@ namespace RimLink.Managers
         /// </summary>
         public void CheckAndSyncDeaths()
         {
-            foreach (var kv in _pawns.ToList())
+            foreach (var kv in _pawns.Concat(_corpses
+                .Where(c => !_pawns.ContainsKey(c.Key))
+                .Select(c => new KeyValuePair<string, Pawn>(c.Key, c.Value?.InnerPawn))).ToList())
             {
                 var pawn = kv.Value;
-                if (pawn == null || pawn.Destroyed || !pawn.Dead)
+                if (pawn != null && !pawn.Destroyed && !pawn.Dead)
                     continue;
 
                 lock (_syncStateLock)
@@ -216,9 +218,11 @@ namespace RimLink.Managers
                 }
                 Log.Message($"[RimLink] ⚰️ Поймана смерть: {kv.Key}. Отправка трупа на сервер...");
 
-                Corpse corpse = FindCorpseOnMap(kv.Key);
+                Corpse corpse = _corpses.TryGetValue(kv.Key, out var cached)
+                    && cached != null && !cached.Destroyed ? cached : FindCorpseOnMap(kv.Key);
                 if (corpse != null && !corpse.Destroyed)
                 {
+                    _corpses[kv.Key] = corpse;
                     SendCorpseData(kv.Key, corpse);
                 }
                 else
@@ -236,6 +240,12 @@ namespace RimLink.Managers
                             bool success = RimLinkMod.API.SyncPawn(data);
                             if (IsSessionCurrent(sessionVersion))
                                 CompleteDeathSync(username, json, success, data);
+                        }
+                        catch (Exception ex)
+                        {
+                            if (IsSessionCurrent(sessionVersion))
+                                CompleteDeathSync(username, json, false, data);
+                            Log.Warning($"[RimLink] SyncDeath bg: {ex.Message}");
                         }
                         finally { _networkSyncGate.Release(); }
                     });
@@ -398,6 +408,14 @@ namespace RimLink.Managers
                 if (corpse != null)
                 {
                     _corpses[username] = corpse;
+                    // The corpse loop already ran: include this death in this batch.
+                    var data = new Dictionary<string, object>
+                    {
+                        { "username", username }, { "is_alive", false }
+                    };
+                    result.Items[username] = data;
+                    result.Snapshots[username] = Utils.SimpleJson.Serialize(data);
+                    lock (_syncStateLock) _pendingSyncData[username] = data;
                     Log.Message($"[RimLink] Пешка {username} умерла, труп зарегистрирован");
                 }
                 else
@@ -495,7 +513,12 @@ namespace RimLink.Managers
                         if (IsSessionCurrent(sessionVersion))
                             CompleteDeathSync(username, json, success, capturedData);
                     }
-                    catch (Exception ex) { Log.Warning($"[RimLink] SyncCorpse bg: {ex.Message}"); }
+                    catch (Exception ex)
+                    {
+                        if (IsSessionCurrent(sessionVersion))
+                            CompleteDeathSync(username, json, false, capturedData);
+                        Log.Warning($"[RimLink] SyncCorpse bg: {ex.Message}");
+                    }
                     finally { _networkSyncGate.Release(); }
                 });
             }

@@ -1676,9 +1676,25 @@ class TwitchChatBot(twitch_commands.Bot):
                     "WHERE channel_id = ? AND username = ?",
                     (channel_id, username))
                 await conn.commit()
+            # Награды за чат — только пока идёт эфир (2026-09-06).
+            # Антифрод проверял частоту и повторы, но не время суток: сообщение
+            # раз в 11 минут проходило кулдаун 10с, а разный текст — дедуп.
+            # В ночь на 06.09 зритель так закрыл два чат-квеста и забрал 1700
+            # крустиков и два кейса при полностью выключенном стриме. Это тот же
+            # класс, что и «свежий last_seen ≠ внимание»: сообщение в чате
+            # считалось участием в эфире, хотя эфира не было.
+            #
+            # Ниже гаснут ТОЛЬКО награды. Само сообщение по-прежнему учитывается
+            # в статистике и пуле голосования: писать в чат вне эфира не
+            # запрещено, просто за это не платят.
+            try:
+                chat_stream_live = await bot._is_stream_live(channel_id=channel_id)
+            except Exception:
+                chat_stream_live = False   # не знаем — не платим
+
             # M7: Бонус за сообщение через антифрод-helper.
             # Проверяет cooldown (10s) + min length (10ch) + dedup last 10 hashes.
-            bonus = bot.compute_chat_bonus(channel_id, username, text)
+            bonus = bot.compute_chat_bonus(channel_id, username, text) if chat_stream_live else 0
             # Дневной потолок (2026-08-23). Бонус подняли втрое, а кулдаун 10с
             # допускает 360 бонусов в час — без потолка флудить стало бы
             # выгоднее, чем смотреть. Считаем по ФАКТИЧЕСКИ выданному за
@@ -1717,7 +1733,9 @@ class TwitchChatBot(twitch_commands.Bot):
                 await db.increment_voting_pool(channel_id, VOTING_POOL_PER_CHAT_MSG)
             except Exception:
                 pass
-            # Обновляем чат-квесты
+            # Обновляем чат-квесты — тоже только в эфире (см. выше).
+            if not chat_stream_live:
+                return
             await bot._update_quest_progress(username, 'chat_messages_10', 1)
             await bot._update_quest_progress(username, 'chat_messages_25', 1)
             await bot._update_quest_progress(username, 'chat_messages_50', 1)

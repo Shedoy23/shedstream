@@ -403,13 +403,6 @@ async def track_activity(body: ActivityRequest, request: Request):
     if watch_time < MIN_HEARTBEAT_SECONDS:
         return {"status": "ignored", "reason": "watch_time_too_small"}
 
-    # Уровень ДО добавления watch_time — для детекции milestone-повышения.
-    # Если watch_time = 0 или стрим не идёт, до/после совпадут, ничего не сработает.
-    try:
-        level_before = (await db.get_user_level(username))["level"]
-    except Exception:
-        level_before = 0
-
     # Взаимодействовал ли зритель, или просто держит панель открытой. Полную
     # ставку даёт только первое; подробности — в `bot_core._reward_points`.
     interacted = (body.active_clicks or 0) > 0 or (body.mouse_moves or 0) > 0
@@ -431,37 +424,11 @@ async def track_activity(body: ActivityRequest, request: Request):
             stream_live = await bot._is_stream_live(channel_id=channel_id)
         except Exception:
             pass
-        # 2026-06-06 — при PRESENCE_WATCHTIME_ENABLED watch_time начисляет
-        # серверный reward_points_loop (по списку чата Twitch), а heartbeat его
-        # НЕ даёт (иначе десктоп считался бы дважды). last_seen выше обновляется
-        # всегда — клиентский сигнал остаётся валиден для очков.
-        if stream_live and not PRESENCE_WATCHTIME_ENABLED:
-            await conn.execute("""
-                INSERT INTO activity_stats (channel_id, username, watch_time)
-                VALUES (?, ?, ?)
-            """, (channel_id, username, watch_time))
+        # Heartbeat is presence only. The server reward clock credits progress
+        # once per minute; client watch_time cannot mint XP or duplicate it.
         await conn.commit()
 
     bot.update_viewer_presence(username, channel_id)
-
-    try:
-        level_data  = await db.get_user_level(username)
-        level_after = level_data["level"]
-        await bot.check_and_unlock_achievements(username, "level_up", {"level": level_after})
-        total_hours = await db.get_total_watch_hours(username)
-        await bot.check_and_unlock_achievements(username, "watch_hours", {"hours": total_hours})
-
-        # Milestone level-up → чат-оповещение (только для знаковых уровней,
-        # чтобы не спамить каждый +1).
-        MILESTONE_LEVELS = {10, 25, 50, 100}
-        if level_after > level_before and level_after in MILESTONE_LEVELS:
-            import asyncio as _asyncio
-            title = db.get_level_info(level_after)["title"]
-            _asyncio.create_task(bot.send_message(
-                f"⭐🎉 @{username} достиг {level_after} уровня! Звание: «{title}» 🏅"
-            ))
-    except Exception:
-        pass
 
     return {"status": "ok", "stream_live": stream_live}
 

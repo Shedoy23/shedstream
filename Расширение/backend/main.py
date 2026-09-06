@@ -1,4 +1,12 @@
 # main.py - обновленная версия
+import sys
+
+# Production starts this file as __main__. Legacy late imports in RimWorld
+# must resolve to this same module, or they create a second BotCore and replace
+# dependencies.get_bot() with an instance that never connects to IRC.
+if __name__ == "__main__":
+    sys.modules["main"] = sys.modules[__name__]
+
 import asyncio
 from datetime import datetime, timezone
 import logging
@@ -1501,6 +1509,9 @@ async def run_migrations():
         except Exception as e:
             print(f"❌ M119 migration FAILED: {type(e).__name__}: {e}")
             raise
+
+        from migrations import m120_viewer_reward_clock
+        await m120_viewer_reward_clock.apply(conn)
 
         print("✅ Migrations complete")
 

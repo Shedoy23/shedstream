@@ -15,6 +15,8 @@ logger = logging.getLogger('rimlink.bot')
 
 from database import Database
 from dependencies import resolve_channel_id
+from activity_policy import reward_status, reward_percent
+
 from config import (
     ACTIVE_WINDOW,
     ENGAGED_WINDOW,
@@ -791,10 +793,6 @@ class BotCore:
                         "WHERE channel_id=? AND username=?",
                         (channel_id, n))
                     if getattr(cur, "rowcount", 0) and cur.rowcount > 0:
-                        await conn.execute(
-                            "INSERT INTO activity_stats (channel_id, username, watch_time) "
-                            "VALUES (?, ?, ?)",
-                            (channel_id, n, CHECK_INTERVAL))
                         credited += 1
                 await conn.commit()
             if credited:
@@ -867,46 +865,35 @@ class BotCore:
 
             total_points = int(POINTS_PER_MINUTE * (1 + level_pct / 100))
 
-            # 2026-08-23. Полная ставка требует ДВУХ вещей: панель на связи
-            # (свежий last_seen) И недавнее действие зрителя — клик/движение в
-            # панели либо сообщение в чат. Раньше хватало первого, то есть
-            # открытая вкладка приносила столько же, сколько просмотр.
-            #
-            # Половина, а НЕ ноль, — намеренно: на мобильном мышью не двигают,
-            # и честный лёркер не должен быть наказан за устройство. Ровно из-за
-            # этого перекоса в июне заводили PRESENCE_WATCHTIME_ENABLED.
-            engaged = interact_age_sec is not None and interact_age_sec < ENGAGED_WINDOW
-            if age_sec < ACTIVE_WINDOW and engaged:
-                status = "active"
+            status = reward_status(age_sec, interact_age_sec)
+            percent = reward_percent(status)
+            total_points = total_points * percent // 100
+            credited = await self.db.credit_viewer_minute(
+                username, total_points, 60 * percent // 100,
+                # Имя источника прежнее: переименование разорвало бы отчёты —
+                # старые дни остались бы под watch_half, новые под другим ключом.
+                "watch_full" if status == "active" else "watch_half", cid)
+            if not credited:
+                continue
+            if status == "active":
                 active_count += 1
+                for quest in WATCH_TIME_QUESTS:
+                    await self._update_quest_progress(username, quest, 1, channel_id=cid)
             else:
-                status = "reduced"
-                total_points //= 2
                 reduced_count += 1
-
-            await self.db.add_points(username, total_points, channel_id=cid)
-            # Учёт источника (m117): на триаже видно, сколько дал просмотр
-            # «со вниманием», а сколько — открытая вкладка.
-            await self.db.record_income(
-                cid, username,
-                "watch_full" if status == "active" else "watch_half",
-                total_points)
-
-            # Квесты watch_time идут по ПРИСУТСТВИЮ, а не по вовлечённости.
-            #
-            # 2026-08-23. Раньше здесь стояло `status == "active"`, и это
-            # было верно, пока «активный» значило просто «панель на связи».
-            # В тот день я поменял смысл слова — полная ставка стала требовать
-            # взаимодействия — и эта строка молча превратилась во второе
-            # наказание: зритель с открытой вкладкой терял не половину ставки,
-            # а ещё и все квесты на просмотр. За 5-часовой эфир это 3 600💎
-            # вместо 45 000, то есть падение в 12 раз вместо обещанного вдвое.
-            #
-            # Класс ошибки: поменял значение флага, а читателя в другом месте
-            # не проверил. Ставка зависит от вовлечённости, цели дня — от того,
-            # что человек всё-таки был на эфире.
-            for quest in WATCH_TIME_QUESTS:
-                await self._update_quest_progress(username, quest, 1, channel_id=cid)
+            # Progress now belongs to the server tick, including chat-only viewers.
+            try:
+                after = await self.db.get_user_level(username, channel_id=cid)
+                await self.check_and_unlock_achievements(
+                    username, "level_up", {"level": after["level"]}, channel_id=cid)
+                hours = await self.db.get_total_watch_hours(username, channel_id=cid)
+                await self.check_and_unlock_achievements(
+                    username, "watch_hours", {"hours": hours}, channel_id=cid)
+                if after["level"] > level_data["level"] and after["level"] in {10, 25, 50, 100}:
+                    await self.send_message(
+                        f"⭐🎉 @{username} достиг {after['level']} уровня!", channel_id=cid)
+            except Exception as e:
+                logger.warning("[ch=%s] Progress extras failed for %s: %s", cid, username, e)
 
         # 4. Voting pool increment: active viewers × VOTING_POOL_PER_WATCH_MIN
         #    (1 unit/min/viewer). Auto-start подхватит voting_loop когда threshold.
@@ -1172,6 +1159,9 @@ class BotCore:
                 continue
             engaged = (interact_age_sec is not None
                        and interact_age_sec < ENGAGED_WINDOW)
+            # Лёркер кейс получает, но только обычный: панель на связи — тоже
+            # присутствие, а редкие тиры пусть достаются тем, кто взаимодействует
+            # (решение владельца; здесь стоял пропуск без выдачи).
             tier = (random.choices(tiers, weights=weights)[0]
                     if engaged else HOURLY_CASE_LURKER_TIER)
             try:
@@ -1265,18 +1255,15 @@ class BotCore:
             for uname, interact_age_sec in rows:
                 if uname.lower() in DROP_BLACKLIST:
                     continue
-                active.append(uname)
                 engaged = (interact_age_sec is not None
                            and interact_age_sec < ENGAGED_WINDOW)
-                weights.append(1.0 if engaged else DROP_LURKER_WEIGHT)
+                if engaged:
+                    active.append(uname)
+                    weights.append(1.0)
         except Exception as e:
             logger.warning("[ch=%s] Drop: чтение активных из БД упало: %s", cid, e)
-            # Память не хранит взаимодействие — на запасном пути все равны.
-            active = [
-                u for (k_cid, u), t in self.viewers_last_active.items()
-                if k_cid == cid and t > cutoff and u.lower() not in DROP_BLACKLIST
-            ]
-            weights = [1.0] * len(active)
+            # Without confirmed engagement, do not award a case.
+            return
         if not active:
             return
 

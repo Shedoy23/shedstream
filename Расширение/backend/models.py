@@ -4,7 +4,7 @@ models.py — Pydantic-модели для всех роутеров.
 
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, AliasChoices
 
 
 # ===== ЗРИТЕЛИ =====
@@ -22,7 +22,7 @@ class ActivityRequest(BaseModel):
     # Pydantic молча выбрасывал. То есть данные для различения «смотрит» и
     # «ушёл» долетали до сервера и терялись (найдено 2026-08-23).
     active_clicks: int = 0
-    mouse_moves: int = 0
+    mouse_moves: int = Field(default=0, validation_alias=AliasChoices("mouse_moves", "active_moves"))
 
 class ChatMessageRequest(BaseModel):
     username: str

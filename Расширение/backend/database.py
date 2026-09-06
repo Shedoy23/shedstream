@@ -744,6 +744,49 @@ class Database:
             level += 1
         return level, exp_current
 
+    async def credit_viewer_minute(self, username: str, points: int,
+                                   progress_seconds: int, source: str,
+                                   channel_id: int) -> bool:
+        """One server minute at most; money, XP and clock commit together.
+
+        Heartbeats never credit time. No catch-up for offline time, and no
+        duplicate credit from retries, multiple tabs or a restarted process.
+        """
+        cid = resolve_channel_id(channel_id)
+        username = username.lower()
+        async with self._connect() as conn:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+                cur = await conn.execute("""
+                    INSERT INTO viewer_reward_clock(channel_id, username, last_tick)
+                    VALUES (?, ?, CAST(strftime('%s','now') AS INTEGER))
+                    ON CONFLICT(channel_id, username) DO UPDATE SET last_tick=excluded.last_tick
+                    WHERE viewer_reward_clock.last_tick <= excluded.last_tick - 60
+                """, (cid, username))
+                if cur.rowcount != 1:
+                    await conn.rollback()
+                    return False
+                cur = await conn.execute(
+                    "UPDATE viewers SET points=points+? WHERE channel_id=? AND username=?",
+                    (points, cid, username))
+                if cur.rowcount != 1:
+                    await conn.rollback()
+                    return False
+                await conn.execute(
+                    "INSERT INTO activity_stats(channel_id,username,watch_time) VALUES (?,?,?)",
+                    (cid, username, progress_seconds))
+                await conn.execute("""
+                    INSERT INTO points_income(channel_id,username,day,source,points,events)
+                    VALUES (?,?,date('now'),?,?,1)
+                    ON CONFLICT(channel_id,username,day,source) DO UPDATE SET
+                        points=points+excluded.points, events=events+1
+                """, (cid, username, source, points))
+                await conn.commit()
+                return True
+            except Exception:
+                await conn.rollback()
+                raise
+
     async def get_user_level(self, username: str, channel_id: int = None) -> dict:
         """Расчёт уровня: 1 минута просмотра = 1 EXP."""
         channel_id = resolve_channel_id(channel_id)

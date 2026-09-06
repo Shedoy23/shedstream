@@ -49,7 +49,16 @@ $manifests = @(
     # версии Manager находит путь старого jar, а без него кнопка «Удалить»
     # не знает, что убирать. Уберём, когда у владельца не останется
     # установленного 0.1.0.
-    (Join-Path $packageDirectory 'Release/shedcolony-0.1.1.json')
+    (Join-Path $packageDirectory 'Release/shedcolony-0.1.1.json'),
+    # 06.09: этот список — не украшение. Манифесты попадают в сборку по маске из
+    # csproj, но alpha.15 уехала БЕЗ shedcolony-0.1.2 просто потому, что была
+    # собрана за несколько часов до появления того файла, и никто не заметил:
+    # проверка требовала только перечисленные здесь версии. Дописывать сюда
+    # каждую новую версию — и есть способ заметить пропажу.
+    (Join-Path $packageDirectory 'Release/shedcolony-0.1.2.json'),
+    (Join-Path $packageDirectory 'Release/shedcolony-0.1.4.json'),
+    (Join-Path $packageDirectory 'Release/bannerlord-0.1.3.json'),
+    (Join-Path $packageDirectory 'Release/rimworld-0.1.3.json')
 )
 foreach ($required in @($executable) + $manifests) {
     if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {

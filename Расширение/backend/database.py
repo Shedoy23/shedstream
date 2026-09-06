@@ -751,6 +751,14 @@ class Database:
 
         Heartbeats never credit time. No catch-up for offline time, and no
         duplicate credit from retries, multiple tabs or a restarted process.
+
+        ЕДИНСТВЕННОЕ место, где пишется watch_time. Рядом жил второй —
+        `add_activity`, которым пользовался heartbeat панели, и до 2026-09-06
+        время шло из обоих: у того, кто сидел и в чате, и с открытой панелью,
+        опыт рос вдвое. У владельца канала накопилось 19 096 «минут просмотра»
+        при 16 352 минутах всех эфиров за историю — больше, чем шло вещание.
+        Второй метод удалён; инвариант «одна запись — одно место» держит
+        tests/test_single_write_path.py.
         """
         cid = resolve_channel_id(channel_id)
         username = username.lower()
@@ -775,12 +783,7 @@ class Database:
                 await conn.execute(
                     "INSERT INTO activity_stats(channel_id,username,watch_time) VALUES (?,?,?)",
                     (cid, username, progress_seconds))
-                await conn.execute("""
-                    INSERT INTO points_income(channel_id,username,day,source,points,events)
-                    VALUES (?,?,date('now'),?,?,1)
-                    ON CONFLICT(channel_id,username,day,source) DO UPDATE SET
-                        points=points+excluded.points, events=events+1
-                """, (cid, username, source, points))
+                await self.record_income_tx(conn, cid, username, source, points)
                 await conn.commit()
                 return True
             except Exception:
@@ -907,16 +910,6 @@ class Database:
             return result
     
     # ===== СТАТИСТИКА АКТИВНОСТИ =====
-    async def add_activity(self, username: str, watch_time: int, channel_id: int = None):
-        """Добавить запись об активности (только watch_time после M7)."""
-        channel_id = resolve_channel_id(channel_id)
-        async with self._connect() as db:
-            await db.execute("""
-                INSERT INTO activity_stats (channel_id, username, watch_time)
-                VALUES (?, ?, ?)
-            """, (channel_id, username.lower(), watch_time))
-            await db.commit()
-
     async def get_today_activity(self, username: str, channel_id: int = None) -> dict:
         """Получить активность за сегодня"""
         channel_id = resolve_channel_id(channel_id)
@@ -2225,6 +2218,30 @@ class Database:
     AUTO_MSG_MAX_LEN = 400          # лимит чата Twitch 500, оставляем запас
     AUTO_MSG_INTERVALS = (10, 15, 20, 30, 45, 60, 90, 120)
 
+    @staticmethod
+    async def record_income_tx(conn, channel_id: int, username: str,
+                               source: str, points: int) -> None:
+        """Записать доход НА СОЕДИНЕНИИ ВЫЗЫВАЮЩЕГО, без своего commit.
+
+        ЗАЧЕМ ОТДЕЛЬНАЯ ВЕРСИЯ. Начисление минуты обязано быть одной
+        транзакцией: часы, деньги и запись дохода либо все, либо ни одной.
+        Обычный `record_income` открывает своё соединение и коммитит — вызвать
+        его изнутри было нельзя, поэтому там стоял ВТОРОЙ экземпляр того же
+        INSERT. Два места, пишущие одно и то же, расходятся молча: правку
+        внесут в одно, а второе продолжит работать по-старому (2026-09-06,
+        тот же класс, что и запись watch_time из двух мест).
+        """
+        if not username or not points:
+            return
+        await conn.execute(
+            "INSERT INTO points_income (channel_id, username, day, source, "
+            " points, events) VALUES (?,?,date('now'),?,?,1) "
+            "ON CONFLICT(channel_id, username, day, source) DO UPDATE SET "
+            "  points = points + excluded.points, "
+            "  events = events + 1",
+            (int(channel_id), username.lower(), source, int(points)),
+        )
+
     async def record_income(self, channel_id: int, username: str,
                             source: str, points: int) -> None:
         """Запомнить, ОТКУДА зритель взял крустики (m117).
@@ -2239,14 +2256,7 @@ class Database:
             return
         try:
             async with self._connect() as conn:
-                await conn.execute(
-                    "INSERT INTO points_income (channel_id, username, day, source, "
-                    " points, events) VALUES (?,?,date('now'),?,?,1) "
-                    "ON CONFLICT(channel_id, username, day, source) DO UPDATE SET "
-                    "  points = points + excluded.points, "
-                    "  events = events + 1",
-                    (int(channel_id), username.lower(), source, int(points)),
-                )
+                await self.record_income_tx(conn, channel_id, username, source, points)
                 await conn.commit()
         except Exception as e:
             # В этом файле логгера нет — пишем как весь остальной код, print'ом.

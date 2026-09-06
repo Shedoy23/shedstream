@@ -1080,12 +1080,27 @@ FOCUS_TIER_COSTS = [30_000, 40_000, 50_000, 60_000, 75_000]
 ATTRIBUTE_COST = 50_000  # flat Hero.Gold per attribute point
 
 # Whitelist skill keys (vanilla Bannerlord 1.3.15).
-ALLOWED_SKILLS = {
+# 2026-09-06: были ALLOWED_* — белые списки, по которым бэкенд решал, какие
+# навыки и характеристики существуют в игре. Это противоречит выбранному
+# принципу «источник истины о содержимом — запущенная игра» (ROADMAP,
+# «динамический каталог»): сборка, добавившая навык, получала отказ ещё на
+# сервере, хотя в игре навык есть и мод его знает.
+#
+# Теперь это ИЗВЕСТНЫЕ ванильные значения — для подсказки в сообщении и для
+# лога, а не для запрета. Существование проверяет мод: не нашёл — отказ с
+# возвратом и понятной фразой (`unknown_skill` / `unknown_attribute` в
+# modules/bannerlord/refusals.py).
+KNOWN_SKILLS = {
     "OneHanded", "TwoHanded", "Polearm", "Bow", "Crossbow", "Throwing",
     "Athletics", "Riding", "Smithing", "Scouting", "Tactics", "Roguery",
     "Charm", "Leadership", "Trade", "Steward", "Medicine", "Engineering",
 }
-ALLOWED_ATTRIBUTES = {"Vigor", "Control", "Endurance", "Cunning", "Social", "Intelligence"}
+KNOWN_ATTRIBUTES = {"Vigor", "Control", "Endurance", "Cunning", "Social", "Intelligence"}
+
+# Формат ключа проверяем по-прежнему: бэкенд не решает, что существует, но
+# обязан отсечь мусор до того, как тот уедет в игру. Буквы, цифры и подчёркивание,
+# не длиннее 48 символов — этого хватает любому моду и не пропускает инъекции.
+_GAME_KEY_RE = __import__("re").compile(r"^[A-Za-z0-9_]{1,48}$")
 
 # Sprint 5.3: tournament entry fee.
 # 5.28a: было 0 крустиков + 5000 динаров → отказы в моде, крустики не списывались.
@@ -1894,12 +1909,18 @@ async def _prepare_action(username, channel_id, action_type, data):
             amount = 1
         amount = max(1, min(5, amount))
 
-        if skill_key and skill_key not in ALLOWED_SKILLS:
+        if skill_key and not _GAME_KEY_RE.match(skill_key):
             return {
                 "success": False,
-                "message": f"Skill '{skill_key}' не разрешён "
-                           f"(допустимо: {sorted(ALLOWED_SKILLS)})",
+                "message": "Неверное имя навыка "
+                           f"(допустимы буквы, цифры и «_», до 48 символов; "
+                           f"ванильные: {', '.join(sorted(KNOWN_SKILLS))})",
             }
+        if skill_key and skill_key not in KNOWN_SKILLS:
+            # Не отказ: сборка могла добавить свой навык, и знает об этом игра,
+            # а не мы. Пишем в лог, чтобы такие случаи было видно.
+            print(f"[bannerlord] add_skill: незнакомый навык {skill_key!r} "
+                  f"(ch={channel_id}, @{username}) — пропускаем в мод, решать ему")
 
         # Pre-check Hero.Gold (cached). Worst case: amount=1 → 30K.
         # Точная стоимость зависит от текущего focus в skill (mod знает),
@@ -1928,12 +1949,16 @@ async def _prepare_action(username, channel_id, action_type, data):
             amount = 1
         amount = max(1, min(10, amount))
 
-        if attr_key and attr_key not in ALLOWED_ATTRIBUTES:
+        if attr_key and not _GAME_KEY_RE.match(attr_key):
             return {
                 "success": False,
-                "message": f"Attribute '{attr_key}' не разрешён "
-                           f"(допустимо: {sorted(ALLOWED_ATTRIBUTES)})",
+                "message": "Неверное имя характеристики "
+                           f"(допустимы буквы, цифры и «_», до 48 символов; "
+                           f"ванильные: {', '.join(sorted(KNOWN_ATTRIBUTES))})",
             }
+        if attr_key and attr_key not in KNOWN_ATTRIBUTES:
+            print(f"[bannerlord] add_attribute: незнакомая характеристика {attr_key!r} "
+                  f"(ch={channel_id}, @{username}) — пропускаем в мод, решать ему")
 
         cost = ATTRIBUTE_COST * amount
         hero_gold = await _fetch_hero_gold(channel_id, username)

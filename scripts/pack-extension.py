@@ -24,6 +24,7 @@
 import argparse
 import io
 import json
+import os
 import pathlib
 import re
 import sys
@@ -82,8 +83,31 @@ def stamp_version(text: str, version: str) -> str:
     можно только по косвенным признакам.
     """
     marker = '<meta name="shedlink-version" content="%s">' % version
-    text = re.sub(r'\s*<meta name="shedlink-version"[^>]*>', "", text)
-    return text.replace("<head>", "<head>\n  " + marker, 1)
+    original = text
+    # Снимаем ПРЕЖНЮЮ метку — но только настоящий тег в разметке, на своей
+    # строке. Раньше здесь стоял голый re.sub по всему файлу, и он выедал
+    # упоминание тега из HTML-КОММЕНТАРИЯ («Заполняется из
+    # <meta name="shedlink-version"> — метку ставит…»): в архивы 0.0.3–0.0.5
+    # уезжал файл, отличавшийся от рабочего дерева не только строкой версии.
+    # Ущерба не случилось — испорчен комментарий, — но правка разметки вслепую
+    # однажды съест значимое.
+    old_line = re.compile(r'\r?\n[ \t]*<meta name="shedlink-version"[^>]*>(?=[ \t]*\r?\n)')
+    text = old_line.sub("", text)
+    # Перевод строки берём такой же, как в файле: config.html хранится с CRLF,
+    # и вставка с голым \n оставляла в нём одну строку с чужим окончанием.
+    eol = "\r\n" if "\r\n" in text else "\n"
+    stamped = text.replace("<head>", "<head>" + eol + "  " + marker, 1)
+
+    # Затвор: штамповка обязана добавить ровно строку с меткой и не тронуть
+    # больше НИЧЕГО. Сравниваем с ОРИГИНАЛОМ (не с промежуточным текстом —
+    # именно на этом первая версия затвора и не заметила подложенный дефект).
+    # Гейт стоит в самой сборке, а не отдельным тестом: сборка запускается
+    # всегда, а тест — когда вспомнят. Дефект прожил три версии незамеченным.
+    if stamped.replace(eol + "  " + marker, "", 1) != old_line.sub("", original):
+        raise SystemExit(
+            "Штамповка версии изменила файл сверх строки с меткой — сборка "
+            "остановлена. Проверь stamp_version(): что-то правит разметку вслепую.")
+    return stamped
 
 
 def main() -> int:
@@ -135,15 +159,24 @@ def main() -> int:
 
     DIST.mkdir(exist_ok=True)
     out = DIST / ("shedlink-%s.zip" % args.version)
-    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
-        for f in files:
-            data = (FRONT / f).read_bytes()
-            if f.endswith(".html"):
-                data = stamp_version(
-                    data.decode("utf-8"), args.version).encode("utf-8")
-            z.writestr(f, data)
-        z.writestr("VERSION", "%s\nсобрано %s\n" % (
-            args.version, datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")))
+    # Пишем во временный файл и переименовываем в конце. Иначе падение посреди
+    # сборки (например, затвор штамповки) оставляет на месте архива огрызок в
+    # 22 байта — а его потом можно по ошибке залить в кабинет.
+    tmp = out.with_suffix(".zip.part")
+    try:
+        with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as z:
+            for f in files:
+                data = (FRONT / f).read_bytes()
+                if f.endswith(".html"):
+                    data = stamp_version(
+                        data.decode("utf-8"), args.version).encode("utf-8")
+                z.writestr(f, data)
+            z.writestr("VERSION", "%s\nсобрано %s\n" % (
+                args.version, datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")))
+    except BaseException:
+        tmp.unlink(missing_ok=True)     # не оставляем недособранный кусок рядом с архивом
+        raise
+    os.replace(tmp, out)
 
     print("\nГотово: %s (%.1f КБ)" % (out, out.stat().st_size / 1024))
     print("\nЧто дальше — ВРУЧНУЮ:")

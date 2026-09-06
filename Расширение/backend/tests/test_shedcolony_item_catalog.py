@@ -114,9 +114,14 @@ async def main() -> int:
     for var, field in (("SC_GIVE_ITEMS", "give_item"),
                        ("SC_SUPPLY_ITEMS", "supply"),
                        ("SC_MIN_STOCK_ITEMS", "min_stock")):
-        assigned = re.search(rf"{var}\s*=\s*(?!\[)", src) is not None
+        # Ищем присвоение ИЗ ПЕРЕМЕННОЙ (`SC_GIVE_ITEMS = give;`), а не «что угодно
+        # кроме литерала»: отрицательный lookahead после жадного \s* пропускал
+        # `var SC_GIVE_ITEMS = [` — движок отступал на ноль пробелов, и проверка
+        # была зелёной при удалённой гидратации. Тот же класс уже ловили в гейте
+        # замка кнопок: проверять надо ту строку, что делает работу.
+        assigned = re.search(rf"(?<!var ){var}\s*=\s*[A-Za-z_$][\w$]*\s*;", src) is not None
         check(f"фронт перетирает {var} серверным списком", assigned,
-              "нашлось только литеральное объявление — серверный каталог не доедет")
+              "присвоения из серверного каталога нет — зритель останется на запасном списке")
         check(f"фронт запрашивает поле {field}", f"cat.{field}" in src)
 
     print()

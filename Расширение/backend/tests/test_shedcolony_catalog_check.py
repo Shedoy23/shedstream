@@ -25,6 +25,17 @@ Wolfein в RimWorld — 5 покупок по 5520💎 и 0 успехов.
 3. Ответ, где отсутствует ВЕСЬ каталог, отбрасывается: так не бывает даже на
    голой ванили, и гасить по нему весь магазин нельзя.
 4. Мусор вместо списка не стирает прошлый честный ответ.
+5. ПОВТОРНАЯ сверка не возвращает скрытое. Мод спрашивает каталог у бэкенда, а
+   бэкенд отдаёт панели уже отфильтрованный список — если моду прислать тот же
+   урезанный каталог, он проверит только оставшееся, ответит «у меня всё есть»,
+   и полная замена вернёт скрытые товары в продажу. Дальше это мигает: сверка —
+   скрыли, следующая сверка — вернули. Мод обязан видеть ПОЛНЫЙ каталог.
+6. Покупка отсутствующего товара отклоняется ДО списания: панель могла быть
+   открыта до сверки, и «списали — мод отказал — вернули» вместо честного
+   отказа зритель видеть не должен.
+7. Отгружаемый jar действительно просит полный каталог. Бэкенд умеет отдавать
+   его по `full=1`, но если мод не попросит, всё вышеописанное вернётся —
+   а исходник мода лежит в другом репозитории, поэтому сверяем БИНАРНИК.
 
 Красный до фикса: события `colony.catalog` нет в манифесте (бэкенд молча его
 отбрасывает), таблицы нет, конфиг ничего не вычитает.
@@ -101,8 +112,15 @@ async def main() -> int:
             pass                       # таблицы может не быть до первой миграции — не ошибка
 
     async def catalog_ids():
+        """Что видит ЗРИТЕЛЬ — отфильтрованный каталог."""
         cfg = await shedcolony_config(channel_id=CH)
         return {row[0] for row in cfg["item_catalog"]["give_item"]}
+
+    async def mod_sees_catalog():
+        """Что видит МОД, когда идёт сверять. Отдельный вызов: моду нужен полный
+        список, иначе он сверяет только то, что бэкенд уже показывает."""
+        cfg = await shedcolony_config(channel_id=CH, full=True)
+        return [row[0] for row in cfg["item_catalog"]["give_item"]]
 
     try:
         await cleanup()
@@ -132,6 +150,52 @@ async def main() -> int:
         check("ответ «нет ничего» не сохранён", row is None,
               f"сохранилось: {row[0] if row else ''}")
         check("каталог после такого ответа полный", await catalog_ids() == set(all_ids))
+
+        # 5. Три круга подряд, как их проходит живой мод: спросил каталог →
+        # сверил с реестром сборки → отправил отсутствующее. Скрытое обязано
+        # остаться скрытым на КАЖДОМ круге, а не мигать через раз.
+        await cleanup()
+        in_build = set(all_ids[2:])           # «реестр сборки»: первых двух в ней нет
+        seen = []
+        for _ in range(3):
+            asked = await mod_sees_catalog()   # то, что мод получает от бэкенда
+            missing_now = [i for i in asked if i not in in_build]
+            await adapter.handle_event(
+                CH, env({"missing": missing_now, "checked": len(asked)}))
+            seen.append(await catalog_ids())
+        check("повторная сверка не возвращает скрытое",
+              all(not (set(gone) & round_ids) for round_ids in seen),
+              " | ".join(f"круг {n+1}: {sorted(r)}" for n, r in enumerate(seen)))
+
+        # 6. Покупка того, чего нет в сборке, — отказ до списания. Берём
+        # colony.supply: оно про склад, а не про своего колониста, поэтому не
+        # упирается в «сначала создай колониста» и доходит до нужной проверки.
+        from routes.shedcolony import _SUPPLY_CATALOG, _buy_action_locked
+        supply_gone = _SUPPLY_CATALOG[0][0]
+        await adapter.handle_event(CH, env({
+            "missing": gone + [supply_gone], "checked": len(all_ids) + len(_SUPPLY_CATALOG)}))
+        res = await _buy_action_locked(
+            "test_viewer_catalog", CH, "colony.supply", {"item": supply_gone})
+        check("покупка отсутствующего отклонена до списания",
+              isinstance(res, dict) and not res.get("success")
+              and "сборке" in (res.get("message") or ""),
+              repr(res)[:160])
+
+        # 7. Отгружаемый jar просит полный каталог (см. пункт 7 в шапке).
+        ship = BACKEND.parent / "frontend" / "downloads" / "minecraft"
+        jars = sorted(ship.glob("shedcolony-*.jar"))
+        if not jars:
+            check("в отгрузке есть jar", False, f"пусто в {ship}")
+        else:
+            import zipfile
+            blob = b""
+            with zipfile.ZipFile(jars[-1]) as z:
+                for n in z.namelist():
+                    if n.endswith(".class"):
+                        blob += z.read(n)
+            check(f"{jars[-1].name} просит полный каталог (full=1)",
+                  b"/api/shedcolony/config?full=1" in blob,
+                  "в бинарнике нет строки запроса — мод сверяет отфильтрованный список")
 
         # И защита второго уровня: даже если такая строка появится в базе руками,
         # конфиг не отдаёт пустой пикер.

@@ -468,6 +468,19 @@ async def _buy_action_locked(username: str, channel_id: int,
     elif action_type == "colonist.set_guard_retreat":
         data["retreat"] = bool(data.get("retreat"))   # normalize to a real bool for the mod
 
+    # Товар, которого нет в СБОРКЕ стримера, отклоняем ДО списания. Панель его
+    # уже не показывает, но она могла быть открыта до сверки — а мод в ответ на
+    # такую покупку ответит отказом, и зритель получит списание с возвратом
+    # вместо честного «этого в игре нет». Нашёл внешний обзор 06.09: фильтр
+    # стоял только на выдаче каталога. Тот же класс, что 05.09 в RimWorld, где
+    # чёрный список сперва прикрыл лишь приём каталога, а покупку — нет.
+    item_for_build = (data.get("item") or "").strip()
+    if item_for_build and action_type in (
+            "colonist.give_item", "colony.supply", "colony.set_minimum_stock"):
+        if item_for_build in await _missing_in_build(channel_id):
+            return {"success": False,
+                    "message": "Этого предмета нет в сборке стримера — выдать нечем"}
+
     result = await _charge_and_enqueue(action_type, data, price, username, channel_id)
     if isinstance(result, dict):
         return result
@@ -565,7 +578,8 @@ def _visible(catalog, missing: set[str]) -> list[list[str]]:
 
 
 @router.get("/api/shedcolony/config")
-async def shedcolony_config(request: Request = None, channel_id: int | None = None):
+async def shedcolony_config(request: Request = None, channel_id: int | None = None,
+                            full: bool = False):
     """Цены действий и каталоги предметов ShedColony — единый источник для фронта.
 
     ЗАЧЕМ. Тот же словарь, по которому бэкенд списывает крустики. До 2026-09-05
@@ -584,6 +598,14 @@ async def shedcolony_config(request: Request = None, channel_id: int | None = No
     стримера: мод сверяет список сам и присылает отсутствующее. Зритель не
     увидит товар, который в его игре выдать нечем. JWT нужен только чтобы
     понять, ЧЕЙ это канал — без него отдаём каталог канала по умолчанию.
+
+    `full=1` отдаёт каталог БЕЗ этого вычитания — и просить его должен только
+    мод. Причина найдена внешним обзором 06.09 и стоила бы всей затеи: мод
+    спрашивает каталог у этой же ручки, и если отдать ему уже отфильтрованный
+    список, он проверит лишь оставшееся, ответит «у меня всё есть», а полная
+    замена вернёт скрытые товары в продажу. Дальше они мигают: сверка — скрыли,
+    следующая — вернули. Сверять можно только полный исходный каталог;
+    фильтрация существует для зрителя, а не для того, кто её порождает.
     """
     # NB: mypy-заметка для будущего — параметр channel_id объявлен ПОСЛЕ request,
     # FastAPI разбирает его как query. Порядок менять нельзя: Request без
@@ -598,7 +620,7 @@ async def shedcolony_config(request: Request = None, channel_id: int | None = No
         if auth:
             _, jwt_channel = auth
     channel_id = resolve_channel_id_or_default(jwt_channel or channel_id)
-    missing = await _missing_in_build(channel_id)
+    missing = set() if full else await _missing_in_build(channel_id)
     return {
         "action_prices": _ACTION_PRICES,
         # Каталоги предметов — те же списки, по которым валидируется покупка (см. выше).

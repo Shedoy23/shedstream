@@ -17,12 +17,13 @@ Standalone (без pytest). Запуск:
 (для первого нужно три подряд).
 
 Сценарии:
-  1. Helix дал id → сессия заводится под ним (а не под датой) — это сам фикс;
-  2. Helix id не дал → падаем обратно на дату, поведение не хуже прежнего;
-  3. стрим кончился → запомненный id забывается, чтобы не приклеиться
+  1. EventSub кладёт настоящий id не только в БД, но и в память polling-loop;
+  2. Helix дал id → сессия заводится под ним (а не под датой) — это сам фикс;
+  3. Helix id не дал → падаем обратно на дату, поведение не хуже прежнего;
+  4. стрим кончился → запомненный id забывается, чтобы не приклеиться
      к следующему эфиру;
-  4. два писателя с ОДНИМ id дают ОДНУ строку сессии (идемпотентность);
-  5. два писателя с РАЗНЫМИ id дают две строки — воспроизведение самой поломки,
+  5. два писателя с ОДНИМ id дают ОДНУ строку сессии (идемпотентность);
+  6. два писателя с РАЗНЫМИ id дают две строки — воспроизведение самой поломки,
      ради которой всё и затевалось.
 """
 from __future__ import annotations
@@ -92,28 +93,61 @@ async def run() -> None:
 
     bot = BotCore(db)
     try:
-        print("\n[1] Helix отдал настоящий id стрима")
+        print("\n[1] EventSub передаёт настоящий id polling-loop")
+        import eventsub
+        import notifications
+        import pubsub
+
+        old_get_bot = eventsub.get_bot
+        old_get_db = eventsub.get_db
+        old_notify = notifications.notify_stream_online
+        old_broadcast = pubsub.broadcast
+
+        async def _noop_notify(**_kwargs):
+            return None
+
+        try:
+            eventsub.get_bot = lambda: bot
+            eventsub.get_db = lambda: db
+            notifications.notify_stream_online = _noop_notify
+            pubsub.broadcast = lambda *_args, **_kwargs: None
+            bot._stream_ext_id.pop(CHANNEL_ID, None)
+            await eventsub._on_stream_online({
+                "id": REAL_STREAM_ID,
+                "type": "live",
+                "broadcaster_user_login": "shedoy23",
+            }, CHANNEL_ID)
+            await asyncio.sleep(0)
+            check(bot._session_id_for(CHANNEL_ID, TODAY_ID), REAL_STREAM_ID,
+                  "EventSub id виден polling-loop до истечения live-cache TTL")
+        finally:
+            eventsub.get_bot = old_get_bot
+            eventsub.get_db = old_get_db
+            notifications.notify_stream_online = old_notify
+            pubsub.broadcast = old_broadcast
+
+        print("\n[2] Helix отдал настоящий id стрима")
         bot._stream_ext_id[CHANNEL_ID] = REAL_STREAM_ID
         check(bot._session_id_for(CHANNEL_ID, TODAY_ID), REAL_STREAM_ID,
               "сессия заводится под настоящим id, а не под датой (это и есть фикс)")
 
-        print("\n[2] Helix id не отдал")
+        print("\n[3] Helix id не отдал")
         bot._stream_ext_id.pop(CHANNEL_ID, None)
         check(bot._session_id_for(CHANNEL_ID, TODAY_ID), TODAY_ID,
               "без id от Twitch падаем обратно на дату")
 
-        print("\n[3] стрим закончился — id не должен приклеиться к следующему")
+        print("\n[4] стрим закончился — id не должен приклеиться к следующему")
         bot._stream_ext_id[CHANNEL_ID] = REAL_STREAM_ID
         bot._stream_ext_id.pop(CHANNEL_ID, None)   # то же делает опросчик на офлайне
         check(bot._session_id_for(CHANNEL_ID, TODAY_ID), TODAY_ID,
               "после эфира возвращаемся к дате")
 
-        print("\n[4] два писателя с ОДНИМ id → одна сессия")
+        print("\n[5] два писателя с ОДНИМ id → одна сессия")
         await db.register_stream_session(REAL_STREAM_ID, channel_id=CHANNEL_ID)
         await db.register_stream_session(REAL_STREAM_ID, channel_id=CHANNEL_ID)
         check(await _session_count(db), 1, "повторная регистрация не плодит строку")
 
-        print("\n[5] два писателя с РАЗНЫМИ id → две сессии (это была поломка)")
+        print("\n[6] два писателя с РАЗНЫМИ id → две сессии (это была поломка)")
         await db.register_stream_session(TODAY_ID, channel_id=CHANNEL_ID)
         check(await _session_count(db), 2,
               "разные id дают лишнюю сессию — ровно она и обнуляла серии")

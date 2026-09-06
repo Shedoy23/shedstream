@@ -469,9 +469,12 @@ async def _on_stream_online(event: dict, channel_id: int) -> None:
       1. bot._stream_live_cache[channel_id] = (True, now) — мгновенно открывает
          action endpoints с require_stream_live(). До этого зрители получали
          «доступно только во время стрима» до следующего polling-tick.
-      2. db.register_stream_session(event.id, channel_id) — открыть/возобновить
+      2. bot._stream_ext_id[channel_id] = event.id — polling-loop использует тот
+         же id и не создаёт параллельную сессию с сегодняшней датой, пока live
+         cache не истёк и Helix ещё не был опрошен.
+      3. db.register_stream_session(event.id, channel_id) — открыть/возобновить
          stream-session. event.id — это stream_id (UUID) от Twitch.
-      3. notify_stream_online() — Telegram-канал. Внутри anti-spam cooldown
+      4. notify_stream_online() — Telegram-канал. Внутри anti-spam cooldown
          30 мин на случай flap.
 
     Игнорируем `type != 'live'` (playlist/watch_party/premiere/rerun) — это
@@ -498,6 +501,8 @@ async def _on_stream_online(event: dict, channel_id: int) -> None:
     try:
         bot = get_bot()
         bot._stream_live_cache[channel_id] = (True, now)
+        if stream_id:
+            bot._stream_ext_id[channel_id] = str(stream_id)
     except RuntimeError:
         # Bot ещё не инициализирован (startup race). TG-notify всё равно пошлём.
         pass

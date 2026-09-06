@@ -877,10 +877,13 @@ class BotCore:
                 continue
             if status == "active":
                 active_count += 1
-                for quest in WATCH_TIME_QUESTS:
-                    await self._update_quest_progress(username, quest, 1, channel_id=cid)
             else:
                 reduced_count += 1
+            # Дневные цели считают присутствие на эфире. У лёркера ниже ставка
+            # крустиков/XP, но отбирать у мобильной аудитории watch-time квесты
+            # нельзя: отсутствие mousemove не означает отсутствие просмотра.
+            for quest in WATCH_TIME_QUESTS:
+                await self._update_quest_progress(username, quest, 1, channel_id=cid)
             # Progress now belongs to the server tick, including chat-only viewers.
             try:
                 after = await self.db.get_user_level(username, channel_id=cid)
@@ -1257,12 +1260,11 @@ class BotCore:
                     continue
                 engaged = (interact_age_sec is not None
                            and interact_age_sec < ENGAGED_WINDOW)
-                if engaged:
-                    active.append(uname)
-                    weights.append(1.0)
+                active.append(uname)
+                weights.append(1.0 if engaged else DROP_LURKER_WEIGHT)
         except Exception as e:
             logger.warning("[ch=%s] Drop: чтение активных из БД упало: %s", cid, e)
-            # Without confirmed engagement, do not award a case.
+            # Без подтверждённого last_seen получателя выбирать нельзя.
             return
         if not active:
             return

@@ -77,7 +77,7 @@ async def run() -> int:
     from config import POINTS_PER_MINUTE
     from database import Database
     from migrations import (m1_multitenant, m116_engagement_watchtime,
-                            m117_income_ledger)
+                            m117_income_ledger, m120_viewer_reward_clock)
 
     db_path = tempfile.mktemp(suffix="_engage.db")
     db = Database(db_path=db_path)
@@ -89,6 +89,7 @@ async def run() -> int:
         await m1_multitenant.apply(conn)
         await m116_engagement_watchtime.apply(conn)
         await m117_income_ledger.apply(conn)
+        await m120_viewer_reward_clock.apply(conn)
         await conn.commit()
     dependencies.set_db(db)
     bot = BotCore(db)
@@ -129,6 +130,11 @@ async def run() -> int:
     async with db._connect() as conn:
         await conn.execute(
             "UPDATE viewers SET last_interaction_at = datetime('now') "
+            "WHERE channel_id=? AND username=?", (CH, "lurker"))
+        # Следующий вызов изображает следующий серверный минутный тик. M120
+        # намеренно не позволяет одному зрителю получить две выплаты в минуту.
+        await conn.execute(
+            "UPDATE viewer_reward_clock SET last_tick=last_tick-60 "
             "WHERE channel_id=? AND username=?", (CH, "lurker"))
         await conn.commit()
     before = await _points(db, "lurker")

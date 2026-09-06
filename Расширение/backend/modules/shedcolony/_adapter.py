@@ -42,6 +42,8 @@ class ShedColonyAdapter(ModuleAdapter):
             await self._on_colony_capacity(channel_id, env)
         elif et == "colony.targets":
             await self._on_colony_targets(channel_id, env)
+        elif et == "colony.catalog":
+            await self._on_colony_catalog(channel_id, env)
         elif et == "action.failed":
             await self._on_action_failed(channel_id, env)
         else:
@@ -347,6 +349,42 @@ class ShedColonyAdapter(ModuleAdapter):
                 "    data = excluded.data, updated_at = CURRENT_TIMESTAMP",
                 (channel_id, blob))
             await conn.commit()
+
+    async def _on_colony_catalog(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Мод сверил каталог товаров с реестром предметов СВОЕЙ сборки.
+
+        data: {"missing": [id, ...], "checked": N}. Мы храним результат, а
+        `/api/shedcolony/config` вычёркивает отсутствующее — зритель не увидит
+        и не купит то, чего в этой сборке нет. Каталог остаётся один, на
+        бэкенде; мод только отвечает на вопрос «а это у меня есть?».
+
+        Полная замена: свежий ответ мода отменяет прошлый, иначе снятый товар
+        не вернуть после обновления сборки.
+        """
+        missing = env.data.get("missing")
+        checked = env.data.get("checked")
+        if not isinstance(missing, list) or not isinstance(checked, int) or checked <= 0:
+            return                                   # мусор или старый мод — прошлый ответ важнее
+        clean = sorted({str(m) for m in missing if isinstance(m, str) and m})[:200]
+        if len(clean) >= checked:
+            # Мод не нашёл НИЧЕГО из каталога — так не бывает даже на голой ванили.
+            # Скорее сломан сам ответ; гасить весь магазин по нему нельзя.
+            logger.warning("[shedcolony] catalog check отброшен: missing=%d при checked=%d "
+                        "(channel=%s)", len(clean), checked, channel_id)
+            return
+        blob = json.dumps({"missing": clean, "checked": checked}, ensure_ascii=False)
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            await conn.execute(
+                "INSERT INTO shedcolony_catalog_check (channel_id, data, updated_at) "
+                "VALUES (?, ?, CURRENT_TIMESTAMP) "
+                "ON CONFLICT(channel_id) DO UPDATE SET "
+                "    data = excluded.data, updated_at = CURRENT_TIMESTAMP",
+                (channel_id, blob))
+            await conn.commit()
+        if clean:
+            logger.info("[shedcolony] сборка канала %s не содержит %d из %d товаров: %s",
+                     channel_id, len(clean), checked, ", ".join(clean[:8]))
 
     async def _on_action_failed(self, channel_id: int, env: ModuleEnvelope) -> None:
         """Платный action провалился (ack success=false / action.failed) → РЕФАНД крустиков.

@@ -26,7 +26,7 @@ import uuid
 
 from fastapi import APIRouter, Request
 
-from dependencies import get_db, require_jwt_user
+from dependencies import get_db, require_jwt_user, resolve_channel_id_or_default
 
 router = APIRouter()
 log = logging.getLogger("rimlink.shedcolony")
@@ -531,8 +531,41 @@ async def shedcolony_my_colonist(request: Request):
             "status": state_status or link_status, "state": state}
 
 
+async def _missing_in_build(channel_id: int) -> set[str]:
+    """Товары, которых нет в реестре предметов ЭТОЙ сборки (мод сообщил сам).
+
+    Мод сверяет каталог с `BuiltInRegistries.ITEM` своей сборки и шлёт
+    `colony.catalog` со списком отсутствующих. Пустой ответ (мод молчит, старая
+    версия, игра не запускалась) = ничего не гасим: показать лишнее не так
+    дорого, как молча схлопнуть весь магазин.
+    """
+    from dependencies import get_db
+    try:
+        async with get_db()._connect() as conn:
+            cur = await conn.execute(
+                "SELECT data FROM shedcolony_catalog_check WHERE channel_id=?", (channel_id,))
+            row = await cur.fetchone()
+    except Exception:
+        return set()                       # таблицы ещё нет / БД занята — торгуем полным каталогом
+    if not row or not row[0]:
+        return set()
+    try:
+        blob = json.loads(row[0])
+        return {str(x) for x in (blob.get("missing") or []) if isinstance(x, str)}
+    except Exception:
+        return set()
+
+
+def _visible(catalog, missing: set[str]) -> list[list[str]]:
+    """Каталог минус отсутствующее в сборке. Если вычесть пришлось бы всё —
+    отдаём как есть: пустой список пикеров означал бы сломанную панель, а
+    причина такого совпадения скорее в кривом ответе мода, чем в игре."""
+    rows = [[item, label] for item, label in catalog if item not in missing]
+    return rows if rows else [[item, label] for item, label in catalog]
+
+
 @router.get("/api/shedcolony/config")
-async def shedcolony_config():
+async def shedcolony_config(request: Request = None, channel_id: int | None = None):
     """Цены действий и каталоги предметов ShedColony — единый источник для фронта.
 
     ЗАЧЕМ. Тот же словарь, по которому бэкенд списывает крустики. До 2026-09-05
@@ -546,15 +579,34 @@ async def shedcolony_config():
     списки, по которым валидируется покупка. Убрать испортившийся товар или
     добавить новый теперь стоит деплоя бэкенда (минуты), а не релиза расширения
     (недели). Это же поле примет каталог, присланный модом из реальной сборки.
+
+    С 2026-09-06 из каталога вычитается то, чего нет в реестре предметов сборки
+    стримера: мод сверяет список сам и присылает отсутствующее. Зритель не
+    увидит товар, который в его игре выдать нечем. JWT нужен только чтобы
+    понять, ЧЕЙ это канал — без него отдаём каталог канала по умолчанию.
     """
+    # NB: mypy-заметка для будущего — параметр channel_id объявлен ПОСЛЕ request,
+    # FastAPI разбирает его как query. Порядок менять нельзя: Request без
+    # значения по умолчанию сломает вызовы из тестов.
+    # Канал: JWT зрителя → явный параметр → умолчание. Параметром пользуется САМ
+    # МОД: чтобы сверить каталог с реестром своей сборки, ему надо сперва этот
+    # каталог получить, а JWT зрителя у него нет. Секретов тут не отдаётся —
+    # цены и названия предметов и так видит каждый зритель панели.
+    jwt_channel = None
+    if request is not None:
+        auth = require_jwt_user(request)
+        if auth:
+            _, jwt_channel = auth
+    channel_id = resolve_channel_id_or_default(jwt_channel or channel_id)
+    missing = await _missing_in_build(channel_id)
     return {
         "action_prices": _ACTION_PRICES,
         # Каталоги предметов — те же списки, по которым валидируется покупка (см. выше).
         # Пары [id, подпись]: панель рисует подпись, шлёт id.
         "item_catalog": {
-            "give_item": [list(pair) for pair in _GIVE_ITEM_CATALOG],
-            "supply": [list(pair) for pair in _SUPPLY_CATALOG],
-            "min_stock": [list(pair) for pair in _MIN_STOCK_CATALOG],
+            "give_item": _visible(_GIVE_ITEM_CATALOG, missing),
+            "supply": _visible(_SUPPLY_CATALOG, missing),
+            "min_stock": _visible(_MIN_STOCK_CATALOG, missing),
         },
     }
 

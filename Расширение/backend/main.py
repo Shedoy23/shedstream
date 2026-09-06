@@ -1513,6 +1513,9 @@ async def run_migrations():
         from migrations import m120_viewer_reward_clock
         await m120_viewer_reward_clock.apply(conn)
 
+        from migrations import m121_shedcolony_catalog_check
+        await m121_shedcolony_catalog_check.apply(conn)
+
         print("✅ Migrations complete")
 
 

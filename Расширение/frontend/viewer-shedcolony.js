@@ -799,7 +799,9 @@
     // старыми списками панель работает, без панели — нет.
     async function _hydrateConfig() {
         try {
-            var r = await fetch(API_URL + '/api/shedcolony/config');
+            // JWT — чтобы сервер понял, ЧЬЯ это сборка: список товаров у каждого
+            // стримера свой (мод вычёркивает то, чего нет в его модпаке).
+            var r = await fetch(API_URL + '/api/shedcolony/config', { headers: _jwtHeaders(false) });
             if (!r.ok) return;
             var cfg = await r.json();
             var prices = (cfg && cfg.action_prices) || {};

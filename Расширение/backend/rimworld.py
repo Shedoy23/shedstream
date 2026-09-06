@@ -1409,6 +1409,25 @@ async def add_command(request: Request,
 
 # ===== МАГАЗИН / КАТАЛОГ =====
 
+def is_blocked_def(def_name: str) -> bool:
+    """Товар снят с продажи на сервере (см. config.RIMWORLD_CATALOG_BLOCKLIST).
+
+    Применяется в ТРЁХ точках, и это не перестраховка: фильтр только на приёме
+    оставил бы уже сохранённые строки покупаемыми до следующего запуска игры —
+    проверено на проде 06.09, сабля лежала в каталоге и после деплоя. Поэтому
+    ещё и отдача каталога зрителю, и сама покупка.
+    """
+    from config import (
+        RIMWORLD_CATALOG_BLOCKLIST,
+        RIMWORLD_CATALOG_BLOCKLIST_PREFIXES,
+    )
+    if not def_name:
+        return False
+    if def_name in RIMWORLD_CATALOG_BLOCKLIST:
+        return True
+    return any(def_name.startswith(p) for p in RIMWORLD_CATALOG_BLOCKLIST_PREFIXES)
+
+
 @router.post("/api/rimworld/shop-catalog")
 async def receive_shop_catalog(request: Request, _auth=Depends(rimworld_mod_auth)):
     """Принимает каталог предметов от мода"""
@@ -1426,19 +1445,7 @@ async def receive_shop_catalog(request: Request, _auth=Depends(rimworld_mod_auth
         # релиза DLL и перезапуска игры у стримера, а тут это деплой бэкенда.
         # Фильтр на приёме закрывает и показ, и покупку: buy-item ищет строку
         # в shop_catalog, а её не будет.
-        from config import (
-            RIMWORLD_CATALOG_BLOCKLIST,
-            RIMWORLD_CATALOG_BLOCKLIST_PREFIXES,
-        )
-
-        def _blocked(def_name: str) -> bool:
-            if not def_name:
-                return False
-            if def_name in RIMWORLD_CATALOG_BLOCKLIST:
-                return True
-            return any(def_name.startswith(p)
-                       for p in RIMWORLD_CATALOG_BLOCKLIST_PREFIXES)
-
+        _blocked = is_blocked_def
         blocked_names = [i.get('def_name', '') for i in items
                          if isinstance(i, dict) and _blocked(i.get('def_name', ''))]
         if blocked_names:
@@ -1589,6 +1596,11 @@ async def get_catalog(request: Request, category: str = None,
 
     items = []
     for r in rows:
+        # Снятое с продажи не показываем, даже если строка ещё лежит в базе:
+        # каталог перезаписывается только когда мод пришлёт новый, а это
+        # следующий запуск игры.
+        if is_blocked_def(r[1]):
+            continue
         extra = {}
         try:
             extra = json.loads(r[6]) if r[6] else {}
@@ -1654,6 +1666,15 @@ async def buy_item(request: Request):
             "SELECT price, label, category FROM shop_catalog "
             "WHERE channel_id = ? AND def_name = ?", (channel_id, def_name))
         item = await cursor.fetchone()
+
+    if item and is_blocked_def(def_name):
+        # Предмет снят с продажи на сервере. Проверяем ДО списания: строка в
+        # каталоге может быть старой, а фронт — закешированным.
+        print(f"🛒 buy-item: def_name={def_name!r} снят с продажи "
+              f"(@{username}, ch={channel_id})")
+        return {"success": False,
+                "message": "Этот предмет временно снят с продажи — "
+                           "он не выдаётся на текущей сборке игры"}
 
     if not item:
         # 2026-07-22: отказ платного действия обязан называть причину. Раньше

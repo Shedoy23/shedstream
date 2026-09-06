@@ -638,6 +638,10 @@ class BannerlordAdapter(ModuleAdapter):
             return
 
         # Sprint 5.29 / BLT-parity #3: refund крустиков на отказ мода
+        if et == "action.partial":
+            await self._on_action_partial(channel_id, env)
+            return
+
         if et == "action.failed":
             await self._on_action_failed(channel_id, env)
             return
@@ -689,6 +693,42 @@ class BannerlordAdapter(ModuleAdapter):
                 logger.info("[bannerlord:%s] policy_result action_id=%s — "
                             "нечего обновлять (повтор или заявка без action_id)",
                             channel_id, action_id)
+
+    async def _on_action_partial(self, channel_id: int, env: ModuleEnvelope) -> None:
+        """Действие сработало, но не полностью — сказать зрителю.
+
+        ЗАЧЕМ. Призыв со свитой мог дать героя без половины бойцов: сохранённые
+        идентификаторы юнитов не находятся на текущей сборке модов, и боец
+        молча пропускается (`SummonHeroHandler`). Деньги возвращать не за что —
+        герой пришёл, — но зритель платил за «героя со свитой 5/5» и обязан
+        узнать, что пришло 2/5. До 2026-09-06 такой случай был неотличим от
+        полного успеха: ни отказа, ни следа, кроме строки в логе мода.
+
+        Ожидаемые поля: action_id, done, requested, kind (что именно неполно).
+        """
+        data = env.data or {}
+        username = str(data.get("username") or data.get("initiated_by") or "").lower()
+        if not username:
+            return
+        try:
+            done = int(data.get("done") or 0)
+            requested = int(data.get("requested") or 0)
+        except (TypeError, ValueError):
+            done = requested = 0
+        kind = str(data.get("kind") or "").strip() or "часть заказанного"
+
+        if requested <= 0 or done >= requested:
+            return   # нечего сообщать
+
+        text = (f"Пришло не всё: {kind} — {done} из {requested}. "
+                f"Часть недоступна на текущей сборке модов, крустики не списаны повторно.")
+        from dependencies import get_db
+        db = get_db()
+        async with db._connect() as conn:
+            await add_notice_tx(conn, channel_id, username, "partial", text, 0)
+            await conn.commit()
+        logger.info("[bannerlord:%s] action.partial @%s %s %s/%s",
+                    channel_id, username, kind, done, requested)
 
     async def _on_action_failed(self, channel_id: int, env: ModuleEnvelope) -> None:
         """Sprint 5.29 / BLT-parity #3 — refund крустиков на refuse мода.

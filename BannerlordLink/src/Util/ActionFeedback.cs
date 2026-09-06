@@ -48,6 +48,41 @@ namespace BannerlordLink.Util
         }
 
         /// <summary>Capture a tracked failure, or durably queue delayed compensation.</summary>
+        /// <summary>
+        /// Действие сработало, но НЕ полностью: часть заказанного не получилась.
+        /// Деньги возвращать не за что, поэтому это не PostFailed — но зритель
+        /// обязан узнать. Случай, ради которого метод появился (2026-09-06):
+        /// свита призыва резолвится по сохранённым идентификаторам юнитов, и на
+        /// сборке, заменившей контент, часть бойцов молча не находится — герой
+        /// приходит один, а действие считается успешным.
+        /// </summary>
+        public static void PostPartial(string actionId, string kind, int done, int requested)
+        {
+            if (string.IsNullOrEmpty(actionId) || requested <= 0 || done >= requested)
+                return;
+            try
+            {
+                string json = JsonConvert.SerializeObject(new
+                {
+                    action_id = actionId,
+                    kind = kind ?? "часть заказанного",
+                    done = done,
+                    requested = requested,
+                });
+                bool queued = BannerlordLinkModule.Backend != null
+                    && BannerlordLinkModule.Backend.EnqueueDurableEvent(
+                        "bannerlord", "action.partial", json);
+                BannerlordLinkModule.Log(
+                    $"[ActionFeedback] partial {(queued ? "queued" : "QUEUE FAILED")} " +
+                    $"action_id={actionId} {kind}={done}/{requested}");
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[ActionFeedback] PostPartial serialize error: {ex.Message}");
+            }
+        }
+
         public static void PostFailed(string actionId, string reason)
         {
             if (string.IsNullOrEmpty(actionId)) return;

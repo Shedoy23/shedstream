@@ -780,6 +780,12 @@ namespace BannerlordLink.Actions
                     }
                     BannerlordLinkModule.Log(
                         $"[player.spawn:{sideLabel}] @{username} retinue: {spawned}/{retinueIds.Count} spawned");
+                    // Свита пришла не вся — сказать зрителю. Раньше это была
+                    // только строка в логе: он платил за «героя со свитой» и не
+                    // узнавал, что бойцов не нашлось (сборка заменила юнитов —
+                    // сохранённые идентификаторы больше не резолвятся).
+                    BannerlordLink.Util.ActionFeedback.PostPartial(
+                        actionId, "свита", spawned, retinueIds.Count);
                     // 2026-06-05 — отметить ТОЛЬКО при реальном спавне (spawned>0):
                     // полный провал не блокирует повтор свиты в следующий summon.
                     if (spawned > 0)

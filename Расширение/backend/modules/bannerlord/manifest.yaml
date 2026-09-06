@@ -79,6 +79,9 @@ extensions:
     - tournament.ended        # Sprint 5.3: final, winner gets prize
     - battle.stats_snapshot   # Sprint 5.4: per-Mission stats для overlay (HP/kills/gold/xp)
     - action.failed           # Sprint 5.29 BLT-parity #3: mod refused action → refund крустики
+    - action.partial          # 2026-09-06: действие выполнено НЕ ПОЛНОСТЬЮ (свита пришла не вся).
+                              # Деньги не возвращаем — действие сработало, — но зритель обязан узнать:
+                              # без этого «успех» и «получил обещанное» неотличимы.
     - hero.heir_came_of_age   # Sprint 5.32 (BLT-parity M2): mod пушит когда ребёнок [BLink] hero'я взрослеет 18+
     - hero.heir_died          # Sprint 5.32 (BLT-parity M2): heir умер ДО succession, mark alive=0
     - hero.vassal_created     # Sprint 5.33 (BLT-parity VAS): backfill real clan_id after CreateClan

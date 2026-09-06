@@ -327,9 +327,26 @@ namespace BannerlordLink.Actions
             }
         }
 
-        /// <summary>Sprint 5.10d/5.14: explicit search для T0/T1 troop'a по culture.
-        /// Fallback когда culture.BasicTroop/EliteBasicTroop сломан (mod conflict).
-        /// elite=true → ищем "elite" в StringId (vlandian_squire / khuzait_oathsworn / etc.).</summary>
+        /// <summary>Запасной поиск T0/T1 юнита культуры, когда
+        /// culture.BasicTroop / EliteBasicTroop пуст или указывает на чужую культуру.
+        ///
+        /// 2026-09-06: раньше элита определялась подстроками в StringId —
+        /// "elite", "squire", "noble", "oathsworn". Это соглашение об именовании
+        /// Кальрадии, а не свойство юнита: сборка со своей схемой имён
+        /// (samurai_hatamoto, ashigaru_veteran) под фильтр не попадала, и зритель
+        /// получал отказ culture_recruit_not_found на работающей в остальном игре.
+        /// Теперь ветку различаем по жалованью: элитный юнит того же тира всегда
+        /// дороже базового (TroopWage считает PartyWageModel самой игры), а имя
+        /// не участвует вовсе.</summary>
+        /// <summary>Жалованье юнита — признак ветки вместо имени. Считает модель
+        /// игры, поэтому у модовых юнитов оно тоже осмысленное. Ошибку глотаем:
+        /// без жалованья выбор просто становится по тиру, а не падает.</summary>
+        private static int SafeWage(CharacterObject c)
+        {
+            try { return c?.TroopWage ?? 0; }
+            catch (Exception) { return 0; }
+        }
+
         private static CharacterObject FindCultureRecruit(CultureObject culture, bool elite = false)
         {
             if (culture == null) return null;
@@ -343,12 +360,9 @@ namespace BannerlordLink.Actions
                                 && c.Culture == culture
                                 && c.IsBasicTroop
                                 && !c.IsHero
-                                && (int)c.Tier <= 1
-                                && (!elite || (c.StringId?.Contains("elite") ?? false)
-                                    || (c.StringId?.Contains("squire") ?? false)
-                                    || (c.StringId?.Contains("noble") ?? false)
-                                    || (c.StringId?.Contains("oathsworn") ?? false)))
+                                && (int)c.Tier <= 1)
                     .OrderBy(c => (int)c.Tier)
+                    .ThenBy(c => elite ? -SafeWage(c) : SafeWage(c))
                     .ToList();
                 if (candidates.Count == 0)
                 {
@@ -361,7 +375,15 @@ namespace BannerlordLink.Actions
                         .OrderBy(c => (int)c.Tier)
                         .ToList();
                 }
-                return candidates.Count > 0 ? candidates[0] : null;
+                var picked = candidates.Count > 0 ? candidates[0] : null;
+                if (picked != null)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[recruit_troops] fallback выбрал {picked.StringId} " +
+                        $"(tier={(int)picked.Tier}, жалованье={SafeWage(picked)}, " +
+                        $"нужна {(elite ? "элита" : "база")}) для {culture.StringId}");
+                }
+                return picked;
             }
             catch (Exception ex)
             {

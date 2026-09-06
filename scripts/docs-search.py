@@ -25,6 +25,12 @@ import pathlib
 import re
 import sys
 
+# Консоль Windows отдаёт cp1251: без этого скрипт печатал кракозябры, а на
+# первом же «→» падал с UnicodeEncodeError — то есть по документации нельзя
+# было искать из PowerShell вообще. Тот же дефект чинили в pack-extension.py.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DOCS = ["CLAUDE.md", "LESSONS.md", "RUNBOOK.md", "STATUS.md", "DEFERRED.md",
         "ROADMAP.md", "OVERVIEW.md", "scripts/README.md"]

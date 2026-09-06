@@ -16,7 +16,7 @@
 (function () {
     'use strict';
 
-    // Цены ниже — ЗАПАСНЫЕ. Настоящие приезжают с бэка (/api/shedcolony/config →
+    // Цены и списки предметов ниже — ЗАПАСНЫЕ. Настоящие приезжают с бэка (/api/shedcolony/config →
     // action_prices, тот же словарь _ACTION_PRICES, по которому он списывает) и
     // перетирают эту таблицу при открытии вкладки. Держать копии было нельзя:
     // расширение замерзает на CDN Twitch до следующего ревью, а цену меняют на
@@ -68,7 +68,8 @@
         shepherd: 'Авто-стрижка овец', composter: 'Авто-компост (земля)',
     };
 
-    // set_minimum_stock item picker — MUST stay a subset of _MIN_STOCK_WHITELIST in routes/shedcolony.py.
+    // set_minimum_stock item picker — ЗАПАСНОЙ список. Настоящий приезжает с бэка
+    // (/api/shedcolony/config → item_catalog.min_stock), см. _hydrateConfig ниже.
     var SC_MIN_STOCK_ITEMS = [
         ['minecraft:bread', 'Хлеб'], ['minecraft:oak_planks', 'Доски'], ['minecraft:oak_log', 'Брёвна'],
         ['minecraft:cobblestone', 'Булыжник'], ['minecraft:stone', 'Камень'], ['minecraft:coal', 'Уголь'],
@@ -96,7 +97,7 @@
         crusher: 'Дробилка', sifter: 'Просеиватель', alchemist: 'Алхимик', netherworker: 'Незер-бригада',
     };
 
-    // colony.supply dropdown — MUST stay a subset of _SUPPLY_WHITELIST in routes/shedcolony.py.
+    // colony.supply dropdown — ЗАПАСНОЙ список (настоящий с бэка: item_catalog.supply).
     var SC_SUPPLY_ITEMS = [
         ['minecraft:oak_log', 'Брёвна'], ['minecraft:oak_planks', 'Доски'],
         ['minecraft:cobblestone', 'Булыжник'], ['minecraft:stone', 'Камень'],
@@ -105,7 +106,7 @@
         ['minecraft:carrot', 'Морковь'], ['minecraft:potato', 'Картофель'],
     ];
 
-    // give_item dropdown — MUST stay a subset of _GIVE_ITEM_WHITELIST in routes/shedcolony.py.
+    // give_item dropdown — ЗАПАСНОЙ список (настоящий с бэка: item_catalog.give_item).
     var SC_GIVE_ITEMS = [
         ['minecraft:bread', 'Хлеб'], ['minecraft:cooked_beef', 'Стейк'],
         ['minecraft:cooked_chicken', 'Жареная курица'], ['minecraft:cooked_porkchop', 'Свинина'],
@@ -489,7 +490,7 @@
 
         // 🎭 Кастомизация
         var custBody = '<select class="sc-select" id="sc-give-select">';
-        SC_GIVE_ITEMS.forEach(function (pair) { custBody += '<option value="' + pair[0] + '">' + escapeHtml(pair[1]) + '</option>'; });
+        SC_GIVE_ITEMS.forEach(function (pair) { custBody += '<option value="' + escapeHtml(pair[0]) + '">' + escapeHtml(pair[1]) + '</option>'; });
         custBody += '</select><button class="sc-btn" data-sc="give_item">🎁 Выдать предмет — ' + SC.give_item.price + ' 💎</button>'
             + '<div class="sc-care-row">'
             + '<button class="sc-btn sc-btn-sm" data-sc="set_gender">🔄 Сменить пол · ' + SC.set_gender.price + '</button>'
@@ -598,13 +599,13 @@
         // 📦 Склад — снабжение (стак) + неснижаемый запас + разгрести очередь заказов
         var supplyBody = '<div class="sc-section-title">Снабдить колонию (стак) — ' + SC.supply.price + ' 💎</div>'
             + '<select class="sc-select" id="sc-supply-select">';
-        SC_SUPPLY_ITEMS.forEach(function (pair) { supplyBody += '<option value="' + pair[0] + '">' + escapeHtml(pair[1]) + '</option>'; });
+        SC_SUPPLY_ITEMS.forEach(function (pair) { supplyBody += '<option value="' + escapeHtml(pair[0]) + '">' + escapeHtml(pair[1]) + '</option>'; });
         supplyBody += '</select><button class="sc-btn" data-sc="supply">📦 Снабдить — ' + SC.supply.price + ' 💎</button>'
             + '<p class="sc-muted" style="margin-top:6px;">Только базовые материалы — помогаешь колонии строиться.</p>';
         supplyBody += '<div class="sc-section-title" style="margin-top:14px;">Неснижаемый запас — ' + SC.min_stock.price + ' 💎</div>';
         if (warehouseOk) {
             supplyBody += '<select class="sc-select" id="sc-minstock-item-select">';
-            SC_MIN_STOCK_ITEMS.forEach(function (pair) { supplyBody += '<option value="' + pair[0] + '">' + escapeHtml(pair[1]) + '</option>'; });
+            SC_MIN_STOCK_ITEMS.forEach(function (pair) { supplyBody += '<option value="' + escapeHtml(pair[0]) + '">' + escapeHtml(pair[1]) + '</option>'; });
             supplyBody += '</select><select class="sc-select" id="sc-minstock-qty-select">';
             SC_MIN_STOCK_QTYS.forEach(function (q) { supplyBody += '<option value="' + q + '">' + q + ' стак.</option>'; });
             supplyBody += '</select><button class="sc-btn" data-sc="min_stock">📌 Закрепить запас — ' + SC.min_stock.price + ' 💎</button>'
@@ -781,9 +782,22 @@
         });
     }
 
-    // Цены с бэка перетирают запасные в SC. Ошибку глотаем: со старыми ценами
-    // панель работает, без панели — нет.
-    async function _hydratePrices() {
+    // Пара [id, "подпись"] от бэка → тот же вид, что у запасных массивов.
+    // Мусор пропускаем поштучно: одна кривая строка не должна опустошить список.
+    function _asItemList(raw) {
+        if (!Array.isArray(raw)) return null;
+        var out = [];
+        raw.forEach(function (pair) {
+            if (Array.isArray(pair) && typeof pair[0] === 'string' && pair[0]) {
+                out.push([pair[0], String(pair[1] || pair[0])]);
+            }
+        });
+        return out.length ? out : null;
+    }
+
+    // Цены и каталоги предметов с бэка перетирают запасные. Ошибку глотаем: со
+    // старыми списками панель работает, без панели — нет.
+    async function _hydrateConfig() {
         try {
             var r = await fetch(API_URL + '/api/shedcolony/config');
             if (!r.ok) return;
@@ -793,12 +807,19 @@
                 var v = Number(prices[SC[k].type]);
                 if (isFinite(v)) SC[k].price = v;
             });
+            var cat = (cfg && cfg.item_catalog) || {};
+            var give = _asItemList(cat.give_item);
+            var supply = _asItemList(cat.supply);
+            var minStock = _asItemList(cat.min_stock);
+            if (give) SC_GIVE_ITEMS = give;
+            if (supply) SC_SUPPLY_ITEMS = supply;
+            if (minStock) SC_MIN_STOCK_ITEMS = minStock;
         } catch (e) { /* остаёмся на запасных */ }
     }
 
     window._startShedcolonyPolling = function () {
         _lastSig = '';                 // force a fresh render when the tab is (re)opened
-        _hydratePrices().then(function () { _lastSig = ''; _refresh(); });
+        _hydrateConfig().then(function () { _lastSig = ''; _refresh(); });
         _refresh();
         if (_pollId === null) { _pollId = safeInterval(_refresh, 5000); }
     };

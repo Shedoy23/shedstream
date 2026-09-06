@@ -134,31 +134,80 @@ _ACTION_PRICES: dict[str, int] = {
     "colony.upgrade_building":  50000,
 }
 
-# give_item — curated food whitelist (no tools/exploit; helps the colonist eat).
-_GIVE_ITEM_WHITELIST = {
-    "minecraft:bread", "minecraft:cooked_beef", "minecraft:cooked_chicken",
-    "minecraft:cooked_porkchop", "minecraft:apple", "minecraft:golden_carrot",
-    "minecraft:golden_apple", "minecraft:cake", "minecraft:pumpkin_pie", "minecraft:cookie",
-}
+# ── КАТАЛОГИ ПРЕДМЕТОВ: id + подпись, ОДНА правда на бэкенде ────────────────
+# До 2026-09-06 каждый из этих списков существовал дважды: сет id здесь и массив
+# [id, подпись] во `frontend/viewer-shedcolony.js` с комментарием «MUST stay a
+# subset». Две копии одного списка расходятся молча при первой правке одной из
+# них, а фронт замерзает на CDN Twitch до следующего ревью — то есть снять или
+# добавить товар было нельзя без подачи новой версии расширения. Теперь список
+# едет отсюда (`/api/shedcolony/config` → `item_catalog`), а во фронте остаётся
+# запасная копия на случай недоступного конфига.
+#
+# Подписи русские: их показывает панель. Сеты для валидации выводятся из
+# каталога ниже — добавить товар = дописать строку СЮДА, и он появится и в
+# списке зрителя, и в разрешённых.
+#
+# Это подготовка к «каталог берётся из игры» (ROADMAP, принцип 06.09): когда мод
+# начнёт присылать реальный список сборки, он ляжет в эти же поля, и новой
+# подачи в Twitch уже не потребуется.
 
-# colony.supply — BASIC building/food materials only (NO iron/gold/diamond) so viewer supplies
-# help the colony build + eat without trivialising the streamer's precious-resource economy.
-# (renamed from colony.donate 2026-06-29 — Twitch lexicon: «донат» читается как real-money.)
-_SUPPLY_WHITELIST = {
-    "minecraft:oak_log", "minecraft:oak_planks", "minecraft:cobblestone", "minecraft:stone",
-    "minecraft:dirt", "minecraft:sand", "minecraft:gravel", "minecraft:torch",
-    "minecraft:bread", "minecraft:wheat", "minecraft:carrot", "minecraft:potato",
-}
+# give_item — еда, которой зритель кормит колониста (без инструментов и эксплойтов).
+_GIVE_ITEM_CATALOG = [
+    ("minecraft:bread", "Хлеб"),
+    ("minecraft:cooked_beef", "Стейк"),
+    ("minecraft:cooked_chicken", "Жареная курица"),
+    ("minecraft:cooked_porkchop", "Свинина"),
+    ("minecraft:apple", "Яблоко"),
+    ("minecraft:golden_carrot", "Золотая морковь"),
+    ("minecraft:golden_apple", "Золотое яблоко"),
+    ("minecraft:cake", "Торт"),
+    ("minecraft:pumpkin_pie", "Тыквенный пирог"),
+    ("minecraft:cookie", "Печенье"),
+]
 
-# colony.set_minimum_stock — items a viewer may pin as never-below-N on the warehouse. Basic
-# consumables/materials only (same grief-safe spirit as supply): forcing the colony to keep a
-# floor of bread/planks/torches is helpful; letting it hoard diamonds would trivialise the economy.
-_MIN_STOCK_WHITELIST = {
-    "minecraft:oak_log", "minecraft:oak_planks", "minecraft:cobblestone", "minecraft:stone",
-    "minecraft:dirt", "minecraft:sand", "minecraft:gravel", "minecraft:torch",
-    "minecraft:bread", "minecraft:wheat", "minecraft:carrot", "minecraft:potato",
-    "minecraft:coal", "minecraft:charcoal", "minecraft:stick", "minecraft:apple",
-}
+# colony.supply — БАЗОВЫЕ строительные/пищевые материалы (БЕЗ железа/золота/алмазов),
+# чтобы помощь зрителя строила и кормила колонию, но не обесценивала добычу стримера.
+# (переименовано из colony.donate 29.06 — в лексиконе Twitch «донат» читается как реальные деньги.)
+_SUPPLY_CATALOG = [
+    ("minecraft:oak_log", "Брёвна"),
+    ("minecraft:oak_planks", "Доски"),
+    ("minecraft:cobblestone", "Булыжник"),
+    ("minecraft:stone", "Камень"),
+    ("minecraft:dirt", "Земля"),
+    ("minecraft:sand", "Песок"),
+    ("minecraft:gravel", "Гравий"),
+    ("minecraft:torch", "Факелы"),
+    ("minecraft:bread", "Хлеб"),
+    ("minecraft:wheat", "Пшеница"),
+    ("minecraft:carrot", "Морковь"),
+    ("minecraft:potato", "Картофель"),
+]
+
+# colony.set_minimum_stock — что зритель может закрепить как неснижаемый запас склада.
+# Только расходники и материалы (тот же дух, что у supply): пол из хлеба, досок и факелов
+# колонии помогает, а запас алмазов обесценил бы экономику стримера.
+# NB: земля/песок/гравий были в разрешённых, но панель их не показывала — при сведении
+# двух списков в один они убраны: закреплять их в запасе смысла нет.
+_MIN_STOCK_CATALOG = [
+    ("minecraft:bread", "Хлеб"),
+    ("minecraft:oak_planks", "Доски"),
+    ("minecraft:oak_log", "Брёвна"),
+    ("minecraft:cobblestone", "Булыжник"),
+    ("minecraft:stone", "Камень"),
+    ("minecraft:coal", "Уголь"),
+    ("minecraft:charcoal", "Древ. уголь"),
+    ("minecraft:torch", "Факелы"),
+    ("minecraft:stick", "Палки"),
+    ("minecraft:wheat", "Пшеница"),
+    ("minecraft:carrot", "Морковь"),
+    ("minecraft:potato", "Картофель"),
+    ("minecraft:apple", "Яблоки"),
+]
+
+_GIVE_ITEM_WHITELIST = {item for item, _ in _GIVE_ITEM_CATALOG}
+_SUPPLY_WHITELIST = {item for item, _ in _SUPPLY_CATALOG}
+_MIN_STOCK_WHITELIST = {item for item, _ in _MIN_STOCK_CATALOG}
+
 # set_minimum_stock quantity bounds — in STACKS (the MineColonies module multiplies by the item's
 # max stack size each tick, so 1 = keep one stack, 16 = keep 16 stacks). The mod clamps to 1..16 too.
 _MIN_STOCK_QTY_MIN = 1
@@ -484,7 +533,7 @@ async def shedcolony_my_colonist(request: Request):
 
 @router.get("/api/shedcolony/config")
 async def shedcolony_config():
-    """Цены действий ShedColony — единый источник для фронта.
+    """Цены действий и каталоги предметов ShedColony — единый источник для фронта.
 
     ЗАЧЕМ. Тот же словарь, по которому бэкенд списывает крустики. До 2026-09-05
     фронт держал свои копии (28 чисел в подписях кнопок), и поменять цену было
@@ -492,8 +541,22 @@ async def shedcolony_config():
     деплоится за минуты. Публичный — числа не секретны, панель показывает их
     всем зрителям. Отдаём словарь целиком: новое действие появится здесь само,
     без правки этого эндпоинта и без новой подачи на ревью.
+
+    С 2026-09-06 сюда же переехали каталоги предметов (`item_catalog`) — те самые
+    списки, по которым валидируется покупка. Убрать испортившийся товар или
+    добавить новый теперь стоит деплоя бэкенда (минуты), а не релиза расширения
+    (недели). Это же поле примет каталог, присланный модом из реальной сборки.
     """
-    return {"action_prices": _ACTION_PRICES}
+    return {
+        "action_prices": _ACTION_PRICES,
+        # Каталоги предметов — те же списки, по которым валидируется покупка (см. выше).
+        # Пары [id, подпись]: панель рисует подпись, шлёт id.
+        "item_catalog": {
+            "give_item": [list(pair) for pair in _GIVE_ITEM_CATALOG],
+            "supply": [list(pair) for pair in _SUPPLY_CATALOG],
+            "min_stock": [list(pair) for pair in _MIN_STOCK_CATALOG],
+        },
+    }
 
 
 @router.get("/api/shedcolony/capacity")

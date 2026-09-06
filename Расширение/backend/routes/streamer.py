@@ -603,7 +603,7 @@ def _dashboard_html(ch: dict) -> str:
 # разъезжается и начинает врать (в проекте уже было с ценами).
 #
 # При выпуске новой сборки менять ТОЛЬКО эту строку.
-MANAGER_RELEASE_VERSION = "0.1.0-alpha.15"
+MANAGER_RELEASE_VERSION = "0.1.0-alpha.16"
 MANAGER_RELEASE_FILE = f"ShedLink.Manager-{MANAGER_RELEASE_VERSION}-win-x64.zip"
 MANAGER_DOWNLOAD_PATH = "/download/manager"
 

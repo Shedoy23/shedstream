@@ -1420,6 +1420,35 @@ async def receive_shop_catalog(request: Request, _auth=Depends(rimworld_mod_auth
         if not isinstance(items, list):
             return {"status": "error", "message": "Expected list"}
 
+        # Серверный чёрный список (2026-09-06). Мод присылает всё, что видит в
+        # игре — это принцип, и он остаётся. Но товар, который на этой сборке
+        # выдать нельзя, гасим здесь: снятие через список в моде стоило бы
+        # релиза DLL и перезапуска игры у стримера, а тут это деплой бэкенда.
+        # Фильтр на приёме закрывает и показ, и покупку: buy-item ищет строку
+        # в shop_catalog, а её не будет.
+        from config import (
+            RIMWORLD_CATALOG_BLOCKLIST,
+            RIMWORLD_CATALOG_BLOCKLIST_PREFIXES,
+        )
+
+        def _blocked(def_name: str) -> bool:
+            if not def_name:
+                return False
+            if def_name in RIMWORLD_CATALOG_BLOCKLIST:
+                return True
+            return any(def_name.startswith(p)
+                       for p in RIMWORLD_CATALOG_BLOCKLIST_PREFIXES)
+
+        blocked_names = [i.get('def_name', '') for i in items
+                         if isinstance(i, dict) and _blocked(i.get('def_name', ''))]
+        if blocked_names:
+            items = [i for i in items
+                     if not (isinstance(i, dict) and _blocked(i.get('def_name', '')))]
+            # Молчать нельзя: пропавший из каталога предмет иначе выглядит как
+            # поломка мода, и его пойдут искать в игре.
+            print(f"🛒 Каталог [ch={channel_id}]: отсеяно {len(blocked_names)} "
+                  f"позиций чёрным списком: {', '.join(sorted(set(blocked_names)))}")
+
         async with aiosqlite.connect(db.db_path) as conn:
             # M97: channel_id + UNIQUE(channel_id, def_name). Раньше def_name был
             # глобально уникален — каталог второго стримера перезаписывал бы

@@ -169,6 +169,9 @@ CHANGELOG — WHAT CHANGED SINCE THE RELEASED VERSION 0.0.1
 - Pets: fixed a broken image in the cosmetics shop; overlay pets no longer overlap.
 - Text-to-speech: a rejected message, or one the broadcaster never acts on, is now
   refunded automatically.
+- The panel no longer shows a zero balance when the server cannot confirm who the
+  viewer is: unknown values are shown as a dash, the panel re-identifies itself
+  silently, and only then asks the viewer to log in again.
 - The stream overlay page is no longer included in the extension package.
 
 CONTACT
@@ -179,7 +182,11 @@ nasulskii6@gmail.com
 
 ## Что проверить в кабинете перед нажатием «Отправить на проверку»
 
-1. Загружен архив `0.0.5`, MD5 `2e891a30588a28a3f85ca87c92c50cdb` (сверено 07.09).
+1. Загружен АКТУАЛЬНЫЙ архив `0.0.5` от 07.09: MD5 `ec40d2b1494db6b8028e1ff3dc09511e`,
+   SHA-256 `739666b9…`, 246 348 байт. Лежит в
+   `.claude/worktrees/codex-public-release/dist/shedlink-0.0.5.zip`.
+   Прежний архив (`2e891a30…`) ОТМЕНЁН — в нём панель показывала нули вместо
+   «не авторизован».
 2. Streamer Allowlist ПУСТ — иначе после одобрения расширение не станет доступно всем.
 3. Три allowlist-домена содержат `https://shedoy23.ru/`.
 4. Версия `0.0.5` активирована на канале и остаётся активированной до вердикта.

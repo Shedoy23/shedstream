@@ -520,6 +520,7 @@ async function loadUserPerksBadge() {
     try {
         const r = await fetch(`${API_URL}/api/viewer/perks`, {
             headers: { 'X-Twitch-JWT': authToken || '' },
+            cache: 'no-store',
         });
         const d = await r.json();
         if (!d || !d.success) {
@@ -1050,6 +1051,10 @@ async function loadUserData() {
     try {
         const response = await fetch(`${API_URL}/api/viewer/stats/${userLogin}`, {
             headers: { 'X-Twitch-JWT': authToken || '' },
+            // Safari must not reuse an unauthorized/empty response from an
+            // earlier token or backend restart. This also bypasses entries
+            // cached before the server started sending Cache-Control: no-store.
+            cache: 'no-store',
         });
 
         // 🔧 ИСПРАВЛЕНИЕ: Проверяем код ответа сервера

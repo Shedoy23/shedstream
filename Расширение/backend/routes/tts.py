@@ -58,6 +58,7 @@ Compliance:
 """
 import asyncio
 import io
+import logging
 
 from fastapi import APIRouter, Request
 from fastapi.responses import Response
@@ -67,8 +68,10 @@ from dependencies import (
     get_db, require_jwt_user, require_stream_live,
     resolve_channel_id_or_default,
 )
+from notices import add_notice_tx
 
 router = APIRouter()
+log = logging.getLogger("rimlink.tts")
 
 _AUTH_FAIL = {"success": False, "message": "❌ Требуется авторизация Twitch"}
 
@@ -95,16 +98,55 @@ async def hide_tts_message(db, channel_id: int, msg_id: int, by: str) -> bool:
 
     Возвращает True, если что-то реально скрыли. Идемпотентно: повторный вызов
     вернёт False, а не «скрыл ещё раз».
+
+    Отклонение НЕозвученного сообщения возвращает деньги и говорит об этом
+    зрителю (07.09). До этого у платного действия не было терминального исхода:
+    гейт одобрения включён по умолчанию, а отказ только помечал строку —
+    5000💎 списаны, эффекта нет, возврата нет, зритель не извещён. Возврат
+    берётся из строки (`cost`), а не из текущего конфига: цена могла измениться
+    между оплатой и решением стримера, и вернуть надо ровно списанное.
+
+    Уже озвученное сообщение денег не возвращает — услуга оказана, а `hide`
+    после эфира это уборка истории, не отказ.
     """
+    refunded = 0
+    username = ""
     async with db._connect() as conn:
-        cur = await conn.execute(
-            "UPDATE tts_messages "
-            "SET moderated_by=?, moderated_at=CURRENT_TIMESTAMP "
-            "WHERE channel_id=? AND id=? AND moderated_by IS NULL",
-            (by, channel_id, msg_id))
-        affected = cur.rowcount
-        await conn.commit()
-    return affected > 0
+        # BEGIN IMMEDIATE: проверку «ещё не отклонено» и начисление держим в
+        # одной транзакции, иначе два клика стримера вернут деньги дважды.
+        await conn.execute("BEGIN IMMEDIATE")
+        try:
+            cur = await conn.execute(
+                "SELECT username, cost, status FROM tts_messages "
+                "WHERE channel_id=? AND id=? AND moderated_by IS NULL",
+                (channel_id, msg_id))
+            row = await cur.fetchone()
+            if row is None:
+                await conn.execute("ROLLBACK")
+                return False
+
+            username, cost, status = row[0], int(row[1] or 0), row[2]
+            await conn.execute(
+                "UPDATE tts_messages "
+                "SET moderated_by=?, moderated_at=CURRENT_TIMESTAMP "
+                "WHERE channel_id=? AND id=? AND moderated_by IS NULL",
+                (by, channel_id, msg_id))
+
+            if status == "pending" and cost > 0:
+                await db.add_points_tx(conn, username, cost, channel_id)
+                await add_notice_tx(
+                    conn, channel_id, username, "refund",
+                    f"Стример отклонил озвучку — {cost}💎 возвращены", cost)
+                refunded = cost
+            await conn.commit()
+        except Exception:
+            await conn.execute("ROLLBACK")
+            raise
+
+    if refunded:
+        log.info("[TTS] ch=%s msg=%s отклонён (%s) — возвращено %d💎 @%s",
+                 channel_id, msg_id, by, refunded, username)
+    return True
 
 
 async def tts_requires_approval(db, channel_id: int) -> bool:
@@ -307,9 +349,20 @@ async def tts_submit(request: Request):
             await conn.execute("ROLLBACK")
             raise
 
+    # Тост обязан назвать, что это ЗАЯВКА, когда исход отложен (правило
+    # «платное + асинхронное» в CLAUDE.md). При включённом гейте «озвучится
+    # скоро» — обещание за стримера: сообщение прозвучит только после его
+    # одобрения, а при отказе деньги вернутся. Гейт включён по умолчанию,
+    # поэтому прежний текст был неверен на большинстве каналов.
+    if await tts_requires_approval(db, channel_id):
+        toast = (f"🎤 Заявка отправлена (-{TTS_COST}💎). Прозвучит после "
+                 f"одобрения стримера; при отказе крустики вернутся")
+    else:
+        toast = f"🎤 Озвучится скоро (-{TTS_COST}💎)"
+
     return {
         "success": True,
-        "message": f"🎤 Озвучится скоро (-{TTS_COST}💎)",
+        "message": toast,
         "cost": TTS_COST,
     }
 

@@ -22,7 +22,7 @@
 |---|---|
 | Файл | `dist/shedlink-0.0.5.zip` (в worktree `codex-public-release`), копия `dist/releases/shedlink-0.0.5-hosted-20260907-739666b9.zip` |
 | SHA-256 | `739666b937f0ba3620ae0c0256f992dca6dd17ec9cd31a95905eeb09c77c83b9` |
-| MD5 | `ec40d2b1494db6b8028e1ff3dc09511e` |
+| MD5 | `ec40d2b1494db6b8028e1ff3dc09511e` — **совпал с кабинетом 07.09**, владелец загрузил и сверил |
 | Размер | 246 348 байт, 24 файла + VERSION, 879.0 КБ до сжатия |
 | Cache-bust | `?v=202609071851` в обеих оболочках |
 | Исходники | ветка `codex/public-release-readiness`, коммит `3391139` |

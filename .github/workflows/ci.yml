@@ -96,3 +96,6 @@ jobs:
 
       - name: Action lock separates actions and never fails silently
         run: node scripts/test-frontend-action-lock.mjs
+
+      - name: Panel login survives a synchronous onAuthorized (no TDZ)
+        run: node scripts/test-frontend-auth-init.mjs

@@ -2344,6 +2344,25 @@ async def on_startup():
             await _asyncio.sleep(600)
     asyncio.create_task(_match_queue_expire_loop())
 
+    # 2026-09-07 — озвучка: гейт одобрения включён по умолчанию, поэтому у
+    # платного действия есть исход «стример не открыл очередь». Без срока он
+    # длился вечно: 5000💎 списаны, эффекта нет, возврата нет. Срок — решение
+    # владельца, 30 минут (`TTS_PENDING_TTL_S`). Тик 5 минут: точность до
+    # минуты тут не нужна, а лишних пробуждений быть не должно.
+    async def _tts_expire_loop():
+        import asyncio as _asyncio
+        from routes.tts import expire_stale_tts_requests
+        while True:
+            try:
+                closed, refunded = await expire_stale_tts_requests(db)
+                if closed > 0:
+                    print(f"[TTS-EXPIRE] заявок закрыто по сроку: {closed}, "
+                          f"возвращено: {refunded}💎")
+            except Exception as e:
+                print(f"[TTS-EXPIRE] loop crashed: {type(e).__name__}: {e}")
+            await _asyncio.sleep(300)
+    asyncio.create_task(_tts_expire_loop())
+
     # M103. Уведомления зрителю — расходник: прочитал и забыл. Без сторожа
     # таблица растёт на каждом отказе мода и не убывает никогда.
     async def _notices_purge_loop():

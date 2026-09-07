@@ -32,6 +32,9 @@ Standalone (без pytest). Запуск:
 3. Возврат идемпотентен: второе отклонение той же строки не платит второй раз.
 4. Отклонение УЖЕ ОЗВУЧЕННОГО сообщения денег не возвращает — услуга оказана.
 5. Одобренное и озвученное сообщение остаётся платным (регрессия на п.1).
+6. Заявка, по которой стример не решил вовсе, возвращает деньги по сроку
+   (TTS_PENDING_TTL_S) — и после возврата прозвучать уже не может.
+7. Повторный прогон подметалки не платит второй раз.
 
 ## Красный до фикса
 
@@ -205,6 +208,68 @@ async def test_played_message_is_not_refunded(db):
               "[4] за оказанную услугу возврата нет")
 
 
+async def _queue_aged_message(db, text: str, age_s: int, cost: int = CHARGED) -> int:
+    """Заявка, поданная age_s секунд назад: списание + строка с прошлым created_at."""
+    async with db._connect() as conn:
+        await conn.execute(
+            "UPDATE viewers SET points = points - ? "
+            "WHERE channel_id=? AND username=?",
+            (cost, CHANNEL_ID, VIEWER))
+        cur = await conn.execute(
+            "INSERT INTO tts_messages (channel_id, username, message, cost, status, created_at) "
+            "VALUES (?, ?, ?, ?, 'pending', datetime('now', ?))",
+            (CHANNEL_ID, VIEWER, text, cost, f"-{age_s} seconds"))
+        await conn.commit()
+        return cur.lastrowid
+
+
+async def test_stale_request_refunds_itself(db):
+    print("\n[5] Заявка, по которой стример не решил, возвращает деньги по сроку")
+    from config import TTS_PENDING_TTL_S
+    from routes.tts import expire_stale_tts_requests
+
+    fresh_id = await _queue_aged_message(db, "свежая заявка", age_s=60)
+    stale_id = await _queue_aged_message(db, "забытая заявка",
+                                         age_s=TTS_PENDING_TTL_S + 120)
+    after_charge = await _points(db)
+    # Считаем ПРИРОСТ уведомлений, а не «есть хоть одно»: к этому месту их уже
+    # наделали проверки [1]-[3], и «> 0» было бы зелёным даже при немой
+    # подметалке — тест, зелёный по неверной причине, хуже отсутствующего.
+    notices_before = await _notices_about_refund(db)
+
+    closed, refunded = await expire_stale_tts_requests(db)
+    after_sweep = await _points(db)
+
+    assert_eq(closed, 1, "[5] закрыта ровно одна — просроченная")
+    assert_eq(refunded, CHARGED, "[5] вернули ровно списанное")
+    assert_eq(after_sweep - after_charge, CHARGED, "[5] баланс зрителя вырос на возврат")
+    assert_eq(await _notices_about_refund(db) - notices_before, 1,
+              "[5] зритель извещён именно об этом возврате")
+
+    # Свежая заявка не тронута: она ещё ждёт решения стримера.
+    from routes.tts import approve_tts_message
+    assert_eq(await approve_tts_message(db, CHANNEL_ID, fresh_id), True,
+              "[5] свежую заявку всё ещё можно одобрить")
+    # Просроченную одобрить уже нельзя — иначе зритель получил бы и деньги, и озвучку.
+    assert_eq(await approve_tts_message(db, CHANNEL_ID, stale_id), False,
+              "[5] возвращённую заявку одобрить нельзя")
+
+
+async def test_sweep_does_not_pay_twice(db):
+    print("\n[6] Повторный прогон подметалки не платит второй раз")
+    from config import TTS_PENDING_TTL_S
+    from routes.tts import expire_stale_tts_requests
+
+    await _queue_aged_message(db, "ещё одна забытая", age_s=TTS_PENDING_TTL_S + 300)
+    await expire_stale_tts_requests(db)
+    after_first = await _points(db)
+
+    closed, refunded = await expire_stale_tts_requests(db)
+    after_second = await _points(db)
+    assert_eq((closed, refunded), (0, 0), "[6] второй прогон ничего не нашёл")
+    assert_eq(after_second - after_first, 0, "[6] второй возврат не начислен")
+
+
 async def main_async():
     tmp = tempfile.mkdtemp(prefix="tts_refund_")
     db_path = os.path.join(tmp, "test.db")
@@ -214,6 +279,8 @@ async def main_async():
         await test_refund_is_explained(db)
         await test_refund_not_paid_twice(db)
         await test_played_message_is_not_refunded(db)
+        await test_stale_request_refunds_itself(db)
+        await test_sweep_does_not_pay_twice(db)
     finally:
         try:
             await db._pool.close()

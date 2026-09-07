@@ -63,7 +63,7 @@ import logging
 from fastapi import APIRouter, Request
 from fastapi.responses import Response
 
-from config import TTS_COST, TTS_COOLDOWN_S, TTS_MAX_LEN
+from config import TTS_COST, TTS_COOLDOWN_S, TTS_MAX_LEN, TTS_PENDING_TTL_S
 from dependencies import (
     get_db, require_jwt_user, require_stream_live,
     resolve_channel_id_or_default,
@@ -93,27 +93,25 @@ async def is_tts_blocked(db, channel_id: int, username: str) -> bool:
         return await cur.fetchone() is not None
 
 
-async def hide_tts_message(db, channel_id: int, msg_id: int, by: str) -> bool:
-    """Убрать сообщение из очереди озвучки, сохранив его в истории.
+async def _reject_and_refund(db, channel_id: int, msg_id: int, by: str,
+                            notice: str) -> tuple:
+    """Пометить заявку отклонённой и вернуть деньги, если она не звучала.
 
-    Возвращает True, если что-то реально скрыли. Идемпотентно: повторный вызов
-    вернёт False, а не «скрыл ещё раз».
+    Возвращает (сделали ли что-то, сколько вернули). Единственное место, где
+    озвучка получает терминальный исход: и ручной отказ стримера, и истечение
+    срока идут сюда. Двух копий этого SQL быть не должно — две записи одного
+    факта расходятся молча (правило «одна запись — одно место»).
 
-    Отклонение НЕозвученного сообщения возвращает деньги и говорит об этом
-    зрителю (07.09). До этого у платного действия не было терминального исхода:
-    гейт одобрения включён по умолчанию, а отказ только помечал строку —
-    5000💎 списаны, эффекта нет, возврата нет, зритель не извещён. Возврат
-    берётся из строки (`cost`), а не из текущего конфига: цена могла измениться
-    между оплатой и решением стримера, и вернуть надо ровно списанное.
-
-    Уже озвученное сообщение денег не возвращает — услуга оказана, а `hide`
-    после эфира это уборка истории, не отказ.
+    Возврат берётся из строки (`cost`), а не из текущего конфига: цена могла
+    измениться между оплатой и решением, вернуть надо ровно списанное. Уже
+    озвученное сообщение денег не возвращает — услуга оказана.
     """
     refunded = 0
     username = ""
     async with db._connect() as conn:
         # BEGIN IMMEDIATE: проверку «ещё не отклонено» и начисление держим в
-        # одной транзакции, иначе два клика стримера вернут деньги дважды.
+        # одной транзакции, иначе два клика стримера (или клик одновременно с
+        # тиком подметалки) вернут деньги дважды.
         await conn.execute("BEGIN IMMEDIATE")
         try:
             cur = await conn.execute(
@@ -123,7 +121,7 @@ async def hide_tts_message(db, channel_id: int, msg_id: int, by: str) -> bool:
             row = await cur.fetchone()
             if row is None:
                 await conn.execute("ROLLBACK")
-                return False
+                return (False, 0)
 
             username, cost, status = row[0], int(row[1] or 0), row[2]
             await conn.execute(
@@ -136,7 +134,7 @@ async def hide_tts_message(db, channel_id: int, msg_id: int, by: str) -> bool:
                 await db.add_points_tx(conn, username, cost, channel_id)
                 await add_notice_tx(
                     conn, channel_id, username, "refund",
-                    f"Стример отклонил озвучку — {cost}💎 возвращены", cost)
+                    notice.format(cost=cost), cost)
                 refunded = cost
             await conn.commit()
         except Exception:
@@ -144,9 +142,65 @@ async def hide_tts_message(db, channel_id: int, msg_id: int, by: str) -> bool:
             raise
 
     if refunded:
-        log.info("[TTS] ch=%s msg=%s отклонён (%s) — возвращено %d💎 @%s",
+        log.info("[TTS] ch=%s msg=%s закрыт (%s) — возвращено %d💎 @%s",
                  channel_id, msg_id, by, refunded, username)
-    return True
+    return (True, refunded)
+
+
+async def hide_tts_message(db, channel_id: int, msg_id: int, by: str) -> bool:
+    """Убрать сообщение из очереди озвучки, сохранив его в истории.
+
+    Возвращает True, если что-то реально скрыли. Идемпотентно: повторный вызов
+    вернёт False, а не «скрыл ещё раз».
+
+    Отклонение НЕозвученного сообщения возвращает деньги и говорит об этом
+    зрителю (07.09). До этого у платного действия не было терминального исхода:
+    гейт одобрения включён по умолчанию, а отказ только помечал строку —
+    5000💎 списаны, эффекта нет, возврата нет, зритель не извещён.
+    """
+    handled, _ = await _reject_and_refund(
+        db, channel_id, msg_id, by,
+        "Стример отклонил озвучку — {cost}💎 возвращены")
+    return handled
+
+
+async def expire_stale_tts_requests(db) -> tuple:
+    """Вернуть деньги за заявки, которые никто не одобрил и не отклонил.
+
+    Гейт одобрения включён по умолчанию, поэтому «стример не открыл очередь» —
+    это реальный и самый частый исход на чужом канале, а не экзотика. Без срока
+    такая заявка висела вечно: деньги списаны, эффекта нет, статус зрителю не
+    показывается (решение владельца 2026-09-07, срок — `TTS_PENDING_TTL_S`).
+
+    Истёкшая заявка помечается отклонённой, поэтому после возврата прозвучать
+    уже не может: одобрить её нельзя (`approve_tts_message` требует
+    `moderated_by IS NULL`), и оверлей её не берёт. Иначе поздний клик стримера
+    дал бы зрителю и деньги, и озвучку.
+
+    Возвращает (сколько заявок закрыто, сколько крустиков возвращено).
+    """
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT channel_id, id FROM tts_messages "
+            "WHERE status='pending' AND moderated_by IS NULL "
+            "  AND approved_at IS NULL "
+            "  AND (strftime('%s','now') - strftime('%s', created_at)) > ? "
+            "ORDER BY created_at ASC",
+            (TTS_PENDING_TTL_S,))
+        stale = await cur.fetchall()
+
+    closed = 0
+    refunded_total = 0
+    for channel_id, msg_id in stale:
+        # Каждая заявка — своя транзакция: одна сбойная строка не должна
+        # отменить возвраты остальным.
+        handled, refunded = await _reject_and_refund(
+            db, int(channel_id), int(msg_id), "auto-expired",
+            "Стример не успел решить по озвучке — {cost}💎 возвращены")
+        if handled:
+            closed += 1
+            refunded_total += refunded
+    return (closed, refunded_total)
 
 
 async def tts_requires_approval(db, channel_id: int) -> bool:

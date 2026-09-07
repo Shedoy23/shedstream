@@ -149,9 +149,10 @@ read aloud on the stream overlay.
   dashboard (`/api/streamer/tts/approve`, `/hide`, block list). A blocked viewer is refused
   **before** any charge.
 - A message the broadcaster rejects is **refunded in full** and the viewer is told why, so
-  moderation never costs the viewer anything. While the gate is on, the purchase confirmation
-  says the message is a request awaiting the broadcaster's decision, not a promise that it
-  will play.
+  moderation never costs the viewer anything. A request the broadcaster simply never acts on
+  is refunded automatically after 30 minutes and can no longer be played, so a viewer is never
+  charged for audio that did not air. While the gate is on, the purchase confirmation says the
+  message is a request awaiting the broadcaster's decision, not a promise that it will play.
 - Gates: `tests/test_tts_approval_gate.py`, `tests/test_tts_moderation.py`,
   `tests/test_tts_refund_on_reject.py`.
 

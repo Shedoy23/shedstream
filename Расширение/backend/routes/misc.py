@@ -186,6 +186,11 @@ async def resolve_twitch_token(request: Request):
             login = _twitch_id_cache[user_id]
             if cache_alias:
                 _twitch_id_cache[cache_alias] = login
+            # M122: сохраняем и на попадании в память — иначе связки тех, кто
+            # уже опознан, попали бы в базу только после следующего рестарта,
+            # то есть ровно после того сбоя, который мы чиним.
+            from dependencies import persist_twitch_login
+            await persist_twitch_login(user_id, cache_alias or "", login)
             return {"login": login, "cached": True}
 
         client_id = os.getenv("TWITCH_CLIENT_ID", "")
@@ -216,6 +221,10 @@ async def resolve_twitch_token(request: Request):
                     if cache_alias:
                         _twitch_id_cache[cache_alias] = login
                     cache_twitch_login(user_id, cache_alias, login)
+                    # M122: та же связка ложится в базу, иначе перезапуск
+                    # бэкенда ослепит все открытые панели до перезагрузки.
+                    from dependencies import persist_twitch_login
+                    await persist_twitch_login(user_id, cache_alias or "", login)
                     return {"login": login}
                 return {"login": None, "error": f"Helix не нашёл user_id={user_id}"}
     except Exception as e:

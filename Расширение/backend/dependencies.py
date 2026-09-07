@@ -327,14 +327,83 @@ _bot = None
 # ── Twitch ID → login cache (общий для всех роутеров) ────────────────────────
 _twitch_login_cache: dict = {}
 
+def _login_cache_keys(user_id: str, opaque_id: str) -> list:
+    """Ключи, под которыми resolve_jwt_login будет искать этот логин."""
+    keys = []
+    if user_id:
+        keys.append(str(user_id))
+    if opaque_id:
+        keys.append(str(opaque_id))
+        clean = str(opaque_id).lstrip("U")
+        if clean and clean.isdigit():
+            keys.append(clean)
+    return keys
+
+
 def cache_twitch_login(user_id: str, opaque_id: str, login: str) -> None:
-    """Сохранить маппинг Twitch ID → логин."""
-    if user_id:   _twitch_login_cache[str(user_id)]  = login
-    if opaque_id: _twitch_login_cache[str(opaque_id)] = login
-    # Также без префикса U
-    clean = str(opaque_id).lstrip("U") if opaque_id else ""
-    if clean and clean.isdigit():
-        _twitch_login_cache[clean] = login
+    """Сохранить маппинг Twitch ID → логин в памяти процесса.
+
+    ВНИМАНИЕ: это только память. Пережить перезапуск помогает
+    `persist_twitch_login()` — зовите её рядом, из async-контекста.
+    """
+    for key in _login_cache_keys(user_id, opaque_id):
+        _twitch_login_cache[key] = login
+
+
+async def persist_twitch_login(user_id: str, opaque_id: str,
+                               login: str) -> None:
+    """Сохранить ту же связку в базу, чтобы она пережила рестарт (M122).
+
+    Зачем: до 07.09 связка жила ТОЛЬКО в памяти процесса, и перезапуск бэкенда
+    ослеплял все уже открытые панели — `require_jwt_user` переставал опознавать
+    зрителя, эндпоинты отвечали `unauthorized`, панель рисовала нули вместо
+    баланса. Ошибку глотаем намеренно и шумно: не сохранили — работаем как
+    раньше, на памяти, а не роняем вход зрителю.
+
+    Базу берём ВНУТРИ try, а не аргументом. Первая версия принимала `db`, и
+    вызов выглядел как `persist_twitch_login(get_db(), ...)` — из-за чего
+    `get_db()` вычислялся ДО входа в защиту, и на стенде без базы падал весь
+    резолв логина. Поймал `test_frontend_001_compat.py`. Урок в одну строку:
+    защита обязана накрывать и получение зависимости, а не только запись.
+    """
+    if not login:
+        return
+    keys = _login_cache_keys(user_id, opaque_id)
+    if not keys:
+        return
+    try:
+        db = get_db()
+        async with db._connect() as conn:
+            for key in keys:
+                await conn.execute(
+                    "INSERT INTO twitch_login_map (key, login, updated_at) "
+                    "VALUES (?, ?, CURRENT_TIMESTAMP) "
+                    "ON CONFLICT(key) DO UPDATE SET "
+                    "  login=excluded.login, updated_at=CURRENT_TIMESTAMP",
+                    (key, login))
+            await conn.commit()
+    except Exception as ex:
+        logger.warning("[login-map] не сохранили связку %s → %s: %s",
+                       keys, login, ex)
+
+
+async def warm_twitch_login_cache(db) -> int:
+    """Поднять связки из базы в память при старте (M122).
+
+    Это и есть починка причины: после перезапуска словарь больше не пустой,
+    поэтому открытые панели продолжают работать без перезагрузки страницы.
+    """
+    try:
+        async with db._connect() as conn:
+            cur = await conn.execute("SELECT key, login FROM twitch_login_map")
+            rows = await cur.fetchall()
+    except Exception as ex:
+        logger.warning("[login-map] прогрев не удался: %s", ex)
+        return 0
+    for key, login in rows:
+        if key and login:
+            _twitch_login_cache[str(key)] = login
+    return len(rows)
 
 def resolve_jwt_login(jwt_result: dict) -> str:
     """Резолвим реальный логин из JWT-результата.

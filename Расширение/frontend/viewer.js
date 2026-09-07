@@ -393,6 +393,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 // JWT payload не логируем в продакшене
             } catch(e) {}
 
+            // Запоминаем то, чем зритель опознаётся: если сервер перестанет его
+            // узнавать (например, после перезапуска бэкенда), панель повторит
+            // резолв сама, не заставляя зрителя перезагружать страницу.
+            _authUserId = jwtUserId ? String(jwtUserId) : null;
+            _authOpaqueId = auth.userId || null;
+
             if (jwtUserId) {
                 // Есть числовой user_id — резолвим логин через сервер
                 getUsernameFromTwitchId(String(jwtUserId), auth.token, auth.userId).then(login => {
@@ -506,7 +512,13 @@ async function loadUserPerksBadge() {
         const d = await r.json();
         if (!d || !d.success) {
             // Sprint 5.31 #45c — больше не silent. Пусть видно в console.
+            // 07.09: раньше выход был просто `return`, но при неудачном опознании
+            // бейдж оставался с разметочным значением «Зритель» — и стример на
+            // своём канале читал это как «меня разжаловали». Пустой бейдж честнее
+            // неверного: роль неизвестна, значит не утверждаем ничего.
             dbg('[perks] response not success', d);
+            const roleElUnknown = document.getElementById('user-role-badge');
+            if (roleElUnknown) roleElUnknown.textContent = '';
             return;
         }
         dbg('[perks] resolved', d);
@@ -553,6 +565,51 @@ async function loadUserPerksBadge() {
 
 
 // ===== ЗАПРОС IDENTITY У ЗРИТЕЛЯ =====
+// ── Потеря опознания зрителя (07.09) ─────────────────────────────────────────
+// Сервер держит связку «токен → логин» и может перестать узнавать зрителя —
+// например, сразу после перезапуска бэкенда. Панель при этом обязана сказать
+// «не знаю», а не показать нули: нарисованный ноль зритель читает как «у меня
+// украли крустики», а ревьюер Twitch — как «расширение не работает».
+let _authUserId = null;
+let _authOpaqueId = null;
+let _authLost = false;
+let _authRecoverTried = 0;
+
+function handleAuthLost() {
+    // Значения, которых мы НЕ знаем, показываем прочерком, а не нулём.
+    const pointsEl = document.getElementById('points');
+    if (pointsEl) pointsEl.textContent = '—';
+    const incomeEl = document.getElementById('income');
+    if (incomeEl) incomeEl.textContent = '—';
+
+    if (_authLost) return;   // не шуметь на каждом опросе, он раз в минуту
+    _authLost = true;
+
+    // Сначала пробуем восстановиться молча: повторяем тот же резолв, который
+    // делается при загрузке панели. После перезапуска бэкенда этого достаточно,
+    // и зритель вообще ничего не заметит.
+    if (_authUserId && authToken && _authRecoverTried < 3) {
+        _authRecoverTried++;
+        getUsernameFromTwitchId(_authUserId, authToken, _authOpaqueId).then(login => {
+            if (login && !/^U[a-zA-Z0-9]{8,}$/.test(login)) {
+                userLogin = login;
+                _authLost = false;
+                loadStats();
+            } else {
+                showNotification('⚠️ Не удалось подтвердить вход — нажми «Войти»', 'warning');
+                showLoginPrompt();
+            }
+        }).catch(() => {
+            showNotification('⚠️ Не удалось подтвердить вход — нажми «Войти»', 'warning');
+            showLoginPrompt();
+        });
+        return;
+    }
+
+    showNotification('⚠️ Не удалось подтвердить вход — нажми «Войти»', 'warning');
+    showLoginPrompt();
+}
+
 function showLoginPrompt() {
     const usernameEl = document.getElementById('username');
     if (usernameEl) usernameEl.textContent = 'Не авторизован';
@@ -998,10 +1055,26 @@ async function loadUserData() {
 
         // Если всё хорошо (200 OK), парсим JSON
         const data = await response.json();
-        
+
+        // ВАЖНО: 200 OK — ещё не «всё хорошо». Когда сервер не смог опознать
+        // зрителя, он отвечает ИМЕННО 200 с {"status":"unauthorized"} и без
+        // поля points. Раньше этот ответ проваливался вниз, и `data.points || 0`
+        // рисовал НОЛЬ: баланс, доход, квесты и кейсы обнулялись, а бейдж падал
+        // в «Зритель». То есть «у тебя ноль» и «я не знаю, кто ты» выглядели
+        // одинаково — один пиксель на два разных смысла.
+        // Случай не теоретический: 07.09 так выглядела панель владельца, у
+        // которого в базе лежало 11 058 327💎. Ловится это только здесь: HTTP-код
+        // честный, ошибок в консоли нет.
+        if (data.status === 'unauthorized' || !('points' in data)) {
+            console.warn('[stats] сервер не опознал зрителя:', data.status);
+            handleAuthLost();
+            return;
+        }
+        _authLost = false;
+
         const pointsEl = document.getElementById('points');
         if (pointsEl) pointsEl.textContent = data.points || 0;
-        _cachedUserPoints = data.points || 0; 
+        _cachedUserPoints = data.points || 0;
         
         const income = data.income_per_min || 0;
         const incomeEl = document.getElementById('income');

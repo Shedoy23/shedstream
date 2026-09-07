@@ -1516,6 +1516,9 @@ async def run_migrations():
         from migrations import m121_shedcolony_catalog_check
         await m121_shedcolony_catalog_check.apply(conn)
 
+        from migrations import m122_twitch_login_map
+        await m122_twitch_login_map.apply(conn)
+
         print("✅ Migrations complete")
 
 
@@ -2186,6 +2189,12 @@ async def on_startup():
         # существующего стримера; без этого первая партия запросов получит 403.
         from dependencies import init_registered_channels_cache
         await init_registered_channels_cache(db)
+        # M122: поднять связки Twitch ID → логин из базы. Без этого перезапуск
+        # ослеплял все УЖЕ открытые панели: логин не резолвился, эндпоинты
+        # отвечали `unauthorized`, и панель рисовала нули вместо баланса.
+        from dependencies import warm_twitch_login_cache
+        _warmed = await warm_twitch_login_cache(db)
+        print(f"✅ Прогрето связок Twitch ID → логин: {_warmed}")
         # Этап 3 step 1: discover game modules (modules/<id>/manifest.yaml)
         from modules._loader import discover_modules
         discover_modules()

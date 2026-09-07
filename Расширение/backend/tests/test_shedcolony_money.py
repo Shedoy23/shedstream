@@ -22,6 +22,7 @@ import asyncio
 import json
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 if sys.platform == "win32":
@@ -42,12 +43,20 @@ os.environ.setdefault("TWITCH_BOT_ID", "test_bot")
 os.environ.setdefault("TWITCH_EXTENSION_SECRET", "test-ext-secret-32bytes-1234567890ab")
 os.environ.setdefault("MODULE_TOKEN_SECRET", "test-module-secret-32bytes-1234567890")
 os.environ.setdefault("ADMIN_PASSWORD", "test_admin_password_for_tests_only")
+os.environ.setdefault("TWITCH_BROADCASTER_ID", "98319857")
+os.environ.setdefault("TWITCH_CHANNEL_NAME", "test_channel")
+
+_temp = tempfile.NamedTemporaryFile(prefix="shedlink-money-", suffix=".db", delete=False)
+_temp.close()
+_TEST_DB_PATH = Path(_temp.name)
+os.environ["DB_PATH"] = str(_TEST_DB_PATH)
 
 from database import Database                              # noqa: E402
 from dependencies import set_db, get_db                    # noqa: E402
 import routes.shedcolony as sc                             # noqa: E402
 from modules._base import ModuleEnvelope                   # noqa: E402
 from modules.shedcolony._adapter import ShedColonyAdapter  # noqa: E402
+import main as main_mod                                    # noqa: E402
 
 CH = 990099                       # synthetic channel — invisible to the live mod
 USER = "sc_money_test_user"
@@ -85,8 +94,10 @@ async def _cleanup() -> None:
 
 
 async def main() -> None:
-    db = Database("viewers.db")
+    db = Database(str(_TEST_DB_PATH))
     await db.init_pool()
+    await db.init_tables()
+    await main_mod.run_migrations()
     set_db(db)
     adapter = ShedColonyAdapter.__new__(ShedColonyAdapter)   # _on_action_failed uses only get_db
     try:
@@ -159,6 +170,7 @@ async def main() -> None:
         # худшая форма класса «зелёная печать ≠ зелёный результат» (CLAUDE.md
         # §4), потому что кода возврата не наступало вообще.
         await db._pool.close()
+        _TEST_DB_PATH.unlink(missing_ok=True)
 
     print()
     if _fails:

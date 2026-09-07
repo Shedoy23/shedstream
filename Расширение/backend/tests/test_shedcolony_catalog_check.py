@@ -46,6 +46,7 @@ import asyncio
 import json
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 if sys.platform == "win32":
@@ -78,15 +79,25 @@ def check(name: str, ok: bool, detail: str = "") -> None:
 
 
 async def main() -> int:
+    temp = tempfile.NamedTemporaryFile(prefix="shedlink-catalog-check-", suffix=".db", delete=False)
+    temp.close()
+    db_path = Path(temp.name)
+    os.environ["DB_PATH"] = str(db_path)
+    os.environ.setdefault("TWITCH_BROADCASTER_ID", "98319857")
+    os.environ.setdefault("TWITCH_CHANNEL_NAME", "test_channel")
+
     from database import Database
     from dependencies import set_db
+    import main as main_mod
     from modules._base import ModuleEnvelope
     from modules._loader import load_manifest
     from modules.shedcolony._adapter import ShedColonyAdapter
     from routes.shedcolony import _GIVE_ITEM_CATALOG, shedcolony_config
 
-    db = Database("viewers.db")
+    db = Database(str(db_path))
     await db.init_pool()
+    await db.init_tables()
+    await main_mod.run_migrations()
     set_db(db)
 
     # Событие обязано быть объявлено в манифесте, иначе бэкенд его отбросит
@@ -212,6 +223,7 @@ async def main() -> int:
             await db._pool.close()      # иначе процесс висит после «зелёного» вывода
         except Exception:
             pass
+        db_path.unlink(missing_ok=True)
 
     print()
     if fails:

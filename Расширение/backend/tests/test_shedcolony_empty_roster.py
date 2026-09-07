@@ -29,6 +29,7 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 if sys.platform == "win32":
@@ -49,11 +50,19 @@ os.environ.setdefault("TWITCH_BOT_ID", "test_bot")
 os.environ.setdefault("TWITCH_EXTENSION_SECRET", "test-ext-secret-32bytes-1234567890ab")
 os.environ.setdefault("MODULE_TOKEN_SECRET", "test-module-secret-32bytes-1234567890")
 os.environ.setdefault("ADMIN_PASSWORD", "test_admin_password_for_tests_only")
+os.environ.setdefault("TWITCH_BROADCASTER_ID", "98319857")
+os.environ.setdefault("TWITCH_CHANNEL_NAME", "test_channel")
+
+_temp = tempfile.NamedTemporaryFile(prefix="shedlink-empty-roster-", suffix=".db", delete=False)
+_temp.close()
+_TEST_DB_PATH = Path(_temp.name)
+os.environ["DB_PATH"] = str(_TEST_DB_PATH)
 
 from database import Database                              # noqa: E402
 from dependencies import set_db, get_db                    # noqa: E402
 from modules._base import ModuleEnvelope                   # noqa: E402
 from modules.shedcolony._adapter import ShedColonyAdapter  # noqa: E402
+import main as main_mod                                    # noqa: E402
 
 CH = 990098                       # синтетический канал — живой мод его не видит
 _fails: list = []
@@ -99,8 +108,10 @@ async def _snapshot(adapter, colonists: list) -> None:
 
 
 async def main() -> None:
-    db = Database("viewers.db")
+    db = Database(str(_TEST_DB_PATH))
     await db.init_pool()
+    await db.init_tables()
+    await main_mod.run_migrations()
     set_db(db)
     adapter = ShedColonyAdapter.__new__(ShedColonyAdapter)
     try:
@@ -151,6 +162,7 @@ async def main() -> None:
     finally:
         await _cleanup()
         await get_db()._pool.close()
+        _TEST_DB_PATH.unlink(missing_ok=True)
 
     print("\n" + "=" * 58)
     if _fails:

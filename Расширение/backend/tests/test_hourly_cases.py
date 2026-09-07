@@ -28,6 +28,7 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 if sys.platform == "win32":
@@ -64,22 +65,23 @@ def check(name: str, ok: bool, detail: str = "") -> None:
 
 
 async def main() -> int:
+    temp = tempfile.NamedTemporaryFile(prefix="shedlink-hourly-cases-", suffix=".db", delete=False)
+    temp.close()
+    db_path = Path(temp.name)
+    os.environ["DB_PATH"] = str(db_path)
+    os.environ.setdefault("TWITCH_BROADCASTER_ID", "98319857")
+    os.environ.setdefault("TWITCH_CHANNEL_NAME", "test_channel")
+
     from config import HOURLY_CASE_TIERS
     from database import Database
     from dependencies import set_db
     import bot_core
+    import main as main_mod
 
-    # Локальная viewers.db — та же, на которой работают соседние money-тесты.
-    # Полный прогон миграций занимает минуты, поэтому недостающую колонку
-    # (её добавляла поздняя миграция) досоздаём точечно.
-    db = Database("viewers.db")
+    db = Database(str(db_path))
     await db.init_pool()
-    async with db._connect() as conn:
-        cur = await conn.execute("PRAGMA table_info(viewers)")
-        cols = {r[1] for r in await cur.fetchall()}
-        if "last_interaction_at" not in cols:
-            await conn.execute("ALTER TABLE viewers ADD COLUMN last_interaction_at TIMESTAMP")
-            await conn.commit()
+    await db.init_tables()
+    await main_mod.run_migrations()
     set_db(db)
 
     async def cleanup():
@@ -195,6 +197,7 @@ async def main() -> int:
             await db._pool.close()
         except Exception:
             pass
+        db_path.unlink(missing_ok=True)
 
     print()
     if fails:

@@ -24,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 if sys.platform == "win32":
@@ -43,6 +44,8 @@ os.environ.setdefault("TWITCH_BOT_ID", "test_bot")
 os.environ.setdefault("TWITCH_EXTENSION_SECRET", "test-ext-secret-32bytes-1234567890ab")
 os.environ.setdefault("MODULE_TOKEN_SECRET", "test-module-secret-32bytes-1234567890")
 os.environ.setdefault("ADMIN_PASSWORD", "test_admin_password_for_tests_only")
+os.environ.setdefault("TWITCH_BROADCASTER_ID", "98319857")
+os.environ.setdefault("TWITCH_CHANNEL_NAME", "test_channel")
 
 CH = 990177
 ME = "open_all_me"
@@ -58,13 +61,25 @@ def check(name: str, ok: bool, detail: str = "") -> None:
 
 
 async def main() -> int:
+    temp = tempfile.NamedTemporaryFile(prefix="shedlink-cases-open-all-", suffix=".db", delete=False)
+    temp.close()
+    db_path = Path(temp.name)
+    os.environ["DB_PATH"] = str(db_path)
+
     from config import CASE_TIER_REWARDS
     from database import Database
     from dependencies import set_db
+    import main as main_mod
 
-    db = Database("viewers.db")
+    db = Database(str(db_path))
     await db.init_pool()
     set_db(db)
+
+    # Тест обязан быть самостоятельным. Раньше он молча зависел от локального
+    # viewers.db: на чистом checkout падал до первой проверки с `no such table:
+    # cases`, а на машине разработчика мог затронуть настоящую dev-базу.
+    await db.init_tables()
+    await main_mod.run_migrations()
 
     async def cleanup():
         async with db._connect() as conn:
@@ -121,6 +136,7 @@ async def main() -> int:
             await db._pool.close()
         except Exception:
             pass
+        db_path.unlink(missing_ok=True)
 
     print()
     if fails:

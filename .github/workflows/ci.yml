@@ -94,6 +94,12 @@ jobs:
       - name: RimWorld frontend prices come from the server, not hardcoded
         run: node scripts/test-frontend-rimworld-prices.mjs
 
+      - name: Core frontend prices come from the server, not hardcoded
+        run: node scripts/test-frontend-core-prices.mjs
+
+      - name: Bannerlord paid-action tooltip shows its price
+        run: node scripts/test-frontend-bannerlord-price-tooltip.mjs
+
       - name: Action lock separates actions and never fails silently
         run: node scripts/test-frontend-action-lock.mjs
 

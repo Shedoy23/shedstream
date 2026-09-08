@@ -251,7 +251,7 @@ function _bnrFmtN(n) {
     return String(n);
 }
 
-function _bnrPrice(crustic, dinars) {
+function _bnrPriceText(crustic, dinars) {
     // Returns plain text "💎 1000 + 💰 20K". For inline button text.
     const parts = [];
     if (crustic && crustic > 0) parts.push(`💎 ${_bnrFmtN(crustic)}`);
@@ -290,7 +290,7 @@ function _bnrPriceHtml(crustic, dinars) {
 
 function _bnrAffordTooltip(crustic, dinars) {
     const a = _bnrAfford(crustic, dinars);
-    if (a.ok) return `Стоимость: ${_bnrPrice(crustic, dinars)} — хватает ✓`;
+    if (a.ok) return `Стоимость: ${_bnrPriceText(crustic, dinars)} — хватает ✓`;
     const missing = [];
     if (a.lackCrustic) missing.push(`💎: нужно ${crustic.toLocaleString('ru-RU')}, есть ${a.haveCrustic.toLocaleString('ru-RU')}`);
     if (a.lackDinars)  missing.push(`💰 динаров: нужно ${dinars.toLocaleString('ru-RU')}, есть ${a.haveDinars.toLocaleString('ru-RU')}`);

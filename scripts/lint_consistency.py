@@ -445,8 +445,16 @@ def check_frontend_global_collisions():
             if not f.is_file():
                 continue
             src = f.read_text(encoding="utf-8", errors="ignore")
-            for name in set(decl_rx.findall(src)) | set(var_rx.findall(src)):
+            declarations = decl_rx.findall(src) + var_rx.findall(src)
+            for name in sorted(set(declarations)):
                 owners.setdefault(name, []).append(js)
+            for name in sorted(set(declarations)):
+                if declarations.count(name) > 1:
+                    errors.append(
+                        f"global-collision [{shell}]: '{name}' declared "
+                        f"{declarations.count(name)} times in {js} -- the last "
+                        "declaration silently overwrites the earlier one; rename one"
+                    )
 
         for name, files in sorted(owners.items()):
             if len(files) > 1:
@@ -1059,8 +1067,9 @@ PRICE_LITERAL_BASELINE = {
     "guilds.js": 0,
     "pawn.js": 0,
     "viewer-bannerlord.js": 0,
-    "viewer-rimworld.js": 4,      # fallback-подписи heal/resurrect/spawn
+    "viewer-rimworld.js": 0,
     "viewer-shedcolony.js": 0,
+    "viewer.js": 0,
     "voting.js": 0,
     "extension.html": 4,          # запасные подписи RimWorld + озвучка, их перерисовывает JS
     "mobile.html": 4,

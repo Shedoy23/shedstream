@@ -28,6 +28,7 @@ async function loadRimworldPrices() {
         if (!r.ok) return;
         rimworldPrices = await r.json();
         applyRimworldPriceLabels();
+        if (typeof loadMyPawn === 'function') loadMyPawn();
     } catch (e) {
         // Молча остаёмся на запасных числах: без цен панель полезнее, чем пустая.
     }
@@ -283,7 +284,8 @@ async function buyEvent(eventId) {
 // Вызываются из shop.js (buyTrait/buyGene) и pawn.js (removeMyTrait/removeMyGene)
 // через рантайм-клики; viewer-rimworld.js грузится последним, функции доступны.
 async function removeMyTrait(traitDef, degree, label) {
-    showConfirm('🗑️ Удалить черту', `Удалить черту <b>${escapeHtml(label)}</b> за <b style="color:#f87171;">300💎</b>?`, async () => {
+    const removeCost = rimworldPrice('trait_remove_cost', 300);
+    showConfirm('🗑️ Удалить черту', `Удалить черту <b>${escapeHtml(label)}</b> за <b style="color:#f87171;">${removeCost}💎</b>?`, async () => {
         try {
             const r = await fetch(`${API_URL}/api/rimworld/remove-trait`, {
                 method: 'POST',
@@ -358,11 +360,12 @@ async function buyGene(geneDef, geneLabel, price) {
 }
 
 async function removeMyGene(geneDef, geneLabel, isOverridden) {
+    const removeCost = rimworldPrice('gene_remove_cost', 3000);
     const overriddenNote = isOverridden
         ? '<br><span style="color:#f59e0b;font-size:11px;">⚠️ Ген сейчас подавлен другим геном, но будет удалён из генома.</span>'
         : '';
     showConfirm('🗑️ Удалить ген',
-        `Удалить ген <b>${escapeHtml(geneLabel)}</b> за <b style="color:#f87171;">3000💎</b>?${overriddenNote}`,
+        `Удалить ген <b>${escapeHtml(geneLabel)}</b> за <b style="color:#f87171;">${removeCost}💎</b>?${overriddenNote}`,
         async () => {
             try {
                 const r = await fetch(`${API_URL}/api/rimworld/remove-gene`, {
@@ -422,11 +425,12 @@ function localizeSkill(skill) {
 // ===== СОЗДАНИЕ ПЕШКИ =====
 function showCreatePawnModal() {
     const balance = parseInt(document.getElementById('points')?.textContent || '0');
-    if (balance < 200) {
-        showNotification('❌ Нужно 200💎 для создания пешки!', 'error');
+    const spawnCost = rimworldPrice('spawn_cost', 200);
+    if (balance < spawnCost) {
+        showNotification(`❌ Нужно ${spawnCost}💎 для создания пешки!`, 'error');
         return;
     }
-    showConfirm('✨ Создание пешки', `Создать пешку за <b style="color:#9147ff;">200💎</b>?<br><span style="color:#4ade80;">Ник: ${escapeHtml(userLogin)}</span>`, () => createPawn(userLogin));
+    showConfirm('✨ Создание пешки', `Создать пешку за <b style="color:#9147ff;">${spawnCost}💎</b>?<br><span style="color:#4ade80;">Ник: ${escapeHtml(userLogin)}</span>`, () => createPawn(userLogin));
 }
 
 async function createPawn(name) {

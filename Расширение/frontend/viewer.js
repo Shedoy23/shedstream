@@ -1355,7 +1355,6 @@ function openPromoModal() {
 // ===== TTS «Озвучить сообщение» (Sprint 5.23, 2026-05-21) =====
 // Зритель платит 5000💎 за озвучку текста до 200 символов через
 // Web Speech API на overlay'е стрима. Cooldown 30s между сообщениями.
-const TTS_COST    = 5000;
 const TTS_MAX_LEN = 200;
 
 function openTtsModal() {
@@ -1365,7 +1364,8 @@ function openTtsModal() {
     modal.className = 'modal active';
     modal.id = 'tts-modal';
     const balance = parseInt(document.getElementById('points')?.textContent || '0');
-    const canAfford = balance >= TTS_COST;
+    const ttsCost = corePrice('tts_cost', 5000);
+    const canAfford = balance >= ttsCost;
     modal.innerHTML = `
         <div class="modal-content" style="max-width:420px;">
             <h2>🎤 Озвучить сообщение</h2>
@@ -1381,7 +1381,7 @@ function openTtsModal() {
                         margin-top:8px;margin-bottom:14px;font-size:11px;color:#adadb8;">
                 <span id="tts-char-count">0 / ${TTS_MAX_LEN}</span>
                 <span style="color:${canAfford ? '#fbbf24' : '#f87171'};font-weight:700;">
-                    ${TTS_COST}💎 · у тебя ${balance}💎
+                    ${ttsCost}💎 · у тебя ${balance}💎
                 </span>
             </div>
             <div style="display:flex;gap:8px;">

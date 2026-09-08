@@ -35,6 +35,7 @@ const sandbox = {
     window: {},
     API_URL: 'http://test',
     fetch: async () => ({ ok: false }),
+    loadMyPawn: () => {},
     console,
 };
 // Берём только блок цен: остальной файл тянет глобалы всей панели.
@@ -45,7 +46,7 @@ if (from < 0 || to < 0 || to < from) {
 } else {
     const body = src.slice(from, to);
     const run = new Function(...Object.keys(sandbox),
-        body + '\nreturn { rimworldPrice, applyRimworldPriceLabels, setPrices: (p) => { rimworldPrices = p; } };');
+        body + '\nreturn { loadRimworldPrices, rimworldPrice, applyRimworldPriceLabels, setPrices: (p) => { rimworldPrices = p; } };');
     const api = run(...Object.values(sandbox));
 
     api.applyRimworldPriceLabels();
@@ -62,12 +63,45 @@ if (from < 0 || to < 0 || to < from) {
           api.rimworldPrice('heal_cost', 150) === 999 && api.rimworldPrice('нет_такой', 42) === 42);
 }
 
-// ── 2. в pawn.js не осталось зашитых цен ──────────────────────────────────
+// ── 2. подтверждения и клиентские гейты читают тот же конфиг ──────────────
+check('удаление черты использует серверную цену',
+      /rimworldPrice\(['"]trait_remove_cost['"],\s*300\)/.test(src) &&
+      !/за <b[^>]*>300💎<\/b>/.test(src));
+check('удаление гена использует серверную цену',
+      /rimworldPrice\(['"]gene_remove_cost['"],\s*3000\)/.test(src) &&
+      !/за <b[^>]*>3000💎<\/b>/.test(src));
+check('гейт создания пешки использует серверную цену',
+      /const spawnCost = rimworldPrice\(['"]spawn_cost['"],\s*200\)/.test(src) &&
+      /balance < spawnCost/.test(src));
+check('подтверждение создания пешки использует серверную цену',
+      /\$\{spawnCost\}💎/.test(src));
+
+// Поздний ответ конфига обязан перерисовать уже показанную пешку.
+if (from >= 0 && to >= 0 && to > from) {
+    let pawnRefreshes = 0;
+    const lateSandbox = {
+        ...sandbox,
+        fetch: async () => ({ ok: true, json: async () => ({
+            heal_cost: 999, resurrect_cost: 777, spawn_cost: 111,
+            trait_remove_cost: 50, gene_remove_cost: 9000,
+        }) }),
+        loadMyPawn: () => { pawnRefreshes += 1; },
+    };
+    const body = src.slice(from, to);
+    const run = new Function(...Object.keys(lateSandbox),
+        body + '\nreturn { loadRimworldPrices };');
+    const api = run(...Object.values(lateSandbox));
+    await api.loadRimworldPrices();
+    check('поздний конфиг перерисовывает пешку', pawnRefreshes === 1,
+          `loadMyPawn вызван ${pawnRefreshes} раз`);
+}
+
+// ── 3. в pawn.js не осталось зашитых цен ──────────────────────────────────
 const pawn = readFileSync(path.join(frontend, 'pawn.js'), 'utf8');
 const hardcoded = [...pawn.matchAll(/(\d+)\s*💎/g)].map((m) => m[0]);
 check('в pawn.js нет числовых цен', hardcoded.length === 0, hardcoded.join(', '));
 
-// ── 3. у кнопок ShedColony нет цен числом ─────────────────────────
+// ── 4. у кнопок ShedColony нет цен числом ─────────────────────────
 // Линтер цен ищет число рядом со значком, а тут формат другой — «Покормить · 75».
 // Из-за этого 17 кнопок считались перенесёнными, хотя показывали копию цены
 // (нашёл внешний обзор 05.09).

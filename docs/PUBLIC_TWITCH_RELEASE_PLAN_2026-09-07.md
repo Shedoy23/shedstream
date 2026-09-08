@@ -14,11 +14,11 @@ Allowlist. Manager и расширение набора игр не являют
 
 - На Twitch CDN публично работает `0.0.1`.
 - Текущий кандидат — `0.0.5`. Действующий локальный архив:
-  `C:\Users\Edward\Desktop\work\dist\shedlink-0.0.5.zip`, SHA-256
-  `9200f6c229c17615032f27ef1c1a27ff16fe269203b36f1997ee66fb56204ee6`,
-  MD5 `2e891a30588a28a3f85ca87c92c50cdb`.
-- В Dev Console `0.0.5` находится в Hosted Test. Загруженный MD5
-  `2e891a30588a28a3f85ca87c92c50cdb` совпадает с действующим архивом.
+  `C:\Users\Edward\Desktop\work\.claude\worktrees\codex-public-release\dist\shedlink-0.0.5.zip`,
+  SHA-256 `6803b31eba450a20b5f8ae941cc8407b0bfc6c3c1709038e3c49e3ef8a5b9547`,
+  MD5 `5a49d809fb60e52a060476d2e9cb5399`.
+- В Dev Console остаётся предыдущий кандидат. Новый архив нужно загрузить,
+  сверить по MD5 и заново прогнать в Hosted Test до отправки на Review.
 - Последний стрим разобран в `docs/POSTSTREAM_TRIAGE_2026-09-06.md`;
   найденные денежные и session-регрессии исправлены в baseline.
 - Streamer Allowlist должен быть пустым при подаче. По документации Twitch

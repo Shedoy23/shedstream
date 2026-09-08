@@ -99,3 +99,6 @@ jobs:
 
       - name: Panel login survives a synchronous onAuthorized (no TDZ)
         run: node scripts/test-frontend-auth-init.mjs
+
+      - name: Viewer identity recovery refreshes state and permits login retry
+        run: node scripts/test-viewer-auth-recovery.mjs

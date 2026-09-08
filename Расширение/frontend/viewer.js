@@ -459,9 +459,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ===== ОБНОВЛЕНИЕ UI ПОСЛЕ АВТОРИЗАЦИИ =====
 function updateUIAfterAuth() {
+    const loginPrompt = document.getElementById('login-prompt');
+    if (loginPrompt) loginPrompt.remove();
+    _authLost = false;
     if (_authUiInitialized) {
         const usernameEl = document.getElementById('username');
         if (usernameEl) usernameEl.textContent = userLogin;
+        loadUserData();
+        loadUserPerksBadge();
         return;
     }
     _authUiInitialized = true;
@@ -603,7 +608,7 @@ function handleAuthLost() {
             if (login && !/^U[a-zA-Z0-9]{8,}$/.test(login)) {
                 userLogin = login;
                 _authLost = false;
-                loadStats();
+                updateUIAfterAuth();
             } else {
                 showNotification('⚠️ Не удалось подтвердить вход — нажми «Войти»', 'warning');
                 showLoginPrompt();
@@ -650,7 +655,9 @@ function showLoginPrompt() {
             window.Twitch.ext.actions.requestIdShare();
             // После подтверждения Twitch сам вызовет onAuthorized заново с реальным user_id
             setTimeout(function() {
-                if (!userLogin && btn) { btn.textContent = '🔑 Войти'; btn.disabled = false; }
+                if (document.getElementById('login-prompt-btn') === btn && btn) {
+                    btn.textContent = '🔑 Войти'; btn.disabled = false;
+                }
             }, 8000);
         } else {
             console.warn('[login] Twitch.ext.actions.requestIdShare недоступен', window.Twitch?.ext?.actions);
@@ -1457,7 +1464,7 @@ function showConfirm(title, message, onYes) {
 async function loadStats() {
     if (!userLogin) return;
     try {
-        const h = { headers: { 'X-Twitch-JWT': authToken || '' } };
+        const h = { headers: { 'X-Twitch-JWT': authToken || '' }, cache: 'no-store' };
         const [statsResp, achResp, streakResp] = await Promise.all([
             fetch(`${API_URL}/api/viewer/stats/${userLogin}`,        h),
             fetch(`${API_URL}/api/viewer/achievements/${userLogin}`, h),

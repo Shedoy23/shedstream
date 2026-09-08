@@ -354,10 +354,9 @@ async def security_headers(request, call_next):
     # запрещаем явно (defence-in-depth; браузер откажет любому такому вызову).
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
     # Viewer API responses depend on a short-lived Twitch JWT and contain
-    # per-user state (balance, role, quests, inventory). Mobile Safari was able
-    # to reuse an earlier 200 response without contacting the backend: nginx's
-    # access log then showed identity resolution, but no subsequent stats/perks
-    # GET, while the panel rendered stale zeroes. Never let browsers or shared
+    # per-user state (balance, role, quests, inventory). Missing stats/perks GETs
+    # in the incident log do not prove a cache hit, but caching these responses
+    # can preserve obsolete state. Never let browsers or shared
     # intermediaries retain API responses. Static extension assets keep their
     # normal cache behaviour.
     if request.url.path.startswith("/api/"):

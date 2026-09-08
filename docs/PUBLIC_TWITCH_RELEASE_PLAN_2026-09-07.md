@@ -197,7 +197,7 @@ result/refund. UI-пункты триажем не закрываются.
 | 2026-09-07 | `a380ad7` | полный backend test suite | PASS | 83/83 теста, `exit 0` у каждого; 5 тестов отвязаны от локальной `viewers.db` |
 | 2026-09-07 | CDN `0.0.5` | Config view | PARTIAL | iframe загрузился штатно; настройка не изменялась |
 | 2026-09-07 | production URLs | health / privacy / terms | PASS | HTTP 200 |
-| 2026-09-08 | `d9de453` + ZIP `87ba2781…` | Safari auth/cache regression | PASS | access log подтвердил пропуск stats/perks; API `no-store`; frontend bypass; suite 86/86 |
+| 2026-09-08 | `d9de453` + ZIP `87ba2781…` | API cache policy | PASS (policy only) | API `no-store`; suite 86/86; причина мобильного сбоя и его устранение не доказаны |
 | 2026-09-07 | `a380ad7` + архив `0.0.5` | заметки подачи против кода | FAIL → исправлено | 5 расхождений в `REVIEW_SUBMISSION.md` от 05.07; переписан и датирован 07.09 |
 | 2026-09-07 | архив `0.0.5` | внешние домены и CSP | PASS | в 24 файлах только `shedoy23.ru`, `extension-files.twitch.tv`, `api.twitch.tv` (объявлен в собственном `<meta>`, не вызывается), `www.twitch.tv`/`supervisor.ext-twitch.tv` (список origin в `viewer.js`) |
 | 2026-09-07 | архив `0.0.5` | Twitch Helper первым скриптом | PASS | `extension.html:9`, `mobile.html:9`, `config.html:8` |

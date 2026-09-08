@@ -1556,11 +1556,66 @@ def check_refusal_codes_have_text():
                 )
 
 
+def check_release_candidate_fresh():
+    """WARNING: собранный архив отстал от кода фронта.
+
+    Класс сработал дважды за два дня: в документах стоял «действующий
+    кандидат», а код уехал вперёд (07.09 — отменённый `9200f6c2`, 08.09 —
+    `6803b31e`, собранный до `f8a27e9`). Номер версии при этом не менялся:
+    пять разных байтовых наборов носили имя `shedlink-0.0.5.zip`.
+
+    Почему WARNING, а не ERROR. Сразу после любой правки фронта архив
+    закономерно отстаёт — это нормальное рабочее состояние, и блокирующая
+    проверка была бы красной каждый день. Такие отключают (ровно этим
+    рассуждением обоснован храповик цен выше). Блокирующая версия со сверкой
+    журнала и метки кэша живёт отдельно: `scripts/verify-candidate.py`,
+    её запускают перед тем, как назвать кандидата и залить в кабинет.
+    """
+    import zipfile as _zip
+    front = EXT / "frontend"
+    dist = ROOT / "dist"
+    if not front.is_dir() or not dist.is_dir():
+        return
+    archives = sorted(dist.glob("shedlink-*.zip"))
+    if len(archives) != 1:
+        return
+    path = archives[0]
+    try:
+        with _zip.ZipFile(path) as z:
+            names = [i.filename for i in z.infolist() if i.filename != "VERSION"]
+            stale = 0
+            for name in names:
+                src = front / name
+                if not src.is_file():
+                    continue
+                packed = z.read(name)
+                tree = src.read_bytes()
+                if packed == tree:
+                    continue
+                if name.endswith(".html"):
+                    # Оболочкам разрешена вставленная сборкой строка версии.
+                    cleaned = re.sub(
+                        r"\r?\n\s*<meta name=\"shedlink-version\"[^>]*>", "",
+                        packed.decode("utf-8", "replace"), count=1)
+                    if cleaned.encode("utf-8") == tree:
+                        continue
+                stale += 1
+    except (OSError, _zip.BadZipFile):
+        return
+    if stale:
+        warns.append(
+            "release-candidate: %s отстал от кода фронта на %d файл(ов) — перед "
+            "тем как называть его кандидатом или заливать в кабинет, пересобери "
+            "(scripts/pack-extension.py) и прогони scripts/verify-candidate.py"
+            % (path.name, stale))
+
+
 def main() -> int:
     if EXT is None:
         print("[lint] FAIL: could not locate extension dir (with backend/)")
         return 1
-    for fn in (check_frontend_price_literal_growth,
+    for fn in (check_release_candidate_fresh,
+               check_frontend_price_literal_growth,
                check_version_sync, check_migrations_wired,
                check_manifest_actions, check_manifest_events,
                check_dashboard_mod_config, check_currency_glyph,

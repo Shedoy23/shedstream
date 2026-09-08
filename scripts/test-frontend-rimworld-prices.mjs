@@ -61,6 +61,11 @@ if (from < 0 || to < 0 || to < from) {
     check('цена создания пешки приходит с сервера', /111/.test(labels['create-pawn-btn']), labels['create-pawn-btn']);
     check('битую цену подменяет запасная',
           api.rimworldPrice('heal_cost', 150) === 999 && api.rimworldPrice('нет_такой', 42) === 42);
+    api.setPrices({ null_cost: null, empty_cost: '', free_cost: 0 });
+    check('null и пустая цена используют fallback, явный ноль сохраняется',
+          api.rimworldPrice('null_cost', 42) === 42 &&
+          api.rimworldPrice('empty_cost', 42) === 42 &&
+          api.rimworldPrice('free_cost', 42) === 0);
 }
 
 // ── 2. подтверждения и клиентские гейты читают тот же конфиг ──────────────

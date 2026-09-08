@@ -65,8 +65,9 @@ Prod = `root@31.130.132.224:/root/twitch-extension/`, run under supervisor as `t
   таблицу несёт `channel_id` — через `resolve_channel_id_or_default()` или JWT
   ContextVar (`require_jwt_user` / `require_jwt_channel`). Пропуск = утечка между
   каналами либо падение по `NOT NULL`. **Держит линтер** `check_tenant_scoping`;
-  лазейки — `# tenant-ok: <причина>`, `tenant-lint: skip-file` (там припаркован
-  `rimworld.py`). → `LESSONS.md`, «Multi-tenant scoping».
+  точечная лазейка — `# tenant-ok: <причина>`; исторический skip с
+  `rimworld.py` снят после возврата модуля в активную разработку.
+  → `LESSONS.md`, «Multi-tenant scoping».
 - **Арендатор — не только строка в таблице; изолируй и ВЫХОД наружу.** У любой
   новой функции спросить: что она отправляет наружу (чат, Telegram, оверлей) и
   откуда берёт адресата и текст. Адресат из умолчания + текст из общего конфига

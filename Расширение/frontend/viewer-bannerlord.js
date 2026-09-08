@@ -874,13 +874,17 @@ async function _hydrateBnrConfig() {
 // подъехал: цену меняют на сервере за минуты, а фронт замерзает на CDN Twitch
 // до следующего ревью.
 function _bnrPrice(actionType, fallback) {
-    const v = Number(_bnrCfg.action_prices?.[actionType]);
+    const raw = _bnrCfg.action_prices?.[actionType];
+    if (raw == null || raw === '') return fallback;
+    const v = Number(raw);
     return isFinite(v) ? v : fallback;
 }
 
 function _bnrGold(key, fallback) {
-    const v = Number(_bnrCfg.hero_gold_costs?.[key]);
-    return (isFinite(v) && v > 0) ? v : fallback;
+    const raw = _bnrCfg.hero_gold_costs?.[key];
+    if (raw == null || raw === '') return fallback;
+    const v = Number(raw);
+    return (isFinite(v) && v >= 0) ? v : fallback;
 }
 function _fmtK(n) {
     if (!isFinite(n)) return '?';

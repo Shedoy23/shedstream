@@ -806,7 +806,9 @@
             var cfg = await r.json();
             var prices = (cfg && cfg.action_prices) || {};
             Object.keys(SC).forEach(function (k) {
-                var v = Number(prices[SC[k].type]);
+                var raw = prices[SC[k].type];
+                if (raw == null || raw === '') return;
+                var v = Number(raw);
                 if (isFinite(v)) SC[k].price = v;
             });
             var cat = (cfg && cfg.item_catalog) || {};

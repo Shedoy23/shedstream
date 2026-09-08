@@ -26,6 +26,24 @@ const checks = [
     ['подсказка показывает цену действия', tooltip.includes('💎 2.5K')],
     ['подсказка не называет платное действие бесплатным', !tooltip.includes('Стоимость: 0')],
 ];
+
+const accessorFrom = src.indexOf('function _bnrPrice(actionType, fallback)');
+const accessorTo = src.indexOf('function _fmtK(', accessorFrom);
+if (accessorFrom < 0 || accessorTo <= accessorFrom) {
+    checks.push(['блок серверных цен Bannerlord найден', false]);
+} else {
+    const accessorBody = src.slice(accessorFrom, accessorTo);
+    const accessors = new Function('_bnrCfg', accessorBody +
+        '\nreturn { price: _bnrPrice, gold: _bnrGold };')({
+            action_prices: { missing: null, empty: '', free: 0 },
+            hero_gold_costs: { missing: null, empty: '', free: 0 },
+        });
+    checks.push(['null action price использует fallback', accessors.price('missing', 42) === 42]);
+    checks.push(['пустая action price использует fallback', accessors.price('empty', 42) === 42]);
+    checks.push(['явная нулевая action price сохраняется', accessors.price('free', 42) === 0]);
+    checks.push(['null hero gold использует fallback', accessors.gold('missing', 42) === 42]);
+    checks.push(['явная нулевая hero gold сохраняется', accessors.gold('free', 42) === 0]);
+}
 const failed = checks.filter(([, ok]) => !ok);
 for (const [name, ok] of checks) console.log((ok ? '  OK   ' : '  FAIL ') + name);
 if (failed.length) console.error(`\nПРОВАЛЕНО: ${failed.map(([name]) => name).join('; ')}`);

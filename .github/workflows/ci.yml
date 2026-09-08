@@ -100,6 +100,9 @@ jobs:
       - name: Bannerlord paid-action tooltip shows its price
         run: node scripts/test-frontend-bannerlord-price-tooltip.mjs
 
+      - name: Cases bulk-open restores UI after refusal
+        run: node scripts/test-frontend-cases-open-all.mjs
+
       - name: Action lock separates actions and never fails silently
         run: node scripts/test-frontend-action-lock.mjs
 

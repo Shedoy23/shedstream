@@ -18,7 +18,9 @@
 let rimworldPrices = null;
 
 function rimworldPrice(key, fallback) {
-    const v = rimworldPrices ? Number(rimworldPrices[key]) : NaN;
+    const raw = rimworldPrices ? rimworldPrices[key] : null;
+    if (raw == null || raw === '') return fallback;
+    const v = Number(raw);
     return Number.isFinite(v) ? v : fallback;
 }
 

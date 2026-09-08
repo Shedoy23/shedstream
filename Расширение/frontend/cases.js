@@ -211,6 +211,7 @@ function renderCaseCard(c) {
 
 async function openAllCases() {
     const btn = document.getElementById('cases-open-all-btn');
+    const originalText = btn ? btn.textContent : '';
     if (btn) { btn.disabled = true; btn.textContent = 'Открываем…'; }
     try {
         const r = await fetch(`${API_URL}/api/viewer/cases/open-all`, {
@@ -231,7 +232,10 @@ async function openAllCases() {
         console.error('[cases] openAllCases error:', e);
         showNotification('Ошибка сети при открытии кейсов', 'error');
     } finally {
-        if (btn) { btn.disabled = false; }
+        if (btn) {
+            btn.disabled = false;
+            if (btn.textContent === 'Открываем…') btn.textContent = originalText;
+        }
     }
 }
 

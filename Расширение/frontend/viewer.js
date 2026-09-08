@@ -315,7 +315,9 @@ function showBuildVersion() {
 let coreConfig = {};
 
 function corePrice(key, fallback) {
-    const v = Number(coreConfig[key]);
+    const raw = coreConfig[key];
+    if (raw == null || raw === '') return fallback;
+    const v = Number(raw);
     return Number.isFinite(v) ? v : fallback;
 }
 
@@ -1355,8 +1357,6 @@ function openPromoModal() {
 // ===== TTS «Озвучить сообщение» (Sprint 5.23, 2026-05-21) =====
 // Зритель платит 5000💎 за озвучку текста до 200 символов через
 // Web Speech API на overlay'е стрима. Cooldown 30s между сообщениями.
-const TTS_MAX_LEN = 200;
-
 function openTtsModal() {
     let modal = document.getElementById('tts-modal');
     if (modal) modal.remove();
@@ -1365,6 +1365,7 @@ function openTtsModal() {
     modal.id = 'tts-modal';
     const balance = parseInt(document.getElementById('points')?.textContent || '0');
     const ttsCost = corePrice('tts_cost', 5000);
+    const ttsMaxLen = corePrice('tts_max_len', 200);
     const canAfford = balance >= ttsCost;
     modal.innerHTML = `
         <div class="modal-content" style="max-width:420px;">
@@ -1372,14 +1373,14 @@ function openTtsModal() {
             <p style="margin-bottom:10px;color:#adadb8;font-size:12px;">
                 Стример услышит твоё сообщение на стриме через TTS.
             </p>
-            <textarea id="tts-input" maxlength="${TTS_MAX_LEN}"
+            <textarea id="tts-input" maxlength="${ttsMaxLen}"
                 placeholder="Напиши что озвучить..."
                 style="width:100%;min-height:90px;background:#2d2d2f;border:1px solid #3d3d3f;
                        border-radius:7px;padding:10px;color:#efeff1;font-size:13px;font-family:inherit;
                        resize:vertical;outline:none;box-sizing:border-box;"></textarea>
             <div style="display:flex;justify-content:space-between;align-items:center;
                         margin-top:8px;margin-bottom:14px;font-size:11px;color:#adadb8;">
-                <span id="tts-char-count">0 / ${TTS_MAX_LEN}</span>
+                <span id="tts-char-count">0 / ${ttsMaxLen}</span>
                 <span style="color:${canAfford ? '#fbbf24' : '#f87171'};font-weight:700;">
                     ${ttsCost}💎 · у тебя ${balance}💎
                 </span>
@@ -1400,7 +1401,7 @@ function openTtsModal() {
     const count  = document.getElementById('tts-char-count');
     const submit = document.getElementById('tts-submit-btn');
     input.addEventListener('input', () => {
-        count.textContent = `${input.value.length} / ${TTS_MAX_LEN}`;
+        count.textContent = `${input.value.length} / ${ttsMaxLen}`;
     });
     submit.addEventListener('click', () => _submitTts(input.value));
     setTimeout(() => input.focus(), 50);
@@ -1409,8 +1410,9 @@ function openTtsModal() {
 async function _submitTts(text) {
     const msg = (text || '').trim();
     if (!msg) return showNotification('Введи сообщение', 'error');
-    if (msg.length > TTS_MAX_LEN) {
-        return showNotification(`Макс ${TTS_MAX_LEN} символов`, 'error');
+    const ttsMaxLen = corePrice('tts_max_len', 200);
+    if (msg.length > ttsMaxLen) {
+        return showNotification(`Макс ${ttsMaxLen} символов`, 'error');
     }
     const btn = document.getElementById('tts-submit-btn');
     if (btn) btn.disabled = true;

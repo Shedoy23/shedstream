@@ -43,6 +43,7 @@ async def core_config():
         FAMILY_CONFIG,
         GUILD_CREATE_COST,
         TTS_COST,
+        TTS_MAX_LEN,
         VOTING_BID_PRESETS,
         VOTING_MIN_BID,
         VOTING_PLEDGE_PRESETS,
@@ -56,6 +57,7 @@ async def core_config():
         "guild_create_cost":     GUILD_CREATE_COST,
         "divorce_cost":          FAMILY_CONFIG["divorce_cost"],
         "tts_cost":              TTS_COST,
+        "tts_max_len":           TTS_MAX_LEN,
     }
 
 

@@ -1868,20 +1868,24 @@ async def _prepare_action(username, channel_id, action_type, data):
     # Sprint M21: player.give_item (gold) — server-side amount по крустики preset.
     if action_type == "player.give_item":
         item_type = (data.get("item_type") or "gold").strip().lower()
-        if item_type == "gold":
-            try:
-                crusticov = int(data.get("price") or 0)
-            except (TypeError, ValueError):
-                return {"success": False, "message": "Неверная цена"}
-            if crusticov not in GIVE_GOLD_PRESETS:
-                return {
-                    "success": False,
-                    "message": f"Неизвестный пресет {crusticov}⦷ "
-                               f"(допустимы: {sorted(GIVE_GOLD_PRESETS.keys())})",
-                }
-            data["item_type"] = "gold"
-            data["amount"] = GIVE_GOLD_PRESETS[crusticov]
-            # price остаётся = crusticov (передан клиентом, validated в preset map)
+        if item_type != "gold":
+            return {
+                "success": False,
+                "message": f"Неподдерживаемый тип предмета: {item_type}",
+            }
+        try:
+            crusticov = int(data.get("price") or 0)
+        except (TypeError, ValueError):
+            return {"success": False, "message": "Неверная цена"}
+        if crusticov not in GIVE_GOLD_PRESETS:
+            return {
+                "success": False,
+                "message": f"Неизвестный пресет {crusticov}⦷ "
+                           f"(допустимы: {sorted(GIVE_GOLD_PRESETS.keys())})",
+            }
+        data["item_type"] = "gold"
+        data["amount"] = GIVE_GOLD_PRESETS[crusticov]
+        # price остаётся = crusticov (передан клиентом, validated в preset map)
 
     # Sprint M21: hero.add_skill — server-side xp по крустики preset.
     # skill_key опциональный — если пуст, mod random pick.

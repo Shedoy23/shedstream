@@ -60,6 +60,7 @@ async def main() -> int:
         FAMILY_CONFIG,
         GUILD_CREATE_COST,
         TTS_COST,
+        TTS_MAX_LEN,
         VOTING_MIN_BID,
         VOTING_PROPOSE_MIN_PLEDGE,
     )
@@ -73,6 +74,7 @@ async def main() -> int:
     check("цена гильдии приходит с сервера", core.get("guild_create_cost") == GUILD_CREATE_COST)
     check("цена развода приходит с сервера", core.get("divorce_cost") == FAMILY_CONFIG["divorce_cost"])
     check("цена озвучки приходит с сервера", core.get("tts_cost") == TTS_COST)
+    check("лимит озвучки приходит с сервера", core.get("tts_max_len") == TTS_MAX_LEN)
     presets = core.get("voting_bid_presets") or []
     check("быстрые суммы приходят списком и начинаются с минимума",
           isinstance(presets, list) and presets and presets[0] == VOTING_MIN_BID, str(presets))
@@ -83,6 +85,17 @@ async def main() -> int:
           f"{len(prices)} против {len(_ACTION_PRICES)}")
     check("в словаре есть флагманский апгрейд здания",
           prices.get("colony.upgrade_building") == _ACTION_PRICES["colony.upgrade_building"])
+
+    from routes.bannerlord import GIVE_GOLD_PRESETS, _prepare_action
+    bad_item = {"item_type": "wood", "price": 999_999}
+    refusal = await _prepare_action("alice", 98319857, "player.give_item", bad_item)
+    check("неизвестный give_item отклоняется до очереди",
+          bool(refusal) and refusal.get("success") is False, str(refusal))
+    gold_item = {"item_type": "gold", "price": min(GIVE_GOLD_PRESETS)}
+    accepted = await _prepare_action("alice", 98319857, "player.give_item", gold_item)
+    check("известный give_item использует серверный пресет",
+          accepted is None and gold_item.get("amount") == GIVE_GOLD_PRESETS[min(GIVE_GOLD_PRESETS)],
+          str(gold_item))
 
     print()
     if fails:

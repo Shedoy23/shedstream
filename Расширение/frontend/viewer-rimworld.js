@@ -332,7 +332,13 @@ async function buyTrait(traitDef, degree, label, price) {
             const r = await fetch(`${API_URL}/api/rimworld/buy-trait`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || ''},
-                body: JSON.stringify({ username: userLogin, trait_def: traitDef, degree })
+            // Шлём цену, которую ПОКАЗАЛИ. Сервер её не списывает — только
+            // сверяет со своей и отказывает при расхождении: у черт и генов
+            // цена растёт с каждой покупкой, и между отрисовкой каталога и
+            // нажатием она могла измениться (покупка из другой вкладки).
+            // Без сверки зритель соглашался на одну сумму, а платил другую.
+                body: JSON.stringify({ username: userLogin, trait_def: traitDef, degree,
+                                       expected_price: hasPrice ? price : undefined })
             });
             const d = await r.json();
             showNotification(d.message, d.success ? 'success' : 'error');
@@ -352,7 +358,13 @@ async function buyGene(geneDef, geneLabel, price) {
             const r = await fetch(`${API_URL}/api/rimworld/buy-gene`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json', 'X-Twitch-JWT': authToken || ''},
-                body: JSON.stringify({ username: userLogin, def_name: geneDef })
+            // Шлём цену, которую ПОКАЗАЛИ. Сервер её не списывает — только
+            // сверяет со своей и отказывает при расхождении: у черт и генов
+            // цена растёт с каждой покупкой, и между отрисовкой каталога и
+            // нажатием она могла измениться (покупка из другой вкладки).
+            // Без сверки зритель соглашался на одну сумму, а платил другую.
+                body: JSON.stringify({ username: userLogin, def_name: geneDef,
+                                       expected_price: hasPrice ? price : undefined })
             });
             const d = await r.json();
             showNotification(d.message, d.success ? 'success' : 'error');

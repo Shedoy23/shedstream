@@ -76,6 +76,42 @@ BASE_GENE_PRICE    = 1000   # база прогрессивной цены ге�
 BASE_TRAIT_PRICE   = 1000   # база прогрессивной цены черты (та же формула)
 
 
+def _price_consent_error(data: dict, actual_price: int, what: str, number: int):
+    """Сверить цену, которую панель ПОКАЗАЛА зрителю, с той, что спишется.
+
+    ЗАЧЕМ. У черт и генов цена прогрессивная: `base × (куплено + 1)`. Панель
+    берёт её из каталога в момент загрузки, а сервер считает свою в момент
+    списания. Между этими двумя моментами счётчик мог вырасти — покупка из
+    другой вкладки, оставленная открытой панель, — и тогда зритель нажимал
+    «купить за 3000», а списывалось 6000. Отказа не было: сервер просто
+    списывал свою цену. То есть согласие бралось не под ту сумму.
+    Само по себе «цена приходит с сервера» этого не закрывает.
+
+    ВАЖНО, ЧЕМ ЭТО НЕ ЯВЛЯЕТСЯ. `expected_price` НИКОГДА не становится суммой
+    списания — она только сверяется. Списывается всегда серверная. Иначе это
+    была бы ровно та дыра, которую 09.09 закрывали в Bannerlord: клиентское
+    поле, доехавшее до исполнения.
+
+    Поле необязательное: публичная сборка `0.0.1` на CDN его не шлёт, и
+    ломать ей покупки нельзя. Нет поля — проверки нет, поведение прежнее.
+    """
+    raw = data.get("expected_price")
+    if raw is None or raw == "":
+        return None
+    try:
+        expected = int(raw)
+    except (TypeError, ValueError):
+        return {"success": False, "message": "Неверная цена в запросе"}
+    if expected == actual_price:
+        return None
+    return {
+        "success": False,
+        "message": (f"Цена изменилась: на экране {expected}💎, сейчас "
+                    f"{actual_price}💎 ({what} №{number}). Ничего не списано — "
+                    f"обнови список и нажми ещё раз."),
+    }
+
+
 # ── Security 2.1 (2026-06-12): RimWorld mod-ingest auth ──────────────────────
 # 13 mod-side endpoints accepted UNAUTHENTICATED writes (wipe pawns / rig shop
 # catalog / inject pawns). Gate them with the module-token — mirrors Bannerlord
@@ -1913,6 +1949,8 @@ async def buy_gene(request: Request):
     # Базовая цена из конфига прогрессии (не из shop_catalog)
     count = await db.get_purchase_count(username, "gene", channel_id)
     price = db.calc_progressive_price(BASE_GENE_PRICE, count)
+    if err := _price_consent_error(data, price, "ген", count + 1):
+        return err
     # Берём label из каталога если есть
     label = def_name
     async with aiosqlite.connect(db.db_path) as conn:
@@ -2191,6 +2229,8 @@ async def buy_trait(request: Request):
     # Прогрессивная цена — НЕ из каталога, считаем по счётчику зрителя
     count = await db.get_purchase_count(username, "trait", channel_id)
     trait_cost = db.calc_progressive_price(BASE_TRAIT_PRICE, count)
+    if err := _price_consent_error(data, trait_cost, "черта", count + 1):
+        return err
 
     # Берём label из каталога если есть
     async with aiosqlite.connect(db.db_path) as conn:

@@ -26,12 +26,29 @@ namespace BannerlordLink.Util
     /// </summary>
     public static class HeroStateSync
     {
+        /// <summary>Общий учёт отправок состояния — ОДИН на весь мод.
+        ///
+        /// 2026-09-09, вторая находка внешней проверки: `Push` ходила мимо
+        /// трекера, поэтому событийный пуш (после покупки, левелапа, смены
+        /// класса) шёл параллельно периодическому зеркалу и мог обогнать его.
+        /// Сериализация в `PushIfChanged` этого не закрывала — она защищала
+        /// только периодический путь. Теперь оба пути пользуются одним
+        /// трекером, поэтому «в полёте» видит и тот, и другой.
+        /// </summary>
+        public static readonly StateSyncTracker Tracker = new StateSyncTracker();
+
         public static void Push(Hero hero)
         {
             string username;
             string json = BuildStateJson(hero, out username);
             if (json == null) return;
-            PostStateUpdate(username, json);
+            // Через тот же трекер: если по герою уже летит снимок, этот пуш
+            // пропускается, а актуальное состояние уедет ближайшим тиком
+            // зеркала (не дольше 30 с). Отправить вдогонку значило бы вернуть
+            // ту самую перестановку на сервере.
+            StateSyncTracker.Attempt attempt;
+            if (!Tracker.TryBeginSend(username, json, out attempt)) return;
+            PostStateUpdate(username, json, Tracker, attempt);
             try
             {
                 BannerlordLinkModule.Log(

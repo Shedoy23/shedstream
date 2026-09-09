@@ -51,8 +51,10 @@ namespace BannerlordLink.Behaviors
         // снимок попадает в кэш ТОЛЬКО после подтверждения бэкендом, отправки
         // не обгоняют друг друга, а загрузка другого сейва поднимает эпоху,
         // чтобы подтверждения прошлой сессии не принимались за свежие.
-        private readonly BannerlordLink.Util.StateSyncTracker _heroStateSync
-            = new BannerlordLink.Util.StateSyncTracker();
+        // Один трекер на весь мод: им же пользуется событийная
+        // HeroStateSync.Push, иначе событийный пуш обгонял бы зеркало.
+        private static BannerlordLink.Util.StateSyncTracker _heroStateSync
+            => BannerlordLink.Util.HeroStateSync.Tracker;
 
         public override void RegisterEvents()
         {

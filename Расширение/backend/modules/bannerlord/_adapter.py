@@ -1015,11 +1015,79 @@ class BannerlordAdapter(ModuleAdapter):
             await conn.commit()
         await self._log_event(channel_id, "player.unlinked", username, env.data)
 
+    # Если снимок отстал больше чем на этот срок — считаем, что у мода
+    # переставили часы (перезапуск, коррекция NTP), а не что он застрял в
+    # прошлом. Иначе один прыжок часов назад заморозил бы зеркало навсегда:
+    # каждый следующий снимок был бы «старее» записанного. Ровно тот класс
+    # отказа, который мы и чиним.
+    _STATE_TS_RESET_MS = 60 * 60 * 1000     # час
+
+    async def _state_envelope_is_fresh(
+            self, channel_id: int, username: str, env: ModuleEnvelope) -> bool:
+        """Не старше ли этот снимок уже применённого. Побочный эффект: при
+        свежем снимке запоминает его `ts`.
+
+        Возвращает True и когда порядок неизвестен (нет `ts` у конверта или
+        `state_ts` пуст) — тогда ведём себя как раньше и просто применяем.
+        """
+        try:
+            incoming = int(getattr(env, "ts", 0) or 0)
+        except (TypeError, ValueError):
+            incoming = 0
+        if incoming <= 0:
+            return True                      # старый мод — не гейтим
+
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            cur = await conn.execute(
+                "SELECT state_ts FROM bannerlord_heroes "
+                "WHERE channel_id=? AND username=?",
+                (channel_id, username))
+            row = await cur.fetchone()
+            if row is None:
+                return True                  # героя ещё нет — применяем как есть
+            applied = row[0]
+
+            if applied is not None and incoming < applied:
+                if applied - incoming < self._STATE_TS_RESET_MS:
+                    logger.info(
+                        "[bannerlord:%s] state_update @%s отброшен как устаревший "
+                        "(ts=%s < применённого %s)",
+                        channel_id, username, incoming, applied)
+                    return False
+                logger.warning(
+                    "[bannerlord:%s] state_update @%s отстаёт на %s мс — считаем "
+                    "это сбросом часов мода, а не устаревшим снимком, и применяем",
+                    channel_id, username, applied - incoming)
+
+            await conn.execute(
+                "UPDATE bannerlord_heroes SET state_ts=? "
+                "WHERE channel_id=? AND username=?",
+                (incoming, channel_id, username))
+            await conn.commit()
+            return True
+
     async def _on_player_state_update(self, channel_id: int, env: ModuleEnvelope) -> None:
         """Mod synced состояние hero (gold, location, alive/prisoner, +M19 meta)."""
         data = env.data
         username = (data.get("username") or "").lower()
         if not username:
+            return
+
+        # ── Защита порядка (M123, 2026-09-09) ────────────────────────────────
+        # Снимок применяется, только если он НЕ СТАРШЕ уже применённого.
+        #
+        # Порядок прихода не связан с порядком отправки, и мод его гарантировать
+        # не может: событийные пуши идут параллельно периодическому зеркалу, а
+        # по HTTP-таймауту (35 с) мод не знает, применил сервер запрос или нет —
+        # «неудачная» отправка может завершиться здесь ПОЗЖЕ следующей. Раньше
+        # побеждал пришедший последним, и в базе оставался устаревший снимок,
+        # который мод уже считал доставленным и больше не слал: зеркало
+        # замирало до следующего изменения героя.
+        #
+        # `env.ts` — epoch ms на стороне мода, ставится при отправке.
+        # Отсутствует или ноль → не гейтим (старый мод, поведение как раньше).
+        if not await self._state_envelope_is_fresh(channel_id, username, env):
             return
 
         # Sprint 5.29 BLT-parity #5: achievements high-water-mark tracking.

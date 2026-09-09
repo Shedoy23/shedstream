@@ -1529,6 +1529,9 @@ async def run_migrations():
         from migrations import m122_twitch_login_map
         await m122_twitch_login_map.apply(conn)
 
+        from migrations import m123_hero_state_ts
+        await m123_hero_state_ts.apply(conn)
+
         print("✅ Migrations complete")
 
 

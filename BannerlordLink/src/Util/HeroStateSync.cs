@@ -95,21 +95,29 @@ namespace BannerlordLink.Util
                     BannerlordLinkModule.Log(
                         $"[HeroStateSync] push @{username} failed: {ex.Message}");
                 }
-
-                if (tracker == null || !attempt.IsValid) return;
-                if (ok)
+                finally
                 {
-                    if (!tracker.Confirm(attempt))
-                        BannerlordLinkModule.Log(
-                            $"[HeroStateSync] @{username}: подтверждение устарело " +
-                            "(ушла более свежая отправка или сменился сейв) — не кэшируем");
-                }
-                else
-                {
-                    tracker.Fail(attempt);
-                    BannerlordLinkModule.Log(
-                        $"[HeroStateSync] @{username}: снимок НЕ подтверждён — " +
-                        "повторим на следующем тике");
+                    // Отметку «в полёте» снимаем В ЛЮБОМ случае. Пропущенный
+                    // вызов заблокировал бы отправку по этому герою навсегда:
+                    // теперь на героя летит не больше одного запроса, и снять
+                    // отметку больше некому.
+                    if (tracker != null && attempt.IsValid)
+                    {
+                        if (ok)
+                        {
+                            if (!tracker.Confirm(attempt))
+                                BannerlordLinkModule.Log(
+                                    $"[HeroStateSync] @{username}: подтверждение устарело " +
+                                    "(сменился сейв) — не кэшируем");
+                        }
+                        else
+                        {
+                            tracker.Fail(attempt);
+                            BannerlordLinkModule.Log(
+                                $"[HeroStateSync] @{username}: снимок НЕ подтверждён — " +
+                                "повторим на следующем тике");
+                        }
+                    }
                 }
             });
         }

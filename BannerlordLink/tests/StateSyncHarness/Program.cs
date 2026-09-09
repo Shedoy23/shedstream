@@ -53,19 +53,57 @@ const string StateB = "{\"gold\":250,\"level\":6}";
           $"подтверждение={confirmed}, повтор={again} (ожидалось true/false)");
 }
 
-// ── c) пока летел A, возник B: подтверждён и доставлен B ────────────────────
+// ── c) итог НА СЕРВЕРЕ, а не локальные флаги ────────────────────────────────
+// Первая версия этого сценария сравнивала только локальные подтверждения и была
+// зелёной при живой дыре: сервер мог применить задержавшийся A ПОСЛЕ B, и в базе
+// оставался устаревший снимок, а локально значилось «B подтверждён» — повтора не
+// будет никогда. Внешняя проверка воспроизвела это на настоящем классе:
+//   server=A actual=B staleAckAccepted=False resend=False
+// Поэтому здесь моделируется СЕРВЕР с произвольным порядком применения, и
+// проверяется его итоговое состояние.
 {
+    // Модель сервера: применяет снимки в том порядке, в каком к нему приходят.
+    string serverState = null;
     var t = new StateSyncTracker();
-    t.TryBeginSend("alice", StateA, out var attemptA);   // A в полёте
-    t.TryBeginSend("alice", StateB, out var attemptB);   // состояние изменилось
-    var staleAccepted = t.Confirm(attemptA);             // A отвечает ПОСЛЕ
-    var freshAccepted = t.Confirm(attemptB);
-    var bNeedsResend = t.TryBeginSend("alice", StateB, out _);
-    var aNeedsResend = t.TryBeginSend("alice", StateA, out _);
-    Check("c) старое подтверждение не затирает более новую отправку",
-          !staleAccepted && freshAccepted && !bNeedsResend && aNeedsResend,
-          $"A принято={staleAccepted} (ждали false), B принято={freshAccepted} (true), "
-          + $"B повтор={bNeedsResend} (false), A повтор={aNeedsResend} (true)");
+
+    // Тик 1: состояние A — уходит.
+    var startedA = t.TryBeginSend("alice", StateA, out var attemptA);
+    // Тик 2: состояние уже B, но ответа по A ещё нет.
+    var startedB = t.TryBeginSend("alice", StateB, out var attemptB);
+
+    Check("c1) вторая отправка не стартует, пока первая в полёте",
+          startedA && !startedB,
+          $"A стартовала={startedA} (ждали true), B стартовала={startedB} (ждали false)");
+
+    // Сервер применяет ТО, ЧТО РЕАЛЬНО УЛЕТЕЛО, и в худшем реалистичном
+    // порядке: сеть не обязана сохранять очерёдность. Если параллельные
+    // отправки разрешены (поведение до правки), моделируем именно ту
+    // перестановку, которую нашла внешняя проверка: сначала B, потом
+    // задержавшийся A — и в базе остаётся A.
+    if (startedB)
+    {
+        serverState = StateB; t.Confirm(attemptB);
+        serverState = StateA; t.Confirm(attemptA);   // A догнал и перезаписал
+    }
+    else
+    {
+        serverState = StateA; t.Confirm(attemptA);
+        // Следующий тик: отправка свободна, состояние героя — B.
+        if (t.TryBeginSend("alice", StateB, out var attemptB2))
+        {
+            serverState = StateB;
+            t.Confirm(attemptB2);
+        }
+    }
+
+    Check("c2) на сервере в итоге НОВЫЙ снимок, а не задержавшийся старый",
+          serverState == StateB,
+          $"на сервере {(serverState == StateA ? "A (устаревший)" : serverState ?? "ничего")}, "
+          + "ожидался B; и повтора не будет — зеркало замерзает");
+
+    // И зеркало успокаивается: актуальное состояние подтверждено, лишних пушей нет.
+    Check("c3) после доставки B повторных отправок не требуется",
+          !t.TryBeginSend("alice", StateB, out _));
 }
 
 // ── d) callback из прошлой сессии не портит кэш нового сейва ────────────────

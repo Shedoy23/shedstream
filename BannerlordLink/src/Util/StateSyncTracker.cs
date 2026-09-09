@@ -46,16 +46,34 @@ namespace BannerlordLink.Util
         private readonly object _lock = new object();
         private readonly Dictionary<string, int> _confirmed = new Dictionary<string, int>();
         private readonly Dictionary<string, long> _latestSeq = new Dictionary<string, long>();
+        // Незавершённая отправка на героя. Ключ — username, значение — Seq той
+        // попытки, что сейчас в полёте. См. «ПОЧЕМУ ПО ОДНОЙ» ниже.
+        private readonly Dictionary<string, long> _inFlight = new Dictionary<string, long>();
         private long _seq;
         private long _epoch;
 
         /// <summary>Надо ли отправлять этот снимок.
         ///
-        /// false — ровно один случай: точно такой же снимок уже ПОДТВЕРЖДЁН.
-        /// Всё остальное (не отправляли, отправка провалилась, отправка ещё в
-        /// полёте) даёт true: неподтверждённое состояние обязано уехать.
-        /// Повторная отправка того же состояния безвредна — на бэкенде это
-        /// UPDATE теми же значениями.</summary>
+        /// false в двух случаях: точно такой же снимок уже ПОДТВЕРЖДЁН, либо по
+        /// этому герою уже есть незавершённая отправка.
+        ///
+        /// ПОЧЕМУ ПО ОДНОЙ (найдено внешней проверкой 09.09). Первая версия
+        /// разрешала параллельные отправки и лишь отбрасывала устаревшее
+        /// подтверждение. Этого НЕ ХВАТАЕТ: порядок применения на сервере не
+        /// связан с порядком ответов. Ушли A, затем B; сервер применил сначала
+        /// B, потом задержавшийся A — в базе остался A. Локально при этом
+        /// «B подтверждён», и следующий тик видит тот же B, не шлёт ничего, и
+        /// сервер держит устаревший снимок НАВСЕГДА. Воспроизведено на этом
+        /// классе: `server=A actual=B staleAckAccepted=False resend=False`.
+        ///
+        /// Одна отправка на героя убирает саму возможность обгона: пока ответ
+        /// не пришёл, второй запрос не стартует. Цена — пропущенный тик (30 с)
+        /// в редком случае медленного ответа; HTTP-таймаут клиента 35 с, так
+        /// что «в полёте» не живёт дольше него.
+        ///
+        /// Незавершённая отправка НЕ снимается при смене сейва: иначе снимок
+        /// нового сейва мог бы обогнать ещё летящий снимок старого и сервер
+        /// снова получил бы их в обратном порядке.</summary>
         public bool TryBeginSend(string username, string json, out Attempt attempt)
         {
             attempt = default(Attempt);
@@ -64,11 +82,15 @@ namespace BannerlordLink.Util
             int hash = json.GetHashCode();
             lock (_lock)
             {
+                if (_inFlight.ContainsKey(username))
+                    return false;                 // ждём ответа по предыдущей
+
                 int confirmed;
                 if (_confirmed.TryGetValue(username, out confirmed) && confirmed == hash)
                     return false;
 
                 _seq++;
+                _inFlight[username] = _seq;
                 _latestSeq[username] = _seq;
                 attempt = new Attempt
                 {
@@ -94,6 +116,7 @@ namespace BannerlordLink.Util
             if (!attempt.IsValid) return false;
             lock (_lock)
             {
+                ReleaseInFlightLocked(attempt);
                 if (attempt.Epoch != _epoch) return false;      // ответ из прошлой сессии
                 long latest;
                 if (!_latestSeq.TryGetValue(attempt.Username, out latest)) return false;
@@ -103,14 +126,30 @@ namespace BannerlordLink.Util
             }
         }
 
+        /// <summary>Снять отметку «в полёте», если она принадлежит этой попытке.
+        /// Вызывается и при подтверждении, и при отказе — иначе герой остался бы
+        /// заблокированным навсегда.</summary>
+        private void ReleaseInFlightLocked(Attempt attempt)
+        {
+            long current;
+            if (_inFlight.TryGetValue(attempt.Username, out current) && current == attempt.Seq)
+                _inFlight.Remove(attempt.Username);
+        }
+
         /// <summary>Отправка не удалась либо бэкенд отклонил конверт.
         /// Ничего не подтверждаем — следующий тик отправит актуальный снимок.
         /// Метод существует ради явности: «неудача» это отдельное решение, а
         /// не отсутствие вызова.</summary>
         public void Fail(Attempt attempt)
         {
-            // Намеренно пусто: подтверждённый кэш не трогаем. Снимок в нём —
-            // это то, что доехало; неудачная попытка не делает его хуже.
+            if (!attempt.IsValid) return;
+            lock (_lock)
+            {
+                // Подтверждённый кэш не трогаем: в нём то, что доехало, и
+                // неудачная попытка не делает его хуже. Но отметку «в полёте»
+                // снять ОБЯЗАНЫ, иначе герой не отправится больше никогда.
+                ReleaseInFlightLocked(attempt);
+            }
         }
 
         /// <summary>Загрузили другой сейв / началась новая сессия.
@@ -127,6 +166,13 @@ namespace BannerlordLink.Util
                 _epoch++;
                 _confirmed.Clear();
                 _latestSeq.Clear();
+                // `_inFlight` НАМЕРЕННО не чистим. Отменить уже улетевший HTTP
+                // мы не можем; сбросив отметку, мы разрешили бы снимку нового
+                // сейва стартовать вдогонку старому — и сервер снова мог бы
+                // применить их в обратном порядке. Пусть новый снимок подождёт
+                // ответа по старому (не дольше HTTP-таймаута) и уйдёт следующим
+                // тиком. Подтверждение старой попытки при этом всё равно будет
+                // отвергнуто по эпохе.
             }
         }
 

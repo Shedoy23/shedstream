@@ -91,23 +91,23 @@ jobs:
       - name: RimLink writes its own log even when the engine log is silenced
         run: dotnet run --project RimLink/tests/LogFileHarness -c Release
 
-      - name: RimWorld frontend prices come from the server, not hardcoded
-        run: node scripts/test-frontend-rimworld-prices.mjs
+      # 2026-09-09 — гейты фронта запускаются ЦЕЛИКОМ, а не перечислением.
+      # Раньше каждый был отдельным шагом, и добавленный гейт молча не попадал
+      # в CI: test-frontend-state-race.mjs пролежал вне проверок с момента
+      # написания (нашла внешняя проверка). Список, который надо не забыть
+      # дополнить, — это тот же класс, что спящий линтер: выглядит настроенным,
+      # но не держит. Цикл подхватывает новые файлы сам.
+      - name: Frontend behaviour gates (all scripts/test-frontend-*.mjs)
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=(scripts/test-frontend-*.mjs scripts/test-viewer-*.mjs)
+          if [ ${#files[@]} -eq 0 ]; then echo "нет гейтов фронта — это ошибка"; exit 1; fi
+          for f in "${files[@]}"; do
+            echo "── $f"
+            node "$f" || exit 1
+          done
+          echo "гейтов пройдено: ${#files[@]}"
 
-      - name: Core frontend prices come from the server, not hardcoded
-        run: node scripts/test-frontend-core-prices.mjs
-
-      - name: Bannerlord paid-action tooltip shows its price
-        run: node scripts/test-frontend-bannerlord-price-tooltip.mjs
-
-      - name: Cases bulk-open restores UI after refusal
-        run: node scripts/test-frontend-cases-open-all.mjs
-
-      - name: Action lock separates actions and never fails silently
-        run: node scripts/test-frontend-action-lock.mjs
-
-      - name: Panel login survives a synchronous onAuthorized (no TDZ)
-        run: node scripts/test-frontend-auth-init.mjs
-
-      - name: Viewer identity recovery refreshes state and permits login retry
-        run: node scripts/test-viewer-auth-recovery.mjs
+      - name: Bannerlord state mirror is confirmed before it is cached
+        run: dotnet run --project BannerlordLink/tests/StateSyncHarness -c Release

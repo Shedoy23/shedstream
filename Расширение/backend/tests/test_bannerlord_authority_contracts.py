@@ -61,9 +61,61 @@ check("дипломатический cooldown 300 enforced backend и отра�
       bool(re.search(r'"kingdom\.propose_war"\s*:\s*300', adapter)) and
       bool(re.search(r'"kingdom\.propose_peace"\s*:\s*300', adapter)) and
       "const _DIPLO_CD = 300" in front)
-check("лимит пяти детей enforced модом и отражён frontend",
+check("лимит детей объявлен одинаково в backend, моде и фронте",
+      "MAX_ALIVE_CHILDREN = 5" in backend and
       "DEFAULT_MAX_ALIVE_CHILDREN = 5" in mod_baby and
       "aliveChildren.length < 5" in front)
+
+# ── Подменённый payload: предел ставит сервер ────────────────────────────────
+# Прошлая версия этой проверки искала в исходнике мода строку
+# "DEFAULT_MAX_ALIVE_CHILDREN = 5" и на этом успокаивалась. Она была зелёной,
+# пока дыра была открыта: мод читает предел из data["max_alive_children"]
+# (принимает 1..20), backend это поле не ставил, а data — тело запроса
+# зрителя, которое доезжает до мода как есть. То есть текст константы в моде
+# ничего не доказывал: наличие умолчания не мешает его переопределить.
+# Поэтому здесь исполняется НАСТОЯЩАЯ _prepare_action с враждебным payload'ом.
+def _spoofed_payload_is_overridden() -> bool:
+    import asyncio
+    import os
+
+    backend_dir = str(ROOT / "Расширение" / "backend")
+    if backend_dir not in sys.path:
+        sys.path.insert(0, backend_dir)
+    for var, val in (("TWITCH_OAUTH_TOKEN", "oauth:x"), ("TWITCH_CLIENT_ID", "x"),
+                     ("TWITCH_CLIENT_SECRET", "x"), ("TWITCH_BOT_ID", "x"),
+                     ("TWITCH_CHANNEL_NAME", "x")):
+        os.environ.setdefault(var, val)
+
+    import routes.bannerlord as bnr
+
+    async def _clan(_channel_id, _username):
+        return "ТестКлан"
+
+    async def _gold(_channel_id, _username):
+        return bnr.BABY_COST * 10
+
+    orig_clan, orig_gold = bnr._fetch_hero_clan_name, bnr._fetch_hero_gold
+    bnr._fetch_hero_clan_name, bnr._fetch_hero_gold = _clan, _gold
+    try:
+        hostile = {"max_alive_children": 20, "price": 0, "_user_role": "viewer"}
+        refusal = asyncio.new_event_loop().run_until_complete(
+            bnr._prepare_action("attacker", 123456, "hero.make_baby", hostile))
+    finally:
+        bnr._fetch_hero_clan_name, bnr._fetch_hero_gold = orig_clan, orig_gold
+
+    if refusal is not None:
+        print("     (действие отклонено целиком: %r)" % (refusal,))
+        return False
+    got = hostile.get("max_alive_children")
+    if got != bnr.MAX_ALIVE_CHILDREN:
+        print("     подменённый предел выжил: прислано 20, в очередь ушло %r "
+              "(ожидалось %r)" % (got, bnr.MAX_ALIVE_CHILDREN))
+        return False
+    return True
+
+
+check("подменённый max_alive_children перезаписывается сервером",
+      _spoofed_payload_is_overridden())
 
 if fails:
     print("\nПРОВАЛЕНО: " + "; ".join(fails))

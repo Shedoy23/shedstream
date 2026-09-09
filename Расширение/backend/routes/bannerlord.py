@@ -1030,6 +1030,16 @@ GENDER_SWAP_COST = 50_000
 MARRIAGE_COST = 50_000
 # Sprint 5.27c — стоимость pregnancy (трюк на дитя).
 BABY_COST = 100_000
+# Предел живых детей в клане. Хозяин правила — бэкенд, и это НЕ украшение:
+# мод (`MakeBabyHandler.cs`) читает предел из `data["max_alive_children"]` и
+# принимает любое значение 1..20, а `data` — это тело запроса зрителя, которое
+# доезжает до мода как есть. Пока бэкенд поле не ставил, единственным его
+# источником был клиент: `{"max_alive_children": 20}` поднимал предел впятеро.
+# Комментарий в моде («backend пока всегда не шлёт») описывал ровно эту дыру.
+# Значение совпадает с `DEFAULT_MAX_ALIVE_CHILDREN` в моде и с фронтом
+# (`aliveChildren.length < 5`); менять — во всех трёх местах, держит
+# `tests/test_bannerlord_authority_contracts.py`.
+MAX_ALIVE_CHILDREN = 5
 
 # Sprint 5.18 (refactor): helper для повторяющегося Hero.Gold pre-check.
 # Используется в нескольких action handlers (create_clan, create_kingdom,
@@ -2046,6 +2056,12 @@ async def _prepare_action(username, channel_id, action_type, data):
             }
         data["hero_gold_cost"] = BABY_COST
         data["price"] = 0
+        # Предел ставит сервер, а не тот, кто прислал запрос. Присваиваем
+        # безусловно: клиентское значение здесь именно перезаписывается, иначе
+        # `{"max_alive_children": 20}` из тела доехало бы до мода и подняло
+        # предел впятеро. Заодно оговорённый в моде per-tier override начинает
+        # работать так, как задуман, — с этой строки, а не из payload'а зрителя.
+        data["max_alive_children"] = MAX_ALIVE_CHILDREN
 
     # 2026-05-29: hero.propose_marriage женит ДЕТЕЙ двух viewer'ов. Дети
     # наследуют клан родителя — у бесклановых детей брак даёт тот же

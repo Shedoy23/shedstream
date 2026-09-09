@@ -117,6 +117,78 @@ def _spoofed_payload_is_overridden() -> bool:
 check("подменённый max_alive_children перезаписывается сервером",
       _spoofed_payload_is_overridden())
 
+
+# ── Ещё два поля, которые мод читал, а сервер не задавал (найдено 09.09) ──────
+# Метод тот же: исполняем настоящую _prepare_action с враждебным телом.
+# Искать текст в исходнике здесь бесполезно — обе дыры были именно в ОТСУТСТВИИ
+# кода, а отсутствие строки грепом не отличить от «ещё не написали».
+def _call_prepare(action_type: str, data: dict):
+    """Вернуть (отказ|None, data после обработки)."""
+    import asyncio
+    import os
+
+    backend_dir = str(ROOT / "Расширение" / "backend")
+    if backend_dir not in sys.path:
+        sys.path.insert(0, backend_dir)
+    for var, val in (("TWITCH_OAUTH_TOKEN", "oauth:x"), ("TWITCH_CLIENT_ID", "x"),
+                     ("TWITCH_CLIENT_SECRET", "x"), ("TWITCH_BOT_ID", "x"),
+                     ("TWITCH_CHANNEL_NAME", "x")):
+        os.environ.setdefault(var, val)
+    import routes.bannerlord as bnr
+
+    async def _clan(_c, _u):
+        return "ТестКлан"
+
+    async def _gold(_c, _u):
+        return 10_000_000
+
+    orig = bnr._fetch_hero_clan_name, bnr._fetch_hero_gold
+    bnr._fetch_hero_clan_name, bnr._fetch_hero_gold = _clan, _gold
+    try:
+        refusal = asyncio.new_event_loop().run_until_complete(
+            bnr._prepare_action("attacker", 123456, action_type, data))
+    finally:
+        bnr._fetch_hero_clan_name, bnr._fetch_hero_gold = orig
+    return refusal, data
+
+
+def _power_overrides_stripped() -> bool:
+    """ActivatePowerHandler.cs:48-49 берёт duration_s/value из payload'а и
+    отдаёт их в Activate() для десяти способностей. Бэкенд обязан их снять:
+    силу и длительность назначает мод, а не покупатель."""
+    hostile = {"power_key": "rage", "duration_s": 9999.0, "value": 999.0,
+               "price": 0, "_user_role": "viewer"}
+    refusal, data = _call_prepare("power.activate", hostile)
+    if refusal is not None:
+        print("     (power.activate отклонён целиком: %r)" % (refusal,))
+        return False
+    left = [k for k in ("duration_s", "value") if k in data]
+    if left:
+        print("     клиентские override'ы доехали до мода: %s"
+              % ", ".join("%s=%r" % (k, data[k]) for k in left))
+        return False
+    return True
+
+
+def _legacy_attribute_twin_refused() -> bool:
+    """player.modify_attribute стоил 50 крустиков и не имел ветки вовсе:
+    points шёл из тела, мод применял его без потолка. Рядом hero.add_attribute
+    зажимает 1..10 и берёт 50 000 динаров ЗА ОЧКО."""
+    hostile = {"attribute": "Vigor", "points": 1000, "price": 0,
+               "_user_role": "viewer"}
+    refusal, data = _call_prepare("player.modify_attribute", hostile)
+    if refusal is None:
+        print("     действие НЕ отклонено, points=%r ушёл к моду"
+              % data.get("points"))
+        return False
+    return refusal.get("success") is False
+
+
+check("power.activate: клиентские duration_s/value снимаются сервером",
+      _power_overrides_stripped())
+check("player.modify_attribute (легаси-двойник) отклоняется",
+      _legacy_attribute_twin_refused())
+
 if fails:
     print("\nПРОВАЛЕНО: " + "; ".join(fails))
     raise SystemExit(1)

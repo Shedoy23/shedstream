@@ -1686,6 +1686,16 @@ async def _prepare_action(username, channel_id, action_type, data):
                 "message": f"Способность '{power_key}' не найдена",
             }
         data["price"] = POWER_PRICES[power_key]
+        # Силу и длительность способности задаёт МОД из своих таблиц, а не тот,
+        # кто прислал запрос. `ActivatePowerHandler.cs:48-49` читает
+        # `duration_s`/`value` как override и передаёт в Activate() для десяти
+        # способностей (rage, poison_dot, explosive_arrows, cleave и прочих);
+        # бэкенд их не ставил, а `payload = dict(data)` уносит тело зрителя
+        # к моду как есть. Значит зритель платил обычную цену и сам назначал
+        # длительность и силу. Фронт этих полей не шлёт вовсе — снимаем их,
+        # и мод берёт свои умолчания (оба поля у него nullable).
+        data.pop("duration_s", None)
+        data.pop("value", None)
 
     # hero.recruit_troops: backend passes current retinue snapshot в data
     # чтобы mod знал какие slots filled (для add vs upgrade decision).
@@ -1955,6 +1965,33 @@ async def _prepare_action(username, channel_id, action_type, data):
 
     # Sprint 5.8: hero.add_attribute — БЕСПЛАТНО в крустиках, mod списывает
     # Hero.Gold flat 50K per point.
+    # player.modify_attribute — легаси-двойник hero.add_attribute, закрыт 09.09.
+    #
+    # Он объявлен в манифесте и стоит 50 крустиков по ACTION_PRICES_DEFAULT, но
+    # ветки здесь у него не было ВООБЩЕ: `points` приезжал из тела запроса, а
+    # `ModifyAttributeHandler.cs:28` берёт его как есть — проверяет только
+    # `points != 0`, потолка нет — и зовёт `AddAttribute(attr, points)`.
+    # Рядом живёт настоящий путь: `hero.add_attribute` зажимает количество в
+    # 1..10, проверяет имя характеристики и берёт ATTRIBUTE_COST = 50 000
+    # динаров ЗА КАЖДОЕ очко. То есть двойник давал тот же эффект за 50
+    # крустиков вместо 50 000 динаров и в неограниченном количестве одним
+    # вызовом. Фронт его не вызывает нигде — попасть сюда можно только прямым
+    # запросом, поэтому отказ ничего у зрителя не отнимает.
+    #
+    # Отказываем, а не зажимаем: даже с потолком в одно очко это остаётся
+    # путём, который в тысячу раз дешевле настоящего, и выбирать ему цену —
+    # решение владельца, а не моё. Вернуть как настоящую механику = дать ему
+    # собственную цену и валидацию (`DEFERRED.md`).
+    if action_type == "player.modify_attribute":
+        log.warning("[bannerlord SECURITY REFUSE] player.modify_attribute "
+                    "user=%s ch=%s points=%r — легаси-двойник add_attribute",
+                    username, channel_id, data.get("points"))
+        return {
+            "success": False,
+            "message": "Характеристики поднимаются кнопкой «Характеристики» "
+                       "(🎯) — это действие больше не обслуживается.",
+        }
+
     if action_type == "hero.add_attribute":
         attr_key = (data.get("attribute_key") or "").strip()
         try:

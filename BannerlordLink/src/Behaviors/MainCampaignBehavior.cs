@@ -47,8 +47,12 @@ namespace BannerlordLink.Behaviors
         // ~30с tick (OnPropertiesTick) шлёт player.state_update только тем [BLink]-
         // героям, у кого state изменился → gold/level/skills зеркалятся «за 30с»
         // без действий зрителя и без спама прод.
-        private readonly System.Collections.Generic.Dictionary<string, int> _heroStateHashes
-            = new System.Collections.Generic.Dictionary<string, int>();
+        // 2026-09-09 — вместо словаря хэшей учёт держит StateSyncTracker:
+        // снимок попадает в кэш ТОЛЬКО после подтверждения бэкендом, отправки
+        // не обгоняют друг друга, а загрузка другого сейва поднимает эпоху,
+        // чтобы подтверждения прошлой сессии не принимались за свежие.
+        private readonly BannerlordLink.Util.StateSyncTracker _heroStateSync
+            = new BannerlordLink.Util.StateSyncTracker();
 
         public override void RegisterEvents()
         {
@@ -692,7 +696,7 @@ namespace BannerlordLink.Behaviors
                 {
                     if (hero?.Name == null) continue;
                     if (!BannerlordLink.Util.HeroNaming.IsAdopted(hero.Name.ToString())) continue;
-                    if (BannerlordLink.Util.HeroStateSync.PushIfChanged(hero, _heroStateHashes))
+                    if (BannerlordLink.Util.HeroStateSync.PushIfChanged(hero, _heroStateSync))
                         pushed++;
                 }
                 if (pushed > 0)
@@ -715,7 +719,11 @@ namespace BannerlordLink.Behaviors
         {
             try
             {
-                _heroStateHashes.Clear();
+                // Сейв сменился: чистим подтверждённые снимки И поднимаем
+                // эпоху. Без эпохи ответ на отправку, стартовавшую ДО загрузки,
+                // записал бы старый хэш в свежий кэш — и состояние нового сейва
+                // не уехало бы, пока герой не изменится сам.
+                _heroStateSync.ResetForNewSession();
                 var heroes = Campaign.Current?.AliveHeroes;
                 if (heroes == null) return;
                 int n = 0;
@@ -725,7 +733,7 @@ namespace BannerlordLink.Behaviors
                     if (!BannerlordLink.Util.HeroNaming.IsAdopted(hero.Name.ToString())) continue;
                     // PushIfChanged с пустым кэшем = пуш + заполнение кэша (чтобы
                     // следующий тик зеркала не дублировал). PushAll — экипировка.
-                    try { BannerlordLink.Util.HeroStateSync.PushIfChanged(hero, _heroStateHashes); } catch { }
+                    try { BannerlordLink.Util.HeroStateSync.PushIfChanged(hero, _heroStateSync); } catch { }
                     try { BannerlordLink.Util.EquipmentSync.PushAll(hero); } catch { }
                     n++;
                 }

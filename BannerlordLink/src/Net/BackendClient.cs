@@ -121,10 +121,19 @@ namespace BannerlordLink.Net
             string response = await PostJsonAsync(
                 $"/v1/module/{item.ModuleId}/events", body).ConfigureAwait(false);
             if (response == null) return false;
-            bool ok = response.Contains("\"status\":\"ok\"")
-                || response.Contains("\"status\": \"ok\"");
+            // 2026-09-09 — подтверждение по КОНВЕРТУ, а не по общему статусу.
+            //
+            // Это денежный путь: при `delivered = true` очередь журналирует ACK
+            // и УДАЛЯЕТ событие из `_pending` (DurableEventOutbox:141-155).
+            // Со старой проверкой (`Contains("\"status\":\"ok\"")`) отклонённый
+            // конверт — `event_not_in_manifest` или падение обработчика —
+            // считался доставленным и пропадал навсегда. При этом бэкенд такие
+            // конверты специально делает ПОВТОРЯЕМЫМИ (`_forget_envelope`,
+            // module_api.py), то есть ждал повтора, которого мод уже не слал.
+            bool ok = EventAckParser.IsAcked(response, out string ackError);
             if (!ok)
-                _log($"[outbox] backend rejected {item.EventType}: {Truncate(response, 200)}");
+                _log($"[outbox] backend rejected {item.EventType} ({ackError}): "
+                     + Truncate(response, 200));
             return ok;
         }
 
@@ -217,9 +226,23 @@ namespace BannerlordLink.Net
             string response = await PostJsonAsync($"/v1/module/{moduleId}/events", body);
             if (response == null) return false;
 
-            // Простой проверочный check — должен содержать "status":"ok"
-            bool ok = response.Contains("\"status\":\"ok\"") || response.Contains("\"status\": \"ok\"");
-            _log($"event {eventType} → {(ok ? "ACK" : "REJECTED")}: {Truncate(response, 200)}");
+            // 2026-09-09 — подтверждением считается ACK КОНКРЕТНОГО конверта.
+            //
+            // Раньше здесь стоял `response.Contains("\"status\":\"ok\"")`. Бэкенд
+            // (`routes/module_api.py`) отвечает `{"status": "ok", "acks": [...]}`
+            // ВСЕГДА, а судьба каждого конверта лежит внутри:
+            //   {"id": ..., "success": false, "error": "event_not_in_manifest"}
+            // либо `"error": "<Исключение>: ..."` при падении обработчика.
+            // То есть отклонённое событие мод объявлял доставленным. Для
+            // зеркала состояния это означало «замёрзло навсегда», для прочих
+            // событий — неверную строку в логе.
+            //
+            // Отсутствие `acks` тоже НЕ подтверждение: лучше повторить снимок,
+            // чем считать доставленным то, о чём сервер ничего не сказал.
+            bool ok = EventAckParser.IsAcked(response, out string ackError);
+            _log($"event {eventType} → {(ok ? "ACK" : "REJECTED")}" +
+                 (ackError == null ? "" : $" ({ackError})") +
+                 $": {Truncate(response, 200)}");
             return ok;
         }
 

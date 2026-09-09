@@ -47,34 +47,69 @@ namespace BannerlordLink.Util
         /// но пушит ТОЛЬКО если сериализованный state изменился с прошлого раза
         /// (hashCache keyed by username). Возвращает true если запушили.
         /// Закрывает пробел: gold/level/skills зеркалятся без действий зрителя.</summary>
-        public static bool PushIfChanged(Hero hero, Dictionary<string, int> hashCache)
+        /// 2026-09-09 — снимок считается доставленным только после ПОДТВЕРЖДЕНИЯ.
+        /// Раньше хэш писался в кэш ДО отправки, а результат отправки
+        /// выбрасывался: сбой сети означал, что неизменившийся снимок не уйдёт
+        /// уже никогда, и зеркало замерзало до следующего изменения героя.
+        /// Учёт вынесен в <see cref="StateSyncTracker"/> — он же держит защиту
+        /// от обгона и от callback'ов прошлой сессии.
+        public static bool PushIfChanged(Hero hero, StateSyncTracker tracker)
         {
+            if (tracker == null) return false;
             string username;
+            // JSON строится ЗДЕСЬ — на главном потоке. Всё, что уходит в
+            // фоновую задачу ниже, это уже готовая строка: объекты движка из
+            // другого потока не читаются.
             string json = BuildStateJson(hero, out username);
             if (json == null) return false;
-            int hash = json.GetHashCode();
-            int prev;
-            if (hashCache != null && hashCache.TryGetValue(username, out prev) && prev == hash)
-                return false;                 // без изменений — не пушим
-            if (hashCache != null) hashCache[username] = hash;
-            PostStateUpdate(username, json);
+
+            StateSyncTracker.Attempt attempt;
+            if (!tracker.TryBeginSend(username, json, out attempt))
+                return false;                 // ровно этот снимок уже подтверждён
+
+            PostStateUpdate(username, json, tracker, attempt);
             return true;
         }
 
-        /// <summary>Fire-and-forget POST player.state_update.</summary>
-        private static void PostStateUpdate(string username, string json)
+        /// <summary>POST player.state_update с учётом подтверждения.
+        ///
+        /// `PostEventAsync` возвращает true только если бэкенд подтвердил
+        /// КОНКРЕТНЫЙ конверт (`acks[].success`), а не просто ответил
+        /// `status: ok` — иначе отклонённое событие (например, тип не объявлен
+        /// в манифесте) считалось бы доставленным.</summary>
+        private static void PostStateUpdate(
+            string username, string json,
+            StateSyncTracker tracker = null,
+            StateSyncTracker.Attempt attempt = default(StateSyncTracker.Attempt))
         {
             Task.Run(async () =>
             {
+                bool ok = false;
                 try
                 {
-                    await BannerlordLinkModule.Backend
+                    ok = await BannerlordLinkModule.Backend
                         .PostEventAsync("bannerlord", "player.state_update", json);
                 }
                 catch (Exception ex)
                 {
                     BannerlordLinkModule.Log(
                         $"[HeroStateSync] push @{username} failed: {ex.Message}");
+                }
+
+                if (tracker == null || !attempt.IsValid) return;
+                if (ok)
+                {
+                    if (!tracker.Confirm(attempt))
+                        BannerlordLinkModule.Log(
+                            $"[HeroStateSync] @{username}: подтверждение устарело " +
+                            "(ушла более свежая отправка или сменился сейв) — не кэшируем");
+                }
+                else
+                {
+                    tracker.Fail(attempt);
+                    BannerlordLinkModule.Log(
+                        $"[HeroStateSync] @{username}: снимок НЕ подтверждён — " +
+                        "повторим на следующем тике");
                 }
             });
         }

@@ -23,6 +23,8 @@ import json
 from typing import Any, Dict
 
 from .._base import ModuleAdapter, ModuleEnvelope
+from notices import add_notice_tx
+from .refusals import describe as describe_refusal
 
 
 class RimWorldAdapter(ModuleAdapter):
@@ -119,6 +121,14 @@ class RimWorldAdapter(ModuleAdapter):
                 "UPDATE module_actions SET status='failed',error_msg=?,acked_at=CURRENT_TIMESTAMP "
                 "WHERE channel_id=? AND module_id='rimworld' AND action_id=?",
                 (marker, channel_id, action_id))
+            # Объяснение уезжает зрителю ТОЙ ЖЕ транзакцией, что и деньги
+            # (как в Bannerlord). Найдено постстрим-триажом 09.09: отказ в
+            # RimWorld возвращал крустики МОЛЧА — за эфир два возврата и ноль
+            # уведомлений. Зритель видит уход и возврат денег без единого
+            # слова и жмёт снова; ровно ради этого заведён M103.
+            await add_notice_tx(
+                conn, channel_id, username, "refused",
+                describe_refusal(reason), 0)
             await conn.commit()
         print(f"[rimworld:{channel_id}] action.failed {action_id} reason={reason} "
               f"refund={price if price > 0 else 0} user=@{username or '?'}")

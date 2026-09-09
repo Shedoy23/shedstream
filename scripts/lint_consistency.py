@@ -1610,7 +1610,24 @@ def check_release_candidate_fresh():
             % (path.name, stale))
 
 
+def _force_utf8_output() -> None:
+    """Русские сообщения линтера должны читаться в консоли Windows.
+
+    Тексты проверок давно по-русски, а `python` на машине владельца пишет в
+    cp1251: сообщение приезжало кракозябрами. Проверка, чей текст нельзя
+    прочесть, не называет проблему — а именно называть её она и обязана.
+    Падения не было только потому, что поток подменялся при перенаправлении;
+    в verify-candidate.py тот же класс валил запуск целиком.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, OSError, ValueError):
+            pass
+
+
 def main() -> int:
+    _force_utf8_output()
     if EXT is None:
         print("[lint] FAIL: could not locate extension dir (with backend/)")
         return 1

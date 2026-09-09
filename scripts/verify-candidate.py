@@ -214,7 +214,30 @@ def check_record(sha: str, md5: str, size: int) -> None:
     notes.append("журнал: свежая запись «%s» описывает именно этот архив" % title)
 
 
+def _force_utf8_output() -> None:
+    """Печатать по-русски в консоли Windows, а не падать на первой же строке.
+
+    Проверка вся на русском, а `python` на этой машине пишет в cp1251: первый
+    же `print` с рамкой и кириллицей валился `UnicodeEncodeError` ДО единой
+    проверки архива. Прошлый прогон этого не показал, потому что запускался с
+    `PYTHONIOENCODING=utf-8` — переменная маскировала дефект ровно в том
+    инструменте, который написан против масок. Тот же класс, что ловит сама
+    проверка: зелёный вывод получен в условиях, в которых человек не работает.
+
+    `reconfigure` есть с 3.7; `errors="replace"` — чтобы совсем экзотическая
+    консоль печатала «?» вместо падения. Молча ничего не делаем только если
+    поток вообще не поддерживает переконфигурацию (перенаправлен в пайп со
+    своей обёрткой) — там кодировка уже задана вызывающим.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, OSError, ValueError):
+            pass
+
+
 def main() -> int:
+    _force_utf8_output()
     ap = argparse.ArgumentParser()
     ap.add_argument("--version", help="номер версии, например 0.0.5")
     ap.add_argument("--archive", help="путь к архиву (по умолчанию dist/shedlink-<версия>.zip)")

@@ -1054,9 +1054,20 @@ async function pollNotices() {
 }
 
 // ===== ЗАГРУЗКА ДАННЫХ ПОЛЬЗОВАТЕЛЯ (исправленная) =====
+// Поколение запроса состояния. `loadUserData()` зовут из тридцати мест —
+// интервал, каждая покупка, восстановление входа, — поэтому два запроса
+// регулярно летят одновременно, а сеть не обязана вернуть их по порядку.
+// Без этого счётчика панель закрашивал ТОТ, ЧЕЙ ОТВЕТ ПРИШЁЛ ПОСЛЕДНИМ, и
+// зритель видел одно из двух: баланс, отправленный ДО покупки («деньги не
+// списались» → жмёт ещё раз), либо `unauthorized`, отправленный ДО
+// восстановления входа, — он стирал баланс в «—» и показывал карточку входа
+// поверх рабочей панели. Держит `scripts/test-frontend-state-race.mjs`.
+let _stateSeq = 0;
+
 async function loadUserData() {
     if (!userLogin) return;
-    
+    const seq = ++_stateSeq;
+
     try {
         const response = await fetch(`${API_URL}/api/viewer/stats/${userLogin}`, {
             headers: { 'X-Twitch-JWT': authToken || '' },
@@ -1065,6 +1076,10 @@ async function loadUserData() {
             // cached before the server started sending Cache-Control: no-store.
             cache: 'no-store',
         });
+
+        // Пока летел этот запрос, ушёл более свежий — его ответ и есть правда.
+        // Молча выходим: рисовать устаревшее состояние хуже, чем не рисовать.
+        if (seq !== _stateSeq) return;
 
         // 🔧 ИСПРАВЛЕНИЕ: Проверяем код ответа сервера
         if (!response.ok) {
@@ -1077,6 +1092,11 @@ async function loadUserData() {
 
         // Если всё хорошо (200 OK), парсим JSON
         const data = await response.json();
+
+        // Разбор тела — тоже await, и за это время мог уйти новый запрос.
+        // Проверяем ВТОРОЙ раз, иначе устаревший `unauthorized` дошёл бы до
+        // handleAuthLost() и погасил панель уже после восстановления входа.
+        if (seq !== _stateSeq) return;
 
         // ВАЖНО: 200 OK — ещё не «всё хорошо». Когда сервер не смог опознать
         // зрителя, он отвечает ИМЕННО 200 с {"status":"unauthorized"} и без

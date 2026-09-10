@@ -176,32 +176,24 @@ PAWN_DATA_TABLES = [
 # In-memory кэш тултипов — def_name → tooltip строка.
 # Заполняется при получении каталога от мода, в БД не хранится.
 # Персистится в JSON файл чтобы переживать рестарт сервера.
-_tooltip_cache: dict = {}
-_TOOLTIP_CACHE_FILE = "tooltip_cache.json"
-
 HEAL_COOLDOWN_SECONDS = 15 * 60  # 15 минут
 
-def _load_tooltip_cache():
-    """Загружает кэш тултипов с диска при старте."""
-    global _tooltip_cache
-    if os.path.exists(_TOOLTIP_CACHE_FILE):
-        try:
-            with open(_TOOLTIP_CACHE_FILE, "r", encoding="utf-8") as f:
-                _tooltip_cache = json.load(f)
-            print(f"🗂️ Тултипы загружены: {len(_tooltip_cache)} предметов")
-        except Exception as e:
-            print(f"⚠️ Не удалось загрузить tooltip_cache.json: {e}")
 
-def _save_tooltip_cache():
-    """Сохраняет кэш тултипов на диск."""
-    try:
-        with open(_TOOLTIP_CACHE_FILE, "w", encoding="utf-8") as f:
-            json.dump(_tooltip_cache, f, ensure_ascii=False)
-    except Exception as e:
-        print(f"⚠️ Не удалось сохранить tooltip_cache.json: {e}")
+async def _tooltips_for_defs(conn, channel_id: int, def_names) -> dict:
+    """Подсказки каталога для перечисленных `def_name` этого канала.
 
-# Загружаем при импорте модуля
-_load_tooltip_cache()
+    До 10.09 жила глобальная `_tooltip_cache` в файле рядом с кодом — она
+    стиралась деплоем и не знала про арендатора (см. миграцию M124).
+    """
+    names = [d for d in dict.fromkeys(def_names) if d]
+    if not names:
+        return {}
+    marks = ",".join("?" * len(names))
+    cur = await conn.execute(
+        f"SELECT def_name, tooltip FROM shop_catalog "
+        f"WHERE channel_id=? AND def_name IN ({marks})",
+        [channel_id] + names)
+    return {r[0]: r[1] for r in await cur.fetchall() if r[1]}
 
 # Импортируем из main контекст (db, bot, pending_commands)
 # Используем late-binding чтобы избежать циклических импортов
@@ -1044,6 +1036,10 @@ async def get_my_pawn(username: str, request: Request):
             except Exception:
                 pass
 
+            # M124: подсказки надетых вещей — из каталога этого канала.
+            equip_tips = await _tooltips_for_defs(
+                conn, channel_id, [e[1] for e in equipment])
+
             return {
                 "exists": True,
                 "pawn_name": pawn[1],
@@ -1054,7 +1050,7 @@ async def get_my_pawn(username: str, request: Request):
                 "equipment": [
                     {
                         "slot": e[0], "item_def": e[1], "label": e[2], "name": e[2], "hp": e[3],
-                        "tooltip": _tooltip_cache.get(e[1], ""),
+                        "tooltip": equip_tips.get(e[1], ""),
                         # Разворачиваем meta обратно в поля для фронта (weapon_traits, psi_abilities,
                         # is_bladelink, quality, stuff, max_hp, description, color).
                         **(json.loads(e[4]) if e[4] else {})
@@ -1508,6 +1504,7 @@ async def receive_shop_catalog(request: Request, _auth=Depends(rimworld_mod_auth
                     base_price INTEGER DEFAULT 0,
                     tech_level TEXT,
                     extra_json TEXT,
+                    tooltip TEXT,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(channel_id, def_name)
                 )
@@ -1518,16 +1515,27 @@ async def receive_shop_catalog(request: Request, _auth=Depends(rimworld_mod_auth
                 await conn.commit()
             except Exception:
                 pass  # колонка уже существует
+            # M124 — то же для tooltip. Не дублирование миграции, а страховка от
+            # порядка: без колонки INSERT ниже падает на ВСЕХ позициях, и канал
+            # теряет каталог целиком, а ошибка уходит в ответ мода, которого
+            # никто не читает. Поймано tests/test_catalog_blocklist.py.
+            try:
+                await conn.execute("ALTER TABLE shop_catalog ADD COLUMN tooltip TEXT")
+                await conn.commit()
+            except Exception:
+                pass  # колонка уже существует
             # M97: БЕЗ WHERE это стирало каталог ВСЕМ стримерам сразу —
             # второй запустил игру, у первого магазин опустел.
             await conn.execute("DELETE FROM shop_catalog WHERE channel_id = ?",
                                (channel_id,))
+            tooltips_stored = 0
             for item in items:
-                # tooltip — не храним в БД, кэшируем в памяти
-                def_name_key = item.get('def_name', '')
-                tooltip_val  = item.get('tooltip', '')
-                if tooltip_val and def_name_key:
-                    _tooltip_cache[def_name_key] = tooltip_val
+                # M124: подсказка — такое же поле каталога, как цена и описание.
+                # Раньше она одна жила в файле рядом с кодом и потому стиралась
+                # деплоем (10.09 так и вышло) и не знала про арендатора.
+                tooltip_val = (item.get('tooltip') or '').strip()
+                if tooltip_val:
+                    tooltips_stored += 1
 
                 extra = {k: v for k, v in item.items()
                          if k not in ('category','def_name','label','desc','price',
@@ -1536,8 +1544,8 @@ async def receive_shop_catalog(request: Request, _auth=Depends(rimworld_mod_auth
                 base_price = item.get('base_price', 0)
                 await conn.execute("""
                     INSERT OR REPLACE INTO shop_catalog
-                    (channel_id, category, def_name, label, description, price, base_price, tech_level, extra_json)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (channel_id, category, def_name, label, description, price, base_price, tech_level, extra_json, tooltip)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     channel_id,
                     item.get('category', 'misc'),
@@ -1547,12 +1555,12 @@ async def receive_shop_catalog(request: Request, _auth=Depends(rimworld_mod_auth
                     item.get('price', 100),
                     base_price,
                     item.get('tech_level', ''),
-                    json.dumps(extra, ensure_ascii=False)
+                    json.dumps(extra, ensure_ascii=False),
+                    tooltip_val or None
                 ))
             await conn.commit()
 
-        _save_tooltip_cache()
-        print(f"🛒 Каталог обновлён: {len(items)} предметов, тултипов: {len(_tooltip_cache)}")
+        print(f"🛒 Каталог обновлён: {len(items)} предметов, подсказок: {tooltips_stored}")
         return {"status": "ok", "count": len(items)}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -1608,7 +1616,7 @@ async def get_catalog(request: Request, category: str = None,
         return {"items": [], "total": 0, "skipped": "module_inactive"}
     async with aiosqlite.connect(db.db_path) as conn:
         query = ("SELECT category, def_name, label, description, price, tech_level, "
-                 "extra_json, base_price FROM shop_catalog WHERE channel_id = ?")
+                 "extra_json, base_price, tooltip FROM shop_catalog WHERE channel_id = ?")
         params = [channel_id]
         if category and category != 'all':
             query += " AND category = ?"
@@ -1667,10 +1675,10 @@ async def get_catalog(request: Request, category: str = None,
             item["purchase_count"] = count
             item["next_price"]     = db.calc_progressive_price(base_price, count + 1)
         item.update(extra)
-        # Подмешиваем тултип из in-memory кэша (не из БД)
-        tt = _tooltip_cache.get(r[1], '')
-        if tt:
-            item['tooltip'] = tt
+        # M124: подсказка приезжает из той же строки, что и остальной каталог.
+        # Пусто = мод её ещё не присылал (каталог заливается при запуске игры).
+        if r[8]:
+            item['tooltip'] = r[8]
         items.append(item)
 
     return {"items": items, "total": len(items)}

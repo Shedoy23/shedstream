@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from typing import Any, Dict, Optional
 
 from .._base import ModuleAdapter, ModuleEnvelope
@@ -1022,50 +1023,86 @@ class BannerlordAdapter(ModuleAdapter):
     # отказа, который мы и чиним.
     _STATE_TS_RESET_MS = 60 * 60 * 1000     # час
 
-    async def _state_envelope_is_fresh(
-            self, channel_id: int, username: str, env: ModuleEnvelope) -> bool:
-        """Не старше ли этот снимок уже применённого. Побочный эффект: при
-        свежем снимке запоминает его `ts`.
+    # Насколько часам мода позволено убежать ВПЕРЁД от часов сервера, прежде
+    # чем мы перестанем им верить.
+    #
+    # Зачем (внешний обзор 2026-09-10). Ключ порядка — `ts` с машины мода, то
+    # есть обычные настенные часы игрока. Прыжок часов вперёд записывает в
+    # `state_ts` метку из будущего, и после этого КАЖДЫЙ настоящий снимок
+    # оказывается «устаревшим»: зеркало зрителя замирает, пока часы не догонят
+    # записанное. Молча и до перезапуска игры — то есть ровно тот отказ, от
+    # которого гейт защищает.
+    #
+    # Часы сервера под NTP и в этой паре — единственные, кому есть смысл
+    # верить. Метка вне правдоподобного окна означает «порядок неизвестен»:
+    # снимок применяем (потерять состояние хуже, чем потерять порядок), но в
+    # `state_ts` его НЕ записываем — маркер не должен отравляться. Поведение
+    # вырождается в прежнее «побеждает пришедший последним», а не в заморозку.
+    #
+    # Это смягчение, а не решение. Порядок, выведенный из настенных часов,
+    # неверен по построению; надёжно его чинит только монотонный счётчик
+    # отправок из самого мода (`StateSyncTracker` уже ведёт Seq/Epoch, но не
+    # кладёт их в payload). См. `DEFERRED.md`, «Порядок снимков висит на часах».
+    # Симметричной проверки «слишком старая метка» здесь НЕТ намеренно:
+    # отставшие часы порядок не ломают (метки всё равно растут), а разовый
+    # прыжок назад уже закрыт веткой _STATE_TS_RESET_MS выше. Лишнее условие
+    # только отключало бы гейт там, где он работает.
+    _STATE_TS_FUTURE_TOLERANCE_MS = 5 * 60 * 1000          # 5 минут вперёд
+
+    def _state_ts_is_plausible(self, incoming: int) -> bool:
+        """Не из будущего ли метка снимка, если верить часам сервера.
+
+        Отдельным методом, а не строчкой в условии, чтобы гейт мог позвать её
+        напрямую: правило «метке из будущего не верим» проверяется исполнением,
+        а не чтением.
+        """
+        now_ms = int(time.time() * 1000)
+        return incoming <= now_ms + self._STATE_TS_FUTURE_TOLERANCE_MS
+
+    async def _state_envelope_is_fresh_tx(
+            self, conn, channel_id: int, username: str, incoming: int) -> bool:
+        """Не старше ли этот снимок уже применённого. ЧИТАЕТ на переданном
+        соединении и ничего не пишет: отметку `state_ts` ставит тот же UPDATE,
+        который применяет сам снимок.
+
+        Почему `_tx`, а не своя транзакция (внешний обзор 2026-09-10).
+        Проверка и запись в РАЗНЫХ транзакциях — это check-then-act. Между
+        ними успевает пройти второй конверт, и в базе остаются данные старого
+        снимка под `state_ts` нового: база начинает утверждать, что держит
+        версию свежее той, что держит на самом деле, и после этого отвергает
+        все настоящие снимки между ними. Зеркало замирает — ровно тот дефект,
+        ради которого гейт и заводился. Класс тот же, что у правила «списание
+        и эффект в одной транзакции»: условие перечитывается ВНУТРИ той
+        транзакции, которая пишет.
 
         Возвращает True и когда порядок неизвестен (нет `ts` у конверта или
         `state_ts` пуст) — тогда ведём себя как раньше и просто применяем.
         """
-        try:
-            incoming = int(getattr(env, "ts", 0) or 0)
-        except (TypeError, ValueError):
-            incoming = 0
         if incoming <= 0:
             return True                      # старый мод — не гейтим
 
-        from dependencies import get_db
-        async with get_db()._connect() as conn:
-            cur = await conn.execute(
-                "SELECT state_ts FROM bannerlord_heroes "
-                "WHERE channel_id=? AND username=?",
-                (channel_id, username))
-            row = await cur.fetchone()
-            if row is None:
-                return True                  # героя ещё нет — применяем как есть
-            applied = row[0]
-
-            if applied is not None and incoming < applied:
-                if applied - incoming < self._STATE_TS_RESET_MS:
-                    logger.info(
-                        "[bannerlord:%s] state_update @%s отброшен как устаревший "
-                        "(ts=%s < применённого %s)",
-                        channel_id, username, incoming, applied)
-                    return False
-                logger.warning(
-                    "[bannerlord:%s] state_update @%s отстаёт на %s мс — считаем "
-                    "это сбросом часов мода, а не устаревшим снимком, и применяем",
-                    channel_id, username, applied - incoming)
-
-            await conn.execute(
-                "UPDATE bannerlord_heroes SET state_ts=? "
-                "WHERE channel_id=? AND username=?",
-                (incoming, channel_id, username))
-            await conn.commit()
+        cur = await conn.execute(
+            "SELECT state_ts FROM bannerlord_heroes "
+            "WHERE channel_id=? AND username=?",
+            (channel_id, username))
+        row = await cur.fetchone()
+        if row is None:
+            return True                      # героя ещё нет — применяем как есть
+        applied = row[0]
+        if applied is None or incoming >= applied:
             return True
+
+        if applied - incoming < self._STATE_TS_RESET_MS:
+            logger.info(
+                "[bannerlord:%s] state_update @%s отброшен как устаревший "
+                "(ts=%s < применённого %s)",
+                channel_id, username, incoming, applied)
+            return False
+        logger.warning(
+            "[bannerlord:%s] state_update @%s отстаёт на %s мс — считаем "
+            "это сбросом часов мода, а не устаревшим снимком, и применяем",
+            channel_id, username, applied - incoming)
+        return True
 
     async def _on_player_state_update(self, channel_id: int, env: ModuleEnvelope) -> None:
         """Mod synced состояние hero (gold, location, alive/prisoner, +M19 meta)."""
@@ -1087,19 +1124,20 @@ class BannerlordAdapter(ModuleAdapter):
         #
         # `env.ts` — epoch ms на стороне мода, ставится при отправке.
         # Отсутствует или ноль → не гейтим (старый мод, поведение как раньше).
-        if not await self._state_envelope_is_fresh(channel_id, username, env):
-            return
-
-        # Sprint 5.29 BLT-parity #5: achievements high-water-mark tracking.
-        # Push level/gold через set_stat_max — auto-detects new HWM.
+        # Сама проверка живёт ВНУТРИ транзакции применения (ниже): вынесенная
+        # в отдельную транзакцию, она пропускала обгон между проверкой и
+        # записью — внешний обзор 2026-09-10, гейт test_state_ts_atomicity.py.
         try:
-            from routes.bannerlord_achievements import set_stat_max
-            if "level" in data:
-                await set_stat_max(channel_id, username, "level_max", int(data["level"] or 0))
-            if "gold" in data:
-                await set_stat_max(channel_id, username, "gold_max", int(data["gold"] or 0))
-        except Exception:
-            pass
+            incoming_ts = int(getattr(env, "ts", 0) or 0)
+        except (TypeError, ValueError):
+            incoming_ts = 0
+        if incoming_ts > 0 and not self._state_ts_is_plausible(incoming_ts):
+            logger.warning(
+                "[bannerlord:%s] state_update @%s пришёл с меткой %s — часы мода "
+                "разошлись с сервером сверх допустимого; снимок применяем, "
+                "порядок по этой метке НЕ гейтим",
+                channel_id, username, incoming_ts)
+            incoming_ts = 0
 
         fields = []
         params: list = []
@@ -1120,67 +1158,99 @@ class BannerlordAdapter(ModuleAdapter):
         if not fields:
             return
         fields.append("last_sync = CURRENT_TIMESTAMP")
+        if incoming_ts > 0:
+            # Отметка версии едет тем же UPDATE, что и данные: одна запись —
+            # одно место, `state_ts` не может разойтись с тем, что применено.
+            fields.append("state_ts = ?")
+            params.append(incoming_ts)
         params.extend([channel_id, username])
 
         from dependencies import get_db
         async with get_db()._connect() as conn:
-            await conn.execute(
-                f"UPDATE bannerlord_heroes SET {', '.join(fields)} "
-                f"WHERE channel_id=? AND username=?",
-                params)
+            try:
+                # BEGIN IMMEDIATE сериализует конверты одного героя, а проверка
+                # свежести перечитывается ЗДЕСЬ же — иначе обгон возвращается.
+                await conn.execute("BEGIN IMMEDIATE")
+                if not await self._state_envelope_is_fresh_tx(
+                        conn, channel_id, username, incoming_ts):
+                    await conn.rollback()
+                    return
+                await conn.execute(
+                    f"UPDATE bannerlord_heroes SET {', '.join(fields)} "
+                    f"WHERE channel_id=? AND username=?",
+                    params)
 
-            # Sprint 5.8: UPSERT skills (level/focus) и attributes если пришли.
-            skills_payload = data.get("skills")
-            if isinstance(skills_payload, dict):
-                for skill_key, info in skills_payload.items():
-                    if not isinstance(info, dict):
-                        continue
-                    try:
-                        level = int(info.get("level") or 0)
-                        focus = int(info.get("focus") or 0)
-                    except (TypeError, ValueError):
-                        continue
-                    await conn.execute("""
-                        INSERT INTO bannerlord_skills
-                            (channel_id, username, skill_key, level, xp, focus)
-                        VALUES (?, ?, ?, ?, 0, ?)
-                        ON CONFLICT(channel_id, username, skill_key) DO UPDATE SET
-                            level = excluded.level,
-                            focus = excluded.focus
-                    """, (channel_id, username, skill_key, level, focus))
+                # Sprint 5.8: UPSERT skills (level/focus) и attributes если пришли.
+                skills_payload = data.get("skills")
+                if isinstance(skills_payload, dict):
+                    for skill_key, info in skills_payload.items():
+                        if not isinstance(info, dict):
+                            continue
+                        try:
+                            level = int(info.get("level") or 0)
+                            focus = int(info.get("focus") or 0)
+                        except (TypeError, ValueError):
+                            continue
+                        await conn.execute("""
+                            INSERT INTO bannerlord_skills
+                                (channel_id, username, skill_key, level, xp, focus)
+                            VALUES (?, ?, ?, ?, 0, ?)
+                            ON CONFLICT(channel_id, username, skill_key) DO UPDATE SET
+                                level = excluded.level,
+                                focus = excluded.focus
+                        """, (channel_id, username, skill_key, level, focus))
 
-            attrs_payload = data.get("attributes")
-            if isinstance(attrs_payload, dict):
-                for attr_key, value in attrs_payload.items():
-                    try:
-                        v = int(value)
-                    except (TypeError, ValueError):
-                        continue
-                    await conn.execute("""
-                        INSERT INTO bannerlord_attributes
-                            (channel_id, username, attribute, value)
-                        VALUES (?, ?, ?, ?)
-                        ON CONFLICT(channel_id, username, attribute) DO UPDATE SET
-                            value = excluded.value
-                    """, (channel_id, username, attr_key, v))
+                attrs_payload = data.get("attributes")
+                if isinstance(attrs_payload, dict):
+                    for attr_key, value in attrs_payload.items():
+                        try:
+                            v = int(value)
+                        except (TypeError, ValueError):
+                            continue
+                        await conn.execute("""
+                            INSERT INTO bannerlord_attributes
+                                (channel_id, username, attribute, value)
+                            VALUES (?, ?, ?, ?)
+                            ON CONFLICT(channel_id, username, attribute) DO UPDATE SET
+                                value = excluded.value
+                        """, (channel_id, username, attr_key, v))
 
-            # Sprint 5.11+5.27c: clan_info / kingdom_info / family_info JSON storage
-            for k, col in [("clan_info", "clan_info_json"),
-                           ("kingdom_info", "kingdom_info_json"),
-                           ("family_info", "family_info_json"),
-                           ("party_info", "party_info_json")]:
-                info = data.get(k)
-                if info is not None:
-                    try:
-                        json_str = json.dumps(info, ensure_ascii=False) if info else None
-                    except Exception:
-                        json_str = None
-                    await conn.execute(
-                        f"UPDATE bannerlord_heroes SET {col}=? "
-                        f"WHERE channel_id=? AND username=?",
-                        (json_str, channel_id, username))
+                # Sprint 5.11+5.27c: clan_info / kingdom_info / family_info JSON storage
+                for k, col in [("clan_info", "clan_info_json"),
+                               ("kingdom_info", "kingdom_info_json"),
+                               ("family_info", "family_info_json"),
+                               ("party_info", "party_info_json")]:
+                    info = data.get(k)
+                    if info is not None:
+                        try:
+                            json_str = json.dumps(info, ensure_ascii=False) if info else None
+                        except Exception:
+                            json_str = None
+                        await conn.execute(
+                            f"UPDATE bannerlord_heroes SET {col}=? "
+                            f"WHERE channel_id=? AND username=?",
+                            (json_str, channel_id, username))
 
-            await conn.commit()
+                await conn.commit()
+            except Exception:
+                # Пул не откатывает за нас: незакрытая транзакция вернулась бы
+                # в пул и держала блокировку записи на весь процесс.
+                await conn.rollback()
+                raise
+
+        # Sprint 5.29 BLT-parity #5: achievements high-water-mark tracking.
+        # Push level/gold через set_stat_max — auto-detects new HWM.
+        # Идёт ПОСЛЕ транзакции: set_stat_max открывает своё соединение, а
+        # внутри BEGIN IMMEDIATE это была бы попытка писать поверх собственной
+        # блокировки. Устаревший конверт сюда не доходит — мы уже вышли.
+        try:
+            from routes.bannerlord_achievements import set_stat_max
+            if "level" in data:
+                await set_stat_max(channel_id, username, "level_max", int(data["level"] or 0))
+            if "gold" in data:
+                await set_stat_max(channel_id, username, "gold_max", int(data["gold"] or 0))
+        except Exception:
+            pass
 
     async def _on_player_died(self, channel_id: int, env: ModuleEnvelope) -> None:
         """HeroKilled event. Mark dead + bump iteration counter for heir succession.

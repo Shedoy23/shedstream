@@ -1262,6 +1262,61 @@ html, body {
 
 .shop-item-info { flex: 1; min-width: 0; }
 
+/* RimWorld catalog: touch/keyboard disclosure, separate from the paid action. */
+#shop-list .rw-shop-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 0;
+    gap: 0;
+    background: #202024;
+    border-color: #343039;
+    border-radius: 10px;
+}
+#shop-list .rw-shop-item.is-expanded { border-color: #985adb; }
+#shop-list .rw-shop-inspect {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+    padding: 11px 8px 11px 10px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: #efeff1;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+#shop-list .rw-shop-inspect:focus-visible { outline: 2px solid #bf94ff; outline-offset: -3px; }
+#shop-list .rw-shop-inspect .shop-item-name { display: block; font-size: 13px; }
+#shop-list .rw-shop-inspect .shop-item-desc { display: block; white-space: normal; font-size: 11px; color: #bdb5c8; }
+#shop-list .rw-shop-more { display: block; margin-top: 5px; font-size: 11px; color: #c8a0ff; }
+#shop-list .rw-shop-item .shop-item-buy { padding: 11px 10px 11px 0; align-self: start; }
+#shop-list .rw-shop-item .shop-item-price { color: #c49aff; }
+#shop-list .rw-shop-item .shop-buy-btn { min-width: 60px; font-size: 11px; }
+#shop-list .rw-shop-item .shop-buy-btn:disabled { color: #b9b0c3; }
+#shop-list .rw-shop-details {
+    grid-column: 1 / -1;
+    padding: 12px;
+    background: #261f30;
+    border-top: 1px solid #3d304d;
+    border-radius: 0 0 9px 9px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #e3ddea;
+    overflow-wrap: anywhere;
+}
+#shop-list .rw-shop-details[hidden] { display: none; }
+#shop-list .rw-shop-details p { margin: 0; white-space: pre-line; }
+#shop-list .rw-shop-details p + p { margin-top: 10px; padding-top: 10px; border-top: 1px solid #403448; }
+#shop-list .rw-shop-note { margin-top: 10px; color: #efc185; }
+#shop-list .rw-shop-empty { color: #bbb2c7; }
+@media (pointer: coarse) {
+    #shop-list .rw-shop-item .shop-buy-btn { min-height: 44px; }
+    #shop-filters .filter-btn { min-height: 44px; min-width: 44px; }
+    #shop-search { font-size: 16px !important; }
+}
+
 .shop-item-name {
     font-weight: 700;
     font-size: 12px;

@@ -1,6 +1,7 @@
 let shopAllItems = [];
 let shopSearchQuery = '';
 let shopCurrentFilter = 'all';
+let shopExpandedItemKey = null;
 
 // 2026-07-24 — защита от ДВОЙНОЙ загрузки каталога. Функцию зовут из двух мест
 // (viewer.js:453 при инициализации и viewer.js:788 по условию «каталог пуст»).
@@ -133,10 +134,10 @@ function renderShop(items) {
     };
 
     let html = '';
-    items.forEach(item => {
+    items.forEach((item, index) => {
         const icon = typeIcons[item.type] || '📦';
         const canAfford = userPoints >= item.cost;
-        const typeBadge = `<span class="type-badge type-${item.type}">${typeLabels[item.type] || item.type}</span>`;
+        const typeBadge = `<span class="type-badge type-${escapeHtml(item.type)}">${escapeHtml(typeLabels[item.type] || item.type)}</span>`;
 
         // Проверяем установленность (только для имплантов)
         let installedBadge = '';
@@ -159,15 +160,25 @@ function renderShop(items) {
             }
         }
 
-        const tooltipText = item.tooltip || item.description || '';
+        // TraitDef descriptions are templates; the catalog has no concrete pawn.
+        const description = String(item.description || '').trim()
+            .replace(/\{PAWN_(?:nameDef|pronoun)\}/g, 'Персонаж');
+        const tooltipText = String(item.tooltip || '').trim();
+        const itemKey = JSON.stringify([item.type, item.def_name || item.def, item.degree || 0]);
+        const expanded = shopExpandedItemKey === itemKey;
+        const detailsId = `rw-shop-details-${index}`;
+        const detailParts = [...new Set([description, tooltipText].filter(Boolean))];
         html += `
-            <div class="shop-item" style="${itemStyle}">
-                ${tooltipText ? `<div class="shop-tooltip">${escapeHtml(tooltipText)}</div>` : ''}
-                <div class="shop-item-icon">${icon}</div>
-                <div class="shop-item-info">
-                    <div class="shop-item-name" title="${escapeHtml(item.name || item.def)}">${escapeHtml(item.name || item.def)}</div>
-                    <div class="shop-item-desc">${typeBadge} ${item.slot ? '・ ' + item.slot : ''}${installedBadge}</div>
-                </div>
+            <div class="shop-item rw-shop-item${expanded ? ' is-expanded' : ''}" style="${itemStyle}">
+                <button type="button" class="rw-shop-inspect" data-item-key="${escapeHtml(itemKey)}"
+                    aria-expanded="${expanded}" aria-controls="${detailsId}">
+                    <span class="shop-item-icon" aria-hidden="true">${icon}</span>
+                    <span class="shop-item-info">
+                        <span class="shop-item-name">${escapeHtml(item.name || item.def)}</span>
+                        <span class="shop-item-desc">${typeBadge} ${item.slot ? '・ ' + escapeHtml(item.slot) : ''}${installedBadge}</span>
+                        <span class="rw-shop-more">${expanded ? 'Свернуть ▴' : 'Подробнее ▾'}</span>
+                    </span>
+                </button>
                 <div class="shop-item-buy">
                     <div class="shop-item-price">${item.cost}💎</div>
                     <button class="buy-btn shop-buy-btn" ${!canAfford ? 'disabled' : ''}
@@ -181,12 +192,32 @@ function renderShop(items) {
                         ${canAfford ? 'Купить' : 'Мало 💎'}
                     </button>
                 </div>
+                <div class="rw-shop-details" id="${detailsId}" ${expanded ? '' : 'hidden'}>
+                    ${detailParts.length ? detailParts.map(part => `<p>${escapeHtml(part)}</p>`).join('') : '<p class="rw-shop-empty">Игра пока не передала описание этого товара.</p>'}
+                    ${installedBadge ? `<div class="rw-shop-note">${installedBadge}</div>` : ''}
+                    ${!canAfford ? `<div class="rw-shop-note">Для покупки не хватает ${(item.cost - userPoints).toLocaleString('ru-RU')} 💎.</div>` : ''}
+                </div>
             </div>
         `;
     });
 
 
     container.innerHTML = html;
+
+    container.querySelectorAll('.rw-shop-inspect').forEach(btn => {
+        btn.addEventListener('click', () => {
+            shopExpandedItemKey = shopExpandedItemKey === btn.dataset.itemKey ? null : btn.dataset.itemKey;
+            // Toggle in place: retain keyboard focus and the catalog's scroll position.
+            container.querySelectorAll('.rw-shop-inspect').forEach(control => {
+                const open = control.dataset.itemKey === shopExpandedItemKey;
+                if (control.getAttribute('aria-expanded') === String(open)) return;
+                control.setAttribute('aria-expanded', String(open));
+                control.closest('.rw-shop-item').classList.toggle('is-expanded', open);
+                control.querySelector('.rw-shop-more').textContent = open ? 'Свернуть ▴' : 'Подробнее ▾';
+                document.getElementById(control.getAttribute('aria-controls')).hidden = !open;
+            });
+        });
+    });
 
     // Event delegation — читаем параметры из data-атрибутов, не из onclick
     container.querySelectorAll('.shop-buy-btn').forEach(btn => {

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-**shedstream / ShedLink** — a multi-tenant Twitch Extension platform that turns viewers into participants in the streamer's game. One backend deployment serves many streamer channels. Three game modules are declared today: **Bannerlord** (C# mod + backend module — the flagship, the one actually streamed), **RimWorld** (RimLink — effectively off, legacy monolith awaiting the Module API move), and **shedcolony** (MineColonies × Twitch, early; game-side mod lives in a separate repo). The architecture goal is game-agnostic: games plug in via the Module API (`docs/MODULE_API.md`).
+**shedstream / ShedLink** — a multi-tenant Twitch Extension platform that turns viewers into participants in the streamer's game. One backend deployment serves many streamer channels. Three game modules are declared today: **Bannerlord** (C# mod + backend module — the flagship), **RimWorld** (RimLink — part legacy monolith `rimworld.py`, part Module API adapter; which game is live is a fact about the channel, not about the code — check `channels.active_module` and the mod heartbeat, never assume. The old line here said RimWorld was "effectively off"; that belief got baked into the paid-action TTL sweeper and left 550 crustics stuck on the 2026-09-10 RimWorld stream → `docs/POSTSTREAM_TRIAGE_2026-09-10.md`), and **shedcolony** (MineColonies × Twitch, early; game-side mod lives in a separate repo). The architecture goal is game-agnostic: games plug in via the Module API (`docs/MODULE_API.md`).
 
 ## Repo layout (only the parts that need explaining)
 
@@ -193,6 +193,15 @@ Prod = `root@31.130.132.224:/root/twitch-extension/`, run under supervisor as `t
   отложенный (вотум, ставка), на успехе нужен тост «это заявка, исход позже».
   Иначе зритель жмёт снова и переплачивает — так объявляли войну 4 раза подряд.
   → `LESSONS.md`, «Платное + асинхронное».
+- **Возврат денег обязан объяснить себя зрителю — в ОБЩЕЙ функции возврата.**
+  Любой рефанд пишет `add_notice_tx` в той же транзакции, что `add_points_tx`,
+  и именно в функции, которая возвращает, а не в каждом вызывающем: вызывающие
+  забывают. Причина: зритель, у которого деньги ушли и молча вернулись, не
+  отличает «я сделал не то» от «у них сломалось» и жмёт снова. Класс всплыл
+  дважды подряд: 09.09 молчал отказ RimWorld в адаптере, 11.09 — вся старая
+  очередь RimWorld, хотя накануне в отчёте она была записана рядом. Держат
+  `test_rimworld_refusal_notice.py` и `test_rimworld_abandoned_commands.py`.
+  → `docs/POSTSTREAM_TRIAGE_2026-09-10.md`, §4.
 
 ## Session workflow rules
 

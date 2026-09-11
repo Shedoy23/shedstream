@@ -1992,32 +1992,43 @@ async def _dispatched_action_sweeper():
     while True:
         try:
             await asyncio.sleep(sweep_interval_sec)
-            async with db._connect() as conn:
-                # Use datetime arithmetic — SQLite datetime('now') is UTC string.
-                cur = await conn.execute(
-                    "SELECT id, action_id, channel_id, type FROM module_actions "
-                    "WHERE status='dispatched' "
-                    "  AND dispatched_at IS NOT NULL "
-                    "  AND dispatched_at < datetime('now', ?)",
-                    (f"-{stale_threshold_sec} seconds",))
-                rows = await cur.fetchall()
-                if not rows:
-                    continue
-                ids = [r[0] for r in rows]
-                placeholders = ",".join("?" for _ in ids)
-                # dispatched_at намеренно сохраняем: fetch_pending_actions
-                # отличает retry со старым PK от новой queued-строки и выдаёт
-                # его независимо от монотонного cursor connector'а.
-                await conn.execute(
-                    f"UPDATE module_actions SET status='queued' "
-                    f"WHERE id IN ({placeholders})",
-                    ids)
-                await conn.commit()
-                for r in rows:
-                    print(f"🔁 [sweeper] re-queued stale dispatched action "
-                          f"id={r[0]} action_id={r[1]} ch={r[2]} type={r[3]}")
+            await _requeue_stale_dispatched(stale_threshold_sec)
         except Exception as e:
             print(f"❌ Dispatched-action sweeper error: {type(e).__name__}: {e}")
+
+
+async def _requeue_stale_dispatched(stale_threshold_sec: int) -> int:
+    """Один проход сторожа зависших `dispatched`: вернуть их в очередь.
+
+    Вынесено из цикла 2026-09-11, чтобы тест звал настоящий проход, а не копию
+    SQL. Возвращает число заявок, вернувшихся в очередь.
+    """
+    async with db._connect() as conn:
+        # Use datetime arithmetic — SQLite datetime('now') is UTC string.
+        cur = await conn.execute(
+            "SELECT id, action_id, channel_id, type FROM module_actions "
+            "WHERE status='dispatched' "
+            "  AND dispatched_at IS NOT NULL "
+            "  AND dispatched_at < datetime('now', ?)",
+            (f"-{stale_threshold_sec} seconds",))
+        rows = await cur.fetchall()
+        if not rows:
+            return 0
+        ids = [r[0] for r in rows]
+        placeholders = ",".join("?" for _ in ids)
+        # dispatched_at намеренно сохраняем: fetch_pending_actions
+        # отличает retry со старым PK от новой queued-строки и выдаёт
+        # его независимо от монотонного cursor connector'а.
+        cur = await conn.execute(
+            f"UPDATE module_actions SET status='queued' "
+            f"WHERE id IN ({placeholders})",
+            ids)
+        requeued = cur.rowcount
+        await conn.commit()
+    for r in rows:
+        print(f"🔁 [sweeper] re-queued stale dispatched action "
+              f"id={r[0]} action_id={r[1]} ch={r[2]} type={r[3]}")
+    return requeued
 
 
 async def _queued_action_ttl_sweeper():
@@ -2050,8 +2061,6 @@ async def _queued_action_ttl_sweeper():
     """
     sweep_interval_sec = 600       # 10 min
     ttl_sec = 1800                 # 30 min queued = the mod is clearly offline
-    from modules._loader import get_module
-    from modules._base import ModuleEnvelope
     print(f"⏳ Queued-action TTL sweeper started (interval={sweep_interval_sec}s, ttl={ttl_sec}s)")
     while True:
         try:
@@ -2066,27 +2075,38 @@ async def _queued_action_ttl_sweeper():
                           f"команд(ы), которые игра не забрала за {ttl_sec}с")
             except Exception as e:
                 print(f"❌ RimWorld legacy-queue sweep error: {type(e).__name__}: {e}")
-            async with db._connect() as conn:
-                cur = await conn.execute(
-                    "SELECT action_id, channel_id, type, module_id FROM module_actions "
-                    "WHERE module_id IN ('shedcolony', 'bannerlord', 'rimworld') AND status='queued' "
-                    "  AND created_at < datetime('now', ?)",
-                    (f"-{ttl_sec} seconds",))
-                rows = await cur.fetchall()
-            if not rows:
-                continue
-            for action_id, channel_id, action_type, module_id in rows:
-                adapter = get_module(module_id)
-                if not adapter:
-                    continue
-                env = ModuleEnvelope(id=f"ttl_{action_id}", kind="event", type="action.failed",
-                                     ts=0, data={"action_id": action_id,
-                                                 "reason": "queued_ttl_expired"})
-                await adapter.handle_event(channel_id, env)
-                print(f"⏳ [ttl-sweeper] auto-refunded stale queued action "
-                      f"{action_id} type={action_type} ch={channel_id} module={module_id}")
+            await _expire_stale_queued(ttl_sec)
         except Exception as e:
             print(f"❌ Queued-TTL sweeper error: {type(e).__name__}: {e}")
+
+
+async def _expire_stale_queued(ttl_sec: int) -> int:
+    """Один проход сторожа просроченных `queued`: вернуть деньги штатным путём.
+
+    Вынесено из цикла 2026-09-11, чтобы тесты звали настоящий проход, а не
+    копию SQL: копия в test_queued_ttl_expiry.py уже разошлась с продом — в ней
+    не было RimWorld. Возвращает число заявок-кандидатов этого прохода.
+    """
+    from modules._loader import get_module
+    from modules._base import ModuleEnvelope
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT action_id, channel_id, type, module_id FROM module_actions "
+            "WHERE module_id IN ('shedcolony', 'bannerlord', 'rimworld') AND status='queued' "
+            "  AND created_at < datetime('now', ?)",
+            (f"-{ttl_sec} seconds",))
+        rows = await cur.fetchall()
+    for action_id, channel_id, action_type, module_id in rows:
+        adapter = get_module(module_id)
+        if not adapter:
+            continue
+        env = ModuleEnvelope(id=f"ttl_{action_id}", kind="event", type="action.failed",
+                             ts=0, data={"action_id": action_id,
+                                         "reason": "queued_ttl_expired"})
+        await adapter.handle_event(channel_id, env)
+        print(f"⏳ [ttl-sweeper] auto-refunded stale queued action "
+              f"{action_id} type={action_type} ch={channel_id} module={module_id}")
+    return len(rows)
 
 
 async def _wal_checkpoint_loop():

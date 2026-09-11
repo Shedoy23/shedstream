@@ -112,24 +112,16 @@ async def _add_action(db, action_id, price, age_minutes):
 
 
 async def _sweep_once(db):
-    """Один проход сторожа — та же выборка и то же действие, что в main.py."""
-    from modules._loader import get_module, discover_modules
-    from modules._base import ModuleEnvelope
-    async with db._connect() as conn:
-        cur = await conn.execute(
-            "SELECT action_id, channel_id, type, module_id FROM module_actions "
-            "WHERE module_id IN ('shedcolony', 'bannerlord') AND status='queued' "
-            "  AND created_at < datetime('now', ?)",
-            (f"-{TTL_SEC} seconds",))
-        rows = await cur.fetchall()
-    for action_id, channel_id, action_type, module_id in rows:
-        adapter = get_module(module_id) or discover_modules().get(module_id)
-        if not adapter:
-            continue
-        await adapter.handle_event(channel_id, ModuleEnvelope(
-            id=f"ttl_{action_id}", kind="event", type="action.failed", ts=0,
-            data={"action_id": action_id, "reason": "queued_ttl_expired"}))
-    return len(rows)
+    """Один проход сторожа — НАСТОЯЩИЙ, из main.py.
+
+    До 2026-09-11 здесь лежала копия его SQL, и она разошлась с продом: в копии
+    не было RimWorld, который сторож с 11.09 обслуживает. Копия проверяет
+    саму себя, а не сторож.
+    """
+    import main
+    from modules._loader import discover_modules
+    discover_modules()
+    return await main._expire_stale_queued(TTL_SEC)
 
 
 async def _build_db(db_path: str):

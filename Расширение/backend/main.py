@@ -2038,6 +2038,15 @@ async def _queued_action_ttl_sweeper():
     менял — подключать было нельзя. Теперь меняет (оба пути: и с ценой, и
     бесплатный), поэтому просроченное действие выпадает из выдачи
     `status='queued'` и повторно не исполнится.
+
+    2026-09-11 — RIMWORLD ПОДКЛЮЧЁН, обе его очереди (постстрим-триаж 10.09).
+    Исключение RimWorld было наследием времени, когда в него не играли; с
+    сентября его стримят. Условие безопасности то же и проверено:
+    `modules/rimworld/_adapter._on_action_failed` ставит `status='failed'` с
+    меткой `REFUNDED:`. Отдельно — старая очередь `rimworld_pending_commands`:
+    при игре не в эфире платные команды ложатся туда, а её единственный сторож
+    жил внутри опроса мода и потому не работал ровно тогда, когда нужен.
+    На эфире 10.09 так зависли 550💎 у двух зрителей.
     """
     sweep_interval_sec = 600       # 10 min
     ttl_sec = 1800                 # 30 min queued = the mod is clearly offline
@@ -2047,10 +2056,20 @@ async def _queued_action_ttl_sweeper():
     while True:
         try:
             await asyncio.sleep(sweep_interval_sec)
+            # 2026-09-11 — старая очередь RimWorld. Отдельный try: её сбой не
+            # должен отменять возврат по module_actions ниже, и наоборот.
+            try:
+                import rimworld as _rimworld
+                n_rw = await _rimworld.sweep_abandoned_commands(ttl_sec)
+                if n_rw:
+                    print(f"⏳ [ttl-sweeper] RimWorld: вернули деньги за {n_rw} "
+                          f"команд(ы), которые игра не забрала за {ttl_sec}с")
+            except Exception as e:
+                print(f"❌ RimWorld legacy-queue sweep error: {type(e).__name__}: {e}")
             async with db._connect() as conn:
                 cur = await conn.execute(
                     "SELECT action_id, channel_id, type, module_id FROM module_actions "
-                    "WHERE module_id IN ('shedcolony', 'bannerlord') AND status='queued' "
+                    "WHERE module_id IN ('shedcolony', 'bannerlord', 'rimworld') AND status='queued' "
                     "  AND created_at < datetime('now', ?)",
                     (f"-{ttl_sec} seconds",))
                 rows = await cur.fetchall()

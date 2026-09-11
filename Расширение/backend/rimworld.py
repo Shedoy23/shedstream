@@ -234,21 +234,65 @@ async def _require_stream_live(request=None, channel_id=None):
     RimWorld-only production switch: RIMWORLD_REQUIRE_STREAM_LIVE=false
     разрешает технический прогон с запущенной игрой без Twitch-эфира, не снимая
     stream gate с остальных модулей. Общий TESTING_BYPASS_STREAM_LIVE остаётся
-    только тестовым аварийным bypass."""
+    только тестовым аварийным bypass.
+
+    2026-09-11 — И ИГРА ОБЯЗАНА БЫТЬ НА СВЯЗИ (`_require_game_on_air`). Все 13
+    вызывающих — платные игровые действия, поэтому проверка стоит здесь, а не
+    в каждом обработчике. Режим «тех-прогон без эфира» проверку игры НЕ снимает:
+    он и задуман как прогон «с запущенной игрой».
+    """
     from config import RIMWORLD_REQUIRE_STREAM_LIVE, TESTING_BYPASS_STREAM_LIVE
-    if TESTING_BYPASS_STREAM_LIVE or not RIMWORLD_REQUIRE_STREAM_LIVE:
+    if TESTING_BYPASS_STREAM_LIVE:
         return None
     if channel_id is None and request is not None:
         channel_id = require_jwt_channel(request)
+    if RIMWORLD_REQUIRE_STREAM_LIVE:
+        try:
+            import main as _main
+            live = await _main.bot._is_stream_live(channel_id=channel_id)
+            if not live:
+                return {"success": False, "message": "⚡ Доступно только во время стрима"}
+        except Exception as e:
+            print(f"⚠️ _require_stream_live: ошибка проверки стрима: {e}")
+            return {"success": False, "message": "⚡ Не удалось проверить статус стрима"}
+    return await _require_game_on_air(channel_id)
+
+
+async def _require_game_on_air(channel_id):
+    """Отказать ДО списания, если игра молчит дольше RIMWORLD_OFFLINE_TIMEOUT.
+
+    ЗАЧЕМ (постстрим-триаж 2026-09-11). На эфире 10.09 RimWorld не был запущен,
+    а трое платных действий прошли: зритель видел «✨ Пешка создаётся!», деньги
+    списались, команда легла в очередь, которую некому было вычерпать. Эфир
+    проверялся, игра — нет. Правило проекта требует гейтить действия состоянием
+    игры С ОБЕИХ сторон: панель на CDN заморожена и такую проверку может не
+    делать — бэкенд обязан.
+
+    Порог — тот же RIMWORLD_OFFLINE_TIMEOUT (10 минут), по которому панель
+    показывает зрителю «игра не в сети»: отказ ровно тогда, когда панель уже
+    сказала «офлайн». Короткое окно module_liveness (60 с) сюда не годится —
+    автосохранение или загрузка карты задерживают пульс, и живую игру отказывали
+    бы посреди эфира. Промежуток 1–10 минут прикрывает сторож старой очереди
+    (`sweep_abandoned_commands`): игра забрала — хорошо, не забрала за полчаса —
+    деньги вернутся с объяснением.
+
+    Метка берётся из module_liveness (база + кэш), а не из `rimworld_last_heartbeat`
+    в памяти: та обнуляется рестартом бэкенда, и сразу после деплоя живую игру
+    отказывали бы до первого пульса.
+    """
+    if channel_id is None:
+        return None          # без канала ответит проверка авторизации обработчика
+    import module_liveness
     try:
-        import main as _main
-        live = await _main.bot._is_stream_live(channel_id=channel_id)
-        if not live:
-            return {"success": False, "message": "⚡ Доступно только во время стрима"}
+        seen = await module_liveness.last_seen(get_db(), int(channel_id), "rimworld")
     except Exception as e:
-        print(f"⚠️ _require_stream_live: ошибка проверки стрима: {e}")
-        return {"success": False, "message": "⚡ Не удалось проверить статус стрима"}
-    return None
+        print(f"⚠️ _require_game_on_air: не удалось прочитать метку игры: {e}")
+        seen = 0.0
+    if seen and (time.time() - seen) < RIMWORLD_OFFLINE_TIMEOUT:
+        return None
+    return {"success": False,
+            "message": "🎮 Игра сейчас не запущена — крустики не списаны. "
+                       "Загляни, когда стример её откроет."}
 
 async def _ensure_pending_commands_table(conn):
     """Создаёт таблицу отложенных команд если её нет."""
@@ -335,6 +379,17 @@ async def _refund_cmd_row_tx(conn, channel_id: int, cmd_id: str,
         await get_db().decrement_purchase_count_tx(conn, username, category, channel_id)
         print(f"↩️  RimWorld refund: счётчик {category} для @{username} откачен")
 
+    # 2026-09-11 — возврат объясняет себя зрителю. Старая очередь возвращала
+    # деньги МОЛЧА во всех трёх случаях: отказ мода через ack-command, зависшая
+    # доставка и (с сегодняшнего дня) просрочка. 10.09 уведомление поставили
+    # только в новый путь (modules/rimworld/_adapter.py), а этот остался нем,
+    # хотя в отчёте триажа он был записан рядом. Здесь, в общей функции, —
+    # чтобы ни один из вызывающих не забыл: сами они уведомлений не пишут.
+    from notices import add_notice_tx
+    from modules.rimworld.refusals import describe as describe_refusal
+    await add_notice_tx(conn, channel_id, username, "refused",
+                        describe_refusal(reason), 0)
+
     print(f"💸 RimWorld refund: @{username} +{price}💎 (cmd={cmd_id}, reason={reason})")
     return True
 
@@ -356,6 +411,76 @@ async def _refund_stale_delivered(conn, channel_id: int):
             "DELETE FROM rimworld_pending_commands "
             "WHERE channel_id=? AND cmd_id=?",
             (channel_id, cmd_id))
+
+
+# Сколько команда может пролежать в старой очереди НЕ ДОСТАВЛЕННОЙ, прежде чем
+# за неё вернут деньги. Та же политика, что у module_actions
+# (main._queued_action_ttl_sweeper): полчаса без выдачи = игра не работает.
+_UNDELIVERED_TTL_SEC = 1800
+
+
+async def sweep_abandoned_commands(ttl_sec: int = _UNDELIVERED_TTL_SEC) -> int:
+    """Вернуть деньги за команды старой очереди, которые игра так и не забрала.
+
+    ЗАЧЕМ (постстрим-триаж 2026-09-11). На эфире 10.09 RimWorld не был запущен,
+    а трое платных действий прошли: создать пешку 200💎 ×2 и вылечить 150💎.
+    `_charge_and_enqueue` при игре «не в эфире» кладёт команду не в
+    module_actions, а сюда — в старую очередь. Через сутки все три лежали в
+    `status='queued'`, деньги не вернулись.
+
+    Механизм. У этой очереди был ровно один сторож с возвратом —
+    `_refund_stale_delivered`, и он (а) берёт только ДОСТАВЛЕННЫЕ моду команды,
+    (б) запускается только изнутри опроса мода (`_get_commands_inner`). Игра
+    выключена → опроса нет → сторожа нет. Причём сюда команды попадают как раз
+    тогда, когда игра не в эфире, — то есть ровно в том случае, когда их
+    никто не вычерпает.
+
+    Здесь сторож работает из фонового цикла бэкенда и не ждёт мода. Каждый
+    канал — отдельная транзакция `BEGIN IMMEDIATE` под той же блокировкой, что
+    и опрос: возврат и удаление строки атомарны, а опрос, успевший раньше,
+    переведёт строку в 'delivered', и сюда она уже не попадёт. Двойной выгоды
+    (и деньги, и эффект) нет: мод берёт команды только из базы.
+
+    Возвращает число команд, за которые вернули деньги по просрочке.
+    """
+    db = get_db()
+    async with aiosqlite.connect(db.db_path) as ddl_conn:
+        await _ensure_pending_commands_table(ddl_conn)
+        await ddl_conn.commit()
+        cur = await ddl_conn.execute(
+            "SELECT DISTINCT channel_id FROM rimworld_pending_commands")
+        channels = [int(r[0]) for r in await cur.fetchall()]
+
+    refunded = 0
+    for channel_id in channels:
+        async with get_commands_lock():
+            async with db._connect() as conn:
+                await conn.execute("BEGIN IMMEDIATE")
+                try:
+                    # Доставленные, но не подтверждённые — тот же сторож, что
+                    # раньше жил только в опросе. Без него команда, выданная
+                    # игре за секунду до её закрытия, тоже висела бы вечно.
+                    await _refund_stale_delivered(conn, channel_id)
+                    cur = await conn.execute(
+                        "SELECT cmd_id, cmd_json FROM rimworld_pending_commands "
+                        "WHERE channel_id=? AND (status='queued' OR status IS NULL) "
+                        "AND created_at < datetime('now', ?)",
+                        (channel_id, "-%d seconds" % int(ttl_sec)))
+                    for cmd_id, cmd_json in await cur.fetchall():
+                        if await _refund_cmd_row_tx(
+                                conn, channel_id, cmd_id, cmd_json,
+                                "queued_ttl_expired"):
+                            refunded += 1
+                        await conn.execute(
+                            "DELETE FROM rimworld_pending_commands "
+                            "WHERE channel_id=? AND cmd_id=?",
+                            (channel_id, cmd_id))
+                    await conn.commit()
+                except Exception:
+                    await conn.rollback()
+                    raise
+    return refunded
+
 
 async def _db_enqueue_command(cmd: dict):
     """Сохранить команду в БД (переживёт рестарт сервера)"""

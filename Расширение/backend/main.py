@@ -1978,7 +1978,8 @@ async def _dispatched_action_sweeper():
     mod упал между fetch и ACK. Viewer заплатил крустики (или гольд), но
     действие не выполнилось и не refund'нулось. Sweeper раз в 5 минут:
       - SELECT * WHERE status='dispatched' AND dispatched_at < now - 10min
-      - UPDATE status='queued' WHERE id IN (...)
+      - UPDATE status='queued' WHERE id IN (...) AND status='dispatched'
+        (без условия перетирал бы подтверждённое игрой — 2026-09-11)
       - log INFO with count + ids
 
     После re-queue action попадёт в следующий long-poll mod'а. Если mod
@@ -2019,9 +2020,12 @@ async def _requeue_stale_dispatched(stale_threshold_sec: int) -> int:
         # dispatched_at намеренно сохраняем: fetch_pending_actions
         # отличает retry со старым PK от новой queued-строки и выдаёт
         # его независимо от монотонного cursor connector'а.
+        # 2026-09-11 — только то, что всё ещё dispatched. Между выборкой и
+        # этим UPDATE игра может подтвердить заявку: безусловный UPDATE
+        # перетирал `acked` обратно в `queued`, и выполненное исполнялось снова.
         cur = await conn.execute(
             f"UPDATE module_actions SET status='queued' "
-            f"WHERE id IN ({placeholders})",
+            f"WHERE id IN ({placeholders}) AND status='dispatched'",
             ids)
         requeued = cur.rowcount
         await conn.commit()

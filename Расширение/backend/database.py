@@ -4546,8 +4546,7 @@ class Database:
             # write-tx открываем ТОЛЬКО когда реально есть строки для dispatch.
             # Безопасно: один connector на канал, long-poll последователен —
             # нет конкурентного poll'а за те же строки в рамках канала.
-            cur = await db.execute(
-                """
+            select_sql = """
                 SELECT id, action_id, type, data, created_at
                 FROM module_actions
                 WHERE channel_id = ? AND module_id = ?
@@ -4555,20 +4554,30 @@ class Database:
                   AND (id > ? OR dispatched_at IS NOT NULL)
                 ORDER BY id ASC
                 LIMIT ?
-                """,
-                (channel_id, module_id, int(since_id), int(limit)),
-            )
+                """
+            select_args = (channel_id, module_id, int(since_id), int(limit))
+            cur = await db.execute(select_sql, select_args)
             rows = await cur.fetchall()
             if not rows:
                 return []
-            ids = [r[0] for r in rows]
-            placeholders = ",".join("?" for _ in ids)
+            # 2026-09-11 (внешний обзор): игре уходит ТОЛЬКО то, что захвачено
+            # под блокировкой. Раньше выдача шла по чтению ДО неё: если между
+            # чтением и захватом сторож вернул деньги (строка стала failed),
+            # условный UPDATE её пропускал, а опрос всё равно отдавал её моду —
+            # игра исполняла то, за что уже вернули деньги. Чтение выше
+            # остаётся дешёвой проверкой «есть ли что выдать» без блокировки
+            # записи; решает повторное чтение здесь.
             await db.execute("BEGIN IMMEDIATE")
-            await db.execute(
-                f"UPDATE module_actions SET status='dispatched', dispatched_at=CURRENT_TIMESTAMP "
-                f"WHERE id IN ({placeholders}) AND status='queued'",
-                ids,
-            )
+            cur = await db.execute(select_sql, select_args)
+            rows = await cur.fetchall()
+            if rows:
+                ids = [r[0] for r in rows]
+                placeholders = ",".join("?" for _ in ids)
+                await db.execute(
+                    f"UPDATE module_actions SET status='dispatched', dispatched_at=CURRENT_TIMESTAMP "
+                    f"WHERE id IN ({placeholders}) AND status='queued'",
+                    ids,
+                )
             await db.commit()
 
         result: List[Dict] = []

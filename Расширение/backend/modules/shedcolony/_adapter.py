@@ -14,7 +14,7 @@ import json
 import logging
 from typing import Any, Dict
 
-from .._base import ModuleAdapter, ModuleEnvelope
+from .._base import ModuleAdapter, ModuleEnvelope, refund_still_due
 from notices import add_notice_tx
 from .refusals import describe as describe_refusal
 
@@ -400,6 +400,11 @@ class ShedColonyAdapter(ModuleAdapter):
             # REFUNDED idempotency check + the points credit are one atomic write. Without it a TOCTOU
             # race lets two events both pass the REFUNDED guard before either writes it → double refund.
             await conn.execute("BEGIN IMMEDIATE")
+            if not await refund_still_due(conn, "shedcolony", channel_id, action_id, reason):
+                await conn.execute("ROLLBACK")
+                print(f"[shedcolony:{channel_id}] action.failed {action_id}: игра забрала "
+                      f"заявку раньше сторожа — возврата нет")
+                return
             cur = await conn.execute(
                 "SELECT data, error_msg FROM module_actions "
                 "WHERE channel_id=? AND module_id='shedcolony' AND action_id=?",

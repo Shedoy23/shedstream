@@ -22,7 +22,7 @@ from __future__ import annotations
 import json
 from typing import Any, Dict
 
-from .._base import ModuleAdapter, ModuleEnvelope
+from .._base import ModuleAdapter, ModuleEnvelope, refund_still_due
 from notices import add_notice_tx
 from .refusals import describe as describe_refusal
 
@@ -90,6 +90,11 @@ class RimWorldAdapter(ModuleAdapter):
         db = get_db()
         async with db._connect() as conn:
             await conn.execute("BEGIN IMMEDIATE")
+            if not await refund_still_due(conn, "rimworld", channel_id, action_id, reason):
+                await conn.execute("ROLLBACK")
+                print(f"[rimworld:{channel_id}] action.failed {action_id}: игра забрала "
+                      f"заявку раньше сторожа — возврата нет")
+                return
             cur = await conn.execute(
                 "SELECT data,error_msg,type FROM module_actions "
                 "WHERE channel_id=? AND module_id='rimworld' AND action_id=?",

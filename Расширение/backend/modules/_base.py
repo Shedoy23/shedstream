@@ -162,3 +162,36 @@ __all__ = [
     "ModuleEnvelope",
     "ModuleAdapter",
 ]
+
+
+# ── Возврат по просрочке: только пока игра не забрала заявку ─────────────────
+# Причина, с которой сторож просроченных `queued` (main._expire_stale_queued)
+# зовёт штатный обработчик возврата модуля.
+TTL_EXPIRED_REASON = "queued_ttl_expired"
+
+
+async def refund_still_due(conn, module_id: str, channel_id: int,
+                           action_id: str, reason: str) -> bool:
+    """Уместен ли ещё возврат — вызывать ВНУТРИ транзакции возврата.
+
+    Сторож выбирает просроченные `queued` одной транзакцией, а деньги
+    возвращает другой, через обработчик модуля. Между ними игра может забрать
+    заявку и выполнить её: без этой проверки зритель получал эффект И деньги
+    назад, а успешная заявка записывалась ошибочной (внешний обзор
+    2026-09-11, tests/test_module_action_races.py [1]).
+
+    Для прочих причин отказа всегда True: их присылает мод по заявке, которую
+    уже взял, — статус там `dispatched`, и это нормально.
+
+    Срок заново не проверяется намеренно: `module_actions.created_at` после
+    вставки не меняет никто, значит заявка, просроченная при выборке,
+    просрочена и сейчас. Решает только статус.
+    """
+    if reason != TTL_EXPIRED_REASON:
+        return True
+    cur = await conn.execute(
+        "SELECT status FROM module_actions "
+        "WHERE channel_id=? AND module_id=? AND action_id=?",
+        (int(channel_id), module_id, action_id))
+    row = await cur.fetchone()
+    return bool(row) and row[0] == "queued"

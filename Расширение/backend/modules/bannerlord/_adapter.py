@@ -29,7 +29,7 @@ import logging
 import time
 from typing import Any, Dict, Optional
 
-from .._base import ModuleAdapter, ModuleEnvelope
+from .._base import ModuleAdapter, ModuleEnvelope, refund_still_due
 from notices import add_notice_tx
 from .refusals import describe as describe_refusal
 
@@ -756,6 +756,13 @@ class BannerlordAdapter(ModuleAdapter):
         async with get_db()._connect() as conn:
             try:
                 await conn.execute("BEGIN IMMEDIATE")
+                if not await refund_still_due(conn, "bannerlord", channel_id,
+                                              action_id, reason):
+                    await conn.execute("ROLLBACK")
+                    logger.info(
+                        "[bannerlord:%s] action.failed action_id=%s: игра забрала "
+                        "заявку раньше сторожа — возврата нет", channel_id, action_id)
+                    return
                 cur = await conn.execute(
                     "SELECT data, error_msg FROM module_actions "
                     "WHERE channel_id=? AND module_id='bannerlord' AND action_id=?",
@@ -1233,8 +1240,8 @@ class BannerlordAdapter(ModuleAdapter):
 
                 await conn.commit()
             except Exception:
-                # Пул не откатывает за нас: незакрытая транзакция вернулась бы
-                # в пул и держала блокировку записи на весь процесс.
+                # Граница транзакции видна здесь же. Database._connect() на
+                # исключении и сам откатит — явный откат ничего не ломает.
                 await conn.rollback()
                 raise
 

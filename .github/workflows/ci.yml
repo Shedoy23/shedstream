@@ -12,6 +12,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Полная история: линтер сверяет дату «Последняя ревизия» в RUNBOOK
+          # с датой коммита, который его тронул. При depth=1 этого не узнать,
+          # и проверка либо врёт, либо молча отключается.
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:

@@ -1427,6 +1427,18 @@ def check_runbook_health():
                       "свежий файл от протухшего.")
         return
     try:
+        # Обрезанная история (CI клонирует с --depth=1) делает этот вопрос
+        # бессмысленным: единственный доступный коммит выглядит как тот, что
+        # тронул ВСЕ файлы, и проверка объявляла RUNBOOK протухшим при любой
+        # правке в новый день. Так CI и лежал красным, а поломки внутри него
+        # никто не видел за постоянным красным. Судим только по полной истории.
+        shallow = subprocess.run(["git", "-C", str(ROOT), "rev-parse",
+                                  "--is-shallow-repository"],
+                                 capture_output=True, timeout=20)
+        if shallow.stdout.decode().strip() == "true":
+            warns.append("runbook: история обрезана (shallow clone) — дату "
+                         "ревизии проверить нечем, нужен fetch-depth: 0.")
+            return
         out = subprocess.run(["git", "-C", str(ROOT), "log", "-1", "--format=%ad",
                               "--date=short", "--", "RUNBOOK.md"],
                              capture_output=True, timeout=20)

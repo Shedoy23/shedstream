@@ -1163,16 +1163,50 @@ static void TestManifestDrivenDetection(string root)
     var currentDetector = new GameDetectionService(currentBannerlord.Manifest.Game!);
     var versionPath = Path.Combine(
         bannerlordRoot, "bin", "Win64_Shipping_Client", "Version.xml");
-    foreach (var (gameVersion, expectedRelease) in new[]
+    // Ожидаемый релиз считаем из самих файлов манифестов, а не из записанного
+    // здесь номера. Номер обязан меняться при каждом выпуске мода: 11.09
+    // добавили bannerlord-0.1.3, а тест сторожил литерал "0.1.2" — и CI лежал
+    // красным сутки, пряча за собой остальные поломки. Сторожить надо правило
+    // «выбирается новейший совместимый», и читаем мы его другим путём, чем
+    // проверяемый код, иначе проверка стала бы тавтологией.
+    string? NewestShippedBannerlordFor(string compatibility)
     {
-        ("1.4.8", "0.1.2"),
-        ("1.3.15", "0.1.1"),
-        ("1.5.0", (string?)null),
-    })
+        string? best = null;
+        foreach (var file in Directory.EnumerateFiles(
+            Path.Combine(Environment.CurrentDirectory, "manifests", "installation"), "*.json"))
+        {
+            using var doc = JsonDocument.Parse(File.ReadAllText(file));
+            var element = doc.RootElement;
+            // Через TryGetProperty: в этой же папке лежат манифесты других
+            // интеграций и будущих схем, и упасть на их форме означало бы
+            // ронять проверку каталога Bannerlord из-за чужого файла.
+            if (!element.TryGetProperty("integration_id", out var id) ||
+                id.GetString() != "bannerlord") continue;
+            if (!element.TryGetProperty("game", out var game) ||
+                !game.TryGetProperty("supported_versions", out var supported) ||
+                supported.ValueKind != JsonValueKind.Array) continue;
+            var fits = false;
+            foreach (var value in supported.EnumerateArray())
+            {
+                if (value.GetString() == compatibility) { fits = true; break; }
+            }
+            if (!fits) continue;
+            if (!element.TryGetProperty("release_version", out var releaseElement)) continue;
+            var release = releaseElement.GetString();
+            if (release is null) continue;
+            if (best is null || Version.Parse(release) > Version.Parse(best)) best = release;
+        }
+        return best;
+    }
+
+    foreach (var gameVersion in new[] { "1.4.8", "1.3.15", "1.5.0" })
     {
         File.WriteAllText(versionPath,
             $"<Version><Singleplayer Value=\"v{gameVersion}\"/></Version>");
         var detectedBannerlord = currentDetector.DetectVersion(bannerlordRoot);
+        var expectedRelease = detectedBannerlord is null
+            ? null
+            : NewestShippedBannerlordFor(detectedBannerlord.CompatibilityVersion);
         Assert(detectedBannerlord is not null &&
             catalog.SelectCompatible("bannerlord", detectedBannerlord.CompatibilityVersion)
                 ?.Manifest.ReleaseVersion == expectedRelease,

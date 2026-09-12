@@ -13,6 +13,31 @@
 active #15 + class balance m79; 2026-06-16 tournament/diplomacy/InvalidCast;
 2026-06-15 save-load + per-save persistence + forge.)
 
+## Прототип автопилота партии игрока (12.09, отдельный мод)
+
+Новый **standalone**-мод `BannerlordAutopilot/` — к ShedLink отношения не
+имеет и от него не зависит. Проверяет один вопрос: может ли цель партии
+игрока выбрать штатный мозг движка.
+
+**Ключевое для всех, кто будет трогать AI партий.** Штатный выбор целей
+закрыт для партии игрока сравнением `mobileParty != MobileParty.MainParty`
+внутри `AiPartyThinkBehavior.PartyHourlyAiTick` (1.4.8). Патчить этот метод
+НЕ нужно: `ThinkParamsCache`, `PartyThinkParams.Reset`,
+`CampaignEventDispatcher.AiHourlyTick`, `AIBehaviorScores` и
+`SetPartyAiAction.*` — публичные, поэтому мод вызывает штатный цикл сам и
+ровно для одной партии, не задевая остальные.
+
+Барьеров нашлось пять, а не один: выбор целей, исполнение осады
+(`GetBesiegeBehavior` закрыт для игрока), инициативное поведение, выход из
+поселения (`CheckExitingSettlementParallel` пропускает MainParty) и
+зачисление в сторону боя при осаде. Полный разбор с файлами и строками —
+`docs/BANNERLORD_AUTOPILOT_RESEARCH_2026-09-12.md`.
+
+Состояние: собран, контракт движка проверен исполнением (19 ожиданий, виден
+и красным), **в игре не запускался**. Инструкция и порядок испытания —
+`BannerlordAutopilot/README.md`.
+
+
 ## Контракт исхода действия (2026-08-23)
 
 Перед правкой любого обработчика в `BannerlordLink/src/Actions/` — читать

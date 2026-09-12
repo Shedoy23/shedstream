@@ -92,3 +92,6 @@ BannerlordAutopilot/obj/
 BannerlordAutopilot/src/obj/
 BannerlordAutopilot/tests/**/obj/
 BannerlordAutopilot/tests/**/bin/
+
+# Журналы прогонов автопилота — это доказательства, их надо хранить (правило *.log выше их молча выкидывало)
+!BannerlordAutopilot/evidence/*.log

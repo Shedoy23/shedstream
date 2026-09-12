@@ -1,0 +1,1435 @@
+﻿18:27:31  ========================================================================
+18:27:31  СЕАНС 2026-09-12 18:27:31 — загрузка мода
+18:27:31  контракт движка: структура движка совпала со всеми 19 ожиданиями
+18:34:59  ========================================================================
+18:34:59  СЕАНС 2026-09-12 18:34:59 — загрузка мода
+18:34:59  контракт движка: структура движка совпала со всеми 19 ожиданиями
+18:45:52  поведение автопилота зарегистрировано в кампании
+18:46:03  ========================================================================
+18:46:03  СЕАНС 2026-09-12 18:46:03 — загрузка сохранения; автопилот выключен
+18:46:03  флаги после загрузки: IsDisabled=False; DoNotMakeNewDecisions=False; RethinkAtNextHourlyTick=False; DefaultBehavior=GoToPoint; Army=False; Settlement=нет
+18:55:46  ========================================================================
+18:55:46  СЕАНС 2026-09-12 18:55:46 — включение, режим наблюдение
+18:55:46  флаги до включения: IsDisabled=False; DoNotMakeNewDecisions=False; RethinkAtNextHourlyTick=False; DefaultBehavior=GoToPoint; Army=False; Settlement=нет
+18:55:46  ВКЛЮЧЕН, режим наблюдение; позиция у Тренировочная площадка ((CampaignVec2) X: 480.6968 Y: 290.3404 IsOnLand: True); поведение GoToPoint
+18:55:46  [UI] Автопилот включён, режим: наблюдение. Лог: C:\Users\Edward\Documents\Mount and Blade II Bannerlord\Logs\autopilot_20260912.txt
+18:56:06  час: оценок 22; позиция у Тренировочная площадка ((CampaignVec2) X: 483.7563 Y: 291.8347 IsOnLand: True); текущее поведение GoToPoint
+18:56:06      GoToSettlement → Тевея = 8.708
+18:56:06      PatrolAroundPoint → Диатма = 1.732
+18:56:06      PatrolAroundPoint → Зеоника = 1.486
+18:56:06      PatrolAroundPoint → Ликарон = 1.542
+18:56:06      PatrolAroundPoint → Хусн-Фульк = 1.521
+18:56:06      PatrolAroundPoint → Эпикротея = 1.798
+18:56:06      PatrolAroundPoint → Санеопа = 1.566
+18:56:06      PatrolAroundPoint → Ампрела = 1.463
+18:56:06    лучшее: GoToSettlement → Тевея = 8.708
+18:56:36  ========================================================================
+18:56:36  СЕАНС 2026-09-12 18:56:36 — включение, режим применение
+18:56:36  флаги до включения: IsDisabled=False; DoNotMakeNewDecisions=False; RethinkAtNextHourlyTick=True; DefaultBehavior=GoToPoint; Army=False; Settlement=нет
+18:56:36  ВКЛЮЧЕН, режим применение; позиция у Тренировочная площадка ((CampaignVec2) X: 484.0782 Y: 291.9919 IsOnLand: True); поведение GoToPoint
+18:56:36  [UI] Автопилот включён, режим: применение. Лог: C:\Users\Edward\Documents\Mount and Blade II Bannerlord\Logs\autopilot_20260912.txt
+19:02:03  час: оценок 22; позиция у Тренировочная площадка ((CampaignVec2) X: 484.0782 Y: 291.9919 IsOnLand: True); текущее поведение GoToPoint
+19:02:03      GoToSettlement → Тевея = 8.708
+19:02:03      PatrolAroundPoint → Диатма = 1.732
+19:02:03      PatrolAroundPoint → Зеоника = 1.486
+19:02:03      PatrolAroundPoint → Ликарон = 1.542
+19:02:03      PatrolAroundPoint → Хусн-Фульк = 1.521
+19:02:03      PatrolAroundPoint → Эпикротея = 1.798
+19:02:03      PatrolAroundPoint → Санеопа = 1.566
+19:02:03      PatrolAroundPoint → Ампрела = 1.463
+19:02:03    лучшее: GoToSettlement → Тевея = 8.708
+19:02:03    ПРИМЕНЕНО #1: GoToSettlement → Тевея (оценка 8.708)
+19:02:03    после применения: поведение GoToSettlement; цель Тевея; движется False
+19:02:03  час: оценок 22; позиция у Тренировочная площадка ((CampaignVec2) X: 487.1057 Y: 295.6566 IsOnLand: True); текущее поведение GoToSettlement
+19:02:03      GoToSettlement → Тевея = 8.708
+19:02:03      PatrolAroundPoint → Диатма = 1.732
+19:02:03      PatrolAroundPoint → Зеоника = 1.486
+19:02:03      PatrolAroundPoint → Ликарон = 1.542
+19:02:03      PatrolAroundPoint → Хусн-Фульк = 1.521
+19:02:03      PatrolAroundPoint → Эпикротея = 1.798
+19:02:03      PatrolAroundPoint → Санеопа = 1.566
+19:02:03      PatrolAroundPoint → Ампрела = 1.463
+19:02:03    лучшее: GoToSettlement → Тевея = 8.708
+19:02:03    ПРИМЕНЕНО #2: GoToSettlement → Тевея (оценка 8.708)
+19:02:03    после применения: поведение GoToSettlement; цель Тевея; движется True
+19:05:53  поведение автопилота зарегистрировано в кампании
+19:05:59  ========================================================================
+19:05:59  СЕАНС 2026-09-12 19:05:59 — загрузка сохранения; автопилот выключен
+19:05:59  флаги после загрузки: IsDisabled=False; DoNotMakeNewDecisions=True; RethinkAtNextHourlyTick=False; DefaultBehavior=Hold; Army=False; Settlement=нет
+19:06:28  ========================================================================
+19:06:28  СЕАНС 2026-09-12 19:06:28 — включение, режим применение
+19:06:28  флаги до включения: IsDisabled=False; DoNotMakeNewDecisions=True; RethinkAtNextHourlyTick=False; DefaultBehavior=Hold; Army=False; Settlement=нет
+19:06:28  снят DoNotMakeNewDecisions (был взведён)
+19:06:28  ВКЛЮЧЕН, режим применение; позиция у Ревиль ((CampaignVec2) X: 300.3447 Y: 583.3357 IsOnLand: True); поведение Hold
+19:06:28  [UI] Автопилот включён, режим: применение. Лог: C:\Users\Edward\Documents\Mount and Blade II Bannerlord\Logs\autopilot_20260912.txt
+19:06:31  час: оценок 16; позиция у Ревиль ((CampaignVec2) X: 300.3447 Y: 583.3357 IsOnLand: True); текущее поведение Hold
+19:06:31      GoToSettlement → Ревиль = 0.564
+19:06:31      GoToSettlement → Карбур = 1.533
+19:06:31      GoToSettlement → Замок Устокол = 1.335
+19:06:31      GoToSettlement → Корсия = 1.199
+19:06:31      GoToSettlement → Жемянь = 0.691
+19:06:31      GoToSettlement → Устокол = 0.612
+19:06:31      GoToSettlement → Замок Флинтолг = 1.336
+19:06:31      GoToSettlement → Флинтолг = 0.141
+19:06:31    лучшее: PatrolAroundPoint → Устокол = 2.130
+19:06:31    ПРИМЕНЕНО #1: PatrolAroundPoint → Устокол (оценка 2.130)
+19:06:31    после применения: поведение PatrolAroundPoint; цель Устокол; движется False
+19:06:32  час: оценок 16; позиция у Ревиль ((CampaignVec2) X: 298.4556 Y: 584.8568 IsOnLand: True); текущее поведение PatrolAroundPoint
+19:06:32      GoToSettlement → Ревиль = 0.848
+19:06:32      GoToSettlement → Карбур = 2.284
+19:06:32      GoToSettlement → Замок Устокол = 2.054
+19:06:32      GoToSettlement → Корсия = 1.798
+19:06:32      GoToSettlement → Жемянь = 1.070
+19:06:32      GoToSettlement → Устокол = 0.941
+19:06:32      GoToSettlement → Замок Флинтолг = 1.941
+19:06:32      GoToSettlement → Флинтолг = 0.248
+19:06:32    лучшее: GoToSettlement → Карбур = 2.284
+19:06:32    ПРИМЕНЕНО #2: GoToSettlement → Карбур (оценка 2.284)
+19:06:32    после применения: поведение GoToSettlement; цель Карбур; движется True
+19:06:33  час: оценок 16; позиция у Ревиль ((CampaignVec2) X: 300.933 Y: 584.9908 IsOnLand: True); текущее поведение GoToSettlement
+19:06:33      GoToSettlement → Ревиль = 0.850
+19:06:33      GoToSettlement → Карбур = 2.766
+19:06:33      GoToSettlement → Замок Устокол = 2.004
+19:06:33      GoToSettlement → Корсия = 1.762
+19:06:33      GoToSettlement → Жемянь = 1.043
+19:06:33      GoToSettlement → Устокол = 0.918
+19:06:33      GoToSettlement → Замок Флинтолг = 1.967
+19:06:33      GoToSettlement → Флинтолг = 0.249
+19:06:33    лучшее: GoToSettlement → Карбур = 2.766
+19:06:33    ПРИМЕНЕНО #3: GoToSettlement → Карбур (оценка 2.766)
+19:06:33    после применения: поведение GoToSettlement; цель Карбур; движется True
+19:06:34  час: оценок 16; позиция у Ревиль ((CampaignVec2) X: 303.5734 Y: 585.1331 IsOnLand: True); текущее поведение GoToSettlement
+19:06:34      GoToSettlement → Ревиль = 0.852
+19:06:34      GoToSettlement → Карбур = 2.769
+19:06:34      GoToSettlement → Замок Устокол = 1.953
+19:06:34      GoToSettlement → Корсия = 1.720
+19:06:34      GoToSettlement → Жемянь = 1.015
+19:06:34      GoToSettlement → Устокол = 0.895
+19:06:34      GoToSettlement → Замок Флинтолг = 1.991
+19:06:34      GoToSettlement → Флинтолг = 0.250
+19:06:34    лучшее: GoToSettlement → Карбур = 2.769
+19:06:34    ПРИМЕНЕНО #4: GoToSettlement → Карбур (оценка 2.769)
+19:06:34    после применения: поведение GoToSettlement; цель Карбур; движется True
+19:06:34  час: оценок 16; позиция у Ревиль ((CampaignVec2) X: 306.1802 Y: 585.2738 IsOnLand: True); текущее поведение GoToSettlement
+19:06:34      GoToSettlement → Ревиль = 0.854
+19:06:34      GoToSettlement → Карбур = 2.772
+19:06:34      GoToSettlement → Корсия = 1.881
+19:06:34      GoToSettlement → Замок Устокол = 1.921
+19:06:34      GoToSettlement → Жемянь = 0.988
+19:06:34      GoToSettlement → Устокол = 0.883
+19:06:34      GoToSettlement → Замок Флинтолг = 2.441
+19:06:34      GoToSettlement → Флинтолг = 0.274
+19:06:34    лучшее: GoToSettlement → Карбур = 2.772
+19:06:34    ПРИМЕНЕНО #5: GoToSettlement → Карбур (оценка 2.772)
+19:06:34    после применения: поведение GoToSettlement; цель Карбур; движется True
+19:06:35  час: оценок 16; позиция у Ревиль ((CampaignVec2) X: 308.2939 Y: 585.3878 IsOnLand: True); текущее поведение GoToSettlement
+19:06:35      GoToSettlement → Карбур = 2.775
+19:06:35      GoToSettlement → Ревиль = 0.856
+19:06:35      GoToSettlement → Корсия = 1.839
+19:06:35      GoToSettlement → Замок Устокол = 1.883
+19:06:35      GoToSettlement → Жемянь = 0.880
+19:06:35      GoToSettlement → Устокол = 0.926
+19:06:35      GoToSettlement → Замок Флинтолг = 2.461
+19:06:35      GoToSettlement → Флинтолг = 0.245
+19:06:35    лучшее: GoToSettlement → Карбур = 2.775
+19:06:35    ПРИМЕНЕНО #6: GoToSettlement → Карбур (оценка 2.775)
+19:06:35    после применения: поведение GoToSettlement; цель Карбур; движется True
+19:06:36  час: оценок 16; позиция у Ревиль ((CampaignVec2) X: 310.1815 Y: 585.4902 IsOnLand: True); текущее поведение GoToSettlement
+19:06:36      GoToSettlement → Карбур = 2.778
+19:06:36      GoToSettlement → Ревиль = 0.858
+19:06:36      GoToSettlement → Корсия = 1.801
+19:06:36      GoToSettlement → Замок Устокол = 1.850
+19:06:36      GoToSettlement → Жемянь = 0.863
+19:06:36      GoToSettlement → Устокол = 0.910
+19:06:36      GoToSettlement → Замок Флинтолг = 2.477
+19:06:36      GoToSettlement → Флинтолг = 0.246
+19:06:36    лучшее: GoToSettlement → Карбур = 2.778
+19:06:36    ПРИМЕНЕНО #7: GoToSettlement → Карбур (оценка 2.778)
+19:06:36    после применения: поведение GoToSettlement; цель Карбур; движется True
+19:06:37  час: оценок 16; позиция у Ревиль ((CampaignVec2) X: 311.9953 Y: 585.5879 IsOnLand: True); текущее поведение GoToSettlement
+19:06:37      GoToSettlement → Карбур = 2.782
+19:06:37      GoToSettlement → Ревиль = 0.860
+19:06:37      GoToSettlement → Корсия = 1.766
+19:06:37      GoToSettlement → Замок Устокол = 1.820
+19:06:37      GoToSettlement → Жемянь = 0.848
+19:06:37      GoToSettlement → Устокол = 0.896
+19:06:37      GoToSettlement → Замок Флинтолг = 2.491
+19:06:37      GoToSettlement → Флинтолг = 0.246
+19:06:37    лучшее: GoToSettlement → Карбур = 2.782
+19:06:37    ПРИМЕНЕНО #8: GoToSettlement → Карбур (оценка 2.782)
+19:06:37    после применения: поведение GoToSettlement; цель Карбур; движется True
+19:06:38  час: оценок 16; позиция у Ревиль ((CampaignVec2) X: 313.9013 Y: 585.6903 IsOnLand: True); текущее поведение GoToSettlement
+19:06:38      GoToSettlement → Карбур = 2.785
+19:06:38      GoToSettlement → Ревиль = 0.862
+19:06:38      GoToSettlement → Корсия = 1.729
+19:06:38      GoToSettlement → Замок Устокол = 1.789
+19:06:38      GoToSettlement → Жемянь = 1.238
+19:06:38      GoToSettlement → Устокол = 0.881
+19:06:38      GoToSettlement → Замок Флинтолг = 2.503
+19:06:38      GoToSettlement → Флинтолг = 0.246
+19:06:38    лучшее: GoToSettlement → Карбур = 2.785
+19:06:38    ПРИМЕНЕНО #9: GoToSettlement → Карбур (оценка 2.785)
+19:06:38    после применения: поведение GoToSettlement; цель Карбур; движется True
+19:18:06  ВЫКЛЮЧЕНИЕ: началась встреча или бой — вне области первого прототипа
+19:18:06  движение остановлено (SetMoveModeHold)
+19:18:06  восстановлено: DoNotMakeNewDecisions=True
+19:18:06  флаги после выключения: IsDisabled=False; DoNotMakeNewDecisions=True; RethinkAtNextHourlyTick=True; DefaultBehavior=Hold; Army=False; Settlement=нет
+19:18:06  итог сеанса: самостоятельных решений 9, посещений поселений 0
+19:34:41  ========================================================================
+19:34:41  СЕАНС 2026-09-12 19:34:41 — загрузка мода
+19:34:41  контракт движка: структура движка совпала со всеми 19 ожиданиями
+19:42:29  поведение автопилота зарегистрировано в кампании
+19:42:36  ========================================================================
+19:42:36  СЕАНС 2026-09-12 19:42:36 — загрузка сохранения; автопилот выключен
+19:42:36  флаги после загрузки: IsDisabled=False; DoNotMakeNewDecisions=True; RethinkAtNextHourlyTick=True; DefaultBehavior=Hold; Army=False; Settlement=нет
+19:42:56  [UI] Автопилот НЕ включён: идёт встреча или бой
+19:44:19  ========================================================================
+19:44:19  СЕАНС 2026-09-12 19:44:19 — включение, режим применение
+19:44:19  флаги до включения: IsDisabled=False; DoNotMakeNewDecisions=True; RethinkAtNextHourlyTick=True; DefaultBehavior=Hold; Army=False; Settlement=нет
+19:44:19  снят DoNotMakeNewDecisions (был взведён)
+19:44:19  ВКЛЮЧЕН, режим применение; позиция у Карбур ((CampaignVec2) X: 315.057 Y: 585.752 IsOnLand: True); поведение Hold
+19:44:19  [UI] Автопилот включён, режим: применение. Лог: C:\Users\Edward\Documents\Mount and Blade II Bannerlord\Logs\autopilot_20260912.txt
+22:17:53  ========================================================================
+22:17:53  СЕАНС 2026-09-12 22:17:53 — загрузка мода
+22:17:53  контракт движка: структура движка совпала со всеми 19 ожиданиями
+22:18:10  поведение автопилота зарегистрировано в кампании
+22:18:18  ========================================================================
+22:18:18  СЕАНС 2026-09-12 22:18:18 — загрузка сохранения; автопилот выключен
+22:18:18  флаги после загрузки: IsDisabled=False; DoNotMakeNewDecisions=True; RethinkAtNextHourlyTick=True; DefaultBehavior=GoToPoint; Army=False; Settlement=нет
+22:18:28  ========================================================================
+22:18:28  СЕАНС 2026-09-12 22:18:28 — включение, режим применение
+22:18:28  флаги до включения: IsDisabled=False; DoNotMakeNewDecisions=True; RethinkAtNextHourlyTick=True; DefaultBehavior=GoToPoint; Army=False; Settlement=нет
+22:18:28  снят DoNotMakeNewDecisions (был взведён)
+22:18:28  ВКЛЮЧЕН, режим применение; позиция у Карбур ((CampaignVec2) X: 307.7084 Y: 583.5507 IsOnLand: True); поведение GoToPoint
+22:18:28  [UI] Автопилот включён, режим: применение. Лог: C:\Users\Edward\Documents\Mount and Blade II Bannerlord\Logs\autopilot_20260912.txt
+22:18:29  час: оценок 28; позиция у Карбур ((CampaignVec2) X: 307.7084 Y: 583.5507 IsOnLand: True); текущее поведение GoToPoint
+22:18:29      GoToSettlement → Ревиль = 2.059
+22:18:29      GoToSettlement → Карбур = 0.834
+22:18:29      GoToSettlement → Корсия = 2.080
+22:18:29      GoToSettlement → Замок Устокол = 1.996
+22:18:29      GoToSettlement → Жемянь = 1.335
+22:18:29      GoToSettlement → Устокол = 1.160
+22:18:29      GoToSettlement → Замок Флинтолг = 0.624
+22:18:29      GoToSettlement → Флинтолг = 0.239
+22:18:29    лучшее: GoToSettlement → Корсия = 2.080
+22:18:29    НОВАЯ ЦЕЛЬ #1: GoToSettlement → Корсия (оценка 2.080)
+22:18:29    после применения: поведение GoToSettlement; цель Корсия; движется False
+22:18:32  час: оценок 28; позиция у Карбур ((CampaignVec2) X: 306.9464 Y: 581.1243 IsOnLand: True); текущее поведение GoToSettlement
+22:18:32      GoToSettlement → Ревиль = 2.017
+22:18:32      GoToSettlement → Карбур = 0.836
+22:18:32      GoToSettlement → Корсия = 2.574
+22:18:32      GoToSettlement → Замок Устокол = 1.997
+22:18:32      GoToSettlement → Жемянь = 1.330
+22:18:32      GoToSettlement → Устокол = 1.165
+22:18:32      GoToSettlement → Замок Флинтолг = 0.640
+22:18:32      GoToSettlement → Флинтолг = 0.158
+22:18:32    лучшее: GoToSettlement → Корсия = 2.574
+22:18:32    та же цель, приказ повторён (1-й раз): GoToSettlement → Корсия (оценка 2.574)
+22:18:32    после применения: поведение GoToSettlement; цель Корсия; движется True
+22:18:36  час: оценок 28; позиция у Карбур ((CampaignVec2) X: 306.2053 Y: 578.7642 IsOnLand: True); текущее поведение GoToSettlement
+22:18:36      GoToSettlement → Ревиль = 1.972
+22:18:36      GoToSettlement → Карбур = 0.838
+22:18:36      GoToSettlement → Корсия = 2.351
+22:18:36      GoToSettlement → Замок Устокол = 1.978
+22:18:36      GoToSettlement → Жемянь = 1.323
+22:18:36      GoToSettlement → Устокол = 1.156
+22:18:36      GoToSettlement → Замок Флинтолг = 0.562
+22:18:36      GoToSettlement → Флинтолг = 0.176
+22:18:36    лучшее: GoToSettlement → Корсия = 2.351
+22:18:36    та же цель, приказ повторён (2-й раз): GoToSettlement → Корсия (оценка 2.351)
+22:18:36    после применения: поведение GoToSettlement; цель Корсия; движется True
+22:18:38  час: оценок 28; позиция у Карбур ((CampaignVec2) X: 305.6588 Y: 577.0233 IsOnLand: True); текущее поведение GoToSettlement
+22:18:38      GoToSettlement → Ревиль = 1.924
+22:18:38      GoToSettlement → Карбур = 0.840
+22:18:38      GoToSettlement → Корсия = 2.396
+22:18:38      GoToSettlement → Замок Устокол = 1.974
+22:18:38      GoToSettlement → Жемянь = 1.276
+22:18:38      GoToSettlement → Устокол = 1.158
+22:18:38      GoToSettlement → Замок Флинтолг = 0.572
+22:18:38      GoToSettlement → Флинтолг = 0.177
+22:18:38    лучшее: GoToSettlement → Корсия = 2.396
+22:18:38    та же цель, приказ повторён (3-й раз): GoToSettlement → Корсия (оценка 2.396)
+22:18:38    после применения: поведение GoToSettlement; цель Корсия; движется True
+22:18:39  час: оценок 28; позиция у Карбур ((CampaignVec2) X: 305.0922 Y: 575.2176 IsOnLand: True); текущее поведение GoToSettlement
+22:18:39      GoToSettlement → Ревиль = 1.873
+22:18:39      GoToSettlement → Карбур = 0.843
+22:18:39      GoToSettlement → Корсия = 2.834
+22:18:39      GoToSettlement → Замок Устокол = 1.977
+22:18:39      GoToSettlement → Жемянь = 1.279
+22:18:39      GoToSettlement → Устокол = 1.161
+22:18:39      GoToSettlement → Замок Флинтолг = 0.598
+22:18:39      GoToSettlement → Флинтолг = 0.183
+22:18:39    лучшее: GoToSettlement → Корсия = 2.834
+22:18:39    та же цель, приказ повторён (4-й раз): GoToSettlement → Корсия (оценка 2.834)
+22:18:39    после применения: поведение GoToSettlement; цель Корсия; движется True
+22:18:39  час: оценок 28; позиция у Карбур ((CampaignVec2) X: 304.5518 Y: 573.4959 IsOnLand: True); текущее поведение GoToSettlement
+22:18:39      GoToSettlement → Ревиль = 1.819
+22:18:39      GoToSettlement → Карбур = 0.844
+22:18:39      GoToSettlement → Корсия = 2.885
+22:18:39      GoToSettlement → Замок Устокол = 1.970
+22:18:39      GoToSettlement → Жемянь = 1.272
+22:18:39      GoToSettlement → Устокол = 1.162
+22:18:39      GoToSettlement → Замок Флинтолг = 0.608
+22:18:39      GoToSettlement → Флинтолг = 0.185
+22:18:39    лучшее: GoToSettlement → Корсия = 2.885
+22:18:39    та же цель, приказ повторён (5-й раз): GoToSettlement → Корсия (оценка 2.885)
+22:18:39    после применения: поведение GoToSettlement; цель Корсия; движется True
+22:18:40  час: оценок 28; позиция у Карбур ((CampaignVec2) X: 303.4519 Y: 571.1959 IsOnLand: True); текущее поведение GoToSettlement
+22:18:40      GoToSettlement → Ревиль = 1.822
+22:18:40      GoToSettlement → Корсия = 2.964
+22:18:40      GoToSettlement → Карбур = 0.813
+22:18:40      GoToSettlement → Замок Устокол = 1.963
+22:18:40      GoToSettlement → Жемянь = 1.265
+22:18:40      GoToSettlement → Устокол = 1.167
+22:18:40      GoToSettlement → Замок Флинтолг = 0.620
+22:18:40      GoToSettlement → Флинтолг = 0.187
+22:18:40    лучшее: GoToSettlement → Корсия = 2.964
+22:18:40    та же цель, приказ повторён (6-й раз): GoToSettlement → Корсия (оценка 2.964)
+22:18:40    после применения: поведение GoToSettlement; цель Корсия; движется True
+22:18:41  час: оценок 28; позиция у Карбур ((CampaignVec2) X: 301.7451 Y: 569.5022 IsOnLand: True); текущее поведение GoToSettlement
+22:18:41      GoToSettlement → Корсия = 3.013
+22:18:41      GoToSettlement → Карбур = 0.750
+22:18:41      GoToSettlement → Ревиль = 1.585
+22:18:41      GoToSettlement → Замок Устокол = 1.508
+22:18:41      GoToSettlement → Жемянь = 0.986
+22:18:41      GoToSettlement → Устокол = 0.848
+22:18:41      GoToSettlement → Замок Флинтолг = 0.467
+22:18:41      GoToSettlement → Флинтолг = 0.156
+22:18:41    лучшее: GoToSettlement → Корсия = 3.013
+22:18:41    та же цель, приказ повторён (7-й раз): GoToSettlement → Корсия (оценка 3.013)
+22:18:41    после применения: поведение GoToSettlement; цель Корсия; движется True
+22:18:42  час: оценок 28; позиция у Карбур ((CampaignVec2) X: 299.3995 Y: 568.9882 IsOnLand: True); текущее поведение GoToSettlement
+22:18:42      GoToSettlement → Корсия = 3.016
+22:18:42      GoToSettlement → Ревиль = 1.523
+22:18:42      GoToSettlement → Карбур = 0.730
+22:18:42      GoToSettlement → Замок Устокол = 1.525
+22:18:42      GoToSettlement → Жемянь = 0.999
+22:18:42      GoToSettlement → Устокол = 0.862
+22:18:42      GoToSettlement → Замок Флинтолг = 0.463
+22:18:42      GoToSettlement → Флинтолг = 0.156
+22:18:42    лучшее: GoToSettlement → Корсия = 3.016
+22:18:42    та же цель, приказ повторён (8-й раз): GoToSettlement → Корсия (оценка 3.016)
+22:18:42    после применения: поведение GoToSettlement; цель Корсия; движется True
+22:18:43  час: оценок 27; позиция у Карбур ((CampaignVec2) X: 297.3645 Y: 568.8474 IsOnLand: True); текущее поведение GoToSettlement
+22:18:43      GoToSettlement → Корсия = 3.019
+22:18:43      GoToSettlement → Ревиль = 1.516
+22:18:43      GoToSettlement → Карбур = 0.716
+22:18:43      GoToSettlement → Замок Устокол = 1.542
+22:18:43      GoToSettlement → Жемянь = 1.013
+22:18:43      GoToSettlement → Устокол = 0.875
+22:18:43      GoToSettlement → Замок Флинтолг = 0.459
+22:18:43      GoToSettlement → Флинтолг = 0.155
+22:18:43    лучшее: GoToSettlement → Корсия = 3.019
+22:18:43    та же цель, приказ повторён (9-й раз): GoToSettlement → Корсия (оценка 3.019)
+22:18:43    после применения: поведение GoToSettlement; цель Корсия; движется True
+22:18:44  час: оценок 27; позиция у Карбур ((CampaignVec2) X: 295.2492 Y: 568.7858 IsOnLand: True); текущее поведение GoToSettlement
+22:18:44      GoToSettlement → Корсия = 3.022
+22:18:44      GoToSettlement → Ревиль = 1.505
+22:18:44      GoToSettlement → Карбур = 0.701
+22:18:44      GoToSettlement → Замок Устокол = 1.559
+22:18:44      GoToSettlement → Жемянь = 1.027
+22:18:44      GoToSettlement → Устокол = 0.890
+22:18:44      GoToSettlement → Замок Флинтолг = 0.453
+22:18:44      GoToSettlement → Флинтолг = 0.154
+22:18:44    лучшее: GoToSettlement → Корсия = 3.022
+22:18:44    та же цель, приказ повторён (10-й раз): GoToSettlement → Корсия (оценка 3.022)
+22:18:44    после применения: поведение GoToSettlement; цель Корсия; движется True
+22:18:44  час: оценок 27; позиция у Карбур ((CampaignVec2) X: 293.0894 Y: 568.7228 IsOnLand: True); текущее поведение GoToSettlement
+22:18:44      GoToSettlement → Корсия = 3.025
+22:18:44      GoToSettlement → Ревиль = 1.489
+22:18:44      GoToSettlement → Карбур = 0.686
+22:18:44      GoToSettlement → Замок Устокол = 1.577
+22:18:44      GoToSettlement → Жемянь = 1.041
+22:18:44      GoToSettlement → Устокол = 0.905
+22:18:44      GoToSettlement → Замок Флинтолг = 0.448
+22:18:44      GoToSettlement → Флинтолг = 0.154
+22:18:44    лучшее: GoToSettlement → Корсия = 3.025
+22:18:44    та же цель, приказ повторён (11-й раз): GoToSettlement → Корсия (оценка 3.025)
+22:18:44    после применения: поведение GoToSettlement; цель Корсия; движется True
+22:18:45  час: оценок 27; позиция у Карбур ((CampaignVec2) X: 290.9584 Y: 568.6605 IsOnLand: True); текущее поведение GoToSettlement
+22:18:45      GoToSettlement → Корсия = 3.029
+22:18:45      GoToSettlement → Ревиль = 1.412
+22:18:45      GoToSettlement → Карбур = 0.671
+22:18:45      GoToSettlement → Замок Устокол = 1.593
+22:18:45      GoToSettlement → Жемянь = 1.055
+22:18:45      GoToSettlement → Устокол = 0.920
+22:18:45      GoToSettlement → Замок Флинтолг = 0.442
+22:18:45      GoToSettlement → Флинтолг = 0.153
+22:18:45    лучшее: GoToSettlement → Корсия = 3.029
+22:18:45    та же цель, приказ повторён (12-й раз): GoToSettlement → Корсия (оценка 3.029)
+22:18:45    после применения: поведение GoToSettlement; цель Корсия; движется True
+22:18:46  ПРИБЫЛИ в «Корсия» (посещение #1)
+22:18:46    выход: PlayerEncounter.LeaveEncounter = true
+22:18:47  ПРИБЫЛИ в «Корсия» (посещение #2)
+22:18:47    выход: PlayerEncounter.LeaveEncounter = true
+22:18:47  ПРИБЫЛИ в «Корсия» (посещение #3)
+22:18:47    выход: PlayerEncounter.LeaveEncounter = true
+22:18:48  ПРИБЫЛИ в «Корсия» (посещение #4)
+22:18:48    выход: PlayerEncounter.LeaveEncounter = true
+22:18:48  ПРИБЫЛИ в «Корсия» (посещение #5)
+22:18:48    выход: PlayerEncounter.LeaveEncounter = true
+22:18:49  ПРИБЫЛИ в «Корсия» (посещение #6)
+22:18:49    выход: PlayerEncounter.LeaveEncounter = true
+22:18:49  ПРИБЫЛИ в «Корсия» (посещение #7)
+22:18:49    выход: PlayerEncounter.LeaveEncounter = true
+22:18:50  ПРИБЫЛИ в «Корсия» (посещение #8)
+22:18:50    выход: PlayerEncounter.LeaveEncounter = true
+22:18:50  ПРИБЫЛИ в «Корсия» (посещение #9)
+22:18:50    выход: PlayerEncounter.LeaveEncounter = true
+22:18:51  ПРИБЫЛИ в «Корсия» (посещение #10)
+22:18:51    выход: PlayerEncounter.LeaveEncounter = true
+22:18:51  ПРИБЫЛИ в «Корсия» (посещение #11)
+22:18:51    выход: PlayerEncounter.LeaveEncounter = true
+22:18:52  ПРИБЫЛИ в «Корсия» (посещение #12)
+22:18:52    выход: PlayerEncounter.LeaveEncounter = true
+22:18:52  ПРИБЫЛИ в «Корсия» (посещение #13)
+22:18:52    выход: PlayerEncounter.LeaveEncounter = true
+22:18:54  час: оценок 28; позиция у Корсия ((CampaignVec2) X: 287.861 Y: 568.57 IsOnLand: True); текущее поведение Hold
+22:18:54      GoToSettlement → Корсия = 0.554
+22:18:54      GoToSettlement → Ревиль = 0.879
+22:18:54      GoToSettlement → Карбур = 0.541
+22:18:54      GoToSettlement → Замок Устокол = 1.076
+22:18:54      GoToSettlement → Жемянь = 0.803
+22:18:54      GoToSettlement → Устокол = 0.628
+22:18:54      GoToSettlement → Замок Флинтолг = 0.289
+22:18:54      GoToSettlement → Флинтолг = 0.101
+22:18:54    лучшее: PatrolAroundPoint → Жемянь = 2.069
+22:18:54    НОВАЯ ЦЕЛЬ #2: PatrolAroundPoint → Жемянь (оценка 2.069)
+22:18:54    после применения: поведение PatrolAroundPoint; цель Жемянь; движется False
+22:18:55  час: оценок 28; позиция у Корсия ((CampaignVec2) X: 290.5226 Y: 568.6476 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:18:55      GoToSettlement → Корсия = 1.453
+22:18:55      GoToSettlement → Ревиль = 1.352
+22:18:55      GoToSettlement → Карбур = 0.839
+22:18:55      GoToSettlement → Замок Устокол = 1.598
+22:18:55      GoToSettlement → Жемянь = 1.189
+22:18:55      GoToSettlement → Устокол = 0.925
+22:18:55      GoToSettlement → Замок Флинтолг = 0.441
+22:18:55      GoToSettlement → Флинтолг = 0.152
+22:18:55    лучшее: PatrolAroundPoint → Жемянь = 2.069
+22:18:55    та же цель, приказ повторён (13-й раз): PatrolAroundPoint → Жемянь (оценка 2.069)
+22:18:55    после применения: поведение PatrolAroundPoint; цель Жемянь; движется True
+22:18:56  час: оценок 28; позиция у Корсия ((CampaignVec2) X: 293.0786 Y: 568.7224 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:18:56      GoToSettlement → Корсия = 1.421
+22:18:56      GoToSettlement → Ревиль = 1.381
+22:18:56      GoToSettlement → Карбур = 0.866
+22:18:56      GoToSettlement → Замок Устокол = 1.580
+22:18:56      GoToSettlement → Жемянь = 1.173
+22:18:56      GoToSettlement → Устокол = 0.909
+22:18:56      GoToSettlement → Замок Флинтолг = 0.448
+22:18:56      GoToSettlement → Флинтолг = 0.154
+22:18:56    лучшее: PatrolAroundPoint → Жемянь = 2.069
+22:18:56    та же цель, приказ повторён (14-й раз): PatrolAroundPoint → Жемянь (оценка 2.069)
+22:18:56    после применения: поведение PatrolAroundPoint; цель Жемянь; движется True
+22:18:57  час: оценок 28; позиция у Корсия ((CampaignVec2) X: 295.6317 Y: 568.7966 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:18:57      GoToSettlement → Корсия = 1.390
+22:18:57      GoToSettlement → Ревиль = 1.404
+22:18:57      GoToSettlement → Карбур = 0.893
+22:18:57      GoToSettlement → Замок Устокол = 1.562
+22:18:57      GoToSettlement → Жемянь = 1.156
+22:18:57      GoToSettlement → Устокол = 0.893
+22:18:57      GoToSettlement → Замок Флинтолг = 0.454
+22:18:57      GoToSettlement → Флинтолг = 0.155
+22:18:57    лучшее: PatrolAroundPoint → Жемянь = 2.069
+22:18:57    та же цель, приказ повторён (15-й раз): PatrolAroundPoint → Жемянь (оценка 2.069)
+22:18:57    после применения: поведение PatrolAroundPoint; цель Жемянь; движется True
+22:18:57  час: оценок 28; позиция у Корсия ((CampaignVec2) X: 298.307 Y: 568.8747 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:18:57      GoToSettlement → Корсия = 1.359
+22:18:57      GoToSettlement → Ревиль = 1.421
+22:18:57      GoToSettlement → Карбур = 0.921
+22:18:57      GoToSettlement → Замок Устокол = 1.542
+22:18:57      GoToSettlement → Жемянь = 1.138
+22:18:57      GoToSettlement → Устокол = 0.877
+22:18:57      GoToSettlement → Замок Флинтолг = 0.461
+22:18:57      GoToSettlement → Флинтолг = 0.117
+22:18:57    лучшее: PatrolAroundPoint → Жемянь = 2.047
+22:18:57    та же цель, приказ повторён (16-й раз): PatrolAroundPoint → Жемянь (оценка 2.047)
+22:18:57    после применения: поведение PatrolAroundPoint; цель Жемянь; движется True
+22:18:58  час: оценок 28; позиция у Корсия ((CampaignVec2) X: 300.8591 Y: 569.3082 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:18:58      GoToSettlement → Корсия = 1.328
+22:18:58      GoToSettlement → Карбур = 0.952
+22:18:58      GoToSettlement → Ревиль = 1.365
+22:18:58      GoToSettlement → Замок Устокол = 1.524
+22:18:58      GoToSettlement → Жемянь = 1.124
+22:18:58      GoToSettlement → Устокол = 0.863
+22:18:58      GoToSettlement → Замок Флинтолг = 0.466
+22:18:58      GoToSettlement → Флинтолг = 0.118
+22:18:58    лучшее: PatrolAroundPoint → Жемянь = 2.047
+22:18:58    та же цель, приказ повторён (17-й раз): PatrolAroundPoint → Жемянь (оценка 2.047)
+22:18:58    после применения: поведение PatrolAroundPoint; цель Жемянь; движется True
+22:18:59  час: оценок 28; позиция у Корсия ((CampaignVec2) X: 303.0276 Y: 570.3624 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:18:59      GoToSettlement → Ревиль = 1.928
+22:18:59      GoToSettlement → Корсия = 1.289
+22:18:59      GoToSettlement → Карбур = 1.034
+22:18:59      GoToSettlement → Замок Устокол = 1.975
+22:18:59      GoToSettlement → Жемянь = 1.523
+22:18:59      GoToSettlement → Устокол = 1.057
+22:18:59      GoToSettlement → Замок Флинтолг = 0.628
+22:18:59      GoToSettlement → Флинтолг = 0.156
+22:18:59    лучшее: PatrolAroundPoint → Жемянь = 2.047
+22:18:59    та же цель, приказ повторён (18-й раз): PatrolAroundPoint → Жемянь (оценка 2.047)
+22:18:59    после применения: поведение PatrolAroundPoint; цель Жемянь; движется True
+22:19:00  час: оценок 28; позиция у Корсия ((CampaignVec2) X: 304.244 Y: 572.7512 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:19:00      GoToSettlement → Ревиль = 1.932
+22:19:00      GoToSettlement → Карбур = 1.081
+22:19:00      GoToSettlement → Корсия = 1.225
+22:19:00      GoToSettlement → Замок Устокол = 1.985
+22:19:00      GoToSettlement → Жемянь = 1.535
+22:19:00      GoToSettlement → Устокол = 1.055
+22:19:00      GoToSettlement → Замок Флинтолг = 0.616
+22:19:00      GoToSettlement → Флинтолг = 0.153
+22:19:00    лучшее: PatrolAroundPoint → Жемянь = 2.047
+22:19:00    та же цель, приказ повторён (19-й раз): PatrolAroundPoint → Жемянь (оценка 2.047)
+22:19:00    после применения: поведение PatrolAroundPoint; цель Жемянь; движется True
+22:19:01  час: оценок 28; позиция у Корсия ((CampaignVec2) X: 304.8558 Y: 574.6273 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:19:01      GoToSettlement → Ревиль = 1.935
+22:19:01      GoToSettlement → Карбур = 1.097
+22:19:01      GoToSettlement → Корсия = 1.173
+22:19:01      GoToSettlement → Замок Устокол = 1.996
+22:19:01      GoToSettlement → Жемянь = 1.548
+22:19:01      GoToSettlement → Устокол = 1.055
+22:19:01      GoToSettlement → Замок Флинтолг = 0.604
+22:19:01      GoToSettlement → Флинтолг = 0.150
+22:19:01    лучшее: PatrolAroundPoint → Жемянь = 2.023
+22:19:01    та же цель, приказ повторён (20-й раз): PatrolAroundPoint → Жемянь (оценка 2.023)
+22:19:01    после применения: поведение PatrolAroundPoint; цель Жемянь; движется True
+22:19:02  час: оценок 28; позиция у Корсия ((CampaignVec2) X: 305.1662 Y: 576.3721 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:19:02      GoToSettlement → Ревиль = 2.008
+22:19:02      GoToSettlement → Карбур = 1.100
+22:19:02      GoToSettlement → Корсия = 0.971
+22:19:02      GoToSettlement → Замок Устокол = 1.999
+22:19:02      GoToSettlement → Жемянь = 1.552
+22:19:02      GoToSettlement → Устокол = 1.058
+22:19:02      GoToSettlement → Замок Флинтолг = 0.578
+22:19:02      GoToSettlement → Флинтолг = 0.144
+22:19:02    лучшее: PatrolAroundPoint → Жемянь = 2.023
+22:19:02    та же цель, приказ повторён (21-й раз): PatrolAroundPoint → Жемянь (оценка 2.023)
+22:19:02    после применения: поведение PatrolAroundPoint; цель Жемянь; движется True
+22:19:02  час: оценок 28; позиция у Корсия ((CampaignVec2) X: 304.153 Y: 577.8998 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:19:02      GoToSettlement → Ревиль = 2.012
+22:19:02      GoToSettlement → Карбур = 1.102
+22:19:02      GoToSettlement → Корсия = 0.949
+22:19:02      GoToSettlement → Замок Устокол = 2.033
+22:19:02      GoToSettlement → Жемянь = 1.585
+22:19:02      GoToSettlement → Устокол = 1.074
+22:19:02      GoToSettlement → Замок Флинтолг = 0.565
+22:19:02      GoToSettlement → Флинтолг = 0.176
+22:19:02    лучшее: GoToSettlement → Замок Устокол = 2.033
+22:19:02    НОВАЯ ЦЕЛЬ #3: GoToSettlement → Замок Устокол (оценка 2.033)
+22:19:02    после применения: поведение GoToSettlement; цель Замок Устокол; движется True
+22:19:03  час: оценок 28; позиция у Корсия ((CampaignVec2) X: 302.8759 Y: 579.8248 IsOnLand: True); текущее поведение GoToSettlement
+22:19:03      GoToSettlement → Ревиль = 1.947
+22:19:03      GoToSettlement → Карбур = 1.105
+22:19:03      GoToSettlement → Корсия = 0.924
+22:19:03      GoToSettlement → Замок Устокол = 2.491
+22:19:03      GoToSettlement → Жемянь = 1.627
+22:19:03      GoToSettlement → Устокол = 1.093
+22:19:03      GoToSettlement → Замок Флинтолг = 0.551
+22:19:03      GoToSettlement → Флинтолг = 0.249
+22:19:03    лучшее: GoToSettlement → Замок Устокол = 2.491
+22:19:03    та же цель, приказ повторён (22-й раз): GoToSettlement → Замок Устокол (оценка 2.491)
+22:19:03    после применения: поведение GoToSettlement; цель Замок Устокол; движется True
+22:19:04  час: оценок 28; позиция у Корсия ((CampaignVec2) X: 301.4619 Y: 581.9561 IsOnLand: True); текущее поведение GoToSettlement
+22:19:04      GoToSettlement → Ревиль = 1.951
+22:19:04      GoToSettlement → Карбур = 1.108
+22:19:04      GoToSettlement → Корсия = 0.895
+22:19:04      GoToSettlement → Замок Устокол = 2.549
+22:19:04      GoToSettlement → Жемянь = 1.494
+22:19:04      GoToSettlement → Устокол = 1.250
+22:19:04      GoToSettlement → Замок Флинтолг = 0.535
+22:19:04      GoToSettlement → Флинтолг = 0.245
+22:19:04    лучшее: GoToSettlement → Замок Устокол = 2.549
+22:19:04    та же цель, приказ повторён (23-й раз): GoToSettlement → Замок Устокол (оценка 2.549)
+22:19:04    после применения: поведение GoToSettlement; цель Замок Устокол; движется True
+22:19:05  час: оценок 28; позиция у Корсия ((CampaignVec2) X: 299.9969 Y: 584.1644 IsOnLand: True); текущее поведение GoToSettlement
+22:19:05      GoToSettlement → Ревиль = 1.880
+22:19:05      GoToSettlement → Карбур = 1.110
+22:19:05      GoToSettlement → Замок Устокол = 2.610
+22:19:05      GoToSettlement → Корсия = 0.861
+22:19:05      GoToSettlement → Жемянь = 1.540
+22:19:05      GoToSettlement → Устокол = 1.276
+22:19:05      GoToSettlement → Замок Флинтолг = 0.519
+22:19:05      GoToSettlement → Флинтолг = 0.241
+22:19:05    лучшее: GoToSettlement → Замок Устокол = 2.610
+22:19:05    та же цель, приказ повторён (24-й раз): GoToSettlement → Замок Устокол (оценка 2.610)
+22:19:05    после применения: поведение GoToSettlement; цель Замок Устокол; движется True
+22:19:06  час: оценок 28; позиция у Корсия ((CampaignVec2) X: 297.8146 Y: 585.5787 IsOnLand: True); текущее поведение GoToSettlement
+22:19:06      GoToSettlement → Ревиль = 1.883
+22:19:06      GoToSettlement → Карбур = 1.093
+22:19:06      GoToSettlement → Замок Устокол = 2.684
+22:19:06      GoToSettlement → Корсия = 0.837
+22:19:06      GoToSettlement → Жемянь = 1.548
+22:19:06      GoToSettlement → Устокол = 1.309
+22:19:06      GoToSettlement → Замок Флинтолг = 0.507
+22:19:06      GoToSettlement → Флинтолг = 0.238
+22:19:06    лучшее: GoToSettlement → Замок Устокол = 2.684
+22:19:06    та же цель, приказ повторён (25-й раз): GoToSettlement → Замок Устокол (оценка 2.684)
+22:19:06    после применения: поведение GoToSettlement; цель Замок Устокол; движется True
+22:19:07  час: оценок 28; позиция у Корсия ((CampaignVec2) X: 295.5645 Y: 586.9196 IsOnLand: True); текущее поведение GoToSettlement
+22:19:07      GoToSettlement → Ревиль = 1.805
+22:19:07      GoToSettlement → Карбур = 1.056
+22:19:07      GoToSettlement → Замок Устокол = 2.764
+22:19:07      GoToSettlement → Корсия = 0.810
+22:19:07      GoToSettlement → Жемянь = 1.604
+22:19:07      GoToSettlement → Устокол = 1.345
+22:19:07      GoToSettlement → Замок Флинтолг = 0.495
+22:19:07      GoToSettlement → Флинтолг = 0.235
+22:19:07    лучшее: GoToSettlement → Замок Устокол = 2.764
+22:19:07    та же цель, приказ повторён (26-й раз): GoToSettlement → Замок Устокол (оценка 2.764)
+22:19:07    после применения: поведение GoToSettlement; цель Замок Устокол; движется True
+22:19:07  час: оценок 28; позиция у Корсия ((CampaignVec2) X: 293.4842 Y: 588.1593 IsOnLand: True); текущее поведение GoToSettlement
+22:19:07      GoToSettlement → Ревиль = 1.809
+22:19:07      GoToSettlement → Замок Устокол = 2.841
+22:19:07      GoToSettlement → Карбур = 1.023
+22:19:07      GoToSettlement → Корсия = 0.780
+22:19:07      GoToSettlement → Жемянь = 1.659
+22:19:07      GoToSettlement → Устокол = 1.380
+22:19:07      GoToSettlement → Замок Флинтолг = 0.484
+22:19:07      GoToSettlement → Флинтолг = 0.207
+22:19:07    лучшее: GoToSettlement → Замок Устокол = 2.841
+22:19:07    та же цель, приказ повторён (27-й раз): GoToSettlement → Замок Устокол (оценка 2.841)
+22:19:07    после применения: поведение GoToSettlement; цель Замок Устокол; движется True
+22:19:08  час: оценок 28; позиция у Корсия ((CampaignVec2) X: 291.9114 Y: 589.0967 IsOnLand: True); текущее поведение GoToSettlement
+22:19:08      GoToSettlement → Ревиль = 1.722
+22:19:08      GoToSettlement → Замок Устокол = 2.902
+22:19:08      GoToSettlement → Карбур = 0.999
+22:19:08      GoToSettlement → Жемянь = 1.703
+22:19:08      GoToSettlement → Корсия = 0.750
+22:19:08      GoToSettlement → Устокол = 1.407
+22:19:08      GoToSettlement → Замок Флинтолг = 0.476
+22:19:08      GoToSettlement → Флинтолг = 0.205
+22:19:08    лучшее: GoToSettlement → Замок Устокол = 2.902
+22:19:08    та же цель, приказ повторён (28-й раз): GoToSettlement → Замок Устокол (оценка 2.902)
+22:19:08    после применения: поведение GoToSettlement; цель Замок Устокол; движется True
+22:19:09  час: оценок 28; позиция у Корсия ((CampaignVec2) X: 290.3445 Y: 590.0306 IsOnLand: True); текущее поведение GoToSettlement
+22:19:09      GoToSettlement → Ревиль = 1.725
+22:19:09      GoToSettlement → Замок Устокол = 2.965
+22:19:09      GoToSettlement → Карбур = 0.976
+22:19:09      GoToSettlement → Жемянь = 1.748
+22:19:09      GoToSettlement → Корсия = 0.719
+22:19:09      GoToSettlement → Устокол = 1.435
+22:19:09      GoToSettlement → Замок Флинтолг = 0.468
+22:19:09      GoToSettlement → Флинтолг = 0.203
+22:19:09    лучшее: GoToSettlement → Замок Устокол = 2.965
+22:19:09    та же цель, приказ повторён (29-й раз): GoToSettlement → Замок Устокол (оценка 2.965)
+22:19:09    после применения: поведение GoToSettlement; цель Замок Устокол; движется True
+22:19:10  час: оценок 28; позиция у Корсия ((CampaignVec2) X: 288.8487 Y: 590.9224 IsOnLand: True); текущее поведение GoToSettlement
+22:19:10      GoToSettlement → Ревиль = 1.729
+22:19:10      GoToSettlement → Замок Устокол = 3.015
+22:19:10      GoToSettlement → Карбур = 0.955
+22:19:10      GoToSettlement → Жемянь = 1.794
+22:19:10      GoToSettlement → Корсия = 0.688
+22:19:10      GoToSettlement → Устокол = 1.462
+22:19:10      GoToSettlement → Замок Флинтолг = 0.461
+22:19:10      GoToSettlement → Флинтолг = 0.201
+22:19:10    лучшее: GoToSettlement → Замок Устокол = 3.015
+22:19:10    та же цель, приказ повторён (30-й раз): GoToSettlement → Замок Устокол (оценка 3.015)
+22:19:10    после применения: поведение GoToSettlement; цель Замок Устокол; движется True
+22:19:11  час: оценок 28; позиция у Корсия ((CampaignVec2) X: 286.8977 Y: 591.2709 IsOnLand: True); текущее поведение GoToSettlement
+22:19:11      GoToSettlement → Замок Устокол = 3.017
+22:19:11      GoToSettlement → Ревиль = 1.723
+22:19:11      GoToSettlement → Жемянь = 1.857
+22:19:11      GoToSettlement → Карбур = 0.931
+22:19:11      GoToSettlement → Устокол = 1.537
+22:19:11      GoToSettlement → Корсия = 0.516
+22:19:11      GoToSettlement → Замок Флинтолг = 0.433
+22:19:11      GoToSettlement → Флинтолг = 0.192
+22:19:11    лучшее: GoToSettlement → Замок Устокол = 3.017
+22:19:11    та же цель, приказ повторён (31-й раз): GoToSettlement → Замок Устокол (оценка 3.017)
+22:19:11    после применения: поведение GoToSettlement; цель Замок Устокол; движется True
+22:19:12  час: оценок 28; позиция у Корсия ((CampaignVec2) X: 285.3947 Y: 591.4985 IsOnLand: True); текущее поведение GoToSettlement
+22:19:12      GoToSettlement → Замок Устокол = 3.019
+22:19:12      GoToSettlement → Ревиль = 1.687
+22:19:12      GoToSettlement → Жемянь = 1.899
+22:19:12      GoToSettlement → Карбур = 0.913
+22:19:12      GoToSettlement → Устокол = 1.567
+22:19:12      GoToSettlement → Корсия = 0.496
+22:19:12      GoToSettlement → Замок Флинтолг = 0.429
+22:19:12      GoToSettlement → Флинтолг = 0.191
+22:19:12    лучшее: GoToSettlement → Замок Устокол = 3.019
+22:19:12    та же цель, приказ повторён (32-й раз): GoToSettlement → Замок Устокол (оценка 3.019)
+22:19:12    после применения: поведение GoToSettlement; цель Замок Устокол; движется True
+22:19:12  час: оценок 28; позиция у Корсия ((CampaignVec2) X: 284.0524 Y: 591.7021 IsOnLand: True); текущее поведение GoToSettlement
+22:19:12      GoToSettlement → Замок Устокол = 3.020
+22:19:12      GoToSettlement → Ревиль = 1.656
+22:19:12      GoToSettlement → Жемянь = 1.938
+22:19:12      GoToSettlement → Карбур = 0.898
+22:19:12      GoToSettlement → Устокол = 1.594
+22:19:12      GoToSettlement → Корсия = 0.475
+22:19:12      GoToSettlement → Замок Флинтолг = 0.425
+22:19:12      GoToSettlement → Флинтолг = 0.190
+22:19:12    лучшее: GoToSettlement → Замок Устокол = 3.020
+22:19:12    та же цель, приказ повторён (33-й раз): GoToSettlement → Замок Устокол (оценка 3.020)
+22:19:12    после применения: поведение GoToSettlement; цель Замок Устокол; движется True
+22:19:13  час: оценок 28; позиция у Корсия ((CampaignVec2) X: 282.5744 Y: 591.9258 IsOnLand: True); текущее поведение GoToSettlement
+22:19:13      GoToSettlement → Замок Устокол = 3.022
+22:19:13      GoToSettlement → Ревиль = 1.622
+22:19:13      GoToSettlement → Жемянь = 1.981
+22:19:13      GoToSettlement → Карбур = 0.882
+22:19:13      GoToSettlement → Устокол = 1.624
+22:19:13      GoToSettlement → Корсия = 0.454
+22:19:13      GoToSettlement → Замок Флинтолг = 0.421
+22:19:13      GoToSettlement → Флинтолг = 0.189
+22:19:13    лучшее: GoToSettlement → Замок Устокол = 3.022
+22:19:13    та же цель, приказ повторён (34-й раз): GoToSettlement → Замок Устокол (оценка 3.022)
+22:19:13    после применения: поведение GoToSettlement; цель Замок Устокол; движется True
+22:19:14  час: оценок 28; позиция у Корсия ((CampaignVec2) X: 280.7172 Y: 592.2072 IsOnLand: True); текущее поведение GoToSettlement
+22:19:14      GoToSettlement → Замок Устокол = 3.024
+22:19:14      GoToSettlement → Жемянь = 2.283
+22:19:14      GoToSettlement → Ревиль = 1.580
+22:19:14      GoToSettlement → Карбур = 0.861
+22:19:14      GoToSettlement → Устокол = 1.484
+22:19:14      GoToSettlement → Корсия = 0.466
+22:19:14      GoToSettlement → Замок Флинтолг = 0.416
+22:19:14      GoToSettlement → Флинтолг = 0.188
+22:19:14    лучшее: GoToSettlement → Замок Устокол = 3.024
+22:19:14    та же цель, приказ повторён (35-й раз): GoToSettlement → Замок Устокол (оценка 3.024)
+22:19:14    после применения: поведение GoToSettlement; цель Замок Устокол; движется True
+22:19:15  час: оценок 28; позиция у Корсия ((CampaignVec2) X: 278.937 Y: 592.4772 IsOnLand: True); текущее поведение GoToSettlement
+22:19:15      GoToSettlement → Замок Устокол = 3.026
+22:19:15      GoToSettlement → Жемянь = 2.345
+22:19:15      GoToSettlement → Ревиль = 1.542
+22:19:15      GoToSettlement → Карбур = 0.843
+22:19:15      GoToSettlement → Устокол = 1.519
+22:19:15      GoToSettlement → Корсия = 0.463
+22:19:15      GoToSettlement → Замок Флинтолг = 0.411
+22:19:15      GoToSettlement → Флинтолг = 0.187
+22:19:15    лучшее: GoToSettlement → Замок Устокол = 3.026
+22:19:15    та же цель, приказ повторён (36-й раз): GoToSettlement → Замок Устокол (оценка 3.026)
+22:19:15    после применения: поведение GoToSettlement; цель Замок Устокол; движется True
+22:19:16  ========================================================================
+22:19:16  СЕАНС 2026-09-12 22:19:16 — включение, режим применение
+22:19:16  флаги до включения: IsDisabled=False; DoNotMakeNewDecisions=False; RethinkAtNextHourlyTick=True; DefaultBehavior=GoToSettlement; Army=False; Settlement=нет
+22:19:16  ВКЛЮЧЕН, режим применение; позиция у Корсия ((CampaignVec2) X: 277.4444 Y: 592.7037 IsOnLand: True); поведение GoToSettlement
+22:19:16  [UI] Автопилот включён, режим: применение. Лог: C:\Users\Edward\Documents\Mount and Blade II Bannerlord\Logs\autopilot_20260912.txt
+22:19:16  час: оценок 28; позиция у Корсия ((CampaignVec2) X: 276.6588 Y: 592.8229 IsOnLand: True); текущее поведение GoToSettlement
+22:19:16      GoToSettlement → Замок Устокол = 3.028
+22:19:16      GoToSettlement → Жемянь = 2.424
+22:19:16      GoToSettlement → Ревиль = 1.495
+22:19:16      GoToSettlement → Устокол = 1.566
+22:19:16      GoToSettlement → Карбур = 0.820
+22:19:16      GoToSettlement → Корсия = 0.458
+22:19:16      GoToSettlement → Замок Флинтолг = 0.405
+22:19:16      GoToSettlement → Флинтолг = 0.185
+22:19:16    лучшее: GoToSettlement → Замок Устокол = 3.028
+22:19:16    НОВАЯ ЦЕЛЬ #1: GoToSettlement → Замок Устокол (оценка 3.028)
+22:19:16    после применения: поведение GoToSettlement; цель Замок Устокол; движется True
+22:19:16  ПРИБЫЛИ в «Замок Устокол» (посещение #1)
+22:19:16    выход: PlayerEncounter.LeaveEncounter = true
+22:19:17  ПРИБЫЛИ в «Замок Устокол» (посещение #2)
+22:19:17    выход: PlayerEncounter.LeaveEncounter = true
+22:19:17  ПРИБЫЛИ в «Замок Устокол» (посещение #3)
+22:19:17    выход: PlayerEncounter.LeaveEncounter = true
+22:19:18  ПРИБЫЛИ в «Замок Устокол» (посещение #4)
+22:19:18    выход: PlayerEncounter.LeaveEncounter = true
+22:19:18  ПРИБЫЛИ в «Замок Устокол» (посещение #5)
+22:19:18    выход: PlayerEncounter.LeaveEncounter = true
+22:19:19  ПРИБЫЛИ в «Замок Устокол» (посещение #6)
+22:19:19    выход: PlayerEncounter.LeaveEncounter = true
+22:19:20  ПРИБЫЛИ в «Замок Устокол» (посещение #7)
+22:19:20    выход: PlayerEncounter.LeaveEncounter = true
+22:19:20  ПРИБЫЛИ в «Замок Устокол» (посещение #8)
+22:19:20    выход: PlayerEncounter.LeaveEncounter = true
+22:19:21  ПРИБЫЛИ в «Замок Устокол» (посещение #9)
+22:19:21    выход: PlayerEncounter.LeaveEncounter = true
+22:19:21  ПРИБЫЛИ в «Замок Устокол» (посещение #10)
+22:19:21    выход: PlayerEncounter.LeaveEncounter = true
+22:19:22  ПРИБЫЛИ в «Замок Устокол» (посещение #11)
+22:19:22    выход: PlayerEncounter.LeaveEncounter = true
+22:19:29  час: оценок 28; позиция у Замок Устокол ((CampaignVec2) X: 274.0234 Y: 593.2222 IsOnLand: True); текущее поведение Hold
+22:19:29      GoToSettlement → Замок Устокол = 0.570
+22:19:29      GoToSettlement → Жемянь = 1.622
+22:19:29      GoToSettlement → Ревиль = 0.961
+22:19:29      GoToSettlement → Устокол = 1.081
+22:19:29      GoToSettlement → Карбур = 0.530
+22:19:29      GoToSettlement → Корсия = 0.377
+22:19:29      GoToSettlement → Замок Флинтолг = 0.265
+22:19:29      GoToSettlement → Флинтолг = 0.122
+22:19:29    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:19:29    НОВАЯ ЦЕЛЬ #2: PatrolAroundPoint → Устокол (оценка 1.798)
+22:19:29    после применения: поведение PatrolAroundPoint; цель Устокол; движется False
+22:19:30  час: оценок 28; позиция у Замок Устокол ((CampaignVec2) X: 272.533 Y: 591.3547 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:19:30      GoToSettlement → Замок Устокол = 0.838
+22:19:30      GoToSettlement → Жемянь = 2.436
+22:19:30      GoToSettlement → Ревиль = 1.428
+22:19:30      GoToSettlement → Устокол = 1.654
+22:19:30      GoToSettlement → Карбур = 0.785
+22:19:30      GoToSettlement → Корсия = 0.571
+22:19:30      GoToSettlement → Замок Флинтолг = 0.400
+22:19:30      GoToSettlement → Флинтолг = 0.184
+22:19:30    лучшее: GoToSettlement → Жемянь = 2.436
+22:19:30    НОВАЯ ЦЕЛЬ #3: GoToSettlement → Жемянь (оценка 2.436)
+22:19:30    после применения: поведение GoToSettlement; цель Жемянь; движется True
+22:19:30  час: оценок 28; позиция у Замок Устокол ((CampaignVec2) X: 273.9705 Y: 593.2145 IsOnLand: True); текущее поведение GoToSettlement
+22:19:30      GoToSettlement → Замок Устокол = 0.820
+22:19:30      GoToSettlement → Жемянь = 2.926
+22:19:30      GoToSettlement → Ревиль = 1.446
+22:19:30      GoToSettlement → Устокол = 1.627
+22:19:30      GoToSettlement → Карбур = 0.798
+22:19:30      GoToSettlement → Корсия = 0.568
+22:19:30      GoToSettlement → Замок Флинтолг = 0.398
+22:19:30      GoToSettlement → Флинтолг = 0.104
+22:19:30    лучшее: GoToSettlement → Жемянь = 2.926
+22:19:30    та же цель, приказ повторён (1-й раз): GoToSettlement → Жемянь (оценка 2.926)
+22:19:30    после применения: поведение GoToSettlement; цель Жемянь; движется True
+22:19:41  час: оценок 16; позиция у Замок Устокол ((CampaignVec2) X: 273.1601 Y: 595.4349 IsOnLand: True); текущее поведение GoToSettlement
+22:19:41      GoToSettlement → Замок Устокол = 0.802
+22:19:41      GoToSettlement → Жемянь = 2.929
+22:19:41      GoToSettlement → Ревиль = 1.917
+22:19:41      GoToSettlement → Устокол = 1.646
+22:19:41      GoToSettlement → Карбур = 0.787
+22:19:41      GoToSettlement → Корсия = 0.555
+22:19:41      GoToSettlement → Замок Флинтолг = 0.391
+22:19:41      GoToSettlement → Флинтолг = 0.141
+22:19:41    лучшее: GoToSettlement → Жемянь = 2.929
+22:19:41    та же цель, приказ повторён (2-й раз): GoToSettlement → Жемянь (оценка 2.929)
+22:19:41    после применения: поведение GoToSettlement; цель Жемянь; движется True
+22:19:42  час: оценок 16; позиция у Замок Устокол ((CampaignVec2) X: 271.2271 Y: 597.2484 IsOnLand: True); текущее поведение GoToSettlement
+22:19:42      GoToSettlement → Замок Устокол = 0.784
+22:19:42      GoToSettlement → Жемянь = 2.932
+22:19:42      GoToSettlement → Ревиль = 1.371
+22:19:42      GoToSettlement → Устокол = 1.688
+22:19:42      GoToSettlement → Карбур = 0.767
+22:19:42      GoToSettlement → Корсия = 0.542
+22:19:42      GoToSettlement → Замок Флинтолг = 0.382
+22:19:42      GoToSettlement → Флинтолг = 0.139
+22:19:42    лучшее: GoToSettlement → Жемянь = 2.932
+22:19:42    та же цель, приказ повторён (3-й раз): GoToSettlement → Жемянь (оценка 2.932)
+22:19:42    после применения: поведение GoToSettlement; цель Жемянь; движется True
+22:19:43  час: оценок 16; позиция у Замок Устокол ((CampaignVec2) X: 269.3797 Y: 598.9362 IsOnLand: True); текущее поведение GoToSettlement
+22:19:43      GoToSettlement → Жемянь = 2.935
+22:19:43      GoToSettlement → Замок Устокол = 0.766
+22:19:43      GoToSettlement → Устокол = 1.728
+22:19:43      GoToSettlement → Ревиль = 1.491
+22:19:43      GoToSettlement → Карбур = 0.748
+22:19:43      GoToSettlement → Корсия = 0.530
+22:19:43      GoToSettlement → Замок Флинтолг = 0.373
+22:19:43      GoToSettlement → Флинтолг = 0.137
+22:19:43    лучшее: GoToSettlement → Жемянь = 2.935
+22:19:43    та же цель, приказ повторён (4-й раз): GoToSettlement → Жемянь (оценка 2.935)
+22:19:43    после применения: поведение GoToSettlement; цель Жемянь; движется True
+22:19:44  час: оценок 16; позиция у Замок Устокол ((CampaignVec2) X: 267.3849 Y: 600.7585 IsOnLand: True); текущее поведение GoToSettlement
+22:19:44      GoToSettlement → Жемянь = 2.938
+22:19:44      GoToSettlement → Замок Устокол = 0.748
+22:19:44      GoToSettlement → Ревиль = 1.550
+22:19:44      GoToSettlement → Карбур = 0.723
+22:19:44      GoToSettlement → Устокол = 1.342
+22:19:44      GoToSettlement → Корсия = 0.522
+22:19:44      GoToSettlement → Замок Флинтолг = 0.368
+22:19:44      GoToSettlement → Флинтолг = 0.136
+22:19:44    лучшее: GoToSettlement → Жемянь = 2.938
+22:19:44    та же цель, приказ повторён (5-й раз): GoToSettlement → Жемянь (оценка 2.938)
+22:19:44    после применения: поведение GoToSettlement; цель Жемянь; движется True
+22:19:45  час: оценок 16; позиция у Замок Устокол ((CampaignVec2) X: 265.4339 Y: 602.5411 IsOnLand: True); текущее поведение GoToSettlement
+22:19:45      GoToSettlement → Жемянь = 2.941
+22:19:45      GoToSettlement → Замок Устокол = 0.730
+22:19:45      GoToSettlement → Ревиль = 1.503
+22:19:45      GoToSettlement → Устокол = 1.365
+22:19:45      GoToSettlement → Карбур = 0.705
+22:19:45      GoToSettlement → Корсия = 0.510
+22:19:45      GoToSettlement → Замок Флинтолг = 0.360
+22:19:45      GoToSettlement → Флинтолг = 0.133
+22:19:45    лучшее: GoToSettlement → Жемянь = 2.941
+22:19:45    та же цель, приказ повторён (6-й раз): GoToSettlement → Жемянь (оценка 2.941)
+22:19:45    после применения: поведение GoToSettlement; цель Жемянь; движется True
+22:19:45  ПРИБЫЛИ в «Жемянь» (посещение #12)
+22:19:45    выход: PlayerEncounter.LeaveEncounter = true
+22:19:46  ПРИБЫЛИ в «Жемянь» (посещение #13)
+22:19:46    выход: PlayerEncounter.LeaveEncounter = true
+22:19:46  ПРИБЫЛИ в «Жемянь» (посещение #14)
+22:19:46    выход: PlayerEncounter.LeaveEncounter = true
+22:19:47  ПРИБЫЛИ в «Жемянь» (посещение #15)
+22:19:47    выход: PlayerEncounter.LeaveEncounter = true
+22:19:47  ПРИБЫЛИ в «Жемянь» (посещение #16)
+22:19:47    выход: PlayerEncounter.LeaveEncounter = true
+22:19:50  час: оценок 16; позиция у Жемянь ((CampaignVec2) X: 264.659 Y: 603.249 IsOnLand: True); текущее поведение Hold
+22:19:50      GoToSettlement → Жемянь = 0.539
+22:19:50      GoToSettlement → Замок Устокол = 0.594
+22:19:50      GoToSettlement → Ревиль = 0.933
+22:19:50      GoToSettlement → Устокол = 0.916
+22:19:50      GoToSettlement → Карбур = 0.466
+22:19:50      GoToSettlement → Корсия = 0.338
+22:19:50      GoToSettlement → Замок Флинтолг = 0.238
+22:19:50      GoToSettlement → Флинтолг = 0.025
+22:19:50    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:19:50    НОВАЯ ЦЕЛЬ #4: PatrolAroundPoint → Устокол (оценка 1.798)
+22:19:50    после применения: поведение PatrolAroundPoint; цель Устокол; движется False
+22:19:50  час: оценок 16; позиция у Жемянь ((CampaignVec2) X: 266.6866 Y: 601.3967 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:19:50      GoToSettlement → Жемянь = 1.389
+22:19:50      GoToSettlement → Замок Устокол = 0.868
+22:19:50      GoToSettlement → Ревиль = 1.450
+22:19:50      GoToSettlement → Карбур = 0.720
+22:19:50      GoToSettlement → Устокол = 1.354
+22:19:50      GoToSettlement → Корсия = 0.521
+22:19:50      GoToSettlement → Замок Флинтолг = 0.365
+22:19:50      GoToSettlement → Флинтолг = 0.187
+22:19:50    лучшее: PatrolAroundPoint → Глинтор = 1.845
+22:19:50    НОВАЯ ЦЕЛЬ #5: PatrolAroundPoint → Глинтор (оценка 1.845)
+22:19:50    после применения: поведение PatrolAroundPoint; цель Глинтор; движется True
+22:19:51  час: оценок 16; позиция у Жемянь ((CampaignVec2) X: 268.6321 Y: 599.6459 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:19:51      GoToSettlement → Жемянь = 1.359
+22:19:51      GoToSettlement → Замок Устокол = 0.846
+22:19:51      GoToSettlement → Ревиль = 1.502
+22:19:51      GoToSettlement → Карбур = 0.742
+22:19:51      GoToSettlement → Устокол = 1.332
+22:19:51      GoToSettlement → Корсия = 0.536
+22:19:51      GoToSettlement → Замок Флинтолг = 0.373
+22:19:51      GoToSettlement → Флинтолг = 0.182
+22:19:51    лучшее: PatrolAroundPoint → Глинтор = 1.823
+22:19:51    та же цель, приказ повторён (7-й раз): PatrolAroundPoint → Глинтор (оценка 1.823)
+22:19:51    после применения: поведение PatrolAroundPoint; цель Глинтор; движется True
+22:19:52  час: оценок 16; позиция у Жемянь ((CampaignVec2) X: 270.6953 Y: 598.1149 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:19:52      GoToSettlement → Замок Устокол = 0.823
+22:19:52      GoToSettlement → Жемянь = 1.328
+22:19:52      GoToSettlement → Устокол = 1.663
+22:19:52      GoToSettlement → Ревиль = 1.556
+22:19:52      GoToSettlement → Карбур = 0.772
+22:19:52      GoToSettlement → Корсия = 0.546
+22:19:52      GoToSettlement → Замок Флинтолг = 0.378
+22:19:52      GoToSettlement → Флинтолг = 0.174
+22:19:52    лучшее: PatrolAroundPoint → Глинтор = 1.819
+22:19:52    та же цель, приказ повторён (8-й раз): PatrolAroundPoint → Глинтор (оценка 1.819)
+22:19:52    после применения: поведение PatrolAroundPoint; цель Глинтор; движется True
+22:19:53  час: оценок 16; позиция у Жемянь ((CampaignVec2) X: 272.8596 Y: 596.5481 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:19:53      GoToSettlement → Замок Устокол = 0.801
+22:19:53      GoToSettlement → Жемянь = 1.298
+22:19:53      GoToSettlement → Ревиль = 1.616
+22:19:53      GoToSettlement → Устокол = 1.620
+22:19:53      GoToSettlement → Карбур = 0.798
+22:19:53      GoToSettlement → Корсия = 0.561
+22:19:53      GoToSettlement → Замок Флинтолг = 0.387
+22:19:53      GoToSettlement → Флинтолг = 0.154
+22:19:53    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:19:53    НОВАЯ ЦЕЛЬ #6: PatrolAroundPoint → Устокол (оценка 1.798)
+22:19:53    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:19:54  час: оценок 16; позиция у Жемянь ((CampaignVec2) X: 274.1114 Y: 594.3058 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:19:54      GoToSettlement → Замок Устокол = 0.778
+22:19:54      GoToSettlement → Жемянь = 1.268
+22:19:54      GoToSettlement → Ревиль = 1.667
+22:19:54      GoToSettlement → Устокол = 1.596
+22:19:54      GoToSettlement → Карбур = 0.817
+22:19:54      GoToSettlement → Корсия = 0.578
+22:19:54      GoToSettlement → Замок Флинтолг = 0.396
+22:19:54      GoToSettlement → Флинтолг = 0.157
+22:19:54    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:19:54    та же цель, приказ повторён (9-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:19:54    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:19:55  час: оценок 16; позиция у Жемянь ((CampaignVec2) X: 273.4532 Y: 591.8209 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:19:55      GoToSettlement → Замок Устокол = 0.756
+22:19:55      GoToSettlement → Жемянь = 1.238
+22:19:55      GoToSettlement → Ревиль = 1.675
+22:19:55      GoToSettlement → Устокол = 1.610
+22:19:55      GoToSettlement → Карбур = 0.816
+22:19:55      GoToSettlement → Корсия = 0.591
+22:19:55      GoToSettlement → Замок Флинтолг = 0.402
+22:19:55      GoToSettlement → Флинтолг = 0.158
+22:19:55    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:19:55    та же цель, приказ повторён (10-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:19:55    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:19:55  час: оценок 16; позиция у Жемянь ((CampaignVec2) X: 271.0486 Y: 591.0215 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:19:55      GoToSettlement → Замок Устокол = 0.734
+22:19:55      GoToSettlement → Жемянь = 1.243
+22:19:55      GoToSettlement → Ревиль = 1.630
+22:19:55      GoToSettlement → Устокол = 1.663
+22:19:55      GoToSettlement → Карбур = 0.795
+22:19:55      GoToSettlement → Корсия = 0.588
+22:19:55      GoToSettlement → Замок Флинтолг = 0.399
+22:19:55      GoToSettlement → Флинтолг = 0.143
+22:19:55    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:19:55    та же цель, приказ повторён (11-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:19:55    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:19:56  час: оценок 16; позиция у Жемянь ((CampaignVec2) X: 268.4984 Y: 590.6728 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:19:56      GoToSettlement → Замок Устокол = 0.711
+22:19:56      GoToSettlement → Жемянь = 1.212
+22:19:56      GoToSettlement → Устокол = 1.723
+22:19:56      GoToSettlement → Ревиль = 1.580
+22:19:56      GoToSettlement → Карбур = 0.773
+22:19:56      GoToSettlement → Корсия = 0.581
+22:19:56      GoToSettlement → Замок Флинтолг = 0.393
+22:19:56      GoToSettlement → Флинтолг = 0.143
+22:19:56    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:19:56    та же цель, приказ повторён (12-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:19:56    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:19:57  час: оценок 16; позиция у Жемянь ((CampaignVec2) X: 266.4298 Y: 590.3903 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:19:57      GoToSettlement → Замок Устокол = 0.689
+22:19:57      GoToSettlement → Жемянь = 1.181
+22:19:57      GoToSettlement → Устокол = 1.774
+22:19:57      GoToSettlement → Ревиль = 1.541
+22:19:57      GoToSettlement → Карбур = 0.757
+22:19:57      GoToSettlement → Корсия = 0.575
+22:19:57      GoToSettlement → Замок Флинтолг = 0.389
+22:19:57      GoToSettlement → Флинтолг = 0.142
+22:19:57    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:19:57    та же цель, приказ повторён (13-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:19:57    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:19:58  час: оценок 16; позиция у Жемянь ((CampaignVec2) X: 264.4127 Y: 590.27 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:19:58      GoToSettlement → Замок Устокол = 0.666
+22:19:58      GoToSettlement → Жемянь = 1.150
+22:19:58      GoToSettlement → Устокол = 1.827
+22:19:58      GoToSettlement → Ревиль = 1.505
+22:19:58      GoToSettlement → Карбур = 0.741
+22:19:58      GoToSettlement → Корсия = 0.569
+22:19:58      GoToSettlement → Замок Флинтолг = 0.385
+22:19:58      GoToSettlement → Флинтолг = 0.141
+22:19:58    лучшее: GoToSettlement → Устокол = 1.827
+22:19:58    НОВАЯ ЦЕЛЬ #7: GoToSettlement → Устокол (оценка 1.827)
+22:19:58    после применения: поведение GoToSettlement; цель Устокол; движется True
+22:19:59  час: оценок 16; позиция у Жемянь ((CampaignVec2) X: 262.2549 Y: 590.5924 IsOnLand: True); текущее поведение GoToSettlement
+22:19:59      GoToSettlement → Замок Устокол = 0.644
+22:19:59      GoToSettlement → Жемянь = 1.119
+22:19:59      GoToSettlement → Устокол = 2.266
+22:19:59      GoToSettlement → Ревиль = 1.466
+22:19:59      GoToSettlement → Карбур = 0.724
+22:19:59      GoToSettlement → Корсия = 0.559
+22:19:59      GoToSettlement → Замок Флинтолг = 0.379
+22:19:59      GoToSettlement → Флинтолг = 0.140
+22:19:59    лучшее: GoToSettlement → Устокол = 2.266
+22:19:59    та же цель, приказ повторён (14-й раз): GoToSettlement → Устокол (оценка 2.266)
+22:19:59    после применения: поведение GoToSettlement; цель Устокол; движется True
+22:20:00  час: оценок 16; позиция у Жемянь ((CampaignVec2) X: 260.0545 Y: 590.9207 IsOnLand: True); текущее поведение GoToSettlement
+22:20:00      GoToSettlement → Жемянь = 1.087
+22:20:00      GoToSettlement → Замок Устокол = 0.622
+22:20:00      GoToSettlement → Устокол = 2.346
+22:20:00      GoToSettlement → Ревиль = 1.427
+22:20:00      GoToSettlement → Карбур = 0.708
+22:20:00      GoToSettlement → Корсия = 0.550
+22:20:00      GoToSettlement → Замок Флинтолг = 0.373
+22:20:00      GoToSettlement → Флинтолг = 0.138
+22:20:00    лучшее: GoToSettlement → Устокол = 2.346
+22:20:00    та же цель, приказ повторён (15-й раз): GoToSettlement → Устокол (оценка 2.346)
+22:20:00    после применения: поведение GoToSettlement; цель Устокол; движется True
+22:20:00  час: оценок 16; позиция у Жемянь ((CampaignVec2) X: 257.3874 Y: 591.3187 IsOnLand: True); текущее поведение GoToSettlement
+22:20:00      GoToSettlement → Жемянь = 1.056
+22:20:00      GoToSettlement → Замок Устокол = 0.595
+22:20:00      GoToSettlement → Устокол = 2.448
+22:20:00      GoToSettlement → Ревиль = 1.383
+22:20:00      GoToSettlement → Карбур = 0.689
+22:20:00      GoToSettlement → Корсия = 0.539
+22:20:00      GoToSettlement → Замок Флинтолг = 0.366
+22:20:00      GoToSettlement → Флинтолг = 0.137
+22:20:00    лучшее: GoToSettlement → Устокол = 2.448
+22:20:00    та же цель, приказ повторён (16-й раз): GoToSettlement → Устокол (оценка 2.448)
+22:20:00    после применения: поведение GoToSettlement; цель Устокол; движется True
+22:20:01  час: оценок 16; позиция у Жемянь ((CampaignVec2) X: 254.8936 Y: 591.7272 IsOnLand: True); текущее поведение GoToSettlement
+22:20:01      GoToSettlement → Устокол = 2.607
+22:20:01      GoToSettlement → Замок Устокол = 0.544
+22:20:01      GoToSettlement → Жемянь = 0.737
+22:20:01      GoToSettlement → Ревиль = 1.332
+22:20:01      GoToSettlement → Карбур = 0.669
+22:20:01      GoToSettlement → Корсия = 0.491
+22:20:01      GoToSettlement → Замок Флинтолг = 0.332
+22:20:01      GoToSettlement → Флинтолг = 0.025
+22:20:01    лучшее: GoToSettlement → Устокол = 2.607
+22:20:01    та же цель, приказ повторён (17-й раз): GoToSettlement → Устокол (оценка 2.607)
+22:20:01    после применения: поведение GoToSettlement; цель Устокол; движется True
+22:20:02  час: оценок 16; позиция у Жемянь ((CampaignVec2) X: 252.2954 Y: 592.4807 IsOnLand: True); текущее поведение GoToSettlement
+22:20:02      GoToSettlement → Устокол = 2.609
+22:20:02      GoToSettlement → Замок Устокол = 0.508
+22:20:02      GoToSettlement → Жемянь = 0.703
+22:20:02      GoToSettlement → Ревиль = 1.293
+22:20:02      GoToSettlement → Карбур = 0.652
+22:20:02      GoToSettlement → Корсия = 0.480
+22:20:02      GoToSettlement → Замок Флинтолг = 0.326
+22:20:02      GoToSettlement → Флинтолг = 0.025
+22:20:02    лучшее: GoToSettlement → Устокол = 2.609
+22:20:02    та же цель, приказ повторён (18-й раз): GoToSettlement → Устокол (оценка 2.609)
+22:20:02    после применения: поведение GoToSettlement; цель Устокол; движется True
+22:20:03  час: оценок 16; позиция у Жемянь ((CampaignVec2) X: 249.7834 Y: 593.2088 IsOnLand: True); текущее поведение GoToSettlement
+22:20:03      GoToSettlement → Устокол = 2.612
+22:20:03      GoToSettlement → Замок Устокол = 0.511
+22:20:03      GoToSettlement → Жемянь = 0.668
+22:20:03      GoToSettlement → Ревиль = 1.257
+22:20:03      GoToSettlement → Карбур = 0.636
+22:20:03      GoToSettlement → Корсия = 0.471
+22:20:03      GoToSettlement → Замок Флинтолг = 0.279
+22:20:03      GoToSettlement → Флинтолг = 0.025
+22:20:03    лучшее: GoToSettlement → Устокол = 2.612
+22:20:03    та же цель, приказ повторён (19-й раз): GoToSettlement → Устокол (оценка 2.612)
+22:20:03    после применения: поведение GoToSettlement; цель Устокол; движется True
+22:20:04  час: оценок 16; позиция у Жемянь ((CampaignVec2) X: 247.2057 Y: 593.9564 IsOnLand: True); текущее поведение GoToSettlement
+22:20:04      GoToSettlement → Устокол = 2.615
+22:20:04      GoToSettlement → Замок Устокол = 0.498
+22:20:04      GoToSettlement → Жемянь = 0.632
+22:20:04      GoToSettlement → Ревиль = 1.222
+22:20:04      GoToSettlement → Карбур = 0.621
+22:20:04      GoToSettlement → Корсия = 0.461
+22:20:04      GoToSettlement → Замок Флинтолг = 0.274
+22:20:04      GoToSettlement → Флинтолг = 0.025
+22:20:04    лучшее: GoToSettlement → Устокол = 2.615
+22:20:04    та же цель, приказ повторён (20-й раз): GoToSettlement → Устокол (оценка 2.615)
+22:20:04    после применения: поведение GoToSettlement; цель Устокол; движется True
+22:20:05  час: оценок 16; позиция у Жемянь ((CampaignVec2) X: 244.6707 Y: 594.3975 IsOnLand: True); текущее поведение GoToSettlement
+22:20:05      GoToSettlement → Устокол = 2.617
+22:20:05      GoToSettlement → Замок Устокол = 0.486
+22:20:05      GoToSettlement → Жемянь = 0.595
+22:20:05      GoToSettlement → Ревиль = 1.191
+22:20:05      GoToSettlement → Карбур = 0.606
+22:20:05      GoToSettlement → Корсия = 0.453
+22:20:05      GoToSettlement → Замок Флинтолг = 0.270
+22:20:05      GoToSettlement → Флинтолг = 0.025
+22:20:05    лучшее: GoToSettlement → Устокол = 2.617
+22:20:05    та же цель, приказ повторён (21-й раз): GoToSettlement → Устокол (оценка 2.617)
+22:20:05    после применения: поведение GoToSettlement; цель Устокол; движется True
+22:20:05  час: оценок 16; позиция у Жемянь ((CampaignVec2) X: 241.9929 Y: 594.4643 IsOnLand: True); текущее поведение GoToSettlement
+22:20:05      GoToSettlement → Устокол = 2.620
+22:20:05      GoToSettlement → Замок Устокол = 0.474
+22:20:05      GoToSettlement → Жемянь = 0.558
+22:20:05      GoToSettlement → Ревиль = 1.589
+22:20:05      GoToSettlement → Карбур = 0.592
+22:20:05      GoToSettlement → Корсия = 0.445
+22:20:05      GoToSettlement → Замок Флинтолг = 0.025
+22:20:05      GoToSettlement → Флинтолг = 0.025
+22:20:05    лучшее: GoToSettlement → Устокол = 2.620
+22:20:05    та же цель, приказ повторён (22-й раз): GoToSettlement → Устокол (оценка 2.620)
+22:20:05    после применения: поведение GoToSettlement; цель Устокол; движется True
+22:20:06  ПРИБЫЛИ в «Устокол» (посещение #17)
+22:20:06    выход: PlayerEncounter.LeaveEncounter = true
+22:20:07  ПРИБЫЛИ в «Устокол» (посещение #18)
+22:20:07    выход: PlayerEncounter.LeaveEncounter = true
+22:20:07  ПРИБЫЛИ в «Устокол» (посещение #19)
+22:20:07    выход: PlayerEncounter.LeaveEncounter = true
+22:20:08  ПРИБЫЛИ в «Устокол» (посещение #20)
+22:20:08    выход: PlayerEncounter.LeaveEncounter = true
+22:20:08  ПРИБЫЛИ в «Устокол» (посещение #21)
+22:20:08    выход: PlayerEncounter.LeaveEncounter = true
+22:20:11  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 239.455 Y: 594.328 IsOnLand: True); текущее поведение Hold
+22:20:11      GoToSettlement → Устокол = 0.504
+22:20:11      GoToSettlement → Замок Устокол = 0.309
+22:20:11      GoToSettlement → Жемянь = 0.436
+22:20:11      GoToSettlement → Ревиль = 1.007
+22:20:11      GoToSettlement → Карбур = 0.386
+22:20:11      GoToSettlement → Корсия = 0.292
+22:20:11      GoToSettlement → Замок Флинтолг = 0.025
+22:20:11      GoToSettlement → Флинтолг = 0.025
+22:20:11    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:11    НОВАЯ ЦЕЛЬ #8: PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:11    после применения: поведение PatrolAroundPoint; цель Устокол; движется False
+22:20:12  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 242.0654 Y: 594.4681 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:20:12      GoToSettlement → Устокол = 1.259
+22:20:12      GoToSettlement → Замок Устокол = 0.477
+22:20:12      GoToSettlement → Жемянь = 0.649
+22:20:12      GoToSettlement → Ревиль = 1.510
+22:20:12      GoToSettlement → Карбур = 0.595
+22:20:12      GoToSettlement → Корсия = 0.447
+22:20:12      GoToSettlement → Замок Флинтолг = 0.025
+22:20:12      GoToSettlement → Флинтолг = 0.025
+22:20:12    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:12    та же цель, приказ повторён (23-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:12    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:20:12  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 244.7273 Y: 594.4362 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:20:12      GoToSettlement → Устокол = 1.232
+22:20:12      GoToSettlement → Замок Устокол = 0.492
+22:20:12      GoToSettlement → Жемянь = 0.642
+22:20:12      GoToSettlement → Ревиль = 1.678
+22:20:12      GoToSettlement → Карбур = 0.612
+22:20:12      GoToSettlement → Корсия = 0.457
+22:20:12      GoToSettlement → Замок Флинтолг = 0.271
+22:20:12      GoToSettlement → Флинтолг = 0.025
+22:20:12    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:12    та же цель, приказ повторён (24-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:12    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:20:13  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 247.3136 Y: 594.2266 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:20:13      GoToSettlement → Устокол = 1.205
+22:20:13      GoToSettlement → Замок Устокол = 0.507
+22:20:13      GoToSettlement → Жемянь = 0.634
+22:20:13      GoToSettlement → Ревиль = 1.729
+22:20:13      GoToSettlement → Карбур = 0.629
+22:20:13      GoToSettlement → Корсия = 0.468
+22:20:13      GoToSettlement → Замок Флинтолг = 0.275
+22:20:13      GoToSettlement → Флинтолг = 0.025
+22:20:13    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:13    та же цель, приказ повторён (25-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:13    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:20:14  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 245.8158 Y: 594.4636 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:20:14      GoToSettlement → Устокол = 1.178
+22:20:14      GoToSettlement → Замок Устокол = 0.500
+22:20:14      GoToSettlement → Жемянь = 0.667
+22:20:14      GoToSettlement → Ревиль = 1.651
+22:20:14      GoToSettlement → Карбур = 0.621
+22:20:14      GoToSettlement → Корсия = 0.463
+22:20:14      GoToSettlement → Замок Флинтолг = 0.273
+22:20:14      GoToSettlement → Флинтолг = 0.025
+22:20:14    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:14    та же цель, приказ повторён (26-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:14    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:20:15  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 243.1685 Y: 594.8737 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:20:15      GoToSettlement → Устокол = 1.151
+22:20:15      GoToSettlement → Замок Устокол = 0.487
+22:20:15      GoToSettlement → Жемянь = 0.651
+22:20:15      GoToSettlement → Ревиль = 1.607
+22:20:15      GoToSettlement → Карбур = 0.606
+22:20:15      GoToSettlement → Корсия = 0.455
+22:20:15      GoToSettlement → Замок Флинтолг = 0.025
+22:20:15      GoToSettlement → Флинтолг = 0.025
+22:20:15    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:15    та же цель, приказ повторён (27-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:15    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:20:16  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 240.5475 Y: 595.2802 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:20:16      GoToSettlement → Устокол = 1.124
+22:20:16      GoToSettlement → Замок Устокол = 0.476
+22:20:16      GoToSettlement → Жемянь = 0.635
+22:20:16      GoToSettlement → Ревиль = 1.511
+22:20:16      GoToSettlement → Карбур = 0.592
+22:20:16      GoToSettlement → Корсия = 0.446
+22:20:16      GoToSettlement → Замок Флинтолг = 0.025
+22:20:16      GoToSettlement → Флинтолг = 0.025
+22:20:16    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:16    та же цель, приказ повторён (28-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:16    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:20:16  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 238.0631 Y: 595.6654 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:20:16      GoToSettlement → Устокол = 1.097
+22:20:16      GoToSettlement → Замок Устокол = 0.465
+22:20:16      GoToSettlement → Жемянь = 0.603
+22:20:16      GoToSettlement → Ревиль = 1.419
+22:20:16      GoToSettlement → Карбур = 0.580
+22:20:16      GoToSettlement → Корсия = 0.439
+22:20:16      GoToSettlement → Замок Флинтолг = 0.025
+22:20:16      GoToSettlement → Флинтолг = 0.025
+22:20:16    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:16    та же цель, приказ повторён (29-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:16    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:20:17  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 235.4265 Y: 596.0746 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:20:17      GoToSettlement → Устокол = 1.070
+22:20:17      GoToSettlement → Замок Устокол = 0.455
+22:20:17      GoToSettlement → Жемянь = 0.588
+22:20:17      GoToSettlement → Ревиль = 1.383
+22:20:17      GoToSettlement → Карбур = 0.567
+22:20:17      GoToSettlement → Корсия = 0.431
+22:20:17      GoToSettlement → Замок Флинтолг = 0.025
+22:20:17      GoToSettlement → Флинтолг = 0.025
+22:20:17    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:17    та же цель, приказ повторён (30-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:17    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:20:18  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 233.019 Y: 596.4264 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:20:18      GoToSettlement → Устокол = 1.043
+22:20:18      GoToSettlement → Замок Устокол = 0.445
+22:20:18      GoToSettlement → Жемянь = 0.574
+22:20:18      GoToSettlement → Ревиль = 1.294
+22:20:18      GoToSettlement → Карбур = 0.556
+22:20:18      GoToSettlement → Корсия = 0.424
+22:20:18      GoToSettlement → Замок Флинтолг = 0.025
+22:20:18      GoToSettlement → Флинтолг = 0.025
+22:20:18    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:18    та же цель, приказ повторён (31-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:18    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:20:19  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 235.4798 Y: 595.686 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:20:19      GoToSettlement → Устокол = 1.017
+22:20:19      GoToSettlement → Замок Устокол = 0.457
+22:20:19      GoToSettlement → Жемянь = 0.590
+22:20:19      GoToSettlement → Ревиль = 1.264
+22:20:19      GoToSettlement → Карбур = 0.570
+22:20:19      GoToSettlement → Корсия = 0.433
+22:20:19      GoToSettlement → Замок Флинтолг = 0.025
+22:20:19      GoToSettlement → Флинтолг = 0.025
+22:20:19    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:19    та же цель, приказ повторён (32-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:19    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:20:20  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 238.0611 Y: 595.2505 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:20:20      GoToSettlement → Устокол = 0.990
+22:20:20      GoToSettlement → Замок Устокол = 0.470
+22:20:20      GoToSettlement → Жемянь = 0.608
+22:20:20      GoToSettlement → Ревиль = 1.300
+22:20:20      GoToSettlement → Карбур = 0.585
+22:20:20      GoToSettlement → Корсия = 0.443
+22:20:20      GoToSettlement → Замок Флинтолг = 0.025
+22:20:20      GoToSettlement → Флинтолг = 0.025
+22:20:20    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:20    та же цель, приказ повторён (33-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:20    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:20:21  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 240.3095 Y: 596.0355 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:20:21      GoToSettlement → Устокол = 0.963
+22:20:21      GoToSettlement → Замок Устокол = 0.481
+22:20:21      GoToSettlement → Жемянь = 0.626
+22:20:21      GoToSettlement → Ревиль = 1.253
+22:20:21      GoToSettlement → Карбур = 0.598
+22:20:21      GoToSettlement → Корсия = 0.450
+22:20:21      GoToSettlement → Замок Флинтолг = 0.025
+22:20:21      GoToSettlement → Флинтолг = 0.025
+22:20:21    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:21    та же цель, приказ повторён (34-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:21    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:20:21  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 241.8286 Y: 596.2227 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:20:21      GoToSettlement → Устокол = 0.901
+22:20:21      GoToSettlement → Замок Устокол = 0.490
+22:20:21      GoToSettlement → Жемянь = 0.639
+22:20:21      GoToSettlement → Ревиль = 1.274
+22:20:21      GoToSettlement → Карбур = 0.608
+22:20:21      GoToSettlement → Корсия = 0.456
+22:20:21      GoToSettlement → Замок Флинтолг = 0.025
+22:20:21      GoToSettlement → Флинтолг = 0.025
+22:20:21    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:22    та же цель, приказ повторён (35-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:22    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:20:22  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 243.8633 Y: 596.7797 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:20:22      GoToSettlement → Устокол = 0.875
+22:20:22      GoToSettlement → Замок Устокол = 0.501
+22:20:22      GoToSettlement → Жемянь = 0.657
+22:20:22      GoToSettlement → Ревиль = 1.302
+22:20:22      GoToSettlement → Карбур = 0.620
+22:20:22      GoToSettlement → Корсия = 0.463
+22:20:22      GoToSettlement → Замок Флинтолг = 0.025
+22:20:22      GoToSettlement → Флинтолг = 0.025
+22:20:22    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:22    та же цель, приказ повторён (36-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:22    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:20:23  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 244.2542 Y: 596.9374 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:20:23      GoToSettlement → Устокол = 0.849
+22:20:23      GoToSettlement → Замок Устокол = 0.504
+22:20:23      GoToSettlement → Жемянь = 0.662
+22:20:23      GoToSettlement → Ревиль = 1.309
+22:20:23      GoToSettlement → Карбур = 0.624
+22:20:23      GoToSettlement → Корсия = 0.465
+22:20:23      GoToSettlement → Замок Флинтолг = 0.025
+22:20:23      GoToSettlement → Флинтолг = 0.025
+22:20:23    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:23    та же цель, приказ повторён (37-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:23    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:20:24  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 242.076 Y: 596.4776 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:20:24      GoToSettlement → Устокол = 0.823
+22:20:24      GoToSettlement → Замок Устокол = 0.495
+22:20:24      GoToSettlement → Жемянь = 0.647
+22:20:24      GoToSettlement → Ревиль = 1.283
+22:20:24      GoToSettlement → Карбур = 0.613
+22:20:24      GoToSettlement → Корсия = 0.460
+22:20:24      GoToSettlement → Замок Флинтолг = 0.025
+22:20:24      GoToSettlement → Флинтолг = 0.025
+22:20:24    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:24    та же цель, приказ повторён (38-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:24    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:20:25  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 239.4478 Y: 595.9226 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:20:25      GoToSettlement → Устокол = 0.797
+22:20:25      GoToSettlement → Замок Устокол = 0.483
+22:20:25      GoToSettlement → Жемянь = 0.628
+22:20:25      GoToSettlement → Ревиль = 1.253
+22:20:25      GoToSettlement → Карбур = 0.599
+22:20:25      GoToSettlement → Корсия = 0.453
+22:20:25      GoToSettlement → Замок Флинтолг = 0.025
+22:20:25      GoToSettlement → Флинтолг = 0.025
+22:20:25    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:25    та же цель, приказ повторён (39-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:25    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:20:26  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 238.5178 Y: 595.8254 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:20:26      GoToSettlement → Устокол = 0.771
+22:20:26      GoToSettlement → Замок Устокол = 0.480
+22:20:26      GoToSettlement → Жемянь = 0.623
+22:20:26      GoToSettlement → Ревиль = 1.243
+22:20:26      GoToSettlement → Карбур = 0.595
+22:20:26      GoToSettlement → Корсия = 0.451
+22:20:26      GoToSettlement → Замок Флинтолг = 0.025
+22:20:26      GoToSettlement → Флинтолг = 0.025
+22:20:26    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:26    та же цель, приказ повторён (40-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:26    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:20:27  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 238.9089 Y: 598.4897 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:20:27      GoToSettlement → Устокол = 0.745
+22:20:27      GoToSettlement → Замок Устокол = 0.482
+22:20:27      GoToSettlement → Жемянь = 0.632
+22:20:27      GoToSettlement → Ревиль = 1.243
+22:20:27      GoToSettlement → Карбур = 0.597
+22:20:27      GoToSettlement → Корсия = 0.448
+22:20:27      GoToSettlement → Замок Флинтолг = 0.025
+22:20:27      GoToSettlement → Флинтолг = 0.025
+22:20:27    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:27    та же цель, приказ повторён (41-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:27    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:20:27  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 238.9662 Y: 601.0884 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:20:27      GoToSettlement → Устокол = 0.719
+22:20:27      GoToSettlement → Замок Устокол = 0.481
+22:20:27      GoToSettlement → Жемянь = 0.636
+22:20:27      GoToSettlement → Ревиль = 1.237
+22:20:27      GoToSettlement → Карбур = 0.596
+22:20:27      GoToSettlement → Корсия = 0.445
+22:20:27      GoToSettlement → Замок Флинтолг = 0.025
+22:20:27      GoToSettlement → Флинтолг = 0.025
+22:20:27    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:27    та же цель, приказ повторён (42-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:27    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:20:28  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 238.9416 Y: 598.9592 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:20:28      GoToSettlement → Устокол = 0.693
+22:20:28      GoToSettlement → Замок Устокол = 0.484
+22:20:28      GoToSettlement → Жемянь = 0.636
+22:20:28      GoToSettlement → Ревиль = 1.246
+22:20:28      GoToSettlement → Карбур = 0.599
+22:20:28      GoToSettlement → Корсия = 0.450
+22:20:28      GoToSettlement → Замок Флинтолг = 0.025
+22:20:28      GoToSettlement → Флинтолг = 0.025
+22:20:28    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:28    та же цель, приказ повторён (43-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:28    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:20:29  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 238.6032 Y: 596.4203 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:20:29      GoToSettlement → Устокол = 0.667
+22:20:29      GoToSettlement → Замок Устокол = 0.485
+22:20:29      GoToSettlement → Жемянь = 0.631
+22:20:29      GoToSettlement → Ревиль = 1.251
+22:20:29      GoToSettlement → Карбур = 0.600
+22:20:29      GoToSettlement → Корсия = 0.455
+22:20:29      GoToSettlement → Замок Флинтолг = 0.025
+22:20:29      GoToSettlement → Флинтолг = 0.025
+22:20:29    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:29    та же цель, приказ повторён (44-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:29    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:20:30  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 236.0229 Y: 596.4036 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:20:30      GoToSettlement → Устокол = 0.642
+22:20:30      GoToSettlement → Замок Устокол = 0.474
+22:20:30      GoToSettlement → Жемянь = 0.615
+22:20:30      GoToSettlement → Ревиль = 1.715
+22:20:30      GoToSettlement → Карбур = 0.571
+22:20:30      GoToSettlement → Корсия = 0.447
+22:20:30      GoToSettlement → Замок Флинтолг = 0.025
+22:20:30      GoToSettlement → Флинтолг = 0.025
+22:20:30    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:30    та же цель, приказ повторён (45-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:30    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:20:31  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 233.4086 Y: 596.5491 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:20:31      GoToSettlement → Устокол = 0.664
+22:20:31      GoToSettlement → Замок Устокол = 0.464
+22:20:31      GoToSettlement → Жемянь = 0.599
+22:20:31      GoToSettlement → Ревиль = 1.674
+22:20:31      GoToSettlement → Карбур = 0.559
+22:20:31      GoToSettlement → Корсия = 0.440
+22:20:31      GoToSettlement → Замок Флинтолг = 0.025
+22:20:31      GoToSettlement → Флинтолг = 0.025
+22:20:31    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:31    та же цель, приказ повторён (46-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:31    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:20:31  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 235.5986 Y: 596.2026 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:20:31      GoToSettlement → Устокол = 0.712
+22:20:31      GoToSettlement → Замок Устокол = 0.475
+22:20:31      GoToSettlement → Жемянь = 0.615
+22:20:31      GoToSettlement → Ревиль = 1.529
+22:20:31      GoToSettlement → Карбур = 0.571
+22:20:31      GoToSettlement → Корсия = 0.448
+22:20:31      GoToSettlement → Замок Флинтолг = 0.025
+22:20:31      GoToSettlement → Флинтолг = 0.025
+22:20:31    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:31    та же цель, приказ повторён (47-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:31    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:20:32  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 238.0923 Y: 595.8639 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:20:32      GoToSettlement → Устокол = 0.714
+22:20:32      GoToSettlement → Замок Устокол = 0.488
+22:20:32      GoToSettlement → Жемянь = 0.633
+22:20:32      GoToSettlement → Ревиль = 1.659
+22:20:32      GoToSettlement → Карбур = 0.586
+22:20:32      GoToSettlement → Корсия = 0.458
+22:20:32      GoToSettlement → Замок Флинтолг = 0.025
+22:20:32      GoToSettlement → Флинтолг = 0.025
+22:20:32    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:32    та же цель, приказ повторён (48-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:32    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:20:33  час: оценок 16; позиция у Устокол ((CampaignVec2) X: 238.5087 Y: 598.0845 IsOnLand: True); текущее поведение PatrolAroundPoint
+22:20:33      GoToSettlement → Устокол = 0.715
+22:20:33      GoToSettlement → Замок Устокол = 0.490
+22:20:33      GoToSettlement → Жемянь = 0.641
+22:20:33      GoToSettlement → Ревиль = 1.661
+22:20:33      GoToSettlement → Карбур = 0.587
+22:20:33      GoToSettlement → Корсия = 0.456
+22:20:33      GoToSettlement → Замок Флинтолг = 0.025
+22:20:33      GoToSettlement → Флинтолг = 0.025
+22:20:33    лучшее: PatrolAroundPoint → Устокол = 1.798
+22:20:33    та же цель, приказ повторён (49-й раз): PatrolAroundPoint → Устокол (оценка 1.798)
+22:20:33    после применения: поведение PatrolAroundPoint; цель Устокол; движется True
+22:20:34  ВЫКЛЮЧЕНИЕ: выключено игроком (F12)
+22:20:34  движение остановлено (SetMoveModeHold)
+22:20:34  восстановлено: DoNotMakeNewDecisions=False
+22:20:34  флаги после выключения: IsDisabled=False; DoNotMakeNewDecisions=False; RethinkAtNextHourlyTick=True; DefaultBehavior=Hold; Army=False; Settlement=нет
+22:20:34  итог сеанса: пересчётов 57; смен цели 8; повторов того же приказа 49; посещений поселений 21; штатных выходов 21
+22:20:34  [UI] Автопилот выключен, движение остановлено, состояние AI восстановлено.

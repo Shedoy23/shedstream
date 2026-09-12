@@ -679,13 +679,20 @@ async def run():
                expect_note("Сервер недоступен", "error")(r["A7-network"]))
 
         print("\n[2] Цены ядра")
+        # Отдельным пунктом, потому что это самый дешёвый способ сломать
+        # замороженный клиент: переименовать поле на сервере. Клиент тогда
+        # молча покажет запасное число вместо настоящей цены. Раньше проверка
+        # на этом падала traceback'ом на середине и остальные находки терялись.
+        missing_cfg = [k for k in ("tts_cost", "divorce_cost") if k not in cfg]
+        report("сервер отдаёт цены под теми именами, что читает клиент",
+               [f"из /api/core/config пропали: {missing_cfg}"] if missing_cfg else [])
         report("изменённая цена доходит до клиента",
                expect_core_price("tts_cost", 5000, 7777, "7777💎")(r["B1-changed"]))
         report("допустимый ноль остаётся нулём",
                expect_core_price("divorce_cost", 500, 0)(r["B2-zero"]))
         report("отсутствующая цена — запасное число, без падения",
                expect_core_price("guild_create_cost", 1234, 1234)(r["B3-missing"]))
-        report("лишнее поле не мешает", expect_core_price("tts_cost", 5000, cfg["tts_cost"])(r["B4-extra"]))
+        report("лишнее поле не мешает", expect_core_price("tts_cost", 5000, cfg.get("tts_cost", 5000))(r["B4-extra"]))
         report("отказ API — запасные числа, без падения",
                expect_core_price("tts_cost", 5000, 5000)(r["B5-refusal"]))
 

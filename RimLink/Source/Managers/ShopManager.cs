@@ -690,6 +690,29 @@ namespace RimLink.Managers
                     }
                 }
 
+                // Протезы: их выгода выражена НЕ статами, а эффективностью
+                // добавленной части тела, поэтому строк выше у них не бывает
+                // вовсе — и зритель видел карточку без единого бонуса. Каталог
+                // такие вещи пускает намеренно (фильтр выше принимает
+                // addedPartProps), значит и подсказка обязана их описывать.
+                // Багрепорт #50 от kuro_gothic 09.09: «не у всех отображает
+                // бонусы к параметрам».
+                var part = hediff.addedPartProps;
+                if (part != null && part.partEfficiency > 0f)
+                {
+                    float eff = part.partEfficiency;
+                    if (System.Math.Abs(eff - 1f) < 0.001f)
+                        lines.AppendLine("✦ Эффективность части: как у здоровой");
+                    else
+                    {
+                        string sign = eff > 1f ? "+" : "";
+                        lines.AppendLine($"✦ Эффективность части: ×{eff:G3} " +
+                                         $"({sign}{(eff - 1f):P0} к здоровой)");
+                    }
+                    if (part.solid)
+                        lines.AppendLine("🛡 Не ранится и не заражается");
+                }
+
                 // Описание если нет статов
                 if (lines.Length == 0 && !string.IsNullOrEmpty(hediff.description))
                     lines.AppendLine(Truncate(PawnUtils.StripTags(hediff.description), 120));

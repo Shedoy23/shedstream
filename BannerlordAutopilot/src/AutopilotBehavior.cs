@@ -33,11 +33,15 @@ namespace BannerlordAutopilot
     ///     `!IsMainParty`), поэтому такие решения прототип не применяет;
     ///   * рейд, оборона поселения, преследование — те же причины плюс
     ///     отключённая для игрока инициатива;
-    ///   * боевой автопилот — отдельная задача;
-    ///   * автоматический выход из поселения — движок для партии игрока его
-    ///     не делает (`CheckExitingSettlementParallel` пропускает MainParty),
-    ///     поэтому вход в поселение прототип считает ОСТАНОВКОЙ, а не
-    ///     проблемой, которую надо обойти.
+    ///   * боевой автопилот — отдельная задача.
+    ///
+    /// ВЫХОД ИЗ ПОСЕЛЕНИЯ мы делаем сами. Движок для партии игрока его не
+    /// делает (`CheckExitingSettlementParallel` пропускает MainParty), а без
+    /// выхода цикл обрывается на первой же цели «съездить в город» — это и
+    /// был главный барьер. Механизм тот же, которым пользуется кнопка «Уйти»:
+    /// `PlayerEncounter.LeaveEncounter`, иначе `LeaveSettlementAction`.
+    /// Проверено прогоном 12.09: три поселения посещены и покинуты подряд, с
+    /// новой целью после каждого.
     ///
     /// Полный разбор: docs/BANNERLORD_AUTOPILOT_RESEARCH_2026-09-12.md</summary>
     public class AutopilotBehavior : CampaignBehaviorBase
@@ -73,6 +77,7 @@ namespace BannerlordAutopilot
         private int _settlementVisitsThisSession;
         private int _settlementExitsThisSession;
         private string _lastAppliedDescription = "—";
+        private bool _leaveRequested;      // выход из поселения уже запрошен
         private string _lastTargetKey;          // чем отличается «та же цель» от новой
 
         internal Mode CurrentMode => _mode;
@@ -165,14 +170,26 @@ namespace BannerlordAutopilot
                 reason = "герой в плену";
                 return false;
             }
-            if (party.CurrentSettlement != null)
+            // Включение ИЗ поселения разрешено: штатный выход у нас есть и
+            // проверен прогоном 12.09 (21 выход подряд), поэтому запрещать
+            // старт из города больше незачем — автопилот выведет партию сам
+            // на ближайшем опросе состояния.
+            if (party.CurrentSettlement != null && !AutoLeaveSettlement)
             {
-                reason = "партия внутри поселения — первый прототип работает только на карте";
+                reason = "партия внутри поселения, а автоматический выход выключен";
                 return false;
             }
-            if (party.MapEvent != null || PlayerEncounter.Current != null)
+            if (party.MapEvent != null)
             {
-                reason = "идёт встреча или бой";
+                reason = "идёт бой";
+                return false;
+            }
+            if (PlayerEncounter.Current != null && PlayerEncounter.EncounterSettlement == null)
+            {
+                // Встреча с поселением — это и есть «мы в городе», её мы умеем
+                // закрывать. А вот встреча с чужой ПАРТИЕЙ ведёт в переговоры
+                // или бой, и это вне области прототипа.
+                reason = "идёт встреча с другой партией";
                 return false;
             }
             if (party.Army != null)
@@ -201,9 +218,23 @@ namespace BannerlordAutopilot
                 return false;
             }
 
-            // Снимок ДО первого изменения.
-            _savedDoNotMakeNewDecisions = party.Ai.DoNotMakeNewDecisions;
-            _snapshotTaken = true;
+            // Снимок ДО первого изменения — и только если его ещё нет.
+            //
+            // Иначе повторное включение (F11 второй раз, без выключения)
+            // снимает снимок уже с НАШЕГО значения и затирает настоящее. Так
+            // и вышло 12.09: при первом включении флаг был взведён, мы его
+            // сняли, второе включение записало в снимок False, и при
+            // выключении игроку вернули False вместо True.
+            if (!_snapshotTaken)
+            {
+                _savedDoNotMakeNewDecisions = party.Ai.DoNotMakeNewDecisions;
+                _snapshotTaken = true;
+            }
+            else
+            {
+                AutopilotLog.Write("снимок уже взят раньше, не перезаписываю: DoNotMakeNewDecisions="
+                                   + _savedDoNotMakeNewDecisions);
+            }
 
             AutopilotLog.Session("включение, режим " + ModeName(mode));
             LogCurrentFlags("до включения");
@@ -308,9 +339,21 @@ namespace BannerlordAutopilot
                                 ?? (PlayerEncounter.Current != null ? PlayerEncounter.EncounterSettlement : null);
             if (inside != null)
             {
-                OnArrivedAtSettlement(inside);
+                // Выход из поселения не мгновенный: движок закрывает встречу
+                // через свой цикл, а опрос идёт каждые полсекунды. Без этой
+                // защиты прибытие засчитывалось ПОВТОРНО всё время, пока
+                // партия выходит — в прогоне 12.09 одно прибытие давало от 5
+                // до 13 записей и столько же лишних запросов на выход, а
+                // счётчик посещений показал 21 вместо четырёх настоящих.
+                if (!_leaveRequested)
+                {
+                    _leaveRequested = true;
+                    OnArrivedAtSettlement(inside);
+                }
                 return false;
             }
+            // Партия снова на карте — прибытие можно считать заново.
+            _leaveRequested = false;
             if (party.MapEvent != null)
             {
                 Disable("начался бой (MapEvent) — вне области первого прототипа");

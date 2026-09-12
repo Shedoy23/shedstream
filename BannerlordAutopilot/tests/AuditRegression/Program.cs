@@ -53,6 +53,12 @@ internal static class Program
         return s;
     }
 
+    static void EnterInside(Settlement s)
+    {
+        PlayerEncounter.Current = new PlayerEncounter(); PlayerEncounter.EncounterSettlement = s;
+        MobileParty.MainParty.CurrentSettlement = s;
+    }
+
     static void Enable(AutopilotBehavior b, AutopilotBehavior.Mode mode = AutopilotBehavior.Mode.Apply)
     {
         if (!b.TryEnable(mode, out var why)) throw new Exception("не включился: " + why);
@@ -236,21 +242,24 @@ internal static class Program
         {
             var b = Fresh(); Enable(b);
             var reville = EnterInside("Ревиль"); b.PollState();                       // прибыли и вышли
-            int exitsAfterFirst = Field(b, "_settlementExitsThisSession");
-            EnterInside("Ревиль"); PlayerEncounter.EncounterSettlement = MobileParty.MainParty.CurrentSettlement;
+            int finishAfterFirst = PlayerEncounter.FinishCalls;   // сколько раз закрывали встречу к этому моменту
+            b.PollState();                                                            // кадр на свободной карте
+            EnterInside(reville);                                                     // тот же Ревиль, тот же объект
             b.PollState();                                                            // штатный AI снова завёл в Ревиль
             Check(b.CurrentMode == AutopilotBehavior.Mode.Off, "повторный вход в только что покинутое поселение останавливает автопилот");
-            Check(Field(b, "_settlementExitsThisSession") == exitsAfterFirst && MobileParty.MainParty.CurrentSettlement != null,
+            // Не по счётчику: Disable закрывает сеанс и обнуляет его. По наблюдаемому —
+            // встречу второй раз не закрывали, партия осталась в поселении.
+            Check(PlayerEncounter.FinishCalls == finishAfterFirst && MobileParty.MainParty.CurrentSettlement != null,
                   "партию не выводят снова — второго круга нет");
         });
         Try("возврат после поездки в другое место", () =>
         {
             var b = Fresh(); Enable(b);
-            EnterInside("Ревиль"); b.PollState();                                     // вышли из Ревиля
+            var reville = EnterInside("Ревиль"); b.PollState();                       // вышли из Ревиля
             var korsia = new Settlement { Name = "Корсия" };
             CampaignEventDispatcher.NextScores.Add((new AIBehaviorData { AiBehavior = AiBehavior.GoToSettlement, Party = korsia }, 2.0f));
             HourlyTick(b);                                                            // уехали в другое место
-            EnterInside("Ревиль"); b.PollState();                                     // и вернулись в Ревиль
+            EnterInside(reville); b.PollState();                                      // и вернулись в тот же Ревиль
             Check(b.CurrentMode == AutopilotBehavior.Mode.Apply && MobileParty.MainParty.CurrentSettlement == null,
                   "возврат в город после поездки в другое место — не пинг-понг: автопилот работает и выводит партию");
         });

@@ -105,6 +105,14 @@ namespace BannerlordAutopilot
         // паузу, и 13.09 цикл застывал после каждого выхода.
         private int _resumeSpeed;
 
+        // Поселение, из которого партия только что вышла и никуда ещё не
+        // уезжала. Если штатный AI заводит обратно — это пинг-понг: 13.09 он
+        // дал 89 входов и выходов в одном городе. NPC в такой ситуации
+        // ОСТАЁТСЯ в поселении (CheckExitingSettlementParallel не выводит, пока
+        // TargetSettlement == CurrentSettlement), а пребывание автопилот не
+        // поддерживает — поэтому останавливаемся с причиной.
+        private Settlement _lastExited;
+
         /// <summary>Что выключение реально сделало с партией — для сообщения на
         /// экране. Раньше F12 всегда писал «движение остановлено, состояние AI
         /// восстановлено», даже когда не было ни того, ни другого.</summary>
@@ -129,6 +137,7 @@ namespace BannerlordAutopilot
             _startedIn = null;
             _handledSettlement = null;
             _resumeSpeed = 0;
+            _lastExited = null;
         }
 
         public override void RegisterEvents()
@@ -353,6 +362,14 @@ namespace BannerlordAutopilot
                                    + _settlementVisitsThisSession + ")");
             }
 
+            if (peaceful == _lastExited)
+            {
+                Disable("штатный AI снова завёл в «" + peaceful.Name + "», из которого партия только что вышла. "
+                        + "NPC в таком случае остаётся в поселении, пока цель — это поселение; пребывание "
+                        + "автопилот пока не поддерживает. Остановлено, чтобы не входить и выходить по кругу");
+                return false;
+            }
+
             if (!AutoLeaveSettlement)
             {
                 Disable("вошли в «" + peaceful.Name + "», автоматический выход выключен — дальше руками");
@@ -456,6 +473,7 @@ namespace BannerlordAutopilot
                 _lastTargetKey = null;
                 AutopilotLog.Write("  ВЫШЛИ из «" + settlement.Name + "» (подтверждённый выход #"
                                    + _settlementExitsThisSession + ")");
+                _lastExited = settlement;
                 ResumeTimeAfterLeave();
             }
             else
@@ -609,10 +627,12 @@ namespace BannerlordAutopilot
                         if (MobilePartyHelper.GetCurrentSettlementOfMobilePartyForAICalculation(party) == settlement)
                         {
                             // Движок для NPC приказ посетить поселение, в котором
-                            // (или вплотную к которому) партия уже стоит, НЕ выдаёт —
-                            // та же проверка в AiPartyThinkBehavior.PartyHourlyAiTick.
-                            // Без неё автопилот 13.09 заходил в Ревиль, выходил и
-                            // заходил снова. Пишем один раз на цель, а не каждый час.
+                            // (или вплотную к центру которого) партия уже стоит, НЕ
+                            // выдаёт — та же проверка в PartyHourlyAiTick. От
+                            // пинг-понга она НЕ спасает: выход ставит партию к
+                            // воротам, а хелпер считает «при поселении» ближе единицы
+                            // к центру (прогон 13.09: 89 кругов). Пинг-понг ловит
+                            // остановка при повторном входе, см. _lastExited.
                             string idleKey = "idle|" + settlement;
                             if (idleKey != _lastTargetKey)
                             {
@@ -662,6 +682,13 @@ namespace BannerlordAutopilot
             {
                 Disable("применение решения упало: " + ex.GetType().Name + ": " + ex.Message);
                 return;
+            }
+
+            // Партия поехала туда, где её ещё не было после выхода, — значит
+            // возврат в покинутое поселение потом уже не будет пинг-понгом.
+            if (settlement == null || settlement != _lastExited)
+            {
+                _lastExited = null;
             }
 
             // «Смена цели» здесь — новый приказ относительно предыдущего В ЭТОМ

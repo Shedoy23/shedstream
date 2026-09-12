@@ -142,7 +142,7 @@
     ]
   },
   "runtime": {
-    "manifest_version": "0.1.2",
+    "manifest_version": "0.1.4",
     "core_api_version": ">=1.0.0,<2.0.0"
   },
   "compatibility_messages": {

@@ -3,7 +3,7 @@
   "integration_id": "rimworld",
   "release_version": "0.1.3",
   "runtime": {
-    "manifest_version": "0.1.2",
+    "manifest_version": "0.1.3",
     "core_api_version": ">=1.0.0,<2.0.0"
   },
   "game": {

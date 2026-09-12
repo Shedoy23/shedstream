@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "integration_id": "rimworld",
-  "release_version": "0.1.3",
+  "release_version": "0.1.4",
   "runtime": {
-    "manifest_version": "0.1.3",
+    "manifest_version": "0.1.4",
     "core_api_version": "\u003E=1.0.0,\u003C2.0.0"
   },
   "game": {
@@ -55,16 +55,16 @@
       "id": "rimlink_mod",
       "source": {
         "kind": "https",
-        "url": "https://shedoy23.ru/releases/RimLink-0.1.3.zip"
+        "url": "https://shedoy23.ru/releases/RimLink-0.1.4.zip"
       },
-      "size_bytes": 64889,
-      "sha256": "a5214765855200317b9c3308f2278b1563781cc0ed6029961f304afec92416ab",
+      "size_bytes": 65101,
+      "sha256": "daf5f7272d8c0bcc3c8db4d2ac5fd9ad3eee529330845bfa58bc9a887d8a00e4",
       "format": "zip",
       "archive_root": "RimLink",
       "signature": {
         "algorithm": "rsa-pss-sha256",
         "key_id": "shedlink-release-2026",
-        "value": "lCHF7EMiyplqr3BuJiu/Sbk9jqEsplbZ1JcMytxGjWu1Hyg2Nn\u002BnBqQ3qrFlmf9qopVjYXPAZFgSubC590Q/ayq6EGRxzn\u002BtjUoWZYiWOHx6BgUzSA/03XfOVXsBdeAIA/iqxEpK2UGijD4bK7VeaY7BCFNuNO\u002BUGPG3dDMeEShSbCQnklV\u002B8Wtx1i9Xbwkyzc3uf1H7r1UyvSatrzh3Pljb/J4Xr\u002BsRsSFoHLG\u002BiacfkmMg3rAbpFibXeEvKkggwAGu0TqXBtPDkAXjogtJ8NAwBVSNviJXX955IeO8TjooYm6B2y9MJxHCVzJMd91jC9C4/gfba7FP0ZabxgKFxS4\u002Bh2C92al9UTl75nzEy/sNL4I1nvtOUwXZmI2lc4tavDIDdUvHMMiKUoaxlef0Yh7zpr4/cd8Yoc/jIoT9EJHQJRIkSuTaWcwE3RPBfhv0NboxicX5S\u002BlS4H5ue1KiFJOo0MSKBcAxdGaQKqYfiIKOO0c4RdtnhO/lRgiTblPwSsEogVrkdXOqcM0iJzqOoPIf4gWg2gOh4\u002BXC5cySvur2/grG0yroVtL/m2YxcsIrV6a3LPWxPtyCiLSQajWrgynv9ogAyO2nE/xSH6qAPApUA0uApgdoni57Nhs6bQLdSMldZAxFWN/ecQxAy\u002B8xzkUNsGF\u002Bu4G7S8lpc/U582I="
+        "value": "AS5vFgBQO8J7XlmGzYti4Y46vB/Lg\u002BcEaPUMkUUqIQNQvFq8\u002BEpbn3SHu4HdKYSC8EKVdKgKF3hXENMRzWcTYrWMU2oBNAh3e3yQRacvpkgG/GE/z497do/HkX0sRN225xj0UX3Fwawq\u002BARfvWyOrK1mXjqECvpd7TcqlR3Ad4Iz2KyyW0yAVxFdc/NC3n\u002BDS7w8hwIK49T1f2gik\u002BPDyUGikYSlY85CqVjc2YVZkwr29bq9eU6R/RDjTN9NixwE5/9OaJ9acUqx80ZCB2hg1RkC29pJUm3Hs86mTUNGUG2VEOvSxYhnE0XRKd3WQZTdTTSlhEJBpvukgv17giQLt4Rxhx1kA2ajqM73VNt1VANWvoeayIjSOje6L3nXdFJLf6QtRAv1Zn58hbmTovnTAlwSG5mtC49//l3HqvlfyBltK71EkiDimp\u002BQH\u002BISUxh9Ktkj78lx7pO\u002B1fSC6ZruYG9tV9dC9nT\u002BpFjZe5IMj42wckZL15rNKxOVrXsMVGOr8CKAumZ\u002Buy0xnSf8Gpd/TZksOafOi8XQ/YyueWHJMm96xiHa4F\u002BV4EYrYNgDR52ijYwr712eZ6FbCSvDqrgjZflHPo1jpllMiQnnLPAu4lUnmkbv6O7PhteSiRLt7ep\u002Bo/HVtuo2f2DWp\u002BCtTVZf/8dyiTWAY0293mcvHIWb1GY="
       }
     }
   ],

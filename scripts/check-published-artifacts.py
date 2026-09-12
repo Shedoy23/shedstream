@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import sys
 import urllib.error
 import urllib.request
@@ -38,6 +39,64 @@ for _s in (sys.stdout, sys.stderr):
         _s.reconfigure(encoding="utf-8", errors="replace")
     except (AttributeError, OSError, ValueError):
         pass
+
+
+def trusted_keys() -> dict:
+    """Публичные ключи берём ИЗ КОДА МЕНЕДЖЕРА, а не из папки с ключами.
+
+    Проверять надо тем же ключом, которым будет проверять пользователь: если
+    подписать другим, гейт был бы зелёным, а установка падала бы «Artifact
+    publisher key is invalid».
+    """
+    src = (ROOT / "ShedLink.Manager" / "src" / "ShedLink.Manager.App"
+           / "ReleaseConfiguration.cs").read_text(encoding="utf-8")
+    keys = {}
+    for key_id, body in re.findall(
+            r'\["([^"]+)"\]\s*=\s*"""(.*?)"""', src, re.S):
+        pem = "\n".join(line.strip() for line in body.strip().splitlines())
+        keys[key_id] = pem
+    return keys
+
+
+def signature_ok(manifest: dict, artifact: dict, blob: bytes) -> str:
+    """Пусто — подпись сошлась; иначе текст расхождения.
+
+    Payload обязан совпадать с ArtifactSignatureVerifier.SigningPayload:
+    размер входит в подписываемые данные, поэтому правка size_bytes без
+    переподписи ломает установку (так и вышло 12.09).
+    """
+    signature = artifact.get("signature") or {}
+    key_id = signature.get("key_id")
+    value = signature.get("value")
+    if not value:
+        return "артефакт без подписи, а источник https — менеджер такое не ставит"
+    keys = trusted_keys()
+    if key_id not in keys:
+        return f"key_id={key_id!r} менеджеру неизвестен"
+    try:
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import padding
+        from cryptography.exceptions import InvalidSignature
+    except ImportError:
+        return ""  # без cryptography подпись не проверяем, об этом скажет сводка
+    payload = ("ShedLink-Artifact-v1\n"
+               f"{manifest['integration_id']}\n"
+               f"{manifest['release_version']}\n"
+               f"{artifact['id']}\n"
+               f"{artifact['size_bytes']}\n"
+               f"{artifact['sha256']}\n").encode("utf-8")
+    public_key = serialization.load_pem_public_key(keys[key_id].encode("ascii"))
+    import base64
+    try:
+        public_key.verify(
+            base64.b64decode(value), payload,
+            padding.PSS(mgf=padding.MGF1(hashes.SHA256()),
+                        salt_length=padding.PSS.DIGEST_LENGTH),
+            hashes.SHA256())
+    except InvalidSignature:
+        return ("подпись не сходится с (версия, размер, sha) — так бывает, когда "
+                "манифест поправили руками и не переподписали")
+    return ""
 
 
 def fetch(url: str) -> bytes:
@@ -70,9 +129,12 @@ def main() -> int:
             size_ok = len(blob) == artifact.get("size_bytes")
             sha = hashlib.sha256(blob).hexdigest()
             sha_ok = sha == artifact.get("sha256")
-            if size_ok and sha_ok:
-                print(f"[OK] {path.name}: {len(blob)} байт, sha256 сошёлся")
+            sig_problem = signature_ok(manifest, artifact, blob) if size_ok and sha_ok else ""
+            if size_ok and sha_ok and not sig_problem:
+                print(f"[OK] {path.name}: {len(blob)} байт, sha256 и подпись сошлись")
                 continue
+            if sig_problem:
+                mismatched.append(f"{path.name}: {sig_problem}")
             if not size_ok:
                 mismatched.append(
                     f"{path.name}: size_bytes={artifact.get('size_bytes')}, "

@@ -85,3 +85,10 @@ hallways.json
 # Рабочие копии агентов. 28.08 планировщик поднял их прямо в основном дереве;
 # каждая — вложенный git-репозиторий, и `git add -A` утаскивает их в коммит.
 worktrees/
+
+# Сборочный вывод прототипа автопилота (DLL кладётся в игру вручную)
+BannerlordAutopilot/bin/
+BannerlordAutopilot/obj/
+BannerlordAutopilot/src/obj/
+BannerlordAutopilot/tests/**/obj/
+BannerlordAutopilot/tests/**/bin/

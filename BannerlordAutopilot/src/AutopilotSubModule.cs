@@ -51,6 +51,8 @@ namespace BannerlordAutopilot
             }
         }
 
+        private float _pollTimer;
+
         protected override void OnApplicationTick(float dt)
         {
             base.OnApplicationTick(dt);
@@ -58,6 +60,22 @@ namespace BannerlordAutopilot
             if (behavior == null || Campaign.Current == null)
             {
                 return;
+            }
+
+            // Проверка границ идёт по КАДРАМ, а не по часам игры. Меню
+            // поселения и встреча ставят время на паузу, поэтому часовых тиков
+            // в этот момент не бывает — и автопилот 12.09 заметил прибытие в
+            // деревню только после того, как человек вручную выбрал «подождать».
+            // Полсекунды достаточно: это реакция на смену состояния, а не
+            // опрос ради опроса.
+            _pollTimer += dt;
+            if (_pollTimer >= 0.5f)
+            {
+                _pollTimer = 0f;
+                if (behavior.CurrentMode != AutopilotBehavior.Mode.Off)
+                {
+                    behavior.PollState();
+                }
             }
 
             if (Input.IsKeyPressed(KeyObserve))

@@ -63,11 +63,38 @@ namespace BannerlordAutopilot
         private bool _snapshotTaken;
         private bool _savedDoNotMakeNewDecisions;
 
-        private int _decisionsThisSession;
+        // Учёт намеренно раздельный. В первом прогоне 12.09 в журнале стояло
+        // «самостоятельных решений 9», хотя на деле это был ОДИН выбранный
+        // маршрут (Карбур), переприменённый девять раз подряд — внешний обзор
+        // справедливо указал, что такая строка вводит в заблуждение.
+        private int _ticksThisSession;          // сколько раз пересчитали оценки
+        private int _targetChangesThisSession;  // сколько раз сменилась цель
+        private int _reappliesThisSession;      // сколько раз повторили ту же цель
         private int _settlementVisitsThisSession;
+        private int _settlementExitsThisSession;
         private string _lastAppliedDescription = "—";
+        private string _lastTargetKey;          // чем отличается «та же цель» от новой
 
         internal Mode CurrentMode => _mode;
+
+        /// <summary>Выходить ли из поселения самостоятельно.
+        ///
+        /// Это ЯВНОЕ решение спецификации, а не побочный эффект: без выхода
+        /// цикл обрывается на первой же цели «съездить в город», потому что
+        /// движок партию игрока из поселения не выводит. Выключается на время
+        /// отладки — тогда прибытие просто останавливает автопилот.</summary>
+        internal static bool AutoLeaveSettlement = true;
+
+        private void ResetCounters()
+        {
+            _ticksThisSession = 0;
+            _targetChangesThisSession = 0;
+            _reappliesThisSession = 0;
+            _settlementVisitsThisSession = 0;
+            _settlementExitsThisSession = 0;
+            _lastAppliedDescription = "—";
+            _lastTargetKey = null;
+        }
 
         public override void RegisterEvents()
         {
@@ -89,8 +116,7 @@ namespace BannerlordAutopilot
         private void OnGameLoadFinished()
         {
             _mode = Mode.Off;
-            _decisionsThisSession = 0;
-            _settlementVisitsThisSession = 0;
+            ResetCounters();
 
             AutopilotLog.Session("загрузка сохранения; автопилот выключен");
             LogCurrentFlags("после загрузки");
@@ -193,9 +219,7 @@ namespace BannerlordAutopilot
             party.Ai.RethinkAtNextHourlyTick = true;
 
             _mode = mode;
-            _decisionsThisSession = 0;
-            _settlementVisitsThisSession = 0;
-            _lastAppliedDescription = "—";
+            ResetCounters();
 
             AutopilotLog.Write("ВКЛЮЧЕН, режим " + ModeName(mode)
                                + "; позиция " + Where(party)
@@ -243,11 +267,125 @@ namespace BannerlordAutopilot
             }
 
             LogCurrentFlags("после выключения");
-            AutopilotLog.Write("итог сеанса: самостоятельных решений " + _decisionsThisSession
-                               + ", посещений поселений " + _settlementVisitsThisSession);
+            AutopilotLog.Write("итог сеанса: пересчётов " + _ticksThisSession
+                               + "; смен цели " + _targetChangesThisSession
+                               + "; повторов того же приказа " + _reappliesThisSession
+                               + "; посещений поселений " + _settlementVisitsThisSession
+                               + "; штатных выходов " + _settlementExitsThisSession);
         }
 
         // ── Часовой цикл ─────────────────────────────────────────────────────
+
+        /// <summary>Проверка границ, НЕ привязанная к часовому тику.
+        ///
+        /// Зачем отдельно. В первом прогоне 12.09 автопилот заметил прибытие в
+        /// деревню только после того, как человек вручную выбрал «подождать» —
+        /// потому что меню поселения ставит время на паузу, а часовых тиков на
+        /// паузе не бывает. Реакция на меню, встречу и выключение обязана
+        /// работать независимо от хода времени, иначе пауза делает автопилот
+        /// слепым (замечание внешнего обзора 12.09).
+        ///
+        /// Вызывается из AutopilotSubModule.OnApplicationTick с троттлингом.
+        /// Возвращает true, если состояние в порядке и цикл может продолжаться.</summary>
+        internal bool PollState()
+        {
+            if (_mode == Mode.Off || Campaign.Current == null)
+            {
+                return false;
+            }
+
+            MobileParty party = MobileParty.MainParty;
+            if (party == null || !party.IsActive)
+            {
+                Disable("партия игрока пропала или неактивна");
+                return false;
+            }
+
+            // Вход в поселение — не «встреча вообще», а именно прибытие.
+            // Раньше это записывалось как «началась встреча или бой», и по
+            // журналу нельзя было понять, что произошло.
+            Settlement inside = party.CurrentSettlement
+                                ?? (PlayerEncounter.Current != null ? PlayerEncounter.EncounterSettlement : null);
+            if (inside != null)
+            {
+                OnArrivedAtSettlement(inside);
+                return false;
+            }
+            if (party.MapEvent != null)
+            {
+                Disable("начался бой (MapEvent) — вне области первого прототипа");
+                return false;
+            }
+            if (PlayerEncounter.Current != null)
+            {
+                Disable("началась встреча с партией — вне области первого прототипа");
+                return false;
+            }
+            if (party.Army != null)
+            {
+                Disable("партия оказалась в армии — вне области первого прототипа");
+                return false;
+            }
+            if (party.BesiegedSettlement != null || party.SiegeEvent != null)
+            {
+                Disable("партия в осаде — вне области первого прототипа");
+                return false;
+            }
+            if (party.Ai == null || party.Ai.IsDisabled)
+            {
+                Disable("AI партии ограничен игрой (IsDisabled) — прототип уступает");
+                return false;
+            }
+            return true;
+        }
+
+        /// <summary>Прибытие в поселение — ключевая точка цикла.
+        ///
+        /// Движок не выводит партию игрока из поселения сам
+        /// (`CheckExitingSettlementParallel` пропускает MainParty), поэтому
+        /// без нас цикл здесь и кончается. Штатный выход — тот же, которым
+        /// пользуется игра по кнопке «Уйти»: `PlayerEncounter.LeaveEncounter`,
+        /// а если встречи нет — `LeaveSettlementAction`.</summary>
+        private void OnArrivedAtSettlement(Settlement settlement)
+        {
+            _settlementVisitsThisSession++;
+            AutopilotLog.Write("ПРИБЫЛИ в «" + settlement.Name + "» (посещение #"
+                               + _settlementVisitsThisSession + ")");
+
+            if (!AutoLeaveSettlement)
+            {
+                Disable("вошли в поселение «" + settlement.Name
+                        + "», автоматический выход выключен — дальше руками");
+                return;
+            }
+
+            try
+            {
+                if (PlayerEncounter.Current != null)
+                {
+                    // Мягкий штатный выход: движок сам закроет меню и выведет
+                    // партию на карту, как при нажатии «Уйти».
+                    PlayerEncounter.LeaveEncounter = true;
+                    AutopilotLog.Write("  выход: PlayerEncounter.LeaveEncounter = true");
+                }
+                else if (MobileParty.MainParty.CurrentSettlement != null)
+                {
+                    LeaveSettlementAction.ApplyForParty(MobileParty.MainParty);
+                    AutopilotLog.Write("  выход: LeaveSettlementAction.ApplyForParty");
+                }
+                _settlementExitsThisSession++;
+                // Следующий час пусть решает заново, а не продолжает старую цель.
+                if (MobileParty.MainParty.Ai != null)
+                {
+                    MobileParty.MainParty.Ai.RethinkAtNextHourlyTick = true;
+                }
+                _lastTargetKey = null;
+            }
+            catch (Exception ex)
+            {
+                Disable("штатный выход из поселения упал: " + ex.GetType().Name + ": " + ex.Message);
+            }
+        }
 
         private void OnHourlyTick()
         {
@@ -255,40 +393,12 @@ namespace BannerlordAutopilot
             {
                 return;
             }
+            if (!PollState())
+            {
+                return;
+            }
 
             MobileParty party = MobileParty.MainParty;
-            if (party == null || !party.IsActive)
-            {
-                Disable("партия игрока пропала или неактивна");
-                return;
-            }
-
-            // Остановки по состоянию. Это не ошибки прототипа, а заранее
-            // названные границы: так и написано в спецификации.
-            if (party.CurrentSettlement != null)
-            {
-                _settlementVisitsThisSession++;
-                Disable("партия вошла в поселение «" + party.CurrentSettlement.Name
-                        + "». Движок не выводит партию игрока из поселения автоматически "
-                        + "(CheckExitingSettlementParallel пропускает MainParty), поэтому "
-                        + "дальше — руками. Это ожидаемая остановка, а не сбой");
-                return;
-            }
-            if (party.MapEvent != null || PlayerEncounter.Current != null)
-            {
-                Disable("началась встреча или бой — вне области первого прототипа");
-                return;
-            }
-            if (party.Army != null)
-            {
-                Disable("партия оказалась в армии — вне области первого прототипа");
-                return;
-            }
-            if (party.Ai == null || party.Ai.IsDisabled)
-            {
-                Disable("AI партии ограничен игрой (IsDisabled) — прототип уступает");
-                return;
-            }
 
             // ── Сбор оценок штатным способом ─────────────────────────────────
             PartyThinkParams think;
@@ -321,6 +431,7 @@ namespace BannerlordAutopilot
                 }
             }
 
+            _ticksThisSession++;
             AutopilotLog.Write("час: оценок " + lines.Count + "; позиция " + Where(party)
                                + "; текущее поведение " + party.DefaultBehavior);
             if (lines.Count == 0)
@@ -415,10 +526,23 @@ namespace BannerlordAutopilot
                 return;
             }
 
-            _decisionsThisSession++;
+            string key = data.AiBehavior + "|" + (data.Party != null ? data.Party.ToString() : data.Position.ToString());
+            bool changed = key != _lastTargetKey;
+            _lastTargetKey = key;
             _lastAppliedDescription = Describe(data);
-            AutopilotLog.Write("  ПРИМЕНЕНО #" + _decisionsThisSession + ": " + _lastAppliedDescription
-                               + " (оценка " + score.ToString("F3", CultureInfo.InvariantCulture) + ")");
+            if (changed)
+            {
+                _targetChangesThisSession++;
+                AutopilotLog.Write("  НОВАЯ ЦЕЛЬ #" + _targetChangesThisSession + ": " + _lastAppliedDescription
+                                   + " (оценка " + score.ToString("F3", CultureInfo.InvariantCulture) + ")");
+            }
+            else
+            {
+                _reappliesThisSession++;
+                AutopilotLog.Write("  та же цель, приказ повторён (" + _reappliesThisSession
+                                   + "-й раз): " + _lastAppliedDescription
+                                   + " (оценка " + score.ToString("F3", CultureInfo.InvariantCulture) + ")");
+            }
             AutopilotLog.Write("  после применения: поведение " + party.DefaultBehavior
                                + "; цель " + (party.TargetSettlement != null
                                    ? party.TargetSettlement.Name.ToString()
@@ -503,7 +627,10 @@ namespace BannerlordAutopilot
             var sb = new StringBuilder();
             sb.Append("режим: ").Append(ModeName(_mode));
             sb.Append("; контракт движка: ").Append(EngineContract.Ok ? "совпал" : "НЕ совпал");
-            sb.Append("; решений за сеанс: ").Append(_decisionsThisSession);
+            sb.Append("; пересчётов: ").Append(_ticksThisSession);
+            sb.Append("; смен цели: ").Append(_targetChangesThisSession);
+            sb.Append("; повторов: ").Append(_reappliesThisSession);
+            sb.Append("; посещений: ").Append(_settlementVisitsThisSession);
             sb.Append("; последнее: ").Append(_lastAppliedDescription);
             if (party?.Ai != null)
             {

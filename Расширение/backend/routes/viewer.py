@@ -15,6 +15,7 @@ from config import (
     QUESTS_CONFIG,
     WATCH_TIME_CAP,
     sanitize_username,
+    viewer_day,
 )
 from dependencies import (
     check_rate_limit,
@@ -309,18 +310,18 @@ async def viewer_stats(username: str, request: Request):
     unopened_cases = await db.count_unopened_cases(uname, channel_id=channel_id)
 
     async with db._connect() as conn:
-        today = date.today().isoformat()
+        today = viewer_day()
 
         cur = await conn.execute(
             "SELECT COUNT(*), SUM(message_length) FROM chat_stats "
-            "WHERE channel_id=? AND username=? AND date(created_at)=?",
+            "WHERE channel_id=? AND username=? AND date(created_at, '+3 hours')=?",
             (channel_id, uname, today))
         row = await cur.fetchone()
         chat_count, chat_length = (row[0] or 0, row[1] or 0) if row else (0, 0)
 
         cur = await conn.execute(
             "SELECT SUM(watch_time) FROM activity_stats "
-            "WHERE channel_id=? AND username=? AND date(created_at)=?",
+            "WHERE channel_id=? AND username=? AND date(created_at, '+3 hours')=?",
             (channel_id, uname, today))
         row = await cur.fetchone()
         watch_time_today = row[0] if row and row[0] else 0

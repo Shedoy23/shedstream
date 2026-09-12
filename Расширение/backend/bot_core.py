@@ -47,6 +47,7 @@ from config import (
     RIMWORLD_COMMANDS_PATH,
     RIMWORLD_REFUNDS_PATH,
     TWITCH_STREAM_CHANNEL,
+    viewer_day,
 )
 
 # Константы для квестов
@@ -579,7 +580,7 @@ class BotCore:
                 logger.warning("reward_points_loop: list_channels упал: %s", e)
                 continue
 
-            today_id = date.today().isoformat()
+            today_id = viewer_day()
             for ch in channels:
                 channel_id = ch["channel_id"]
                 login = (ch.get("login") or "").lower().strip()
@@ -951,7 +952,7 @@ class BotCore:
     async def _update_quest_progress(self, username: str, quest_type: str, increment: int, channel_id: int = None):
         """Обновить прогресс квеста с поддержкой всех типов"""
         channel_id = resolve_channel_id(channel_id)
-        today = date.today().isoformat()
+        today = viewer_day()
         username = username.lower()
 
         async with self.db._connect() as conn:

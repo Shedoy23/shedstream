@@ -3,6 +3,7 @@ import re as _re_db
 import aiosqlite
 from contextlib import asynccontextmanager
 from datetime import datetime, date
+from config import viewer_day
 from typing import Optional, List, Dict
 
 from db_pool import DBPool
@@ -839,7 +840,7 @@ class Database:
     async def get_quests(self, username: str, channel_id: int = None):
         """Получить квесты с поддержкой новых типов"""
         channel_id = resolve_channel_id(channel_id)
-        today = date.today().isoformat()
+        today = viewer_day()
 
         async with self._connect() as db:
             cursor = await db.execute("""
@@ -913,7 +914,7 @@ class Database:
     async def get_today_activity(self, username: str, channel_id: int = None) -> dict:
         """Получить активность за сегодня"""
         channel_id = resolve_channel_id(channel_id)
-        today = date.today().isoformat()
+        today = viewer_day()
 
         async with self._connect() as db:
             cursor = await db.execute("""
@@ -921,7 +922,7 @@ class Database:
                     SUM(watch_time) as total_time,
                     COUNT(*) as sessions
                 FROM activity_stats
-                WHERE channel_id = ? AND username = ? AND date(created_at) = ?
+                WHERE channel_id = ? AND username = ? AND date(created_at, "+3 hours") = ?
             """, (channel_id, username.lower(), today))
 
             row = await cursor.fetchone()
@@ -942,12 +943,12 @@ class Database:
         async with self._connect() as db:
             cursor = await db.execute("""
                 SELECT
-                    date(created_at) as day,
+                    date(created_at, "+3 hours") as day,
                     SUM(watch_time) as total_time
                 FROM activity_stats
                 WHERE channel_id = ? AND username = ?
                 AND created_at >= datetime('now', ?)
-                GROUP BY date(created_at)
+                GROUP BY date(created_at, "+3 hours")
                 ORDER BY day DESC
             """, (channel_id, username.lower(), f'-{days} days'))
             
@@ -974,7 +975,7 @@ class Database:
     async def get_today_chat_stats(self, username: str, channel_id: int = None) -> dict:
         """Получить статистику чата за сегодня"""
         channel_id = resolve_channel_id(channel_id)
-        today = date.today().isoformat()
+        today = viewer_day()
 
         async with self._connect() as db:
             cursor = await db.execute("""
@@ -983,7 +984,7 @@ class Database:
                     SUM(message_length) as total_length,
                     MAX(message_length) as max_length
                 FROM chat_stats
-                WHERE channel_id = ? AND username = ? AND date(created_at) = ?
+                WHERE channel_id = ? AND username = ? AND date(created_at, "+3 hours") = ?
             """, (channel_id, username.lower(), today))
             
             row = await cursor.fetchone()
@@ -1008,13 +1009,13 @@ class Database:
         async with self._connect() as db:
             cursor = await db.execute("""
                 SELECT
-                    date(created_at) as day,
+                    date(created_at, "+3 hours") as day,
                     COUNT(*) as message_count,
                     SUM(message_length) as total_length
                 FROM chat_stats
                 WHERE channel_id = ? AND username = ?
                 AND created_at >= datetime('now', ?)
-                GROUP BY date(created_at)
+                GROUP BY date(created_at, "+3 hours")
                 ORDER BY day DESC
             """, (channel_id, username.lower(), f'-{days} days'))
             
@@ -1036,7 +1037,7 @@ class Database:
         chat = await self.get_today_chat_stats(username, channel_id=channel_id)
 
         return {
-            "date": date.today().isoformat(),
+            "date": viewer_day(),
             "activity": activity,
             "chat": chat,
             "total_points": await self.get_points(username, channel_id=channel_id)
@@ -1397,7 +1398,7 @@ class Database:
                 (channel_id,))
             total_points = (await cursor.fetchone())[0] or 0
 
-            today = date.today().isoformat()
+            today = viewer_day()
             cursor = await db.execute("""
                 SELECT COUNT(*) FROM quests
                 WHERE channel_id = ? AND day_date = ? AND completed_at IS NULL
@@ -1406,21 +1407,21 @@ class Database:
 
             cursor = await db.execute("""
                 SELECT COUNT(*) FROM drops
-                WHERE channel_id = ? AND date(created_at) = date('now')
+                WHERE channel_id = ? AND date(created_at, "+3 hours") = date('now', "+3 hours")
             """, (channel_id,))
             today_drops = (await cursor.fetchone())[0]
 
             # Добавляем статистику чата за сегодня
             cursor = await db.execute("""
                 SELECT COUNT(*) FROM chat_stats
-                WHERE channel_id = ? AND date(created_at) = date('now')
+                WHERE channel_id = ? AND date(created_at, "+3 hours") = date('now', "+3 hours")
             """, (channel_id,))
             today_chat = (await cursor.fetchone())[0]
 
             # Добавляем статистику активности за сегодня
             cursor = await db.execute("""
                 SELECT COUNT(DISTINCT username) FROM activity_stats
-                WHERE channel_id = ? AND date(created_at) = date('now')
+                WHERE channel_id = ? AND date(created_at, "+3 hours") = date('now', "+3 hours")
             """, (channel_id,))
             active_today = (await cursor.fetchone())[0]
             

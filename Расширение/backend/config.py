@@ -19,6 +19,32 @@ for _stream in (sys.stdout, sys.stderr):
     except (AttributeError, OSError, ValueError):
         pass
 
+# ── Сутки зрителя ────────────────────────────────────────────────────────────
+# Прод живёт в UTC, а зритель — в Москве. Пока «сегодня» считалось через
+# date.today(), день квестов кончался в 00:00 UTC, то есть в 03:00 МСК: в час
+# ночи человек ждал новые квесты и видел вчерашние ещё два часа (багрепорт #50
+# от kuro_gothic 13.08 — «квесты не обновляются 00:00 по мск», подтверждён
+# 12.09). Решение владельца 12.09: считать сутки по Москве.
+#
+# Москва — UTC+3 круглый год, перевода часов нет с 2014-го, поэтому хватает
+# фиксированного сдвига и не нужна база часовых поясов (на Windows её может
+# не быть вовсе).
+#
+# ВАЖНО про SQL. Время в таблицах пишется в UTC (CURRENT_TIMESTAMP у SQLite —
+# UTC), поэтому сравнивать `date(created_at)` с московским днём НЕЛЬЗЯ: с
+# 00:00 до 03:00 МСК они разные. Сдвигать нужно обе стороны — для этого
+# VIEWER_DAY_SQL_SHIFT: `date(created_at, '+3 hours') = ?`.
+VIEWER_DAY_OFFSET_HOURS = 3
+VIEWER_DAY_SQL_SHIFT = f"+{VIEWER_DAY_OFFSET_HOURS} hours"
+
+
+def viewer_day() -> str:
+    """Какое сегодня число с точки зрения зрителя (Москва), YYYY-MM-DD."""
+    from datetime import datetime, timedelta, timezone
+    moscow_now = datetime.now(timezone.utc) + timedelta(hours=VIEWER_DAY_OFFSET_HOURS)
+    return moscow_now.date().isoformat()
+
+
 # Загружаем переменные из .env
 load_dotenv()
 

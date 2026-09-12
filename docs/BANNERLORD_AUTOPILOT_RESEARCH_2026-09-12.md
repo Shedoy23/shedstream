@@ -364,6 +364,107 @@ CampaignTime _enableAgainAtHour`), снаружи доступны только 
 
 ---
 
+## 5-quater. Ответы на три уточнения обзора (проверено по всей сборке)
+
+Для этих трёх вопросов декомпилирована **вся** `TaleWorlds.CampaignSystem.dll`
+(229 тысяч строк), а не отдельные типы — иначе на вопрос «кто ещё трогает
+флаги» ответить нельзя.
+
+### 1. Не заблокирует ли правило отказа само включение автопилота
+
+**[К] Нет, в обычной игре не заблокирует.** По всей сборке:
+`DisableAi()` — 6 вызовов, `DisableForHours()` — 3,
+`SetDoNotMakeNewDecisions()` — 33, `EnableAi()` — 1. **Ни одного вызова с
+`MobileParty.MainParty`**, и `LordPartyComponent` (компонент, в который
+конвертируется партия игрока) флаги AI не трогает вовсе. Все найденные
+адресаты — квестовые, бандитские, караванные, гарнизонные и милицейские
+партии.
+
+**[К] Одно исключение:** `RaftStateChangeAction.ActivateRaftStateForParty(MobileParty.MainParty)`
+— вызывается, когда после морского боя у партии игрока не осталось кораблей
+(`MobileParty.MainParty.Ships.Count == 0`); внутри `DisableAi()`. Снимается
+`DeactivateRaftStateForParty` → `EnableAi()` (единственный вызов `EnableAi` в
+сборке). Это морская механика, у нас War Sails не установлен — но код в базовой
+сборке есть.
+
+Итого ожидаемое состояние партии игрока в ручном режиме: `IsDisabled = false`,
+`DoNotMakeNewDecisions = false`, срок отключения не выставлен. **[И]**
+Подтвердить в игре после старта, после загрузки и после выхода из поселения —
+кодом доказано только отсутствие тех, кто их выставляет.
+
+Замечание обзора «по одному значению флага нельзя определить, кто его
+установил» остаётся в силе, и именно поэтому правило — **отказать и назвать
+причину**, а не чинить. Отказ будет срабатывать ровно в одном известном
+случае: плот. Это правильное поведение.
+
+### 2. Побочные эффекты режима «только смотрим»
+
+**[К] Граница проходит чётко, и она не там, где «не применить финальный приказ».**
+
+Разобраны тела всех семи подписчиков `AiHourlyTick` (`AiArmyMemberBehavior`,
+`AiEngagePartyBehavior`, `AiLandBanditPatrollingBehavior`, `AiMilitaryBehavior`,
+`AIMoveToNearestLandBehavior`, `AiPatrollingBehavior`,
+`PatrolPartiesCampaignBehavior`) — по границам методов, а не по окну строк:
+
+| Подписчик | Побочные эффекты в теле |
+|---|---|
+| `AiMilitaryBehavior` | **`Ai.SetInitiative(...)`** — 6 вызовов. `CanLordCreateArmy` — чтение модели, не действие |
+| `AiEngagePartyBehavior`, `AiPatrollingBehavior`, `PatrolPartiesCampaignBehavior` | только чтение `IsDisbanding` / `IsPartyDisbanding` |
+| остальные три | нет |
+
+**[К]** Единственный настоящий побочный эффект сбора оценок — `SetInitiative`,
+и он **для партии игрока не действует** по уже известному исключению
+(`MobilePartyAi.cs:1599`). То есть режим наблюдения для MainParty безопасен
+именно благодаря барьеру, который в других случаях мешает.
+
+**[К]** Всё опасное живёт ПОСЛЕ выбора максимума, в самом
+`AiPartyThinkBehavior`: `PlayerEncounter.Finish()`, `MapEvent.FinalizeEvent()`,
+`SiegeEvent.FinalizeSiegeEvent()`, `DisbandArmyAction.ApplyByUnknownReason`,
+`Kingdom.CreateArmy` и `SetPartyAiAction.*`. Значит прототип в режиме
+наблюдения обязан прерываться **сразу после выбора лучшей оценки и до первого
+из этих вызовов** — тогда ни армия не создастся, ни события не завершатся.
+
+### 3. MCC TOR — разобран (ссылка от владельца)
+
+Репозиторий: [xmarre/Multi-Character-Campaign-TOR](https://github.com/xmarre/Multi-Character-Campaign-TOR),
+файл `src/IdentityGuard/MultiCharacterCampaignTOR/IdentityGuard/RemotePartySwitch.cs`.
+
+```csharp
+private static void HandOffOutgoingPartyToAi(MobileParty sourceParty)
+{
+    if (sourceParty == null || !sourceParty.IsActive || sourceParty == MobileParty.MainParty) return;
+    if (sourceParty.Ai != null)
+    {
+        sourceParty.Ai.EnableAi();
+        sourceParty.Ai.RethinkAtNextHourlyTick = true;
+        SetMember(sourceParty.Ai, "DefaultBehaviorNeedsUpdate", true);
+    }
+    if (sourceParty.Army == null)
+    {
+        sourceParty.SetMoveModeHold();
+        …повтор Rethink + DefaultBehaviorNeedsUpdate…
+    }
+}
+```
+
+**[Р] Что берём:**
+
+* помимо `EnableAi()` и `RethinkAtNextHourlyTick`, они взводят
+  **`DefaultBehaviorNeedsUpdate`** — это `internal` поле `MobilePartyAi`
+  (**[К]** в 1.4.8 есть и `internal void ForceDefaultBehaviorUpdate()`), то
+  есть моду доступно только рефлексией. Похоже, без него партия не
+  пересчитывает долгосрочное поведение сразу;
+* перед передачей AI они **обнуляют текущий приказ** через `SetMoveModeHold()`
+  — чтобы AI выбирал с чистого листа, а не дрейфовал от старой цели.
+
+**Что НЕ берём:** первая же строка метода — `sourceParty == MobileParty.MainParty
+→ return`. Их задача обратная нашей: вернуть под AI партию, которая
+**перестала** быть главной при смене героя. Всё, что вокруг метода
+(`ReclassifyOutgoingPartyPresentation`, `AssertFinalIdentity`, передача
+инвентаря), — про смену героя и нам не нужно.
+
+---
+
 ## 6. Спецификация первого эксперимента
 
 Учтены уточнения внешнего обзора от 12.09.
@@ -400,6 +501,19 @@ CampaignTime _enableAgainAtHour`), снаружи доступны только 
 **Выключение на свободной карте:** остановить движение
 (`SetMoveModeHold()` — партия иначе продолжит ехать к последней цели AI, см.
 раздел 5-bis), восстановить снимок, снять флаг.
+
+**Пошаговый план (по предложению обзора), осады и стороны боя — после):**
+
+| Шаг | Что доказываем | Ожидаемая заминка |
+|---|---|---|
+| 1. Разрешить штатный выбор цели (режим наблюдения) | MainParty получает оценки и выбирает цель | — |
+| 2. Разрешить применение | отряд исполняет выбранную цель, едет | — |
+| 3. Дождаться поселения | фиксируем точное состояние остановки | барьер 4: сам не выедет |
+| 4. Обработать штатный выход | отряд возвращается на карту и выбирает следующую цель | требует решения по барьеру 4 |
+| 5. Проверить инициативу | реагирует на противника; выключение возвращает управление | барьер 3: инициатива для игрока отключена |
+
+**Первый убедительный результат:** два последовательных самостоятельных
+решения с посещением поселения между ними.
 
 **Критерии успеха:**
 

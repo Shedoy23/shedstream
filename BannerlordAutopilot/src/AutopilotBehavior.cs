@@ -21,36 +21,47 @@ namespace BannerlordAutopilot
     ///
     /// ПОЧЕМУ БЕЗ HARMONY. Штатный выбор целей закрыт для партии игрока
     /// сравнением `mobileParty != MobileParty.MainParty` внутри
-    /// AiPartyThinkBehavior.PartyHourlyAiTick (1.4.8, подтверждено
-    /// декомпиляцией). Патчить чужой метод не понадобилось: все нужные вызовы
-    /// публичны, поэтому мод делает ту же работу сам и ровно для одной партии.
-    /// Ни одна другая партия в игре не затронута — это главное отличие от
-    /// правки общего метода.
+    /// AiPartyThinkBehavior.PartyHourlyAiTick (1.4.8). Патчить чужой метод не
+    /// понадобилось: все нужные вызовы публичны, поэтому мод делает ту же
+    /// работу сам и ровно для одной партии.
     ///
-    /// ЧЕГО ЗДЕСЬ НАМЕРЕННО НЕТ (вне области первого прототипа):
-    ///   * осада и штурм — у партии игрока не исполняется переход «доехал →
-    ///     сажусь в осаду» (`GetBesiegeBehavior` закрыт условием
-    ///     `!IsMainParty`), поэтому такие решения прототип не применяет;
-    ///   * рейд, оборона поселения, преследование — те же причины плюс
-    ///     отключённая для игрока инициатива;
-    ///   * боевой автопилот — отдельная задача.
+    /// ФЛАГИ AI МОД НЕ ТРОГАЕТ. Раньше он снимал `DoNotMakeNewDecisions` и
+    /// взводил `RethinkAtNextHourlyTick`, потом «восстанавливал» их — и
+    /// независимая проверка 12.09 показала, что это ломается тремя способами:
+    /// Rethink не возвращался, старый снимок затирал более новое чужое
+    /// значение, и всё это жило в сейве. Причина снимать флаги была ошибочной:
+    /// оба читаются ранним выходом из PartyHourlyAiTick, а этот метод мы не
+    /// вызываем — сбор оценок и SetPartyAiAction их не читают. Зато
+    /// `DoNotMakeNewDecisions` читают торговля партии (HourlyTickParty) и
+    /// телепорт героя (TeleportHeroAction), так что снятие меняло поведение
+    /// там, где мы его не видели. Не трогаем — нечего и восстанавливать.
     ///
-    /// ВЫХОД ИЗ ПОСЕЛЕНИЯ мы делаем сами. Движок для партии игрока его не
-    /// делает (`CheckExitingSettlementParallel` пропускает MainParty), а без
-    /// выхода цикл обрывается на первой же цели «съездить в город» — это и
-    /// был главный барьер. Механизм тот же, которым пользуется кнопка «Уйти»:
-    /// `PlayerEncounter.LeaveEncounter`, иначе `LeaveSettlementAction`.
-    /// Проверено прогоном 12.09: три поселения посещены и покинуты подряд, с
-    /// новой целью после каждого.
+    /// НАБЛЮДЕНИЕ НИЧЕГО НЕ МЕНЯЕТ: ни выхода из поселения, ни остановки
+    /// маршрута при выключении. Раньше F10 в городе выводил партию, а F12
+    /// после F10 затирал маршрут, который задал человек.
     ///
-    /// Полный разбор: docs/BANNERLORD_AUTOPILOT_RESEARCH_2026-09-12.md</summary>
+    /// ВЫХОД ИЗ ПОСЕЛЕНИЯ — только из МИРНОГО поселения и ровно так, как это
+    /// делает кнопка «Уйти» (PlayerTownVisitCampaignBehavior.
+    /// game_menu_settlement_leave_on_consequence): к воротам → LeaveSettlement
+    /// → Finish → Hold. Снаружи у ворот (castle_outside) — Finish → Hold.
+    /// Сознательно НЕ повторяем `SignalAutoSave`: это перезаписало бы
+    /// автосохранения игрока на каждом городе. Бой, осада, армия и встреча с
+    /// чужой партией проверяются РАНЬШЕ поселения: прежний порядок принимал
+    /// встречу с осаждающим лордом за прибытие и закрывал её вместе с боем.
+    ///
+    /// ЧЕГО ЗДЕСЬ НЕТ: осада, штурм, рейд, оборона, преследование, армия,
+    /// боевой автопилот. Решения такого рода автопилот не применяет и
+    /// останавливается с названной причиной.
+    ///
+    /// Разбор: docs/BANNERLORD_AUTOPILOT_RESEARCH_2026-09-12.md,
+    /// независимая проверка: dist/audit/autopilot-review/REVIEW_RU.md.</summary>
     public class AutopilotBehavior : CampaignBehaviorBase
     {
         internal enum Mode
         {
             /// <summary>Выключен. Единственное состояние после загрузки сейва.</summary>
             Off,
-            /// <summary>Только смотрим, что предлагает штатный AI. Ничего не применяем.</summary>
+            /// <summary>Только смотрим, что предлагает штатный AI. Ничего не меняем.</summary>
             Observe,
             /// <summary>Применяем выбранное решение.</summary>
             Apply
@@ -60,37 +71,41 @@ namespace BannerlordAutopilot
 
         private Mode _mode = Mode.Off;
 
-        // ── Снимок чужого состояния ──────────────────────────────────────────
-        // Флаги AI сохраняемые: если оставить их изменёнными, они переживут
-        // сейв и будут выглядеть как «так было всегда». Поэтому снимок живёт в
-        // нашем сейв-блоке и восстанавливается даже после перезапуска игры.
-        private bool _snapshotTaken;
-        private bool _savedDoNotMakeNewDecisions;
+        /// <summary>Был ли автопилот в режиме применения на момент сохранения.
+        ///
+        /// Единственное, что мод пишет в сейв. Нужен, чтобы после загрузки
+        /// отменить маршрут, выданный автопилотом до сохранения: иначе партия
+        /// продолжала бы ехать по нашему приказу при выключенном автопилоте.
+        /// Удаление мода безопасно — ключ просто не прочитается, а маршрут
+        /// останется обычным приказом движения.</summary>
+        private bool _activeAtSave;
 
-        // Учёт намеренно раздельный. В первом прогоне 12.09 в журнале стояло
-        // «самостоятельных решений 9», хотя на деле это был ОДИН выбранный
-        // маршрут (Карбур), переприменённый девять раз подряд — внешний обзор
-        // справедливо указал, что такая строка вводит в заблуждение.
-        private int _ticksThisSession;          // сколько раз пересчитали оценки
-        private int _targetChangesThisSession;  // сколько раз сменилась цель
-        private int _reappliesThisSession;      // сколько раз повторили ту же цель
-        private int _settlementVisitsThisSession;
-        private int _settlementExitsThisSession;
+        // Учёт раздельный и только по подтверждённым событиям. Прежний журнал
+        // считал запрос выхода состоявшимся выходом, а старт в городе —
+        // прибытием; внешняя проверка 12.09 показала оба случая.
+        private int _ticksThisSession;          // пересчёты оценок
+        private int _targetChangesThisSession;  // смены цели
+        private int _reappliesThisSession;      // повторы того же приказа
+        private int _settlementVisitsThisSession;  // прибытия ВО ВРЕМЯ сеанса
+        private int _settlementExitsThisSession;   // ПОДТВЕРЖДЁННЫЕ выходы
         private string _lastAppliedDescription = "—";
-        private bool _leaveRequested;      // выход из поселения уже запрошен
-        private string _lastTargetKey;          // чем отличается «та же цель» от новой
+        private string _lastTargetKey;
+
+        // Состояние одного сеанса. Раньше флаг «выход уже запрошен» переживал
+        // выключение и глушил первое прибытие следующего сеанса. Теперь всё
+        // сбрасывается на каждой границе сеанса (включение, выключение,
+        // загрузка) и привязано к конкретному поселению, а не к «вообще».
+        private Settlement _startedIn;       // поселение, в котором сеанс начался
+        private Settlement _handledSettlement; // поселение, которое уже обработано
 
         internal Mode CurrentMode => _mode;
 
-        /// <summary>Выходить ли из поселения самостоятельно.
-        ///
-        /// Это ЯВНОЕ решение спецификации, а не побочный эффект: без выхода
-        /// цикл обрывается на первой же цели «съездить в город», потому что
-        /// движок партию игрока из поселения не выводит. Выключается на время
-        /// отладки — тогда прибытие просто останавливает автопилот.</summary>
+        /// <summary>Выходить ли из мирного поселения самостоятельно (только в
+        /// режиме применения). Без выхода цикл обрывается на первой же цели
+        /// «съездить в город»: движок партию игрока из поселения не выводит.</summary>
         internal static bool AutoLeaveSettlement = true;
 
-        private void ResetCounters()
+        private void ResetSession()
         {
             _ticksThisSession = 0;
             _targetChangesThisSession = 0;
@@ -99,6 +114,8 @@ namespace BannerlordAutopilot
             _settlementExitsThisSession = 0;
             _lastAppliedDescription = "—";
             _lastTargetKey = null;
+            _startedIn = null;
+            _handledSettlement = null;
         }
 
         public override void RegisterEvents()
@@ -110,40 +127,42 @@ namespace BannerlordAutopilot
 
         public override void SyncData(IDataStore dataStore)
         {
-            dataStore.SyncData("shedautopilot_snapshotTaken", ref _snapshotTaken);
-            dataStore.SyncData("shedautopilot_savedDoNotMakeNewDecisions", ref _savedDoNotMakeNewDecisions);
+            // При сохранении здесь записывается факт; при загрузке присвоенное
+            // значение тут же перезаписывается прочитанным из сейва.
+            _activeAtSave = _mode == Mode.Apply;
+            dataStore.SyncData("shedautopilot_activeAtSave", ref _activeAtSave);
         }
 
-        /// <summary>После загрузки автопилот ВСЕГДА выключен — требование
-        /// спецификации. Заодно чиним то, что могло остаться от прошлого
-        /// сеанса: если игрок сохранился при включённом автопилоте, флаг
-        /// «не принимать решения» лежит в сейве уже нашим значением.</summary>
+        /// <summary>После загрузки автопилот ВСЕГДА выключен. Если сейв сделан
+        /// во время применения — отменяем маршрут, который выдал автопилот:
+        /// это наше изменение, и владеем им мы.</summary>
         private void OnGameLoadFinished()
         {
             _mode = Mode.Off;
-            ResetCounters();
+            ResetSession();
 
             AutopilotLog.Session("загрузка сохранения; автопилот выключен");
-            LogCurrentFlags("после загрузки");
+            LogCurrentState("после загрузки");
 
-            if (_snapshotTaken)
+            if (_activeAtSave)
             {
                 MobileParty party = MobileParty.MainParty;
-                if (party?.Ai != null)
+                if (party != null && IsOnFreeMap(party))
                 {
-                    party.Ai.SetDoNotMakeNewDecisions(_savedDoNotMakeNewDecisions);
-                    AutopilotLog.Write("восстановлен снимок прошлого сеанса: DoNotMakeNewDecisions="
-                                       + _savedDoNotMakeNewDecisions);
+                    party.SetMoveModeHold();
+                    AutopilotLog.Write("сейв сделан при включённом автопилоте: его маршрут отменён (Hold)");
                 }
-                _snapshotTaken = false;
+                else
+                {
+                    AutopilotLog.Write("сейв сделан при включённом автопилоте, но партия не на свободной карте — "
+                                       + "маршрут не трогаю, там уже не наш приказ");
+                }
             }
+            _activeAtSave = false;
         }
 
         // ── Включение ────────────────────────────────────────────────────────
 
-        /// <summary>Предусловия первого прототипа. Узко намеренно: всё, что
-        /// сложнее свободной карты, в этом заходе не проверяется и потому не
-        /// разрешается.</summary>
         internal bool TryEnable(Mode mode, out string reason)
         {
             reason = null;
@@ -170,91 +189,44 @@ namespace BannerlordAutopilot
                 reason = "герой в плену";
                 return false;
             }
-            // Включение ИЗ поселения разрешено: штатный выход у нас есть и
-            // проверен прогоном 12.09 (21 выход подряд), поэтому запрещать
-            // старт из города больше незачем — автопилот выведет партию сам
-            // на ближайшем опросе состояния.
-            if (party.CurrentSettlement != null && !AutoLeaveSettlement)
+
+            string unsupported = UnsupportedState(party);
+            if (unsupported != null)
             {
-                reason = "партия внутри поселения, а автоматический выход выключен";
-                return false;
-            }
-            if (party.MapEvent != null)
-            {
-                reason = "идёт бой";
-                return false;
-            }
-            if (PlayerEncounter.Current != null && PlayerEncounter.EncounterSettlement == null)
-            {
-                // Встреча с поселением — это и есть «мы в городе», её мы умеем
-                // закрывать. А вот встреча с чужой ПАРТИЕЙ ведёт в переговоры
-                // или бой, и это вне области прототипа.
-                reason = "идёт встреча с другой партией";
-                return false;
-            }
-            if (party.Army != null)
-            {
-                reason = "партия в армии — вне области первого прототипа";
-                return false;
-            }
-            if (party.BesiegedSettlement != null || party.SiegeEvent != null)
-            {
-                reason = "партия в осаде — вне области первого прототипа";
-                return false;
-            }
-            if (party.Ai == null)
-            {
-                reason = "у партии нет объекта AI";
-                return false;
-            }
-            if (party.Ai.IsDisabled)
-            {
-                // Осознанный отказ вместо «починим». Срок ограничения лежит в
-                // приватном поле, снаружи его не прочитать, и по одному флагу
-                // нельзя понять, кто его поставил. Известный штатный случай —
-                // морской плот после боя без кораблей.
-                reason = "AI партии уже ограничен игрой (IsDisabled). Кто и насколько — снаружи не видно, "
-                         + "поэтому автопилот не включается";
+                reason = unsupported;
                 return false;
             }
 
-            // Снимок ДО первого изменения — и только если его ещё нет.
-            //
-            // Иначе повторное включение (F11 второй раз, без выключения)
-            // снимает снимок уже с НАШЕГО значения и затирает настоящее. Так
-            // и вышло 12.09: при первом включении флаг был взведён, мы его
-            // сняли, второе включение записало в снимок False, и при
-            // выключении игроку вернули False вместо True.
-            if (!_snapshotTaken)
+            Settlement peaceful = PeacefulSettlement(party);
+            if (peaceful == null && PlayerEncounter.Current != null)
             {
-                _savedDoNotMakeNewDecisions = party.Ai.DoNotMakeNewDecisions;
-                _snapshotTaken = true;
+                reason = "идёт встреча, которую автопилот не поддерживает";
+                return false;
             }
-            else
+            if (peaceful != null && mode == Mode.Apply && !AutoLeaveSettlement)
             {
-                AutopilotLog.Write("снимок уже взят раньше, не перезаписываю: DoNotMakeNewDecisions="
-                                   + _savedDoNotMakeNewDecisions);
+                reason = "партия в поселении, а автоматический выход выключен";
+                return false;
             }
 
-            AutopilotLog.Session("включение, режим " + ModeName(mode));
-            LogCurrentFlags("до включения");
-
-            // Допуск к штатному выбору: флаг «не принимать решения» читается в
-            // том числе ранним выходом из PartyHourlyAiTick, поэтому он обязан
-            // быть снят, иначе оценки не соберутся.
-            if (party.Ai.DoNotMakeNewDecisions)
+            // Повторное включение без выключения: закрыть старый сеанс итогом,
+            // иначе его счётчики пропадают молча.
+            if (_mode != Mode.Off)
             {
-                party.Ai.SetDoNotMakeNewDecisions(false);
-                AutopilotLog.Write("снят DoNotMakeNewDecisions (был взведён)");
+                AutopilotLog.Write("повторное включение: предыдущий сеанс закрыт");
+                WriteSummary();
             }
-            party.Ai.RethinkAtNextHourlyTick = true;
 
             _mode = mode;
-            ResetCounters();
+            ResetSession();
+            _startedIn = peaceful;
 
+            AutopilotLog.Session("включение, режим " + ModeName(mode));
+            LogCurrentState("до включения");
             AutopilotLog.Write("ВКЛЮЧЕН, режим " + ModeName(mode)
                                + "; позиция " + Where(party)
-                               + "; поведение " + party.DefaultBehavior);
+                               + "; поведение " + party.DefaultBehavior
+                               + (peaceful != null ? "; сеанс начат в «" + peaceful.Name + "»" : ""));
             return true;
         }
 
@@ -267,57 +239,46 @@ namespace BannerlordAutopilot
                 return;
             }
 
-            MobileParty party = MobileParty.MainParty;
+            bool wasApply = _mode == Mode.Apply;
             _mode = Mode.Off;
-
             AutopilotLog.Write("ВЫКЛЮЧЕНИЕ: " + reason);
 
-            if (party?.Ai != null)
+            MobileParty party = MobileParty.MainParty;
+            if (wasApply && party != null && IsOnFreeMap(party))
             {
-                // 1. Остановить движение. Исполнение живёт своей жизнью и
-                //    повезёт партию к последней цели AI, даже когда автопилот
-                //    уже выключен — для человека это выглядит как «оно само».
-                if (party.CurrentSettlement == null && party.MapEvent == null && party.Army == null)
-                {
-                    party.SetMoveModeHold();
-                    AutopilotLog.Write("движение остановлено (SetMoveModeHold)");
-                }
-                else
-                {
-                    AutopilotLog.Write("движение НЕ останавливаю: партия в поселении/бою/армии, "
-                                       + "приказ там уже не наш");
-                }
-
-                // 2. Вернуть чужое состояние.
-                if (_snapshotTaken)
-                {
-                    party.Ai.SetDoNotMakeNewDecisions(_savedDoNotMakeNewDecisions);
-                    AutopilotLog.Write("восстановлено: DoNotMakeNewDecisions=" + _savedDoNotMakeNewDecisions);
-                    _snapshotTaken = false;
-                }
+                // Маршрут выдал автопилот — его и отменяем. Исполнение живёт
+                // своей жизнью и без этого довезло бы партию до последней цели.
+                party.SetMoveModeHold();
+                AutopilotLog.Write("движение остановлено: маршрут выдавал автопилот");
+            }
+            else if (!wasApply)
+            {
+                AutopilotLog.Write("режим наблюдения: партию не трогаю, маршрут игрока сохранён");
+            }
+            else
+            {
+                AutopilotLog.Write("движение не останавливаю: партия не на свободной карте");
             }
 
-            LogCurrentFlags("после выключения");
+            LogCurrentState("после выключения");
+            WriteSummary();
+            ResetSession();
+        }
+
+        private void WriteSummary()
+        {
             AutopilotLog.Write("итог сеанса: пересчётов " + _ticksThisSession
                                + "; смен цели " + _targetChangesThisSession
                                + "; повторов того же приказа " + _reappliesThisSession
-                               + "; посещений поселений " + _settlementVisitsThisSession
-                               + "; штатных выходов " + _settlementExitsThisSession);
+                               + "; прибытий во время сеанса " + _settlementVisitsThisSession
+                               + "; подтверждённых выходов " + _settlementExitsThisSession);
         }
 
-        // ── Часовой цикл ─────────────────────────────────────────────────────
+        // ── Проверка состояния (каждые полсекунды, независимо от хода времени) ──
 
-        /// <summary>Проверка границ, НЕ привязанная к часовому тику.
-        ///
-        /// Зачем отдельно. В первом прогоне 12.09 автопилот заметил прибытие в
-        /// деревню только после того, как человек вручную выбрал «подождать» —
-        /// потому что меню поселения ставит время на паузу, а часовых тиков на
-        /// паузе не бывает. Реакция на меню, встречу и выключение обязана
-        /// работать независимо от хода времени, иначе пауза делает автопилот
-        /// слепым (замечание внешнего обзора 12.09).
-        ///
-        /// Вызывается из AutopilotSubModule.OnApplicationTick с троттлингом.
-        /// Возвращает true, если состояние в порядке и цикл может продолжаться.</summary>
+        /// <summary>Меню поселения и встреча держат время на паузе, часовых
+        /// тиков в этот момент нет — поэтому реакция идёт по кадрам.
+        /// Возвращает true, если партия на свободной карте и цикл может идти.</summary>
         internal bool PollState()
         {
             if (_mode == Mode.Off || Campaign.Current == null)
@@ -332,125 +293,178 @@ namespace BannerlordAutopilot
                 return false;
             }
 
-            // Вход в поселение — не «встреча вообще», а именно прибытие.
-            // Раньше это записывалось как «началась встреча или бой», и по
-            // журналу нельзя было понять, что произошло.
-            Settlement inside = party.CurrentSettlement
-                                ?? (PlayerEncounter.Current != null ? PlayerEncounter.EncounterSettlement : null);
-            if (inside != null)
+            // СНАЧАЛА опасные состояния — до любых рассуждений о поселении.
+            string unsupported = UnsupportedState(party);
+            if (unsupported != null)
             {
-                // Выход из поселения не мгновенный: движок закрывает встречу
-                // через свой цикл, а опрос идёт каждые полсекунды. Без этой
-                // защиты прибытие засчитывалось ПОВТОРНО всё время, пока
-                // партия выходит — в прогоне 12.09 одно прибытие давало от 5
-                // до 13 записей и столько же лишних запросов на выход, а
-                // счётчик посещений показал 21 вместо четырёх настоящих.
-                if (!_leaveRequested)
-                {
-                    _leaveRequested = true;
-                    OnArrivedAtSettlement(inside);
-                }
+                Disable(unsupported);
                 return false;
-            }
-            // Партия снова на карте — прибытие можно считать заново.
-            _leaveRequested = false;
-            if (party.MapEvent != null)
-            {
-                Disable("начался бой (MapEvent) — вне области первого прототипа");
-                return false;
-            }
-            if (PlayerEncounter.Current != null)
-            {
-                Disable("началась встреча с партией — вне области первого прототипа");
-                return false;
-            }
-            if (party.Army != null)
-            {
-                Disable("партия оказалась в армии — вне области первого прототипа");
-                return false;
-            }
-            if (party.BesiegedSettlement != null || party.SiegeEvent != null)
-            {
-                Disable("партия в осаде — вне области первого прототипа");
-                return false;
-            }
-            if (party.Ai == null || party.Ai.IsDisabled)
-            {
-                Disable("AI партии ограничен игрой (IsDisabled) — прототип уступает");
-                return false;
-            }
-            return true;
-        }
-
-        /// <summary>Прибытие в поселение — ключевая точка цикла.
-        ///
-        /// Движок не выводит партию игрока из поселения сам
-        /// (`CheckExitingSettlementParallel` пропускает MainParty), поэтому
-        /// без нас цикл здесь и кончается. Штатный выход — тот же, которым
-        /// пользуется игра по кнопке «Уйти»: `PlayerEncounter.LeaveEncounter`,
-        /// а если встречи нет — `LeaveSettlementAction`.</summary>
-        private void OnArrivedAtSettlement(Settlement settlement)
-        {
-            _settlementVisitsThisSession++;
-            AutopilotLog.Write("ПРИБЫЛИ в «" + settlement.Name + "» (посещение #"
-                               + _settlementVisitsThisSession + ")");
-
-            if (!AutoLeaveSettlement)
-            {
-                Disable("вошли в поселение «" + settlement.Name
-                        + "», автоматический выход выключен — дальше руками");
-                return;
             }
 
-            try
+            Settlement peaceful = PeacefulSettlement(party);
+            if (peaceful == null)
             {
                 if (PlayerEncounter.Current != null)
                 {
-                    // Мягкий штатный выход: движок сам закроет меню и выведет
-                    // партию на карту, как при нажатии «Уйти».
-                    PlayerEncounter.LeaveEncounter = true;
-                    AutopilotLog.Write("  выход: PlayerEncounter.LeaveEncounter = true");
+                    Disable("идёт встреча, которую автопилот не поддерживает");
+                    return false;
                 }
-                else if (MobileParty.MainParty.CurrentSettlement != null)
+                // Свободная карта: всё, что относилось к прошлому поселению, закрыто.
+                _handledSettlement = null;
+                _startedIn = null;
+                return true;
+            }
+
+            if (peaceful == _handledSettlement)
+            {
+                return false;
+            }
+            _handledSettlement = peaceful;
+
+            if (_mode == Mode.Observe)
+            {
+                AutopilotLog.Write("наблюдение: партия в «" + peaceful.Name
+                                   + "», в режиме наблюдения выход не выполняется");
+                return false;
+            }
+
+            if (peaceful != _startedIn)
+            {
+                _settlementVisitsThisSession++;
+                AutopilotLog.Write("ПРИБЫЛИ в «" + peaceful.Name + "» (прибытие #"
+                                   + _settlementVisitsThisSession + ")");
+            }
+
+            if (!AutoLeaveSettlement)
+            {
+                Disable("вошли в «" + peaceful.Name + "», автоматический выход выключен — дальше руками");
+                return false;
+            }
+
+            LeavePeacefulSettlement(party, peaceful);
+            return false;
+        }
+
+        /// <summary>Состояние, в котором автопилот не работает. null — всё в порядке.
+        /// Проверяется ДО поселения: встреча с осаждающим лордом тоже несёт
+        /// EncounterSettlement, и прежний порядок принимал её за прибытие.</summary>
+        private static string UnsupportedState(MobileParty party)
+        {
+            if (party.MapEvent != null || PlayerEncounter.Battle != null)
+            {
+                return "идёт бой — вне области прототипа";
+            }
+            if (party.SiegeEvent != null || party.BesiegedSettlement != null)
+            {
+                return "партия в осаде — вне области прототипа";
+            }
+            if (party.Army != null)
+            {
+                return "партия в армии — вне области прототипа";
+            }
+            if (party.Ai == null || party.Ai.IsDisabled)
+            {
+                // Отказ вместо починки: срок ограничения лежит в приватном поле,
+                // и по флагу не понять, кто его поставил (штатно — морской плот).
+                return "AI партии ограничен игрой (IsDisabled)";
+            }
+            if (PlayerEncounter.Current != null && PlayerEncounter.EncounteredMobileParty != null)
+            {
+                return "идёт встреча с другой партией — вне области прототипа";
+            }
+            return null;
+        }
+
+        /// <summary>Мирное поселение, в котором или у ворот которого стоит партия.
+        /// null — такого нет. Поселение под осадой мирным не считается.</summary>
+        private static Settlement PeacefulSettlement(MobileParty party)
+        {
+            Settlement inside = party.CurrentSettlement;
+            if (inside != null)
+            {
+                return inside.IsUnderSiege ? null : inside;
+            }
+            Settlement atGate = PlayerEncounter.Current != null ? PlayerEncounter.EncounterSettlement : null;
+            if (atGate != null
+                && PlayerEncounter.EncounteredMobileParty == null
+                && PlayerEncounter.Battle == null
+                && !atGate.IsUnderSiege)
+            {
+                return atGate;
+            }
+            return null;
+        }
+
+        private static bool IsOnFreeMap(MobileParty party)
+        {
+            return party.CurrentSettlement == null
+                   && party.MapEvent == null
+                   && party.Army == null
+                   && PlayerEncounter.Current == null;
+        }
+
+        /// <summary>Выход тем же путём, что кнопка «Уйти», и только с подтверждением.</summary>
+        private void LeavePeacefulSettlement(MobileParty party, Settlement settlement)
+        {
+            try
+            {
+                if (party.CurrentSettlement == settlement)
                 {
-                    LeaveSettlementAction.ApplyForParty(MobileParty.MainParty);
-                    AutopilotLog.Write("  выход: LeaveSettlementAction.ApplyForParty");
+                    // Изнутри: game_menu_settlement_leave_on_consequence.
+                    party.Position = settlement.GatePosition;
+                    PlayerEncounter.LeaveSettlement();
+                    PlayerEncounter.Finish();
+                    party.SetMoveModeHold();
+                    AutopilotLog.Write("  выход изнутри: к воротам → LeaveSettlement → Finish → Hold");
                 }
-                _settlementExitsThisSession++;
-                // Следующий час пусть решает заново, а не продолжает старую цель.
-                if (MobileParty.MainParty.Ai != null)
+                else
                 {
-                    MobileParty.MainParty.Ai.RethinkAtNextHourlyTick = true;
+                    // Снаружи у ворот: game_menu_castle_outside_leave_on_consequence.
+                    PlayerEncounter.Finish();
+                    party.SetMoveModeHold();
+                    AutopilotLog.Write("  выход от ворот: Finish → Hold");
                 }
-                _lastTargetKey = null;
             }
             catch (Exception ex)
             {
-                Disable("штатный выход из поселения упал: " + ex.GetType().Name + ": " + ex.Message);
+                Disable("выход из «" + settlement.Name + "» упал: " + ex.GetType().Name + ": " + ex.Message);
+                return;
+            }
+
+            // Засчитываем только наблюдаемый результат, а не сам запрос.
+            if (party.CurrentSettlement == null && PlayerEncounter.Current == null)
+            {
+                _settlementExitsThisSession++;
+                _lastTargetKey = null;
+                AutopilotLog.Write("  ВЫШЛИ из «" + settlement.Name + "» (подтверждённый выход #"
+                                   + _settlementExitsThisSession + ")");
+            }
+            else
+            {
+                Disable("выход из «" + settlement.Name + "» не подтвердился: партия всё ещё в поселении или встрече");
             }
         }
 
+        // ── Часовой цикл ─────────────────────────────────────────────────────
+
         private void OnHourlyTick()
         {
-            if (_mode == Mode.Off)
-            {
-                return;
-            }
-            if (!PollState())
+            if (_mode == Mode.Off || !PollState())
             {
                 return;
             }
 
             MobileParty party = MobileParty.MainParty;
 
-            // ── Сбор оценок штатным способом ─────────────────────────────────
             PartyThinkParams think;
             try
             {
                 think = party.ThinkParamsCache;
                 think.Reset(party);
-                // Ровно тот же вызов, который PartyHourlyAiTick делает для NPC:
-                // все AI-поведения складывают сюда свои оценки.
+                // Тот же вызов, что PartyHourlyAiTick делает для NPC. Побочные
+                // эффекты есть и они не наши: подписчики пишут кеши оценки силы
+                // партий (PartyBase.EstimatedStrength) — это кеширование движка,
+                // не приказ и не трата (разбор подписчиков — в независимой проверке).
                 CampaignEventDispatcher.Instance.AiHourlyTick(party, think);
             }
             catch (Exception ex)
@@ -491,10 +505,6 @@ namespace BannerlordAutopilot
 
             if (_mode == Mode.Observe)
             {
-                // Наблюдение обязано ничего не менять. Единственный побочный
-                // эффект сбора оценок — SetInitiative в военном поведении, и он
-                // для партии игрока не действует (движок сам его игнорирует),
-                // поэтому здесь просто выходим, не трогая решение.
                 return;
             }
 
@@ -552,14 +562,11 @@ namespace BannerlordAutopilot
                         break;
 
                     default:
-                        // Всё остальное — осада, штурм, рейд, оборона,
-                        // преследование — вне области первого прототипа.
-                        // Останавливаемся с названной причиной, а не пытаемся
-                        // выполнить то, что движок для партии игрока не
-                        // доводит до конца.
+                        // Осада, штурм, рейд, оборона, преследование — вне области
+                        // прототипа. Останавливаемся с причиной, а не пытаемся
+                        // выполнить то, что движок для партии игрока не доводит до конца.
                         Disable("штатный AI выбрал «" + data.AiBehavior + "» ("
-                                + Describe(data) + "). Это вне области первого прототипа: "
-                                + "осадные и боевые переходы у партии игрока движком не исполняются");
+                                + Describe(data) + "). Это вне области прототипа");
                         return;
                 }
             }
@@ -569,6 +576,10 @@ namespace BannerlordAutopilot
                 return;
             }
 
+            // «Смена цели» здесь — новый приказ относительно предыдущего В ЭТОМ
+            // сеансе. После выхода из поселения ключ сбрасывается, поэтому
+            // повторная выдача той же цели после остановки считается новым
+            // приказом — это число приказов, а не буквальное число смен цели.
             string key = data.AiBehavior + "|" + (data.Party != null ? data.Party.ToString() : data.Position.ToString());
             bool changed = key != _lastTargetKey;
             _lastTargetKey = key;
@@ -629,29 +640,28 @@ namespace BannerlordAutopilot
 
         private static string Where(MobileParty party)
         {
-            // Ориентир для чтения лога человеком: одни координаты ничего не
-            // говорят, а последнее посещённое поселение сразу привязывает
-            // строку к месту на карте.
             Settlement near = party.CurrentSettlement ?? party.LastVisitedSettlement;
             string position = party.Position.ToString();
             return near != null ? "у " + near.Name + " (" + position + ")" : position;
         }
 
-        private void LogCurrentFlags(string when)
+        /// <summary>Только чтение: мод эти флаги не меняет, но их значение
+        /// нужно видеть в журнале, чтобы отличать чужое ограничение от своего.</summary>
+        private void LogCurrentState(string when)
         {
             MobileParty party = MobileParty.MainParty;
             if (party?.Ai == null)
             {
-                AutopilotLog.Write("флаги " + when + ": партии/AI нет");
+                AutopilotLog.Write("состояние " + when + ": партии/AI нет");
                 return;
             }
-            AutopilotLog.Write("флаги " + when + ": IsDisabled=" + party.Ai.IsDisabled
+            AutopilotLog.Write("состояние " + when + ": IsDisabled=" + party.Ai.IsDisabled
                                + "; DoNotMakeNewDecisions=" + party.Ai.DoNotMakeNewDecisions
-                               + "; RethinkAtNextHourlyTick=" + party.Ai.RethinkAtNextHourlyTick
                                + "; DefaultBehavior=" + party.DefaultBehavior
                                + "; Army=" + (party.Army != null)
                                + "; Settlement=" + (party.CurrentSettlement != null
-                                   ? party.CurrentSettlement.Name.ToString() : "нет"));
+                                   ? party.CurrentSettlement.Name.ToString() : "нет")
+                               + "; Encounter=" + (PlayerEncounter.Current != null));
         }
 
         internal static string ModeName(Mode mode)
@@ -673,12 +683,12 @@ namespace BannerlordAutopilot
             sb.Append("; пересчётов: ").Append(_ticksThisSession);
             sb.Append("; смен цели: ").Append(_targetChangesThisSession);
             sb.Append("; повторов: ").Append(_reappliesThisSession);
-            sb.Append("; посещений: ").Append(_settlementVisitsThisSession);
+            sb.Append("; прибытий: ").Append(_settlementVisitsThisSession);
+            sb.Append("; выходов: ").Append(_settlementExitsThisSession);
             sb.Append("; последнее: ").Append(_lastAppliedDescription);
             if (party?.Ai != null)
             {
                 sb.Append("; IsDisabled=").Append(party.Ai.IsDisabled);
-                sb.Append("; DoNotMakeNewDecisions=").Append(party.Ai.DoNotMakeNewDecisions);
             }
             sb.Append("; лог: ").Append(AutopilotLog.Path);
             return sb.ToString();

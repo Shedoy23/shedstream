@@ -86,44 +86,68 @@ if ($All) { $Backend = $true; $Frontend = $true; $Admin = $true; $Site = $true; 
 # answers, and say so in STATUS.md.
 #
 # Scope is FRONTEND ONLY. ROADMAP section 9: backend deploys continue during the
-# review and must serve public 0.0.1 and submitted 0.0.2 at the same time.
+# review and must serve the public client and the frozen candidate at the same
+# time (backend/tests/test_frozen_client_0_0_5.py holds that contract).
 # What this stops: the default `deploy.ps1` (backend+frontend) shipping a
 # half-refactored frontend to prod AND auto-bumping the cache-bust while the
-# submitted ZIP is pinned at tag submit/0.0.2.
-$FrontendReviewOpen = $false                 # 2026-09-05: Review НЕ идёт — 0.0.3 и 0.0.4
-                                             # обе в Hosted Test (RELEASE_RECORD.md).
-                                             # Взводить обратно в день подачи на Review.
+# candidate ZIP is pinned (see $FrozenCandidate below).
+#
+# /dev is NOT a separate environment. It is a login page (/dev -> /dev/preview)
+# that shows this same prod frontend, so a frontend deploy changes what /dev
+# shows. It never touches the pinned candidate itself: that lives in
+# dist/releases/, in backend/tests/fixtures/frozen_client_0.0.5/ and behind the
+# tag candidate/0.0.5, and verify-candidate compares the tree against it.
+$FrontendReviewOpen = $true                  # 2026-09-11: FROZEN -- candidate 0.0.5 is
+                                             # the Hosted Test / Review ZIP. Set back to
+                                             # $false the day Twitch answers and note it
+                                             # in STATUS.md.
+$FrozenCandidate = '0.0.5 (ZIP sha256 6f7e115b..., tag candidate/0.0.5)'
+# Tests must prove the lock without editing this file. This override can only
+# TIGHTEN it: '1' forces the freeze on; nothing here can switch it off.
+if ($env:SHEDLINK_FORCE_FRONTEND_FREEZE -eq '1') { $FrontendReviewOpen = $true }
 $FreezeUntil = Get-Date '2026-07-28 23:30'   # expired; kept for the log below
 $IsProdTarget = $Frontend -and -not $Staging
-if ($IsProdTarget -and -not $DryRun -and $FrontendReviewOpen) {
+# 2026-09-11: -DryRun no longer skips the lock. It used to, so a dry run of a
+# frozen frontend deploy printed an ordinary plan: the one command meant to show
+# what would happen hid the only thing that would actually happen -- a block.
+if ($IsProdTarget -and $FrontendReviewOpen) {
     if ([string]::IsNullOrWhiteSpace($CriticalReason)) {
         Write-Host ''
-        Write-Host '  FRONTEND DEPLOY BLOCKED -- Twitch review of 0.0.2 is open' -ForegroundColor Red
+        Write-Host ("  FRONTEND DEPLOY BLOCKED -- frontend is frozen for candidate {0}" -f $FrozenCandidate) -ForegroundColor Red
+        if ($DryRun) { Write-Host '  (dry run: nothing was changed; a real run would stop right here)' }
         Write-Host ''
-        Write-Host '  Submitted 2026-08-16, pinned at tag submit/0.0.2. Deploying the'
-        Write-Host '  frontend now would also auto-bump the cache-bust in both shells,'
-        Write-Host '  so our server and the CDN copy under review stop matching.'
+        Write-Host '  The ZIP under Hosted Test / Review is pinned. Deploying the frontend now'
+        Write-Host '  would also auto-bump the cache-bust in both shells, so our server and the'
+        Write-Host '  CDN copy stop matching, and verify-candidate would no longer pass.'
+        Write-Host '  /dev is not a separate environment: it previews this same prod frontend.'
         Write-Host ''
         Write-Host '  Lift it by setting $FrontendReviewOpen = $false in this script'
         Write-Host '  the day Twitch answers (and note the verdict in STATUS.md).'
         Write-Host ''
         Write-Host '  Safe right now:'
-        Write-Host '      ./scripts/deploy.ps1 -Backend     # backend only, allowed during review'
-        Write-Host '      ./scripts/deploy.ps1 -DryRun      # show what would happen'
-        Write-Host '      ./scripts/deploy.ps1 -Staging     # staging app on :8001'
-        Write-Host '      ./scripts/deploy.ps1 -Mod         # game DLL, prod untouched'
+        Write-Host '      ./scripts/deploy.ps1 -Backend           # backend only, allowed during review'
+        Write-Host '      ./scripts/deploy.ps1 -Backend -DryRun   # preview a backend deploy'
+        Write-Host '      ./scripts/deploy.ps1 -Staging           # staging app on :8001'
+        Write-Host '      ./scripts/deploy.ps1 -Mod               # game DLL, prod untouched'
         Write-Host ''
         Write-Host '  If it really is critical:'
         Write-Host '      ./scripts/deploy.ps1 -Frontend -CriticalReason "what is on fire"'
         Write-Host ''
         exit 1
     }
-    Write-Host ''
-    Write-Host ("  FREEZE OVERRIDDEN: {0}" -f $CriticalReason) -ForegroundColor Yellow
-    Write-Host '  Logged to deploy-freeze-overrides.log. Proceeding.'
-    Write-Host ''
-    $line = '{0}  {1}  reason: {2}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $env:USERNAME, $CriticalReason
-    Add-Content -Path (Join-Path $PSScriptRoot 'deploy-freeze-overrides.log') -Value $line
+    if ($DryRun) {
+        Write-Host ''
+        Write-Host ("  FREEZE WOULD BE OVERRIDDEN: {0}" -f $CriticalReason) -ForegroundColor Yellow
+        Write-Host '  (dry run: not logged, nothing changed)'
+        Write-Host ''
+    } else {
+        Write-Host ''
+        Write-Host ("  FREEZE OVERRIDDEN: {0}" -f $CriticalReason) -ForegroundColor Yellow
+        Write-Host '  Logged to deploy-freeze-overrides.log. Proceeding.'
+        Write-Host ''
+        $line = '{0}  {1}  reason: {2}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $env:USERNAME, $CriticalReason
+        Add-Content -Path (Join-Path $PSScriptRoot 'deploy-freeze-overrides.log') -Value $line
+    }
 }
 
 function Info($m){ Write-Host "-> $m" -ForegroundColor Cyan }
@@ -230,7 +254,7 @@ if ($Backend -or $Staging) {
 #   with DISABLE_LIVE_INTEGRATIONS=1 (its own .env) so it never joins the live
 #   chat / EventSub / PubSub. On-demand: start it for a test, stop when done.
 if ($Staging) {
-    $sTar = Join-Path $env:TEMP 'shedstream_staging.tar'
+    $sTar = Join-Path ([IO.Path]::GetTempPath()) 'shedstream_staging.tar'
     $sExcl = @('--exclude=*.db','--exclude=*.db-wal','--exclude=*.db-shm','--exclude=*.db-journal','--exclude=*.pyc','--exclude=__pycache__','--exclude=.env','--exclude=venv','--exclude=.venv')
     $sPaths = @('backend','frontend','admin')
     $sTarArgs = @('-cf', $sTar) + $sExcl + @('-C', $ExtDir) + $sPaths
@@ -299,7 +323,7 @@ if ($Frontend) { $paths += 'frontend' }
 if ($Admin) { $paths += 'admin' }
 
 if ($paths.Count -gt 0) {
-    $tar = Join-Path $env:TEMP 'shedstream_deploy.tar'
+    $tar = Join-Path ([IO.Path]::GetTempPath()) 'shedstream_deploy.tar'
     $excl = @('--exclude=*.db','--exclude=*.db-wal','--exclude=*.db-shm','--exclude=*.db-journal','--exclude=*.pyc','--exclude=__pycache__','--exclude=.env','--exclude=venv','--exclude=.venv')
     $tarArgs = @('-cf', $tar) + $excl + @('-C', $ExtDir) + $paths
     Info "tar [$($paths -join ', ')] (excl db/.env/pycache)..."

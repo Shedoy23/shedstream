@@ -26,7 +26,18 @@ namespace TaleWorlds.CampaignSystem {
   public void Reset(MobileParty p) { AIBehaviorScores.Clear(); }
  }
  public class MapEvent {}
- public class Campaign { public static Campaign Current = new(); }
+ public enum CampaignTimeControlMode { Stop, UnstoppablePlay, UnstoppableFastForward, StoppablePlay, StoppableFastForward, UnstoppableFastForwardForPartyWaitTime, FastForwardStop }
+ public class Campaign {
+  public static Campaign Current = new();
+  public CampaignTimeControlMode TimeControlMode { get; set; } = CampaignTimeControlMode.Stop;
+  public void SetTimeSpeed(int speed) {
+   bool stopped = TimeControlMode == CampaignTimeControlMode.Stop || TimeControlMode == CampaignTimeControlMode.FastForwardStop;
+   bool hold = MobileParty.MainParty.DefaultBehavior == AiBehavior.Hold;
+   if (speed == 0) TimeControlMode = CampaignTimeControlMode.Stop;
+   else if (speed == 1) TimeControlMode = stopped && hold ? CampaignTimeControlMode.UnstoppablePlay : CampaignTimeControlMode.StoppablePlay;
+   else if (speed == 2) TimeControlMode = stopped && hold ? CampaignTimeControlMode.UnstoppableFastForward : CampaignTimeControlMode.StoppableFastForward;
+  }
+ }
  public class Hero { public static Hero MainHero = new(); public bool IsPrisoner; }
  public interface IDataStore { void SyncData(string key, ref bool value); }
  public abstract class CampaignBehaviorBase { public abstract void RegisterEvents(); public abstract void SyncData(IDataStore data); }
@@ -34,7 +45,8 @@ namespace TaleWorlds.CampaignSystem {
  public static class CampaignEvents { public static Event HourlyTickEvent=new(), OnGameLoadFinishedEvent=new(); }
  public class CampaignEventDispatcher {
   public static CampaignEventDispatcher Instance {get;} = new();
-  public void AiHourlyTick(MobileParty p, PartyThinkParams t) {}
+  public static List<(AIBehaviorData,float)> NextScores = new();
+  public void AiHourlyTick(MobileParty p, PartyThinkParams t) { t.AIBehaviorScores.AddRange(NextScores); }
  }
 }
 namespace TaleWorlds.CampaignSystem.Settlements {
@@ -58,7 +70,7 @@ namespace TaleWorlds.CampaignSystem.Party {
   public MobilePartyAi Ai=new(); public AiBehavior DefaultBehavior=AiBehavior.GoToSettlement;
   public CampaignVec2 Position; public string Name="Player";
   public PartyThinkParams ThinkParamsCache {get;} = new();
-  public int HoldCalls;
+  public int HoldCalls; public bool StandsAtLastVisited;
   public void SetMoveModeHold() {HoldCalls++; DefaultBehavior=AiBehavior.Hold;TargetSettlement=null;}
  }
 }
@@ -71,7 +83,7 @@ namespace TaleWorlds.CampaignSystem.Encounters {
   // Эффекты — те, что наблюдаются в движке: вывод из поселения и закрытие встречи.
   public static void LeaveSettlement() { LeaveSettlementCalls++; MobileParty.MainParty.CurrentSettlement = null; }
   public static void Finish(bool forcePlayerOutFromSettlement = true) {
-   FinishCalls++; Current = null; EncounterSettlement = null; EncounteredMobileParty = null; Battle = null;
+   FinishCalls++; Campaign.Current.TimeControlMode = CampaignTimeControlMode.Stop; Current = null; EncounterSettlement = null; EncounteredMobileParty = null; Battle = null;
    if (forcePlayerOutFromSettlement) MobileParty.MainParty.CurrentSettlement = null;
   }
  }
@@ -81,10 +93,17 @@ namespace TaleWorlds.CampaignSystem.Actions {
   public static void ApplyForParty(MobileParty p) {p.CurrentSettlement=null;}
  }
  public static class SetPartyAiAction {
-  public static void GetActionForVisitingSettlement(MobileParty p, Settlement s, MobileParty.NavigationType n, bool f, bool t) {p.DefaultBehavior=AiBehavior.GoToSettlement;p.TargetSettlement=s;}
+  public static int VisitCalls;
+  public static void GetActionForVisitingSettlement(MobileParty p, Settlement s, MobileParty.NavigationType n, bool f, bool t) {VisitCalls++;p.DefaultBehavior=AiBehavior.GoToSettlement;p.TargetSettlement=s;}
   public static void GetActionForPatrollingAroundSettlement(MobileParty p, Settlement s, MobileParty.NavigationType n, bool f, bool t) {p.DefaultBehavior=AiBehavior.PatrolAroundPoint;p.TargetSettlement=s;}
   public static void GetActionForPatrollingAroundPoint(MobileParty p, CampaignVec2 s, MobileParty.NavigationType n, bool f) {p.DefaultBehavior=AiBehavior.PatrolAroundPoint;}
   public static void GetActionForEscortingParty(MobileParty p, MobileParty s, MobileParty.NavigationType n, bool f, bool t) {p.DefaultBehavior=AiBehavior.EscortParty;}
+ }
+}
+namespace Helpers {
+ public static class MobilePartyHelper {
+  public static Settlement GetCurrentSettlementOfMobilePartyForAICalculation(MobileParty p) =>
+   p.CurrentSettlement ?? (p.LastVisitedSettlement != null && p.StandsAtLastVisited ? p.LastVisitedSettlement : null);
  }
 }
 namespace BannerlordAutopilot {

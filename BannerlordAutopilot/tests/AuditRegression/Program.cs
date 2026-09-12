@@ -40,6 +40,7 @@ internal static class Program
         PlayerEncounter.EncounteredMobileParty = null; PlayerEncounter.Battle = null;
         PlayerEncounter.LeaveEncounter = false; PlayerEncounter.LeaveSettlementCalls = 0; PlayerEncounter.FinishCalls = 0;
         AutopilotBehavior.AutoLeaveSettlement = true; AutopilotLog.Lines.Clear();
+        CampaignEventDispatcher.NextScores.Clear(); TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.VisitCalls = 0;
         return new AutopilotBehavior();
     }
 
@@ -62,6 +63,12 @@ internal static class Program
 
     static void Load(AutopilotBehavior b) =>
         typeof(AutopilotBehavior).GetMethod("OnGameLoadFinished", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(b, null);
+
+    static void HourlyTick(AutopilotBehavior b) =>
+        typeof(AutopilotBehavior).GetMethod("OnHourlyTick", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(b, null);
+
+    static string DisableSummary(AutopilotBehavior b) =>
+        typeof(AutopilotBehavior).GetProperty("LastDisableSummary", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)?.GetValue(b) as string;
 
     /// <summary>Хранилище сейва в памяти: сначала пишем, потом читаем тем же ключом.</summary>
     sealed class MemStore : IDataStore
@@ -181,6 +188,47 @@ internal static class Program
             EngineContract.Verify(); var first = EngineContract.Report;
             EngineContract.Verify(); var second = EngineContract.Report;
             Check(first == second, "повторный Verify не накручивает счётчик проверок (" + first + ")");
+        });
+
+        Console.WriteLine("\n[прогон в игре 13.09] закрытие встречи ставит паузу — цикл не должен застывать");
+        Try("время после выхода", () =>
+        {
+            var b = Fresh();
+            Campaign.Current.TimeControlMode = CampaignTimeControlMode.StoppablePlay; // автопилот ехал на обычной скорости
+            Enable(b); b.PollState();                                                 // свободная карта
+            EnterInside(); b.PollState();                                             // прибыли и вышли; Finish ставит паузу
+            Check(PlayerEncounter.FinishCalls == 1, "выход действительно закрыл встречу");
+            Check(Campaign.Current.TimeControlMode != CampaignTimeControlMode.Stop, "после выхода время снова идёт");
+        });
+
+        Console.WriteLine("\n[прогон в игре 13.09] штатный AI снова выбирает поселение, у которого партия стоит");
+        Try("нет пинг-понга у ворот", () =>
+        {
+            var b = Fresh(); Enable(b);
+            var s = new Settlement { Name = "Ревиль" };
+            MobileParty.MainParty.LastVisitedSettlement = s; MobileParty.MainParty.StandsAtLastVisited = true;
+            CampaignEventDispatcher.NextScores.Add((new AIBehaviorData { AiBehavior = AiBehavior.GoToSettlement, Party = s }, 2.0f));
+            HourlyTick(b);
+            Check(TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.VisitCalls == 0,
+                  "приказ посетить поселение, у которого партия уже стоит, не выдаётся — как у NPC");
+        });
+        Try("поездка в другое поселение", () =>
+        {
+            var b = Fresh(); Enable(b);
+            var s = new Settlement { Name = "Корсия" };
+            CampaignEventDispatcher.NextScores.Add((new AIBehaviorData { AiBehavior = AiBehavior.GoToSettlement, Party = s }, 2.0f));
+            HourlyTick(b);
+            Check(TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.VisitCalls == 1,
+                  "приказ посетить ДРУГОЕ поселение по-прежнему выдаётся (фикс не заблокировал поездки)");
+        });
+
+        Console.WriteLine("\n[прогон в игре 13.09] сообщение на F12 не утверждает того, чего не было");
+        Try("итог выключения в наблюдении", () =>
+        {
+            var b = Fresh(); Enable(b, AutopilotBehavior.Mode.Observe); b.Disable("test");
+            string summary = DisableSummary(b);
+            Check(summary != null && !summary.Contains("остановлено") && !summary.Contains("восстановлено"),
+                  "итог F12 в наблюдении не говорит об остановке и восстановлении (" + (summary ?? "итога нет") + ")");
         });
 
         Console.WriteLine($"\nИтог: {passed} ok, {failed} FAIL");

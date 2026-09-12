@@ -231,6 +231,30 @@ internal static class Program
                   "итог F12 в наблюдении не говорит об остановке и восстановлении (" + (summary ?? "итога нет") + ")");
         });
 
+        Console.WriteLine("\n[прогон в игре 13.09, второй] пинг-понг: 89 входов и выходов в одном городе");
+        Try("возврат в только что покинутое поселение", () =>
+        {
+            var b = Fresh(); Enable(b);
+            var reville = EnterInside("Ревиль"); b.PollState();                       // прибыли и вышли
+            int exitsAfterFirst = Field(b, "_settlementExitsThisSession");
+            EnterInside("Ревиль"); PlayerEncounter.EncounterSettlement = MobileParty.MainParty.CurrentSettlement;
+            b.PollState();                                                            // штатный AI снова завёл в Ревиль
+            Check(b.CurrentMode == AutopilotBehavior.Mode.Off, "повторный вход в только что покинутое поселение останавливает автопилот");
+            Check(Field(b, "_settlementExitsThisSession") == exitsAfterFirst && MobileParty.MainParty.CurrentSettlement != null,
+                  "партию не выводят снова — второго круга нет");
+        });
+        Try("возврат после поездки в другое место", () =>
+        {
+            var b = Fresh(); Enable(b);
+            EnterInside("Ревиль"); b.PollState();                                     // вышли из Ревиля
+            var korsia = new Settlement { Name = "Корсия" };
+            CampaignEventDispatcher.NextScores.Add((new AIBehaviorData { AiBehavior = AiBehavior.GoToSettlement, Party = korsia }, 2.0f));
+            HourlyTick(b);                                                            // уехали в другое место
+            EnterInside("Ревиль"); b.PollState();                                     // и вернулись в Ревиль
+            Check(b.CurrentMode == AutopilotBehavior.Mode.Apply && MobileParty.MainParty.CurrentSettlement == null,
+                  "возврат в город после поездки в другое место — не пинг-понг: автопилот работает и выводит партию");
+        });
+
         Console.WriteLine($"\nИтог: {passed} ok, {failed} FAIL");
         return failed;
     }

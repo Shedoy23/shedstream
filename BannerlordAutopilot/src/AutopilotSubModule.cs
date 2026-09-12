@@ -95,7 +95,7 @@ namespace BannerlordAutopilot
                 else
                 {
                     behavior.Disable("выключено игроком (F12)");
-                    Announce("Автопилот выключен, движение остановлено, состояние AI восстановлено.");
+                    Announce(behavior.LastDisableSummary ?? "Автопилот выключен.");
                 }
             }
         }
@@ -150,8 +150,12 @@ namespace BannerlordAutopilot
             {
                 return "Автопилот недоступен.";
             }
+            if (behavior.CurrentMode == AutopilotBehavior.Mode.Off)
+            {
+                return "Автопилот и так выключен.";
+            }
             behavior.Disable("выключено командой autopilot.off");
-            return "Автопилот выключен.";
+            return behavior.LastDisableSummary ?? "Автопилот выключен.";
         }
 
         [CommandLineFunctionality.CommandLineArgumentFunction("status", "autopilot")]

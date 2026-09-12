@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using Helpers;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.Encounters;
@@ -98,6 +99,17 @@ namespace BannerlordAutopilot
         private Settlement _startedIn;       // поселение, в котором сеанс начался
         private Settlement _handledSettlement; // поселение, которое уже обработано
 
+        // Скорость времени, на которой автопилот ехал по свободной карте: 1 —
+        // обычная, 2 — ускоренная, 0 — неизвестна. Нужна, чтобы вернуть ход
+        // времени после выхода из поселения: PlayerEncounter.Finish ставит
+        // паузу, и 13.09 цикл застывал после каждого выхода.
+        private int _resumeSpeed;
+
+        /// <summary>Что выключение реально сделало с партией — для сообщения на
+        /// экране. Раньше F12 всегда писал «движение остановлено, состояние AI
+        /// восстановлено», даже когда не было ни того, ни другого.</summary>
+        internal string LastDisableSummary { get; private set; }
+
         internal Mode CurrentMode => _mode;
 
         /// <summary>Выходить ли из мирного поселения самостоятельно (только в
@@ -116,6 +128,7 @@ namespace BannerlordAutopilot
             _lastTargetKey = null;
             _startedIn = null;
             _handledSettlement = null;
+            _resumeSpeed = 0;
         }
 
         public override void RegisterEvents()
@@ -220,6 +233,7 @@ namespace BannerlordAutopilot
             _mode = mode;
             ResetSession();
             _startedIn = peaceful;
+            RememberSpeed();
 
             AutopilotLog.Session("включение, режим " + ModeName(mode));
             LogCurrentState("до включения");
@@ -249,14 +263,17 @@ namespace BannerlordAutopilot
                 // Маршрут выдал автопилот — его и отменяем. Исполнение живёт
                 // своей жизнью и без этого довезло бы партию до последней цели.
                 party.SetMoveModeHold();
+                LastDisableSummary = "Автопилот выключен: маршрут автопилота остановлен.";
                 AutopilotLog.Write("движение остановлено: маршрут выдавал автопилот");
             }
             else if (!wasApply)
             {
+                LastDisableSummary = "Автопилот выключен: был режим наблюдения, партия не тронута.";
                 AutopilotLog.Write("режим наблюдения: партию не трогаю, маршрут игрока сохранён");
             }
             else
             {
+                LastDisableSummary = "Автопилот выключен: партия не на свободной карте, её приказ не трогаю.";
                 AutopilotLog.Write("движение не останавливаю: партия не на свободной карте");
             }
 
@@ -312,6 +329,7 @@ namespace BannerlordAutopilot
                 // Свободная карта: всё, что относилось к прошлому поселению, закрыто.
                 _handledSettlement = null;
                 _startedIn = null;
+                RememberSpeed();
                 return true;
             }
 
@@ -438,10 +456,64 @@ namespace BannerlordAutopilot
                 _lastTargetKey = null;
                 AutopilotLog.Write("  ВЫШЛИ из «" + settlement.Name + "» (подтверждённый выход #"
                                    + _settlementExitsThisSession + ")");
+                ResumeTimeAfterLeave();
             }
             else
             {
                 Disable("выход из «" + settlement.Name + "» не подтвердился: партия всё ещё в поселении или встрече");
+            }
+        }
+
+        /// <summary>Запомнить скорость, на которой идёт время. Пауза не
+        /// запоминается: вернуть надо ту скорость, на которой автопилот ехал.</summary>
+        private void RememberSpeed()
+        {
+            int speed = SpeedOf(Campaign.Current.TimeControlMode);
+            if (speed > 0)
+            {
+                _resumeSpeed = speed;
+            }
+        }
+
+        private static int SpeedOf(CampaignTimeControlMode mode)
+        {
+            switch (mode)
+            {
+                case CampaignTimeControlMode.UnstoppablePlay:
+                case CampaignTimeControlMode.StoppablePlay:
+                    return 1;
+                case CampaignTimeControlMode.UnstoppableFastForward:
+                case CampaignTimeControlMode.StoppableFastForward:
+                case CampaignTimeControlMode.UnstoppableFastForwardForPartyWaitTime:
+                    return 2;
+                default:
+                    return 0;
+            }
+        }
+
+        /// <summary>Вернуть ход времени после выхода.
+        ///
+        /// PlayerEncounter.Finish ставит TimeControlMode = Stop для партии вне
+        /// армии. Для кнопки «Уйти» это правильно — игрок сам решает, что
+        /// дальше; для автопилота это стопор: прогон 13.09 после выхода из
+        /// Ревиля простоял восемь минут без единого пересчёта. Паузу поставил
+        /// наш вызов — мы её и снимаем, но только если до поселения время шло.
+        /// SetTimeSpeed — то же, что кнопка «▶»: при стопе и Hold он включает
+        /// неостанавливаемое воспроизведение, иначе время не пошло бы, пока
+        /// партия стоит у ворот.</summary>
+        private void ResumeTimeAfterLeave()
+        {
+            CampaignTimeControlMode mode = Campaign.Current.TimeControlMode;
+            bool paused = mode == CampaignTimeControlMode.Stop || mode == CampaignTimeControlMode.FastForwardStop;
+            if (paused && _resumeSpeed > 0)
+            {
+                Campaign.Current.SetTimeSpeed(_resumeSpeed);
+                AutopilotLog.Write("  время возобновлено (скорость " + _resumeSpeed
+                                   + "): закрытие встречи ставит паузу");
+            }
+            else if (paused)
+            {
+                AutopilotLog.Write("  время на паузе, а скорость до поселения неизвестна — не трогаю");
             }
         }
 
@@ -532,6 +604,22 @@ namespace BannerlordAutopilot
                         if (settlement == null)
                         {
                             Disable("решение «ехать в поселение» без поселения — не применяю");
+                            return;
+                        }
+                        if (MobilePartyHelper.GetCurrentSettlementOfMobilePartyForAICalculation(party) == settlement)
+                        {
+                            // Движок для NPC приказ посетить поселение, в котором
+                            // (или вплотную к которому) партия уже стоит, НЕ выдаёт —
+                            // та же проверка в AiPartyThinkBehavior.PartyHourlyAiTick.
+                            // Без неё автопилот 13.09 заходил в Ревиль, выходил и
+                            // заходил снова. Пишем один раз на цель, а не каждый час.
+                            string idleKey = "idle|" + settlement;
+                            if (idleKey != _lastTargetKey)
+                            {
+                                AutopilotLog.Write("  лучшее — «" + settlement.Name
+                                                   + "», у которого партия уже стоит: приказ не выдаю, как движок для NPC");
+                            }
+                            _lastTargetKey = idleKey;
                             return;
                         }
                         SetPartyAiAction.GetActionForVisitingSettlement(

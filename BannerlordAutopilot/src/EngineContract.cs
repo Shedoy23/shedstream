@@ -112,6 +112,17 @@ namespace BannerlordAutopilot
                 MemberOf(typeof(Settlement), "GatePosition", Inst, vec2);
             }
 
+            // ── Ход времени после выхода (Finish ставит паузу) и проверка движка
+            //    «партия уже у этого поселения». Типы берём по имени через
+            //    рефлексию: сборка проверки не должна зависеть от их наличия.
+            MemberNamed(typeof(Campaign), "TimeControlMode", Inst, "CampaignTimeControlMode", needWrite: true);
+            Method(typeof(Campaign), "SetTimeSpeed", Inst, typeof(void), typeof(int));
+            Type helper = typeof(MobileParty).Assembly.GetType("Helpers.MobilePartyHelper");
+            MethodInfo here = helper?.GetMethod("GetCurrentSettlementOfMobilePartyForAICalculation", Stat, null,
+                new[] { typeof(MobileParty) }, null);
+            Need(here != null && here.ReturnType == typeof(Settlement),
+                "MobilePartyHelper.GetCurrentSettlementOfMobilePartyForAICalculation(MobileParty) → Settlement");
+
             // ── Прочее
             MemberOf(typeof(Hero), "MainHero", Stat, typeof(Hero));
             MemberOf(typeof(Hero), "IsPrisoner", Inst, typeof(bool));
@@ -151,6 +162,13 @@ namespace BannerlordAutopilot
                 ? "CampaignVec2" : expected.Name;
             Need(actual == expected && (!needWrite || writable),
                 type.Name + "." + name + " : " + label + (needWrite ? " (запись)" : ""));
+        }
+
+        private static void MemberNamed(Type type, string name, BindingFlags flags, string typeName, bool needWrite = false)
+        {
+            Type actual = MemberType(type, name, flags, needWrite, out bool writable);
+            Need(actual != null && actual.Name == typeName && (!needWrite || writable),
+                type.Name + "." + name + " : " + typeName + (needWrite ? " (запись)" : ""));
         }
 
         private static void MemberExists(Type type, string name, BindingFlags flags)

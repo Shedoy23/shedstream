@@ -10,6 +10,7 @@ using TaleWorlds.CampaignSystem.GameState;
 using TaleWorlds.CampaignSystem.Map;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Settlements;
+using ItemObject = TaleWorlds.Core.ItemObject;
 
 // Регрессия по независимой проверке 12.09.2026.
 //
@@ -46,8 +47,61 @@ internal static class Program
         PlayerEncounter.LeaveEncounter = false; PlayerEncounter.LeaveSettlementCalls = 0; PlayerEncounter.FinishCalls = 0;
         AutopilotBehavior.AutoLeaveSettlement = true; AutopilotLog.Lines.Clear();
         CampaignEventDispatcher.NextScores.Clear(); TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.VisitCalls = 0;
+        CampaignEventDispatcher.Recruited.Clear(); CampaignEventDispatcher.ThinkFood = -1; CampaignEventDispatcher.ThinkMembers = -1;
+        TaleWorlds.CampaignSystem.Actions.SellItemsAction.TestBroken = false; TaleWorlds.CampaignSystem.Actions.SellPrisonersAction.TestCalls = 0;
+        TaleWorlds.Library.InformationManager.TestInquiryActive = false; Helpers.MobilePartyHelper.TestLockedIds.Clear();
         return new AutopilotBehavior();
     }
+
+    // ── Обслуживание в поселении ──────────────────────────────────────────────
+
+    static void SetLimit(string name, object value)
+    {
+        Type limits = typeof(AutopilotBehavior).Assembly.GetType("BannerlordAutopilot.ServiceLimits")
+                      ?? throw new Exception("у автопилота нет пределов обслуживания (ServiceLimits)");
+        (limits.GetField(name, BindingFlags.Static | BindingFlags.NonPublic) ?? throw new Exception("нет предела " + name))
+            .SetValue(null, value);
+    }
+
+    sealed class World
+    {
+        public Settlement Place; public Hero Notable; public CharacterObject Recruit; public ItemObject Grain;
+        public CharacterObject Looter; public CharacterObject Lord;
+    }
+
+    /// <summary>Поселение с рынком (300 зерна по 20), старостой с тремя добровольцами (по 30),
+    /// отряд из 20 при пределе 100, расход еды 5 в день, жалование 50 в день;
+    /// в плену 10 грабителей (выкуп 20) и один лорд (выкуп 1000).</summary>
+    static World MakeWorld(bool village = false, int gold = 20000, bool prisoners = true)
+    {
+        SetLimit("MinGoldReserve", 2000); SetLimit("ReserveWageDays", 7); SetLimit("MaxFoodSpendPerPass", 5000);
+        SetLimit("MaxRecruitSpendPerPass", 5000); SetLimit("MaxRecruitsPerPass", 30); SetLimit("PassIntervalHours", 6.0);
+        var faction = new TestFaction();
+        var party = MobileParty.MainParty;
+        party.MapFaction = faction; party.FoodChange = -5f; party.TotalWage = 50; party.Party.PartySizeLimit = 100;
+        party.MemberRoster.AddToCounts(new CharacterObject { Name = "Ветеран", StringId = "veteran" }, 20);
+        Hero.MainHero.Gold = gold;
+        var w = new World
+        {
+            Place = new Settlement { Name = village ? "Деревня" : "Ликарон", IsTown = !village, IsVillage = village, MapFaction = faction },
+            Grain = new ItemObject { Name = "Зерно", IsFood = true, TestPrice = 20 },
+            Notable = new Hero { Name = "Староста" },
+            Recruit = new CharacterObject { Name = "Новобранец", StringId = "recruit", TestCost = 30 },
+        };
+        w.Place.ItemRoster.TestAdd(w.Grain, 300);
+        for (int i = 0; i < 3; i++) w.Notable.VolunteerTypes[i] = w.Recruit;
+        w.Place.Notables.Add(w.Notable);
+        if (prisoners)
+        {
+            w.Looter = new CharacterObject { Name = "Грабитель", StringId = "looter", TestRansom = 20 };
+            w.Lord = new CharacterObject { Name = "Пленный лорд", StringId = "lord", IsHero = true, TestRansom = 1000 };
+            party.PrisonRoster.AddToCounts(w.Looter, 10);
+            party.PrisonRoster.AddToCounts(w.Lord, 1);
+        }
+        return w;
+    }
+
+    static int Grain(World w) => MobileParty.MainParty.ItemRoster.TestCount(w.Grain);
 
     // ── Меню поселения как в PlayerTownVisitCampaignBehavior (1.4.8) ──────────
     // «town» → «town_wait» открывает «town_wait_menus» (IsPlayerWaiting, Hold,
@@ -132,9 +186,10 @@ internal static class Program
         return menu;
     }
 
-    static Settlement ArriveVillage(string name)
+    static Settlement ArriveVillage(string name) => ArriveVillage(new Settlement { Name = name, IsVillage = true });
+
+    static Settlement ArriveVillage(Settlement v)
     {
-        var v = new Settlement { Name = name, IsVillage = true };
         PlayerEncounter.Current = new PlayerEncounter(); PlayerEncounter.EncounterSettlement = v;
         MobileParty.MainParty.CurrentSettlement = v; MobileParty.MainParty.LastVisitedSettlement = v; MobileParty.MainParty.IsMoving = false;
         Campaign.Current.TimeControlMode = CampaignTimeControlMode.Stop;
@@ -544,6 +599,189 @@ internal static class Program
             }
             Check(LogCount("ДОЛГОЕ ПРЕБЫВАНИЕ") == 1,
                   "ожидание, начатое до F11: предупреждение о долгом пребывании всё равно появляется (было — ни одного за 240 часов)");
+        });
+
+        Console.WriteLine("\n[обслуживание] еда, найм и пленные в поселении — как NPC, путями движка");
+        Try("город, денег хватает", () =>
+        {
+            var b = Fresh(); var w = MakeWorld(); Enable(b); b.PollState();
+            ArriveTown(w.Place); b.PollState();
+            var party = MobileParty.MainParty;
+            Check(Grain(w) == 150, "еды куплено столько, сколько штатный расчёт запаса: 5 в день × 30 дней = 150 (куплено " + Grain(w) + ")");
+            Check(w.Place.ItemRoster.TestCount(w.Grain) == 150, "у продавца убыло столько же — товар не взялся из ничего");
+            Check(CampaignEventDispatcher.Recruited.Count == 3 && w.Notable.VolunteerTypes.Take(3).All(t => t == null),
+                  "нанято трое доступных добровольцев, их слоты у старосты освобождены, событие найма на каждого");
+            Check(party.MemberRoster.TotalManCount == 23, "в отряде стало 23");
+            Check(party.PrisonRoster.TotalRegulars == 0 && party.PrisonRoster.TotalHeroes == 1,
+                  "обычные пленные проданы, пленный лорд остался в плену");
+            int expected = 20000 + 10 * 20 - 150 * 20 - 3 * 30;
+            Check(Hero.MainHero.Gold == expected, "деньги: +200 выкуп, −3000 еда, −90 найм (стало " + Hero.MainHero.Gold + ", ждали " + expected + ")");
+            Check(LogCount("КУПЛЕНО") == 1 && LogCount("НАНЯТ") == 3 && LogCount("ПРОДАНО") == 1,
+                  "журнал называет фактические покупку, найм и продажу");
+            Check(Waiting && PlayerEncounter.FinishCalls == 0, "обслуживание не выгоняет из города — партия ждёт, как раньше");
+        });
+        Try("пересчёт видит обновлённую партию", () =>
+        {
+            var b = Fresh(); var w = MakeWorld(); Enable(b); b.PollState();
+            ArriveTown(w.Place); b.PollState();
+            Scores((AiBehavior.GoToSettlement, w.Place, 2.0f)); HourlyTick(b);
+            Check(CampaignEventDispatcher.ThinkFood == 150 && CampaignEventDispatcher.ThinkMembers == 23,
+                  "штатный пересчёт AI после обслуживания видит купленную еду и нанятых (" + CampaignEventDispatcher.ThinkFood
+                  + " еды, " + CampaignEventDispatcher.ThinkMembers + " в отряде)");
+        });
+        Try("денег мало", () =>
+        {
+            var b = Fresh(); var w = MakeWorld(gold: 2100, prisoners: false); Enable(b); b.PollState();
+            ArriveTown(w.Place); b.PollState();
+            Check(Grain(w) == 4 && Hero.MainHero.Gold == 2020,
+                  "на еду ушло только то, что сверх резерва 2000 с запасом на цену: 4 зерна за 80 (зерна " + Grain(w) + ", денег " + Hero.MainHero.Gold + ")");
+            Check(CampaignEventDispatcher.Recruited.Count == 0 && AutopilotLog.Lines.Any(l => l.Contains("не по деньгам 3")),
+                  "на найм денег не хватило — никого, причина в журнале");
+        });
+        Try("денег нет", () =>
+        {
+            var b = Fresh(); var w = MakeWorld(gold: 500, prisoners: false); Enable(b); b.PollState();
+            ArriveTown(w.Place); b.PollState();
+            Check(Grain(w) == 0 && CampaignEventDispatcher.Recruited.Count == 0 && Hero.MainHero.Gold == 500,
+                  "деньги ниже резерва: ничего не куплено и не нанято, золото не тронуто");
+            Check(LogCount("денег сверх резерва нет") == 2, "журнал называет причину и для еды, и для найма");
+        });
+        Try("еда уже есть", () =>
+        {
+            var b = Fresh(); var w = MakeWorld(prisoners: false); MobileParty.MainParty.ItemRoster.TestAdd(w.Grain, 200);
+            Enable(b); b.PollState(); ArriveTown(w.Place); b.PollState();
+            Check(Grain(w) == 200 && LogCount("еда: хватает") == 1, "запаса на 40 дней хватает до цели в 30 — еда не докупается");
+        });
+        Try("у продавца нет еды", () =>
+        {
+            var b = Fresh(); var w = MakeWorld(prisoners: false); w.Place.ItemRoster.TestAdd(w.Grain, -300);
+            Enable(b); b.PollState(); ArriveTown(w.Place); b.PollState();
+            Check(Grain(w) == 0 && LogCount("у продавца еды нет") == 1, "рынок пуст — ничего не куплено, причина в журнале");
+        });
+        Try("у продавца мало еды — частичное выполнение", () =>
+        {
+            var b = Fresh(); var w = MakeWorld(prisoners: false); w.Place.ItemRoster.TestAdd(w.Grain, -270);
+            Enable(b); b.PollState(); ArriveTown(w.Place); b.PollState();
+            Check(Grain(w) == 30 && w.Place.ItemRoster.TestCount(w.Grain) == 0 && Hero.MainHero.Gold == 20000 - 30 * 20 - 3 * 30,
+                  "куплено ровно 30 из нужных 150 — сверх остатка не покупается и не оплачивается");
+            Check(AutopilotLog.Lines.Any(l => l.Contains("нужно было 150, куплено 30")), "частичное выполнение названо в журнале");
+        });
+        Try("партия заполнена и одно место", () =>
+        {
+            var b = Fresh(); var w = MakeWorld(prisoners: false); MobileParty.MainParty.Party.PartySizeLimit = 20;
+            Enable(b); b.PollState(); ArriveTown(w.Place); b.PollState();
+            Check(CampaignEventDispatcher.Recruited.Count == 0 && LogCount("партия полна") == 1, "партия полна — никого не нанимаем");
+            b = Fresh(); w = MakeWorld(prisoners: false); MobileParty.MainParty.Party.PartySizeLimit = 21;
+            Enable(b); b.PollState(); ArriveTown(w.Place); b.PollState();
+            Check(CampaignEventDispatcher.Recruited.Count == 1 && w.Notable.VolunteerTypes[1] == w.Recruit && Hero.MainHero.Gold == 20000 - 150 * 20 - 30,
+                  "одно место — ровно один нанятый, остальные добровольцы остались у старосты, списана цена одного");
+        });
+        Try("добровольцы недоступны", () =>
+        {
+            var b = Fresh(); var w = MakeWorld(prisoners: false); w.Notable.TestMaxRecruitIndex = -1;
+            Enable(b); b.PollState(); ArriveTown(w.Place); b.PollState();
+            Check(CampaignEventDispatcher.Recruited.Count == 0 && w.Notable.VolunteerTypes[0] == w.Recruit
+                  && AutopilotLog.Lines.Any(l => l.Contains("не хватает отношений 3")),
+                  "отношений со старостой не хватает — никого, слоты не тронуты, причина в журнале");
+        });
+        Try("пленные герои и закреплённые не продаются", () =>
+        {
+            var b = Fresh(); var w = MakeWorld(); Helpers.MobilePartyHelper.TestLockedIds.Add("looter");
+            Enable(b); b.PollState(); ArriveTown(w.Place); b.PollState();
+            var prison = MobileParty.MainParty.PrisonRoster;
+            Check(TaleWorlds.CampaignSystem.Actions.SellPrisonersAction.TestCalls == 0 && prison.TotalRegulars == 10 && prison.TotalHeroes == 1,
+                  "закреплённых игроком грабителей и лорда не продаём и не отпускаем — продажа даже не вызывается");
+        });
+        Try("повторные опросы", () =>
+        {
+            var b = Fresh(); var w = MakeWorld(); Enable(b); b.PollState(); ArriveTown(w.Place); b.PollState();
+            int gold = Hero.MainHero.Gold;
+            for (int i = 0; i < 5; i++) b.PollState();
+            Check(LogCount("ОБСЛУЖИВАНИЕ") == 1 && Hero.MainHero.Gold == gold, "опросы в тот же час не повторяют обслуживание");
+            CampaignTime.TestHours = 7; b.PollState();
+            Check(LogCount("ОБСЛУЖИВАНИЕ") == 2 && Hero.MainHero.Gold == gold && Grain(w) == 150 && CampaignEventDispatcher.Recruited.Count == 3,
+                  "проход через 7 часов идёт, но ничего не дублирует: еды хватает, слоты пусты, пленных нет");
+        });
+        Try("повторное включение и загрузка", () =>
+        {
+            var b = Fresh(); var w = MakeWorld(); Enable(b); b.PollState(); ArriveTown(w.Place); b.PollState();
+            int gold = Hero.MainHero.Gold;
+            b.Disable("test"); Enable(b); b.PollState();
+            Check(LogCount("ОБСЛУЖИВАНИЕ") == 1 && Hero.MainHero.Gold == gold, "F12 → F11 в том же часу: второго прохода нет");
+            var loaded = new AutopilotBehavior(); Enable(loaded); loaded.PollState();
+            Check(Hero.MainHero.Gold == gold && Grain(w) == 150 && CampaignEventDispatcher.Recruited.Count == 3
+                  && MobileParty.MainParty.PrisonRoster.TotalHeroes == 1,
+                  "после загрузки проход идёт заново, но по сохранённому состоянию ничего не дублирует");
+        });
+        Try("деревня", () =>
+        {
+            var b = Fresh(); var w = MakeWorld(village: true); Enable(b); b.PollState();
+            MobileParty.MainParty.LastVisitedSettlement = w.Place; ArriveVillage(w.Place); b.PollState();
+            Check(Grain(w) == 60, "в деревне цель запаса — 12 дней: куплено 60 (куплено " + Grain(w) + ")");
+            Check(CampaignEventDispatcher.Recruited.Count == 3, "в деревне нанято трое");
+            Check(MobileParty.MainParty.PrisonRoster.TotalRegulars == 10 && AutopilotLog.Lines.Any(l => l.Contains("только в городе")),
+                  "пленных в деревне не продаём — у игрока выкуп только в городе");
+        });
+        Try("уже начатое ожидание в городе", () =>
+        {
+            var b = Fresh(); var w = MakeWorld(prisoners: false); ArriveTown(w.Place);
+            MenuDriver.TryInvoke("town_wait", out _); Enable(b); b.PollState();
+            Check(Grain(w) == 150 && CampaignEventDispatcher.Recruited.Count == 3, "F11 во время ожидания в городе — партия внутри, обслуживание идёт");
+        });
+        Try("уже начатое ожидание в деревне", () =>
+        {
+            var b = Fresh(); var w = MakeWorld(village: true, prisoners: false);
+            MobileParty.MainParty.LastVisitedSettlement = w.Place; ArriveVillage(w.Place);
+            MenuDriver.TryInvoke("village_wait", out _); Enable(b); b.PollState(); b.PollState();
+            Check(Grain(w) == 0 && CampaignEventDispatcher.Recruited.Count == 0, "в деревенском ожидании партия за околицей — не покупаем и не нанимаем");
+            Check(LogCount("за околицей") == 1, "причина записана один раз, без повтора на каждом опросе");
+        });
+        Try("экран или окно поверх карты", () =>
+        {
+            var b = Fresh(); var w = MakeWorld(prisoners: false); ArriveTown(w.Place);
+            TaleWorlds.Core.Game.Current.GameStateManager.ActiveState = new TaleWorlds.Core.GameState(); Enable(b); b.PollState();
+            Check(Grain(w) == 0 && CampaignEventDispatcher.Recruited.Count == 0, "под другим экраном — ничего");
+            b = Fresh(); w = MakeWorld(prisoners: false); ArriveTown(w.Place);
+            TaleWorlds.Core.Game.Current.GameStateManager.ActiveStateDisabledByUser = true; Enable(b); b.PollState();
+            Check(Grain(w) == 0 && CampaignEventDispatcher.Recruited.Count == 0, "карта приостановлена окном — ничего");
+            b = Fresh(); w = MakeWorld(prisoners: false); ArriveTown(w.Place);
+            TaleWorlds.Library.InformationManager.TestInquiryActive = true; Enable(b); b.PollState();
+            Check(Grain(w) == 0 && CampaignEventDispatcher.Recruited.Count == 0 && LogCount("открыто окно") >= 1,
+                  "открыт запрос (окно с кнопками) — ничего, причина в журнале");
+        });
+        Try("F10 и выключенный автопилот", () =>
+        {
+            var b = Fresh(); var w = MakeWorld(); ArriveTown(w.Place); Enable(b, AutopilotBehavior.Mode.Observe); b.PollState();
+            Check(Grain(w) == 0 && CampaignEventDispatcher.Recruited.Count == 0 && MobileParty.MainParty.PrisonRoster.TotalRegulars == 10,
+                  "F10 ничего не покупает, не нанимает и не продаёт");
+            b = Fresh(); w = MakeWorld(); ArriveTown(w.Place); b.PollState();
+            Check(Grain(w) == 0 && CampaignEventDispatcher.Recruited.Count == 0 && MobileParty.MainParty.PrisonRoster.TotalRegulars == 10,
+                  "выключенный автопилот ничего не делает");
+        });
+        Try("отказ движка и молчаливая неудача", () =>
+        {
+            var b = Fresh(); var w = MakeWorld(prisoners: false);
+            Campaign.Current.Models.SettlementAccessModel.TestTrade = false; Campaign.Current.Models.SettlementAccessModel.TestRecruit = false;
+            Enable(b); b.PollState(); ArriveTown(w.Place); b.PollState();
+            Check(Grain(w) == 0 && CampaignEventDispatcher.Recruited.Count == 0
+                  && LogCount("торговать игроку нельзя: закрыто проверкой") == 1 && LogCount("нанимать игроку нельзя: закрыто проверкой") == 1,
+                  "пункты «Торговать» и «Нанять» закрыты для игрока — ничего, причина движка в журнале");
+            b = Fresh(); w = MakeWorld(prisoners: false); TaleWorlds.CampaignSystem.Actions.SellItemsAction.TestBroken = true;
+            Enable(b); b.PollState(); ArriveTown(w.Place); b.PollState();
+            Check(Grain(w) == 0 && LogCount("КУПЛЕНО") == 0 && LogCount("НЕ подтвердилась") == 1,
+                  "покупка молча не сработала — это не успех: в журнале «не подтвердилась», «куплено» не пишется");
+        });
+        Try("бой, осада и разграбленная деревня", () =>
+        {
+            var b = Fresh(); var w = MakeWorld(prisoners: false); Enable(b); b.PollState();
+            ArriveTown(w.Place); MobileParty.MainParty.MapEvent = new MapEvent(); b.PollState();
+            Check(Grain(w) == 0 && CampaignEventDispatcher.Recruited.Count == 0, "идёт бой — ничего");
+            b = Fresh(); w = MakeWorld(prisoners: false); w.Place.IsUnderSiege = true; Enable(b); b.PollState();
+            ArriveTown(w.Place); b.PollState();
+            Check(Grain(w) == 0 && CampaignEventDispatcher.Recruited.Count == 0, "поселение в осаде — ничего");
+            b = Fresh(); w = MakeWorld(village: true, prisoners: false); w.Place.IsRaided = true; Enable(b); b.PollState();
+            MobileParty.MainParty.LastVisitedSettlement = w.Place; ArriveVillage(w.Place); b.PollState();
+            Check(Grain(w) == 0 && CampaignEventDispatcher.Recruited.Count == 0, "деревня разграблена — ничего");
         });
 
         Console.WriteLine($"\nИтог: {passed} ok, {failed} FAIL");

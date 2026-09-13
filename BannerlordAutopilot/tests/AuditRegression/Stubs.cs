@@ -3,12 +3,19 @@
 // дополнен тем, чем пользуется исправленный мод: настоящий выход из поселения
 // (LeaveSettlement/Finish/GatePosition), признаки встречи с партией и боя,
 // меню поселения с ожиданием (PlayerTownVisitCampaignBehavior, 1.4.8) и ход
-// времени кампании для сторожа простоя.
+// времени кампании для сторожа простоя. Типы обслуживания в поселении (еда, найм,
+// пленные) — в ServicesStubs.cs.
 //
 // Имена типов совпадают с настоящей DLL (IMapPoint, CampaignVec2, MenuContext,
 // GameMenu), потому что контракт мода сверяет типы полей, а не только их наличие.
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.CampaignBehaviors;
+using TaleWorlds.CampaignSystem.ComponentInterfaces;
+using TaleWorlds.CampaignSystem.Roster;
+using TaleWorlds.Library;
 using TaleWorlds.CampaignSystem.Conversation;
 using TaleWorlds.CampaignSystem.GameMenus;
 using TaleWorlds.CampaignSystem.GameState;
@@ -21,7 +28,14 @@ namespace TaleWorlds.Core {
  public class GameStateManager { public GameState ActiveState { get; set; } = new MapState(); public bool ActiveStateDisabledByUser { get; set; } }
  public class Game { public static Game Current = new(); public GameStateManager GameStateManager { get; } = new(); }
 }
-namespace TaleWorlds.Library { public class Stub {} }
+namespace TaleWorlds.Library {
+ public class Stub {}
+ public class MBReadOnlyList<T> : List<T> {}
+ public class MBList<T> : MBReadOnlyList<T> {}
+ // Открыто ли окно-запрос (GauntletQueryManager._activeDataSource != null).
+ public static class InformationManager { public static bool TestInquiryActive; public static bool IsAnyInquiryActive() => TestInquiryActive; }
+}
+namespace TaleWorlds.Localization { public class TextObject { private readonly string _text; public TextObject(string text) { _text = text; } public override string ToString() => _text; } }
 namespace TaleWorlds.CampaignSystem.Map { public interface IMapPoint {} }
 namespace TaleWorlds.CampaignSystem.Conversation { public class ConversationManager { public bool IsConversationInProgress { get; set; } } }
 namespace TaleWorlds.CampaignSystem.GameMenus {
@@ -73,6 +87,9 @@ namespace TaleWorlds.CampaignSystem {
   public bool IsMainPartyWaiting => MobileParty.MainParty.DefaultBehavior == AiBehavior.Hold || !MobileParty.MainParty.IsMoving;
   public MenuContext CurrentMenuContext { get; set; }
   public ConversationManager ConversationManager { get; } = new();
+  public GameModels Models { get; } = new();
+  public readonly List<object> Behaviors = new() { new PartiesBuyFoodCampaignBehavior() };
+  public T GetCampaignBehavior<T>() => Behaviors.OfType<T>().FirstOrDefault();
   public void SetTimeSpeed(int speed) {
    bool stopped = TimeControlMode == CampaignTimeControlMode.Stop || TimeControlMode == CampaignTimeControlMode.FastForwardStop;
    bool hold = MobileParty.MainParty.DefaultBehavior == AiBehavior.Hold;
@@ -81,7 +98,17 @@ namespace TaleWorlds.CampaignSystem {
    else if (speed == 2) TimeControlMode = stopped && hold ? CampaignTimeControlMode.UnstoppableFastForward : CampaignTimeControlMode.StoppableFastForward;
   }
  }
- public class Hero { public static Hero MainHero = new(); public bool IsPrisoner; public bool IsWounded; }
+ public class Hero {
+  public static Hero MainHero = new(); public bool IsPrisoner; public bool IsWounded;
+  public string Name = "Hero"; public int Gold { get; set; }
+  public bool IsAlive { get; set; } = true;
+  public bool CanHaveRecruits { get; set; } = true;
+  public CharacterObject[] VolunteerTypes = new CharacterObject[6];
+  // Ответ DefaultVolunteerModel.MaximumIndexHeroCanRecruitFromHero(MainHero, этот староста):
+  // до какого индекса игроку отдают добровольцев (отношения, фракция, перки).
+  public int TestMaxRecruitIndex = 5;
+  public override string ToString() => Name;
+ }
  public interface IDataStore { void SyncData(string key, ref bool value); }
  public abstract class CampaignBehaviorBase { public abstract void RegisterEvents(); public abstract void SyncData(IDataStore data); }
  public class Event { public void AddNonSerializedListener(object owner, Action a) {} }
@@ -89,13 +116,26 @@ namespace TaleWorlds.CampaignSystem {
  public class CampaignEventDispatcher {
   public static CampaignEventDispatcher Instance {get;} = new();
   public static List<(AIBehaviorData,float)> NextScores = new();
-  public void AiHourlyTick(MobileParty p, PartyThinkParams t) { t.AIBehaviorScores.AddRange(NextScores); }
+  // Что видел пересчёт AI в момент вызова — чтобы проверить, что обслуживание успело до него.
+  public static int ThinkFood = -1, ThinkMembers = -1;
+  public void AiHourlyTick(MobileParty p, PartyThinkParams t) { ThinkFood = p.TotalFoodAtInventory; ThinkMembers = p.MemberRoster.TotalManCount; t.AIBehaviorScores.AddRange(NextScores); }
+  public static List<CharacterObject> Recruited = new();
+  public void OnUnitRecruited(CharacterObject character, int amount) { for (int i = 0; i < amount; i++) Recruited.Add(character); }
  }
 }
 namespace TaleWorlds.CampaignSystem.Settlements {
  public class Settlement : IMapPoint {
   public string Name="Town"; public bool IsUnderSiege; public CampaignVec2 GatePosition = new CampaignVec2{X=42};
   public bool IsVillage { get; set; }
+  public bool IsTown { get; set; }
+  public bool IsRaided { get; set; }
+  public bool IsUnderRaid { get; set; }
+  public IFaction MapFaction { get; set; }
+  public PartyBase Party { get; }
+  public ItemRoster ItemRoster => Party.ItemRoster;       // рынок поселения (161206)
+  public MBReadOnlyList<Hero> Notables { get; } = new();
+  public int TestGold = 100000;
+  public Settlement() { Party = new PartyBase { Settlement = this }; }
   public override string ToString()=>Name;
  }
 }
@@ -116,6 +156,31 @@ namespace TaleWorlds.CampaignSystem.Party {
   public PartyThinkParams ThinkParamsCache {get;} = new();
   public int HoldCalls; public bool StandsAtLastVisited;
   public void SetMoveModeHold() {HoldCalls++; DefaultBehavior=AiBehavior.Hold;TargetSettlement=null;IsMoving=false;}
+  public PartyBase Party { get; }
+  public MobileParty() { Party = new PartyBase { MobileParty = this }; }
+  public Hero LeaderHero => this == MainParty ? Hero.MainHero : null;      // партия игрока: лидер — главный герой
+  public IFaction MapFaction { get; set; }
+  public TroopRoster MemberRoster => Party.MemberRoster;                   // 101058-101062
+  public TroopRoster PrisonRoster => Party.PrisonRoster;
+  public ItemRoster ItemRoster => Party.ItemRoster;
+  public int TotalFoodAtInventory => ItemRoster.TotalFood;                // 101122
+  public float FoodChange { get; set; } = -5f;                            // дневной расход, отрицательный
+  public int TotalWage { get; set; } = 50;                                // дневное жалование
+  public int PartyTradeGold => LeaderHero?.Gold ?? 0;                     // у партии лорда — золото лидера (100411)
+ }
+ // PartyBase (105803): ростеры партии или поселения.
+ public class PartyBase {
+  public static PartyBase MainParty => MobileParty.MainParty?.Party;
+  public TroopRoster MemberRoster { get; } = TroopRoster.CreateDummyTroopRoster();
+  public TroopRoster PrisonRoster { get; } = TroopRoster.CreateDummyTroopRoster();
+  public ItemRoster ItemRoster { get; } = new();
+  public MobileParty MobileParty { get; set; }
+  public Settlement Settlement { get; set; }
+  public bool IsSettlement => Settlement != null;
+  public bool IsMobile => MobileParty != null;
+  public Hero LeaderHero => MobileParty?.LeaderHero;
+  public int PartySizeLimit { get; set; } = 100;
+  public int NumberOfAllMembers => MemberRoster.TotalManCount;            // 106163
  }
 }
 namespace TaleWorlds.CampaignSystem.Encounters {
@@ -151,6 +216,24 @@ namespace Helpers {
  public static class MobilePartyHelper {
   public static Settlement GetCurrentSettlementOfMobilePartyForAICalculation(MobileParty p) =>
    p.CurrentSettlement ?? (p.LastVisitedSettlement != null && p.StandsAtLastVisited ? p.LastVisitedSettlement : null);
+  // 3255: все пленные главной партии, кроме закреплённых игроком на экране отряда (IViewDataTracker).
+  public static HashSet<string> TestLockedIds = new();
+  public static TroopRoster GetPlayerPrisonersPlayerCanSell() {
+   TroopRoster roster = TroopRoster.CreateDummyTroopRoster();
+   foreach (TroopRosterElement item in MobileParty.MainParty.PrisonRoster.GetTroopRoster())
+    if (!TestLockedIds.Contains(item.Character.StringId)) roster.Add(item);
+   return roster;
+  }
+ }
+ public static class HeroHelper {
+  // 2280: шесть слотов добровольцев, если староста жив.
+  public static List<CharacterObject> GetVolunteerTroopsOfHeroForRecruitment(Hero hero) {
+   var list = new List<CharacterObject>();
+   if (hero.IsAlive) for (int i = 0; i < 6; i++) list.Add(hero.VolunteerTypes[i]);
+   return list;
+  }
+  // 2275: index <= VolunteerModel.MaximumIndexHeroCanRecruitFromHero(buyer, seller).
+  public static bool HeroCanRecruitFromHero(Hero buyerHero, Hero sellerHero, int index) => index <= sellerHero.TestMaxRecruitIndex;
  }
 }
 namespace BannerlordAutopilot {

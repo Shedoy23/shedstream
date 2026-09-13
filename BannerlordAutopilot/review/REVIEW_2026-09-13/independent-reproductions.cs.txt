@@ -1,0 +1,83 @@
+using System;
+using System.Linq;
+using System.Reflection;
+using BannerlordAutopilot;
+using TaleWorlds.Core;
+using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Encounters;
+using TaleWorlds.CampaignSystem.GameMenus;
+using TaleWorlds.CampaignSystem.GameState;
+using TaleWorlds.CampaignSystem.Party;
+using TaleWorlds.CampaignSystem.Settlements;
+
+// Actual current source, existing author's doubles. These checks deliberately expose
+// missing scenarios. Village consequence is modeled from decompiled 1.4.8 lines 207-211:
+// EnterSettlement + SwitchToMenu(village), without clearing IsPlayerWaiting.
+class Program {
+ static int checks;
+ static DateTime t0=new(2026,9,13,12,0,0);
+ static void Assert(bool value,string description) {if(!value)throw new Exception(description);checks++;Console.WriteLine("REPRODUCED: "+description);}
+ static AutopilotBehavior Fresh() {
+  Campaign.Current=new(); Game.Current=new(); MobileParty.MainParty=new();Hero.MainHero=new();
+  CampaignTime.TestHours=0;PlayerEncounter.Current=null;PlayerEncounter.EncounterSettlement=null;
+  PlayerEncounter.EncounteredMobileParty=null;PlayerEncounter.Battle=null;PlayerEncounter.FinishCalls=0;
+  CampaignEventDispatcher.NextScores.Clear();MenuContext.Invoked.Clear();AutopilotLog.Lines.Clear();
+  AutopilotBehavior.Clock=()=>t0; return new();
+ }
+ static void Enable(AutopilotBehavior b) {if(!b.TryEnable(AutopilotBehavior.Mode.Apply,out var why))throw new Exception(why);}
+ static void Tick(AutopilotBehavior b) => typeof(AutopilotBehavior).GetMethod("OnHourlyTick",BindingFlags.NonPublic|BindingFlags.Instance).Invoke(b,null);
+ static T Field<T>(AutopilotBehavior b,string n)=>(T)typeof(AutopilotBehavior).GetField(n,BindingFlags.NonPublic|BindingFlags.Instance).GetValue(b);
+ static void Scores(Settlement first,float high=10,Settlement second=null) {
+  CampaignEventDispatcher.NextScores.Clear();
+  CampaignEventDispatcher.NextScores.Add((new AIBehaviorData{AiBehavior=AiBehavior.GoToSettlement,Party=first},high));
+  if(second!=null)CampaignEventDispatcher.NextScores.Add((new AIBehaviorData{AiBehavior=AiBehavior.GoToSettlement,Party=second},1));
+ }
+ static GameMenu EnterTown(Settlement s,bool canWait=true) {
+  MobileParty.MainParty.CurrentSettlement=s;PlayerEncounter.Current=new();PlayerEncounter.EncounterSettlement=s;
+  var menu=new GameMenu{StringId="town"};
+  menu.Options.Add(new GameMenuOption{IdString="town_wait",IsEnabled=canWait,Consequence=()=>{
+   PlayerEncounter.Current.IsPlayerWaiting=true;
+   Campaign.Current.CurrentMenuContext.GameMenu=new GameMenu{StringId="town_wait_menus",IsWaitMenu=true,IsWaitActive=true};
+  }});
+  Campaign.Current.CurrentMenuContext=new MenuContext{GameMenu=menu};return menu;
+ }
+ static void Main() {
+  if(!EngineContract.Verify())throw new Exception(EngineContract.Report);
+  var b=Fresh();var village=new Settlement{Name="Village",IsVillage=true};var destination=new Settlement{Name="Destination"};
+  PlayerEncounter.Current=new(){IsPlayerWaiting=true};PlayerEncounter.EncounterSettlement=village;
+  MobileParty.MainParty.LastVisitedSettlement=village;MobileParty.MainParty.CurrentSettlement=null;
+  var wait=new GameMenu{StringId="village_wait_menus",IsWaitMenu=true,IsWaitActive=true};
+  wait.Options.Add(new GameMenuOption{IdString="wait_leave",Consequence=()=>{
+   wait.IsWaitActive=false;Campaign.Current.TimeControlMode=CampaignTimeControlMode.Stop;
+   MobileParty.MainParty.CurrentSettlement=MobileParty.MainParty.LastVisitedSettlement;
+   Campaign.Current.CurrentMenuContext.GameMenu=new GameMenu{StringId="village"};
+   // NO IsPlayerWaiting=false: exactly the missing assignment in the real consequence.
+  }});
+  Campaign.Current.CurrentMenuContext=new(){GameMenu=wait};Enable(b);Scores(destination);Tick(b);b.PollState();
+  Assert(b.CurrentMode==AutopilotBehavior.Mode.Off && Campaign.Current.CurrentMenuContext.GameMenu.StringId=="village" && !wait.IsWaitActive,
+   "village Stop waiting ended the wait, but mod disables because IsPlayerWaiting stayed true");
+
+  b=Fresh();EnterTown(new(){Name="Town"});Game.Current.GameStateManager.ActiveState=new GameState();Enable(b);b.PollState();
+  Assert(MenuContext.Invoked.Contains("town_wait"),"town_wait invoked while ActiveState is NOT MapState");
+  b=Fresh();EnterTown(new(){Name="Town"});Game.Current.GameStateManager.ActiveStateDisabledByUser=true;Enable(b);b.PollState();
+  Assert(MenuContext.Invoked.Contains("town_wait"),"town_wait invoked while active state is disabled by a modal");
+
+  b=Fresh();var blocked=new Settlement{Name="Temporarily unavailable"};var other=new Settlement{Name="Other"};var townMenu=EnterTown(blocked,false);Enable(b);b.PollState();
+  townMenu.Options[0].IsEnabled=true; // Availability now recovered; same settlement identity.
+  Scores(blocked,100,other);Tick(b);
+  Assert(MobileParty.MainParty.TargetSettlement==other,"temporary wait restriction still excludes restored settlement from route choice");
+
+  b=Fresh();EnterTown(new(){Name="S"});Enable(b);b.PollState();var here=PlayerEncounter.EncounterSettlement;Scores(here);
+  for(int h=1;h<=72;h++){CampaignTime.TestHours=h;var real=t0.AddSeconds(h*2);AutopilotBehavior.Clock=()=>real;Tick(b);b.PollState();}
+  Assert(b.CurrentMode==AutopilotBehavior.Mode.Apply && !Field<bool>(b,"_hasPendingDecision") && !AutopilotLog.Lines.Any(x=>x.Contains("ПРОСТОЙ")),
+   "72 campaign hours of unchanged stay score: no exit, no watchdog stall (time keeps advancing)");
+
+  b=Fresh();Enable(b);b.PollState();Campaign.Current.TimeControlModeLock=true;
+  AutopilotBehavior.Clock=()=>t0.AddSeconds(11);b.PollState();AutopilotBehavior.Clock=()=>t0.AddSeconds(60);b.PollState();b.Disable("test");
+  Assert(AutopilotLog.Lines.Any(x=>x.Contains("простоев 1 (самый долгий 0 с)")),"ongoing 60-second stall summarized as longest 0 seconds on disable");
+
+  b=Fresh();Enable(b);Game.Current.GameStateManager.ActiveStateDisabledByUser=true;b.PollState();
+  Assert(Campaign.Current.TimeControlMode==CampaignTimeControlMode.UnstoppablePlay,"KeepTimeRunning rewrites mode under modal (does NOT prove real time advances under modal)");
+  Console.WriteLine($"{checks} independent reproductions. No actual campaign was executed.");
+ }
+}

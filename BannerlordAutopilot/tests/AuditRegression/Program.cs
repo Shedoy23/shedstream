@@ -75,7 +75,9 @@ internal static class Program
                     {
                         Campaign.Current.TimeControlMode = CampaignTimeControlMode.Stop;  // EndWait
                         PlayerEncounter.Current.IsPlayerWaiting = false;
-                        Show(TownMenu(s, canWait));
+                        // SwitchToMenuIfThereIsAnInterrupt → GetGenericStateMenu (59418-59430):
+                        // партия внутри мирного города, не ждёт — «town_outside», не «town».
+                        Show(new GameMenu { StringId = "town_outside" });
                     }
                 });
                 Show(wait);
@@ -97,6 +99,47 @@ internal static class Program
         Campaign.Current.TimeControlMode = CampaignTimeControlMode.Stop;                  // меню ставит паузу
         Show(TownMenu(s, canWait));
         return s;
+    }
+
+    // Деревня (1.4.8): «village_wait» открывает village_wait_menus и выводит партию за
+    // околицу (LeaveSettlementAction, 206140-206144); «wait_leave» — EnterSettlementAction
+    // и меню «village» (205995-205999), а IsPlayerWaiting НЕ сбрасывает: во всей сборке
+    // false ему пишут только 184347, 184412, 184574, 184595 и town wait_leave (205913).
+    static GameMenu VillageMenu(Settlement v)
+    {
+        var menu = new GameMenu { StringId = "village" };
+        menu.Options.Add(new GameMenuOption
+        {
+            IdString = "village_wait", Consequence = () =>
+            {
+                Campaign.Current.TimeControlMode = CampaignTimeControlMode.Stop;
+                var wait = new GameMenu { StringId = "village_wait_menus", IsWaitMenu = true, IsWaitActive = true };
+                wait.Options.Add(new GameMenuOption
+                {
+                    IdString = "wait_leave", IsLeave = true, Consequence = () =>
+                    {
+                        wait.IsWaitActive = false; Campaign.Current.TimeControlMode = CampaignTimeControlMode.Stop; // EndWait
+                        MobileParty.MainParty.CurrentSettlement = MobileParty.MainParty.LastVisitedSettlement;      // EnterSettlementAction
+                        Show(VillageMenu(v));
+                    }
+                });
+                Show(wait);
+                PlayerEncounter.Current.IsPlayerWaiting = true; MobileParty.MainParty.SetMoveModeHold();
+                Campaign.Current.TimeControlMode = CampaignTimeControlMode.UnstoppableFastForward;
+                MobileParty.MainParty.CurrentSettlement = null;                                           // LeaveSettlementAction
+            }
+        });
+        return menu;
+    }
+
+    static Settlement ArriveVillage(string name)
+    {
+        var v = new Settlement { Name = name, IsVillage = true };
+        PlayerEncounter.Current = new PlayerEncounter(); PlayerEncounter.EncounterSettlement = v;
+        MobileParty.MainParty.CurrentSettlement = v; MobileParty.MainParty.LastVisitedSettlement = v; MobileParty.MainParty.IsMoving = false;
+        Campaign.Current.TimeControlMode = CampaignTimeControlMode.Stop;
+        Show(VillageMenu(v));
+        return v;
     }
 
     static bool Waiting => PlayerEncounter.Current != null && PlayerEncounter.Current.IsPlayerWaiting;
@@ -416,6 +459,77 @@ internal static class Program
                   "запись простоя называет состояние: режим времени и блокировку");
             CampaignTime.TestHours = 1; SetClock(t0.AddSeconds(31)); b.PollState();
             Check(LogCount("время снова идёт") == 1, "возобновление после простоя записано");
+        });
+
+        Console.WriteLine("\n[проверка 13.09] находки независимой проверки куска «игра играет сама»");
+        Try("остановка ожидания в деревне", () =>
+        {
+            var b = Fresh(); Enable(b); b.PollState();
+            ArriveVillage("Деревня"); b.PollState();
+            Check(Campaign.Current.CurrentMenuContext?.GameMenu?.StringId == "village_wait_menus", "в деревне автопилот ждёт");
+            var korsia = new Settlement { Name = "Корсия" };
+            Scores((AiBehavior.GoToSettlement, korsia, 2.0f));
+            HourlyTick(b); b.PollState();
+            Check(b.CurrentMode == AutopilotBehavior.Mode.Apply,
+                  "«Перестать ждать» в деревне не выключает автопилот, хотя движок оставляет IsPlayerWaiting");
+            Check(MobileParty.MainParty.CurrentSettlement == null && PlayerEncounter.Current == null
+                  && MobileParty.MainParty.TargetSettlement == korsia,
+                  "партия вышла из деревни и поехала к цели, ради которой перестала ждать");
+        });
+        Try("меню под другим экраном", () =>
+        {
+            var b = Fresh(); ArriveTown(); TaleWorlds.Core.Game.Current.GameStateManager.ActiveState = new TaleWorlds.Core.GameState();
+            Enable(b); b.PollState();
+            Check(MenuContext.Invoked.Count == 0 && PlayerEncounter.FinishCalls == 0,
+                  "поверх карты открыт другой экран: пункты меню под ним не нажимаются, встреча не закрывается");
+            b = Fresh(); ArriveTown(); TaleWorlds.Core.Game.Current.GameStateManager.ActiveStateDisabledByUser = true;
+            Enable(b); b.PollState();
+            Check(MenuContext.Invoked.Count == 0 && PlayerEncounter.FinishCalls == 0,
+                  "карта приостановлена окном: пункты меню не нажимаются");
+        });
+        Try("пауза под окном", () =>
+        {
+            var b = Fresh(); MobileParty.MainParty.IsMoving = true;
+            TaleWorlds.Core.Game.Current.GameStateManager.ActiveStateDisabledByUser = true;
+            Enable(b); b.PollState();
+            Check(Campaign.Current.TimeControlMode == CampaignTimeControlMode.Stop,
+                  "окно держит карту — автопилот не переписывает режим времени под ним");
+        });
+        Try("временная недоступность ожидания", () =>
+        {
+            var b = Fresh(); Enable(b);
+            var blocked = ArriveTown("Закрытый на время", canWait: false); b.PollState();
+            var other = new Settlement { Name = "Другой" };
+            CampaignTime.TestHours = 10;
+            Scores((AiBehavior.GoToSettlement, blocked, 3.0f), (AiBehavior.GoToSettlement, other, 1.0f));
+            HourlyTick(b);
+            Check(MobileParty.MainParty.TargetSettlement == other, "вскоре после неудачи в то же поселение не едем");
+            MobileParty.MainParty.SetMoveModeHold();
+            CampaignTime.TestHours = 30;
+            HourlyTick(b);
+            Check(MobileParty.MainParty.TargetSettlement == blocked,
+                  "через сутки запрет снят: временная причина не вычёркивает поселение до конца сеанса");
+        });
+        Try("идущий простой в итоге сеанса", () =>
+        {
+            var b = Fresh(); Campaign.Current.TimeControlModeLock = true;
+            var t0 = new DateTime(2026, 9, 13, 12, 0, 0);
+            SetClock(t0); Enable(b); b.PollState();
+            SetClock(t0.AddSeconds(11)); b.PollState(); SetClock(t0.AddSeconds(60)); b.PollState();
+            b.Disable("test");
+            Check(AutopilotLog.Lines.Any(l => l.Contains("итог сеанса") && l.Contains("самый долгий 60 с")),
+                  "простой, который ещё идёт при выключении, попадает в итог (было «самый долгий 0 с»)");
+        });
+        Try("долгое пребывание видно в журнале", () =>
+        {
+            var b = Fresh(); Enable(b); var town = ArriveTown("Ревиль"); b.PollState();
+            for (int h = 0; h <= 130; h++)
+            {
+                CampaignTime.TestHours = h; Scores((AiBehavior.GoToSettlement, town, 2.0f)); HourlyTick(b); b.PollState();
+            }
+            Check(LogCount("ДОЛГОЕ ПРЕБЫВАНИЕ") == 1,
+                  "пять суток в одном поселении без решения уйти — одна запись в журнале, а не тишина");
+            Check(Waiting && b.CurrentMode == AutopilotBehavior.Mode.Apply, "запись не выгоняет партию и не выключает автопилот");
         });
 
         Console.WriteLine($"\nИтог: {passed} ok, {failed} FAIL");

@@ -14,5 +14,6 @@
     <Compile Include="../../src/AutopilotBehavior.cs" Link="AutopilotBehavior.cs" />
     <Compile Include="../../src/EngineContract.cs" Link="EngineContract.cs" />
     <Compile Include="../../src/MenuDriver.cs" Link="MenuDriver.cs" />
+    <Compile Include="../../src/SettlementServices.cs" Link="SettlementServices.cs" />
   </ItemGroup>
 </Project>

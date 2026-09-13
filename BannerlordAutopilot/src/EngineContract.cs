@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
@@ -173,6 +174,8 @@ namespace BannerlordAutopilot
             MemberOf(typeof(Campaign), "ConversationManager", Inst, conversations);
             MemberOf(conversations, "IsConversationInProgress", Inst, typeof(bool));
 
+            VerifySettlementServices(campaignAssembly, gameState?.Assembly, helper);
+
             // ── Прочее
             MemberOf(typeof(Hero), "MainHero", Stat, typeof(Hero));
             MemberOf(typeof(Hero), "IsPrisoner", Inst, typeof(bool));
@@ -184,6 +187,132 @@ namespace BannerlordAutopilot
                 ? "структура движка совпала со всеми " + _checked + " ожиданиями"
                 : "НЕ СОВПАЛО (" + Problems.Count + " из " + _checked + "): " + string.Join("; ", Problems.ToArray());
             return Ok;
+        }
+
+        /// <summary>Обслуживание партии в поселении (SettlementServices): еда, найм,
+        /// пленные. Всё по имени — в другой версии игры это строки «не совпало».</summary>
+        private static void VerifySettlementServices(Assembly campaign, Assembly core, Type partyHelper)
+        {
+            Type itemRoster = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Roster.ItemRoster");
+            Type troopRoster = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Roster.TroopRoster");
+            Type troopElement = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Roster.TroopRosterElement");
+            Type character = TypeNamed(campaign, "TaleWorlds.CampaignSystem.CharacterObject");
+            Type gameModels = TypeNamed(campaign, "TaleWorlds.CampaignSystem.GameModels");
+            Type explained = TypeNamed(campaign, "TaleWorlds.CampaignSystem.ExplainedNumber");
+            Type faction = TypeNamed(campaign, "TaleWorlds.CampaignSystem.IFaction");
+            Type partyBase = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Party.PartyBase");
+            Type foodBuying = TypeNamed(campaign, "TaleWorlds.CampaignSystem.ComponentInterfaces.PartyFoodBuyingModel");
+            Type foodConsumption = TypeNamed(campaign, "TaleWorlds.CampaignSystem.ComponentInterfaces.MobilePartyFoodConsumptionModel");
+            Type wages = TypeNamed(campaign, "TaleWorlds.CampaignSystem.ComponentInterfaces.PartyWageModel");
+            Type access = TypeNamed(campaign, "TaleWorlds.CampaignSystem.ComponentInterfaces.SettlementAccessModel");
+            Type ransom = TypeNamed(campaign, "TaleWorlds.CampaignSystem.ComponentInterfaces.RansomValueCalculationModel");
+            Type buyFood = TypeNamed(campaign, "TaleWorlds.CampaignSystem.CampaignBehaviors.PartiesBuyFoodCampaignBehavior");
+            Type sellItems = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Actions.SellItemsAction");
+            Type giveGold = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Actions.GiveGoldAction");
+            Type sellPrisoners = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Actions.SellPrisonersAction");
+            Type heroHelper = TypeNamed(campaign, "Helpers.HeroHelper");
+            Type item = TypeNamed(core, "TaleWorlds.Core.ItemObject");
+            Type equipment = TypeNamed(core, "TaleWorlds.Core.EquipmentElement");
+            Type itemElement = TypeNamed(core, "TaleWorlds.Core.ItemRosterElement");
+            Type horse = TypeNamed(core, "TaleWorlds.Core.HorseComponent");
+
+            Type action = access?.GetNestedType("SettlementAction");
+            Need(action != null && action.IsEnum && Enum.GetNames(action).Contains("Trade") && Enum.GetNames(action).Contains("RecruitTroops"),
+                "SettlementAccessModel.SettlementAction: Trade, RecruitTroops");
+            MethodInfo location = access?.GetMethod("CanMainHeroAccessLocation", Inst);
+            Type text = location != null && location.GetParameters().Length == 4 ? location.GetParameters()[3].ParameterType.GetElementType() : null;
+            Need(text != null && text.FullName == "TaleWorlds.Localization.TextObject", "тип TaleWorlds.Localization.TextObject");
+            Type notables = MemberType(typeof(Settlement), "Notables", Inst, false, out _);
+            Need(notables != null && notables.IsGenericType && notables.GetGenericTypeDefinition().Name == "MBReadOnlyList`1"
+                 && notables.GetGenericArguments()[0] == typeof(Hero), "Settlement.Notables : MBReadOnlyList<Hero>");
+            Type information = TypeNamed(notables?.Assembly, "TaleWorlds.Library.InformationManager");
+
+            // Модели и поведение движка
+            MemberOf(typeof(Campaign), "Models", Inst, gameModels);
+            Need(typeof(Campaign).GetMethods(Inst).Any(m => m.Name == "GetCampaignBehavior" && m.IsGenericMethodDefinition && m.GetParameters().Length == 0),
+                "Campaign.GetCampaignBehavior<T>()");
+            MemberOf(gameModels, "PartyFoodBuyingModel", Inst, foodBuying);
+            MemberOf(gameModels, "MobilePartyFoodConsumptionModel", Inst, foodConsumption);
+            MemberOf(gameModels, "PartyWageModel", Inst, wages);
+            MemberOf(gameModels, "SettlementAccessModel", Inst, access);
+            MemberOf(gameModels, "RansomValueCalculationModel", Inst, ransom);
+            MemberOf(foodBuying, "MinimumDaysFoodToLastWhileBuyingFoodFromTown", Inst, typeof(float));
+            MemberOf(foodBuying, "MinimumDaysFoodToLastWhileBuyingFoodFromVillage", Inst, typeof(float));
+            Method(foodBuying, "FindItemToBuy", Inst, typeof(void), typeof(MobileParty), typeof(Settlement),
+                itemElement?.MakeByRefType(), typeof(float).MakeByRefType());
+            Method(foodConsumption, "DoesPartyConsumeFood", Inst, typeof(bool), typeof(MobileParty));
+            Method(wages, "GetTroopRecruitmentCost", Inst, explained, character, typeof(Hero), typeof(bool));
+            MemberOf(explained, "RoundedResultNumber", Inst, typeof(int));
+            Method(access, "CanMainHeroDoSettlementAction", Inst, typeof(bool), typeof(Settlement), action,
+                typeof(bool).MakeByRefType(), text?.MakeByRefType());
+            Method(access, "CanMainHeroAccessLocation", Inst, typeof(bool), typeof(Settlement), typeof(string),
+                typeof(bool).MakeByRefType(), text?.MakeByRefType());
+            Method(ransom, "PrisonerRansomValue", Inst, typeof(int), character, typeof(Hero));
+            Method(buyFood, "CalculateFoodCountToBuy", BindingFlags.Instance | BindingFlags.NonPublic, typeof(int),
+                typeof(MobileParty), typeof(float));
+
+            // Действия
+            Method(sellItems, "Apply", Stat, typeof(void), partyBase, partyBase, itemElement, typeof(int), typeof(Settlement));
+            Method(giveGold, "ApplyBetweenCharacters", Stat, typeof(void), typeof(Hero), typeof(Hero), typeof(int), typeof(bool));
+            Method(sellPrisoners, "ApplyForSelectedPrisoners", Stat, typeof(void), partyBase, partyBase, troopRoster);
+            Method(partyHelper, "GetPlayerPrisonersPlayerCanSell", Stat, troopRoster);
+            Method(heroHelper, "GetVolunteerTroopsOfHeroForRecruitment", Stat,
+                character != null ? typeof(List<>).MakeGenericType(character) : null, typeof(Hero));
+            Method(heroHelper, "HeroCanRecruitFromHero", Stat, typeof(bool), typeof(Hero), typeof(Hero), typeof(int));
+            Method(typeof(CampaignEventDispatcher), "OnUnitRecruited", Inst, typeof(void), character, typeof(int));
+            Method(information, "IsAnyInquiryActive", Stat, typeof(bool));
+
+            // Состояние героя, партии и поселения
+            MemberOf(typeof(Hero), "Gold", Inst, typeof(int));
+            MemberOf(typeof(Hero), "CanHaveRecruits", Inst, typeof(bool));
+            MemberOf(typeof(Hero), "VolunteerTypes", Inst, character?.MakeArrayType());
+            MemberExists(typeof(Hero), "Name", Inst);
+            MemberOf(character, "IsHero", Inst, typeof(bool));
+            MemberExists(character, "Name", Inst);
+            MemberOf(typeof(MobileParty), "Party", Inst, partyBase);
+            MemberOf(typeof(MobileParty), "MemberRoster", Inst, troopRoster);
+            MemberOf(typeof(MobileParty), "PrisonRoster", Inst, troopRoster);
+            MemberOf(typeof(MobileParty), "ItemRoster", Inst, itemRoster);
+            MemberOf(typeof(MobileParty), "MapFaction", Inst, faction);
+            MemberOf(typeof(MobileParty), "TotalWage", Inst, typeof(int));
+            MemberOf(typeof(MobileParty), "FoodChange", Inst, typeof(float));
+            MemberOf(typeof(MobileParty), "TotalFoodAtInventory", Inst, typeof(int));
+            MemberOf(partyBase, "PartySizeLimit", Inst, typeof(int));
+            MemberOf(partyBase, "NumberOfAllMembers", Inst, typeof(int));
+            MemberOf(typeof(Settlement), "IsTown", Inst, typeof(bool));
+            MemberOf(typeof(Settlement), "IsRaided", Inst, typeof(bool));
+            MemberOf(typeof(Settlement), "IsUnderRaid", Inst, typeof(bool));
+            MemberOf(typeof(Settlement), "Party", Inst, partyBase);
+            MemberOf(typeof(Settlement), "ItemRoster", Inst, itemRoster);
+            MemberOf(typeof(Settlement), "MapFaction", Inst, faction);
+            Method(faction, "IsAtWarWith", Inst, typeof(bool), faction);
+
+            // Ростеры и предметы
+            MemberOf(itemRoster, "TotalFood", Inst, typeof(int));
+            Method(itemRoster, "FindIndexOfElement", Inst, typeof(int), equipment);
+            Method(itemRoster, "GetElementNumber", Inst, typeof(int), typeof(int));
+            MemberOf(itemElement, "EquipmentElement", Inst, equipment);
+            Need(itemElement != null && equipment != null && itemElement.GetConstructor(new[] { equipment, typeof(int) }) != null,
+                "ItemRosterElement(EquipmentElement, int)");
+            MemberOf(equipment, "Item", Inst, item);
+            Method(equipment, "IsEqualTo", Inst, typeof(bool), equipment);
+            MemberOf(item, "HasHorseComponent", Inst, typeof(bool));
+            MemberOf(item, "HorseComponent", Inst, horse);
+            MemberExists(item, "Name", Inst);
+            MemberOf(horse, "IsLiveStock", Inst, typeof(bool));
+            MemberOf(horse, "MeatCount", Inst, typeof(int));
+            Method(troopRoster, "CreateDummyTroopRoster", Stat, troopRoster);
+            Method(troopRoster, "Add", Inst, typeof(void), troopElement);
+            Method(troopRoster, "AddToCounts", Inst, typeof(int), character, typeof(int), typeof(bool), typeof(int),
+                typeof(int), typeof(bool), typeof(int));
+            MethodInfo list = troopRoster?.GetMethod("GetTroopRoster", Inst, null, Type.EmptyTypes, null);
+            Need(list != null && list.ReturnType.IsGenericType && list.ReturnType.GetGenericTypeDefinition().Name == "MBList`1"
+                 && list.ReturnType.GetGenericArguments()[0] == troopElement, "TroopRoster.GetTroopRoster() → MBList<TroopRosterElement>");
+            MemberOf(troopRoster, "TotalManCount", Inst, typeof(int));
+            MemberOf(troopRoster, "TotalRegulars", Inst, typeof(int));
+            MemberOf(troopRoster, "TotalHeroes", Inst, typeof(int));
+            MemberOf(troopElement, "Character", Inst, character);
+            MemberOf(troopElement, "Number", Inst, typeof(int));
         }
 
         private static void Need(bool condition, string what)

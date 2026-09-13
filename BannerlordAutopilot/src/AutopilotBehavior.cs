@@ -140,6 +140,13 @@ namespace BannerlordAutopilot
         private readonly Dictionary<Settlement, double> _cannotStayUntil = new Dictionary<Settlement, double>();
         private const double CannotStayHours = 24;
 
+        // Обслуживание партии в поселении (еда, найм, пленные). Объект живёт дольше
+        // сеанса: повторный F11 не должен повторять проход того же часа.
+        private readonly SettlementServices _services = new SettlementServices();
+
+        // Почему обслуживание сейчас не идёт — пишется в журнал, только когда меняется.
+        private readonly Dictionary<Settlement, string> _serviceBlocked = new Dictionary<Settlement, string>();
+
         // Час кампании, когда партия начала ждать, и было ли уже предупреждение о
         // долгом пребывании. Сторож простоя такое не видит — время-то идёт, — а
         // пребывание может не кончиться никогда: движок не обслуживает партию
@@ -202,6 +209,7 @@ namespace BannerlordAutopilot
             _handledSettlement = null;
             _resumeSpeed = 0;
             _cannotStayUntil.Clear();
+            _serviceBlocked.Clear();
             _waitingSinceHours = -1;
             _longStayWarned = false;
             _hasPendingDecision = false;
@@ -474,6 +482,10 @@ namespace BannerlordAutopilot
                 {
                     StopWaitingAndLeave(party, peaceful);
                 }
+                else
+                {
+                    TryServe(party, peaceful, menuId, "ожидание");
+                }
                 return false;
             }
 
@@ -493,7 +505,13 @@ namespace BannerlordAutopilot
                     }
                     else
                     {
-                        StartWaiting(party, peaceful, menuId);
+                        // Сначала потребности, потом ожидание: следующий пересчёт AI
+                        // увидит купленную еду и нанятых.
+                        TryServe(party, peaceful, menuId, "прибытие");
+                        if (_mode == Mode.Apply)
+                        {
+                            StartWaiting(party, peaceful, menuId);
+                        }
                     }
                     return false;
 
@@ -545,6 +563,77 @@ namespace BannerlordAutopilot
             {
                 _waitingSinceHours = CampaignTime.Now.ToHours;
                 _longStayWarned = false;
+            }
+        }
+
+        /// <summary>Обслуживание партии в поселении, если пора и можно. Проход не
+        /// чаще раза в ServiceLimits.PassIntervalHours; причина, по которой сейчас
+        /// нельзя, пишется в журнал один раз, пока не сменится.</summary>
+        private void TryServe(MobileParty party, Settlement settlement, string menuId, string trigger)
+        {
+            if (_mode != Mode.Apply || !_services.IsDue(settlement))
+            {
+                return;
+            }
+            string blocked = ServiceBlocked(party, settlement, menuId);
+            if (blocked != null)
+            {
+                if (!_serviceBlocked.TryGetValue(settlement, out string last) || last != blocked)
+                {
+                    _serviceBlocked[settlement] = blocked;
+                    AutopilotLog.Write("  обслуживание «" + settlement.Name + "» не сейчас: " + blocked);
+                }
+                return;
+            }
+            _serviceBlocked.Remove(settlement);
+            try
+            {
+                _services.Run(party, settlement, trigger);
+            }
+            catch (Exception ex)
+            {
+                Disable("обслуживание в «" + settlement.Name + "» упало: " + ex.GetType().Name + ": " + ex.Message);
+            }
+        }
+
+        /// <summary>Почему обслуживание сейчас не идёт. null — можно. Признак
+        /// состояния — открытое меню поселения, а не CurrentSettlement или
+        /// IsPlayerWaiting: в деревенском ожидании CurrentSettlement пуст, а флаг
+        /// ожидания остаётся включённым и после «Перестать ждать».</summary>
+        private static string ServiceBlocked(MobileParty party, Settlement settlement, string menuId)
+        {
+            if (!MapIsActiveScreen())
+            {
+                return "поверх карты другой экран или окно";
+            }
+            if (InformationManager.IsAnyInquiryActive())
+            {
+                return "открыто окно с вопросом";
+            }
+            if (Campaign.Current.ConversationManager != null && Campaign.Current.ConversationManager.IsConversationInProgress)
+            {
+                return "идёт разговор";
+            }
+            if (party.MapEvent != null || party.SiegeEvent != null || settlement.IsUnderSiege)
+            {
+                return "бой или осада";
+            }
+            if (settlement.IsVillage && (settlement.IsRaided || settlement.IsUnderRaid))
+            {
+                return "деревня разграблена или под налётом";
+            }
+            switch (menuId)
+            {
+                case "town":
+                case "village":
+                case "town_wait_menus":
+                    return null;
+                case "castle":
+                    return "в замке у игрока нет ни рынка, ни добровольцев";
+                case "village_wait_menus":
+                    return "в деревенском ожидании партия за околицей — торговать и нанимать игрок там не может; обслуживание при следующем входе";
+                default:
+                    return "открыто меню «" + menuId + "», а не меню поселения";
             }
         }
 

@@ -791,7 +791,7 @@ internal static class Program
             Check(Grain(w) == 0 && CampaignEventDispatcher.Recruited.Count == 0, "деревня разграблена — ничего");
         });
 
-        Console.WriteLine("\n[проверка 14.09] пропуски обслуживания: оплата найма и предел между загрузками");
+        Console.WriteLine("\n[проверка 14.09] пропуски обслуживания: оплата найма, предел между загрузками, пределы, которые срабатывают");
         Try("событие найма падает", () =>
         {
             var b = Fresh(); var w = MakeWorld(prisoners: false); CampaignEventDispatcher.TestRecruitedThrows = true;
@@ -822,6 +822,22 @@ internal static class Program
             Check(LogCount("ОБСЛУЖИВАНИЕ") == passes + 1 && Grain(w) == grainBefore + 40,
                   "через 6 часов после прохода, сделанного до сохранения, идёт следующий (проходов " + passes + " → " + LogCount("ОБСЛУЖИВАНИЕ")
                   + ", зерна " + grainBefore + " → " + Grain(w) + ")");
+        });
+        Try("пределы найма за проход срабатывают", () =>
+        {
+            // Мир MakeWorld в пределы не упирается (3 бойца по 30), и до 14.09 ни одна
+            // проверка их не доводила до срабатывания — снятый предел никто бы не заметил.
+            var b = Fresh(); var w = MakeWorld(prisoners: false); SetLimit("MaxRecruitsPerPass", 2);
+            Enable(b); b.PollState(); ArriveTown(w.Place); b.PollState();
+            Check(CampaignEventDispatcher.Recruited.Count == 2 && w.Notable.VolunteerTypes[2] == w.Recruit
+                  && AutopilotLog.Lines.Any(l => l.Contains("остановка: предел 2 за проход")),
+                  "предел числа за проход 2: нанято двое, третий доброволец остался, причина в журнале (нанято " + CampaignEventDispatcher.Recruited.Count + ")");
+            b = Fresh(); w = MakeWorld(prisoners: false); SetLimit("MaxRecruitSpendPerPass", 60);
+            Enable(b); b.PollState(); ArriveTown(w.Place); b.PollState();
+            Check(CampaignEventDispatcher.Recruited.Count == 2 && Hero.MainHero.Gold == 20000 - 150 * 20 - 60
+                  && AutopilotLog.Lines.Any(l => l.Contains("не по деньгам 1")),
+                  "предел трат на найм 60: нанято двое по 30, третий не по деньгам (нанято " + CampaignEventDispatcher.Recruited.Count
+                  + ", денег " + Hero.MainHero.Gold + ")");
         });
         Try("данные обслуживания в сейве пустые или испорчены", () =>
         {

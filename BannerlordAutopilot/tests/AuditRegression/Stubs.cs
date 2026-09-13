@@ -109,7 +109,8 @@ namespace TaleWorlds.CampaignSystem {
   public int TestMaxRecruitIndex = 5;
   public override string ToString() => Name;
  }
- public interface IDataStore { void SyncData(string key, ref bool value); }
+ // Как настоящий IDataStore (CampaignSystem 11299): один обобщённый SyncData для любых типов.
+ public interface IDataStore { bool IsSaving { get; } bool IsLoading { get; } bool SyncData<T>(string key, ref T data); }
  public abstract class CampaignBehaviorBase { public abstract void RegisterEvents(); public abstract void SyncData(IDataStore data); }
  public class Event { public void AddNonSerializedListener(object owner, Action a) {} }
  public static class CampaignEvents { public static Event HourlyTickEvent=new(), OnGameLoadFinishedEvent=new(); }
@@ -120,12 +121,21 @@ namespace TaleWorlds.CampaignSystem {
   public static int ThinkFood = -1, ThinkMembers = -1;
   public void AiHourlyTick(MobileParty p, PartyThinkParams t) { ThinkFood = p.TotalFoodAtInventory; ThinkMembers = p.MemberRoster.TotalManCount; t.AIBehaviorScores.AddRange(NextScores); }
   public static List<CharacterObject> Recruited = new();
-  public void OnUnitRecruited(CharacterObject character, int amount) { for (int i = 0; i < amount; i++) Recruited.Add(character); }
+  // Подписчик события найма (квест, чужой мод) бросает исключение — событие падает целиком.
+  public static bool TestRecruitedThrows;
+  public void OnUnitRecruited(CharacterObject character, int amount)
+  {
+   if (TestRecruitedThrows) throw new InvalidOperationException("подписчик события найма упал");
+   for (int i = 0; i < amount; i++) Recruited.Add(character);
+  }
  }
 }
 namespace TaleWorlds.CampaignSystem.Settlements {
  public class Settlement : IMapPoint {
   public string Name="Town"; public bool IsUnderSiege; public CampaignVec2 GatePosition = new CampaignVec2{X=42};
+  // MBObjectBase.StringId: у каждого поселения свой, из XML мира, и он же после загрузки сейва.
+  static int _nextId;
+  public string StringId { get; set; } = "settlement_" + (++_nextId);
   public bool IsVillage { get; set; }
   public bool IsTown { get; set; }
   public bool IsRaided { get; set; }

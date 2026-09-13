@@ -48,6 +48,7 @@ internal static class Program
         AutopilotBehavior.AutoLeaveSettlement = true; AutopilotLog.Lines.Clear();
         CampaignEventDispatcher.NextScores.Clear(); TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.VisitCalls = 0;
         CampaignEventDispatcher.Recruited.Clear(); CampaignEventDispatcher.ThinkFood = -1; CampaignEventDispatcher.ThinkMembers = -1;
+        CampaignEventDispatcher.TestRecruitedThrows = false;
         TaleWorlds.CampaignSystem.Actions.SellItemsAction.TestBroken = false; TaleWorlds.CampaignSystem.Actions.SellPrisonersAction.TestCalls = 0;
         TaleWorlds.Library.InformationManager.TestInquiryActive = false; Helpers.MobilePartyHelper.TestLockedIds.Clear();
         return new AutopilotBehavior();
@@ -242,15 +243,20 @@ internal static class Program
     static string DisableSummary(AutopilotBehavior b) =>
         typeof(AutopilotBehavior).GetProperty("LastDisableSummary", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)?.GetValue(b) as string;
 
-    /// <summary>Хранилище сейва в памяти: сначала пишем, потом читаем тем же ключом.</summary>
+    /// <summary>Хранилище сейва в памяти — как CampaignBehaviorDataStore.BehaviorSaveData
+    /// (CampaignSystem 11325): при сохранении ключ добавляется (повтор ключа — исключение),
+    /// при загрузке без ключа значение не трогается и возвращается false.</summary>
     sealed class MemStore : IDataStore
     {
-        public readonly Dictionary<string, bool> Data = new Dictionary<string, bool>();
+        public readonly Dictionary<string, object> Data = new Dictionary<string, object>();
         public bool Loading;
-        public void SyncData(string key, ref bool value)
+        public bool IsSaving => !Loading;
+        public bool IsLoading => Loading;
+        public bool SyncData<T>(string key, ref T data)
         {
-            if (Loading) value = Data.TryGetValue(key, out var v) && v;
-            else Data[key] = value;
+            if (!Loading) { Data.Add(key, data); return true; }
+            if (Data.TryGetValue(key, out var v)) { data = (T)v; return true; }
+            return false;
         }
     }
 
@@ -711,8 +717,9 @@ internal static class Program
             var loaded = new AutopilotBehavior(); Enable(loaded); loaded.PollState();
             Check(Hero.MainHero.Gold == gold && Grain(w) == 150 && CampaignEventDispatcher.Recruited.Count == 3
                   && MobileParty.MainParty.PrisonRoster.TotalHeroes == 1,
-                  "после загрузки проход идёт заново, но по сохранённому состоянию ничего не дублирует");
+                  "новый объект без данных сейва (сейв до этой версии): проход идёт заново, но по состоянию партии ничего не дублирует");
         });
+
         Try("деревня", () =>
         {
             var b = Fresh(); var w = MakeWorld(village: true); Enable(b); b.PollState();
@@ -782,6 +789,51 @@ internal static class Program
             b = Fresh(); w = MakeWorld(village: true, prisoners: false); w.Place.IsRaided = true; Enable(b); b.PollState();
             MobileParty.MainParty.LastVisitedSettlement = w.Place; ArriveVillage(w.Place); b.PollState();
             Check(Grain(w) == 0 && CampaignEventDispatcher.Recruited.Count == 0, "деревня разграблена — ничего");
+        });
+
+        Console.WriteLine("\n[проверка 14.09] пропуски обслуживания: оплата найма и предел между загрузками");
+        Try("событие найма падает", () =>
+        {
+            var b = Fresh(); var w = MakeWorld(prisoners: false); CampaignEventDispatcher.TestRecruitedThrows = true;
+            Enable(b); b.PollState(); ArriveTown(w.Place); b.PollState();
+            int joined = MobileParty.MainParty.MemberRoster.TotalManCount - 20;
+            Check(joined == 1 && w.Notable.VolunteerTypes[0] == null && w.Notable.VolunteerTypes[1] == w.Recruit,
+                  "событие упало на первом бойце: в отряде +1, его слот освобождён, остальные добровольцы у старосты (в отряде +" + joined + ")");
+            int expected = 20000 - 150 * 20 - 30;
+            Check(Hero.MainHero.Gold == expected,
+                  "боец, уже попавший в отряд, оплачен, хотя событие после него упало (денег " + Hero.MainHero.Gold + ", ждали " + expected + ")");
+            Check(b.CurrentMode == AutopilotBehavior.Mode.Off && LogCount("НАНЯТ") == 1,
+                  "падение выключает автопилот, а журнал называет нанятого и оплаченного бойца (записей «НАНЯТ»: " + LogCount("НАНЯТ") + ")");
+        });
+        Try("загрузка сразу после прохода, упёршегося в предел", () =>
+        {
+            var b = Fresh(); var w = MakeWorld(prisoners: false); SetLimit("MaxFoodSpendPerPass", 1000);
+            Enable(b); b.PollState(); ArriveTown(w.Place); b.PollState();
+            int grain = Grain(w), gold = Hero.MainHero.Gold;
+            Check(grain == 40, "проход упёрся в предел трат на еду: 40 зерна на 1000 с запасом на цену (куплено " + grain + ")");
+            var store = new MemStore(); b.SyncData(store);                                  // сохранение в час 0
+            CampaignTime.TestHours = 1;
+            var loaded = new AutopilotBehavior(); store.Loading = true; loaded.SyncData(store); Load(loaded);
+            Enable(loaded); loaded.PollState();
+            Check(LogCount("ОБСЛУЖИВАНИЕ") == 1 && Grain(w) == grain && Hero.MainHero.Gold == gold,
+                  "загрузка через час после прохода не даёт второго: предел трат за 6 часов не умножается загрузками (зерна " + Grain(w) + ")");
+            int passes = LogCount("ОБСЛУЖИВАНИЕ"), grainBefore = Grain(w);
+            CampaignTime.TestHours = 6; loaded.PollState();
+            Check(LogCount("ОБСЛУЖИВАНИЕ") == passes + 1 && Grain(w) == grainBefore + 40,
+                  "через 6 часов после прохода, сделанного до сохранения, идёт следующий (проходов " + passes + " → " + LogCount("ОБСЛУЖИВАНИЕ")
+                  + ", зерна " + grainBefore + " → " + Grain(w) + ")");
+        });
+        Try("данные обслуживания в сейве пустые или испорчены", () =>
+        {
+            foreach (string saved in new[] { "", "мусор;=5;x=abc;;" })
+            {
+                var b = Fresh(); var w = MakeWorld(prisoners: false);
+                var store = new MemStore { Loading = true };
+                store.Data["shedautopilot_servicePasses"] = saved;
+                b.SyncData(store); Load(b);
+                Enable(b); b.PollState(); ArriveTown(w.Place); b.PollState();
+                Check(Grain(w) == 150, "сейв с данными «" + saved + "»: загрузка не падает, проход в поселении идёт (зерна " + Grain(w) + ")");
+            }
         });
 
         Console.WriteLine($"\nИтог: {passed} ok, {failed} FAIL");

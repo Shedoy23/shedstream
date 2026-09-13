@@ -226,6 +226,10 @@ internal static class Program
 
     static int LogCount(string fragment) => AutopilotLog.Lines.Count(l => l.Contains(fragment));
 
+    /// <summary>Экран карты текущей игры — на нём открываются окна поверх карты.</summary>
+    static SandBox.View.Map.MapScreen Screen =>
+        (SandBox.View.Map.MapScreen)((MapState)TaleWorlds.Core.Game.Current.GameStateManager.ActiveState).Handler;
+
     static void Enable(AutopilotBehavior b, AutopilotBehavior.Mode mode = AutopilotBehavior.Mode.Apply)
     {
         if (!b.TryEnable(mode, out var why)) throw new Exception("не включился: " + why);
@@ -850,6 +854,65 @@ internal static class Program
                 Enable(b); b.PollState(); ArriveTown(w.Place); b.PollState();
                 Check(Grain(w) == 150, "сейв с данными «" + saved + "»: загрузка не падает, проход в поселении идёт (зерна " + Grain(w) + ")");
             }
+        });
+
+        Console.WriteLine("\n[прогон в игре 14.09] окно поверх карты: время заперто, а автопилот окна не видел");
+        Try("окно случайного события у деревни", () =>
+        {
+            // Жемянь, 02:50: после прибытия открылось окно события (CreateLayout ставит Stop и
+            // запирает время), автопилот обслуживал и нажимал «Подождать» под ним, а запись о
+            // простое 161 с называла только «заблокирован».
+            var b = Fresh(); var w = MakeWorld(village: true, prisoners: false); Enable(b); b.PollState();
+            MobileParty.MainParty.LastVisitedSettlement = w.Place; ArriveVillage(w.Place);
+            Screen.IsMapIncidentActive = true; Campaign.Current.TimeControlModeLock = true;
+            var t0 = new DateTime(2026, 9, 14, 2, 50, 29);
+            SetClock(t0); b.PollState();
+            Check(MenuContext.Invoked.Count == 0 && Grain(w) == 0 && CampaignEventDispatcher.Recruited.Count == 0,
+                  "под окном события ни обслуживания, ни «Подождать» (в игре было и то и другое)");
+            SetClock(t0.AddSeconds(11)); b.PollState();
+            Check(AutopilotLog.Lines.Any(l => l.Contains("ПРОСТОЙ") && l.Contains("окно случайного события")),
+                  "запись о простое называет окно, которое держит игру (было только «заблокирован»)");
+            Screen.IsMapIncidentActive = false; Campaign.Current.TimeControlModeLock = false;         // человек выбрал вариант
+            b.PollState();
+            Check(Grain(w) == 60 && CampaignEventDispatcher.Recruited.Count == 3 && MenuContext.Invoked.Contains("village_wait"),
+                  "окно закрыто — автопилот продолжает сам: обслуживание и «Подождать» (зерна " + Grain(w) + ")");
+        });
+        Try("каждое окно поверх карты останавливает действия", () =>
+        {
+            var overlays = new (string Name, Action<SandBox.View.Map.MapScreen> Open)[]
+            {
+                ("событие", s => s.IsMapIncidentActive = true), ("брак", s => s.IsMarriageOfferPopupActive = true),
+                ("наследник", s => s.IsHeirSelectionPopupActive = true), ("армия", s => s.IsInArmyManagement = true),
+                ("найм", s => s.IsInRecruitment = true), ("управление поселением", s => s.IsInTownManagement = true),
+                ("логово", s => s.IsInHideoutTroopManage = true), ("автобой", s => s.IsInBattleSimulation = true),
+                ("настройки", s => s.IsInCampaignOptions = true), ("меню паузы", s => s.IsEscapeMenuOpened = true),
+                ("читы", s => s.IsMapCheatsActive = true), ("контекстное меню", s => s.IsOverlayContextMenuEnabled = true),
+                ("энциклопедия", s => s.EncyclopediaScreenManager.IsEncyclopediaOpen = true),
+            };
+            var acted = new List<string>();
+            foreach (var overlay in overlays)
+            {
+                var b = Fresh(); ArriveTown(); overlay.Open(Screen); Enable(b); b.PollState();
+                if (MenuContext.Invoked.Count > 0 || PlayerEncounter.FinishCalls > 0) acted.Add(overlay.Name);
+            }
+            Check(acted.Count == 0, "ни под одним из " + overlays.Length + " окон карты пункты меню не нажимаются"
+                                    + (acted.Count > 0 ? " (нажимались под: " + string.Join(", ", acted) + ")" : ""));
+        });
+        Try("энциклопедия на свободной карте", () =>
+        {
+            var b = Fresh(); MobileParty.MainParty.IsMoving = true; Screen.EncyclopediaScreenManager.IsEncyclopediaOpen = true;
+            Enable(b); b.PollState();
+            Check(Campaign.Current.TimeControlMode == CampaignTimeControlMode.Stop,
+                  "человек открыл энциклопедию — автопилот не снимает паузу под ней");
+        });
+        Try("обслуживание во время ожидания под окном", () =>
+        {
+            var b = Fresh(); var w = MakeWorld(prisoners: false); SetLimit("MaxFoodSpendPerPass", 1000);
+            Enable(b); b.PollState(); ArriveTown(w.Place); b.PollState();
+            int grain = Grain(w);
+            CampaignTime.TestHours = 7; Screen.IsMapIncidentActive = true; b.PollState();
+            Check(Grain(w) == grain && LogCount("ОБСЛУЖИВАНИЕ") == 1,
+                  "через 7 часов ожидания проход не идёт, пока открыто окно (зерна " + grain + " → " + Grain(w) + ")");
         });
 
         Console.WriteLine($"\nИтог: {passed} ok, {failed} FAIL");

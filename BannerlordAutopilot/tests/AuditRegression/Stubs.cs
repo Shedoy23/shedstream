@@ -25,7 +25,8 @@ using TaleWorlds.CampaignSystem.Settlements;
 namespace TaleWorlds.Core {
  public class Stub {}
  public class GameState {}
- public class GameStateManager { public GameState ActiveState { get; set; } = new MapState(); public bool ActiveStateDisabledByUser { get; set; } }
+ // В игре у карты всегда есть экран: MapState.Handler — это MapScreen (CampaignSystem 155552).
+ public class GameStateManager { public GameState ActiveState { get; set; } = new MapState { Handler = new SandBox.View.Map.MapScreen() }; public bool ActiveStateDisabledByUser { get; set; } }
  public class Game { public static Game Current = new(); public GameStateManager GameStateManager { get; } = new(); }
 }
 namespace TaleWorlds.Library {
@@ -54,7 +55,8 @@ namespace TaleWorlds.CampaignSystem.GameMenus {
  }
 }
 namespace TaleWorlds.CampaignSystem.GameState {
- public class MapState : TaleWorlds.Core.GameState {}
+ public interface IMapStateHandler {}
+ public class MapState : TaleWorlds.Core.GameState { public IMapStateHandler Handler { get; set; } }
  public class MenuContext {
   public static List<string> Invoked = new();
   public GameMenu GameMenu { get; set; }
@@ -244,6 +246,27 @@ namespace Helpers {
   }
   // 2275: index <= VolunteerModel.MaximumIndexHeroCanRecruitFromHero(buyer, seller).
   public static bool HeroCanRecruitFromHero(Hero buyerHero, Hero sellerHero, int index) => index <= sellerHero.TestMaxRecruitIndex;
+ }
+}
+namespace SandBox.View.Map {
+ // Окна поверх карты — слои MapScreen (SandBox.View 11135-11198). ActiveState при них
+ // остаётся MapState, поэтому признак «активен экран карты» их не видит. В игре
+ // сеттеры закрыты; здесь открыты, чтобы открывать окна в сценариях.
+ public class MapEncyclopediaView { public bool IsEncyclopediaOpen { get; set; } }
+ public class MapScreen : TaleWorlds.CampaignSystem.GameState.IMapStateHandler {
+  public bool IsEscapeMenuOpened { get; set; }
+  public bool IsInBattleSimulation { get; set; }
+  public bool IsInTownManagement { get; set; }
+  public bool IsInHideoutTroopManage { get; set; }
+  public bool IsInArmyManagement { get; set; }
+  public bool IsInRecruitment { get; set; }
+  public bool IsInCampaignOptions { get; set; }
+  public bool IsMarriageOfferPopupActive { get; set; }
+  public bool IsMapCheatsActive { get; set; }
+  public bool IsMapIncidentActive { get; set; }
+  public bool IsHeirSelectionPopupActive { get; set; }
+  public bool IsOverlayContextMenuEnabled { get; set; }
+  public MapEncyclopediaView EncyclopediaScreenManager { get; } = new();
  }
 }
 namespace BannerlordAutopilot {

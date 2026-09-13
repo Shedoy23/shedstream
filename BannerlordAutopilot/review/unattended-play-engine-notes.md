@@ -20,6 +20,19 @@ TaleWorlds.Core, TaleWorlds.Library, TaleWorlds.MountAndBlade.GauntletUI).
 
 ## Бой (не сделано)
 
+0. **Реакция на соседние отряды у партии игрока выключена движком — прогон 14.09.**
+   Владелец: «игнорит бандитов, которые пробегают в 5 метрах». Причина (прочитано):
+   нападение и бегство — не часовой пересчёт, а «инициатива» в каждом тике AI:
+   `MobilePartyAi.GetBehaviors` (CS 104630-104668) зовёт
+   `MobilePartyAIModel.GetBestInitiativeBehavior` и при оценке > 1 ставит `EngageParty`
+   или бегство — но только если `ShouldPartyCheckInitiativeBehavior`, а
+   `DefaultMobilePartyAIModel` для `MainParty` возвращает false (63373-63388).
+   Автопилот берёт только часовой пересчёт (патруль, поселения) и инициативу не
+   зовёт. Следствия: не нападает на слабых и **не убегает от сильных** — догнавший
+   лорд откроет встречу, и автопилот выключится. Порядок, предложенный владельцу:
+   бегство тем же расчётом (`GetBestInitiativeBehavior` публичный), потом автобой,
+   потом нападение.
+
 1. **Разговор в начале встречи.** Полевая встреча открывает меню `encounter_meeting`,
    его init вызывает `PlayerEncounter.DoMeeting()` → разговор на карте, если
    `MeetingDone == false` (185571-185598, по разведке). `GameMenu.PreInit` зовёт
@@ -101,7 +114,10 @@ TaleWorlds.Core, TaleWorlds.Library, TaleWorlds.MountAndBlade.GauntletUI).
   Кнопки = `data.AffirmativeAction/NegativeAction` + закрытие; публично —
   `InformationManager.IsAnyInquiryActive()`, `InformationManager.HideInquiry()`.
   Окно с `pauseGameActiveState` останавливает движок целиком (3481-3485).
-* **Случайные события карты (incidents) — найдено прогоном 14.09, не сделано.**
+* **Случайные события карты (incidents) — найдено прогоном 14.09.** Окно было —
+  подтвердил владелец. Сделано (`5f31d82`): под любым из 13 окон поверх карты
+  автопилот ничего не делает, запись о простое называет окно. Выбор варианта
+  события не сделан — решение владельца.
   Окно с вариантами выбора. `GauntletMapIncidentView.CreateLayout` ставит `Stop`,
   запирает время (`SetTimeControlModeLock(true)`) и ставит движок на паузу
   (SandBox.GauntletUI 8153-8157, прочитано); закрытие возвращает прежние режим и

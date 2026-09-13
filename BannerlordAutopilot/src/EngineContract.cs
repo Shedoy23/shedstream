@@ -252,7 +252,10 @@ namespace BannerlordAutopilot
             if (p != null)
             {
                 writable = p.CanWrite && p.GetSetMethod() != null;
-                return p.PropertyType;
+                // Мод каждое проверяемое свойство ЧИТАЕТ. Без публичного чтения
+                // совпадение типа ничего не значит: вызов упал бы посреди
+                // кампании (контрпример проверки 13.09, tests/ContractGetter).
+                return p.GetGetMethod() != null ? p.PropertyType : null;
             }
             FieldInfo f = type.GetField(name, flags);
             if (f != null)

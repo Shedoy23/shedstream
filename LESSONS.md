@@ -48,7 +48,7 @@
 - **Migrations must be wired.** Add `m<N>_*.py` AND register it in `main.py:run_migrations()` (sequential, idempotent via the `migrations_applied` table). `lint_consistency.py` fails CI/commit if a migration file isn't wired. Never edit an already-applied migration — add a new one. The seed in a migration only affects fresh DBs; to change existing prod rows, write an `UPDATE` migration.
 - **New mod→backend event MUST be declared in `manifest.yaml` `events:`.** The backend drops unknown types (`event_not_in_manifest`, `routes/module_api.py`) BEFORE the adapter runs, so a fresh `PostEventAsync("bannerlord", "hero.X", …)` silently no-ops. Symptom: mod logs the push, DB unchanged. **Now lint-gated:** `check_manifest_events` scans literal push sites in `BannerlordLink/src` and hard-fails on any undeclared type (it caught a 3rd live case, `hero.marriage_activated`, the day it was written). Pushes built from a *variable* stay invisible to it — those are still on you. Declaring the event only makes the backend accept it; route it in `_adapter.handle_event` too, or it lands nowhere. Same rule for new actions (`manifest.supports_action`).
 - **Two currencies, never conflate.** 💎 crustics = platform points (`userPoints`, earned watching/chat); 💰 dinars = in-game `Hero.Gold`. 1 💎 = 5 dinars. An action charges ONE currency by meaning. **Крустики зарабатываются ТОЛЬКО в ядре (просмотр/активность); внутри `modules/<игра>/` и `routes/<игра>_*.py` они только СПИСЫВАЮТСЯ** (решение владельца 2026-07-29, `PLATFORM_VISION.md` §«Граница валют»). Начисление крустиков в игровом модуле = нарушение; возврат уплаченного (рефанд) — не нарушение. Причина: рента с феодов уже вырезана в мае за то, что зритель богател без участия. (Frontend currently shows crustics with two glyphs, `💎` and `⦷` — unify if you touch that area.)
-- **Charge + effect in ONE transaction.** `add_points`/`remove_points` open their own connection and commit alone — never pair them with a separate state change: a crash in that window = money debited without effect, or a double reward. Use `Database.add_points_tx(conn,…)` / `remove_points_tx(conn,…)`, which run on the CALLER's `conn` and join the same `BEGIN IMMEDIATE` → one commit, all-or-nothing. Same for TOCTOU: re-check the guard (cooldown/dedup) INSIDE that transaction. (Found 7× — `docs/AUDIT_CORE_MECHANICS_2026-07-02.md`.)
+- **Charge + effect in ONE transaction.** `add_points`/`remove_points` open their own connection and commit alone — never pair them with a separate state change: a crash in that window = money debited without effect, or a double reward. Use `Database.add_points_tx(conn,…)` / `remove_points_tx(conn,…)`, which run on the CALLER's `conn` and join the same `BEGIN IMMEDIATE` → one commit, all-or-nothing. Same for TOCTOU: re-check the guard (cooldown/dedup) INSIDE that transaction. (Found 7× — `docs/AUDIT_CORE_MECHANICS_2026-07-02.md`.) **14.09 — то же окно без базы, в автопилоте Bannerlord.** Цена нанятого бойца шла в сумму списания после события найма, а событие зовёт чужой код. Упади подписчик — боец уже в отряде, `finally` списывает сумму без него. Движок в том же порядке просто падает, мод исключение ловит и продолжает, поэтому дыра только у мода. В коде без транзакций правило звучит так: учёт — сразу за наблюдаемым эффектом, до любого вызова чужого кода.
 - **Платное действие обязано детектить тихий no-op ДО ack-true (иначе зритель платит за ноль).** Движковый API «сделай X» часто молча ничего не делает (кап / дубль / нет цели / оффлайн), хендлер отдаёт success → списание без эффекта и без рефанда. У каждого НОВОГО платного действия найти его no-op пути и возвращать на них fail → авто-рефанд. Детект — по НАБЛЮДАЕМОМУ эффекту (before/after публичными геттерами, или «WorkOrder появился» для void-API), НЕ по копии внутренней формулы движка — она сломается на апдейте игры. (Класс всплыл 3× подряд в shedcolony 2026-07-04.) **4-й случай, 2026-07-29, багрепорт #42:** `UpgradeGearHandler` СЧИТАЛ число заменённых слотов и использовал его только в строке лога — золото (до 1.5M💰) списывалось, тир рос и уходил на бэкенд при нуле замен. Признак класса: наблюдаемый эффект уже посчитан, но не проверен. Если функция возвращает «сколько сделано» — это условие, а не украшение лога.
 - **Пользователь ОДИН. Метрики — дневник его недели, а не сигнал о продукте.**
   Ноль покупок/пешек/действий на модуле значит одно из трёх, и числом их не
@@ -705,3 +705,36 @@ HTML-КОММЕНТАРИИ («Заполняется из `<meta name="shedlink
 Утверждение о побочных эффектах — с транзитивными вызовами, а не по телу метода.
 Не проверил полностью — пиши «нашёл N в классах X, Y; по всей сборке не
 искал», а не «читается в N местах».
+
+## Защита, проверенная там, где она не срабатывает (2026-09-14)
+
+**Что случилось.** Автопилот Bannerlord обслуживает партию игрока в поселении с
+пределами трат на проход и не чаще раза в шесть часов. Час последнего прохода
+жил в памяти, загрузка сейва его обнуляла. Я это видел и написал в коде, почему
+это безопасно: «после загрузки потребность считается по текущему состоянию —
+еды хватает, слоты пусты, ничего не задвоится». Проверка стенда «повторное
+включение и загрузка» это подтвердила. Независимая проверка 14.09 нашла, что
+утверждение ложно ровно тогда, когда предел нужен. Проход, упёршийся в предел,
+оставляет потребность, и загрузка через час даёт второй такой же проход: предел
+умножается на число загрузок.
+
+**Почему стенд согласился.** Мир стенда был собран так, что проход покрывал всю
+потребность: 150 зерна на 3000 при пределе 5000, трое бойцов при пределе 30. В
+этом мире предел не срабатывает никогда, а значит, любое утверждение о нём
+верно — и «соблюдается», и «потерять его безопасно». Проверив остальные пределы
+тем же вопросом, я нашёл у себя ещё два слепых места: пределы найма за проход
+(число и сумма) не доводил до срабатывания ни один тест, и их снятие стенд бы
+не заметил.
+
+**Класс.** Защиту — предел, резерв, кулдаун, вместимость — проверили в режиме,
+где она не нужна. Родственник истории 09.09 про «лимит пяти детей», который
+проверяли поиском строки в исходнике: там доказывали наличие константы, здесь —
+поведение, но в мире, где константа ничего не решает. И родственник 13.09
+(деревни в стенде не было): стенд моделирует то, о чём автор уже думал.
+
+**Правило.** Для каждой защиты — сценарий, в котором она СРАБАТЫВАЕТ, и
+мутация, которая её снимает и валит этот сценарий. Утверждение «потерять защиту
+безопасно» проверять именно в режиме срабатывания. Признак опасного
+рассуждения — «потребность пересчитается, значит, ничего не задвоится».
+Пересчитается, но остаток потребности есть ровно тогда, когда предел сработал, и
+задваивается именно этот остаток.

@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using Helpers;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.Encounters;
+using TaleWorlds.CampaignSystem.GameState;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
@@ -41,6 +43,14 @@ namespace BannerlordAutopilot
     /// маршрута при выключении. Раньше F10 в городе выводил партию, а F12
     /// после F10 затирал маршрут, который задал человек.
     ///
+    /// ПОСЕЛЕНИЕ — КАК У NPC: вошёл, остался, ушёл по решению. NPC остаётся в
+    /// поселении, пока лучшая цель — само это поселение
+    /// (CheckExitingSettlementParallel), и уходит, когда пересчёт выбрал другое.
+    /// Автопилот делает то же пунктами меню игрока: «Подождать» (время идёт,
+    /// партия внутри), а когда пересчёт выбрал другую цель — «Перестать ждать»
+    /// и выход. Прототип выходил сразу после входа, и 13.09 это дало 89 входов
+    /// и выходов в одном городе.
+    ///
     /// ВЫХОД ИЗ ПОСЕЛЕНИЯ — только из МИРНОГО поселения и ровно так, как это
     /// делает кнопка «Уйти» (PlayerTownVisitCampaignBehavior.
     /// game_menu_settlement_leave_on_consequence): к воротам → LeaveSettlement
@@ -50,9 +60,14 @@ namespace BannerlordAutopilot
     /// чужой партией проверяются РАНЬШЕ поселения: прежний порядок принимал
     /// встречу с осаждающим лордом за прибытие и закрывал её вместе с боем.
     ///
+    /// ВРЕМЯ НЕ СТОИТ. Человека за компьютером нет, поэтому в режиме применения
+    /// пауза на свободной карте снимается, а простой дольше 10 секунд
+    /// записывается в журнал с описанием того, что держит игру.
+    ///
     /// ЧЕГО ЗДЕСЬ НЕТ: осада, штурм, рейд, оборона, преследование, армия,
-    /// боевой автопилот. Решения такого рода автопилот не применяет и
-    /// останавливается с названной причиной.
+    /// боевой автопилот. Такие решения штатного AI пропускаются — берётся
+    /// лучшее из выполнимых; бой и встреча с чужой партией пока выключают
+    /// автопилот с названной причиной.
     ///
     /// Разбор: docs/BANNERLORD_AUTOPILOT_RESEARCH_2026-09-12.md,
     /// независимая проверка: dist/audit/autopilot-review/REVIEW_RU.md.</summary>
@@ -105,13 +120,38 @@ namespace BannerlordAutopilot
         // паузу, и 13.09 цикл застывал после каждого выхода.
         private int _resumeSpeed;
 
-        // Поселение, из которого партия только что вышла и никуда ещё не
-        // уезжала. Если штатный AI заводит обратно — это пинг-понг: 13.09 он
-        // дал 89 входов и выходов в одном городе. NPC в такой ситуации
-        // ОСТАЁТСЯ в поселении (CheckExitingSettlementParallel не выводит, пока
-        // TargetSettlement == CurrentSettlement), а пребывание автопилот не
-        // поддерживает — поэтому останавливаемся с причиной.
-        private Settlement _lastExited;
+        // Поселения, где подождать нельзя (у ворот замка, пункт недоступен). NPC
+        // бы вошёл и остался, партия игрока — нет. Поэтому решение штатного AI
+        // снова ехать туда заменяется следующим: иначе вход и выход по кругу,
+        // как 13.09.
+        private readonly HashSet<Settlement> _cannotStay = new HashSet<Settlement>();
+
+        // Решение, ради которого надо уйти из поселения. Принимается часовым
+        // тиком, выполняется опросом по кадрам: пункты меню нажимаются там же,
+        // где их нажал бы игрок, а приказ выдаётся сразу после выхода — иначе
+        // партия час простояла бы у ворот.
+        private bool _hasPendingDecision;
+        private AIBehaviorData _pendingDecision;
+        private float _pendingScore;
+
+        // Пересчёт как у NPC: раз в шесть часов (AiPartyThinkBehavior.
+        // PartyHourlyAiTick, num = 6), стоящая партия — каждый час. Каждый час
+        // пересчитывать нельзя: при близких оценках партия разворачивалась бы
+        // на полпути.
+        private const int ThinkPeriodHours = 6;
+        private int _hoursSinceThink;
+
+        // Сторож простоя: время кампании не идёт дольше StallSeconds реального
+        // времени — значит, игру что-то держит (окно, меню, пауза), и без
+        // человека она так и простоит. Часы подменяются в проверках.
+        internal static Func<DateTime> Clock = () => DateTime.UtcNow;
+        private const double StallSeconds = 10;
+        private double _lastCampaignHours = -1;
+        private DateTime _lastProgressAt;
+        private bool _stallReported;
+        private int _stallsThisSession;
+        private double _longestStallSeconds;
+        private int _timeStartsThisSession;
 
         /// <summary>Что выключение реально сделало с партией — для сообщения на
         /// экране. Раньше F12 всегда писал «движение остановлено, состояние AI
@@ -120,9 +160,10 @@ namespace BannerlordAutopilot
 
         internal Mode CurrentMode => _mode;
 
-        /// <summary>Выходить ли из мирного поселения самостоятельно (только в
-        /// режиме применения). Без выхода цикл обрывается на первой же цели
-        /// «съездить в город»: движок партию игрока из поселения не выводит.</summary>
+        /// <summary>Работать ли в мирном поселении самостоятельно — ждать и
+        /// уходить (только в режиме применения). Без этого цикл обрывается на
+        /// первой же цели «съездить в город»: движок партию игрока из поселения
+        /// не выводит.</summary>
         internal static bool AutoLeaveSettlement = true;
 
         private void ResetSession()
@@ -137,7 +178,14 @@ namespace BannerlordAutopilot
             _startedIn = null;
             _handledSettlement = null;
             _resumeSpeed = 0;
-            _lastExited = null;
+            _cannotStay.Clear();
+            _hasPendingDecision = false;
+            _hoursSinceThink = 0;
+            _lastCampaignHours = -1;
+            _stallReported = false;
+            _stallsThisSession = 0;
+            _longestStallSeconds = 0;
+            _timeStartsThisSession = 0;
         }
 
         public override void RegisterEvents()
@@ -297,7 +345,10 @@ namespace BannerlordAutopilot
                                + "; смен цели " + _targetChangesThisSession
                                + "; повторов того же приказа " + _reappliesThisSession
                                + "; прибытий во время сеанса " + _settlementVisitsThisSession
-                               + "; подтверждённых выходов " + _settlementExitsThisSession);
+                               + "; подтверждённых выходов " + _settlementExitsThisSession
+                               + "; простоев " + _stallsThisSession
+                               + " (самый долгий " + _longestStallSeconds.ToString("F0", CultureInfo.InvariantCulture) + " с)"
+                               + "; снятий с паузы " + _timeStartsThisSession);
         }
 
         // ── Проверка состояния (каждые полсекунды, независимо от хода времени) ──
@@ -317,6 +368,11 @@ namespace BannerlordAutopilot
             {
                 Disable("партия игрока пропала или неактивна");
                 return false;
+            }
+
+            if (_mode == Mode.Apply)
+            {
+                WatchTime(party);
             }
 
             // СНАЧАЛА опасные состояния — до любых рассуждений о поселении.
@@ -339,45 +395,153 @@ namespace BannerlordAutopilot
                 _handledSettlement = null;
                 _startedIn = null;
                 RememberSpeed();
+                if (_mode == Mode.Apply)
+                {
+                    KeepTimeRunning(party);
+                }
                 return true;
             }
 
-            if (peaceful == _handledSettlement)
-            {
-                return false;
-            }
-            _handledSettlement = peaceful;
-
             if (_mode == Mode.Observe)
             {
-                AutopilotLog.Write("наблюдение: партия в «" + peaceful.Name
-                                   + "», в режиме наблюдения выход не выполняется");
+                if (peaceful != _handledSettlement)
+                {
+                    _handledSettlement = peaceful;
+                    AutopilotLog.Write("наблюдение: партия в «" + peaceful.Name
+                                       + "», в режиме наблюдения автопилот ничего не нажимает");
+                }
                 return false;
             }
 
-            if (peaceful != _startedIn)
+            if (peaceful != _handledSettlement)
             {
-                _settlementVisitsThisSession++;
-                AutopilotLog.Write("ПРИБЫЛИ в «" + peaceful.Name + "» (прибытие #"
-                                   + _settlementVisitsThisSession + ")");
-            }
-
-            if (peaceful == _lastExited)
-            {
-                Disable("штатный AI снова завёл в «" + peaceful.Name + "», из которого партия только что вышла. "
-                        + "NPC в таком случае остаётся в поселении, пока цель — это поселение; пребывание "
-                        + "автопилот пока не поддерживает. Остановлено, чтобы не входить и выходить по кругу");
-                return false;
+                _handledSettlement = peaceful;
+                if (peaceful != _startedIn)
+                {
+                    _settlementVisitsThisSession++;
+                    AutopilotLog.Write("ПРИБЫЛИ в «" + peaceful.Name + "» (прибытие #"
+                                       + _settlementVisitsThisSession + ")");
+                }
             }
 
             if (!AutoLeaveSettlement)
             {
-                Disable("вошли в «" + peaceful.Name + "», автоматический выход выключен — дальше руками");
+                Disable("вошли в «" + peaceful.Name + "», работа в поселениях выключена — дальше руками");
                 return false;
             }
 
-            LeavePeacefulSettlement(party, peaceful);
-            return false;
+            string menuId = MenuDriver.CurrentMenuId;
+            if (IsWaiting(menuId))
+            {
+                if (_hasPendingDecision)
+                {
+                    StopWaitingAndLeave(party, peaceful);
+                }
+                return false;
+            }
+
+            switch (menuId)
+            {
+                case null:
+                    // Встреча уже есть, меню ещё нет — движок открывает его в том же
+                    // переходе; решать нечего до следующего опроса.
+                    return false;
+
+                case "town":
+                case "castle":
+                case "village":
+                    if (_hasPendingDecision || _cannotStay.Contains(peaceful))
+                    {
+                        LeaveAndApplyPending(party, peaceful);
+                    }
+                    else
+                    {
+                        StartWaiting(party, peaceful, menuId);
+                    }
+                    return false;
+
+                case "town_outside":
+                case "castle_outside":
+                case "village_looted":
+                    // У ворот, куда не пускают, и в разграбленной деревне подождать
+                    // нельзя — остаётся уйти (village_looted_leave_on_consequence
+                    // тоже LeaveSettlement → Finish → Hold).
+                    if (_cannotStay.Add(peaceful))
+                    {
+                        AutopilotLog.Write("  у «" + peaceful.Name + "» подождать нельзя (меню " + menuId
+                                           + "): уходим; в этом сеансе автопилот туда не вернётся");
+                    }
+                    LeaveAndApplyPending(party, peaceful);
+                    return false;
+
+                default:
+                    Disable("в «" + peaceful.Name + "» открыто меню, которое автопилот не знает: "
+                            + MenuDriver.Describe());
+                    return false;
+            }
+        }
+
+        private static bool IsWaiting(string menuId)
+        {
+            return (menuId == "town_wait_menus" || menuId == "village_wait_menus")
+                   && PlayerEncounter.Current != null
+                   && PlayerEncounter.Current.IsPlayerWaiting;
+        }
+
+        /// <summary>Остаться в поселении, как NPC: пункт «Подождать». В городе и
+        /// замке партия остаётся внутри, в деревне движок сам выводит её за
+        /// околицу (game_menu_wait_village_on_consequence) — так и у игрока.</summary>
+        private void StartWaiting(MobileParty party, Settlement settlement, string menuId)
+        {
+            string option = menuId == "village" ? "village_wait" : "town_wait";
+            if (!MenuDriver.TryInvoke(option, out string why))
+            {
+                _cannotStay.Add(settlement);
+                AutopilotLog.Write("  подождать в «" + settlement.Name + "» нельзя (" + why
+                                   + "): уходим; в этом сеансе автопилот туда не вернётся");
+                LeaveAndApplyPending(party, settlement);
+                return;
+            }
+
+            if (PlayerEncounter.Current != null && PlayerEncounter.Current.IsPlayerWaiting)
+            {
+                AutopilotLog.Write("  ЖДЁМ в «" + settlement.Name + "»: пункт «Подождать», время "
+                                   + Campaign.Current.TimeControlMode
+                                   + "; уйдём, когда пересчёт штатного AI выберет другую цель");
+            }
+            else
+            {
+                Disable("пункт «Подождать» в «" + settlement.Name + "» нажат, но ожидание не началось: "
+                        + MenuDriver.Describe());
+            }
+        }
+
+        /// <summary>Пересчёт выбрал другую цель: «Перестать ждать», затем выход.</summary>
+        private void StopWaitingAndLeave(MobileParty party, Settlement settlement)
+        {
+            if (!MenuDriver.TryInvoke("wait_leave", out string why))
+            {
+                Disable("не удалось перестать ждать в «" + settlement.Name + "»: " + why);
+                return;
+            }
+            if (PlayerEncounter.Current != null && PlayerEncounter.Current.IsPlayerWaiting)
+            {
+                Disable("«Перестать ждать» в «" + settlement.Name + "» нажат, но ожидание продолжается");
+                return;
+            }
+            AutopilotLog.Write("  ожидание в «" + settlement.Name + "» закончено пунктом «Перестать ждать»");
+            LeaveAndApplyPending(party, settlement);
+        }
+
+        /// <summary>Выйти и сразу выполнить решение, ради которого вышли.</summary>
+        private void LeaveAndApplyPending(MobileParty party, Settlement settlement)
+        {
+            if (!LeavePeacefulSettlement(party, settlement) || !_hasPendingDecision)
+            {
+                return;
+            }
+            _hasPendingDecision = false;
+            ApplyDecision(party, _pendingDecision, _pendingScore);
         }
 
         /// <summary>Состояние, в котором автопилот не работает. null — всё в порядке.
@@ -438,8 +602,9 @@ namespace BannerlordAutopilot
                    && PlayerEncounter.Current == null;
         }
 
-        /// <summary>Выход тем же путём, что кнопка «Уйти», и только с подтверждением.</summary>
-        private void LeavePeacefulSettlement(MobileParty party, Settlement settlement)
+        /// <summary>Выход тем же путём, что кнопка «Уйти», и только с подтверждением.
+        /// true — выход наблюдается (партия вне поселения и встречи).</summary>
+        private bool LeavePeacefulSettlement(MobileParty party, Settlement settlement)
         {
             try
             {
@@ -463,7 +628,7 @@ namespace BannerlordAutopilot
             catch (Exception ex)
             {
                 Disable("выход из «" + settlement.Name + "» упал: " + ex.GetType().Name + ": " + ex.Message);
-                return;
+                return false;
             }
 
             // Засчитываем только наблюдаемый результат, а не сам запрос.
@@ -471,15 +636,151 @@ namespace BannerlordAutopilot
             {
                 _settlementExitsThisSession++;
                 _lastTargetKey = null;
+                _handledSettlement = null;
                 AutopilotLog.Write("  ВЫШЛИ из «" + settlement.Name + "» (подтверждённый выход #"
                                    + _settlementExitsThisSession + ")");
-                _lastExited = settlement;
                 ResumeTimeAfterLeave();
+                return true;
             }
-            else
+            Disable("выход из «" + settlement.Name + "» не подтвердился: партия всё ещё в поселении или встрече");
+            return false;
+        }
+
+        /// <summary>Снять паузу на свободной карте.
+        ///
+        /// Человек за компьютером ставит паузу сам и сам же её снимает; автопилоту
+        /// без человека пауза — остановка всей игры. Режимы «Stoppable» к тому же
+        /// не двигают время, пока партия стоит (Campaign.TickMapTime при
+        /// IsMainPartyWaiting), поэтому ставится неостанавливаемый режим той
+        /// скорости, на которой автопилот ехал. Поверх карты открыто окно, меню
+        /// или разговор — не трогаем: их закрывает не пауза.</summary>
+        private void KeepTimeRunning(MobileParty party)
+        {
+            Campaign campaign = Campaign.Current;
+            if (campaign.CurrentMenuContext != null
+                || (campaign.ConversationManager != null && campaign.ConversationManager.IsConversationInProgress)
+                || !(Game.Current?.GameStateManager?.ActiveState is MapState))
             {
-                Disable("выход из «" + settlement.Name + "» не подтвердился: партия всё ещё в поселении или встрече");
+                return;
             }
+
+            CampaignTimeControlMode mode = campaign.TimeControlMode;
+            if (TimeAdvances(mode))
+            {
+                return;
+            }
+
+            CampaignTimeControlMode wanted = _resumeSpeed == 2
+                ? CampaignTimeControlMode.UnstoppableFastForward
+                : CampaignTimeControlMode.UnstoppablePlay;
+            campaign.TimeControlMode = wanted;
+            if (campaign.TimeControlMode == wanted)
+            {
+                _timeStartsThisSession++;
+                AutopilotLog.Write("время запущено: было " + mode + ", партия " + party.DefaultBehavior
+                                   + ", стало " + wanted);
+            }
+        }
+
+        private static bool TimeAdvances(CampaignTimeControlMode mode)
+        {
+            switch (mode)
+            {
+                case CampaignTimeControlMode.UnstoppablePlay:
+                case CampaignTimeControlMode.UnstoppableFastForward:
+                case CampaignTimeControlMode.UnstoppableFastForwardForPartyWaitTime:
+                    return true;
+                case CampaignTimeControlMode.StoppablePlay:
+                case CampaignTimeControlMode.StoppableFastForward:
+                    return !Campaign.Current.IsMainPartyWaiting;
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>Сторож простоя: время кампании не идёт дольше StallSeconds —
+        /// одна запись с описанием того, что держит игру, и одна — когда пошло.</summary>
+        private void WatchTime(MobileParty party)
+        {
+            double hours = CampaignTime.Now.ToHours;
+            DateTime now = Clock();
+            if (_lastCampaignHours < 0 || hours > _lastCampaignHours)
+            {
+                if (_stallReported)
+                {
+                    double stalled = (now - _lastProgressAt).TotalSeconds;
+                    _longestStallSeconds = Math.Max(_longestStallSeconds, stalled);
+                    AutopilotLog.Write("время снова идёт после простоя "
+                                       + stalled.ToString("F0", CultureInfo.InvariantCulture) + " с");
+                }
+                _lastCampaignHours = hours;
+                _lastProgressAt = now;
+                _stallReported = false;
+                return;
+            }
+
+            double seconds = (now - _lastProgressAt).TotalSeconds;
+            if (!_stallReported && seconds >= StallSeconds)
+            {
+                _stallReported = true;
+                _stallsThisSession++;
+                AutopilotLog.Write("ПРОСТОЙ: время кампании не идёт уже "
+                                   + seconds.ToString("F0", CultureInfo.InvariantCulture) + " с. "
+                                   + DescribeGame(party));
+            }
+        }
+
+        /// <summary>Что держит игру — для записи о простое.</summary>
+        private static string DescribeGame(MobileParty party)
+        {
+            var sb = new StringBuilder();
+            try
+            {
+                GameStateManager states = Game.Current?.GameStateManager;
+                sb.Append("экран ").Append(states?.ActiveState?.GetType().Name ?? "нет");
+                if (states != null && states.ActiveStateDisabledByUser)
+                {
+                    sb.Append(" (приостановлен окном)");
+                }
+                Campaign campaign = Campaign.Current;
+                sb.Append("; режим времени ").Append(campaign.TimeControlMode);
+                if (campaign.TimeControlModeLock)
+                {
+                    sb.Append(" (заблокирован)");
+                }
+                if (campaign.IsMainPartyWaiting)
+                {
+                    sb.Append("; партия стоит");
+                }
+                sb.Append("; меню ").Append(MenuDriver.Describe());
+                if (campaign.ConversationManager != null && campaign.ConversationManager.IsConversationInProgress)
+                {
+                    sb.Append("; идёт разговор");
+                }
+                if (PlayerEncounter.Current != null)
+                {
+                    sb.Append("; встреча: поселение ").Append(PlayerEncounter.EncounterSettlement?.Name?.ToString() ?? "нет")
+                      .Append(", партия ").Append(PlayerEncounter.EncounteredMobileParty?.Name?.ToString() ?? "нет")
+                      .Append(", бой ").Append(PlayerEncounter.Battle != null ? "да" : "нет")
+                      .Append(", ожидание ").Append(PlayerEncounter.Current.IsPlayerWaiting ? "да" : "нет");
+                }
+                sb.Append("; партия ").Append(Where(party))
+                  .Append(", поведение ").Append(party.DefaultBehavior)
+                  .Append(", движется ").Append(party.IsMoving);
+                if (Hero.MainHero != null && Hero.MainHero.IsPrisoner)
+                {
+                    sb.Append("; герой в плену");
+                }
+                if (Hero.MainHero != null && Hero.MainHero.IsWounded)
+                {
+                    sb.Append("; герой ранен");
+                }
+            }
+            catch (Exception ex)
+            {
+                sb.Append("; описание оборвалось: ").Append(ex.GetType().Name).Append(": ").Append(ex.Message);
+            }
+            return sb.ToString();
         }
 
         /// <summary>Запомнить скорость, на которой идёт время. Пауза не
@@ -539,12 +840,36 @@ namespace BannerlordAutopilot
 
         private void OnHourlyTick()
         {
-            if (_mode == Mode.Off || !PollState())
+            if (_mode == Mode.Off || Campaign.Current == null)
             {
                 return;
             }
 
             MobileParty party = MobileParty.MainParty;
+            if (party == null || !party.IsActive || UnsupportedState(party) != null)
+            {
+                return; // выключит ближайший опрос по кадрам — с причиной
+            }
+
+            // Думать можно на свободной карте и во время ожидания в поселении.
+            // Всё прочее — переходы меню, в них решать нечего.
+            Settlement waitingIn = null;
+            if (!IsOnFreeMap(party))
+            {
+                waitingIn = PeacefulSettlement(party);
+                if (waitingIn == null || !IsWaiting(MenuDriver.CurrentMenuId))
+                {
+                    return;
+                }
+            }
+
+            _hoursSinceThink++;
+            bool idle = waitingIn == null && party.DefaultBehavior == AiBehavior.Hold;
+            if (_ticksThisSession > 0 && !idle && _hoursSinceThink < ThinkPeriodHours)
+            {
+                return;
+            }
+            _hoursSinceThink = 0;
 
             PartyThinkParams think;
             try
@@ -598,41 +923,101 @@ namespace BannerlordAutopilot
                 return;
             }
 
-            ApplyDecision(party, best, bestScore);
+            // Лучшее из того, что автопилот умеет выполнить. Осада, рейд и армия
+            // партии игрока пока не по силам, но выключаться из-за них нельзя —
+            // игра должна идти дальше, поэтому берётся следующее решение того же
+            // штатного пересчёта, а пропуск пишется в журнал.
+            AIBehaviorData chosen = AIBehaviorData.Invalid;
+            float chosenScore = -1f;
+            string skipped = null;
+            foreach (var pair in think.AIBehaviorScores.OrderByDescending(p => p.Item2))
+            {
+                string reason = WhyNotApplicable(pair.Item1);
+                if (reason == null)
+                {
+                    chosen = pair.Item1;
+                    chosenScore = pair.Item2;
+                    break;
+                }
+                skipped = skipped ?? Describe(pair.Item1) + " — " + reason;
+            }
+
+            if (chosen.AiBehavior == AiBehavior.None)
+            {
+                AutopilotLog.Write("  выполнимых решений нет (" + skipped + ") — партия продолжает текущее");
+                return;
+            }
+            if (skipped != null)
+            {
+                AutopilotLog.Write("  пропущено: " + skipped + "; берём: " + Describe(chosen) + " = "
+                                   + chosenScore.ToString("F3", CultureInfo.InvariantCulture));
+            }
+
+            if (waitingIn != null)
+            {
+                if (chosen.AiBehavior == AiBehavior.GoToSettlement && chosen.Party == waitingIn)
+                {
+                    AutopilotLog.Write("  остаёмся в «" + waitingIn.Name + "»: лучшая цель — само это поселение, как у NPC");
+                    return;
+                }
+                _pendingDecision = chosen;
+                _pendingScore = chosenScore;
+                _hasPendingDecision = true;
+                AutopilotLog.Write("  решено уйти из «" + waitingIn.Name + "»: " + Describe(chosen));
+                return;
+            }
+
+            ApplyDecision(party, chosen, chosenScore);
+        }
+
+        /// <summary>Почему решение штатного AI автопилот не выполняет. null — выполняет.</summary>
+        private string WhyNotApplicable(AIBehaviorData data)
+        {
+            if (data.WillGatherArmy)
+            {
+                return "со сбором армии — армии вне области автопилота";
+            }
+            switch (data.AiBehavior)
+            {
+                case AiBehavior.GoToSettlement:
+                    if (!(data.Party is Settlement settlement))
+                    {
+                        return "без поселения";
+                    }
+                    return _cannotStay.Contains(settlement)
+                        ? "в «" + settlement.Name + "» подождать нельзя, по кругу туда не ездим"
+                        : null;
+                case AiBehavior.PatrolAroundPoint:
+                    return null;
+                case AiBehavior.EscortParty:
+                    return data.Party is MobileParty ? null : "без партии";
+                default:
+                    return "вне области автопилота";
+            }
         }
 
         // ── Применение ───────────────────────────────────────────────────────
 
+        /// <summary>Выдать приказ. Сюда приходят только решения, которые прошли
+        /// WhyNotApplicable: поселение, партия и поведение уже проверены.</summary>
         private void ApplyDecision(MobileParty party, AIBehaviorData data, float score)
         {
-            if (data.AiBehavior == AiBehavior.None)
-            {
-                AutopilotLog.Write("  решение пустое — ничего не применяю");
-                return;
-            }
-
             var settlement = data.Party as Settlement;
-            var targetParty = data.Party as MobileParty;
 
             try
             {
                 switch (data.AiBehavior)
                 {
                     case AiBehavior.GoToSettlement:
-                        if (settlement == null)
-                        {
-                            Disable("решение «ехать в поселение» без поселения — не применяю");
-                            return;
-                        }
                         if (MobilePartyHelper.GetCurrentSettlementOfMobilePartyForAICalculation(party) == settlement)
                         {
                             // Движок для NPC приказ посетить поселение, в котором
                             // (или вплотную к центру которого) партия уже стоит, НЕ
                             // выдаёт — та же проверка в PartyHourlyAiTick. От
-                            // пинг-понга она НЕ спасает: выход ставит партию к
+                            // пинг-понга она НЕ спасала: выход ставит партию к
                             // воротам, а хелпер считает «при поселении» ближе единицы
-                            // к центру (прогон 13.09: 89 кругов). Пинг-понг ловит
-                            // остановка при повторном входе, см. _lastExited.
+                            // к центру (прогон 13.09: 89 кругов). Пинг-понг снят
+                            // пребыванием: из поселения теперь уходят по решению.
                             string idleKey = "idle|" + settlement;
                             if (idleKey != _lastTargetKey)
                             {
@@ -660,21 +1045,12 @@ namespace BannerlordAutopilot
                         break;
 
                     case AiBehavior.EscortParty:
-                        if (targetParty == null)
-                        {
-                            Disable("решение «сопровождать» без партии — не применяю");
-                            return;
-                        }
                         SetPartyAiAction.GetActionForEscortingParty(
-                            party, targetParty, data.NavigationType, data.IsFromPort, data.IsTargetingPort);
+                            party, (MobileParty)data.Party, data.NavigationType, data.IsFromPort, data.IsTargetingPort);
                         break;
 
                     default:
-                        // Осада, штурм, рейд, оборона, преследование — вне области
-                        // прототипа. Останавливаемся с причиной, а не пытаемся
-                        // выполнить то, что движок для партии игрока не доводит до конца.
-                        Disable("штатный AI выбрал «" + data.AiBehavior + "» ("
-                                + Describe(data) + "). Это вне области прототипа");
+                        AutopilotLog.Write("  «" + data.AiBehavior + "» автопилот не выполняет — приказ не выдан");
                         return;
                 }
             }
@@ -682,13 +1058,6 @@ namespace BannerlordAutopilot
             {
                 Disable("применение решения упало: " + ex.GetType().Name + ": " + ex.Message);
                 return;
-            }
-
-            // Партия поехала туда, где её ещё не было после выхода, — значит
-            // возврат в покинутое поселение потом уже не будет пинг-понгом.
-            if (settlement == null || settlement != _lastExited)
-            {
-                _lastExited = null;
             }
 
             // «Смена цели» здесь — новый приказ относительно предыдущего В ЭТОМ

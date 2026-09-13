@@ -123,9 +123,56 @@ namespace BannerlordAutopilot
             Need(here != null && here.ReturnType == typeof(Settlement),
                 "MobilePartyHelper.GetCurrentSettlementOfMobilePartyForAICalculation(MobileParty) → Settlement");
 
+            // ── Меню, экран и время. Типы — по имени из сборки движка: в другой
+            //    версии игры их может не оказаться, и это должно стать строкой
+            //    «не совпало», а не падением проверки.
+            Assembly campaignAssembly = typeof(Campaign).Assembly;
+            Type menuContext = TypeNamed(campaignAssembly, "TaleWorlds.CampaignSystem.GameState.MenuContext");
+            Type gameMenu = TypeNamed(campaignAssembly, "TaleWorlds.CampaignSystem.GameMenus.GameMenu");
+            Type gameMenuOption = TypeNamed(campaignAssembly, "TaleWorlds.CampaignSystem.GameMenus.GameMenuOption");
+            Type mapState = TypeNamed(campaignAssembly, "TaleWorlds.CampaignSystem.GameState.MapState");
+            Type campaignTime = TypeNamed(campaignAssembly, "TaleWorlds.CampaignSystem.CampaignTime");
+            Type conversations = TypeNamed(campaignAssembly, "TaleWorlds.CampaignSystem.Conversation.ConversationManager");
+            Type gameState = mapState?.BaseType;
+            Need(gameState != null && gameState.FullName == "TaleWorlds.Core.GameState", "MapState : TaleWorlds.Core.GameState");
+            Type game = TypeNamed(gameState?.Assembly, "TaleWorlds.Core.Game");
+            Type gameStates = TypeNamed(gameState?.Assembly, "TaleWorlds.Core.GameStateManager");
+
+            // Пункты меню — тем же путём, что кнопка (GameMenuItemVM.ExecuteAction →
+            // MenuContext.InvokeConsequence): «Подождать», «Перестать ждать».
+            MemberOf(typeof(Campaign), "CurrentMenuContext", Inst, menuContext);
+            MemberOf(menuContext, "GameMenu", Inst, gameMenu);
+            Method(menuContext, "InvokeConsequence", Inst, typeof(void), typeof(int));
+            MemberOf(gameMenu, "StringId", Inst, typeof(string));
+            MemberOf(gameMenu, "MenuOptions", Inst,
+                gameMenuOption != null ? typeof(IEnumerable<>).MakeGenericType(gameMenuOption) : null);
+            MemberOf(gameMenu, "MenuRepeatObjects", Inst, typeof(List<object>));
+            MemberOf(gameMenu, "IsWaitMenu", Inst, typeof(bool));
+            MemberOf(gameMenu, "IsWaitActive", Inst, typeof(bool));
+            Method(gameMenu, "GetMenuOptionConditionsHold", Inst, typeof(bool), game, menuContext, typeof(int));
+            Method(gameMenu, "GetGameMenuOption", Inst, gameMenuOption, typeof(int));
+            MemberOf(gameMenuOption, "IdString", Inst, typeof(string));
+            MemberOf(gameMenuOption, "IsEnabled", Inst, typeof(bool));
+            MemberExists(gameMenuOption, "Tooltip", Inst);
+            MemberOf(typeof(PlayerEncounter), "IsPlayerWaiting", Inst, typeof(bool));
+            MemberOf(typeof(Settlement), "IsVillage", Inst, typeof(bool));
+
+            // Ход времени без человека и сторож простоя.
+            MemberOf(typeof(Campaign), "TimeControlModeLock", Inst, typeof(bool));
+            MemberOf(typeof(Campaign), "IsMainPartyWaiting", Inst, typeof(bool));
+            MemberOf(campaignTime, "Now", Stat, campaignTime);
+            MemberOf(campaignTime, "ToHours", Inst, typeof(double));
+            MemberOf(game, "Current", Stat, game);
+            MemberOf(game, "GameStateManager", Inst, gameStates);
+            MemberOf(gameStates, "ActiveState", Inst, gameState);
+            MemberOf(gameStates, "ActiveStateDisabledByUser", Inst, typeof(bool));
+            MemberOf(typeof(Campaign), "ConversationManager", Inst, conversations);
+            MemberOf(conversations, "IsConversationInProgress", Inst, typeof(bool));
+
             // ── Прочее
             MemberOf(typeof(Hero), "MainHero", Stat, typeof(Hero));
             MemberOf(typeof(Hero), "IsPrisoner", Inst, typeof(bool));
+            MemberOf(typeof(Hero), "IsWounded", Inst, typeof(bool));
             MemberOf(typeof(Campaign), "Current", Stat, typeof(Campaign));
 
             Ok = Problems.Count == 0;
@@ -144,24 +191,36 @@ namespace BannerlordAutopilot
             }
         }
 
+        /// <summary>Тип по полному имени. Нет — несовпадение, и проверки его членов
+        /// тоже не пройдут: их null-тип ниже засчитывается как «не совпало».</summary>
+        private static Type TypeNamed(Assembly assembly, string fullName)
+        {
+            Type type = assembly?.GetType(fullName);
+            Need(type != null, "тип " + fullName);
+            return type;
+        }
+
         /// <summary>Метод с точными параметрами и возвращаемым типом.</summary>
         private static void Method(Type type, string name, BindingFlags flags, Type returns, params Type[] args)
         {
-            MethodInfo m = type.GetMethod(name, flags, null, args, null);
+            bool typesKnown = type != null && returns != null && Array.TrueForAll(args, a => a != null);
+            MethodInfo m = typesKnown ? type.GetMethod(name, flags, null, args, null) : null;
             Need(m != null && m.ReturnType == returns,
-                type.Name + "." + name + "(" + args.Length + " арг.) → " + returns.Name);
+                (type?.Name ?? "?") + "." + name + "(" + args.Length + " арг.) → " + (returns?.Name ?? "?"));
         }
 
         /// <summary>Свойство или поле нужного типа (и с записью, если она нужна).</summary>
         private static void MemberOf(Type type, string name, BindingFlags flags, Type expected, bool needWrite = false)
         {
-            Type actual = MemberType(type, name, flags, needWrite, out bool writable);
+            bool writable = false;
+            Type actual = type == null ? null : MemberType(type, name, flags, needWrite, out writable);
             // CampaignVec2 берётся из поля движка, и при несовпадении его имя —
             // уже чужое; в сообщении нужно ОЖИДАЕМОЕ имя, иначе оно путает.
-            string label = expected.Name == "CampaignVec2" || name == "Position" || name == "GatePosition"
-                ? "CampaignVec2" : expected.Name;
-            Need(actual == expected && (!needWrite || writable),
-                type.Name + "." + name + " : " + label + (needWrite ? " (запись)" : ""));
+            string label = expected == null ? "?"
+                : expected.Name == "CampaignVec2" || name == "Position" || name == "GatePosition" ? "CampaignVec2"
+                : expected.Name;
+            Need(actual != null && actual == expected && (!needWrite || writable),
+                (type?.Name ?? "?") + "." + name + " : " + label + (needWrite ? " (запись)" : ""));
         }
 
         private static void MemberNamed(Type type, string name, BindingFlags flags, string typeName, bool needWrite = false)
@@ -173,7 +232,7 @@ namespace BannerlordAutopilot
 
         private static void MemberExists(Type type, string name, BindingFlags flags)
         {
-            Need(MemberType(type, name, flags, false, out _) != null, type.Name + "." + name);
+            Need(type != null && MemberType(type, name, flags, false, out _) != null, (type?.Name ?? "?") + "." + name);
         }
 
         private static void FieldOf(Type type, string name, Type expected)

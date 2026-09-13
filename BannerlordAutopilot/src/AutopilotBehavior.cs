@@ -456,6 +456,7 @@ namespace BannerlordAutopilot
             string menuId = MenuDriver.CurrentMenuId;
             if (IsWaiting(menuId))
             {
+                NoteWaiting();
                 if (_hasPendingDecision)
                 {
                     StopWaitingAndLeave(party, peaceful);
@@ -518,6 +519,20 @@ namespace BannerlordAutopilot
         {
             GameStateManager states = Game.Current?.GameStateManager;
             return states != null && states.ActiveState is MapState && !states.ActiveStateDisabledByUser;
+        }
+
+        /// <summary>Завести отсчёт пребывания при первом наблюдении ожидания в сеансе.
+        /// Семантика: отсчёт — с момента, когда ожидание увидел ЭТОТ сеанс
+        /// автопилота, а не с нажатия «Подождать». Ожидание, начатое человеком до
+        /// F11, раньше не заводило отсчёт вовсе (проверка 13.09); повторный F11 —
+        /// новый сеанс, и отсчёт начинается заново, как и все счётчики сеанса.</summary>
+        private void NoteWaiting()
+        {
+            if (_waitingSinceHours < 0)
+            {
+                _waitingSinceHours = CampaignTime.Now.ToHours;
+                _longStayWarned = false;
+            }
         }
 
         private bool CannotStay(Settlement settlement)
@@ -912,6 +927,7 @@ namespace BannerlordAutopilot
                 {
                     return;
                 }
+                NoteWaiting();
             }
 
             _hoursSinceThink++;
@@ -1009,12 +1025,12 @@ namespace BannerlordAutopilot
                 if (chosen.AiBehavior == AiBehavior.GoToSettlement && chosen.Party == waitingIn)
                 {
                     AutopilotLog.Write("  остаёмся в «" + waitingIn.Name + "»: лучшая цель — само это поселение, как у NPC");
-                    double stayed = _waitingSinceHours < 0 ? 0 : CampaignTime.Now.ToHours - _waitingSinceHours;
+                    double stayed = CampaignTime.Now.ToHours - _waitingSinceHours;
                     if (!_longStayWarned && stayed >= LongStayHours)
                     {
                         _longStayWarned = true;
                         AutopilotLog.Write("ДОЛГОЕ ПРЕБЫВАНИЕ: " + (stayed / 24).ToString("F1", CultureInfo.InvariantCulture)
-                                           + " сут. в «" + waitingIn.Name + "», штатный AI не уводит. Вероятная причина — "
+                                           + " сут. под автопилотом в «" + waitingIn.Name + "», штатный AI не уводит. Вероятная причина — "
                                            + "движок не кормит, не нанимает и не продаёт пленных за партию игрока, и "
                                            + "оценка «побыть здесь» не падает (review/unattended-play-engine-notes.md)");
                     }

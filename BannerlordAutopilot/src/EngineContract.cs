@@ -50,9 +50,13 @@ namespace BannerlordAutopilot
             // ── Сбор оценок
             MemberOf(typeof(MobileParty), "ThinkParamsCache", Inst, typeof(PartyThinkParams));
             Method(typeof(PartyThinkParams), "Reset", Inst, typeof(void), typeof(MobileParty));
+            // Своя проверка типа (коллекцию сверяем на совместимость, а не на
+            // точное совпадение), поэтому публичное чтение требуется здесь явно:
+            // общая проверка MemberType сюда не доходит (итоговая проверка 13.09).
             PropertyInfo scores = typeof(PartyThinkParams).GetProperty("AIBehaviorScores", Inst);
-            Need(scores != null && typeof(IEnumerable<(AIBehaviorData, float)>).IsAssignableFrom(scores.PropertyType),
-                "PartyThinkParams.AIBehaviorScores : IEnumerable<(AIBehaviorData, float)>");
+            Need(scores != null && scores.GetGetMethod() != null
+                 && typeof(IEnumerable<(AIBehaviorData, float)>).IsAssignableFrom(scores.PropertyType),
+                "PartyThinkParams.AIBehaviorScores : IEnumerable<(AIBehaviorData, float)> (публичное чтение)");
             MemberOf(typeof(CampaignEventDispatcher), "Instance", Stat, typeof(CampaignEventDispatcher));
             Method(typeof(CampaignEventDispatcher), "AiHourlyTick", Inst, typeof(void),
                 typeof(MobileParty), typeof(PartyThinkParams));

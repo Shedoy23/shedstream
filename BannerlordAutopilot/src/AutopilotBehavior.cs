@@ -557,11 +557,41 @@ namespace BannerlordAutopilot
         /// <summary>Карта — активный экран, и её не держит окно. Иначе
         /// Campaign.CurrentMenuContext отдаёт меню карты ПОД другим экраном
         /// (1.4.8, строка 9568), и нажатие пункта было бы кнопкой, которую игрок
-        /// не видит (проверка 13.09).</summary>
+        /// не видит (проверка 13.09). Окна поверх карты ActiveState не меняют —
+        /// их видно только по экрану карты (WindowOverMap, прогон 14.09).</summary>
         private static bool MapIsActiveScreen()
         {
             GameStateManager states = Game.Current?.GameStateManager;
-            return states != null && states.ActiveState is MapState && !states.ActiveStateDisabledByUser;
+            return states != null && states.ActiveState is MapState && !states.ActiveStateDisabledByUser
+                   && WindowOverMap() == null;
+        }
+
+        /// <summary>Какое окно открыто поверх карты; null — ни одного.
+        ///
+        /// Окна — слои экрана карты (MapState.Handler), флаги которых движок сам
+        /// сверяет перед действиями на карте. Прогон 14.09: окно случайного события
+        /// заперло время, а автопилот под ним обслужил партию и нажал «Подождать».
+        /// SandBox.View мод не подключает — флаги читаются по имени из
+        /// EngineContract.MapWindows, их наличие проверяет контракт.</summary>
+        private static string WindowOverMap()
+        {
+            object screen = (Game.Current?.GameStateManager?.ActiveState as MapState)?.Handler;
+            if (screen == null)
+            {
+                return null;
+            }
+            Type type = screen.GetType();
+            foreach ((string property, string name) in EngineContract.MapWindows)
+            {
+                if (type.GetProperty(property)?.GetValue(screen) is true)
+                {
+                    return name;
+                }
+            }
+            object encyclopedia = type.GetProperty("EncyclopediaScreenManager")?.GetValue(screen);
+            return encyclopedia?.GetType().GetProperty("IsEncyclopediaOpen")?.GetValue(encyclopedia) is true
+                ? "энциклопедия"
+                : null;
         }
 
         /// <summary>Завести отсчёт пребывания при первом наблюдении ожидания в сеансе.
@@ -616,7 +646,7 @@ namespace BannerlordAutopilot
         {
             if (!MapIsActiveScreen())
             {
-                return "поверх карты другой экран или окно";
+                return "поверх карты " + (WindowOverMap() ?? "другой экран или окно");
             }
             if (InformationManager.IsAnyInquiryActive())
             {
@@ -921,6 +951,11 @@ namespace BannerlordAutopilot
                 if (states != null && states.ActiveStateDisabledByUser)
                 {
                     sb.Append(" (приостановлен окном)");
+                }
+                string window = WindowOverMap();
+                if (window != null)
+                {
+                    sb.Append("; открыто: ").Append(window);
                 }
                 Campaign campaign = Campaign.Current;
                 sb.Append("; режим времени ").Append(campaign.TimeControlMode);

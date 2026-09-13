@@ -88,9 +88,25 @@ namespace BannerlordAutopilot.Tests
 
         private static Assembly ResolveFromGame(object sender, ResolveEventArgs args)
         {
+            // Экран карты (SandBox.View) и его зависимости лежат в папках модулей, а не в
+            // bin игры — в игре их грузят модули Native и SandBox.
             string name = new AssemblyName(args.Name).Name + ".dll";
-            string path = Path.Combine(_gameBin, name);
-            return File.Exists(path) ? Assembly.LoadFrom(path) : null;
+            string root = Path.GetFullPath(Path.Combine(_gameBin, "..", ".."));
+            foreach (string dir in new[]
+                     {
+                         _gameBin,
+                         Path.Combine(root, "Modules", "Native", "bin", "Win64_Shipping_Client"),
+                         Path.Combine(root, "Modules", "SandBoxCore", "bin", "Win64_Shipping_Client"),
+                         Path.Combine(root, "Modules", "SandBox", "bin", "Win64_Shipping_Client"),
+                     })
+            {
+                string path = Path.Combine(dir, name);
+                if (File.Exists(path))
+                {
+                    return Assembly.LoadFrom(path);
+                }
+            }
+            return null;
         }
     }
 }

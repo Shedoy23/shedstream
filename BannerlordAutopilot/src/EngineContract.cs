@@ -38,6 +38,26 @@ namespace BannerlordAutopilot
         private const BindingFlags Inst = BindingFlags.Public | BindingFlags.Instance;
         private const BindingFlags Stat = BindingFlags.Public | BindingFlags.Static;
 
+        /// <summary>Окна поверх карты: флаг SandBox.View.Map.MapScreen (11137-11198) и
+        /// имя для журнала. Движок сам сверяет эти флаги перед действиями на карте
+        /// (SandBox.View 12066, 12558, 17522). Одно место: автопилот читает флаги
+        /// отсюда, контракт отсюда же проверяет, что они есть.</summary>
+        internal static readonly (string Property, string Name)[] MapWindows =
+        {
+            ("IsMapIncidentActive", "окно случайного события"),
+            ("IsMarriageOfferPopupActive", "предложение брака"),
+            ("IsHeirSelectionPopupActive", "выбор наследника"),
+            ("IsInArmyManagement", "управление армией"),
+            ("IsInRecruitment", "экран найма"),
+            ("IsInTownManagement", "управление поселением"),
+            ("IsInHideoutTroopManage", "отряд для логова"),
+            ("IsInBattleSimulation", "автобой"),
+            ("IsInCampaignOptions", "настройки кампании"),
+            ("IsEscapeMenuOpened", "меню паузы"),
+            ("IsMapCheatsActive", "читы карты"),
+            ("IsOverlayContextMenuEnabled", "контекстное меню карты"),
+        };
+
         internal static bool Verify()
         {
             Problems.Clear();
@@ -173,6 +193,20 @@ namespace BannerlordAutopilot
             MemberOf(gameStates, "ActiveStateDisabledByUser", Inst, typeof(bool));
             MemberOf(typeof(Campaign), "ConversationManager", Inst, conversations);
             MemberOf(conversations, "IsConversationInProgress", Inst, typeof(bool));
+
+            // Окна поверх карты (прогон 14.09): экран карты и флаги его окон. SandBox.View
+            // мод не подключает, поэтому типы — по имени среди загруженных сборок.
+            Type mapHandler = TypeNamed(campaignAssembly, "TaleWorlds.CampaignSystem.GameState.IMapStateHandler");
+            MemberOf(mapState, "Handler", Inst, mapHandler);
+            Type mapScreen = LoadedType("SandBox.View.Map.MapScreen", "SandBox.View");
+            Need(mapScreen != null && mapHandler != null && mapHandler.IsAssignableFrom(mapScreen), "MapScreen : IMapStateHandler");
+            foreach ((string property, string _) in MapWindows)
+            {
+                MemberOf(mapScreen, property, Inst, typeof(bool));
+            }
+            Type encyclopedia = LoadedType("SandBox.View.Map.MapEncyclopediaView", "SandBox.View");
+            MemberOf(mapScreen, "EncyclopediaScreenManager", Inst, encyclopedia);
+            MemberOf(encyclopedia, "IsEncyclopediaOpen", Inst, typeof(bool));
 
             VerifySettlementServices(campaignAssembly, gameState?.Assembly, helper);
 
@@ -330,6 +364,18 @@ namespace BannerlordAutopilot
         private static Type TypeNamed(Assembly assembly, string fullName)
         {
             Type type = assembly?.GetType(fullName);
+            Need(type != null, "тип " + fullName);
+            return type;
+        }
+
+        /// <summary>Тип из сборки, которую мод не подключает: сначала среди уже
+        /// загруженных, затем по имени сборки (в игре её грузит модуль SandBox).</summary>
+        private static Type LoadedType(string fullName, string assemblyName)
+        {
+            Type type = AppDomain.CurrentDomain.GetAssemblies()
+                            .Select(a => a.GetType(fullName))
+                            .FirstOrDefault(t => t != null)
+                        ?? Type.GetType(fullName + ", " + assemblyName);
             Need(type != null, "тип " + fullName);
             return type;
         }

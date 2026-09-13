@@ -101,6 +101,20 @@ TaleWorlds.Core, TaleWorlds.Library, TaleWorlds.MountAndBlade.GauntletUI).
   Кнопки = `data.AffirmativeAction/NegativeAction` + закрытие; публично —
   `InformationManager.IsAnyInquiryActive()`, `InformationManager.HideInquiry()`.
   Окно с `pauseGameActiveState` останавливает движок целиком (3481-3485).
+* **Случайные события карты (incidents) — найдено прогоном 14.09, не сделано.**
+  Окно с вариантами выбора. `GauntletMapIncidentView.CreateLayout` ставит `Stop`,
+  запирает время (`SetTimeControlModeLock(true)`) и ставит движок на паузу
+  (SandBox.GauntletUI 8153-8157, прочитано); закрытие возвращает прежние режим и
+  замок (8226-8227). Это слой поверх `MapScreen` (`IsMapIncidentActive`, SandBox.View
+  11194/12856), а не состояние игры и не запрос: `MapIsActiveScreen()` и
+  `IsAnyInquiryActive()` его не видят, а сеттер `TimeControlMode` при замке молча
+  ничего не делает (CS 9513). Вероятности срабатывания — в модели: общая 0.5, в осаде
+  и **во время ожидания** 0.143 (CS 60979-60992). Сам `IncidentsCampaignBehaviour`
+  в декомпилированных сборках не найден — где и когда срабатывает, не прочитано.
+  Прогон 14.09: в деревне Жемянь после «Подождать» время «Stop (заблокирован)»,
+  простой 161 с до ручного F11. Что это было именно событие — гипотеза, по признакам
+  совпадает; тот же замок ставят окно брака, выбор наследника, управление армией.
+  Решение по вариантам события — за владельцем: у каждого варианта последствия.
 * Сцены (свадьба, казнь, коронация) — `MBInformationManager.HideSceneNotification()` (по разведке).
 * Смерть героя с наследниками — оверлей, не состояние игры:
   `CampaignEvents.OnHeirSelectionRequestedEvent` → `CampaignEventDispatcher.Instance.OnHeirSelectionOver(heir)`.

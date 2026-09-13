@@ -532,6 +532,20 @@ internal static class Program
             Check(Waiting && b.CurrentMode == AutopilotBehavior.Mode.Apply, "запись не выгоняет партию и не выключает автопилот");
         });
 
+        Console.WriteLine("\n[проверка 13.09, итог] пропуски после исправлений");
+        Try("F11 во время уже начатого ожидания", () =>
+        {
+            var b = Fresh(); var town = ArriveTown("Уже ждём");
+            MenuDriver.TryInvoke("town_wait", out _); MenuContext.Invoked.Clear();       // ожидание начал человек
+            Enable(b);
+            for (int h = 1; h <= 240; h++)
+            {
+                CampaignTime.TestHours = h; Scores((AiBehavior.GoToSettlement, town, 10f)); HourlyTick(b); b.PollState();
+            }
+            Check(LogCount("ДОЛГОЕ ПРЕБЫВАНИЕ") == 1,
+                  "ожидание, начатое до F11: предупреждение о долгом пребывании всё равно появляется (было — ни одного за 240 часов)");
+        });
+
         Console.WriteLine($"\nИтог: {passed} ok, {failed} FAIL");
         return failed;
     }

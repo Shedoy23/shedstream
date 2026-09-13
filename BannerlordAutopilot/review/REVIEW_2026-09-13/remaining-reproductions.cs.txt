@@ -1,0 +1,45 @@
+using System;
+using System.Linq;
+using System.Reflection;
+using BannerlordAutopilot;
+using TaleWorlds.Core;
+using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.GameMenus;
+using TaleWorlds.CampaignSystem.GameState;
+using TaleWorlds.CampaignSystem.Encounters;
+using TaleWorlds.CampaignSystem.Party;
+using TaleWorlds.CampaignSystem.Settlements;
+class Program {
+ static int count;
+ static void Check(bool ok,string text){if(!ok)throw new Exception(text);count++;Console.WriteLine("REPRODUCED: "+text);}
+ static AutopilotBehavior Fresh(){Campaign.Current=new();Game.Current=new();MobileParty.MainParty=new();Hero.MainHero=new();CampaignTime.TestHours=0;PlayerEncounter.Current=null;PlayerEncounter.EncounterSettlement=null;PlayerEncounter.EncounteredMobileParty=null;PlayerEncounter.Battle=null;AutopilotLog.Lines.Clear();CampaignEventDispatcher.NextScores.Clear();return new();}
+ static void Enable(AutopilotBehavior b){if(!b.TryEnable(AutopilotBehavior.Mode.Apply,out var why))throw new Exception(why);}
+ static void Tick(AutopilotBehavior b)=>typeof(AutopilotBehavior).GetMethod("OnHourlyTick",BindingFlags.NonPublic|BindingFlags.Instance).Invoke(b,null);
+ static bool Pending(AutopilotBehavior b)=>(bool)typeof(AutopilotBehavior).GetField("_hasPendingDecision",BindingFlags.NonPublic|BindingFlags.Instance).GetValue(b);
+ static void ExistingWait(Settlement s){MobileParty.MainParty.CurrentSettlement=s;MobileParty.MainParty.DefaultBehavior=AiBehavior.Hold;PlayerEncounter.Current=new(){IsPlayerWaiting=true};PlayerEncounter.EncounterSettlement=s;Campaign.Current.CurrentMenuContext=new(){GameMenu=new(){StringId="town_wait_menus",IsWaitMenu=true,IsWaitActive=true}};}
+ static void Main(){
+  if(!EngineContract.Verify())throw new Exception(EngineContract.Report);
+  var b=Fresh();var here=new Settlement{Name="Already waiting"};ExistingWait(here);Enable(b);
+  CampaignEventDispatcher.NextScores.Add((new AIBehaviorData{AiBehavior=AiBehavior.GoToSettlement,Party=here},10));
+  for(int h=1;h<=240;h++){CampaignTime.TestHours=h;Tick(b);}
+  Check(!AutopilotLog.Lines.Any(x=>x.Contains("ДОЛГОЕ ПРЕБЫВАНИЕ")),"enable during an existing wait: 240 campaign hours pass without new long-stay warning");
+
+  // Isolate the admission rule from AiPartyThinkBehavior: current NPC objective .1,
+  // current GoToSettlement, no army, no Rethink, six random draws all .9.
+  // This is arithmetic for the decompiled branch, not running the native thinker.
+  b=Fresh();here=new(){Name="Current"};var other=new Settlement{Name="Other"};ExistingWait(here);Enable(b);
+  CampaignEventDispatcher.NextScores.Add((new AIBehaviorData{AiBehavior=AiBehavior.GoToSettlement,Party=here},.1f));
+  CampaignEventDispatcher.NextScores.Add((new AIBehaviorData{AiBehavior=AiBehavior.GoToSettlement,Party=other},.2f));Tick(b);
+  bool randomAdmission=false;for(int i=0;i<6;i++){if(randomAdmission)break;randomAdmission=.9f<.2f;}
+  bool npcAdmits=.2>.03 && randomAdmission; // Hold fallback false for this NPC's GoToSettlement.
+  Check(Pending(b)&&!npcAdmits,"mod queues departure; native admission predicate for stated NPC inputs rejects it");
+
+  b=Fresh();Enable(b);var siege=new Settlement{Name="Siege"};var patrol=new Settlement{Name="Patrol"};
+  CampaignEventDispatcher.NextScores.Add((new AIBehaviorData{AiBehavior=AiBehavior.BesiegeSettlement,Party=siege},5));
+  CampaignEventDispatcher.NextScores.Add((new AIBehaviorData{AiBehavior=AiBehavior.PatrolAroundPoint,Party=patrol},1));
+  for(int h=1;h<=48;h++){CampaignTime.TestHours=h;Tick(b);}
+  Check(b.CurrentMode==AutopilotBehavior.Mode.Apply&&MobileParty.MainParty.DefaultBehavior==AiBehavior.PatrolAroundPoint&&MobileParty.MainParty.TargetSettlement==patrol,
+   "persistent siege-first score vector produces repeated patrol decisions for 48 hours");
+  Console.WriteLine($"{count} remaining-claim reproductions. Campaign scores were supplied by doubles; game not run.");
+ }
+}

@@ -76,8 +76,11 @@ namespace BannerlordAutopilot
     ///   игрока правило «индекс ≤ максимума», у NPC другое (209518), цена —
     ///   PartyWageModel.GetTroopRecruitmentCost(troop, MainHero). Применение как в
     ///   OnDone: слот обнуляется, боец в ростер, OnUnitRecruited, одно списание
-    ///   GiveGoldAction на всю сумму. Условие пункта «Нанять» — SettlementAccessModel,
-    ///   RecruitTroops. Вместимость партии экран игрока не запрещает, мод — да.
+    ///   GiveGoldAction на всю сумму. Отличие одно: цена бойца прибавляется к сумме
+    ///   сразу, как он попал в ростер, ДО события — подписчик события может упасть,
+    ///   и боец не должен остаться бесплатным (проверка 14.09). Условие пункта
+    ///   «Нанять» — SettlementAccessModel, RecruitTroops. Вместимость партии экран
+    ///   игрока не запрещает, мод — да.
     ///
     /// ЧТО ВАЖНО ПРО ДЕНЬГИ. GiveGoldAction списывает min(золото, сумма) (227100), а
     /// SellItemsAction сначала перекладывает товар и лишь потом платит — при нехватке
@@ -89,22 +92,55 @@ namespace BannerlordAutopilot
     /// Успехом считается только наблюдаемый результат: изменение ростера и денег.</summary>
     internal sealed class SettlementServices
     {
-        // Когда поселение обслуживалось последний раз (час кампании). Не сбрасывается
-        // повторным F11: второй проход в том же часу ничего бы не добавил, но
-        // запутал бы журнал. Загрузка сейва создаёт новый объект — и тогда проход
-        // безопасен, потому что каждая операция считает потребность по текущему
-        // состоянию (еда — по запасу, добровольцы — по занятым слотам, пленные — по ростеру).
-        private readonly Dictionary<Settlement, double> _lastPassHours = new Dictionary<Settlement, double>();
+        // Когда поселение обслуживалось последний раз (час кампании), по StringId
+        // поселения. Пределы трат действуют «на проход раз в шесть часов», поэтому
+        // отметки пишутся в сейв (SyncData автопилота) и не сбрасываются повторным F11.
+        // Раньше они жили только в памяти, а здесь стояло «после загрузки проход
+        // безопасен: потребность считается по состоянию». Это верно, пока проход
+        // покрывает всю потребность. Упёрся в предел — загрузка через час давала
+        // второй такой же проход, и предел умножался на число загрузок (проверка 14.09).
+        private readonly Dictionary<string, double> _lastPassHours = new Dictionary<string, double>();
 
         internal bool IsDue(Settlement settlement)
         {
-            return !_lastPassHours.TryGetValue(settlement, out double last)
+            return !_lastPassHours.TryGetValue(settlement.StringId, out double last)
                    || CampaignTime.Now.ToHours - last >= ServiceLimits.PassIntervalHours;
+        }
+
+        /// <summary>Отметки проходов для сейва: «id=час;id=час». Строка — базовый тип
+        /// сохранения: не нужно регистрировать контейнеры, и без мода ключ просто
+        /// не прочитается.</summary>
+        internal string SavePasses()
+        {
+            var parts = new List<string>();
+            foreach (KeyValuePair<string, double> pass in _lastPassHours)
+            {
+                parts.Add(pass.Key + "=" + pass.Value.ToString("R", CultureInfo.InvariantCulture));
+            }
+            return string.Join(";", parts);
+        }
+
+        /// <summary>Отметки из сейва. Непонятная запись пропускается: исключение здесь
+        /// ушло бы в загрузку кампании — по прочитанным вызовам (Campaign 10581,
+        /// CampaignBehaviorManager 169269, CampaignBehaviorDataStore 11385) его никто не
+        /// перехватывает. Цена пропуска — один лишний проход в этом поселении.</summary>
+        internal void LoadPasses(string saved)
+        {
+            _lastPassHours.Clear();
+            foreach (string part in (saved ?? "").Split(';'))
+            {
+                int eq = part.LastIndexOf('=');
+                if (eq > 0 && double.TryParse(part.Substring(eq + 1), NumberStyles.Float,
+                        CultureInfo.InvariantCulture, out double hours))
+                {
+                    _lastPassHours[part.Substring(0, eq)] = hours;
+                }
+            }
         }
 
         internal void Run(MobileParty party, Settlement settlement, string trigger)
         {
-            _lastPassHours[settlement] = CampaignTime.Now.ToHours;
+            _lastPassHours[settlement.StringId] = CampaignTime.Now.ToHours;
             int reserve = Reserve(party);
             AutopilotLog.Write("  ОБСЛУЖИВАНИЕ «" + settlement.Name + "» (" + trigger + "): денег "
                                + Hero.MainHero.Gold + ", резерв " + reserve
@@ -448,6 +484,9 @@ namespace BannerlordAutopilot
 
             // Как RecruitmentVM.OnDone: слоты, ростер, событие — затем одно списание.
             // Списание в finally: упади что-то посреди, уже нанятые не останутся бесплатными.
+            // Поэтому цена бойца идёт в сумму сразу за ростером, до события: событие
+            // зовёт чужих подписчиков, и 14.09 проверка показала, что при их падении
+            // боец, уже стоящий в отряде, в сумму не попадал.
             int goldBefore = Hero.MainHero.Gold;
             int membersBefore = party.MemberRoster.TotalManCount;
             int hired = 0;
@@ -462,10 +501,10 @@ namespace BannerlordAutopilot
                     }
                     entry.Notable.VolunteerTypes[entry.Index] = null;
                     party.MemberRoster.AddToCounts(entry.Troop, 1);
-                    CampaignEventDispatcher.Instance.OnUnitRecruited(entry.Troop, 1);
                     hired++;
                     charged += entry.Cost;
                     AutopilotLog.Write("    найм: НАНЯТ " + entry.Troop.Name + " у " + entry.Notable.Name + " за " + entry.Cost);
+                    CampaignEventDispatcher.Instance.OnUnitRecruited(entry.Troop, 1);
                 }
             }
             finally

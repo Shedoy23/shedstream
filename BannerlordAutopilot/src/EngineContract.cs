@@ -285,6 +285,7 @@ namespace BannerlordAutopilot
             MemberOf(typeof(Settlement), "Party", Inst, partyBase);
             MemberOf(typeof(Settlement), "ItemRoster", Inst, itemRoster);
             MemberOf(typeof(Settlement), "MapFaction", Inst, faction);
+            MemberOf(typeof(Settlement), "StringId", Inst, typeof(string)); // ключ отметок проходов в сейве
             Method(faction, "IsAtWarWith", Inst, typeof(bool), faction);
 
             // Ростеры и предметы

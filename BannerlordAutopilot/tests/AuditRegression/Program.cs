@@ -52,7 +52,9 @@ internal static class Program
         CampaignEventDispatcher.Recruited.Clear(); CampaignEventDispatcher.ThinkFood = -1; CampaignEventDispatcher.ThinkMembers = -1;
         CampaignEventDispatcher.TestRecruitedThrows = false;
         TaleWorlds.CampaignSystem.Actions.SellItemsAction.TestBroken = false; TaleWorlds.CampaignSystem.Actions.SellPrisonersAction.TestCalls = 0;
-        TaleWorlds.Library.InformationManager.TestInquiryActive = false; Helpers.MobilePartyHelper.TestLockedIds.Clear();
+        TaleWorlds.Library.InformationManager.TestInquiryActive = false;
+        TaleWorlds.CampaignSystem.Clan.PlayerClan = new TaleWorlds.CampaignSystem.Clan();
+        TaleWorlds.ScreenSystem.ScreenManager.TopScreen = null; Helpers.MobilePartyHelper.TestLockedIds.Clear();
         return new AutopilotBehavior();
     }
 
@@ -1041,6 +1043,38 @@ internal static class Program
                 Enable(b); b.PollState(); ArriveTown(w.Place); b.PollState();
                 Check(Grain(w) == 150, "сейв с данными «" + saved + "»: загрузка не падает, проход в поселении идёт (зерна " + Grain(w) + ")");
             }
+        });
+
+        Console.WriteLine("\n[прогон в игре 14.09] цепочка решений королевства");
+        Try("два голосования подряд", () =>
+        {
+            var b = Fresh(); Enable(b);
+            TaleWorlds.Core.Game.Current.GameStateManager.ActiveState = new TaleWorlds.CampaignSystem.GameState.KingdomState();
+            var screen = new SandBox.GauntletUI.GauntletKingdomScreen();
+            TaleWorlds.ScreenSystem.ScreenManager.TopScreen = screen;
+            var firstLow = new TaleWorlds.CampaignSystem.ViewModelCollection.KingdomManagement.Decisions.DecisionOptionVM { Name="Нет", WinPercentage=20 };
+            var firstPopular = new TaleWorlds.CampaignSystem.ViewModelCollection.KingdomManagement.Decisions.DecisionOptionVM { Name="Да", WinPercentage=80 };
+            var first = new TaleWorlds.CampaignSystem.ViewModelCollection.KingdomManagement.Decisions.ItemTypes.DecisionItemBaseVM { CanEndDecision=true };
+            first.DecisionOptionsList.Add(firstLow); first.DecisionOptionsList.Add(firstPopular);
+            var secondPopular = new TaleWorlds.CampaignSystem.ViewModelCollection.KingdomManagement.Decisions.DecisionOptionVM { Name="Мир", WinPercentage=60 };
+            var secondLow = new TaleWorlds.CampaignSystem.ViewModelCollection.KingdomManagement.Decisions.DecisionOptionVM { Name="Война", WinPercentage=40 };
+            var second = new TaleWorlds.CampaignSystem.ViewModelCollection.KingdomManagement.Decisions.ItemTypes.DecisionItemBaseVM { CanEndDecision=true, IsPlayerSupporter=true };
+            second.DecisionOptionsList.Add(secondPopular); second.DecisionOptionsList.Add(secondLow);
+            screen.DataSource.Decision.NextItem = second;
+            screen.DataSource.Decision.SetQuery(new TaleWorlds.Library.InquiryData {
+                TitleText="Решение", IsAffirmativeOptionShown=true,
+                AffirmativeAction=()=>screen.DataSource.Decision.CurrentDecision=first });
+            TaleWorlds.Library.InformationManager.TestInquiryActive=true;
+            Clan.PlayerClan.Kingdom.UnresolvedDecisions.Add(new KingdomDecision());
+            for (int i=0; i<9; i++) b.PollState();
+            Check(firstPopular.Selected && !firstLow.Selected,
+                  "в первом окне выбран вариант 80%, а не вариант 20%");
+            Check(secondPopular.Selected && secondPopular.Supported && !secondLow.Selected,
+                  "следующее голосование тоже обработано: выбран вариант 60% с минимальной поддержкой");
+            Check(TaleWorlds.Core.Game.Current.GameStateManager.PopCalls == 1,
+                  "после запроса, двух голосований и двух итогов экран закрыт, автопилот вернулся на карту");
+            Check(AutopilotLog.Lines.Count(l => l.Contains("выбран самый популярный вариант")) == 2,
+                  "оба автоматически принятых решения записаны в журнале");
         });
 
         Console.WriteLine("\n[прогон в игре 14.09] окно поверх карты: время заперто, а автопилот окна не видел");

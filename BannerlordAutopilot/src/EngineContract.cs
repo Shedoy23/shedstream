@@ -204,6 +204,7 @@ namespace BannerlordAutopilot
             MemberOf(game, "GameStateManager", Inst, gameStates);
             MemberOf(gameStates, "ActiveState", Inst, gameState);
             MemberOf(gameStates, "ActiveStateDisabledByUser", Inst, typeof(bool));
+            Method(gameStates, "PopState", Inst, typeof(void), typeof(int));
             MemberOf(typeof(Campaign), "ConversationManager", Inst, conversations);
             MemberOf(conversations, "IsConversationInProgress", Inst, typeof(bool));
 
@@ -220,6 +221,51 @@ namespace BannerlordAutopilot
             Type encyclopedia = LoadedType("SandBox.View.Map.MapEncyclopediaView", "SandBox.View");
             MemberOf(mapScreen, "EncyclopediaScreenManager", Inst, encyclopedia);
             MemberOf(encyclopedia, "IsEncyclopediaOpen", Inst, typeof(bool));
+
+            // Обязательные решения королевства: работаем через ту же VM, что
+            // экран, чтобы брать её WinPercentage и штатные последствия.
+            Type screenManager = LoadedType("TaleWorlds.ScreenSystem.ScreenManager", "TaleWorlds.ScreenSystem");
+            Type screenBase = LoadedType("TaleWorlds.ScreenSystem.ScreenBase", "TaleWorlds.ScreenSystem");
+            MemberOf(screenManager, "TopScreen", Stat, screenBase);
+            Type kingdomScreen = LoadedType("SandBox.GauntletUI.GauntletKingdomScreen", "SandBox.GauntletUI");
+            Type kingdomVm = LoadedType("TaleWorlds.CampaignSystem.ViewModelCollection.KingdomManagement.KingdomManagementVM",
+                "TaleWorlds.CampaignSystem.ViewModelCollection");
+            Type decisionsVm = LoadedType("TaleWorlds.CampaignSystem.ViewModelCollection.KingdomManagement.Decisions.KingdomDecisionsVM",
+                "TaleWorlds.CampaignSystem.ViewModelCollection");
+            Type decisionItem = LoadedType("TaleWorlds.CampaignSystem.ViewModelCollection.KingdomManagement.Decisions.ItemTypes.DecisionItemBaseVM",
+                "TaleWorlds.CampaignSystem.ViewModelCollection");
+            Type decisionOption = LoadedType("TaleWorlds.CampaignSystem.ViewModelCollection.KingdomManagement.Decisions.DecisionOptionVM",
+                "TaleWorlds.CampaignSystem.ViewModelCollection");
+            MemberOf(kingdomScreen, "DataSource", Inst, kingdomVm);
+            MemberOf(kingdomVm, "Decision", Inst, decisionsVm);
+            MemberOf(decisionsVm, "CurrentDecision", Inst, decisionItem);
+            Need(decisionsVm?.GetField("_queryData", BindingFlags.NonPublic | BindingFlags.Instance) != null,
+                "KingdomDecisionsVM._queryData");
+            Need(decisionsVm?.GetMethod("OnDecisionOver", BindingFlags.NonPublic | BindingFlags.Instance) != null,
+                "KingdomDecisionsVM.OnDecisionOver()");
+            Need(decisionsVm?.GetMethod("OnSingleDecisionOver", BindingFlags.NonPublic | BindingFlags.Instance) != null,
+                "KingdomDecisionsVM.OnSingleDecisionOver()");
+            MemberOf(decisionItem, "DecisionOptionsList", Inst,
+                decisionItem?.GetProperty("DecisionOptionsList", Inst)?.PropertyType);
+            MemberOf(decisionItem, "CanEndDecision", Inst, typeof(bool));
+            MemberOf(decisionItem, "IsKingsDecisionOver", Inst, typeof(bool));
+            MemberOf(decisionItem, "IsPlayerSupporter", Inst, typeof(bool));
+            Method(decisionItem, "ExecuteFinalSelection", Inst, typeof(void));
+            Need(decisionItem?.GetMethod("ExecuteDone", BindingFlags.NonPublic | BindingFlags.Instance) != null,
+                "DecisionItemBaseVM.ExecuteDone()");
+            MemberOf(decisionOption, "CanBeChosen", Inst, typeof(bool));
+            MemberOf(decisionOption, "IsOptionForAbstain", Inst, typeof(bool));
+            MemberOf(decisionOption, "WinPercentage", Inst, typeof(int));
+            MemberOf(decisionOption, "Name", Inst, typeof(string));
+            Need(decisionOption?.GetMethod("ExecuteSelection", BindingFlags.NonPublic | BindingFlags.Instance) != null,
+                "DecisionOptionVM.ExecuteSelection()");
+            Need(decisionOption?.GetMethod("OnSupportStrengthChange", BindingFlags.NonPublic | BindingFlags.Instance) != null,
+                "DecisionOptionVM.OnSupportStrengthChange(Int32)");
+            Type inquiryData = typeof(TaleWorlds.Library.InquiryData);
+            FieldOf(inquiryData, "TitleText", typeof(string));
+            FieldOf(inquiryData, "IsAffirmativeOptionShown", typeof(bool));
+            FieldOf(inquiryData, "AffirmativeAction", typeof(Action));
+            Method(typeof(TaleWorlds.Library.InformationManager), "HideInquiry", Stat, typeof(void));
 
             // Штатные случайные события: содержимое читается через публичный
             // Incident API, а слой закрывается тем же MapScreen, что и кнопка UI.

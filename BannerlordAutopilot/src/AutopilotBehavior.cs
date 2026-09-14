@@ -204,6 +204,7 @@ namespace BannerlordAutopilot
         private double _longestStallSeconds;
         private int _timeStartsThisSession;
         private int _incidentsResolvedThisSession;
+        private int _kingdomDecisionsResolvedThisSession;
         private object _lastIncidentLogged;
 
         /// <summary>Что выключение реально сделало с партией — для сообщения на
@@ -245,6 +246,7 @@ namespace BannerlordAutopilot
             _longestStallSeconds = 0;
             _timeStartsThisSession = 0;
             _incidentsResolvedThisSession = 0;
+            _kingdomDecisionsResolvedThisSession = 0;
             _lastIncidentLogged = null;
         }
 
@@ -425,7 +427,8 @@ namespace BannerlordAutopilot
                                + " (самый долгий " + longest.ToString("F0", CultureInfo.InvariantCulture) + " с"
                                + (_stallReported ? ", последний ещё идёт" : "") + ")"
                                + "; снятий с паузы " + _timeStartsThisSession);
-            AutopilotLog.Write("итог событий: автоматически решено " + _incidentsResolvedThisSession);
+            AutopilotLog.Write("итог событий: случайных " + _incidentsResolvedThisSession
+                               + "; решений королевства " + _kingdomDecisionsResolvedThisSession);
         }
 
         // ── Проверка состояния (каждые полсекунды, независимо от хода времени) ──
@@ -450,6 +453,10 @@ namespace BannerlordAutopilot
             if (_mode == Mode.Apply)
             {
                 WatchTime(party);
+                if (TryHandleKingdomDecision())
+                {
+                    return false;
+                }
                 if (TryHandleMapIncident())
                 {
                     return false;
@@ -649,6 +656,142 @@ namespace BannerlordAutopilot
             return encyclopedia?.GetType().GetProperty("IsEncyclopediaOpen")?.GetValue(encyclopedia) is true
                 ? "энциклопедия"
                 : null;
+        }
+
+        /// <summary>Решает обязательные голосования королевства через их VM.
+        /// Проценты, доступность и последствия остаются расчётом игры; мод лишь
+        /// выбирает доступный вариант с максимальной уже набранной поддержкой.
+        /// За один опрос выполняется один шаг, поэтому последовательность
+        /// запрос → голосование → итог → следующее решение не теряет модалки.</summary>
+        private bool TryHandleKingdomDecision()
+        {
+            object state = Game.Current?.GameStateManager?.ActiveState;
+            if (state == null || state.GetType().FullName != "TaleWorlds.CampaignSystem.GameState.KingdomState")
+            {
+                return false;
+            }
+
+            try
+            {
+                Type screenManager = AppDomain.CurrentDomain.GetAssemblies()
+                    .Select(a => a.GetType("TaleWorlds.ScreenSystem.ScreenManager", false))
+                    .FirstOrDefault(t => t != null);
+                object screen = screenManager?.GetProperty("TopScreen", BindingFlags.Public | BindingFlags.Static)
+                    ?.GetValue(null);
+                object source = screen?.GetType().GetProperty("DataSource", BindingFlags.Public | BindingFlags.Instance)
+                    ?.GetValue(screen);
+                object decisions = source?.GetType().GetProperty("Decision", BindingFlags.Public | BindingFlags.Instance)
+                    ?.GetValue(source);
+                if (decisions == null)
+                {
+                    Disable("экран решений королевства открыт, но его модель недоступна");
+                    return true;
+                }
+
+                object current = decisions.GetType().GetProperty("CurrentDecision")?.GetValue(decisions);
+                bool inquiry = InformationManager.IsAnyInquiryActive();
+                FieldInfo queryField = decisions.GetType().GetField("_queryData", BindingFlags.NonPublic | BindingFlags.Instance);
+                InquiryData query = queryField?.GetValue(decisions) as InquiryData;
+
+                // Первый запрос «принять решение?» хранится в самой VM.
+                if (inquiry && query != null && query.IsAffirmativeOptionShown && query.AffirmativeAction != null)
+                {
+                    string title = query.TitleText;
+                    InformationManager.HideInquiry();
+                    queryField.SetValue(decisions, null);
+                    query.AffirmativeAction();
+                    AutopilotLog.Write("РЕШЕНИЕ КОРОЛЕВСТВА: подтверждён запрос «" + title + "»");
+                    return true;
+                }
+
+                if (current != null)
+                {
+                    Type itemType = current.GetType();
+                    bool concluded = itemType.GetProperty("IsKingsDecisionOver")?.GetValue(current) is true;
+                    if (!concluded)
+                    {
+                        object list = itemType.GetProperty("DecisionOptionsList")?.GetValue(current);
+                        var options = (list as System.Collections.IEnumerable)?.Cast<object>().ToList()
+                                      ?? new List<object>();
+                        var available = options.Where(o => o.GetType().GetProperty("CanBeChosen")?.GetValue(o) is true).ToList();
+                        object chosen = available.Where(o => !(o.GetType().GetProperty("IsOptionForAbstain")?.GetValue(o) is true))
+                            .OrderByDescending(o => (int)(o.GetType().GetProperty("WinPercentage")?.GetValue(o) ?? -1))
+                            .FirstOrDefault()
+                            ?? available.FirstOrDefault(o => o.GetType().GetProperty("IsOptionForAbstain")?.GetValue(o) is true);
+                        if (chosen == null)
+                        {
+                            Disable("в решении королевства нет доступного варианта");
+                            return true;
+                        }
+
+                        Type optionType = chosen.GetType();
+                        optionType.GetMethod("ExecuteSelection", BindingFlags.NonPublic | BindingFlags.Instance)
+                            ?.Invoke(chosen, null);
+                        bool supporter = itemType.GetProperty("IsPlayerSupporter")?.GetValue(current) is true;
+                        bool abstain = optionType.GetProperty("IsOptionForAbstain")?.GetValue(chosen) is true;
+                        if (supporter && !abstain)
+                        {
+                            optionType.GetMethod("OnSupportStrengthChange", BindingFlags.NonPublic | BindingFlags.Instance)
+                                ?.Invoke(chosen, new object[] { 0 });
+                        }
+                        if (!(itemType.GetProperty("CanEndDecision")?.GetValue(current) is true))
+                        {
+                            Disable("самый популярный вариант выбран, но игра не разрешила завершить решение");
+                            return true;
+                        }
+                        itemType.GetMethod("ExecuteFinalSelection", BindingFlags.Public | BindingFlags.Instance)
+                            ?.Invoke(current, null);
+                        _kingdomDecisionsResolvedThisSession++;
+                        string name = optionType.GetProperty("Name")?.GetValue(chosen)?.ToString() ?? "вариант";
+                        int percent = (int)(optionType.GetProperty("WinPercentage")?.GetValue(chosen) ?? -1);
+                        AutopilotLog.Write("РЕШЕНИЕ КОРОЛЕВСТВА: выбран самый популярный вариант «" + name
+                                           + "» (" + percent + "%)" + (supporter && !abstain ? ", минимальная поддержка" : ""));
+                        return true;
+                    }
+
+                    // На следующем кадре запускаем штатное итоговое окно.
+                    if (!inquiry)
+                    {
+                        itemType.GetMethod("ExecuteDone", BindingFlags.NonPublic | BindingFlags.Instance)
+                            ?.Invoke(current, null);
+                        return true;
+                    }
+
+                    // Кнопка OK итогового окна вызывает именно OnDecisionOver.
+                    InformationManager.HideInquiry();
+                    decisions.GetType().GetMethod("OnDecisionOver", BindingFlags.NonPublic | BindingFlags.Instance)
+                        ?.Invoke(decisions, null);
+                    AutopilotLog.Write("РЕШЕНИЕ КОРОЛЕВСТВА: итог подтверждён");
+                    return true;
+                }
+
+                // Единоличное решение показывает итог без CurrentDecision.
+                if (inquiry)
+                {
+                    InformationManager.HideInquiry();
+                    decisions.GetType().GetMethod("OnSingleDecisionOver", BindingFlags.NonPublic | BindingFlags.Instance)
+                        ?.Invoke(decisions, null);
+                    AutopilotLog.Write("РЕШЕНИЕ КОРОЛЕВСТВА: итог единоличного решения подтверждён");
+                    return true;
+                }
+
+                // VM успевает открыть следующее неразрешённое решение своим
+                // OnFrameTick. Если их больше нет, возвращаемся на карту.
+                bool any = Clan.PlayerClan?.Kingdom?.UnresolvedDecisions
+                    .Any(d => !d.ShouldBeCancelled()) is true;
+                if (!any)
+                {
+                    Game.Current.GameStateManager.PopState(0);
+                    AutopilotLog.Write("РЕШЕНИЯ КОРОЛЕВСТВА: цепочка закончена, возвращаемся на карту");
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Exception cause = ex is TargetInvocationException && ex.InnerException != null ? ex.InnerException : ex;
+                Disable("обработка решения королевства упала: " + cause.GetType().Name + ": " + cause.Message);
+                return true;
+            }
         }
 
         /// <summary>Автоматически решать только однозначные либо проверенные

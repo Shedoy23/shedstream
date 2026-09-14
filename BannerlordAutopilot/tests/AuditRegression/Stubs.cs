@@ -26,7 +26,7 @@ namespace TaleWorlds.Core {
  public class Stub {}
  public class GameState {}
  // В игре у карты всегда есть экран: MapState.Handler — это MapScreen (CampaignSystem 155552).
- public class GameStateManager { public GameState ActiveState { get; set; } = new MapState { Handler = new SandBox.View.Map.MapScreen() }; public bool ActiveStateDisabledByUser { get; set; } }
+ public class GameStateManager { public GameState ActiveState { get; set; } = new MapState { Handler = new SandBox.View.Map.MapScreen() }; public bool ActiveStateDisabledByUser { get; set; } public int PopCalls; public void PopState(int mode) { PopCalls++; ActiveState = new MapState { Handler = new SandBox.View.Map.MapScreen() }; } }
  public class Game { public static Game Current = new(); public GameStateManager GameStateManager { get; } = new(); }
 }
 namespace TaleWorlds.Library {
@@ -35,7 +35,8 @@ namespace TaleWorlds.Library {
  public class MBReadOnlyList<T> : List<T> {}
  public class MBList<T> : MBReadOnlyList<T> {}
  // Открыто ли окно-запрос (GauntletQueryManager._activeDataSource != null).
- public static class InformationManager { public static bool TestInquiryActive; public static bool IsAnyInquiryActive() => TestInquiryActive; }
+ public class InquiryData { public string TitleText; public bool IsAffirmativeOptionShown; public Action AffirmativeAction; }
+ public static class InformationManager { public static bool TestInquiryActive; public static bool IsAnyInquiryActive() => TestInquiryActive; public static void HideInquiry() { TestInquiryActive=false; } }
 }
 namespace TaleWorlds.Localization { public class TextObject { private readonly string _text; public TextObject(string text) { _text = text; } public override string ToString() => _text; } }
 namespace TaleWorlds.CampaignSystem.Incidents {
@@ -66,6 +67,7 @@ namespace TaleWorlds.CampaignSystem.GameMenus {
  }
 }
 namespace TaleWorlds.CampaignSystem.GameState {
+ public class KingdomState : TaleWorlds.Core.GameState {}
  public interface IMapStateHandler {}
  public class MapState : TaleWorlds.Core.GameState { public IMapStateHandler Handler { get; set; } }
  public class MenuContext {
@@ -112,6 +114,9 @@ namespace TaleWorlds.CampaignSystem {
    else if (speed == 2) TimeControlMode = stopped && hold ? CampaignTimeControlMode.UnstoppableFastForward : CampaignTimeControlMode.StoppableFastForward;
   }
  }
+ public class KingdomDecision { public bool Cancelled; public bool ShouldBeCancelled()=>Cancelled; }
+ public class Kingdom { public List<KingdomDecision> UnresolvedDecisions { get; } = new(); }
+ public class Clan { public static Clan PlayerClan = new(); public Kingdom Kingdom { get; set; } = new(); }
  public class Hero {
   public static Hero MainHero = new(); public bool IsPrisoner; public bool IsWounded;
   public string Name = "Hero"; public int Gold { get; set; }
@@ -300,5 +305,48 @@ namespace BannerlordAutopilot {
  internal static class AutopilotLog {
   internal static List<string> Lines=new(); internal static string Path=>"in-memory";
   internal static void Write(string s) {Lines.Add(s);} internal static void Session(string s) {Lines.Add(s);}
+ }
+}
+
+namespace TaleWorlds.ScreenSystem {
+ public class ScreenBase {}
+ public static class ScreenManager { public static ScreenBase TopScreen { get; set; } }
+}
+namespace TaleWorlds.CampaignSystem.ViewModelCollection.KingdomManagement.Decisions {
+ public class KingdomDecisionsVM {
+  private TaleWorlds.Library.InquiryData _queryData;
+  public ItemTypes.DecisionItemBaseVM CurrentDecision { get; set; }
+  public ItemTypes.DecisionItemBaseVM NextItem { get; set; }
+  public void SetQuery(TaleWorlds.Library.InquiryData q) { _queryData=q; }
+  private void OnDecisionOver() { CurrentDecision=NextItem; NextItem=null; if(CurrentDecision==null) TaleWorlds.CampaignSystem.Clan.PlayerClan.Kingdom.UnresolvedDecisions.Clear(); }
+  private void OnSingleDecisionOver() { TaleWorlds.CampaignSystem.Clan.PlayerClan.Kingdom.UnresolvedDecisions.Clear(); }
+ }
+ public class DecisionOptionVM {
+  public bool CanBeChosen { get; set; } = true;
+  public bool IsOptionForAbstain { get; set; }
+  public int WinPercentage { get; set; }
+  public string Name { get; set; }
+  public bool Selected { get; set; }
+  public bool Supported { get; set; }
+  private void ExecuteSelection() { Selected=true; }
+  private void OnSupportStrengthChange(int index) { Supported=index==0; }
+ }
+}
+namespace TaleWorlds.CampaignSystem.ViewModelCollection.KingdomManagement.Decisions.ItemTypes {
+ public class DecisionItemBaseVM {
+  public bool IsKingsDecisionOver { get; set; }
+  public bool IsPlayerSupporter { get; set; }
+  public bool CanEndDecision { get; set; }
+  public List<TaleWorlds.CampaignSystem.ViewModelCollection.KingdomManagement.Decisions.DecisionOptionVM> DecisionOptionsList { get; } = new();
+  public void ExecuteFinalSelection() { IsKingsDecisionOver=true; }
+  private void ExecuteDone() { TaleWorlds.Library.InformationManager.TestInquiryActive=true; }
+ }
+}
+namespace TaleWorlds.CampaignSystem.ViewModelCollection.KingdomManagement {
+ public class KingdomManagementVM { public Decisions.KingdomDecisionsVM Decision { get; set; } = new(); }
+}
+namespace SandBox.GauntletUI {
+ public class GauntletKingdomScreen : TaleWorlds.ScreenSystem.ScreenBase {
+  public TaleWorlds.CampaignSystem.ViewModelCollection.KingdomManagement.KingdomManagementVM DataSource { get; set; } = new();
  }
 }

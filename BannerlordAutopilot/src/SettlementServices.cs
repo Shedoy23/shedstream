@@ -40,10 +40,6 @@ namespace BannerlordAutopilot
         /// Совпадает с периодом пересчёта AI: обслуживание успевает до решения.</summary>
         internal static double PassIntervalHours = 6;
 
-        /// <summary>Запас на расхождение цены. План покупки считается по цене
-        /// FindItemToBuy (цена поселения), а списание делает SellItemsAction по ценам
-        /// города — для деревни это её торговый город, и цены там другие.</summary>
-        internal const float PriceSafety = 1.25f;
     }
 
     /// <summary>Обслуживание партии игрока в поселении: продажа обычных пленных,
@@ -85,7 +81,7 @@ namespace BannerlordAutopilot
     /// ЧТО ВАЖНО ПРО ДЕНЬГИ. GiveGoldAction списывает min(золото, сумма) (227100), а
     /// SellItemsAction сначала перекладывает товар и лишь потом платит — при нехватке
     /// денег товар достался бы дешевле. Поэтому деньги проверяются ДО операции, с
-    /// резервом и запасом на цену. SellItemsAction не проверяет и остаток у продавца:
+    /// резервом по текущей цене перед каждой единицей. SellItemsAction не проверяет и остаток у продавца:
     /// сверх остатка покупатель получил бы товар из ничего (ItemRoster.AddToCounts
     /// 95902) — число покупки ограничивается текущим остатком.
     ///
@@ -283,95 +279,86 @@ namespace BannerlordAutopilot
                 return;
             }
 
-            // План — штатным выбором FindItemToBuy, как цикл BuyFoodInternal: одна
-            // единица на шаг, скот считается за MeatCount единиц. Отличие: покупка
-            // не по одной штуке, а партиями одного продукта, иначе движок пишет
-            // сообщение о трате денег на каждую единицу (OnHeroOrPartyTradedGold).
-            // Поэтому шаги плана видят остатки до покупки — каждый продукт
-            // ограничен своим остатком.
-            var plan = new List<FoodLine>();
-            float planned = 0f;
+            // Покупаем по одной единице, как штатный BuyFoodInternal. После каждой
+            // операции рынок меняется и следующая цена пересчитывается. Пакетный
+            // план по начальному снимку нарушал лимит при росте цены и мог снова
+            // выбирать уже полностью запланированный товар, не закрывая потребность.
             string stop = null;
-            for (int i = 0; i < need; i++)
+            int bought = 0;
+            int satisfied = 0;
+            int spentTotal = 0;
+            while (satisfied < need)
             {
-                models.PartyFoodBuyingModel.FindItemToBuy(party, settlement, out ItemRosterElement element, out float price);
+                models.PartyFoodBuyingModel.FindItemToBuy(party, settlement, out ItemRosterElement element, out _);
                 ItemObject item = element.EquipmentElement.Item;
                 if (item == null)
                 {
                     stop = "подходящей еды по цене и деньгам больше нет";
                     break;
                 }
-                if (planned + price * ServiceLimits.PriceSafety > budget)
+                int available = Stock(settlement.ItemRoster, element.EquipmentElement);
+                if (available <= 0)
+                {
+                    stop = "выбранного продукта уже нет у продавца";
+                    break;
+                }
+                int price = CurrentBuyPrice(settlement, party, element.EquipmentElement);
+                int remainingBudget = Math.Min(budget - spentTotal, Hero.MainHero.Gold - reserve);
+                if (price <= 0 || price > remainingBudget)
                 {
                     stop = "упёрлись в предел трат (" + budget + ")";
                     break;
                 }
-                FoodLine line = plan.Find(l => l.Element.IsEqualTo(element.EquipmentElement));
-                if (line == null)
-                {
-                    line = new FoodLine { Element = element.EquipmentElement, Price = price };
-                    plan.Add(line);
-                }
-                if (line.Count < Stock(settlement.ItemRoster, element.EquipmentElement))
-                {
-                    line.Count++;
-                    planned += price * ServiceLimits.PriceSafety;
-                }
-                if (item.HasHorseComponent && item.HorseComponent.IsLiveStock)
-                {
-                    i += item.HorseComponent.MeatCount - 1;
-                }
-            }
-
-            int bought = 0;
-            foreach (FoodLine line in plan)
-            {
-                int count = Math.Min(line.Count, Stock(settlement.ItemRoster, line.Element));
-                int affordable = (int)Math.Floor((Hero.MainHero.Gold - reserve) / (line.Price * ServiceLimits.PriceSafety));
-                if (affordable < count)
-                {
-                    stop = "деньги сверх резерва кончились";
-                    count = Math.Max(0, affordable);
-                }
-                if (count <= 0)
-                {
-                    continue;
-                }
                 int goldBefore = Hero.MainHero.Gold;
-                int haveBefore = Stock(party.ItemRoster, line.Element);
-                SellItemsAction.Apply(settlement.Party, party.Party, new ItemRosterElement(line.Element, count), count);
-                int got = Stock(party.ItemRoster, line.Element) - haveBefore;
+                int haveBefore = Stock(party.ItemRoster, element.EquipmentElement);
+                SellItemsAction.Apply(settlement.Party, party.Party, new ItemRosterElement(element.EquipmentElement, 1), 1);
+                int got = Stock(party.ItemRoster, element.EquipmentElement) - haveBefore;
                 int spent = goldBefore - Hero.MainHero.Gold;
-                if (got == count && spent > 0)
+                if (got == 1 && spent > 0 && spent <= remainingBudget)
                 {
-                    bought += got;
-                    AutopilotLog.Write("    еда: КУПЛЕНО " + got + " × " + line.Element.Item.Name + " за " + spent);
+                    bought++;
+                    spentTotal += spent;
+                    satisfied += item.HasHorseComponent && item.HorseComponent.IsLiveStock
+                        ? Math.Max(1, item.HorseComponent.MeatCount)
+                        : 1;
                 }
                 else
                 {
-                    AutopilotLog.Write("    еда: покупка " + count + " × " + line.Element.Item.Name
+                    AutopilotLog.Write("    еда: покупка 1 × " + item.Name
                                        + " НЕ подтвердилась — получено " + got + ", списано " + spent);
+                    break;
                 }
             }
-            if (bought < need && stop == null)
+            if (satisfied < need && stop == null)
             {
                 stop = "у продавца столько нет";
             }
-            AutopilotLog.Write("    еда: нужно было " + need + ", куплено " + bought
+            if (bought > 0)
+            {
+                AutopilotLog.Write("    еда: КУПЛЕНО " + bought + " ед. товара за " + spentTotal);
+            }
+            AutopilotLog.Write("    еда: нужно было " + need + ", запас пополнен на " + satisfied
                                + (stop != null ? "; остановка: " + stop : "") + " (" + stockNote + ")");
-        }
-
-        private sealed class FoodLine
-        {
-            internal EquipmentElement Element;
-            internal float Price;
-            internal int Count;
         }
 
         private static int Stock(ItemRoster roster, EquipmentElement element)
         {
             int index = roster.FindIndexOfElement(element);
             return index >= 0 ? roster.GetElementNumber(index) : 0;
+        }
+
+        /// <summary>Ровно тот Town, цену которого SellItemsAction спросит перед
+        /// следующей единицей. Village.GetItemPrice при TradeBound == null возвращает
+        /// условную 1, но действие в этом случае использует Bound.Town.</summary>
+        private static int CurrentBuyPrice(Settlement settlement, MobileParty party, EquipmentElement element)
+        {
+            Town town = settlement.Town;
+            if (town == null && settlement.IsVillage)
+            {
+                Settlement priceSettlement = settlement.Village.TradeBound ?? settlement.Village.Bound;
+                town = priceSettlement?.Town;
+            }
+            return town != null ? town.GetItemPrice(element, party, isSelling: false) : -1;
         }
 
         /// <summary>Штатный расчёт PartiesBuyFoodCampaignBehavior.CalculateFoodCountToBuy

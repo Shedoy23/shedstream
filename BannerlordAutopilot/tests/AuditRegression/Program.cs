@@ -89,6 +89,12 @@ internal static class Program
             Notable = new Hero { Name = "Староста" },
             Recruit = new CharacterObject { Name = "Новобранец", StringId = "recruit", TestCost = 30 },
         };
+        if (village)
+        {
+            var boundTown = new Settlement { Name = "Торговый город", IsTown = true };
+            w.Place.Village.TradeBound = boundTown;
+            w.Place.Village.Bound = boundTown;
+        }
         w.Place.ItemRoster.TestAdd(w.Grain, 300);
         for (int i = 0; i < 3; i++) w.Notable.VolunteerTypes[i] = w.Recruit;
         w.Place.Notables.Add(w.Notable);
@@ -643,9 +649,9 @@ internal static class Program
         {
             var b = Fresh(); var w = MakeWorld(gold: 2100, prisoners: false); Enable(b); b.PollState();
             ArriveTown(w.Place); b.PollState();
-            Check(Grain(w) == 4 && Hero.MainHero.Gold == 2020,
-                  "на еду ушло только то, что сверх резерва 2000 с запасом на цену: 4 зерна за 80 (зерна " + Grain(w) + ", денег " + Hero.MainHero.Gold + ")");
-            Check(CampaignEventDispatcher.Recruited.Count == 0 && AutopilotLog.Lines.Any(l => l.Contains("не по деньгам 3")),
+            Check(Grain(w) == 5 && Hero.MainHero.Gold == 2000,
+                  "на еду ушло ровно то, что сверх резерва 2000: 5 зерна за 100 (зерна " + Grain(w) + ", денег " + Hero.MainHero.Gold + ")");
+            Check(CampaignEventDispatcher.Recruited.Count == 0 && AutopilotLog.Lines.Any(l => l.Contains("денег сверх резерва нет")),
                   "на найм денег не хватило — никого, причина в журнале");
         });
         Try("денег нет", () =>
@@ -674,7 +680,7 @@ internal static class Program
             Enable(b); b.PollState(); ArriveTown(w.Place); b.PollState();
             Check(Grain(w) == 30 && w.Place.ItemRoster.TestCount(w.Grain) == 0 && Hero.MainHero.Gold == 20000 - 30 * 20 - 3 * 30,
                   "куплено ровно 30 из нужных 150 — сверх остатка не покупается и не оплачивается");
-            Check(AutopilotLog.Lines.Any(l => l.Contains("нужно было 150, куплено 30")), "частичное выполнение названо в журнале");
+            Check(AutopilotLog.Lines.Any(l => l.Contains("нужно было 150, запас пополнен на 30")), "частичное выполнение названо в журнале");
         });
         Try("партия заполнена и одно место", () =>
         {
@@ -814,7 +820,7 @@ internal static class Program
             var b = Fresh(); var w = MakeWorld(prisoners: false); SetLimit("MaxFoodSpendPerPass", 1000);
             Enable(b); b.PollState(); ArriveTown(w.Place); b.PollState();
             int grain = Grain(w), gold = Hero.MainHero.Gold;
-            Check(grain == 40, "проход упёрся в предел трат на еду: 40 зерна на 1000 с запасом на цену (куплено " + grain + ")");
+            Check(grain == 50, "проход упёрся в точный предел трат на еду: 50 зерна за 1000 (куплено " + grain + ")");
             var store = new MemStore(); b.SyncData(store);                                  // сохранение в час 0
             CampaignTime.TestHours = 1;
             var loaded = new AutopilotBehavior(); store.Loading = true; loaded.SyncData(store); Load(loaded);
@@ -823,9 +829,36 @@ internal static class Program
                   "загрузка через час после прохода не даёт второго: предел трат за 6 часов не умножается загрузками (зерна " + Grain(w) + ")");
             int passes = LogCount("ОБСЛУЖИВАНИЕ"), grainBefore = Grain(w);
             CampaignTime.TestHours = 6; loaded.PollState();
-            Check(LogCount("ОБСЛУЖИВАНИЕ") == passes + 1 && Grain(w) == grainBefore + 40,
+            Check(LogCount("ОБСЛУЖИВАНИЕ") == passes + 1 && Grain(w) == grainBefore + 50,
                   "через 6 часов после прохода, сделанного до сохранения, идёт следующий (проходов " + passes + " → " + LogCount("ОБСЛУЖИВАНИЕ")
                   + ", зерна " + grainBefore + " → " + Grain(w) + ")");
+        });
+        Try("цена еды растёт во время покупки", () =>
+        {
+            var b = Fresh(); var w = MakeWorld(prisoners: false); SetLimit("MaxFoodSpendPerPass", 100);
+            w.Grain.TestPrice = 10; w.Grain.TestPriceIncreasePerSale = 10;
+            w.Notable.TestMaxRecruitIndex = -1;
+            Enable(b); b.PollState(); ArriveTown(w.Place); b.PollState();
+            Check(Grain(w) == 4 && Hero.MainHero.Gold == 19900,
+                  "каждая следующая цена пересчитана: куплено за 10+20+30+40, резерв и лимит сохранены");
+        });
+        Try("выбранный товар закончился, но другая еда есть", () =>
+        {
+            var b = Fresh(); var w = MakeWorld(prisoners: false); MobileParty.MainParty.FoodChange = -1f;
+            w.Place.ItemRoster.TestAdd(w.Grain, -299);
+            var other = new ItemObject { Name = "Другая еда", IsFood = true, TestPrice = 21 };
+            w.Place.ItemRoster.TestAdd(other, 100);
+            Enable(b); b.PollState(); ArriveTown(w.Place); b.PollState();
+            Check(MobileParty.MainParty.TotalFoodAtInventory == 30 && w.Place.ItemRoster.TestCount(other) == 71,
+                  "после последней дешёвой единицы выбор продолжается из оставшегося товара");
+        });
+        Try("деревня без торгового города", () =>
+        {
+            var b = Fresh(); var w = MakeWorld(village: true, prisoners: false); w.Place.Village.TradeBound = null;
+            w.Notable.TestMaxRecruitIndex = -1;
+            Enable(b); b.PollState(); MobileParty.MainParty.LastVisitedSettlement = w.Place; ArriveVillage(w.Place); b.PollState();
+            Check(Grain(w) == 60 && Hero.MainHero.Gold == 20000 - 60 * 20,
+                  "при TradeBound == null цену берём из Bound.Town, как SellItemsAction, а не условную цену деревни 1");
         });
         Try("пределы найма за проход срабатывают", () =>
         {

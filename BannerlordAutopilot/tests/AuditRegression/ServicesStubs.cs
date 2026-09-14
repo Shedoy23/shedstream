@@ -32,6 +32,7 @@ namespace TaleWorlds.Core {
   public HorseComponent HorseComponent { get; set; }
   public bool HasHorseComponent => HorseComponent != null;               // Core 7037
   public int TestPrice;                                                  // цена единицы у продавца
+  public int TestPriceIncreasePerSale;                                   // рост цены после уменьшения рынка
   public override string ToString() => Name;
  }
  public struct EquipmentElement {
@@ -198,9 +199,10 @@ namespace TaleWorlds.CampaignSystem.Actions {
    if (TestBroken) return;
    int total = 0;
    for (int i = 0; i < number; i++) {
-    total += subject.EquipmentElement.Item.TestPrice;
-    receiverParty.ItemRoster.AddToCounts(subject.EquipmentElement, -1);
-    payerParty?.ItemRoster.AddToCounts(subject.EquipmentElement, 1);
+   total += subject.EquipmentElement.Item.TestPrice;
+   receiverParty.ItemRoster.AddToCounts(subject.EquipmentElement, -1);
+   payerParty?.ItemRoster.AddToCounts(subject.EquipmentElement, 1);
+   subject.EquipmentElement.Item.TestPrice += subject.EquipmentElement.Item.TestPriceIncreasePerSale;
    }
    GiveGoldAction.ApplyForCharacterToSettlement(payerParty.LeaderHero, receiverParty.Settlement, total);
   }

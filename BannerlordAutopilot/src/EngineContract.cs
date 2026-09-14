@@ -244,6 +244,8 @@ namespace BannerlordAutopilot
             Type sellItems = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Actions.SellItemsAction");
             Type giveGold = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Actions.GiveGoldAction");
             Type sellPrisoners = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Actions.SellPrisonersAction");
+            Type village = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Settlements.Village");
+            Type town = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Settlements.Town");
             Type heroHelper = TypeNamed(campaign, "Helpers.HeroHelper");
             Type item = TypeNamed(core, "TaleWorlds.Core.ItemObject");
             Type equipment = TypeNamed(core, "TaleWorlds.Core.EquipmentElement");
@@ -320,6 +322,11 @@ namespace BannerlordAutopilot
             MemberOf(typeof(Settlement), "ItemRoster", Inst, itemRoster);
             MemberOf(typeof(Settlement), "MapFaction", Inst, faction);
             MemberOf(typeof(Settlement), "StringId", Inst, typeof(string)); // ключ отметок проходов в сейве
+            MemberOf(typeof(Settlement), "Village", Inst, village);
+            MemberOf(typeof(Settlement), "Town", Inst, town);
+            MemberOf(village, "TradeBound", Inst, typeof(Settlement));
+            MemberOf(village, "Bound", Inst, typeof(Settlement));
+            Method(town, "GetItemPrice", Inst, typeof(int), equipment, typeof(MobileParty), typeof(bool));
             Method(faction, "IsAtWarWith", Inst, typeof(bool), faction);
 
             // Ростеры и предметы

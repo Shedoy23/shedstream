@@ -133,6 +133,8 @@ namespace TaleWorlds.CampaignSystem {
  }
 }
 namespace TaleWorlds.CampaignSystem.Settlements {
+ public class Town { public int GetItemPrice(TaleWorlds.Core.EquipmentElement element, MobileParty party = null, bool isSelling = false) => element.Item.TestPrice; }
+ public class Village { public Settlement TradeBound { get; set; } public Settlement Bound { get; set; } }
  public class Settlement : IMapPoint {
   public string Name="Town"; public bool IsUnderSiege; public CampaignVec2 GatePosition = new CampaignVec2{X=42};
   // MBObjectBase.StringId: у каждого поселения свой, из XML мира, и он же после загрузки сейва.
@@ -144,10 +146,13 @@ namespace TaleWorlds.CampaignSystem.Settlements {
   public bool IsUnderRaid { get; set; }
   public IFaction MapFaction { get; set; }
   public PartyBase Party { get; }
+  public Village Village { get; }
+  private readonly Town _town = new Town();
+  public Town Town => IsVillage ? null : _town;
   public ItemRoster ItemRoster => Party.ItemRoster;       // рынок поселения (161206)
   public MBReadOnlyList<Hero> Notables { get; } = new();
   public int TestGold = 100000;
-  public Settlement() { Party = new PartyBase { Settlement = this }; }
+  public Settlement() { Party = new PartyBase { Settlement = this }; Village = new Village { TradeBound = this, Bound = this }; }
   public override string ToString()=>Name;
  }
 }

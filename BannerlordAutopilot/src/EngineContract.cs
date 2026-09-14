@@ -125,6 +125,13 @@ namespace BannerlordAutopilot
                 typeof(float).MakeByRefType(), typeof(TaleWorlds.Library.Vec2).MakeByRefType());
             Type mapEvent = MemberType(typeof(MobileParty), "MapEvent", Inst, false, out _);
             Need(mapEvent != null, "MobileParty.MapEvent");
+            MemberOf(typeof(PlayerEncounter), "EncounteredBattle", Stat, mapEvent);
+            Type battleSide = MemberType(mapEvent, "AttackerSide", Inst, false, out _);
+            Need(battleSide != null, "MapEvent.AttackerSide");
+            MemberOf(mapEvent, "DefenderSide", Inst, battleSide);
+            Type leaderParty = MemberType(battleSide, "LeaderParty", Inst, false, out _);
+            Need(leaderParty != null, "MapEventSide.LeaderParty");
+            MemberNamed(leaderParty, "MapFaction", Inst, "IFaction");
             MemberOf(mapEvent, "MapEventSettlement", Inst, typeof(Settlement));
             MemberOf(mapEvent, "IsNavalMapEvent", Inst, typeof(bool));
             MemberExists(typeof(MobileParty), "SiegeEvent", Inst);

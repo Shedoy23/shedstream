@@ -332,7 +332,7 @@ namespace BannerlordAutopilot
                 return false;
             }
 
-            string unsupported = IsSupportedFieldBattleEncounter(party) ? null : UnsupportedState(party);
+            string unsupported = IsSupportedFieldBattleEncounter(party) || CanHelpDefenders(party) ? null : UnsupportedState(party);
             if (unsupported != null)
             {
                 reason = unsupported;
@@ -340,7 +340,7 @@ namespace BannerlordAutopilot
             }
 
             Settlement peaceful = PeacefulSettlement(party);
-            if (peaceful == null && PlayerEncounter.Current != null && !IsSupportedFieldBattleEncounter(party))
+            if (peaceful == null && PlayerEncounter.Current != null && !IsSupportedFieldBattleEncounter(party) && !CanHelpDefenders(party))
             {
                 reason = "идёт встреча, которую автопилот не поддерживает";
                 return false;
@@ -464,9 +464,21 @@ namespace BannerlordAutopilot
             }
 
             // СНАЧАЛА опасные состояния — до любых рассуждений о поселении.
+            if (CanHelpDefenders(party))
+            {
+                if (_mode == Mode.Apply && MapIsActiveScreen() && !InformationManager.IsAnyInquiryActive())
+                {
+                    string option = MenuDriver.CurrentMenuId + "_help_defenders";
+                    if (MenuDriver.TryInvoke(option, out string why))
+                        AutopilotLog.Write("БОЙ: нажата помощь защитникам; ждём меню «В атаку»");
+                    else
+                        Disable("помочь защитникам нельзя: " + why);
+                }
+                return false;
+            }
             if (IsSupportedFieldBattleEncounter(party))
             {
-                if (_mode == Mode.Observe)
+                if (_mode == Mode.Observe || !MapIsActiveScreen() || InformationManager.IsAnyInquiryActive())
                 {
                     return false;
                 }
@@ -1075,6 +1087,22 @@ namespace BannerlordAutopilot
                 return "идёт встреча с другой партией — вне области прототипа";
             }
             return null;
+        }
+
+        private static bool CanHelpDefenders(MobileParty party)
+        {
+            string menu = MenuDriver.CurrentMenuId;
+            var battle = PlayerEncounter.EncounteredBattle;
+            return (menu == "join_encounter" || menu == "encounter_interrupted")
+                   && PlayerEncounter.Current != null && battle != null
+                   && party != null && party.Army == null && party.SiegeEvent == null
+                   && party.BesiegedSettlement == null && party.Ai != null && !party.Ai.IsDisabled
+                   && battle.MapEventSettlement == null && !battle.IsNavalMapEvent
+                   && battle.AttackerSide?.LeaderParty?.MapFaction != null
+                   && battle.DefenderSide?.LeaderParty?.MapFaction != null
+                   && party.MapFaction != null
+                   && party.MapFaction.IsAtWarWith(battle.AttackerSide.LeaderParty.MapFaction)
+                   && !party.MapFaction.IsAtWarWith(battle.DefenderSide.LeaderParty.MapFaction);
         }
 
         /// <summary>Первый поддержанный боевой сценарий: уже созданный обычный

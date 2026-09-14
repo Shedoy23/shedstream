@@ -47,6 +47,7 @@ internal static class Program
         PlayerEncounter.LeaveEncounter = false; PlayerEncounter.LeaveSettlementCalls = 0; PlayerEncounter.FinishCalls = 0;
         AutopilotBehavior.AutoLeaveSettlement = true; AutopilotLog.Lines.Clear();
         CampaignEventDispatcher.NextScores.Clear(); TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.VisitCalls = 0;
+        TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.PatrolCalls = 0;
         CampaignEventDispatcher.Recruited.Clear(); CampaignEventDispatcher.ThinkFood = -1; CampaignEventDispatcher.ThinkMembers = -1;
         CampaignEventDispatcher.TestRecruitedThrows = false;
         TaleWorlds.CampaignSystem.Actions.SellItemsAction.TestBroken = false; TaleWorlds.CampaignSystem.Actions.SellPrisonersAction.TestCalls = 0;
@@ -506,6 +507,58 @@ internal static class Program
             HourlyTick(b);
             Check(TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.VisitCalls == 1,
                   "приказ посетить ДРУГОЕ поселение по-прежнему выдаётся (фикс не заблокировал поездки)");
+        });
+
+        Console.WriteLine("\n[прогон в игре 14.09] патруль не залипает на одной деревне");
+        Try("одинаковый патруль не перевыдаётся", () =>
+        {
+            var b = Fresh(); Enable(b);
+            var ustokol = new Settlement { Name = "Устокол" };
+            Scores((AiBehavior.PatrolAroundPoint, ustokol, 2.25f));
+            CampaignTime.TestHours = 0; HourlyTick(b);
+            for (int h = 1; h <= 6; h++) { CampaignTime.TestHours = h; HourlyTick(b); }
+            Check(TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.PatrolCalls == 1,
+                  "тот же действующий приказ патруля за шесть часов выдан один раз");
+            Check(LogCount("приказ не перевыдаю") == 1,
+                  "продолжение того же патруля явно записано без ложной повторной выдачи");
+        });
+        Try("долгий патруль уступает следующей цели", () =>
+        {
+            var b = Fresh(); Enable(b);
+            var ustokol = new Settlement { Name = "Устокол" };
+            var reville = new Settlement { Name = "Ревиль" };
+            Scores((AiBehavior.PatrolAroundPoint, ustokol, 2.25f), (AiBehavior.GoToSettlement, reville, 1.60f));
+            CampaignTime.TestHours = 0; HourlyTick(b);
+            for (int h = 1; h <= 24; h++) { CampaignTime.TestHours = h; HourlyTick(b); }
+            Check(MobileParty.MainParty.DefaultBehavior == AiBehavior.GoToSettlement
+                  && MobileParty.MainParty.TargetSettlement == reville,
+                  "после 24 часов патруля предельный штраф 0.80 выводит партию к следующей штатной цели");
+            Check(AutopilotLog.Lines.Any(l => l.Contains("штраф за") && l.Contains("Устокол")),
+                  "причина смены патруля видна в журнале");
+            Scores((AiBehavior.PatrolAroundPoint, ustokol, 2.25f), (AiBehavior.GoToSettlement, reville, 1.90f));
+            for (int h = 25; h <= 30; h++) { CampaignTime.TestHours = h; HourlyTick(b); }
+            Check(MobileParty.MainParty.TargetSettlement == reville,
+                  "в течение суток охлаждения партия сразу не возвращается к тому же патрулю");
+            for (int h = 31; h <= 48; h++) { CampaignTime.TestHours = h; HourlyTick(b); }
+            Check(MobileParty.MainParty.DefaultBehavior == AiBehavior.PatrolAroundPoint
+                  && MobileParty.MainParty.TargetSettlement == ustokol,
+                  "через сутки охлаждение снимается и штатный сильный патруль снова допустим");
+        });
+        Try("малый перевес не дёргает текущий маршрут", () =>
+        {
+            var b = Fresh(); Enable(b);
+            var ustokol = new Settlement { Name = "Устокол" };
+            var korsia = new Settlement { Name = "Корсия" };
+            Scores((AiBehavior.GoToSettlement, ustokol, 2.00f));
+            CampaignTime.TestHours = 0; HourlyTick(b);
+            Scores((AiBehavior.GoToSettlement, ustokol, 2.00f), (AiBehavior.GoToSettlement, korsia, 2.10f));
+            for (int h = 1; h <= 6; h++) { CampaignTime.TestHours = h; HourlyTick(b); }
+            Check(MobileParty.MainParty.TargetSettlement == ustokol,
+                  "перевес 0.10 меньше порога 0.15 — текущий маршрут сохранён");
+            Scores((AiBehavior.GoToSettlement, ustokol, 2.00f), (AiBehavior.GoToSettlement, korsia, 2.20f));
+            for (int h = 7; h <= 12; h++) { CampaignTime.TestHours = h; HourlyTick(b); }
+            Check(MobileParty.MainParty.TargetSettlement == korsia,
+                  "перевес 0.20 достаточен для смены маршрута");
         });
 
         Console.WriteLine("\n[прогон в игре 13.09] сообщение на F12 не утверждает того, чего не было");

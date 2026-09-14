@@ -223,9 +223,10 @@ namespace TaleWorlds.CampaignSystem.Actions {
  }
  public static class SetPartyAiAction {
   public static int VisitCalls;
+  public static int PatrolCalls;
   public static void GetActionForVisitingSettlement(MobileParty p, Settlement s, MobileParty.NavigationType n, bool f, bool t) {VisitCalls++;p.DefaultBehavior=AiBehavior.GoToSettlement;p.TargetSettlement=s;p.IsMoving=true;}
-  public static void GetActionForPatrollingAroundSettlement(MobileParty p, Settlement s, MobileParty.NavigationType n, bool f, bool t) {p.DefaultBehavior=AiBehavior.PatrolAroundPoint;p.TargetSettlement=s;p.IsMoving=true;}
-  public static void GetActionForPatrollingAroundPoint(MobileParty p, CampaignVec2 s, MobileParty.NavigationType n, bool f) {p.DefaultBehavior=AiBehavior.PatrolAroundPoint;p.IsMoving=true;}
+  public static void GetActionForPatrollingAroundSettlement(MobileParty p, Settlement s, MobileParty.NavigationType n, bool f, bool t) {PatrolCalls++;p.DefaultBehavior=AiBehavior.PatrolAroundPoint;p.TargetSettlement=s;p.IsMoving=true;}
+  public static void GetActionForPatrollingAroundPoint(MobileParty p, CampaignVec2 s, MobileParty.NavigationType n, bool f) {PatrolCalls++;p.DefaultBehavior=AiBehavior.PatrolAroundPoint;p.IsMoving=true;}
   public static void GetActionForEscortingParty(MobileParty p, MobileParty s, MobileParty.NavigationType n, bool f, bool t) {p.DefaultBehavior=AiBehavior.EscortParty;p.IsMoving=true;}
  }
 }

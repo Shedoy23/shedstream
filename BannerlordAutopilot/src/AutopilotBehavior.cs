@@ -18,9 +18,10 @@ namespace BannerlordAutopilot
     /// <summary>Прототип автопилота партии игрока.
     ///
     /// ЧТО ОН ДОКАЗЫВАЕТ. Что цель партии игрока может выбрать ШТАТНЫЙ мозг
-    /// движка, а не мод. Поэтому здесь нет ни одной собственной оценки целей:
-    /// мод только вызывает для MainParty тот же сбор оценок, который игра
-    /// каждый час делает для партий лордов, и применяет его результат.
+    /// движка, а не мод. Мод вызывает для MainParty тот же сбор оценок, который
+    /// игра делает для партий лордов. После прогона 14.09 поверх штатных оценок
+    /// добавлены две узкие поправки для игры без человека: убывание долгого
+    /// патруля одной точки и порог смены близких по оценке маршрутов.
     ///
     /// НО ВЫБОР — НЕ КОПИЯ РЕШЕНИЯ NPC (итоговая независимая проверка 13.09).
     /// Оценки штатные, набор действий ограничен, а правило выбора своё: лучшее
@@ -28,8 +29,8 @@ namespace BannerlordAutopilot
     /// подождать, пропускаются. При устойчивом максимуме «осада» партия будет
     /// раз за разом делать следующее мирное решение, чего NPC не делает. Нет и
     /// штатного вероятностного допуска смены решения: у NPC он срабатывает,
-    /// только когда CurrentObjectiveValue ≥ 0.05 (враг рядом), иначе движок
-    /// принимает лучшее решение всегда — как и мод.
+    /// только когда CurrentObjectiveValue ≥ 0.05 (враг рядом). Вместо него мод
+    /// использует проверяемый порог 0.15, чтобы не разворачиваться на полпути.
     ///
     /// ПОЧЕМУ БЕЗ HARMONY. Штатный выбор целей закрыт для партии игрока
     /// сравнением `mobileParty != MobileParty.MainParty` внутри
@@ -120,6 +121,22 @@ namespace BannerlordAutopilot
         private string _lastAppliedDescription = "—";
         private string _lastTargetKey;
 
+        // Штатная оценка сухопутного патруля не убывает от времени у цели и
+        // почти не зависит от расстояния партии до неё. В прогоне 14.09 это
+        // дало серии до 72 пересчётов одной деревни. Сохраняем штатные оценки,
+        // но постепенно уменьшаем ценность непрерывного патруля и на сутки
+        // охлаждаем точку после долгого обхода.
+        private Settlement _continuousPatrolSettlement;
+        private double _continuousPatrolSinceHours = -1;
+        private readonly Dictionary<Settlement, double> _patrolCooldownUntil = new Dictionary<Settlement, double>();
+        private const double PatrolGraceHours = 6;
+        private const double LongPatrolHours = 12;
+        private const double PatrolCooldownHours = 24;
+        private const float PatrolPenaltyPerHour = 0.05f;
+        private const float MaximumPatrolPenalty = 0.8f;
+        private const float PatrolCooldownPenalty = 0.5f;
+        private const float DecisionChangeMargin = 0.15f;
+
         // Состояние одного сеанса. Раньше флаг «выход уже запрошен» переживал
         // выключение и глушил первое прибытие следующего сеанса. Теперь всё
         // сбрасывается на каждой границе сеанса (включение, выключение,
@@ -207,6 +224,8 @@ namespace BannerlordAutopilot
             _settlementExitsThisSession = 0;
             _lastAppliedDescription = "—";
             _lastTargetKey = null;
+            _continuousPatrolSettlement = null;
+            _continuousPatrolSinceHours = -1;
             _startedIn = null;
             _handledSettlement = null;
             _resumeSpeed = 0;
@@ -1189,16 +1208,47 @@ namespace BannerlordAutopilot
             AIBehaviorData chosen = AIBehaviorData.Invalid;
             float chosenScore = -1f;
             string skipped = null;
-            foreach (var pair in think.AIBehaviorScores.OrderByDescending(p => p.Item2))
+            var applicable = new List<Tuple<AIBehaviorData, float, float>>();
+            foreach (var pair in think.AIBehaviorScores)
             {
                 string reason = WhyNotApplicable(pair.Item1);
                 if (reason == null)
                 {
-                    chosen = pair.Item1;
-                    chosenScore = pair.Item2;
-                    break;
+                    applicable.Add(Tuple.Create(pair.Item1, pair.Item2, AdjustedDecisionScore(pair.Item1, pair.Item2)));
                 }
-                skipped = skipped ?? Describe(pair.Item1) + " — " + reason;
+                else
+                {
+                    skipped = skipped ?? Describe(pair.Item1) + " — " + reason;
+                }
+            }
+            if (applicable.Count > 0)
+            {
+                var selected = applicable.OrderByDescending(p => p.Item3).First();
+                chosen = selected.Item1;
+                chosenScore = selected.Item3;
+
+                if (selected.Item2 != selected.Item3)
+                {
+                    AutopilotLog.Write("  " + Describe(selected.Item1) + ": штатная оценка "
+                                       + selected.Item2.ToString("F3", CultureInfo.InvariantCulture)
+                                       + ", после поправки " + selected.Item3.ToString("F3", CultureInfo.InvariantCulture));
+                }
+
+                // Близкие оценки меняются каждый пересчёт и разворачивали
+                // партию на полпути. Пока текущий приказ действителен, новая
+                // обычная цель должна выиграть с небольшим явным запасом.
+                if (waitingIn == null && !IsSameDecision(chosen, party))
+                {
+                    var current = applicable.FirstOrDefault(p => IsSameDecision(p.Item1, party));
+                    if (current != null && chosenScore < current.Item3 + DecisionChangeMargin)
+                    {
+                        AutopilotLog.Write("  текущая цель сохранена: новая лучше только на "
+                                           + (chosenScore - current.Item3).ToString("F3", CultureInfo.InvariantCulture)
+                                           + ", порог смены " + DecisionChangeMargin.ToString("F2", CultureInfo.InvariantCulture));
+                        chosen = current.Item1;
+                        chosenScore = current.Item3;
+                    }
+                }
             }
 
             if (chosen.AiBehavior == AiBehavior.None)
@@ -1238,6 +1288,78 @@ namespace BannerlordAutopilot
             ApplyDecision(party, chosen, chosenScore);
         }
 
+        private float AdjustedDecisionScore(AIBehaviorData data, float rawScore)
+        {
+            if (data.AiBehavior != AiBehavior.PatrolAroundPoint || !(data.Party is Settlement settlement))
+            {
+                return rawScore;
+            }
+
+            double now = CampaignTime.Now.ToHours;
+            float penalty = 0f;
+            if (settlement == _continuousPatrolSettlement && _continuousPatrolSinceHours >= 0)
+            {
+                double hours = Math.Max(0, now - _continuousPatrolSinceHours);
+                penalty += Math.Min(MaximumPatrolPenalty,
+                                    (float)Math.Max(0, hours - PatrolGraceHours) * PatrolPenaltyPerHour);
+                if (penalty > 0f)
+                {
+                    AutopilotLog.Write("  штраф за " + hours.ToString("F0", CultureInfo.InvariantCulture)
+                                       + " ч. патруля «" + settlement.Name + "»: -"
+                                       + penalty.ToString("F3", CultureInfo.InvariantCulture));
+                }
+            }
+            if (_patrolCooldownUntil.TryGetValue(settlement, out double until))
+            {
+                if (until > now)
+                {
+                    penalty += PatrolCooldownPenalty;
+                }
+                else
+                {
+                    _patrolCooldownUntil.Remove(settlement);
+                }
+            }
+            return rawScore - penalty;
+        }
+
+        private static string DecisionKey(AIBehaviorData data)
+        {
+            return data.AiBehavior + "|" + (data.Party != null ? data.Party.ToString() : data.Position.ToString());
+        }
+
+        private static bool IsSameDecision(AIBehaviorData data, MobileParty party)
+        {
+            if (data.AiBehavior != party.DefaultBehavior)
+            {
+                return false;
+            }
+            var settlement = data.Party as Settlement;
+            return settlement != null && settlement == party.TargetSettlement;
+        }
+
+        private void UpdatePatrolHistory(AIBehaviorData next)
+        {
+            var nextSettlement = next.AiBehavior == AiBehavior.PatrolAroundPoint ? next.Party as Settlement : null;
+            if (_continuousPatrolSettlement != null && nextSettlement != _continuousPatrolSettlement)
+            {
+                double duration = Math.Max(0, CampaignTime.Now.ToHours - _continuousPatrolSinceHours);
+                if (duration >= LongPatrolHours)
+                {
+                    _patrolCooldownUntil[_continuousPatrolSettlement] = CampaignTime.Now.ToHours + PatrolCooldownHours;
+                    AutopilotLog.Write("  «" + _continuousPatrolSettlement.Name + "» отдыхает от патруля "
+                                       + PatrolCooldownHours.ToString("F0", CultureInfo.InvariantCulture) + " ч.");
+                }
+                _continuousPatrolSettlement = null;
+                _continuousPatrolSinceHours = -1;
+            }
+            if (nextSettlement != null && _continuousPatrolSettlement == null)
+            {
+                _continuousPatrolSettlement = nextSettlement;
+                _continuousPatrolSinceHours = CampaignTime.Now.ToHours;
+            }
+        }
+
         /// <summary>Почему решение штатного AI автопилот не выполняет. null — выполняет.</summary>
         private string WhyNotApplicable(AIBehaviorData data)
         {
@@ -1271,6 +1393,18 @@ namespace BannerlordAutopilot
         private void ApplyDecision(MobileParty party, AIBehaviorData data, float score)
         {
             var settlement = data.Party as Settlement;
+            string key = DecisionKey(data);
+
+            if (key == _lastTargetKey && IsSameDecision(data, party))
+            {
+                _reappliesThisSession++;
+                AutopilotLog.Write("  та же цель продолжается, приказ не перевыдаю ("
+                                   + _reappliesThisSession + "-й пересчёт): " + Describe(data)
+                                   + " (оценка " + score.ToString("F3", CultureInfo.InvariantCulture) + ")");
+                return;
+            }
+
+            UpdatePatrolHistory(data);
 
             try
             {
@@ -1332,7 +1466,6 @@ namespace BannerlordAutopilot
             // сеансе. После выхода из поселения ключ сбрасывается, поэтому
             // повторная выдача той же цели после остановки считается новым
             // приказом — это число приказов, а не буквальное число смен цели.
-            string key = data.AiBehavior + "|" + (data.Party != null ? data.Party.ToString() : data.Position.ToString());
             bool changed = key != _lastTargetKey;
             _lastTargetKey = key;
             _lastAppliedDescription = Describe(data);

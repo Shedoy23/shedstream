@@ -77,7 +77,7 @@ namespace TaleWorlds.CampaignSystem {
   public List<(AIBehaviorData,float)> AIBehaviorScores {get;} = new();
   public void Reset(MobileParty p) { AIBehaviorScores.Clear(); }
  }
- public class MapEvent {}
+ public class MapEvent { public Settlement MapEventSettlement { get; set; } public bool IsNavalMapEvent { get; set; } }
  public enum CampaignTimeControlMode { Stop, UnstoppablePlay, UnstoppableFastForward, StoppablePlay, StoppableFastForward, UnstoppableFastForwardForPartyWaitTime, FastForwardStop }
  public class Campaign {
   public static Campaign Current = new();

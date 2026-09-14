@@ -305,7 +305,7 @@ namespace BannerlordAutopilot
                 return false;
             }
 
-            string unsupported = UnsupportedState(party);
+            string unsupported = IsSupportedFieldBattleEncounter(party) ? null : UnsupportedState(party);
             if (unsupported != null)
             {
                 reason = unsupported;
@@ -313,7 +313,7 @@ namespace BannerlordAutopilot
             }
 
             Settlement peaceful = PeacefulSettlement(party);
-            if (peaceful == null && PlayerEncounter.Current != null)
+            if (peaceful == null && PlayerEncounter.Current != null && !IsSupportedFieldBattleEncounter(party))
             {
                 reason = "идёт встреча, которую автопилот не поддерживает";
                 return false;
@@ -427,6 +427,33 @@ namespace BannerlordAutopilot
             }
 
             // СНАЧАЛА опасные состояния — до любых рассуждений о поселении.
+            if (IsSupportedFieldBattleEncounter(party))
+            {
+                if (_mode == Mode.Observe)
+                {
+                    return false;
+                }
+                string menu = MenuDriver.CurrentMenuId;
+                if (menu == null)
+                {
+                    return false;
+                }
+                if (menu != "encounter")
+                {
+                    Disable("перед полевым боем открыто неподдерживаемое меню: " + MenuDriver.Describe());
+                    return false;
+                }
+                if (MenuDriver.TryInvoke("attack", out string attackWhy))
+                {
+                    AutopilotLog.Write("БОЙ: нажата штатная кнопка «В атаку»; открывается полноценная боевая сцена");
+                }
+                else
+                {
+                    Disable("полноценный бой нельзя начать: " + attackWhy);
+                }
+                return false;
+            }
+
             string unsupported = UnsupportedState(party);
             if (unsupported != null)
             {
@@ -779,6 +806,22 @@ namespace BannerlordAutopilot
                 return "идёт встреча с другой партией — вне области прототипа";
             }
             return null;
+        }
+
+        /// <summary>Первый поддержанный боевой сценарий: уже созданный обычный
+        /// сухопутный MapEvent и его меню encounter. Армии, осады, налёты,
+        /// убежища и морские бои открывают другие миссии и экраны.</summary>
+        internal static bool IsSupportedFieldBattleEncounter(MobileParty party)
+        {
+            var battle = party?.MapEvent;
+            return battle != null
+                   && PlayerEncounter.Current != null
+                   && PlayerEncounter.Battle != null
+                   && party.Army == null
+                   && party.SiegeEvent == null
+                   && party.BesiegedSettlement == null
+                   && battle.MapEventSettlement == null
+                   && !battle.IsNavalMapEvent;
         }
 
         /// <summary>Мирное поселение, в котором или у ворот которого стоит партия.

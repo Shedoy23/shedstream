@@ -319,6 +319,48 @@ internal static class Program
             Check(b.CurrentMode == AutopilotBehavior.Mode.Off && PlayerEncounter.Current != null && PlayerEncounter.FinishCalls == 0,
                   "встреча с партией у чужого поселения не считается прибытием и не закрывается");
         });
+        Try("обычный полевой бой открывается", () =>
+        {
+            var b = Fresh(); Enable(b);
+            bool opened = false;
+            var battle = new MapEvent();
+            MobileParty.MainParty.MapEvent = battle;
+            PlayerEncounter.Current = new PlayerEncounter(); PlayerEncounter.Battle = battle;
+            var menu = new GameMenu { StringId = "encounter" };
+            menu.Options.Add(new GameMenuOption { IdString = "attack", Consequence = () => opened = true });
+            menu.Options.Add(new GameMenuOption { IdString = "str_order_attack", Consequence = () => throw new Exception("автосимуляция нажата") });
+            Show(menu); b.PollState();
+            Check(opened && MenuContext.Invoked.SequenceEqual(new[] { "attack" }),
+                  "F11 нажимает штатное «В атаку» и открывает сцену, а не «Отправить войска»");
+            Check(b.CurrentMode == AutopilotBehavior.Mode.Apply, "при переходе в сцену боевой автопилот остаётся включён");
+        });
+        Try("F11 можно включить прямо в меню полевого боя", () =>
+        {
+            var b = Fresh(); bool opened = false; var battle = new MapEvent();
+            MobileParty.MainParty.MapEvent = battle; PlayerEncounter.Current = new PlayerEncounter(); PlayerEncounter.Battle = battle;
+            var menu = new GameMenu { StringId = "encounter" };
+            menu.Options.Add(new GameMenuOption { IdString = "attack", Consequence = () => opened = true }); Show(menu);
+            Enable(b); b.PollState();
+            Check(opened && b.CurrentMode == AutopilotBehavior.Mode.Apply,
+                  "F11 из encounter разрешён и запускает полноценный бой");
+        });
+        Try("недоступный и особый бой не запускаются", () =>
+        {
+            var b = Fresh(); Enable(b);
+            var battle = new MapEvent(); MobileParty.MainParty.MapEvent = battle;
+            PlayerEncounter.Current = new PlayerEncounter(); PlayerEncounter.Battle = battle;
+            var menu = new GameMenu { StringId = "encounter" };
+            menu.Options.Add(new GameMenuOption { IdString = "attack", IsEnabled = false, Tooltip = "герой ранен" });
+            Show(menu); b.PollState();
+            Check(MenuContext.Invoked.Count == 0 && b.CurrentMode == AutopilotBehavior.Mode.Off,
+                  "недоступное «В атаку» не обходится, причина выключает автопилот");
+
+            b = Fresh(); Enable(b); battle = new MapEvent { IsNavalMapEvent = true };
+            MobileParty.MainParty.MapEvent = battle; PlayerEncounter.Current = new PlayerEncounter(); PlayerEncounter.Battle = battle;
+            Show(new GameMenu { StringId = "encounter" }); b.PollState();
+            Check(MenuContext.Invoked.Count == 0 && b.CurrentMode == AutopilotBehavior.Mode.Off,
+                  "морской бой не попадает под логику сухопутной миссии");
+        });
 
         Console.WriteLine("\n[игра без человека] поселение: ждать, как NPC, и уходить по решению штатного AI");
         Try("прибытие в город", () =>

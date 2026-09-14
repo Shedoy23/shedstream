@@ -51,6 +51,17 @@ namespace BannerlordAutopilot
             }
         }
 
+        public override void OnMissionBehaviorInitialize(Mission mission)
+        {
+            base.OnMissionBehaviorInitialize(mission);
+            if (AutopilotBehavior.Instance?.CurrentMode == AutopilotBehavior.Mode.Apply
+                && BattleAutopilotMission.IsSupportedCampaignBattle())
+            {
+                mission.AddMissionBehavior(new BattleAutopilotMission());
+                AutopilotLog.Write("БОЙ: боевой автопилот добавлен в полевую миссию");
+            }
+        }
+
         private float _pollTimer;
 
         protected override void OnApplicationTick(float dt)
@@ -72,7 +83,7 @@ namespace BannerlordAutopilot
             if (_pollTimer >= 0.5f)
             {
                 _pollTimer = 0f;
-                if (behavior.CurrentMode != AutopilotBehavior.Mode.Off)
+                if (behavior.CurrentMode != AutopilotBehavior.Mode.Off && Mission.Current == null)
                 {
                     behavior.PollState();
                 }
@@ -109,6 +120,13 @@ namespace BannerlordAutopilot
             }
             if (behavior.TryEnable(mode, out string reason))
             {
+                if (mode == AutopilotBehavior.Mode.Apply && Mission.Current != null
+                    && BattleAutopilotMission.IsSupportedCampaignBattle()
+                    && Mission.Current.GetMissionBehavior<BattleAutopilotMission>() == null)
+                {
+                    Mission.Current.AddMissionBehavior(new BattleAutopilotMission());
+                    AutopilotLog.Write("БОЙ: F11 добавил боевой автопилот в уже открытую миссию");
+                }
                 return "Автопилот включён, режим: " + AutopilotBehavior.ModeName(mode)
                        + ". Лог: " + AutopilotLog.Path;
             }

@@ -113,7 +113,10 @@ namespace BannerlordAutopilot
             MemberOf(typeof(MobileParty), "LastVisitedSettlement", Inst, typeof(Settlement));
             MemberOf(typeof(MobileParty), "DefaultBehavior", Inst, typeof(AiBehavior));
             MemberOf(typeof(MobileParty), "Ai", Inst, typeof(MobilePartyAi));
-            MemberExists(typeof(MobileParty), "MapEvent", Inst);
+            Type mapEvent = MemberType(typeof(MobileParty), "MapEvent", Inst, false, out _);
+            Need(mapEvent != null, "MobileParty.MapEvent");
+            MemberOf(mapEvent, "MapEventSettlement", Inst, typeof(Settlement));
+            MemberOf(mapEvent, "IsNavalMapEvent", Inst, typeof(bool));
             MemberExists(typeof(MobileParty), "SiegeEvent", Inst);
             MemberExists(typeof(MobileParty), "Army", Inst);
             if (vec2 != null)

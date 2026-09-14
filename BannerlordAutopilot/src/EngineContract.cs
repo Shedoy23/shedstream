@@ -211,6 +211,26 @@ namespace BannerlordAutopilot
             MemberOf(mapScreen, "EncyclopediaScreenManager", Inst, encyclopedia);
             MemberOf(encyclopedia, "IsEncyclopediaOpen", Inst, typeof(bool));
 
+            // Штатные случайные события: содержимое читается через публичный
+            // Incident API, а слой закрывается тем же MapScreen, что и кнопка UI.
+            Type incident = TypeNamed(campaignAssembly, "TaleWorlds.CampaignSystem.Incidents.Incident");
+            Type textObject = LoadedType("TaleWorlds.Localization.TextObject", "TaleWorlds.Localization");
+            MemberOf(incident, "StringId", Inst, typeof(string));
+            MemberOf(incident, "Title", Inst, textObject);
+            MemberOf(incident, "NumOfOptions", Inst, typeof(int));
+            Method(incident, "GetOptionText", Inst, textObject, typeof(int));
+            Method(incident, "GetOptionHint", Inst,
+                textObject != null ? typeof(List<>).MakeGenericType(textObject) : null, typeof(int));
+            Method(incident, "InvokeOption", Inst,
+                textObject != null ? typeof(List<>).MakeGenericType(textObject) : null, typeof(int));
+            Type mapView = LoadedType("SandBox.View.Map.MapView", "SandBox.View");
+            Type incidentView = LoadedType("SandBox.View.Map.MapIncidentView", "SandBox.View");
+            FieldOf(incidentView, "Incident", incident);
+            MethodInfo getMapView = mapScreen?.GetMethods(Inst)
+                .FirstOrDefault(m => m.Name == "GetMapView" && m.IsGenericMethodDefinition && m.GetParameters().Length == 0);
+            Need(getMapView != null, "MapScreen.GetMapView<T>()");
+            Method(mapScreen, "RemoveMapView", Inst, typeof(void), mapView);
+
             VerifySettlementServices(campaignAssembly, gameState?.Assembly, helper);
 
             // ── Прочее
@@ -415,9 +435,10 @@ namespace BannerlordAutopilot
 
         private static void MemberNamed(Type type, string name, BindingFlags flags, string typeName, bool needWrite = false)
         {
-            Type actual = MemberType(type, name, flags, needWrite, out bool writable);
+            bool writable = false;
+            Type actual = type == null ? null : MemberType(type, name, flags, needWrite, out writable);
             Need(actual != null && actual.Name == typeName && (!needWrite || writable),
-                type.Name + "." + name + " : " + typeName + (needWrite ? " (запись)" : ""));
+                (type?.Name ?? "?") + "." + name + " : " + typeName + (needWrite ? " (запись)" : ""));
         }
 
         private static void MemberExists(Type type, string name, BindingFlags flags)
@@ -427,13 +448,14 @@ namespace BannerlordAutopilot
 
         private static void FieldOf(Type type, string name, Type expected)
         {
-            Need(type.GetField(name, Inst)?.FieldType == expected, type.Name + "." + name + " : " + expected.Name);
+            Need(type != null && expected != null && type.GetField(name, Inst)?.FieldType == expected,
+                (type?.Name ?? "?") + "." + name + " : " + (expected?.Name ?? "?"));
         }
 
         private static void FieldNamed(Type type, string name, string expectedTypeName)
         {
-            Need(type.GetField(name, Inst)?.FieldType.Name == expectedTypeName,
-                type.Name + "." + name + " : " + expectedTypeName);
+            Need(type != null && type.GetField(name, Inst)?.FieldType.Name == expectedTypeName,
+                (type?.Name ?? "?") + "." + name + " : " + expectedTypeName);
         }
 
         private static Type MemberType(Type type, string name, BindingFlags flags, bool needWrite, out bool writable)

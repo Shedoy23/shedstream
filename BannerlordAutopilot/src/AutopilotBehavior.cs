@@ -2,12 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using Helpers;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.Encounters;
 using TaleWorlds.CampaignSystem.GameState;
+using TaleWorlds.CampaignSystem.Incidents;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
@@ -201,6 +203,8 @@ namespace BannerlordAutopilot
         private int _stallsThisSession;
         private double _longestStallSeconds;
         private int _timeStartsThisSession;
+        private int _incidentsResolvedThisSession;
+        private object _lastIncidentLogged;
 
         /// <summary>Что выключение реально сделало с партией — для сообщения на
         /// экране. Раньше F12 всегда писал «движение остановлено, состояние AI
@@ -240,6 +244,8 @@ namespace BannerlordAutopilot
             _stallsThisSession = 0;
             _longestStallSeconds = 0;
             _timeStartsThisSession = 0;
+            _incidentsResolvedThisSession = 0;
+            _lastIncidentLogged = null;
         }
 
         public override void RegisterEvents()
@@ -419,6 +425,7 @@ namespace BannerlordAutopilot
                                + " (самый долгий " + longest.ToString("F0", CultureInfo.InvariantCulture) + " с"
                                + (_stallReported ? ", последний ещё идёт" : "") + ")"
                                + "; снятий с паузы " + _timeStartsThisSession);
+            AutopilotLog.Write("итог событий: автоматически решено " + _incidentsResolvedThisSession);
         }
 
         // ── Проверка состояния (каждые полсекунды, независимо от хода времени) ──
@@ -443,6 +450,10 @@ namespace BannerlordAutopilot
             if (_mode == Mode.Apply)
             {
                 WatchTime(party);
+                if (TryHandleMapIncident())
+                {
+                    return false;
+                }
             }
 
             // СНАЧАЛА опасные состояния — до любых рассуждений о поселении.
@@ -638,6 +649,102 @@ namespace BannerlordAutopilot
             return encyclopedia?.GetType().GetProperty("IsEncyclopediaOpen")?.GetValue(encyclopedia) is true
                 ? "энциклопедия"
                 : null;
+        }
+
+        /// <summary>Автоматически решать только однозначные либо проверенные
+        /// события. Варианты и последствия берутся из публичного Incident API;
+        /// само окно закрывается тем же MapScreen.RemoveMapView, что вызывает UI.</summary>
+        private bool TryHandleMapIncident()
+        {
+            object screen = (Game.Current?.GameStateManager?.ActiveState as MapState)?.Handler;
+            if (screen == null || !(screen.GetType().GetProperty("IsMapIncidentActive")?.GetValue(screen) is true))
+            {
+                _lastIncidentLogged = null;
+                return false;
+            }
+
+            try
+            {
+                Type viewType = AppDomain.CurrentDomain.GetAssemblies()
+                    .Select(a => a.GetType("SandBox.View.Map.MapIncidentView", false))
+                    .FirstOrDefault(t => t != null);
+                MethodInfo getView = screen.GetType().GetMethods(BindingFlags.Public | BindingFlags.Instance)
+                    .FirstOrDefault(m => m.Name == "GetMapView" && m.IsGenericMethodDefinition && m.GetParameters().Length == 0);
+                object view = viewType != null && getView != null
+                    ? getView.MakeGenericMethod(viewType).Invoke(screen, null)
+                    : null;
+                FieldInfo incidentField = viewType?.GetField("Incident", BindingFlags.Public | BindingFlags.Instance);
+                Incident incident = view != null && incidentField != null ? incidentField.GetValue(view) as Incident : null;
+                if (view == null || incident == null)
+                {
+                    if (_lastIncidentLogged == null)
+                    {
+                        _lastIncidentLogged = screen;
+                        AutopilotLog.Write("СОБЫТИЕ: окно найдено, но активный Incident прочитать нельзя — оставлено человеку");
+                    }
+                    return true;
+                }
+
+                int option = SafeIncidentOption(incident);
+                bool firstLog = _lastIncidentLogged != incident;
+                if (firstLog)
+                {
+                    _lastIncidentLogged = incident;
+                    AutopilotLog.Write("СОБЫТИЕ: «" + incident.Title + "» [" + incident.StringId + "], вариантов "
+                                       + incident.NumOfOptions);
+                    for (int i = 0; i < incident.NumOfOptions; i++)
+                    {
+                        string hints = string.Join("; ", incident.GetOptionHint(i).Select(x => x.ToString()).ToArray());
+                        AutopilotLog.Write("  вариант " + i + ": " + incident.GetOptionText(i) + " => " + hints);
+                    }
+                }
+                if (option < 0)
+                {
+                    if (firstLog)
+                    {
+                        AutopilotLog.Write("  неоднозначное событие не входит в белый список — выбор оставлен человеку");
+                    }
+                    return true;
+                }
+
+                string selected = incident.GetOptionText(option).ToString();
+                List<string> results = incident.InvokeOption(option).Select(x => x.ToString()).ToList();
+                MethodInfo remove = screen.GetType().GetMethods(BindingFlags.Public | BindingFlags.Instance)
+                    .FirstOrDefault(m => m.Name == "RemoveMapView" && m.GetParameters().Length == 1
+                                         && m.GetParameters()[0].ParameterType.IsAssignableFrom(view.GetType()));
+                if (remove == null)
+                {
+                    Disable("событие выполнено, но его окно нельзя закрыть: MapScreen.RemoveMapView не найден");
+                    return true;
+                }
+                remove.Invoke(screen, new[] { view });
+                _incidentsResolvedThisSession++;
+                _lastIncidentLogged = null;
+                AutopilotLog.Write("  СОБЫТИЕ РЕШЕНО автоматически: вариант " + option + " «" + selected + "»"
+                                   + (results.Count > 0 ? "; результат: " + string.Join("; ", results.ToArray()) : ""));
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Exception cause = ex is TargetInvocationException && ex.InnerException != null ? ex.InnerException : ex;
+                Disable("обработка случайного события упала: " + cause.GetType().Name + ": " + cause.Message);
+                return true;
+            }
+        }
+
+        private static int SafeIncidentOption(Incident incident)
+        {
+            if (incident.NumOfOptions == 1)
+            {
+                return 0;
+            }
+            // Проверено по IncidentsCampaignBehaviour 1.4.8: вариант даёт +5
+            // морали и щедрость, не забирая золото, предметы или бойцов.
+            if (incident.StringId == "incident_apples_from_heaven" && incident.NumOfOptions > 0)
+            {
+                return 0;
+            }
+            return -1;
         }
 
         /// <summary>Завести отсчёт пребывания при первом наблюдении ожидания в сеансе.
@@ -1261,6 +1368,11 @@ namespace BannerlordAutopilot
                 AutopilotLog.Write("  пропущено: " + skipped + "; берём: " + Describe(chosen) + " = "
                                    + chosenScore.ToString("F3", CultureInfo.InvariantCulture));
             }
+            if (DecisionKey(chosen) != DecisionKey(best) || Math.Abs(chosenScore - bestScore) > 0.0001f)
+            {
+                AutopilotLog.Write("  выбрано автопилотом после ограничений: " + Describe(chosen) + " = "
+                                   + chosenScore.ToString("F3", CultureInfo.InvariantCulture));
+            }
 
             if (waitingIn != null)
             {
@@ -1314,6 +1426,9 @@ namespace BannerlordAutopilot
                 if (until > now)
                 {
                     penalty += PatrolCooldownPenalty;
+                    AutopilotLog.Write("  охлаждение патруля «" + settlement.Name + "»: ещё "
+                                       + (until - now).ToString("F0", CultureInfo.InvariantCulture)
+                                       + " ч., -" + PatrolCooldownPenalty.ToString("F3", CultureInfo.InvariantCulture));
                 }
                 else
                 {

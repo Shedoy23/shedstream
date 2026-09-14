@@ -37,6 +37,16 @@ namespace TaleWorlds.Library {
  public static class InformationManager { public static bool TestInquiryActive; public static bool IsAnyInquiryActive() => TestInquiryActive; }
 }
 namespace TaleWorlds.Localization { public class TextObject { private readonly string _text; public TextObject(string text) { _text = text; } public override string ToString() => _text; } }
+namespace TaleWorlds.CampaignSystem.Incidents {
+ public class Incident {
+  public string StringId {get;set;} public TaleWorlds.Localization.TextObject Title {get;set;} = new("");
+  public readonly List<(TaleWorlds.Localization.TextObject Text,List<TaleWorlds.Localization.TextObject> Hints,Action Consequence)> Options = new();
+  public int NumOfOptions => Options.Count;
+  public TaleWorlds.Localization.TextObject GetOptionText(int i)=>Options[i].Text;
+  public List<TaleWorlds.Localization.TextObject> GetOptionHint(int i)=>Options[i].Hints;
+  public List<TaleWorlds.Localization.TextObject> InvokeOption(int i){Options[i].Consequence?.Invoke();return Options[i].Hints;}
+ }
+}
 namespace TaleWorlds.CampaignSystem.Map { public interface IMapPoint {} }
 namespace TaleWorlds.CampaignSystem.Conversation { public class ConversationManager { public bool IsConversationInProgress { get; set; } } }
 namespace TaleWorlds.CampaignSystem.GameMenus {
@@ -258,6 +268,8 @@ namespace SandBox.View.Map {
  // Окна поверх карты — слои MapScreen (SandBox.View 11135-11198). ActiveState при них
  // остаётся MapState, поэтому признак «активен экран карты» их не видит. В игре
  // сеттеры закрыты; здесь открыты, чтобы открывать окна в сценариях.
+ public class MapView {}
+ public class MapIncidentView : MapView { public readonly TaleWorlds.CampaignSystem.Incidents.Incident Incident; public MapIncidentView(TaleWorlds.CampaignSystem.Incidents.Incident i){Incident=i;} }
  public class MapEncyclopediaView { public bool IsEncyclopediaOpen { get; set; } }
  public class MapScreen : TaleWorlds.CampaignSystem.GameState.IMapStateHandler {
   public bool IsEscapeMenuOpened { get; set; }
@@ -273,6 +285,9 @@ namespace SandBox.View.Map {
   public bool IsHeirSelectionPopupActive { get; set; }
   public bool IsOverlayContextMenuEnabled { get; set; }
   public MapEncyclopediaView EncyclopediaScreenManager { get; } = new();
+  public MapIncidentView IncidentView { get; set; }
+  public T GetMapView<T>() where T:MapView => IncidentView as T;
+  public void RemoveMapView(MapView view) { if(view==IncidentView){IncidentView=null;IsMapIncidentActive=false;TaleWorlds.CampaignSystem.Campaign.Current.TimeControlModeLock=false;} }
  }
 }
 namespace BannerlordAutopilot {

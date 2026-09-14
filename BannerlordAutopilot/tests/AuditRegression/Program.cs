@@ -535,6 +535,8 @@ internal static class Program
                   "после 24 часов патруля предельный штраф 0.80 выводит партию к следующей штатной цели");
             Check(AutopilotLog.Lines.Any(l => l.Contains("штраф за") && l.Contains("Устокол")),
                   "причина смены патруля видна в журнале");
+            Check(AutopilotLog.Lines.Any(l => l.Contains("выбрано автопилотом после ограничений") && l.Contains("Ревиль")),
+                  "журнал отличает штатного победителя от фактически выбранной цели");
             Scores((AiBehavior.PatrolAroundPoint, ustokol, 2.25f), (AiBehavior.GoToSettlement, reville, 1.90f));
             for (int h = 25; h <= 30; h++) { CampaignTime.TestHours = h; HourlyTick(b); }
             Check(MobileParty.MainParty.TargetSettlement == reville,
@@ -985,6 +987,49 @@ internal static class Program
         });
 
         Console.WriteLine("\n[прогон в игре 14.09] окно поверх карты: время заперто, а автопилот окна не видел");
+        Try("известное событие «Яблоки с небес»", () =>
+        {
+            var b = Fresh(); Enable(b);
+            var incident = new TaleWorlds.CampaignSystem.Incidents.Incident {
+                StringId = "incident_apples_from_heaven", Title = new TaleWorlds.Localization.TextObject("Яблоки с небес")
+            };
+            int selected = -1;
+            incident.Options.Add((new TaleWorlds.Localization.TextObject("Помочь себе"), new List<TaleWorlds.Localization.TextObject>{new("Мораль +5")}, () => selected = 0));
+            incident.Options.Add((new TaleWorlds.Localization.TextObject("Сообщить жителям"), new List<TaleWorlds.Localization.TextObject>{new("Мораль -5")}, () => selected = 1));
+            Screen.IncidentView = new SandBox.View.Map.MapIncidentView(incident); Screen.IsMapIncidentActive = true;
+            b.PollState();
+            Check(selected == 0 && !Screen.IsMapIncidentActive,
+                  "проверенный безопасный вариант вызван, штатный слой события закрыт");
+            Check(AutopilotLog.Lines.Any(l => l.Contains("СОБЫТИЕ РЕШЕНО") && l.Contains("вариант 0")),
+                  "автоматический выбор и его результат записаны");
+        });
+        Try("однокнопочное событие", () =>
+        {
+            var b = Fresh(); Enable(b);
+            var incident = new TaleWorlds.CampaignSystem.Incidents.Incident {
+                StringId = "incident_ack", Title = new TaleWorlds.Localization.TextObject("Продолжение")
+            };
+            int calls = 0;
+            incident.Options.Add((new TaleWorlds.Localization.TextObject("OK"), new List<TaleWorlds.Localization.TextObject>{new("Ничего не происходит")}, () => calls++));
+            Screen.IncidentView = new SandBox.View.Map.MapIncidentView(incident); Screen.IsMapIncidentActive = true;
+            b.PollState();
+            Check(calls == 1 && !Screen.IsMapIncidentActive, "единственная кнопка нажата ровно один раз и окно закрыто");
+        });
+        Try("неизвестное многовариантное событие", () =>
+        {
+            var b = Fresh(); Enable(b);
+            var incident = new TaleWorlds.CampaignSystem.Incidents.Incident {
+                StringId = "incident_unknown", Title = new TaleWorlds.Localization.TextObject("Неизвестное")
+            };
+            int calls = 0;
+            incident.Options.Add((new TaleWorlds.Localization.TextObject("Потратить золото"), new List<TaleWorlds.Localization.TextObject>{new("Золото -100")}, () => calls++));
+            incident.Options.Add((new TaleWorlds.Localization.TextObject("Потерять бойца"), new List<TaleWorlds.Localization.TextObject>{new("Боец погибает")}, () => calls++));
+            Screen.IncidentView = new SandBox.View.Map.MapIncidentView(incident); Screen.IsMapIncidentActive = true;
+            b.PollState(); b.PollState();
+            Check(calls == 0 && Screen.IsMapIncidentActive, "неизвестный выбор не сделан вслепую");
+            Check(LogCount("неоднозначное событие") == 1 && AutopilotLog.Lines.Any(l => l.Contains("Золото -100")),
+                  "название, варианты и последствия записаны один раз");
+        });
         Try("окно случайного события у деревни", () =>
         {
             // Жемянь, 02:50: после прибытия открылось окно события (CreateLayout ставит Stop и
@@ -1003,7 +1048,9 @@ internal static class Program
             Screen.IsMapIncidentActive = false; Campaign.Current.TimeControlModeLock = false;         // человек выбрал вариант
             b.PollState();
             Check(Grain(w) == 60 && CampaignEventDispatcher.Recruited.Count == 3 && MenuContext.Invoked.Contains("village_wait"),
-                  "окно закрыто — автопилот продолжает сам: обслуживание и «Подождать» (зерна " + Grain(w) + ")");
+                  "окно закрыто — автопилот продолжает сам: обслуживание и «Подождать» (зерна " + Grain(w)
+                  + ", режим " + b.CurrentMode + ", окно " + Screen.IsMapIncidentActive
+                  + ", вызовы " + string.Join(",", MenuContext.Invoked) + ")");
         });
         Try("каждое окно поверх карты останавливает действия", () =>
         {

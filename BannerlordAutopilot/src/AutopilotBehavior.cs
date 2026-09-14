@@ -1248,6 +1248,17 @@ namespace BannerlordAutopilot
                 NoteWaiting();
             }
 
+            // MobilePartyAi.GetBehaviors вызывает этот штатный расчёт для NPC,
+            // но DefaultMobilePartyAIModel.ShouldPartyCheckInitiativeBehavior
+            // намеренно возвращает false для MainParty. Без него партия игрока
+            // видит дальние маршруты, но не замечает даже слабых бандитов рядом.
+            // Повторяем ровно NPC-порог (> 1) и его готовый выбор цели; свою
+            // оценку силы, войны, скорости или дистанции здесь не изобретаем.
+            if (waitingIn == null && TryApplyNearbyAttack(party))
+            {
+                return;
+            }
+
             _hoursSinceThink++;
             bool idle = waitingIn == null && party.DefaultBehavior == AiBehavior.Hold;
             if (_ticksThisSession > 0 && !idle && _hoursSinceThink < ThinkPeriodHours)
@@ -1450,7 +1461,37 @@ namespace BannerlordAutopilot
                 return false;
             }
             var settlement = data.Party as Settlement;
-            return settlement != null && settlement == party.TargetSettlement;
+            if (settlement != null)
+            {
+                return settlement == party.TargetSettlement;
+            }
+            var targetParty = data.Party as MobileParty;
+            return targetParty != null && targetParty == party.TargetParty;
+        }
+
+        private bool TryApplyNearbyAttack(MobileParty party)
+        {
+            try
+            {
+                Campaign.Current.Models.MobilePartyAIModel.GetBestInitiativeBehavior(
+                    party, out AiBehavior behavior, out MobileParty target, out float score, out Vec2 _);
+                if (behavior != AiBehavior.EngageParty || target == null || score <= 1f)
+                {
+                    return false;
+                }
+
+                var decision = new AIBehaviorData(target, AiBehavior.EngageParty,
+                    MobileParty.NavigationType.Default, false, false, false);
+                AutopilotLog.Write("ближняя угроза по штатной модели: атакуем «" + target.Name
+                                   + "», оценка " + score.ToString("F3", CultureInfo.InvariantCulture));
+                ApplyDecision(party, decision, score);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Disable("расчёт ближайшего врага упал: " + ex.GetType().Name + ": " + ex.Message);
+                return true;
+            }
         }
 
         private void UpdatePatrolHistory(AIBehaviorData next)
@@ -1495,6 +1536,9 @@ namespace BannerlordAutopilot
                 case AiBehavior.PatrolAroundPoint:
                     return null;
                 case AiBehavior.EscortParty:
+                    return data.Party is MobileParty ? null : "без партии";
+                case AiBehavior.GoAroundParty:
+                case AiBehavior.EngageParty:
                     return data.Party is MobileParty ? null : "без партии";
                 default:
                     return "вне области автопилота";
@@ -1564,6 +1608,16 @@ namespace BannerlordAutopilot
                     case AiBehavior.EscortParty:
                         SetPartyAiAction.GetActionForEscortingParty(
                             party, (MobileParty)data.Party, data.NavigationType, data.IsFromPort, data.IsTargetingPort);
+                        break;
+
+                    case AiBehavior.GoAroundParty:
+                        SetPartyAiAction.GetActionForGoingAroundParty(
+                            party, (MobileParty)data.Party, data.NavigationType, data.IsFromPort);
+                        break;
+
+                    case AiBehavior.EngageParty:
+                        SetPartyAiAction.GetActionForEngagingParty(
+                            party, (MobileParty)data.Party, data.NavigationType, data.IsFromPort);
                         break;
 
                     default:

@@ -74,6 +74,7 @@ namespace TaleWorlds.CampaignSystem {
   public int RoundedResultNumber => (int)Math.Round(ResultNumber);        // 42955
  }
  public class GameModels {
+  public MobilePartyAIModel MobilePartyAIModel { get; } = new();
   public PartyFoodBuyingModel PartyFoodBuyingModel { get; } = new();
   public MobilePartyFoodConsumptionModel MobilePartyFoodConsumptionModel { get; } = new();
   public PartyWageModel PartyWageModel { get; } = new();
@@ -83,6 +84,10 @@ namespace TaleWorlds.CampaignSystem {
 }
 
 namespace TaleWorlds.CampaignSystem.ComponentInterfaces {
+ public class MobilePartyAIModel {
+  public AiBehavior NextBehavior; public MobileParty NextTarget; public float NextScore;
+  public void GetBestInitiativeBehavior(MobileParty party, out AiBehavior behavior, out MobileParty target, out float score, out TaleWorlds.Library.Vec2 averageEnemyVec) { behavior=NextBehavior; target=NextTarget; score=NextScore; averageEnemyVec=default; }
+ }
  public class PartyFoodBuyingModel {
   public float MinimumDaysFoodToLastWhileBuyingFoodFromTown => 30f;       // DefaultPartyFoodBuyingModel 64177
   public float MinimumDaysFoodToLastWhileBuyingFoodFromVillage => 12f;    // 64178

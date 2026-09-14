@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
+using TaleWorlds.CampaignSystem.ComponentInterfaces;
 using TaleWorlds.CampaignSystem.Encounters;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Settlements;
@@ -102,6 +103,10 @@ namespace BannerlordAutopilot
             }
             Method(typeof(SetPartyAiAction), "GetActionForEscortingParty", Stat, typeof(void),
                 typeof(MobileParty), typeof(MobileParty), navigation, typeof(bool), typeof(bool));
+            Method(typeof(SetPartyAiAction), "GetActionForGoingAroundParty", Stat, typeof(void),
+                typeof(MobileParty), typeof(MobileParty), navigation, typeof(bool));
+            Method(typeof(SetPartyAiAction), "GetActionForEngagingParty", Stat, typeof(void),
+                typeof(MobileParty), typeof(MobileParty), navigation, typeof(bool));
 
             // ── Состояние партии
             MemberOf(typeof(MobileParty), "MainParty", Stat, typeof(MobileParty));
@@ -110,9 +115,14 @@ namespace BannerlordAutopilot
             MemberOf(typeof(MobileParty), "CurrentSettlement", Inst, typeof(Settlement));
             MemberOf(typeof(MobileParty), "BesiegedSettlement", Inst, typeof(Settlement));
             MemberOf(typeof(MobileParty), "TargetSettlement", Inst, typeof(Settlement));
+            MemberOf(typeof(MobileParty), "TargetParty", Inst, typeof(MobileParty));
             MemberOf(typeof(MobileParty), "LastVisitedSettlement", Inst, typeof(Settlement));
             MemberOf(typeof(MobileParty), "DefaultBehavior", Inst, typeof(AiBehavior));
             MemberOf(typeof(MobileParty), "Ai", Inst, typeof(MobilePartyAi));
+            MemberOf(typeof(GameModels), "MobilePartyAIModel", Inst, typeof(MobilePartyAIModel));
+            Method(typeof(MobilePartyAIModel), "GetBestInitiativeBehavior", Inst, typeof(void),
+                typeof(MobileParty), typeof(AiBehavior).MakeByRefType(), typeof(MobileParty).MakeByRefType(),
+                typeof(float).MakeByRefType(), typeof(TaleWorlds.Library.Vec2).MakeByRefType());
             Type mapEvent = MemberType(typeof(MobileParty), "MapEvent", Inst, false, out _);
             Need(mapEvent != null, "MobileParty.MapEvent");
             MemberOf(mapEvent, "MapEventSettlement", Inst, typeof(Settlement));

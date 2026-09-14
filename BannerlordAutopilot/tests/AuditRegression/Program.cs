@@ -48,6 +48,7 @@ internal static class Program
         AutopilotBehavior.AutoLeaveSettlement = true; AutopilotLog.Lines.Clear();
         CampaignEventDispatcher.NextScores.Clear(); TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.VisitCalls = 0;
         TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.PatrolCalls = 0;
+        TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.EngageCalls = 0;
         CampaignEventDispatcher.Recruited.Clear(); CampaignEventDispatcher.ThinkFood = -1; CampaignEventDispatcher.ThinkMembers = -1;
         CampaignEventDispatcher.TestRecruitedThrows = false;
         TaleWorlds.CampaignSystem.Actions.SellItemsAction.TestBroken = false; TaleWorlds.CampaignSystem.Actions.SellPrisonersAction.TestCalls = 0;
@@ -507,6 +508,46 @@ internal static class Program
             HourlyTick(b);
             Check(TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.VisitCalls == 1,
                   "приказ посетить ДРУГОЕ поселение по-прежнему выдаётся (фикс не заблокировал поездки)");
+        });
+
+        Console.WriteLine("\n[прогон в игре 14.09] партия игрока замечает ближайшего врага");
+        Try("ближняя атака штатной модели", () =>
+        {
+            var b = Fresh(); Enable(b);
+            var bandits = new MobileParty { Name = "Лесные разбойники" };
+            Campaign.Current.Models.MobilePartyAIModel.NextBehavior = AiBehavior.EngageParty;
+            Campaign.Current.Models.MobilePartyAIModel.NextTarget = bandits;
+            Campaign.Current.Models.MobilePartyAIModel.NextScore = 3.5f;
+            Scores((AiBehavior.PatrolAroundPoint, new Settlement { Name = "Устокол" }, 2.25f));
+            HourlyTick(b);
+            Check(TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.EngageCalls == 1
+                  && MobileParty.MainParty.TargetParty == bandits,
+                  "штатная ближняя оценка > 1 перебивает патруль и выдаёт погоню за бандитами");
+            Check(AutopilotLog.Lines.Any(l => l.Contains("Лесные разбойники") && l.Contains("3.500")),
+                  "цель и штатная оценка атаки записаны в журнале");
+        });
+        Try("слабая ближняя атака отвергнута", () =>
+        {
+            var b = Fresh(); Enable(b);
+            Campaign.Current.Models.MobilePartyAIModel.NextBehavior = AiBehavior.EngageParty;
+            Campaign.Current.Models.MobilePartyAIModel.NextTarget = new MobileParty { Name = "Сильный враг" };
+            Campaign.Current.Models.MobilePartyAIModel.NextScore = 0.9f;
+            Scores((AiBehavior.PatrolAroundPoint, new Settlement { Name = "Устокол" }, 2.25f));
+            HourlyTick(b);
+            Check(TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.EngageCalls == 0
+                  && MobileParty.MainParty.DefaultBehavior == AiBehavior.PatrolAroundPoint,
+                  "оценка <= 1 не обходит штатный порог безопасности NPC");
+        });
+        Try("дальняя погоня из почасовых оценок", () =>
+        {
+            var b = Fresh(); Enable(b);
+            var enemy = new MobileParty { Name = "Вражеский отряд" };
+            Scores((AiBehavior.GoAroundParty, enemy, 2.5f),
+                   (AiBehavior.PatrolAroundPoint, new Settlement { Name = "Устокол" }, 2.25f));
+            HourlyTick(b);
+            Check(MobileParty.MainParty.DefaultBehavior == AiBehavior.GoAroundParty
+                  && MobileParty.MainParty.TargetParty == enemy,
+                  "штатное дальнее решение GoAroundParty больше не отбрасывается как неподдержанное");
         });
 
         Console.WriteLine("\n[прогон в игре 14.09] патруль не залипает на одной деревне");

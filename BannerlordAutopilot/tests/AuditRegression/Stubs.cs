@@ -30,6 +30,7 @@ namespace TaleWorlds.Core {
  public class Game { public static Game Current = new(); public GameStateManager GameStateManager { get; } = new(); }
 }
 namespace TaleWorlds.Library {
+ public struct Vec2 {}
  public class Stub {}
  public class MBReadOnlyList<T> : List<T> {}
  public class MBList<T> : MBReadOnlyList<T> {}
@@ -75,10 +76,11 @@ namespace TaleWorlds.CampaignSystem.GameState {
  }
 }
 namespace TaleWorlds.CampaignSystem {
- public enum AiBehavior { None, Hold, GoToSettlement, PatrolAroundPoint, EscortParty, BesiegeSettlement }
+ public enum AiBehavior { None, Hold, GoToSettlement, PatrolAroundPoint, EscortParty, GoAroundParty, EngageParty, FleeToPoint, BesiegeSettlement }
  public struct CampaignVec2 { public float X; public override string ToString()=>X.ToString(); }
  public struct CampaignTime { public static double TestHours; private double _h; public static CampaignTime Now => new CampaignTime { _h = TestHours }; public double ToHours => _h; }
  public struct AIBehaviorData {
+  public AIBehaviorData(IMapPoint party, AiBehavior behavior, MobileParty.NavigationType navigation, bool gather, bool fromPort, bool targetingPort) { Party=party; AiBehavior=behavior; NavigationType=navigation; WillGatherArmy=gather; IsFromPort=fromPort; IsTargetingPort=targetingPort; Position=default; }
   public AiBehavior AiBehavior; public IMapPoint Party; public CampaignVec2 Position;
   public MobileParty.NavigationType NavigationType; public bool IsFromPort, IsTargetingPort, WillGatherArmy;
   public static AIBehaviorData Invalid => default;
@@ -178,6 +180,7 @@ namespace TaleWorlds.CampaignSystem.Party {
   public static MobileParty MainParty = new();
   public bool IsActive=true, IsMoving; public MapEvent MapEvent; public object Army,SiegeEvent;
   public Settlement CurrentSettlement, BesiegedSettlement, LastVisitedSettlement, TargetSettlement;
+  public MobileParty TargetParty;
   public MobilePartyAi Ai=new(); public AiBehavior DefaultBehavior=AiBehavior.GoToSettlement;
   public CampaignVec2 Position; public string Name="Player";
   public PartyThinkParams ThinkParamsCache {get;} = new();
@@ -234,9 +237,12 @@ namespace TaleWorlds.CampaignSystem.Actions {
  public static class SetPartyAiAction {
   public static int VisitCalls;
   public static int PatrolCalls;
+  public static int EngageCalls;
   public static void GetActionForVisitingSettlement(MobileParty p, Settlement s, MobileParty.NavigationType n, bool f, bool t) {VisitCalls++;p.DefaultBehavior=AiBehavior.GoToSettlement;p.TargetSettlement=s;p.IsMoving=true;}
   public static void GetActionForPatrollingAroundSettlement(MobileParty p, Settlement s, MobileParty.NavigationType n, bool f, bool t) {PatrolCalls++;p.DefaultBehavior=AiBehavior.PatrolAroundPoint;p.TargetSettlement=s;p.IsMoving=true;}
   public static void GetActionForPatrollingAroundPoint(MobileParty p, CampaignVec2 s, MobileParty.NavigationType n, bool f) {PatrolCalls++;p.DefaultBehavior=AiBehavior.PatrolAroundPoint;p.IsMoving=true;}
+  public static void GetActionForGoingAroundParty(MobileParty p, MobileParty t, MobileParty.NavigationType n, bool f) {p.DefaultBehavior=AiBehavior.GoAroundParty;p.TargetParty=t;p.IsMoving=true;}
+  public static void GetActionForEngagingParty(MobileParty p, MobileParty t, MobileParty.NavigationType n, bool f) {EngageCalls++;p.DefaultBehavior=AiBehavior.EngageParty;p.TargetParty=t;p.IsMoving=true;}
   public static void GetActionForEscortingParty(MobileParty p, MobileParty s, MobileParty.NavigationType n, bool f, bool t) {p.DefaultBehavior=AiBehavior.EscortParty;p.IsMoving=true;}
  }
 }

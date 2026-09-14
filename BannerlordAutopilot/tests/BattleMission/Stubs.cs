@@ -15,15 +15,23 @@ namespace TaleWorlds.MountAndBlade {
   public virtual void OnMissionTick(float dt) {} public virtual void OnAfterDeploymentFinished() {} protected virtual void OnEndMission() {}
  }
  public abstract class MissionLogic : MissionBehavior {}
- public class HumanAIComponent { public int SyncCalls; public void SyncBehaviorParamsIfNecessary() { SyncCalls++; } }
+ public class CommonAIComponent { public int InitializeCalls; public void Initialize() { InitializeCalls++; } }
+ public class HumanAIComponent { public int InitializeCalls, SyncCalls; public void Initialize() { InitializeCalls++; } public void SyncBehaviorParamsIfNecessary() { SyncCalls++; } }
+ public enum RidingOrderEnum { Free, Mount }
+ public class RidingOrder { public RidingOrderEnum OrderEnum = RidingOrderEnum.Mount; }
  public class Agent {
-  public enum AIStateFlag { Alarmed }
+  public enum AIStateFlag { None, Alarmed }
   public AgentControllerType Controller = AgentControllerType.Player; public bool Active = true; public int AlarmCalls, UnpauseCalls, ResetCalls;
-  public HumanAIComponent HumanAIComponent = new(); public bool IsActive() => Active;
+  public int StopUsingCalls, DisableScriptedCalls, RidingOrderCalls, SpeedResetCalls;
+  public bool IsUsingGameObject = true; public AIStateFlag AIStateFlags = AIStateFlag.None;
+  public CommonAIComponent CommonAIComponent = new(); public HumanAIComponent HumanAIComponent = new();
+  public Formation Formation; public Agent MountAgent; public bool IsActive() => Active;
   public void SetAlarmState(AIStateFlag value) { AlarmCalls++; } public void SetIsAIPaused(bool value) { if (!value) UnpauseCalls++; }
-  public void ResetEnemyCaches() { ResetCalls++; }
+  public void ResetEnemyCaches() { ResetCalls++; } public void HandleStopUsingAction() { StopUsingCalls++; IsUsingGameObject = false; }
+  public void DisableScriptedMovement() { DisableScriptedCalls++; } public void SetRidingOrder(RidingOrderEnum value) { RidingOrderCalls++; }
+  public void SetMaximumSpeedLimit(float value, bool isMultiplier) { SpeedResetCalls++; }
  }
- public class Formation { public bool IsAIControlled; public void SetControlledByAI(bool value, bool enforceNotSplittableByAI = false) { IsAIControlled = value; } }
+ public class Formation { public bool IsAIControlled; public int ChangedCalls; public RidingOrder RidingOrder = new(); public void SetControlledByAI(bool value, bool enforceNotSplittableByAI = false) { IsAIControlled = value; } public void OnUnitAddedOrRemoved() { ChangedCalls++; } }
  public class TeamAIComponent {}
  public class Team {
   public TeamAIComponent TeamAI = new(); public List<Formation> FormationsIncludingEmpty = new();
@@ -34,7 +42,7 @@ namespace TaleWorlds.MountAndBlade {
   public void FinishDeployment() { FinishCalls++; Mission.IsDeploymentFinished = true; Mission.Mode = MissionMode.Battle; }
  }
  public class Mission {
-  public MissionMode Mode = MissionMode.Deployment; public bool IsDeploymentFinished; public Team PlayerTeam = new(); public Agent MainAgent = new();
+  public MissionMode Mode = MissionMode.Deployment; public bool IsDeploymentFinished; public bool IsFriendlyMission; public Team PlayerTeam = new(); public Agent MainAgent = new();
   public BattleDeploymentMissionController Deployment;
   public T GetMissionBehavior<T>() where T:class => Deployment as T;
  }

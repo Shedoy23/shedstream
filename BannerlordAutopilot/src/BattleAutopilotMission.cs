@@ -82,9 +82,25 @@ namespace BannerlordAutopilot
             }
             team.DelegateCommandToAI();
             _givenAgent = agent;
+
+            // RTS Camera 5.4.16 делает больше, чем простая смена Controller:
+            // старое взаимодействие и scripted movement иначе могут продолжать
+            // держать героя, а компоненты AI — остаться в состоянии игрока.
+            if (agent.IsUsingGameObject && !Mission.IsFriendlyMission)
+            {
+                agent.HandleStopUsingAction();
+            }
             agent.Controller = AgentControllerType.AI;
+            agent.CommonAIComponent?.Initialize();
+            agent.HumanAIComponent?.Initialize();
             agent.SetAlarmState(Agent.AIStateFlag.Alarmed);
             agent.SetIsAIPaused(false);
+            agent.DisableScriptedMovement();
+            if (agent.Formation != null)
+            {
+                agent.SetRidingOrder(agent.Formation.RidingOrder.OrderEnum);
+                agent.Formation.OnUnitAddedOrRemoved();
+            }
             agent.ResetEnemyCaches();
             agent.HumanAIComponent?.SyncBehaviorParamsIfNecessary();
             _controlGiven = true;
@@ -104,6 +120,10 @@ namespace BannerlordAutopilot
             if (_givenAgent != null && _givenAgent.IsActive() && Mission.MainAgent == _givenAgent)
             {
                 _givenAgent.Controller = AgentControllerType.Player;
+                _givenAgent.AIStateFlags = Agent.AIStateFlag.None;
+                _givenAgent.SetMaximumSpeedLimit(-1f, false);
+                _givenAgent.MountAgent?.SetMaximumSpeedLimit(-1f, false);
+                _givenAgent.Formation?.OnUnitAddedOrRemoved();
             }
             _formationsGiven.Clear();
             _givenAgent = null;

@@ -91,7 +91,8 @@ namespace TaleWorlds.CampaignSystem {
   public List<(AIBehaviorData,float)> AIBehaviorScores {get;} = new();
   public void Reset(MobileParty p) { AIBehaviorScores.Clear(); }
  }
- public class MapEvent { public Settlement MapEventSettlement { get; set; } public bool IsNavalMapEvent { get; set; } }
+ public class MapEventSide { public PartyBase LeaderParty { get; set; } }
+ public class MapEvent { public MapEventSide AttackerSide { get; set; } = new(); public MapEventSide DefenderSide { get; set; } = new(); public Settlement MapEventSettlement { get; set; } public bool IsNavalMapEvent { get; set; } }
  public enum CampaignTimeControlMode { Stop, UnstoppablePlay, UnstoppableFastForward, StoppablePlay, StoppableFastForward, UnstoppableFastForwardForPartyWaitTime, FastForwardStop }
  public class Campaign {
   public static Campaign Current = new();
@@ -205,6 +206,7 @@ namespace TaleWorlds.CampaignSystem.Party {
  }
  // PartyBase (105803): ростеры партии или поселения.
  public class PartyBase {
+  public IFaction MapFaction { get; set; }
   public static PartyBase MainParty => MobileParty.MainParty?.Party;
   public TroopRoster MemberRoster { get; } = TroopRoster.CreateDummyTroopRoster();
   public TroopRoster PrisonRoster { get; } = TroopRoster.CreateDummyTroopRoster();
@@ -221,7 +223,7 @@ namespace TaleWorlds.CampaignSystem.Party {
 namespace TaleWorlds.CampaignSystem.Encounters {
  public class PlayerEncounter {
   public static PlayerEncounter Current; public static Settlement EncounterSettlement;
-  public static MobileParty EncounteredMobileParty; public static MapEvent Battle;
+  public static MobileParty EncounteredMobileParty; public static MapEvent Battle; public static MapEvent EncounteredBattle;
   public static bool LeaveEncounter {get;set;}
   public static int LeaveSettlementCalls, FinishCalls;
   public bool IsPlayerWaiting { get; set; }

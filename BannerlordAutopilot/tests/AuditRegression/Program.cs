@@ -43,7 +43,7 @@ internal static class Program
         MobileParty.MainParty = new MobileParty(); Hero.MainHero = new Hero(); Campaign.Current = new Campaign();
         TaleWorlds.Core.Game.Current = new TaleWorlds.Core.Game(); CampaignTime.TestHours = 0; MenuContext.Invoked.Clear();
         PlayerEncounter.Current = null; PlayerEncounter.EncounterSettlement = null;
-        PlayerEncounter.EncounteredMobileParty = null; PlayerEncounter.Battle = null;
+        PlayerEncounter.EncounteredMobileParty = null; PlayerEncounter.Battle = null; PlayerEncounter.EncounteredBattle = null;
         PlayerEncounter.LeaveEncounter = false; PlayerEncounter.LeaveSettlementCalls = 0; PlayerEncounter.FinishCalls = 0;
         AutopilotBehavior.AutoLeaveSettlement = true; AutopilotLog.Lines.Clear();
         CampaignEventDispatcher.NextScores.Clear(); TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.VisitCalls = 0;
@@ -322,6 +322,29 @@ internal static class Program
             b.PollState();
             Check(b.CurrentMode == AutopilotBehavior.Mode.Off && PlayerEncounter.Current != null && PlayerEncounter.FinishCalls == 0,
                   "встреча с партией у чужого поселения не считается прибытием и не закрывается");
+        });
+        foreach (bool enabled in new[] { true, false })
+        Try("помощь защитникам, доступность " + enabled, () =>
+        {
+            var b = Fresh(); Enable(b);
+            var ours = new TestFaction(); var enemy = new TestFaction(); ours.Enemies.Add(enemy);
+            MobileParty.MainParty.MapFaction = ours;
+            var battle = new MapEvent();
+            battle.AttackerSide.LeaderParty = new PartyBase { MapFaction = enemy };
+            battle.DefenderSide.LeaderParty = new PartyBase { MapFaction = ours };
+            PlayerEncounter.Current = new PlayerEncounter(); PlayerEncounter.EncounteredBattle = battle;
+            PlayerEncounter.EncounteredMobileParty = new MobileParty();
+            var join = new GameMenu { StringId = "join_encounter" };
+            join.Options.Add(new GameMenuOption { IdString = "join_encounter_help_defenders", IsEnabled = enabled, Consequence = () => {
+                MobileParty.MainParty.MapEvent = battle; PlayerEncounter.Battle = battle;
+                var fight = new GameMenu { StringId = "encounter" };
+                fight.Options.Add(new GameMenuOption { IdString = "attack" }); Show(fight);
+            }});
+            Show(join); b.PollState();
+            Check(MenuContext.Invoked.Count == (enabled ? 1 : 0), "помощь только доступной кнопкой, один шаг за опрос");
+            b.PollState();
+            Check(!enabled || MenuContext.Invoked.SequenceEqual(new[] { "join_encounter_help_defenders", "attack" }),
+                  "помощь защитникам затем полноценная атака");
         });
         Try("обычный полевой бой открывается", () =>
         {

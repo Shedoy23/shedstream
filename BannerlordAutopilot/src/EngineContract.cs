@@ -327,6 +327,9 @@ namespace BannerlordAutopilot
             MemberOf(typeof(Hero), "VolunteerTypes", Inst, character?.MakeArrayType());
             MemberExists(typeof(Hero), "Name", Inst);
             MemberOf(character, "IsHero", Inst, typeof(bool));
+            MemberOf(character, "IsMounted", Inst, typeof(bool));
+            MemberOf(character, "IsRanged", Inst, typeof(bool));
+            MemberOf(character, "Tier", Inst, typeof(int));
             MemberExists(character, "Name", Inst);
             MemberOf(typeof(MobileParty), "Party", Inst, partyBase);
             MemberOf(typeof(MobileParty), "MemberRoster", Inst, troopRoster);

@@ -36,6 +36,13 @@ namespace BannerlordAutopilot
         /// <summary>Потолок числа нанятых за один проход.</summary>
         internal static int MaxRecruitsPerPass = 30;
 
+        /// <summary>Желаемый состав обычных бойцов. По нему выбирается только между
+        /// уже доступными игроку добровольцами; закрытые отношениями слоты не трогаются.</summary>
+        internal static float TargetInfantry = 0.10f;
+        internal static float TargetArchers = 0.70f;
+        internal static float TargetCavalry = 0.10f;
+        internal static float TargetHorseArchers = 0.10f;
+
         /// <summary>Не чаще одного прохода в поселении за столько игровых часов.
         /// Совпадает с периодом пересчёта AI: обслуживание успевает до решения.</summary>
         internal static double PassIntervalHours = 6;
@@ -88,6 +95,18 @@ namespace BannerlordAutopilot
     /// Успехом считается только наблюдаемый результат: изменение ростера и денег.</summary>
     internal sealed class SettlementServices
     {
+        private enum TroopRole { Infantry, Archer, Cavalry, HorseArcher }
+
+        private sealed class RecruitOffer
+        {
+            internal Hero Notable;
+            internal int Index;
+            internal CharacterObject Troop;
+            internal int Cost;
+            internal TroopRole Role;
+            internal int Tier;
+        }
+
         // Когда поселение обслуживалось последний раз (час кампании), по StringId
         // поселения. Пределы трат действуют «на проход раз в шесть часов», поэтому
         // отметки пишутся в сейв (SyncData автопилота) и не сбрасываются повторным F11.
@@ -405,7 +424,8 @@ namespace BannerlordAutopilot
                 return;
             }
 
-            var cart = new List<(Hero Notable, int Index, CharacterObject Troop, int Cost)>();
+            var offers = new List<RecruitOffer>();
+            var cart = new List<RecruitOffer>();
             int total = 0;
             int volunteers = 0;
             int noRelation = 0;
@@ -431,30 +451,54 @@ namespace BannerlordAutopilot
                         noRelation++;
                         continue;
                     }
-                    if (cart.Count >= free)
-                    {
-                        stop = "партия заполнилась";
-                        break;
-                    }
-                    if (cart.Count >= ServiceLimits.MaxRecruitsPerPass)
-                    {
-                        stop = "предел " + ServiceLimits.MaxRecruitsPerPass + " за проход";
-                        break;
-                    }
                     int cost = models.PartyWageModel.GetTroopRecruitmentCost(troop, Hero.MainHero).RoundedResultNumber;
-                    if (total + cost > budget)
+                    if (cost > budget)
                     {
                         tooExpensive++;
                         continue;
                     }
-                    cart.Add((notable, i, troop, cost));
-                    total += cost;
-                }
-                if (stop != null)
-                {
-                    break;
+                    offers.Add(new RecruitOffer
+                    {
+                        Notable = notable, Index = i, Troop = troop, Cost = cost,
+                        Role = RoleOf(troop), Tier = troop.Tier
+                    });
                 }
             }
+
+            int[] simulated = CurrentComposition(party);
+            while (offers.Count > 0 && cart.Count < free && cart.Count < ServiceLimits.MaxRecruitsPerPass)
+            {
+                TroopRole needed = MostNeededRole(simulated);
+                RecruitOffer best = null;
+                float bestScore = float.NegativeInfinity;
+                foreach (RecruitOffer offer in offers)
+                {
+                    if (total + offer.Cost > budget)
+                    {
+                        continue;
+                    }
+                    // Идея Auto Marshal: сначала закрываем самый большой дефицит
+                    // рода войск, затем предпочитаем уровень и меньшую цену.
+                    float score = (offer.Role == needed ? 100f : 0f)
+                                  + offer.Tier * 2f - offer.Cost * 0.02f;
+                    if (score > bestScore)
+                    {
+                        best = offer;
+                        bestScore = score;
+                    }
+                }
+                if (best == null)
+                {
+                    tooExpensive += offers.FindAll(offer => total + offer.Cost > budget).Count;
+                    break;
+                }
+                cart.Add(best);
+                total += best.Cost;
+                simulated[(int)best.Role]++;
+                offers.Remove(best);
+            }
+            if (cart.Count >= free) stop = "партия заполнилась";
+            else if (cart.Count >= ServiceLimits.MaxRecruitsPerPass) stop = "предел " + ServiceLimits.MaxRecruitsPerPass + " за проход";
 
             string summary = "добровольцев " + volunteers + ", не хватает отношений " + noRelation
                              + ", не по деньгам " + tooExpensive + (stop != null ? "; остановка: " + stop : "");
@@ -513,6 +557,50 @@ namespace BannerlordAutopilot
                 AutopilotLog.Write("    найм: итог НЕ сходится — в ростере +" + joined + " при " + hired
                                    + " нанятых, списано " + spent + " при сумме " + charged);
             }
+        }
+
+        private static TroopRole RoleOf(CharacterObject troop)
+        {
+            if (troop.IsMounted && troop.IsRanged) return TroopRole.HorseArcher;
+            if (troop.IsMounted) return TroopRole.Cavalry;
+            if (troop.IsRanged) return TroopRole.Archer;
+            return TroopRole.Infantry;
+        }
+
+        private static int[] CurrentComposition(MobileParty party)
+        {
+            var counts = new int[4];
+            foreach (TroopRosterElement element in party.MemberRoster.GetTroopRoster())
+            {
+                if (!element.Character.IsHero && element.Number > 0)
+                {
+                    counts[(int)RoleOf(element.Character)] += element.Number;
+                }
+            }
+            return counts;
+        }
+
+        private static TroopRole MostNeededRole(int[] counts)
+        {
+            float[] targets =
+            {
+                ServiceLimits.TargetInfantry, ServiceLimits.TargetArchers,
+                ServiceLimits.TargetCavalry, ServiceLimits.TargetHorseArchers
+            };
+            int total = counts[0] + counts[1] + counts[2] + counts[3];
+            int best = 0;
+            float deficit = float.NegativeInfinity;
+            for (int i = 0; i < counts.Length; i++)
+            {
+                float current = total > 0 ? (float)counts[i] / total : 0f;
+                float candidate = targets[i] - current;
+                if (candidate > deficit)
+                {
+                    best = i;
+                    deficit = candidate;
+                }
+            }
+            return (TroopRole)best;
         }
 
         private static string Because(TextObject why)

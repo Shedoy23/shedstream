@@ -797,6 +797,22 @@ internal static class Program
                   && AutopilotLog.Lines.Any(l => l.Contains("не хватает отношений 3")),
                   "отношений со старостой не хватает — никого, слоты не тронуты, причина в журнале");
         });
+        Try("найм закрывает дефицит состава", () =>
+        {
+            var b = Fresh(); var w = MakeWorld(prisoners: false);
+            // В отряде одна пехота, а цель стрелков — 70%. Стрелок дороже и ниже
+            // уровнем, но дефицит рода войск должен быть важнее цены и tier.
+            var infantry = new CharacterObject { Name = "Дорогой пехотинец", Tier = 6, TestCost = 20 };
+            var archer = new CharacterObject { Name = "Стрелок", IsRanged = true, Tier = 1, TestCost = 30 };
+            w.Notable.VolunteerTypes = new CharacterObject[6];
+            w.Notable.VolunteerTypes[0] = infantry;
+            w.Notable.VolunteerTypes[1] = archer;
+            MobileParty.MainParty.Party.PartySizeLimit = 21;
+            Enable(b); b.PollState(); ArriveTown(w.Place); b.PollState();
+            Check(CampaignEventDispatcher.Recruited.Count == 1 && CampaignEventDispatcher.Recruited[0] == archer
+                  && w.Notable.VolunteerTypes[0] == infantry && w.Notable.VolunteerTypes[1] == null,
+                  "при одном месте выбран недостающий стрелок, доступный пехотинец оставлен");
+        });
         Try("пленные герои и закреплённые не продаются", () =>
         {
             var b = Fresh(); var w = MakeWorld(); Helpers.MobilePartyHelper.TestLockedIds.Add("looter");

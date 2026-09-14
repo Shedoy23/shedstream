@@ -60,6 +60,9 @@ namespace TaleWorlds.CampaignSystem {
  public class CharacterObject {
   public string Name = "Боец"; public string StringId = "troop";
   public bool IsHero { get; set; }                                         // Core 3195
+  public bool IsMounted { get; set; }
+  public bool IsRanged { get; set; }
+  public int Tier { get; set; } = 1;
   public Hero HeroObject;
   public int TestCost = 30;                                                // PartyWageModel.GetTroopRecruitmentCost
   public int TestRansom = 20;                                              // RansomValueCalculationModel.PrisonerRansomValue

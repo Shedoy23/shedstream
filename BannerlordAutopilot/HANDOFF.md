@@ -7,6 +7,11 @@ CanHelpDefenders → PlayerEncounter.EncounteredBattle без Current.
 Разбор: review/CRASH_NULL_ENCOUNTER_2026-09-15.md.
 Повтор в настоящей игре после исправления ещё не проверен.
 
+DLL коммита 17aa26a установлена 15.09.2026 23:15:05 при закрытой игре.
+MD5 установленной и собранной DLL совпал: 4F22C7A7C47599A1BEF78B650A637199.
+Копия для отката: D:\shedlink-build\autopilot-dll-rollback\BannerlordAutopilot-before-null-encounter-20260915-231505.dll
+(MD5 9DBEDE52A9BF213A907556D8AC08F64F). BannerlordLink не заменялся.
+
 # Актуальное дополнение 14.09.2026 20:52 — Codex
 
 Исправлена цепочка помощи защитникам полевого боя: join_encounter / encounter_interrupted → помощь защитникам → encounter → attack. Решение владельца: помогать жителям, затем открывать полноценный бой. Проверяются враждебность нападающих и невраждебность защитников; кнопка проходит штатные условия. Морские бои и события внутри поселения остаются вне этого изменения.

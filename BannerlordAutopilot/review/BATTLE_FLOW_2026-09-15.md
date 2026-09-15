@@ -35,6 +35,14 @@ CodeGraph заблокирован (`database is locked`); использова�
 Release build — 0 ошибок/предупреждений. Выводы в ../evidence/*conversation*,
 *battle-exit*, *battle-flow*. Новое поведение в настоящей игре пока не проверено.
 
+После коммита выполнены мутации: снятие whitelist реплики приводит к FAIL
+unknown_option; снятие ограничения MissionEnded/BattleResolved — к FAIL
+«активный бой не закрывается». Возврат из собственных копий: исходный diff пуст,
+оба прогона exit 0. Итоговая DLL пересобрана без инкремента.
+DLL коммита 1dd17cf установлена 23:32:02 при закрытой игре; MD5 совпал с выходом
+сборки: 1738012A6498FA8A5367DCAE83D543E0. Резерв предыдущей рабочей версии:
+`D:/shedlink-build/autopilot-dll-rollback/BannerlordAutopilot-before-battle-flow-20260915-233202.dll`.
+
 Движок проверен по ConversationManager.DoOption/ContinueConversation и
 ConversationVM.OnSelectOption/ExecuteContinue (локальные CampaignSystem и
 CampaignSystem.ViewModelCollection). ID ультиматума задаётся AddPlayerLine

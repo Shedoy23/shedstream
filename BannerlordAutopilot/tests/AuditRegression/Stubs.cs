@@ -50,7 +50,10 @@ namespace TaleWorlds.CampaignSystem.Incidents {
  }
 }
 namespace TaleWorlds.CampaignSystem.Map { public interface IMapPoint {} }
-namespace TaleWorlds.CampaignSystem.Conversation { public class ConversationManager { public bool IsConversationInProgress { get; set; } } }
+namespace TaleWorlds.CampaignSystem.Conversation {
+ public struct ConversationSentenceOption { public string Id; public bool IsClickable; }
+ public class ConversationManager { public bool IsConversationInProgress { get; set; } public MobileParty ConversationParty {get;set;} public List<ConversationSentenceOption> CurOptions {get;set;} = new(); public bool Ended; public int ContinueCalls; public List<string> Selected = new(); public bool IsConversationEnded() => Ended; public void DoOption(int index) { Selected.Add(CurOptions[index].Id); CurOptions.Clear(); Ended=true; } public void ContinueConversation() { ContinueCalls++; IsConversationInProgress=false; } }
+}
 namespace TaleWorlds.CampaignSystem.GameMenus {
  public class GameMenuOption {
   public string IdString { get; set; } public bool IsEnabled { get; set; } = true; public bool IsLeave { get; set; }
@@ -184,7 +187,7 @@ namespace TaleWorlds.CampaignSystem.Party {
  public class MobileParty : IMapPoint {
   public enum NavigationType { None, Default }
   public static MobileParty MainParty = new();
-  public bool IsActive=true, IsMoving; public MapEvent MapEvent; public object Army,SiegeEvent;
+  public bool IsActive=true, IsMoving; public bool IsBandit {get;set;} public MapEvent MapEvent; public object Army,SiegeEvent;
   public Settlement CurrentSettlement, BesiegedSettlement, LastVisitedSettlement, TargetSettlement;
   public MobileParty TargetParty;
   public MobilePartyAi Ai=new(); public AiBehavior DefaultBehavior=AiBehavior.GoToSettlement;

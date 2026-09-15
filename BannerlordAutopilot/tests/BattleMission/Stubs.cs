@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 
 namespace TaleWorlds.Core { public enum MissionMode { Deployment, Battle } public enum AgentControllerType { Player, AI } }
+namespace TaleWorlds.Library { public static class InformationManager { public static bool Inquiry; public static bool IsAnyInquiryActive() => Inquiry; } }
 namespace TaleWorlds.CampaignSystem {
  public class Campaign { public static Campaign Current = new(); }
  public class MapEvent { public object MapEventSettlement; public bool IsNavalMapEvent; }
@@ -42,10 +43,13 @@ namespace TaleWorlds.MountAndBlade {
   public void FinishDeployment() { FinishCalls++; Mission.IsDeploymentFinished = true; Mission.Mode = MissionMode.Battle; }
  }
  public class Mission {
+  public bool MissionEnded; public int ExitCalls; public MissionResult MissionResult; public BattleEndLogic EndLogic;
   public MissionMode Mode = MissionMode.Deployment; public bool IsDeploymentFinished; public bool IsFriendlyMission; public Team PlayerTeam = new(); public Agent MainAgent = new();
   public BattleDeploymentMissionController Deployment;
-  public T GetMissionBehavior<T>() where T:class => Deployment as T;
+  public T GetMissionBehavior<T>() where T:class => (Deployment as T) ?? (EndLogic as T);
  }
+ public class MissionResult { public bool BattleResolved; }
+ public class BattleEndLogic { public enum ExitResult { True, False, NeedsPlayerConfirmation } public Mission Mission; public bool AllowExit = true; public int Calls; public ExitResult TryExit() { Calls++; if (!AllowExit) return ExitResult.False; Mission.ExitCalls++; return ExitResult.True; } }
 }
 namespace BannerlordAutopilot {
  using TaleWorlds.CampaignSystem.Party;

@@ -31,4 +31,23 @@ Check(mission.MainAgent.AIStateFlags == Agent.AIStateFlag.None && mission.MainAg
       && mission.MainAgent.MountAgent.SpeedResetCalls == 1 && originallyManual.ChangedCalls == 2,
       "F12 очищает состояние AI и ограничения скорости героя с лошадью");
 Check(!originallyManual.IsAIControlled && originallyAi.IsAIControlled, "возвращено только управление, которым владел мод");
+AutopilotBehavior.Instance.CurrentMode = AutopilotBehavior.Mode.Apply;
+mission.EndLogic = new BattleEndLogic { Mission = mission };
+for (int i=0;i<10;i++) behavior.PollCompletedBattle(0.5f);
+Check(mission.EndLogic.Calls == 0, "активный бой не закрывается");
+mission.MissionEnded = true; mission.MissionResult = new MissionResult { BattleResolved = true };
+TaleWorlds.Library.InformationManager.Inquiry = true;
+for (int i=0;i<10;i++) behavior.PollCompletedBattle(0.5f);
+Check(mission.EndLogic.Calls == 0, "модальное окно не подтверждается выходом");
+TaleWorlds.Library.InformationManager.Inquiry = false;
+mission.EndLogic.AllowExit = false;
+for (int i=0;i<8;i++) behavior.PollCompletedBattle(0.5f);
+Check(mission.EndLogic.Calls > 0 && mission.ExitCalls == 0, "отказ движка не обходится прямым EndMission");
+mission.EndLogic.AllowExit = true;
+for (int i=0;i<10;i++) behavior.PollCompletedBattle(0.5f);
+Check(mission.ExitCalls == 1, "завершённый бой закрывается штатно ровно один раз");
+var stopped = new BattleAutopilotMission { Mission = mission };
+AutopilotBehavior.Instance.CurrentMode = AutopilotBehavior.Mode.Off;
+for (int i=0;i<10;i++) stopped.PollCompletedBattle(0.5f);
+Check(mission.ExitCalls == 1, "F12 запрещает автоматический выход");
 return failed;

@@ -324,6 +324,23 @@ internal static class Program
                   "встреча с партией у чужого поселения не считается прибытием и не закрывается");
         });
         foreach (bool enabled in new[] { true, false })
+        Try("разговор с выбранными бандитами " + enabled, () => {
+            var b=Fresh(); Enable(b);
+            var ours=new TestFaction(); var enemy=new TestFaction(); ours.Enemies.Add(enemy);
+            var target=new MobileParty { IsBandit=true, MapFaction=enemy };
+            MobileParty.MainParty.MapFaction=ours; MobileParty.MainParty.TargetParty=target;
+            MobileParty.MainParty.DefaultBehavior=AiBehavior.EngageParty;
+            PlayerEncounter.Current=new PlayerEncounter(); PlayerEncounter.EncounteredMobileParty=target;
+            var conversation=Campaign.Current.ConversationManager;
+            conversation.ConversationParty=target; conversation.IsConversationInProgress=true;
+            conversation.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption { Id="common_encounter_ultimatum", IsClickable=enabled });
+            b.PollState();
+            Check(b.CurrentMode==AutopilotBehavior.Mode.Apply, "встреча с выбранными бандитами не выключает автопилот");
+            Check(conversation.Selected.Count==(enabled ? 1:0), "выбрана только доступная реплика ультиматума");
+            b.PollState();
+            Check(conversation.ContinueCalls==(enabled ? 1:0), "закрывается только последняя реплика выбранного разговора");
+        });
+        foreach (bool enabled in new[] { true, false })
         Try("помощь защитникам, доступность " + enabled, () =>
         {
             var b = Fresh(); Enable(b);

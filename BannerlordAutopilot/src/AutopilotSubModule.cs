@@ -87,7 +87,7 @@ namespace BannerlordAutopilot
                 {
                     if (Mission.Current != null)
                     {
-                        behavior.PollCombatConversation();
+                        behavior.PollDialogs();
                         Mission.Current?.GetMissionBehavior<BattleAutopilotMission>()?.PollCompletedBattle(0.5f);
                     }
                     else behavior.PollState();
@@ -152,6 +152,21 @@ namespace BannerlordAutopilot
         }
 
         // ── Консольные команды ───────────────────────────────────────────────
+
+        [CommandLineFunctionality.CommandLineArgumentFunction("random_dialogs", "autopilot")]
+        public static string CmdRandomDialogs(List<string> args)
+        {
+            var behavior = AutopilotBehavior.Instance;
+            if (behavior == null) return "Сначала загрузите кампанию.";
+            if (args == null || args.Count != 1 || (args[0] != "on" && args[0] != "off"))
+                return "autopilot.random_dialogs on|off — случайные доступные реплики вне боевой цепочки. Сейчас: "
+                    + (behavior.RandomDialogsEnabled ? "включено" : "выключено");
+            behavior.RandomDialogsEnabled = args[0] == "on";
+            string message = "Случайные диалоги " + (behavior.RandomDialogsEnabled ? "включены" : "выключены")
+                + ". Работают только с F11; F12 останавливает выбор. Боевая цепочка сохраняет заданные правила.";
+            AutopilotLog.Write(message);
+            return message;
+        }
 
         [CommandLineFunctionality.CommandLineArgumentFunction("observe", "autopilot")]
         public static string CmdObserve(List<string> args)

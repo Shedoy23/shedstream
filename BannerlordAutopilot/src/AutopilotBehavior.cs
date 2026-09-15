@@ -123,6 +123,10 @@ namespace BannerlordAutopilot
         private string _lastAppliedDescription = "—";
         private string _lastTargetKey;
         private MobileParty _combatTarget;
+        internal bool RandomDialogsEnabled { get; set; }
+        private readonly Random _dialogRandom = new Random();
+        private int _randomDialogSteps;
+        private DateTime _nextRandomDialogAt;
 
         // Штатная оценка сухопутного патруля не убывает от времени у цели и
         // почти не зависит от расстояния партии до неё. В прогоне 14.09 это
@@ -452,7 +456,7 @@ namespace BannerlordAutopilot
                 return false;
             }
 
-            if (PollCombatConversation()) return false;
+            if (PollDialogs()) return false;
 
             if (_mode == Mode.Apply)
             {
@@ -1137,10 +1141,14 @@ namespace BannerlordAutopilot
                 var options = conversation.CurOptions;
                 for (int i=0; options != null && i<options.Count; i++)
                 {
-                    if (options[i].Id == "common_encounter_ultimatum" && options[i].IsClickable)
+                    if ((options[i].Id == "common_encounter_ultimatum"
+                         || options[i].Id == "common_bandit_surrender_accepted") && options[i].IsClickable)
                     {
+                        string selected = options[i].Id;
                         conversation.DoOption(i);
-                        AutopilotLog.Write("БОЙ: выбран ультиматум преследуемым бандитам; ждём ответа");
+                        AutopilotLog.Write(selected == "common_bandit_surrender_accepted"
+                            ? "БОЙ: принята сдача бандитов — берём в плен штатной репликой"
+                            : "БОЙ: выбран ультиматум преследуемым бандитам; ждём ответа");
                         return true;
                     }
                 }
@@ -1153,6 +1161,55 @@ namespace BannerlordAutopilot
             catch (Exception ex)
             {
                 Disable("разговор с бандитами остановлен: " + ex.GetType().Name + ": " + ex.Message);
+            }
+            return true;
+        }
+
+        internal bool PollDialogs()
+        {
+            if (_mode != Mode.Apply) return false;
+            if (PollCombatConversation()) return true; // Fixed combat rules always win.
+            var conversation = Campaign.Current?.ConversationManager;
+            if (conversation?.IsConversationInProgress != true)
+            {
+                _randomDialogSteps = 0;
+                _nextRandomDialogAt = DateTime.MinValue;
+                return false;
+            }
+            if (!RandomDialogsEnabled) return false;
+            if (InformationManager.IsAnyInquiryActive() || Clock() < _nextRandomDialogAt) return true;
+            if (_randomDialogSteps >= 16)
+            {
+                RandomDialogsEnabled = false;
+                AutopilotLog.Write("ДИАЛОГ: случайный режим остановлен после 16 шагов одного разговора; требуется выбор игрока");
+                return true;
+            }
+            try
+            {
+                var options = conversation.CurOptions;
+                var available = new List<int>();
+                for (int i=0; options != null && i<options.Count; i++)
+                    if (options[i].IsClickable) available.Add(i);
+                if (available.Count > 0)
+                {
+                    int index = available[_dialogRandom.Next(available.Count)];
+                    string id = options[index].Id;
+                    conversation.DoOption(index);
+                    _randomDialogSteps++;
+                    _nextRandomDialogAt = Clock().AddSeconds(2);
+                    AutopilotLog.Write("ДИАЛОГ: случайно выбрана доступная реплика «" + id + "»");
+                }
+                else if (options == null || options.Count == 0)
+                {
+                    conversation.ContinueConversation();
+                    _randomDialogSteps++;
+                    _nextRandomDialogAt = Clock().AddSeconds(2);
+                }
+            }
+            catch (Exception ex)
+            {
+                RandomDialogsEnabled = false;
+                Disable("случайный диалог остановлен: " + ex.GetType().Name + ": " + ex.Message);
             }
             return true;
         }

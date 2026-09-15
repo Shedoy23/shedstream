@@ -344,6 +344,7 @@ internal static class Program
         foreach (bool enabled in new[] { true, false })
         Try("разговор с выбранными бандитами " + reply + " " + enabled, () => {
             var b=Fresh(); Enable(b);
+            b.RandomDialogsEnabled=true;
             var ours=new TestFaction(); var enemy=new TestFaction(); ours.Enemies.Add(enemy);
             var target=new MobileParty { IsBandit=true, MapFaction=enemy };
             MobileParty.MainParty.MapFaction=ours; MobileParty.MainParty.TargetParty=target;
@@ -357,6 +358,25 @@ internal static class Program
             Check(conversation.Selected.Count==(enabled ? 1:0), "выбрана только доступная реплика ультиматума");
             b.PollState();
             Check(conversation.ContinueCalls==(enabled ? 1:0), "закрывается только последняя реплика выбранного разговора");
+        });
+        Try("случайный диалог: пауза, серые варианты и предел цикла", () => {
+            var b=Fresh(); Enable(b); b.RandomDialogsEnabled=true;
+            var conversation=Campaign.Current.ConversationManager;
+            conversation.IsConversationInProgress=true;
+            var t0=DateTime.UtcNow; SetClock(t0);
+            conversation.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption { Id="grey", IsClickable=false });
+            b.PollDialogs();
+            Check(conversation.Selected.Count==0 && conversation.ContinueCalls==0, "все реплики серые — ждём, не продолжаем вслепую");
+            conversation.CurOptions.Clear();
+            for (int i=0;i<17;i++) {
+                conversation.CurOptions.Clear();
+                conversation.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption { Id="loop", IsClickable=true });
+                SetClock(t0.AddSeconds(i*3)); b.PollDialogs();
+                if (i==0) { conversation.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption { Id="too_fast", IsClickable=true }); b.PollDialogs(); }
+            }
+            Check(conversation.Selected.Count==16 && !conversation.Selected.Contains("too_fast"), "между случайными выборами есть пауза; максимум 16 шагов");
+            Check(!b.RandomDialogsEnabled, "зациклившийся случайный режим выключается");
+            SetClock(DateTime.UtcNow);
         });
         foreach (bool randomEnabled in new[] { false, true })
         Try("отдельный случайный режим " + randomEnabled, () => {

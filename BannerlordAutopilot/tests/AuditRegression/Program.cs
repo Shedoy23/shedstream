@@ -340,8 +340,9 @@ internal static class Program
             b.PollState();
             Check(conversation.Selected.Count==0 && conversation.ContinueCalls==0, "чужой выбор не исполняется: " + boundary);
         });
+        foreach (string reply in new[] { "common_encounter_ultimatum", "common_bandit_surrender_accepted" })
         foreach (bool enabled in new[] { true, false })
-        Try("разговор с выбранными бандитами " + enabled, () => {
+        Try("разговор с выбранными бандитами " + reply + " " + enabled, () => {
             var b=Fresh(); Enable(b);
             var ours=new TestFaction(); var enemy=new TestFaction(); ours.Enemies.Add(enemy);
             var target=new MobileParty { IsBandit=true, MapFaction=enemy };
@@ -350,12 +351,27 @@ internal static class Program
             PlayerEncounter.Current=new PlayerEncounter(); PlayerEncounter.EncounteredMobileParty=target;
             var conversation=Campaign.Current.ConversationManager;
             conversation.ConversationParty=target; conversation.IsConversationInProgress=true;
-            conversation.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption { Id="common_encounter_ultimatum", IsClickable=enabled });
+            conversation.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption { Id=reply, IsClickable=enabled });
             b.PollState();
             Check(b.CurrentMode==AutopilotBehavior.Mode.Apply, "встреча с выбранными бандитами не выключает автопилот");
             Check(conversation.Selected.Count==(enabled ? 1:0), "выбрана только доступная реплика ультиматума");
             b.PollState();
             Check(conversation.ContinueCalls==(enabled ? 1:0), "закрывается только последняя реплика выбранного разговора");
+        });
+        foreach (bool randomEnabled in new[] { false, true })
+        Try("отдельный случайный режим " + randomEnabled, () => {
+            var b=Fresh(); Enable(b); b.RandomDialogsEnabled=randomEnabled;
+            var conversation=Campaign.Current.ConversationManager;
+            conversation.IsConversationInProgress=true;
+            conversation.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption { Id="disabled", IsClickable=false });
+            conversation.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption { Id="available_a", IsClickable=true });
+            conversation.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption { Id="available_b", IsClickable=true });
+            b.PollDialogs();
+            Check(conversation.Selected.Count==(randomEnabled ? 1:0), "случайный выбор только при включённом режиме");
+            Check(!conversation.Selected.Contains("disabled"), "серую реплику не выбирает");
+            b.Disable("test"); conversation.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption { Id="after_F12", IsClickable=true });
+            b.PollDialogs();
+            Check(!conversation.Selected.Contains("after_F12"), "F12 останавливает случайные диалоги");
         });
         foreach (bool enabled in new[] { true, false })
         Try("помощь защитникам, доступность " + enabled, () =>

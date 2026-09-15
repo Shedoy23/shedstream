@@ -1,0 +1,74 @@
+Loading core dump: C:/ProgramData/Mount and Blade II Bannerlord/crashes/2026-09-15_18.10.37/dump.dmp ...
+Exception object: 000001771fa0bc58
+Exception type:   System.NullReferenceException
+Message:          Object reference not set to an instance of an object.
+InnerException:   <none>
+StackTrace (generated):
+    SP               IP               Function
+    0000000DA31FF1B0 00007FFDB7FF0218 TaleWorlds.CampaignSystem!TaleWorlds.CampaignSystem.Encounters.PlayerEncounter.get_EncounteredBattle()+0x18
+    0000000DA31FF1F0 00007FFDB7FEFF7A BannerlordAutopilot!BannerlordAutopilot.AutopilotBehavior.CanHelpDefenders(TaleWorlds.CampaignSystem.Party.MobileParty)+0x1a
+    0000000DA31FF250 00007FFDB7FEFBC9 BannerlordAutopilot!BannerlordAutopilot.AutopilotBehavior.TryEnable(Mode, System.String ByRef)+0x139
+    0000000DA31FF2B0 00007FFDB7FEF925 BannerlordAutopilot!BannerlordAutopilot.AutopilotSubModule.Enable(Mode)+0x45
+    0000000DA31FF300 00007FFDB74A2E74 BannerlordAutopilot!BannerlordAutopilot.AutopilotSubModule.OnApplicationTick(Single)+0x104
+    0000000DA31FF340 00007FFDB749725E TaleWorlds.MountAndBlade!TaleWorlds.MountAndBlade.Module.OnApplicationTick(Single)+0x53e
+    0000000DA31FF430 00007FFDB7495450 TaleWorlds.DotNet!TaleWorlds.DotNet.Managed.ApplicationTick(Single)+0xa0
+
+StackTraceString: <none>
+HResult: 80004003
+OS Thread Id: 0x59e4 (38)
+        Child SP               IP Call Site
+0000000DA31FECB0 00007ffe226441ca [FaultingExceptionFrame: 0000000da31fecb0] 
+0000000DA31FF1B0 00007FFDB7FF0218 TaleWorlds.CampaignSystem.Encounters.PlayerEncounter.get_EncounteredBattle()
+
+0000000DA31FF1F0 00007FFDB7FEFF7A BannerlordAutopilot.AutopilotBehavior.CanHelpDefenders(TaleWorlds.CampaignSystem.Party.MobileParty)
+    PARAMETERS:
+        party (<CLR reg>) = 0x000001764ce93258
+    LOCALS:
+        <no data>
+        <no data>
+
+0000000DA31FF250 00007FFDB7FEFBC9 BannerlordAutopilot.AutopilotBehavior.TryEnable(Mode, System.String ByRef)
+    PARAMETERS:
+        this (<CLR reg>) = 0x000001764f23d250
+        mode (<CLR reg>) = 0x0000000000000002
+        reason (<CLR reg>) = 0x0000000da31ff2d0
+    LOCALS:
+        <CLR reg> = 0x000001764ce93258
+        <no data>
+        <no data>
+        <no data>
+
+0000000DA31FF2B0 00007FFDB7FEF925 BannerlordAutopilot.AutopilotSubModule.Enable(Mode)
+    PARAMETERS:
+        mode (<CLR reg>) = 0x0000000000000002
+    LOCALS:
+        <no data>
+        <no data>
+
+0000000DA31FF300 00007FFDB74A2E74 BannerlordAutopilot.AutopilotSubModule.OnApplicationTick(Single)
+    PARAMETERS:
+        this = <no data>
+        dt = <no data>
+    LOCALS:
+        <no data>
+
+0000000DA31FF340 00007FFDB749725E TaleWorlds.MountAndBlade.Module.OnApplicationTick(Single)
+    PARAMETERS:
+        this (<CLR reg>) = 0x00000176492cfa68
+        dt = <no data>
+    LOCALS:
+        <no data>
+        <no data>
+        <no data>
+        <no data>
+
+0000000DA31FF430 00007FFDB7495450 TaleWorlds.DotNet.Managed.ApplicationTick(Single)
+    PARAMETERS:
+        dt = <no data>
+    LOCALS:
+        <CLR reg> = 0x0000000000000001
+
+0000000DA31FF480 00007FFDB40EBF6D DomainBoundILStubClass.IL_STUB_ReversePInvoke(Single)
+    PARAMETERS:
+        <no data>
+

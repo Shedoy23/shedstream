@@ -1,0 +1,132 @@
+Регрессия автопилота по независимой проверке 12.09 (заменители движка, не кампания)
+
+[находка 2] наблюдение ничего не меняет
+  ok    F10 внутри поселения не выводит партию и не заказывает выход
+  ok    F10 не нажимает пунктов меню (и не начинает ожидание)
+  ok    после F12 у движка не остаётся заказанного выхода
+  FAIL  F10 на паузе — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  F10 → F12 на карте — исключение: NullReferenceException: EncounteredBattle requires Current
+
+[находка 1] встреча с боем или чужой партией — не прибытие
+  FAIL  бой и осада у поселения — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  встреча с осаждающей партией — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  помощь защитникам, доступность True — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  помощь защитникам, доступность False — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  обычный полевой бой открывается — исключение: NullReferenceException: EncounteredBattle requires Current
+  ok    F11 из encounter разрешён и запускает полноценный бой
+  FAIL  недоступный и особый бой не запускаются — исключение: NullReferenceException: EncounteredBattle requires Current
+
+[игра без человека] поселение: ждать, как NPC, и уходить по решению штатного AI
+  FAIL  прибытие в город — исключение: NullReferenceException: EncounteredBattle requires Current
+  ok    F11 в городе: партия ждёт, старт внутри не считается прибытием
+  FAIL  решение остаться — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  решение уйти — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  выход от ворот замка снаружи — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  в поселении нельзя подождать — исключение: NullReferenceException: EncounteredBattle requires Current
+
+[находка 4] состояние не переживает сеанс
+  ok    в новом сеансе новый город обрабатывается: партия ждёт в нём
+
+[находки 3, 7] чужие флаги не трогаются
+  FAIL  повторный F11 — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  внешнее изменение во время сеанса — исключение: NullReferenceException: EncounteredBattle requires Current
+
+[находка 3] загрузка сейва, сделанного при включённом автопилоте
+  FAIL  сохранение и загрузка — исключение: NullReferenceException: EncounteredBattle requires Current
+
+[находка 6] контракт
+  ok    повторный Verify не накручивает счётчик проверок (структура движка совпала со всеми 262 ожиданиями)
+
+[прогон в игре 13.09] закрытие встречи ставит паузу — цикл не должен застывать
+  FAIL  время после выхода — исключение: NullReferenceException: EncounteredBattle requires Current
+
+[прогон в игре 13.09] штатный AI снова выбирает поселение, у которого партия стоит
+  FAIL  нет пинг-понга у ворот — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  поездка в другое поселение — исключение: NullReferenceException: EncounteredBattle requires Current
+
+[прогон в игре 14.09] партия игрока замечает ближайшего врага
+  FAIL  ближняя атака штатной модели — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  слабая ближняя атака отвергнута — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  дальняя погоня из почасовых оценок — исключение: NullReferenceException: EncounteredBattle requires Current
+
+[прогон в игре 14.09] патруль не залипает на одной деревне
+  FAIL  одинаковый патруль не перевыдаётся — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  долгий патруль уступает следующей цели — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  малый перевес не дёргает текущий маршрут — исключение: NullReferenceException: EncounteredBattle requires Current
+
+[прогон в игре 13.09] сообщение на F12 не утверждает того, чего не было
+  FAIL  итог выключения в наблюдении — исключение: NullReferenceException: EncounteredBattle requires Current
+
+[прогон в игре 13.09, второй] пинг-понг: 89 входов и выходов в одном городе
+  FAIL  возврат в только что покинутое поселение — исключение: NullReferenceException: EncounteredBattle requires Current
+
+[игра без человека] время не стоит, пока автопилот ведёт партию
+  FAIL  пауза на свободной карте — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  время «идёт», но стоит — исключение: NullReferenceException: EncounteredBattle requires Current
+
+[игра без человека] решение вне области не выключает автопилот
+  FAIL  осада как лучшее решение — исключение: NullReferenceException: EncounteredBattle requires Current
+
+[игра без человека] сторож простоя
+  FAIL  простой записывается один раз — исключение: NullReferenceException: EncounteredBattle requires Current
+
+[проверка 13.09] находки независимой проверки куска «игра играет сама»
+  FAIL  остановка ожидания в деревне — исключение: NullReferenceException: EncounteredBattle requires Current
+  ok    поверх карты открыт другой экран: пункты меню под ним не нажимаются, встреча не закрывается
+  ok    карта приостановлена окном: пункты меню не нажимаются
+  FAIL  пауза под окном — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  временная недоступность ожидания — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  идущий простой в итоге сеанса — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  долгое пребывание видно в журнале — исключение: NullReferenceException: EncounteredBattle requires Current
+
+[проверка 13.09, итог] пропуски после исправлений
+  ok    ожидание, начатое до F11: предупреждение о долгом пребывании всё равно появляется (было — ни одного за 240 часов)
+
+[обслуживание] еда, найм и пленные в поселении — как NPC, путями движка
+  FAIL  город, денег хватает — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  пересчёт видит обновлённую партию — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  денег мало — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  денег нет — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  еда уже есть — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  у продавца нет еды — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  у продавца мало еды — частичное выполнение — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  партия заполнена и одно место — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  добровольцы недоступны — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  найм закрывает дефицит состава — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  пленные герои и закреплённые не продаются — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  повторные опросы — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  повторное включение и загрузка — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  деревня — исключение: NullReferenceException: EncounteredBattle requires Current
+  ok    F11 во время ожидания в городе — партия внутри, обслуживание идёт
+  ok    в деревенском ожидании партия за околицей — не покупаем и не нанимаем
+  ok    причина записана один раз, без повтора на каждом опросе
+  ok    под другим экраном — ничего
+  ok    карта приостановлена окном — ничего
+  ok    открыт запрос (окно с кнопками) — ничего, причина в журнале
+  ok    F10 ничего не покупает, не нанимает и не продаёт
+  ok    выключенный автопилот ничего не делает
+  FAIL  отказ движка и молчаливая неудача — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  бой, осада и разграбленная деревня — исключение: NullReferenceException: EncounteredBattle requires Current
+
+[проверка 14.09] пропуски обслуживания: оплата найма, предел между загрузками, пределы, которые срабатывают
+  FAIL  событие найма падает — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  загрузка сразу после прохода, упёршегося в предел — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  цена еды растёт во время покупки — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  выбранный товар закончился, но другая еда есть — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  деревня без торгового города — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  пределы найма за проход срабатывают — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  данные обслуживания в сейве пустые или испорчены — исключение: NullReferenceException: EncounteredBattle requires Current
+
+[прогон в игре 14.09] цепочка решений королевства
+  FAIL  два голосования подряд — исключение: NullReferenceException: EncounteredBattle requires Current
+
+[прогон в игре 14.09] окно поверх карты: время заперто, а автопилот окна не видел
+  FAIL  известное событие «Яблоки с небес» — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  однокнопочное событие — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  неизвестное многовариантное событие — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  окно случайного события у деревни — исключение: NullReferenceException: EncounteredBattle requires Current
+  ok    ни под одним из 13 окон карты пункты меню не нажимаются
+  FAIL  энциклопедия на свободной карте — исключение: NullReferenceException: EncounteredBattle requires Current
+  FAIL  обслуживание во время ожидания под окном — исключение: NullReferenceException: EncounteredBattle requires Current
+
+Итог: 19 ok, 66 FAIL

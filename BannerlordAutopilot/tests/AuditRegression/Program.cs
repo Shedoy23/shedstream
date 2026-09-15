@@ -323,6 +323,23 @@ internal static class Program
             Check(b.CurrentMode == AutopilotBehavior.Mode.Off && PlayerEncounter.Current != null && PlayerEncounter.FinishCalls == 0,
                   "встреча с партией у чужого поселения не считается прибытием и не закрывается");
         });
+        foreach (string boundary in new[] { "neutral", "other_party", "not_bandit", "inquiry", "unknown_option", "observe" })
+        Try("граница боевого разговора " + boundary, () => {
+            var b=Fresh(); Enable(b, boundary=="observe" ? AutopilotBehavior.Mode.Observe : AutopilotBehavior.Mode.Apply);
+            var ours=new TestFaction(); var enemy=new TestFaction();
+            if (boundary!="neutral") ours.Enemies.Add(enemy);
+            var target=new MobileParty { IsBandit=boundary!="not_bandit", MapFaction=enemy };
+            MobileParty.MainParty.MapFaction=ours; MobileParty.MainParty.TargetParty=target;
+            MobileParty.MainParty.DefaultBehavior=AiBehavior.EngageParty;
+            PlayerEncounter.Current=new PlayerEncounter(); PlayerEncounter.EncounteredMobileParty=target;
+            var conversation=Campaign.Current.ConversationManager;
+            conversation.ConversationParty=boundary=="other_party" ? new MobileParty() : target;
+            conversation.IsConversationInProgress=true;
+            conversation.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption { Id=boundary=="unknown_option" ? "common_bandit_surrender_join_offer" : "common_encounter_ultimatum", IsClickable=true });
+            if (boundary=="inquiry") TaleWorlds.Library.InformationManager.TestInquiryActive=true;
+            b.PollState();
+            Check(conversation.Selected.Count==0 && conversation.ContinueCalls==0, "чужой выбор не исполняется: " + boundary);
+        });
         foreach (bool enabled in new[] { true, false })
         Try("разговор с выбранными бандитами " + enabled, () => {
             var b=Fresh(); Enable(b);

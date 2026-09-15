@@ -16,6 +16,9 @@ namespace BannerlordAutopilot
     {
         private bool _deploymentRequested;
         private bool _controlGiven;
+        private bool _exitRequested;
+        private float _completedWait;
+        private float _exitRetry;
         private Agent _givenAgent;
         private readonly List<Formation> _formationsGiven = new List<Formation>();
 
@@ -57,6 +60,37 @@ namespace BannerlordAutopilot
         {
             base.OnAfterDeploymentFinished();
             GiveControlToAi();
+        }
+
+        // Called from application polling as the scoreboard may pause mission ticks.
+        internal void PollCompletedBattle(float dt)
+        {
+            if (_exitRequested || AutopilotBehavior.Instance?.CurrentMode != AutopilotBehavior.Mode.Apply
+                || !Mission.MissionEnded || Mission.MissionResult?.BattleResolved != true
+                || TaleWorlds.Library.InformationManager.IsAnyInquiryActive())
+            {
+                _completedWait = 0f;
+                return;
+            }
+            _completedWait += dt;
+            if (_completedWait < 3f) return;
+            _exitRetry -= dt;
+            if (_exitRetry > 0f) return;
+            _exitRetry = 1f;
+            var end = Mission.GetMissionBehavior<BattleEndLogic>();
+            try
+            {
+                if (end != null && end.TryExit() == BattleEndLogic.ExitResult.True)
+                {
+                    _exitRequested = true;
+                    AutopilotLog.Write("БОЙ: результат определён игрой; штатный выход из завершённой миссии");
+                }
+            }
+            catch (Exception ex)
+            {
+                _exitRequested = true; // No repeated call after an unknown partial engine effect.
+                AutopilotLog.Write("БОЙ: автоматический выход остановлен, требуется TAB: " + ex);
+            }
         }
 
         private void GiveControlToAi()

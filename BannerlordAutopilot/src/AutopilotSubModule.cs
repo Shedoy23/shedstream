@@ -83,9 +83,14 @@ namespace BannerlordAutopilot
             if (_pollTimer >= 0.5f)
             {
                 _pollTimer = 0f;
-                if (behavior.CurrentMode != AutopilotBehavior.Mode.Off && Mission.Current == null)
+                if (behavior.CurrentMode != AutopilotBehavior.Mode.Off)
                 {
-                    behavior.PollState();
+                    if (Mission.Current != null)
+                    {
+                        behavior.PollCombatConversation();
+                        Mission.Current?.GetMissionBehavior<BattleAutopilotMission>()?.PollCompletedBattle(0.5f);
+                    }
+                    else behavior.PollState();
                 }
             }
 

@@ -50,6 +50,11 @@ namespace TaleWorlds.CampaignSystem.Incidents {
  }
 }
 namespace TaleWorlds.CampaignSystem.Map { public interface IMapPoint {} }
+namespace TaleWorlds.MountAndBlade {
+ public class MissionResult { public bool BattleResolved {get;set;} }
+ public class Mission { public bool MissionEnded {get;set;} public MissionResult MissionResult {get;set;} }
+ public class BattleEndLogic { public enum ExitResult { True, False } public ExitResult TryExit() => ExitResult.True; }
+}
 namespace TaleWorlds.CampaignSystem.Conversation {
  public struct ConversationSentenceOption { public string Id; public bool IsClickable; }
  public class ConversationManager { public bool IsConversationInProgress { get; set; } public MobileParty ConversationParty {get;set;} public List<ConversationSentenceOption> CurOptions {get;set;} = new(); public bool Ended; public int ContinueCalls; public List<string> Selected = new(); public bool IsConversationEnded() => Ended; public void DoOption(int index) { Selected.Add(CurOptions[index].Id); CurOptions.Clear(); Ended=true; } public void ContinueConversation() { ContinueCalls++; IsConversationInProgress=false; } }

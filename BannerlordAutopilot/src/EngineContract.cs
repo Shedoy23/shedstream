@@ -214,6 +214,24 @@ namespace BannerlordAutopilot
             Method(gameStates, "PopState", Inst, typeof(void), typeof(int));
             MemberOf(typeof(Campaign), "ConversationManager", Inst, conversations);
             MemberOf(conversations, "IsConversationInProgress", Inst, typeof(bool));
+            MemberOf(conversations, "ConversationParty", Inst, typeof(MobileParty));
+            Type conversationOption = TypeNamed(campaignAssembly, "TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption");
+            MemberOf(conversations, "CurOptions", Inst, conversationOption == null ? null : typeof(List<>).MakeGenericType(conversationOption));
+            MemberOf(conversationOption, "Id", Inst, typeof(string));
+            MemberOf(conversationOption, "IsClickable", Inst, typeof(bool));
+            Method(conversations, "DoOption", Inst, typeof(void), typeof(int));
+            Method(conversations, "ContinueConversation", Inst, typeof(void));
+            Method(conversations, "IsConversationEnded", Inst, typeof(bool));
+            MemberOf(typeof(MobileParty), "IsBandit", Inst, typeof(bool));
+            Type mission = LoadedType("TaleWorlds.MountAndBlade.Mission", "TaleWorlds.MountAndBlade");
+            Type battleEnd = LoadedType("TaleWorlds.MountAndBlade.BattleEndLogic", "TaleWorlds.MountAndBlade");
+            Type exitResult = battleEnd?.GetNestedType("ExitResult");
+            Need(exitResult != null && exitResult.IsEnum && Enum.IsDefined(exitResult, "True"), "BattleEndLogic.ExitResult.True");
+            Method(battleEnd, "TryExit", Inst, exitResult);
+            MemberOf(mission, "MissionEnded", Inst, typeof(bool));
+            Type missionResult = mission?.GetProperty("MissionResult", Inst)?.PropertyType;
+            Need(missionResult != null && missionResult.Name == "MissionResult", "Mission.MissionResult type");
+            MemberOf(missionResult, "BattleResolved", Inst, typeof(bool));
 
             // Окна поверх карты (прогон 14.09): экран карты и флаги его окон. SandBox.View
             // мод не подключает, поэтому типы — по имени среди загруженных сборок.

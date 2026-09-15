@@ -122,6 +122,7 @@ namespace BannerlordAutopilot
         private int _settlementExitsThisSession;   // ПОДТВЕРЖДЁННЫЕ выходы
         private string _lastAppliedDescription = "—";
         private string _lastTargetKey;
+        private MobileParty _combatTarget;
 
         // Штатная оценка сухопутного патруля не убывает от времени у цели и
         // почти не зависит от расстояния партии до неё. В прогоне 14.09 это
@@ -229,6 +230,7 @@ namespace BannerlordAutopilot
             _settlementExitsThisSession = 0;
             _lastAppliedDescription = "—";
             _lastTargetKey = null;
+            _combatTarget = null;
             _continuousPatrolSettlement = null;
             _continuousPatrolSinceHours = -1;
             _startedIn = null;
@@ -449,6 +451,8 @@ namespace BannerlordAutopilot
                 Disable("партия игрока пропала или неактивна");
                 return false;
             }
+
+            if (PollCombatConversation()) return false;
 
             if (_mode == Mode.Apply)
             {
@@ -1110,6 +1114,47 @@ namespace BannerlordAutopilot
                    && party.MapFaction != null
                    && party.MapFaction.IsAtWarWith(battle.AttackerSide.LeaderParty.MapFaction)
                    && !party.MapFaction.IsAtWarWith(battle.DefenderSide.LeaderParty.MapFaction);
+        }
+
+        // Only the bandit party deliberately pursued by this Apply session.
+        // Calling from the application tick also covers conversation missions.
+        internal bool PollCombatConversation()
+        {
+            var party = MobileParty.MainParty;
+            var target = _combatTarget ?? (party?.DefaultBehavior == AiBehavior.EngageParty ? party.TargetParty : null);
+            if (_mode != Mode.Apply || PlayerEncounter.Current == null || party == null
+                || target == null || !target.IsBandit || PlayerEncounter.EncounteredMobileParty != target
+                || party.Army != null || party.SiegeEvent != null || party.BesiegedSettlement != null
+                || target.SiegeEvent != null || PlayerEncounter.EncounterSettlement != null
+                || party.MapFaction == null || target.MapFaction == null
+                || !party.MapFaction.IsAtWarWith(target.MapFaction)) return false;
+            var conversation = Campaign.Current?.ConversationManager;
+            if (conversation?.IsConversationInProgress != true)
+                return party.MapEvent == null && PlayerEncounter.Battle == null;
+            if (conversation.ConversationParty != target || InformationManager.IsAnyInquiryActive()) return true;
+            try
+            {
+                var options = conversation.CurOptions;
+                for (int i=0; options != null && i<options.Count; i++)
+                {
+                    if (options[i].Id == "common_encounter_ultimatum" && options[i].IsClickable)
+                    {
+                        conversation.DoOption(i);
+                        AutopilotLog.Write("БОЙ: выбран ультиматум преследуемым бандитам; ждём ответа");
+                        return true;
+                    }
+                }
+                if ((options == null || options.Count == 0) && conversation.IsConversationEnded())
+                {
+                    conversation.ContinueConversation();
+                    AutopilotLog.Write("БОЙ: завершена последняя реплика; ждём штатное меню боя");
+                }
+            }
+            catch (Exception ex)
+            {
+                Disable("разговор с бандитами остановлен: " + ex.GetType().Name + ": " + ex.Message);
+            }
+            return true;
         }
 
         /// <summary>Первый поддержанный боевой сценарий: уже созданный обычный
@@ -1796,12 +1841,14 @@ namespace BannerlordAutopilot
                     case AiBehavior.EngageParty:
                         SetPartyAiAction.GetActionForEngagingParty(
                             party, (MobileParty)data.Party, data.NavigationType, data.IsFromPort);
+                        _combatTarget = (MobileParty)data.Party;
                         break;
 
                     default:
                         AutopilotLog.Write("  «" + data.AiBehavior + "» автопилот не выполняет — приказ не выдан");
                         return;
                 }
+                if (data.AiBehavior != AiBehavior.EngageParty) _combatTarget = null;
             }
             catch (Exception ex)
             {

@@ -1092,6 +1092,13 @@ namespace BannerlordAutopilot
         private static bool CanHelpDefenders(MobileParty party)
         {
             string menu = MenuDriver.CurrentMenuId;
+            // The engine getter dereferences PlayerEncounter.Current internally.
+            // Enabling on the ordinary map has no encounter yet (F11 crash).
+            if (PlayerEncounter.Current == null || party == null
+                || (menu != "join_encounter" && menu != "encounter_interrupted"))
+            {
+                return false;
+            }
             var battle = PlayerEncounter.EncounteredBattle;
             return (menu == "join_encounter" || menu == "encounter_interrupted")
                    && PlayerEncounter.Current != null && battle != null

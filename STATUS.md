@@ -1,5 +1,10 @@
 # ShedLink — что сейчас
 
+**15.09, исправление автопилота:** дамп подтвердил NullReferenceException при
+включении без PlayerEncounter. Проверка перенесена перед getter; 153/153,
+контракт 262/262, сборка чистая. Игровой повтор после фикса ещё не выполнен.
+Разбор: `BannerlordAutopilot/review/CRASH_NULL_ENCOUNTER_2026-09-15.md`.
+
 Обновлено: 2026-09-12 · снимок предыдущей версии: `docs/archive/STATUS_THROUGH_2026-08-24.md`
 
 Текущий контур публичного выпуска и единый release checklist:

@@ -98,6 +98,7 @@ namespace TaleWorlds.CampaignSystem {
   public static AIBehaviorData Invalid => default;
  }
  public class PartyThinkParams {
+  public TaleWorlds.Library.MBReadOnlyList<MobileParty> PossibleArmyMembersUponArmyCreation { get; } = new();
   public List<(AIBehaviorData,float)> AIBehaviorScores {get;} = new();
   public void Reset(MobileParty p) { AIBehaviorScores.Clear(); }
  }
@@ -126,9 +127,10 @@ namespace TaleWorlds.CampaignSystem {
   }
  }
  public class KingdomDecision { public bool Cancelled; public bool ShouldBeCancelled()=>Cancelled; }
- public class Kingdom { public List<KingdomDecision> UnresolvedDecisions { get; } = new(); public TaleWorlds.Localization.TextObject Name { get; set; } = new("Королевство"); }
+ public partial class Kingdom : TestFaction { public List<KingdomDecision> UnresolvedDecisions { get; } = new(); public TaleWorlds.Localization.TextObject Name { get; set; } = new("Королевство"); }
  // Clan 31710-31714: Fiefs — города и замки клана, Villages — его деревни.
  public class Clan {
+  public float Influence { get; set; }
   public static Clan PlayerClan = new(); public Kingdom Kingdom { get; set; } = new(); public IFaction MapFaction { get; set; }
   public TaleWorlds.Library.MBReadOnlyList<TaleWorlds.CampaignSystem.Settlements.Town> Fiefs { get; } = new();
   public TaleWorlds.Library.MBReadOnlyList<TaleWorlds.CampaignSystem.Settlements.Village> Villages { get; } = new();
@@ -204,7 +206,7 @@ namespace TaleWorlds.CampaignSystem.Party {
   public bool IsCurrentlyAtSea { get; set; }
   public enum NavigationType { None, Default }
   public static MobileParty MainParty = new();
-  public bool IsActive=true, IsMoving; public bool IsBandit {get;set;} public MapEvent MapEvent; public object Army;
+  public bool IsActive=true, IsMoving; public bool IsBandit {get;set;} public MapEvent MapEvent; public Army Army;
   public TaleWorlds.CampaignSystem.Siege.SiegeEvent SiegeEvent { get; set; }
   public Settlement CurrentSettlement, BesiegedSettlement, LastVisitedSettlement, TargetSettlement;
   public MobileParty TargetParty;

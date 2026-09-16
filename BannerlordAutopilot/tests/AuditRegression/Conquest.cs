@@ -22,6 +22,32 @@ internal static partial class Program
     }
     static void ConquestTests()
     {
+        foreach (float influence in new[] { 10f, 9f })
+        Try("сбор армии: влияние " + influence, () => {
+            var b = Fresh(); var castle = ConquestWorld(); var kingdom = new Kingdom(); kingdom.Enemies.Add(castle.MapFaction);
+            MobileParty.MainParty.MapFaction = kingdom; Clan.PlayerClan.Influence = influence; Clan.PlayerClan.Kingdom = kingdom;
+            var ally = new MobileParty { MapFaction = kingdom };
+            MobileParty.MainParty.ThinkParamsCache.PossibleArmyMembersUponArmyCreation.Add(ally);
+            CampaignEventDispatcher.NextScores.Add((new AIBehaviorData(castle, AiBehavior.BesiegeSettlement, MobileParty.NavigationType.Default, true, false, false), 9f));
+            Enable(b); HourlyTick(b);
+            if (influence >= 10)
+            {
+                Check(MobileParty.MainParty.Army != null && ally.Army == MobileParty.MainParty.Army && Clan.PlayerClan.Influence == 0,
+                    "армия создана с приглашённым союзником и оплатой влиянием");
+                ally.AttachedTo = MobileParty.MainParty; b.PollState();
+                Check(MobileParty.MainParty.TargetSettlement == castle && b.CurrentMode == AutopilotBehavior.Mode.Apply,
+                    "собранная армия продолжает наступление");
+            }
+            else Check(MobileParty.MainParty.Army == null && Clan.PlayerClan.Influence == influence, "нельзя создать неоплаченную армию");
+        });
+        Try("партия в армии союзника продолжает следование", () => {
+            var b = Fresh(); ConquestWorld(); Enable(b);
+            MobileParty.MainParty.Army = new Army { LeaderParty = new MobileParty() };
+            MobileParty.MainParty.AttachedTo = MobileParty.MainParty.Army.LeaderParty;
+            b.PollState();
+            Check(b.CurrentMode == AutopilotBehavior.Mode.Apply && Campaign.Current.TimeControlMode != CampaignTimeControlMode.Stop,
+                "следование лидеру не выключает автопилот и продвигает время");
+        });
         foreach (bool mercy in new[] { true, false })
         Try("после захвата: милость либо разграбление", () => {
             var b = Fresh(); var castle = ConquestWorld(); Enable(b);
@@ -106,4 +132,28 @@ namespace TaleWorlds.CampaignSystem.Siege
 namespace TaleWorlds.CampaignSystem.ComponentInterfaces
 {
     public class SiegeEventModel { public float GetSiegeStrategyScore(SiegeEvent siege, BattleSideEnum side, SiegeStrategy strategy) => 1f; }
+    public class ArmyManagementCalculationModel
+    {
+        public bool CanPlayerCreateArmy(out TaleWorlds.Localization.TextObject why) { why = null; return true; }
+        public bool CheckPartyEligibility(MobileParty party, out TaleWorlds.Localization.TextObject why) { why = null; return party.Army == null; }
+        public int CalculatePartyInfluenceCost(MobileParty leader, MobileParty party) => 10;
+    }
+}
+namespace TaleWorlds.CampaignSystem
+{
+    public class Army
+    {
+        public enum ArmyTypes { Besieger, Raider, Defender }
+        public MobileParty LeaderParty { get; set; }
+        public float Cohesion { get; set; } = 100;
+    }
+    public partial class Kingdom
+    {
+        public void CreateArmy(Hero leader, Settlement target, Army.ArmyTypes type, TaleWorlds.Library.MBReadOnlyList<MobileParty> members = null)
+        { MobileParty.MainParty.Army = new Army { LeaderParty = MobileParty.MainParty }; }
+    }
+}
+namespace TaleWorlds.CampaignSystem.Actions
+{
+    public static class ChangeClanInfluenceAction { public static void Apply(Clan clan, float amount) { clan.Influence += amount; } }
 }

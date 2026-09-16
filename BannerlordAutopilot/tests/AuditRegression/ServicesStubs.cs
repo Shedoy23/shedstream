@@ -74,6 +74,7 @@ namespace TaleWorlds.CampaignSystem {
   public int RoundedResultNumber => (int)Math.Round(ResultNumber);        // 42955
  }
  public class GameModels {
+  public TaleWorlds.CampaignSystem.ComponentInterfaces.ArmyManagementCalculationModel ArmyManagementCalculationModel { get; } = new();
   public TaleWorlds.CampaignSystem.ComponentInterfaces.SiegeEventModel SiegeEventModel { get; } = new();
   public MilitaryPowerModel MilitaryPowerModel { get; } = new();
   public MobilePartyAIModel MobilePartyAIModel { get; } = new();

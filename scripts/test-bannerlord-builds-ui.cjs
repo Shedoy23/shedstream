@@ -31,7 +31,19 @@ async function main() {
             window.fetch=async()=>({ok:true,json:async()=>structuredClone(fixture)});
         });
         await page.addScriptTag({path:path.join(front,'viewer-bannerlord-builds.js')});
+        const mainSource=fs.readFileSync(path.join(front,'viewer-bannerlord.js'),'utf8');
+        await page.addScriptTag({content:mainSource.slice(mainSource.indexOf('function _renderBannerlordDetachmentPanel('),mainSource.indexOf('function _renderBannerlordStance('))});
         await page.evaluate(()=>loadBannerlordBuild());
+        await page.evaluate(()=>{
+            document.body.insertAdjacentHTML('beforeend','<div id="bnr-detachment-slot"></div>');
+            window._bannerlordClassesCache={current:null};window._bnrPrice=(_,fallback)=>fallback;
+            fixture.build.is_mounted=true;fixture.build.power_options[1].available=true;
+            return loadBannerlordBuild();
+        });
+        await page.evaluate(()=>_renderBannerlordDetachmentPanel({in_battle:true,my_stats:{alive:true}}));
+        assert.equal(await page.locator('[data-det-act="hero.detach_raid"]').count(),1,'mounted free build can raid without legacy class');
+        assert.equal(await page.locator('[data-det-act="hero.detach_skirmish"]').count(),1,'ranged free build can skirmish without legacy class');
+        await page.evaluate(()=>{fixture.build.is_mounted=false;fixture.build.power_options[1].available=false;document.getElementById('bnr-detachment-slot').remove();return loadBannerlordBuild();});
         assert.equal(await page.locator('[data-bnr-build-spec="guardian"]').getAttribute('aria-pressed'),'true');
         assert.equal(await page.locator('[data-bnr-build-starter="archer"]').isDisabled(),true);
         assert.equal(await page.locator('img').count(),0);

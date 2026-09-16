@@ -141,7 +141,10 @@ namespace TaleWorlds.CampaignSystem.CampaignBehaviors {
 }
 
 namespace TaleWorlds.CampaignSystem.Roster {
- public class ItemRoster {
+ public class ItemRoster : System.Collections.Generic.IReadOnlyList<ItemRosterElement> {
+  public ItemRosterElement this[int index] => _data[index];
+  public System.Collections.Generic.IEnumerator<ItemRosterElement> GetEnumerator() => _data.GetEnumerator();
+  System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
   private readonly List<ItemRosterElement> _data = new();
   public int Count => _data.Count;
   public int TotalFood => _data.Where(e => e.EquipmentElement.Item != null && e.EquipmentElement.Item.IsFood).Sum(e => e.Amount);
@@ -232,3 +235,4 @@ namespace TaleWorlds.CampaignSystem.Actions {
   }
  }
 }
+

@@ -15,6 +15,17 @@ internal static partial class Program {
   state.Handler=new SandBox.GauntletUI.GauntletInventoryScreen(vm); Game.Current.GameStateManager.ActiveState=state; return vm;
  }
  static void LootTests() {
+  Try("loot native close event",()=>{
+   var b=Surrender();var vm=LootScreen();
+   vm.OnDone=()=>{var roster=TaleWorlds.CampaignSystem.Party.MobileParty.MainParty.ItemRoster;roster.AddToCounts(roster[0].EquipmentElement,-1);};
+   b.PollState();b.PollState();
+   Check(vm.Saved==3 && vm.Closed==1 && vm.Buys==1 && TaleWorlds.CampaignSystem.Party.MobileParty.MainParty.ItemRoster[0].Amount==2 && b.CurrentMode==AutopilotBehavior.Mode.Apply,"native close callback changes inventory without disabling or duplicating loot");
+  });
+  Try("loot detached roster",()=>{
+   var b=Surrender();var vm=LootScreen();
+   ((InventoryState)Game.Current.GameStateManager.ActiveState).InventoryLogic.Right=new TaleWorlds.CampaignSystem.Roster.ItemRoster();
+   b.PollState();Check(vm.Buys==0 && vm.Closed==0 && b.CurrentMode==AutopilotBehavior.Mode.Off,"detached player inventory rejected before native actions");
+  });
   foreach(int amount in new[]{0,1,7}) Try("loot actual transfer "+amount,()=>{
    var b=Surrender(); var vm=LootScreen(amount:amount); b.PollState(); b.PollState();
    Check(vm.Saved==amount && vm.Closed==1 && vm.Buys==1 && b.CurrentMode==AutopilotBehavior.Mode.Apply,"loot saved and closed once: "+amount);
@@ -38,7 +49,7 @@ internal static partial class Program {
 namespace TaleWorlds.CampaignSystem.Inventory {
  public class InventoryLogic {
   public enum InventorySide {OtherInventory,PlayerInventory}
-  public List<ItemRosterElement> Left=new(),Right=new(); public bool IsTrading {get;set;} public int TotalAmount {get;set;}
+  public List<ItemRosterElement> Left=new(); public TaleWorlds.CampaignSystem.Roster.ItemRoster Right=TaleWorlds.CampaignSystem.Party.MobileParty.MainParty.ItemRoster; public bool IsTrading {get;set;} public int TotalAmount {get;set;}
   public IReadOnlyList<ItemRosterElement> GetElementsInRoster(InventorySide side)=>side==InventorySide.OtherInventory?Left:Right;
  }
 }
@@ -48,13 +59,14 @@ namespace TaleWorlds.CampaignSystem.ViewModelCollection.Inventory {
  public class SPInventoryVM {
   private InventoryLogic _inventoryLogic;public SPInventoryVM(InventoryLogic logic){_inventoryLogic=logic;}
   public string LeftSearchText{get;set;}="filtered";private bool filtered=true;
-  public int Capacity=100,Buys,Closed,Saved,ForeignAccepted;public bool ForeignQuery,LoseItems;
+  public int Capacity=100,Buys,Closed,Saved,ForeignAccepted;public bool ForeignQuery,LoseItems; public Action OnDone;
   public void ExecuteFilterNone(){filtered=false;}
-  public void ExecuteBuyAllItems(){Buys++;if(filtered||LeftSearchText!="")return;var item=_inventoryLogic.Left[0].EquipmentElement;int total=_inventoryLogic.Left.Sum(x=>x.Amount);int n=Math.Min(Capacity,total);_inventoryLogic.Left.Clear();_inventoryLogic.Left.Add(new ItemRosterElement(default,total-n));if(!LoseItems)_inventoryLogic.Right.Add(new ItemRosterElement(item,n));}
+  public void ExecuteBuyAllItems(){Buys++;if(filtered||LeftSearchText!="")return;var item=_inventoryLogic.Left[0].EquipmentElement;int total=_inventoryLogic.Left.Sum(x=>x.Amount);int n=Math.Min(Capacity,total);_inventoryLogic.Left.Clear();_inventoryLogic.Left.Add(new ItemRosterElement(default,total-n));if(!LoseItems)_inventoryLogic.Right.AddToCounts(item,n);}
   public void ExecuteCompleteTranstactions(){if(ForeignQuery)InformationManager.ShowInquiry(new InquiryData{IsAffirmativeOptionShown=true,AffirmativeAction=()=>ForeignAccepted++});else if(_inventoryLogic.Left.Sum(x=>x.Amount)>0)InformationManager.ShowInquiry(new InquiryData{IsAffirmativeOptionShown=true,AffirmativeAction=HandleDone});else HandleDone();}
-  private void HandleDone(){Saved=_inventoryLogic.Right.Sum(x=>x.Amount);foreach(var e in _inventoryLogic.Right) TaleWorlds.CampaignSystem.Party.MobileParty.MainParty.ItemRoster.AddToCounts(e.EquipmentElement,e.Amount);Closed++;Game.Current.GameStateManager.PopState(0);}
+  private void HandleDone(){Saved=_inventoryLogic.Right.Sum(x=>x.Amount);OnDone?.Invoke();Closed++;Game.Current.GameStateManager.PopState(0);}
  }
 }
+
 
 
 

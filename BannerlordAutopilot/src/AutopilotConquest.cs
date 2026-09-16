@@ -179,7 +179,10 @@ namespace BannerlordAutopilot
                 return false;
             }
             if (!MapIsActiveScreen() || InformationManager.IsAnyInquiryActive()) return true;
-            if (place != _raidSettlement && menu != "village_player_raid_ended" && menu != "village_raid_diplomatically_ended") return false;
+            // Native raid completion can clear PlayerEncounter before opening its result menu.
+            bool raidResult = menu == "village_player_raid_ended" || menu == "village_raid_diplomatically_ended"
+                || menu == "village_raid_ended_leaded_by_someone_else" || menu == "village_looted";
+            if (place != _raidSettlement && !raidResult) return false;
             try
             {
                 _operationSettlement = _raidSettlement;

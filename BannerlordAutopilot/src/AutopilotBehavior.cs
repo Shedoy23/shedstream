@@ -1231,10 +1231,12 @@ namespace BannerlordAutopilot
             var target = _combatTarget ?? (party?.DefaultBehavior == AiBehavior.EngageParty ? party.TargetParty : null);
             if (PlayerEncounter.Current != null && PlayerEncounter.PlayerIsDefender)
                 target = PlayerEncounter.EncounteredMobileParty;
+            bool villageFieldBattle = IsSupportedFieldBattleEncounter(party)
+                && party.MapEvent.MapEventSettlement?.IsVillage == true;
             if (_mode != Mode.Apply || PlayerEncounter.Current == null || party == null
                 || target == null || PlayerEncounter.EncounteredMobileParty != target
                 || !ControlsParty(party) || party.SiegeEvent != null || party.BesiegedSettlement != null
-                || target.SiegeEvent != null || PlayerEncounter.EncounterSettlement != null
+                || target.SiegeEvent != null || (PlayerEncounter.EncounterSettlement != null && !villageFieldBattle)
                 || party.MapFaction == null || target.MapFaction == null
                 || !party.MapFaction.IsAtWarWith(target.MapFaction)) return false;
             // The pursued bandits already fight someone else (EncounteredBattle is the
@@ -1408,8 +1410,9 @@ namespace BannerlordAutopilot
         }
 
         /// <summary>Первый поддержанный боевой сценарий: уже созданный обычный
-        /// сухопутный MapEvent и его меню encounter. Армии, осады, налёты,
-        /// убежища и морские бои открывают другие миссии и экраны.</summary>
+        /// сухопутный MapEvent и его меню encounter. Движок может привязать
+        /// полевой бой к ближайшей деревне; это не превращает его в рейд.
+        /// Осады, налёты, убежища и морские бои проверяются отдельно.</summary>
         internal static bool IsSupportedFieldBattleEncounter(MobileParty party)
         {
             var battle = party?.MapEvent;
@@ -1418,7 +1421,8 @@ namespace BannerlordAutopilot
                    && PlayerEncounter.Battle != null
                    && party.SiegeEvent == null
                    && party.BesiegedSettlement == null
-                   && battle.MapEventSettlement == null
+                   && (battle.MapEventSettlement == null
+                       || (battle.IsFieldBattle && battle.MapEventSettlement.IsVillage))
                    && !battle.IsNavalMapEvent;
         }
 

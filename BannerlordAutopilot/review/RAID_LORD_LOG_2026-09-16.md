@@ -1,5 +1,25 @@
 # Live raid/lord triage, 16 September, 22:37–22:51
 
+## Correction after owner authorization
+
+Native MapEvent initialization explicitly assigns the nearest village to a
+FieldBattle (CampaignSystem decompilation around 111594–111620). The settlement
+being non-null therefore does not imply a raid/siege. Field-battle eligibility
+now permits a village only with IsFieldBattle; naval/fortress/raid exclusions
+remain. Combat dialogue uses the same eligibility instead of random choices
+for that encounter. This also enables the existing F11 mission-attachment path.
+
+PollRaid permits all four already-handled terminal raid menus after encounter
+teardown, while still requiring the session's recorded raid. Native raid-end
+Continue uses ExitToLast (or army_wait for a follower), not a direct battle exit.
+
+Red regression commit 5fe6920: 349 pass / 5 fail (exit 5): two terminal menus,
+village field battle, F11 resume and fixed combat dialogue. After correction:
+354/354, BattleMission 22/22, actual game contract 421/421; build 0 warnings/errors.
+These are local tests and native API/source evidence; live replay is still pending.
+
+Original diagnostic record follows (before code changes).
+
 Inspected live log `C:/Users/Edward/Documents/Mount and Blade II Bannerlord/Logs/autopilot_20260916.txt`.
 Installed DLL MD5 remains 55B9AE163133BABA456FF5302F8E235A (61e4549).
 No code or DLL changes made in this inspection.

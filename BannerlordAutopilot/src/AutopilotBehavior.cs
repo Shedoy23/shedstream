@@ -485,6 +485,7 @@ namespace BannerlordAutopilot
             if (PollLootScreen()) return false;
             if (PollPrisonerScreen()) return false;
             if (PollDialogs()) return false;
+            if (PollOffensiveSiege(party)) return false;
             if (PollOperations(party)) return false;
 
             if (_mode == Mode.Apply)
@@ -2057,6 +2058,9 @@ namespace BannerlordAutopilot
             }
             switch (data.AiBehavior)
             {
+                case AiBehavior.BesiegeSettlement:
+                    if (!EnemyFortress(data.Party as Settlement, MobileParty.MainParty)) return "нет вражеской крепости";
+                    return PreparationNeeded(MobileParty.MainParty);
                 case AiBehavior.DefendSettlement:
                     return FriendlySiege(data.Party as Settlement, MobileParty.MainParty) ? null : "нет дружественной осады";
                 case AiBehavior.GoToSettlement:
@@ -2108,6 +2112,9 @@ namespace BannerlordAutopilot
             {
                 switch (data.AiBehavior)
                 {
+                    case AiBehavior.BesiegeSettlement:
+                        SetPartyAiAction.GetActionForBesiegingSettlement(party, settlement, data.NavigationType, data.IsFromPort);
+                        break;
                     case AiBehavior.DefendSettlement:
                         SetPartyAiAction.GetActionForDefendingSettlement(
                             party, settlement, data.NavigationType, data.IsFromPort, data.IsTargetingPort);

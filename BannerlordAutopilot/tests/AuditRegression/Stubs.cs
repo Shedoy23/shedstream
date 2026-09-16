@@ -264,6 +264,7 @@ namespace TaleWorlds.CampaignSystem.Actions {
  }
  public static class SetPartyAiAction {
   public static void GetActionForDefendingSettlement(MobileParty p, Settlement s, MobileParty.NavigationType n, bool f, bool t) {p.DefaultBehavior=AiBehavior.DefendSettlement;p.TargetSettlement=s;p.IsMoving=true;}
+  public static void GetActionForBesiegingSettlement(MobileParty p, Settlement s, MobileParty.NavigationType n, bool f) {p.DefaultBehavior=AiBehavior.BesiegeSettlement;p.TargetSettlement=s;p.IsMoving=true;}
   public static int VisitCalls;
   public static int PatrolCalls;
   public static int EngageCalls;

@@ -17,7 +17,15 @@ DefendSettlement применяется стандартным SetPartyAiAction.
 AuditRegression 203/203, BattleMission 20/20, реальный контракт 307 ожиданий;
 сборка без ошибок. Это не игровой прогон. Описание движковых оснований,
 ограничений и ручных проверок — review/SIEGE_HIDEOUT_2026-09-16.md.
-Установка новой DLL пока не выполнена; последняя установленная — a39470b ниже.
+DLL 9186e54 установлена при закрытой игре 16.09.2026 13:17:46 +05:00.
+MD5 исходной и установленной совпал: E91438725B4499613987D5C45F28CFE9.
+Откат: D:/shedlink-build/autopilot-dll-rollback/BannerlordAutopilot-before-siege-hideout-20260916-131746.dll
+(предыдущий MD5 2E9CBD069D16111C637050CDC16DE505). BannerlordLink не заменялся.
+После коммита контрольная мутация удаления проверки стороны Defender дала
+ожидаемый FAIL. Исходник восстановлен из сохранённых байтов, diff пуст;
+повтор — 203/203 и чистая неинкрементальная сборка перед установкой.
+Выводы evidence/operations-mutation-side.txt, operations-restored.txt,
+operations-final-build.txt, operations-install.json. Живой прогон не выполнен.
 
 # Актуальное дополнение 15.09.2026 — сдача и случайные диалоги
 

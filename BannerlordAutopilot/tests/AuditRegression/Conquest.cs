@@ -22,6 +22,39 @@ internal static partial class Program
     }
     static void ConquestTests()
     {
+        foreach (string terminal in new[] { "village_player_raid_ended", "village_raid_ended_leaded_by_someone_else", "village_raid_diplomatically_ended", "village_looted" })
+        Try("raid terminal after encounter teardown: " + terminal, () => {
+            var b = Fresh(); var village = ConquestWorld(); village.IsCastle = false; village.IsVillage = true;
+            CampaignEventDispatcher.NextScores.Add((new AIBehaviorData(village, AiBehavior.RaidSettlement, MobileParty.NavigationType.Default, false, false, false), 9f));
+            Enable(b); HourlyTick(b);
+            PlayerEncounter.Current = new PlayerEncounter(); PlayerEncounter.EncounterSettlement = village;
+            Show(Menu("village", "hostile_action", () => {})); b.PollState();
+            PlayerEncounter.Finish(); MobileParty.MainParty.CurrentSettlement = null;
+            MobileParty.MainParty.DefaultBehavior = AiBehavior.Hold;
+            string option = terminal.Contains("diplomatically") || terminal == "village_looted" ? "leave" : "continue";
+            int clicks = 0; Show(Menu(terminal, option, () => clicks++)); b.PollState();
+            Check(clicks == 1 && b.CurrentMode == AutopilotBehavior.Mode.Apply, "cleared encounter still closes " + terminal);
+        });
+        foreach (string kind in new[] { "village", "naval", "raid", "castle" })
+        Try("field battle location classification: " + kind, () => {
+            var b = Fresh(); var place = ConquestWorld(); Enable(b);
+            place.IsCastle = kind == "castle"; place.IsVillage = !place.IsCastle;
+            var battle = new MapEvent { MapEventSettlement = place, IsFieldBattle = kind != "raid", IsRaid = kind == "raid", IsNavalMapEvent = kind == "naval" };
+            MobileParty.MainParty.MapEvent = PlayerEncounter.Battle = battle; PlayerEncounter.Current = new PlayerEncounter();
+            Check(AutopilotBehavior.IsSupportedFieldBattleEncounter(MobileParty.MainParty) == (kind == "village"), "only land field battle at village is supported: " + kind);
+            if (kind == "village") Check(b.TryEnable(AutopilotBehavior.Mode.Apply, out _), "F11 can resume a village field battle");
+        });
+        Try("lord dialogue at village uses combat rules", () => {
+            var b = Fresh(); var village = ConquestWorld(); village.IsCastle = false; village.IsVillage = true; Enable(b);
+            var lord = new MobileParty { MapFaction = village.MapFaction };
+            PlayerEncounter.Current = new PlayerEncounter { Defender = true }; PlayerEncounter.EncounteredMobileParty = lord;
+            PlayerEncounter.EncounterSettlement = village;
+            MobileParty.MainParty.MapEvent = PlayerEncounter.Battle = new MapEvent { MapEventSettlement = village, IsFieldBattle = true };
+            var c = Campaign.Current.ConversationManager; c.ConversationParty = lord; c.IsConversationInProgress = true;
+            c.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption { Id = "545", IsClickable = true });
+            b.PollDialogs();
+            Check(c.Selected.SequenceEqual(new[] { "545" }) && !AutopilotLog.Lines.Any(l => l.Contains("случайно выбрана")), "lord at village goes through fixed combat conversation");
+        });
         Try("истощились по пути к крепости — уход к снабжению", () => {
             var b = Fresh(); var castle = ConquestWorld(food: 1); Enable(b);
             MobileParty.MainParty.TargetSettlement = castle; MobileParty.MainParty.DefaultBehavior = AiBehavior.BesiegeSettlement;

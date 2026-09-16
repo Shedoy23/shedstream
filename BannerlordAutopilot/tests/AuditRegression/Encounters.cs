@@ -32,8 +32,83 @@ internal static partial class Program
         return battle;
     }
 
+    /// <summary>Меню чужого боя как в EncounterGameMenuBehavior 1.4.8: помощь сторонам
+    /// (доступность решает MapEvent.CanPartyJoinBattle, 112256) и уход — в join_encounter
+    /// «join_encounter_leave» с Finish и Hold (183464), в encounter_interrupted — «leave»
+    /// только с Finish (184697).</summary>
+    static GameMenu ForeignBattleMenu(string id, MapEvent battle, bool helpDefenders)
+    {
+        var menu = new GameMenu { StringId = id };
+        menu.Options.Add(new GameMenuOption { IdString = id + "_help_attackers", IsEnabled = false });
+        menu.Options.Add(new GameMenuOption { IdString = id + "_help_defenders", IsEnabled = helpDefenders, Consequence = () => {
+            MobileParty.MainParty.MapEvent = battle; PlayerEncounter.Battle = battle;
+            var fight = new GameMenu { StringId = "encounter" };
+            fight.Options.Add(new GameMenuOption { IdString = "attack" }); Show(fight);
+        }});
+        menu.Options.Add(new GameMenuOption { IdString = id == "join_encounter" ? "join_encounter_leave" : "leave", Consequence = () => {
+            PlayerEncounter.Finish();
+            if (id == "join_encounter") MobileParty.MainParty.SetMoveModeHold();
+        }});
+        return menu;
+    }
+
     static void EncounterTests()
     {
+        foreach (string menuId in new[] { "join_encounter", "encounter_interrupted" })
+        Try("чужой бой, в который вступиться нельзя, — уходим штатно: " + menuId, () =>
+        {
+            var b = Fresh(); Enable(b);
+            // Грабители напали на деревенских королевства, с которым мы воюем: обе стороны враги,
+            // игра не пускает ни на одну (CanPartyJoinBattle), остаётся «Не вмешиваться».
+            var enemyKingdom = new TestFaction();
+            var battle = PursuedBanditInForeignBattle(enemyKingdom);
+            ((TestFaction)MobileParty.MainParty.MapFaction).Enemies.Add(enemyKingdom);
+            Show(ForeignBattleMenu(menuId, battle, helpDefenders: false)); b.PollState();
+            string leave = menuId == "join_encounter" ? "join_encounter_leave" : "leave";
+            Check(MenuContext.Invoked.SequenceEqual(new[] { leave }) && PlayerEncounter.Current == null,
+                  "нажата только штатная кнопка ухода «" + leave + "»");
+            Check(b.CurrentMode == AutopilotBehavior.Mode.Apply && LogCount("ВСТРЕЧА") == 1,
+                  "уход из чужого боя не выключает автопилот и записан с причиной");
+        });
+        Try("после ухода тот же отряд не преследуется, пока идёт его бой", () =>
+        {
+            var b = Fresh(); Enable(b);
+            var enemyKingdom = new TestFaction();
+            var battle = PursuedBanditInForeignBattle(enemyKingdom);
+            ((TestFaction)MobileParty.MainParty.MapFaction).Enemies.Add(enemyKingdom);
+            var looters = PlayerEncounter.EncounteredMobileParty;
+            Show(ForeignBattleMenu("join_encounter", battle, helpDefenders: false)); b.PollState();
+            var ai = Campaign.Current.Models.MobilePartyAIModel;
+            ai.NextBehavior = AiBehavior.EngageParty; ai.NextTarget = looters; ai.NextScore = 3f;
+            int before = TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.EngageCalls;
+            HourlyTick(b);
+            Check(b.CurrentMode == AutopilotBehavior.Mode.Apply
+                  && TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.EngageCalls == before,
+                  "пока грабители в том бою, погоня не возобновляется — иначе круг «догнал — ушёл»");
+            looters.MapEvent = null; HourlyTick(b);
+            Check(TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.EngageCalls == before + 1,
+                  "бой закончился — отряд снова обычная цель");
+        });
+        Try("помощь защитникам запрещена игрой — уходим, а не выключаемся", () =>
+        {
+            var b = Fresh(); Enable(b);
+            // Вожаки сторон подходят под правило «помогать мирным», но CanPartyJoinBattle
+            // сверяет КАЖДУЮ партию стороны и кнопку выключил.
+            var battle = PursuedBanditInForeignBattle(new TestFaction());
+            Show(ForeignBattleMenu("join_encounter", battle, helpDefenders: false)); b.PollState();
+            Check(MenuContext.Invoked.SequenceEqual(new[] { "join_encounter_leave" }) && b.CurrentMode == AutopilotBehavior.Mode.Apply,
+                  "недоступная кнопка помощи ведёт к штатному уходу, автопилот включён");
+        });
+        Try("F11 можно нажать прямо в меню чужого боя", () =>
+        {
+            var b = Fresh();
+            var enemyKingdom = new TestFaction();
+            var battle = PursuedBanditInForeignBattle(enemyKingdom);
+            ((TestFaction)MobileParty.MainParty.MapFaction).Enemies.Add(enemyKingdom);
+            Show(ForeignBattleMenu("join_encounter", battle, helpDefenders: false));
+            Check(b.TryEnable(AutopilotBehavior.Mode.Apply, out string why), "включение в меню чужого боя разрешено: " + why);
+        });
+
         Console.WriteLine("\n[прогон 16.09] чужой бой на пути погони и сторож простоя");
         Try("погоня за грабителями, которые уже дерутся с мирной партией", () =>
         {

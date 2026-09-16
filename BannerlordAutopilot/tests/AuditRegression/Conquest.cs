@@ -22,6 +22,23 @@ internal static partial class Program
     }
     static void ConquestTests()
     {
+        foreach (string boundary in new[] { "apply", "observe", "inquiry", "disabled" })
+        Try("raid warning continue " + boundary, () => {
+            var b=Fresh(); var w=MakeWorld(prisoners:false);
+            Enable(b, boundary=="observe" ? AutopilotBehavior.Mode.Observe : AutopilotBehavior.Mode.Apply);
+            PlayerEncounter.Current=new PlayerEncounter();
+            MobileParty.MainParty.CurrentSettlement=w.Place;
+            PlayerEncounter.EncounterSettlement=w.Place;
+            int clicks=0;
+            var menu=Menu("encounter_interrupted_raid_started", "encounter_interrupted_raid_started_leave", () => {
+                clicks++; Show(Menu("join_encounter", "leave", () => {}));
+            });
+            menu.Options[0].IsEnabled=boundary!="disabled";
+            Show(menu); TaleWorlds.Library.InformationManager.TestInquiryActive=boundary=="inquiry";
+            b.PollState();
+            Check(clicks==(boundary=="apply" ? 1 : 0), "raid notice respects " + boundary);
+            if (boundary=="apply") Check(b.CurrentMode==AutopilotBehavior.Mode.Apply && MenuDriver.CurrentMenuId=="join_encounter", "raid notice reaches native encounter without disabling");
+        });
         foreach (bool wounded in new[] { true, false })
         Try("wounded hero sends troops through native option", () => {
             var b = Fresh(); ConquestWorld(); Enable(b);

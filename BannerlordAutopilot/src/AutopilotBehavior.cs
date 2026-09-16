@@ -127,6 +127,7 @@ namespace BannerlordAutopilot
         // object, а не MapEvent: тип живёт в TaleWorlds.CampaignSystem.MapEvents, и как
         // везде в этом файле его не называем, чтобы исходник собирался и со стендом.
         private readonly Dictionary<MobileParty, object> _leftForeignBattles = new Dictionary<MobileParty, object>();
+        private int _lastProgressWeek = -1;
         internal bool RandomDialogsEnabled { get; set; } = true;
         private readonly Random _dialogRandom = new Random();
         private int _randomDialogSteps;
@@ -245,6 +246,7 @@ namespace BannerlordAutopilot
             _lastTargetKey = null;
             _combatTarget = null;
             _leftForeignBattles.Clear();
+            _lastProgressWeek = -1;
             _continuousPatrolSettlement = null;
             _continuousPatrolSinceHours = -1;
             _startedIn = null;
@@ -1637,6 +1639,7 @@ namespace BannerlordAutopilot
             {
                 return; // выключит ближайший опрос по кадрам — с причиной
             }
+            WriteWeeklyProgress(party);
 
             // Думать можно на свободной карте и во время ожидания в поселении.
             // Всё прочее — переходы меню, в них решать нечего.
@@ -1819,6 +1822,36 @@ namespace BannerlordAutopilot
             }
 
             ApplyDecision(party, chosen, chosenScore);
+        }
+
+        /// <summary>Мера прогресса для долгого прогона: в первый час сеанса и раз в
+        /// игровую неделю — феоды клана, бойцы, золото, с кем война. Без неё «стало
+        /// лучше» нечем доказать. Сбой сводки — строка в журнале, не выключение.</summary>
+        private void WriteWeeklyProgress(MobileParty party)
+        {
+            int week = (int)(CampaignTime.Now.ToHours / (24 * 7));
+            if (week == _lastProgressWeek)
+            {
+                return;
+            }
+            _lastProgressWeek = week;
+            try
+            {
+                Clan clan = Clan.PlayerClan;
+                int castles = clan.Fiefs.Count(f => f.Settlement.IsCastle);
+                string wars = string.Join(", ", FactionHelper.GetEnemyKingdoms(clan.MapFaction).Select(k => k.Name.ToString()));
+                AutopilotLog.Write("НЕДЕЛЯ " + week + ": феодов " + clan.Fiefs.Count
+                                   + " (замков " + castles + ", городов " + (clan.Fiefs.Count - castles) + ")"
+                                   + ", деревень " + clan.Villages.Count
+                                   + "; бойцов " + party.MemberRoster.TotalManCount
+                                   + " (раненых " + party.MemberRoster.TotalWounded + ")"
+                                   + "; золото " + Hero.MainHero.Gold
+                                   + "; войны: " + (wars.Length > 0 ? wars : "нет"));
+            }
+            catch (Exception ex)
+            {
+                AutopilotLog.Write("НЕДЕЛЯ " + week + ": сводку собрать не удалось: " + ex.GetType().Name + ": " + ex.Message);
+            }
         }
 
         private float AdjustedDecisionScore(AIBehaviorData data, float rawScore)

@@ -11,6 +11,13 @@ internal static partial class Program
     static void ProgressTests()
     {
         Console.WriteLine("\n[мера прогресса] недельная сводка");
+        Try("доля карты и снабжение в недельном журнале", () => {
+            var b = Fresh(); var castle = ConquestWorld();
+            Settlement.All.Add(castle); Settlement.All.Add(new Settlement { IsTown = true });
+            Clan.PlayerClan.Kingdom.Fiefs.Add(new Town { Settlement = castle }); Enable(b); HourlyTick(b);
+            Check(AutopilotLog.Lines.Any(l => l.Contains("карта 1/2") && l.Contains("еда 7.0") && l.Contains("жалование 50")),
+                "видно долю городов/замков, дни еды и суточное содержание");
+        });
         Try("сводка прогресса раз в игровую неделю", () =>
         {
             var b = Fresh(); Enable(b);

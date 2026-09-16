@@ -206,6 +206,7 @@ namespace TaleWorlds.CampaignSystem
     }
     public partial class Kingdom
     {
+        public TaleWorlds.Library.MBReadOnlyList<Town> Fiefs { get; } = new();
         public void CreateArmy(Hero leader, Settlement target, Army.ArmyTypes type, TaleWorlds.Library.MBReadOnlyList<MobileParty> members = null)
         { MobileParty.MainParty.Army = new Army { LeaderParty = MobileParty.MainParty }; }
     }

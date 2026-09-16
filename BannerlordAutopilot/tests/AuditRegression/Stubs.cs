@@ -172,6 +172,7 @@ namespace TaleWorlds.CampaignSystem.Settlements {
  public class Town { public Settlement Settlement { get; set; } public int GetItemPrice(TaleWorlds.Core.EquipmentElement element, MobileParty party = null, bool isSelling = false) => element.Item.TestPrice; }
  public class Village { public Settlement TradeBound { get; set; } public Settlement Bound { get; set; } }
  public class Settlement : IMapPoint {
+  public static TaleWorlds.Library.MBReadOnlyList<Settlement> All { get; } = new();
   public bool IsHideout { get; set; } public bool IsVisible { get; set; } = true;
   public CampaignVec2 Position { get; set; } public Hideout Hideout { get; set; }
   public string Name="Town"; public bool IsUnderSiege; public CampaignVec2 GatePosition = new CampaignVec2{X=42};
@@ -341,7 +342,7 @@ namespace BannerlordAutopilot {
   internal static void Write(string s) {Lines.Add(s);} internal static void Session(string s) {Lines.Add(s);}
  }
 }
-
+    
 namespace TaleWorlds.ScreenSystem {
  public class ScreenBase {}
  public static class ScreenManager { public static ScreenBase TopScreen { get; set; } }

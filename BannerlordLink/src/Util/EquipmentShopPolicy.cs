@@ -20,7 +20,9 @@ namespace BannerlordLink.Util
                 default: throw new ArgumentOutOfRangeException(nameof(publicTier));
             }
         }
-        internal static int Price(int itemValue) => Math.Max(1, itemValue);
+        internal const int PriceMultiplier = 5;
+        internal static int Price(int itemValue)
+            => (int)Math.Min(int.MaxValue, Math.Max(1L, (long)itemValue) * PriceMultiplier);
     }
 
     internal sealed class OwnedEquipment

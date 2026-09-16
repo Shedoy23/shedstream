@@ -143,7 +143,7 @@ namespace TaleWorlds.CampaignSystem {
  public interface IDataStore { bool IsSaving { get; } bool IsLoading { get; } bool SyncData<T>(string key, ref T data); }
  public abstract class CampaignBehaviorBase { public abstract void RegisterEvents(); public abstract void SyncData(IDataStore data); }
  public class Event { public void AddNonSerializedListener(object owner, Action a) {} }
- public static class CampaignEvents { public static Event HourlyTickEvent=new(), OnGameLoadFinishedEvent=new(); }
+ public static class CampaignEvents { public static Event HourlyTickEvent=new(), OnGameLoadFinishedEvent=new(); public static SessionEvent OnSessionLaunchedEvent = new(); }
  public class CampaignEventDispatcher {
   public static CampaignEventDispatcher Instance {get;} = new();
   public static List<(AIBehaviorData,float)> NextScores = new();

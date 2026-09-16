@@ -74,6 +74,7 @@ namespace TaleWorlds.CampaignSystem {
   public int RoundedResultNumber => (int)Math.Round(ResultNumber);        // 42955
  }
  public class GameModels {
+  public MilitaryPowerModel MilitaryPowerModel { get; } = new();
   public MobilePartyAIModel MobilePartyAIModel { get; } = new();
   public PartyFoodBuyingModel PartyFoodBuyingModel { get; } = new();
   public MobilePartyFoodConsumptionModel MobilePartyFoodConsumptionModel { get; } = new();
@@ -84,6 +85,7 @@ namespace TaleWorlds.CampaignSystem {
 }
 
 namespace TaleWorlds.CampaignSystem.ComponentInterfaces {
+ public class MilitaryPowerModel { public TaleWorlds.CampaignSystem.MapEvent.PowerCalculationContext GetContextForPosition(TaleWorlds.CampaignSystem.CampaignVec2 position) => default; }
  public class MobilePartyAIModel {
   public AiBehavior NextBehavior; public MobileParty NextTarget; public float NextScore;
   public void GetBestInitiativeBehavior(MobileParty party, out AiBehavior behavior, out MobileParty target, out float score, out TaleWorlds.Library.Vec2 averageEnemyVec) { behavior=NextBehavior; target=NextTarget; score=NextScore; averageEnemyVec=default; }
@@ -235,4 +237,3 @@ namespace TaleWorlds.CampaignSystem.Actions {
   }
  }
 }
-

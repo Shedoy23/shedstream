@@ -39,6 +39,29 @@ internal static partial class Program
 
     static void BanditGatheringTests()
     {
+        foreach (float addition in new[] { 60f, 80f, 81f, 10f })
+        Try("реплика общего боя до ультиматума: добавочная сила " + addition, () => {
+            var pilot = Fresh(); Enable(pilot);
+            var ours = new TestFaction(); var bandits = new TestFaction(); ours.Enemies.Add(bandits); bandits.Enemies.Add(ours);
+            var main = MobileParty.MainParty; main.MapFaction = ours; main.Party.TestStrength = 100;
+            var target = GatherCandidate("target", 40, 0, bandits);
+            var extra = GatherCandidate("extra", addition, 1, bandits);
+            main.TargetParty = target; main.DefaultBehavior = AiBehavior.EngageParty;
+            PlayerEncounter.Current = new PlayerEncounter(); PlayerEncounter.EncounteredMobileParty = target;
+            var conversation = Campaign.Current.ConversationManager;
+            conversation.IsConversationInProgress = true; conversation.ConversationParty = target;
+            CampaignEvents.OnSessionLaunchedEvent = new SessionEvent();
+            pilot.RegisterEvents(); var starter = new CampaignGameStarter(); CampaignEvents.OnSessionLaunchedEvent.Raise(starter);
+            var line = starter.Lines.FirstOrDefault(x => x.Id == "autopilot_bandit_gather");
+            Check(line != null && line.Input == "bandit_attacker" && line.Output == "bandit_start_fight", "зарегистрирована своя реплика со штатным выходом в бой");
+            bool offered = line?.Condition?.Invoke() == true;
+            Check(offered == (addition >= 60 && addition <= 80), "вызов предлагается только для достижимых 100–120% силы");
+            conversation.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption { Id = "common_encounter_ultimatum", IsClickable = true });
+            if (offered) conversation.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption { Id = line.Id, IsClickable = true });
+            pilot.PollDialogs();
+            Check(conversation.Selected.Single() == (offered ? "autopilot_bandit_gather" : "common_encounter_ultimatum"), "вызов выбирается раньше ультиматума, иначе сохранён ультиматум");
+            Check(extra.MapEvent == null && extra.Position.X == 1, "оценка реплики и её выбор не телепортируют партии до появления боя");
+        });
         Try("добор ближайших: пропуск слишком сильного, ровно 120%, один раз", () => {
             var w = GatheringWorld();
             var huge = GatherCandidate("too big", 81, 1, w.Bandits);
@@ -140,6 +163,19 @@ internal static partial class Program
 
 namespace TaleWorlds.CampaignSystem
 {
+    public class SessionEvent
+    {
+        private Action<CampaignGameStarter> _handler;
+        public void AddNonSerializedListener(object owner, Action<CampaignGameStarter> handler) { _handler = handler; }
+        public void Raise(CampaignGameStarter starter) => _handler?.Invoke(starter);
+    }
+    public class CampaignGameStarter
+    {
+        public class Line { public string Id, Input, Output; public Func<bool> Condition; }
+        public List<Line> Lines = new();
+        public void AddPlayerLine(string id, string input, string output, string text, Func<bool> condition, Action consequence, int priority = 100)
+            => Lines.Add(new Line { Id = id, Input = input, Output = output, Condition = condition });
+    }
     public class MapEventParty { public PartyBase Party { get; set; } }
     public partial class MapEventSide
     {

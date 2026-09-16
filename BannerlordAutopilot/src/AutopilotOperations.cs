@@ -44,6 +44,8 @@ namespace BannerlordAutopilot
 
         private static bool CanStartOperation(MobileParty party)
         {
+            if (party?.SiegeEvent?.BesiegerCamp.LeaderParty != null && !party.IsCurrentlyAtSea
+                && (party.SiegeEvent.BesiegerCamp.LeaderParty == party || party.SiegeEvent.BesiegerCamp.LeaderParty == party.Army?.LeaderParty)) return true;
             if (party == null || party.Army != null || party.IsCurrentlyAtSea || party.Ai == null || party.Ai.IsDisabled) return false;
             var place = EncounterPlace(party);
             string menu = MenuDriver.CurrentMenuId;
@@ -55,7 +57,7 @@ namespace BannerlordAutopilot
         {
             var battle = party?.MapEvent;
             if (_mode != Mode.Apply || _operationSettlement == null || battle == null
-                || !ControlsParty(party) || battle.IsNavalMapEvent || PlayerEncounter.Current == null
+                || battle.IsNavalMapEvent || PlayerEncounter.Current == null
                 || PlayerEncounter.Battle != battle || battle.MapEventSettlement != _operationSettlement) return false;
             return (_operationSettlement.IsHideout && _hideoutAttackRequested && battle.IsHideoutBattle)
                 || (_operationSettlement == _raidSettlement && battle.IsRaid)

@@ -335,6 +335,7 @@ namespace BannerlordAutopilot
         private static void VerifyConquest(Assembly campaign, Type mapEvent)
         {
             var mobile = typeof(MobileParty);
+            MemberOf(typeof(PlayerEncounter), "PlayerIsDefender", Stat, typeof(bool));
             var navigation = typeof(MobileParty.NavigationType);
             Method(typeof(SetPartyAiAction), "GetActionForBesiegingSettlement", Stat, typeof(void), mobile, typeof(Settlement), navigation, typeof(bool));
             Method(typeof(SetPartyAiAction), "GetActionForRaidingSettlement", Stat, typeof(void), mobile, typeof(Settlement), navigation, typeof(bool), typeof(bool));
@@ -362,7 +363,7 @@ namespace BannerlordAutopilot
             MemberOf(camp, "IsReadyToBesiege", Inst, typeof(bool));
             Type strategy = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Siege.SiegeStrategy");
             Type strategies = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Siege.DefaultSiegeStrategies");
-            MemberOf(strategies, "AllAttackerStrategies", Stat, typeof(IEnumerable<>).MakeGenericType(strategy));
+            MemberOf(strategies, "AllAttackerStrategies", Stat, strategy != null ? typeof(IEnumerable<>).MakeGenericType(strategy) : null);
             Type side = siege?.GetMethod("GetSiegeEventSide", Inst)?.ReturnType;
             Method(siege, "GetSiegeEventSide", Inst, side, typeof(TaleWorlds.Core.BattleSideEnum));
             Method(side, "SetSiegeStrategy", Inst, typeof(void), strategy);

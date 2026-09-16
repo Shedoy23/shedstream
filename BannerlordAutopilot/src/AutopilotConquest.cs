@@ -208,9 +208,11 @@ namespace BannerlordAutopilot
             var siege = party.SiegeEvent;
             var place = siege?.BesiegedSettlement ?? EncounterPlace(party);
             bool commanded = siege?.BesiegerCamp.LeaderParty == party;
+            bool participating = siege != null && party.Army?.LeaderParty != null
+                && siege.BesiegerCamp.LeaderParty == party.Army.LeaderParty;
             bool approaching = siege == null && EnemyFortress(place, party)
                 && (_offensiveSiege == place || (party.DefaultBehavior == AiBehavior.BesiegeSettlement && party.TargetSettlement == place));
-            if (_offensiveSiege == null && (commanded || approaching)) _offensiveSiege = place;
+            if (_offensiveSiege == null && (commanded || approaching || participating)) _offensiveSiege = place;
             if (_offensiveSiege == null) return false;
             if (IsOnFreeMap(party) && siege == null && menu == null)
             {
@@ -220,6 +222,13 @@ namespace BannerlordAutopilot
             if (!MapIsActiveScreen() || InformationManager.IsAnyInquiryActive()) return true;
             try
             {
+                if (participating && !commanded && menu == "menu_siege_strategies")
+                {
+                    _operationSettlement = place;
+                    ResumeOperationWait(); return true;
+                }
+                if (menu == "encounter" && IsOwnedOperationBattle(party))
+                { OperationClick("attack"); return true; }
                 if (menu == "town_outside" || menu == "castle_outside")
                 {
                     if (!approaching) return false;

@@ -1229,6 +1229,8 @@ namespace BannerlordAutopilot
         {
             var party = MobileParty.MainParty;
             var target = _combatTarget ?? (party?.DefaultBehavior == AiBehavior.EngageParty ? party.TargetParty : null);
+            if (PlayerEncounter.Current != null && PlayerEncounter.PlayerIsDefender)
+                target = PlayerEncounter.EncounteredMobileParty;
             if (_mode != Mode.Apply || PlayerEncounter.Current == null || party == null
                 || target == null || PlayerEncounter.EncounteredMobileParty != target
                 || !ControlsParty(party) || party.SiegeEvent != null || party.BesiegedSettlement != null
@@ -1252,6 +1254,7 @@ namespace BannerlordAutopilot
                     string id = options[i].Id;
                     bool allowed = target.IsBandit
                         ? id == "common_encounter_ultimatum" || id == "common_bandit_surrender_accepted"
+                          || id == "bandit_start_defender_1" || id == "bandit_start_defender_3"
                         : IsTravelIntroduction(id) || id == "main_option_hostile_1_2"
                           || id == "player_verify_attack_on_enemy_lord" || id == "545";
                     if (allowed && options[i].IsClickable)
@@ -1413,7 +1416,6 @@ namespace BannerlordAutopilot
             return battle != null
                    && PlayerEncounter.Current != null
                    && PlayerEncounter.Battle != null
-                   && ControlsParty(party)
                    && party.SiegeEvent == null
                    && party.BesiegedSettlement == null
                    && battle.MapEventSettlement == null

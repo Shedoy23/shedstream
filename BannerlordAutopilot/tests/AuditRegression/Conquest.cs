@@ -22,6 +22,27 @@ internal static partial class Program
     }
     static void ConquestTests()
     {
+        Try("рейд штатной цели проходит через меню и ожидание", () => {
+            var b = Fresh(); var village = ConquestWorld(); village.IsCastle = false; village.IsVillage = true;
+            CampaignEventDispatcher.NextScores.Add((new AIBehaviorData(village, AiBehavior.RaidSettlement, MobileParty.NavigationType.Default, false, false, false), 9f));
+            Enable(b); HourlyTick(b);
+            Check(MobileParty.MainParty.DefaultBehavior == AiBehavior.RaidSettlement, "штатная цель рейда исполнена");
+            PlayerEncounter.Current = new PlayerEncounter(); PlayerEncounter.EncounterSettlement = village;
+            var wait = new GameMenu { StringId = "raiding_village", IsWaitMenu = true };
+            Show(Menu("village", "hostile_action", () => Show(Menu("village_hostile_action", "raid_village", () => Show(wait)))));
+            b.PollState(); b.PollState(); b.PollState();
+            Check(wait.IsWaitActive && b.CurrentMode == AutopilotBehavior.Mode.Apply, "рейд запущен через штатные кнопки, время идёт");
+            Show(Menu("village_player_raid_ended", "continue", () => {})); b.PollState();
+            Check(MenuContext.Invoked.LastOrDefault() == "continue", "завершение рейда подтверждено");
+        });
+        Try("встреча в собственной армии не выключает поход", () => {
+            var b = Fresh(); var castle = ConquestWorld(); Enable(b);
+            MobileParty.MainParty.Army = new Army { LeaderParty = MobileParty.MainParty };
+            var lord = new MobileParty { MapFaction = castle.MapFaction };
+            MobileParty.MainParty.TargetParty = lord; MobileParty.MainParty.DefaultBehavior = AiBehavior.EngageParty;
+            PlayerEncounter.Current = new PlayerEncounter(); PlayerEncounter.EncounteredMobileParty = lord;
+            b.PollState(); Check(b.CurrentMode == AutopilotBehavior.Mode.Apply, "армия ждёт разговора с целью");
+        });
         foreach (float influence in new[] { 10f, 9f })
         Try("сбор армии: влияние " + influence, () => {
             var b = Fresh(); var castle = ConquestWorld(); var kingdom = new Kingdom(); kingdom.Enemies.Add(castle.MapFaction);

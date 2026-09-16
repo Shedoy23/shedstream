@@ -314,6 +314,7 @@ namespace BannerlordAutopilot
 
             VerifySettlementServices(campaignAssembly, gameState?.Assembly, helper);
             VerifyOperations(mapEvent, vec2, menuContext, gameMenu);
+            VerifyBanditGathering(mapEvent, battleSide);
             VerifyPrisonerScreen(campaignAssembly);
             VerifyLootScreen(campaignAssembly);
 
@@ -328,6 +329,45 @@ namespace BannerlordAutopilot
                 ? "структура движка совпала со всеми " + _checked + " ожиданиями"
                 : "НЕ СОВПАЛО (" + Problems.Count + " из " + _checked + "): " + string.Join("; ", Problems.ToArray());
             return Ok;
+        }
+
+        private static void VerifyBanditGathering(Type mapEvent, Type side)
+        {
+            Type battleEnum = MemberType(mapEvent, "PlayerSide", Inst, false, out _);
+            MemberOf(mapEvent, "IsFieldBattle", Inst, typeof(bool));
+            Type context = MemberType(mapEvent, "SimulationContext", Inst, false, out _);
+            Need(context != null && context.IsEnum, "MapEvent.SimulationContext: enum");
+            Method(typeof(PartyBase), "GetCustomStrength", Inst, typeof(float), battleEnum, context);
+            Method(mapEvent, "CanPartyJoinBattle", Inst, typeof(bool), typeof(PartyBase), battleEnum);
+            MemberOf(typeof(PartyBase), "MapEventSide", Inst, side, needWrite: true);
+            MemberOf(typeof(PartyBase), "NumberOfHealthyMembers", Inst, typeof(int));
+            Type parties = MemberType(side, "Parties", Inst, false, out _);
+            Type entry = parties?.IsGenericType == true ? parties.GetGenericArguments()[0] : null;
+            Need(entry != null && typeof(System.Collections.IEnumerable).IsAssignableFrom(parties), "MapEventSide.Parties: enumerable");
+            MemberOf(entry, "Party", Inst, typeof(PartyBase));
+            Type bandits = MemberType(typeof(MobileParty), "AllBanditParties", Stat, false, out _);
+            Need(bandits != null && typeof(System.Collections.Generic.IEnumerable<MobileParty>).IsAssignableFrom(bandits), "MobileParty.AllBanditParties: enumerable");
+            MemberOf(typeof(MobileParty), "IsEngaging", Inst, typeof(bool));
+            MemberOf(typeof(MobileParty), "IsDisbanding", Inst, typeof(bool));
+            MemberOf(typeof(MobileParty), "IsTransitionInProgress", Inst, typeof(bool));
+            MemberOf(typeof(MobileParty), "AttachedTo", Inst, typeof(MobileParty));
+            Type attached = MemberType(typeof(MobileParty), "AttachedParties", Inst, false, out _);
+            Need(attached != null && typeof(System.Collections.Generic.IEnumerable<MobileParty>).IsAssignableFrom(attached), "MobileParty.AttachedParties: enumerable");
+            MemberOf(attached, "Count", Inst, typeof(int));
+            Type powerModel = MemberType(typeof(GameModels), "MilitaryPowerModel", Inst, false, out _);
+            Need(powerModel != null, "GameModels.MilitaryPowerModel");
+            Type position = MemberType(typeof(MobileParty), "Position", Inst, false, out _);
+            Method(powerModel, "GetContextForPosition", Inst, context, position);
+            Type starter = TypeNamed(typeof(Campaign).Assembly, "TaleWorlds.CampaignSystem.CampaignGameStarter");
+            Type sentence = TypeNamed(typeof(Campaign).Assembly, "TaleWorlds.CampaignSystem.Conversation.ConversationSentence");
+            Type condition = sentence?.GetNestedType("OnConditionDelegate");
+            Type consequence = sentence?.GetNestedType("OnConsequenceDelegate");
+            Method(starter, "AddPlayerLine", Inst, sentence, typeof(string), typeof(string), typeof(string), typeof(string),
+                condition, consequence, typeof(int), sentence?.GetNestedType("OnClickableConditionDelegate"), sentence?.GetNestedType("OnPersuasionOptionDelegate"));
+            Method(condition, "Invoke", Inst, typeof(bool));
+            Type sessionEvent = MemberType(typeof(CampaignEvents), "OnSessionLaunchedEvent", Stat, false, out _);
+            Method(sessionEvent, "AddNonSerializedListener", Inst, typeof(void), typeof(object),
+                starter == null ? null : typeof(Action<>).MakeGenericType(starter));
         }
 
         private static void VerifyLootScreen(Assembly campaign)
@@ -666,5 +706,3 @@ namespace BannerlordAutopilot
         }
     }
 }
-
-

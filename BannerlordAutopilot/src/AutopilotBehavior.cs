@@ -234,6 +234,8 @@ namespace BannerlordAutopilot
             ResetPrisonerScreen();
             _lootEncounter = null;
             ResetOperations();
+            _banditGatheredBattle = null;
+            _banditGatherPreviewFault = false;
             _ticksThisSession = 0;
             _targetChangesThisSession = 0;
             _reappliesThisSession = 0;
@@ -269,6 +271,7 @@ namespace BannerlordAutopilot
             Instance = this;
             CampaignEvents.HourlyTickEvent.AddNonSerializedListener(this, OnHourlyTick);
             CampaignEvents.OnGameLoadFinishedEvent.AddNonSerializedListener(this, OnGameLoadFinished);
+            CampaignEvents.OnSessionLaunchedEvent.AddNonSerializedListener(this, RegisterBanditGatherDialog);
         }
 
         public override void SyncData(IDataStore dataStore)
@@ -514,7 +517,13 @@ namespace BannerlordAutopilot
                     Disable("перед полевым боем открыто неподдерживаемое меню: " + MenuDriver.Describe());
                     return false;
                 }
-                if (MenuDriver.TryInvoke("attack", out string attackWhy))
+                if (!MenuDriver.CanInvoke("attack", out string attackWhy))
+                {
+                    Disable("полноценный бой нельзя начать: " + attackWhy);
+                    return false;
+                }
+                if (!GatherBanditsForBattle(party)) return false;
+                if (MenuDriver.TryInvoke("attack", out attackWhy))
                 {
                     AutopilotLog.Write("БОЙ: нажата штатная кнопка «В атаку»; открывается полноценная боевая сцена");
                 }
@@ -1226,6 +1235,7 @@ namespace BannerlordAutopilot
             if (conversation.ConversationParty != target || InformationManager.IsAnyInquiryActive()) return true;
             try
             {
+                if (TrySelectBanditGatherDialog()) return true;
                 var options = conversation.CurOptions;
                 for (int i=0; options != null && i<options.Count; i++)
                 {
@@ -2167,6 +2177,4 @@ namespace BannerlordAutopilot
         }
     }
 }
-
-
 

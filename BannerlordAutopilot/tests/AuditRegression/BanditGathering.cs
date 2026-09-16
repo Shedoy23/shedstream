@@ -171,10 +171,16 @@ namespace TaleWorlds.CampaignSystem
     }
     public class CampaignGameStarter
     {
-        public class Line { public string Id, Input, Output; public Func<bool> Condition; }
+        public class Line { public string Id, Input, Output; public Conversation.ConversationSentence.OnConditionDelegate Condition; }
         public List<Line> Lines = new();
-        public void AddPlayerLine(string id, string input, string output, string text, Func<bool> condition, Action consequence, int priority = 100)
-            => Lines.Add(new Line { Id = id, Input = input, Output = output, Condition = condition });
+        public Conversation.ConversationSentence AddPlayerLine(string id, string input, string output, string text,
+            Conversation.ConversationSentence.OnConditionDelegate condition, Conversation.ConversationSentence.OnConsequenceDelegate consequence,
+            int priority = 100, Conversation.ConversationSentence.OnClickableConditionDelegate clickable = null,
+            Conversation.ConversationSentence.OnPersuasionOptionDelegate persuasion = null)
+        {
+            Lines.Add(new Line { Id = id, Input = input, Output = output, Condition = condition });
+            return new Conversation.ConversationSentence();
+        }
     }
     public class MapEventParty { public PartyBase Party { get; set; } }
     public partial class MapEventSide
@@ -196,6 +202,16 @@ namespace TaleWorlds.CampaignSystem
             return !TestDisallowed.Contains(party) && friends.Parties.All(p => !p.Party.MapFaction.IsAtWarWith(party.MapFaction))
                 && enemies.Parties.All(p => p.Party.MapFaction.IsAtWarWith(party.MapFaction));
         }
+    }
+}
+namespace TaleWorlds.CampaignSystem.Conversation
+{
+    public class ConversationSentence
+    {
+        public delegate bool OnConditionDelegate();
+        public delegate void OnConsequenceDelegate();
+        public delegate bool OnClickableConditionDelegate(out string explanation);
+        public delegate object OnPersuasionOptionDelegate();
     }
 }
 namespace TaleWorlds.CampaignSystem.Party

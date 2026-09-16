@@ -88,7 +88,7 @@ internal static partial class Program
             Action<Action<MobileParty>> reject = set => { var p = GatherCandidate("rejected", 1, 1, w.Bandits); set(p); bad.Add(p); };
             reject(p => p.IsBandit = false); reject(p => p.IsActive = false);
             reject(p => p.IsCurrentlyAtSea = true); reject(p => p.IsEngaging = true);
-            reject(p => p.Army = new object()); reject(p => p.SiegeEvent = new object());
+            reject(p => p.Army = new object()); reject(p => p.SiegeEvent = new TaleWorlds.CampaignSystem.Siege.SiegeEvent());
             reject(p => p.CurrentSettlement = new Settlement { IsHideout = true });
             reject(p => p.BesiegedSettlement = new Settlement()); reject(p => p.IsDisbanding = true);
             reject(p => p.IsTransitionInProgress = true); reject(p => p.AttachedTo = new MobileParty());

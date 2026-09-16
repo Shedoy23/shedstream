@@ -11,6 +11,7 @@
     <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../src/AutopilotConquest.cs" Link="AutopilotConquest.cs" Condition="Exists('../../src/AutopilotConquest.cs')" />
     <Compile Include="../../src/AutopilotBehavior.cs" Link="AutopilotBehavior.cs" />
     <Compile Include="../../src/AutopilotOperations.cs" Link="AutopilotOperations.cs" />
     <Compile Include="../../src/AutopilotBanditGathering.cs" Link="AutopilotBanditGathering.cs" Condition="Exists('../../src/AutopilotBanditGathering.cs')" />

@@ -204,7 +204,8 @@ namespace TaleWorlds.CampaignSystem.Party {
   public bool IsCurrentlyAtSea { get; set; }
   public enum NavigationType { None, Default }
   public static MobileParty MainParty = new();
-  public bool IsActive=true, IsMoving; public bool IsBandit {get;set;} public MapEvent MapEvent; public object Army,SiegeEvent;
+  public bool IsActive=true, IsMoving; public bool IsBandit {get;set;} public MapEvent MapEvent; public object Army;
+  public TaleWorlds.CampaignSystem.Siege.SiegeEvent SiegeEvent { get; set; }
   public Settlement CurrentSettlement, BesiegedSettlement, LastVisitedSettlement, TargetSettlement;
   public MobileParty TargetParty;
   public MobilePartyAi Ai=new(); public AiBehavior DefaultBehavior=AiBehavior.GoToSettlement;

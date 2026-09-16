@@ -283,6 +283,7 @@ internal static partial class Program
         EngineContract.Verify();
         OperationTests();
         EncounterTests();
+        ConquestTests();
         BanditGatheringTests();
         ProgressTests();
         Try("random default and lord introduction", () => {
@@ -324,7 +325,7 @@ internal static partial class Program
         {
             var b = Fresh(); Enable(b);
             PlayerEncounter.Current = new PlayerEncounter(); PlayerEncounter.EncounterSettlement = new Settlement();
-            MobileParty.MainParty.MapEvent = new MapEvent(); MobileParty.MainParty.SiegeEvent = new object();
+            MobileParty.MainParty.MapEvent = new MapEvent(); MobileParty.MainParty.SiegeEvent = new TaleWorlds.CampaignSystem.Siege.SiegeEvent();
             b.PollState();
             Check(b.CurrentMode == AutopilotBehavior.Mode.Off, "бой/осада выключают автопилот");
             Check(PlayerEncounter.Current != null && !PlayerEncounter.LeaveEncounter && PlayerEncounter.FinishCalls == 0,

@@ -123,7 +123,7 @@ namespace BannerlordAutopilot
         private string _lastAppliedDescription = "—";
         private string _lastTargetKey;
         private MobileParty _combatTarget;
-        internal bool RandomDialogsEnabled { get; set; }
+        internal bool RandomDialogsEnabled { get; set; } = true;
         private readonly Random _dialogRandom = new Random();
         private int _randomDialogSteps;
         private DateTime _nextRandomDialogAt;
@@ -821,7 +821,7 @@ namespace BannerlordAutopilot
             }
         }
 
-        /// <summary>Автоматически решать только однозначные либо проверенные
+        /// <summary>По запросу владельца случайно выбирать вариант показанного
         /// события. Варианты и последствия берутся из публичного Incident API;
         /// само окно закрывается тем же MapScreen.RemoveMapView, что вызывает UI.</summary>
         private bool TryHandleMapIncident()
@@ -855,7 +855,7 @@ namespace BannerlordAutopilot
                     return true;
                 }
 
-                int option = SafeIncidentOption(incident);
+                int option = incident.NumOfOptions > 0 ? _dialogRandom.Next(incident.NumOfOptions) : -1;
                 bool firstLog = _lastIncidentLogged != incident;
                 if (firstLog)
                 {
@@ -872,7 +872,7 @@ namespace BannerlordAutopilot
                 {
                     if (firstLog)
                     {
-                        AutopilotLog.Write("  неоднозначное событие не входит в белый список — выбор оставлен человеку");
+                        AutopilotLog.Write("  нет доступных вариантов события — требуется игрок");
                     }
                     return true;
                 }
@@ -900,21 +900,6 @@ namespace BannerlordAutopilot
                 Disable("обработка случайного события упала: " + cause.GetType().Name + ": " + cause.Message);
                 return true;
             }
-        }
-
-        private static int SafeIncidentOption(Incident incident)
-        {
-            if (incident.NumOfOptions == 1)
-            {
-                return 0;
-            }
-            // Проверено по IncidentsCampaignBehaviour 1.4.8: вариант даёт +5
-            // морали и щедрость, не забирая золото, предметы или бойцов.
-            if (incident.StringId == "incident_apples_from_heaven" && incident.NumOfOptions > 0)
-            {
-                return 0;
-            }
-            return -1;
         }
 
         /// <summary>Завести отсчёт пребывания при первом наблюдении ожидания в сеансе.
@@ -2051,4 +2036,6 @@ namespace BannerlordAutopilot
         }
     }
 }
+
+
 

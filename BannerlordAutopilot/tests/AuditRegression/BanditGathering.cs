@@ -80,7 +80,7 @@ internal static partial class Program
             Check(bad.All(p => p.MapEvent != w.Battle && p.Party.TestJoinCalls == 0), "занятые, нейтральные, далёкие, небоеспособные и запрещённые движком отряды не тронуты");
             Check(good.MapEvent == w.Battle, "доступный отряд на границе радиуса собран, итог 110%");
         });
-        foreach (string block in new[] { "observe", "inquiry", "attack-disabled", "lord", "sea", "settlement", "our-strength-nan", "enemy-strength-nan", "already-stronger" })
+        foreach (string block in new[] { "observe", "inquiry", "attack-disabled", "lord", "sea", "settlement", "our-strength-nan", "enemy-strength-nan", "already-stronger", "defending" })
         Try("нет сбора: " + block, () => {
             var w = GatheringWorld(block == "already-stronger" ? 130 : 40);
             var p = GatherCandidate("candidate", 60, 1, w.Bandits);
@@ -92,6 +92,7 @@ internal static partial class Program
             if (block == "settlement") w.Battle.MapEventSettlement = new Settlement();
             if (block == "our-strength-nan") MobileParty.MainParty.Party.TestStrength = float.NaN;
             if (block == "enemy-strength-nan") w.Battle.DefenderSide.LeaderParty.TestStrength = float.NaN;
+            if (block == "defending") w.Battle.PlayerSide = BattleSideEnum.Defender;
             w.Pilot.PollState();
             Check(p.MapEvent == null && p.Position.X == 1, "состояние " + block + " не перемещает бандитов");
         });
@@ -106,6 +107,33 @@ internal static partial class Program
             w.Pilot.PollState();
             Check(p.Position.X == 1 && p.MapEvent == null, "no-op присоединения не оставил телепортированный отряд");
             Check(w.Pilot.CurrentMode == AutopilotBehavior.Mode.Off && !MenuContext.Invoked.Contains("attack"), "сомнительный сбор останавливает автопилот до атаки");
+        });
+        Try("изменение силы сторон во время callback: превышение не запускает атаку", () => {
+            var w = GatheringWorld(); var p = GatherCandidate("callback", 60, 1, w.Bandits);
+            p.Party.TestAfterJoin = () => MobileParty.MainParty.Party.TestStrength = 50;
+            w.Pilot.PollState();
+            Check(w.Pilot.CurrentMode == AutopilotBehavior.Mode.Off && !MenuContext.Invoked.Contains("attack"), "после callback итоговые 200% замечены до атаки");
+            Check(p.MapEvent == w.Battle, "подтверждённое присоединение не откатывается поверх действий движка");
+        });
+        Try("исключение после присоединения: нет повтора или ложного отката", () => {
+            var w = GatheringWorld(); var p = GatherCandidate("throw", 60, 1, w.Bandits);
+            p.Party.TestAfterJoin = () => throw new Exception("subscriber failed after joining");
+            w.Pilot.PollState(); w.Pilot.PollState();
+            Check(p.MapEvent == w.Battle && p.Position.X == 0 && p.Party.TestJoinCalls == 1, "эффект до исключения сохранён и не повторён");
+            Check(w.Pilot.CurrentMode == AutopilotBehavior.Mode.Off && !MenuContext.Invoked.Contains("attack"), "исключение callback останавливает сбор до атаки");
+        });
+        Try("отдельный лорд среди противников запрещает сбор", () => {
+            var w = GatheringWorld(); var lord = GatherCandidate("lord", 1, 0, w.Bandits); lord.IsBandit = false;
+            lord.Party.MapEventSide = w.Battle.DefenderSide;
+            var p = GatherCandidate("candidate", 60, 1, w.Bandits);
+            w.Pilot.PollState();
+            Check(p.MapEvent == null, "проверяется весь состав противников, а не один лидер");
+        });
+        Try("хватило равной силы — не заполняем остаток до 120%", () => {
+            var w = GatheringWorld(); var near = GatherCandidate("near", 60, 1, w.Bandits);
+            var far = GatherCandidate("far", 10, 2, w.Bandits);
+            w.Pilot.PollState();
+            Check(near.MapEvent == w.Battle && far.MapEvent == null, "добор прекращается на 100%, хотя ещё один отряд влезает в потолок");
         });
     }
 }
@@ -122,6 +150,7 @@ namespace TaleWorlds.CampaignSystem
     {
         public enum PowerCalculationContext { PlainBattle }
         public PowerCalculationContext SimulationContext { get; set; }
+        public bool IsFieldBattle { get; set; } = true;
         public HashSet<PartyBase> TestDisallowed = new();
         public MapEvent() { AttackerSide.MapEvent = DefenderSide.MapEvent = this; }
         public bool CanPartyJoinBattle(PartyBase party, BattleSideEnum side)

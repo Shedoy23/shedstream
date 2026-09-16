@@ -22,6 +22,16 @@ internal static partial class Program
     }
     static void ConquestTests()
     {
+        Try("startup hiring preserves seven days of future wages", () => {
+            var b = Fresh(); var w = MakeWorld(gold: 1000, prisoners: false);
+            SetLimit("MinGoldReserve", 0); MobileParty.MainParty.TotalWage = 0;
+            MobileParty.MainParty.ItemRoster.TestAdd(w.Grain, 200); w.Recruit.TestCost = 100;
+            int initial = MobileParty.MainParty.MemberRoster.TotalManCount;
+            Campaign.Current.Models.PartyWageModel.TestTotalWage = (party, roster) => (roster.TotalManCount - initial) * 50;
+            Enable(b); b.PollState(); ArriveTown(w.Place); b.PollState();
+            Check(CampaignEventDispatcher.Recruited.Count == 2 && Hero.MainHero.Gold == 800,
+                "1000 gold hires two, but not third: remaining gold covers new wages for seven days");
+        });
         foreach (string terminal in new[] { "village_player_raid_ended", "village_raid_ended_leaded_by_someone_else", "village_raid_diplomatically_ended", "village_looted" })
         Try("raid terminal after encounter teardown: " + terminal, () => {
             var b = Fresh(); var village = ConquestWorld(); village.IsCastle = false; village.IsVillage = true;

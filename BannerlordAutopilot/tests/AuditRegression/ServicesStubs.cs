@@ -113,6 +113,8 @@ namespace TaleWorlds.CampaignSystem.ComponentInterfaces {
  }
  public class MobilePartyFoodConsumptionModel { public bool DoesPartyConsumeFood(MobileParty mobileParty) => true; }   // 60231: партия игрока ест
  public class PartyWageModel {
+  public Func<MobileParty, TroopRoster, float> TestTotalWage;
+  public ExplainedNumber GetTotalWage(MobileParty party, TroopRoster roster, bool includeDescriptions = false) => new ExplainedNumber(TestTotalWage == null ? party.TotalWage : TestTotalWage(party, roster));
   public ExplainedNumber GetTroopRecruitmentCost(CharacterObject troop, Hero buyerHero, bool withoutItemCost = false) => new ExplainedNumber(troop.TestCost);
  }
  public class SettlementAccessModel {

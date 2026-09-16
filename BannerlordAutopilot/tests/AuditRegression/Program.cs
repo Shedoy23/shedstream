@@ -281,6 +281,7 @@ internal static partial class Program
         EngineContract.Verify();
         OperationTests();
         PrisonerTests();
+        LootTests();
 
         Console.WriteLine("\n[находка 2] наблюдение ничего не меняет");
         Try("F10 в поселении", () =>
@@ -1281,3 +1282,4 @@ internal static partial class Program
         return failed;
     }
 }
+

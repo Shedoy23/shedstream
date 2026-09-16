@@ -332,7 +332,8 @@ namespace SandBox.View.Map {
   public bool IsOverlayContextMenuEnabled { get; set; }
   public MapEncyclopediaView EncyclopediaScreenManager { get; } = new();
   public MapIncidentView IncidentView { get; set; }
-  public T GetMapView<T>() where T:MapView => IncidentView as T;
+  public SandBox.GauntletUI.Map.GauntletMapBattleSimulationView SimulationView;
+  public T GetMapView<T>() where T:MapView => (IncidentView as T) ?? (SimulationView as T);
   public void RemoveMapView(MapView view) { if(view==IncidentView){IncidentView=null;IsMapIncidentActive=false;TaleWorlds.CampaignSystem.Campaign.Current.TimeControlModeLock=false;} }
  }
 }

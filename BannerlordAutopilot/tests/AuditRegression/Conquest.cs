@@ -22,6 +22,26 @@ internal static partial class Program
     }
     static void ConquestTests()
     {
+        foreach (bool wounded in new[] { true, false })
+        Try("wounded hero sends troops through native option", () => {
+            var b = Fresh(); ConquestWorld(); Enable(b);
+            Hero.MainHero.IsWounded = wounded;
+            PlayerEncounter.Current = new PlayerEncounter();
+            MobileParty.MainParty.MapEvent = PlayerEncounter.Battle = new MapEvent();
+            var screen = (SandBox.View.Map.MapScreen)((MapState)Game.Current.GameStateManager.ActiveState).Handler;
+            var vm = new SandBox.GauntletUI.Map.SimulationScoreboard();
+            screen.SimulationView = new SandBox.GauntletUI.Map.GauntletMapBattleSimulationView(vm);
+            int sends = 0;
+            var menu = Menu("encounter", "attack", () => {}); menu.Options[0].IsEnabled = false;
+            menu.Options.Add(new GameMenuOption { IdString = "str_order_attack", IsEnabled = true, Consequence = () => { sends++; screen.IsInBattleSimulation = true; } });
+            Show(menu); b.PollState();
+            Check(sends == (wounded ? 1 : 0), "simulation fallback only for wounded hero");
+            if (wounded) {
+                b.PollState(); Check(vm.Exits == 0, "ongoing simulation is not closed");
+                vm.IsOver = true; b.PollState(); b.PollState();
+                Check(vm.Exits == 1, "finished owned simulation confirmed exactly once");
+            }
+        });
         Try("startup hiring preserves seven days of future wages", () => {
             var b = Fresh(); var w = MakeWorld(gold: 1000, prisoners: false);
             SetLimit("MinGoldReserve", 0); MobileParty.MainParty.TotalWage = 0;

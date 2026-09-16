@@ -280,6 +280,7 @@ internal static partial class Program
         Console.WriteLine("Регрессия автопилота по независимой проверке 12.09 (заменители движка, не кампания)");
         EngineContract.Verify();
         OperationTests();
+        EncounterTests();
         Try("random default and lord introduction", () => {
             var b=Fresh(); b.RandomDialogsEnabled=new AutopilotBehavior().RandomDialogsEnabled; Enable(b);
             PlayerEncounter.Current=new PlayerEncounter();PlayerEncounter.EncounteredMobileParty=new MobileParty();

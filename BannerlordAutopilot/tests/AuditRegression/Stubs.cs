@@ -88,7 +88,7 @@ namespace TaleWorlds.CampaignSystem.GameState {
  }
 }
 namespace TaleWorlds.CampaignSystem {
- public enum AiBehavior { None, Hold, GoToSettlement, PatrolAroundPoint, EscortParty, GoAroundParty, EngageParty, FleeToPoint, BesiegeSettlement, DefendSettlement }
+ public enum AiBehavior { None, Hold, GoToSettlement, PatrolAroundPoint, EscortParty, GoAroundParty, EngageParty, FleeToPoint, BesiegeSettlement, DefendSettlement, RaidSettlement }
  public struct CampaignVec2 { public float X; public float DistanceSquared(CampaignVec2 p) => (X-p.X)*(X-p.X); public override string ToString()=>X.ToString(); }
  public struct CampaignTime { public static double TestHours; private double _h; public static CampaignTime Now => new CampaignTime { _h = TestHours }; public double ToHours => _h; public bool IsPast => _h < TestHours; public bool IsNightTime => TestHours % 24 < 6 || TestHours % 24 >= 21; }
  public struct AIBehaviorData {

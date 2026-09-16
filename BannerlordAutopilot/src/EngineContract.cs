@@ -335,6 +335,8 @@ namespace BannerlordAutopilot
         private static void VerifyConquest(Assembly campaign, Type mapEvent)
         {
             var mobile = typeof(MobileParty);
+            MemberOf(typeof(Settlement), "All", Stat, typeof(TaleWorlds.Library.MBReadOnlyList<Settlement>));
+            MemberOf(typeof(Kingdom), "Fiefs", Inst, typeof(TaleWorlds.Library.MBReadOnlyList<Town>));
             MemberOf(typeof(PlayerEncounter), "PlayerIsDefender", Stat, typeof(bool));
             var navigation = typeof(MobileParty.NavigationType);
             Method(typeof(SetPartyAiAction), "GetActionForBesiegingSettlement", Stat, typeof(void), mobile, typeof(Settlement), navigation, typeof(bool));

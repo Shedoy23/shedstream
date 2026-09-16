@@ -1939,6 +1939,10 @@ namespace BannerlordAutopilot
             {
                 Clan clan = Clan.PlayerClan;
                 int castles = clan.Fiefs.Count(f => f.Settlement.IsCastle);
+                int totalFiefs = Settlement.All.Count(s => s.IsTown || s.IsCastle);
+                int heldFiefs = clan.Kingdom != null ? clan.Kingdom.Fiefs.Count : clan.Fiefs.Count;
+                string foodDays = party.FoodChange < 0
+                    ? (party.TotalFoodAtInventory / -party.FoodChange).ToString("F1", CultureInfo.InvariantCulture) : "без расхода";
                 string wars = string.Join(", ", FactionHelper.GetEnemyKingdoms(clan.MapFaction).Select(k => k.Name.ToString()));
                 AutopilotLog.Write("НЕДЕЛЯ " + week + ": феодов " + clan.Fiefs.Count
                                    + " (замков " + castles + ", городов " + (clan.Fiefs.Count - castles) + ")"
@@ -1946,7 +1950,12 @@ namespace BannerlordAutopilot
                                    + "; бойцов " + party.MemberRoster.TotalManCount
                                    + " (раненых " + party.MemberRoster.TotalWounded + ")"
                                    + "; золото " + Hero.MainHero.Gold
-                                   + "; войны: " + (wars.Length > 0 ? wars : "нет"));
+                                   + "; войны: " + (wars.Length > 0 ? wars : "нет")
+                                   + "; карта " + heldFiefs + "/" + totalFiefs
+                                   + "; еда " + foodDays + " дней; жалование " + party.TotalWage + " в день"
+                                   + (party.Army == null ? "; без армии" : "; сплочённость " + party.Army.Cohesion.ToString("F0", CultureInfo.InvariantCulture)));
+                if (totalFiefs > 0 && heldFiefs >= totalFiefs)
+                    AutopilotLog.Write("ЦЕЛЬ: все города и замки карты принадлежат нашему королевству/клану");
             }
             catch (Exception ex)
             {

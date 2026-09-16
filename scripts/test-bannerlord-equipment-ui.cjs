@@ -27,7 +27,7 @@ async function main() {
             window.fixture = {success:true,ready:true,can_manage:true,has_hero:true,hero_level:25,gold:50000,pending:false,
                 tiers:[{tier:4,required_level:25},{tier:5,required_level:30}],
                 items:[{item_id:'sword',name:'Меч <img src=x onerror=alert(1)>',tier:4,required_level:25,price_gold:1234,category:'one_handed',slots:['weapon0','weapon1'],stats:{weight:1.2},can_buy:true},
-                    {item_id:'bow',name:'Длинный лук',tier:5,required_level:30,price_gold:5000,category:'bow',slots:['weapon0','weapon1'],stats:{},can_buy:false,reason:'Нужен уровень 30'}],
+                    {item_id:'bow',name:'Длинный лук',tier:5,required_level:30,price_gold:5000,category:'bow',slots:['weapon0','weapon1'],stats:{},can_buy:false,reason:'level_required',message:'Нужен уровень 30'}],
                 inventory:[{owned_id:'owned-sword',item_id:'sword',name:'Старый меч',tier:3,slot:null,category:'one_handed',slots:['weapon0','weapon1'],stats:{}}]};
             window.fetch = async () => ({ok:true,json:async () => structuredClone(window.fixture)});
         });
@@ -36,6 +36,7 @@ async function main() {
         assert.equal(await page.locator('[data-bnr-eq-buy="sword"]').count(),1);
         assert.equal(await page.locator('[data-bnr-eq-buy="bow"]').isDisabled(),true,'tier lock is visible');
         assert.equal(await page.locator('#bnr-equipment-shop img').count(),0,'catalog text is escaped');
+        assert((await page.locator('#bnr-equipment-shop').innerText()).includes('Нужен уровень 30'),'human-readable item refusal');
         assert((await page.locator('#bnr-equipment-shop').innerText()).includes('1 234'),'exact dinar price');
         await page.locator('[data-bnr-eq-search]').fill('Длинный');
         assert.equal(await page.locator('[data-bnr-eq-buy="sword"]').count(),0);
@@ -61,7 +62,7 @@ async function main() {
             await page.setViewportSize({width,height:1000});
             assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),'no horizontal overflow '+width);
         }
-        await page.evaluate(() => {fixture.has_hero=false;fixture.can_manage=false;fixture.inventory=[];fixture.reason='Сначала создай героя'; return loadBannerlordEquipmentShop();});
+        await page.evaluate(() => {fixture.has_hero=false;fixture.can_manage=false;fixture.inventory=[];fixture.reason='no_hero';fixture.message='Сначала создай героя'; return loadBannerlordEquipmentShop();});
         assert((await page.locator('#bnr-equipment-shop').innerText()).includes('Сначала создай героя'));
         await page.evaluate(() => {fixture.can_manage=true;fixture.has_hero=true;fixture.reason='';fixture.items[0].name='Имперский меч';return loadBannerlordEquipmentShop();});
         const evidence=path.join(root,'dist/audit/equipment-shop');fs.mkdirSync(evidence,{recursive:true});

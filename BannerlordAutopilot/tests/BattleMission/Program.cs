@@ -21,6 +21,8 @@ Check(tickSafe && mission.Deployment.FinishCalls==0,"обход MissionBehaviors
 behavior.OnMissionTick(0.1f);
 typeof(BattleAutopilotMission).GetMethod("PollDeployment", System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)?.Invoke(behavior,null);
 Check(mission.Deployment.FinishCalls == 1 && mission.IsDeploymentFinished, "готовая расстановка завершается один раз");
+typeof(BattleAutopilotMission).GetMethod("PollDeployment", System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)?.Invoke(behavior,null);
+Check(mission.Deployment.FinishCalls==1,"опрос приложения не повторяет завершение расстановки");
 behavior.OnAfterDeploymentFinished(); behavior.OnMissionTick(0.1f);
 Check(mission.MainAgent.Controller == AgentControllerType.AI, "главный герой передан боевому AI");
 Check(originallyManual.IsAIControlled && originallyAi.IsAIControlled, "формации переданы тактическому AI");

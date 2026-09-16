@@ -1,0 +1,63 @@
+────────────────────────────────────────────────────────────────────────
+[CodeGraph] WASM SQLite fallback active (better-sqlite3 unavailable)
+────────────────────────────────────────────────────────────────────────
+Indexing and sync will be 5-10x slower than the native backend.
+
+Fix on macOS:
+  xcode-select --install        # install C build tools
+  npm rebuild better-sqlite3    # rebuild native binding for current Node
+
+Fix on Linux:
+  sudo apt install build-essential python3 make    # Debian/Ubuntu
+  # or: sudo yum groupinstall "Development Tools"  # RHEL/Fedora
+  npm rebuild better-sqlite3
+
+Or force-include as a hard dependency on any platform:
+  npm install better-sqlite3 --save
+
+Verify after fix: `codegraph status` should show `Backend: native`.
+
+Native load error: Cannot find module 'better-sqlite3'
+Require stack:
+- C:\Users\Edward\AppData\Roaming\npm\node_modules\@colbymchenry\codegraph\dist\db\sqlite-adapter.js
+- C:\Users\Edward\AppData\Roaming\npm\node_modules\@colbymchenry\codegraph\dist\db\index.js
+- C:\Users\Edward\AppData\Roaming\npm\node_modules\@colbymchenry\codegraph\dist\index.js
+- C:\Users\Edward\AppData\Roaming\npm\node_modules\@colbymchenry\codegraph\dist\bin\codegraph.js
+────────────────────────────────────────────────────────────────────────
+[1m
+CodeGraph Status
+[0m
+[36mProject:[0m C:\Users\Edward\Desktop\work\.claude\worktrees\codex-autopilot-null-encounter
+
+[1mIndex Statistics:[0m
+  Files:     565
+  Nodes:     10 999
+  Edges:     30 032
+  DB Size:   27.02 MB
+  Backend:   [33mwasm - slower fallback; run `npm rebuild better-sqlite3`[0m
+
+[1mNodes by Kind:[0m
+  import          2 431
+  function        2 379
+  method          1 916
+  variable        1 454
+  field           1 045
+  file            565
+  class           529
+  property        420
+  enum_member     114
+  constant        79
+  enum            27
+  struct          26
+  interface       14
+
+[1mFiles by Language:[0m
+  python          335
+  csharp          201
+  javascript      29
+
+[1mPending Changes:[0m
+  Added:     2 files
+  Modified:  6 files
+[34m[i][0m Run "codegraph sync" to update the index
+

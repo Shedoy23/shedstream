@@ -43,7 +43,23 @@ internal static partial class Program
             var b=Surrender(); var vm=PrisonerScreen(50,50-free);
             for(int i=0;i<5;i++) b.PollState();
             Check(vm.Closed==1 && MobileParty.MainParty.PrisonRoster.TotalManCount==50-free+Math.Min(free,21),"пленные приняты в пределах лимита и изменения сохранены: "+free);
+            Check(MobileParty.MainParty.PrisonRoster.GetTroopRoster().Sum(t=>t.WoundedNumber)==Math.Min(free,21),"раненые пленные сохранили состояние: "+free);
             Check(vm.Confirmed==(free<21 ? 1:0) && !InformationManager.IsAnyInquiryActive(),"подтверждён только оставшийся избыток: "+free);
+        });
+        Try("неизвестный запрос из Готово",()=>{
+            var b=Surrender(); var vm=PrisonerScreen(10,10); vm.ForeignQuery=true;
+            b.PollState(); b.PollState();
+            Check(vm.Closed==0 && vm.ForeignAccepted==0 && InformationManager.IsAnyInquiryActive(),"посторонний callback не подтверждён и модалка не скрыта");
+        });
+        Try("тихий отказ переноса",()=>{
+            var b=Surrender(); var vm=PrisonerScreen(10,0); vm.NoTransfer=true;
+            b.PollState(); b.PollState();
+            Check(vm.Closed==0 && vm.TransferCalls==1 && b.CurrentMode==AutopilotBehavior.Mode.Off,"неподтверждённый перенос не повторяется и экран не закрывается");
+        });
+        Try("серый пленный",()=>{
+            var b=Surrender(); var vm=PrisonerScreen(10,0); vm.OtherPartyPrisoners[0].IsTroopTransferrable=false;
+            b.PollState();
+            Check(vm.TransferCalls==0 && vm.Closed==1,"недоступный пленный не переносится принудительно");
         });
         foreach (string boundary in new[]{"normal","foreign","inquiry","off"}) Try("граница пленных "+boundary,()=>{
             var b=Surrender(); var vm=PrisonerScreen(50,0,boundary!="normal");
@@ -76,13 +92,16 @@ namespace TaleWorlds.CampaignSystem.ViewModelCollection.Party {
  public class PartyVM {
   public PartyScreenLogic PartyScreenLogic {get;} public List<PartyCharacterVM> OtherPartyPrisoners {get;}=new();
   public bool IsAnyPopUpOpen {get;set;} public int Closed,Confirmed;
+  public bool ForeignQuery,NoTransfer; public int ForeignAccepted,TransferCalls;
   public PartyVM(PartyScreenLogic logic){PartyScreenLogic=logic;}
   private void OnTransferTroop(PartyCharacterVM troop,int index,int count,PartyScreenLogic.PartyRosterSide side){
+   TransferCalls++; if(NoTransfer)return;
    var e=troop.Troop; int wounded=Math.Min(e.WoundedNumber,count); e.Number-=count;e.WoundedNumber-=wounded;troop.Troop=e;
    PartyScreenLogic.CurrentData.RightPrisonerRoster.Add(new TroopRosterElement {Character=e.Character,Number=count,WoundedNumber=wounded});
   }
   public void ExecuteRemoveZeroCounts(){OtherPartyPrisoners.RemoveAll(t=>t.Troop.Number==0);}
   public void ExecuteDone(){
+   if(ForeignQuery){InformationManager.ShowInquiry(new InquiryData {IsAffirmativeOptionShown=true,AffirmativeAction=()=>ForeignAccepted++});return;}
    if(OtherPartyPrisoners.Any(t=>t.Troop.Number>0)) InformationManager.ShowInquiry(new InquiryData {IsAffirmativeOptionShown=true,AffirmativeAction=CloseScreenInternal});
    else CloseScreenInternal();
   }

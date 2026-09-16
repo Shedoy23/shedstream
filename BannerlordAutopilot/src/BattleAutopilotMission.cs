@@ -44,6 +44,18 @@ namespace BannerlordAutopilot
                 return;
             }
 
+            if (!_controlGiven && Mission.IsDeploymentFinished && CanControlNow)
+            {
+                GiveControlToAi();
+            }
+        }
+
+        // FinishDeployment removes both the controller and its handler. Calling it
+        // inside Mission.OnTick invalidates the engine's reverse index loop.
+        internal void PollDeployment()
+        {
+            if (AutopilotBehavior.Instance?.CurrentMode != AutopilotBehavior.Mode.Apply
+                || TaleWorlds.Library.InformationManager.IsAnyInquiryActive() || Mission.MissionEnded) return;
             if (!_deploymentRequested && Mission.Mode == MissionMode.Deployment)
             {
                 BattleDeploymentMissionController deployment =
@@ -52,14 +64,14 @@ namespace BannerlordAutopilot
                 {
                     _deploymentRequested = true;
                     AutopilotLog.Write("БОЙ: штатная расстановка готова; начинаем бой");
-                    deployment.FinishDeployment();
+                    try { deployment.FinishDeployment(); }
+                    catch (Exception ex)
+                    {
+                        AutopilotBehavior.Instance.Disable("завершение расстановки остановлено: " + ex);
+                    }
                 }
             }
 
-            if (!_controlGiven && Mission.IsDeploymentFinished && CanControlNow)
-            {
-                GiveControlToAi();
-            }
         }
 
         public override void OnAfterDeploymentFinished()

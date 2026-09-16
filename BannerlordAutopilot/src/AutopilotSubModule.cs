@@ -58,6 +58,7 @@ namespace BannerlordAutopilot
                 && BattleAutopilotMission.IsSupportedCampaignBattle())
             {
                 mission.AddMissionBehavior(new BattleAutopilotMission());
+                AutopilotBehavior.Instance.AuthorizePrisonerScreen();
                 AutopilotLog.Write("БОЙ: боевой автопилот добавлен в поддерживаемую миссию");
             }
         }
@@ -88,6 +89,7 @@ namespace BannerlordAutopilot
                     if (Mission.Current != null)
                     {
                         behavior.PollDialogs();
+                        Mission.Current?.GetMissionBehavior<BattleAutopilotMission>()?.PollDeployment();
                         Mission.Current?.GetMissionBehavior<BattleAutopilotMission>()?.PollCompletedBattle(0.5f);
                     }
                     else behavior.PollState();

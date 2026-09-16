@@ -314,6 +314,7 @@ namespace BannerlordAutopilot
 
             VerifySettlementServices(campaignAssembly, gameState?.Assembly, helper);
             VerifyOperations(mapEvent, vec2, menuContext, gameMenu);
+            VerifyPrisonerScreen(campaignAssembly);
 
             // ── Прочее
             MemberOf(typeof(Hero), "MainHero", Stat, typeof(Hero));
@@ -326,6 +327,41 @@ namespace BannerlordAutopilot
                 ? "структура движка совпала со всеми " + _checked + " ожиданиями"
                 : "НЕ СОВПАЛО (" + Problems.Count + " из " + _checked + "): " + string.Join("; ", Problems.ToArray());
             return Ok;
+        }
+
+        private static void VerifyPrisonerScreen(Assembly campaign)
+        {
+            Type state = TypeNamed(campaign, "TaleWorlds.CampaignSystem.GameState.PartyState");
+            Type logic = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Party.PartyScreenLogic");
+            Type roster = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Roster.TroopRoster");
+            Type screen = LoadedType("SandBox.GauntletUI.GauntletPartyScreen", "SandBox.GauntletUI");
+            Type vm = LoadedType("TaleWorlds.CampaignSystem.ViewModelCollection.Party.PartyVM", "TaleWorlds.CampaignSystem.ViewModelCollection");
+            Type troop = LoadedType("TaleWorlds.CampaignSystem.ViewModelCollection.Party.PartyCharacterVM", "TaleWorlds.CampaignSystem.ViewModelCollection");
+            Type side = logic?.GetNestedType("PartyRosterSide");
+            Type data = logic == null ? null : MemberType(logic, "CurrentData", Inst, false, out _);
+            Need(data != null, "PartyScreenLogic.CurrentData");
+            MemberOf(data, "RightPrisonerRoster", Inst, roster);
+            MemberOf(logic, "RightPartyPrisonersSizeLimit", Inst, typeof(int));
+            MemberOf(logic, "RightOwnerParty", Inst, typeof(PartyBase));
+            Method(logic, "IsDoneActive", Inst, typeof(bool));
+            MemberExists(state, "Handler", Inst);
+            MemberNamed(state, "PartyScreenMode", Inst, "PartyScreenMode");
+            MemberOf(state, "PartyScreenLogic", Inst, logic);
+            Need(screen?.GetField("_dataSource", BindingFlags.Instance | BindingFlags.NonPublic)?.FieldType == vm && vm != null,
+                "GauntletPartyScreen._dataSource: PartyVM");
+            MemberOf(vm, "PartyScreenLogic", Inst, logic);
+            MemberOf(vm, "IsAnyPopUpOpen", Inst, typeof(bool));
+            var list = vm?.GetProperty("OtherPartyPrisoners", Inst);
+            Need(list?.GetGetMethod() != null && typeof(System.Collections.IEnumerable).IsAssignableFrom(list.PropertyType), "PartyVM.OtherPartyPrisoners: enumerable");
+            MemberOf(troop, "IsTroopTransferrable", Inst, typeof(bool));
+            MemberOf(troop, "Side", Inst, side);
+            MemberNamed(troop, "Troop", Inst, "TroopRosterElement");
+            Method(vm, "OnTransferTroop", BindingFlags.Instance | BindingFlags.NonPublic, typeof(void), troop, typeof(int), typeof(int), side);
+            Method(vm, "ExecuteRemoveZeroCounts", Inst, typeof(void));
+            Method(vm, "ExecuteDone", Inst, typeof(void));
+            Method(vm, "CloseScreenInternal", BindingFlags.Instance | BindingFlags.NonPublic, typeof(void));
+            Need(typeof(TaleWorlds.Library.InformationManager).GetEvent("OnShowInquiry", Stat)?.EventHandlerType
+                == typeof(Action<TaleWorlds.Library.InquiryData, bool, bool>), "InformationManager.OnShowInquiry: Action<InquiryData,bool,bool>");
         }
 
         private static void VerifyOperations(Type mapEvent, Type vector, Type menuContext, Type gameMenu)

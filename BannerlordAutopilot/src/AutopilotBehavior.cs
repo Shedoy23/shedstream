@@ -227,6 +227,7 @@ namespace BannerlordAutopilot
 
         private void ResetSession()
         {
+            ResetPrisonerScreen();
             ResetOperations();
             _ticksThisSession = 0;
             _targetChangesThisSession = 0;
@@ -458,6 +459,7 @@ namespace BannerlordAutopilot
                 return false;
             }
 
+            if (PollPrisonerScreen()) return false;
             if (PollDialogs()) return false;
             if (PollOperations(party)) return false;
 
@@ -1148,6 +1150,7 @@ namespace BannerlordAutopilot
                          || options[i].Id == "common_bandit_surrender_accepted") && options[i].IsClickable)
                     {
                         string selected = options[i].Id;
+                        if (selected == "common_bandit_surrender_accepted") AuthorizePrisonerScreen();
                         conversation.DoOption(i);
                         AutopilotLog.Write(selected == "common_bandit_surrender_accepted"
                             ? "БОЙ: принята сдача бандитов — берём в плен штатной репликой"

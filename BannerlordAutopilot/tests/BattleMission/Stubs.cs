@@ -63,6 +63,7 @@ namespace BannerlordAutopilot {
   internal bool IsOwnedOperationBattle(MobileParty party) => false;
   internal bool IsOwnedHideoutBattle {get;set;}
   internal void OnOperationMissionEnded() {}
+  internal void Disable(string reason){CurrentMode=Mode.Off;}
  }
  internal static class AutopilotLog { internal static readonly List<string> Lines = new(); internal static void Write(string text) => Lines.Add(text); }
 }

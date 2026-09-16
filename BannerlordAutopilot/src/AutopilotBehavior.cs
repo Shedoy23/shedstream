@@ -464,6 +464,11 @@ namespace BannerlordAutopilot
             }
 
             MobileParty party = MobileParty.MainParty;
+            if (Hero.MainHero?.IsPrisoner == true)
+            {
+                PollCaptivity();
+                return false;
+            }
             if (party == null || !party.IsActive)
             {
                 Disable("партия игрока пропала или неактивна");
@@ -1268,6 +1273,34 @@ namespace BannerlordAutopilot
                 Disable("разговор с преследуемой партией остановлен: " + ex.GetType().Name + ": " + ex.Message);
             }
             return true;
+        }
+
+        private void PollCaptivity()
+        {
+            if (_mode != Mode.Apply || !MapIsActiveScreen() || InformationManager.IsAnyInquiryActive()) return;
+            string menu = MenuDriver.CurrentMenuId;
+            try
+            {
+                switch (menu)
+                {
+                    case "prisoner_wait":
+                    case "settlement_wait": ResumeOperationWait(); return;
+                    case "menu_captivity_end_no_more_enemies":
+                    case "menu_captivity_end_by_ally_party_saved":
+                    case "menu_captivity_end_by_party_removed":
+                    case "menu_captivity_end_wilderness_escape":
+                    case "menu_escape_captivity_during_battle":
+                    case "menu_captivity_end_exchanged_with_prisoner":
+                    case "menu_captivity_end_prison_escape":
+                    case "menu_captivity_transfer_to_town":
+                    case "menu_captivity_castle_remain":
+                        OperationClick("mno_continue"); return;
+                    case "taken_prisoner":
+                    case "defeated_and_taken_prisoner":
+                        OperationClick("taken_prisoner_continue"); return;
+                }
+            }
+            catch (Exception ex) { Disable("плен: " + ex.GetType().Name + ": " + ex.Message); }
         }
 
         private static bool IsTravelIntroduction(string id)

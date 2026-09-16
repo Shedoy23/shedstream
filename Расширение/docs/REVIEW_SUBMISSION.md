@@ -1,13 +1,13 @@
 # ShedLink — Twitch Extension Review Notes
 
 **Extension name:** ShedLink — interactive viewer engagement platform
-**Version these notes describe:** `0.0.5` (SHA-256 `9200f6c2…`, MD5 `2e891a30…`)
+**Version these notes describe:** `0.0.5` (SHA-256 `6f7e115bfd8bdabbd254a4c1f42cf730961d56f06da0523161d3a54ab43da253`, MD5 `059806841c3b84790af97c1056c4c3f5`)
 **Type:** Video-overlay + mobile + config view
 **Test/review channel:** https://twitch.tv/shedoy23
 **Contact:** nasulskii6@gmail.com
 **Privacy Policy:** https://shedoy23.ru/privacy.html
 **Terms of Service:** https://shedoy23.ru/terms.html
-**Last updated:** 2026-09-07 — сверено построчно с кодом архива `0.0.5`
+**Last updated:** 2026-09-14 — приведено к действующему архиву `0.0.5`
 
 This document is the reviewer walkthrough: what ShedLink does, how to test it, where
 the backend lives, and a compliance tour with links to the exact code.
@@ -47,8 +47,9 @@ cannot be cashed out or exchanged, and cannot be transferred between users.
 ## 2. Reviewer walkthrough
 
 **Streamer config** (`frontend/config.html`, Config view): the broadcaster authorizes the
-extension; the config view lets them toggle overlay features. New streamers self-onboard via
-`/streamer` (Twitch OAuth) — see `routes/streamer.py`.
+extension; the config view lets them toggle overlay features. New streamers begin onboarding via
+`/streamer` (Twitch OAuth). A newly registered channel requires owner approval before game
+integration is enabled; this is an intentional anti-abuse gate, not a Twitch Streamer Allowlist.
 
 **Viewer experience** (`frontend/extension.html` panel + `frontend/mobile.html`):
 1. The viewer opens the panel; identity is requested via `Twitch.ext.actions.requestIdShare()`
@@ -198,7 +199,7 @@ A viewer's data and currency are per-channel. The reviewer's test channel sees o
 On a reviewer's request we will go live and provide:
 - The relevant game running (Bannerlord / RimWorld / MineColonies) so game actions are visible.
 - Pre-funded test viewer account(s) so paid actions can be exercised.
-- **Availability window (UTC): `[ЗАПОЛНИТЬ ПЕРЕД ПОДАЧЕЙ]`** — реальное окно, которое владелец
+- **Availability window (UTC): `[ЗАПОЛНИТЬ ПЕРЕД SUBMIT FOR REVIEW]`** — реальное окно, которое владелец
   может выдержать, в UTC, и какая игра будет в нём запущена. Contact nasulskii6@gmail.com to
   schedule.
 
@@ -212,6 +213,8 @@ On a reviewer's request we will go live and provide:
   the Dice minigame, which is frozen and no longer shipped.
 - **Cases:** free hourly case for active viewers, an "Open all" button, and a rewritten odds
   disclosure that lists both random sources with their exact published percentages.
+- **RimWorld catalogue:** item, trait and gene cards can be expanded in place to show their
+  description without starting a purchase; only one card is expanded at a time.
 - **Official contest rules** are now displayed inside the extension in Russian and English,
   including the "Twitch is not a sponsor" statement.
 - **Every price, limit, cooldown and refusal text now comes from the backend.** The frontend

@@ -7,6 +7,7 @@ dependencies.py — общие зависимости для всех роуте
 
 import asyncio
 import logging
+import math
 import os
 import secrets
 import time as _time
@@ -72,10 +73,10 @@ _channel_login_to_id: dict = {}
 # changes (admin upgrade) пока требуют рестарта — TODO M6+.
 _channel_tier_cache: dict = {}
 
-# M5: per-channel rate-limit buckets. channel_id → {count, reset}.
-# Отличается от _rate_buckets (per-IP, ниже) — этот аккаунт-уровень,
-# защищает прод от ситуации «один канал шлёт 10K req/min с разных IP».
+# Shared action buckets: channel_id; polling: (channel_id, "read", signed identity).
+# Ordinary viewers must not consume each other's automatic polling allowance.
 _channel_rate_buckets: dict = {}
+_CHANNEL_POLL_BUCKETS_MAX = 100_000
 
 
 def is_channel_registered(channel_id: int) -> bool:
@@ -189,29 +190,58 @@ async def init_registered_channels_cache(db) -> None:
 
 # ── M5: Per-channel rate limits ──────────────────────────────────────────────
 
-def check_channel_rate_limit(channel_id: int) -> bool:
+def check_channel_rate_limit(channel_id: int, *, bucket_key=None) -> bool:
     """True = разрешить, False = заблокировать (429).
 
-    Per-channel sliding window per минуту. Tier-based квоты:
+    Fixed window per минуту. Tier-based квоты:
         free → 300 req/min (по умолчанию)
         pro  → 1200 req/min
         vip  → 6000 req/min
     Override через .env RATE_LIMIT_FREE / _PRO / _VIP.
 
-    Применяется в require_jwt_user/_channel — JWT-аутентифицированные
-    запросы для канала X считаются в bucket этого канала. Background
-    loops НЕ ходят через JWT и не считаются (намеренно — они под нашим
-    контролем).
+    Auth helpers supply a per-viewer key for reads/presence, otherwise the
+    shared channel key. Background loops do not consume JWT request quotas.
     """
     tier = _channel_tier_cache.get(channel_id, RATE_LIMIT_DEFAULT_TIER)
     limit = RATE_LIMITS_BY_TIER.get(tier, RATE_LIMITS_BY_TIER[RATE_LIMIT_DEFAULT_TIER])
     now = _time.time()
-    bucket = _channel_rate_buckets.setdefault(int(channel_id), {"count": 0, "reset": 0.0})
-    if now > bucket["reset"]:
+    key = int(channel_id) if bucket_key is None else bucket_key
+    bucket = _channel_rate_buckets.setdefault(key, {"count": 0, "reset": 0.0})
+    if now >= bucket["reset"]:
         bucket["count"] = 0
         bucket["reset"] = now + 60
     bucket["count"] += 1
     return bucket["count"] <= limit
+
+
+def _check_request_rate_limit(request: Request, channel_id: int, claims: dict) -> None:
+    """Polling scales with verified viewers; actions retain the shared quota.
+
+    Never key by a client-supplied username, IP or token text (token refresh must
+    not reset a quota). Missing identity falls back to the shared channel bucket.
+    Both auth helpers can run on one request; charge that request only once.
+    """
+    charged = getattr(request.state, "rate_limit_channels", None)
+    if charged is not None and channel_id in charged:
+        return
+    key = channel_id
+    identity = ("uid:" + str(claims["user_id"]) if claims.get("user_id")
+                else "opaque:" + str(claims["username"]) if claims.get("username") else "")
+    polling = request.method in ("GET", "HEAD") or (
+        request.method == "POST" and request.url.path in (
+            "/api/viewer/online", "/api/viewer/activity"))
+    if polling and identity:
+        candidate = (channel_id, "read", identity)
+        # Bound viewer bucket growth between cleanup passes; overflow stays limited.
+        if candidate in _channel_rate_buckets or len(_channel_rate_buckets) < _CHANNEL_POLL_BUCKETS_MAX:
+            key = candidate
+    if not check_channel_rate_limit(channel_id, bucket_key=key):
+        remaining = _channel_rate_buckets[key]["reset"] - _time.time()
+        _raise_channel_rate_limited(channel_id, retry_after=max(1, math.ceil(remaining)),
+                                    scope="viewer_poll" if isinstance(key, tuple) else "channel")
+    if charged is None:
+        charged = request.state.rate_limit_channels = set()
+    charged.add(channel_id)
 
 
 async def channel_rate_cleanup_loop():
@@ -499,18 +529,21 @@ def _raise_channel_not_registered(channel_id: int) -> None:
     )
 
 
-def _raise_channel_rate_limited(channel_id: int) -> None:
+def _raise_channel_rate_limited(channel_id: int, *, retry_after: int = 60,
+                                scope: str = "channel") -> None:
     """M5: Per-channel rate limit exceeded → 429."""
     tier = _channel_tier_cache.get(channel_id, RATE_LIMIT_DEFAULT_TIER)
     limit = RATE_LIMITS_BY_TIER.get(tier, RATE_LIMITS_BY_TIER[RATE_LIMIT_DEFAULT_TIER])
     raise HTTPException(
         status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        headers={"Retry-After": str(retry_after)},
         detail={
             "status": "channel_rate_limited",
             "channel_id": channel_id,
             "tier": tier,
             "limit_per_min": limit,
-            "message": "Превышен лимит запросов канала. Попробуй через минуту или попроси стримера обновить тариф.",
+            "scope": scope,
+            "message": "Слишком много запросов. Попробуй через минуту.",
         },
     )
 
@@ -556,8 +589,7 @@ def require_jwt_user(request: Request) -> Optional[Tuple[str, int]]:
     if not is_channel_approved(channel_id):
         _raise_channel_pending(channel_id)
     # M5: per-channel rate limit. После успешной registration check.
-    if not check_channel_rate_limit(channel_id):
-        _raise_channel_rate_limited(channel_id)
+    _check_request_rate_limit(request, channel_id, jwt_result)
     # Кладём channel_id в контекст текущей request-task'и — все async db-вызовы
     # дальше по цепочке (включая create_task(...) child'ов) автоматически
     # увидят его через resolve_channel_id() без явного проброса.
@@ -594,8 +626,7 @@ def require_jwt_channel(request: Request) -> Optional[int]:
     if not is_channel_approved(channel_id):
         _raise_channel_pending(channel_id)
     # M5: per-channel rate limit.
-    if not check_channel_rate_limit(channel_id):
-        _raise_channel_rate_limited(channel_id)
+    _check_request_rate_limit(request, channel_id, jwt_result)
     # См. require_jwt_user — устанавливаем channel_id в context для авто-проброса.
     _current_channel_id.set(channel_id)
     return channel_id

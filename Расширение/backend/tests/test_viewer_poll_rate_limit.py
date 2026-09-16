@@ -74,6 +74,45 @@ def run():
         d.require_jwt_user(request())
         d.require_jwt_user(request("POST"))
         print("OK: writes bounded; reads and channels isolated; window resets")
+        d._channel_rate_buckets.clear()
+        verify.return_value = {"status": "valid", "username": "Uanonymous", "channel_id": "55"}
+        for _ in range(300):
+            d.require_jwt_channel(request())
+        # Change the query string, never the signed identity: still limited.
+        try:
+            d.require_jwt_channel(request(path="/api/bannerlord/shop"))
+        except HTTPException as exc:
+            assert exc.status_code == 429
+            assert exc.detail["scope"] == "viewer_poll"
+        else:
+            raise AssertionError("opaque viewer bypassed quota using another route")
+        verify.return_value = {"status": "valid", "channel_id": "55"}
+        for _ in range(300):
+            d.require_jwt_channel(request())
+        try:
+            d.require_jwt_channel(request())
+        except HTTPException as exc:
+            assert exc.status_code == 429
+            assert exc.detail["scope"] == "channel"
+        else:
+            raise AssertionError("missing identity bypassed quota")
+        before = {k: dict(v) for k, v in d._channel_rate_buckets.items()}
+        verify.return_value = {"status": "invalid"}
+        assert d.require_jwt_channel(request()) is None
+        assert d.require_jwt_user(request()) is None
+        assert d._channel_rate_buckets == before
+        print("OK: opaque identity limited; missing identity fails bounded; invalid JWT not charged")
+        with patch.object(d, "_CHANNEL_POLL_BUCKETS_MAX", len(before)):
+            viewer(999, 55)
+            try:
+                d.require_jwt_channel(request())
+            except HTTPException as exc:
+                assert exc.status_code == 429
+                assert exc.detail["scope"] == "channel"
+            else:
+                raise AssertionError("full polling cache bypassed shared fallback limit")
+            assert d._channel_rate_buckets.keys() == before.keys()
+        print("OK: full polling cache stays bounded and fails into shared quota")
 
 
 if __name__ == "__main__":

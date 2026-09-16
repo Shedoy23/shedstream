@@ -79,6 +79,7 @@ namespace TaleWorlds.CampaignSystem.GameState {
  public interface IMapStateHandler {}
  public class MapState : TaleWorlds.Core.GameState { public IMapStateHandler Handler { get; set; } }
  public class MenuContext {
+  public object Handler { get; set; }
   public static List<string> Invoked = new();
   public GameMenu GameMenu { get; set; }
   // Как кнопка: пункт по индексу, его последствие. Индексы без повторяемых объектов.
@@ -86,9 +87,9 @@ namespace TaleWorlds.CampaignSystem.GameState {
  }
 }
 namespace TaleWorlds.CampaignSystem {
- public enum AiBehavior { None, Hold, GoToSettlement, PatrolAroundPoint, EscortParty, GoAroundParty, EngageParty, FleeToPoint, BesiegeSettlement }
- public struct CampaignVec2 { public float X; public override string ToString()=>X.ToString(); }
- public struct CampaignTime { public static double TestHours; private double _h; public static CampaignTime Now => new CampaignTime { _h = TestHours }; public double ToHours => _h; }
+ public enum AiBehavior { None, Hold, GoToSettlement, PatrolAroundPoint, EscortParty, GoAroundParty, EngageParty, FleeToPoint, BesiegeSettlement, DefendSettlement }
+ public struct CampaignVec2 { public float X; public float DistanceSquared(CampaignVec2 p) => (X-p.X)*(X-p.X); public override string ToString()=>X.ToString(); }
+ public struct CampaignTime { public static double TestHours; private double _h; public static CampaignTime Now => new CampaignTime { _h = TestHours }; public double ToHours => _h; public bool IsPast => _h < TestHours; public bool IsNightTime => TestHours % 24 < 6 || TestHours % 24 >= 21; }
  public struct AIBehaviorData {
   public AIBehaviorData(IMapPoint party, AiBehavior behavior, MobileParty.NavigationType navigation, bool gather, bool fromPort, bool targetingPort) { Party=party; AiBehavior=behavior; NavigationType=navigation; WillGatherArmy=gather; IsFromPort=fromPort; IsTargetingPort=targetingPort; Position=default; }
   public AiBehavior AiBehavior; public IMapPoint Party; public CampaignVec2 Position;
@@ -100,7 +101,7 @@ namespace TaleWorlds.CampaignSystem {
   public void Reset(MobileParty p) { AIBehaviorScores.Clear(); }
  }
  public class MapEventSide { public PartyBase LeaderParty { get; set; } }
- public class MapEvent { public MapEventSide AttackerSide { get; set; } = new(); public MapEventSide DefenderSide { get; set; } = new(); public Settlement MapEventSettlement { get; set; } public bool IsNavalMapEvent { get; set; } }
+ public class MapEvent { public MapEventSide AttackerSide { get; set; } = new(); public MapEventSide DefenderSide { get; set; } = new(); public Settlement MapEventSettlement { get; set; } public bool IsNavalMapEvent { get; set; } public bool IsHideoutBattle { get; set; } public bool IsSiegeAssault { get; set; } public TaleWorlds.Core.BattleSideEnum PlayerSide { get; set; } }
  public enum CampaignTimeControlMode { Stop, UnstoppablePlay, UnstoppableFastForward, StoppablePlay, StoppableFastForward, UnstoppableFastForwardForPartyWaitTime, FastForwardStop }
  public class Campaign {
   public static Campaign Current = new();
@@ -159,9 +160,12 @@ namespace TaleWorlds.CampaignSystem {
  }
 }
 namespace TaleWorlds.CampaignSystem.Settlements {
+ public class Hideout { public static List<Hideout> All { get; } = new(); public Settlement Settlement { get; set; } public bool IsSpotted { get; set; } public bool IsInfested { get; set; } public CampaignTime NextPossibleAttackTime { get; set; } }
  public class Town { public int GetItemPrice(TaleWorlds.Core.EquipmentElement element, MobileParty party = null, bool isSelling = false) => element.Item.TestPrice; }
  public class Village { public Settlement TradeBound { get; set; } public Settlement Bound { get; set; } }
  public class Settlement : IMapPoint {
+  public bool IsHideout { get; set; } public bool IsVisible { get; set; } = true;
+  public CampaignVec2 Position { get; set; } public Hideout Hideout { get; set; }
   public string Name="Town"; public bool IsUnderSiege; public CampaignVec2 GatePosition = new CampaignVec2{X=42};
   // MBObjectBase.StringId: у каждого поселения свой, из XML мира, и он же после загрузки сейва.
   static int _nextId;
@@ -190,6 +194,7 @@ namespace TaleWorlds.CampaignSystem.Party {
   public void EnableAi() {}
  }
  public class MobileParty : IMapPoint {
+  public bool IsCurrentlyAtSea { get; set; }
   public enum NavigationType { None, Default }
   public static MobileParty MainParty = new();
   public bool IsActive=true, IsMoving; public bool IsBandit {get;set;} public MapEvent MapEvent; public object Army,SiegeEvent;
@@ -250,6 +255,7 @@ namespace TaleWorlds.CampaignSystem.Actions {
   public static void ApplyForParty(MobileParty p) {p.CurrentSettlement=null;}
  }
  public static class SetPartyAiAction {
+  public static void GetActionForDefendingSettlement(MobileParty p, Settlement s, MobileParty.NavigationType n, bool f, bool t) {p.DefaultBehavior=AiBehavior.DefendSettlement;p.TargetSettlement=s;p.IsMoving=true;}
   public static int VisitCalls;
   public static int PatrolCalls;
   public static int EngageCalls;

@@ -22,7 +22,7 @@ using ItemObject = TaleWorlds.Core.ItemObject;
 //
 // Это заменители движка, а не кампания: проверяются решения мода и то, какое
 // состояние он оставляет, но не исход боя и не загрузка настоящего сейва.
-internal static class Program
+internal static partial class Program
 {
     static int passed, failed;
 
@@ -278,6 +278,7 @@ internal static class Program
     {
         Console.WriteLine("Регрессия автопилота по независимой проверке 12.09 (заменители движка, не кампания)");
         EngineContract.Verify();
+        OperationTests();
 
         Console.WriteLine("\n[находка 2] наблюдение ничего не меняет");
         Try("F10 в поселении", () =>

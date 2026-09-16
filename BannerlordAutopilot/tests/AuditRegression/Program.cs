@@ -282,6 +282,7 @@ internal static partial class Program
     {
         Console.WriteLine("Регрессия автопилота по независимой проверке 12.09 (заменители движка, не кампания)");
         EngineContract.Verify();
+        Check(ServiceLimits.MinGoldReserve == 0, "default reserve has no fixed gold floor");
         OperationTests();
         EncounterTests();
         ConquestTests();

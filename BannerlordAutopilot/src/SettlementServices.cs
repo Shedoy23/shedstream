@@ -19,8 +19,8 @@ namespace BannerlordAutopilot
     /// README, раздел «Обслуживание партии». Меняются здесь, в одном месте.</summary>
     internal static class ServiceLimits
     {
-        /// <summary>Сколько денег героя обслуживание не трогает никогда.</summary>
-        internal static int MinGoldReserve = 2000;
+        /// <summary>Фиксированный минимум отключён владельцем: резерв зависит от дней жалования.</summary>
+        internal static int MinGoldReserve = 0;
 
         /// <summary>Резерв на жалование: столько дней дневного жалования партии
         /// (MobileParty.TotalWage — дневное: движок даёт «недельную премию» как
@@ -159,8 +159,10 @@ namespace BannerlordAutopilot
             int reserve = Reserve(party);
             AutopilotLog.Write("  ОБСЛУЖИВАНИЕ «" + settlement.Name + "» (" + trigger + "): денег "
                                + Hero.MainHero.Gold + ", резерв " + reserve
-                               + " (не меньше " + ServiceLimits.MinGoldReserve + " и " + ServiceLimits.ReserveWageDays
-                               + " дн. жалования по " + party.TotalWage + ")");
+                               + " (" + ServiceLimits.ReserveWageDays + " дн. жалования по " + party.TotalWage
+                               + "; денег хватит на " + (party.TotalWage > 0
+                                   ? ((float)Hero.MainHero.Gold / party.TotalWage).ToString("F1", CultureInfo.InvariantCulture) + " дн."
+                                   : "содержание без расходов") + ")");
             SellPrisoners(party, settlement);
             BuyFood(party, settlement, reserve);
             Recruit(party, settlement, reserve);
@@ -398,6 +400,14 @@ namespace BannerlordAutopilot
 
         // ── Найм ────────────────────────────────────────────────────────────
 
+        private static int RecruitmentReserve(MobileParty party, TroopRoster roster)
+        {
+            float wage = Campaign.Current.Models.PartyWageModel.GetTotalWage(party, roster).ResultNumber;
+            if (float.IsNaN(wage) || float.IsInfinity(wage) || wage < 0)
+                throw new InvalidOperationException("неизвестно жалование после найма");
+            return Math.Max(Reserve(party), checked((int)Math.Ceiling(wage * ServiceLimits.ReserveWageDays)));
+        }
+
         private static void Recruit(MobileParty party, Settlement settlement, int reserve)
         {
             GameModels models = Campaign.Current.Models;
@@ -466,6 +476,8 @@ namespace BannerlordAutopilot
             }
 
             int[] simulated = CurrentComposition(party);
+            var projectedRoster = TroopRoster.CreateDummyTroopRoster();
+            foreach (var troop in party.MemberRoster.GetTroopRoster()) projectedRoster.Add(troop);
             while (offers.Count > 0 && cart.Count < free && cart.Count < ServiceLimits.MaxRecruitsPerPass)
             {
                 TroopRole needed = MostNeededRole(simulated);
@@ -477,8 +489,12 @@ namespace BannerlordAutopilot
                     {
                         continue;
                     }
-                    // Идея Auto Marshal: сначала закрываем самый большой дефицит
-                    // рода войск, затем предпочитаем уровень и меньшую цену.
+                    projectedRoster.AddToCounts(offer.Troop, 1);
+                    int projectedReserve;
+                    try { projectedReserve = RecruitmentReserve(party, projectedRoster); }
+                    finally { projectedRoster.AddToCounts(offer.Troop, -1); }
+                    if (Hero.MainHero.Gold - total - offer.Cost < projectedReserve) continue;
+                    // Сначала закрываем дефицит рода войск, затем предпочитаем уровень и меньшую цену.
                     float score = (offer.Role == needed ? 100f : 0f)
                                   + offer.Tier * 2f - offer.Cost * 0.02f;
                     if (score > bestScore)
@@ -489,10 +505,12 @@ namespace BannerlordAutopilot
                 }
                 if (best == null)
                 {
+                    stop = "бюджет найма или запас на " + ServiceLimits.ReserveWageDays + " дней будущего жалования";
                     tooExpensive += offers.FindAll(offer => total + offer.Cost > budget).Count;
                     break;
                 }
                 cart.Add(best);
+                projectedRoster.AddToCounts(best.Troop, 1);
                 total += best.Cost;
                 simulated[(int)best.Role]++;
                 offers.Remove(best);
@@ -507,7 +525,7 @@ namespace BannerlordAutopilot
                 AutopilotLog.Write("    найм: никого (" + summary + ")");
                 return;
             }
-            if (Hero.MainHero.Gold - reserve < total)
+            if (Hero.MainHero.Gold - RecruitmentReserve(party, projectedRoster) < total)
             {
                 AutopilotLog.Write("    найм: отменён — денег сверх резерва меньше суммы " + total);
                 return;
@@ -529,6 +547,15 @@ namespace BannerlordAutopilot
                     if (entry.Notable.VolunteerTypes[entry.Index] != entry.Troop)
                     {
                         continue; // слот изменился с момента выбора — второго получения не будет
+                    }
+                    // Recheck before each change: recruitment callbacks can spend gold.
+                    var nextRoster = TroopRoster.CreateDummyTroopRoster();
+                    foreach (var troop in party.MemberRoster.GetTroopRoster()) nextRoster.Add(troop);
+                    nextRoster.AddToCounts(entry.Troop, 1);
+                    if (Hero.MainHero.Gold - charged - entry.Cost < RecruitmentReserve(party, nextRoster))
+                    {
+                        AutopilotLog.Write("    найм: остановлен — после найма не останется " + ServiceLimits.ReserveWageDays + " дней жалования");
+                        break;
                     }
                     entry.Notable.VolunteerTypes[entry.Index] = null;
                     party.MemberRoster.AddToCounts(entry.Troop, 1);

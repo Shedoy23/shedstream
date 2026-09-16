@@ -564,6 +564,7 @@ namespace BannerlordAutopilot
                 itemElement?.MakeByRefType(), typeof(float).MakeByRefType());
             Method(foodConsumption, "DoesPartyConsumeFood", Inst, typeof(bool), typeof(MobileParty));
             Method(wages, "GetTroopRecruitmentCost", Inst, explained, character, typeof(Hero), typeof(bool));
+            Method(wages, "GetTotalWage", Inst, explained, typeof(MobileParty), troopRoster, typeof(bool));
             MemberOf(explained, "RoundedResultNumber", Inst, typeof(int));
             Method(access, "CanMainHeroDoSettlementAction", Inst, typeof(bool), typeof(Settlement), action,
                 typeof(bool).MakeByRefType(), text?.MakeByRefType());

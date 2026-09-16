@@ -54,6 +54,51 @@ internal static partial class Program
 
     static void EncounterTests()
     {
+        foreach (string id in new[] { "player_is_leaving_neutral_or_friendly", "caravan_talk_leave", "village_farmer_leave" })
+        Try("мирная встреча: " + id, () =>
+        {
+            var b = Fresh(); Enable(b);
+            var ours = new TestFaction(); MobileParty.MainParty.MapFaction = ours;
+            var other = new MobileParty { MapFaction = new TestFaction() };
+            PlayerEncounter.Current = new PlayerEncounter(); PlayerEncounter.EncounteredMobileParty = other;
+            b.PollState();
+            Check(b.CurrentMode == AutopilotBehavior.Mode.Apply, "ожидание мирного разговора не выключает автопилот");
+            var c = Campaign.Current.ConversationManager; c.ConversationParty = other; c.IsConversationInProgress = true;
+            c.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption { Id = "main_option_hostile_1", IsClickable = true });
+            c.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption { Id = id, IsClickable = true });
+            b.RandomDialogsEnabled = true; b.PollDialogs();
+            Check(c.Selected.SequenceEqual(new[] { id }), "мирный уход имеет приоритет над случайным объявлением вражды");
+        });
+        Try("преследуемый вражеский лорд: знакомство, вызов и подтверждение", () =>
+        {
+            var b = Fresh(); Enable(b);
+            var ours = new TestFaction(); var enemy = new TestFaction(); ours.Enemies.Add(enemy);
+            MobileParty.MainParty.MapFaction = ours;
+            var lord = new MobileParty { MapFaction = enemy };
+            MobileParty.MainParty.TargetParty = lord; MobileParty.MainParty.DefaultBehavior = AiBehavior.EngageParty;
+            PlayerEncounter.Current = new PlayerEncounter(); PlayerEncounter.EncounteredMobileParty = lord;
+            b.PollState(); Check(b.CurrentMode == AutopilotBehavior.Mode.Apply, "дождались разговора с целью AI");
+            var c = Campaign.Current.ConversationManager; c.ConversationParty = lord; c.IsConversationInProgress = true;
+            foreach (string id in new[] { "lord_meet_player_response1", "main_option_hostile_1_2", "player_verify_attack_on_enemy_lord" })
+            {
+                c.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption { Id = id, IsClickable = true });
+                b.PollDialogs();
+                Check(c.Selected.LastOrDefault() == id, "штатная реплика лорду: " + id);
+            }
+        });
+        Try("мирная встреча: недоступная реплика и чужой собеседник", () =>
+        {
+            var b = Fresh(); Enable(b); b.RandomDialogsEnabled = true;
+            MobileParty.MainParty.MapFaction = new TestFaction();
+            var other = new MobileParty { MapFaction = new TestFaction() };
+            PlayerEncounter.Current = new PlayerEncounter(); PlayerEncounter.EncounteredMobileParty = other;
+            var c = Campaign.Current.ConversationManager; c.ConversationParty = other; c.IsConversationInProgress = true;
+            c.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption { Id = "player_is_leaving_neutral_or_friendly", IsClickable = false });
+            c.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption { Id = "main_option_hostile_1", IsClickable = true });
+            b.PollDialogs(); Check(c.Selected.Count == 0, "недоступный уход не заменяется случайной угрозой");
+            c.ConversationParty = new MobileParty(); b.PollDialogs();
+            Check(c.Selected.Count == 0, "не выбираем за другого собеседника");
+        });
         foreach (string menuId in new[] { "join_encounter", "encounter_interrupted" })
         Try("чужой бой, в который вступиться нельзя, — уходим штатно: " + menuId, () =>
         {

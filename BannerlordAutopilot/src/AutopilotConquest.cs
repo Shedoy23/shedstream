@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.Encounters;
@@ -23,6 +24,20 @@ namespace BannerlordAutopilot
         private float _armyObjectiveScore;
         private double _gatheringSince;
         private readonly List<MobileParty> _invitedParties = new List<MobileParty>();
+        private static readonly MethodInfo NativeCohesionThink = typeof(Army).GetMethod("ThinkAboutCohesionBoost", BindingFlags.Instance | BindingFlags.NonPublic);
+
+        private void MaintainArmy(MobileParty party)
+        {
+            if (_mode != Mode.Apply || party?.Army == null || !ControlsParty(party) || party.MapEvent != null
+                || Hero.MainHero?.IsPrisoner == true || party.Army.Cohesion >= 50) return;
+            try
+            {
+                if (NativeCohesionThink == null) throw new MissingMethodException("Army.ThinkAboutCohesionBoost");
+                NativeCohesionThink.Invoke(party.Army, null);
+                AutopilotLog.Write("АРМИЯ: штатная проверка сплочённости, сейчас " + party.Army.Cohesion.ToString("F0", CultureInfo.InvariantCulture));
+            }
+            catch (Exception ex) { Disable("сплочённость армии: " + ex.GetType().Name + ": " + ex.Message); }
+        }
 
         private static bool ControlsParty(MobileParty party) => party != null
             && (party.Army == null || party.Army.LeaderParty == party);
@@ -114,10 +129,21 @@ namespace BannerlordAutopilot
             if (party == null || Hero.MainHero == null) return "нет партии/героя";
             float consumption = -party.FoodChange;
             if (float.IsNaN(consumption) || float.IsInfinity(consumption)) return "неизвестен расход еды";
-            if (consumption > 0 && party.TotalFoodAtInventory < consumption * 7f) return "еда меньше чем на 7 дней";
-            if (Hero.MainHero.Gold < Math.Max(0, party.TotalWage) * 7f) return "золото меньше 7 дней жалования";
+            float food = party.TotalFoodAtInventory;
             int total = party.MemberRoster.TotalManCount;
-            if (total <= 0 || total - party.MemberRoster.TotalWounded < total * .7f) return "боеспособны меньше 70% отряда";
+            int wounded = party.MemberRoster.TotalWounded;
+            foreach (var attached in party.AttachedParties)
+            {
+                if (attached == null || attached == party || attached.Army != party.Army) continue;
+                food += attached.TotalFoodAtInventory;
+                consumption += Math.Max(0, -attached.FoodChange);
+                total += attached.MemberRoster.TotalManCount;
+                wounded += attached.MemberRoster.TotalWounded;
+            }
+            if (float.IsNaN(consumption) || float.IsInfinity(consumption)) return "неизвестен расход еды армии";
+            if (consumption > 0 && food < consumption * 7f) return "еда меньше чем на 7 дней";
+            if (Hero.MainHero.Gold < Math.Max(0, party.TotalWage) * 7f) return "золото меньше 7 дней жалования";
+            if (total <= 0 || total - wounded < total * .7f) return "боеспособны меньше 70% отряда";
             if (Hero.MainHero.IsWounded) return "герой ранен";
             return null;
         }

@@ -351,7 +351,7 @@ namespace BannerlordAutopilot
                 return false;
             }
 
-            bool operation = CanStartOperation(party);
+            bool operation = CanStartOperation(party) || (party.Army?.LeaderParty != null && !ControlsParty(party));
             string unsupported = operation || IsSupportedFieldBattleEncounter(party) || IsForeignFieldBattle(party) ? null : UnsupportedState(party);
             if (unsupported != null)
             {
@@ -1722,6 +1722,8 @@ namespace BannerlordAutopilot
             }
 
             MobileParty party = MobileParty.MainParty;
+            MaintainArmy(party);
+            if (_mode == Mode.Off) return;
             if (party == null || !party.IsActive || UnsupportedState(party) != null)
             {
                 return; // выключит ближайший опрос по кадрам — с причиной
@@ -1812,10 +1814,7 @@ namespace BannerlordAutopilot
                 return;
             }
 
-            // Лучшее из того, что автопилот умеет выполнить. Осада, рейд и армия
-            // партии игрока пока не по силам, но выключаться из-за них нельзя —
-            // игра должна идти дальше, поэтому берётся следующее решение того же
-            // штатного пересчёта, а пропуск пишется в журнал.
+            // Use native proposals, with the owner's conquest/preparation priority.
             AIBehaviorData chosen = AIBehaviorData.Invalid;
             float chosenScore = -1f;
             // Все пропуски, а не первый: иначе рейд, лучший 91 раз за прогон 16.09,
@@ -1835,9 +1834,19 @@ namespace BannerlordAutopilot
                                 + " — " + reason);
                 }
             }
+            string preparation = PreparationNeeded(party);
+            bool preparing = preparation != null && think.AIBehaviorScores.Any(p =>
+                p.Item1.AiBehavior == AiBehavior.BesiegeSettlement || p.Item1.AiBehavior == AiBehavior.RaidSettlement);
+            var priority = preparing
+                ? applicable.Where(p => p.Item1.AiBehavior == AiBehavior.GoToSettlement
+                    && p.Item1.Party is Settlement s && s.MapFaction != null && party.MapFaction != null
+                    && !party.MapFaction.IsAtWarWith(s.MapFaction) && !s.IsUnderSiege && !s.IsUnderRaid && !s.IsRaided).ToList()
+                : applicable.Where(p => p.Item1.AiBehavior == AiBehavior.BesiegeSettlement && p.Item2 > 0).ToList();
+            bool hasPriority = priority.Count > 0;
+            if (hasPriority) AutopilotLog.Write(preparing ? "ПОХОД: снабжение/восстановление — " + preparation : "ПОХОД: готовы, приоритет захвату крепости");
             if (applicable.Count > 0)
             {
-                var selected = applicable.OrderByDescending(p => p.Item3).First();
+                var selected = (hasPriority ? priority : applicable).OrderByDescending(p => p.Item3).First();
                 chosen = selected.Item1;
                 chosenScore = selected.Item3;
 
@@ -1851,7 +1860,7 @@ namespace BannerlordAutopilot
                 // Близкие оценки меняются каждый пересчёт и разворачивали
                 // партию на полпути. Пока текущий приказ действителен, новая
                 // обычная цель должна выиграть с небольшим явным запасом.
-                if (waitingIn == null && !IsSameDecision(chosen, party))
+                if (!hasPriority && waitingIn == null && !IsSameDecision(chosen, party))
                 {
                     var current = applicable.FirstOrDefault(p => IsSameDecision(p.Item1, party));
                     if (current != null && chosenScore < current.Item3 + DecisionChangeMargin)
@@ -1865,7 +1874,8 @@ namespace BannerlordAutopilot
                 }
             }
 
-            if (waitingIn == null && chosen.AiBehavior != AiBehavior.BesiegeSettlement && TryApplyNearbyAttack(party)) return;
+            if (!preparing && waitingIn == null && chosen.AiBehavior != AiBehavior.BesiegeSettlement
+                && chosen.AiBehavior != AiBehavior.RaidSettlement && TryApplyNearbyAttack(party)) return;
 
             if (waitingIn == null && (chosen.AiBehavior == AiBehavior.None || chosen.AiBehavior == AiBehavior.PatrolAroundPoint)
                 && TryChooseHideout(party)) return;

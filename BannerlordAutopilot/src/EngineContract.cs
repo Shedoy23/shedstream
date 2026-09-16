@@ -315,6 +315,7 @@ namespace BannerlordAutopilot
             VerifySettlementServices(campaignAssembly, gameState?.Assembly, helper);
             VerifyOperations(mapEvent, vec2, menuContext, gameMenu);
             VerifyBanditGathering(mapEvent, battleSide);
+            VerifyConquest(campaignAssembly, mapEvent);
             VerifyPrisonerScreen(campaignAssembly);
             VerifyLootScreen(campaignAssembly);
 
@@ -329,6 +330,46 @@ namespace BannerlordAutopilot
                 ? "структура движка совпала со всеми " + _checked + " ожиданиями"
                 : "НЕ СОВПАЛО (" + Problems.Count + " из " + _checked + "): " + string.Join("; ", Problems.ToArray());
             return Ok;
+        }
+
+        private static void VerifyConquest(Assembly campaign, Type mapEvent)
+        {
+            var mobile = typeof(MobileParty);
+            var navigation = typeof(MobileParty.NavigationType);
+            Method(typeof(SetPartyAiAction), "GetActionForBesiegingSettlement", Stat, typeof(void), mobile, typeof(Settlement), navigation, typeof(bool));
+            Method(typeof(SetPartyAiAction), "GetActionForRaidingSettlement", Stat, typeof(void), mobile, typeof(Settlement), navigation, typeof(bool), typeof(bool));
+            MemberOf(mobile, "Army", Inst, typeof(Army));
+            MemberOf(typeof(Army), "LeaderParty", Inst, mobile);
+            MemberOf(typeof(Army), "Cohesion", Inst, typeof(float));
+            Method(typeof(Army), "ThinkAboutCohesionBoost", BindingFlags.Instance | BindingFlags.NonPublic, typeof(void));
+            MemberOf(typeof(Clan), "Influence", Inst, typeof(float));
+            Method(typeof(ChangeClanInfluenceAction), "Apply", Stat, typeof(void), typeof(Clan), typeof(float));
+            Type members = typeof(TaleWorlds.Library.MBReadOnlyList<MobileParty>);
+            MemberOf(typeof(PartyThinkParams), "PossibleArmyMembersUponArmyCreation", Inst, members);
+            Method(typeof(Kingdom), "CreateArmy", Inst, typeof(void), typeof(Hero), typeof(Settlement), typeof(Army.ArmyTypes), members);
+            Type model = MemberType(typeof(GameModels), "ArmyManagementCalculationModel", Inst, false, out _);
+            Need(model != null, "GameModels.ArmyManagementCalculationModel");
+            var text = typeof(TaleWorlds.Localization.TextObject).MakeByRefType();
+            Method(model, "CanPlayerCreateArmy", Inst, typeof(bool), text);
+            Method(model, "CheckPartyEligibility", Inst, typeof(bool), mobile, text);
+            Method(model, "CalculatePartyInfluenceCost", Inst, typeof(int), mobile, mobile);
+            Type siege = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Siege.SiegeEvent");
+            MemberOf(mobile, "SiegeEvent", Inst, siege);
+            MemberOf(siege, "BesiegedSettlement", Inst, typeof(Settlement));
+            Type camp = MemberType(siege, "BesiegerCamp", Inst, false, out _);
+            Need(camp != null, "SiegeEvent.BesiegerCamp");
+            MemberOf(camp, "LeaderParty", Inst, mobile);
+            MemberOf(camp, "IsReadyToBesiege", Inst, typeof(bool));
+            Type strategy = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Siege.SiegeStrategy");
+            Type strategies = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Siege.DefaultSiegeStrategies");
+            MemberOf(strategies, "AllAttackerStrategies", Stat, typeof(IEnumerable<>).MakeGenericType(strategy));
+            Type side = siege?.GetMethod("GetSiegeEventSide", Inst)?.ReturnType;
+            Method(siege, "GetSiegeEventSide", Inst, side, typeof(TaleWorlds.Core.BattleSideEnum));
+            Method(side, "SetSiegeStrategy", Inst, typeof(void), strategy);
+            Type siegeModel = MemberType(typeof(GameModels), "SiegeEventModel", Inst, false, out _);
+            Need(siegeModel != null, "GameModels.SiegeEventModel");
+            Method(siegeModel, "GetSiegeStrategyScore", Inst, typeof(float), siege, typeof(TaleWorlds.Core.BattleSideEnum), strategy);
+            foreach (string flag in new[] { "IsRaid", "IsSallyOut", "IsSiegeOutside" }) MemberOf(mapEvent, flag, Inst, typeof(bool));
         }
 
         private static void VerifyBanditGathering(Type mapEvent, Type side)

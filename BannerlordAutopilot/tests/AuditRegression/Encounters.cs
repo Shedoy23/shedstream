@@ -54,6 +54,28 @@ internal static partial class Program
 
     static void EncounterTests()
     {
+        Try("плен не выключает автопилот до освобождения", () =>
+        {
+            var b = Fresh(); Enable(b); Hero.MainHero.IsPrisoner = true; MobileParty.MainParty.IsActive = false;
+            var wait = new GameMenu { StringId = "prisoner_wait", IsWaitMenu = true }; Show(wait);
+            b.PollState();
+            Check(b.CurrentMode == AutopilotBehavior.Mode.Apply && wait.IsWaitActive,
+                "неактивная пленная партия ждёт штатного освобождения");
+            var release = new GameMenu { StringId = "menu_captivity_end_wilderness_escape" };
+            release.Options.Add(new GameMenuOption { IdString = "mno_continue", Consequence = () => {
+                Hero.MainHero.IsPrisoner = false; MobileParty.MainParty.IsActive = true;
+                Campaign.Current.CurrentMenuContext = null;
+            }}); Show(release); b.PollState();
+            Check(!Hero.MainHero.IsPrisoner && b.CurrentMode == AutopilotBehavior.Mode.Apply,
+                "штатное продолжение освобождает героя и сохраняет автопилот");
+        });
+        Try("наблюдение не управляет пленом", () =>
+        {
+            var b = Fresh(); b.TryEnable(AutopilotBehavior.Mode.Observe, out _);
+            Hero.MainHero.IsPrisoner = true; MobileParty.MainParty.IsActive = false;
+            var wait = new GameMenu { StringId = "prisoner_wait", IsWaitMenu = true }; Show(wait); b.PollState();
+            Check(b.CurrentMode == AutopilotBehavior.Mode.Observe && !wait.IsWaitActive, "F10 только наблюдает плен");
+        });
         foreach (string id in new[] { "player_is_leaving_neutral_or_friendly", "caravan_talk_leave", "village_farmer_leave" })
         Try("мирная встреча: " + id, () =>
         {

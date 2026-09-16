@@ -3,12 +3,37 @@ using System.Collections.Generic;
 using BannerlordAutopilot;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Party;
+using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 
 internal static partial class Program
 {
     static void EquipmentTradeTests()
     {
+        foreach (string condition in new[] { "full", "room", "food", "locked", "observe", "no_cash" })
+        Try("sell trip " + condition, () => {
+            var b=Fresh(); var w=MakeWorld(prisoners:false); var p=MobileParty.MainParty;
+            w.Place.Position=new CampaignVec2 { X=10 }; Settlement.All.Add(w.Place);
+            var tracker=new TestViewTracker(); Campaign.Current.Behaviors.Add(tracker);
+            var loot=new ItemObject { Name="loot", TestPrice=20, IsFood=condition=="food" };
+            p.ItemRoster.TestAdd(loot, 5); p.TotalWeightCarried=condition=="room" ? 40 : 100;
+            if(condition=="locked") tracker.Locks.Add(loot.StringId);
+            if(condition=="no_cash") w.Place.TestGold=0;
+            Campaign.Current.Models.MobilePartyAIModel.NextBehavior=AiBehavior.EngageParty;
+            Campaign.Current.Models.MobilePartyAIModel.NextTarget=new MobileParty { IsBandit=true };
+            Campaign.Current.Models.MobilePartyAIModel.NextScore=100;
+            Enable(b, condition=="observe" ? AutopilotBehavior.Mode.Observe : AutopilotBehavior.Mode.Apply);
+            HourlyTick(b);
+            bool routed=p.TargetSettlement==w.Place && p.DefaultBehavior==AiBehavior.GoToSettlement;
+            Check(routed==(condition=="full"), "sell trip eligibility " + condition);
+            if(condition=="full") {
+                HourlyTick(b);
+                Check(p.TargetSettlement==w.Place && p.DefaultBehavior==AiBehavior.GoToSettlement, "nearby bandits do not interrupt unloading trip");
+                p.ItemRoster.TestAdd(loot,-5); p.TotalWeightCarried=20;
+                HourlyTick(b);
+                Check(p.DefaultBehavior==AiBehavior.EngageParty, "normal decisions resume after unloading");
+            }
+        });
         Try("main hero equipment and protected inventory", () => {
             Fresh(); var w = MakeWorld(prisoners: false); var p = MobileParty.MainParty;
             var tracker = new TestViewTracker(); Campaign.Current.Behaviors.Add(tracker);

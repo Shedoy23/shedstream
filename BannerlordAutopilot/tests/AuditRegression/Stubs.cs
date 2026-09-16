@@ -214,6 +214,8 @@ namespace TaleWorlds.CampaignSystem.Party {
   public MobileParty TargetParty;
   public MobilePartyAi Ai=new(); public AiBehavior DefaultBehavior=AiBehavior.GoToSettlement;
   public CampaignVec2 Position; public string Name="Player";
+  public float TotalWeightCarried;
+  public int InventoryCapacity = 100;
   public PartyThinkParams ThinkParamsCache {get;} = new();
   public int HoldCalls; public bool StandsAtLastVisited;
   public void SetMoveModeHold() {HoldCalls++; DefaultBehavior=AiBehavior.Hold;TargetSettlement=null;IsMoving=false;}

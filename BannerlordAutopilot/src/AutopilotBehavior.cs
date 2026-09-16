@@ -1283,6 +1283,9 @@ namespace BannerlordAutopilot
             {
                 switch (menu)
                 {
+                    case "menu_captivity_end_propose_ransom_wilderness":
+                    case "menu_captivity_end_propose_ransom_in_prison":
+                        OperationClick("captivity_end_ransom_deny"); return;
                     case "prisoner_wait":
                     case "settlement_wait": ResumeOperationWait(); return;
                     case "menu_captivity_end_no_more_enemies":

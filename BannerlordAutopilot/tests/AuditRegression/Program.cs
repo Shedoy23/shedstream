@@ -40,6 +40,7 @@ internal static partial class Program
 
     static AutopilotBehavior Fresh()
     {
+        Hideout.All.Clear();
         MobileParty.MainParty = new MobileParty(); Hero.MainHero = new Hero(); Campaign.Current = new Campaign();
         TaleWorlds.Core.Game.Current = new TaleWorlds.Core.Game(); CampaignTime.TestHours = 0; MenuContext.Invoked.Clear();
         PlayerEncounter.Current = null; PlayerEncounter.EncounterSettlement = null;

@@ -1,0 +1,3 @@
+C:\Users\Edward\Desktop\work\.claude\worktrees\codex-autopilot-null-encounter\BannerlordAutopilot\src\EngineContract.cs(7,33): error CS0234: Тип или имя пространства имен "ComponentInterfaces" не существует в пространстве имен "TaleWorlds.CampaignSystem" (возможно, отсутствует ссылка на сборку). [C:\Users\Edward\Desktop\work\.claude\worktrees\codex-autopilot-null-encounter\BannerlordAutopilot\tests\ContractScoresGetter\ContractScoresGetter.csproj]
+
+Ошибка сборки. Устраните ошибки сборки и повторите попытку.

@@ -66,6 +66,7 @@ namespace TaleWorlds.CampaignSystem.GameMenus {
   public Func<bool> Condition = () => true; public Action Consequence;
  }
  public class GameMenu {
+  public void StartWait() {IsWaitActive=true;}
   public string StringId { get; set; } public bool IsWaitMenu { get; set; } public bool IsWaitActive { get; set; }
   public readonly List<GameMenuOption> Options = new();
   public IEnumerable<GameMenuOption> MenuOptions => Options;
@@ -79,7 +80,7 @@ namespace TaleWorlds.CampaignSystem.GameState {
  public interface IMapStateHandler {}
  public class MapState : TaleWorlds.Core.GameState { public IMapStateHandler Handler { get; set; } }
  public class MenuContext {
-  public object Handler { get; set; }
+  public IMenuContextHandler Handler { get; set; }
   public static List<string> Invoked = new();
   public GameMenu GameMenu { get; set; }
   // Как кнопка: пункт по индексу, его последствие. Индексы без повторяемых объектов.

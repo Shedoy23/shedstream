@@ -21,12 +21,18 @@ namespace BannerlordAutopilot
         private float _exitRetry;
         private Agent _givenAgent;
         private readonly List<Formation> _formationsGiven = new List<Formation>();
+        private readonly Dictionary<Formation, (MovementOrder Move, FiringOrder Fire)> _hideoutOrders
+            = new Dictionary<Formation, (MovementOrder, FiringOrder)>();
+
+        private bool CanControlNow => Mission.Mode == MissionMode.Battle
+            || (Mission.Mode == MissionMode.Stealth && AutopilotBehavior.Instance?.IsOwnedHideoutBattle == true);
 
         internal static bool IsSupportedCampaignBattle()
         {
             MobileParty party = MobileParty.MainParty;
             return Campaign.Current != null
-                   && AutopilotBehavior.IsSupportedFieldBattleEncounter(party);
+                   && (AutopilotBehavior.IsSupportedFieldBattleEncounter(party)
+                       || AutopilotBehavior.Instance?.IsOwnedOperationBattle(party) == true);
         }
 
         public override void OnMissionTick(float dt)
@@ -50,7 +56,7 @@ namespace BannerlordAutopilot
                 }
             }
 
-            if (!_controlGiven && Mission.IsDeploymentFinished && Mission.Mode == MissionMode.Battle)
+            if (!_controlGiven && Mission.IsDeploymentFinished && CanControlNow)
             {
                 GiveControlToAi();
             }
@@ -60,6 +66,14 @@ namespace BannerlordAutopilot
         {
             base.OnAfterDeploymentFinished();
             GiveControlToAi();
+        }
+
+        public override void OnMissionModeChange(MissionMode oldMissionMode, bool atStart)
+        {
+            base.OnMissionModeChange(oldMissionMode, atStart);
+            // Hideout cinematics build the companion list from AI agents. Main hero
+            // must be a player again BEFORE the cinematic collects those agents.
+            if (!CanControlNow) RestorePlayerControl();
         }
 
         // Called from application polling as the scoreboard may pause mission ticks.
@@ -95,26 +109,36 @@ namespace BannerlordAutopilot
 
         private void GiveControlToAi()
         {
-            if (_controlGiven || AutopilotBehavior.Instance?.CurrentMode != AutopilotBehavior.Mode.Apply)
+            if (_controlGiven || !CanControlNow || AutopilotBehavior.Instance?.CurrentMode != AutopilotBehavior.Mode.Apply)
             {
                 return;
             }
             Team team = Mission.PlayerTeam;
             Agent agent = Mission.MainAgent;
-            if (team == null || team.TeamAI == null || agent == null || !agent.IsActive())
+            if (team == null || agent == null || !agent.IsActive())
             {
                 return;
             }
 
             _formationsGiven.Clear();
-            foreach (Formation formation in team.FormationsIncludingEmpty)
+            if (team.TeamAI != null) foreach (Formation formation in team.FormationsIncludingEmpty)
             {
                 if (!formation.IsAIControlled)
                 {
                     _formationsGiven.Add(formation);
                 }
             }
-            team.DelegateCommandToAI();
+            if (team.TeamAI != null) team.DelegateCommandToAI();
+            else if (AutopilotBehavior.Instance?.IsOwnedHideoutBattle == true)
+            {
+                foreach (Formation formation in team.FormationsIncludingEmpty)
+                {
+                    if (formation.CountOfUnits == 0) continue;
+                    _hideoutOrders[formation] = (formation.GetReadonlyMovementOrderReference(), formation.FiringOrder);
+                    formation.SetMovementOrder(MovementOrder.MovementOrderCharge);
+                    formation.SetFiringOrder(FiringOrder.FiringOrderFireAtWill);
+                }
+            }
             _givenAgent = agent;
 
             // RTS Camera 5.4.16 делает больше, чем простая смена Controller:
@@ -151,6 +175,12 @@ namespace BannerlordAutopilot
             {
                 formation?.SetControlledByAI(false);
             }
+            foreach (var pair in _hideoutOrders)
+            {
+                pair.Key.SetMovementOrder(pair.Value.Move);
+                pair.Key.SetFiringOrder(pair.Value.Fire);
+            }
+            _hideoutOrders.Clear();
             if (_givenAgent != null && _givenAgent.IsActive() && Mission.MainAgent == _givenAgent)
             {
                 _givenAgent.Controller = AgentControllerType.Player;
@@ -162,11 +192,13 @@ namespace BannerlordAutopilot
             _formationsGiven.Clear();
             _givenAgent = null;
             _controlGiven = false;
-            AutopilotLog.Write("БОЙ: F12 вернул управление живому герою и формациям");
+            AutopilotLog.Write("БОЙ: управление возвращено герою и формациям (F12 или переход миссии)");
         }
 
         protected override void OnEndMission()
         {
+            AutopilotBehavior.Instance?.OnOperationMissionEnded();
+            _hideoutOrders.Clear();
             _formationsGiven.Clear();
             _givenAgent = null;
             _controlGiven = false;

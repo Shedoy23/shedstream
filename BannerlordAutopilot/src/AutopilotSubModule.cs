@@ -58,7 +58,7 @@ namespace BannerlordAutopilot
                 && BattleAutopilotMission.IsSupportedCampaignBattle())
             {
                 mission.AddMissionBehavior(new BattleAutopilotMission());
-                AutopilotLog.Write("БОЙ: боевой автопилот добавлен в полевую миссию");
+                AutopilotLog.Write("БОЙ: боевой автопилот добавлен в поддерживаемую миссию");
             }
         }
 

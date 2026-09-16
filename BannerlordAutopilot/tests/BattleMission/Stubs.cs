@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace TaleWorlds.Core { public enum MissionMode { Deployment, Battle } public enum AgentControllerType { Player, AI } }
+namespace TaleWorlds.Core { public enum MissionMode { Deployment, Battle, Stealth, CutScene, Conversation } public enum AgentControllerType { Player, AI } }
 namespace TaleWorlds.Library { public static class InformationManager { public static bool Inquiry; public static bool IsAnyInquiryActive() => Inquiry; } }
 namespace TaleWorlds.CampaignSystem {
  public class Campaign { public static Campaign Current = new(); }
@@ -14,6 +14,7 @@ namespace TaleWorlds.MountAndBlade {
  public abstract class MissionBehavior {
   public Mission Mission { get; set; }
   public virtual void OnMissionTick(float dt) {} public virtual void OnAfterDeploymentFinished() {} protected virtual void OnEndMission() {}
+  public virtual void OnMissionModeChange(MissionMode oldMissionMode, bool atStart) {}
  }
  public abstract class MissionLogic : MissionBehavior {}
  public class CommonAIComponent { public int InitializeCalls; public void Initialize() { InitializeCalls++; } }
@@ -32,7 +33,9 @@ namespace TaleWorlds.MountAndBlade {
   public void DisableScriptedMovement() { DisableScriptedCalls++; } public void SetRidingOrder(RidingOrderEnum value) { RidingOrderCalls++; }
   public void SetMaximumSpeedLimit(float value, bool isMultiplier) { SpeedResetCalls++; }
  }
- public class Formation { public bool IsAIControlled; public int ChangedCalls; public RidingOrder RidingOrder = new(); public void SetControlledByAI(bool value, bool enforceNotSplittableByAI = false) { IsAIControlled = value; } public void OnUnitAddedOrRemoved() { ChangedCalls++; } }
+ public struct MovementOrder { public int Kind; public static MovementOrder MovementOrderCharge => new MovementOrder {Kind=1}; }
+ public struct FiringOrder { public int Kind; public static FiringOrder FiringOrderFireAtWill => new FiringOrder {Kind=1}; }
+ public class Formation { public int CountOfUnits=5; public MovementOrder Move; public FiringOrder FiringOrder; public ref readonly MovementOrder GetReadonlyMovementOrderReference()=>ref Move; public void SetMovementOrder(MovementOrder m){Move=m;} public void SetFiringOrder(FiringOrder f){FiringOrder=f;} public bool IsAIControlled; public int ChangedCalls; public RidingOrder RidingOrder = new(); public void SetControlledByAI(bool value, bool enforceNotSplittableByAI = false) { IsAIControlled = value; } public void OnUnitAddedOrRemoved() { ChangedCalls++; } }
  public class TeamAIComponent {}
  public class Team {
   public TeamAIComponent TeamAI = new(); public List<Formation> FormationsIncludingEmpty = new();
@@ -56,6 +59,9 @@ namespace BannerlordAutopilot {
  internal sealed class AutopilotBehavior {
   internal enum Mode { Off, Apply } internal static AutopilotBehavior Instance = new(); internal Mode CurrentMode = Mode.Apply;
   internal static bool IsSupportedFieldBattleEncounter(MobileParty party) => true;
+  internal bool IsOwnedOperationBattle(MobileParty party) => false;
+  internal bool IsOwnedHideoutBattle {get;set;}
+  internal void OnOperationMissionEnded() {}
  }
  internal static class AutopilotLog { internal static readonly List<string> Lines = new(); internal static void Write(string text) => Lines.Add(text); }
 }

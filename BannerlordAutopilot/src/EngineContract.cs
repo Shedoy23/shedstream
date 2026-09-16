@@ -313,6 +313,7 @@ namespace BannerlordAutopilot
             Method(mapScreen, "RemoveMapView", Inst, typeof(void), mapView);
 
             VerifySettlementServices(campaignAssembly, gameState?.Assembly, helper);
+            VerifyOperations(mapEvent, vec2, menuContext, gameMenu);
 
             // ── Прочее
             MemberOf(typeof(Hero), "MainHero", Stat, typeof(Hero));
@@ -325,6 +326,43 @@ namespace BannerlordAutopilot
                 ? "структура движка совпала со всеми " + _checked + " ожиданиями"
                 : "НЕ СОВПАЛО (" + Problems.Count + " из " + _checked + "): " + string.Join("; ", Problems.ToArray());
             return Ok;
+        }
+
+        private static void VerifyOperations(Type mapEvent, Type vector, Type menuContext, Type gameMenu)
+        {
+            Type hideout = TypeNamed(typeof(Campaign).Assembly, "TaleWorlds.CampaignSystem.Settlements.Hideout");
+            Type time = TypeNamed(typeof(Campaign).Assembly, "TaleWorlds.CampaignSystem.CampaignTime");
+            MemberOf(hideout, "Settlement", Inst, typeof(Settlement));
+            MemberOf(hideout, "IsSpotted", Inst, typeof(bool));
+            MemberOf(hideout, "IsInfested", Inst, typeof(bool));
+            MemberOf(hideout, "NextPossibleAttackTime", Inst, time);
+            var all = hideout?.GetProperty("All", Stat);
+            Need(all?.GetGetMethod() != null && typeof(IEnumerable<>).MakeGenericType(hideout).IsAssignableFrom(all.PropertyType), "Hideout.All: enumerable Hideout");
+            MemberOf(typeof(Settlement), "Hideout", Inst, hideout);
+            MemberOf(typeof(Settlement), "IsHideout", Inst, typeof(bool));
+            MemberOf(typeof(Settlement), "IsVisible", Inst, typeof(bool));
+            MemberOf(typeof(Settlement), "Position", Inst, vector);
+            Method(vector, "DistanceSquared", Inst, typeof(float), vector);
+            MemberOf(time, "IsPast", Inst, typeof(bool));
+            MemberOf(time, "IsNightTime", Inst, typeof(bool));
+            MemberOf(typeof(MobileParty), "IsCurrentlyAtSea", Inst, typeof(bool));
+            MemberOf(mapEvent, "IsHideoutBattle", Inst, typeof(bool));
+            MemberOf(mapEvent, "IsSiegeAssault", Inst, typeof(bool));
+            MemberNamed(mapEvent, "PlayerSide", Inst, "BattleSideEnum");
+            Method(typeof(SetPartyAiAction), "GetActionForDefendingSettlement", Stat, typeof(void),
+                typeof(MobileParty), typeof(Settlement), typeof(MobileParty.NavigationType), typeof(bool), typeof(bool));
+            Method(gameMenu, "StartWait", Inst, typeof(void));
+            MemberNamed(menuContext, "Handler", Inst, "IMenuContextHandler");
+            Type context = LoadedType("SandBox.View.Menu.MenuViewContext", "SandBox.View");
+            Type views = context?.GetProperty("MenuViews", Inst)?.PropertyType;
+            Need(views != null && typeof(System.Collections.IEnumerable).IsAssignableFrom(views), "MenuViewContext.MenuViews: enumerable");
+            Type view = LoadedType("SandBox.GauntletUI.Menu.GauntletMenuTroopSelectionView", "SandBox.GauntletUI");
+            Type vm = LoadedType("TaleWorlds.CampaignSystem.ViewModelCollection.GameMenu.TroopSelection.GameMenuTroopSelectionVM", "TaleWorlds.CampaignSystem.ViewModelCollection");
+            Need(view?.GetField("_dataSource", BindingFlags.Instance | BindingFlags.NonPublic)?.FieldType == vm && vm != null,
+                "GauntletMenuTroopSelectionView._dataSource: GameMenuTroopSelectionVM");
+            MemberOf(vm, "IsEnabled", Inst, typeof(bool));
+            MemberOf(vm, "IsDoneEnabled", Inst, typeof(bool));
+            Method(vm, "ExecuteDone", Inst, typeof(void));
         }
 
         /// <summary>Обслуживание партии в поселении (SettlementServices): еда, найм,

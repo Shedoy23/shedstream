@@ -86,7 +86,7 @@ namespace BannerlordAutopilot
     ///
     /// Разбор: docs/BANNERLORD_AUTOPILOT_RESEARCH_2026-09-12.md,
     /// независимая проверка: dist/audit/autopilot-review/REVIEW_RU.md.</summary>
-    public class AutopilotBehavior : CampaignBehaviorBase
+    public partial class AutopilotBehavior : CampaignBehaviorBase
     {
         internal enum Mode
         {
@@ -227,6 +227,7 @@ namespace BannerlordAutopilot
 
         private void ResetSession()
         {
+            ResetOperations();
             _ticksThisSession = 0;
             _targetChangesThisSession = 0;
             _reappliesThisSession = 0;
@@ -338,7 +339,8 @@ namespace BannerlordAutopilot
                 return false;
             }
 
-            string unsupported = IsSupportedFieldBattleEncounter(party) || CanHelpDefenders(party) ? null : UnsupportedState(party);
+            bool operation = CanStartOperation(party);
+            string unsupported = operation || IsSupportedFieldBattleEncounter(party) || CanHelpDefenders(party) ? null : UnsupportedState(party);
             if (unsupported != null)
             {
                 reason = unsupported;
@@ -346,7 +348,7 @@ namespace BannerlordAutopilot
             }
 
             Settlement peaceful = PeacefulSettlement(party);
-            if (peaceful == null && PlayerEncounter.Current != null && !IsSupportedFieldBattleEncounter(party) && !CanHelpDefenders(party))
+            if (!operation && peaceful == null && PlayerEncounter.Current != null && !IsSupportedFieldBattleEncounter(party) && !CanHelpDefenders(party))
             {
                 reason = "идёт встреча, которую автопилот не поддерживает";
                 return false;
@@ -457,6 +459,7 @@ namespace BannerlordAutopilot
             }
 
             if (PollDialogs()) return false;
+            if (PollOperations(party)) return false;
 
             if (_mode == Mode.Apply)
             {
@@ -1168,6 +1171,8 @@ namespace BannerlordAutopilot
         internal bool PollDialogs()
         {
             if (_mode != Mode.Apply) return false;
+            try { if (PollHideoutConversation()) return true; }
+            catch (Exception ex) { Disable("диалог убежища остановлен: " + ex); return true; }
             if (PollCombatConversation()) return true; // Fixed combat rules always win.
             var conversation = Campaign.Current?.ConversationManager;
             if (conversation?.IsConversationInProgress != true)
@@ -1584,6 +1589,7 @@ namespace BannerlordAutopilot
                                + "; текущее поведение " + party.DefaultBehavior);
             if (lines.Count == 0)
             {
+                if (waitingIn == null && TryChooseHideout(party)) return;
                 AutopilotLog.Write("  оценок НЕТ — штатный AI ничего не предложил для этой партии");
                 return;
             }
@@ -1648,6 +1654,9 @@ namespace BannerlordAutopilot
                     }
                 }
             }
+
+            if (waitingIn == null && (chosen.AiBehavior == AiBehavior.None || chosen.AiBehavior == AiBehavior.PatrolAroundPoint)
+                && TryChooseHideout(party)) return;
 
             if (chosen.AiBehavior == AiBehavior.None)
             {
@@ -1805,6 +1814,8 @@ namespace BannerlordAutopilot
             }
             switch (data.AiBehavior)
             {
+                case AiBehavior.DefendSettlement:
+                    return FriendlySiege(data.Party as Settlement, MobileParty.MainParty) ? null : "нет дружественной осады";
                 case AiBehavior.GoToSettlement:
                     if (!(data.Party is Settlement settlement))
                     {
@@ -1849,6 +1860,10 @@ namespace BannerlordAutopilot
             {
                 switch (data.AiBehavior)
                 {
+                    case AiBehavior.DefendSettlement:
+                        SetPartyAiAction.GetActionForDefendingSettlement(
+                            party, settlement, data.NavigationType, data.IsFromPort, data.IsTargetingPort);
+                        break;
                     case AiBehavior.GoToSettlement:
                         if (MobilePartyHelper.GetCurrentSettlementOfMobilePartyForAICalculation(party) == settlement)
                         {

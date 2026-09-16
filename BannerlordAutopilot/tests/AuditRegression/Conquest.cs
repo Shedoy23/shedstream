@@ -7,6 +7,7 @@ using TaleWorlds.CampaignSystem.Encounters;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.CampaignSystem.Siege;
 using TaleWorlds.CampaignSystem.GameMenus;
+using TaleWorlds.CampaignSystem.GameState;
 using TaleWorlds.Core;
 
 internal static partial class Program
@@ -21,6 +22,35 @@ internal static partial class Program
     }
     static void ConquestTests()
     {
+        foreach (bool mercy in new[] { true, false })
+        Try("после захвата: милость либо разграбление", () => {
+            var b = Fresh(); var castle = ConquestWorld(); Enable(b);
+            MobileParty.MainParty.TargetSettlement = castle; MobileParty.MainParty.DefaultBehavior = AiBehavior.BesiegeSettlement;
+            PlayerEncounter.Current = new PlayerEncounter(); PlayerEncounter.EncounterSettlement = castle;
+            Show(Menu("castle_outside", "town_besiege", () => {})); b.PollState(); MenuContext.Invoked.Clear();
+            var aftermath = new GameMenu { StringId = "menu_settlement_taken_player_leader" };
+            aftermath.Options.Add(new GameMenuOption { IdString = "menu_settlement_taken_show_mercy", IsEnabled = mercy });
+            aftermath.Options.Add(new GameMenuOption { IdString = "menu_settlement_taken_pillage" });
+            Show(aftermath); b.PollState();
+            Check(MenuContext.Invoked.SequenceEqual(new[] { mercy ? "menu_settlement_taken_show_mercy" : "menu_settlement_taken_pillage" }), "последствия захвата по решению владельца, милость " + mercy);
+        });
+        Try("бандиты не отвлекают от готового наступления", () => {
+            var b = Fresh(); var castle = ConquestWorld();
+            var ai = Campaign.Current.Models.MobilePartyAIModel;
+            ai.NextBehavior = AiBehavior.EngageParty; ai.NextTarget = new MobileParty { IsBandit = true }; ai.NextScore = 9f;
+            CampaignEventDispatcher.NextScores.Add((new AIBehaviorData(castle, AiBehavior.BesiegeSettlement, MobileParty.NavigationType.Default, false, false, false), 3f));
+            Enable(b); HourlyTick(b);
+            Check(MobileParty.MainParty.DefaultBehavior == AiBehavior.BesiegeSettlement, "доступная военная цель выбрана прежде погони");
+        });
+        Try("истощение осады вызывает штатный отход", () => {
+            var b = Fresh(); var castle = ConquestWorld(food: 1); Enable(b);
+            var siege = new SiegeEvent { BesiegedSettlement = castle }; siege.BesiegerCamp.LeaderParty = MobileParty.MainParty;
+            siege.BesiegerCamp.IsReadyToBesiege = true; MobileParty.MainParty.SiegeEvent = siege;
+            var wait = new GameMenu { StringId = "menu_siege_strategies", IsWaitMenu = true };
+            wait.Options.Add(new GameMenuOption { IdString = "menu_siege_strategies_lead_assault" });
+            wait.Options.Add(new GameMenuOption { IdString = "menu_siege_strategies_leave" }); Show(wait); b.PollState();
+            Check(MenuContext.Invoked.SequenceEqual(new[] { "menu_siege_strategies_leave" }), "при нехватке еды уходим пополняться вместо штурма");
+        });
         foreach (int shortage in new[] { 0, 1, 2, 3 })
         Try("готовность к наступлению " + shortage, () => {
             var b = Fresh(); var castle = ConquestWorld(shortage == 1 ? 34 : 35, shortage == 2 ? 349 : 350, shortage == 3 ? 4 : 3);

@@ -35,11 +35,20 @@ Limits are still in-process fixed windows, as before.
 
 ## Deployment boundary
 
-Not deployed. Supervisor was RUNNING during read-only inspection. Minimal
+Deployed with explicit owner approval on 2026-09-16 at 17:53 UTC (22:53 +05).
+Production payload was only dependencies.py from c9c125a. Supervisor restarted
+successfully, PID 2440287; local and public /health returned HTTP 200.
+Installed SHA-256: `4784154fbd158c2913662d0c31de6142520a75b72a3632514a1e5c4aaab08b79`.
+Backup: `/root/twitch-extension/backend/dependencies.py.before-c9c125a-20260916T175323Z`.
+Original SHA-256: `f2952a96850492300f9a97975788a46a5365b4a95d87bccea2bdd6fb9db69778`.
+No frontend, database or environment changes. Live viewer-panel replay remains
+unverified; health and file hash prove deployment, not live UI behavior.
+
+Supervisor was RUNNING during read-only inspection. Minimal
 production payload is only `/root/twitch-extension/backend/dependencies.py`;
 config.py changes are comments. Before applying, recheck the original file hash,
 back it up, replace atomically, compile-check, restart twitchbot, verify service,
 health, deployed hash and fresh errors. If health fails, restore the original
 file and restart. No database, environment or frontend changes required.
 CLAUDE.md explicitly requires confirmation before production restart/deployment.
-Live panel behavior after this fix remains unverified until deployment.
+Live panel behavior after this fix requires a real viewer replay.

@@ -56,6 +56,7 @@ internal static partial class Program
         TaleWorlds.Library.InformationManager.TestInquiryActive = false;
         TaleWorlds.CampaignSystem.Clan.PlayerClan = new TaleWorlds.CampaignSystem.Clan();
         TaleWorlds.ScreenSystem.ScreenManager.TopScreen = null; Helpers.MobilePartyHelper.TestLockedIds.Clear();
+        Helpers.FactionHelper.TestEnemies.Clear();
         return new AutopilotBehavior { RandomDialogsEnabled = false };
     }
 
@@ -281,6 +282,7 @@ internal static partial class Program
         EngineContract.Verify();
         OperationTests();
         EncounterTests();
+        ProgressTests();
         Try("random default and lord introduction", () => {
             var b=Fresh(); b.RandomDialogsEnabled=new AutopilotBehavior().RandomDialogsEnabled; Enable(b);
             PlayerEncounter.Current=new PlayerEncounter();PlayerEncounter.EncounteredMobileParty=new MobileParty();

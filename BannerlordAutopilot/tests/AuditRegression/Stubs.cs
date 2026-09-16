@@ -126,8 +126,13 @@ namespace TaleWorlds.CampaignSystem {
   }
  }
  public class KingdomDecision { public bool Cancelled; public bool ShouldBeCancelled()=>Cancelled; }
- public class Kingdom { public List<KingdomDecision> UnresolvedDecisions { get; } = new(); }
- public class Clan { public static Clan PlayerClan = new(); public Kingdom Kingdom { get; set; } = new(); }
+ public class Kingdom { public List<KingdomDecision> UnresolvedDecisions { get; } = new(); public TaleWorlds.Localization.TextObject Name { get; set; } = new("Королевство"); }
+ // Clan 31710-31714: Fiefs — города и замки клана, Villages — его деревни.
+ public class Clan {
+  public static Clan PlayerClan = new(); public Kingdom Kingdom { get; set; } = new(); public IFaction MapFaction { get; set; }
+  public TaleWorlds.Library.MBReadOnlyList<TaleWorlds.CampaignSystem.Settlements.Town> Fiefs { get; } = new();
+  public TaleWorlds.Library.MBReadOnlyList<TaleWorlds.CampaignSystem.Settlements.Village> Villages { get; } = new();
+ }
  public class Hero {
   public static Hero MainHero = new(); public bool IsPrisoner; public bool IsWounded;
   public string Name = "Hero"; public int Gold { get; set; }
@@ -162,7 +167,7 @@ namespace TaleWorlds.CampaignSystem {
 }
 namespace TaleWorlds.CampaignSystem.Settlements {
  public class Hideout { public static List<Hideout> All { get; } = new(); public Settlement Settlement { get; set; } public bool IsSpotted { get; set; } public bool IsInfested { get; set; } public CampaignTime NextPossibleAttackTime { get; set; } }
- public class Town { public int GetItemPrice(TaleWorlds.Core.EquipmentElement element, MobileParty party = null, bool isSelling = false) => element.Item.TestPrice; }
+ public class Town { public Settlement Settlement { get; set; } public int GetItemPrice(TaleWorlds.Core.EquipmentElement element, MobileParty party = null, bool isSelling = false) => element.Item.TestPrice; }
  public class Village { public Settlement TradeBound { get; set; } public Settlement Bound { get; set; } }
  public class Settlement : IMapPoint {
   public bool IsHideout { get; set; } public bool IsVisible { get; set; } = true;
@@ -173,6 +178,7 @@ namespace TaleWorlds.CampaignSystem.Settlements {
   public string StringId { get; set; } = "settlement_" + (++_nextId);
   public bool IsVillage { get; set; }
   public bool IsTown { get; set; }
+  public bool IsCastle { get; set; }
   public bool IsRaided { get; set; }
   public bool IsUnderRaid { get; set; }
   public IFaction MapFaction { get; set; }
@@ -269,6 +275,11 @@ namespace TaleWorlds.CampaignSystem.Actions {
  }
 }
 namespace Helpers {
+ // FactionHelper.GetEnemyKingdoms (4324): королевства из FactionsAtWarWith фракции.
+ public static class FactionHelper {
+  public static readonly List<TaleWorlds.CampaignSystem.Kingdom> TestEnemies = new();
+  public static IEnumerable<TaleWorlds.CampaignSystem.Kingdom> GetEnemyKingdoms(TaleWorlds.CampaignSystem.IFaction faction) => TestEnemies;
+ }
  public static class MobilePartyHelper {
   public static Settlement GetCurrentSettlementOfMobilePartyForAICalculation(MobileParty p) =>
    p.CurrentSettlement ?? (p.LastVisitedSettlement != null && p.StandsAtLastVisited ? p.LastVisitedSettlement : null);

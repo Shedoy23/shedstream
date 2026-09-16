@@ -177,6 +177,7 @@ namespace TaleWorlds.CampaignSystem.Roster {
   public int TotalRegulars => _data.Where(e => !e.Character.IsHero).Sum(e => e.Number);
   public int TotalHeroes => _data.Count(e => e.Character.IsHero);
   public int TotalManCount => TotalRegulars + TotalHeroes;
+  public int TotalWounded => _data.Sum(e => e.WoundedNumber);           // 96343: раненые обычные + герои
   public MBList<TroopRosterElement> GetTroopRoster() { var list = new MBList<TroopRosterElement>(); list.AddRange(_data); return list; }
   public void Add(TroopRosterElement troopRosterElement) => AddToCounts(troopRosterElement.Character, troopRosterElement.Number, false, troopRosterElement.WoundedNumber, troopRosterElement.Xp);   // 96482
   public int AddToCounts(CharacterObject character, int count, bool insertAtFront = false, int woundedCount = 0, int xpChange = 0, bool removeDepleted = true, int index = -1) {

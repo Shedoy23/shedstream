@@ -1,0 +1,9 @@
+  Определение проектов для восстановления...
+  Все проекты обновлены для восстановления.
+  BannerlordAutopilot -> C:\Users\Edward\Desktop\work\.claude\worktrees\codex-autopilot-null-encounter\BannerlordAutopilot\bin\Win64_Shipping_Client\BannerlordAutopilot.dll
+
+Сборка успешно завершена.
+    Предупреждений: 0
+    Ошибок: 0
+
+Прошло времени 00:00:01.44

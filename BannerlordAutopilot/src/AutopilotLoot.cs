@@ -10,12 +10,16 @@ namespace BannerlordAutopilot
     public partial class AutopilotBehavior
     {
         private PlayerEncounter _lootEncounter;
-        private static int LootCount(object logic, string side)
+        private static object LootRoster(object logic, string side)
         {
             var method = logic.GetType().GetMethod("GetElementsInRoster");
             object value = Enum.Parse(method.GetParameters()[0].ParameterType, side);
+            return method.Invoke(logic, new[] { value });
+        }
+        private static int LootCount(object logic, string side)
+        {
             int count = 0;
-            foreach (object element in (IEnumerable)method.Invoke(logic, new[] { value }))
+            foreach (object element in (IEnumerable)LootRoster(logic, side))
                 count = checked(count + Convert.ToInt32(ReadScreenMember(element, "Amount")));
             return count;
         }
@@ -39,6 +43,10 @@ namespace BannerlordAutopilot
                 if (logic == null || !ReferenceEquals(logic, vm.GetType().GetField("_inventoryLogic", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(vm))
                     || !(ReadScreenMember(logic, "IsTrading") is false) || Convert.ToInt32(ReadScreenMember(logic, "TotalAmount")) != 0)
                 { Disable("добыча: неподходящий инвентарь"); return true; }
+                var roster = MobileParty.MainParty.ItemRoster;
+                // Native InitializeRosters uses this exact roster, not a staging copy.
+                if (!ReferenceEquals(LootRoster(logic, "PlayerInventory"), roster))
+                { Disable("добыча: экран не связан с фактическим инвентарём партии"); return true; }
                 // Consume authorization before native callbacks: no repeat after an uncertain effect.
                 var encounter = _lootEncounter;
                 _lootEncounter = null;
@@ -51,6 +59,11 @@ namespace BannerlordAutopilot
                 { Disable("добыча: перенос не подтвердился, повторять не буду"); return true; }
                 if (InformationManager.IsAnyInquiryActive() || !ReferenceEquals(states.ActiveState, state) || PlayerEncounter.Current != encounter)
                 { Disable("добыча: состояние изменилось при переносе"); return true; }
+                int transferredActual = 0;
+                for (int i = 0; i < roster.Count; i++) transferredActual = checked(transferredActual + roster.GetElementCopyAtIndex(i).Amount);
+                if (transferredActual != right)
+                { Disable("добыча: перенос в инвентарь не подтверждён; ожидалось " + right + ", фактически " + transferredActual); return true; }
+                // DoneLogic dispatches inventory events. Their changes are not failed transfers.
                 InquiryData ownQuery = null; int queries = 0;
                 Action<InquiryData, bool, bool> capture = (data, pause, prioritize) => { ownQuery = data; queries++; };
                 InformationManager.OnShowInquiry += capture;
@@ -68,10 +81,10 @@ namespace BannerlordAutopilot
                 }
                 if (ReferenceEquals(states.ActiveState, state) || InformationManager.IsAnyInquiryActive())
                 { Disable("добыча: завершение не подтверждено"); return true; }
-                var roster = MobileParty.MainParty.ItemRoster;
+                roster = MobileParty.MainParty.ItemRoster;
                 int actual = 0;
                 for (int i = 0; i < roster.Count; i++) actual = checked(actual + roster.GetElementCopyAtIndex(i).Amount);
-                if (actual != right) { Disable("добыча: фактический инвентарь не совпал с результатом"); return true; }
+                if (actual != right) AutopilotLog.Write("ДОБЫЧА: обработчики закрытия изменили инвентарь: до Готово " + right + ", после " + actual + ", разница " + (actual - right));
                 AutopilotLog.Write("ДОБЫЧА: получено " + (right - beforeRight) + ", осталось " + left + "; экран закрыт, фактически предметов " + actual);
             }
             catch (Exception ex) { Disable("добыча: обработка остановлена после исключения: " + ex); }
@@ -79,4 +92,3 @@ namespace BannerlordAutopilot
         }
     }
 }
-

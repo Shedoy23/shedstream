@@ -192,8 +192,7 @@ namespace TaleWorlds.CampaignSystem.Settlements {
   public ItemRoster ItemRoster => Party.ItemRoster;       // рынок поселения (161206)
   public MBReadOnlyList<Hero> Notables { get; } = new();
   public int TestGold = 100000;
-  public Settlement SettlementComponent => this;
-  public int Gold => TestGold;
+  public SettlementComponent SettlementComponent => new SettlementComponent(this);
   public Settlement() { Party = new PartyBase { Settlement = this }; Village = new Village { TradeBound = this, Bound = this }; }
   public override string ToString()=>Name;
  }

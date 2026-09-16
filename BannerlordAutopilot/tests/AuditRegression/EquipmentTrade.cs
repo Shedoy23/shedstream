@@ -36,11 +36,61 @@ internal static partial class Program
             EquipmentAndTrade.Sell(MobileParty.MainParty, w.Place);
             Check(MobileParty.MainParty.ItemRoster.GetElementNumber(MobileParty.MainParty.ItemRoster.FindIndexOfElement(e))==2 && Hero.MainHero.Gold==gold+25 && w.Place.TestGold==5, "only affordable unit sold with modifier preserved");
         });
+        Try("equipment restrictions and exact modifiers", () => {
+            Fresh(); MakeWorld(prisoners:false); var p=MobileParty.MainParty;
+            var tracker=new TestViewTracker(); Campaign.Current.Behaviors.Add(tracker);
+            var old=new ItemObject { Name="old", ItemType=ItemObject.ItemTypeEnum.HeadArmor, Armor=1 };
+            var good=new ItemObject { Name="good", ItemType=ItemObject.ItemTypeEnum.HeadArmor, Armor=3 };
+            var forbidden=new ItemObject { Name="requires skill", ItemType=ItemObject.ItemTypeEnum.HeadArmor, Armor=30, TestUnusable=true };
+            var locked=new ItemObject { Name="locked", ItemType=ItemObject.ItemTypeEnum.HeadArmor, Armor=50 };
+            var modifier=new ItemModifier(); var improved=new EquipmentElement(good, modifier);
+            var sword=new ItemObject { Name="sword", ItemType=ItemObject.ItemTypeEnum.OneHandedWeapon, TestPrice=10, PrimaryWeapon=new() { ItemUsage="onehanded" } };
+            var wrongUsage=new ItemObject { Name="wrong usage", ItemType=ItemObject.ItemTypeEnum.OneHandedWeapon, TestPrice=30, PrimaryWeapon=new() { ItemUsage="unmounted" } };
+            Hero.MainHero.BattleEquipment[EquipmentIndex.Head]=new EquipmentElement(old);
+            Hero.MainHero.BattleEquipment[EquipmentIndex.Weapon0]=new EquipmentElement(sword);
+            p.ItemRoster.AddToCounts(improved, 2); p.ItemRoster.TestAdd(forbidden, 1); p.ItemRoster.TestAdd(locked, 1); p.ItemRoster.TestAdd(wrongUsage, 1);
+            tracker.Locks.Add(locked.StringId);
+            EquipmentAndTrade.Equip(p); EquipmentAndTrade.Equip(p);
+            Check(Hero.MainHero.BattleEquipment[EquipmentIndex.Head].IsEqualTo(improved) && p.ItemRoster.GetElementNumber(p.ItemRoster.FindIndexOfElement(improved))==1 && p.ItemRoster.TestCount(old)==1, "skill and lock gates; exact modifier conserved; second equip idempotent");
+            Check(Hero.MainHero.BattleEquipment[EquipmentIndex.Weapon0].Item==sword && Hero.MainHero.BattleEquipment[EquipmentIndex.Weapon1].IsEmpty, "weapon use preserved and empty weapon slot unchanged");
+        });
+        Try("mount and harness compatibility", () => {
+            Fresh(); MakeWorld(prisoners:false); var p=MobileParty.MainParty; Campaign.Current.Behaviors.Add(new TestViewTracker());
+            var horse=new ItemObject { Name="horse", ItemType=ItemObject.ItemTypeEnum.Horse, TestPrice=40, HorseComponent=new() { Monster=new() { FamilyType=1 } } };
+            var harness=new ItemObject { Name="harness", ItemType=ItemObject.ItemTypeEnum.HorseHarness, Armor=5, ArmorComponent=new() { FamilyType=1 } };
+            var badHarness=new ItemObject { Name="camel harness", ItemType=ItemObject.ItemTypeEnum.HorseHarness, Armor=50, ArmorComponent=new() { FamilyType=2 } };
+            p.ItemRoster.TestAdd(horse,1); p.ItemRoster.TestAdd(harness,1); p.ItemRoster.TestAdd(badHarness,1);
+            EquipmentAndTrade.Equip(p);
+            Check(Hero.MainHero.BattleEquipment[EquipmentIndex.Horse].Item==horse && Hero.MainHero.BattleEquipment[EquipmentIndex.HorseHarness].Item==harness && p.ItemRoster.TestCount(badHarness)==1, "only compatible mount armor equipped");
+        });
+        Try("village sale live pricing and all nonfood", () => {
+            Fresh(); var w=MakeWorld(village:true, prisoners:false); var p=MobileParty.MainParty;
+            Campaign.Current.Behaviors.Add(new TestViewTracker());
+            var tools=new ItemObject { Name="tools", TestPrice=10, TestPriceIncreasePerSale=5 };
+            var horse=new ItemObject { Name="spare mount", ItemType=ItemObject.ItemTypeEnum.Horse, TestPrice=20 };
+            p.ItemRoster.TestAdd(tools,2); p.ItemRoster.TestAdd(horse,1); int gold=Hero.MainHero.Gold;
+            EquipmentAndTrade.Sell(p,w.Place);
+            Check(p.ItemRoster.Count==0 && Hero.MainHero.Gold==gold+45, "village buys goods and spare horses using updated prices");
+        });
+        Try("trade gates and silent no op", () => {
+            Fresh(); var w=MakeWorld(prisoners:false); var p=MobileParty.MainParty;
+            var loot=new ItemObject { Name="loot", TestPrice=20 }; p.ItemRoster.TestAdd(loot,1);
+            EquipmentAndTrade.Sell(p,w.Place);
+            Check(p.ItemRoster.TestCount(loot)==1, "missing lock information prevents sale");
+            Campaign.Current.Behaviors.Add(new TestViewTracker()); Campaign.Current.Models.SettlementAccessModel.TestTrade=false;
+            EquipmentAndTrade.Sell(p,w.Place);
+            Check(p.ItemRoster.TestCount(loot)==1, "native trade denial respected");
+            Campaign.Current.Models.SettlementAccessModel.TestTrade=true;
+            TaleWorlds.CampaignSystem.Actions.SellItemsAction.TestBroken=true;
+            bool rejected=false; try { EquipmentAndTrade.Sell(p,w.Place); } catch (InvalidOperationException) { rejected=true; }
+            Check(rejected && p.ItemRoster.TestCount(loot)==1, "silent sale no op rejected");
+        });
     }
 }
 
 namespace TaleWorlds.Core
 {
+    public class BasicCharacterObject { }
     public enum EquipmentIndex { Weapon0, Weapon1, Weapon2, Weapon3, ExtraWeaponSlot, Head, Body, Leg, Gloves, Cape, Horse, HorseHarness }
     public class Equipment
     {
@@ -90,6 +140,15 @@ namespace Helpers
 {
     public static class CharacterHelper
     {
-        public static bool CanUseItem(CharacterObject character, EquipmentElement item)=>!item.Item.TestUnusable;
+        public static bool CanUseItem(BasicCharacterObject character, EquipmentElement item)=>!item.Item.TestUnusable;
+    }
+}
+namespace TaleWorlds.CampaignSystem.Settlements
+{
+    public class SettlementComponent
+    {
+        readonly Settlement settlement;
+        public SettlementComponent(Settlement settlement) { this.settlement=settlement; }
+        public int Gold=>settlement.TestGold;
     }
 }

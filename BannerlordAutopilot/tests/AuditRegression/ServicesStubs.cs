@@ -57,7 +57,7 @@ namespace TaleWorlds.CampaignSystem {
   public readonly HashSet<IFaction> Enemies = new();
   public bool IsAtWarWith(IFaction other) => other != null && Enemies.Contains(other);
  }
- public class CharacterObject {
+ public class CharacterObject : BasicCharacterObject {
   public string Name = "Боец"; public string StringId = "troop";
   public bool IsHero { get; set; }                                         // Core 3195
   public bool IsMounted { get; set; }

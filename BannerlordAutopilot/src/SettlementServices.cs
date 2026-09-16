@@ -156,6 +156,8 @@ namespace BannerlordAutopilot
         internal void Run(MobileParty party, Settlement settlement, string trigger)
         {
             _lastPassHours[settlement.StringId] = CampaignTime.Now.ToHours;
+            EquipmentAndTrade.Equip(party);
+            EquipmentAndTrade.Sell(party, settlement);
             int reserve = Reserve(party);
             AutopilotLog.Write("  ОБСЛУЖИВАНИЕ «" + settlement.Name + "» (" + trigger + "): денег "
                                + Hero.MainHero.Gold + ", резерв " + reserve

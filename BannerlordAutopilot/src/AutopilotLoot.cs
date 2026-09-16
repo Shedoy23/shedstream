@@ -86,6 +86,7 @@ namespace BannerlordAutopilot
                 for (int i = 0; i < roster.Count; i++) actual = checked(actual + roster.GetElementCopyAtIndex(i).Amount);
                 if (actual != right) AutopilotLog.Write("ДОБЫЧА: обработчики закрытия изменили инвентарь: до Готово " + right + ", после " + actual + ", разница " + (actual - right));
                 AutopilotLog.Write("ДОБЫЧА: получено " + (right - beforeRight) + ", осталось " + left + "; экран закрыт, фактически предметов " + actual);
+                EquipmentAndTrade.Equip(MobileParty.MainParty);
             }
             catch (Exception ex) { Disable("добыча: обработка остановлена после исключения: " + ex); }
             return true;

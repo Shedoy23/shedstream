@@ -638,6 +638,39 @@ namespace BannerlordAutopilot
             Need(itemElement != null && equipment != null && itemElement.GetConstructor(new[] { equipment, typeof(int) }) != null,
                 "ItemRosterElement(EquipmentElement, int)");
             MemberOf(equipment, "Item", Inst, item);
+            // Main-hero equipment and paid inventory sales.
+            Type equipmentSet = TypeNamed(core, "TaleWorlds.Core.Equipment");
+            Type equipmentIndex = TypeNamed(core, "TaleWorlds.Core.EquipmentIndex");
+            Type tracker = TypeNamed(campaign, "TaleWorlds.CampaignSystem.IViewDataTracker");
+            Type characterHelper = TypeNamed(campaign, "Helpers.CharacterHelper");
+            Type basicCharacter = TypeNamed(core, "TaleWorlds.Core.BasicCharacterObject");
+            Type modifier = TypeNamed(core, "TaleWorlds.Core.ItemModifier");
+            Type armor = TypeNamed(core, "TaleWorlds.Core.ArmorComponent");
+            Type monster = TypeNamed(core, "TaleWorlds.Core.Monster");
+            Type weapon = TypeNamed(core, "TaleWorlds.Core.WeaponComponentData");
+            Type settlementComponent = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Settlements.SettlementComponent");
+            MemberOf(typeof(Hero), "BattleEquipment", Inst, equipmentSet);
+            Method(typeof(Hero), "CanHeroEquipmentBeChanged", Inst, typeof(bool));
+            Method(equipmentSet, "get_Item", Inst, equipment, equipmentIndex);
+            Method(equipmentSet, "set_Item", Inst, typeof(void), equipmentIndex, equipment);
+            Method(characterHelper, "CanUseItem", Stat, typeof(bool), basicCharacter, equipment);
+            Method(tracker, "GetInventoryLocks", Inst, typeof(IEnumerable<string>));
+            MemberOf(equipment, "IsEmpty", Inst, typeof(bool));
+            MemberOf(equipment, "IsQuestItem", Inst, typeof(bool));
+            MemberOf(equipment, "ItemValue", Inst, typeof(int));
+            MemberOf(equipment, "ItemModifier", Inst, modifier);
+            MemberOf(modifier, "StringId", Inst, typeof(string));
+            foreach (string armorMethod in new[] { "GetModifiedHeadArmor", "GetModifiedBodyArmor", "GetModifiedArmArmor", "GetModifiedLegArmor", "GetModifiedMountBodyArmor" })
+                Method(equipment, armorMethod, Inst, typeof(int));
+            MemberOf(item, "NotMerchandise", Inst, typeof(bool));
+            MemberOf(item, "ArmorComponent", Inst, armor);
+            MemberOf(item, "PrimaryWeapon", Inst, weapon);
+            MemberOf(weapon, "ItemUsage", Inst, typeof(string));
+            MemberOf(horse, "Monster", Inst, monster);
+            MemberOf(monster, "FamilyType", Inst, typeof(int));
+            MemberOf(armor, "FamilyType", Inst, typeof(int));
+            MemberOf(typeof(Settlement), "SettlementComponent", Inst, settlementComponent);
+            MemberOf(settlementComponent, "Gold", Inst, typeof(int));
             Method(equipment, "IsEqualTo", Inst, typeof(bool), equipment);
             MemberOf(item, "HasHorseComponent", Inst, typeof(bool));
             MemberOf(item, "HorseComponent", Inst, horse);

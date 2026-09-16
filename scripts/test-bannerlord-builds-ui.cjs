@@ -55,6 +55,8 @@ async function main() {
         await page.evaluate(()=>{fixture.build.weapon_power_cooldown_until=Date.now()/1000+89;return loadBannerlordBuild();});
         assert.equal(await page.locator('[data-bnr-build-activate="cleave"]').isDisabled(),true,'shared weapon cooldown visible');
         assert.equal(await page.locator('[data-bnr-build-activate="heal_burst"]').isDisabled(),false,'healing cooldown independent');
+        await page.evaluate(()=>{fixture.build.weapon_power_cooldown_until=0;fixture.cooldown_remaining_s=88;return loadBannerlordBuild();});
+        assert.equal(await page.locator('[data-bnr-build-activate="cleave"]').isDisabled(),true,'server cooldown survives refresh before save snapshot');
         await page.evaluate(()=>{fixture.build.in_battle=true;fixture.can_manage=false;fixture.reason='Менять сборку можно между боями';return loadBannerlordBuild();});
         assert.equal(await page.locator('[data-bnr-build-spec="assault"]').isDisabled(),true);
         for(const width of [340,372]) {await page.setViewportSize({width,height:1050});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no overflow '+width);}
@@ -62,6 +64,9 @@ async function main() {
         await page.screenshot({path:path.join(evidence,'builds-372.png'),fullPage:true});
         await page.evaluate(()=>{fetch=async()=>{throw Error('network')};return loadBannerlordBuild();});
         assert.equal(await page.locator('[data-bnr-build-activate]').count(),0,'network failure removes stale action buttons');
+        await page.evaluate(()=>{fetch=async()=>({ok:true,json:async()=>({success:true,enabled:true,ready:false,build:{}})});return loadBannerlordBuild();});
+        assert.equal(await page.evaluate(()=>BnrBuilds.renderHero()),true,'equipment session with missing snapshot cannot show legacy class picker');
+        assert.equal(await page.locator('[data-bnr-build-spec]').count(),0);
         assert.deepEqual(errors,[]);
         console.log('PASS: specialization, one-time starter, weapon selection, shared cooldown, healing, battle gate, escaping, narrow layout, stale network');
     } finally {await browser.close();}

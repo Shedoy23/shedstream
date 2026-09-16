@@ -311,6 +311,12 @@ namespace BannerlordAutopilot
                 .FirstOrDefault(m => m.Name == "GetMapView" && m.IsGenericMethodDefinition && m.GetParameters().Length == 0);
             Need(getMapView != null, "MapScreen.GetMapView<T>()");
             Method(mapScreen, "RemoveMapView", Inst, typeof(void), mapView);
+            Type simulationView = LoadedType("SandBox.GauntletUI.Map.GauntletMapBattleSimulationView", "SandBox.GauntletUI");
+            Type simulationVm = simulationView?.GetField("_dataSource", BindingFlags.Instance | BindingFlags.NonPublic)?.FieldType;
+            Need(simulationVm != null, "simulation view scoreboard");
+            foreach (string flag in new[] { "IsOver", "IsSimulation", "ShowScoreboard" })
+                MemberOf(simulationVm, flag, Inst, typeof(bool));
+            Method(simulationVm, "ExecuteQuitAction", Inst, typeof(void));
 
             VerifySettlementServices(campaignAssembly, gameState?.Assembly, helper);
             VerifyOperations(mapEvent, vec2, menuContext, gameMenu);

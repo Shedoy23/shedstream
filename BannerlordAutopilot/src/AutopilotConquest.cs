@@ -206,6 +206,7 @@ namespace BannerlordAutopilot
                     case "village_raid_diplomatically_ended": OperationClick("leave"); return true;
                     case "encounter":
                         if (party.MapEvent?.MapEventSettlement != _raidSettlement) return false;
+                        if (TrySendTroopsWhenWounded()) return true;
                         OperationClick(MenuDriver.CanInvoke("attack", out _) ? "attack" : "village_raid_action"); return true;
                 }
             }

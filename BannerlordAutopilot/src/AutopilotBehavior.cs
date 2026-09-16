@@ -483,6 +483,7 @@ namespace BannerlordAutopilot
             }
 
             if (PollLootScreen()) return false;
+            if (PollOwnedSimulation()) return false;
             if (PollPrisonerScreen()) return false;
             if (PollDialogs()) return false;
             if (PollOffensiveSiege(party)) return false;
@@ -527,6 +528,7 @@ namespace BannerlordAutopilot
                     Disable("перед полевым боем открыто неподдерживаемое меню: " + MenuDriver.Describe());
                     return false;
                 }
+                if (TrySendTroopsWhenWounded()) return false;
                 if (!MenuDriver.CanInvoke("attack", out string attackWhy))
                 {
                     Disable("полноценный бой нельзя начать: " + attackWhy);

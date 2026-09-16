@@ -38,9 +38,20 @@ internal static partial class Program
             Check(sends == (wounded ? 1 : 0), "simulation fallback only for wounded hero");
             if (wounded) {
                 b.PollState(); Check(vm.Exits == 0, "ongoing simulation is not closed");
-                vm.IsOver = true; b.PollState(); b.PollState();
+                vm.IsOver = true;
+                TaleWorlds.Library.InformationManager.TestInquiryActive = true;
+                b.PollState(); Check(vm.Exits == 0, "modal window blocks simulation confirmation");
+                TaleWorlds.Library.InformationManager.TestInquiryActive = false;
+                b.PollState(); b.PollState();
                 Check(vm.Exits == 1, "finished owned simulation confirmed exactly once");
             }
+        });
+        Try("native send troops refusal is respected", () => {
+            var b = Fresh(); ConquestWorld(); Enable(b); Hero.MainHero.IsWounded = true;
+            PlayerEncounter.Current = new PlayerEncounter(); MobileParty.MainParty.MapEvent = PlayerEncounter.Battle = new MapEvent();
+            int sends = 0; var menu = Menu("encounter", "attack", () => {}); menu.Options[0].IsEnabled = false;
+            menu.Options.Add(new GameMenuOption { IdString = "str_order_attack", IsEnabled = false, Consequence = () => sends++ });
+            Show(menu); b.PollState(); Check(sends == 0, "cannot bypass low morale or no healthy troops");
         });
         Try("startup hiring preserves seven days of future wages", () => {
             var b = Fresh(); var w = MakeWorld(gold: 1000, prisoners: false);

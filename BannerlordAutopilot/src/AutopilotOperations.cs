@@ -17,6 +17,59 @@ namespace BannerlordAutopilot
     {
         // Session-owned operation: a menu name alone never authorizes another encounter.
         private Settlement _operationSettlement, _hideoutRoute;
+        private PlayerEncounter _simulationEncounter;
+        private object _finishedSimulation;
+
+        private bool TrySendTroopsWhenWounded()
+        {
+            if (_mode != Mode.Apply || Hero.MainHero?.IsWounded != true
+                || PlayerEncounter.Current == null || MenuDriver.CurrentMenuId != "encounter"
+                || InformationManager.IsAnyInquiryActive() || MenuDriver.CanInvoke("attack", out _)
+                || !MenuDriver.CanInvoke("str_order_attack", out _)) return false;
+            _simulationEncounter = PlayerEncounter.Current;
+            _finishedSimulation = null;
+            AuthorizePrisonerScreen();
+            if (!MenuDriver.TryInvoke("str_order_attack", out string why))
+            {
+                _simulationEncounter = null;
+                Disable("отправка войск недоступна: " + why);
+                return true;
+            }
+            AutopilotLog.Write("БОЙ: герой ранен; штатное «Послать воинов», ждём завершения авторасчёта");
+            return true;
+        }
+
+        private bool PollOwnedSimulation()
+        {
+            if (_mode != Mode.Apply || _simulationEncounter == null
+                || PlayerEncounter.Current != _simulationEncounter) return false;
+            object screen = (Game.Current?.GameStateManager?.ActiveState as MapState)?.Handler;
+            if (!(ReadScreenMember(screen, "IsInBattleSimulation") is true)) return false;
+            if (InformationManager.IsAnyInquiryActive() || ReadScreenMember(screen, "IsEscapeMenuOpened") is true) return true;
+            try
+            {
+                Type viewType = null;
+                foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    viewType = assembly.GetType("SandBox.GauntletUI.Map.GauntletMapBattleSimulationView", false);
+                    if (viewType != null) break;
+                }
+                object view = null;
+                foreach (var method in screen.GetType().GetMethods())
+                    if (viewType != null && method.Name == "GetMapView" && method.IsGenericMethodDefinition && method.GetParameters().Length == 0)
+                    { view = method.MakeGenericMethod(viewType).Invoke(screen, null); break; }
+                if (view == null) return true;
+                object vm = viewType.GetField("_dataSource", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(view);
+                if (vm == null || ReferenceEquals(vm, _finishedSimulation)) return true;
+                if (!(ReadScreenMember(vm, "IsSimulation") is true) || !(ReadScreenMember(vm, "IsOver") is true)
+                    || !(ReadScreenMember(vm, "ShowScoreboard") is true)) return true;
+                _finishedSimulation = vm;
+                vm.GetType().GetMethod("ExecuteQuitAction", Type.EmptyTypes).Invoke(vm, null);
+                AutopilotLog.Write("БОЙ: авторасчёт завершён; результат подтверждён штатной кнопкой");
+            }
+            catch (Exception ex) { Disable("завершение авторасчёта: " + ex); }
+            return true;
+        }
         private bool _hideoutAttackRequested, _awaitingHideoutTroops;
         private bool _hideoutMissionFinished;
         private DateTime _troopsRequestedAt, _nextHideoutDialogAt;
@@ -24,6 +77,7 @@ namespace BannerlordAutopilot
 
         private void ResetOperations()
         {
+            _simulationEncounter = null; _finishedSimulation = null;
             _offensiveSiege = null;
             _raidSettlement = null;
             _preparingCampaign = false;
@@ -165,6 +219,7 @@ namespace BannerlordAutopilot
 
         private void OperationClick(string option)
         {
+            if (option == "attack" && TrySendTroopsWhenWounded()) return;
             if (MenuDriver.TryInvoke(option, out string why)) AutopilotLog.Write("ОПЕРАЦИЯ: " + option);
             else Disable("операция недоступна: " + why);
         }

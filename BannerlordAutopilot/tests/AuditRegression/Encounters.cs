@@ -76,6 +76,14 @@ internal static partial class Program
             var wait = new GameMenu { StringId = "prisoner_wait", IsWaitMenu = true }; Show(wait); b.PollState();
             Check(b.CurrentMode == AutopilotBehavior.Mode.Observe && !wait.IsWaitActive, "F10 только наблюдает плен");
         });
+        Try("выкуп отклоняется по решению владельца", () =>
+        {
+            var b = Fresh(); Enable(b); Hero.MainHero.IsPrisoner = true; MobileParty.MainParty.IsActive = false;
+            var offer = new GameMenu { StringId = "menu_captivity_end_propose_ransom_wilderness" };
+            offer.Options.Add(new GameMenuOption { IdString = "mno_captivity_end_ransom_accept" });
+            offer.Options.Add(new GameMenuOption { IdString = "captivity_end_ransom_deny" }); Show(offer); b.PollState();
+            Check(MenuContext.Invoked.SequenceEqual(new[] { "captivity_end_ransom_deny" }), "выкуп не оплачен, выбрано ожидание");
+        });
         foreach (string id in new[] { "player_is_leaving_neutral_or_friendly", "caravan_talk_leave", "village_farmer_leave" })
         Try("мирная встреча: " + id, () =>
         {

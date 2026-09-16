@@ -30,8 +30,9 @@ async def main():
                      'weapon_power_cooldown_until':0,
                      'specializations':[{'id':'guardian'},{'id':'assault'}],
                      'power_options':[{'weapon_type':'one_handed','power_key':'rage','available':True},
-                                      {'weapon_type':'two_handed','power_key':'cleave','available':False}],
-                     'starter_kits':[{'id':'infantry','available':True}]}
+                                      {'weapon_type':'two_handed','power_key':'cleave','available':False,'reason':'required_weapon_not_equipped'}],
+                     'starter_kits':[{'id':'infantry','available':True},
+                                     {'id':'archer','available':False,'reason':'starter_items_unavailable'}]}
             async def snapshot(seq=1, **changes):
                 data = {'username':'alice','save_id':'save-a','hero_id':'test_hero_alice',
                         'equipment_session_id':'session-a','inventory_seq':seq,'items':[],
@@ -43,6 +44,12 @@ async def main():
             await sql("INSERT INTO bannerlord_channel_state(channel_id,current_save_id) VALUES(?,'save-a')", (CHANNEL_ID,))
             await sql("INSERT INTO bannerlord_equipment_sessions(channel_id,session_id,session_ts) VALUES(?,'session-a',1)", (CHANNEL_ID,))
             await snapshot()
+            route.require_jwt_user=lambda req:('alice',CHANNEL_ID)
+            response=await route.bannerlord_build(request)
+            from modules.bannerlord.refusals import describe
+            assert response['build']['power_options'][1]['reason']==describe('required_weapon_not_equipped')
+            assert response['build']['power_options'][1]['reason_code']=='required_weapon_not_equipped'
+            assert response['build']['starter_kits'][1]['reason']==describe('starter_items_unavailable')
             result = await buy('hero.set_specialization', specialization='assault', price=99999,
                                target='victim', hero_id='evil', value=999, class_key='evil', client_action_id='build-1')
             assert result['success'] and result['charged']==0, result
@@ -92,7 +99,31 @@ async def main():
             response=await route.bannerlord_build(request)
             assert response['build']['starter_claimed'] and response['build']['selected_power']=='cleave'
             assert response['build']['power_options'][1]['price']==route.POWER_PRICES['cleave']
+            assert response['build']['common_powers'][0]['price']==route.POWER_PRICES['heal_burst']
             assert not response['can_manage']
+            await snapshot(6,build={**build,'in_battle':False,'is_prisoner':True})
+            response=await route.bannerlord_build(request)
+            assert response['reason']=='hero_prisoner' and 'плен' in response['message']
+            # Missing or old-mode build within the new session never unlocks
+            # legacy class powers, even with a forged availability/price flag.
+            await snapshot(7, build={})
+            denied=await buy('power.activate',power_key='cleave',_weapon_build=False,available=True)
+            assert denied.get('reason')=='build_not_ready', denied
+            response=await route.bannerlord_build(request)
+            assert response['enabled'] and not response['ready'] and not response['can_manage']
+            assert (await sql("SELECT points FROM viewers WHERE channel_id=? AND username='alice'",(CHANNEL_ID,)))[0][0]==100000-route.POWER_PRICES['rage']
+            # Restored current build: common heal remains independent from the
+            # selected weapon and retains authoritative pricing/identity.
+            await snapshot(8)
+            healed=await buy('power.activate',power_key='heal_burst',price=0,value=999,_weapon_build=True)
+            assert healed['success'] and healed['charged']==route.POWER_PRICES['heal_burst'], healed
+            payload=json.loads((await sql('SELECT data FROM module_actions WHERE action_id=?',(healed['action_id'],)))[0][0])
+            assert '_weapon_build' not in payload and 'value' not in payload and payload['hero_id']=='test_hero_alice'
+            await finish()
+            # Viewer B cannot read or mutate viewer A's save-owned choices.
+            route.require_jwt_user=lambda req:('carol',CHANNEL_ID)
+            response=await route.bannerlord_build(request)
+            assert not response['has_hero'] and not response['ready'] and 'specialization' not in response['build']
             # The old class table has not been rewritten by specialization changes.
             assert not await sql("SELECT 1 FROM bannerlord_hero_class WHERE channel_id=? AND username='alice'",(CHANNEL_ID,))
             print('PASS: build cash register, choices, free pricing, hostile payload, replay, battle gate, shared/persisted cooldown, snapshot identity')

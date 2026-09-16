@@ -560,7 +560,25 @@ namespace BannerlordAutopilot
             Need(list != null && list.ReturnType.IsGenericType && list.ReturnType.GetGenericTypeDefinition().Name == "MBList`1"
                  && list.ReturnType.GetGenericArguments()[0] == troopElement, "TroopRoster.GetTroopRoster() → MBList<TroopRosterElement>");
             MemberOf(troopRoster, "TotalManCount", Inst, typeof(int));
+            MemberOf(troopRoster, "TotalWounded", Inst, typeof(int));
             MemberOf(troopRoster, "TotalRegulars", Inst, typeof(int));
+
+            // Недельная сводка прогресса (AutopilotBehavior.WriteWeeklyProgress)
+            MemberOf(typeof(Clan), "PlayerClan", Stat, typeof(Clan));
+            MemberOf(typeof(Clan), "MapFaction", Inst, faction);
+            Type fiefs = MemberType(typeof(Clan), "Fiefs", Inst, false, out _);
+            Need(fiefs != null && fiefs.IsGenericType && fiefs.GetGenericTypeDefinition().Name == "MBReadOnlyList`1"
+                 && fiefs.GetGenericArguments()[0] == town, "Clan.Fiefs : MBReadOnlyList<Town>");
+            Type villages = MemberType(typeof(Clan), "Villages", Inst, false, out _);
+            Need(villages != null && villages.IsGenericType && villages.GetGenericTypeDefinition().Name == "MBReadOnlyList`1"
+                 && villages.GetGenericArguments()[0] == village, "Clan.Villages : MBReadOnlyList<Village>");
+            MemberOf(town, "Settlement", Inst, typeof(Settlement));
+            MemberOf(typeof(Settlement), "IsCastle", Inst, typeof(bool));
+            Type kingdom = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Kingdom");
+            Type factionHelper = TypeNamed(campaign, "Helpers.FactionHelper");
+            Method(factionHelper, "GetEnemyKingdoms", Stat,
+                kingdom != null ? typeof(IEnumerable<>).MakeGenericType(kingdom) : null, faction);
+            MemberExists(kingdom, "Name", Inst);
             MemberOf(troopRoster, "TotalHeroes", Inst, typeof(int));
             MemberOf(troopElement, "Character", Inst, character);
             MemberOf(troopElement, "Number", Inst, typeof(int));

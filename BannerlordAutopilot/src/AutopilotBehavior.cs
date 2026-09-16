@@ -2140,7 +2140,11 @@ namespace BannerlordAutopilot
 
             try
             {
-                if (data.WillGatherArmy && party.Army == null && StartArmy(party, data, score)) return;
+                if (data.WillGatherArmy && party.Army == null)
+                {
+                    if (!StartArmy(party, data, score)) AutopilotLog.Write("АРМИЯ: сбор сейчас недоступен, нужен пересчёт цели");
+                    return;
+                }
                 switch (data.AiBehavior)
                 {
                     case AiBehavior.RaidSettlement:

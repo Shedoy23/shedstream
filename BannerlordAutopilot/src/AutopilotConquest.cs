@@ -88,6 +88,12 @@ namespace BannerlordAutopilot
                     }
                 }
             }
+            if (_invitedParties.Count == 0)
+            {
+                DisbandArmyAction.ApplyByUnknownReason(party.Army);
+                AutopilotLog.Write("АРМИЯ: приглашения потеряли доступность, пустая армия распущена");
+                return true;
+            }
             _gatheringArmy = party.Army; _armyObjective = data; _armyObjectiveScore = score;
             _gatheringSince = CampaignTime.Now.ToHours;
             party.SetMoveModeHold();
@@ -117,7 +123,9 @@ namespace BannerlordAutopilot
             {
                 _gatheringArmy = null;
                 AutopilotLog.Write("АРМИЯ: сбор завершён; продолжаем штатную цель");
-                ApplyDecision(party, _armyObjective, _armyObjectiveScore);
+                string invalid = WhyNotApplicable(_armyObjective);
+                if (invalid == null) ApplyDecision(party, _armyObjective, _armyObjectiveScore);
+                else AutopilotLog.Write("АРМИЯ: цель после сбора требует пересчёта: " + invalid);
             }
             else KeepTimeRunning(party);
             return true;
@@ -207,9 +215,9 @@ namespace BannerlordAutopilot
             string menu = MenuDriver.CurrentMenuId;
             var siege = party.SiegeEvent;
             var place = siege?.BesiegedSettlement ?? EncounterPlace(party);
-            bool commanded = siege?.BesiegerCamp.LeaderParty == party;
+            bool commanded = siege?.BesiegerCamp?.LeaderParty == party;
             bool participating = siege != null && party.Army?.LeaderParty != null
-                && siege.BesiegerCamp.LeaderParty == party.Army.LeaderParty;
+                && siege.BesiegerCamp?.LeaderParty == party.Army.LeaderParty;
             bool approaching = siege == null && EnemyFortress(place, party)
                 && (_offensiveSiege == place || (party.DefaultBehavior == AiBehavior.BesiegeSettlement && party.TargetSettlement == place));
             if (_offensiveSiege == null && (commanded || approaching || participating)) _offensiveSiege = place;
@@ -236,7 +244,7 @@ namespace BannerlordAutopilot
                     if (needed != null)
                     {
                         AutopilotLog.Write("ПОХОД: перед осадой требуется восстановление: " + needed);
-                        return false;
+                        OperationClick("town_outside_leave"); return true;
                     }
                     _operationSettlement = place;
                     OperationClick("town_besiege"); return true;

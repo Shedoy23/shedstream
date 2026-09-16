@@ -347,6 +347,7 @@ namespace BannerlordAutopilot
             Method(typeof(Army), "ThinkAboutCohesionBoost", BindingFlags.Instance | BindingFlags.NonPublic, typeof(void));
             MemberOf(typeof(Clan), "Influence", Inst, typeof(float));
             Method(typeof(ChangeClanInfluenceAction), "Apply", Stat, typeof(void), typeof(Clan), typeof(float));
+            Method(typeof(DisbandArmyAction), "ApplyByUnknownReason", Stat, typeof(void), typeof(Army));
             Type members = typeof(TaleWorlds.Library.MBReadOnlyList<MobileParty>);
             MemberOf(typeof(PartyThinkParams), "PossibleArmyMembersUponArmyCreation", Inst, members);
             Method(typeof(Kingdom), "CreateArmy", Inst, typeof(void), typeof(Hero), typeof(Settlement), typeof(Army.ArmyTypes), members);

@@ -286,6 +286,7 @@ internal static partial class Program
         OperationTests();
         EncounterTests();
         ConquestTests();
+        EquipmentTradeTests();
         BanditGatheringTests();
         ProgressTests();
         Try("random default and lord introduction", () => {

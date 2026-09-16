@@ -24,9 +24,9 @@ using TaleWorlds.Library;
 using TaleWorlds.Localization;
 
 namespace TaleWorlds.Core {
- public class HorseComponent { public bool IsLiveStock { get; set; } public int MeatCount { get; set; } = 1; }
- public class ItemModifier {}
- public class ItemObject {
+ public partial class HorseComponent { public bool IsLiveStock { get; set; } public int MeatCount { get; set; } = 1; }
+ public class ItemModifier { public string StringId = "modifier"; }
+ public partial class ItemObject {
   public string Name { get; set; }
   public bool IsFood { get; set; }
   public HorseComponent HorseComponent { get; set; }
@@ -35,7 +35,7 @@ namespace TaleWorlds.Core {
   public int TestPriceIncreasePerSale;                                   // рост цены после уменьшения рынка
   public override string ToString() => Name;
  }
- public struct EquipmentElement {
+ public partial struct EquipmentElement {
   public EquipmentElement(ItemObject item, ItemModifier itemModifier = null) { Item = item; ItemModifier = itemModifier; }
   public ItemObject Item { get; private set; }
   public ItemModifier ItemModifier { get; private set; }
@@ -222,7 +222,11 @@ namespace TaleWorlds.CampaignSystem.Actions {
    payerParty?.ItemRoster.AddToCounts(subject.EquipmentElement, 1);
    subject.EquipmentElement.Item.TestPrice += subject.EquipmentElement.Item.TestPriceIncreasePerSale;
    }
-   GiveGoldAction.ApplyForCharacterToSettlement(payerParty.LeaderHero, receiverParty.Settlement, total);
+   if (payerParty.Settlement != null) {
+    int paid = Math.Min(total, payerParty.Settlement.TestGold);
+    payerParty.Settlement.TestGold -= paid;
+    receiverParty.LeaderHero.Gold += paid;
+   } else GiveGoldAction.ApplyForCharacterToSettlement(payerParty.LeaderHero, receiverParty.Settlement, total);
   }
  }
  public static class SellPrisonersAction {

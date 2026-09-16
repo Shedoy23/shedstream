@@ -135,7 +135,7 @@ namespace TaleWorlds.CampaignSystem {
   public TaleWorlds.Library.MBReadOnlyList<TaleWorlds.CampaignSystem.Settlements.Town> Fiefs { get; } = new();
   public TaleWorlds.Library.MBReadOnlyList<TaleWorlds.CampaignSystem.Settlements.Village> Villages { get; } = new();
  }
- public class Hero {
+ public partial class Hero {
   public static Hero MainHero = new(); public bool IsPrisoner; public bool IsWounded;
   public string Name = "Hero"; public int Gold { get; set; }
   public bool IsAlive { get; set; } = true;
@@ -192,6 +192,8 @@ namespace TaleWorlds.CampaignSystem.Settlements {
   public ItemRoster ItemRoster => Party.ItemRoster;       // рынок поселения (161206)
   public MBReadOnlyList<Hero> Notables { get; } = new();
   public int TestGold = 100000;
+  public Settlement SettlementComponent => this;
+  public int Gold => TestGold;
   public Settlement() { Party = new PartyBase { Settlement = this }; Village = new Village { TradeBound = this, Bound = this }; }
   public override string ToString()=>Name;
  }

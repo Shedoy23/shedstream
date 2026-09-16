@@ -62,6 +62,12 @@ namespace BannerlordAutopilot
                 }
                 if (menu == "menu_siege_strategies" && commanded && place == _offensiveSiege)
                 {
+                    string needed = PreparationNeeded(party);
+                    if (needed != null)
+                    {
+                        AutopilotLog.Write("ПОХОД: снимаем осаду для восстановления: " + needed);
+                        OperationClick("menu_siege_strategies_leave"); return true;
+                    }
                     if (_configuredSiege != siege)
                     {
                         var strategy = DefaultSiegeStrategies.AllAttackerStrategies
@@ -80,6 +86,14 @@ namespace BannerlordAutopilot
                     return true;
                 }
                 if (menu == "assault_town") return true; // native init starts the mission
+                if (menu == "menu_siege_strategies_break_siege")
+                { OperationClick("menu_siege_strategies_break_siege_go_on"); return true; }
+                if (menu == "menu_settlement_taken_player_leader")
+                {
+                    OperationClick(MenuDriver.CanInvoke("menu_settlement_taken_show_mercy", out _)
+                        ? "menu_settlement_taken_show_mercy" : "menu_settlement_taken_pillage");
+                    return true;
+                }
                 if (menu == "menu_settlement_taken_player_army_member" || menu == "menu_settlement_taken_player_participant"
                     || menu == "siege_aftermath_contextual_summary")
                 { OperationClick("menu_settlement_taken_continue"); return true; }

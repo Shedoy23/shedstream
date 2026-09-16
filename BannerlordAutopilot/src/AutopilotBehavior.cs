@@ -1745,15 +1745,11 @@ namespace BannerlordAutopilot
             // видит дальние маршруты, но не замечает даже слабых бандитов рядом.
             // Повторяем ровно NPC-порог (> 1) и его готовый выбор цели; свою
             // оценку силы, войны, скорости или дистанции здесь не изобретаем.
-            if (waitingIn == null && TryApplyNearbyAttack(party))
-            {
-                return;
-            }
-
             _hoursSinceThink++;
             bool idle = waitingIn == null && party.DefaultBehavior == AiBehavior.Hold;
             if (_ticksThisSession > 0 && !idle && _hoursSinceThink < ThinkPeriodHours)
             {
+                if (waitingIn == null && party.DefaultBehavior != AiBehavior.BesiegeSettlement) TryApplyNearbyAttack(party);
                 return;
             }
             _hoursSinceThink = 0;
@@ -1795,6 +1791,8 @@ namespace BannerlordAutopilot
                                + "; текущее поведение " + party.DefaultBehavior);
             if (lines.Count == 0)
             {
+                if (_mode == Mode.Apply && waitingIn == null && party.DefaultBehavior != AiBehavior.BesiegeSettlement
+                    && TryApplyNearbyAttack(party)) return;
                 if (waitingIn == null && TryChooseHideout(party)) return;
                 AutopilotLog.Write("  оценок НЕТ — штатный AI ничего не предложил для этой партии");
                 return;
@@ -1863,6 +1861,8 @@ namespace BannerlordAutopilot
                     }
                 }
             }
+
+            if (waitingIn == null && chosen.AiBehavior != AiBehavior.BesiegeSettlement && TryApplyNearbyAttack(party)) return;
 
             if (waitingIn == null && (chosen.AiBehavior == AiBehavior.None || chosen.AiBehavior == AiBehavior.PatrolAroundPoint)
                 && TryChooseHideout(party)) return;
@@ -1999,6 +1999,7 @@ namespace BannerlordAutopilot
 
         private bool TryApplyNearbyAttack(MobileParty party)
         {
+            if (_mode != Mode.Apply) return false;
             try
             {
                 Campaign.Current.Models.MobilePartyAIModel.GetBestInitiativeBehavior(

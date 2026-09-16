@@ -21,7 +21,15 @@ CloseScreenInternal своего VM подтверждается. F12/загру
 CodeGraph по разрешению владельца создан в этом worktree: 565 файлов,
 10999 узлов, 10434 ребра; CLI использует WASM SQLite fallback. Сервер MCP
 смотрел на другой cwd и сообщал «not initialized».
-До записи установки ниже последняя установленная DLL — 9186e54.
+DLL 855917a установлена при закрытой игре 16.09.2026 14:46:24 +05:00.
+MD5 источника/установки совпал: 66E1CB923FE09CE64D5DBC2E35C828CB.
+Откат: D:/shedlink-build/autopilot-dll-rollback/BannerlordAutopilot-before-prisoners-deployment-20260916-144622.dll
+(MD5 E91438725B4499613987D5C45F28CFE9). BannerlordLink не заменялся.
+Мутации после коммита: возврат PollDeployment в OnMissionTick вызвал FAIL
+обхода списка; удаление проверки имени callback вызвало FAIL чужого запроса.
+Исходники восстановлены из сохранённых байтов, diff пуст; 219/219 и 22/22
+повторно прошли, затем сделана чистая неинкрементальная сборка. CodeGraph sync
+завершён, индекс актуален. Выводы evidence/*mutation.txt и prisoner-crash-*.
 Разбор: review/PRISONERS_CRASH_2026-09-16.md.
 
 # Актуальное дополнение 16.09.2026 — осады и убежища

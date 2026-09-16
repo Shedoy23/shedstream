@@ -460,6 +460,13 @@ namespace BannerlordAutopilot
                 return false;
             }
 
+            // Сторож простоя — до всех обработчиков: любой из них, взяв опрос себе,
+            // иначе глушит и запись о простое (16.09 19:44 — 24 с тишины на встрече).
+            if (_mode == Mode.Apply)
+            {
+                WatchTime(party);
+            }
+
             if (PollLootScreen()) return false;
             if (PollPrisonerScreen()) return false;
             if (PollDialogs()) return false;
@@ -467,7 +474,6 @@ namespace BannerlordAutopilot
 
             if (_mode == Mode.Apply)
             {
-                WatchTime(party);
                 if (TryHandleKingdomDecision())
                 {
                     return false;
@@ -1124,6 +1130,10 @@ namespace BannerlordAutopilot
                 || target.SiegeEvent != null || PlayerEncounter.EncounterSettlement != null
                 || party.MapFaction == null || target.MapFaction == null
                 || !party.MapFaction.IsAtWarWith(target.MapFaction)) return false;
+            // The pursued bandits already fight someone else (EncounteredBattle is the
+            // encountered party's MapEvent): join_encounter waits for a side, and no
+            // conversation will come. Claiming it hid the help option and the watchdog (16.09 19:44).
+            if (party.MapEvent == null && PlayerEncounter.EncounteredBattle != null) return false;
             var conversation = Campaign.Current?.ConversationManager;
             if (conversation?.IsConversationInProgress != true)
                 return party.MapEvent == null && PlayerEncounter.Battle == null;
@@ -1384,6 +1394,28 @@ namespace BannerlordAutopilot
             }
         }
 
+        /// <summary>Идёт сцена (бой, убежище): время карты стоит штатно, а PollState
+        /// не вызывается. Без отметки вся длина боя попадала в простой сразу после
+        /// выхода — «96 с» в 17:50:11 16.09 ровно по длине боя, и зависание было
+        /// не отличить от долгого боя. Отсчёт простоя идёт от последней отметки.</summary>
+        internal void WatchMission()
+        {
+            if (_mode != Mode.Apply)
+            {
+                return;
+            }
+            DateTime now = Clock();
+            if (_stallReported)
+            {
+                double stalled = (now - _lastProgressAt).TotalSeconds;
+                _longestStallSeconds = Math.Max(_longestStallSeconds, stalled);
+                _stallReported = false;
+                AutopilotLog.Write("простой закончился входом в сцену через "
+                                   + stalled.ToString("F0", CultureInfo.InvariantCulture) + " с");
+            }
+            _lastProgressAt = now;
+        }
+
         /// <summary>Что держит игру — для записи о простое.</summary>
         private static string DescribeGame(MobileParty party)
         {
@@ -1601,7 +1633,9 @@ namespace BannerlordAutopilot
             // штатного пересчёта, а пропуск пишется в журнал.
             AIBehaviorData chosen = AIBehaviorData.Invalid;
             float chosenScore = -1f;
-            string skipped = null;
+            // Все пропуски, а не первый: иначе рейд, лучший 91 раз за прогон 16.09,
+            // не попал в журнал ни разу — его заслоняла осада выше в списке.
+            var skipped = new List<string>();
             var applicable = new List<Tuple<AIBehaviorData, float, float>>();
             foreach (var pair in think.AIBehaviorScores)
             {
@@ -1612,7 +1646,8 @@ namespace BannerlordAutopilot
                 }
                 else
                 {
-                    skipped = skipped ?? Describe(pair.Item1) + " — " + reason;
+                    skipped.Add(Describe(pair.Item1) + " = " + pair.Item2.ToString("F3", CultureInfo.InvariantCulture)
+                                + " — " + reason);
                 }
             }
             if (applicable.Count > 0)
@@ -1650,12 +1685,12 @@ namespace BannerlordAutopilot
 
             if (chosen.AiBehavior == AiBehavior.None)
             {
-                AutopilotLog.Write("  выполнимых решений нет (" + skipped + ") — партия продолжает текущее");
+                AutopilotLog.Write("  выполнимых решений нет (" + string.Join("; ", skipped) + ") — партия продолжает текущее");
                 return;
             }
-            if (skipped != null)
+            if (skipped.Count > 0)
             {
-                AutopilotLog.Write("  пропущено: " + skipped + "; берём: " + Describe(chosen) + " = "
+                AutopilotLog.Write("  пропущено: " + string.Join("; ", skipped) + "; берём: " + Describe(chosen) + " = "
                                    + chosenScore.ToString("F3", CultureInfo.InvariantCulture));
             }
             if (DecisionKey(chosen) != DecisionKey(best) || Math.Abs(chosenScore - bestScore) > 0.0001f)

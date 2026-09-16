@@ -486,6 +486,7 @@ namespace BannerlordAutopilot
             if (PollOwnedSimulation()) return false;
             if (PollPrisonerScreen()) return false;
             if (PollDialogs()) return false;
+            if (PollRaidWarning()) return false;
             if (PollOffensiveSiege(party)) return false;
             if (PollRaid(party)) return false;
             if (PollOperations(party)) return false;
@@ -1282,6 +1283,20 @@ namespace BannerlordAutopilot
             {
                 Disable("разговор с преследуемой партией остановлен: " + ex.GetType().Name + ": " + ex.Message);
             }
+            return true;
+        }
+
+        private bool PollRaidWarning()
+        {
+            if (_mode != Mode.Apply || MenuDriver.CurrentMenuId != "encounter_interrupted_raid_started") return false;
+            if (!MapIsActiveScreen() || InformationManager.IsAnyInquiryActive()) return true;
+            try
+            {
+                // Native EncounterGameMenuBehavior only switches to join_encounter here.
+                // This notification does not select a side or initiate an attack.
+                OperationClick("encounter_interrupted_raid_started_leave");
+            }
+            catch (Exception ex) { Disable("предупреждение о рейде: " + ex.GetType().Name + ": " + ex.Message); }
             return true;
         }
 

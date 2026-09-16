@@ -1,0 +1,9 @@
+{
+  "commit": "4701cf9",
+  "time": "2026-09-16 16:13:08 +05:00",
+  "md5": "D0B6DC3C14B13F35AE34B0A9042B02C1",
+  "backup": "D:/shedlink-build/autopilot-dll-rollback/BannerlordAutopilot-before-loot-20260916-161307.dll",
+  "previousMd5": "66E1CB923FE09CE64D5DBC2E35C828CB",
+  "gameClosed": true,
+  "target": "X:/SteamLibrary/steamapps/common/Mount & Blade II Bannerlord/Modules/Shedoy23.BannerlordAutopilot/bin/Win64_Shipping_Client/BannerlordAutopilot.dll"
+}

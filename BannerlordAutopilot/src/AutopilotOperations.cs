@@ -25,6 +25,7 @@ namespace BannerlordAutopilot
         private void ResetOperations()
         {
             _offensiveSiege = null;
+            _raidSettlement = null;
             _configuredSiege = null;
             _gatheringArmy = null; _invitedParties.Clear();
             _operationSettlement = _hideoutRoute = null;
@@ -57,6 +58,8 @@ namespace BannerlordAutopilot
                 || !ControlsParty(party) || battle.IsNavalMapEvent || PlayerEncounter.Current == null
                 || PlayerEncounter.Battle != battle || battle.MapEventSettlement != _operationSettlement) return false;
             return (_operationSettlement.IsHideout && _hideoutAttackRequested && battle.IsHideoutBattle)
+                || (_operationSettlement == _raidSettlement && battle.IsRaid)
+                || (_operationSettlement == _offensiveSiege && (battle.IsSallyOut || battle.IsSiegeOutside))
                 || (!_operationSettlement.IsHideout && battle.IsSiegeAssault
                     && (battle.PlayerSide == BattleSideEnum.Defender
                         || (_offensiveSiege == _operationSettlement && battle.PlayerSide == BattleSideEnum.Attacker)));

@@ -16,6 +16,7 @@ namespace BannerlordAutopilot
     public partial class AutopilotBehavior
     {
         private Settlement _offensiveSiege;
+        private Settlement _raidSettlement;
         private SiegeEvent _configuredSiege;
         private Army _gatheringArmy;
         private AIBehaviorData _armyObjective;
@@ -125,6 +126,55 @@ namespace BannerlordAutopilot
             place != null && (place.IsTown || place.IsCastle) && place.MapFaction != null
             && party?.MapFaction != null && party.MapFaction.IsAtWarWith(place.MapFaction);
 
+        private static bool EnemyVillage(Settlement place, MobileParty party) => place?.IsVillage == true
+            && !place.IsRaided && place.MapFaction != null && party?.MapFaction != null
+            && party.MapFaction.IsAtWarWith(place.MapFaction);
+
+        private bool PollRaid(MobileParty party)
+        {
+            if (_mode != Mode.Apply || !ControlsParty(party) || party.IsCurrentlyAtSea) return false;
+            var place = EncounterPlace(party);
+            if (_raidSettlement == null && party.DefaultBehavior == AiBehavior.RaidSettlement
+                && party.TargetSettlement == place && EnemyVillage(place, party)) _raidSettlement = place;
+            if (_raidSettlement == null) return false;
+            string menu = MenuDriver.CurrentMenuId;
+            if (IsOnFreeMap(party) && menu == null)
+            {
+                if (party.DefaultBehavior != AiBehavior.RaidSettlement) _raidSettlement = null;
+                return false;
+            }
+            if (!MapIsActiveScreen() || InformationManager.IsAnyInquiryActive()) return true;
+            if (place != _raidSettlement && menu != "village_player_raid_ended" && menu != "village_raid_diplomatically_ended") return false;
+            try
+            {
+                _operationSettlement = _raidSettlement;
+                switch (menu)
+                {
+                    case "village":
+                        if (!EnemyVillage(place, party)) return false;
+                        OperationClick("hostile_action"); return true;
+                    case "village_hostile_action":
+                        OperationClick(EnemyVillage(place, party) ? "raid_village" : "forget_it"); return true;
+                    case "raid_village_no_resist_warn_player":
+                        OperationClick(EnemyVillage(place, party) ? "raid_village_warn_continue" : "raid_village_warn_leave"); return true;
+                    case "raiding_village":
+                        if (PreparationNeeded(party) != null) OperationClick("raiding_village_end");
+                        else ResumeOperationWait();
+                        return true;
+                    case "raid_occupied": OperationClick("raid_occuppied_continue"); return true;
+                    case "village_player_raid_ended":
+                    case "village_raid_ended_leaded_by_someone_else": OperationClick("continue"); return true;
+                    case "village_looted":
+                    case "village_raid_diplomatically_ended": OperationClick("leave"); return true;
+                    case "encounter":
+                        if (party.MapEvent?.MapEventSettlement != _raidSettlement) return false;
+                        OperationClick(MenuDriver.CanInvoke("attack", out _) ? "attack" : "village_raid_action"); return true;
+                }
+            }
+            catch (Exception ex) { Disable("рейд: " + ex.GetType().Name + ": " + ex.Message); return true; }
+            return false;
+        }
+
         private bool PollOffensiveSiege(MobileParty party)
         {
             if (_mode != Mode.Apply || party == null || party.IsCurrentlyAtSea) return false;
@@ -132,11 +182,15 @@ namespace BannerlordAutopilot
             var siege = party.SiegeEvent;
             var place = siege?.BesiegedSettlement ?? EncounterPlace(party);
             bool commanded = siege?.BesiegerCamp.LeaderParty == party;
-            bool approaching = siege == null && party.DefaultBehavior == AiBehavior.BesiegeSettlement
-                && party.TargetSettlement == place && EnemyFortress(place, party);
+            bool approaching = siege == null && EnemyFortress(place, party)
+                && (_offensiveSiege == place || (party.DefaultBehavior == AiBehavior.BesiegeSettlement && party.TargetSettlement == place));
             if (_offensiveSiege == null && (commanded || approaching)) _offensiveSiege = place;
             if (_offensiveSiege == null) return false;
-            if (IsOnFreeMap(party) && siege == null) { _offensiveSiege = null; _configuredSiege = null; return false; }
+            if (IsOnFreeMap(party) && siege == null && menu == null)
+            {
+                if (party.DefaultBehavior != AiBehavior.BesiegeSettlement) { _offensiveSiege = null; _configuredSiege = null; }
+                return false;
+            }
             if (!MapIsActiveScreen() || InformationManager.IsAnyInquiryActive()) return true;
             try
             {

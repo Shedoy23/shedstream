@@ -162,6 +162,7 @@ namespace TaleWorlds.CampaignSystem.ComponentInterfaces
 }
 namespace TaleWorlds.CampaignSystem
 {
+    public partial class MapEvent { public bool IsRaid { get; set; } public bool IsSallyOut { get; set; } public bool IsSiegeOutside { get; set; } }
     public class Army
     {
         public enum ArmyTypes { Besieger, Raider, Defender }

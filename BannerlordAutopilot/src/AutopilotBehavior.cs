@@ -486,6 +486,7 @@ namespace BannerlordAutopilot
             if (PollPrisonerScreen()) return false;
             if (PollDialogs()) return false;
             if (PollOffensiveSiege(party)) return false;
+            if (PollRaid(party)) return false;
             if (PollOperations(party)) return false;
             if (PollArmy(party)) return false;
 
@@ -1230,7 +1231,7 @@ namespace BannerlordAutopilot
             var target = _combatTarget ?? (party?.DefaultBehavior == AiBehavior.EngageParty ? party.TargetParty : null);
             if (_mode != Mode.Apply || PlayerEncounter.Current == null || party == null
                 || target == null || PlayerEncounter.EncounteredMobileParty != target
-                || party.Army != null || party.SiegeEvent != null || party.BesiegedSettlement != null
+                || !ControlsParty(party) || party.SiegeEvent != null || party.BesiegedSettlement != null
                 || target.SiegeEvent != null || PlayerEncounter.EncounterSettlement != null
                 || party.MapFaction == null || target.MapFaction == null
                 || !party.MapFaction.IsAtWarWith(target.MapFaction)) return false;
@@ -1323,7 +1324,7 @@ namespace BannerlordAutopilot
             var target = PlayerEncounter.Current == null ? null : PlayerEncounter.EncounteredMobileParty;
             if (party == null || target == null || Hero.MainHero?.IsPrisoner == true
                 || party.MapEvent != null || PlayerEncounter.Battle != null
-                || party.Army != null || party.SiegeEvent != null || party.BesiegedSettlement != null
+                || !ControlsParty(party) || party.SiegeEvent != null || party.BesiegedSettlement != null
                 || PlayerEncounter.EncounterSettlement != null || target.SiegeEvent != null
                 || party.MapFaction == null || target.MapFaction == null
                 || party.MapFaction.IsAtWarWith(target.MapFaction)) return false;
@@ -2063,6 +2064,9 @@ namespace BannerlordAutopilot
             }
             switch (data.AiBehavior)
             {
+                case AiBehavior.RaidSettlement:
+                    if (!EnemyVillage(data.Party as Settlement, MobileParty.MainParty)) return "нет вражеской деревни";
+                    return PreparationNeeded(MobileParty.MainParty);
                 case AiBehavior.BesiegeSettlement:
                     if (!EnemyFortress(data.Party as Settlement, MobileParty.MainParty)) return "нет вражеской крепости";
                     return PreparationNeeded(MobileParty.MainParty);
@@ -2118,7 +2122,12 @@ namespace BannerlordAutopilot
                 if (data.WillGatherArmy && party.Army == null && StartArmy(party, data, score)) return;
                 switch (data.AiBehavior)
                 {
+                    case AiBehavior.RaidSettlement:
+                        _raidSettlement = settlement;
+                        SetPartyAiAction.GetActionForRaidingSettlement(party, settlement, data.NavigationType, data.IsFromPort, data.IsTargetingPort);
+                        break;
                     case AiBehavior.BesiegeSettlement:
+                        _offensiveSiege = settlement;
                         SetPartyAiAction.GetActionForBesiegingSettlement(party, settlement, data.NavigationType, data.IsFromPort);
                         break;
                     case AiBehavior.DefendSettlement:

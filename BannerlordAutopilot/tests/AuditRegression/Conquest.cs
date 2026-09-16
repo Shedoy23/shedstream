@@ -22,6 +22,23 @@ internal static partial class Program
     }
     static void ConquestTests()
     {
+        foreach (bool bandit in new[] { false, true })
+        Try("нападающий противник открывает бой вместо случайного разговора", () => {
+            var b = Fresh(); var castle = ConquestWorld(); Enable(b);
+            var attacker = new MobileParty { MapFaction = castle.MapFaction, IsBandit = bandit };
+            PlayerEncounter.Current = new PlayerEncounter { Defender = true }; PlayerEncounter.EncounteredMobileParty = attacker;
+            var c = Campaign.Current.ConversationManager; c.ConversationParty = attacker; c.IsConversationInProgress = true;
+            string id = bandit ? "bandit_start_defender_1" : "545";
+            c.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption { Id = id, IsClickable = true });
+            b.PollDialogs(); Check(c.Selected.SequenceEqual(new[] { id }), "защита от нападающего, бандит " + bandit);
+        });
+        Try("полевая миссия внутри союзной армии поддержана", () => {
+            var b = Fresh(); ConquestWorld(); Enable(b);
+            MobileParty.MainParty.Army = new Army { LeaderParty = new MobileParty() };
+            var battle = new MapEvent(); MobileParty.MainParty.MapEvent = PlayerEncounter.Battle = battle;
+            PlayerEncounter.Current = new PlayerEncounter();
+            Check(AutopilotBehavior.IsSupportedFieldBattleEncounter(MobileParty.MainParty), "реальный бой участника армии разрешён");
+        });
         foreach (bool supplied in new[] { true, false })
         Try("цель завоевания выше патруля, снабжение выше истощённого похода", () => {
             var b = Fresh(); var castle = ConquestWorld(food: supplied ? 35 : 1);

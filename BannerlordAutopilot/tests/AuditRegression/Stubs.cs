@@ -245,6 +245,7 @@ namespace TaleWorlds.CampaignSystem.Party {
 }
 namespace TaleWorlds.CampaignSystem.Encounters {
  public class PlayerEncounter {
+  public bool Defender; public static bool PlayerIsDefender => Current.Defender;
   public static PlayerEncounter Current; public static Settlement EncounterSettlement;
   public static MobileParty EncounteredMobileParty; public static MapEvent Battle; private static MapEvent _encounteredBattle; public static MapEvent EncounteredBattle { get { if (Current == null) throw new NullReferenceException("EncounteredBattle requires Current"); return _encounteredBattle; } set { _encounteredBattle=value; } }
   public static bool LeaveEncounter {get;set;}

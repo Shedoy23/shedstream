@@ -1801,3 +1801,13 @@ input[type="number"]::-webkit-inner-spin-button {
 .bnr-eq-pages button { background: #303034; border: 1px solid #48484d; border-radius: 4px; color: #efeff1; padding: 7px 10px; cursor: pointer; }
 .bnr-eq-pages button:disabled { opacity: .45; cursor: not-allowed; }
 #bnr-equipment-shop :focus-visible { outline: 2px solid #bd88ff; outline-offset: 2px; }
+
+.bnr-build-heading { color: #e2c1ff; font-size: 12px; font-weight: 700; margin: 12px 0 6px; }
+.bnr-build-choices { display: grid; gap: 6px; min-width: 0; }
+.bnr-build-choice { display: grid; gap: 4px; text-align: left; width: 100%; min-width: 0; box-sizing: border-box; padding: 9px; background: #272729; color: #efeff1; border: 1px solid #444449; border-radius: 6px; font-family: inherit; cursor: pointer; overflow-wrap: anywhere; }
+.bnr-build-choice strong { font-size: 12px; }
+.bnr-build-choice span { font-size: 10px; color: #b8b8c2; line-height: 1.5; }
+.bnr-build-choice[aria-pressed="true"] { border-color: #ad70eb; background: #352244; }
+.bnr-build-choice:disabled { cursor: default; }
+.bnr-build-choice:disabled:not([aria-pressed="true"]) { opacity: .6; }
+.bnr-build-choice:focus-visible { outline: 2px solid #bd88ff; outline-offset: 2px; }

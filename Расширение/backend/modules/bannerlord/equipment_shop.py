@@ -34,17 +34,19 @@ async def context(conn, channel_id, username):
     session = await cur.fetchone()
     session_id = session[0] if session else None
     cur = await conn.execute(
-        "SELECT items_json FROM bannerlord_inventory_snapshots WHERE channel_id=? AND username=? AND save_id=? AND hero_id=? AND session_id=?",
+        "SELECT items_json,build_json FROM bannerlord_inventory_snapshots WHERE channel_id=? AND username=? AND save_id=? AND hero_id=? AND session_id=?",
         (channel_id, username, save_id, hero[0] if hero else "", session_id))
     snapshot = await cur.fetchone()
     cur = await conn.execute(
         "SELECT 1 FROM module_actions WHERE channel_id=? AND module_id='bannerlord' "
-        "AND type IN ('hero.buy_equipment','hero.equip_owned','hero.unequip_owned') "
+        "AND type IN ('hero.buy_equipment','hero.equip_owned','hero.unequip_owned',"
+        "'hero.set_specialization','hero.select_weapon_power','hero.claim_starter','power.activate') "
         "AND status IN ('queued','dispatched') AND json_extract(data,'$.initiated_by')=? LIMIT 1",
         (channel_id, username))
     pending = bool(await cur.fetchone())
     reason = "no_hero" if not hero else "hero_dead" if not hero[3] else "inventory_not_ready" if not snapshot else "pending" if pending else None
     return {"hero": hero, "save_id": save_id, "session_id": session_id, "inventory": json.loads(snapshot[0]) if snapshot else [],
+            "build": json.loads(snapshot[1]) if snapshot else {},
             "ready": bool(snapshot), "pending": pending, "reason": reason}
 
 
@@ -122,12 +124,13 @@ async def store_inventory(db, channel_id, env):
             await conn.rollback()
             return
         await conn.execute(
-            "INSERT INTO bannerlord_inventory_snapshots(channel_id,username,save_id,session_id,hero_id,inventory_seq,items_json) VALUES(?,?,?,?,?,?,?) "
+            "INSERT INTO bannerlord_inventory_snapshots(channel_id,username,save_id,session_id,hero_id,inventory_seq,items_json,build_json) VALUES(?,?,?,?,?,?,?,?) "
             "ON CONFLICT(channel_id,username) DO UPDATE SET save_id=excluded.save_id,session_id=excluded.session_id,hero_id=excluded.hero_id,"
-            "inventory_seq=excluded.inventory_seq,items_json=excluded.items_json "
+            "inventory_seq=excluded.inventory_seq,items_json=excluded.items_json,build_json=excluded.build_json "
             "WHERE excluded.inventory_seq>bannerlord_inventory_snapshots.inventory_seq OR excluded.save_id!=bannerlord_inventory_snapshots.save_id "
             "OR excluded.hero_id!=bannerlord_inventory_snapshots.hero_id OR excluded.session_id!=bannerlord_inventory_snapshots.session_id",
-            (channel_id, username, data["save_id"], data["equipment_session_id"], data["hero_id"], seq, json.dumps(items, ensure_ascii=False)))
+            (channel_id, username, data["save_id"], data["equipment_session_id"], data["hero_id"], seq,
+             json.dumps(items, ensure_ascii=False), json.dumps(data.get('build') if isinstance(data.get('build'), dict) else {}, ensure_ascii=False)))
         await conn.commit()
 
 

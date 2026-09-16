@@ -914,6 +914,7 @@ async def bannerlord_ping():
 # Action types которые viewer может купить через /api/bannerlord/action.
 # Должны быть в bannerlord/manifest.yaml actions/extensions.
 _PURCHASABLE_ACTIONS = (
+    "hero.set_specialization", "hero.select_weapon_power", "hero.claim_starter",
     "hero.buy_equipment", "hero.equip_owned", "hero.unequip_owned",
     "hero.create",            # adoption — special: НЕ требует существующего hero
     "hero.set_class",         # Sprint 4.1: класс + equipment apply
@@ -1175,6 +1176,9 @@ CARAVAN_PRICE_CRUSTIC  = 4_000    # 💎 caravan passive income (2026-05-29: 150
 # detach_* — всё дублировалось вручную и уже начинало врать). Теперь ОДИН источник:
 # бэк enforce'ит отсюда И отдаёт это же в /api/bannerlord/config.
 ACTION_PRICES_DEFAULT = {
+    "hero.set_specialization": 0,
+    "hero.select_weapon_power": 0,
+    "hero.claim_starter": 0,
     "hero.buy_equipment": 0,
     "hero.equip_owned": 0,
     "hero.unequip_owned": 0,
@@ -1583,6 +1587,45 @@ async def bannerlord_equipment_shop(request: Request):
             "has_hero": bool(hero), "ready": ctx["ready"], "pending": ctx["pending"],
             "can_manage": ctx["reason"] is None, "reason": ctx["reason"],
             "message": refusal(ctx["reason"])["message"] if ctx["reason"] else ""}
+
+
+@router.get("/api/bannerlord/build")
+async def bannerlord_build(request: Request):
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+    from modules.bannerlord.equipment_shop import context
+    from modules.bannerlord.builds import manage_reason, refusal
+    from modules.bannerlord._adapter import check_cooldown
+    db = get_db()
+    async with db._connect() as conn:
+        await conn.execute("BEGIN")
+        ctx = await context(conn, channel_id, username)
+        await conn.rollback()
+    reason = manage_reason(ctx)
+    import module_liveness
+    if not await module_liveness.is_on_air(db, channel_id, "bannerlord"):
+        reason = reason or 'offline'
+    build = ctx['build']
+    for option in build.get('power_options', []):
+        option['price'] = POWER_PRICES.get(option.get('power_key'), 0)
+    from modules.bannerlord.refusals import describe
+    for option in build.get('power_options', []) + build.get('starter_kits', []):
+        code = option.get('reason')
+        option['reason_code'] = code
+        option['reason'] = describe(code) if code else None
+    build['common_powers'] = [{'power_key':'heal_burst', 'label':'Лечение',
+                              'description':'Восстанавливает 50 здоровья в бою',
+                              'price':POWER_PRICES['heal_burst'], 'value':50}]
+    import time
+    remaining = max(0, check_cooldown(channel_id, username, 'weapon_power'),
+                    float(build.get('weapon_power_cooldown_until') or 0) - time.time())
+    return {'success':True, 'enabled':bool(ctx['session_id']), 'build':build,
+            'has_hero':bool(ctx['hero']), 'ready':build.get('version')==1,
+            'pending':ctx['pending'], 'can_manage':reason is None,
+            'cooldown_remaining_s':round(remaining,1), 'reason':reason,
+            'message':refusal(reason)['message'] if reason else ''}
 
 
 @router.get("/api/bannerlord/shop")
@@ -2795,7 +2838,8 @@ async def _charge_execute_enqueue(action_type, data, price, username, channel_id
                 if idem_row:
                     prev_action_id, prev_type, prev_status, prev_owner = idem_row
                     from modules.bannerlord.equipment_shop import ACTION_TYPES
-                    if action_type in ACTION_TYPES and (prev_owner != username or prev_type != action_type):
+                    from modules.bannerlord.builds import ACTION_TYPES as BUILD_ACTIONS
+                    if action_type in ACTION_TYPES | BUILD_ACTIONS | {'power.activate'} and (prev_owner != username or prev_type != action_type):
                         await conn.rollback()
                         return {"success": False, "reason": "client_action_conflict", "message": "Идентификатор действия уже использован"}
                     await conn.execute("ROLLBACK")
@@ -2827,6 +2871,15 @@ async def _charge_execute_enqueue(action_type, data, price, username, channel_id
                     await conn.rollback()
                     return equipment_refusal
                 price = 0
+
+            from modules.bannerlord.builds import ACTION_TYPES as BUILD_ACTIONS, validate_tx as validate_build_tx
+            if action_type in BUILD_ACTIONS or action_type == 'power.activate':
+                build_refusal = await validate_build_tx(conn, channel_id, username, action_type, data)
+                if build_refusal:
+                    await conn.rollback()
+                    return build_refusal
+                if action_type in BUILD_ACTIONS:
+                    price = 0
 
             # Sprint 5.31 #45e (audit MED-6) — tournament.predict dedup
             # ВНУТРИ TX, защищён BEGIN IMMEDIATE lock'ом. Раньше SELECT был
@@ -3279,6 +3332,8 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
     action_id, smith_result = _tx
 
     # Phase H — post-commit side-effects (cooldown + overlay).
+    if action_type == 'power.activate' and data.get('_weapon_build'):
+        cooldown_key = 'weapon_power'
     cooldown_applied_s = _post_commit_side_effects(
         action_type, data, cooldown_key, username, channel_id)
 

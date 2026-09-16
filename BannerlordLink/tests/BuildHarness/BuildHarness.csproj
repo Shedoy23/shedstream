@@ -3,6 +3,9 @@
   <ItemGroup>
     <Compile Include="../../src/Util/EquipmentShopPolicy.cs" Link="EquipmentShopPolicy.cs" />
     <Compile Include="../../src/Util/HeroBuildPolicy.cs" Link="HeroBuildPolicy.cs" Condition="Exists('../../src/Util/HeroBuildPolicy.cs')" />
+    <Compile Include="../../src/Util/HeroBuildRuntime.cs" Link="HeroBuildRuntime.cs" />
+    <Compile Include="../../src/Actions/HeroBuildHandler.cs" Link="HeroBuildHandler.cs" />
+    <Compile Include="../../src/Net/PowerCache.cs" Link="PowerCache.cs" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 </Project>

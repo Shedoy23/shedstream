@@ -1538,6 +1538,9 @@ async def run_migrations():
         from migrations import m125_bannerlord_inventory
         await m125_bannerlord_inventory.apply(conn)
 
+        from migrations import m126_bannerlord_build
+        await m126_bannerlord_build.apply(conn)
+
         print("✅ Migrations complete")
 
 

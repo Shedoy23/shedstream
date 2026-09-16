@@ -35,6 +35,7 @@ namespace BannerlordLink.Util
     // every displaced item remains owned, including its exact modifier.
     internal sealed class EquipmentLedger
     {
+        public HeroBuildState Build;
         public List<OwnedEquipment> Items = new List<OwnedEquipment>();
         public long Revision = 0;
 

@@ -43,6 +43,9 @@ namespace BannerlordLink.Actions
             Register(new EquipmentShopHandler("hero.buy_equipment"));
             Register(new EquipmentShopHandler("hero.equip_owned"));
             Register(new EquipmentShopHandler("hero.unequip_owned"));
+            Register(new HeroBuildHandler("hero.set_specialization"));
+            Register(new HeroBuildHandler("hero.select_weapon_power"));
+            Register(new HeroBuildHandler("hero.claim_starter"));
             Register(new UpgradeGearHandler());      // hero.upgrade_gear — 6-tier progression
             Register(new ReequipGearHandler());      // hero.reequip_gear — re-roll снаряги на текущем тире (BLT ReequipInsteadOfUpgrade)
             Register(new DiscardItemHandler());      // hero.discard_item — 2026-06-18: выбросить вещь из слота (освободить залоченную)

@@ -35,6 +35,14 @@ namespace BannerlordLink.Behaviors
         private const float COMBAT_AI_INTERVAL = 0.5f;
         private float _combatAiAcc = 0f;
         private float _buffTickAcc;
+        private float _buildSnapshotAcc;
+
+        public override void AfterStart()
+        {
+            base.AfterStart();
+            try { EquipmentShopBehavior.Instance?.PublishBuilds(true); }
+            catch (Exception ex) { BannerlordLinkModule.Log("[HeroBuild] mission snapshot: " + ex.Message); }
+        }
 
         // 2026-07-21 — «Невидимость» (docs/SPEC_ASSASSIN_INVIS.md). Ключ силы остался
         // retribution_toggle: во фронте у него УЖЕ есть ярлык, а фронт заморожен на
@@ -93,6 +101,13 @@ namespace BannerlordLink.Behaviors
         public override void OnMissionTick(float dt)
         {
             base.OnMissionTick(dt);
+            _buildSnapshotAcc += dt;
+            if (_buildSnapshotAcc >= 10f)
+            {
+                _buildSnapshotAcc = 0;
+                try { EquipmentShopBehavior.Instance?.PublishBuilds(true); }
+                catch (Exception ex) { BannerlordLinkModule.Log("[HeroBuild] mission snapshot retry: " + ex.Message); }
+            }
 
             // 2026-07-20 — боевой ИИ/стойки переприменяем ЧАСТО (0.5с), отдельно от
             // тяжёлого тика баффов/яда (2с). Движок пересчитывает драйв-свойства при
@@ -301,6 +316,11 @@ namespace BannerlordLink.Behaviors
                 string user = BannerlordLink.Util.HeroNaming.ExtractUsername(hero.Name.ToString());
                 if (string.IsNullOrEmpty(user)) continue;
                 var mult = ActiveBuffState.GetValue(user, "berserker_charge");
+                if (BannerlordLink.Util.HeroBuildRuntime.State(user) != null)
+                {
+                    if (BannerlordLink.Util.MissionContext.IsArenaOrTournamentFight()) continue;
+                    mult = GetPassiveSpeedMult(user);
+                }
                 if (!mult.HasValue || mult.Value <= 1.0) continue;
                 BannerlordLink.Actions.ActivatePowerHandler.ApplySpeedMultiplier(a, (float)mult.Value);
             }
@@ -455,6 +475,8 @@ namespace BannerlordLink.Behaviors
         protected override void OnEndMission()
         {
             base.OnEndMission();
+            try { EquipmentShopBehavior.Instance?.PublishBuilds(false); }
+            catch (Exception ex) { BannerlordLinkModule.Log("[HeroBuild] end snapshot: " + ex.Message); }
             ActiveBuffState.Clear();
             BannerlordLink.Net.StealthState.Clear();
             _aiLogged.Clear();
@@ -525,6 +547,7 @@ namespace BannerlordLink.Behaviors
             // так не добегает → пассивный добег НИКОГДА не работал. Теперь настоящий
             // рычаг движка — AgentDrivenProperties (см. ApplySpeedMultiplier).
             var spd = PowerCache.GetPowerValue(username, "move_speed_pct");
+            if (fairFight && BannerlordLink.Util.HeroBuildRuntime.State(username) != null) spd = null;
             if (spd.HasValue && spd.Value > 0)
             {
                 try

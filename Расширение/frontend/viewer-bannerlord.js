@@ -455,6 +455,7 @@ function _startBannerlordPolling() {
     loadBannerlordShop();
     loadBannerlordStatus();
     loadBannerlordClasses();
+    loadBannerlordBuild();
     loadBannerlordBuffs();
     loadBannerlordTournament();
     loadBannerlordBattleStatus();
@@ -475,6 +476,7 @@ function _startBannerlordPolling() {
         loadBannerlordShop();
         loadBannerlordStatus();
         loadBannerlordClasses();
+        loadBannerlordBuild();
         if (document.querySelector('[data-bnr-pane="inventory"].active')) loadBannerlordEquipmentShop();
     }, 8000);
     // Buff HUD: faster poll (2.5s) для смены состояния, плюс client-side
@@ -628,6 +630,7 @@ function _bnrShowSimpleModal({ title, body, bind }) {
 // loadBannerlordStatus. Зовётся из _startBannerlordPolling (рантайм).
 
 function _stopBannerlordPolling() {
+    BnrBuilds.reset();
     BnrEquipmentShop.reset();
     if (_bannerlordPollId) {
         clearInterval(_bannerlordPollId);
@@ -805,6 +808,8 @@ async function _bannerlordBuyAction(actionType, data) {
             if (isBannerlord && typeof loadBannerlordHero === 'function') {
                 setTimeout(() => {
                     loadBannerlordHero();
+                    loadBannerlordBuild();
+                    loadBannerlordEquipmentShop();
                     if (typeof loadBannerlordTournament === 'function') {
                         loadBannerlordTournament();
                     }
@@ -820,6 +825,7 @@ document.addEventListener('click', (ev) => {
         loadBannerlordHero();
         loadBannerlordShop();
         loadBannerlordEquipmentShop();
+        loadBannerlordBuild();
     }
 });
 
@@ -3185,8 +3191,9 @@ function _renderBannerlordDetachmentPanel(battleData) {
     const _DET_RAID_CLASSES = ['cavalry', 'camel_cavalry', 'horse_archer', 'camel_archer'];
     const _DET_SKIRMISH_CLASSES = ['archer', 'heavy_archer', 'crossbow',
                                    'heavy_crossbow', 'horse_archer', 'camel_archer'];
-    const _detShowRaid = _DET_RAID_CLASSES.indexOf(_detClassKey) >= 0;
-    const _detShowSkirmish = _DET_SKIRMISH_CLASSES.indexOf(_detClassKey) >= 0;
+    const buildOrders = BnrBuilds.detachment();
+    const _detShowRaid = buildOrders ? buildOrders.mounted : _DET_RAID_CLASSES.indexOf(_detClassKey) >= 0;
+    const _detShowSkirmish = buildOrders ? buildOrders.ranged : _DET_SKIRMISH_CLASSES.indexOf(_detClassKey) >= 0;
     const _detSkirmishBtn = _detShowSkirmish ? `
             <button class="extra-btn bnr-det-btn" data-det-act="hero.detach_skirmish"
                     data-det-cost="${_bnrPrice('hero.detach_skirmish', 30)}"
@@ -3197,7 +3204,7 @@ function _renderBannerlordDetachmentPanel(battleData) {
     const _detRaidBtn = _detShowRaid ? `
             <button class="extra-btn bnr-det-btn" data-det-act="hero.detach_raid"
                     data-det-cost="${_bnrPrice('hero.detach_raid', 30)}"
-                    title="🐎 Набег: конный кружит вокруг ближайшего врага, рубя/стреляя на проходе. Только конным классам."
+                    title="🐎 Набег: конный кружит вокруг ближайшего врага, рубя/стреляя на проходе. Нужен конь."
                     style="background:#4c1d95;color:#ddd6fe;padding:6px;">
                 🐎 Набег (${_bnrPrice('hero.detach_raid', 30)}💎)
             </button>` : '';
@@ -3284,7 +3291,7 @@ function _renderBannerlordStance() {
                     padding:6px 8px;background:#18181b;border:1px solid #2d2d2f;border-radius:4px;">
             <span style="font-size:11px;color:#adadb8;font-weight:700;">⚔ Стойка боя:</span>
             ${btn('defensive', '🛡', 'Оборона', 'выше блок/парри, меньше атаки')}
-            ${btn('balanced', '⚖', 'Баланс', 'ровно по классу')}
+            ${btn('balanced', '⚖', 'Баланс', 'обычное поведение в бою')}
             ${btn('aggressive', '⚔', 'Натиск', 'выше атака, ниже защита')}
         </div>`;
     if (_smartInnerHTML(slot, html)) {
@@ -3461,6 +3468,7 @@ async function loadBannerlordClasses() {
 
 function renderBannerlordClassPicker() {
     const slot = document.getElementById('hero-class-picker-slot');
+    if (slot && BnrBuilds.renderHero(slot)) return;
     if (!slot || !_bannerlordClassesCache) return;
     const { classes, current } = _bannerlordClassesCache;
     if (_bannerlordLastHero?.equipment_shop_ready) {
@@ -3535,6 +3543,10 @@ function renderBannerlordClassPicker() {
 // Sprint 4.7 — active power buttons (heal_burst + class-specific actives).
 function renderBannerlordActivePowers() {
     const slot = document.getElementById('bnr-active-powers-slot');
+    if (slot && BnrBuilds.renderCombat(slot)) {
+        renderBannerlordSummonButton();
+        return;
+    }
     if (!slot) {
         dbg('[BNR activePowers] slot не найден в DOM');
         return;

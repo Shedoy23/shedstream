@@ -72,6 +72,7 @@ _BATTLE_STATS_TTL = 8.0
 # на mvp scale; рефакторим в админку когда понадобится per-streamer балансинг.
 # Также используется как cooldown для action_types (summon).
 POWER_COOLDOWNS = {
+    "weapon_power":        90,  # one cooldown across every selected weapon family
     # 2026-06-01 — все активные способности унифицированы: cooldown 90с.
     # Длительность баффов (45с) задаётся мод-сайдом (ActivatePowerHandler).
     "heal_burst":          90,

@@ -36,6 +36,8 @@ namespace BannerlordLink.Net
         {
             if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(powerKey))
                 return null;
+            var build = BannerlordLink.Util.HeroBuildRuntime.State(username);
+            if (build != null) return BannerlordLink.Util.HeroBuildPolicy.Passive(build, powerKey);
             lock (_lock)
             {
                 if (!_heroClass.TryGetValue(username, out var hc)) return null;
@@ -50,6 +52,9 @@ namespace BannerlordLink.Net
         public static (string classKey, int level)? GetHeroClass(string username)
         {
             if (string.IsNullOrEmpty(username)) return null;
+            // Neutral marker keeps adopted-hero detection while every legacy
+            // class-specific XP, regen and tournament table has no match.
+            if (BannerlordLink.Util.HeroBuildRuntime.State(username) != null) return ("free_build", 1);
             lock (_lock)
             {
                 return _heroClass.TryGetValue(username, out var hc) ? hc : ((string, int)?)null;

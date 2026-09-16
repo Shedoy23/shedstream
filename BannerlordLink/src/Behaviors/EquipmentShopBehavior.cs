@@ -21,6 +21,7 @@ namespace BannerlordLink.Behaviors
         // with the same UniqueGameId must not accept actions from before load.
         internal string SessionId { get; } = Guid.NewGuid().ToString("N");
         private Dictionary<string, string> _ledgers = new Dictionary<string, string>();
+        private readonly Dictionary<string, HeroBuildState> _builds = new Dictionary<string, HeroBuildState>(StringComparer.OrdinalIgnoreCase);
         private readonly Stopwatch _refresh = Stopwatch.StartNew();
         private readonly Stopwatch _catalogRefresh = Stopwatch.StartNew();
         private volatile bool _published;
@@ -37,6 +38,7 @@ namespace BannerlordLink.Behaviors
         public override void SyncData(IDataStore store)
         {
             store.SyncData("BannerlordLink_EquipmentInventory_v1", ref _ledgers);
+            _builds.Clear();
             if (_ledgers == null) _ledgers = new Dictionary<string, string>();
         }
 
@@ -72,6 +74,26 @@ namespace BannerlordLink.Behaviors
         internal void Store(Hero hero, EquipmentLedger ledger)
         {
             _ledgers[hero.StringId] = JsonConvert.SerializeObject(ledger);
+            _builds[HeroNaming.ExtractUsername(hero.Name.ToString())] = ledger.Build;
+        }
+
+        internal HeroBuildState GetBuild(string username)
+        {
+            if (string.IsNullOrEmpty(username)) return null;
+            if (_builds.TryGetValue(username, out var state)) return state;
+            var hero = BannerlordLink.Actions.HeroLookup.FindByUsername(username);
+            if (hero == null) return null;
+            state = _ledgers.TryGetValue(hero.StringId, out var json)
+                ? JsonConvert.DeserializeObject<EquipmentLedger>(json)?.Build : null;
+            _builds[username] = state;
+            return state;
+        }
+
+        internal void InitializeBuild(Hero hero)
+        {
+            var ledger = Read(hero);
+            ledger.Build = new HeroBuildState();
+            Store(hero, ledger);
         }
 
         internal static string Category(ItemObject item)
@@ -137,7 +159,7 @@ namespace BannerlordLink.Behaviors
             };
         }
 
-        internal string Snapshot(Hero hero, EquipmentLedger ledger)
+        internal string Snapshot(Hero hero, EquipmentLedger ledger, bool? missionOverride = null)
         {
             ledger.Revision++;
             Store(hero, ledger);
@@ -163,14 +185,25 @@ namespace BannerlordLink.Behaviors
             return new JObject { ["username"] = HeroNaming.ExtractUsername(hero.Name.ToString()),
                 ["save_id"] = Campaign.Current.UniqueGameId, ["hero_id"] = hero.StringId,
                 ["equipment_session_id"] = SessionId,
-                ["inventory_seq"] = ledger.Revision, ["items"] = items }.ToString(Formatting.None);
+                ["inventory_seq"] = ledger.Revision, ["items"] = items,
+                ["build"] = HeroBuildRuntime.Snapshot(hero, ledger.Build, missionOverride) }.ToString(Formatting.None);
         }
 
-        internal void Push(Hero hero, EquipmentLedger ledger)
+        internal void Push(Hero hero, EquipmentLedger ledger, bool? missionOverride = null)
         {
-            string json = Snapshot(hero, ledger);
+            string json = Snapshot(hero, ledger, missionOverride);
             var backend = BannerlordLinkModule.Backend;
             if (backend != null) Task.Run(() => backend.PostEventAsync("bannerlord", "hero.inventory_snapshot", json));
+        }
+
+        internal void PublishBuilds(bool? missionOverride = null)
+        {
+            if (Campaign.Current == null) return;
+            foreach (var hero in Campaign.Current.AliveHeroes.Where(h => h?.Name != null && HeroNaming.IsAdopted(h.Name.ToString())))
+            {
+                var ledger = Read(hero);
+                if (ledger.Build != null) Push(hero, ledger, missionOverride);
+            }
         }
 
         private void Tick(float dt)

@@ -52,6 +52,7 @@ namespace BannerlordLink.Actions
         {
             try
             {
+                if (HeroBuildRuntime.State(username) != null) { ActionFeedback.PostFailed(actionId, "free_build_legacy_action_disabled"); return; }
                 // Sprint 5.32 (BLT-parity H7) — Mission guard. BLT pattern
                 // (SetHeroClass.cs:68-72) — `You cannot change class, as a
                 // mission is active!`. Без guard'а равно equipment swap

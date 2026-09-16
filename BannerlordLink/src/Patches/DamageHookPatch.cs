@@ -61,7 +61,7 @@ namespace BannerlordLink.Patches
         [HarmonyPrefix]
         public static void Prefix(
             Agent attacker, Agent victim,
-            ref Blow b, ref AttackCollisionData collisionData)
+            ref Blow b, ref AttackCollisionData collisionData, in MissionWeapon attackerWeapon)
         {
             if (_inReflect.Value) return;
             if (attacker == null || victim == null) return;
@@ -94,8 +94,20 @@ namespace BannerlordLink.Patches
 
                 if (attackerUser != null)
                 {
+                    var build = BannerlordLink.Util.HeroBuildRuntime.State(attackerUser);
+                    string actualWeapon = BannerlordLink.Util.HeroBuildRuntime.WeaponType(attackerWeapon);
+                    bool missileHit = collisionData.IsMissile;
+                    bool Allowed(string key) => BannerlordLink.Util.HeroBuildPolicy.AllowsHit(build, key, actualWeapon, missileHit);
+                    if (build != null && actualWeapon != null && !BannerlordLink.Util.MissionContext.IsArenaOrTournamentFight())
+                    {
+                        double mult = BannerlordLink.Util.HeroBuildPolicy.DamageMultiplier(build, collisionData.IsMissile);
+                        b.InflictedDamage = (int)(b.InflictedDamage * mult);
+                        b.BaseMagnitude *= (float)mult;
+                        collisionData.InflictedDamage = b.InflictedDamage;
+                        collisionData.BaseMagnitude = b.BaseMagnitude;
+                    }
                     ApplyIgnoreArmor(attackerUser, ref b, ref collisionData);
-                    ApplyRageOutgoing(attackerUser, ref b, ref collisionData);
+                    if (Allowed("rage")) ApplyRageOutgoing(attackerUser, ref b, ref collisionData);
                     // 2026-05-29 (BLT-parity) — вампиризм: лечим атакующего на %
                     // финального урона (после armor-bypass + rage). Передаём
                     // attackerSrc (mount-redirect к rider'у) — лечим hero, не коня.
@@ -103,15 +115,15 @@ namespace BannerlordLink.Patches
                     // 2026-05-29 (BLT-parity AoE) — взрывные стрелы: на missile-
                     // хите при активном буффе наносим AoE по ближайшим врагам
                     // через отложенную очередь (FMOD-safe).
-                    ApplyExplosiveArrows(attackerUser, attackerSrc, victim, ref collisionData);
+                    if (Allowed("explosive_arrows")) ApplyExplosiveArrows(attackerUser, attackerSrc, victim, ref collisionData);
                     // 2026-06-10 (мили-баланс) — рассечение: на МИЛИ-хите по шансу
                     // splash-AoE по соседним врагам (замена мёртвого CleavePatch),
                     // через ту же безопасную отложенную очередь, что explosive_arrows.
-                    ApplyMeleeCleave(attackerUser, attackerSrc, victim, ref b, ref collisionData);
+                    if (Allowed("cleave")) ApplyMeleeCleave(attackerUser, attackerSrc, victim, ref b, ref collisionData);
                     // 2026-07-20 (редизайн активок) — «работает от удара»:
                     // щит ломается у того, кого ударил; яд вешается на того, в кого попал.
-                    ApplyShieldBreakOnHit(attackerUser, attackerSrc, victim, ref collisionData);
-                    ApplyPoisonOnHit(attackerUser, attackerSrc, victim);
+                    if (Allowed("shield_break_burst")) ApplyShieldBreakOnHit(attackerUser, attackerSrc, victim, ref collisionData);
+                    if (Allowed("poison_dot")) ApplyPoisonOnHit(attackerUser, attackerSrc, victim);
                     // 2026-07-21 — «ударил и растворился»: фиксируем удар невидимки,
                     // на окно раскрытия тик перестаёт срывать врагам захват (жадность
                     // в свалке наказуема). См. docs/SPEC_ASSASSIN_INVIS.md.
@@ -171,7 +183,7 @@ namespace BannerlordLink.Patches
                     // 2026-05-29 (BLT-parity TakeDamagePower) — железная кожа:
                     // снижаем входящий урон ДО reflect (reflect считается от
                     // уже сниженного значения).
-                    ApplyDamageReduction(victimUser, ref b, ref collisionData);
+                    ApplyDamageReduction(victimUser, victimSrc, ref b, ref collisionData);
                     ApplyReflect(victimUser, ref b, ref collisionData);
                 }
 
@@ -306,6 +318,7 @@ namespace BannerlordLink.Patches
             if (cd.IsMissile) return;                  // ломаем щит в ближнем бою
             var v = ActiveBuffState.GetValue(user, "shield_break_burst");
             if (!v.HasValue) return;
+            if (BannerlordLink.Util.HeroBuildRuntime.State(user) != null && MBRandom.RandomFloat * 100 >= v.Value) return;
             if (BannerlordLink.Actions.ActivatePowerHandler.TryBreakShield(victim))
             {
                 BannerlordLinkModule.LogVerbose(() =>
@@ -458,10 +471,12 @@ namespace BannerlordLink.Patches
         // 2026-05-29 (BLT-parity TakeDamagePower) — железная кожа. Снижаем
         // входящий урон на %. Passive damage_reduction_pct (PowerCache) + active
         // ironskin_toggle (ActiveBuffState). Cap 80% чтобы hero не был неубиваем.
-        private static void ApplyDamageReduction(string user, ref Blow b, ref AttackCollisionData cd)
+        private static void ApplyDamageReduction(string user, Agent victim, ref Blow b, ref AttackCollisionData cd)
         {
             double passive = ResolvePct(user, "damage_reduction_pct");
             double toggle = ActiveBuffState.GetValue(user, "ironskin_toggle") ?? 0.0;
+            if (BannerlordLink.Util.HeroBuildRuntime.State(user) != null
+                && !BannerlordLink.Util.HeroBuildRuntime.Wielded(victim, "shield")) toggle = 0;
             double pct = Math.Min(90.0, passive + toggle);   // 2026-06-05 кап 80→90%
             if (pct <= 0) return;
 

@@ -71,6 +71,7 @@ namespace BannerlordLink.Actions
         {
             try
             {
+                if (BannerlordLink.Util.HeroBuildRuntime.State(username) != null) { BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "free_build_legacy_action_disabled"); return; }
                 if (Mission.Current != null)
                 {
                     BannerlordLinkModule.Log(

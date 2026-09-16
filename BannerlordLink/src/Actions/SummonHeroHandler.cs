@@ -1059,6 +1059,8 @@ namespace BannerlordLink.Actions
 
         private static bool ResolveWithHorse(string username)
         {
+            if (BannerlordLink.Util.HeroBuildRuntime.State(username) != null)
+                return HeroLookup.FindByUsername(username)?.BattleEquipment[EquipmentIndex.Horse].Item != null;
             var hc = PowerCache.GetHeroClass(username);
             if (hc == null) return false;
             return MountedClasses.Contains(hc.Value.classKey);
@@ -1195,6 +1197,8 @@ namespace BannerlordLink.Actions
         {
             try
             {
+                if (BannerlordLink.Util.HeroBuildRuntime.State(username) != null)
+                    return BannerlordLink.Util.HeroBuildRuntime.Formation(HeroLookup.FindByUsername(username));
                 var hc = PowerCache.GetHeroClass(username);
                 string classKey = (hc?.classKey ?? "").ToLowerInvariant();
                 switch (classKey)

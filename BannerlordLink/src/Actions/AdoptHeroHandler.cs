@@ -185,16 +185,13 @@ namespace BannerlordLink.Actions
                 // 3. Reset all skills/attributes to 0 — equal start для всех viewers
                 newHero.HeroDeveloper.ClearHero();
 
-                // 2026-06-02 (BLT-parity POWER) — раньше сеяли 1 очко в OneHanded
-                // (survival-минимум) → герой махал T6-шмотом с ~0 скилла: мажет,
-                // отскакивает, не наносит урон. BLT инхерит развитого NPC (~100-250).
-                // Сеем БОЕВОЙ флор ~120 во все боевые скиллы → герой компетентен
-                // любым оружием, которое даст класс. Не-боевые остаются 0 (fighter,
-                // не omni-гений). Класс-powers (*_skill_boost) поднимают специализацию
-                // ВЫШЕ флора (SetClassHandler.ApplyClassSkillBoosts, проверка >current).
+                // New free-build heroes start equally at 25 combat skill after
+                // ClearHero. Weapon active ranks unlock at actual skill 50/150;
+                // specialization changes never grant skills or equipment.
+                // Existing heroes are not touched; noncombat skills stay at 0.
                 try
                 {
-                    const int BASE_COMBAT_SKILL = 120;   // BLT-parity боевой флор
+                    const int BASE_COMBAT_SKILL = 25; // new build progression: ranks at 50 / 150
                     var combatSkills = new[]
                     {
                         DefaultSkills.OneHanded, DefaultSkills.TwoHanded,
@@ -299,14 +296,18 @@ namespace BannerlordLink.Actions
                     $"culture={newHero.Culture?.StringId ?? "?"} " +
                     $"town={newHero.HomeSettlement?.Name?.ToString() ?? "—"}");
 
+                var equipmentShop = BannerlordLink.Behaviors.EquipmentShopBehavior.Instance
+                    ?? throw new InvalidOperationException("inventory_unavailable");
+                equipmentShop.InitializeBuild(newHero);
                 // 5. Post player.linked обратно — backend upsert в bannerlord_heroes
                 PostLinked(newHero, username, heroIteration);
                 // 6. Sprint M19: post full state — UI показывает level/clan/kingdom
                 HeroStateSync.Push(newHero);
-                // 7. Push equipment snapshot — wanderer template имеет starting
-                //    equipment, UI должен показать в hero card.
+                // 7. Publish empty starting gear + the one-time starter choices.
                 EquipmentSync.PushAll(newHero);
                 ActionFeedback.PostApplied(actionId);
+                try { equipmentShop.Push(newHero, equipmentShop.Read(newHero)); }
+                catch (Exception snapshotEx) { BannerlordLinkModule.Log("[hero.create] build mirror retry pending: " + snapshotEx.Message); }
             }
             catch (Exception ex)
             {

@@ -50,13 +50,13 @@ namespace BannerlordLink.Actions
             string actionId = BannerlordLink.Util.ActionFeedback.GetActionId(data);
 
             MainThreadDispatcher.Enqueue(() =>
-                Activate(username, powerKey, durationOverride, valueOverride, actionId));
+                Activate(username, powerKey, durationOverride, valueOverride, actionId, data));
             return Task.FromResult<(bool, string)>((true, null));
         }
 
         private static void Activate(
             string username, string powerKey,
-            float? durationOverride, double? valueOverride, string actionId)
+            float? durationOverride, double? valueOverride, string actionId, JObject data)
         {
             try
             {
@@ -101,6 +101,30 @@ namespace BannerlordLink.Actions
                         $"[power.activate] REFUSE @{username}: hero не spawned как agent в Mission");
                     BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "hero_not_spawned");
                     return;
+                }
+
+                // New campaigns own their selected active and cooldown in the
+                // save. Backend value/duration overrides are not authoritative.
+                var build = BannerlordLink.Util.HeroBuildRuntime.State(username);
+                Hero buildHero = (agent.Character as CharacterObject)?.HeroObject;
+                BannerlordLink.Util.EquipmentLedger buildLedger = null;
+                if (build != null && (Campaign.Current == null || data["save_id"]?.ToString() != Campaign.Current.UniqueGameId
+                    || data["hero_id"]?.ToString() != buildHero?.StringId
+                    || data["equipment_session_id"]?.ToString() != BannerlordLink.Behaviors.EquipmentShopBehavior.Instance?.SessionId))
+                { BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "stale_hero_session"); return; }
+                if (build != null && powerKey != "heal_burst")
+                {
+                    if (data["weapon_type"]?.ToString() != build.SelectedWeaponType)
+                    { BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "weapon_power_not_selected"); return; }
+                    string refusal = BannerlordLink.Util.HeroBuildPolicy.CanActivate(build, powerKey,
+                        BannerlordLink.Util.HeroBuildRuntime.Wielded(agent, build.SelectedWeaponType),
+                        DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                    if (refusal != null) { BannerlordLink.Util.ActionFeedback.PostFailed(actionId, refusal); return; }
+                    var selected = BannerlordLink.Util.HeroBuildPolicy.Power(build.SelectedWeaponType);
+                    int skill = buildHero.GetSkillValue(BannerlordLink.Util.HeroBuildRuntime.Skill(selected.Skill));
+                    valueOverride = selected.Values[BannerlordLink.Util.HeroBuildPolicy.Rank(skill) - 1];
+                    durationOverride = BannerlordLink.Util.HeroBuildPolicy.DurationSeconds;
+                    buildLedger = BannerlordLink.Behaviors.EquipmentShopBehavior.Instance.Read(buildHero);
                 }
 
                 switch (powerKey)
@@ -152,7 +176,22 @@ namespace BannerlordLink.Actions
                         BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "unknown_power:" + powerKey);
                         return;
                 }
+                if (buildLedger != null)
+                {
+                    // All allowed new-build powers above install an observable
+                    // self buff. No-op cannot consume the shared cooldown.
+                    if (!ActiveBuffState.GetValue(username, powerKey).HasValue)
+                    { BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "power_no_effect"); return; }
+                    buildLedger.Build.WeaponPowerCooldownUntil = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+                        + BannerlordLink.Util.HeroBuildPolicy.CooldownSeconds;
+                    BannerlordLink.Behaviors.EquipmentShopBehavior.Instance.Store(buildHero, buildLedger);
+                }
                 BannerlordLink.Util.ActionFeedback.PostApplied(actionId);
+                if (buildLedger != null)
+                {
+                    try { BannerlordLink.Behaviors.EquipmentShopBehavior.Instance.Push(buildHero, buildLedger); }
+                    catch (Exception ex) { BannerlordLinkModule.Log("[power.activate] snapshot retry: " + ex.Message); }
+                }
             }
             catch (Exception ex)
             {
@@ -465,6 +504,10 @@ namespace BannerlordLink.Actions
                 //    (2026-07-20): значение ставилось и тут же стиралось.
                 if (agent.HasMount)
                 {
+                    // Mobility is a foot-speed specialization, not a horse buff.
+                    var hero = (agent.Character as CharacterObject)?.HeroObject;
+                    if (hero?.Name != null && BannerlordLink.Util.HeroBuildRuntime.State(
+                        BannerlordLink.Util.HeroNaming.ExtractUsername(hero.Name.ToString())) != null) return;
                     // Конный: скорость определяет ЛОШАДЬ — MountSpeed (абсолютная величина).
                     // MaxSpeedMultiplier всадника на бег коня не влияет вообще, поэтому
                     // у кавалериста рывок не давал НИЧЕГО (репорт из боя).

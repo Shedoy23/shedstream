@@ -426,6 +426,8 @@ namespace BannerlordLink.Actions
         {
             try
             {
+                if (BannerlordLink.Util.HeroBuildRuntime.State(username) != null)
+                    return BannerlordLink.Util.HeroBuildRuntime.Formation(HeroLookup.FindByUsername(username));
                 var hc = BannerlordLink.Net.PowerCache.GetHeroClass(username);
                 if (hc.HasValue && !string.IsNullOrEmpty(hc.Value.classKey)
                     && _classToFormation.TryGetValue(hc.Value.classKey, out var fc))

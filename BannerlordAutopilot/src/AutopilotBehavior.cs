@@ -1215,14 +1215,14 @@ namespace BannerlordAutopilot
                    && !party.MapFaction.IsAtWarWith(battle.DefenderSide.LeaderParty.MapFaction);
         }
 
-        // Only the bandit party deliberately pursued by this Apply session.
+        // Only the enemy party deliberately pursued by this Apply session.
         // Calling from the application tick also covers conversation missions.
         internal bool PollCombatConversation()
         {
             var party = MobileParty.MainParty;
             var target = _combatTarget ?? (party?.DefaultBehavior == AiBehavior.EngageParty ? party.TargetParty : null);
             if (_mode != Mode.Apply || PlayerEncounter.Current == null || party == null
-                || target == null || !target.IsBandit || PlayerEncounter.EncounteredMobileParty != target
+                || target == null || PlayerEncounter.EncounteredMobileParty != target
                 || party.Army != null || party.SiegeEvent != null || party.BesiegedSettlement != null
                 || target.SiegeEvent != null || PlayerEncounter.EncounterSettlement != null
                 || party.MapFaction == null || target.MapFaction == null
@@ -1241,15 +1241,19 @@ namespace BannerlordAutopilot
                 var options = conversation.CurOptions;
                 for (int i=0; options != null && i<options.Count; i++)
                 {
-                    if ((options[i].Id == "common_encounter_ultimatum"
-                         || options[i].Id == "common_bandit_surrender_accepted") && options[i].IsClickable)
+                    string id = options[i].Id;
+                    bool allowed = target.IsBandit
+                        ? id == "common_encounter_ultimatum" || id == "common_bandit_surrender_accepted"
+                        : IsTravelIntroduction(id) || id == "main_option_hostile_1_2"
+                          || id == "player_verify_attack_on_enemy_lord" || id == "545";
+                    if (allowed && options[i].IsClickable)
                     {
                         string selected = options[i].Id;
                         if (selected == "common_bandit_surrender_accepted") AuthorizePrisonerScreen();
                         conversation.DoOption(i);
                         AutopilotLog.Write(selected == "common_bandit_surrender_accepted"
                             ? "БОЙ: принята сдача бандитов — берём в плен штатной репликой"
-                            : "БОЙ: выбран ультиматум преследуемым бандитам; ждём ответа");
+                            : "БОЙ: штатная реплика преследуемой вражеской партии «" + selected + "»; ждём ответа");
                         return true;
                     }
                 }
@@ -1261,8 +1265,51 @@ namespace BannerlordAutopilot
             }
             catch (Exception ex)
             {
-                Disable("разговор с бандитами остановлен: " + ex.GetType().Name + ": " + ex.Message);
+                Disable("разговор с преследуемой партией остановлен: " + ex.GetType().Name + ": " + ex.Message);
             }
+            return true;
+        }
+
+        private static bool IsTravelIntroduction(string id)
+        {
+            return id == "lord_meet_player_response1" || id == "lord_meet_player_response2"
+                || id == "lord_meet_player_response3" || id == "lord_meet_player_as_liege_response"
+                || id == "ally_thanks_meet";
+        }
+
+        // A map encounter can exist for several ticks before its conversation starts.
+        // Own this transition, but never Finish an encounter or choose diplomacy at random.
+        private bool PollPeacefulTravelConversation()
+        {
+            var party = MobileParty.MainParty;
+            var target = PlayerEncounter.Current == null ? null : PlayerEncounter.EncounteredMobileParty;
+            if (party == null || target == null || Hero.MainHero?.IsPrisoner == true
+                || party.MapEvent != null || PlayerEncounter.Battle != null
+                || party.Army != null || party.SiegeEvent != null || party.BesiegedSettlement != null
+                || PlayerEncounter.EncounterSettlement != null || target.SiegeEvent != null
+                || party.MapFaction == null || target.MapFaction == null
+                || party.MapFaction.IsAtWarWith(target.MapFaction)) return false;
+            if (PlayerEncounter.EncounteredBattle != null) return false;
+            var c = Campaign.Current?.ConversationManager;
+            if (c?.IsConversationInProgress != true) return true;
+            if (c.ConversationParty != target || InformationManager.IsAnyInquiryActive()) return true;
+            try
+            {
+                var options = c.CurOptions;
+                for (int i = 0; options != null && i < options.Count; i++)
+                {
+                    string id = options[i].Id;
+                    if (!options[i].IsClickable || !(IsTravelIntroduction(id)
+                        || id == "player_is_leaving_neutral_or_friendly" || id == "caravan_talk_leave"
+                        || id == "player_caravan_nevermind" || id == "player_caravan_talk_leave"
+                        || id == "caravan_companion_talk_leave" || id == "village_farmer_leave")) continue;
+                    c.DoOption(i);
+                    AutopilotLog.Write("ВСТРЕЧА: мирная партия, штатная реплика «" + id + "»");
+                    return true;
+                }
+                if ((options == null || options.Count == 0) && c.IsConversationEnded()) c.ContinueConversation();
+            }
+            catch (Exception ex) { Disable("мирный разговор остановлен: " + ex.GetType().Name + ": " + ex.Message); }
             return true;
         }
 
@@ -1271,6 +1318,7 @@ namespace BannerlordAutopilot
             if (_mode != Mode.Apply) return false;
             try { if (PollHideoutConversation()) return true; }
             catch (Exception ex) { Disable("диалог убежища остановлен: " + ex); return true; }
+            if (PollPeacefulTravelConversation()) return true;
             if (PollCombatConversation()) return true; // Fixed combat rules always win.
             var conversation = Campaign.Current?.ConversationManager;
             if (conversation?.IsConversationInProgress != true)
@@ -2210,4 +2258,3 @@ namespace BannerlordAutopilot
         }
     }
 }
-

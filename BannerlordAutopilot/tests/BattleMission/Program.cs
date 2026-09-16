@@ -13,7 +13,13 @@ mission.MainAgent.Formation = originallyManual;
 mission.MainAgent.MountAgent = new Agent { IsUsingGameObject = false };
 mission.Deployment = new BattleDeploymentMissionController { Mission = mission, TeamSetupOver = true };
 var behavior = new BattleAutopilotMission { Mission = mission };
+mission.Behaviors.Add(mission.Deployment); mission.Behaviors.Add(new BattleDeploymentMissionController {Mission=mission}); mission.Behaviors.Add(behavior);
+bool tickSafe=true;
+try { for (int i=mission.Behaviors.Count-1;i>=0;i--) mission.Behaviors[i].OnMissionTick(0.1f); }
+catch (ArgumentOutOfRangeException) { tickSafe=false; }
+Check(tickSafe && mission.Deployment.FinishCalls==0,"обход MissionBehaviors не меняет список завершением расстановки");
 behavior.OnMissionTick(0.1f);
+typeof(BattleAutopilotMission).GetMethod("PollDeployment", System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)?.Invoke(behavior,null);
 Check(mission.Deployment.FinishCalls == 1 && mission.IsDeploymentFinished, "готовая расстановка завершается один раз");
 behavior.OnAfterDeploymentFinished(); behavior.OnMissionTick(0.1f);
 Check(mission.MainAgent.Controller == AgentControllerType.AI, "главный герой передан боевому AI");

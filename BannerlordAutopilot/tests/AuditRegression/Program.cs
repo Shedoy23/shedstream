@@ -280,6 +280,7 @@ internal static partial class Program
         Console.WriteLine("Регрессия автопилота по независимой проверке 12.09 (заменители движка, не кампания)");
         EngineContract.Verify();
         OperationTests();
+        PrisonerTests();
 
         Console.WriteLine("\n[находка 2] наблюдение ничего не меняет");
         Try("F10 в поселении", () =>

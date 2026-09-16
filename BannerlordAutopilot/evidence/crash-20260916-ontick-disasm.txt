@@ -1,0 +1,11 @@
+Loading core dump: C:/ProgramData/Mount and Blade II Bannerlord/crashes/2026-09-16_08.23.46/dump.dmp ...
+MethodDesc:   00007ff82f397118
+Method Name:          TaleWorlds.MountAndBlade.Mission.OnTick(Single, Single, Boolean, Boolean)
+Class:                00007ff82f36f750
+MethodTable:          00007ff82f3980c8
+mdToken:              0000000006001A87
+Module:               00007ff82f0b0020
+IsJitted:             yes
+Current CodeAddr:     00007ff8330ad640
+Version History:
+Unrecognized SOS command 'u'

@@ -36,7 +36,7 @@ namespace TaleWorlds.Library {
  public class MBList<T> : MBReadOnlyList<T> {}
  // Открыто ли окно-запрос (GauntletQueryManager._activeDataSource != null).
  public class InquiryData { public string TitleText; public bool IsAffirmativeOptionShown; public Action AffirmativeAction; }
- public static class InformationManager { public static bool TestInquiryActive; public static bool IsAnyInquiryActive() => TestInquiryActive; public static void HideInquiry() { TestInquiryActive=false; } }
+ public static class InformationManager { public static event Action<InquiryData,bool,bool> OnShowInquiry; public static void ShowInquiry(InquiryData data,bool pause=false,bool prioritize=false){TestInquiryActive=true;OnShowInquiry?.Invoke(data,pause,prioritize);} public static bool TestInquiryActive; public static bool IsAnyInquiryActive() => TestInquiryActive; public static void HideInquiry() { TestInquiryActive=false; } }
 }
 namespace TaleWorlds.Localization { public class TextObject { private readonly string _text; public TextObject(string text) { _text = text; } public override string ToString() => _text; } }
 namespace TaleWorlds.CampaignSystem.Incidents {

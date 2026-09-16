@@ -72,6 +72,11 @@ internal static partial class Program
             Enable(b); HourlyTick(b);
             Check(MobileParty.MainParty.DefaultBehavior == (supplied ? AiBehavior.BesiegeSettlement : AiBehavior.GoToSettlement),
                 "приоритет поход/снабжение, обеспечены " + supplied);
+            var ai = Campaign.Current.Models.MobilePartyAIModel; ai.NextBehavior = AiBehavior.EngageParty;
+            ai.NextTarget = new MobileParty { IsBandit = true }; ai.NextScore = 5;
+            HourlyTick(b);
+            Check(MobileParty.MainParty.DefaultBehavior == (supplied ? AiBehavior.BesiegeSettlement : AiBehavior.GoToSettlement),
+                "до следующего пересчёта бандиты не перехватывают поход или снабжение");
         });
         Try("сплочённость своей армии поддерживается штатным расчётом", () => {
             var b = Fresh(); ConquestWorld(); Enable(b);

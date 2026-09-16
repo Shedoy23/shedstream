@@ -39,6 +39,11 @@ internal static partial class Program
 
     static void BanditGatheringTests()
     {
+        Try("в армейском бою сбор одиночной партии не применяется", () => {
+            var w = GatheringWorld(); MobileParty.MainParty.Army = new Army { LeaderParty = MobileParty.MainParty };
+            var extra = GatherCandidate("extra", 70, 1, w.Bandits); w.Pilot.PollState();
+            Check(extra.MapEvent == null && MenuContext.Invoked.Contains("attack"), "армия атакует существующий бой без добора по силе одной партии");
+        });
         foreach (float addition in new[] { 60f, 80f, 81f, 10f })
         Try("реплика общего боя до ультиматума: добавочная сила " + addition, () => {
             var pilot = Fresh(); Enable(pilot);

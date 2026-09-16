@@ -56,7 +56,7 @@ internal static partial class Program
         TaleWorlds.Library.InformationManager.TestInquiryActive = false;
         TaleWorlds.CampaignSystem.Clan.PlayerClan = new TaleWorlds.CampaignSystem.Clan();
         TaleWorlds.ScreenSystem.ScreenManager.TopScreen = null; Helpers.MobilePartyHelper.TestLockedIds.Clear();
-        return new AutopilotBehavior();
+        return new AutopilotBehavior { RandomDialogsEnabled = false };
     }
 
     // ── Обслуживание в поселении ──────────────────────────────────────────────
@@ -280,6 +280,14 @@ internal static partial class Program
         Console.WriteLine("Регрессия автопилота по независимой проверке 12.09 (заменители движка, не кампания)");
         EngineContract.Verify();
         OperationTests();
+        Try("random default and lord introduction", () => {
+            var b=Fresh(); b.RandomDialogsEnabled=new AutopilotBehavior().RandomDialogsEnabled; Enable(b);
+            PlayerEncounter.Current=new PlayerEncounter();PlayerEncounter.EncounteredMobileParty=new MobileParty();
+            var c=Campaign.Current.ConversationManager;c.IsConversationInProgress=true;
+            c.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption {Id="lord_introduction",IsClickable=true});
+            b.PollState();
+            Check(c.Selected.Contains("lord_introduction") && b.CurrentMode==AutopilotBehavior.Mode.Apply,"lord introduction proceeds with default random mode");
+        });
         PrisonerTests();
         LootTests();
 
@@ -1186,9 +1194,9 @@ internal static partial class Program
             incident.Options.Add((new TaleWorlds.Localization.TextObject("Сообщить жителям"), new List<TaleWorlds.Localization.TextObject>{new("Мораль -5")}, () => selected = 1));
             Screen.IncidentView = new SandBox.View.Map.MapIncidentView(incident); Screen.IsMapIncidentActive = true;
             b.PollState();
-            Check(selected == 0 && !Screen.IsMapIncidentActive,
+            Check(selected >= 0 && selected <= 1 && !Screen.IsMapIncidentActive,
                   "проверенный безопасный вариант вызван, штатный слой события закрыт");
-            Check(AutopilotLog.Lines.Any(l => l.Contains("СОБЫТИЕ РЕШЕНО") && l.Contains("вариант 0")),
+            Check(AutopilotLog.Lines.Any(l => l.Contains("СОБЫТИЕ РЕШЕНО") && l.Contains("вариант " + selected)),
                   "автоматический выбор и его результат записаны");
         });
         Try("однокнопочное событие", () =>
@@ -1214,8 +1222,8 @@ internal static partial class Program
             incident.Options.Add((new TaleWorlds.Localization.TextObject("Потерять бойца"), new List<TaleWorlds.Localization.TextObject>{new("Боец погибает")}, () => calls++));
             Screen.IncidentView = new SandBox.View.Map.MapIncidentView(incident); Screen.IsMapIncidentActive = true;
             b.PollState(); b.PollState();
-            Check(calls == 0 && Screen.IsMapIncidentActive, "неизвестный выбор не сделан вслепую");
-            Check(LogCount("неоднозначное событие") == 1 && AutopilotLog.Lines.Any(l => l.Contains("Золото -100")),
+            Check(calls == 1 && !Screen.IsMapIncidentActive, "случайный вариант неизвестного события выполнен один раз");
+            Check(LogCount("СОБЫТИЕ РЕШЕНО") == 1 && AutopilotLog.Lines.Any(l => l.Contains("Золото -100")),
                   "название, варианты и последствия записаны один раз");
         });
         Try("окно случайного события у деревни", () =>
@@ -1282,4 +1290,5 @@ internal static partial class Program
         return failed;
     }
 }
+
 

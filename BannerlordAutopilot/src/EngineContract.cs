@@ -639,6 +639,8 @@ namespace BannerlordAutopilot
                 "ItemRosterElement(EquipmentElement, int)");
             MemberOf(equipment, "Item", Inst, item);
             // Main-hero equipment and paid inventory sales.
+            MemberOf(typeof(MobileParty), "TotalWeightCarried", Inst, typeof(float));
+            MemberOf(typeof(MobileParty), "InventoryCapacity", Inst, typeof(int));
             Type equipmentSet = TypeNamed(core, "TaleWorlds.Core.Equipment");
             Type equipmentIndex = TypeNamed(core, "TaleWorlds.Core.EquipmentIndex");
             Type tracker = TypeNamed(campaign, "TaleWorlds.CampaignSystem.IViewDataTracker");

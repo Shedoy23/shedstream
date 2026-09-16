@@ -1767,6 +1767,32 @@ namespace BannerlordAutopilot
                 NoteWaiting();
             }
 
+            if (_mode == Mode.Apply && ControlsParty(party) && !party.IsCurrentlyAtSea
+                && MapIsActiveScreen() && !InformationManager.IsAnyInquiryActive())
+            {
+                try
+                {
+                    Settlement market = EquipmentAndTrade.FindUnloadingTown(party,
+                        s => _services.IsDue(s) && !CannotStay(s));
+                    if (market != null)
+                    {
+                        var saleDecision = new AIBehaviorData(market, AiBehavior.GoToSettlement,
+                            MobileParty.NavigationType.Default, false, false, false);
+                        if (!IsSameDecision(saleDecision, party))
+                            AutopilotLog.Write("РАЗГРУЗКА: вес " + party.TotalWeightCarried.ToString("F1", CultureInfo.InvariantCulture)
+                                + "/" + party.InventoryCapacity + "; идём продавать в «" + market.Name + "»");
+                        if (waitingIn != null)
+                        {
+                            if (waitingIn == market) TryServe(party, market, MenuDriver.CurrentMenuId, "разгрузка");
+                            else { _pendingDecision = saleDecision; _pendingScore = 1f; _hasPendingDecision = true; }
+                        }
+                        else ApplyDecision(party, saleDecision, 1f);
+                        return;
+                    }
+                }
+                catch (Exception ex) { Disable("маршрут продажи: " + ex.GetType().Name + ": " + ex.Message); return; }
+            }
+
             // MobilePartyAi.GetBehaviors вызывает этот штатный расчёт для NPC,
             // но DefaultMobilePartyAIModel.ShouldPartyCheckInitiativeBehavior
             // намеренно возвращает false для MainParty. Без него партия игрока

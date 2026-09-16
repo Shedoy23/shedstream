@@ -14,6 +14,9 @@ internal static partial class Program
         Try("sell trip " + condition, () => {
             var b=Fresh(); var w=MakeWorld(prisoners:false); var p=MobileParty.MainParty;
             w.Place.Position=new CampaignVec2 { X=10 }; Settlement.All.Add(w.Place);
+            var enemy = new TestFaction(); ((TestFaction)p.MapFaction).Enemies.Add(enemy);
+            Settlement.All.Add(new Settlement { IsTown=true, MapFaction=enemy, Position=new CampaignVec2 { X=1 } });
+            Settlement.All.Add(new Settlement { IsTown=true, MapFaction=p.MapFaction, IsUnderSiege=true, Position=new CampaignVec2 { X=2 } });
             var tracker=new TestViewTracker(); Campaign.Current.Behaviors.Add(tracker);
             var loot=new ItemObject { Name="loot", TestPrice=20, IsFood=condition=="food" };
             p.ItemRoster.TestAdd(loot, 5); p.TotalWeightCarried=condition=="room" ? 40 : 100;

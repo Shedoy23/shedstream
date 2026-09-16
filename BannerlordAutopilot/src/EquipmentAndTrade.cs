@@ -133,6 +133,37 @@ namespace BannerlordAutopilot
                 + " динаров; осталось без полной оплаты " + unpaid + "; еда, закреплённые и квестовые сохранены");
         }
 
+        internal static Settlement FindUnloadingTown(MobileParty party, Func<Settlement, bool> eligible)
+        {
+            // A small margin avoids leaving the next loot screen with no room for one item.
+            float weight = party.TotalWeightCarried;
+            if (float.IsNaN(weight) || float.IsInfinity(weight) || weight <= 0
+                || weight < party.InventoryCapacity * 0.95f) return null;
+            HashSet<string> locks = InventoryLocks();
+            if (locks == null) return null;
+            Settlement nearest = null;
+            float distance = float.MaxValue;
+            foreach (Settlement town in Settlement.All)
+            {
+                if (!town.IsTown || town.IsUnderSiege || town.MapFaction == null || party.MapFaction == null
+                    || party.MapFaction.IsAtWarWith(town.MapFaction) || !eligible(town)
+                    || !Campaign.Current.Models.SettlementAccessModel.CanMainHeroDoSettlementAction(town,
+                        SettlementAccessModel.SettlementAction.Trade, out bool disabled, out _) || disabled) continue;
+                float next = party.Position.DistanceSquared(town.Position);
+                if (next >= distance) continue;
+                bool canSell = false;
+                for (int i = 0; i < party.ItemRoster.Count; i++)
+                {
+                    ItemRosterElement entry = party.ItemRoster.GetElementCopyAtIndex(i);
+                    if (entry.Amount <= 0 || entry.EquipmentElement.IsEmpty || Protected(entry.EquipmentElement, locks)) continue;
+                    int price = town.Town.GetItemPrice(entry.EquipmentElement, party, true);
+                    if (price > 0 && price <= town.SettlementComponent.Gold) { canSell = true; break; }
+                }
+                if (canSell) { nearest = town; distance = next; }
+            }
+            return nearest;
+        }
+
         private static HashSet<string> InventoryLocks()
         {
             var tracker = Campaign.Current?.GetCampaignBehavior<IViewDataTracker>();

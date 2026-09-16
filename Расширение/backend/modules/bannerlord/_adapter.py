@@ -452,6 +452,12 @@ class BannerlordAdapter(ModuleAdapter):
                   f"reason={env.data.get('reason', 'graceful')}")
             return
 
+        if et == "hero.inventory_snapshot":
+            from dependencies import get_db
+            from .equipment_shop import store_inventory
+            await store_inventory(get_db(), channel_id, env)
+            return
+
         if et == "module.catalog_update":
             await self._on_catalog_update(channel_id, env)
             return
@@ -868,91 +874,75 @@ class BannerlordAdapter(ModuleAdapter):
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
     async def _on_session_start(self, channel_id: int, env: ModuleEnvelope) -> None:
-        """Session start handler.
-
-        Чистим session-scoped catalogs (MULTITENANT_PLAN §H pattern).
-
-        Sprint M22: save-switch detection. Сравниваем переданный save_id
-        с last known для channel:
-          • match → reload того же save, heroes persist
-          • mismatch → стример загрузил другой save, heroes из старого
-            не существуют в новом → DELETE all hero data для channel
-            (zрители увидят "Стать героем" в extension)
-
-        Mod передаёт save_id = Campaign.Current.UniqueGameId (boot-time
-        stub "boot_*" для backwards-compat с старыми DLL).
-        """
-        save_id = env.data.get("save_id", "")
+        """Reset session caches and install its nonce under one database lock."""
         from dependencies import get_db
-        db = get_db()
-        cleared = await db.clear_module_catalogs(channel_id, self.id)
-
-        # M22: compare and reset on switch
-        reset = False
-        if save_id and not save_id.startswith("boot_"):
-            async with db._connect() as conn:
-                cur = await conn.execute(
-                    "SELECT current_save_id FROM bannerlord_channel_state "
-                    "WHERE channel_id=?", (channel_id,))
-                row = await cur.fetchone()
-                prev = (row[0] if row else None)
-                if prev and prev != save_id:
-                    # Save switched — другой playthrough → game-state из старого
-                    # save больше не существует. 2026-06-01 FIX: раньше чистили
-                    # ТОЛЬКО 5 hero-таблиц → fiefs/workshops/caravans/retinue/
-                    # party_orders/heirs/auctions/… висели stale на новом сейве
-                    # («Мои владения» показывали старые деревни). Теперь wipe тот
-                    # же полный набор, что broadcaster-reset (RESETTABLE_TABLES) —
-                    # single source of truth, списки больше не дрейфуют.
-                    # Платформенные крустики (отдельная таблица) и system-каталоги
-                    # (PRESERVED_TABLES) НЕ трогаются.
-                    # 2026-06-05 (HERO-LOSS fix) — НЕ wipe'аем таблицы, которыми
-                    # владеют snapshot-реконсайлеры: heroes_snapshot (hero-таблицы)
-                    # и properties_snapshot (fief/workshop/caravan). Раньше blanket-
-                    # wipe стирал ЖИВЫХ в игре героев на save-switch → extension
-                    # показывал «Стать героем». Игра — источник правды: snapshot'ы
-                    # сами удаляют то, чего нет в новом сейве, и (с ре-линком мода)
-                    # пересоздают присутствующих. Чистим только НЕ-реконсайлимые
-                    # per-save stale-таблицы (retinue/auctions/heirs/party_orders/…).
-                    SNAPSHOT_OWNED = {
-                        "bannerlord_heroes", "bannerlord_skills",
-                        "bannerlord_attributes", "bannerlord_equipment",
-                        "bannerlord_hero_class",
-                        "bannerlord_fiefs", "bannerlord_workshops",
-                        "bannerlord_caravans",
-                    }
-                    from routes.bannerlord_admin import RESETTABLE_TABLES
-                    for table in RESETTABLE_TABLES:
-                        if table == "bannerlord_channel_state":
-                            continue  # управляется ниже через UPSERT
-                        if table in SNAPSHOT_OWNED:
-                            continue  # реконсайлится snapshot'ом — НЕ wipe'аем
-                        # guard: таблица без колонки channel_id не роняет весь
-                        # reset (sqlite3 OperationalError); логируем виновника.
-                        try:
-                            await conn.execute(
-                                f"DELETE FROM {table} WHERE channel_id=?", (channel_id,))
-                        except Exception as _wipe_ex:
-                            print(f"[bannerlord:{channel_id}] session_start wipe "
-                                  f"SKIP table '{table}': {_wipe_ex}")
-                    reset = True
-                # Update channel state regardless
+        from routes.bannerlord_admin import RESETTABLE_TABLES
+        save_id = str(env.data.get("save_id") or "")
+        session_id = str(env.data.get("equipment_session_id") or "")
+        # Existing save-switch policy: preserve tables reconciled by authoritative
+        # heroes/properties snapshots. Blanket wiping these loses live heroes until
+        # re-link; only per-save stale tables (retinue, auctions, heirs...) are reset.
+        # Platform viewers/points and system catalogs are not in RESETTABLE_TABLES.
+        snapshot_owned = {
+            "bannerlord_heroes", "bannerlord_skills", "bannerlord_attributes",
+            "bannerlord_equipment", "bannerlord_hero_class", "bannerlord_fiefs",
+            "bannerlord_workshops", "bannerlord_caravans",
+        }
+        async with get_db()._connect() as conn:
+            await conn.execute("BEGIN IMMEDIATE")
+            cur = await conn.execute("SELECT session_ts,session_id FROM bannerlord_equipment_sessions WHERE channel_id=?", (channel_id,))
+            previous_session = await cur.fetchone()
+            # Startup ping is fire-and-forget and can arrive after the campaign
+            # handshake. It must never revoke an already active equipment session.
+            if previous_session and previous_session[1] and save_id.startswith("boot_"):
+                await conn.rollback()
+                return
+            # Envelope ts is epoch milliseconds. Boot and campaign handshakes can
+            # share a millisecond; a different nonce must still install in that case.
+            # Duplicate starts for the same nonce must not clear a ready inventory.
+            # A failed real handshake retains its original timestamp on retry.
+            # A newer startup ping carries no campaign authority; it must not
+            # prevent that retry from promoting the empty bootstrap session.
+            promoting_campaign = bool(previous_session and not previous_session[1]
+                                      and session_id and save_id and not save_id.startswith("boot_"))
+            if previous_session and not promoting_campaign and (env.ts < previous_session[0] or (session_id and session_id == previous_session[1]) or (env.ts == previous_session[0] and session_id == previous_session[1])):
+                await conn.rollback()
+                return
+            cur = await conn.execute("SELECT current_save_id FROM bannerlord_channel_state WHERE channel_id=?", (channel_id,))
+            row = await cur.fetchone()
+            previous_save = row[0] if row else None
+            real_save = bool(save_id and not save_id.startswith("boot_"))
+            if real_save and previous_save and previous_save != save_id:
+                for table in RESETTABLE_TABLES:
+                    if table == "bannerlord_channel_state" or table in snapshot_owned:
+                        continue
+                    # Keep legacy best-effort handling for older optional tables.
+                    try:
+                        await conn.execute(f"DELETE FROM {table} WHERE channel_id=?", (channel_id,))
+                    except Exception as ex:
+                        logger.warning("[bannerlord:%s] session_start wipe SKIP table %s: %s", channel_id, table, ex)
+            await conn.execute("DELETE FROM module_catalogs WHERE channel_id=? AND module_id='bannerlord'", (channel_id,))
+            await conn.execute("DELETE FROM bannerlord_inventory_snapshots WHERE channel_id=?", (channel_id,))
+            await conn.execute(
+                "INSERT OR REPLACE INTO bannerlord_equipment_sessions(channel_id,session_id,session_ts) VALUES(?,?,?)",
+                (channel_id, session_id, env.ts))
+            if real_save:
                 await conn.execute("""
-                    INSERT INTO bannerlord_channel_state
-                        (channel_id, current_save_id, last_session_at)
-                    VALUES (?, ?, CURRENT_TIMESTAMP)
-                    ON CONFLICT(channel_id) DO UPDATE SET
-                        current_save_id = excluded.current_save_id,
-                        last_session_at = CURRENT_TIMESTAMP
+                    INSERT INTO bannerlord_channel_state(channel_id,current_save_id,last_session_at)
+                    VALUES(?,?,CURRENT_TIMESTAMP)
+                    ON CONFLICT(channel_id) DO UPDATE SET current_save_id=excluded.current_save_id,last_session_at=CURRENT_TIMESTAMP
                 """, (channel_id, save_id))
-                await conn.commit()
-
-        print(f"[bannerlord:{channel_id}] session_start save_id={save_id} "
-              f"(cleared {cleared} catalogs, stale_wipe={reset}, heroes/props PRESERVED)")
+            await conn.commit()
+        logger.info("[bannerlord:%s] session_start save_id=%s equipment_session=%s", channel_id, save_id, session_id)
 
     async def _on_catalog_update(self, channel_id: int, env: ModuleEnvelope) -> None:
         """Generic catalog write. Catalog types declared в manifest.yaml."""
         catalog_type = str(env.data.get("catalog") or "").lower()
+        if catalog_type == "equipment":
+            from dependencies import get_db
+            from .equipment_shop import store_catalog
+            await store_catalog(get_db(), channel_id, env)
+            return
         if catalog_type not in ("shop", "events"):
             logger.warning("[bannerlord:%s] catalog_update unknown type=%s",
                            channel_id, catalog_type)

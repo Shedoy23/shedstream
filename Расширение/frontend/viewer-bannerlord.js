@@ -431,6 +431,7 @@ function _setBnrInnerTab(tab) {
         pane.classList.toggle('active', pane.dataset.bnrPane === tab);
     });
     try { localStorage.setItem('bnr_active_tab', tab); } catch (e) {}
+    if (tab === 'inventory') loadBannerlordEquipmentShop();
 }
 
 function _bindBnrInnerTabs() {
@@ -474,6 +475,7 @@ function _startBannerlordPolling() {
         loadBannerlordShop();
         loadBannerlordStatus();
         loadBannerlordClasses();
+        if (document.querySelector('[data-bnr-pane="inventory"].active')) loadBannerlordEquipmentShop();
     }, 8000);
     // Buff HUD: faster poll (2.5s) для смены состояния, плюс client-side
     // decrement (1s) чтобы countdown был smooth между poll'ами.
@@ -626,6 +628,7 @@ function _bnrShowSimpleModal({ title, body, bind }) {
 // loadBannerlordStatus. Зовётся из _startBannerlordPolling (рантайм).
 
 function _stopBannerlordPolling() {
+    BnrEquipmentShop.reset();
     if (_bannerlordPollId) {
         clearInterval(_bannerlordPollId);
         _bannerlordPollId = null;
@@ -816,6 +819,7 @@ document.addEventListener('click', (ev) => {
     if (ev.target && ev.target.id === 'refresh-hero-btn') {
         loadBannerlordHero();
         loadBannerlordShop();
+        loadBannerlordEquipmentShop();
     }
 });
 
@@ -3459,6 +3463,11 @@ function renderBannerlordClassPicker() {
     const slot = document.getElementById('hero-class-picker-slot');
     if (!slot || !_bannerlordClassesCache) return;
     const { classes, current } = _bannerlordClassesCache;
+    if (_bannerlordLastHero?.equipment_shop_ready) {
+        slot.innerHTML = '<div class="bnr-eq-help">Снаряжение выбирается во вкладке «Инвентарь». Текущие способности пока сохраняются.</div>';
+        renderBannerlordActivePowers();
+        return;
+    }
     const currentKey = current?.class_key || '';
 
     // Sprint 5.3b — compact dropdown вместо grid кнопок (UX feedback).
@@ -4953,6 +4962,7 @@ async function loadBannerlordHero() {
         const _h = data.hero || {};
         const _structHash = JSON.stringify({
             has_hero:    data.has_hero,
+            equipment_shop_ready: !!data.equipment_shop_ready,
             level:       _h.level,
             clan_id:     _h.clan_id,
             kingdom_id:  _h.kingdom_id,
@@ -5196,7 +5206,7 @@ async function loadBannerlordHero() {
         // 2026-05-29 — «переформировать снаряжение» (BLT ReequipInsteadOfUpgrade):
         // ре-ролл всех слотов на ТЕКУЩЕМ тире (бесплатно), фикс кривой/залипшей
         // экипировки. Доступно только при выбранном классе, в т.ч. на MAX.
-        const _reequipBtn = _hasClass
+        const _reequipBtn = _hasClass && !data.equipment_shop_ready
             ? `<button class="small-btn" id="bnr-reequip-btn"
                     data-bnr-cd="hero.reequip_gear"
                     title="Переформировать снаряжение: ре-ролл всех слотов на текущем тире (T${gearTier || 0}). Бесплатно — фикс если экипировка кривая/залипла. Турнирные призы и крафт сохраняются."
@@ -5205,7 +5215,9 @@ async function loadBannerlordHero() {
                 🔄 пересбор
             </button>`
             : '';
-        const gearTierLabel = _gtierText + _gtierBtn + _reequipBtn;
+        const gearTierLabel = data.equipment_shop_ready
+            ? '<span style="color:#dfb4ff;">своя сборка · Инвентарь</span>'
+            : _gtierText + _gtierBtn + _reequipBtn;
 
         // Sprint M21: armor summary — sum head/body/leg/arm coverage по
         // 5 armor slots (head/body/leg/gloves/cape). Engine считает
@@ -5417,10 +5429,10 @@ async function loadBannerlordHero() {
         const paneInv = document.getElementById('bnr-pane-inventory-body');
         if (paneInv) paneInv.innerHTML = `
             <div style="padding:6px;">
-                <div style="font-size:12px;color:#fbbf24;font-weight:700;margin-bottom:6px;">
+                <div id="bnr-legacy-equipment" ${data.equipment_shop_ready ? 'hidden' : ''}><div style="font-size:12px;color:#fbbf24;font-weight:700;margin-bottom:6px;">
                     🎽 Экипировка
                 </div>
-                <div style="margin-bottom:10px;">${eqHtml}</div>
+                <div style="margin-bottom:10px;">${eqHtml}</div></div>
                 <div id="bnr-retinue-slot" style="margin-bottom:10px;"></div>
                 <details data-bnr-details="inv-achievements" ${_bnrDetailsAttr('inv-achievements')} style="margin-bottom:6px;">
                     <summary style="font-size:12px;padding:8px;box-sizing:border-box;cursor:pointer;

@@ -49,6 +49,8 @@ RESETTABLE_TABLES = [
     "bannerlord_skills",
     "bannerlord_attributes",
     "bannerlord_equipment",
+    "bannerlord_inventory_snapshots",
+    "bannerlord_equipment_sessions",
     "bannerlord_hero_class",
     "bannerlord_channel_state",
     "bannerlord_retinue",

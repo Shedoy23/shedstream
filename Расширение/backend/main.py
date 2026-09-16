@@ -1535,6 +1535,9 @@ async def run_migrations():
         from migrations import m124_shop_catalog_tooltip
         await m124_shop_catalog_tooltip.apply(conn)
 
+        from migrations import m125_bannerlord_inventory
+        await m125_bannerlord_inventory.apply(conn)
+
         print("✅ Migrations complete")
 
 

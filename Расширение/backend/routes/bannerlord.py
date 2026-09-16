@@ -914,6 +914,7 @@ async def bannerlord_ping():
 # Action types которые viewer может купить через /api/bannerlord/action.
 # Должны быть в bannerlord/manifest.yaml actions/extensions.
 _PURCHASABLE_ACTIONS = (
+    "hero.buy_equipment", "hero.equip_owned", "hero.unequip_owned",
     "hero.create",            # adoption — special: НЕ требует существующего hero
     "hero.set_class",         # Sprint 4.1: класс + equipment apply
     "hero.set_combat_stance", # 2026-06-10: боевая стойка (defensive/balanced/aggressive)
@@ -1174,6 +1175,9 @@ CARAVAN_PRICE_CRUSTIC  = 4_000    # 💎 caravan passive income (2026-05-29: 150
 # detach_* — всё дублировалось вручную и уже начинало врать). Теперь ОДИН источник:
 # бэк enforce'ит отсюда И отдаёт это же в /api/bannerlord/config.
 ACTION_PRICES_DEFAULT = {
+    "hero.buy_equipment": 0,
+    "hero.equip_owned": 0,
+    "hero.unequip_owned": 0,
     "hero.create":             0,    # adoption — free
     "player.modify_attribute": 50,
     "world.trigger_event":  1000,    # heavy / admin-style
@@ -1529,7 +1533,17 @@ async def bannerlord_my_hero(request: Request):
                 "refunded":  not _aerr.startswith("REFUNDED:0"),
             })
 
+    async with db._connect() as equipment_conn:
+        equipment_cur = await equipment_conn.execute(
+            "SELECT 1 FROM bannerlord_inventory_snapshots i JOIN bannerlord_channel_state s ON s.channel_id=i.channel_id "
+            "JOIN bannerlord_heroes h ON h.channel_id=i.channel_id AND h.username=i.username "
+            "JOIN bannerlord_equipment_sessions e ON e.channel_id=i.channel_id AND e.session_id=i.session_id "
+            "WHERE i.channel_id=? AND i.username=? AND i.save_id=s.current_save_id AND i.hero_id=h.hero_id",
+            (channel_id, username))
+        equipment_shop_ready = bool(await equipment_cur.fetchone())
+
     return {
+        "equipment_shop_ready": equipment_shop_ready,
         "success":        True,
         "has_hero":       True,
         "hero":           hero,
@@ -1539,6 +1553,36 @@ async def bannerlord_my_hero(request: Request):
         "retinue":        retinue,
         "recent_refunds": recent_refunds,
     }
+
+
+@router.get("/api/bannerlord/equipment-shop")
+async def bannerlord_equipment_shop(request: Request):
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+    from modules.bannerlord.equipment_shop import context, catalog, buy_reason, refusal, TIER_LEVELS
+    db = get_db()
+    async with db._connect() as conn:
+        await conn.execute("BEGIN")
+        ctx = await context(conn, channel_id, username)
+        items = await catalog(conn, channel_id)
+        await conn.rollback()
+    import module_liveness
+    live = await module_liveness.is_on_air(db, channel_id, "bannerlord")
+    if not live:
+        ctx["reason"] = ctx["reason"] or "offline"
+    for item in items:
+        reason = buy_reason(item, ctx)
+        item.update(can_buy=reason is None, reason=reason,
+                    message=refusal(reason)["message"] if reason else "")
+    hero = ctx["hero"]
+    return {"success": True, "items": items, "inventory": ctx["inventory"],
+            "tiers": [{"tier": t, "required_level": lv} for t, lv in TIER_LEVELS.items()],
+            "hero_level": hero[1] if hero else 0, "gold": hero[2] if hero else 0,
+            "has_hero": bool(hero), "ready": ctx["ready"], "pending": ctx["pending"],
+            "can_manage": ctx["reason"] is None, "reason": ctx["reason"],
+            "message": refusal(ctx["reason"])["message"] if ctx["reason"] else ""}
 
 
 @router.get("/api/bannerlord/shop")
@@ -1558,7 +1602,7 @@ async def bannerlord_shop(request: Request):
         cur = await conn.execute(
             "SELECT catalog_type, entry_id, payload FROM module_catalogs "
             "WHERE channel_id=? AND module_id='bannerlord' "
-            "ORDER BY catalog_type, entry_id",
+            "AND catalog_type != 'equipment' ORDER BY catalog_type, entry_id",
             (channel_id,))
         items = []
         for r in await cur.fetchall():
@@ -2743,13 +2787,17 @@ async def _charge_execute_enqueue(action_type, data, price, username, channel_id
             client_action_id = (data.get("client_action_id") or "").strip() or None
             if client_action_id:
                 cur_idem = await conn.execute(
-                    "SELECT action_id, type, status FROM module_actions "
+                    "SELECT action_id, type, status, json_extract(data, '$.initiated_by') FROM module_actions "
                     "WHERE channel_id=? AND module_id='bannerlord' "
                     "AND client_action_id=? LIMIT 1",
                     (channel_id, client_action_id))
                 idem_row = await cur_idem.fetchone()
                 if idem_row:
-                    prev_action_id, prev_type, prev_status = idem_row
+                    prev_action_id, prev_type, prev_status, prev_owner = idem_row
+                    from modules.bannerlord.equipment_shop import ACTION_TYPES
+                    if action_type in ACTION_TYPES and (prev_owner != username or prev_type != action_type):
+                        await conn.rollback()
+                        return {"success": False, "reason": "client_action_conflict", "message": "Идентификатор действия уже использован"}
                     await conn.execute("ROLLBACK")
                     log.info(
                         "[bannerlord IDEM] retry hit ch=%s user=%s "
@@ -2762,6 +2810,23 @@ async def _charge_execute_enqueue(action_type, data, price, username, channel_id
                         "action_id":        prev_action_id,
                         "idempotent_replay": True,
                     }
+
+            if action_type in ("hero.set_class", "hero.upgrade_gear", "hero.reequip_gear"):
+                cur = await conn.execute(
+                    "SELECT 1 FROM bannerlord_equipment_sessions WHERE channel_id=? AND session_id != '' LIMIT 1",
+                    (channel_id,))
+                if await cur.fetchone():
+                    await conn.rollback()
+                    return {"success": False, "reason": "equipment_shop_enabled",
+                            "message": "Выбирай снаряжение в магазине во вкладке Инвентарь"}
+
+            from modules.bannerlord.equipment_shop import ACTION_TYPES, validate_tx
+            if action_type in ACTION_TYPES:
+                equipment_refusal = await validate_tx(conn, channel_id, username, action_type, data)
+                if equipment_refusal:
+                    await conn.rollback()
+                    return equipment_refusal
+                price = 0
 
             # Sprint 5.31 #45e (audit MED-6) — tournament.predict dedup
             # ВНУТРИ TX, защищён BEGIN IMMEDIATE lock'ом. Раньше SELECT был

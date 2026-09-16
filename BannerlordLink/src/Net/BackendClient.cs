@@ -179,7 +179,7 @@ namespace BannerlordLink.Net
         /// <param name="eventType">type из manifest, e.g. module.session_start, player.linked</param>
         /// <param name="data">extra fields в data{} envelope'а</param>
         /// <returns>true если backend ACK'нул success</returns>
-        public async Task<bool> PostEventAsync(string moduleId, string eventType, string dataJson = "{}")
+        public async Task<bool> PostEventAsync(string moduleId, string eventType, string dataJson = "{}", long? timestampMs = null)
         {
             if (string.IsNullOrEmpty(_config.ModuleToken))
             {
@@ -188,7 +188,7 @@ namespace BannerlordLink.Net
             }
 
             string envelopeId = Guid.NewGuid().ToString("N");
-            long ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            long ts = timestampMs ?? DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             // Sprint 5.31 #45e (audit MED-4) — раньше string.Format'или JSON
             // руками. eventType с " или \ ломал envelope; dataJson мог
             // быть уже-сериализованным (через JsonConvert) или ручным

@@ -169,7 +169,7 @@ namespace BannerlordLink.Util
         /// те же цифры, что тултип в игре (а не базовые без модификатора). Compact dict —
         /// backend сохраняет как-is, frontend парсит и рендерит badges.
         /// </summary>
-        private static string BuildStatsJson(ItemObject item, ItemModifier mod)
+        internal static string BuildStatsJson(ItemObject item, ItemModifier mod)
         {
             try
             {

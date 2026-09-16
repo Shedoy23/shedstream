@@ -1766,3 +1766,38 @@ input[type="number"]::-webkit-inner-spin-button {
 .bnr-btn-primary:hover { background: #244a78; }
 .bnr-btn-danger  { background: #7f1d1d; color: #fca5a5; }
 .bnr-btn-danger:hover  { background: #991b1b; }
+
+/* Bannerlord: deterministic shop inside the lower Inventory tab. */
+#bnr-equipment-shop { padding: 12px; min-width: 0; }
+#bnr-equipment-shop:empty { display: none; }
+.bnr-eq-summary { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: #adadb8; }
+.bnr-eq-summary strong { color: #fbbf24; }
+.bnr-eq-unlocks { display: flex; flex-wrap: wrap; gap: 4px; margin: 10px 0; }
+.bnr-eq-unlocks span { background: #161618; color: #92929e; border: 1px solid #363639; border-radius: 4px; padding: 3px 5px; font-size: 10px; }
+.bnr-eq-unlocks .unlocked { color: #dfb4ff; border-color: #714096; background: #271a32; }
+.bnr-eq-tabs { display: flex; gap: 5px; }
+.bnr-eq-tabs button { flex: 1; padding: 8px 4px; border: 1px solid #424247; border-radius: 6px; background: #29292d; color: #efeff1; font-size: 12px; cursor: pointer; }
+.bnr-eq-tabs button[aria-pressed="true"] { background: #7432ad; border-color: #a970ff; color: #fff; }
+.bnr-eq-help { font-size: 11px; line-height: 1.5; color: #adadb8; margin: 9px 0; }
+.bnr-eq-notice { padding: 8px; margin: 8px 0; background: #302711; border: 1px solid #6e5926; border-radius: 5px; color: #f4d785; font-size: 11px; line-height: 1.5; }
+.bnr-eq-filters { display: grid; gap: 6px; margin-bottom: 10px; }
+.bnr-eq-filters > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .7fr); gap: 6px; }
+.bnr-eq-filters input, .bnr-eq-filters select, .bnr-eq-equip-controls select { box-sizing: border-box; width: 100%; min-width: 0; background: #141416; color: #efeff1; border: 1px solid #45454a; border-radius: 5px; padding: 8px; font: inherit; font-size: 11px; }
+.bnr-eq-results { display: grid; gap: 7px; }
+.bnr-eq-item { padding: 9px; min-width: 0; background: #262628; border: 1px solid #3d3d42; border-radius: 7px; }
+.bnr-eq-item-top { display: flex; align-items: start; justify-content: space-between; gap: 8px; }
+.bnr-eq-item-top strong { min-width: 0; color: #efeff1; font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
+.bnr-eq-tier { flex-shrink: 0; padding: 1px 5px; border: 1px solid #704a85; border-radius: 4px; color: #d9a4f8; font-size: 11px; }
+.bnr-eq-meta, .bnr-eq-stats { color: #adadb8; font-size: 10px; line-height: 1.6; margin-top: 4px; overflow-wrap: anywhere; }
+.bnr-eq-action { box-sizing: border-box; width: 100%; border: 1px solid #815139; border-radius: 5px; background: #533421; color: #ffe1a6; padding: 8px; margin-top: 8px; cursor: pointer; font-size: 11px; font-weight: 600; }
+.bnr-eq-action.secondary { background: #2e2442; color: #e0bdff; border-color: #645079; }
+.bnr-eq-action:disabled { background: #303034; border-color: #48484d; color: #a0a0a9; cursor: not-allowed; }
+.bnr-eq-reason { color: #c7b78c; font-size: 10px; margin-top: 5px; }
+.bnr-eq-equipped { color: #7cddab; font-size: 11px; margin-top: 7px; }
+.bnr-eq-equip-controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .7fr); gap: 6px; align-items: center; margin-top: 8px; }
+.bnr-eq-equip-controls .bnr-eq-action { margin-top: 0; }
+.bnr-eq-empty { padding: 18px 6px; color: #adadb8; font-size: 12px; line-height: 1.6; text-align: center; }
+.bnr-eq-pages { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 8px; font-size: 11px; }
+.bnr-eq-pages button { background: #303034; border: 1px solid #48484d; border-radius: 4px; color: #efeff1; padding: 7px 10px; cursor: pointer; }
+.bnr-eq-pages button:disabled { opacity: .45; cursor: not-allowed; }
+#bnr-equipment-shop :focus-visible { outline: 2px solid #bd88ff; outline-offset: 2px; }

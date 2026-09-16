@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../src/Util/EquipmentShopPolicy.cs" Link="EquipmentShopPolicy.cs" />
+    <Compile Include="../../src/Util/EquipmentSessionHandshake.cs" Link="EquipmentSessionHandshake.cs" />
+    <Compile Include="../../src/Util/HeroGoldCharge.cs" Link="HeroGoldCharge.cs" />
+    <Compile Include="../../src/Actions/EquipmentShopHandlers.cs" Link="EquipmentShopHandlers.cs" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+</Project>

@@ -40,6 +40,9 @@ namespace BannerlordLink.Actions
             Register(new ActivatePowerHandler());    // power.activate — active power burst
             Register(new SummonHeroHandler());       // player.spawn — summon в Mission (5.0)
             Register(new EquipItemHandler());        // player.equip_item — equip ItemObject (5.1b)
+            Register(new EquipmentShopHandler("hero.buy_equipment"));
+            Register(new EquipmentShopHandler("hero.equip_owned"));
+            Register(new EquipmentShopHandler("hero.unequip_owned"));
             Register(new UpgradeGearHandler());      // hero.upgrade_gear — 6-tier progression
             Register(new ReequipGearHandler());      // hero.reequip_gear — re-roll снаряги на текущем тире (BLT ReequipInsteadOfUpgrade)
             Register(new DiscardItemHandler());      // hero.discard_item — 2026-06-18: выбросить вещь из слота (освободить залоченную)

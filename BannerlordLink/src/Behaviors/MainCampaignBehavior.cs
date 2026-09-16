@@ -539,9 +539,13 @@ namespace BannerlordLink.Behaviors
                     save_id = saveId,
                     trigger = trigger,
                     mod_version = "0.1.0",
+                    equipment_session_id = EquipmentShopBehavior.Instance?.SessionId,
                 });
-                Task.Run(async () => await BannerlordLinkModule.Backend
-                    .PostEventAsync("bannerlord", "module.session_start", evtData));
+                if (EquipmentShopBehavior.Instance != null)
+                    EquipmentShopBehavior.Instance.BeginSession(evtData);
+                else
+                    Task.Run(async () => await BannerlordLinkModule.Backend
+                        .PostEventAsync("bannerlord", "module.session_start", evtData));
                 BannerlordLinkModule.Log(
                     $"[CampaignEvent] {trigger}: session_start pushed save_id={saveId}");
 

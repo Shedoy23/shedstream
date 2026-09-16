@@ -412,6 +412,7 @@ namespace BannerlordLink
                     // 2026-06-15: per-save persistence backend-only стейта (класс/стойка/
                     // тир) — хранит в сейве, ре-пушит на backend при загрузке.
                     campaignStarter.AddBehavior(new HeroProfileBehavior());
+                    campaignStarter.AddBehavior(new EquipmentShopBehavior());
                     Log("HeroProfileBehavior registered (per-save class/stance/gear_tier)");
                     // Sprint 5.26c: BLT-style clan upgrades (daily renown + influence tick).
                     campaignStarter.AddBehavior(new ClanUpgradesBehavior());

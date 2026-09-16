@@ -40,7 +40,7 @@ const BnrEquipmentShop = (() => {
             const disabled = blocked || !item.can_buy;
             controls = `<button type="button" class="bnr-eq-action" data-bnr-eq-buy="${id}" ${disabled ? 'disabled' : ''}>
                 Купить · ${number(item.price_gold)} 💰</button>
-                ${!item.can_buy && item.reason ? `<div class="bnr-eq-reason">${text(item.reason)}</div>` : ''}`;
+                ${!item.can_buy && item.reason ? `<div class="bnr-eq-reason">${text(item.message || item.reason)}</div>` : ''}`;
         } else if (item.slot) {
             controls = `<div class="bnr-eq-equipped">Надето: ${text(slotNames[item.slot] || item.slot)}</div>
                 <button type="button" class="bnr-eq-action secondary" data-bnr-eq-unequip="${text(item.slot)}" ${blocked ? 'disabled' : ''}>Снять в инвентарь</button>`;
@@ -96,7 +96,7 @@ const BnrEquipmentShop = (() => {
                 <button type="button" data-bnr-eq-view="owned" aria-pressed="${view === 'owned'}">Мои вещи · ${(snapshot.inventory || []).length}</button></div>
             <p class="bnr-eq-help">${view === 'shop' ? 'Покупка за динары героя. Вещь попадёт в твой инвентарь.' : 'Надевай вещи между боями. Заменённая вещь останется здесь.'}</p>
             ${snapshot.pending || busy ? '<div class="bnr-eq-notice" role="status">Заявка отправлена — ждём результат из игры.</div>' : ''}
-            ${snapshot.reason ? `<div class="bnr-eq-notice" role="status">${text(snapshot.reason)}</div>` : ''}
+            ${snapshot.reason ? `<div class="bnr-eq-notice" role="status">${text(snapshot.message || snapshot.reason)}</div>` : ''}
             <div class="bnr-eq-filters"><input type="search" data-bnr-eq-search aria-label="Найти вещь" placeholder="Найти вещь…" value="${text(search)}">
                 <div><select data-bnr-eq-category aria-label="Категория"><option value="">Все категории</option>
                     ${availableCategories.map(c => `<option value="${text(c)}" ${category === c ? 'selected' : ''}>${text(categories[c] || c)}</option>`).join('')}</select>

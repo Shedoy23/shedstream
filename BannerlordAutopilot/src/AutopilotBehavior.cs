@@ -123,6 +123,10 @@ namespace BannerlordAutopilot
         private string _lastAppliedDescription = "—";
         private string _lastTargetKey;
         private MobileParty _combatTarget;
+        // Участники чужого боя, из которого ушли, → тот самый MapEvent (см. InLeftForeignBattle).
+        // object, а не MapEvent: тип живёт в TaleWorlds.CampaignSystem.MapEvents, и как
+        // везде в этом файле его не называем, чтобы исходник собирался и со стендом.
+        private readonly Dictionary<MobileParty, object> _leftForeignBattles = new Dictionary<MobileParty, object>();
         internal bool RandomDialogsEnabled { get; set; } = true;
         private readonly Random _dialogRandom = new Random();
         private int _randomDialogSteps;
@@ -238,6 +242,7 @@ namespace BannerlordAutopilot
             _lastAppliedDescription = "—";
             _lastTargetKey = null;
             _combatTarget = null;
+            _leftForeignBattles.Clear();
             _continuousPatrolSettlement = null;
             _continuousPatrolSinceHours = -1;
             _startedIn = null;
@@ -342,7 +347,7 @@ namespace BannerlordAutopilot
             }
 
             bool operation = CanStartOperation(party);
-            string unsupported = operation || IsSupportedFieldBattleEncounter(party) || CanHelpDefenders(party) ? null : UnsupportedState(party);
+            string unsupported = operation || IsSupportedFieldBattleEncounter(party) || IsForeignFieldBattle(party) ? null : UnsupportedState(party);
             if (unsupported != null)
             {
                 reason = unsupported;
@@ -350,7 +355,7 @@ namespace BannerlordAutopilot
             }
 
             Settlement peaceful = PeacefulSettlement(party);
-            if (!operation && peaceful == null && PlayerEncounter.Current != null && !IsSupportedFieldBattleEncounter(party) && !CanHelpDefenders(party))
+            if (!operation && peaceful == null && PlayerEncounter.Current != null && !IsSupportedFieldBattleEncounter(party) && !IsForeignFieldBattle(party))
             {
                 reason = "идёт встреча, которую автопилот не поддерживает";
                 return false;
@@ -485,15 +490,11 @@ namespace BannerlordAutopilot
             }
 
             // СНАЧАЛА опасные состояния — до любых рассуждений о поселении.
-            if (CanHelpDefenders(party))
+            if (IsForeignFieldBattle(party))
             {
                 if (_mode == Mode.Apply && MapIsActiveScreen() && !InformationManager.IsAnyInquiryActive())
                 {
-                    string option = MenuDriver.CurrentMenuId + "_help_defenders";
-                    if (MenuDriver.TryInvoke(option, out string why))
-                        AutopilotLog.Write("БОЙ: нажата помощь защитникам; ждём меню «В атаку»");
-                    else
-                        Disable("помочь защитникам нельзя: " + why);
+                    JoinOrLeaveForeignBattle(party);
                 }
                 return false;
             }
@@ -1093,6 +1094,91 @@ namespace BannerlordAutopilot
                 return "идёт встреча с другой партией — вне области прототипа";
             }
             return null;
+        }
+
+        /// <summary>Меню чужого полевого боя: партия наткнулась на бой, в котором не
+        /// участвует. Бои у поселений и в осаде сюда не входят — их ведёт PollOperations
+        /// или они вне области автопилота.</summary>
+        private static bool IsForeignFieldBattle(MobileParty party)
+        {
+            string menu = MenuDriver.CurrentMenuId;
+            if (PlayerEncounter.Current == null || party == null
+                || (menu != "join_encounter" && menu != "encounter_interrupted"))
+            {
+                return false;
+            }
+            var battle = PlayerEncounter.EncounteredBattle;
+            return battle != null && party.MapEvent == null && party.Army == null
+                   && party.SiegeEvent == null && party.BesiegedSettlement == null
+                   && party.CurrentSettlement == null && PlayerEncounter.EncounterSettlement == null
+                   && battle.MapEventSettlement == null;
+        }
+
+        /// <summary>Встреча не останавливает автопилот. Помощь защитникам — решение
+        /// владельца 14.09, и доступность кнопки решает сама игра. Иначе штатный уход:
+        /// в драку нейтралов и в бой двух наших врагов игра не пускает ни на одну
+        /// сторону (MapEvent.CanPartyJoinBattle, 1.4.8 строка 112256).</summary>
+        private void JoinOrLeaveForeignBattle(MobileParty party)
+        {
+            string menu = MenuDriver.CurrentMenuId;
+            string refused = "нападающие нам не враги или защитники нам враги";
+            if (CanHelpDefenders(party))
+            {
+                if (MenuDriver.TryInvoke(menu + "_help_defenders", out string helpWhy))
+                {
+                    AutopilotLog.Write("БОЙ: нажата помощь защитникам; ждём меню «В атаку»");
+                    return;
+                }
+                refused = helpWhy;
+            }
+
+            // Всё — до нажатия: Finish обнуляет встречу.
+            var battle = PlayerEncounter.EncounteredBattle;
+            MobileParty[] involved =
+            {
+                PlayerEncounter.EncounteredMobileParty,
+                battle.AttackerSide?.LeaderParty?.MobileParty,
+                battle.DefenderSide?.LeaderParty?.MobileParty,
+            };
+            string sides = PartyName(battle.AttackerSide?.LeaderParty) + " против " + PartyName(battle.DefenderSide?.LeaderParty);
+            string leave = menu == "join_encounter" ? "join_encounter_leave" : "leave";
+            if (!MenuDriver.TryInvoke(leave, out string leaveWhy))
+            {
+                Disable("из чужого боя «" + sides + "» нельзя ни помочь, ни уйти: " + leaveWhy);
+                return;
+            }
+            foreach (MobileParty other in involved)
+            {
+                if (other != null && other != party)
+                {
+                    _leftForeignBattles[other] = battle;
+                }
+            }
+            AutopilotLog.Write("ВСТРЕЧА: чужой бой «" + sides + "» — не вступаемся (" + refused
+                               + "); ушли штатной кнопкой «" + leave + "»");
+        }
+
+        /// <summary>Отряд всё ещё в том чужом бою, из которого автопилот ушёл. Погоня
+        /// за ним дала бы круг «догнал — ушёл»: штатная модель снова назовёт его целью.</summary>
+        private bool InLeftForeignBattle(MobileParty target)
+        {
+            if (target == null || !_leftForeignBattles.TryGetValue(target, out object battle))
+            {
+                return false;
+            }
+            if (ReferenceEquals(target.MapEvent, battle))
+            {
+                return true;
+            }
+            _leftForeignBattles.Remove(target);
+            return false;
+        }
+
+        private static string PartyName(PartyBase party)
+        {
+            if (party?.MobileParty != null) return party.MobileParty.Name.ToString();
+            if (party?.Settlement != null) return party.Settlement.Name.ToString();
+            return "?";
         }
 
         private static bool CanHelpDefenders(MobileParty party)
@@ -1793,6 +1879,11 @@ namespace BannerlordAutopilot
                 {
                     return false;
                 }
+                if (InLeftForeignBattle(target))
+                {
+                    AutopilotLog.Write("ближняя угроза «" + target.Name + "» пропущена: она в чужом бою, из которого мы ушли");
+                    return false;
+                }
 
                 var decision = new AIBehaviorData(target, AiBehavior.EngageParty,
                     MobileParty.NavigationType.Default, false, false, false);
@@ -1854,8 +1945,13 @@ namespace BannerlordAutopilot
                 case AiBehavior.EscortParty:
                     return data.Party is MobileParty ? null : "без партии";
                 case AiBehavior.GoAroundParty:
-                case AiBehavior.EngageParty:
                     return data.Party is MobileParty ? null : "без партии";
+                case AiBehavior.EngageParty:
+                    if (!(data.Party is MobileParty target))
+                    {
+                        return "без партии";
+                    }
+                    return InLeftForeignBattle(target) ? "в чужом бою, из которого мы ушли" : null;
                 default:
                     return "вне области автопилота";
             }

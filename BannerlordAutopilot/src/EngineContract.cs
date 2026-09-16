@@ -519,6 +519,11 @@ namespace BannerlordAutopilot
             MemberOf(typeof(MobileParty), "TotalFoodAtInventory", Inst, typeof(int));
             MemberOf(partyBase, "PartySizeLimit", Inst, typeof(int));
             MemberOf(partyBase, "NumberOfAllMembers", Inst, typeof(int));
+            // Имена сторон чужого боя в журнале ухода (JoinOrLeaveForeignBattle).
+            MemberOf(partyBase, "MobileParty", Inst, typeof(MobileParty));
+            MemberOf(partyBase, "Settlement", Inst, typeof(Settlement));
+            MemberExists(typeof(MobileParty), "Name", Inst);
+            MemberExists(typeof(Settlement), "Name", Inst);
             MemberOf(typeof(Settlement), "IsTown", Inst, typeof(bool));
             MemberOf(typeof(Settlement), "IsRaided", Inst, typeof(bool));
             MemberOf(typeof(Settlement), "IsUnderRaid", Inst, typeof(bool));

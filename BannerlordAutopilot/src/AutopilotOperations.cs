@@ -26,6 +26,7 @@ namespace BannerlordAutopilot
         {
             _offensiveSiege = null;
             _raidSettlement = null;
+            _preparingCampaign = false;
             _configuredSiege = null;
             _gatheringArmy = null; _invitedParties.Clear();
             _operationSettlement = _hideoutRoute = null;

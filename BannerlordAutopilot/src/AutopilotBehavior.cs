@@ -1756,7 +1756,8 @@ namespace BannerlordAutopilot
             bool idle = waitingIn == null && party.DefaultBehavior == AiBehavior.Hold;
             if (_ticksThisSession > 0 && !idle && _hoursSinceThink < ThinkPeriodHours)
             {
-                if (waitingIn == null && party.DefaultBehavior != AiBehavior.BesiegeSettlement) TryApplyNearbyAttack(party);
+                if (!_preparingCampaign && waitingIn == null && party.DefaultBehavior != AiBehavior.BesiegeSettlement
+                    && party.DefaultBehavior != AiBehavior.RaidSettlement) TryApplyNearbyAttack(party);
                 return;
             }
             _hoursSinceThink = 0;
@@ -1839,6 +1840,7 @@ namespace BannerlordAutopilot
             string preparation = PreparationNeeded(party);
             bool preparing = preparation != null && think.AIBehaviorScores.Any(p =>
                 p.Item1.AiBehavior == AiBehavior.BesiegeSettlement || p.Item1.AiBehavior == AiBehavior.RaidSettlement);
+            _preparingCampaign = preparing;
             var priority = preparing
                 ? applicable.Where(p => p.Item1.AiBehavior == AiBehavior.GoToSettlement
                     && p.Item1.Party is Settlement s && s.MapFaction != null && party.MapFaction != null

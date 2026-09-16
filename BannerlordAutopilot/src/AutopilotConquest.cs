@@ -23,6 +23,7 @@ namespace BannerlordAutopilot
         private AIBehaviorData _armyObjective;
         private float _armyObjectiveScore;
         private double _gatheringSince;
+        private bool _preparingCampaign;
         private readonly List<MobileParty> _invitedParties = new List<MobileParty>();
         private static readonly MethodInfo NativeCohesionThink = typeof(Army).GetMethod("ThinkAboutCohesionBoost", BindingFlags.Instance | BindingFlags.NonPublic);
 

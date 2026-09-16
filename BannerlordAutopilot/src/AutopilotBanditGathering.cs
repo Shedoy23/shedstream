@@ -117,6 +117,7 @@ namespace BannerlordAutopilot
         {
             var battle = main?.MapEvent;
             if (_mode != Mode.Apply || main == null || !main.IsActive || main.IsCurrentlyAtSea
+                || main.Army != null
                 || !IsSupportedFieldBattleEncounter(main) || battle != PlayerEncounter.Battle
                 || battle.PlayerSide != BattleSideEnum.Attacker || !battle.IsFieldBattle
                 || ReferenceEquals(_banditGatheredBattle, battle)) return true;

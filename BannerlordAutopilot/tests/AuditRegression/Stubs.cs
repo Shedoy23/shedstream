@@ -101,8 +101,8 @@ namespace TaleWorlds.CampaignSystem {
   public List<(AIBehaviorData,float)> AIBehaviorScores {get;} = new();
   public void Reset(MobileParty p) { AIBehaviorScores.Clear(); }
  }
- public class MapEventSide { public PartyBase LeaderParty { get; set; } }
- public class MapEvent { public MapEventSide AttackerSide { get; set; } = new(); public MapEventSide DefenderSide { get; set; } = new(); public Settlement MapEventSettlement { get; set; } public bool IsNavalMapEvent { get; set; } public bool IsHideoutBattle { get; set; } public bool IsSiegeAssault { get; set; } public TaleWorlds.Core.BattleSideEnum PlayerSide { get; set; } }
+ public partial class MapEventSide { public PartyBase LeaderParty { get; set; } }
+ public partial class MapEvent { public MapEventSide AttackerSide { get; set; } = new(); public MapEventSide DefenderSide { get; set; } = new(); public Settlement MapEventSettlement { get; set; } public bool IsNavalMapEvent { get; set; } public bool IsHideoutBattle { get; set; } public bool IsSiegeAssault { get; set; } public TaleWorlds.Core.BattleSideEnum PlayerSide { get; set; } }
  public enum CampaignTimeControlMode { Stop, UnstoppablePlay, UnstoppableFastForward, StoppablePlay, StoppableFastForward, UnstoppableFastForwardForPartyWaitTime, FastForwardStop }
  public class Campaign {
   public static Campaign Current = new();
@@ -194,7 +194,7 @@ namespace TaleWorlds.CampaignSystem.Party {
   public void SetDoNotMakeNewDecisions(bool v) {DoNotMakeNewDecisions=v;}
   public void EnableAi() {}
  }
- public class MobileParty : IMapPoint {
+ public partial class MobileParty : IMapPoint {
   public bool IsCurrentlyAtSea { get; set; }
   public enum NavigationType { None, Default }
   public static MobileParty MainParty = new();
@@ -219,7 +219,7 @@ namespace TaleWorlds.CampaignSystem.Party {
   public int PartyTradeGold => LeaderHero?.Gold ?? 0;                     // у партии лорда — золото лидера (100411)
  }
  // PartyBase (105803): ростеры партии или поселения.
- public class PartyBase {
+ public partial class PartyBase {
   public IFaction MapFaction { get; set; }
   public static PartyBase MainParty => MobileParty.MainParty?.Party;
   public TroopRoster MemberRoster { get; } = TroopRoster.CreateDummyTroopRoster();

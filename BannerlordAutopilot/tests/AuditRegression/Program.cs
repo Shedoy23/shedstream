@@ -40,6 +40,7 @@ internal static partial class Program
 
     static AutopilotBehavior Fresh()
     {
+        MobileParty.AllBanditParties.Clear();
         Hideout.All.Clear();
         MobileParty.MainParty = new MobileParty(); Hero.MainHero = new Hero(); Campaign.Current = new Campaign();
         TaleWorlds.Core.Game.Current = new TaleWorlds.Core.Game(); CampaignTime.TestHours = 0; MenuContext.Invoked.Clear();
@@ -281,6 +282,7 @@ internal static partial class Program
         EngineContract.Verify();
         OperationTests();
         EncounterTests();
+        BanditGatheringTests();
         Try("random default and lord introduction", () => {
             var b=Fresh(); b.RandomDialogsEnabled=new AutopilotBehavior().RandomDialogsEnabled; Enable(b);
             PlayerEncounter.Current=new PlayerEncounter();PlayerEncounter.EncounteredMobileParty=new MobileParty();
@@ -1291,5 +1293,4 @@ internal static partial class Program
         return failed;
     }
 }
-
 

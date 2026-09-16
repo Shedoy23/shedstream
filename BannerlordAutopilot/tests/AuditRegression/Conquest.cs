@@ -22,6 +22,29 @@ internal static partial class Program
     }
     static void ConquestTests()
     {
+        Try("истощились по пути к крепости — уход к снабжению", () => {
+            var b = Fresh(); var castle = ConquestWorld(food: 1); Enable(b);
+            MobileParty.MainParty.TargetSettlement = castle; MobileParty.MainParty.DefaultBehavior = AiBehavior.BesiegeSettlement;
+            PlayerEncounter.Current = new PlayerEncounter(); PlayerEncounter.EncounterSettlement = castle;
+            Show(Menu("castle_outside", "town_outside_leave", () => PlayerEncounter.Finish())); b.PollState();
+            Check(MenuContext.Invoked.SequenceEqual(new[] { "town_outside_leave" }) && b.CurrentMode == AutopilotBehavior.Mode.Apply,
+                "у ворот ушли штатно, автопилот продолжает снабжение");
+        });
+        Try("нельзя исполнить армейскую цель без приглашений", () => {
+            var b = Fresh(); var castle = ConquestWorld(); Enable(b);
+            typeof(AutopilotBehavior).GetMethod("ApplyDecision", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                .Invoke(b, new object[] { MobileParty.MainParty, new AIBehaviorData(castle, AiBehavior.BesiegeSettlement, MobileParty.NavigationType.Default, true, false, false), 9f });
+            Check(MobileParty.MainParty.DefaultBehavior != AiBehavior.BesiegeSettlement, "не превращаем армейскую цель в одиночный поход после отказа сбора");
+        });
+        Try("пустая армия после изменения доступности распускается", () => {
+            var b = Fresh(); var castle = ConquestWorld(); var kingdom = new Kingdom(); kingdom.Enemies.Add(castle.MapFaction);
+            MobileParty.MainParty.MapFaction = kingdom; Clan.PlayerClan.Influence = 10;
+            var ally = new MobileParty { MapFaction = kingdom }; MobileParty.MainParty.ThinkParamsCache.PossibleArmyMembersUponArmyCreation.Add(ally);
+            kingdom.AfterCreate = () => ally.Army = new Army { LeaderParty = ally };
+            CampaignEventDispatcher.NextScores.Add((new AIBehaviorData(castle, AiBehavior.BesiegeSettlement, MobileParty.NavigationType.Default, true, false, false), 9f));
+            Enable(b); HourlyTick(b);
+            Check(MobileParty.MainParty.Army == null && Clan.PlayerClan.Influence == 10, "не ведём пустую армию и не платим за чужую");
+        });
         foreach (bool bandit in new[] { false, true })
         Try("нападающий противник открывает бой вместо случайного разговора", () => {
             var b = Fresh(); var castle = ConquestWorld(); Enable(b);
@@ -206,12 +229,14 @@ namespace TaleWorlds.CampaignSystem
     }
     public partial class Kingdom
     {
+        public Action AfterCreate;
         public TaleWorlds.Library.MBReadOnlyList<Town> Fiefs { get; } = new();
         public void CreateArmy(Hero leader, Settlement target, Army.ArmyTypes type, TaleWorlds.Library.MBReadOnlyList<MobileParty> members = null)
-        { MobileParty.MainParty.Army = new Army { LeaderParty = MobileParty.MainParty }; }
+        { MobileParty.MainParty.Army = new Army { LeaderParty = MobileParty.MainParty }; AfterCreate?.Invoke(); }
     }
 }
 namespace TaleWorlds.CampaignSystem.Actions
 {
+    public static class DisbandArmyAction { public static void ApplyByUnknownReason(Army army) { army.LeaderParty.Army = null; } }
     public static class ChangeClanInfluenceAction { public static void Apply(Clan clan, float amount) { clan.Influence += amount; } }
 }

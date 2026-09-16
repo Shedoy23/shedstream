@@ -1,7 +1,10 @@
 using System;
 using System.Globalization;
+using System.Collections.Generic;
 using System.Linq;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Actions;
+using TaleWorlds.CampaignSystem.Encounters;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.CampaignSystem.Siege;
@@ -14,6 +17,95 @@ namespace BannerlordAutopilot
     {
         private Settlement _offensiveSiege;
         private SiegeEvent _configuredSiege;
+        private Army _gatheringArmy;
+        private AIBehaviorData _armyObjective;
+        private float _armyObjectiveScore;
+        private double _gatheringSince;
+        private readonly List<MobileParty> _invitedParties = new List<MobileParty>();
+
+        private static bool ControlsParty(MobileParty party) => party != null
+            && (party.Army == null || party.Army.LeaderParty == party);
+
+        private List<MobileParty> AffordableArmyMembers(MobileParty party)
+        {
+            var result = new List<MobileParty>();
+            if (party.Army != null || !(party.MapFaction is Kingdom) || PreparationNeeded(party) != null) return result;
+            var model = Campaign.Current.Models.ArmyManagementCalculationModel;
+            if (!model.CanPlayerCreateArmy(out _)) return result;
+            float remaining = Clan.PlayerClan.Influence;
+            var candidates = party.ThinkParamsCache.PossibleArmyMembersUponArmyCreation;
+            if (candidates == null) return result;
+            foreach (var candidate in candidates.Distinct())
+            {
+                if (candidate == null || candidate == party || !candidate.IsActive || candidate.MapFaction != party.MapFaction
+                    || !model.CheckPartyEligibility(candidate, out _)) continue;
+                int cost = model.CalculatePartyInfluenceCost(party, candidate);
+                if (cost < 0 || cost > remaining) continue;
+                remaining -= cost; result.Add(candidate);
+            }
+            return result;
+        }
+
+        private bool StartArmy(MobileParty party, AIBehaviorData data, float score)
+        {
+            var members = AffordableArmyMembers(party);
+            if (members.Count == 0) return false;
+            var model = Campaign.Current.Models.ArmyManagementCalculationModel;
+            ((Kingdom)party.MapFaction).CreateArmy(Hero.MainHero, data.Party as Settlement,
+                data.AiBehavior == AiBehavior.BesiegeSettlement ? Army.ArmyTypes.Besieger
+                    : data.AiBehavior == AiBehavior.RaidSettlement ? Army.ArmyTypes.Raider : Army.ArmyTypes.Defender);
+            if (party.Army == null || party.Army.LeaderParty != party) throw new InvalidOperationException("армия не создана движком");
+            _invitedParties.Clear();
+            foreach (var member in members)
+            {
+                if (!model.CheckPartyEligibility(member, out _)) continue;
+                int cost = model.CalculatePartyInfluenceCost(party, member);
+                if (cost < 0 || cost > Clan.PlayerClan.Influence) continue;
+                // The setter has callbacks. Charge even if a callback throws after joining.
+                try { member.Army = party.Army; }
+                finally
+                {
+                    if (member.Army == party.Army)
+                    {
+                        ChangeClanInfluenceAction.Apply(Clan.PlayerClan, -cost);
+                        _invitedParties.Add(member);
+                    }
+                }
+            }
+            _gatheringArmy = party.Army; _armyObjective = data; _armyObjectiveScore = score;
+            _gatheringSince = CampaignTime.Now.ToHours;
+            party.SetMoveModeHold();
+            AutopilotLog.Write("АРМИЯ: приглашено " + _invitedParties.Count + ", ждём соединения перед " + data.AiBehavior);
+            return true;
+        }
+
+        private bool PollArmy(MobileParty party)
+        {
+            if (party.Army == null) { _gatheringArmy = null; return false; }
+            if (party.MapEvent != null || PlayerEncounter.Current != null || party.SiegeEvent != null) return false;
+            if (!ControlsParty(party))
+            {
+                if (_mode == Mode.Apply && MapIsActiveScreen() && !InformationManager.IsAnyInquiryActive())
+                {
+                    if (party.AttachedTo == null && party.Army.LeaderParty != null)
+                        SetPartyAiAction.GetActionForEscortingParty(party, party.Army.LeaderParty, MobileParty.NavigationType.Default, false, false);
+                    if (Campaign.Current.CurrentMenuContext == null) KeepTimeRunning(party);
+                    else ResumeOperationWait();
+                }
+                return true;
+            }
+            if (_gatheringArmy != party.Army) return false;
+            if (_mode != Mode.Apply || !MapIsActiveScreen() || InformationManager.IsAnyInquiryActive()) return true;
+            bool assembled = _invitedParties.All(p => p.Army != party.Army || p.AttachedTo == party);
+            if (assembled || CampaignTime.Now.ToHours - _gatheringSince >= 24)
+            {
+                _gatheringArmy = null;
+                AutopilotLog.Write("АРМИЯ: сбор завершён; продолжаем штатную цель");
+                ApplyDecision(party, _armyObjective, _armyObjectiveScore);
+            }
+            else KeepTimeRunning(party);
+            return true;
+        }
 
         // Owner-approved 16 September: seven days of food/wages, 70% healthy.
         private static string PreparationNeeded(MobileParty party)

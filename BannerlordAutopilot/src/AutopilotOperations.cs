@@ -26,6 +26,7 @@ namespace BannerlordAutopilot
         {
             _offensiveSiege = null;
             _configuredSiege = null;
+            _gatheringArmy = null; _invitedParties.Clear();
             _operationSettlement = _hideoutRoute = null;
             _hideoutAttackRequested = _awaitingHideoutTroops = false;
             _hideoutMissionFinished = false;
@@ -53,7 +54,7 @@ namespace BannerlordAutopilot
         {
             var battle = party?.MapEvent;
             if (_mode != Mode.Apply || _operationSettlement == null || battle == null
-                || party.Army != null || battle.IsNavalMapEvent || PlayerEncounter.Current == null
+                || !ControlsParty(party) || battle.IsNavalMapEvent || PlayerEncounter.Current == null
                 || PlayerEncounter.Battle != battle || battle.MapEventSettlement != _operationSettlement) return false;
             return (_operationSettlement.IsHideout && _hideoutAttackRequested && battle.IsHideoutBattle)
                 || (!_operationSettlement.IsHideout && battle.IsSiegeAssault
@@ -72,7 +73,7 @@ namespace BannerlordAutopilot
 
         private bool PollOperations(MobileParty party)
         {
-            if (Hero.MainHero == null || Hero.MainHero.IsPrisoner || party.Army != null || party.IsCurrentlyAtSea) return false;
+            if (Hero.MainHero == null || Hero.MainHero.IsPrisoner || !ControlsParty(party) || party.IsCurrentlyAtSea) return false;
             if (IsOnFreeMap(party))
             {
                 _operationSettlement = null;

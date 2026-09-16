@@ -487,6 +487,7 @@ namespace BannerlordAutopilot
             if (PollDialogs()) return false;
             if (PollOffensiveSiege(party)) return false;
             if (PollOperations(party)) return false;
+            if (PollArmy(party)) return false;
 
             if (_mode == Mode.Apply)
             {
@@ -1096,7 +1097,7 @@ namespace BannerlordAutopilot
             {
                 return "партия в осаде — вне области прототипа";
             }
-            if (party.Army != null)
+            if (!ControlsParty(party))
             {
                 return "партия в армии — вне области прототипа";
             }
@@ -1411,7 +1412,7 @@ namespace BannerlordAutopilot
             return battle != null
                    && PlayerEncounter.Current != null
                    && PlayerEncounter.Battle != null
-                   && party.Army == null
+                   && ControlsParty(party)
                    && party.SiegeEvent == null
                    && party.BesiegedSettlement == null
                    && battle.MapEventSettlement == null
@@ -1442,7 +1443,7 @@ namespace BannerlordAutopilot
         {
             return party.CurrentSettlement == null
                    && party.MapEvent == null
-                   && party.Army == null
+                   && ControlsParty(party)
                    && PlayerEncounter.Current == null;
         }
 
@@ -1724,6 +1725,7 @@ namespace BannerlordAutopilot
             {
                 return; // выключит ближайший опрос по кадрам — с причиной
             }
+            if (_gatheringArmy != null && _gatheringArmy == party.Army) return;
             WriteWeeklyProgress(party);
 
             // Думать можно на свободной карте и во время ожидания в поселении.
@@ -2055,7 +2057,9 @@ namespace BannerlordAutopilot
         {
             if (data.WillGatherArmy)
             {
-                return "со сбором армии — армии вне области автопилота";
+                if (!ControlsParty(MobileParty.MainParty)) return "следуем другой армии";
+                if (MobileParty.MainParty.Army == null && AffordableArmyMembers(MobileParty.MainParty).Count == 0)
+                    return "нет доступных приглашений в армию или ресурсов";
             }
             switch (data.AiBehavior)
             {
@@ -2111,6 +2115,7 @@ namespace BannerlordAutopilot
 
             try
             {
+                if (data.WillGatherArmy && party.Army == null && StartArmy(party, data, score)) return;
                 switch (data.AiBehavior)
                 {
                     case AiBehavior.BesiegeSettlement:

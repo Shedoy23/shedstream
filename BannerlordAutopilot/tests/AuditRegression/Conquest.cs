@@ -22,6 +22,22 @@ internal static partial class Program
     }
     static void ConquestTests()
     {
+        foreach (bool supplied in new[] { true, false })
+        Try("цель завоевания выше патруля, снабжение выше истощённого похода", () => {
+            var b = Fresh(); var castle = ConquestWorld(food: supplied ? 35 : 1);
+            var town = new Settlement { IsTown = true, MapFaction = MobileParty.MainParty.MapFaction };
+            CampaignEventDispatcher.NextScores.Add((new AIBehaviorData(castle, AiBehavior.BesiegeSettlement, MobileParty.NavigationType.Default, false, false, false), 2f));
+            CampaignEventDispatcher.NextScores.Add((new AIBehaviorData(town, AiBehavior.PatrolAroundPoint, MobileParty.NavigationType.Default, false, false, false), 9f));
+            CampaignEventDispatcher.NextScores.Add((new AIBehaviorData(town, AiBehavior.GoToSettlement, MobileParty.NavigationType.Default, false, false, false), 1f));
+            Enable(b); HourlyTick(b);
+            Check(MobileParty.MainParty.DefaultBehavior == (supplied ? AiBehavior.BesiegeSettlement : AiBehavior.GoToSettlement),
+                "приоритет поход/снабжение, обеспечены " + supplied);
+        });
+        Try("сплочённость своей армии поддерживается штатным расчётом", () => {
+            var b = Fresh(); ConquestWorld(); Enable(b);
+            var army = new Army { LeaderParty = MobileParty.MainParty, Cohesion = 40 }; MobileParty.MainParty.Army = army;
+            HourlyTick(b); Check(army.BoostChecks == 1, "при низкой сплочённости вызван штатный ThinkAboutCohesionBoost");
+        });
         Try("рейд штатной цели проходит через меню и ожидание", () => {
             var b = Fresh(); var village = ConquestWorld(); village.IsCastle = false; village.IsVillage = true;
             CampaignEventDispatcher.NextScores.Add((new AIBehaviorData(village, AiBehavior.RaidSettlement, MobileParty.NavigationType.Default, false, false, false), 9f));
@@ -168,6 +184,8 @@ namespace TaleWorlds.CampaignSystem
         public enum ArmyTypes { Besieger, Raider, Defender }
         public MobileParty LeaderParty { get; set; }
         public float Cohesion { get; set; } = 100;
+        public int BoostChecks;
+        private void ThinkAboutCohesionBoost() { BoostChecks++; }
     }
     public partial class Kingdom
     {

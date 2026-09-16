@@ -19,6 +19,7 @@ namespace BannerlordAutopilot
         {
             if (_mode != Mode.Apply) return;
             _prisonerEncounter = PlayerEncounter.Current;
+            _lootEncounter = PlayerEncounter.Current;
             _prisonerView = null;
             _prisonerDoneRequested = false;
         }
@@ -128,3 +129,4 @@ namespace BannerlordAutopilot
         }
     }
 }
+

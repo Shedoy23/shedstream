@@ -17,7 +17,7 @@ internal static partial class Program {
  static void LootTests() {
   foreach(int amount in new[]{0,1,7}) Try("loot actual transfer "+amount,()=>{
    var b=Surrender(); var vm=LootScreen(amount:amount); b.PollState(); b.PollState();
-   Check(vm.Saved==amount && vm.Closed==1 && vm.Buys==1,"loot saved and closed once: "+amount);
+   Check(vm.Saved==amount && vm.Closed==1 && vm.Buys==1 && b.CurrentMode==AutopilotBehavior.Mode.Apply,"loot saved and closed once: "+amount);
   });
   Try("prisoners then loot",()=>{
    var b=Surrender(); var encounter=PlayerEncounter.Current; var prisoners=PrisonerScreen(50,0); b.PollState(); b.PollState();
@@ -50,10 +50,12 @@ namespace TaleWorlds.CampaignSystem.ViewModelCollection.Inventory {
   public string LeftSearchText{get;set;}="filtered";private bool filtered=true;
   public int Capacity=100,Buys,Closed,Saved,ForeignAccepted;public bool ForeignQuery,LoseItems;
   public void ExecuteFilterNone(){filtered=false;}
-  public void ExecuteBuyAllItems(){Buys++;if(filtered||LeftSearchText!="")return;int total=_inventoryLogic.Left.Sum(x=>x.Amount);int n=Math.Min(Capacity,total);_inventoryLogic.Left.Clear();_inventoryLogic.Left.Add(new ItemRosterElement(default,total-n));if(!LoseItems)_inventoryLogic.Right.Add(new ItemRosterElement(default,n));}
+  public void ExecuteBuyAllItems(){Buys++;if(filtered||LeftSearchText!="")return;var item=_inventoryLogic.Left[0].EquipmentElement;int total=_inventoryLogic.Left.Sum(x=>x.Amount);int n=Math.Min(Capacity,total);_inventoryLogic.Left.Clear();_inventoryLogic.Left.Add(new ItemRosterElement(default,total-n));if(!LoseItems)_inventoryLogic.Right.Add(new ItemRosterElement(item,n));}
   public void ExecuteCompleteTranstactions(){if(ForeignQuery)InformationManager.ShowInquiry(new InquiryData{IsAffirmativeOptionShown=true,AffirmativeAction=()=>ForeignAccepted++});else if(_inventoryLogic.Left.Sum(x=>x.Amount)>0)InformationManager.ShowInquiry(new InquiryData{IsAffirmativeOptionShown=true,AffirmativeAction=HandleDone});else HandleDone();}
-  private void HandleDone(){Saved=_inventoryLogic.Right.Sum(x=>x.Amount);Closed++;Game.Current.GameStateManager.PopState(0);}
+  private void HandleDone(){Saved=_inventoryLogic.Right.Sum(x=>x.Amount);foreach(var e in _inventoryLogic.Right) TaleWorlds.CampaignSystem.Party.MobileParty.MainParty.ItemRoster.AddToCounts(e.EquipmentElement,e.Amount);Closed++;Game.Current.GameStateManager.PopState(0);}
  }
 }
+
+
 
 

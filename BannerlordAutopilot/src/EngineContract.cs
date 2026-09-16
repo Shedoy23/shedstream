@@ -315,6 +315,7 @@ namespace BannerlordAutopilot
             VerifySettlementServices(campaignAssembly, gameState?.Assembly, helper);
             VerifyOperations(mapEvent, vec2, menuContext, gameMenu);
             VerifyPrisonerScreen(campaignAssembly);
+            VerifyLootScreen(campaignAssembly);
 
             // ── Прочее
             MemberOf(typeof(Hero), "MainHero", Stat, typeof(Hero));
@@ -329,6 +330,28 @@ namespace BannerlordAutopilot
             return Ok;
         }
 
+        private static void VerifyLootScreen(Assembly campaign)
+        {
+            Type state = TypeNamed(campaign, "TaleWorlds.CampaignSystem.GameState.InventoryState");
+            Type logic = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Inventory.InventoryLogic");
+            Type screen = LoadedType("SandBox.GauntletUI.GauntletInventoryScreen", "SandBox.GauntletUI");
+            Type vm = LoadedType("TaleWorlds.CampaignSystem.ViewModelCollection.Inventory.SPInventoryVM", "TaleWorlds.CampaignSystem.ViewModelCollection");
+            MemberExists(state, "Handler", Inst);
+            MemberExists(state, "InventoryMode", Inst);
+            MemberOf(state, "InventoryLogic", Inst, logic);
+            MemberOf(logic, "IsTrading", Inst, typeof(bool));
+            MemberOf(logic, "TotalAmount", Inst, typeof(int));
+            Need(screen?.GetField("_dataSource", BindingFlags.Instance | BindingFlags.NonPublic)?.FieldType == vm && vm != null, "GauntletInventoryScreen._dataSource");
+            Need(vm?.GetField("_inventoryLogic", BindingFlags.Instance | BindingFlags.NonPublic)?.FieldType == logic && logic != null, "SPInventoryVM._inventoryLogic");
+            var side = logic?.GetNestedType("InventorySide");
+            var elements = side == null ? null : logic.GetMethod("GetElementsInRoster", new[] { side });
+            Need(elements != null && typeof(System.Collections.IEnumerable).IsAssignableFrom(elements.ReturnType), "InventoryLogic.GetElementsInRoster");
+            Need(vm?.GetProperty("LeftSearchText")?.GetSetMethod() != null, "SPInventoryVM.LeftSearchText setter");
+            Method(vm, "ExecuteFilterNone", Inst, typeof(void));
+            Method(vm, "ExecuteBuyAllItems", Inst, typeof(void));
+            Method(vm, "ExecuteCompleteTranstactions", Inst, typeof(void));
+            Method(vm, "HandleDone", BindingFlags.Instance | BindingFlags.NonPublic, typeof(void));
+        }
         private static void VerifyPrisonerScreen(Assembly campaign)
         {
             Type state = TypeNamed(campaign, "TaleWorlds.CampaignSystem.GameState.PartyState");
@@ -638,3 +661,5 @@ namespace BannerlordAutopilot
         }
     }
 }
+
+

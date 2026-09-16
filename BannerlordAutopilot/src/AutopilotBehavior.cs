@@ -228,6 +228,7 @@ namespace BannerlordAutopilot
         private void ResetSession()
         {
             ResetPrisonerScreen();
+            _lootEncounter = null;
             ResetOperations();
             _ticksThisSession = 0;
             _targetChangesThisSession = 0;
@@ -459,6 +460,7 @@ namespace BannerlordAutopilot
                 return false;
             }
 
+            if (PollLootScreen()) return false;
             if (PollPrisonerScreen()) return false;
             if (PollDialogs()) return false;
             if (PollOperations(party)) return false;
@@ -2049,3 +2051,4 @@ namespace BannerlordAutopilot
         }
     }
 }
+

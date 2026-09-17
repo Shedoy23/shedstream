@@ -232,6 +232,12 @@ namespace BannerlordAutopilot
             Type missionResult = mission?.GetProperty("MissionResult", Inst)?.PropertyType;
             Need(missionResult != null && missionResult.Name == "MissionResult", "Mission.MissionResult type");
             MemberOf(missionResult, "BattleResolved", Inst, typeof(bool));
+            Type agent = LoadedType("TaleWorlds.MountAndBlade.Agent", "TaleWorlds.MountAndBlade");
+            Type ridingOrder = LoadedType("TaleWorlds.MountAndBlade.RidingOrder", "TaleWorlds.MountAndBlade");
+            Type ridingEnum = ridingOrder?.GetNestedType("RidingOrderEnum");
+            Need(ridingEnum != null && ridingEnum.IsEnum && Enum.IsDefined(ridingEnum, "Dismount"),
+                "RidingOrder.RidingOrderEnum.Dismount");
+            Method(agent, "SetRidingOrder", Inst, typeof(void), ridingEnum);
 
             // Окна поверх карты (прогон 14.09): экран карты и флаги его окон. SandBox.View
             // мод не подключает, поэтому типы — по имени среди загруженных сборок.

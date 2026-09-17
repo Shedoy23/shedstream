@@ -34,7 +34,7 @@ Check(mission.MainAgent.CommonAIComponent.InitializeCalls == 1 && mission.MainAg
       && mission.MainAgent.HumanAIComponent.SyncCalls == 1, "компоненты боевого AI заново инициализированы");
 Check(mission.MainAgent.RidingOrderCalls == 1 && originallyManual.ChangedCalls == 1,
       "приказ посадки и состояние формации синхронизированы");
-Check(mission.MainAgent.LastRidingOrder == RidingOrderEnum.Mount,
+Check(mission.MainAgent.LastRidingOrder == RidingOrder.RidingOrderEnum.Mount,
       "полевой бой сохраняет приказ формации ехать верхом");
 AutopilotBehavior.Instance.CurrentMode = AutopilotBehavior.Mode.Off; behavior.OnMissionTick(0.1f);
 Check(mission.MainAgent.Controller == AgentControllerType.Player, "F12 возвращает живого героя");
@@ -85,6 +85,10 @@ MobileParty.MainParty.MapEvent.IsSiegeAssault = true;
 var siegeBehavior = new BattleAutopilotMission { Mission=siege };
 AutopilotBehavior.Instance.CurrentMode=AutopilotBehavior.Mode.Apply;
 siegeBehavior.OnMissionTick(0.1f);
-Check(siege.MainAgent.LastRidingOrder == RidingOrderEnum.Dismount,
+Check(siege.MainAgent.LastRidingOrder == RidingOrder.RidingOrderEnum.Dismount,
       "осадный бой при верховом герое отдаёт приказ спешиться");
+AutopilotBehavior.Instance.CurrentMode=AutopilotBehavior.Mode.Off;
+siegeBehavior.OnMissionTick(0.1f);
+Check(siege.MainAgent.LastRidingOrder == RidingOrder.RidingOrderEnum.Mount,
+      "F12 возвращает исходный приказ героя после осады");
 return failed;

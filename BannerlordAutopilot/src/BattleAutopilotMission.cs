@@ -20,6 +20,7 @@ namespace BannerlordAutopilot
         private float _completedWait;
         private float _exitRetry;
         private Agent _givenAgent;
+        private bool _siegeDismountGiven;
         private readonly List<Formation> _formationsGiven = new List<Formation>();
         private readonly Dictionary<Formation, (MovementOrder Move, FiringOrder Fire)> _hideoutOrders
             = new Dictionary<Formation, (MovementOrder, FiringOrder)>();
@@ -171,6 +172,16 @@ namespace BannerlordAutopilot
                 agent.SetRidingOrder(agent.Formation.RidingOrder.OrderEnum);
                 agent.Formation.OnUnitAddedOrRemoved();
             }
+            // A siege assault has no useful mounted route through walls and ladders.
+            // Override the hero's riding order only; cavalry formations keep the
+            // game's own orders, and field battles retain their mounted behavior.
+            if (MobileParty.MainParty?.MapEvent?.IsSiegeAssault == true)
+            {
+                agent.SetRidingOrder(RidingOrder.RidingOrderEnum.Dismount);
+                _siegeDismountGiven = true;
+                AutopilotLog.Write("БОЙ: осадный штурм, герою дан приказ спешиться"
+                    + (agent.MountAgent != null ? " (герой верхом)" : ""));
+            }
             agent.ResetEnemyCaches();
             agent.HumanAIComponent?.SyncBehaviorParamsIfNecessary();
             _controlGiven = true;
@@ -199,10 +210,13 @@ namespace BannerlordAutopilot
                 _givenAgent.AIStateFlags = Agent.AIStateFlag.None;
                 _givenAgent.SetMaximumSpeedLimit(-1f, false);
                 _givenAgent.MountAgent?.SetMaximumSpeedLimit(-1f, false);
+                if (_siegeDismountGiven && _givenAgent.Formation != null)
+                    _givenAgent.SetRidingOrder(_givenAgent.Formation.RidingOrder.OrderEnum);
                 _givenAgent.Formation?.OnUnitAddedOrRemoved();
             }
             _formationsGiven.Clear();
             _givenAgent = null;
+            _siegeDismountGiven = false;
             _controlGiven = false;
             AutopilotLog.Write("БОЙ: управление возвращено герою и формациям (F12 или переход миссии)");
         }
@@ -213,6 +227,7 @@ namespace BannerlordAutopilot
             _hideoutOrders.Clear();
             _formationsGiven.Clear();
             _givenAgent = null;
+            _siegeDismountGiven = false;
             _controlGiven = false;
             base.OnEndMission();
         }

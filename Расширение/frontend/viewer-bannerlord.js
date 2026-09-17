@@ -632,6 +632,8 @@ function _bnrShowSimpleModal({ title, body, bind }) {
 function _stopBannerlordPolling() {
     BnrBuilds.reset();
     BnrEquipmentShop.reset();
+    document.getElementById('bnr-summon-slot')?.replaceChildren();
+    document.getElementById('bnr-active-powers-slot')?.replaceChildren();
     if (_bannerlordPollId) {
         clearInterval(_bannerlordPollId);
         _bannerlordPollId = null;
@@ -850,10 +852,12 @@ async function _hydrateBnrConfig() {
     try {
         const r = await fetch(`${API_URL}/api/bannerlord/config`, {
             headers: { 'X-Twitch-JWT': authToken || '' },
+            cache: 'no-store',
         });
         if (!r.ok) return;
         const c = await r.json();
         _bnrCfg = c || {};
+        if (typeof BnrUiConfig !== 'undefined') BnrUiConfig.update(c?.ui);
         if (Array.isArray(c.focus_tier_costs))         BNR_FOCUS_TIER_COSTS = c.focus_tier_costs;
         if (typeof c.attribute_cost === 'number')      BNR_ATTRIBUTE_COST   = c.attribute_cost;
         if (Array.isArray(c.recruit_tier_costs))       RETINUE_TIER_DINARS  = c.recruit_tier_costs;
@@ -3642,6 +3646,7 @@ function renderBannerlordSummonButton() {
     const allyOn = allyCd > 0;
     const enemyOn = enemyCd > 0;
     const _cdLabel = (rem) => `<span style="color:var(--muted);">${_bnrCdLabel(Math.ceil(rem))}</span>`;
+    const uiLabel=(key,fallback)=>escapeHtml(typeof BnrUiConfig==='undefined'?fallback:BnrUiConfig.label(key,fallback));
 
     slot.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:4px;margin-top:6px;">
@@ -3651,7 +3656,7 @@ function renderBannerlordSummonButton() {
                     title="Призвать героя в бой на сторону стримера"
                     style="width:100%;padding:7px;font-size:12px;
                            ${allyOn ? 'opacity:0.5;cursor:not-allowed;' : ''}">
-                📯 Призвать за стримера
+                ${uiLabel('summon_ally','📯 Призвать за стримера')}
                 ${allyOn ? _cdLabel(allyCd) : `<span style="color:#fbbf24;">${ALLY_PRICE}💎</span>`}
             </button>
             <button class="modal-btn" id="bnr-summon-enemy-btn"
@@ -3660,7 +3665,7 @@ function renderBannerlordSummonButton() {
                     title="Призвать героя ПРОТИВ стримера (на сторону противника)"
                     style="width:100%;padding:7px;font-size:12px;background:#7c1d1d;
                            ${enemyOn ? 'opacity:0.5;cursor:not-allowed;' : ''}">
-                ⚔️ Призвать против стримера
+                ${uiLabel('summon_enemy','⚔️ Призвать против стримера')}
                 ${enemyOn ? _cdLabel(enemyCd) : `<span style="color:#fbbf24;">${ENEMY_PRICE}💎</span>`}
             </button>
         </div>`;
@@ -5491,8 +5496,6 @@ async function loadBannerlordHero() {
                 <div id="bnr-combat-stance-slot" style="margin-bottom:8px;"></div>
                 <div id="bnr-buff-hud"></div>
                 <div id="bnr-detachment-slot" style="margin-top:10px;"></div>
-                <div id="bnr-summon-slot"></div>
-                <div id="bnr-active-powers-slot"></div>
             </div>`;
 
         // 2026-05-31 IA-реорг: класс-picker + кнопка прогрессии переехали в Hero

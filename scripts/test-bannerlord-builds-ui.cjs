@@ -8,10 +8,9 @@ async function main() {
     for (const file of ['extension.html','mobile.html']) {
         const html=fs.readFileSync(path.join(front,file),'utf8');
         assert(html.includes('viewer-bannerlord-builds.js'),file+': new build UI is not connected');
+        assert(html.indexOf('id="bnr-summon-slot"')<html.indexOf('id="bnr-active-powers-slot"'),file+': summon must precede active powers');
         assert(html.indexOf('id="bannerlord-tournament-card"')<html.indexOf('id="bnr-build-choice-slot"'),file+': weapon selection must follow tournament');
     }
-    const combatSource=fs.readFileSync(path.join(front,'viewer-bannerlord.js'),'utf8');
-    assert(combatSource.indexOf('<div id="bnr-summon-slot">')<combatSource.indexOf('<div id="bnr-active-powers-slot">'),'summon must precede active powers');
     const browser=await chromium.launch({headless:true,...(process.platform==='win32'?{channel:'msedge'}:{})});
     try {
         const page=await browser.newPage({viewport:{width:340,height:1050}});

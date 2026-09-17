@@ -3,6 +3,7 @@ const BnrBuilds = (() => {
     let state=null, known=false, busy=false, loading=false, request=0, generation=0, serverCooldownUntil=0;
     const text=value=>escapeHtml(String(value ?? ''));
     const skills={OneHanded:'Одноручное',TwoHanded:'Двуручное',Polearm:'Древковое',Bow:'Лук',Crossbow:'Арбалет',Throwing:'Метательное',Riding:'Верховая езда',Athletics:'Атлетика'};
+    const uiLabel=(key,fallback)=>typeof BnrUiConfig==='undefined'?fallback:BnrUiConfig.label(key,fallback);
     const isNew=()=>known || state?.build?.version===1;
     const manage=()=>!!state?.can_manage && !state?.pending && !state?.build?.in_battle && !busy;
     const cooldown=key=>Math.max(0,..._bannerlordCooldowns.filter(c=>c.power_key===key).map(c=>Number(c.remaining_s)||0));
@@ -74,7 +75,7 @@ const BnrBuilds = (() => {
         const build=state.build;
         const options=build.power_options || [];
         const current=options.find(p=>p.weapon_type===build.selected_weapon_type && p.power_key===build.selected_power);
-        let choicesHtml=`<div class="bnr-build-heading">Оружейная способность</div>
+        let choicesHtml=`<div class="bnr-build-heading">${text(uiLabel('weapon_choice','Оружейная способность'))}</div>
             <p class="bnr-eq-help">Выбери одну способность перед боем. Доступность зависит от надетого оружия, сила — от навыка. Смена выбора не сбрасывает перезарядку.</p>
             ${messageHtml()}<div class="bnr-build-choices">${options.map(power=>`<button type="button" class="bnr-build-choice"
                 data-bnr-build-select="${text(power.weapon_type)}" aria-pressed="${build.selected_weapon_type===power.weapon_type}"
@@ -84,7 +85,7 @@ const BnrBuilds = (() => {
                 <span>Ранг ${text(power.rank)} · ${text(skills[power.skill] || power.skill)} ${text(power.skill_level)}</span>
                 ${Number(power.skill_level)<150?`<span>Следующее усиление: навык ${Number(power.skill_level)<50?50:150}</span>`:''}
                 ${!power.available && power.reason?`<span class="bnr-eq-reason">${text(power.reason)}</span>`:''}</button>`).join('')}</div>`;
-        let activeHtml='<div class="bnr-build-heading">Активки</div>';
+        let activeHtml=`<div class="bnr-build-heading">${text(uiLabel('active_powers','Активки'))}</div>`;
         activeHtml+=current?activateHtml(current,true):'<p class="bnr-eq-help">Надень оружие и выбери способность ниже.</p>';
         if(current && !current.available && current.reason) activeHtml+=`<p class="bnr-eq-reason">${text(current.reason)}</p>`;
         activeHtml+=(build.common_powers || []).map(p=>activateHtml(p,false)).join('');

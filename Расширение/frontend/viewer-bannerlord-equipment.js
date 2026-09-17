@@ -25,6 +25,7 @@ const BnrEquipmentShop = (() => {
     const text = value => escapeHtml(String(value ?? ''));
     const number = value => Number(value || 0).toLocaleString('ru-RU');
     const tierName = value => ['—','I','II','III','IV','V','VI'][Number(value)] || text(value);
+    const uiLabel=(key,fallback)=>typeof BnrUiConfig==='undefined'?fallback:BnrUiConfig.label(key,fallback);
     const root = () => document.getElementById('bnr-equipment-shop');
 
     function stats(item) {
@@ -55,7 +56,7 @@ const BnrEquipmentShop = (() => {
                     ${slots.map(s => `<option value="${text(s)}" ${s === chosen ? 'selected' : ''}>${slotNames[s]}</option>`).join('')}
                 </select><button type="button" class="bnr-eq-action secondary" data-bnr-eq-equip="${id}" ${blocked || !slots.length ? 'disabled' : ''}>Надеть</button></div>`;
         }
-        if (owned) controls += `<button type="button" class="bnr-eq-action discard" data-bnr-eq-discard="${id}" ${actionBlocked ? 'disabled' : ''}>🗑 Выкинуть вещь</button>`;
+        if (owned) controls += `<button type="button" class="bnr-eq-action discard" data-bnr-eq-discard="${id}" ${actionBlocked ? 'disabled' : ''}>${text(uiLabel('discard','🗑 Выкинуть вещь'))}</button>`;
         return `<article class="bnr-eq-item" data-tier="${tierKey}"><div class="bnr-eq-item-top"><strong>${text(item.name || item.item_id)}</strong>
             <span class="bnr-eq-tier">${tierName(item.tier)}</span></div>
             <div class="bnr-eq-meta">${text(categories[item.category] || item.category || '')}${!owned ? ` · ур. ${number(item.required_level)}` : ''}</div>
@@ -81,6 +82,7 @@ const BnrEquipmentShop = (() => {
         host.querySelector('[data-bnr-eq-count]').textContent = `${filtered.length} вещей`;
         host.querySelector('[data-bnr-eq-pages]').innerHTML = pages > 1
             ? `<button type="button" data-bnr-eq-page="-1" ${page === 0 ? 'disabled' : ''}>Назад</button><span>${page+1} / ${pages}</span><button type="button" data-bnr-eq-page="1" ${page+1 === pages ? 'disabled' : ''}>Далее</button>` : '';
+        if (typeof BnrUiConfig !== 'undefined') BnrUiConfig.applyTierPalette(host);
     }
 
     function render() {
@@ -178,7 +180,8 @@ const BnrEquipmentShop = (() => {
         view='shop';search='';category='';tier='';page=0;
         const host=root();if(host) host.innerHTML='';
     }
-    return {load,reset};
+    function refreshPresentation() { if(snapshot) render(); }
+    return {load,reset,refreshPresentation};
 })();
 
 function loadBannerlordEquipmentShop() {return BnrEquipmentShop.load();}

@@ -1312,7 +1312,9 @@ async def bannerlord_config():
     # Поздний импорт: bannerlord_vassals импортирует этот модуль, прямой
     # импорт наверху дал бы цикл.
     from routes.bannerlord_vassals import VASSAL_GOLD_COST as _VASSAL_GOLD_COST
+    from modules.bannerlord.ui_config import load_ui_config
     return {
+        "ui": load_ui_config(),
         "give_gold_presets":  [{"crusticov": k, "dinars": v} for k, v in sorted(GIVE_GOLD_PRESETS.items())],
         "add_skill_presets":  [{"crusticov": k, "xp": v}     for k, v in sorted(ADD_SKILL_XP_PRESETS.items())],
         "focus_tier_costs":   FOCUS_TIER_COSTS,

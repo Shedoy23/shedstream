@@ -22,6 +22,33 @@ internal static partial class Program
     }
     static void ConquestTests()
     {
+        Try("scoreboard result precedes actual simulation finish", () => {
+            var b=Fresh(); ConquestWorld(); Enable(b); Hero.MainHero.IsWounded=true;
+            PlayerEncounter.Current=new PlayerEncounter(); MobileParty.MainParty.MapEvent=PlayerEncounter.Battle=new MapEvent();
+            var screen=(SandBox.View.Map.MapScreen)((MapState)Game.Current.GameStateManager.ActiveState).Handler;
+            var vm=new SandBox.GauntletUI.Map.SimulationScoreboard { IsOver=true }; vm.Simulation.IsSimulationFinished=false;
+            screen.SimulationView=new SandBox.GauntletUI.Map.GauntletMapBattleSimulationView(vm);
+            var menu=Menu("encounter","attack",()=>{}); menu.Options[0].IsEnabled=false;
+            menu.Options.Add(new GameMenuOption { IdString="str_order_attack", IsEnabled=true, Consequence=()=>screen.IsInBattleSimulation=true });
+            Show(menu); b.PollState(); b.PollState();
+            Check(vm.Exits==0,"do not press Done while native simulation is still finishing");
+            vm.Simulation.IsSimulationFinished=true; b.PollState(); b.PollState();
+            Check(vm.Exits==1,"press Done once after native simulation completion");
+        });
+        foreach(string boundary in new[] { "forced", "escape", "healthy", "modal", "observe" })
+        Try("unavoidable surrender " + boundary, () => {
+            var b=Fresh(); Enable(b,boundary=="observe" ? AutopilotBehavior.Mode.Observe : AutopilotBehavior.Mode.Apply);
+            Hero.MainHero.IsWounded=true;
+            if(boundary=="healthy") MobileParty.MainParty.MemberRoster.AddToCounts(new CharacterObject(),1);
+            PlayerEncounter.Current=new PlayerEncounter(); MobileParty.MainParty.MapEvent=PlayerEncounter.Battle=new MapEvent();
+            int surrendered=0;
+            var menu=Menu("encounter","attack",()=>{}); menu.Options[0].IsEnabled=false;
+            menu.Options.Add(new GameMenuOption { IdString="surrender", IsEnabled=true, Consequence=()=> { surrendered++; Hero.MainHero.IsPrisoner=true; } });
+            if(boundary=="escape") menu.Options.Add(new GameMenuOption { IdString="leave_soldiers_behind", IsEnabled=true, Consequence=()=>{} });
+            Show(menu); TaleWorlds.Library.InformationManager.TestInquiryActive=boundary=="modal"; b.PollState();
+            Check(surrendered==(boundary=="forced" ? 1 : 0),"surrender only as sole option: " + boundary);
+            if(boundary=="forced") Check(b.CurrentMode==AutopilotBehavior.Mode.Apply,"captivity keeps autopilot active");
+        });
         foreach (string boundary in new[] { "apply", "observe", "inquiry", "disabled" })
         Try("raid warning continue " + boundary, () => {
             var b=Fresh(); var w=MakeWorld(prisoners:false);

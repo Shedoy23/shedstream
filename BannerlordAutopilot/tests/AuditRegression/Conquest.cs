@@ -39,6 +39,7 @@ internal static partial class Program
         Try("unavoidable surrender " + boundary, () => {
             var b=Fresh(); Enable(b,boundary=="observe" ? AutopilotBehavior.Mode.Observe : AutopilotBehavior.Mode.Apply);
             Hero.MainHero.IsWounded=true;
+            MobileParty.MainParty.Party.NumberOfHealthyMembers=boundary=="healthy" ? 1 : 0;
             if(boundary=="healthy") MobileParty.MainParty.MemberRoster.AddToCounts(new CharacterObject(),1);
             PlayerEncounter.Current=new PlayerEncounter(); MobileParty.MainParty.MapEvent=PlayerEncounter.Battle=new MapEvent();
             int surrendered=0;

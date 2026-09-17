@@ -317,6 +317,9 @@ namespace BannerlordAutopilot
             foreach (string flag in new[] { "IsOver", "IsSimulation", "ShowScoreboard" })
                 MemberOf(simulationVm, flag, Inst, typeof(bool));
             Method(simulationVm, "ExecuteQuitAction", Inst, typeof(void));
+            Type battleSimulation = simulationVm?.GetField("_battleSimulation", BindingFlags.Instance | BindingFlags.NonPublic)?.FieldType;
+            Need(battleSimulation != null, "scoreboard native battle simulation");
+            MemberOf(battleSimulation, "IsSimulationFinished", Inst, typeof(bool));
 
             VerifySettlementServices(campaignAssembly, gameState?.Assembly, helper);
             VerifyOperations(mapEvent, vec2, menuContext, gameMenu);

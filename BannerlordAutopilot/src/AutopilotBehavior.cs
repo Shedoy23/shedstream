@@ -486,6 +486,7 @@ namespace BannerlordAutopilot
             if (PollOwnedSimulation()) return false;
             if (PollPrisonerScreen()) return false;
             if (PollDialogs()) return false;
+            if (PollUnavoidableSurrender(party)) return false;
             if (PollRaidWarning()) return false;
             if (PollOffensiveSiege(party)) return false;
             if (PollRaid(party)) return false;
@@ -1283,6 +1284,23 @@ namespace BannerlordAutopilot
             {
                 Disable("разговор с преследуемой партией остановлен: " + ex.GetType().Name + ": " + ex.Message);
             }
+            return true;
+        }
+
+        private bool PollUnavoidableSurrender(MobileParty party)
+        {
+            if (_mode != Mode.Apply || Hero.MainHero?.IsWounded != true || PlayerEncounter.Current == null
+                || party.Party.NumberOfHealthyMembers > 0 || MenuDriver.CurrentMenuId != "encounter") return false;
+            if (!MapIsActiveScreen() || InformationManager.IsAnyInquiryActive()) return true;
+            foreach (string option in new[] { "attack", "str_order_attack", "leave_soldiers_behind", "leave", "go_back_to_settlement", "abandon_army", "capture_the_enemy" })
+                if (MenuDriver.CanInvoke(option, out _)) return false;
+            if (!MenuDriver.CanInvoke("surrender", out _)) return false;
+            try
+            {
+                OperationClick("surrender");
+                if (_mode == Mode.Apply) AutopilotLog.Write("ПЛЕН: герой ранен, боеспособных нет, бой и отход недоступны; штатная сдача, ждём освобождения без выкупа");
+            }
+            catch (Exception ex) { Disable("вынужденная сдача: " + ex.GetType().Name + ": " + ex.Message); }
             return true;
         }
 

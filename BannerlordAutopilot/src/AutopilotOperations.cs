@@ -63,6 +63,10 @@ namespace BannerlordAutopilot
                 if (vm == null || ReferenceEquals(vm, _finishedSimulation)) return true;
                 if (!(ReadScreenMember(vm, "IsSimulation") is true) || !(ReadScreenMember(vm, "IsOver") is true)
                     || !(ReadScreenMember(vm, "ShowScoreboard") is true)) return true;
+                // IsOver can be published a tick before BattleSimulation finishes. Calling
+                // ExecuteQuitAction in that gap opens the native retreat inquiry instead.
+                object simulation = vm.GetType().GetField("_battleSimulation", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(vm);
+                if (!(ReadScreenMember(simulation, "IsSimulationFinished") is true)) return true;
                 _finishedSimulation = vm;
                 vm.GetType().GetMethod("ExecuteQuitAction", Type.EmptyTypes).Invoke(vm, null);
                 AutopilotLog.Write("БОЙ: авторасчёт завершён; результат подтверждён штатной кнопкой");

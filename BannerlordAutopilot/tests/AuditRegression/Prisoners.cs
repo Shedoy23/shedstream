@@ -39,6 +39,15 @@ internal static partial class Program
     }
     static void PrisonerTests()
     {
+        foreach (int free in new[] { 0, 2, 10 }) Try("rescued soldiers " + free, () => {
+            var b=Surrender(); var vm=PrisonerScreen(50,0);
+            vm.PartyScreenLogic.RightPartyMembersSizeLimit=free;
+            vm.OtherPartyTroops.Add(new PartyCharacterVM { Troop=new TroopRosterElement { Character=new CharacterObject(), Number=5, WoundedNumber=5 } });
+            for(int i=0;i<8;i++) b.PollState();
+            Check(vm.Closed==1 && MobileParty.MainParty.MemberRoster.TotalManCount==Math.Min(5,free),"rescued soldiers join only within member capacity " + free);
+            Check(MobileParty.MainParty.MemberRoster.TotalWounded==Math.Min(5,free),"rescued wounded stay wounded " + free);
+            Check(MobileParty.MainParty.PrisonRoster.TotalManCount==21,"prisoners still collected independently " + free);
+        });
         foreach (int free in new[]{30,7,0}) Try("пленные, свободно "+free,()=>{
             var b=Surrender(); var vm=PrisonerScreen(50,50-free);
             for(int i=0;i<5;i++) b.PollState();
@@ -80,8 +89,9 @@ namespace TaleWorlds.CampaignSystem.Party {
   public enum PartyRosterSide {Left,Right,None}
   public PartyBase RightOwnerParty {get;}=PartyBase.MainParty;
   public int RightPartyPrisonersSizeLimit {get;set;}
+  public int RightPartyMembersSizeLimit {get;set;}=100;
   public PartyScreenData CurrentData {get;}=new(); public bool IsDoneActive()=>true;
-  public class PartyScreenData {public TroopRoster RightPrisonerRoster {get;}=TroopRoster.CreateDummyTroopRoster();}
+  public class PartyScreenData {public TroopRoster RightPrisonerRoster {get;}=TroopRoster.CreateDummyTroopRoster(); public TroopRoster RightMemberRoster {get;}=TroopRoster.CreateDummyTroopRoster();}
  }
 }
 namespace SandBox.GauntletUI {
@@ -91,15 +101,16 @@ namespace TaleWorlds.CampaignSystem.ViewModelCollection.Party {
  public class PartyCharacterVM {public TroopRosterElement Troop {get;set;} public bool IsTroopTransferrable {get;set;}=true; public readonly PartyScreenLogic.PartyRosterSide Side=PartyScreenLogic.PartyRosterSide.Left;}
  public class PartyVM {
   public PartyScreenLogic PartyScreenLogic {get;} public List<PartyCharacterVM> OtherPartyPrisoners {get;}=new();
+  public List<PartyCharacterVM> OtherPartyTroops {get;}=new();
   public bool IsAnyPopUpOpen {get;set;} public int Closed,Confirmed;
   public bool ForeignQuery,NoTransfer; public int ForeignAccepted,TransferCalls;
   public PartyVM(PartyScreenLogic logic){PartyScreenLogic=logic;}
   private void OnTransferTroop(PartyCharacterVM troop,int index,int count,PartyScreenLogic.PartyRosterSide side){
    TransferCalls++; if(NoTransfer)return;
    var e=troop.Troop; int wounded=Math.Min(e.WoundedNumber,count); e.Number-=count;e.WoundedNumber-=wounded;troop.Troop=e;
-   PartyScreenLogic.CurrentData.RightPrisonerRoster.Add(new TroopRosterElement {Character=e.Character,Number=count,WoundedNumber=wounded});
+   (OtherPartyTroops.Contains(troop) ? PartyScreenLogic.CurrentData.RightMemberRoster : PartyScreenLogic.CurrentData.RightPrisonerRoster).Add(new TroopRosterElement {Character=e.Character,Number=count,WoundedNumber=wounded});
   }
-  public void ExecuteRemoveZeroCounts(){OtherPartyPrisoners.RemoveAll(t=>t.Troop.Number==0);}
+  public void ExecuteRemoveZeroCounts(){OtherPartyPrisoners.RemoveAll(t=>t.Troop.Number==0);OtherPartyTroops.RemoveAll(t=>t.Troop.Number==0);}
   public void ExecuteDone(){
    if(ForeignQuery){InformationManager.ShowInquiry(new InquiryData {IsAffirmativeOptionShown=true,AffirmativeAction=()=>ForeignAccepted++});return;}
    if(OtherPartyPrisoners.Any(t=>t.Troop.Number>0)) InformationManager.ShowInquiry(new InquiryData {IsAffirmativeOptionShown=true,AffirmativeAction=CloseScreenInternal});
@@ -108,6 +119,7 @@ namespace TaleWorlds.CampaignSystem.ViewModelCollection.Party {
   private void CloseScreenInternal(){
    if(OtherPartyPrisoners.Any(t=>t.Troop.Number>0)) Confirmed++;
    foreach(var e in PartyScreenLogic.CurrentData.RightPrisonerRoster.GetTroopRoster()) MobileParty.MainParty.PrisonRoster.Add(e);
+   foreach(var e in PartyScreenLogic.CurrentData.RightMemberRoster.GetTroopRoster()) MobileParty.MainParty.MemberRoster.Add(e);
    Closed++; TaleWorlds.Core.Game.Current.GameStateManager.PopState(0); PlayerEncounter.Finish();
   }
  }

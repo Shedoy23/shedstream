@@ -1772,6 +1772,7 @@ namespace BannerlordAutopilot
             {
                 try
                 {
+                    TroopUpgrades.Run(party);
                     Settlement market = EquipmentAndTrade.FindUnloadingTown(party,
                         s => _services.IsDue(s) && !CannotStay(s));
                     if (market != null)

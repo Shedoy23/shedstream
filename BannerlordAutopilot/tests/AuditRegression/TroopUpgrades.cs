@@ -10,6 +10,20 @@ internal static partial class Program
 {
     static void TroopUpgradeTests()
     {
+        foreach (string mode in new[] { "apply", "observe", "modal", "battle" })
+        Try("hourly upgrade boundary " + mode, () => {
+            var b=Fresh(); MakeWorld(gold:500, prisoners:false); SetLimit("MinGoldReserve",0);
+            var p=MobileParty.MainParty; Campaign.Current.Behaviors.Add(new TestViewTracker());
+            var target=new CharacterObject { Name="trained" };
+            var troop=new CharacterObject { Name="recruit", UpgradeTargets=new[] { target } };
+            p.MemberRoster.AddToCounts(troop,1,xpChange:100);
+            Campaign.Current.Models.PartyWageModel.TestTotalWage=(party,roster)=>10;
+            Enable(b,mode=="observe" ? AutopilotBehavior.Mode.Observe : AutopilotBehavior.Mode.Apply);
+            if(mode=="modal") TaleWorlds.Library.InformationManager.TestInquiryActive=true;
+            if(mode=="battle") p.MapEvent=new TaleWorlds.CampaignSystem.MapEvent();
+            HourlyTick(b);
+            Check((p.MemberRoster.FindIndexOfTroop(target)>=0)==(mode=="apply"), "hourly upgrade respects " + mode);
+        });
         foreach (string condition in new[] { "ready", "no_xp", "reserve", "perk", "hero", "horse", "locked_horse" })
         Try("troop upgrades " + condition, () => {
             Fresh(); MakeWorld(gold:500, prisoners:false); SetLimit("MinGoldReserve",0);
@@ -44,6 +58,10 @@ namespace TaleWorlds.Core
 }
 namespace TaleWorlds.CampaignSystem
 {
+    public partial class CampaignEventDispatcher
+    {
+        public void OnPlayerUpgradedTroops(CharacterObject from,CharacterObject to,int number) { }
+    }
     public partial class CharacterObject
     {
         public FormationClass DefaultFormationClass;

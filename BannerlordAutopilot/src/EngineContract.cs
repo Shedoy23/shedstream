@@ -641,6 +641,22 @@ namespace BannerlordAutopilot
             // Main-hero equipment and paid inventory sales.
             MemberOf(typeof(MobileParty), "TotalWeightCarried", Inst, typeof(float));
             MemberOf(typeof(MobileParty), "InventoryCapacity", Inst, typeof(int));
+            Type upgradeModel = TypeNamed(campaign, "TaleWorlds.CampaignSystem.ComponentInterfaces.PartyTroopUpgradeModel");
+            Type category = TypeNamed(core, "TaleWorlds.Core.ItemCategory");
+            Type formation = TypeNamed(core, "TaleWorlds.Core.FormationClass");
+            MemberOf(gameModels, "PartyTroopUpgradeModel", Inst, upgradeModel);
+            Method(upgradeModel, "CanPartyUpgradeTroopToTarget", Inst, typeof(bool), partyBase, character, character);
+            MemberOf(character, "UpgradeTargets", Inst, character?.MakeArrayType());
+            MemberOf(character, "UpgradeRequiresItemFromCategory", Inst, category);
+            MemberOf(character, "DefaultFormationClass", Inst, formation);
+            Method(character, "GetUpgradeXpCost", Inst, typeof(int), partyBase, typeof(int));
+            Method(character, "GetUpgradeGoldCost", Inst, typeof(int), partyBase, typeof(int));
+            MemberOf(item, "ItemCategory", Inst, category);
+            Method(troopRoster, "FindIndexOfTroop", Inst, typeof(int), character);
+            Method(troopRoster, "GetElementCopyAtIndex", Inst, troopElement, typeof(int));
+            Method(troopRoster, "GetElementXp", Inst, typeof(int), typeof(int));
+            Method(troopRoster, "SetElementXp", Inst, typeof(void), typeof(int), typeof(int));
+            Method(typeof(CampaignEventDispatcher), "OnPlayerUpgradedTroops", Inst, typeof(void), character, character, typeof(int));
             Type equipmentSet = TypeNamed(core, "TaleWorlds.Core.Equipment");
             Type equipmentIndex = TypeNamed(core, "TaleWorlds.Core.EquipmentIndex");
             Type tracker = TypeNamed(campaign, "TaleWorlds.CampaignSystem.IViewDataTracker");

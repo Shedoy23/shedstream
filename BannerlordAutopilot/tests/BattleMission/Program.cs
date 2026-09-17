@@ -1,6 +1,7 @@
 using System;
 using BannerlordAutopilot;
 using TaleWorlds.Core;
+using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.MountAndBlade;
 
 int failed = 0;
@@ -33,6 +34,8 @@ Check(mission.MainAgent.CommonAIComponent.InitializeCalls == 1 && mission.MainAg
       && mission.MainAgent.HumanAIComponent.SyncCalls == 1, "компоненты боевого AI заново инициализированы");
 Check(mission.MainAgent.RidingOrderCalls == 1 && originallyManual.ChangedCalls == 1,
       "приказ посадки и состояние формации синхронизированы");
+Check(mission.MainAgent.LastRidingOrder == RidingOrderEnum.Mount,
+      "полевой бой сохраняет приказ формации ехать верхом");
 AutopilotBehavior.Instance.CurrentMode = AutopilotBehavior.Mode.Off; behavior.OnMissionTick(0.1f);
 Check(mission.MainAgent.Controller == AgentControllerType.Player, "F12 возвращает живого героя");
 Check(mission.MainAgent.AIStateFlags == Agent.AIStateFlag.None && mission.MainAgent.SpeedResetCalls == 1
@@ -75,4 +78,13 @@ hideout.Mode=MissionMode.Stealth; hideoutBehavior.OnMissionTick(0.1f);
 Check(hideout.MainAgent.Controller==AgentControllerType.AI,"после сцены управление боем возобновляется");
 AutopilotBehavior.Instance.CurrentMode=AutopilotBehavior.Mode.Off; hideoutBehavior.OnMissionTick(0.1f);
 Check(hideout.MainAgent.Controller==AgentControllerType.Player && hideoutFormation.Move.Kind==0,"F12 возвращает и героя, и приказы отряда убежища");
+var siege = new Mission { Mode=MissionMode.Battle, IsDeploymentFinished=true };
+siege.MainAgent.MountAgent = new Agent();
+siege.MainAgent.Formation = new Formation();
+MobileParty.MainParty.MapEvent.IsSiegeAssault = true;
+var siegeBehavior = new BattleAutopilotMission { Mission=siege };
+AutopilotBehavior.Instance.CurrentMode=AutopilotBehavior.Mode.Apply;
+siegeBehavior.OnMissionTick(0.1f);
+Check(siege.MainAgent.LastRidingOrder == RidingOrderEnum.Dismount,
+      "осадный бой при верховом герое отдаёт приказ спешиться");
 return failed;

@@ -5,7 +5,7 @@ namespace TaleWorlds.Core { public enum MissionMode { Deployment, Battle, Stealt
 namespace TaleWorlds.Library { public static class InformationManager { public static bool Inquiry; public static bool IsAnyInquiryActive() => Inquiry; } }
 namespace TaleWorlds.CampaignSystem {
  public class Campaign { public static Campaign Current = new(); }
- public class MapEvent { public object MapEventSettlement; public bool IsNavalMapEvent; }
+ public class MapEvent { public object MapEventSettlement; public bool IsNavalMapEvent; public bool IsSiegeAssault; }
  namespace Encounters { public class PlayerEncounter {} }
  namespace Party { public class MobileParty { public static MobileParty MainParty = new(); public MapEvent MapEvent = new(); } }
 }
@@ -19,7 +19,7 @@ namespace TaleWorlds.MountAndBlade {
  public abstract class MissionLogic : MissionBehavior {}
  public class CommonAIComponent { public int InitializeCalls; public void Initialize() { InitializeCalls++; } }
  public class HumanAIComponent { public int InitializeCalls, SyncCalls; public void Initialize() { InitializeCalls++; } public void SyncBehaviorParamsIfNecessary() { SyncCalls++; } }
- public enum RidingOrderEnum { Free, Mount }
+ public enum RidingOrderEnum { Free, Mount, Dismount }
  public class RidingOrder { public RidingOrderEnum OrderEnum = RidingOrderEnum.Mount; }
  public class Agent {
   public enum AIStateFlag { None, Alarmed }
@@ -27,10 +27,10 @@ namespace TaleWorlds.MountAndBlade {
   public int StopUsingCalls, DisableScriptedCalls, RidingOrderCalls, SpeedResetCalls;
   public bool IsUsingGameObject = true; public AIStateFlag AIStateFlags = AIStateFlag.None;
   public CommonAIComponent CommonAIComponent = new(); public HumanAIComponent HumanAIComponent = new();
-  public Formation Formation; public Agent MountAgent; public bool IsActive() => Active;
+  public Formation Formation; public Agent MountAgent; public RidingOrderEnum LastRidingOrder; public bool IsActive() => Active;
   public void SetAlarmState(AIStateFlag value) { AlarmCalls++; } public void SetIsAIPaused(bool value) { if (!value) UnpauseCalls++; }
   public void ResetEnemyCaches() { ResetCalls++; } public void HandleStopUsingAction() { StopUsingCalls++; IsUsingGameObject = false; }
-  public void DisableScriptedMovement() { DisableScriptedCalls++; } public void SetRidingOrder(RidingOrderEnum value) { RidingOrderCalls++; }
+  public void DisableScriptedMovement() { DisableScriptedCalls++; } public void SetRidingOrder(RidingOrderEnum value) { RidingOrderCalls++; LastRidingOrder=value; }
   public void SetMaximumSpeedLimit(float value, bool isMultiplier) { SpeedResetCalls++; }
  }
  public struct MovementOrder { public int Kind; public static MovementOrder MovementOrderCharge => new MovementOrder {Kind=1}; }

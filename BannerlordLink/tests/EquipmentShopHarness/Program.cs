@@ -51,8 +51,18 @@ class Program
         Check(ActionFeedback.Error == "stale_equipment_session", "Missing equipment session fails closed");
         request["equipment_session_id"] = behavior.SessionId; Mission.Current = new Mission();
         Act("hero.buy_equipment", request);
-        Check(ActionFeedback.Error == "in_mission" && hero.Gold == 4500, "No equipment changes in missions");
-        Mission.Current = null; behavior.StoreFails = true;
+        Check(ActionFeedback.Applied && hero.Gold == 500 && behavior.Saved.Items.Count == 1
+            && behavior.Saved.Items[0].Slot == null, "Purchase in mission charges gold and stores item without equipping");
+        var missionOwned = behavior.Saved.Items[0];
+        request["owned_id"] = missionOwned.OwnedId; request["slot"] = "body";
+        Act("hero.equip_owned", request);
+        Check(ActionFeedback.Error == "in_mission" && hero.BattleEquipment[EquipmentIndex.Body].IsEmpty,
+            "Equipping in mission remains blocked");
+        Act("hero.discard_owned", request);
+        Check(ActionFeedback.Applied && behavior.Saved.Items.Count == 0 && hero.Gold == 500,
+            "Stored item can be discarded in mission without changing battle gear or refunding gold");
+        Mission.Current = null; request.Remove("owned_id"); request.Remove("slot"); hero.Gold = 4500;
+        behavior.StoreFails = true;
         Act("hero.buy_equipment", request);
         Check(!ActionFeedback.Applied && hero.Gold == 4500 && behavior.Saved.Items.Count == 0, "Persistence failure must compensate actual gold charge");
         behavior.StoreFails = false; behavior.PushFails = true;
@@ -76,6 +86,15 @@ class Program
         Act("hero.equip_owned", request);
         Check(ActionFeedback.Applied && hero.BattleEquipment[EquipmentIndex.Body].Item == item && hero.Gold == 500, "Owned equip is free and applies selected object");
         Check(behavior.Saved.Items.Exists(x => x.ItemId == "old_armor" && x.ModifierId == "lordly" && x.Slot == null), "Native modifier gear retained in storage");
+        Mission.Current = new Mission();
+        Act("hero.discard_owned", request);
+        Check(ActionFeedback.Error == "in_mission" && hero.BattleEquipment[EquipmentIndex.Body].Item == item
+            && behavior.Saved.Items.Exists(x => x.OwnedId == owned.OwnedId),
+            "Equipped item cannot be discarded during a mission");
+        Act("hero.unequip_owned", request);
+        Check(ActionFeedback.Error == "in_mission" && hero.BattleEquipment[EquipmentIndex.Body].Item == item,
+            "Unequipping during a mission remains blocked");
+        Mission.Current = null;
         Act("hero.unequip_owned", request);
         Check(ActionFeedback.Applied && hero.BattleEquipment[EquipmentIndex.Body].IsEmpty && behavior.Saved.Items.TrueForAll(x => x.Slot == null), "Unequip preserves ownership");
         request["owned_id"] = owned.OwnedId;

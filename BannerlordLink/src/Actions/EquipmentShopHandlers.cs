@@ -31,7 +31,10 @@ namespace BannerlordLink.Actions
             bool committed = false;
             try
             {
-                if (Mission.Current != null) { ActionFeedback.PostFailed(actionId, "in_mission"); return; }
+                // Buying and discarding stored items do not touch battle equipment.
+                // Equipping, unequipping, and discarding an equipped item must wait.
+                if (Mission.Current != null && ActionType != "hero.buy_equipment" && ActionType != "hero.discard_owned")
+                { ActionFeedback.PostFailed(actionId, "in_mission"); return; }
                 string username = (data["target"]?.ToString() ?? data["initiated_by"]?.ToString() ?? "").Trim().ToLowerInvariant();
                 hero = HeroLookup.FindByUsername(username);
                 if (hero == null || !hero.IsAlive) { ActionFeedback.PostFailed(actionId, "hero_not_found"); return; }
@@ -63,6 +66,8 @@ namespace BannerlordLink.Actions
                 {
                     var owned = ledger.Items.FirstOrDefault(x => x.OwnedId == data["owned_id"]?.ToString());
                     if (owned == null) { ActionFeedback.PostFailed(actionId, "equipment_not_owned"); return; }
+                    if (Mission.Current != null && owned.Slot != null)
+                    { ActionFeedback.PostFailed(actionId, "in_mission"); return; }
                     if (owned.Slot != null)
                     {
                         var index = EquipmentSync.SlotFromName(owned.Slot);

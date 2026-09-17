@@ -3860,7 +3860,7 @@ function _renderEquipRow(slot, it, slotIcons) {
     </div>`;
 }
 
-// Sprint M23/5.14 — render свита (retinue) под Экипировкой в hero card.
+// Sprint M23/5.14 — render свита (retinue) в карточке вкладки «Герой».
 // retinue = [{slot_index, troop_id, troop_name, tier, is_elite}]
 // Sprint 5.27h — TIER_COSTS из mod-side RecruitTroopsHandler.TIER_COSTS.
 // Используется UI чтобы вывести требуемые dinars в кнопке + disable если
@@ -3964,14 +3964,14 @@ function _renderRetinue(retinue) {
     const trainDisabled = list.length === 0 || trainCost <= 0 || trainLow;
 
     slot.innerHTML = `
-        <details data-bnr-details="retinue" ${_bnrDetailsAttr('retinue')}>
-            <summary style="font-size:11px;color:#adadb8;cursor:pointer;">
-                Свита (${list.length}/${MAX_SLOTS})
+        <details class="bnr-card bnr-retinue-card" data-bnr-details="retinue" ${_bnrDetailsAttr('retinue')}>
+            <summary class="bnr-hdr">
+                🛡 Свита (${list.length}/${MAX_SLOTS})
                 ${eliteSlots.length > 0
                     ? `<span style="color:#fbbf24;font-size:10px;">★${eliteSlots.length}</span>`
                     : ''}
             </summary>
-            <div style="margin-top:4px;">
+            <div class="bnr-card-body">
                 ${rows}
                 <div style="display:flex;gap:4px;margin-top:6px;">
                     <button class="extra-btn" id="bnr-recruit-basic-btn"
@@ -5304,6 +5304,7 @@ async function loadBannerlordHero() {
                         <div id="bnr-pane-hero-stats" style="margin-bottom:10px;"></div>
                         <div id="bnr-daily-slot" style="margin-bottom:8px;"></div>
                         <div id="hero-class-picker-slot" style="margin-bottom:10px;"></div>
+                        <div id="bnr-retinue-slot"></div>
                         <details data-bnr-details="hero-progression" ${_bnrDetailsAttr('hero-progression')} style="margin-bottom:6px;">
                             <summary style="font-size:12px;padding:8px;box-sizing:border-box;cursor:pointer;
                                        background:#1e3a5f;color:#93c5fd;font-weight:700;list-style:none;
@@ -5442,7 +5443,7 @@ async function loadBannerlordHero() {
         const _bnrChanged = _preserveSlots(() =>
             _structChanged && _smartInnerHTML(body, _bnrHeroHtml));
       if (_bnrChanged) {
-        // 🎒 Инвентарь pane — Экипировка + Свита + Достижения + Кузница + Аукционы.
+        // 🎒 Инвентарь pane — Экипировка + Достижения + Кузница + Аукционы.
         const paneInv = document.getElementById('bnr-pane-inventory-body');
         if (paneInv) paneInv.innerHTML = `
             <div style="padding:6px;">
@@ -5450,7 +5451,6 @@ async function loadBannerlordHero() {
                     🎽 Экипировка
                 </div>
                 <div style="margin-bottom:10px;">${eqHtml}</div></div>
-                <div id="bnr-retinue-slot" style="margin-bottom:10px;"></div>
                 <details data-bnr-details="inv-achievements" ${_bnrDetailsAttr('inv-achievements')} style="margin-bottom:6px;">
                     <summary style="font-size:12px;padding:8px;box-sizing:border-box;cursor:pointer;
                                background:#3a2a0a;color:#fbbf24;font-weight:700;list-style:none;
@@ -5501,7 +5501,7 @@ async function loadBannerlordHero() {
         // 2026-05-31 IA-реорг: класс-picker + кнопка прогрессии переехали в Hero
         // pane (build-once skeleton выше); бывший progression pane стал
         // «Династией» (build-once skeleton выше). Здесь больше ничего не строим.
-        // Sprint M23 — render свита под equipment.
+        // Sprint M23 — render свита перед прогрессией в Hero pane.
         _bannerlordLastRetinue = data.retinue || [];
         _renderRetinue(_bannerlordLastRetinue);
         renderBannerlordClassPicker();
@@ -5511,7 +5511,7 @@ async function loadBannerlordHero() {
         // hero-пейна → UI висел старым до левелапа/смены шмота. Рефрешим свиту при
         // ЛЮБОМ изменении состава/тира; дедуп сравнением с кэшем (репейнт лишь при
         // реальном изменении — без мерцания; _renderRetinue само ре-биндит кнопки,
-        // слот #bnr-retinue-slot переживает re-render via _preserveSlots).
+        // слот #bnr-retinue-slot находится в стабильном skeleton вкладки «Герой»).
         {
             const _newRetinue = data.retinue || [];
             if (JSON.stringify(_newRetinue) !== JSON.stringify(_bannerlordLastRetinue || [])) {

@@ -1750,6 +1750,14 @@ input[type="number"]::-webkit-inner-spin-button {
     font-size: 11px;
     color: #adadb8;
 }
+.bnr-retinue-card {
+    border-color: #5a4725;
+    background: #211d18;
+}
+.bnr-retinue-card[open] > summary.bnr-hdr {
+    border-bottom: 1px solid #3d3323;
+    margin-bottom: 10px;
+}
 .bnr-btn-primary, .bnr-btn-danger {
     display: block;
     width: 100%;

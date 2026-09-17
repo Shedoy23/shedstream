@@ -28,9 +28,9 @@ async function main() {
             window.ShedLink = {buyAction: async (...args) => {window.actions.push(args.slice(0,3));return {success:true};}};
             window.fixture = {success:true,ready:true,can_manage:true,has_hero:true,hero_level:25,gold:50000,pending:false,
                 tiers:[{tier:4,required_level:25},{tier:5,required_level:30}],
-                items:[{item_id:'sword',name:'Меч <img src=x onerror=alert(1)>',tier:4,required_level:25,price_gold:1234,category:'one_handed',slots:['weapon0','weapon1'],stats:{weight:1.2},can_buy:true},
+                items:[{item_id:'sword',name:'Меч <img src=x onerror=alert(1)>',tier:4,required_level:25,price_gold:1234,category:'one_handed',slots:['weapon0','weapon1'],weight:1.234,stats:{swing_dmg:80},can_buy:true},
                     {item_id:'bow',name:'Длинный лук',tier:5,required_level:30,price_gold:5000,category:'bow',slots:['weapon0','weapon1'],stats:{},can_buy:false,reason:'level_required',message:'Нужен уровень 30'}],
-                inventory:[{owned_id:'owned-sword',item_id:'sword',name:'Старый меч',tier:3,slot:null,category:'one_handed',slots:['weapon0','weapon1'],stats:{}}]};
+                inventory:[{owned_id:'owned-sword',item_id:'sword',name:'Старый меч',tier:3,slot:null,category:'one_handed',slots:['weapon0','weapon1'],weight:2.5,stats:{}}]};
             window.fetch = async () => ({ok:true,json:async () => structuredClone(window.fixture)});
         });
         await page.addScriptTag({path:path.join(front,'viewer-bannerlord-equipment.js')});
@@ -40,6 +40,7 @@ async function main() {
         assert.equal(await page.locator('#bnr-equipment-shop img').count(),0,'catalog text is escaped');
         assert((await page.locator('#bnr-equipment-shop').innerText()).includes('Нужен уровень 30'),'human-readable item refusal');
         assert((await page.locator('#bnr-equipment-shop').innerText()).includes('1 234'),'exact dinar price');
+        assert((await page.locator('.bnr-eq-item[data-tier="4"]').innerText()).includes('Вес 1,23 кг'),'shop shows game item weight');
         const tierColors=await page.evaluate(() => {
             const card=document.querySelector('.bnr-eq-item');
             card.dataset.tier='1';const low=getComputedStyle(card.querySelector('strong')).color;
@@ -56,6 +57,7 @@ async function main() {
         assert.deepEqual(await page.evaluate(() => actions[0]),['bannerlord','hero.buy_equipment',{item_id:'sword'}]);
         await page.evaluate(() => loadBannerlordEquipmentShop());
         await page.locator('[data-bnr-eq-view="owned"]').click();
+        assert((await page.locator('.bnr-eq-item').innerText()).includes('Вес 2,5 кг'),'owned item shows game weight');
         await page.locator('[data-bnr-eq-slot="owned-sword"]').selectOption('weapon1');
         await page.locator('[data-bnr-eq-equip="owned-sword"]').click();
         assert.deepEqual(await page.evaluate(() => actions[1]),['bannerlord','hero.equip_owned',{owned_id:'owned-sword',slot:'weapon1'}]);

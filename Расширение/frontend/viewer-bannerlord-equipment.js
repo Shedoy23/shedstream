@@ -29,8 +29,14 @@ const BnrEquipmentShop = (() => {
     const root = () => document.getElementById('bnr-equipment-shop');
 
     function stats(item) {
-        return Object.entries(item.stats || {}).filter(([key,value]) => statNames[key] && Number.isFinite(Number(value)) && Number(value) > 0)
-            .slice(0,6).map(([key,value]) => `${statNames[key]} ${text(value)}`).join(' · ');
+        const rawWeight = item.weight ?? item.stats?.weight;
+        const gameWeight = Number(rawWeight);
+        const weight = rawWeight != null && Number.isFinite(gameWeight) && gameWeight >= 0
+            ? `Вес ${gameWeight.toLocaleString('ru-RU',{maximumFractionDigits:2})} кг` : null;
+        const other = Object.entries(item.stats || {}).filter(([key,value]) => key !== 'weight' && statNames[key]
+            && Number.isFinite(Number(value)) && Number(value) > 0)
+            .map(([key,value]) => `${statNames[key]} ${text(value)}`);
+        return [weight,...other].filter(Boolean).slice(0,6).join(' · ');
     }
 
     function itemHtml(item, owned) {

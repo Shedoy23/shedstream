@@ -34,7 +34,10 @@ const BnrEquipmentShop = (() => {
 
     function itemHtml(item, owned) {
         const id = text(owned ? item.owned_id : item.item_id);
-        const blocked = busy || !snapshot.can_manage || snapshot.pending || item.unavailable;
+        const tierValue = Number(item.tier);
+        const tierKey = Number.isInteger(tierValue) && tierValue >= 1 && tierValue <= 6 ? tierValue : 1;
+        const actionBlocked = busy || !snapshot.can_manage || snapshot.pending;
+        const blocked = actionBlocked || item.unavailable;
         let controls;
         if (!owned) {
             const disabled = blocked || !item.can_buy;
@@ -52,7 +55,8 @@ const BnrEquipmentShop = (() => {
                     ${slots.map(s => `<option value="${text(s)}" ${s === chosen ? 'selected' : ''}>${slotNames[s]}</option>`).join('')}
                 </select><button type="button" class="bnr-eq-action secondary" data-bnr-eq-equip="${id}" ${blocked || !slots.length ? 'disabled' : ''}>Надеть</button></div>`;
         }
-        return `<article class="bnr-eq-item"><div class="bnr-eq-item-top"><strong>${text(item.name || item.item_id)}</strong>
+        if (owned) controls += `<button type="button" class="bnr-eq-action discard" data-bnr-eq-discard="${id}" ${actionBlocked ? 'disabled' : ''}>🗑 Выкинуть вещь</button>`;
+        return `<article class="bnr-eq-item" data-tier="${tierKey}"><div class="bnr-eq-item-top"><strong>${text(item.name || item.item_id)}</strong>
             <span class="bnr-eq-tier">${tierName(item.tier)}</span></div>
             <div class="bnr-eq-meta">${text(categories[item.category] || item.category || '')}${!owned ? ` · ур. ${number(item.required_level)}` : ''}</div>
             ${stats(item) ? `<div class="bnr-eq-stats">${stats(item)}</div>` : ''}${controls}
@@ -90,11 +94,11 @@ const BnrEquipmentShop = (() => {
         if (category && !availableCategories.includes(category)) category = '';
         host.innerHTML = `<div class="card-header"><h3>🎒 Снаряжение</h3><span class="card-badge" data-bnr-eq-count></span></div>
             <div class="bnr-eq-summary"><span>Герой · ур. ${number(snapshot.hero_level)}</span><strong>${number(snapshot.gold)} 💰</strong></div>
-            <div class="bnr-eq-unlocks">${(snapshot.tiers || []).map(t => `<span class="${Number(snapshot.hero_level) >= t.required_level ? 'unlocked' : ''}">${tierName(t.tier)} · ур. ${number(t.required_level)}</span>`).join('')}</div>
+            <div class="bnr-eq-unlocks">${(snapshot.tiers || []).map(t => `<span data-tier="${Number(t.tier)}" class="${Number(snapshot.hero_level) >= t.required_level ? 'unlocked' : ''}">${tierName(t.tier)} · ур. ${number(t.required_level)}</span>`).join('')}</div>
             <div class="bnr-eq-tabs" role="group" aria-label="Снаряжение">
                 <button type="button" data-bnr-eq-view="shop" aria-pressed="${view === 'shop'}">Магазин</button>
                 <button type="button" data-bnr-eq-view="owned" aria-pressed="${view === 'owned'}">Мои вещи · ${(snapshot.inventory || []).length}</button></div>
-            <p class="bnr-eq-help">${view === 'shop' ? 'Покупка за динары героя. Вещь попадёт в твой инвентарь.' : 'Надевай вещи между боями. Заменённая вещь останется здесь.'}</p>
+            <p class="bnr-eq-help">${view === 'shop' ? 'Покупка за динары героя. Вещь попадёт в твой инвентарь.' : 'Надевай вещи между боями. Заменённую вещь можно надеть снова или выкинуть навсегда.'}</p>
             ${snapshot.pending || busy ? '<div class="bnr-eq-notice" role="status">Заявка отправлена — ждём результат из игры.</div>' : ''}
             ${snapshot.reason ? `<div class="bnr-eq-notice" role="status">${text(snapshot.message || snapshot.reason)}</div>` : ''}
             <div class="bnr-eq-filters"><input type="search" data-bnr-eq-search aria-label="Найти вещь" placeholder="Найти вещь…" value="${text(search)}">
@@ -128,6 +132,10 @@ const BnrEquipmentShop = (() => {
                 action='hero.equip_owned';payload={owned_id:item.owned_id,slot:selectedSlots[item.owned_id] || (item.slots || [])[0]};
             } else if (button.dataset.bnrEqUnequip) {
                 action='hero.unequip_owned';payload={slot:button.dataset.bnrEqUnequip};
+            } else if (button.dataset.bnrEqDiscard) {
+                const item = (snapshot.inventory || []).find(i => i.owned_id === button.dataset.bnrEqDiscard);
+                if (!item || !await _bnrConfirmDanger(`Выкинуть «${text(item.name || item.item_id)}»? Предмет исчезнет навсегда${item.slot ? ' и будет снят с героя' : ''}. Динары не вернутся.`, 'Да, выкинуть')) return;
+                action='hero.discard_owned';payload={owned_id:item.owned_id};
             } else return;
             const actionGeneration=generation;
             busy=true;render();

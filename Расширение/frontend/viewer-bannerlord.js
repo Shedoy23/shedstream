@@ -5490,9 +5490,9 @@ async function loadBannerlordHero() {
                 <div id="bnr-battle-banner-slot"></div>
                 <div id="bnr-combat-stance-slot" style="margin-bottom:8px;"></div>
                 <div id="bnr-buff-hud"></div>
-                <div id="bnr-active-powers-slot"></div>
-                <div id="bnr-summon-slot"></div>
                 <div id="bnr-detachment-slot" style="margin-top:10px;"></div>
+                <div id="bnr-summon-slot"></div>
+                <div id="bnr-active-powers-slot"></div>
             </div>`;
 
         // 2026-05-31 IA-реорг: класс-picker + кнопка прогрессии переехали в Hero

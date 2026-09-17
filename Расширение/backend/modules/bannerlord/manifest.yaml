@@ -128,6 +128,7 @@ extensions:
     - hero.buy_equipment
     - hero.equip_owned
     - hero.unequip_owned
+    - hero.discard_owned
     - hero.set_specialization
     - hero.select_weapon_power
     - hero.claim_starter

@@ -5,13 +5,18 @@ const { chromium } = require('playwright');
 const root=path.resolve(__dirname,'..');
 const front=path.join(root,'Расширение/frontend');
 async function main() {
-    for (const file of ['extension.html','mobile.html'])
-        assert(fs.readFileSync(path.join(front,file),'utf8').includes('viewer-bannerlord-builds.js'),file+': new build UI is not connected');
+    for (const file of ['extension.html','mobile.html']) {
+        const html=fs.readFileSync(path.join(front,file),'utf8');
+        assert(html.includes('viewer-bannerlord-builds.js'),file+': new build UI is not connected');
+        assert(html.indexOf('id="bannerlord-tournament-card"')<html.indexOf('id="bnr-build-choice-slot"'),file+': weapon selection must follow tournament');
+    }
+    const combatSource=fs.readFileSync(path.join(front,'viewer-bannerlord.js'),'utf8');
+    assert(combatSource.indexOf('<div id="bnr-summon-slot">')<combatSource.indexOf('<div id="bnr-active-powers-slot">'),'summon must precede active powers');
     const browser=await chromium.launch({headless:true,...(process.platform==='win32'?{channel:'msedge'}:{})});
     try {
         const page=await browser.newPage({viewport:{width:340,height:1050}});
         const errors=[];page.on('pageerror',e=>errors.push(e.message));
-        await page.setContent('<meta charset="utf-8"><div class="card" id="hero-class-picker-slot"></div><div class="card" id="bnr-active-powers-slot"></div>');
+        await page.setContent('<meta charset="utf-8"><div class="card" id="hero-class-picker-slot"></div><div id="bnr-summon-slot"></div><div class="card" id="bnr-active-powers-slot"></div><div id="bannerlord-tournament-card"></div><div id="bnr-build-choice-slot"></div>');
         await page.addStyleTag({path:path.join(front,'viewer.css')});
         await page.evaluate(()=>{
             window.API_URL='https://fixture.invalid';window.authToken='test';
@@ -34,6 +39,13 @@ async function main() {
         const mainSource=fs.readFileSync(path.join(front,'viewer-bannerlord.js'),'utf8');
         await page.addScriptTag({content:mainSource.slice(mainSource.indexOf('function _renderBannerlordDetachmentPanel('),mainSource.indexOf('function _renderBannerlordStance('))});
         await page.evaluate(()=>loadBannerlordBuild());
+        assert(await page.evaluate(()=>{
+            const ids=['bnr-summon-slot','bnr-active-powers-slot','bannerlord-tournament-card','bnr-build-choice-slot'];
+            return ids.every((id,i)=>i===0 || !!(document.getElementById(ids[i-1]).compareDocumentPosition(document.getElementById(id)) & Node.DOCUMENT_POSITION_FOLLOWING));
+        }),'combat controls, tournament and weapon selection order');
+        assert.equal(await page.locator('#bnr-active-powers-slot [data-bnr-build-select]').count(),0,'weapon choices stay below tournament');
+        assert.equal(await page.locator('#bnr-build-choice-slot [data-bnr-build-select]').count(),2,'weapon choices render below tournament');
+        assert.equal(await page.locator('#bnr-active-powers-slot [data-bnr-build-activate]').count(),2,'active powers stay above tournament');
         await page.evaluate(()=>{
             document.body.insertAdjacentHTML('beforeend','<div id="bnr-detachment-slot"></div>');
             window._bannerlordClassesCache={current:null};window._bnrPrice=(_,fallback)=>fallback;

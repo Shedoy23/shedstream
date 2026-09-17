@@ -65,13 +65,16 @@ const BnrBuilds = (() => {
 
     function renderCombat(slot=document.getElementById('bnr-active-powers-slot')) {
         if(!slot || !isNew()) return false;
+        const choiceSlot=document.getElementById('bnr-build-choice-slot');
         if(!state?.ready || !state?.build) {
-            draw(slot,'<div class="bnr-eq-empty">Ждём актуальные способности героя из игры.</div>');return true;
+            draw(slot,'<div class="bnr-eq-empty">Ждём актуальные способности героя из игры.</div>');
+            if(choiceSlot) draw(choiceSlot,'');
+            return true;
         }
         const build=state.build;
         const options=build.power_options || [];
         const current=options.find(p=>p.weapon_type===build.selected_weapon_type && p.power_key===build.selected_power);
-        let html=`<div class="bnr-build-heading">Оружейная способность</div>
+        let choicesHtml=`<div class="bnr-build-heading">Оружейная способность</div>
             <p class="bnr-eq-help">Выбери одну способность перед боем. Доступность зависит от надетого оружия, сила — от навыка. Смена выбора не сбрасывает перезарядку.</p>
             ${messageHtml()}<div class="bnr-build-choices">${options.map(power=>`<button type="button" class="bnr-build-choice"
                 data-bnr-build-select="${text(power.weapon_type)}" aria-pressed="${build.selected_weapon_type===power.weapon_type}"
@@ -81,11 +84,14 @@ const BnrBuilds = (() => {
                 <span>Ранг ${text(power.rank)} · ${text(skills[power.skill] || power.skill)} ${text(power.skill_level)}</span>
                 ${Number(power.skill_level)<150?`<span>Следующее усиление: навык ${Number(power.skill_level)<50?50:150}</span>`:''}
                 ${!power.available && power.reason?`<span class="bnr-eq-reason">${text(power.reason)}</span>`:''}</button>`).join('')}</div>`;
-        html+=current?activateHtml(current,true):'<p class="bnr-eq-help">Надень оружие и выбери способность перед боем.</p>';
-        if(current && !current.available && current.reason) html+=`<p class="bnr-eq-reason">${text(current.reason)}</p>`;
-        if(!bnrCanUseActivePowers()) html+='<p class="bnr-eq-help">Активация доступна, когда твой герой находится на поле боя.</p>';
-        html+=(build.common_powers || []).map(p=>activateHtml(p,false)).join('');
-        draw(slot,html);return true;
+        let activeHtml='<div class="bnr-build-heading">Активки</div>';
+        activeHtml+=current?activateHtml(current,true):'<p class="bnr-eq-help">Надень оружие и выбери способность ниже.</p>';
+        if(current && !current.available && current.reason) activeHtml+=`<p class="bnr-eq-reason">${text(current.reason)}</p>`;
+        activeHtml+=(build.common_powers || []).map(p=>activateHtml(p,false)).join('');
+        if(!bnrCanUseActivePowers()) activeHtml+='<p class="bnr-eq-help">Активация доступна, когда твой герой находится на поле боя.</p>';
+        draw(slot,activeHtml);
+        if(choiceSlot) draw(choiceSlot,choicesHtml);
+        return true;
     }
 
     function render() {renderHero();renderCombat();}

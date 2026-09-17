@@ -1,7 +1,7 @@
 """Engine-owned equipment catalog and inventory; backend authorizes, mod spends gold."""
 import json
 
-ACTION_TYPES = frozenset({"hero.buy_equipment", "hero.equip_owned", "hero.unequip_owned"})
+ACTION_TYPES = frozenset({"hero.buy_equipment", "hero.equip_owned", "hero.unequip_owned", "hero.discard_owned"})
 TIER_LEVELS = {1: 1, 2: 10, 3: 15, 4: 25, 5: 30, 6: 35}
 
 
@@ -39,7 +39,7 @@ async def context(conn, channel_id, username):
     snapshot = await cur.fetchone()
     cur = await conn.execute(
         "SELECT 1 FROM module_actions WHERE channel_id=? AND module_id='bannerlord' "
-        "AND type IN ('hero.buy_equipment','hero.equip_owned','hero.unequip_owned',"
+        "AND type IN ('hero.buy_equipment','hero.equip_owned','hero.unequip_owned','hero.discard_owned',"
         "'hero.set_specialization','hero.select_weapon_power','hero.claim_starter','power.activate') "
         "AND status IN ('queued','dispatched') AND json_extract(data,'$.initiated_by')=? LIMIT 1",
         (channel_id, username))
@@ -88,6 +88,11 @@ async def validate_tx(conn, channel_id, username, action_type, data):
         if data.get("slot") not in owned.get("slots", []):
             return refusal("invalid_slot")
         payload.update(owned_id=owned["owned_id"], slot=data["slot"])
+    elif action_type == "hero.discard_owned":
+        owned = next((x for x in ctx["inventory"] if x["owned_id"] == data.get("owned_id")), None)
+        if not owned:
+            return refusal("not_owned")
+        payload["owned_id"] = owned["owned_id"]
     else:
         if not any(x.get("slot") and x["slot"] == data.get("slot") for x in ctx["inventory"]):
             return refusal("empty_slot")

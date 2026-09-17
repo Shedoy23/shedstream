@@ -45,6 +45,7 @@ async def main():
             await sql("UPDATE bannerlord_heroes SET level=25 WHERE channel_id=? AND username='alice'", (CHANNEL_ID,))
             assert (await buy(item_id='does-not-exist'))['reason']=='item_not_found'
             assert (await buy(kind='hero.equip_owned', owned_id='victim-item', slot='weapon0'))['reason']=='not_owned'
+            assert (await buy(kind='hero.discard_owned', owned_id='victim-item'))['reason']=='not_owned'
             assert (await buy(kind='hero.equip_owned', owned_id='owned-1', slot='head'))['reason']=='invalid_slot'
             result = await buy(item_id='sword', price=-999, price_gold=0, hero_gold_cost=-1, target='victim', hero_id='victim', save_id='evil', client_action_id='same')
             assert result['success'], result
@@ -73,6 +74,13 @@ async def main():
             await finish()
             assert (await buy(kind='hero.equip_owned', owned_id='owned-1', slot='weapon0'))['success']
             await finish()
+            discard = await buy(kind='hero.discard_owned', owned_id='owned-1', slot='head', target='victim', price=500)
+            assert discard['success'], discard
+            payload = json.loads((await sql("SELECT data FROM module_actions WHERE action_id=?", (discard['action_id'],)))[0][0])
+            assert payload['owned_id']=='owned-1' and payload['target']=='alice' and payload['price']==0
+            assert 'slot' not in payload
+            assert (await buy(kind='hero.discard_owned', owned_id='owned-1'))['reason']=='pending'
+            await finish()
             # Older or wrong-save/generation snapshots cannot erase ownership.
             await store_inventory(db, CHANNEL_ID, envelope(inventory([]), ts=99))
             await store_inventory(db, CHANNEL_ID, envelope(inventory([],save_id='other'), ts=200))
@@ -88,6 +96,7 @@ async def main():
             await store_inventory(db,123,envelope(inventory([],hero_id='other_hero')))
             assert (await buy(channel=123,item_id='sword'))['reason']=='item_not_found'
             assert (await buy(channel=123,kind='hero.equip_owned',owned_id='owned-1',slot='weapon0'))['reason']=='not_owned'
+            assert (await buy(channel=123,kind='hero.discard_owned',owned_id='owned-1'))['reason']=='not_owned'
             await store_inventory(db,CHANNEL_ID,envelope(inventory([{**owned,'slot':'weapon0'}]),ts=101))
             assert (await buy(kind='hero.unequip_owned',slot='weapon0'))['success']
             await finish()

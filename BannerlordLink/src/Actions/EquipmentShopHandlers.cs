@@ -59,6 +59,26 @@ namespace BannerlordLink.Actions
                     committed = true;
                     BannerlordLinkModule.Log($"[{ActionType}] @{username} item={item.StringId} owned={bought.OwnedId} gold=-{charged}");
                 }
+                else if (ActionType == "hero.discard_owned")
+                {
+                    var owned = ledger.Items.FirstOrDefault(x => x.OwnedId == data["owned_id"]?.ToString());
+                    if (owned == null) { ActionFeedback.PostFailed(actionId, "equipment_not_owned"); return; }
+                    if (owned.Slot != null)
+                    {
+                        var index = EquipmentSync.SlotFromName(owned.Slot);
+                        if (!index.HasValue) { ActionFeedback.PostFailed(actionId, "invalid_equipment_slot"); return; }
+                        var equipped = hero.BattleEquipment[index.Value];
+                        if (equipped.Item?.StringId != owned.ItemId || equipped.ItemModifier?.StringId != owned.ModifierId)
+                        { ActionFeedback.PostFailed(actionId, "equipment_changed"); return; }
+                        original = new Equipment(hero.BattleEquipment);
+                        hero.BattleEquipment[index.Value] = EquipmentElement.Invalid;
+                        if (!hero.BattleEquipment[index.Value].IsEmpty) throw new InvalidOperationException("equipment_remove_failed");
+                    }
+                    ledger.Items.Remove(owned);
+                    behavior.Store(hero, ledger);
+                    committed = true;
+                    BannerlordLinkModule.Log($"[{ActionType}] @{username} item={owned.ItemId} owned={owned.OwnedId} slot={owned.Slot ?? "storage"}");
+                }
                 else
                 {
                     string slot = (data["slot"]?.ToString() ?? "").Trim().ToLowerInvariant();

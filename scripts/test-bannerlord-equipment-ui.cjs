@@ -23,6 +23,8 @@ async function main() {
             window.API_URL = 'https://fixture.invalid'; window.authToken = 'viewer';
             window.escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
             window.actions = [];
+            window.confirmations = []; window.confirmChoice = true;
+            window._bnrConfirmDanger = async message => {confirmations.push(message);return confirmChoice;};
             window.ShedLink = {buyAction: async (...args) => {window.actions.push(args.slice(0,3));return {success:true};}};
             window.fixture = {success:true,ready:true,can_manage:true,has_hero:true,hero_level:25,gold:50000,pending:false,
                 tiers:[{tier:4,required_level:25},{tier:5,required_level:30}],
@@ -38,6 +40,13 @@ async function main() {
         assert.equal(await page.locator('#bnr-equipment-shop img').count(),0,'catalog text is escaped');
         assert((await page.locator('#bnr-equipment-shop').innerText()).includes('Нужен уровень 30'),'human-readable item refusal');
         assert((await page.locator('#bnr-equipment-shop').innerText()).includes('1 234'),'exact dinar price');
+        const tierColors=await page.evaluate(() => {
+            const card=document.querySelector('.bnr-eq-item');
+            card.dataset.tier='1';const low=getComputedStyle(card.querySelector('strong')).color;
+            card.dataset.tier='6';const high=getComputedStyle(card.querySelector('strong')).color;
+            return [low,high];
+        });
+        assert.notEqual(tierColors[0],tierColors[1],'tier I and VI have distinct item colors');
         await page.locator('[data-bnr-eq-search]').fill('Длинный');
         assert.equal(await page.locator('[data-bnr-eq-buy="sword"]').count(),0);
         await page.evaluate(() => loadBannerlordEquipmentShop());
@@ -54,8 +63,23 @@ async function main() {
         await page.locator('[data-bnr-eq-unequip="weapon1"]').click();
         assert.deepEqual(await page.evaluate(() => actions[2]),['bannerlord','hero.unequip_owned',{slot:'weapon1'}]);
         await page.evaluate(() => {fixture.inventory[0].slot=null;return loadBannerlordEquipmentShop();});
+        await page.evaluate(() => {confirmChoice=false;});
+        await page.locator('[data-bnr-eq-discard="owned-sword"]').click();
+        assert.equal(await page.evaluate(() => actions.length),3,'cancelled discard sends no action');
+        await page.evaluate(() => {confirmChoice=true;});
+        await page.locator('[data-bnr-eq-discard="owned-sword"]').click();
+        assert.deepEqual(await page.evaluate(() => actions[3]),['bannerlord','hero.discard_owned',{owned_id:'owned-sword'}]);
+        await page.evaluate(() => {fixture.inventory[0].slot='weapon1';return loadBannerlordEquipmentShop();});
+        await page.locator('[data-bnr-eq-discard="owned-sword"]').click();
+        assert.deepEqual(await page.evaluate(() => actions[4]),['bannerlord','hero.discard_owned',{owned_id:'owned-sword'}]);
+        assert((await page.evaluate(() => confirmations.at(-1))).includes('снят с героя'),'equipped discard warns about unequip');
+        await page.evaluate(() => {fixture.inventory[0].slot=null;fixture.inventory[0].unavailable=true;return loadBannerlordEquipmentShop();});
+        assert.equal(await page.locator('[data-bnr-eq-equip="owned-sword"]').isDisabled(),true,'missing mod item cannot be equipped');
+        assert.equal(await page.locator('[data-bnr-eq-discard="owned-sword"]').isDisabled(),false,'missing mod item can still be removed from storage');
+        await page.evaluate(() => {fixture.inventory[0].unavailable=false;return loadBannerlordEquipmentShop();});
         await page.evaluate(() => {fixture.can_manage=false;fixture.reason='Игра не на связи'; return loadBannerlordEquipmentShop();});
         assert.equal(await page.locator('[data-bnr-eq-equip="owned-sword"]').isDisabled(),true);
+        assert.equal(await page.locator('[data-bnr-eq-discard="owned-sword"]').isDisabled(),true);
         await page.locator('[data-bnr-eq-view="shop"]').click();
         assert.equal(await page.locator('[data-bnr-eq-buy="sword"]').isDisabled(),true,'offline refuses even stale can_buy');
         for (const width of [340,372]) {
@@ -81,7 +105,7 @@ async function main() {
         await page.evaluate(() => {window.fetch=async()=>{throw Error('offline')}; return loadBannerlordEquipmentShop();});
         assert.equal(await page.locator('[data-bnr-eq-buy]').count(),0,'failed refresh removes actionable stale catalog');
         assert.deepEqual(errors,[]);
-        console.log('PASS: shells, exact item purchase, equip/unequip, tier/offline locks, escaping, search/page persistence, 340/372px, session reset race, fetch failure');
+        console.log('PASS: shells, purchase, equip/unequip, exact discard with confirmation, tier colors/offline locks, escaping, search/page persistence, 340/372px, session reset race, fetch failure');
     } finally {await browser.close();}
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});

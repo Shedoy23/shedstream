@@ -915,7 +915,7 @@ async def bannerlord_ping():
 # Должны быть в bannerlord/manifest.yaml actions/extensions.
 _PURCHASABLE_ACTIONS = (
     "hero.set_specialization", "hero.select_weapon_power", "hero.claim_starter",
-    "hero.buy_equipment", "hero.equip_owned", "hero.unequip_owned",
+    "hero.buy_equipment", "hero.equip_owned", "hero.unequip_owned", "hero.discard_owned",
     "hero.create",            # adoption — special: НЕ требует существующего hero
     "hero.set_class",         # Sprint 4.1: класс + equipment apply
     "hero.set_combat_stance", # 2026-06-10: боевая стойка (defensive/balanced/aggressive)
@@ -1182,6 +1182,7 @@ ACTION_PRICES_DEFAULT = {
     "hero.buy_equipment": 0,
     "hero.equip_owned": 0,
     "hero.unequip_owned": 0,
+    "hero.discard_owned": 0,
     "hero.create":             0,    # adoption — free
     "player.modify_attribute": 50,
     "world.trigger_event":  1000,    # heavy / admin-style

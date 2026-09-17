@@ -20,7 +20,7 @@ namespace BannerlordLink.Util
                 default: throw new ArgumentOutOfRangeException(nameof(publicTier));
             }
         }
-        internal const int PriceMultiplier = 5;
+        internal const int PriceMultiplier = 10;
         internal static int Price(int itemValue)
             => (int)Math.Min(int.MaxValue, Math.Max(1L, (long)itemValue) * PriceMultiplier);
     }

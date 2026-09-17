@@ -43,6 +43,7 @@ namespace BannerlordLink.Actions
             Register(new EquipmentShopHandler("hero.buy_equipment"));
             Register(new EquipmentShopHandler("hero.equip_owned"));
             Register(new EquipmentShopHandler("hero.unequip_owned"));
+            Register(new EquipmentShopHandler("hero.discard_owned"));
             Register(new HeroBuildHandler("hero.set_specialization"));
             Register(new HeroBuildHandler("hero.select_weapon_power"));
             Register(new HeroBuildHandler("hero.claim_starter"));

@@ -458,6 +458,8 @@ namespace BannerlordAutopilot
             Type data = logic == null ? null : MemberType(logic, "CurrentData", Inst, false, out _);
             Need(data != null, "PartyScreenLogic.CurrentData");
             MemberOf(data, "RightPrisonerRoster", Inst, roster);
+            MemberOf(data, "RightMemberRoster", Inst, roster);
+            MemberOf(logic, "RightPartyMembersSizeLimit", Inst, typeof(int));
             MemberOf(logic, "RightPartyPrisonersSizeLimit", Inst, typeof(int));
             MemberOf(logic, "RightOwnerParty", Inst, typeof(PartyBase));
             Method(logic, "IsDoneActive", Inst, typeof(bool));
@@ -470,6 +472,8 @@ namespace BannerlordAutopilot
             MemberOf(vm, "IsAnyPopUpOpen", Inst, typeof(bool));
             var list = vm?.GetProperty("OtherPartyPrisoners", Inst);
             Need(list?.GetGetMethod() != null && typeof(System.Collections.IEnumerable).IsAssignableFrom(list.PropertyType), "PartyVM.OtherPartyPrisoners: enumerable");
+            var rescuedList = vm?.GetProperty("OtherPartyTroops", Inst);
+            Need(rescuedList?.GetGetMethod() != null && typeof(System.Collections.IEnumerable).IsAssignableFrom(rescuedList.PropertyType), "PartyVM.OtherPartyTroops: enumerable");
             MemberOf(troop, "IsTroopTransferrable", Inst, typeof(bool));
             MemberOf(troop, "Side", Inst, side);
             MemberNamed(troop, "Troop", Inst, "TroopRosterElement");

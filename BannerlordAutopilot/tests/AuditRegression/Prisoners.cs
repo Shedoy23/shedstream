@@ -41,12 +41,20 @@ internal static partial class Program
     {
         foreach (int free in new[] { 0, 2, 10 }) Try("rescued soldiers " + free, () => {
             var b=Surrender(); var vm=PrisonerScreen(50,0);
-            vm.PartyScreenLogic.RightPartyMembersSizeLimit=free;
+            vm.PartyScreenLogic.RightPartyMembersSizeLimit=8+free;
+            vm.PartyScreenLogic.CurrentData.RightMemberRoster.AddToCounts(new CharacterObject(),8);
             vm.OtherPartyTroops.Add(new PartyCharacterVM { Troop=new TroopRosterElement { Character=new CharacterObject(), Number=5, WoundedNumber=5 } });
             for(int i=0;i<8;i++) b.PollState();
-            Check(vm.Closed==1 && MobileParty.MainParty.MemberRoster.TotalManCount==Math.Min(5,free),"rescued soldiers join only within member capacity " + free);
+            Check(vm.Closed==1 && MobileParty.MainParty.MemberRoster.TotalManCount==8+Math.Min(5,free),"rescued soldiers join only within member capacity " + free);
             Check(MobileParty.MainParty.MemberRoster.TotalWounded==Math.Min(5,free),"rescued wounded stay wounded " + free);
             Check(MobileParty.MainParty.PrisonRoster.TotalManCount==21,"prisoners still collected independently " + free);
+        });
+        foreach (bool denied in new[] { true, false }) Try("rescued transfer rejection", () => {
+            var b=Surrender(); var vm=PrisonerScreen(50,0);
+            vm.OtherPartyTroops.Add(new PartyCharacterVM { IsTroopTransferrable=!denied, Troop=new TroopRosterElement { Character=new CharacterObject(), Number=2 } });
+            vm.NoTransfer=!denied;
+            for(int i=0;i<5;i++) b.PollState();
+            Check(MobileParty.MainParty.MemberRoster.TotalManCount==0 && (denied ? vm.Closed==1 : vm.Closed==0 && b.CurrentMode==AutopilotBehavior.Mode.Off && vm.TransferCalls==1), "unavailable rescued troops skipped; silent no-op stops without retry: " + denied);
         });
         foreach (int free in new[]{30,7,0}) Try("пленные, свободно "+free,()=>{
             var b=Surrender(); var vm=PrisonerScreen(50,50-free);

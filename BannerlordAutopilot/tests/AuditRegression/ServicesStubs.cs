@@ -57,7 +57,7 @@ namespace TaleWorlds.CampaignSystem {
   public readonly HashSet<IFaction> Enemies = new();
   public bool IsAtWarWith(IFaction other) => other != null && Enemies.Contains(other);
  }
- public class CharacterObject : BasicCharacterObject {
+ public partial class CharacterObject : BasicCharacterObject {
   public string Name = "Боец"; public string StringId = "troop";
   public bool IsHero { get; set; }                                         // Core 3195
   public bool IsMounted { get; set; }
@@ -81,6 +81,7 @@ namespace TaleWorlds.CampaignSystem {
   public PartyFoodBuyingModel PartyFoodBuyingModel { get; } = new();
   public MobilePartyFoodConsumptionModel MobilePartyFoodConsumptionModel { get; } = new();
   public PartyWageModel PartyWageModel { get; } = new();
+  public PartyTroopUpgradeModel PartyTroopUpgradeModel { get; } = new();
   public SettlementAccessModel SettlementAccessModel { get; } = new();
   public RansomValueCalculationModel RansomValueCalculationModel { get; } = new();
  }
@@ -175,7 +176,7 @@ namespace TaleWorlds.CampaignSystem.Roster {
   public int WoundedNumber { get; set; }
   public int Xp { get; set; }
  }
- public class TroopRoster {
+ public partial class TroopRoster {
   private readonly List<TroopRosterElement> _data = new();
   public static TroopRoster CreateDummyTroopRoster() => new TroopRoster();
   public int Count => _data.Count;

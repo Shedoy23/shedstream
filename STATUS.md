@@ -2,7 +2,7 @@
 
 Автопилот 17.09 12:49 +05: установлен e118c6a — приём освобождённых бойцов после боя в свободные места отряда, с сохранением ранений и отдельной обработкой пленных. Включает прежние исправления и функции. 425 локальных проверок, контракт игры 486, чистая сборка. MD5 D5DFB609165C476F20C70595ADD796B6. Игра/лаунчер закрыты, SHA-256 сверён; живой повтор ещё не выполнен. Откат и доказательства — BannerlordAutopilot/HANDOFF.md.
 
-Ветка продолжения codex/autopilot-bandit-gathering, рабочая копия D:/shedlink-build/autopilot-bandit-gathering. Black Hole уже выключен в LauncherData.xml, конфигурацию не меняли. Heartbeat ожидания Claude остановлен. GitHub push не выполнялся.
+Ветка продолжения codex/autopilot-bandit-gathering, рабочая копия D:/shedlink-build/autopilot-bandit-gathering. Black Hole уже выключен в LauncherData.xml, конфигурацию не меняли. Heartbeat ожидания Claude остановлен. Ветка запушена 18.09 в afterlait (codex/autopilot-bandit-gathering) — до этого 722 коммита жили только на этом ПК.
 
 Автопилот 16.09, 18:52: установлен bdb5982 — случайный выбор в MapIncident, случайные диалоги включены по умолчанию. 234/234 локально; живой повтор ожидается. См. BannerlordAutopilot/review/RANDOM_WINDOWS_2026-09-16.md.
 

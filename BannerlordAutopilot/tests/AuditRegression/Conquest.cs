@@ -12,6 +12,10 @@ using TaleWorlds.Core;
 
 internal static partial class Program
 {
+    static Settlement SiegeTarget(AutopilotBehavior b) => (Settlement)typeof(AutopilotBehavior)
+        .GetField("_offensiveSiege", System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)
+        .GetValue(b);
+
     static Settlement ConquestWorld(int food = 35, int gold = 350, int wounded = 3)
     {
         var party = MobileParty.MainParty; var ours = new TestFaction(); var enemy = new TestFaction(); ours.Enemies.Add(enemy);
@@ -49,7 +53,7 @@ internal static partial class Program
                 "после обхода доступных мест не начинаем круг заново до истечения срока");
             party.MemberRoster.AddToCounts(new CharacterObject(),80);
             HourlyTick(b);
-            Check(party.TargetSettlement==castle && party.DefaultBehavior==AiBehavior.BesiegeSettlement,
+            Check(party.TargetSettlement==castle && SiegeTarget(b)==castle,
                 "на 90/100 приоритет набора закончился и вернулся поход");
         });
         Try("самостоятельно выбираем слабую крепость без предложения движка", () => {
@@ -60,8 +64,7 @@ internal static partial class Program
             CampaignEventDispatcher.NextScores.Add((new AIBehaviorData(strong, AiBehavior.PatrolAroundPoint,
                 MobileParty.NavigationType.Default, false, false, false), 9f));
             Enable(b); HourlyTick(b);
-            Check(MobileParty.MainParty.DefaultBehavior==AiBehavior.BesiegeSettlement
-                && MobileParty.MainParty.TargetSettlement==weak,
+            Check(SiegeTarget(b)==weak && MobileParty.MainParty.TargetSettlement==weak,
                 "цель осады создана модом, город свыше 1.5x отвергнут");
         });
         Try("отказ от осады записывает точный предел сил", () => {
@@ -70,7 +73,7 @@ internal static partial class Program
             CampaignEventDispatcher.NextScores.Add((new AIBehaviorData(castle, AiBehavior.PatrolAroundPoint,
                 MobileParty.NavigationType.Default, false, false, false), 2f));
             Enable(b); HourlyTick(b);
-            Check(MobileParty.MainParty.DefaultBehavior==AiBehavior.BesiegeSettlement,
+            Check(SiegeTarget(b)==castle && MobileParty.MainParty.TargetSettlement==castle,
                 "слабый замок сначала выбран");
             castle.Militia=16; for(int hour=0; hour<6; hour++) HourlyTick(b);
             Check(AutopilotLog.Lines.Any(l => l.Contains("ПОХОД: прекращаем цель «Пограничный замок»")
@@ -83,7 +86,7 @@ internal static partial class Program
             var relief=new MobileParty { MapFaction=castle.MapFaction, Position=castle.Position };
             relief.MemberRoster.AddToCounts(new CharacterObject(), 6); MobileParty.All.Add(relief);
             Enable(b); HourlyTick(b);
-            Check(MobileParty.MainParty.DefaultBehavior!=AiBehavior.BesiegeSettlement,
+            Check(SiegeTarget(b)==null && MobileParty.MainParty.TargetSettlement!=castle,
                 "подкрепление делает защиту сильнее 1.5x");
         });
         Try("для допустимой осады сначала собираем доступную армию", () => {
@@ -100,7 +103,7 @@ internal static partial class Program
         Try("истощённый отряд не начинает самостоятельную осаду", () => {
             var b=Fresh(); var castle=ConquestWorld(food:1); castle.Militia=1; Settlement.All.Add(castle);
             Enable(b); HourlyTick(b);
-            Check(MobileParty.MainParty.DefaultBehavior!=AiBehavior.BesiegeSettlement,
+            Check(SiegeTarget(b)==null && MobileParty.MainParty.TargetSettlement!=castle,
                 "семидневный запас остаётся обязательным");
         });
         Try("стратегический аудит пишет риск, но не меняет приказ", () => {
@@ -117,7 +120,7 @@ internal static partial class Program
                 && l.Contains("гарнизон 30") && l.Contains("ополчение 24")
                 && l.Contains("вражеских партий рядом 1 (сила 45)")),
                 "в журнале раздельно видны гарнизон, ополчение и видимый враг");
-            Check(MobileParty.MainParty.DefaultBehavior != AiBehavior.BesiegeSettlement,
+            Check(SiegeTarget(b) == null && MobileParty.MainParty.TargetSettlement != castle,
                 "наблюдение не отдаёт приказ осады");
         });
         Try("scoreboard result precedes actual simulation finish", () => {
@@ -287,12 +290,14 @@ internal static partial class Program
             CampaignEventDispatcher.NextScores.Add((new AIBehaviorData(town, AiBehavior.PatrolAroundPoint, MobileParty.NavigationType.Default, false, false, false), 9f));
             CampaignEventDispatcher.NextScores.Add((new AIBehaviorData(town, AiBehavior.GoToSettlement, MobileParty.NavigationType.Default, false, false, false), 1f));
             Enable(b); HourlyTick(b);
-            Check(MobileParty.MainParty.DefaultBehavior == (supplied ? AiBehavior.BesiegeSettlement : AiBehavior.GoToSettlement),
+            Check(supplied ? (SiegeTarget(b) == castle && MobileParty.MainParty.TargetSettlement == castle)
+                           : (SiegeTarget(b) == null && MobileParty.MainParty.TargetSettlement == town),
                 "приоритет поход/снабжение, обеспечены " + supplied);
             var ai = Campaign.Current.Models.MobilePartyAIModel; ai.NextBehavior = AiBehavior.EngageParty;
             ai.NextTarget = new MobileParty { IsBandit = true }; ai.NextScore = 5;
             HourlyTick(b);
-            Check(MobileParty.MainParty.DefaultBehavior == (supplied ? AiBehavior.BesiegeSettlement : AiBehavior.GoToSettlement),
+            Check(supplied ? (SiegeTarget(b) == castle && MobileParty.MainParty.TargetSettlement == castle)
+                           : (SiegeTarget(b) == null && MobileParty.MainParty.TargetSettlement == town),
                 "до следующего пересчёта бандиты не перехватывают поход или снабжение");
         });
         Try("сплочённость своей армии поддерживается штатным расчётом", () => {
@@ -365,7 +370,8 @@ internal static partial class Program
             ai.NextBehavior = AiBehavior.EngageParty; ai.NextTarget = new MobileParty { IsBandit = true }; ai.NextScore = 9f;
             CampaignEventDispatcher.NextScores.Add((new AIBehaviorData(castle, AiBehavior.BesiegeSettlement, MobileParty.NavigationType.Default, false, false, false), 3f));
             Enable(b); HourlyTick(b);
-            Check(MobileParty.MainParty.DefaultBehavior == AiBehavior.BesiegeSettlement, "доступная военная цель выбрана прежде погони");
+            Check(SiegeTarget(b) == castle && MobileParty.MainParty.TargetSettlement == castle,
+                "доступная военная цель выбрана прежде погони");
         });
         Try("истощение осады вызывает штатный отход", () => {
             var b = Fresh(); var castle = ConquestWorld(food: 1); Enable(b);
@@ -431,8 +437,8 @@ internal static partial class Program
             var b=Fresh(); var castle=ConquestWorld(gold:1000); castle.Militia=1; Settlement.All.Add(castle);
             var party=MobileParty.MainParty; party.Party.PartySizeLimit=10;
             Enable(b); HourlyTick(b);
-            Check(party.DefaultBehavior==AiBehavior.BesiegeSettlement && party.TargetSettlement==castle,
-                "приказ осады отдан");
+            Check(SiegeTarget(b)==castle && party.TargetSettlement==castle,
+                "поход к крепости назначен");
             int holds=party.HoldCalls;
             for(int i=0;i<8;i++) HourlyTick(b);
             Check(AutopilotLog.Lines.Any(l => l.Contains("ЗАСТРЯЛИ")),

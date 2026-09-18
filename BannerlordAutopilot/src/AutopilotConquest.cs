@@ -309,7 +309,12 @@ namespace BannerlordAutopilot
             if (_offensiveSiege == null) return false;
             if (IsOnFreeMap(party) && siege == null && menu == null)
             {
-                if (party.DefaultBehavior != AiBehavior.BesiegeSettlement) { _offensiveSiege = null; _configuredSiege = null; }
+                // Пока едем к выбранной крепости обычным приказом, намерение осадить
+                // сохраняется: иначе оно терялось бы на первом же опросе.
+                bool heading = party.TargetSettlement == _offensiveSiege
+                               && (party.DefaultBehavior == AiBehavior.BesiegeSettlement
+                                   || party.DefaultBehavior == AiBehavior.GoToSettlement);
+                if (!heading) { _offensiveSiege = null; _configuredSiege = null; }
                 return false;
             }
             if (!MapIsActiveScreen() || InformationManager.IsAnyInquiryActive()) return true;

@@ -1244,10 +1244,14 @@ namespace BannerlordAutopilot
                 return false;
             }
             var battle = PlayerEncounter.EncounteredBattle;
+            // Бой У ПОСЕЛЕНИЯ тоже наш случай: 18.09 в «Сестадайм» штатная кнопка
+            // прерванного рейда открыла join_encounter у деревни, прежнее условие
+            // «бой вне поселения» сюда не пускало, и автопилот выключался на
+            // «неизвестном меню». Свои осады и рейды разбираются раньше, в
+            // PollOffensiveSiege/PollRaid/PollOperations.
             return battle != null && party.MapEvent == null && party.Army == null
                    && party.SiegeEvent == null && party.BesiegedSettlement == null
-                   && party.CurrentSettlement == null && PlayerEncounter.EncounterSettlement == null
-                   && battle.MapEventSettlement == null;
+                   && party.CurrentSettlement == null;
         }
 
         /// <summary>Встреча не останавливает автопилот. Помощь защитникам — решение
@@ -1332,7 +1336,7 @@ namespace BannerlordAutopilot
                    && PlayerEncounter.Current != null && battle != null
                    && party != null && party.Army == null && party.SiegeEvent == null
                    && party.BesiegedSettlement == null && party.Ai != null && !party.Ai.IsDisabled
-                   && battle.MapEventSettlement == null && !battle.IsNavalMapEvent
+                   && !battle.IsNavalMapEvent
                    && battle.AttackerSide?.LeaderParty?.MapFaction != null
                    && battle.DefenderSide?.LeaderParty?.MapFaction != null
                    && party.MapFaction != null
@@ -2064,7 +2068,7 @@ namespace BannerlordAutopilot
             bool idle = waitingIn == null && party.DefaultBehavior == AiBehavior.Hold;
             if (_ticksThisSession > 0 && !idle && _hoursSinceThink < ThinkPeriodHours)
             {
-                if (!_preparingCampaign && waitingIn == null && party.DefaultBehavior != AiBehavior.BesiegeSettlement
+                if (!_preparingCampaign && waitingIn == null && !HeadingToSiegeTarget(party)
                     && party.DefaultBehavior != AiBehavior.RaidSettlement) TryApplyNearbyAttack(party);
                 return;
             }
@@ -2115,10 +2119,10 @@ namespace BannerlordAutopilot
                                + "; текущее поведение " + party.DefaultBehavior);
             if (lines.Count == 0)
             {
-                if (party.DefaultBehavior == AiBehavior.BesiegeSettlement && party.TargetSettlement != null)
+                if (HeadingToSiegeTarget(party))
                     AutopilotLog.Write("ПОХОД: цель «" + party.TargetSettlement.Name + "» больше не предложена: "
                         + (SiegeTargetRejection(party, party.TargetSettlement) ?? "нет оценок от движка и нового кандидата"));
-                if (_mode == Mode.Apply && waitingIn == null && party.DefaultBehavior != AiBehavior.BesiegeSettlement
+                if (_mode == Mode.Apply && waitingIn == null && !HeadingToSiegeTarget(party)
                     && TryApplyNearbyAttack(party)) return;
                 if (waitingIn == null && TryChooseHideout(party)) return;
                 AutopilotLog.Write("  оценок НЕТ — штатный AI ничего не предложил для этой партии");
@@ -2283,14 +2287,13 @@ namespace BannerlordAutopilot
 
             if (chosen.AiBehavior == AiBehavior.None)
             {
-                if (party.DefaultBehavior == AiBehavior.BesiegeSettlement && party.TargetSettlement != null)
+                if (HeadingToSiegeTarget(party))
                     AutopilotLog.Write("ПОХОД: цель «" + party.TargetSettlement.Name + "» больше не предложена: "
                         + (SiegeTargetRejection(party, party.TargetSettlement) ?? "нет выполнимых решений"));
                 AutopilotLog.Write("  выполнимых решений нет (" + string.Join("; ", skipped) + ") — партия продолжает текущее");
                 return;
             }
-            if (party.DefaultBehavior == AiBehavior.BesiegeSettlement && party.TargetSettlement != null
-                && !IsSameDecision(chosen, party))
+            if (HeadingToSiegeTarget(party) && !IsSameDecision(chosen, party))
             {
                 string rejection = SiegeTargetRejection(party, party.TargetSettlement);
                 AutopilotLog.Write("ПОХОД: прекращаем цель «" + party.TargetSettlement.Name + "»: "
@@ -2563,8 +2566,27 @@ namespace BannerlordAutopilot
             return data.AiBehavior + "|" + (data.Party != null ? data.Party.ToString() : data.Position.ToString());
         }
 
+        /// <summary>Идём брать эту крепость — ванильным осадным приказом или
+        /// поездкой к ней: партию игрока двигает только вторая.</summary>
+        private bool HeadingToSiegeTarget(MobileParty party)
+        {
+            return party.TargetSettlement != null
+                   && (party.DefaultBehavior == AiBehavior.BesiegeSettlement
+                       || (party.DefaultBehavior == AiBehavior.GoToSettlement
+                           && party.TargetSettlement == _offensiveSiege));
+        }
+
         private static bool IsSameDecision(AIBehaviorData data, MobileParty party)
         {
+            // Решение «осадить» исполняется поездкой к крепости, поэтому поведение
+            // партии при нём — GoToSettlement. Без этого приказ перевыдавался бы
+            // каждый час, а каждая выдача сбрасывает путь.
+            if (data.AiBehavior == AiBehavior.BesiegeSettlement
+                && party.DefaultBehavior == AiBehavior.GoToSettlement
+                && data.Party is Settlement heading)
+            {
+                return heading == party.TargetSettlement;
+            }
             if (data.AiBehavior != party.DefaultBehavior)
             {
                 return false;
@@ -2723,8 +2745,17 @@ namespace BannerlordAutopilot
                         SetPartyAiAction.GetActionForRaidingSettlement(party, settlement, data.NavigationType, data.IsFromPort, data.IsTargetingPort);
                         break;
                     case AiBehavior.BesiegeSettlement:
+                        // Ванильный SetMoveBesiegeSettlement (104002-104012) ставит цель и
+                        // поведение, но НЕ ставит ни TargetPosition, ни MoveTargetPoint — в
+                        // отличие от рейда (103994-103999) и поездки (103923-103931). NPC под
+                        // этим приказом ведёт тик ИИ, а партия игрока просто стоит: 18.09
+                        // сторож движения поймал шесть часов на месте при пустом состоянии
+                        // движка (журнал 19:27:57). Поэтому к крепости едем приказом, который
+                        // партию игрока действительно двигает, а осаду начинает штатный пункт
+                        // меню у ворот — ровно как это делает человек.
                         _offensiveSiege = settlement;
-                        SetPartyAiAction.GetActionForBesiegingSettlement(party, settlement, data.NavigationType, data.IsFromPort);
+                        SetPartyAiAction.GetActionForVisitingSettlement(
+                            party, settlement, data.NavigationType, data.IsFromPort, data.IsTargetingPort);
                         break;
                     case AiBehavior.DefendSettlement:
                         SetPartyAiAction.GetActionForDefendingSettlement(

@@ -215,6 +215,8 @@ internal static partial class Program
 
     static bool Waiting => PlayerEncounter.Current != null && PlayerEncounter.Current.IsPlayerWaiting;
 
+    static MapState Map() => (MapState)TaleWorlds.Core.Game.Current.GameStateManager.ActiveState;
+
     static bool TimeRuns
     {
         get
@@ -583,6 +585,51 @@ internal static partial class Program
             Check(TimeRuns && Campaign.Current.TimeControlMode != CampaignTimeControlMode.UnstoppableFastForward
                   && Campaign.Current.TimeControlMode != CampaignTimeControlMode.StoppableFastForward,
                   "после выхода время идёт с той скоростью, что была до города (обычной, не ускоренной ожиданием)");
+        });
+        // Краш 18.09 14:34:34 (0xC0000005). Движок кладёт выпавшее на входе
+        // событие в MapState.NextIncident, а условия проверяет на СЛЕДУЮЩЕМ
+        // Campaign.Tick (10136-10143). Пять ванильных событий с триггером «вход»
+        // читают в условии MainParty.CurrentSettlement без проверки на null
+        // (incident_hammer_of_the_sun, ...through_proper_channels, ...the_quiet_life,
+        // ...occupational_safety, ...jobs_for_the_lads), поэтому выход раньше показа
+        // даёт NullReferenceException в чужом коде и закрывает игру.
+        // Разбор: review/INCIDENT_EXIT_CRASH_2026-09-18.md.
+        Try("выпавшее событие держит выход", () =>
+        {
+            var b = Fresh(); Enable(b); b.PollState();
+            var town = ArriveTown(); b.PollState();
+            var korsia = new Settlement { Name = "Корсия" };
+            Scores((AiBehavior.GoToSettlement, korsia, 2.0f), (AiBehavior.GoToSettlement, town, 1.0f));
+            Map().NextIncident = new TaleWorlds.CampaignSystem.Incidents.Incident { StringId = "incident_hammer_of_the_sun" };
+            HourlyTick(b); b.PollState();
+            Check(MobileParty.MainParty.CurrentSettlement == town && PlayerEncounter.FinishCalls == 0,
+                  "пока событие в очереди, партия остаётся в поселении");
+            Check(!MenuContext.Invoked.Contains("wait_leave"),
+                  "«Перестать ждать» не нажато: выход держится ДО показа события, а не после");
+            b.PollState();
+            Check(MobileParty.MainParty.CurrentSettlement == town, "следующий опрос тоже не выводит партию");
+            Map().NextIncident = null;                      // движок показал событие и очистил очередь
+            b.PollState();
+            Check(MobileParty.MainParty.CurrentSettlement == null && PlayerEncounter.Current == null,
+                  "очередь пуста — выход происходит");
+            Check(MobileParty.MainParty.TargetSettlement == korsia,
+                  "решение, ради которого выходили, применено после задержки");
+        });
+        Try("событие не показалось — выход не зависает", () =>
+        {
+            var b = Fresh(); Enable(b); b.PollState();
+            var town = ArriveTown(); b.PollState();
+            var korsia = new Settlement { Name = "Корсия" };
+            Scores((AiBehavior.GoToSettlement, korsia, 2.0f), (AiBehavior.GoToSettlement, town, 1.0f));
+            Map().NextIncident = new TaleWorlds.CampaignSystem.Incidents.Incident { StringId = "incident_stuck" };
+            HourlyTick(b);
+            for (int i = 0; i < 24; i++) b.PollState();     // предел ожидания — 20 опросов по 0.5 с
+            Check(Map().NextIncident == null,
+                  "после предела очередь снята самим автопилотом — движку нечего проверять после выхода");
+            Check(MobileParty.MainParty.CurrentSettlement == null && MobileParty.MainParty.TargetSettlement == korsia,
+                  "автопилот вышел и применил решение, а не завис в поселении");
+            Check(AutopilotLog.Lines.Any(l => l.Contains("СОБЫТИЕ") && l.Contains("снято")),
+                  "снятие события записано в журнал");
         });
         Try("выход от ворот замка снаружи", () =>
         {

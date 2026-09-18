@@ -80,7 +80,10 @@ namespace TaleWorlds.CampaignSystem.GameMenus {
 namespace TaleWorlds.CampaignSystem.GameState {
  public class KingdomState : TaleWorlds.Core.GameState {}
  public interface IMapStateHandler {}
- public class MapState : TaleWorlds.Core.GameState { public IMapStateHandler Handler { get; set; } }
+ // NextIncident — очередь выпавшего события: движок кладёт его сюда на входе в
+ // поселение (IncidentsCampaignBehaviour.InvokeIncident, 190449-190456) и
+ // проверяет условия на следующем Campaign.Tick (10136-10143).
+ public class MapState : TaleWorlds.Core.GameState { public IMapStateHandler Handler { get; set; } public TaleWorlds.CampaignSystem.Incidents.Incident NextIncident { get; set; } }
  public class MenuContext {
   public IMenuContextHandler Handler { get; set; }
   public static List<string> Invoked = new();

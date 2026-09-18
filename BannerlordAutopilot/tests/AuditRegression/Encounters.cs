@@ -220,6 +220,36 @@ internal static partial class Program
             Check(b.CurrentMode == AutopilotBehavior.Mode.Apply && LogCount("ВСТРЕЧА") == 1,
                   "уход из чужого боя не выключает автопилот и записан с причиной");
         });
+        // 18.09 14:32:24 и 17.09 20:44:51: после штатной кнопки прерванного рейда
+        // движок открыл join_encounter У ПОСЕЛЕНИЯ, а разбор чужого боя требовал,
+        // чтобы бой был вне поселения, — автопилот выключился на «неизвестном меню».
+        // Решение владельца: уходить из чужих боёв, кроме помощи своим.
+        Try("чужой бой у поселения: своим помогаем", () =>
+        {
+            var b = Fresh(); Enable(b);
+            var friends = new TestFaction();
+            var battle = PursuedBanditInForeignBattle(friends);
+            var village = new Settlement { Name = "Сестадайм", IsVillage = true };
+            battle.MapEventSettlement = village; PlayerEncounter.EncounterSettlement = village;
+            Show(ForeignBattleMenu("join_encounter", battle, helpDefenders: true)); b.PollState();
+            Check(MenuContext.Invoked.Contains("join_encounter_help_defenders"),
+                  "нападают наши враги, защитники нам не враги — вступаемся за них");
+            Check(b.CurrentMode == AutopilotBehavior.Mode.Apply, "автопилот не выключился");
+        });
+        Try("чужой бой у поселения: чужим не помогаем, уходим", () =>
+        {
+            var b = Fresh(); Enable(b);
+            var enemyKingdom = new TestFaction();
+            var battle = PursuedBanditInForeignBattle(enemyKingdom);
+            ((TestFaction)MobileParty.MainParty.MapFaction).Enemies.Add(enemyKingdom);
+            var village = new Settlement { Name = "Сестадайм", IsVillage = true };
+            battle.MapEventSettlement = village; PlayerEncounter.EncounterSettlement = village;
+            Show(ForeignBattleMenu("join_encounter", battle, helpDefenders: false)); b.PollState();
+            Check(MenuContext.Invoked.SequenceEqual(new[] { "join_encounter_leave" }),
+                  "обе стороны чужие — уходим штатной кнопкой");
+            Check(b.CurrentMode == AutopilotBehavior.Mode.Apply,
+                  "уход из чужого боя у поселения не выключает автопилот");
+        });
         Try("после ухода тот же отряд не преследуется, пока идёт его бой", () =>
         {
             var b = Fresh(); Enable(b);

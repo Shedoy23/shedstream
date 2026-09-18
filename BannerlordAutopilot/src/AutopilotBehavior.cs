@@ -528,13 +528,13 @@ namespace BannerlordAutopilot
             if (PollOwnedSimulation()) return false;
             if (PollPrisonerScreen()) return false;
             if (PollDialogs()) return false;
-            if (PollUnavoidableSurrender(party)) return false;
-            if (PollRaidWarning()) return false;
-            if (PollOffensiveSiege(party)) return false;
-            if (PollRaid(party)) return false;
-            if (PollOperations(party)) return false;
-            if (PollArmy(party)) return false;
 
+            // Окна поверх карты закрываем ДО всего, что умеет ответить «занято».
+            // Осадный обработчик при окне возвращает «занято» и съедает опрос, и
+            // 18.09 в 19:54:27 событие «Подкоп» во время осады так и провисело 22
+            // секунды, пока владелец не нажал сам: до разбора события очередь не
+            // доходила. Экраны добычи, пленных и разговоры разбираются раньше —
+            // они не слои карты, а другие состояния игры.
             if (_mode == Mode.Apply)
             {
                 if (TryHandleKingdomDecision())
@@ -546,6 +546,12 @@ namespace BannerlordAutopilot
                     return false;
                 }
             }
+            if (PollUnavoidableSurrender(party)) return false;
+            if (PollRaidWarning()) return false;
+            if (PollOffensiveSiege(party)) return false;
+            if (PollRaid(party)) return false;
+            if (PollOperations(party)) return false;
+            if (PollArmy(party)) return false;
 
             // СНАЧАЛА опасные состояния — до любых рассуждений о поселении.
             if (IsForeignFieldBattle(party))

@@ -464,6 +464,32 @@ internal static partial class Program
             Check(!AutopilotLog.Lines.Any(l => l.Contains("ЗАСТРЯЛИ")),
                 "пока партия двигается, сторож не вмешивается");
         });
+        // 18.09 19:54:27, живой прогон: во время осады Замка Астер выпало событие
+        // «Подкоп» (IncidentTrigger.DuringSiege), и автопилот встал на 22 секунды,
+        // пока владелец не нажал сам. Причина не в разборе события, а в порядке
+        // опроса: осадный обработчик стоит РАНЬШЕ и при окне поверх карты возвращает
+        // «занято», поэтому до разбора события очередь не доходила.
+        Try("событие во время осады разбирается, а не ждёт человека", () => {
+            var b=Fresh(); var castle=ConquestWorld(); castle.Name="Замок Астер"; Enable(b);
+            var party=MobileParty.MainParty;
+            party.TargetSettlement=castle; party.DefaultBehavior=AiBehavior.BesiegeSettlement;
+            PlayerEncounter.Current=new PlayerEncounter(); PlayerEncounter.EncounterSettlement=castle;
+            var siege=new SiegeEvent { BesiegedSettlement=castle }; siege.BesiegerCamp.LeaderParty=party;
+            party.SiegeEvent=siege;
+            Show(new GameMenu { StringId="menu_siege_strategies", IsWaitMenu=true, IsWaitActive=true });
+            var incident=new TaleWorlds.CampaignSystem.Incidents.Incident {
+                StringId="incident_siege_tunnel", Title=new TaleWorlds.Localization.TextObject("Подкоп")
+            };
+            int selected=-1;
+            incident.Options.Add((new TaleWorlds.Localization.TextObject("Удвоить плату"),
+                new System.Collections.Generic.List<TaleWorlds.Localization.TextObject>{new("Дорого")}, () => selected=0));
+            incident.Options.Add((new TaleWorlds.Localization.TextObject("Обычными методами"),
+                new System.Collections.Generic.List<TaleWorlds.Localization.TextObject>{new("Ничего")}, () => selected=1));
+            Screen.IncidentView=new SandBox.View.Map.MapIncidentView(incident); Screen.IsMapIncidentActive=true;
+            b.PollState();
+            Check(selected>=0 && !Screen.IsMapIncidentActive,
+                "окно события во время осады разобрано модом, а не оставлено человеку");
+        });
         Try("осада: штатная стратегия, ожидание готовности и штурм", () => {
             var b = Fresh(); var castle = ConquestWorld(); Enable(b);
             MobileParty.MainParty.TargetSettlement = castle; MobileParty.MainParty.DefaultBehavior = AiBehavior.BesiegeSettlement;

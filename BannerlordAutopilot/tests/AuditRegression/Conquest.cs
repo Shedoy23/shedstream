@@ -385,6 +385,44 @@ internal static partial class Program
             Enable(b); HourlyTick(b);
             Check(MobileParty.MainParty.TargetSettlement == (shortage == 0 ? castle : town), "порог 7/7/70, нехватка " + shortage);
         });
+        // Стояние на месте 18.09 (журнал 14:43 и 18:38). Движок принимает приказ
+        // осады и ставит DefaultBehavior, но движение задаёт только сеттер
+        // DefaultBehavior — и только когда значение СМЕНИЛОСЬ (MobileParty 100723);
+        // сам SetMoveBesiegeSettlement (104002-104012) сбрасывает параметры движения
+        // и ни TargetPosition, ни MoveTargetPoint не выставляет, в отличие от
+        // SetMoveGoToSettlement (103923-103931). Мод же, увидев «цель та же»,
+        // приказ не перевыдавал — и партия стояла часами при живом времени.
+        Try("приказ выдан, а партия стоит: мод замечает и перевыдаёт", () => {
+            var b=Fresh(); var castle=ConquestWorld(gold:1000); castle.Militia=1; Settlement.All.Add(castle);
+            var party=MobileParty.MainParty; party.Party.PartySizeLimit=10;
+            Enable(b); HourlyTick(b);
+            Check(party.DefaultBehavior==AiBehavior.BesiegeSettlement && party.TargetSettlement==castle,
+                "приказ осады отдан");
+            int holds=party.HoldCalls;
+            HourlyTick(b); HourlyTick(b); HourlyTick(b);
+            Check(AutopilotLog.Lines.Any(l => l.Contains("ЗАСТРЯЛИ")),
+                "три часа без движения при живом времени замечены и записаны");
+            Check(party.HoldCalls>holds,
+                "поведение сброшено в Hold — иначе движок примет приказ за уже выданный и движение не вернёт");
+        });
+        Try("недостижимая цель снимается, а не держится вечно", () => {
+            var b=Fresh(); var castle=ConquestWorld(gold:1000); castle.Militia=1; Settlement.All.Add(castle);
+            var party=MobileParty.MainParty; party.Party.PartySizeLimit=10;
+            Enable(b); HourlyTick(b);
+            for(int i=0;i<12;i++) HourlyTick(b);
+            Check(AutopilotLog.Lines.Any(l => l.Contains("ЗАСТРЯЛИ") && l.Contains("снята")),
+                "после двух безуспешных перевыдач цель снята с записью в журнал");
+            Check(party.TargetSettlement!=castle || party.DefaultBehavior!=AiBehavior.BesiegeSettlement,
+                "мод больше не держится за цель, до которой не доехал");
+        });
+        Try("партия едет — сторож молчит", () => {
+            var b=Fresh(); var castle=ConquestWorld(gold:1000); castle.Militia=1; Settlement.All.Add(castle);
+            var party=MobileParty.MainParty; party.Party.PartySizeLimit=10;
+            Enable(b); HourlyTick(b);
+            for(int i=1;i<=6;i++){ party.Position=new CampaignVec2 { X=i*3f }; HourlyTick(b); }
+            Check(!AutopilotLog.Lines.Any(l => l.Contains("ЗАСТРЯЛИ")),
+                "пока партия двигается, сторож не вмешивается");
+        });
         Try("осада: штатная стратегия, ожидание готовности и штурм", () => {
             var b = Fresh(); var castle = ConquestWorld(); Enable(b);
             MobileParty.MainParty.TargetSettlement = castle; MobileParty.MainParty.DefaultBehavior = AiBehavior.BesiegeSettlement;

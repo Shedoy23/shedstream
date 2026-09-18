@@ -385,6 +385,41 @@ internal static partial class Program
             Enable(b); HourlyTick(b);
             Check(MobileParty.MainParty.TargetSettlement == (shortage == 0 ? castle : town), "порог 7/7/70, нехватка " + shortage);
         });
+        // 18.09, живой прогон 19:27:57: сторож движения поймал застревание и записал
+        // состояние — IsDisabled=False, DoNotMakeNewDecisions=False, поведение
+        // BesiegeSettlement, ни армии, ни встречи, ни поселения. То есть движку ничто
+        // не мешало, и смена поведения Hold → BesiegeSettlement движения тоже не дала.
+        // Причина в самом ванильном приказе: SetMoveBesiegeSettlement (104002-104012)
+        // НЕ ставит ни TargetPosition, ни MoveTargetPoint, тогда как рейд (103994-103999),
+        // поездка (103923-103931), патруль и погоня — ставят. NPC-партию под осадным
+        // приказом ведёт тик ИИ, партия игрока просто стоит. Отсюда и «любит грабить
+        // деревни»: рейд уезжает, осада — нет. Едем к крепости обычным приказом, а
+        // осаду начинает меню у ворот, как это делает человек.
+        Try("к крепости едем обычным приказом, а не осадным", () => {
+            var b=Fresh(); var castle=ConquestWorld(gold:1000); castle.Militia=1; Settlement.All.Add(castle);
+            var party=MobileParty.MainParty; party.Party.PartySizeLimit=10;
+            Enable(b); HourlyTick(b);
+            Check(party.TargetSettlement==castle && party.DefaultBehavior==AiBehavior.GoToSettlement,
+                "приказ, который реально двигает партию игрока");
+            int visits=TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.VisitCalls;
+            HourlyTick(b); HourlyTick(b);
+            Check(TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.VisitCalls==visits,
+                "цель считается прежней: приказ не перевыдаётся каждый час");
+            Check(!AutopilotLog.Lines.Any(l => l.Contains("ЗАСТРЯЛИ")),
+                "пока едем, сторож движения не срабатывает");
+        });
+        Try("доехали до крепости — жмём осаду штатным пунктом", () => {
+            var b=Fresh(); var castle=ConquestWorld(gold:1000); castle.Name="Замок Аб Комер";
+            castle.Militia=1; Settlement.All.Add(castle);
+            MobileParty.MainParty.Party.PartySizeLimit=10;
+            Enable(b); HourlyTick(b);
+            PlayerEncounter.Current=new PlayerEncounter(); PlayerEncounter.EncounterSettlement=castle;
+            bool besieged=false;
+            Show(Menu("castle_outside", "town_besiege", () => besieged=true));
+            b.PollState();
+            Check(besieged, "у ворот вражеской крепости осада начинается штатным пунктом меню");
+        });
+
         // Стояние на месте 18.09 (журнал 14:43 и 18:38). Движок принимает приказ
         // осады и ставит DefaultBehavior, но движение задаёт только сеттер
         // DefaultBehavior — и только когда значение СМЕНИЛОСЬ (MobileParty 100723);

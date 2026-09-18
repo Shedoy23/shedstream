@@ -1,0 +1,271 @@
+Loading core dump: C:\ProgramData\Mount and Blade II Bannerlord\crashes\2026-09-18_09.34.34\dump.dmp ...
+*0 0x47F0 (18416)
+ 1 0x6564 (25956)
+ 2 0x647C (25724)
+ 3 0x6C08 (27656)
+ 4 0x2348 (9032)
+ 5 0x7F50 (32592)
+ 6 0x1A2C (6700)
+ 7 0x649C (25756)
+ 8 0x2168 (8552)
+ 9 0x7904 (30980)
+ 10 0x1B78 (7032)
+ 11 0x6D5C (27996)
+ 12 0x3948 (14664)
+ 13 0x6554 (25940)
+ 14 0x5E58 (24152)
+ 15 0x790C (30988)
+ 16 0x2924 (10532)
+ 17 0x044C (1100)
+ 18 0x7DF0 (32240)
+ 19 0x126C (4716)
+ 20 0x7538 (30008)
+ 21 0x45AC (17836)
+ 22 0x5768 (22376)
+ 23 0x6540 (25920)
+ 24 0x76FC (30460)
+ 25 0x53DC (21468)
+ 26 0x8218 (33304)
+ 27 0x51CC (20940)
+ 28 0x1BC0 (7104)
+ 29 0x5C08 (23560)
+ 30 0x54C0 (21696)
+ 31 0x125C (4700)
+ 32 0x1684 (5764)
+ 33 0x62F4 (25332)
+ 34 0x5CE4 (23780)
+ 35 0x7D9C (32156)
+ 36 0x6BA0 (27552)
+ 37 0x4D50 (19792)
+ 38 0x6320 (25376)
+ 39 0x82B4 (33460)
+ 40 0x53C4 (21444)
+ 41 0x6ABC (27324)
+ 42 0x2308 (8968)
+ 43 0x285C (10332)
+ 44 0x0A18 (2584)
+ 45 0x6318 (25368)
+ 46 0x02D0 (720)
+ 47 0x7810 (30736)
+ 48 0x2DA0 (11680)
+ 49 0x15B0 (5552)
+ 50 0x4770 (18288)
+ 51 0x7F5C (32604)
+ 52 0x4204 (16900)
+ 53 0x028C (652)
+ 54 0x0EE0 (3808)
+ 55 0x6500 (25856)
+ 56 0x7A8C (31372)
+ 57 0x6D90 (28048)
+ 58 0x24E8 (9448)
+ 59 0x38F8 (14584)
+ 60 0x27A4 (10148)
+ 61 0x78A8 (30888)
+ 62 0x2944 (10564)
+ 63 0x6F64 (28516)
+ 64 0x723C (29244)
+ 65 0x7098 (28824)
+ 66 0x417C (16764)
+ 67 0x2E24 (11812)
+ 68 0x679C (26524)
+ 69 0x645C (25692)
+ 70 0x7954 (31060)
+ 71 0x80D8 (32984)
+ 72 0x763C (30268)
+ 73 0x7B3C (31548)
+ 74 0x0A40 (2624)
+ 75 0x7328 (29480)
+ 76 0x3458 (13400)
+ 77 0x7318 (29464)
+ 78 0x0D20 (3360)
+ 79 0x44D0 (17616)
+ 80 0x6BE0 (27616)
+ 81 0x3AC0 (15040)
+ 82 0x3CB8 (15544)
+ 83 0x07D0 (2000)
+ 84 0x8364 (33636)
+ 85 0x7870 (30832)
+ 86 0x5F0C (24332)
+ 87 0x22B0 (8880)
+ 88 0x2560 (9568)
+ 89 0x6D08 (27912)
+ 90 0x62C0 (25280)
+ 91 0x5DC8 (24008)
+ 92 0x69C0 (27072)
+ 93 0x3A78 (14968)
+ 94 0x1214 (4628)
+ 95 0x6FC8 (28616)
+ 96 0x3834 (14388)
+ 97 0x4D54 (19796)
+ 98 0x1A3C (6716)
+ 99 0x5550 (21840)
+ 100 0x60B0 (24752)
+ 101 0x6ECC (28364)
+ 102 0x6E20 (28192)
+ 103 0x78B4 (30900)
+ 104 0x17FC (6140)
+ 105 0x666C (26220)
+ 106 0x3870 (14448)
+ 107 0x63B8 (25528)
+ 108 0x5600 (22016)
+ 109 0x6688 (26248)
+ 110 0x55D4 (21972)
+ 111 0x62F0 (25328)
+ 112 0x1914 (6420)
+ 113 0x79E8 (31208)
+ 114 0x24AC (9388)
+ 115 0x3398 (13208)
+ 116 0x7304 (29444)
+ 117 0x7200 (29184)
+ 118 0x1840 (6208)
+ 119 0x79C4 (31172)
+ 120 0x6618 (26136)
+ 121 0x1A18 (6680)
+ 122 0x7AF4 (31476)
+ 123 0x46B4 (18100)
+ 124 0x7D74 (32116)
+ 125 0x738C (29580)
+ 126 0x74B8 (29880)
+ 127 0x83A0 (33696)
+ 128 0x2CE8 (11496)
+ 129 0x57F8 (22520)
+ 130 0x1CD0 (7376)
+ 131 0x264C (9804)
+ 132 0x2D80 (11648)
+ 133 0x227C (8828)
+ 134 0x4354 (17236)
+ 135 0x7430 (29744)
+ 136 0x1344 (4932)
+ 137 0x3A9C (15004)
+ 138 0x6480 (25728)
+ 139 0x0BD0 (3024)
+ 140 0x1DB0 (7600)
+ 141 0x186C (6252)
+ 142 0x2498 (9368)
+ 143 0x6F00 (28416)
+ 144 0x6BDC (27612)
+ 145 0x800C (32780)
+ 146 0x7230 (29232)
+ 147 0x7564 (30052)
+OS Thread Id: 0x47f0
+        Child SP               IP Call Site
+000000CE84BFEA18 00007ff8f5ae4a14 [InlinedCallFrame: 000000ce84bfea18] TaleWorlds.Starter.Library.MBDotNet.WotsMainDotNet(System.String)
+000000CE84BFEA18 00007ff884aa81b5 [InlinedCallFrame: 000000ce84bfea18] TaleWorlds.Starter.Library.MBDotNet.WotsMainDotNet(System.String)
+000000CE84BFE9E0 00007FF884AA81B5 DomainBoundILStubClass.IL_STUB_PInvoke(System.String)
+000000CE84BFEAE0 00007FF883E833ED TaleWorlds.MountAndBlade.Launcher.Library.Program.Main(System.String[])
+000000CE84BFEB80 00007FF883E80899 TaleWorlds.MountAndBlade.Launcher.Program.Main(System.String[])
+000000CE84BFED98 00007ff8e3631b43 [GCFrame: 000000ce84bfed98] 
+OS Thread Id: 0x7f50
+        Child SP               IP Call Site
+000000CE85FFFAE8 00007ff8f5ae0e44 [DebuggerU2MCatchHandlerFrame: 000000ce85fffae8] 
+OS Thread Id: 0x5e58
+        Child SP               IP Call Site
+OS Thread Id: 0x2924
+        Child SP               IP Call Site
+000000CE8A43EE58 00007ff8f5ae1914 [HelperMethodFrame_1OBJ: 000000ce8a43ee58] System.Threading.WaitHandle.WaitMultiple(System.Threading.WaitHandle[], Int32, Boolean, Boolean)
+000000CE8A43EF90 00007FF8DFC38EA0 System.Threading.WaitHandle.WaitAny(System.Threading.WaitHandle[], Int32, Boolean)
+000000CE8A43EFF0 00007FF88481C29B System.Net.TimerThread.ThreadProc()
+000000CE8A43F090 00007FF8DFC11C08 System.Threading.ExecutionContext.RunInternal(System.Threading.ExecutionContext, System.Threading.ContextCallback, System.Object, Boolean)
+000000CE8A43F160 00007FF8DFC11AF5 System.Threading.ExecutionContext.Run(System.Threading.ExecutionContext, System.Threading.ContextCallback, System.Object, Boolean)
+000000CE8A43F190 00007FF8DFC11AC5 System.Threading.ExecutionContext.Run(System.Threading.ExecutionContext, System.Threading.ContextCallback, System.Object)
+000000CE8A43F1E0 00007FF8DFC36455 System.Threading.ThreadHelper.ThreadStart()
+000000CE8A43F400 00007ff8e3631b43 [GCFrame: 000000ce8a43f400] 
+000000CE8A43F768 00007ff8e3631b43 [DebuggerU2MCatchHandlerFrame: 000000ce8a43f768] 
+OS Thread Id: 0x6abc
+        Child SP               IP Call Site
+OS Thread Id: 0x79e8
+        Child SP               IP Call Site
+OS Thread Id: 0x82b4
+        Child SP               IP Call Site
+000000CE863FEE30 00007ff8f2c441ca [FaultingExceptionFrame: 000000ce863fee30] 
+000000CE863FF330 00007FF8902E9512 TaleWorlds.CampaignSystem.CampaignBehaviors.IncidentsCampaignBehaviour.<InitializeIncidents>b__25_553(TaleWorlds.Localization.TextObject)
+000000CE863FF3F0 00007FF88FF4F7E4 TaleWorlds.CampaignSystem.Incidents.Incident.CanIncidentBeInvoked()
+000000CE863FF4B0 00007FF88FE04385 TaleWorlds.CampaignSystem.Campaign.Tick()
+000000CE863FF4F0 00007FF88FDE3D20 TaleWorlds.CampaignSystem.GameState.MapState.OnMapModeTick(Single)
+000000CE863FF530 00007FF88FDE3BC3 TaleWorlds.CampaignSystem.GameState.MapState.OnTick(Single)
+000000CE863FF560 00007FF88EDC3A22 TaleWorlds.Core.GameStateManager.OnTick(Single)
+000000CE863FF590 00007FF88F4CD1CA TaleWorlds.Core.Game.OnTick(Single)
+000000CE863FF600 00007FF88EEBE427 TaleWorlds.Core.GameManagerBase.OnTick(Single)
+000000CE863FF650 00007FF88EDC32C0 TaleWorlds.MountAndBlade.Module.OnApplicationTick(Single)
+000000CE863FF740 00007FF88EDC1100 TaleWorlds.DotNet.Managed.ApplicationTick(Single)
+000000CE863FF790 00007FF884AAC26D DomainBoundILStubClass.IL_STUB_ReversePInvoke(Single)
+OS Thread Id: 0x7810
+        Child SP               IP Call Site
+OS Thread Id: 0x2d0
+        Child SP               IP Call Site
+OS Thread Id: 0x15b0
+        Child SP               IP Call Site
+OS Thread Id: 0x2308
+        Child SP               IP Call Site
+OS Thread Id: 0x285c
+        Child SP               IP Call Site
+OS Thread Id: 0x2da0
+        Child SP               IP Call Site
+OS Thread Id: 0x6318
+        Child SP               IP Call Site
+OS Thread Id: 0xa18
+        Child SP               IP Call Site
+OS Thread Id: 0x53c4
+        Child SP               IP Call Site
+OS Thread Id: 0x3398
+        Child SP               IP Call Site
+OS Thread Id: 0x1840
+        Child SP               IP Call Site
+OS Thread Id: 0x79c4
+        Child SP               IP Call Site
+OS Thread Id: 0x7200
+        Child SP               IP Call Site
+OS Thread Id: 0x1a18
+        Child SP               IP Call Site
+OS Thread Id: 0x6618
+        Child SP               IP Call Site
+OS Thread Id: 0x7af4
+        Child SP               IP Call Site
+OS Thread Id: 0x46b4
+        Child SP               IP Call Site
+OS Thread Id: 0x7d74
+        Child SP               IP Call Site
+OS Thread Id: 0x738c
+        Child SP               IP Call Site
+OS Thread Id: 0x74b8
+        Child SP               IP Call Site
+OS Thread Id: 0x83a0
+        Child SP               IP Call Site
+OS Thread Id: 0x1cd0
+        Child SP               IP Call Site
+OS Thread Id: 0x2ce8
+        Child SP               IP Call Site
+OS Thread Id: 0x57f8
+        Child SP               IP Call Site
+OS Thread Id: 0x264c
+        Child SP               IP Call Site
+OS Thread Id: 0x2d80
+        Child SP               IP Call Site
+OS Thread Id: 0x227c
+        Child SP               IP Call Site
+OS Thread Id: 0x4354
+        Child SP               IP Call Site
+OS Thread Id: 0x7430
+        Child SP               IP Call Site
+OS Thread Id: 0x1344
+        Child SP               IP Call Site
+OS Thread Id: 0x3a9c
+        Child SP               IP Call Site
+OS Thread Id: 0x6480
+        Child SP               IP Call Site
+OS Thread Id: 0x800c
+        Child SP               IP Call Site
+OS Thread Id: 0xbd0
+        Child SP               IP Call Site
+OS Thread Id: 0x186c
+        Child SP               IP Call Site
+OS Thread Id: 0x2498
+        Child SP               IP Call Site
+OS Thread Id: 0x1db0
+        Child SP               IP Call Site
+OS Thread Id: 0x7230
+        Child SP               IP Call Site
+OS Thread Id: 0x6f00
+        Child SP               IP Call Site
+OS Thread Id: 0x6bdc
+        Child SP               IP Call Site

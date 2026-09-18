@@ -79,10 +79,8 @@ namespace BannerlordAutopilot
     /// пауза на свободной карте снимается, а простой дольше 10 секунд
     /// записывается в журнал с описанием того, что держит игру.
     ///
-    /// ЧЕГО ЗДЕСЬ НЕТ: осада, штурм, рейд, оборона, преследование, армия,
-    /// боевой автопилот. Такие решения штатного AI пропускаются — берётся
-    /// лучшее из выполнимых; бой и встреча с чужой партией пока выключают
-    /// автопилот с названной причиной.
+    /// Текущая реализация также ведёт осады, рейды, оборону и армию;
+    /// при отсутствии осадной цели от штатного AI ищет посильную крепость сама.
     ///
     /// Разбор: docs/BANNERLORD_AUTOPILOT_RESEARCH_2026-09-12.md,
     /// независимая проверка: dist/audit/autopilot-review/REVIEW_RU.md.</summary>
@@ -132,6 +130,8 @@ namespace BannerlordAutopilot
         private readonly Random _dialogRandom = new Random();
         private int _randomDialogSteps;
         private DateTime _nextRandomDialogAt;
+        private DateTime _nextLiberationDialogAt;
+        private DateTime _nextScriptedDialogAt;
 
         // Штатная оценка сухопутного патруля не убывает от времени у цели и
         // почти не зависит от расстояния партии до неё. В прогоне 14.09 это
@@ -148,6 +148,15 @@ namespace BannerlordAutopilot
         private const float MaximumPatrolPenalty = 0.8f;
         private const float PatrolCooldownPenalty = 0.5f;
         private const float DecisionChangeMargin = 0.15f;
+        private const double TravelAfterPatrolHours = 24;
+        private const double ReturnToPatrolHours = 48;
+        private const double RecentTownHours = 30 * 24;
+        private readonly Dictionary<Settlement, double> _recentTownVisits = new Dictionary<Settlement, double>();
+        private const double RecruitmentVisitCooldownHours = 30 * 24;
+        private Settlement _travelTown;
+        private Settlement _travelOrigin;
+        private Settlement _avoidAfterTravel;
+        private double _avoidAfterTravelUntil;
 
         // Состояние одного сеанса. Раньше флаг «выход уже запрошен» переживал
         // выключение и глушил первое прибытие следующего сеанса. Теперь всё
@@ -245,10 +254,17 @@ namespace BannerlordAutopilot
             _lastAppliedDescription = "—";
             _lastTargetKey = null;
             _combatTarget = null;
+            _nextLiberationDialogAt = DateTime.MinValue;
+            _nextScriptedDialogAt = DateTime.MinValue;
             _leftForeignBattles.Clear();
             _lastProgressWeek = -1;
             _continuousPatrolSettlement = null;
             _continuousPatrolSinceHours = -1;
+            _travelTown = null;
+            _travelOrigin = null;
+            _avoidAfterTravel = null;
+            _avoidAfterTravelUntil = 0;
+            _recentTownVisits.Clear();
             _startedIn = null;
             _handledSettlement = null;
             _resumeSpeed = 0;
@@ -594,6 +610,7 @@ namespace BannerlordAutopilot
                     AutopilotLog.Write("ПРИБЫЛИ в «" + peaceful.Name + "» (прибытие #"
                                        + _settlementVisitsThisSession + ")");
                 }
+                if (peaceful.IsTown) _recentTownVisits[peaceful] = CampaignTime.Now.ToHours;
             }
 
             if (!AutoLeaveSettlement)
@@ -949,6 +966,26 @@ namespace BannerlordAutopilot
         /// <summary>Обслуживание партии в поселении, если пора и можно. Проход не
         /// чаще раза в ServiceLimits.PassIntervalHours; причина, по которой сейчас
         /// нельзя, пишется в журнал один раз, пока не сменится.</summary>
+        private static bool NeedsRecruitment(MobileParty party) => party?.Party != null
+            && party.Party.PartySizeLimit > 0
+            && party.Party.NumberOfAllMembers < (int)Math.Ceiling(party.Party.PartySizeLimit * .9);
+
+        private Settlement FindRecruitmentTarget(MobileParty party)
+        {
+            var candidates = Settlement.All.Where(s => s != null && (s.IsTown || s.IsVillage)
+                && s.MapFaction != null && party.MapFaction != null
+                && !party.MapFaction.IsAtWarWith(s.MapFaction)
+                && !s.IsUnderSiege && !s.IsUnderRaid && !s.IsRaided
+                && !CannotStay(s) && _services.IsDue(s)
+                && !_services.WasServicedRecently(s, RecruitmentVisitCooldownHours)
+                && (!s.IsTown || !_recentTownVisits.TryGetValue(s, out double townVisit)
+                    || CampaignTime.Now.ToHours - townVisit >= RecruitmentVisitCooldownHours)
+                && SettlementServices.HasAffordableRecruits(party, s)).ToList();
+            if (party.DefaultBehavior == AiBehavior.GoToSettlement
+                && candidates.Contains(party.TargetSettlement)) return party.TargetSettlement;
+            return candidates.OrderBy(s => party.Position.DistanceSquared(s.Position)).FirstOrDefault();
+        }
+
         private void TryServe(MobileParty party, Settlement settlement, string menuId, string trigger)
         {
             if (_mode != Mode.Apply || !_services.IsDue(settlement))
@@ -1258,11 +1295,22 @@ namespace BannerlordAutopilot
                 for (int i=0; options != null && i<options.Count; i++)
                 {
                     string id = options[i].Id;
+                    // Both the normal caravan conversation and escort-quest
+                    // DialogFlow use these native lines. DialogFlow generates
+                    // adg:* option IDs, so its text's localization key is needed.
+                    string line = options[i].Text?.Value ?? "";
+                    bool caravanFight = (target.IsCaravan && (id == "caravan_loot"
+                        || id == "player_decided_to_fight"
+                        || id == "player_decided_to_take_everything"
+                        || id == "player_decided_to_force_fight"))
+                        || line.Contains("WOBy5UfY") || line.Contains("EhxS7NQ4")
+                        || line.Contains("QZ6IcCIm") || line.Contains("ha53qb7v");
                     bool allowed = target.IsBandit
                         ? id == "common_encounter_ultimatum" || id == "common_bandit_surrender_accepted"
                           || id == "bandit_start_defender_1" || id == "bandit_start_defender_3"
                         : IsTravelIntroduction(id) || id == "main_option_hostile_1_2"
-                          || id == "player_verify_attack_on_enemy_lord" || id == "545";
+                          || id == "player_verify_attack_on_enemy_lord" || id == "545"
+                          || caravanFight;
                     if (allowed && options[i].IsClickable)
                     {
                         string selected = options[i].Id;
@@ -1395,6 +1443,8 @@ namespace BannerlordAutopilot
         internal bool PollDialogs()
         {
             if (_mode != Mode.Apply) return false;
+            if (PollLiberatedHeroConversation()) return true;
+            if (PollScriptedEncounterConversation()) return true;
             try { if (PollHideoutConversation()) return true; }
             catch (Exception ex) { Disable("диалог убежища остановлен: " + ex); return true; }
             if (PollPeacefulTravelConversation()) return true;
@@ -1424,6 +1474,7 @@ namespace BannerlordAutopilot
                 {
                     int index = available[_dialogRandom.Next(available.Count)];
                     string id = options[index].Id;
+                    if (id == "common_bandit_surrender_accepted") AuthorizePrisonerScreen();
                     conversation.DoOption(index);
                     _randomDialogSteps++;
                     _nextRandomDialogAt = Clock().AddSeconds(2);
@@ -1441,6 +1492,100 @@ namespace BannerlordAutopilot
                 RandomDialogsEnabled = false;
                 Disable("случайный диалог остановлен: " + ex.GetType().Name + ": " + ex.Message);
             }
+            return true;
+        }
+
+        private bool PollScriptedEncounterConversation()
+        {
+            var campaign = Campaign.Current;
+            var conversation = campaign?.ConversationManager;
+            if (conversation?.IsConversationInProgress != true || InformationManager.IsAnyInquiryActive()) return false;
+            var context = campaign.CurrentConversationContext;
+            if (context != ConversationContext.CapturedLord
+                && context != ConversationContext.FreeOrCapturePrisonerHero
+                && context != ConversationContext.PartyEncounter) return false;
+            var options = conversation.CurOptions;
+            if (options == null || options.Count == 0)
+            {
+                if (Clock() < _nextScriptedDialogAt) return true;
+                try
+                {
+                    _nextScriptedDialogAt = Clock().AddSeconds(2);
+                    conversation.ContinueConversation();
+                    AutopilotLog.Write("ДИАЛОГ: продолжена штатная реплика встречи без вариантов");
+                }
+                catch (Exception ex) { Disable("продолжение встречи остановлено: " + ex.GetType().Name + ": " + ex.Message); }
+                return true;
+            }
+            // A defending player can meet a hostile settlement patrol without an
+            // EngageParty order. Its one fight reply must not fall through to the
+            // peaceful-travel handler, which deliberately ignores hostile choices.
+            if (context == ConversationContext.PartyEncounter && PlayerEncounter.Current != null
+                && PlayerEncounter.PlayerIsDefender
+                && conversation.ConversationParty == PlayerEncounter.EncounteredMobileParty)
+            {
+                for (int i = 0; i < options.Count; i++)
+                {
+                    var option = options[i];
+                    string reply = option.Text?.ToString() ?? "";
+                    bool fightReply = option.Id == "545"
+                        || option.Text?.Value?.Contains("5KGuQb5C") == true
+                        || reply.IndexOf("кто кого уб", StringComparison.OrdinalIgnoreCase) >= 0
+                        || reply.IndexOf("who slays whom", StringComparison.OrdinalIgnoreCase) >= 0;
+                    if (!option.IsClickable || !fightReply) continue;
+                    if (Clock() < _nextScriptedDialogAt) return true;
+                    try
+                    {
+                        _nextScriptedDialogAt = Clock().AddSeconds(2);
+                        conversation.DoOption(i);
+                        AutopilotLog.Write("БОЙ: принят штатный ответ атакующему патрулю «" + option.Id + "»");
+                    }
+                    catch (Exception ex) { Disable("ответ атакующему патрулю остановлен: " + ex.GetType().Name + ": " + ex.Message); }
+                    return true;
+                }
+            }
+            if (context != ConversationContext.CapturedLord) return false;
+            for (int i = 0; i < options.Count; i++)
+            {
+                if (options[i].Id != "talk_lord_defeat_to_lord_capture" || !options[i].IsClickable) continue;
+                if (Clock() < _nextScriptedDialogAt) return true;
+                try
+                {
+                    _nextScriptedDialogAt = Clock().AddSeconds(2);
+                    conversation.DoOption(i);
+                    AutopilotLog.Write("ДИАЛОГ: побеждённый лорд взят в плен штатной репликой");
+                }
+                catch (Exception ex) { Disable("пленение лорда остановлено: " + ex.GetType().Name + ": " + ex.Message); }
+                return true;
+            }
+            return true; // Never select execution or release as a fallback.
+        }
+
+        // After a battle, the encounter can still point at the defeated party while
+        // the speaker is a rescued lord. Combat/hideout handlers otherwise claim the
+        // conversation and never let the two liberation replies through.
+        private bool PollLiberatedHeroConversation()
+        {
+            var conversation = Campaign.Current?.ConversationManager;
+            if (conversation?.IsConversationInProgress != true || InformationManager.IsAnyInquiryActive()) return false;
+            var options = conversation.CurOptions;
+            int selected = -1;
+            for (int i = 0; options != null && i < options.Count; i++)
+            {
+                if (!options[i].IsClickable) continue;
+                if (options[i].Id == "liberate_hero_3") { selected = i; break; }
+                if (options[i].Id == "liberate_hero_7") selected = i;
+            }
+            if (selected < 0) return false;
+            if (Clock() < _nextLiberationDialogAt) return true;
+            try
+            {
+                string id = options[selected].Id;
+                _nextLiberationDialogAt = Clock().AddSeconds(2);
+                conversation.DoOption(selected);
+                AutopilotLog.Write("ДИАЛОГ: освобождение героя, штатная реплика «" + id + "»");
+            }
+            catch (Exception ex) { Disable("освобождение героя остановлено: " + ex.GetType().Name + ": " + ex.Message); }
             return true;
         }
 
@@ -1791,6 +1936,26 @@ namespace BannerlordAutopilot
                 try
                 {
                     TroopUpgrades.Run(party);
+                    if (NeedsRecruitment(party))
+                    {
+                        Settlement recruitAt = FindRecruitmentTarget(party);
+                        if (recruitAt != null)
+                        {
+                            var recruitDecision = new AIBehaviorData(recruitAt, AiBehavior.GoToSettlement,
+                                MobileParty.NavigationType.Default, false, false, false);
+                            if (!IsSameDecision(recruitDecision, party))
+                                AutopilotLog.Write("ПОПОЛНЕНИЕ: " + party.Party.NumberOfAllMembers + "/"
+                                    + party.Party.PartySizeLimit + " (цель 90%); доступные добровольцы в «"
+                                    + recruitAt.Name + "»; едем набирать");
+                            if (waitingIn != null)
+                            {
+                                if (waitingIn == recruitAt) TryServe(party, recruitAt, MenuDriver.CurrentMenuId, "пополнение");
+                                else { _pendingDecision = recruitDecision; _pendingScore = 1f; _hasPendingDecision = true; }
+                            }
+                            else ApplyDecision(party, recruitDecision, 1f);
+                            return;
+                        }
+                    }
                     Settlement market = EquipmentAndTrade.FindUnloadingTown(party,
                         s => _services.IsDue(s) && !CannotStay(s));
                     if (market != null)
@@ -1845,10 +2010,18 @@ namespace BannerlordAutopilot
                 return;
             }
 
+            var proposals = think.AIBehaviorScores.ToList();
+            if (TryFindSiegeTarget(party, out AIBehaviorData siegeTarget, out float siegeScore))
+            {
+                proposals.Add((siegeTarget, siegeScore));
+                AutopilotLog.Write("ПОХОД: найдена крепость самостоятельно: " + Describe(siegeTarget)
+                    + "; оценка " + siegeScore.ToString("F3", CultureInfo.InvariantCulture)
+                    + (siegeTarget.WillGatherArmy ? "; сначала собираем армию" : "; сил отряда достаточно"));
+            }
             AIBehaviorData best = AIBehaviorData.Invalid;
             float bestScore = -1f;
             var lines = new List<string>();
-            foreach (var pair in think.AIBehaviorScores)
+            foreach (var pair in proposals)
             {
                 AIBehaviorData data = pair.Item1;
                 float score = pair.Item2;
@@ -1865,6 +2038,9 @@ namespace BannerlordAutopilot
                                + "; текущее поведение " + party.DefaultBehavior);
             if (lines.Count == 0)
             {
+                if (party.DefaultBehavior == AiBehavior.BesiegeSettlement && party.TargetSettlement != null)
+                    AutopilotLog.Write("ПОХОД: цель «" + party.TargetSettlement.Name + "» больше не предложена: "
+                        + (SiegeTargetRejection(party, party.TargetSettlement) ?? "нет оценок от движка и нового кандидата"));
                 if (_mode == Mode.Apply && waitingIn == null && party.DefaultBehavior != AiBehavior.BesiegeSettlement
                     && TryApplyNearbyAttack(party)) return;
                 if (waitingIn == null && TryChooseHideout(party)) return;
@@ -1877,6 +2053,8 @@ namespace BannerlordAutopilot
             }
             AutopilotLog.Write("  лучшее: " + Describe(best) + " = "
                                + bestScore.ToString("F3", CultureInfo.InvariantCulture));
+            try { LogStrategicAudit(party, proposals); }
+            catch (Exception ex) { AutopilotLog.Write("СТРАТЕГИЯ: оценку записать не удалось: " + ex.GetType().Name + ": " + ex.Message); }
 
             if (_mode == Mode.Observe)
             {
@@ -1890,7 +2068,7 @@ namespace BannerlordAutopilot
             // не попал в журнал ни разу — его заслоняла осада выше в списке.
             var skipped = new List<string>();
             var applicable = new List<Tuple<AIBehaviorData, float, float>>();
-            foreach (var pair in think.AIBehaviorScores)
+            foreach (var pair in proposals)
             {
                 string reason = WhyNotApplicable(pair.Item1);
                 if (reason == null)
@@ -1904,9 +2082,18 @@ namespace BannerlordAutopilot
                 }
             }
             string preparation = PreparationNeeded(party);
-            bool preparing = preparation != null && think.AIBehaviorScores.Any(p =>
+            bool preparing = preparation != null && proposals.Any(p =>
                 p.Item1.AiBehavior == AiBehavior.BesiegeSettlement || p.Item1.AiBehavior == AiBehavior.RaidSettlement);
             _preparingCampaign = preparing;
+            if (_travelTown != null && waitingIn == _travelTown)
+            {
+                _avoidAfterTravel = _travelOrigin;
+                _avoidAfterTravelUntil = CampaignTime.Now.ToHours + ReturnToPatrolHours;
+                AutopilotLog.Write("ПОЕЗДКА: прибыли в «" + _travelTown.Name
+                                   + "»; прежнюю точку патруля временно не выбираем");
+                _travelTown = null;
+                _travelOrigin = null;
+            }
             var priority = preparing
                 ? applicable.Where(p => p.Item1.AiBehavior == AiBehavior.GoToSettlement
                     && p.Item1.Party is Settlement s && s.MapFaction != null && party.MapFaction != null
@@ -1916,7 +2103,31 @@ namespace BannerlordAutopilot
             if (hasPriority) AutopilotLog.Write(preparing ? "ПОХОД: снабжение/восстановление — " + preparation : "ПОХОД: готовы, приоритет захвату крепости");
             if (applicable.Count > 0)
             {
-                var selected = (hasPriority ? priority : applicable).OrderByDescending(p => p.Item3).First();
+                var ordinary = applicable;
+                if (_avoidAfterTravel != null && CampaignTime.Now.ToHours < _avoidAfterTravelUntil)
+                {
+                    var elsewhere = applicable.Where(p => p.Item1.Party != _avoidAfterTravel
+                        || (p.Item1.AiBehavior != AiBehavior.PatrolAroundPoint
+                            && p.Item1.AiBehavior != AiBehavior.GoToSettlement)).ToList();
+                    if (elsewhere.Count > 0) ordinary = elsewhere;
+                }
+                // A high native settlement/patrol score can pull the party back to
+                // the same town after every trip. Only ordinary peaceful movement is
+                // diversified; preparation, siege and defence retain their priority.
+                if (!hasPriority && !preparing)
+                {
+                    var fresh = ordinary.Where(p => !(p.Item1.Party is Settlement s && s.IsTown
+                        && (p.Item1.AiBehavior == AiBehavior.GoToSettlement
+                            || p.Item1.AiBehavior == AiBehavior.PatrolAroundPoint)
+                        && _recentTownVisits.TryGetValue(s, out double visit)
+                        && CampaignTime.Now.ToHours - visit < RecentTownHours)).ToList();
+                    if (fresh.Count > 0 && fresh.Count < ordinary.Count)
+                    {
+                        AutopilotLog.Write("ПОЕЗДКА: недавние города отложены; доступны другие обычные цели");
+                        ordinary = fresh;
+                    }
+                }
+                var selected = (hasPriority ? priority : ordinary).OrderByDescending(p => p.Item3).First();
                 chosen = selected.Item1;
                 chosenScore = selected.Item3;
 
@@ -1932,7 +2143,7 @@ namespace BannerlordAutopilot
                 // обычная цель должна выиграть с небольшим явным запасом.
                 if (!hasPriority && waitingIn == null && !IsSameDecision(chosen, party))
                 {
-                    var current = applicable.FirstOrDefault(p => IsSameDecision(p.Item1, party));
+                    var current = ordinary.FirstOrDefault(p => IsSameDecision(p.Item1, party));
                     if (current != null && chosenScore < current.Item3 + DecisionChangeMargin)
                     {
                         AutopilotLog.Write("  текущая цель сохранена: новая лучше только на "
@@ -1941,6 +2152,49 @@ namespace BannerlordAutopilot
                         chosen = current.Item1;
                         chosenScore = current.Item3;
                     }
+                }
+
+                // A very high native patrol score can beat every other town forever.
+                // Use only safe towns already proposed by the engine, and keep the trip
+                // until arrival instead of turning back at the next six-hour rethink.
+                if (!hasPriority && !preparing && waitingIn == null
+                    && (chosen.AiBehavior == AiBehavior.PatrolAroundPoint
+                        || chosen.AiBehavior == AiBehavior.GoToSettlement))
+                {
+                    var towns = applicable.Where(p => p.Item1.AiBehavior == AiBehavior.GoToSettlement
+                        && p.Item1.Party is Settlement s && s.IsTown && s != _continuousPatrolSettlement
+                        && s != _avoidAfterTravel && p.Item2 > 0
+                        && !s.IsUnderSiege && !s.IsUnderRaid && !s.IsRaided
+                        && s.MapFaction != null && party.MapFaction != null
+                        && !party.MapFaction.IsAtWarWith(s.MapFaction)).ToList();
+                    var trip = _travelTown != null
+                        ? towns.FirstOrDefault(p => p.Item1.Party == _travelTown)
+                        : null;
+                    if (trip == null && _travelTown != null) { _travelTown = null; _travelOrigin = null; }
+                    if (trip == null && chosen.AiBehavior == AiBehavior.PatrolAroundPoint
+                        && party.DefaultBehavior == AiBehavior.PatrolAroundPoint
+                        && _continuousPatrolSettlement != null
+                        && _continuousPatrolSinceHours >= 0
+                        && CampaignTime.Now.ToHours - _continuousPatrolSinceHours >= TravelAfterPatrolHours)
+                    {
+                        var freshTowns = towns.Where(p => !(_recentTownVisits.TryGetValue((Settlement)p.Item1.Party, out double visit)
+                            && CampaignTime.Now.ToHours - visit < RecentTownHours)).ToList();
+                        trip = freshTowns.Count > 0
+                            ? freshTowns.OrderByDescending(p => p.Item2).FirstOrDefault()
+                            : towns.OrderBy(p => _recentTownVisits.TryGetValue((Settlement)p.Item1.Party, out double visit)
+                                    ? visit : double.MinValue)
+                                .ThenByDescending(p => p.Item2).FirstOrDefault();
+                        if (trip != null)
+                        {
+                            _travelOrigin = _continuousPatrolSettlement;
+                            _travelTown = (Settlement)trip.Item1.Party;
+                            _avoidAfterTravel = _travelOrigin;
+                            _avoidAfterTravelUntil = CampaignTime.Now.ToHours + ReturnToPatrolHours;
+                            AutopilotLog.Write("ПОЕЗДКА: после долгого патруля «" + _travelOrigin.Name
+                                               + "» едем в другой город «" + _travelTown.Name + "»");
+                        }
+                    }
+                    if (trip != null) { chosen = trip.Item1; chosenScore = trip.Item3; }
                 }
             }
 
@@ -1952,8 +2206,18 @@ namespace BannerlordAutopilot
 
             if (chosen.AiBehavior == AiBehavior.None)
             {
+                if (party.DefaultBehavior == AiBehavior.BesiegeSettlement && party.TargetSettlement != null)
+                    AutopilotLog.Write("ПОХОД: цель «" + party.TargetSettlement.Name + "» больше не предложена: "
+                        + (SiegeTargetRejection(party, party.TargetSettlement) ?? "нет выполнимых решений"));
                 AutopilotLog.Write("  выполнимых решений нет (" + string.Join("; ", skipped) + ") — партия продолжает текущее");
                 return;
+            }
+            if (party.DefaultBehavior == AiBehavior.BesiegeSettlement && party.TargetSettlement != null
+                && !IsSameDecision(chosen, party))
+            {
+                string rejection = SiegeTargetRejection(party, party.TargetSettlement);
+                AutopilotLog.Write("ПОХОД: прекращаем цель «" + party.TargetSettlement.Name + "»: "
+                    + (rejection ?? "другая цель получила приоритет") + "; далее " + Describe(chosen));
             }
             if (skipped.Count > 0)
             {
@@ -2028,6 +2292,55 @@ namespace BannerlordAutopilot
             catch (Exception ex)
             {
                 AutopilotLog.Write("НЕДЕЛЯ " + week + ": сводку собрать не удалось: " + ex.GetType().Name + ": " + ex.Message);
+            }
+        }
+
+        /// <summary>Наблюдение для будущего стратега. Не меняет оценки и приказы.
+        /// Видимые подвижные враги в радиусе 35 — лишь локальная разведка;
+        /// гарнизон и ополчение записываются отдельно, без ложного «шанса победы».</summary>
+        private void LogStrategicAudit(MobileParty party, IEnumerable<(AIBehaviorData, float)> proposals)
+        {
+            var candidates = proposals
+                .Where(p => (p.Item1.AiBehavior == AiBehavior.BesiegeSettlement
+                          || p.Item1.AiBehavior == AiBehavior.DefendSettlement)
+                          && p.Item1.Party is Settlement && p.Item2 > 0)
+                .OrderByDescending(p => p.Item2).Take(3).ToList();
+            if (candidates.Count == 0) return;
+            float ownStrength = party.Party.EstimatedStrength;
+            if (party.Army?.LeaderParty == party)
+                foreach (var attached in party.AttachedParties)
+                    if (attached != null && attached != party && attached.Army == party.Army)
+                        ownStrength += attached.Party.EstimatedStrength;
+            string preparation = PreparationNeeded(party);
+            foreach (var candidate in candidates)
+            {
+                var data = candidate.Item1;
+                var place = (Settlement)data.Party;
+                float distance = (float)Math.Sqrt(Math.Max(0, party.Position.DistanceSquared(place.Position)));
+                float garrison = place.Town?.GarrisonParty?.Party.EstimatedStrength ?? 0f;
+                float nearbyEnemy = 0f;
+                int nearbyCount = 0;
+                foreach (var enemy in MobileParty.All)
+                {
+                    if (enemy == null || enemy == party || enemy == place.Town?.GarrisonParty
+                        || !enemy.IsActive || !enemy.IsVisible || enemy.IsMilitia
+                        || enemy.CurrentSettlement != null || enemy.MapFaction == null || party.MapFaction == null
+                        || !party.MapFaction.IsAtWarWith(enemy.MapFaction)
+                        || enemy.Position.DistanceSquared(place.Position) > 35f * 35f) continue;
+                    nearbyEnemy += enemy.Party.EstimatedStrength;
+                    nearbyCount++;
+                }
+                AutopilotLog.Write("СТРАТЕГИЯ [только наблюдение]: " + Describe(data)
+                    + "; оценка цели " + candidate.Item2.ToString("F2", CultureInfo.InvariantCulture)
+                    + "; расстояние по прямой " + distance.ToString("F1", CultureInfo.InvariantCulture)
+                    + "; своя сила " + ownStrength.ToString("F0", CultureInfo.InvariantCulture)
+                    + "; гарнизон " + garrison.ToString("F0", CultureInfo.InvariantCulture)
+                    + "; ополчение " + place.Militia.ToString("F0", CultureInfo.InvariantCulture) + " бойцов"
+                    + "; видимых вражеских партий рядом " + nearbyCount + " (сила "
+                    + nearbyEnemy.ToString("F0", CultureInfo.InvariantCulture) + ")"
+                    + "; снабжение " + (preparation ?? "достаточно")
+                    + "; применимость " + (WhyNotApplicable(data) ?? "да")
+                    + "; армия " + (data.WillGatherArmy ? "планируется" : party.Army == null ? "нет" : "есть"));
             }
         }
 
@@ -2158,7 +2471,14 @@ namespace BannerlordAutopilot
                     return PreparationNeeded(MobileParty.MainParty);
                 case AiBehavior.BesiegeSettlement:
                     if (!EnemyFortress(data.Party as Settlement, MobileParty.MainParty)) return "нет вражеской крепости";
-                    return PreparationNeeded(MobileParty.MainParty);
+                    var siegeParty = MobileParty.MainParty;
+                    string siegePreparation = PreparationNeeded(siegeParty);
+                    if (siegePreparation != null) return siegePreparation;
+                    float defenders = SiegeDefenderStrength((Settlement)data.Party, siegeParty);
+                    float attackers = SiegeAttackerStrength(siegeParty);
+                    if (data.WillGatherArmy && siegeParty.Army == null)
+                        attackers += AffordableArmyMembers(siegeParty).Sum(p => Math.Max(0f, p.Party.EstimatedStrength));
+                    return defenders <= attackers * 1.5f ? null : "защитники сильнее 1.5x наших сил";
                 case AiBehavior.DefendSettlement:
                     return FriendlySiege(data.Party as Settlement, MobileParty.MainParty) ? null : "нет дружественной осады";
                 case AiBehavior.GoToSettlement:

@@ -8,8 +8,11 @@ int failed = 0;
 void Check(bool ok, string text) { Console.WriteLine((ok ? "ok   " : "FAIL ") + text); if (!ok) failed++; }
 
 var mission = new Mission();
-var originallyManual = new Formation(); var originallyAi = new Formation { IsAIControlled = true };
+var originallyManual = new Formation { Move = new MovementOrder { Kind = 2 }, FiringOrder = new FiringOrder { Kind = 2 } };
+var originallyAi = new Formation { IsAIControlled = true, Move = new MovementOrder { Kind = 3 } };
+var empty = new Formation { CountOfUnits = 0 };
 mission.PlayerTeam.FormationsIncludingEmpty.Add(originallyManual); mission.PlayerTeam.FormationsIncludingEmpty.Add(originallyAi);
+mission.PlayerTeam.FormationsIncludingEmpty.Add(empty);
 mission.MainAgent.Formation = originallyManual;
 mission.MainAgent.MountAgent = new Agent { IsUsingGameObject = false };
 mission.Deployment = new BattleDeploymentMissionController { Mission = mission, TeamSetupOver = true };
@@ -26,7 +29,18 @@ typeof(BattleAutopilotMission).GetMethod("PollDeployment", System.Reflection.Bin
 Check(mission.Deployment.FinishCalls==1,"опрос приложения не повторяет завершение расстановки");
 behavior.OnAfterDeploymentFinished(); behavior.OnMissionTick(0.1f);
 Check(mission.MainAgent.Controller == AgentControllerType.AI, "главный герой передан боевому AI");
-Check(originallyManual.IsAIControlled && originallyAi.IsAIControlled, "формации переданы тактическому AI");
+Check(!originallyManual.IsAIControlled && !originallyAi.IsAIControlled
+      && originallyManual.Move.Kind == 1 && originallyAi.Move.Kind == 1
+      && originallyManual.FiringOrder.Kind == 1 && originallyAi.FiringOrder.Kind == 1,
+      "в полевом бою непустые формации сразу получают атаку и стрельбу по готовности");
+Check(empty.Move.Kind == 0 && !empty.IsAIControlled, "пустая формация не получает приказ");
+empty.CountOfUnits=7;
+behavior.OnMissionTick(1.1f);
+Check(empty.Move.Kind==1 && empty.FiringOrder.Kind==1 && !empty.IsAIControlled,
+      "подкрепление в прежде пустой формации получает атаку после появления");
+originallyManual.SetMovementOrder(new MovementOrder { Kind=2 });
+behavior.OnMissionTick(1.1f);
+Check(originallyManual.Move.Kind==1,"сброшенный движком приказ атаки обновляется в ходе боя");
 Check(mission.MainAgent.AlarmCalls == 1 && mission.MainAgent.UnpauseCalls == 1, "герой разбужен после расстановки");
 Check(mission.MainAgent.StopUsingCalls == 1 && mission.MainAgent.DisableScriptedCalls == 1,
       "старое взаимодействие и scripted movement сняты");
@@ -42,6 +56,10 @@ Check(mission.MainAgent.AIStateFlags == Agent.AIStateFlag.None && mission.MainAg
       && mission.MainAgent.MountAgent.SpeedResetCalls == 1 && originallyManual.ChangedCalls == 2,
       "F12 очищает состояние AI и ограничения скорости героя с лошадью");
 Check(!originallyManual.IsAIControlled && originallyAi.IsAIControlled, "возвращено только управление, которым владел мод");
+Check(originallyManual.Move.Kind == 2 && originallyManual.FiringOrder.Kind == 2
+      && originallyAi.Move.Kind == 3 && originallyAi.FiringOrder.Kind == 0,
+      "F12 восстанавливает прежние приказы формаций");
+Check(empty.Move.Kind==0 && empty.FiringOrder.Kind==0,"F12 восстанавливает прежние приказы появившейся формации");
 AutopilotBehavior.Instance.CurrentMode = AutopilotBehavior.Mode.Apply;
 mission.EndLogic = new BattleEndLogic { Mission = mission };
 for (int i=0;i<10;i++) behavior.PollCompletedBattle(0.5f);
@@ -80,15 +98,26 @@ AutopilotBehavior.Instance.CurrentMode=AutopilotBehavior.Mode.Off; hideoutBehavi
 Check(hideout.MainAgent.Controller==AgentControllerType.Player && hideoutFormation.Move.Kind==0,"F12 возвращает и героя, и приказы отряда убежища");
 var siege = new Mission { Mode=MissionMode.Battle, IsDeploymentFinished=true };
 siege.MainAgent.MountAgent = new Agent();
-siege.MainAgent.Formation = new Formation();
+siege.MainAgent.Formation = new Formation { FormationIndex=FormationClass.Cavalry };
+siege.MainAgent.IsRangedCached = true;
+var originalSiegeFormation = siege.MainAgent.Formation;
+var assaultInfantry = new Formation { FormationIndex=FormationClass.Infantry };
+siege.PlayerTeam.FormationsIncludingEmpty.Add(assaultInfantry);
+siege.PlayerTeam.FormationsIncludingEmpty.Add(siege.MainAgent.Formation);
 MobileParty.MainParty.MapEvent.IsSiegeAssault = true;
 var siegeBehavior = new BattleAutopilotMission { Mission=siege };
 AutopilotBehavior.Instance.CurrentMode=AutopilotBehavior.Mode.Apply;
 siegeBehavior.OnMissionTick(0.1f);
 Check(siege.MainAgent.LastRidingOrder == RidingOrder.RidingOrderEnum.Dismount,
       "осадный бой при верховом герое отдаёт приказ спешиться");
+Check(siege.MainAgent.Formation == assaultInfantry && assaultInfantry.IsAIControlled,
+      "герой с луком следует за штурмовой пехотой под штатным AI");
+Check(siege.MainAgent.Formation.IsAIControlled && siege.MainAgent.Formation.Move.Kind == 0,
+      "осадные формации остаются под штатным тактическим AI");
 AutopilotBehavior.Instance.CurrentMode=AutopilotBehavior.Mode.Off;
 siegeBehavior.OnMissionTick(0.1f);
 Check(siege.MainAgent.LastRidingOrder == RidingOrder.RidingOrderEnum.Mount,
       "F12 возвращает исходный приказ героя после осады");
+Check(siege.MainAgent.Formation == originalSiegeFormation,
+      "F12 возвращает исходную формацию героя после осады");
 return failed;

@@ -161,6 +161,86 @@ namespace BannerlordAutopilot
             place != null && (place.IsTown || place.IsCastle) && place.MapFaction != null
             && party?.MapFaction != null && party.MapFaction.IsAtWarWith(place.MapFaction);
 
+        // Independent of the native AI: MainParty often receives no siege proposals at all.
+        // Count the militia as one strength per soldier and nearby visible enemy parties at
+        // full strength. This deliberately overestimates resistance rather than starting
+        // an assault on a deceptively empty garrison.
+        private static float SiegeDefenderStrength(Settlement place, MobileParty party)
+        {
+            float strength = Math.Max(0f, place.Town?.GarrisonParty?.Party.EstimatedStrength ?? 0f)
+                + Math.Max(0f, place.Militia);
+            foreach (var enemy in MobileParty.All)
+            {
+                if (enemy == null || enemy == party || enemy == place.Town?.GarrisonParty
+                    || !enemy.IsActive || !enemy.IsVisible || enemy.IsMilitia
+                    || enemy.CurrentSettlement != null || enemy.MapFaction == null
+                    || !party.MapFaction.IsAtWarWith(enemy.MapFaction)
+                    || enemy.Position.DistanceSquared(place.Position) > 35f * 35f) continue;
+                strength += Math.Max(0f, enemy.Party.EstimatedStrength);
+            }
+            return strength;
+        }
+
+        private static float SiegeAttackerStrength(MobileParty party)
+        {
+            float strength = Math.Max(0f, party.Party.EstimatedStrength);
+            if (party.Army?.LeaderParty == party)
+                foreach (var attached in party.AttachedParties)
+                    if (attached != null && attached != party && attached.Army == party.Army)
+                        strength += Math.Max(0f, attached.Party.EstimatedStrength);
+            return strength;
+        }
+
+        private bool TryFindSiegeTarget(MobileParty party, out AIBehaviorData target, out float score)
+        {
+            target = AIBehaviorData.Invalid;
+            score = 0f;
+            if (party?.MapFaction == null || !ControlsParty(party) || PreparationNeeded(party) != null)
+                return false;
+            float own = SiegeAttackerStrength(party);
+            var allies = party.Army == null ? AffordableArmyMembers(party) : new List<MobileParty>();
+            float assembled = own + allies.Sum(p => Math.Max(0f, p.Party.EstimatedStrength));
+            Settlement best = null;
+            bool gather = false;
+            foreach (var place in Settlement.All)
+            {
+                if (!EnemyFortress(place, party) || place.IsUnderSiege || place.IsUnderRaid) continue;
+                float defenders = SiegeDefenderStrength(place, party);
+                bool needsArmy = defenders > own * 1.5f;
+                if (needsArmy && (allies.Count == 0 || defenders > assembled * 1.5f)) continue;
+                float distance = (float)Math.Sqrt(Math.Max(0f, party.Position.DistanceSquared(place.Position)));
+                float candidateScore = 5f + Math.Min(3f, (needsArmy ? assembled : own) / Math.Max(1f, defenders))
+                    - distance / 200f;
+                if (candidateScore <= score) continue;
+                best = place;
+                gather = needsArmy;
+                score = candidateScore;
+            }
+            if (best == null) return false;
+            target = new AIBehaviorData(best, AiBehavior.BesiegeSettlement,
+                MobileParty.NavigationType.Default, gather, false, false);
+            return true;
+        }
+
+        private string SiegeTargetRejection(MobileParty party, Settlement place)
+        {
+            if (!EnemyFortress(place, party)) return "крепость больше не принадлежит врагу";
+            if (place.IsUnderSiege) return "крепость уже осаждают";
+            if (place.IsUnderRaid) return "поселение под налётом";
+            string preparation = PreparationNeeded(party);
+            if (preparation != null) return "поход не готов: " + preparation;
+            float defenders = SiegeDefenderStrength(place, party);
+            float own = SiegeAttackerStrength(party);
+            if (defenders <= own * 1.5f) return null;
+            var allies = party.Army == null ? AffordableArmyMembers(party) : new List<MobileParty>();
+            float assembled = own + allies.Sum(p => Math.Max(0f, p.Party.EstimatedStrength));
+            if (allies.Count > 0 && defenders <= assembled * 1.5f) return null;
+            return "защитники " + defenders.ToString("F1", CultureInfo.InvariantCulture)
+                + " > предел " + (assembled * 1.5f).ToString("F1", CultureInfo.InvariantCulture)
+                + " (наша сила " + own.ToString("F1", CultureInfo.InvariantCulture)
+                + ", доступная армия " + assembled.ToString("F1", CultureInfo.InvariantCulture) + ")";
+        }
+
         private static bool EnemyVillage(Settlement place, MobileParty party) => place?.IsVillage == true
             && !place.IsRaided && place.MapFaction != null && party?.MapFaction != null
             && party.MapFaction.IsAtWarWith(place.MapFaction);

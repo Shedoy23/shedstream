@@ -22,6 +22,104 @@ internal static partial class Program
     }
     static void ConquestTests()
     {
+        Try("пополнение до 90% идёт раньше осады и меняет поселение после посещения", () => {
+            var b=Fresh(); var castle=ConquestWorld(gold:1000); castle.Militia=1; Settlement.All.Add(castle);
+            var party=MobileParty.MainParty; party.Party.PartySizeLimit=100;
+            var first=new Settlement { Name="Первая деревня", IsVillage=true, MapFaction=party.MapFaction,
+                Position=new CampaignVec2 { X=1 } };
+            var second=new Settlement { Name="Вторая деревня", IsVillage=true, MapFaction=party.MapFaction,
+                Position=new CampaignVec2 { X=20 } };
+            foreach(var place in new[] { first, second }) {
+                var notable=new Hero(); notable.VolunteerTypes[0]=new CharacterObject { TestCost=17 };
+                place.Notables.Add(notable); Settlement.All.Add(place);
+            }
+            Enable(b); HourlyTick(b);
+            Check(party.TargetSettlement==first && party.DefaultBehavior==AiBehavior.GoToSettlement,
+                "при 10/100 набираем бойцов раньше доступной осады");
+            var services=(SettlementServices)typeof(AutopilotBehavior)
+                .GetField("_services",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).GetValue(b);
+            services.LoadPasses(first.StringId+"="+CampaignTime.Now.ToHours);
+            for(int hour=0; hour<6; hour++) HourlyTick(b);
+            Check(party.TargetSettlement==second,
+                "после посещения первой деревни выбираем другую, а не повторяем круг");
+            services.LoadPasses(first.StringId+"="+CampaignTime.Now.ToHours+";"
+                +second.StringId+"="+CampaignTime.Now.ToHours);
+            HourlyTick(b);
+            Check(party.TargetSettlement!=first,
+                "после обхода доступных мест не начинаем круг заново до истечения срока");
+            party.MemberRoster.AddToCounts(new CharacterObject(),80);
+            HourlyTick(b);
+            Check(party.TargetSettlement==castle && party.DefaultBehavior==AiBehavior.BesiegeSettlement,
+                "на 90/100 приоритет набора закончился и вернулся поход");
+        });
+        Try("самостоятельно выбираем слабую крепость без предложения движка", () => {
+            var b=Fresh(); var weak=ConquestWorld(); weak.Name="Слабый замок"; weak.Militia=10;
+            weak.Town.GarrisonParty=new MobileParty();
+            var strong=new Settlement { IsTown=true, Name="Сильный город", MapFaction=weak.MapFaction, Militia=20 };
+            Settlement.All.Add(weak); Settlement.All.Add(strong);
+            CampaignEventDispatcher.NextScores.Add((new AIBehaviorData(strong, AiBehavior.PatrolAroundPoint,
+                MobileParty.NavigationType.Default, false, false, false), 9f));
+            Enable(b); HourlyTick(b);
+            Check(MobileParty.MainParty.DefaultBehavior==AiBehavior.BesiegeSettlement
+                && MobileParty.MainParty.TargetSettlement==weak,
+                "цель осады создана модом, город свыше 1.5x отвергнут");
+        });
+        Try("отказ от осады записывает точный предел сил", () => {
+            var b=Fresh(); var castle=ConquestWorld(); castle.Name="Пограничный замок";
+            castle.Militia=10; Settlement.All.Add(castle);
+            CampaignEventDispatcher.NextScores.Add((new AIBehaviorData(castle, AiBehavior.PatrolAroundPoint,
+                MobileParty.NavigationType.Default, false, false, false), 2f));
+            Enable(b); HourlyTick(b);
+            Check(MobileParty.MainParty.DefaultBehavior==AiBehavior.BesiegeSettlement,
+                "слабый замок сначала выбран");
+            castle.Militia=16; for(int hour=0; hour<6; hour++) HourlyTick(b);
+            Check(AutopilotLog.Lines.Any(l => l.Contains("ПОХОД: прекращаем цель «Пограничный замок»")
+                && l.Contains("защитники 16.0 > предел 15.0")
+                && l.Contains("далее PatrolAroundPoint")),
+                "после роста обороны записаны обе силы и следующий приказ");
+        });
+        Try("близкий вражеский отряд входит в риск осады", () => {
+            var b=Fresh(); var castle=ConquestWorld(); castle.Militia=10; Settlement.All.Add(castle);
+            var relief=new MobileParty { MapFaction=castle.MapFaction, Position=castle.Position };
+            relief.MemberRoster.AddToCounts(new CharacterObject(), 6); MobileParty.All.Add(relief);
+            Enable(b); HourlyTick(b);
+            Check(MobileParty.MainParty.DefaultBehavior!=AiBehavior.BesiegeSettlement,
+                "подкрепление делает защиту сильнее 1.5x");
+        });
+        Try("для допустимой осады сначала собираем доступную армию", () => {
+            var b=Fresh(); var castle=ConquestWorld(); castle.Militia=20; Settlement.All.Add(castle);
+            var kingdom=new Kingdom(); kingdom.Enemies.Add(castle.MapFaction);
+            MobileParty.MainParty.MapFaction=kingdom; Clan.PlayerClan.Kingdom=kingdom; Clan.PlayerClan.Influence=10;
+            var ally=new MobileParty { MapFaction=kingdom }; ally.MemberRoster.AddToCounts(new CharacterObject(), 10);
+            MobileParty.MainParty.ThinkParamsCache.PossibleArmyMembersUponArmyCreation.Add(ally);
+            Enable(b); HourlyTick(b);
+            Check(MobileParty.MainParty.Army!=null && ally.Army==MobileParty.MainParty.Army
+                && Clan.PlayerClan.Influence==0,
+                "20 защитников превышают 1.5x отряда из 10, армия из 20 допустима");
+        });
+        Try("истощённый отряд не начинает самостоятельную осаду", () => {
+            var b=Fresh(); var castle=ConquestWorld(food:1); castle.Militia=1; Settlement.All.Add(castle);
+            Enable(b); HourlyTick(b);
+            Check(MobileParty.MainParty.DefaultBehavior!=AiBehavior.BesiegeSettlement,
+                "семидневный запас остаётся обязательным");
+        });
+        Try("стратегический аудит пишет риск, но не меняет приказ", () => {
+            var b=Fresh(); var castle=ConquestWorld(); castle.Militia=24;
+            var garrison=new MobileParty(); garrison.MemberRoster.AddToCounts(new CharacterObject(), 30);
+            castle.Town.GarrisonParty=garrison;
+            var enemy=new MobileParty { MapFaction=castle.MapFaction, Position=castle.Position };
+            enemy.MemberRoster.AddToCounts(new CharacterObject(), 45);
+            MobileParty.All.Add(enemy);
+            CampaignEventDispatcher.NextScores.Add((new AIBehaviorData(castle, AiBehavior.BesiegeSettlement,
+                MobileParty.NavigationType.Default, false, false, false), 3f));
+            Enable(b, AutopilotBehavior.Mode.Observe); HourlyTick(b);
+            Check(AutopilotLog.Lines.Any(l => l.Contains("СТРАТЕГИЯ [только наблюдение]")
+                && l.Contains("гарнизон 30") && l.Contains("ополчение 24")
+                && l.Contains("вражеских партий рядом 1 (сила 45)")),
+                "в журнале раздельно видны гарнизон, ополчение и видимый враг");
+            Check(MobileParty.MainParty.DefaultBehavior != AiBehavior.BesiegeSettlement,
+                "наблюдение не отдаёт приказ осады");
+        });
         Try("scoreboard result precedes actual simulation finish", () => {
             var b=Fresh(); ConquestWorld(); Enable(b); Hero.MainHero.IsWounded=true;
             PlayerEncounter.Current=new PlayerEncounter(); MobileParty.MainParty.MapEvent=PlayerEncounter.Battle=new MapEvent();

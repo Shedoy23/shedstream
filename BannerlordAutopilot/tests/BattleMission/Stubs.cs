@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace TaleWorlds.Core { public enum MissionMode { Deployment, Battle, Stealth, CutScene, Conversation } public enum AgentControllerType { Player, AI } }
+namespace TaleWorlds.Core { public enum MissionMode { Deployment, Battle, Stealth, CutScene, Conversation } public enum AgentControllerType { Player, AI } public enum FormationClass { Infantry, Ranged, Cavalry } }
 namespace TaleWorlds.Library { public static class InformationManager { public static bool Inquiry; public static bool IsAnyInquiryActive() => Inquiry; } }
 namespace TaleWorlds.CampaignSystem {
  public class Campaign { public static Campaign Current = new(); }
@@ -26,18 +26,19 @@ namespace TaleWorlds.MountAndBlade {
   public int StopUsingCalls, DisableScriptedCalls, RidingOrderCalls, SpeedResetCalls;
   public bool IsUsingGameObject = true; public AIStateFlag AIStateFlags = AIStateFlag.None;
   public CommonAIComponent CommonAIComponent = new(); public HumanAIComponent HumanAIComponent = new();
-  public Formation Formation; public Agent MountAgent; public RidingOrder.RidingOrderEnum LastRidingOrder; public bool IsActive() => Active;
+  public Formation Formation; public Agent MountAgent; public bool IsRangedCached; public RidingOrder.RidingOrderEnum LastRidingOrder; public bool IsActive() => Active;
   public void SetAlarmState(AIStateFlag value) { AlarmCalls++; } public void SetIsAIPaused(bool value) { if (!value) UnpauseCalls++; }
   public void ResetEnemyCaches() { ResetCalls++; } public void HandleStopUsingAction() { StopUsingCalls++; IsUsingGameObject = false; }
   public void DisableScriptedMovement() { DisableScriptedCalls++; } public void SetRidingOrder(RidingOrder.RidingOrderEnum value) { RidingOrderCalls++; LastRidingOrder=value; }
   public void SetMaximumSpeedLimit(float value, bool isMultiplier) { SpeedResetCalls++; }
  }
- public struct MovementOrder { public int Kind; public static MovementOrder MovementOrderCharge => new MovementOrder {Kind=1}; }
- public struct FiringOrder { public int Kind; public static FiringOrder FiringOrderFireAtWill => new FiringOrder {Kind=1}; }
- public class Formation { public int CountOfUnits=5; public MovementOrder Move; public FiringOrder FiringOrder; public ref readonly MovementOrder GetReadonlyMovementOrderReference()=>ref Move; public void SetMovementOrder(MovementOrder m){Move=m;} public void SetFiringOrder(FiringOrder f){FiringOrder=f;} public bool IsAIControlled; public int ChangedCalls; public RidingOrder RidingOrder = new(); public void SetControlledByAI(bool value, bool enforceNotSplittableByAI = false) { IsAIControlled = value; } public void OnUnitAddedOrRemoved() { ChangedCalls++; } }
+ public struct MovementOrder { public int Kind; public int OrderEnum => Kind; public static MovementOrder MovementOrderCharge => new MovementOrder {Kind=1}; }
+ public struct FiringOrder { public int Kind; public int OrderEnum => Kind; public static FiringOrder FiringOrderFireAtWill => new FiringOrder {Kind=1}; }
+ public class Formation { public int CountOfUnits=5; public FormationClass FormationIndex; public MovementOrder Move; public FiringOrder FiringOrder; public ref readonly MovementOrder GetReadonlyMovementOrderReference()=>ref Move; public void SetMovementOrder(MovementOrder m){Move=m;} public void SetFiringOrder(FiringOrder f){FiringOrder=f;} public bool IsAIControlled; public int ChangedCalls; public RidingOrder RidingOrder = new(); public void SetControlledByAI(bool value, bool enforceNotSplittableByAI = false) { IsAIControlled = value; } public void OnUnitAddedOrRemoved() { ChangedCalls++; } }
  public class TeamAIComponent {}
  public class Team {
   public TeamAIComponent TeamAI = new(); public List<Formation> FormationsIncludingEmpty = new();
+  public Formation GetFormation(FormationClass index) => FormationsIncludingEmpty.Find(f=>f.FormationIndex==index);
   public void DelegateCommandToAI() { foreach (var f in FormationsIncludingEmpty) f.SetControlledByAI(true); }
  }
  public class BattleDeploymentMissionController : MissionBehavior {

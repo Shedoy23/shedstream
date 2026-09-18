@@ -13,6 +13,7 @@ internal static partial class Program
         foreach (string condition in new[] { "full", "room", "food", "locked", "observe", "no_cash" })
         Try("sell trip " + condition, () => {
             var b=Fresh(); var w=MakeWorld(prisoners:false); var p=MobileParty.MainParty;
+            p.Party.PartySizeLimit=p.Party.NumberOfAllMembers; // Проверяем продажу при отсутствии потребности в найме.
             w.Place.Position=new CampaignVec2 { X=10 }; Settlement.All.Add(w.Place);
             var enemy = new TestFaction(); ((TestFaction)p.MapFaction).Enemies.Add(enemy);
             Settlement.All.Add(new Settlement { IsTown=true, MapFaction=enemy, Position=new CampaignVec2 { X=1 } });

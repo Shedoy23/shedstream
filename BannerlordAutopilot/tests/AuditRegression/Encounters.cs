@@ -99,6 +99,24 @@ internal static partial class Program
             b.RandomDialogsEnabled = true; b.PollDialogs();
             Check(c.Selected.SequenceEqual(new[] { id }), "мирный уход имеет приоритет над случайным объявлением вражды");
         });
+        foreach (string reply in new[] { "{=5KGuQb5C}We'll see who slays whom here.", "Ну, посмотрим, кто кого убьёт." })
+        Try("атакующий патруль: ответ боем без приказа EngageParty: " + reply, () =>
+        {
+            var b = Fresh(); Enable(b);
+            MobileParty.MainParty.MapFaction = new TestFaction();
+            var patrol = new MobileParty { MapFaction = new TestFaction() };
+            PlayerEncounter.Current = new PlayerEncounter { Defender = true };
+            PlayerEncounter.EncounteredMobileParty = patrol;
+            Campaign.Current.CurrentConversationContext = ConversationContext.PartyEncounter;
+            var c = Campaign.Current.ConversationManager;
+            c.ConversationParty = patrol; c.IsConversationInProgress = true;
+            c.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption
+                { Id = "mod_patrol_fight", Text = new TaleWorlds.Localization.TextObject(reply), IsClickable = true });
+            b.PollDialogs();
+            Check(c.Selected.SequenceEqual(new[] { "mod_patrol_fight" })
+                && b.CurrentMode == AutopilotBehavior.Mode.Apply,
+                "защитник принимает боевую реплику атакующего патруля");
+        });
         Try("преследуемый вражеский лорд: знакомство, вызов и подтверждение", () =>
         {
             var b = Fresh(); Enable(b);
@@ -115,6 +133,63 @@ internal static partial class Program
                 b.PollDialogs();
                 Check(c.Selected.LastOrDefault() == id, "штатная реплика лорду: " + id);
             }
+        });
+        foreach (bool escortDialog in new[] { false, true })
+        Try("вражеский караван: требование и атака: " + (escortDialog ? "escort" : "обычный"), () =>
+        {
+            var b = Fresh(); Enable(b);
+            var ours = new TestFaction(); var enemy = new TestFaction(); ours.Enemies.Add(enemy);
+            MobileParty.MainParty.MapFaction = ours;
+            var caravan = new MobileParty { MapFaction = enemy, IsCaravan = !escortDialog };
+            MobileParty.MainParty.TargetParty = caravan;
+            MobileParty.MainParty.DefaultBehavior = AiBehavior.EngageParty;
+            PlayerEncounter.Current = new PlayerEncounter(); PlayerEncounter.EncounteredMobileParty = caravan;
+            Campaign.Current.CurrentConversationContext = ConversationContext.PartyEncounter;
+            var c = Campaign.Current.ConversationManager;
+            c.ConversationParty = caravan; c.IsConversationInProgress = true;
+            string demand = escortDialog ? "adg:loot" : "caravan_loot";
+            string attack = escortDialog ? "adg:attack" : "player_decided_to_fight";
+            c.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption
+                { Id = "caravan_talk_leave", IsClickable = true });
+            c.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption
+                { Id = demand, Text = new TaleWorlds.Localization.TextObject("{=WOBy5UfY}Hand over your goods, or die!"), IsClickable = true });
+            b.PollDialogs();
+            Check(c.Selected.SequenceEqual(new[] { demand }), "выбрано требование товара, не уход");
+            c.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption
+                { Id = "player_decided_to_not_fight_1", IsClickable = true });
+            c.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption
+                { Id = attack, Text = new TaleWorlds.Localization.TextObject("{=EhxS7NQ4}So be it. Attack!"), IsClickable = true });
+            b.PollDialogs();
+            Check(c.Selected.SequenceEqual(new[] { demand, attack }), "выбрана атака, не отказ от боя");
+        });
+        Try("вражеский караван предлагает выкуп, затем сдаётся: доводим до боя", () =>
+        {
+            var b = Fresh(); Enable(b);
+            var ours = new TestFaction(); var enemy = new TestFaction(); ours.Enemies.Add(enemy);
+            MobileParty.MainParty.MapFaction = ours;
+            var caravan = new MobileParty { MapFaction = enemy, IsCaravan = true };
+            MobileParty.MainParty.TargetParty = caravan;
+            MobileParty.MainParty.DefaultBehavior = AiBehavior.EngageParty;
+            PlayerEncounter.Current = new PlayerEncounter(); PlayerEncounter.EncounteredMobileParty = caravan;
+            Campaign.Current.CurrentConversationContext = ConversationContext.PartyEncounter;
+            var c = Campaign.Current.ConversationManager;
+            c.ConversationParty = caravan; c.IsConversationInProgress = true;
+            c.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption
+                { Id = "player_decided_to_take_some_goods", IsClickable = true });
+            c.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption
+                { Id = "player_decided_to_take_everything", IsClickable = true });
+            b.PollDialogs();
+            Check(c.Selected.SequenceEqual(new[] { "player_decided_to_take_everything" }),
+                "выкуп отклонён, требуем всё");
+            c.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption
+                { Id = "player_do_not_take_prisoners", IsClickable = true });
+            c.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption
+                { Id = "player_decided_to_take_prisoner", IsClickable = true });
+            c.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption
+                { Id = "player_decided_to_force_fight", IsClickable = true });
+            b.PollDialogs();
+            Check(c.Selected.SequenceEqual(new[] { "player_decided_to_take_everything", "player_decided_to_force_fight" }),
+                "после сдачи выбираем бой, а не товар или плен");
         });
         Try("мирная встреча: недоступная реплика и чужой собеседник", () =>
         {

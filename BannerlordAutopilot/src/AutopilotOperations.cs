@@ -197,7 +197,15 @@ namespace BannerlordAutopilot
                     case "break_in_debrief_menu": OperationClick("break_in_debrief_continue"); break;
                     case "encounter_interrupted_siege_preparations":
                         if (!FriendlySiege(place, party)) return false;
-                        OperationClick("encounter_interrupted_siege_preparations_join_defend"); break;
+                        if (MenuDriver.CanInvoke("encounter_interrupted_siege_preparations_join_defend", out _))
+                            OperationClick("encounter_interrupted_siege_preparations_join_defend");
+                        else if (MenuDriver.CanInvoke("encounter_interrupted_siege_preparations_leave_town", out _))
+                        {
+                            AutopilotLog.Write("ОСАДА: помощь защитникам скрыта; покидаем «" + place.Name + "» штатной кнопкой");
+                            OperationClick("encounter_interrupted_siege_preparations_leave_town");
+                        }
+                        else Disable("осада: помощь защитникам и выход из поселения недоступны: " + MenuDriver.Describe());
+                        break;
                     case "menu_siege_strategies": ResumeOperationWait(); break;
                     case "join_encounter":
                     case "encounter_interrupted":

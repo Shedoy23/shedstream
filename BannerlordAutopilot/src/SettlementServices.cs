@@ -122,6 +122,10 @@ namespace BannerlordAutopilot
                    || CampaignTime.Now.ToHours - last >= ServiceLimits.PassIntervalHours;
         }
 
+        internal bool WasServicedRecently(Settlement settlement, double hours) =>
+            _lastPassHours.TryGetValue(settlement.StringId, out double last)
+            && CampaignTime.Now.ToHours - last < hours;
+
         /// <summary>Отметки проходов для сейва: «id=час;id=час». Строка — базовый тип
         /// сохранения: не нужно регистрировать контейнеры, и без мода ключ просто
         /// не прочитается.</summary>
@@ -410,6 +414,29 @@ namespace BannerlordAutopilot
             if (float.IsNaN(wage) || float.IsInfinity(wage) || wage < 0)
                 throw new InvalidOperationException("неизвестно жалование после найма");
             return Math.Max(Reserve(party), checked((int)Math.Ceiling(wage * ServiceLimits.ReserveWageDays)));
+        }
+
+        internal static bool HasAffordableRecruits(MobileParty party, Settlement settlement)
+        {
+            if (party == null || settlement == null || (!settlement.IsTown && !settlement.IsVillage)
+                || Hero.MainHero == null || party.Party.NumberOfAllMembers >= party.Party.PartySizeLimit)
+                return false;
+            // Native CanMainHeroRecruitTroops reads Settlement.CurrentSettlement, so it
+            // is only safe in Recruit after arrival, not while planning on the map.
+            GameModels models = Campaign.Current.Models;
+            int budget = Math.Min(ServiceLimits.MaxRecruitSpendPerPass,
+                Hero.MainHero.Gold - Reserve(party));
+            if (budget <= 0) return false;
+            foreach (Hero notable in settlement.Notables)
+            {
+                if (notable == null || !notable.CanHaveRecruits) continue;
+                List<CharacterObject> troops = HeroHelper.GetVolunteerTroopsOfHeroForRecruitment(notable);
+                for (int i = 0; i < troops.Count; i++)
+                    if (troops[i] != null && HeroHelper.HeroCanRecruitFromHero(Hero.MainHero, notable, i)
+                        && models.PartyWageModel.GetTroopRecruitmentCost(troops[i], Hero.MainHero).RoundedResultNumber <= budget)
+                        return true;
+            }
+            return false;
         }
 
         private static void Recruit(MobileParty party, Settlement settlement, int reserve)

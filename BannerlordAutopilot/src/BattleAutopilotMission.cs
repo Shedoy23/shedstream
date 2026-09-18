@@ -19,9 +19,15 @@ namespace BannerlordAutopilot
         private bool _exitRequested;
         private float _completedWait;
         private float _exitRetry;
+        private float _fieldOrderRefresh;
+        private bool _fieldAttackActive;
         private Agent _givenAgent;
         private bool _siegeDismountGiven;
+        private Formation _preSiegeHeroFormation;
+        private bool _siegeFormationChanged;
         private readonly List<Formation> _formationsGiven = new List<Formation>();
+        private readonly Dictionary<Formation, (bool AiControlled, MovementOrder Move, FiringOrder Fire)> _fieldOrders
+            = new Dictionary<Formation, (bool, MovementOrder, FiringOrder)>();
         private readonly Dictionary<Formation, (MovementOrder Move, FiringOrder Fire)> _hideoutOrders
             = new Dictionary<Formation, (MovementOrder, FiringOrder)>();
 
@@ -48,6 +54,16 @@ namespace BannerlordAutopilot
             if (!_controlGiven && Mission.IsDeploymentFinished && CanControlNow)
             {
                 GiveControlToAi();
+            }
+            if (_controlGiven && _fieldAttackActive
+                && Mission.Mode == MissionMode.Battle && !Mission.MissionEnded)
+            {
+                _fieldOrderRefresh += dt;
+                if (_fieldOrderRefresh >= 1f)
+                {
+                    _fieldOrderRefresh = 0f;
+                    RefreshFieldAttackOrders();
+                }
             }
         }
 
@@ -141,7 +157,13 @@ namespace BannerlordAutopilot
                     _formationsGiven.Add(formation);
                 }
             }
-            if (team.TeamAI != null) team.DelegateCommandToAI();
+            if (team.TeamAI != null && MobileParty.MainParty?.MapEvent?.IsSiegeAssault != true)
+            {
+                _fieldAttackActive = true;
+                RefreshFieldAttackOrders();
+                AutopilotLog.Write("БОЙ: " + _fieldOrders.Count + " формаций получили приказ атаковать");
+            }
+            else if (team.TeamAI != null) team.DelegateCommandToAI();
             else if (AutopilotBehavior.Instance?.IsOwnedHideoutBattle == true)
             {
                 foreach (Formation formation in team.FormationsIncludingEmpty)
@@ -160,6 +182,23 @@ namespace BannerlordAutopilot
             if (agent.IsUsingGameObject && !Mission.IsFriendlyMission)
             {
                 agent.HandleStopUsingAction();
+            }
+            if (MobileParty.MainParty?.MapEvent?.IsSiegeAssault == true && team.TeamAI != null)
+            {
+                // A dismounted hero can still belong to a mounted/ranged formation
+                // holding outside the walls. Follow the actual assault infantry.
+                Formation infantry = team.GetFormation(FormationClass.Infantry);
+                AutopilotLog.Write("БОЙ: герой перед штурмом: формация "
+                    + (agent.Formation?.FormationIndex.ToString() ?? "нет")
+                    + ", дальнее оружие с боеприпасами " + agent.IsRangedCached
+                    + ", пехоты " + (infantry?.CountOfUnits ?? 0));
+                if (infantry != null && infantry.CountOfUnits > 0 && agent.Formation != infantry)
+                {
+                    _preSiegeHeroFormation = agent.Formation;
+                    _siegeFormationChanged = true;
+                    agent.Formation = infantry;
+                    AutopilotLog.Write("БОЙ: герой присоединился к штурмовой пехоте");
+                }
             }
             agent.Controller = AgentControllerType.AI;
             agent.CommonAIComponent?.Initialize();
@@ -185,7 +224,32 @@ namespace BannerlordAutopilot
             agent.ResetEnemyCaches();
             agent.HumanAIComponent?.SyncBehaviorParamsIfNecessary();
             _controlGiven = true;
-            AutopilotLog.Write("БОЙ: герой и " + _formationsGiven.Count + " формаций переданы штатному AI");
+            AutopilotLog.Write(_fieldOrders.Count > 0
+                ? "БОЙ: герой передан штатному AI; формации наступают по приказу автопилота"
+                : "БОЙ: герой и " + _formationsGiven.Count + " формаций переданы штатному AI");
+        }
+
+        private void RefreshFieldAttackOrders()
+        {
+            Team team = Mission.PlayerTeam;
+            if (team?.TeamAI == null) return;
+            foreach (Formation formation in team.FormationsIncludingEmpty)
+            {
+                if (formation.CountOfUnits == 0) continue;
+                bool newlyActive = !_fieldOrders.ContainsKey(formation);
+                if (newlyActive)
+                    _fieldOrders[formation] = (formation.IsAIControlled,
+                        formation.GetReadonlyMovementOrderReference(), formation.FiringOrder);
+                if (newlyActive || formation.IsAIControlled
+                    || formation.GetReadonlyMovementOrderReference().OrderEnum != MovementOrder.MovementOrderCharge.OrderEnum
+                    || formation.FiringOrder.OrderEnum != FiringOrder.FiringOrderFireAtWill.OrderEnum)
+                {
+                    formation.SetControlledByAI(false);
+                    formation.SetMovementOrder(MovementOrder.MovementOrderCharge);
+                    formation.SetFiringOrder(FiringOrder.FiringOrderFireAtWill);
+                    if (newlyActive) AutopilotLog.Write("БОЙ: появившаяся формация " + formation.FormationIndex + " получила приказ атаковать");
+                }
+            }
         }
 
         private void RestorePlayerControl()
@@ -196,8 +260,17 @@ namespace BannerlordAutopilot
             }
             foreach (Formation formation in _formationsGiven)
             {
-                formation?.SetControlledByAI(false);
+                if (formation != null && !_fieldOrders.ContainsKey(formation)) formation.SetControlledByAI(false);
             }
+            foreach (var pair in _fieldOrders)
+            {
+                pair.Key.SetControlledByAI(pair.Value.AiControlled);
+                pair.Key.SetMovementOrder(pair.Value.Move);
+                pair.Key.SetFiringOrder(pair.Value.Fire);
+            }
+            _fieldOrders.Clear();
+            _fieldAttackActive = false;
+            _fieldOrderRefresh = 0f;
             foreach (var pair in _hideoutOrders)
             {
                 pair.Key.SetMovementOrder(pair.Value.Move);
@@ -207,6 +280,8 @@ namespace BannerlordAutopilot
             if (_givenAgent != null && _givenAgent.IsActive() && Mission.MainAgent == _givenAgent)
             {
                 _givenAgent.Controller = AgentControllerType.Player;
+                if (_siegeFormationChanged)
+                    _givenAgent.Formation = _preSiegeHeroFormation;
                 _givenAgent.AIStateFlags = Agent.AIStateFlag.None;
                 _givenAgent.SetMaximumSpeedLimit(-1f, false);
                 _givenAgent.MountAgent?.SetMaximumSpeedLimit(-1f, false);
@@ -217,6 +292,8 @@ namespace BannerlordAutopilot
             _formationsGiven.Clear();
             _givenAgent = null;
             _siegeDismountGiven = false;
+            _preSiegeHeroFormation = null;
+            _siegeFormationChanged = false;
             _controlGiven = false;
             AutopilotLog.Write("БОЙ: управление возвращено герою и формациям (F12 или переход миссии)");
         }
@@ -225,9 +302,13 @@ namespace BannerlordAutopilot
         {
             AutopilotBehavior.Instance?.OnOperationMissionEnded();
             _hideoutOrders.Clear();
+            _fieldOrders.Clear();
+            _fieldAttackActive = false;
             _formationsGiven.Clear();
             _givenAgent = null;
             _siegeDismountGiven = false;
+            _preSiegeHeroFormation = null;
+            _siegeFormationChanged = false;
             _controlGiven = false;
             base.OnEndMission();
         }

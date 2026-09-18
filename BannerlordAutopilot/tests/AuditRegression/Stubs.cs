@@ -38,7 +38,7 @@ namespace TaleWorlds.Library {
  public class InquiryData { public string TitleText; public bool IsAffirmativeOptionShown; public Action AffirmativeAction; }
  public static class InformationManager { public static event Action<InquiryData,bool,bool> OnShowInquiry; public static void ShowInquiry(InquiryData data,bool pause=false,bool prioritize=false){TestInquiryActive=true;OnShowInquiry?.Invoke(data,pause,prioritize);} public static bool TestInquiryActive; public static bool IsAnyInquiryActive() => TestInquiryActive; public static void HideInquiry() { TestInquiryActive=false; } }
 }
-namespace TaleWorlds.Localization { public class TextObject { private readonly string _text; public TextObject(string text) { _text = text; } public override string ToString() => _text; } }
+namespace TaleWorlds.Localization { public class TextObject { public string Value; public TextObject(string text) { Value = text; } public override string ToString() => Value; } }
 namespace TaleWorlds.CampaignSystem.Incidents {
  public class Incident {
   public string StringId {get;set;} public TaleWorlds.Localization.TextObject Title {get;set;} = new("");
@@ -51,12 +51,14 @@ namespace TaleWorlds.CampaignSystem.Incidents {
 }
 namespace TaleWorlds.CampaignSystem.Map { public interface IMapPoint {} }
 namespace TaleWorlds.MountAndBlade {
+ public class RidingOrder { public enum RidingOrderEnum { Mount, Dismount } }
+ public class Agent { public void SetRidingOrder(RidingOrder.RidingOrderEnum order) {} }
  public class MissionResult { public bool BattleResolved {get;set;} }
  public class Mission { public bool MissionEnded {get;set;} public MissionResult MissionResult {get;set;} }
  public class BattleEndLogic { public enum ExitResult { True, False } public ExitResult TryExit() => ExitResult.True; }
 }
 namespace TaleWorlds.CampaignSystem.Conversation {
- public struct ConversationSentenceOption { public string Id; public bool IsClickable; }
+ public struct ConversationSentenceOption { public string Id; public TaleWorlds.Localization.TextObject Text; public bool IsClickable; }
  public class ConversationManager { public bool IsConversationInProgress { get; set; } public MobileParty ConversationParty {get;set;} public List<ConversationSentenceOption> CurOptions {get;set;} = new(); public bool Ended; public int ContinueCalls; public List<string> Selected = new(); public bool IsConversationEnded() => Ended; public void DoOption(int index) { Selected.Add(CurOptions[index].Id); CurOptions.Clear(); Ended=true; } public void ContinueConversation() { ContinueCalls++; IsConversationInProgress=false; } }
 }
 namespace TaleWorlds.CampaignSystem.GameMenus {
@@ -105,8 +107,10 @@ namespace TaleWorlds.CampaignSystem {
  public partial class MapEventSide { public PartyBase LeaderParty { get; set; } }
  public partial class MapEvent { public MapEventSide AttackerSide { get; set; } = new(); public MapEventSide DefenderSide { get; set; } = new(); public Settlement MapEventSettlement { get; set; } public bool IsNavalMapEvent { get; set; } public bool IsHideoutBattle { get; set; } public bool IsSiegeAssault { get; set; } public TaleWorlds.Core.BattleSideEnum PlayerSide { get; set; } }
  public enum CampaignTimeControlMode { Stop, UnstoppablePlay, UnstoppableFastForward, StoppablePlay, StoppableFastForward, UnstoppableFastForwardForPartyWaitTime, FastForwardStop }
+ public enum ConversationContext { Default, CapturedLord, FreeOrCapturePrisonerHero, PartyEncounter, BarterResult }
  public class Campaign {
   public static Campaign Current = new();
+  public ConversationContext CurrentConversationContext;
   private CampaignTimeControlMode _mode = CampaignTimeControlMode.Stop;
   // Как в движке: при блокировке запись молча игнорируется.
   public CampaignTimeControlMode TimeControlMode { get => _mode; set { if (!TimeControlModeLock) _mode = value; } }
@@ -169,7 +173,7 @@ namespace TaleWorlds.CampaignSystem {
 }
 namespace TaleWorlds.CampaignSystem.Settlements {
  public class Hideout { public static List<Hideout> All { get; } = new(); public Settlement Settlement { get; set; } public bool IsSpotted { get; set; } public bool IsInfested { get; set; } public CampaignTime NextPossibleAttackTime { get; set; } }
- public class Town { public Settlement Settlement { get; set; } public int GetItemPrice(TaleWorlds.Core.EquipmentElement element, MobileParty party = null, bool isSelling = false) => element.Item.TestPrice; }
+ public class Town { public Settlement Settlement { get; set; } public MobileParty GarrisonParty { get; set; } public int GetItemPrice(TaleWorlds.Core.EquipmentElement element, MobileParty party = null, bool isSelling = false) => element.Item.TestPrice; }
  public class Village { public Settlement TradeBound { get; set; } public Settlement Bound { get; set; } }
  public class Settlement : IMapPoint {
   public static TaleWorlds.Library.MBReadOnlyList<Settlement> All { get; } = new();
@@ -183,6 +187,7 @@ namespace TaleWorlds.CampaignSystem.Settlements {
   public bool IsTown { get; set; }
   public bool IsCastle { get; set; }
   public bool IsRaided { get; set; }
+  public float Militia { get; set; }
   public bool IsUnderRaid { get; set; }
   public IFaction MapFaction { get; set; }
   public PartyBase Party { get; }
@@ -205,10 +210,13 @@ namespace TaleWorlds.CampaignSystem.Party {
   public void EnableAi() {}
  }
  public partial class MobileParty : IMapPoint {
+  public static TaleWorlds.Library.MBReadOnlyList<MobileParty> All { get; } = new();
+  public bool IsVisible { get; set; } = true;
+  public bool IsMilitia { get; set; }
   public bool IsCurrentlyAtSea { get; set; }
   public enum NavigationType { None, Default }
   public static MobileParty MainParty = new();
-  public bool IsActive=true, IsMoving; public bool IsBandit {get;set;} public MapEvent MapEvent; public Army Army;
+  public bool IsActive=true, IsMoving; public bool IsBandit {get;set;} public bool IsCaravan {get;set;} public MapEvent MapEvent; public Army Army;
   public TaleWorlds.CampaignSystem.Siege.SiegeEvent SiegeEvent { get; set; }
   public Settlement CurrentSettlement, BesiegedSettlement, LastVisitedSettlement, TargetSettlement;
   public MobileParty TargetParty;
@@ -233,6 +241,7 @@ namespace TaleWorlds.CampaignSystem.Party {
  }
  // PartyBase (105803): ростеры партии или поселения.
  public partial class PartyBase {
+  public float EstimatedStrength => MemberRoster.TotalManCount;
   public IFaction MapFaction { get; set; }
   public static PartyBase MainParty => MobileParty.MainParty?.Party;
   public TroopRoster MemberRoster { get; } = TroopRoster.CreateDummyTroopRoster();

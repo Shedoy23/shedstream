@@ -63,6 +63,30 @@ internal static partial class Program
             Check(clicks==0,"F10 не прорывается");
             Enable(b); b.PollState(); Check(clicks==0,"условия прорыва не обходятся");
         });
+        Try("осада прервала отдых: скрыта помощь, доступен выход", () => {
+            var b=Fresh(); var s=Siege(); s.Name="Диатма";
+            MobileParty.MainParty.CurrentSettlement=s;
+            var menu=new GameMenu { StringId="encounter_interrupted_siege_preparations" };
+            menu.Options.Add(new GameMenuOption { IdString="encounter_interrupted_siege_preparations_join_defend",
+                Condition=()=>false, Consequence=()=>throw new Exception("скрытая помощь нажата") });
+            menu.Options.Add(new GameMenuOption { IdString="encounter_interrupted_siege_preparations_leave_town",
+                Consequence=()=>PlayerEncounter.Finish() });
+            Show(menu); Enable(b); b.PollState();
+            Check(MenuContext.Invoked.SequenceEqual(new[]{"encounter_interrupted_siege_preparations_leave_town"})
+                  && b.CurrentMode==AutopilotBehavior.Mode.Apply && MobileParty.MainParty.CurrentSettlement==null,
+                  "при скрытой обороне нажата только штатная кнопка выхода, автопилот остался включён");
+            Check(AutopilotLog.Lines.Any(l=>l.Contains("ОСАДА: помощь защитникам скрыта") && l.Contains("Диатма")),
+                  "причина ухода из города видна в журнале");
+        });
+        Try("осада прервала отдых: доступная оборона приоритетнее выхода", () => {
+            var b=Fresh(); var s=Siege(); MobileParty.MainParty.CurrentSettlement=s;
+            var menu=new GameMenu { StringId="encounter_interrupted_siege_preparations" };
+            menu.Options.Add(new GameMenuOption { IdString="encounter_interrupted_siege_preparations_join_defend" });
+            menu.Options.Add(new GameMenuOption { IdString="encounter_interrupted_siege_preparations_leave_town" });
+            Show(menu); Enable(b); b.PollState();
+            Check(MenuContext.Invoked.SequenceEqual(new[]{"encounter_interrupted_siege_preparations_join_defend"}),
+                  "доступная помощь защитникам сохраняет прежний приоритет");
+        });
         Try("убежища: известная цель", () => {
             var b=Fresh(); Hideout.All.Clear(); CampaignTime.TestHours=12;
             Camp(1,false); var near=Camp(8); Camp(30); Enable(b); HourlyTick(b);

@@ -399,9 +399,9 @@ internal static partial class Program
             Check(party.DefaultBehavior==AiBehavior.BesiegeSettlement && party.TargetSettlement==castle,
                 "приказ осады отдан");
             int holds=party.HoldCalls;
-            HourlyTick(b); HourlyTick(b); HourlyTick(b);
+            for(int i=0;i<8;i++) HourlyTick(b);
             Check(AutopilotLog.Lines.Any(l => l.Contains("ЗАСТРЯЛИ")),
-                "три часа без движения при живом времени замечены и записаны");
+                "шесть часов без движения при живом времени замечены и записаны");
             Check(party.HoldCalls>holds,
                 "поведение сброшено в Hold — иначе движок примет приказ за уже выданный и движение не вернёт");
         });
@@ -409,7 +409,7 @@ internal static partial class Program
             var b=Fresh(); var castle=ConquestWorld(gold:1000); castle.Militia=1; Settlement.All.Add(castle);
             var party=MobileParty.MainParty; party.Party.PartySizeLimit=10;
             Enable(b); HourlyTick(b);
-            for(int i=0;i<12;i++) HourlyTick(b);
+            for(int i=0;i<24;i++) HourlyTick(b);
             Check(AutopilotLog.Lines.Any(l => l.Contains("ЗАСТРЯЛИ") && l.Contains("снята")),
                 "после двух безуспешных перевыдач цель снята с записью в журнал");
             Check(party.TargetSettlement!=castle || party.DefaultBehavior!=AiBehavior.BesiegeSettlement,
@@ -419,7 +419,7 @@ internal static partial class Program
             var b=Fresh(); var castle=ConquestWorld(gold:1000); castle.Militia=1; Settlement.All.Add(castle);
             var party=MobileParty.MainParty; party.Party.PartySizeLimit=10;
             Enable(b); HourlyTick(b);
-            for(int i=1;i<=6;i++){ party.Position=new CampaignVec2 { X=i*3f }; HourlyTick(b); }
+            for(int i=1;i<=12;i++){ party.Position=new CampaignVec2 { X=i*3f }; HourlyTick(b); }
             Check(!AutopilotLog.Lines.Any(l => l.Contains("ЗАСТРЯЛИ")),
                 "пока партия двигается, сторож не вмешивается");
         });

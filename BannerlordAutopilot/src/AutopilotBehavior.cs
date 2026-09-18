@@ -226,6 +226,20 @@ namespace BannerlordAutopilot
         private int _kingdomDecisionsResolvedThisSession;
         private object _lastIncidentLogged;
         private int _incidentHoldPolls;
+        private string _moveWatchKey;
+        private CampaignVec2 _moveWatchPosition;
+        private int _moveWatchHours;
+        private int _moveWatchNudges;
+        private Settlement _stuckTarget;
+        private double _stuckTargetUntil;
+
+        /// <summary>Сколько игровых часов партия может простоять под приказом
+        /// «ехать», прежде чем это считается застреванием, сколько раз приказ
+        /// перевыдаётся и на сколько часов снимается недостижимая цель.</summary>
+        private const int StuckHours = 6;
+        private const int StuckNudges = 2;
+        private const double StuckTargetAvoidHours = 24;
+        private const float MovedEpsilon = 0.01f;
 
         /// <summary>Сколько опросов (по 0.5 с) ждём показа выпавшего события.
         /// Движок показывает его на ближайшем Campaign.Tick, то есть обычно
@@ -279,6 +293,11 @@ namespace BannerlordAutopilot
             _waitingSinceHours = -1;
             _longStayWarned = false;
             _incidentHoldPolls = 0;
+            _moveWatchKey = null;
+            _moveWatchHours = 0;
+            _moveWatchNudges = 0;
+            _stuckTarget = null;
+            _stuckTargetUntil = 0;
             _hasPendingDecision = false;
             _hoursSinceThink = 0;
             _lastCampaignHours = -1;
@@ -1973,6 +1992,7 @@ namespace BannerlordAutopilot
             }
             if (_gatheringArmy != null && _gatheringArmy == party.Army) return;
             WriteWeeklyProgress(party);
+            WatchMovement(party);
 
             // Думать можно на свободной карте и во время ожидания в поселении.
             // Всё прочее — переходы меню, в них решать нечего.
@@ -2439,6 +2459,105 @@ namespace BannerlordAutopilot
             return rawScore - penalty;
         }
 
+        /// <summary>Приказ принят, а партия стоит. Проверяется по НАБЛЮДАЕМОМУ
+        /// эффекту — сдвинулась ли позиция за игровой час, — а не по тому, что
+        /// движок принял вызов.
+        ///
+        /// Почему это вообще бывает. Движение задаёт не приказ, а сеттер
+        /// MobileParty.DefaultBehavior, и только когда значение СМЕНИЛОСЬ
+        /// (100715-100725 → RecalculateShortTermBehavior). При этом
+        /// SetMoveBesiegeSettlement (104002-104012) сначала сбрасывает параметры
+        /// движения и, в отличие от SetMoveGoToSettlement (103923-103931), не
+        /// выставляет ни TargetPosition, ни MoveTargetPoint. Плюс сам
+        /// SetPartyAiAction пропускает вызов, если поведение и цель уже те же
+        /// (228351-228362). Итог: приказ «повторить» ничего не чинит, а мод,
+        /// видя «цель та же», молчал часами — 18.09 партия так простояла
+        /// у Фрактори и в 14:43, и в 18:38 при идущем времени.
+        ///
+        /// Что делаем. Три часа без движения — пишем полное состояние движка и
+        /// перевыдаём приказ, СНАЧАЛА сбив поведение в Hold: только смена
+        /// значения возвращает движение. Два раза не помогло — снимаем цель на
+        /// сутки и берём следующую. Это не догадка о причине конкретного
+        /// застревания: причина застревания записывается в журнал, а мод в
+        /// любом случае перестаёт стоять.
+        ///
+        /// Порог в шесть часов взят не на глаз: это штатная длительность
+        /// расстройства партии после боя (DefaultPartyImpairmentModel,
+        /// 64569-64578), то есть самая долгая стоянка, которую движок считает
+        /// нормальной. Само расстройство при этом исключено отдельно — партия в
+        /// нём стоит по праву.</summary>
+        private void WatchMovement(MobileParty party)
+        {
+            if (_mode != Mode.Apply || !IsTravelBehavior(party.DefaultBehavior)
+                || party.CurrentSettlement != null || party.MapEvent != null
+                || party.SiegeEvent != null || party.BesiegedSettlement != null
+                || party.Army != null || PlayerEncounter.Current != null
+                || party.IsDisorganized)
+            {
+                _moveWatchKey = null;
+                _moveWatchHours = 0;
+                _moveWatchNudges = 0;
+                return;
+            }
+
+            string key = party.DefaultBehavior + "|"
+                         + (party.TargetSettlement != null ? party.TargetSettlement.Name.ToString() : "точка");
+            if (key != _moveWatchKey || party.Position.DistanceSquared(_moveWatchPosition) > MovedEpsilon)
+            {
+                _moveWatchKey = key;
+                _moveWatchPosition = party.Position;
+                _moveWatchHours = 0;
+                _moveWatchNudges = 0;
+                return;
+            }
+
+            if (++_moveWatchHours < StuckHours)
+            {
+                return;
+            }
+            _moveWatchHours = 0;
+
+            if (_moveWatchNudges < StuckNudges)
+            {
+                _moveWatchNudges++;
+                AutopilotLog.Write("ЗАСТРЯЛИ: приказ " + key + " принят, но за " + StuckHours
+                                   + " ч. партия не сдвинулась (" + Where(party)
+                                   + "); перевыдаю приказ, попытка " + _moveWatchNudges);
+                LogCurrentState("при застревании");
+                party.SetMoveModeHold();   // движение вернёт только СМЕНА поведения
+                _lastTargetKey = null;     // и пересчёт должен выдать приказ заново
+                return;
+            }
+
+            Settlement target = party.TargetSettlement;
+            if (target != null)
+            {
+                _stuckTarget = target;
+                _stuckTargetUntil = CampaignTime.Now.ToHours + StuckTargetAvoidHours;
+                AutopilotLog.Write("ЗАСТРЯЛИ: до «" + target.Name + "» приказ партию не двигает — цель снята на "
+                                   + StuckTargetAvoidHours.ToString("F0", CultureInfo.InvariantCulture)
+                                   + " ч., беру следующую");
+            }
+            else
+            {
+                AutopilotLog.Write("ЗАСТРЯЛИ: приказ " + key + " партию не двигает, беру следующую цель");
+            }
+            party.SetMoveModeHold();
+            _lastTargetKey = null;
+            _moveWatchKey = null;
+            _moveWatchNudges = 0;
+        }
+
+        /// <summary>Приказы, под которыми партия обязана ехать. Патруль и
+        /// сопровождение сюда не входят: там стоянка бывает штатной.</summary>
+        private static bool IsTravelBehavior(AiBehavior behavior)
+        {
+            return behavior == AiBehavior.GoToSettlement
+                   || behavior == AiBehavior.BesiegeSettlement
+                   || behavior == AiBehavior.RaidSettlement
+                   || behavior == AiBehavior.DefendSettlement;
+        }
+
         private static string DecisionKey(AIBehaviorData data)
         {
             return data.AiBehavior + "|" + (data.Party != null ? data.Party.ToString() : data.Position.ToString());
@@ -2515,6 +2634,13 @@ namespace BannerlordAutopilot
         /// <summary>Почему решение штатного AI автопилот не выполняет. null — выполняет.</summary>
         private string WhyNotApplicable(AIBehaviorData data)
         {
+            // Цель, под приказ на которую партия не сдвинулась с места, временно
+            // не предлагаем: иначе тот же приказ выдаётся снова и снова.
+            if (_stuckTarget != null && CampaignTime.Now.ToHours < _stuckTargetUntil
+                && ReferenceEquals(data.Party, _stuckTarget))
+            {
+                return "приказ туда не двигал партию, цель снята до " + _stuckTargetUntil.ToString("F0", CultureInfo.InvariantCulture) + " ч.";
+            }
             if (data.WillGatherArmy)
             {
                 if (!ControlsParty(MobileParty.MainParty)) return "следуем другой армии";

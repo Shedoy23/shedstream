@@ -307,6 +307,9 @@ namespace BannerlordAutopilot
             // уже после выхода и упадёт на чужом null). Нужна и запись: предел
             // ожидания снимает очередь сам.
             MemberOf(mapState, "NextIncident", Inst, incident, needWrite: true);
+            // Партия в расстройстве после боя стоит по праву: сторож движения
+            // обязан отличать её от застрявшей.
+            MemberOf(typeof(MobileParty), "IsDisorganized", Inst, typeof(bool));
             MemberOf(incident, "StringId", Inst, typeof(string));
             MemberOf(incident, "Title", Inst, textObject);
             MemberOf(incident, "NumOfOptions", Inst, typeof(int));

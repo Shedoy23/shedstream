@@ -219,7 +219,7 @@ namespace TaleWorlds.CampaignSystem.Party {
   public bool IsCurrentlyAtSea { get; set; }
   public enum NavigationType { None, Default }
   public static MobileParty MainParty = new();
-  public bool IsActive=true, IsMoving; public bool IsBandit {get;set;} public bool IsCaravan {get;set;} public MapEvent MapEvent; public Army Army;
+  public bool IsActive=true, IsMoving; public bool IsDisorganized; public bool IsBandit {get;set;} public bool IsCaravan {get;set;} public MapEvent MapEvent; public Army Army;
   public TaleWorlds.CampaignSystem.Siege.SiegeEvent SiegeEvent { get; set; }
   public Settlement CurrentSettlement, BesiegedSettlement, LastVisitedSettlement, TargetSettlement;
   public MobileParty TargetParty;

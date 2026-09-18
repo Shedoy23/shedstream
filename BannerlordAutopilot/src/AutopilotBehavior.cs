@@ -225,6 +225,12 @@ namespace BannerlordAutopilot
         private int _incidentsResolvedThisSession;
         private int _kingdomDecisionsResolvedThisSession;
         private object _lastIncidentLogged;
+        private int _incidentHoldPolls;
+
+        /// <summary>Сколько опросов (по 0.5 с) ждём показа выпавшего события.
+        /// Движок показывает его на ближайшем Campaign.Tick, то есть обычно
+        /// хватает одного; предел — на случай, если показа не будет вовсе.</summary>
+        private const int IncidentHoldPolls = 20;
 
         /// <summary>Что выключение реально сделало с партией — для сообщения на
         /// экране. Раньше F12 всегда писал «движение остановлено, состояние AI
@@ -272,6 +278,7 @@ namespace BannerlordAutopilot
             _serviceBlocked.Clear();
             _waitingSinceHours = -1;
             _longStayWarned = false;
+            _incidentHoldPolls = 0;
             _hasPendingDecision = false;
             _hoursSinceThink = 0;
             _lastCampaignHours = -1;
@@ -624,6 +631,11 @@ namespace BannerlordAutopilot
                 return false; // под экраном или окном меню не трогаем; затянется — запишет сторож
             }
 
+            if (HoldExitForQueuedIncident(party, peaceful))
+            {
+                return false;
+            }
+
             string menuId = MenuDriver.CurrentMenuId;
             if (IsWaiting(menuId))
             {
@@ -683,6 +695,51 @@ namespace BannerlordAutopilot
                             + MenuDriver.Describe());
                     return false;
             }
+        }
+
+        /// <summary>true — ничего в поселении не делаем: движок ещё не показал
+        /// выпавшее событие, а выйти до показа — уронить игру.
+        ///
+        /// Выпавшее на входе событие движок кладёт в MapState.NextIncident
+        /// (IncidentsCampaignBehaviour.InvokeIncident, 190449-190456), а условия
+        /// проверяет на СЛЕДУЮЩЕМ Campaign.Tick (10136-10143). Условия пяти
+        /// ванильных событий с триггером «вход» читают MainParty.CurrentSettlement
+        /// без проверки на null — incident_hammer_of_the_sun (193255),
+        /// through_proper_channels (192377), the_quiet_life (192768),
+        /// occupational_safety (192852), jobs_for_the_lads (192925). Человек так не
+        /// успевает, автопилот выходит за ту же секунду: 18.09 14:34:34 игра
+        /// закрылась с 0xC0000005 внутри условия hammer_of_the_sun
+        /// (evidence/crash-20260918-143427-stack.txt).
+        ///
+        /// Держим выход, пока очередь не опустеет: событие покажется, и его
+        /// разберёт TryHandleMapIncident, как любое другое. Показа нет за предел
+        /// опросов — снимаем очередь сами: потерять одно случайное событие лучше,
+        /// чем встать в поселении навсегда.</summary>
+        private bool HoldExitForQueuedIncident(MobileParty party, Settlement settlement)
+        {
+            MapState map = Game.Current?.GameStateManager?.ActiveState as MapState;
+            if (party.CurrentSettlement == null || map == null || map.NextIncident == null)
+            {
+                _incidentHoldPolls = 0;
+                return false;
+            }
+
+            _incidentHoldPolls++;
+            if (_incidentHoldPolls == 1)
+            {
+                AutopilotLog.Write("  СОБЫТИЕ в очереди: выход из «" + settlement.Name
+                                   + "» придержан до показа");
+            }
+            if (_incidentHoldPolls <= IncidentHoldPolls)
+            {
+                return true;
+            }
+
+            map.NextIncident = null;
+            AutopilotLog.Write("  СОБЫТИЕ не показано за " + IncidentHoldPolls
+                               + " опросов — снято из очереди, выходим из «" + settlement.Name + "»");
+            _incidentHoldPolls = 0;
+            return false;
         }
 
         private static bool IsWaiting(string menuId)

@@ -302,6 +302,11 @@ namespace BannerlordAutopilot
             // Incident API, а слой закрывается тем же MapScreen, что и кнопка UI.
             Type incident = TypeNamed(campaignAssembly, "TaleWorlds.CampaignSystem.Incidents.Incident");
             Type textObject = LoadedType("TaleWorlds.Localization.TextObject", "TaleWorlds.Localization");
+            // Очередь выпавшего события: по ней автопилот понимает, что выходить
+            // из поселения ещё нельзя (Campaign.Tick 10136-10143 проверит условие
+            // уже после выхода и упадёт на чужом null). Нужна и запись: предел
+            // ожидания снимает очередь сам.
+            MemberOf(mapState, "NextIncident", Inst, incident, needWrite: true);
             MemberOf(incident, "StringId", Inst, typeof(string));
             MemberOf(incident, "Title", Inst, textObject);
             MemberOf(incident, "NumOfOptions", Inst, typeof(int));

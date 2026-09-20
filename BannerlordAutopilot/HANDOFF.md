@@ -1,5 +1,20 @@
 # Продолжение после Claude: цель — завоевать карту
 
+**20.09.2026 — установлен сторонний Coherent War AI для Bannerlord 1.4.8.**
+Источник: `Else123/BannerlordCoherentWarAI`, зафиксированный коммит `37643b0`;
+локальная копия: `D:/shedlink-build/third-party/BannerlordCoherentWarAI-37643b0`.
+Его тесты прошли 328/328, сборка Release — 0 предупреждений / 0 ошибок.
+Игра и лаунчер при установке были закрыты. DLL установлена в
+`Modules/CoherentWarAI`, SHA-256 исходной и установленной совпал:
+`52CB5C4041018B36DF987918139705C5935DE0D8DC6C339D93F20720B0B25A4D`.
+Мод включён в `LauncherData.xml`; резерв конфигурации до включения:
+`LauncherData.before-CoherentWarAI-20260920-2215.xml`. Зависимости
+Harmony/ButterLib/UIExtenderEx/MCM уже были установлены и включены. ShedLink
+и Autopilot не заменяют его три модели напрямую; Autopilot будет читать
+активную ArmyManagement-модель через `Campaign.Current.Models`. Живой запуск
+ещё не выполнен: после старта проверить лог CoherentWarAI на строку
+`CoherentWarAI active` и отсутствие исключений, затем наблюдать одну войну.
+
 **Установлено 18.09 20:41:18 +05: `1dbae6a` (окна карты разбираются до осадных опросов).**
 Игра и лаунчер закрыты — проверено по процессам. SHA-256 DLL в игре совпал со
 сборкой: `FBE96215ADE298D47FDDB2CF70C8EF0FF604B4C7C51E7F0D2B11C2C035089397`;

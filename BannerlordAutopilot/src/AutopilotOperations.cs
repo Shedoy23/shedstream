@@ -117,7 +117,16 @@ namespace BannerlordAutopilot
             var battle = party?.MapEvent;
             if (_mode != Mode.Apply || _operationSettlement == null || battle == null
                 || battle.IsNavalMapEvent || PlayerEncounter.Current == null
-                || PlayerEncounter.Battle != battle || battle.MapEventSettlement != _operationSettlement) return false;
+                || battle.MapEventSettlement != _operationSettlement) return false;
+
+            // When a relief army attacks the player's besieger camp, Bannerlord
+            // publishes the same MapEvent through EncounteredBattle first.  The
+            // PlayerEncounter.Battle property can remain null until after the
+            // encounter menu's Attack consequence. Requiring Battle here made
+            // the autopilot reject its own siege-outside fight, switch itself
+            // off, and leave the visible "Attack" button to the player.
+            var encounterBattle = PlayerEncounter.EncounteredBattle;
+            if (PlayerEncounter.Battle != battle && encounterBattle != battle) return false;
             return (_operationSettlement.IsHideout && _hideoutAttackRequested && battle.IsHideoutBattle)
                 || (_operationSettlement == _raidSettlement && battle.IsRaid)
                 || (_operationSettlement == _offensiveSiege && (battle.IsSallyOut || battle.IsSiegeOutside))

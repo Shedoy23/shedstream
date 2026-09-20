@@ -508,6 +508,32 @@ internal static partial class Program
             MobileParty.MainParty.MapEvent = PlayerEncounter.Battle = battle;
             Check(b.IsOwnedOperationBattle(MobileParty.MainParty), "наша наступательная осада поддержана боевой миссией");
         });
+        Try("осада: армия деблокирования получает автоматическую атаку, затем осада продолжается", () => {
+            var b = Fresh(); var castle = ConquestWorld(); Enable(b);
+            var party = MobileParty.MainParty;
+            party.TargetSettlement = castle; party.DefaultBehavior = AiBehavior.BesiegeSettlement;
+            PlayerEncounter.Current = new PlayerEncounter(); PlayerEncounter.EncounterSettlement = castle;
+            var siege = new SiegeEvent { BesiegedSettlement = castle }; siege.BesiegerCamp.LeaderParty = party;
+            var wait = new GameMenu { StringId="menu_siege_strategies", IsWaitMenu=true };
+            Show(Menu("castle_outside", "town_besiege", () => { party.SiegeEvent=siege; Show(wait); }));
+            b.PollState(); b.PollState();
+
+            // Live 20.09: during the attack on the besieger camp the engine had
+            // already exposed EncounteredBattle, while Battle was still null.
+            int attacks = 0;
+            var relief = new MapEvent { MapEventSettlement=castle, IsSiegeOutside=true, PlayerSide=BattleSideEnum.Defender };
+            party.MapEvent = relief; PlayerEncounter.Battle = null; PlayerEncounter.EncounteredBattle = relief;
+            Show(Menu("encounter", "attack", () => attacks++));
+            b.PollState();
+            Check(attacks==1 && b.CurrentMode==AutopilotBehavior.Mode.Apply,
+                "деблокирующая армия атакована штатной кнопкой, автопилот не выключен");
+
+            party.MapEvent=null; PlayerEncounter.Current=null; PlayerEncounter.Battle=null; PlayerEncounter.EncounteredBattle=null;
+            party.SiegeEvent=siege; PlayerEncounter.Current=new PlayerEncounter(); PlayerEncounter.EncounterSettlement=castle;
+            Show(wait); b.PollState();
+            Check(wait.IsWaitActive && b.CurrentMode==AutopilotBehavior.Mode.Apply,
+                "после полевого боя ожидание строительства осады возобновлено");
+        });
     }
 }
 namespace TaleWorlds.CampaignSystem.Siege

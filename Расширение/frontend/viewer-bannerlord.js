@@ -4737,8 +4737,25 @@ function loadBannerlordKingdomMgmt() {
         : `<div style="font-size:11px;color:#adadb8;margin-bottom:6px;">Клан независим — без королевства.</div>`;
     // 2026-06-07 — создать/вступить инлайн (lazy <details>): поле имени переживает
     // 8s-poll (форма рендерится при раскрытии, не на каждом тике).
+    const supporterCount = Array.isArray(info?.rebellion_supporters) ? info.rebellion_supporters.length : 0;
+    const supporterRequired = Number(info?.rebellion_supporters_required || 2);
+    const supporterNames = (info?.rebellion_supporters || []).map(s => escapeHtml(s.name || '?')).join(', ');
+    const rebellionAction = (hasKingdom && info && !info.is_ruler && info.is_clan_leader)
+        ? `<details data-bnr-details="kingdom-create" ${_bnrDetailsAttr('kingdom-create')} style="margin-bottom:4px;">
+                <summary title="Поднять восстание и создать своё королевство. Нужны минимум ${supporterRequired} клана-сторонника."
+                         style="list-style:none;cursor:pointer;width:100%;box-sizing:border-box;
+                                font-size:12px;padding:7px;border-radius:3px;background:#7c2d12;color:#fbbf24;font-weight:700;">
+                    ⚔ Поднять восстание (${supporterCount}/${supporterRequired} сторонников)
+                </summary>
+                <div id="bnr-kingdom-create-slot" style="padding-top:6px;"></div>
+           </details>
+           <div style="font-size:10px;color:${supporterCount >= supporterRequired ? '#86efac' : '#fca5a5'};margin:2px 2px 6px;line-height:1.35;">
+             ${supporterNames ? `Сторонники: ${supporterNames}.` : 'Сторонников пока нет.'}
+             Нужны личные вассалы или отношения от +${Number(info?.rebellion_relation_required || 50)} с главой клана.
+           </div>`
+        : '';
     const actions = hasKingdom
-        ? `<button class="extra-btn bnr-kingdom-leave"
+        ? `${rebellionAction}<button class="extra-btn bnr-kingdom-leave"
                    title="Вывести клан из королевства — бесплатно."
                    style="width:100%;font-size:12px;padding:7px;background:#7f1d1d;color:#fca5a5;">
                 🚪 Покинуть королевство
@@ -4822,10 +4839,17 @@ function loadBannerlordKingdomMgmt() {
 function _renderCreateKingdomInline() {
     const slot = document.getElementById('bnr-kingdom-create-slot');
     if (!slot) return;
+    const info = _bannerlordLastHero?.hero?.kingdom_info || null;
+    const isRebellion = !!(_bannerlordLastHero?.hero?.kingdom_name && info && !info.is_ruler);
+    const supporterCount = Array.isArray(info?.rebellion_supporters) ? info.rebellion_supporters.length : 0;
+    const supporterRequired = Number(info?.rebellion_supporters_required || 2);
     slot.innerHTML = `
         <div style="background:#18181b;border:1px solid #3d3d3f;border-radius:6px;padding:12px;">
             <div style="font-size:11px;color:#adadb8;margin-bottom:10px;line-height:1.4;">
-                Твой клан станет правящим в новом королевстве. Списывается
+                ${isRebellion
+                    ? `Ты заберёшь владения своего клана, а подтверждённые сторонники перейдут вместе со своими феодами. Сторонники: <b style="color:${supporterCount >= supporterRequired ? '#86efac' : '#fca5a5'};">${supporterCount}/${supporterRequired}</b>.`
+                    : 'Твой независимый клан станет правящим в новом королевстве. Феоды для основания не нужны.'}
+                Списывается
                 <b style="color:#fbbf24;">${_bnrGoldLabel('create_kingdom', 5000000)} динаров</b> + бонус: 2K влияния и
                 2M kingdom wallet. Имя получит префикс <code>[BLink]</code>.
             </div>
@@ -4838,7 +4862,7 @@ function _renderCreateKingdomInline() {
             <button id="bnr-k-confirm" class="extra-btn"
                     style="width:100%;font-size:12px;padding:7px;background:#7c2d12;
                            color:#fbbf24;font-weight:700;">
-                👑 Создать (${_bnrGoldLabel('create_kingdom', 5000000)})
+                ${isRebellion ? '⚔ Поднять восстание' : '👑 Создать'} (${_bnrGoldLabel('create_kingdom', 5000000)})
             </button>
         </div>`;
     const input = document.getElementById('bnr-kingdom-name-input');

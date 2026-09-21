@@ -169,12 +169,19 @@ namespace BannerlordLink
             }
 
             // Sprint 2.2: load config + init backend client + async ping.
-            // Если backend unreachable — log warning, мод продолжает работать
-            // без backend (offline-mode, future actions просто не дойдут).
+            // Polling owns its retry loop; a transient diagnostic ping must not
+            // prevent it from starting for the entire game process lifetime.
             try
             {
                 Config = BackendConfig.LoadOrCreate(Log);
                 Backend = new BackendClient(Config, Log);
+
+                if (!string.IsNullOrEmpty(Config.ModuleToken))
+                {
+                    ActionRegistry.RegisterDefaults();
+                    Poller = new ActionPoller(Backend, "bannerlord", Log);
+                    Poller.Start();
+                }
 
                 // Fire-and-forget: ping + module.session_start event если есть token.
                 Task.Run(async () =>
@@ -182,7 +189,7 @@ namespace BannerlordLink
                     bool ok = await Backend.PingAsync();
                     Log(ok
                         ? "Backend connectivity: OK ✓"
-                        : "Backend connectivity: FAILED (mod в offline-mode)");
+                        : "Backend connectivity: FAILED (опрос команд продолжает повторные подключения)");
 
                     // Sprint 2.3: handshake — посылаем module.session_start.
                     // Backend RimWorld-style: clear catalogs + acknowledge mod online.
@@ -198,13 +205,6 @@ namespace BannerlordLink
 
                         if (acked)
                         {
-                            // Sprint 2.4: start action poller после успешного handshake.
-                            // ActionRegistry.RegisterDefaults() ставит EchoHandler
-                            // на все manifest action types (test stub).
-                            ActionRegistry.RegisterDefaults();
-                            Poller = new ActionPoller(Backend, "bannerlord", Log);
-                            Poller.Start();
-
                             // Sprint 4.2: загружаем powers + heroes class state
                             // в кэш (используется MissionLogic при agent build).
                             await PowerCache.RefreshAsync(Backend);

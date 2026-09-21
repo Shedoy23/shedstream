@@ -21,12 +21,12 @@ foreach(int enemies in new[]{10,49,50,199,200,1000})foreach(bool siege in new[]{
  }
  Check(previous>0,"monotonic across score sweep "+enemies+" "+siege);
 }
-Check(BattlePayoutPolicy.Calculate(1e12,1e12,100,false,true).Total<=249600,"ordinary cap independent of retinue size");
-Check(BattlePayoutPolicy.Calculate(1e12,1e12,500,true,true).Total<=399360,"large siege cap");
-Check(BattlePayoutPolicy.Calculate(1e12,1e12,10,true,true).Total<=59904,"tiny siege cannot earn large siege prize");
-foreach(var scenario in new[]{(enemies:100,siege:false,cap:249600),(enemies:500,siege:true,cap:399360),(enemies:10,siege:true,cap:59904)}) {
+Check(BattlePayoutPolicy.Calculate(1e12,1e12,100,false,true).Total<=499200,"ordinary cap independent of retinue size");
+Check(BattlePayoutPolicy.Calculate(1e12,1e12,500,true,true).Total<=798720,"large siege cap");
+Check(BattlePayoutPolicy.Calculate(1e12,1e12,10,true,true).Total<=119808,"tiny siege cannot earn large siege prize");
+foreach(var scenario in new[]{(enemies:100,siege:false,cap:499200),(enemies:500,siege:true,cap:798720),(enemies:10,siege:true,cap:119808)}) {
  var ceiling=BattlePayoutPolicy.Calculate(1e12,1e12,scenario.enemies,scenario.siege,true);
- Check(ceiling.Total >= scenario.cap-3 && ceiling.Total <= scenario.cap,"original ceiling remains reachable " + scenario.cap);
+ Check(ceiling.Total >= scenario.cap-6 && ceiling.Total <= scenario.cap,"original ceiling remains reachable " + scenario.cap);
 }
 // Observed 2026-09-21 19:00 battle, same field defeat / no subscription boost.
 // Inputs are actual payout damage points, NOT kills * assumed target HP.
@@ -34,23 +34,37 @@ var good=BattlePayoutPolicy.Calculate(2749.5,343.3,1754,false,false); // fikoos4
 var strong=BattlePayoutPolicy.Calculate(3709.8,440.4,1754,false,false); // slopkom: 36 human kills
 var top=BattlePayoutPolicy.Calculate(6724.8,668.6,1754,false,false); // slopkom_nyi_item: 59 human kills
 var topOther=BattlePayoutPolicy.Calculate(5657.4,547.4,1754,false,false); // dzirtdourden: 65 human kills
-Check(good.Total >= 70000 && good.Total <= 85000,"observed 28-kill effort receives worthwhile intermediate reward");
-Check(strong.Total >= 85000 && strong.Total <= 105000,"observed 37-counter effort rewards additional contribution");
-Check(top.Total >= 125000 && top.Total <= 150000,"observed top effort earns substantial reward below ceiling");
-Check(topOther.Total >= 110000 && topOther.Total <= 135000,"another observed top effort remains worthwhile");
+Check(good.Total >= 140000 && good.Total <= 170000,"observed 28-kill effort receives worthwhile intermediate reward");
+Check(strong.Total >= 170000 && strong.Total <= 210000,"observed 37-counter effort rewards additional contribution");
+Check(top.Total >= 250000 && top.Total <= 300000,"observed top effort earns substantial reward below ceiling");
+Check(topOther.Total >= 220000 && topOther.Total <= 270000,"another observed top effort remains worthwhile");
 Check(top.Total >= good.Total * 1.7,"observed top contribution stays distinct from good contribution");
 Check(good.Participation <= good.Total * .35,"participation does not dominate a good effort");
-Check(top.Personal < 100000 * 1.2 * .7,"top observed personal effort still leaves headroom");
+Check(top.Personal < BattlePayoutPolicy.Multiplier * 100000 * 1.2 * .7,"top observed personal effort still leaves headroom");
 var army=BattlePayoutPolicy.Calculate(45.9,4600.7,212,false,true); // shedoy23 before x2 subscription boost
-Check(army.Total >= 55000 && army.Total <= 75000,"observed strong retinue effort remains worthwhile");
-Check(BattlePayoutPolicy.Calculate(300,0,100,false,true).Total <= 12000,"a few targets cannot unlock full participation");
+Check(army.Total >= 110000 && army.Total <= 150000,"observed strong retinue effort remains worthwhile");
+Check(BattlePayoutPolicy.Calculate(300,0,100,false,true).Total <= 24000,"a few targets cannot unlock full participation");
 foreach(int points in new[]{500,1000,2000,3000,5000,7000,10000}) {
  var a=BattlePayoutPolicy.Calculate(points,0,100,false,true);
  var b=BattlePayoutPolicy.Calculate(points+1000,0,100,false,true);
- Check(b.Total-a.Total >= 2000,"continued personal growth around observed range " + points);
+ Check(b.Total-a.Total >= 4000,"continued personal growth around observed range " + points);
  var r=BattlePayoutPolicy.Calculate(0,points,100,false,true);
  var r2=BattlePayoutPolicy.Calculate(0,points+1000,100,false,true);
  Check(r2.Total>r.Total,"continued retinue growth " + points);
+}
+// Фактические входы и выплаты боя 21.09 22:09 (лог [BattlePayout v2], DLL до множителя).
+// Очки в журнале с одним знаком после запятой, поэтому допуск 2 монеты на часть.
+foreach(var o in new[]{
+ (p:572.6,r:22.0,part:4377,pers:15027,ret:380),
+ (p:196.3,r:631.9,part:3841,pers:5613,ret:9494),
+ (p:1279.3,r:240.5,part:10496,pers:29078,ret:3946),
+ (p:20.0,r:0.0,part:150,pers:597,ret:0),
+ (p:447.3,r:898.5,part:6724,pers:12069,ret:12766),
+ (p:302.5,r:614.1,part:4571,pers:8436,ret:9263),
+}) {
+ var now=BattlePayoutPolicy.Calculate(o.p,o.r,103,false,true);
+ Check(Math.Abs(now.Participation-2*o.part)<=2 && Math.Abs(now.Personal-2*o.pers)<=2 && Math.Abs(now.Retinue-2*o.ret)<=2,
+  "ровно вдвое против фактической выплаты 21.09 ("+o.part+"/"+o.pers+"/"+o.ret+" -> "+now.Participation+"/"+now.Personal+"/"+now.Retinue+")");
 }
 var ledger=new BattleDamageLedger<object>();var target=new object();ledger.Track(target,100);
 Check(ledger.Hit(target,80,20)==80,"first attacker earns actual damage");

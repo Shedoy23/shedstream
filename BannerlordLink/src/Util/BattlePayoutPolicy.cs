@@ -11,6 +11,11 @@ namespace BannerlordLink.Util
             public int Participation, Personal, Retinue;
             public int Total => Participation + Personal + Retinue;
         }
+        // 21.09.2026, решение владельца: заработок за бой ×2 при тех же показателях.
+        // Возражение зафиксировано в DEFERRED.md: динары уже печатаются быстрее,
+        // чем тратятся. Всё остальное — очки, масштаб боя, множитель победы,
+        // RewardBoostCache — не менялось.
+        internal const int Multiplier = 2;
         internal static double Threat(int level) => Math.Max(0.4, Math.Min(1.5, level / 26.0));
         internal static Payout Calculate(double personal, double retinue, int enemies, bool siege, bool won)
         {
@@ -25,9 +30,11 @@ namespace BannerlordLink.Util
             return new Payout {
                 // Scores are useful damage, not kill counts. Preserve original ceilings;
                 // Calibrated to observed 28-65 human-kill efforts: ~2750-6725 personal points.
-                Participation = (int)(50000 * Math.Min(1, contribution / 8000) * result),
-                Personal = (int)(100000 * personal / (personal + 4000) * result),
-                Retinue = (int)(58000 * retinue / (retinue + 2000) * result),
+                // Multiplier is applied AFTER rounding, so every part and the total are
+                // exactly Multiplier times the previous payout for the same inputs.
+                Participation = Multiplier * (int)(50000 * Math.Min(1, contribution / 8000) * result),
+                Personal = Multiplier * (int)(100000 * personal / (personal + 4000) * result),
+                Retinue = Multiplier * (int)(58000 * retinue / (retinue + 2000) * result),
             };
         }
     }

@@ -21,9 +21,13 @@ foreach(int enemies in new[]{10,49,50,199,200,1000})foreach(bool siege in new[]{
  }
  Check(previous>0,"monotonic across score sweep "+enemies+" "+siege);
 }
-Check(BattlePayoutPolicy.Calculate(1e12,1e12,100,false,true).Total<=201600,"ordinary cap independent of retinue size");
-Check(BattlePayoutPolicy.Calculate(1e12,1e12,500,true,true).Total<=322560,"large siege cap");
-Check(BattlePayoutPolicy.Calculate(1e12,1e12,10,true,true).Total<=48384,"tiny siege cannot earn large siege prize");
+Check(BattlePayoutPolicy.Calculate(1e12,1e12,100,false,true).Total<=249600,"ordinary cap independent of retinue size");
+Check(BattlePayoutPolicy.Calculate(1e12,1e12,500,true,true).Total<=399360,"large siege cap");
+Check(BattlePayoutPolicy.Calculate(1e12,1e12,10,true,true).Total<=59904,"tiny siege cannot earn large siege prize");
+foreach(var scenario in new[]{(enemies:100,siege:false,cap:249600),(enemies:500,siege:true,cap:399360),(enemies:10,siege:true,cap:59904)}) {
+ var ceiling=BattlePayoutPolicy.Calculate(1e12,1e12,scenario.enemies,scenario.siege,true);
+ Check(ceiling.Total >= scenario.cap-3 && ceiling.Total <= scenario.cap,"original ceiling remains reachable " + scenario.cap);
+}
 // Balance contract: 100 useful HP at threat 1 per reference enemy; no boost.
 foreach(bool won in new[]{false,true}) foreach(bool siege in new[]{false,true}) {
  var thirty=BattlePayoutPolicy.Calculate(3000,0,500,siege,won);

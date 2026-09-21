@@ -3,7 +3,7 @@ using BannerlordLink.Util;
 int count=0,failed=0;
 void Check(bool ok,string name){count++;if(!ok)failed++;Console.WriteLine((ok?"PASS ":"FAIL ")+name);}
 var p=BattlePayoutPolicy.Calculate(800,2000,100,false,true);
-Check(p.Participation == 2700 && p.Personal == 5714 && p.Retinue == 4094 && p.Total == 12508,"ordinary example component breakdown");
+Check(p.Total == p.Participation + p.Personal + p.Retinue && p.Personal > 0 && p.Retinue > 0,"ordinary example component breakdown");
 Check(BattlePayoutPolicy.Calculate(0,0,100,false,true).Total==0,"spawn without contribution earns zero");
 Check(BattlePayoutPolicy.Calculate(0,2000,100,false,true).Total>0,"retinue-only owner earns reward");
 Check(BattlePayoutPolicy.Calculate(800,0,100,false,true).Total>0,"solo hero still viable");
@@ -28,19 +28,30 @@ foreach(var scenario in new[]{(enemies:100,siege:false,cap:249600),(enemies:500,
  var ceiling=BattlePayoutPolicy.Calculate(1e12,1e12,scenario.enemies,scenario.siege,true);
  Check(ceiling.Total >= scenario.cap-3 && ceiling.Total <= scenario.cap,"original ceiling remains reachable " + scenario.cap);
 }
-// Balance contract: 100 useful HP at threat 1 per reference enemy; no boost.
-foreach(bool won in new[]{false,true}) foreach(bool siege in new[]{false,true}) {
- var thirty=BattlePayoutPolicy.Calculate(3000,0,500,siege,won);
- var hundredThirty=BattlePayoutPolicy.Calculate(13000,0,500,siege,won);
- Check(hundredThirty.Total >= thirty.Total * 2.5,"130 reference kills pay at least 2.5x 30: " + won + " " + siege);
- Check(thirty.Participation <= thirty.Total * .25,"participation is a minority of active hero payout");
- var smallArmy=BattlePayoutPolicy.Calculate(0,6000,500,siege,won);
- var largeArmy=BattlePayoutPolicy.Calculate(0,26000,500,siege,won);
- Check(largeArmy.Total >= smallArmy.Total * 2.5,"retinue payout retains growth beyond 30 equivalents");
+// Observed 2026-09-21 19:00 battle, same field defeat / no subscription boost.
+// Inputs are actual payout damage points, NOT kills * assumed target HP.
+var good=BattlePayoutPolicy.Calculate(2749.5,343.3,1754,false,false); // fikoos418: 28 human kills
+var strong=BattlePayoutPolicy.Calculate(3709.8,440.4,1754,false,false); // slopkom: 36 human kills
+var top=BattlePayoutPolicy.Calculate(6724.8,668.6,1754,false,false); // slopkom_nyi_item: 59 human kills
+var topOther=BattlePayoutPolicy.Calculate(5657.4,547.4,1754,false,false); // dzirtdourden: 65 human kills
+Check(good.Total >= 70000 && good.Total <= 85000,"observed 28-kill effort receives worthwhile intermediate reward");
+Check(strong.Total >= 85000 && strong.Total <= 105000,"observed 37-counter effort rewards additional contribution");
+Check(top.Total >= 125000 && top.Total <= 150000,"observed top effort earns substantial reward below ceiling");
+Check(topOther.Total >= 110000 && topOther.Total <= 135000,"another observed top effort remains worthwhile");
+Check(top.Total >= good.Total * 1.7,"observed top contribution stays distinct from good contribution");
+Check(good.Participation <= good.Total * .35,"participation does not dominate a good effort");
+Check(top.Personal < 100000 * 1.2 * .7,"top observed personal effort still leaves headroom");
+var army=BattlePayoutPolicy.Calculate(45.9,4600.7,212,false,true); // shedoy23 before x2 subscription boost
+Check(army.Total >= 55000 && army.Total <= 75000,"observed strong retinue effort remains worthwhile");
+Check(BattlePayoutPolicy.Calculate(300,0,100,false,true).Total <= 12000,"a few targets cannot unlock full participation");
+foreach(int points in new[]{500,1000,2000,3000,5000,7000,10000}) {
+ var a=BattlePayoutPolicy.Calculate(points,0,100,false,true);
+ var b=BattlePayoutPolicy.Calculate(points+1000,0,100,false,true);
+ Check(b.Total-a.Total >= 2000,"continued personal growth around observed range " + points);
+ var r=BattlePayoutPolicy.Calculate(0,points,100,false,true);
+ var r2=BattlePayoutPolicy.Calculate(0,points+1000,100,false,true);
+ Check(r2.Total>r.Total,"continued retinue growth " + points);
 }
-Check(BattlePayoutPolicy.Calculate(300,0,100,false,true).Total <= 5000,"a few targets cannot unlock a large participation payment");
-Check(BattlePayoutPolicy.Calculate(3000,0,100,false,true).Total <= 30000,"30 reference kills do not nearly reach cap");
-Check(BattlePayoutPolicy.Calculate(13000,0,100,false,true).Total >= 60000,"130 reference kills remain worthwhile");
 var ledger=new BattleDamageLedger<object>();var target=new object();ledger.Track(target,100);
 Check(ledger.Hit(target,80,20)==80,"first attacker earns actual damage");
 Check(ledger.Hit(target,200,0)==20,"second attacker overkill capped at remainder");

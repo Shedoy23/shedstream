@@ -120,4 +120,32 @@ Check(siege.MainAgent.LastRidingOrder == RidingOrder.RidingOrderEnum.Mount,
       "F12 возвращает исходный приказ героя после осады");
 Check(siege.MainAgent.Formation == originalSiegeFormation,
       "F12 возвращает исходную формацию героя после осады");
+// Optional RBM is discovered without a compile-time dependency.
+var rbmAssembly = System.Reflection.Emit.AssemblyBuilder.DefineDynamicAssembly(
+    new System.Reflection.AssemblyName("RBMConfig"), System.Reflection.Emit.AssemblyBuilderAccess.Run);
+var rbmTypeBuilder = rbmAssembly.DefineDynamicModule("RBMConfig").DefineType("RBMConfig.RBMConfig", System.Reflection.TypeAttributes.Public);
+rbmTypeBuilder.DefineField("rbmAiEnabled", typeof(bool), System.Reflection.FieldAttributes.Public | System.Reflection.FieldAttributes.Static);
+var rbmType = rbmTypeBuilder.CreateType();
+foreach (bool enabled in new[] { true, false })
+{
+    rbmType.GetField("rbmAiEnabled").SetValue(null, enabled);
+    AutopilotBehavior.Instance.CurrentMode = AutopilotBehavior.Mode.Apply;
+    MobileParty.MainParty.MapEvent = new TaleWorlds.CampaignSystem.MapEvent();
+    var rbmMission = new Mission { Mode=MissionMode.Battle, IsDeploymentFinished=true };
+    var rbmManual = new Formation { Move = new MovementOrder { Kind=2 } };
+    var rbmAlreadyAi = new Formation { IsAIControlled=true };
+    rbmMission.PlayerTeam.FormationsIncludingEmpty.Add(rbmManual);
+    rbmMission.PlayerTeam.FormationsIncludingEmpty.Add(rbmAlreadyAi);
+    rbmMission.MainAgent.Formation=rbmManual;
+    var rbmBehavior = new BattleAutopilotMission { Mission=rbmMission };
+    rbmBehavior.OnAfterDeploymentFinished(); rbmBehavior.OnMissionTick(0.1f);
+    Check(rbmManual.IsAIControlled == enabled, "RBM AI=" + enabled + ": выбран правильный режим командования");
+    rbmManual.SetMovementOrder(new MovementOrder {Kind=3});
+    rbmBehavior.OnMissionTick(1.1f);
+    Check(rbmManual.Move.Kind == (enabled ? 3 : 1), "RBM AI=" + enabled + ": манёвр не перебивается при активном RBM");
+    AutopilotBehavior.Instance.CurrentMode=AutopilotBehavior.Mode.Off;
+    rbmBehavior.OnMissionTick(0.1f);
+    Check(!rbmManual.IsAIControlled && rbmAlreadyAi.IsAIControlled,
+        "RBM AI=" + enabled + ": F12 возвращает только наше управление");
+}
 return failed;

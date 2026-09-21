@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -43,6 +44,15 @@ internal static class Program
             // No campaign/native engine startup: inherited reference fields remain null.
             // This still exercises the exact runtime-type lookup that broke real saves.
             object decision = FormatterServices.GetUninitializedObject(type);
+            var state = new Dictionary<FieldInfo, object>();
+            for (Type parent = type.BaseType; parent != null; parent = parent.BaseType)
+                foreach (FieldInfo field in parent.GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.DeclaredOnly))
+                    if (field.IsDefined(typeof(SaveableFieldAttribute), false) && (field.FieldType == typeof(bool) || field.FieldType == typeof(int)))
+                    {
+                        object value = field.FieldType == typeof(bool) ? (object)true : 137;
+                        field.SetValue(decision, value);
+                        state.Add(field, value);
+                    }
             var metadata = new MetaData();
             metadata.Add("ApplicationVersion", "v1.4.8.0");
             var driver = new InMemDriver();
@@ -57,6 +67,22 @@ internal static class Program
             bool ok = loaded.Successful && loaded.Root.GetType() == type;
             Console.WriteLine((ok ? "PASS " : "FAIL ") + name + " real SaveManager save/load preserves runtime type");
             if (!ok) failures++;
+            if (ok)
+            {
+                bool stateOk = state.Count > 0 && state.All(pair => Equals(pair.Value, pair.Key.GetValue(loaded.Root)));
+                Console.WriteLine((stateOk ? "PASS " : "FAIL ") + name + " preserves " + state.Count + " inherited bool/int fields");
+                if (!stateOk) failures++;
+                Type outcomeType = type.BaseType.GetNestedTypes().Single(t => t.Name.EndsWith("DecisionOutcome"));
+                object outcome = FormatterServices.GetUninitializedObject(outcomeType);
+                FieldInfo vote = outcomeType.GetField(name == "ViewerDeclareWarDecision" ? "ShouldWarBeDeclared" : "ShouldPeaceBeDeclared");
+                vote.SetValue(outcome, true);
+                float yes = (float)type.GetMethod("DetermineSupport").Invoke(loaded.Root, new[] { (object)null, outcome });
+                vote.SetValue(outcome, false);
+                float no = (float)type.GetMethod("DetermineSupport").Invoke(loaded.Root, new[] { (object)null, outcome });
+                bool supportOk = yes == 200f && no == 0f;
+                Console.WriteLine((supportOk ? "PASS " : "FAIL ") + name + " sponsoring clan stance survives reload");
+                if (!supportOk) failures++;
+            }
         }
         return failures == 0 ? 0 : 1;
     }

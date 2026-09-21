@@ -126,6 +126,7 @@ namespace BannerlordAutopilot
             Type mapEvent = MemberType(typeof(MobileParty), "MapEvent", Inst, false, out _);
             Need(mapEvent != null, "MobileParty.MapEvent");
             MemberOf(typeof(PlayerEncounter), "EncounteredBattle", Stat, mapEvent);
+            MemberOf(typeof(PlayerEncounter), "EncounteredParty", Stat, typeof(PartyBase));
             Type battleSide = MemberType(mapEvent, "AttackerSide", Inst, false, out _);
             Need(battleSide != null, "MapEvent.AttackerSide");
             MemberOf(mapEvent, "DefenderSide", Inst, battleSide);

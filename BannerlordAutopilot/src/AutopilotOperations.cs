@@ -85,6 +85,7 @@ namespace BannerlordAutopilot
         {
             _simulationEncounter = null; _finishedSimulation = null;
             _offensiveSiege = null;
+            _defenseTarget = null; _lastDefenseStatus = null;
             _raidSettlement = null;
             _preparingCampaign = false;
             _configuredSiege = null;
@@ -108,10 +109,11 @@ namespace BannerlordAutopilot
         {
             if (party?.SiegeEvent?.BesiegerCamp.LeaderParty != null && !party.IsCurrentlyAtSea
                 && (party.SiegeEvent.BesiegerCamp.LeaderParty == party || party.SiegeEvent.BesiegerCamp.LeaderParty == party.Army?.LeaderParty)) return true;
-            if (party == null || party.Army != null || party.IsCurrentlyAtSea || party.Ai == null || party.Ai.IsDisabled) return false;
+            if (!ControlsParty(party) || party.IsCurrentlyAtSea || party.Ai == null || party.Ai.IsDisabled) return false;
             var place = EncounterPlace(party);
             string menu = MenuDriver.CurrentMenuId;
-            return ((menu == "join_siege_event" || menu == "encounter_interrupted_siege_preparations") && FriendlySiege(place, party))
+            return ((menu == "join_siege_event" || menu == "encounter_interrupted_siege_preparations"
+                || menu == "join_encounter" || menu == "encounter_interrupted") && FriendlySiege(place, party))
                 || ((menu == "hideout_place" || menu == "hideout_after_wait") && place?.IsHideout == true);
         }
 
@@ -127,8 +129,8 @@ namespace BannerlordAutopilot
             // encounter menu's Attack consequence. Requiring Battle here made
             // the autopilot reject its own siege-outside fight, switch itself
             // off, and leave the visible "Attack" button to the player.
-            var encounterBattle = PlayerEncounter.EncounteredBattle;
-            if (PlayerEncounter.Battle != battle && encounterBattle != battle) return false;
+            if (PlayerEncounter.Battle != battle && (PlayerEncounter.EncounteredParty == null
+                || PlayerEncounter.EncounteredBattle != battle)) return false;
             // Native field battles name a nearby village or no settlement. A relief
             // battle belongs to our siege through the active camp, not that label.
             var siege = party.SiegeEvent;
@@ -146,7 +148,10 @@ namespace BannerlordAutopilot
                     && (battle.IsSallyOut || battle.IsSiegeOutside || battle.IsFieldBattle))
                 || (!_operationSettlement.IsHideout && battle.IsSiegeAssault
                     && (battle.PlayerSide == BattleSideEnum.Defender
-                        || (_offensiveSiege == _operationSettlement && battle.PlayerSide == BattleSideEnum.Attacker)));
+                        || (_offensiveSiege == _operationSettlement && battle.PlayerSide == BattleSideEnum.Attacker)))
+                || (FriendlySiege(_operationSettlement, party)
+                    && ((battle.IsSiegeOutside && battle.PlayerSide == BattleSideEnum.Defender)
+                        || (battle.IsSallyOut && battle.PlayerSide == BattleSideEnum.Attacker)));
         }
 
         internal bool IsOwnedHideoutBattle => _operationSettlement?.IsHideout == true
@@ -247,10 +252,12 @@ namespace BannerlordAutopilot
                     case "menu_siege_strategies": ResumeOperationWait(); break;
                     case "join_encounter":
                     case "encounter_interrupted":
-                        var battle = PlayerEncounter.Current != null ? PlayerEncounter.EncounteredBattle : null;
+                        var battle = PlayerEncounter.EncounteredParty != null ? PlayerEncounter.EncounteredBattle : null;
                         if (battle?.MapEventSettlement != place || battle.IsNavalMapEvent
                             || !FriendlySiege(place, party)) return false;
-                        OperationClick(menu + "_help_defenders"); break;
+                        // During a sally the garrison is the ATTACKER; the besieger
+                        // camp is the defender. Native button conditions recheck sides.
+                        OperationClick(menu + (battle.IsSallyOut ? "_help_attackers" : "_help_defenders")); break;
                     case "encounter":
                         if (!IsOwnedOperationBattle(party)) return false;
                         OperationClick("attack"); break;

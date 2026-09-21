@@ -548,6 +548,7 @@ namespace BannerlordAutopilot
             }
             if (PollUnavoidableSurrender(party)) return false;
             if (PollRaidWarning()) return false;
+            if (PollEmergencyDefense(party)) return false;
             if (PollOffensiveSiege(party)) return false;
             if (PollRaid(party)) return false;
             if (PollOperations(party)) return false;
@@ -2005,7 +2006,6 @@ namespace BannerlordAutopilot
             {
                 return; // выключит ближайший опрос по кадрам — с причиной
             }
-            if (_gatheringArmy != null && _gatheringArmy == party.Army) return;
             WriteWeeklyProgress(party);
             WatchMovement(party);
 
@@ -2021,6 +2021,9 @@ namespace BannerlordAutopilot
                 }
                 NoteWaiting();
             }
+
+            if (TryEmergencyDefense(party, waitingIn)) return;
+            if (_gatheringArmy != null && _gatheringArmy == party.Army) return;
 
             if (_mode == Mode.Apply && ControlsParty(party) && !party.IsCurrentlyAtSea
                 && MapIsActiveScreen() && !InformationManager.IsAnyInquiryActive())
@@ -2592,7 +2595,7 @@ namespace BannerlordAutopilot
             // Решение «осадить» исполняется поездкой к крепости, поэтому поведение
             // партии при нём — GoToSettlement. Без этого приказ перевыдавался бы
             // каждый час, а каждая выдача сбрасывает путь.
-            if (data.AiBehavior == AiBehavior.BesiegeSettlement
+            if ((data.AiBehavior == AiBehavior.BesiegeSettlement || data.AiBehavior == AiBehavior.DefendSettlement)
                 && party.DefaultBehavior == AiBehavior.GoToSettlement
                 && data.Party is Settlement heading)
             {
@@ -2696,7 +2699,9 @@ namespace BannerlordAutopilot
                         attackers += AffordableArmyMembers(siegeParty).Sum(p => Math.Max(0f, p.Party.EstimatedStrength));
                     return defenders <= attackers * 1.5f ? null : "защитники сильнее 1.5x наших сил";
                 case AiBehavior.DefendSettlement:
-                    return FriendlySiege(data.Party as Settlement, MobileParty.MainParty) ? null : "нет дружественной осады";
+                    if (!FriendlySiege(data.Party as Settlement, MobileParty.MainParty)) return "нет дружественной осады";
+                    if (data.Party == _defenseTarget && !OwnFort(data.Party as Settlement)) return "срочная цель обороны больше не принадлежит нашему клану";
+                    return OwnFort(data.Party as Settlement) ? DefenseReadiness(MobileParty.MainParty) : null;
                 case AiBehavior.GoToSettlement:
                     if (!(data.Party is Settlement settlement))
                     {
@@ -2729,6 +2734,16 @@ namespace BannerlordAutopilot
         private void ApplyDecision(MobileParty party, AIBehaviorData data, float score)
         {
             var settlement = data.Party as Settlement;
+            if (data.AiBehavior == AiBehavior.DefendSettlement)
+            {
+                // A pending departure may execute later than the hourly selection.
+                string invalid = !ControlsParty(party) ? "следуем другой армии" : WhyNotApplicable(data);
+                if (invalid != null)
+                {
+                    AutopilotLog.Write("ОБОРОНА: отложенный приказ отменён: " + invalid);
+                    return;
+                }
+            }
             string key = DecisionKey(data);
 
             if (key == _lastTargetKey && IsSameDecision(data, party))
@@ -2769,7 +2784,9 @@ namespace BannerlordAutopilot
                             party, settlement, data.NavigationType, data.IsFromPort, data.IsTargetingPort);
                         break;
                     case AiBehavior.DefendSettlement:
-                        SetPartyAiAction.GetActionForDefendingSettlement(
+                        // Native Defend resets MoveTargetPoint to our current position;
+                        // only visiting sets the point that actually moves MainParty.
+                        SetPartyAiAction.GetActionForVisitingSettlement(
                             party, settlement, data.NavigationType, data.IsFromPort, data.IsTargetingPort);
                         break;
                     case AiBehavior.GoToSettlement:

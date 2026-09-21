@@ -80,6 +80,11 @@ internal static partial class Program
             var own=OwnSiege(); b.PollState(); b.PollState(); HourlyTick(b);
             Check(cancelled==1 && MobileParty.MainParty.TargetSettlement==own,"снимаем свою наступательную осаду штатными кнопками и идём спасать своё");
         });
+        Try("право владения меняется перед выходом из отдыха", () => {
+            var b=Fresh(); ConquestWorld(wounded:5); var own=OwnSiege(); Enable(b); b.PollState();
+            ArriveTown(); b.PollState(); HourlyTick(b); Clan.PlayerClan.Fiefs.Clear(); b.PollState();
+            Check(MobileParty.MainParty.TargetSettlement!=own,"отложенный срочный приказ повторно проверяет владение перед выходом");
+        });
         foreach (bool sally in new[]{false,true}) Try("помощь осаждённому феоду в наружном бою", () => {
             var b=Fresh(); ConquestWorld(wounded:0); var own=OwnSiege(); Enable(b); HourlyTick(b);
             PlayerEncounter.Current=new PlayerEncounter(); PlayerEncounter.EncounterSettlement=own; PlayerEncounter.EncounteredMobileParty=new MobileParty();
@@ -91,6 +96,46 @@ internal static partial class Program
             b.PollState(); b.PollState();
             Check(MenuContext.Invoked.Contains(option) && attacks==1 && b.IsOwnedOperationBattle(MobileParty.MainParty),
                 "наружный бой и вылазка: присоединяемся к стороне своего замка и запускаем бой");
+        });
+        Try("прекращение рейда ради защиты", () => {
+            var b=Fresh(); var enemy=ConquestWorld(wounded:0); var party=MobileParty.MainParty; Enable(b);
+            enemy.IsCastle=false; enemy.IsVillage=true; party.TargetSettlement=enemy; party.DefaultBehavior=AiBehavior.RaidSettlement;
+            party.MapEvent=new MapEvent {IsRaid=true,MapEventSettlement=enemy};
+            PlayerEncounter.Current=new PlayerEncounter(); PlayerEncounter.EncounterSettlement=enemy;
+            int ended=0; Show(Menu("raiding_village","raiding_village_end",()=>{ended++;party.MapEvent=null;PlayerEncounter.Finish();}));
+            var own=OwnSiege(); b.PollState(); HourlyTick(b);
+            Check(ended==1 && party.TargetSettlement==own,"штатное ожидание рейда можно прервать несмотря на его MapEvent");
+        });
+        Try("полный путь обороны после потерь прорыва", () => {
+            var b=Fresh(); ConquestWorld(wounded:5); var own=OwnSiege(); var party=MobileParty.MainParty; Enable(b); HourlyTick(b);
+            PlayerEncounter.Current=new PlayerEncounter(); PlayerEncounter.EncounterSettlement=own; PlayerEncounter.EncounteredMobileParty=new MobileParty();
+            int breakthroughs=0, attacks=0;
+            Show(Menu("join_siege_event","join_siege_event_break_in",()=>Show(Menu("break_in_menu","break_in_menu_accept",()=>{
+                breakthroughs++; party.MemberRoster.AddToCounts(new CharacterObject(),10,woundedCount:10);
+                Show(Menu("break_in_debrief_menu","break_in_debrief_continue",()=>{
+                    party.CurrentSettlement=own;party.BesiegedSettlement=own;
+                    Show(new GameMenu {StringId="menu_siege_strategies",IsWaitMenu=true});
+                }));
+            }))));
+            for(int i=0;i<4;i++) b.PollState();
+            Check(breakthroughs==1 && party.CurrentSettlement==own && TimeRuns,"прорыв подтверждён один раз; после потерь остаёмся защищать, не бежим набирать 90%");
+            var battle=new MapEvent {MapEventSettlement=own,IsSiegeAssault=true,PlayerSide=BattleSideEnum.Defender};
+            party.MapEvent=PlayerEncounter.Battle=battle; Show(Menu("encounter","attack",()=>attacks++)); b.PollState();
+            Check(attacks==1 && b.CurrentMode==AutopilotBehavior.Mode.Apply,"при штурме начинается оборона после прорыва");
+        });
+        Try("экран поверх карты и потеря боеспособности", () => {
+            var b=Fresh(); ConquestWorld(wounded:5); var own=OwnSiege(); var party=MobileParty.MainParty; Enable(b);
+            TaleWorlds.Library.InformationManager.TestInquiryActive=true; HourlyTick(b);
+            Check(party.TargetSettlement!=own,"модальное окно не обходится срочным приказом");
+            TaleWorlds.Library.InformationManager.TestInquiryActive=false; HourlyTick(b);
+            Check(party.TargetSettlement==own,"после закрытия окна срочная защита возобновляется");
+            party.MemberRoster.AddToCounts(new CharacterObject(),10,woundedCount:10); HourlyTick(b);
+            Check(party.DefaultBehavior==AiBehavior.Hold && !party.IsMoving,"если на подходе здоровых стало меньше половины, старый приказ отменяется");
+        });
+        Try("сильный осаждающий не блокирует оборону", () => {
+            var b=Fresh(); var enemy=ConquestWorld(wounded:5); var own=OwnSiege(); var party=MobileParty.MainParty;
+            var army=new MobileParty {MapFaction=enemy.MapFaction,Position=own.Position}; army.MemberRoster.AddToCounts(new CharacterObject(),10000); MobileParty.All.Add(army);
+            Enable(b); HourlyTick(b); Check(party.TargetSettlement==own,"соотношение силы наступления 1.5x не блокирует спасение своего замка");
         });
     }
 }

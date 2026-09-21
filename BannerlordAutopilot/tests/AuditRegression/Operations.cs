@@ -201,7 +201,7 @@ internal static partial class Program
             var s=new Settlement {IsUnderSiege=true,MapFaction=ours};
             CampaignEventDispatcher.NextScores.Add((new AIBehaviorData(s,AiBehavior.DefendSettlement,MobileParty.NavigationType.Default,false,false,false),58));
             Enable(b); HourlyTick(b);
-            Check(MobileParty.MainParty.DefaultBehavior==AiBehavior.DefendSettlement && MobileParty.MainParty.TargetSettlement==s,"штатная цель обороны не отбрасывается и приоритетнее зачистки");
+            Check(MobileParty.MainParty.DefaultBehavior==AiBehavior.GoToSettlement && MobileParty.MainParty.TargetSettlement==s && MobileParty.MainParty.IsMoving,"штатная цель обороны исполняется поездкой и приоритетнее зачистки");
         });
     }
 }

@@ -320,6 +320,17 @@ namespace BannerlordAutopilot
             if (!MapIsActiveScreen() || InformationManager.IsAnyInquiryActive()) return true;
             try
             {
+                // After loot the encounter is gone, but the native siege camp
+                // remains and asks whether to resume preparation or leave.
+                if (menu == "continue_siege_after_attack" && commanded && place == _offensiveSiege)
+                {
+                    string needed = PreparationNeeded(party);
+                    _operationSettlement = place;
+                    AutopilotLog.Write("ОСАДА ПОСЛЕ БОЯ: " + (needed == null
+                        ? "возвращаемся к подготовке" : "снимаем осаду для восстановления: " + needed));
+                    OperationClick(needed == null ? "continue_siege" : "leave_siege");
+                    return true;
+                }
                 if (participating && !commanded && menu == "menu_siege_strategies")
                 {
                     _operationSettlement = place;

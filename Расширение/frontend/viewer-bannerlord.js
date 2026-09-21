@@ -3183,6 +3183,17 @@ function _renderBannerlordDetachmentPanel(battleData) {
     }
     // Sprint 5.32 (LOG-4) — log при first render (panel пустой → станет filled).
     const wasEmpty = slot.innerHTML === '';
+    const isSiege = battleData.is_siege === true;
+    const orderLabels = {
+        formation: 'В строю', hold: 'Держит позицию', approaching: 'Сближается',
+        engaged: 'В ближнем бою', walls: 'Движется к стенам', gate: 'Движется к воротам',
+        arrived: 'Прибыл на позицию', blocked: 'Путь недоступен',
+        waiting_target: 'Ожидает доступного противника',
+        skirmish: 'Ведёт перестрелку', raid: 'Выполняет набег',
+    };
+    const orderStatus = battleData.my_stats.order_status;
+    const orderLabel = Object.prototype.hasOwnProperty.call(orderLabels, orderStatus)
+        ? orderLabels[orderStatus] : 'Статус приказа неизвестен';
     if (wasEmpty) {
         console.info('[FE-DET] panel SHOW (battle started, viewer alive)');
     }
@@ -3215,10 +3226,11 @@ function _renderBannerlordDetachmentPanel(battleData) {
     slot.innerHTML = `
         <div style="font-size:12px;color:#fbbf24;font-weight:700;margin-bottom:6px;
                     border-top:1px solid #3d3d3f;padding-top:8px;">
-            🎯 Команды отряда
+            🎯 Приказы герою
             <span style="font-size:10px;color:var(--muted);font-weight:normal;
                          margin-left:6px;">(управляй своим героем в бою)</span>
         </div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">${orderLabel}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;
                     font-size:11px;">
             <button class="extra-btn bnr-det-btn" data-det-act="hero.detach_hold"
@@ -3229,31 +3241,33 @@ function _renderBannerlordDetachmentPanel(battleData) {
             </button>
             <button class="extra-btn bnr-det-btn" data-det-act="hero.detach_charge"
                     data-det-cost="${_bnrPrice('hero.detach_charge', 30)}"
-                    title="Идти в КОНТАКТ к ближайшему врагу (любой класс, даже лучник — сайдармом). Бой с дистанции — кнопка «Перестрелка»."
+                    title="Сближаться с противником для ближнего боя. Пеший герой предпочитает пехоту и не преследует уезжающих всадников."
                     style="background:#7c1d1d;color:#fecaca;padding:6px;">
                 ⚔ Вблизи (${_bnrPrice('hero.detach_charge', 30)}💎)
             </button>${_detSkirmishBtn}${_detRaidBtn}
             <button class="extra-btn bnr-det-btn" data-det-act="hero.attach"
                     data-det-cost="${_bnrPrice('hero.attach', 10)}"
-                    title="Вернуть hero в parent formation стримера. Подчиняется AI commander снова."
+                    title="Снять индивидуальный приказ и вернуть обычное управление героя в строю."
                     style="background:#1f4a35;color:#a7f3d0;padding:6px;">
                 🔄 В строй (${_bnrPrice('hero.attach', 10)}💎)
             </button>
             <button class="extra-btn bnr-det-btn" data-det-act="hero.detach_walls"
                     data-det-cost="${_bnrPrice('hero.detach_walls', 30)}"
-                    title="🏰 Siege only: лезть на стены/лестницы/башни. Archer'ам — defense top."
+                    ${isSiege ? '' : 'disabled'}
+                    title="${isSiege ? 'Двигаться к позиции у стен. Автоматический подъём по лестнице не обеспечивается.' : 'Доступно только во время осады.'}"
                     style="background:#3d2e0a;color:#fde68a;padding:6px;">
                 🪜 К стенам (${_bnrPrice('hero.detach_walls', 30)}💎)
             </button>
             <button class="extra-btn bnr-det-btn" data-det-act="hero.detach_gate"
                     data-det-cost="${_bnrPrice('hero.detach_gate', 30)}"
-                    title="🏰 Siege only: к ближайшим воротам / баррикаде. Tank'ам — открыть gate."
+                    ${isSiege ? '' : 'disabled'}
+                    title="${isSiege ? 'Двигаться к воротам. Приказ не открывает и не ломает их автоматически.' : 'Доступно только во время осады.'}"
                     style="background:#3d1e0a;color:#fdba74;padding:6px;">
                 🚪 К воротам (${_bnrPrice('hero.detach_gate', 30)}💎)
             </button>
             <button class="extra-btn bnr-det-btn" data-det-act="hero.detach"
                     data-det-cost="${_bnrPrice('hero.detach', 10)}"
-                    title="Выйти из строя в собственный отряд. После — выбери одну из 4 команд выше. Также авто-detach при любой из выше команд."
+                    title="Включить индивидуальное управление героем и удерживать текущую позицию. Остальные приказы тоже включают его автоматически."
                     style="background:#2d2d2f;color:#d1d5db;padding:6px;">
                 🚶 Отделиться (${_bnrPrice('hero.detach', 10)}💎)
             </button>
@@ -3264,7 +3278,7 @@ function _renderBannerlordDetachmentPanel(battleData) {
         btn.addEventListener('click', async (ev) => {
             const act = btn.dataset.detAct;
             const cost = parseInt(btn.dataset.detCost || '0', 10);
-            if (!act) return;
+            if (!act || btn.disabled) return;
             // Sprint 5.32 (LOG-4) — log на click чтобы в DevTools видеть
             // последовательность нажатий: '[FE-DET] click hero.detach_charge cost=30'
             console.info('[FE-DET] click', act, 'cost=' + cost);

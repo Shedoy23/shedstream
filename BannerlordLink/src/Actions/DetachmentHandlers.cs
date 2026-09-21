@@ -143,7 +143,11 @@ namespace BannerlordLink.Actions
                     DetachmentHelper.PostRefund(actionId, "not_detached");
                     return;
                 }
-                HeroDetachmentBehavior.Instance.Attach(agent);
+                if (!HeroDetachmentBehavior.Instance.Attach(agent))
+                {
+                    DetachmentHelper.PostRefund(actionId, "attach_failed");
+                    return;
+                }
                 ActionFeedback.PostApplied(actionId);
             });
             return Task.FromResult<(bool, string)>((true, null));

@@ -1369,6 +1369,7 @@ namespace BannerlordLink.Behaviors
                     int hp = 0, hpMax = 100;
                     bool alive = false;
                     string state = "killed";
+                    string orderStatus = null;
                     bool isPlayerSide = s.IsPlayerSide;
                     try
                     {
@@ -1381,6 +1382,8 @@ namespace BannerlordLink.Behaviors
                             if (hpMax <= 0) hpMax = 100;
                             hp = Math.Min(hpMax, (int)Math.Round(s.Agent.Health));
                             alive = s.Agent.IsActive() && hp > 0;
+                            if (alive)
+                                orderStatus = HeroDetachmentBehavior.Instance?.GetOrderStatus(s.Agent);
                             state = ComputeAgentState(s.Agent);
                             // Уточняем сторону, пока агент жив и её видно.
                             // Раньше здесь стояло `if (!isPlayerSide)` — та же
@@ -1407,6 +1410,7 @@ namespace BannerlordLink.Behaviors
                         hp_max = hpMax,
                         alive = alive,
                         state = state,
+                        order_status = orderStatus,
                         is_player_side = isPlayerSide,
                         kills = s.Kills,
                         retinue_kills = s.RetinueKills,
@@ -1422,6 +1426,7 @@ namespace BannerlordLink.Behaviors
                     json = JsonConvert.SerializeObject(new
                     {
                         final = isFinal,
+                        is_siege = !isFinal && Mission != null && Mission.IsSiegeBattle,
                         participants = items,
                     });
                 }

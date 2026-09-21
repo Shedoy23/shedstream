@@ -403,6 +403,7 @@ def get_battle_stats(channel_id: int) -> dict:
     return {
         "active":       True,
         "final":        False,
+        "is_siege":     snap.get("is_siege") is True,
         "participants": snap.get("participants", []),
         "age_sec":      round(age, 1),
     }
@@ -422,6 +423,7 @@ def get_my_battle_stats(channel_id: int, username: str) -> dict:
                 break
     return {
         "in_battle":         in_battle,
+        "is_siege":          in_battle and snap.get("is_siege") is True,
         "participant_count": len(snap.get("participants", [])) if in_battle else 0,
         "my_stats":          my,
     }
@@ -2181,6 +2183,7 @@ class BannerlordAdapter(ModuleAdapter):
 
         _battle_stats[channel_id] = {
             "final":        is_final,
+            "is_siege":     data.get("is_siege") is True,
             "updated_at":   now,
             "participants": participants,
         }

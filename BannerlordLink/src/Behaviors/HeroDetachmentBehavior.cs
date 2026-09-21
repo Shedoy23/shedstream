@@ -20,8 +20,8 @@ namespace BannerlordLink.Behaviors
     ///
     /// ТЕПЕРЬ (BLT-RC22 C.15 pattern): скриптуем самого AGENT'а, минуя TeamAI:
     ///   - Hold:   agent.SetScriptedPosition(holdPos, NeverSlowDown) — стоять
-    ///   - Charge: DisableScriptedMovement + SetAutomaticTargetSelection(true) +
-    ///             SetTargetFormationIndex(nearestEnemyFormation) — в бой
+    ///   - Charge: scripted approach to a target, native combat on contact;
+    ///             infantry selects reachable humans and limits cavalry pursuit.
     ///   - Walls/Gate (siege): SetScriptedPosition(navTarget)
     ///   - Attach: DisableScriptedMovement[+Combat] — вернуть AI-контроль
     /// Re-issue каждые ~0.5с (engine иногда сбрасывает scripted state на stagger).
@@ -61,7 +61,7 @@ namespace BannerlordLink.Behaviors
         {
             None,
             Hold,       // stay at fixed scripted position
-            Charge,     // engage nearest enemy formation
+            Charge,     // approach selected enemy, release to native combat nearby
             Follow,     // return to formation AI (loose follow)
             Walls,      // siege: navigate to wall/ladder
             Gate,       // siege: navigate to gate
@@ -78,6 +78,15 @@ namespace BannerlordLink.Behaviors
             public bool NavValid;                // NavTarget set?
             public float NextReissueAt;
             public bool SkirmishHolding;         // Skirmish: запинен на standoff (зона покоя) → не re-issue'им
+            public string Status;
+            public Agent ChargeTarget;
+            public readonly Dictionary<Agent, float> IgnoredTargets = new Dictionary<Agent, float>();
+            public float ProgressAt;
+            public float LastProgressDistance;
+            public Vec3 LastProgressPosition;
+            public float NextTargetSearchAt;
+            public int TargetSearchCursor;
+            public float NextPathCheck;
             public bool ChargeEngaged;           // Charge: враг в упор, управление отдано боевому AI
             public int  KiteCount;               // Skirmish: сколько раз уже отходил в этой стычке
             public float KiteReadyAt;            // Skirmish: раньше этого времени отходить нельзя
@@ -163,7 +172,7 @@ namespace BannerlordLink.Behaviors
                 try
                 {
                     if (st == null || st.Agent == null) continue;
-                    if (now < st.NextReissueAt) continue;
+                    if (now < st.NextReissueAt || st.Status == "blocked") continue;
                     bool active;
                     try { active = st.Agent.IsActive(); }
                     catch { _states.TryRemove(st.Agent?.Index ?? -1, out _); continue; }
@@ -177,194 +186,147 @@ namespace BannerlordLink.Behaviors
                 }
                 catch (Exception ex)
                 {
-                    BannerlordLinkModule.Log($"[DET] reissue crashed: {ex.Message}");
+                    st.Status = "blocked";
+                    try { st.Agent.DisableScriptedMovement(); } catch { }
+                    BannerlordLinkModule.Log($"[DET] reissue blocked: {ex.Message}");
                 }
             }
         }
 
         // ── Public API (called by action handlers) ─────────────────────────────
 
-        /// <summary>Mark agent as detached (under our scripted control). Idempotent.
+        /// <summary>Start individual Hold; refuse a redundant paid Detach.
         /// НЕ переносит agent между формациями — просто регистрирует state.
         /// Initial order = Hold на текущей позиции.</summary>
         public bool Detach(Agent agent)
         {
-            if (agent == null || !agent.IsActive()) return false;
-            if (Mission.Current == null) return false;
-            if (_states.ContainsKey(agent.Index)) return true;
-
-            try
-            {
-                var st = new DetachmentState
-                {
-                    Agent = agent,
-                    Order = DetachOrder.Hold,
-                    HoldPosition = agent.GetWorldPosition(),
-                    NextReissueAt = 0f,
-                };
-                _states[agent.Index] = st;
-                if (_firstDetachAt < 0f)
-                {
-                    try { _firstDetachAt = Mission.Current.CurrentTime; } catch { _firstDetachAt = 0f; }
-                }
-                ApplyHold(st);
-                BannerlordLinkModule.Log(
-                    $"[DET] DETACH @{ResolveUsername(agent)} idx={agent.Index} " +
-                    $"(scripted control, total active={_states.Count})");
-                // 2026-06-01 DIAG — почему агент не двигается? Ключевое: он = игрок
-                // (Controller=Player / Agent.Main → scripted-движение игнорится движком)?
-                try
-                {
-                    bool isMain = Agent.Main != null && agent == Agent.Main;
-                    string form = agent.Formation != null ? agent.Formation.Index.ToString() : "none";
-                    BannerlordLinkModule.Log(
-                        $"[DET-DIAG] idx={agent.Index} isMain={isMain} controller={agent.Controller} " +
-                        $"formation={form} team={agent.Team?.Side}");
-                }
-                catch (Exception dex) { BannerlordLinkModule.Log($"[DET-DIAG] warn: {dex.Message}"); }
-                return true;
-            }
-            catch (Exception ex)
-            {
-                BannerlordLinkModule.Log($"[DET] Detach crashed: {ex.Message}");
-                return false;
-            }
+            if (agent == null || IsDetached(agent)) return false;
+            return IssueOrder(agent, DetachOrder.Hold);
         }
 
-        /// <summary>Return agent to normal formation/team AI control.</summary>
         public bool Attach(Agent agent)
         {
-            if (agent == null) return false;
-            if (!_states.TryRemove(agent.Index, out _)) return false;
+            if (agent == null || !_states.TryGetValue(agent.Index, out var st)) return false;
             try
             {
-                if (agent.IsActive())
-                {
-                    try { agent.DisableScriptedMovement(); } catch { }
-                    try { agent.DisableScriptedCombatMovement(); } catch { }
-                    try { agent.SetAutomaticTargetSelection(true); } catch { }
-                }
-                BannerlordLinkModule.Log($"[DET] ATTACH agent={agent.Index} → AI control");
+                agent.DisableScriptedMovement();
+                agent.DisableScriptedCombatMovement();
+                agent.SetAutomaticTargetSelection(true);
+                _states.TryRemove(agent.Index, out _);
+                BannerlordLinkModule.Log($"[DET] ATTACH agent={agent.Index} -> AI control");
                 return true;
             }
             catch (Exception ex)
             {
-                BannerlordLinkModule.Log($"[DET] Attach crashed: {ex.Message}");
+                // Keep the state so a failed cancellation is visible and retryable.
+                RestoreOrder(st);
+                BannerlordLinkModule.Log($"[DET] Attach failed: {ex.Message}");
                 return false;
             }
         }
 
-        public bool Hold(Agent agent)
-        {
-            if (!EnsureDetached(agent, out var st)) return false;
-            st.Order = DetachOrder.Hold;
-            try { st.HoldPosition = agent.GetWorldPosition(); } catch { }
-            st.NextReissueAt = 0f;
-            ApplyHold(st);
-            BannerlordLinkModule.Log($"[DET] HOLD agent={agent.Index}");
-            return true;
-        }
-
-        public bool Charge(Agent agent)
-        {
-            if (!EnsureDetached(agent, out var st)) return false;
-            st.Order = DetachOrder.Charge;
-            st.NextReissueAt = 0f;
-            ApplyCharge(st);
-            BannerlordLinkModule.Log($"[DET] CHARGE agent={agent.Index}");
-            return true;
-        }
-
-        public bool Skirmish(Agent agent)
-        {
-            if (!EnsureDetached(agent, out var st)) return false;
-            st.Order = DetachOrder.Skirmish;
-            st.NextReissueAt = 0f;
-            st.SkirmishHolding = false;   // новый приказ → перепин hold-позиции с нуля
-            ApplySkirmish(st);
-            BannerlordLinkModule.Log(
-                $"[DET] SKIRMISH agent={agent.Index} standoff={SkirmishStandoff(agent):F0}m");
-            return true;
-        }
-
-        public bool Raid(Agent agent)
-        {
-            if (!EnsureDetached(agent, out var st)) return false;
-            st.Order = DetachOrder.Raid;
-            st.NextReissueAt = 0f;
-            ApplyRaid(st);
-            BannerlordLinkModule.Log($"[DET] RAID agent={agent.Index}");
-            return true;
-        }
-
-        public bool Follow(Agent agent)
-        {
-            // Follow = просто вернуть AI-контроль (агент следует за своей
-            // формацией). Нет отдельной механики — эквивалент Attach без
-            // удаления state (остаётся detached для будущих команд).
-            if (!EnsureDetached(agent, out var st)) return false;
-            st.Order = DetachOrder.Follow;
-            st.NextReissueAt = 0f;
-            try { agent.DisableScriptedMovement(); } catch { }
-            return true;
-        }
+        public bool Hold(Agent agent) => IssueOrder(agent, DetachOrder.Hold);
+        public bool Charge(Agent agent) => IssueOrder(agent, DetachOrder.Charge);
+        public bool Skirmish(Agent agent) => IssueOrder(agent, DetachOrder.Skirmish);
+        public bool Raid(Agent agent) => IssueOrder(agent, DetachOrder.Raid);
+        public bool Follow(Agent agent) => IssueOrder(agent, DetachOrder.Follow);
 
         public bool Walls(Agent agent)
         {
-            if (!EnsureDetached(agent, out var st)) return false;
-            if (!IsSiegeMission())
-            {
-                BannerlordLinkModule.Log($"[DET] WALLS agent={agent.Index} REFUSE: не siege");
-                return false;
-            }
-            // 2026-07-19 (#walls) — целимся в боевую позицию на забрале: позицию ближайшего
-            // СВОЕГО бойца, стоящего ВЫШЕ нас (движок расставил защитников по стене; их точки
-            // навмеш-валидны и достижимы по внутренним лестницам). Раньше целились в тело
-            // стены/лестницы → герой утыкался в основание. Фолбэк на старую логику, если
-            // своих на стене нет (атакующий / стена пуста).
-            var wp = FindWallFiringPosition(agent);
-            if (!wp.IsValid)
-                wp = FindNearestSiegeTarget(agent, gateOnly: false);
-            if (!wp.IsValid)
-            {
-                BannerlordLinkModule.Log($"[DET] WALLS agent={agent.Index} REFUSE: target не найден");
-                return false;
-            }
-            st.Order = DetachOrder.Walls;
-            st.NavTarget = wp;
-            st.NavValid = true;
-            st.NextReissueAt = 0f;
-            ApplyNavigate(st);
-            BannerlordLinkModule.Log($"[DET] WALLS agent={agent.Index}");
-            return true;
+            if (!CanControl(agent) || !IsSiegeMission()) return false;
+            var target = FindWallFiringPosition(agent);
+            if (!target.IsValid) target = FindNearestSiegeTarget(agent, false);
+            if (!CanPathTo(agent, target)) return false;
+            return IssueOrder(agent, DetachOrder.Walls, target);
         }
 
         public bool Gate(Agent agent)
         {
-            if (!EnsureDetached(agent, out var st)) return false;
-            if (!IsSiegeMission())
-            {
-                BannerlordLinkModule.Log($"[DET] GATE agent={agent.Index} REFUSE: не siege");
-                return false;
-            }
-            var wp = FindNearestSiegeTarget(agent, gateOnly: true);
-            if (!wp.IsValid)
-            {
-                BannerlordLinkModule.Log($"[DET] GATE agent={agent.Index} REFUSE: gate не найден");
-                return false;
-            }
-            st.Order = DetachOrder.Gate;
-            st.NavTarget = wp;
-            st.NavValid = true;
-            st.NextReissueAt = 0f;
-            ApplyNavigate(st);
-            BannerlordLinkModule.Log($"[DET] GATE agent={agent.Index}");
-            return true;
+            if (!CanControl(agent) || !IsSiegeMission()) return false;
+            var target = FindNearestSiegeTarget(agent, true);
+            if (!CanPathTo(agent, target)) return false;
+            return IssueOrder(agent, DetachOrder.Gate, target);
         }
 
-        public bool IsDetached(Agent agent)
+        private static bool CanControl(Agent agent)
         {
-            return agent != null && _states.ContainsKey(agent.Index);
+            return agent != null && agent.IsActive() && Mission.Current != null
+                && agent != Agent.Main && agent.IsAIControlled;
+        }
+
+        // Validate first, apply a fresh state, then publish it. A refused command
+        // never silently replaces a previous order with the old implicit Hold.
+        private bool IssueOrder(Agent agent, DetachOrder order, WorldPosition? destination = null)
+        {
+            if (!CanControl(agent)) return false;
+            _states.TryGetValue(agent.Index, out var previous);
+            try
+            {
+                var st = new DetachmentState {
+                    Agent = agent, Order = order, HoldPosition = agent.GetWorldPosition(),
+                    NavTarget = destination ?? WorldPosition.Invalid, NavValid = destination.HasValue,
+                    ProgressAt = Mission.CurrentTime, LastProgressDistance = float.MaxValue,
+                    LastProgressPosition = agent.Position,
+                    Status = order.ToString().ToLowerInvariant(),
+                    NextReissueAt = Mission.CurrentTime + REISSUE_INTERVAL
+                };
+                ReissueOrder(st);
+                _states[agent.Index] = st;
+                if (_firstDetachAt < 0) _firstDetachAt = Mission.CurrentTime;
+                BannerlordLinkModule.Log($"[DET] {order.ToString().ToUpperInvariant()} agent={agent.Index} status={st.Status}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                if (previous != null) RestoreOrder(previous);
+                else
+                {
+                    try { agent.DisableScriptedMovement(); agent.DisableScriptedCombatMovement(); } catch { }
+                }
+                BannerlordLinkModule.Log($"[DET] {order} REFUSE agent={agent.Index}: {ex.Message}");
+                return false;
+            }
+        }
+
+        private void RestoreOrder(DetachmentState st)
+        {
+            try {
+                if (st.Status == "arrived" || st.Status == "blocked")
+                {
+                    st.Agent.DisableScriptedMovement();
+                    st.Agent.DisableScriptedCombatMovement();
+                    st.Agent.SetAutomaticTargetSelection(true);
+                }
+                else if (st.Order == DetachOrder.Skirmish && st.SkirmishHolding)
+                {
+                    // Skirmish intentionally avoids reissuing a pinned position.
+                    // A partially failed Attach may already have removed that pin.
+                    var position = st.Agent.GetWorldPosition();
+                    st.Agent.SetScriptedPosition(ref position, false, Agent.AIScriptedFrameFlags.NeverSlowDown);
+                }
+                else ReissueOrder(st);
+            }
+            catch (Exception ex) {
+                st.Status = "blocked";
+                try { st.Agent.DisableScriptedMovement(); } catch { }
+                BannerlordLinkModule.Log($"[DET] restore failed agent={st.Agent.Index}: {ex.Message}");
+            }
+        }
+
+        public bool IsDetached(Agent agent) => agent != null && _states.ContainsKey(agent.Index);
+
+        public string GetOrderStatus(Agent agent)
+        {
+            return agent != null && _states.TryGetValue(agent.Index, out var st) ? st.Status : "formation";
+        }
+
+        private static bool CanPathTo(Agent agent, WorldPosition position)
+        {
+            try {
+                return position.IsValid && Mission.Current?.Scene != null
+                    && Mission.Current.Scene.DoesPathExistBetweenPositions(agent.GetWorldPosition(), position);
+            }
+            catch { return false; }
         }
 
         // ── Scripted-control appliers ──────────────────────────────────────────
@@ -380,73 +342,147 @@ namespace BannerlordLink.Behaviors
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log($"[DET] ApplyHold warn: {ex.Message}");
+                throw;
             }
         }
 
         private void ApplyCharge(DetachmentState st)
         {
-            try
+            var agent = st.Agent;
+            bool onFoot = agent.MountAgent == null;
+            float now = Mission.CurrentTime;
+            Agent enemy = onFoot ? st.ChargeTarget : FindNearestEnemyAgent(agent);
+            if (onFoot)
             {
-                var agent = st.Agent;
-                // 2026-06-01 FIX — раньше DisableScriptedMovement + SetTargetFormationIndex
-                // возвращало агента под контроль формации (которая стоит) → герой не двигался.
-                // Теперь СКРИПТУЕМ позицию НА ближайшего врага (тот же механизм, что Hold,
-                // но цель — враг) + авто-таргет для атаки в упор. Re-issue каждые 0.5с ведёт
-                // за движущимся врагом.
-                var enemy = FindNearestEnemyAgent(agent);
-                if (enemy != null)
+                if (!EligibleFootTarget(st, enemy)) enemy = null;
+                if (enemy != null && now >= st.NextPathCheck)
                 {
-                    // 2026-06-17 — «вблизи»: ВСЕГДА в КОНТАКТ к врагу, для всех классов
-                    // (дистанционный бой — отдельный приказ Skirmish «издали»).
-                    //
-                    // 2026-08-03 (просьба владельца «чтоб персонаж просто шёл в бой»):
-                    // раньше мы КАЖДЫЕ 0.5с переставляли скриптованную позицию на
-                    // ближайшего врага с флагом NeverSlowDown — и не снимали её никогда.
-                    // Герой из-за этого вечно БЕЖАЛ к точке вместо того, чтобы драться:
-                    // подбежав вплотную, он тут же получал новую точку (враг сместился
-                    // или ближайшим стал другой) и снова разгонялся, вместо замаха.
-                    //
-                    // Теперь скрипт — только чтобы ДОЙТИ. Как только враг в пределах
-                    // удара, управление отдаётся боевому AI движка: он сам выбирает
-                    // цель, бьёт, блокирует и уклоняется. Отпускаем через
-                    // DisableScriptedMovement + SetAutomaticTargetSelection(true).
-                    //
-                    // Гистерезис (ENGAGE < DISENGAGE) — чтобы у самой границы приказ не
-                    // дёргался «отпустил/схватил» каждый тик. Это тот же класс ошибки и
-                    // то же лекарство, что в Skirmish (#32): там пересчёт точки каждые
-                    // 0.5с давал «бегает туда-сюда», и лечилось это зоной покоя.
-                    const float ENGAGE_DIST    = 3.5f;   // ближе — дерись сам
-                    const float DISENGAGE_DIST = 6.0f;   // дальше — снова веду к врагу
-
-                    float dist = agent.Position.Distance(enemy.Position);
-                    if (st.ChargeEngaged && dist > DISENGAGE_DIST) st.ChargeEngaged = false;
-                    else if (!st.ChargeEngaged && dist <= ENGAGE_DIST) st.ChargeEngaged = true;
-
-                    try { agent.SetAutomaticTargetSelection(true); } catch { }
-
-                    if (st.ChargeEngaged)
+                    if (!CanPathTo(agent, enemy.GetWorldPosition()))
                     {
-                        // В упор — не мешаем движку драться.
-                        try { agent.DisableScriptedMovement(); } catch { }
+                        st.IgnoredTargets[enemy] = now + 3f;
+                        enemy = null;
                     }
-                    else
-                    {
-                        var pos = enemy.GetWorldPosition();
-                        agent.SetScriptedPosition(ref pos, false,
-                            Agent.AIScriptedFrameFlags.NeverSlowDown);
-                    }
+                    st.NextPathCheck = now + 2f;
                 }
-                else
+                if (enemy == null) enemy = SelectFootTarget(st);
+                if (enemy != st.ChargeTarget)
                 {
-                    // Врагов не нашли — снимаем скрипт, пусть AI решает сам.
                     st.ChargeEngaged = false;
-                    try { agent.DisableScriptedMovement(); } catch { }
+                    st.ProgressAt = now;
+                    st.LastProgressDistance = float.MaxValue;
+                    st.LastProgressPosition = agent.Position;
+                    st.ChargeTarget = enemy;
+                    st.NextPathCheck = now + 2f;
+                }
+                if (enemy != null && !st.ChargeEngaged)
+                {
+                    float distance = agent.Position.Distance(enemy.Position);
+                    // Infantry may need a detour. Only a rider chase specifically
+                    // requires closing distance; foot targets also count real movement.
+                    if (distance < st.LastProgressDistance - 1f
+                        || (enemy.MountAgent == null && agent.Position.Distance(st.LastProgressPosition) >= 1f))
+                    {
+                        st.LastProgressDistance = distance;
+                        st.LastProgressPosition = agent.Position;
+                        st.ProgressAt = now;
+                    }
+                    else if (now - st.ProgressAt >= 4f)
+                    {
+                        // A static obstruction or an escaping horse must not own
+                        // the viewer's infantry forever. Retry it only after a pause.
+                        st.IgnoredTargets[enemy] = now + 8f;
+                        st.ChargeTarget = enemy = SelectFootTarget(st);
+                        st.ChargeEngaged = false;
+                        st.ProgressAt = now;
+                        st.LastProgressDistance = float.MaxValue;
+                        st.LastProgressPosition = agent.Position;
+                        st.NextPathCheck = now + 2f;
+                    }
                 }
             }
-            catch (Exception ex)
+
+            if (enemy == null)
             {
-                BannerlordLinkModule.Log($"[DET] ApplyCharge warn: {ex.Message}");
+                st.ChargeEngaged = false;
+                if (onFoot)
+                {
+                    // Releasing to a charging formation would resume the very
+                    // cavalry chase we rejected. Hold here, but keep combat AI on.
+                    if (st.Status != "waiting_target") st.HoldPosition = agent.GetWorldPosition();
+                    ApplyHold(st);
+                    agent.SetAutomaticTargetSelection(true);
+                    st.Status = "waiting_target";
+                }
+                else { agent.DisableScriptedMovement(); st.Status = "waiting_target"; }
+                return;
             }
+
+            float dist = agent.Position.Distance(enemy.Position);
+            bool clearContact = !onFoot || HasLineOfSight(agent, enemy);
+            if (st.ChargeEngaged && (dist > 6f || !clearContact))
+            {
+                st.ChargeEngaged = false;
+                // Time spent actually fighting is not time spent failing to pursue.
+                st.ProgressAt = now;
+                st.LastProgressDistance = dist;
+                st.LastProgressPosition = agent.Position;
+            }
+            else if (!st.ChargeEngaged && dist <= 3.5f && clearContact) st.ChargeEngaged = true;
+            agent.SetAutomaticTargetSelection(true);
+            string status = st.ChargeEngaged ? "engaged" : "approaching";
+            if (st.Status != status)
+                BannerlordLinkModule.Log($"[DET] CHARGE phase={status} agent={agent.Index} target={enemy.Index} mounted_target={enemy.MountAgent != null} distance={dist:F1}");
+            st.Status = status;
+            if (st.ChargeEngaged) agent.DisableScriptedMovement();
+            else
+            {
+                var pos = enemy.GetWorldPosition();
+                agent.SetScriptedPosition(ref pos, false, Agent.AIScriptedFrameFlags.NeverSlowDown);
+            }
+        }
+
+        private bool EligibleFootTarget(DetachmentState st, Agent target, bool includeIgnored = false)
+        {
+            if (target == null || target == st.Agent || !target.IsActive()
+                || !target.IsHuman || !target.IsEnemyOf(st.Agent)) return false;
+            if (!includeIgnored && st.IgnoredTargets.TryGetValue(target, out float until) && Mission.CurrentTime < until) return false;
+            // A nearby rider remains a valid threat; distant cavalry is not a
+            // reasonable pursuit target for infantry. This does not affect Raid.
+            return target.MountAgent == null || st.Agent.Position.Distance(target.Position) <= 12f;
+        }
+
+        private Agent SelectFootTarget(DetachmentState st)
+        {
+            // Keep a living, reachable target in ApplyCharge instead of swapping
+            // between two enemies whenever their distances change slightly.
+            float now = Mission.CurrentTime;
+            if (now < st.NextTargetSearchAt) return null;
+            st.NextTargetSearchAt = now + 1f;
+            foreach (var expired in st.IgnoredTargets.Where(p => p.Value <= now).Select(p => p.Key).ToList())
+                st.IgnoredTargets.Remove(expired);
+            var candidates = Mission.Current.Agents.Where(a => EligibleFootTarget(st, a, includeIgnored: true))
+                .OrderBy(a => st.Agent.Position.Distance(a.Position) <= 3.5f ? 0 : a.MountAgent == null ? 1 : 2)
+                .ThenBy(a => (a.Position - st.Agent.Position).LengthSquared)
+                .ToList();
+            if (candidates.Count == 0) return null;
+            int probes = 0, start = st.TargetSearchCursor % candidates.Count;
+            // Continue the bounded search next time; restarting at the nearest
+            // twelve would starve reachable enemies behind many blocked targets.
+            for (int visited = 0; visited < candidates.Count && probes < 12; visited++)
+            {
+                int index = (start + visited) % candidates.Count;
+                st.TargetSearchCursor = (index + 1) % candidates.Count;
+                var candidate = candidates[index];
+                if (!EligibleFootTarget(st, candidate)) continue;
+                probes++;
+                if (CanPathTo(st.Agent, candidate.GetWorldPosition()))
+                {
+                    st.TargetSearchCursor = 0;
+                    return candidate;
+                }
+                st.IgnoredTargets[candidate] = now + 3f;
+            }
+            return null;
         }
 
         // 2026-06-17 / 2026-07-19 (#32) — Skirmish: «встал на дистанции и стреляет».
@@ -625,6 +661,7 @@ namespace BannerlordLink.Behaviors
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log($"[DET] ApplySkirmish warn: {ex.Message}");
+                throw;
             }
         }
 
@@ -679,22 +716,41 @@ namespace BannerlordLink.Behaviors
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log($"[DET] ApplyRaid warn: {ex.Message}");
+                throw;
             }
         }
 
         private void ApplyNavigate(DetachmentState st)
         {
-            if (!st.NavValid) return;
-            try
+            if (!st.NavValid) throw new InvalidOperationException("navigation_target_invalid");
+            if (st.Status == "arrived" || st.Status == "blocked") return;
+            if (!IsSiegeMission() || !CanPathTo(st.Agent, st.NavTarget))
+                throw new InvalidOperationException("navigation_path_unavailable");
+            float distance = st.Agent.Position.Distance(st.NavTarget.GetGroundVec3());
+            if (distance <= 2f)
             {
-                var pos = st.NavTarget;
-                st.Agent.SetScriptedPosition(ref pos, false,
-                    Agent.AIScriptedFrameFlags.NeverSlowDown);
+                st.Agent.DisableScriptedMovement();
+                st.Agent.SetAutomaticTargetSelection(true);
+                st.Status = "arrived";
+                return;
             }
-            catch (Exception ex)
+            float now = Mission.CurrentTime;
+            if (distance < st.LastProgressDistance - 1f
+                || st.Agent.Position.Distance(st.LastProgressPosition) >= 1f)
             {
-                BannerlordLinkModule.Log($"[DET] ApplyNavigate warn: {ex.Message}");
+                st.LastProgressDistance = distance;
+                st.LastProgressPosition = st.Agent.Position;
+                st.ProgressAt = now;
             }
+            else if (now - st.ProgressAt >= 6f)
+            {
+                st.Agent.DisableScriptedMovement();
+                st.Status = "blocked";
+                BannerlordLinkModule.Log($"[DET] navigation blocked agent={st.Agent.Index} order={st.Order}");
+                return;
+            }
+            var pos = st.NavTarget;
+            st.Agent.SetScriptedPosition(ref pos, false, Agent.AIScriptedFrameFlags.NeverSlowDown);
         }
 
         private void ReissueOrder(DetachmentState st)
@@ -708,24 +764,14 @@ namespace BannerlordLink.Behaviors
                 case DetachOrder.Walls:
                 case DetachOrder.Gate:     ApplyNavigate(st);  break;
                 case DetachOrder.Follow:
-                    // AI-controlled — ничего не reissue'им.
+                    st.Agent.DisableScriptedMovement();
+                    st.Agent.SetAutomaticTargetSelection(true);
+                    st.Status = "formation";
                     break;
             }
         }
 
         // ── Private helpers ────────────────────────────────────────────────────
-
-        private bool EnsureDetached(Agent agent, out DetachmentState st)
-        {
-            st = null;
-            if (agent == null || !agent.IsActive()) return false;
-            if (!_states.TryGetValue(agent.Index, out st))
-            {
-                if (!Detach(agent)) return false;
-                if (!_states.TryGetValue(agent.Index, out st)) return false;
-            }
-            return true;
-        }
 
         /// <summary>2026-07-20 (#36) — есть ли у стрелка чистая линия огня до цели.
         /// Луч от «глаз» героя к телу врага через Scene: если упёрся в террейн/статичный
@@ -867,7 +913,7 @@ namespace BannerlordLink.Behaviors
                     if (a.Position.z <= me.z + WALL_MIN_ELEVATION) continue;   // выше нас = на забрале
                     float score = (a.Position - me).LengthSquared;
                     try { if (a.IsRangedCached) score *= 0.5f; } catch { }   // лёгкий приоритет стрелков
-                    if (score < bestScore) { bestScore = score; best = a; }
+                    if (score < bestScore && CanPathTo(agent, a.GetWorldPosition())) { bestScore = score; best = a; }
                 }
                 if (best == null) return WorldPosition.Invalid;
                 return ProjectToNavMesh(Mission.Current.Scene, best.Position);
@@ -893,7 +939,10 @@ namespace BannerlordLink.Behaviors
                 if (scene == null) return WorldPosition.Invalid;
 
                 var allEntities = new List<GameEntity>();
-                try { scene.GetAllEntitiesWithScriptComponent<SiegeLadder>(ref allEntities); }
+                try {
+                    if (gateOnly) scene.GetAllEntitiesWithScriptComponent<CastleGate>(ref allEntities);
+                    else scene.GetAllEntitiesWithScriptComponent<SiegeLadder>(ref allEntities);
+                }
                 catch { }
 
                 if (allEntities.Count == 0)
@@ -932,7 +981,7 @@ namespace BannerlordLink.Behaviors
                     try { ep = e.GlobalPosition; }
                     catch { continue; }
                     float d = (ep - agentPos).LengthSquared;
-                    if (d < bestDistSq) { bestDistSq = d; bestEntity = e; }
+                    if (d < bestDistSq && CanPathTo(agent, ProjectToNavMesh(scene, ep))) { bestDistSq = d; bestEntity = e; }
                 }
 
                 if (bestEntity == null) return WorldPosition.Invalid;

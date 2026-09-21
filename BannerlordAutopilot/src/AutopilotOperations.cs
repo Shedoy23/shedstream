@@ -167,7 +167,11 @@ namespace BannerlordAutopilot
             }
             var place = EncounterPlace(party);
             if (_operationSettlement == null && CanStartOperation(party)) _operationSettlement = place;
-            if (_operationSettlement == null || place != _operationSettlement) return false;
+            // Прорыв наружу выводит партию из поселения раньше, чем кончается штатная
+            // цепочка: подтверждение и дебриф принадлежат той же операции.
+            bool breakingOut = MenuDriver.CurrentMenuId == "break_out_menu"
+                               || MenuDriver.CurrentMenuId == "break_out_debrief_menu";
+            if (_operationSettlement == null || (place != _operationSettlement && !breakingOut)) return false;
             if (_mode != Mode.Apply) return true;
             if (InformationManager.IsAnyInquiryActive()) return true;
             try
@@ -224,8 +228,18 @@ namespace BannerlordAutopilot
                             AutopilotLog.Write("ОСАДА: помощь защитникам скрыта; покидаем «" + place.Name + "» штатной кнопкой");
                             OperationClick("encounter_interrupted_siege_preparations_leave_town");
                         }
-                        else Disable("осада: помощь защитникам и выход из поселения недоступны: " + MenuDriver.Describe());
+                        // Спокойный выход игра прячет, когда мы уже воюем с осаждающим:
+                        // остаются оборона и прорыв. Без прорыва автопилот выключался,
+                        // и меню оставалось висеть на паузе (21.09, Замок Флинтолг).
+                        else if (MenuDriver.CanInvoke("encounter_interrupted_siege_preparations_break_out_of_town", out _))
+                        {
+                            AutopilotLog.Write("ОСАДА: оборона недоступна; прорываемся из «" + place.Name + "» штатной кнопкой, потери считает игра");
+                            OperationClick("encounter_interrupted_siege_preparations_break_out_of_town");
+                        }
+                        else Disable("осада: помощь защитникам, выход и прорыв недоступны: " + MenuDriver.Describe());
                         break;
+                    case "break_out_menu": OperationClick("break_out_menu_accept"); break;
+                    case "break_out_debrief_menu": OperationClick("break_out_debrief_continue"); break;
                     case "menu_siege_strategies": ResumeOperationWait(); break;
                     case "join_encounter":
                     case "encounter_interrupted":
@@ -279,7 +293,16 @@ namespace BannerlordAutopilot
                     source = view.GetType().GetField("_dataSource", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(view);
             if (source == null)
             {
-                if (Clock() - _troopsRequestedAt > TimeSpan.FromSeconds(15)) Disable("убежище: окно выбора отряда не появилось");
+                if (Clock() - _troopsRequestedAt <= TimeSpan.FromSeconds(15)) return;
+                // Штатный assault только зовёт MenuContext.OpenTroopSelection, а тот —
+                // Handler?.OnOpenTroopSelection: когда обработчика нет, кнопка молча не
+                // делает ничего. Прежде автопилот на это выключался, и меню убежища
+                // оставалось висеть на паузе (21.09 20:34). Уходим штатной кнопкой;
+                // сутки на этот лагерь уже записаны, поэтому круга не будет.
+                _awaitingHideoutTroops = false;
+                _hideoutMissionFinished = true; // миссии не будет — выходим тем же штатным путём
+                AutopilotLog.Write("УБЕЖИЩЕ: окно выбора отряда не появилось за 15 с; уходим штатной кнопкой. "
+                                   + MenuDriver.Describe());
                 return;
             }
             Type type = source.GetType();

@@ -195,6 +195,8 @@ namespace BannerlordLink.Util
                     kingdom_info  = kingdomInfo,
                     family_info   = familyInfo,
                     party_info    = BuildPartyInfo(hero),
+                    vassals       = BannerlordLink.Behaviors.VassalAutoFollowBehavior.Current?
+                                        .BuildSnapshotForMaster(hero.Clan),
                 };
                 return JsonConvert.SerializeObject(payload);
             }

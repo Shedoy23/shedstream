@@ -186,6 +186,18 @@ namespace BannerlordLink.Behaviors
             return result;
         }
 
+        /// <summary>Authoritative save-backed snapshot for backend/UI resync.</summary>
+        public object BuildSnapshotForMaster(Clan masterClan)
+        {
+            return GetVassalsOfMaster(masterClan).Select(c => new
+            {
+                clan_id = c.StringId,
+                leader_hero_id = c.Leader?.StringId,
+                name = c.Name?.ToString(),
+                banner_code = c.Banner?.Serialize(),
+            }).ToList();
+        }
+
         // ─── Event handlers ───────────────────────────────────────────────────────
 
         private void OnClanChangedKingdom(

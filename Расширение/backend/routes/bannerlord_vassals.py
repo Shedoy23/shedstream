@@ -84,6 +84,38 @@ async def list_real_vassals(conn, channel_id: int, username: str) -> list:
     ]
 
 
+async def reconcile_vassal_snapshot(conn, channel_id: int, username: str,
+                                    snapshot: list) -> None:
+    """Replace the real mirror with the authoritative list from the loaded save.
+
+    Fresh pending rows are preserved because they describe actions still in
+    flight. Invalid/duplicate entries are ignored defensively.
+    """
+    clean = {}
+    for item in snapshot:
+        if not isinstance(item, dict):
+            continue
+        clan_id = str(item.get("clan_id") or "").strip()
+        leader_id = str(item.get("leader_hero_id") or "").strip()
+        name = str(item.get("name") or "").strip()
+        if not clan_id or not leader_id or not name or clan_id.startswith("pending_"):
+            continue
+        clean[clan_id] = (leader_id, name, item.get("banner_code"))
+
+    await conn.execute(
+        "DELETE FROM bannerlord_vassals "
+        "WHERE channel_id=? AND parent_username=? "
+        f"AND {_REAL_ONLY}",
+        (channel_id, username))
+    for clan_id, (leader_id, name, banner_code) in clean.items():
+        await conn.execute(
+            "INSERT INTO bannerlord_vassals "
+            "(channel_id,parent_username,vassal_clan_id,vassal_leader_hero_id," 
+            " vassal_name,income_share_pct,banner_code) "
+            "VALUES (?,?,?,?,?,25.0,?)",
+            (channel_id, username, clan_id, leader_id, name, banner_code))
+
+
 @router.get("/api/bannerlord/vassals")
 async def my_vassals(request: Request):
     """Список своих вассалов. Returns {success, vassals: [...]}"""

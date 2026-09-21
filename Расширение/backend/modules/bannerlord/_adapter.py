@@ -1260,6 +1260,15 @@ class BannerlordAdapter(ModuleAdapter):
                             f"WHERE channel_id=? AND username=?",
                             (json_str, channel_id, username))
 
+                # Save is authoritative for personal vassal clans. Creation
+                # events can be lost while the backend/game is disconnected;
+                # every full hero snapshot repairs both missing and stale rows.
+                vassals_payload = data.get("vassals")
+                if isinstance(vassals_payload, list):
+                    from routes.bannerlord_vassals import reconcile_vassal_snapshot
+                    await reconcile_vassal_snapshot(
+                        conn, channel_id, username, vassals_payload)
+
                 await conn.commit()
             except Exception:
                 # Граница транзакции видна здесь же. Database._connect() на

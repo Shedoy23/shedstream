@@ -47,7 +47,7 @@ namespace TaleWorlds.MountAndBlade {
  }
  public class Mission {
   public List<MissionBehavior> Behaviors=new();
-  public bool MissionEnded; public int ExitCalls; public MissionResult MissionResult; public BattleEndLogic EndLogic;
+  public bool CameraIsFirstPerson; public bool MissionEnded; public int ExitCalls; public MissionResult MissionResult; public BattleEndLogic EndLogic;
   public MissionMode Mode = MissionMode.Deployment; public bool IsDeploymentFinished; public bool IsFriendlyMission; public Team PlayerTeam = new(); public Agent MainAgent = new();
   public BattleDeploymentMissionController Deployment;
   public T GetMissionBehavior<T>() where T:class => (Deployment as T) ?? (EndLogic as T);

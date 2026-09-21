@@ -148,4 +148,21 @@ foreach (bool enabled in new[] { true, false })
     Check(!rbmManual.IsAIControlled && rbmAlreadyAi.IsAIControlled,
         "RBM AI=" + enabled + ": F12 возвращает только наше управление");
 }
+foreach (bool previousFirstPerson in new[]{false,true})
+foreach (string stop in new[]{"off","dead","replacement","conversation","end"})
+{
+    AutopilotBehavior.Instance.CurrentMode=AutopilotBehavior.Mode.Apply;
+    var cameraMission=new Mission {Mode=MissionMode.Battle,IsDeploymentFinished=true,CameraIsFirstPerson=previousFirstPerson};
+    var cameraBehavior=new BattleAutopilotMission {Mission=cameraMission};
+    cameraBehavior.OnAfterDeploymentFinished();
+    Check(cameraMission.CameraIsFirstPerson && cameraMission.MainAgent.Controller==AgentControllerType.AI,
+        "camera follows first person without returning player control");
+    if(stop=="off") AutopilotBehavior.Instance.CurrentMode=AutopilotBehavior.Mode.Off;
+    if(stop=="dead") cameraMission.MainAgent.Active=false;
+    if(stop=="replacement") cameraMission.MainAgent=new Agent();
+    if(stop=="conversation") {cameraMission.Mode=MissionMode.Conversation;cameraBehavior.OnMissionModeChange(MissionMode.Battle,false);}
+    if(stop=="end") typeof(BattleAutopilotMission).GetMethod("OnEndMission",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).Invoke(cameraBehavior,null);
+    else cameraBehavior.OnMissionTick(.1f);
+    Check(cameraMission.CameraIsFirstPerson==previousFirstPerson,"camera restores previous mode: "+stop);
+}
 return failed;

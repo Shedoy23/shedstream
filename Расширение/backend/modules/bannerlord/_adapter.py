@@ -373,6 +373,17 @@ def set_cooldown(channel_id: int, username: str, power_key: str) -> None:
     _cooldowns.setdefault(key, {})[power_key] = time.time() + cd_seconds
 
 
+def clear_cooldown(channel_id: int, username: str, power_key: str) -> None:
+    """Release a cooldown when the game refused the queued action."""
+    key = (channel_id, (username or "").lower())
+    per_viewer = _cooldowns.get(key)
+    if not per_viewer:
+        return
+    per_viewer.pop(power_key, None)
+    if not per_viewer:
+        _cooldowns.pop(key, None)
+
+
 def get_battle_stats(channel_id: int) -> dict:
     """Возвращает snapshot активного боя для overlay. Если stale (>TTL) —
     возвращает пустой dict (overlay скрывает карточки)."""
@@ -769,15 +780,8 @@ class BannerlordAdapter(ModuleAdapter):
         async with get_db()._connect() as conn:
             try:
                 await conn.execute("BEGIN IMMEDIATE")
-                if not await refund_still_due(conn, "bannerlord", channel_id,
-                                              action_id, reason):
-                    await conn.execute("ROLLBACK")
-                    logger.info(
-                        "[bannerlord:%s] action.failed action_id=%s: игра забрала "
-                        "заявку раньше сторожа — возврата нет", channel_id, action_id)
-                    return
                 cur = await conn.execute(
-                    "SELECT data, error_msg FROM module_actions "
+                    "SELECT type, data, error_msg FROM module_actions "
                     "WHERE channel_id=? AND module_id='bannerlord' AND action_id=?",
                     (channel_id, action_id))
                 row = await cur.fetchone()
@@ -788,7 +792,33 @@ class BannerlordAdapter(ModuleAdapter):
                         channel_id, action_id)
                     return
 
-                data_str, error_msg = row
+                action_type, data_str, error_msg = row
+                try:
+                    import json as _json
+                    parsed = _json.loads(data_str or "{}")
+                except Exception:
+                    parsed = {}
+                username = (parsed.get("initiated_by") or "").lower()
+
+                # Cooldowns throttle successful actions. The HTTP request starts
+                # one before the game has applied the action, so every terminal
+                # game-side refusal must release its exact key immediately.
+                cooldown_key = action_type
+                if action_type == "power.activate":
+                    cooldown_key = (parsed.get("power_key") or "").strip().lower()
+                elif action_type == "player.spawn":
+                    side = (parsed.get("side") or "player").strip().lower()
+                    cooldown_key = f"player.spawn:{side}"
+                if username and cooldown_key:
+                    clear_cooldown(channel_id, username, cooldown_key)
+
+                if not await refund_still_due(conn, "bannerlord", channel_id,
+                                              action_id, reason):
+                    await conn.execute("ROLLBACK")
+                    logger.info(
+                        "[bannerlord:%s] action.failed action_id=%s: игра забрала "
+                        "заявку раньше сторожа — возврата нет", channel_id, action_id)
+                    return
                 # Idempotent: уже refunded — skip
                 if error_msg and error_msg.startswith("REFUNDED:"):
                     await conn.execute("ROLLBACK")
@@ -797,14 +827,9 @@ class BannerlordAdapter(ModuleAdapter):
                         channel_id, action_id)
                     return
 
-                # Parse data → price + initiated_by
-                try:
-                    import json as _json
-                    parsed = _json.loads(data_str or "{}")
-                except Exception:
-                    parsed = {}
+                # Parse data → price + initiated_by was done before the
+                # refund fence so duplicate failure delivery also clears CD.
                 price = int(parsed.get("price") or 0)
-                username = (parsed.get("initiated_by") or "").lower()
 
                 if price <= 0 or not username:
                     # Не было payment'а (free action) — лог + mark.

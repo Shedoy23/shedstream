@@ -16,6 +16,8 @@ namespace BannerlordAutopilot
     {
         private bool _deploymentRequested;
         private bool _controlGiven;
+        private bool _cameraOwned;
+        private bool _previousFirstPerson;
         private bool _exitRequested;
         private float _completedWait;
         private float _exitRetry;
@@ -55,6 +57,9 @@ namespace BannerlordAutopilot
             {
                 GiveControlToAi();
             }
+            if (_cameraOwned && (_givenAgent == null || !_givenAgent.IsActive()
+                || Mission.MainAgent != _givenAgent || Mission.MissionEnded))
+                RestoreCamera();
             if (_controlGiven && _fieldAttackActive
                 && Mission.Mode == MissionMode.Battle && !Mission.MissionEnded)
             {
@@ -229,6 +234,12 @@ namespace BannerlordAutopilot
             agent.ResetEnemyCaches();
             agent.HumanAIComponent?.SyncBehaviorParamsIfNecessary();
             _controlGiven = true;
+            // Native MissionScreen follows an active AI MainAgent too. Its first-person
+            // input retains mouse/free-look; do not write LookDirection or camera angles.
+            _previousFirstPerson = Mission.CameraIsFirstPerson;
+            _cameraOwned = true;
+            Mission.CameraIsFirstPerson = true;
+            AutopilotLog.Write("КАМЕРА: от первого лица основного героя; обзор мышью штатный");
             AutopilotLog.Write(_fieldOrders.Count > 0
                 ? "БОЙ: герой передан штатному AI; формации наступают по приказу автопилота"
                 : "БОЙ: герой и " + _formationsGiven.Count + " формаций переданы штатному AI");
@@ -277,8 +288,17 @@ namespace BannerlordAutopilot
             }
         }
 
+        private void RestoreCamera()
+        {
+            if (!_cameraOwned) return;
+            Mission.CameraIsFirstPerson = _previousFirstPerson;
+            _cameraOwned = false;
+            AutopilotLog.Write("КАМЕРА: прежний режим восстановлен");
+        }
+
         private void RestorePlayerControl()
         {
+            RestoreCamera();
             if (!_controlGiven)
             {
                 return;
@@ -325,6 +345,7 @@ namespace BannerlordAutopilot
 
         protected override void OnEndMission()
         {
+            RestoreCamera();
             AutopilotBehavior.Instance?.OnOperationMissionEnded();
             _hideoutOrders.Clear();
             _fieldOrders.Clear();

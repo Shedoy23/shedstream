@@ -289,6 +289,7 @@ internal static partial class Program
         OperationTests();
         EncounterTests();
         ConquestTests();
+        DefenseTests();
         EquipmentTradeTests();
         TroopUpgradeTests();
         BanditGatheringTests();

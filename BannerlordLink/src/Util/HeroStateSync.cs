@@ -280,6 +280,7 @@ namespace BannerlordLink.Util
                 System.Collections.Generic.List<object> ownSettlements = null;
                 System.Collections.Generic.List<object> enemySettlements = null;
                 System.Collections.Generic.List<object> allKingdoms = null;
+                System.Collections.Generic.List<object> rebellionSupporters = null;
                 try
                 {
                     // 2026-06-14: рядом со счётчиком собираем имена враждующих
@@ -353,6 +354,18 @@ namespace BannerlordLink.Util
                                     at_war = FactionManager.IsAtWarAgainstFaction(kingdom, k),
                                 });
                     allKingdoms = akList;
+
+                    if (kingdom.Leader != hero && hero?.Clan?.Leader == hero)
+                    {
+                        rebellionSupporters = BannerlordLink.Actions.CreateKingdomHandler
+                            .GetRebellionSupporters(hero)
+                            .Select(c => (object)new
+                            {
+                                id = c.StringId,
+                                name = c.Name?.ToString(),
+                                fiefs_count = c.Fiefs?.Count ?? 0,
+                            }).ToList();
+                    }
                 }
                 catch { }
                 return new
@@ -369,6 +382,9 @@ namespace BannerlordLink.Util
                     own_settlements   = ownSettlements,
                     enemy_settlements = enemySettlements,
                     all_kingdoms      = allKingdoms,
+                    rebellion_supporters = rebellionSupporters,
+                    rebellion_supporters_required = BannerlordLink.Actions.CreateKingdomHandler.REQUIRED_REBELLION_SUPPORTERS,
+                    rebellion_relation_required = BannerlordLink.Actions.CreateKingdomHandler.MIN_REBELLION_RELATION,
                     culture           = kingdom.Culture?.StringId,
                 };
             }

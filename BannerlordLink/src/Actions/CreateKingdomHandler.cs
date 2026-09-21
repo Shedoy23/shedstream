@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using BannerlordLink.Behaviors;
 using BannerlordLink.Util;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -32,6 +34,38 @@ namespace BannerlordLink.Actions
         public string ActionType => "hero.create_kingdom";
 
         private const int CREATE_COST = 5_000_000;   // 5M динаров
+        public const int REQUIRED_REBELLION_SUPPORTERS = 2;
+        public const int MIN_REBELLION_RELATION = 50;
+
+        /// <summary>
+        /// Clans which will back a rebellion right now. Viewer-created vassals
+        /// are loyal by definition; regular clans require relation >= 50.
+        /// Only clans from the founder's current kingdom can participate.
+        /// </summary>
+        public static List<Clan> GetRebellionSupporters(Hero hero)
+        {
+            var result = new List<Clan>();
+            var founderClan = hero?.Clan;
+            var oldKingdom = founderClan?.Kingdom;
+            if (oldKingdom == null) return result;
+
+            var personal = VassalAutoFollowBehavior.Current?
+                .GetVassalsOfMaster(founderClan) ?? new List<Clan>();
+
+            foreach (var clan in oldKingdom.Clans ?? Enumerable.Empty<Clan>())
+            {
+                if (clan == null || clan == founderClan || clan == oldKingdom.RulingClan ||
+                    clan.IsEliminated || clan.IsUnderMercenaryService || clan.Leader == null)
+                    continue;
+
+                bool isPersonal = personal.Contains(clan);
+                int relation = 0;
+                try { relation = clan.Leader.GetRelation(hero); } catch { }
+                if (isPersonal || relation >= MIN_REBELLION_RELATION)
+                    result.Add(clan);
+            }
+            return result;
+        }
 
         public Task<(bool success, string error)> ExecuteAsync(JObject data)
         {
@@ -70,6 +104,24 @@ namespace BannerlordLink.Actions
                     BannerlordLinkModule.Log(
                         $"[create_kingdom] @{username}: must be clan leader (Clan={hero.Clan?.Name?.ToString() ?? "null"})");
                     ActionFeedback.PostFailed(actionId, "not_clan_leader");
+                    return;
+                }
+                var oldKingdom = hero.Clan.Kingdom;
+                if (oldKingdom != null && oldKingdom.RulingClan == hero.Clan)
+                {
+                    ActionFeedback.PostFailed(actionId, "already_kingdom_ruler");
+                    return;
+                }
+
+                var rebellionSupporters = oldKingdom != null
+                    ? GetRebellionSupporters(hero)
+                    : new List<Clan>();
+                if (oldKingdom != null && rebellionSupporters.Count < REQUIRED_REBELLION_SUPPORTERS)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[create_kingdom] @{username}: rebellion needs {REQUIRED_REBELLION_SUPPORTERS} supporters, " +
+                        $"eligible={rebellionSupporters.Count}");
+                    ActionFeedback.PostFailed(actionId, "rebellion_support_required");
                     return;
                 }
                 // ═══ 2026-07-31: ЗДЕСЬ БЫЛ ОТКАЗ «ты уже в королевстве» ═══
@@ -140,6 +192,25 @@ namespace BannerlordLink.Actions
                     return;
                 }
 
+                // VassalAutoFollow may already have moved personal vassals in
+                // response to the founder's kingdom-change event. Transfer the
+                // remaining friendly clans by defection; this native path keeps
+                // their settlements and emits the proper campaign events.
+                foreach (var supporter in rebellionSupporters)
+                {
+                    if (supporter?.Kingdom == newKingdom) continue;
+                    try
+                    {
+                        ChangeKingdomAction.ApplyByJoinToKingdomByDefection(
+                            supporter, oldKingdom, newKingdom, default(CampaignTime), false);
+                    }
+                    catch (Exception ex)
+                    {
+                        BannerlordLinkModule.Log(
+                            $"[create_kingdom] @{username}: supporter {supporter?.Name} transfer warn: {ex.Message}");
+                    }
+                }
+
                 // Bonus: stock влияния + budget + banner от clan
                 try
                 {
@@ -169,6 +240,8 @@ namespace BannerlordLink.Actions
                     kingdom_name = fullName,
                     kingdom_id = newKingdom.StringId,
                     culture = hero.Culture?.StringId,
+                    rebellion = oldKingdom != null,
+                    supporters = rebellionSupporters.Select(c => c.StringId).ToArray(),
                 });
                 Task.Run(async () => await BannerlordLinkModule.Backend
                     .PostEventAsync("bannerlord", "hero.kingdom_created", evtData));

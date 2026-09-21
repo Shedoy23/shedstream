@@ -166,7 +166,7 @@ namespace BannerlordLink.Behaviors
 
         /// <summary>Find все vassal clans которые принадлежат данному master clan.
         /// Если masterClan == null → empty list.</summary>
-        private List<Clan> GetVassalsOfMaster(Clan masterClan)
+        public List<Clan> GetVassalsOfMaster(Clan masterClan)
         {
             var result = new List<Clan>();
             if (masterClan == null) return result;

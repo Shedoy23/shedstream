@@ -215,6 +215,7 @@ namespace TaleWorlds.CampaignSystem
     using TaleWorlds.Localization;
 
     public sealed class CultureObject { public string StringId; }
+    public struct CampaignTime { }
     public sealed class Settlement { public string Id; }
     public sealed class Hero
     {
@@ -281,7 +282,7 @@ namespace TaleWorlds.CampaignSystem.Actions
     {
         public static List<string> Transfers { get; } = new List<string>();
         public static void ApplyByJoinToKingdomByDefection(Clan clan, Kingdom oldKingdom,
-            Kingdom newKingdom, object until = null, bool showNotification = true)
+            Kingdom newKingdom, CampaignTime until = default(CampaignTime), bool showNotification = true)
         {
             oldKingdom?.Clans.Remove(clan);
             clan.Kingdom = newKingdom;

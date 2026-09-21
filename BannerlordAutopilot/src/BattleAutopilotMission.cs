@@ -157,13 +157,18 @@ namespace BannerlordAutopilot
                     _formationsGiven.Add(formation);
                 }
             }
-            if (team.TeamAI != null && MobileParty.MainParty?.MapEvent?.IsSiegeAssault != true)
+            bool rbmTactics = IsRbmAiEnabled();
+            if (team.TeamAI != null && MobileParty.MainParty?.MapEvent?.IsSiegeAssault != true && !rbmTactics)
             {
                 _fieldAttackActive = true;
                 RefreshFieldAttackOrders();
                 AutopilotLog.Write("БОЙ: " + _fieldOrders.Count + " формаций получили приказ атаковать");
             }
-            else if (team.TeamAI != null) team.DelegateCommandToAI();
+            else if (team.TeamAI != null)
+            {
+                team.DelegateCommandToAI();
+                if (rbmTactics) AutopilotLog.Write("БОЙ: RBM AI включён; формации переданы тактическому AI, принудительная атака отключена");
+            }
             else if (AutopilotBehavior.Instance?.IsOwnedHideoutBattle == true)
             {
                 foreach (Formation formation in team.FormationsIncludingEmpty)
@@ -227,6 +232,26 @@ namespace BannerlordAutopilot
             AutopilotLog.Write(_fieldOrders.Count > 0
                 ? "БОЙ: герой передан штатному AI; формации наступают по приказу автопилота"
                 : "БОЙ: герой и " + _formationsGiven.Count + " формаций переданы штатному AI");
+        }
+
+        private static bool IsRbmAiEnabled()
+        {
+            // Optional integration: never load RBM ourselves or require its DLL.
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                if (assembly.GetName().Name != "RBMConfig") continue;
+                try
+                {
+                    return assembly.GetType("RBMConfig.RBMConfig")
+                        ?.GetField("rbmAiEnabled")?.GetValue(null) is true;
+                }
+                catch (Exception ex)
+                {
+                    AutopilotLog.Write("БОЙ: не удалось определить режим RBM; сохраняем прежнее управление: " + ex.Message);
+                    return false;
+                }
+            }
+            return false;
         }
 
         private void RefreshFieldAttackOrders()

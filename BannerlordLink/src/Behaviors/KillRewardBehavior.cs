@@ -605,6 +605,21 @@ namespace BannerlordLink.Behaviors
                             s.GoldEarned += goldDelta;
                             s.PayoutPaid = true;
                             BannerlordLinkModule.Log($"[BattlePayout v2] battle={_payoutId} @{s.Username} PAID={goldDelta} balance={s.Hero.Gold}");
+                            // Keep notification failure separate from the completed gold mutation.
+                            try
+                            {
+                                var culture = System.Globalization.CultureInfo.GetCultureInfo("ru-RU");
+                                TaleWorlds.Library.InformationManager.DisplayMessage(
+                                    new TaleWorlds.Library.InformationMessage(
+                                        $"@{s.Username}: за бой +{goldDelta.ToString("N0", culture)} золота — " +
+                                        $"участие {s.ParticipationGold.ToString("N0", culture)}, " +
+                                        $"герой {s.PersonalGold.ToString("N0", culture)}, " +
+                                        $"свита {s.RetinueGold.ToString("N0", culture)}",
+                                        new TaleWorlds.Library.Color(1f, 0.8f, 0.2f)));
+                            }
+                            catch (Exception noticeError)
+                            { BannerlordLinkModule.Log($"[BattlePayout v2] journal failed: {noticeError.Message}"); }
+
                         }
                         catch (Exception ex)
                         { BannerlordLinkModule.Log($"[Participation] @{s.Username} gold failed: {ex.Message}"); }

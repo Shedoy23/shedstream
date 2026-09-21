@@ -421,11 +421,17 @@ def get_my_battle_stats(channel_id: int, username: str) -> dict:
             if (p.get("username") or "").lower() == u:
                 my = p
                 break
+    last_payout = None
+    if not in_battle and snap.get("final") and 0 <= snap.get("age_sec", 999) < 120 and username:
+        last_payout = next((p for p in snap.get("participants", [])
+                            if (p.get("username") or "").lower() == username.lower()
+                            and p.get("payout_version") == 2), None)
     return {
         "in_battle":         in_battle,
         "is_siege":          in_battle and snap.get("is_siege") is True,
         "participant_count": len(snap.get("participants", [])) if in_battle else 0,
         "my_stats":          my,
+        "last_payout":       last_payout,
     }
 
 

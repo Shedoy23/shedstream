@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using BannerlordLink.Net;
+using BannerlordLink.Util;
 using Newtonsoft.Json;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
@@ -14,31 +15,9 @@ using TaleWorlds.MountAndBlade;
 namespace BannerlordLink.Behaviors
 {
     /// <summary>
-    /// MissionLogic: kill reward + battle participation для adopted heroes.
-    /// BLT-aligned (Sprint 5.27g): all constants × 0.5 от BLT defaults.
-    ///
-    /// Personal kill (OnAgentRemoved, affector == наш hero):
-    ///   gold = GOLD_PER_KILL × horseFactor × max(levelBoost, MinGold)
-    ///   xp   = XP_PER_KILL   × horseFactor × levelBoost     → AddSkillXp(weaponSkill)
-    ///   heal = HEAL_PER_KILL × horseFactor × levelBoost     → affector.Health
-    ///
-    /// Retinue kill (affector == свита нашего hero):
-    ///   gold = RETINUE_GOLD_PER_KILL × horseFactor × max(levelBoost, MinGold)
-    ///         → owner.Hero
-    ///   heal = RETINUE_HEAL_PER_KILL × horseFactor × levelBoost
-    ///         → САМ retinue agent (не owner)
-    ///   xp   = 0                                          (BLT: свита XP не даёт)
-    ///
-    /// Killed (наш hero был убит — consolation):
-    ///   xp = XP_PER_KILLED × levelBoost(killerLevel)
-    ///
-    /// Level scaling (BLT formula):
-    ///   factor = (1 - (killedLvl - killerLvl) / 30) ^ (-10 × n)
-    ///   gold-only clamp: max(factor, MinGold) для human kills
-    ///
-    /// Kill streaks: 5/10/15 — extra gold+XP bonus. Reset на смерть.
-    ///
-    /// Overlay stats push каждые 1.5с (snapshot участников).
+    /// Battle payout v2: gold is settled once from personal/retinue contribution.
+    /// Existing kill XP, milestone XP and healing remain independent. Legacy gold
+    /// constants only reproduce the previous eligibility rule for assistance XP.
     /// </summary>
     public class KillRewardBehavior : MissionLogic
     {
@@ -130,7 +109,6 @@ namespace BannerlordLink.Behaviors
         // пост-стрим-триажа крутить в одном месте. Если крутить придётся часто — вынести
         // в конфиг бэкенда, чтобы не пересобирать мод ради одного числа.
         private const int UNDERDOG_THRESHOLD = 50000;  // заработал меньше — доплачиваем
-        private const int UNDERDOG_GOLD      = 50000;  // сколько доплачиваем
         private const int UNDERDOG_XP        = 25000;  // и опыта
 
         private const int WIN_GOLD  = 4800;
@@ -383,6 +361,10 @@ namespace BannerlordLink.Behaviors
             public int Kills;
             public int RetinueKills;     // киллы свиты, кредитятся owner'у
             public int GoldEarned;
+            public int LegacyGoldEarned; // Preserve old XP assistance eligibility, not currency.
+            public double PersonalPoints, RetinuePoints;
+            public bool PayoutSettled, PayoutPaid;
+            public int ParticipationGold, PersonalGold, RetinueGold;
             public int XpEarned;
             public int KillStreak;       // 2026-06-06: per-БОЙ (НЕ reset на смерть; только OnEndMission)
             // 2026-07-21 — вклад в бой (см. блок констант KILL_POINTS/…).
@@ -495,6 +477,7 @@ namespace BannerlordLink.Behaviors
         public override void OnAgentBuild(Agent agent, Banner banner)
         {
             base.OnAgentBuild(agent, banner);
+            if (agent != null && agent.IsHuman) _payoutDamage.Track(agent, agent.Health);
             // 2026-07-24 — привязываем static _instance к ЖИВОЙ копии поведения
             // здесь: OnAgentBuild гарантированно выполняется на инстансе, который
             // держит реальный _participants. Раньше _instance ставился только в
@@ -503,6 +486,7 @@ namespace BannerlordLink.Behaviors
             // урон/поглощение = 0, оплата за вклад считала только киллы). Киллы
             // работали, т.к. идут через OnAgentRemoved (прямой вызов, без _instance).
             _instance = this;
+            CapturePayoutContext();
             // Для overlay tracking используем STRICT [BLink] prefix check —
             // НЕ filter'ем по PowerCache (viewer мог адоптнуться, но не
             // выбрать класс — он всё равно должен показаться в overlay).
@@ -553,7 +537,7 @@ namespace BannerlordLink.Behaviors
         /// Skip если BattleState == DefenderPullBack (siege retreat).</summary>
         private void ApplyParticipationRewards()
         {
-            if (_participants.Count == 0) return;
+            if (_participationSettled || _participants.Count == 0) return;
 
             // MissionResult может быть null на abort/retreat — skip полностью.
             var result = Mission?.MissionResult;
@@ -569,6 +553,7 @@ namespace BannerlordLink.Behaviors
             try { playerVictory = result.PlayerVictory; }
             catch { return; }
 
+            _participationSettled = true;
             int rewarded = 0;
             List<BattleStats> snapshot;
             try { snapshot = _participants.Values.ToList(); }
@@ -592,6 +577,21 @@ namespace BannerlordLink.Behaviors
                         ? BannerlordLink.Net.RewardBoostCache.ApplyToInt(s.Username, baseXp)
                         : baseXp;
 
+                    s.LegacyGoldEarned += goldDelta;
+                    goldDelta = 0;
+                    if (!s.PayoutSettled && result.BattleResolved && _payoutContextReady)
+                    {
+                        s.PayoutSettled = true; // Consume before an uncertain engine mutation.
+                        int enemies = s.IsPlayerSide ? _enemyTroops : _allyTroops;
+                        var payout = BattlePayoutPolicy.Calculate(s.PersonalPoints, s.RetinuePoints,
+                            enemies, _payoutSiege, theirSideWon);
+                        s.ParticipationGold = RewardBoostCache.ApplyToInt(s.Username, payout.Participation);
+                        s.PersonalGold = RewardBoostCache.ApplyToInt(s.Username, payout.Personal);
+                        s.RetinueGold = RewardBoostCache.ApplyToInt(s.Username, payout.Retinue);
+                        goldDelta = s.ParticipationGold + s.PersonalGold + s.RetinueGold;
+                        if (goldDelta == 0) s.PayoutPaid = true;
+                        BannerlordLinkModule.Log($"[BattlePayout v2] battle={_payoutId} @{s.Username} enemies={enemies} siege={_payoutSiege} won={theirSideWon} personalPoints={s.PersonalPoints:F1} retinuePoints={s.RetinuePoints:F1} participation={s.ParticipationGold} personal={s.PersonalGold} retinue={s.RetinueGold} planned={goldDelta}");
+                    }
                     if (goldDelta != 0)
                     {
                         try
@@ -603,6 +603,8 @@ namespace BannerlordLink.Behaviors
                             else
                                 GiveGoldAction.ApplyBetweenCharacters(s.Hero, null, -goldDelta, true);
                             s.GoldEarned += goldDelta;
+                            s.PayoutPaid = true;
+                            BannerlordLinkModule.Log($"[BattlePayout v2] battle={_payoutId} @{s.Username} PAID={goldDelta} balance={s.Hero.Gold}");
                         }
                         catch (Exception ex)
                         { BannerlordLinkModule.Log($"[Participation] @{s.Username} gold failed: {ex.Message}"); }
@@ -627,48 +629,11 @@ namespace BannerlordLink.Behaviors
                         $"{(goldDelta >= 0 ? "+" : "")}{goldDelta}💰 +{xpDelta} XP " +
                         $"[sub ×{subBoost:F2}]");
 
-                    // 2026-08-03 — «помощь отстающим» (решение владельца).
-                    // Победившая сторона: заработал за бой меньше порога — получает
-                    // фиксированную доплату. Заработал больше — ничего.
-                    //
-                    // ⚠️ ВОЗРАЖЕНИЕ ЗАФИКСИРОВАНО (я против такой формы, владелец решил
-                    //    делать так и проверить по триажу — DEFERRED, «помощь отстающим»):
-                    //    1) ОБРЫВ на пороге. Заработал 49 999 → 99 999 на руки.
-                    //       Заработал 50 001 → 50 001. Две тысячи лишнего заработка
-                    //       стоят пятидесяти тысяч, и выгодная стратегия — перестать
-                    //       драться под порогом.
-                    //    2) ПОРОГ ВЫШЕ МЕДИАНЫ В РАЗЫ. По логам: 31.07 медиана 5 760,
-                    //       под порог 194 из 209 участий; 03.08 медиана 14 600, под
-                    //       порог 88 из 122. То есть доплату получает большинство —
-                    //       это не помощь отстающим, а новая базовая выплата.
-                    //    3) Навоевавший 41 720 и не сделавший ничего получают поровну
-                    //       50 000 — система вкладов (вехи, урон, поглощение) при
-                    //       таком пороге перестаёт различать игроков.
-                    //    Что опровергнет возражение: триаж после стрима покажет, что
-                    //    доля доплат невелика и разброс заработков сохранился.
-                    //    Альтернатива, если возражение подтвердится: триггер по
-                    //    БОГАТСТВУ героя (меньше 50к на счету), а не по заработку за
-                    //    бой — тогда помощь адресная и сама выключается.
-                    if (theirSideWon && s.GoldEarned < UNDERDOG_THRESHOLD)
+                    // XP progression kept independent of the replacement currency model.
+                    if (theirSideWon && s.LegacyGoldEarned < UNDERDOG_THRESHOLD)
                     {
-                        try
-                        {
-                            GiveGoldAction.ApplyBetweenCharacters(
-                                null, s.Hero, UNDERDOG_GOLD, true);
-                            s.GoldEarned += UNDERDOG_GOLD;
-                            DistributeXpAcrossSkills(s.Hero, UNDERDOG_XP);
-                            s.XpEarned += UNDERDOG_XP;
-                            BannerlordLinkModule.Log(
-                                $"[Underdog] @{s.Username} заработал за бой " +
-                                $"{s.GoldEarned - UNDERDOG_GOLD}💰 (< {UNDERDOG_THRESHOLD}) " +
-                                $"→ доплата +{UNDERDOG_GOLD}💰 +{UNDERDOG_XP} XP");
-                            HeroStateSyncSafe(s.Hero);
-                        }
-                        catch (Exception ex)
-                        {
-                            BannerlordLinkModule.Log(
-                                $"[Underdog] @{s.Username} доплата failed: {ex.Message}");
-                        }
+                        DistributeXpAcrossSkills(s.Hero, UNDERDOG_XP);
+                        s.XpEarned += UNDERDOG_XP;
                     }
 
                     HeroStateSyncSafe(s.Hero);
@@ -848,6 +813,9 @@ namespace BannerlordLink.Behaviors
         private void HandleAffectorKill(Agent affectedAgent, Agent affectorAgent,
             AgentState state, KillingBlow blow)
         {
+            if ((state == AgentState.Killed || state == AgentState.Unconscious)
+                && affectedAgent != null && _payoutDamage.Finish(affectedAgent))
+                CreditPayout(affectedAgent, affectorAgent, 20);
             // Identify killer как personal hero / retinue owner.
             string killerName = GetBLinkUsername(affectorAgent);
             bool isRetinueKill = false;
@@ -923,17 +891,10 @@ namespace BannerlordLink.Behaviors
             // tactical advantage и без того сильный).
             double rewardBoost = BannerlordLink.Net.RewardBoostCache.Get(killerName);
 
-            int gold = (int)(baseGold * goldBoost * rewardBoost);
+            int legacyGold = (int)(baseGold * goldBoost * rewardBoost);
+            int gold = 0; // Money is settled once at battle end.
             int xp   = (int)(baseXp   * levelBoost * rewardBoost);
             float heal = baseHeal * levelBoost;
-
-            // Apply gold (owner)
-            if (gold > 0)
-            {
-                try { GiveGoldAction.ApplyBetweenCharacters(null, killer, gold, true); }
-                catch (Exception ex)
-                { BannerlordLinkModule.Log($"[KillReward] gold give failed: {ex.Message}"); }
-            }
 
             // Apply XP (personal only — свита XP не даёт)
             SkillObject skill = ResolveSkillFromBlow(blow) ?? DefaultSkills.Athletics;
@@ -974,7 +935,7 @@ namespace BannerlordLink.Behaviors
                     // иначе добивание оплачивалось бы дважды.
                     if (isHumanTarget) s.KillStreak++;
                 }
-                s.GoldEarned += gold;
+                s.LegacyGoldEarned += legacyGold;
                 s.XpEarned += xp;
                 if (!isRetinueKill) s.Agent = affectorAgent;
             }
@@ -1054,6 +1015,56 @@ namespace BannerlordLink.Behaviors
             _instance = this;
         }
 
+        private readonly string _payoutId = Guid.NewGuid().ToString("N");
+        private readonly BattleDamageLedger<Agent> _payoutDamage = new BattleDamageLedger<Agent>();
+        private bool _participationSettled, _payoutContextReady, _payoutSiege;
+        private int _allyTroops, _enemyTroops;
+
+        private void CapturePayoutContext()
+        {
+            if (_payoutContextReady || MissionContext.IsArenaOrTournamentMission()) return;
+            var battle = TaleWorlds.CampaignSystem.Party.MobileParty.MainParty?.MapEvent;
+            var playerSide = Mission?.PlayerTeam?.Side;
+            if (battle == null || playerSide == null || playerSide == BattleSideEnum.None) return;
+            var opposite = playerSide == BattleSideEnum.Attacker ? BattleSideEnum.Defender : BattleSideEnum.Attacker;
+            _allyTroops = battle.GetMapEventSide(playerSide.Value).HealthyTroopCountAtMapEventStart;
+            _enemyTroops = battle.GetMapEventSide(opposite).HealthyTroopCountAtMapEventStart;
+            _payoutSiege = battle.IsSiegeAssault;
+            _payoutContextReady = true;
+        }
+
+        public override void OnAgentHit(Agent affectedAgent, Agent affectorAgent,
+            in MissionWeapon affectorWeapon, in Blow blow, in AttackCollisionData attackCollisionData)
+        {
+            base.OnAgentHit(affectedAgent, affectorAgent, in affectorWeapon, in blow, in attackCollisionData);
+            try
+            {
+                CapturePayoutContext();
+                if (!_payoutContextReady || affectedAgent == null || !affectedAgent.IsHuman) return;
+                // Consume health for every attacker, even NPCs, before owner filtering.
+                double useful = _payoutDamage.Hit(affectedAgent, blow.InflictedDamage, affectedAgent.Health);
+                if (useful > 0) CreditPayout(affectedAgent, affectorAgent, useful);
+            }
+            catch (Exception ex) { BannerlordLinkModule.Log("[BattlePayout] hit failed: " + ex.Message); }
+        }
+
+        private void CreditPayout(Agent target, Agent attacker, double useful)
+        {
+            if (!_payoutContextReady || target == null || !target.IsHuman || attacker == null) return;
+            if (attacker.IsMount) attacker = attacker.RiderAgent;
+            if (attacker == null || !target.IsEnemyOf(attacker)) return;
+            // Viewer resummons must not become an unlimited income source.
+            if (GetBLinkUsername(target) != null || _retinueOwners.TryGetValue(target, out _)) return;
+            string owner = GetBLinkUsername(attacker);
+            bool retinue = owner == null;
+            if (retinue && !_retinueOwners.TryGetValue(attacker, out owner)) return;
+            if (owner == null || !_participants.TryGetValue(owner, out var stats) || stats.PayoutSettled) return;
+            int level = (target.Character as CharacterObject)?.Level ?? 26;
+            double points = useful * BattlePayoutPolicy.Threat(level);
+            if (retinue) stats.RetinuePoints += points;
+            else stats.PersonalPoints += points;
+        }
+
         /// <summary>Учёт вклада: урон, нанесённый нашим героем врагу.</summary>
         public static void NoteDamageDealt(string username, int damage)
         {
@@ -1093,13 +1104,10 @@ namespace BannerlordLink.Behaviors
                 s.MilestoneIdx++;
                 try
                 {
-                    int gold = BannerlordLink.Net.RewardBoostCache.ApplyToInt(s.Username, ks.gold);
+                    int legacyGold = BannerlordLink.Net.RewardBoostCache.ApplyToInt(s.Username, ks.gold);
+                    int gold = 0;
                     int xp   = BannerlordLink.Net.RewardBoostCache.ApplyToInt(s.Username, ks.xp);
-                    if (gold > 0)
-                    {
-                        GiveGoldAction.ApplyBetweenCharacters(null, s.Hero, gold, true);
-                        s.GoldEarned += gold;
-                    }
+                    s.LegacyGoldEarned += legacyGold;
                     if (xp > 0)
                     {
                         DistributeXpAcrossSkills(s.Hero, xp);
@@ -1118,7 +1126,7 @@ namespace BannerlordLink.Behaviors
                             : new TaleWorlds.Library.Color(1f, 0.84f, 0.18f));
                     TaleWorlds.Library.InformationManager.DisplayMessage(
                         new TaleWorlds.Library.InformationMessage(
-                            $"🔥 @{s.Username} вклад ×{ks.kills}! +{gold}💰", col));
+                            $"🔥 @{s.Username} вклад ×{ks.kills}! +{xp} XP", col));
                 }
                 catch (Exception ex)
                 {
@@ -1403,6 +1411,9 @@ namespace BannerlordLink.Behaviors
                         BannerlordLinkModule.Log(
                             $"[KillReward] snapshot @{s.Username} read error: {ex.Message}");
                     }
+                    int payoutEnemies = s.IsPlayerSide ? _enemyTroops : _allyTroops;
+                    var lossEstimate = BattlePayoutPolicy.Calculate(s.PersonalPoints, s.RetinuePoints, payoutEnemies, _payoutSiege, false);
+                    var winEstimate = BattlePayoutPolicy.Calculate(s.PersonalPoints, s.RetinuePoints, payoutEnemies, _payoutSiege, true);
                     items.Add(new
                     {
                         username = s.Username,
@@ -1415,6 +1426,17 @@ namespace BannerlordLink.Behaviors
                         kills = s.Kills,
                         retinue_kills = s.RetinueKills,
                         gold_earned = s.GoldEarned,
+                        payout_version = 2,
+                        payout_id = _payoutId,
+                        payout_settled = s.PayoutSettled,
+                        payout_status = s.PayoutPaid ? "paid" : s.PayoutSettled ? "failed" : isFinal ? "unavailable" : "pending",
+                        payout_estimate_min = _payoutContextReady ? RewardBoostCache.ApplyToInt(s.Username, lossEstimate.Participation) + RewardBoostCache.ApplyToInt(s.Username, lossEstimate.Personal) + RewardBoostCache.ApplyToInt(s.Username, lossEstimate.Retinue) : 0,
+                        payout_estimate_max = _payoutContextReady ? RewardBoostCache.ApplyToInt(s.Username, winEstimate.Participation) + RewardBoostCache.ApplyToInt(s.Username, winEstimate.Personal) + RewardBoostCache.ApplyToInt(s.Username, winEstimate.Retinue) : 0,
+                        payout_participation = s.ParticipationGold,
+                        payout_personal = s.PersonalGold,
+                        payout_retinue = s.RetinueGold,
+                        payout_personal_points = s.PersonalPoints,
+                        payout_retinue_points = s.RetinuePoints,
                         xp_earned = s.XpEarned,
                     });
                 }

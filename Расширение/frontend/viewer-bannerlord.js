@@ -3329,11 +3329,26 @@ function _renderBannerlordStance() {
     }
 }
 
+function _bnrBattlePayoutText(stats) {
+    const money = value => Math.max(0, Math.floor(Number(value) || 0)).toLocaleString('ru-RU');
+    if (stats.payout_version !== 2) return `+${money(stats.gold_earned)}💰`;
+    if (stats.payout_status === 'paid') return `Получено: ${money(stats.gold_earned)}💰`;
+    if (stats.payout_status === 'failed') return 'Не удалось начислить награду';
+    if (stats.payout_status === 'unavailable') return 'Нет подтверждённого итога боя';
+    return `После боя: ≈${money(stats.payout_estimate_min)}–${money(stats.payout_estimate_max)}💰`;
+}
+
 function _renderBannerlordBattleBanner(data) {
     const slot = document.getElementById('bnr-battle-banner-slot');
     if (!slot) return;
     if (!data.in_battle) {
-        slot.innerHTML = '';
+        const payout = data.last_payout;
+        const amount = value => Math.max(0, Math.floor(Number(value) || 0)).toLocaleString('ru-RU');
+        slot.innerHTML = payout && payout.payout_version === 2
+            ? `<div style="padding:8px;border:1px solid #a16207;border-radius:6px;margin-bottom:8px;">
+                <strong>${_bnrBattlePayoutText(payout)}</strong>
+                ${payout.payout_status === 'paid' ? `<div style="font-size:11px;margin-top:4px;">Участие: ${amount(payout.payout_participation)} · Герой: ${amount(payout.payout_personal)} · Свита: ${amount(payout.payout_retinue)}</div>` : ''}
+               </div>` : '';
         return;
     }
 
@@ -3389,7 +3404,7 @@ function _renderBannerlordBattleBanner(data) {
                         font-size:11px;font-family:'JetBrains Mono',monospace;">
                 <span style="color:#efeff1;">❤ ${hp}/${hpMax}</span>
                 <span style="color:#ffffff;">☠ ${my.kills || 0}</span>
-                <span style="color:#fbbf24;">+${(my.gold_earned || 0).toLocaleString('ru-RU')}💰</span>
+                <span style="color:#fbbf24;">${_bnrBattlePayoutText(my)}</span>
                 <span style="color:#93c5fd;">+${(my.xp_earned || 0).toLocaleString('ru-RU')} XP</span>
             </div>
         </div>`;

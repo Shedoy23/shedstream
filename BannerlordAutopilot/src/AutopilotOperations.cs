@@ -129,7 +129,8 @@ namespace BannerlordAutopilot
             if (PlayerEncounter.Battle != battle && encounterBattle != battle) return false;
             return (_operationSettlement.IsHideout && _hideoutAttackRequested && battle.IsHideoutBattle)
                 || (_operationSettlement == _raidSettlement && battle.IsRaid)
-                || (_operationSettlement == _offensiveSiege && (battle.IsSallyOut || battle.IsSiegeOutside))
+                || (_operationSettlement == _offensiveSiege
+                    && (battle.IsSallyOut || battle.IsSiegeOutside || battle.IsFieldBattle))
                 || (!_operationSettlement.IsHideout && battle.IsSiegeAssault
                     && (battle.PlayerSide == BattleSideEnum.Defender
                         || (_offensiveSiege == _operationSettlement && battle.PlayerSide == BattleSideEnum.Attacker)));

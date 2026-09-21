@@ -534,6 +534,20 @@ internal static partial class Program
             Check(wait.IsWaitActive && b.CurrentMode==AutopilotBehavior.Mode.Apply,
                 "после полевого боя ожидание строительства осады возобновлено");
         });
+        Try("осада: атакующий патруль после разговора не выключает автопилот", () => {
+            var b = Fresh(); var castle = ConquestWorld(); Enable(b);
+            var party = MobileParty.MainParty;
+            party.TargetSettlement = castle; party.DefaultBehavior = AiBehavior.BesiegeSettlement;
+            PlayerEncounter.Current = new PlayerEncounter(); PlayerEncounter.EncounterSettlement = castle;
+            var siege = new SiegeEvent { BesiegedSettlement = castle }; siege.BesiegerCamp.LeaderParty = party;
+            party.SiegeEvent = siege;
+            var field = new MapEvent { MapEventSettlement=castle, IsFieldBattle=true, PlayerSide=BattleSideEnum.Defender };
+            party.MapEvent=field; PlayerEncounter.Battle=field; PlayerEncounter.EncounteredBattle=field;
+            int attacks=0; Show(Menu("encounter", "attack", () => attacks++));
+            b.PollState();
+            Check(attacks==1 && b.CurrentMode==AutopilotBehavior.Mode.Apply,
+                "патруль, атаковавший наш осадный лагерь, принят как принадлежащий операции бой");
+        });
     }
 }
 namespace TaleWorlds.CampaignSystem.Siege

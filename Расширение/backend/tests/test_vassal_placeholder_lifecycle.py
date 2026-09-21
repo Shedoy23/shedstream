@@ -240,6 +240,27 @@ async def test_fresh_placeholder_still_blocks_duplicate(db):
               "[5] свежая заготовка всё ещё блокирует дубль")
 
 
+async def test_full_snapshot_restores_and_removes(db):
+    print("\n[6] Полный снимок save восстанавливает зеркало вассалов")
+    from routes.bannerlord_vassals import reconcile_vassal_snapshot, list_real_vassals
+
+    async with db._connect() as conn:
+        await conn.execute(
+            "INSERT INTO bannerlord_vassals "
+            "(channel_id,parent_username,vassal_clan_id,vassal_leader_hero_id,vassal_name) "
+            "VALUES (?,?,?,?,?)",
+            (CHANNEL_ID, USER, "stale_clan", "stale_hero", "Старый"))
+        await reconcile_vassal_snapshot(conn, CHANNEL_ID, USER, [
+            {"clan_id": "clan_a", "leader_hero_id": "hero_a", "name": "Первый"},
+            {"clan_id": "clan_b", "leader_hero_id": "hero_b", "name": "Второй"},
+        ])
+        await conn.commit()
+        rows = await list_real_vassals(conn, CHANNEL_ID, USER)
+
+    assert_eq({r["vassal_clan_id"] for r in rows}, {"clan_a", "clan_b"},
+              "[6] зеркало точно совпадает с полным снимком save")
+
+
 async def main_async():
     tmp = tempfile.mkdtemp(prefix="vassal_ph_")
     db_path = os.path.join(tmp, "test.db")
@@ -250,6 +271,7 @@ async def main_async():
         await test_stale_placeholder_frees_slot(db)
         await test_failed_action_removes_placeholder(db)
         await test_fresh_placeholder_still_blocks_duplicate(db)
+        await test_full_snapshot_restores_and_removes(db)
     finally:
         try:
             await db._pool.close()

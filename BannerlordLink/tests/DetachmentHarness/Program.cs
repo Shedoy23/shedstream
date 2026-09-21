@@ -60,6 +60,10 @@ class Program {
  Test("skirmish ignores loose horses",()=>{Enemy(2,7,false);Enemy(3,25);b.Skirmish(a);Check(X()==0,"retreat from horse");});
  Test("skirmish finite retreat budget survives distant enemy",()=>{var e=Enemy(2,10);b.Skirmish(a);for(int i=0;i<3;i++){a.Position=new(X(),0);m.CurrentTime=i*10+1;b.OnMissionTick(1);e.Position=new(a.Position.x+10,0);m.CurrentTime=i*10+5;b.OnMissionTick(4);}a.Position=new(X(),0);e.Position=new(a.Position.x+100,0);m.CurrentTime=40;b.OnMissionTick(10);e.Position=new(a.Position.x+10,0);m.CurrentTime=45;b.OnMissionTick(5);Check(X()==a.Position.x,"distance reset retreat budget");});
  Test("skirmish stalled retreat ends and pauses",()=>{Enemy(2,10);b.Skirmish(a);m.CurrentTime=5;b.OnMissionTick(5);Check(X()==0,"stalled retreat continued");m.CurrentTime=5.6f;b.OnMissionTick(.6f);Check(X()==0,"no shooting pause after stall");});
+ Test("skirmish arrival starts full shooting pause",()=>{var e=Enemy(2,10);b.Skirmish(a);a.Position=new(X(),0);e.Position=new(a.Position.x+10,0);m.CurrentTime=1;b.OnMissionTick(1);Check(X()==a.Position.x,"arrival not held");m.CurrentTime=3.5f;b.OnMissionTick(2.5f);Check(X()==a.Position.x,"pause ended too soon");m.CurrentTime=4.1f;b.OnMissionTick(.6f);Check(X()<a.Position.x,"next bounded retreat absent");});
+ Test("skirmish melee interrupts retreat",()=>{var e=Enemy(2,10);b.Skirmish(a);e.Position=new(3,0);m.CurrentTime=.6f;b.OnMissionTick(.6f);Check(a.Scripted==null,"continued running during melee contact");});
+ Test("skirmish retreat deadline bounds moving detour",()=>{Enemy(2,10);b.Skirmish(a);for(int t=1;t<=4;t++){a.Position=new(-t,0);m.CurrentTime=t;b.OnMissionTick(1);}Check(X()==a.Position.x,"retreat exceeded four seconds");});
+ Test("failed attach restores active retreat",()=>{Enemy(2,10);b.Skirmish(a);float dest=X();a.ThrowCombatOnce=true;Check(!b.Attach(a),"attach unexpectedly succeeded");Check(X()==dest,"active retreat not restored");});
  Console.WriteLine($"{total-failed}/{total} passed");Environment.ExitCode=failed==0?0:1;
  }
 }

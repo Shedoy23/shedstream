@@ -88,7 +88,12 @@ namespace BannerlordLink.Behaviors
             public int TargetSearchCursor;
             public float NextPathCheck;
             public bool ChargeEngaged;           // Charge: враг в упор, управление отдано боевому AI
-            public int  KiteCount;               // Skirmish: сколько раз уже отходил в этой стычке
+            public int  KiteCount;               // Skirmish: attempts in this order; never auto-reset
+            public bool KiteMoving;
+            public WorldPosition KiteTarget;
+            public float KiteDeadline;
+            public float KiteProgressAt;
+            public float KiteDistance;
             public float KiteReadyAt;            // Skirmish: раньше этого времени отходить нельзя
         }
 
@@ -297,6 +302,11 @@ namespace BannerlordLink.Behaviors
                     st.Agent.DisableScriptedCombatMovement();
                     st.Agent.SetAutomaticTargetSelection(true);
                 }
+                else if (st.Order == DetachOrder.Skirmish && st.KiteMoving)
+                {
+                    var destination = st.KiteTarget;
+                    st.Agent.SetScriptedPosition(ref destination, false, Agent.AIScriptedFrameFlags.NeverSlowDown);
+                }
                 else if (st.Order == DetachOrder.Skirmish && st.SkirmishHolding)
                 {
                     // Skirmish intentionally avoids reissuing a pinned position.
@@ -485,184 +495,107 @@ namespace BannerlordLink.Behaviors
             return null;
         }
 
-        // 2026-06-17 / 2026-07-19 (#32) — Skirmish: «встал на дистанции и стреляет».
-        // Дистанция = 0.8 × реальной дальности оружия (движковый Agent.MaximumMissileRange),
-        // мёртвая зона ±band против джиттера (принцип BehaviorSkirmish: держать позицию в
-        // полосе, а не пересчитывать цель каждый тик). Вне полосы (враг слишком близко ИЛИ
-        // слишком далеко) — выходим на standoff; в полосе — пиним позицию ОДИН раз и стоим
-        // (авто-таргет стреляет). Раньше точка-цель пересчитывалась от движущегося ближайшего
-        // врага каждые 0.5с → герой бесконечно бегал за прыгающей точкой («бегает туда-сюда
-        // в поиске места»).
+        // One order permits at most three short retreats. Neither changing targets nor
+        // separation resets the budget. Timers bound even a valid but unusable path.
         private void ApplySkirmish(DetachmentState st)
         {
-            try
+            var agent = st.Agent;
+            float now = Mission.CurrentTime;
+            agent.SetAutomaticTargetSelection(true);
+            var enemy = FindNearestEnemyAgent(agent, true);
+            float dist = enemy == null ? float.MaxValue
+                : (agent.Position.AsVec2 - enemy.Position.AsVec2).Length;
+
+            if (enemy != null && dist <= 5f && HasLineOfSight(agent, enemy))
             {
-                var agent = st.Agent;
-                var enemy = FindNearestEnemyAgent(agent);
-                if (enemy == null)
+                st.KiteMoving = false;
+                st.KiteReadyAt = now + 3f;
+                st.SkirmishHolding = false;
+                agent.DisableScriptedMovement();
+                return;
+            }
+
+            if (st.KiteMoving)
+            {
+                float remaining = (agent.Position.AsVec2 - st.KiteTarget.AsVec2).Length;
+                if (remaining < st.KiteDistance - 0.5f)
                 {
-                    try { agent.DisableScriptedMovement(); } catch { }
-                    st.SkirmishHolding = false;
-                    return;
+                    st.KiteDistance = remaining;
+                    st.KiteProgressAt = now;
                 }
-                try { agent.SetAutomaticTargetSelection(true); } catch { }
-
-                float standoff = SkirmishStandoff(agent);   // 0.8 × дальности оружия
-                float band = standoff * 0.18f;              // полуширина зоны покоя
-                if (band < 6f) band = 6f;
-
-                var epos = enemy.GetWorldPosition();
-                Vec2 ec = epos.AsVec2;
-                Vec2 away = agent.Position.AsVec2 - ec;   // enemy → agent
-                float dist = away.Length;
-
-                bool hasLos = HasLineOfSight(agent, enemy);
-
-                // 2026-08-03 (жалоба владельца: «держит дистанцию от врага, который бежит
-                // на него, из-за этого просто бегает туда-сюда, а не атакует»).
-                //
-                // Причина была в том, что «слишком близко» считалось поводом ОТСТУПАТЬ.
-                // Для лука standoff ≈ 0.8 × 80 м ≈ 64 м, зона покоя 52–75 м. Враг бежит
-                // на героя → дистанция падает ниже 52 → его скриптуют назад на 64 м →
-                // враг снова добегает. Цикл не сходится никогда, а стрелять герой не
-                // успевает, потому что постоянно бежит (NeverSlowDown).
-                //
-                // Логическая ошибка: для стрелка «ближе, чем standoff» — НЕ проблема.
-                // С 30 м стрела летит прекрасно. Дистанция нужна, чтобы не оказаться в
-                // ближнем бою, а не чтобы держать рекорд дальности. Поэтому:
-                //   • враг в упор            → не пятимся, дерёмся (AI возьмёт сайдарм);
-                //   • ближе standoff'а, но не в упор → СТОИМ И СТРЕЛЯЕМ;
-                //   • дальше полосы          → поджимаемся, чтобы достать.
-                // Отступление убрано как поведение — оно и порождало «туда-сюда».
-                // 2026-08-03, вторая итерация (владелец: «а как сделать, чтоб когда к
-                // дальнику прям близко подбегают, он отбегал»). Первая правка убрала
-                // отступление ЦЕЛИКОМ — это перебор. Убирать надо было ДАЛЬНЕЕ
-                // отступление: пятиться от врага в 50 м, убегая на 64, бессмысленно и
-                // не сходится. А короткий отход от того, кто уже рядом, — это и есть
-                // работа стрелка.
-                //
-                // Поэтому у отхода теперь КОРОТКИЙ ПОВОДОК:
-                //   • отходим, только если враг ближе KITE_TRIGGER (не «ближе 64 м»);
-                //   • отходим на KITE_RETREAT, а не на полную дальность оружия —
-                //     иначе герой убегает через всю карту и не стреляет;
-                //   • поводок ограничен и самим оружием (min со standoff): дротикам
-                //     незачем пятиться дальше, чем они летят;
-                //   • догнали вплотную — не пятимся, дерёмся (ниже).
-                // Так герой отходит на пару шагов, стреляет, снова отходит — и всё
-                // это заканчивается ближним боем, если враг быстрее. Раньше не
-                // заканчивалось ничем.
-                const float SKIRMISH_MELEE_DIST = 5.0f;    // враг фактически на нас
-                const float KITE_TRIGGER        = 12.0f;   // ближе — пора отходить
-                const float KITE_RETREAT        = 25.0f;   // куда отходим (не дальше)
-
-                if (dist <= SKIRMISH_MELEE_DIST)
+                if (enemy == null || remaining <= 1.5f || now >= st.KiteDeadline
+                    || now - st.KiteProgressAt >= 2f || !CanPathTo(agent, st.KiteTarget))
                 {
-                    // Пятиться поздно и бессмысленно — отдаём управление боевому AI.
-                    st.SkirmishHolding = false;
-                    try { agent.DisableScriptedMovement(); } catch { }
-                    return;
+                    st.KiteMoving = false;
+                    st.KiteReadyAt = now + 3f;
+                    HoldSkirmish(st);
                 }
+                // Keep the original destination until arrival/timeout, never chase
+                // a point recomputed from a moving enemy.
+                return;
+            }
 
-                // ЧТОБЫ НЕ ПРЕВРАТИЛОСЬ В ПОБЕГУШКИ (прямое требование владельца).
-                // Одного короткого поводка мало: враг снова добежит до 12 м, и цикл
-                // повторится — просто на меньшей дистанции. Поэтому у отхода есть
-                // бюджет и пауза:
-                //   • между отходами — KITE_COOLDOWN секунд, в которые герой СТОИТ И
-                //     СТРЕЛЯЕТ. Это и есть разница между «стрелок с манёвром» и
-                //     «бегает и не атакует»: выстрелы гарантированы промежутком;
-                //   • всего не больше KITE_MAX отходов на стычку. Дальше держит место,
-                //     и если враг всё-таки добежал — переходит в ближний бой (правило
-                //     выше). Стычка считается законченной, когда враг снова далеко —
-                //     тогда бюджет обнуляется.
-                // Итог: не более трёх коротких отходов, между ними стрельба, финал —
-                // либо враг отстал, либо ближний бой. Бесконечного бега нет.
-                const float KITE_COOLDOWN = 3.0f;   // сек стрельбы между отходами
-                const int   KITE_MAX      = 3;      // отходов на одну стычку
+            if (enemy == null || now < st.KiteReadyAt)
+            {
+                HoldSkirmish(st);
+                return;
+            }
 
-                float nowT;
-                try { nowT = Mission.CurrentTime; } catch { nowT = 0f; }
-
-                if (dist > standoff)
+            var epos = enemy.GetWorldPosition();
+            Vec2 ec = epos.AsVec2;
+            Vec2 away = agent.Position.AsVec2 - ec;
+            float standoff = SkirmishStandoff(agent);
+            if (dist < 12f)
+            {
+                if (st.KiteCount < 3 && dist > 0.01f)
                 {
-                    // Враг отстал — стычка окончена, бюджет отхода восстанавливается.
-                    st.KiteCount = 0;
-                }
-
-                if (dist < KITE_TRIGGER)
-                {
-                    bool mayKite = st.KiteCount < KITE_MAX && nowT >= st.KiteReadyAt;
-                    if (mayKite)
+                    // Destination shifts at most eight metres; actual navigation may detour.
+                    var target = agent.GetWorldPosition();
+                    target.SetVec2(agent.Position.AsVec2 + away * (8f / dist));
+                    st.KiteCount++; // Failed attempts also consume the finite budget.
+                    if (CanPathTo(agent, target))
                     {
-                        // Короткий отход по линии от врага.
-                        float retreatTo = Math.Min(KITE_RETREAT, standoff);
-                        if (retreatTo < KITE_TRIGGER) retreatTo = KITE_TRIGGER;
-                        if (dist > 0.01f)
-                        {
-                            away = away * (retreatTo / dist);
-                            try { epos.SetVec2(ec + away); } catch { }
-                        }
-                        agent.SetScriptedPosition(ref epos, false,
+                        agent.SetScriptedPosition(ref target, false,
                             Agent.AIScriptedFrameFlags.NeverSlowDown);
+                        st.KiteTarget = target;
+                        st.KiteMoving = true;
+                        st.KiteDeadline = now + 4f;
+                        st.KiteProgressAt = now;
+                        st.KiteDistance = 8f;
                         st.SkirmishHolding = false;
-                        st.KiteCount++;
-                        st.KiteReadyAt = nowT + KITE_COOLDOWN;
+                        BannerlordLinkModule.Log($"[DET] SKIRMISH retreat agent={agent.Index} count={st.KiteCount}/3");
+                        return;
                     }
-                    else if (!st.SkirmishHolding)
-                    {
-                        // Отход на паузе или бюджет исчерпан → стоим и стреляем.
-                        var hold = agent.GetWorldPosition();
-                        agent.SetScriptedPosition(ref hold, false,
-                            Agent.AIScriptedFrameFlags.NeverSlowDown);
-                        st.SkirmishHolding = true;
-                    }
+                    st.KiteReadyAt = now + 3f;
+                }
+                HoldSkirmish(st);
+                return;
+            }
+
+            bool hasLos = HasLineOfSight(agent, enemy);
+            if (dist > standoff + Math.Max(6f, standoff * 0.18f) || !hasLos)
+            {
+                // Losing sight is not permission to move backwards or through walls.
+                float desired = hasLos ? standoff : Math.Min(dist, standoff * 0.5f);
+                if (dist > 0.01f) epos.SetVec2(ec + away * (desired / dist));
+                if (CanPathTo(agent, epos))
+                {
+                    agent.SetScriptedPosition(ref epos, false,
+                        Agent.AIScriptedFrameFlags.NeverSlowDown);
+                    st.SkirmishHolding = false;
                     return;
                 }
-
-                bool tooFar = dist > standoff + band;
-
-                if (tooFar)
-                {
-                    // Слишком далеко, чтобы достать → поджимаемся на standoff.
-                    if (dist > 0.01f)
-                    {
-                        away = away * (standoff / dist);
-                        try { epos.SetVec2(ec + away); } catch { }
-                    }
-                    agent.SetScriptedPosition(ref epos, false,
-                        Agent.AIScriptedFrameFlags.NeverSlowDown);
-                    st.SkirmishHolding = false;
-                }
-                else if (!hasLos)
-                {
-                    // 2026-07-20 (#36) — в полосе, но цель НЕ видно (укрытие/стена между
-                    // нами). Раньше герой пинил позицию и мёрз, не стреляя. Теперь
-                    // поджимаемся к врагу (до 0.5×standoff) искать линию огня, а не стоим
-                    // столбом. Увидим цель — на след. тике вернёмся в hold.
-                    if (dist > 0.01f)
-                    {
-                        away = away * (standoff * 0.5f / dist);
-                        try { epos.SetVec2(ec + away); } catch { }
-                    }
-                    agent.SetScriptedPosition(ref epos, false,
-                        Agent.AIScriptedFrameFlags.NeverSlowDown);
-                    st.SkirmishHolding = false;
-                }
-                else if (!st.SkirmishHolding)
-                {
-                    // В полосе И есть линия огня → пиним ТЕКУЩУЮ позицию один раз и держим.
-                    // Дальше не трогаем → стоит и стреляет, не бегает за прыгающей точкой.
-                    var here = agent.GetWorldPosition();
-                    agent.SetScriptedPosition(ref here, false,
-                        Agent.AIScriptedFrameFlags.NeverSlowDown);
-                    st.SkirmishHolding = true;
-                }
-                // else: держим позицию (не re-issue'им) — стоит на месте, авто-таргет стреляет.
             }
-            catch (Exception ex)
-            {
-                BannerlordLinkModule.Log($"[DET] ApplySkirmish warn: {ex.Message}");
-                throw;
-            }
+            HoldSkirmish(st);
+        }
+
+        private static void HoldSkirmish(DetachmentState st)
+        {
+            if (st.SkirmishHolding) return;
+            var here = st.Agent.GetWorldPosition();
+            st.Agent.SetScriptedPosition(ref here, false,
+                Agent.AIScriptedFrameFlags.NeverSlowDown);
+            st.SkirmishHolding = true;
         }
 
         // Standoff = SKIRMISH_RANGE_FRACTION × реальной макс. дальности выстрела оружия героя.
@@ -797,7 +730,7 @@ namespace BannerlordLink.Behaviors
         }
 
         /// <summary>Nearest active enemy agent — цель scripted-позиции для Charge.</summary>
-        private static Agent FindNearestEnemyAgent(Agent agent)
+        private static Agent FindNearestEnemyAgent(Agent agent, bool humansOnly = false)
         {
             try
             {
@@ -808,6 +741,7 @@ namespace BannerlordLink.Behaviors
                 foreach (var a in Mission.Current.Agents)
                 {
                     if (a == null || a == agent || !a.IsActive()) continue;
+                    if (humansOnly && !a.IsHuman) continue;
                     if (!a.IsEnemyOf(agent)) continue;
                     float d = (a.Position - ap).LengthSquared;
                     if (d < bestSq) { bestSq = d; best = a; }
@@ -909,6 +843,7 @@ namespace BannerlordLink.Behaviors
                 foreach (var a in Mission.Current.Agents)
                 {
                     if (a == null || a == agent || !a.IsActive()) continue;
+
                     if (a.Team != team) continue;                       // только свои
                     if (a.Position.z <= me.z + WALL_MIN_ELEVATION) continue;   // выше нас = на забрале
                     float score = (a.Position - me).LengthSquared;

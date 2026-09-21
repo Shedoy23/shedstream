@@ -1154,6 +1154,14 @@ const BNR_POLL_INTERVAL = 1000;
 const _bnrCompact = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
 function bnrFmt(n) { return _bnrCompact.format(Math.round(n || 0)); }
 
+function bnrPayoutGold(p) {
+    if (p.payout_version !== 2) return '+' + bnrFmt(p.gold_earned);
+    if (p.payout_status === 'paid') return '+' + bnrFmt(p.gold_earned);
+    if (p.payout_status === 'failed' || p.payout_status === 'unavailable') return '—';
+    const low = p.payout_estimate_min, high = p.payout_estimate_max;
+    if (!Number.isFinite(low) || !Number.isFinite(high) || low < 0 || high < low) return '—';
+    return '≈' + bnrFmt(Math.round(low / 2 + high / 2));
+}
 // Sort: player side first → больше kills сверху → alpha.
 function bnrSortParticipants(a, b) {
     if (a.is_player_side !== b.is_player_side) return a.is_player_side ? -1 : 1;
@@ -1180,7 +1188,9 @@ async function pollBannerlordSummoned() {
             petsStrip.classList.toggle('battle', !!data.active && participants.length > 0);
         }
 
-        if (!data.active || participants.length === 0) {
+        const recentFinal = data.final === true && Number.isFinite(data.age_sec)
+            && data.age_sec >= 0 && data.age_sec < 120;
+        if ((!data.active && !recentFinal) || participants.length === 0) {
             panel.classList.remove('visible');
             panel.innerHTML = '';
             return;
@@ -1194,7 +1204,7 @@ async function pollBannerlordSummoned() {
             const sideClass = p.is_player_side ? 'side-player' : 'side-enemy';
             const stateClass = `state-${p.state || (p.alive ? 'active' : 'killed')}`;
             const kills = p.kills || 0;
-            const gold = bnrFmt(p.gold_earned);
+            const gold = bnrPayoutGold(p);
             const xp = bnrFmt(p.xp_earned);
             const killsStr = kills > 0 ? `☠${kills}` : '';
             return `
@@ -1203,7 +1213,7 @@ async function pollBannerlordSummoned() {
                     <div class="bnr-hero-name">${username}</div>
                     <div class="bnr-hero-stats">
                         <span class="stat-kills">${killsStr}</span>
-                        <span class="stat-gold">+${gold}💰</span>
+                        <span class="stat-gold">${gold}💰</span>
                         <span class="stat-xp">+${xp}XP</span>
                     </div>
                 </div>

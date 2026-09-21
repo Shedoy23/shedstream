@@ -187,13 +187,18 @@ namespace TaleWorlds.CampaignSystem.Roster {
   public int TotalWounded => _data.Sum(e => e.WoundedNumber);           // 96343: раненые обычные + герои
   public MBList<TroopRosterElement> GetTroopRoster() { var list = new MBList<TroopRosterElement>(); list.AddRange(_data); return list; }
   public void Add(TroopRosterElement troopRosterElement) => AddToCounts(troopRosterElement.Character, troopRosterElement.Number, false, troopRosterElement.WoundedNumber, troopRosterElement.Xp);   // 96482
+  // 106984-106989: смена численности рассылает OnPartySizeChanged, и на это событие
+  // подписаны посторонние моды — чужая правка ростера возможна прямо посреди обмена
+  // бойца. Здесь это подписчик проверки.
+  public static Action<TroopRoster> TestOnSizeChanged;
+  private void Sized(int count) { if (count != 0) TestOnSizeChanged?.Invoke(this); }
   public int AddToCounts(CharacterObject character, int count, bool insertAtFront = false, int woundedCount = 0, int xpChange = 0, bool removeDepleted = true, int index = -1) {
    int i = _data.FindIndex(e => e.Character == character);
    if (i < 0) { if (count <= 0) return -1; _data.Add(new TroopRosterElement { Character = character }); i = _data.Count - 1; }
    TroopRosterElement element = _data[i];
    element.Number += count; element.WoundedNumber = Math.Max(0, element.WoundedNumber + woundedCount); element.Xp += xpChange;
-   if (element.Number <= 0 && removeDepleted) { _data.RemoveAt(i); return -1; }
-   _data[i] = element; return i;
+   if (element.Number <= 0 && removeDepleted) { _data.RemoveAt(i); Sized(count); return -1; }
+   _data[i] = element; Sized(count); return i;
   }
  }
 }

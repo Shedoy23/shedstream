@@ -73,13 +73,42 @@ namespace BannerlordAutopilot
                     GiveGoldAction.ApplyBetweenCharacters(Hero.MainHero, null, goldCost, true);
                     int remainingIndex = roster.FindIndexOfTroop(source);
                     int actualNext = roster.FindIndexOfTroop(next);
-                    if (roster.TotalManCount != countBefore || roster.TotalWounded != woundedBefore
-                        || Hero.MainHero.Gold != goldBefore - goldCost || actualNext < 0
-                        || roster.GetElementCopyAtIndex(actualNext).Number != nextCount + 1
-                        || (current.Number > 1 && (remainingIndex < 0 || roster.GetElementXp(remainingIndex) != current.Xp - xpCost
-                            || roster.GetElementCopyAtIndex(remainingIndex).Number != current.Number - 1))
-                        || (!consumed.IsEmpty && ItemCount(party, consumed) != horseCount - 1))
-                        throw new InvalidOperationException("улучшение бойца не подтверждено: " + source.Name);
+                    string mismatch = null;
+                    if (roster.TotalManCount != countBefore)
+                        mismatch = "бойцов было " + countBefore + ", стало " + roster.TotalManCount;
+                    else if (roster.TotalWounded != woundedBefore)
+                        mismatch = "раненых было " + woundedBefore + ", стало " + roster.TotalWounded;
+                    else if (Hero.MainHero.Gold != goldBefore - goldCost)
+                        mismatch = "золото было " + goldBefore + ", ждали " + (goldBefore - goldCost) + ", стало " + Hero.MainHero.Gold;
+                    else if (actualNext < 0)
+                        mismatch = "в отряде не появился «" + next.Name + "»";
+                    else if (roster.GetElementCopyAtIndex(actualNext).Number != nextCount + 1)
+                        mismatch = "«" + next.Name + "» было " + nextCount + ", ждали " + (nextCount + 1)
+                                   + ", стало " + roster.GetElementCopyAtIndex(actualNext).Number;
+                    else if (current.Number > 1 && remainingIndex < 0)
+                        mismatch = "остаток «" + source.Name + "» пропал, а было " + current.Number;
+                    else if (current.Number > 1 && roster.GetElementXp(remainingIndex) != current.Xp - xpCost)
+                        mismatch = "опыт остатка был " + current.Xp + ", ждали " + (current.Xp - xpCost)
+                                   + ", стал " + roster.GetElementXp(remainingIndex);
+                    else if (current.Number > 1 && roster.GetElementCopyAtIndex(remainingIndex).Number != current.Number - 1)
+                        mismatch = "остаток «" + source.Name + "» был " + current.Number + ", ждали " + (current.Number - 1)
+                                   + ", стал " + roster.GetElementCopyAtIndex(remainingIndex).Number;
+                    else if (!consumed.IsEmpty && ItemCount(party, consumed) != horseCount - 1)
+                        mismatch = "«" + consumed.Item.Name + "» было " + horseCount + ", ждали " + (horseCount - 1)
+                                   + ", стало " + ItemCount(party, consumed);
+                    if (mismatch != null)
+                    {
+                        // Проверка стоит ПОСЛЕ обмена: выключать автопилот поздно — это ничего
+                        // не возвращает, зато игра остаётся стоять на открытом экране. 21.09 так
+                        // потерян «Замок Флинтолг»: обслуживание упало в 21:18, и до 21:32
+                        // никто не играл. Останавливаем только прокачку этого захода и
+                        // называем числа, чтобы следующий случай не расследовать заново.
+                        AutopilotLog.Write("ПРОКАЧКА ОСТАНОВЛЕНА: «" + source.Name + "» → «" + next.Name
+                            + "» не подтверждено: " + mismatch + "; опыт " + xpCost + ", цена " + goldCost
+                            + (consumed.IsEmpty ? "" : ", предмет " + consumed.Item.Name)
+                            + ". Остальные улучшения в этот заход пропущены.");
+                        return;
+                    }
                     // Native player event awards leadership XP and notifies campaign subscribers.
                     CampaignEventDispatcher.Instance.OnPlayerUpgradedTroops(source, next, 1);
                     upgraded++;

@@ -48,6 +48,23 @@ internal static partial class Program
             Check(p.MemberRoster.TotalManCount==before && p.MemberRoster.TotalWounded==wounded && Hero.MainHero.Gold==500-expected*20, "headcount wounded and payment preserved " + condition);
             if(condition=="horse") Check(p.ItemRoster.Count==0 && p.MemberRoster.GetTroopRoster().First(e=>e.Character==source).Xp==100, "upgrade consumes one horse and exact XP");
         });
+        Try("прокачка: чужая правка ростера не выключает автопилот", () => {
+            var b=Fresh(); MakeWorld(gold:500, prisoners:false); SetLimit("MinGoldReserve",0);
+            var p=MobileParty.MainParty; Campaign.Current.Behaviors.Add(new TestViewTracker());
+            var target=new CharacterObject { Name="trained" };
+            var source=new CharacterObject { Name="recruit", UpgradeTargets=new[] { target } };
+            p.MemberRoster.AddToCounts(source,3,xpChange:300);
+            Campaign.Current.Models.PartyWageModel.TestTotalWage=(party,roster)=>10;
+            Enable(b);
+            bool fired=false;
+            // Только настоящий ростер отряда: расчёт будущего жалования работает с копией.
+            TroopRoster.TestOnSizeChanged = r => { if (fired || r != p.MemberRoster) return; fired=true; r.AddToCounts(source,-1); };
+            Exception thrown=null;
+            try { TroopUpgrades.Run(p); } catch (Exception ex) { thrown=ex; } finally { TroopRoster.TestOnSizeChanged=null; }
+            Check(thrown==null, "несовпадение книг не бросает исключение (раньше оно выключало автопилот)");
+            Check(p.MemberRoster.GetTroopRoster().Where(e=>e.Character==target).Sum(e=>e.Number)<=1, "после несовпадения прокачка этого захода прекращена");
+            Check(AutopilotLog.Lines.Any(l=>l.Contains("ПРОКАЧКА ОСТАНОВЛЕНА") && l.Contains("бойцов было")), "журнал называет числа несовпадения");
+        });
     }
 }
 namespace TaleWorlds.Core

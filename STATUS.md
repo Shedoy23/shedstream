@@ -1,3 +1,6 @@
+<!-- deployment 2026-09-21 -->
+21.09.2026: по команде пользователя «Выкати все» обе DLL/PDB установлены с rollback-20260921-231804 и проверкой SHA256. BannerlordLink MD5 6C8CF6DF87EA09FD26B6C5C95D420C6C, Autopilot AEA589923E5A6864F022EB08F9C4DF1F. Серверные 6 файлов магазина обновлены; twitchbot PID 2568080, public health ok/db ok, JS и обе HTML 200 с совпадающими SHA256. Backup /root/shedlink-deploy-backups/no-party-20260921-2321. Twitch CDN и живая кампания не проверены/не обновлены соответственно: CDN не обновлён, покупки и оборона в кампании ещё не проверены.
+
 Автопилот 21.09: защита своих осаждённых городов/замков от 50% здоровых реализована ЛОКАЛЬНО (6c8d1fb). Приоритет над набором и походами, движение к воротам, штатный прорыв/оборона, корректная сторона вылазки. 542/0, Contract493, BattleMission/Release OK. DLL AEA58992… в D:/shedlink-build/own-siege-defense-20260921/bin, НЕ установлена. См. BannerlordAutopilot/review/OWN_SIEGE_DEFENSE_2026-09-21.md.
 
 Камера автопилота 21.09: первое лицо живого главного героя, штатная мышь и возврат прежней камеры. ЛОКАЛЬНО, не установлено. BattleMission exit 0, Release 0/0; живой бой не проверен. См. BannerlordAutopilot/HANDOFF.md.
@@ -296,3 +299,4 @@ DLL 1dd17cf установлена при закрытой игре в 23:32, р
 уехало не в свой файл** (история → `docs/archive/`, операционка → `RUNBOOK.md`,
 план → `ROADMAP.md`, отложенное → `DEFERRED.md`). Держит линтер
 `check_status_is_a_window`.
+

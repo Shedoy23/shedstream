@@ -5,10 +5,28 @@ using TaleWorlds.CampaignSystem.CampaignBehaviors.BarterBehaviors;
 
 class Program
 {
-    static int Main()
+    static int Main(string[] args)
     {
         try
         {
+            if (args.Length == 2)
+            {
+                var game = args[1];
+                var dirs = new[] { Path.GetDirectoryName(Path.GetFullPath(args[0])), Path.Combine(game, "bin", "Win64_Shipping_Client"), Path.Combine(game, "Modules", "Native", "bin", "Win64_Shipping_Client"), Path.Combine(game, "Modules", "SandBox", "bin", "Win64_Shipping_Client") };
+                AppDomain.CurrentDomain.AssemblyResolve += (sender, e) => {
+                    var name = new AssemblyName(e.Name).Name + ".dll";
+                    var file = dirs.Select(d => Path.Combine(d, name)).FirstOrDefault(File.Exists);
+                    return file == null ? null : Assembly.LoadFrom(file);
+                };
+                var actualPatch = Assembly.LoadFrom(Path.GetFullPath(args[0])).GetType("BannerlordLink.Patches.ViewerKingdomAiPatch", true);
+                var targets = ((IEnumerable<MethodBase>)actualPatch.GetMethod("TargetMethods").Invoke(null, null)).ToArray();
+                if (targets.Length != 5 || targets.Any(m => m.DeclaringType.Assembly.GetName().Name != "TaleWorlds.CampaignSystem")) throw new Exception("Wrong real engine targets");
+                new Harmony("test.viewer.kingdom.real.engine").CreateClassProcessor(actualPatch).Patch();
+                foreach (var target in targets)
+                    if (!Harmony.GetPatchInfo(target).Prefixes.Any(p => p.PatchMethod.DeclaringType == actualPatch)) throw new Exception("Missing real prefix: " + target.Name);
+                Console.WriteLine("PASS: all 5 real installed engine methods resolved and patched");
+                return 0;
+            }
             var patch = typeof(Program).Assembly.GetType("BannerlordLink.Patches.ViewerKingdomAiPatch");
             if (patch == null) throw new Exception("Missing viewer kingdom AI guard");
             new Harmony("test.viewer.kingdom.ai").CreateClassProcessor(patch).Patch();

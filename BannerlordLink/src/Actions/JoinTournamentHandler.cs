@@ -13,22 +13,9 @@ namespace BannerlordLink.Actions
     /// <summary>
     /// Sprint 5.3 — `hero.join_tournament` action handler.
     ///
-    /// Sprint 5.28 change: цена перенесена с in-game динаров на extension
-    /// крустики (backend списывает 1000 крустиков с viewer ДО enqueue
-    /// action'а). Мод больше НЕ проверяет hero.Gold и НЕ списывает
-    /// денары — все записавшиеся попадают в очередь.
-    ///
-    /// Раньше: viewer кликал «записаться» → списались крустики на backend
-    /// → мод проверял hero.Gold ≥ 5000 → если нет, отказ, но крустики
-    /// уже списались. Result: 5-6 «записались», только 2 попали в турнир.
-    ///
-    /// Flow:
-    ///   1. Backend списывает 1000 крустиков + enqueue'ит action {target: username}
-    ///   2. Mod main-thread: find hero (alive) → AddToQueue
-    ///   3. Push event tournament.joined → backend INSERT в queue table
-    ///
-    /// Если viewer вне Mission (overworld OK), queue работает; в Mission
-    /// — skip (нельзя в бою).
+    /// Registration is free. AddToQueue acknowledges existing membership and
+    /// publishes the game-owned queue; retries never duplicate a hero.
+    /// New registrations require the campaign map (not a running mission).
     /// </summary>
     public class JoinTournamentHandler : IActionHandler
     {
@@ -85,15 +72,6 @@ namespace BannerlordLink.Actions
                     BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "queue_reject:" + message);
                     return;
                 }
-
-                // Push event tournament.joined → backend mirror
-                string evtData = JsonConvert.SerializeObject(new
-                {
-                    username = username,
-                    entry_fee = 0,
-                });
-                Task.Run(async () => await BannerlordLinkModule.Backend
-                    .PostEventAsync("bannerlord", "tournament.joined", evtData));
 
                 BannerlordLinkModule.Log(
                     $"[join_tournament] @{username} joined queue ({message})");

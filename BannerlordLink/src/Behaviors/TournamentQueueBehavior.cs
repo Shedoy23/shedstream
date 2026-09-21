@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -29,10 +30,10 @@ namespace BannerlordLink.Behaviors
     ///     на FightTournamentGame.GetParticipantCharacters)
     ///
     /// Source of truth для очереди в-игре. Backend хранит mirror для UI,
-    /// получает события tournament.joined/left/started/ended.
+    /// получает периодический tournament.queue_snapshot (включая пустую очередь).
     ///
     /// JoinTournamentHandler (action hero.join_tournament) → AddToQueue
-    /// → push event tournament.joined → backend INSERT.
+    /// → publish ordered queue snapshot → backend mirror.
     /// </summary>
     public class TournamentQueueBehavior : CampaignBehaviorBase
     {
@@ -52,6 +53,40 @@ namespace BannerlordLink.Behaviors
         private readonly List<QueueEntry> _queue = new List<QueueEntry>();
         public IReadOnlyList<QueueEntry> Queue => _queue;
         public bool TournamentAvailable => _queue.Count > 0;
+        private readonly Stopwatch _queueRefresh = Stopwatch.StartNew();
+        private long _queueSequence;
+        private bool _sessionLaunched;
+        private volatile bool _publishingQueue;
+
+        // Capture only on the game thread. Re-publish even unchanged/empty queues:
+        // startup handshake or a lost request must heal without another viewer click.
+        public void PublishQueue()
+        {
+            var backend = BannerlordLinkModule.Backend;
+            var session = EquipmentShopBehavior.Instance;
+            if (!_sessionLaunched || _publishingQueue || backend == null || session == null || Campaign.Current == null) return;
+            string payload = JsonConvert.SerializeObject(new
+            {
+                save_id = Campaign.Current.UniqueGameId,
+                equipment_session_id = session.SessionId,
+                queue_seq = ++_queueSequence,
+                entries = _queue.Where(e => e.Hero != null && e.Hero.IsAlive)
+                    .Select(e => new { username = e.Username, entry_fee = e.EntryFee }).ToArray(),
+            });
+            _publishingQueue = true;
+            _queueRefresh.Restart();
+            Task.Run(async () =>
+            {
+                try { await backend.PostEventAsync("bannerlord", "tournament.queue_snapshot", payload); }
+                catch (Exception ex) { BannerlordLinkModule.Log("[tournament] queue sync will retry: " + ex.Message); }
+                finally { _publishingQueue = false; }
+            });
+        }
+
+        private void TickQueue(float dt)
+        {
+            if (_queueRefresh.ElapsedMilliseconds >= 10000) PublishQueue();
+        }
 
         // Sprint 5.32 BUGFIX — REVERT Sprint 5.31 #45d (CWT was overkill +
         // broken in practice). Crash dump показал что Postfix фоторепортно не
@@ -94,6 +129,7 @@ namespace BannerlordLink.Behaviors
 
         public override void RegisterEvents()
         {
+            CampaignEvents.TickEvent.AddNonSerializedListener(this, TickQueue);
             CampaignEvents.HeroKilledEvent.AddNonSerializedListener(this,
                 (victim, killer, detail, notify) =>
                 {
@@ -103,6 +139,7 @@ namespace BannerlordLink.Behaviors
                     {
                         BannerlordLinkModule.Log(
                             $"[tournament] hero killed → removed {removed} from queue");
+                        PublishQueue();
                     }
                 });
 
@@ -182,69 +219,9 @@ namespace BannerlordLink.Behaviors
                     $"[tournament] game menu register FAILED: {ex.Message}");
             }
 
-            // 2026-06-16 (bug #18) — реконсиляция очереди с backend на загрузке.
-            // In-game очередь — per-save (SyncData); если стример сейв-скамит
-            // (грузит сейв, сделанный ДО записи зрителя), запись молча выпадает,
-            // а расширение всё равно показывает «в очереди» (берёт из backend).
-            // Backend-очередь — durable source of truth «кто записался»; домерджим
-            // тех, кого нет в in-game очереди. Только ДОБАВЛЯЕМ — поэтому откат
-            // сейва за уже прошедший турнир не ломает очередь из того сейва.
-            _ = FetchAndMergeBackendQueueAsync();
-        }
-
-        /// <summary>Фетчит backend-очередь и домерджит на главном потоке (bug #18).</summary>
-        private async Task FetchAndMergeBackendQueueAsync()
-        {
-            try
-            {
-                string json = await BannerlordLinkModule.Backend
-                    .GetAsync("/api/bannerlord/tournament/queue-usernames");
-                if (string.IsNullOrEmpty(json)) return;
-                var parsed = JObject.Parse(json);
-                if (parsed["success"] == null || !(bool)parsed["success"]) return;
-                var arr = parsed["usernames"] as JArray;
-                if (arr == null || arr.Count == 0) return;
-                var users = arr
-                    .Select(t => (t.ToString() ?? "").Trim().ToLowerInvariant())
-                    .Where(u => !string.IsNullOrEmpty(u))
-                    .ToList();
-                // Очередь — main-thread state; мутируем только на главном потоке.
-                MainThreadDispatcher.Enqueue(() => MergeBackendQueue(users));
-            }
-            catch (Exception ex)
-            {
-                BannerlordLinkModule.Log($"[tournament] backend queue fetch error: {ex.Message}");
-            }
-        }
-
-        private void MergeBackendQueue(List<string> backendUsers)
-        {
-            try
-            {
-                int added = 0, skipped = 0;
-                foreach (var username in backendUsers)
-                {
-                    if (_queue.Count >= TOURNAMENT_SIZE) break;
-                    var hero = HeroLookup.FindByUsername(username);
-                    if (hero == null || !hero.IsAlive) { skipped++; continue; }
-                    if (_queue.Any(e => e.Hero == hero)) continue;   // уже в очереди
-                    _queue.Add(new QueueEntry
-                    {
-                        Username = username,
-                        Hero = hero,
-                        EntryFee = 0,
-                    });
-                    added++;
-                }
-                if (added > 0 || skipped > 0)
-                    BannerlordLinkModule.Log(
-                        $"[tournament] backend reconcile: +{added} merged, " +
-                        $"{skipped} skipped (dead/missing)");
-            }
-            catch (Exception ex)
-            {
-                BannerlordLinkModule.Log($"[tournament] merge error: {ex.Message}");
-            }
+            // The loaded save owns membership; do not resurrect backend-only ghosts.
+            _sessionLaunched = true;
+            PublishQueue();
         }
 
         /// <summary>Добавляет 2 опции в town_arena: запустить / смотреть viewer tournament.</summary>
@@ -294,7 +271,10 @@ namespace BannerlordLink.Behaviors
                 return (false, "hero не найден или мёртв");
 
             if (_queue.Any(e => e.Hero == hero))
-                return (false, "уже в очереди");
+            {
+                PublishQueue();
+                return (true, "уже в очереди");
+            }
 
             _queue.Add(new QueueEntry
             {
@@ -302,6 +282,7 @@ namespace BannerlordLink.Behaviors
                 Hero = hero,
                 EntryFee = entryFee,
             });
+            PublishQueue();
             return (true, $"position {_queue.Count}/{TOURNAMENT_SIZE}");
         }
 
@@ -310,6 +291,7 @@ namespace BannerlordLink.Behaviors
             username = (username ?? "").Trim().ToLowerInvariant();
             _queue.RemoveAll(e =>
                 string.Equals(e.Username, username, StringComparison.OrdinalIgnoreCase));
+            PublishQueue();
         }
 
         private void StartViewerTournament(bool playerParticipates)
@@ -346,6 +328,7 @@ namespace BannerlordLink.Behaviors
 
                 // Очередь сбрасываем — snapshot уже в активном турнире.
                 _queue.RemoveAll(e => snapshot.Contains(e));
+                PublishQueue();
 
                 // Push event tournament.started
                 var participantUsernames = snapshot

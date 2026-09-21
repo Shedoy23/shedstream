@@ -569,6 +569,12 @@ class BannerlordAdapter(ModuleAdapter):
             return
 
         # ── Sprint 5.3: Tournament events ──────────────────────────────────
+        if et == "tournament.queue_snapshot":
+            from dependencies import get_db
+            from .tournament_queue import store_snapshot
+            await store_snapshot(get_db(), channel_id, env.data)
+            return
+
         if et == "tournament.joined":
             await self._on_tournament_joined(channel_id, env)
             return
@@ -2185,17 +2191,21 @@ class BannerlordAdapter(ModuleAdapter):
             return
         from dependencies import get_db
         async with get_db()._connect() as conn:
-            await conn.execute("""
+            cur = await conn.execute("""
                 INSERT INTO bannerlord_tournament_queue
                     (channel_id, username, entry_fee)
-                VALUES (?, ?, ?)
+                SELECT ?, ?, ? WHERE NOT EXISTS (
+                    SELECT 1 FROM bannerlord_tournament_queue_sync q
+                    JOIN bannerlord_equipment_sessions s ON s.channel_id=q.channel_id AND s.session_id=q.session_id
+                    WHERE q.channel_id=?
+                )
                 ON CONFLICT(channel_id, username) DO UPDATE SET
                     entry_fee = excluded.entry_fee,
-                    joined_at = CURRENT_TIMESTAMP
-            """, (channel_id, username, entry_fee))
+                    joined_at = bannerlord_tournament_queue.joined_at
+            """, (channel_id, username, entry_fee, channel_id))
             await conn.commit()
-        print(f"[bannerlord:{channel_id}] @{username} joined tournament "
-              f"queue (fee={entry_fee}💰)")
+        if cur.rowcount:
+            print(f"[bannerlord:{channel_id}] @{username} joined tournament queue (fee={entry_fee})")
 
     async def _on_tournament_left(self, channel_id: int, env: ModuleEnvelope) -> None:
         """Viewer убран из очереди (hero died между join и start, refund etc.)."""
@@ -2203,11 +2213,12 @@ class BannerlordAdapter(ModuleAdapter):
         username = (data.get("username") or "").lower()
         if not username:
             return
+        from .tournament_queue import LEGACY_QUEUE
         from dependencies import get_db
         async with get_db()._connect() as conn:
             await conn.execute(
                 "DELETE FROM bannerlord_tournament_queue "
-                "WHERE channel_id=? AND username=?",
+                f"WHERE channel_id=? AND username=? AND {LEGACY_QUEUE}",
                 (channel_id, username))
             await conn.commit()
         print(f"[bannerlord:{channel_id}] @{username} left tournament queue")
@@ -2216,7 +2227,7 @@ class BannerlordAdapter(ModuleAdapter):
         """Турнир начался — backend сохраняет participants snapshot.
 
         Payload: {participants: [username...]}
-        Очередь очищается; этот же list используется для bet validation
+        У старых клиентов удаляются только участники; list используется для bet validation
         и для финального payout.
         """
         data = env.data
@@ -2224,6 +2235,7 @@ class BannerlordAdapter(ModuleAdapter):
         if not isinstance(participants, list):
             participants = []
         participants = [str(p).lower() for p in participants]
+        from .tournament_queue import LEGACY_QUEUE
         from dependencies import get_db
         async with get_db()._connect() as conn:
             await conn.execute("""
@@ -2238,8 +2250,9 @@ class BannerlordAdapter(ModuleAdapter):
             """, (channel_id, json.dumps(participants, ensure_ascii=False)))
             # Clear queue (participants ушли в бой)
             await conn.execute(
-                "DELETE FROM bannerlord_tournament_queue WHERE channel_id=?",
-                (channel_id,))
+                f"DELETE FROM bannerlord_tournament_queue WHERE channel_id=? AND {LEGACY_QUEUE} "
+                "AND username IN (SELECT value FROM json_each(?))",
+                (channel_id, json.dumps(participants)))
             await conn.commit()
         # Sprint 5.29 BLT-parity #5: achievement increment per participant
         try:
@@ -2295,7 +2308,7 @@ class BannerlordAdapter(ModuleAdapter):
         Mod-side даёт hero.Gold + XP + prize item победителю.
 
         Aborted: any open bets refund'аются bettor'ам (бот не виноват что
-        стример вышел). Также очищаем queue если осталась.
+        стример вышел). Ожидающие следующего турнира остаются в очереди.
         """
         data = env.data
         winner = (data.get("winner") or "").lower() or None
@@ -2370,11 +2383,7 @@ class BannerlordAdapter(ModuleAdapter):
                 SET status='idle', last_winner=?, participants='[]', current_round=0
                 WHERE channel_id=?
             """, (winner, channel_id))
-            # Aborted — гарантированно чистим queue (на случай если start был, но roster generation failed)
-            if aborted:
-                await conn.execute(
-                    "DELETE FROM bannerlord_tournament_queue WHERE channel_id=?",
-                    (channel_id,))
+            # Aborting the active tournament must preserve viewers waiting for the next one.
             await conn.commit()
         await self._log_event(channel_id, "tournament.ended", winner, data)
         # Sprint 5.29 BLT-parity #5: achievement increment для winner

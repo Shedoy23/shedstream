@@ -1,5 +1,6 @@
 """Game-owned tournament queue: restoration, ordering and session fences."""
 import asyncio
+import sqlite3
 import tempfile
 from pathlib import Path
 from test_bannerlord_buy_action import _build_db, CHANNEL_ID
@@ -51,6 +52,31 @@ async def main():
             await sql("UPDATE bannerlord_equipment_sessions SET session_id='session-b' WHERE channel_id=?",(CHANNEL_ID,))
             await snapshot(1, ['new-session'], equipment_session_id='session-b')
             assert await queue() == ['new-session'], 'Sequence restarts when campaign session changes'
+            await sql("CREATE TRIGGER fail_queue BEFORE INSERT ON bannerlord_tournament_queue WHEN NEW.username='broken' BEGIN SELECT RAISE(ABORT,'injected failure'); END")
+            try:
+                await snapshot(2, ['first','broken'], equipment_session_id='session-b')
+            except sqlite3.IntegrityError:
+                pass
+            else:
+                raise AssertionError('Storage failure was not exercised')
+            assert await queue() == ['new-session'], 'Failed replacement must roll back rows and sequence'
+            await sql('DROP TRIGGER fail_queue')
+            await snapshot(2, ['waiting'], equipment_session_id='session-b')
+            async def finish(**data):
+                await adapter.handle_event(CHANNEL_ID, ModuleEnvelope(id='end',kind='event',type='tournament.ended',ts=10,data=data))
+            await finish(aborted=True)
+            assert await queue() == ['waiting'], 'Aborting a tournament must preserve the next queue'
+            assert await sql('SELECT status FROM bannerlord_tournament_state WHERE channel_id=?',(CHANNEL_ID,)) == [('idle',)]
+            await sql("INSERT INTO bannerlord_tournament_bets(channel_id,bettor,target,round_index,amount) VALUES(?,'alice','carol',0,0)",(CHANNEL_ID,))
+            await finish(winner='carol')
+            assert await sql("SELECT resolved,payout FROM bannerlord_tournament_bets WHERE channel_id=? AND bettor='alice'",(CHANNEL_ID,)) == [(1,2500)], 'Prediction payout must remain intact'
+            assert await queue() == ['waiting']
+            # An older mod still reports individual joins; preserve its order and leftovers.
+            await sql('DELETE FROM bannerlord_tournament_queue_sync WHERE channel_id=?',(CHANNEL_ID,))
+            await adapter.handle_event(CHANNEL_ID, ModuleEnvelope(id='join',kind='event',type='tournament.joined',ts=11,data={'username':'participant'}))
+            await adapter.handle_event(CHANNEL_ID, ModuleEnvelope(id='start-old',kind='event',type='tournament.started',ts=12,data={'participants':['participant']}))
+            assert await queue() == ['waiting'], 'Legacy start removes only participating viewers'
+
             print('PASS tournament queue: restore 13, order, sequence/save/session fences, leftovers, late joins, invalid payload, empty, tenant isolation, new session')
         finally:
             await db._pool.close()

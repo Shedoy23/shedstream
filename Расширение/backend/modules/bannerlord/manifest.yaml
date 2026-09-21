@@ -73,6 +73,7 @@ extensions:
     - hero.clan_joined        # Sprint 5.12: mod пушит после join_clan
     - hero.kingdom_joined     # Sprint 5.12: mod пушит после join_kingdom
     - hero.party_created      # Sprint 5.13: mod пушит после create_party
+    - tournament.queue_snapshot
     - tournament.joined       # Sprint 5.3: viewer added to queue (mod paid Hero.Gold)
     - tournament.left         # Sprint 5.3: viewer removed (refund / hero died / etc.)
     - tournament.started      # Sprint 5.3: tournament fight started, participants frozen

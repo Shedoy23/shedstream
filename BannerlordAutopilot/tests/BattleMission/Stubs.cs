@@ -41,19 +41,32 @@ namespace TaleWorlds.MountAndBlade {
   public Formation GetFormation(FormationClass index) => FormationsIncludingEmpty.Find(f=>f.FormationIndex==index);
   public void DelegateCommandToAI() { foreach (var f in FormationsIncludingEmpty) f.SetControlledByAI(true); }
  }
- public class BattleDeploymentMissionController : MissionBehavior {
+ public class DeploymentMissionController : MissionBehavior {
   public bool TeamSetupOver; public int FinishCalls;
-  public void FinishDeployment() { FinishCalls++; Mission.IsDeploymentFinished = true; Mission.Mode = MissionMode.Battle; Mission.Behaviors.RemoveAll(b=>b is BattleDeploymentMissionController); }
+  public void FinishDeployment() { FinishCalls++; Mission.DeploymentSteps.Add("finish"); Mission.IsDeploymentFinished = true; Mission.Mode = MissionMode.Battle; Mission.Behaviors.RemoveAll(b=>b is DeploymentMissionController); }
  }
+ public class BattleDeploymentMissionController : DeploymentMissionController {}
+ public class SiegeDeploymentMissionController : DeploymentMissionController {}
+ public class AssignPlayerRoleInTeamMissionController { public Mission Mission; public void OnPlayerTeamDeployed() { Mission.DeploymentSteps.Add("role"); } }
  public class Mission {
   public List<MissionBehavior> Behaviors=new();
   public bool CameraIsFirstPerson; public bool MissionEnded; public int ExitCalls; public MissionResult MissionResult; public BattleEndLogic EndLogic;
   public MissionMode Mode = MissionMode.Deployment; public bool IsDeploymentFinished; public bool IsFriendlyMission; public Team PlayerTeam = new(); public Agent MainAgent = new();
-  public BattleDeploymentMissionController Deployment;
-  public T GetMissionBehavior<T>() where T:class => (Deployment as T) ?? (EndLogic as T);
+  public List<string> DeploymentSteps = new();
+  public DeploymentMissionController Deployment;
+  public Missions.Handlers.SiegeDeploymentHandler SiegeHandler;
+  public AssignPlayerRoleInTeamMissionController RoleController;
+  public T GetMissionBehavior<T>() where T:class => (Deployment as T) ?? (EndLogic as T) ?? (SiegeHandler as T) ?? (RoleController as T);
  }
  public class MissionResult { public bool BattleResolved; }
  public class BattleEndLogic { public enum ExitResult { True, False, NeedsPlayerConfirmation } public Mission Mission; public bool AllowExit = true; public int Calls; public ExitResult TryExit() { Calls++; if (!AllowExit) return ExitResult.False; Mission.ExitCalls++; return ExitResult.True; } }
+}
+namespace TaleWorlds.MountAndBlade.Missions.Handlers {
+ public class SiegeDeploymentHandler {
+  public TaleWorlds.MountAndBlade.Mission Mission; public bool ThrowOnDeploy;
+  public void AutoDeployTeamUsingTeamAI(TaleWorlds.MountAndBlade.Team team, bool autoAssignDetachments = true) { Mission.DeploymentSteps.Add("deploy"); if(ThrowOnDeploy) throw new Exception("deployment failed"); if(autoAssignDetachments) AutoAssignDetachmentsForDeployment(team); }
+  public void AutoAssignDetachmentsForDeployment(TaleWorlds.MountAndBlade.Team team) { Mission.DeploymentSteps.Add("detachments"); }
+ }
 }
 namespace BannerlordAutopilot {
  using TaleWorlds.CampaignSystem.Party;

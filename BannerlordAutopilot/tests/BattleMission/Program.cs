@@ -165,4 +165,32 @@ foreach (string stop in new[]{"off","dead","replacement","conversation","end"})
     else cameraBehavior.OnMissionTick(.1f);
     Check(cameraMission.CameraIsFirstPerson==previousFirstPerson,"camera restores previous mode: "+stop);
 }
+// Siege has a sibling deployment controller, not a BattleDeployment subclass.
+foreach (string gate in new[] { "ready", "setup", "hero", "team", "handler", "off", "inquiry", "ended", "exception" })
+{
+    AutopilotBehavior.Instance.CurrentMode = gate == "off" ? AutopilotBehavior.Mode.Off : AutopilotBehavior.Mode.Apply;
+    TaleWorlds.Library.InformationManager.Inquiry = gate == "inquiry";
+    var deploying = new Mission { MissionEnded = gate == "ended" };
+    var controller = new SiegeDeploymentMissionController { Mission = deploying, TeamSetupOver = gate != "setup" };
+    deploying.Deployment = controller;
+    deploying.SiegeHandler = new TaleWorlds.MountAndBlade.Missions.Handlers.SiegeDeploymentHandler { Mission = deploying, ThrowOnDeploy = gate == "exception" };
+    deploying.RoleController = new AssignPlayerRoleInTeamMissionController { Mission = deploying };
+    if (gate == "hero") deploying.MainAgent = null;
+    if (gate == "team") deploying.PlayerTeam = null;
+    if (gate == "handler") deploying.SiegeHandler = null;
+    var deployingBehavior = new BattleAutopilotMission { Mission = deploying };
+    deploying.Behaviors.Add(controller); deploying.Behaviors.Add(deployingBehavior);
+    for (int i = deploying.Behaviors.Count - 1; i >= 0; i--) deploying.Behaviors[i].OnMissionTick(.1f);
+    Check(deploying.DeploymentSteps.Count == 0, "siege deployment stays outside mission tick: " + gate);
+    deployingBehavior.PollDeployment(); deployingBehavior.PollDeployment();
+    if (gate == "ready")
+        Check(string.Join(",", deploying.DeploymentSteps) == "deploy,role,detachments,finish" && deploying.IsDeploymentFinished,
+            "siege auto-placement, player role, crews and finish execute once in native order");
+    else if (gate == "exception")
+        Check(string.Join(",", deploying.DeploymentSteps) == "deploy" && AutopilotBehavior.Instance.CurrentMode == AutopilotBehavior.Mode.Off,
+            "partial siege deployment failure disables autopilot without finish or retry");
+    else
+        Check(deploying.DeploymentSteps.Count == 0, "siege deployment waits for readiness: " + gate);
+}
+TaleWorlds.Library.InformationManager.Inquiry = false;
 return failed;

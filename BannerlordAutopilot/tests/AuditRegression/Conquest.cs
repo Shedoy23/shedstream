@@ -538,6 +538,21 @@ internal static partial class Program
             Check(wait.IsWaitActive && b.CurrentMode==AutopilotBehavior.Mode.Apply,
                 "после полевого боя ожидание строительства осады возобновлено");
         });
+        foreach (bool wounded in new[] { false, true })
+        Try("после победы у стен: восстановление=" + wounded, () => {
+            var b = Fresh(); var castle = ConquestWorld(); Enable(b);
+            var party = MobileParty.MainParty;
+            var siege = new SiegeEvent { BesiegedSettlement=castle }; siege.BesiegerCamp.LeaderParty=party;
+            party.SiegeEvent=siege;
+            PlayerEncounter.Current=null; PlayerEncounter.Battle=null; PlayerEncounter.EncounteredBattle=null;
+            Hero.MainHero.IsWounded=wounded;
+            int continued=0, left=0;
+            var menu=Menu("continue_siege_after_attack", "continue_siege", () => continued++);
+            menu.Options.Add(new GameMenuOption { IdString="leave_siege", Consequence=() => left++ });
+            Show(menu); b.PollState();
+            Check(b.CurrentMode==AutopilotBehavior.Mode.Apply && continued==(wounded ? 0 : 1) && left==(wounded ? 1 : 0),
+                "после добычи без PlayerEncounter выбран штатный исход осады по готовности");
+        });
         foreach (string location in new[] { "none", "village", "castle" })
         Try("осада: атакующий патруль после разговора: " + location, () => {
             var b = Fresh(); var castle = ConquestWorld(); Enable(b);

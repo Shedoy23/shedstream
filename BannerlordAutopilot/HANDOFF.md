@@ -9,8 +9,12 @@
 `_offensiveSiege` и текущему `PlayerEncounter`, тоже принадлежит операции:
 автопилот нажимает штатную атаку, ведёт миссию и после боя возвращается к осаде.
 Красный стенд: 487 ok / 1 FAIL; зелёный: 488/488; BattleMission весь зелёный;
-Release-сборка 0 предупреждений / 0 ошибок. DLL не установлена: лаунчер и
-Watchdog были запущены, живой повтор ожидается.
+Release-сборка 0 предупреждений / 0 ошибок. После закрытия игры, лаунчера и
+Watchdog DLL коммита `93efc2d` установлена; SHA-256 исходной и установленной
+совпал: `F7BE5E662AE1ABF670A68713A1A8B75AF0E8E470559957810BEF458094F30C78`,
+MD5 `C7FB5DB6435E55EA385A9EC349011101`. Откат:
+`D:/shedlink-build/autopilot-dll-rollback/20260921-093efc2d-before-siege-patrol-battle/BannerlordAutopilot.dll`.
+Живой повтор ожидается.
 
 **20.09.2026 — установлен сторонний Coherent War AI для Bannerlord 1.4.8.**
 Источник: `Else123/BannerlordCoherentWarAI`, зафиксированный коммит `37643b0`;

@@ -1,5 +1,33 @@
 # Продолжение после Claude: цель — завоевать карту
 
+**21.09.2026 10:10 +05 — установлен d31fe4f + локальный RBM AI-only.**
+Владелец разрешил выбрать моды/совместимость, игру закрыл. RBM собран из
+866ec5b02f12426a1e47d479a39655ea41844714 (4.5.0.1, BL1.4.8), локальные исправления
+953cec0 в D:/shedlink-build/third-party/RealisticBattleProject-study:
+разбор дробей в ru-RU/en-US и запрет удаления кланов без культуры при выключенном Campaign.
+Пакет D:/shedlink-build/third-party/RBM-ai-only-20260921 установлен в Modules/RBM;
+131 файл сверен по SHA-256. LauncherData включает RBM перед ShedLink/Autopilot.
+XML манифест ограничен текстами, project.mbproj без глобальных combat-overrides.
+AI+Frontline включены; Combat/Campaign/Tournament/Posture/Stamina/HitStop отключены.
+Improved Combat AI НЕ установлен. RBM AI-логи: Configs/RBM/logs/ai.
+
+Автопилот при загруженном RBMConfig.rbmAiEnabled=true делегирует формации AI,
+не навязывает Charge. Без RBM/при выключенном AI сохраняет прежнюю атаку.
+Тест 128566b был красным (2 FAIL), после фикса все BattleMission зелёные,
+AuditRegression 502/0, контракт 492/492, собственная Release-сборка 0/0.
+RBM собирается с предупреждениями (неиспользуемые поля и MSB3246), без ошибок;
+его настоящий LoadConfig проверен ru-RU -> en-US -> ru-RU. Это НЕ живой бой.
+
+Autopilot SHA256 10A481BC1E4DC536B9CD8401EF34F31A4CC495A211B8664D3687D886452EE258,
+MD5 4B300F8EECE552594A93323412B53FB7.
+RBM.dll SHA256 8D704B49EB7DD3D475F849CBD7B09E7E1D43E7E65E215F4A2DE8D83D3A3DF3ED.
+RBMConfig.dll SHA256 5248FF2C46EC7663346EE20B9A561C3704F97744782A2654E9940E18505B3C3C.
+Откат: D:/shedlink-build/autopilot-dll-rollback/20260921-before-rbm-ai
+(прежние DLL/PDB, LauncherData.xml, saveauto3.sav). Конфига RBM раньше не было.
+Следующий прогон: загрузка отдельной копии сейва, F11, полевой бой, манёвры,
+F12 возврат управления; затем осадный бой. Не включать full-overhaul модули
+в этом AI-only пакете. Совместный игровой прогон и runtime Harmony НЕ проверены.
+
 **21.09.2026 09:55 +05 — 8ba6c25 установлен: продолжение осады после победы над подмогой.**
 Лог 09:42:55 подтверждает самостоятельный attack, 09:48:18 — выход из завершённого
 боя, далее пленные и добыча. В 09:48:59 выключение на осаде, Encounter=False.

@@ -1,3 +1,5 @@
+21.09.2026: исправлена осадная расстановка автопилота ЛОКАЛЬНО: штатное авторазмещение → роли/расчёты → начало боя. BattleMission 77/0, AuditRegression 542/0, ContractCheck 493/0, Release 0/0. DLL/PDB D:/shedlink-build/siege-deployment-20260921/bin, НЕ установлены: владелец запретил закрывать игру. Живой повтор ожидается; review/SIEGE_DEPLOYMENT_2026-09-21.md.
+
 <!-- deployment 2026-09-21 -->
 21.09.2026: по команде пользователя «Выкати все» обе DLL/PDB установлены с rollback-20260921-231804 и проверкой SHA256. BannerlordLink MD5 6C8CF6DF87EA09FD26B6C5C95D420C6C, Autopilot AEA589923E5A6864F022EB08F9C4DF1F. Серверные 6 файлов магазина обновлены; twitchbot PID 2568080, public health ok/db ok, JS и обе HTML 200 с совпадающими SHA256. Backup /root/shedlink-deploy-backups/no-party-20260921-2321. Twitch CDN и живая кампания не проверены/не обновлены соответственно: CDN не обновлён, покупки и оборона в кампании ещё не проверены.
 

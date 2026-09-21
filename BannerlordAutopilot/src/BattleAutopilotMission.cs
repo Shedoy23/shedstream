@@ -5,6 +5,7 @@ using TaleWorlds.CampaignSystem.Encounters;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.Core;
 using TaleWorlds.MountAndBlade;
+using TaleWorlds.MountAndBlade.Missions.Handlers;
 
 namespace BannerlordAutopilot
 {
@@ -80,13 +81,30 @@ namespace BannerlordAutopilot
                 || TaleWorlds.Library.InformationManager.IsAnyInquiryActive() || Mission.MissionEnded) return;
             if (!_deploymentRequested && Mission.Mode == MissionMode.Deployment)
             {
-                BattleDeploymentMissionController deployment =
-                    Mission.GetMissionBehavior<BattleDeploymentMissionController>();
-                if (deployment != null && deployment.TeamSetupOver && Mission.MainAgent != null)
+                SiegeDeploymentMissionController siege = Mission.GetMissionBehavior<SiegeDeploymentMissionController>();
+                DeploymentMissionController deployment = siege
+                    ?? (DeploymentMissionController)Mission.GetMissionBehavior<BattleDeploymentMissionController>();
+                if (deployment != null && deployment.TeamSetupOver && Mission.MainAgent != null
+                    && Mission.PlayerTeam != null)
                 {
+                    SiegeDeploymentHandler handler = siege != null
+                        ? Mission.GetMissionBehavior<SiegeDeploymentHandler>() : null;
+                    if (siege != null && handler == null) return;
                     _deploymentRequested = true;
-                    AutopilotLog.Write("БОЙ: штатная расстановка готова; начинаем бой");
-                    try { deployment.FinishDeployment(); }
+                    try
+                    {
+                        if (handler != null)
+                        {
+                            // Same sequence as DeploymentControllerVM.DeployFormationsOfPlayer:
+                            // let native siege tactics place troops, then assign roles and crews.
+                            handler.AutoDeployTeamUsingTeamAI(Mission.PlayerTeam, autoAssignDetachments: false);
+                            Mission.GetMissionBehavior<AssignPlayerRoleInTeamMissionController>()?.OnPlayerTeamDeployed();
+                            handler.AutoAssignDetachmentsForDeployment(Mission.PlayerTeam);
+                            AutopilotLog.Write("ОСАДА: штатное авторазмещение и назначение расчётов выполнены");
+                        }
+                        AutopilotLog.Write("БОЙ: штатная расстановка готова; начинаем бой");
+                        deployment.FinishDeployment();
+                    }
                     catch (Exception ex)
                     {
                         AutopilotBehavior.Instance.Disable("завершение расстановки остановлено: " + ex);

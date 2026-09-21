@@ -534,14 +534,15 @@ internal static partial class Program
             Check(wait.IsWaitActive && b.CurrentMode==AutopilotBehavior.Mode.Apply,
                 "после полевого боя ожидание строительства осады возобновлено");
         });
-        Try("осада: атакующий патруль после разговора не выключает автопилот", () => {
+        foreach (string location in new[] { "none", "village", "castle" })
+        Try("осада: атакующий патруль после разговора: " + location, () => {
             var b = Fresh(); var castle = ConquestWorld(); Enable(b);
             var party = MobileParty.MainParty;
             party.TargetSettlement = castle; party.DefaultBehavior = AiBehavior.BesiegeSettlement;
             PlayerEncounter.Current = new PlayerEncounter(); PlayerEncounter.EncounterSettlement = castle;
             var siege = new SiegeEvent { BesiegedSettlement = castle }; siege.BesiegerCamp.LeaderParty = party;
             party.SiegeEvent = siege;
-            var field = new MapEvent { MapEventSettlement=castle, IsFieldBattle=true, PlayerSide=BattleSideEnum.Defender };
+            var field = new MapEvent { MapEventSettlement=location == "castle" ? castle : location == "village" ? new Settlement { IsVillage=true } : null, IsFieldBattle=true, PlayerSide=BattleSideEnum.Defender };
             party.MapEvent=field; PlayerEncounter.Battle=field; PlayerEncounter.EncounteredBattle=field;
             int attacks=0; Show(Menu("encounter", "attack", () => attacks++));
             b.PollState();
@@ -557,7 +558,7 @@ namespace TaleWorlds.CampaignSystem.Siege
     {
         public static SiegeStrategy PrepareAssault { get; } = new();
         public static SiegeStrategy Custom { get; } = new();
-        public static System.Collections.Generic.IEnumerable<SiegeStrategy> AllAttackerStrategies => new[] { PrepareAssault };
+        public static System.Collections.Generic.IEnumerable<SiegeStrategy> AllAttackerStrategies => new[] { PrepareAssault, Custom };
     }
     public class BesiegerCamp
     {
@@ -575,7 +576,8 @@ namespace TaleWorlds.CampaignSystem.Siege
 }
 namespace TaleWorlds.CampaignSystem.ComponentInterfaces
 {
-    public class SiegeEventModel { public float GetSiegeStrategyScore(SiegeEvent siege, BattleSideEnum side, SiegeStrategy strategy) => 1f; }
+    // Native player-led siege: Custom scores 9000, automatic strategies score 0..1.
+    public class SiegeEventModel { public float GetSiegeStrategyScore(SiegeEvent siege, BattleSideEnum side, SiegeStrategy strategy) => strategy == DefaultSiegeStrategies.Custom ? 9000f : 1f; }
     public class ArmyManagementCalculationModel
     {
         public bool CanPlayerCreateArmy(out TaleWorlds.Localization.TextObject why) { why = null; return true; }

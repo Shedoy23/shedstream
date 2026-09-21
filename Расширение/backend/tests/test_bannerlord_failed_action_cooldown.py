@@ -20,7 +20,7 @@ async def main():
             )
 
             username = "endorphine13"
-            action_id = "create-kingdom-no-settlement"
+            action_id = "create-kingdom-not-enough-gold"
             payload = json.dumps({
                 "initiated_by": username,
                 "target": username,
@@ -42,7 +42,7 @@ async def main():
             adapter = BannerlordAdapter(None)
             await adapter.handle_event(CHANNEL_ID, ModuleEnvelope(
                 id="failed", kind="event", type="action.failed", ts=1,
-                data={"action_id": action_id, "reason": "no_settlement"},
+                data={"action_id": action_id, "reason": "not_enough_gold"},
             ))
             assert check_cooldown(CHANNEL_ID, username, "hero.create_kingdom") == 0, (
                 "A rejected kingdom action must not lock the viewer out for 1200 seconds"
@@ -51,7 +51,7 @@ async def main():
             # A repeated refusal remains harmless and must not recreate the cooldown.
             await adapter.handle_event(CHANNEL_ID, ModuleEnvelope(
                 id="failed-again", kind="event", type="action.failed", ts=2,
-                data={"action_id": action_id, "reason": "no_settlement"},
+                data={"action_id": action_id, "reason": "not_enough_gold"},
             ))
             assert check_cooldown(CHANNEL_ID, username, "hero.create_kingdom") == 0
             print("PASS failed action releases cooldown: kingdom refusal and duplicate event")

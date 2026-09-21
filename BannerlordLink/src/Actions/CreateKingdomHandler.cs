@@ -93,18 +93,8 @@ namespace BannerlordLink.Actions
                 //
                 // Теперь основывать королевство можно, НЕ выходя заранее.
 
-                // Зато требуем то, чего требует и здравый смысл, и движок:
-                // королевство складывается из владений кланов-членов, поэтому
-                // корона без единого владения — пустышка.
-                int ownedCount = hero.Clan.Settlements?.Count ?? 0;
-                if (ownedCount == 0)
-                {
-                    BannerlordLinkModule.Log(
-                        $"[create_kingdom] @{username}: ОТКАЗ — у клана нет ни одного "
-                        + "владения, королевство было бы пустым");
-                    ActionFeedback.PostFailed(actionId, "no_settlement");
-                    return;
-                }
+                // Product rule: a viewer may found a landless kingdom. Bannerlord's
+                // KingdomManager supports it; future conquest supplies the fiefs.
                 if (hero.Gold < CREATE_COST)
                 {
                     BannerlordLinkModule.Log(

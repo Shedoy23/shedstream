@@ -162,15 +162,21 @@ internal static partial class Program
             PlayerEncounter.Current=new PlayerEncounter(); PlayerEncounter.EncounterSettlement=s; MobileParty.MainParty.CurrentSettlement=s;
             // Штатный assault только зовёт Handler?.OnOpenTroopSelection: без обработчика
             // кнопка молча не делает ничего, меню остаётся, игра стоит (21.09 20:34).
-            var menu=Menu("hideout_place","assault",()=>{});
+            int assaults=0;
+            var menu=Menu("hideout_place","assault",()=>assaults++);
             menu.Options.Add(new GameMenuOption {IdString="leave",Consequence=()=>{leaves++; PlayerEncounter.Finish();}});
             Show(menu); Enable(b); b.PollState();
             SetClock(t0.AddSeconds(10)); b.PollState(); b.PollState();
-            Check(leaves==0 && b.CurrentMode==AutopilotBehavior.Mode.Apply,"первые 15 секунд окно ждём и не уходим");
+            Check(assaults==1 && leaves==0 && b.CurrentMode==AutopilotBehavior.Mode.Apply,"первые 15 секунд окно ждём, не уходим и не жмём повторно");
+            // Решение владельца 21.09: на этом экране нужен штурм, а не уход.
             SetClock(t0.AddSeconds(16)); b.PollState(); b.PollState();
-            Check(leaves==1,"после ожидания нажата штатная «Уйти», а не вторая атака");
+            Check(assaults==2 && leaves==0,"после ожидания штурм повторяется, а не заменяется уходом");
+            SetClock(t0.AddSeconds(32)); b.PollState(); b.PollState();
+            Check(assaults==3 && leaves==0,"вторая попытка повтора тоже штурмует");
+            SetClock(t0.AddSeconds(48)); b.PollState(); b.PollState();
+            Check(assaults==3 && leaves==1,"после трёх молчаливых штурмов уходим штатной кнопкой, а не стоим на паузе");
             Check(b.CurrentMode==AutopilotBehavior.Mode.Apply,"неоткрывшееся окно больше не выключает автопилот");
-            Check(AutopilotLog.Lines.Any(l=>l.Contains("окно выбора отряда не появилось")),"причина записана в журнал");
+            Check(AutopilotLog.Lines.Any(l=>l.Contains("повторяем штатный штурм")),"причина и номер попытки записаны в журнал");
             SetClock(DateTime.UtcNow);
         });
         Try("осада: оборона недоступна — прорыв наружу", () => {

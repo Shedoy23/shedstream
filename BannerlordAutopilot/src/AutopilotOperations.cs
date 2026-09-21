@@ -76,8 +76,10 @@ namespace BannerlordAutopilot
         }
         private bool _hideoutAttackRequested, _awaitingHideoutTroops;
         private bool _hideoutMissionFinished;
+        private int _hideoutTroopRetries;
         private DateTime _troopsRequestedAt, _nextHideoutDialogAt;
         private readonly Dictionary<string, double> _hideoutRetryAfter = new Dictionary<string, double>();
+        private const int HideoutTroopRetryLimit = 2;
 
         private void ResetOperations()
         {
@@ -90,6 +92,7 @@ namespace BannerlordAutopilot
             _operationSettlement = _hideoutRoute = null;
             _hideoutAttackRequested = _awaitingHideoutTroops = false;
             _hideoutMissionFinished = false;
+            _hideoutTroopRetries = 0;
             _hideoutRetryAfter.Clear();
             _nextHideoutDialogAt = DateTime.MinValue;
         }
@@ -163,6 +166,7 @@ namespace BannerlordAutopilot
                 _operationSettlement = null;
                 _hideoutAttackRequested = _awaitingHideoutTroops = false;
                 _hideoutMissionFinished = false;
+                _hideoutTroopRetries = 0;
                 return false;
             }
             var place = EncounterPlace(party);
@@ -297,11 +301,23 @@ namespace BannerlordAutopilot
                 // Штатный assault только зовёт MenuContext.OpenTroopSelection, а тот —
                 // Handler?.OnOpenTroopSelection: когда обработчика нет, кнопка молча не
                 // делает ничего. Прежде автопилот на это выключался, и меню убежища
-                // оставалось висеть на паузе (21.09 20:34). Уходим штатной кнопкой;
-                // сутки на этот лагерь уже записаны, поэтому круга не будет.
+                // оставалось висеть на паузе (21.09 20:34). Решение владельца 21.09:
+                // на этом экране нужен штурм, а не уход, — повторяем штатную кнопку.
+                // Повтор безопасен: у последствия нет другого действия, кроме открытия
+                // окна, расстановка бандитов делается уже в OnTroopRosterManageDone.
                 _awaitingHideoutTroops = false;
+                if (++_hideoutTroopRetries <= HideoutTroopRetryLimit)
+                {
+                    _hideoutAttackRequested = false; // обычный путь нажмёт «Штурм» заново
+                    AutopilotLog.Write("УБЕЖИЩЕ: окно выбора отряда не появилось за 15 с; повторяем штатный штурм, попытка "
+                                       + (_hideoutTroopRetries + 1) + ". " + MenuDriver.Describe());
+                    return;
+                }
+                // Уход — только когда штурм не открыл окно трижды подряд: висеть на
+                // паузе хуже, а сутки на этот лагерь уже записаны, круга не будет.
                 _hideoutMissionFinished = true; // миссии не будет — выходим тем же штатным путём
-                AutopilotLog.Write("УБЕЖИЩЕ: окно выбора отряда не появилось за 15 с; уходим штатной кнопкой. "
+                AutopilotLog.Write("УБЕЖИЩЕ: окно выбора отряда не появилось "
+                                   + (HideoutTroopRetryLimit + 1) + " раза подряд; уходим штатной кнопкой. "
                                    + MenuDriver.Describe());
                 return;
             }

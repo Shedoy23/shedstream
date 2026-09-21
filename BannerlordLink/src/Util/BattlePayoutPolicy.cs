@@ -23,9 +23,11 @@ namespace BannerlordLink.Util
             double scale = enemies < 50 ? 0.24 : enemies < 200 ? 1.0 : siege ? 1.6 : 1.2;
             double result = scale * (won ? 1.2 : 1.0);
             return new Payout {
-                Participation = (int)(50000 * Math.Min(1, contribution / 300) * result),
-                Personal = (int)(100000 * personal / (personal + 800) * result),
-                Retinue = (int)(58000 * retinue / (retinue + 1000) * result),
+                // Scores are useful damage, not kill counts. Keep participation modest;
+                // 30 -> 130 reference kills (100 HP, threat 1) must retain meaningful growth.
+                Participation = (int)(10000 * Math.Min(1, contribution / 8000) * result),
+                Personal = (int)(100000 * personal / (personal + 16000) * result),
+                Retinue = (int)(58000 * retinue / (retinue + 16000) * result),
             };
         }
     }

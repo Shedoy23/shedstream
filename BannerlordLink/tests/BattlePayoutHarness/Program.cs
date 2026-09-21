@@ -3,7 +3,7 @@ using BannerlordLink.Util;
 int count=0,failed=0;
 void Check(bool ok,string name){count++;if(!ok)failed++;Console.WriteLine((ok?"PASS ":"FAIL ")+name);}
 var p=BattlePayoutPolicy.Calculate(800,2000,100,false,true);
-Check(p.Total == p.Participation + p.Personal + p.Retinue && p.Personal > 0 && p.Retinue > 0,"ordinary example component breakdown");
+Check(p.Participation == 2700 && p.Personal == 5714 && p.Retinue == 4094 && p.Total == 12508,"ordinary example component breakdown");
 Check(BattlePayoutPolicy.Calculate(0,0,100,false,true).Total==0,"spawn without contribution earns zero");
 Check(BattlePayoutPolicy.Calculate(0,2000,100,false,true).Total>0,"retinue-only owner earns reward");
 Check(BattlePayoutPolicy.Calculate(800,0,100,false,true).Total>0,"solo hero still viable");
@@ -21,9 +21,9 @@ foreach(int enemies in new[]{10,49,50,199,200,1000})foreach(bool siege in new[]{
  }
  Check(previous>0,"monotonic across score sweep "+enemies+" "+siege);
 }
-Check(BattlePayoutPolicy.Calculate(1e12,1e12,100,false,true).Total<=249600,"ordinary cap independent of retinue size");
-Check(BattlePayoutPolicy.Calculate(1e12,1e12,500,true,true).Total<=399360,"large siege cap");
-Check(BattlePayoutPolicy.Calculate(1e12,1e12,10,true,true).Total<=59904,"tiny siege cannot earn large siege prize");
+Check(BattlePayoutPolicy.Calculate(1e12,1e12,100,false,true).Total<=201600,"ordinary cap independent of retinue size");
+Check(BattlePayoutPolicy.Calculate(1e12,1e12,500,true,true).Total<=322560,"large siege cap");
+Check(BattlePayoutPolicy.Calculate(1e12,1e12,10,true,true).Total<=48384,"tiny siege cannot earn large siege prize");
 // Balance contract: 100 useful HP at threat 1 per reference enemy; no boost.
 foreach(bool won in new[]{false,true}) foreach(bool siege in new[]{false,true}) {
  var thirty=BattlePayoutPolicy.Calculate(3000,0,500,siege,won);

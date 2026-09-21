@@ -4847,7 +4847,7 @@ function _renderCreateKingdomInline() {
         <div style="background:#18181b;border:1px solid #3d3d3f;border-radius:6px;padding:12px;">
             <div style="font-size:11px;color:#adadb8;margin-bottom:10px;line-height:1.4;">
                 ${isRebellion
-                    ? `Ты заберёшь владения своего клана, а подтверждённые сторонники перейдут вместе со своими феодами. Сторонники: <b style="color:${supporterCount >= supporterRequired ? '#86efac' : '#fca5a5'};">${supporterCount}/${supporterRequired}</b>.`
+                    ? `Ты заберёшь владения своего клана, а подходящие сторонники перейдут вместе со своими феодами. Сторонники: <b style="color:${supporterCount >= supporterRequired ? '#86efac' : '#fca5a5'};">${supporterCount}/${supporterRequired}</b>.`
                     : 'Твой независимый клан станет правящим в новом королевстве. Феоды для основания не нужны.'}
                 Списывается
                 <b style="color:#fbbf24;">${_bnrGoldLabel('create_kingdom', 5000000)} динаров</b> + бонус: 2K влияния и

@@ -502,6 +502,10 @@ internal static partial class Program
             b.PollState(); b.PollState();
             Check(siege.BesiegerCamp.SiegeStrategy == DefaultSiegeStrategies.PrepareAssault && wait.IsWaitActive && assaults == 0,
                 "осада начата, машины отданы штатной стратегии, раннего штурма нет");
+            siege.BesiegerCamp.SetSiegeStrategy(DefaultSiegeStrategies.Custom);
+            b.PollState();
+            Check(siege.BesiegerCamp.SiegeStrategy == DefaultSiegeStrategies.PrepareAssault,
+                "ручная стратегия после повторного открытия осады не оставляет автопилот без строительства");
             siege.BesiegerCamp.IsReadyToBesiege = true; b.PollState();
             Check(assaults == 1 && b.CurrentMode == AutopilotBehavior.Mode.Apply, "готовность AI запускает полноценный штурм");
             var battle = new MapEvent { MapEventSettlement = castle, IsSiegeAssault = true, PlayerSide = BattleSideEnum.Attacker };
@@ -548,6 +552,12 @@ internal static partial class Program
             b.PollState();
             Check(attacks==1 && b.CurrentMode==AutopilotBehavior.Mode.Apply,
                 "патруль, атаковавший наш осадный лагерь, принят как принадлежащий операции бой");
+            field.MapEventSettlement = new Settlement { IsCastle=true };
+            Check(!b.IsOwnedOperationBattle(party), "бой у другой крепости не присваивается осаде");
+            field.MapEventSettlement = null; field.IsNavalMapEvent = true;
+            Check(!b.IsOwnedOperationBattle(party), "морской бой не присваивается сухопутной осаде");
+            field.IsNavalMapEvent = false; party.SiegeEvent = null;
+            Check(!b.IsOwnedOperationBattle(party), "без действующего осадного лагеря произвольный бой не присваивается");
         });
     }
 }

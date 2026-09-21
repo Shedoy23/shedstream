@@ -1215,7 +1215,12 @@ namespace BannerlordAutopilot
         {
             if (party.MapEvent != null || PlayerEncounter.Battle != null)
             {
-                return "идёт бой — вне области прототипа";
+                var battle = party.MapEvent ?? PlayerEncounter.Battle;
+                return "идёт бой — вне области прототипа; menu=" + MenuDriver.CurrentMenuId
+                    + "; field=" + battle.IsFieldBattle + "; outside=" + battle.IsSiegeOutside
+                    + "; sally=" + battle.IsSallyOut + "; assault=" + battle.IsSiegeAssault
+                    + "; settlement=" + battle.MapEventSettlement?.StringId
+                    + "; siege=" + party.SiegeEvent?.BesiegedSettlement?.StringId;
             }
             if (party.SiegeEvent != null || party.BesiegedSettlement != null)
             {

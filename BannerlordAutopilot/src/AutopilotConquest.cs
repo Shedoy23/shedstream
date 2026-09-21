@@ -347,16 +347,18 @@ namespace BannerlordAutopilot
                         AutopilotLog.Write("ПОХОД: снимаем осаду для восстановления: " + needed);
                         OperationClick("menu_siege_strategies_leave"); return true;
                     }
-                    if (_configuredSiege != siege)
+                    if (_configuredSiege != siege || siege.GetSiegeEventSide(BattleSideEnum.Attacker).SiegeStrategy == DefaultSiegeStrategies.Custom)
                     {
                         var strategy = DefaultSiegeStrategies.AllAttackerStrategies
+                            // Native scoring deliberately prefers manual control (9000) for the player.
+                            .Where(s => s != DefaultSiegeStrategies.Custom)
                             .OrderByDescending(s => Campaign.Current.Models.SiegeEventModel.GetSiegeStrategyScore(siege, BattleSideEnum.Attacker, s))
                             .FirstOrDefault();
                         if (strategy == null) { Disable("осада: нет штатной стратегии"); return true; }
                         siege.GetSiegeEventSide(BattleSideEnum.Attacker).SetSiegeStrategy(strategy);
                         _configuredSiege = siege;
                         _operationSettlement = place;
-                        AutopilotLog.Write("ОСАДА: строительство машин и обстрел переданы штатной стратегии");
+                        AutopilotLog.Write("ОСАДА: выбрана автоматическая стратегия " + strategy + "; ожидаем строительство и готовность к штурму");
                     }
                     if (siege.BesiegerCamp.IsReadyToBesiege
                         && MenuDriver.CanInvoke("menu_siege_strategies_lead_assault", out _))

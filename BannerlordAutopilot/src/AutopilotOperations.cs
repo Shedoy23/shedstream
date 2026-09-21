@@ -115,9 +115,8 @@ namespace BannerlordAutopilot
         internal bool IsOwnedOperationBattle(MobileParty party)
         {
             var battle = party?.MapEvent;
-            if (_mode != Mode.Apply || _operationSettlement == null || battle == null
-                || battle.IsNavalMapEvent || PlayerEncounter.Current == null
-                || battle.MapEventSettlement != _operationSettlement) return false;
+            if (_mode != Mode.Apply || battle == null
+                || battle.IsNavalMapEvent || PlayerEncounter.Current == null) return false;
 
             // When a relief army attacks the player's besieger camp, Bannerlord
             // publishes the same MapEvent through EncounteredBattle first.  The
@@ -127,6 +126,17 @@ namespace BannerlordAutopilot
             // off, and leave the visible "Attack" button to the player.
             var encounterBattle = PlayerEncounter.EncounteredBattle;
             if (PlayerEncounter.Battle != battle && encounterBattle != battle) return false;
+            // Native field battles name a nearby village or no settlement. A relief
+            // battle belongs to our siege through the active camp, not that label.
+            var siege = party.SiegeEvent;
+            bool ownCamp = siege != null && _offensiveSiege != null
+                && siege.BesiegedSettlement == _offensiveSiege
+                && (siege.BesiegerCamp.LeaderParty == party
+                    || (party.Army?.LeaderParty != null && siege.BesiegerCamp.LeaderParty == party.Army.LeaderParty));
+            if (ownCamp && (battle.IsFieldBattle || battle.IsSiegeOutside || battle.IsSallyOut)
+                && (battle.MapEventSettlement == null || battle.MapEventSettlement.IsVillage
+                    || battle.MapEventSettlement == _offensiveSiege)) return true;
+            if (_operationSettlement == null || battle.MapEventSettlement != _operationSettlement) return false;
             return (_operationSettlement.IsHideout && _hideoutAttackRequested && battle.IsHideoutBattle)
                 || (_operationSettlement == _raidSettlement && battle.IsRaid)
                 || (_operationSettlement == _offensiveSiege

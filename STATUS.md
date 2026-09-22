@@ -1,3 +1,5 @@
+Автопилот 22.09: сплочённость +10 за штатное влияние при <50 и проход army_dispersed исправлены ЛОКАЛЬНО. 560/0, Contract494, Release0/0. DLL/PDB D:/shedlink-build/army-cohesion-20260922/bin, НЕ установлено, живой повтор не проверен. Подробности BannerlordAutopilot/HANDOFF.md.
+
 21.09.2026: исправлена осадная расстановка автопилота ЛОКАЛЬНО: штатное авторазмещение → роли/расчёты → начало боя. BattleMission 77/0, AuditRegression 542/0, ContractCheck 493/0, Release 0/0. DLL/PDB D:/shedlink-build/siege-deployment-20260921/bin, НЕ установлены: владелец запретил закрывать игру. Живой повтор ожидается; review/SIEGE_DEPLOYMENT_2026-09-21.md.
 
 <!-- deployment 2026-09-21 -->

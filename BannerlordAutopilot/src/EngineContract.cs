@@ -368,7 +368,7 @@ namespace BannerlordAutopilot
             MemberOf(mobile, "Army", Inst, typeof(Army));
             MemberOf(typeof(Army), "LeaderParty", Inst, mobile);
             MemberOf(typeof(Army), "Cohesion", Inst, typeof(float));
-            Method(typeof(Army), "ThinkAboutCohesionBoost", BindingFlags.Instance | BindingFlags.NonPublic, typeof(void));
+            Method(typeof(Army), "BoostCohesionWithInfluence", Inst, typeof(void), typeof(float), typeof(int));
             MemberOf(typeof(Clan), "Influence", Inst, typeof(float));
             Method(typeof(ChangeClanInfluenceAction), "Apply", Stat, typeof(void), typeof(Clan), typeof(float));
             Method(typeof(DisbandArmyAction), "ApplyByUnknownReason", Stat, typeof(void), typeof(Army));
@@ -381,6 +381,7 @@ namespace BannerlordAutopilot
             Method(model, "CanPlayerCreateArmy", Inst, typeof(bool), text);
             Method(model, "CheckPartyEligibility", Inst, typeof(bool), mobile, text);
             Method(model, "CalculatePartyInfluenceCost", Inst, typeof(int), mobile, mobile);
+            Method(model, "GetCohesionBoostInfluenceCost", Inst, typeof(int), typeof(Army), typeof(int));
             Type siege = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Siege.SiegeEvent");
             MemberOf(mobile, "SiegeEvent", Inst, siege);
             MemberOf(siege, "BesiegedSettlement", Inst, typeof(Settlement));

@@ -393,7 +393,7 @@ namespace BannerlordAutopilot
                 return false;
             }
 
-            bool operation = CanStartOperation(party) || (party.Army?.LeaderParty != null && !ControlsParty(party));
+            bool operation = IsArmyDispersedMenu(party) || CanStartOperation(party) || (party.Army?.LeaderParty != null && !ControlsParty(party));
             string unsupported = operation || IsSupportedFieldBattleEncounter(party) || IsForeignFieldBattle(party) ? null : UnsupportedState(party);
             if (unsupported != null)
             {
@@ -546,6 +546,7 @@ namespace BannerlordAutopilot
                     return false;
                 }
             }
+            if (PollArmyDispersed(party)) return false;
             if (PollUnavoidableSurrender(party)) return false;
             if (PollRaidWarning()) return false;
             if (PollEmergencyDefense(party)) return false;

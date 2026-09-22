@@ -2,7 +2,6 @@ using System;
 using System.Globalization;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.Encounters;
@@ -25,7 +24,6 @@ namespace BannerlordAutopilot
         private double _gatheringSince;
         private bool _preparingCampaign;
         private readonly List<MobileParty> _invitedParties = new List<MobileParty>();
-        private static readonly MethodInfo NativeCohesionThink = typeof(Army).GetMethod("ThinkAboutCohesionBoost", BindingFlags.Instance | BindingFlags.NonPublic);
 
         private void MaintainArmy(MobileParty party)
         {
@@ -33,11 +31,34 @@ namespace BannerlordAutopilot
                 || Hero.MainHero?.IsPrisoner == true || party.Army.Cohesion >= 50) return;
             try
             {
-                if (NativeCohesionThink == null) throw new MissingMethodException("Army.ThinkAboutCohesionBoost");
-                NativeCohesionThink.Invoke(party.Army, null);
-                AutopilotLog.Write("АРМИЯ: штатная проверка сплочённости, сейчас " + party.Army.Cohesion.ToString("F0", CultureInfo.InvariantCulture));
+                // ArmyManagementVM buys +10 with this model price. The private AI
+                // ThinkAboutCohesionBoost can decline based on objective/randomness.
+                var army = party.Army;
+                int cost = Campaign.Current.Models.ArmyManagementCalculationModel.GetCohesionBoostInfluenceCost(army, 10);
+                if (cost < 0) throw new InvalidOperationException("отрицательная цена сплочённости");
+                if (Clan.PlayerClan.Influence < cost)
+                {
+                    AutopilotLog.Write("АРМИЯ: не хватает влияния для +10 сплочённости; цена " + cost);
+                    return;
+                }
+                float before = army.Cohesion;
+                army.BoostCohesionWithInfluence(10f, cost);
+                AutopilotLog.Write("АРМИЯ: сплочённость " + before.ToString("F1", CultureInfo.InvariantCulture)
+                    + " → " + army.Cohesion.ToString("F1", CultureInfo.InvariantCulture) + "; цена влияния " + cost);
             }
             catch (Exception ex) { Disable("сплочённость армии: " + ex.GetType().Name + ": " + ex.Message); }
+        }
+
+        private static bool IsArmyDispersedMenu(MobileParty party) => party != null
+            && party.MapEvent == null && MenuDriver.CurrentMenuId == "army_dispersed";
+
+        private bool PollArmyDispersed(MobileParty party)
+        {
+            if (!IsArmyDispersedMenu(party)) return false;
+            if (_mode != Mode.Apply || !MapIsActiveScreen() || InformationManager.IsAnyInquiryActive()) return true;
+            try { OperationClick("army_dispersed_continue"); }
+            catch (Exception ex) { Disable("экран распада армии: " + ex.GetType().Name + ": " + ex.Message); }
+            return true; // The native consequence selects the settlement/menu to return to.
         }
 
         private static bool ControlsParty(MobileParty party) => party != null

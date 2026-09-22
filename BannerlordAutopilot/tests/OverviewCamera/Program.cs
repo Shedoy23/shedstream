@@ -22,6 +22,20 @@ rig.Focus(new[]{new BattleOverviewRig.Point(300,0,0,true)});float before=rig.X;
 rig.Step(.016f);Check(rig.X>before && rig.X<before+10,"focus follows smoothly instead of teleporting");
 rig.Focus(new List<BattleOverviewRig.Point>());Check(rig.Ready,"reinforcement gap retains battlefield view");
 
+var stable=new BattleOverviewRig();
+var center=new List<BattleOverviewRig.Point>();
+for(int i=0;i<20;i++)center.Add(new BattleOverviewRig.Point(i%3,0,0,i%2==0));
+stable.Focus(center);
+var arrivals=new List<BattleOverviewRig.Point>(center);
+for(int i=0;i<100;i++)arrivals.Add(new BattleOverviewRig.Point(300+i%3,0,0,false));
+for(int i=0;i<10;i++){stable.Focus(i%2==0?arrivals:center);stable.Step(.1f);}
+Check(stable.X<10,"brief reinforcement waves do not steal focus");
+for(int i=0;i<14;i++){stable.Focus(arrivals);stable.Step(.1f);}
+Check(stable.X>10,"sustained dominant group eventually receives focus");
+var emptyRig=new BattleOverviewRig();emptyRig.Focus(center);
+emptyRig.Focus(new[]{new BattleOverviewRig.Point(500,0,0,true)});emptyRig.Step(.1f);
+Check(emptyRig.X>1,"empty old battlefield releases focus promptly");
+
 BattleOverviewCamera Make(){AutopilotBehavior.Instance.CurrentMode=AutopilotBehavior.Mode.Apply;InformationManager.Inquiry=false;var v=new BattleOverviewCamera{Mission=new Mission{CameraIsFirstPerson=true}};v.Mission.Agents.Add(new Agent{Position=new Vec3(0,0,10)});return v;}
 var view=Make();
 Check(view.UpdateOverridenCamera(.016f) && !view.Mission.CameraIsFirstPerson,"overview owns rendering, disables first person");

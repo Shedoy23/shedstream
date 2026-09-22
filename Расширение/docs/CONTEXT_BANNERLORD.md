@@ -1,4 +1,12 @@
-## 22.09 — poststream fixes (локально + staging)
+## 22.09 — poststream fixes установлены
+
+Владелец разрешил production и затем общую DLL. Backend PID2582894,
+local/public health200/dbok, права и M129–M131 проверены. DLL/PDB установлены
+при закрытой игре, SHA256 DLL271A25C7…A6BB6; backup rollback-poststream-20260922-093054.
+Запрет на поставку общей сборки снят этим уточнением; живое поведение пока не
+проверено. Twitch frontend/CDN не обновлён. См. запись production в отчёте ниже.
+
+## 22.09 — poststream fixes (предшествующая подготовка)
 
 Ветка codex/poststream-fixes-20260922; см. ../../docs/POSTSTREAM_FIXES_2026-09-22.md.
 M129: отдельные paid reforge rights (pending/active/failed), ACK/refund в тех же

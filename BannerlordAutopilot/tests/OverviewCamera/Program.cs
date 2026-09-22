@@ -8,6 +8,7 @@ using TaleWorlds.MountAndBlade;
 int checks=0,failures=0;
 void Check(bool ok,string name){checks++;if(!ok)failures++;Console.WriteLine((ok?"PASS ":"FAIL ")+name);}
 var rig=new BattleOverviewRig();
+Check(rig.Pitch==40,"default angle is a gentler 40 degrees");
 var points=new List<BattleOverviewRig.Point>();
 for(int i=0;i<30;i++)points.Add(new BattleOverviewRig.Point(i%5,i/5,10,i%2==0));
 points.Add(new BattleOverviewRig.Point(1000,1000,0,false));
@@ -25,6 +26,12 @@ BattleOverviewCamera Make(){AutopilotBehavior.Instance.CurrentMode=AutopilotBeha
 var view=Make();
 Check(view.UpdateOverridenCamera(.016f) && !view.Mission.CameraIsFirstPerson,"overview owns rendering, disables first person");
 Check(view.MissionScreen.CombatCamera.Frame.origin.z==90,"real view applies high camera geometry");
+Check(view.Mission.CameraUpdates==1 && view.Mission.CameraFrame.origin.z==90,"native mission receives the rendered camera frame");
+Check(view.MissionScreen.CombatCamera.Near==0.1f && view.MissionScreen.CombatCamera.Far==12500f,"overview initializes native clipping range");
+Check(Math.Abs(view.MissionScreen.CombatCamera.Fov-65f*(float)Math.PI/180f)<.001f,"overview initializes field of view");
+view.MissionScreen.CombatCamera.Near=1000;
+view.UpdateOverridenCamera(.016f);
+Check(view.Mission.CameraUpdates==2 && view.MissionScreen.CombatCamera.Near==0.1f,"each frame refreshes mission and projection");
 view.Mission.MainAgent=null;
 Check(view.UpdateOverridenCamera(.016f),"overview continues without main hero");
 view.Mission.Scene.Ground=200;

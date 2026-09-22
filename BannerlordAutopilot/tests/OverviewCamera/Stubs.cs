@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+namespace TaleWorlds.ScreenSystem { public static class Screen { public static float AspectRatio=16f/9f; } }
 namespace TaleWorlds.Core { public enum MissionMode { Battle,Deployment,Conversation } }
 namespace TaleWorlds.Library {
  public struct Vec3 { public float x,y,z; public Vec3(float a,float b,float c){x=a;y=b;z=c;} public static Vec3 Up=>new Vec3(0,0,1); }
@@ -18,6 +19,8 @@ namespace TaleWorlds.InputSystem {
 }
 namespace TaleWorlds.Engine {
  public class Camera {
+  public float Fov,Aspect,Near,Far;
+  public void SetFovVertical(float f,float a,float n,float z){Fov=f;Aspect=a;Near=n;Far=z;}
   public bool Throw; public TaleWorlds.Library.MatrixFrame Frame; public TaleWorlds.Library.Vec3 Target;
   public void LookAt(TaleWorlds.Library.Vec3 p,TaleWorlds.Library.Vec3 t,TaleWorlds.Library.Vec3 up) {if(Throw)throw new Exception("native test");Frame.origin=p;Target=t;}
  }
@@ -33,6 +36,8 @@ namespace TaleWorlds.MountAndBlade {
   public TaleWorlds.Core.MissionMode Mode=TaleWorlds.Core.MissionMode.Battle;
   public List<Agent> Agents=new List<Agent>(); public Team PlayerTeam=new Team(); public Agent MainAgent;
   public TaleWorlds.Engine.Scene Scene=new TaleWorlds.Engine.Scene();
+  public int CameraUpdates; public TaleWorlds.Library.MatrixFrame CameraFrame; public TaleWorlds.Library.Vec3 Listener;
+  public void SetCameraFrame(ref TaleWorlds.Library.MatrixFrame frame,float zoom,ref TaleWorlds.Library.Vec3 listener){CameraUpdates++;CameraFrame=frame;Listener=listener;}
   public T GetMissionBehavior<T>() where T:class,new()=>HasBehavior?new T():null;
  }
 }

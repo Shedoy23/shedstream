@@ -23,6 +23,21 @@ internal static partial class Program
             HourlyTick(b); b.PollState();
             Check(MobileParty.MainParty.TargetSettlement!=own && b.CurrentMode==AutopilotBehavior.Mode.Apply,
                 "недоступная осада не выбирается снова сразу после выхода");
+            CampaignTime.TestHours=6; HourlyTick(b);
+            Check(MobileParty.MainParty.TargetSettlement==own,"через шесть игровых часов оборона снова разрешена");
+        });
+        Try("border rejects fourth neighbor and lost anchor", () => {
+            var b=Fresh();var target=ConquestWorld(wounded:0);target.Position=new CampaignVec2 {X=90};
+            var home=OwnSiege(x:0);home.IsUnderSiege=false;
+            Settlement.All.Add(target);
+            foreach(float x in new[]{10f,20f,30f}) Settlement.All.Add(new Settlement {IsCastle=true,Position=new CampaignVec2 {X=x}});
+            var method=typeof(AutopilotBehavior).GetMethod("WhyNotApplicable",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            var data=new AIBehaviorData(target,AiBehavior.BesiegeSettlement,MobileParty.NavigationType.Default,false,false,false);
+            Check(method.Invoke(b,new object[]{data})!=null,"четвёртая крепость за тремя соседними не приграничная");
+            Settlement.All.RemoveAll(s=>s!=target && s!=home);
+            Check(method.Invoke(b,new object[]{data})==null,"близкая цель разрешена до потери опорного владения");
+            home.MapFaction=target.MapFaction; MobileParty.MainParty.Position=new CampaignVec2 {X=500};
+            Check(method.Invoke(b,new object[]{data})!=null,"утраченное владение не разрешает далёкую осаду");
         });
         Try("defense interrupts postbattle rest", () => {
             var b=Surrender(); LootScreen(); b.PollState(); PlayerEncounter.Finish();

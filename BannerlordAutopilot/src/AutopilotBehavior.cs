@@ -672,6 +672,7 @@ namespace BannerlordAutopilot
             if (IsWaiting(menuId))
             {
                 NoteWaiting();
+                TryEmergencyDefense(party, peaceful);
                 if (HoldPostBattleRest(party, peaceful, true))
                 {
                     TryServe(party, peaceful, menuId, "отдых после боя");
@@ -2042,8 +2043,8 @@ namespace BannerlordAutopilot
                 NoteWaiting();
             }
 
-            if (waitingIn != null && HoldPostBattleRest(party, waitingIn, true)) return;
             if (TryEmergencyDefense(party, waitingIn)) return;
+            if (waitingIn != null && HoldPostBattleRest(party, waitingIn, true)) return;
             if (_gatheringArmy != null && _gatheringArmy == party.Army) return;
 
             if (_mode == Mode.Apply && ControlsParty(party) && !party.IsCurrentlyAtSea
@@ -2691,6 +2692,7 @@ namespace BannerlordAutopilot
         /// <summary>Почему решение штатного AI автопилот не выполняет. null — выполняет.</summary>
         private string WhyNotApplicable(AIBehaviorData data)
         {
+            if (ReliefUnavailable(data.Party as Settlement)) return "прорыв недавно запрещён игрой, ждём повторной попытки";
             // Цель, под приказ на которую партия не сдвинулась с места, временно
             // не предлагаем: иначе тот же приказ выдаётся снова и снова.
             if (_stuckTarget != null && CampaignTime.Now.ToHours < _stuckTargetUntil
@@ -2712,6 +2714,8 @@ namespace BannerlordAutopilot
                 case AiBehavior.BesiegeSettlement:
                     if (!EnemyFortress(data.Party as Settlement, MobileParty.MainParty)) return "нет вражеской крепости";
                     var siegeParty = MobileParty.MainParty;
+                    string border = SiegeBorderRejection(siegeParty, data.Party as Settlement);
+                    if (border != null) return border;
                     string siegePreparation = PreparationNeeded(siegeParty);
                     if (siegePreparation != null) return siegePreparation;
                     float defenders = SiegeDefenderStrength((Settlement)data.Party, siegeParty);

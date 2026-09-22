@@ -344,6 +344,7 @@ internal static partial class Program
         });
         LootTests();
         PostBattleRestTests();
+        SiegeReliabilityTests();
         DonationTests();
 
         Console.WriteLine("\n[находка 2] наблюдение ничего не меняет");

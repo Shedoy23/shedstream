@@ -80,6 +80,7 @@ namespace BannerlordLink.Util
                 foreach (var clan in all.ToList())
                 {
                     if (clan == null) continue;
+                    if (ReviveIfAlive(clan)) repaired++;
                     var leader = clan.Leader;
                     bool dangling = leader != null && !ReferenceEquals(leader.Clan, clan);
                     bool leaderless = leader == null;
@@ -133,6 +134,57 @@ namespace BannerlordLink.Util
         }
 
         /// <summary>
+        /// <summary>
+        /// Снять флаг «уничтожен» с клана, в котором остались живые люди и свой
+        /// лидер. Решение владельца 22.09.
+        ///
+        /// Откуда берётся это состояние: ванильный `DestroyClanAction` помечает
+        /// клан и убивает его героев, а наша защита не даёт зрителям умереть —
+        /// герои живы, флаг висит. Дальше он всплывает везде: мод перестаёт
+        /// отдавать королевство (`HeroStateSync.BuildKingdomInfo`), в клан
+        /// нельзя вступить, клан не голосует.
+        ///
+        /// Ванильного способа снять флаг НЕТ: `IsEliminated` — свойство только
+        /// на чтение, а сама ваниль при «уничтожен + лидер жив» в старом сейве
+        /// ДОВОДИТ уничтожение (`Clan.cs`, ветка обновления сейва до 1.2.0).
+        /// Для нас это означало бы убить зрителей, поэтому пишем поле напрямую.
+        /// Условие узкое: в клане есть живой герой И лидер состоит в этом клане
+        /// — пустые «призраки» не воскрешаем.
+        /// </summary>
+        private static bool ReviveIfAlive(Clan clan)
+        {
+            try
+            {
+                if (clan == null || !clan.IsEliminated) return false;
+                var leader = clan.Leader;
+                if (leader == null || !ReferenceEquals(leader.Clan, clan)) return false;
+                var heroes = clan.Heroes;
+                if (heroes == null) return false;
+                int alive = heroes.Count(h => h != null && h.IsAlive);
+                if (alive <= 0) return false;
+
+                var field = HarmonyLib.AccessTools.Field(
+                    typeof(TaleWorlds.CampaignSystem.Clan), "_isEliminated");
+                if (field == null)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[clan-repair] '{Describe(clan)}': поле _isEliminated недоступно");
+                    return false;
+                }
+                field.SetValue(clan, false);
+                bool ok = !clan.IsEliminated;      // судим по наблюдаемому
+                BannerlordLinkModule.Log(ok
+                    ? $"[clan-repair] '{Describe(clan)}': снят флаг «уничтожен» — в клане {alive} живых, лидер '{Describe(leader)}'"
+                    : $"[clan-repair] '{Describe(clan)}': снять флаг «уничтожен» НЕ УДАЛОСЬ");
+                return ok;
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[clan-repair] снятие флага упало: {ex.Message}");
+                return false;
+            }
+        }
+
         /// Вывести клан из королевства ровно так, как это делает ваниль в
         /// `ChangeKingdomAction` — присваиванием `clan.Kingdom = null`; сеттер
         /// сам чинит списки. Полный `ApplyByLeaveKingdom` тут не годится: его

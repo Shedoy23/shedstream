@@ -124,6 +124,60 @@ class Program
             }
         }
 
+        // 5. Клан помечен «уничтожен», но в нём живые люди и свой лидер.
+        //    Решение владельца 22.09: снимать флаг. Иначе зритель теряет
+        //    королевство в панели, голос в королевстве и приём новых членов.
+        {
+            Clan.All.Clear();
+            var kingdom = new Kingdom { Name = "Вландия" };
+            var boss = new Hero { Name = "neyrahatomia" };
+            var mate = new Hero { Name = "сосед" };
+            var zombie = new Clan { Name = "[BLink] Рой пчёл", Kingdom = kingdom, IsEliminated = true };
+            zombie.SetLeader(boss);
+            boss.Clan = zombie; mate.Clan = zombie;
+            zombie.Heroes.Add(boss); zombie.Heroes.Add(mate);
+            Clan.All.Add(zombie);
+
+            int repaired = ClanIntegrity.RepairAll();
+
+            if (zombie.IsEliminated)
+            {
+                Console.WriteLine(
+                    "FAIL флаг «уничтожен» остался на живом клане (в нём " +
+                    zombie.Heroes.Count(h => h.IsAlive) + " живых, лидер свой) — " +
+                    "зритель так и не увидит королевство в панели");
+                failures++;
+            }
+            else if (zombie.Kingdom == null)
+            {
+                Console.WriteLine("FAIL заодно выкинули живой клан из королевства");
+                failures++;
+            }
+            else if (repaired < 1)
+            {
+                Console.WriteLine("FAIL снятие флага не засчитано в отчёт");
+                failures++;
+            }
+        }
+
+        // 6. Уничтоженный клан БЕЗ живых не воскрешаем: там чинить нечего.
+        {
+            Clan.All.Clear();
+            var kingdom = new Kingdom { Name = "Вландия" };
+            var ghostLeader = new Hero { Name = "мертвец", IsAlive = false };
+            var ghost = new Clan { Name = "[BLink] Пустой", Kingdom = kingdom, IsEliminated = true };
+            ghost.SetLeader(ghostLeader); ghostLeader.Clan = ghost; ghost.Heroes.Add(ghostLeader);
+            Clan.All.Add(ghost);
+
+            ClanIntegrity.RepairAll();
+
+            if (!ghost.IsEliminated)
+            {
+                Console.WriteLine("FAIL воскресили клан, в котором нет живых");
+                failures++;
+            }
+        }
+
         if (failures > 0)
         {
             Console.WriteLine($"{failures} check(s) failed");
@@ -147,7 +201,9 @@ namespace TaleWorlds.CampaignSystem
             get => _kingdom;
             set { _kingdom?.Clans.Remove(this); _kingdom = value; value?.Clans.Add(this); }
         }
-        public bool IsEliminated;
+        // Имена как в движке: флаг ищется рефлексией по `_isEliminated`.
+        private bool _isEliminated;
+        public bool IsEliminated { get => _isEliminated; set => _isEliminated = value; }
         public List<Hero> Heroes = new();
         private Hero _leader;                       // имя как в движке: ищется рефлексией
         public Hero Leader => _leader;

@@ -59,3 +59,10 @@ Finish, цель Вадар. Данные доказывают потерянн�
 Логи D:/shedlink-build/ally-thanks-*.log, incident-boundary-red.log.
 Материалы дампа D:/shedlink-build/crash-20260922-{fault,objects,incident,party}.txt.
 Два теста сначала закоммичены красными. Повтор в настоящей игре не выполнен.
+
+## Установка
+
+f2c9853 установлен22.09 10:03:47 +05 при закрытой игре, DLL/PDB SHA256 совпали.
+MD5 DLL D453B09590BCB159EE57C3610BB26746. Резерв обоих файлов:
+D:/shedlink-build/autopilot-dll-rollback/20260922-100344-before-ally-thanks.
+Игра не запускалась; live-проверка ожидается.

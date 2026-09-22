@@ -1,3 +1,5 @@
+22.09 10:03 +05: Autopilot f2c9853 DLL/PDB УСТАНОВЛЕНЫ при закрытой игре; MD5 D453B09590BCB159EE57C3610BB26746, SHA256 обоих файлов совпал, rollback сохранён. Диалог и защита события проверены стендом; живой повтор ожидается. См. BannerlordAutopilot/HANDOFF.md.
+
 22.09: послебоевое ally_thanks_meet исправлено; повторная проверка очереди события перед LeaveSettlement закрывает воспроизведённую потерю города. Краш09:46 локализован в incident_hammer_of_the_sun (CurrentSettlement=null), точный callback постановки не доказан. Audit566/0, Contract494, Release0/0. См. BannerlordAutopilot/review/ALLY_THANKS_AND_INCIDENT_2026-09-22.md.
 
 Автопилот 22.09 08:37 +05: сборка 72d7cd5 УСТАНОВЛЕНА при закрытой игре. Сплочённость +10 за штатное влияние и проход army_dispersed; включает предыдущий фикс осадной расстановки. SHA256 DLL/PDB сверен, откат сохранён. 560/0, Contract494, Release0/0; живой повтор не проверен. Подробности BannerlordAutopilot/HANDOFF.md.

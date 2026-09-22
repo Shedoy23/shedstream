@@ -4,6 +4,7 @@
 
 Работа в `D:/shedlink-build/poststream-fixes-20260922`, ветка
 `codex/poststream-fixes-20260922`. Основа — `5dc8a5b` release-ветки.
+Исправления закоммичены в `da25ca5` и отправлены на origin; рабочее дерево чистое.
 Все прежние незакоммиченные изменения сохранены отдельным baseline-коммитом
 `a977567`; исходный worktree `codex-public-release` не редактировался.
 Это важно: baseline включает другие готовившиеся изменения, в том числе
@@ -129,6 +130,7 @@ stale reforge, дубли снимков, ложный каталог, null-чл
 - EquipmentShop, NoPartyEquipment, BattlePayout, CreateKingdom harnesses прошли.
 - 5 UI-скриптов прошли, включая локальный headless Edge с мобильной шириной:
   equipment, no-party, vassal rename, builds, build status.
+- Полный `npm run lint:js` прошёл, exit0 (зависимости установлены по lockfile).
 - Release BannerlordLink: 0 ошибок / 0 предупреждений.
 - Линтер: OK; одна известная непроверенная часть — чтение policy-каталога из
   игровой сборки. Это не выдаётся за успешную проверку policy-каталога.

@@ -66,6 +66,7 @@ internal static partial class Program
             c.CurOptions.Add(reply);
             b.PollDialogs(); Check(c.Selected.Count == 0, "недоступное знакомство не нажимается");
             reply.IsClickable = true;
+            c.CurOptions[0] = reply;
             b.PollDialogs();
             Check(c.Selected.SequenceEqual(new[] { "ally_thanks_meet" }), "благодарность союзника проходит до обработчика побеждённых бандитов");
             Check(b.CurrentMode == AutopilotBehavior.Mode.Apply, "знакомство не выключает автопилот");

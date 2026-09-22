@@ -8,101 +8,67 @@ namespace BannerlordLink.Util
     /// <summary>
     /// 2026-09-22 — целостность связки «клан ↔ его лидер».
     ///
-    /// Ваниль в `DefaultDiplomacyModel.GetRelationScore` берёт `Leader.Clan` без
-    /// единой проверки, поэтому клан, который числится в королевстве и указывает
-    /// на лидера БЕЗ клана, роняет игру на ближайшем суточном тике (разбор:
-    /// `docs/BANNERLORD_CRASH_2026-09-22.md`).
+    /// Два ванильных инварианта, оба проверены крашами одного дня:
     ///
-    /// Здесь собрано ОДНО место, которое такую связку рвёт корректно: им
-    /// пользуется и `hero.leave_clan`, и ремонт уже испорченных сейвов на
-    /// загрузке.
+    /// 1. **У неразбойничьего клана `Leader` обязан быть не-null.**
+    ///    `ClanVariablesCampaignBehavior.MakeClanFinancialEvaluation` берёт
+    ///    `clan.Leader.Gold` в суточном тике для КАЖДОГО такого клана, вне
+    ///    зависимости от королевства и от `IsEliminated`. Первая версия этого
+    ///    файла зануляла `_leader` — и уронила игру в 14:15 через десять секунд
+    ///    после загрузки. Больше не зануляем НИКОГДА.
+    /// 2. **Клан с «висящим» лидером (лидер уже не в этом клане) не должен
+    ///    состоять в королевстве.** Из королевства ваниль ведёт его на выборы,
+    ///    а `DefaultDiplomacyModel.GetRelationScore` разыменовывает
+    ///    `Leader.Clan` — это краш в 13:10.
+    ///
+    /// Отсюда лечение: лидера либо заменяем настоящим членом клана, либо
+    /// оставляем как есть, а клан выводим из королевства. Сам висящий указатель
+    /// обезврежен двумя защитами: `ValidKingdomSupportersPatch` (не пускает
+    /// такой клан в голосующие) и `DiplomacyRelationScorePatch` (бэкстоп).
+    ///
+    /// Разбор целиком: `docs/BANNERLORD_CRASH_2026-09-22.md`.
     /// </summary>
     internal static class ClanIntegrity
     {
         /// <summary>
-        /// Снять <paramref name="hero"/> с поста лидера клана, у которого больше
-        /// нет живых членов. Возвращает true, если клан ДЕЙСТВИТЕЛЬНО перестал
-        /// считать героя лидером.
+        /// Зритель-лидер выходит из своего клана. Возвращает true, если после
+        /// этого клан безопасен для ванили: он либо получил настоящего лидера,
+        /// либо больше не состоит в королевстве.
         /// </summary>
         internal static bool DetachLeader(Clan clan, Hero hero, string who)
         {
             if (clan == null || hero == null) return false;
 
-            // Sprint 5.32 BLT-parity — публичный engine API вместо reflection-хака.
-            // BLT в ClanManagement.cs:802 для single-leader detach использует
-            // ChangeClanLeaderAction.ApplyWithoutSelectedNewLeader(clan).
-            //
-            // Fallback: reflection _leader=null если API недоступен в данной
-            // версии TaleWorlds (старые сборки 1.0-1.1).
-            bool detached = false;
-            try
-            {
-                var method = typeof(ChangeClanLeaderAction).GetMethod(
-                    "ApplyWithoutSelectedNewLeader",
-                    System.Reflection.BindingFlags.Public |
-                    System.Reflection.BindingFlags.Static);
-                if (method != null)
-                {
-                    method.Invoke(null, new object[] { clan });
-                    // 2026-09-22 — успехом считаем НАБЛЮДАЕМЫЙ эффект, а не факт
-                    // вызова. Ваниль 1.4.8 при пустом GetHeirApparents() выходит,
-                    // не тронув _leader, и раньше мы писали «OK» именно тогда.
-                    detached = !ReferenceEquals(clan.Leader, hero);
-                    BannerlordLinkModule.Log(
-                        $"[leave_clan] @{who}: leader без членов → " +
-                        $"ChangeClanLeaderAction.ApplyWithoutSelectedNewLeader " +
-                        (detached ? "OK" : "НИЧЕГО НЕ СДЕЛАЛ (нет наследников) → reflection"));
-                    if (!detached && ForceLeaderNull(clan))
-                    {
-                        detached = !ReferenceEquals(clan.Leader, hero);
-                        BannerlordLinkModule.Log(
-                            $"[leave_clan] @{who}: reflection _leader=null " +
-                            (detached ? "OK" : "НЕ СРАБОТАЛ"));
-                    }
-                }
-                else
-                {
-                    BannerlordLinkModule.Log(
-                        $"[leave_clan] @{who}: " +
-                        $"ApplyWithoutSelectedNewLeader not found → reflection fallback");
-                    if (ForceLeaderNull(clan) && !ReferenceEquals(clan.Leader, hero))
-                    {
-                        detached = true;
-                        BannerlordLinkModule.Log(
-                            $"[leave_clan] @{who}: reflection " +
-                            $"_leader=null OK (clan '{clan.Name}' orphaned)");
-                    }
-                }
-            }
+            // Если в клане остался живой наследник — ваниль поднимет его, и
+            // связка становится честной. При пустом GetHeirApparents() метод
+            // молча выходит, поэтому судим по наблюдаемому результату.
+            try { ChangeClanLeaderAction.ApplyWithoutSelectedNewLeader(clan); }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log(
-                    $"[leave_clan] @{who}: API failed ({ex.Message}) — " +
-                    $"trying reflection fallback");
-                try
-                {
-                    if (ForceLeaderNull(clan) && !ReferenceEquals(clan.Leader, hero))
-                    {
-                        detached = true;
-                        BannerlordLinkModule.Log(
-                            $"[leave_clan] @{who}: reflection _leader=null OK after API fail");
-                    }
-                }
-                catch (Exception rex)
-                {
-                    BannerlordLinkModule.Log(
-                        $"[leave_clan] REFUSE @{who}: both API + reflection failed: {rex.Message}");
-                }
+                    $"[leave_clan] @{who}: ApplyWithoutSelectedNewLeader упал: {ex.Message}");
             }
-            // Клан без лидера не имеет права оставаться в королевстве: ваниль
-            // переберёт его на суточном тике и разыменует Leader.Clan.
-            if (detached) DropLeaderlessFromKingdom(clan);
-            return detached;
+
+            if (!ReferenceEquals(clan.Leader, hero))
+            {
+                BannerlordLinkModule.Log(
+                    $"[leave_clan] @{who}: лидерство принял член клана " +
+                    $"'{Describe(clan.Leader)}'");
+                return true;
+            }
+
+            // Наследника нет. Лидера НЕ зануляем (инвариант 1) — вместо этого
+            // убираем клан из королевства, чтобы висящая ссылка не доехала до
+            // выборов (инвариант 2).
+            bool left = DropFromKingdom(clan, who);
+            BannerlordLinkModule.Log(
+                $"[leave_clan] @{who}: наследника нет, клан '{Describe(clan)}' остаётся " +
+                $"с прежней ссылкой на лидера; из королевства {(left ? "выведен" : "ВЫВЕСТИ НЕ УДАЛОСЬ")}");
+            return left;
         }
 
         /// <summary>
-        /// Ремонт уже сохранённых кампаний: кланы, у которых лидер не совпадает
-        /// со своим кланом. Возвращает число вылеченных кланов.
+        /// Ремонт уже сохранённых кампаний. Возвращает число вылеченных кланов.
         /// </summary>
         internal static int RepairAll()
         {
@@ -115,40 +81,42 @@ namespace BannerlordLink.Util
                 {
                     if (clan == null) continue;
                     var leader = clan.Leader;
-                    // Битая связка: лидер есть, но он уже не в этом клане.
-                    // Бандитские фракции (лидера нет И королевства нет) — норма
-                    // движка, их не трогаем.
-                    bool danglingLeader = leader != null && !ReferenceEquals(leader.Clan, clan);
-                    bool leaderlessInKingdom = leader == null && clan.Kingdom != null;
-                    if (!danglingLeader && !leaderlessInKingdom) continue;
+                    bool dangling = leader != null && !ReferenceEquals(leader.Clan, clan);
+                    bool leaderless = leader == null;
 
-                    string name = clan.Name?.ToString() ?? "?";
-                    if (danglingLeader)
+                    // Разбойничьи фракции живут без лидера и без королевства —
+                    // ваниль их в суточном тике пропускает. Не трогаем.
+                    if (leaderless && clan.Kingdom == null) continue;
+                    if (!dangling && !leaderless) continue;
+
+                    string name = Describe(clan);
+
+                    // Сначала пробуем вернуть клану настоящего лидера.
+                    try { ChangeClanLeaderAction.ApplyWithoutSelectedNewLeader(clan); }
+                    catch (Exception ex)
                     {
-                        // Сначала пробуем вылечить: если в клане остался живой
-                        // наследник, ваниль поднимет его в лидеры.
-                        try { ChangeClanLeaderAction.ApplyWithoutSelectedNewLeader(clan); }
-                        catch (Exception ex)
-                        {
-                            BannerlordLinkModule.Log(
-                                $"[clan-repair] '{name}': ApplyWithoutSelectedNewLeader failed: {ex.Message}");
-                        }
-                        if (!ReferenceEquals(clan.Leader, leader)
-                            && clan.Leader != null
-                            && ReferenceEquals(clan.Leader.Clan, clan))
-                        {
-                            repaired++;
-                            BannerlordLinkModule.Log(
-                                $"[clan-repair] '{name}': лидер заменён на своего члена клана");
-                            continue;
-                        }
-                        ForceLeaderNull(clan);
+                        BannerlordLinkModule.Log(
+                            $"[clan-repair] '{name}': ApplyWithoutSelectedNewLeader упал: {ex.Message}");
+                    }
+                    var now = clan.Leader;
+                    if (now != null && ReferenceEquals(now.Clan, clan))
+                    {
+                        repaired++;
+                        BannerlordLinkModule.Log(
+                            $"[clan-repair] '{name}': лидером стал свой член клана '{Describe(now)}'");
+                        continue;
                     }
 
-                    DropLeaderlessFromKingdom(clan);
-                    repaired++;
-                    BannerlordLinkModule.Log(
-                        $"[clan-repair] '{name}': висящий лидер снят, клан выведен из королевства");
+                    if (DropFromKingdom(clan, name)) repaired++;
+
+                    if (clan.Leader == null)
+                    {
+                        // Мы такого состояния больше не создаём, но сейв мог
+                        // приехать с ним. Починить нечем — предупреждаем громко.
+                        BannerlordLinkModule.Log(
+                            $"[clan-repair] ВНИМАНИЕ: у клана '{name}' нет лидера и некем заменить. " +
+                            "Ваниль упадёт на clan.Leader.Gold в суточном тике.");
+                    }
                 }
                 if (repaired > 0)
                     BannerlordLinkModule.Log($"[clan-repair] вылечено кланов: {repaired}");
@@ -160,26 +128,46 @@ namespace BannerlordLink.Util
             return repaired;
         }
 
-        /// <summary>Вывести клан без лидера из королевства (ваниль его там не ждёт).</summary>
-        private static void DropLeaderlessFromKingdom(Clan clan)
+        /// <summary>
+        /// Вывести клан из королевства ровно так, как это делает ваниль в
+        /// `ChangeKingdomAction` — присваиванием `clan.Kingdom = null`; сеттер
+        /// сам чинит списки. Полный `ApplyByLeaveKingdom` тут не годится: его
+        /// ветка LeaveKingdom ходит по владениям через `clan.Leader.HomeSettlement`
+        /// и падает ровно на тех кланах, которые мы чиним.
+        /// Возвращает НАБЛЮДАЕМЫЙ результат, а не факт вызова.
+        /// </summary>
+        private static bool DropFromKingdom(Clan clan, string who)
         {
-            if (clan == null || clan.Leader != null || clan.Kingdom == null) return;
-            try { ChangeKingdomAction.ApplyByLeaveKingdom(clan, false); }
+            if (clan == null) return false;
+            if (clan.Kingdom == null) return true;
+            string kingdom = Describe(clan.Kingdom);
+            try { clan.Kingdom = null; }
             catch (Exception ex)
             {
                 BannerlordLinkModule.Log(
-                    $"[clan-repair] '{clan.Name}': ApplyByLeaveKingdom failed: {ex.Message}");
+                    $"[clan-repair] '{who}': выход из королевства '{kingdom}' упал: {ex.Message}");
             }
+            bool ok = clan.Kingdom == null;
+            BannerlordLinkModule.Log(ok
+                ? $"[clan-repair] '{who}': клан выведен из королевства '{kingdom}'"
+                : $"[clan-repair] '{who}': клан ОСТАЛСЯ в королевстве '{kingdom}' — ваниль поведёт его на выборы");
+            return ok;
         }
 
-        /// <summary>Занулить `Clan._leader` напрямую (поле приватное).</summary>
-        private static bool ForceLeaderNull(Clan clan)
+        private static string Describe(object named)
         {
-            var leaderField = HarmonyLib.AccessTools.Field(
-                typeof(TaleWorlds.CampaignSystem.Clan), "_leader");
-            if (leaderField == null) return false;
-            leaderField.SetValue(clan, null);
-            return true;
+            try
+            {
+                if (named == null) return "(null)";
+                var clan = named as Clan;
+                if (clan != null) return clan.Name == null ? "(без имени)" : clan.Name.ToString();
+                var hero = named as Hero;
+                if (hero != null) return hero.Name == null ? "(без имени)" : hero.Name.ToString();
+                var kingdom = named as Kingdom;
+                if (kingdom != null) return kingdom.Name == null ? "(без имени)" : kingdom.Name.ToString();
+                return named.ToString();
+            }
+            catch (Exception) { return "(имя недоступно)"; }
         }
     }
 }

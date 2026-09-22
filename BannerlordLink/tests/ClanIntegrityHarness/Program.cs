@@ -24,7 +24,6 @@ class Program
             var clan = new Clan { Name = "[BLink] Рой пчел", Kingdom = kingdom };
             clan.SetLeader(hero);
             hero.Clan = clan;
-            kingdom.Clans.Add(clan);
             Clan.All.Add(clan);
 
             bool ok = ClanIntegrity.DetachLeader(clan, hero, "endorphine13");
@@ -32,21 +31,22 @@ class Program
 
             if (!ok)
             {
-                Console.WriteLine("FAIL DetachLeader вернул false — лидер не отсоединён вовсе");
-                failures++;
-            }
-            else if (ReferenceEquals(clan.Leader, hero))
-            {
-                Console.WriteLine(
-                    "FAIL клан всё ещё считает лидером героя, у которого клана нет — " +
-                    "ровно это состояние уронило игру 22.09 (Leader.Clan == null)");
+                Console.WriteLine("FAIL DetachLeader вернул false — зритель не смог выйти из клана");
                 failures++;
             }
             else if (clan.Kingdom != null)
             {
                 Console.WriteLine(
-                    "FAIL клан без лидера остался в королевстве — ваниль переберёт его " +
-                    "на суточном тике и упадёт");
+                    "FAIL клан остался в королевстве — ваниль поведёт его на выборы " +
+                    "и разыменует Leader.Clan");
+                failures++;
+            }
+            else if (clan.Leader == null)
+            {
+                Console.WriteLine(
+                    "FAIL лидер занулён: у неразбойничьего клана Leader обязан быть " +
+                    "не-null, иначе ваниль падает на clan.Leader.Gold в суточном тике " +
+                    "(проверено крашем 22.09 14:15)");
                 failures++;
             }
         }
@@ -59,7 +59,6 @@ class Program
             var stray = new Hero { Name = "endorphine13", Clan = null };
             var broken = new Clan { Name = "[BLink] Рой пчел", Kingdom = kingdom, IsEliminated = true };
             broken.SetLeader(stray);
-            kingdom.Clans.Add(broken);
             Clan.All.Add(broken);
 
             int repaired = ClanIntegrity.RepairAll();
@@ -71,12 +70,16 @@ class Program
                     "с висящим лидером и упадёт на следующем игровом дне");
                 failures++;
             }
-            else if (ReferenceEquals(broken.Leader, stray) || broken.Kingdom != null)
+            else if (broken.Kingdom != null)
+            {
+                Console.WriteLine("FAIL RepairAll не вывел битый клан из королевства");
+                failures++;
+            }
+            else if (broken.Leader == null)
             {
                 Console.WriteLine(
-                    "FAIL RepairAll не вылечил клан: leader=" +
-                    (broken.Leader == null ? "null" : "прежний") +
-                    ", kingdom=" + (broken.Kingdom == null ? "null" : "остался"));
+                    "FAIL RepairAll занулил лидера — именно это уронило игру 22.09 в 14:15 " +
+                    "(ClanVariablesCampaignBehavior.MakeClanFinancialEvaluation → clan.Leader.Gold)");
                 failures++;
             }
         }
@@ -89,7 +92,6 @@ class Program
             var healthy = new Clan { Name = "[BLink] Волки", Kingdom = kingdom };
             healthy.SetLeader(leader);
             leader.Clan = healthy;
-            kingdom.Clans.Add(healthy);
             Clan.All.Add(healthy);
 
             int repaired = ClanIntegrity.RepairAll();
@@ -117,7 +119,13 @@ namespace TaleWorlds.CampaignSystem
     {
         public static List<Clan> All = new();
         public string Name;
-        public Kingdom Kingdom;
+        private Kingdom _kingdom;
+        // Ваниль делает ровно `clan.Kingdom = null`, а сеттер сам чинит списки.
+        public Kingdom Kingdom
+        {
+            get => _kingdom;
+            set { _kingdom?.Clans.Remove(this); _kingdom = value; value?.Clans.Add(this); }
+        }
         public bool IsEliminated;
         public List<Hero> Heroes = new();
         private Hero _leader;                       // имя как в движке: ищется рефлексией

@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using BannerlordLink.Net;
+using BannerlordLink.Util;
 using Newtonsoft.Json.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.AgentOrigins;
@@ -341,20 +342,27 @@ namespace BannerlordLink.Actions
                             {
                                 var anchorPos = chosen.Position;
                                 var anchorDir = chosen.LookDirection.AsVec2;
-                                var perp = new Vec2(-anchorDir.y, anchorDir.x);
-                                int hash = Math.Abs(username.GetHashCode());
-                                float offsetDist = 2f + (hash % 30) / 15f;   // 2–4 м
-                                float sideSign = (hash % 2 == 0) ? 1f : -1f;
-                                var offset = perp * (offsetDist * sideSign);
-                                heroSpawnPos = new Vec3(
-                                    anchorPos.x + offset.x,
-                                    anchorPos.y + offset.y,
-                                    anchorPos.z);
-                                heroSpawnDir = anchorDir;
-                                BannerlordLinkModule.Log(
-                                    $"[player.spawn:{sideLabel}] @{username} → рядом со своими " +
-                                    $"({(anchorSameFormation != null ? "своя формация " + spawnFormation : "любой союзник")}, " +
-                                    $"offset {offsetDist:F1}м)");
+                                // 2026-09-22 — точка проверяется у сцены (навигация,
+                                // высота, путь, занятость), а не считается формулой
+                                // и отдаётся движку вслепую: так зритель появлялся
+                                // внутри стены или телеги.
+                                if (SafeSummonPlacement.TryPlace(
+                                        anchorPos, withHorse, username.GetHashCode(),
+                                        out var safePos, out var placeWhy))
+                                {
+                                    heroSpawnPos = safePos;
+                                    heroSpawnDir = anchorDir;
+                                    BannerlordLinkModule.Log(
+                                        $"[player.spawn:{sideLabel}] @{username} → рядом со своими " +
+                                        $"({(anchorSameFormation != null ? "своя формация " + spawnFormation : "любой союзник")}, " +
+                                        $"проверенная точка {safePos.x:F1}/{safePos.y:F1})");
+                                }
+                                else
+                                {
+                                    BannerlordLinkModule.Log(
+                                        $"[player.spawn:{sideLabel}] @{username} → у своих места нет: " +
+                                        $"{placeWhy} → зона подкреплений");
+                                }
                             }
                         }
                     }
@@ -387,23 +395,27 @@ namespace BannerlordLink.Actions
                             }
                             if (enemyAnchor != null)
                             {
-                                // Small 2-4m perp offset от anchor чтобы не overlap.
+                                // 2026-09-22 — та же проверенная точка, что и у
+                                // союзного якоря: навигация, высота, путь, занятость.
                                 var anchorPos = enemyAnchor.Position;
                                 var anchorDir = enemyAnchor.LookDirection.AsVec2;
-                                var perp = new Vec2(-anchorDir.y, anchorDir.x);
-                                int hash = Math.Abs(username.GetHashCode());
-                                float offsetDist = 2f + (hash % 30) / 15f;  // 2-4m
-                                float sideSign = (hash % 2 == 0) ? 1f : -1f;
-                                var offset = perp * (offsetDist * sideSign);
-                                heroSpawnPos = new Vec3(
-                                    anchorPos.x + offset.x,
-                                    anchorPos.y + offset.y,
-                                    anchorPos.z);
-                                heroSpawnDir = anchorDir;
-                                BannerlordLinkModule.Log(
-                                    $"[player.spawn:{sideLabel}] @{username} → near enemy agent " +
-                                    $"(anchor idx={enemyAnchor.Index} offset {offsetDist:F1}m " +
-                                    $"side={(sideSign > 0 ? "R" : "L")})");
+                                if (SafeSummonPlacement.TryPlace(
+                                        anchorPos, withHorse, username.GetHashCode(),
+                                        out var safePos, out var placeWhy))
+                                {
+                                    heroSpawnPos = safePos;
+                                    heroSpawnDir = anchorDir;
+                                    BannerlordLinkModule.Log(
+                                        $"[player.spawn:{sideLabel}] @{username} → near enemy agent " +
+                                        $"(anchor idx={enemyAnchor.Index} " +
+                                        $"проверенная точка {safePos.x:F1}/{safePos.y:F1})");
+                                }
+                                else
+                                {
+                                    BannerlordLinkModule.Log(
+                                        $"[player.spawn:{sideLabel}] @{username} → у врага места нет: " +
+                                        $"{placeWhy} → зона подкреплений");
+                                }
                             }
                         }
                     }

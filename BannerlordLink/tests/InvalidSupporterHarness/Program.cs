@@ -11,5 +11,6 @@ ValidKingdomSupportersPatch.Postfix(ref rows);
 if(rows.Count()!=1 || rows.First().Clan!=valid)throw new Exception("Invalid voter must not reach diplomacy model");
 Console.WriteLine("Invalid kingdom supporter: PASS");
 namespace HarmonyLib { public class HarmonyPatch:Attribute { public HarmonyPatch(Type t,string n){} } }
-namespace TaleWorlds.CampaignSystem {public class Clan { public bool IsEliminated;public Hero Leader; } public class Hero {public Clan Clan;} }
+namespace TaleWorlds.CampaignSystem {public class Clan { public bool IsEliminated;public Hero Leader;public string Name; } public class Hero {public Clan Clan;} }
+namespace BannerlordLink {public static class BannerlordLinkModule {public static void Log(string text) {}}}
 namespace TaleWorlds.CampaignSystem.Election {public class KingdomDecision {public void DetermineSupporters(){} } public class Supporter {public Clan Clan;public Supporter(Clan c){Clan=c;}} }

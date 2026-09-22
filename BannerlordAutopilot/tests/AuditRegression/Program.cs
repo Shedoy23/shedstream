@@ -616,6 +616,26 @@ internal static partial class Program
             Check(MobileParty.MainParty.TargetSettlement == korsia,
                   "решение, ради которого выходили, применено после задержки");
         });
+        Try("событие возникло при переключении меню после первой проверки очереди", () =>
+        {
+            var b = Fresh(); Enable(b); b.PollState();
+            var town = ArriveTown(); b.PollState();
+            var destination = new Settlement { Name = "Следующий город" };
+            Scores((AiBehavior.GoToSettlement, destination, 2f), (AiBehavior.GoToSettlement, town, 1f));
+            var wait = Campaign.Current.CurrentMenuContext.GameMenu.Options.First(o => o.IdString == "wait_leave");
+            var original = wait.Consequence;
+            wait.Consequence = () => {
+                original();
+                Map().NextIncident = new TaleWorlds.CampaignSystem.Incidents.Incident { StringId = "incident_hammer_of_the_sun" };
+            };
+            HourlyTick(b); b.PollState();
+            Check(MobileParty.MainParty.CurrentSettlement == town && PlayerEncounter.FinishCalls == 0,
+                  "новое событие сохраняет город до движковой проверки его условия");
+            Check(Map().NextIncident != null, "событие не потеряно из-за нового приказа");
+            Map().NextIncident = null; b.PollState();
+            Check(MobileParty.MainParty.CurrentSettlement == null && MobileParty.MainParty.TargetSettlement == destination,
+                  "после обработки события отложенный выход и цель сохраняются");
+        });
         Try("событие не показалось — выход не зависает", () =>
         {
             var b = Fresh(); Enable(b); b.PollState();

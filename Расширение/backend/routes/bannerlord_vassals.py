@@ -102,12 +102,31 @@ async def reconcile_vassal_snapshot(conn, channel_id: int, username: str,
             continue
         clean[clan_id] = (leader_id, name, item.get("banner_code"))
 
+    # 2026-09-22 — вассал принадлежит КЛАНУ, а снимок шлёт каждый член клана
+    # (мод собирает его как BuildSnapshotForMaster(hero.Clan)). Уникальный ключ
+    # же на канал: (channel_id, vassal_clan_id). Поэтому у второго зрителя из
+    # того же клана INSERT падал по UNIQUE и ронял ВСЮ транзакцию
+    # player.state_update — у него замирало всё зеркало героя (@ksiandil, 126
+    # отказов за 22.09). Строку оставляем первому владельцу: перетягивать её
+    # снимком нельзя, иначе доход вассала прыгал бы между членами клана на
+    # каждой загрузке. Держит tests/test_vassal_shared_clan.py.
+    cur = await conn.execute(
+        "SELECT vassal_clan_id, parent_username FROM bannerlord_vassals "
+        "WHERE channel_id=? AND parent_username<>?",
+        (channel_id, username))
+    owned_by_others = {row[0]: row[1] for row in await cur.fetchall()}
+
     await conn.execute(
         "DELETE FROM bannerlord_vassals "
         "WHERE channel_id=? AND parent_username=? "
         f"AND {_REAL_ONLY}",
         (channel_id, username))
     for clan_id, (leader_id, name, banner_code) in clean.items():
+        other = owned_by_others.get(clan_id)
+        if other:
+            log.info("[VAS-RECONCILE] ch=%s @%s: вассал '%s' уже закреплён за @%s "
+                     "(общий клан) — пропускаю", channel_id, username, clan_id, other)
+            continue
         await conn.execute(
             "INSERT INTO bannerlord_vassals "
             "(channel_id,parent_username,vassal_clan_id,vassal_leader_hero_id," 

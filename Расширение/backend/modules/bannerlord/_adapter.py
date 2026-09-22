@@ -842,6 +842,9 @@ class BannerlordAdapter(ModuleAdapter):
                 # Parse data → price + initiated_by was done before the
                 # refund fence so duplicate failure delivery also clears CD.
                 price = int(parsed.get("price") or 0)
+                if action_type == 'hero.reforge_quality':
+                    from .reforge import settle_tx
+                    await settle_tx(conn, channel_id, action_id, False)
 
                 if parsed.get("_daily") is True and username:
                     await conn.execute(
@@ -1204,7 +1207,7 @@ class BannerlordAdapter(ModuleAdapter):
         if _stance in ("defensive", "balanced", "aggressive"):
             fields.append("combat_stance = ?")
             params.append(_stance)
-        if not fields:
+        if not fields and not any(k in data for k in ("clan_info", "kingdom_info", "family_info", "party_info")):
             return
         fields.append("last_sync = CURRENT_TIMESTAMP")
         if incoming_ts > 0:
@@ -1270,7 +1273,7 @@ class BannerlordAdapter(ModuleAdapter):
                                ("family_info", "family_info_json"),
                                ("party_info", "party_info_json")]:
                     info = data.get(k)
-                    if info is not None:
+                    if k in data:
                         try:
                             json_str = json.dumps(info, ensure_ascii=False) if info else None
                         except Exception:
@@ -1279,6 +1282,16 @@ class BannerlordAdapter(ModuleAdapter):
                             f"UPDATE bannerlord_heroes SET {col}=? "
                             f"WHERE channel_id=? AND username=?",
                             (json_str, channel_id, username))
+
+                if "kingdom_info" in data:
+                    kingdom = data.get("kingdom_info") or {}
+                    await conn.execute(
+                        "UPDATE bannerlord_heroes SET kingdom_id=?, kingdom_name=?, is_king=? WHERE channel_id=? AND username=?",
+                        (kingdom.get("id"), kingdom.get("name"), int(bool(kingdom.get("is_ruler"))), channel_id, username))
+                if "clan_info" in data and data["clan_info"] is None:
+                    await conn.execute(
+                        "UPDATE bannerlord_heroes SET clan_name=NULL,is_clan_leader=0 WHERE channel_id=? AND username=?",
+                        (channel_id, username))
 
                 # Save is authoritative for personal vassal clans. Creation
                 # events can be lost while the backend/game is disconnected;
@@ -2032,6 +2045,9 @@ class BannerlordAdapter(ModuleAdapter):
                     "UPDATE bannerlord_heroes SET gold=?,last_sync=CURRENT_TIMESTAMP "
                     "WHERE channel_id=? AND username=?",
                     (gold_after, channel_id, username))
+            if inserted:
+                await add_notice_tx(conn, channel_id, username, "applied",
+                    "Улучшение клана куплено и сохранено. Слава и влияние начисляются каждый игровой день; лимиты отрядов пересчитает игра.", 0)
             await conn.commit()
         await self._log_event(channel_id, "hero.clan_upgrades_purchased", username, data)
         logger.info("[bannerlord:%s] clan purchase committed action=%s @%s rows=%s gold=%s",
@@ -2135,7 +2151,8 @@ class BannerlordAdapter(ModuleAdapter):
         from dependencies import get_db
         async with get_db()._connect() as conn:
             await conn.execute(
-                "UPDATE bannerlord_heroes SET clan_name=NULL, kingdom_name=NULL, "
+                "UPDATE bannerlord_heroes SET clan_name=NULL, clan_info_json=NULL, is_clan_leader=0, "
+                "kingdom_name=NULL, kingdom_id=NULL, kingdom_info_json=NULL, is_king=0, "
                 "last_sync=CURRENT_TIMESTAMP "
                 "WHERE channel_id=? AND username=?",
                 (channel_id, username))
@@ -2196,7 +2213,7 @@ class BannerlordAdapter(ModuleAdapter):
         from dependencies import get_db
         async with get_db()._connect() as conn:
             await conn.execute(
-                "UPDATE bannerlord_heroes SET kingdom_name=NULL, "
+                "UPDATE bannerlord_heroes SET kingdom_name=NULL, kingdom_id=NULL, kingdom_info_json=NULL, is_king=0, "
                 "last_sync=CURRENT_TIMESTAMP "
                 "WHERE channel_id=? AND username=?",
                 (channel_id, username))

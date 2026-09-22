@@ -413,6 +413,7 @@ namespace BannerlordLink
                     // тир) — хранит в сейве, ре-пушит на backend при загрузке.
                     campaignStarter.AddBehavior(new HeroProfileBehavior());
                     campaignStarter.AddBehavior(new EquipmentShopBehavior());
+                    campaignStarter.AddBehavior(new ReforgeRightsBehavior());
                     Log("HeroProfileBehavior registered (per-save class/stance/gear_tier)");
                     // Sprint 5.26c: BLT-style clan upgrades (daily renown + influence tick).
                     campaignStarter.AddBehavior(new ClanUpgradesBehavior());

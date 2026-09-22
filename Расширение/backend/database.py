@@ -4618,7 +4618,7 @@ class Database:
             await db.execute("BEGIN IMMEDIATE")
             cur = await db.execute(
                 """
-                SELECT status
+                SELECT status, type
                 FROM module_actions
                 WHERE channel_id = ? AND module_id = ? AND action_id = ?
                 LIMIT 1
@@ -4656,6 +4656,9 @@ class Database:
                     """,
                     (target_status, error_msg, channel_id, module_id, action_id),
                 )
+            if transitioned and transition and success and module_id == 'bannerlord' and row[1] == 'hero.reforge_quality':
+                from modules.bannerlord.reforge import settle_tx
+                await settle_tx(db, channel_id, action_id, True)
             await db.commit()
             return transitioned
 

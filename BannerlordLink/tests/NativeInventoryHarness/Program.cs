@@ -20,6 +20,14 @@ class Program {
   new ReforgeQualityHandler().ExecuteAsync(badForge).GetAwaiter().GetResult();
   Check(forgeHero.BattleEquipment[EquipmentIndex.Head].ItemModifier==null,"stale paid reforge cannot affect another load");
   var behavior=new EquipmentShopBehavior(); behavior.RegisterEvents();
+  var validForge = new JObject { ["target"]="alice",["slot"]="head",["_reforge"]=new JObject {
+   ["save_id"]="save1",["hero_id"]="hero1",["session_id"]=behavior.SessionId,
+   ["slot"]="head",["item_id"]="forge",["expected_modifier"]="",["modifier_id"]="fine",["rank"]=1 }};
+  new ReforgeQualityHandler().ExecuteAsync(validForge).GetAwaiter().GetResult();
+  Check(forgeHero.BattleEquipment[EquipmentIndex.Head].ItemModifier==fine && ActionFeedback.Applied,"verified paid reforge applies native modifier before success");
+  new ReforgeQualityHandler().ExecuteAsync(validForge).GetAwaiter().GetResult();
+  Check(ActionFeedback.Error=="equipment_changed" && forgeHero.BattleEquipment[EquipmentIndex.Head].ItemModifier==fine,"replayed stale grant cannot upgrade twice");
+  behavior=new EquipmentShopBehavior(); behavior.RegisterEvents(); // independent inventory fixture
   var armor=new ItemObject {StringId="armor",Name="Armor",ItemType=ItemObject.ItemTypeEnum.BodyArmor,Value=10};
   MBObjectManager.Instance.Objects[armor.StringId]=armor;
   var hero=HeroLookup.Hero=new Hero {IsPrisoner=true,PartyBelongedToAsPrisoner=new Party()};
@@ -91,6 +99,31 @@ class Program {
   TaleWorlds.MountAndBlade.Mission.Current=null;
   hero.BattleEquipment[EquipmentIndex.Head]=new EquipmentElement(armor);
   Check(!ReforgeQuality.Restore(hero,right,"save1","alice"),"restoration does not replace a different item");
+  var clock=DateTime.UtcNow;
+  var publisher=new InventorySnapshotPublisher(()=>clock);
+  int deliveries=0; bool delivered=false;
+  Func<string,System.Threading.Tasks.Task<bool>> send = json => {System.Threading.Interlocked.Increment(ref deliveries); return System.Threading.Tasks.Task.FromResult(delivered);};
+  string sample="{\"hero_id\":\"h\",\"username\":\"a\",\"equipment_session_id\":\"s\",\"inventory_seq\":1}";
+  publisher.Queue(sample,send); System.Threading.Thread.Sleep(100);
+  delivered=true; publisher.Queue(sample,send); System.Threading.Thread.Sleep(100);
+  Check(deliveries==2,"failed send does not poison dedup cache");
+  publisher.Queue(sample,send); System.Threading.Thread.Sleep(100);
+  Check(deliveries==2,"successful unchanged snapshot suppressed");
+  clock=clock.AddSeconds(121); publisher.Queue(sample,send); System.Threading.Thread.Sleep(100);
+  Check(deliveries==3,"unchanged snapshot eventually heals server state");
+  var blocked=new System.Threading.Tasks.TaskCompletionSource<bool>();
+  var firstStarted=new System.Threading.ManualResetEventSlim();
+  var deliveredRows=new System.Collections.Generic.List<string>();
+  var latest=new InventorySnapshotPublisher();
+  Func<string,System.Threading.Tasks.Task<bool>> slow = json => {
+   lock(deliveredRows) {deliveredRows.Add(json);if(deliveredRows.Count==1) {firstStarted.Set();return blocked.Task;}}
+   return System.Threading.Tasks.Task.FromResult(true);
+  };
+  latest.Queue(sample,slow); firstStarted.Wait(2000);
+  latest.Queue(sample.Replace("1}","2,\"changed\":2}"),slow);
+  latest.Queue(sample.Replace("1}","3,\"changed\":3}"),slow);
+  blocked.SetResult(true); System.Threading.Thread.Sleep(100);
+  lock(deliveredRows) Check(deliveredRows.Count==2 && deliveredRows.Last().Contains("\"changed\":3"),"slow transport retains only latest waiting hero snapshot");
   Console.WriteLine($"{checks} checks, {failures} failures"); return failures==0?0:1;
  }
 }

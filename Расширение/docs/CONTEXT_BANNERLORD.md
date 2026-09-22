@@ -1,3 +1,19 @@
+## 22.09 — poststream fixes (локально + staging)
+
+Ветка codex/poststream-fixes-20260922; см. ../../docs/POSTSTREAM_FIXES_2026-09-22.md.
+M129: отдельные paid reforge rights (pending/active/failed), ACK/refund в тех же
+транзакциях, получение с module-token, нативное восстановление вне Mission.
+M130: убрать несуществующий max_vassals_bonus, сохранить настоящие эффекты.
+M131: daily claim связан с action_id, отказ удаляет только свою попытку.
+M128 tournament сохранён. Снимок не владеет историей оплаты; null членства
+означает очистку, пропущенное поле — отсутствие обновления. Карточка экипировки
+и магазин используют текущий snapshot; legacy tier-конверсия сохранена.
+InventorySnapshotPublisher отправляет изменения и контрольный повтор120s,
+один запрос/последний ожидающий снимок. Прямой мир использует DiploUtil resolve.
+Release и harness/UI/backend/staging зелёные, живое поведение не доказано.
+Не устанавливать всю DLL без согласования: baseline содержит запрещённые к
+выкату боевые приказы. Старые потери перековки не импортированы/не компенсированы.
+
 ## 21.09 — tournament queue snapshot (локально, не выкачено)
 
 Игра публикует полную очередь tournament.queue_snapshot: текущий save/session,

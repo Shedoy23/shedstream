@@ -28,6 +28,7 @@ namespace BannerlordLink.Behaviors
         private volatile bool _published;
         private volatile bool _publishing;
         private EquipmentSessionHandshake _handshake;
+        private readonly InventorySnapshotPublisher _snapshots = new InventorySnapshotPublisher();
         internal static readonly string[] AllSlots = { "weapon0", "weapon1", "weapon2", "weapon3", "head", "body", "leg", "gloves", "cape", "horse", "horseharness" };
 
         internal static ItemRoster PartyInventory(Hero hero)
@@ -169,6 +170,8 @@ namespace BannerlordLink.Behaviors
                 ["category"] = Category(item), ["slots"] = new JArray(Slots(item)),
                 ["stats"] = JObject.Parse(EquipmentSync.BuildStatsJson(item, modifier)),
                 ["weight"] = item.Weight, ["modifier_id"] = modifier?.StringId,
+                ["item_value"] = item.Value, ["quality"] = modifier?.ItemQuality.ToString().ToLowerInvariant(),
+                ["quality_rank"] = ReforgeQuality.Rank(modifier), ["reforge_options"] = ReforgeQuality.Options(item),
             };
         }
 
@@ -232,7 +235,7 @@ namespace BannerlordLink.Behaviors
         {
             string json = Snapshot(hero, ledger, missionOverride);
             var backend = BannerlordLinkModule.Backend;
-            if (backend != null) Task.Run(() => backend.PostEventAsync("bannerlord", "hero.inventory_snapshot", json));
+            if (backend != null) _snapshots.Queue(json, payload => backend.PostEventAsync("bannerlord", "hero.inventory_snapshot", payload));
         }
 
         internal void PublishBuilds(bool? missionOverride = null)
@@ -281,7 +284,7 @@ namespace BannerlordLink.Behaviors
                             { _published = false; return; }
                             _catalogRefresh.Restart();
                         }
-                        foreach (string json in snapshots) await backend.PostEventAsync("bannerlord", "hero.inventory_snapshot", json);
+                        foreach (string json in snapshots) _snapshots.Queue(json, payload => backend.PostEventAsync("bannerlord", "hero.inventory_snapshot", payload));
                         _published = true;
                     }
                     catch (Exception ex) { BannerlordLinkModule.Log("[EquipmentShop] publish will retry: " + ex.Message); }

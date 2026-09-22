@@ -4173,10 +4173,10 @@ function _clanUpgradesTreeHtml(upgrades, heroGold) {
             retinue_size_bonus: '🛡️ +%v к свите',
             party_speed_bonus:  '🐎 +%v скорости отряда',
             party_amount_bonus: '🪖 +%v к лимиту отрядов',
-            max_vassals_bonus:  '🏰 +%v вассалов',
             army_speed_bonus:   '⚡ +%v скорости армии',
         };
         return Object.entries(effects || {})
+            .filter(([key]) => key !== 'max_vassals_bonus')
             .map(([k, v]) => (labels[k] || `${k}: ${v}`).replace('%v', v))
             .join(' · ');
     };

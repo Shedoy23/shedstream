@@ -75,6 +75,8 @@ namespace BannerlordLink.Actions
                     ActionFeedback.PostFailed(actionId, "no_kingdom");
                     return;
                 }
+                if (kingdom.IsEliminated || hero.Clan.IsEliminated || kingdom.StringId != kingdomId)
+                { ActionFeedback.PostFailed(actionId, "kingdom_changed"); return; }
                 // Optional defensive: backend already checked, но guard.
                 if (kingdom.Leader != hero && hero.Clan?.Leader != hero)
                 {
@@ -189,7 +191,7 @@ namespace BannerlordLink.Actions
                 }
 
                 var myKingdom = hero.Clan?.Kingdom;
-                if (myKingdom == null)
+                if (myKingdom == null || myKingdom.IsEliminated || hero.Clan.IsEliminated)
                 {
                     BannerlordLinkModule.Log(
                         $"[diplo-peace] REFUSE @{username}: не в kingdom'е");
@@ -204,9 +206,7 @@ namespace BannerlordLink.Actions
                     return;
                 }
 
-                Kingdom target = null;
-                try { target = MBObjectManager.Instance.GetObject<Kingdom>(targetKingdomId); }
-                catch { }
+                Kingdom target = DiploUtil.ResolveKingdom(targetKingdomId, targetKingdomName);
                 if (target == null)
                 {
                     BannerlordLinkModule.Log(
@@ -214,6 +214,7 @@ namespace BannerlordLink.Actions
                     ActionFeedback.PostFailed(actionId, "target_not_found");
                     return;
                 }
+                if (target.IsEliminated) { ActionFeedback.PostFailed(actionId, "target_eliminated"); return; }
                 if (target == myKingdom)
                 {
                     ActionFeedback.PostFailed(actionId, "self_target");

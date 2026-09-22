@@ -56,11 +56,11 @@ namespace BannerlordLink.Actions
             string actionId = ActionFeedback.GetActionId(data);
             if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(slot))
                 return System.Threading.Tasks.Task.FromResult<(bool, string)>((false, "missing fields"));
-            MainThreadDispatcher.Enqueue(() => Reforge(username, slot, actionId));
+            MainThreadDispatcher.Enqueue(() => Reforge(username, slot, actionId, data["_reforge"] as JObject));
             return System.Threading.Tasks.Task.FromResult<(bool, string)>((true, null));
         }
 
-        private static void Reforge(string username, string slot, string actionId)
+        private static void Reforge(string username, string slot, string actionId, JObject right)
         {
             try
             {
@@ -75,6 +75,13 @@ namespace BannerlordLink.Actions
                 var cur = hero.BattleEquipment[idx];
                 if (cur.IsEmpty || cur.Item == null) { Refuse(username, actionId, "slot_empty"); return; }
                 var item = cur.Item;
+                if (right == null || (string)right["save_id"] != Campaign.Current.UniqueGameId
+                    || (string)right["hero_id"] != hero.StringId
+                    || (string)right["session_id"] != BannerlordLink.Behaviors.EquipmentShopBehavior.Instance?.SessionId
+                    || (string)right["slot"] != slot || (string)right["item_id"] != item.StringId
+                    || ((string)right["expected_modifier"] ?? "") != (cur.ItemModifier?.StringId ?? ""))
+                { Refuse(username, actionId, "equipment_changed"); return; }
+
 
                 var group = item.ItemComponent?.ItemModifierGroup;
                 if (group == null) { Refuse(username, actionId, "no_quality_group"); return; }
@@ -105,7 +112,15 @@ namespace BannerlordLink.Actions
                     return;
                 }
 
+                if (nextMod.StringId != (string)right["modifier_id"] || ReforgeQuality.Rank(nextMod) != (int?)right["rank"])
+                { Refuse(username, actionId, "equipment_changed"); return; }
                 hero.BattleEquipment[idx] = new EquipmentElement(item, nextMod);
+                if (hero.BattleEquipment[idx].ItemModifier != nextMod)
+                { Refuse(username, actionId, "reforge_not_applied"); return; }
+                var inventory = BannerlordLink.Behaviors.EquipmentShopBehavior.Instance;
+                // A telemetry failure cannot turn an applied upgrade into a refund.
+                try { if (inventory != null) inventory.Push(hero, inventory.Read(hero)); } catch { }
+
                 BannerlordLinkModule.Log(
                     $"[reforge_quality] @{username} {slot}: '{itemName}' " +
                     $"качество {curQ}(mod={curModId}) -> {nextQ}(mod={nextMod.StringId})");

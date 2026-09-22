@@ -1478,6 +1478,23 @@ async def bannerlord_my_hero(request: Request):
                 "quality":    quality,        # M77: poor..legendary | None (без модификатора)
             }
 
+        # Both tabs use the same ordered, current-session inventory snapshot.
+        # The legacy hero response remains zero-based for frozen Twitch clients.
+        cur = await conn.execute(
+            "SELECT i.items_json FROM bannerlord_inventory_snapshots i "
+            "JOIN bannerlord_equipment_sessions e ON e.channel_id=i.channel_id AND e.session_id=i.session_id "
+            "JOIN bannerlord_channel_state s ON s.channel_id=i.channel_id AND s.current_save_id=i.save_id "
+            "WHERE i.channel_id=? AND i.username=? AND i.hero_id=?",
+            (channel_id, username, hero['hero_id']))
+        inventory_row = await cur.fetchone()
+        if inventory_row:
+            equipment = {item['slot']: {
+                'item_id':item.get('item_id'), 'item_name':item.get('name'),
+                'tier':max(0, int(item.get('tier') or 1)-1),
+                'item_value':item.get('item_value',0), 'weight':item.get('weight'),
+                'stats':item.get('stats'), 'quality':item.get('quality')
+            } for item in json.loads(inventory_row[0]) if item.get('slot') and item.get('source') in (None, 'equipped')}
+
         # Retinue (M23) — BLT-style свита, sorted by slot_index
         # M28 (5.14): include is_elite flag для UI badge "★ Элит"
         cur = await conn.execute(
@@ -2851,7 +2868,7 @@ async def _charge_execute_enqueue(action_type, data, price, username, channel_id
                     prev_action_id, prev_type, prev_status, prev_owner = idem_row
                     from modules.bannerlord.equipment_shop import ACTION_TYPES
                     from modules.bannerlord.builds import ACTION_TYPES as BUILD_ACTIONS
-                    if action_type in ACTION_TYPES | BUILD_ACTIONS | {'power.activate'} and (prev_owner != username or prev_type != action_type):
+                    if action_type in ACTION_TYPES | BUILD_ACTIONS | {'power.activate', 'hero.reforge_quality'} and (prev_owner != username or prev_type != action_type):
                         await conn.rollback()
                         return {"success": False, "reason": "client_action_conflict", "message": "Идентификатор действия уже использован"}
                     await conn.execute("ROLLBACK")
@@ -2875,6 +2892,13 @@ async def _charge_execute_enqueue(action_type, data, price, username, channel_id
                     await conn.rollback()
                     return {"success": False, "reason": "equipment_shop_enabled",
                             "message": "Выбирай снаряжение в магазине во вкладке Инвентарь"}
+
+            if action_type == 'hero.reforge_quality':
+                from modules.bannerlord.reforge import validate_tx as validate_reforge_tx
+                reforge_refusal = await validate_reforge_tx(conn, channel_id, username, data)
+                if reforge_refusal:
+                    await conn.rollback()
+                    return reforge_refusal
 
             from modules.bannerlord.equipment_shop import ACTION_TYPES, validate_tx
             if action_type in ACTION_TYPES:
@@ -3010,6 +3034,10 @@ async def _charge_execute_enqueue(action_type, data, price, username, channel_id
                 """, (channel_id, action_id, action_type,
                       json.dumps(payload, ensure_ascii=False),
                       client_action_id))
+
+            if action_type == 'hero.reforge_quality':
+                from modules.bannerlord.reforge import reserve_tx
+                await reserve_tx(conn, channel_id, username, action_id, data)
 
             # Sprint 5.3: tournament.predict — записываем в predictions table
             # (легаси-имя таблицы bannerlord_tournament_bets — DB-internals, не wire).
@@ -3693,3 +3721,18 @@ async def bannerlord_inheritance_log(request: Request, limit: int = 20):
         "inherited_at":    r[7],
     } for r in rows]
     return {"success": True, "items": items}
+
+
+@router.get("/api/bannerlord/reforge-rights")
+async def bannerlord_reforge_rights(request: Request):
+    from routes.streamer import verify_module_token
+    auth = request.headers.get('Authorization', '')
+    claims = verify_module_token(auth[7:].strip()) if auth.startswith('Bearer ') else None
+    if not claims or claims.get('module_id') != 'bannerlord':
+        return _AUTH_FAIL
+    channel_id = int(claims['channel_id'])
+    save_id = request.query_params.get('save_id') or ''
+    from modules.bannerlord.reforge import rights_tx
+    async with get_db()._connect() as conn:
+        rights = await rights_tx(conn, channel_id, save_id)
+    return {'success': True, 'save_id': save_id, 'rights': rights}

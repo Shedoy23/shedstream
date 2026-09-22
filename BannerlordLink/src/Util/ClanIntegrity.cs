@@ -44,17 +44,28 @@ namespace BannerlordLink.Util
                 if (method != null)
                 {
                     method.Invoke(null, new object[] { clan });
-                    detached = true;
+                    // 2026-09-22 — успехом считаем НАБЛЮДАЕМЫЙ эффект, а не факт
+                    // вызова. Ваниль 1.4.8 при пустом GetHeirApparents() выходит,
+                    // не тронув _leader, и раньше мы писали «OK» именно тогда.
+                    detached = !ReferenceEquals(clan.Leader, hero);
                     BannerlordLinkModule.Log(
                         $"[leave_clan] @{who}: leader без членов → " +
-                        $"ChangeClanLeaderAction.ApplyWithoutSelectedNewLeader OK");
+                        $"ChangeClanLeaderAction.ApplyWithoutSelectedNewLeader " +
+                        (detached ? "OK" : "НИЧЕГО НЕ СДЕЛАЛ (нет наследников) → reflection"));
+                    if (!detached && ForceLeaderNull(clan))
+                    {
+                        detached = !ReferenceEquals(clan.Leader, hero);
+                        BannerlordLinkModule.Log(
+                            $"[leave_clan] @{who}: reflection _leader=null " +
+                            (detached ? "OK" : "НЕ СРАБОТАЛ"));
+                    }
                 }
                 else
                 {
                     BannerlordLinkModule.Log(
                         $"[leave_clan] @{who}: " +
                         $"ApplyWithoutSelectedNewLeader not found → reflection fallback");
-                    if (ForceLeaderNull(clan))
+                    if (ForceLeaderNull(clan) && !ReferenceEquals(clan.Leader, hero))
                     {
                         detached = true;
                         BannerlordLinkModule.Log(
@@ -70,7 +81,7 @@ namespace BannerlordLink.Util
                     $"trying reflection fallback");
                 try
                 {
-                    if (ForceLeaderNull(clan))
+                    if (ForceLeaderNull(clan) && !ReferenceEquals(clan.Leader, hero))
                     {
                         detached = true;
                         BannerlordLinkModule.Log(
@@ -83,6 +94,9 @@ namespace BannerlordLink.Util
                         $"[leave_clan] REFUSE @{who}: both API + reflection failed: {rex.Message}");
                 }
             }
+            // Клан без лидера не имеет права оставаться в королевстве: ваниль
+            // переберёт его на суточном тике и разыменует Leader.Clan.
+            if (detached) DropLeaderlessFromKingdom(clan);
             return detached;
         }
 
@@ -92,7 +106,70 @@ namespace BannerlordLink.Util
         /// </summary>
         internal static int RepairAll()
         {
-            return 0;
+            int repaired = 0;
+            try
+            {
+                var all = Clan.All;
+                if (all == null) return 0;
+                foreach (var clan in all.ToList())
+                {
+                    if (clan == null) continue;
+                    var leader = clan.Leader;
+                    // Битая связка: лидер есть, но он уже не в этом клане.
+                    // Бандитские фракции (лидера нет И королевства нет) — норма
+                    // движка, их не трогаем.
+                    bool danglingLeader = leader != null && !ReferenceEquals(leader.Clan, clan);
+                    bool leaderlessInKingdom = leader == null && clan.Kingdom != null;
+                    if (!danglingLeader && !leaderlessInKingdom) continue;
+
+                    string name = clan.Name?.ToString() ?? "?";
+                    if (danglingLeader)
+                    {
+                        // Сначала пробуем вылечить: если в клане остался живой
+                        // наследник, ваниль поднимет его в лидеры.
+                        try { ChangeClanLeaderAction.ApplyWithoutSelectedNewLeader(clan); }
+                        catch (Exception ex)
+                        {
+                            BannerlordLinkModule.Log(
+                                $"[clan-repair] '{name}': ApplyWithoutSelectedNewLeader failed: {ex.Message}");
+                        }
+                        if (!ReferenceEquals(clan.Leader, leader)
+                            && clan.Leader != null
+                            && ReferenceEquals(clan.Leader.Clan, clan))
+                        {
+                            repaired++;
+                            BannerlordLinkModule.Log(
+                                $"[clan-repair] '{name}': лидер заменён на своего члена клана");
+                            continue;
+                        }
+                        ForceLeaderNull(clan);
+                    }
+
+                    DropLeaderlessFromKingdom(clan);
+                    repaired++;
+                    BannerlordLinkModule.Log(
+                        $"[clan-repair] '{name}': висящий лидер снят, клан выведен из королевства");
+                }
+                if (repaired > 0)
+                    BannerlordLinkModule.Log($"[clan-repair] вылечено кланов: {repaired}");
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[clan-repair] crashed: {ex.Message}");
+            }
+            return repaired;
+        }
+
+        /// <summary>Вывести клан без лидера из королевства (ваниль его там не ждёт).</summary>
+        private static void DropLeaderlessFromKingdom(Clan clan)
+        {
+            if (clan == null || clan.Leader != null || clan.Kingdom == null) return;
+            try { ChangeKingdomAction.ApplyByLeaveKingdom(clan, false); }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[clan-repair] '{clan.Name}': ApplyByLeaveKingdom failed: {ex.Message}");
+            }
         }
 
         /// <summary>Занулить `Clan._leader` напрямую (поле приватное).</summary>

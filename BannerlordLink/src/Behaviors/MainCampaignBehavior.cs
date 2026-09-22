@@ -407,6 +407,10 @@ namespace BannerlordLink.Behaviors
         private void OnGameLoadFinished()
         {
             RepairNegativeRoster();
+            // 2026-09-22 — лечим связку «клан ↔ лидер» ДО первого суточного тика:
+            // сейв мог быть сохранён с висящим лидером, и ваниль роняет игру на
+            // Leader.Clan (docs/BANNERLORD_CRASH_2026-09-22.md).
+            BannerlordLink.Util.ClanIntegrity.RepairAll();
             PushSessionStart("game_load_finished");
             // 2026-06-15 — полный ре-синк стейта+экипировки всех [BLink]-героев на
             // загрузке сейва. Без него backend держит стейт ПРОШЛОЙ сессии/сейва
@@ -418,6 +422,7 @@ namespace BannerlordLink.Behaviors
         private void OnSessionLaunched(CampaignGameStarter starter)
         {
             RepairNegativeRoster();
+            BannerlordLink.Util.ClanIntegrity.RepairAll();
             PushSessionStart("session_launched");
         }
 

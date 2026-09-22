@@ -16,6 +16,17 @@ namespace BannerlordLink.Util
         // чем тратятся. Всё остальное — очки, масштаб боя, множитель победы,
         // RewardBoostCache — не менялось.
         internal const int Multiplier = 2;
+
+        /// <summary>С какого личного вклада начинается «сверхусилие».
+        /// 6724.8 очка — максимум, наблюдённый 21.09 (59 убийств человека).</summary>
+        internal const double OverExertionFrom = 6700;
+        /// <summary>Потолок надбавки за сверхусилие (до множителя и масштаба боя).</summary>
+        internal const double OverExertionCeiling = 386000;
+        /// <summary>На сколько очков СВЕРХ порога набирается половина надбавки.</summary>
+        internal const double OverExertionHalf = 4000;
+
+        /// <summary>До какого вклада растёт участие. Раньше упиралось в 8000.</summary>
+        internal const double ParticipationFullAt = 20000;
         internal static double Threat(int level) => Math.Max(0.4, Math.Min(1.5, level / 26.0));
         internal static Payout Calculate(double personal, double retinue, int enemies, bool siege, bool won)
         {
@@ -32,8 +43,24 @@ namespace BannerlordLink.Util
                 // Calibrated to observed 28-65 human-kill efforts: ~2750-6725 personal points.
                 // Multiplier is applied AFTER rounding, so every part and the total are
                 // exactly Multiplier times the previous payout for the same inputs.
-                Participation = Multiplier * (int)(50000 * Math.Min(1, contribution / 8000) * result),
-                Personal = Multiplier * (int)(100000 * personal / (personal + 4000) * result),
+                // 22.09, решение владельца: поднять потолок участия. Наклон и
+                // всё до 8000 очков вклада НЕ меняются — там выплата ровно та
+                // же, что вчера. Просто кривая больше не упирается в потолок на
+                // 8000, а продолжается тем же темпом до 20000: в осадах все
+                // были за старым порогом, и участие переставало различать вклад.
+                Participation = Multiplier * (int)(50000
+                    * Math.Min(ParticipationFullAt, contribution) / 8000 * result),
+                // 22.09, решение владельца: «такие вклады оцениваются не меньше
+                // миллиона», но «такие осады не часто и надо попотеть». Поэтому
+                // прежняя кривая НЕ тронута — до 6700 очков платится ровно
+                // столько же, сколько вчера. Выше порога включается вторая,
+                // отдельная кривая «сверхусилие»: она и даёт верх.
+                // Порог 6700 — потолок наблюдённых усилий 21.09 (59 убийств
+                // человека = 6724.8 очка), то есть надбавку получает только тот,
+                // кто вышел за прежний максимум.
+                Personal = Multiplier * (int)((100000 * personal / (personal + 4000)
+                          + OverExertionCeiling * Math.Max(0, personal - OverExertionFrom)
+                            / (Math.Max(0, personal - OverExertionFrom) + OverExertionHalf)) * result),
                 Retinue = Multiplier * (int)(58000 * retinue / (retinue + 2000) * result),
             };
         }

@@ -21,12 +21,12 @@ foreach(int enemies in new[]{10,49,50,199,200,1000})foreach(bool siege in new[]{
  }
  Check(previous>0,"monotonic across score sweep "+enemies+" "+siege);
 }
-Check(BattlePayoutPolicy.Calculate(1e12,1e12,100,false,true).Total<=499200,"ordinary cap independent of retinue size");
-Check(BattlePayoutPolicy.Calculate(1e12,1e12,500,true,true).Total<=798720,"large siege cap");
-Check(BattlePayoutPolicy.Calculate(1e12,1e12,10,true,true).Total<=119808,"tiny siege cannot earn large siege prize");
-foreach(var scenario in new[]{(enemies:100,siege:false,cap:499200),(enemies:500,siege:true,cap:798720),(enemies:10,siege:true,cap:119808)}) {
+Check(BattlePayoutPolicy.Calculate(1e12,1e12,100,false,true).Total<=1605600,"ordinary cap independent of retinue size");
+Check(BattlePayoutPolicy.Calculate(1e12,1e12,500,true,true).Total<=2568960,"large siege cap");
+Check(BattlePayoutPolicy.Calculate(1e12,1e12,10,true,true).Total<=385344,"tiny siege cannot earn large siege prize");
+foreach(var scenario in new[]{(enemies:100,siege:false,cap:1605600),(enemies:500,siege:true,cap:2568960),(enemies:10,siege:true,cap:385344)}) {
  var ceiling=BattlePayoutPolicy.Calculate(1e12,1e12,scenario.enemies,scenario.siege,true);
- Check(ceiling.Total >= scenario.cap-6 && ceiling.Total <= scenario.cap,"original ceiling remains reachable " + scenario.cap);
+ Check(ceiling.Total >= scenario.cap-6 && ceiling.Total <= scenario.cap,"потолок после перекалибровки 22.09 достижим " + scenario.cap);
 }
 // Observed 2026-09-21 19:00 battle, same field defeat / no subscription boost.
 // Inputs are actual payout damage points, NOT kills * assumed target HP.
@@ -66,6 +66,18 @@ foreach(var o in new[]{
  Check(Math.Abs(now.Participation-2*o.part)<=2 && Math.Abs(now.Personal-2*o.pers)<=2 && Math.Abs(now.Retinue-2*o.ret)<=2,
   "ровно вдвое против фактической выплаты 21.09 ("+o.part+"/"+o.pers+"/"+o.ret+" -> "+now.Participation+"/"+now.Personal+"/"+now.Retinue+")");
 }
+// 22.09, решение владельца: такой вклад в осаду обязан оцениваться не меньше
+// миллиона. Входы — фактические из лога осады 22.09 (enemies=1650, победа).
+var siegeTop=BattlePayoutPolicy.Calculate(10501.7,1692.5,1650,true,true);   // slopkom_nyi_item
+var siegeMid=BattlePayoutPolicy.Calculate(7914.4,1116.2,1650,true,true);    // slopkom
+var siegeLow=BattlePayoutPolicy.Calculate(4574.7,1656.2,1650,true,true);    // igotpaws
+Check(siegeTop.Personal >= 1000000,
+ "личная часть за 10 500 очков в осаде не меньше миллиона (сейчас "+siegeTop.Personal+")");
+Check(siegeTop.Personal > siegeMid.Personal * 1.15,
+ "вклад 10 500 против 7 900 различим не на проценты ("+siegeTop.Personal+" против "+siegeMid.Personal+")");
+Check(siegeMid.Personal > siegeLow.Personal * 1.3,
+ "вклад 7 900 против 4 600 различим ("+siegeMid.Personal+" против "+siegeLow.Personal+")");
+
 var ledger=new BattleDamageLedger<object>();var target=new object();ledger.Track(target,100);
 Check(ledger.Hit(target,80,20)==80,"first attacker earns actual damage");
 Check(ledger.Hit(target,200,0)==20,"second attacker overkill capped at remainder");

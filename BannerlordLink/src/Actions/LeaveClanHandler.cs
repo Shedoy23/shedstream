@@ -114,78 +114,11 @@ namespace BannerlordLink.Actions
                     }
                     else
                     {
-                        // Sprint 5.32 BLT-parity — заменяет reflection-хак на
-                        // публичный engine API. BLT в ClanManagement.cs:802 для
-                        // single-leader detach использует:
-                        //   ChangeClanLeaderAction.ApplyWithoutSelectedNewLeader(clan)
-                        //
-                        // Этот API внутри сам убирает leader без killing hero
-                        // (в отличие от DestroyClanAction которое внутренне
-                        // вызывает KillCharacterAction.ApplyByRemove(leader, Lost)).
-                        //
-                        // Fallback: reflection _leader=null если API недоступен
-                        // в данной версии TaleWorlds (старые сборки 1.0-1.1).
-                        bool detached = false;
-                        try
-                        {
-                            // 1. Try public API (BLT pattern).
-                            var apiType = typeof(ChangeClanLeaderAction);
-                            var method = apiType.GetMethod(
-                                "ApplyWithoutSelectedNewLeader",
-                                System.Reflection.BindingFlags.Public |
-                                System.Reflection.BindingFlags.Static);
-                            if (method != null)
-                            {
-                                method.Invoke(null, new object[] { clan });
-                                detached = true;
-                                BannerlordLinkModule.Log(
-                                    $"[leave_clan] @{username}: leader без членов → " +
-                                    $"ChangeClanLeaderAction.ApplyWithoutSelectedNewLeader OK");
-                            }
-                            else
-                            {
-                                // 2. Fallback: reflection _leader=null (Sprint 5.32 path).
-                                BannerlordLinkModule.Log(
-                                    $"[leave_clan] @{username}: " +
-                                    $"ApplyWithoutSelectedNewLeader not found → reflection fallback");
-                                var leaderField = HarmonyLib.AccessTools.Field(
-                                    typeof(TaleWorlds.CampaignSystem.Clan), "_leader");
-                                if (leaderField != null)
-                                {
-                                    leaderField.SetValue(clan, null);
-                                    detached = true;
-                                    BannerlordLinkModule.Log(
-                                        $"[leave_clan] @{username}: reflection " +
-                                        $"_leader=null OK (clan '{clan.Name}' orphaned)");
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            BannerlordLinkModule.Log(
-                                $"[leave_clan] @{username}: API failed ({ex.Message}) — " +
-                                $"trying reflection fallback");
-                            try
-                            {
-                                var leaderField = HarmonyLib.AccessTools.Field(
-                                    typeof(TaleWorlds.CampaignSystem.Clan), "_leader");
-                                if (leaderField != null)
-                                {
-                                    leaderField.SetValue(clan, null);
-                                    detached = true;
-                                    BannerlordLinkModule.Log(
-                                        $"[leave_clan] @{username}: reflection " +
-                                        $"_leader=null OK after API fail");
-                                }
-                            }
-                            catch (Exception rex)
-                            {
-                                BannerlordLinkModule.Log(
-                                    $"[leave_clan] REFUSE @{username}: both API + reflection " +
-                                    $"failed: {rex.Message}");
-                            }
-                        }
-                        if (!detached)
+                        // 2026-09-22 — отсоединение лидера вынесено в
+                        // Util/ClanIntegrity: тем же кодом чинится и уже
+                        // испорченный сейв на загрузке
+                        // (docs/BANNERLORD_CRASH_2026-09-22.md).
+                        if (!ClanIntegrity.DetachLeader(clan, hero, username))
                         {
                             ActionFeedback.PostFailed(actionId, "detach_leader_failed");
                             return;

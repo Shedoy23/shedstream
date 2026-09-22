@@ -5,7 +5,11 @@ using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 namespace TaleWorlds.Core {
  public enum EquipmentIndex { Weapon0, Weapon1, Weapon2, Weapon3, Head, Body, Leg, Gloves, Cape, Horse, HorseHarness }
+ public enum ItemQuality { Poor, Inferior, Common, Fine, Masterwork, Legendary }
+ public class ItemComponent { public ItemModifierGroup ItemModifierGroup; }
+ public class ItemModifierGroup { public List<ItemModifier> Mods=new(); public List<ItemModifier> GetModifiersBasedOnQuality(ItemQuality q)=>Mods.Where(m=>m.ItemQuality==q).ToList(); }
  public class ItemObject {
+  public ItemComponent ItemComponent;
   public enum ItemTypeEnum { OneHandedWeapon, TwoHandedWeapon, Polearm, Bow, Crossbow, Thrown, Shield, Arrows, Bolts, HeadArmor, BodyArmor, LegArmor, HandArmor, Cape, Horse, HorseHarness, Goods }
   public string StringId, Name; public int Tier, Value; public float Weight; public bool NotMerchandise;
   public ItemTypeEnum ItemType; public HorseComponent HorseComponent; public ArmorComponent ArmorComponent;
@@ -13,7 +17,7 @@ namespace TaleWorlds.Core {
  public class HorseComponent { public bool IsRideable, IsPackAnimal; public Monster Monster; }
  public class Monster { public int FamilyType; }
  public class ArmorComponent { public int FamilyType; }
- public class ItemModifier { public string StringId; }
+ public class ItemModifier { public string StringId; public ItemQuality ItemQuality; }
  public struct EquipmentElement {
   public ItemObject Item; public ItemModifier ItemModifier;
   public EquipmentElement(ItemObject item, ItemModifier modifier=null) { Item=item; ItemModifier=modifier; }

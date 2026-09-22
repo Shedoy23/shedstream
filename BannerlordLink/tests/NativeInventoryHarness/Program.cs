@@ -11,6 +11,14 @@ class Program {
  static int failures,checks;
  static void Check(bool value,string name) { checks++; Console.WriteLine((value?"PASS ":"FAIL ")+name); if(!value) failures++; }
  static int Main() {
+  var forgeHero = HeroLookup.Hero = new Hero();
+  var forgeItem = new ItemObject { StringId="forge", ItemComponent=new ItemComponent {ItemModifierGroup=new ItemModifierGroup()} };
+  var fine = new ItemModifier {StringId="fine",ItemQuality=ItemQuality.Fine};
+  forgeItem.ItemComponent.ItemModifierGroup.Mods.Add(fine);
+  forgeHero.BattleEquipment[EquipmentIndex.Head]=new EquipmentElement(forgeItem);
+  var badForge=new JObject { ["target"]="alice",["slot"]="head",["_reforge"]=new JObject { ["save_id"]="old",["hero_id"]="hero1",["session_id"]="old",["item_id"]="forge",["modifier_id"]="fine" }};
+  new ReforgeQualityHandler().ExecuteAsync(badForge).GetAwaiter().GetResult();
+  Check(forgeHero.BattleEquipment[EquipmentIndex.Head].ItemModifier==null,"stale paid reforge cannot affect another load");
   var behavior=new EquipmentShopBehavior(); behavior.RegisterEvents();
   var armor=new ItemObject {StringId="armor",Name="Armor",ItemType=ItemObject.ItemTypeEnum.BodyArmor,Value=10};
   MBObjectManager.Instance.Objects[armor.StringId]=armor;

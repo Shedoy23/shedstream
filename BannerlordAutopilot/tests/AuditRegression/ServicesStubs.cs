@@ -24,9 +24,9 @@ using TaleWorlds.Library;
 using TaleWorlds.Localization;
 
 namespace TaleWorlds.Core {
- public class HorseComponent { public bool IsLiveStock { get; set; } public int MeatCount { get; set; } = 1; }
- public class ItemModifier {}
- public class ItemObject {
+ public partial class HorseComponent { public bool IsLiveStock { get; set; } public int MeatCount { get; set; } = 1; }
+ public class ItemModifier { public string StringId = "modifier"; }
+ public partial class ItemObject {
   public string Name { get; set; }
   public bool IsFood { get; set; }
   public HorseComponent HorseComponent { get; set; }
@@ -35,7 +35,7 @@ namespace TaleWorlds.Core {
   public int TestPriceIncreasePerSale;                                   // рост цены после уменьшения рынка
   public override string ToString() => Name;
  }
- public struct EquipmentElement {
+ public partial struct EquipmentElement {
   public EquipmentElement(ItemObject item, ItemModifier itemModifier = null) { Item = item; ItemModifier = itemModifier; }
   public ItemObject Item { get; private set; }
   public ItemModifier ItemModifier { get; private set; }
@@ -57,7 +57,7 @@ namespace TaleWorlds.CampaignSystem {
   public readonly HashSet<IFaction> Enemies = new();
   public bool IsAtWarWith(IFaction other) => other != null && Enemies.Contains(other);
  }
- public class CharacterObject {
+ public partial class CharacterObject : BasicCharacterObject {
   public string Name = "Боец"; public string StringId = "troop";
   public bool IsHero { get; set; }                                         // Core 3195
   public bool IsMounted { get; set; }
@@ -74,16 +74,21 @@ namespace TaleWorlds.CampaignSystem {
   public int RoundedResultNumber => (int)Math.Round(ResultNumber);        // 42955
  }
  public class GameModels {
+  public TaleWorlds.CampaignSystem.ComponentInterfaces.ArmyManagementCalculationModel ArmyManagementCalculationModel { get; } = new();
+  public TaleWorlds.CampaignSystem.ComponentInterfaces.SiegeEventModel SiegeEventModel { get; } = new();
+  public MilitaryPowerModel MilitaryPowerModel { get; } = new();
   public MobilePartyAIModel MobilePartyAIModel { get; } = new();
   public PartyFoodBuyingModel PartyFoodBuyingModel { get; } = new();
   public MobilePartyFoodConsumptionModel MobilePartyFoodConsumptionModel { get; } = new();
   public PartyWageModel PartyWageModel { get; } = new();
+  public PartyTroopUpgradeModel PartyTroopUpgradeModel { get; } = new();
   public SettlementAccessModel SettlementAccessModel { get; } = new();
   public RansomValueCalculationModel RansomValueCalculationModel { get; } = new();
  }
 }
 
 namespace TaleWorlds.CampaignSystem.ComponentInterfaces {
+ public class MilitaryPowerModel { public TaleWorlds.CampaignSystem.MapEvent.PowerCalculationContext GetContextForPosition(TaleWorlds.CampaignSystem.CampaignVec2 position) => default; }
  public class MobilePartyAIModel {
   public AiBehavior NextBehavior; public MobileParty NextTarget; public float NextScore;
   public void GetBestInitiativeBehavior(MobileParty party, out AiBehavior behavior, out MobileParty target, out float score, out TaleWorlds.Library.Vec2 averageEnemyVec) { behavior=NextBehavior; target=NextTarget; score=NextScore; averageEnemyVec=default; }
@@ -109,6 +114,8 @@ namespace TaleWorlds.CampaignSystem.ComponentInterfaces {
  }
  public class MobilePartyFoodConsumptionModel { public bool DoesPartyConsumeFood(MobileParty mobileParty) => true; }   // 60231: партия игрока ест
  public class PartyWageModel {
+  public Func<MobileParty, TroopRoster, float> TestTotalWage;
+  public ExplainedNumber GetTotalWage(MobileParty party, TroopRoster roster, bool includeDescriptions = false) => new ExplainedNumber(TestTotalWage == null ? party.TotalWage : TestTotalWage(party, roster));
   public ExplainedNumber GetTroopRecruitmentCost(CharacterObject troop, Hero buyerHero, bool withoutItemCost = false) => new ExplainedNumber(troop.TestCost);
  }
  public class SettlementAccessModel {
@@ -169,7 +176,7 @@ namespace TaleWorlds.CampaignSystem.Roster {
   public int WoundedNumber { get; set; }
   public int Xp { get; set; }
  }
- public class TroopRoster {
+ public partial class TroopRoster {
   private readonly List<TroopRosterElement> _data = new();
   public static TroopRoster CreateDummyTroopRoster() => new TroopRoster();
   public int Count => _data.Count;
@@ -177,15 +184,21 @@ namespace TaleWorlds.CampaignSystem.Roster {
   public int TotalRegulars => _data.Where(e => !e.Character.IsHero).Sum(e => e.Number);
   public int TotalHeroes => _data.Count(e => e.Character.IsHero);
   public int TotalManCount => TotalRegulars + TotalHeroes;
+  public int TotalWounded => _data.Sum(e => e.WoundedNumber);           // 96343: раненые обычные + герои
   public MBList<TroopRosterElement> GetTroopRoster() { var list = new MBList<TroopRosterElement>(); list.AddRange(_data); return list; }
   public void Add(TroopRosterElement troopRosterElement) => AddToCounts(troopRosterElement.Character, troopRosterElement.Number, false, troopRosterElement.WoundedNumber, troopRosterElement.Xp);   // 96482
+  // 106984-106989: смена численности рассылает OnPartySizeChanged, и на это событие
+  // подписаны посторонние моды — чужая правка ростера возможна прямо посреди обмена
+  // бойца. Здесь это подписчик проверки.
+  public static Action<TroopRoster> TestOnSizeChanged;
+  private void Sized(int count) { if (count != 0) TestOnSizeChanged?.Invoke(this); }
   public int AddToCounts(CharacterObject character, int count, bool insertAtFront = false, int woundedCount = 0, int xpChange = 0, bool removeDepleted = true, int index = -1) {
    int i = _data.FindIndex(e => e.Character == character);
    if (i < 0) { if (count <= 0) return -1; _data.Add(new TroopRosterElement { Character = character }); i = _data.Count - 1; }
    TroopRosterElement element = _data[i];
    element.Number += count; element.WoundedNumber = Math.Max(0, element.WoundedNumber + woundedCount); element.Xp += xpChange;
-   if (element.Number <= 0 && removeDepleted) { _data.RemoveAt(i); return -1; }
-   _data[i] = element; return i;
+   if (element.Number <= 0 && removeDepleted) { _data.RemoveAt(i); Sized(count); return -1; }
+   _data[i] = element; Sized(count); return i;
   }
  }
 }
@@ -215,7 +228,11 @@ namespace TaleWorlds.CampaignSystem.Actions {
    payerParty?.ItemRoster.AddToCounts(subject.EquipmentElement, 1);
    subject.EquipmentElement.Item.TestPrice += subject.EquipmentElement.Item.TestPriceIncreasePerSale;
    }
-   GiveGoldAction.ApplyForCharacterToSettlement(payerParty.LeaderHero, receiverParty.Settlement, total);
+   if (payerParty.Settlement != null) {
+    int paid = Math.Min(total, payerParty.Settlement.TestGold);
+    payerParty.Settlement.TestGold -= paid;
+    receiverParty.LeaderHero.Gold += paid;
+   } else GiveGoldAction.ApplyForCharacterToSettlement(payerParty.LeaderHero, receiverParty.Settlement, total);
   }
  }
  public static class SellPrisonersAction {
@@ -235,4 +252,3 @@ namespace TaleWorlds.CampaignSystem.Actions {
   }
  }
 }
-

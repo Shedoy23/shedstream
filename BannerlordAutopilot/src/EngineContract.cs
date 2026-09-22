@@ -126,6 +126,7 @@ namespace BannerlordAutopilot
             Type mapEvent = MemberType(typeof(MobileParty), "MapEvent", Inst, false, out _);
             Need(mapEvent != null, "MobileParty.MapEvent");
             MemberOf(typeof(PlayerEncounter), "EncounteredBattle", Stat, mapEvent);
+            MemberOf(typeof(PlayerEncounter), "EncounteredParty", Stat, typeof(PartyBase));
             Type battleSide = MemberType(mapEvent, "AttackerSide", Inst, false, out _);
             Need(battleSide != null, "MapEvent.AttackerSide");
             MemberOf(mapEvent, "DefenderSide", Inst, battleSide);
@@ -232,6 +233,12 @@ namespace BannerlordAutopilot
             Type missionResult = mission?.GetProperty("MissionResult", Inst)?.PropertyType;
             Need(missionResult != null && missionResult.Name == "MissionResult", "Mission.MissionResult type");
             MemberOf(missionResult, "BattleResolved", Inst, typeof(bool));
+            Type agent = LoadedType("TaleWorlds.MountAndBlade.Agent", "TaleWorlds.MountAndBlade");
+            Type ridingOrder = LoadedType("TaleWorlds.MountAndBlade.RidingOrder", "TaleWorlds.MountAndBlade");
+            Type ridingEnum = ridingOrder?.GetNestedType("RidingOrderEnum");
+            Need(ridingEnum != null && ridingEnum.IsEnum && Enum.IsDefined(ridingEnum, "Dismount"),
+                "RidingOrder.RidingOrderEnum.Dismount");
+            Method(agent, "SetRidingOrder", Inst, typeof(void), ridingEnum);
 
             // Окна поверх карты (прогон 14.09): экран карты и флаги его окон. SandBox.View
             // мод не подключает, поэтому типы — по имени среди загруженных сборок.
@@ -296,6 +303,14 @@ namespace BannerlordAutopilot
             // Incident API, а слой закрывается тем же MapScreen, что и кнопка UI.
             Type incident = TypeNamed(campaignAssembly, "TaleWorlds.CampaignSystem.Incidents.Incident");
             Type textObject = LoadedType("TaleWorlds.Localization.TextObject", "TaleWorlds.Localization");
+            // Очередь выпавшего события: по ней автопилот понимает, что выходить
+            // из поселения ещё нельзя (Campaign.Tick 10136-10143 проверит условие
+            // уже после выхода и упадёт на чужом null). Нужна и запись: предел
+            // ожидания снимает очередь сам.
+            MemberOf(mapState, "NextIncident", Inst, incident, needWrite: true);
+            // Партия в расстройстве после боя стоит по праву: сторож движения
+            // обязан отличать её от застрявшей.
+            MemberOf(typeof(MobileParty), "IsDisorganized", Inst, typeof(bool));
             MemberOf(incident, "StringId", Inst, typeof(string));
             MemberOf(incident, "Title", Inst, textObject);
             MemberOf(incident, "NumOfOptions", Inst, typeof(int));
@@ -311,9 +326,20 @@ namespace BannerlordAutopilot
                 .FirstOrDefault(m => m.Name == "GetMapView" && m.IsGenericMethodDefinition && m.GetParameters().Length == 0);
             Need(getMapView != null, "MapScreen.GetMapView<T>()");
             Method(mapScreen, "RemoveMapView", Inst, typeof(void), mapView);
+            Type simulationView = LoadedType("SandBox.GauntletUI.Map.GauntletMapBattleSimulationView", "SandBox.GauntletUI");
+            Type simulationVm = simulationView?.GetField("_dataSource", BindingFlags.Instance | BindingFlags.NonPublic)?.FieldType;
+            Need(simulationVm != null, "simulation view scoreboard");
+            foreach (string flag in new[] { "IsOver", "IsSimulation", "ShowScoreboard" })
+                MemberOf(simulationVm, flag, Inst, typeof(bool));
+            Method(simulationVm, "ExecuteQuitAction", Inst, typeof(void));
+            Type battleSimulation = simulationVm?.GetField("_battleSimulation", BindingFlags.Instance | BindingFlags.NonPublic)?.FieldType;
+            Need(battleSimulation != null, "scoreboard native battle simulation");
+            MemberOf(battleSimulation, "IsSimulationFinished", Inst, typeof(bool));
 
             VerifySettlementServices(campaignAssembly, gameState?.Assembly, helper);
             VerifyOperations(mapEvent, vec2, menuContext, gameMenu);
+            VerifyBanditGathering(mapEvent, battleSide);
+            VerifyConquest(campaignAssembly, mapEvent);
             VerifyPrisonerScreen(campaignAssembly);
             VerifyLootScreen(campaignAssembly);
 
@@ -328,6 +354,90 @@ namespace BannerlordAutopilot
                 ? "структура движка совпала со всеми " + _checked + " ожиданиями"
                 : "НЕ СОВПАЛО (" + Problems.Count + " из " + _checked + "): " + string.Join("; ", Problems.ToArray());
             return Ok;
+        }
+
+        private static void VerifyConquest(Assembly campaign, Type mapEvent)
+        {
+            var mobile = typeof(MobileParty);
+            MemberOf(typeof(Settlement), "All", Stat, typeof(TaleWorlds.Library.MBReadOnlyList<Settlement>));
+            MemberOf(typeof(Kingdom), "Fiefs", Inst, typeof(TaleWorlds.Library.MBReadOnlyList<Town>));
+            MemberOf(typeof(PlayerEncounter), "PlayerIsDefender", Stat, typeof(bool));
+            var navigation = typeof(MobileParty.NavigationType);
+            Method(typeof(SetPartyAiAction), "GetActionForBesiegingSettlement", Stat, typeof(void), mobile, typeof(Settlement), navigation, typeof(bool));
+            Method(typeof(SetPartyAiAction), "GetActionForRaidingSettlement", Stat, typeof(void), mobile, typeof(Settlement), navigation, typeof(bool), typeof(bool));
+            MemberOf(mobile, "Army", Inst, typeof(Army));
+            MemberOf(typeof(Army), "LeaderParty", Inst, mobile);
+            MemberOf(typeof(Army), "Cohesion", Inst, typeof(float));
+            Method(typeof(Army), "BoostCohesionWithInfluence", Inst, typeof(void), typeof(float), typeof(int));
+            MemberOf(typeof(Clan), "Influence", Inst, typeof(float));
+            Method(typeof(ChangeClanInfluenceAction), "Apply", Stat, typeof(void), typeof(Clan), typeof(float));
+            Method(typeof(DisbandArmyAction), "ApplyByUnknownReason", Stat, typeof(void), typeof(Army));
+            Type members = typeof(TaleWorlds.Library.MBReadOnlyList<MobileParty>);
+            MemberOf(typeof(PartyThinkParams), "PossibleArmyMembersUponArmyCreation", Inst, members);
+            Method(typeof(Kingdom), "CreateArmy", Inst, typeof(void), typeof(Hero), typeof(Settlement), typeof(Army.ArmyTypes), members);
+            Type model = MemberType(typeof(GameModels), "ArmyManagementCalculationModel", Inst, false, out _);
+            Need(model != null, "GameModels.ArmyManagementCalculationModel");
+            var text = typeof(TaleWorlds.Localization.TextObject).MakeByRefType();
+            Method(model, "CanPlayerCreateArmy", Inst, typeof(bool), text);
+            Method(model, "CheckPartyEligibility", Inst, typeof(bool), mobile, text);
+            Method(model, "CalculatePartyInfluenceCost", Inst, typeof(int), mobile, mobile);
+            Method(model, "GetCohesionBoostInfluenceCost", Inst, typeof(int), typeof(Army), typeof(int));
+            Type siege = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Siege.SiegeEvent");
+            MemberOf(mobile, "SiegeEvent", Inst, siege);
+            MemberOf(siege, "BesiegedSettlement", Inst, typeof(Settlement));
+            Type camp = MemberType(siege, "BesiegerCamp", Inst, false, out _);
+            Need(camp != null, "SiegeEvent.BesiegerCamp");
+            MemberOf(camp, "LeaderParty", Inst, mobile);
+            MemberOf(camp, "IsReadyToBesiege", Inst, typeof(bool));
+            Type strategy = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Siege.SiegeStrategy");
+            Type strategies = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Siege.DefaultSiegeStrategies");
+            MemberOf(strategies, "AllAttackerStrategies", Stat, strategy != null ? typeof(IEnumerable<>).MakeGenericType(strategy) : null);
+            Type side = siege?.GetMethod("GetSiegeEventSide", Inst)?.ReturnType;
+            Method(siege, "GetSiegeEventSide", Inst, side, typeof(TaleWorlds.Core.BattleSideEnum));
+            Method(side, "SetSiegeStrategy", Inst, typeof(void), strategy);
+            Type siegeModel = MemberType(typeof(GameModels), "SiegeEventModel", Inst, false, out _);
+            Need(siegeModel != null, "GameModels.SiegeEventModel");
+            Method(siegeModel, "GetSiegeStrategyScore", Inst, typeof(float), siege, typeof(TaleWorlds.Core.BattleSideEnum), strategy);
+            foreach (string flag in new[] { "IsRaid", "IsSallyOut", "IsSiegeOutside" }) MemberOf(mapEvent, flag, Inst, typeof(bool));
+        }
+
+        private static void VerifyBanditGathering(Type mapEvent, Type side)
+        {
+            Type battleEnum = MemberType(mapEvent, "PlayerSide", Inst, false, out _);
+            MemberOf(mapEvent, "IsFieldBattle", Inst, typeof(bool));
+            Type context = MemberType(mapEvent, "SimulationContext", Inst, false, out _);
+            Need(context != null && context.IsEnum, "MapEvent.SimulationContext: enum");
+            Method(typeof(PartyBase), "GetCustomStrength", Inst, typeof(float), battleEnum, context);
+            Method(mapEvent, "CanPartyJoinBattle", Inst, typeof(bool), typeof(PartyBase), battleEnum);
+            MemberOf(typeof(PartyBase), "MapEventSide", Inst, side, needWrite: true);
+            MemberOf(typeof(PartyBase), "NumberOfHealthyMembers", Inst, typeof(int));
+            Type parties = MemberType(side, "Parties", Inst, false, out _);
+            Type entry = parties?.IsGenericType == true ? parties.GetGenericArguments()[0] : null;
+            Need(entry != null && typeof(System.Collections.IEnumerable).IsAssignableFrom(parties), "MapEventSide.Parties: enumerable");
+            MemberOf(entry, "Party", Inst, typeof(PartyBase));
+            Type bandits = MemberType(typeof(MobileParty), "AllBanditParties", Stat, false, out _);
+            Need(bandits != null && typeof(System.Collections.Generic.IEnumerable<MobileParty>).IsAssignableFrom(bandits), "MobileParty.AllBanditParties: enumerable");
+            MemberOf(typeof(MobileParty), "IsEngaging", Inst, typeof(bool));
+            MemberOf(typeof(MobileParty), "IsDisbanding", Inst, typeof(bool));
+            MemberOf(typeof(MobileParty), "IsTransitionInProgress", Inst, typeof(bool));
+            MemberOf(typeof(MobileParty), "AttachedTo", Inst, typeof(MobileParty));
+            Type attached = MemberType(typeof(MobileParty), "AttachedParties", Inst, false, out _);
+            Need(attached != null && typeof(System.Collections.Generic.IEnumerable<MobileParty>).IsAssignableFrom(attached), "MobileParty.AttachedParties: enumerable");
+            MemberOf(attached, "Count", Inst, typeof(int));
+            Type powerModel = MemberType(typeof(GameModels), "MilitaryPowerModel", Inst, false, out _);
+            Need(powerModel != null, "GameModels.MilitaryPowerModel");
+            Type position = MemberType(typeof(MobileParty), "Position", Inst, false, out _);
+            Method(powerModel, "GetContextForPosition", Inst, context, position);
+            Type starter = TypeNamed(typeof(Campaign).Assembly, "TaleWorlds.CampaignSystem.CampaignGameStarter");
+            Type sentence = TypeNamed(typeof(Campaign).Assembly, "TaleWorlds.CampaignSystem.Conversation.ConversationSentence");
+            Type condition = sentence?.GetNestedType("OnConditionDelegate");
+            Type consequence = sentence?.GetNestedType("OnConsequenceDelegate");
+            Method(starter, "AddPlayerLine", Inst, sentence, typeof(string), typeof(string), typeof(string), typeof(string),
+                condition, consequence, typeof(int), sentence?.GetNestedType("OnClickableConditionDelegate"), sentence?.GetNestedType("OnPersuasionOptionDelegate"));
+            Method(condition, "Invoke", Inst, typeof(bool));
+            Type sessionEvent = MemberType(typeof(CampaignEvents), "OnSessionLaunchedEvent", Stat, false, out _);
+            Method(sessionEvent, "AddNonSerializedListener", Inst, typeof(void), typeof(object),
+                starter == null ? null : typeof(Action<>).MakeGenericType(starter));
         }
 
         private static void VerifyLootScreen(Assembly campaign)
@@ -364,6 +474,8 @@ namespace BannerlordAutopilot
             Type data = logic == null ? null : MemberType(logic, "CurrentData", Inst, false, out _);
             Need(data != null, "PartyScreenLogic.CurrentData");
             MemberOf(data, "RightPrisonerRoster", Inst, roster);
+            MemberOf(data, "RightMemberRoster", Inst, roster);
+            MemberOf(logic, "RightPartyMembersSizeLimit", Inst, typeof(int));
             MemberOf(logic, "RightPartyPrisonersSizeLimit", Inst, typeof(int));
             MemberOf(logic, "RightOwnerParty", Inst, typeof(PartyBase));
             Method(logic, "IsDoneActive", Inst, typeof(bool));
@@ -376,6 +488,8 @@ namespace BannerlordAutopilot
             MemberOf(vm, "IsAnyPopUpOpen", Inst, typeof(bool));
             var list = vm?.GetProperty("OtherPartyPrisoners", Inst);
             Need(list?.GetGetMethod() != null && typeof(System.Collections.IEnumerable).IsAssignableFrom(list.PropertyType), "PartyVM.OtherPartyPrisoners: enumerable");
+            var rescuedList = vm?.GetProperty("OtherPartyTroops", Inst);
+            Need(rescuedList?.GetGetMethod() != null && typeof(System.Collections.IEnumerable).IsAssignableFrom(rescuedList.PropertyType), "PartyVM.OtherPartyTroops: enumerable");
             MemberOf(troop, "IsTroopTransferrable", Inst, typeof(bool));
             MemberOf(troop, "Side", Inst, side);
             MemberNamed(troop, "Troop", Inst, "TroopRosterElement");
@@ -479,6 +593,7 @@ namespace BannerlordAutopilot
                 itemElement?.MakeByRefType(), typeof(float).MakeByRefType());
             Method(foodConsumption, "DoesPartyConsumeFood", Inst, typeof(bool), typeof(MobileParty));
             Method(wages, "GetTroopRecruitmentCost", Inst, explained, character, typeof(Hero), typeof(bool));
+            Method(wages, "GetTotalWage", Inst, explained, typeof(MobileParty), troopRoster, typeof(bool));
             MemberOf(explained, "RoundedResultNumber", Inst, typeof(int));
             Method(access, "CanMainHeroDoSettlementAction", Inst, typeof(bool), typeof(Settlement), action,
                 typeof(bool).MakeByRefType(), text?.MakeByRefType());
@@ -519,6 +634,11 @@ namespace BannerlordAutopilot
             MemberOf(typeof(MobileParty), "TotalFoodAtInventory", Inst, typeof(int));
             MemberOf(partyBase, "PartySizeLimit", Inst, typeof(int));
             MemberOf(partyBase, "NumberOfAllMembers", Inst, typeof(int));
+            // Имена сторон чужого боя в журнале ухода (JoinOrLeaveForeignBattle).
+            MemberOf(partyBase, "MobileParty", Inst, typeof(MobileParty));
+            MemberOf(partyBase, "Settlement", Inst, typeof(Settlement));
+            MemberExists(typeof(MobileParty), "Name", Inst);
+            MemberExists(typeof(Settlement), "Name", Inst);
             MemberOf(typeof(Settlement), "IsTown", Inst, typeof(bool));
             MemberOf(typeof(Settlement), "IsRaided", Inst, typeof(bool));
             MemberOf(typeof(Settlement), "IsUnderRaid", Inst, typeof(bool));
@@ -541,6 +661,57 @@ namespace BannerlordAutopilot
             Need(itemElement != null && equipment != null && itemElement.GetConstructor(new[] { equipment, typeof(int) }) != null,
                 "ItemRosterElement(EquipmentElement, int)");
             MemberOf(equipment, "Item", Inst, item);
+            // Main-hero equipment and paid inventory sales.
+            MemberOf(typeof(MobileParty), "TotalWeightCarried", Inst, typeof(float));
+            MemberOf(typeof(MobileParty), "InventoryCapacity", Inst, typeof(int));
+            Type upgradeModel = TypeNamed(campaign, "TaleWorlds.CampaignSystem.ComponentInterfaces.PartyTroopUpgradeModel");
+            Type category = TypeNamed(core, "TaleWorlds.Core.ItemCategory");
+            Type formation = TypeNamed(core, "TaleWorlds.Core.FormationClass");
+            MemberOf(gameModels, "PartyTroopUpgradeModel", Inst, upgradeModel);
+            Method(upgradeModel, "CanPartyUpgradeTroopToTarget", Inst, typeof(bool), partyBase, character, character);
+            MemberOf(character, "UpgradeTargets", Inst, character?.MakeArrayType());
+            MemberOf(character, "UpgradeRequiresItemFromCategory", Inst, category);
+            MemberOf(character, "DefaultFormationClass", Inst, formation);
+            Method(character, "GetUpgradeXpCost", Inst, typeof(int), partyBase, typeof(int));
+            Method(character, "GetUpgradeGoldCost", Inst, typeof(int), partyBase, typeof(int));
+            MemberOf(item, "ItemCategory", Inst, category);
+            Method(troopRoster, "FindIndexOfTroop", Inst, typeof(int), character);
+            Method(troopRoster, "GetElementCopyAtIndex", Inst, troopElement, typeof(int));
+            Method(troopRoster, "GetElementXp", Inst, typeof(int), typeof(int));
+            Method(troopRoster, "SetElementXp", Inst, typeof(void), typeof(int), typeof(int));
+            Method(typeof(CampaignEventDispatcher), "OnPlayerUpgradedTroops", Inst, typeof(void), character, character, typeof(int));
+            Type equipmentSet = TypeNamed(core, "TaleWorlds.Core.Equipment");
+            Type equipmentIndex = TypeNamed(core, "TaleWorlds.Core.EquipmentIndex");
+            Type tracker = TypeNamed(campaign, "TaleWorlds.CampaignSystem.IViewDataTracker");
+            Type characterHelper = TypeNamed(campaign, "Helpers.CharacterHelper");
+            Type basicCharacter = TypeNamed(core, "TaleWorlds.Core.BasicCharacterObject");
+            Type modifier = TypeNamed(core, "TaleWorlds.Core.ItemModifier");
+            Type armor = TypeNamed(core, "TaleWorlds.Core.ArmorComponent");
+            Type monster = TypeNamed(core, "TaleWorlds.Core.Monster");
+            Type weapon = TypeNamed(core, "TaleWorlds.Core.WeaponComponentData");
+            Type settlementComponent = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Settlements.SettlementComponent");
+            MemberOf(typeof(Hero), "BattleEquipment", Inst, equipmentSet);
+            Method(typeof(Hero), "CanHeroEquipmentBeChanged", Inst, typeof(bool));
+            Method(equipmentSet, "get_Item", Inst, equipment, equipmentIndex);
+            Method(equipmentSet, "set_Item", Inst, typeof(void), equipmentIndex, equipment);
+            Method(characterHelper, "CanUseItem", Stat, typeof(bool), basicCharacter, equipment);
+            Method(tracker, "GetInventoryLocks", Inst, typeof(IEnumerable<string>));
+            MemberOf(equipment, "IsEmpty", Inst, typeof(bool));
+            MemberOf(equipment, "IsQuestItem", Inst, typeof(bool));
+            MemberOf(equipment, "ItemValue", Inst, typeof(int));
+            MemberOf(equipment, "ItemModifier", Inst, modifier);
+            MemberOf(modifier, "StringId", Inst, typeof(string));
+            foreach (string armorMethod in new[] { "GetModifiedHeadArmor", "GetModifiedBodyArmor", "GetModifiedArmArmor", "GetModifiedLegArmor", "GetModifiedMountBodyArmor" })
+                Method(equipment, armorMethod, Inst, typeof(int));
+            MemberOf(item, "NotMerchandise", Inst, typeof(bool));
+            MemberOf(item, "ArmorComponent", Inst, armor);
+            MemberOf(item, "PrimaryWeapon", Inst, weapon);
+            MemberOf(weapon, "ItemUsage", Inst, typeof(string));
+            MemberOf(horse, "Monster", Inst, monster);
+            MemberOf(monster, "FamilyType", Inst, typeof(int));
+            MemberOf(armor, "FamilyType", Inst, typeof(int));
+            MemberOf(typeof(Settlement), "SettlementComponent", Inst, settlementComponent);
+            MemberOf(settlementComponent, "Gold", Inst, typeof(int));
             Method(equipment, "IsEqualTo", Inst, typeof(bool), equipment);
             MemberOf(item, "HasHorseComponent", Inst, typeof(bool));
             MemberOf(item, "HorseComponent", Inst, horse);
@@ -555,7 +726,25 @@ namespace BannerlordAutopilot
             Need(list != null && list.ReturnType.IsGenericType && list.ReturnType.GetGenericTypeDefinition().Name == "MBList`1"
                  && list.ReturnType.GetGenericArguments()[0] == troopElement, "TroopRoster.GetTroopRoster() → MBList<TroopRosterElement>");
             MemberOf(troopRoster, "TotalManCount", Inst, typeof(int));
+            MemberOf(troopRoster, "TotalWounded", Inst, typeof(int));
             MemberOf(troopRoster, "TotalRegulars", Inst, typeof(int));
+
+            // Недельная сводка прогресса (AutopilotBehavior.WriteWeeklyProgress)
+            MemberOf(typeof(Clan), "PlayerClan", Stat, typeof(Clan));
+            MemberOf(typeof(Clan), "MapFaction", Inst, faction);
+            Type fiefs = MemberType(typeof(Clan), "Fiefs", Inst, false, out _);
+            Need(fiefs != null && fiefs.IsGenericType && fiefs.GetGenericTypeDefinition().Name == "MBReadOnlyList`1"
+                 && fiefs.GetGenericArguments()[0] == town, "Clan.Fiefs : MBReadOnlyList<Town>");
+            Type villages = MemberType(typeof(Clan), "Villages", Inst, false, out _);
+            Need(villages != null && villages.IsGenericType && villages.GetGenericTypeDefinition().Name == "MBReadOnlyList`1"
+                 && villages.GetGenericArguments()[0] == village, "Clan.Villages : MBReadOnlyList<Village>");
+            MemberOf(town, "Settlement", Inst, typeof(Settlement));
+            MemberOf(typeof(Settlement), "IsCastle", Inst, typeof(bool));
+            Type kingdom = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Kingdom");
+            Type factionHelper = TypeNamed(campaign, "Helpers.FactionHelper");
+            Method(factionHelper, "GetEnemyKingdoms", Stat,
+                kingdom != null ? typeof(IEnumerable<>).MakeGenericType(kingdom) : null, faction);
+            MemberExists(kingdom, "Name", Inst);
             MemberOf(troopRoster, "TotalHeroes", Inst, typeof(int));
             MemberOf(troopElement, "Character", Inst, character);
             MemberOf(troopElement, "Number", Inst, typeof(int));
@@ -661,5 +850,3 @@ namespace BannerlordAutopilot
         }
     }
 }
-
-

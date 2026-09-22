@@ -1,0 +1,18 @@
+{
+  "Commit": "72d7cd5",
+  "InstalledAt": "2026-09-22T08:37:35.2967029+05:00",
+  "Backup": "D:\\shedlink-build\\autopilot-dll-rollback\\20260922-083734-before-army-cohesion",
+  "Target": "X:\\SteamLibrary\\steamapps\\common\\Mount & Blade II Bannerlord\\Modules\\Shedoy23.BannerlordAutopilot\\bin\\Win64_Shipping_Client",
+  "Files": [
+    {
+      "File": "BannerlordAutopilot.dll",
+      "SHA256": "43A22FBCA3A9E99BD05C4E6144EE014090A5CA496F8359775C12F135DD2CFC85",
+      "MD5": "F8E6ADFD4F403763AAFE4B889B6BD1A4"
+    },
+    {
+      "File": "BannerlordAutopilot.pdb",
+      "SHA256": "9B987FE68B9E8DB06785D90C8AC8F11A2856F5B01D0CB457C46C96D588A2EFAD",
+      "MD5": "C0A47D84ECEDAD13006DD677B0DD0962"
+    }
+  ]
+}

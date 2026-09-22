@@ -65,6 +65,29 @@ namespace BannerlordAutopilot
                 }
                 _prisonerView = vm;
                 if (_prisonerDoneRequested) return true;
+                // Loot has two independent left-hand lists: rescued members and prisoners.
+                // The native transfer arrow retains wounds and performs eligibility checks.
+                object members = ReadScreenMember(ReadScreenMember(logic, "CurrentData"), "RightMemberRoster");
+                int membersBefore = Convert.ToInt32(ReadScreenMember(members, "TotalManCount"));
+                int memberLimit = Convert.ToInt32(ReadScreenMember(logic, "RightPartyMembersSizeLimit"));
+                int memberFree = Math.Max(0, memberLimit - membersBefore);
+                var rescued = ReadScreenMember(vm, "OtherPartyTroops") as IEnumerable;
+                if (members == null || rescued == null) throw new InvalidOperationException("список освобождённых бойцов отсутствует");
+                if (memberFree > 0) foreach (object troop in rescued)
+                {
+                    if (!(ReadScreenMember(troop, "IsTroopTransferrable") is true)) continue;
+                    object side = ReadScreenMember(troop, "Side");
+                    if (side?.ToString() != "Left") continue;
+                    int count = Math.Min(memberFree, Convert.ToInt32(ReadScreenMember(ReadScreenMember(troop, "Troop"), "Number")));
+                    if (count <= 0) continue;
+                    vm.GetType().GetMethod("OnTransferTroop", BindingFlags.NonPublic | BindingFlags.Instance)
+                        .Invoke(vm, new[] { troop, (object)(-1), count, side });
+                    vm.GetType().GetMethod("ExecuteRemoveZeroCounts").Invoke(vm, null);
+                    int after = Convert.ToInt32(ReadScreenMember(members, "TotalManCount"));
+                    if (after != membersBefore + count) Disable("освобождённые бойцы: перенос не подтвердился, повторять не буду");
+                    else AutopilotLog.Write("ПОПОЛНЕНИЕ: принято освобождённых бойцов " + count + ", в отряде " + after + "/" + memberLimit);
+                    return true;
+                }
                 object roster = ReadScreenMember(ReadScreenMember(logic, "CurrentData"), "RightPrisonerRoster");
                 int before = Convert.ToInt32(ReadScreenMember(roster, "TotalManCount"));
                 int limit = Convert.ToInt32(ReadScreenMember(logic, "RightPartyPrisonersSizeLimit"));
@@ -129,4 +152,3 @@ namespace BannerlordAutopilot
         }
     }
 }
-

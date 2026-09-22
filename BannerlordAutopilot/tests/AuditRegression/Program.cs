@@ -40,6 +40,9 @@ internal static partial class Program
 
     static AutopilotBehavior Fresh()
     {
+        MobileParty.AllBanditParties.Clear();
+        MobileParty.All.Clear();
+        Settlement.All.Clear();
         Hideout.All.Clear();
         MobileParty.MainParty = new MobileParty(); Hero.MainHero = new Hero(); Campaign.Current = new Campaign();
         TaleWorlds.Core.Game.Current = new TaleWorlds.Core.Game(); CampaignTime.TestHours = 0; MenuContext.Invoked.Clear();
@@ -56,6 +59,7 @@ internal static partial class Program
         TaleWorlds.Library.InformationManager.TestInquiryActive = false;
         TaleWorlds.CampaignSystem.Clan.PlayerClan = new TaleWorlds.CampaignSystem.Clan();
         TaleWorlds.ScreenSystem.ScreenManager.TopScreen = null; Helpers.MobilePartyHelper.TestLockedIds.Clear();
+        Helpers.FactionHelper.TestEnemies.Clear();
         return new AutopilotBehavior { RandomDialogsEnabled = false };
     }
 
@@ -211,6 +215,8 @@ internal static partial class Program
 
     static bool Waiting => PlayerEncounter.Current != null && PlayerEncounter.Current.IsPlayerWaiting;
 
+    static MapState Map() => (MapState)TaleWorlds.Core.Game.Current.GameStateManager.ActiveState;
+
     static bool TimeRuns
     {
         get
@@ -279,7 +285,15 @@ internal static partial class Program
     {
         Console.WriteLine("Регрессия автопилота по независимой проверке 12.09 (заменители движка, не кампания)");
         EngineContract.Verify();
+        Check(ServiceLimits.MinGoldReserve == 0, "default reserve has no fixed gold floor");
         OperationTests();
+        EncounterTests();
+        ConquestTests();
+        DefenseTests();
+        EquipmentTradeTests();
+        TroopUpgradeTests();
+        BanditGatheringTests();
+        ProgressTests();
         Try("random default and lord introduction", () => {
             var b=Fresh(); b.RandomDialogsEnabled=new AutopilotBehavior().RandomDialogsEnabled; Enable(b);
             PlayerEncounter.Current=new PlayerEncounter();PlayerEncounter.EncounteredMobileParty=new MobileParty();
@@ -289,6 +303,45 @@ internal static partial class Program
             Check(c.Selected.Contains("lord_introduction") && b.CurrentMode==AutopilotBehavior.Mode.Apply,"lord introduction proceeds with default random mode");
         });
         PrisonerTests();
+        Try("побеждённый лорд: пленение и продолжение без вариантов", () => {
+            var b=Fresh(); Enable(b); b.RandomDialogsEnabled=false;
+            var c=Campaign.Current.ConversationManager; c.IsConversationInProgress=true;
+            Campaign.Current.CurrentConversationContext=ConversationContext.CapturedLord;
+            c.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption {Id="talk_lord_defeat_to_lord_capture_and_kill",IsClickable=true});
+            c.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption {Id="talk_lord_defeat_to_lord_capture",IsClickable=true});
+            c.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption {Id="talk_lord_defeat_to_lord_release",IsClickable=true});
+            b.PollDialogs();
+            Check(c.Selected.SequenceEqual(new[]{"talk_lord_defeat_to_lord_capture"}),"берёт лорда в плен, не казнит и не отпускает");
+            SetClock(DateTime.UtcNow.AddSeconds(3)); b.PollDialogs();
+            Check(c.ContinueCalls==1,"последнюю реплику после пленения закрывает");
+            SetClock(DateTime.UtcNow);
+        });
+        Try("встреча: штатная реплика без вариантов", () => {
+            var b=Fresh(); Enable(b); b.RandomDialogsEnabled=false;
+            var c=Campaign.Current.ConversationManager; c.IsConversationInProgress=true;
+            Campaign.Current.CurrentConversationContext=ConversationContext.PartyEncounter;
+            b.PollDialogs();
+            Check(c.ContinueCalls==1,"экран «нажмите, чтобы продолжить» закрыт без случайного режима");
+        });
+        Try("освобождение героя после боя", () => {
+            var b=Fresh(); Enable(b);
+            var ours=new TestFaction(); var enemy=new TestFaction(); ours.Enemies.Add(enemy);
+            var target=new MobileParty { MapFaction=enemy };
+            MobileParty.MainParty.MapFaction=ours; MobileParty.MainParty.TargetParty=target;
+            MobileParty.MainParty.DefaultBehavior=AiBehavior.EngageParty;
+            PlayerEncounter.Current=new PlayerEncounter(); PlayerEncounter.EncounteredMobileParty=target;
+            var conversation=Campaign.Current.ConversationManager;
+            conversation.ConversationParty=new MobileParty(); conversation.IsConversationInProgress=true;
+            conversation.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption {Id="liberate_hero_4",IsClickable=true});
+            conversation.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption {Id="liberate_hero_3",IsClickable=true});
+            b.PollDialogs();
+            Check(conversation.Selected.SequenceEqual(new[]{"liberate_hero_3"}),"освобождает, не пленит спасённого героя");
+            conversation.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption {Id="liberate_hero_8",IsClickable=true});
+            conversation.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption {Id="liberate_hero_7",IsClickable=true});
+            SetClock(DateTime.UtcNow.AddSeconds(3)); b.PollDialogs();
+            Check(conversation.Selected.SequenceEqual(new[]{"liberate_hero_3","liberate_hero_7"}),"завершает благодарность без требования долга");
+            SetClock(DateTime.UtcNow);
+        });
         LootTests();
         DonationTests();
 
@@ -320,7 +373,7 @@ internal static partial class Program
         {
             var b = Fresh(); Enable(b);
             PlayerEncounter.Current = new PlayerEncounter(); PlayerEncounter.EncounterSettlement = new Settlement();
-            MobileParty.MainParty.MapEvent = new MapEvent(); MobileParty.MainParty.SiegeEvent = new object();
+            MobileParty.MainParty.MapEvent = new MapEvent(); MobileParty.MainParty.SiegeEvent = new TaleWorlds.CampaignSystem.Siege.SiegeEvent();
             b.PollState();
             Check(b.CurrentMode == AutopilotBehavior.Mode.Off, "бой/осада выключают автопилот");
             Check(PlayerEncounter.Current != null && !PlayerEncounter.LeaveEncounter && PlayerEncounter.FinishCalls == 0,
@@ -390,6 +443,19 @@ internal static partial class Program
             Check(conversation.Selected.Count==16 && !conversation.Selected.Contains("too_fast"), "между случайными выборами есть пауза; максимум 16 шагов");
             Check(!b.RandomDialogsEnabled, "зациклившийся случайный режим выключается");
             SetClock(DateTime.UtcNow);
+        });
+        Try("случайно принятая сдача разрешает экран пленных", () => {
+            var b=Fresh(); Enable(b); b.RandomDialogsEnabled=true;
+            PlayerEncounter.Current=new PlayerEncounter();
+            var c=Campaign.Current.ConversationManager; c.IsConversationInProgress=true;
+            c.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption {
+                Id="common_bandit_surrender_accepted", IsClickable=true });
+            b.PollDialogs();
+            var authorized=typeof(AutopilotBehavior).GetField("_prisonerEncounter",
+                BindingFlags.Instance | BindingFlags.NonPublic).GetValue(b);
+            Check(c.Selected.SequenceEqual(new[]{"common_bandit_surrender_accepted"})
+                && ReferenceEquals(authorized,PlayerEncounter.Current),
+                "экран пленных привязан к текущей встрече до штатной реплики");
         });
         foreach (bool randomEnabled in new[] { false, true })
         Try("отдельный случайный режим " + randomEnabled, () => {
@@ -521,6 +587,71 @@ internal static partial class Program
             Check(TimeRuns && Campaign.Current.TimeControlMode != CampaignTimeControlMode.UnstoppableFastForward
                   && Campaign.Current.TimeControlMode != CampaignTimeControlMode.StoppableFastForward,
                   "после выхода время идёт с той скоростью, что была до города (обычной, не ускоренной ожиданием)");
+        });
+        // Краш 18.09 14:34:34 (0xC0000005). Движок кладёт выпавшее на входе
+        // событие в MapState.NextIncident, а условия проверяет на СЛЕДУЮЩЕМ
+        // Campaign.Tick (10136-10143). Пять ванильных событий с триггером «вход»
+        // читают в условии MainParty.CurrentSettlement без проверки на null
+        // (incident_hammer_of_the_sun, ...through_proper_channels, ...the_quiet_life,
+        // ...occupational_safety, ...jobs_for_the_lads), поэтому выход раньше показа
+        // даёт NullReferenceException в чужом коде и закрывает игру.
+        // Разбор: review/INCIDENT_EXIT_CRASH_2026-09-18.md.
+        Try("выпавшее событие держит выход", () =>
+        {
+            var b = Fresh(); Enable(b); b.PollState();
+            var town = ArriveTown(); b.PollState();
+            var korsia = new Settlement { Name = "Корсия" };
+            Scores((AiBehavior.GoToSettlement, korsia, 2.0f), (AiBehavior.GoToSettlement, town, 1.0f));
+            Map().NextIncident = new TaleWorlds.CampaignSystem.Incidents.Incident { StringId = "incident_hammer_of_the_sun" };
+            HourlyTick(b); b.PollState();
+            Check(MobileParty.MainParty.CurrentSettlement == town && PlayerEncounter.FinishCalls == 0,
+                  "пока событие в очереди, партия остаётся в поселении");
+            Check(!MenuContext.Invoked.Contains("wait_leave"),
+                  "«Перестать ждать» не нажато: выход держится ДО показа события, а не после");
+            b.PollState();
+            Check(MobileParty.MainParty.CurrentSettlement == town, "следующий опрос тоже не выводит партию");
+            Map().NextIncident = null;                      // движок показал событие и очистил очередь
+            b.PollState();
+            Check(MobileParty.MainParty.CurrentSettlement == null && PlayerEncounter.Current == null,
+                  "очередь пуста — выход происходит");
+            Check(MobileParty.MainParty.TargetSettlement == korsia,
+                  "решение, ради которого выходили, применено после задержки");
+        });
+        Try("событие возникло при переключении меню после первой проверки очереди", () =>
+        {
+            var b = Fresh(); Enable(b); b.PollState();
+            var town = ArriveTown(); b.PollState();
+            var destination = new Settlement { Name = "Следующий город" };
+            Scores((AiBehavior.GoToSettlement, destination, 2f), (AiBehavior.GoToSettlement, town, 1f));
+            var wait = Campaign.Current.CurrentMenuContext.GameMenu.Options.First(o => o.IdString == "wait_leave");
+            var original = wait.Consequence;
+            wait.Consequence = () => {
+                original();
+                Map().NextIncident = new TaleWorlds.CampaignSystem.Incidents.Incident { StringId = "incident_hammer_of_the_sun" };
+            };
+            HourlyTick(b); b.PollState();
+            Check(MobileParty.MainParty.CurrentSettlement == town && PlayerEncounter.FinishCalls == 0,
+                  "новое событие сохраняет город до движковой проверки его условия");
+            Check(Map().NextIncident != null, "событие не потеряно из-за нового приказа");
+            Map().NextIncident = null; b.PollState();
+            Check(MobileParty.MainParty.CurrentSettlement == null && MobileParty.MainParty.TargetSettlement == destination,
+                  "после обработки события отложенный выход и цель сохраняются");
+        });
+        Try("событие не показалось — выход не зависает", () =>
+        {
+            var b = Fresh(); Enable(b); b.PollState();
+            var town = ArriveTown(); b.PollState();
+            var korsia = new Settlement { Name = "Корсия" };
+            Scores((AiBehavior.GoToSettlement, korsia, 2.0f), (AiBehavior.GoToSettlement, town, 1.0f));
+            Map().NextIncident = new TaleWorlds.CampaignSystem.Incidents.Incident { StringId = "incident_stuck" };
+            HourlyTick(b);
+            for (int i = 0; i < 24; i++) b.PollState();     // предел ожидания — 20 опросов по 0.5 с
+            Check(Map().NextIncident == null,
+                  "после предела очередь снята самим автопилотом — движку нечего проверять после выхода");
+            Check(MobileParty.MainParty.CurrentSettlement == null && MobileParty.MainParty.TargetSettlement == korsia,
+                  "автопилот вышел и применил решение, а не завис в поселении");
+            Check(AutopilotLog.Lines.Any(l => l.Contains("СОБЫТИЕ") && l.Contains("снято")),
+                  "снятие события записано в журнал");
         });
         Try("выход от ворот замка снаружи", () =>
         {
@@ -694,6 +825,83 @@ internal static partial class Program
             Check(MobileParty.MainParty.DefaultBehavior == AiBehavior.PatrolAroundPoint
                   && MobileParty.MainParty.TargetSettlement == ustokol,
                   "через сутки охлаждение снимается и штатный сильный патруль снова допустим");
+        });
+        Try("сильный патруль Диатмы уступает поездке в другой город", () =>
+        {
+            var b = Fresh(); Enable(b);
+            var faction = new TestFaction(); MobileParty.MainParty.MapFaction = faction;
+            var origin = new Settlement { Name = "Диатма", IsTown = true, MapFaction = faction };
+            var destination = new Settlement { Name = "Алосея", IsTown = true, MapFaction = faction };
+            var unsafeTown = new Settlement { Name = "Осаждённый город", IsTown = true,
+                IsUnderSiege = true, MapFaction = faction };
+            Scores((AiBehavior.PatrolAroundPoint, origin, 4.309f),
+                   (AiBehavior.GoToSettlement, destination, 0.64f),
+                   (AiBehavior.GoToSettlement, unsafeTown, 2f));
+            CampaignTime.TestHours = 0; HourlyTick(b);
+            for (int h = 1; h <= 24; h++) { CampaignTime.TestHours = h; HourlyTick(b); }
+            Check(MobileParty.MainParty.DefaultBehavior == AiBehavior.GoToSettlement
+                  && MobileParty.MainParty.TargetSettlement == destination,
+                  "после суток патруля маршрут идёт в безопасный другой город вопреки оценке 4.309");
+            for (int h = 25; h <= 30; h++) { CampaignTime.TestHours = h; HourlyTick(b); }
+            Check(MobileParty.MainParty.TargetSettlement == destination,
+                  "до прибытия не разворачивается обратно к Диатме");
+            Check(AutopilotLog.Lines.Any(l => l.Contains("ПОЕЗДКА:") && l.Contains("Алосея")),
+                  "принудительная смена города объяснена в журнале");
+            ArriveTown(destination); b.PollState();
+            var nextTown = new Settlement { Name = "Джерак", IsTown = true, MapFaction = faction };
+            Scores((AiBehavior.PatrolAroundPoint, origin, 4.309f),
+                   (AiBehavior.GoToSettlement, destination, 0.4f),
+                   (AiBehavior.GoToSettlement, nextTown, 0.5f));
+            for (int h = 31; h <= 36; h++) { CampaignTime.TestHours = h; HourlyTick(b); }
+            Check(AutopilotLog.Lines.Any(l => l.Contains("ПОЕЗДКА: прибыли") && l.Contains("Алосея"))
+                  && AutopilotLog.Lines.Any(l => l.Contains("решено уйти из «Алосея»") && l.Contains("Джерак")),
+                  "после прибытия Диатма временно исключена, следующий маршрут ведёт в иной город");
+        });
+        Try("недавно посещённый город уступает новой мирной цели", () => {
+            var b=Fresh(); Enable(b);
+            var faction=new TestFaction(); MobileParty.MainParty.MapFaction=faction;
+            var diatma=new Settlement { Name="Диатма", IsTown=true, MapFaction=faction };
+            var fresh=new Settlement { Name="Алосея", IsTown=true, MapFaction=faction };
+            ArriveTown(diatma); b.PollState();
+            Scores((AiBehavior.GoToSettlement, diatma, 5f),
+                   (AiBehavior.GoToSettlement, fresh, .6f));
+            HourlyTick(b);
+            Check(AutopilotLog.Lines.Any(l=>l.Contains("решено уйти из «Диатма»") && l.Contains("Алосея")),
+                  "обычный высокий балл недавнего города не удерживает партию на месте");
+            Check(AutopilotLog.Lines.Any(l=>l.Contains("недавние города отложены")),
+                  "причина смены города видна в журнале");
+        });
+        Try("когда все города знакомы, поездка идёт в самый давний", () => {
+            var b=Fresh(); Enable(b);
+            var faction=new TestFaction(); MobileParty.MainParty.MapFaction=faction;
+            var origin=new Settlement { Name="Диатма", IsTown=true, MapFaction=faction };
+            var older=new Settlement { Name="Роти", IsTown=true, MapFaction=faction };
+            var newer=new Settlement { Name="Эпикротея", IsTown=true, MapFaction=faction };
+            var visits=(Dictionary<Settlement,double>)typeof(AutopilotBehavior)
+                .GetField("_recentTownVisits",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(b);
+            visits[older]=-100; visits[newer]=-20;
+            Scores((AiBehavior.PatrolAroundPoint, origin, 4.3f),
+                   (AiBehavior.GoToSettlement, older, .3f),
+                   (AiBehavior.GoToSettlement, newer, .8f));
+            CampaignTime.TestHours=0; HourlyTick(b);
+            for (int h=1;h<=24;h++) { CampaignTime.TestHours=h; HourlyTick(b); }
+            Check(MobileParty.MainParty.DefaultBehavior==AiBehavior.GoToSettlement
+                  && MobileParty.MainParty.TargetSettlement==older,
+                  "давно не посещённый город выигрывает у более высокой оценки недавнего");
+        });
+        Try("нет безопасного города — продолжаем патруль", () =>
+        {
+            var b = Fresh(); Enable(b);
+            var faction = new TestFaction(); MobileParty.MainParty.MapFaction = faction;
+            var origin = new Settlement { Name = "Диатма", IsTown = true, MapFaction = faction };
+            var blocked = new Settlement { Name = "Осада", IsTown = true, IsUnderSiege = true, MapFaction = faction };
+            Scores((AiBehavior.PatrolAroundPoint, origin, 4.309f),
+                   (AiBehavior.GoToSettlement, blocked, 0.64f));
+            CampaignTime.TestHours = 0; HourlyTick(b);
+            for (int h = 1; h <= 30; h++) { CampaignTime.TestHours = h; HourlyTick(b); }
+            Check(MobileParty.MainParty.DefaultBehavior == AiBehavior.PatrolAroundPoint
+                  && MobileParty.MainParty.TargetSettlement == origin,
+                  "не отправляем партию в осаждённый город ради смены места");
         });
         Try("малый перевес не дёргает текущий маршрут", () =>
         {
@@ -1291,5 +1499,3 @@ internal static partial class Program
         return failed;
     }
 }
-
-

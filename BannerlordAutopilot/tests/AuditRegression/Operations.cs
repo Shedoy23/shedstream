@@ -63,6 +63,30 @@ internal static partial class Program
             Check(clicks==0,"F10 не прорывается");
             Enable(b); b.PollState(); Check(clicks==0,"условия прорыва не обходятся");
         });
+        Try("осада прервала отдых: скрыта помощь, доступен выход", () => {
+            var b=Fresh(); var s=Siege(); s.Name="Диатма";
+            MobileParty.MainParty.CurrentSettlement=s;
+            var menu=new GameMenu { StringId="encounter_interrupted_siege_preparations" };
+            menu.Options.Add(new GameMenuOption { IdString="encounter_interrupted_siege_preparations_join_defend",
+                Condition=()=>false, Consequence=()=>throw new Exception("скрытая помощь нажата") });
+            menu.Options.Add(new GameMenuOption { IdString="encounter_interrupted_siege_preparations_leave_town",
+                Consequence=()=>PlayerEncounter.Finish() });
+            Show(menu); Enable(b); b.PollState();
+            Check(MenuContext.Invoked.SequenceEqual(new[]{"encounter_interrupted_siege_preparations_leave_town"})
+                  && b.CurrentMode==AutopilotBehavior.Mode.Apply && MobileParty.MainParty.CurrentSettlement==null,
+                  "при скрытой обороне нажата только штатная кнопка выхода, автопилот остался включён");
+            Check(AutopilotLog.Lines.Any(l=>l.Contains("ОСАДА: помощь защитникам скрыта") && l.Contains("Диатма")),
+                  "причина ухода из города видна в журнале");
+        });
+        Try("осада прервала отдых: доступная оборона приоритетнее выхода", () => {
+            var b=Fresh(); var s=Siege(); MobileParty.MainParty.CurrentSettlement=s;
+            var menu=new GameMenu { StringId="encounter_interrupted_siege_preparations" };
+            menu.Options.Add(new GameMenuOption { IdString="encounter_interrupted_siege_preparations_join_defend" });
+            menu.Options.Add(new GameMenuOption { IdString="encounter_interrupted_siege_preparations_leave_town" });
+            Show(menu); Enable(b); b.PollState();
+            Check(MenuContext.Invoked.SequenceEqual(new[]{"encounter_interrupted_siege_preparations_join_defend"}),
+                  "доступная помощь защитникам сохраняет прежний приоритет");
+        });
         Try("убежища: известная цель", () => {
             var b=Fresh(); Hideout.All.Clear(); CampaignTime.TestHours=12;
             Camp(1,false); var near=Camp(8); Camp(30); Enable(b); HourlyTick(b);
@@ -132,12 +156,52 @@ internal static partial class Program
             vm.IsDoneEnabled=true; Enable(b); b.PollState();
             Check(done==0,"ранее открытый выбор отряда не присваивается после F11");
         });
+        Try("убежище: окно выбора отряда не появилось", () => {
+            var t0=DateTime.UtcNow; SetClock(t0);
+            var b=Fresh(); CampaignTime.TestHours=12; var s=Camp(); int leaves=0;
+            PlayerEncounter.Current=new PlayerEncounter(); PlayerEncounter.EncounterSettlement=s; MobileParty.MainParty.CurrentSettlement=s;
+            // Штатный assault только зовёт Handler?.OnOpenTroopSelection: без обработчика
+            // кнопка молча не делает ничего, меню остаётся, игра стоит (21.09 20:34).
+            int assaults=0;
+            var menu=Menu("hideout_place","assault",()=>assaults++);
+            menu.Options.Add(new GameMenuOption {IdString="leave",Consequence=()=>{leaves++; PlayerEncounter.Finish();}});
+            Show(menu); Enable(b); b.PollState();
+            SetClock(t0.AddSeconds(10)); b.PollState(); b.PollState();
+            Check(assaults==1 && leaves==0 && b.CurrentMode==AutopilotBehavior.Mode.Apply,"первые 15 секунд окно ждём, не уходим и не жмём повторно");
+            // Решение владельца 21.09: на этом экране нужен штурм, а не уход.
+            SetClock(t0.AddSeconds(16)); b.PollState(); b.PollState();
+            Check(assaults==2 && leaves==0,"после ожидания штурм повторяется, а не заменяется уходом");
+            SetClock(t0.AddSeconds(32)); b.PollState(); b.PollState();
+            Check(assaults==3 && leaves==0,"вторая попытка повтора тоже штурмует");
+            SetClock(t0.AddSeconds(48)); b.PollState(); b.PollState();
+            Check(assaults==3 && leaves==1,"после трёх молчаливых штурмов уходим штатной кнопкой, а не стоим на паузе");
+            Check(b.CurrentMode==AutopilotBehavior.Mode.Apply,"неоткрывшееся окно больше не выключает автопилот");
+            Check(AutopilotLog.Lines.Any(l=>l.Contains("повторяем штатный штурм")),"причина и номер попытки записаны в журнал");
+            SetClock(DateTime.UtcNow);
+        });
+        Try("осада: оборона недоступна — прорыв наружу", () => {
+            var b=Fresh(); var ours=new TestFaction(); MobileParty.MainParty.MapFaction=ours;
+            var s=new Settlement {IsUnderSiege=true,MapFaction=ours};
+            PlayerEncounter.Current=new PlayerEncounter(); PlayerEncounter.EncounterSettlement=s;
+            MobileParty.MainParty.CurrentSettlement=s;
+            var menu=new GameMenu {StringId="encounter_interrupted_siege_preparations"};
+            menu.Options.Add(new GameMenuOption {IdString="encounter_interrupted_siege_preparations_join_defend",IsEnabled=false,Consequence=()=>{}});
+            menu.Options.Add(new GameMenuOption {IdString="encounter_interrupted_siege_preparations_break_out_of_town",Consequence=()=>
+                Show(Menu("break_out_menu","break_out_menu_accept",()=>{
+                    MobileParty.MainParty.CurrentSettlement=null; PlayerEncounter.EncounterSettlement=null;
+                    Show(Menu("break_out_debrief_menu","break_out_debrief_continue",()=>PlayerEncounter.Finish()));
+                }))});
+            Show(menu); Enable(b); b.PollState(); b.PollState(); b.PollState();
+            Check(MenuContext.Invoked.SequenceEqual(new[]{"encounter_interrupted_siege_preparations_break_out_of_town","break_out_menu_accept","break_out_debrief_continue"}),
+                "прорыв идёт штатной цепочкой: подтверждение и дебриф");
+            Check(b.CurrentMode==AutopilotBehavior.Mode.Apply && PlayerEncounter.Current==null,"прорыв доведён до конца и не выключает автопилот");
+        });
         Try("цель обороны и повтор убежища", () => {
             var b=Fresh(); CampaignTime.TestHours=12; Camp(); var ours=new TestFaction(); MobileParty.MainParty.MapFaction=ours;
             var s=new Settlement {IsUnderSiege=true,MapFaction=ours};
             CampaignEventDispatcher.NextScores.Add((new AIBehaviorData(s,AiBehavior.DefendSettlement,MobileParty.NavigationType.Default,false,false,false),58));
             Enable(b); HourlyTick(b);
-            Check(MobileParty.MainParty.DefaultBehavior==AiBehavior.DefendSettlement && MobileParty.MainParty.TargetSettlement==s,"штатная цель обороны не отбрасывается и приоритетнее зачистки");
+            Check(MobileParty.MainParty.DefaultBehavior==AiBehavior.GoToSettlement && MobileParty.MainParty.TargetSettlement==s && MobileParty.MainParty.IsMoving,"штатная цель обороны исполняется поездкой и приоритетнее зачистки");
         });
     }
 }

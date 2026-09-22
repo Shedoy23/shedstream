@@ -88,6 +88,7 @@ namespace BannerlordAutopilot
                 {
                     if (Mission.Current != null)
                     {
+                        behavior.WatchMission();
                         behavior.PollDialogs();
                         Mission.Current?.GetMissionBehavior<BattleAutopilotMission>()?.PollDeployment();
                         Mission.Current?.GetMissionBehavior<BattleAutopilotMission>()?.PollCompletedBattle(0.5f);

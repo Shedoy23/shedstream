@@ -17,16 +17,83 @@ namespace BannerlordAutopilot
     {
         // Session-owned operation: a menu name alone never authorizes another encounter.
         private Settlement _operationSettlement, _hideoutRoute;
+        private PlayerEncounter _simulationEncounter;
+        private object _finishedSimulation;
+
+        private bool TrySendTroopsWhenWounded()
+        {
+            if (_mode != Mode.Apply || Hero.MainHero?.IsWounded != true
+                || PlayerEncounter.Current == null || MenuDriver.CurrentMenuId != "encounter"
+                || InformationManager.IsAnyInquiryActive() || MenuDriver.CanInvoke("attack", out _)
+                || !MenuDriver.CanInvoke("str_order_attack", out _)) return false;
+            _simulationEncounter = PlayerEncounter.Current;
+            _finishedSimulation = null;
+            AuthorizePrisonerScreen();
+            if (!MenuDriver.TryInvoke("str_order_attack", out string why))
+            {
+                _simulationEncounter = null;
+                Disable("отправка войск недоступна: " + why);
+                return true;
+            }
+            AutopilotLog.Write("БОЙ: герой ранен; штатное «Послать воинов», ждём завершения авторасчёта");
+            return true;
+        }
+
+        private bool PollOwnedSimulation()
+        {
+            if (_mode != Mode.Apply || _simulationEncounter == null
+                || PlayerEncounter.Current != _simulationEncounter) return false;
+            object screen = (Game.Current?.GameStateManager?.ActiveState as MapState)?.Handler;
+            if (!(ReadScreenMember(screen, "IsInBattleSimulation") is true)) return false;
+            if (InformationManager.IsAnyInquiryActive() || ReadScreenMember(screen, "IsEscapeMenuOpened") is true) return true;
+            try
+            {
+                Type viewType = null;
+                foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    viewType = assembly.GetType("SandBox.GauntletUI.Map.GauntletMapBattleSimulationView", false);
+                    if (viewType != null) break;
+                }
+                object view = null;
+                foreach (var method in screen.GetType().GetMethods())
+                    if (viewType != null && method.Name == "GetMapView" && method.IsGenericMethodDefinition && method.GetParameters().Length == 0)
+                    { view = method.MakeGenericMethod(viewType).Invoke(screen, null); break; }
+                if (view == null) return true;
+                object vm = viewType.GetField("_dataSource", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(view);
+                if (vm == null || ReferenceEquals(vm, _finishedSimulation)) return true;
+                if (!(ReadScreenMember(vm, "IsSimulation") is true) || !(ReadScreenMember(vm, "IsOver") is true)
+                    || !(ReadScreenMember(vm, "ShowScoreboard") is true)) return true;
+                // IsOver can be published a tick before BattleSimulation finishes. Calling
+                // ExecuteQuitAction in that gap opens the native retreat inquiry instead.
+                object simulation = vm.GetType().GetField("_battleSimulation", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(vm);
+                if (!(ReadScreenMember(simulation, "IsSimulationFinished") is true)) return true;
+                _finishedSimulation = vm;
+                vm.GetType().GetMethod("ExecuteQuitAction", Type.EmptyTypes).Invoke(vm, null);
+                AutopilotLog.Write("БОЙ: авторасчёт завершён; результат подтверждён штатной кнопкой");
+            }
+            catch (Exception ex) { Disable("завершение авторасчёта: " + ex); }
+            return true;
+        }
         private bool _hideoutAttackRequested, _awaitingHideoutTroops;
         private bool _hideoutMissionFinished;
+        private int _hideoutTroopRetries;
         private DateTime _troopsRequestedAt, _nextHideoutDialogAt;
         private readonly Dictionary<string, double> _hideoutRetryAfter = new Dictionary<string, double>();
+        private const int HideoutTroopRetryLimit = 2;
 
         private void ResetOperations()
         {
+            _simulationEncounter = null; _finishedSimulation = null;
+            _offensiveSiege = null;
+            _defenseTarget = null; _lastDefenseStatus = null;
+            _raidSettlement = null;
+            _preparingCampaign = false;
+            _configuredSiege = null;
+            _gatheringArmy = null; _invitedParties.Clear();
             _operationSettlement = _hideoutRoute = null;
             _hideoutAttackRequested = _awaitingHideoutTroops = false;
             _hideoutMissionFinished = false;
+            _hideoutTroopRetries = 0;
             _hideoutRetryAfter.Clear();
             _nextHideoutDialogAt = DateTime.MinValue;
         }
@@ -40,21 +107,51 @@ namespace BannerlordAutopilot
 
         private static bool CanStartOperation(MobileParty party)
         {
-            if (party == null || party.Army != null || party.IsCurrentlyAtSea || party.Ai == null || party.Ai.IsDisabled) return false;
+            if (party?.SiegeEvent?.BesiegerCamp.LeaderParty != null && !party.IsCurrentlyAtSea
+                && (party.SiegeEvent.BesiegerCamp.LeaderParty == party || party.SiegeEvent.BesiegerCamp.LeaderParty == party.Army?.LeaderParty)) return true;
+            if (!ControlsParty(party) || party.IsCurrentlyAtSea || party.Ai == null || party.Ai.IsDisabled) return false;
             var place = EncounterPlace(party);
             string menu = MenuDriver.CurrentMenuId;
-            return ((menu == "join_siege_event" || menu == "encounter_interrupted_siege_preparations") && FriendlySiege(place, party))
+            return ((menu == "join_siege_event" || menu == "encounter_interrupted_siege_preparations"
+                || menu == "join_encounter" || menu == "encounter_interrupted") && FriendlySiege(place, party))
                 || ((menu == "hideout_place" || menu == "hideout_after_wait") && place?.IsHideout == true);
         }
 
         internal bool IsOwnedOperationBattle(MobileParty party)
         {
             var battle = party?.MapEvent;
-            if (_mode != Mode.Apply || _operationSettlement == null || battle == null
-                || party.Army != null || battle.IsNavalMapEvent || PlayerEncounter.Current == null
-                || PlayerEncounter.Battle != battle || battle.MapEventSettlement != _operationSettlement) return false;
+            if (_mode != Mode.Apply || battle == null
+                || battle.IsNavalMapEvent || PlayerEncounter.Current == null) return false;
+
+            // When a relief army attacks the player's besieger camp, Bannerlord
+            // publishes the same MapEvent through EncounteredBattle first.  The
+            // PlayerEncounter.Battle property can remain null until after the
+            // encounter menu's Attack consequence. Requiring Battle here made
+            // the autopilot reject its own siege-outside fight, switch itself
+            // off, and leave the visible "Attack" button to the player.
+            if (PlayerEncounter.Battle != battle && (PlayerEncounter.EncounteredParty == null
+                || PlayerEncounter.EncounteredBattle != battle)) return false;
+            // Native field battles name a nearby village or no settlement. A relief
+            // battle belongs to our siege through the active camp, not that label.
+            var siege = party.SiegeEvent;
+            bool ownCamp = siege != null && _offensiveSiege != null
+                && siege.BesiegedSettlement == _offensiveSiege
+                && (siege.BesiegerCamp.LeaderParty == party
+                    || (party.Army?.LeaderParty != null && siege.BesiegerCamp.LeaderParty == party.Army.LeaderParty));
+            if (ownCamp && (battle.IsFieldBattle || battle.IsSiegeOutside || battle.IsSallyOut)
+                && (battle.MapEventSettlement == null || battle.MapEventSettlement.IsVillage
+                    || battle.MapEventSettlement == _offensiveSiege)) return true;
+            if (_operationSettlement == null || battle.MapEventSettlement != _operationSettlement) return false;
             return (_operationSettlement.IsHideout && _hideoutAttackRequested && battle.IsHideoutBattle)
-                || (!_operationSettlement.IsHideout && battle.IsSiegeAssault && battle.PlayerSide == BattleSideEnum.Defender);
+                || (_operationSettlement == _raidSettlement && battle.IsRaid)
+                || (_operationSettlement == _offensiveSiege
+                    && (battle.IsSallyOut || battle.IsSiegeOutside || battle.IsFieldBattle))
+                || (!_operationSettlement.IsHideout && battle.IsSiegeAssault
+                    && (battle.PlayerSide == BattleSideEnum.Defender
+                        || (_offensiveSiege == _operationSettlement && battle.PlayerSide == BattleSideEnum.Attacker)))
+                || (FriendlySiege(_operationSettlement, party)
+                    && ((battle.IsSiegeOutside && battle.PlayerSide == BattleSideEnum.Defender)
+                        || (battle.IsSallyOut && battle.PlayerSide == BattleSideEnum.Attacker)));
         }
 
         internal bool IsOwnedHideoutBattle => _operationSettlement?.IsHideout == true
@@ -68,17 +165,22 @@ namespace BannerlordAutopilot
 
         private bool PollOperations(MobileParty party)
         {
-            if (Hero.MainHero == null || Hero.MainHero.IsPrisoner || party.Army != null || party.IsCurrentlyAtSea) return false;
+            if (Hero.MainHero == null || Hero.MainHero.IsPrisoner || !ControlsParty(party) || party.IsCurrentlyAtSea) return false;
             if (IsOnFreeMap(party))
             {
                 _operationSettlement = null;
                 _hideoutAttackRequested = _awaitingHideoutTroops = false;
                 _hideoutMissionFinished = false;
+                _hideoutTroopRetries = 0;
                 return false;
             }
             var place = EncounterPlace(party);
             if (_operationSettlement == null && CanStartOperation(party)) _operationSettlement = place;
-            if (_operationSettlement == null || place != _operationSettlement) return false;
+            // Прорыв наружу выводит партию из поселения раньше, чем кончается штатная
+            // цепочка: подтверждение и дебриф принадлежат той же операции.
+            bool breakingOut = MenuDriver.CurrentMenuId == "break_out_menu"
+                               || MenuDriver.CurrentMenuId == "break_out_debrief_menu";
+            if (_operationSettlement == null || (place != _operationSettlement && !breakingOut)) return false;
             if (_mode != Mode.Apply) return true;
             if (InformationManager.IsAnyInquiryActive()) return true;
             try
@@ -128,14 +230,34 @@ namespace BannerlordAutopilot
                     case "break_in_debrief_menu": OperationClick("break_in_debrief_continue"); break;
                     case "encounter_interrupted_siege_preparations":
                         if (!FriendlySiege(place, party)) return false;
-                        OperationClick("encounter_interrupted_siege_preparations_join_defend"); break;
+                        if (MenuDriver.CanInvoke("encounter_interrupted_siege_preparations_join_defend", out _))
+                            OperationClick("encounter_interrupted_siege_preparations_join_defend");
+                        else if (MenuDriver.CanInvoke("encounter_interrupted_siege_preparations_leave_town", out _))
+                        {
+                            AutopilotLog.Write("ОСАДА: помощь защитникам скрыта; покидаем «" + place.Name + "» штатной кнопкой");
+                            OperationClick("encounter_interrupted_siege_preparations_leave_town");
+                        }
+                        // Спокойный выход игра прячет, когда мы уже воюем с осаждающим:
+                        // остаются оборона и прорыв. Без прорыва автопилот выключался,
+                        // и меню оставалось висеть на паузе (21.09, Замок Флинтолг).
+                        else if (MenuDriver.CanInvoke("encounter_interrupted_siege_preparations_break_out_of_town", out _))
+                        {
+                            AutopilotLog.Write("ОСАДА: оборона недоступна; прорываемся из «" + place.Name + "» штатной кнопкой, потери считает игра");
+                            OperationClick("encounter_interrupted_siege_preparations_break_out_of_town");
+                        }
+                        else Disable("осада: помощь защитникам, выход и прорыв недоступны: " + MenuDriver.Describe());
+                        break;
+                    case "break_out_menu": OperationClick("break_out_menu_accept"); break;
+                    case "break_out_debrief_menu": OperationClick("break_out_debrief_continue"); break;
                     case "menu_siege_strategies": ResumeOperationWait(); break;
                     case "join_encounter":
                     case "encounter_interrupted":
-                        var battle = PlayerEncounter.Current != null ? PlayerEncounter.EncounteredBattle : null;
+                        var battle = PlayerEncounter.EncounteredParty != null ? PlayerEncounter.EncounteredBattle : null;
                         if (battle?.MapEventSettlement != place || battle.IsNavalMapEvent
                             || !FriendlySiege(place, party)) return false;
-                        OperationClick(menu + "_help_defenders"); break;
+                        // During a sally the garrison is the ATTACKER; the besieger
+                        // camp is the defender. Native button conditions recheck sides.
+                        OperationClick(menu + (battle.IsSallyOut ? "_help_attackers" : "_help_defenders")); break;
                     case "encounter":
                         if (!IsOwnedOperationBattle(party)) return false;
                         OperationClick("attack"); break;
@@ -154,6 +276,7 @@ namespace BannerlordAutopilot
 
         private void OperationClick(string option)
         {
+            if (option == "attack" && TrySendTroopsWhenWounded()) return;
             if (MenuDriver.TryInvoke(option, out string why)) AutopilotLog.Write("ОПЕРАЦИЯ: " + option);
             else Disable("операция недоступна: " + why);
         }
@@ -181,7 +304,28 @@ namespace BannerlordAutopilot
                     source = view.GetType().GetField("_dataSource", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(view);
             if (source == null)
             {
-                if (Clock() - _troopsRequestedAt > TimeSpan.FromSeconds(15)) Disable("убежище: окно выбора отряда не появилось");
+                if (Clock() - _troopsRequestedAt <= TimeSpan.FromSeconds(15)) return;
+                // Штатный assault только зовёт MenuContext.OpenTroopSelection, а тот —
+                // Handler?.OnOpenTroopSelection: когда обработчика нет, кнопка молча не
+                // делает ничего. Прежде автопилот на это выключался, и меню убежища
+                // оставалось висеть на паузе (21.09 20:34). Решение владельца 21.09:
+                // на этом экране нужен штурм, а не уход, — повторяем штатную кнопку.
+                // Повтор безопасен: у последствия нет другого действия, кроме открытия
+                // окна, расстановка бандитов делается уже в OnTroopRosterManageDone.
+                _awaitingHideoutTroops = false;
+                if (++_hideoutTroopRetries <= HideoutTroopRetryLimit)
+                {
+                    _hideoutAttackRequested = false; // обычный путь нажмёт «Штурм» заново
+                    AutopilotLog.Write("УБЕЖИЩЕ: окно выбора отряда не появилось за 15 с; повторяем штатный штурм, попытка "
+                                       + (_hideoutTroopRetries + 1) + ". " + MenuDriver.Describe());
+                    return;
+                }
+                // Уход — только когда штурм не открыл окно трижды подряд: висеть на
+                // паузе хуже, а сутки на этот лагерь уже записаны, круга не будет.
+                _hideoutMissionFinished = true; // миссии не будет — выходим тем же штатным путём
+                AutopilotLog.Write("УБЕЖИЩЕ: окно выбора отряда не появилось "
+                                   + (HideoutTroopRetryLimit + 1) + " раза подряд; уходим штатной кнопкой. "
+                                   + MenuDriver.Describe());
                 return;
             }
             Type type = source.GetType();

@@ -11,8 +11,13 @@
     <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../src/TroopUpgrades.cs" Link="TroopUpgrades.cs" />
+    <Compile Include="../../src/EquipmentAndTrade.cs" Link="EquipmentAndTrade.cs" />
+    <Compile Include="../../src/AutopilotConquest.cs" Link="AutopilotConquest.cs" Condition="Exists('../../src/AutopilotConquest.cs')" />
+    <Compile Include="../../src/AutopilotDefense.cs" Link="AutopilotDefense.cs" Condition="Exists('../../src/AutopilotDefense.cs')" />
     <Compile Include="../../src/AutopilotBehavior.cs" Link="AutopilotBehavior.cs" />
     <Compile Include="../../src/AutopilotOperations.cs" Link="AutopilotOperations.cs" />
+    <Compile Include="../../src/AutopilotBanditGathering.cs" Link="AutopilotBanditGathering.cs" Condition="Exists('../../src/AutopilotBanditGathering.cs')" />
     <Compile Include="../../src/AutopilotLoot.cs" Link="AutopilotLoot.cs" />
     <Compile Include="../../src/AutopilotPrisoners.cs" Link="AutopilotPrisoners.cs" />
     <Compile Include="../../src/EngineContract.cs" Link="EngineContract.cs" />
@@ -20,4 +25,3 @@
     <Compile Include="../../src/SettlementServices.cs" Link="SettlementServices.cs" />
   </ItemGroup>
 </Project>
-

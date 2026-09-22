@@ -4,6 +4,7 @@ using System.Reflection;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Encounters;
 using TaleWorlds.CampaignSystem.Party;
+using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
 namespace BannerlordAutopilot
@@ -11,6 +12,40 @@ namespace BannerlordAutopilot
     public partial class AutopilotBehavior
     {
         private PlayerEncounter _lootEncounter;
+        private bool _postBattleRestPending;
+        private Settlement _postBattleRestSettlement;
+        private double _postBattleRestUntil = -1;
+        private const double PostBattleRestHours = 12;
+
+        // Only hold a native wait inside a peaceful town/castle. Travel does not
+        // count; leaving interrupts the timer. Session reset gives control back.
+        private bool HoldPostBattleRest(MobileParty party, Settlement settlement, bool waiting)
+        {
+            if (_mode != Mode.Apply || !_postBattleRestPending || settlement == null
+                || (!settlement.IsTown && !settlement.IsCastle) || settlement.IsUnderSiege
+                || party.CurrentSettlement != settlement || CannotStay(settlement)
+                || (party.MapFaction != null && settlement.MapFaction != null
+                    && party.MapFaction.IsAtWarWith(settlement.MapFaction))) return false;
+            if (!waiting) return true;
+            double now = CampaignTime.Now.ToHours;
+            if (_postBattleRestSettlement != settlement || _postBattleRestUntil < 0)
+            {
+                _postBattleRestSettlement = settlement;
+                _postBattleRestUntil = now + PostBattleRestHours;
+                AutopilotLog.Write("ОТДЫХ: после боя ждём в «" + settlement.Name + "» 12 игровых часов");
+            }
+            if (now >= _postBattleRestUntil)
+            {
+                _postBattleRestPending = false;
+                _postBattleRestSettlement = null;
+                _postBattleRestUntil = -1;
+                _hoursSinceThink = ThinkPeriodHours;
+                AutopilotLog.Write("ОТДЫХ: 12 игровых часов прошли, обычный выбор целей возобновлён");
+                return false;
+            }
+            _hasPendingDecision = false;
+            return true;
+        }
         private static object LootRoster(object logic, string side)
         {
             var method = logic.GetType().GetMethod("GetElementsInRoster");
@@ -145,6 +180,9 @@ namespace BannerlordAutopilot
                 }
                 if (ReferenceEquals(states.ActiveState, state) || InformationManager.IsAnyInquiryActive())
                 { Disable("добыча: завершение не подтверждено"); return true; }
+                _postBattleRestPending = true;
+                _postBattleRestSettlement = null;
+                _postBattleRestUntil = -1;
                 roster = MobileParty.MainParty.ItemRoster;
                 int actual = 0;
                 for (int i = 0; i < roster.Count; i++) actual = checked(actual + roster.GetElementCopyAtIndex(i).Amount);

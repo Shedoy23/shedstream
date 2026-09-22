@@ -261,6 +261,9 @@ namespace BannerlordAutopilot
 
         private void ResetSession()
         {
+            _postBattleRestPending = false;
+            _postBattleRestSettlement = null;
+            _postBattleRestUntil = -1;
             ResetPrisonerScreen();
             _lootEncounter = null;
             ResetOperations();
@@ -608,6 +611,8 @@ namespace BannerlordAutopilot
             Settlement peaceful = PeacefulSettlement(party);
             if (peaceful == null)
             {
+                _postBattleRestSettlement = null;
+                _postBattleRestUntil = -1;
                 if (PlayerEncounter.Current != null)
                 {
                     Disable("идёт встреча, которую автопилот не поддерживает");
@@ -667,6 +672,11 @@ namespace BannerlordAutopilot
             if (IsWaiting(menuId))
             {
                 NoteWaiting();
+                if (HoldPostBattleRest(party, peaceful, true))
+                {
+                    TryServe(party, peaceful, menuId, "отдых после боя");
+                    return false;
+                }
                 if (_hasPendingDecision)
                 {
                     StopWaitingAndLeave(party, peaceful);
@@ -688,6 +698,7 @@ namespace BannerlordAutopilot
                 case "town":
                 case "castle":
                 case "village":
+                    if (HoldPostBattleRest(party, peaceful, false)) _hasPendingDecision = false;
                     if (_hasPendingDecision || CannotStay(peaceful))
                     {
                         LeaveAndApplyPending(party, peaceful);
@@ -1167,6 +1178,7 @@ namespace BannerlordAutopilot
             {
                 _waitingSinceHours = CampaignTime.Now.ToHours;
                 _longStayWarned = false;
+                HoldPostBattleRest(party, settlement, true);
                 AutopilotLog.Write("  ЖДЁМ в «" + settlement.Name + "»: пункт «Подождать», время "
                                    + Campaign.Current.TimeControlMode
                                    + "; уйдём, когда пересчёт штатного AI выберет другую цель");
@@ -2030,6 +2042,7 @@ namespace BannerlordAutopilot
                 NoteWaiting();
             }
 
+            if (waitingIn != null && HoldPostBattleRest(party, waitingIn, true)) return;
             if (TryEmergencyDefense(party, waitingIn)) return;
             if (_gatheringArmy != null && _gatheringArmy == party.Army) return;
 

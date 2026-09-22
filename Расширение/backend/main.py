@@ -1544,6 +1544,12 @@ async def run_migrations():
         from migrations import m127_bannerlord_inventory_state
         await m127_bannerlord_inventory_state.apply(conn)
 
+        from migrations import m128_daily_claim_action
+        await m128_daily_claim_action.apply(conn)
+
+        from migrations import m129_reforge_rights
+        await m129_reforge_rights.apply(conn)
+
         from migrations import m128_bannerlord_tournament_queue_sync
         await m128_bannerlord_tournament_queue_sync.apply(conn)
 

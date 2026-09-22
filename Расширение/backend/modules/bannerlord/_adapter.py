@@ -843,6 +843,11 @@ class BannerlordAdapter(ModuleAdapter):
                 # refund fence so duplicate failure delivery also clears CD.
                 price = int(parsed.get("price") or 0)
 
+                if parsed.get("_daily") is True and username:
+                    await conn.execute(
+                        "DELETE FROM bannerlord_daily_claims WHERE channel_id=? AND username=? AND action_id=?",
+                        (channel_id, username, action_id))
+
                 if price <= 0 or not username:
                     # Не было payment'а (free action) — лог + mark.
                     # 2026-07-28: статус тоже делаем терминальным. Иначе

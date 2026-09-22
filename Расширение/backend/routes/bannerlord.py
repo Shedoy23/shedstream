@@ -572,15 +572,15 @@ async def bannerlord_daily_claim(request: Request):
                                f"Возвращайся завтра!",
                 }
 
+            action_id = uuid.uuid4().hex
             # INSERT claim record.
             await conn.execute(
                 "INSERT INTO bannerlord_daily_claims "
-                "(channel_id, username, claim_date, reward_type) "
-                "VALUES (?, ?, DATE('now'), ?)",
-                (channel_id, username, reward_type))
+                "(channel_id, username, claim_date, reward_type, action_id) "
+                "VALUES (?, ?, DATE('now'), ?, ?)",
+                (channel_id, username, reward_type, action_id))
 
             # Enqueue mod action.
-            action_id = uuid.uuid4().hex
             if reward_type == "gold":
                 payload = {
                     "initiated_by": username,

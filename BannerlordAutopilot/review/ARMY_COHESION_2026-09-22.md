@@ -41,6 +41,8 @@ MaintainArmy или army_dispersed. В текущих 6c8d1fb и последу�
 ContractCheck: 494 ожидания, exit 0. Release: 0 ошибок/предупреждений.
 Выводы: evidence/army-cohesion-{red,green,contract,build}.txt.
 DLL/PDB: D:/shedlink-build/army-cohesion-20260922/bin/.
-В игру НЕ установлено. Живой прирост/списание и проход экрана не проверены.
+Установлено 22.09 в 08:37 +05 при закрытой игре по запросу владельца;
+DLL/PDB сверены по SHA256, резерв и хеши в evidence/army-cohesion-install.json.
+Живой прирост/списание и проход экрана не проверены.
 Для живой проверки: своя армия <50, достаточное влияние, игровой час;
 затем army_dispersed → Продолжить → штатное меню/карта без выключения.

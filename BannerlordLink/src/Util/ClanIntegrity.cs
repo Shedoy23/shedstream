@@ -84,10 +84,14 @@ namespace BannerlordLink.Util
                     bool dangling = leader != null && !ReferenceEquals(leader.Clan, clan);
                     bool leaderless = leader == null;
 
-                    // Разбойничьи фракции живут без лидера и без королевства —
-                    // ваниль их в суточном тике пропускает. Не трогаем.
-                    if (leaderless && clan.Kingdom == null) continue;
                     if (!dangling && !leaderless) continue;
+                    // Вне королевства чинить нечего: на выборы ваниль водит
+                    // только членов королевства. Разбойничьи фракции (без
+                    // лидера и без королевства) попадают сюда же — и это
+                    // ванильная норма, их суточный тик пропускает.
+                    // Считать такой клан «вылеченным» = врать в лог на каждой
+                    // загрузке.
+                    if (clan.Kingdom == null) continue;
 
                     string name = Describe(clan);
 

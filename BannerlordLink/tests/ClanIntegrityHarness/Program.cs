@@ -103,6 +103,27 @@ class Program
             }
         }
 
+        // 4. Клан с висящей ссылкой, но УЖЕ вне королевства, чинить нечего:
+        //    он не попадает ни на выборы, ни в дипломатию. Считать это
+        //    «вылечили» — врать в лог на каждой загрузке.
+        {
+            Clan.All.Clear();
+            var stray = new Hero { Name = "endorphine13", Clan = null };
+            var idle = new Clan { Name = "[BLink] Рой пчел" };
+            idle.SetLeader(stray);
+            Clan.All.Add(idle);
+
+            int repaired = ClanIntegrity.RepairAll();
+
+            if (repaired != 0)
+            {
+                Console.WriteLine(
+                    "FAIL ремонт засчитал себе клан вне королевства — на каждой загрузке " +
+                    "в логе будет «вылечено 1», хотя ничего не менялось");
+                failures++;
+            }
+        }
+
         if (failures > 0)
         {
             Console.WriteLine($"{failures} check(s) failed");

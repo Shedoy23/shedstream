@@ -54,6 +54,22 @@ internal static partial class Program
 
     static void EncounterTests()
     {
+        Try("послебоевая благодарность: знакомство при оставшейся вражеской встрече", () =>
+        {
+            var b = Fresh(); Enable(b);
+            var battle = PursuedBanditInForeignBattle(new TestFaction());
+            MobileParty.MainParty.MapEvent = battle; PlayerEncounter.Battle = battle;
+            Campaign.Current.CurrentConversationContext = ConversationContext.PartyEncounter;
+            var c = Campaign.Current.ConversationManager;
+            c.ConversationParty = new MobileParty(); c.IsConversationInProgress = true;
+            var reply = new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption { Id = "ally_thanks_meet", IsClickable = false };
+            c.CurOptions.Add(reply);
+            b.PollDialogs(); Check(c.Selected.Count == 0, "недоступное знакомство не нажимается");
+            reply.IsClickable = true;
+            b.PollDialogs();
+            Check(c.Selected.SequenceEqual(new[] { "ally_thanks_meet" }), "благодарность союзника проходит до обработчика побеждённых бандитов");
+            Check(b.CurrentMode == AutopilotBehavior.Mode.Apply, "знакомство не выключает автопилот");
+        });
         Try("плен не выключает автопилот до освобождения", () =>
         {
             var b = Fresh(); Enable(b); Hero.MainHero.IsPrisoner = true; MobileParty.MainParty.IsActive = false;

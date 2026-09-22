@@ -15,13 +15,15 @@ namespace BannerlordAutopilot
         internal bool Ready { get; private set; }
         internal float Height { get; private set; } = 80f;
         internal float Pitch { get; private set; } = 40f;
+        private int _challengerTicks;
+        private float _challengerX, _challengerY;
         private float _yaw = 0.6f, _targetX, _targetY, _targetZ;
         internal float X, Y, Z;
         private float Distance => Height / (float)Math.Tan(Pitch * Math.PI / 180);
         internal float CameraX => X + (float)Math.Sin(_yaw) * Distance;
         internal float CameraY => Y - (float)Math.Cos(_yaw) * Distance;
         internal float CameraZ => Z + Height;
-        internal void ResetPosition() { Ready=false; }
+        internal void ResetPosition() { Ready=false; _challengerTicks=0; }
         internal void Zoom(float steps) { Height=Clamp(Height-steps*10f,45f,180f); }
         internal void Rotate(float dx,float dy)
         { _yaw += dx*0.006f; Pitch=Clamp(Pitch+dy*0.15f,25f,80f); }
@@ -40,8 +42,33 @@ namespace BannerlordAutopilot
                 int score=friends+enemies+3*Math.Min(friends,enemies);
                 if(score>bestScore) { bestScore=score; best=i; }
             }
+            var chosen=points[best];
+            if(Ready)
+            {
+                var current=new Point(_targetX,_targetY,_targetZ,false);
+                int friends=0,enemies=0;
+                foreach(var point in points) if(Near(current,point))
+                { if(point.Enemy) enemies++; else friends++; }
+                int currentScore=friends+enemies+3*Math.Min(friends,enemies);
+                if(currentScore>0 && !Near(current,chosen))
+                {
+                    // A remote reinforcement wave must remain substantially more
+                    // important for six seconds (12 half-second focus samples).
+                    if(bestScore>currentScore*1.5f+5)
+                    {
+                        var challenger=new Point(_challengerX,_challengerY,0,false);
+                        if(_challengerTicks==0 || !Near(challenger,chosen))
+                        { _challengerX=chosen.X; _challengerY=chosen.Y; _challengerTicks=0; }
+                        _challengerTicks++;
+                    }
+                    else _challengerTicks=0;
+                    if(_challengerTicks<12) chosen=current;
+                    else _challengerTicks=0;
+                }
+                else _challengerTicks=0;
+            }
             float x=0,y=0,z=float.MinValue; int count=0;
-            for(int i=0;i<points.Count;i++) if(Near(points[best],points[i]))
+            for(int i=0;i<points.Count;i++) if(Near(chosen,points[i]))
             { x+=points[i].X; y+=points[i].Y; z=Math.Max(z,points[i].Z); count++; }
             _targetX=x/count; _targetY=y/count; _targetZ=z;
             if(!Ready) { X=_targetX; Y=_targetY; Z=_targetZ; Ready=true; }

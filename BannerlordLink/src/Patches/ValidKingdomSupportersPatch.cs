@@ -44,8 +44,13 @@ namespace BannerlordLink.Patches
             {
                 var clan = supporter == null ? null : supporter.Clan;
                 var leader = clan == null ? null : clan.Leader;
+                // Фильтруем ТОЛЬКО то, на чём ваниль падает: лидера нет или он
+                // не состоит в этом клане (Supporter.Name → Clan.Leader.Name,
+                // GetRelationScore → Leader.Clan). Флаг «уничтожен» сюда НЕ
+                // входит: 22.09 под него попал живой клан зрителя
+                // (`[BLink] Рой пчёл` — 5 человек, отряд, 24 430 известности,
+                // свой лидер), и он молча потерял право голоса в королевстве.
                 bool usable = clan != null
-                              && !clan.IsEliminated
                               && leader != null
                               && ReferenceEquals(leader.Clan, clan);
                 if (usable) kept.Add(supporter);

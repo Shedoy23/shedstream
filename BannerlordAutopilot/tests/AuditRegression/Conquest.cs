@@ -300,10 +300,33 @@ internal static partial class Program
                            : (SiegeTarget(b) == null && MobileParty.MainParty.TargetSettlement == town),
                 "до следующего пересчёта бандиты не перехватывают поход или снабжение");
         });
-        Try("сплочённость своей армии поддерживается штатным расчётом", () => {
-            var b = Fresh(); ConquestWorld(); Enable(b);
-            var army = new Army { LeaderParty = MobileParty.MainParty, Cohesion = 40 }; MobileParty.MainParty.Army = army;
-            HourlyTick(b); Check(army.BoostChecks == 1, "при низкой сплочённости вызван штатный ThinkAboutCohesionBoost");
+        foreach (var scenario in new[] { "paid", "poor", "free", "foreign", "observe", "battle", "healthy" })
+        Try("сплочённость: реальный прирост и цена " + scenario, () => {
+            var b = Fresh(); ConquestWorld(); Enable(b, scenario == "observe" ? AutopilotBehavior.Mode.Observe : AutopilotBehavior.Mode.Apply);
+            Clan.PlayerClan.Influence = scenario == "poor" ? 6 : 7;
+            var army = new Army { LeaderParty = scenario == "foreign" ? new MobileParty() : MobileParty.MainParty,
+                Cohesion = scenario == "healthy" ? 50 : 40 };
+            MobileParty.MainParty.Army = army;
+            Campaign.Current.Models.ArmyManagementCalculationModel.BoostCost = scenario == "free" ? 0 : 7;
+            if (scenario == "battle") MobileParty.MainParty.MapEvent = new MapEvent();
+            HourlyTick(b);
+            bool boosted = scenario == "paid" || scenario == "free";
+            Check(army.Cohesion == (boosted || scenario == "healthy" ? 50 : 40), "сплочённость реально изменяется только у доступной своей армии");
+            Check(Clan.PlayerClan.Influence == (scenario == "paid" ? 0 : scenario == "poor" ? 6 : 7), "списывается ровно штатная цена, допустим точный остаток");
+        });
+        foreach (var scenario in new[] { "siege", "observe", "inquiry", "disabled", "restart" })
+        Try("экран распада армии: " + scenario, () => {
+            var b = Fresh(); var castle = ConquestWorld();
+            if (scenario != "restart") Enable(b, scenario == "observe" ? AutopilotBehavior.Mode.Observe : AutopilotBehavior.Mode.Apply);
+            MobileParty.MainParty.SiegeEvent = new SiegeEvent { BesiegedSettlement = castle };
+            int clicks = 0;
+            var menu = Menu("army_dispersed", "army_dispersed_continue", () => { clicks++; Campaign.Current.CurrentMenuContext = null; });
+            if (scenario == "disabled") menu.MenuOptions.First().IsEnabled = false;
+            Show(menu);
+            if (scenario == "inquiry") TaleWorlds.Library.InformationManager.TestInquiryActive = true;
+            if (scenario == "restart") Enable(b);
+            b.PollState();
+            Check(clicks == (scenario == "siege" || scenario == "restart" ? 1 : 0), "только доступная штатная кнопка, до осадного обработчика");
         });
         Try("рейд штатной цели проходит через меню и ожидание", () => {
             var b = Fresh(); var village = ConquestWorld(); village.IsCastle = false; village.IsVillage = true;
@@ -605,6 +628,8 @@ namespace TaleWorlds.CampaignSystem.ComponentInterfaces
     public class SiegeEventModel { public float GetSiegeStrategyScore(SiegeEvent siege, BattleSideEnum side, SiegeStrategy strategy) => strategy == DefaultSiegeStrategies.Custom ? 9000f : 1f; }
     public class ArmyManagementCalculationModel
     {
+        public int BoostCost = 7;
+        public int GetCohesionBoostInfluenceCost(Army army, int percentageToBoost = 100) => BoostCost;
         public bool CanPlayerCreateArmy(out TaleWorlds.Localization.TextObject why) { why = null; return true; }
         public bool CheckPartyEligibility(MobileParty party, out TaleWorlds.Localization.TextObject why) { why = null; return party.Army == null; }
         public int CalculatePartyInfluenceCost(MobileParty leader, MobileParty party) => 10;
@@ -619,7 +644,12 @@ namespace TaleWorlds.CampaignSystem
         public MobileParty LeaderParty { get; set; }
         public float Cohesion { get; set; } = 100;
         public int BoostChecks;
-        private void ThinkAboutCohesionBoost() { BoostChecks++; }
+        private void ThinkAboutCohesionBoost() { BoostChecks++; } // Native AI can decline the boost.
+        public void BoostCohesionWithInfluence(float gain, int cost)
+        {
+            if (Clan.PlayerClan.Influence < cost) return;
+            Clan.PlayerClan.Influence -= cost; Cohesion += gain;
+        }
     }
     public partial class Kingdom
     {

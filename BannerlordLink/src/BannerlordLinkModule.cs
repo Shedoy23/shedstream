@@ -313,6 +313,13 @@ namespace BannerlordLink
                     // TargetMethods при живом [HarmonyPatch] давал HarmonyException
                     // каждый запуск (лог-шум, failed=1). Скипаем явно → чисто.
                     "CleavePatch",
+                    // 2026-09-22, решение владельца: «выруби бессмертие».
+                    // Этот патч блокировал смерть адоптированных героев на
+                    // уровне кампании. Он же порождал кланы «уничтожен, но
+                    // живой»: ваниль помечала клан и убивала героев, смерть мы
+                    // глушили — флаг оставался. Теперь зрители смертны по
+                    // ванильным правилам. Вернуть = убрать эту строку.
+                    "KillCharacterAction_ApplyInternal_Patch",
                 };
                 int ok = 0, failed = 0, skipped = 0;
                 var asm = typeof(BannerlordLinkModule).Assembly;

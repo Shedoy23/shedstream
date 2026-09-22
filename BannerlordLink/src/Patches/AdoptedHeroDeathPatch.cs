@@ -160,6 +160,11 @@ namespace BannerlordLink.Patches
     [HarmonyPatch(typeof(Mission), "OnAgentRemoved")]
     internal static class Mission_OnAgentRemoved_Patch
     {
+        /// <summary>Выключатель боевого бессмертия зрителей (22.09 — выключено).
+        /// Поле, а не const: константу компилятор сворачивает и ругается на
+        /// недостижимый код, а выключатель должен читаться как выключатель.</summary>
+        private static readonly bool HeroBattleImmortality = false;
+
         [HarmonyPrefix]
         public static void Prefix(
             Agent affectedAgent,
@@ -196,6 +201,13 @@ namespace BannerlordLink.Patches
                     }
                     return;  // Mount handled — не fall-through к human check.
                 }
+
+                // 2026-09-22, решение владельца: «выруби бессмертие».
+                // Зритель погибает в бою по ванильным правилам. Защита КОНЯ
+                // выше оставлена намеренно: конь оплачен отдельно и к
+                // бессмертию героя отношения не имеет.
+                // Вернуть бессмертие в бою = поставить здесь true.
+                if (!HeroBattleImmortality) return;
 
                 // Branch 2: human agent → check if adopted hero.
                 if (!affectedAgent.IsHuman) return;

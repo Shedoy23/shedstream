@@ -1,3 +1,5 @@
+22.09: высокая камера боя готова ЛОКАЛЬНО:80м, колесо/средняя кнопка/F9, плавное слежение.35/0, BattleMission/Audit/Contract/Release прошли. Владелец запретил установку; игровая DLL не менялась. См. BannerlordAutopilot/review/OVERVIEW_CAMERA_2026-09-22.md.
+
 22.09 10:03 +05: Autopilot f2c9853 DLL/PDB УСТАНОВЛЕНЫ при закрытой игре; MD5 D453B09590BCB159EE57C3610BB26746, SHA256 обоих файлов совпал, rollback сохранён. Диалог и защита события проверены стендом; живой повтор ожидается. См. BannerlordAutopilot/HANDOFF.md.
 
 22.09: послебоевое ally_thanks_meet исправлено; повторная проверка очереди события перед LeaveSettlement закрывает воспроизведённую потерю города. Краш09:46 локализован в incident_hammer_of_the_sun (CurrentSettlement=null), точный callback постановки не доказан. Audit566/0, Contract494, Release0/0. См. BannerlordAutopilot/review/ALLY_THANKS_AND_INCIDENT_2026-09-22.md.

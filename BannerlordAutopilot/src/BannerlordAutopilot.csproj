@@ -20,6 +20,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Reference Include="TaleWorlds.MountAndBlade.View"><HintPath>$(BannerlordDir)\Modules\Native\bin\Win64_Shipping_Client\TaleWorlds.MountAndBlade.View.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="TaleWorlds.ScreenSystem"><HintPath>$(BannerlordBin)\TaleWorlds.ScreenSystem.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="TaleWorlds.Core"><HintPath>$(BannerlordBin)\TaleWorlds.Core.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="TaleWorlds.DotNet"><HintPath>$(BannerlordBin)\TaleWorlds.DotNet.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="TaleWorlds.Library"><HintPath>$(BannerlordBin)\TaleWorlds.Library.dll</HintPath><Private>false</Private></Reference>

@@ -12,6 +12,10 @@ async def main():
             from modules.bannerlord.equipment_shop import store_inventory, context, validate_tx
             from modules._base import ModuleEnvelope
             from routes import bannerlord as route
+            from migrations import m127_bannerlord_inventory_state
+            async with db._connect() as conn:
+                await m127_bannerlord_inventory_state.apply(conn)
+                await m127_bannerlord_inventory_state.apply(conn)
             import module_liveness
             async def live(*args):
                 return False
@@ -32,12 +36,14 @@ async def main():
                 await store_inventory(db, CHANNEL_ID, ModuleEnvelope(id='snapshot', kind='event', type='hero.inventory_snapshot', ts=seq, data=data))
             async def ctx():
                 async with db._connect() as conn:
-                    return await context(conn, CHANNEL_ID, 'alice')
+                    return await context(conn, CHANNEL_ID, 'alice', require_party=True)
             # Legacy snapshots cannot establish ownership of a native party inventory.
             await publish(1)
             value = await ctx()
             assert value['party_inventory']['available'] is False
             assert value['reason'] == 'inventory_state_unknown'
+            async with db._connect() as conn:
+                assert (await context(conn, CHANNEL_ID, 'alice'))['reason'] is None, 'Baggage restrictions must not disable independent hero builds'
             assert all(x.get('source') != 'party' for x in value['inventory'])
             await publish(2, dict(party_available=False, party_reason='hero_prisoner'))
             value = await ctx()

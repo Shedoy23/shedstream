@@ -1,7 +1,7 @@
 // Deterministic Bannerlord equipment catalog. Prices and availability are server data.
 const BnrEquipmentShop = (() => {
     const slotNames = {weapon0:'Оружие 1',weapon1:'Оружие 2',weapon2:'Оружие 3',weapon3:'Оружие 4',
-        head:'Голова',body:'Тело',leg:'Ноги',gloves:'Руки',cape:'Плечи',horse:'Лошадь',horseharness:'Сбруя'};
+        head:'Шлем',body:'Доспех',leg:'Обувь',gloves:'Перчатки',cape:'Плечи',horse:'Конь',horseharness:'Броня коня'};
     const categories = {one_handed:'Одноручное',two_handed:'Двуручное',polearm:'Древковое',
         bow:'Луки',crossbow:'Арбалеты',thrown:'Метательное',shield:'Щиты',arrows:'Стрелы',bolts:'Болты',
         head:'Шлемы',body:'Доспехи',leg:'Обувь',gloves:'Перчатки',cape:'Наплечники',
@@ -21,12 +21,20 @@ const BnrEquipmentShop = (() => {
     let generation = 0;
     let fetching = false;
     let selectedSlots = {};
+    let purchaseSlots = {};
+    let activeOwnedSlot = 'weapon0';
     const pageSize = 20;
     const text = value => escapeHtml(String(value ?? ''));
     const number = value => Number(value || 0).toLocaleString('ru-RU');
     const tierName = value => ['—','I','II','III','IV','V','VI'][Number(value)] || text(value);
     const uiLabel=(key,fallback)=>typeof BnrUiConfig==='undefined'?fallback:BnrUiConfig.label(key,fallback);
     const root = () => document.getElementById('bnr-equipment-shop');
+    function purchaseOption(item) {
+        const options = item.purchase_options || [];
+        return options.find(option => option.slot === purchaseSlots[item.item_id])
+            || options.find(option => option.can_buy) || options[0];
+    }
+    const paymentText = amount => Number(amount) < 0 ? `Получишь ${number(-amount)} 💰` : `К оплате ${number(amount)} 💰`;
 
     function stats(item) {
         const rawWeight = item.weight ?? item.stats?.weight;
@@ -39,6 +47,26 @@ const BnrEquipmentShop = (() => {
         return [weight,...other].filter(Boolean).slice(0,6).join(' · ');
     }
 
+    function numericStats(item) {
+        const values = {...(item?.stats || {})};
+        if (item?.weight != null) values.weight = item.weight;
+        return Object.fromEntries(Object.entries(values).filter(([key,value]) => statNames[key]
+            && Number.isFinite(Number(value))));
+    }
+
+    function comparedStats(item, equipped) {
+        const current = numericStats(equipped);
+        return Object.entries(numericStats(item)).filter(([,value]) => Number(value) > 0).slice(0,8).map(([key,value]) => {
+            const amount = Number(value);
+            const baseline = Number(current[key] || 0);
+            const delta = amount - baseline;
+            const usefulDelta = key === 'weight' ? -delta : delta;
+            const comparison = !equipped || Math.abs(delta) < 0.001 ? ''
+                : ` <span class="bnr-eq-delta ${usefulDelta > 0 ? 'better' : 'worse'}">${delta > 0 ? '+' : ''}${delta.toLocaleString('ru-RU',{maximumFractionDigits:2})}</span>`;
+            return `<span>${statNames[key]} ${amount.toLocaleString('ru-RU',{maximumFractionDigits:2})}${comparison}</span>`;
+        }).join('');
+    }
+
     function itemHtml(item, owned) {
         const id = text(owned ? item.owned_id : item.item_id);
         const tierValue = Number(item.tier);
@@ -47,10 +75,19 @@ const BnrEquipmentShop = (() => {
         const blocked = actionBlocked || item.unavailable;
         let controls;
         if (!owned) {
-            const disabled = blocked || !item.can_buy;
-            controls = `<button type="button" class="bnr-eq-action" data-bnr-eq-buy="${id}" ${disabled ? 'disabled' : ''}>
+            if (item.purchase_mode === 'equip') {
+                const option = purchaseOption(item);
+                controls = `<div class="bnr-eq-filters"><select aria-label="Куда надеть ${text(item.name)}" data-bnr-eq-purchase-slot="${id}" ${actionBlocked ? 'disabled' : ''}>
+                    ${(item.purchase_options || []).map(o => `<option value="${text(o.slot)}" ${o.slot === option?.slot ? 'selected' : ''}>${text(slotNames[o.slot] || o.slot)} · ${o.replace_owned_id ? `заменить ${text(o.replaced_name)}` : 'пусто'}</option>`).join('')}</select></div>
+                    <div class="bnr-eq-meta">Цена ${number(item.price_gold)} 💰${option?.replace_owned_id ? ` · Продажа старой вещи ${number(option.trade_in_gold)} 💰` : ''}</div>
+                    <button type="button" class="bnr-eq-action" data-bnr-eq-buy="${id}" ${blocked || !option?.can_buy ? 'disabled' : ''}>Купить и надеть · ${paymentText(option?.net_price_gold)}</button>
+                    ${option?.reason ? `<div class="bnr-eq-reason">${text(option.message || option.reason)}</div>` : ''}`;
+            } else {
+                const disabled = blocked || !item.can_buy;
+                controls = `<button type="button" class="bnr-eq-action" data-bnr-eq-buy="${id}" ${disabled ? 'disabled' : ''}>
                 Купить · ${number(item.price_gold)} 💰</button>
                 ${!item.can_buy && item.reason ? `<div class="bnr-eq-reason">${text(item.message || item.reason)}</div>` : ''}`;
+            }
         } else if (item.slot) {
             controls = `<div class="bnr-eq-equipped">Надето: ${text(slotNames[item.slot] || item.slot)}</div>
                 <button type="button" class="bnr-eq-action secondary" data-bnr-eq-unequip="${text(item.slot)}" ${blocked ? 'disabled' : ''}>Снять в инвентарь</button>`;
@@ -91,6 +128,56 @@ const BnrEquipmentShop = (() => {
         if (typeof BnrUiConfig !== 'undefined') BnrUiConfig.applyTierPalette(host);
     }
 
+    function ownedSlotHtml(slot) {
+        const equipped = (snapshot.inventory || []).find(item => item.slot === slot);
+        return `<button type="button" class="bnr-eq-slot ${activeOwnedSlot === slot ? 'active' : ''}"
+            data-bnr-owned-slot="${text(slot)}" aria-pressed="${activeOwnedSlot === slot}">
+            <span>${text(slotNames[slot])}</span><strong>${text(equipped?.name || 'Пусто')}</strong></button>`;
+    }
+
+    function renderOwned() {
+        const host = root();
+        const result = host?.querySelector('[data-bnr-eq-results]');
+        if (!host || !result || !snapshot) return;
+        if (!snapshot.ready) {
+            result.innerHTML = '<div class="bnr-eq-empty">Данных о вещах героя пока нет.</div>';
+            host.querySelector('[data-bnr-eq-count]').textContent = 'Нет данных';
+            return;
+        }
+        const inventory = snapshot.inventory || [];
+        const party = snapshot.party_inventory;
+        const partyAvailable = party?.available === true;
+        const equipped = inventory.find(item => item.slot === activeOwnedSlot);
+        const query = search.trim().toLocaleLowerCase('ru-RU');
+        const available = inventory.filter(item => !item.slot && (item.source !== 'party' || partyAvailable) && (item.slots || []).includes(activeOwnedSlot)
+            && (!query || String(item.name || item.item_id || '').toLocaleLowerCase('ru-RU').includes(query)));
+        const blocked = busy || !snapshot.can_manage || snapshot.pending || !partyAvailable;
+        const current = equipped ? `<article class="bnr-eq-current" data-tier="${Number(equipped.tier) || 1}">
+            <div><span>Сейчас надето</span><strong>${text(equipped.name || equipped.item_id)}</strong></div>
+            <div class="bnr-eq-stats">${stats(equipped)}</div>
+            <div class="bnr-eq-current-actions"><button type="button" class="bnr-eq-action secondary" data-bnr-eq-unequip="${text(activeOwnedSlot)}" ${blocked ? 'disabled' : ''}>Снять</button>
+            <button type="button" class="bnr-eq-action discard" data-bnr-eq-discard="${text(equipped.owned_id)}" ${blocked ? 'disabled' : ''}>${text(uiLabel('discard','🗑 Выкинуть'))}</button></div></article>`
+            : '<div class="bnr-eq-current empty">Слот свободен</div>';
+        const candidateHtml = item => `<article class="bnr-eq-candidate" data-tier="${Number(item.tier) || 1}">
+                <div class="bnr-eq-item-top"><strong>${text(item.name || item.item_id)}${item.source === 'party' && Number(item.count) > 1 ? ` ×${number(item.count)}` : ''}</strong><span class="bnr-eq-tier">${tierName(item.tier)}</span></div>
+                <div class="bnr-eq-source">${item.source === 'party' ? 'Инвентарь отряда (багаж)' : 'Старое хранилище мода — не багаж отряда'}</div>
+                <div class="bnr-eq-compare">${comparedStats(item,equipped)}</div>
+                <button type="button" class="bnr-eq-action secondary" data-bnr-eq-equip="${text(item.owned_id)}" ${blocked || item.unavailable ? 'disabled' : ''}>Надеть в «${text(slotNames[activeOwnedSlot])}»</button>
+                <button type="button" class="bnr-eq-action discard" data-bnr-eq-discard="${text(item.owned_id)}" ${blocked ? 'disabled' : ''}>${text(uiLabel('discard',item.source === 'party' ? '🗑 Выкинуть одну' : '🗑 Выкинуть вещь'))}</button>
+                ${item.unavailable ? '<div class="bnr-eq-reason">Предмет недоступен в текущей сборке игры.</div>' : ''}</article>`;
+        const baggage = available.filter(item => item.source === 'party');
+        const legacy = available.filter(item => item.source !== 'party');
+        result.innerHTML = `<h4>Надето на герое</h4><div class="bnr-eq-slots">${Object.keys(slotNames).map(ownedSlotHtml).join('')}</div>${current}
+            <h4>Багаж отряда${partyAvailable && party.party_name ? ` · ${text(party.party_name)}` : ''}</h4>
+            ${!partyAvailable ? `<div class="bnr-eq-notice">${text(party?.message || 'Доступ к багажу ещё не подтверждён игрой.')}</div>` : ''}
+            <div class="bnr-eq-slot-title"><strong>${text(slotNames[activeOwnedSlot])}</strong>${partyAvailable ? `<span>${baggage.reduce((sum,item) => sum + Number(item.count || 1),0)} доступно</span>` : ''}</div>
+            <div class="bnr-eq-candidates">${baggage.map(candidateHtml).join('')
+                || (partyAvailable ? `<div class="bnr-eq-empty">Для слота «${text(slotNames[activeOwnedSlot])}» подходящих вещей нет.</div>` : '')}</div>
+            ${legacy.length ? `<h4>Старое хранилище мода</h4><div class="bnr-eq-candidates">${legacy.map(candidateHtml).join('')}</div>` : ''}`;
+        host.querySelector('[data-bnr-eq-count]').textContent = `${inventory.length} вещей`;
+        if (typeof BnrUiConfig !== 'undefined') BnrUiConfig.applyTierPalette(host);
+    }
+
     function render() {
         const host = root();
         if (!host || !snapshot) return;
@@ -105,28 +192,31 @@ const BnrEquipmentShop = (() => {
             <div class="bnr-eq-unlocks">${(snapshot.tiers || []).map(t => `<span data-tier="${Number(t.tier)}" class="${Number(snapshot.hero_level) >= t.required_level ? 'unlocked' : ''}">${tierName(t.tier)} · ур. ${number(t.required_level)}</span>`).join('')}</div>
             <div class="bnr-eq-tabs" role="group" aria-label="Снаряжение">
                 <button type="button" data-bnr-eq-view="shop" aria-pressed="${view === 'shop'}">Магазин</button>
-                <button type="button" data-bnr-eq-view="owned" aria-pressed="${view === 'owned'}">Мои вещи · ${(snapshot.inventory || []).length}</button></div>
-            <p class="bnr-eq-help">${view === 'shop' ? 'Покупка за динары героя. Вещь попадёт в твой инвентарь.' : 'Надевай вещи между боями. Заменённую вещь можно надеть снова или выкинуть навсегда.'}</p>
+                <button type="button" data-bnr-eq-view="owned" aria-pressed="${view === 'owned'}">Инвентарь${snapshot.ready ? '' : ' · нет данных'}</button></div>
+            <p class="bnr-eq-help">${view === 'shop' ? (snapshot.party_inventory?.available ? 'Покупка за динары героя. Вещь попадёт в инвентарь его отряда.' : 'Без багажа можно купить вещь сразу на героя. При замене старая вещь продаётся за указанную сумму. Покупка с надеванием доступна вне боя и сцен.') : 'Надетое снаряжение героя и доступные вещи для замены из общего багажа его отряда. Еда и торговые товары здесь не показаны.'}</p>
             ${snapshot.pending || busy ? '<div class="bnr-eq-notice" role="status">Заявка отправлена — ждём результат из игры.</div>' : ''}
             ${snapshot.reason ? `<div class="bnr-eq-notice" role="status">${text(snapshot.message || snapshot.reason)}</div>` : ''}
             <div class="bnr-eq-filters"><input type="search" data-bnr-eq-search aria-label="Найти вещь" placeholder="Найти вещь…" value="${text(search)}">
+                ${view === 'owned' ? '' : `
                 <div><select data-bnr-eq-category aria-label="Категория"><option value="">Все категории</option>
                     ${availableCategories.map(c => `<option value="${text(c)}" ${category === c ? 'selected' : ''}>${text(categories[c] || c)}</option>`).join('')}</select>
-                <select data-bnr-eq-tier aria-label="Тир"><option value="">Все тиры</option>${(snapshot.tiers || []).map(t => `<option value="${t.tier}" ${tier === String(t.tier) ? 'selected' : ''}>Тир ${tierName(t.tier)}</option>`).join('')}</select></div></div>
+                <select data-bnr-eq-tier aria-label="Тир"><option value="">Все тиры</option>${(snapshot.tiers || []).map(t => `<option value="${t.tier}" ${tier === String(t.tier) ? 'selected' : ''}>Тир ${tierName(t.tier)}</option>`).join('')}</select></div>`}</div>
             <div class="bnr-eq-results" data-bnr-eq-results></div><div class="bnr-eq-pages" data-bnr-eq-pages></div>`;
         host.oninput = event => {
             if (!event.target.matches('[data-bnr-eq-search]')) return;
-            search = event.target.value; page = 0; renderResults();
+            search = event.target.value; page = 0; view === 'owned' ? renderOwned() : renderResults();
         };
         host.onchange = event => {
             if (event.target.matches('[data-bnr-eq-category]')) {category=event.target.value;page=0;renderResults();}
             if (event.target.matches('[data-bnr-eq-tier]')) {tier=event.target.value;page=0;renderResults();}
             if (event.target.matches('[data-bnr-eq-slot]')) selectedSlots[event.target.dataset.bnrEqSlot]=event.target.value;
+            if (event.target.matches('[data-bnr-eq-purchase-slot]')) {purchaseSlots[event.target.dataset.bnrEqPurchaseSlot]=event.target.value;renderResults();}
         };
         host.onclick = async event => {
             const button = event.target.closest('button');
             if (!button || !host.contains(button) || button.disabled) return;
             if (button.dataset.bnrEqView) {view=button.dataset.bnrEqView;page=0;render();return;}
+            if (button.dataset.bnrOwnedSlot) {activeOwnedSlot=button.dataset.bnrOwnedSlot;search='';render();return;}
             if (button.dataset.bnrEqPage) {page+=Number(button.dataset.bnrEqPage);renderResults();return;}
             if (busy || !snapshot.can_manage || snapshot.pending) return;
             let action, payload;
@@ -134,10 +224,22 @@ const BnrEquipmentShop = (() => {
                 const item = (snapshot.items || []).find(i => i.item_id === button.dataset.bnrEqBuy);
                 if (!item?.can_buy) return;
                 action='hero.buy_equipment';payload={item_id:item.item_id};
+                if (item.purchase_mode === 'equip') {
+                    const option = purchaseOption(item);
+                    if (!option?.can_buy) return;
+                    payload={...payload,equip_now:true,slot:option.slot,replace_owned_id:option.replace_owned_id,
+                        replace_item_id:option.replace_item_id,replace_modifier_id:option.replace_modifier_id,
+                        expected_price_gold:item.price_gold,expected_trade_in_gold:option.trade_in_gold};
+                    const confirmationGeneration = generation;
+                    const confirmed = await _bnrConfirmDanger(`Купить и надеть «${text(item.name || item.item_id)}» в «${text(slotNames[option.slot] || option.slot)}»?${option.replace_owned_id ? ` «${text(option.replaced_name)}» будет продан за ${number(option.trade_in_gold)} 💰 и исчезнет из снаряжения.` : ''} ${paymentText(option.net_price_gold)}.`);
+                    if (!confirmed || confirmationGeneration !== generation || busy || !snapshot?.can_manage || snapshot.pending) return;
+                }
             } else if (button.dataset.bnrEqEquip) {
                 const item = (snapshot.inventory || []).find(i => i.owned_id === button.dataset.bnrEqEquip);
                 if (!item || item.slot) return;
-                action='hero.equip_owned';payload={owned_id:item.owned_id,slot:selectedSlots[item.owned_id] || (item.slots || [])[0]};
+                const slot = view === 'owned' ? activeOwnedSlot : selectedSlots[item.owned_id] || (item.slots || [])[0];
+                if (!(item.slots || []).includes(slot)) return;
+                action='hero.equip_owned';payload={owned_id:item.owned_id,slot};
             } else if (button.dataset.bnrEqUnequip) {
                 action='hero.unequip_owned';payload={slot:button.dataset.bnrEqUnequip};
             } else if (button.dataset.bnrEqDiscard) {
@@ -153,7 +255,7 @@ const BnrEquipmentShop = (() => {
                 if (actionGeneration === generation && result?.success && snapshot) snapshot.pending=true;
             } finally {if (actionGeneration === generation) {busy=false;render();}}
         };
-        renderResults();
+        view === 'owned' ? renderOwned() : renderResults();
         if (selection) {
             const input=host.querySelector('[data-bnr-eq-search]');input.focus();input.setSelectionRange(...selection);
         }
@@ -182,8 +284,8 @@ const BnrEquipmentShop = (() => {
     }
 
     function reset() {
-        requestNumber++;generation++;fetching=false;snapshot=null;busy=false;selectedSlots={};
-        view='shop';search='';category='';tier='';page=0;
+        requestNumber++;generation++;fetching=false;snapshot=null;busy=false;selectedSlots={};purchaseSlots={};
+        view='shop';search='';category='';tier='';page=0;activeOwnedSlot='weapon0';
         const host=root();if(host) host.innerHTML='';
     }
     function refreshPresentation() { if(snapshot) render(); }

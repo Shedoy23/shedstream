@@ -318,6 +318,34 @@ namespace BannerlordLink.Actions
         }
     }
 
+    // A viewer click is an explicit proposal. Override only the sponsoring
+    // clan's initial stance; all other clans and the ruler remain vanilla.
+    internal sealed class ViewerDeclareWarDecision : DeclareWarDecision
+    {
+        public ViewerDeclareWarDecision(Clan proposerClan, IFaction target)
+            : base(proposerClan, target) { }
+
+        public override float DetermineSupport(Clan clan, DecisionOutcome outcome)
+        {
+            if (clan == ProposerClan)
+                return ((DeclareWarDecisionOutcome)outcome).ShouldWarBeDeclared ? 200f : 0f;
+            return base.DetermineSupport(clan, outcome);
+        }
+    }
+
+    internal sealed class ViewerMakePeaceDecision : MakePeaceKingdomDecision
+    {
+        public ViewerMakePeaceDecision(Clan proposerClan, IFaction target)
+            : base(proposerClan, target, 0, 0) { }
+
+        public override float DetermineSupport(Clan clan, DecisionOutcome outcome)
+        {
+            if (clan == ProposerClan)
+                return ((MakePeaceDecisionOutcome)outcome).ShouldPeaceBeDeclared ? 200f : 0f;
+            return base.DetermineSupport(clan, outcome);
+        }
+    }
+
     // ── ProposeWarHandler — предложить войну ЧЕРЕЗ ГОЛОСОВАНИЕ кланов ──────────
     // 2026-06-14. Vanilla DeclareWarDecision → Kingdom.AddDecision → движок собирает
     // голоса кланов королевства и резолвит сам. Зритель платит за ПРЕДЛОЖЕНИЕ, не за
@@ -370,11 +398,11 @@ namespace BannerlordLink.Actions
                 }
                 catch { }
 
-                var decision = new DeclareWarDecision(hero.Clan, target);
+                var decision = new ViewerDeclareWarDecision(hero.Clan, target);
                 if (!DiploUtil.SubmitDecisionToVote(myKingdom, decision))
                 {
-                    BannerlordLinkModule.Log($"[diplo-war] REFUSE @{username}: клан {hero.Clan?.Name} против войны с {target.Name} — движок снял бы заявку, рефанд");
-                    ActionFeedback.PostFailed(actionId, "proposer_clan_against"); return;
+                    BannerlordLinkModule.Log($"[diplo-war] REFUSE @{username}: решение недопустимо/неактуально для {target.Name}");
+                    ActionFeedback.PostFailed(actionId, "decision_not_allowed"); return;
                 }
                 BannerlordLinkModule.Log($"[diplo-war OK] @{username} предложил войну: {myKingdom.Name} → {target.Name} (на голосование кланов)");
                 ActionFeedback.PostApplied(actionId);
@@ -434,11 +462,11 @@ namespace BannerlordLink.Actions
                 catch { }
 
                 // 0 tribute — движок + голосование решают остальное.
-                var decision = new MakePeaceKingdomDecision(hero.Clan, target, 0, 0);
+                var decision = new ViewerMakePeaceDecision(hero.Clan, target);
                 if (!DiploUtil.SubmitDecisionToVote(myKingdom, decision))
                 {
-                    BannerlordLinkModule.Log($"[diplo-ppeace] REFUSE @{username}: клан {hero.Clan?.Name} против мира с {target.Name} — движок снял бы заявку, рефанд");
-                    ActionFeedback.PostFailed(actionId, "proposer_clan_against"); return;
+                    BannerlordLinkModule.Log($"[diplo-ppeace] REFUSE @{username}: решение недопустимо/неактуально для {target.Name}");
+                    ActionFeedback.PostFailed(actionId, "decision_not_allowed"); return;
                 }
                 BannerlordLinkModule.Log($"[diplo-ppeace OK] @{username} предложил мир: {myKingdom.Name} ↔ {target.Name} (на голосование кланов)");
                 ActionFeedback.PostApplied(actionId);

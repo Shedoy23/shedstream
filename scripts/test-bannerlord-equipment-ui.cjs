@@ -27,10 +27,15 @@ async function main() {
             window._bnrConfirmDanger = async message => {confirmations.push(message);return confirmChoice;};
             window.ShedLink = {buyAction: async (...args) => {window.actions.push(args.slice(0,3));return {success:true};}};
             window.fixture = {success:true,ready:true,can_manage:true,has_hero:true,hero_level:25,gold:50000,pending:false,
+                party_inventory:{available:true,party_id:'alice-party',party_name:'Отряд Алисы'},
                 tiers:[{tier:4,required_level:25},{tier:5,required_level:30}],
                 items:[{item_id:'sword',name:'Меч <img src=x onerror=alert(1)>',tier:4,required_level:25,price_gold:1234,category:'one_handed',slots:['weapon0','weapon1'],weight:1.234,stats:{swing_dmg:80},can_buy:true},
                     {item_id:'bow',name:'Длинный лук',tier:5,required_level:30,price_gold:5000,category:'bow',slots:['weapon0','weapon1'],stats:{},can_buy:false,reason:'level_required',message:'Нужен уровень 30'}],
-                inventory:[{owned_id:'owned-sword',item_id:'sword',name:'Старый меч',tier:3,slot:null,category:'one_handed',slots:['weapon0','weapon1'],weight:2.5,stats:{}}]};
+                inventory:[
+                    {owned_id:'equipped-sword',item_id:'old-sword',name:'Старый меч',tier:2,slot:'weapon0',category:'one_handed',slots:['weapon0','weapon1'],weight:2.5,stats:{swing_dmg:60,swing_spd:90}},
+                    {owned_id:'party|sword|',item_id:'sword',name:'Новый меч',tier:3,slot:null,source:'party',count:2,category:'one_handed',slots:['weapon0','weapon1'],weight:2,stats:{swing_dmg:80,swing_spd:85}},
+                    {owned_id:'helmet',item_id:'helmet',name:'Шлем',tier:3,slot:null,category:'head',slots:['head'],weight:1.5,stats:{head:24}}
+                ]};
             window.fetch = async () => ({ok:true,json:async () => structuredClone(window.fixture)});
         });
         await page.addScriptTag({path:path.join(front,'viewer-bannerlord-equipment.js')});
@@ -57,31 +62,42 @@ async function main() {
         assert.deepEqual(await page.evaluate(() => actions[0]),['bannerlord','hero.buy_equipment',{item_id:'sword'}]);
         await page.evaluate(() => loadBannerlordEquipmentShop());
         await page.locator('[data-bnr-eq-view="owned"]').click();
-        assert((await page.locator('.bnr-eq-item').innerText()).includes('Вес 2,5 кг'),'owned item shows game weight');
-        await page.locator('[data-bnr-eq-slot="owned-sword"]').selectOption('weapon1');
-        await page.locator('[data-bnr-eq-equip="owned-sword"]').click();
-        assert.deepEqual(await page.evaluate(() => actions[1]),['bannerlord','hero.equip_owned',{owned_id:'owned-sword',slot:'weapon1'}]);
-        await page.evaluate(() => {fixture.inventory[0].slot='weapon1';return loadBannerlordEquipmentShop();});
-        await page.locator('[data-bnr-eq-unequip="weapon1"]').click();
-        assert.deepEqual(await page.evaluate(() => actions[2]),['bannerlord','hero.unequip_owned',{slot:'weapon1'}]);
+        assert.equal(await page.locator('[data-bnr-owned-slot]').count(),11,'all equipment slots are shown');
+        assert((await page.locator('.bnr-eq-current').innerText()).includes('Старый меч'),'selected slot shows equipped item');
+        assert((await page.locator('.bnr-eq-candidate').innerText()).includes('Новый меч'),'slot shows compatible inventory');
+        assert((await page.locator('.bnr-eq-candidate').innerText()).includes('×2'),'real roster stack count is shown');
+        assert((await page.locator('.bnr-eq-candidate').innerText()).includes('Инвентарь отряда'),'real roster source is explicit');
+        assert.equal(await page.locator('.bnr-eq-candidate').filter({hasText:'Шлем'}).count(),0,'incompatible item is hidden');
+        assert((await page.locator('.bnr-eq-candidate').innerText()).includes('+20'),'better stat delta is shown');
+        assert((await page.locator('.bnr-eq-candidate').innerText()).includes('-5'),'worse stat delta is shown');
+        const evidence=path.join(root,'dist/audit/equipment-shop');fs.mkdirSync(evidence,{recursive:true});
+        await page.locator('#bnr-equipment-shop').screenshot({path:path.join(evidence,'owned-slots-340.png')});
+        await page.locator('[data-bnr-eq-equip="party|sword|"]').click();
+        assert.deepEqual(await page.evaluate(() => actions[1]),['bannerlord','hero.equip_owned',{owned_id:'party|sword|',slot:'weapon0'}]);
+        await page.evaluate(() => loadBannerlordEquipmentShop());
+        await page.locator('[data-bnr-owned-slot="head"]').click();
+        assert((await page.locator('.bnr-eq-candidate').innerText()).includes('Шлем'),'changing slot changes compatible items');
+        await page.locator('[data-bnr-owned-slot="weapon0"]').click();
+        await page.locator('[data-bnr-eq-unequip="weapon0"]').click();
+        assert.deepEqual(await page.evaluate(() => actions[2]),['bannerlord','hero.unequip_owned',{slot:'weapon0'}]);
         await page.evaluate(() => {fixture.inventory[0].slot=null;return loadBannerlordEquipmentShop();});
         await page.evaluate(() => {confirmChoice=false;});
-        await page.locator('[data-bnr-eq-discard="owned-sword"]').click();
+        await page.locator('[data-bnr-eq-discard="party|sword|"]').click();
         assert.equal(await page.evaluate(() => actions.length),3,'cancelled discard sends no action');
         await page.evaluate(() => {confirmChoice=true;});
-        await page.locator('[data-bnr-eq-discard="owned-sword"]').click();
-        assert.deepEqual(await page.evaluate(() => actions[3]),['bannerlord','hero.discard_owned',{owned_id:'owned-sword'}]);
-        await page.evaluate(() => {fixture.inventory[0].slot='weapon1';return loadBannerlordEquipmentShop();});
-        await page.locator('[data-bnr-eq-discard="owned-sword"]').click();
-        assert.deepEqual(await page.evaluate(() => actions[4]),['bannerlord','hero.discard_owned',{owned_id:'owned-sword'}]);
+        await page.locator('[data-bnr-eq-discard="party|sword|"]').click();
+        assert.deepEqual(await page.evaluate(() => actions[3]),['bannerlord','hero.discard_owned',{owned_id:'party|sword|'}]);
+        await page.evaluate(() => {fixture.inventory[0].slot='weapon0';return loadBannerlordEquipmentShop();});
+        await page.locator('[data-bnr-eq-discard="equipped-sword"]').click();
+        assert.deepEqual(await page.evaluate(() => actions[4]),['bannerlord','hero.discard_owned',{owned_id:'equipped-sword'}]);
         assert((await page.evaluate(() => confirmations.at(-1))).includes('снят с героя'),'equipped discard warns about unequip');
-        await page.evaluate(() => {fixture.inventory[0].slot=null;fixture.inventory[0].unavailable=true;return loadBannerlordEquipmentShop();});
-        assert.equal(await page.locator('[data-bnr-eq-equip="owned-sword"]').isDisabled(),true,'missing mod item cannot be equipped');
-        assert.equal(await page.locator('[data-bnr-eq-discard="owned-sword"]').isDisabled(),false,'missing mod item can still be removed from storage');
+        await page.evaluate(() => {fixture.inventory[0].slot=null;fixture.inventory[1].unavailable=true;return loadBannerlordEquipmentShop();});
+        assert.equal(await page.locator('[data-bnr-eq-equip="party|sword|"]').isDisabled(),true,'missing mod item cannot be equipped');
+        assert.equal(await page.locator('[data-bnr-eq-discard="party|sword|"]').isDisabled(),false,'missing mod item can still be removed from storage');
         await page.evaluate(() => {fixture.inventory[0].unavailable=false;return loadBannerlordEquipmentShop();});
         await page.evaluate(() => {fixture.can_manage=false;fixture.reason='Игра не на связи'; return loadBannerlordEquipmentShop();});
-        assert.equal(await page.locator('[data-bnr-eq-equip="owned-sword"]').isDisabled(),true);
-        assert.equal(await page.locator('[data-bnr-eq-discard="owned-sword"]').isDisabled(),true);
+        assert.equal(await page.locator('[data-bnr-eq-equip="party|sword|"]').isDisabled(),true);
+        assert.equal(await page.locator('[data-bnr-eq-discard="party|sword|"]').isDisabled(),true);
         await page.locator('[data-bnr-eq-view="shop"]').click();
         assert.equal(await page.locator('[data-bnr-eq-buy="sword"]').isDisabled(),true,'offline refuses even stale can_buy');
         for (const width of [340,372]) {
@@ -91,7 +107,6 @@ async function main() {
         await page.evaluate(() => {fixture.has_hero=false;fixture.can_manage=false;fixture.inventory=[];fixture.reason='no_hero';fixture.message='Сначала создай героя'; return loadBannerlordEquipmentShop();});
         assert((await page.locator('#bnr-equipment-shop').innerText()).includes('Сначала создай героя'));
         await page.evaluate(() => {fixture.can_manage=true;fixture.has_hero=true;fixture.reason='';fixture.items[0].name='Имперский меч';return loadBannerlordEquipmentShop();});
-        const evidence=path.join(root,'dist/audit/equipment-shop');fs.mkdirSync(evidence,{recursive:true});
         await page.locator('#bnr-equipment-shop').screenshot({path:path.join(evidence,'inventory-shop-372.png')});
         await page.evaluate(() => {fixture.items=Array.from({length:45},(_,i)=>({...fixture.items[0],item_id:'sword-'+i,name:'Меч '+i}));return loadBannerlordEquipmentShop();});
         assert.equal(await page.locator('[data-bnr-eq-buy]').count(),20,'large catalog paginated');

@@ -26,7 +26,8 @@ async def main():
                 data = {'equipment_session_id':'session-a', **data, 'inventory_seq': ts}
                 return ModuleEnvelope(id='test', kind='event', type='hero.inventory_snapshot', ts=ts, data=data)
             def inventory(items, **changes):
-                return {'username':'alice','save_id':'save-a','hero_id':'test_hero_alice','items':items, **changes}
+                return {'username':'alice','save_id':'save-a','hero_id':'test_hero_alice','items':items,
+                        'inventory_state': {'party_available':True, 'party_id':'alice-party'}, **changes}
             async def finish():
                 await sql("UPDATE module_actions SET status='done' WHERE module_id='bannerlord'")
             result = await buy(item_id='sword', price=-500)
@@ -36,7 +37,7 @@ async def main():
             sword = {'id':'sword','item_id':'sword','name':'Sword','tier':4,'required_level':1,'price_gold':1000,'category':'one_handed','slots':['weapon0'],'stats':{}}
             five = {**sword,'id':'tier5','item_id':'tier5','tier':5}
             await store_catalog(db, CHANNEL_ID, envelope({'save_id':'save-a','entries':[sword,five]}))
-            owned = {'owned_id':'owned-1','item_id':'sword','name':'Sword','tier':4,'slot':None,'slots':['weapon0'],'modifier_id':'fine'}
+            owned = {'owned_id':'party|sword|fine','item_id':'sword','name':'Sword','tier':4,'slot':None,'slots':['weapon0'],'modifier_id':'fine','source':'party','count':2}
             adapter=BannerlordAdapter(None)
             await adapter.handle_event(CHANNEL_ID,envelope(inventory([owned])))
             await adapter._on_catalog_update(CHANNEL_ID,envelope({'catalog':'equipment','save_id':'save-a','entries':[sword,five]}))
@@ -46,7 +47,7 @@ async def main():
             assert (await buy(item_id='does-not-exist'))['reason']=='item_not_found'
             assert (await buy(kind='hero.equip_owned', owned_id='victim-item', slot='weapon0'))['reason']=='not_owned'
             assert (await buy(kind='hero.discard_owned', owned_id='victim-item'))['reason']=='not_owned'
-            assert (await buy(kind='hero.equip_owned', owned_id='owned-1', slot='head'))['reason']=='invalid_slot'
+            assert (await buy(kind='hero.equip_owned', owned_id='party|sword|fine', slot='head'))['reason']=='invalid_slot'
             result = await buy(item_id='sword', price=-999, price_gold=0, hero_gold_cost=-1, target='victim', hero_id='victim', save_id='evil', client_action_id='same')
             assert result['success'], result
             row = (await sql("SELECT data FROM module_actions WHERE action_id=?", (result['action_id'],)))[0]
@@ -60,7 +61,7 @@ async def main():
             assert (await sql("SELECT gold FROM bannerlord_heroes WHERE channel_id=? AND username='alice'", (CHANNEL_ID,)))[0][0]==500000
             assert (await buy(item_id='sword'))['reason']=='pending'
             assert (await buy(item_id='sword', client_action_id='same'))['idempotent_replay']
-            assert (await buy(kind='hero.equip_owned', owned_id='owned-1', slot='weapon0', client_action_id='same'))['reason']=='client_action_conflict'
+            assert (await buy(kind='hero.equip_owned', owned_id='party|sword|fine', slot='weapon0', client_action_id='same'))['reason']=='client_action_conflict'
             for legacy in ('hero.reequip_gear', 'hero.upgrade_gear'):
                 denied=await route._charge_execute_enqueue(legacy, {}, 0, 'alice', CHANNEL_ID)
                 assert denied.get('reason')=='equipment_shop_enabled', denied
@@ -72,14 +73,18 @@ async def main():
             await sql("UPDATE bannerlord_heroes SET gold=1000 WHERE channel_id=? AND username='alice'", (CHANNEL_ID,))
             assert (await buy(item_id='tier5'))['success']
             await finish()
-            assert (await buy(kind='hero.equip_owned', owned_id='owned-1', slot='weapon0'))['success']
+            equip = await buy(kind='hero.equip_owned', owned_id='party|sword|fine', slot='weapon0')
+            assert equip['success']
+            payload = json.loads((await sql("SELECT data FROM module_actions WHERE action_id=?", (equip['action_id'],)))[0][0])
+            assert payload['source']=='party' and payload['item_id']=='sword' and payload['modifier_id']=='fine'
             await finish()
-            discard = await buy(kind='hero.discard_owned', owned_id='owned-1', slot='head', target='victim', price=500)
+            discard = await buy(kind='hero.discard_owned', owned_id='party|sword|fine', slot='head', target='victim', price=500)
             assert discard['success'], discard
             payload = json.loads((await sql("SELECT data FROM module_actions WHERE action_id=?", (discard['action_id'],)))[0][0])
-            assert payload['owned_id']=='owned-1' and payload['target']=='alice' and payload['price']==0
+            assert payload['owned_id']=='party|sword|fine' and payload['source']=='party' and payload['item_id']=='sword'
+            assert payload['modifier_id']=='fine' and payload['target']=='alice' and payload['price']==0
             assert 'slot' not in payload
-            assert (await buy(kind='hero.discard_owned', owned_id='owned-1'))['reason']=='pending'
+            assert (await buy(kind='hero.discard_owned', owned_id='party|sword|fine'))['reason']=='pending'
             await finish()
             # Older or wrong-save/generation snapshots cannot erase ownership.
             await store_inventory(db, CHANNEL_ID, envelope(inventory([]), ts=99))

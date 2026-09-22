@@ -9,12 +9,13 @@ namespace TaleWorlds.Core
 {
     public enum EquipmentIndex { Weapon0, Weapon1, Weapon2, Weapon3, Head, Body, Leg, Gloves, Cape, Horse, HorseHarness }
     public class ItemObject { public string StringId; public int Tier; public int Value; public string Slot = "body"; public bool Available = true; }
-    public class ItemModifier { public string StringId; }
+    public class ItemModifier { public string StringId; public int ValueMultiplier = 1; }
     public struct EquipmentElement
     {
         public ItemObject Item; public ItemModifier ItemModifier;
         public EquipmentElement(ItemObject item, ItemModifier modifier = null) { Item = item; ItemModifier = modifier; }
         public bool IsEmpty => Item == null;
+        public int ItemValue => (Item?.Value ?? 0) * (ItemModifier?.ValueMultiplier ?? 1);
         public static EquipmentElement Invalid => default;
     }
     public class Equipment
@@ -27,8 +28,26 @@ namespace TaleWorlds.Core
 }
 namespace TaleWorlds.CampaignSystem
 {
-    public class Hero { public string StringId = "hero1"; public string Name = "alice"; public bool IsAlive = true; public int Level = 25; public int Gold = 1000; public TaleWorlds.Core.Equipment BattleEquipment = new(); }
+    public class Hero { public string StringId = "hero1"; public string Name = "alice"; public bool IsAlive = true; public bool IsPrisoner; public int Level = 25; public int Gold = 1000; public TaleWorlds.Core.Equipment BattleEquipment = new(); }
     public class Campaign { public static Campaign Current = new(); public string UniqueGameId = "save1"; }
+}
+namespace TaleWorlds.CampaignSystem.Roster
+{
+    public class ItemRoster
+    {
+        readonly List<(TaleWorlds.Core.EquipmentElement element, int count)> rows = new();
+        public int FindIndexOfElement(TaleWorlds.Core.EquipmentElement element) => rows.FindIndex(x =>
+            x.element.Item == element.Item && x.element.ItemModifier == element.ItemModifier && x.count > 0);
+        public int AddToCounts(TaleWorlds.Core.EquipmentElement element, int amount)
+        {
+            int index = FindIndexOfElement(element);
+            if (index < 0) { if (amount > 0) rows.Add((element, amount)); return amount; }
+            var row = rows[index]; row.count += amount;
+            if (row.count <= 0) rows.RemoveAt(index); else rows[index] = row;
+            return row.count;
+        }
+        public int CountOf(TaleWorlds.Core.ItemObject item) => rows.Where(x => x.element.Item == item).Sum(x => x.count);
+    }
 }
 namespace TaleWorlds.CampaignSystem.Actions
 {
@@ -78,6 +97,7 @@ namespace BannerlordLink.Behaviors
         public static EquipmentShopBehavior Instance = new();
         internal string SessionId { get; } = Guid.NewGuid().ToString("N");
         internal EquipmentLedger Saved = new(); public bool StoreFails; public bool PushFails;
+        internal static TaleWorlds.CampaignSystem.Roster.ItemRoster Inventory = new();
         public static string[] AllSlots = { "weapon0", "weapon1", "weapon2", "weapon3", "head", "body", "leg", "gloves", "cape", "horse", "horseharness" };
         internal EquipmentLedger Read(TaleWorlds.CampaignSystem.Hero hero)
         {
@@ -87,6 +107,7 @@ namespace BannerlordLink.Behaviors
         }
         internal void Store(TaleWorlds.CampaignSystem.Hero hero, EquipmentLedger ledger) { if (StoreFails) throw new Exception("disk"); Saved = ledger; }
         public static bool Sellable(TaleWorlds.Core.ItemObject item) => item?.Available == true;
+        public static TaleWorlds.CampaignSystem.Roster.ItemRoster PartyInventory(TaleWorlds.CampaignSystem.Hero hero) => Inventory;
         public static string[] Slots(TaleWorlds.Core.ItemObject item) => new[] { item.Slot };
         public static bool MountCompatible(TaleWorlds.CampaignSystem.Hero hero, TaleWorlds.Core.ItemObject item, string slot) => true;
         internal void Push(TaleWorlds.CampaignSystem.Hero hero, EquipmentLedger ledger) { if (PushFails) throw new Exception("network"); }

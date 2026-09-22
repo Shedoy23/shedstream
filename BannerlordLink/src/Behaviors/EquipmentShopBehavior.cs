@@ -7,6 +7,7 @@ using BannerlordLink.Util;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Roster;
 using TaleWorlds.Core;
 using TaleWorlds.ObjectSystem;
 
@@ -28,6 +29,16 @@ namespace BannerlordLink.Behaviors
         private volatile bool _publishing;
         private EquipmentSessionHandshake _handshake;
         internal static readonly string[] AllSlots = { "weapon0", "weapon1", "weapon2", "weapon3", "head", "body", "leg", "gloves", "cape", "horse", "horseharness" };
+
+        internal static ItemRoster PartyInventory(Hero hero)
+            => hero == null || hero.IsPrisoner ? null : hero.PartyBelongedTo?.ItemRoster;
+
+        private static string Username(Hero hero)
+            => HeroIdentityBehavior.Instance?.GetUsername(hero)
+                ?? HeroNaming.ExtractUsername(hero?.Name?.ToString());
+
+        internal static string PartyOwnedId(ItemObject item, ItemModifier modifier)
+            => "party|" + item.StringId + "|" + (modifier?.StringId ?? "");
 
         public override void RegisterEvents()
         {
@@ -74,7 +85,8 @@ namespace BannerlordLink.Behaviors
         internal void Store(Hero hero, EquipmentLedger ledger)
         {
             _ledgers[hero.StringId] = JsonConvert.SerializeObject(ledger);
-            _builds[HeroNaming.ExtractUsername(hero.Name.ToString())] = ledger.Build;
+            var username = Username(hero);
+            if (!string.IsNullOrEmpty(username)) _builds[username] = ledger.Build;
         }
 
         internal HeroBuildState GetBuild(string username)
@@ -153,6 +165,7 @@ namespace BannerlordLink.Behaviors
                 ["name"] = item.Name?.ToString() ?? item.StringId,
                 ["tier"] = tier, ["required_level"] = EquipmentShopPolicy.RequiredLevel(tier),
                 ["price_gold"] = EquipmentShopPolicy.Price(item.Value),
+                ["trade_in_gold"] = Math.Max(0, new EquipmentElement(item, modifier).ItemValue),
                 ["category"] = Category(item), ["slots"] = new JArray(Slots(item)),
                 ["stats"] = JObject.Parse(EquipmentSync.BuildStatsJson(item, modifier)),
                 ["weight"] = item.Weight, ["modifier_id"] = modifier?.StringId,
@@ -180,12 +193,38 @@ namespace BannerlordLink.Behaviors
                 row["owned_id"] = owned.OwnedId;
                 row["slot"] = owned.Slot;
                 row["modifier_id"] = owned.ModifierId;
+                row["source"] = owned.Slot == null ? "legacy" : "equipped";
                 items.Add(row);
             }
-            return new JObject { ["username"] = HeroNaming.ExtractUsername(hero.Name.ToString()),
+            var roster = PartyInventory(hero);
+            if (roster != null)
+            {
+                for (int i = 0; i < roster.Count; i++)
+                {
+                    var rosterRow = roster.GetElementCopyAtIndex(i);
+                    var element = rosterRow.EquipmentElement;
+                    // Ownership is not a shop eligibility rule: native unique gear
+                    // remains visible even when the game forbids selling it.
+                    if (rosterRow.Amount <= 0 || element.Item == null || Category(element.Item) == null) continue;
+                    var row = Describe(element.Item, element.ItemModifier);
+                    row["owned_id"] = PartyOwnedId(element.Item, element.ItemModifier);
+                    row["slot"] = null;
+                    row["source"] = "party";
+                    row["count"] = rosterRow.Amount;
+                    items.Add(row);
+                }
+            }
+            return new JObject { ["username"] = Username(hero),
                 ["save_id"] = Campaign.Current.UniqueGameId, ["hero_id"] = hero.StringId,
                 ["equipment_session_id"] = SessionId,
                 ["inventory_seq"] = ledger.Revision, ["items"] = items,
+                ["inventory_state"] = new JObject {
+                    ["buy_equip_available"] = true,
+                    ["in_mission"] = missionOverride ?? (TaleWorlds.MountAndBlade.Mission.Current != null),
+                    ["party_available"] = roster != null,
+                    ["party_reason"] = hero.IsPrisoner ? "hero_prisoner" : roster == null ? "no_party_inventory" : null,
+                    ["party_id"] = roster != null ? hero.PartyBelongedTo.StringId : null,
+                    ["party_name"] = roster != null ? hero.PartyBelongedTo.Name?.ToString() : null },
                 ["build"] = HeroBuildRuntime.Snapshot(hero, ledger.Build, missionOverride) }.ToString(Formatting.None);
         }
 
@@ -199,7 +238,7 @@ namespace BannerlordLink.Behaviors
         internal void PublishBuilds(bool? missionOverride = null)
         {
             if (Campaign.Current == null) return;
-            foreach (var hero in Campaign.Current.AliveHeroes.Where(h => h?.Name != null && HeroNaming.IsAdopted(h.Name.ToString())))
+            foreach (var hero in Campaign.Current.AliveHeroes.Where(h => h != null && !string.IsNullOrEmpty(Username(h))))
             {
                 var ledger = Read(hero);
                 if (ledger.Build != null) Push(hero, ledger, missionOverride);
@@ -224,7 +263,7 @@ namespace BannerlordLink.Behaviors
                         ["entries"] = rows }.ToString(Formatting.None);
                 }
                 var snapshots = new List<string>();
-                foreach (var hero in Campaign.Current.AliveHeroes.Where(h => h?.Name != null && HeroNaming.IsAdopted(h.Name.ToString())))
+                foreach (var hero in Campaign.Current.AliveHeroes.Where(h => h != null && !string.IsNullOrEmpty(Username(h))))
                 {
                     var ledger = Read(hero);
                     Store(hero, ledger);

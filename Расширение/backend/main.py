@@ -1541,6 +1541,9 @@ async def run_migrations():
         from migrations import m126_bannerlord_build
         await m126_bannerlord_build.apply(conn)
 
+        from migrations import m127_bannerlord_inventory_state
+        await m127_bannerlord_inventory_state.apply(conn)
+
         from migrations import m128_bannerlord_tournament_queue_sync
         await m128_bannerlord_tournament_queue_sync.apply(conn)
 

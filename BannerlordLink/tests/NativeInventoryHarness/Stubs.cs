@@ -18,6 +18,7 @@ namespace TaleWorlds.Core {
   public ItemObject Item; public ItemModifier ItemModifier;
   public EquipmentElement(ItemObject item, ItemModifier modifier=null) { Item=item; ItemModifier=modifier; }
   public bool IsEmpty => Item==null; public static EquipmentElement Invalid => default;
+  public int ItemValue => Item?.Value ?? 0;
  }
  public class Equipment {
   readonly Dictionary<EquipmentIndex,EquipmentElement> rows=new();

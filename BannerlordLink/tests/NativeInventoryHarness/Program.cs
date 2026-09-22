@@ -32,6 +32,18 @@ class Program {
   hero.IsPrisoner=false; hero.PartyBelongedToAsPrisoner=null;
   data=JObject.Parse(behavior.Snapshot(hero,behavior.Read(hero)));
   Check((string)data["inventory_state"]?["party_reason"]=="no_party_inventory","no party is unavailable, not empty");
+  new EquipmentShopHandler("hero.buy_equipment").ExecuteAsync(request).GetAwaiter().GetResult();
+  Check(ActionFeedback.Error=="no_inventory" && hero.Gold==10000,"no-party queued purchase cannot spend gold");
+  Check((bool?)data["inventory_state"]?["buy_equip_available"]==true && (bool?)data["inventory_state"]?["in_mission"]==false,"snapshot advertises direct purchase and map state");
+  Check((int?)data["items"].First(x=>(string)x["slot"]=="body")["trade_in_gold"]==10,"native equipment quote contains trade-in value");
+  request["equip_now"]=true; request["expected_item_id"]="armor"; request["expected_modifier_id"]=""; request["trade_in_gold"]=10;
+  new EquipmentShopHandler("hero.buy_equipment").ExecuteAsync(request).GetAwaiter().GetResult();
+  Check(ActionFeedback.Applied && hero.Gold==9910 && hero.PartyBelongedTo==null && hero.BattleEquipment[EquipmentIndex.Body].Item==armor,"real behavior supports direct equipment without a party");
+  data=JObject.Parse(behavior.Snapshot(hero,behavior.Read(hero)));
+  Check(data["items"].Count()==1 && (string)data["items"][0]["source"]=="equipped","trade-in does not resurrect sold gear in legacy storage");
+  data=JObject.Parse(behavior.Snapshot(hero,behavior.Read(hero),true));
+  Check((bool?)data["inventory_state"]?["in_mission"]==true,"mission snapshot disables direct purchase");
+  request.Remove("equip_now");
   hero.PartyBelongedTo=new Party();
   data=JObject.Parse(behavior.Snapshot(hero,behavior.Read(hero)));
   Check((bool?)data["inventory_state"]?["party_available"]==true,"empty existing party inventory is available");
@@ -41,6 +53,14 @@ class Program {
   data=JObject.Parse(behavior.Snapshot(hero,ledger));
   Check(data["items"].Any(x=>(string)x["source"]=="party" && (int?)x["count"]==2),"owned non-merchandise gear is not filtered by shop policy");
   Check(data["items"].Any(x=>(string)x["source"]=="legacy"),"legacy stored items are explicitly separate from native baggage");
+  var replacement=new ItemObject {StringId="replacement",Name="Replacement",ItemType=ItemObject.ItemTypeEnum.BodyArmor};
+  MBObjectManager.Instance.Objects[replacement.StringId]=replacement;
+  var saved=ledger.Add("replacement"); behavior.Store(hero,ledger);
+  request["source"]="legacy"; request["owned_id"]=saved.OwnedId;
+  int before=hero.PartyBelongedTo.ItemRoster.GetElementCopyAtIndex(0).Amount;
+  new EquipmentShopHandler("hero.equip_owned").ExecuteAsync(request).GetAwaiter().GetResult();
+  Check(ActionFeedback.Applied && hero.BattleEquipment[EquipmentIndex.Body].Item==replacement
+   && hero.PartyBelongedTo.ItemRoster.GetElementCopyAtIndex(0).Amount==before+1,"legacy replacement returns displaced native armor to real baggage");
   HeroIdentityBehavior.Instance.Users[hero.StringId]="alice"; hero.Name="Renamed Lord";
   try { data=JObject.Parse(behavior.Snapshot(hero,behavior.Read(hero))); Check((string)data["username"]=="alice","persistent identity survives game rename"); }
   catch(Exception) { Check(false,"persistent identity survives game rename"); }

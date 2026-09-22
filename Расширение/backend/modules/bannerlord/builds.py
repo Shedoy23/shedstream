@@ -7,6 +7,7 @@ ACTION_TYPES = frozenset({'hero.set_specialization', 'hero.select_weapon_power',
 
 def refusal(reason):
     messages = {
+        'legacy_build': 'Этот герой создан в старой системе. Специализации и стартовые наборы доступны новым героям; прогресс этого героя сохранён.',
         'build_not_ready': 'Настройки героя ещё синхронизируются с игрой',
         'build_unavailable': 'Сейчас нельзя менять сборку героя',
         'hero_prisoner': 'Герой в плену — изменить сборку можно после освобождения',
@@ -26,6 +27,8 @@ def refusal(reason):
 def manage_reason(ctx):
     if ctx['reason']:
         return ctx['reason']
+    if ctx.get('legacy_build'):
+        return 'legacy_build'
     build = ctx['build']
     if build.get('version') != 1:
         return 'build_not_ready'

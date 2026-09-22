@@ -55,6 +55,7 @@ namespace BannerlordLink.Actions
             Register(new JoinTournamentHandler());   // hero.join_tournament — Sprint 5.3
             Register(new AddFocusHandler());         // hero.add_focus — Sprint 5.8 (Hero.Gold tier-based)
             Register(new AddAttributeHandler());     // hero.add_attribute — Sprint 5.8 (Hero.Gold flat)
+            Register(new BuyClanUpgradesHandler());  // engine-authoritative Hero.Gold
             Register(new CreateClanHandler());       // hero.create_clan — Sprint 5.9 (BLT-style clan creation)
             Register(new CreateKingdomHandler());    // hero.create_kingdom — Sprint 5.12 (5M)
             Register(new LeaveClanHandler());        // hero.leave_clan — Sprint 5.12

@@ -155,8 +155,8 @@ foreach (string stop in new[]{"off","dead","replacement","conversation","end"})
     var cameraMission=new Mission {Mode=MissionMode.Battle,IsDeploymentFinished=true,CameraIsFirstPerson=previousFirstPerson};
     var cameraBehavior=new BattleAutopilotMission {Mission=cameraMission};
     cameraBehavior.OnAfterDeploymentFinished();
-    Check(cameraMission.CameraIsFirstPerson && cameraMission.MainAgent.Controller==AgentControllerType.AI,
-        "camera follows first person without returning player control");
+    Check(cameraMission.CameraIsFirstPerson==previousFirstPerson && cameraMission.MainAgent.Controller==AgentControllerType.AI,
+        "battle AI leaves camera ownership to the overview view");
     if(stop=="off") AutopilotBehavior.Instance.CurrentMode=AutopilotBehavior.Mode.Off;
     if(stop=="dead") cameraMission.MainAgent.Active=false;
     if(stop=="replacement") cameraMission.MainAgent=new Agent();

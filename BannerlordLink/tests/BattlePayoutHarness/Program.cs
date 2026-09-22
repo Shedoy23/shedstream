@@ -21,12 +21,12 @@ foreach(int enemies in new[]{10,49,50,199,200,1000})foreach(bool siege in new[]{
  }
  Check(previous>0,"monotonic across score sweep "+enemies+" "+siege);
 }
-Check(BattlePayoutPolicy.Calculate(1e12,1e12,100,false,true).Total<=499200,"ordinary cap independent of retinue size");
-Check(BattlePayoutPolicy.Calculate(1e12,1e12,500,true,true).Total<=798720,"large siege cap");
-Check(BattlePayoutPolicy.Calculate(1e12,1e12,10,true,true).Total<=119808,"tiny siege cannot earn large siege prize");
-foreach(var scenario in new[]{(enemies:100,siege:false,cap:499200),(enemies:500,siege:true,cap:798720),(enemies:10,siege:true,cap:119808)}) {
+Check(BattlePayoutPolicy.Calculate(1e12,1e12,100,false,true).Total<=619200,"ordinary cap independent of retinue size");
+Check(BattlePayoutPolicy.Calculate(1e12,1e12,500,true,true).Total<=990720,"large siege cap");
+Check(BattlePayoutPolicy.Calculate(1e12,1e12,10,true,true).Total<=495360,"tiny siege cannot earn large siege prize");
+foreach(var scenario in new[]{(enemies:100,siege:false,cap:619200),(enemies:500,siege:true,cap:990720),(enemies:10,siege:true,cap:495360)}) {
  var ceiling=BattlePayoutPolicy.Calculate(1e12,1e12,scenario.enemies,scenario.siege,true);
- Check(ceiling.Total >= scenario.cap-6 && ceiling.Total <= scenario.cap,"original ceiling remains reachable " + scenario.cap);
+ Check(ceiling.Total >= scenario.cap-6 && ceiling.Total <= scenario.cap,"updated ceiling remains reachable " + scenario.cap);
 }
 // Observed 2026-09-21 19:00 battle, same field defeat / no subscription boost.
 // Inputs are actual payout damage points, NOT kills * assumed target HP.
@@ -66,6 +66,10 @@ foreach(var o in new[]{
  Check(Math.Abs(now.Participation-2*o.part)<=2 && Math.Abs(now.Personal-2*o.pers)<=2 && Math.Abs(now.Retinue-2*o.ret)<=2,
   "ровно вдвое против фактической выплаты 21.09 ("+o.part+"/"+o.pers+"/"+o.ret+" -> "+now.Participation+"/"+now.Personal+"/"+now.Retinue+")");
 }
+Check(BattlePayoutPolicy.Calculate(8000,0,100,false,true).Total==280000,"8000 points retain old payout");
+Check(BattlePayoutPolicy.Calculate(16000,0,100,false,true).Total==432000,"16000 points extend participation growth");
+Check(BattlePayoutPolicy.Calculate(16000,0,49,false,true).Total==345600,"small battle multiplier is 0.8");
+Check(BattlePayoutPolicy.Calculate(32000,0,100,false,true).Participation==240000,"participation stops growing after 16000");
 var ledger=new BattleDamageLedger<object>();var target=new object();ledger.Track(target,100);
 Check(ledger.Hit(target,80,20)==80,"first attacker earns actual damage");
 Check(ledger.Hit(target,200,0)==20,"second attacker overkill capped at remainder");

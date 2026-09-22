@@ -1,3 +1,5 @@
+22.09: послебоевое ally_thanks_meet исправлено; повторная проверка очереди события перед LeaveSettlement закрывает воспроизведённую потерю города. Краш09:46 локализован в incident_hammer_of_the_sun (CurrentSettlement=null), точный callback постановки не доказан. Audit566/0, Contract494, Release0/0. См. BannerlordAutopilot/review/ALLY_THANKS_AND_INCIDENT_2026-09-22.md.
+
 Автопилот 22.09 08:37 +05: сборка 72d7cd5 УСТАНОВЛЕНА при закрытой игре. Сплочённость +10 за штатное влияние и проход army_dispersed; включает предыдущий фикс осадной расстановки. SHA256 DLL/PDB сверен, откат сохранён. 560/0, Contract494, Release0/0; живой повтор не проверен. Подробности BannerlordAutopilot/HANDOFF.md.
 
 21.09.2026: исправлена осадная расстановка автопилота ЛОКАЛЬНО: штатное авторазмещение → роли/расчёты → начало боя. BattleMission 77/0, AuditRegression 542/0, ContractCheck 493/0, Release 0/0. DLL/PDB D:/shedlink-build/siege-deployment-20260921/bin, НЕ установлены: владелец запретил закрывать игру. Живой повтор ожидается; review/SIEGE_DEPLOYMENT_2026-09-21.md.

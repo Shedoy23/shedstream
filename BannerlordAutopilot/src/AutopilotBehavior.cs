@@ -1666,6 +1666,9 @@ namespace BannerlordAutopilot
             for (int i = 0; options != null && i < options.Count; i++)
             {
                 if (!options[i].IsClickable) continue;
+                // Native ally gratitude opens while the encounter still points
+                // at defeated enemies. Introduction must precede combat routing.
+                if (options[i].Id == "ally_thanks_meet") { selected = i; break; }
                 if (options[i].Id == "liberate_hero_3") { selected = i; break; }
                 if (options[i].Id == "liberate_hero_7") selected = i;
             }
@@ -1676,7 +1679,7 @@ namespace BannerlordAutopilot
                 string id = options[selected].Id;
                 _nextLiberationDialogAt = Clock().AddSeconds(2);
                 conversation.DoOption(selected);
-                AutopilotLog.Write("ДИАЛОГ: освобождение героя, штатная реплика «" + id + "»");
+                AutopilotLog.Write("ДИАЛОГ: послебоевая встреча, штатная реплика «" + id + "»");
             }
             catch (Exception ex) { Disable("освобождение героя остановлено: " + ex.GetType().Name + ": " + ex.Message); }
             return true;
@@ -1731,6 +1734,10 @@ namespace BannerlordAutopilot
         /// true — выход наблюдается (партия вне поселения и встречи).</summary>
         private bool LeavePeacefulSettlement(MobileParty party, Settlement settlement)
         {
+            // A menu callback can enqueue an incident after PollState checked it.
+            // Recheck at the mutation boundary: native incident conditions still
+            // need CurrentSettlement on the next Campaign.Tick.
+            if (HoldExitForQueuedIncident(party, settlement)) return false;
             try
             {
                 if (party.CurrentSettlement == settlement)

@@ -290,6 +290,7 @@ internal static partial class Program
         });
         PrisonerTests();
         LootTests();
+        DonationTests();
 
         Console.WriteLine("\n[находка 2] наблюдение ничего не меняет");
         Try("F10 в поселении", () =>

@@ -14,6 +14,40 @@ internal static partial class Program {
   var vm=new SPInventoryVM(logic); var state=new InventoryState {InventoryLogic=logic,InventoryMode=mode};
   state.Handler=new SandBox.GauntletUI.GauntletInventoryScreen(vm); Game.Current.GameStateManager.ActiveState=state; return vm;
  }
+ static SPInventoryVM DonationScreen(int gold,float xp,int room,int mounts,int misc,int total) {
+  var vm=LootScreen(amount:total); var logic=((InventoryState)Game.Current.GameStateManager.ActiveState).InventoryLogic;
+  logic.XpGainFromDonations=xp; vm.SetPartyXpRoom(room); vm.Mounts=mounts; vm.Misc=misc;
+  TaleWorlds.CampaignSystem.Hero.MainHero.Gold=gold; return vm;
+ }
+ static void DonationTests() {
+  // Денег много, перки есть, отряду есть куда расти → снаряжение оставляем
+  // движку в опыт, забираем только коней и припасы.
+  Try("добыча в опыт: богаты — берём только коней и припасы",()=>{
+   var b=Surrender(); var vm=DonationScreen(gold:1_500_000,xp:900,room:1000,mounts:2,misc:3,total:10);
+   b.PollState(); b.PollState();
+   Check(vm.Taken("mounts")==2 && vm.Taken("misc")==3 && vm.Taken("none")==0 && vm.Closed==1,
+         "взято коней "+vm.Taken("mounts")+", припасов "+vm.Taken("misc")+", всего подряд "+vm.Taken("none"));
+  });
+  // Денег мало — старое поведение, забираем всё.
+  Try("добыча в опыт: денег мало — забираем всё",()=>{
+   var b=Surrender(); var vm=DonationScreen(gold:50_000,xp:900,room:1000,mounts:2,misc:3,total:10);
+   b.PollState(); b.PollState();
+   Check(vm.Taken("none")==10 && vm.Taken("mounts")==0,"взято подряд "+vm.Taken("none"));
+  });
+  // Перков нет: движок оценивает недобранное в 0 опыта — бросать добычу
+  // значит выкинуть её в никуда.
+  Try("добыча в опыт: без перков забираем всё",()=>{
+   var b=Surrender(); var vm=DonationScreen(gold:1_500_000,xp:0,room:1000,mounts:2,misc:3,total:10);
+   b.PollState(); b.PollState();
+   Check(vm.Taken("none")==10,"взято подряд "+vm.Taken("none"));
+  });
+  // Отряд упёрся в потолок: опыт сверх него сгорает, добычу надо забрать и продать.
+  Try("добыча в опыт: отряду некуда расти — забираем всё",()=>{
+   var b=Surrender(); var vm=DonationScreen(gold:1_500_000,xp:900,room:0,mounts:2,misc:3,total:10);
+   b.PollState(); b.PollState();
+   Check(vm.Taken("none")==10,"взято подряд "+vm.Taken("none"));
+  });
+ }
  static void LootTests() {
   Try("loot native close event",()=>{
    var b=Surrender();var vm=LootScreen();
@@ -50,6 +84,8 @@ namespace TaleWorlds.CampaignSystem.Inventory {
  public class InventoryLogic {
   public enum InventorySide {OtherInventory,PlayerInventory}
   public List<ItemRosterElement> Left=new(); public TaleWorlds.CampaignSystem.Roster.ItemRoster Right=TaleWorlds.CampaignSystem.Party.MobileParty.MainParty.ItemRoster; public bool IsTrading {get;set;} public int TotalAmount {get;set;}
+  // Движок считает это сам в экране добычи: опыт за то, что НЕ забрали.
+  public float XpGainFromDonations {get;set;}
   public IReadOnlyList<ItemRosterElement> GetElementsInRoster(InventorySide side)=>side==InventorySide.OtherInventory?Left:Right;
  }
 }
@@ -60,8 +96,21 @@ namespace TaleWorlds.CampaignSystem.ViewModelCollection.Inventory {
   private InventoryLogic _inventoryLogic;public SPInventoryVM(InventoryLogic logic){_inventoryLogic=logic;}
   public string LeftSearchText{get;set;}="filtered";private bool filtered=true;
   public int Capacity=100,Buys,Closed,Saved,ForeignAccepted;public bool ForeignQuery,LoseItems; public Action OnDone;
-  public void ExecuteFilterNone(){filtered=false;}
-  public void ExecuteBuyAllItems(){Buys++;if(filtered||LeftSearchText!="")return;var item=_inventoryLogic.Left[0].EquipmentElement;int total=_inventoryLogic.Left.Sum(x=>x.Amount);int n=Math.Min(Capacity,total);_inventoryLogic.Left.Clear();_inventoryLogic.Left.Add(new ItemRosterElement(default,total-n));if(!LoseItems)_inventoryLogic.Right.AddToCounts(item,n);}
+  // Ваниль: TransferAll пропускает отфильтрованное, поэтому «взять всё» под
+  // фильтром забирает только его категорию. Заглушка это и моделирует.
+  private string _filter="none"; public int Mounts,Misc;
+  public int Taken(string kind)=>_taken.TryGetValue(kind,out int v)?v:0;
+  private readonly Dictionary<string,int> _taken=new();
+  private int _donationMaxShareableXp=1000;
+  public void SetPartyXpRoom(int room){_donationMaxShareableXp=room;}
+  public void ExecuteFilterNone(){filtered=false;_filter="none";}
+  public void ExecuteFilterMounts(){filtered=false;_filter="mounts";}
+  public void ExecuteFilterMisc(){filtered=false;_filter="misc";}
+  public void ExecuteBuyAllItems(){Buys++;if(filtered||LeftSearchText!="")return;var item=_inventoryLogic.Left[0].EquipmentElement;int total=_inventoryLogic.Left.Sum(x=>x.Amount);
+   int want=_filter=="mounts"?Math.Min(Mounts,total):_filter=="misc"?Math.Min(Misc,total):total;
+   int n=Math.Min(Capacity,want); if(_filter=="mounts")Mounts-=n; if(_filter=="misc")Misc-=n;
+   _taken[_filter]=Taken(_filter)+n;
+   _inventoryLogic.Left.Clear();_inventoryLogic.Left.Add(new ItemRosterElement(default,total-n));if(!LoseItems)_inventoryLogic.Right.AddToCounts(item,n);}
   public void ExecuteCompleteTranstactions(){if(ForeignQuery)InformationManager.ShowInquiry(new InquiryData{IsAffirmativeOptionShown=true,AffirmativeAction=()=>ForeignAccepted++});else if(_inventoryLogic.Left.Sum(x=>x.Amount)>0)InformationManager.ShowInquiry(new InquiryData{IsAffirmativeOptionShown=true,AffirmativeAction=HandleDone});else HandleDone();}
   private void HandleDone(){Saved=_inventoryLogic.Right.Sum(x=>x.Amount);OnDone?.Invoke();Closed++;Game.Current.GameStateManager.PopState(0);}
  }

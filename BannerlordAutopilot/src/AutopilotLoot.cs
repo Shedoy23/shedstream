@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Reflection;
+using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Encounters;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.Core;
@@ -23,6 +24,47 @@ namespace BannerlordAutopilot
                 count = checked(count + Convert.ToInt32(ReadScreenMember(element, "Amount")));
             return count;
         }
+        /// <summary>Порог, с которого добыча интереснее как опыт отряда, чем как
+        /// деньги. Решение владельца 22.09: миллион динаров.</summary>
+        private const int LootDonationGoldThreshold = 1000000;
+
+        /// <summary>Стоит ли оставить снаряжение движку в опыт отряда.
+        ///
+        /// Оба числа берём У ИГРЫ, а не считаем сами: `XpGainFromDonations` —
+        /// её собственная оценка опыта за НЕдобранное (ноль, если нет перков
+        /// `Steward.GivingHands` / `Steward.PaidInPromise`), а
+        /// `_donationMaxShareableXp` — сколько отряд вообще способен принять
+        /// (сумма недостающего бойцам до апгрейдов). Опыт сверх потолка
+        /// сгорает, поэтому при нулевом потолке добычу надо ЗАБРАТЬ и продать.
+        /// Разбор механики: docs/BANNERLORD_TROOP_XP_2026-09-22.md.</summary>
+        private static bool ShouldDonateLoot(object vm, object logic, out string reason)
+        {
+            reason = null;
+            try
+            {
+                int gold = Hero.MainHero != null ? Hero.MainHero.Gold : 0;
+                if (gold < LootDonationGoldThreshold)
+                { reason = "денег " + gold + " < порога " + LootDonationGoldThreshold; return false; }
+
+                object xpValue = ReadScreenMember(logic, "XpGainFromDonations");
+                int xp = xpValue == null ? 0 : (int)Convert.ToSingle(xpValue);
+                if (xp <= 0)
+                { reason = "игра оценивает недобранное в 0 опыта — нет перков интенданта"; return false; }
+
+                var field = vm.GetType().GetField("_donationMaxShareableXp",
+                    BindingFlags.NonPublic | BindingFlags.Instance);
+                if (field == null)
+                { reason = "потолок опыта отряда недоступен"; return false; }
+                int room = Convert.ToInt32(field.GetValue(vm));
+                if (room <= 0)
+                { reason = "отряду некуда расти, опыт сгорит"; return false; }
+
+                reason = "опыта за недобранное " + xp + ", отряд примет " + Math.Min(xp, room);
+                return true;
+            }
+            catch (Exception ex) { reason = "проверка не удалась: " + ex.GetType().Name; return false; }
+        }
+
         private bool PollLootScreen()
         {
             if (_mode != Mode.Apply || _lootEncounter == null) return false;
@@ -52,8 +94,30 @@ namespace BannerlordAutopilot
                 _lootEncounter = null;
                 int beforeLeft = LootCount(logic, "OtherInventory"), beforeRight = LootCount(logic, "PlayerInventory");
                 vm.GetType().GetProperty("LeftSearchText").SetValue(vm, string.Empty);
-                vm.GetType().GetMethod("ExecuteFilterNone").Invoke(vm, null);
-                vm.GetType().GetMethod("ExecuteBuyAllItems").Invoke(vm, null);
+                string donateWhy;
+                bool donate = ShouldDonateLoot(vm, logic, out donateWhy);
+                if (donate)
+                {
+                    // Забираем только то, за что опыта не платят: коней и припасы.
+                    // Оружие и броня остаются движку — он превратит их в опыт
+                    // бойцов (75-300 за предмет по тиру). Фильтр обязателен:
+                    // ванильный TransferAll пропускает отфильтрованное.
+                    foreach (string filter in new[] { "ExecuteFilterMounts", "ExecuteFilterMisc" })
+                    {
+                        var apply = vm.GetType().GetMethod(filter);
+                        if (apply == null)
+                        { Disable("добыча: фильтр " + filter + " недоступен"); return true; }
+                        apply.Invoke(vm, null);
+                        vm.GetType().GetMethod("ExecuteBuyAllItems").Invoke(vm, null);
+                    }
+                    vm.GetType().GetMethod("ExecuteFilterNone").Invoke(vm, null);
+                    AutopilotLog.Write("ДОБЫЧА: снаряжение оставлено в опыт отряда (" + donateWhy + ")");
+                }
+                else
+                {
+                    vm.GetType().GetMethod("ExecuteFilterNone").Invoke(vm, null);
+                    vm.GetType().GetMethod("ExecuteBuyAllItems").Invoke(vm, null);
+                }
                 int left = LootCount(logic, "OtherInventory"), right = LootCount(logic, "PlayerInventory");
                 if (left > beforeLeft || right - beforeRight != beforeLeft - left || Convert.ToInt32(ReadScreenMember(logic, "TotalAmount")) != 0)
                 { Disable("добыча: перенос не подтвердился, повторять не буду"); return true; }
